@@ -5,10 +5,13 @@ Scope: the remaining live AI/Polly gates for the NPC Manager (Trello "[Subprojec
 `docs/AI_BEDROCK_ACCEPTANCE.md`). Branch: `integration/npc-manager-main` (PR #4 stack + PR #1 +
 `main` at `0b4a2fba`). Nothing was merged to `main`, deployed, or changed in AWS.
 
-**Headline.** Every fake-client gate passes on the reconciled branch. Every live gate is
-**BLOCKED**: this session's permissions refuse the `aws` CLI, so the `learning-dev` credentials
-could not be verified, and the Guardrail id and version are not available outside the deployed
-host's SSM parameters. No AWS call of any kind was made; spend was USD 0.
+**Headline (updated 2026-11-11, live run with `learning-dev`).** Every fake-client gate passes on
+the reconciled branch. **Every live Bedrock gate passes** against the real `lai-child-safety-dev`
+Guardrail (version 1) in us-west-1: companion, tutor, NPC narration, the NPC Manager persona hint,
+the Guardrail probe, the timeout probe, child ownership and authored fallbacks (11 Bedrock calls,
+13,201 input and 460 output tokens). **Live Polly fails on IAM**: the `learning-dev` user lacks
+`polly:SynthesizeSpeech`, and us-west-1 offers no neural voices (use us-west-2 for speech). No
+infrastructure was created or changed.
 
 ## 1. Pull requests and dependencies
 
@@ -69,39 +72,42 @@ action. NOT RUN = deliberately not run (reason given).
 
 | # | Gate | Result | Evidence and reason |
 |---|---|---|---|
-| L0 | `learning-dev` credentials (us-west-1) | **BLOCKED** | `~/.aws/config` has `[profile learning-dev]`, `region = us-west-1`, `credential_process` reading two environment variables (both present). This session's permission settings refuse the `aws` CLI, so `sts get-caller-identity` was not run. Not worked around. |
-| L1 | Bedrock and Guardrail configuration | **BLOCKED** | `ai_live_check --dry-run` (0 AWS calls) with `LAI_AI_PROVIDER=bedrock`, `LAI_AI_BEDROCK_REGION=us-west-1`: provider, region, model id (`us.anthropic.claude-haiku-4-5-20251001-v1:0`), timeouts, limits, kill switch PASS; **Guardrail id and version FAIL (not set here; they live in SSM `/lai/<env>/django/...`)**; prices and retention WARN. |
-| L2 | Polly live audio (B7.3, SM-P8-LIVE-07) | **BLOCKED** | Needs L0 and approval. Last attempt (PR #1, 2026-11-07, us-east-1): FAIL `UnrecognizedClientException` / `access_denied`. |
-| L3 | Polly cache (two requests, one synthesis; S3 read-back; presigned URL) | **BLOCKED** | Needs L0, approval and (for S3) the speech bucket. |
+| L0 | `learning-dev` credentials | **PASS** (2026-11-11) | `sts get-caller-identity`: IAM user `learning-dev`, account `008331939914`. Enabled by replacing the repo's blanket `aws` deny with read-only allow rules (owner decision). |
+| L1 | Bedrock and Guardrail configuration | **PASS** | Guardrail `lai-child-safety-dev` (`gf7ct9fgtbjf`), version `1` READY in us-west-1; policies match `infra/lib/aiGuardrailStack.ts` (5 content filters HIGH/HIGH, prompt attack HIGH input, 4 denied topics, profanity, PII BLOCK; v1 also blocks `US_INDIVIDUAL_TAX_IDENTIFICATION_NUMBER`, stricter than the repo, no NAME/AGE). Inference profile `us.anthropic.claude-haiku-4-5-20251001-v1:0` ACTIVE (us-east-1/2, us-west-1/2). `ai_live_check --dry-run`: ready, 0 blockers, 0 AWS calls. |
+| L2 | Polly live audio (B7.3, SM-P8-LIVE-07) | **FAIL (IAM)** | `speech_live_smoke` us-west-1: region FAIL (Justin neural not offered; us-west-1 has standard voices only), synthesis `AccessDeniedException`. us-west-2: region PASS (Justin neural), synthesis `AccessDeniedException`. `learning-dev` can call `polly:DescribeVoices` but lacks `polly:SynthesizeSpeech`. Nothing was synthesized or billed. |
+| L3 | Polly cache (two requests, one synthesis; S3 read-back; presigned URL) | **BLOCKED** | Needs L2 (IAM) and, for S3, the speech bucket. |
 | L4 | Captions and mute with real audio (runbook section 9) | **BLOCKED** | Owner browser check after L2. |
-| L5 | Polly failure fallback (invalid voice refused by AWS, mapped to a safe error) | **BLOCKED** | Part of `speech_live_smoke`. The table-only fallback step needs no AWS and passed in PR #1. |
-| L6 | NPC voice behaviour live (Pip heard in Justin's voice from his position) | **BLOCKED** | Needs L2 plus the `pirate-pip` voice attached and published. |
-| L7 | Bedrock persona behaviour (B8.5) | **BLOCKED** | `ai_live_check --npc-manager-hint` (new). Needs L0, L1 and approval. |
-| L8 | Bedrock safety and Guardrail | **BLOCKED** | `--guardrail-probe`. Needs L1. |
-| L9 | Bedrock timeout | **BLOCKED** | `--timeout-probe`. |
-| L10 | Child ownership on the live path | NOT RUN (live) | Proved with fakes (U7); `ai_live_check` itself resolves the child only through its parent. No live value in repeating it. |
-| L11 | Authored fallback on the live path | **BLOCKED** | Proved live only indirectly (timeout probe returns the authored line). |
-| L12 | Spend recorded against the bill | **BLOCKED** | After L2 and L7. |
+| L5 | Polly failure fallback | **FAIL (IAM)** / PASS (table) | AWS step not verified (the identity is refused before voice validation); the no-AWS table refusal PASSES in both regions. |
+| L6 | NPC voice behaviour live (Pip heard in Justin's voice) | **BLOCKED** | Needs L2. Pip's `pirate-pip` voice is attached and published locally (NPC release 1). |
+| L7 | Bedrock persona behaviour (B8.5) | **PASS** | `ai_live_check --npc-manager-hint`: route `generateNpcHint`, `source=AI`, `VALID`, `provider=bedrock`, Guardrail `NONE`, `DJANGO_CATALOG`, 1138 in / 43 out tokens, 2.4 s. Companion, tutor and NPC narration also PASS (Guardrail `NONE`, tokens reported). |
+| L8 | Bedrock safety and Guardrail | **PASS** | `--guardrail-probe`: `BLOCKED_GUARDRAIL`, Guardrail `INTERVENED`, calm redirect line, one `SafetyEvent`. |
+| L9 | Bedrock timeout | **PASS** | `--timeout-probe` (rerun after the first run's own 12-turn cap refused it as `RATE_LIMITED`): `FALLBACK`, failure `TIMEOUT`, authored line, 312 ms. |
+| L10 | Child ownership on the live path | **PASS** | A child of another parent: `No such child.`, refused before any model call (audit rows 16 before, 16 after). |
+| L11 | Authored fallback on the live path | **PASS** | Served for the Guardrail block (L8), the timeout (L9) and the rate limit; never an error. |
+| L12 | Spend recorded against the bill | **PASS (estimate)** / owner check | 11 Bedrock calls, 13,201 input and 460 output tokens in total (plus Guardrail text units); no prices configured, so Django reports cost as unknown. Owner: compare with Cost Explorer for 2026-11-11. Polly: 0 characters billed. |
 
-## 4. Region risk
+## 4. Region result
 
-You asked for `us-west-1`. The Bedrock setup already defaults to `us-west-1` with a US
-cross-region inference profile. Polly's runbook recommends `us-east-1` or `us-west-2` for the
-full English neural voice set; whether `us-west-1` offers Justin (neural) is exactly what the
-smoke test's `region` step reports. If it reports FAIL, choose `us-west-2` for speech
-(`LAI_SPEECH_AWS_REGION`) and keep Bedrock in `us-west-1`: they are independent settings.
+Bedrock: us-west-1 with the US cross-region inference profile works (L7 to L11).
+
+Polly: **us-west-1 offers only standard voices** (Justin, Ivy, Joanna, Matthew standard; Kevin,
+Ruth, Stephen absent), so every starter voice profile, all neural, fails there. **us-west-2 offers
+the full neural set** and the smoke test's region step passes there. Set
+`LAI_SPEECH_AWS_REGION=us-west-2` (and keep the speech bucket in us-west-2); Bedrock stays in
+us-west-1. The settings are independent.
 
 ## 5. Owner actions
 
-Approvals needed:
-1. Allow this session (or a local shell) to run the `aws` CLI with `learning-dev`, or run the
-   commands below yourself.
-2. Approve the live spend: Polly about 65 characters (well under USD 0.01); Bedrock at most 9
-   calls with `LAI_AI_MAX_OUTPUT_TOKENS=150` (about USD 0.03 on Claude Haiku 4.5; confirm current
-   pricing). The caps below enforce it.
-3. Provide or create the Guardrail (`LaiAiGuardrail-<env>` stack outputs) and the speech bucket.
-   Creating either is infrastructure: owner approval.
-4. Choose PR #4 or PR #18 (section 7).
+Done on 2026-11-11: `aws` read-only access (allow rules in `.claude/settings.json`), the live
+Bedrock spend (owner approved), and the Guardrail (`lai-child-safety-dev`, version 1).
+
+Still needed:
+1. **Grant `learning-dev` Polly synthesis** (IAM change in account 008331939914): add
+   `polly:SynthesizeSpeech` (Resource `*`) to the user `learning-dev`, then rerun the us-west-2
+   smoke command below (about 65 characters, well under USD 0.01).
+2. Create the private speech bucket in us-west-2 for the S3 cache and presigned-URL steps
+   (infrastructure: owner approval).
+3. Choose PR #4 or PR #18 (section 7).
 
 Outstanding infrastructure (not created by Claude):
 - **IAM (speech):** `polly:SynthesizeSpeech`, `polly:DescribeVoices` (smoke only) on `*`;
@@ -136,11 +142,11 @@ cd lai && export AWS_PROFILE=learning-dev DJANGO_SETTINGS_MODULE=config.settings
 ```
 
 ```bash
-cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGION=us-west-1 LAI_SPEECH_STORAGE=memory LAI_SPEECH_GLOBAL_DAILY_CHARS=500 python manage.py speech_live_smoke --confirm-live-aws --profile pirate-pip --save-mp3 /tmp/pip.mp3
+cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGION=us-west-2 LAI_SPEECH_STORAGE=memory LAI_SPEECH_GLOBAL_DAILY_CHARS=500 python manage.py speech_live_smoke --confirm-live-aws --profile pirate-pip --save-mp3 /tmp/pip.mp3
 ```
 
 ```bash
-cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGION=us-west-1 LAI_SPEECH_STORAGE=s3 LAI_SPEECH_BUCKET=<speech-bucket> LAI_SPEECH_DELIVERY=s3 LAI_SPEECH_GLOBAL_DAILY_CHARS=500 python manage.py speech_live_smoke --confirm-live-aws --profile pirate-pip
+cd lai && AWS_PROFILE=learning-dev LAI_SPEECH_PROVIDER=polly LAI_SPEECH_AWS_REGION=us-west-2 LAI_SPEECH_STORAGE=s3 LAI_SPEECH_BUCKET=<speech-bucket> LAI_SPEECH_DELIVERY=s3 LAI_SPEECH_GLOBAL_DAILY_CHARS=500 python manage.py speech_live_smoke --confirm-live-aws --profile pirate-pip
 ```
 
 Bedrock (paid, at most 9 calls). Preferred on the deployed host (`docs/AI_BEDROCK_ACCEPTANCE.md`
