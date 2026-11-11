@@ -261,7 +261,7 @@ def _child_fields(item) -> tuple[dict, str]:
         if isinstance(interests, list)
         else interests,
         "readingMode": item.get("readingMode"),
-        # Amplify's `sessionMinutes` is not imported: the play-time limit is retired.
+        # Amplify's `sessionMinutes` is not imported: there is no play-time limit (ADR-053).
         "active": item.get("active") is not False,
         "aiEnabled": item.get("aiEnabled") is not False,
     }

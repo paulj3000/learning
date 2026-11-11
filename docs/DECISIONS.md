@@ -3876,11 +3876,12 @@ stop, count down, or nudge a child off the island for elapsed play time.
   `copy.calmStop` hook and the `limitReached` extension prop are deleted.
 - Parents no longer see or set a session length (profile form and dashboard row removed), so no
   stale setting claims enforcement.
-- Django retires `session_minutes` without a destructive migration: the column and its per-band
-  check constraint stay, `ChildProfile.full_clean` fills an in-range value silently, the API no
-  longer returns `sessionMinutes` (profile, game runtime launch, native home `restrictions`), and
-  a request that still sends it is accepted and the value ignored. Amplify builds write the
-  band's lowest value on create only because the deployed schema requires the field.
+- Django drops `ChildProfile.session_minutes` and its per-band check constraint (migration
+  `users.0007_remove_childprofile_session_minutes`, owner-approved 2026-11-11). The API no longer
+  returns `sessionMinutes` (profile, game runtime launch, native home `restrictions`), and the
+  closed request bodies refuse it like any unknown field. The Amplify import ignores it. Amplify
+  builds still write the band's lowest value on create, only because the deployed Amplify schema
+  requires the field; removing it there is an Amplify resource change for separate approval.
 - Legacy region content may still carry `scene.copy.calmStop`; the authoring kinds still accept
   it and the client ignores it.
 - Unchanged: Cognito authentication, token expiry and refresh, game-session cookie expiry
@@ -3888,5 +3889,5 @@ stop, count down, or nudge a child off the island for elapsed play time.
   usage records (completed sessions, progress).
 
 **Consequences.** CLAUDE.md section 11 item 11 and the threat model's engagement entry are
-updated. A native client that required `sessionMinutes` in a response must treat it as absent.
-Dropping the column is left to a later, approved migration.
+updated. The migration is not reversible with data: rolling it back re-adds a required column
+with no value for existing rows.

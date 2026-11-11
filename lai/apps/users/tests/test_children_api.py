@@ -208,29 +208,22 @@ def test_a_child_is_created_without_any_session_length(families, api):
     response = post(api(families.a), CHILDREN, NEW)
     assert response.status_code == 201, response.json()
     assert "sessionMinutes" not in response.json()
-    created = ChildProfile.objects.get(pk=response.json()["id"])
-    assert 5 <= created.session_minutes <= 8  # the retired column stays valid on its own
 
 
-def test_a_legacy_session_length_is_accepted_and_ignored(families, api):
-    """A client built before the change still sends it; it never fails a save or sets a limit."""
-    created = post(api(families.a), CHILDREN, {**NEW, "sessionMinutes": 99})
-    assert created.status_code == 201, created.json()
-    child_id = created.json()["id"]
-    assert ChildProfile.objects.get(pk=child_id).session_minutes == 5
-    edited = patch(api(families.a), f"{CHILDREN}{child_id}/", {"nickname": "B", "sessionMinutes": 1})
-    assert edited.status_code == 200 and "sessionMinutes" not in edited.json()
-    assert ChildProfile.objects.get(pk=child_id).session_minutes == 5
-    # On its own it is not a change at all.
-    alone = patch(api(families.a), f"{CHILDREN}{child_id}/", {"sessionMinutes": 7})
-    assert alone.status_code == 400
+def test_a_session_length_is_not_a_setting_any_more(families, api):
+    """ADR-053: there is no play-time limit, so the closed request bodies refuse the old field."""
+    created = post(api(families.a), CHILDREN, {**NEW, "sessionMinutes": 6})
+    assert created.status_code == 400
+    assert "sessionMinutes" in created.json()["error"]["details"]
+    edited = patch(api(families.a), detail(families.a1), {"sessionMinutes": 7})
+    assert edited.status_code == 400
 
 
 def test_changing_the_age_band_never_needs_a_session_length(families, api):
     response = patch(api(families.a), detail(families.a1), {"ageBand": "SPROUT"})
     assert response.status_code == 200, response.json()
     families.a1.refresh_from_db()
-    assert families.a1.age_band == "SPROUT" and 5 <= families.a1.session_minutes <= 8
+    assert families.a1.age_band == "SPROUT"
 
 
 def test_an_update_cannot_move_a_child_or_touch_server_fields(families, api):

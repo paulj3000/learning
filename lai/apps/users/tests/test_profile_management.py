@@ -154,13 +154,12 @@ def test_hard_deletion_works_after_a_recent_sign_in(signed_in):
     assert not ChildProfile.objects.filter(pk=child_id, parent=account).exists()
 
 
-def test_there_is_no_session_length_setting_to_validate(signed_in):
-    """The play-time limit is retired: a legacy value is ignored, never a validation error."""
+def test_there_is_no_session_length_setting(signed_in):
+    """ADR-053: the play-time limit is gone; the old field is refused like any unknown field."""
     client, _ = signed_in
     child_id = client.post(CHILDREN, NEW_CHILD).json()["id"]
     edited = client.patch(detail(child_id), {"nickname": "Marigold", "sessionMinutes": 30})
-    assert edited.status_code == 200 and "sessionMinutes" not in edited.json()
-    assert ChildProfile.objects.get(pk=child_id).session_minutes == 5
+    assert edited.status_code == 400 and "sessionMinutes" in edited.json()["error"]["details"]
 
 
 def test_another_familys_child_is_hidden(signed_in, families):

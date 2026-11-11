@@ -19,7 +19,6 @@ VALID = {
     "age_band": "PATHFINDER",
     "avatar_key": "FOX",
     "reading_mode": "READ_ALONG",
-    "session_minutes": 10,
     "interests": ["Animals", "Space"],
 }
 
@@ -129,7 +128,8 @@ def test_child_profile_is_created_with_the_amplify_fields(parent_a):
     kid.refresh_from_db()
     assert kid.parent_id == parent_a.pk
     assert (kid.nickname, kid.age_band, kid.avatar_key) == ("Pip", "PATHFINDER", "FOX")
-    assert kid.reading_mode == "READ_ALONG" and kid.session_minutes == 10
+    assert kid.reading_mode == "READ_ALONG"
+    assert not hasattr(kid, "session_minutes")  # ADR-053: no play-time limit is stored
     assert kid.interests == ["Animals", "Space"] and kid.avatar_photo_key == ""
     assert kid.active is True and kid.ai_enabled is True
 
@@ -188,8 +188,6 @@ def test_invalid_profiles_are_rejected_by_validation(parent_a, overrides, field)
         {"nickname": "  "},
         {"age_band": "TEEN"},
         {"reading_mode": "SHOUTING"},
-        {"age_band": "SPROUT", "session_minutes": 9},
-        {"age_band": "EXPLORER", "session_minutes": 9},
     ],
 )
 def test_database_constraints_hold_even_when_validation_is_bypassed(parent_a, overrides):
@@ -198,31 +196,12 @@ def test_database_constraints_hold_even_when_validation_is_bypassed(parent_a, ov
         ChildProfile.objects.bulk_create([ChildProfile(parent=parent_a, **values)])
 
 
-@pytest.mark.parametrize(
-    "overrides",
-    [
-        {"age_band": "SPROUT", "session_minutes": 9},
-        {"age_band": "SPROUT", "session_minutes": 4},
-        {"age_band": "PATHFINDER", "session_minutes": 13},
-        {"age_band": "EXPLORER", "session_minutes": 9},
-        {"age_band": "EXPLORER", "session_minutes": None},
-    ],
-)
-def test_the_retired_session_length_never_fails_validation(parent_a, overrides):
-    """There is no play-time limit any more: the column is filled to fit the band, silently."""
-    created = child(parent_a, **overrides)
-    low = {"SPROUT": 5, "PATHFINDER": 8, "EXPLORER": 10}[overrides["age_band"]]
-    assert created.session_minutes == low
-
-
-def test_every_age_band_accepts_its_boundaries(parent_a):
-    bands = {"SPROUT": (5, 8), "PATHFINDER": (8, 12), "EXPLORER": (10, 18)}
-    for band, (low, high) in bands.items():
-        for minutes in (low, high):
-            ChildProfile.objects.create(
-                parent=parent_a, **{**VALID, "age_band": band, "session_minutes": minutes}
-            )
-    assert ChildProfile.objects.count() == 6
+def test_every_age_band_is_accepted_with_no_session_length(parent_a):
+    for band in ("SPROUT", "PATHFINDER", "EXPLORER"):
+        ChildProfile.objects.create(parent=parent_a, **{**VALID, "age_band": band})
+    assert ChildProfile.objects.count() == 3
+    columns = [f.column for f in ChildProfile._meta.concrete_fields]
+    assert "session_minutes" not in columns
 
 
 def test_a_child_cannot_exist_without_a_parent():

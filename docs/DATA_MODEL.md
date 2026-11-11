@@ -631,7 +631,7 @@ authoritative for the Amplify schema until cutover.
 | `ChildProfile.ownerSub` | dropped | Ownership is the foreign key |
 | `nickname` | `nickname` (1 to 30, not blank) | |
 | `ageBand`, `readingMode` | `age_band`, `reading_mode` (choices plus DB check) | |
-| `sessionMinutes` | `session_minutes` | Retired (ADR-053): never accepted from a request, returned or enforced; `full_clean` fills it to satisfy the kept per-band DB check (5-8, 8-12, 10-18) |
+| `sessionMinutes` | dropped | ADR-053: no play-time limit. Column and per-band check removed by `users.0007`; the API refuses the field |
 | `avatarKey`, `avatarPhotoKey` | `avatar_key`, `avatar_photo_key` | Photo path null becomes `""` |
 | `interests` | `interests` (array, up to 5) | |
 | `active`, `aiEnabled` | `active`, `ai_enabled` | |

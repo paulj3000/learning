@@ -17,7 +17,7 @@ export const AGE_BAND_OPTIONS = (Object.keys(AGE_BAND_LABELS) as AgeBandValue[])
  * Retired per-visit session length (LAI card "Remove child gameplay time limits"). Children have
  * no play-time limit, countdown or forced stop, and parents no longer set one. The value exists
  * only because the deployed Amplify `ChildProfile.sessionMinutes` field is still required; it is
- * written on create and never read. Django stores its own retired value server-side.
+ * written on create and never read. Django has no such column (ADR-053).
  */
 export const RETIRED_SESSION_MINUTES: Record<AgeBandValue, number> = {
   SPROUT: 5,

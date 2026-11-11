@@ -133,8 +133,8 @@ Allowed values come from `react/src/features/child-profile/constants.ts`:
 - `avatarKey`: `FOX`, `OWL`, `OTTER`, `DRAGON`, `ROBOT`, `MERMAID`.
 - `interests`: up to 5 different values from Animals, Space, Dinosaurs, Ocean, Vehicles, Art,
   Music, Cooking, Sports, Nature, Robots, Fantasy.
-- There is no `sessionMinutes` (ADR-053: no play-time limits). The profile no longer returns it;
-  a request that still sends it is accepted and the value ignored.
+- There is no `sessionMinutes` (ADR-053: no play-time limits); a request that sends it is
+  refused as an unknown field.
 
 The photo's storage path is never returned (`hasPhoto` only). The photo itself has its own
 routes, below.

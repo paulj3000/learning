@@ -61,9 +61,6 @@ class ChildProfileWrite(serializers.Serializer):
         required=False,
     )
     readingMode = serializers.ChoiceField(choices=ReadingMode.values)
-    # Retired: there is no play-time limit. Still accepted so a client built before the change
-    # keeps working, but any value is ignored (`model_fields` drops it) and never validated.
-    sessionMinutes = serializers.JSONField(required=False, write_only=True)
     active = serializers.BooleanField(required=False)
     aiEnabled = serializers.BooleanField(required=False)
 
@@ -79,16 +76,12 @@ class ChildProfileWrite(serializers.Serializer):
                 {name: ["This field is not accepted."] for name in sorted(unknown)},
                 code="unknown_field",
             )
-        if self.partial and not set(attrs) & set(WRITABLE_FIELDS):
+        if self.partial and not attrs:
             raise serializers.ValidationError("Change at least one field.", code="empty")
         return attrs
 
     def model_fields(self) -> dict:
-        return {
-            WRITABLE_FIELDS[key]: value
-            for key, value in self.validated_data.items()
-            if key in WRITABLE_FIELDS
-        }
+        return {WRITABLE_FIELDS[key]: value for key, value in self.validated_data.items()}
 
 
 def model_errors(
