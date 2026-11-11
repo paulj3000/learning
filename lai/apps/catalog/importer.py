@@ -32,6 +32,7 @@ from django.db import connection, transaction
 from apps.catalog.models import (
     Adventure,
     AdventureStep,
+    AssetOrigin,
     CollectibleSet,
     ContentAsset,
     ContentAuthority,
@@ -713,6 +714,23 @@ def _apply(plan: Plan, release: ContentRelease, conflicts: list[str]) -> dict[st
     return counts
 
 
+def _refuse_django_owned_npcs(plan: Plan) -> None:
+    """An export NPC id that a Django-authored NPC already owns fails the import (ADR-054).
+
+    Without this the import would overwrite a staff-authored character or claim it as its own.
+    """
+    keys = [r["key"] for r in plan.npcs]
+    owned = sorted(
+        NpcDefinition.objects.filter(npc_id__in=keys, origin=AssetOrigin.DJANGO).values_list(
+            "npc_id", flat=True
+        )
+    )
+    if owned:
+        raise ContentImportError(
+            [f"npc {npc_id!r} is a Django-authored NPC; rename one of them" for npc_id in owned]
+        )
+
+
 def import_content(
     directory: Path = DEFAULT_EXPORT_DIR, *, dry_run: bool = False, force: bool = False
 ) -> ImportReport:
@@ -740,6 +758,7 @@ def import_content(
             files=bundle.files,
             report={},
         )
+        _refuse_django_owned_npcs(plan)
         report.counts = _apply(plan, release, report.conflicts)
         release.report = {**report.as_dict(), "schema_validated": bundle.schema_validated}
         release.save(update_fields=["report"])

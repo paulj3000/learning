@@ -3,6 +3,7 @@ import { ApiError, isApiError } from '../../api/errors';
 import { playApiFor, type PlayApi } from '../../api/play/playApi';
 import type { JsonObject } from '../../api/parse';
 import type { AnswerSubmission, PuzzleOutcome, SessionAction } from '../../api/play/types';
+import type { PlayOutcome } from '../npc-manager/dialogue/triggers';
 import {
   initialRegionPlayState,
   regionPlayReducer,
@@ -36,6 +37,12 @@ export interface UseRegionPlayOptions {
   /** For tests and future callers; defaults to the configured Django API. */
   createApi?: (childId: string) => PlayApi;
   onUnauthenticated?: () => void;
+  /**
+   * Every play API outcome this hook receives for the current child and region, as it arrives
+   * (LAI-NPC-016: NPC triggers and reactions). Observation only: it cannot change what the hook
+   * sends or stores, so rewards and progress stay exactly as the server said.
+   */
+  onOutcome?: (outcome: PlayOutcome) => void;
 }
 
 export interface RegionPlayControls {
@@ -68,7 +75,7 @@ export function useRegionPlay(
   regionId: string,
   options: UseRegionPlayOptions = {},
 ): RegionPlayControls {
-  const { createApi = playApiFor, onUnauthenticated } = options;
+  const { createApi = playApiFor, onUnauthenticated, onOutcome } = options;
   const scope = scopeKey(childId, regionId);
   const [state, dispatch] = useReducer(regionPlayReducer, scope, initialRegionPlayState);
   const api = useMemo(() => createApi(childId), [createApi, childId]);
@@ -79,10 +86,21 @@ export function useRegionPlay(
   // Read by event handlers, which run after commit; synced in an effect, not during render.
   const stateRef = useRef(state);
   const onUnauthenticatedRef = useRef(onUnauthenticated);
+  const onOutcomeRef = useRef(onOutcome);
   useEffect(() => {
     stateRef.current = state;
     onUnauthenticatedRef.current = onUnauthenticated;
+    onOutcomeRef.current = onOutcome;
   });
+  /** Reports an outcome for the scope it was asked in; one for an older scope is dropped. */
+  const report = useCallback((at: string, outcome: PlayOutcome) => {
+    if (at !== scopeRef.current) return;
+    try {
+      onOutcomeRef.current?.(outcome);
+    } catch {
+      // An observer never breaks play.
+    }
+  }, []);
 
   const reload = useCallback(
     async (forScope: string) => {
@@ -143,7 +161,18 @@ export function useRegionPlay(
     dispatch({ scope, type: 'reset' });
     dispatch({ scope, type: 'started', action: 'load' });
     api.getRegion(regionId, controller.signal).then(
-      (bootstrap) => dispatch({ scope, type: 'loaded', bootstrap }),
+      (bootstrap) => {
+        dispatch({ scope, type: 'loaded', bootstrap });
+        // Entering with the session still open is a resume, exactly as a start that returned
+        // the existing session (`created: false`) would be; no start call is made in that case,
+        // so observers would otherwise never hear of the return visit (QA-D3).
+        if (bootstrap.session) {
+          report(scope, {
+            kind: 'session_upserted',
+            result: { value: bootstrap.session, created: false },
+          });
+        }
+      },
       (caught: unknown) => {
         const error = isApiError(caught) ? caught : new ApiError('invalid_response');
         if (error.kind === 'aborted' || controller.signal.aborted) return;
@@ -152,19 +181,22 @@ export function useRegionPlay(
       },
     );
     return () => controller.abort();
-  }, [api, regionId, scope]);
+  }, [api, regionId, scope, report]);
 
   const startSession = useCallback(async () => {
     const startedScope = scopeRef.current;
     const result = await run(
       'startSession',
       (signal) => api.startSession(regionId, signal),
-      (started, at) => [{ scope: at, type: 'sessionChanged', session: started.value }],
+      (started, at) => {
+        report(at, { kind: 'session_upserted', result: started });
+        return [{ scope: at, type: 'sessionChanged', session: started.value }];
+      },
     );
     // A new visit pins the content it starts with (LAI-0813): read it back, so what the child
     // sees is exactly what the server grades against.
     if (result?.created) await reload(startedScope);
-  }, [api, regionId, run, reload]);
+  }, [api, regionId, run, reload, report]);
 
   const changeSession = useCallback(
     async (action: SessionAction) => {
@@ -173,10 +205,13 @@ export function useRegionPlay(
       await run(
         'changeSession',
         (signal) => api.changeSession(session.sessionId, action, signal),
-        (updated, at) => [{ scope: at, type: 'sessionChanged', session: updated }],
+        (updated, at) => {
+          report(at, { kind: 'session_changed', session: updated });
+          return [{ scope: at, type: 'sessionChanged', session: updated }];
+        },
       );
     },
-    [api, run],
+    [api, run, report],
   );
 
   const acceptQuest = useCallback(
@@ -197,10 +232,13 @@ export function useRegionPlay(
       await run(
         'requestChallenge',
         (signal) => api.requestChestChallenge(session.sessionId, chestEntityId, signal),
-        (result, at) => [{ scope: at, type: 'challengeIssued', challenge: result.value }],
+        (result, at) => {
+          report(at, { kind: 'challenge_issued', result });
+          return [{ scope: at, type: 'challengeIssued', challenge: result.value }];
+        },
       );
     },
-    [api, run],
+    [api, run, report],
   );
 
   const submitAnswer = useCallback(
@@ -211,11 +249,14 @@ export function useRegionPlay(
       const outcome = await run(
         'submitAnswer',
         (signal) => api.submitAnswer(challenge.attemptId, submission, signal),
-        (result, at) => [{ scope: at, type: 'answerAccepted', outcome: result }],
+        (result, at) => {
+          report(at, { kind: 'answer', outcome: result });
+          return [{ scope: at, type: 'answerAccepted', outcome: result }];
+        },
       );
       if (outcome) await reload(startedScope);
     },
-    [api, run, reload],
+    [api, run, reload, report],
   );
 
   const solvePuzzle = useCallback(
@@ -242,11 +283,14 @@ export function useRegionPlay(
       const result = await run(
         'collectPickup',
         (signal) => api.collectPickup(session.sessionId, entityId, signal),
-        (picked, at) => [{ scope: at, type: 'pickedUp', outcome: picked.value }],
+        (picked, at) => {
+          report(at, { kind: 'pickup', outcome: picked.value });
+          return [{ scope: at, type: 'pickedUp', outcome: picked.value }];
+        },
       );
       if (result) await reload(startedScope);
     },
-    [api, run, reload],
+    [api, run, reload, report],
   );
 
   const talkToNpc = useCallback(
@@ -257,13 +301,16 @@ export function useRegionPlay(
       const result = await run(
         'talkToNpc',
         (signal) => api.talkToNpc(session.sessionId, entityId, signal),
-        (outcome, at) => [{ scope: at, type: 'talked', outcome }],
+        (outcome, at) => {
+          report(at, { kind: 'talk', outcome });
+          return [{ scope: at, type: 'talked', outcome }];
+        },
         // Talking never blocks: Pip's dialogue is usable while it is on its way.
         { exclusive: false },
       );
       if (result && result.questUpdates.length > 0) await reload(startedScope);
     },
-    [api, run, reload],
+    [api, run, reload, report],
   );
 
   const refresh = useCallback(async () => {

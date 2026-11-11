@@ -20,6 +20,30 @@ export interface E2EProbe {
   standFacing(entityId: string, distance?: number): boolean;
   /** Stands the player at a point facing `yaw` (forward is (sin yaw, cos yaw)); walls still hold. */
   standAt(x: number, z: number, yaw: number): void;
+  /**
+   * Every NPC Manager root in the scene (`npc:<placementKey>`), with what the runtime reports
+   * about it (`NPC_DIAGNOSTICS` in features/npc-manager/engine/createNpcRuntime.ts).
+   */
+  npcs(): E2ENpc[];
+  /** Tilts the view (radians, negative looks down), as dragging to look would. */
+  look(pitch: number): void;
+  /** Whether a manifest entity is drawn (false while the NPC Manager has taken it over). */
+  entityVisible(entityId: string): boolean | null;
+}
+
+export interface E2ENpc {
+  placementKey: string;
+  npcId: string | null;
+  x: number;
+  z: number;
+  yaw: number;
+  visible: boolean;
+  placeholder: boolean | null;
+  animation: {
+    base: string;
+    overlay: { state: string; priority: number; mode: string } | null;
+    clip: string | null;
+  } | null;
 }
 
 export interface E2EProbeTarget {
@@ -38,6 +62,18 @@ interface E2EProbeDeps {
   targets: readonly E2EProbeTarget[];
   walkable: (x: number, z: number) => boolean;
   focused: () => string | null;
+  /** The scene graph, searched for NPC Manager roots. */
+  scene?: Object3D;
+}
+
+const NPC_ROOT = /^npc:/;
+const NPC_DIAGNOSTICS = 'npcDiagnostics';
+
+function drawn(object: Object3D): boolean {
+  for (let node: Object3D | null = object; node; node = node.parent) {
+    if (!node.visible) return false;
+  }
+  return true;
 }
 
 declare global {
@@ -89,6 +125,39 @@ export function installE2EProbe(deps: E2EProbeDeps): () => void {
       deps.controller.position.set(x, 0, z);
       deps.controller.yaw = yaw;
       deps.controller.pitch = 0;
+    },
+    npcs() {
+      const found: E2ENpc[] = [];
+      deps.scene?.traverse((node) => {
+        if (!NPC_ROOT.test(node.name)) return;
+        node.getWorldPosition(where);
+        const read = node.userData[NPC_DIAGNOSTICS] as
+          | (() => {
+              npcId: string;
+              placeholder: boolean;
+              animation: E2ENpc['animation'];
+            })
+          | undefined;
+        const diagnostics = typeof read === 'function' ? read() : null;
+        found.push({
+          placementKey: node.name.slice(4),
+          npcId: diagnostics?.npcId ?? null,
+          x: where.x,
+          z: where.z,
+          yaw: node.rotation.y,
+          visible: drawn(node),
+          placeholder: diagnostics?.placeholder ?? null,
+          animation: diagnostics?.animation ?? null,
+        });
+      });
+      return found;
+    },
+    look(pitch) {
+      deps.controller.pitch = pitch;
+    },
+    entityVisible(entityId) {
+      const target = deps.targets.find((candidate) => candidate.entityId === entityId);
+      return target ? drawn(target.root) : null;
     },
   };
   window.__laiE2E = probe;

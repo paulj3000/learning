@@ -87,6 +87,23 @@ export const CUE_SOUNDS: Readonly<Record<SoundCue, readonly string[]>> = {
   answerRight: [TR_SOUND.learningCorrect],
   answerRetry: [TR_SOUND.learningRetry],
   questComplete: [TR_SOUND.questComplete],
+  // NPC moments have no built-in sound: staff assign one per NPC (`NPC_CUE_EVENTS`).
+  npcGreet: [],
+  npcInteract: [],
+  npcTalk: [],
+  npcLeave: [],
+};
+
+/**
+ * LAI-NPC-015: which Sound Manager NPC event (Django `audio` `TargetType.NPC`) each NPC moment
+ * is. The sound is whatever staff assigned to that NPC and event in the region's published audio
+ * manifest; with no assignment the moment is silent (the dialogue's voice and captions remain).
+ */
+export const NPC_CUE_EVENTS: Readonly<Partial<Record<SoundCue, string>>> = {
+  npcGreet: 'on_approach',
+  npcInteract: 'on_interact',
+  npcTalk: 'on_dialogue_start',
+  npcLeave: 'on_exit',
 };
 
 export type MusicState = 'explore' | 'puzzle' | 'victory';

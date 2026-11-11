@@ -147,3 +147,22 @@
 .stageControls > * {
   pointer-events: auto;
 }
+
+/*
+  A character's unprompted line (NPC Manager F-B): top centre of the stage, below the quest cue
+  and exit link, clear of the reticle's action prompt at the centre and of the HUD column.
+*/
+.stageSpeech {
+  position: absolute;
+  top: calc(var(--space-3) + 3.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(34rem, calc(100% - 2 * var(--space-3)));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.stageSpeech > * {
+  pointer-events: auto;
+}

@@ -28,6 +28,7 @@ import {
   tryParseRegionPlayConfig,
   type RegionPlayChestConfig,
 } from '../../../../region-play/regionPlayConfig';
+import type { NpcHostScene } from '../../../../npc-manager/host/types';
 import { buildFireflies, shimmerWater } from './livingCove';
 import { buildProceduralScenery } from './proceduralScenery';
 
@@ -61,6 +62,11 @@ import { buildProceduralScenery } from './proceduralScenery';
  *   `Talk` and `Wave` clips, or a bounce for a placeholder figure).
  * - **Rune stones (TR-16).** A stone sinks when touched and the stones flash green or orange
  *   with the server's verdict. Presentation only.
+ * - **NPC Manager (LAI-NPC-010).** `npcHostScene` gives the NPC scene host the scene, the frame
+ *   loop, the child's position and the colliders. `setNpcProxy` hides a manifest NPC the NPC
+ *   Manager now draws (Pip) and keeps its root, invisible, on the managed NPC: focus, the label,
+ *   tapping and the "Things to do here" list still reach it, and the companion turns that into
+ *   the managed conversation. So there is always exactly one Pip on screen.
  *
  * It decides nothing and records nothing. Focus, labels, and interaction
  * stay with the runtime, which owns these entities' roots.
@@ -108,6 +114,17 @@ export interface RegionPlaySceneApi {
   listenerSource(): { matrixWorld: { elements: ArrayLike<number> } };
   /** SM-P7: runs `callback` on every rendered frame; returns the stop function. */
   onFrame(callback: (deltaSeconds: number) => void): () => void;
+  /** LAI-NPC-010: where managed NPCs live in this scene, for the NPC scene host. */
+  npcHostScene?(): NpcHostScene;
+  /**
+   * LAI-NPC-010: hand a manifest NPC over to the NPC Manager. With `follow`, its model is hidden
+   * and its (still focusable) root follows the managed NPC every frame; with null it is shown
+   * again where the manifest put it. Idempotent. (Optional, like every LAI-NPC-010 member: a
+   * stubbed or older scene without them simply keeps its own NPCs.)
+   */
+  setNpcProxy?(entityId: string, follow: (() => { x: number; z: number } | null) | null): void;
+  /** LAI-NPC-010: whether a manifest NPC is handed over (hidden). */
+  isNpcProxied?(entityId: string): boolean;
 }
 
 /** SM-P7: reads an object's world position, and reports false once it has left the scene. */
@@ -413,7 +430,24 @@ export const regionPlaySceneExtension: WorldExtension = {
       }
     };
 
+    // LAI-NPC-010: manifest NPCs the NPC Manager draws instead; their roots follow it.
+    const proxies = new Map<
+      string,
+      { follow: () => { x: number; z: number } | null; home: { x: number; z: number } }
+    >();
+    const followProxies = () => {
+      for (const [entityId, proxy] of proxies) {
+        const root = context.entityRoot(entityId);
+        const at = proxy.follow();
+        if (root && at) {
+          root.position.x = at.x;
+          root.position.z = at.z;
+        }
+      }
+    };
+
     const stopFrames = context.onFrame((delta) => {
+      followProxies();
       for (const mixer of mixers) mixer.update(delta);
       for (const chest of chests.values()) chest.tick(delta);
       if (!still) {
@@ -509,6 +543,34 @@ export const regionPlaySceneExtension: WorldExtension = {
       },
       listenerSource: () => context.camera,
       onFrame: (callback) => context.onFrame(callback),
+      npcHostScene: () => ({
+        parent: context.scene,
+        onFrame: (callback) => context.onFrame(callback),
+        playerPose: () => ({ x: context.camera.position.x, z: context.camera.position.z }),
+        isBlocked: (x, z) => context.isBlocked(x, z),
+      }),
+      setNpcProxy(entityId, follow) {
+        const root = context.entityRoot(entityId);
+        if (!root) return;
+        const current = proxies.get(entityId);
+        if (follow) {
+          proxies.set(entityId, {
+            follow,
+            home: current?.home ?? { x: root.position.x, z: root.position.z },
+          });
+          // Hidden, not removed: the runtime's raycast still finds the root, so focus and
+          // interaction keep working on the managed NPC's spot.
+          root.visible = false;
+          followProxies();
+          return;
+        }
+        if (!current) return;
+        proxies.delete(entityId);
+        root.visible = true;
+        root.position.x = current.home.x;
+        root.position.z = current.home.z;
+      },
+      isNpcProxied: (entityId) => proxies.has(entityId),
       setRuneNumbers(numbers) {
         for (const [entityId, rune] of runes) {
           const number = numbers?.get(entityId);
