@@ -293,7 +293,8 @@ different step, which is **F-C**:
 accept and the finale, where the managed Pip answers the child's tap after the finale panel) and
 `question-studio.spec.ts` now follow the managed Pip's flow. Final desktop rerun: **59 passed,
 0 failed, 1 skipped** (the `@tablet` touch-drag test, which runs only in the tablet project).
-The tablet project was not rerun.
+Desktop and tablet together (2026-11-11): **63 passed, 0 failed**; all 4 `@tablet` tests pass
+on the iPad-sized touch project, and the 1 skip is the touch-drag test in the desktop project.
 
 **Migrations.** `makemigrations --check` is clean; every e2e run migrates a fresh PostgreSQL from
 zero. One migration chain change on this branch: `catalog/0006_npc_definition_origin` and
