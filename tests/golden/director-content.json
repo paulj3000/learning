@@ -6,7 +6,7 @@
     "react/src/features/director/reachability.ts",
     "react/src/features/worlds/travel.ts"
   ],
-  "contentDigest": "e504bb1c4f3ca6ad795ee01489cf6fc2cb94fdf116c74f4e849613c4ca1fde1e",
+  "contentDigest": "434363904778cd2939d2e9b0ee1158b048e6b061e93b0618e7f8c9e90e63b818",
   "notes": [
     "Bound to the content export identified by contentDigest; a port loads the same export (LAI-0304) and compares only when the digests match.",
     "Expected values are adventure slugs, in content order."
