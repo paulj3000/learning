@@ -93,7 +93,7 @@ def test_it_reports_counts_and_names_but_no_keys(tmp_path):
     answers = [
         ["sts get-caller-identity --query Account", "123456789012", 0],
         ["sts get-caller-identity --query Arn", "arn:aws:sts::123456789012:assumed-role/o/x", 0],
-        ["amplify list-apps --query apps[0].appId", "d1abcdef", 0],
+        ["amplify list-apps --query apps[?name==", "d1abcdef", 0],
         ["amplify list-apps", "d1abcdef\tlearning\tmain.d1abcdef.amplifyapp.com", 0],
         ["amplify list-branches", "main\tPRODUCTION\tTrue", 0],
         ["LAI_SKIP_BACKEND_DEPLOY", "None", 0],
@@ -115,6 +115,8 @@ def test_it_reports_counts_and_names_but_no_keys(tmp_path):
         ["get-bucket-versioning", "None", 0],
         ["--prefix child-photos/ --query length", "3", 0],
         ["--prefix child-photos/ --query sum", "123456", 0],
+        ["--prefix assets/ --query length", "0", 0],
+        ["--prefix assets/ --query sum", "0", 0],
         ["lambda list-functions", "amplify-d1abcdef-main-claimCoopSlot", 0],
         ["Invocations", "0", 0],
     ]
@@ -127,7 +129,11 @@ def test_it_reports_counts_and_names_but_no_keys(tmp_path):
     assert "groups=Admins,Superusers clients=webclient1" in out
     assert f"api {API} requests in the last 7 days: 17" in out
     assert f"table ChildProfile-{API}-NONE items=5 deletion-protection=False pitr=DISABLED" in out
+    assert "using the app named 'learning adventure island', d1abcdef" in out
+    assert "branch  main\tPRODUCTION\tTrue\n" in out  # one line per row, not run together
     assert "child-photos/ objects=3 bytes=123456" in out
+    assert "assets/ objects=0 bytes=0" in out  # an empty prefix is reported, not skipped
+    assert "public/ objects=unknown (listing failed)" in out
     assert "function amplify-d1abcdef-main-claimCoopSlot invocations=0" in out
     assert "nothing was changed" in out
     log = (tmp_path / "calls.log").read_text()

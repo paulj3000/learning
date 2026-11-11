@@ -29,7 +29,7 @@ case "$days" in '' | *[!0-9]*) echo "--days must be a whole number" >&2; exit 2 
 q() { # q <aws args...>: text output, empty on error or "None"
     local out
     out=$(aws "$@" --output text 2>/dev/null) || return 0
-    [ "$out" = None ] || printf '%s' "$out"
+    [ "$out" = None ] || printf '%s\n' "$out"
 }
 section() { printf '\n== %s\n' "$*"; }
 start=$(date -u -d "-${days} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-"${days}"d +%Y-%m-%dT%H:%M:%SZ)
@@ -64,8 +64,12 @@ echo "account $account as $(q sts get-caller-identity --query Arn)"
 section "2. Amplify Hosting"
 q amplify list-apps --query 'apps[].[appId,name,defaultDomain]' | sed 's/^/app  /'
 if [ -z "$app_id" ]; then
-    app_id=$(q amplify list-apps --query 'apps[0].appId')
-    [ -n "$app_id" ] && echo "(no --app-id given; using the first app, $app_id)"
+    app_id=$(q amplify list-apps --query "apps[?name=='learning adventure island'].appId | [0]")
+    if [ -n "$app_id" ]; then
+        echo "(no --app-id given; using the app named 'learning adventure island', $app_id)"
+    else
+        echo "(no --app-id given and no app named 'learning adventure island'; pass --app-id)"
+    fi
 fi
 if [ -n "$app_id" ]; then
     q amplify list-branches --app-id "$app_id" \
@@ -125,9 +129,12 @@ for bucket in $(q s3api list-buckets --query "Buckets[?starts_with(Name,'amplify
     versioning=$(q s3api get-bucket-versioning --bucket "$bucket" --query Status)
     echo "bucket $bucket versioning=${versioning:-off}"
     for prefix in child-photos/ assets/ public/ protected/ private/; do
-        count=$(q s3api list-objects-v2 --bucket "$bucket" --prefix "$prefix" --query 'length(Contents[])')
-        size=$(q s3api list-objects-v2 --bucket "$bucket" --prefix "$prefix" --query 'sum(Contents[].Size)')
-        [ -n "$count" ] && echo "  $prefix objects=$count bytes=${size:-0}"
+        # `|| []` makes an empty prefix 0, so an empty answer means the listing itself failed.
+        count=$(q s3api list-objects-v2 --bucket "$bucket" --prefix "$prefix" \
+            --query 'length(Contents || `[]`)')
+        size=$(q s3api list-objects-v2 --bucket "$bucket" --prefix "$prefix" \
+            --query 'sum(Contents[].Size || `[]`)')
+        echo "  $prefix objects=${count:-unknown (listing failed)} bytes=${size:-unknown}"
     done
 done
 

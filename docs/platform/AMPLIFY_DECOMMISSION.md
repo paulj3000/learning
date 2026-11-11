@@ -162,20 +162,57 @@ Evidence: CloudFormation `DELETE_COMPLETE` with the retained resources still pre
 (`aws cognito-idp describe-user-pool`). Rollback: tables can be restored from the stage 2 backups
 (`aws dynamodb restore-table-from-backup`); the pool and any retained bucket were never deleted.
 
-## 4. Resource-by-resource decision (fill in at stage 0)
+## 4. Resource-by-resource decision (stage 0 run 2026-11-11)
 
-| Resource (Amplify `main` backend) | Decision | Before deletion |
+Source: `scripts/aws/amplify-inventory.sh` and `scripts/aws/verify-dev.sh`, run by the owner on
+2026-11-11 in account `008331939914`, `us-west-1`, 7-day traffic window. The account also holds
+other projects' Amplify apps (pjsgreek, pjsstocks, naughtychess, wildrydes-site, myscyfi) and
+developer sandboxes; only the rows below belong to this app.
+
+**The production backend** is Amplify Hosting app `d30vskv2ivdal9` ("learning adventure
+island"), branch `main`, root stack `amplify-d30vskv2ivdal9-main-branch-ede190a103`.
+
+| Resource | Real name / id | Measured | Proposed decision | Before deletion |
+|---|---|---|---|---|
+| Cognito user pool | `us-west-1_GPc9YEEqu` (groups `Admins`, `Superusers`), web client `47bvht0ddlu2l7hl4hectbt1lo` | **0 estimated users**; deletion protection off | **Owner decision (D1 below)**: retain and import, or let Django use a CDK-owned pool | If retained: stage 3 `DeletionPolicy: Retain` and turn on deletion protection |
+| Cognito identity pool | `us-west-1:2fc2262a-b81d-4101-9d17-70f31bf5655b` | n/a | Delete with the stack | Nothing to copy (see Storage) |
+| 22 DynamoDB tables | `<Model>-vhinkkredfavbb5jfzypzkry6e-NONE` | **0 items in every table**; deletion protection off; PITR off | Delete with the stack; one on-demand backup each first (cheap) | Confirm 0 with `scan --select COUNT` on `ParentProfile` and `ChildProfile` (ItemCount lags up to 6 h) |
+| AppSync API | `vhinkkredfavbb5jfzypzkry6e` | **0 requests in 7 days** | Delete with the stack | Stage 5 window |
+| Storage bucket | `amplify-d30vskv2ivdal9-ma-learningadventureislandm-lsdlusavaakk` | Unknown: the first run skipped empty or unreadable prefixes (fixed in the script) | Delete after a rerun shows 0 objects, or after the AMP-04 copy | Rerun the inventory |
+| Codegen and schema buckets | `amplify-d30vskv2ivdal9-ma-amplifydataamplifycodege-g4a2ccdbxpnm`, `amplify-d30vskv2ivdal9-ma-modelintrospectionschema-1p5iomsp8dyk` | Build artefacts | Delete with the stack | n/a |
+| Lambda functions | `amplify-d30vskv2ivdal9-ma-*` (Director, co-op, answer, metrics, table manager, custom resources) | 0 invocations, except one CDK custom-resource provider (`AWS679f53fac...`, 60), which runs at deploy time, not for users | Delete with the stack | Stage 5 window |
+| Alert topic, budget, dashboard | `...OperationalAlertsTopicEBC37167-OeQw5VnGu5lg`, `BedrockMonthlyCostBudget-us-west-1-1792946950738-kswTxJl4LIKZ`, dashboard `amplify-d30vskv2ivdal9-main-branch-ede190a103-operations` | n/a | Delete once the AMP-05 CDK alarms are live | AMP-05 deploy |
+| Amplify Hosting app | `d30vskv2ivdal9` | Serving the live site | Delete after DNS moves | Stage 4 |
+| `CDKToolkit` | account-wide | n/a | **Keep** | n/a |
+
+### Stage 0 findings
+
+1. **No family data in the production backend.** The `main` user pool has 0 users and all 22
+   tables have 0 items; AppSync served 0 requests in 7 days. Gap G8 (importers beyond profiles)
+   is **not needed**, and stage 2 has nothing to copy from DynamoDB. Confirm the two profile
+   tables with an exact count before relying on this.
+2. **The data that exists is in developer sandboxes**, not `main`: sandbox
+   `learningadventureislandroot-pdimitriu-sandbox-93eee1e2ac` (pool `us-west-1_FuPf8rRor`,
+   1 user; API `6mcik4j4uzejbfvjqggtlkm65y`, 80 requests; `ParentProfile` 2,
+   `ChildProfile` 1, `ChildWorldState` 1, `CompanionProfile` 1) and the sandbox owning pool
+   `us-west-1_3LU3RSjuH` (1 user), which local Django QA used. These are test accounts; owner
+   decision D2.
+3. **Django is not deployed.** `verify-dev.sh` found no `LaiAssetStorage-dev`,
+   `LaiChildPhotos-dev`, `LaiDjangoRelease` or `LaiDjangoEc2-dev`, and `LaiAiGuardrailOnly-dev`
+   still exists. Stages 2 and 4 wait for the LAI-1002/1004 deployment.
+4. **Stage 1 state unknown.** The first run read the wrong Hosting app's branch (now fixed), so
+   whether `LAI_SKIP_BACKEND_DEPLOY` is set on `main` is not known.
+5. **Two non-Amplify pools look related**: `us-west-1_UVZeN8Cie` ("learningadventureisland",
+   2 users, deletion protection on) and `us-west-1_vi1lvKQs2` ("learning_dev", 0 users). Their
+   owner and purpose are not in the repository; owner decision D3.
+
+### Owner decisions from stage 0
+
+| # | Decision | Options |
 |---|---|---|
-| Cognito user pool, groups `Admins` and `Superusers`, web app client | **Retain** (permanent) | Stage 3 `DeletionPolicy: Retain`; later CDK import |
-| Cognito identity pool and its roles | Delete | Stage 2 photo copy verified (only Amplify Storage used it) |
-| 22 DynamoDB tables | Delete after backup; **retain** any with non-imported family data | Stage 2 backups; deletion protection on retained ones |
-| AppSync API | Delete | Stage 5 zero requests |
-| Amplify Storage bucket `learningAdventureIslandMedia` | Delete after copy; retain if any object was not copied | Stage 2 reconcile |
-| Lambdas (4 functions, table manager, custom resources) | Delete | Stage 5 zero invocations |
-| `OperationalAlertsTopic`, Bedrock budget, dashboard | Delete once the CDK alarms (AMP-05) are deployed and subscribed | AMP-05 alarms live |
-| Amplify-generated IAM roles | Delete with the stacks | n/a |
-| Amplify Hosting app | Delete after DNS moved | Stage 4 |
-| `CDKToolkit` bootstrap stack | **Keep** (account-wide, other projects) | n/a |
+| D1 | Which pool the Django site signs parents in with | (a) keep the Amplify `main` pool `us-west-1_GPc9YEEqu` (stage 3 retain, later CDK import, INFRA-002 D5); (b) since it has 0 users, use a pool owned by CDK from the start and skip the retain/import steps entirely. (b) is simpler; either keeps the app code unchanged (`VITE_COGNITO_*`) |
+| D2 | Sandbox test data | Discard with the sandboxes (`npx ampx sandbox delete`), or import the test parents with `import_amplify_profiles` for QA continuity |
+| D3 | `us-west-1_UVZeN8Cie` and `us-west-1_vi1lvKQs2` | Say what they are for; if one is meant as the Django pool, it answers D1 |
 
 ## 5. Owner signoff
 
