@@ -42,6 +42,7 @@ section 7, which still lists him as bespoke.
 | Bolt's Workshop | None | No | **~8** |
 | The Care Beach | None | No | **~12** |
 | The Lantern Tide Pools | None | No | **~8** |
+| Firepeak Volcano (Django-served, 2026-11-01) | 4 bundled reused; 11 stand-ins | Yes (stand-ins) | **11**, listed in `docs/regions/firepeak_assets.md`; each goes live by publishing in the Asset Manager, with no code change |
 
 Two rows are worth reading twice. The **Hive** and the **Writing Room** need
 **no new models at all** — `npc-buzz`, `comb-cell`, `comb-cell-capped`,

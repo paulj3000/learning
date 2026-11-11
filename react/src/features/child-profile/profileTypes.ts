@@ -18,7 +18,6 @@ export interface ChildProfile {
   avatarPhotoKey: string | null;
   interests: string[];
   readingMode: ReadingModeValue;
-  sessionMinutes: number;
   active: boolean;
   aiEnabled: boolean;
   createdAt: string | null;
@@ -46,7 +45,6 @@ export interface ChildProfileInput {
   avatarPhotoKey: string | null;
   interests: string[];
   readingMode: ReadingModeValue;
-  sessionMinutes: number;
 }
 
 /** What the parent did to the photo field before submitting the form. */

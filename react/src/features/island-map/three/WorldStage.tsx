@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './WorldStage.module.css';
+import { LeaveIslandButton } from '../../portal/exit';
 
 /** True when the browser lets a page element go full screen (not iPhone Safari, not some embeds). */
 function fullscreenSupported(): boolean {
@@ -52,6 +53,16 @@ export function WorldStage({ children }: { children: ReactNode }) {
   return (
     <div ref={stageRef} className={styles.stage} data-world-stage="">
       {children}
+      {/*
+        AP-04: full screen covers the island's top bar, so the child's own
+        exit comes with it. Only in full screen, so the page never shows two
+        "Leave island" buttons. Outside child mode it renders nothing.
+      */}
+      {isFullscreen ? (
+        <div className={styles.leaveSlot}>
+          <LeaveIslandButton />
+        </div>
+      ) : null}
       {supported ? (
         <button
           type="button"

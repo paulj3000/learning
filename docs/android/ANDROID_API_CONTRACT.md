@@ -59,8 +59,7 @@ name:
 
 ```json
 {"error": {"code": "validation_error", "message": "Invalid request.",
-  "details": {"sessionMinutes": [{"message": "Choose between 5 and 8 minutes for this age band.",
-                                   "code": "session_minutes_out_of_range"}]}}}
+  "details": {"nickname": [{"message": "Enter a nickname.", "code": "blank_nickname"}]}}}
 ```
 
 | Status | `code` | Meaning for the app |
@@ -120,7 +119,6 @@ A profile object:
   "hasPhoto": false,
   "interests": ["Space", "Ocean"],
   "readingMode": "VOICE_FIRST",
-  "sessionMinutes": 6,
   "active": true,
   "aiEnabled": true,
   "createdAt": "2026-10-25T10:00:00Z",
@@ -135,8 +133,8 @@ Allowed values come from `react/src/features/child-profile/constants.ts`:
 - `avatarKey`: `FOX`, `OWL`, `OTTER`, `DRAGON`, `ROBOT`, `MERMAID`.
 - `interests`: up to 5 different values from Animals, Space, Dinosaurs, Ocean, Vehicles, Art,
   Music, Cooking, Sports, Nature, Robots, Fantasy.
-- `sessionMinutes` must fall in the age band's range: Sprouts 5 to 8, Pathfinders 8 to 12,
-  Explorers 10 to 18.
+- There is no `sessionMinutes` (ADR-053: no play-time limits); a request that sends it is
+  refused as an unknown field.
 
 The photo's storage path is never returned (`hasPhoto` only). The photo itself has its own
 routes, below.
@@ -148,12 +146,12 @@ listed.
 
 ### `POST /api/v1/children/`
 
-Required: `nickname` (up to 30 characters, not blank), `ageBand`, `avatarKey`, `readingMode`,
-`sessionMinutes`. Optional: `interests`, `active`, `aiEnabled`.
+Required: `nickname` (up to 30 characters, not blank), `ageBand`, `avatarKey`, `readingMode`.
+Optional: `interests`, `active`, `aiEnabled`.
 
 ```json
 POST {"nickname": "Bramble", "ageBand": "SPROUT", "avatarKey": "OWL",
-      "interests": ["Space"], "readingMode": "VOICE_FIRST", "sessionMinutes": 6}
+      "interests": ["Space"], "readingMode": "VOICE_FIRST"}
 201 profile
 409 child_profile_limit_reached
 400 validation_error
@@ -165,14 +163,13 @@ POST {"nickname": "Bramble", "ageBand": "SPROUT", "avatarKey": "OWL",
 
 ### `PATCH /api/v1/children/{childId}/`
 
-Any subset of the writable fields, with at least one field. The age band and session length
-are checked together, so changing `ageBand` may also need a new `sessionMinutes`. Turning
+Any subset of the writable fields, with at least one field. Turning
 `active` or `aiEnabled` off is a parental control and takes effect at once. For example, while
 `active` is off, the child cannot be launched and any open game session is refused on its next
 request.
 
 ```json
-PATCH {"ageBand": "SPROUT", "sessionMinutes": 7}
+PATCH {"ageBand": "SPROUT"}
 200 profile
 ```
 
@@ -293,15 +290,15 @@ but the photo was not.") and retry the photo against the saved child, never `POS
   "recentWorldChanges": [{"locationSlug": "pirate-builder-bay", "changeType": "...",
                           "changeKey": "TREASURE_RUSH_COVE_CHEST_OPENED", "payload": {},
                           "createdAt": "..."}],
-  "restrictions": {"active": true, "sessionMinutes": 10, "aiEnabled": true,
+  "restrictions": {"active": true, "aiEnabled": true,
                    "readingMode": "READ_ALONG"}
 }
 ```
 
 Everything here comes from the existing sessions, world changes, inventory and quest progress.
 There is no XP, coin or achievement system, and none was added. `restrictions` is every parental
-control the model has today. There are no daily limits or schedules. `sessionMinutes` is the
-calm stopping point the game shows, not a hard cut-off.
+control the model has today. There are no daily limits, schedules or play-time limits of any
+kind (ADR-053); a game must never stop or count down a child for time.
 
 ## Islands and adventures (added)
 

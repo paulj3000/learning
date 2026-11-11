@@ -37,6 +37,8 @@ from .serializers import (
     OutcomeSerializer,
     PickupSerializer,
     ProgressSerializer,
+    PuzzleOutcomeSerializer,
+    PuzzleSubmissionRequest,
     QuestEntrySerializer,
     SessionSerializer,
     TalkSerializer,
@@ -54,7 +56,10 @@ def _conflict(code: str) -> exceptions.APIException:
 
 
 def api_error(error: Exception) -> exceptions.APIException:
-    if isinstance(error, services.AttemptNotFound | services.SessionNotFound | LookupError):
+    if isinstance(
+        error,
+        services.AttemptNotFound | services.SessionNotFound | services.PuzzleNotFound | LookupError,
+    ):
         return exceptions.NotFound()
     if isinstance(error, QuestUnavailable):
         return _conflict("quest_unavailable")
@@ -77,6 +82,8 @@ class RegionView(GameRuntimeAccessMixin, ChildScopedAPIView):
     def get(self, request, child_id, region_id):
         try:
             region = play_state.published_region(region_id)
+            if not region.supports_band(self.child.age_band):
+                raise play_state.RegionNotFound  # not for this age band (FP-D2)
         except play_state.RegionNotFound as error:
             raise api_error(error) from None
         state = play_state.region_bootstrap(self.child, region)
@@ -186,6 +193,11 @@ class QuestAcceptView(GameRuntimeAccessMixin, ChildScopedAPIView):
                     grant_quest_completion_rewards(self.child, [update])
         except (LookupError, QuestUnavailable) as error:
             raise api_error(error) from None
+        if created:
+            # A child may have done some of the work before accepting (Firepeak: explored the
+            # telescope first). Walk the new quest forward against server state at once, so
+            # nothing they already did is lost and a finished quest completes now.
+            refresh_quest(progress)
         [entry] = play_state.quest_entries(self.child, [quest])
         return Response(QuestEntrySerializer().to_representation(entry), status=_status(created))
 
@@ -241,3 +253,41 @@ class ProgressView(ChildScopedAPIView):
         return Response(
             ProgressSerializer().to_representation(play_state.child_progress(self.child))
         )
+
+
+class PuzzleSolveView(GameRuntimeAccessMixin, ChildScopedAPIView):
+    """POST {submission}: one attempt at a 3D Area puzzle, graded on the server (LAI-0812).
+
+    200 with `correct` either way; 400 `invalid_submission` for a malformed one (nothing is
+    recorded); 409 `puzzle_locked` before the earlier stage is done, `session_not_open`, or
+    `content_unavailable`; 404 for an unknown puzzle or another child's session.
+    """
+
+    def post(self, request, child_id, session_id, puzzle_id):
+        body = PuzzleSubmissionRequest(data=request.data)
+        body.is_valid(raise_exception=True)
+        try:
+            outcome = services.solve_puzzle(
+                self.child, session_id, puzzle_id, body.validated_data["submission"]
+            )
+        except services.InvalidSubmission:
+            raise exceptions.ValidationError(
+                {
+                    "submission": [
+                        exceptions.ErrorDetail("Not a possible answer.", "invalid_submission")
+                    ]
+                }
+            ) from None
+        except services.PlayError as error:
+            raise api_error(error) from None
+        context = {}
+        if outcome.reward and outcome.reward.granted:
+            rule = services.RewardRule.objects.filter(
+                rule_id=outcome.attempt.revision.body.get("rewardRuleId")
+            ).first()
+            if rule is not None:
+                context = {
+                    "items": ItemSerializer(rule.items.order_by("item_id"), many=True).data,
+                    "reward_message": rule.message,
+                }
+        return Response(PuzzleOutcomeSerializer(context=context).to_representation(outcome))

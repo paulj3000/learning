@@ -7,10 +7,9 @@ Baselines compared:
 
 | Ref | SHA | Relation to `main` |
 |---|---|---|
-| `main` | `89d1172` | Baseline |
-| `dev20261103` | `96aa587` | 24 ahead, 10 behind |
-| `claude/jolly-ride-92xktb` | `804aaea` | The live `dev20261103` integration kept merged with `main` (28 ahead, 0 behind) |
-| Every other remote branch (31 in all) | | Most are 0 ahead (fully merged). The ones ahead are listed in section 6 |
+| `main` | `8e3af01` | Baseline. Re-checked 2026-11-11, after the `dev20261103` integration merged (PR #12, `e82a188`), plus Adventure Portal (PR #16), the Treasure Rush sign-off (PR #19) and ADR-053 |
+| `main` as first audited | `89d1172` | 2026-11-10. Same Amplify calls as `8e3af01`; it lacked the integration's three Django switches and 14 routes |
+| Every other remote branch (31 in all, 2026-11-10) | | Most are 0 ahead (fully merged). The ones ahead are listed in section 6 |
 
 Coordinates with `docs/infrastructure/inventory.md` (LAI-INFRA-001) and
 `resource-ownership.md` (LAI-INFRA-002) and does not repeat them. Those cover AWS resources;
@@ -32,13 +31,13 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
   - There are 3 custom operations (`claimCoopSlot`, `submitAdventureAnswer`,
     `getNextLearningActivity`), one subscription (`CoopSession.onUpdate`) and 2 AI generation
     routes.
-  - **12 capabilities already switch to Django** (section 3.1). **18 modules or module groups have no
+  - **15 capabilities already switch to Django** (section 3.1). **18 modules or module groups have no
     Django path** (section 3.2). → AMP-03.
 - **Amplify Storage:** child photos (switched to Django) and 3D model URLs (switched through the
   Django asset resolver). The Amplify code paths remain. → AMP-04.
 - **Amplify Functions:**
-  - The adventure answer has a Django replacement (`AnswersView` on `main`; the step runner on
-    `dev20261103`).
+  - The adventure answer has a Django replacement (`AnswersView`, and the step runner merged
+    with the integration).
   - The co-op slot claim does not: there is a Django model, but no route.
   - **The director's "next learning activity" has no Django equivalent.**
   - Operational metrics have Django logging but no metric parity.
@@ -83,6 +82,9 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 | Region play (session, pickups, NPC talk, chests, quests, answers) | `api/play/playApi.ts`, `region-play/regionRepositoryForChild.ts` | `regions/...`, `sessions/<id>/...`, `attempts/<id>/answer/`, `quests/<id>/accept/`, `progress/` | `game_sessions/test_play_api`, `test_chest_play`, `test_sessions`, `quests/*` | n/a |
 | Castle rooms and storybook | `api/play/castleRoomsApi.ts`, `storybookApi.ts` | `castle/rooms/`, `castle/storybook/` | `game_sessions/test_castle_*` | `story/api.ts` (see 3.2) |
 | Discoveries | `api/play/discoveriesApi.ts` | `discoveries/` | `game_sessions/test_discoveries*` | `discovery/api.ts` (see 3.2) |
+| Adventure step runner (Django grades, records evidence, applies consequences) | `api/play/stepRunnerApi.ts` | `content/adventures/<slug>/start/`, `sessions/<id>/step/`, `puzzles/<id>/solve/` | `game_sessions` tests (merged with PR #12) | `adventures/api.ts` (see 3.2) |
+| Child home dashboard (AP-02) | `api/play/homeApi.ts` | `home/` | `game_sessions/test_native_api` | n/a |
+| Realm images (AP-03) | `features/realms/imageResolver.ts` | `children/<id>/assets/` (asset resolver) | `assets/test_resolver_api` | n/a |
 | Islands, home, inventory read, launch | `api/play/islandsApi.ts`, native routes | `islands/`, `home/`, `inventory/`, `regions/<id>/adventures/`, `launch-points/.../start/`, `game-launches/` | `game_sessions/test_native_api`, `test_adventure_launch`, `test_game_launch` | `rewards/api.ts` (see 3.2) |
 
 ### 3.2 Amplify only on `main` (no Django switch in React)
@@ -91,17 +93,17 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 |---|---|---|---|---|
 | `auth/*` (sign-up, confirm, sign-in, sign-out, reset, attributes, password, `Hub`), `api/auth.ts`, `multiplayer/amplifyIdentity.ts`, `routes/AccountSettings.tsx`, `recentSignIn/recentSignIn.ts` | `aws-amplify/auth` (12 source files) | Cognito stays. Django verifies access tokens (`users/authentication.py`, `test_cognito_only`) | **Every flow**: direct Cognito client, token refresh, `Hub` replacement | AMP-02 |
 | `child-profile/deletion.ts` | `deleteUser` plus deletes over 13 models | Child: `DELETE children/<id>/` (`test_child_deletion`) | **Parent account deletion: no Django route** (`MeView` has no `DELETE`); Cognito `deleteUser` moves with AMP-02 | AMP-02, AMP-03 |
-| `adventures/api.ts` (sessions, actions, answer, skill evidence, world changes, story artifacts) | `AdventureSession`, `AdventureAction`, `submitAdventureAnswer`, `SkillEvidence`, `WorldChange`, `StoryArtifact` | Models exist (`game_sessions`, `education`, `progression`). Routes: `sessions/<id>/`, `sessions/<id>/answers/`, `hints/` on `main`; **the step runner `sessions/<id>/step/` and `content/adventures/<slug>/start/` only on `dev20261103`** (`react/src/api/play/stepRunnerApi.ts`) | React wiring for the classic adventures. Story-artifact save, list and delete have no route | AMP-03 |
-| `story/api.ts` | `ChildStoryProgress` | `progression.StoryProgress`; `castle/storybook/`; `content/stories/` (dev only) | Write path (start, flag, chapter, complete) for non-castle stories | AMP-03 |
-| `quests/api.ts` | `ChildQuestState` | `quests.QuestProgress`; `quests/<id>/accept/`, `progress/`; `content/quests/` (dev only) | Sync and clear outside region play | AMP-03 |
+| `adventures/api.ts` (sessions, actions, answer, skill evidence, world changes, story artifacts) | `AdventureSession`, `AdventureAction`, `submitAdventureAnswer`, `SkillEvidence`, `WorldChange`, `StoryArtifact` | Models exist (`game_sessions`, `education`, `progression`). Routes: `sessions/<id>/`, `sessions/<id>/answers/`, `hints/`, and the step runner `sessions/<id>/step/` and `content/adventures/<slug>/start/` (`react/src/api/play/stepRunnerApi.ts`, 3.1) | Move the remaining classic adventures from `adventures/api.ts` to the step runner. Story-artifact save, list and delete have no route | AMP-03 |
+| `story/api.ts` | `ChildStoryProgress` | `progression.StoryProgress`; `castle/storybook/`; `content/stories/` | Write path (start, flag, chapter, complete) for non-castle stories | AMP-03 |
+| `quests/api.ts` | `ChildQuestState` | `quests.QuestProgress`; `quests/<id>/accept/`, `progress/`; `content/quests/` | Sync and clear outside region play | AMP-03 |
 | `rewards/api.ts` | `ChildInventory` | `inventory.InventoryItem`; `inventory/` (read) | Grants outside region play (Django grants server-side in play) | AMP-03 |
-| `npc/api.ts` | `ChildNpcState` (memory flags, dialogue nodes) | `progression.NpcRelationship`; `npcs/<id>/talk/`; `content/npcs/` (dev only) | Memory-flag writes for the non-region worlds | AMP-03 |
+| `npc/api.ts` | `ChildNpcState` (memory flags, dialogue nodes) | `progression.NpcRelationship`; `npcs/<id>/talk/`; `content/npcs/` | Memory-flag writes for the non-region worlds | AMP-03 |
 | `discovery/api.ts` | `ChildWorldState` | `progression.WorldState`; `discoveries/` | Checkpoint and character-met writes, clear | AMP-03 |
 | `mastery/api.ts` | `SkillProgress` | `education.SkillProgress`; `progress/` (read) | Client-side upsert: should become server-side only | AMP-03 |
 | `island/api.ts` | `CompanionProfile` | **No Django model** | **Companion choice storage** | AMP-03 |
 | `coop/api.ts` | `CoopSession`, `claimCoopSlot`, `onUpdate` subscription | `game_sessions.CoopSession` and `CoopParticipant` models; `server/multiplayer` (room server, ADR-026) | **No co-op route and no realtime replacement** for the AppSync subscription | AMP-03, AMP-05 |
 | `director/api.ts` | `getNextLearningActivity` (Lambda) | **None** | **Adaptive "what next"** has no Django service | AMP-05 |
-| `catalog/availabilityApi.ts` | `Island`, `Adventure` list | `catalog` (World, Location, Adventure); `islands/`, `regions/<id>/adventures/`; `content/adventures/` (dev only) | React wiring | AMP-03 |
+| `catalog/availabilityApi.ts` | `Island`, `Adventure` list | `catalog` (World, Location, Adventure); `islands/`, `regions/<id>/adventures/`; `content/adventures/` | React wiring | AMP-03 |
 | `admin/api.ts` (parent and child lists) | `ParentProfile`, `ChildProfile` | Django Admin (`users/test_admin_accounts`, ADR-034) | Retire the React admin pages; owner confirms Django Admin covers the reviews | AMP-03 |
 | `admin/catalogApi.ts` (island and adventure CRUD, model assignment, content import) | `Island`, `Adventure`, `AdventureModel`, `Asset` | Django Admin catalog and assets (ADR-043, AM-5); content export and `load_content` (ADR-033) | Retire after the owner confirms parity | AMP-03 |
 | `parent-dashboard/api.ts` (`listSafetyEvents`, `clearAIHistory`) | `SafetyEvent`, `AIInteractionAudit` | `ai/safety-events/`, `ai/history/` (history is already switched) | Safety events and clear: switch them too | AMP-03 |
@@ -112,7 +114,7 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 
 | Function | Django replacement | Status |
 |---|---|---|
-| `submit-adventure-answer` | `sessions/<id>/answers/` (`AnswersView`, `test_answers_api`); step runner on `dev20261103` | Replaced server-side; React wiring is in AMP-03 |
+| `submit-adventure-answer` | `sessions/<id>/answers/` (`AnswersView`, `test_answers_api`); the step runner `sessions/<id>/step/` | Replaced server-side; React wiring is in AMP-03 |
 | `claim-coop-slot` | None (model only) | **Gap** |
 | `get-next-learning-activity` | None | **Gap** |
 | `operational-metrics` (DynamoDB stream to CloudWatch EMF) | Django privacy-filtered logs; the `LaiAiGuardrail` AI metric filters | Partial: no SafetyEvent or AppSync-equivalent alarms on Django yet (U6) |
@@ -123,7 +125,7 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 | # | Gap | Why first | Card |
 |---|---|---|---|
 | G1 | Auth flows on Amplify Auth (12 source files, 2 scripts); the site build needs `amplify_outputs.json` | Blocks removing `aws-amplify`, and the site release depends on it | AMP-02 |
-| G2 | Classic adventure path (`adventures/api.ts`) on Amplify. The step runner exists only on `dev20261103` | Core gameplay; merge the integration first, then wire | AMP-03 (after the `dev20261103` merge gate) |
+| G2 | Classic adventure path (`adventures/api.ts`) still on Amplify; the Django step runner is on `main` (since PR #12) | Core gameplay; move the remaining adventures to the step runner | AMP-03 |
 | G3 | Parent account deletion has no Django route | Privacy and right-to-delete | AMP-03 (with G9 / LAI-0308) |
 | G4 | Per-child state writers (story, quests, rewards, NPC, discovery, mastery) outside region play | Data would split between DynamoDB and PostgreSQL | AMP-03 |
 | G5 | Companion choice has no Django model | Small; needed for onboarding parity | AMP-03 |
@@ -150,7 +152,7 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 
 | Branch | Ahead of `main` | Amplify call inventory vs `main` |
 |---|---|---|
-| `dev20261103`, `claude/jolly-ride-92xktb` (integration) | 24, 28 | Same Amplify calls; **one more Django switch** (`api/play/stepRunnerApi.ts`) and **14 more Django routes** (`content/*`, `sessions/<id>/step/`, `content/adventures/<slug>/start/`, `puzzles/<id>/solve/`) |
+| `dev20261103`, `claude/jolly-ride-92xktb` (integration) | 24, 28 on 2026-11-10 | Same Amplify calls; the step runner switch and 14 Django routes. **Merged into `main` on 2026-11-10 (PR #12)** |
 | `feature/npc-manager`, `qa/npc-manager-acceptance`, `fix/npc-qa-fa-fb`, `feature/sm-p8-live-polly` | 44 to 52 | Same as the integration (one more Django switch) |
 | `feature/content` | 19 | Fewer Django switches (older) |
 | `feature/ai-studio-queue`, `feature/sound-manager` | 1 | Fewer Django switches (older base) |
@@ -160,4 +162,4 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 | `phase-23-24-and-child-photos`, `phase-29-multiple-islands-and-worlds` | 62, 64 (295 behind) | August 2026 Amplify-era branches; nothing to carry forward for the exit |
 
 No branch removes an Amplify dependency that `main` still has. The integration's step runner and
-content routes are the only Django parity not yet on `main` (G2).
+content routes, the only Django parity that was missing from `main`, merged on 2026-11-10.

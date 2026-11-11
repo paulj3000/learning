@@ -40,12 +40,11 @@ import {
   zoneEnterMessage,
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
-import { CalmStop } from '../../../session/CalmStop';
-import { useSessionClock } from '../../../session/useSessionClock';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
 import { prefersReducedMotion } from '../../../../lib/motionPreference';
+import { createPendingWrites, useExitParticipant } from '../../../portal/exit';
 
 /**
  * The one React view for any manifest-driven 3D location
@@ -177,11 +176,15 @@ export function ThreeLocationWorldView({
   } | null>(null);
 
   /*
-    The island's own session clock, not a second one: a region presents the
-    calm stopping point, it does not own the time (ADR-027 applied to time).
-    Only a region that authors `copy.calmStop` shows anything.
+    AP-04: "Leave island" waits for these (briefly, never forever) so a
+    checkpoint or find written a moment before the tap is not lost, and asks
+    a plain "leave now?" only while an encounter is open. Never a question.
   */
-  const { limitReached } = useSessionClock(childId);
+  const pendingWrites = useMemo(() => createPendingWrites(), []);
+  useExitParticipant({
+    save: () => pendingWrites.settle(),
+    needsConfirm: () => openInteraction !== null || claimed !== null,
+  });
 
   const bus = useMemo(() => new WorldEngineEventBus(), []);
   const engineRef = useRef<LocationEngine | null>(null);
@@ -269,7 +272,7 @@ export function ThreeLocationWorldView({
       bus.on('NpcApproached', ({ entityId }) => {
         const npc = findNpcByEntityId(manifest, entityId);
         if (!npc) return;
-        void recordCharacterMet(childId, npc.npcId).catch(() => undefined);
+        void pendingWrites.track(recordCharacterMet(childId, npc.npcId)).catch(() => undefined);
         bus.emit('NpcStateChanged', { entityId, metByChild: true });
       }),
       bus.on('InteractableFocused', ({ entityId }) => {
@@ -298,19 +301,22 @@ export function ThreeLocationWorldView({
         if (collectible.pickUpMessage) setToast(collectible.pickUpMessage);
         const change = pickUpWorldChange(manifest, entityId);
         if (!change) return;
-        void recordWorldChangeOnce(
-          childId,
-          change.locationSlug,
-          change.changeType,
-          change.changeKey,
-          change.source,
-        )
+        void pendingWrites
+          .track(
+            recordWorldChangeOnce(
+              childId,
+              change.locationSlug,
+              change.changeType,
+              change.changeKey,
+              change.source,
+            ),
+          )
           .then(() => refreshWorld())
           .catch(() => undefined);
       }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
-          void saveCheckpoint(childId, zoneId).catch(() => undefined);
+          void pendingWrites.track(saveCheckpoint(childId, zoneId)).catch(() => undefined);
           const found = checkpointToast(manifest, 'found', zoneId);
           if (found) setToast(found);
           return;
@@ -324,7 +330,7 @@ export function ThreeLocationWorldView({
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [bus, childId, manifest, openInteractionFor, refreshWorld]);
+  }, [bus, childId, manifest, openInteractionFor, pendingWrites, refreshWorld]);
 
   /*
     "You are back at the pond." Said once, when a returning child's saved
@@ -477,15 +483,9 @@ export function ThreeLocationWorldView({
           setFocusLabel={setFocusedLabel}
           setQuestCue={setCompanionQuestCue}
           hudSlot={hudSlot}
-          limitReached={limitReached}
           refreshWorld={refreshWorld}
         />
       ))}
-      {manifest.copy.calmStop ? (
-        <CalmStop limitReached={limitReached}>
-          <p>{manifest.copy.calmStop}</p>
-        </CalmStop>
-      ) : null}
       {openInteraction ? (
         <WorldActionPanel
           childId={childId}

@@ -5,6 +5,7 @@ import type {
   ItemView,
   PickupOutcome,
   PlaySession,
+  PuzzleOutcome,
   QuestEntry,
   RegionBootstrap,
   TalkOutcome,
@@ -33,6 +34,7 @@ export type PlayActionName =
   | 'acceptQuest'
   | 'requestChallenge'
   | 'submitAnswer'
+  | 'solvePuzzle'
   | 'collectPickup'
   | 'talkToNpc'
   | 'refresh';
@@ -45,6 +47,8 @@ export interface RegionPlayState {
   /** The outstanding challenge, if the child asked for one and has not answered it. */
   challenge: IssuedChallenge | null;
   lastOutcome: AnswerOutcome | null;
+  /** The server's answer to the last puzzle submission in this visit (LAI-0812). */
+  lastPuzzleOutcome: { puzzleId: string; outcome: PuzzleOutcome } | null;
   /** The server's answer to the last pickup and the last talk (TR-14), as returned. */
   lastPickup: PickupOutcome | null;
   lastTalk: TalkOutcome | null;
@@ -66,6 +70,7 @@ export type RegionPlayAction = { scope: string } & (
   | { type: 'questAccepted'; quest: QuestEntry }
   | { type: 'challengeIssued'; challenge: IssuedChallenge }
   | { type: 'answerAccepted'; outcome: AnswerOutcome }
+  | { type: 'puzzleGraded'; puzzleId: string; outcome: PuzzleOutcome }
   | { type: 'pickedUp'; outcome: PickupOutcome }
   | { type: 'talked'; outcome: TalkOutcome }
   | { type: 'challengeCleared' }
@@ -83,6 +88,7 @@ export function initialRegionPlayState(scope: string): RegionPlayState {
     session: null,
     challenge: null,
     lastOutcome: null,
+    lastPuzzleOutcome: null,
     lastPickup: null,
     lastTalk: null,
     rewards: [],
@@ -181,6 +187,13 @@ export function regionPlayReducer(
           state.rewards,
           action.outcome.completionRewards.flatMap((reward) => reward.items),
         ),
+      };
+    case 'puzzleGraded':
+      return {
+        ...state,
+        busy: null,
+        lastPuzzleOutcome: { puzzleId: action.puzzleId, outcome: action.outcome },
+        rewards: withRewards(state.rewards, action.outcome.newItems),
       };
     case 'challengeCleared':
       return { ...state, busy: null, challenge: null };

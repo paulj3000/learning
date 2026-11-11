@@ -1,4 +1,4 @@
-import { MAX_INTERESTS, SESSION_MINUTES_RANGE, type AgeBandValue } from './constants';
+import { MAX_INTERESTS } from './constants';
 
 export function validateNickname(nickname: string): string | null {
   const trimmed = nickname.trim();
@@ -9,13 +9,5 @@ export function validateNickname(nickname: string): string | null {
 
 export function validateInterests(interests: string[]): string | null {
   if (interests.length > MAX_INTERESTS) return `Choose up to ${MAX_INTERESTS} interests.`;
-  return null;
-}
-
-export function validateSessionMinutes(minutes: number, ageBand: AgeBandValue): string | null {
-  const { min, max } = SESSION_MINUTES_RANGE[ageBand];
-  if (!Number.isFinite(minutes) || minutes < min || minutes > max) {
-    return `Choose between ${min} and ${max} minutes for this age band.`;
-  }
   return null;
 }

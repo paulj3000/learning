@@ -53,6 +53,8 @@ _CODED = {
     "chest_already_open": "This chest is already open.",
     "attempt_already_answered": "This challenge was already answered.",
     "quest_unavailable": "This quest is not available.",
+    # 3D Area puzzles (ADR-047, LAI-0812)
+    "puzzle_locked": "Finish the earlier part of the adventure first.",
     # Pip's Missing Treasure (TR-14)
     "chest_locked": "This chest is still locked.",
     # Native Android API (LAI-ANDROID-API-001)

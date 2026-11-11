@@ -120,7 +120,6 @@ def families(db):
             "age_band": "PATHFINDER",
             "avatar_key": "FOX",
             "reading_mode": "READ_ALONG",
-            "session_minutes": 10,
             "interests": ["Secret-Interest"],
         }
         kids = [services.create_child_profile(parent, nickname=n, **base) for n in names]

@@ -284,7 +284,8 @@ def test_the_runtime_context_is_minimal(treasure, parent_a):
     assert response.status_code == 200 and response["Cache-Control"] == "no-store"
     body = response.json()
     assert body["childId"] == str(child.pk) and body["regionId"] == REGION
-    assert body["ageBand"] == "PATHFINDER" and body["sessionMinutes"] == 10
+    assert body["ageBand"] == "PATHFINDER"
+    assert "sessionMinutes" not in body  # no play-time limit is handed to the game
     text = response.content.decode()
     assert "Zinnia" not in text and treasure.families.a.cognito_sub not in text
     assert str(treasure.families.a.pk) not in text

@@ -95,6 +95,7 @@ function fakeApi(overrides: Partial<PlayApi> = {}): PlayApi {
     getProgress: vi.fn(async () =>
       read({ ...progressJson(), inventory: [] }, parse.playerProgress),
     ),
+    solvePuzzle: vi.fn(),
     startLaunchPoint: vi.fn(),
     collectPickup: vi.fn(),
     talkToNpc: vi.fn(async () => ({ flagsSet: [], questUpdates: [], completionRewards: [] })),
@@ -107,6 +108,19 @@ function fakeScene(open = false) {
   const scene: RegionPlaySceneApi & { setChestOpen: ReturnType<typeof vi.fn> } = {
     setChestOpen: vi.fn((id: string, value: boolean) => void drawn.set(id, value)),
     isChestOpen: (id: string) => drawn.get(id),
+    effects: {
+      setChangeKeys: vi.fn(),
+      useReturn: vi.fn(() => false),
+      previewSteamCleared: vi.fn(),
+      safeCheckpoint: () => null,
+      subscribe: () => () => undefined,
+    },
+    puzzles: {
+      showArrangement: vi.fn(),
+      showValveTurns: vi.fn(),
+      discover: vi.fn(async () => undefined),
+      setVisible: vi.fn(),
+    },
     setChestLock: vi.fn(),
     setPickupCollected: vi.fn(),
     setRuneNumbers: vi.fn(),
@@ -153,7 +167,6 @@ function props(overrides: Partial<LocationCompanionProps> = {}): LocationCompani
     onCloseInteraction: vi.fn(),
     showToast: vi.fn(),
     setFocusLabel: vi.fn(),
-    limitReached: false,
     refreshWorld: vi.fn(async () => undefined),
     ...overrides,
   };
@@ -219,19 +232,21 @@ describe('entering the cove', () => {
     expect(untouched.setChestOpen).not.toHaveBeenCalled();
   });
 
-  it('completes the session at the calm stop', async () => {
+  it('never ends the session because of play time, however long the visit runs', async () => {
     const api = fakeApi();
     apis.set(CHILD_A, api);
     const view = render(<RegionPlayCompanion {...props()} />);
     await waitFor(() => expect(api.startSession).toHaveBeenCalled());
-    view.rerender(<RegionPlayCompanion {...props({ limitReached: true })} />);
-    await waitFor(() =>
-      expect(api.changeSession).toHaveBeenCalledWith(
-        expect.any(String),
-        'complete',
-        expect.any(AbortSignal),
-      ),
-    );
+    // Hours of continuous play: the companion re-renders, the session stays open.
+    const realNow = Date.now();
+    const now = vi.spyOn(Date, 'now');
+    for (const hours of [1, 3, 8]) {
+      now.mockReturnValue(realNow + hours * 60 * 60 * 1000);
+      view.rerender(<RegionPlayCompanion {...props()} />);
+    }
+    now.mockRestore();
+    expect(api.changeSession).not.toHaveBeenCalled();
+    expect(api.startSession).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -505,7 +520,9 @@ describe('the chest', () => {
     });
     await atTheChest(api);
     await userEvent.click(screen.getByRole('button', { name: '5' }));
-    await waitFor(() => expect(api.getRegion).toHaveBeenCalledTimes(2)); // re-reads the truth
+    // Loads, re-reads once the session starts (its pinned content, LAI-0813), then re-reads the
+    // truth after the refused replay.
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalledTimes(3));
     expect(screen.queryByText('Golden Doubloon')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('dialog', { name: 'Click! The chest is open!' }),
@@ -853,6 +870,8 @@ describe("Pip's Missing Treasure (TR-14)", () => {
     description: 'A heavy key.',
     category: 'QUEST_ITEM' as const,
     assetId: '',
+    setId: null,
+    journal: null,
   };
   const puzzle = (overrides = {}) =>
     challenge({

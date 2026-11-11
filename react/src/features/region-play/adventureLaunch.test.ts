@@ -214,6 +214,9 @@ describe('islands and places', () => {
       regionId: REGION,
       title: 'Treasure Cove',
       available: true,
+      // AP-03 defaults when the server sends no status or resume.
+      status: 'NOT_STARTED',
+      resumeSessionId: null,
     });
     expect(areaForPlace(view, 'wonderwild-forest')).toBeNull();
     expect(areaForPlace(view, 'nowhere')).toBeNull();

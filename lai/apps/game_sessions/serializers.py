@@ -51,6 +51,12 @@ class EmptyRequest(ClosedSerializer):
     pass
 
 
+class PuzzleSubmissionRequest(ClosedSerializer):
+    """`{submission: {...}}`. The shape inside is checked by the puzzle kind's grader."""
+
+    submission = serializers.DictField()
+
+
 # --- Responses ------------------------------------------------------------------------------
 
 
@@ -168,8 +174,25 @@ class ItemSerializer(serializers.Serializer):
     category = serializers.CharField()
     assetId = serializers.SerializerMethodField()
 
+    setId = serializers.SerializerMethodField()
+    journal = serializers.SerializerMethodField()
+
     def get_assetId(self, item) -> str:
         return ""  # catalog items have no model id yet; the client draws a placeholder
+
+    def get_setId(self, item) -> str | None:
+        return item.collectible_set.set_id if item.collectible_set_id else None
+
+    def get_journal(self, item) -> dict | None:
+        """A Discovery Journal entry's metadata (FP-10), from the item's published content."""
+        entry = (item.source or {}).get("journal")
+        if not isinstance(entry, dict):
+            return None
+        return {
+            "subject": entry.get("subject"),
+            "questId": entry.get("questId"),
+            "illustrationAssetId": entry.get("illustrationAssetId"),
+        }
 
 
 class InventoryEntrySerializer(serializers.Serializer):
@@ -229,12 +252,46 @@ class ChallengeResponseSerializer(serializers.Serializer):
         }
 
 
+def puzzle_state(entry) -> dict:
+    """A 3D Area puzzle for the child's age band (ADR-047 F, LAI-0812)."""
+    puzzle, body = entry["puzzle"], entry["body"]
+    return {
+        "puzzleId": puzzle.puzzle_id,
+        "kind": puzzle.kind,
+        "title": body["title"],
+        "entityIds": list(puzzle.entity_ids),
+        "solved": entry["solved"],
+        "locked": entry["locked"],
+        "failedAttempts": entry["failed_attempts"],
+        "parameters": entry["parameters"],
+    }
+
+
+def _region(state) -> dict:
+    data = RegionSerializer(state["region"]).data
+    content = state.get("region_content")
+    if content:  # ADR-047: the authored copy, as this visit started with it
+        data["title"] = content["title"]
+        data["scene"] = {
+            **data["scene"],
+            "copy": content.get("copy", {}),
+            "environment": content.get("environment", {}),
+        }
+    return data
+
+
 class BootstrapSerializer(serializers.Serializer):
     def to_representation(self, state):
+        dialogue = state.get("npc_dialogue", {})
+        npcs = NpcPlacementSerializer(state["npcs"], many=True).data
+        for npc in npcs:
+            npc["dialogue"] = dialogue.get(npc["entityId"], [])
         return {
-            "region": RegionSerializer(state["region"]).data,
+            "region": _region(state),
             "spawn": SpawnSerializer(state["spawn"]).data if state["spawn"] else None,
-            "npcs": NpcPlacementSerializer(state["npcs"], many=True).data,
+            "npcs": npcs,
+            "puzzles": [puzzle_state(entry) for entry in state.get("puzzles", [])],
+            "catalog": state.get("catalog", {"worldSlug": "", "assets": []}),
             "objects": [object_entry(entry) for entry in state["objects"]],
             "chests": [ChestStateSerializer().to_representation(c) for c in state["chests"]],
             "quests": [QuestEntrySerializer().to_representation(q) for q in state["quests"]],
@@ -364,8 +421,9 @@ class TalkSerializer(serializers.Serializer):
 
 
 # --- Native discovery, home and inventory (LAI-ANDROID-API-001) -----------------------------
-# Contract: docs/android/ANDROID_API_CONTRACT.md. Thumbnails are asset ids or null (ADR-030):
-# no catalog row carries an illustration yet, so every `thumbnailAssetId` is null today.
+# Contract: docs/android/ANDROID_API_CONTRACT.md. Thumbnails are asset ids or null (ADR-030).
+# Regions and adventures carry no illustration yet, so theirs is null; Islands and Places carry
+# an authored, published `artAssetId` (AP-03, see `island_entry`).
 
 
 def _iso(value):
@@ -465,7 +523,6 @@ class HomeSerializer(serializers.Serializer):
             ).data,
             "restrictions": {
                 "active": child.active,
-                "sessionMinutes": child.session_minutes,
                 "aiEnabled": child.ai_enabled,
                 "readingMode": child.reading_mode,
             },
@@ -480,6 +537,19 @@ class RedeemRequest(ClosedSerializer):
     ticket = serializers.CharField(min_length=20, max_length=128, trim_whitespace=False)
 
 
+MAX_ISLAND_SUBJECTS = 6
+
+
+def island_subjects(entry) -> list[str]:
+    """What an Island teaches: its Places' authored skills, first seen first, without repeats."""
+    subjects: list[str] = []
+    for place in entry.places:
+        for skill in place.place.skills or []:
+            if skill not in subjects:
+                subjects.append(skill)
+    return subjects[:MAX_ISLAND_SUBJECTS]
+
+
 def island_entry(entry) -> dict:
     island = entry.island
     return {
@@ -487,15 +557,66 @@ def island_entry(entry) -> dict:
         "title": island.title,
         "tagline": island.tagline,
         "isHome": island.is_home,
+        "description": island.description,
+        # AP-03 discovery: who it is for, what it teaches, whether it is open, how far along.
+        "ageBands": list(island.supported_age_bands),
+        "subjects": island_subjects(entry),
+        # The Realm Explorer's filters: MATH, READING, SCIENCE, CREATIVITY (discovery.py).
+        "subjectAreas": list(entry.subject_areas),
+        # An authored `artAssetId` whose image is published, else null (draw the fallback). The
+        # client resolves it through the child-scoped asset resolver (ADR-030, LAI-2200).
+        "thumbnailAssetId": entry.art_asset_id,
+        "unlocked": entry.unlocked,
+        "lockedHint": entry.locked_hint,
+        "progress": {
+            "placesExplored": sum(place.explored for place in entry.places),
+            "placesTotal": len(entry.places),
+        },
         "places": [
             {
                 "placeId": place.place.slug,
                 "title": place.place.title,
                 "tagline": place.place.tagline,
+                "description": place.place.description,
+                "skills": list(place.place.skills or []),
+                "subjectAreas": list(place.subject_areas),
+                "thumbnailAssetId": place.art_asset_id,
                 "adventureCount": place.adventure_count,
+                "explored": place.explored,
                 # null: no published 3D Area yet; the Place's adventures are still available.
                 "area": region_entry(place.area) if place.area else None,
             }
             for place in entry.places
         ],
     }
+
+
+class PuzzleOutcomeSerializer(serializers.Serializer):
+    """The answer to a puzzle submission (LAI-0812). A code for feedback, never copy."""
+
+    def to_representation(self, outcome):
+        reward = outcome.reward
+        new_items = reward.new_item_ids if reward else ()
+        return {
+            "attemptId": str(outcome.attempt.pk) if outcome.attempt else None,
+            "correct": outcome.correct,
+            "feedback": "CORRECT" if outcome.correct else "TRY_AGAIN",
+            "solvedNow": outcome.solved_now,
+            "alreadySolved": outcome.already_solved,
+            "failedAttempts": outcome.failed_attempts,
+            "newItems": [
+                item for item in self.context.get("items", []) if item["itemId"] in new_items
+            ],
+            "rewardMessage": self.context.get("reward_message") if new_items else None,
+            "questUpdates": [
+                {
+                    "questId": update.progress.quest.slug,
+                    "status": update.progress.status,
+                    "currentStageId": update.progress.current_stage_id,
+                    "justCompleted": update.result.just_completed,
+                    "newlyCompletedObjectiveIds": list(update.result.newly_completed_objective_ids),
+                }
+                for update in outcome.quest_updates
+                if update.result.changed
+            ],
+        }

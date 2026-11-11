@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateInterests, validateNickname, validateSessionMinutes } from './validators';
+import { validateInterests, validateNickname } from './validators';
 
 describe('validateNickname', () => {
   it('rejects empty input', () => {
@@ -24,19 +24,5 @@ describe('validateInterests', () => {
 
   it('accepts an empty or small list', () => {
     expect(validateInterests(['Animals'])).toBeNull();
-  });
-});
-
-describe('validateSessionMinutes', () => {
-  it('rejects a value below the age band range', () => {
-    expect(validateSessionMinutes(2, 'SPROUT')).toMatch(/between 5 and 8/i);
-  });
-
-  it('rejects a value above the age band range', () => {
-    expect(validateSessionMinutes(30, 'PATHFINDER')).toMatch(/between 8 and 12/i);
-  });
-
-  it('accepts a value inside the age band range', () => {
-    expect(validateSessionMinutes(15, 'EXPLORER')).toBeNull();
   });
 });

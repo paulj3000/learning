@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import type { JsonObject } from '../../../../../api/parse';
 import type { AnswerOutcome, PickupOutcome, TalkOutcome } from '../../../../../api/play/types';
+import { AREA_COPY, asRevealOutcome, currentPuzzle } from '../../../../region-play/areaPuzzleUi';
+import { parsePuzzleParams } from '../../../../region-play/areaPuzzles';
 import { useAuth } from '../../../../auth/AuthContext';
 import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
 import {
@@ -28,6 +31,7 @@ import { playCue } from '../../../../region-play/soundCues';
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import type { RegionPlaySceneApi } from './regionPlayScene';
+import { AreaPuzzleLayer } from './AreaPuzzleLayer';
 import { BackpackPanel } from './ui/BackpackPanel';
 import { ChestChallengePanel, type ChestPanelPhase } from './ui/ChestChallengePanel';
 import { LaunchDialog } from './ui/LaunchDialog';
@@ -41,9 +45,9 @@ import styles from './ui/RegionPlayPanels.module.css';
  * The React half of `region-play`, mounted for the whole visit (TR-7, with
  * the TR-8 game UI).
  *
- * - Starts or resumes the child's session once the region is loaded and
- *   completes it at the calm stop. It never accepts a quest: Pip offers it
- *   and the child chooses (TR-D11).
+ * - Starts or resumes the child's session once the region is loaded. It
+ *   never ends the session because of play time (there is no time limit),
+ *   and it never accepts a quest: Pip offers it and the child chooses (TR-D11).
  * - Keeps the chests in the scene matching the server, so a chest opens in
  *   the cove only after the play API says so.
  * - Opens Pip's dialogue or the chest's lock for a claimed interaction,
@@ -83,7 +87,6 @@ function RegionPlayGame(props: LocationCompanionProps) {
     config,
     sceneApi,
     claimedInteraction,
-    limitReached,
     onCloseInteraction,
     setQuestCue,
     hudSlot,
@@ -105,10 +108,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const {
     state,
     startSession,
-    changeSession,
     acceptQuest,
     requestChallenge,
     submitAnswer,
+    solvePuzzle,
     collectPickup,
     talkToNpc,
   } = controls;
@@ -120,6 +123,11 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const [soundOpen, setSoundOpen] = useState(false);
   const [hintOpen, setHintOpen] = useState(false);
   const [celebration, setCelebration] = useState<AnswerOutcome | null>(null);
+  const [returned, setReturned] = useState<{
+    outcome: AnswerOutcome;
+    title: string;
+    message: string | null;
+  } | null>(null);
   const [found, setFound] = useState<PickupOutcome | null>(null);
   /** The replay activity (TR-20) the child just got right, until they play again or close. */
   const [replayWon, setReplayWon] = useState<string | null>(null);
@@ -139,12 +147,6 @@ function RegionPlayGame(props: LocationCompanionProps) {
     startedOnce.current = true;
     void startSession();
   }, [startSession, state.session, state.status]);
-
-  // The calm stop ends the session; the room stays as it is.
-  const sessionStatus = state.session?.status;
-  useEffect(() => {
-    if (limitReached && sessionStatus) void changeSession('complete');
-  }, [changeSession, limitReached, sessionStatus]);
 
   // The objective, from the server's quests: the HUD cue now, the hint when asked.
   const bootstrap = state.bootstrap;
@@ -446,11 +448,44 @@ function RegionPlayGame(props: LocationCompanionProps) {
 
   const errorMessage = playErrorMessage(state.error);
 
+  // ADR-047 F: puzzle objects and the way back are the puzzle layer's; everything else is here.
+  const areaEvent = event?.kind === 'puzzle' || event?.kind === 'return' ? event : null;
+  const currentStage = state.bootstrap ? currentPuzzle(state.bootstrap.puzzles) : undefined;
+  const stageParams = currentStage
+    ? parsePuzzleParams(currentStage.kind, currentStage.parameters)
+    : null;
+
+  async function returnToNpc(puzzleId: string, title: string) {
+    const outcome = await solvePuzzle(puzzleId, {});
+    if (!outcome?.correct) return;
+    const params = state.bootstrap?.puzzles.find((p) => p.puzzleId === puzzleId);
+    const parsed = params ? parsePuzzleParams(params.kind, params.parameters) : null;
+    setReturned({
+      outcome: asRevealOutcome(outcome),
+      title,
+      message: parsed?.completeMessage ?? null,
+    });
+    void refreshProgress();
+  }
+
   const nextClue =
     state.bootstrap?.chests.find((c) => !c.isOpen && c.lockReason !== 'PROGRESS')?.clue ?? null;
 
   let panel = null;
-  if (finale) {
+  if (returned) {
+    panel = (
+      <RewardReveal
+        outcome={returned.outcome}
+        completed={completedQuests(returned.outcome, state.bootstrap?.quests ?? [])}
+        title={returned.title}
+        lead={returned.message}
+        onClose={() => {
+          setReturned(null);
+          closeInteraction();
+        }}
+      />
+    );
+  } else if (finale) {
     panel = (
       <RewardReveal
         title={PLAY_COPY.finaleTitle}
@@ -486,9 +521,21 @@ function RegionPlayGame(props: LocationCompanionProps) {
       />
     );
   } else if (event?.kind === 'npc') {
+    const returnPuzzle = event.returnPuzzle;
     panel = (
       <PipDialog
         name={event.label}
+        dialogue={event.dialogue}
+        stageLine={stageParams?.intro ?? null}
+        returnAction={
+          returnPuzzle && !returnPuzzle.locked && !returnPuzzle.solved
+            ? {
+                label: AREA_COPY.showProfessor,
+                busy: state.busy === 'solvePuzzle',
+                onReturn: () => void returnToNpc(returnPuzzle.puzzleId, returnPuzzle.title),
+              }
+            : null
+        }
         quests={event.quests}
         accepting={state.busy === 'acceptQuest'}
         justAccepted={event.quests.some((q) => q.questId === acceptedHere && q.status === 'ACTIVE')}
@@ -601,7 +648,22 @@ function RegionPlayGame(props: LocationCompanionProps) {
   );
   return (
     <>
-      {panel}
+      {state.bootstrap ? (
+        <AreaPuzzleLayer
+          bootstrap={state.bootstrap}
+          sceneApi={(sceneApi as RegionPlaySceneApi | null) ?? null}
+          event={areaEvent}
+          busy={state.busy === 'solvePuzzle'}
+          solvePuzzle={async (puzzleId, submission) => {
+            const outcome = await solvePuzzle(puzzleId, submission as JsonObject);
+            if (outcome?.correct) void refreshProgress();
+            return outcome;
+          }}
+          onClose={closeInteraction}
+          showToast={props.showToast}
+        />
+      ) : null}
+      {areaEvent ? null : panel}
       {hudControls && hudSlot ? createPortal(hudControls, hudSlot) : hudControls}
     </>
   );

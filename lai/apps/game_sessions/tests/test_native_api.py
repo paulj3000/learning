@@ -178,7 +178,6 @@ def test_home_for_a_new_child(a):
     }
     assert body["restrictions"] == {
         "active": True,
-        "sessionMinutes": 10,
         "aiEnabled": True,
         "readingMode": "READ_ALONG",
     }

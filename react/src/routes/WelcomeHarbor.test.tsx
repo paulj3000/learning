@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,17 +18,14 @@ vi.mock('../features/island/api', () => ({
 }));
 vi.mock('../features/adventures/api', () => ({ listAllWorldChanges }));
 vi.mock('../features/catalog/availabilityApi', () => ({ loadCatalogSnapshot }));
-vi.mock('../features/session/useSessionClock', () => ({
-  useSessionClock: () => ({ elapsedMinutes: 0, limitMinutes: null, limitReached: false }),
-}));
 
 import { WelcomeHarbor } from './WelcomeHarbor';
 
 /** LAI-0808: the child's homepage is an Island Explorer. */
 
-function renderHome() {
+function renderHome(state?: unknown) {
   return render(
-    <MemoryRouter initialEntries={['/island/child-1']}>
+    <MemoryRouter initialEntries={[{ pathname: '/island/child-1', state }]}>
       <Routes>
         <Route path="/island/:childId" element={<WelcomeHarbor />} />
         <Route path="/island/:childId/locations/:slug" element={<p>Place page</p>} />
@@ -113,6 +110,34 @@ describe('WelcomeHarbor Island Explorer (LAI-0808)', () => {
     await screen.findByRole('region', { name: 'Where to next?' });
     expect(screen.queryByRole('link', { name: /Wonderwild Forest/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Pirate Builder Bay/ })).toBeInTheDocument();
+  });
+
+  it('says calmly that the adventure is saved after "Leave island" (AP-04), and only then', async () => {
+    renderHome({ leftIsland: true });
+    expect(await screen.findByRole('status')).toHaveTextContent('Your adventure is saved.');
+    cleanup();
+    renderHome();
+    await screen.findByRole('heading', { name: 'Where to next?' });
+    expect(screen.queryByText(/Your adventure is saved/)).not.toBeInTheDocument();
+  });
+
+  it('draws the homepage with the Adventure Portal theme inside the child shell (AP-01)', async () => {
+    renderHome();
+    const hero = await screen.findByRole('region', { name: 'Welcome back, Robin!' });
+    expect(hero).toHaveAttribute('data-portal', 'welcome-hero');
+    expect(hero).toHaveClass('bg-ocean-700', 'text-white');
+    expect(hero.closest('[data-shell="child"]')).not.toBeNull();
+    expect(screen.getByRole('navigation', { name: 'Island' })).toBeInTheDocument();
+
+    const here = within(screen.getByRole('region', { name: 'Where to next?' }))
+      .getByText('You are here')
+      .closest('[data-slot="portal-card"]');
+    expect(here).toHaveClass('bg-ocean-50');
+
+    const library = screen.getByRole('link', { name: 'Open the adventure library (new!)' });
+    expect(library).toHaveAttribute('href', '/island/child-1/library');
+    expect(library).toHaveAttribute('data-slot', 'portal-button');
+    expect(library).toHaveClass('bg-purple-700', 'min-h-14');
   });
 
   it('shows a calm error when the island cannot load', async () => {

@@ -53,6 +53,8 @@ describe('golden vectors', () => {
       'applyReviewDecay',
       'rankAdventures',
       'reachableAdventures',
+      'platformsSolved',
+      'simulateValves',
     ]) {
       expect(covered.has(name), `${name} has no vectors`).toBe(true);
     }
@@ -83,7 +85,13 @@ describe('golden vectors', () => {
       ),
     );
     expect(new Set(throwing)).toEqual(
-      new Set(['validateStepAnswer', 'getNextStepId', 'decideSubmission']),
+      new Set([
+        'validateStepAnswer',
+        'getNextStepId',
+        'decideSubmission',
+        'platformsSolved',
+        'simulateValves',
+      ]),
     );
   });
 

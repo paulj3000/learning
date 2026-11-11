@@ -27,6 +27,15 @@ import type {
   QuestObjective,
   QuestState,
 } from '../../features/quests/types';
+import {
+  observeSolved,
+  platformsSolved,
+  simulateValves,
+  solveValves,
+  type Slot,
+  type Stone,
+  type Valve,
+} from '../../features/region-play/areaPuzzles';
 import { resolveRewards, rewardedItemIds } from '../../features/rewards/rewardTable';
 import type { RewardTable, RewardTrigger } from '../../features/rewards/types';
 import { isWorldUnlocked } from '../../features/worlds/travel';
@@ -1723,6 +1732,134 @@ function directorContentSuite(): GoldenSuite {
 }
 
 // ---------------------------------------------------------------------------------------------
+// 3D Area puzzles: the client's local rules and the server graders (ADR-047 F, LAI-0812)
+
+const STONES: Stone[] = [
+  { id: 'small', label: 'Small', size: 1 },
+  { id: 'middle', label: 'Middle', size: 2 },
+  { id: 'long', label: 'Long', size: 3 },
+];
+const SLOTS: Slot[] = [
+  { id: 'near', label: 'Near', gap: 2 },
+  { id: 'middle-gap', label: 'Middle', gap: 3 },
+  { id: 'far', label: 'Far', gap: 1 },
+];
+const STEAM: Valve[] = [
+  { id: 'red', label: 'Red', from: 'passage', to: 'pipe' },
+  { id: 'blue', label: 'Blue', from: 'pipe', to: 'tank' },
+  { id: 'green', label: 'Green', from: 'tank', to: 'vent' },
+];
+const DEAD_END: Valve[] = [...STEAM, { id: 'grey', label: 'Grey', from: 'passage', to: 'drain' }];
+
+function areaPuzzlesSuite(): GoldenSuite {
+  return {
+    schemaVersion: GOLDEN_SCHEMA_VERSION,
+    suite: 'area-puzzles',
+    description:
+      'Puzzle rules the client simulates and the server grades: observe every feature, match each gap to a stone of its size, and move steam along valves to the goal.',
+    sources: ['react/src/features/region-play/areaPuzzles.ts', 'lai/apps/regions/puzzles.py'],
+    notes: [
+      'simulateValves: a valve whose channel has no steam does nothing, so extra turns are harmless.',
+      'platformsSolved: an unknown slot or stone id is an invalid submission (throws).',
+    ],
+    functions: {
+      observeSolved: vectors(
+        'observe_solved',
+        ['featureIds', 'observed'],
+        [
+          { name: 'all seen', input: { featureIds: ['a', 'b'], observed: ['b', 'a'] } },
+          { name: 'one missing', input: { featureIds: ['a', 'b'], observed: ['a'] } },
+          { name: 'repeats are fine', input: { featureIds: ['a'], observed: ['a', 'a'] } },
+          { name: 'extras do not count', input: { featureIds: ['a', 'b'], observed: ['a', 'c'] } },
+        ],
+        ({ featureIds, observed }) => observeSolved(featureIds, observed),
+      ),
+      platformsSolved: vectors(
+        'platforms_solved',
+        ['stones', 'slots', 'placements'],
+        [
+          {
+            name: 'each gap has its size',
+            input: {
+              stones: STONES,
+              slots: SLOTS,
+              placements: { near: 'middle', 'middle-gap': 'long', far: 'small' },
+            },
+          },
+          {
+            name: 'a stone in the wrong gap',
+            input: {
+              stones: STONES,
+              slots: SLOTS,
+              placements: { near: 'long', 'middle-gap': 'middle', far: 'small' },
+            },
+          },
+          {
+            name: 'a gap left empty',
+            input: { stones: STONES, slots: SLOTS, placements: { near: 'middle', far: 'small' } },
+          },
+          {
+            name: 'one stone in two gaps',
+            input: {
+              stones: STONES,
+              slots: SLOTS,
+              placements: { near: 'small', 'middle-gap': 'small', far: 'small' },
+            },
+          },
+          {
+            name: 'an unknown stone',
+            input: { stones: STONES, slots: SLOTS, placements: { near: 'boulder' } },
+          },
+        ],
+        ({ stones, slots, placements }) =>
+          platformsSolved(stones, slots, placements as Record<string, string>),
+      ),
+      simulateValves: vectors(
+        'simulate_valves',
+        ['valves', 'start', 'sequence'],
+        [
+          {
+            name: 'in order',
+            input: { valves: STEAM, start: 'passage', sequence: ['red', 'blue', 'green'] },
+          },
+          {
+            name: 'backwards',
+            input: { valves: STEAM, start: 'passage', sequence: ['green', 'blue', 'red'] },
+          },
+          {
+            name: 'extra turns are harmless',
+            input: {
+              valves: STEAM,
+              start: 'passage',
+              sequence: ['green', 'red', 'green', 'blue', 'green'],
+            },
+          },
+          {
+            name: 'dead end',
+            input: { valves: DEAD_END, start: 'passage', sequence: ['grey', 'red'] },
+          },
+          {
+            name: 'unknown valve',
+            input: { valves: STEAM, start: 'passage', sequence: ['purple'] },
+          },
+        ],
+        ({ valves, start, sequence }) => simulateValves(valves, start, sequence),
+      ),
+      solveValves: vectors(
+        'solve_valves',
+        ['valves', 'start', 'goal'],
+        [
+          { name: 'a chain', input: { valves: STEAM, start: 'passage', goal: 'vent' } },
+          { name: 'with a dead end', input: { valves: DEAD_END, start: 'passage', goal: 'vent' } },
+          { name: 'unreachable', input: { valves: STEAM, start: 'passage', goal: 'drain' } },
+        ],
+        ({ valves, start, goal }) => solveValves({ valves, start, goal }),
+      ),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
 // AI safety: companion and tutor output validation, tutor context, fallbacks (LAI-0701)
 
 const TEXT_CASES: CaseInput<{ text: string }>[] = [
@@ -2196,6 +2333,7 @@ export function buildGoldenSuites(): GoldenSuite[] {
     masterySuite(),
     directorSuite(),
     directorContentSuite(),
+    areaPuzzlesSuite(),
     aiSafetySuite(),
   ];
 }

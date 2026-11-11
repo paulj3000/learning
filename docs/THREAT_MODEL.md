@@ -121,6 +121,12 @@ children's app - not a general chat product).
   (`docs/UX_AND_ACCESSIBILITY.md`, `ParentGate.tsx`) on profile switching
   and sensitive actions - a UX control, not a cryptographic one, matching
   the product's actual threat (sibling mix-ups, not attackers).
+- **A child opens the parent space from child mode.** Accepted risk (owner
+  decision 2026-11-10, AP-04): the adult exit ("Adults: exit to parent
+  space") no longer has the arithmetic `ParentGate`, so one tap from any
+  child screen reaches `/home` and the parent pages (profiles, settings,
+  session limits). The parent must still be signed in on the device.
+  Deactivating or reactivating a profile keeps its `ParentGate`.
 
 ### Tampering
 
@@ -189,10 +195,12 @@ children's app - not a general chat product).
   `docs/PILOT_READINESS.md`** - this needs real usage data to size
   correctly and cannot be meaningfully addressed without a deployed
   environment to load-test against.
-- **A child's session running indefinitely (no calm stopping point)
+- **A child's session running indefinitely
   causing excessive engagement rather than infrastructure harm.**
-  Mitigated by `sessionMinutes` and the calm-stopping-point requirement in
-  `docs/UX_AND_ACCESSIBILITY.md`; this is a product-safety control more
+  Accepted by the owner (ADR-053, 2026-11-11): the platform imposes no
+  play-time limit, countdown or forced stop. What remains is the calm-
+  engagement design itself (no streaks, loot boxes, leaderboards or
+  come-back pressure) and the parent's own supervision; this is a product-safety control more
   than a security one, included here because it is this document's closest
   analogue to "availability" threats for a children's product (the harm
   model is child engagement, not server load).

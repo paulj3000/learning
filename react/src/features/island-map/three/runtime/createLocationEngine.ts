@@ -1028,6 +1028,8 @@ export function createLocationEngine<R extends RendererLike>(
           frameCallbacks.add(callback);
           return () => frameCallbacks.delete(callback);
         },
+        playerPosition: () => ({ x: controller.position.x, z: controller.position.z }),
+        teleportPlayer: (x, z, yaw) => controller.teleport(x, z, yaw),
         now: () => deps.now(),
         placeChild,
         childPlacement,

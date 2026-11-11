@@ -1,3 +1,5 @@
+import { ParentShell } from '../features/portal/shell';
+import { PortalButton } from '../features/portal/ui';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import styles from './ParentDashboard.module.css';
@@ -49,12 +51,16 @@ export function ChildProfileEdit() {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Edit child profile</h1>
-        <Link to="/home">Back to dashboard</Link>
-      </header>
-      <main className={styles.main} id="main-content">
+    <ParentShell
+      mainClassName={styles.main}
+      actions={
+        <PortalButton asChild tone="quiet">
+          <Link to="/home">Back to dashboard</Link>
+        </PortalButton>
+      }
+    >
+      <div className={styles.parentPage}>
+        <h1 className={styles.parentPageTitle}>Edit child profile</h1>
         {loadState === 'loading' ? <p>Loading profile...</p> : null}
         {loadState === 'not-found' ? (
           <p role="alert">We could not find that child profile.</p>
@@ -76,7 +82,6 @@ export function ChildProfileEdit() {
                 Boolean(interest),
               ),
               readingMode: childProfile.readingMode,
-              sessionMinutes: childProfile.sessionMinutes,
             }}
             onSubmit={handleSubmit}
             onSaved={() => navigate('/home')}
@@ -85,7 +90,7 @@ export function ChildProfileEdit() {
         {loadState === 'ready' && childProfile && childId ? (
           <ParentAudioSettings childId={childId} />
         ) : null}
-      </main>
-    </div>
+      </div>
+    </ParentShell>
   );
 }

@@ -147,7 +147,7 @@ class _AuditedReadOnlyAdmin(admin.ModelAdmin):
 
 class ChildProfileInline(admin.TabularInline):
     model = ChildProfile
-    fields = ("id", "age_band", "reading_mode", "session_minutes", "active", "ai_enabled")
+    fields = ("id", "age_band", "reading_mode", "active", "ai_enabled")
     readonly_fields = fields
     extra = 0
     can_delete = False
@@ -202,7 +202,6 @@ class ChildProfileAdmin(_AuditedReadOnlyAdmin):
         "parent_id",
         "age_band",
         "reading_mode",
-        "session_minutes",
         "active",
         "ai_enabled",
         "has_photo",
