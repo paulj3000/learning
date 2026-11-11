@@ -18,9 +18,9 @@ Stories
     POST   stories/{slug}/chapters/{id}/complete/  finish the current chapter
     POST   stories/{slug}/reflections/          {sceneId}: reflection evidence
 NPCs
-    GET    npcs/                                every NPC relationship
-    POST   npcs/{npc}/dialogue/                 {nodeId}: a dialogue node was shown
-    DELETE npcs/                                a parent clears every NPC memory
+    GET    npc-memory/                          every NPC relationship
+    POST   npc-memory/{npc}/dialogue/           {nodeId}: a dialogue node was shown
+    DELETE npc-memory/                          a parent clears every NPC memory
 
 Discovery itself stays `discoveries/` (SC-R04-00): the server decides whether a secret opens.
 """

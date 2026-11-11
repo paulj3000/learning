@@ -2,6 +2,7 @@ import type { LocationViewExtension } from '../../runtime/viewExtensionRegistry'
 import { CastleTaleCompanion } from './CastleTaleCompanion';
 import { castleTaleClaims } from './castleTaleClaims';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
+import { managedCastleNpcFor } from './castleNpcHandover';
 
 /**
  * `castle-tale`'s React half. It claims the two interactions whose meaning
@@ -20,7 +21,9 @@ export const castleTaleViewExtension: LocationViewExtension = {
   claimsInteraction(interaction, { ageBand, config }) {
     const parsed = tryParseCastleTaleConfig(config);
     if (!parsed) return false;
-    return castleTaleClaims(interaction.id, parsed, ageBand);
+    return (
+      castleTaleClaims(interaction.id, parsed, ageBand) || managedCastleNpcFor(interaction) !== null
+    );
   },
   Companion: CastleTaleCompanion,
 };

@@ -20,7 +20,7 @@ def pytest_collection_modifyitems(config, items):
         return
     import socket
 
-    port = int(os.environ.get("POSTGRES_PORT", "5432"))
+    port = int(os.environ.get("POSTGRES_PORT", "5442"))
     try:
         socket.create_connection(("127.0.0.1", port), timeout=1).close()
         return

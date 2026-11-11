@@ -46,6 +46,7 @@
     "@aws-amplify/backend-cli": "^1.9.0",
     "@aws-sdk/client-dynamodb": "^3.1112.0",
     "@aws-sdk/lib-dynamodb": "^3.1112.0",
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.0",

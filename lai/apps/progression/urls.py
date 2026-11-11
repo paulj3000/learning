@@ -17,9 +17,9 @@ urlpatterns = [
         name="story-chapter-complete",
     ),
     path(f"{STORY}reflections/", views.StoryReflectionView.as_view(), name="story-reflections"),
-    path(f"{CHILD}npcs/", views.NpcListView.as_view(), name="npcs"),
+    path(f"{CHILD}npc-memory/", views.NpcListView.as_view(), name="npc-memory"),
     path(
-        f"{CHILD}npcs/<slug:npc_id>/dialogue/",
+        f"{CHILD}npc-memory/<slug:npc_id>/dialogue/",
         views.NpcDialogueView.as_view(),
         name="npc-dialogue",
     ),

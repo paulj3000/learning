@@ -10,8 +10,13 @@ const djangoPort = process.env.LAI_E2E_DJANGO_PORT ?? '8765';
 const vitePort = process.env.LAI_E2E_VITE_PORT ?? '5175';
 const python = process.env.LAI_E2E_PYTHON ?? '../.venv/bin/python';
 
+// LAI_E2E_CHROMIUM points at a preinstalled Chromium when it differs from the build this
+// Playwright version pins (for example in a cloud container); unset, Playwright's own is used.
 const webgl = {
-  launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] },
+  launchOptions: {
+    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+    ...(process.env.LAI_E2E_CHROMIUM ? { executablePath: process.env.LAI_E2E_CHROMIUM } : {}),
+  },
 };
 
 export default defineConfig({

@@ -49,13 +49,44 @@
       "Bash(env)",
       "Read(//home/pdimitriu/.aws/**)",
       "Bash(npx tsx *)",
-      "Bash(TEST_PARENT_EMAIL='paulj1999@yahoo.com' TEST_PARENT_PASSWORD='Tester1234$' npx tsx scripts/ai-red-team.ts)"
+      "Bash(TEST_PARENT_EMAIL='paulj1999@yahoo.com' TEST_PARENT_PASSWORD='Tester1234$' npx tsx scripts/ai-red-team.ts)",
+      "Bash(aws sts get-caller-identity:*)",
+      "Bash(aws polly describe-voices:*)",
+      "Bash(aws bedrock get-guardrail:*)",
+      "Bash(aws bedrock list-guardrails:*)",
+      "Bash(aws bedrock get-inference-profile:*)",
+      "Bash(aws bedrock list-inference-profiles:*)",
+      "Bash(aws bedrock list-foundation-models:*)"
     ],
     "deny": [
       "Read(.env)",
       "Read(.env.*)",
       "Bash(rm -rf:*)",
-      "Bash(aws:*)"
+      "Bash(aws * create-*)",
+      "Bash(aws * delete-*)",
+      "Bash(aws * put-*)",
+      "Bash(aws * update-*)",
+      "Bash(aws * attach-*)",
+      "Bash(aws * detach-*)",
+      "Bash(aws * deploy*)",
+      "Bash(aws * terminate-*)",
+      "Bash(aws * run-*)",
+      "Bash(aws * start-*)",
+      "Bash(aws * stop-*)",
+      "Bash(aws * tag-*)",
+      "Bash(aws * untag-*)",
+      "Bash(aws * apply-*)",
+      "Bash(aws * invoke*)",
+      "Bash(aws * synthesize-*)",
+      "Bash(aws * send-*)",
+      "Bash(aws * cp *)",
+      "Bash(aws * rm *)",
+      "Bash(aws * sync *)",
+      "Bash(aws * mv *)",
+      "Bash(aws * mb *)",
+      "Bash(aws * rb *)",
+      "Bash(aws configure set*)",
+      "Bash(aws iam *)"
     ]
   }
 }

@@ -20,7 +20,15 @@ import type { SoundHandle, SoundManager, SoundPlayer, SpatialOptions } from '../
 export type SpeechReference =
   | { kind: 'utterance'; id: string }
   | { kind: 'line'; id: string }
-  | { kind: 'npcNode'; npcId: string; nodeId: string };
+  | { kind: 'npcNode'; npcId: string; nodeId: string }
+  // NPC Manager (LAI-NPC-028): a node of a published NPC release, never draft rows.
+  | {
+      kind: 'npcDialogueNode';
+      npcId: string;
+      release: number;
+      dialogueKey: string;
+      nodeKey: string;
+    };
 
 export interface SpeechClipInfo {
   /** Ready to play: same-origin path made absolute, or https. */

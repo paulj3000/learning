@@ -88,6 +88,18 @@ _CODED = {
     "unknown_character": "That character is not on the island.",
     "invalid_source": "That source is not accepted.",
     "world_change_limit": "No more changes can be recorded.",
+    # NPC Manager (ADR-054). Child-facing where a child can see them: calm, no blame.
+    "npc_not_found": "That character is not here right now.",
+    "no_active_release": "The island characters are resting right now.",
+    "place_not_found": "That place is not open right now.",
+    "area_not_found": "That place is not open right now.",
+    "dialogue_unavailable": "That character has nothing to say just now.",
+    "conversation_not_found": "That conversation has finished.",
+    "conversation_ended": "That conversation has finished.",
+    "invalid_choice": "That choice is not available.",
+    "invalid_trigger": "That is not something a character can react to.",
+    "ai_unavailable": "The character will use their own words for now.",
+    "rate_limited": "Let's take a little break and try again soon.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

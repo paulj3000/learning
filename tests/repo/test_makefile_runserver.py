@@ -48,7 +48,8 @@ def test_runserver_defaults_to_learning_dev_profile(tmp_path):
     out = _run(tmp_path)
     assert "AWS_PROFILE=learning-dev" in out
     assert f"CWD={ROOT / 'lai'}" in out
-    assert "ARGS=manage.py runserver" in out
+    # Development ports (owner, 2026-11-05): runserver binds 127.0.0.1:$(DJANGO_DEV_PORT), 8010.
+    assert "ARGS=manage.py runserver 127.0.0.1:8010" in out
 
 
 def test_runserver_profile_can_be_overridden_on_command_line(tmp_path):

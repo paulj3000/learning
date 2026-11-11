@@ -217,7 +217,7 @@ def test_another_familys_story_is_not_found_and_unwritten(content, api):
 
 
 def talk(client, child, node, npc="pirate-pip"):
-    return post(client, url(child, f"npcs/{npc}/dialogue/"), {"nodeId": node})
+    return post(client, url(child, f"npc-memory/{npc}/dialogue/"), {"nodeId": node})
 
 
 def test_dialogue_awards_points_once_and_sets_authored_flags(content, api):
@@ -232,7 +232,7 @@ def test_dialogue_awards_points_once_and_sets_authored_flags(content, api):
     assert story["npc"]["relationshipPoints"] == 2
     assert story["levelIncreased"] is True
     assert story["npc"]["relationshipLevel"] == "ACQUAINTANCE"
-    listed = client.get(url(content.a1, "npcs/")).json()["npcs"]
+    listed = client.get(url(content.a1, "npc-memory/")).json()["npcs"]
     assert [n["npcId"] for n in listed] == ["pirate-pip"]
     assert listed[0]["seenNodeIds"] == ["pip-greeting", "pip-bridge-story"]
 
@@ -243,7 +243,7 @@ def test_unknown_npcs_and_nodes_are_refused(content, api):
     assert talk(client, content.a1, "not-a-node").status_code == 400
     refused = post(
         client,
-        url(content.a1, "npcs/pirate-pip/dialogue/"),
+        url(content.a1, "npc-memory/pirate-pip/dialogue/"),
         {"nodeId": "pip-greeting", "points": 50},
     )
     assert refused.status_code == 400
@@ -253,7 +253,7 @@ def test_unknown_npcs_and_nodes_are_refused(content, api):
 def test_npc_memory_is_cleared_by_the_parent_only_for_their_child(content, api):
     talk(api(content.a), content.a1, "pip-greeting")
     talk(api(content.b), content.b1, "pip-greeting")
-    assert api(content.a).delete(url(content.b1, "npcs/")).status_code == 404
-    assert api(content.a).delete(url(content.a1, "npcs/")).status_code == 204
+    assert api(content.a).delete(url(content.b1, "npc-memory/")).status_code == 404
+    assert api(content.a).delete(url(content.a1, "npc-memory/")).status_code == 204
     assert not NpcRelationship.objects.filter(child=content.a1).exists()
     assert NpcRelationship.objects.filter(child=content.b1).exists()

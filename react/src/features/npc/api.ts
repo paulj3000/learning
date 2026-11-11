@@ -1,5 +1,5 @@
 /**
- * Persistence for the NPC system on Django (`children/<id>/npcs/...`, AMP-03).
+ * Persistence for the NPC system on Django (`children/<id>/npc-memory/...`, AMP-03; `npcs/` is the NPC Manager's catalog).
  *
  * The only impure module in `src/features/npc/`. The client tells the server which authored
  * dialogue node it showed; the server applies the same rules as `dialogue.ts` and
@@ -37,7 +37,7 @@ function readState(r: Reader): NpcRelationshipState {
 
 /** Every NPC this child has met, for quests, the parent dashboard and world views. */
 export async function listNpcStates(childProfileId: string): Promise<NpcRelationshipState[]> {
-  const response = await djangoClient().request('GET', childPath(childProfileId, 'npcs/'));
+  const response = await djangoClient().request('GET', childPath(childProfileId, 'npc-memory/'));
   return read(response.data, (r) => r.field('npcs').array(readState));
 }
 
@@ -65,7 +65,7 @@ export async function recordDialogueNode(
 ): Promise<RecordDialogueResult> {
   const response = await djangoClient().request(
     'POST',
-    childPath(childProfileId, `npcs/${encodeURIComponent(npcId)}/dialogue/`),
+    childPath(childProfileId, `npc-memory/${encodeURIComponent(npcId)}/dialogue/`),
     { body: { nodeId: node.id } },
   );
   return read(response.data, (r) => {
@@ -85,5 +85,5 @@ export async function recordDialogueNode(
  * gameplay: characters must not forget a child as a game mechanic.
  */
 export async function clearNpcState(childProfileId: string): Promise<void> {
-  await djangoClient().request('DELETE', childPath(childProfileId, 'npcs/'));
+  await djangoClient().request('DELETE', childPath(childProfileId, 'npc-memory/'));
 }

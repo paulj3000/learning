@@ -70,7 +70,7 @@ stays the backend-free smoke check.
   `/api/v1/` request (`support/fixtures.ts`). Answers are worked out from the issued challenge
   as a child would (`pictureAnswer`), and Django grades them.
 
-Needs Docker PostgreSQL (`POSTGRES_PORT` if not 5432), `.venv`, and Playwright's Chromium. One
+Needs Docker PostgreSQL (`POSTGRES_PORT` if not the 5442 default), `.venv`, and Playwright's Chromium. One
 worker; about six minutes. Not covered here, and recorded as pending wherever it applies: live
 Cognito, live Bedrock, S3 storage and S3 signed delivery, and the Amplify Data screens (harbor
 map, adventure log, Amplify-session places), which need an Amplify sandbox.

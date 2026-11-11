@@ -3,9 +3,16 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import type { JsonObject } from '../../../../../api/parse';
 import type { AnswerOutcome, PickupOutcome, TalkOutcome } from '../../../../../api/play/types';
+import { prefersReducedMotion } from '../../../../../lib/motionPreference';
 import { AREA_COPY, asRevealOutcome, currentPuzzle } from '../../../../region-play/areaPuzzleUi';
 import { parsePuzzleParams } from '../../../../region-play/areaPuzzles';
 import { useAuth } from '../../../../auth/AuthContext';
+import type { PlayOutcome } from '../../../../npc-manager/dialogue/triggers';
+import {
+  useNpcSceneHost,
+  type NpcSceneHost,
+  type NpcSoundMoment,
+} from '../../../../npc-manager/host';
 import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
 import {
   chestStateChanges,
@@ -27,7 +34,7 @@ import {
   hasSceneAudio,
   useTreasureRushAudio,
 } from '../../../../region-play/audio/useTreasureRushAudio';
-import { playCue } from '../../../../region-play/soundCues';
+import { playCue, type SoundCue } from '../../../../region-play/soundCues';
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import type { RegionPlaySceneApi } from './regionPlayScene';
@@ -73,6 +80,14 @@ import styles from './ui/RegionPlayPanels.module.css';
  * - Begins an Adventure from an object that offers one (ADR-041): the server
  *   checks and starts it, then the child goes to the Adventure with a way
  *   back to this 3D Area.
+ * - NPC Manager (LAI-NPC-010, -015, -016): the NPC scene host serves this 3D Area's published
+ *   NPCs. When it serves Pip, the manifest Pip is handed over (hidden, its root following the
+ *   managed Pip so focus and taps still reach him) and `PipDialog` is not used: talking runs the
+ *   published dialogue, after the same "talked" call the play API always had, and Pip's
+ *   `OFFER_QUEST` choice accepts through the same quest flow. Every play outcome also goes to the
+ *   host as NPC triggers and reactions; rewards and progress are untouched. When the host serves
+ *   nothing (no release, Django off, a failed load), the legacy Pip and `PipDialog` stay exactly
+ *   as before, so the adventure is never blocked.
  *
  * Remounted per child and region (`key`), so a switch starts from nothing.
  */
@@ -90,6 +105,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     onCloseInteraction,
     setQuestCue,
     hudSlot,
+    speechSlot,
     showToast,
     bus,
   } = props;
@@ -103,7 +119,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const auth = useAuth();
   const onUnauthenticated = () => void auth.refresh();
   const parsed = useMemo(() => tryParseRegionPlayConfig(config), [config]);
-  const controls = useRegionPlay(childId, regionId, { onUnauthenticated });
+  // LAI-NPC-016: play outcomes go to the NPC scene host (wired below, once it exists).
+  const playOutcomeRef = useRef<((outcome: PlayOutcome) => void) | null>(null);
+  const onOutcome = useCallback((outcome: PlayOutcome) => playOutcomeRef.current?.(outcome), []);
+  const controls = useRegionPlay(childId, regionId, { onUnauthenticated, onOutcome });
   const progress = usePlayerProgress(childId, { onUnauthenticated });
   const {
     state,
@@ -199,14 +218,18 @@ function RegionPlayGame(props: LocationCompanionProps) {
     }
   }, [unlockedByServer, sceneApi, showToast]);
 
-  // TR-18: Pip and every other character reacts to a find, as presentation only.
-  const npcIds = useMemo(() => (bootstrap?.npcs ?? []).map((npc) => npc.entityId), [bootstrap]);
+  // TR-18: Pip and every other character reacts to a find, as presentation only. An NPC the
+  // NPC Manager draws reacts through the host instead (its `react` commands).
+  const managedRef = useRef<ReadonlySet<string>>(new Set());
+  const npcs = bootstrap?.npcs;
   const react = useCallback(
     (reaction: 'talk' | 'cheer') => {
       const api = sceneApi as RegionPlaySceneApi | null;
-      for (const entityId of npcIds) api?.reactNpc?.(entityId, reaction);
+      for (const npc of npcs ?? []) {
+        if (!managedRef.current.has(npc.npcId)) api?.reactNpc?.(npc.entityId, reaction);
+      }
     },
-    [npcIds, sceneApi],
+    [npcs, sceneApi],
   );
 
   // TR-14: locks and pickups in the scene follow the server, like chest lids.
@@ -356,6 +379,96 @@ function RegionPlayGame(props: LocationCompanionProps) {
         )
       : null;
 
+  // --- NPC Manager (LAI-NPC-010, -015, -016) ---------------------------------------------
+  const npcScene = useMemo(
+    () => (sceneApi as RegionPlaySceneApi | null)?.npcHostScene?.() ?? null,
+    [sceneApi],
+  );
+  const bootstrapRef = useRef(bootstrap);
+  bootstrapRef.current = bootstrap;
+  const onNpcInteract = useCallback(
+    async (npcId: string) => {
+      // The same "talked" call the legacy Pip made (it may finish the quest and bring the
+      // finale), before the conversation, so the line matches the quest's new state.
+      const entity = bootstrapRef.current?.npcs.find((npc) => npc.npcId === npcId);
+      if (entity) await talkToNpc(entity.entityId);
+    },
+    [talkToNpc],
+  );
+  const onQuestOffer = useCallback(
+    (questId: string) => {
+      // The child's own tap on "Yes, I will help!", through the existing accept flow.
+      const quest = bootstrapRef.current?.quests.find((q) => q.questId === questId);
+      if (quest?.status !== 'AVAILABLE') return;
+      setAcceptedHere(questId);
+      void acceptQuest(questId);
+    },
+    [acceptQuest],
+  );
+  const onNpcSound = useCallback((moment: NpcSoundMoment, npcId: string) => {
+    playCue(NPC_SOUND_CUES[moment], { npcId });
+  }, []);
+  const npcHost: NpcSceneHost = useNpcSceneHost({
+    childId,
+    scope: { kind: 'area', regionId },
+    scene: npcScene,
+    reducedMotion: prefersReducedMotion(),
+    suspended: Boolean(
+      finale || found || celebration || soundOpen || backpackOpen || event !== null,
+    ),
+    onInteract: onNpcInteract,
+    onQuestOffer,
+    onSound: onNpcSound,
+    // Unprompted lines sit at the top of the stage, so they stay in full screen and never
+    // cover the HUD or the reticle's action prompt (F-B).
+    ambientLayout: speechSlot ? 'inline' : 'floating',
+  });
+  const { managedNpcIds, notifyPlay } = npcHost;
+  managedRef.current = managedNpcIds;
+  const hostRef = useRef(npcHost);
+  hostRef.current = npcHost;
+
+  // Every play outcome becomes NPC triggers and reactions. The calm stop's session completion
+  // is not the adventure's completion, so it is left out; completion comes from world changes.
+  useEffect(() => {
+    playOutcomeRef.current = (outcome) => {
+      if (outcome.kind !== 'session_changed') notifyPlay(outcome);
+    };
+    return () => {
+      playOutcomeRef.current = null;
+    };
+  }, [notifyPlay]);
+  const seenChanges = useRef<Set<string> | null>(null);
+  const worldChanges = bootstrap?.worldChanges;
+  useEffect(() => {
+    if (!worldChanges) return;
+    const keyOf = (change: { locationSlug: string; changeKey: string }) =>
+      `${change.locationSlug}:${change.changeKey}`;
+    if (seenChanges.current === null) {
+      seenChanges.current = new Set(worldChanges.map(keyOf));
+      return;
+    }
+    const added = worldChanges.filter((change) => !seenChanges.current?.has(keyOf(change)));
+    for (const change of added) seenChanges.current.add(keyOf(change));
+    if (added.length > 0) notifyPlay({ kind: 'world_changes', added });
+  }, [worldChanges, notifyPlay]);
+
+  // Exactly one Pip: a manifest NPC the host serves is handed over to it.
+  useEffect(() => {
+    const api = sceneApi as RegionPlaySceneApi | null;
+    if (!api?.setNpcProxy || !npcs) return undefined;
+    const handed: string[] = [];
+    for (const npc of npcs) {
+      if (managedNpcIds.has(npc.npcId)) {
+        api.setNpcProxy(npc.entityId, () => hostRef.current.positionOf(npc.npcId));
+        handed.push(npc.entityId);
+      }
+    }
+    return () => {
+      for (const entityId of handed) api.setNpcProxy?.(entityId, null);
+    };
+  }, [sceneApi, npcs, managedNpcIds]);
+
   const chestEntity = event?.kind === 'chest' ? event.entityId : null;
   const challenge =
     chestEntity && state.challenge?.targetEntityId === chestEntity ? state.challenge : null;
@@ -370,7 +483,12 @@ function RegionPlayGame(props: LocationCompanionProps) {
   // time the child does it; the server decides what it means.
   useEffect(() => {
     if (!event || !claimedInteraction || handledFor.current === claimedInteraction) return;
-    if (event.kind === 'npc') {
+    if (event.kind === 'npc' && managedNpcIds.has(event.npcId)) {
+      // The NPC Manager's Pip: the host runs the talk call and the conversation.
+      handledFor.current = claimedInteraction;
+      hostRef.current.interact(event.npcId, 'pointer');
+      onCloseInteraction();
+    } else if (event.kind === 'npc') {
       handledFor.current = claimedInteraction;
       (sceneApi as RegionPlaySceneApi | null)?.reactNpc?.(event.entityId, 'talk');
       void talkToNpc(event.entityId);
@@ -404,6 +522,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     state.challenge,
     state.busy,
     sceneApi,
+    managedNpcIds,
   ]);
 
   // The same interaction is claimed again on the next touch, so "once" lasts until it closes.
@@ -520,7 +639,9 @@ function RegionPlayGame(props: LocationCompanionProps) {
         }}
       />
     );
-  } else if (event?.kind === 'npc') {
+  } else if (event?.kind === 'npc' && !managedNpcIds.has(event.npcId)) {
+    // A managed NPC (NPC Manager) answers through its own panel instead. Follow-up: that panel
+    // has no launch or puzzle-return actions yet; Treasure Cove's Pip uses neither today.
     const returnPuzzle = event.returnPuzzle;
     panel = (
       <PipDialog
@@ -603,13 +724,17 @@ function RegionPlayGame(props: LocationCompanionProps) {
     panel = <SoundPanel onClose={() => setSoundOpen(false)} />;
   } else if (backpackOpen) {
     panel = <BackpackPanel progress={progress} onClose={() => setBackpackOpen(false)} />;
+  } else if (npcHost.panel) {
+    panel = npcHost.panel;
   }
 
   const itemCount = progress.progress?.inventory.length ?? 0;
   // On the stage when the view offers a slot (so they stay in full screen), fixed to the page otherwise.
   const onStage = Boolean(hudSlot);
+  const ambient = panel ? null : npcHost.ambient;
   const hudControls = panel ? null : (
     <>
+      {npcHost.prompt}
       {hintOpen ? (
         <div className={onStage ? styles.stageHintBubble : styles.hintBubble} role="status">
           <p>{nextStepHint(objective, bootstrap?.chests ?? [])}</p>
@@ -665,6 +790,15 @@ function RegionPlayGame(props: LocationCompanionProps) {
       ) : null}
       {areaEvent ? null : panel}
       {hudControls && hudSlot ? createPortal(hudControls, hudSlot) : hudControls}
+      {ambient && speechSlot ? createPortal(ambient, speechSlot) : ambient}
     </>
   );
 }
+
+/** LAI-NPC-015: the Sound Manager's NPC events as Treasure Rush sound moments. */
+const NPC_SOUND_CUES: Readonly<Record<NpcSoundMoment, SoundCue>> = {
+  on_approach: 'npcGreet',
+  on_interact: 'npcInteract',
+  on_dialogue_start: 'npcTalk',
+  on_exit: 'npcLeave',
+};

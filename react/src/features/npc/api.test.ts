@@ -38,7 +38,7 @@ function npc(overrides: Record<string, unknown> = {}) {
   };
 }
 
-const NPCS = 'children/child-1/npcs/';
+const NPCS = 'children/child-1/npc-memory/';
 let api: FakeDjangoClient;
 
 beforeEach(() => {
