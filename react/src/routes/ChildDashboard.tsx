@@ -694,7 +694,6 @@ export function ChildDashboard() {
                 </Link>
               </div>
 
-
               <div className={styles.controlRow}>
                 <div>
                   <p className={styles.controlLabel}>AI interaction history</p>

@@ -85,7 +85,11 @@ describe('createChildProfile', () => {
 
     // The retired session length is still written, only because the deployed schema requires it.
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ parentProfileId: 'parent-1', ownerSub: 'sub-1', sessionMinutes: 8 }),
+      expect.objectContaining({
+        parentProfileId: 'parent-1',
+        ownerSub: 'sub-1',
+        sessionMinutes: 8,
+      }),
     );
   });
 });

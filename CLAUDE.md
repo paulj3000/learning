@@ -23,7 +23,7 @@ Every experience must combine:
 - Creates child profiles.
 - Selects age band and optional interests.
 - Reviews progress and learning summaries.
-- Controls voice, microphone, AI features, session duration, and data retention.
+- Controls voice, microphone, AI features, and data retention (no play-time limit, ADR-053).
 
 ### Child profile
 - Does not require an email address.

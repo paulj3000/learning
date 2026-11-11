@@ -252,7 +252,6 @@ export function ChildProfileForm({
         </select>
       </div>
 
-
       <button className={styles.button} type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Saving...' : submitLabel}
       </button>

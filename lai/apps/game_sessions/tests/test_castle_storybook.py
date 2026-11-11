@@ -20,6 +20,8 @@ from apps.users.tests.helpers import access_claims
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
 NOOK = "castle-tapestry-stair"
+
+
 def url(child) -> str:
     return f"/api/v1/children/{child.pk}/castle/storybook/"
 
