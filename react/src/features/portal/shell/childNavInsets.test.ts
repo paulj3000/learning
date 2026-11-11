@@ -18,6 +18,7 @@ const shellTsx = read('features/portal/shell/ChildShell.tsx');
 const GAME_LAYERS = [
   'features/island-map/three/extensions/regionPlay/ui/RegionPlayPanels.module.css',
   'features/island-map/three/extensions/castleTale/CastleSpeech.module.css',
+  'features/npc-manager/ui/NpcInteraction.module.css',
 ];
 
 function rules(css: string): { selector: string; body: string }[] {
@@ -67,8 +68,11 @@ describe('child nav insets', () => {
     );
     expect(fixed.length).toBeGreaterThan(0);
     for (const { selector, body } of fixed) {
+      // Layers anchored to the top (the NPC ambient line) never meet the bottom bar.
       const bottom = declaration(body, 'bottom');
-      expect(bottom, `${selector} bottom`).toContain('var(--child-nav-inset-bottom, 0px)');
+      if (bottom !== undefined) {
+        expect(bottom, `${selector} bottom`).toContain('var(--child-nav-inset-bottom, 0px)');
+      }
       const left = declaration(body, 'left');
       if (left !== undefined) {
         expect(left, `${selector} left`).toContain('var(--child-nav-inset-left, 0px)');

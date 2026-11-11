@@ -13451,8 +13451,10 @@ Found by a browser check after AP-01 merged (PR #16). The `ChildShell` nav is `p
 - Every fixed game layer offsets by them: bottom by the bottom inset; left-anchored layers and
   the centred panel by the left inset (the panel centres in the play area and narrows to fit).
   Outside the shell the fallbacks are `0px`, so nothing else moves.
+- After merging `main` (2026-11-11), the NPC manager's dialogue panel and talk prompt
+  (`NpcInteraction.module.css`) follow the same rule; its top-right ambient line needs no offset.
 - Tests: `childNavInsets.test.ts` (new; insets match the nav's classes, full-screen reset, and
-  every `position: fixed` rule in both game stylesheets uses them; it fails on the old CSS) and
+  every `position: fixed` rule in the three game stylesheets uses them; it fails on the old CSS) and
   one case in `shells.test.tsx`.
 
 Checks: Vitest for portal, island, regionPlay and castleTale (156 files) pass; typecheck passes;
@@ -13464,7 +13466,7 @@ acceptance specs: 12 passed, 1 skipped (as in the suite).
 
 Deferred to merge verification: full Vitest suite, build, lint and format over the repository,
 `make py-check`, the full e2e and acceptance suites. Not browser-checked: Storykeeper Castle's
-captions (the same offset rule, unit-tested). Remaining risk, not caused by the nav: at 320x640
+captions and the NPC dialogue panel (the same offset rule, unit-tested). Remaining risk, not caused by the nav: at 320x640
 Pip's panel is taller than the room above the bar (its 70vh cap), so the answer buttons need a
 scroll inside the panel, and the panel draws over the top bar's adult exit while open.
 
