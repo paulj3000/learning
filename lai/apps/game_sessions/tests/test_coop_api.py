@@ -79,8 +79,7 @@ def test_the_adventure_must_exist_and_suit_both_children(content_catalog, famili
     response = start(api, families, slug="no-such-adventure")
     assert response.json()["error"]["code"] == "adventure_invalid"
     families.a2.age_band = "SPROUT"
-    families.a2.session_minutes = 6
-    families.a2.save(update_fields=["age_band", "session_minutes"])
+    families.a2.save(update_fields=["age_band"])
     response = start(api, families)
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "adventure_invalid"
@@ -119,7 +118,6 @@ def test_a_sibling_outside_the_session_cannot_see_it(content_catalog, families, 
         age_band="PATHFINDER",
         avatar_key="FOX",
         reading_mode="READ_ALONG",
-        session_minutes=10,
         interests=[],
     )
     coop_id = start(api, families).json()["id"]
