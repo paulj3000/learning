@@ -96,6 +96,25 @@
   border: 3px solid var(--color-accent);
 }
 
+/*
+  An unprompted line (QA finding F-B): a smaller, non-modal speech bubble above the Talk prompt,
+  clear of the stage's bottom corners (Full screen on the left, Hint and Backpack on the right)
+  and below the Hint bubble's stacking level, so the HUD stays visible and usable.
+*/
+.bubble {
+  bottom: calc(var(--space-4) + 9rem);
+  z-index: 18;
+  width: min(24rem, calc(100% - var(--space-8)));
+  max-height: min(40vh, 22rem);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-width: 2px;
+}
+
+.bubble .title {
+  font-size: var(--font-size-large);
+}
+
 .panel:focus {
   outline: none;
 }

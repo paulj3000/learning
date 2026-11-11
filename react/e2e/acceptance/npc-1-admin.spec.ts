@@ -430,11 +430,12 @@ test.describe.serial('NPC Manager in Django Admin', () => {
     const confirmRetire = page.getByRole('button', { name: /Yes|Confirm|Retire/ });
     if (await confirmRetire.count()) await confirmRetire.first().click();
     await expect(messages(page), await errors(page)).toContainText(/children see no NPCs/);
+    // No active release is an ordinary empty scene, not an error (QA finding F-A).
     const none = await placeNpcs(request, parent, childId, PLACE);
-    expect(none.status()).toBe(404);
-    expect(((await none.json()) as { error: { code: string } }).error.code).toBe(
-      'no_active_release',
-    );
+    expect(none.status()).toBe(200);
+    const empty = (await none.json()) as { release: number; placements: unknown[] };
+    expect(empty.release).toBe(0);
+    expect(empty.placements).toEqual([]);
     await page.goto(adminUrl('npcs/npcrelease/'));
     await page
       .getByRole('link', { name: /^(NPC release )?1\b/ })

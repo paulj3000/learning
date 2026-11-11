@@ -322,7 +322,15 @@ export function CastleTaleCompanion({
 
   if (!parsed) return null;
 
-  const npcStage = npcs.host.panel ?? npcs.host.prompt;
+  // Quill's unprompted lines are a non-modal bubble that sits beside the Talk prompt (F-B).
+  const npcStage =
+    npcs.host.panel ??
+    (npcs.host.bubble || npcs.host.prompt ? (
+      <>
+        {npcs.host.bubble}
+        {npcs.host.prompt}
+      </>
+    ) : null);
   const captions = (
     <div className={speechStyles.captions}>
       <SpeechCaption

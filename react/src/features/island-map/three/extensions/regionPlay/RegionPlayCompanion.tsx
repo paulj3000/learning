@@ -720,6 +720,8 @@ function RegionPlayGame(props: LocationCompanionProps) {
   return (
     <>
       {panel}
+      {/* Pip's unprompted lines: a non-modal bubble beside the HUD, never over it (F-B). */}
+      {panel ? null : npcHost.bubble}
       {hudControls && hudSlot ? createPortal(hudControls, hudSlot) : hudControls}
     </>
   );

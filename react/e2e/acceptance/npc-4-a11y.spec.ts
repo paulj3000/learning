@@ -29,9 +29,11 @@ async function readyPip(page: Page) {
     .toBe(1);
   // Let an ambient first-visit greeting arrive, then close it.
   await page.waitForTimeout(800);
-  const open = page.getByRole('dialog', { name: 'Pirate Pip' });
-  if (await open.count()) await open.getByRole('button', { name: 'Close' }).click();
-  await expect(open).toHaveCount(0);
+  for (const role of ['dialog', 'region'] as const) {
+    const open = page.getByRole(role, { name: 'Pirate Pip' });
+    if (await open.count()) await open.getByRole('button', { name: 'Close' }).click();
+    await expect(open).toHaveCount(0);
+  }
 }
 
 async function openPip(page: Page) {

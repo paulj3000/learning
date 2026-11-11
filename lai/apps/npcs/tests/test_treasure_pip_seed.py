@@ -220,7 +220,7 @@ def test_quest_state_picks_the_line(treasure, api):
 def test_no_release_means_no_managed_pip(treasure, api):
     run()  # seeded but not published
     response = api(treasure.families.a).get(area(treasure.families.a1))
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "no_active_release"
+    assert response.status_code == 200
+    assert response.json()["release"] == 0 and response.json()["placements"] == []
     assert not NpcRelease.objects.filter(status=ReleaseStatus.ACTIVE).exists()
     assert NpcPlacement.objects.filter(placement_key=pip.PLACEMENT_KEY).count() == 1

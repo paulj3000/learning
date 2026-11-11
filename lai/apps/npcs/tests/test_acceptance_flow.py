@@ -232,7 +232,8 @@ def test_lifecycle_from_seed_to_retirement(voiced, api):
     assert "NPC release 1 retired." in response.content.decode()
     assert not NpcRelease.objects.filter(status=ReleaseStatus.ACTIVE).exists()
     gone = parent.get(area(child))
-    assert gone.status_code == 404 and code(gone) == "no_active_release"
+    assert gone.status_code == 200
+    assert gone.json()["release"] == 0 and gone.json()["placements"] == []
     silent = post(parent, talk(child), {"trigger": "on_interact"})
     assert silent.status_code == 404 and code(silent) == "no_active_release"
     assert stranger.get(area(child)).status_code == 404

@@ -232,6 +232,7 @@ function setup(options: Setup = {}) {
         <p data-testid="status">{value.status}</p>
         {value.prompt}
         {value.panel}
+        {value.bubble}
       </>
     );
   }
@@ -300,6 +301,73 @@ describe('NPC scene host: lifecycle', () => {
     await flush();
     const triggers = dialogueApi.start.mock.calls.map(([, request]) => request.trigger);
     expect(triggers).toEqual(['on_spawn']);
+  });
+});
+
+describe('NPC scene host: unprompted lines are a non-modal bubble (QA finding F-B)', () => {
+  const GREETING = node('ahoy', 'Ahoy there, friend!');
+
+  function greetingApi() {
+    const dialogueApi = fakeDialogueApi(reply(ASK));
+    dialogueApi.start.mockImplementation(async (_npc, request) =>
+      request.trigger === 'on_spawn' ? reply(GREETING) : reply(ASK),
+    );
+    return dialogueApi;
+  }
+
+  it('shows the spawn greeting without a modal dialog, without taking focus', async () => {
+    const outside = document.createElement('button');
+    outside.textContent = 'Full screen';
+    document.body.appendChild(outside);
+    outside.focus();
+    const { host } = setup({ dialogueApi: greetingApi() });
+    await flush();
+    expect(screen.getByText('Ahoy there, friend!')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Pirate Pip' })).toBeTruthy();
+    expect(host.current?.panel).toBeNull();
+    expect(host.current?.bubble).not.toBeNull();
+    expect(document.activeElement).toBe(outside); // the HUD keeps focus
+    await userEvent.tab(); // and Tab is not trapped in the bubble
+    outside.remove();
+  });
+
+  it('keeps the Talk prompt beside the bubble; talking opens the modal panel', async () => {
+    const dialogueApi = greetingApi();
+    const { world } = setup({ dialogueApi });
+    await flush();
+    world.moveTo({ x: 3, z: 7 });
+    expect(screen.getByText('Ahoy there, friend!')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Talk to Pirate Pip' }));
+    await flush();
+    expect(screen.getByRole('dialog', { name: 'Pirate Pip' })).toBeTruthy();
+    expect(screen.getByText('Will you help me?')).toBeTruthy();
+    expect(screen.queryByText('Ahoy there, friend!')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Pirate Pip' })).toBeNull();
+    // The greeting was ended on the server before the child's own conversation began.
+    expect(dialogueApi.end).toHaveBeenCalledWith('pirate-pip', CONVERSATION);
+  });
+
+  it('closes the bubble with Continue, and never on a timer', async () => {
+    const { host } = setup({ dialogueApi: greetingApi() });
+    await flush();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByText('Ahoy there, friend!')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await flush();
+    expect(screen.queryByText('Ahoy there, friend!')).toBeNull();
+    expect(host.current?.bubble).toBeNull();
+  });
+
+  it('hides the bubble while another panel is open', async () => {
+    const { host, view, Probe } = setup({ dialogueApi: greetingApi() });
+    await flush();
+    expect(host.current?.bubble).not.toBeNull();
+    view.rerender(<Probe suspended />);
+    expect(host.current?.bubble).toBeNull();
+    expect(screen.queryByText('Ahoy there, friend!')).toBeNull();
   });
 });
 

@@ -63,7 +63,12 @@ export type { NpcHostScene } from './types';
  * play services. An `OFFER_QUEST` choice hands the quest id to `onQuestOffer` (the world's own
  * accept flow); a `REQUEST_HINT` choice asks the hint route and shows its words.
  *
- * No release (`404 no_active_release`), Django off, or any load failure leaves the scope with no
+ * Unprompted lines (a greeting, a welcome back, a reaction from the queue) are `bubble`: a
+ * non-modal speech bubble that leaves the world's HUD visible and usable and never takes focus
+ * (QA finding F-B). The Talk prompt stays available beside it; talking starts a modal
+ * conversation, which is `panel`. Only a conversation the child starts is ever modal.
+ *
+ * No release (an empty scene with `release: 0`, or `404 no_active_release` from an older server), Django off, or any load failure leaves the scope with no
  * managed NPCs (`status` `empty` or `failed`), never an error screen: the world keeps whatever it
  * had (Treasure Cove keeps its legacy Pip). Everything is disposed on unmount or scope change.
  *
@@ -135,12 +140,17 @@ export interface NpcSceneHost {
    * state. `facingYaw` turns the NPC first. False when the NPC is not managed here.
    */
   animate(npcId: string, state: AnimationState, options?: { facingYaw?: number }): boolean;
-  /** True while a conversation is open or starting. */
+  /** True while a conversation (modal or unprompted) is open or starting. */
   conversationOpen: boolean;
   /** The Talk prompt, or null. Render it on the stage. */
   prompt: ReactNode;
-  /** The dialogue panel, or null. */
+  /** The modal dialogue panel for a conversation the child started, or null. */
   panel: ReactNode;
+  /**
+   * An unprompted line as a non-modal speech bubble, or null. Render it with the HUD (it is
+   * never shown at the same time as `panel`); it does not block the world's controls.
+   */
+  bubble: ReactNode;
 }
 
 interface Talking {
@@ -314,6 +324,9 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
   const interactFlow = useCallback(
     async (npcId: string, placementKey: string) => {
       const who = { npcId, placementKey };
+      // An unprompted line still showing or loading gives way to the child's own conversation
+      // (otherwise a loading one would make `start` a no-op); its behaviour resumes first.
+      controllerRef.current.interrupt();
       setErrorDismissed(false);
       setForeground({ ...who, pending: true });
       // Stop and turn at once; `resume_behavior` follows whatever the conversation does.
@@ -583,7 +596,10 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     return promptRef.current ?? latest.current.focusReturnTarget?.() ?? null;
   }, []);
 
+  // A conversation the child did not start (no foreground) is an unprompted line: a bubble.
+  const ambient = !foreground;
   let panel: ReactNode = null;
+  let bubble: ReactNode = null;
   if (panelVisible) {
     const npcId = view.npcId ?? foreground?.npcId ?? null;
     const node = view.status === 'showing' ? view.node : null;
@@ -610,7 +626,7 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
         : null;
     const onReplay =
       replayNode && !voice.silent ? () => void voiceRef.current.play(replayNode) : undefined;
-    panel = (
+    const dialogue = (
       <NpcDialoguePanel
         speakerName={nameOf(npcId)}
         text={text}
@@ -627,12 +643,17 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
         replayDisabled={voice.state.nodeKey === node?.nodeKey && voice.state.phase === 'loading'}
         returnFocusTo={returnFocusTo}
         copy={copy?.dialogue}
+        ambient={ambient}
       />
     );
+    if (ambient) bubble = dialogue;
+    else panel = dialogue;
   }
 
   let prompt: ReactNode = null;
-  if (ready && !suspended && !conversationOpen && near.length > 0) {
+  // The prompt hides only behind the modal panel: beside a bubble the child can still talk.
+  const modalOpen = conversationOpen && !ambient;
+  if (ready && !suspended && !modalOpen && near.length > 0) {
     const placementKey = near[near.length - 1];
     const placement = sceneData?.placements.find((p) => p.placementKey === placementKey);
     if (placement) {
@@ -657,5 +678,6 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
     conversationOpen,
     prompt,
     panel,
+    bubble,
   };
 }

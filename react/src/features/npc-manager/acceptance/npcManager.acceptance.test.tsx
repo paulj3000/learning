@@ -396,6 +396,7 @@ describe('NPC Manager acceptance: Treasure Cove with managed Pip (fakes only)', 
           <p data-testid="status">{value.status}</p>
           {value.prompt}
           {value.panel}
+          {value.bubble}
         </>
       );
     }

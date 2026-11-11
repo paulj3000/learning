@@ -87,6 +87,26 @@ def catalog(release: published.PublishedRelease, child) -> dict:
     }
 
 
+def empty_catalog() -> dict:
+    """`GET children/<child>/npcs/` with no ACTIVE release: no characters, `release: 0`."""
+    return {"contractVersion": 1, "release": 0, "characters": []}
+
+
+def empty_scene(scope: Scope) -> dict:
+    """An Area or Place read with no ACTIVE release: an ordinary empty scene, `release: 0`.
+
+    "Nothing published" is a normal state (every environment starts there), so the read routes
+    answer 200 instead of an error the browser would log on every visit (QA finding F-A).
+    """
+    return {
+        "contractVersion": 1,
+        "release": 0,
+        "scope": {"place": scope.place, "area": scope.area},
+        "characters": {},
+        "placements": [],
+    }
+
+
 def scene(release: published.PublishedRelease, child, scope: Scope) -> dict:
     """The Area or Place route: spawnable placements in `scope` and exactly the characters
     they place."""

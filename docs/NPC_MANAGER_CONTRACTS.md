@@ -162,7 +162,13 @@ token resolves `child_id` (another family's child is 404). The game runtime cook
   this child. `variant` is resolved: the placement's variant if available to this child, else the
   first available variant by order, else the default. `behavior` is inlined as
   `{key, type, parameters}` or null. `characters` holds exactly the characters placed.
-- No active release: `404 no_active_release` (clients show no NPCs, never an error screen).
+- No active release (nothing published yet, or the active release was retired): `200` with an
+  empty result and `release: 0` (`characters: []` for the catalog; `characters: {}` and
+  `placements: []` for a scene, `scope` echoing the request). It is a normal state, not an
+  error, so browsers log nothing (QA finding F-A, 2026-11-11). The child and the Place or Area
+  are still checked first (`404` for another family's child, `place_not_found`,
+  `area_not_found`). Interaction, speech and hint routes still answer `404 no_active_release`;
+  clients keep treating that code on a read as an empty scene, for older servers.
 - RuntimeCharacter = snapshot character minus server-only keys and minus each variant's
   `availability` and `isDefault`.
 

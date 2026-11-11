@@ -47,6 +47,13 @@ export interface NpcDialoguePanelProps {
    * gone (the Talk prompt hides while a conversation is open). Return null to leave focus alone.
    */
   returnFocusTo?(): HTMLElement | null;
+  /**
+   * An unprompted line (a greeting, a welcome back, a reaction): shown as a non-modal speech
+   * bubble that leaves the world's HUD visible and usable (QA finding F-B). It never takes or
+   * traps focus and never restores it; Escape and the arrow keys still work while focus is
+   * inside. Conversations the child starts are always the modal panel.
+   */
+  ambient?: boolean;
 }
 
 /**
@@ -69,6 +76,9 @@ export interface NpcDialoguePanelProps {
  *   nothing is trapped after that.
  * - Escape closes. The first-person control keys are kept from reaching the window while focus
  *   is inside, so choosing never walks the child away.
+ * - `ambient`: the same caption, choices and buttons in a labelled, non-modal region placed
+ *   clear of the HUD. Focus is left where the child had it (no move, no trap, no restore), and
+ *   the line is still announced once through the same live region.
  */
 export function NpcDialoguePanel({
   speakerName,
@@ -86,6 +96,7 @@ export function NpcDialoguePanel({
   onReplay,
   replayDisabled = false,
   returnFocusTo,
+  ambient = false,
 }: NpcDialoguePanelProps) {
   const copy = { ...NPC_DIALOGUE_COPY, ...copyOverrides };
   const titleId = useId();
@@ -100,6 +111,7 @@ export function NpcDialoguePanel({
   });
 
   useEffect(() => {
+    if (ambient) return undefined; // a bubble never took focus, so it gives none back
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return () => {
       if (previous && previous !== document.body && document.contains(previous)) {
@@ -111,14 +123,15 @@ export function NpcDialoguePanel({
       if (active && active !== document.body) return;
       returnFocusRef.current?.()?.focus();
     };
-  }, []);
+  }, [ambient]);
 
   const errorText = error === true ? copy.error : error || null;
   useEffect(() => {
+    if (ambient) return; // never pull focus away from the world or its HUD
     // Disabled buttons cannot hold focus: while busy, the panel itself keeps it.
     if (busy) panelRef.current?.focus();
     else (firstRef.current ?? closeRef.current ?? panelRef.current)?.focus();
-  }, [nodeKey, busy, errorText, choices.length]);
+  }, [ambient, nodeKey, busy, errorText, choices.length]);
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === 'Escape') {
@@ -127,7 +140,7 @@ export function NpcDialoguePanel({
       return;
     }
     if (event.key === 'Tab') {
-      trapTab(event);
+      if (!ambient) trapTab(event);
       return;
     }
     if (ARROW_STEPS[event.key] !== undefined && moveFocus(ARROW_STEPS[event.key])) {
@@ -184,12 +197,11 @@ export function NpcDialoguePanel({
   return (
     <section
       ref={panelRef}
-      role="dialog"
-      aria-modal="true"
+      {...(ambient ? { 'data-npc-ambient': '' } : { role: 'dialog', 'aria-modal': 'true' })}
       aria-labelledby={titleId}
       aria-busy={busy}
       tabIndex={-1}
-      className={styles.panel}
+      className={ambient ? `${styles.panel} ${styles.bubble}` : styles.panel}
       onKeyDown={onKeyDown}
     >
       <div className={styles.header}>
