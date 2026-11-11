@@ -35,7 +35,6 @@ function renderLocation(slug: string, ageBand: AgeBandValue) {
     nickname: 'Robin',
     ageBand,
     interests: [],
-    sessionMinutes: 10,
     avatarKey: 'fox',
   });
   listAllWorldChanges.mockResolvedValue([]);

@@ -14,7 +14,6 @@ function makeChild(overrides: Partial<ChildProfile>): ChildProfile {
     avatarKey: 'FOX',
     interests: [],
     readingMode: 'VOICE_FIRST',
-    sessionMinutes: 6,
     active: true,
     parentProfileId: 'parent-1',
     ...overrides,

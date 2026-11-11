@@ -155,14 +155,13 @@ const WITH_PICKUP: ThreeLocationManifest = {
   })),
 };
 
-/** A region that authors the calm stop, the checkpoint toasts and no reticle for Sprouts. */
+/** A region that authors the checkpoint toasts and no reticle for Sprouts. */
 const WITH_CASTLE_COPY: ThreeLocationManifest = {
   ...WELCOME_HARBOR_MANIFEST,
   regionId: 'copy-cove',
   noReticleBands: ['SPROUT'],
   copy: {
     ...WELCOME_HARBOR_MANIFEST.copy,
-    calmStop: 'Pip sits down on the dock. It is a good place to rest.',
     progressUnavailable: 'We could not load your backpack just now.',
     checkpointToasts: {
       found: 'You found {checkpoint}.',

@@ -138,7 +138,6 @@ function toBody(input: ChildProfileInput): Record<string, unknown> {
     avatarKey: input.avatarKey,
     interests: input.interests,
     readingMode: input.readingMode,
-    sessionMinutes: input.sessionMinutes,
   };
 }
 
@@ -184,11 +183,11 @@ function parentOrThrow(data: unknown): ParentProfile {
 /** Validates one child from the API; anything malformed is dropped rather than half-shown. */
 export function parseChild(data: unknown): ChildProfile | null {
   if (!isRecord(data)) return null;
-  const { id, nickname, ageBand, avatarKey, readingMode, sessionMinutes } = data;
+  const { id, nickname, ageBand, avatarKey, readingMode } = data;
   if (typeof id !== 'string' || id === '' || typeof nickname !== 'string') return null;
   if (typeof ageBand !== 'string' || !(ageBand in AGE_BAND_LABELS)) return null;
   if (typeof readingMode !== 'string' || !READING_MODES.has(readingMode)) return null;
-  if (typeof avatarKey !== 'string' || typeof sessionMinutes !== 'number') return null;
+  if (typeof avatarKey !== 'string') return null;
   return {
     id,
     nickname,
@@ -200,7 +199,6 @@ export function parseChild(data: unknown): ChildProfile | null {
       ? data.interests.filter((value): value is string => typeof value === 'string')
       : [],
     readingMode: readingMode as ReadingModeValue,
-    sessionMinutes,
     active: data.active !== false,
     aiEnabled: data.aiEnabled !== false,
     createdAt: typeof data.createdAt === 'string' ? data.createdAt : null,

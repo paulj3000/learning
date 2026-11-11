@@ -10,7 +10,7 @@ Data, Storage or Functions, so it works only where `/api/` reaches Django and th
 
 | Card | Code state on the branch | Evidence | Open (owner or live) |
 |---|---|---|---|
-| AMP-01 | Audit (PR #14) | `AMPLIFY_EXIT_MATRIX.md` | Live counts (matrix section 6) |
+| AMP-01 | Audit, merged (PR #14) | `AMPLIFY_EXIT_MATRIX.md` | None: the live counts came from the AMP-08 stage 0 run |
 | AMP-02 | Done in code | Section AMP-02 below | Browser and live-pool acceptance |
 | AMP-03 | Done in code | `PLAY_API.md` "Per-child state outside region play"; Django tests listed below | DynamoDB importers (G8) if live data exists; Django Admin parity sign-off (G10); reconcile with `dev20261103` step runner (G2) |
 | AMP-04 | Done in code; migration commands built | `AMPLIFY_STORAGE_CUTOVER.md` | G9 consent gate; buckets deployed; copy run and reconciled |

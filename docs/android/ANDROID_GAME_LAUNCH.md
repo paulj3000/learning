@@ -142,7 +142,6 @@ cookie, gets 401.
   "regionId": "treasure-rush-cove",
   "ageBand": "PATHFINDER",
   "readingMode": "READ_ALONG",
-  "sessionMinutes": 10,
   "aiEnabled": true,
   "expiresAt": "...",
   "csrfHeader": "X-LAI-Game-CSRF",
@@ -161,8 +160,8 @@ cookie, gets 401.
 }
 ```
 
-The response has no nickname, no parent id and no token. `sessionMinutes` sets the calm
-stopping point (the region's `scene.copy.calmStop`).
+The response has no nickname, no parent id and no token. There is no play-time limit to apply
+(ADR-053); `expiresAt` is the launch credential's expiry, a security control, not a time limit.
 
 ### Play API routes the cookie can reach
 

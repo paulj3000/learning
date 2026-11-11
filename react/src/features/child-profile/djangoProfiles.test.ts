@@ -27,7 +27,6 @@ const INPUT: ChildProfileInput = {
   avatarPhotoKey: 'child-photos/someone/else.jpg',
   interests: ['Space'],
   readingMode: 'VOICE_FIRST',
-  sessionMinutes: 6,
 };
 
 function fakeClient(respond: (method: string, path: string, body?: unknown) => unknown) {
@@ -84,8 +83,8 @@ describe('Django profile store', () => {
       avatarKey: 'OWL',
       interests: ['Space'],
       readingMode: 'VOICE_FIRST',
-      sessionMinutes: 6,
     });
+    // No session length is sent: the time limit is retired (the server keeps its own value).
   });
 
   it('edits, deactivates and switches AI off with PATCH on the child', async () => {

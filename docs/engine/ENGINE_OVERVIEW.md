@@ -137,7 +137,7 @@ One React component for any manifest. It does the following:
 - Shows crosshair labels and toasts.
 - Opens interactions through `runtime/WorldActionPanel.tsx`, respecting their requirements.
 - Lists every interaction in "Things to do here", except hidden ones.
-- Runs the session clock and calm stop.
+- Never limits play time: there is no session clock or calm stop (ADR-053).
 - Shows calm not-found, invalid and progress-unavailable states.
 
 ### Extensions: `extensions/`

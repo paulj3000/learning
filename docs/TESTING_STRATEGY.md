@@ -41,7 +41,7 @@ Critical paths:
 5. World change appears on map.
 6. Parent sees accurate learning summary.
 7. AI failure produces safe deterministic fallback.
-8. Session limit produces a calm stopping point.
+8. Extended play is never cut off: no countdown, stop note, or session end for time (ADR-053).
 9. Parent deletes or deactivates a child profile.
 
 ## Browser acceptance suites (POST-MERGE-05)

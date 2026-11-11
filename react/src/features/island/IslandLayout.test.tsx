@@ -5,10 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { IslandLayout, LEAVE_ISLAND_LABEL } from './IslandLayout';
 import { useExitParticipant } from '../portal/exit';
 
-vi.mock('../session/useSessionClock', () => ({
-  useSessionClock: () => ({ elapsedMinutes: 0, limitMinutes: null, limitReached: false }),
-}));
-
 const CHILD_ID = 'child-1';
 
 /** Each child-mode depth that IslandLayout wraps: Island, Place, 3D Area and Adventure. */
@@ -140,4 +136,27 @@ describe('IslandLayout exits', () => {
     );
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
   });
+});
+
+describe('IslandLayout has no play-time limit', () => {
+  it.each(CHILD_SCREENS)(
+    'never shows a stop note, countdown or lockout on %s after hours of play',
+    async (path) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        // A session start from a previous, now-retired clock must not matter either.
+        window.sessionStorage.setItem(`lai:session-start:${CHILD_ID}`, '1');
+        renderAt(path, <button type="button">Keep playing</button>);
+        await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000);
+
+        expect(screen.queryByRole('complementary', { name: /place to stop/i })).toBeNull();
+        expect(screen.queryByText(/good place to stop|time (is )?up|minutes left/i)).toBeNull();
+        expect(screen.getByRole('button', { name: 'Keep playing' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: LEAVE_ISLAND_LABEL })).toBeEnabled();
+      } finally {
+        window.sessionStorage.clear();
+        vi.useRealTimers();
+      }
+    },
+  );
 });
