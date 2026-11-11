@@ -38,6 +38,13 @@ describe('ChildShell', () => {
     expect(nav.className).toMatch(/\bmd:w-56\b/);
   });
 
+  it('publishes the nav insets on the shell, for fixed game layers', () => {
+    const { container } = renderChildShell('/island/child-1');
+    const shell = container.querySelector('[data-shell="child"]');
+    expect(shell?.className).toMatch(/shell/);
+    expect(shell?.className).not.toMatch(/\bpb-20\b|\bmd:pl-56\b/);
+  });
+
   it('marks the current page and hides the pictures from screen readers', () => {
     renderChildShell('/island/child-1/log');
     expect(screen.getByRole('link', { name: 'Treasures' })).toHaveAttribute('aria-current', 'page');

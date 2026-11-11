@@ -7,11 +7,12 @@
 */
 .panel {
   position: fixed;
-  left: 50%;
-  bottom: var(--space-4);
+  /* Centred in the play area, clear of the child shell's nav (AP-01). */
+  left: calc(50% + var(--child-nav-inset-left, 0px) / 2);
+  bottom: calc(var(--space-4) + var(--child-nav-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 20;
-  width: min(34rem, calc(100% - var(--space-8)));
+  width: min(34rem, calc(100% - var(--space-8) - var(--child-nav-inset-left, 0px)));
   max-height: min(70vh, 40rem);
   overflow-y: auto;
   display: flex;
@@ -325,7 +326,7 @@
 .backpackButton {
   position: fixed;
   right: var(--space-4);
-  bottom: var(--space-4);
+  bottom: calc(var(--space-4) + var(--child-nav-inset-bottom, 0px));
   z-index: 19;
   min-height: 3.5rem;
   padding: var(--space-2) var(--space-6);
@@ -368,8 +369,8 @@
 /* Sound settings (SM-P5): bottom left when the controls are not on the stage. */
 .soundButton {
   position: fixed;
-  left: var(--space-4);
-  bottom: var(--space-4);
+  left: calc(var(--space-4) + var(--child-nav-inset-left, 0px));
+  bottom: calc(var(--space-4) + var(--child-nav-inset-bottom, 0px));
   z-index: 19;
   min-height: 3.5rem;
   padding: var(--space-2) var(--space-6);
@@ -393,7 +394,7 @@
 .hintButton {
   position: fixed;
   right: var(--space-4);
-  bottom: calc(var(--space-4) + 4.25rem);
+  bottom: calc(var(--space-4) + 4.25rem + var(--child-nav-inset-bottom, 0px));
   z-index: 19;
   min-height: 3.5rem;
   padding: var(--space-2) var(--space-6);
@@ -417,9 +418,9 @@
 .hintBubble {
   position: fixed;
   right: var(--space-4);
-  bottom: calc(var(--space-4) + 8.5rem);
+  bottom: calc(var(--space-4) + 8.5rem + var(--child-nav-inset-bottom, 0px));
   z-index: 19;
-  max-width: min(22rem, calc(100vw - 2 * var(--space-4)));
+  max-width: min(22rem, calc(100vw - 2 * var(--space-4) - var(--child-nav-inset-left, 0px)));
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   background: var(--color-surface);
