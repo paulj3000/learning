@@ -45,6 +45,8 @@ export const FIREPEAK_LOCATIONS: readonly IslandLocation[] = [
     description:
       'A sleepy volcano that has started to rumble. Look closely, build a safe path, follow the steam, and learn how volcanoes and crystals form.',
     skills: ['Earth science', 'Spatial reasoning', 'Cause and effect', 'Problem solving'],
+    // AP-03: its puzzles carry no learning objective, so its Realm Explorer subject is stated.
+    subjectAreas: ['SCIENCE'],
     decoration: 'Steam curls from the mountain. Professor Ember waits at the base camp.',
   },
 ];

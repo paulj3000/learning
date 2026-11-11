@@ -1,6 +1,7 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { IslandExitProvider, LeaveIslandButton } from '../../../portal/exit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import type { LocationEngineAssets } from './createLocationEngine';
@@ -280,6 +281,64 @@ describe('ThreeLocationWorldView', () => {
     await emit('PlayerEnteredZone', { zoneId: 'pirate-builder-bay:dock' });
     expect(saveCheckpoint).toHaveBeenCalledTimes(1);
     expect(saveCheckpoint).toHaveBeenCalledWith('child-1', 'welcome-harbor:lookout');
+  });
+
+  /** AP-04: the view inside child mode's exit, as `IslandLayout` provides it. */
+  function renderInChildMode(regionId = 'welcome-harbor') {
+    return render(
+      <MemoryRouter initialEntries={[`/island/child-1/explore/${regionId}`]}>
+        <Routes>
+          <Route path="/island/:childId/realms" element={<p>Realm Explorer page</p>} />
+          <Route
+            path="*"
+            element={
+              <IslandExitProvider childId="child-1">
+                <LeaveIslandButton />
+                <ThreeLocationWorldView
+                  childId="child-1"
+                  regionId={regionId}
+                  ageBand="PATHFINDER"
+                  repository={repositoryOf(WELCOME_HARBOR_MANIFEST, TEST_COVE)}
+                />
+              </IslandExitProvider>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it('Leave island waits for a checkpoint save still in flight, then returns to the explorer (AP-04)', async () => {
+    let finishSave: () => void = () => undefined;
+    vi.mocked(saveCheckpoint).mockImplementation(
+      () => new Promise<void>((resolve) => (finishSave = resolve)),
+    );
+    renderInChildMode();
+    await screen.findByText(/Walk up to Pip/);
+    await emit('PlayerEnteredZone', { zoneId: 'welcome-harbor:lookout' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Leave island' }));
+    expect(screen.queryByText('Realm Explorer page')).not.toBeInTheDocument();
+
+    await act(async () => finishSave());
+    expect(await screen.findByText('Realm Explorer page')).toBeInTheDocument();
+    expect(engine.dispose).toHaveBeenCalled();
+  });
+
+  it('during an open encounter, Leave island confirms with plain buttons and asks nothing (AP-04)', async () => {
+    renderInChildMode('test-cove');
+    await screen.findByText('Explore the cove.');
+    await emit('PlayerEnteredZone', { zoneId: 'cove-cave' });
+    expect(screen.getByRole('dialog', { name: 'Peek into the cave' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Leave island' }));
+    expect(screen.getByRole('dialog', { name: 'Leave the island now?' })).toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+    const leave = screen.getAllByRole('button', { name: 'Leave island' });
+    await userEvent.click(leave[leave.length - 1]);
+    expect(await screen.findByText('Realm Explorer page')).toBeInTheDocument();
   });
 
   it('shows the authored toast on entering a building', async () => {

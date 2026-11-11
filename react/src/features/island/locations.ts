@@ -24,6 +24,13 @@ export interface IslandLocation {
    * happened somewhere else.
    */
   unlockRequirement?: { changeKey: string };
+  /**
+   * AP-03: the Realm Explorer subject areas this place belongs to, only when they cannot be
+   * derived. Django derives them from the learning objectives a place's adventures and chests
+   * teach; a place whose activities carry no objective (Firepeak's puzzles) states them here.
+   * Export-only: the Amplify app never reads it. After import, Django Admin owns it (ADR-047).
+   */
+  subjectAreas?: readonly ('MATH' | 'READING' | 'SCIENCE' | 'CREATIVITY')[];
 }
 
 /** Whether `location` should currently be visible/reachable for this child. */

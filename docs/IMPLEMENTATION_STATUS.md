@@ -13009,3 +13009,300 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - `tests/deploy`: all passed.
   - Prettier and ruff are clean.
   - No AWS call was made.
+
+## Adventure Portal AP-01 and AP-04: design system, shells, and leaving an island (2026-11-07, branch `feature/adventure-portal`)
+
+Trello: "[Subproject] Adventure Portal & Learning Dashboard", cards AP-01 and AP-04. Development
+complete and unit-tested; **not yet seen in a browser or on a device** (Playwright and the
+merge-readiness gates are deferred to integration, as the brief directs).
+
+**AP-01: Tailwind design system and responsive shell** (ADR-052, Proposed)
+
+- `react/src/features/portal/portal.css`: a second Tailwind 4 entry, reference-only theme with
+  the ocean, tropical, treasure, coral and purple families; no reset; no `:root` variables.
+- `react/src/features/portal/ui/`: `PortalButton` (real `<button type="button">`, `asChild` for
+  links, 48px/56px touch targets, focus ring kept), `PortalCard`, `ProgressIndicator`
+  (`progressbar` with "2 of 5 steps" in words, never a percentage or score).
+- `react/src/features/portal/shell/ChildShell.tsx`: one `<nav aria-label="Island">` that is a
+  bottom bar on phones and a sidebar from `md`; Island Explorer, Sailing dock, Adventure log,
+  Quest journal, Library; `aria-current="page"`; exits in the top bar. `IslandLayout` now renders
+  through it, so every child-mode screen gets the shell; page content keeps its CSS Modules.
+- `react/src/features/portal/shell/ParentShell.tsx`: a distinct "Parent space" top bar, adopted by
+  `ParentDashboard`. Other parent pages still use their own headers (follow-up).
+
+**AP-04: Adventure routing and return-to-hub flow**
+
+- `exit/adventureRoutes.ts`: one typed `portalPath` for every portal destination; the hub is the
+  Island Explorer at `/island/:childId`.
+- `exit/exitCoordinator.ts` (pure) and `exit/IslandExitContext.tsx`: "Leave island" flushes
+  registered saves (never rejects, abandons a slow save after 2.5s so a child is never stuck),
+  then navigates to the Island Explorer with `{ leftIsland: true }`, where a status line says the
+  adventure is saved. **No arithmetic, quiz or other challenge** is on this path. The adult exit
+  to the parent space keeps its `ParentGate`, unchanged.
+- "Confirm where needed": only while a 3D encounter is open, a two-button "Leave the island now?"
+  dialog (focus on "Keep playing"; Escape stays). Nothing to answer.
+- `ThreeLocationWorldView` tracks its fire-and-forget writes (checkpoint, character met,
+  collectible world change) so leaving waits for one still in flight.
+- `WorldStage` shows "Leave island" inside full screen, where the top bar is hidden.
+- Changed: "Leave island" was a link to the Sailing Dock; it is now a button to the Island
+  Explorer, and it is offered on the Sailing Dock too (hidden only on the Explorer itself).
+- Educational challenges inside adventures are untouched.
+
+**Tests run (unit, Vitest):** `src/features/portal`, `src/features/island`, `src/features/island-map`,
+`src/features/region-play`, `src/routes`, `src/app` (all pass; counts in the Trello comment).
+`tsc -b` clean. `npm run adr:check` passes.
+
+**Deferred to integration / remaining risks**
+
+- Playwright, lint, full suite and build not run (brief: until ready for integration).
+- Not viewed in a browser: the bottom bar's fit at 320px with five labels, the sidebar beside 3D
+  canvases at `md`, and full-screen leave placement need visual checks.
+- Phaser world pages and card adventures save per step already and register no exit participant;
+  they leave immediately. Story sessions likewise.
+- ADR-052 awaits owner acceptance.
+
+### AP-01 follow-up: the portal theme on the child homepage (2026-11-10, branch `feature/adventure-portal`)
+
+Why the theme was not visible: the 2026-11-07 commit (`0f924af`) added the tokens, the components
+and the `ChildShell`/`ParentShell` chrome, but the child homepage (`/island/:childId`,
+`WelcomeHarbor`) still drew its content with CSS Modules: `PortalCard` and `ProgressIndicator`
+were used by no page, and only the sidebar/bottom bar changed. The commit is also on an unmerged
+branch, and both frontend release paths (Amplify Hosting auto-build and `deploy-site.yml`)
+publish `main` only, so none of it is deployed.
+
+Changed:
+- `WelcomeHarbor`: ocean hero (avatar, "Welcome back", today's event and the seasonal note as
+  treasure/ocean callouts, the "Your adventure is saved." status in tropical), and the extra links
+  as a "More to explore" grid of `PortalButton` links in each portal tone.
+- `IslandExplorer`: the "You are here" island is an ocean `PortalCard` with places in rotating
+  tropical/coral/purple/treasure cards; open islands are treasure cards with a "Sail here" pill;
+  locked islands are a dashed plain card. Same links, text and structure as LAI-0808.
+- Both files added to `portal.css`'s `@source` list; their CSS Modules deleted.
+- `portalCss.test.ts`: new check that every file using the portal components or palette is
+  covered by an `@source` entry (with `source(none)`, an unlisted file silently gets no styles),
+  and contrast pairs for the homepage headings.
+- `WelcomeHarbor.test.tsx`: the homepage renders the hero, explorer card and buttons with portal
+  classes inside the child shell.
+
+Checks: Vitest `src/routes/WelcomeHarbor.test.tsx`, `src/features/portal`, `src/features/island`
+(152 files, 1767 tests pass); `tsc -b` clean; `vite build` emits the homepage utilities. Viewed in
+headless Chromium at 1280px and 390px through a local harness with the API modules stubbed
+(Amplify Data is not available offline): hero, cards and buttons render in the portal colours.
+
+Still open: merge to `main` and a release (owner approval); AP-02 (XP/level, missions, rewards
+from Django) and AP-03 (Django-published island discovery) are not implemented; Playwright, lint,
+full suite at integration; ADR-052 acceptance.
+
+### Merge `main` into `feature/adventure-portal` (2026-11-10)
+
+- `main` was 42 commits ahead. Two conflicts, both additive:
+  - `WelcomeHarbor.tsx`: kept AP-04's `leftIsland` and `main`'s `useServedPlaces` (Django-authored
+    places such as Firepeak Volcano), which now feed the portal-styled Island Explorer.
+  - This file: kept `main`'s sections, then the Adventure Portal sections.
+- Checks: `tsc -b` clean. Vitest over `src/routes`, `src/features/{portal,island,worlds,region-play,island-map}`
+  and `src/app`: 187 files, 2168 of 2169 passed. One failure,
+  `RegionPlayCompanion.test.tsx` "sends a double-tapped answer once", passed 3 of 3 runs in isolation;
+  that file and its component are identical to `main`, so it is a load-sensitive timing test, not a merge
+  regression.
+
+### Adventure Portal merge-readiness checks (2026-11-10, branch `feature/adventure-portal`)
+
+- Fixed: the merge left two ADR-051s (`main`'s Accepted Castle room discovery and the portal's
+  Proposed Tailwind decision). The portal decision is renumbered **ADR-052** (registry, heading,
+  `portal.css`, `portalCss.test.ts`, `vite.config.ts`, the portal status lines). Prettier fix to
+  `WelcomeHarbor.tsx`.
+- `npm run lint` (oxlint): 0 errors; warnings only, all pre-existing rule categories.
+- `npm run format:check`, `npm run adr:check` (52 decisions), `npm run admin-preview:check`,
+  `npm run typecheck`: pass.
+- Full Vitest: 399 files, 4519 tests, all pass.
+- `npm run build`: passes.
+- `npm run test:e2e` (Playwright, Chromium): 7 passed, 11 skipped (Firepeak specs are `test.fixme`
+  on `main` by design). Run with the container's preinstalled Chromium via a temporary,
+  uncommitted config (`executablePath`), because the pinned Playwright's browser build is absent.
+- Not run: `npm run test:acceptance` and the Python/Django gates (`make check`). The acceptance
+  suite needs Django, PostgreSQL and a real Cognito parent; this branch changes no Python.
+- Visibility note: the child homepage loads its companion and world changes from Amplify Data.
+  A local run with `VITE_BACKEND=django` and no Amplify sandbox shows only the plain
+  "Something went wrong loading the island." text, so the portal design never renders there.
+
+### AP-01 full theme redress (2026-11-10, branch `feature/adventure-portal`)
+
+Owner feedback: the portal theme must redress the whole app, not one page. The old and portal
+palettes shared the same page, card, text and focus colours, so the earlier work read as
+"nothing different" outside the child homepage.
+
+- `src/styles/tokens.css` now carries the portal palette (ocean primary, tropical accent and
+  success, coral danger, treasure warning, ocean-50 page, portal fills, rounder radii). Every CSS
+  Module reads these tokens, so every page changes. `tokens.test.ts` (WCAG AA) passes unchanged.
+- `ParentShell` on every parent page: account settings, child profile new and edit, child
+  activity, story keepsakes and play together join the dashboard. Each page's title moved into the
+  page; "Back to dashboard" is the shell's top-bar action.
+- Landing page (`Home`) rebuilt with portal components: ocean header and hero, treasure call to
+  action, three pillar cards from CLAUDE.md section 4. `Home.module.css` deleted.
+- `ChildShell` background follows the new page colour.
+- ADR-052 amended: the portal palette is the app's theme through tokens.css.
+- Not themed: 34 hard-coded colours in CSS Modules, mostly the 3D HUD and puzzle panels; the 3D
+  worlds' own scene colours; the admin section (ADR-023, its own Tailwind theme).
+
+Checks: oxlint 0 errors; Prettier; ADR check; typecheck; full Vitest 399 files / 4519 tests;
+build; Playwright 7 passed, 11 skipped (`test.fixme`). Viewed in Chromium: landing, sign-in,
+child homepage and add-child pages (the last two through a local harness with API stubs).
+
+### AP-01 owner acceptance (2026-11-10)
+
+- The owner accepted AP-01 ("AP-01 is done") and ADR-052, which is now **Accepted**.
+- Trello AP-01 moved to Ready to Merge. It is not merged to `main` or deployed; merging waits for
+  the owner's go-ahead (a merge to `main` releases through Amplify).
+- AP-04 stays in Development Complete pending its browser check (leaving from a 3D world, during an
+  encounter and in full screen, on phone and desktop).
+
+### AP-04: no arithmetic on the adult exit either (2026-11-10, branch `feature/adventure-portal`)
+
+Owner report: "when I click 'leave island', I still get the arithmetic question". "Leave island"
+itself never asked one. The question came from "Adults: exit to parent space", whose `ParentGate`
+dialog said "Answer this quick check to leave the island", and on the Island Explorer that is the
+only exit shown. The owner chose to remove the check entirely.
+
+- `IslandLayout`: the adult exit has no `ParentGate`. It uses the AP-04 exit path
+  (`requestLeave('parent-space')`): saves in flight flush, a plain confirm appears only during an
+  encounter, then it opens `/home`.
+- `IslandExitProvider.requestLeave` takes an optional destination (`island-explorer` by default).
+- `ParentGate` remains only on deactivating or reactivating a profile in the parent dashboard.
+- `docs/THREAT_MODEL.md` records the accepted risk: one tap from child mode reaches the parent
+  pages on a signed-in device.
+- Tests: the adult exit from every child screen and from the Island Explorer reaches the parent
+  space with no question; during an encounter it confirms with plain buttons, then goes.
+  Checked in Chromium through the local harness.
+
+### AP-04 owner acceptance (2026-11-10)
+
+- The owner accepted AP-04 after checking "Leave island" and the question-free adult exit. Trello
+  AP-04 moved to Complete and marked done.
+- Not merged to `main` or deployed: the merge of `feature/adventure-portal` (AP-01 and AP-04)
+  waits for the owner's go-ahead.
+
+## Adventure Portal AP-03 redesign: Realm Explorer (2026-11-11, branch `feature/adventure-portal-home`)
+
+Trello AP-03. Supersedes the inline Island Explorer of the first AP-03 commit (`c1d4d74`) in
+builds with the Django API. Amplify builds are unchanged (Home keeps the source explorer;
+`/realms` redirects there). Status: **accepted by the owner (2026-11-11), not yet merged.** The
+owner reviewed it running locally; AP-02 (below) was accepted the same day.
+
+**Decisions (owner to confirm in QA).**
+- A Realm is an Island (catalog `World`, ADR-041). Treasure Cove, Storykeeper Castle and
+  Firepeak are Places/3D Areas, so they appear on the Realm preview, not as Realm cards. No
+  Django rows were added or renamed; API and model names keep "Island".
+- The preview is a page (`/island/:childId/realms/:realmId`) rather than a panel: own URL,
+  back button, and the shell's "Realms" stays current.
+- Nav is Home, Realms, Quests, Treasures. Treasures opens the adventure log (there is no
+  separate treasure page); the library stays on Home; the sailing dock is no longer in the nav.
+- "Leave island" (AP-04) now returns to the Realm Explorer; it is hidden on Home and the Realm
+  pages. Copy unchanged ("Leave island").
+- Places in another Realm are shown for discovery but entered through that Realm's hub, which
+  records the arrival.
+
+**Django.** No migration. `discovery.child_islands` adds subject areas (from published
+`LearningObjective.domain`s, or an authored `subjectAreas`) and published art (an authored
+`artAssetId` naming an active image whose default version is published). The island and place
+schemas gain optional `artAssetId` and `subjectAreas`; publishing an Island or Place revision
+checks that `artAssetId` names an `image` asset (ADR-047 D). Firepeak's export record states
+`subjectAreas: ["SCIENCE"]`. Contract: `docs/PLAY_API.md`.
+
+**React.** `src/features/realms/` (catalog model, filters, themes, SVG illustrations, picture,
+cards, hero, filters UI, data hook with a 30 s cache), `routes/RealmExplorerPage.tsx`,
+`routes/RealmDetailPage.tsx`, shell header with branding and child badge, Home links to the
+Realms. Pictures go through the existing child-scoped asset resolver (one batched request);
+drawn fallbacks never show a broken image. No Three.js on the card pages.
+
+**Fixed along the way.** `admin.css` loads after `portal.css`, so its identically named
+utilities (`.hidden`, `.md:grid-cols-2`) overrode portal breakpoints: the sidebar brand was
+hidden at every size since AP-01, and a 3-column grid fell back to 2. Realm grids and the brand
+now use variants admin.css never emits (`min-[80rem]:`, `max-md:hidden`).
+
+**Tests.**
+- pytest (PostgreSQL): `test_realm_explorer.py` 14 new; focused regression (islands/launch,
+  native API, catalog authoring, importer, export, publication safety) 165 passed.
+- Vitest (`--maxWorkers=2`, affected paths): 199 files, 2288 passed. `npm run typecheck` clean.
+  `npm run content:check` up to date.
+- Browser acceptance (`e2e/acceptance/realm-explorer.spec.ts`, local seeded Django, desktop
+  project): 12 passed. Layout at 1920, 768, 360 and 320 px (no horizontal overflow, column
+  count, nav not covering content, 48px targets), filters without reload, locked Realm,
+  keyboard and focus ring, reduced motion, preview and back-with-filter, Treasure Cove 3D launch
+  and question-free "Leave island" back to Realms, Django progress, picture and fallback (only
+  the picture delivery is stubbed). Screenshots reviewed by eye.
+
+**Deferred to merge verification / known gaps.**
+- Full Vitest and pytest suites, oxlint/Prettier on the whole tree, `npm run build`, the other
+  acceptance specs, the tablet project.
+- `contentExport.test.ts` "trusted build-time boundary" fails locally on a clean checkout too
+  (`node_modules/.bin/tsx` missing): environment, not this change.
+- No Realm or Place carries art yet; an administrator uploads an image in the asset library,
+  publishes it, then publishes an Island/Place revision with `artAssetId`.
+- Firepeak's `subjectAreas` reaches an existing database only after `load_content` and, if the
+  record is Django-authoritative, publishing the import draft.
+
+## Adventure Portal AP-03 and AP-02: Island Explorer discovery and child home dashboard (2026-11-10, branch `feature/adventure-portal-home`)
+
+Trello AP-03 and AP-02. Branched from `feature/adventure-portal` (AP-01 and AP-04, accepted), so
+those can merge on their own. **AP-02 accepted by the owner 2026-11-11** (AP-03 as redesigned
+above, also accepted). Not yet merged.
+
+**Data source.** Both read Django, as the cards require, when the build has the Django API
+(`VITE_BACKEND=django`). Every hosted Amplify build has no Django API until the ADR-019 cutover:
+there the homepage stays exactly as before (source-controlled Island Explorer, Amplify companion
+and world changes, no dashboard).
+
+**AP-03: Island Explorer discovery**
+- Django `GET /children/<id>/islands/` (ADR-041) now also returns, per Island: `ageBands`,
+  `subjects` (up to 6 Place skills), `thumbnailAssetId` (null today, ADR-030), `unlocked` and
+  `lockedHint` (from the Island's authored `travelRequirement` and this child's world changes),
+  and `progress` (`placesExplored` of `placesTotal`). Each Place has `explored`. Secret Places
+  (authored `unlockRequirement`) are now left out until unlocked, matching the harbor map.
+  Documented in `docs/PLAY_API.md`.
+- React: `islandsApi` reads the new fields (defaults for an older server).
+  `buildIslandExplorerFromServer` turns the published catalog into the explorer, with no second
+  hard-coded list. The home Island's Places link to their page, and a published 3D Area (Treasure
+  Cove) is offered beside its Place. A Django-only Place (Firepeak Volcano) links to its 3D Area.
+  An open Island links to its hub; a closed one shows its hint. Storykeeper Castle is a Place.
+- `IslandExplorer` shows an age range, subject chips, "N of M places explored" and an
+  "Explored" mark per Place, and a drawn picture tile, since there are no thumbnails yet.
+- `ProgressIndicator` takes a `unit` ("steps" by default).
+
+**AP-02: Child home dashboard**
+- `homeApi` reads Django `GET /children/<id>/home/`.
+- `ChildHomeDashboard`, between the welcome and the explorer:
+  - featured "Continue your adventure" (an open session first, then the last place played, then
+    the server's next suggestion; `pickFeatured`) with chests opened and a link into the 3D Area;
+  - quests going and finished, with the quest journal link;
+  - treasures found and the newest three;
+  - adventures finished and island changes, with the adventure log link.
+- Loading, empty and error states. The dashboard and the islands load and fail independently of
+  each other and of the page.
+- **Not shown:** XP and level (no real source exists; the card says avoid invented metrics) and
+  daily missions (AP-06, Backlog). Treasures stand in for the rewards summary until AP-07.
+- In Django mode the companion step is skipped: Django has no companion record and Chatty is the
+  only companion.
+
+**Tests**
+- pytest (PostgreSQL), `test_adventure_launch.py`: discovery details; an Island opens once its
+  world change exists; another child's change does not open it; a secret Place stays hidden until
+  unlocked; entering a 3D Area or starting a Place adventure marks the Place explored.
+- Vitest: `islandsApi.test.ts`, `homeApi.test.ts`, `featured.test.ts`,
+  `ChildHomeDashboard.test.tsx`, `IslandExplorer.test.tsx`, `islandExplorer.test.ts` (server
+  builder), `WelcomeHarbor.django.test.tsx` (Django mode: dashboard and islands, no Amplify reads,
+  each part failing alone), existing `WelcomeHarbor.test.tsx` unchanged (Amplify mode).
+- Viewed in Chromium at 1280px and 390px through a local harness with stubbed Django responses.
+
+**Check results**
+- pytest on PostgreSQL 16 (`LAI_REQUIRE_POSTGRES=1`):
+  - `test_adventure_launch.py` and `test_native_api.py`: 47 passed, 6 of them new.
+  - `test_tenant_isolation.py`: 32 passed.
+- ruff check and ruff format: clean.
+- Vitest, focused: 203 files, 2364 tests pass.
+- Typecheck, oxlint (0 errors), Prettier, ADR check: pass.
+
+**Open**
+- Owner QA; a run against a real Django with the Treasure Cove seed (`npm run test:acceptance`).
+- Island thumbnails need catalog illustrations (ADR-030). An open non-home Island links to the
+  existing world hub, which knows only source-controlled Islands.
+- The hosted (Amplify) site shows neither card until it uses the Django API.

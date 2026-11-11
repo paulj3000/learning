@@ -195,3 +195,22 @@
     display: none;
   }
 }
+
+/*
+ * AP-01: the parent pages other than the dashboard render inside ParentShell, so
+ * their title moved from the old header into the page, above their content.
+ */
+.parentPage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.parentPageTitle {
+  margin: 0;
+  align-self: stretch;
+  text-align: center;
+  font-size: var(--font-size-heading);
+}

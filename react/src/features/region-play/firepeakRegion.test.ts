@@ -242,8 +242,15 @@ describe('Places served by Django on the harbor map', () => {
     placeId,
     title: placeId,
     tagline: '',
+    description: '',
+    skills: [],
+    subjectAreas: [],
+    thumbnailAssetId: null,
     adventureCount: 0,
-    area: area ? { ...area, title: placeId } : null,
+    explored: false,
+    area: area
+      ? { ...area, title: placeId, status: 'NOT_STARTED' as const, resumeSessionId: null }
+      : null,
   });
 
   it('lists only Django-only Places with an available 3D Area on the home Island', () => {
@@ -255,6 +262,14 @@ describe('Places served by Django on the harbor map', () => {
           title: 'Home',
           tagline: '',
           isHome: true,
+          description: '',
+          ageBands: [],
+          subjects: [],
+          subjectAreas: [],
+          thumbnailAssetId: null,
+          unlocked: true,
+          lockedHint: null,
+          progress: null,
           places: [
             place('firepeak-volcano', { regionId: 'firepeak-volcano', available: true }),
             place('pirate-builder-bay', { regionId: 'treasure-rush-cove', available: true }),
@@ -266,6 +281,14 @@ describe('Places served by Django on the harbor map', () => {
           title: 'Cove',
           tagline: '',
           isHome: false,
+          description: '',
+          ageBands: [],
+          subjects: [],
+          subjectAreas: [],
+          thumbnailAssetId: null,
+          unlocked: true,
+          lockedHint: null,
+          progress: null,
           places: [place('elsewhere', { regionId: 'elsewhere', available: true })],
         },
       ],
