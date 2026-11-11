@@ -42,7 +42,7 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
-## No child play-time limits (ADR-053) — removed end to end; unit-tested, NOT yet owner-QA'd or merged
+## No child play-time limits (ADR-053) — complete and merged to `main` (2026-11-11); migration not yet run on a deployed database
 
 Trello: "[LAI] Remove child gameplay time limits and forced session cutoffs" (2026-11-11). This
 supersedes "The calm stop — MVP scope item 11" below, which is kept as history.
@@ -69,7 +69,11 @@ supersedes "The calm stop — MVP scope item 11" below, which is kept as history
   depth), `RegionPlayCompanion.test.tsx` (session never completed over 1 to 8 hours) and
   `storykeeperCastleParity.test.tsx`; Django tests for create/edit without the field, a legacy
   value accepted and ignored, band changes, the import, and the launch/home payloads.
-- **Deferred to merge readiness:** Playwright, lint/format, full suites, build. The migration
+- **Merge gates (2026-11-11), all passed:** Ruff and Ruff format, Django check, migration
+  check, ADR check, admin-preview check, typecheck, oxlint, Prettier, `content:check`; full
+  pytest on PostgreSQL 16 (2796 passed, 3 skipped); full Vitest (407 files, 4587 tests);
+  production build; Playwright smoke (7 passed, 11 skipped) and acceptance (55 passed, 2
+  skipped). Playwright ran against the container's preinstalled Chromium. The migration
   runs on the next Django deploy (not deployed here). The Amplify `sessionMinutes` field stays until
   the Django cutover (owner decision, 2026-11-11).
 
