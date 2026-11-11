@@ -1,8 +1,12 @@
 """Where generated speech lives (SM-P8-05): a dedicated store, never the asset library.
 
 Generated speech is cache, not content: it is not versioned, published or promoted to the Sound
-Library, and it expires. Keys are `speech/<2 hex>/<64 hex cache key>.mp3`, made from a hash only,
-so no child id, name or text is ever part of a key. `get_speech_storage()` returns:
+Library, and it expires. Keys are `speech/<scope>/<2 hex>/<64 hex cache key>.mp3` (scope `shared`
+for authored lines, `child` for a child's own approved text), made from a hash only, so no child
+id, name or text is ever part of a key. The scope prefix lets the bucket carry a short lifecycle
+expiry on `speech/child/` (a backstop for `speech_cleanup`) without ever expiring authored clips,
+whose rows do not expire. Keys from before SM-P8-LIVE (`speech/<2 hex>/<hash>.mp3`) stay readable.
+`get_speech_storage()` returns:
 
 - `s3`: the private speech bucket (`LAI_SPEECH_BUCKET`); credentials come from the runtime role.
 - `local`: files under `LAI_SPEECH_LOCAL_ROOT`, development only.
@@ -16,17 +20,22 @@ from typing import Protocol
 
 from django.conf import settings
 
-_KEY = re.compile(r"^speech/[0-9a-f]{2}/[0-9a-f]{64}\.mp3$")
+_KEY = re.compile(r"^speech/(?:(?:shared|child)/)?[0-9a-f]{2}/[0-9a-f]{64}\.mp3$")
+SCOPE_PREFIXES = {"authored": "shared", "child": "child"}
 
 
 class SpeechStorageError(Exception):
     """The store failed. Safe to log: no key, no bytes."""
 
 
-def storage_key(cache_key: str) -> str:
+def storage_key(cache_key: str, scope: str = "authored") -> str:
+    """The object key for a clip. `scope` is a `ClipScope` value (`authored` or `child`)."""
     if not re.fullmatch(r"[0-9a-f]{64}", cache_key):
         raise ValueError("a cache key is a SHA-256 hex digest")
-    return f"speech/{cache_key[:2]}/{cache_key}.mp3"
+    prefix = SCOPE_PREFIXES.get(scope)
+    if prefix is None:
+        raise ValueError("unknown clip scope")
+    return f"speech/{prefix}/{cache_key[:2]}/{cache_key}.mp3"
 
 
 def _check(key: str) -> None:
@@ -104,8 +113,20 @@ class S3SpeechStorage:
     def _s3(self):
         if self._client is None:
             import boto3
+            from botocore.config import Config
 
-            self._client = boto3.client("s3")
+            timeout = settings.LAI_SPEECH_TIMEOUT_SECONDS
+            # An explicit region and SigV4, so presigned URLs are valid in every region.
+            self._client = boto3.client(
+                "s3",
+                region_name=settings.LAI_SPEECH_S3_REGION or None,
+                config=Config(
+                    signature_version="s3v4",
+                    connect_timeout=timeout,
+                    read_timeout=timeout,
+                    retries={"max_attempts": 3, "mode": "standard"},
+                ),
+            )
         return self._client
 
     def put(self, key, data):
@@ -137,11 +158,19 @@ class S3SpeechStorage:
 
     def presigned_url(self, key, *, expires_in):
         _check(key)
-        return self._s3().generate_presigned_url(
-            "get_object",
-            Params={"Bucket": self.bucket, "Key": key, "ResponseContentType": "audio/mpeg"},
-            ExpiresIn=expires_in,
-        )
+        try:
+            return self._s3().generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": self.bucket,
+                    "Key": key,
+                    "ResponseContentType": "audio/mpeg",
+                    "ResponseCacheControl": "private, no-store",
+                },
+                ExpiresIn=expires_in,
+            )
+        except Exception:  # noqa: BLE001 - e.g. no credentials; the caller falls back
+            raise SpeechStorageError("could not sign a speech url") from None
 
 
 _storage: SpeechStorage | None = None

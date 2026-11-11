@@ -3,6 +3,7 @@
     python manage.py seed_npc_pip                 # create missing rows, then validate
     python manage.py seed_npc_pip --publish       # ... and publish a release if anything changed
     python manage.py seed_npc_pip --hybrid-hints  # first run only: hybrid hints with a persona
+    python manage.py seed_npc_pip --attach-voice  # give an existing, voiceless Pip his voice
 
 Prerequisites: `load_content` (the `pirate-pip` NPC, the `npc-pip` model, Pip's quest) and
 `seed_treasure_rush` (the Treasure Cove 3D Area and Pip's spot at Pirate Landing).
@@ -75,10 +76,30 @@ def animation_map_for(model: ContentAsset) -> dict[str, str]:
 
 
 def _voice_profile():
-    """Pip's voice when staff have created one (`speech` seeds none for Pip): else captions."""
+    """Pip's voice when it exists (`seed_speech_voices` creates `pirate-pip`): else captions."""
     from apps.speech.models import VoiceProfile
 
     return VoiceProfile.objects.filter(profile_id=pip.NPC_ID, enabled=True).first()
+
+
+def attach_voice() -> str:
+    """Link Pip's voice profile to an existing Pip that has none (SM-P8-LIVE).
+
+    The one exception to create-only, and only when asked: it fills an empty field and never
+    replaces a voice staff chose. Returns what happened, for the command output.
+    """
+    character = NpcCharacter.objects.filter(definition__npc_id=pip.NPC_ID).first()
+    if character is None:
+        return "no Pip character yet"
+    if character.voice_profile_id is not None:
+        return "Pip already has a voice (unchanged)"
+    profile = _voice_profile()
+    if profile is None:
+        return "no enabled pirate-pip voice profile (run seed_speech_voices)"
+    character.voice_profile = profile
+    character.full_clean()
+    character.save(update_fields=["voice_profile"])
+    return f"Pip now speaks with voice profile {profile.profile_id}"
 
 
 @transaction.atomic
@@ -238,6 +259,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Rows created on this run use hybrid AI hints (approved persona, fallback lines).",
         )
+        parser.add_argument(
+            "--attach-voice",
+            action="store_true",
+            help="Give an existing Pip without a voice the pirate-pip voice profile.",
+        )
         parser.add_argument("--notes", default="seed_npc_pip", help="Release notes.")
 
     def handle(self, *args, publish: bool = False, hybrid_hints: bool = False, **options):
@@ -249,6 +275,8 @@ class Command(BaseCommand):
             self.stdout.write(f"Pirate Pip: created {len(created)}: {', '.join(created)}.")
         else:
             self.stdout.write("Pirate Pip: unchanged (every row already exists).")
+        if options.get("attach_voice"):
+            self.stdout.write(f"Voice: {attach_voice()}.")
 
         result = preview()
         if result.problems:

@@ -12478,3 +12478,55 @@ Not verified (owner): screen readers, switch access and tablets; the castle's Am
 and quest log; live Polly and Bedrock (no approved environment, BLOCKED); the owner's Mixamo
 pirate file (not in the repository). The four known limitations are classified in the report;
 none blocks release.
+
+## SM-P8-LIVE: complete and verify the Amazon Polly integration (2026-11-07, branch `feature/sm-p8-live-polly`, not merged, not deployed)
+
+Trello: https://trello.com/c/IONglPNa. **Base:** `feature/npc-manager`, which already contains
+every `feature/sound-manager` commit (SM-P2 to SM-P8) plus the NPC Manager voice workstream
+(LAI-NPC-026 to 029). `feature/sound` is fully contained in both. `dev20261103` lacks one
+`feature/sound-manager` commit (`d5d694a`) and none of the NPC Manager; it is not the base.
+**Merge dependencies:** this branch lands after `feature/npc-manager` (and so after
+`feature/sound-manager`), subject to Sound Manager and NPC Manager owner QA.
+
+**Acceptance criteria.** The real Polly client path works with AWS credentials and a supported
+voice, engine and region; synthesized speech plays through the existing Sound Manager, Pirate
+Pip included, with captions and mute respected; the cache avoids repeat synthesis and sensitive
+content stays server-side; auth, failures and fallback are unit-tested; an opt-in live smoke test
+and deployment instructions exist; live QA and merging stay with the owner.
+
+**Built (reusing `apps.speech`, the NPC voice flow and the React `SpeechPlayer`; no new service,
+cache, model or dependency).**
+- `polly.py`: MP3 content-type, signature and size checks on Polly's answer; `SpeechError.reason`
+  classification (`throttled`, `timeout`, `connection`, `service`, `access_denied`,
+  `invalid_voice`, `invalid_input`, `bad_audio`); retries only for transient failures; no retry
+  for IAM, credential, voice or input errors; malformed input never reaches AWS; log lines carry
+  codes, counts and timings only; `voice_report()` (DescribeVoices) for the smoke test.
+- `storage.py`: S3 client with explicit region (`LAI_SPEECH_S3_REGION`), SigV4, timeouts; keys
+  `speech/shared/...` and `speech/child/...` so a lifecycle rule can expire child clips only
+  (older keys stay readable); presign errors become storage errors.
+- `services.py`: presign failure falls back to Django delivery; a missing stored object deletes
+  its cache row so the next request re-synthesizes; structured `speech served` / `speech failed`
+  log lines without text or child ids.
+- Pirate Pip: `seed_speech_voices` adds `pirate-pip` (Justin, neural, 105%);
+  `seed_npc_pip --attach-voice` gives an existing voiceless Pip that voice and never replaces one
+  staff chose.
+- `manage.py speech_live_smoke --confirm-live-aws`: region and voice-table check, one short
+  sample, cache (one Polly call for two requests), store read-back, presigned fetch, AWS and
+  table fallback; PASS / FAIL / WARN per step, non-zero exit on FAIL.
+- Runbook: `docs/audio/POLLY_DEPLOYMENT_RUNBOOK.md`.
+
+**Tests (unit only, per the development checks).** New Django: `test_polly_client.py` (33,
+botocore Stubber), `test_speech_storage.py` (19), `test_live_path.py` (23, API end to end on the
+real client: synthesis, cache hit, child authorization, throttling, timeout, IAM denial, invalid
+voice, malformed input, storage failure, presign fallback, invalidation, Pirate Pip), and
+`test_live_smoke.py` (10 plus 1 opt-in live test, skipped by default). Speech, NPC, AI, audio and
+repository tests: 1237 passed, 1 skipped (local PostgreSQL 16). New React:
+`audio/speech/pollyLive.test.ts` (16). Speech, audio, NPC Manager, island map and companion
+Vitest: 2081 passed; `tsc` typecheck clean. Lint, full suites, browser and E2E are deferred to
+merge readiness.
+
+**Live AWS: FAIL / not verified.** One `speech_live_smoke` run from the development container
+(us-east-1, pirate-pip, memory storage): `UnrecognizedClientException` on DescribeVoices and
+SynthesizeSpeech, so nothing was synthesized or heard. Open (owner): a passing smoke test in the
+target account, audible QA (runbook section 9), the bucket, IAM and lifecycle, Bedrock end to
+end, and cost against the bill.

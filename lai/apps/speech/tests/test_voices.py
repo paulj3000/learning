@@ -103,16 +103,22 @@ class TestStarterProfiles:
         call_command("seed_speech_voices", stdout=out)
         return out.getvalue()
 
-    def test_creates_the_four_starters_with_allowed_voices(self):
+    def test_creates_the_five_starters_with_allowed_voices(self):
         self.run()
         ids = set(VoiceProfile.objects.values_list("profile_id", flat=True))
-        assert ids == {"keeper-quill", "chatty", "narrator", "tutor"}
+        assert ids == {"keeper-quill", "chatty", "pirate-pip", "narrator", "tutor"}
         for starter in VoiceProfile.objects.all():
             assert (
                 voices.voice_problem(starter.polly_voice_id, starter.language_code, starter.engine)
                 is None
             )
         assert VoiceProfile.objects.get(profile_id="keeper-quill").character_id == "keeper-quill"
+        pip = VoiceProfile.objects.get(profile_id="pirate-pip")
+        assert (pip.character_id, pip.polly_voice_id, pip.engine) == (
+            "pirate-pip",
+            "Justin",
+            "neural",
+        )
 
     def test_is_idempotent_and_never_changes_an_existing_profile(self):
         self.run()
@@ -122,4 +128,4 @@ class TestStarterProfiles:
         assert "Created: none" in self.run()
         chatty = VoiceProfile.objects.get(profile_id="chatty")
         assert (chatty.polly_voice_id, chatty.enabled) == ("Salli", False)
-        assert VoiceProfile.objects.count() == 4
+        assert VoiceProfile.objects.count() == 5
