@@ -13017,6 +13017,10 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   live Cognito), then authorized the merge of `dev20261103` into `main` (PR #12, merge commit
   `e82a188`). CI was green on the merged head (`b3490ba`); the local merge-gate results are in the
   2026-11-09 section above.
-- **Tracker.** LAI-0821 marked done. Docs only; no code changed, so no tests apply.
+- **Tracker.** LAI-0821 marked done. Ticked as ACCEPTED with it (the tracker ticks a box only at
+  ACCEPTED): LAI-0801 (both entries), LAI-0309 (both), LAI-0503 (both), LAI-0810 to LAI-0814,
+  LAI-0816 to LAI-0818, LAI-0820 and FP-12. FP-13 stays open (automated Playwright scenarios and
+  Android performance). FP-2 to FP-11 are unchanged. Docs only; no code changed, so no tests
+  apply.
 - **Still open.** The 11 Firepeak Playwright scenarios remain `test.fixme` (FP-13). The merged
   branches `dev20261103` and `claude/jolly-ride-92xktb` are still on GitHub for the owner to delete.
