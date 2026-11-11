@@ -1,10 +1,12 @@
 # Numbered migration tracker
 
-Two tracks. **Track A** (Phases 1 to 13): Django backend migration, ADR-019, **Proposed**.
+Two tracks. **Track A** (Phases 1 to 13): Django backend migration, ADR-019, **Accepted in part**.
 **Track B** (Phases 20 to 23): Phaser to unified Three.js engine, ADR-020, **Accepted**. Source
 of detail: `docs/DJANGO_MIGRATION_ROADMAP.md`; Track B inventory and matrix:
-`docs/THREEJS_ENGINE_CONVERSION.md`. Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / CANCELED (kept as history, struck through). All Track A tasks
-are TODO until ADR-019 is accepted. Track B docs-only tasks (LAI-2001 to 2003) do not wait for
+`docs/THREEJS_ENGINE_CONVERSION.md`. Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / CANCELED (kept as history, struck through). ADR-019's
+direction is approved; its open gates (G1 to G10, G4 resolved) still apply. A Track A task proceeds
+when its own dependencies and the gates it touches are satisfied (owner, 2026-10-24; CLAUDE.md
+section 18). Track B docs-only tasks (LAI-2001 to 2003) do not wait for
 it; Track B code tasks wait for LAI-0201. A task marked in the roadmap as APPROVAL must stop and ask
 before touching AWS.
 
@@ -47,7 +49,7 @@ before touching AWS.
 - [x] **LAI-0304** Catalog models and loader (depends: 0302, 0301). DONE locally: `lai/apps/catalog` (World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, ContentRelease), `manage.py load_content`, export schema 3 `locationAssets`; catalog admin built but not mounted (LAI-0404). Item and learning-objective models not built
 - [x] **LAI-0305** Progress models (depends: 0301, 0304). DONE locally: apps `game_sessions`, `education`, `progression`, `inventory`, `quests` (14 models, 5 migrations), persistence services for sessions, quests and world changes; no endpoints
 - [x] **LAI-0306** Audit models (depends: 0301). DONE on `features/ai` 2026-11-01 (unmerged): `apps.ai` `AIInteractionAudit` and `SafetyEvent`, the Amplify fields plus provider, context source, Guardrail, failure category, tokens and request id; no free-text columns (docs/AI_SERVICE.md section 7)
-- [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304). PARTIAL via POST-MERGE-03: items, collectible sets, reward rules, learning objectives and NPCs are catalog rows (inventory now references items and rules by foreign key). Remaining: stories, and validated references from `SkillEvidence`/`SkillProgress` objective codes, `StoryProgress.story_slug` and `NpcRelationship.npc_id`
+- [ ] **LAI-0309** Remaining catalog models: items, reward rules, learning objectives, stories, NPCs (depends: 0304). **P1 for content authoring (ADR-047); see the content-authoring plan below.** Audit 2026-11-02: PARTIAL, confirmed in code (no `Story` catalog model; `stories.json` is exported but not loaded; `StoryProgress.story_slug`, `NpcRelationship.npc_id` and objective codes are unvalidated strings). PARTIAL via POST-MERGE-03: items, collectible sets, reward rules, learning objectives and NPCs are catalog rows (inventory now references items and rules by foreign key). Remaining: stories, and validated references from `SkillEvidence`/`SkillProgress` objective codes, `StoryProgress.story_slug` and `NpcRelationship.npc_id`
 
 ## Phase 4 — Cognito integration and authorization
 
@@ -64,7 +66,7 @@ before touching AWS.
 
 - [ ] **LAI-0501** Frontend API layer, Amplify-backed (depends: 0201)
 - [ ] **LAI-0502** Profiles read endpoints + client (depends: 0403, 0501)
-- [ ] **LAI-0503** Catalog read endpoints + client (depends: 0304, 0501)
+- [ ] **LAI-0503** Catalog read endpoints + client (depends: 0304, 0501). **P1 for content authoring (ADR-047 K).** Audit 2026-11-02: PARTIAL. Existing child-scoped reads already cover islands (`child-islands`), Places and 3D Areas (`child-regions`, `play-region` bootstrap with NPC dialogue, puzzles, quests and catalog assets), Place adventures (`child-region-adventures`), inventory and progress. Missing: published adventure and step reads without answers, quest, item, reward and learning-objective reads, story reads (after 0309), and the published revision ids that ADR-047 K requires in responses. Dependency on 0501 is satisfied for Django builds by `react/src/api/`
 - [ ] **LAI-0504** Progress read endpoints + client (depends: 0305, 0403)
 - [ ] **LAI-0505** Parent dashboard and admin read endpoints (depends: 0504)
 
@@ -72,7 +74,7 @@ before touching AWS.
 
 - [x] **LAI-0601** Python adventure engine + answers endpoint (depends: 0303, 0305, 0403). DONE locally: `apps/adventures/engine.py` (golden parity), answers and hints endpoints, G6 verified for them; React still calls the Amplify Lambda until the frontend API layer (LAI-0501) switches it
 - [ ] **LAI-0602** Profile writes and deletion (depends: 0502). 2026-10-31 on `feature/lai-0905-photo-clients`: child deletion service `lai/apps/users/deletion.py` (photo objects first via `delete_all_child_photos`, child kept on storage failure, idempotent retry), pytest only. 2026-11-01 safety review: partial storage failure, storage-ok-then-database-failure and concurrent-purge cases tested; a spurious refusal when a concurrent purge removed a row first was fixed. Route still blocked until LAI-0209. 2026-11-01 on `feature/lai-0209-recent-auth`: `DELETE /api/v1/children/<id>/` enabled behind the recent sign-in guard; React dashboard re-authenticates and confirms; pytest and Vitest. Open: live Cognito gate, browser verification, merge
-- [ ] **LAI-0603** Mastery writes (depends: 0601)
+- [ ] **LAI-0603** Mastery writes (depends: 0601). 2026-11-04 on `feature/ai-bedrock-readiness`: IMPLEMENTED and verified locally (not accepted): `apps/education/mastery.py` ports `nextSkillProgressCounts`, `computeSkillStatus`, `computeErrorPattern`, `applyReviewDecay` at golden-vector parity (48 cases); Treasure Rush attempts and Django adventure step answers now write `SkillProgress` from server-graded evidence in the same transaction (replays count once); the tutor prompt gets a coarse `learnerProfile` built only from Django records (`apps/ai/services/learner.py`), with a safe fallback. **Open:** React adventures still run on Amplify sessions so they write no Django evidence until LAI-0501; the parent dashboard still reads Amplify progress; no authenticated browser pass
 - [ ] **LAI-0604** Rewards and inventory writes (depends: 0603)
 - [ ] **LAI-0605** Quests, NPC, discovery, world state writes (depends: 0604)
 - [ ] **LAI-0606** Next-learning-activity (depends: 0603)
@@ -88,20 +90,69 @@ unmerged, not pushed): levels 1 and 2 reached; 3 to 5 not started.
 - [ ] **LAI-0702** Companion turn via Bedrock (depends: 0701, 0403). IMPLEMENTED and fake-verified: `POST .../ai/companion-turns/`, `BedrockModelClient` (Converse, structured text output, Guardrail), server audit. **Open: the APPROVAL live smoke** (LAI-0705); not accepted until a human runs it
 - [ ] **LAI-0703** Tutor turn and red-team re-point (depends: 0702). IMPLEMENTED and fake-verified: `POST .../ai/tutor-turns/`, server-built tutor context; `scripts/ai-red-team.ts --target django` (Amplify target unchanged). **Open: a live red-team run against Django** (LAI-0705)
 - [ ] **LAI-0704** Bedrock Guardrails and child AI safety policy (depends: 0702, 0703). IMPLEMENTED and fake-verified: `LaiAiGuardrail-<env>` CDK stack (synthesized, not deployed) and `lai-django-ai-<env>` policy, input screening, Django output policy, fail-closed settings, server safety events (ADR-044). **Open: Guardrail deployment and live block verification** (LAI-0705)
-- [ ] **LAI-0705** Live Bedrock and Guardrail verification in dev (depends: 0702, 0703, 0704). **APPROVAL: AWS credentials, Bedrock cost, IAM change, deploy** (docs/AI_SERVICE.md section 9). IMPLEMENTED (level 3): `manage.py ai_live_check` (audit-row scoring, bounded warm-up, Guardrail probe), IAM policy checked against the AWS documented pattern, Gate A plan and cost bound written. **BLOCKED for live acceptance:** AWS CLI access denied in this session, Gate A approval, model access, test identities
+- [ ] **LAI-0705** Live Bedrock and Guardrail verification in dev (depends: 0702, 0703, 0704). **APPROVAL: AWS credentials, Bedrock cost, IAM change, deploy** (docs/AI_SERVICE.md section 9). IMPLEMENTED (level 3): `manage.py ai_live_check` (audit-row scoring, bounded warm-up, Guardrail probe), IAM policy checked against the AWS documented pattern, Gate A plan and cost bound written. **BLOCKED for live acceptance:** AWS CLI access denied in this session, Gate A approval, model access, test identities. 2026-11-04 readiness: `ai_live_check --dry-run` (free, no AWS, never imports boto3), mandatory `--confirm-paid-calls` under Bedrock, `--npc` and `--timeout-probe` checks, first-call latency and token/cost summary; runbook `docs/AI_BEDROCK_ACCEPTANCE.md`. **Not accepted: no live run has happened**. 2026-11-07 QA (QA-AI-20261107): with the session's IAM user, one 5-token Converse probe returned AccessDeniedException (no tokens billed); Bedrock reads denied; no `LaiAiGuardrail-*` or `LaiDjangoEc2-*` stack and no `/lai/*` SSM parameters in us-west-1, us-east-1, us-east-2 or us-west-2; `ai_live_check --dry-run` blocks on guardrail id, version and client builds. Still not accepted
+- [ ] **QA-AI-20261107** AI / Bedrock / Chatty final acceptance QA (not a roadmap task; branch `qa/ai-bedrock-chatty-acceptance-20261107`, report `docs/AI_BEDROCK_CHATTY_QA_REPORT.md`). **BLOCKED — NEEDS AWS CONFIGURATION.** Done: branch audit (features/ai merged; ai-bedrock-readiness 71 ahead, includes Sound Manager and Storybook), backend and safety suites pass, two safety defects fixed (D-1 output policy let secrecy, guilt, human claims and private-detail questions through as AI; D-2 input screen whitespace bypass), 49 regression tests, Chatty browser acceptance spec (5 tests, fake provider), all merge gates. Open: the session's IAM user gets AccessDenied on Bedrock InvokeModel and every Bedrock read; no Guardrail, Django host or `/lai/*` SSM in the account; Chatty screens still need Amplify Data (Gate B). Not merged
 - [ ] **LAI-0706** React cutover of companion and tutor turns to Django behind `VITE_BACKEND` (depends: 0705, 0501). IMPLEMENTED and Vitest-verified (level 4): `react/src/api/ai/djangoAi.ts`, Django paths in `companion/api.ts` and `tutor/api.ts` (no browser audit writes), `templateId` from every caller, parent dashboard safety events and history clearing on Django (`GET .../ai/safety-events/`, `DELETE .../ai/history/`). Amplify path unchanged for builds without the Django API. **Open:** Django-enabled dev deploy and browser acceptance (Gate B)
-- [ ] **LAI-0707** Safety review views, review workflow and retention for `SafetyEvent` / `AIInteractionAudit` (depends: 0306, 0404; retention with 0308). IMPLEMENTED and tested (level 4): permission-gated audited Django Admin (review status the only editable field), `manage.py ai_retention` (dry run default, refuses without a period, keeps open events), indexes. **Open:** an approved retention period (LAI-0308 / G9) before any `--apply` in a deployed environment
+- [ ] **LAI-0707** Safety review views, review workflow and retention for `SafetyEvent` / `AIInteractionAudit` (depends: 0306, 0404; retention with 0308). IMPLEMENTED and tested (level 4): permission-gated audited Django Admin (review status the only editable field), `manage.py ai_retention` (dry run default, refuses without a period, keeps open events), indexes. **Open:** an approved retention period (LAI-0308 / G9) before any `--apply` in a deployed environment. Retention policy recommendation for owner approval in docs/AI_SERVICE.md section 12; nothing activated
 - [ ] **LAI-0708** AI operations: shared rate-limit store, `ai.turn` metric filters and alarms, Bedrock budget kept (depends: 0705). IMPLEMENTED and tested (level 4): PostgreSQL counters (child minute/day, family day, session day, concurrency, global ceiling; 12-thread race test), runtime kill switch, bounded retries, request-size cap, configured-price cost estimate, 10 metric filters and 7 alarms in `LaiAiGuardrail-<env>` (synthesized). **Open:** deploy and live alarm check; the Amplify $50 budget may not see Marketplace-billed Claude spend (verify)
-- [ ] **LAI-0709** Server-built context for NPC and story turns and server mastery status; retire `CLIENT_AUTHORED` (depends: 0603, 0605, 0607). PARTIAL (level 3): NPC narration is server-owned (`DJANGO_CATALOG`); `LAI_AI_ALLOW_CLIENT_AUTHORED` switch added. **BLOCKED:** React adventures still run on Amplify sessions; no Django story catalog (LAI-0309); server mastery (LAI-0603). `CLIENT_AUTHORED` must stay on
-- [ ] **LAI-0710** Retire Amplify `generateCompanionTurn` / `generateTutorTurn` and their IAM grants (depends: 0706). **APPROVAL** (Phase 13). Dependency audit and rollback plan written (docs/AI_SERVICE.md section 11); **nothing removed**: needs 0705, 0706 and 0709 acceptance and explicit retirement approval
+- [ ] **LAI-0709** Server-built context for NPC and story turns and server mastery status; retire `CLIENT_AUTHORED` (depends: 0603, 0605, 0607). PARTIAL (level 3): NPC narration is server-owned (`DJANGO_CATALOG`); `LAI_AI_ALLOW_CLIENT_AUTHORED` switch added. **BLOCKED:** React adventures still run on Amplify sessions; no Django story catalog (LAI-0309); server mastery (LAI-0603). `CLIENT_AUTHORED` must stay on. 2026-11-04 on `feature/ai-bedrock-readiness`: NPC narration now also carries the NPC's name and role, Island, Place and published 3D Area, and this child's own relationship level and active quest (child-scoped); optional eligibility enforcement from Django records (`LAI_AI_NPC_ENFORCE_ELIGIBILITY`, off until LAI-0605); `DJANGO_SESSION` turns refuse content republished after the session started (`step_is_pinned`). **Still blocked:** story scenes and Amplify-session adventures stay `CLIENT_AUTHORED` (no Django story catalog, LAI-0309/0607); Firepeak content (ADR-043 branch `feature/adr-043-django-content-authoring`) is not in `dev20261103`
+- [ ] **LAI-0710** Retire Amplify `generateCompanionTurn` / `generateTutorTurn` and their IAM grants (depends: 0706). **APPROVAL** (Phase 13). Dependency audit and rollback plan written (docs/AI_SERVICE.md section 11); **nothing removed**: needs 0705, 0706 and 0709 acceptance and explicit retirement approval. 2026-11-04: legacy callers, Django-versus-Amplify routing and explicit retirement prerequisites written (docs/AI_SERVICE.md section 12). **Not complete, nothing removed**
+- [ ] **LAI-0711** Separate AI retention periods and a scheduled run (depends: 0707; owner approval of the periods, LAI-0308 / G9). One setting today covers audit rows and safety events. Add `LAI_AI_AUDIT_RETENTION_DAYS` for audit metadata and a separate period for reviewed safety events, keep open events, and schedule `ai_retention --apply` only after one manually checked non-production run. Recommended periods in docs/AI_SERVICE.md section 12. Nothing is activated
 
 ## Phase 8 — Admin
 
-- [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404)
-- [ ] **LAI-0802** React admin views on Django (depends: 0505, 0404)
-- [ ] **LAI-0805** Spatial layout administration in Django Admin (depends: 0801, 0304, 2103, and a spatial-content ADR first)
-- [x] **LAI-0806** Island / Place / 3D Area hierarchy and Adventure launch points (ADR-041; depends: 0304, 0601, POST-MERGE-03). DONE: labels, one 3D Area per Place, `AdventureLaunchPoint` with Django Admin, launch API, islands API, React launch and return flow; all suites green at merge (`docs/IMPLEMENTATION_STATUS.md`). Open follow-up: a Django-backed step-adventure client (the runner is still Amplify-backed in Django builds)
+- [ ] **LAI-0801** Django admin for catalogs (depends: 0304, 0404). Widened by ADR-047 (formerly numbered ADR-043 on the branch) into staged authoring editors. **P1.** Stage 1 DEVELOPMENT COMPLETE (draft, publish, discard, restore as JSON drafts with validation; `ensure_content_roles`; pytest `test_authoring_admin.py`). Remaining stages: see the content-authoring plan below. PARTIAL
+- [ ] **LAI-0802** React admin views on Django (depends: 0505, 0404). **REVISED 2026-11-02 (audit):** ADR-045 (assets) and ADR-047 (content) put all staff authoring in Django Admin, so this task no longer covers any staff content or asset authoring page. What remains of it, if anything (for example a read-only safety-review queue), needs an owner decision before it is reactivated. Not started; not reactivated
+- [ ] **LAI-0805** Spatial layout administration in Django Admin (depends: 0801, 0304, 2103, and a spatial-content ADR first). **DEFERRED** (audit 2026-11-02): ADR-047 H keeps 3D layouts seed-authored in code; not reactivated by content authoring
+- [x] **LAI-0806** Island / Place / 3D Area hierarchy and Adventure launch points (ADR-041; depends: 0304, 0601, POST-MERGE-03). DONE: labels, one 3D Area per Place, `AdventureLaunchPoint` with Django Admin, launch API, islands API, React launch and return flow; all suites green at merge (`docs/IMPLEMENTATION_STATUS.md`). Open follow-up: a Django-backed step-adventure client (the runner is still Amplify-backed in Django builds), now tracked as **LAI-0816**
 - [ ] **LAI-0807** Ungated child exit from Islands, Places, 3D Areas and Adventures (owner request 2026-10-31). Implemented on `feature/lai-ungated-island-exit`: a "Leave island" link in `IslandLayout` goes straight to the sailing dock with no arithmetic question; the separate adult exit to the parent space keeps `ParentGate` (owner decision). Targeted unit tests and typecheck pass; merge gates (full suites, lint, Prettier, Playwright) not yet run
+- [x] **LAI-0808** Island Explorer on the child homepage (Trello "[Subproject] Island Explorer / Homepage"; depends: 0806, Phase 29 travel). Rebuilt 2026-11-07 on `ccr-e637a676-n40y0h` because the original commit `73fd152` was never pushed. `/island/:childId` now shows every Island the child's age band can see: the current Island first with its Places, open Islands linking to their hub, locked Islands with their authored hint and no link. Unit, component, typecheck, lint, Prettier, build, Playwright smoke and a harness browser check at phone, tablet and desktop widths: see `docs/IMPLEMENTATION_STATUS.md`. Merged to main 2026-11-07 (PR #5). Owner closed it the same day without a tablet acceptance check, because the homepage will be redesigned
+
+### ADR-047 content authoring (Accepted 2026-11-01 as ADR-043; renumbered ADR-047; `docs/platform/DJANGO_CONTENT_AUTHORING.md`)
+
+Implementation and verification are reported separately; "implemented" never means accepted.
+Audited 2026-11-02 against `feature/content` (`59c788b`); the plan, dependency graph and
+milestone definition of done are in `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13.
+
+Status words used in this section (they refine the tracker's TODO / IN_PROGRESS / BLOCKED / DONE):
+NOT STARTED; PARTIAL (some acceptance criteria built); DEVELOPMENT COMPLETE (all development
+acceptance criteria built and the relevant automated checks pass); VERIFIED (merge-gate suites
+pass on the integration branch); ACCEPTED (browser and, where required, deployed acceptance
+passed); BLOCKED; DEFERRED. A box is ticked only at ACCEPTED. Priorities: P0 blocks the branch
+merge; P1 is required for the content-authoring milestone; P2 can follow it.
+
+Built (foundation):
+
+- [ ] **LAI-0810** ContentRevision model, migrations, revision service, kind registry (depends: ADR-047). DEVELOPMENT COMPLETE (pytest `catalog/tests/test_authoring.py`; full pytest 1972 passed on `feature/content` after the main merge). Audit gaps against ADR-047, moved to the tasks that own them: `manage.py check_content` (impact assessment section 10) not built (LAI-0814); publish, rollback and discard are recorded on the revision but not in the Django admin log (ADR-047 D; LAI-0818); "Use the exported version" admin action not built (ADR-047 J; LAI-0801); retiring a record used by an open session has no named-session confirmation (ADR-047 E; LAI-0818); copy length is one 600-character limit, not per age band (ADR-047 D; LAI-0818)
+- [ ] **LAI-0811** Authority-aware importer and conflict report (depends: 0810). DEVELOPMENT COMPLETE; pytest. Report shape gains `skipped` and `conflicts` counts and a `conflicts` list (documented change)
+- [ ] **LAI-0812** `AreaPuzzle`, puzzle-kind registry with Python graders, solve route (depends: 0810). DEVELOPMENT COMPLETE; pytest, `area-puzzles` golden vectors on both sides, Vitest. Browser acceptance through FP-13 only (owner playtest 2026-11-01)
+- [ ] **LAI-0813** Session version pinning (depends: 0810; required before Admin publication may affect active sessions, ADR-047 requirement 1). DEVELOPMENT COMPLETE for step adventures, region copy, puzzles, NPC dialogue, offered quests and chest challenge specs; pytest. Reward rules resolve at grant time (documented). After the main merge a published Question Studio question is chosen before the pinned chest spec (ADR-046); covered by the merged pytest suite
+
+P0, before `feature/content` merges into `main`:
+
+- [x] **LAI-0819** ADR-047 reference cleanup (depends: none). DONE on `feature/content-p1` (2026-11-03). Documents were renamed in the 2026-11-02 audit. Code comments and docstrings in `lai/` and `react/src` that meant content authoring now say ADR-047 (63 files, comment text only; no behaviour changed). Kept as ADR-043 on purpose: the recent sign-in guard (LAI-0209: `users/recent_auth.py`, `permissions.py`, `deletion.py`, `models.py`, `config/settings/base.py`, `recentSignIn.ts`) and three historical migrations whose docstrings and stored `NOTE` strings are already in deployed history (`catalog/0006`, `education/0007`, `regions/0004`). ADR-047 relates itself to ADR-045 and ADR-046 (done in the audit). `adr:check` passes
+- [ ] **LAI-0820** Branch integration of `feature/content` (depends: 0819, and every P1 task intended for the merge). DEVELOPMENT CHECKS COMPLETE (non-browser merge gates, 2026-11-03, on `feature/content` after the LAI-0817 and integrity fixes; local PostgreSQL 16 via `make up`). Baseline at `c1ecea4`, in a separate worktree and database: full pytest 2133 passed. Final: `make py-test-db` 2154 passed, 0 failed, 0 skipped (includes export/import round trip `test_export_content.py`, published content authorization `test_content_reads.py` and `test_tenant_isolation.py`, session pinning `TestContentVersions`, `test_step_runner.py`, `test_firepeak.py`); full Vitest (`npm test`) 325 files, 3471 passed and 1 failed, the failure being the stale `director-content.json` digest from the content change, regenerated, then `src/test/golden` 6 of 6 passed; `make py-lint` (Ruff) passed; `make py-format-check` passed (483 files); `make django-check` no issues; `make migrate-check` no changes; `npm run typecheck` passed; `npm run lint` (oxlint) 0 errors, warnings only; `npm run format:check` passed after formatting this file (the only file it flagged, blank lines before lists); `npm run build` passed; `content:check` up to date (13 files); `golden:check` up to date (8 files) after regeneration; `adr:check` 47 decisions; `admin-preview:check` passed. Defects found and fixed: the manifest integrity exception from `c1ecea4` skipped every Place reference (now only documented pseudo-locations and the hub; mutation-checked), and the golden digest. NOT RUN, by instruction: `test:e2e`, `test:acceptance` and other browser or WebGL checks (PENDING; must not be marked passed until executed), deployed verification (PENDING). NOT RUN, not requested: Docker image build. Review Firepeak (FP-n) and content authoring (LAI-081n) as separate workstreams although they share the branch
+  - **Integration into `dev20261103` (2026-11-04, branch `integration/content-dev20261103`).** `origin/dev20261103` (Sound Manager SM-P1 to SM-P8, Storykeeper SC-R02 to SC-R04) merged into `feature/content` at `bc04a48`; 11 conflicts resolved. The Castle room-discovery ADR, which collided on ADR-047, is renumbered ADR-051; ADR-047 stays Django Content Authoring. Export and golden vectors regenerated; one test mock fixed (`RegionPlaySceneApi` gained four members). Non-browser gates on the merged tree: pytest against PostgreSQL 2483 passed, 0 skipped; Vitest 4382 passed (389 files); Ruff, oxlint, Prettier, typecheck, build, content:check, golden:check, adr:check, Django check and makemigrations --check clean. Browser and deployed acceptance and LAI-0821 remain PENDING.
+  - **Main merged into `dev20261103` (2026-11-07).** PR #3 (AI / Bedrock, LAI-0603 mastery evidence) and PR #5 (LAI-0808) merged in; evidence written once through `record_step_evidence`, `step_is_pinned` pin-aware, Firepeak listed in the Island Explorer. Full pytest, Vitest 4399, Playwright acceptance 35/35 run and passing after the seam fix (`docs/IMPLEMENTATION_STATUS.md`, same date). Owner browser and deployed acceptance still pending.
+
+P1, the remaining content-authoring work (ordered; see the dependency graph in the plan):
+
+- [ ] **LAI-0818** (P1 order 1) Child-facing publication safety (depends: 0810 done, 0801 stage 1 done). DEVELOPMENT COMPLETE on `feature/content-p1` (2026-11-03; the targeted tests named here pass; the full pytest, full Vitest, build and repo-wide gates were not run, see LAI-0820; pytest `catalog/tests/test_publication_safety.py` and `test_authoring_admin.py`). Built: `apps.ai.content_safety` screening of every child-facing string; per-age-band copy limits (Sprouts 160, Pathfinders 320, Explorers and unbanded 600); `SUBMITTED` and `REJECTED` states with a rejection reason; owner-set independent approval (`LAI_CONTENT_INDEPENDENT_APPROVAL`, off by default, ADR-047-Q1 unchanged); Django admin-log entries for start, save, submit, return, reopen, publish, restore, discard and retire; permission checks inside the authoring service (no system bypass; every bypass attempt tested); named-session confirmation before retiring a record an open session pinned, in the service and on the record admin page. See `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 14.1. Browser acceptance PENDING
+- [ ] **LAI-0801** (P1 order 2) Structured editors (depends: stage 1, 0818). DEVELOPMENT COMPLETE on `feature/content-p1` (2026-11-03; pytest `test_authoring_forms.py`, `test_authoring_admin.py`). One schema-driven editor (`authoring_forms.py`) serves every authorable kind: text, number, checkbox, enum select, repeatable rows with add, remove and move, discriminated unions, reference selectors (missing references flagged), field-level errors, a "what changes" list and a per-band preview; raw JSON for the whole body needs `catalog.edit_content_json` (group "Content developers"); "Use the exported version" (ADR-047 J). Submit, publish, discard, restore and retire come from LAI-0818. 3D Area copy, puzzles and challenge specs have no schema definition and are edited through the shape of their current body. Browser acceptance PENDING
+- [ ] **LAI-0817** (P1 order 3) Age-band NPC dialogue authoring (depends: 0810, 0801). DEVELOPMENT COMPLETE on `feature/content` (2026-11-03; verified in code, full pytest and Vitest above). Built earlier: optional `speaker`, `ageBands`, `questId` and `adventureSlug` on dialogue nodes; Django serves a node only to a child whose band it lists and drops choices to lines the band never hears; publishing refuses duplicate node ids, unknown choice targets, a band with no unconditioned opener and a node whose choices all lead away from its band; quest and adventure references are checked. Built 2026-11-03 (FP-D9): Firepeak's `intro`, `completeMessage` and `scienceNote` left puzzle parameters and are 19 banded `puzzleLine` nodes in Professor Ember's exported dialogue (`firepeakContent.ts`, `content/` re-exported); puzzle rules refuse those keys; the seed no longer writes them; the bootstrap adds the child's band lines, from the pinned NPC version, to each puzzle's served `parameters` (client and payload unchanged, so play is unchanged); puzzle lines are never served in conversation; publishing refuses malformed, duplicated, choice-bearing or choice-targeted puzzle lines; a visit pinned before the move keeps its old lines; a puzzle with no intro opens with its title. Tests: `test_age_band_dialogue.py` (`TestPuzzleLines`), `test_firepeak.py` (`TestPuzzleLinesAreDialogue`, edits reach new visits only), `test_puzzles.py`, `test_export_content.py` (dialogue round trip), `test_authoring_forms.py` (every record of the real export round-trips the editor unchanged). Browser acceptance PENDING (Firepeak panels show the same text; FP-13)
+- [ ] **LAI-0309** (P1 order 4) Story catalog and validated references (depends: 0304, 0810). DEVELOPMENT COMPLETE on `feature/content-p1` (2026-11-03; pytest `test_story_catalog.py`). `catalog.Story` loaded from `stories.json` (counts in the import report, `story` revision kind, admin, editor); adventures come from ADVENTURE scenes, characters, learning objectives and quests are derived; `references.py` and `manage.py check_references` report progress ids (`StoryProgress.story_slug`, `NpcRelationship.npc_id`, objective codes) that name no record, counts only, without rewriting any progress row or adding foreign keys to child tables. Run `load_content --force` once on an existing database. Storykeeper Castle is untouched (it still runs on Amplify)
+- [ ] **LAI-0503** (P1 order 5) Published content reads (depends: 0810, 0309, 0817). DEVELOPMENT COMPLETE on `feature/content-p1` (2026-11-03; pytest `test_content_reads.py`; Vitest `stepRunnerApi.test.ts`). Child-scoped, read-only routes for adventures and steps (no answers, hints or transitions), quests, items, reward rules, learning objectives, stories and NPCs with band-filtered dialogue; every response carries the published revision id and number (ADR-047 K); drafts, submitted versions, inactive and other-band content are 404; tenant isolation and read-only tested. Documented in `docs/PLAY_API.md`
+- [ ] **LAI-0816** (P1 order 6) Django-backed step adventure runner (depends: 0601, 0813, 0503). DEVELOPMENT COMPLETE on `feature/content-p1` (2026-11-03; the targeted tests named here pass; the full pytest, full Vitest, build and repo-wide gates were not run, see LAI-0820; pytest `test_step_runner.py`; Vitest `stepRunnerApi.test.ts`, `servedStep.test.ts`, `DjangoAdventureRunner.test.tsx`). Built: start or resume by slug (pinned), `GET sessions/{id}/step/` to resume, grading in Python, skill evidence per graded objective, world-change step consequence, the configured `ADVENTURE_COMPLETED` reward once per child, quest progress on completion, replay safety, mid-session publication and retirement leave a visit unchanged, tenant isolation; `AdventurePage` plays through `DjangoAdventureRunner` (existing `AdventureStepCard`) in a Django build. Limits: the Django path shows authored text only (Chatty AI bubble, coop and the tutor scaffold stay with the Amplify runner); `SkillProgress` mastery counters remain LAI-0603. Browser acceptance PENDING
+- [ ] **LAI-0814** (P1 order 7) `export_content`, `check_content` and promotion (depends: 0811, 0309). DEVELOPMENT COMPLETE on `feature/content-p1` (2026-11-03; the targeted tests named here pass; the full pytest, full Vitest, build and repo-wide gates were not run, see LAI-0820; pytest `test_export_content.py`). Deterministic export of published versions in the existing format with a manifest of records (revision id and number, owner, publish time, dependencies, checksum); drafts excluded unless `--include-drafts`; `check_content` (validation, row/version consistency, references, orphan warnings) gates the export; promotion through `load_content` (dry run and conflict report as before) after a manifest integrity check; repeatable; second-environment round trip and rollback procedure documented (`DJANGO_CONTENT_AUTHORING.md` section 14.7). Django-created assets and `wonderWallQuestions` are not exported
+- [ ] **LAI-0821** (P1 order 8) Content-authoring milestone acceptance (depends: all of the above). The definition of done in the plan, section 13.4: automated backend and frontend parts pass on `feature/content` (LAI-0820, 2026-11-03). PENDING owner acceptance: browser acceptance (`test:acceptance`, Django Admin authoring flows, Firepeak panels) and deployed acceptance (hosted Django, live Cognito) not run. Not accepted
+
+Deferred and excluded (not reactivated by this plan):
+
+- [ ] **LAI-0815** Read-only audited child-progress inspection in Django Admin. **DEFERRED** by the owner (2026-11-01) pending its own authorization and privacy decision; child-owned records stay out of Django Admin
+- LAI-0805 (3D layout authoring): DEFERRED, ADR-047 H. LAI-0802 (React staff pages): REVISED by ADR-045 and ADR-047, see its entry.
+- Firepeak's missing GLB models (FP-3, FP-13): separate asset and game acceptance work, not content authoring.
+- Question Studio live Bedrock acceptance (LAI-AQS-025, LAI-0705): separate Phase 28 and Phase 7 work.
+- Sound Manager (`origin/feature/sound-manager`, TR-19): separate subsystem; content authoring must not author sound cues until that subsystem defines them.
 
 ## Phase 9 — Realtime (co-op) and storage
 
@@ -228,18 +279,18 @@ LAI-0805's ADR; TR-D5 is still Proposed.
 - [x] **TR-7** Treasure Rush region (depends: TR-6, TR-D2, TR-D4, TR-D14, TR-D15). Treasure Cove on the existing Three.js engine via the `region-play` extension. Not verified in a browser
 - [x] **TR-8** Challenge and quest-complete UI (depends: TR-7). DONE locally: Pip dialogue and quest acceptance, chest challenge with hints and retry, reward reveal and chest-opening animation, backpack from progress; no audio (no Polly system exists, TR-D19)
 - [x] **TR-8a** Make it runnable locally (depends: TR-8). DONE locally: automatic Django account setup via `POST /me`, correct 403 messages, dev-only `publish_treasure_rush`, `docs/TREASURE_RUSH_LOCAL_DEV.md`
-- [ ] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602). Browser automation of the whole cove done 2026-11-02 (POST-MERGE-05, `react/e2e/acceptance/treasure-rush.spec.ts`); still open for the owner's playtest of the feel items in `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`
+- [x] **TR-9** End-to-end and playtest (depends: TR-8a; real families also need LAI-0502, LAI-0602, gate G9, ADR-024 A6. Locally, the child mirror step in `docs/TREASURE_RUSH_LOCAL_DEV.md` stands in for LAI-0602). Browser automation of the whole cove done 2026-11-02 (POST-MERGE-05, `react/e2e/acceptance/treasure-rush.spec.ts`); still open for the owner's playtest of the feel items in `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`. OWNER QA ACCEPTED 2026-11-11 (owner-reported, local; Trello WTQR3qTS closed).
 - [ ] **TR-10** Integrate LAI-2106 shared asset management (depends: LAI-2106, TR-7a)
-- [ ] **TR-11** Second chest and quest chain (depends: TR-9). Superseded in substance by TR-14 (evidence in the roadmap, section 19); NOT closed: the owner confirms
-- [ ] **TR-12** Reboot Stage A: child-friendly interaction and guidance (`docs/TREASURE_RUSH_ROADMAP.md` section 17). Implemented: forgiving aim, focus marker, tappable action prompt with the E key only on fine pointers, closed-chest beacons, HUD objective and on-request hint, all behind `interactionAssist` (on for Django regions only). Targeted tests and typecheck pass; not played in a browser (TR-9); merge gates not run
-- [ ] **TR-13** Treasure Cove four-zone layout (depends: none). Implemented on `quest/tr.reboot`: Pirate Landing, Palm Tree Grove, Shipwreck Beach, Ancient Treasure Ruins and an unreachable Lookout Point, carried as `scene.layout` (TR-D24) from `treasure_cove_layout.py`; procedural placeholders and ambient animation; stage control slot and in-stage exit. Asset list: `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`. Targeted vitest and the regions pytest suite (Postgres) pass; not looked at in a browser; merge gates not run
-- [ ] **TR-14** Four chests and "Pip's Missing Treasure" quest (depends: TR-13; owner ordered it before TR-9). Implemented on `quest/tr.reboot`: four encounters (open, hidden, key-locked, rune-stone puzzle then golden chest), key pickup, Pip finale with completion reward and `TREASURE_COVE_QUEST_COMPLETE`; migration `regions.0003`; two play routes. Django gameplay suites and targeted vitest pass; not played in a browser (TR-9); merge gates not run
-- [ ] **TR-15** Locked chest and key pickup (depends: TR-14). Development complete, unit/API verified: pickups proven in a second region, counts-only admin view of who reached each pickup and chest (`apps/regions/activity.py`). Left: a finished `treasure-key` model (art); pending browser acceptance and owner playtest
-- [ ] **TR-16** Ruins environmental puzzle (depends: TR-14). Development complete for "touch the answer", unit verified: stones sink and flash with the server verdict. Left: ordering and matching kinds (TR-D27, proposed), pedestal model (art), sound (TR-19); pending browser acceptance
-- [ ] **TR-17** Completion, persistent bridge unlock, achievement (depends: TR-14). Development complete, unit/API verified: gate lifts, bridge laid, Lookout Point reachable and walkable both ways, unlock persists across visits, the spyglass beyond is locked by Django until the quest completes. Engine walking tests on real collision code. Pending browser acceptance and owner playtest
-- [ ] **TR-18** Living cove: ambient animation and Pip animation (depends: TR-13; animated Pip asset). Development complete with the existing Pip clips (`Talk`, `Wave`; a hop for a figure with no model), shimmering water, fireflies; reduced motion respected. Left: Pip `Cheer` and `Point` clips (art); pending browser acceptance
-- [ ] **TR-19** Sound effects with mute. BLOCKED on owner decision TR-D26 (where the setting lives; recommendation in the roadmap, section 19). Done and independent of it: `soundCues.ts` raises named cues, silent until a player registers
-- [ ] **TR-20** Replayable activity after completion (depends: TR-17). Development complete, unit/API verified: the Lookout spyglass, a `REPLAY` chest that never opens, grants nothing permanent, and records skill evidence. Pending browser acceptance and owner playtest
+- [x] **TR-11** Second chest and quest chain (depends: TR-9). Superseded in substance by TR-14 (evidence in the roadmap, section 19). Closed as superseded by TR-14 with the owner's Treasure Rush QA sign-off, 2026-11-11
+- [x] **TR-12** Reboot Stage A: child-friendly interaction and guidance (`docs/TREASURE_RUSH_ROADMAP.md` section 17). Implemented: forgiving aim, focus marker, tappable action prompt with the E key only on fine pointers, closed-chest beacons, HUD objective and on-request hint, all behind `interactionAssist` (on for Django regions only). Targeted tests and typecheck pass; not played in a browser (TR-9); merge gates not run. OWNER QA ACCEPTED 2026-11-11 (owner-reported, local; Trello WTQR3qTS closed).
+- [x] **TR-13** Treasure Cove four-zone layout (depends: none). Implemented on `quest/tr.reboot`: Pirate Landing, Palm Tree Grove, Shipwreck Beach, Ancient Treasure Ruins and an unreachable Lookout Point, carried as `scene.layout` (TR-D24) from `treasure_cove_layout.py`; procedural placeholders and ambient animation; stage control slot and in-stage exit. Asset list: `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`. Targeted vitest and the regions pytest suite (Postgres) pass; not looked at in a browser; merge gates not run. OWNER QA ACCEPTED 2026-11-11 (owner-reported, local; Trello WTQR3qTS closed).
+- [x] **TR-14** Four chests and "Pip's Missing Treasure" quest (depends: TR-13; owner ordered it before TR-9). Implemented on `quest/tr.reboot`: four encounters (open, hidden, key-locked, rune-stone puzzle then golden chest), key pickup, Pip finale with completion reward and `TREASURE_COVE_QUEST_COMPLETE`; migration `regions.0003`; two play routes. Django gameplay suites and targeted vitest pass; not played in a browser (TR-9); merge gates not run. OWNER QA ACCEPTED 2026-11-11 (owner-reported, local; Trello WTQR3qTS closed).
+- [ ] **TR-15** Locked chest and key pickup (depends: TR-14). Development complete, unit/API verified: pickups proven in a second region, counts-only admin view of who reached each pickup and chest (`apps/regions/activity.py`). Left: a finished `treasure-key` model (art); pending browser acceptance and owner playtest. Owner QA accepted 2026-11-11 (owner-reported, local). Remaining items deferred to a later Treasure Rush expansion, not complete.
+- [ ] **TR-16** Ruins environmental puzzle (depends: TR-14). Development complete for "touch the answer", unit verified: stones sink and flash with the server verdict. Left: ordering and matching kinds (TR-D27, proposed), pedestal model (art), sound (TR-19); pending browser acceptance. Owner QA accepted 2026-11-11 (owner-reported, local). Remaining items deferred to a later Treasure Rush expansion, not complete.
+- [x] **TR-17** Completion, persistent bridge unlock, achievement (depends: TR-14). Development complete, unit/API verified: gate lifts, bridge laid, Lookout Point reachable and walkable both ways, unlock persists across visits, the spyglass beyond is locked by Django until the quest completes. Engine walking tests on real collision code. Pending browser acceptance and owner playtest. OWNER QA ACCEPTED 2026-11-11 (owner-reported, local; Trello WTQR3qTS closed).
+- [ ] **TR-18** Living cove: ambient animation and Pip animation (depends: TR-13; animated Pip asset). Development complete with the existing Pip clips (`Talk`, `Wave`; a hop for a figure with no model), shimmering water, fireflies; reduced motion respected. Left: Pip `Cheer` and `Point` clips (art); pending browser acceptance. Owner QA accepted 2026-11-11 (owner-reported, local). Remaining items deferred to a later Treasure Rush expansion, not complete.
+- [ ] **TR-19** Sound effects with mute. BLOCKED on owner decision TR-D26 (where the setting lives; recommendation in the roadmap, section 19). Done and independent of it: `soundCues.ts` raises named cues, silent until a player registers. Not part of the 2026-11-11 QA sign-off; deferred to a later Treasure Rush expansion.
+- [x] **TR-20** Replayable activity after completion (depends: TR-17). Development complete, unit/API verified: the Lookout spyglass, a `REPLAY` chest that never opens, grants nothing permanent, and records skill evidence. Pending browser acceptance and owner playtest. OWNER QA ACCEPTED 2026-11-11 (owner-reported, local; Trello WTQR3qTS closed).
 
 # Sound Manager (`docs/audio/SOUND_MANAGER_ARCHITECTURE.md`)
 
@@ -257,7 +308,7 @@ Vitest and fakes only; no real-browser audio check has been run.
 - [x] **SM-008** Error handling, silent fallback and diagnostics ring. DONE
 - [x] **SM-009** React integration (`SoundProvider`, `useSound`, `useSoundScope`, `useSoundSettings`, `useAudioStatus`), StrictMode-safe. DONE; no game wired in
 - [x] **SM-010** Tests and developer guide (`docs/audio/SOUND_MANAGER_USAGE.md`). DONE: 94 Vitest tests in `react/src/audio`
-- [x] **SM-P2** Django sound library, cue definitions, publishing and manifest API; React manifest adapter (depends: AM-13, ADR-045). DONE 2026-11-02 on `feature/sound-manager` (unit-tested; ADR-047 Proposed, owner acceptance pending; not heard in a browser, nothing deployed). Needs `origin/feature/asset-manager`, merged into this branch because `main` has no audio support. Sub-tasks:
+- [x] **SM-P2** Django sound library, cue definitions, publishing and manifest API; React manifest adapter (depends: AM-13, ADR-045). DONE 2026-11-02 on `feature/sound-manager` (unit-tested; ADR-050 Proposed, owner acceptance pending; not heard in a browser, nothing deployed). Needs `origin/feature/asset-manager`, merged into this branch because `main` has no audio support. Sub-tasks:
   - [x] **SM-P2-01** Audit of the Asset Library's audio support and gap analysis (`docs/audio/PHASE_2_ASSET_INTEGRATION.md`). Finding: audio exists only on `feature/asset-manager`
   - [x] **SM-P2-02** `SoundCue` (stable id, channel, asset reference, mix settings), `apps/audio`, migration `0001`
   - [x] **SM-P2-03** Django Admin: cues (preview, filter, search, status, enable and disable), assignments, releases, publish page, rollback action
@@ -267,8 +318,8 @@ Vitest and fakes only; no real-browser audio check has been run.
   - [x] **SM-P2-07** React: manifest parser and sync, Django audio source, `useAudioManifest`, expired-url recovery, owned definitions
   - [x] **SM-P2-08** Permissions (`Sound editors`, `Sound publishers`), read-only API, no new auth, audit through admin history and release records
   - [x] **SM-P2-09** Tests: Django `apps/audio` and React `src/audio`, `src/api/audio`
-  - [x] **SM-P2-10** Documentation, tracker, ADR-047 (Proposed)
-- [x] **SM-P3** Sound library reporting (unassigned and orphaned cues), tags and search, per-Island releases if needed (depends: SM-P2). DEVELOPMENT DONE 2026-11-03 for reporting, search and diagnostics; per-Island releases and cue tags deliberately NOT built (no need shown; releases stay library-wide, ADR-047). Sub-tasks are `SM-P3-R1` to `R6` (the batch brief's P3-01 to P3-06), so they do not clash with the Treasure Rush brief's `SM-P3-01` to `10` under SM-P4. Detail: `docs/audio/SOUND_LIBRARY_REPORTING.md`
+  - [x] **SM-P2-10** Documentation, tracker, ADR-050 (Proposed)
+- [x] **SM-P3** Sound library reporting (unassigned and orphaned cues), tags and search, per-Island releases if needed (depends: SM-P2). DEVELOPMENT DONE 2026-11-03 for reporting, search and diagnostics; per-Island releases and cue tags deliberately NOT built (no need shown; releases stay library-wide, ADR-050). Sub-tasks are `SM-P3-R1` to `R6` (the batch brief's P3-01 to P3-06), so they do not clash with the Treasure Rush brief's `SM-P3-01` to `10` under SM-P4. Detail: `docs/audio/SOUND_LIBRARY_REPORTING.md`
   - [x] **SM-P3-R1** Inventory (assets, cues, releases, last publication) from real tables
   - [x] **SM-P3-R2** Per-game coverage with a strict readiness chain; Treasure Rush supported; coverage by Island, Place, 3D Area and Adventure
   - [x] **SM-P3-R3** Diagnostics with remediation: missing, unpublished and retired audio, missing cues, invalid assignments, absent from manifest, orphans
@@ -334,7 +385,7 @@ Vitest and fakes only; no real-browser audio check has been run.
     - [ ] **SM-P8-LIVE-07** Live `speech_live_smoke` PASS in the target AWS account (owner)
     - [ ] **SM-P8-LIVE-08** Audible QA in a browser, Pirate Pip included (owner; runbook section 9)
     - [ ] **SM-P8-LIVE-09** Bedrock turns producing speech references end to end, and cost against the AWS bill (owner)
-- [ ] **TR-11** Second chest and quest chain (depends: TR-9)
+- [x] **TR-11** Second chest and quest chain (depends: TR-9). Closed 2026-11-11 as superseded by TR-14
 
 ## Phase 28 — AI Question Studio (branch `features/studio`, ADR-046 Accepted)
 
@@ -363,18 +414,18 @@ Detail: `docs/AI_QUESTION_STUDIO.md`.
 - [x] **LAI-AQS-021** Question selection. DONE locally: subject, grade and band, topic, skill, difficulty and adventure filters; no repeat within a session; falls back to the authored challenge
 - [x] **LAI-AQS-022** Grading and mastery integration. DONE locally: `grade_answer` and `SkillEvidence` unchanged; attempt snapshots the revision; no model call at runtime. React multiplication picture added and verified (Vitest, typecheck)
 - [x] **LAI-AQS-023** Automated testing. DONE locally: 125 Studio tests plus two updated guard tests; full Python suite 1389 + 354 passed (see IMPLEMENTATION_STATUS)
-- [ ] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval). IN PROGRESS: workflow verified end to end with the fake model; OPEN: live Bedrock (LAI-0705 approval) and a Django Admin browser pass
+- [x] **LAI-AQS-024** End-to-end acceptance (depends: 015 to 023; live Bedrock needs LAI-0705 approval). IN PROGRESS: workflow verified end to end with the fake model, and most of the Admin browser pass done 2026-11-02 (POST-MERGE-05, `react/e2e/acceptance/question-studio.spec.ts`); DONE 2026-11-07: LAI-AQS-025 (live Bedrock) and LAI-AQS-026 (Admin browser pass) passed and were owner-accepted (`docs/qa/aqs-2026-11-07/`)
 
-### Phase 28 follow-ups (open gates, not started)
+### Phase 28 follow-ups (025 and 026 done 2026-11-07; 027 and 028 open)
 
-- [ ] **LAI-AQS-025** Live Bedrock verification of Studio generation (depends: 024 code, LAI-0705). **APPROVAL: AWS credentials, Bedrock cost, Guardrail.** Run one small batch (5 questions, one chunk) under the real instance role with `LAI_AI_PROVIDER=bedrock`, then score it from the stored rows, not from a 200: batch status, model id, token counts, estimated cost, and per-question validation results. Confirm the Guardrail applies, the output schema is accepted by structured output, the 60 second timeout is enough for a chunk, and a deliberate Guardrail probe stores nothing. Record the real cost per question and set the price settings. Closes half of LAI-AQS-024.
-- [ ] **LAI-AQS-026** Django Admin browser acceptance pass (depends: 024 code). Walk the whole flow in a real browser as separate author, reviewer and publisher accounts: generate, follow batch status, review and edit, approve, publish, correct, retire, and a bulk action with mixed results. Check permission denials, read-only published pages, mobile-width layout of the review page, and that a `thread` run mode batch finishes. Capture findings in `docs/IMPLEMENTATION_STATUS.md`. Closes the other half of LAI-AQS-024.
+- [x] **LAI-AQS-025** Live Bedrock verification of Studio generation (depends: 024 code, LAI-0705). **APPROVAL: AWS credentials, Bedrock cost, Guardrail.** Run one small batch (5 questions, one chunk) under the real instance role with `LAI_AI_PROVIDER=bedrock`, then score it from the stored rows, not from a 200: batch status, model id, token counts, estimated cost, and per-question validation results. Confirm the Guardrail applies, the output schema is accepted by structured output, the 60 second timeout is enough for a chunk, and a deliberate Guardrail probe stores nothing. Record the real cost per question and set the price settings. Closes half of LAI-AQS-024. 2026-11-04 readiness: `studio_run_batch --dry-run` and `--confirm-paid-calls`, read-only `studio_batch_report` (validation outcomes, tokens, cost per question); owner steps in docs/AI_BEDROCK_ACCEPTANCE.md section 3. **No live batch has been run.** QA 2026-11-07 follow-up (branch `qa/aqs-acceptance-20261107`): PASSES live after fix QA-AQS-D4, which stopped the Guardrail's prompt-attack filter from blocking every batch. Three real batches (5/5 each), probe stored nothing, about $0.001 per question at list price. Left unchecked: the owner confirms the price, judges quality, and reruns under the instance role. Report: `docs/qa/aqs-2026-11-07/AQS-025-live-bedrock.md`. **Owner accepted and merged 2026-11-07.** The Guardrail layout defect (QA-AQS-D4) is fixed on main by the AI/Bedrock QA (`ContentPart.guarded`, `test_guardrail_content_layout.py`); live results re-verified on the merged code.
+- [x] **LAI-AQS-026** Django Admin browser acceptance pass (depends: 024 code). Walk the whole flow in a real browser as separate author, reviewer and publisher accounts: generate, follow batch status, review and edit, approve, publish, correct, retire, and a bulk action with mixed results. Check permission denials, read-only published pages, mobile-width layout of the review page, and that a `thread` run mode batch finishes. Capture findings in `docs/IMPLEMENTATION_STATUS.md`. Closes the other half of LAI-AQS-024. **Progress 2026-11-02 (POST-MERGE-05, automated, fake model, `inline` run mode):** done in Chromium: generate with form validation, batch page, approve, reject, publish, correction (and a second one refused), retire, a bulk action with mixed results, permission denials per role, read-only published pages, the question list at phone width, and a pool serving published questions to Treasure Rush. Still to do: edit a draft in the browser, the review (change) page at phone width, and a `thread` run mode batch finishing. QA 2026-11-07 (branch `qa/aqs-acceptance-20261107`): automated browser pass PASSES (Chromium; `question-studio-qa.spec.ts`), three defects fixed (QA-AQS-D1 to D3); left unchecked for owner acceptance. LAI-AQS-025 BLOCKED in that pass (no AWS credentials). Report: `docs/qa/aqs-2026-11-07/README.md`. **Owner accepted and merged 2026-11-07.**
 - [ ] **LAI-AQS-027** Task queue decision and implementation for long batches (depends: none; ADR needed). The `thread` run mode can strand a batch on a worker restart (reclaimed after 15 minutes only if someone runs it again). Decide between a polling worker running `studio_run_batch` as its own service, SQS with a worker, or a library queue, record it in an ADR, then implement with a heartbeat, safe retry of a chunk, and a visible "stalled" state in Admin. **APPROVAL if it needs new AWS infrastructure.** Acceptance: killing the worker mid-batch loses at most the chunk in flight and the batch completes on restart; tests prove it.
 - [ ] **LAI-AQS-028** Storykeeper Castle and other adventures adopt the question bank (depends: LAI-0309, LAI-0603, LAI-0709; ADR needed). Those adventures run on Amplify sessions with no Django story catalog, so the bank cannot serve them yet. Once their steps exist in Django, add a pool keyed by adventure, serve through the same snapshot and grading path, keep the authored fallback, and extend the question types served (text stems, short answer, division) with a grader for each.
 
 `LAI-AQS-024` closes when LAI-AQS-025 and LAI-AQS-026 are done.
 
-## Phase 30 — NPC Manager (branch `feature/npc-manager`, ADR-050 Accepted)
+## Phase 30 — NPC Manager (branch `feature/npc-manager`, ADR-053 Accepted)
 
 Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`. Contracts: `docs/NPC_MANAGER_CONTRACTS.md`.
 Statuses: NOT STARTED, IN PROGRESS, DEVELOPMENT COMPLETE, BLOCKED, ACCEPTED. ACCEPTED needs the
@@ -383,7 +434,7 @@ AWS (Bedrock, Polly) has been called.
 
 | Task        | Description                                                                                                                          | Depends                 | Workstream  | Status               | Branch / commit                                                                         | Test evidence                                                                                                                                                            | Remaining acceptance                                                                                                                                            |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- | ----------- | -------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| LAI-NPC-001 | Architecture: NPC Manager ADR (ADR-050) and frozen contracts                                                                         | -                       | Foundation  | DEVELOPMENT COMPLETE | feature/npc-manager (foundation)                                                        | pytest `lai/apps/npcs` 21 passed; catalog regression passed; Vitest contracts 7 passed; tsc clean                                                                        | Owner review of ADR-050 text                                                                                                                                    |
+| LAI-NPC-001 | Architecture: NPC Manager ADR (ADR-053) and frozen contracts                                                                         | -                       | Foundation  | DEVELOPMENT COMPLETE | feature/npc-manager (foundation)                                                        | pytest `lai/apps/npcs` 21 passed; catalog regression passed; Vitest contracts 7 passed; tsc clean                                                                        | Owner review of ADR-053 text                                                                                                                                    |
 | LAI-NPC-002 | Character registry: `apps.npcs`, `NpcCharacter` on canonical `NpcDefinition` (roles, personality, age bands, status, audit)          | 001                     | Foundation  | DEVELOPMENT COMPLETE | feature/npc-manager (foundation)                                                        | pytest `lai/apps/npcs` 21 passed; catalog regression passed; Vitest contracts 7 passed; tsc clean                                                                        | Admin authoring (LAI-NPC-005); owner browser acceptance                                                                                                         |
 | LAI-NPC-003 | Asset Library integration: variant/portrait/texture/audio/accessory references, signed delivery reuse, no broken or unpublished refs | 034                     | A Admin     | DEVELOPMENT COMPLETE | feature/npc-manager-admin b1b0030, merged dace337                                       | pytest apps/npcs apps/assets apps/catalog 365 passed; Ruff clean                                                                                                         | Owner browser acceptance of asset pickers in Django Admin                                                                                                       |
 | LAI-NPC-004 | Model variants: skins, scale, offsets, animation mapping, availability                                                               | 003                     | A Admin     | DEVELOPMENT COMPLETE | feature/npc-manager-admin b1b0030, merged dace337                                       | pytest 365 passed (animation map checked against the version's clips)                                                                                                    | Owner browser acceptance; variant extras (accessories) are validated and published but not yet rendered by the runtime                                          |
@@ -397,7 +448,7 @@ AWS (Bedrock, Polly) has been called.
 | LAI-NPC-012 | Dialogue trees: paths, conditional choices, valid transitions, no unauthorized gameplay actions                                      | 011                     | C Dialogue  | DEVELOPMENT COMPLETE | feature/npc-manager-dialogue, merged                                                    | pytest dialogue API: branching, conditional choices, invalid transitions, release change                                                                                 | Owner browser acceptance                                                                                                                                        |
 | LAI-NPC-013 | Interaction trigger registry mapped to existing gameplay events                                                                      | 012                     | C Dialogue  | DEVELOPMENT COMPLETE | feature/npc-manager-dialogue, merged                                                    | pytest test_dialogue_triggers (11 triggers); Vitest trigger mapping and controller 22 passed                                                                             | Owner browser acceptance                                                                                                                                        |
 | LAI-NPC-014 | Interaction UI: prompts, dialogue display, keyboard, pointer, touch, captions, focus                                                 | 008                     | B Runtime   | DEVELOPMENT COMPLETE | feature/npc-manager-runtime 7b1079d, merged                                             | Vitest + React Testing Library prompt and panel tests (keyboard, focus, captions)                                                                                        | Owner browser acceptance on tablet (touch)                                                                                                                      |
-| LAI-NPC-015 | Sound Manager integration: dialogue and reaction cues, captions, mute, interruption, cleanup, channels                               | 014, 029                | Integration | DEVELOPMENT COMPLETE | feature/npc-manager-treasure 91424c5, merged 395ee02                                    | Vitest host and treasureRushAudio tests (NPC cues, mute, interruption, cleanup)                                                                                          | Owner browser acceptance with audio; Pip's voice profile seeded by SM-P8-LIVE (not yet heard)                                                                               |
+| LAI-NPC-015 | Sound Manager integration: dialogue and reaction cues, captions, mute, interruption, cleanup, channels                               | 014, 029                | Integration | DEVELOPMENT COMPLETE | feature/npc-manager-treasure 91424c5, merged 395ee02                                    | Vitest host and treasureRushAudio tests (NPC cues, mute, interruption, cleanup)                                                                                          | Owner browser acceptance with audio; Pip's voice profile seeded by SM-P8-LIVE (not yet heard)                                                                   |
 | LAI-NPC-016 | Adventure events: NPC reactions on Treasure Rush's existing lifecycle (no second reward engine)                                      | 013, 023                | Integration | DEVELOPMENT COMPLETE | feature/npc-manager-treasure 91424c5, merged 395ee02                                    | Vitest useRegionPlay onOutcome to notifyPlay, one reward call per outcome; pytest acceptance flow triggers                                                               | Owner browser playtest                                                                                                                                          |
 | LAI-NPC-017 | Child NPC state: conversation cursor, last interaction, validated local flags; progress read from existing engine                    | 012                     | C Dialogue  | DEVELOPMENT COMPLETE | feature/npc-manager-dialogue, merged                                                    | pytest test_dialogue_state; no-progress test across progression, quests, inventory, game_sessions, rewards, mastery                                                      | Owner browser acceptance                                                                                                                                        |
 | LAI-NPC-018 | Treasure Rush dialogue migration: Pip greets, explains, hints, reacts, celebrates, recognizes return                                 | 010, 012, 013           | Integration | DEVELOPMENT COMPLETE | feature/npc-manager-treasure e65893c, merged 395ee02                                    | pytest test_treasure_pip_seed 13 passed (idempotent, six behaviours in snapshot)                                                                                         | Owner review of Pip's migrated lines; owner browser playtest                                                                                                    |
@@ -443,3 +494,515 @@ accepts; nothing is ACCEPTED by this pass.
 | QA-NPC-08 | Limitations 1 to 4 classified (none a release blocker)                                                                                                                                  | DONE                            | report section 7                                                                                                                                                                                   | Owner decisions: Pip's voice, one talk prompt (O1), merge order vs `dev20261103`                 |
 | QA-NPC-09 | Merge gates on the QA branch                                                                                                                                                            | NOT READY                       | pytest 2503, Vitest 4242, tsc, Ruff, Prettier, oxlint, adr:check, build, migrations all PASS; full browser acceptance 56 passed, 6 failed (F-A, F-B)                                               | Owner decision on F-A (404 when no release) and F-B (modal ambient lines); rerun; merge approval |
 | QA-NPC-10 | F-A and F-B fixes (owner decision 2026-11-07: no release is `200` with `release: 0`; unprompted lines are a non-modal bubble in a stage speech slot; idempotent `end`)                  | READY FOR OWNER REVIEW          | Branch `fix/npc-qa-fa-fb`. pytest 2505, Vitest 4255, tsc, Ruff, Prettier, oxlint, adr:check, build, makemigrations, admin preview all PASS; full browser acceptance 63 passed, 1 skipped, 0 failed | Owner review of the bubble UX in the browser; merge approval                                     |
+
+# Firepeak Volcano (`docs/FIREPEAK_VOLCANO_ROADMAP.md`)
+
+Feature roadmap with its own ids, like TR-n and SC-n. Owner-directed 2026-11-01 (FP-D1); ages
+Pathfinders and Explorers (FP-D2). Built on ADR-047 (content authoring; accepted as ADR-043 before renumbering). Implementation and verification statuses
+are kept separately in the roadmap's section 5 and `docs/IMPLEMENTATION_STATUS.md`.
+
+- [x] **FP-1** Architecture audit and adventure specification (ADR-047, then numbered ADR-043, accepted by the owner)
+- [ ] **FP-2** Firepeak Place and 3D Area configuration (depends: LAI-0810, LAI-0812). IMPLEMENTED; pytest and Vitest only
+- [ ] **FP-3** Asset manifest and placeholder environment (depends: FP-2). IMPLEMENTED (`docs/regions/firepeak_assets.md`; 11 GLBs missing, stand-ins drawn); engine harness only, not seen in a browser
+- [ ] **FP-4** Base Camp and Professor Ember (depends: FP-2). IMPLEMENTED; not browser-verified
+- [ ] **FP-5** Telescope exploration activity (depends: FP-4). IMPLEMENTED; not browser-verified
+- [ ] **FP-6** Lava crossing puzzle, hazard and respawn (depends: FP-5). IMPLEMENTED; not browser-verified
+- [ ] **FP-7** Steam vent puzzle (depends: FP-6). IMPLEMENTED; not browser-verified
+- [ ] **FP-8** Crystal chamber and collection (depends: FP-7). IMPLEMENTED; not browser-verified
+- [ ] **FP-9** Adventure orchestration and persistence (depends: LAI-0813). IMPLEMENTED; pytest end to end, engine harness for resume
+- [ ] **FP-10** Rewards and Discovery Journal (depends: FP-9). IMPLEMENTED; pytest and Vitest
+- [ ] **FP-11** Django Admin authoring and publishing (depends: LAI-0801 stage 1). IMPLEMENTED; pytest
+- [ ] **FP-12** Unit and integration acceptance (depends: FP-2 to FP-11). Development checks pass (see IMPLEMENTATION_STATUS); merge-gate checks not run
+- [ ] **FP-13** Browser playtesting and performance verification (depends: FP-12; needs a Cognito test sign-in, ADR-024 A6). manual owner playtest PASSED 2026-11-01 (whole adventure, local browser, real Cognito sign-in, reported by the owner); automated Playwright scenarios and Android performance still open
+
+# Storykeeper Castle Reboot (branch `adventures/storybook`)
+
+Feature roadmap with its own ids (SC-Rnn-nn), consolidating
+`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md` and `docs/regions/storykeeper_castle.md`. Detail:
+`docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`; baseline audit:
+`docs/regions/storykeeper_castle_implementation_audit.md`. Development status is kept separate from
+browser/device acceptance: **no browser tests are run on this branch (owner instruction)**, so
+every visual task's browser acceptance stays open for the owner. SC-11 (Sprouts playtest,
+real-tablet profiling) stays open and is carried as SC-R11. Commit references are recorded by the
+following task's commit.
+
+- [x] **SC-R01-01** Current implementation audit (depends: none). DONE: audit with working, partial,
+      missing and browser-only inventory; findings AUD-1 (band-blind claim in `castle-tale`) and
+      AUD-2 (card route ignores band routing). Tests: baseline 37 castle/asset Vitest files (504)
+      and typecheck pass; docs only. Commits `229c359`, `d7389ab`. Browser/device: none needed
+- [x] **SC-R01-02** Consolidated reboot roadmap (depends: SC-R01-01). DONE:
+      `docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`: Great Storybook premise, eight existing
+      rooms kept with the upgrade roadmap's functions merged in (Observatory into the Setting Tower,
+      Trophy Room into the Costume Room, Map Room into the corridor), Writing Room and Secret Chamber
+      as the only new spaces, Quest / Adventure / 3D Area boundaries, derived pages and ranks, band
+      table, SC-R02 to SC-R12 task breakdown, owner decisions. Docs only; adr:check passes. Commit
+      `e698b4d`
+- [x] **SC-R01-03** ADR-028 art direction recommendation and asset conventions (depends: SC-R01-02).
+      DONE: "Recommended decision, 2026-11-02" added to ADR-028, **status left Proposed** (owner
+      acceptance pending); `docs/regions/storykeeper_castle_art_direction.md` with style, sourcing and
+      ledger rules, material and naming conventions, room palettes, provisional LOW/MEDIUM/HIGH
+      budgets, import rules, fallbacks. Docs only; adr:check passes. Owner: accept ADR-028; fund
+      commissioned Quill, Ember and Storybook art; decide KayKit wall height. Commit `aeaa3d2`
+- [x] **SC-R01-04** Gameplay and compatibility contracts with contract tests (depends: SC-R01-02).
+      DONE: `docs/regions/storykeeper_castle_contracts.md` (C-1 to C-11);
+      `castleRebootContracts.test.ts` (13 tests: frozen interactions, band-aware claims, one mission
+      per band, bindings against content, planned page sources, quest model). Fixes AUD-1:
+      `castleTaleClaims.ts` makes `castle-tale` claim only for bands it hosts. The page-source
+      contract corrected the roadmap (no Explorer mission writes `FIRST_STORY_TOLD`). Tests: 29 castle
+      and extension Vitest files (406) pass; typecheck and build pass. Browser: the Explorer story
+      hall and Sprout secret door now open the generic panel; confirm in a browser (owner). Commit
+      `e193f79`
+- [x] **SC-R01-05** Acceptance and test plan (depends: SC-R01-04). DONE:
+      `docs/regions/storykeeper_castle_acceptance.md`: whole-castle criteria A-1 to A-21 and SC-R02
+      criteria V-1 to V-12, each mapped to unit, browser, device or playtest; owner checklist for
+      SC-R02; SC-11 kept open as SC-R11. Docs only. Commit `881bc57`
+- [x] **SC-R02-01** Reusable visual system in the generic location runtime (depends: SC-R01-03).
+      DONE (development): `runtime/visual/`: material presets with shared materials, deterministic
+      tileable procedural textures (8 patterns), runtime-built surfaces with world-scaled UVs, motes,
+      LOW/MEDIUM/HIGH quality tiers (texture size, light budget by `priority`, pixel-ratio cap, motes),
+      reduced motion, fallbacks, disposal; new optional manifest fields `materials`, `surfaces`,
+      `effects`, `LightSpec.priority`, validated. The view passes the tier and reduced-motion
+      preference. Tests: 60 new (visual), 101 three/region-play files (1276) pass; typecheck, build,
+      Prettier pass. Browser (owner): textures look right, no shimmer; LOW on a weak device
+- [x] **SC-R01/02-AUDIT** Verification audit of SC-R01 and SC-R02 against code, tests and Git
+      (depends: SC-R02-01). DONE: `docs/regions/storykeeper_castle_verification_audit.md`. Verified:
+      SC-R01-01 to 05 delivered (ADR-028 still **Proposed**); SC-R02-01 delivered; **SC-R02-02 to 09
+      not implemented** (no room re-dressed, the castle manifest declares no `materials`, `surfaces`
+      or `effects`). No duplicate Phaser, sound, asset-manager or content-backend code. Maps the
+      owner brief's SC-R02-02..10 onto this tracker's ids. Tests: 9 files, 118 pass (visual, region,
+      contracts, manifest). The full `three/` suite did not complete on this machine (worker
+      timeouts, 8 GB RAM; environmental). Browser: none run. Commits `42bac2b`, `2e52c87` (the second
+      corrects the test-environment finding: `@colyseus/sdk` missing from the shared `node_modules`,
+      so the parity suite is run with a scratch stub; it passes, 44 tests)
+- [x] **SC-R02-02** Great Library visual overhaul (depends: SC-R02-01). DONE (development):
+      `runtime/manifests/storykeeperCastleVisuals.ts`, a data layer over the SC-R02-01 visual
+      system: three presets (`planks-library`, `ashlar-library`, `trim-dark-wood`), one `RoomLook`
+      (textured floor, ceiling, ashlar walls, baseboard and cornice, candle-dust motes), and
+      procedural `BOX` decor: the empty **Storybook dais** (`STORYBOOK_DAIS`, solid, for SC-R04),
+      three ceiling beams, two table candles. The kit floor, walls and ceiling stay underneath as the
+      fallback; surfaces stand 1 to 4 cm in front of them. New `testing/castleReachability.ts`
+      walks the castle **with the manifest's own colliders** (the region flood fill cannot see
+      manifest colliders): every room, zone and authored spot is still reachable. Tests: 38 new and
+      related (visuals, runtime, manifest) pass; castle engine, bindings, HUD equivalence, contracts
+      and region suites pass (93); parity suite passes with the scratch stub (44); `tsc --noEmit -p
+tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in castle files;
+      Prettier passes. **Deferred, not done:** columns and chairs (the puzzle spots leave no safe
+      floor), varied book art (needs kit or commissioned art, ADR-028 is Proposed), a dais glow
+      light (SC-R02-06). Browser (owner): overall look, readability of the clues and rods against
+      the new walls, dais position. Commit `4c792b4`
+- [x] **SC-R02-03** Entry Hall visual overhaul (depends: SC-R02-01). DONE (development): each
+      room's look now lives in its own module under `manifests/castleRooms/` (`greatLibrary.ts`
+      moved there unchanged, plus `entryHall.ts` and a shared `castleVisualKit.ts`); the core
+      aggregates them, so a room pass is one file and one line. Entry Hall: flagstone floor with a
+      blue and gold **medallion inlay** (new `inlays` field, 5 mm above the floor, under the 2 cm
+      carpet), warm ashlar, plaster ceiling, trim, four columns (solid, clear of the carpet line),
+      four blue and gold banners, a framed **blank mural** (`ENTRY_MURAL`, filled by SC-R04),
+      daylight motes. Tests: 44 (visuals, runtime, manifest) pass, including the walk through the
+      castle with the columns as colliders; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. **Deferred:** a path-to-library floor inlay (wayfinding, SC-R03-06).
+      Browser (owner): first impression, carpet against the medallion, banner colours. Commit `216ad7d`
+- [x] **SC-R02-04a** Story Hall visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/storyHall.ts`: honey planks, warm plaster over an ashlar wainscot (the first
+      room to use `wainscot`), crimson rug inlay before the hearth, a stone hearth surround with fire
+      and flame (solid), three crimson and gold banners on the north wall, ember motes. The jambs stop
+      at y 2.0 so the **mantel carving at y 2.2 stays visible** (tested); the carpet line to Quill
+      stays clear (tested hub-wide). Tests: 46 (visuals, runtime, manifest) pass; typecheck has only
+      the missing `@colyseus/sdk` error; Prettier and oxlint clean. Browser (owner): warmth,
+      the hearth read, mantel legibility. Commit `98164d5`
+- [x] **SC-R02-04b** Character Gallery visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/characterGallery.ts`: honey planks, deep green plaster, a crimson runner inlay
+      that stops short of the portrait zones, a brass plaque under each portrait (below the frames,
+      tested against `GALLERY_PORTRAIT_SPOTS`; the test caught a first draft that overlapped the
+      frame bottoms), gold dust motes. Adds nothing solid, so the portrait and arrival zones stay
+      open (tested). Tests: 48 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. **Deferred:** plinths and rope barriers (they
+      would stand in the portrait zones). Browser (owner): green against the portraits, plaque legibility. Commit `ccf39cb`
+- [x] **SC-R02-04c** Costume Room visual overhaul, including the unplaced costume racks (depends:
+      SC-R02-01). DONE (development): `castleRooms/costumeRoom.ts`: plum carpet and plaster, **the
+      three `COSTUME_RACK_SPOTS` racks the region authored in Phase 14 and never placed are now
+      stood up**, each solid on its authored spot with posts, brass bar and coloured garments (tested
+      against the region's spots, with a 0.5 m walkway between neighbours), and a brass-framed mirror
+      flat on the west wall. Tests: 51 (visuals, runtime, manifest) pass, including the walk
+      through the castle with the racks solid; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. Racks remain decorative, with no interaction. **Deferred:** the Trophy
+      Room pedestals (SC-R03-03 and SC-R07). Browser (owner): the plum, the rack silhouettes. Commit `d336b12`
+- [x] **SC-R02-04d** Setting Tower visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/settingTower.ts`: cool grey flagstone and ashlar (two new presets, taking the
+      castle to the 16-preset budget), a blue and gold compass medallion at the room centre (reusing
+      the Entry Hall's tile preset), a brass **orrery** in the north-east corner (the Observatory's
+      first instrument, the roadmap having merged the two; the telescope and observing arrive in
+      SC-R03-04), cool star-dust motes. The orrery overlaps none of the arrival or window zones, and
+      nothing stands near a window (both tested). Tests: 57 (visuals, runtime, manifest) pass;
+      typecheck has only the missing `@colyseus/sdk` error; Prettier and oxlint clean. Browser
+      (owner): the cool mood against the window views, orrery read. Commit `86b5b7a`
+- [x] **SC-R02-04e** Illustration Studio visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/illustrationStudio.ts`: honey planks, cream plaster (both reused presets), a solid
+      paint table in the south-east corner with four paint pots, three framed drawings flat on the
+      east wall above it. The table keeps more than a metre from the easel and out of the easel zone
+      (tested). Tests: 59 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. All eight rooms now have a look (SC-R02-02,
+      03, 04a-f). Browser (owner): brightness, the easel against the cream walls. Commit `9de8c0c`
+- [x] **SC-R02-04f** East Corridor visual overhaul (depends: SC-R02-01). DONE (development):
+      `castleRooms/eastCorridor.ts`: flagstone, dim grey ashlar, a 19 m crimson runner inlay, eight
+      brass sconces (four a side, each tested clear of every archway), a framed island map on the
+      west wall (`CORRIDOR_MAP`, which SC-R03-06 and SC-R04 will mark; flat, clear of the hub
+      archway and the sconces). No collider added, so the spine to the deep rooms is unchanged
+      (tested). Tests: 54 (visuals, runtime, manifest) pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. The map shows no page marks yet (SC-R04).
+      Browser (owner): the dim mood, sconce read, map legibility. Commit `78d9e76`
+- [~] **SC-R02-05** Magical interaction feedback and reduced motion (depends: SC-R02-01).
+  **PARTIAL (development).** Done: the audit found that the castle's swaying secret tapestry
+  ignored `prefers-reduced-motion` (only the motes honoured it). `WorldExtensionContext` now
+  exposes `reducedMotion` (generic, no region branching) and `castle-tale` holds the tapestry at a
+  fixed 0.02 rad lean instead of swaying, so the nook's only visual hint survives without
+  movement. Tests: sways by default and stays within 0.036 rad; holds exactly one lean under
+  reduced motion; a walk ends in the same place either way (3 new; with the castle engine,
+  engine-runtime and contract suites, 61 pass; parity with the stub, 44 pass); typecheck has only
+  the missing `@colyseus/sdk` error. **Not done:** new state-flip glow or light pulses. The
+  existing `-lit` portrait and window variants and the plate and rod seating are the castle's
+  state feedback and are unchanged; extra pulses were not added. Quill's authored idle and
+  gesture clips are character animation and are not suppressed. Browser (owner): reduced-motion
+  feel; whether more glow is wanted. Commit `249e98a`
+- [x] **SC-R02-06** Lighting moods and quality-tier light budgets (depends: SC-R02-01). DONE
+      (development): each room look carries a `mood` (lamp colour from the art direction palette, and
+      a `priority`); the manifest's room lamps wear them, so the previously all-white lamps are warm
+      or cool. A new `RoomVisuals.lights` hook adds the **Storybook dais glow** (violet-gold, priority
+      6). The hearth (10) and doorway (7) are prioritised, so LOW keeps the hearth, hub, library,
+      doorway, dais and corridor (tested). 11 lights, under the MEDIUM budget of 14 (tested). The
+      library stays the dimmest room (tested). Intensities are unchanged. Tests: 63 new and related
+      plus 71 engine and visual-system pass; typecheck has only the missing `@colyseus/sdk` error;
+      Prettier and oxlint clean. Browser (owner): exposure consistency room to room, the dais glow
+      against the dark library. Commit `6e80d0a`
+- [x] **SC-R02-07** Asset manifest doc (depends: SC-R02-02 to 04). DONE:
+      `docs/regions/storykeeper_castle_asset_manifest.md`, with counts generated from the real
+      manifest (141 scenery of 160, 16 presets of 16, 38 surfaces, 102 BOX decor, 11 lights): every
+      logical id with its source and fallback (two imported KayKit pieces, the rest generated), the
+      twelve extension state-variant ids, the procedural art by room, and a missing-art table
+      (Quill, Ember and Storybook models, library columns, chairs and book art, gallery plinths, wall
+      height) with what blocks each. Flags the **SC-R03 budget headroom problem** (19 scenery and no
+      presets to spare). No asset manager, registry or loader added; every id resolves through the
+      existing registry and the Asset Library (ADR-030). Docs only; Prettier clean. Commit `21cf1aa`
+- [x] **SC-R02-08** Static performance budgets as tests (depends: SC-R02-02 to 06). DONE
+      (development): `storykeeperCastleBudgets.test.ts`, 10 tests counted from the manifest, **all
+      provisional until SC-R11-01 measures a tablet**: presets 16 of 16, scenery 141 of 160, estimated
+      draw calls **219** of 300 (one per surface, emitter, cluster, placed model, prop and NPC, plus
+      the extension's 12 variants; an estimate, not a measurement), lights 11 of 14 at MEDIUM, motes
+      140 at MEDIUM, procedural texture memory under 8 MB at HIGH, runtime-built triangles **1,558** of
+      6,000 (surfaces 334, BOX decor 1,224), manifest 91 KB of 250 KB, unique texture seeds. A failing
+      budget means decide, not edit the number. Tests: 10 pass; typecheck has only the missing
+      `@colyseus/sdk` error; Prettier and oxlint clean. Real frame rate stays with SC-R11 (owner, real
+      tablet). Commit `f5615c7`
+- [x] **SC-R02-09** Final development verification (depends: all SC-R02). DONE (development; SC-R02-05
+      stays partial). Gate run: 32 files, **467 tests pass** (every region manifest, the castle parity
+      suite **with the scratch `@colyseus/sdk` stub**, the visual system, contracts, bindings, HUD
+      equivalence, region geometry, castle kit); `tsc --noEmit -p tsconfig.app.json` has one error,
+      the missing `@colyseus/sdk` module, none in castle files; **production `vite build` succeeds**
+      (also with the stub; output to a scratch folder); Prettier and oxlint clean on changed files.
+      `docs/regions/storykeeper_castle_verification_audit.md` section 8 records each room's
+      before and after, the repair commits, and the owner checklist. Nothing is marked visually
+      accepted. Still owed by the owner: a browser look at all eight rooms, LOW tier, reduced motion,
+      ADR-028 acceptance. Commit `5a92d9b`
+- **SC-R03 World expansion** (owner brief of 2026-11-03; its numbering supersedes the roadmap's
+  SC-R03-01 to 03, which are folded in: the Writing Room shell and wayfinding are SC-R03-06 and a
+  later shell task). Decisions recorded in the roadmap section 6: the **Observatory is the Setting
+  Tower** (the roadmap merges them; the brief allows that), the **Trophy Room is a new room**
+  (the brief overrides the roadmap's merge into the Costume Room), the **Secret Chamber is a new
+  space** (the brief is the approval the roadmap asked for).
+- [x] **SC-R03-01** Canonical world layout (depends: SC-R02-09). DONE (development):
+      `three/castleLayout.ts`, one typed layer **derived** from `ROOMS`, `ARCHWAYS` and `ZONES` (no
+      second router): the eight stable room ids as a save-compatibility contract (tested), a
+      narrative role, destination sentence and safe spot per room, one door per archway with a
+      landing point a metre inside each side and a yaw facing into the room, door labels read from
+      either side, optional door locks in the same `WorldRequirement` vocabulary (**none locked
+      today**; the castle is open by design), the two exits (harbor, Writing Room) mirrored from the
+      authored interactions and kept in step by a test, discovery state, `routeBetween` and
+      `nextDoorToward` around locks, and `safePlacementFor` that never returns a wall. Tests: 21 pure
+      layout tests and 3 manifest-collider tests (every safe spot, landing point and doorway is
+      reachable with the solid decor in place) pass; typecheck has only the missing `@colyseus/sdk`
+      error; Prettier and oxlint clean. **Not yet wired into any view:** the hub cues, guidance and
+      the map (SC-R03-02, SC-R03-06) read it. Browser: none needed. Commit `bc28e4f`
+- [x] **ADR-028 accepted** (owner, 2026-11-03). Status changed to Accepted in `docs/DECISIONS.md`
+      after checking the wording against the owner's adopted direction; `npm run adr:check` passes
+      (46 decisions). Living docs updated (art direction, roadmap, asset manifest). Earlier tracker
+      and audit entries keep their original wording as history. Production art remains unfunded.
+- [x] **ENV-1** Repaired `@colyseus/sdk` (owner-approved): the pinned 0.18.4 installed into this
+      checkout's own ignored `node_modules/@colyseus/` (its private deps nested in
+      `@colyseus/node_modules/` so nothing else is shadowed); the shared
+      `/home/pdimitriu/Coding/node_modules` was not touched. With it, the castle parity suite passes
+      **without the stub** (44 tests) and `tsc --noEmit -p tsconfig.app.json` is **clean (exit 0)**.
+      A **real production build** (no stub) then passed: `tsc -b` exit 0 and `vite build` exit 0
+      (output to a scratch folder). Commit `e772dae`
+- [x] **SC-R03-02** Grand Hall navigation hub (depends: SC-R03-01). DONE (development):
+      **Generic engine API** (reusable by any Three.js region, tested on Welcome Harbor, not the
+      castle): `FirstPersonController.canStandAt` and `teleportTo` (zeroes velocity, levels the
+      gaze, refuses solid ground), `LocationEngine.placeChild` and `childPlacement` (also on the
+      extension context), which refuse a non-finite spot, a spot outside the region bounds and a
+      spot inside any collider as it is now. **Castle rules** in `castleLayout.planTravel`: unknown
+      room, already there, and a locked door all refused with child-safe words (the locked refusal
+      names the shut door and carries its own hint); never a way around a lock. **Scene API**
+      `currentRoomId` and `goToRoom`. **`CastleGuide`**: the accessible equivalent of walking, real
+      buttons at least 44 px, a polite live region for arrivals and refusals, the walking route in
+      words door by door, a disabled locked entry with its hint, and a back-to-the-story-hall button
+      always offered away from the hub; Escape closes it. **Door cues**: a colour-coded lintel
+      plate above each of the four hub archways, derived from the canonical doors so they cannot
+      drift (distinct colours, above the 2.6 m archway, clear of the banners). Tests: 11 new
+      engine and controller, 6 planner, 13 guide, 6 cue and 3 view-integration; the whole runtime,
+      extension and castle group is **62 files, 806 tests** passing with the real SDK; typecheck
+      clean (exit 0); oxlint clean on the new files; Prettier clean. The parity suite's fake scene
+      needed the two new methods, which is what the 43 failures on the first run were. **Not done:**
+      aiming at a doorway in 3D to use it (the guide is the interactive equivalent), spoken or
+      3D-text door labels (a box cannot carry text), and persisted discovery (SC-R03-06).
+      Browser (owner): guide placement over the HUD on a tablet, tap sizes, cue colours. Commit `8128896`
+- [x] **SC-R03-03** Trophy Room (depends: SC-R03-01, SC-R03-02). DONE (development): a **new room**
+      (the brief overrides the roadmap's merge into the Costume Room), 4 m by 4 m, east of the Costume
+      Room and joined by a new archway `arch-trophy` (the ninth room id, **appended** so the first
+      eight keep their order; the layout, guide and routing pick it up with no second router).
+      Six solid pedestals with a walk-up zone in front of each (the castle's no-aiming rule). **No
+      second reward store**: `castleTrophies.ts` is a pure display rule over the existing inventory
+      (`ownedItemIds`) and the existing item catalog. Two pedestals are reserved for the existing
+      castle items (`storykeepers-quill`, `blank-page-storybook`, both proven to be granted by a
+      reward rule), **four are open** and read as an honest empty state ("An empty pedestal. A treasure
+      you earn will be kept here one day."), ready for SC-R07 to bind items. Walk-up lines are
+      `SHOW_MESSAGE` only (tested: nothing grants, records or moves). 3D: item-gated treasure and
+      empty plate per pedestal using the castle's own `ITEM_OWNED` and `ITEM_ABSENT` requirements.
+      Accessible list: **Your treasures** in the guide, from the same `trophyDisplay`, live as the
+      inventory changes. **Per-room scenery budgets** replace the single castle-wide 160 (the original
+      eight rooms keep 160, not raised; Trophy 20, using 15; Secret Chamber 24 reserved); presets
+      still 16 of 16, so the room reuses presets. The frozen-interactions contract now says the
+      inherited 12 come first and unchanged, and only the declared trophy lines follow. Tests: 13
+      trophy-contract, 4 runtime (item gating), 5 guide, plus the updated layout, budgets and contract
+      suites; the whole runtime, extension and castle group is **63 files, 823 tests** passing
+      with the real SDK; parity 47; typecheck clean (it caught a real bug: an unloaded inventory
+      would have thrown); Prettier and oxlint clean. **Not done:** persistent artifacts (SC-R07);
+      a treasure earned in this visit appears on the pedestal on the next entry to the room
+      (requirements are read when the scene is built), while the guide list updates live.
+      Browser (owner): the room's look, pedestal height, the walk-up message. Commit `5235f80`
+- [x] **SC-R03-04** Observatory function in the Setting Tower (depends: SC-R03-01, SC-R02-04d). DONE
+      (development): the Observatory is the **Setting Tower's second job**, not a duplicate room
+      (the roadmap merges them and the owner confirmed it): `setting-tower` keeps its stable id,
+      primary role (`choose-setting`), three story windows, window zones and arrival zone, all
+      asserted unchanged; `CastleRoomNode.functions` now records `['choose-setting',
+'observatory']`, and there is no `observatory` room id. Added: a **big telescope** (solid stand,
+      tube above head height, never solid), a **star chart** on the west wall with five gold stars,
+      and two walk-up observing points (`castle-observatory-telescope`, `castle-observatory-chart`).
+      **Flavour only**: both are `SHOW_MESSAGE`, so looking can never grade, grant, record, start or
+      move anything and the outcome is always the same (deterministic). The chart message invites a
+      child to count but names no number, so no one can be told they counted wrong, and the chart
+      draws exactly as many stars as the constant says. No new graded educational content was
+      authored (still a separate owner decision). The test caught a first draft whose telescope
+      zone was centred inside the telescope's own stand; fixed. The sky is star-dust motes and the
+      three windows: a starry ceiling would need a seventeenth preset (16 of 16). Tests: 8 new
+      observatory plus the updated layout and contract suites; the whole runtime, extension and
+      castle group is **64 files, 837 tests** passing; typecheck clean; Prettier and oxlint clean.
+      Browser (owner): the telescope read, chart legibility, the cool mood. Commit `72c49b0`
+- [x] **SC-R03-05** Secret Chamber behind the tapestry nook (depends: SC-R03-01, -02, -04). DONE
+      (development). **The castle's one secret room, and it stays secret**: the tenth room id
+      (`secret-chamber`, appended), 7 m by 6 m, west of the Story Hall's south-west corner, reached only
+      through the 1.5 m passage `arch-secret` that the swaying tapestry hangs over. **Hidden until the
+      nook is found** (`DISCOVERY_PRESENT castle-tapestry-stair`): the guide does not list it (not
+      even greyed out), `planTravel` refuses it as "not on the map" in the very words used for a room
+      that does not exist (never "locked", which would say there is something to find), no list
+      names it, and none of its content is available or listed. **Physically sealed**: a solid
+      collider fills the passage and three gated wall-fill surfaces cover the gap on the hall's face
+      (the derived walls leave a literal hole there, which behind a tapestry would be a signpost),
+      the secret archway is built only once found and is narrowed to 1.5 m, and a bright cue plate
+      is deliberately **not** hung over it. **Opens live**: when the nook is found mid-visit the
+      castle-tale scene removes the seal and hides the fill (same pattern as the library door),
+      idempotent; a child who found it on an earlier visit never sees it sealed. New generic
+      requirement `DISCOVERY_ABSENT` (the mirror of `DISCOVERY_PRESENT`, 2 switch cases, tested as
+      its exact complement). Chamber: three glowing crystals, a sealed round door that is a
+      **promise, not a puzzle** (the pattern lock and secret door stay in the Library and are not
+      duplicated), a gold arrow on the floor and a warm lantern (priority high enough to survive
+      LOW) pointing the way out, and the guide's always-offered back-to-hub. Four **flavour-only**
+      walk-up lines (nothing grades, grants, records or opens). Tests: 7 hidden-room layout, 7
+      chamber interactions, 6 seal and passage, 6 runtime (a child is **physically stopped at the
+      wall until found**, passes after, and the live opening works), 3 requirement, 5 guide and
+      parity, plus the updated reachability helper (it now evaluates gated colliders with a world
+      state); the whole runtime, extension and castle group is **66 files, 905 tests** passing;
+      parity 49; typecheck clean; Prettier and oxlint clean. **Limits, all now at the line:** the
+      original rooms 160 of 160 scenery, presets 16 of 16, lights **14 of 14** at MEDIUM, estimated
+      draw calls about 277 of 300. **Not done:** chamber content and puzzles (SC-R08), a starry
+      ceiling (needs a 17th preset). Browser (owner): that the hall wall looks seamless where the
+      gap is filled, the tapestry hides the passage, the chamber mood and lantern, the opening
+      feel. Commit `489497a`
+- [x] **SC-R03-06** Castle map and room discovery, **persisted in Django** (depends: SC-R03-01, -02,
+      -05). DONE (development). Per the owner's decision, discovery persists in Django/Postgres, scoped
+      to the child, and React only displays and caches (**ADR-051**). **Django**: a discovery is an
+      ordinary `WorldChange` (`ROOM_DISCOVERED`, key `castle-room:<id>`) written by the existing
+      idempotent `record_world_change`, so **no new model, no migration**; one child-scoped,
+      bearer-only endpoint `GET` and `POST children/{id}/castle/rooms/` with a closed body, the room ids
+      in `castle_rooms.json` (shared with the client's `CASTLE_ROOM_IDS`, a Vitest test fails if they
+      drift), `201` first time and `200` after. **A secret stays secret**: `secret-chamber` is recorded
+      only once the nook discovery is on the child's `WorldState`, and before that it gets the
+      byte-identical `404 not_found` an unknown room gets, and is never listed. **React**: a typed
+      client (`api/play/castleRoomsApi.ts`, `disabled` without the Django API), a
+      `useCastleDiscovery` hook (reads the saved list once, marks each room for the visit, records
+      each new room once and only after the list is known; **any refusal, no API or a network failure
+      means "not saved", never an error a child sees**), and the map: `CastleMap` built from the
+      canonical layout (`castleMapGeometry.ts`, north up), a real button per visible room, the current
+      room marked with `aria-current` and a thick filled tile, unexplored rooms dashed with a question
+      mark, locked or unreachable rooms disabled with the reason in their name, the secret chamber
+      simply absent until found, and a legend in words; the guide's list also says "Not explored
+      yet." and keeps the always-offered way back to the hub. Tests, **Django** (PostgreSQL, isolated
+      container): 16 new endpoint tests covering the whole child-scoped checklist (own children,
+      foreign and unknown identical 404, 401 and 403, no INSERT on a foreign write, ids in body and
+      query ignored, sibling isolation, Admins gain nothing, no nickname or foreign id in errors) plus
+      idempotency, order, closed bodies, the secret rules and the id file; with the structural
+      tenant-isolation guards, native API and regions suites **126 passed**; Ruff check and format
+      clean; `manage.py check` and `makemigrations --check` clean. **Frontend**: 8 client, 9 hook, 4
+      contract, 5 geometry, 10 map and 5 guide tests; the whole runtime, extension, API and castle
+      group is **77 files, 1069 tests**; typecheck clean; Prettier and oxlint clean (no new
+      warnings). **Honest limits**: the nook discovery is written through the Amplify client today, so
+      until that write path moves to Django a Django-mode server will not see it and will not persist
+      a secret-room discovery (the room still works and nothing leaks); the east corridor's tile is
+      small on a phone (the list is the full-size equivalent). Browser (owner): the map's look and
+      tap sizes on a tablet, tile placement, the dashed and dotted states. Commit `82b63e7`
+- [x] **SC-R03-07** World navigation regression (depends: SC-R03-01 to 06). DONE (development;
+      **SC-R03 is complete**). `castleNavigationRegression.test.ts`, 27 tests that prove the pieces hold
+      **together**, in both worlds a child can be in (before and after finding the nook), in the real
+      runtime, with no browser: the **room graph** is exactly the nine open edges (eight without the
+      secret passage) with the story hall as the hub and the trophy room and secret chamber as dead
+      ends; **walking** on the real colliders reaches every visible room from the spawn, and from every
+      room to every other, enters every trigger zone and every authored castle interaction's zone,
+      and keeps the secret chamber cut off until found; the **accessible tour** takes a child to every
+      room and back, 90 trips in each world, without a single step, refuses the secret before it is
+      found without moving the child, and lands the child on standable ground at every door from
+      either side; **spawning and saves**: the five saved checkpoint ids older saves hold are
+      unchanged, a child with no save starts in the entry hall, each checkpoint spawns where it says,
+      a save from a newer version or another region falls back to the entrance, and no fallback is ever
+      a wall; **the persisted names** (discovery id, the first eight room ids) are pinned; and
+      **navigation never goes around a rule** (the planner and the runtime refuse and allow the same
+      things). The guide's **age-band parity** is proved for Sprouts, Pathfinders and Explorers: the
+      same rooms and the same request for every band (age gates stories, never corridors). Gates at
+      the phase boundary: castle, runtime, extension and API Vitest group **80 files, 1130 tests**;
+      `tsc --noEmit -p tsconfig.app.json` clean; **real `tsc -b` and `vite build` both exit 0 with no
+      stub**; `content:check` and `golden:check` up to date; `adr:check` passes (47 decisions);
+      Prettier and oxlint clean on new files; **Django 640 passed** (game_sessions, regions,
+      progression, users) on an isolated PostgreSQL container (port 5455), Ruff and
+      `makemigrations --check` clean. Browser (owner): the whole castle tour on a tablet, the guide
+      over the HUD, the map, the secret passage opening
+- **SC-R04 The Great Storybook** (owner brief 2026-11-03: SC-R04-00 to 07, development only, no
+  SC-R05 until SC-R04 is complete)
+- [x] **SC-R04-00** Django discovery persistence (depends: SC-R03-06). DONE (development). The
+      defect: the tapestry nook discovery was written only through the Amplify client, and Django
+      had a `WorldState.discovered_objects` column that nothing wrote, so in Django mode the server
+      could prove no discovery (the Secret Chamber's access and the quest engine, which "evaluates
+      discoveries as not yet complete", both depended on it). **Fix, no new model and no
+      migration**: `progression/discoveries.py` records a discovery on the existing
+      `WorldState.discovered_objects`, validated against the digest-verified export's `discoveries`
+      collection, writing its world change through `record_world_change` and firing its reward rules
+      through `grant_reward_rule` (one fire per rule), all under a row lock; one child-scoped endpoint
+      `GET` and `POST children/{id}/discoveries/` (`FOUND_NOW` 201, `ALREADY_FOUND` and `LOCKED` 200,
+      unknown id 404, closed body). **Client**: in Django mode the server is asked first and is the
+      authority (a `LOCKED` answer keeps a secret shut and writes nothing to Amplify), its list is
+      merged into `getWorldState`, and a secret found before Django mode is told to the server;
+      with no Django API, or a failing server, the Amplify path is untouched. The Secret Chamber now
+      rests on a real server record (tested end to end through the two endpoints; the secret still
+      gets the identical 404 an unknown room gets). Tests: **Django 17** (the full child-scoped
+      checklist, idempotency, the world change and the book granted once, locked by item and by world
+      change against real content, ordering, and **four parallel finds** giving one `FOUND_NOW`),
+      **frontend 8 client and 12 behaviour**; discovery, API, island-map manifest, quests and rewards
+      suites pass (222 and 512); typecheck clean; Ruff, Prettier and oxlint clean. ADR-051's
+      consequence note is resolved. Browser: none needed. Commit `5ccaf44`
+- [x] **SC-R04-01** Great Storybook quest definition (depends: SC-R04-00). DONE (development).
+      **Premise**: the Great Storybook was damaged and its pages scattered through the castle; Keeper
+      Quill asks the child to bring them back. **Pages are derived, never stored** (SC-R01 contract
+      C-5): `features/great-storybook/pages.ts` is the one registry, five pages each naming a record the
+      castle's existing server-validated content already writes (a world change a finished adventure or
+      story records, or the nook discovery), with pure `storybookProgress` over it. **Three quests,
+      one per age band, each on its own page set** (`restore-the-great-storybook-sprouts`,
+      `-pathfinders`, `-explorers`, ids in `GREAT_STORYBOOK_QUEST_IDS`), added to the existing
+      `islandQuests.ts` so every existing validator applies: stage 1 meets Quill (`TALK_TO`), stage 2
+      brings back the pages (`BUILD` per required page; Sprouts and Pathfinders: the first story;
+      Explorers: three clues, the pattern lock, what was waiting). **The hidden nook page is an
+      optional bonus in every band**: requiring it would force a child to find the castle's one
+      unmarked secret to finish, and its journal line is deliberately vague (a test forbids naming
+      where). Completion records `GREAT_STORYBOOK_RESTORED`, sets Quill's `restoredTheStorybook`
+      memory flag and fires the `great-storybook-seal` reward (a Trophy Room keepsake) through one
+      `QUEST_COMPLETED` rule per quest, all through existing services. **Quill** offers the quests
+      and speaks the premise (`quill-the-damaged-book`) and the ending (`quill-storybook-restored`); his
+      existing nodes and choices are unchanged. **Pipeline**: `content:export` regenerates `quests.json`,
+      `npcs.json`, `rewards.json` and the manifest; the director golden vector regenerated;
+      `content:check` and `golden:check` pass; Django imports the new quests (catalog 94 tests).
+      **Server engine**: the Python quest engine now evaluates `DISCOVER` (the server records
+      discoveries since SC-R04-00). The existing island-quest validator was extended to accept a story's
+      completion world change as a `BUILD` source. Tests: **frontend 22 new** (registry, real-content
+      truth, an exhaustive truth table proving the quest completes **exactly when the book is whole**
+      across every combination of records, for each band, with and without meeting Quill) and the
+      quests, npc and rewards suites **240 pass**; **Django 14 new** (the quests import per band,
+      eligibility, a Pathfinder, Sprout and Explorer lifecycle, replay grants nothing, the bonus page
+      never blocks and never counts alone, a page cannot be satisfied by another record, sibling
+      scoping, plus **four parallel refreshes** completing once) and engine unit tests; quests and
+      catalog **94 pass**; typecheck clean; Ruff, Prettier and oxlint clean. **Limit, recorded**: the
+      Python engine does not apply a quest's `setsNpcMemoryFlags` on completion (a pre-existing port gap
+      that affects other quests too), so Quill's ending line follows the client engine for now.
+      Browser: none needed. Commit `512b1bc`
+- [x] **SC-R04-02** Missing-page discovery and recovery (depends: SC-R04-01). DONE (development).
+      **Recovery has no frontend write path to guard**: a page is derived from a record the existing
+      server-validated content writes, so it is back exactly when that record exists, cannot be
+      recovered twice (the records are idempotent), and cannot be satisfied by a different challenge
+      (each page names one record; tested). **Server**: `GET children/{id}/castle/storybook/`
+      (`regions/great_storybook.py` over `great_storybook_pages.json`, which mirrors the client
+      registry and quest ids, a Vitest test fails on drift): read-only (asserted: no INSERT, UPDATE or
+      DELETE), the child's own band from their profile, required pages always, the hidden bonus page
+      **listed only once it is found** and no word in the response names the secret before then, plus
+      the band quest's status. **Client**: typed `storybookApi`, pure `visibleEntries`,
+      `withRestored` (union with the server's pages) and `newlyRestored`, and `useGreatStorybook`: the
+      book from the records plus the server's, and `onPageRestored` and `onBookRestored` that fire
+      only for a page that came back **during the visit**, never on first load and never because the
+      server answered late (so a child who finished the Tale last month is not told it just
+      happened). **Child-facing**: a `StorybookSection` in the castle guide (accessible equivalent): how
+      many missing pages are back in words and a `<progress>`, each page's title with where to look or
+      what it says now it is back, a way to go to the right room, "you are in the right place" when
+      there; a page already back shows no button and nothing to grant; a toast "A page flew back into
+      the book" and "The Great Storybook is whole again!" at the moment. Tests: **Django 18** (the full
+      child-scoped checklist, read-only, derived from real records, a different record never restores
+      a page, each band sees only its own, an Explorer needs all three, the hidden page's secrecy and
+      sibling isolation, the quest status); **frontend** 5 client, 15 registry and contract, 10 hook,
+      9 section and 5 castle-view tests; the wider group is **90 files, 1195 tests**; typecheck
+      clean; Ruff, Prettier and oxlint clean. **Not here**: the 3D book (SC-R04-03), and Django
+      cannot yet prove pages whose records are written by adventures that complete on the Amplify
+      engine (SC-R04-04 records the boundary). Browser: none needed
+- [x] **SC-R04-03** 3D Great Storybook and restoration (depends: SC-R04-02). DONE (development).
+      **No new budget used**: the original-room scenery pool stays exactly 160 of 160 because the
+      Library's dais, beams and candles were merged to make room for the book (cover, pages block and
+      four page slots, all existing `BOX` decor); no new preset, light or surface. The hearth flame in
+      the Story Hall was merged into the fire. **Scene**: `showStorybook(state)` on the castle-tale
+      scene API, drawn from the pure `toSceneState(progress)` (the same derived progress as the card, so
+      card and 3D cannot disagree): closed torn book at mount, pages block once any page is back, one
+      slot per required page (Sprout and Pathfinder 1, Explorer 3), the bonus slot only once found,
+      cover and the Entry Hall mural turn gold when whole, a page that comes back mid-visit pulses its
+      slot (never for a book already restored on arrival, never under reduced motion). Idempotent,
+      decides nothing. Tests: 7 engine, 5 state and capacity; the `three/` and book groups are
+      **108 files, 1398 tests**; typecheck, Prettier and oxlint (no errors) clean, production vite build
+      passes. Browser: none run
+- [x] **SC-R04-04** Integrate the existing castle adventures (depends: SC-R04-03). DONE (development).
+      **Mapping, as authored (read from the content, not assumed)**: `page-first-story` (Sprout,
+      Pathfinder) is written by `the-storykeepers-tale` step `story-written` and `quills-picture-story`
+      step `picture-story-made` (`FIRST_STORY_TOLD`); `page-three-clues` (Explorer) by
+      `secret-door-chapter-1-three-clues` step `clues-collected`; `page-pattern-lock` by
+      `secret-door-chapter-2-pattern-lock` step `door-opened` (`CASTLE_SECRET_DOOR_OPENED`);
+      `page-what-was-waiting` by the story `the-castles-secret-door` completion
+      (`THE_CASTLES_SECRET_DOOR_COMPLETE`); the bonus `page-tapestry` by discovery
+      `castle-tapestry-stair`. **No second mapping table**: `great-storybook/adventureMapping.ts` joins
+      each page's named record to the authored adventures and stories (`producersOf`), used by tests;
+      a new castle adventure that writes a page's record is picked up with no edit, and a page whose
+      record nothing writes for its band fails a test. **Qualification**: a page is back only when its
+      record exists, and a test proves each record is written only after a step the child must answer
+      (`reachableWithoutAnswering`), so opening, viewing or failing an adventure awards nothing.
+      **Historical**: pages are derived, so a child who finished before the Storybook existed has the
+      page with no replay and no migration; Django tests prove an old record (kept row, original
+      timestamp) completes the quest once with one seal, repeated reconciliation changes and grants
+      nothing, partial history restores only what it proves, retired or unrelated keys are ignored, and
+      a sibling's history never counts. **Card and 3D**: both read the one derived progress; a test
+      checks every band against every combination of records. **Retries and failures**: unchanged
+      from SC-R04-02 (a failing server read leaves the records' answer, a page is shown only when a
+      record confirms it; records and rewards are idempotent and row-locked). Tests: 14 mapping and
+      history, 1 parity (frontend); 8 Django. **Boundary, unchanged**: Django proves pages only from
+      records it holds, so Amplify-run adventure completions reach the quest when they are synced
+      (SC-R04-06 / the Amplify to Django sync). Owner acceptance: play the Tale and each secret-door
+      chapter and watch the page return in both card and 3D. Browser: none run
+- [ ] **SC-R04-05 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
+      provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
+      retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
+      SC-11 gate)

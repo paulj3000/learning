@@ -28,7 +28,8 @@
           "the-dark-lighthouse-two-step"
         ],
         "collectibleSetIds": [
-          "harbor-shells"
+          "harbor-shells",
+          "firepeak-discovery-journal"
         ],
         "discoveryIds": [
           "harbor-tide-pool",
@@ -54,7 +55,15 @@
           "glowworm-crystal",
           "blank-page-storybook",
           "explorer-backpack",
-          "star-lantern"
+          "star-lantern",
+          "great-storybook-seal",
+          "heart-crystal-fragment-1",
+          "volcano-explorer-badge",
+          "journal-volcano-crater",
+          "journal-lava",
+          "journal-steam-vents",
+          "journal-volcanic-minerals",
+          "journal-heart-crystal"
         ],
         "locationSlugs": [
           "pirate-builder-bay",
@@ -64,7 +73,8 @@
           "fossil-ridge-camp",
           "castle-writing-room",
           "bolts-workshop",
-          "clockwork-harbor"
+          "clockwork-harbor",
+          "firepeak-volcano"
         ],
         "npcIds": [
           "pirate-pip",
@@ -72,14 +82,19 @@
           "bolt",
           "ember-dragon",
           "harbor-master",
-          "professor-ticktock"
+          "professor-ticktock",
+          "professor-ember"
         ],
         "questIds": [
           "repair-the-bridge",
           "tell-a-story-together",
           "sort-the-workshop",
           "the-quiet-places",
-          "light-the-harbor"
+          "light-the-harbor",
+          "restore-the-great-storybook-sprouts",
+          "restore-the-great-storybook-pathfinders",
+          "restore-the-great-storybook-explorers",
+          "the-volcano-awakens"
         ],
         "storySlugs": [
           "dragon-of-ember-mountain",

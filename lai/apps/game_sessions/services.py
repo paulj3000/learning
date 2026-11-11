@@ -28,7 +28,9 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.adventures import engine
-from apps.catalog.models import Adventure, AdventureStep, ContentRelease
+from apps.catalog import authoring
+from apps.catalog.models import Adventure, AdventureStep, ContentRelease, RewardRule
+from apps.education.services import record_step_evidence
 from apps.game_sessions.models import (
     COMPLETE_STEP_ID,
     AdventureAction,
@@ -36,6 +38,8 @@ from apps.game_sessions.models import (
     Correctness,
     SessionStatus,
 )
+from apps.inventory.services import RewardGrant, grant_reward_rule
+from apps.progression.services import record_world_change
 
 
 class ProgressError(Exception):
@@ -92,6 +96,51 @@ def _locked_session(child, session_id) -> AdventureSession:
         raise ProgressNotFound from None
 
 
+def step_is_pinned(session: AdventureSession, step: AdventureStep) -> bool:
+    """True when `step` is the content this session started with (immutable revision pinning).
+
+    The catalog keeps one version of each adventure, so a session is pinned to the adventure
+    version it started on and to the release that still carries the step. Grading and AI
+    context both refuse anything else, so neither can narrate or grade different content.
+
+    A session that pinned its revisions (ADR-047, LAI-0813) is graded from the pinned body, so
+    the catalog step must also still hold exactly that body: the AI context reads the catalog
+    step, and must never narrate other content than the session is graded on.
+    """
+    adventure = session.adventure
+    if adventure.version != session.template_version:
+        return False
+    if step.last_seen_release_id != adventure.last_seen_release_id:
+        return False
+    pinned = (
+        session.pinned_revisions.filter(kind="adventure-step", record_key=step.step_id)
+        .values_list("body", flat=True)
+        .first()
+    )
+    return pinned is None or pinned == authoring.current_body(step)
+
+
+def _current_step_body(session: AdventureSession) -> dict:
+    """The authored step the session is on, as the session started with it (LAI-0813).
+
+    A session that pinned its content grades from the pinned step, whatever has been published
+    since. A session started before pinning existed (no pins) keeps the old rule: it is graded
+    only while the catalog still holds the content it started with.
+    """
+    if session.pinned_revisions.exists():
+        body = (
+            session.pinned_revisions.filter(
+                kind="adventure-step", record_key=session.current_step_id
+            )
+            .values_list("body", flat=True)
+            .first()
+        )
+        if body is None:
+            raise ContentVersionChanged
+        return body
+    return _current_step_record(session).source
+
+
 def _current_step_record(session: AdventureSession) -> AdventureStep:
     """The catalog step the session is on, only if it is the content the session started with.
 
@@ -99,13 +148,10 @@ def _current_step_record(session: AdventureSession) -> AdventureStep:
     changed, or whose step was not part of the adventure's latest import, cannot be evaluated
     safely, so it is refused rather than graded against different content.
     """
-    adventure = session.adventure
-    if adventure.version != session.template_version:
-        raise ContentVersionChanged
     step = AdventureStep.objects.filter(
-        adventure=adventure, step_id=session.current_step_id
+        adventure=session.adventure, step_id=session.current_step_id
     ).first()
-    if step is None or step.last_seen_release_id != adventure.last_seen_release_id:
+    if step is None or not step_is_pinned(session, step):
         raise ContentVersionChanged
     return step
 
@@ -208,6 +254,7 @@ def start_or_resume_session(
         return AdventureSession.objects.for_child(child).get(
             adventure=adventure, status=SessionStatus.ACTIVE
         ), False
+    authoring.pin(session, [adventure, *adventure.steps.all()])
     return session, True
 
 
@@ -271,6 +318,14 @@ def canonical_answer(answer: dict[str, Any]) -> str:
     return json.dumps(answer, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+@dataclass(frozen=True)
+class Completion:
+    """What finishing the adventure changed on the island (LAI-0816). Empty on a replay."""
+
+    rewards: tuple[tuple[RewardRule, RewardGrant], ...] = ()
+    quests_completed: tuple[str, ...] = ()
+
+
 @dataclass
 class AnswerOutcome:
     correctness: str
@@ -280,6 +335,8 @@ class AnswerOutcome:
     attempt_number: int
     replayed: bool
     session: AdventureSession
+    world_change_keys: tuple[str, ...] = ()
+    completion: Completion | None = None
 
 
 def _outcome(action: AdventureAction, session: AdventureSession, replayed: bool) -> AnswerOutcome:
@@ -314,12 +371,12 @@ def submit_answer(
         raise SessionNotActive
     if step_id != session.current_step_id:
         raise StepNotCurrent
-    step = _current_step_record(session)
+    step = _current_step_body(session)
     if not engine.is_step_answer(answer) or len(answer_text) > _ANSWER_LIMIT:
         raise InvalidAnswer
     hint_level = int(session.hint_levels.get(step_id, 0))
     try:
-        decision = engine.decide_submission(step.source, answer, hint_level)
+        decision = engine.decide_submission(step, answer, hint_level)
     except engine.AnswerKindMismatch:
         raise InvalidAnswer from None
     except engine.EngineError:
@@ -339,9 +396,65 @@ def submit_answer(
         request_id=request_id,
         at=at,
     )
+    outcome = _outcome(action, session, replayed=False)
+    # The engine's own grade, never a client value, becomes skill evidence and mastery (LAI-0603),
+    # from the step body the session is graded on (pinned, LAI-0813).
+    record_step_evidence(
+        session,
+        step,
+        correctness=action.correctness,
+        support_level=decision["supportLevel"],
+        at=at,
+    )
+    if decision["action"] == "ADVANCE":
+        outcome.world_change_keys = _apply_world_change_step(session, step)
     if next_step is not None and _ends_adventure(session, next_step):
         _complete(session, at)
-    return _outcome(action, session, replayed=False)
+        outcome.completion = _on_completion(session)
+    return outcome
+
+
+# --- Consequences of playing (LAI-0816) -----------------------------------------------------------
+# Python decides them, in the answer's own transaction, so a retry or a second tab can never
+# record or pay twice: evidence is one row per graded attempt (a replay returns before this,
+# `education.services.record_step_evidence` writes it),
+# world changes and reward rules are idempotent under their unique constraints.
+
+
+def _apply_world_change_step(session, step: dict) -> tuple[str, ...]:
+    """Continuing past a WORLD_CHANGE step records its consequence on the island, once."""
+    presentation = step.get("presentation", {})
+    payload = presentation.get("payload") if presentation.get("kind") == "world-change" else None
+    if not isinstance(payload, dict):
+        return ()
+    record_world_change(
+        session.child,
+        location_slug=payload["locationSlug"],
+        change_type=payload["changeType"],
+        change_key=payload["changeKey"],
+        source_session=session,
+    )
+    return (payload["changeKey"],)
+
+
+def _on_completion(session) -> Completion:
+    """Grant the configured reward once and move the child's quests forward."""
+    # Imported here: `apps.quests.services` imports this module's errors.
+    from apps.quests.services import grant_quest_completion_rewards, refresh_active_quests
+
+    child = session.child
+    rules = RewardRule.objects.filter(
+        trigger__type="ADVENTURE_COMPLETED", trigger__templateSlug=session.adventure.slug
+    ).order_by("rule_id")
+    rewards = tuple(
+        (rule, grant_reward_rule(child, rule, source_session=session)) for rule in rules
+    )
+    updates = refresh_active_quests(child, source_session=session)
+    quest_rewards = grant_quest_completion_rewards(child, updates, source_session=session)
+    return Completion(
+        rewards=(*rewards, *((r.rule, r.grant) for r in quest_rewards)),
+        quests_completed=tuple(u.progress.quest.slug for u in updates if u.result.just_completed),
+    )
 
 
 @transaction.atomic
@@ -356,11 +469,73 @@ def request_hint(child, session_id, *, step_id: str, from_level: int, now=None):
         raise SessionNotActive
     if step_id != session.current_step_id:
         raise StepNotCurrent
-    step = _current_step_record(session)
+    step = _current_step_body(session)
     level = int(session.hint_levels.get(step_id, 0))
     if level == from_level:
         level = engine.next_hint_level(level)
         session.hint_levels = {**session.hint_levels, step_id: level}
         session.last_activity_at = max(_now(now), session.last_activity_at)
         session.save(update_fields=["hint_levels", "last_activity_at"])
-    return level, engine.hint_text(step.source, level)
+    return level, engine.hint_text(step, level)
+
+
+# --- Reading and starting (LAI-0816) ------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StepView:
+    """What a client needs to show the child's current step, from the pinned content."""
+
+    session: AdventureSession
+    step: dict | None
+    """The current step without answers, hints or transitions; None once the session is over."""
+    step_revision: dict | None
+    adventure_revision: dict | None
+    done_step_ids: list[str]
+
+
+def _pinned_ref(session: AdventureSession, kind: str, record_key: str) -> dict | None:
+    revision = session.pinned_revisions.filter(kind=kind, record_key=record_key).first()
+    return None if revision is None else {"id": str(revision.pk), "number": revision.number}
+
+
+def read_current_step(child, session_id) -> StepView:
+    """Resume after a disconnection: the session, its current step as it started, and what is
+    done. Reads only; the answer and hint routes keep grading. A mid-session publication changes
+    nothing here, because the step comes from the revision the session pinned."""
+    from apps.adventures.public import public_step
+
+    try:
+        session = (
+            AdventureSession.objects.for_child(child).select_related("adventure").get(pk=session_id)
+        )
+    except AdventureSession.DoesNotExist:
+        raise ProgressNotFound from None
+    done = completed_step_ids(child, session_id)
+    adventure_ref = _pinned_ref(session, "adventure", session.adventure.slug)
+    if session.status != SessionStatus.ACTIVE:
+        # A finished session still shows its closing step (the authored COMPLETE text).
+        closing = (
+            session.pinned_revisions.filter(
+                kind="adventure-step", record_key=session.current_step_id
+            )
+            .values_list("body", flat=True)
+            .first()
+        )
+        if closing and closing.get("presentation", {}).get("kind") == "complete":
+            return StepView(
+                session,
+                public_step(closing),
+                _pinned_ref(session, "adventure-step", session.current_step_id),
+                adventure_ref,
+                done,
+            )
+        return StepView(session, None, None, adventure_ref, done)
+    body = _current_step_body(session)
+    return StepView(
+        session,
+        public_step(body),
+        _pinned_ref(session, "adventure-step", session.current_step_id),
+        adventure_ref,
+        done,
+    )

@@ -53,6 +53,8 @@ _CODED = {
     "chest_already_open": "This chest is already open.",
     "attempt_already_answered": "This challenge was already answered.",
     "quest_unavailable": "This quest is not available.",
+    # 3D Area puzzles (ADR-047, LAI-0812)
+    "puzzle_locked": "Finish the earlier part of the adventure first.",
     # Pip's Missing Treasure (TR-14)
     "chest_locked": "This chest is still locked.",
     # Native Android API (LAI-ANDROID-API-001)
@@ -68,7 +70,7 @@ _CODED = {
     "photo_storage_unavailable": "Photos are not available right now. Please try again later.",
     # Asset library administrator API (AM-14)
     "asset_too_large": "That file is larger than the upload limit.",
-    # NPC Manager (ADR-050). Child-facing where a child can see them: calm, no blame.
+    # NPC Manager (ADR-053). Child-facing where a child can see them: calm, no blame.
     "npc_not_found": "That character is not here right now.",
     "no_active_release": "The island characters are resting right now.",
     "place_not_found": "That place is not open right now.",

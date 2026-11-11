@@ -4,7 +4,7 @@
 # /opt/lai/releases/<digest>/ by scripts/aws/deploy-django.sh, so each release brings its own.
 #
 # Interpolated from the release's release.env (written by the deploy script, no secrets):
-# LAI_IMAGE (ECR, pinned by digest), LAI_GIT_SHA, LAI_ENV, AWS_REGION, LAI_API_HOST,
+# LAI_IMAGE (ECR, pinned by digest), LAI_GIT_SHA, LAI_ENV, AWS_REGION, LAI_API_HOST, LAI_ADMIN_HOST,
 # LAI_APP_LOG_GROUP, LAI_RUNTIME_DIR, LAI_DATA_DIR, LAI_CERTS_DIR.
 # Secrets reach Django only through ${LAI_RUNTIME_DIR}/django.env (mode 0600, render-env.sh).
 #
@@ -67,6 +67,7 @@ services:
       - '8080:8080'
     environment:
       LAI_API_HOST: ${LAI_API_HOST:?}
+      LAI_ADMIN_HOST: ${LAI_ADMIN_HOST:?}
     volumes:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
     depends_on:

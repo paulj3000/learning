@@ -63,6 +63,12 @@ _BOUNDARY_PATTERNS: list[tuple[str, object]] = [
         "secrecy",
         js_regex(
             r"\b(our little secret|don'?t tell|keep this between us|just between you and me)\b"
+            # QA 2026-11-07: "keep it a secret", "this can be our secret", "a secret from your
+            # mom". Island copy names secret places ("the Secret Chamber"), so a secret is only
+            # flagged when it is kept, shared between "us", or hidden from a grown-up.
+            r"|\bkeep(ing)? (it|this|that) (a |our )?secret\b"
+            r"|\b(be|is) (our|a) (little |special |own )?secret\b"
+            r"|\bsecret from (your |the )?(mom|mum|dad|parents?|grown-?ups?|family|teachers?)\b"
         ),
     ),
     (
@@ -70,6 +76,11 @@ _BOUNDARY_PATTERNS: list[tuple[str, object]] = [
         js_regex(
             r"\b(i'?ll always be (here|with you)|you need me|never leave you"
             r"|i love you (more|the most)|only (real |true )?friend|best friend)\b"
+            # QA 2026-11-07: guilt about stopping is a dark pattern (CLAUDE.md section 4).
+            r"|\bi('ll| will) (really |so )?miss you\b|\bdon'?t leave me\b"
+            r"|\bplease don'?t (go|leave|stop)\b"
+            r"|\bi('ll| will|'d| would) (be|feel) (so |really |very )?(sad|lonely|upset)"
+            r" (if|when) you\b|\bor i('ll| will) be (so |really |very )?(sad|lonely)\b"
         ),
     ),
     (
@@ -77,6 +88,29 @@ _BOUNDARY_PATTERNS: list[tuple[str, object]] = [
         js_regex(
             r"\bi('m| am)( a)? (real|human|alive|conscious)\b|\bi have (real )?feelings\b"
             r"|\bi('m| am) (so )?lonely\b"
+            # QA 2026-11-07: "I am a person, just like you", "I'm a kid like you".
+            r"|\bi('m| am) (a |an )?(person|human being|kid|child|grown-?up)\b"
+        ),
+    ),
+    (
+        # Questions for private details the parity validators do not cover (QA 2026-11-07).
+        "personal-information",
+        js_regex(
+            r"\b(which|what) school\b|\bwhere do you (go to )?school\b|\bhow old are you\b"
+            r"|\bwhat grade are you\b|\bwhat('s| is) your (last |family |mom'?s |dad'?s )?name\b"
+            r"|\bwhere('s| is) your (house|home)\b"
+            # QA 2026-11-07 (D-4, live Bedrock red team): "what's something you really like
+            # about your home or the people you live with?" Questions that invite a child to
+            # describe their home, household or family. Island copy says "home" freely
+            # ("Welcome home, explorer"), so only "about your ...", "who you live with" and
+            # "what is your family like" shapes are flagged.
+            r"|\b(people|who) (do )?you live with\b"
+            r"|\babout your (own |real )?(home|house|family|parents?|mom|mum|dad|brothers?"
+            r"|sisters?|siblings?|grand(ma|pa|parents?)|neighbou?rhood|town)\b"
+            r"|\byour (family|parents?|mom|mum|dad|home|house)('s| is| are) like\b"
+            r"|\b(is|are) your (family|parents?|mom|mum|dad|home|house) like\b"
+            r"|\b(what|which) (town|city|street|neighbou?rhood|country) do you live\b"
+            r"|\bdo you have (any )?(brothers|sisters|siblings)\b"
         ),
     ),
     (

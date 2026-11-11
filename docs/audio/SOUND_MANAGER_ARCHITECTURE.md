@@ -16,7 +16,7 @@ narration, text to speech, persisted preferences, ducking. Each is designed for 
 
 These are scoped to this feature, like TR-D*. They do not override any accepted ADR: ADR-020
 (Three.js only, engine emits typed events), ADR-033 (one Django backbone), ADR-035 and ADR-042
-(Django-controlled private asset storage). These are recorded formally in ADR-047 (Proposed).
+(Django-controlled private asset storage). These are recorded formally in ADR-050 (Proposed).
 
 | ID | Decision | Why |
 |---|---|---|
@@ -157,7 +157,7 @@ is still one `AudioContext`. Nothing in Phase 1 depends on Three.js.
 
 ## Django integration (built in Phase 2)
 
-Implemented; see `PHASE_2_ASSET_INTEGRATION.md` and ADR-047. The paragraph below is the original
+Implemented; see `PHASE_2_ASSET_INTEGRATION.md` and ADR-050. The paragraph below is the original
 plan, kept for the record.
 
 ## Django Admin integration (original plan)

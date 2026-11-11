@@ -18,6 +18,11 @@ Design choices, each forced by how Bedrock behaves (docs/AI_SERVICE.md section 4
   (infra/lib/aiGuardrailStack.ts).
 * **Fail closed.** No region, model id, or Guardrail id and version: `ProviderConfigurationError`
   before any call. There is no unguarded mode.
+* **First-call latency.** Bedrock compiles a structured-output grammar the first time it sees a
+  schema, which can exceed the normal timeout once. `first_call_timeout_seconds` (off by
+  default) gives only the first request per schema per client a longer read timeout and a single
+  attempt, so the wait is bounded and happens once; the normal timeout never grows. The factory
+  keeps one client per configuration, so "first" really is once per process, not once per turn.
 * **Credentials** come from the default boto3 chain (the EC2 instance role in AWS). None are
   read from settings.
 
@@ -26,6 +31,7 @@ Error messages from AWS are never propagated, logged or shown: they are mapped t
 """
 
 import json
+import threading
 import time
 
 from .base import (
@@ -80,7 +86,9 @@ class BedrockModelClient:
         timeout_seconds: float,
         structured_output: bool = True,
         max_attempts: int = 2,
+        first_call_timeout_seconds: float | None = None,
         client=None,
+        cold_client=None,
     ):
         missing = [
             name
@@ -101,31 +109,48 @@ class BedrockModelClient:
         self.timeout_seconds = timeout_seconds
         self.structured_output = structured_output
         self.max_attempts = max_attempts
+        longer = first_call_timeout_seconds and first_call_timeout_seconds > timeout_seconds
+        self.first_call_timeout_seconds = first_call_timeout_seconds if longer else None
         self._client = client
+        self._cold_client = cold_client
+        self._warmed: set[str] = set()
+        self._lock = threading.Lock()
 
-    def _runtime(self):
-        if self._client is None:
-            import boto3
-            from botocore.config import Config
+    def _build_runtime(self, read_timeout: float, attempts: int):
+        import boto3
+        from botocore.config import Config
 
-            self._client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.region,
-                config=Config(
-                    connect_timeout=min(self.timeout_seconds, 5),
-                    read_timeout=self.timeout_seconds,
-                    # Bounded retries (LAI_AI_MAX_ATTEMPTS, at most 3): a child is waiting, and
-                    # a retry storm against a throttled model would only cost more.
-                    retries={"max_attempts": self.max_attempts, "mode": "standard"},
-                ),
-            )
-        return self._client
+        return boto3.client(
+            "bedrock-runtime",
+            region_name=self.region,
+            config=Config(
+                connect_timeout=min(read_timeout, 5),
+                read_timeout=read_timeout,
+                # Bounded retries (LAI_AI_MAX_ATTEMPTS, at most 3): a child is waiting, and
+                # a retry storm against a throttled model would only cost more.
+                retries={"max_attempts": attempts, "mode": "standard"},
+            ),
+        )
+
+    def _runtime(self, cold: bool = False):
+        with self._lock:
+            if cold:
+                if self._cold_client is None and self._client is None:
+                    # One attempt: the long wait is for compilation, not for retrying.
+                    self._cold_client = self._build_runtime(self.first_call_timeout_seconds, 1)
+                return self._cold_client or self._client
+            if self._client is None:
+                self._client = self._build_runtime(self.timeout_seconds, self.max_attempts)
+            return self._client
+
+    def is_warm(self, schema_name: str) -> bool:
+        return schema_name in self._warmed
 
     def converse_arguments(self, request: ModelRequest) -> dict:
         """The exact Converse keyword arguments. Public so tests can inspect them offline."""
         content = []
         for part in request.content:
-            if part.untrusted:
+            if part.assessed:
                 content.append({"guardContent": {"text": {"text": part.text}}})
             else:
                 content.append({"text": part.text})
@@ -168,8 +193,13 @@ class BedrockModelClient:
         )
 
         started = time.monotonic()
+        cold = (
+            self.structured_output
+            and self.first_call_timeout_seconds is not None
+            and request.schema_name not in self._warmed
+        )
         try:
-            response = self._runtime().converse(**self.converse_arguments(request))
+            response = self._runtime(cold).converse(**self.converse_arguments(request))
         except (ReadTimeoutError, ConnectTimeoutError):
             raise ProviderTimeout from None
         except NoCredentialsError:
@@ -180,6 +210,8 @@ class BedrockModelClient:
         except BotoCoreError:
             raise ProviderError("UNAVAILABLE") from None
 
+        # Any answer from the service means this schema's grammar is compiled.
+        self._warmed.add(request.schema_name)
         elapsed = int((time.monotonic() - started) * 1000)
         usage = response.get("usage") or {}
         stop_reason = response.get("stopReason", "")
@@ -192,13 +224,21 @@ class BedrockModelClient:
             "output_tokens": usage.get("outputTokens"),
             "latency_ms": (response.get("metrics") or {}).get("latencyMs", elapsed),
         }
-        if stop_reason == "guardrail_intervened":
-            # The output field holds the Guardrail's configured blocked message; discard it.
+        if stop_reason in ("guardrail_intervened", "content_filtered"):
+            # The output field holds the Guardrail's (or the model provider's) blocked message;
+            # discard it. A filtered reply is treated exactly like an intervention.
             return ModelResponse(output=None, guardrail_intervened=True, **base)
         if stop_reason == "max_tokens":
             raise ProviderError("TRUNCATED")
+        if stop_reason == "tool_use":
+            # No tools are offered; a tool call is a malformed reply, and its arguments would
+            # not have been assessed by the Guardrail.
+            raise InvalidModelResponse
         blocks = (((response.get("output") or {}).get("message") or {}).get("content")) or []
         text = "".join(block.get("text", "") for block in blocks if isinstance(block, dict))
         if not text.strip():
             raise InvalidModelResponse
-        return ModelResponse(output=parse_json_text(text), **base)
+        output = parse_json_text(text)
+        if not isinstance(output, dict):
+            raise InvalidModelResponse  # every contract is one JSON object
+        return ModelResponse(output=output, **base)

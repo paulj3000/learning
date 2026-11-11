@@ -87,6 +87,35 @@ def session_state(session: AdventureSession) -> dict:
     }
 
 
+def completion_entry(completion) -> dict | None:
+    """What finishing an adventure changed (LAI-0816). Reward text is authored content."""
+    if completion is None:
+        return None
+    return {
+        "rewards": [
+            {
+                "ruleId": rule.rule_id,
+                "message": rule.message,
+                "granted": grant.granted,
+                "newItemIds": list(grant.new_item_ids),
+            }
+            for rule, grant in completion.rewards
+        ],
+        "questsCompleted": list(completion.quests_completed),
+    }
+
+
+def step_view_entry(view) -> dict:
+    return {
+        "session": session_state(view.session),
+        "step": view.step,
+        "stepRevision": view.step_revision,
+        "adventureRevision": view.adventure_revision,
+        "doneStepIds": view.done_step_ids,
+        "hintLevel": int(view.session.hint_levels.get(view.session.current_step_id, 0)),
+    }
+
+
 class AnswerRequest(serializers.Serializer):
     stepId = serializers.CharField(max_length=100)
     answer = serializers.JSONField()
@@ -122,6 +151,8 @@ class AnswersView(ChildScopedAPIView):
                 "attemptNumber": outcome.attempt_number,
                 "replayed": outcome.replayed,
                 "session": session_state(outcome.session),
+                "worldChangeKeys": list(outcome.world_change_keys),
+                "completion": completion_entry(outcome.completion),
             }
         )
 
@@ -139,3 +170,34 @@ class HintsView(ChildScopedAPIView):
         except services.ProgressError as error:
             raise _api_error(error) from None
         return Response({"hintLevel": level, "hintText": text, "session": session_state(session)})
+
+
+class StepView(ChildScopedAPIView):
+    """GET the session's current step (no answers), to start or resume playing (LAI-0816)."""
+
+    def get(self, request, child_id, session_id):
+        try:
+            return Response(step_view_entry(services.read_current_step(self.child, session_id)))
+        except services.ProgressError as error:
+            raise _api_error(error) from None
+
+
+class AdventureStartView(ChildScopedAPIView):
+    """POST start or resume a published adventure by slug (201 new, 200 resumed)."""
+
+    def post(self, request, child_id, slug):
+        from apps.game_sessions import content_reads
+
+        serializers.Serializer(data=request.data or {}).is_valid(raise_exception=True)
+        try:
+            adventure = content_reads.visible_adventure(self.child, slug)
+            session, created = services.start_or_resume_session(self.child, adventure)
+            payload = step_view_entry(services.read_current_step(self.child, session.pk))
+        except content_reads.ContentNotVisible:
+            raise NotFound from None
+        except services.ProgressError as error:
+            raise _api_error(error) from None
+        return Response(
+            {**payload, "created": created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )

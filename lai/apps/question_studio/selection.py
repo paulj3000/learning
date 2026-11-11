@@ -64,6 +64,11 @@ def to_challenge(revision: QuestionRevision, age_band: str) -> MathChallenge | N
     answer = answer_value(_Content(content))
     if answer is None or not 0 <= answer <= SMALL_INT or compute(operation, *operands) != answer:
         return None
+    # The grade's number range is only a validation warning, so a reviewer can approve past it;
+    # at serve time it is a hard limit, or a Grade K "30 + 20" reaches a Sprout (QA-AQS-D2).
+    limit = taxonomy.max_answer_for(str(content.get("grade", "")))
+    if max(answer, *operands) > limit:
+        return None
     kind = content.get("questionType")
     if kind == taxonomy.QuestionType.NUMERIC:
         if ResponseMode.NUMBER_INPUT not in band.response_modes or answer > MAX_NUMBER_INPUT:
@@ -78,6 +83,7 @@ def to_challenge(revision: QuestionRevision, age_band: str) -> MathChallenge | N
                 return None
         distinct = sorted(set(values))
         in_range = all(0 <= v <= SMALL_INT for v in distinct)
+        in_range = in_range and all(v <= limit for v in distinct)
         if len(distinct) != len(values) or answer not in distinct or not in_range:
             return None
         if (

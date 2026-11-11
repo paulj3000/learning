@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 051.**
+**Next free identifier number: 054.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -49,12 +49,12 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-025 | Exceptions are logged as type and location, never as message | Accepted | Django migration line |  |
 | ADR-026 | Multiplayer runs on a separate authoritative room server over WebSocket; the engine only renders it | Accepted | Main line (Storykeeper Castle / engine) | Integrated from `origin/main`; number unchanged |
 | ADR-027 | A story chapter may be played inside a 3D region; the Story Engine keeps sole ownership of progress | Accepted | Storykeeper Castle line | Renumbered from ADR-019 |
-| ADR-028 | Where the castle's art comes from | Proposed | Storykeeper Castle line | Renumbered from ADR-020 |
+| ADR-028 | Where the castle's art comes from | Accepted | Storykeeper Castle line | Renumbered from ADR-020. Accepted by the owner 2026-11-03: the "Recommended decision, 2026-11-02" (hybrid sourcing plus runtime procedural surfaces) is the decision. Procedural art is interim, not production art |
 | ADR-029 | Phaser 2D views are phased out; new regions are authored in Three.js only | Accepted | Storykeeper Castle line | Renumbered from ADR-021. Related to ADR-020, not a duplicate |
 | ADR-030 | Uploaded models live in S3 behind Admins-only Asset records; the bundled manifest stays the runtime fallback | Accepted | Storykeeper Castle line | Renumbered from ADR-022 |
 | ADR-031 | Islands and Adventures are an admin catalog overlaid on source-controlled content; Superusers are Admins with one extra group | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-024 on `origin/main`. To be superseded when LAI-0801/0802 move catalog editing to Django (ADR-019 sub-decision 8). Treasure Rush's TR-D3 (admin-authored content as authoritative, which would have changed it) was not adopted (ADR-033) |
 | ADR-032 | Three.js locations are described by a serializable manifest that reuses the existing interaction and checkpoint vocabularies | Accepted | Main line (Storykeeper Castle / engine) | Renumbered from ADR-025 on `origin/main` |
-| ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) |  |
+| ADR-033 | One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805 | Accepted | Integration (POST-MERGE-03) | Items 3 and 4 amended by ADR-047 (2026-11-01): the export is the initial and migration path, not the only one; challenge specs and region copy become admin-authorable; layout stays seed-authored |
 | ADR-034 | Django Admin is enabled with local staff sign-in, separate from Cognito; it ships as a gunicorn and WhiteNoise container | Accepted | Main line (LAI-0404) | Amends ADR-024 A4 for Django Admin only; resolves TR-D5 |
 | ADR-035 | The shared asset library versions binaries on the canonical ContentAsset identity, with private storage and signed delivery | Accepted | Feature branch (LAI-2200) | Accepted 2026-10-25. Amends ADR-034 item 3 (Django permissions and groups); builds on ADR-030 and ADR-033. Amended by AM-10 (staff-only admin preview route) |
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
@@ -68,10 +68,13 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
 | ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 | ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
-| ADR-047 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
-| ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-047 |
-| ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-047, ADR-048 |
-| ADR-050 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-047, ADR-049 |
+| ADR-047 | Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits | Accepted | Feature branch (feature/adr-043-django-content-authoring) | Owner-accepted 2026-11-01 with answers Q1 to Q4 and eight acceptance requirements (session pinning mandatory; LAI-0815 deferred). Carries out ADR-019 sub-decision 8's cutover and amends ADR-033 items 3 and 4 and ADR-041 E. Impact: `docs/platform/DJANGO_CONTENT_AUTHORING.md` |
+| ADR-051 | Castle room discovery is a `WorldChange` behind a child-scoped Django endpoint, with no new model, and a secret room is refused exactly like a room that does not exist | Accepted | Storykeeper Castle line | Owner decision 2026-11-03: discovery persists in Django, scoped to the child; React displays and caches. SC-R03-06 |
+| ADR-048 | Spatial audio is a panner on the Sound Manager's one AudioContext; emitters and zones are reusable and Three.js-free; Django configures distances and zone beds | Proposed | Feature branch `feature/sound-manager` (SM-P7) | Development only, 2026-11-03; owner acceptance pending. Builds on ADR-050 |
+| ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-050, ADR-048 |
+| ADR-050 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
+| ADR-052 | The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme | Accepted | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4); scope widened to the whole app 2026-11-10; owner-accepted 2026-11-10 with AP-01. Amends ADR-023's route boundary. Not merged or deployed |
+| ADR-053 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-049, ADR-050 |
 
 ## ADR-001: Parent-owned accounts
 
@@ -1653,7 +1656,9 @@ authors it there.
 
 > Renumbered in the post-merge reconciliation (was ADR-020; the incoming Storykeeper Castle / Wonderwild / Clockwork line collided with the Django migration ADR-019 to ADR-022). Text and status are unchanged.
 
-Status: Proposed
+Status: Accepted (owner, 2026-11-03). The "Recommended decision, 2026-11-02" section near the end of
+this ADR is the decision. The earlier "Proposed decision" (vertex colours first, then CC0 scenery,
+wholesale replacement deferred) is the history it refines, not a competing choice
 
 `docs/regions/storykeeper_castle.md` asks for "stylized fantasy, low-poly to
 moderate-poly, warm and colorful, exaggerated silhouettes, slightly magical,
@@ -1837,6 +1842,54 @@ None of these numbers exist yet, and the decision is better made with them:
    this ("avoid mixing highly realistic assets with cartoon assets").
 4. The sourcing question in the paragraph above, which is the one that
    actually determines whether the castle becomes showable.
+
+
+### Decision, accepted 2026-11-03 (recommended 2026-11-02 in SC-R01-03)
+
+Recorded for the owner by the Storykeeper Castle Reboot
+(`docs/regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md`) and **accepted by the owner on
+2026-11-03**, after checking that its wording matches what the owner adopted: a stylized,
+textured, child-friendly castle, with the current procedural scenery as interim art.
+The full conventions, budgets and ledger rules are in
+`docs/regions/storykeeper_castle_art_direction.md`.
+
+**Art direction: "Stylized Fantasy Storybook 3D".** Vibrant, welcoming colour;
+consistent materials; low-poly, stylized geometry with enough detail to feel
+finished; warm light with magical highlights; a distinct personality per room;
+child-friendly rounded shapes; clear silhouettes on interactive objects;
+rendering light enough for tablets.
+
+**Hybrid sourcing, in order of preference per asset:**
+
+1. **Licensed environment kits** for architecture and scenery, where the
+   licence allows redistribution in an app bundle (prefer CC0). KayKit
+   Dungeon Remastered is the named candidate. Two of its pieces are already
+   in use; the rest are not in the repository and must be acquired and
+   recorded in `docs/ASSET_LICENCES.md` before use. Its 4 m walls against the
+   castle's 3 m `WALL_HEIGHT` are a separate owner decision.
+2. **Commissioned assets** for Keeper Quill, Ember, the Great Storybook and
+   iconic landmark props. These are unpriced, a budget decision.
+3. **Procedural geometry** (the generator) for every gameplay-bearing asset
+   whose exact state the puzzle depends on. This keeps option C's identical
+   vertices and the "no gameplay-bearing import" rule above.
+4. **Procedural surface textures generated in code at runtime** for floors,
+   walls, ceilings and trim. This is a variant of option C: deterministic
+   seeded pixel patterns uploaded as `DataTexture`s, with no image file, no
+   decode, no licence, and no change to the jsdom test strategy. The
+   surfaces get world-scaled UVs so a texel is the same size in every room.
+   It lifts every surface the child walks past without waiting for (1) or
+   (2), and any surface can later be switched to a licensed texture through
+   the same material preset.
+5. **Asset Library-managed, versioned binaries** (ADR-035, ADR-045) for
+   anything imported, addressed by logical id. Bundled `manifest.ts` stays
+   the fallback.
+6. **Shared materials**: one material per preset per scene. No per-object
+   material copies.
+
+**Limit, restated honestly.** Items 3 and 4 make a coherent, stylized,
+textured castle. They are not commissioned art. Characters and landmarks stay
+generated placeholders until (2) is funded, and the reboot's visual tasks
+record that as partial rather than done.
 
 
 ## ADR-029: Phaser 2D views are phased out; new regions are authored in Three.js only
@@ -2545,6 +2598,12 @@ two could not both merge.
 5. Asset references from those rows are validated against the canonical asset catalog
    (`catalog.ContentAsset`), not against a bundled file.
 
+**Amended by ADR-047 (Accepted 2026-11-01).** Item 3: the export and `load_content` remain the
+initial import and migration path, but after import Django is authoritative and administrators
+may edit published content; an import never silently overwrites a record an administrator has
+published. Item 4: `ChallengeSpec` parameters and a 3D Area's copy become admin-authorable
+through versioned revisions; positions, spawn points and placements stay seed-authored.
+
 **Consequences.** Development databases built from either branch must be recreated (no Django
 database exists outside local development, and Treasure Rush's migrations were replaced). The
 inventory app's initial migration was regenerated because its item and rule references became
@@ -3036,6 +3095,10 @@ region could not start one.
   - **Not configurable:** placements, spawn points and positions, which stay in
     `treasure_rush_seed.py`. No spatial fields were added to the catalog (LAI-0304).
 
+**Amended by ADR-047 (Accepted 2026-11-01).** Decision E's configurable list gains puzzle
+parameters (per age band, within each puzzle kind's schema) and a 3D Area's copy and environment
+settings, as versioned revisions. Positions, spawn points and placements stay seed-authored.
+
 **Consequences.**
 - The `regions` app is now registered in Django Admin. It holds content only, never child data,
   and the admin-registration guards were updated to allow it.
@@ -3341,7 +3404,264 @@ The owner confirmed this exception on 2026-11-02.
 **Not decided here.** A task queue for long batches, a Django curriculum for grades above 2,
 text-stem question delivery to children, and live Bedrock acceptance (LAI-0705).
 
-## ADR-047: Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver
+## ADR-047: Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits
+
+*Drafted and accepted as ADR-043 on `feature/adr-043-django-content-authoring`; renumbered ADR-047
+when `main` was merged into the branch (2026-11-02), because `main` had already assigned ADR-043
+to the recent sign-in guard (LAI-0209). The living documents were renamed in the 2026-11-02
+audit; comments in `lai/` and `react/src` were renamed by LAI-0819 (2026-11-03). Three
+historical migrations keep "ADR-043" in their docstrings and stored notes: it means this
+decision there. The owner answers below keep their original labels
+(ADR-043-Q1 to Q4) as ADR-047-Q1 to Q4.*
+
+**Relationship to ADR-045 and ADR-046 (clarified 2026-11-02, no decision changed).**
+- ADR-045 gives Django Admin staff asset authoring; ADR-047 gives it staff content authoring.
+  Together they make Django Admin the only staff authoring surface: no React staff page authors
+  assets or content (LAI-0802 revised accordingly). Content references assets by stable id
+  only (decision I).
+- ADR-046's Question Studio keeps its own draft, review, approval and publication lifecycle for
+  authored questions; it is not a `ContentRevision` kind and ADR-047 does not replace it. At a
+  chest, a published Question Studio question with a usable pool is chosen first; otherwise the
+  chest's challenge spec is used as pinned by the session (LAI-0813). Both lifecycles share the
+  child-facing text safety checks (`apps.ai.content_safety`) once LAI-0818 lands.
+
+Status: Accepted 2026-11-01 by the owner, with the answers to the four open questions and the
+acceptance requirements recorded at the end of this section. Impact assessment and build
+status: `docs/platform/DJANGO_CONTENT_AUTHORING.md`. Merging, pushing and deploying were not
+approved.
+
+**Context.**
+- ADR-019 sub-decision 8 (amendment, 2026-10-24) already makes Django the content authority. It
+  left a transition in place: the TypeScript content modules stay the authoring input until a
+  cutover task makes Django Admin the editing surface. This ADR is that cutover decision.
+- Today an import overwrites every content field of an existing row (`catalog/importer.py`
+  `_upsert`). Django Admin can change only `active` and `sort_order` on catalog rows, and only
+  publication on 3D Areas and launch points (ADR-041 E). Dialogue, quest stages, hints, reward
+  rules and challenge settings can be changed only by editing TypeScript and re-importing.
+- ADR-033 items 3 and 4 route all non-spatial content through the export and keep region rows
+  and `ChallengeSpec` seed-authored. TR-D3 (admin-authored content as authoritative) was not
+  adopted.
+- The owner wants Django Admin to become the content management system for the whole platform:
+  Treasure Rush, Storykeeper Castle, Firepeak Volcano and later adventures. Firepeak Volcano
+  ("The Volcano Awakens") is the first consumer, and it needs editable dialogue, stages, hints,
+  educational copy, puzzle parameters, rewards and unlock conditions.
+
+**Decisions.**
+
+- **A. Authority.**
+  - After a record is imported, its published Django revision is the authoritative content. In
+    every build with the Django API, React and the engine read published content only through
+    Django APIs.
+  - The TypeScript modules become import input only. React gains no editable content source.
+  - Amplify builds are unchanged until LAI-1301. ADR-031's Amplify overlay keeps serving them
+    and gains nothing.
+- **B. What is authorable in Django Admin.** These record kinds become authorable:
+  - Islands, Places, Adventures and Adventure steps.
+  - Quests, including stages, objectives, branches, prerequisites and completion. The existing
+    quest engine evaluates them unchanged.
+  - NPC definitions, including dialogue.
+  - Items, collectible sets and reward rules.
+  - Learning objectives.
+  - Challenge specs (`education.ChallengeSpec`).
+  - A 3D Area's copy and environment settings (the non-spatial part of `WorldRegion.scene`).
+  - 3D Area puzzles (decision F) and Adventure launch points (already editable, ADR-041 C).
+
+  Out of scope:
+  - Spatial coordinates and placement stay seed-authored (decision H).
+  - Mechanics stay code (decision F).
+  - Model binaries stay with the Asset Manager (decision I).
+- **C. One revision model, on the existing rows.**
+  - Each authorable row keeps its identity: its existing table, id, foreign keys and `active` /
+    `sort_order`. Its content lives in immutable revisions in one shared `ContentRevision` table.
+    This mirrors the Asset Manager's `AssetVersion` (ADR-035) rather than adding a second
+    publishing system.
+  - A revision holds the record's JSON body in the export's own shape, so the existing JSON
+    Schema (`content/schema/content.schema.json`) and the importer's per-record checks validate it.
+  - A revision has a status (`DRAFT`, `PUBLISHED`, `SUPERSEDED`, `DISCARDED`), an origin
+    (`IMPORT`, `ADMIN`, `ROLLBACK`) and the content release it came from, if any.
+  - It records who created it and who published it, and when.
+  - At most one revision per record is the current published one (a partial unique constraint).
+  - Publishing writes the projected columns (`title`, `age_bands` and so on) and `source` from
+    the published body, in the same transaction. Every existing query, service and API keeps
+    working unchanged.
+  - `ContentStatus` (DRAFT, PUBLISHED, RETIRED) stays the publication vocabulary for
+    seed-authored rows. Catalog `active` stays the switch that shows or hides a record.
+- **D. Validation and publishing.**
+  - A draft is checked against the record kind's JSON Schema whenever it is saved.
+  - Publishing re-runs the full validation in one transaction and refuses with every problem
+    listed. Full validation covers the schema, every reference (quests to items, change keys
+    and adventures; reward rules to items; launch points to Adventures of the same Place; asset
+    ids to `ContentAsset` of the right kind) and the existing model `clean()` rules.
+  - It also enforces CLAUDE.md copy rules: maximum lengths per age band, no em dashes in
+    child-facing text, and plain text only (no markup or URLs).
+  - Publishing is atomic and permission-gated through Django groups (ADR-034, ADR-035), with
+    separate permissions to edit a draft and to publish.
+  - Every publish, rollback and retirement is recorded in the Django admin log and on the
+    revision itself.
+- **E. Versioning and rollback.**
+  - Published revisions are never edited or deleted.
+  - Rollback publishes an earlier revision's body as a new `ROLLBACK` revision, so history only
+    grows and every state can be explained.
+  - A session that has started keeps the rules it began with. Gradable content (puzzle
+    solutions, challenge parameters) is snapshotted on the attempt or session, as
+    `ChallengeAttempt` already does. A mid-adventure publish therefore cannot change what the
+    child's current attempt is graded against.
+  - A record referenced by an open session cannot be retired without an explicit confirmation
+    that names those sessions.
+- **F. Mechanics in code, parameters in Django.**
+  - Puzzle mechanics are a closed registry of kinds in code: for example `OBSERVE_FEATURES`,
+    `PLACE_PLATFORMS`, `VALVE_SEQUENCE` and `COLLECT_OBJECT`.
+  - Each kind has a Python parameter schema (types, ranges, per-age-band values) and a Python
+    grader. The Three.js side renders the same kind and reads only validated parameters.
+  - Django Admin edits parameters only within that schema.
+  - Puzzle objects refer to seed-authored placements by `entity_id`.
+  - The server grades every solution. The engine still never validates answers or awards
+    progress (ADR-020 item 6).
+  - A new puzzle kind is a code change, reviewed like any other.
+- **G. Age bands.**
+  - Copy, hints, explanations and parameters that vary by age band are keyed by band inside the
+    revision body, with an explicit list of supported bands. Adding a band later means adding
+    keys, not rewriting content or code.
+  - An adventure does not appear for a band it does not list.
+  - Supporting ages 9 to 12 is a separate, platform-wide age-band decision and is not made here.
+- **H. Spatial layout unchanged.**
+  - Positions, spawn points, colliders and placements stay seed-authored. LAI-0805 is not
+    widened into a visual world editor.
+  - Admin shows layout read-only, as now (ADR-041 E).
+- **I. Assets unchanged.**
+  - GLB and glTF binaries, versions and publication stay with the Asset Manager (ADR-035).
+  - Content references stable asset ids only, validated against `catalog.ContentAsset`.
+- **J. Import and administrator edits coexist.**
+  - Each authorable row gets an `authority` field.
+    - `EXPORT` while every published revision came from an import.
+    - `DJANGO` once an administrator publishes an edit.
+  - `load_content` keeps working for initial imports, new records and migrations, with these rules:
+    - A new record is created with an `IMPORT` revision, published, as today.
+    - An `EXPORT`-authority record whose exported body changed gets a new `IMPORT` revision,
+      published (history kept, rollback possible).
+    - A `DJANGO`-authority record is never changed by an import. The release report lists it as
+      "kept: administrator edits", flagged when the export differs.
+    - `--force` re-imports an unchanged digest as before. It never overrides `DJANGO` authority.
+  - An administrator can take an exported version deliberately. The audited admin action "Use
+    the exported version" creates a draft from the export record, which is then published
+    normally.
+  - Nothing is silently overwritten, and nothing is deleted, as today.
+- **K. Delivery.**
+  - Child-scoped read endpoints serve only published, active content for the child's age band:
+    the existing region bootstrap, extended, plus the catalog reads already planned as LAI-0503.
+  - Responses carry the published revision ids, so clients can cache and support can explain
+    exactly what a child saw.
+- **L. Moving content between environments.**
+  - `manage.py export_content` writes published revisions in the existing export format. A
+    later task promotes administrator edits from one environment to another through the same
+    import rules.
+  - Until that exists, administrator edits stay in the environment where they were made.
+
+**Supersedes and amends.**
+- Carries out ADR-019 sub-decision 8's authoring cutover, for builds with the Django API.
+- Amends ADR-033:
+  - Item 3: the export stays the initial and migration path, not the only one.
+  - Item 4: `ChallengeSpec` and region copy become admin-authorable; layout stays seed-authored.
+- Amends ADR-041 E: puzzle parameters and region copy join the configurable list; positions do not.
+- Adopts TR-D3 for content only, never for layout.
+- ADR-031 stays in force for Amplify builds until LAI-1301.
+
+**Alternatives considered.**
+- Editing `source` in place: an import would overwrite it, and it has no history or rollback.
+- Draft and published columns on every model: about a dozen models would each carry duplicated
+  schema and publishing code.
+- A third-party CMS (Wagtail or similar): a new dependency and a competing content system.
+- Keeping TypeScript as the only authoring surface (status quo): authors need a code release
+  for every wording change.
+
+**Owner answers (2026-11-01).**
+- **ADR-047-Q1, permissions.** One authorized administrator may both edit and publish. The edit
+  permission and the publish permission stay separate so an approval workflow can be added
+  later. Every publish records the publishing administrator and the time.
+- **ADR-047-Q2, imports.** An import publishes changes automatically only for records that are
+  still export-owned and have never been taken over in Django Admin. Once an administrator
+  publishes an edit, the record is Django-owned, and no import overwrites it silently. Every
+  import produces a report of created, updated, skipped and conflicting records. Existing command
+  behaviour is kept where compatible, and any change is documented.
+- **ADR-047-Q3, retention.** Every published version is kept permanently and is immutable.
+  Rollback creates a new version. Drafts are kept too. Any draft cleanup policy needs a separate
+  decision.
+- **ADR-047-Q4, localization.** Content is English-only for the first release. Schemas leave
+  room for locales later; no multilingual editing or translation workflow is built now.
+
+**Acceptance requirements (owner, 2026-11-01).**
+1. Session version pinning (LAI-0813) is mandatory. It must be implemented before Django Admin
+   can publish content that affects active child sessions. An active session keeps the
+   dialogue, puzzle configuration, grading rules and other content versions it started with.
+2. Child-owned progress records are not exposed in Django Admin. LAI-0815 stays separate and
+   deferred, pending its own authorization and privacy decision.
+3. The TypeScript export and `load_content` stay the path for initial imports and migrations.
+4. Django is authoritative for published content after import. Builds that use the Django API
+   read that content through Django APIs.
+5. 3D layouts stay seed-authored. No visual world editor is built under ADR-047.
+6. The Asset Manager keeps owning GLB models and their published versions.
+7. Puzzle mechanics stay in code. Their validated, age-specific parameters are editable in
+   Django Admin, and the server's grading is authoritative.
+8. Treasure Rush, the quest engine and the step-adventure workflows keep working.
+
+**Implementation notes (2026-11-03, LAI-0818 and later P1 tasks; no decision changed).**
+- Decision D's "permission-gated through Django groups" is enforced in the authoring service as
+  well as the admin, so a direct service call cannot bypass it. Statuses `SUBMITTED` and
+  `REJECTED` were added to decision C's list for the review step. An optional independent
+  approval (`LAI_CONTENT_INDEPENDENT_APPROVAL`, off by default) stays an owner setting and does
+  not reverse ADR-047-Q1.
+- Raw JSON editing of a whole body is a third permission, `catalog.edit_content_json` (group
+  "Content developers"); the default editor is the structured form (decision B).
+- Decision K's revision ids are in the child-scoped content reads (`docs/PLAY_API.md`).
+- Decision L is `export_content` plus `load_content`; see
+  `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 14.7 for the promotion and rollback steps.
+## ADR-051: Castle room discovery is a `WorldChange` behind a child-scoped Django endpoint, with no new model, and a secret room is refused exactly like a room that does not exist
+
+Status: Accepted (owner, 2026-11-03: "store discovery persistently in Django/Postgres, scoped to
+the child; keep React responsible only for displaying and caching the state"). Builds on ADR-033
+(one Django backbone) and ADR-019 (Python owns the rules). Contract: `docs/PLAY_API.md`, "Storykeeper
+Castle room discovery".
+
+**Context.** The castle map (SC-R03-06) needs to show which rooms a child has explored, across
+sessions and devices. The castle's layout is still a TypeScript manifest (ADR-033, LAI-0805), but the
+fact that a child has been somewhere is the child's own durable progress, and it must not live only in
+the browser. The rest of the app still reads world state through Amplify (the deployed baseline until
+cutover).
+
+**Decision.**
+
+1. A discovery is an ordinary `WorldChange` on the canonical progression backbone:
+   `location_slug` `storykeeper-castle`, `change_type` `ROOM_DISCOVERED`, `change_key`
+   `castle-room:<roomId>`, written by the existing idempotent `record_world_change`. **No new model,
+   migration or table.** A world change is already durable, child-scoped, unique per child and key, and
+   append-only, and ADR-033 forbids a second progress model for one feature.
+2. One child-scoped, bearer-only endpoint, `GET` and `POST children/{id}/castle/rooms/`
+   (`lai/apps/game_sessions/castle_views.py`). The body is closed and carries only a room id; the
+   server decides which ids it accepts, from `lai/apps/regions/castle_rooms.json`, which the client's
+   `CASTLE_ROOM_IDS` shares and a Vitest test keeps in step.
+3. **A secret room is refused exactly like a room that does not exist.** A room that names a secret
+   (today `secret-chamber`, behind the tapestry nook) is recorded only once the discovery it depends on
+   is on the child's `WorldState`. Before that, the server answers with the identical `404 not_found`
+   an unknown room gets, and the list never names it, so the endpoint cannot be used to learn that a
+   secret exists.
+4. React only displays and caches. It reads the saved list once, marks each room entered for the visit,
+   and records each new room once. **Any refusal, a missing Django API in the build, or a network
+   failure means "not saved", never an error a child sees.** In a build without the Django API (the
+   Amplify-only baseline) the map still works for the visit and nothing is saved.
+
+**Consequence, resolved by SC-R04-00 (2026-11-03).** The nook discovery used to be written only
+through the Amplify client, so in Django mode the server could not see it and a secret-room
+discovery was never persisted. Django now has the authoritative discovery record (`POST` and `GET
+children/{id}/discoveries/`, `docs/PLAY_API.md`) on the existing `WorldState.discovered_objects`, with
+no new model. In Django mode the client asks the server first and treats its answer as the
+authority; it merges the server's list into what it reads; and it tells the server about secrets
+found before Django mode. A build without the Django API, or a server failure, falls back to the
+Amplify path unchanged.
+
+**Not decided here.** Granting anything for exploring (nothing does), a Django-administered castle
+layout (LAI-0805), and moving the discovery write path to Django (the ADR-019 cutover).
+
+## ADR-050: Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver
 
 Status: Proposed 2026-11-02 (development only; needs owner acceptance). Branch
 `feature/sound-manager` (SM-P2). Builds on ADR-035 (versioned, privately stored, signed assets),
@@ -3465,7 +3785,7 @@ server did not approve, must not need a browser credential, and must not make pl
 4. **Dedicated cache and store.** Cache key over text, voice, engine, language, rate, cache version
    and (for a child's AI text) the child. One synthesis per key under a database lock. Expiring
    objects, signed expiring delivery, purge on child deletion. Generated speech never enters the
-   Sound Library automatically (ADR-047 stays the home of reusable audio).
+   Sound Library automatically (ADR-050 stays the home of reusable audio).
 5. **Operational limits and honest cost.** Per-child and global daily caps, a process concurrency
    gate, a kill switch, counts only in metrics, and a cost estimate that is labelled an estimate.
 6. **React plays, it does not synthesize.** Clips play as temporary `voice` sounds in a scope, so
@@ -3487,8 +3807,59 @@ production. Not heard; no live AWS call was made.
 
 **Acceptance.** Remains Proposed until the owner accepts it and the live verification gate passes.
 
+## ADR-052: The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme
 
-## ADR-050: The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805
+Status: Accepted (proposed 2026-11-07; scope widened and owner-accepted 2026-11-10)
+
+**Context.** ADR-023 limits Tailwind to `/admin/*`; everything else is CSS
+Modules. The Adventure Portal & Learning Dashboard subproject (Trello AP-01)
+asks for a Tailwind 4 design system: ocean, tropical, treasure, coral and
+purple tokens; reusable accessible buttons, cards and progress indicators; a
+child sidebar with mobile bottom navigation; and a distinct parent shell.
+
+**The decision.**
+
+- `src/features/portal/portal.css` is a second Tailwind entry built exactly
+  like `admin.css`: the theme is `reference inline` (no custom property
+  reaches `:root`, so tokens.css stays the only owner of `--color-*`),
+  utilities come only from explicit `@source` paths, and the portal palette
+  uses new names (`ocean-*`, `tropical-*`, `treasure-*`, `coral-*`,
+  `purple-*`, `ink`, `paper`, `sand`) that collide with no token.
+- Unlike admin, there is **no reset**: portal pages stand on global.css, and
+  portal buttons keep the island's pressable lip (global.css owns shape and
+  press, utilities own colour). global.css is unchanged.
+- The components live in `src/features/portal/ui/` (`PortalButton`,
+  `PortalCard`, `ProgressIndicator`) with their own `cn`; ADR-023 still bars
+  child and parent code from `features/admin/ui`.
+- **The portal palette is the app's theme (amended 2026-11-10, owner: "a full
+  theme redress, not just one sub page").** `src/styles/tokens.css` carries the
+  portal hexes: ocean-700 primary, tropical-700 accent and success, coral-700
+  danger, treasure-800 warning, an ocean-50 page, portal fills, rounder radii.
+  Every CSS Module reads the tokens, so every page (landing, auth, parent,
+  child, adventures, 3D HUDs that use tokens) takes the theme at once.
+  `tokens.test.ts` still checks every pair at WCAG AA.
+- Tailwind is used where pages are rebuilt with portal components: the shells
+  (`ChildShell` inside `IslandLayout`; `ParentShell` on every parent page:
+  dashboard, account settings, child profile new and edit, child activity,
+  story keepsakes, play together), the child homepage (`WelcomeHarbor`,
+  `IslandExplorer`) and the landing page (`Home`). Other page content stays on
+  CSS Modules and gets the theme through the tokens.
+- `portalCss.test.ts` also fails if any file that uses the portal components or
+  palette is missing from `portal.css`'s `@source` list.
+- `portalCss.test.ts` compiles the file and fails on any non `--tw-*`
+  custom property, any element selector, or any component text/background
+  pair below WCAG AA (4.5:1), or a progress fill below 3:1.
+
+**Consequences.** Three styling surfaces (CSS Modules, admin Tailwind,
+portal Tailwind), sharing one palette: the token hexes and the portal names
+must stay in step. The 34 hard-coded colours in CSS Modules (mostly 3D HUD
+panels) do not follow the tokens. A portal file
+outside the `@source` paths silently gets no utilities; the comment at the
+top of `portal.css` says so.
+
+**Acceptance.** Owner-accepted 2026-11-10 with AP-01, after reviewing the app-wide redress ("AP-01 is done"). Not yet merged to `main` or deployed.
+
+## ADR-053: The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805
 
 Status: Accepted (project owner, 2026-11-05, LAI-NPC-001). Development only: nothing is deployed,
 no live Bedrock or Polly call has been made, and browser acceptance is the owner's.
@@ -3507,7 +3878,7 @@ asked about these conflicts, decided (2026-11-05):
 - **B. NPC-only placement exception to LAI-0805.** Staff place NPCs with numeric fields in Django
   Admin, validated against Island, Place and 3D Area. No visual layout editor.
 - **C. Build on `feature/sound-manager`.** Its Sound Manager, captions and Polly speech app
-  (ADR-047, ADR-048, ADR-049) are merged into `feature/npc-manager` and reused.
+  (ADR-048, ADR-049, ADR-050) are merged into `feature/npc-manager` and reused.
 
 **Decision.**
 
@@ -3553,5 +3924,5 @@ asked about these conflicts, decided (2026-11-05):
 **Consequences.** One NPC system for Treasure Rush and Storykeeper's Castle. Staff can change a
 character without a deploy. Two more places hold NPC truth until the content authoring cutover
 (the export record and the NPC Manager release); the NPC Manager wins at runtime for characters
-it publishes. The `feature/sound-manager` work (ADR-047 to ADR-049, still Proposed) becomes a
+it publishes. The `feature/sound-manager` work (ADR-048 to ADR-050, still Proposed) becomes a
 dependency of this branch. Contract details: `docs/NPC_MANAGER_CONTRACTS.md`.

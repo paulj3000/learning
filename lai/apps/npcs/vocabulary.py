@@ -1,4 +1,4 @@
-"""The NPC Manager's closed vocabularies (ADR-050, contract version 1).
+"""The NPC Manager's closed vocabularies (ADR-053, contract version 1).
 
 Every name here is part of the frozen shared contract (`docs/NPC_MANAGER_CONTRACTS.md`). The
 TypeScript mirror is `react/src/features/npc-manager/contracts/vocabulary.ts`, and
@@ -34,7 +34,7 @@ class CharacterStatus(models.TextChoices):
 
 
 class DialogueMode(models.TextChoices):
-    """ADR-050 item 7. AUTHORED never calls a model; HYBRID adds AI hints and lines around
+    """ADR-053 item 7. AUTHORED never calls a model; HYBRID adds AI hints and lines around
     authored nodes; AI lets a persona voice a line. None of them changes gameplay state."""
 
     AUTHORED = "AUTHORED", "Authored only"

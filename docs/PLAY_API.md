@@ -195,6 +195,48 @@ nothing is recorded.
 `sessions` is the 20 most recent. `practice` is counts per learning objective, for gameplay
 pacing; it is not a mastery level or a label (docs/DATA_MODEL.md, "SkillProgress").
 
+## 3D Area puzzles, authored content and the catalog (ADR-047, LAI-0812, Firepeak)
+
+Additive changes to the region bootstrap. A client written before them ignores the new keys,
+and a server from before them sends none (the client treats them as empty).
+
+| Key | Shape | Notes |
+|---|---|---|
+| `puzzles[]` | `{puzzleId, kind, title, entityIds[], solved, locked, failedAttempts, parameters}` | Published puzzles that have parameters for the child's age band. `parameters` is the kind's own shape, for this band only. `locked` means an earlier stage's change key is missing. |
+| `npcs[].dialogue[]` | `{nodeId, text, followUpOnly, choices[{choiceId, label, nextNodeId}]}` | Authored nodes whose conditions the server can prove now (`ALWAYS`, `WORLD_CHANGE`, `QUEST_COMPLETED`). Others are left out, never guessed. |
+| `catalog` | `{worldSlug, assets[{assetId, kind, clips[], deliverable}]}` | What the layout names, so the client validates a served 3D Area against Django. `deliverable` is false until a version is published or a bundled file exists. |
+| `region.title`, `region.scene.copy`, `region.scene.environment` | as before | Read from the version this visit pinned (LAI-0813). |
+
+Items (`progress.inventory[].item`, reward `newItems[]`) gain `setId` and `journal`:
+- `journal` is `{subject, questId, illustrationAssetId}`, or null.
+- These are the Discovery Journal entries (FP-10).
+
+### `POST sessions/{sessionId}/puzzles/{puzzleId}/solve/`: one attempt at a puzzle
+
+- **Body:** `{"submission": {...}}`, and nothing else.
+- **Submission shape by kind:**
+
+  | Kind | Submission |
+  |---|---|
+  | `OBSERVE_FEATURES` | `{"observed": [featureId...]}` |
+  | `PLACE_PLATFORMS` | `{"placements": {slotId: stoneId}}` |
+  | `VALVE_SEQUENCE` | `{"sequence": [valveId...]}` |
+  | `COLLECT_OBJECT`, `RETURN_TO_NPC` | `{}` |
+
+- **Response:** `200` with
+  `{attemptId, correct, feedback, solvedNow, alreadySolved, failedAttempts, newItems, rewardMessage, questUpdates}`.
+- **Grading:** the server grades against the puzzle version the session pinned. A correct
+  answer records the puzzle's world change (`PUZZLE_SOLVED`), grants its reward rule once, and
+  advances active quests, all in one transaction.
+- **Replays:** an already-solved puzzle answers `alreadySolved: true` and grants nothing.
+- **Errors:**
+  - `400 invalid_submission`: a malformed submission; nothing is recorded.
+  - `404`: an unknown or unpublished puzzle, or another child's session.
+  - `409 puzzle_locked`: an earlier stage is not done yet.
+  - `409 session_not_open`.
+  - `409 content_unavailable`: no parameters for this age band, or the 3D Area is not published.
+- **Game runtime cookie:** accepted for the cookie's own region only (ADR-036).
+
 ## Pip's Missing Treasure (TR-14): locks, pickups, puzzles, talking
 
 All additive: a client from before TR-14 keeps working, and the TypeScript reader defaults
@@ -326,6 +368,193 @@ above again, then starts or resumes the child's one ACTIVE session for that Adve
 - `area` is the Place's published 3D Area (a region entry, as in `GET regions/`), or `null`.
   With `null` the Place is still usable through its Adventures.
 - `autoSelectIslandId` is set when exactly one Island is available.
+- **AP-03 discovery details** on each Island:
+  - `ageBands`: the Island's supported age bands.
+  - `subjects`: up to 6 skills its Places teach, as authored, first seen first, no repeats.
+  - `description`: the Island's authored description (may be empty).
+  - `subjectAreas` (AP-03 Realm Explorer filters): some of `MATH`, `READING`, `SCIENCE`,
+    `CREATIVITY`, in that order. An authored `subjectAreas` on the Island record wins; otherwise
+    the union of its Places' subject areas.
+  - `thumbnailAssetId`: the authored `artAssetId` when it names an active `image` asset whose
+    default version is published; otherwise `null` (the client draws a fallback). The client
+    resolves it through `GET /children/{id}/assets/` like any other asset (ADR-030, LAI-2200).
+  - `unlocked` and `lockedHint`: from the Island's authored `travelRequirement`. An Island opens
+    once any of its `anyOfChangeKeys` exists as a world change for this child. The home Island
+    and an Island without a rule are always open. `lockedHint` is the authored hint, or `null`.
+  - `progress`: `{placesExplored, placesTotal}` over the Places listed. A Place is `explored`
+    when the child has started one of its Adventures or entered its 3D Area. Never a score.
+- A secret Place (an authored `unlockRequirement`) is left out until its `changeKey` exists as a
+  world change for this child, matching the harbor map.
+- **AP-03 Place details**: `description`, `skills` (as authored), `subjectAreas` and
+  `thumbnailAssetId` (same rules as the Island's). A Place's derived subject areas are the
+  `LearningObjective.domain`s of what it teaches this child: the `objectiveIds` of its active
+  Adventures' steps for the child's age band, and its 3D Area's published chest challenges
+  (`skill_id`). `numeracy` is MATH, `literacy` READING, `science` SCIENCE, `creativity`
+  CREATIVITY; other domains are not filterable. An authored `subjectAreas` replaces the
+  derived list (Firepeak's puzzles carry no objective, so its record states `["SCIENCE"]`).
+- A Place's `area` also carries `status` and `resume` (an open session), which the Realm
+  Explorer uses for "Continue". All additions are additive; older clients ignore them.
+
+## Published content reads and the step runner (LAI-0503, LAI-0816, ADR-047 K)
+
+All routes are under `/api/v1/children/{id}/`, child-scoped (another family's child is a 404),
+bearer only. Reads are `GET`, bounded (200 entries), and serve only **published, active content
+for the child's age band**; an unknown, unpublished, inactive or other-band record is a 404 with
+no way to tell which. Drafts, submitted and returned versions are never visible. Every entry
+carries `"revision": {"id": "<uuid>", "number": n}`, the published version it came from.
+
+| Route | Returns |
+|---|---|
+| `content/adventures/` | `{"adventures": [{slug, title, locationSlug, ageBands, skillDomain, revision}]}` |
+| `content/adventures/{slug}/` | the above plus `entryStepId` and `steps`: each `{id, type, objectiveIds, presentation, hasHints, revision}` with **no answers, no hint text, no transitions** (an ordering's items are shuffled the same way for everyone and never in the answer order; a matching splits into `left` and `right`) |
+| `content/quests/`, `content/quests/{id}/` | quests for the band; detail adds `entryStageId`, `stages`, `adventureSlugs` |
+| `content/items/` | non-hidden items (`id, displayName, description, category, rarity, setId`) |
+| `content/reward-rules/` | rules whose granted items are all visible: `id, message, itemIds, triggerType` |
+| `content/learning-objectives/` | `code, domain, title` |
+| `content/stories/`, `content/stories/{slug}/` | stories for the band; detail has chapters and scenes without the completion world change |
+| `content/npcs/`, `content/npcs/{id}/` | NPCs; detail adds `dialogue`: the nodes this child's band hears now (conditions evaluated for the child, authored text only) |
+
+**Step runner.** Django grades; the client sends what the child did.
+
+- `POST content/adventures/{slug}/start/`, body `{}`. Starts (201) or resumes (200) the child's
+  one ACTIVE session for a published adventure, pinned to the published versions. The response is
+  the step view below with `"created": true|false`.
+- `GET sessions/{sessionId}/step/` returns the step view, to resume after a disconnection:
+
+```json
+{"session": {"id": "...", "adventureSlug": "...", "status": "ACTIVE", "currentStepId": "count",
+             "hintLevel": 0, "...": "..."},
+ "step": {"id": "count", "type": "NUMBER_INPUT", "objectiveIds": ["count-10"],
+          "presentation": {"kind": "number-input", "prompt": "How many planks?"},
+          "hasHints": true},
+ "stepRevision": {"id": "...", "number": 1}, "adventureRevision": {"id": "...", "number": 3},
+ "doneStepIds": [], "hintLevel": 0}
+```
+
+  A finished session returns its authored closing step (`presentation.kind` is `complete`).
+  A publication during a visit changes nothing here: the step comes from the pinned version.
+- `POST sessions/{id}/answers/` and `.../hints/` are unchanged, and the answer response gains
+  `"worldChangeKeys": []` (the consequence of a WORLD_CHANGE step the child continued past) and
+  `"completion": null | {"rewards": [{ruleId, message, granted, newItemIds}], "questsCompleted": []}`.
+  In the answer's own transaction Django records skill evidence per graded objective, the world
+  change once, and on completion grants the configured `ADVENTURE_COMPLETED` reward rule once per
+  child and moves active quests forward. A replayed `requestId` records and grants nothing.
+
+## Storykeeper Castle room discovery (SC-R03-06)
+
+Which rooms of the castle a child has been in, so the castle map can show what is explored. It is
+not a play route: the castle's layout is a TypeScript manifest (ADR-033), and this endpoint only
+records and returns a durable, child-scoped fact. Implemented in
+`lai/apps/game_sessions/castle_views.py` over `lai/apps/regions/castle_rooms.py`.
+
+A discovery is an ordinary `WorldChange` (`locationSlug` `storykeeper-castle`, `changeType`
+`ROOM_DISCOVERED`, `changeKey` `castle-room:<roomId>`), written through the existing idempotent
+`record_world_change`. There is **no new model**, and nothing here grants a reward or advances a
+quest.
+
+### `GET castle/rooms/`: the rooms this child has discovered
+
+```json
+{"rooms": ["entry-hall", "story-hall"]}
+```
+
+Room ids in the castle's own order, whatever order they were found. A secret room is never listed
+unless the child has made the discovery it depends on.
+
+### `POST castle/rooms/`: record that the child has been in a room
+
+Body (closed; an undeclared field is `400 validation_error`): `{"roomId": "story-hall"}`.
+`201 {"roomId": "story-hall", "newlyDiscovered": true}` the first time, `200` with
+`"newlyDiscovered": false` after. Idempotent and safe under concurrency.
+
+The server decides which ids it accepts (`castle_rooms.json`, shared with the client's
+`CASTLE_ROOM_IDS`, and a test fails if the two differ). An unknown room is `404 not_found`.
+
+**A secret stays secret.** A secret room (today only `secret-chamber`) is recorded only once the
+discovery it names (`castle-tapestry-stair`) is on the child's world state. Before that, asking to
+record it gives **exactly** the `404 not_found` that an unknown room gives, so the endpoint cannot be
+used to learn that a secret exists. The client treats any refusal as "not saved", never as an error
+a child sees.
+
+Child-scoped and bearer-only like every route here: another family's child and an unknown child
+give the identical `404`, and a parent or child id in the body or query is ignored.
+
+## The Great Storybook (SC-R04-02)
+
+The child's Great Storybook as the server derives it from its own records. Implemented in
+`lai/apps/game_sessions/castle_views.py` over `lai/apps/regions/great_storybook.py` and
+`great_storybook_pages.json`.
+
+**A page is derived, never stored.** Each page names a record the castle's existing,
+server-validated content already writes (a world change a finished adventure or story records, or
+the nook discovery), so there is no page table: a page is back exactly when its record exists, it
+cannot be recovered twice, and a different challenge's record cannot restore it.
+
+### `GET castle/storybook/`: this child's book
+
+Read-only: no INSERT, UPDATE or DELETE runs, asking twice is asking once, and nothing is granted,
+recorded or changed. The age band is the child's own, from their profile, and is never read from the
+request.
+
+```json
+{"band": "PATHFINDER",
+ "pages": [{"id": "page-first-story", "title": "The First Story", "required": true,
+            "restored": false, "roomId": "story-hall",
+            "text": "Tell a story with Keeper Quill in the Story Hall."}],
+ "restoredRequired": 0, "totalRequired": 1, "restoredBonus": 0, "complete": false,
+ "quest": {"questId": "restore-the-great-storybook-pathfinders", "status": "NOT_STARTED"}}
+```
+
+`text` is the page's own words: what it says once it is back, or where to look while it is missing
+(never how to solve it). Each band's book is whole when its **required** pages are back. The hidden
+nook page is a bonus in every band and is **listed only once it is restored**: a slot for a secret the
+child has not found would be a signpost, so nothing in this response names it before then. The quest
+`status` is `NOT_STARTED`, `ACTIVE` or `COMPLETED`.
+
+`great_storybook_pages.json` mirrors the client's `STORYBOOK_PAGES` and quest ids; a Vitest test fails
+if they differ.
+
+## Discoveries (SC-R04-00)
+
+The server's record of which secrets a child has found, and the authority for whether one opens.
+Implemented in `lai/apps/game_sessions/discovery_views.py` over `lai/apps/progression/discoveries.py`.
+
+Before this, Django had a `WorldState.discovered_objects` column and nothing that wrote it, so in
+Django mode a discovery lived only in the Amplify client's row and the server could prove nothing
+(the quest engine's own docstring: discoveries "evaluate as not yet complete, so the server never
+credits progress it cannot prove"). The Secret Chamber's access and the Great Storybook's page
+recovery both rest on this record.
+
+**No new model.** The record is the existing `WorldState.discovered_objects`. Definitions are the
+digest-verified content export's `discoveries` collection, read with `read_export`. A discovery's
+world change goes through the existing idempotent `record_world_change`, and its rewards through the
+existing `grant_reward_rule` for each `DISCOVERY` rule, one fire per rule.
+
+### `GET discoveries/`: what this child has found
+
+`{"discoveries": ["castle-tapestry-stair"]}`: ids in the content's own order; an id the export does
+not know is never listed.
+
+### `POST discoveries/`: find a secret
+
+Body (closed): `{"discoveryId": "castle-tapestry-stair"}`.
+
+| Result | Body | Meaning |
+| --- | --- | --- |
+| `201` | `{"discoveryId", "status": "FOUND_NOW", "rewardMessages": [...], "newItemIds": [...]}` | First find. The record, the world change and the rewards were written. |
+| `200` | `{"discoveryId", "status": "ALREADY_FOUND"}` | A replay. Nothing was written or granted. |
+| `200` | `{"discoveryId", "status": "LOCKED", "message": "..."}` | The requirements do not hold. Nothing was written. The message is the authored locked line. |
+| `404` | `not_found` | An id the export does not know. |
+
+The requirements the server evaluates are the ones the export's schema allows (`ALWAYS`,
+`WORLD_CHANGE_PRESENT`, `ITEM_OWNED`, `DISCOVERY_PRESENT`); any other type is treated as not met, so
+the server never opens a secret it cannot prove. The child's `WorldState` row is locked for the write:
+of two simultaneous finds exactly one is `FOUND_NOW`, and the world change and reward are written
+once (tested with four parallel transactions).
+
+Child-scoped and bearer-only like every route here. The client treats the server as the authority in
+Django mode and falls back to the Amplify path when the API is off or fails, so a child is never
+blocked by it (`react/src/features/discovery/api.ts`).
 
 ## Reuse by later regions
 

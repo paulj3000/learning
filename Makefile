@@ -72,6 +72,11 @@ migrate-check:
 migrate:
 	cd lai && $(PY) manage.py migrate
 
+# Local development only: boto3 resolves AWS credentials through the named profile
+# `learning-dev`, which must already exist in your AWS config (it is never created here).
+# Override with `make runserver AWS_PROFILE=other`; a profile already exported in the shell wins.
+# Exported, so the autoreloader's child process inherits it. Deployed servers never use make.
+runserver: export AWS_PROFILE ?= learning-dev
 runserver:
 	cd lai && $(PY) manage.py runserver 127.0.0.1:$(DJANGO_DEV_PORT)
 

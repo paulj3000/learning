@@ -1,4 +1,4 @@
-"""Read access to the ACTIVE release: the only NPC content children are ever served (ADR-050).
+"""Read access to the ACTIVE release: the only NPC content children are ever served (ADR-053).
 
 Shared by the runtime API (workstream B), dialogue (C), speech (E) and AI (F). Never reads draft
 rows. The parsed release is cached per process by release id and content hash, so a publish,

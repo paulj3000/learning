@@ -221,6 +221,7 @@ function fakePlayApi(overrides: Partial<PlayApi> = {}): PlayApi {
       read({ ...progressJson(), inventory: [] }, parse.playerProgress),
     ),
     startLaunchPoint: vi.fn(),
+    solvePuzzle: vi.fn(),
     collectPickup: vi.fn(),
     talkToNpc: vi.fn(async () => ({ flagsSet: [], questUpdates: [], completionRewards: [] })),
     ...overrides,
@@ -239,6 +240,19 @@ function fakeScene() {
   const scene: RegionPlaySceneApi = {
     setChestOpen: vi.fn(),
     isChestOpen: () => false,
+    effects: {
+      setChangeKeys: vi.fn(),
+      useReturn: vi.fn(() => false),
+      previewSteamCleared: vi.fn(),
+      safeCheckpoint: () => null,
+      subscribe: () => () => undefined,
+    },
+    puzzles: {
+      showArrangement: vi.fn(),
+      showValveTurns: vi.fn(),
+      discover: vi.fn(async () => undefined),
+      setVisible: vi.fn(),
+    },
     setChestLock: vi.fn(),
     setPickupCollected: vi.fn(),
     setRuneNumbers: vi.fn(),

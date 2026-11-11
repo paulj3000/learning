@@ -49,6 +49,8 @@ const item = {
   description: '',
   category: 'COLLECTIBLE' as const,
   assetId: '',
+  setId: null,
+  journal: null,
 };
 
 describe('signalsFromPlay', () => {

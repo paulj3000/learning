@@ -5,6 +5,7 @@ import { AssetStorageStack, type AssetEnvironment } from '../lib/assetStorageSta
 import { ChildPhotoStorageStack } from '../lib/childPhotoStorageStack';
 import { DjangoEc2Stack, type DatabaseMode } from '../lib/djangoEc2Stack';
 import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
+import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
 
 /**
  * The CDK app (LAI-1001). See infra/README.md for synth and deploy commands
@@ -17,6 +18,7 @@ import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
  * | `LaiDjangoRelease`      | account     | ECR repository, GitHub OIDC, image publisher role |
  * | `LaiDjangoEc2-<env>`    | environment | VPC, ALB, EC2, RDS, SSM documents, deploy role    |
  * | `LaiAiGuardrail-<env>`  | environment | child-safety Guardrail, Django AI policy (LAI-0704) |
+ * | `LaiFrontend-<env>`     | environment | React site: S3, CloudFront, `/api/*` to Django (us-east-1) |
  *
  * Settings come from CDK context (`-c name=value`) or, for a plain
  * `npx tsx infra/bin/app.ts` synth without the CDK CLI, the environment:
@@ -31,10 +33,10 @@ import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
  * | `databaseMode`       | `LAI_DATABASE_MODE`         | `rds` (default) or `container` (dev only)     |
  * | `multiAz`            | `LAI_DB_MULTI_AZ`           | `true` for a Multi-AZ RDS instance            |
  * | `createOidcProvider` | `LAI_CREATE_OIDC_PROVIDER`  | `false` if the account already has GitHub's   |
- * | `hostedZoneId`       | `LAI_HOSTED_ZONE_ID`        | Route 53 zone for the API name (optional)     |
+ * | `hostedZoneId`       | `LAI_HOSTED_ZONE_ID`        | Route 53 zone for the API, admin and site names |
  * | `hostedZoneName`     | `LAI_HOSTED_ZONE_NAME`      | that zone's name, e.g. `example.com`          |
  *
- * Deploy-time values (API host name, AMI, instance type, Cognito ids, alarm
+ * Deploy-time values (API and admin host names, AMI, instance type, Cognito ids, alarm
  * e-mail) are CloudFormation parameters of `LaiDjangoEc2-<env>`, passed by
  * scripts/aws/provision.sh.
  */
@@ -119,6 +121,16 @@ new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, {
   env,
   synthesizer: synthesizer(),
   description: `Learning Adventure Island child-safety Guardrail and Django AI policy (${envName})`,
+});
+
+// CloudFront certificates must live in us-east-1, so the whole site stack does (LAI-INFRA-003).
+new FrontendStack(app, `LaiFrontend-${envName}`, {
+  envName: envName as AssetEnvironment,
+  githubRepository,
+  hostedZone: hostedZoneId ? { id: hostedZoneId, name: hostedZoneName } : undefined,
+  env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: FRONTEND_REGION },
+  synthesizer: synthesizer(),
+  description: `Learning Adventure Island React site on S3 and CloudFront (${envName})`,
 });
 
 app.synth();

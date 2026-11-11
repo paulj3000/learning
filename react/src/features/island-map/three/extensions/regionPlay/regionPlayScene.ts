@@ -19,6 +19,9 @@ import {
 } from 'three';
 import { prefersReducedMotion } from '../../../../../lib/motionPreference';
 import { cloneAssetScene } from '../../assets/cloneAsset';
+import { mountAreaEffects, type AreaEffectsApi } from './areaEffectsScene';
+import { mountAreaPuzzles, type AreaPuzzleApi } from './areaPuzzleScene';
+import { drawEntity, type Owned } from './areaStandIns';
 import type { WorldExtension, WorldExtensionContext } from '../../runtime/extensionRegistry';
 import {
   REGION_PLAY_EXTENSION_ID,
@@ -73,6 +76,10 @@ export interface RegionPlaySceneApi {
   setChestOpen(entityId: string, open: boolean): void;
   /** Whether a chest is drawn open, or undefined for an unknown chest. */
   isChestOpen(entityId: string): boolean | undefined;
+  /** Lava, steam, checkpoints, openings and the way back (ADR-047, Firepeak). */
+  effects: AreaEffectsApi;
+  /** How puzzle objects are shown (ADR-047 F). */
+  puzzles: AreaPuzzleApi;
   /**
    * TR-14: why a chest is locked now, from server state. A `HIDDEN` chest locked by progress is
    * not drawn and cannot be focused; a chest locked by progress has no beacon.
@@ -179,7 +186,14 @@ export const regionPlaySceneExtension: WorldExtension = {
   assetIds(config) {
     const parsed = tryParseRegionPlayConfig(config);
     if (!parsed) return [];
-    return [...new Set(parsed.chests.flatMap((chest) => (chest.assetId ? [chest.assetId] : [])))];
+    return [
+      ...new Set([
+        ...parsed.chests.flatMap((chest) => (chest.assetId ? [chest.assetId] : [])),
+        // Models for stand-ins, declared only when one can be delivered (FP-3).
+        ...parsed.drawn.flatMap((drawn) => (drawn.assetId ? [drawn.assetId] : [])),
+        ...(parsed.effects.backdrop?.assetId ? [parsed.effects.backdrop.assetId] : []),
+      ]),
+    ];
   },
   mount(context: WorldExtensionContext) {
     const config = tryParseRegionPlayConfig(context.config);
@@ -457,7 +471,24 @@ export const regionPlaySceneExtension: WorldExtension = {
       }
     });
 
+    // ADR-047 / Firepeak: stand-ins and puzzle objects, environment effects, puzzle visuals.
+    const owned: Owned = { geometries, materials };
+    for (const drawn of config.drawn) {
+      const root = context.entityRoot(drawn.entityId);
+      if (root) drawEntity(root, drawn, owned, context.loadModel, cloneAssetScene, () => disposed);
+    }
+    const effects = mountAreaEffects(
+      context,
+      config.effects,
+      config.changeKeys,
+      owned,
+      () => disposed,
+    );
+    const puzzles = mountAreaPuzzles(context, owned);
+
     const api: RegionPlaySceneApi = {
+      effects: effects.api,
+      puzzles: puzzles.api,
       setChestOpen(entityId, open) {
         const chest = chests.get(entityId);
         if (chest && chest.open !== open) chest.show(open, false);
@@ -558,6 +589,8 @@ export const regionPlaySceneExtension: WorldExtension = {
       dispose() {
         disposed = true;
         stopFrames();
+        effects.dispose();
+        puzzles.dispose();
         for (const beacon of beacons.values()) context.scene.remove(beacon.mesh);
         for (const rune of runes.values()) rune.label.material.map?.dispose();
         procedural.dispose();

@@ -1,4 +1,4 @@
-"""NPC voice (LAI-NPC-026 to 028, ADR-049, ADR-050 section 8). Owner: Workstream E.
+"""NPC voice (LAI-NPC-026 to 028, ADR-049, ADR-053 section 8). Owner: Workstream E.
 
 Two jobs, both on top of the existing speech app (no second Polly client, no second cache):
 

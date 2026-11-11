@@ -396,18 +396,19 @@ def test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes():
         f"{child}sessions/<uuid:session_id>/",
         f"{child}sessions/<uuid:session_id>/<slug:action>/",
         f"{child}sessions/<uuid:session_id>/chests/<slug:entity_id>/challenge/",
+        f"{child}sessions/<uuid:session_id>/puzzles/<slug:puzzle_id>/solve/",
         # TR-14: picking up and talking, both behind `GameRuntimeAccessMixin`.
         f"{child}sessions/<uuid:session_id>/pickups/<slug:entity_id>/",
         f"{child}sessions/<uuid:session_id>/npcs/<slug:entity_id>/talk/",
         f"{child}attempts/<uuid:attempt_id>/answer/",
         f"{child}quests/<slug:quest_id>/accept/",
         f"{child}assets/",
-        # Sound Manager Phase 2 (ADR-047): the game WebView loads its audio manifest and then the
+        # Sound Manager Phase 2 (ADR-050): the game WebView loads its audio manifest and then the
         # audio files through `assets/`. Read-only, behind `GameRuntimeAccessMixin`.
         f"{child}audio/manifests/islands/<slug:identifier>/",
         f"{child}audio/manifests/places/<slug:identifier>/",
         f"{child}audio/manifests/regions/<slug:identifier>/",
-        # NPC Manager (ADR-050, contract section 7 rule 2): 3D Area NPC routes only, behind
+        # NPC Manager (ADR-053, contract section 7 rule 2): 3D Area NPC routes only, behind
         # `GameRuntimeAccessMixin`; Place and catalog NPC routes are bearer-only.
         f"{child}regions/<slug:region_id>/npcs/",
         f"{child}regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/",

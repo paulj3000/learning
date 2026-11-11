@@ -24,6 +24,14 @@ export interface LoadedModel {
 }
 
 /** What a mounted extension may touch. Deliberately small; widen it only when a real extension needs more. */
+/** A spot on the ground and, optionally, a heading (`firstPersonController`: 0 faces +Z, PI/2 faces +X). */
+export interface ChildPlacement {
+  x: number;
+  z: number;
+  /** Radians. Omitted keeps the current heading. */
+  yaw?: number;
+}
+
 export interface WorldExtensionContext {
   scene: Scene;
   camera: Camera;
@@ -84,10 +92,33 @@ export interface WorldExtensionContext {
    * so a declaration can never quietly fall behind what is really loaded.
    */
   loadModel(assetId: string): Promise<LoadedModel>;
+  /** Where the player stands now (ground plane). Read-only; for hazards and checkpoints. */
+  playerPosition(): { x: number; z: number };
+  /**
+   * Returns the player to an authored safe point at once (Firepeak FP-D10: falling into lava
+   * returns the child to the last safe checkpoint). Changes no progress and emits nothing.
+   */
+  teleportPlayer(x: number, z: number, yaw: number): void;
   /** Runs `callback` once per frame with the frame's delta in seconds. Returns an unsubscribe. */
   onFrame(callback: (deltaSeconds: number) => void): () => void;
   /** The runtime's monotonic clock, in milliseconds. */
   now(): number;
+  /**
+   * Moves the child to `placement`, if they could stand there: inside the
+   * region's bounds and clear of every collider as it is *now*. Returns
+   * `false` and moves nothing otherwise. A region decides *where* and *whether*
+   * (rooms, locks); the runtime only decides whether the spot is standable.
+   */
+  placeChild(placement: ChildPlacement): boolean;
+  /** Where the child is and which way they face. */
+  childPlacement(): Required<ChildPlacement>;
+  /**
+   * `prefers-reduced-motion`: purely decorative movement must hold still, and
+   * anything that carried meaning by moving needs a still equivalent. State
+   * changes that are the child's own feedback (a plate seating) are not
+   * decoration and stay.
+   */
+  readonly reducedMotion: boolean;
 }
 
 /** One NPC's mixer and the clips its asset authors. */

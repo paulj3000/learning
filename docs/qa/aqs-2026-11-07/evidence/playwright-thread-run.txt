@@ -1,0 +1,89 @@
+[WebServer] imported: release 65fa8e0f0876 (schema 3)
+[WebServer]   assets: created 114, updated 0, unchanged 0, missing 0
+[WebServer]   worlds: created 2, updated 0, unchanged 0, missing 0
+[WebServer]   locations: created 10, updated 0, unchanged 0, missing 0
+[WebServer]   adventures: created 24, updated 0, unchanged 0, missing 0
+[WebServer]   steps: created 158, updated 0, unchanged 0, missing 0
+[WebServer]   quests: created 8, updated 0, unchanged 0, missing 0
+[WebServer]   location_assets: created 108, updated 0, unchanged 0, missing 0
+[WebServer]   learning_objectives: created 19, updated 0, unchanged 0, missing 0
+[WebServer]   npcs: created 6, updated 0, unchanged 0, missing 0
+[WebServer]   collectible_sets: created 1, updated 0, unchanged 0, missing 0
+[WebServer]   items: created 25, updated 0, unchanged 0, missing 0
+[WebServer]   reward_rules: created 20, updated 0, unchanged 0, missing 0
+[WebServer]   skipped: location assets 'welcome-harbor': region has no Location record (11 assets)
+[WebServer] created ChallengeSpec treasure-cove-sprout
+[WebServer] created ChallengeSpec treasure-cove-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-explorer
+[WebServer] created WorldRegion treasure-rush-cove
+[WebServer] created SpawnPoint treasure-rush-cove:cove-landing
+[WebServer] created TreasureChest treasure-rush-cove:cove-chest
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-pip
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-bridge-signpost
+[WebServer] created AdventureLaunchPoint treasure-rush-cove:signpost-repair-the-moonlight-bridge
+[WebServer] created AdventureLaunchPoint treasure-rush-cove:signpost-the-tide-gate-calculation
+[WebServer] created AdventureLaunchPoint treasure-rush-cove:signpost-three-planks-for-the-bridge
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-rune-stone-1
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-rune-stone-2
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-rune-stone-3
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-brass-key
+[WebServer] created ChallengeSpec treasure-cove-grove-sprout
+[WebServer] created ChallengeSpec treasure-cove-grove-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-grove-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-grove-chest
+[WebServer] created ChallengeSpec treasure-cove-beach-sprout
+[WebServer] created ChallengeSpec treasure-cove-beach-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-beach-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-beach-chest
+[WebServer] created ChallengeSpec treasure-cove-puzzle-sprout
+[WebServer] created ChallengeSpec treasure-cove-puzzle-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-puzzle-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-ruins-pedestal
+[WebServer] created ChallengeSpec treasure-cove-final-sprout
+[WebServer] created ChallengeSpec treasure-cove-final-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-final-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-final-chest
+[WebServer] created ChallengeSpec treasure-cove-replay-sprout
+[WebServer] created ChallengeSpec treasure-cove-replay-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-replay-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-lookout-spyglass
+[WebServer] 35 row(s) created
+[WebServer] published region treasure-rush-cove
+[WebServer] published challenge treasure-cove-sprout
+[WebServer] published challenge treasure-cove-pathfinder
+[WebServer] published challenge treasure-cove-explorer
+[WebServer] published challenge treasure-cove-grove-sprout
+[WebServer] published challenge treasure-cove-grove-pathfinder
+[WebServer] published challenge treasure-cove-grove-explorer
+[WebServer] published challenge treasure-cove-beach-sprout
+[WebServer] published challenge treasure-cove-beach-pathfinder
+[WebServer] published challenge treasure-cove-beach-explorer
+[WebServer] published challenge treasure-cove-puzzle-sprout
+[WebServer] published challenge treasure-cove-puzzle-pathfinder
+[WebServer] published challenge treasure-cove-puzzle-explorer
+[WebServer] published challenge treasure-cove-final-sprout
+[WebServer] published challenge treasure-cove-final-pathfinder
+[WebServer] published challenge treasure-cove-final-explorer
+[WebServer] published challenge treasure-cove-replay-sprout
+[WebServer] published challenge treasure-cove-replay-pathfinder
+[WebServer] published challenge treasure-cove-replay-explorer
+[WebServer] published launch point signpost-repair-the-moonlight-bridge
+[WebServer] published launch point signpost-the-tide-gate-calculation
+[WebServer] published launch point signpost-three-planks-for-the-bridge
+[WebServer] 22 row(s) published
+[WebServer] Asset editors: 7 permissions
+[WebServer] Asset publishers: 9 permissions
+[WebServer] e2e Django ready on 127.0.0.1:8765
+[WebServer] November 07, 2026 - 01:07:04
+[WebServer] Django version 6.1.2, using settings 'config.settings.local'
+[WebServer] Starting WSGI development server at http://127.0.0.1:8765/
+[WebServer] Quit the server with CONTROL-C.
+[WebServer] 
+[WebServer] WARNING: This is a development server. Do not use it in a production setting. Use a production WSGI or ASGI server instead.
+[WebServer] For more information on production servers see: https://docs.djangoproject.com/en/6.1/howto/deployment/
+
+Running 1 test using 1 worker
+
+  ✓  1 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:312:1 › @thread a thread run-mode batch finishes without blocking the request (2.0s)
+
+  1 passed (10.4s)

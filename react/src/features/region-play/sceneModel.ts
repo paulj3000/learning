@@ -4,6 +4,7 @@ import type {
   ObjectPlacement,
   PlacedEntity,
   Placeholder,
+  PuzzleState,
   QuestEntry,
   RegionBootstrap,
   SpawnPoint,
@@ -71,6 +72,13 @@ export interface RegionSceneModel {
   worldChangeKeys: ReadonlySet<string>;
   /** Quests to show beside NPCs (offers and progress), by giver NPC id. */
   questsByGiver: ReadonlyMap<string, readonly QuestEntry[]>;
+  /** This 3D Area's puzzles for the child's band (ADR-047 F). */
+  puzzles: readonly PuzzleState[];
+  /**
+   * Asset ids a model can be delivered for now; the rest are drawn as stand-ins (FP-3). `null`
+   * when the server sent no catalog (before ADR-047): every model is then tried as before.
+   */
+  deliverableAssetIds: ReadonlySet<string> | null;
 }
 
 function base(entity: PlacedEntity, role: SceneEntityRole): Omit<SceneEntity, 'interactionId'> {
@@ -153,6 +161,15 @@ export function toRegionSceneModel(bootstrap: RegionBootstrap): RegionSceneModel
       bootstrap.worldChanges.filter((c) => c.locationSlug === location).map((c) => c.changeKey),
     ),
     questsByGiver,
+    puzzles: bootstrap.puzzles,
+    deliverableAssetIds:
+      bootstrap.catalog.assets.length === 0
+        ? null
+        : new Set(
+            bootstrap.catalog.assets
+              .filter((asset) => asset.deliverable)
+              .map((asset) => asset.assetId),
+          ),
   };
 }
 

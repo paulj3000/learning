@@ -275,8 +275,8 @@ def test_only_the_health_route_is_public(settings):
         if "AllowAny" in permissions:
             public.append(route)
     # Plus the readiness probe (ADR-037: fixed words only, apps/core/tests/test_readiness.py) and
-    # the signed asset-file route (LAI-2200, ADR-035): no bearer token, a signed capability, and
-    # the signed speech-clip route (ADR-049 item 4: signed, expiring delivery, same model).
+    # the signed asset-file route (LAI-2200, ADR-035): no bearer token, a signed capability, and the
+    # signed speech-file route (SM-P8, ADR-049): the same kind of expiring capability URL.
     assert public == [
         "api/v1/health/",
         "api/v1/health/ready/",

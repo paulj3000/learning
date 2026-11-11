@@ -15,6 +15,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
 
+from apps.catalog.models import Authorable
 from apps.core.content_status import ContentStatus
 from apps.core.models import ChildOwnedModel
 from apps.game_sessions.models import Correctness
@@ -38,7 +39,7 @@ class ErrorPattern(models.TextChoices):
     STALLED = "STALLED"
 
 
-class ChallengeSpec(models.Model):
+class ChallengeSpec(Authorable, models.Model):
     """One challenge slot: TR-1 `ChallengeParameters` for one age band (seed-authored, like
     the region rows that use it; LAI-0805 decides how such config is authored later).
 

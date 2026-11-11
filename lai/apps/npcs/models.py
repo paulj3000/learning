@@ -1,10 +1,10 @@
-"""The NPC Manager's Django-authored configuration and published releases (ADR-050).
+"""The NPC Manager's Django-authored configuration and published releases (ADR-053).
 
 Identity stays canonical: every character is a `catalog.NpcDefinition` (ADR-033), and its
 `npc_id` is the stable slug everything else uses. This app adds what the content export does not
 carry: model variants, placements, dialogue trees, behaviour profiles, AI personas and immutable
 published releases. Voices are `speech.VoiceProfile` rows (ADR-049); sound cues are `audio`
-(ADR-047); assets are `catalog.ContentAsset` with `assets.AssetVersion` (ADR-035).
+(ADR-050); assets are `catalog.ContentAsset` with `assets.AssetVersion` (ADR-035).
 
 **Draft content is never served.** Children read only the ACTIVE `NpcRelease` snapshot. Editing
 any row here changes nothing a child sees until staff publish a new release.
@@ -342,7 +342,7 @@ class NpcBehaviorProfile(Authored):
 class NpcPlacement(Authored):
     """Where a character stands: an Island, a Place and optionally that Place's 3D Area.
 
-    NPC-only exception to LAI-0805 approved by the owner (ADR-050 item 4): numeric fields, no
+    NPC-only exception to LAI-0805 approved by the owner (ADR-053 item 4): numeric fields, no
     visual layout editor. Coordinates are metres in the 3D Area's frame (y is elevation).
     """
 

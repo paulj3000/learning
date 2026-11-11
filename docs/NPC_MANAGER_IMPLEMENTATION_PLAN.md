@@ -1,6 +1,6 @@
 # NPC Manager implementation plan (LAI-NPC-001 to LAI-NPC-040)
 
-Branch: `feature/npc-manager` (from `main` at `5222b69`). Decision: ADR-050. Frozen contracts:
+Branch: `feature/npc-manager` (from `main` at `5222b69`). Decision: ADR-053. Frozen contracts:
 `docs/NPC_MANAGER_CONTRACTS.md`. Tracker: `tasks/TASK_TRACKER.md`, Phase 30.
 
 Scope rules from the owner's brief: no merge to `main`, no AWS deployment, no browser or
@@ -81,7 +81,7 @@ migrations checks and targeted tests after each merge.
 |---|---|
 | Two NPC truths (export `source` dialogue and NPC releases) | The NPC Manager wins at runtime for published characters; export dialogue untouched; content authoring cutover decides later |
 | Pip regression in Treasure Rush (duplicate Pip, duplicate rewards, lost resume) | Pip keeps one entity; rewards stay in play services; integration tests assert one Pip and unchanged reward counts |
-| Sound-manager branch is still Proposed (ADR-047 to 049) | Recorded as a dependency; NPC speech degrades to captions when speech is disabled |
+| Sound-manager branch is still Proposed (ADR-048 to 050) | Recorded as a dependency; NPC speech degrades to captions when speech is disabled |
 | Unverified runtime visuals | No browser runs here; owner acceptance checklist; engine logic covered by unit tests with a fake loader |
 | Live AWS | Fake Polly and fake model only; live checks listed as owner-approval items |
 

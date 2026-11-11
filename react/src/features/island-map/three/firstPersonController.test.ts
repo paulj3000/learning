@@ -69,4 +69,67 @@ describe('FirstPersonController', () => {
     expect(controller.position.x).toBe(0);
     expect(controller.position.z).toBe(0);
   });
+
+  describe('placing the child', () => {
+    const wall = new Box3(new Vector3(2, 0, -5), new Vector3(3, 3, 5));
+
+    it('puts the child on open ground, facing the given way, looking level', () => {
+      const controller = new FirstPersonController({ colliders: [wall] });
+      controller.pitch = 0.4;
+
+      expect(controller.teleportTo(-4, 1.5, Math.PI / 2)).toBe(true);
+
+      expect(controller.position.x).toBe(-4);
+      expect(controller.position.z).toBe(1.5);
+      expect(controller.yaw).toBeCloseTo(Math.PI / 2);
+      expect(controller.pitch).toBe(0);
+    });
+
+    it('refuses a solid spot and moves nothing', () => {
+      const controller = new FirstPersonController({ colliders: [wall] });
+      controller.position.set(-1, 0, 0);
+      controller.yaw = 1;
+
+      expect(controller.canStandAt(2.5, 0)).toBe(false);
+      expect(controller.teleportTo(2.5, 0, 3)).toBe(false);
+
+      expect(controller.position.x).toBe(-1);
+      expect(controller.yaw).toBe(1);
+    });
+
+    it('keeps the current heading when none is given', () => {
+      const controller = new FirstPersonController({ colliders: [wall] });
+      controller.yaw = 0.7;
+
+      controller.teleportTo(-3, 0);
+
+      expect(controller.yaw).toBeCloseTo(0.7);
+    });
+
+    it('drops leftover walking speed, so the child is not carried on after being placed', () => {
+      const controller = new FirstPersonController({
+        colliders: [wall],
+        acceleration: 1000,
+        maxSpeed: 4,
+      });
+      for (let i = 0; i < 10; i++) controller.update(0.05, { forward: 1, strafe: 0 });
+      controller.yaw = 0;
+
+      controller.teleportTo(-4, -4, 0);
+      const placed = controller.position.z;
+      controller.update(0.1, { forward: 0, strafe: 0 });
+
+      expect(controller.position.z).toBeCloseTo(placed, 9);
+    });
+
+    it('reads colliders as they are now, including one added after construction', () => {
+      const colliders: Box3[] = [];
+      const controller = new FirstPersonController({ colliders });
+      expect(controller.canStandAt(0, 0)).toBe(true);
+
+      colliders.push(new Box3(new Vector3(-1, 0, -1), new Vector3(1, 3, 1)));
+
+      expect(controller.canStandAt(0, 0)).toBe(false);
+    });
+  });
 });

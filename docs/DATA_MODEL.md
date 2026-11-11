@@ -1010,7 +1010,7 @@ object can offer several Adventures and an Adventure can have several objects. T
 position: the placement's layout stays in code (LAI-0805).
 
 
-## SoundCue, SoundAssignment and SoundRelease (Django, Sound Manager Phase 2, ADR-047)
+## SoundCue, SoundAssignment and SoundRelease (Django, Sound Manager Phase 2, ADR-050)
 
 App `apps.audio`, migration `0001_initial`. No child data.
 

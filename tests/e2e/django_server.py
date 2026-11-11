@@ -38,7 +38,8 @@ E2E_ENV = {
     "COGNITO_USER_POOL_ID": "us-east-1_E2Elocal",
     "COGNITO_ALLOWED_CLIENT_IDS": "e2elocalclient",
     "LAI_AI_PROVIDER": "fake",
-    "LAI_STUDIO_RUN_MODE": "inline",
+    # `inline` by default; LAI_E2E_STUDIO_RUN_MODE=thread runs the AQS-026 thread-mode check.
+    "LAI_STUDIO_RUN_MODE": os.environ.get("LAI_E2E_STUDIO_RUN_MODE", "inline"),
     "LAI_ASSET_STORAGE": "memory",
     "LAI_ASSET_DELIVERY": "django",
     # Small enough that the oversized-upload test needs only a few megabytes.

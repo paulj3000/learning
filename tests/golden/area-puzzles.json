@@ -1,0 +1,593 @@
+{
+  "schemaVersion": 1,
+  "suite": "area-puzzles",
+  "description": "Puzzle rules the client simulates and the server grades: observe every feature, match each gap to a stone of its size, and move steam along valves to the goal.",
+  "sources": [
+    "react/src/features/region-play/areaPuzzles.ts",
+    "lai/apps/regions/puzzles.py"
+  ],
+  "notes": [
+    "simulateValves: a valve whose channel has no steam does nothing, so extra turns are harmless.",
+    "platformsSolved: an unknown slot or stone id is an invalid submission (throws)."
+  ],
+  "functions": {
+    "observeSolved": {
+      "python": "observe_solved",
+      "args": [
+        "featureIds",
+        "observed"
+      ],
+      "cases": [
+        {
+          "name": "all seen",
+          "input": {
+            "featureIds": [
+              "a",
+              "b"
+            ],
+            "observed": [
+              "b",
+              "a"
+            ]
+          },
+          "expected": true
+        },
+        {
+          "name": "one missing",
+          "input": {
+            "featureIds": [
+              "a",
+              "b"
+            ],
+            "observed": [
+              "a"
+            ]
+          },
+          "expected": false
+        },
+        {
+          "name": "repeats are fine",
+          "input": {
+            "featureIds": [
+              "a"
+            ],
+            "observed": [
+              "a",
+              "a"
+            ]
+          },
+          "expected": true
+        },
+        {
+          "name": "extras do not count",
+          "input": {
+            "featureIds": [
+              "a",
+              "b"
+            ],
+            "observed": [
+              "a",
+              "c"
+            ]
+          },
+          "expected": false
+        }
+      ]
+    },
+    "platformsSolved": {
+      "python": "platforms_solved",
+      "args": [
+        "stones",
+        "slots",
+        "placements"
+      ],
+      "cases": [
+        {
+          "name": "each gap has its size",
+          "input": {
+            "stones": [
+              {
+                "id": "small",
+                "label": "Small",
+                "size": 1
+              },
+              {
+                "id": "middle",
+                "label": "Middle",
+                "size": 2
+              },
+              {
+                "id": "long",
+                "label": "Long",
+                "size": 3
+              }
+            ],
+            "slots": [
+              {
+                "id": "near",
+                "label": "Near",
+                "gap": 2
+              },
+              {
+                "id": "middle-gap",
+                "label": "Middle",
+                "gap": 3
+              },
+              {
+                "id": "far",
+                "label": "Far",
+                "gap": 1
+              }
+            ],
+            "placements": {
+              "near": "middle",
+              "middle-gap": "long",
+              "far": "small"
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "a stone in the wrong gap",
+          "input": {
+            "stones": [
+              {
+                "id": "small",
+                "label": "Small",
+                "size": 1
+              },
+              {
+                "id": "middle",
+                "label": "Middle",
+                "size": 2
+              },
+              {
+                "id": "long",
+                "label": "Long",
+                "size": 3
+              }
+            ],
+            "slots": [
+              {
+                "id": "near",
+                "label": "Near",
+                "gap": 2
+              },
+              {
+                "id": "middle-gap",
+                "label": "Middle",
+                "gap": 3
+              },
+              {
+                "id": "far",
+                "label": "Far",
+                "gap": 1
+              }
+            ],
+            "placements": {
+              "near": "long",
+              "middle-gap": "middle",
+              "far": "small"
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "a gap left empty",
+          "input": {
+            "stones": [
+              {
+                "id": "small",
+                "label": "Small",
+                "size": 1
+              },
+              {
+                "id": "middle",
+                "label": "Middle",
+                "size": 2
+              },
+              {
+                "id": "long",
+                "label": "Long",
+                "size": 3
+              }
+            ],
+            "slots": [
+              {
+                "id": "near",
+                "label": "Near",
+                "gap": 2
+              },
+              {
+                "id": "middle-gap",
+                "label": "Middle",
+                "gap": 3
+              },
+              {
+                "id": "far",
+                "label": "Far",
+                "gap": 1
+              }
+            ],
+            "placements": {
+              "near": "middle",
+              "far": "small"
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "one stone in two gaps",
+          "input": {
+            "stones": [
+              {
+                "id": "small",
+                "label": "Small",
+                "size": 1
+              },
+              {
+                "id": "middle",
+                "label": "Middle",
+                "size": 2
+              },
+              {
+                "id": "long",
+                "label": "Long",
+                "size": 3
+              }
+            ],
+            "slots": [
+              {
+                "id": "near",
+                "label": "Near",
+                "gap": 2
+              },
+              {
+                "id": "middle-gap",
+                "label": "Middle",
+                "gap": 3
+              },
+              {
+                "id": "far",
+                "label": "Far",
+                "gap": 1
+              }
+            ],
+            "placements": {
+              "near": "small",
+              "middle-gap": "small",
+              "far": "small"
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "an unknown stone",
+          "input": {
+            "stones": [
+              {
+                "id": "small",
+                "label": "Small",
+                "size": 1
+              },
+              {
+                "id": "middle",
+                "label": "Middle",
+                "size": 2
+              },
+              {
+                "id": "long",
+                "label": "Long",
+                "size": 3
+              }
+            ],
+            "slots": [
+              {
+                "id": "near",
+                "label": "Near",
+                "gap": 2
+              },
+              {
+                "id": "middle-gap",
+                "label": "Middle",
+                "gap": 3
+              },
+              {
+                "id": "far",
+                "label": "Far",
+                "gap": 1
+              }
+            ],
+            "placements": {
+              "near": "boulder"
+            }
+          },
+          "throws": true
+        }
+      ]
+    },
+    "simulateValves": {
+      "python": "simulate_valves",
+      "args": [
+        "valves",
+        "start",
+        "sequence"
+      ],
+      "cases": [
+        {
+          "name": "in order",
+          "input": {
+            "valves": [
+              {
+                "id": "red",
+                "label": "Red",
+                "from": "passage",
+                "to": "pipe"
+              },
+              {
+                "id": "blue",
+                "label": "Blue",
+                "from": "pipe",
+                "to": "tank"
+              },
+              {
+                "id": "green",
+                "label": "Green",
+                "from": "tank",
+                "to": "vent"
+              }
+            ],
+            "start": "passage",
+            "sequence": [
+              "red",
+              "blue",
+              "green"
+            ]
+          },
+          "expected": "vent"
+        },
+        {
+          "name": "backwards",
+          "input": {
+            "valves": [
+              {
+                "id": "red",
+                "label": "Red",
+                "from": "passage",
+                "to": "pipe"
+              },
+              {
+                "id": "blue",
+                "label": "Blue",
+                "from": "pipe",
+                "to": "tank"
+              },
+              {
+                "id": "green",
+                "label": "Green",
+                "from": "tank",
+                "to": "vent"
+              }
+            ],
+            "start": "passage",
+            "sequence": [
+              "green",
+              "blue",
+              "red"
+            ]
+          },
+          "expected": "pipe"
+        },
+        {
+          "name": "extra turns are harmless",
+          "input": {
+            "valves": [
+              {
+                "id": "red",
+                "label": "Red",
+                "from": "passage",
+                "to": "pipe"
+              },
+              {
+                "id": "blue",
+                "label": "Blue",
+                "from": "pipe",
+                "to": "tank"
+              },
+              {
+                "id": "green",
+                "label": "Green",
+                "from": "tank",
+                "to": "vent"
+              }
+            ],
+            "start": "passage",
+            "sequence": [
+              "green",
+              "red",
+              "green",
+              "blue",
+              "green"
+            ]
+          },
+          "expected": "vent"
+        },
+        {
+          "name": "dead end",
+          "input": {
+            "valves": [
+              {
+                "id": "red",
+                "label": "Red",
+                "from": "passage",
+                "to": "pipe"
+              },
+              {
+                "id": "blue",
+                "label": "Blue",
+                "from": "pipe",
+                "to": "tank"
+              },
+              {
+                "id": "green",
+                "label": "Green",
+                "from": "tank",
+                "to": "vent"
+              },
+              {
+                "id": "grey",
+                "label": "Grey",
+                "from": "passage",
+                "to": "drain"
+              }
+            ],
+            "start": "passage",
+            "sequence": [
+              "grey",
+              "red"
+            ]
+          },
+          "expected": "drain"
+        },
+        {
+          "name": "unknown valve",
+          "input": {
+            "valves": [
+              {
+                "id": "red",
+                "label": "Red",
+                "from": "passage",
+                "to": "pipe"
+              },
+              {
+                "id": "blue",
+                "label": "Blue",
+                "from": "pipe",
+                "to": "tank"
+              },
+              {
+                "id": "green",
+                "label": "Green",
+                "from": "tank",
+                "to": "vent"
+              }
+            ],
+            "start": "passage",
+            "sequence": [
+              "purple"
+            ]
+          },
+          "throws": true
+        }
+      ]
+    },
+    "solveValves": {
+      "python": "solve_valves",
+      "args": [
+        "valves",
+        "start",
+        "goal"
+      ],
+      "cases": [
+        {
+          "name": "a chain",
+          "input": {
+            "valves": [
+              {
+                "id": "red",
+                "label": "Red",
+                "from": "passage",
+                "to": "pipe"
+              },
+              {
+                "id": "blue",
+                "label": "Blue",
+                "from": "pipe",
+                "to": "tank"
+              },
+              {
+                "id": "green",
+                "label": "Green",
+                "from": "tank",
+                "to": "vent"
+              }
+            ],
+            "start": "passage",
+            "goal": "vent"
+          },
+          "expected": [
+            "red",
+            "blue",
+            "green"
+          ]
+        },
+        {
+          "name": "with a dead end",
+          "input": {
+            "valves": [
+              {
+                "id": "red",
+                "label": "Red",
+                "from": "passage",
+                "to": "pipe"
+              },
+              {
+                "id": "blue",
+                "label": "Blue",
+                "from": "pipe",
+                "to": "tank"
+              },
+              {
+                "id": "green",
+                "label": "Green",
+                "from": "tank",
+                "to": "vent"
+              },
+              {
+                "id": "grey",
+                "label": "Grey",
+                "from": "passage",
+                "to": "drain"
+              }
+            ],
+            "start": "passage",
+            "goal": "vent"
+          },
+          "expected": [
+            "red",
+            "blue",
+            "green"
+          ]
+        },
+        {
+          "name": "unreachable",
+          "input": {
+            "valves": [
+              {
+                "id": "red",
+                "label": "Red",
+                "from": "passage",
+                "to": "pipe"
+              },
+              {
+                "id": "blue",
+                "label": "Blue",
+                "from": "pipe",
+                "to": "tank"
+              },
+              {
+                "id": "green",
+                "label": "Green",
+                "from": "tank",
+                "to": "vent"
+              }
+            ],
+            "start": "passage",
+            "goal": "drain"
+          },
+          "expected": null
+        }
+      ]
+    }
+  }
+}

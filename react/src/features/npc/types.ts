@@ -132,6 +132,20 @@ export interface DialogueNode {
    * middle of an exchange. Absent means the node may open a conversation.
    */
   followUpOnly?: boolean;
+  /** LAI-0817: the character speaking, when it is not the NPC itself (for example a narrator). */
+  speaker?: string;
+  /** LAI-0817: Django serves this line only to these age bands. Absent means every band. */
+  ageBands?: readonly ('SPROUT' | 'PATHFINDER' | 'EXPLORER')[];
+  /** LAI-0817: a quest this line talks about. A reference checked at publish, not a condition. */
+  questId?: string;
+  /** LAI-0817: an adventure this line talks about. A reference checked at publish. */
+  adventureSlug?: string;
+  /**
+   * LAI-0817 (FP-D9): a line said in a 3D Area puzzle's panel (its intro, completion message or
+   * science note), never in conversation. Django adds it to that puzzle's parameters for the
+   * age bands that hear it. Such a node is follow-up only, with no choices or conditions.
+   */
+  puzzleLine?: { puzzleId: string; part: 'intro' | 'completeMessage' | 'scienceNote' };
   /**
    * Opt-in marker that this authored line may be re-narrated by Chatty
    * (Phase 27's AI Tutor Engine). Absent means "authored text only, never

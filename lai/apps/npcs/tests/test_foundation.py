@@ -234,7 +234,7 @@ def test_client_view_never_includes_persona_or_dialogue_trees():
     assert "persona" not in view and "dialogues" not in view
 
 
-# --- canonical identity (ADR-033, ADR-050) -------------------------------------------------------
+# --- canonical identity (ADR-033, ADR-053) -------------------------------------------------------
 
 
 def test_import_refuses_an_export_npc_that_django_owns():

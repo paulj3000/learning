@@ -38,6 +38,17 @@ const tagged = (
 });
 
 const AGE_BANDS = ['SPROUT', 'PATHFINDER', 'EXPLORER'];
+/**
+ * AP-03: optional discovery fields on an Island or Place, usually added by an administrator in
+ * a Django revision (ADR-047); a source record sets `subjectAreas` only when Django cannot derive
+ * them (Firepeak Volcano). `artAssetId` names an
+ * `image` asset in the Django asset library (checked at publish); `subjectAreas` replaces the
+ * subject areas Django otherwise derives from the learning objectives the record teaches.
+ */
+const discoveryFields: Record<string, Schema> = {
+  artAssetId: text,
+  subjectAreas: arr(enumOf('MATH', 'READING', 'SCIENCE', 'CREATIVITY')),
+};
 const ageBands = arr(enumOf(...AGE_BANDS));
 
 const defs: Record<string, Schema> = {
@@ -217,7 +228,19 @@ const defs: Record<string, Schema> = {
       category: enumOf('COLLECTIBLE', 'COSMETIC', 'QUEST_ITEM', 'KEEPSAKE'),
       rarity: enumOf('COMMON', 'UNCOMMON', 'RARE'),
     },
-    { setId: text, hidden: bool, cosmeticSlot: enumOf('HAT', 'BACKPACK', 'ACCESSORY', 'OUTFIT') },
+    {
+      setId: text,
+      hidden: bool,
+      cosmeticSlot: enumOf('HAT', 'BACKPACK', 'ACCESSORY', 'OUTFIT'),
+      // ADR-047 / Firepeak FP-10: a Discovery Journal entry's metadata (additive, optional).
+      journal: obj(
+        {
+          subject: enumOf('EARTH_SCIENCE', 'MATHEMATICS', 'SPATIAL_REASONING', 'PROBLEM_SOLVING'),
+          questId: text,
+        },
+        { illustrationAssetId: text },
+      ),
+    },
   ),
   collectibleSet: obj(
     { id: text, displayName: text, completionMessage: text, itemIds: texts },
@@ -274,6 +297,19 @@ const defs: Record<string, Schema> = {
           awardsRelationshipPoints: num,
           followUpOnly: bool,
           narration: obj({ allowedTopic: text, fallbackText: text }),
+          // LAI-0817: who says it, which age bands hear it (absent: every band), and the
+          // quest or adventure the line talks about. Django serves a node only to a child
+          // whose band it lists; the references are checked at publish, not conditions.
+          speaker: text,
+          ageBands: arr(enumOf('SPROUT', 'PATHFINDER', 'EXPLORER')),
+          questId: text,
+          adventureSlug: text,
+          // LAI-0817 (FP-D9): a line said in a 3D Area puzzle's panel, never in conversation.
+          // The bootstrap adds it to that puzzle's parameters for the bands that hear it.
+          puzzleLine: obj({
+            puzzleId: text,
+            part: enumOf('intro', 'completeMessage', 'scienceNote'),
+          }),
         },
       ),
     ),
@@ -365,7 +401,7 @@ const defs: Record<string, Schema> = {
       skills: texts,
       decoration: text,
     },
-    { unlockRequirement: obj({ changeKey: text }) },
+    { unlockRequirement: obj({ changeKey: text }), ...discoveryFields },
   ),
   island: obj(
     {
@@ -390,6 +426,7 @@ const defs: Record<string, Schema> = {
       isHome: bool,
       arrival: obj({ locationSlug: text, text, changeKey: text }),
       travelRequirement: obj({ anyOfChangeKeys: texts, lockedHint: text }),
+      ...discoveryFields,
     },
   ),
 };

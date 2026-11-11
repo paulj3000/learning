@@ -17,6 +17,7 @@ import { STORYKEEPER_CASTLE_INTERACTIONS, type WorldInteraction } from '../../..
 import { STORYKEEPER_CASTLE_MANIFEST } from '../../runtime/manifests/storykeeperCastle';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import { WorldEngineEventBus } from '../../worldEngineEvents';
+import type { CastleTravelRefusal } from '../../castleLayout';
 import { CastleTaleCompanion } from './CastleTaleCompanion';
 import { castleTaleViewExtension } from './castleTaleViewExtension';
 import { managedCastleNpcFor, resetCastleNpcHandover } from './castleNpcHandover';
@@ -233,6 +234,15 @@ function fakeScene() {
     setQuillGestureSink: vi.fn((sink: ((clip: CastleQuillClip, yaw: number) => void) | null) => {
       gesture.sink = sink;
     }),
+    // Castle reboot members on main (secret passage, storybook, room travel): unused here.
+    showSecretPassageOpened: vi.fn(),
+    showStorybook: vi.fn(),
+    currentRoomId: () => undefined,
+    goToRoom: vi.fn((): CastleTravelRefusal => ({
+      ok: false,
+      reason: 'unknown-room',
+      message: 'Not here.',
+    })),
   } satisfies CastleTaleSceneApi;
   const gesture: { sink: ((clip: CastleQuillClip, yaw: number) => void) | null } = { sink: null };
   return { scene, parent, proxied, stops, gesture };

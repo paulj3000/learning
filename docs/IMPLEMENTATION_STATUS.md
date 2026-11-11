@@ -11735,6 +11735,140 @@ Branch `feature/lai-0905-photo-clients`.
 - **Not done (approval or access needed):** change-set review, dev deployment, Django dev
   release and `users.0005` migration, live S3 integration, Cognito browser acceptance.
 
+## ADR-043: Django content authoring, draft and impact assessment (2026-11-01, branch only, not merged)
+
+- **Request.** The owner asked for Firepeak Volcano, "The Volcano Awakens", with dialogue, stages,
+  hints, puzzle parameters and rewards editable in Django Admin. Asked how to reconcile that with
+  ADR-033, the owner directed a platform-wide ADR-043 that makes Django Admin the authoritative
+  content system, keeps the export and `load_content` for initial imports, and is not implemented
+  until accepted.
+- **What was found.** The architecture audit is recorded in
+  `docs/platform/DJANGO_CONTENT_AUTHORING.md` sections 2 and 11. The importer overwrites content
+  fields on every import, catalog admin is read-only apart from `active` and `sort_order`, and
+  no Firepeak, journal or badge content exists.
+- **Change.** Documentation only:
+  - ADR-043 added as Proposed, with its registry row; the registry's next-free number is
+    corrected from 041 to 044.
+  - New impact assessment `docs/platform/DJANGO_CONTENT_AUTHORING.md`.
+  - Owner decisions FP-D1 to FP-D4 for Firepeak recorded there.
+- **Checks.** `npm run adr:check` passed (43 decisions, 43 registry rows). No code changed, so no
+  unit tests or typecheck were run.
+- **Open.**
+  - ADR-043 acceptance and its four open questions.
+  - The Firepeak roadmap and tracker rows (FP-n, LAI-0810 to 0815) are added after acceptance.
+
+## ADR-043 foundation and Firepeak Volcano, The Volcano Awakens (2026-11-01, branch `feature/adr-043-django-content-authoring`, not merged or pushed)
+
+- **Request.** The owner accepted ADR-043 with answers Q1 to Q4 and eight requirements, and
+  asked for the following, in order:
+  1. The shared content-authoring foundation, with session version pinning.
+  2. Firepeak Volcano's first adventure, for Pathfinders and Explorers only.
+- **What was found.**
+  - The importer overwrote content on every import, and catalog admin was read-only.
+  - The engine had no third-person camera, shaders, particles, reduced-motion handling or
+    fall respawn.
+  - The client validated served regions only against bundled TypeScript registries.
+  - A Place known only to Django had no entry point in the app.
+- **Change, platform:**
+  - LAI-0810: `ContentRevision`.
+  - LAI-0811: authority-aware import with a conflict report.
+  - LAI-0812: `AreaPuzzle`, the graders, `PuzzleAttempt` and the solve route.
+  - LAI-0813: session pinning.
+  - LAI-0801 stage 1: Django Admin versions and the content roles.
+  - The client validates a served 3D Area against the server's declared `catalog`.
+  - The engine gains `playerPosition` and `teleportPlayer` for extensions.
+  - Shaped stand-ins replace missing models; a published GLB replaces them with no code change.
+  - Golden vectors `area-puzzles` keep the TypeScript and Python puzzle rules identical.
+- **Change, Firepeak:**
+  - Export-only content: the Place, Ember, the quest, items and journal entries.
+  - `firepeak_seed.py` layout and five puzzles, as Pathfinder and Explorer parameters.
+  - `WorldRegion.age_bands`.
+  - The `region-play` scene: lava shader with respawn, steam, backdrop, checkpoints, openings,
+    the rope lift, and puzzle visuals including the crystal discovery animation.
+  - The companion: telescope, crossing, valve and discovery panels, Ember's dialogue and
+    return action, and the Discovery Journal in the backpack.
+  - Harbor-map cards for Places that exist only in Django.
+  - `docs/FIREPEAK_VOLCANO_ROADMAP.md`, `docs/regions/firepeak_assets.md`, `docs/PLAY_API.md`,
+    `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 12.
+- **Documented behaviour changes:**
+  - The `load_content` counts gain `skipped` and `conflicts`.
+  - A pinned session is graded from its own content version rather than refused after a change
+    (`TestContentVersions` rewritten).
+  - The region bootstrap gains `puzzles`, `catalog` and NPC `dialogue` (additive).
+  - Items gain `setId` and `journal`.
+  - Pip in Treasure Cove now greets with his authored dialogue.
+  - The hook re-reads the region once after starting a session, so what the child sees matches
+    the pinned content.
+  - Admin registration guards now allow `education.ChallengeSpec`, `ContentRevision` and
+    `AreaPuzzle` (content only; no child-owned record).
+- **Tests (development checks):**
+  - **Python:** The full suite (`pytest -q lai tests`, PostgreSQL 16) gave 1291 passed and 10 errors; the errors were one fixture in `regions/tests/test_puzzles.py` that predated the puzzle-object check. After the fix, `regions/tests` and `test_play_api.py` pass (121), including the new test that accepting a quest late keeps earlier work. `makemigrations --check` reports no changes.
+  - **TypeScript:** `npx tsc -b` passes. The full Vitest suite (`npx vitest run --maxWorkers=2`)
+    passed 3283 tests in 308 files. Every later edit was re-run in its affected suite
+    (region-play, the regionPlay extension, the play API, golden vectors).
+  - **Flake:** one existing timing-sensitive test ("sends a double-tapped answer once")
+    failed once while the Python suite loaded the CPU, then passed three reruns.
+  - **Other checks:** `npm run content:check`, `npm run golden:check` and `npm run adr:check`
+    pass. Prettier passes on every changed file. oxlint on the changed directories exits 0
+    (warnings only, of the kinds already present in the region-play panels). Ruff check and
+    Ruff format pass.
+- **Deferred to merge verification:**
+  - `make check` in full: Django and migration checks on a clean database, the full oxlint and
+    Prettier runs, and `npm run build`.
+  - The Docker image.
+  - Playwright. `react/e2e/firepeak.spec.ts` holds the eleven scenarios as pending
+    (`test.fixme`) tests; none has run.
+  - Browser and WebGL checks, and performance on Android WebView.
+- **Not verified:** Firepeak has not been seen in a browser. The real-Cognito sign-in (ADR-024
+  A6) is still open.
+- **Open:**
+  - Eleven GLBs are missing.
+  - LAI-0814 (moving edits between environments).
+  - LAI-0815, deferred by the owner.
+  - LAI-0503 catalog reads.
+  - Structured admin editors (later LAI-0801 stages).
+  - Age-banded NPC dialogue (FP-D9).
+  - A third-person camera is out of scope (FP-D3).
+  - "Secrets of the Crystal Caverns" content (FP-D8).
+
+## FP-13: owner playtest of The Volcano Awakens (2026-11-01, branch `feature/adr-043-django-content-authoring`)
+
+- **What was run:** the owner played Firepeak Volcano end to end in a local browser.
+  - Setup: Django on this branch with PostgreSQL 16 in docker on port 7432; the React app with
+    `VITE_BACKEND=django`; a real Cognito sign-in against pool `us-west-1_3LU3RSjuH` (us-west-1).
+  - Covered: Professor Ember, the telescope, the lava crossing (including the lava respawn), the
+    valves, the crystal, the rope lift, the return to Ember, and resume after leaving.
+- **Result:** reported by the owner as "it all worked". This is the first browser run of
+  Firepeak, and the first real-Cognito sign-in through this branch's Django API (relevant to
+  ADR-024 gate A6, which is recorded for the gate's owner to close).
+- **Still open:**
+  - The automated Playwright scenarios (`react/e2e/firepeak.spec.ts`, still pending).
+  - Android WebView performance (LAI-2302, approval).
+  - The merge-gate checks.
+  - The 11 GLB models.
+
+## Merge verification of `feature/adr-043-django-content-authoring` (2026-11-01, not merged or pushed)
+
+- **`make check`, Python half:** passes. Ruff, Ruff format, `manage.py check`,
+  `makemigrations --check`, pytest on PostgreSQL 16 (1302 passed) and the ADR check.
+- **`make js-check`:** passes with `VITE_BACKEND` unset, as in CI. That covers typecheck, oxlint
+  (warnings only), Prettier, Vitest (3284 passed in 308 files) and the production build.
+  - Prettier first flagged two Firepeak files; they were formatted, and the content export check
+    still passes.
+  - With the developer's local `react/.env.local` (`VITE_BACKEND=django`), 4 tests in
+    `IslandLocationPage.test.tsx` and `ChildProfileForm.test.tsx` fail. They pass with the flag
+    unset (24/24), and CI has no such file.
+- **Playwright smoke** (`npx playwright test`): 7 passed, 11 skipped (the pending Firepeak
+  scenarios).
+  - This holds without the local `amplify_outputs.json`. With it, the three "no backend
+    configured" guard tests fail, as expected, because the app is configured. CI has no such file.
+- **Docker image** (`docker build -f lai/Dockerfile .`): **not verified.** `pip install` inside
+  the build cannot resolve PyPI on this machine, even with `--network=host`, while the host
+  resolves it. This is local Docker DNS, not a change on this branch; the Dockerfile and
+  `requirements.txt` are unchanged here.
+- **Open before merge:** the Docker image on a machine with working Docker DNS (or in CI), and
+  the owner's decision to merge.
+
 ## Django-controlled S3: asset administrator API, React asset pages, photo URL caching (2026-11-01, branch `feature/lai-django-asset-storage`, not merged, not pushed, nothing deployed)
 
 ADR-042 amended (owner-directed): Django is the control plane for the asset and photo buckets;
@@ -12119,8 +12253,8 @@ and load it into the Phase 1 Sound Manager. No React staff screen, no second ass
 - React: manifest parser, `createManifestSync`, `api/audio` Django source over the shared client and
   asset resolver, `useAudioManifest`; additive Phase 1 changes (cue cooldown, concurrency and fades,
   owned definitions, resolver swap, stable cache key, expired-url retry).
-- ADR-047 (Proposed). Registry rows for ADR-046 (Reserved, AI Question Studio on `dev20261102`) and
-  ADR-047. Docs: `docs/audio/PHASE_2_ASSET_INTEGRATION.md`, usage guide, `ASSET_LIBRARY.md` section 22,
+- ADR-050 (Proposed). Registry rows for ADR-046 (Reserved, AI Question Studio on `dev20261102`) and
+  ADR-050. Docs: `docs/audio/PHASE_2_ASSET_INTEGRATION.md`, usage guide, `ASSET_LIBRARY.md` section 22,
   `DATA_MODEL.md`.
 
 **Tests (all run 2026-11-02, fake browser audio, no Playwright, no browser).**
@@ -12151,7 +12285,7 @@ Cognito sign-in. Treasure Rush and Storykeeper's Castle are not wired to the man
 - ADR-045's registry title did not match its heading (arrived with the merge); aligned so `adr:check`
   passes.
 
-**Open.** Owner acceptance of ADR-047; browser and audible verification; sound authoring and a first
+**Open.** Owner acceptance of ADR-050; browser and audible verification; sound authoring and a first
 published release; Treasure Rush integration (SM-P4); whether to publish per Island rather than
 library-wide.
 ## Phase 28 - AI Question Studio (2026-11-02)
@@ -12271,6 +12405,67 @@ cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR
 Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
 branch), and the owner's playtest of the TR-9 feel items.
 
+## Content authoring task audit (2026-11-02, branch `feature/content`, docs only)
+
+- **Request.** Audit the tracker for the remaining Django content authoring work after `main`
+  was merged into the branch (`59c788b`). Planning only; no application code changed.
+- **Verified against code:** LAI-0810 to LAI-0813 DEVELOPMENT COMPLETE; LAI-0801 stage 1
+  complete, later stages open; LAI-0503 and LAI-0309 PARTIAL; LAI-0814 NOT STARTED; LAI-0815 and
+  LAI-0805 DEFERRED; LAI-0802 revised by ADR-045 and ADR-047. Gaps against ADR-047 recorded
+  (admin log, retirement guard, per-band copy limits, "Use the exported version", revision ids
+  in responses, `check_content`).
+- **New tasks:** LAI-0816 (Django step adventure runner), LAI-0817 (age-band NPC dialogue),
+  LAI-0818 (publication safety, P1), LAI-0819 (ADR reference cleanup, P0), LAI-0820 (branch
+  integration gates, P0), LAI-0821 (milestone acceptance).
+- **Documents:** content-authoring references renamed ADR-047 in CLAUDE.md, ARCHITECTURE,
+  DECISIONS, PLAY_API, the Firepeak roadmap and the content authoring document; ADR-047 now
+  states its relationship to ADR-045 and ADR-046. History entries above keep their wording.
+- **Plan:** `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13 (verified state, ordered P1
+  list with dependencies, conflicts, milestone definition of done).
+
+
+## LAI-0820 merge-readiness verification and LAI-0817 completion (2026-11-03, branch `feature/content`)
+
+- **Request.** Final non-browser merge-readiness verification of `feature/content` for ADR-047
+  content authoring, finishing LAI-0817 if work remained. No merge, no deployment, no browser
+  tests.
+- **Acceptance criteria implemented.** LAI-0817: "Firepeak's band lines leave puzzle parameters
+  without changing play" (`docs/DJANGO_MIGRATION_ROADMAP.md`). LAI-0820: every non-browser merge
+  gate in `docs/TESTING_STRATEGY.md` run and recorded.
+- **LAI-0817 (FP-D9).** Firepeak's `intro`, `completeMessage` and `scienceNote` are 19 banded
+  `puzzleLine` nodes in Professor Ember's exported dialogue. Puzzle rules refuse the old keys and
+  the seed no longer writes them. The bootstrap adds the child's band lines, from the pinned NPC
+  version, to each puzzle's served parameters, so the client and payload are unchanged. Details:
+  `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 14.3.
+- **Defect fixed.** `c1ecea4` made the manifest integrity check skip every `place:` dependency.
+  Now only an adventure's `locationSlug`, a story's `completionWorldChange.locationSlug` and an NPC
+  in the hub may name no Place, in both `verify_manifest_records` and `check_content`
+  (section 14.7). A regression test fails against the old rule (mutation-checked by hand).
+- **Defect fixed.** `tests/golden/director-content.json` digest regenerated after the content
+  change (vectors unchanged).
+- **Editor.** A new test round-trips every record of the committed export through the structured
+  editor unchanged (over 100 records, including Ember's puzzle lines).
+- **Environment.** Fresh `.venv` (`make py-install`) and `npm ci`: the checkout's `node_modules`
+  was a broken symlink, and this branch's lockfile differs from `main`'s. PostgreSQL 16 from
+  `make up` on port 8432. The baseline ran in a separate worktree at `c1ecea4` with its own
+  database.
+
+| Gate | Command | Result |
+|---|---|---|
+| pytest baseline at `c1ecea4` | `make py-test-db` | 2133 passed |
+| pytest (PostgreSQL required) | `make py-test-db` | 2154 passed, 0 failed, 0 skipped |
+| Vitest | `npm test` | 3471 passed, 1 failed (stale golden digest, fixed; `src/test/golden` rerun 6 of 6) |
+| Ruff lint / format | `make py-lint`, `make py-format-check` | pass / 483 files formatted |
+| Django checks | `make django-check`, `make migrate-check` | no issues, no changes |
+| TypeScript | `npm run typecheck` | pass |
+| oxlint / Prettier | `npm run lint`, `npm run format:check` | 0 errors (warnings only) / pass after formatting `tasks/TASK_TRACKER.md` |
+| Production build | `npm run build` | pass |
+| ADR / admin preview / content / golden | `adr:check`, `admin-preview:check`, `content:check`, `golden:check` | 47 decisions; pass; up to date; up to date after regeneration |
+
+**Pending, not claimed:** `test:e2e`, `test:acceptance` and other browser or WebGL checks (not
+run, by instruction), Docker image build (not requested), deployed verification, owner
+acceptance (LAI-0821).
+
 ## Sound Manager Phase 3: Treasure Rush audio (SM-P4, brief ids SM-P3-01 to SM-P3-10) (2026-11-03, branch `feature/sound-manager`, not merged, not deployed)
 
 **Acceptance criteria.** Treasure Rush plays its ambience, music and effects through the shared Sound
@@ -12338,7 +12533,7 @@ lands.
 
 **Checks.** See the end-of-batch delivery notes.
 
-## NPC Manager (Phase 30, `feature/npc-manager`, ADR-050) — development complete, owner acceptance pending
+## NPC Manager (Phase 30, `feature/npc-manager`, ADR-053) — development complete, owner acceptance pending
 
 Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`; contracts: `docs/NPC_MANAGER_CONTRACTS.md`;
 tracker: `tasks/TASK_TRACKER.md` Phase 30.
@@ -12530,3 +12725,793 @@ merge readiness.
 SynthesizeSpeech, so nothing was synthesized or heard. Open (owner): a passing smoke test in the
 target account, audible QA (runbook section 9), the bucket, IAM and lifecycle, Bedrock end to
 end, and cost against the bill.
+
+## Storykeeper Castle Reboot: SC-R01/02 verification, SC-R02, SC-R03-01 (branch `adventures/storybook`, 2026-11-03)
+
+Detail: `tasks/TASK_TRACKER.md` ("Storykeeper Castle Reboot"), the audit in
+`docs/regions/storykeeper_castle_verification_audit.md`, and the asset manifest in
+`docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run (owner instruction).
+Nothing is merged to `main`. Nothing is deployed. No AWS service was called.**
+
+**What the audit found.** SC-R01-01 to 05 and SC-R02-01 were delivered. SC-R02-02 to 09 were not:
+the castle manifest declared no `materials`, `surfaces` or `effects`, so no room was re-dressed.
+ADR-028 is still **Proposed**. No duplicate Phaser, sound, asset-manager or content-backend code
+exists on the branch. It also found a real defect: the swaying secret tapestry ignored
+`prefers-reduced-motion`.
+
+**What was built.**
+
+- **SC-R02 (all eight rooms re-dressed, in development terms).** Each room's look is one module under
+  `three/runtime/manifests/castleRooms/`, aggregated by `storykeeperCastleVisuals.ts`: material
+  presets, textured floor, walls and ceiling, trim, floor inlays, solid-colour box decor with
+  colliders where solid, motes, lamp mood and priority. The kit pieces stay underneath as the
+  fallback. The three costume racks authored in Phase 14 and never placed are now placed. The
+  Storybook dais (empty) and the Entry Hall mural frame (blank) are in place for SC-R04.
+- **Lighting and budgets.** Warm and cool lamps by room, a dais glow, and light priorities so LOW keeps
+  the hearth, hub, library, doorway, dais and corridor. Ten static budget tests: 16 of 16 presets,
+  141 of 160 scenery, about 219 of 300 estimated draw calls, 11 of 14 lights, 1,558 runtime-built
+  triangles. **All provisional until SC-R11 measures a tablet.**
+- **Reduced motion.** `WorldExtensionContext.reducedMotion` (generic); `castle-tale` holds the
+  tapestry at a fixed slight lean instead of swaying. SC-R02-05 is **partial**: no new state-flip glow
+  was added.
+- **SC-R03-01 canonical layout.** `three/castleLayout.ts`, derived from the region (no second
+  router): stable room ids as a save contract, doors with landing points and yaws, optional locks
+  (none today), exits mirrored from the authored interactions, discovery state, routing around locks.
+  Not yet wired into any view.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| Castle, runtime and manifest Vitest group (32 files) | 467 passed (with the stub below) |
+| New layout tests | 24 passed (21 layout, 3 against manifest colliders) |
+| `tsc --noEmit -p tsconfig.app.json` | One error, `Cannot find module '@colyseus/sdk'`, in a file this work did not touch. None in castle files |
+| Production `vite build` | Passed (with the stub; output to a scratch folder) |
+| Prettier, oxlint on changed files | Pass; oxlint warnings are in files this work did not touch |
+| Python, Ruff, Django | Not run: no Python code changed |
+
+**Environment limits, recorded honestly.** `@colyseus/sdk` is not installed in the shared
+`/home/pdimitriu/Coding/node_modules` that this checkout resolves from (the previous session traced
+the same symptom to an inode-full disk). The shared directory was not modified. The castle parity
+suite and the production build were run with a **scratch alias that stubs `@colyseus/sdk`**, kept
+outside the repository. The machine was shared and loaded (load average about 13), `/home` was
+briefly full, and full `three/` suites and `tsc -b` exceeded ten minutes, so checks were run in small
+batches and the typecheck used the app project alone with an incremental cache.
+
+**Not done, not claimed.** SC-R03-02 to 07 (hub navigation and the accessible go-to control, Trophy
+Room, Observatory function, Secret Chamber, map and discovery, navigation regression), all of SC-R04
+and SC-R05, and SC-R06 to 12. The hub's go-to control needs a generic engine position API that does
+not exist. Persisted room discovery needs an owner decision on where it lives. SC-R04 and SC-R05 need
+Django changes and a PostgreSQL test database. **No room is marked visually accepted**: every row
+awaits the owner's browser inspection, and none of the art is production art.
+
+## Storykeeper Castle Reboot: SC-R03 World expansion (branch `adventures/storybook`, 2026-11-03)
+
+Detail: `tasks/TASK_TRACKER.md`, `docs/DECISIONS.md` ADR-028 (now Accepted) and ADR-051,
+`docs/PLAY_API.md` ("Storykeeper Castle room discovery"), and
+`docs/regions/storykeeper_castle_asset_manifest.md`. **No browser test was run. Nothing is merged to
+`main`. Nothing is deployed. No AWS service was called.**
+
+**Built.** The castle went from eight rooms to ten and gained the navigation to match:
+
+- **Canonical layout** (`castleLayout.ts`), derived from the region with no second router: stable
+  room ids, doors with landing points, optional locks in the shared requirement vocabulary, exits,
+  discovery state, routing and travel planning.
+- **A generic engine position API** (`FirstPersonController.teleportTo`, `LocationEngine.placeChild`)
+  that refuses solid, out-of-bounds and non-finite spots, tested on Welcome Harbor, not the castle.
+- **The castle guide**: the accessible equivalent of walking (real buttons, a live region, the walking
+  route in words, locked entries with their reason, a back-to-hub button, the Trophy Room treasures as
+  text) and **the castle map** built from the layout.
+- **Trophy Room** (new, ninth room): six solid pedestals showing the child's real inventory through the
+  existing reward items, with four open pedestals reserved for SC-R07. No second reward store.
+- **Observatory** as the Setting Tower's second function: a telescope and a star chart, flavour only.
+- **Secret Chamber** (tenth room), behind the tapestry nook: hidden from every list and refused as "not
+  on the map" until the nook is found, physically sealed, opening live. New generic
+  `DISCOVERY_ABSENT` requirement.
+- **Django-persisted room discovery** (ADR-051): an ordinary `WorldChange` behind one child-scoped
+  endpoint, no new model or migration; a secret room gets the identical 404 an unknown room gets.
+- **Per-room scenery budgets**, replacing the single castle-wide cap.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| Castle, runtime, extension and API Vitest (80 files) | 1130 passed, with the real `@colyseus/sdk`, no stub |
+| `tsc --noEmit -p tsconfig.app.json` | Clean |
+| `tsc -b` and `vite build` (the production build) | Both exit 0, no stub |
+| Django, PostgreSQL (game_sessions, regions, progression, users) | 640 passed |
+| Ruff, `manage.py check`, `makemigrations --check` | Clean, no issues, no changes |
+| `content:check`, `golden:check`, `adr:check` | Up to date, up to date, 47 decisions |
+| Prettier, oxlint on new and changed files | Pass, no new warnings |
+
+**Environment.** `@colyseus/sdk` was installed into this checkout's own `node_modules/@colyseus/` (the
+pinned 0.18.4; the shared directory was not touched). Django tests ran on a separate PostgreSQL
+container, `lai-storybook-pg` on `127.0.0.1:5455` with its own volume, using a sibling checkout's
+read-only virtualenv, with `POSTGRES_PORT=5455 LAI_REQUIRE_POSTGRES=1`.
+
+**Limits, all at the line.** Original-room scenery 160 of 160, material presets 16 of 16, MEDIUM lights
+14 of 14, estimated draw calls about 277 of 300. All provisional until a real tablet is profiled
+(SC-R11).
+
+**Not done, not claimed.** SC-R04 (the Great Storybook) and SC-R05 (characters), SC-R06 to 12. No room
+is visually accepted: every row awaits the owner's browser inspection, and none of the art is
+production art. Until the nook discovery write path moves to Django, a Django-mode server cannot
+persist a secret-room discovery (it works in the world and nothing leaks).
+
+## Integration of content authoring with dev20261103 (2026-11-04)
+
+- **Request.** Merge `origin/feature/content` (ADR-047) with `origin/dev20261103` (Sound Manager, Storykeeper SC-R02 to SC-R04) without losing either side, then push `dev20261103`.
+- **Conflicts.** 11: `urls.py`, two backend tests, the export test counts, four docs, and the regenerated `islands.json`, `manifest.json` and `director-content.json`. ADR numbering collided on ADR-047; the Castle room-discovery ADR is now **ADR-051** (next free number 052).
+- **Fix.** `AreaPuzzleLayer.test.tsx` scene mock gained `entityPositionReader`, `unlockPositionReader`, `listenerSource` and `onFrame`.
+- **Verified (non-browser).** pytest on PostgreSQL 2483 passed, 0 skipped; Vitest 4382 passed; Ruff, oxlint, Prettier, typecheck, build, `content:check`, `golden:check`, `adr:check`, Django check and migration check clean.
+- **Not done.** Browser acceptance, deployed verification and LAI-0821 stay pending.
+
+## Bedrock readiness: LAI-0603, LAI-0709, AI reliability, live-test tooling (2026-11-04, branch `feature/ai-bedrock-readiness`, based on `origin/dev20261103`)
+
+**Status: development complete for what is feasible without AWS. Nothing was run against AWS,
+nothing was deployed, no browser test was run. LAI-0705, LAI-0710 and Guardrail validation are
+NOT accepted.** Owner workflow: `docs/AI_BEDROCK_ACCEPTANCE.md`. Design notes: `docs/AI_SERVICE.md`
+section 12.
+
+- **Acceptance criteria implemented.** LAI-0603: Python mastery rules at golden-vector parity,
+  server-graded evidence writes `SkillProgress` (Treasure Rush and Django adventure answers),
+  tutor `learnerProfile` built only from Django records with a safe fallback. LAI-0709 (partial):
+  NPC narration carries NPC identity, Island/Place/3D Area, the child's own relationship and
+  quest; optional eligibility enforcement; session turns refuse content republished after the
+  session started. Reliability: one shared Bedrock client, optional first-call timeout, retry
+  classification, `content_filtered`/`tool_use`/non-object replies. Tooling: `ai_live_check
+  --dry-run` and `--confirm-paid-calls`, `--npc`, `--timeout-probe`; `studio_run_batch
+  --dry-run`/`--confirm-paid-calls`; read-only `studio_batch_report`.
+- **Created.** `apps/education/mastery.py`, `apps/ai/services/{learner,npc}.py`,
+  `studio_batch_report.py`, tests (`test_mastery*.py`, `test_learner_context.py`,
+  `test_npc_narration_context.py`, `test_bedrock_reliability.py`,
+  `test_red_team_narration_mastery.py`, `question_studio/tests/test_readiness.py`),
+  `docs/AI_BEDROCK_ACCEPTANCE.md`.
+- **Changed.** `education/services.py`, `game_sessions/services.py` (`step_is_pinned`),
+  `ai/services/{context,companion,tutor}.py`, `ai/providers/*`, `ai_live_check.py`,
+  `studio_run_batch.py`, `config/settings/base.py`, the AI test catalog fixture, docs and tracker.
+- **Defects found and fixed.** A Bedrock client was built for every turn (pool and warm state
+  lost); a progress-store read error produced a 500 instead of degrading; AI session turns were
+  not pinned to the session's adventure version; `SkillProgress.recent_level` was never computed
+  on the server.
+- **Checks run.** PostgreSQL 16 in Docker, `pytest` on: `lai/apps/ai`, `lai/apps/education`,
+  `lai/apps/question_studio`, `lai/apps/speech`, `tests/` (golden), and the game_sessions answers,
+  sessions, chest, play, lookout, pips and concurrency tests: all passed (889 + 441 + 32 across
+  the batches; the last batch alone 889 passed). `ruff check`, `ruff format --check`, `manage.py
+  check`, `makemigrations --check`: clean. `npm run golden:check`, `npm run content:check`:
+  clean. `npx vitest run infra/lib/aiGuardrailStack.test.ts` (static synth): 9 passed. React AI
+  Vitest (`src/api/ai`, `features/{companion,tutor,npc}`): 238 passed (one run under heavy
+  machine load reported 15 unhandled timer errors that did not recur; no React file changed).
+- **Not run.** Full pytest (regions, quests, assets, users, catalog, etc. outside the above),
+  full Vitest, `npm run typecheck`, `npm run build`, Playwright, any AWS call. Merge
+  verification still owes these.
+- **Not done / blockers.** Live Bedrock acceptance and Guardrail effectiveness (owner, approval);
+  Marketplace billing coverage unverified; story scenes and Amplify-session adventures still
+  `CLIENT_AUTHORED` (no Django story catalog, LAI-0309/0607); NPC state still in Amplify
+  (LAI-0605), so eligibility enforcement is off; React adventures write no Django evidence until
+  LAI-0501; Firepeak/ADR-043 content is on an unmerged branch and was not recreated; retention
+  periods need owner approval (follow-up LAI-0711); Amplify routes untouched (LAI-0710).
+
+## AI / Bedrock / Chatty final acceptance QA (2026-11-07, branch `qa/ai-bedrock-chatty-acceptance-20261107`)
+
+**Status (updated later 2026-11-07): live Bedrock and Guardrail checks and the Django red team
+pass on a local Django; not yet run on a deployed Django host.** The first-pass findings below
+were recorded before the owner configured AWS. Full report: `docs/AI_BEDROCK_CHATTY_QA_REPORT.md`.
+
+- **Branch audit.** `features/ai` is an ancestor of `main` (0 ahead, 38 behind).
+  `feature/ai-bedrock-readiness` is 71 ahead and 0 behind, and fast-forwards. Its 71 commits
+  include the Sound Manager (SM-P1 to SM-P8) and Storykeeper Storybook (SC-R01 to SC-R04)
+  subprojects as well as 5 AI commits.
+- **Defects fixed.** D-1 (child safety): the Django output policy served secrecy ("keep it a
+  secret from your mom"), guilt ("I'll be so sad if you leave"), claims of being a person or kid,
+  and school, age or home questions as AI turns; fixed in `content_safety.boundary_violations`
+  (`ab8da67`). D-2: the input screen was bypassed by whitespace padding and missed common
+  injection and private-detail phrasings (`258ae9e`). 49 regression tests; 35 fail on the old code.
+  No new hits in 33,585 / 30,429 authored strings.
+- **Browser.** New `react/e2e/acceptance/chatty-ai.spec.ts` (5 tests, fake provider): multi-turn
+  companion and tutor turns through the app's own client in a real browser, screened-input
+  fallback, parent safety history and clearing, cross-family 404s, Django Admin kill switch,
+  three viewport sizes. Chatty's own screens still need Amplify Data (Gate B).
+- **Live AWS.** Session IAM user: one 5-token Converse probe returned AccessDeniedException; all
+  Bedrock reads are denied; no Guardrail, Django host or `/lai/*` SSM exists in the account. No
+  live evidence was recorded; LAI-0705 and Guardrail validation are still NOT accepted.
+- **Live follow-up (same day).** Owner granted Bedrock access; Guardrail `lai-child-safety-dev`
+  v1 deployed as the Guardrail-only stack `LaiAiGuardrailOnly-dev` (us-west-1). `ai_live_check`
+  (companion, tutor, NPC, Guardrail probe, timeout probe) passes after D-3 (instruction wording
+  in Guardrail-assessed blocks tripped the prompt-attack filter). The Django red team with real
+  Cognito sign-in passes 29/29 after D-4 (a home-and-family question reached the child).
+  Outstanding: deployed-host run, rate-limit and kill-switch drills, Studio batch, prices, Cost
+  Explorer.
+- **Deferred to the owner:** the AWS steps in the report's section 3, the live runbook
+  (`docs/AI_BEDROCK_ACCEPTANCE.md`), the Gate B browser pass, real Cognito sign-in, and acceptance
+  of the bundled Sound Manager and Storybook work.
+
+## Dev environment: `make runserver` uses AWS profile `learning-dev` (2026-11-07, Trello GiiJtE1W)
+
+- `Makefile`: `runserver` exports `AWS_PROFILE ?= learning-dev` as a target-specific variable, so
+  the Django dev server and its autoreloader child resolve AWS credentials through that named
+  profile. `make runserver AWS_PROFILE=other` overrides it; a value exported in the shell wins.
+  Other targets, tests and deployed environments are unaffected. No credentials are committed and
+  the profile is not created; it must exist in the developer's AWS config (documented in
+  `README.md`). Existing arguments and working directory (`lai/`, `manage.py runserver`) unchanged.
+- Tests: `tests/repo/test_makefile_runserver.py` runs `make runserver` with `PY` pointed at a stub
+  that echoes its environment: default profile, command-line override, shell value kept, and the
+  default scoped to `runserver` only. `pytest tests/repo`: 7 passed; ruff clean.
+- Not verified here: resolving real credentials from a configured `learning-dev` profile (no AWS
+  config in this container); that is standard boto3 named-profile behavior.
+
+## LAI-0808: Island Explorer on the child homepage (2026-11-07, branch `ccr-e637a676-n40y0h`)
+
+- **Why rebuilt.** The Trello card "[Subproject] Island Explorer / Homepage" pointed at LAI-0808 /
+  commit `73fd152`. Neither exists on any branch or PR in `paulj3000/learning`; the work was never
+  pushed. The owner asked for a rebuild (2026-11-07).
+- **Acceptance.** `/island/:childId` lists every Island the child's age band can see, from the
+  same rules as the sailing dock (`listTravelDestinations`). The current Island comes first with
+  its Places (secret Places hidden until opened, admin-deactivated Places never shown). An open
+  Island links to `/island/:childId/worlds/:slug`. A locked Island shows "Not open yet" and its
+  authored hint, is never a link or button, and names no skill or score; a world with no hint
+  gets one fallback line. Tablet-first, one column on phones, no horizontal scroll.
+- **Built.** Pure view model `react/src/features/worlds/islandExplorer.ts`; presentational
+  `react/src/features/island/IslandExplorer.tsx` with a CSS module; `WelcomeHarbor` uses it in
+  place of its home-Places grid and drops the now-redundant "Sail to another island" link (the
+  sailing dock stays reachable through "Leave island"). Computed from the world changes the page
+  already loads: no new request, no new failure mode.
+- **Tests.** New `islandExplorer.test.ts` (ordering, locked hint and fallback, opening per age
+  band including the Explorer tide gate, secret and deactivated Places, no other Island's
+  Places) and `WelcomeHarbor.test.tsx` (home first, locked card has no link or button, sailing
+  and Place navigation, age band, admin-hidden Place, error state).
+- **Checks run.** Full Vitest 384 files / 4329 tests pass; `npm run typecheck` clean; oxlint exit
+  0 with no findings in changed files; `prettier --check .` clean; `npm run build` passes; Playwright
+  smoke 7/7 (run with `executablePath: /opt/pw-browsers/chromium` because the container's
+  pre-installed browser differs from the pinned Playwright build). Browser harness at 375, 820 and
+  1280 px, locked and open states: no horizontal overflow, every link at least 44 px, no console
+  errors, keyboard focus reaches the first Place.
+- **Not covered.** A signed-in run against a real Cognito account and backend (the child route
+  needs one); owner acceptance on a tablet. Django-served Islands (`GET /children/<id>/islands/`)
+  are not used here yet.
+## Owner QA: AI Question Studio automated acceptance (2026-11-07)
+
+Branch `qa/aqs-acceptance-20261107` from `main` `5222b690`; not merged. Full report, coverage
+matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
+
+- **LAI-AQS-026: PASS (automated, Chromium).** New `react/e2e/acceptance/question-studio-qa.spec.ts`
+  walks author, reviewer and publisher accounts through generate, edit and revalidate, a mixed bulk
+  approval, reject, publish, the published-revision query, Treasure Rush eligibility (an Explorer
+  gets the bank question; after retiring, the authored fallback), the retired page staying
+  read-only, permission denials, the generate, list and review pages at 390px, and a `thread`
+  run-mode batch finishing (`LAI_E2E_STUDIO_RUN_MODE=thread`, new opt-in in
+  `tests/e2e/django_server.py`). Browser acceptance: 38 passed, 0 failed, 2 skipped by design;
+  thread run 1 passed; no console errors, uncaught exceptions, failed requests or 5xx.
+- **LAI-AQS-025: BLOCKED.** No AWS credentials, Guardrail id or price settings in the QA
+  environment; no Bedrock call was made and none was simulated as a pass.
+- **Defects fixed:** QA-AQS-D1 (a retired or superseded question could be edited back to DRAFT
+  and republished, leaving two ACTIVE revisions; `workflow.edit` now refuses and the Admin page is
+  view-only), QA-AQS-D2 (a Grade K question beyond its number range, approvable past a warning, was
+  served to Sprouts; `selection.to_challenge` now enforces the grade range), QA-AQS-D3 (the
+  Generate Questions page scrolled sideways at 390px; small Admin stylesheet).
+- **Tests:** 36 new in `lai/apps/question_studio/tests/test_qa_acceptance.py` (Studio app 164
+  passed). Full Python suite (PostgreSQL required): 1881 passed before the fixes, 1917 passed, 0 failed after.
+- **Open, owner decisions:** bank questions follow grade ranges rather than the authored band
+  limits; editing a never-published rejected question returns it to DRAFT without approval
+  permission; see the report.
+
+## Owner QA: AI Question Studio live Bedrock, LAI-AQS-025 (2026-11-07, follow-up)
+
+- **Run:** real Bedrock in `us-west-1` with Guardrail `lai-child-safety-dev` v1 and Haiku 4.5
+  (US profile), as IAM user `learning-dev` from the QA container (not the instance role).
+  Report: `docs/qa/aqs-2026-11-07/AQS-025-live-bedrock.md`.
+- **QA-AQS-D4 (high), fixed:** the Guardrail's PROMPT_ATTACK filter blocked our own
+  instructions. Every Studio batch failed `GUARDRAIL`, and so did every DJANGO_CATALOG or
+  DJANGO_SESSION companion turn (they had no `guardContent`, so Bedrock assessed the whole
+  message). A client-context companion turn was blocked on our own preamble inside the guarded
+  block. The AI/Bedrock QA fixed the same defect on main (`ContentPart.guarded`,
+  `test_guardrail_content_layout.py`). At the merge, this branch's equivalent `screened` fix
+  was dropped in favour of main's. Live results were re-verified on the merged code.
+- **After the fix:**
+  - `ai_live_check --guardrail-probe` passes.
+  - Grade 1, 3 and K batches each produced 5/5 on one attempt, in 5 to 10 s per chunk
+    (limit 60 s).
+  - The Guardrail probe batch stored 0 questions.
+  - 13 of 15 answer keys were verified by code. All drafts are NEEDS_REVIEW.
+  - About $0.0008 to $0.0010 per question at list price (to be confirmed for Bedrock).
+- **Owner:** confirm the price settings, judge question quality (the Grade K batch has an
+  unanswerable item and K-level multiplication), and rerun under the instance role.
+- **Merged to main and owner-accepted 2026-11-07.** LAI-AQS-024, 025 and 026 are closed. The
+  after-merge live run passed: companion, tutor and Guardrail probe; Grade 1 and Grade 2 reading
+  batches 5/5; probe batch stored nothing. Carried forward: the price confirmation, a rerun
+  under the instance role, and the two validation suggestions in the report.
+
+## Merge `main` into `dev20261103` (2026-11-07)
+
+- **Why.** `main` moved (PR #3 AI / Bedrock / Chatty acceptance, PR #5 Island Explorer, `make
+  runserver` profile); `dev20261103` was 20 ahead / 21 behind. None of its ADR-047 content
+  authoring or Firepeak commits are on `main` (`git cherry`: 18 of 18 unique).
+- **Conflicts (6).** `game_sessions/services.py`, `config/settings/base.py`, `WelcomeHarbor.tsx`,
+  the roadmap, this file and the tracker.
+  - Skill evidence: both sides wrote it on each graded answer. It is now written once, by
+    `education.services.record_step_evidence` (which also applies mastery, LAI-0603), from the
+    step body the session is graded on (pinned revision, LAI-0813). It records `difficulty` as
+    the step runner did, and skips objective codes the catalog does not declare (main's rule).
+  - `step_is_pinned` keeps main's version-and-release rule and, for a pinned session, also
+    requires the catalog step to hold the pinned body, so AI context never narrates content
+    the session is not graded on. Consequence: after a republish, AI hints for that step fall
+    back to the authored copy until the child starts a new session (as on `main`).
+  - Welcome Harbor: the Island Explorer replaces the home-Places grid; Django-served Places
+    (Firepeak Volcano) join the home island's places through a new `servedPlaces` input of
+    `buildIslandExplorer` (test added). Settings keep both new flags.
+- **Checks run (local PostgreSQL 16).** Full pytest: 2718 passed, 5 failed at the merge seam;
+  after the fix `ai`, `game_sessions`, `education`, `catalog` 1009 passed. Vitest 4399 passed;
+  typecheck, oxlint, Prettier, Ruff (check and format), Django check, migration check,
+  `adr:check`, `admin-preview:check`, `content:check`, `golden:check`, build: clean.
+  Playwright acceptance 35 passed, 1 skipped (touch drag on the desktop project, by design);
+  e2e smoke 7 passed, the 11 Firepeak scenarios are `test.fixme` (not written). Chromium was the
+  container's preinstalled build (`executablePath`), not the pinned Playwright build.
+- **Second merge (same day).** `main` then gained PR #6 (LAI-0808 closed) and the AI Question
+  Studio owner acceptance (`qa/aqs-acceptance-20261107`); docs-only conflicts. After it:
+  `question_studio` pytest 171 passed, Ruff clean, Playwright acceptance 43 passed, 2 skipped.
+- **Not done.** Owner browser QA (Firepeak FP-13, Storykeeper Castle, Django Admin authoring,
+  the Island Explorer with Firepeak), deployed verification, LAI-0821 acceptance, merge to main.
+
+## LAI-INFRA-001 infrastructure inventory (2026-11-09, branch `infra/lai-infra-001-inventory`, docs only, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-001 | `docs/infrastructure/inventory.md` | **Not possible in this session** (no AWS CLI; AWS and package-registry endpoints refused; GitHub Actions API refused) | Open: owner review, read-only checks in section 8, and `lai-dev-complete.yaml` (blocker B1) |
+
+- Inventories the 5 CDK stacks (`infra/`), the Amplify Gen 2 backend (22 models, not 17 as in
+  `docs/CURRENT_AWS_RESOURCE_INVENTORY.md`), Amplify Hosting config, `deploy-django-ec2.yml`, the
+  EC2 Compose/nginx runtime and the scripts that deploy them, with region, environment, deployed
+  vs. proposed and ownership questions U1 to U10.
+- Deployed state is taken from the owner's 2026-11-01 CLI record (no `Lai*` stack in
+  `008331939914`/`us-west-1`) and the 2026-11-07 QA report (out-of-band `LaiAiGuardrailOnly-dev`).
+- `lai-dev-complete.yaml` is not in the repository or its history; requested from the owner.
+- Checks: docs only, so no unit tests or typecheck apply. Prettier not run (`npm ci` could not
+  reach the registry); deferred to merge verification.
+
+## LAI-INFRA-002 resource ownership and duplicate stack audit (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, docs only, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-002 | `docs/infrastructure/resource-ownership.md` | **Not possible in this session** (AWS CLI calls refused by the session's permission settings) | Open: owner decisions D1 to D6, read-only checks in section 8, and the `lai-dev-complete.yaml` comparison (blocker B1) |
+
+- One proposed owner per resource for VPC, EC2, ALB, RDS (Single-AZ), Cognito, S3 (assets, child
+  photos, Amplify, frontend, admin static), CloudFront, ACM, Route 53, WAF, Lambda, SQS, IAM,
+  SSM, ECR, Guardrail, monitoring and pipelines, built on the LAI-INFRA-001 inventory.
+- Risks recorded: fixed physical names make a second definition fail, while unnamed resources
+  (VPC, EC2, ALB, CloudFront) duplicate silently; `RETAIN` resources block redeploys until
+  imported; cross-stack links are by name, so deletion order is not enforced.
+- `lai-dev-complete.yaml` is still missing. It is treated as owning nothing; section 5 lists the
+  comparison to run once it arrives. Its contents are known only from the DevOps card.
+- LAI-INFRA-001 correction: the PR for this entry and the previous one used branch
+  `claude/lai-infra-001-pr-kwauv3`; the Prettier check deferred there passed on 2026-11-09.
+- Checks: docs only, so no unit tests or typecheck apply. `prettier --check` passes on the changed
+  files.
+
+## Merge `main` into the `dev20261103` integration (2026-11-09, branch `claude/jolly-ride-92xktb`)
+
+- **What.** `origin/dev20261103` plus `main`'s LAI-INFRA-001 and LAI-INFRA-002 docs (PRs 7 and 8).
+  One conflict, this file (both sides appended a section; both kept). No code changed.
+- **Checks run (local PostgreSQL 16, Node 22, Python 3.13).** Full `make py-test-db`: 2759
+  passed, 0 failed, 0 skipped (closes the gap left on 2026-11-07, when only `ai`,
+  `game_sessions`, `education` and `catalog` were re-run after the seam fix). Ruff check and
+  format, Django check, migration check: clean. `adr:check`, `admin-preview:check`,
+  `content:check`, `golden:check`, typecheck, oxlint (warnings only), Prettier, build: clean.
+  Vitest 4399 passed. Playwright acceptance 43 passed, 2 skipped (touch drag on the desktop
+  project; `@thread` run mode), run against the container's preinstalled Chromium build 1243
+  because the pinned Playwright expects build 1234.
+- **Not run.** e2e smoke (`test:e2e`; the 11 Firepeak scenarios are still `test.fixme`).
+- **Not done.** Owner browser QA (Firepeak FP-13, Storykeeper Castle, Django Admin authoring,
+  the Island Explorer with Firepeak), deployed verification, LAI-0821 acceptance, merge to main.
+
+## LAI-INFRA-003 target domains, hosting and security (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, proposed changeset, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-003 | `docs/infrastructure/domains-and-hosting.md`; CDK, nginx and release-script changeset | **None** (no AWS access; nothing deployed or changed in DNS) | Open: owner review, name choice per environment, Route 53 question (U10), approved rollout (doc section 7) |
+
+- Owner decision (2026-11-09): **same-origin API.** `lai.` CloudFront sends `/api/*` to the ALB,
+  and Django keeps no CORS (TR-D14). `api.` and `ladm.` share the ALB with one us-west-1
+  certificate. The React site is a new `LaiFrontend-<env>` stack in us-east-1 (private S3 with OAC,
+  narrow SPA rewrite, `/game/` entry for Android).
+- Host isolation: the ALB forwards only the API and admin hosts (otherwise a 404). nginx serves
+  `/api/` only on the API host, and the admin but never `/api/` on the admin host. CSRF trusts the
+  admin host only.
+- Found and fixed while testing: nginx's own redirect would have been absolute with port 8080
+  (`absolute_redirect off`). The Android game page must use `lai.` (one origin with the API), not
+  `api.`.
+- Checks: infra vitest 62 passed. `tests/deploy` passed, including the new real-nginx host test.
+  `npm run typecheck` and lint are clean. Prettier and ruff are clean on the changed files. All six
+  stacks synthesize with no assets. Not run: Django suite (no Django code changed), `cfn-lint`
+  (deferred to LAI-INFRA-005), shellcheck (not installed).
+
+## LAI-INFRA-004 deployment automation ownership (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, design plus gated code, nothing switched on)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-004 | `docs/infrastructure/deployment-design.md`; `deploy-site.yml`, `site-release` action, `publish-site.sh`, site deploy role | **None** (no AWS access; the workflow is gated off by `LAI_SITE_DEPLOY_ENABLED`) | Open: owner review, first gated dev run (confirms the `ampx generate outputs` IAM set), choosing (a) or (b) for the Amplify backend pipeline after acceptance |
+
+- Owner decisions (2026-11-09):
+  - GitHub Actions with OIDC is the only release system; CodePipeline/CodeBuild is not adopted.
+  - This PR ships the design and gated code.
+- How it works:
+  - Backend and frontend ship from the same `main` commit. The site waits for that commit's Django
+    release when the push touched backend paths, and stops if that release failed.
+  - Site rollback restores `_releases/<sha>/` shells, with no rebuild.
+  - Hashed assets are never deleted. Only the shells are invalidated.
+  - The site role has no S3 delete right and trusts only `environment:site-<env>`.
+- Checks:
+  - Infra vitest: 63 passed.
+  - `tests/deploy`: all passed, including 8 publish-script tests (fake `aws`) and 4 workflow guard
+    tests.
+  - `actionlint` is clean on both deploy workflows.
+  - `npm run typecheck` and lint are clean.
+  - Prettier and ruff are clean on changed files.
+- Not run: a real AWS or GitHub Actions run (gated off by design).
+
+## LAI-INFRA-005 reconciliation and validation (2026-11-09, branch `claude/lai-infra-001-pr-kwauv3`, owner review, nothing deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-INFRA-005 | `docs/infrastructure/reconciliation-report.md`; ownership matrix updated; one verified-safe definition fix; cross-stack reference test | **None** (no AWS access) | Open: owner review; blocker B1 (`lai-dev-complete.yaml`); approval requests in report section 6 |
+
+- Validation evidence is in report section 2:
+  - YAML (9 files) and JSON (51 files): no duplicate keys.
+  - 12 synthesized templates (dev and prod).
+  - `cfn-lint` 1.60.0.
+  - `actionlint`.
+  - Region, naming, tag and secret scans.
+- **Fixed:** `cfn-lint` W3010 showed `LaiDjangoEc2` subnets in the placeholder AZs
+  `dummy1a`/`dummy1b`, because `provision.sh` synthesizes with a concrete account and no context
+  lookup. The first `provision.sh dev` would have failed. The stack now takes its AZs from
+  `Fn::GetAZs`, and a test fails without the fix.
+- **Added:** `infra/lib/crossStackReferences.test.ts` (18 cases). It checks that every by-name
+  reference between stacks (policies, roles, log group, topic, buckets, ECR, OIDC provider)
+  resolves to a created resource, that physical names are unique and `lai`-prefixed, that every
+  stack carries the project tag, and that each stack is in its intended region.
+- **Open:**
+  - B1 `lai-dev-complete.yaml`.
+  - C9: a test credential committed in `.claude/settings.json`.
+  - C10: `cfn-lint` W3691 on the PostgreSQL major-only version (unverified).
+  - The other items are in report section 5.
+- Checks:
+  - Infra vitest: 82 passed.
+  - `tests/deploy`: 81 passed.
+  - Typecheck, lint, Prettier, ruff and `actionlint` are clean.
+
+## LAI-1002/1004 AWS dev infrastructure acceptance: runbook and read-only checks (2026-11-10, branch `claude/lai-infra-001-pr-kwauv3`, nothing deployed, not accepted)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| LAI-1002/1004 | `docs/infrastructure/dev-acceptance.md`; `scripts/aws/verify-dev.sh` (read-only) | **Not possible from Claude.** `.claude/settings.json` denies `Bash(aws:*)`, and the owner chose to keep that rule (2026-11-10) | Open: the owner runs the steps in sections 2 and 3, then the script; acceptance needs 0 FAIL with the token checks (section 4) |
+
+- `verify-dev.sh` checks 25 items:
+  - identity and the dev stacks;
+  - EC2 with IMDSv2 and the SSM agent;
+  - target health and the ALB's unknown-host 404;
+  - RDS: Single-AZ, private, encrypted, deletion protected;
+  - the 12 SSM setting names (values never decrypted);
+  - both buckets (private, versioned, encrypted, distinct);
+  - the Cognito pool and JWKS;
+  - API and admin host isolation over HTTPS;
+  - with a test parent's access token: `POST /me`, the child list and child home (progress);
+  - optionally, the CloudFront site.
+- It uses only `describe`, `get`, `list` and `head` AWS operations; a test enforces this.
+- Found while writing it: Django accepts Cognito **access** tokens only (`token_use=access`), so the
+  script and runbook ask for an access token.
+- Checks:
+  - `tests/deploy/test_verify_dev.py`: 9 passed (fake `aws` and `curl`).
+  - `tests/deploy`: all passed.
+  - Prettier and ruff are clean.
+  - No AWS call was made.
+
+## Adventure Portal AP-01 and AP-04: design system, shells, and leaving an island (2026-11-07, branch `feature/adventure-portal`)
+
+Trello: "[Subproject] Adventure Portal & Learning Dashboard", cards AP-01 and AP-04. Development
+complete and unit-tested; **not yet seen in a browser or on a device** (Playwright and the
+merge-readiness gates are deferred to integration, as the brief directs).
+
+**AP-01: Tailwind design system and responsive shell** (ADR-052, Proposed)
+
+- `react/src/features/portal/portal.css`: a second Tailwind 4 entry, reference-only theme with
+  the ocean, tropical, treasure, coral and purple families; no reset; no `:root` variables.
+- `react/src/features/portal/ui/`: `PortalButton` (real `<button type="button">`, `asChild` for
+  links, 48px/56px touch targets, focus ring kept), `PortalCard`, `ProgressIndicator`
+  (`progressbar` with "2 of 5 steps" in words, never a percentage or score).
+- `react/src/features/portal/shell/ChildShell.tsx`: one `<nav aria-label="Island">` that is a
+  bottom bar on phones and a sidebar from `md`; Island Explorer, Sailing dock, Adventure log,
+  Quest journal, Library; `aria-current="page"`; exits in the top bar. `IslandLayout` now renders
+  through it, so every child-mode screen gets the shell; page content keeps its CSS Modules.
+- `react/src/features/portal/shell/ParentShell.tsx`: a distinct "Parent space" top bar, adopted by
+  `ParentDashboard`. Other parent pages still use their own headers (follow-up).
+
+**AP-04: Adventure routing and return-to-hub flow**
+
+- `exit/adventureRoutes.ts`: one typed `portalPath` for every portal destination; the hub is the
+  Island Explorer at `/island/:childId`.
+- `exit/exitCoordinator.ts` (pure) and `exit/IslandExitContext.tsx`: "Leave island" flushes
+  registered saves (never rejects, abandons a slow save after 2.5s so a child is never stuck),
+  then navigates to the Island Explorer with `{ leftIsland: true }`, where a status line says the
+  adventure is saved. **No arithmetic, quiz or other challenge** is on this path. The adult exit
+  to the parent space keeps its `ParentGate`, unchanged.
+- "Confirm where needed": only while a 3D encounter is open, a two-button "Leave the island now?"
+  dialog (focus on "Keep playing"; Escape stays). Nothing to answer.
+- `ThreeLocationWorldView` tracks its fire-and-forget writes (checkpoint, character met,
+  collectible world change) so leaving waits for one still in flight.
+- `WorldStage` shows "Leave island" inside full screen, where the top bar is hidden.
+- Changed: "Leave island" was a link to the Sailing Dock; it is now a button to the Island
+  Explorer, and it is offered on the Sailing Dock too (hidden only on the Explorer itself).
+- Educational challenges inside adventures are untouched.
+
+**Tests run (unit, Vitest):** `src/features/portal`, `src/features/island`, `src/features/island-map`,
+`src/features/region-play`, `src/routes`, `src/app` (all pass; counts in the Trello comment).
+`tsc -b` clean. `npm run adr:check` passes.
+
+**Deferred to integration / remaining risks**
+
+- Playwright, lint, full suite and build not run (brief: until ready for integration).
+- Not viewed in a browser: the bottom bar's fit at 320px with five labels, the sidebar beside 3D
+  canvases at `md`, and full-screen leave placement need visual checks.
+- Phaser world pages and card adventures save per step already and register no exit participant;
+  they leave immediately. Story sessions likewise.
+- ADR-052 awaits owner acceptance.
+
+### AP-01 follow-up: the portal theme on the child homepage (2026-11-10, branch `feature/adventure-portal`)
+
+Why the theme was not visible: the 2026-11-07 commit (`0f924af`) added the tokens, the components
+and the `ChildShell`/`ParentShell` chrome, but the child homepage (`/island/:childId`,
+`WelcomeHarbor`) still drew its content with CSS Modules: `PortalCard` and `ProgressIndicator`
+were used by no page, and only the sidebar/bottom bar changed. The commit is also on an unmerged
+branch, and both frontend release paths (Amplify Hosting auto-build and `deploy-site.yml`)
+publish `main` only, so none of it is deployed.
+
+Changed:
+- `WelcomeHarbor`: ocean hero (avatar, "Welcome back", today's event and the seasonal note as
+  treasure/ocean callouts, the "Your adventure is saved." status in tropical), and the extra links
+  as a "More to explore" grid of `PortalButton` links in each portal tone.
+- `IslandExplorer`: the "You are here" island is an ocean `PortalCard` with places in rotating
+  tropical/coral/purple/treasure cards; open islands are treasure cards with a "Sail here" pill;
+  locked islands are a dashed plain card. Same links, text and structure as LAI-0808.
+- Both files added to `portal.css`'s `@source` list; their CSS Modules deleted.
+- `portalCss.test.ts`: new check that every file using the portal components or palette is
+  covered by an `@source` entry (with `source(none)`, an unlisted file silently gets no styles),
+  and contrast pairs for the homepage headings.
+- `WelcomeHarbor.test.tsx`: the homepage renders the hero, explorer card and buttons with portal
+  classes inside the child shell.
+
+Checks: Vitest `src/routes/WelcomeHarbor.test.tsx`, `src/features/portal`, `src/features/island`
+(152 files, 1767 tests pass); `tsc -b` clean; `vite build` emits the homepage utilities. Viewed in
+headless Chromium at 1280px and 390px through a local harness with the API modules stubbed
+(Amplify Data is not available offline): hero, cards and buttons render in the portal colours.
+
+Still open: merge to `main` and a release (owner approval); AP-02 (XP/level, missions, rewards
+from Django) and AP-03 (Django-published island discovery) are not implemented; Playwright, lint,
+full suite at integration; ADR-052 acceptance.
+
+### Merge `main` into `feature/adventure-portal` (2026-11-10)
+
+- `main` was 42 commits ahead. Two conflicts, both additive:
+  - `WelcomeHarbor.tsx`: kept AP-04's `leftIsland` and `main`'s `useServedPlaces` (Django-authored
+    places such as Firepeak Volcano), which now feed the portal-styled Island Explorer.
+  - This file: kept `main`'s sections, then the Adventure Portal sections.
+- Checks: `tsc -b` clean. Vitest over `src/routes`, `src/features/{portal,island,worlds,region-play,island-map}`
+  and `src/app`: 187 files, 2168 of 2169 passed. One failure,
+  `RegionPlayCompanion.test.tsx` "sends a double-tapped answer once", passed 3 of 3 runs in isolation;
+  that file and its component are identical to `main`, so it is a load-sensitive timing test, not a merge
+  regression.
+
+### Adventure Portal merge-readiness checks (2026-11-10, branch `feature/adventure-portal`)
+
+- Fixed: the merge left two ADR-051s (`main`'s Accepted Castle room discovery and the portal's
+  Proposed Tailwind decision). The portal decision is renumbered **ADR-052** (registry, heading,
+  `portal.css`, `portalCss.test.ts`, `vite.config.ts`, the portal status lines). Prettier fix to
+  `WelcomeHarbor.tsx`.
+- `npm run lint` (oxlint): 0 errors; warnings only, all pre-existing rule categories.
+- `npm run format:check`, `npm run adr:check` (52 decisions), `npm run admin-preview:check`,
+  `npm run typecheck`: pass.
+- Full Vitest: 399 files, 4519 tests, all pass.
+- `npm run build`: passes.
+- `npm run test:e2e` (Playwright, Chromium): 7 passed, 11 skipped (Firepeak specs are `test.fixme`
+  on `main` by design). Run with the container's preinstalled Chromium via a temporary,
+  uncommitted config (`executablePath`), because the pinned Playwright's browser build is absent.
+- Not run: `npm run test:acceptance` and the Python/Django gates (`make check`). The acceptance
+  suite needs Django, PostgreSQL and a real Cognito parent; this branch changes no Python.
+- Visibility note: the child homepage loads its companion and world changes from Amplify Data.
+  A local run with `VITE_BACKEND=django` and no Amplify sandbox shows only the plain
+  "Something went wrong loading the island." text, so the portal design never renders there.
+
+### AP-01 full theme redress (2026-11-10, branch `feature/adventure-portal`)
+
+Owner feedback: the portal theme must redress the whole app, not one page. The old and portal
+palettes shared the same page, card, text and focus colours, so the earlier work read as
+"nothing different" outside the child homepage.
+
+- `src/styles/tokens.css` now carries the portal palette (ocean primary, tropical accent and
+  success, coral danger, treasure warning, ocean-50 page, portal fills, rounder radii). Every CSS
+  Module reads these tokens, so every page changes. `tokens.test.ts` (WCAG AA) passes unchanged.
+- `ParentShell` on every parent page: account settings, child profile new and edit, child
+  activity, story keepsakes and play together join the dashboard. Each page's title moved into the
+  page; "Back to dashboard" is the shell's top-bar action.
+- Landing page (`Home`) rebuilt with portal components: ocean header and hero, treasure call to
+  action, three pillar cards from CLAUDE.md section 4. `Home.module.css` deleted.
+- `ChildShell` background follows the new page colour.
+- ADR-052 amended: the portal palette is the app's theme through tokens.css.
+- Not themed: 34 hard-coded colours in CSS Modules, mostly the 3D HUD and puzzle panels; the 3D
+  worlds' own scene colours; the admin section (ADR-023, its own Tailwind theme).
+
+Checks: oxlint 0 errors; Prettier; ADR check; typecheck; full Vitest 399 files / 4519 tests;
+build; Playwright 7 passed, 11 skipped (`test.fixme`). Viewed in Chromium: landing, sign-in,
+child homepage and add-child pages (the last two through a local harness with API stubs).
+
+### AP-01 owner acceptance (2026-11-10)
+
+- The owner accepted AP-01 ("AP-01 is done") and ADR-052, which is now **Accepted**.
+- Trello AP-01 moved to Ready to Merge. It is not merged to `main` or deployed; merging waits for
+  the owner's go-ahead (a merge to `main` releases through Amplify).
+- AP-04 stays in Development Complete pending its browser check (leaving from a 3D world, during an
+  encounter and in full screen, on phone and desktop).
+
+### AP-04: no arithmetic on the adult exit either (2026-11-10, branch `feature/adventure-portal`)
+
+Owner report: "when I click 'leave island', I still get the arithmetic question". "Leave island"
+itself never asked one. The question came from "Adults: exit to parent space", whose `ParentGate`
+dialog said "Answer this quick check to leave the island", and on the Island Explorer that is the
+only exit shown. The owner chose to remove the check entirely.
+
+- `IslandLayout`: the adult exit has no `ParentGate`. It uses the AP-04 exit path
+  (`requestLeave('parent-space')`): saves in flight flush, a plain confirm appears only during an
+  encounter, then it opens `/home`.
+- `IslandExitProvider.requestLeave` takes an optional destination (`island-explorer` by default).
+- `ParentGate` remains only on deactivating or reactivating a profile in the parent dashboard.
+- `docs/THREAT_MODEL.md` records the accepted risk: one tap from child mode reaches the parent
+  pages on a signed-in device.
+- Tests: the adult exit from every child screen and from the Island Explorer reaches the parent
+  space with no question; during an encounter it confirms with plain buttons, then goes.
+  Checked in Chromium through the local harness.
+
+### AP-04 owner acceptance (2026-11-10)
+
+- The owner accepted AP-04 after checking "Leave island" and the question-free adult exit. Trello
+  AP-04 moved to Complete and marked done.
+- Not merged to `main` or deployed: the merge of `feature/adventure-portal` (AP-01 and AP-04)
+  waits for the owner's go-ahead.
+
+## Adventure Portal AP-03 redesign: Realm Explorer (2026-11-11, branch `feature/adventure-portal-home`)
+
+Trello AP-03. Supersedes the inline Island Explorer of the first AP-03 commit (`c1d4d74`) in
+builds with the Django API. Amplify builds are unchanged (Home keeps the source explorer;
+`/realms` redirects there). Status: **accepted by the owner (2026-11-11), not yet merged.** The
+owner reviewed it running locally; AP-02 (below) was accepted the same day.
+
+**Decisions (owner to confirm in QA).**
+- A Realm is an Island (catalog `World`, ADR-041). Treasure Cove, Storykeeper Castle and
+  Firepeak are Places/3D Areas, so they appear on the Realm preview, not as Realm cards. No
+  Django rows were added or renamed; API and model names keep "Island".
+- The preview is a page (`/island/:childId/realms/:realmId`) rather than a panel: own URL,
+  back button, and the shell's "Realms" stays current.
+- Nav is Home, Realms, Quests, Treasures. Treasures opens the adventure log (there is no
+  separate treasure page); the library stays on Home; the sailing dock is no longer in the nav.
+- "Leave island" (AP-04) now returns to the Realm Explorer; it is hidden on Home and the Realm
+  pages. Copy unchanged ("Leave island").
+- Places in another Realm are shown for discovery but entered through that Realm's hub, which
+  records the arrival.
+
+**Django.** No migration. `discovery.child_islands` adds subject areas (from published
+`LearningObjective.domain`s, or an authored `subjectAreas`) and published art (an authored
+`artAssetId` naming an active image whose default version is published). The island and place
+schemas gain optional `artAssetId` and `subjectAreas`; publishing an Island or Place revision
+checks that `artAssetId` names an `image` asset (ADR-047 D). Firepeak's export record states
+`subjectAreas: ["SCIENCE"]`. Contract: `docs/PLAY_API.md`.
+
+**React.** `src/features/realms/` (catalog model, filters, themes, SVG illustrations, picture,
+cards, hero, filters UI, data hook with a 30 s cache), `routes/RealmExplorerPage.tsx`,
+`routes/RealmDetailPage.tsx`, shell header with branding and child badge, Home links to the
+Realms. Pictures go through the existing child-scoped asset resolver (one batched request);
+drawn fallbacks never show a broken image. No Three.js on the card pages.
+
+**Fixed along the way.** `admin.css` loads after `portal.css`, so its identically named
+utilities (`.hidden`, `.md:grid-cols-2`) overrode portal breakpoints: the sidebar brand was
+hidden at every size since AP-01, and a 3-column grid fell back to 2. Realm grids and the brand
+now use variants admin.css never emits (`min-[80rem]:`, `max-md:hidden`).
+
+**Tests.**
+- pytest (PostgreSQL): `test_realm_explorer.py` 14 new; focused regression (islands/launch,
+  native API, catalog authoring, importer, export, publication safety) 165 passed.
+- Vitest (`--maxWorkers=2`, affected paths): 199 files, 2288 passed. `npm run typecheck` clean.
+  `npm run content:check` up to date.
+- Browser acceptance (`e2e/acceptance/realm-explorer.spec.ts`, local seeded Django, desktop
+  project): 12 passed. Layout at 1920, 768, 360 and 320 px (no horizontal overflow, column
+  count, nav not covering content, 48px targets), filters without reload, locked Realm,
+  keyboard and focus ring, reduced motion, preview and back-with-filter, Treasure Cove 3D launch
+  and question-free "Leave island" back to Realms, Django progress, picture and fallback (only
+  the picture delivery is stubbed). Screenshots reviewed by eye.
+
+**Deferred to merge verification / known gaps.**
+- Full Vitest and pytest suites, oxlint/Prettier on the whole tree, `npm run build`, the other
+  acceptance specs, the tablet project.
+- `contentExport.test.ts` "trusted build-time boundary" fails locally on a clean checkout too
+  (`node_modules/.bin/tsx` missing): environment, not this change.
+- No Realm or Place carries art yet; an administrator uploads an image in the asset library,
+  publishes it, then publishes an Island/Place revision with `artAssetId`.
+- Firepeak's `subjectAreas` reaches an existing database only after `load_content` and, if the
+  record is Django-authoritative, publishing the import draft.
+
+## Adventure Portal AP-03 and AP-02: Island Explorer discovery and child home dashboard (2026-11-10, branch `feature/adventure-portal-home`)
+
+Trello AP-03 and AP-02. Branched from `feature/adventure-portal` (AP-01 and AP-04, accepted), so
+those can merge on their own. **AP-02 accepted by the owner 2026-11-11** (AP-03 as redesigned
+above, also accepted). Not yet merged.
+
+**Data source.** Both read Django, as the cards require, when the build has the Django API
+(`VITE_BACKEND=django`). Every hosted Amplify build has no Django API until the ADR-019 cutover:
+there the homepage stays exactly as before (source-controlled Island Explorer, Amplify companion
+and world changes, no dashboard).
+
+**AP-03: Island Explorer discovery**
+- Django `GET /children/<id>/islands/` (ADR-041) now also returns, per Island: `ageBands`,
+  `subjects` (up to 6 Place skills), `thumbnailAssetId` (null today, ADR-030), `unlocked` and
+  `lockedHint` (from the Island's authored `travelRequirement` and this child's world changes),
+  and `progress` (`placesExplored` of `placesTotal`). Each Place has `explored`. Secret Places
+  (authored `unlockRequirement`) are now left out until unlocked, matching the harbor map.
+  Documented in `docs/PLAY_API.md`.
+- React: `islandsApi` reads the new fields (defaults for an older server).
+  `buildIslandExplorerFromServer` turns the published catalog into the explorer, with no second
+  hard-coded list. The home Island's Places link to their page, and a published 3D Area (Treasure
+  Cove) is offered beside its Place. A Django-only Place (Firepeak Volcano) links to its 3D Area.
+  An open Island links to its hub; a closed one shows its hint. Storykeeper Castle is a Place.
+- `IslandExplorer` shows an age range, subject chips, "N of M places explored" and an
+  "Explored" mark per Place, and a drawn picture tile, since there are no thumbnails yet.
+- `ProgressIndicator` takes a `unit` ("steps" by default).
+
+**AP-02: Child home dashboard**
+- `homeApi` reads Django `GET /children/<id>/home/`.
+- `ChildHomeDashboard`, between the welcome and the explorer:
+  - featured "Continue your adventure" (an open session first, then the last place played, then
+    the server's next suggestion; `pickFeatured`) with chests opened and a link into the 3D Area;
+  - quests going and finished, with the quest journal link;
+  - treasures found and the newest three;
+  - adventures finished and island changes, with the adventure log link.
+- Loading, empty and error states. The dashboard and the islands load and fail independently of
+  each other and of the page.
+- **Not shown:** XP and level (no real source exists; the card says avoid invented metrics) and
+  daily missions (AP-06, Backlog). Treasures stand in for the rewards summary until AP-07.
+- In Django mode the companion step is skipped: Django has no companion record and Chatty is the
+  only companion.
+
+**Tests**
+- pytest (PostgreSQL), `test_adventure_launch.py`: discovery details; an Island opens once its
+  world change exists; another child's change does not open it; a secret Place stays hidden until
+  unlocked; entering a 3D Area or starting a Place adventure marks the Place explored.
+- Vitest: `islandsApi.test.ts`, `homeApi.test.ts`, `featured.test.ts`,
+  `ChildHomeDashboard.test.tsx`, `IslandExplorer.test.tsx`, `islandExplorer.test.ts` (server
+  builder), `WelcomeHarbor.django.test.tsx` (Django mode: dashboard and islands, no Amplify reads,
+  each part failing alone), existing `WelcomeHarbor.test.tsx` unchanged (Amplify mode).
+- Viewed in Chromium at 1280px and 390px through a local harness with stubbed Django responses.
+
+**Check results**
+- pytest on PostgreSQL 16 (`LAI_REQUIRE_POSTGRES=1`):
+  - `test_adventure_launch.py` and `test_native_api.py`: 47 passed, 6 of them new.
+  - `test_tenant_isolation.py`: 32 passed.
+- ruff check and ruff format: clean.
+- Vitest, focused: 203 files, 2364 tests pass.
+- Typecheck, oxlint (0 errors), Prettier, ADR check: pass.
+
+**Open**
+- Owner QA; a run against a real Django with the Treasure Cove seed (`npm run test:acceptance`).
+- Island thumbnails need catalog illustrations (ADR-030). An open non-home Island links to the
+  existing world hub, which knows only source-controlled Islands.
+- The hosted (Amplify) site shows neither card until it uses the Django API.
+## Treasure Rush QA closed for now (2026-11-11, Trello WTQR3qTS)
+
+**Status: owner-reported QA acceptance of Treasure Rush as merged in `main`; no code change.**
+The owner declared Treasure Rush QA complete for now and will expand Treasure Rush later.
+All Treasure Rush code (`quest/tr.reboot`, `feature/treasure-rush-slice`) was already contained
+in `main` (verified: zero commits ahead of `origin/main`).
+
+- **Accepted (owner-reported, local):** TR-9 playtest; TR-12, TR-13, TR-14, TR-17 and TR-20.
+  TR-11 closed as superseded by TR-14.
+- **Accepted with items deferred to a later expansion:** TR-15 (`treasure-key` model), TR-16
+  (ordering and matching kinds, TR-D27; pedestal model), TR-18 (Pip `Cheer` and `Point` clips).
+- **Still open, deferred:** TR-19 sound with mute (owner decision TR-D26), TR-10 (LAI-2106).
+- **Not established by this:** deployed or live AWS acceptance; real-family use still depends on
+  LAI-0502, LAI-0602, gate G9 and ADR-024 A6.
+- **Tests run:** none; documentation-only change.

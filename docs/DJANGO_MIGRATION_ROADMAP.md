@@ -424,6 +424,37 @@ that decision.
 - **Follow-up.** A Django-backed step-adventure client: the LAI-0601 answer engine does not yet
   record world changes, evidence or quest progress, and React runs step adventures on Amplify.
 
+**ADR-047 content authoring follow-ups (added by the 2026-11-02 audit).** Detail, order and
+dependency graph: `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13; statuses in
+`tasks/TASK_TRACKER.md`.
+- **LAI-0816 Django-backed step adventure runner** (follow-up of LAI-0806). Depends: 0601, 0813,
+  0503 adventure reads. Acceptance: a child discovers, launches, resumes and completes a
+  published adventure through Django; Python grades; skill evidence and the configured reward
+  are recorded once; mid-session publication does not change grading; React uses the existing
+  runner, not a new engine.
+- **LAI-0817 Age-band NPC dialogue authoring.** Depends: 0810. Acceptance: structured, ordered,
+  band-targeted dialogue nodes with choices and conditions, validated on publish, delivered by
+  band with a fallback; Firepeak's band lines leave puzzle parameters without changing play.
+- **LAI-0818 Child-facing publication safety.** Depends: 0810, 0801 stage 1. Acceptance:
+  content-safety screening on publish, submit and reject with reasons, optional independent
+  approval, admin-log entries, per-band copy limits, retirement guard, service-level permission
+  checks, bypass tests.
+- **LAI-0819 ADR-047 reference cleanup** (P0). Acceptance: no content-authoring "ADR-043" left
+  in documents or code; ADR-047 relates itself to ADR-045 and ADR-046.
+- **LAI-0820 `feature/content` integration gates** (P0). Acceptance: every merge gate in
+  `docs/TESTING_STRATEGY.md` run and recorded, browser acceptance included.
+- **LAI-0821 Content-authoring milestone acceptance.** Acceptance: section 13.4 of the content
+  authoring document.
+
+**LAI-0808 Island Explorer on the child homepage.** Depends: 0806, Phase 29 travel. Risk L.
+Acceptance: `/island/:childId` lists every Island the child's age band can see, from the same
+rules as the sailing dock; the current Island comes first with its open, catalog-active Places;
+an open Island links to its hub; a locked Island shows its authored hint, is never a link or
+button, and names no skill or score; tablet-first layout with no horizontal scroll at phone
+width; no new request or failure mode on the homepage. Not in scope: Django-served Islands
+(`GET /children/<id>/islands/`) on this page, which stays on the Phase 29 registry until the
+step-adventure client moves to Django.
+
 ### Phase 9 - Realtime (co-op) and storage
 
 **LAI-0901 Atomic co-op slot claim.** Depends: 0305, 0403. Risk M. Acceptance: transactional

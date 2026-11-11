@@ -92,6 +92,10 @@ so the `Makefile` reads it and passes the values on:
   if a name appears twice, the last line wins.
 - The list of forwarded names is `DJANGO_ENV_VARS` in the `Makefile`. Add a name there when a
   setting starts reading a new variable.
+- `make runserver` sets `AWS_PROFILE=learning-dev` for the server process (and its reloader), so
+  boto3 resolves credentials through that named profile. The profile must already exist in your
+  local AWS config; nothing creates it. Override with `make runserver AWS_PROFILE=other`; a profile
+  already exported in the shell wins. No other target sets it, and deployed servers never use it.
 - Running `manage.py` directly, without `make`, does not read `.env`: export the variables in
   your shell first.
 - Deployed environments never read `.env`. They take settings from SSM Parameter Store

@@ -1,0 +1,429 @@
+[WebServer] imported: release 65fa8e0f0876 (schema 3)
+[WebServer]   assets: created 114, updated 0, unchanged 0, missing 0
+[WebServer]   worlds: created 2, updated 0, unchanged 0, missing 0
+[WebServer]   locations: created 10, updated 0, unchanged 0, missing 0
+[WebServer]   adventures: created 24, updated 0, unchanged 0, missing 0
+[WebServer]   steps: created 158, updated 0, unchanged 0, missing 0
+[WebServer]   quests: created 8, updated 0, unchanged 0, missing 0
+[WebServer]   location_assets: created 108, updated 0, unchanged 0, missing 0
+[WebServer]   learning_objectives: created 19, updated 0, unchanged 0, missing 0
+[WebServer]   npcs: created 6, updated 0, unchanged 0, missing 0
+[WebServer]   collectible_sets: created 1, updated 0, unchanged 0, missing 0
+[WebServer]   items: created 25, updated 0, unchanged 0, missing 0
+[WebServer]   reward_rules: created 20, updated 0, unchanged 0, missing 0
+[WebServer]   skipped: location assets 'welcome-harbor': region has no Location record (11 assets)
+[WebServer] created ChallengeSpec treasure-cove-sprout
+[WebServer] created ChallengeSpec treasure-cove-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-explorer
+[WebServer] created WorldRegion treasure-rush-cove
+[WebServer] created SpawnPoint treasure-rush-cove:cove-landing
+[WebServer] created TreasureChest treasure-rush-cove:cove-chest
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-pip
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-bridge-signpost
+[WebServer] created AdventureLaunchPoint treasure-rush-cove:signpost-repair-the-moonlight-bridge
+[WebServer] created AdventureLaunchPoint treasure-rush-cove:signpost-the-tide-gate-calculation
+[WebServer] created AdventureLaunchPoint treasure-rush-cove:signpost-three-planks-for-the-bridge
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-rune-stone-1
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-rune-stone-2
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-rune-stone-3
+[WebServer] created WorldObjectPlacement treasure-rush-cove:cove-brass-key
+[WebServer] created ChallengeSpec treasure-cove-grove-sprout
+[WebServer] created ChallengeSpec treasure-cove-grove-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-grove-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-grove-chest
+[WebServer] created ChallengeSpec treasure-cove-beach-sprout
+[WebServer] created ChallengeSpec treasure-cove-beach-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-beach-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-beach-chest
+[WebServer] created ChallengeSpec treasure-cove-puzzle-sprout
+[WebServer] created ChallengeSpec treasure-cove-puzzle-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-puzzle-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-ruins-pedestal
+[WebServer] created ChallengeSpec treasure-cove-final-sprout
+[WebServer] created ChallengeSpec treasure-cove-final-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-final-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-final-chest
+[WebServer] created ChallengeSpec treasure-cove-replay-sprout
+[WebServer] created ChallengeSpec treasure-cove-replay-pathfinder
+[WebServer] created ChallengeSpec treasure-cove-replay-explorer
+[WebServer] created TreasureChest treasure-rush-cove:cove-lookout-spyglass
+[WebServer] 35 row(s) created
+[WebServer] published region treasure-rush-cove
+[WebServer] published challenge treasure-cove-sprout
+[WebServer] published challenge treasure-cove-pathfinder
+[WebServer] published challenge treasure-cove-explorer
+[WebServer] published challenge treasure-cove-grove-sprout
+[WebServer] published challenge treasure-cove-grove-pathfinder
+[WebServer] published challenge treasure-cove-grove-explorer
+[WebServer] published challenge treasure-cove-beach-sprout
+[WebServer] published challenge treasure-cove-beach-pathfinder
+[WebServer] published challenge treasure-cove-beach-explorer
+[WebServer] published challenge treasure-cove-puzzle-sprout
+[WebServer] published challenge treasure-cove-puzzle-pathfinder
+[WebServer] published challenge treasure-cove-puzzle-explorer
+[WebServer] published challenge treasure-cove-final-sprout
+[WebServer] published challenge treasure-cove-final-pathfinder
+[WebServer] published challenge treasure-cove-final-explorer
+[WebServer] published challenge treasure-cove-replay-sprout
+[WebServer] published challenge treasure-cove-replay-pathfinder
+[WebServer] published challenge treasure-cove-replay-explorer
+[WebServer] published launch point signpost-repair-the-moonlight-bridge
+[WebServer] published launch point signpost-the-tide-gate-calculation
+[WebServer] published launch point signpost-three-planks-for-the-bridge
+[WebServer] 22 row(s) published
+[WebServer] Asset editors: 7 permissions
+[WebServer] Asset publishers: 9 permissions
+[WebServer] e2e Django ready on 127.0.0.1:8765
+[WebServer] November 07, 2026 - 01:04:08
+[WebServer] Django version 6.1.2, using settings 'config.settings.local'
+[WebServer] Starting WSGI development server at http://127.0.0.1:8765/
+[WebServer] Quit the server with CONTROL-C.
+[WebServer] 
+[WebServer] WARNING: This is a development server. Do not use it in a production setting. Use a production WSGI or ASGI server instead.
+[WebServer] For more information on production servers see: https://docs.djangoproject.com/en/6.1/howto/deployment/
+
+Running 40 tests using 1 worker
+
+  ✓   1 [desktop] › e2e/acceptance/asset-library.spec.ts:75:3 › Asset Library in Django Admin › staff without asset rights cannot upload or publish (1.5s)
+  ✓   2 [desktop] › e2e/acceptance/asset-library.spec.ts:84:3 › Asset Library in Django Admin › an editor defines assets; ids are validated (3.1s)
+  ✓   3 [desktop] › e2e/acceptance/asset-library.spec.ts:99:3 › Asset Library in Django Admin › uploads validate by content: GLB, PNG and WAV pass, a disguised or huge file fails (2.5s)
+  ✓   4 [desktop] › e2e/acceptance/asset-library.spec.ts:132:3 › Asset Library in Django Admin › previews: a 3D viewer for models, the image itself and an audio player (1.7s)
+  ✓   5 [desktop] › e2e/acceptance/asset-library.spec.ts:165:3 › Asset Library in Django Admin › an editor cannot publish; a publisher publishes, versions, rolls back (3.9s)
+  ✓   6 [desktop] › e2e/acceptance/asset-library.spec.ts:209:3 › Asset Library in Django Admin › published versions are never deleted; definitions retire and reactivate (2.6s)
+  ✓   7 [desktop] › e2e/acceptance/asset-library.spec.ts:240:3 › Asset Library in Django Admin › resolver: signed Django delivery, child isolation, tampered and retired links (1.9s)
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:30 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓   8 [desktop] › e2e/acceptance/asset-library.spec.ts:299:3 › Asset Library in Django Admin › a published model replaces the bundled one in Treasure Cove (3.3s)
+  ✓   9 [desktop] › e2e/acceptance/integration.spec.ts:10:1 › a parent cannot reach another family’s child, through the API or the app (3.5s)
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:04:35 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  10 [desktop] › e2e/acceptance/integration.spec.ts:62:1 › beside Treasure Rush: the dashboard and an adventure launched from the cove (3.0s)
+  ✓  11 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:128:3 › AI Question Studio owner QA (AQS-026) › an author generates a Grade 2 addition batch (1.6s)
+  ✓  12 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:140:3 › AI Question Studio owner QA (AQS-026) › editing a question revalidates it: a wrong key fails, the fix passes (3.6s)
+  ✓  13 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:168:3 › AI Question Studio owner QA (AQS-026) › a reviewer revalidates, rejects one and approves the rest with mixed results (1.7s)
+  ✓  14 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:194:3 › AI Question Studio owner QA (AQS-026) › a publisher publishes; only approved questions reach the published revisions (1.3s)
+  ✓  15 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:211:3 › AI Question Studio owner QA (AQS-026) › a published question is served to an Explorer, and retiring it withdraws it (2.4s)
+  ✓  16 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:255:3 › AI Question Studio owner QA (AQS-026) › a retired question stays read-only and cannot re-enter review (QA-AQS-D1) (1.1s)
+  ✓  17 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:267:3 › AI Question Studio owner QA (AQS-026) › unauthorised staff are refused at every Studio page (1.7s)
+  ✓  18 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:286:3 › AI Question Studio owner QA (AQS-026) › the generate, list and review pages work at 390px (2.3s)
+  -  19 [desktop] › e2e/acceptance/question-studio-qa.spec.ts:312:1 › @thread a thread run-mode batch finishes without blocking the request
+  ✓  20 [desktop] › e2e/acceptance/question-studio.spec.ts:54:3 › AI Question Studio in Django Admin › anonymous visitors are sent to sign in, staff without Studio rights are refused (1.5s)
+  ✓  21 [desktop] › e2e/acceptance/question-studio.spec.ts:72:3 › AI Question Studio in Django Admin › the generation form validates its input (1.1s)
+  ✓  22 [desktop] › e2e/acceptance/question-studio.spec.ts:102:3 › AI Question Studio in Django Admin › an author generates a Grade 3 multiplication batch for review (1.9s)
+  ✓  23 [desktop] › e2e/acceptance/question-studio.spec.ts:132:3 › AI Question Studio in Django Admin › duplicates are blocked by validation and cannot be approved (1.9s)
+  ✓  24 [desktop] › e2e/acceptance/question-studio.spec.ts:145:3 › AI Question Studio in Django Admin › a reviewer approves and rejects, but cannot publish (1.5s)
+  ✓  25 [desktop] › e2e/acceptance/question-studio.spec.ts:162:3 › AI Question Studio in Django Admin › a publisher publishes immutable revisions (1.5s)
+  ✓  26 [desktop] › e2e/acceptance/question-studio.spec.ts:179:3 › AI Question Studio in Django Admin › a correction is a new draft; the published revision stays until it replaces it (2.0s)
+  ✓  27 [desktop] › e2e/acceptance/question-studio.spec.ts:197:3 › AI Question Studio in Django Admin › a publisher retires a revision; only publishers may (1.6s)
+  ✓  28 [desktop] › e2e/acceptance/question-studio.spec.ts:207:3 › AI Question Studio in Django Admin › Django Admin stays usable at phone width (754ms)
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:09 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  29 [desktop] › e2e/acceptance/question-studio.spec.ts:220:3 › AI Question Studio in Django Admin › a pool serves published questions to Treasure Rush, and retiring withdraws them (5.5s)
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:14 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  30 [desktop] › e2e/acceptance/treasure-rush.spec.ts:64:3 › Pip's Missing Treasure, start to finish › parent dashboard launches the child into Treasure Cove (2.3s)
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:17 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  31 [desktop] › e2e/acceptance/treasure-rush.spec.ts:75:3 › Pip's Missing Treasure, start to finish › the quest: four encounters, the finale, the bridge and the spyglass (21.0s)
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:38 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:40 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  32 [desktop] › e2e/acceptance/treasure-rush.spec.ts:240:3 › Pip's Missing Treasure, start to finish › progress survives a reload: no new celebration, bridge already there (9.2s)
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:05:48 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  33 [desktop] › e2e/acceptance/treasure-rush.spec.ts:258:3 › controls, full screen and exit › keyboard walking moves the player and walls stop them @tablet (15.8s)
+  -  34 [desktop] › e2e/acceptance/treasure-rush.spec.ts:279:3 › controls, full screen and exit › a touch drag on the left of the stage walks the player @tablet
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:04 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  35 [desktop] › e2e/acceptance/treasure-rush.spec.ts:314:3 › controls, full screen and exit › the action prompt works by tap or click and is the only one @tablet (3.0s)
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:08 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  36 [desktop] › e2e/acceptance/treasure-rush.spec.ts:342:3 › controls, full screen and exit › full screen keeps Backpack, Hint and Exit, and exits cleanly (6.4s)
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:14 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:16 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  37 [desktop] › e2e/acceptance/treasure-rush.spec.ts:368:3 › controls, full screen and exit › exit needs no arithmetic challenge and nothing is lost (5.2s)
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:20 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  38 [tablet] › e2e/acceptance/treasure-rush.spec.ts:258:3 › controls, full screen and exit › keyboard walking moves the player and walls stop them @tablet (18.3s)
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:40 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  39 [tablet] › e2e/acceptance/treasure-rush.spec.ts:279:3 › controls, full screen and exit › a touch drag on the left of the stage walks the player @tablet (7.0s)
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "npc-pip" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "signpost" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "ground-tile" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "ground-tile-stone" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "path" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "path-forest" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "bridge-plank" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "mooring-post" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "crate" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "rope-coil" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "log-fallen" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "foliage-tree" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "foliage-bush" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "fern" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "flower-cluster" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "rock" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "shipwreck" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "archway" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "butterfly" is unavailable in the asset library (expected until it is published); using the bundled model
+[WebServer] 1:06:47 AM [vite] (client) [console.warn] [assets] "treasure-chest" is unavailable in the asset library (expected until it is published); using the bundled model
+  ✓  40 [tablet] › e2e/acceptance/treasure-rush.spec.ts:314:3 › controls, full screen and exit › the action prompt works by tap or click and is the only one @tablet (5.7s)
+
+  2 skipped
+  38 passed (2.8m)

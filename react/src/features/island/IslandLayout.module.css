@@ -1,52 +1,8 @@
-.page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background-color: var(--color-background);
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-4) var(--space-6);
-  background-color: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.nav {
-  display: flex;
-  gap: var(--space-4);
-}
-
-.navLink {
-  font-weight: 600;
-  text-decoration: none;
-  color: var(--color-primary);
-}
-
-.leave {
-  margin-left: auto;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-pill);
-  background-color: var(--color-primary);
-  color: var(--color-primary-contrast);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.exit {
-  font: inherit;
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background-color: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-}
-
+/*
+ * Page chrome moved to the Adventure Portal's ChildShell (AP-01, Tailwind).
+ * `.main` stays a CSS module so every existing child page keeps exactly the
+ * content layout it was built and tested against.
+ */
 .main {
   flex: 1;
   display: flex;

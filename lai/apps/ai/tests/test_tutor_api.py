@@ -97,6 +97,7 @@ def test_the_context_is_only_authored_copy(families, api, fake_model):
         "hintLevel",
         "questTitle",
         "questStageTitle",
+        "learnerProfile",
     }
     # Client text is untrusted content, not part of the trusted context.
     assert fake.requests[0].content[1].untrusted
@@ -232,7 +233,8 @@ def test_a_django_session_supplies_hint_level_and_text(
     context = sent_context(fake)
     assert context["hintLevel"] == 1 and context["strategy"] == "ENCOURAGE"
     assert context["authoredBaseText"] == "Look again"
-    assert len(fake.requests[0].content) == 1
+    _, marker = fake.requests[0].content
+    assert marker.guarded and not marker.untrusted  # the client text went nowhere
 
 
 def test_a_django_session_rejects_a_skill_the_step_does_not_teach(

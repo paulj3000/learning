@@ -56,6 +56,16 @@ export class FirstPersonController {
     this.position = options.startPosition?.clone() ?? new Vector3();
   }
 
+  /**
+   * Puts the player somewhere at once and stops them (a safe-return respawn, Firepeak FP-D10).
+   * Not a movement: colliders are not consulted, so callers pass an authored, walkable point.
+   */
+  teleport(x: number, z: number, yaw: number): void {
+    this.position.set(x, 0, z);
+    this.yaw = yaw;
+    this.velocity.set(0, 0, 0);
+  }
+
   /** Applies a raw look delta (e.g. `movementX`/`movementY`), clamping pitch. */
   applyLookDelta(dx: number, dy: number, sensitivity = 0.0025): void {
     this.yaw -= dx * sensitivity;
@@ -108,6 +118,31 @@ export class FirstPersonController {
         this.velocity.z = 0;
       }
     }
+  }
+
+  /**
+   * Whether a point on the ground is clear of every collider: somewhere the
+   * child could be placed. Reads the live collider list, so a collider an
+   * extension added, or removed because a bridge was mended, counts as it is
+   * now.
+   */
+  canStandAt(x: number, z: number): boolean {
+    return !this.collidesAt(new Vector3(x, this.position.y, z));
+  }
+
+  /**
+   * Places the child at (`x`, `z`) facing `yaw`, standing still and looking
+   * level, if they could stand there. Returns `false` and moves nothing when
+   * the spot is solid. Leftover walking speed is dropped, so a placement
+   * never carries the child on through a wall.
+   */
+  teleportTo(x: number, z: number, yaw: number = this.yaw): boolean {
+    if (!this.canStandAt(x, z)) return false;
+    this.position.set(x, this.position.y, z);
+    this.yaw = yaw;
+    this.pitch = 0;
+    this.velocity.set(0, 0, 0);
+    return true;
   }
 
   private collidesAt(point: Vector3): boolean {

@@ -1,0 +1,6 @@
+{
+  "test": "editing a question revalidates it: a wrong key fails, the fix passes",
+  "project": "desktop",
+  "problems": [],
+  "notes": []
+}

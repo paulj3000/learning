@@ -1,0 +1,81 @@
+/**
+ * Tailwind CSS for the Adventure Portal: the child shell, the parent shell
+ * and the shared portal components (AP-01, docs/DECISIONS.md ADR-052, which
+ * extends ADR-023's admin-only boundary to these files).
+ *
+ * It follows the same three rules as src/features/admin/admin.css, so
+ * importing it can never restyle a page that does not use its classes:
+ *
+ * 1. **No theme variables on `:root`.** The theme is `reference inline`:
+ *    Tailwind writes each resolved value into the utility and emits no
+ *    custom properties. `portalCss.test.ts` fails if one escapes.
+ * 2. **Utilities only from portal files.** `source(none)` turns off automatic
+ *    detection; only the `@source` paths below generate classes. A portal
+ *    file outside them needs adding here.
+ * 3. **No reset.** Tailwind's Preflight is not imported. Portal pages sit on
+ *    global.css's base styles, so buttons keep the island's pressable lip
+ *    (global.css only owns shape and press; utilities own colour).
+ *
+ * The five portal colour families (ocean, tropical, treasure, coral, purple)
+ * are new names that do not collide with tokens.css. Every text/background
+ * pair the components use is contrast-checked by `portalCss.test.ts`.
+ */
+
+@import 'tailwindcss/theme.css' theme(reference inline);
+@import 'tailwindcss/utilities.css' source(none);
+
+@source './';
+@source '../island/IslandLayout.tsx';
+@source '../island/IslandExplorer.tsx';
+@source '../realms/';
+@source '../../routes/RealmExplorerPage.tsx';
+@source '../../routes/RealmDetailPage.tsx';
+@source '../child-home/';
+@source '../../routes/Home.tsx';
+@source '../../routes/WelcomeHarbor.tsx';
+@source '../../routes/ParentDashboard.tsx';
+@source '../../routes/AccountSettings.tsx';
+@source '../../routes/ChildDashboard.tsx';
+@source '../../routes/ChildProfileEdit.tsx';
+@source '../../routes/ChildProfileNew.tsx';
+@source '../../routes/CoopSessionNew.tsx';
+@source '../../routes/StoryKeepsakes.tsx';
+
+@theme reference inline {
+  --color-ocean-50: #eaf6fc;
+  --color-ocean-100: #cce9f6;
+  --color-ocean-300: #6cc3e8;
+  --color-ocean-500: #1a8fc7;
+  --color-ocean-700: #0b5a85;
+  --color-ocean-900: #06344f;
+
+  --color-tropical-50: #e9f7ee;
+  --color-tropical-100: #c9ecd5;
+  --color-tropical-500: #2e9b52;
+  --color-tropical-700: #1b6b37;
+
+  --color-treasure-50: #fff8dc;
+  --color-treasure-100: #ffefb0;
+  --color-treasure-300: #ffd75e;
+  --color-treasure-500: #f2b705;
+  --color-treasure-800: #6b4e00;
+
+  --color-coral-50: #ffeeec;
+  --color-coral-100: #ffd3ce;
+  --color-coral-500: #ff6f61;
+  --color-coral-700: #b3362b;
+
+  --color-purple-50: #f3effe;
+  --color-purple-100: #e1d8fb;
+  --color-purple-500: #8a6be0;
+  --color-purple-700: #5b3bb0;
+
+  --color-ink: #1a1e26;
+  --color-ink-muted: #4d4c4b;
+  --color-paper: #fefdfb;
+  --color-sand: #f7e9db;
+  --color-slate-line: #d9dee5;
+  --color-focus: #4139b4;
+
+  --font-display: 'Lexend', 'Figtree', system-ui, -apple-system, sans-serif;
+}

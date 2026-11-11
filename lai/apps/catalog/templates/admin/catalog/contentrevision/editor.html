@@ -1,0 +1,80 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>
+  <a href="{{ change_url }}">Back to the version</a> |
+  <a href="{{ preview_url }}">Preview what a child reads</a>
+  {% if can_edit_json %}| <a href="{{ change_url }}">Edit as raw JSON</a>{% endif %}
+</p>
+{% if errors %}
+<ul class="errorlist">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+{% endif %}
+{% if revision.rejection_reason %}
+<p><strong>Returned with this reason:</strong> {{ revision.rejection_reason }}</p>
+{% endif %}
+{% if unplaced %}
+<div class="module"><h2>Other problems</h2>
+<ul class="errorlist">{% for e in unplaced %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+{% if changes %}
+<details><summary>{{ changes|length }} change(s) from the published version</summary>
+<ul>{% for c in changes %}<li><code>{{ c }}</code></li>{% endfor %}</ul></details>
+{% endif %}
+<form method="post" id="content-editor">{% csrf_token %}
+  <fieldset class="module aligned">
+    {% for row in rows %}
+      {% if row.widget == "heading" %}
+        <h3 style="margin-left: {{ row.depth }}em">{{ row.label }}
+          {% for op, text in row.controls %}
+            <button type="submit" name="{{ op_field }}" value="{{ op }}" formnovalidate>{{ text }}</button>
+          {% endfor %}
+        </h3>
+        {% if row.help %}<p class="help" style="margin-left: {{ row.depth }}em">{{ row.help }}</p>{% endif %}
+        {% for e in row.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+      {% else %}
+        <div class="form-row" style="margin-left: {{ row.depth }}em">
+          {% for e in row.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+          {% if row.unknown_reference %}<ul class="errorlist"><li>This points at a record that does not exist.</li></ul>{% endif %}
+          {% if row.name %}<label for="id_{{ forloop.counter }}"{% if row.required %} class="required"{% endif %}>{{ row.label }}:</label>
+          {% else %}<label>{{ row.label }}:</label>{% endif %}
+          {% if not row.name %}
+            <span>{{ row.value }}</span>
+          {% elif row.widget == "textarea" %}
+            <textarea id="id_{{ forloop.counter }}" name="{{ row.name }}" rows="3" cols="70">{{ row.value }}</textarea>
+          {% elif row.widget == "json" %}
+            <textarea id="id_{{ forloop.counter }}" name="{{ row.name }}" rows="6" cols="70" spellcheck="false">{{ row.value }}</textarea>
+          {% elif row.widget == "lines" %}
+            <textarea id="id_{{ forloop.counter }}" name="{{ row.name }}" rows="4" cols="50">{{ row.value }}</textarea>
+          {% elif row.widget == "number" %}
+            <input id="id_{{ forloop.counter }}" type="number" step="any" name="{{ row.name }}" value="{{ row.value }}">
+          {% elif row.widget == "checkbox" %}
+            <input type="hidden" name="{{ row.name }}__present" value="1">
+            <input id="id_{{ forloop.counter }}" type="checkbox" name="{{ row.name }}" {% if row.value %}checked{% endif %}>
+          {% elif row.widget == "select" %}
+            <select id="id_{{ forloop.counter }}" name="{{ row.name }}">
+              <option value=""{% if not row.value %} selected{% endif %}>(none)</option>
+              {% for key, text in row.options %}<option value="{{ key }}"{% if key == row.value %} selected{% endif %}>{{ text }}</option>{% endfor %}
+              {% if row.unknown_reference %}<option value="{{ row.value }}" selected>{{ row.value }} (missing)</option>{% endif %}
+            </select>
+          {% elif row.widget == "multiselect" %}
+            <select id="id_{{ forloop.counter }}" name="{{ row.name }}" multiple size="6">
+              {% for key, text in row.options %}<option value="{{ key }}"{% if key in row.value %} selected{% endif %}>{{ text }}</option>{% endfor %}
+            </select>
+          {% else %}
+            <input id="id_{{ forloop.counter }}" type="text" name="{{ row.name }}" value="{{ row.value }}" size="70">
+          {% endif %}
+          {% if row.help %}<div class="help">{{ row.help }}</div>{% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </fieldset>
+  <fieldset class="module aligned">
+    <div class="form-row">
+      <label for="id_note">Why this version exists:</label>
+      <input id="id_note" type="text" name="note" maxlength="300" size="70" value="{{ revision.note }}">
+    </div>
+  </fieldset>
+  <div class="submit-row">
+    <input type="submit" class="default" value="Save and check">
+  </div>
+</form>
+{% endblock %}

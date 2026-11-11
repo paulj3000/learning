@@ -10,7 +10,7 @@ already approved; it never carries text:
   the catalog;
 - `{"kind": "npcDialogueNode", "npcId", "release", "dialogueKey", "nodeKey"}`: an authored NPC
   Manager dialogue node, read only from the named ACTIVE `NpcRelease` snapshot and voiced by the
-  character's published voice profile (ADR-050, LAI-NPC-028). Never draft rows.
+  character's published voice profile (ADR-053, LAI-NPC-028). Never draft rows.
 
 Flow: resolve the reference to (text, voice profile) -> re-check the text with the AI output
 rules -> limits (kill switch, per-child and global daily caps, process concurrency) -> cache

@@ -18,6 +18,13 @@ import { STORY_DEFINITIONS } from '../story/content/index';
 import { WORLD_DEFINITIONS } from '../worlds/worlds';
 import { buildContentPackage } from './build';
 import {
+  FIREPEAK_ITEMS,
+  FIREPEAK_LOCATIONS,
+  FIREPEAK_NPCS,
+  FIREPEAK_QUESTS,
+  FIREPEAK_REWARD_RULES,
+} from './firepeakContent';
+import {
   TREASURE_RUSH_ITEMS,
   TREASURE_RUSH_QUESTS,
   TREASURE_RUSH_REWARD_RULES,
@@ -71,13 +78,17 @@ describe('preservation of the existing content', () => {
   it('every exported collection equals its TypeScript source, in authored order', async () => {
     const pkg = await buildContentPackage();
     expect(pkg.adventures).toEqual(clone(ADVENTURE_TEMPLATES));
-    expect(pkg.quests).toEqual(clone([...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS]));
-    expect(pkg.items).toEqual(clone([...ALL_ITEMS, ...TREASURE_RUSH_ITEMS]));
-    expect(pkg.rewardRules).toEqual(clone([...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES]));
-    expect(pkg.npcs).toEqual(clone(ALL_NPCS));
+    expect(pkg.quests).toEqual(
+      clone([...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS, ...FIREPEAK_QUESTS]),
+    );
+    expect(pkg.items).toEqual(clone([...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS]));
+    expect(pkg.rewardRules).toEqual(
+      clone([...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES, ...FIREPEAK_REWARD_RULES]),
+    );
+    expect(pkg.npcs).toEqual(clone([...ALL_NPCS, ...FIREPEAK_NPCS]));
     expect(pkg.discoveries).toEqual(clone(DISCOVERY_DEFINITIONS));
     expect(pkg.checkpoints).toEqual(clone(ALL_CHECKPOINTS));
-    expect(pkg.locations).toEqual(clone(ISLAND_LOCATIONS));
+    expect(pkg.locations).toEqual(clone([...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS]));
     expect(pkg.stories).toEqual(clone(STORY_DEFINITIONS));
     expect(pkg.skills).toEqual(clone(SKILLS));
     expect(pkg.assets).toEqual(clone(ASSET_MANIFEST));
@@ -92,22 +103,32 @@ describe('preservation of the existing content', () => {
     );
   });
 
+  it('adds Firepeak Volcano to the export only, never to the app registries (ADR-047)', async () => {
+    expect(ISLAND_LOCATIONS.some((location) => location.slug === 'firepeak-volcano')).toBe(false);
+    expect(ALL_NPCS.some((npc) => npc.id === 'professor-ember')).toBe(false);
+    expect(QUEST_DEFINITIONS.some((quest) => quest.id === 'the-volcano-awakens')).toBe(false);
+    const pkg = await buildContentPackage();
+    const home = pkg.islands.find((island) => island.slug === 'learning-adventure-island');
+    expect(home?.pack.locationSlugs).toContain('firepeak-volcano');
+    expect(home?.pack.questIds).toContain('the-volcano-awakens');
+  });
+
   it('exports the expected number of records', async () => {
     const pkg = await buildContentPackage();
     expect(
       Object.fromEntries(Object.keys(pkg).map((k) => [k, pkg[k as keyof ContentPackage].length])),
     ).toEqual({
       islands: 2,
-      locations: 10,
+      locations: 11,
       adventures: 24,
       learningObjectives: 19,
       wonderWallQuestions: 4,
       stories: 5,
-      quests: 8,
-      items: 25,
-      collectibleSets: 1,
-      rewardRules: 20,
-      npcs: 6,
+      quests: 12, // 9 + the three Great Storybook quests (SC-R04)
+      items: 33, // + the Great Storybook seal
+      collectibleSets: 2,
+      rewardRules: 26, // + one seal rule per band's Great Storybook quest
+      npcs: 7,
       discoveries: 6,
       checkpoints: 30,
       interactions: 8,
@@ -227,6 +248,7 @@ describe('integrity checks on the real content', () => {
     expect(byKind('adventure-passage-region')).toEqual(['wonderwild-hive']);
     expect(byKind('npc-interaction-without-record')).toEqual([
       'harbor-master',
+      'professor-ember',
       'professor-ticktock',
     ]);
   });

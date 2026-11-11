@@ -1,0 +1,62 @@
+{% extends "admin/change_form.html" %}
+{% comment %}ADR-047: every step is its own POST, permission-checked again in the service.{% endcomment %}
+{% block after_field_sets %}
+{{ block.super }}
+{% if revision %}
+<div class="module" style="padding: 12px;">
+  <p><a href="{{ preview_url }}">Preview what a child reads</a>{% if is_draft and can_edit_content %} | <a href="{{ edit_url }}">Open the editor</a>{% endif %}</p>
+  {% if is_draft %}
+    <p>This is a draft. Save it to check it. Publishing runs every check again and changes nothing if any fails. Children already playing keep the version they started with.</p>
+  {% endif %}
+  {% if is_submitted %}
+    <p>Submitted and waiting for an approver. {% if independent_approval %}A different administrator must approve it.{% endif %}</p>
+  {% endif %}
+  {% if is_rejected %}
+    <p>Returned to the author. Reopen it to edit, or discard it.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+{% block submit_buttons_bottom %}
+{{ block.super }}
+{% if revision %}
+<div class="submit-row">
+  {% if is_draft and can_edit_content %}
+    <button type="submit" form="content-act-submit">Submit for approval</button>
+  {% endif %}
+  {% if is_draft and can_publish_content and not independent_approval %}
+    <button type="submit" class="default" form="content-act-publish">Publish this draft</button>
+  {% endif %}
+  {% if is_submitted and can_publish_content %}
+    <button type="submit" class="default" form="content-act-publish">Approve and publish</button>
+    <input type="text" name="reason" form="content-act-reject" maxlength="300" placeholder="Why it is returned" aria-label="Why it is returned" required>
+    <button type="submit" form="content-act-reject">Return to author</button>
+  {% endif %}
+  {% if is_submitted and can_edit_content %}
+    <button type="submit" form="content-act-withdraw">Withdraw to a draft</button>
+  {% endif %}
+  {% if is_rejected and can_edit_content %}
+    <button type="submit" form="content-act-reopen">Reopen as a draft</button>
+    <button type="submit" form="content-act-discard">Discard</button>
+  {% endif %}
+  {% if is_draft and can_edit_content %}
+    <button type="submit" form="content-act-discard">Discard this draft</button>
+  {% endif %}
+  {% if can_restore and can_publish_content and revision.status != "PUBLISHED" %}
+    <button type="submit" form="content-act-restore">Restore this version (as a new version)</button>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+{% if revision %}
+<form id="content-act-publish" method="post" action="{% url 'admin:catalog_contentrevision_act' revision.pk 'publish' %}">{% csrf_token %}</form>
+<form id="content-act-discard" method="post" action="{% url 'admin:catalog_contentrevision_act' revision.pk 'discard' %}">{% csrf_token %}</form>
+<form id="content-act-submit" method="post" action="{% url 'admin:catalog_contentrevision_act' revision.pk 'submit' %}">{% csrf_token %}</form>
+<form id="content-act-withdraw" method="post" action="{% url 'admin:catalog_contentrevision_act' revision.pk 'withdraw' %}">{% csrf_token %}</form>
+<form id="content-act-reopen" method="post" action="{% url 'admin:catalog_contentrevision_act' revision.pk 'reopen' %}">{% csrf_token %}</form>
+<form id="content-act-reject" method="post" action="{% url 'admin:catalog_contentrevision_act' revision.pk 'reject' %}">{% csrf_token %}</form>
+<form id="content-act-restore" method="post" action="{% url 'admin:catalog_contentrevision_act' revision.pk 'restore' %}">{% csrf_token %}</form>
+{% endif %}
+{% endblock %}
