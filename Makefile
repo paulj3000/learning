@@ -19,7 +19,7 @@ $(foreach v,POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD POSTGRES_PORT,\
 
 # Application settings reach only the targets that run Django with local settings, never the
 # tests (test settings and fixtures set their own Cognito, storage and admin values).
-DJANGO_ENV_TARGETS := django-check migrate-check migrate runserver
+DJANGO_ENV_TARGETS := django-check migrate-check migrate runserver createsuper
 DJANGO_ENV_VARS := DATABASE_URL DJANGO_SECRET_KEY DJANGO_DEBUG DJANGO_ALLOWED_HOSTS \
   DJANGO_LOG_LEVEL DJANGO_ADMIN_URL_PATH DJANGO_STATIC_URL LAI_LOG_RAW_EXCEPTIONS \
   COGNITO_REGION COGNITO_USER_POOL_ID COGNITO_ALLOWED_CLIENT_IDS \
@@ -33,13 +33,14 @@ $(foreach v,$(DJANGO_ENV_VARS),\
   $(if $(call dotenv,$(v)),$(eval $(DJANGO_ENV_TARGETS): export $(v) ?= $(call dotenv,$(v)))))
 
 .PHONY: help py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
-.PHONY: django-check migrate-check migrate runserver
+.PHONY: django-check migrate-check migrate runserver createsuper
 
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
 	@echo "js-check (typecheck, lint, format:check, test, build) | check (py-check + js-check)"
 	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5442; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
+	@echo "createsuper (prompts for a username and password; creates a Django Admin superuser; needs make up + make migrate)"
 
 py-install:
 	test -d .venv || python3 -m venv .venv
@@ -71,6 +72,13 @@ migrate-check:
 
 migrate:
 	cd lai && $(PY) manage.py migrate
+
+# Local Django Admin superuser. Django's createsuperuser is disabled (ParentAccount has no local
+# login); this wraps `manage.py create_admin_account --superuser`, which asks for the password
+# twice and validates it. The username is asked here so it never sits in shell history.
+createsuper:
+	@printf 'Admin username: ' && read -r username && \
+	  cd lai && $(PY) manage.py create_admin_account "$$username" --superuser
 
 # Local development only: boto3 resolves AWS credentials through the named profile
 # `learning-dev`, which must already exist in your AWS config (it is never created here).

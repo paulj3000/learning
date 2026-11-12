@@ -52,6 +52,13 @@ Amplify Storage call left is the delete-only legacy photo removal in `child-prof
 and roll back, never touching the source bucket. Runbook and the owner's open steps:
 `docs/platform/AMPLIFY_STORAGE_CUTOVER.md`.
 
+## `make createsuper` (local Django Admin superuser) — added 2026-11-11; dry-run checked only
+
+`make createsuper` asks for a username, then runs `manage.py create_admin_account <username>
+--superuser`, which asks for the password twice and validates it. It receives the `.env`
+Django settings like `make migrate`. Django's `createsuperuser` stays disabled. Checked with
+`make -n createsuper`; not yet run against a live database (needs `make up` and `make migrate`).
+
 ## No child play-time limits (ADR-053) — complete and merged to `main` (2026-11-11); migration not yet run on a deployed database
 
 Trello: "[LAI] Remove child gameplay time limits and forced session cutoffs" (2026-11-11). This

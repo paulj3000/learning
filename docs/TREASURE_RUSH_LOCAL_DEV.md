@@ -66,11 +66,13 @@ against a real Cognito token) is still open: if every request is a 401, check th
 For Django Admin (optional):
 
 ```bash
-cd lai
-../.venv/bin/python manage.py create_admin_account dev-admin --superuser
+make createsuper
 ```
 
-It asks for a password twice (12+ characters, not common; nothing is stored in the repository).
+It asks for a username, then a password twice (it wraps
+`manage.py create_admin_account <username> --superuser`; Django's own `createsuperuser` is
+disabled). The password needs 12+ characters and must not be common; nothing is stored in
+the repository.
 The admin account signs in to Django Admin only; its session never authenticates the app's API.
 Staff can inspect parents and children read-only in Django Admin
 (**Users > Parent accounts / Child profiles**; ADR-039).

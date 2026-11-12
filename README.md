@@ -69,6 +69,7 @@ make up                # local PostgreSQL 16 via docker compose on 127.0.0.1:544
 make django-check      # manage.py check (no database needed)
 make migrate-check     # makemigrations --check
 make migrate           # apply framework migrations (needs make up)
+make createsuper       # local Django Admin superuser; prompts for username and password (needs make migrate)
 make runserver         # Django dev server on 8010 (DJANGO_DEV_PORT); GET http://127.0.0.1:8010/api/v1/health/
 make py-test-db        # like py-test, but PostgreSQL tests fail instead of skipping
 ```
