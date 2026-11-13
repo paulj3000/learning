@@ -97,6 +97,19 @@ describe('buildRegionManifest', () => {
     ]);
   });
 
+  it('carries a Django-authored camera and avatar, which the validator checks (LAI-JMP-01a)', async () => {
+    const scene = { ...(await coveSceneJson()), player: { camera: { distance: 3 } } };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.player).toEqual({ camera: { distance: 3 } });
+    expect(issues(built)).toEqual([]);
+    const bad = build({
+      region: { ...bootstrapJson().region, scene: { ...scene, player: { camera: { mode: 'x' } } } },
+    });
+    expect(issues(bad).map((issue) => issue.path)).toEqual(['player.camera.mode']);
+    const plain = build({ region: { ...bootstrapJson().region, scene: await coveSceneJson() } });
+    expect(plain.manifest.player).toBeUndefined();
+  });
+
   it('carries Django-authored movement tuning, which the validator checks (LAI-JMP-01)', async () => {
     const scene = { ...(await coveSceneJson()), movement: { jump: { enabled: false } } };
     const built = build({ region: { ...bootstrapJson().region, scene } });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './WorldHud.module.css';
 import { ChattyAvatar } from '../../companion/ChattyAvatar';
+import type { CameraMode } from './playerPresentation';
 
 export interface WorldHudBackpackItem {
   id: string;
@@ -42,7 +43,20 @@ export interface WorldHudProps {
   onJump?: () => void;
   /** Child-facing label of the Jump button. Defaults to "Jump". */
   jumpLabel?: string;
+  /**
+   * LAI-JMP-01a: the perspective in force, and how to switch it. With
+   * `onToggleCamera` a camera button shows on every device (V and the gamepad
+   * do the same), beside the Jump button on a touch screen.
+   */
+  cameraMode?: CameraMode;
+  onToggleCamera?: () => void;
 }
+
+/** What the camera button calls each perspective, readable aloud. */
+const CAMERA_VIEW_LABELS: Readonly<Record<CameraMode, string>> = {
+  'third-person': 'Behind me',
+  'first-person': 'My eyes',
+};
 
 /** True where a keyboard hint makes sense: a fine pointer (mouse, trackpad). Unknown means yes. */
 function hasFinePointer(): boolean {
@@ -80,6 +94,8 @@ export function WorldHud({
   exitLink,
   onJump,
   jumpLabel = 'Jump',
+  cameraMode = 'first-person',
+  onToggleCamera,
 }: WorldHudProps) {
   const [backpackOpen, setBackpackOpen] = useState(false);
   const showJump = onJump !== undefined && hasCoarsePointer();
@@ -150,6 +166,26 @@ export function WorldHud({
             ⤒
           </span>
           <span className={styles.jumpText}>{jumpLabel}</span>
+        </button>
+      ) : null}
+
+      {onToggleCamera ? (
+        <button
+          type="button"
+          className={`${styles.cameraButton} ${showJump ? styles.cameraBesideJump : ''}`.trim()}
+          aria-label={`View: ${CAMERA_VIEW_LABELS[cameraMode]}. Change view`}
+          onClick={onToggleCamera}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          {hasFinePointer() ? (
+            <kbd className={styles.actionKey} aria-hidden="true">
+              V
+            </kbd>
+          ) : null}
+          <span className={styles.cameraIcon} aria-hidden="true">
+            {cameraMode === 'third-person' ? '🧍' : '👀'}
+          </span>
+          <span className={styles.cameraText}>{CAMERA_VIEW_LABELS[cameraMode]}</span>
         </button>
       ) : null}
 

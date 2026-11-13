@@ -1,3 +1,4 @@
+import type { CameraMode } from '../../playerPresentation';
 import { vi, type Mock } from 'vitest';
 import {
   AnimationClip,
@@ -56,6 +57,8 @@ export interface Harness {
   runFrames(count: number, milliseconds?: number): void;
   setDrive(drive: Drive): void;
   pressInteractKey(): void;
+  /** LAI-JMP-01a: what V (or the gamepad camera button) does. */
+  pressCameraKey(): void;
   camera(): PerspectiveCamera;
   scene(): Scene;
 }
@@ -79,6 +82,14 @@ export function mount(
     worldState?: WorldInteractionContext;
     quality?: RenderQuality;
     reducedMotion?: boolean;
+    /**
+     * LAI-JMP-01a. Defaults to first-person, so every test that reads the
+     * camera as the player's eye keeps guarding the first-person experience;
+     * third-person tests pass `'third-person'` (or `null` for the location's own default).
+     */
+    cameraMode?: CameraMode | null;
+    avatarKey?: string | null;
+    onCameraModeChange?: (mode: CameraMode) => void;
   } = {},
 ): Harness {
   const parent = options.parent ?? document.createElement('div');
@@ -87,6 +98,7 @@ export function mount(
   let clock = 0;
   let drive: Drive = () => undefined;
   let onInteract: () => void = () => undefined;
+  let onToggleCamera: () => void = () => undefined;
   let controller: FirstPersonController | null = null;
 
   const renderer: FakeRenderer = {
@@ -115,6 +127,7 @@ export function mount(
     attachControls: (_renderer, attached, attachOptions) => {
       controller = attached;
       onInteract = attachOptions.onInteract;
+      onToggleCamera = attachOptions.onToggleCamera ?? (() => undefined);
       return controls;
     },
     fitToParent: () => stopFitting,
@@ -154,6 +167,10 @@ export function mount(
       worldState: options.worldState,
       quality: options.quality,
       reducedMotion: options.reducedMotion,
+      cameraMode:
+        options.cameraMode === undefined ? 'first-person' : (options.cameraMode ?? undefined),
+      avatarKey: options.avatarKey,
+      onCameraModeChange: options.onCameraModeChange,
     },
     deps,
   );
@@ -182,6 +199,7 @@ export function mount(
       drive = next;
     },
     pressInteractKey: () => onInteract(),
+    pressCameraKey: () => onToggleCamera(),
     camera: () => lastRender()[1],
     scene: () => lastRender()[0],
   };

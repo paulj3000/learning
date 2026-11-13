@@ -689,6 +689,21 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     story beat.
   */
   movement: { jump: { jumpHeight: 0.9 } },
+  /*
+    LAI-JMP-01a: an indoor third-person camera. Closer than outdoors so the
+    child stays in view through archways and in the narrow passages, and held
+    under the ceiling slabs (their underside is at 3.1 m), so it never looks
+    over a wall into a room the story has not opened yet.
+  */
+  player: {
+    camera: {
+      distance: 2.6,
+      minDistance: 1.2,
+      maxDistance: 3.5,
+      heightOffset: 1.45,
+      maxHeight: 2.95,
+    },
+  },
   extensions: [
     {
       extensionId: 'castle-tale',

@@ -19,11 +19,12 @@ const CHILD: ChildProfile = {
 };
 
 describe('getChildPlaySettings', () => {
-  it('takes the age band and AI switch from the profile store, and no session limit', async () => {
+  it('takes the age band, AI switch and avatar from the profile store, and no session limit', async () => {
     const read = vi.fn(async () => CHILD);
     await expect(getChildPlaySettings('c1', { read })).resolves.toEqual({
       ageBand: 'EXPLORER',
       aiEnabled: false,
+      avatarKey: 'FOX',
     });
     expect(read).toHaveBeenCalledWith('c1');
   });

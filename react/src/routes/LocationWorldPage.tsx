@@ -41,6 +41,8 @@ export function LocationWorldPage() {
    * route does).
    */
   const [aiEnabled, setAiEnabled] = useState(false);
+  /** LAI-JMP-01a: the look of the child's avatar in third-person. */
+  const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const repository = useMemo(
     () => regionRepositoryForChild(childId ?? '', locationRepositoryForThisBuild),
     [childId],
@@ -65,6 +67,7 @@ export function LocationWorldPage() {
         if (child) {
           setAgeBand(child.ageBand);
           setAiEnabled(child.aiEnabled);
+          setAvatarKey(child.avatarKey);
         }
         setLoadState(child ? 'ready' : 'not-found');
       } catch {
@@ -106,6 +109,7 @@ export function LocationWorldPage() {
         regionId={regionId}
         ageBand={ageBand}
         aiEnabled={aiEnabled}
+        avatarKey={avatarKey}
         repository={repository}
         assets={assets}
       />

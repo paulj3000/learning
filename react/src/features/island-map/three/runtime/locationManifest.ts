@@ -2,8 +2,10 @@ import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
 import type { AgeBandValue } from '../../../child-profile/constants';
 import type { AdventureStepBinding } from './adventureStepBindings';
 import type { MovementSpec } from '../jumpConfiguration';
+import type { PlayerPresentationSpec } from '../playerPresentation';
 
 export type { MovementSpec } from '../jumpConfiguration';
+export type { PlayerPresentationSpec } from '../playerPresentation';
 
 /**
  * The serializable contract a generic Three.js location runtime reads
@@ -692,4 +694,10 @@ export interface ThreeLocationManifest {
    * keeps the child on the ground here.
    */
   movement?: MovementSpec;
+  /**
+   * LAI-JMP-01a: how the player is seen here: camera perspective and tuning,
+   * and the avatar. Absent means the defaults (third-person, switchable, the
+   * child's own avatar); `playerPresentation.ts`.
+   */
+  player?: PlayerPresentationSpec;
 }
