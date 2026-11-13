@@ -282,11 +282,16 @@ def test_the_mixin_scopes_by_the_authorized_child_object():
 # --- structural guards: fail if future code drops the pattern ---------------------------------
 
 
+# Not API routes: Django Admin (session-gated to staff, no child data; proven in
+# apps/core/tests/test_django_admin.py) and the site icon, a redirect to a public static file with
+# no data (apps/core/tests/test_admin_favicon.py).
+SITE_ICON_ROUTE = "favicon.ico"
+
+
 def walk(patterns, prefix=""):
-    """Every API route. Django Admin is skipped: it is session-gated to staff and registers no
-    child data, both proven in apps/core/tests/test_django_admin.py."""
+    """Every API route."""
     for entry in patterns:
-        if not prefix and str(entry.pattern) == settings.ADMIN_URL_PATH:
+        if not prefix and str(entry.pattern) in {settings.ADMIN_URL_PATH, SITE_ICON_ROUTE}:
             continue
         if isinstance(entry, URLResolver):
             yield from walk(entry.url_patterns, prefix + str(entry.pattern))
