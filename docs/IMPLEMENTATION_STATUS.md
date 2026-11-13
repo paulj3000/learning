@@ -12255,6 +12255,10 @@ unrelated to this change.
 
 ## Asset Library: Django Admin ownership, media families, lifecycle completion (2026-11-02, branch `feature/asset-manager`, pushed, merged into `dev20261102` only, nothing deployed)
 
+> Update 2026-11-11: `dev20261102`, with this work, was merged into `main` in `5222b690`
+> (2026-11-02). Owner-reported local QA accepted 2026-11-05. See "Asset Library closure review"
+> below and `docs/qa/ASSET_LIBRARY_CLOSURE_2026-11-11.md`.
+
 Acceptance implemented: ADR-045 (Django Admin owns staff asset authoring; React consumes
 published assets only); AM-13 (images and audio); AM-17 (lifecycle completion); AM-14 and AM-15
 removed. The product feature formerly called the Asset Manager is now the Asset Library.
@@ -13456,8 +13460,8 @@ child homepage and add-child pages (the last two through a local harness with AP
 ### AP-01 owner acceptance (2026-11-10)
 
 - The owner accepted AP-01 ("AP-01 is done") and ADR-052, which is now **Accepted**.
-- Trello AP-01 moved to Ready to Merge. It is not merged to `main` or deployed; merging waits for
-  the owner's go-ahead (a merge to `main` releases through Amplify).
+- Trello AP-01 moved to Ready to Merge. Merged to `main` on 2026-11-11 in PR #16 (see "Adventure
+  Portal AP-01 to AP-04 merged to main" below).
 - AP-04 stays in Development Complete pending its browser check (leaving from a 3D world, during an
   encounter and in full screen, on phone and desktop).
 
@@ -13483,14 +13487,49 @@ only exit shown. The owner chose to remove the check entirely.
 
 - The owner accepted AP-04 after checking "Leave island" and the question-free adult exit. Trello
   AP-04 moved to Complete and marked done.
-- Not merged to `main` or deployed: the merge of `feature/adventure-portal` (AP-01 and AP-04)
-  waits for the owner's go-ahead.
+- Merged to `main` on 2026-11-11 in PR #16 with AP-01, AP-02 and AP-03 (see "Adventure Portal
+  AP-01 to AP-04 merged to main" below).
+
+### AP-01 rework: the child nav covered fixed game panels (2026-11-11, branch `claude/dazzling-maxwell-dyb1ar`)
+
+Found by a browser check after AP-01 merged (PR #16). The `ChildShell` nav is `position: fixed`
+(z-index 40), and so are Treasure Rush's panels, HUD buttons and hint bubble
+(`RegionPlayPanels.module.css`, z-index 19 to 20) and the castle captions
+(`CastleSpeech.module.css`). On phones the bottom bar covered Pirate Pip's "Maybe later"; on a
+768px portrait tablet the sidebar covered the left of the viewport-centred panel, including
+"Yes, I will help!". 1024px and wider were unaffected.
+
+- `ChildShell.module.css` (new) publishes `--child-nav-inset-bottom` (5rem on phones) and
+  `--child-nav-inset-left` (14rem from `md`, 48rem), both 0 in full screen where the stage
+  covers the nav. The shell's own padding uses them instead of `pb-20 md:pl-56`. They live in a
+  CSS Module because `portal.css` may not declare custom properties (ADR-052).
+- Every fixed game layer offsets by them: bottom by the bottom inset; left-anchored layers and
+  the centred panel by the left inset (the panel centres in the play area and narrows to fit).
+  Outside the shell the fallbacks are `0px`, so nothing else moves.
+- After merging `main` (2026-11-11), the NPC manager's dialogue panel and talk prompt
+  (`NpcInteraction.module.css`) follow the same rule; its top-right ambient line needs no offset.
+- Tests: `childNavInsets.test.ts` (new; insets match the nav's classes, full-screen reset, and
+  every `position: fixed` rule in the three game stylesheets uses them; it fails on the old CSS) and
+  one case in `shells.test.tsx`.
+
+Checks: Vitest for portal, island, regionPlay and castleTale (156 files) pass; typecheck passes;
+Prettier and oxlint clean on the changed files (oxlint keeps its existing
+`only-export-components` warning). Browser (Chromium, Django acceptance stack) at 320, 375, 768,
+1024 and 1440px: no fixed layer overlaps the nav, Pip's panel buttons are tappable at every size,
+no horizontal overflow, nav bar 58px tall within the 5rem inset. Treasure Rush and integration
+acceptance specs: 12 passed, 1 skipped (as in the suite).
+
+Deferred to merge verification: full Vitest suite, build, lint and format over the repository,
+`make py-check`, the full e2e and acceptance suites. Not browser-checked: Storykeeper Castle's
+captions and the NPC dialogue panel (the same offset rule, unit-tested). Remaining risk, not caused by the nav: at 320x640
+Pip's panel is taller than the room above the bar (its 70vh cap), so the answer buttons need a
+scroll inside the panel, and the panel draws over the top bar's adult exit while open.
 
 ## Adventure Portal AP-03 redesign: Realm Explorer (2026-11-11, branch `feature/adventure-portal-home`)
 
 Trello AP-03. Supersedes the inline Island Explorer of the first AP-03 commit (`c1d4d74`) in
 builds with the Django API. Amplify builds are unchanged (Home keeps the source explorer;
-`/realms` redirects there). Status: **accepted by the owner (2026-11-11), not yet merged.** The
+`/realms` redirects there). Status: **accepted by the owner (2026-11-11), merged to `main` in PR #16 (2026-11-11).** The
 owner reviewed it running locally; AP-02 (below) was accepted the same day.
 
 **Decisions (owner to confirm in QA).**
@@ -13550,7 +13589,7 @@ now use variants admin.css never emits (`min-[80rem]:`, `max-md:hidden`).
 
 Trello AP-03 and AP-02. Branched from `feature/adventure-portal` (AP-01 and AP-04, accepted), so
 those can merge on their own. **AP-02 accepted by the owner 2026-11-11** (AP-03 as redesigned
-above, also accepted). Not yet merged.
+above, also accepted). Merged to `main` in PR #16 (2026-11-11).
 
 **Data source.** Both read Django, as the cards require, when the build has the Django API
 (`VITE_BACKEND=django`). Every hosted Amplify build has no Django API until the ADR-019 cutover:
@@ -13611,6 +13650,40 @@ and world changes, no dashboard).
 - Island thumbnails need catalog illustrations (ADR-030). An open non-home Island links to the
   existing world hub, which knows only source-controlled Islands.
 - The hosted (Amplify) site shows neither card until it uses the Django API.
+
+## Adventure Portal AP-01 to AP-04 merged to main (2026-11-11, PR #16)
+
+The owner accepted AP-01, AP-02, AP-03 and AP-04 and approved the merge after the full
+merge-readiness checks. `feature/adventure-portal-home` (head `54fe0fd`, containing
+`feature/adventure-portal`) merged into `main` as `b8b37dd` (merge commit). Trello AP-01 to AP-04
+are in Complete and marked done. Results were posted on PR #16.
+
+**GitHub CI on `54fe0fd`:** typecheck, lint, unit test and build passed; Python, Django and
+PostgreSQL passed; end-to-end tests passed.
+
+**Full local run:**
+- ADR register, admin preview, content export check, ruff lint and format, Django system check,
+  migration check, oxlint, Prettier, typecheck and production build: pass.
+- pytest, full suite with `LAI_REQUIRE_POSTGRES=1`: 2801 passed, 3 skipped. The one failure, the
+  golden content digest, was fixed in `54fe0fd`.
+- Playwright acceptance, all specs, desktop and tablet: 55 passed, 2 skipped.
+- Vitest, full suite (`--maxWorkers=2`): 4596 passed. The 10 failures were:
+  - golden vectors, caused by Firepeak's new `subjectAreas` changing the content digest; fixed by
+    `npm run golden:generate` in `54fe0fd` (only the digest line changed);
+  - `adrCheck.test.ts` (7) and the `contentExport.test.ts` build-time boundary test, local
+    environment only: they spawn `<repo>/node_modules/.bin/tsx`, and on this machine
+    dependencies resolve from a parent `node_modules`. They pass in CI.
+  - a `RegionPlayCompanion.test.tsx` double-tap test, which timed out once under full-suite load;
+    it passes alone (59 of 59) and in CI.
+
+**Open after the merge**
+- A merge to `main` releases the hosted frontend through Amplify. The hosted (Amplify) build
+  keeps the source-controlled Island Explorer; the Realm Explorer and home dashboard need the
+  Django API (ADR-019 cutover).
+- No Realm or Place has published art yet (see the AP-03 entry above).
+- Firepeak's `subjectAreas` reaches an existing database after `load_content` and, where the
+  record is Django-authoritative, publishing the import draft.
+
 ## Treasure Rush QA closed for now (2026-11-11, Trello WTQR3qTS)
 
 **Status: owner-reported QA acceptance of Treasure Rush as merged in `main`; no code change.**
@@ -13647,3 +13720,51 @@ in `main` (verified: zero commits ahead of `origin/main`).
   - co-op routes and realtime.
 - Only parent and child profiles have a DynamoDB importer.
 - Checks: docs only (Prettier clean). No code or resource changed.
+
+## Asset Library closure review (2026-11-11, branch `claude/funny-newton-ehxclx`, docs only, nothing deployed)
+
+**Status: core Asset Library implementation fully in `main`; no core MVP blocker found.
+Recommendation to the owner: move the Trello parent "[Subproject] Asset Library" to Complete
+and keep AM-16 and AM-11 open on their follow-up card. No Trello card was changed.**
+Report: `docs/qa/ASSET_LIBRARY_CLOSURE_2026-11-11.md`.
+
+- **Merge:** `5222b690` (AM-13, AM-17) is in `main` (`b7b7309`); `feature/asset-manager`
+  (`a4fc833`) has 0 commits not in `main`; asset app code is unchanged since `5222b690`.
+- **Reconciled:** AM-12 added to the tracker (done as code, was missing); AM-16 stale
+  dependencies on AM-14, AM-15 and LAI-0209 removed (superseded or retired); AM-11 marked as a
+  deferred optimisation; stale "merged into `dev20261102` only" wording annotated.
+- **Owner QA 2026-11-05** (QA-01 to QA-07, Treasure Rush integration; owner-reported, local) is
+  now recorded in the repository. Not reopened: no regression evidence.
+- **Checks on `main`:** pytest 2,796 passed, 3 skipped (nginx binary absent); assets and audio
+  417 passed; Vitest 4,587 passed; infra Vitest 82 passed; typecheck, Ruff, Prettier, oxlint
+  (0 errors), Django check, migration check, ADR check, content check and build pass; browser
+  acceptance `asset-library` and `treasure-rush` specs 18 passed, 1 skipped by design.
+- **Still open:** AM-16 deployed dev acceptance (needs LAI-1002, LAI-1004 and a live pass; not
+  passed, no live evidence); AM-11 signed CloudFront (deferred, APPROVAL: AWS).
+
+## Adventure Portal consolidation on main (2026-11-13)
+
+The owner completed QA of PR #23 and the AP-01 to AP-04 milestone on 2026-11-13 and authorized
+the merge. Recorded here so this file reflects `main`:
+
+- **PR #23** (AP-01 rework: fixed game panels clear the child nav) merged as `4e4855d`. Gates on
+  the exact merge result: `make js-check` (ADR check, admin preview, typecheck, oxlint 0 errors,
+  Prettier, Vitest 438 files / 5,000 tests, build) and `content:check` pass; Ruff, Django check
+  and migration check pass; pytest (`LAI_REQUIRE_POSTGRES=1`) 3,260 passed, 4 skipped; GitHub CI
+  on `ee73247` green. Browser check at 320, 375, 768, 1024 and 1440 px: Pip's buttons clear the
+  nav and are tappable, no overflow, the adult exit works with no panel open.
+- **PR #24** (Asset Library closure review, docs) merged as `803b01b`.
+- **PR #20** (LAI-0821 acceptance, docs) closed as superseded: its content was already in `main`.
+- **PR #17** (this record of the PR #16 merge) merged after reconciling with newer `main`.
+- Trello AP-01 to AP-04 and the Adventure Portal subproject: Complete. AP-05 (Featured Realm)
+  stays separate and is not part of this merge.
+
+**Open after the consolidation**
+- At 320 and 375 px an open Pirate Pip panel covers the adult exit until it is closed (PR #23's
+  stated follow-up; Trello defect card).
+- Local acceptance-suite failures tracked as separate Trello defects: speech `503`
+  (`tests/e2e/django_server.py` leaves `LAI_SPEECH_PROVIDER` at `disabled`), two Question Studio
+  `404`s, and timing-dependent Treasure Rush specs. CI does not run the acceptance suite.
+- The local-development fixes (Cognito from environment variables, Django by default, one
+  `DJANGO_DEV_PORT`, friendly Realm errors) are on `fix/p0-cognito-env-realm-explorer`
+  (`1734ebd`), pending owner acceptance; not in `main`.

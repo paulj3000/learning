@@ -1,0 +1,33 @@
+/*
+  The room the child shell's nav takes up, published for fixed-position game
+  layers (AP-01 rework). The nav is fixed: a bottom bar on phones, a 14rem
+  sidebar from Tailwind's `md` (48rem) up. Anything else fixed to the
+  viewport inside the shell (Treasure Rush panels and HUD buttons, the
+  castle's captions) offsets itself by these, so the nav never covers it.
+
+  These live in a CSS Module, not portal.css, because portal.css may not
+  declare custom properties (ADR-052, portalCss.test.ts). Keep the values in
+  step with the nav's Tailwind classes in ChildShell.tsx (`bottom-0` bar,
+  `md:w-56`); shells.test.tsx checks the pairing and the browser check
+  measures it.
+*/
+.shell {
+  --child-nav-inset-bottom: 5rem;
+  --child-nav-inset-left: 0px;
+
+  padding-bottom: var(--child-nav-inset-bottom);
+  padding-left: var(--child-nav-inset-left);
+}
+
+@media (min-width: 48rem) {
+  .shell {
+    --child-nav-inset-bottom: 0px;
+    --child-nav-inset-left: 14rem;
+  }
+}
+
+/* In full screen the stage covers the nav, so the play layers need no offset. */
+.shell :fullscreen {
+  --child-nav-inset-bottom: 0px;
+  --child-nav-inset-left: 0px;
+}

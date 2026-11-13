@@ -18,8 +18,9 @@
 
 .prompt {
   position: fixed;
-  left: 50%;
-  bottom: var(--space-6);
+  /* Centred in the play area, clear of the child shell's nav (AP-01). */
+  left: calc(50% + var(--child-nav-inset-left, 0px) / 2);
+  bottom: calc(var(--space-6) + var(--child-nav-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 15;
   min-width: var(--npc-target);
@@ -80,11 +81,12 @@
 
 .panel {
   position: fixed;
-  left: 50%;
-  bottom: var(--space-4);
+  /* Centred in the play area, clear of the child shell's nav (AP-01). */
+  left: calc(50% + var(--child-nav-inset-left, 0px) / 2);
+  bottom: calc(var(--space-4) + var(--child-nav-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 20;
-  width: min(34rem, calc(100% - var(--space-8)));
+  width: min(34rem, calc(100% - var(--space-8) - var(--child-nav-inset-left, 0px)));
   max-height: min(70vh, 40rem);
   overflow-y: auto;
   display: flex;
