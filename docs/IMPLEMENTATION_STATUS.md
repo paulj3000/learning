@@ -75,6 +75,11 @@ What changed (no AWS resource touched; the Cognito pool is unchanged):
   (region only; never ids or tokens).
 - Acceptance harness: `start-vite.mjs` sets `VITE_COGNITO_*` and writes no `amplify_outputs.json`
   (as in PR #15).
+- Hosting compatibility: the hosted Amplify build is unchanged (production builds stay on the
+  legacy backend and still read the outputs file Amplify Hosting writes). The CloudFront release
+  (`.github/actions/site-release`, gated off by `LAI_SITE_DEPLOY_ENABLED`) builds with
+  `VITE_BACKEND=django`, so it now passes the generated outputs' pool and web client as
+  `VITE_COGNITO_*` and fails if they are missing.
 
 Evidence: unit tests (Vitest) for backend resolution, auth setup, timeouts, diagnostics, guards
 and Realm pages; pytest for the Makefile port; Playwright `e2e/acceptance/p0-navigation.spec.ts`
