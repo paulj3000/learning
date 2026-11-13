@@ -12211,6 +12211,10 @@ unrelated to this change.
 
 ## Asset Library: Django Admin ownership, media families, lifecycle completion (2026-11-02, branch `feature/asset-manager`, pushed, merged into `dev20261102` only, nothing deployed)
 
+> Update 2026-11-11: `dev20261102`, with this work, was merged into `main` in `5222b690`
+> (2026-11-02). Owner-reported local QA accepted 2026-11-05. See "Asset Library closure review"
+> below and `docs/qa/ASSET_LIBRARY_CLOSURE_2026-11-11.md`.
+
 Acceptance implemented: ADR-045 (Django Admin owns staff asset authoring; React consumes
 published assets only); AM-13 (images and audio); AM-17 (lifecycle completion); AM-14 and AM-15
 removed. The product feature formerly called the Asset Manager is now the Asset Library.
@@ -13638,3 +13642,24 @@ in `main` (verified: zero commits ahead of `origin/main`).
   - co-op routes and realtime.
 - Only parent and child profiles have a DynamoDB importer.
 - Checks: docs only (Prettier clean). No code or resource changed.
+
+## Asset Library closure review (2026-11-11, branch `claude/funny-newton-ehxclx`, docs only, nothing deployed)
+
+**Status: core Asset Library implementation fully in `main`; no core MVP blocker found.
+Recommendation to the owner: move the Trello parent "[Subproject] Asset Library" to Complete
+and keep AM-16 and AM-11 open on their follow-up card. No Trello card was changed.**
+Report: `docs/qa/ASSET_LIBRARY_CLOSURE_2026-11-11.md`.
+
+- **Merge:** `5222b690` (AM-13, AM-17) is in `main` (`b7b7309`); `feature/asset-manager`
+  (`a4fc833`) has 0 commits not in `main`; asset app code is unchanged since `5222b690`.
+- **Reconciled:** AM-12 added to the tracker (done as code, was missing); AM-16 stale
+  dependencies on AM-14, AM-15 and LAI-0209 removed (superseded or retired); AM-11 marked as a
+  deferred optimisation; stale "merged into `dev20261102` only" wording annotated.
+- **Owner QA 2026-11-05** (QA-01 to QA-07, Treasure Rush integration; owner-reported, local) is
+  now recorded in the repository. Not reopened: no regression evidence.
+- **Checks on `main`:** pytest 2,796 passed, 3 skipped (nginx binary absent); assets and audio
+  417 passed; Vitest 4,587 passed; infra Vitest 82 passed; typecheck, Ruff, Prettier, oxlint
+  (0 errors), Django check, migration check, ADR check, content check and build pass; browser
+  acceptance `asset-library` and `treasure-rush` specs 18 passed, 1 skipped by design.
+- **Still open:** AM-16 deployed dev acceptance (needs LAI-1002, LAI-1004 and a live pass; not
+  passed, no live evidence); AM-11 signed CloudFront (deferred, APPROVAL: AWS).
