@@ -63,11 +63,12 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# Templates exist for the admin only; the API renders JSON.
+# Templates exist for the admin only; the API renders JSON. `lai/templates` holds project-wide
+# admin overrides (searched before app templates, so it can extend django.contrib.admin's own).
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

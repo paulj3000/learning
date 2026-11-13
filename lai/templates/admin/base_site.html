@@ -1,0 +1,8 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% comment %}
+  Django Admin's site icon. Without one, browsers fall back to /favicon.ico, which Django does not
+  serve, and log a 404 on every Admin page (Trello IIGt0JWT). Extends the stock template, so the
+  title, branding and navigation are unchanged.
+{% endcomment %}
+{% block extrahead %}{{ block.super }}<link rel="icon" type="image/svg+xml" href="{% static 'core/favicon.svg' %}">{% endblock %}
