@@ -9,6 +9,10 @@ accounts page (superusers only). Superusers need no group.
 - Asset editors: create definitions, edit their display details, upload versions, delete
   never-published versions, and see everything.
 - Asset publishers: everything editors can, plus publish, choose the default, and retire.
+
+Player avatars (LAI-JMP-01c) are asset configuration: editors may view and configure them
+(model, scale, facing, animation map, customization) as drafts; publishers may also make one
+available to children, or disable it.
 """
 
 from django.contrib.auth.models import Group, Permission
@@ -26,11 +30,14 @@ EDITOR_PERMISSIONS = (
     "assets.add_assetversion",
     "assets.change_assetversion",
     "assets.delete_assetversion",
+    "avatars.view_playeravatar",
+    "avatars.change_playeravatar",
 )
 PUBLISHER_PERMISSIONS = (
     *EDITOR_PERMISSIONS,
     "assets.publish_assetversion",
     "assets.retire_assetversion",
+    "avatars.publish_playeravatar",
 )
 ROLES = {EDITORS: EDITOR_PERMISSIONS, PUBLISHERS: PUBLISHER_PERMISSIONS}
 
