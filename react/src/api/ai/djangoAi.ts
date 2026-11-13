@@ -3,6 +3,9 @@ import { createApiClient, type ApiClient } from '../client';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../config';
 import { ApiError } from '../errors';
 
+/** Longer than the server's 60-second AI ceiling, so Django answers (or falls back) first. */
+export const AI_REQUEST_TIMEOUT_MS = 70_000;
+
 /**
  * Chatty's companion and tutor turns on the Django API (LAI-0706, ADR-044,
  * docs/AI_SERVICE.md section 2). Selected by the build's backend: with
@@ -185,7 +188,13 @@ export function createDjangoAiApi(client: ApiClient): DjangoAiApi {
 export function djangoAiApiFor(config: DjangoApiConfig = DJANGO_API_CONFIG): DjangoAiApi | null {
   if (!config.enabled) return null;
   return createDjangoAiApi(
-    createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
+    createApiClient({
+      baseUrl: config.baseUrl,
+      getAccessToken,
+      provisionAccount: true,
+      // A first Bedrock call may take up to LAI_AI_TIMEOUT_SECONDS' 60-second ceiling.
+      timeoutMs: AI_REQUEST_TIMEOUT_MS,
+    }),
   );
 }
 

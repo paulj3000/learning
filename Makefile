@@ -2,16 +2,20 @@
 # (so CI needs no developer-specific paths). Node commands delegate to the root npm scripts.
 PY ?= $(shell test -x $(CURDIR)/.venv/bin/python && echo $(CURDIR)/.venv/bin/python || echo python3)
 
-# Development ports (owner, 2026-11-05): PostgreSQL 5442 (compose and Django default; override
-# with POSTGRES_PORT), Django runserver 8010 (DJANGO_DEV_PORT), Vite 5183 (VITE_DEV_PORT).
-DJANGO_DEV_PORT ?= 8010
-
 # Local settings come from the untracked .env at the repository root (template: .env.sample),
 # as in FinTwin. Compose reads .env itself but Django does not (no dotenv package), so the values
 # are passed from here. A value already in the shell wins. Write `NAME=value`, unquoted; the last
 # line for a name wins. Deployed environments never read .env (SSM, docs/platform).
 ENV_FILE ?= .env
 dotenv = $(subst #,\#,$(subst $$,$$$$,$(shell sed -n 's/^$(1)=//p' $(ENV_FILE) 2>/dev/null | tail -n 1 | tr -d '\r')))
+
+# Development ports (owner, 2026-11-05): PostgreSQL 5442 (compose and Django default; override
+# with POSTGRES_PORT), Django runserver 8010 (DJANGO_DEV_PORT), Vite 5183 (VITE_DEV_PORT).
+# DJANGO_DEV_PORT is read from the shell, then .env, then 8010. `make runserver` binds it and
+# `make web` (and plain `npm run dev`, which reads the same .env) proxies /api to it, so the two
+# can never disagree (P0). Example: DJANGO_DEV_PORT=8000 in .env runs both sides on 8000.
+$(if $(call dotenv,DJANGO_DEV_PORT),$(eval DJANGO_DEV_PORT ?= $(call dotenv,DJANGO_DEV_PORT)))
+DJANGO_DEV_PORT ?= 8010
 
 # The compose database settings reach every target (e.g. POSTGRES_PORT to move off the 5442 default).
 $(foreach v,POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD POSTGRES_PORT,\
@@ -33,13 +37,14 @@ $(foreach v,$(DJANGO_ENV_VARS),\
   $(if $(call dotenv,$(v)),$(eval $(DJANGO_ENV_TARGETS): export $(v) ?= $(call dotenv,$(v)))))
 
 .PHONY: help py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
-.PHONY: django-check migrate-check migrate runserver createsuper
+.PHONY: django-check migrate-check migrate runserver createsuper web
 
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
 	@echo "js-check (typecheck, lint, format:check, test, build) | check (py-check + js-check)"
 	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5442; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
+	@echo "web (Vite dev server on 5183, proxying /api to runserver on DJANGO_DEV_PORT)"
 	@echo "createsuper (prompts for a username and password; creates a Django Admin superuser; needs make up + make migrate)"
 
 py-install:
@@ -87,6 +92,11 @@ createsuper:
 runserver: export AWS_PROFILE ?= learning-dev
 runserver:
 	cd lai && $(PY) manage.py runserver 127.0.0.1:$(DJANGO_DEV_PORT)
+
+# The React dev server (Vite, 5183), proxying /api to the runserver above on the same
+# DJANGO_DEV_PORT. Prints the backend, proxy target and Cognito status when it starts.
+web:
+	DJANGO_DEV_PORT=$(DJANGO_DEV_PORT) npm run dev
 
 # No Python type checker yet. Decision deferred to LAI-0204, when Django exists and a checker
 # with Django stubs can be chosen (see docs/IMPLEMENTATION_STATUS.md, LAI-0202).

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./amplifyProfiles', () => ({ amplifyProfileStore: { source: 'amplify' } }));
-vi.mock('../../lib/amplify-config', () => ({ isAmplifyConfigured: false }));
+vi.mock('../../lib/amplify-config', () => ({ isAuthConfigured: false }));
 
 import { profileStoreFor } from './api';
 
