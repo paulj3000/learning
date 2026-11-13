@@ -1,3 +1,5 @@
+import { validateLocomotion, type LocomotionConfiguration } from './locomotionConfiguration';
+
 /**
  * Jump tuning for the shared player movement controller (LAI-JMP-01).
  *
@@ -76,6 +78,8 @@ export const JUMP_LIMITS = Object.freeze({
 /** What a manifest may say about movement. Every field optional: absent means the default. */
 export interface MovementSpec {
   jump?: Partial<JumpConfiguration>;
+  /** Walking, running and sprinting speeds (`locomotionConfiguration.ts`). */
+  locomotion?: Partial<LocomotionConfiguration>;
 }
 
 type NumericKey = keyof typeof JUMP_LIMITS;
@@ -134,9 +138,13 @@ export function validateMovementSpec(
     return [{ path, message: 'must be an object' }];
   }
   for (const key of Object.keys(movement)) {
-    if (key !== 'jump')
+    if (key !== 'jump' && key !== 'locomotion') {
       issues.push({ path: `${path}.${key}`, message: 'is not a movement setting' });
+    }
   }
+  issues.push(
+    ...validateLocomotion((movement as { locomotion?: unknown }).locomotion, `${path}.locomotion`),
+  );
   const jump = (movement as { jump?: unknown }).jump;
   if (jump === undefined) return issues;
   if (typeof jump !== 'object' || jump === null || Array.isArray(jump)) {
