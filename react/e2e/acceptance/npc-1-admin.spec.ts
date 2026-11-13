@@ -25,7 +25,7 @@ import {
  * placement, a dialogue with nodes and choices; then validate, publish, roll back and retire,
  * and check what the child runtime API serves at each step. Pip and Quill start as unpublished
  * drafts (tests/e2e/django_server.py), so the first publish here is NPC release 1 and carries all
- * three characters. Nothing reaches AWS (fake AI, speech disabled, in-memory asset storage).
+ * three characters. Nothing reaches AWS (fake AI and speech, in-memory asset storage).
  *
  * The suite leaves one ACTIVE release (release 3, see the last test) for the Treasure Rush and
  * Storykeeper's Castle specs that follow.

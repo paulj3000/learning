@@ -89,8 +89,33 @@ test.describe.serial('Treasure Rush: Pirate Pip from the NPC Manager', () => {
     };
 
     await signInAs(page, parent);
+    // Pip's greeting is voiced: the acceptance stack synthesizes it with the fake provider.
+    const spoken = page.waitForResponse(
+      (r) => /\/audio\/speech\/$/.test(r.url()) && r.request().method() === 'POST',
+      { timeout: 60_000 },
+    );
+    const clip = page.waitForResponse((r) => /\/speech-files\/[^/]+\/speech\.mp3/.test(r.url()), {
+      timeout: 60_000,
+    });
     await enterCove(page, childId);
     const pip = await managedPip(page);
+    const speech = await spoken;
+    expect(speech.status()).toBe(200);
+    const said = (
+      (await speech.json()) as { speech: { url: string; text: string; cached: boolean } }
+    ).speech;
+    expect(said.text).toContain('Ahoy, friend!');
+    expect(said.url).toMatch(/\/speech-files\/[^/]+\/speech\.mp3/);
+    const audio = await clip;
+    expect(audio.status()).toBe(200);
+    expect(audio.headers()['content-type']).toBe('audio/mpeg');
+    // The same line again is served from the cache, not synthesized twice.
+    const again = await api(page.request, parent).post(
+      `children/${childId}/audio/speech/`,
+      speech.request().postDataJSON() as Record<string, unknown>,
+    );
+    expect(again.status()).toBe(200);
+    expect(((await again.json()) as { speech: { cached: boolean } }).speech.cached).toBe(true);
     // One Pip on screen: the managed one; the manifest Pip is handed over and hidden.
     expect(await page.evaluate(() => window.__laiE2E!.entityVisible('cove-pip'))).toBe(false);
     expect((await npcs(page)).filter((n) => n.visible)).toHaveLength(1);
