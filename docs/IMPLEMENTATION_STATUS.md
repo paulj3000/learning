@@ -13735,5 +13735,10 @@ Defect: Chromium's automatic `GET /favicon.ico` on the Django Admin login page a
   `<link rel="icon">` to `core/favicon.svg` (the app's existing favicon, now also an Admin static
   file collected with the rest). `TEMPLATES["DIRS"]` gains `lai/templates` so the override is
   found before `django.contrib.admin`'s own template; title, branding and navigation are unchanged.
-- The acceptance test is unchanged: its failed-request check still applies.
-- Tests: `apps/core/tests/test_admin_favicon.py` (icon declared, stock title kept, file collectable).
+- `/favicon.ico` redirects to the same static icon, for Django pages without an icon link: the
+  JSON 403 a staff member without permission gets (`question-studio-qa.spec.ts:271`), or any
+  JSON response opened in a tab. In production the admin host already proxies it to Django. The
+  URL convention tests allow exactly this one non-API, non-Admin route, with the reason.
+- The acceptance tests are unchanged: their failed-request checks still apply.
+- Tests: `apps/core/tests/test_admin_favicon.py` (icon declared, stock title kept, `/favicon.ico`
+  redirect, file collectable); `test_api_conventions.py`.

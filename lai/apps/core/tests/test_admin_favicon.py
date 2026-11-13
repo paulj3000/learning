@@ -1,4 +1,4 @@
-"""Django Admin declares a site icon, so browsers never fall back to /favicon.ico (a 404).
+"""Django serves a site icon, so browsers never get a 404 for /favicon.ico.
 
 Trello IIGt0JWT: Chromium's automatic `GET /favicon.ico` on the Admin login page answered 404,
 which the Question Studio browser acceptance suite (correctly) reported as a failed request.
@@ -27,6 +27,14 @@ def test_the_override_keeps_the_stock_admin_title_and_branding(client):
     assert "Learning Adventure Island administration" in html
     assert "<title>" in html and "Learning Adventure Island admin</title>" in html
     assert html.count('rel="icon"') == 1
+
+
+def test_favicon_ico_redirects_to_the_icon_for_pages_without_an_icon_link(client):
+    # Error pages (a 403 for staff without permission) and JSON responses have no <link>, so
+    # browsers ask for /favicon.ico there; it must not be a 404.
+    response = client.get("/favicon.ico")
+    assert response.status_code == 302
+    assert response["Location"] == static(ICON)
 
 
 def test_the_icon_is_a_collectable_static_file():
