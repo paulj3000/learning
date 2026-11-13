@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getIslandsFor, type IslandsView } from '../../api/play/islandsApi';
 import { getChildProfile, type ChildProfile } from '../child-profile/api';
+import { realmLoadFailure, type RealmLoadFailure } from './realmLoadFailure';
 
 /**
  * The child and their published Realm catalog for the Realm Explorer pages (AP-03).
@@ -22,7 +23,7 @@ export function clearRealmCatalogCache(): void {
 export type RealmCatalogState =
   | { status: 'loading' }
   | { status: 'not-found' }
-  | { status: 'error' }
+  | { status: 'error'; failure: RealmLoadFailure }
   | { status: 'ready'; child: ChildProfile; view: IslandsView };
 
 async function loadCatalog(childId: string, force: boolean): Promise<IslandsView> {
@@ -52,8 +53,9 @@ export function useRealmCatalog(childId: string | undefined): {
         if (!live) return;
         setState(child ? { status: 'ready', child, view } : { status: 'not-found' });
       },
-      () => {
-        if (live) setState({ status: 'error' });
+      (error: unknown) => {
+        // Every read is bounded (react/src/api/client.ts), so this always arrives.
+        if (live) setState({ status: 'error', failure: realmLoadFailure(error) });
       },
     );
     return () => {

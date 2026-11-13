@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { NotFound } from '../../routes/NotFound';
+import { AuthStatusNotice } from './AuthStatusNotice';
 import styles from './AuthForm.module.css';
 
 /**
@@ -17,21 +18,11 @@ import styles from './AuthForm.module.css';
  * admin read and write is also refused by the backend's group rules.
  */
 export function RequireAdmin({ children }: { children: ReactNode }) {
-  const { status, isAdmin } = useAuth();
+  const { status, isAdmin, refresh } = useAuth();
   const location = useLocation();
 
-  if (status === 'unconfigured') {
-    return (
-      <div className={styles.page}>
-        <div className={styles.card}>
-          <h1 className={styles.heading}>The island is not connected yet</h1>
-          <p className={styles.lead}>
-            The admin section needs a running Amplify backend. Run <code>npm run sandbox</code>{' '}
-            locally to enable sign-in.
-          </p>
-        </div>
-      </div>
-    );
+  if (status === 'unconfigured' || status === 'unavailable') {
+    return <AuthStatusNotice status={status} onRetry={() => void refresh()} />;
   }
 
   if (status === 'loading') {

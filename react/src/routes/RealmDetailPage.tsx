@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { DJANGO_API_CONFIG } from '../api/config';
 import { IslandLayout } from '../features/island/IslandLayout';
-import { portalPath, realmExplorerPath } from '../features/portal/exit';
+import { realmExplorerPath } from '../features/portal/exit';
 import { PortalButton, ProgressIndicator, cn } from '../features/portal/ui';
 import { PlaceCard } from '../features/realms/PlaceCard';
 import { AgeRange, ChildBadge, SubjectBadges } from '../features/realms/RealmParts';
@@ -10,6 +10,7 @@ import { ImageResolverProvider, imageResolverFor } from '../features/realms/imag
 import { RealmPicture } from '../features/realms/RealmPicture';
 import { buildRealms, type Realm } from '../features/realms/realmCatalog';
 import { themeFor } from '../features/realms/realmThemes';
+import { RealmLoadError, RealmsUnavailable } from '../features/realms/RealmNotices';
 import { useRealmCatalog } from '../features/realms/useRealmCatalog';
 
 /**
@@ -25,7 +26,14 @@ import { useRealmCatalog } from '../features/realms/useRealmCatalog';
 export function RealmDetailPage() {
   const { childId, realmId } = useParams<{ childId: string; realmId: string }>();
   if (!DJANGO_API_CONFIG.enabled && childId) {
-    return <Navigate to={portalPath(childId, { kind: 'island-explorer' })} replace />;
+    // No catalog in this build: say so instead of a silent trip to Home (P0 fix).
+    return (
+      <IslandLayout childId={childId}>
+        <div className="flex w-full max-w-7xl flex-col gap-6" data-portal="realm-detail">
+          <RealmsUnavailable childId={childId} />
+        </div>
+      </IslandLayout>
+    );
   }
   return <RealmDetail childId={childId} realmId={realmId} />;
 }
@@ -73,15 +81,11 @@ function RealmDetail({ childId, realmId }: { childId?: string; realmId?: string 
           ) : null}
 
           {state.status === 'error' ? (
-            <div
-              className="flex flex-col items-start gap-3 rounded-2xl bg-coral-50 px-4 py-4 text-ink"
-              role="alert"
-            >
-              <p className="m-0">We could not load this Realm right now.</p>
-              <PortalButton tone="ocean" onClick={retry}>
-                Try again
-              </PortalButton>
-            </div>
+            <RealmLoadError
+              message="We could not load this Realm right now."
+              failure={state.failure}
+              onRetry={retry}
+            />
           ) : null}
 
           {state.status === 'ready' && !realm ? (

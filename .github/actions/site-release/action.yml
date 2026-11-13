@@ -59,6 +59,19 @@ runs:
         npx ampx generate outputs --branch main --app-id "$APP_ID"
         test -f amplify_outputs.json
 
+    # A Django build reads Cognito only from VITE_COGNITO_* (react/src/lib/amplify-config.ts), never
+    # from amplify_outputs.json, so pass the same pool and web client explicitly. Not secrets.
+    - name: Cognito pool and client for the build
+      shell: bash
+      run: |
+        node -e '
+          const auth = require("./amplify_outputs.json").auth ?? {};
+          const pool = auth.user_pool_id, client = auth.user_pool_client_id;
+          if (!pool || !client) { console.error("amplify_outputs.json has no auth pool/client"); process.exit(1); }
+          require("fs").appendFileSync(process.env.GITHUB_ENV,
+            `VITE_COGNITO_USER_POOL_ID=${pool}\nVITE_COGNITO_CLIENT_ID=${client}\n`);
+        '
+
     - name: Build (Django backend, same-origin /api/)
       shell: bash
       env:

@@ -172,6 +172,59 @@ describe('createApiClient', () => {
   });
 });
 
+describe('createApiClient bounds every request in time (P0)', () => {
+  /** A fetch that only ever settles by being aborted, like a proxy that never answers. */
+  function stalledFetch() {
+    return vi.fn<typeof globalThis.fetch>(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+        }),
+    );
+  }
+
+  it('turns a server that never answers into a network timeout', async () => {
+    const fetch = stalledFetch();
+    const client = createApiClient({
+      baseUrl: '',
+      getAccessToken: async () => 't',
+      fetch,
+      timeoutMs: 20,
+    });
+    const error = await failure(client.request('GET', 'p/'));
+    expect(error.kind).toBe('network');
+    expect(error.code).toBe('timeout');
+  });
+
+  it('turns a token read that never finishes into a timeout too', async () => {
+    const client = createApiClient({
+      baseUrl: '',
+      getAccessToken: () => new Promise<string>(() => undefined),
+      fetch: vi.fn(),
+      timeoutMs: 20,
+    });
+    const error = await failure(client.request('GET', 'p/'));
+    expect(error.kind).toBe('network');
+    expect(error.code).toBe('timeout');
+  });
+
+  it('still reports a caller cancellation as aborted, not as a timeout', async () => {
+    const fetch = stalledFetch();
+    const client = createApiClient({
+      baseUrl: '',
+      getAccessToken: async () => 't',
+      fetch,
+      timeoutMs: 5_000,
+    });
+    const controller = new AbortController();
+    const pending = client.request('GET', 'p/', { signal: controller.signal });
+    controller.abort();
+    expect((await failure(pending)).kind).toBe('aborted');
+  });
+});
+
 describe('readDjangoApiConfig', () => {
   it('is off unless the backend is django', () => {
     expect(readDjangoApiConfig({})).toEqual({ enabled: false });
