@@ -60,6 +60,52 @@ describe('child nav insets', () => {
     expect(full).toBeDefined();
     expect(declaration(full!.body, '--child-nav-inset-bottom')).toBe('0px');
     expect(declaration(full!.body, '--child-nav-inset-left')).toBe('0px');
+    expect(declaration(full!.body, '--child-header-inset')).toBe('0px');
+  });
+
+  it("make room for the stage's own exits in full screen, and only there", () => {
+    const [phone] = rules(shellCss).filter((rule) => rule.selector === '.shell');
+    expect(declaration(phone.body, '--child-stage-exits-inset')).toBe('0px');
+    const full = rules(shellCss).find((rule) => rule.selector.includes(':fullscreen'))!;
+    expect(declaration(full.body, '--child-stage-exits-inset')).toBe('7.5rem');
+    for (const path of [
+      'features/island-map/three/extensions/regionPlay/ui/RegionPlayPanels.module.css',
+      'features/npc-manager/ui/NpcInteraction.module.css',
+    ]) {
+      const panel = rules(read(path)).find((rule) => rule.selector === '.panel')!;
+      expect(declaration(panel.body, 'bottom')).toContain('var(--child-stage-exits-inset, 0px)');
+    }
+  });
+
+  it('declare a zero header inset until ChildShell measures the top bar', () => {
+    const [phone] = rules(shellCss).filter((rule) => rule.selector === '.shell');
+    expect(declaration(phone.body, '--child-header-inset')).toBe('0px');
+    expect(shellTsx).toMatch(/'--child-header-inset'/);
+  });
+
+  it.each(GAME_LAYERS)('keep every fixed layer in %s clear of the top bar (adult exit)', (path) => {
+    for (const { selector, body } of rules(read(path))) {
+      if (declaration(body, 'position') !== 'fixed') continue;
+      const top = declaration(body, 'top');
+      if (top !== undefined) {
+        expect(top, `${selector} top`).toContain('var(--child-header-inset, 0px)');
+      }
+    }
+    // Every height cap leaves room for the top bar and the nav, with a usable floor.
+    const capped = rules(read(path)).filter((rule) => /max-height:\s*max\(/.test(rule.body));
+    for (const { selector, body } of rules(read(path))) {
+      if (!/max-height:\s*min\(70vh/.test(body)) continue;
+      expect(
+        capped.some((rule) => rule.selector === selector),
+        `${selector} caps its height to the room left by the top bar`,
+      ).toBe(true);
+    }
+    for (const { selector, body } of capped) {
+      const cap = body.replace(/\s+/g, ' ');
+      expect(cap, `${selector} max-height`).toContain('var(--child-header-inset, 0px)');
+      expect(cap, `${selector} max-height`).toContain('var(--child-nav-inset-bottom, 0px)');
+      expect(cap, `${selector} max-height`).toMatch(/max\( 10rem,/);
+    }
   });
 
   it.each(GAME_LAYERS)('are honoured by every fixed layer in %s', (path) => {

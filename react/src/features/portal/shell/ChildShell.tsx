@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { NavLink } from 'react-router-dom';
 import '../portal.css';
 import { cn } from '../ui/cn';
@@ -65,8 +65,15 @@ export function ChildShell({
   children,
   overlays,
 }: ChildShellProps) {
+  const shellRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  useHeaderInset(shellRef, headerRef);
   return (
-    <div className={cn('flex min-h-screen flex-col bg-ocean-50', styles.shell)} data-shell="child">
+    <div
+      ref={shellRef}
+      className={cn('flex min-h-screen flex-col bg-ocean-50', styles.shell)}
+      data-shell="child"
+    >
       <nav
         aria-label="Island"
         className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ocean-100 bg-paper md:inset-y-0 md:right-auto md:left-0 md:w-56 md:border-t-0 md:border-r-2"
@@ -100,7 +107,14 @@ export function ChildShell({
           ))}
         </ul>
       </nav>
-      <header className="flex flex-wrap items-center gap-3 border-b-2 border-ocean-100 bg-paper px-4 py-3 md:px-6">
+      {/*
+        Above fixed game layers (they top out below it, see useHeaderInset), so the exits are
+        never covered, even by a panel taller than the room left for it.
+      */}
+      <header
+        ref={headerRef}
+        className="relative z-30 flex flex-wrap items-center gap-3 border-b-2 border-ocean-100 bg-paper px-4 py-3 md:px-6"
+      >
         <div className="flex min-w-0 flex-[1_1_14rem] flex-wrap items-center gap-3">
           <p className="m-0 font-display text-base font-bold text-ocean-900 md:hidden">
             <span aria-hidden="true">🏝️ </span>Learning Adventure Island
@@ -115,4 +129,45 @@ export function ChildShell({
       {overlays}
     </div>
   );
+}
+
+/** The custom property fixed game layers read to stay below the top bar (ChildShell.module.css). */
+export const HEADER_INSET_PROPERTY = '--child-header-inset';
+
+/**
+ * Publishes how far down the viewport the top bar reaches, as `--child-header-inset` on the
+ * shell, so fixed game layers (Pip's panel, NPC lines) never cover "Leave island" or the adult
+ * exit. The bar wraps to two rows on phones and scrolls with the page, so it is measured rather
+ * than assumed: on resize, on scroll and when the bar itself changes size. Never negative; in
+ * full screen ChildShell.module.css sets it to 0, because the stage covers the bar.
+ */
+function useHeaderInset(
+  shellRef: RefObject<HTMLDivElement | null>,
+  headerRef: RefObject<HTMLElement | null>,
+) {
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    const header = headerRef.current;
+    if (!shell || !header) return undefined;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const bottom = Math.max(0, Math.round(header.getBoundingClientRect().bottom));
+      shell.style.setProperty(HEADER_INSET_PROPERTY, `${bottom}px`);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener('resize', schedule);
+    window.addEventListener('scroll', schedule, { passive: true });
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    observer?.observe(header);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule);
+      observer?.disconnect();
+    };
+  }, [shellRef, headerRef]);
 }

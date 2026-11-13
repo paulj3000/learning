@@ -10,8 +10,15 @@
   step with the nav's Tailwind classes in ChildShell.tsx (`bottom-0` bar,
   `md:w-56`); shells.test.tsx checks the pairing and the browser check
   measures it.
+
+  `--child-header-inset` is how far down the viewport the top bar (with
+  "Leave island" and the adult exit) reaches. It is measured in ChildShell.tsx
+  (the bar wraps on phones and scrolls with the page) and set inline on the
+  shell; fixed layers stop below it so the exits are never covered.
 */
 .shell {
+  --child-header-inset: 0px;
+  --child-stage-exits-inset: 0px;
   --child-nav-inset-bottom: 5rem;
   --child-nav-inset-left: 0px;
 
@@ -26,8 +33,15 @@
   }
 }
 
-/* In full screen the stage covers the nav, so the play layers need no offset. */
+/*
+  In full screen the stage covers the nav and the top bar, so those offsets drop to zero. The
+  stage brings its own exits instead ("Leave island" stacked above "Exit full screen", bottom
+  left, WorldStage.module.css: 0.75rem + 3.5rem + a 3rem button), so dialogue panels sit above
+  them (`--child-stage-exits-inset`).
+*/
 .shell :fullscreen {
+  --child-header-inset: 0px;
+  --child-stage-exits-inset: 7.5rem;
   --child-nav-inset-bottom: 0px;
   --child-nav-inset-left: 0px;
 }
