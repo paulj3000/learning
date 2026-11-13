@@ -11,6 +11,7 @@ import {
 } from 'three';
 import {
   createLocationEngine,
+  type LocationEngineOptions,
   type LocationEngineDeps,
   type LoadedModel,
 } from '../createLocationEngine';
@@ -90,6 +91,9 @@ export function mount(
     cameraMode?: CameraMode | null;
     avatarKey?: string | null;
     onCameraModeChange?: (mode: CameraMode) => void;
+    /** LAI-JMP-01c: the play API's published avatar model, and how avatar models load. */
+    publishedAvatar?: LocationEngineOptions['publishedAvatar'];
+    loadAvatarModel?: LocationEngineOptions['loadAvatarModel'];
   } = {},
 ): Harness {
   const parent = options.parent ?? document.createElement('div');
@@ -171,6 +175,8 @@ export function mount(
         options.cameraMode === undefined ? 'first-person' : (options.cameraMode ?? undefined),
       avatarKey: options.avatarKey,
       onCameraModeChange: options.onCameraModeChange,
+      publishedAvatar: options.publishedAvatar,
+      loadAvatarModel: options.loadAvatarModel,
     },
     deps,
   );

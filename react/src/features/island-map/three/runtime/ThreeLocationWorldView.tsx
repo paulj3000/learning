@@ -47,6 +47,8 @@ import { prefersReducedMotion } from '../../../../lib/motionPreference';
 import { createPendingWrites, useExitParticipant } from '../../../portal/exit';
 import { loadCameraPreference, saveCameraPreference } from '../cameraPreference';
 import type { CameraMode } from '../playerPresentation';
+import type { PlayerAvatarModel } from '../playerAvatarCatalog';
+import type { LoadedModel } from './extensionRegistry';
 
 /**
  * The one React view for any manifest-driven 3D location
@@ -84,6 +86,14 @@ export interface ThreeLocationWorldViewProps {
   assets?: LocationEngineAssets;
   /** LAI-JMP-01a: the child's `ChildProfile.avatarKey`, for their avatar's look in third-person. */
   avatarKey?: string | null;
+  /**
+   * LAI-JMP-01c: the child's published avatar model and how to load it
+   * (`features/player-avatar/playerAvatarSource.ts`). Absent: the placeholder (or a bundled model).
+   */
+  avatarSource?: {
+    published: Promise<PlayerAvatarModel | null>;
+    loadModel?: (ref: string) => Promise<LoadedModel>;
+  };
 }
 
 const TOAST_DURATION_MS = 4000;
@@ -162,6 +172,7 @@ export function ThreeLocationWorldView({
   viewExtensions = SOURCE_VIEW_EXTENSIONS,
   assets = DEFAULT_LOCATION_ENGINE_DEPS.assets,
   avatarKey = null,
+  avatarSource,
 }: ThreeLocationWorldViewProps) {
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
@@ -463,6 +474,8 @@ export function ThreeLocationWorldView({
                 cameraMode: savedCameraMode ?? undefined,
                 avatarKey,
                 onCameraModeChange,
+                publishedAvatar: avatarSource?.published,
+                loadAvatarModel: avatarSource?.loadModel,
               },
               { ...DEFAULT_LOCATION_ENGINE_DEPS, assets },
             )
