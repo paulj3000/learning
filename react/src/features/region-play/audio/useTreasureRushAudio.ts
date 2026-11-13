@@ -21,6 +21,7 @@ import { createTreasureRushMusic } from './treasureRushMusic';
 import {
   CUE_SOUNDS,
   ENTRY_AMBIENCE,
+  FOOTSTEP_VOLUME,
   LANDING_SOUND_MIN_SPEED,
   NPC_CUE_EVENTS,
   ONE_SHOT_SPATIAL,
@@ -166,9 +167,16 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
       if (impactSpeed < LANDING_SOUND_MIN_SPEED) return;
       void player.play(TR_SOUND.playerLand).catch(() => undefined);
     });
+    // Running & sprinting: optional footsteps, at the pace the engine reports, louder when faster.
+    const offStep = bus.on('PlayerFootstep', ({ gait }) => {
+      void player
+        .play(TR_SOUND.playerFootstep, { volume: FOOTSTEP_VOLUME[gait] })
+        .catch(() => undefined);
+    });
     return () => {
       offJump();
       offLand();
+      offStep();
     };
   }, [bus, player]);
 

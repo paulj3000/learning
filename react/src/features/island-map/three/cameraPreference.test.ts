@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   cameraPreferenceKey,
   loadCameraPreference,
+  loadSprintModePreference,
   saveCameraPreference,
+  saveSprintModePreference,
+  sprintModePreferenceKey,
   type PreferenceStorage,
 } from './cameraPreference';
 
@@ -53,5 +56,22 @@ describe('camera preference (LAI-JMP-01a)', () => {
     expect(saveCameraPreference('child-z', 'first-person')).toBe(true);
     expect(loadCameraPreference('child-z')).toBe('first-person');
     window.localStorage.clear();
+  });
+});
+
+describe('sprint mode preference (running & sprinting)', () => {
+  it('remembers hold or toggle per child, and ignores nonsense', () => {
+    const storage = memory();
+    expect(loadSprintModePreference('child-a', storage)).toBeNull();
+    expect(saveSprintModePreference('child-a', 'toggle', storage)).toBe(true);
+    expect(loadSprintModePreference('child-a', storage)).toBe('toggle');
+    expect(loadSprintModePreference('child-b', storage)).toBeNull();
+    storage.data.set(sprintModePreferenceKey('child-b'), 'zoom');
+    expect(loadSprintModePreference('child-b', storage)).toBeNull();
+  });
+
+  it('never throws where storage is blocked', () => {
+    expect(loadSprintModePreference('child-a', broken)).toBeNull();
+    expect(saveSprintModePreference('child-a', 'hold', broken)).toBe(false);
   });
 });

@@ -756,3 +756,28 @@ describe('player movement sounds (LAI-JMP-01)', () => {
     expect(heardAfter(engine, before)).toEqual([]);
   });
 });
+
+describe('footsteps (running & sprinting)', () => {
+  it('plays the optional footstep cue for each step the engine reports', async () => {
+    const { engine, bus } = await mount();
+    const before = engine.heard().length;
+    act(() => {
+      bus.emit('PlayerFootstep', { gait: 'walk' });
+      bus.emit('PlayerFootstep', { gait: 'sprint' });
+    });
+    await flush();
+    expect(engine.heard().slice(before)).toEqual([
+      TR_SOUND.playerFootstep,
+      TR_SOUND.playerFootstep,
+    ]);
+  });
+
+  it('keeps silent, and keeps going, with no footstep audio published', async () => {
+    const world = build(ALL_CUES.filter((cue) => cue !== TR_SOUND.playerFootstep));
+    const { engine, bus } = await mount(world);
+    const before = engine.heard().length;
+    expect(() => act(() => bus.emit('PlayerFootstep', { gait: 'run' }))).not.toThrow();
+    await flush();
+    expect(engine.heard().slice(before)).toEqual([]);
+  });
+});

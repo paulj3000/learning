@@ -688,7 +688,12 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     and the secret passage are solid colliders, so a jump never skips a room's
     story beat.
   */
-  movement: { jump: { jumpHeight: 0.9 } },
+  /*
+    Running & sprinting indoors: walking pace as everywhere, but a gentler run
+    and sprint, so a child does not shoot through the narrow passages and
+    small rooms past what the story wants them to notice.
+  */
+  movement: { jump: { jumpHeight: 0.9 }, locomotion: { runSpeed: 4.8, sprintSpeed: 5.6 } },
   /*
     LAI-JMP-01a: an indoor third-person camera. Closer than outdoors so the
     child stays in view through archways and in the narrow passages, and held

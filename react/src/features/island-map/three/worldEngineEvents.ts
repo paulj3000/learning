@@ -56,6 +56,15 @@ export type WorldEngineEventMap = {
   PlayerJumped: { airJump: boolean };
   /** LAI-JMP-01: the player touched down, at `impactSpeed` m/s downward. */
   PlayerLanded: { impactSpeed: number };
+  /**
+   * Running & sprinting: how the player moves over the ground changed
+   * (`idle`, `walk`, `run`, `sprint`). Edge-triggered, on the ground only. For
+   * sound, presentation and future analytics-free HUD hints; nothing about
+   * progress depends on it.
+   */
+  PlayerGaitChanged: { gait: 'idle' | 'walk' | 'run' | 'sprint' };
+  /** Running & sprinting: one footstep, at the pace of the gait, for optional footstep audio. */
+  PlayerFootstep: { gait: 'walk' | 'run' | 'sprint' };
   /** LAI-JMP-01: the player fell out of the world and was put back where they last stood. */
   PlayerRecovered: { reason: 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' };
   // domain -> Three.js

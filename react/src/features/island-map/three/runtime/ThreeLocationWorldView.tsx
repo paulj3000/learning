@@ -45,7 +45,13 @@ import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
 import { prefersReducedMotion } from '../../../../lib/motionPreference';
 import { createPendingWrites, useExitParticipant } from '../../../portal/exit';
-import { loadCameraPreference, saveCameraPreference } from '../cameraPreference';
+import {
+  loadCameraPreference,
+  loadSprintModePreference,
+  saveCameraPreference,
+  saveSprintModePreference,
+  type SprintModePreference,
+} from '../cameraPreference';
 import type { CameraMode } from '../playerPresentation';
 import type { PlayerAvatarModel } from '../playerAvatarCatalog';
 import type { LoadedModel } from './extensionRegistry';
@@ -219,6 +225,15 @@ export function ThreeLocationWorldView({
     the setting below), and the view shows it and saves it for next time.
   */
   const [savedCameraMode] = useState(() => loadCameraPreference(childId));
+  /** Running & sprinting: hold or toggle Shift, the child's own setting. */
+  const [sprintMode, setSprintModeState] = useState<SprintModePreference>(
+    () => loadSprintModePreference(childId) ?? 'hold',
+  );
+  const chooseSprintMode = (mode: SprintModePreference) => {
+    setSprintModeState(mode);
+    saveSprintModePreference(childId, mode);
+    engineRef.current?.setSprintMode?.(mode);
+  };
   const [cameraMode, setCameraModeState] = useState<CameraMode | null>(null);
   const onCameraModeChange = useCallback(
     (mode: CameraMode) => {
@@ -472,6 +487,7 @@ export function ThreeLocationWorldView({
                 quality: chooseRenderQuality(deviceHintsFromNavigator()),
                 reducedMotion: prefersReducedMotion(),
                 cameraMode: savedCameraMode ?? undefined,
+                sprintMode,
                 avatarKey,
                 onCameraModeChange,
                 publishedAvatar: avatarSource?.published,
@@ -566,6 +582,28 @@ export function ThreeLocationWorldView({
                 value={mode}
                 checked={cameraMode === mode}
                 onChange={() => engineRef.current?.setCameraMode?.(mode)}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
+      {engine?.locomotion?.sprintEnabled ? (
+        <fieldset className={styles.cameraSetting}>
+          <legend>Sprint with Shift</legend>
+          {(
+            [
+              ['hold', 'Hold Shift'],
+              ['toggle', 'Tap Shift to switch'],
+            ] as const
+          ).map(([mode, label]) => (
+            <label key={mode} className={styles.cameraSettingOption}>
+              <input
+                type="radio"
+                name="sprint-mode"
+                value={mode}
+                checked={sprintMode === mode}
+                onChange={() => chooseSprintMode(mode)}
               />
               {label}
             </label>

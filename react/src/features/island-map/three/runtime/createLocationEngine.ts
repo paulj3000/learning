@@ -36,7 +36,9 @@ import {
 import { cloneAssetScene } from '../assets/cloneAsset';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
-import { FirstPersonController } from '../firstPersonController';
+import { FirstPersonController, type Gait } from '../firstPersonController';
+import type { LocomotionConfiguration } from '../locomotionConfiguration';
+import type { SprintMode } from '../pointerControls';
 import {
   colliderObstruction,
   lookDirection,
@@ -165,6 +167,8 @@ export interface LocationEngineDeps<R extends RendererLike> {
       onToggleCamera?: () => void;
       /** LAI-JMP-01a: the location's look sensitivity. */
       lookSensitivity?: () => number;
+      /** Running & sprinting: hold or toggle Shift. */
+      sprintMode?: () => SprintMode;
     },
   ): PointerControls;
   /** Keeps the renderer and camera sized to `parent`. Returns the disconnect. */
@@ -228,6 +232,10 @@ export interface LocationEngine extends ThreeEngineHandle {
   readonly camera: Readonly<PlayerCameraConfiguration>;
   /** The child's avatar, while third-person can show it; `null` where the location turns it off. */
   readonly avatar: PlayerAvatar | null;
+  /** Running & sprinting: the walking, running and sprinting tuning this location plays with. */
+  readonly locomotion: Readonly<LocomotionConfiguration>;
+  /** Running & sprinting: switches how Shift sprints (a child's setting). */
+  setSprintMode(mode: SprintMode): void;
   /** Settles once every asynchronously loaded piece has been placed or has failed. Never rejects. */
   readonly ready: Promise<void>;
 }
@@ -266,6 +274,8 @@ export interface LocationEngineOptions {
   loadAvatarModel?: (ref: string) => Promise<LoadedModel>;
   /** LAI-JMP-01a: the perspective changed (V, a button, the gamepad), so the view can save it. */
   onCameraModeChange?: (mode: CameraMode) => void;
+  /** Running & sprinting: hold Shift to sprint (default) or press it to toggle. */
+  sprintMode?: SprintMode;
 }
 
 /** The outdoor rig `sceneKit.createSceneBootstrap` defaults to; manifest lighting overrides per field. */
@@ -287,6 +297,14 @@ export const MISSING_MODEL_SIZE: PlaceholderSize = { width: 0.6, height: 0.6, de
 export const MISSING_MODEL_COLOR = 0xff2bd6;
 /** A floor whose tiles failed to load becomes one plain plane, so the child never walks on sky. */
 export const MISSING_GROUND_COLOR = 0x8fbf6a;
+/** The camera's field of view, degrees, before any sprint widening. */
+const BASE_FIELD_OF_VIEW = 70;
+/** Metres between footsteps at each gait (longer strides when faster). */
+const STRIDE_METRES: Readonly<Record<'walk' | 'run' | 'sprint', number>> = {
+  walk: 0.75,
+  run: 1.0,
+  sprint: 1.2,
+};
 /** Frames longer than this (a background tab) are clamped so the player cannot tunnel through walls. */
 const MAX_FRAME_SECONDS = 0.1;
 /** With `interactionAssist`: how far ahead, on the ground, an interactable takes focus without aiming. */
@@ -365,7 +383,7 @@ export function createLocationEngine<R extends RendererLike>(
   const environment = resolveEnvironment(manifest, worldState);
   scene.background = new Color(environment.backgroundColor);
   const camera = new PerspectiveCamera(
-    70,
+    BASE_FIELD_OF_VIEW,
     parent.clientWidth > 0 && parent.clientHeight > 0
       ? parent.clientWidth / parent.clientHeight
       : 1,
@@ -433,6 +451,8 @@ export function createLocationEngine<R extends RendererLike>(
     colliders,
     jumpableColliders,
     jump: manifest.movement?.jump,
+    // Running & sprinting: per-location speeds (walking pace defaults to the old 4 m/s).
+    locomotion: manifest.movement?.locomotion,
     // A safety net behind the boundary walls: anyone who ends up past them goes back.
     isInPlayableArea: (x, z) =>
       Math.abs(x) <= manifest.bounds.halfExtentX + playableMargin &&
@@ -483,6 +503,13 @@ export function createLocationEngine<R extends RendererLike>(
         bus.on('CollectiblePickedUp', () => avatar.celebrate()),
       ]
     : [];
+
+  let sprintMode: SprintMode = options.sprintMode ?? 'hold';
+  /** The last ground gait reported, so `PlayerGaitChanged` fires once per change. */
+  let reportedGait: Gait = 'idle';
+  /** Distance walked since the last footstep, metres. */
+  let strideTravelled = 0;
+  const footstepFrom = { x: controller.position.x, z: controller.position.z };
 
   /** The last frame's camera, for aiming an interaction between frames. */
   let lastCameraFrame: PlayerCameraFrame | null = null;
@@ -1147,6 +1174,7 @@ export function createLocationEngine<R extends RendererLike>(
     onInteract: interact,
     onToggleCamera: () => void toggleCameraMode(),
     lookSensitivity: () => cameraConfig.rotationSensitivity,
+    sprintMode: () => sprintMode,
   });
   const stopFitting = deps.fitToParent(parent, camera, renderer);
 
@@ -1260,14 +1288,44 @@ export function createLocationEngine<R extends RendererLike>(
 
     // Third-person keeps the look within its own range, so the orbit never dives under the ground.
     if (playerCamera.mode === 'third-person') controller.pitch = thirdPersonPitch(controller.pitch);
+    const gait = controller.gait;
     const view = playerCamera.update(delta, {
       feet: controller.position,
       grounded: controller.grounded,
       yaw: controller.yaw,
       pitch: controller.pitch,
+      sprinting: controller.grounded ? gait === 'sprint' : reportedGait === 'sprint',
     });
     lastCameraFrame = view;
     camera.position.copy(view.position);
+    const fov = BASE_FIELD_OF_VIEW + view.fovOffset;
+    if (camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+
+    // Running & sprinting: gait changes and footsteps on the ground, for sound.
+    const stepX = controller.position.x - footstepFrom.x;
+    const stepZ = controller.position.z - footstepFrom.z;
+    footstepFrom.x = controller.position.x;
+    footstepFrom.z = controller.position.z;
+    if (controller.grounded) {
+      if (gait !== reportedGait) {
+        reportedGait = gait;
+        bus.emit('PlayerGaitChanged', { gait });
+      }
+      if (gait === 'idle') {
+        strideTravelled = 0;
+      } else {
+        // A teleport is not a step: only count ordinary movement.
+        const moved = Math.hypot(stepX, stepZ);
+        if (moved < 2) strideTravelled += moved;
+        if (strideTravelled >= STRIDE_METRES[gait]) {
+          strideTravelled = 0;
+          bus.emit('PlayerFootstep', { gait });
+        }
+      }
+    }
     // +PI: the controller's forward at yaw 0 is +Z, a camera's default forward is -Z.
     camera.rotation.y = view.yaw + Math.PI;
     camera.rotation.x = view.pitch;
@@ -1283,6 +1341,7 @@ export function createLocationEngine<R extends RendererLike>(
         controller.movementState,
         controller.horizontalSpeed,
         controller.walkSpeed,
+        controller.runSpeed,
       );
     }
 
@@ -1358,6 +1417,10 @@ export function createLocationEngine<R extends RendererLike>(
     toggleCameraMode,
     camera: cameraConfig,
     avatar,
+    locomotion: controller.speeds,
+    setSprintMode: (mode) => {
+      sprintMode = mode;
+    },
     ready,
   };
 }
