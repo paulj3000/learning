@@ -32,9 +32,12 @@ GLB_MAGIC = 0x46546C67  # "glTF"
 CHUNK_JSON = 0x4E4F534A
 CHUNK_BIN = 0x004E4942
 
-# Mirrors react/src/features/island-map/three/assets/animationVocabulary.ts.
+# Mirrors react/src/features/island-map/three/assets/animationVocabulary.ts. `Run` and `Jump`
+# are the player avatar's locomotion clips (LAI-JMP-01a).
 CLIP_VOCABULARY = frozenset(
-    "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate".split()
+    (
+        "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate Run Jump"
+    ).split()
 )
 
 # Default take names that describe no motion: Mixamo's FBX take (`mixamo.com`, which Blender
