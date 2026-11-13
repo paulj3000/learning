@@ -64,3 +64,27 @@ def test_aws_profile_default_is_scoped_to_runserver(tmp_path):
     makefile = (ROOT / "Makefile").read_text()
     assert "runserver: export AWS_PROFILE ?= learning-dev" in makefile
     assert makefile.count("AWS_PROFILE ?=") == 1
+
+
+def test_runserver_port_comes_from_dotenv(tmp_path):
+    # P0: DJANGO_DEV_PORT in the root .env moves runserver and the Vite proxy together.
+    (tmp_path / "ports.env").write_text("DJANGO_DEV_PORT=8000\n")
+    out = _run(tmp_path, f"ENV_FILE={tmp_path / 'ports.env'}")
+    assert "ARGS=manage.py runserver 127.0.0.1:8000" in out
+
+
+def test_runserver_port_on_command_line_wins_over_dotenv(tmp_path):
+    (tmp_path / "ports.env").write_text("DJANGO_DEV_PORT=8000\n")
+    out = _run(tmp_path, f"ENV_FILE={tmp_path / 'ports.env'}", "DJANGO_DEV_PORT=8123")
+    assert "ARGS=manage.py runserver 127.0.0.1:8123" in out
+
+
+def test_web_target_proxies_to_the_same_port(tmp_path):
+    (tmp_path / "ports.env").write_text("DJANGO_DEV_PORT=8000\n")
+    result = subprocess.run(
+        ["make", "-n", "-s", "-C", str(ROOT), "web", f"ENV_FILE={tmp_path / 'ports.env'}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "DJANGO_DEV_PORT=8000 npm run dev" in result.stdout

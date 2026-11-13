@@ -1,9 +1,12 @@
+import { resolveBackend } from './backend';
+
 /**
  * Where the Django API is, and whether this build uses it at all (TR-6,
- * docs/PLAY_API.md). Off unless explicitly configured, so every existing
- * build keeps running on Amplify alone.
+ * docs/PLAY_API.md). A production build uses it only when it opts in, so a
+ * hosted Amplify build keeps running unchanged; `vite dev` uses it by default
+ * (`resolveBackend`, react/src/api/backend.ts).
  *
- * - `VITE_BACKEND=django` turns the Django API on.
+ * - `VITE_BACKEND=django` turns the Django API on; `VITE_BACKEND=amplify` turns it off.
  * - `VITE_DJANGO_API_BASE` is the origin to call. Empty (the default) means
  *   same-origin, which is the deployed shape: CloudFront routes `/api/` to
  *   Django and Django has no CORS on purpose. A production build only
@@ -16,12 +19,13 @@ export interface DjangoApiEnv {
   VITE_BACKEND?: string;
   VITE_DJANGO_API_BASE?: string;
   DEV?: boolean;
+  MODE?: string;
 }
 
 const DISABLED: DjangoApiConfig = { enabled: false };
 
 export function readDjangoApiConfig(env: DjangoApiEnv): DjangoApiConfig {
-  if (env.VITE_BACKEND !== 'django') return DISABLED;
+  if (resolveBackend(env) !== 'django') return DISABLED;
   const base = (env.VITE_DJANGO_API_BASE ?? '').trim();
   if (base === '') return { enabled: true, baseUrl: '' };
 
