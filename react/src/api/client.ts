@@ -19,8 +19,15 @@ import { ApiError, kindForStatus, type ValidationDetail } from './errors';
  *   If setup fails the error is `forbidden` / `account_setup_failed`, never
  *   `unauthenticated`: the parent is signed in, so "sign in again" would be
  *   wrong.
+ * - Every request is bounded in time (`timeoutMs`, default `DEFAULT_REQUEST_TIMEOUT_MS`),
+ *   including reading the token and the body. A request that runs out of time is a
+ *   `network` error with code `timeout`, so no page waits forever on a stalled server.
  * - Every failure is an `ApiError`; nothing else is thrown.
  */
+
+/** The default bound on one request (token, response and body), in milliseconds. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+export const REQUEST_TIMEOUT_CODE = 'timeout';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -32,6 +39,8 @@ export interface ApiClientOptions {
   fetch?: typeof fetch;
   /** Set up the Django parent account on first use (`POST me/`); see above. */
   provisionAccount?: boolean;
+  /** Bound on each request; see above. */
+  timeoutMs?: number;
 }
 
 export interface RequestOptions {
@@ -62,6 +71,7 @@ export const ACCOUNT_SETUP_FAILED = 'account_setup_failed';
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 
   async function send(
     method: HttpMethod,
@@ -71,8 +81,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   ): Promise<Response> {
     let token: string | null;
     try {
-      token = await options.getAccessToken({ forceRefresh });
+      token = await raceAbort(options.getAccessToken({ forceRefresh }), request.signal);
     } catch {
+      if (request.signal?.aborted) throw new ApiError('aborted');
       throw new ApiError('unauthenticated', { code: 'token_unavailable' });
     }
     if (!token) throw new ApiError('unauthenticated', { code: 'not_signed_in' });
@@ -104,6 +115,24 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   }
 
   async function attempt(
+    method: HttpMethod,
+    path: string,
+    request: RequestOptions,
+  ): Promise<ApiResponse> {
+    const deadline = boundedSignal(request.signal, timeoutMs);
+    try {
+      return await attemptWithin(method, path, { ...request, signal: deadline.signal });
+    } catch (error) {
+      if (deadline.timedOut()) {
+        throw new ApiError('network', { code: REQUEST_TIMEOUT_CODE });
+      }
+      throw error;
+    } finally {
+      deadline.dispose();
+    }
+  }
+
+  async function attemptWithin(
     method: HttpMethod,
     path: string,
     request: RequestOptions,
@@ -151,6 +180,50 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return attempt(method, path, request);
     },
   };
+}
+
+/** An abort signal that fires when `parent` aborts or `ms` elapses, whichever is first. */
+function boundedSignal(
+  parent: AbortSignal | undefined,
+  ms: number,
+): { signal: AbortSignal; timedOut: () => boolean; dispose: () => void } {
+  const controller = new AbortController();
+  let expired = false;
+  const onParentAbort = () => controller.abort(parent?.reason);
+  if (parent?.aborted) controller.abort(parent.reason);
+  else parent?.addEventListener('abort', onParentAbort, { once: true });
+  const timer = setTimeout(() => {
+    expired = true;
+    controller.abort(new DOMException('The request timed out', 'TimeoutError'));
+  }, ms);
+  return {
+    signal: controller.signal,
+    timedOut: () => expired,
+    dispose: () => {
+      clearTimeout(timer);
+      parent?.removeEventListener('abort', onParentAbort);
+    },
+  };
+}
+
+/** Settles with `promise`, or rejects as soon as `signal` aborts (the work itself continues). */
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(new ApiError('aborted'));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new ApiError('aborted'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 async function readBlob(response: Response, signal?: AbortSignal): Promise<Blob> {

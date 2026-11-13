@@ -31,7 +31,7 @@ test('/home is the parent dashboard route and shows the no-backend guard', async
   await page.goto('/home');
 
   await expect(
-    page.getByRole('heading', { level: 1, name: /the island is not connected yet/i }),
+    page.getByRole('heading', { level: 1, name: /parent sign-in is not available right now/i }),
   ).toBeVisible();
 });
 
@@ -39,7 +39,7 @@ test('/home/settings is guarded the same way as the rest of /home', async ({ pag
   await page.goto('/home/settings');
 
   await expect(
-    page.getByRole('heading', { level: 1, name: /the island is not connected yet/i }),
+    page.getByRole('heading', { level: 1, name: /parent sign-in is not available right now/i }),
   ).toBeVisible();
 });
 
@@ -49,7 +49,7 @@ test('/admin is guarded the same way as the rest of the app when unconfigured', 
   await page.goto('/admin');
 
   await expect(
-    page.getByRole('heading', { level: 1, name: /the island is not connected yet/i }),
+    page.getByRole('heading', { level: 1, name: /parent sign-in is not available right now/i }),
   ).toBeVisible();
 });
 

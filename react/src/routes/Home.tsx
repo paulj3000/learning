@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
-import { isAmplifyConfigured } from '../lib/amplify-config';
+import { AuthUnconfiguredHint } from '../features/auth/AuthStatusNotice';
+import { AUTH_UNCONFIGURED_COPY } from '../features/auth/authNoticeCopy';
+import { isAuthConfigured } from '../lib/amplify-config';
 import '../features/portal/portal.css';
 import { PortalButton, PortalCard } from '../features/portal/ui';
 
@@ -51,7 +53,7 @@ export function Home() {
             Learning Adventure Island is a guided, AI-powered adventure world for children ages 3 to
             8. Create a parent account to set up child profiles and get started.
           </p>
-          {isAmplifyConfigured ? (
+          {isAuthConfigured ? (
             <div className="flex flex-wrap justify-center gap-3">
               <PortalButton asChild tone="treasure" size="lg">
                 <Link to="/sign-up">Create a parent account</Link>
@@ -61,10 +63,11 @@ export function Home() {
               </PortalButton>
             </div>
           ) : (
-            <p className="m-0 max-w-xl rounded-2xl bg-treasure-50 px-4 py-3 text-ink">
-              Parent accounts need a running Amplify backend. Run <code>npm run sandbox</code>{' '}
-              locally to enable sign-up and sign-in.
-            </p>
+            <div className="m-0 flex max-w-xl flex-col gap-2 rounded-2xl bg-treasure-50 px-4 py-3 text-ink">
+              <p className="m-0 font-semibold">{AUTH_UNCONFIGURED_COPY.heading}</p>
+              <p className="m-0">{AUTH_UNCONFIGURED_COPY.lead}</p>
+              <AuthUnconfiguredHint className="m-0 text-sm" />
+            </div>
           )}
         </section>
         <ul className="m-0 grid w-full max-w-5xl list-none gap-4 p-0 md:grid-cols-3">

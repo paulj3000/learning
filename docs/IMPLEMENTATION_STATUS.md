@@ -42,6 +42,55 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## P0: Cognito without Amplify outputs, Realm Explorer navigation — fixed on `fix/p0-cognito-env-realm-explorer` (2026-11-13); awaiting owner acceptance, NOT merged
+
+Owner-reported: the homepage told parents to run an Amplify sandbox; Realms sent a child back to
+Home; a direct Realm Explorer URL could wait forever; Django runs on 8000 and Vite on 5183.
+
+Root cause: three coupled defaults. (1) Sign-in was configured only from `amplify_outputs.json`,
+so a checkout without a sandbox showed the sandbox message. (2) `vite dev` used Django only when
+`VITE_BACKEND=django` was set; without it the Realm pages, which need Django's catalog, silently
+redirected to Home. (3) The proxy defaulted to 8010 while Django ran on 8000, and the API client
+and the Cognito session read had no time bound, so a stalled request left the page loading.
+
+What changed (no AWS resource touched; the Cognito pool is unchanged):
+- Cognito comes from `VITE_COGNITO_USER_POOL_ID` / `VITE_COGNITO_CLIENT_ID` (AMP-02's names and
+  `react/src/lib/cognito/config.ts`, copied unchanged from PR #15). Amplify Auth is configured with
+  the Auth category only. A Django build never reads `amplify_outputs.json`; a legacy Amplify
+  build still can. In `vite dev` the values fall back to the root `.env`'s `COGNITO_*`.
+- `vite dev` defaults to Django (`react/src/api/backend.ts`); production builds still opt in.
+  An unknown `VITE_BACKEND` stops the dev server.
+- One `DJANGO_DEV_PORT` (root `.env`, shell, or `make` argument) drives `make runserver`, new
+  `make web` and the Vite proxy. The proxy has a 30 s bound.
+- Every Django API request (30 s; AI 70 s), the token read (15 s) and the session read (15 s)
+  are bounded. A slow Cognito shows "We could not reach parent sign-in" with Try again, never a
+  sign-out.
+- No user-facing Amplify or sandbox copy remains (Home, RequireParent, RequireAdmin). A local
+  dev build adds one developer note naming the missing settings.
+- Realm Explorer and Realm pages explain a build without Django or a failed load (timeout,
+  unreachable, signed out, server) with a next step, instead of redirecting.
+- The Place page skips its two Amplify Data reads in a Django build (no Django source until
+  AMP-03), so Pirate Builder Bay and Storykeeper Castle open from Realms.
+- `vite dev` prints `[lai] dev` lines: backend, proxy target, Django health, Cognito configured
+  (region only; never ids or tokens).
+- Acceptance harness: `start-vite.mjs` sets `VITE_COGNITO_*` and writes no `amplify_outputs.json`
+  (as in PR #15).
+- Hosting compatibility: the hosted Amplify build is unchanged (production builds stay on the
+  legacy backend and still read the outputs file Amplify Hosting writes). The CloudFront release
+  (`.github/actions/site-release`, gated off by `LAI_SITE_DEPLOY_ENABLED`) builds with
+  `VITE_BACKEND=django`, so it now passes the generated outputs' pool and web client as
+  `VITE_COGNITO_*` and fails if they are missing.
+
+Evidence: unit tests (Vitest) for backend resolution, auth setup, timeouts, diagnostics, guards
+and Realm pages; pytest for the Makefile port; Playwright `e2e/acceptance/p0-navigation.spec.ts`
+at 360, 768 and 1280 px against a seeded local Django and PostgreSQL 16; manual run with Django
+on 8000 and Vite on 5183.
+
+Remaining: the Place page's classic adventure ("Start: ...") and world changes still use Amplify
+Data until AMP-03 (PR #15). In a Django build world changes are not shown and the classic
+adventure is not expected to work (not exercised here); the 3D Areas and walk-around worlds are.
+PR #15 remains unmerged pending its AWS cutover stages.
+
 ## `make createsuper` (local Django Admin superuser) — added 2026-11-11; dry-run checked only
 
 `make createsuper` asks for a username, then runs `manage.py create_admin_account <username>

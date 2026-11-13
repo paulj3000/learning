@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import styles from './IslandLocationPage.module.css';
+import { DJANGO_API_CONFIG } from '../api/config';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { getIslandLocation, isLocationUnlocked } from '../features/island/locations';
 import { getHomeWorld } from '../features/worlds/worlds';
@@ -50,10 +51,16 @@ export function IslandLocationPage() {
         return;
       }
       try {
+        // World changes and the admin catalog flags are Amplify Data reads. A Django build
+        // (VITE_BACKEND=django, the local default) has no Amplify Data, and Django has no
+        // world-change route until AMP-03 (PR #15), so they are skipped there rather than
+        // failing the whole Place (P0). Django's catalog already decided this Place is
+        // published before linking here, and the 3D Area routes check again on the server.
+        const amplifyData = !DJANGO_API_CONFIG.enabled;
         const [child, changes, catalog] = await Promise.all([
           getChildProfile(childId),
-          listAllWorldChanges(childId),
-          loadCatalogSnapshot(),
+          amplifyData ? listAllWorldChanges(childId) : Promise.resolve<WorldChange[]>([]),
+          amplifyData ? loadCatalogSnapshot() : Promise.resolve(null),
         ]);
         if (cancelled) return;
         if (!child) {
@@ -62,7 +69,7 @@ export function IslandLocationPage() {
         }
         setChildProfile(child);
         setAllWorldChanges(changes);
-        setIsAvailable(isIslandAvailable(catalog, location.slug));
+        setIsAvailable(catalog ? isIslandAvailable(catalog, location.slug) : true);
         setLoadState('ready');
       } catch {
         if (cancelled) return;

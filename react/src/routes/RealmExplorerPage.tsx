@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { DJANGO_API_CONFIG } from '../api/config';
 import { IslandLayout } from '../features/island/IslandLayout';
-import { isLeftIslandState, LEAVE_ISLAND_COPY, portalPath } from '../features/portal/exit';
+import { isLeftIslandState, LEAVE_ISLAND_COPY } from '../features/portal/exit';
 import { PortalButton } from '../features/portal/ui';
 import { RealmCard } from '../features/realms/RealmCard';
 import { RealmFilters } from '../features/realms/RealmFilters';
@@ -19,6 +19,7 @@ import {
   writeFilter,
   type RealmFilter,
 } from '../features/realms/realmFilters';
+import { RealmLoadError, RealmsUnavailable } from '../features/realms/RealmNotices';
 import { useRealmCatalog } from '../features/realms/useRealmCatalog';
 
 /**
@@ -26,20 +27,19 @@ import { useRealmCatalog } from '../features/realms/useRealmCatalog';
  * Django's published catalog, as illustrated discovery cards with subject and age filters.
  * It is also where "Leave island" returns (AP-04).
  *
- * A build without the Django API (every hosted Amplify build until the ADR-019 cutover) has no
- * published catalog to filter, so it goes to Home, which keeps the source-controlled Island
- * Explorer exactly as before, carrying the "Leave island" arrival state with it.
+ * A build without the Django API (`VITE_BACKEND=amplify`) has no published catalog. It used to
+ * send the child to Home without a word, which looked like the Realms button was broken; it
+ * now says so and offers Home (P0 fix). Local development uses Django by default.
  */
 export function RealmExplorerPage() {
   const { childId } = useParams<{ childId: string }>();
-  const location = useLocation();
   if (!DJANGO_API_CONFIG.enabled && childId) {
     return (
-      <Navigate
-        to={portalPath(childId, { kind: 'island-explorer' })}
-        replace
-        state={location.state}
-      />
+      <IslandLayout childId={childId}>
+        <div className="flex w-full max-w-7xl flex-col gap-6" data-portal="realm-explorer">
+          <RealmsUnavailable childId={childId} />
+        </div>
+      </IslandLayout>
     );
   }
   return <RealmExplorer childId={childId} />;
@@ -82,15 +82,11 @@ function RealmExplorer({ childId }: { childId: string | undefined }) {
           {state.status === 'loading' ? <LoadingGrid /> : null}
 
           {state.status === 'error' ? (
-            <div
-              className="flex flex-col items-start gap-3 rounded-2xl bg-coral-50 px-4 py-4 text-ink"
-              role="alert"
-            >
-              <p className="m-0">We could not load the Realms right now.</p>
-              <PortalButton tone="ocean" onClick={retry}>
-                Try again
-              </PortalButton>
-            </div>
+            <RealmLoadError
+              message="We could not load the Realms right now."
+              failure={state.failure}
+              onRetry={retry}
+            />
           ) : null}
 
           {state.status === 'ready' && realms.length === 0 ? (
