@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WELCOME_HARBOR_MANIFEST } from './manifests/welcomeHarbor';
+import { STORYKEEPER_CASTLE_MANIFEST as STORYKEEPER_CASTLE_FOR_LOCOMOTION } from './manifests/storykeeperCastle';
 import { SOURCE_LOCATION_MANIFESTS } from './manifests';
 import { SOURCE_MANIFEST_REGISTRIES } from './sourceManifestRegistries';
 import type { ColliderSpec, ThreeLocationManifest } from './locationManifest';
@@ -96,5 +97,21 @@ describe('validateLocationManifest movement (LAI-JMP-01)', () => {
       (solid) => solid.id === rect.id,
     );
     expect(plain?.jumpable).toBe(true);
+  });
+});
+
+describe('validateLocationManifest locomotion (running & sprinting)', () => {
+  it('accepts the castle’s indoor speeds and reports bad ones by path', () => {
+    expect(
+      validateLocationManifest(STORYKEEPER_CASTLE_FOR_LOCOMOTION, SOURCE_MANIFEST_REGISTRIES),
+    ).toEqual([]);
+    const issues = validateLocationManifest(
+      {
+        ...WELCOME_HARBOR_MANIFEST,
+        movement: { locomotion: { sprintSpeed: 40, stamina: 3 } },
+      } as unknown as ThreeLocationManifest,
+      SOURCE_MANIFEST_REGISTRIES,
+    ).map((issue) => issue.path);
+    expect(issues).toEqual(['movement.locomotion.sprintSpeed', 'movement.locomotion.stamina']);
   });
 });

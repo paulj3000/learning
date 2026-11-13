@@ -30,6 +30,8 @@ export interface PlayerCameraInput {
   yaw: number;
   /** Radians; the controller's pitch (negative looks down). */
   pitch: number;
+  /** Running & sprinting: the child is sprinting (widens the view a little, if configured). */
+  sprinting?: boolean;
 }
 
 export interface PlayerCameraFrame {
@@ -50,6 +52,8 @@ export interface PlayerCameraFrame {
   readonly avatarVisible: boolean;
   /** Third-person: the current camera distance from the follow point. */
   readonly distance: number;
+  /** Degrees to add to the base field of view (the sprint widening, eased; 0 under reduced motion). */
+  readonly fovOffset: number;
 }
 
 /** Finds how far along a ray the first obstruction is, or `null` for none within `maxDistance`. */
@@ -87,6 +91,8 @@ const REDUCED_MOTION_RETURN_RATE = 2;
 /** The follow point eases vertically at this fraction of `followDamping` (jumps feel steady). */
 const VERTICAL_FOLLOW_FRACTION = 0.5;
 const REDUCED_MOTION_VERTICAL_FOLLOW_FRACTION = 0.3;
+/** Per second: how fast the sprint field-of-view widening eases in and out. */
+const FOV_EASE_RATE = 5;
 /** A jump of the follow point bigger than this (a teleport) snaps rather than eases. */
 const SNAP_DISTANCE = 3;
 
@@ -121,6 +127,7 @@ export class PlayerCameraController {
   private pivotReady = false;
   private currentDistance: number;
 
+  private fovOffset = 0;
   private readonly position = new Vector3();
   private readonly aim = new Vector3();
   private readonly direction = new Vector3();
@@ -168,12 +175,18 @@ export class PlayerCameraController {
 
   update(deltaSeconds: number, input: PlayerCameraInput): PlayerCameraFrame {
     const dt = Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds : 0;
-    return this.currentMode === 'first-person'
-      ? this.firstPerson(dt, input)
-      : this.thirdPerson(dt, input);
+    // The sprint widening eases over about half a second: never a zoom snap.
+    const wanted = input.sprinting && !this.reducedMotion ? this.config.sprintFovBoost : 0;
+    this.fovOffset = ease(this.fovOffset, wanted, FOV_EASE_RATE, dt);
+    if (Math.abs(this.fovOffset - wanted) < 0.01) this.fovOffset = wanted;
+    const frame =
+      this.currentMode === 'first-person'
+        ? this.firstPerson(dt, input)
+        : this.thirdPerson(dt, input);
+    return { ...frame, fovOffset: this.fovOffset };
   }
 
-  private firstPerson(dt: number, input: PlayerCameraInput): PlayerCameraFrame {
+  private firstPerson(dt: number, input: PlayerCameraInput): Omit<PlayerCameraFrame, 'fovOffset'> {
     const eyeOffset = this.heightFollower.update(dt, input.feet.y, input.grounded);
     this.position.set(input.feet.x, this.eyeHeight + eyeOffset, input.feet.z);
     this.aim.copy(this.position);
@@ -188,7 +201,7 @@ export class PlayerCameraController {
     };
   }
 
-  private thirdPerson(dt: number, input: PlayerCameraInput): PlayerCameraFrame {
+  private thirdPerson(dt: number, input: PlayerCameraInput): Omit<PlayerCameraFrame, 'fovOffset'> {
     const config = this.config;
     const targetX = input.feet.x;
     const targetY = input.feet.y + config.heightOffset;

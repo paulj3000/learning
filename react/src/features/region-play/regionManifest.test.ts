@@ -110,6 +110,16 @@ describe('buildRegionManifest', () => {
     expect(plain.manifest.player).toBeUndefined();
   });
 
+  it('carries Django-authored running and sprinting speeds, which the validator checks', async () => {
+    const scene = {
+      ...(await coveSceneJson()),
+      movement: { locomotion: { sprintEnabled: false, runSpeed: 5 } },
+    };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.movement).toEqual({ locomotion: { sprintEnabled: false, runSpeed: 5 } });
+    expect(issues(built)).toEqual([]);
+  });
+
   it('carries Django-authored movement tuning, which the validator checks (LAI-JMP-01)', async () => {
     const scene = { ...(await coveSceneJson()), movement: { jump: { enabled: false } } };
     const built = build({ region: { ...bootstrapJson().region, scene } });

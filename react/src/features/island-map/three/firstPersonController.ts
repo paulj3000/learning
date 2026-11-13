@@ -1,5 +1,10 @@
 import { Box3, Vector3 } from 'three';
 import {
+  resolveLocomotion,
+  targetSpeed,
+  type LocomotionConfiguration,
+} from './locomotionConfiguration';
+import {
   jumpLaunchSpeed,
   resolveJumpConfiguration,
   type JumpConfiguration,
@@ -40,7 +45,17 @@ export interface MoveInput {
   forward: number;
   /** -1 (left) to 1 (right). */
   strafe: number;
+  /**
+   * The input is analog (a joystick drag or a stick), so a strong push runs
+   * rather than walks. Keyboard input is not: full keys walk, as always.
+   */
+  analog?: boolean;
+  /** Sprint is held or toggled on (Shift, L3, a drag past the joystick edge). */
+  sprint?: boolean;
 }
+
+/** How the player is moving over the ground, for animation, sound and the HUD. */
+export type Gait = 'idle' | 'walk' | 'run' | 'sprint';
 
 /**
  * What the player's body is doing, for animation and sound. `JUMP_START` is
@@ -48,7 +63,8 @@ export interface MoveInput {
  * way down (from a jump or off an edge), `LANDING` the moment after touching
  * down.
  */
-export type MovementState = 'IDLE' | 'WALK' | 'JUMP_START' | 'AIRBORNE' | 'FALLING' | 'LANDING';
+export type MovementState =
+  'IDLE' | 'WALK' | 'RUN' | 'SPRINT' | 'JUMP_START' | 'AIRBORNE' | 'FALLING' | 'LANDING';
 
 /** One-off things the controller did this frame, drained by `consumeEvents`. */
 export type MovementEvent =
@@ -77,8 +93,10 @@ export interface FirstPersonControllerOptions {
   acceleration?: number;
   /** Units/second the controller decelerates toward zero with no input. */
   deceleration?: number;
-  /** Top move speed, units/second. */
+  /** Top walking speed, units/second. Same as `locomotion.walkSpeed`; this wins when both are set. */
   maxSpeed?: number;
+  /** Walking, running and sprinting tuning. Missing fields take the defaults. */
+  locomotion?: Partial<LocomotionConfiguration>;
   /** Radians. Clamps how far up/down the camera can look. */
   maxPitch?: number;
   /** Every collider, solid and jumpable. The array is read live, so it may change. */
@@ -115,6 +133,14 @@ const JUMP_START_SECONDS = 0.15;
 const LANDING_SECONDS = 0.15;
 /** Horizontal speed, m/s, under which a grounded child counts as standing still. */
 const WALK_SPEED_THRESHOLD = 0.2;
+/** How far above a gait's top speed counts as the next gait, m/s (keeps states from flickering). */
+const GAIT_MARGIN = 0.25;
+/**
+ * Longest horizontal step tested for collision at once, metres. A long frame
+ * at sprinting speed is cut into steps this short, so no wall thicker than
+ * this can be skipped (every authored collider is thicker; a test checks).
+ */
+export const MAX_COLLISION_STEP = 0.1;
 /** In the air with no input, the fraction of ground deceleration (times `airControl`) that applies. */
 const AIR_DRAG_FACTOR = 0.2;
 /** Tolerance for floating-point contact, metres. */
@@ -126,9 +152,7 @@ export class FirstPersonController {
   pitch = 0;
 
   private readonly velocity = new Vector3();
-  private readonly acceleration: number;
-  private readonly deceleration: number;
-  private readonly maxSpeed: number;
+  private readonly locomotion: LocomotionConfiguration;
   private readonly maxPitch: number;
   private readonly colliders: Box3[];
   private readonly jumpable: ReadonlySet<Box3>;
@@ -151,9 +175,12 @@ export class FirstPersonController {
   private events: MovementEvent[] = [];
 
   constructor(options: FirstPersonControllerOptions = {}) {
-    this.acceleration = options.acceleration ?? 20;
-    this.deceleration = options.deceleration ?? 25;
-    this.maxSpeed = options.maxSpeed ?? 4;
+    this.locomotion = resolveLocomotion({
+      ...options.locomotion,
+      ...(options.acceleration !== undefined ? { acceleration: options.acceleration } : {}),
+      ...(options.deceleration !== undefined ? { deceleration: options.deceleration } : {}),
+      ...(options.maxSpeed !== undefined ? { walkSpeed: options.maxSpeed } : {}),
+    });
     this.maxPitch = options.maxPitch ?? DEFAULT_MAX_PITCH;
     this.colliders = options.colliders ?? [];
     this.jumpable = options.jumpableColliders ?? new Set();
@@ -193,9 +220,33 @@ export class FirstPersonController {
     return this.verticalSpeed;
   }
 
-  /** Top walking speed, m/s (what a full stick reaches). */
+  /** Top walking speed, m/s (full keyboard input). */
   get walkSpeed(): number {
-    return this.maxSpeed;
+    return this.locomotion.walkSpeed;
+  }
+
+  /** Top running speed, m/s (full analog input). */
+  get runSpeed(): number {
+    return this.locomotion.runSpeed;
+  }
+
+  /** Sprinting speed, m/s. */
+  get sprintSpeed(): number {
+    return this.locomotion.sprintSpeed;
+  }
+
+  /** The walking, running and sprinting tuning in force. */
+  get speeds(): Readonly<LocomotionConfiguration> {
+    return this.locomotion;
+  }
+
+  /** How the child is moving over the ground right now, from their real speed. */
+  get gait(): Gait {
+    const speed = this.horizontalSpeed;
+    if (speed <= WALK_SPEED_THRESHOLD) return 'idle';
+    if (speed > this.locomotion.runSpeed + GAIT_MARGIN) return 'sprint';
+    if (speed > this.locomotion.walkSpeed + GAIT_MARGIN) return 'run';
+    return 'walk';
   }
 
   /** Horizontal speed, m/s. */
@@ -214,7 +265,16 @@ export class FirstPersonController {
   get movementState(): MovementState {
     if (this.onGround) {
       if (this.landingRemaining > 0) return 'LANDING';
-      return this.horizontalSpeed > WALK_SPEED_THRESHOLD ? 'WALK' : 'IDLE';
+      switch (this.gait) {
+        case 'idle':
+          return 'IDLE';
+        case 'walk':
+          return 'WALK';
+        case 'run':
+          return 'RUN';
+        case 'sprint':
+          return 'SPRINT';
+      }
     }
     if (this.verticalSpeed > 0) {
       return this.jumpStartRemaining > 0 ? 'JUMP_START' : 'AIRBORNE';
@@ -276,19 +336,27 @@ export class FirstPersonController {
       0,
       forwardZ * moveInput.forward - strafeZ * moveInput.strafe,
     );
-    if (targetVelocity.lengthSq() > 1) {
-      targetVelocity.normalize();
-    }
-    targetVelocity.multiplyScalar(this.maxSpeed);
+    // Direction from the input; speed from its strength and the gait.
+    const magnitude = Math.min(1, targetVelocity.length());
+    if (magnitude > 0) targetVelocity.normalize();
+    targetVelocity.multiplyScalar(
+      targetSpeed(this.locomotion, magnitude, {
+        analog: moveInput.analog,
+        sprint: moveInput.sprint,
+      }),
+    );
 
     // In the air the child still steers, at `airControl` of the ground rate,
     // so a jump can be guided onto a rock; letting go of the stick only
-    // drags gently, so a jump keeps its take-off momentum.
-    const baseRate = hasInput ? this.acceleration : this.deceleration;
+    // drags gently, so a jump keeps its take-off momentum (a running jump
+    // carries further than a standing one).
+    const speedBefore = this.horizontalSpeed;
+    const baseRate = hasInput ? this.locomotion.acceleration : this.locomotion.deceleration;
     const airRate = baseRate * this.jumpConfig.airControl * (hasInput ? 1 : AIR_DRAG_FACTOR);
     const rate = this.onGround ? baseRate : airRate;
     const t = Math.min(1, rate * dt);
     this.velocity.lerp(targetVelocity, t);
+    if (hasInput) this.easeGaitChange(speedBefore, dt);
 
     // A fresh press opens the buffer window; a jump this frame consumes it.
     if (this.pressPending) {
@@ -456,8 +524,53 @@ export class FirstPersonController {
     return lowest;
   }
 
-  /** Axis-separated collision resolution: a blocked axis stops, the other still slides. */
+  /**
+   * Above walking pace, speed changes no faster than the gait rates: walk to
+   * sprint, or sprint back to walk, eases over a fraction of a second rather
+   * than snapping. Walking pace and below keep the existing snappy response.
+   */
+  private easeGaitChange(speedBefore: number, dt: number): void {
+    const walk = this.locomotion.walkSpeed;
+    const speed = this.horizontalSpeed;
+    let limited = speed;
+    if (speed > Math.max(walk, speedBefore)) {
+      limited = Math.min(
+        speed,
+        Math.max(walk, speedBefore + this.locomotion.gaitAcceleration * dt),
+      );
+    } else if (speedBefore > walk && speed < speedBefore) {
+      limited = Math.max(
+        speed,
+        Math.max(walk, speedBefore - this.locomotion.gaitDeceleration * dt),
+      );
+    }
+    if (limited !== speed && speed > 0) {
+      const scale = limited / speed;
+      this.velocity.x *= scale;
+      this.velocity.z *= scale;
+    }
+  }
+
+  /**
+   * Axis-separated collision resolution: a blocked axis stops, the other still
+   * slides. A long move is cut into `MAX_COLLISION_STEP` pieces, so a fast
+   * child on a slow frame cannot step clean through a thin wall.
+   */
   private moveWithCollision(dx: number, dz: number): void {
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / MAX_COLLISION_STEP));
+    let stepX = dx / steps;
+    let stepZ = dz / steps;
+    for (let i = 0; i < steps; i += 1) {
+      const blocked = this.moveStep(stepX, stepZ);
+      if (blocked.x) stepX = 0;
+      if (blocked.z) stepZ = 0;
+      if (stepX === 0 && stepZ === 0) return;
+    }
+  }
+
+  /** One collision-tested step; reports which axes were blocked. */
+  private moveStep(dx: number, dz: number): { x: boolean; z: boolean } {
+    const blocked = { x: false, z: false };
     const allowance = this.stepHeight;
     if (dx !== 0) {
       const nextX = this.position.x + dx;
@@ -465,6 +578,7 @@ export class FirstPersonController {
         this.position.x = nextX;
       } else {
         this.velocity.x = 0;
+        blocked.x = true;
       }
     }
     if (dz !== 0) {
@@ -473,8 +587,10 @@ export class FirstPersonController {
         this.position.z = nextZ;
       } else {
         this.velocity.z = 0;
+        blocked.z = true;
       }
     }
+    return blocked;
   }
 
   /**

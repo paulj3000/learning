@@ -105,3 +105,22 @@ describe('Treasure Cove in third-person (LAI-JMP-01a)', () => {
     expect(z).toBeGreaterThan(-35.4);
   });
 });
+
+describe('Treasure Cove running & sprinting', () => {
+  it('runs and sprints with the default speeds, and still cannot sprint-jump past the closed ruins gate', async () => {
+    const { harness } = await cove();
+    expect(harness.engine.locomotion.sprintSpeed).toBe(6.5);
+    let z = 0;
+    harness.setDrive((controller, delta) => {
+      if (z === 0) controller.position.set(0, 0, -28);
+      controller.yaw = FACE_SOUTH;
+      controller.update(delta, { forward: 1, strafe: 0, sprint: true });
+      z = controller.position.z;
+    });
+    for (let i = 0; i < 12; i += 1) {
+      harness.engine.pressJump();
+      harness.runFrames(30, 100);
+    }
+    expect(z).toBeGreaterThan(-35.4);
+  });
+});

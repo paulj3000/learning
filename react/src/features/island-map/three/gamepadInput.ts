@@ -7,7 +7,9 @@
  * - left stick: move; right stick: look;
  * - button 0 (A on Xbox, Cross on PlayStation): jump;
  * - button 2 (X on Xbox, Square on PlayStation): interact;
- * - button 3 (Y on Xbox, Triangle on PlayStation): switch camera perspective.
+ * - button 3 (Y on Xbox, Triangle on PlayStation): switch camera perspective;
+ * - button 10 (L3, pressing the left stick): sprint on or off;
+ * - the left stick's tilt sets the speed: partly tilted walks, fully tilted runs.
  *
  * Every button is rebindable through `GamepadBindings`.
  *
@@ -26,18 +28,22 @@ export const GAMEPAD_BUTTON_JUMP = 0;
 export const GAMEPAD_BUTTON_INTERACT = 2;
 /** LAI-JMP-01a: Y (Xbox) / Triangle (PlayStation) switches first- and third-person. */
 export const GAMEPAD_BUTTON_CAMERA = 3;
+/** Running & sprinting: L3 (press the left stick) switches sprint on until pressed again or stopped. */
+export const GAMEPAD_BUTTON_SPRINT = 10;
 
 /** Which standard-mapping button does what. Change one entry to rebind it. */
 export interface GamepadBindings {
   jump: number;
   interact: number;
   cameraToggle: number;
+  sprint: number;
 }
 
 export const DEFAULT_GAMEPAD_BINDINGS: Readonly<GamepadBindings> = Object.freeze({
   jump: GAMEPAD_BUTTON_JUMP,
   interact: GAMEPAD_BUTTON_INTERACT,
   cameraToggle: GAMEPAD_BUTTON_CAMERA,
+  sprint: GAMEPAD_BUTTON_SPRINT,
 });
 /** Stick travel ignored around the centre, so a worn stick does not drift. */
 export const GAMEPAD_DEADZONE = 0.2;
@@ -58,6 +64,8 @@ export interface GamepadFrame {
   interactPressed: boolean;
   /** The camera-perspective button was pressed since the last frame. */
   cameraTogglePressed: boolean;
+  /** The sprint button was pressed since the last frame. */
+  sprintPressed: boolean;
 }
 
 export const NO_GAMEPAD_INPUT: GamepadFrame = Object.freeze({
@@ -68,6 +76,7 @@ export const NO_GAMEPAD_INPUT: GamepadFrame = Object.freeze({
   jumpPressed: false,
   interactPressed: false,
   cameraTogglePressed: false,
+  sprintPressed: false,
 });
 
 /** Rescales a stick axis so the deadzone edge is 0 and full travel stays 1. */
@@ -107,7 +116,8 @@ export class GamepadReader {
     let jumpPressed = false;
     let interactPressed = false;
     let cameraTogglePressed = false;
-    const { jump, interact, cameraToggle } = this.bindings;
+    let sprintPressed = false;
+    const { jump, interact, cameraToggle, sprint } = this.bindings;
     const nowHeld = new Set<string>();
 
     pads.forEach((pad, padIndex) => {
@@ -118,7 +128,7 @@ export class GamepadReader {
       forward -= applyDeadzone(ly);
       lookX += applyDeadzone(rx) * GAMEPAD_LOOK_SPEED * deltaSeconds;
       lookY += applyDeadzone(ry) * GAMEPAD_LOOK_SPEED * deltaSeconds;
-      for (const button of new Set([jump, interact, cameraToggle])) {
+      for (const button of new Set([jump, interact, cameraToggle, sprint])) {
         if (!isPressed(pad, button)) continue;
         const key = `${padIndex}:${button}`;
         nowHeld.add(key);
@@ -126,6 +136,7 @@ export class GamepadReader {
         if (button === jump) jumpPressed = true;
         if (button === interact) interactPressed = true;
         if (button === cameraToggle) cameraTogglePressed = true;
+        if (button === sprint) sprintPressed = true;
       }
     });
 
@@ -140,6 +151,7 @@ export class GamepadReader {
       jumpPressed,
       interactPressed,
       cameraTogglePressed,
+      sprintPressed,
     };
   }
 

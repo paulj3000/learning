@@ -45,6 +45,12 @@ export interface PlayerCameraConfiguration {
    * means no ceiling (outdoors).
    */
   maxHeight?: number;
+  /**
+   * Running & sprinting: degrees the field of view widens while sprinting,
+   * eased in and out, for a gentle sense of speed. 0 turns it off; it is
+   * always off under reduced motion.
+   */
+  sprintFovBoost: number;
 }
 
 export interface PlayerAvatarConfiguration {
@@ -71,6 +77,7 @@ export const DEFAULT_PLAYER_CAMERA: Readonly<PlayerCameraConfiguration> = Object
   followDamping: 12,
   rotationSensitivity: 1,
   collisionEnabled: true,
+  sprintFovBoost: 3,
 });
 
 export const DEFAULT_PLAYER_AVATAR: Readonly<PlayerAvatarConfiguration> = Object.freeze({
@@ -88,6 +95,7 @@ export const CAMERA_LIMITS = Object.freeze({
   followDamping: { min: 1, max: 40 },
   rotationSensitivity: { min: 0.1, max: 4 },
   maxHeight: { min: 1.5, max: 50 },
+  sprintFovBoost: { min: 0, max: 8 },
 });
 
 export const AVATAR_LIMITS = Object.freeze({
@@ -132,6 +140,7 @@ export function resolvePlayerCamera(
       'heightOffset',
       'followDamping',
       'rotationSensitivity',
+      'sprintFovBoost',
     ] as const) {
       const value = override[key];
       if (finite(value))

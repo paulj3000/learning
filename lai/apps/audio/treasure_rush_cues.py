@@ -106,6 +106,14 @@ TREASURE_RUSH_CUES: tuple[CueSpec, ...] = (
         wired=False,
         cooldown_ms=120,
     ),
+    # Running & sprinting: optional footsteps (the game sets the volume by walk, run or sprint).
+    _sfx(
+        "sfx.player.footstep",
+        "Player footstep",
+        "Optional. One soft footstep; repeated at walking, running or sprinting pace.",
+        wired=False,
+        cooldown_ms=150,
+    ),
     _sfx("sfx.coin.collect", "Coin collected", "No coin pickup mechanic yet.", wired=False),
     _sfx("sfx.gem.collect", "Gem collected", "No gem pickup mechanic yet.", wired=False),
     _sfx("sfx.item.pickup", "Item picked up", "Only keys are picked up today.", wired=False),

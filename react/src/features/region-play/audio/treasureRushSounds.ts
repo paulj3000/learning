@@ -26,7 +26,16 @@ export const TR_SOUND = {
   // LAI-JMP-01: player movement. Not cove-specific ids, so any region's audio can reuse them.
   playerJump: 'sfx.player.jump',
   playerLand: 'sfx.player.land',
+  // Running & sprinting: one optional footstep cue, played softer when walking.
+  playerFootstep: 'sfx.player.footstep',
 } as const;
+
+/** Footstep loudness by gait (0 to 1): quiet walking, fuller running and sprinting. */
+export const FOOTSTEP_VOLUME: Readonly<Record<'walk' | 'run' | 'sprint', number>> = {
+  walk: 0.5,
+  run: 0.75,
+  sprint: 0.9,
+};
 
 /**
  * A landing softer than this (m/s downward) is silent: hopping off a low step should not clack.
