@@ -352,6 +352,16 @@ export function ThreeLocationWorldView({
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
+  /*
+    LAI-JMP-01: a panel opening over the scene pauses play, so nothing held
+    a moment ago (a key, a drag, the Jump button, a gamepad button) may still
+    be held when the child comes back to it.
+  */
+  const panelOpen = openInteraction !== null || claimed !== null;
+  useEffect(() => {
+    if (panelOpen) engine?.resetInput?.();
+  }, [panelOpen, engine]);
+
   if (manifestState.status === 'not-found' || manifestState.status === 'error') {
     return (
       <div className={styles.wrapper}>
@@ -454,6 +464,7 @@ export function ThreeLocationWorldView({
               }
             : {})}
           showBackpack={!companionOwnsBackpack}
+          {...(engine?.jump?.enabled ? { onJump: () => engineRef.current?.pressJump?.() } : {})}
         />
         <div ref={setHudSlot} className={styles.stageControls} />
         <div ref={setSpeechSlot} className={styles.stageSpeech} />

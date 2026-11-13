@@ -48,6 +48,16 @@ export type WorldEngineEventMap = {
    * uses.
    */
   InteractableFocused: { entityId: EntityId | null };
+  /**
+   * LAI-JMP-01: the player left the ground in a jump (`airJump` for a second
+   * jump in the air, only where a location allows one). For sound and
+   * presentation only; nothing about progress depends on it.
+   */
+  PlayerJumped: { airJump: boolean };
+  /** LAI-JMP-01: the player touched down, at `impactSpeed` m/s downward. */
+  PlayerLanded: { impactSpeed: number };
+  /** LAI-JMP-01: the player fell out of the world and was put back where they last stood. */
+  PlayerRecovered: { reason: 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' };
   // domain -> Three.js
   QuestStateChanged: { questId: string; state: string };
   WorldStateChanged: { worldStateKey: WorldStateKey };

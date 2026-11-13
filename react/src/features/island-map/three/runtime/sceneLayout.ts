@@ -394,6 +394,8 @@ export interface SolidCollider {
   /** The authored `ColliderSpec.rect.id`; absent for boundary and building walls. */
   id?: string;
   box: BoxBounds;
+  /** LAI-JMP-01: the child may jump onto or over it. Only ever set from `ColliderSpec.jumpable`. */
+  jumpable?: boolean;
 }
 
 /**
@@ -413,6 +415,8 @@ export function solidColliders(
       .map((collider) => ({
         id: collider.rect.id,
         box: rectToBox(collider.rect, collider.minY ?? RECT_MIN_Y, collider.maxY ?? WALL_HEIGHT),
+        // A gated collider is a progression gate: never jumpable, whatever was authored.
+        ...(collider.jumpable === true && !collider.requirements?.length ? { jumpable: true } : {}),
       })),
     ...manifest.buildings.flatMap(buildingWallColliders).map((box) => ({ box })),
   ];

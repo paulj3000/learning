@@ -171,7 +171,12 @@ export function createSandboxEngine(
 
     pointerControls.update(delta);
 
-    camera.position.set(controller.position.x, EYE_HEIGHT, controller.position.z);
+    // Feet height joins the eye height, so a jump (LAI-JMP-01) lifts the view.
+    camera.position.set(
+      controller.position.x,
+      EYE_HEIGHT + controller.position.y,
+      controller.position.z,
+    );
     // The controller's forward axis (+Z at yaw 0) is the opposite of a
     // Three.js camera's default forward (-Z at yaw 0); the +PI offset
     // reconciles the two without changing the controller's own convention.

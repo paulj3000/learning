@@ -1,6 +1,9 @@
 import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
 import type { AgeBandValue } from '../../../child-profile/constants';
 import type { AdventureStepBinding } from './adventureStepBindings';
+import type { MovementSpec } from '../jumpConfiguration';
+
+export type { MovementSpec } from '../jumpConfiguration';
 
 /**
  * The serializable contract a generic Three.js location runtime reads
@@ -122,6 +125,14 @@ export interface ColliderSpec {
   maxY?: number;
   /** Present only while these hold, evaluated when the scene is built. Absent means always. */
   requirements?: readonly WorldRequirement[];
+  /**
+   * LAI-JMP-01: a low obstacle (rock, log, crate, step) the child may jump
+   * onto or over. Its real `minY`/`maxY` then decide where it blocks; both
+   * must be authored. Absent means solid at every height, which is what keeps
+   * walls, gates and boundaries unjumpable. A collider with `requirements` is
+   * a progression gate and may never be jumpable (the validator says so).
+   */
+  jumpable?: boolean;
 }
 
 /**
@@ -675,4 +686,10 @@ export interface ThreeLocationManifest {
   adventureBindings: readonly AdventureStepBinding[];
   extensions: readonly ExtensionBinding[];
   copy: LocationCopy;
+  /**
+   * LAI-JMP-01: player movement tuning. Absent means the defaults, which
+   * include jumping (`jumpConfiguration.ts`); `{ jump: { enabled: false } }`
+   * keeps the child on the ground here.
+   */
+  movement?: MovementSpec;
 }

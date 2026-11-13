@@ -38,6 +38,8 @@ import { cloneAssetScene } from '../assets/cloneAsset';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { FirstPersonController } from '../firstPersonController';
+import { CameraHeightFollower } from '../cameraHeightFollower';
+import type { JumpConfiguration } from '../jumpConfiguration';
 import { attachPointerControls, type PointerControls } from '../pointerControls';
 import {
   APPROACH_RANGE_METERS,
@@ -182,6 +184,16 @@ export interface LocationEngine extends ThreeEngineHandle {
   childPlacement(): Required<ChildPlacement>;
   /** What a mounted extension returned as `api`, for its React half. `undefined` if none. */
   extensionApi(extensionId: string): unknown;
+  /**
+   * LAI-JMP-01: one jump press from a control the engine does not own (the
+   * HUD's on-screen Jump button). Edge-triggered like Space; ignored where
+   * jumping is off.
+   */
+  pressJump(): void;
+  /** The jump tuning this location plays with (`manifest.movement.jump` over the defaults). */
+  readonly jump: Readonly<JumpConfiguration>;
+  /** Forgets held keys, drags and buttons, e.g. when a panel opens over the scene. */
+  resetInput(): void;
   /** Settles once every asynchronously loaded piece has been placed or has failed. Never rejects. */
   readonly ready: Promise<void>;
 }
@@ -355,9 +367,25 @@ export function createLocationEngine<R extends RendererLike>(
   const solids = solidColliders(manifest, worldState).map((solid) => ({
     id: solid.id,
     box: toBox3(solid.box),
+    jumpable: solid.jumpable === true,
   }));
   const colliders = solids.map((solid) => solid.box);
-  const controller = new FirstPersonController({ colliders });
+  // LAI-JMP-01: only authored low obstacles are jumpable; walls, gates, the
+  // world's edge and anything an extension adds stay solid at every height.
+  const jumpableColliders = new Set(
+    solids.filter((solid) => solid.jumpable).map((solid) => solid.box),
+  );
+  const playableMargin = manifest.bounds.wallThickness + 1;
+  const controller = new FirstPersonController({
+    colliders,
+    jumpableColliders,
+    jump: manifest.movement?.jump,
+    // A safety net behind the boundary walls: anyone who ends up past them goes back.
+    isInPlayableArea: (x, z) =>
+      Math.abs(x) <= manifest.bounds.halfExtentX + playableMargin &&
+      Math.abs(z) <= manifest.bounds.halfExtentZ + playableMargin,
+  });
+  const cameraHeight = new CameraHeightFollower({ reducedMotion: options.reducedMotion });
   /** Where the child could stand, which is where `SCATTER` scenery must not go. */
   const walkable = walkableProbe(manifest, worldState);
   const spawn = resolveSpawnCheckpoint(manifest.regionId, options.startCheckpointId);
@@ -1033,7 +1061,10 @@ export function createLocationEngine<R extends RendererLike>(
           return () => frameCallbacks.delete(callback);
         },
         playerPosition: () => ({ x: controller.position.x, z: controller.position.z }),
-        teleportPlayer: (x, z, yaw) => controller.teleport(x, z, yaw),
+        teleportPlayer: (x, z, yaw) => {
+          controller.teleport(x, z, yaw);
+          cameraHeight.reset(controller.position.y);
+        },
         now: () => deps.now(),
         placeChild,
         childPlacement,
@@ -1068,7 +1099,26 @@ export function createLocationEngine<R extends RendererLike>(
 
     controls.update(delta);
 
-    camera.position.set(controller.position.x, EYE_HEIGHT, controller.position.z);
+    // LAI-JMP-01: jumps, landings and safe returns, as typed events for sound
+    // and anything else listening. The engine decides nothing about them.
+    for (const event of controller.consumeEvents()) {
+      switch (event.type) {
+        case 'JUMPED':
+          bus.emit('PlayerJumped', { airJump: event.airJump });
+          break;
+        case 'LANDED':
+          cameraHeight.landed(event.impactSpeed);
+          bus.emit('PlayerLanded', { impactSpeed: event.impactSpeed });
+          break;
+        case 'RECOVERED':
+          cameraHeight.reset(controller.position.y);
+          bus.emit('PlayerRecovered', { reason: event.reason });
+          break;
+      }
+    }
+
+    const eyeOffset = cameraHeight.update(delta, controller.position.y, controller.grounded);
+    camera.position.set(controller.position.x, EYE_HEIGHT + eyeOffset, controller.position.z);
     // +PI: the controller's forward at yaw 0 is +Z, a camera's default forward is -Z.
     camera.rotation.y = controller.yaw + Math.PI;
     camera.rotation.x = controller.pitch;
@@ -1134,6 +1184,11 @@ export function createLocationEngine<R extends RendererLike>(
     placeChild,
     childPlacement,
     extensionApi: (extensionId) => extensionMounts.get(extensionId)?.api,
+    pressJump: () => {
+      if (!disposed) controller.pressJump();
+    },
+    jump: controller.jump,
+    resetInput: () => controls.resetInput(),
     ready,
   };
 }

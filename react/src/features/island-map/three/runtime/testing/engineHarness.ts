@@ -46,7 +46,11 @@ export interface Harness {
   parent: HTMLDivElement;
   deps: LocationEngineDeps<FakeRenderer>;
   renderer: FakeRenderer;
-  controls: { update: Mock<(deltaSeconds: number) => void>; dispose: Mock<() => void> };
+  controls: {
+    update: Mock<(deltaSeconds: number) => void>;
+    resetInput: Mock<() => void>;
+    dispose: Mock<() => void>;
+  };
   stopFitting: Mock<() => void>;
   events: { name: keyof WorldEngineEventMap; detail: unknown }[];
   runFrames(count: number, milliseconds?: number): void;
@@ -95,6 +99,7 @@ export function mount(
     update: vi.fn((delta: number) => {
       if (controller) drive(controller, delta);
     }),
+    resetInput: vi.fn<() => void>(),
     dispose: vi.fn<() => void>(),
   };
   const stopFitting = vi.fn<() => void>();
@@ -133,6 +138,9 @@ export function mount(
     'ObjectInteracted',
     'CollectiblePickedUp',
     'BuildActionRequested',
+    'PlayerJumped',
+    'PlayerLanded',
+    'PlayerRecovered',
   ] as const) {
     bus.on(name, (detail) => events.push({ name, detail }));
   }
