@@ -4,6 +4,7 @@ import { IslandLayout } from '../features/island/IslandLayout';
 import { ThreeLocationWorldView } from '../features/island-map/three/runtime/ThreeLocationWorldView';
 import { locationRepositoryForThisBuild } from '../features/multiplayer/devMultiplayerRepository';
 import { getChildPlaySettings } from '../features/child-profile/playSettings';
+import { playerAvatarSourceFor } from '../features/player-avatar/playerAvatarSource';
 import type { AgeBandValue } from '../features/child-profile/constants';
 import { regionRepositoryForChild } from '../features/region-play/regionRepositoryForChild';
 import { regionAssetsFor } from '../features/region-play/regionAssets';
@@ -47,6 +48,8 @@ export function LocationWorldPage() {
     () => regionRepositoryForChild(childId ?? '', locationRepositoryForThisBuild),
     [childId],
   );
+  // LAI-JMP-01c: the child's published avatar, fetched alongside (never before) the scene.
+  const avatarSource = useMemo(() => playerAvatarSourceFor(childId ?? ''), [childId]);
   // One resolver and loader per visit, so re-entering picks up a newly published default.
   const assets = useMemo(
     () => regionAssetsFor(childId ?? '', regionId ?? '', locationRepositoryForThisBuild),
@@ -110,6 +113,7 @@ export function LocationWorldPage() {
         ageBand={ageBand}
         aiEnabled={aiEnabled}
         avatarKey={avatarKey}
+        avatarSource={avatarSource}
         repository={repository}
         assets={assets}
       />

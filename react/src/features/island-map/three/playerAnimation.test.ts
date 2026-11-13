@@ -42,12 +42,13 @@ describe('player animation states (LAI-JMP-01)', () => {
 describe('player animation controller (LAI-JMP-01a)', () => {
   const target = () => ({ setBase: vi.fn(), play: vi.fn(() => true), setTimeScale: vi.fn() });
 
-  it('maps GLB clip names onto the vocabulary, never mapping Celebrate', () => {
+  it('maps GLB clip names onto player states by the standard names (LAI-JMP-01c)', () => {
     expect(playerAnimationMap(['Idle', 'Walk', 'Jump', 'Celebrate', 'Wave'])).toEqual({
       idle: 'Idle',
       walk: 'Walk',
       jump: 'Jump',
-      wave: 'Wave',
+      interact: 'Wave',
+      celebrate: 'Celebrate',
     });
     expect(playerAnimationMap([])).toEqual({});
   });
@@ -96,7 +97,8 @@ describe('player animation controller (LAI-JMP-01a)', () => {
     expect(none.play).not.toHaveBeenCalled();
     const waving = target();
     createPlayerAnimationController(waving, playerAnimationMap(['Idle', 'Wave'])).interact();
-    expect(waving.play).toHaveBeenCalledWith('wave', { mode: 'once', priority: 1 });
+    // Interact plays through the animator's `point` state, mapped to the avatar's Wave clip.
+    expect(waving.play).toHaveBeenCalledWith('point', { mode: 'once', priority: 1 });
   });
 
   it('removes root motion but keeps bone animation', () => {

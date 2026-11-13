@@ -4043,3 +4043,45 @@ first-person; third-person has its own tests). Children see placeholders until 3
 are made (LAI-JMP-01c). The camera avoids colliders, not meshes, so decorative scenery without a
 collider can sit between camera and child. Details: `docs/PLAYER_AVATAR_AND_CAMERA.md`.
 
+## ADR-057: Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference
+
+Status: Proposed (LAI-JMP-01c, 2026-11-13). Development only; awaiting owner QA. Depends on
+ADR-056 (LAI-JMP-01a, PR #27) and ADR-055 (LAI-JMP-01, PR #26), both unmerged when this was
+written.
+
+**Context.** Children choose one of six avatar identities (`ChildProfile.avatar_key`); LAI-JMP-01a
+draws every one as a procedural placeholder because nothing maps an identity to a 3D model. Staff
+must be able to assign, tune and publish real animated GLBs in Django Admin, without a second
+asset system, without a React admin, and with safe fallbacks.
+
+**Decision.**
+
+1. **A new app `apps.avatars` with one model, `PlayerAvatar`**, one row per identity (seeded as
+   drafts by migration): model asset (`catalog.ContentAsset`, kind `character`), optional pinned
+   `assets.AssetVersion`, thumbnail asset, scale, facing offset, animation map, customization
+   (colour materials, attachment points), status (DRAFT / AVAILABLE / DISABLED). It stores no
+   file and no child data. This mirrors the NPC Manager's `NpcModelVariant`; no release model is
+   added, because the asset's own immutable published versions are the release.
+2. **Upload, validation, versioning, publishing, retirement, delivery and caching stay the Asset
+   Manager's.** The avatar admin only references assets; a retirement guard (the NPC Manager's
+   mechanism) refuses to retire what an AVAILABLE avatar is served.
+3. **`GET children/<child>/avatar/`** (child-scoped, parent only) answers for the child's own
+   identity with the model **by reference** (`asset-id` or `asset-id@n`) and its tuning, or
+   `model: null` with a reason. The client loads the reference through the existing child-scoped
+   asset resolver and shared loader, so only published versions can ever load.
+4. **Graceful by construction:** no row, not AVAILABLE, invalid, unpublished, retired, a failed
+   request, a malformed answer or a failed GLB all mean the placeholder. The avatar never delays
+   the scene.
+5. **Vocabulary:** player states `idle, walk, run, jump, fall, land, interact, celebrate`; clip
+   names `Run, Jump, Fall, Land` join the closed vocabulary; `fall` and `land` join the NPC
+   animation states additively. All mirrored React/Django with parity tests.
+6. **Customization uses the child's existing avatar colours** on named materials (cloned, never
+   mutating the shared cache) and declares attachment points for future cosmetics. No shop,
+   inventory or per-child appearance store.
+7. **Roles:** Asset editors configure avatars as drafts; Asset publishers make them available
+   (`avatars.publish_playeravatar`), via `ensure_asset_roles`.
+
+**Consequences.** Staff can ship or withdraw a character without a deploy; the six production
+models are content work, not code. One new table and migration. Until real models are supplied
+every child sees the placeholder. Details: `docs/PLAYER_AVATAR_ASSETS.md`.
+

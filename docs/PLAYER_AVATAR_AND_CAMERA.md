@@ -92,8 +92,10 @@ Which model the child is drawn with, in order:
    child's existing avatar choice (`avatarAppearance.ts`): their body and accent colours and
    their ears, antenna, fin or spikes. 1.39 m tall, feet on the ground.
 
-`PLAYER_AVATAR_ASSET_IDS` is **empty today**: no 3D avatar models exist yet, so every child sees
-their placeholder (follow-up card LAI-JMP-01c). Nothing is hard-coded to a particular character.
+Since LAI-JMP-01c, models are assigned to identities and published in **Django Admin (Player
+avatars)** and served by `GET children/<child>/avatar/`; see `docs/PLAYER_AVATAR_ASSETS.md`.
+`PLAYER_AVATAR_ASSET_IDS` stays empty (builds without Django only). No production avatar models
+exist yet, so every child still sees the placeholder. Nothing is hard-coded to a character.
 
 Models load through the location's own loader (`LocationEngineAssets.loadModel`), so the bundled
 asset resolver and cache, or the Django asset library for a Django region, are reused. The avatar

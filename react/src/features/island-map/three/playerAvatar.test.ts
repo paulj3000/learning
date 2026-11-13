@@ -162,7 +162,9 @@ describe('player avatar (LAI-JMP-01a)', () => {
 
   it('does not swap a model into an avatar disposed while it loaded', async () => {
     let release!: (value: LoadedModel) => void;
-    const avatar = avatarFor('FOX', {}, () => new Promise((resolve) => (release = resolve)));
+    const loading = vi.fn(() => new Promise<LoadedModel>((resolve) => (release = resolve)));
+    const avatar = avatarFor('FOX', {}, loading);
+    await vi.waitFor(() => expect(loading).toHaveBeenCalled());
     avatar.dispose();
     release(model(['Idle']));
     await avatar.ready;

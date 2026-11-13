@@ -46,6 +46,7 @@ import {
   type PlayerCameraFrame,
 } from '../playerCamera';
 import { AvatarFacing, createPlayerAvatar, type PlayerAvatar } from '../playerAvatar';
+import type { PlayerAvatarModel } from '../playerAvatarCatalog';
 import {
   initialCameraMode,
   resolvePlayerAvatar,
@@ -253,6 +254,16 @@ export interface LocationEngineOptions {
   cameraMode?: CameraMode;
   /** LAI-JMP-01a: the child's `ChildProfile.avatarKey`, for their avatar's look. */
   avatarKey?: string | null;
+  /**
+   * LAI-JMP-01c: the published model for the child's avatar identity (the play API's answer),
+   * possibly still on its way. The placeholder shows until it has loaded; the scene never waits.
+   */
+  publishedAvatar?: PlayerAvatarModel | null | Promise<PlayerAvatarModel | null>;
+  /**
+   * LAI-JMP-01c: how avatar models are loaded (the Django asset resolver and loader, for a
+   * published model). Defaults to the location's own loader.
+   */
+  loadAvatarModel?: (ref: string) => Promise<LoadedModel>;
   /** LAI-JMP-01a: the perspective changed (V, a button, the gamepad), so the view can save it. */
   onCameraModeChange?: (mode: CameraMode) => void;
 }
@@ -451,7 +462,8 @@ export function createLocationEngine<R extends RendererLike>(
     ? createPlayerAvatar({
         avatarKey: options.avatarKey,
         config: avatarConfig,
-        loadModel: (assetId) => deps.assets.loadModel(assetId),
+        loadModel: options.loadAvatarModel ?? ((ref) => deps.assets.loadModel(ref)),
+        published: options.publishedAvatar,
         reducedMotion: () => options.reducedMotion === true,
       })
     : null;
@@ -461,6 +473,17 @@ export function createLocationEngine<R extends RendererLike>(
     avatar.setVisible(false);
     scene.add(avatar.root);
   }
+  /*
+    LAI-JMP-01c: the avatar celebrates a world change and a find. Presentation only: it listens
+    to events that already happened and changes nothing.
+  */
+  const stopCelebrating = avatar
+    ? [
+        bus.on('WorldStateChanged', () => avatar.celebrate()),
+        bus.on('CollectiblePickedUp', () => avatar.celebrate()),
+      ]
+    : [];
+
   /** The last frame's camera, for aiming an interaction between frames. */
   let lastCameraFrame: PlayerCameraFrame | null = null;
 
@@ -1285,6 +1308,7 @@ export function createLocationEngine<R extends RendererLike>(
     uninstallProbe?.();
     deps.cancelFrame(frameHandle);
     controls.dispose();
+    for (const stop of stopCelebrating) stop();
     avatar?.dispose();
     stopFitting();
     for (const mounted of extensionMounts.values()) mounted.dispose?.();
@@ -1316,7 +1340,6 @@ export function createLocationEngine<R extends RendererLike>(
         })
       : null;
 
-  if (avatar) pending.push(avatar.ready);
   const ready = Promise.all(pending).then(() => undefined);
 
   return {

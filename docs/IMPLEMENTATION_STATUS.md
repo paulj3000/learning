@@ -49,6 +49,28 @@ Bedrock model choice ever changes.
 Django settings like `make migrate`. Django's `createsuperuser` stays disabled. Checked with
 `make -n createsuper`; not yet run against a live database (needs `make up` and `make migrate`).
 
+## Player avatar asset integration (LAI-JMP-01c, `feature/player-avatar-assets`, ADR-057 Proposed) — ASSET INTEGRATION DEVELOPMENT COMPLETE (2026-11-13); PRODUCTION ART NOT READY; unit-tested only
+
+Built on `feature/third-person-avatar` (PR #27, on PR #26; neither merged). New Django app
+`apps.avatars`: `PlayerAvatar` (one row per identity, seeded as drafts by migrations 0001/0002)
+references a character asset in the existing Asset Manager (optional pinned version), with scale,
+facing, animation map, colour materials, attachment points, thumbnail and status. Django Admin
+configures it (editors) and makes it available (publishers); a retirement guard protects served
+models. `GET children/<child>/avatar/` (child-scoped) serves the child's own identity by asset
+reference; React loads it through the existing Django asset resolver and loader, never blocking
+the scene, and falls back to the placeholder on anything missing or broken. Animation adds
+`fall`, `land`, `interact`, `celebrate` (celebrate on world changes and pickups); vocabularies
+parity-tested React/Django.
+
+- **Production art: none of the six models exist.** Every child sees the placeholder until real
+  GLBs are uploaded and made available (follow-up LAI-JMP-01e). The CC0 `npc-harbor-master.gltf`
+  is documented as a test fixture only.
+- Tests: Vitest (island-map, region-play, npc-manager, child-profile, player-avatar, routes, api)
+  pass; `npm run typecheck` passes; pytest for `apps.avatars`, `apps.assets`, `apps.npcs` passes;
+  `makemigrations --check` clean.
+- Deferred to merge verification: full gates, build, Playwright/WebGL, an end-to-end upload of a
+  real GLB, device and gamepad QA (owner checklist in `docs/PLAYER_AVATAR_ASSETS.md`).
+
 ## Third-person avatar, camera and animations (LAI-JMP-01a, `feature/third-person-avatar`, ADR-056 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
 
 Built on `feature/shared-jump-controller` (LAI-JMP-01, PR #26, not yet merged): merge that first.

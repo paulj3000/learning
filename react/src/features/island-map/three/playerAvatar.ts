@@ -1,6 +1,7 @@
 import {
   BoxGeometry,
   CapsuleGeometry,
+  type Color,
   ConeGeometry,
   CylinderGeometry,
   Group,
@@ -18,10 +19,17 @@ import { cloneAssetScene } from './assets/cloneAsset';
 import type { MovementState } from './firstPersonController';
 import {
   createPlayerAnimationController,
-  playerAnimationMap,
+  toAnimatorMap,
   withoutRootMotion,
   type PlayerAnimationController,
 } from './playerAnimation';
+import {
+  effectivePlayerAnimationMap,
+  NO_CUSTOMIZATION,
+  type AttachmentSlot,
+  type PlayerAvatarCustomization,
+  type PlayerAvatarModel,
+} from './playerAvatarCatalog';
 import type { PlayerAvatarConfiguration } from './playerPresentation';
 import type { LoadedModel } from './runtime/extensionRegistry';
 
@@ -34,9 +42,10 @@ import type { LoadedModel } from './runtime/extensionRegistry';
  *
  * Which model:
  * 1. the location's `player.avatar.assetKey` (a costume a location needs);
- * 2. else the 3D model registered for the child's `avatarKey`
- *    (`PLAYER_AVATAR_ASSET_IDS`);
- * 3. else, and whenever a model fails to load, a friendly placeholder built
+ * 2. else the published model for the child's avatar identity (LAI-JMP-01c:
+ *    Django Admin, Player avatars; served by `GET children/<child>/avatar/`);
+ * 3. else a bundled model in `PLAYER_AVATAR_ASSET_IDS` (builds without Django);
+ * 4. else, and whenever a model fails to load, a friendly placeholder built
  *    from the child's chosen avatar look (`avatarAppearance.ts`: the same
  *    colours and ears, antenna, fin or spikes the 2D island already draws).
  *
@@ -46,9 +55,9 @@ import type { LoadedModel } from './runtime/extensionRegistry';
  */
 
 /**
- * 3D avatar models by `ChildProfile.avatarKey`. Empty today: no avatar has a
- * GLB yet, so every child gets the placeholder in their own colours (follow-up
- * card LAI-JMP-01c). Filling a row is the whole job of adding one.
+ * Bundled 3D avatar models by `ChildProfile.avatarKey`, for builds without the
+ * Django API only. Since LAI-JMP-01c, models are assigned and published in Django
+ * Admin (Player avatars) and served by the play API; this stays empty.
  */
 export const PLAYER_AVATAR_ASSET_IDS: Readonly<Partial<Record<AvatarValue, string>>> = {};
 
@@ -105,9 +114,15 @@ export interface PlayerAvatarOptions {
   /** The child's `ChildProfile.avatarKey`; unknown or missing gets the default look. */
   avatarKey: string | null | undefined;
   config: PlayerAvatarConfiguration;
-  /** The location's model loader (asset resolver and cache). Absent: placeholder only. */
-  loadModel?: (assetId: string) => Promise<LoadedModel>;
-  /** Overrides the avatarKey registry (tests, a future Django-served registry). */
+  /** The model loader (asset resolver and cache). Absent: placeholder only. */
+  loadModel?: (ref: string) => Promise<LoadedModel>;
+  /**
+   * LAI-JMP-01c: the published model for the child's avatar identity, from the play API
+   * (`GET children/<child>/avatar/`). May arrive after the scene starts: the placeholder shows
+   * until then, so nothing waits on it. `null` (or a rejected promise) keeps the placeholder.
+   */
+  published?: PlayerAvatarModel | null | Promise<PlayerAvatarModel | null>;
+  /** Overrides the bundled avatarKey registry (tests). */
   assetIdFor?: (avatarKey: string) => string | undefined;
   reducedMotion: () => boolean;
 }
@@ -115,12 +130,15 @@ export interface PlayerAvatarOptions {
 export interface PlayerAvatar {
   /** Add this to the scene. Its position is the feet; its children are the visible model. */
   readonly root: Group;
-  /** Settles once the model has loaded or the placeholder has been kept. Never rejects. */
+  /**
+   * Settles once the published answer has arrived and its model has loaded, or the placeholder
+   * has been kept. Never rejects. The scene never waits for it.
+   */
   readonly ready: Promise<void>;
   /** What is showing. */
   readonly source: () => 'placeholder' | 'model';
-  /** The asset id it tried to load, if any. */
-  readonly assetId: string | undefined;
+  /** The reference it loaded (`asset-id` or `asset-id@n`), once known. */
+  readonly loadedRef: () => string | undefined;
   /** Copies the controller's feet position and the facing to the visible model. */
   setPose(feet: { x: number; y: number; z: number }, facingYaw: number): void;
   setVisible(visible: boolean): void;
@@ -133,25 +151,78 @@ export interface PlayerAvatar {
   ): void;
   /** A short gesture on interacting, where the model has one. */
   interact(): void;
+  /** A celebration (a world change, a find), where the model has one. */
+  celebrate(): void;
+  /**
+   * Where a cosmetic for `slot` would attach (LAI-JMP-01c, for future hats, backpacks, shoes):
+   * the model's node named in its customization, or the placeholder's matching part.
+   */
+  attachPoint(slot: AttachmentSlot): Object3D | undefined;
   dispose(): void;
 }
 
-/** The asset id to load for this child here, if any. */
+/**
+ * The reference to load for this child here, if any: a location costume, else the published
+ * model, else the bundled registry.
+ */
 export function avatarAssetIdFor(
   avatarKey: string | null | undefined,
   config: Pick<PlayerAvatarConfiguration, 'assetKey'>,
   registry: (key: string) => string | undefined = (key) =>
     PLAYER_AVATAR_ASSET_IDS[key as AvatarValue],
+  published?: PlayerAvatarModel | null,
 ): string | undefined {
   if (config.assetKey) return config.assetKey;
+  if (published) return published.ref;
   return avatarKey ? registry(avatarKey) : undefined;
+}
+
+/** The placeholder's parts standing in for each attachment slot. */
+const PLACEHOLDER_ATTACH: Readonly<Record<AttachmentSlot, string>> = {
+  head: 'head',
+  back: 'body',
+  hand_left: 'body',
+  hand_right: 'body',
+  feet: 'foot--1',
+};
+
+/**
+ * Gives the materials `colorMaterials` names the child's avatar colours. Materials come from the
+ * shared asset cache, so each is cloned before it changes: another child, an NPC or the next
+ * visit using the same model never sees this child's colours. Returns the clones to dispose.
+ */
+export function applyAvatarColors(
+  model: Object3D,
+  colorMaterials: PlayerAvatarCustomization['colorMaterials'],
+  look: AvatarAppearance,
+): Material[] {
+  const owned: Material[] = [];
+  if (Object.keys(colorMaterials).length === 0) return owned;
+  model.traverse((node) => {
+    const mesh = node as Mesh;
+    if (!mesh.isMesh) return;
+    const recolour = (material: Material): Material => {
+      const role = colorMaterials[material.name];
+      const coloured = material as Material & { color?: Color };
+      if (!role || !coloured.color) return material;
+      const copy = material.clone() as Material & { color: Color };
+      copy.color.setHex(role === 'body' ? look.body : look.accent);
+      owned.push(copy);
+      return copy;
+    };
+    mesh.material = Array.isArray(mesh.material)
+      ? mesh.material.map(recolour)
+      : recolour(mesh.material);
+  });
+  return owned;
 }
 
 export function createPlayerAvatar(options: PlayerAvatarOptions): PlayerAvatar {
   const { config } = options;
+  const look = getAvatarAppearance(options.avatarKey);
   const root = new Group();
   root.name = AVATAR_ROOT_NAME;
-  // The facing turns this group; the model's own authored facing is corrected inside it.
+  // The facing turns `root`; the model's own authored facing is corrected inside `facing`.
   const facing = new Group();
   facing.rotation.y = config.rotationOffset;
   root.add(facing);
@@ -160,14 +231,13 @@ export function createPlayerAvatar(options: PlayerAvatarOptions): PlayerAvatar {
   const ownedMaterials: Material[] = [];
   let disposed = false;
   let source: 'placeholder' | 'model' = 'placeholder';
+  let loadedRef: string | undefined;
+  let attach: (slot: AttachmentSlot) => Object3D | undefined;
 
-  const placeholder = buildPlaceholder(
-    getAvatarAppearance(options.avatarKey),
-    ownedGeometries,
-    ownedMaterials,
-  );
+  const placeholder = buildPlaceholder(look, ownedGeometries, ownedMaterials);
   placeholder.scale.setScalar(config.scale);
   facing.add(placeholder);
+  attach = (slot) => placeholder.getObjectByName(PLACEHOLDER_ATTACH[slot]);
 
   let animator: NpcAnimator = createNpcAnimator({
     root: placeholder,
@@ -177,48 +247,71 @@ export function createPlayerAvatar(options: PlayerAvatarOptions): PlayerAvatar {
   });
   let animation: PlayerAnimationController = createPlayerAnimationController(animator, {});
 
-  const assetId = avatarAssetIdFor(options.avatarKey, config, options.assetIdFor);
-
-  const ready: Promise<void> =
-    assetId && options.loadModel
-      ? options
-          .loadModel(assetId)
-          .then(({ scene, animations }) => {
-            if (disposed) return;
-            const model = cloneAssetScene(scene);
-            model.scale.multiplyScalar(config.scale);
-            const rootNames = new Set<string>([model.name, ...model.children.map((c) => c.name)]);
-            const clips = withoutRootMotion(animations, rootNames);
-            const map = playerAnimationMap(clips.map((clip) => clip.name));
-            animator.dispose();
-            facing.remove(placeholder);
-            disposeOwned();
-            facing.add(model);
-            animator = createNpcAnimator({
-              root: model,
-              clips,
-              animationMap: map,
-              reducedMotion: options.reducedMotion,
-            });
-            animation = createPlayerAnimationController(animator, map);
-            source = 'model';
-          })
-          .catch((error: unknown) => {
-            // The placeholder stays: a missing avatar never stops play.
-            console.warn(`[player avatar] could not load ${assetId}; using the placeholder`, error);
-          })
-      : Promise.resolve();
-
   function disposeOwned(): void {
     for (const geometry of ownedGeometries.splice(0)) geometry.dispose();
     for (const material of ownedMaterials.splice(0)) material.dispose();
   }
 
+  function swapIn(loaded: LoadedModel, published: PlayerAvatarModel | null): void {
+    const model = cloneAssetScene(loaded.scene);
+    // A location costume keeps its own facing and scale; a published model adds its own.
+    model.scale.multiplyScalar(config.scale * (published?.scale ?? 1));
+    model.rotation.y += published?.rotationOffset ?? 0;
+    const rootNames = new Set<string>([model.name, ...model.children.map((child) => child.name)]);
+    const clips = withoutRootMotion(loaded.animations, rootNames);
+    const playerMap = effectivePlayerAnimationMap(
+      published?.animationMap ?? {},
+      clips.map((clip) => clip.name),
+    );
+    const customization = published?.customization ?? NO_CUSTOMIZATION;
+    animator.dispose();
+    facing.remove(placeholder);
+    disposeOwned();
+    ownedMaterials.push(...applyAvatarColors(model, customization.colorMaterials, look));
+    facing.add(model);
+    animator = createNpcAnimator({
+      root: model,
+      clips,
+      animationMap: toAnimatorMap(playerMap),
+      reducedMotion: options.reducedMotion,
+    });
+    animation = createPlayerAnimationController(animator, playerMap);
+    attach = (slot) => {
+      const node = customization.attachPoints[slot];
+      return node ? model.getObjectByName(node) : undefined;
+    };
+    source = 'model';
+  }
+
+  async function load(): Promise<void> {
+    let published: PlayerAvatarModel | null = null;
+    try {
+      published = (await options.published) ?? null;
+    } catch {
+      published = null; // the answer failed: the placeholder stays
+    }
+    if (disposed || !options.loadModel) return;
+    const ref = avatarAssetIdFor(options.avatarKey, config, options.assetIdFor, published);
+    if (!ref) return;
+    loadedRef = ref;
+    try {
+      const loaded = await options.loadModel(ref);
+      if (disposed) return;
+      // A location costume is not the published model: it gets none of its tuning.
+      swapIn(loaded, config.assetKey ? null : published);
+    } catch (error: unknown) {
+      // The placeholder stays: a missing or broken avatar never stops play.
+      console.warn(`[player avatar] could not load ${ref}; using the placeholder`, error);
+    }
+  }
+
+  const ready = load();
+
   return {
     root,
     ready,
     source: () => source,
-    assetId,
+    loadedRef: () => loadedRef,
     setPose(feet, facingYaw) {
       root.position.set(feet.x, feet.y, feet.z);
       root.rotation.y = facingYaw;
@@ -234,12 +327,17 @@ export function createPlayerAvatar(options: PlayerAvatarOptions): PlayerAvatar {
     interact() {
       if (!disposed) animation.interact();
     },
+    celebrate() {
+      if (!disposed) animation.celebrate();
+    },
+    attachPoint: (slot) => (disposed ? undefined : attach(slot)),
     dispose() {
       if (disposed) return;
       disposed = true;
       animator.dispose();
       root.parent?.remove(root);
-      // Only the placeholder's own primitives: a loaded model's geometry belongs to the cache.
+      // Only what this avatar made (placeholder primitives, recoloured material copies): a
+      // loaded model's geometry, textures and original materials belong to the shared cache.
       disposeOwned();
     },
   };

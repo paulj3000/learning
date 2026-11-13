@@ -55,9 +55,13 @@ ANIMATION_STATES = (
     "sad",
     "laugh",
     "jump",
+    # LAI-JMP-01c: the player avatar's air states (an NPC may use them too). Additive, so
+    # existing releases and CONTRACT_VERSION are unchanged.
+    "fall",
+    "land",
 )
 #: Which states loop; the rest are one-shot and return to the behaviour's base state.
-LOOPING_ANIMATION_STATES = frozenset({"idle", "walk", "run", "talk", "think"})
+LOOPING_ANIMATION_STATES = frozenset({"idle", "walk", "run", "talk", "think", "fall"})
 #: When a variant has no clip for a state, the runtime tries these in order, then "idle".
 ANIMATION_FALLBACKS: dict[str, tuple[str, ...]] = {
     "idle": (),
@@ -71,6 +75,8 @@ ANIMATION_FALLBACKS: dict[str, tuple[str, ...]] = {
     "sad": ("idle",),
     "laugh": ("celebrate", "talk", "idle"),
     "jump": ("celebrate", "idle"),
+    "fall": ("jump", "idle"),
+    "land": ("idle",),
 }
 
 #: Interaction triggers (LAI-NPC-013). Each maps to an existing gameplay signal (contracts doc).

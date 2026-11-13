@@ -35,6 +35,10 @@ export const ANIMATION_STATES = [
   'sad',
   'laugh',
   'jump',
+  // LAI-JMP-01c: air states for the player avatar (an NPC may use them too). Additive, so existing
+  // releases and CONTRACT_VERSION are unchanged.
+  'fall',
+  'land',
 ] as const;
 export type AnimationState = (typeof ANIMATION_STATES)[number];
 
@@ -44,6 +48,7 @@ export const LOOPING_ANIMATION_STATES: ReadonlySet<AnimationState> = new Set([
   'run',
   'talk',
   'think',
+  'fall',
 ]);
 
 /** Tried in order when a variant has no clip for a state; then 'idle'. */
@@ -59,6 +64,8 @@ export const ANIMATION_FALLBACKS: Readonly<Record<AnimationState, readonly Anima
   sad: ['idle'],
   laugh: ['celebrate', 'talk', 'idle'],
   jump: ['celebrate', 'idle'],
+  fall: ['jump', 'idle'],
+  land: ['idle'],
 };
 
 /**

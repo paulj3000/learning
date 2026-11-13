@@ -255,7 +255,7 @@ describe('third-person in the shared location runtime (LAI-JMP-01a)', () => {
       player: { avatar: { assetKey: 'npc-harbor-master' } },
     };
     const h = third({ manifest, loadModel });
-    await h.engine.ready;
+    await h.engine.avatar?.ready;
     expect(loadModel).toHaveBeenCalledWith('npc-harbor-master');
     expect(h.engine.avatar?.source()).toBe('model');
   });
@@ -337,5 +337,94 @@ describe('third-person camera indoors: Storykeeper Castle (LAI-JMP-01a)', () => 
         check();
       }
     }
+  });
+});
+
+describe('the published avatar in the shared runtime (LAI-JMP-01c)', () => {
+  function heroModel(): LoadedModel {
+    const scene = new Group();
+    scene.name = 'Hero';
+    const body = new Mesh(new BoxGeometry(0.5, 1.3, 0.4), new MeshBasicMaterial());
+    body.name = 'hero-body';
+    scene.add(body);
+    return { scene, animations: [] };
+  }
+  const PUBLISHED = {
+    ref: 'player-fox@1',
+    assetId: 'player-fox',
+    version: 1,
+    clips: [],
+    scale: 1,
+    rotationOffset: 0,
+    animationMap: {},
+    customization: { colorMaterials: {}, attachPoints: {} },
+  };
+
+  it('starts the adventure without waiting for the avatar, then swaps the model in', async () => {
+    let answer!: (model: typeof PUBLISHED) => void;
+    const loadAvatarModel = vi.fn(async () => heroModel());
+    const h = third({
+      publishedAvatar: new Promise((resolve) => (answer = resolve)),
+      loadAvatarModel,
+    });
+    await h.engine.ready; // the scene is ready while the avatar answer is still pending
+    h.runFrames(2);
+    expect(h.engine.avatar?.source()).toBe('placeholder');
+    answer(PUBLISHED);
+    await h.engine.avatar?.ready;
+    expect(loadAvatarModel).toHaveBeenCalledWith('player-fox@1');
+    expect(h.engine.avatar?.source()).toBe('model');
+  });
+
+  it('keeps the model’s feet on the ground and with the controller through a jump', async () => {
+    const h = third({ publishedAvatar: PUBLISHED, loadAvatarModel: async () => heroModel() });
+    await h.engine.avatar?.ready;
+    h.setDrive((controller, delta) => controller.update(delta, { forward: 0, strafe: 0 }));
+    h.runFrames(5);
+    expect(avatarRoot(h).position.y).toBe(0);
+    h.engine.pressJump();
+    h.runFrames(12);
+    expect(avatarRoot(h).position.y).toBeGreaterThan(0.5);
+    h.runFrames(90);
+    expect(avatarRoot(h).position.y).toBe(0);
+  });
+
+  it('hides the model in first-person and restores it in third-person', async () => {
+    const h = third({ publishedAvatar: PUBLISHED, loadAvatarModel: async () => heroModel() });
+    await h.engine.avatar?.ready;
+    h.runFrames(1);
+    expect(avatarRoot(h).visible).toBe(true);
+    h.pressCameraKey();
+    h.runFrames(1);
+    expect(avatarRoot(h).visible).toBe(false);
+    h.pressCameraKey();
+    h.runFrames(1);
+    expect(avatarRoot(h).visible).toBe(true);
+    expect(avatarRoot(h).getObjectByName('hero-body')).toBeDefined();
+  });
+
+  it('keeps playing on the placeholder when the published model fails to load', async () => {
+    const h = third({
+      publishedAvatar: PUBLISHED,
+      loadAvatarModel: async () => {
+        throw new Error('404');
+      },
+    });
+    await h.engine.avatar?.ready;
+    expect(h.engine.avatar?.source()).toBe('placeholder');
+    h.setDrive(walk(FACE_NORTH));
+    expect(() => h.runFrames(30)).not.toThrow();
+  });
+
+  it('celebrates a pickup, and stops listening once the child leaves', async () => {
+    const h = third();
+    await h.engine.ready;
+    const celebrate = vi.spyOn(h.engine.avatar!, 'celebrate');
+    h.setDrive(standAt(-1.5, -1, FACE_SOUTH)); // facing the harbour gem
+    h.runFrames(1);
+    h.engine.interact();
+    expect(celebrate).toHaveBeenCalledTimes(1);
+    h.engine.dispose();
+    harness = null;
   });
 });
