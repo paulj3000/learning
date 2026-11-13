@@ -132,8 +132,32 @@ export function createDialogueController(api: NpcDialogueApi): DialogueControlle
     if (npcId !== null) emit({ type: 'dialogue.ended', npcId, conversationId, reason });
   }
 
-  function show(response: InteractionResponse, started: boolean): void {
+  /**
+   * Puts back a line that a start for the same NPC replaced, when that start had nothing to say.
+   * The server keeps its cursor when no dialogue answers a trigger (`state.start` in
+   * apps/npcs), so the line is still the child's current conversation and stays answerable.
+   * Announced again so the host faces the child, animates and voices it as for any line.
+   */
+  function restore(previous: DialogueView): void {
+    set({ ...previous, busy: false });
+    const { npcId, conversationId, dialogueKey, node } = previous;
+    if (npcId === null || conversationId === null || node === null) return;
+    if (dialogueKey !== null) {
+      emit({ type: 'dialogue.started', npcId, conversationId, dialogueKey });
+    }
+    emit({ type: 'dialogue.node_entered', npcId, conversationId, node });
+  }
+
+  function show(
+    response: InteractionResponse,
+    started: boolean,
+    replaced: DialogueView | null = null,
+  ): void {
     const questOffer = response.questOffer ?? (started ? null : view.questOffer);
+    if (started && response.conversationId === null && replaced !== null) {
+      restore(replaced);
+      return;
+    }
     if (response.ended || response.node === null || response.conversationId === null) {
       finish(started && response.conversationId === null ? 'no_dialogue' : 'completed', {
         conversationId: response.conversationId ?? view.conversationId,
@@ -172,6 +196,7 @@ export function createDialogueController(api: NpcDialogueApi): DialogueControlle
   async function run(
     call: (signal: AbortSignal) => Promise<InteractionResponse>,
     started: boolean,
+    replaced: DialogueView | null = null,
   ): Promise<void> {
     const mine = ++generation;
     const controller = new AbortController();
@@ -189,7 +214,7 @@ export function createDialogueController(api: NpcDialogueApi): DialogueControlle
     }
     if (mine !== generation) return;
     inFlight = null;
-    show(response, started);
+    show(response, started, replaced);
   }
 
   /** `endOnServer` false: the caller's next request replaces the server cursor anyway. */
@@ -227,10 +252,16 @@ export function createDialogueController(api: NpcDialogueApi): DialogueControlle
       // server (best effort). With the same NPC it is not: the server keeps one cursor per child
       // and NPC, so this start replaces it, and a racing `end` would only come back
       // 404 conversation_not_found or 409 conversation_ended (a browser console error).
+      // If this start then has nothing to say (no dialogue answers the trigger), the replaced
+      // line comes back: an empty play trigger must not wipe a greeting the child has not read.
+      const replaced =
+        view.status === 'showing' && view.npcId === npcId && view.conversationId !== null
+          ? view
+          : null;
       interrupt(view.npcId !== npcId);
       set({ ...IDLE_VIEW, status: 'loading', npcId, busy: true });
       const request = placementKey === undefined ? { trigger } : { trigger, placementKey };
-      await run((signal) => api.start(npcId, request, signal), true);
+      await run((signal) => api.start(npcId, request, signal), true, replaced);
     },
     async choose(choiceKey) {
       if (view.status !== 'showing' || view.busy) return;
