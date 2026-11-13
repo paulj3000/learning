@@ -274,6 +274,53 @@ describe('NPC dialogue controller', () => {
     expect(controller.getView()).toMatchObject({ node: { nodeKey: 'ask' } });
   });
 
+  it('a start with nothing to say gives back the line it replaced (greeting vs. empty play trigger)', async () => {
+    const { api, controller, types } = setup();
+    api.start.mockResolvedValueOnce(response('hello', [], { dialogueKey: 'greet-first-visit' }));
+    // e.g. on_adventure_start, which has no dialogue: the server keeps its cursor.
+    api.start.mockResolvedValueOnce(
+      response(null, [], { conversationId: null, dialogueKey: null }),
+    );
+    await controller.start('pirate-pip', 'on_spawn', 'cove-pip');
+    const before = types().length;
+    await controller.start('pirate-pip', 'on_adventure_start', 'cove-pip');
+    expect(controller.getView()).toMatchObject({
+      status: 'showing',
+      npcId: 'pirate-pip',
+      conversationId: CONVERSATION,
+      dialogueKey: 'greet-first-visit',
+      node: { nodeKey: 'hello' },
+      busy: false,
+    });
+    // Announced again, so the host faces, animates and voices it; never 'dialogue.ended'.
+    expect(types().slice(before)).toEqual([
+      'dialogue.interrupted',
+      'dialogue.started',
+      'dialogue.node_entered',
+    ]);
+    expect(api.end).not.toHaveBeenCalled();
+    // Still answerable: the next step goes to the same conversation.
+    api.advance.mockResolvedValueOnce(response(null));
+    await controller.advance();
+    expect(api.advance).toHaveBeenCalledWith('pirate-pip', CONVERSATION, expect.anything());
+  });
+
+  it('a start with nothing to say ends quietly when no line was showing, or the NPC differs', async () => {
+    const { api, controller } = setup();
+    api.start.mockResolvedValueOnce(response('hi', [], { npcId: 'keeper-quill' }));
+    api.end.mockResolvedValueOnce(response(null));
+    api.start.mockResolvedValueOnce(
+      response(null, [], { conversationId: null, dialogueKey: null }),
+    );
+    await controller.start('keeper-quill', 'on_spawn');
+    await controller.start('pirate-pip', 'on_adventure_start');
+    expect(controller.getView()).toMatchObject({
+      status: 'ended',
+      npcId: 'pirate-pip',
+      endReason: 'no_dialogue',
+    });
+  });
+
   it('interrupt() on its own still ends on the server', async () => {
     const { api, controller } = setup();
     api.start.mockResolvedValueOnce(response('hello'));

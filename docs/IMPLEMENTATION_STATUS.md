@@ -13810,3 +13810,23 @@ anchored above the bottom nav) reached up over the top bar and covered "Leave is
   room), `shells.test.tsx` (measured inset, never negative, bar above layers), and the browser
   spec `portal-adult-exit.spec.ts` at 320, 375, 768, 1024 and 1440 px, by keyboard and in full
   screen, with the legacy and the managed Pip.
+
+## Pirate Pip's first-visit greeting no longer lost to an empty play trigger (2026-11-13, branch `fix/npc-greeting-race`, Trello CeKICNoP)
+
+Found while investigating the intermittent `npc-4-a11y.spec.ts:57` timeout (the axe test waits
+for Pip's first-visit greeting bubble). It is a product race, not test timing: on entering
+Treasure Cove the NPC host sends `on_spawn` (Pip's greeting) and `on_adventure_start` (a play
+trigger with no dialogue) at the same time. A waiting play trigger replaces an unprompted line,
+so when the greeting answered first, the empty `on_adventure_start` answer replaced it and ended
+it: no bubble, and a child never saw Pip's welcome. Reproduced 7 times in 20 with a probe.
+
+- `dialogueController.start()` keeps the line it replaces when the replacement is for the same
+  NPC; if the new start has nothing to say, that line comes back, announced again
+  (`dialogue.started`, `dialogue.node_entered`) so the host faces, animates and voices it. The
+  server keeps its cursor when no dialogue matches (`apps/npcs/state.start`), so the restored
+  line is still answerable. No server change.
+- Tests: two `dialogueController.test.ts` cases (restore and its limits). Browser: the probe passed
+  20/20 (including 2 runs in the previously failing order) and `npc-4-a11y` axe 15/15.
+- Treasure Rush "timing" failures (Trello CeKICNoP): after the speech fix (PR #31) the
+  previously failing scenarios passed 10/10 on desktop and tablet with no test changes; their
+  cause was speech 503s firing at a random moment during a test, not timing.
