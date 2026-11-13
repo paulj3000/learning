@@ -13705,6 +13705,23 @@ in `main` (verified: zero commits ahead of `origin/main`).
   LAI-0502, LAI-0602, gate G9 and ADR-024 A6.
 - **Tests run:** none; documentation-only change.
 
+## Acceptance stack speaks with the fake provider (2026-11-13, branch `fix/acceptance-fake-speech`, Trello nT5yBBr8)
+
+Defect: since PR #22 the local Playwright acceptance stack answered every NPC speech request with
+`503 speech_unavailable`, because `tests/e2e/django_server.py` left `LAI_SPEECH_PROVIDER` at its
+`disabled` default. The suites' console and network checks (correctly) failed about 15 specs.
+
+- `tests/e2e/django_server.py` sets `LAI_SPEECH_PROVIDER=fake`, `LAI_SPEECH_STORAGE=memory` and
+  `LAI_SPEECH_DELIVERY=django`. These override the shell, so this stack can never call Polly or
+  write to S3. Settings defaults are unchanged (`disabled`); production and the live
+  `speech_live_smoke` path still use Polly only when configured.
+- `npc-2-treasure.spec.ts` now checks Pip's voiced greeting end to end: speech `POST` 200, the clip
+  streams as `audio/mpeg`, the caption shows, and the same line again is served from the cache.
+- `npc-3-castle.spec.ts` keeps the ADR-049 fallback check (caption, no "Hear it again") by
+  refusing Quill's speech itself with the server's `503 speech_unavailable` envelope, scoped to
+  that spec. No console or network check was relaxed anywhere else.
+- Tests: `tests/repo/test_e2e_speech_scope.py` pins the scope (fake in the e2e stack only).
+
 ## AMP-01 Amplify dependency audit and Django parity matrix (2026-11-10, branch `claude/lai-infra-001-pr-kwauv3`, read-only audit)
 
 | Task | Deliverable | Live verification | Final |

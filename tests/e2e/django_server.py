@@ -16,8 +16,9 @@ recreates that database on every start so each run begins from the same state:
    is written to the state directory so the browser tests can mint access and ID tokens;
 4. `runserver` on loopback without the reloader.
 
-Settings are `config.settings.local` driven by environment variables: fake AI provider, inline
-Studio runs, in-memory asset storage, Django asset delivery. Nothing reaches AWS.
+Settings are `config.settings.local` driven by environment variables: fake AI and speech
+providers, inline Studio runs, in-memory asset and speech storage, Django delivery. Nothing
+reaches AWS.
 """
 
 import json
@@ -40,6 +41,13 @@ E2E_ENV = {
     "LAI_AI_PROVIDER": "fake",
     # `inline` by default; LAI_E2E_STUDIO_RUN_MODE=thread runs the AQS-026 thread-mode check.
     "LAI_STUDIO_RUN_MODE": os.environ.get("LAI_E2E_STUDIO_RUN_MODE", "inline"),
+    # Speech (SM-P8, ADR-049): the deterministic fake provider, kept in memory and streamed by
+    # Django. NPC lines get real 200 responses and playable-in-shape clips without AWS; the live
+    # Polly path stays in `manage.py speech_live_smoke`. Set here, not in settings: these values
+    # override the shell, so this stack can never call Polly or write to S3.
+    "LAI_SPEECH_PROVIDER": "fake",
+    "LAI_SPEECH_STORAGE": "memory",
+    "LAI_SPEECH_DELIVERY": "django",
     "LAI_ASSET_STORAGE": "memory",
     "LAI_ASSET_DELIVERY": "django",
     # Small enough that the oversized-upload test needs only a few megabytes.
