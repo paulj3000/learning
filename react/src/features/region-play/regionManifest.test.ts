@@ -83,6 +83,31 @@ describe('buildRegionManifest', () => {
     expect(figure?.action).toBe(REGION_ACTIONS.talk);
   });
 
+  it('gives Treasure Cove jumping by default, with its barrels as jumpable obstacles (LAI-JMP-01)', async () => {
+    const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
+    const built = build({ region });
+    expect(issues(built)).toEqual([]);
+    expect(built.manifest.movement).toBeUndefined();
+    const jumpable = built.manifest.colliders.filter((collider) => collider.jumpable);
+    expect(jumpable.map((collider) => collider.rect.id)).toEqual([
+      'cove-landing-barrel-0:collider',
+      'cove-landing-barrel-1:collider',
+      'cove-landing-barrel-2:collider',
+      'cove-landing-barrel-3:collider',
+    ]);
+  });
+
+  it('carries Django-authored movement tuning, which the validator checks (LAI-JMP-01)', async () => {
+    const scene = { ...(await coveSceneJson()), movement: { jump: { enabled: false } } };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.movement).toEqual({ jump: { enabled: false } });
+    expect(issues(built)).toEqual([]);
+
+    const typo = { ...scene, movement: { jump: { jumpHieght: 2 } } };
+    const bad = build({ region: { ...bootstrapJson().region, scene: typo } });
+    expect(issues(bad).map((issue) => issue.path)).toEqual(['movement.jump.jumpHieght']);
+  });
+
   it('builds the five-zone cove from its layout, and the engine’s validator accepts it (TR-13)', async () => {
     const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
     const built = build({ region });

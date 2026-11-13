@@ -21,10 +21,12 @@ import { createTreasureRushMusic } from './treasureRushMusic';
 import {
   CUE_SOUNDS,
   ENTRY_AMBIENCE,
+  LANDING_SOUND_MIN_SPEED,
   NPC_CUE_EVENTS,
   ONE_SHOT_SPATIAL,
   POSITIONAL_CUES,
   ZONE_AMBIENCE,
+  TR_SOUND,
   ZONE_PRIORITY,
 } from './treasureRushSounds';
 
@@ -153,6 +155,22 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
       offLeave();
     };
   }, [bus, zones]);
+
+  // LAI-JMP-01: the child's own jumps and landings, flat and quiet. Played by logical cue id;
+  // with no published audio for a cue the play fails quietly and the jump goes on regardless.
+  useEffect(() => {
+    const offJump = bus.on('PlayerJumped', () => {
+      void player.play(TR_SOUND.playerJump).catch(() => undefined);
+    });
+    const offLand = bus.on('PlayerLanded', ({ impactSpeed }) => {
+      if (impactSpeed < LANDING_SOUND_MIN_SPEED) return;
+      void player.play(TR_SOUND.playerLand).catch(() => undefined);
+    });
+    return () => {
+      offJump();
+      offLand();
+    };
+  }, [bus, player]);
 
   // Staff zone assignments from the manifest replace the built-in cues and priorities.
   const { assignments } = manifest;

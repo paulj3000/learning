@@ -23,7 +23,9 @@ class CueSpec:
     cooldown_ms: int = 0
     fade_in_ms: int = 0
     fade_out_ms: int = 0
-    #: False for a cue the game can use but no current mechanic raises.
+    #: False for an optional cue: one the game can use but no current mechanic raises, or a
+    #: decorative one (player movement, LAI-JMP-01) the game plays only when audio exists. Optional
+    #: cues are reported but never hold up a game's readiness.
     wired: bool = True
 
     @property
@@ -88,6 +90,22 @@ TREASURE_RUSH_CUES: tuple[CueSpec, ...] = (
     _sfx("sfx.learning.retry", "Try again", "Gentle and soft, never a buzzer. Ages 5 to 8."),
     _sfx("sfx.learning.complete", "Challenge complete", "A solved rune puzzle."),
     _sfx("sfx.quest.complete", "Quest complete", "Rewards are committed and a quest is finished."),
+    # LAI-JMP-01: the player's own movement, generic ids any region's audio can reuse. Raised by
+    # the game, but optional: jumping is silent and complete without them.
+    _sfx(
+        "sfx.player.jump",
+        "Player jumps",
+        "Optional. A light hop when the child presses Jump.",
+        wired=False,
+        cooldown_ms=80,
+    ),
+    _sfx(
+        "sfx.player.land",
+        "Player lands",
+        "Optional. A soft thump on a firm landing (not on small steps).",
+        wired=False,
+        cooldown_ms=120,
+    ),
     _sfx("sfx.coin.collect", "Coin collected", "No coin pickup mechanic yet.", wired=False),
     _sfx("sfx.gem.collect", "Gem collected", "No gem pickup mechanic yet.", wired=False),
     _sfx("sfx.item.pickup", "Item picked up", "Only keys are picked up today.", wired=False),

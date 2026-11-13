@@ -23,7 +23,16 @@ export const TR_SOUND = {
   learningRetry: 'sfx.learning.retry',
   learningComplete: 'sfx.learning.complete',
   questComplete: 'sfx.quest.complete',
+  // LAI-JMP-01: player movement. Not cove-specific ids, so any region's audio can reuse them.
+  playerJump: 'sfx.player.jump',
+  playerLand: 'sfx.player.land',
 } as const;
+
+/**
+ * A landing softer than this (m/s downward) is silent: hopping off a low step should not clack.
+ * A full jump lands at about 7 m/s, a hop off a barrel at about 6.
+ */
+export const LANDING_SOUND_MIN_SPEED = 3;
 
 /** Lookout Point, beyond the gate (SM-P7). */
 export const LOOKOUT_ZONE = 'cove-zone-lookout';

@@ -31,7 +31,7 @@ import math
 from pathlib import Path
 
 # Bump whenever the layout changes, so the seed refreshes an existing region's layout.
-LAYOUT_VERSION = 4
+LAYOUT_VERSION = 5
 BOUNDS = {"halfExtentX": 36, "halfExtentZ": 44, "wallThickness": 1}
 SNAPSHOT_PATH = Path(__file__).with_name("treasure_cove_layout.json")
 
@@ -161,6 +161,19 @@ def _procedural(proc_id: str, shape: str, x: float, z: float, **extra) -> dict:
 def _solid(collider_id: str, x: float, z: float, half: float) -> dict:
     return {"rect": _rect(collider_id, _r(x - half), _r(x + half), _r(z - half), _r(z + half))}
 
+
+def _hop(collider_id: str, x: float, z: float, half: float, height: float) -> dict:
+    """A low obstacle the child can jump onto or over (LAI-JMP-01), as tall as its model.
+
+    Only ever ungated scenery: a gate or quest barrier stays a `_solid` wall at every height.
+    """
+    return {**_solid(collider_id, x, z, half), "minY": 0, "maxY": height, "jumpable": True}
+
+
+# Barrels at Pirate Landing, and the size of `barrel.gltf` (0.64 m across, 0.9 m tall).
+LANDING_BARRELS = [(-7.5, 18), (-8.2, 17.4), (5, 18.5), (5.7, 19)]
+BARREL_HALF = 0.32
+BARREL_HEIGHT = 0.9
 
 # --- Paths ------------------------------------------------------------------------------------
 
@@ -326,11 +339,7 @@ def cove_layout() -> dict:
             "crate",
             _positions([(6.5, 15), (7.3, 15), (6.9, 15.8)]) + [{"x": 6.9, "z": 15.3, "y": 0.8}],
         ),
-        _cluster(
-            "cove-landing-barrels",
-            "barrel",
-            _positions([(-7.5, 18), (-8.2, 17.4), (5, 18.5), (5.7, 19)]),
-        ),
+        _cluster("cove-landing-barrels", "barrel", _positions(LANDING_BARRELS)),
         _cluster("cove-landing-ropes", "rope-coil", _positions([(1.6, 19), (-1.8, 22)])),
         _cluster(
             "cove-campfire-logs",
@@ -349,6 +358,11 @@ def cove_layout() -> dict:
         {"rect": _rect("cove-landing-crates:collider", 6, 7.8, 14.5, 16.3)},
         {"rect": _rect("cove-tent:collider", -7.6, -4.4, 13.4, 16.6)},
         _solid("cove-campfire:collider", -5, 9.5, 0.8),
+        # LAI-JMP-01: the barrels are 0.9 m (`barrel.gltf`), low enough to hop onto and over.
+        *[
+            _hop(f"cove-landing-barrel-{i}:collider", x, z, BARREL_HALF, BARREL_HEIGHT)
+            for i, (x, z) in enumerate(LANDING_BARRELS)
+        ],
     ]
     procedural += [
         _procedural("cove-tent", "TENT", -6, 15, rotationY=0.4),

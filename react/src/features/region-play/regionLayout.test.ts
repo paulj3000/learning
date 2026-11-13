@@ -22,6 +22,28 @@ function failure(layout: JsonValue): RegionLayoutError {
 }
 
 describe('readRegionLayout (TR-13)', () => {
+  it('reads Treasure Cove’s jumpable barrels with their real height (LAI-JMP-01)', async () => {
+    const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
+    const barrels = layout.colliders.filter((c) => c.rect.id.startsWith('cove-landing-barrel-'));
+    expect(barrels).toHaveLength(4);
+    for (const barrel of barrels)
+      expect(barrel).toMatchObject({ minY: 0, maxY: 0.9, jumpable: true });
+    // The gate and the channel stay solid walls.
+    const gate = layout.colliders.find((c) => c.rect.id === 'cove-ruins-gate:collider');
+    expect(gate?.jumpable).toBeUndefined();
+  });
+
+  it('reads collider heights and refuses a jumpable flag that is not a boolean (LAI-JMP-01)', () => {
+    const rect = { id: 'r', minX: 0, maxX: 1, minZ: 0, maxZ: 1 };
+    expect(
+      readRegionLayout({ colliders: [{ rect, minY: 0, maxY: 0.5, jumpable: true }] }).colliders,
+    ).toEqual([{ rect, minY: 0, maxY: 0.5, jumpable: true }]);
+    expect(readRegionLayout({ colliders: [{ rect }] }).colliders).toEqual([{ rect }]);
+    expect(failure({ colliders: [{ rect, jumpable: 'yes' }] }).path).toBe(
+      'scene.layout.colliders[0].jumpable',
+    );
+  });
+
   it('reads Treasure Cove’s real layout: scenery, colliders, five zones, movers, lights, placeholders', async () => {
     const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
     expect(layout.zones.map((zone) => zone.rect.id)).toEqual([
