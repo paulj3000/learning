@@ -13743,6 +13743,24 @@ Defect: since PR #22 the local Playwright acceptance stack answered every NPC sp
 - Only parent and child profiles have a DynamoDB importer.
 - Checks: docs only (Prettier clean). No code or resource changed.
 
+## Django Admin site icon (2026-11-13, branch `fix/django-admin-favicon`, Trello IIGt0JWT)
+
+Defect: Chromium's automatic `GET /favicon.ico` on the Django Admin login page answered 404
+(Django serves no `/favicon.ico` and the Admin declared no icon), which failed
+`question-studio-qa.spec.ts:132` through its failed-request check.
+
+- `lai/templates/admin/base_site.html` extends the stock Admin template and adds
+  `<link rel="icon">` to `core/favicon.svg` (the app's existing favicon, now also an Admin static
+  file collected with the rest). `TEMPLATES["DIRS"]` gains `lai/templates` so the override is
+  found before `django.contrib.admin`'s own template; title, branding and navigation are unchanged.
+- `/favicon.ico` redirects to the same static icon, for Django pages without an icon link: the
+  JSON 403 a staff member without permission gets (`question-studio-qa.spec.ts:271`), or any
+  JSON response opened in a tab. In production the admin host already proxies it to Django. The
+  URL convention tests allow exactly this one non-API, non-Admin route, with the reason.
+- The acceptance tests are unchanged: their failed-request checks still apply.
+- Tests: `apps/core/tests/test_admin_favicon.py` (icon declared, stock title kept, `/favicon.ico`
+  redirect, file collectable); `test_api_conventions.py`.
+
 ## Asset Library closure review (2026-11-11, branch `claude/funny-newton-ehxclx`, docs only, nothing deployed)
 
 **Status: core Asset Library implementation fully in `main`; no core MVP blocker found.
