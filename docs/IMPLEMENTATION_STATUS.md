@@ -13442,6 +13442,41 @@ only exit shown. The owner chose to remove the check entirely.
 - Not merged to `main` or deployed: the merge of `feature/adventure-portal` (AP-01 and AP-04)
   waits for the owner's go-ahead.
 
+### AP-01 rework: the child nav covered fixed game panels (2026-11-11, branch `claude/dazzling-maxwell-dyb1ar`)
+
+Found by a browser check after AP-01 merged (PR #16). The `ChildShell` nav is `position: fixed`
+(z-index 40), and so are Treasure Rush's panels, HUD buttons and hint bubble
+(`RegionPlayPanels.module.css`, z-index 19 to 20) and the castle captions
+(`CastleSpeech.module.css`). On phones the bottom bar covered Pirate Pip's "Maybe later"; on a
+768px portrait tablet the sidebar covered the left of the viewport-centred panel, including
+"Yes, I will help!". 1024px and wider were unaffected.
+
+- `ChildShell.module.css` (new) publishes `--child-nav-inset-bottom` (5rem on phones) and
+  `--child-nav-inset-left` (14rem from `md`, 48rem), both 0 in full screen where the stage
+  covers the nav. The shell's own padding uses them instead of `pb-20 md:pl-56`. They live in a
+  CSS Module because `portal.css` may not declare custom properties (ADR-052).
+- Every fixed game layer offsets by them: bottom by the bottom inset; left-anchored layers and
+  the centred panel by the left inset (the panel centres in the play area and narrows to fit).
+  Outside the shell the fallbacks are `0px`, so nothing else moves.
+- After merging `main` (2026-11-11), the NPC manager's dialogue panel and talk prompt
+  (`NpcInteraction.module.css`) follow the same rule; its top-right ambient line needs no offset.
+- Tests: `childNavInsets.test.ts` (new; insets match the nav's classes, full-screen reset, and
+  every `position: fixed` rule in the three game stylesheets uses them; it fails on the old CSS) and
+  one case in `shells.test.tsx`.
+
+Checks: Vitest for portal, island, regionPlay and castleTale (156 files) pass; typecheck passes;
+Prettier and oxlint clean on the changed files (oxlint keeps its existing
+`only-export-components` warning). Browser (Chromium, Django acceptance stack) at 320, 375, 768,
+1024 and 1440px: no fixed layer overlaps the nav, Pip's panel buttons are tappable at every size,
+no horizontal overflow, nav bar 58px tall within the 5rem inset. Treasure Rush and integration
+acceptance specs: 12 passed, 1 skipped (as in the suite).
+
+Deferred to merge verification: full Vitest suite, build, lint and format over the repository,
+`make py-check`, the full e2e and acceptance suites. Not browser-checked: Storykeeper Castle's
+captions and the NPC dialogue panel (the same offset rule, unit-tested). Remaining risk, not caused by the nav: at 320x640
+Pip's panel is taller than the room above the bar (its 70vh cap), so the answer buttons need a
+scroll inside the panel, and the panel draws over the top bar's adult exit while open.
+
 ## Adventure Portal AP-03 redesign: Realm Explorer (2026-11-11, branch `feature/adventure-portal-home`)
 
 Trello AP-03. Supersedes the inline Island Explorer of the first AP-03 commit (`c1d4d74`) in
