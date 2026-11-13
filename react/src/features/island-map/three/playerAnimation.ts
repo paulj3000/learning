@@ -28,10 +28,16 @@ export interface PlayerAnimationContext {
   hasFallClip?: boolean;
   /** LAI-JMP-01c: its own landing clip. Absent means no. */
   hasLandClip?: boolean;
+  /** Running: its own run clip. Absent means no (running then shows a faster walk). */
+  hasRunClip?: boolean;
+  /** Top walking speed, m/s: above it a landing goes back to running. Absent: always walk. */
+  walkSpeed?: number;
 }
 
 /** Above this horizontal speed a landing goes straight back to walking. */
 const MOVING_SPEED = 0.2;
+/** How far above walking pace counts as running, m/s (as `FirstPersonController.gait`). */
+const RUN_MARGIN = 0.25;
 
 /** The vocabulary state the avatar should show for a movement state. */
 export function playerAnimationState(
@@ -39,12 +45,18 @@ export function playerAnimationState(
   context: PlayerAnimationContext,
 ): AnimationState {
   const moving = context.horizontalSpeed > MOVING_SPEED;
-  const ground: AnimationState = moving ? 'walk' : 'idle';
+  const running =
+    context.walkSpeed !== undefined && context.horizontalSpeed > context.walkSpeed + RUN_MARGIN;
+  const runClip: AnimationState = context.hasRunClip ? 'run' : 'walk';
+  const ground: AnimationState = !moving ? 'idle' : running ? runClip : 'walk';
   switch (movement) {
     case 'IDLE':
       return 'idle';
     case 'WALK':
       return 'walk';
+    case 'RUN':
+    case 'SPRINT':
+      return runClip;
     case 'JUMP_START':
     case 'AIRBORNE':
       return context.hasJumpClip ? 'jump' : ground;
@@ -126,7 +138,12 @@ export interface PlayerAnimationController {
    * Once per frame. `walkSpeed` is the controller's top walking speed, so the walk cycle plays
    * at its authored speed at full stick and slower when creeping (feet do not skate).
    */
-  update(movement: MovementState, horizontalSpeed: number, walkSpeed: number): AnimationState;
+  update(
+    movement: MovementState,
+    horizontalSpeed: number,
+    walkSpeed: number,
+    runSpeed?: number,
+  ): AnimationState;
   /** A short gesture when the child interacts, if the avatar has one. False when it has none. */
   interact(): boolean;
   /** A celebration (a world change, a find), if the avatar has one. False when it has none. */
@@ -136,7 +153,39 @@ export interface PlayerAnimationController {
 /** Above the behaviour band, below dialogue: a gesture that ends by itself. */
 const GESTURE_PRIORITY = 1;
 const MIN_WALK_TIME_SCALE = 0.6;
+/** The walk clip's top speed while walking; with no run clip it may go up to the run bound. */
 const MAX_WALK_TIME_SCALE = 1.25;
+/** Bounds on a walk clip standing in for running and sprinting (no run clip): brisk, not frantic. */
+const MAX_WALK_AS_RUN_TIME_SCALE = 1.7;
+const MIN_RUN_TIME_SCALE = 0.8;
+const MAX_RUN_TIME_SCALE = 1.3;
+
+function clampScale(value: number, min: number, max: number): number {
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : 1;
+}
+
+/**
+ * Playback speed for the clip a state plays, so feet roughly match the
+ * ground: the walk cycle follows speed against walking pace (bounded higher
+ * when it stands in for a missing run clip), the run cycle against running
+ * pace. Everything else plays at its authored speed.
+ */
+export function clipSpeed(
+  state: AnimationState,
+  horizontalSpeed: number,
+  walkSpeed: number,
+  runSpeed: number,
+): number {
+  if (state === 'walk' && walkSpeed > 0) {
+    const max =
+      horizontalSpeed > walkSpeed + RUN_MARGIN ? MAX_WALK_AS_RUN_TIME_SCALE : MAX_WALK_TIME_SCALE;
+    return clampScale(horizontalSpeed / walkSpeed, MIN_WALK_TIME_SCALE, max);
+  }
+  if (state === 'run' && runSpeed > 0) {
+    return clampScale(horizontalSpeed / runSpeed, MIN_RUN_TIME_SCALE, MAX_RUN_TIME_SCALE);
+  }
+  return 1;
+}
 
 export function createPlayerAnimationController(
   animator: PlayerAnimatorTarget,
@@ -148,6 +197,7 @@ export function createPlayerAnimationController(
     hasJumpClip: playerMap.jump !== undefined,
     hasFallClip: playerMap.fall !== undefined,
     hasLandClip: playerMap.land !== undefined,
+    hasRunClip: playerMap.run !== undefined,
   };
   let timeScale = 1;
 
@@ -155,16 +205,11 @@ export function createPlayerAnimationController(
     available ? animator.play(state, { mode: 'once', priority: GESTURE_PRIORITY }) : false;
 
   return {
-    update(movement, horizontalSpeed, walkSpeed) {
+    update(movement, horizontalSpeed, walkSpeed, runSpeed) {
       clips.horizontalSpeed = horizontalSpeed;
+      clips.walkSpeed = walkSpeed;
       const state = driver.update(movement, clips);
-      const next =
-        state === 'walk' && walkSpeed > 0
-          ? Math.min(
-              MAX_WALK_TIME_SCALE,
-              Math.max(MIN_WALK_TIME_SCALE, horizontalSpeed / walkSpeed),
-            )
-          : 1;
+      const next = clipSpeed(state, horizontalSpeed, walkSpeed, runSpeed ?? walkSpeed);
       // Only on a real change, so the mixer is not touched every frame.
       if (Math.abs(next - timeScale) > 0.02) {
         timeScale = next;

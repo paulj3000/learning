@@ -148,6 +148,7 @@ export interface PlayerAvatar {
     movement: MovementState,
     horizontalSpeed: number,
     walkSpeed: number,
+    runSpeed?: number,
   ): void;
   /** A short gesture on interacting, where the model has one. */
   interact(): void;
@@ -319,9 +320,9 @@ export function createPlayerAvatar(options: PlayerAvatarOptions): PlayerAvatar {
     setVisible(visible) {
       root.visible = visible;
     },
-    animate(deltaSeconds, movement, horizontalSpeed, walkSpeed) {
+    animate(deltaSeconds, movement, horizontalSpeed, walkSpeed, runSpeed) {
       if (disposed) return;
-      animation.update(movement, horizontalSpeed, walkSpeed);
+      animation.update(movement, horizontalSpeed, walkSpeed, runSpeed);
       animator.update(deltaSeconds);
     },
     interact() {
