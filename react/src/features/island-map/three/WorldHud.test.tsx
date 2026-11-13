@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -138,5 +138,61 @@ describe('WorldHud exit and backpack (TR-13)', () => {
   it('shows its backpack by default, as every other region expects', () => {
     render(<WorldHud {...baseProps} />);
     expect(screen.getByRole('button', { name: 'Backpack (0)' })).toBeInTheDocument();
+  });
+});
+
+describe('WorldHud Jump button (LAI-JMP-01)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const touchScreen = (coarse: boolean) =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query === '(any-pointer: coarse)' && coarse })),
+    );
+
+  it('shows a large Jump button on a touch screen where jumping is available', () => {
+    touchScreen(true);
+    render(<WorldHud {...baseProps} onJump={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Jump' })).toBeInTheDocument();
+  });
+
+  it('is absent where jumping is not available', () => {
+    touchScreen(true);
+    render(<WorldHud {...baseProps} />);
+    expect(screen.queryByRole('button', { name: 'Jump' })).not.toBeInTheDocument();
+  });
+
+  it('is absent with no touch screen (Space and the gamepad jump there)', () => {
+    touchScreen(false);
+    render(<WorldHud {...baseProps} onJump={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Jump' })).not.toBeInTheDocument();
+  });
+
+  it('jumps the moment a finger lands, once per tap', () => {
+    touchScreen(true);
+    const onJump = vi.fn();
+    render(<WorldHud {...baseProps} onJump={onJump} />);
+    const button = screen.getByRole('button', { name: 'Jump' });
+    fireEvent.pointerDown(button);
+    expect(onJump).toHaveBeenCalledTimes(1);
+    // The click a tap also produces does not jump a second time.
+    fireEvent.click(button, { detail: 1 });
+    expect(onJump).toHaveBeenCalledTimes(1);
+  });
+
+  it('can be pressed from a keyboard or switch (a click with no pointer)', () => {
+    touchScreen(true);
+    const onJump = vi.fn();
+    render(<WorldHud {...baseProps} onJump={onJump} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump' }), { detail: 0 });
+    expect(onJump).toHaveBeenCalledTimes(1);
+  });
+
+  it('sits apart from the Backpack button', () => {
+    touchScreen(true);
+    render(<WorldHud {...baseProps} onJump={vi.fn()} />);
+    const jump = screen.getByRole('button', { name: 'Jump' });
+    const backpack = screen.getByRole('button', { name: /Backpack/ });
+    expect(jump.parentElement).not.toBe(backpack.parentElement);
   });
 });

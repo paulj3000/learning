@@ -12,6 +12,7 @@ from apps.regions.treasure_cove_layout import (
     LAYOUT_VERSION,
     SNAPSHOT_PATH,
     SPOTS,
+    UNLOCK,
     cove_layout,
 )
 from apps.regions.treasure_rush_seed import LANDING_YAW, REGION_ID, seed_treasure_rush
@@ -212,3 +213,18 @@ class TestSeedAppliesTheLayout:
         region.spawn_points.update(yaw=1.0)
         seed_treasure_rush()
         assert region.spawn_points.get().yaw == pytest.approx(1.0)
+
+
+def test_only_low_ungated_scenery_is_jumpable():
+    """LAI-JMP-01: barrels can be hopped; the gate, channel and walls stay solid at any height."""
+    layout = cove_layout()
+    jumpable = [c for c in layout["colliders"] if c.get("jumpable")]
+    assert [c["rect"]["id"] for c in jumpable] == [
+        f"cove-landing-barrel-{i}:collider" for i in range(4)
+    ]
+    for collider in jumpable:
+        assert collider["minY"] == 0
+        assert 0 < collider["maxY"] <= 1.0
+        assert "requirements" not in collider
+    unlock_colliders = set(UNLOCK["openColliders"])
+    assert not unlock_colliders & {c["rect"]["id"] for c in jumpable}

@@ -2,6 +2,7 @@ import type { WorldAction, WorldInteraction, WorldRequirement } from '../../worl
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
   SURFACE_PATTERNS,
+  type ColliderSpec,
   type CollectibleSpec,
   type ExtensionBinding,
   type GroundPoint,
@@ -14,6 +15,7 @@ import {
   type AdventureBindingIssueKind,
   type BindableStep,
 } from './adventureStepBindings';
+import { validateMovementSpec } from '../jumpConfiguration';
 
 /**
  * Pure validation for `ThreeLocationManifest`
@@ -301,7 +303,13 @@ export function validateLocationManifest(
   manifest.colliders.forEach((collider, index) => {
     checkRect(collider.rect, `colliders[${index}].rect`);
     checkRequirements(collider.requirements, `colliders[${index}].requirements`);
+    checkJumpableCollider(collider, `colliders[${index}]`, report);
   });
+
+  // LAI-JMP-01: movement tuning, when a region authors any.
+  for (const issue of validateMovementSpec(manifest.movement)) {
+    report('INVALID_VALUE', issue.path, issue.message);
+  }
 
   manifest.buildings.forEach((building, index) => {
     const path = `buildings[${index}]`;
@@ -752,6 +760,36 @@ function checkRequirement(
 function requirePositive(value: number, path: string, report: Report): void {
   if (!(Number.isFinite(value) && value > 0)) {
     report('INVALID_VALUE', path, `must be a positive number, got ${String(value)}`);
+  }
+}
+
+/**
+ * LAI-JMP-01: a jumpable collider is a low obstacle with a real height. One
+ * that gates progress (it has `requirements`) must stay solid, or a jump
+ * would skip the quest that opens it.
+ */
+function checkJumpableCollider(collider: ColliderSpec, path: string, report: Report): void {
+  if (collider.jumpable === undefined) return;
+  if (typeof collider.jumpable !== 'boolean') {
+    report('INVALID_VALUE', `${path}.jumpable`, 'must be true or false');
+    return;
+  }
+  if (!collider.jumpable) return;
+  if (collider.requirements !== undefined && collider.requirements.length > 0) {
+    report(
+      'INVALID_VALUE',
+      `${path}.jumpable`,
+      'a collider with requirements is a progression gate and cannot be jumpable',
+    );
+  }
+  if (collider.minY === undefined || collider.maxY === undefined) {
+    report('INVALID_VALUE', `${path}.jumpable`, 'a jumpable collider must author minY and maxY');
+    return;
+  }
+  if (!(Number.isFinite(collider.minY) && Number.isFinite(collider.maxY))) {
+    report('INVALID_VALUE', path, 'minY and maxY must be numbers of meters');
+  } else if (!(collider.minY < collider.maxY)) {
+    report('INVALID_VALUE', path, 'minY must be below maxY');
   }
 }
 

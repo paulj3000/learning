@@ -1,5 +1,6 @@
 import { Vector2, type WebGLRenderer } from 'three';
 import type { FirstPersonController } from './firstPersonController';
+import { GamepadReader, NO_GAMEPAD_INPUT, type GamepadLike } from './gamepadInput';
 
 export interface PointerControlsOptions {
   /** Fired on the interact key (`E` or `Enter`), desktop only - touch has its own on-screen button. */
@@ -18,12 +19,37 @@ function isEditableTarget(target: EventTarget | null): boolean {
 export interface PointerControls {
   /** Reads this frame's held/dragged input and advances `controller` by `deltaSeconds`. Call once per frame. */
   update(deltaSeconds: number): void;
+  /**
+   * Forgets every held key, drag and button (LAI-JMP-01), so nothing stays
+   * stuck down when the window loses focus, the tab is hidden or a panel
+   * opens over the scene. A key still held afterwards does nothing until it
+   * is pressed again.
+   */
+  resetInput(): void;
   dispose(): void;
 }
 
+/** The keys that jump. Space only; `event.code` too, for layouts where `key` differs. */
+function isJumpKey(event: KeyboardEvent): boolean {
+  return event.key === ' ' || event.code === 'Space';
+}
+
+/** Connected pads, or none where the Gamepad API is missing (jsdom, old browsers). */
+function readGamepads(): readonly (GamepadLike | null)[] {
+  if (typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return [];
+  try {
+    return navigator.getGamepads();
+  } catch {
+    // Some browsers throw when a permissions policy blocks gamepads.
+    return [];
+  }
+}
+
 /**
- * Desktop keyboard/mouse (pointer-lock) and tablet/touch movement + look
- * input, wired to a `FirstPersonController`
+ * Desktop keyboard/mouse (pointer-lock), tablet/touch and gamepad movement +
+ * look input, wired to a `FirstPersonController`. Space (or gamepad A/Cross)
+ * jumps (LAI-JMP-01); the on-screen Jump button lives in the HUD and reaches
+ * the same `controller.pressJump()` through the engine handle
  * (`docs/ROADMAP.md` Phase 31: "desktop keyboard/mouse (pointer-lock) and
  * tablet/touch movement and look controls").
  *
@@ -44,18 +70,29 @@ export function attachPointerControls(
   options: PointerControlsOptions = {},
 ): PointerControls {
   const keysDown = new Set<string>();
+  const gamepads = new GamepadReader();
   const onKeyDown = (event: KeyboardEvent) => {
-    // Arrow keys and space move the player, so stop them also scrolling the
-    // page - but leave them alone in form fields (e.g. an adventure's number input).
-    if (SCROLL_KEYS.has(event.key) && !isEditableTarget(event.target)) {
+    // Typing in a form field (an adventure's number input, a story answer) is
+    // typing, not playing: no movement, no jump, no interact, and the page
+    // keeps its usual Space and arrow behaviour there.
+    if (isEditableTarget(event.target)) return;
+    // Arrow keys and space move the player, so stop them also scrolling the page.
+    if (SCROLL_KEYS.has(event.key)) {
       event.preventDefault();
     }
-    keysDown.add(event.key.toLowerCase());
-    if (event.key.toLowerCase() === 'e' || event.key === 'Enter') {
+    const key = event.key.toLowerCase();
+    // One jump per press: a held key's auto-repeat, or a key already down, never jumps again.
+    if (isJumpKey(event) && !event.repeat && !keysDown.has(' ')) {
+      controller.pressJump();
+    }
+    keysDown.add(isJumpKey(event) ? ' ' : key);
+    if (key === 'e' || event.key === 'Enter') {
       options.onInteract?.();
     }
   };
-  const onKeyUp = (event: KeyboardEvent) => keysDown.delete(event.key.toLowerCase());
+  const onKeyUp = (event: KeyboardEvent) => {
+    keysDown.delete(isJumpKey(event) ? ' ' : event.key.toLowerCase());
+  };
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
 
@@ -128,6 +165,22 @@ export function attachPointerControls(
   renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true });
   renderer.domElement.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
+  function resetInput(): void {
+    keysDown.clear();
+    moveTouchId = null;
+    lookTouchId = null;
+    touchMoveVector.set(0, 0);
+    gamepads.reset();
+    controller.clearJumpInput();
+  }
+  // A key released while another window had focus never sends keyup here.
+  const onBlur = () => resetInput();
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') resetInput();
+  };
+  window.addEventListener('blur', onBlur);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
   function update(deltaSeconds: number): void {
     const keyboardForward =
       (keysDown.has('w') || keysDown.has('arrowup') ? 1 : 0) -
@@ -136,15 +189,23 @@ export function attachPointerControls(
       (keysDown.has('d') || keysDown.has('arrowright') ? 1 : 0) -
       (keysDown.has('a') || keysDown.has('arrowleft') ? 1 : 0);
 
+    const pads = readGamepads();
+    const pad = pads.length > 0 ? gamepads.read(pads, deltaSeconds) : NO_GAMEPAD_INPUT;
+    if (pad.lookX !== 0 || pad.lookY !== 0) controller.applyLookDelta(pad.lookX, pad.lookY);
+    if (pad.jumpPressed) controller.pressJump();
+    if (pad.interactPressed) options.onInteract?.();
+
     controller.update(deltaSeconds, {
-      forward: Math.max(-1, Math.min(1, keyboardForward - touchMoveVector.y)),
-      strafe: Math.max(-1, Math.min(1, keyboardStrafe + touchMoveVector.x)),
+      forward: Math.max(-1, Math.min(1, keyboardForward - touchMoveVector.y + pad.forward)),
+      strafe: Math.max(-1, Math.min(1, keyboardStrafe + touchMoveVector.x + pad.strafe)),
     });
   }
 
   function dispose(): void {
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('blur', onBlur);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     document.removeEventListener('mousemove', onMouseMove);
     renderer.domElement.removeEventListener('click', onPointerLockClick);
     renderer.domElement.removeEventListener('touchstart', onTouchStart);
@@ -156,5 +217,5 @@ export function attachPointerControls(
     }
   }
 
-  return { update, dispose };
+  return { update, resetInput, dispose };
 }

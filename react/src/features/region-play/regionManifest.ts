@@ -393,6 +393,11 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     interactions,
     adventureBindings: [],
     interactionAssist: true,
+    // LAI-JMP-01: jumping is on with the defaults; Django may tune or disable it per region
+    // through `scene.movement` (validated with the rest of the manifest).
+    ...(isObject(model.scene.movement)
+      ? { movement: model.scene.movement as unknown as ThreeLocationManifest['movement'] }
+      : {}),
     extensions: [
       { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
     ],

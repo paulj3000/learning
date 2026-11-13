@@ -195,6 +195,73 @@
   color: var(--color-text-muted);
 }
 
+/*
+  LAI-JMP-01: the touch Jump button. Right edge, where the right thumb rests,
+  raised above the Hint and Backpack column (stage controls) and below the exit
+  link, so it overlaps neither. The left half of the stage stays free for the
+  move drag. Large and round: at least 4.5rem across for small fingers.
+*/
+.jumpButton {
+  pointer-events: auto;
+  position: absolute;
+  right: var(--space-3);
+  bottom: max(42%, 9.5rem);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 4.75rem;
+  height: 4.75rem;
+  padding: 0;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  /* No double-tap zoom, no scroll, no text selection while a thumb holds it. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.jumpButton:active {
+  background: rgba(244, 211, 94, 0.55);
+  border-color: #f4d35e;
+}
+
+.jumpButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.jumpIcon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.jumpText {
+  font-size: 0.85rem;
+  line-height: 1.1;
+}
+
+/* Tablets and larger: a little bigger, still clear of the controls below it. */
+@media (min-width: 900px) {
+  .jumpButton {
+    width: 5.5rem;
+    height: 5.5rem;
+    right: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .jumpButton {
+    transition: background-color 80ms ease-out;
+  }
+}
+
 /* Phones: the toast sits above the stacked Hint and Backpack buttons instead of under them. */
 @media (max-width: 599px) {
   .toast {

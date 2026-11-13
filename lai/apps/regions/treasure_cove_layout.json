@@ -225,6 +225,54 @@
    }
   },
   {
+   "jumpable": true,
+   "maxY": 0.9,
+   "minY": 0,
+   "rect": {
+    "id": "cove-landing-barrel-0:collider",
+    "maxX": -7.18,
+    "maxZ": 18.32,
+    "minX": -7.82,
+    "minZ": 17.68
+   }
+  },
+  {
+   "jumpable": true,
+   "maxY": 0.9,
+   "minY": 0,
+   "rect": {
+    "id": "cove-landing-barrel-1:collider",
+    "maxX": -7.88,
+    "maxZ": 17.72,
+    "minX": -8.52,
+    "minZ": 17.08
+   }
+  },
+  {
+   "jumpable": true,
+   "maxY": 0.9,
+   "minY": 0,
+   "rect": {
+    "id": "cove-landing-barrel-2:collider",
+    "maxX": 5.32,
+    "maxZ": 18.82,
+    "minX": 4.68,
+    "minZ": 18.18
+   }
+  },
+  {
+   "jumpable": true,
+   "maxY": 0.9,
+   "minY": 0,
+   "rect": {
+    "id": "cove-landing-barrel-3:collider",
+    "maxX": 6.02,
+    "maxZ": 19.32,
+    "minX": 5.38,
+    "minZ": 18.68
+   }
+  },
+  {
    "rect": {
     "id": "cove-grove-boulder-0:collider",
     "maxX": -28.0,

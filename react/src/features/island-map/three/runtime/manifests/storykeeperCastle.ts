@@ -682,6 +682,13 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
   */
   adventureBindings: CASTLE_CHOICE_BINDINGS,
 
+  /*
+    LAI-JMP-01: jumping indoors. A lower hop than outdoors keeps the eye well
+    under the 3.1 m ceiling slabs at the top of a jump, and every wall, door
+    and the secret passage are solid colliders, so a jump never skips a room's
+    story beat.
+  */
+  movement: { jump: { jumpHeight: 0.9 } },
   extensions: [
     {
       extensionId: 'castle-tale',
