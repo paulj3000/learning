@@ -13790,3 +13790,23 @@ the merge. Recorded here so this file reflects `main`:
 - The local-development fixes (Cognito from environment variables, Django by default, one
   `DJANGO_DEV_PORT`, friendly Realm errors) are on `fix/p0-cognito-env-realm-explorer`
   (`1734ebd`), pending owner acceptance; not in `main`.
+
+## Exits stay reachable while a game panel is open (2026-11-13, branch `fix/adult-exit-panels`, Trello fOwy8OIb)
+
+Defect (PR #23's stated follow-up): at 320 and 375 px an open Pirate Pip panel (70vh cap,
+anchored above the bottom nav) reached up over the top bar and covered "Leave island" and
+"Adults: exit to parent space"; in full screen it covered "Exit full screen".
+
+- `ChildShell` measures how far down the viewport the top bar reaches (it wraps to two rows on
+  phones and scrolls with the page) and publishes it as `--child-header-inset`, on resize, scroll
+  and when the bar changes size. The top bar also stacks above game layers (`relative z-30`).
+- Fixed dialogue panels (Treasure Rush `GameDialog`, the NPC Manager panel) cap their height to
+  the room between the top bar and the nav, with a 10rem floor; their content scrolls inside.
+  The NPC ambient line starts below the top bar.
+- Full screen: the bar and nav insets drop to 0, and `--child-stage-exits-inset` (7.5rem) lifts
+  the panels above the stage's own exits (bottom left).
+- Panels are not modal and never trap focus, so the exits are reachable by keyboard too.
+- Tests: `childNavInsets.test.ts` (every fixed layer honours the top-bar inset and the full-screen
+  room), `shells.test.tsx` (measured inset, never negative, bar above layers), and the browser
+  spec `portal-adult-exit.spec.ts` at 320, 375, 768, 1024 and 1440 px, by keyboard and in full
+  screen, with the legacy and the managed Pip.

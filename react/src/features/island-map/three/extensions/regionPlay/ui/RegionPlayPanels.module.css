@@ -9,11 +9,28 @@
   position: fixed;
   /* Centred in the play area, clear of the child shell's nav (AP-01). */
   left: calc(50% + var(--child-nav-inset-left, 0px) / 2);
-  bottom: calc(var(--space-4) + var(--child-nav-inset-bottom, 0px));
+  /* Above the nav, and in full screen above the stage's own exits. */
+  bottom: calc(
+    var(--space-4) + var(--child-nav-inset-bottom, 0px) + var(--child-stage-exits-inset, 0px)
+  );
   transform: translateX(-50%);
   z-index: 20;
   width: min(34rem, calc(100% - var(--space-8) - var(--child-nav-inset-left, 0px)));
   max-height: min(70vh, 40rem);
+  /* Never taller than the room between the top bar and the nav: the exits stay uncovered and
+     the content scrolls inside the panel. A floor keeps it usable on a very short screen, where
+     the top bar still stacks above it (ChildShell.tsx). */
+  max-height: max(
+    10rem,
+    min(
+      70vh,
+      40rem,
+      calc(
+        100dvh - var(--child-header-inset, 0px) - var(--child-nav-inset-bottom, 0px) -
+          var(--child-stage-exits-inset, 0px) - 2 * var(--space-4)
+      )
+    )
+  );
   overflow-y: auto;
   display: flex;
   flex-direction: column;
