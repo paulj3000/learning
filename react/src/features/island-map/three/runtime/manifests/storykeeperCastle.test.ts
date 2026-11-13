@@ -140,8 +140,8 @@ describe('Storykeeper Castle manifest', () => {
     }
   });
 
-  it('authors the castle’s own copy: the calm stop, the toasts, and no reticle for Sprouts', () => {
-    expect(MANIFEST.copy.calmStop).toContain('Keeper Quill closes the book');
+  it('authors the castle’s own copy: the toasts and no reticle for Sprouts, and no time stop', () => {
+    expect(MANIFEST.copy).not.toHaveProperty('calmStop');
     expect(MANIFEST.copy.checkpointToasts).toEqual({
       found: 'You found {checkpoint}.',
       returning: 'You are back at {checkpoint}.',

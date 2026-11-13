@@ -43,14 +43,6 @@ class ReadingMode(models.TextChoices):
     INDEPENDENT = "INDEPENDENT", "Independent"
 
 
-# CLAUDE.md section 3 and react/src/features/child-profile/constants.ts SESSION_MINUTES_RANGE.
-SESSION_MINUTES_RANGE = {
-    AgeBand.SPROUT: (5, 8),
-    AgeBand.PATHFINDER: (8, 12),
-    AgeBand.EXPLORER: (10, 18),
-}
-
-
 class ParentAccountManager(BaseUserManager):
     def get_or_create_for_cognito(self, cognito_sub: str, display_name: str = "", timezone_name=""):
         """Idempotent mapping from a verified Cognito `sub` to its application account.
@@ -201,7 +193,6 @@ class ChildProfile(models.Model):
         models.CharField(max_length=32), size=MAX_INTERESTS, blank=True, default=list
     )
     reading_mode = models.CharField(max_length=16, choices=ReadingMode.choices)
-    session_minutes = models.PositiveSmallIntegerField()
     active = models.BooleanField(default=True)
     # Parent kill switch: when false no child data goes to the AI model at all.
     ai_enabled = models.BooleanField(default=True)
@@ -223,32 +214,14 @@ class ChildProfile(models.Model):
                 condition=models.Q(reading_mode__in=ReadingMode.values),
                 name="users_childprofile_reading_mode_valid",
             ),
-            models.CheckConstraint(
-                condition=models.Q(
-                    *[
-                        models.Q(age_band=band, session_minutes__gte=low, session_minutes__lte=high)
-                        for band, (low, high) in SESSION_MINUTES_RANGE.items()
-                    ],
-                    _connector=models.Q.OR,
-                ),
-                name="users_childprofile_session_minutes_for_age_band",
-            ),
         ]
         indexes = [models.Index(fields=["parent", "created_at"], name="users_child_parent_created")]
 
     def clean(self):
-        errors = {}
         if not (self.nickname or "").strip():
-            errors["nickname"] = ValidationError("Enter a nickname.", code="blank_nickname")
-        bounds = SESSION_MINUTES_RANGE.get(self.age_band)
-        if bounds and not bounds[0] <= (self.session_minutes or 0) <= bounds[1]:
-            errors["session_minutes"] = ValidationError(
-                "Choose between %(low)s and %(high)s minutes for this age band.",
-                code="session_minutes_out_of_range",
-                params={"low": bounds[0], "high": bounds[1]},
+            raise ValidationError(
+                {"nickname": ValidationError("Enter a nickname.", code="blank_nickname")}
             )
-        if errors:
-            raise ValidationError(errors)
 
     def __str__(self) -> str:
         return str(self.id)

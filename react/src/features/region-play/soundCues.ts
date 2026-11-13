@@ -20,7 +20,12 @@ export type SoundCue =
   | 'replayWin'
   | 'answerRight'
   | 'answerRetry'
-  | 'questComplete';
+  | 'questComplete'
+  // NPC Manager (LAI-NPC-015): the Sound Manager's NPC events, for the NPC they happen to.
+  | 'npcGreet'
+  | 'npcInteract'
+  | 'npcTalk'
+  | 'npcLeave';
 
 /** Where a moment happened, when it happened somewhere in the scene (SM-P7). */
 export interface SoundPlace {
@@ -28,6 +33,8 @@ export interface SoundPlace {
   entityId?: string;
   /** The way to Lookout Point (the gate). */
   unlock?: true;
+  /** An NPC by its stable id (`pirate-pip`), for the NPC cues. */
+  npcId?: string;
 }
 
 export type SoundSink = (cue: SoundCue, at?: SoundPlace) => void;

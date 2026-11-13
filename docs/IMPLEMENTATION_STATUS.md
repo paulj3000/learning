@@ -42,6 +42,48 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## `make createsuper` (local Django Admin superuser) — added 2026-11-11; dry-run checked only
+
+`make createsuper` asks for a username, then runs `manage.py create_admin_account <username>
+--superuser`, which asks for the password twice and validates it. It receives the `.env`
+Django settings like `make migrate`. Django's `createsuperuser` stays disabled. Checked with
+`make -n createsuper`; not yet run against a live database (needs `make up` and `make migrate`).
+
+## No child play-time limits (ADR-053) — complete and merged to `main` (2026-11-11); migration not yet run on a deployed database
+
+Trello: "[LAI] Remove child gameplay time limits and forced session cutoffs" (2026-11-11). This
+supersedes "The calm stop — MVP scope item 11" below, which is kept as history.
+
+- **Removed (React):** `react/src/features/session/` (session clock, `useSessionClock`,
+  `CalmStop`); the island-wide stop note in `IslandLayout`; the region stop note and the
+  `limitReached` extension prop in `ThreeLocationWorldView` / `viewExtensionRegistry`;
+  `RegionPlayCompanion`'s session completion when time passed (the one real cutoff); Keeper
+  Quill's "look at the nook" stop cue in `CastleTaleCompanion`; Storykeeper Castle's
+  `copy.calmStop`; `LocationCopy.calmStop` (legacy content is ignored by `regionManifest.ts`).
+- **Removed (parent):** the "Session length" field on the child profile form and the "Session
+  time" row on the child dashboard; `validateSessionMinutes`; `sessionMinutes` from the
+  hand-owned profile types and play settings. Amplify builds still write
+  `RETIRED_SESSION_MINUTES` on create, only because the deployed schema requires it (no Amplify
+  resource change).
+- **Django:** the `session_minutes` column and its per-band check constraint are dropped
+  (`users.0007_remove_childprofile_session_minutes`, owner-approved). `sessionMinutes` is no
+  longer returned (profile, game runtime launch, native home `restrictions`) and is refused in
+  request bodies; the Amplify import ignores it. Admin no longer shows it.
+- **Kept on purpose:** Cognito auth and token refresh, the 1-hour Android game-launch cookie
+  (`LAI_GAME_SESSION_TTL_SECONDS`, a credential with a documented relaunch path), network
+  timeouts, the `active` and `aiEnabled` parental switches, and passive usage records.
+- **Tests:** extended-play regressions in `IslandLayout.test.tsx` (6 hours on every child-mode
+  depth), `RegionPlayCompanion.test.tsx` (session never completed over 1 to 8 hours) and
+  `storykeeperCastleParity.test.tsx`; Django tests for create/edit without the field, a legacy
+  value accepted and ignored, band changes, the import, and the launch/home payloads.
+- **Merge gates (2026-11-11), all passed:** Ruff and Ruff format, Django check, migration
+  check, ADR check, admin-preview check, typecheck, oxlint, Prettier, `content:check`; full
+  pytest on PostgreSQL 16 (2796 passed, 3 skipped); full Vitest (407 files, 4587 tests);
+  production build; Playwright smoke (7 passed, 11 skipped) and acceptance (55 passed, 2
+  skipped). Playwright ran against the container's preinstalled Chromium. The migration
+  runs on the next Django deploy (not deployed here). The Amplify `sessionMinutes` field stays until
+  the Django cutover (owner decision, 2026-11-11).
+
 ## Current phase
 
 **Phases 0-32 are implemented**, plus two follow-ups: "Curriculum band
@@ -12169,6 +12211,10 @@ unrelated to this change.
 
 ## Asset Library: Django Admin ownership, media families, lifecycle completion (2026-11-02, branch `feature/asset-manager`, pushed, merged into `dev20261102` only, nothing deployed)
 
+> Update 2026-11-11: `dev20261102`, with this work, was merged into `main` in `5222b690`
+> (2026-11-02). Owner-reported local QA accepted 2026-11-05. See "Asset Library closure review"
+> below and `docs/qa/ASSET_LIBRARY_CLOSURE_2026-11-11.md`.
+
 Acceptance implemented: ADR-045 (Django Admin owns staff asset authoring; React consumes
 published assets only); AM-13 (images and audio); AM-17 (lifecycle completion); AM-14 and AM-15
 removed. The product feature formerly called the Asset Manager is now the Asset Library.
@@ -12532,6 +12578,210 @@ Utterance-level captions only.
 lands.
 
 **Checks.** See the end-of-batch delivery notes.
+
+## NPC Manager (Phase 30, `feature/npc-manager`, ADR-054) — ACCEPTED by the owner 2026-11-11, merged to `main`
+
+**Owner acceptance (2026-11-11).** The owner accepted the NPC Manager and approved the merge of
+https://github.com/paulj3000/learning/pull/22 (PR #2 QA, PR #4 F-A/F-B fixes and pirate variant,
+PR #1 SM-P8-LIVE Polly, reconciled with `main`). PR #18 was closed in favour of PR #4. Live gates
+(`docs/NPC_MANAGER_AI_POLLY_ACCEPTANCE.md`): Bedrock in us-west-1 with Guardrail
+`lai-child-safety-dev` v1 and Polly in us-west-2 with S3 bucket
+`learning-adventure-island-dev-speech` all PASS; the owner heard Pip in the browser and added the
+`speech/child/` lifecycle rule. Not deployed: the deployed host still needs its SSM values
+(Guardrail id and version, `LAI_SPEECH_AWS_REGION=us-west-2`, the speech bucket) and runtime-role
+permissions.
+
+Plan: `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`; contracts: `docs/NPC_MANAGER_CONTRACTS.md`;
+tracker: `tasks/TASK_TRACKER.md` Phase 30.
+
+**QA findings F-A and F-B: fixed, owner review pending (2026-11-07, `fix/npc-qa-fa-fb`).** With no
+active release the runtime reads answer `200` with `release: 0` (no browser error on every
+visit); unprompted NPC lines (greeting, welcome back, reactions) show as a non-modal speech bubble
+in a new top-centre stage `speechSlot` and never cover the HUD; only a conversation the child
+starts is modal; `end` is idempotent and the client no longer races it. Full browser acceptance
+63 passed, 0 failed; pytest 2505, Vitest 4255. Details: `docs/NPC_MANAGER_QA_REPORT.md` 8a.
+
+**Pirate Pip variant (2026-11-07): development complete, owner review pending.** The owner's
+rigged pirate is `content/models/npc-pip-pirate.glb` (clips Idle, Walk, Wave, Point; no Talk yet).
+`manage.py add_pip_pirate_variant [--use-in-cove] [--publish]` registers it as the asset
+`npc-pip-pirate` through the Asset Library services and adds Pip's `pirate` variant; `classic`
+stays the default. Tests: `lai/apps/npcs/tests/test_pip_pirate_variant.py` (6). Not yet run on any
+deployed environment.
+
+**Base.** `origin/feature/sound-manager` merged first (owner decision, `c2393ad`); merge fixes for
+the ADR-045 registry title (`33cdede`) and the public speech-file route test (`fe9c905`).
+Development ports moved to PostgreSQL 5442, Django 8010, Vite 5183 (`18e9cec`).
+
+**Foundation (LAI-NPC-001, 002, 006, 034): DEVELOPMENT COMPLETE.**
+- `catalog.NpcDefinition.origin` (`EXPORT`/`DJANGO`); the content import refuses to claim a
+  Django-authored NPC (`catalog/0006_npc_definition_origin`).
+- New app `apps.npcs` with every NPC table in one migration (`npcs/0001_npc_manager_foundation`):
+  characters, variants and variant assets, placements (Island, Place, 3D Area, hierarchy
+  validated), behaviour profiles (per-type parameter schema), dialogue, nodes, choices, personas,
+  immutable releases and their asset dependencies, and child-owned conversation state.
+- Shared condition language (`conditions.py`), vocabularies mirrored in TypeScript
+  (`react/src/features/npc-manager/contracts/`), runtime parsers, engine contract.
+- Publishing: validate, publish (one ACTIVE release, advisory lock, nothing written on failure),
+  rollback (only SUPERSEDED releases whose assets are still live), retire; children read only the
+  ACTIVE snapshot (`published.py`), with personas and dialogue trees server-only.
+- API routes and shared scoped view base (child ownership, game cookie limited to 3D Area routes);
+  workstream views answer 501 until implemented.
+- Evidence: pytest `lai/apps/npcs` 21 passed, catalog/core regression 106 passed in the gate run,
+  `makemigrations --check` clean, Vitest contracts 7 passed, `tsc -b` clean, Ruff clean,
+  `adr:check` passed (50 decisions).
+
+**Treasure Rush integration (LAI-NPC-010, 015, 016, 018): DEVELOPMENT COMPLETE** on
+`feature/npc-manager-treasure` (owner browser acceptance pending; no browser, WebGL or AWS run).
+- Reusable NPC scene host `react/src/features/npc-manager/host/` (`useNpcSceneHost`, hint client,
+  trigger queue); Treasure Cove wires it in `RegionPlayCompanion` and `regionPlayScene`
+  (`npcHostScene`, `setNpcProxy`), with `isBlocked` added to the extension context.
+- Exactly one Pip: the managed Pip replaces the manifest Pip and `PipDialog` when served; on no
+  release, Django off or a load failure the legacy Pip stays (documented in
+  `docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md` section 7).
+- Pip authored as content: `lai/apps/npcs/pip_content.py`, `manage.py seed_npc_pip [--publish]
+  [--hybrid-hints]` (create-only, validates, rerun `unchanged`). Content export unchanged.
+- Play outcomes reach NPC triggers and reactions through `useRegionPlay({onOutcome})`; rewards,
+  quests, save and resume unchanged. NPC sound moments use staff NPC assignments in the audio
+  manifest; voice through `useNpcVoice`.
+- Evidence: pytest `apps/npcs apps/regions apps/game_sessions apps/quests` 611 passed (Pip seed
+  13); Vitest npc-manager, region-play, island-map, audio 177 files / 2143 tests passed; `tsc -b`
+  clean; Prettier and Ruff clean on changed files; `makemigrations --check` clean.
+
+**Workstreams merged into `feature/npc-manager` (all DEVELOPMENT COMPLETE, none ACCEPTED).**
+Six parallel workstreams ran in isolated worktrees against the frozen contracts, then were merged
+in dependency order by the integrator with targeted tests after each merge.
+- A, Admin and Asset Library (LAI-NPC-003, 004, 005, 035, 036; `b1b0030`): Django Admin authoring
+  of characters, variants, extras, placements and dialogue trees; validate, publish, roll back,
+  retire actions gated by permissions; animation maps checked against the asset version's clips;
+  the Asset Library gains a retirement veto so an asset or version used by the active or a
+  rollback-candidate release cannot be retired; dependency report (admin and
+  `npc_asset_dependencies`); `ensure_npc_roles` groups (editors, publishers).
+- B, Three.js runtime (LAI-NPC-007, 008, 009, 014; `fd5ca4b`, `7b1079d`): runtime read API,
+  typed React client, `createNpcRuntime` (resolver URLs, placeholders, proximity, disposal),
+  `createNpcAnimator` (11 states, fallbacks, priorities, 0.2 s crossfades), prompt and panel UI.
+- C, Dialogue (LAI-NPC-011, 012, 013, 017; `11e47bd`, `b71e9de`): server dialogue engine, the
+  11-trigger registry mapped to existing play signals, child-owned conversation state that never
+  writes progress; React dialogue controller and trigger mapping.
+- D, Behaviour (LAI-NPC-019 to 025; `57d5367`, `57813a5`): deterministic behaviour controller
+  (stationary, wander, patrol, follow, guide, reactive, scripted), interruption, cancellation,
+  waypoints, boundaries, reactions, reduced motion; Django validation and admin preview.
+- E, Voice (LAI-NPC-026 to 029; `d3c15d9`): reuses `speech.VoiceProfile` and the ADR-049 Polly
+  adapter; `npcDialogueNode` speech references resolved only from the active release; publish and
+  rollback pre-generate clips after commit (`87d24d4`); React voice coordinator with captions
+  always shown. Fake Polly only.
+- F, AI (LAI-NPC-030 to 033; `ae19110`): `POST .../interactions/<id>/hint/` through the one
+  `run_turn` pipeline (route `generateNpcHint`, `ai/0005`), versioned personas with validation,
+  authored fallbacks on every failure, no gameplay writes. Fake model only.
+- Integrator fixes: `path()` interaction routes and bearer-only Place and catalog routes so the
+  tenant-isolation checker and game-cookie rules hold (contract 1.1); behaviour contract
+  additions (`reducedMotion`, scripted `animation`, `cancel()`); app-wide engine boundary covers
+  `npc-manager/{engine,animation,behavior}`; persona and behaviour permissions in the NPC roles.
+
+**Production and cross-island (DEVELOPMENT COMPLETE).**
+- LAI-NPC-037 performance (`1bd91b1`): shared model cache (one load per asset version, LRU of 12
+  unused), incremental `mount()`, reduced-rate updates for far or off-screen NPCs without slowing
+  movement, no per-frame allocation, traversal or loads. Unit-measured with fakes: 20 NPCs about
+  0.035 ms per engine update. Device profiling pending (`docs/NPC_MANAGER_PERFORMANCE.md`).
+- LAI-NPC-038 accessibility (`b62308d`): modal dialog with focus trap and focus return, live
+  region announcing each line once, 56 px targets, icon plus text prompt, "Hear it again" replay,
+  muted means text only, live reduced-motion preference (`docs/NPC_MANAGER_ACCESSIBILITY.md`).
+- LAI-NPC-039 Storykeeper's Castle (`361c1ff`, `67b3d07`, `9a6bd85`): Keeper Quill seeded by
+  `seed_npc_quill` as a Place-level placement and served through the same host; exactly one
+  Quill, legacy fallback, castle progression unchanged, castle gestures forwarded through the
+  host's additive `animate()`. Host hook and progress module are `.tsx` (engine boundary).
+- LAI-NPC-040 acceptance (`ac71c9a`): Django full-flow test (seed, publish, converse, republish,
+  rollback, retire, isolation, cookie scope, speech refusal, AI fallback, asset guard) and a React
+  host scenario; owner browser checklist and coverage matrix in
+  `docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md` (Part B not run by any agent).
+
+**Final regression on `feature/npc-manager` (2026-11-05).** Full pytest (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`) 2131 passed, 0 failed. Vitest full suite: 377 files, 4235 tests, 4226 passed, 9 failed
+before the castle `.tsx` fix; after it the engine boundary passes and the 8 remaining failures
+(`src/test/adrCheck.test.ts` 7, `contentExport.test.ts` 1) are infrastructure: they spawn
+`<repo>/node_modules/.bin/tsx`, which this machine's shared toolchain (`/Coding/node_modules`)
+does not provide; the commands they wrap pass directly (`npm run adr:check`: 50 decisions;
+`npm run content:check`: up to date). `npm run typecheck` clean; `npm run build` succeeded; Ruff
+check and format clean (465 files); Prettier clean; oxlint exit 0 (warnings only, matching
+existing `role` patterns); migrations apply to a fresh database and `makemigrations --check` is
+clean. Not run: Playwright or any browser/WebGL check, live Polly, live Bedrock, deployment.
+
+**Open for owner acceptance.** Browser checklist (`docs/NPC_MANAGER_BROWSER_ACCEPTANCE.md` Part
+B, including B13 castle); live Polly and Bedrock checks need explicit approval; review of Pip's
+and Quill's migrated lines; device performance profiling; manual screen reader and switch access.
+Known limits: variant extras (accessories) are validated and published but not rendered; Pip has
+no voice profile; AI hint speech is null; Quill's conditions cannot see the castle's Amplify quest
+state; a disabled-provider AI hint writes no audit row (contract silent; AI owner to decide).
+
+
+### NPC Manager QA pass (2026-11-07, `qa/npc-manager-acceptance`): OWNER QA readiness, not acceptance
+
+Full report: `docs/NPC_MANAGER_QA_REPORT.md`. First real-browser run of the NPC Manager (Chromium
+with software WebGL, local Django and PostgreSQL, fake AI, speech disabled, no AWS): 32 new
+Playwright tests across Django Admin, Treasure Rush, Storykeeper's Castle and accessibility, plus
+the existing Treasure Rush suite now running with the managed Pip.
+
+Fixed with regression tests: QA-D1 choice order in Django Admin; QA-D2 captions-only talk lines
+never animated; QA-D3 Treasure Cove's return visit never raised `on_return_visit`; QA-D4 "Hear it
+again" offered after the server refused a line's speech. Added: `generic_clip_name` upload warning
+for default Mixamo/Blender take names; Admin notice that variant extras are not drawn yet; an
+e2e-only NPC diagnostics hook; `@axe-core/playwright` (test-only).
+
+Not verified (owner): screen readers, switch access and tablets; the castle's Amplify-backed tale
+and quest log; live Polly and Bedrock (no approved environment, BLOCKED); the owner's Mixamo
+pirate file (not in the repository). The four known limitations are classified in the report;
+none blocks release.
+
+## SM-P8-LIVE: complete and verify the Amazon Polly integration (2026-11-07, branch `feature/sm-p8-live-polly`, not merged, not deployed)
+
+Trello: https://trello.com/c/IONglPNa. **Base:** `feature/npc-manager`, which already contains
+every `feature/sound-manager` commit (SM-P2 to SM-P8) plus the NPC Manager voice workstream
+(LAI-NPC-026 to 029). `feature/sound` is fully contained in both. `dev20261103` lacks one
+`feature/sound-manager` commit (`d5d694a`) and none of the NPC Manager; it is not the base.
+**Merge dependencies:** this branch lands after `feature/npc-manager` (and so after
+`feature/sound-manager`), subject to Sound Manager and NPC Manager owner QA.
+
+**Acceptance criteria.** The real Polly client path works with AWS credentials and a supported
+voice, engine and region; synthesized speech plays through the existing Sound Manager, Pirate
+Pip included, with captions and mute respected; the cache avoids repeat synthesis and sensitive
+content stays server-side; auth, failures and fallback are unit-tested; an opt-in live smoke test
+and deployment instructions exist; live QA and merging stay with the owner.
+
+**Built (reusing `apps.speech`, the NPC voice flow and the React `SpeechPlayer`; no new service,
+cache, model or dependency).**
+- `polly.py`: MP3 content-type, signature and size checks on Polly's answer; `SpeechError.reason`
+  classification (`throttled`, `timeout`, `connection`, `service`, `access_denied`,
+  `invalid_voice`, `invalid_input`, `bad_audio`); retries only for transient failures; no retry
+  for IAM, credential, voice or input errors; malformed input never reaches AWS; log lines carry
+  codes, counts and timings only; `voice_report()` (DescribeVoices) for the smoke test.
+- `storage.py`: S3 client with explicit region (`LAI_SPEECH_S3_REGION`), SigV4, timeouts; keys
+  `speech/shared/...` and `speech/child/...` so a lifecycle rule can expire child clips only
+  (older keys stay readable); presign errors become storage errors.
+- `services.py`: presign failure falls back to Django delivery; a missing stored object deletes
+  its cache row so the next request re-synthesizes; structured `speech served` / `speech failed`
+  log lines without text or child ids.
+- Pirate Pip: `seed_speech_voices` adds `pirate-pip` (Justin, neural, 105%);
+  `seed_npc_pip --attach-voice` gives an existing voiceless Pip that voice and never replaces one
+  staff chose.
+- `manage.py speech_live_smoke --confirm-live-aws`: region and voice-table check, one short
+  sample, cache (one Polly call for two requests), store read-back, presigned fetch, AWS and
+  table fallback; PASS / FAIL / WARN per step, non-zero exit on FAIL.
+- Runbook: `docs/audio/POLLY_DEPLOYMENT_RUNBOOK.md`.
+
+**Tests (unit only, per the development checks).** New Django: `test_polly_client.py` (33,
+botocore Stubber), `test_speech_storage.py` (19), `test_live_path.py` (23, API end to end on the
+real client: synthesis, cache hit, child authorization, throttling, timeout, IAM denial, invalid
+voice, malformed input, storage failure, presign fallback, invalidation, Pirate Pip), and
+`test_live_smoke.py` (10 plus 1 opt-in live test, skipped by default). Speech, NPC, AI, audio and
+repository tests: 1237 passed, 1 skipped (local PostgreSQL 16). New React:
+`audio/speech/pollyLive.test.ts` (16). Speech, audio, NPC Manager, island map and companion
+Vitest: 2081 passed; `tsc` typecheck clean. Lint, full suites, browser and E2E are deferred to
+merge readiness.
+
+**Live AWS: FAIL / not verified.** One `speech_live_smoke` run from the development container
+(us-east-1, pirate-pip, memory storage): `UnrecognizedClientException` on DescribeVoices and
+SynthesizeSpeech, so nothing was synthesized or heard. Open (owner): a passing smoke test in the
+target account, audible QA (runbook section 9), the bucket, IAM and lifecycle, Bedrock end to
+end, and cost against the bill.
+
 ## Storykeeper Castle Reboot: SC-R01/02 verification, SC-R02, SC-R03-01 (branch `adventures/storybook`, 2026-11-03)
 
 Detail: `tasks/TASK_TRACKER.md` ("Storykeeper Castle Reboot"), the audit in
@@ -13010,6 +13260,21 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - Prettier and ruff are clean.
   - No AWS call was made.
 
+## LAI-0821 content-authoring milestone accepted (2026-11-10, branch `claude/jolly-ride-92xktb`)
+
+- **What.** The owner confirmed browser acceptance (Django Admin authoring flows, Firepeak,
+  Storykeeper Castle, the Island Explorer with Firepeak) and deployed acceptance (hosted Django,
+  live Cognito), then authorized the merge of `dev20261103` into `main` (PR #12, merge commit
+  `e82a188`). CI was green on the merged head (`b3490ba`); the local merge-gate results are in the
+  2026-11-09 section above.
+- **Tracker.** LAI-0821 marked done. Ticked as ACCEPTED with it (the tracker ticks a box only at
+  ACCEPTED): LAI-0801 (both entries), LAI-0309 (both), LAI-0503 (both), LAI-0810 to LAI-0814,
+  LAI-0816 to LAI-0818, LAI-0820 and FP-12. FP-13 stays open (automated Playwright scenarios and
+  Android performance). FP-2 to FP-11 are unchanged. Docs only; no code changed, so no tests
+  apply.
+- **Still open.** The 11 Firepeak Playwright scenarios remain `test.fixme` (FP-13). The merged
+  branches `dev20261103` and `claude/jolly-ride-92xktb` are still on GitHub for the owner to delete.
+
 ## Adventure Portal AP-01 and AP-04: design system, shells, and leaving an island (2026-11-07, branch `feature/adventure-portal`)
 
 Trello: "[Subproject] Adventure Portal & Learning Dashboard", cards AP-01 and AP-04. Development
@@ -13181,6 +13446,41 @@ only exit shown. The owner chose to remove the check entirely.
 - Merged to `main` on 2026-11-11 in PR #16 with AP-01, AP-02 and AP-03 (see "Adventure Portal
   AP-01 to AP-04 merged to main" below).
 
+### AP-01 rework: the child nav covered fixed game panels (2026-11-11, branch `claude/dazzling-maxwell-dyb1ar`)
+
+Found by a browser check after AP-01 merged (PR #16). The `ChildShell` nav is `position: fixed`
+(z-index 40), and so are Treasure Rush's panels, HUD buttons and hint bubble
+(`RegionPlayPanels.module.css`, z-index 19 to 20) and the castle captions
+(`CastleSpeech.module.css`). On phones the bottom bar covered Pirate Pip's "Maybe later"; on a
+768px portrait tablet the sidebar covered the left of the viewport-centred panel, including
+"Yes, I will help!". 1024px and wider were unaffected.
+
+- `ChildShell.module.css` (new) publishes `--child-nav-inset-bottom` (5rem on phones) and
+  `--child-nav-inset-left` (14rem from `md`, 48rem), both 0 in full screen where the stage
+  covers the nav. The shell's own padding uses them instead of `pb-20 md:pl-56`. They live in a
+  CSS Module because `portal.css` may not declare custom properties (ADR-052).
+- Every fixed game layer offsets by them: bottom by the bottom inset; left-anchored layers and
+  the centred panel by the left inset (the panel centres in the play area and narrows to fit).
+  Outside the shell the fallbacks are `0px`, so nothing else moves.
+- After merging `main` (2026-11-11), the NPC manager's dialogue panel and talk prompt
+  (`NpcInteraction.module.css`) follow the same rule; its top-right ambient line needs no offset.
+- Tests: `childNavInsets.test.ts` (new; insets match the nav's classes, full-screen reset, and
+  every `position: fixed` rule in the three game stylesheets uses them; it fails on the old CSS) and
+  one case in `shells.test.tsx`.
+
+Checks: Vitest for portal, island, regionPlay and castleTale (156 files) pass; typecheck passes;
+Prettier and oxlint clean on the changed files (oxlint keeps its existing
+`only-export-components` warning). Browser (Chromium, Django acceptance stack) at 320, 375, 768,
+1024 and 1440px: no fixed layer overlaps the nav, Pip's panel buttons are tappable at every size,
+no horizontal overflow, nav bar 58px tall within the 5rem inset. Treasure Rush and integration
+acceptance specs: 12 passed, 1 skipped (as in the suite).
+
+Deferred to merge verification: full Vitest suite, build, lint and format over the repository,
+`make py-check`, the full e2e and acceptance suites. Not browser-checked: Storykeeper Castle's
+captions and the NPC dialogue panel (the same offset rule, unit-tested). Remaining risk, not caused by the nav: at 320x640
+Pip's panel is taller than the room above the bar (its 70vh cap), so the answer buttons need a
+scroll inside the panel, and the panel draws over the top bar's adult exit while open.
+
 ## Adventure Portal AP-03 redesign: Realm Explorer (2026-11-11, branch `feature/adventure-portal-home`)
 
 Trello AP-03. Supersedes the inline Island Explorer of the first AP-03 commit (`c1d4d74`) in
@@ -13339,3 +13639,88 @@ PostgreSQL passed; end-to-end tests passed.
 - No Realm or Place has published art yet (see the AP-03 entry above).
 - Firepeak's `subjectAreas` reaches an existing database after `load_content` and, where the
   record is Django-authoritative, publishing the import draft.
+
+## Treasure Rush QA closed for now (2026-11-11, Trello WTQR3qTS)
+
+**Status: owner-reported QA acceptance of Treasure Rush as merged in `main`; no code change.**
+The owner declared Treasure Rush QA complete for now and will expand Treasure Rush later.
+All Treasure Rush code (`quest/tr.reboot`, `feature/treasure-rush-slice`) was already contained
+in `main` (verified: zero commits ahead of `origin/main`).
+
+- **Accepted (owner-reported, local):** TR-9 playtest; TR-12, TR-13, TR-14, TR-17 and TR-20.
+  TR-11 closed as superseded by TR-14.
+- **Accepted with items deferred to a later expansion:** TR-15 (`treasure-key` model), TR-16
+  (ordering and matching kinds, TR-D27; pedestal model), TR-18 (Pip `Cheer` and `Point` clips).
+- **Still open, deferred:** TR-19 sound with mute (owner decision TR-D26), TR-10 (LAI-2106).
+- **Not established by this:** deployed or live AWS acceptance; real-family use still depends on
+  LAI-0502, LAI-0602, gate G9 and ADR-024 A6.
+- **Tests run:** none; documentation-only change.
+
+## AMP-01 Amplify dependency audit and Django parity matrix (2026-11-10, branch `claude/lai-infra-001-pr-kwauv3`, read-only audit)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-01 | `docs/platform/AMPLIFY_EXIT_MATRIX.md` | **None** (no AWS access); live DynamoDB, AppSync and Cognito data not read | Open: owner review; the gap list feeds AMP-02 to AMP-08 |
+
+- Scope: `main` (`89d1172`, re-checked at `8e3af01` on 2026-11-11), `dev20261103` and its live
+  integration branch (`claude/jolly-ride-92xktb`), and all 31 remote branches.
+- Inventory: 22 React and script files import Amplify. Auth is fully Amplify (12 source files).
+  All 22 Amplify Data models are called. 15 capabilities already switch to Django; 18 modules or
+  module groups do not.
+- Branch findings: no branch removes Amplify usage beyond `main`. The integration's Django step
+  runner and 14 content and step routes merged into `main` with PR #12 (G2 is now wiring only).
+- Gaps with no Django equivalent:
+  - parent account deletion;
+  - companion choice storage;
+  - the director's "next learning activity";
+  - co-op routes and realtime.
+- Only parent and child profiles have a DynamoDB importer.
+- Checks: docs only (Prettier clean). No code or resource changed.
+
+## Asset Library closure review (2026-11-11, branch `claude/funny-newton-ehxclx`, docs only, nothing deployed)
+
+**Status: core Asset Library implementation fully in `main`; no core MVP blocker found.
+Recommendation to the owner: move the Trello parent "[Subproject] Asset Library" to Complete
+and keep AM-16 and AM-11 open on their follow-up card. No Trello card was changed.**
+Report: `docs/qa/ASSET_LIBRARY_CLOSURE_2026-11-11.md`.
+
+- **Merge:** `5222b690` (AM-13, AM-17) is in `main` (`b7b7309`); `feature/asset-manager`
+  (`a4fc833`) has 0 commits not in `main`; asset app code is unchanged since `5222b690`.
+- **Reconciled:** AM-12 added to the tracker (done as code, was missing); AM-16 stale
+  dependencies on AM-14, AM-15 and LAI-0209 removed (superseded or retired); AM-11 marked as a
+  deferred optimisation; stale "merged into `dev20261102` only" wording annotated.
+- **Owner QA 2026-11-05** (QA-01 to QA-07, Treasure Rush integration; owner-reported, local) is
+  now recorded in the repository. Not reopened: no regression evidence.
+- **Checks on `main`:** pytest 2,796 passed, 3 skipped (nginx binary absent); assets and audio
+  417 passed; Vitest 4,587 passed; infra Vitest 82 passed; typecheck, Ruff, Prettier, oxlint
+  (0 errors), Django check, migration check, ADR check, content check and build pass; browser
+  acceptance `asset-library` and `treasure-rush` specs 18 passed, 1 skipped by design.
+- **Still open:** AM-16 deployed dev acceptance (needs LAI-1002, LAI-1004 and a live pass; not
+  passed, no live evidence); AM-11 signed CloudFront (deferred, APPROVAL: AWS).
+
+## Adventure Portal consolidation on main (2026-11-13)
+
+The owner completed QA of PR #23 and the AP-01 to AP-04 milestone on 2026-11-13 and authorized
+the merge. Recorded here so this file reflects `main`:
+
+- **PR #23** (AP-01 rework: fixed game panels clear the child nav) merged as `4e4855d`. Gates on
+  the exact merge result: `make js-check` (ADR check, admin preview, typecheck, oxlint 0 errors,
+  Prettier, Vitest 438 files / 5,000 tests, build) and `content:check` pass; Ruff, Django check
+  and migration check pass; pytest (`LAI_REQUIRE_POSTGRES=1`) 3,260 passed, 4 skipped; GitHub CI
+  on `ee73247` green. Browser check at 320, 375, 768, 1024 and 1440 px: Pip's buttons clear the
+  nav and are tappable, no overflow, the adult exit works with no panel open.
+- **PR #24** (Asset Library closure review, docs) merged as `803b01b`.
+- **PR #20** (LAI-0821 acceptance, docs) closed as superseded: its content was already in `main`.
+- **PR #17** (this record of the PR #16 merge) merged after reconciling with newer `main`.
+- Trello AP-01 to AP-04 and the Adventure Portal subproject: Complete. AP-05 (Featured Realm)
+  stays separate and is not part of this merge.
+
+**Open after the consolidation**
+- At 320 and 375 px an open Pirate Pip panel covers the adult exit until it is closed (PR #23's
+  stated follow-up; Trello defect card).
+- Local acceptance-suite failures tracked as separate Trello defects: speech `503`
+  (`tests/e2e/django_server.py` leaves `LAI_SPEECH_PROVIDER` at `disabled`), two Question Studio
+  `404`s, and timing-dependent Treasure Rush specs. CI does not run the acceptance suite.
+- The local-development fixes (Cognito from environment variables, Django by default, one
+  `DJANGO_DEV_PORT`, friendly Realm errors) are on `fix/p0-cognito-env-realm-explorer`
+  (`1734ebd`), pending owner acceptance; not in `main`.

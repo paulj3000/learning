@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import '../portal.css';
 import { cn } from '../ui/cn';
+import styles from './ChildShell.module.css';
 import { portalPath, type PortalDestination } from '../exit/adventureRoutes';
 
 export interface ChildNavItem {
@@ -40,7 +41,7 @@ interface ChildShellProps {
   /** Classes for `<main>`, so existing pages keep their own layout. */
   mainClassName?: string;
   children: ReactNode;
-  /** Rendered after `<main>`: overlays such as the calm stop. */
+  /** Rendered after `<main>`: overlays. */
   overlays?: ReactNode;
 }
 
@@ -65,10 +66,7 @@ export function ChildShell({
   overlays,
 }: ChildShellProps) {
   return (
-    <div
-      className="flex min-h-screen flex-col bg-ocean-50 pb-20 md:pb-0 md:pl-56"
-      data-shell="child"
-    >
+    <div className={cn('flex min-h-screen flex-col bg-ocean-50', styles.shell)} data-shell="child">
       <nav
         aria-label="Island"
         className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ocean-100 bg-paper md:inset-y-0 md:right-auto md:left-0 md:w-56 md:border-t-0 md:border-r-2"

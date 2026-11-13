@@ -123,17 +123,35 @@ To enable speech in another game: (1) create or enable the voice profile(s) in A
 
 ```json
 { "Version": "2012-10-17", "Statement": [
-  { "Effect": "Allow", "Action": "polly:SynthesizeSpeech", "Resource": "*" },
+  { "Effect": "Allow", "Action": ["polly:SynthesizeSpeech", "polly:DescribeVoices"], "Resource": "*" },
   { "Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
     "Resource": "arn:aws:s3:::<speech-bucket>/speech/*" }
 ] }
 ```
 
-The speech bucket must be private, block public access, and have a lifecycle rule that expires `speech/` objects after a few days as a backstop for `speech_cleanup`. Polly does not support resource-level permissions for `SynthesizeSpeech`.
+The speech bucket must be private, block public access, and have a lifecycle rule that expires `speech/child/` objects after a few days as a backstop for `speech_cleanup` (never `speech/shared/`, whose rows do not expire). `polly:DescribeVoices` is only for the live smoke test. Polly does not support resource-level permissions for `SynthesizeSpeech`.
 
 ## 11. Live verification gate (open)
 
-Not done and not claimed: a real Polly request, audible quality of each voice and engine, the exact voice / engine / language table against current AWS documentation, the S3 bucket and IAM policy, presigned-URL delivery, Bedrock turns producing references end to end, cost against the AWS bill, and child-appropriate pacing. Tracker item **SM-P8-LIVE** stays open until you do these. Suggested order: `ensure_speech_roles`, `seed_speech_voices`, set `LAI_SPEECH_PROVIDER=fake` and listen to the plumbing, then `polly` in a non-production environment with a low `LAI_SPEECH_GLOBAL_DAILY_CHARS`.
+**SM-P8-LIVE (2026-11-07, branch `feature/sm-p8-live-polly`).** The real client path is complete
+and unit-tested against botocore's Stubber: MP3 and size checks on Polly's answer, classified
+errors (`SpeechError.reason`), bounded retries only for throttling, 5xx, timeouts and dropped
+connections, no retry for IAM, credential, voice or input errors, S3 with an explicit region and
+SigV4, scope-prefixed keys (`speech/shared/`, `speech/child/`) for lifecycle rules, presign
+failure falling back to Django delivery, a missing object invalidating its cache row, structured
+log lines without text, the `pirate-pip` starter voice (Justin, neural) and
+`seed_npc_pip --attach-voice`. Deployment, IAM, bucket, cost, smoke test, audible QA and rollback:
+`docs/audio/POLLY_DEPLOYMENT_RUNBOOK.md`.
+
+**Live result: FAIL / not verified.** `speech_live_smoke` was run once from the development
+container on 2026-11-07 (us-east-1, pirate-pip, memory storage): AWS answered
+`UnrecognizedClientException` to `DescribeVoices` and `SynthesizeSpeech` (the container's
+credentials are not valid AWS credentials). Nothing was synthesized and nothing was heard. Still
+open: a passing `speech_live_smoke` in the target account (region, synthesis, cache, S3 read-back,
+presigned delivery, AWS fallback), audible quality of each voice, the voice / engine table against
+current AWS documentation, the bucket and IAM policy, Bedrock turns producing references end to
+end, cost against the AWS bill, and child-appropriate pacing. Tracker item **SM-P8-LIVE** stays
+open until the owner does these.
 
 ## 12. Limits
 
@@ -142,4 +160,4 @@ Not done and not claimed: a real Polly request, audible quality of each voice an
 - A Quill node without authored narration is text only; only nodes with a `narration` block are spoken.
 - Speech needs the Cognito bearer; a game opened only with the runtime cookie is text only.
 - Voices are English only for now; the table is hand-maintained.
-- Tests use a fake client, a fake engine and an in-memory store. Nothing was heard.
+- Tests use a fake client or the real client over botocore's Stubber, a fake engine and an in-memory store. Nothing was heard.

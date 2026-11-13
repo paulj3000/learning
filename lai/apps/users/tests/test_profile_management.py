@@ -29,7 +29,6 @@ NEW_CHILD = {
     "avatarKey": "OWL",
     "interests": ["Space", "Ocean"],
     "readingMode": "VOICE_FIRST",
-    "sessionMinutes": 6,
 }
 
 
@@ -155,12 +154,12 @@ def test_hard_deletion_works_after_a_recent_sign_in(signed_in):
     assert not ChildProfile.objects.filter(pk=child_id, parent=account).exists()
 
 
-def test_child_settings_are_validated_against_the_age_band(signed_in):
+def test_there_is_no_session_length_setting(signed_in):
+    """ADR-053: the play-time limit is gone; the old field is refused like any unknown field."""
     client, _ = signed_in
     child_id = client.post(CHILDREN, NEW_CHILD).json()["id"]
-    too_long = client.patch(detail(child_id), {"sessionMinutes": 30})
-    assert too_long.status_code == 400 and "sessionMinutes" in too_long.json()["error"]["details"]
-    assert ChildProfile.objects.get(pk=child_id).session_minutes == 6
+    edited = client.patch(detail(child_id), {"nickname": "Marigold", "sessionMinutes": 30})
+    assert edited.status_code == 400 and "sessionMinutes" in edited.json()["error"]["details"]
 
 
 def test_another_familys_child_is_hidden(signed_in, families):
@@ -313,7 +312,7 @@ def test_conflicts_are_reported_never_overwritten(families):
             amplify_child(owner_sub="sub-family-b", parentProfileId="pp-a"),  # owners disagree
             amplify_child(owner_sub=None, parentProfileId="unknown"),
             amplify_child(owner_sub="sub-nobody", parentProfileId=None),
-            amplify_child(sessionMinutes=99),
+            amplify_child(readingMode="LOUD"),
             amplify_child("not-a-uuid"),
         ],
     }

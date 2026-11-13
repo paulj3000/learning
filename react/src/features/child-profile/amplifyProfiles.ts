@@ -1,7 +1,7 @@
 import { fetchUserAttributes, getCurrentUser } from 'aws-amplify/auth';
 import { client } from '../../lib/data-client';
 import type { Schema } from '../../../../amplify/data/resource';
-import type { AgeBandValue, ReadingModeValue } from './constants';
+import { RETIRED_SESSION_MINUTES, type AgeBandValue, type ReadingModeValue } from './constants';
 import { deleteAccountAndAllData, deleteChildProfileData } from './deletion';
 import { getChildPhotoUrl } from './avatarPhoto';
 import type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore } from './profileTypes';
@@ -23,7 +23,6 @@ export function fromAmplifyChild(row: AmplifyChildProfile): ChildProfile {
     avatarPhotoKey: row.avatarPhotoKey ?? null,
     interests: (row.interests ?? []).filter((value): value is string => typeof value === 'string'),
     readingMode: row.readingMode as ReadingModeValue,
-    sessionMinutes: row.sessionMinutes,
     active: row.active !== false,
     aiEnabled: row.aiEnabled ?? true,
     createdAt: row.createdAt ?? null,
@@ -89,6 +88,8 @@ async function createChildProfile(
     active: true,
     ownerSub,
     ...input,
+    // Retired (no play-time limit is enforced); the deployed Amplify schema still requires it.
+    sessionMinutes: RETIRED_SESSION_MINUTES[input.ageBand],
   });
   if (!data) {
     throw new Error(errors?.[0]?.message ?? 'Could not create the child profile.');

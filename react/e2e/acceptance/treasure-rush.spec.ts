@@ -22,7 +22,15 @@ import {
 
 /** Closes the open panel; the HUD's Hint button comes back only once no panel is open. */
 async function closePanel(page: Page) {
-  await page.getByRole('button', { name: /^(Close|Keep exploring|Got it)$/ }).click();
+  await page
+    .getByRole('button', { name: /^(Close|Keep exploring|Got it)$/ })
+    .first()
+    .click();
+  // With the managed Pip, a conversation the child started (E at Pip) waits behind a world panel
+  // (the finale) and opens once it closes: close that too.
+  const pip = page.getByRole('dialog', { name: 'Pirate Pip' });
+  await page.waitForTimeout(500);
+  if (await pip.count()) await pip.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByRole('button', { name: 'Hint' })).toBeVisible();
 }
 
@@ -108,8 +116,10 @@ test.describe.serial("Pip's Missing Treasure, start to finish", () => {
       const dialog = page.getByRole('dialog', { name: 'Pirate Pip' });
       await expect(dialog.getByText('Will you help me?')).toBeVisible();
       await dialog.getByRole('button', { name: 'Yes, I will help!' }).click();
-      await expect(dialog.getByRole('status')).toContainText('Quest accepted!');
-      await dialog.getByRole('button', { name: 'Keep exploring' }).click();
+      // The legacy Pip confirms with "Quest accepted!" and "Keep exploring"; the managed Pip
+      // (an NPC release is active once the NPC specs have run) says his thank-you line instead.
+      await expect(dialog).toContainText(/Quest accepted!|Thank you, friend!/);
+      await dialog.getByRole('button', { name: /^(Keep exploring|Continue)$/ }).click();
       await expect(page.getByText("Find Pip's treasures: 0 of 4")).toBeVisible();
     });
 

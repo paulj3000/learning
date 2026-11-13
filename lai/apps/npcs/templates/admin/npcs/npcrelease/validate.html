@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}{% include "admin/npcs/npcrelease/_breadcrumbs.html" %}{% endblock %}
+{% block content %}
+<div id="content-main">
+  <p>This checks every character marked <strong>Ready to publish</strong>, with its variants,
+    placements, dialogue and assets, exactly as a publish would. Nothing is written and children
+    see nothing until a release is published.</p>
+  <p>Draft: {{ character_count }} character(s), {{ placement_count }} placement(s),
+    {{ asset_count }} asset(s).
+    Active release: {% if active %}<a href="{% url 'admin:npcs_npcrelease_change' active.pk %}">{{ active.number }}</a>{% else %}none (children see no NPCs){% endif %}.</p>
+
+  {% if problems %}
+  <div class="module" id="npc-problems">
+    <h2>{{ problems|length }} problem(s){% if refused %}: publishing was refused and nothing changed{% endif %}</h2>
+    <ul>
+      {% for problem in problems %}<li>{{ problem }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% elif unchanged %}
+  <p id="npc-unchanged"><strong>Unchanged:</strong> the draft is identical to the active release. There is nothing to publish.</p>
+  {% else %}
+  <p id="npc-ready"><strong>Ready:</strong> no problems found.</p>
+  {% endif %}
+
+  {% if ready and can_publish %}
+  <form method="post" action="{% url 'admin:npcs_npcrelease_publish' %}">
+    {% csrf_token %}
+    <fieldset class="module aligned">
+      <div class="form-row">
+        <label for="id_notes">Release notes</label>
+        <input type="text" name="notes" id="id_notes" maxlength="300" size="60">
+      </div>
+    </fieldset>
+    <div class="submit-row"><input type="submit" class="default" value="Publish a new release"></div>
+  </form>
+  {% elif ready %}
+  <p>You can validate but not publish. Ask an NPC publisher.</p>
+  {% endif %}
+</div>
+{% endblock %}

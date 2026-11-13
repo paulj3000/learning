@@ -23,6 +23,7 @@ import type { WorldExtension, WorldExtensionContext } from '../../runtime/extens
 import { createSeatingPuzzle, type SeatingPuzzle } from './seatingPuzzle';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
 import { cloneAssetScene } from '../../assets/cloneAsset';
+import type { NpcHostScene } from '../../../../npc-manager/host/types';
 
 /**
  * Storykeeper Castle's bespoke half, as a registered extension (engine
@@ -39,6 +40,11 @@ import { cloneAssetScene } from '../../assets/cloneAsset';
  * - the three seating puzzles (`seatingPuzzle.ts`), one implementation for
  *   plates into a lectern, clues onto a wall and rods into a lock;
  * - beat 7's easel, composed from seven layers rather than nine canvases.
+ *
+ * - **NPC Manager (LAI-NPC-039).** `npcHostScene` gives the shared NPC scene host the scene,
+ *   the frame loop, the child's position and the colliders; `setNpcProxy` hides the manifest
+ *   Quill while the NPC Manager draws him and keeps his root, invisible, on the managed Quill, so
+ *   focus, taps, the "Things to do here" list and his positional voice still reach him.
  *
  * Everything static is manifest scenery, every focusable thing is a
  * manifest prop whose root this fills in, and the runtime still owns focus,
@@ -90,6 +96,22 @@ export interface CastleTaleSceneApi {
     roomId: string,
     worldState: WorldInteractionContext,
   ): CastleTravelPlan | CastleTravelRefusal;
+  /** LAI-NPC-039: where managed NPCs live in the castle, for the NPC scene host. */
+  npcHostScene?(): NpcHostScene;
+  /**
+   * LAI-NPC-039: hand a manifest NPC (Keeper Quill) over to the NPC Manager, the same way
+   * Treasure Cove hands Pip over. With `follow`, its model is hidden and its (still focusable)
+   * root follows the managed NPC every frame; with null it is shown again where the manifest put
+   * it. Idempotent. Optional, so a stubbed scene without it simply keeps its own Quill.
+   */
+  setNpcProxy?(entityId: string, follow: (() => { x: number; z: number } | null) | null): void;
+  /** LAI-NPC-039: whether a manifest NPC is handed over (hidden). */
+  isNpcProxied?(entityId: string): boolean;
+  /**
+   * While the NPC Manager serves Quill, his scripted gestures are forwarded here too (the
+   * manifest Quill is hidden), with the yaw he should face. Null stops forwarding.
+   */
+  setQuillGestureSink?(sink: ((clip: CastleQuillClip, facingYaw: number) => void) | null): void;
 }
 
 export type CastleQuillClip = 'Idle' | 'Talk' | 'Point' | 'ReactConcerned' | 'Celebrate';
@@ -271,7 +293,10 @@ export const castleTaleExtension: WorldExtension = {
       ),
     };
 
+    let quillGestureSink: ((clip: CastleQuillClip, facingYaw: number) => void) | null = null;
+
     function playQuillClip(clip: CastleQuillClip, facing?: CastleQuillFacing): void {
+      quillGestureSink?.(clip, quillFacingYaw[facing ?? (clip === 'Point' ? 'gallery' : 'entry')]);
       const animator = context.npcAnimator(config.quillEntityId);
       const authored = animator?.clips.find((candidate) => candidate.name === clip);
       if (!animator || !authored) return;
@@ -520,6 +545,23 @@ export const castleTaleExtension: WorldExtension = {
 
     const ready = build().catch(() => undefined);
 
+    // LAI-NPC-039: manifest NPCs the NPC Manager draws instead; their roots follow it.
+    const proxies = new Map<
+      string,
+      { follow: () => { x: number; z: number } | null; home: { x: number; z: number } }
+    >();
+    const followProxies = () => {
+      for (const [entityId, proxy] of proxies) {
+        const root = context.entityRoot(entityId);
+        const at = proxy.follow();
+        if (root && at) {
+          root.position.x = at.x;
+          root.position.z = at.z;
+        }
+      }
+    };
+    unsubscribes.push(context.onFrame(() => followProxies()));
+
     /*
       Beat 12's draught: the tapestry in the hub's south-west corner stirs
       very slightly, and that movement is the *only* thing marking the
@@ -625,6 +667,37 @@ export const castleTaleExtension: WorldExtension = {
         applyVariants(windowVariants, entityId);
       },
       playQuillClip,
+      npcHostScene: () => ({
+        parent: context.scene,
+        onFrame: (callback) => context.onFrame(callback),
+        playerPose: () => ({ x: context.camera.position.x, z: context.camera.position.z }),
+        isBlocked: (x, z) => context.isBlocked(x, z),
+      }),
+      setNpcProxy(entityId, follow) {
+        const root = context.entityRoot(entityId);
+        if (!root) return;
+        const current = proxies.get(entityId);
+        if (follow) {
+          proxies.set(entityId, {
+            follow,
+            home: current?.home ?? { x: root.position.x, z: root.position.z },
+          });
+          // Hidden, not removed: the runtime's raycast still finds the root, so focus and
+          // interaction keep working on the managed NPC's spot.
+          root.visible = false;
+          followProxies();
+          return;
+        }
+        if (!current) return;
+        proxies.delete(entityId);
+        root.visible = true;
+        root.position.x = current.home.x;
+        root.position.z = current.home.z;
+      },
+      isNpcProxied: (entityId) => proxies.has(entityId),
+      setQuillGestureSink(sink) {
+        quillGestureSink = sink;
+      },
       resetBindingPlates: (active) => platePuzzle.reset(active),
       resetLibraryClues: () => cluePuzzle.reset(),
       resetPatternLockRods: () => rodPuzzle.reset(),

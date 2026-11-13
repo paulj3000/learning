@@ -40,8 +40,6 @@ import {
   zoneEnterMessage,
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
-import { CalmStop } from '../../../session/CalmStop';
-import { useSessionClock } from '../../../session/useSessionClock';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
@@ -167,6 +165,8 @@ export function ThreeLocationWorldView({
   const [companionQuestCue, setCompanionQuestCue] = useState<string | null>(null);
   /** Where companions put their own controls, inside the stage (TR-13). */
   const [hudSlot, setHudSlot] = useState<HTMLDivElement | null>(null);
+  /** Where companions put a character's unprompted line, top centre of the stage (NPC F-B). */
+  const [speechSlot, setSpeechSlot] = useState<HTMLDivElement | null>(null);
   /** The action prompt's verb, under `interactionAssist` only. */
   const [focusedAction, setFocusedAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -176,13 +176,6 @@ export function ThreeLocationWorldView({
     extensionId: string;
     interaction: WorldInteraction;
   } | null>(null);
-
-  /*
-    The island's own session clock, not a second one: a region presents the
-    calm stopping point, it does not own the time (ADR-027 applied to time).
-    Only a region that authors `copy.calmStop` shows anything.
-  */
-  const { limitReached } = useSessionClock(childId);
 
   /*
     AP-04: "Leave island" waits for these (briefly, never forever) so a
@@ -463,6 +456,7 @@ export function ThreeLocationWorldView({
           showBackpack={!companionOwnsBackpack}
         />
         <div ref={setHudSlot} className={styles.stageControls} />
+        <div ref={setSpeechSlot} className={styles.stageSpeech} />
         {openExtension ? (
           <openExtension.Overlay
             childId={childId}
@@ -492,15 +486,10 @@ export function ThreeLocationWorldView({
           setFocusLabel={setFocusedLabel}
           setQuestCue={setCompanionQuestCue}
           hudSlot={hudSlot}
-          limitReached={limitReached}
+          speechSlot={speechSlot}
           refreshWorld={refreshWorld}
         />
       ))}
-      {manifest.copy.calmStop ? (
-        <CalmStop limitReached={limitReached}>
-          <p>{manifest.copy.calmStop}</p>
-        </CalmStop>
-      ) : null}
       {openInteraction ? (
         <WorldActionPanel
           childId={childId}

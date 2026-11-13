@@ -20,7 +20,7 @@ def pytest_collection_modifyitems(config, items):
         return
     import socket
 
-    port = int(os.environ.get("POSTGRES_PORT", "5432"))
+    port = int(os.environ.get("POSTGRES_PORT", "5442"))
     try:
         socket.create_connection(("127.0.0.1", port), timeout=1).close()
         return
@@ -120,7 +120,6 @@ def families(db):
             "age_band": "PATHFINDER",
             "avatar_key": "FOX",
             "reading_mode": "READ_ALONG",
-            "session_minutes": 10,
             "interests": ["Secret-Interest"],
         }
         kids = [services.create_child_profile(parent, nickname=n, **base) for n in names]

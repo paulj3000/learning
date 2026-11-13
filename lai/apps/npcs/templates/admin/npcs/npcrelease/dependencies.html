@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}{% include "admin/npcs/npcrelease/_breadcrumbs.html" %}{% endblock %}
+{% block content %}
+<div id="content-main">
+  <p>Every asset the NPC Manager uses. An asset or version used by the <strong>active</strong>
+    release or by a <strong>superseded</strong> release (a rollback target) cannot be retired in
+    the Asset Library. Draft rows do not block retirement; the next publish reports them.</p>
+  <form method="get">
+    <label for="id_asset">Asset id</label>
+    <input type="text" name="asset" id="id_asset" value="{{ asset_id }}">
+    <input type="submit" value="Show">
+    {% if asset_id %}<a href="{% url 'admin:npcs_npcrelease_dependencies' %}">Show all</a>{% endif %}
+  </form>
+  {% if not reports %}
+  <p>No NPC release or draft uses {% if asset_id %}{{ asset_id }}{% else %}any asset{% endif %}.</p>
+  {% endif %}
+  {% for item in reports %}
+  <div class="module">
+    <h2>{{ item.asset.asset_id }} ({{ item.asset.kind }}, {{ item.asset.get_status_display|lower }}){% if item.blocks_retirement %}: cannot be retired{% endif %}</h2>
+    <table>
+      <thead><tr><th scope="col">Release</th><th scope="col">Status</th><th scope="col">Version</th><th scope="col">Used as</th></tr></thead>
+      <tbody>
+      {% for link in item.release_links %}
+        <tr>
+          <td><a href="{% url 'admin:npcs_npcrelease_change' link.release.pk %}">{{ link.release.number }}</a></td>
+          <td>{{ link.release.get_status_display }}</td>
+          <td>{% if link.version %}v{{ link.version.number }}{% else %}bundled{% endif %}</td>
+          <td>{{ link.usage }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">No active or superseded release uses it.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% with lines=item.drafts.describe %}
+    {% if lines %}
+    <p>Draft rows:</p>
+    <ul>{% for line in lines %}<li>{{ line }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% endwith %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
