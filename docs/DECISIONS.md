@@ -3962,3 +3962,41 @@ character without a deploy. Two more places hold NPC truth until the content aut
 (the export record and the NPC Manager release); the NPC Manager wins at runtime for characters
 it publishes. The `feature/sound-manager` work (ADR-048 to ADR-050, still Proposed) becomes a
 dependency of this branch. Contract details: `docs/NPC_MANAGER_CONTRACTS.md`.
+
+## ADR-055: Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable
+
+Status: Proposed (LAI-JMP-01, 2026-11-13). Development only; awaiting owner QA.
+
+**Context.** LAI-JMP-01 makes jumping standard movement in every free-roaming 3D location, not
+only in platforming adventures, and asks that a jump never bypass a locked door, quest gate,
+boundary, story interaction or restricted area. Every 3D location already runs on one controller
+(`FirstPersonController`) inside one runtime (`createLocationEngine`), whose colliders are
+ground-plane rectangles that default to 3 m tall walls. Some gates and barriers (the broken
+bridge, the ruins gate, extension-added colliders) would be low enough to clear if colliders were
+tested by real height.
+
+**Decision.**
+
+1. **Extend the existing controller.** Vertical velocity, gravity, landing, coyote time, jump
+   buffer, air control and safe recovery live in `FirstPersonController`; no per-adventure or
+   parallel movement system. Phaser worlds get nothing (ADR-020).
+2. **Solid by default.** A collider blocks at every height unless it is authored
+   `jumpable: true` with `minY`/`maxY`. Solid colliders are tested at ground level exactly as
+   before, so walking is unchanged and no jump clears a wall, boundary or anything an extension
+   adds.
+3. **Gates are never jumpable.** A collider with `requirements` is a progression gate; the
+   validator rejects `jumpable` on it and the runtime ignores the flag there.
+4. **Trigger zones stay 2D.** Zones, checkpoints, walk-in interactions and hazards are entered by
+   x/z position, so a jump through one still enters it.
+5. **Data-driven tuning.** `movement.jump` on a manifest (or `scene.movement` on a Django region)
+   overrides the defaults per location, validated like the rest of the manifest. No Django schema
+   change.
+6. **Jumping is on by default** for every manifest-driven location; a location opts out with
+   `enabled: false`.
+7. **Movement sounds are optional cues** (`sfx.player.jump`, `sfx.player.land`): reported in the
+   sound library coverage, never a readiness blocker.
+
+**Consequences.** Every 3D adventure can jump with no configuration, and no existing barrier
+becomes jumpable by accident. Hopping onto things is opt-in content work (mark a low collider
+jumpable). The player stays first-person: jump animations wait for a third-person avatar
+(follow-up card). Details: `docs/PLAYER_MOVEMENT_AND_JUMPING.md`.

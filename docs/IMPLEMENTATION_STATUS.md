@@ -49,6 +49,33 @@ Bedrock model choice ever changes.
 Django settings like `make migrate`. Django's `createsuperuser` stays disabled. Checked with
 `make -n createsuper`; not yet run against a live database (needs `make up` and `make migrate`).
 
+## Shared jump controller (LAI-JMP-01, `feature/shared-jump-controller`, ADR-055 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
+
+Jumping is standard movement in every free-roaming 3D location. The shared
+`FirstPersonController` gained gravity, landing, coyote time (120 ms), jump buffer (150 ms),
+air control, head bumps, step-up, no default double jump, and safe recovery; the shared input
+layer gained Space (edge-triggered, ignored in form fields), gamepad (A/Cross jump, sticks,
+X/Square interact) and stuck-input resets; the HUD gained a touch Jump button. Per-location
+tuning is `movement.jump` on a manifest or `scene.movement` on a Django region. Only authored
+low obstacles (`jumpable` colliders) can be jumped onto; every other collider, every gate and the
+world's edge stay solid at any height.
+
+- Jumping on: Treasure Cove (barrels jumpable), Storykeeper Castle (`jumpHeight` 0.9), Pirate
+  Builder Bay (low crates jumpable), Welcome Harbor, Wonderwild Forest, Clockwork Harbor,
+  Dragon's Sanctuary, Firepeak Volcano, the Three.js sandbox.
+- Not eligible: Phaser 2D worlds (ADR-020). Follow-up cards: third-person avatar and jump
+  animations; jumping in Phaser-only worlds once converted.
+- Sound: `PlayerJumped`/`PlayerLanded` bus events; Treasure Rush plays optional cues
+  `sfx.player.jump`/`sfx.player.land` (Django catalogue, `wired=False`).
+- Treasure Cove layout version 4 -> 5 (barrel colliders); takes effect where
+  `seed_treasure_rush` runs. No Django schema change, no migration.
+- Tests: Vitest for `src/features/island-map/three` and `src/features/region-play` (133 files,
+  1767 tests) pass; `npm run typecheck` passes; pytest for the changed Python (treasure cove
+  layout, Treasure Rush sound seed and library report) passes.
+- Deferred to merge verification: full lint/format gates, full test suites, `npm run build`,
+  Playwright/browser and WebGL checks, device and gamepad QA (owner checklist in
+  `docs/PLAYER_MOVEMENT_AND_JUMPING.md`).
+
 ## No child play-time limits (ADR-053) — complete and merged to `main` (2026-11-11); migration not yet run on a deployed database
 
 Trello: "[LAI] Remove child gameplay time limits and forced session cutoffs" (2026-11-11). This
