@@ -49,6 +49,33 @@ Bedrock model choice ever changes.
 Django settings like `make migrate`. Django's `createsuperuser` stays disabled. Checked with
 `make -n createsuper`; not yet run against a live database (needs `make up` and `make migrate`).
 
+## Third-person avatar, camera and animations (LAI-JMP-01a, `feature/third-person-avatar`, ADR-056 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
+
+Built on `feature/shared-jump-controller` (LAI-JMP-01, PR #26, not yet merged): merge that first.
+Every free-roaming 3D location now supports first- and third-person, with third-person the
+default. One camera controller (`playerCamera.ts`: follow, orbit, same-frame wall avoidance,
+indoor ceilings, reduced motion), one avatar renderer (`playerAvatar.ts`: location costume, else
+a model per `avatarKey`, else a placeholder in the child's avatar colours), one animation
+controller over the NPC Manager animator (`playerAnimation.ts`: idle, walk speed-matched, jump,
+land, interact gesture, no celebration fallback, no root motion). The movement controller stays
+authoritative; interactions are aimed from the player in both views. Switch with V, gamepad
+Y/Triangle, the camera-view button or the "Camera view" setting; the choice is remembered per
+child in the browser. Per-location tuning is `player.camera` / `player.avatar` (manifest) or
+`scene.player` (Django); Storykeeper Castle uses a closer camera under its ceilings.
+
+- Third-person in: Treasure Cove, Storykeeper Castle, Pirate Builder Bay (verified by engine
+  tests), and Welcome Harbor, Wonderwild Forest, Clockwork Harbor, Dragon's Sanctuary, Firepeak
+  (same runtime, default config).
+- Follow-ups: LAI-JMP-01c (3D avatar models per `avatarKey`; none exist, children see
+  placeholders), LAI-JMP-01d (sync the camera preference across devices; needs a schema field).
+- Clip vocabulary gains `Run` and `Jump` in React and Django (parity test added).
+- Tests: Vitest for `src/features/island-map`, `region-play`, `npc-manager`, `child-profile`,
+  `src/routes` (226 files, 2668 tests) pass; `npm run typecheck` passes; pytest for the changed
+  Python (asset validation) passes.
+- Deferred to merge verification: full lint/format gates, full suites, `npm run build`,
+  Playwright acceptance suites (written in first-person), WebGL/browser, device and gamepad QA
+  (owner checklist in `docs/PLAYER_AVATAR_AND_CAMERA.md`).
+
 ## Shared jump controller (LAI-JMP-01, `feature/shared-jump-controller`, ADR-055 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
 
 Jumping is standard movement in every free-roaming 3D location. The shared
