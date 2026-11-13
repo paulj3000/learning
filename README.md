@@ -23,33 +23,51 @@ Children do not select worksheets. They enter adventures. Learning allows them t
 
 ## Local development
 
-Requires Node.js 22 or later.
+Requires Node.js 22+, Python 3.12+ and Docker (for PostgreSQL 16). Local development runs
+React against Django REST and PostgreSQL, with parent sign-in through the existing Amazon
+Cognito user pool. **No Amplify sandbox and no `amplify_outputs.json` are needed.**
+
+One-time setup, from the repository root:
 
 ```bash
 npm install
-npm run dev
+make py-install
+cp .env.sample .env
 ```
 
-This runs the frontend only, against the Phase 0 application shell. No backend
-resources are defined yet (see `amplify/backend.ts`).
+In `.env`, fill in `COGNITO_REGION`, `COGNITO_USER_POOL_ID` and `COGNITO_ALLOWED_CLIENT_IDS` (web
+client first) for the existing pool. To run Django on port 8000 instead of the default 8010, add
+`DJANGO_DEV_PORT=8000`; `make runserver` and the Vite proxy both read it. `npm run dev` reuses the
+same pool and web client for browser sign-in (override with `VITE_COGNITO_*` in
+`react/.env.local`, template `react/.env.example`).
 
-### Amplify sandbox
-
-The Amplify Gen 2 backend is scaffolded but currently defines no resources.
-Once later phases add auth, data, storage, or functions, start a personal
-cloud sandbox with:
+Database and content (first run, and after pulling migrations or content):
 
 ```bash
-npm run sandbox
+make up
+make migrate
+cd lai && ../.venv/bin/python manage.py load_content && ../.venv/bin/python manage.py seed_treasure_rush && ../.venv/bin/python manage.py publish_treasure_rush && cd ..
 ```
 
-This requires AWS credentials on your machine (for example via `aws configure`
-or an SSO profile) with permission to deploy Amplify/CloudFormation resources
-in your account. `npx ampx sandbox` provisions temporary, per-developer AWS
-resources and writes `amplify_outputs.json` to the repo root; that file is
-gitignored and must never be committed, since it can contain
-environment-specific endpoint and identifier values. Do not commit `.env`
-files either.
+Then, in two terminals:
+
+```bash
+make runserver
+```
+
+```bash
+make web
+```
+
+Open http://localhost:5183/. When Vite starts it prints `[lai] dev` lines: the backend (Django by
+default), where `/api` is proxied and whether Django answered there, and whether Cognito is
+configured (never the ids or any token). If a line says NOT, it says what to change.
+
+Django Admin (staff only) is at `http://127.0.0.1:<DJANGO_DEV_PORT>/admin/` (8010 by default), after
+`make createsuper`. Parents and children use the React app only.
+
+`VITE_BACKEND=amplify` still selects the legacy Amplify Data build for the hosted Amplify app until
+the AMP cutover; it is never needed locally. Do not commit `.env` files or `amplify_outputs.json`.
 
 ### Python tooling (for the future Django backend in `lai/`)
 
@@ -74,6 +92,7 @@ make migrate-check     # makemigrations --check
 make migrate           # apply framework migrations (needs make up)
 make createsuper       # local Django Admin superuser; prompts for username and password (needs make migrate)
 make runserver         # Django dev server on 8010 (DJANGO_DEV_PORT); GET http://127.0.0.1:8010/api/v1/health/
+make web               # Vite dev server on 5183, proxying /api to runserver on DJANGO_DEV_PORT
 make py-test-db        # like py-test, but PostgreSQL tests fail instead of skipping
 ```
 
@@ -103,8 +122,9 @@ so the `Makefile` reads it and passes the values on:
   (`docs/platform/DJANGO_EC2_DEPLOYMENT.md`, section 4.3).
 
 Sign-in is Amazon Cognito in every environment, local development included (ADR-040): the React
-app signs in with Amplify Auth, and a local Django needs the `COGNITO_*` values of a test pool
-(an Amplify sandbox). Django Admin keeps its own staff sign-in. Step by step, including Treasure
+app signs in to the existing user pool (configured by `VITE_COGNITO_*`, or the root `.env`'s
+`COGNITO_*` in `vite dev`), and Django verifies the same pool's tokens. Django Admin keeps its own
+staff sign-in. Step by step, including Treasure
 Rush: `docs/TREASURE_RUSH_LOCAL_DEV.md`.
 
 ### Available scripts
@@ -125,7 +145,7 @@ npm run test            # run Vitest unit/component tests
 npm run test:e2e        # run Playwright end-to-end tests
 npm run content:export  # write content/ (versioned JSON export of the game content)
 npm run content:check   # fail if content/ is out of date
-npm run sandbox          # start a personal Amplify cloud sandbox
+npm run sandbox          # legacy: personal Amplify cloud sandbox (not needed for local development)
 ```
 
 ## Game engine direction (accepted)

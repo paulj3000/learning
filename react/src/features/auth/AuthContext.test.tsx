@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import { AuthProvider, useAuth } from './AuthContext';
+import { AUTH_CHECK_TIMEOUT_MS } from './authNoticeCopy';
 import { endReauthentication, verifyRecentSignIn } from './recentSignIn/recentSignIn';
 
-vi.mock('../../lib/amplify-config', () => ({ isAmplifyConfigured: true }));
+vi.mock('../../lib/amplify-config', () => ({ isAuthConfigured: true }));
 vi.mock('aws-amplify/auth', () => ({
   fetchAuthSession: vi.fn(),
   getCurrentUser: vi.fn(),
@@ -88,5 +89,26 @@ describe('AuthContext during a recent sign-in verification (LAI-0209)', () => {
     vi.mocked(getCurrentUser).mockRejectedValue(new Error('signed out'));
     act(() => hubCallback({ payload: { event: 'signedOut' } }));
     expect(await screen.findByText('status:unauthenticated')).toBeInTheDocument();
+  });
+});
+
+describe('AuthContext bounds the session read (P0)', () => {
+  it('reports Cognito as unavailable, not signed out, when the session read never finishes', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(fetchAuthSession).mockReturnValue(new Promise(() => undefined));
+      render(
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>,
+      );
+      expect(screen.getByText('status:loading')).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AUTH_CHECK_TIMEOUT_MS);
+      });
+      expect(screen.getByText('status:unavailable')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { testCatalog } from '../features/realms/testCatalog';
+import { ApiError } from '../api/errors';
 
 /** AP-03: the Realm Explorer and a Realm's preview, with the Django API. */
 
@@ -221,11 +222,37 @@ describe('RealmExplorerPage (AP-03)', () => {
     expect(mocks.resolve).not.toHaveBeenCalled();
   });
 
-  it('goes to Home in a build without the Django API, keeping the arrival state', async () => {
+  it('explains, instead of silently redirecting, in a build without the Django API', async () => {
     mocks.config = { enabled: false };
     renderAt('/island/child-1/realms', { leftIsland: true });
-    expect(screen.getByTestId('where')).toHaveTextContent('/island/child-1');
+    expect(screen.queryByTestId('where')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Realms are not open on this island yet.');
+    expect(screen.getByRole('link', { name: 'Go to Home' })).toHaveAttribute(
+      'href',
+      '/island/child-1',
+    );
     expect(mocks.getIslandsFor).not.toHaveBeenCalled();
+  });
+
+  it('says why a load failed, and stops waiting, when the island does not answer', async () => {
+    mocks.getIslandsFor.mockRejectedValueOnce(new ApiError('network', { code: 'timeout' }));
+    renderAt('/island/child-1/realms');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('We could not load the Realms right now.');
+    expect(alert).toHaveTextContent('The island is taking too long to answer.');
+    expect(screen.queryByText('Finding your Realms...')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(
+      await screen.findByRole('article', { name: 'Learning Adventure Island' }),
+    ).toBeInTheDocument();
+  });
+
+  it('asks for a grown-up to sign in again when the session has expired', async () => {
+    mocks.getIslandsFor.mockRejectedValueOnce(new ApiError('unauthenticated'));
+    renderAt('/island/child-1/realms');
+    expect(
+      await screen.findByRole('link', { name: 'Ask a grown-up to sign in again' }),
+    ).toHaveAttribute('href', '/sign-in');
   });
 });
 
@@ -305,6 +332,14 @@ describe('RealmDetailPage (AP-03)', () => {
       '/island/child-1/worlds/creature-care-cove',
     );
     expect(screen.getByText('Sail to Creature Care Cove to visit.')).toBeInTheDocument();
+  });
+
+  it('explains, instead of silently redirecting, in a build without the Django API', async () => {
+    mocks.config = { enabled: false };
+    renderAt('/island/child-1/realms/treasure-cove');
+    expect(screen.queryByTestId('where')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Realms are not open on this island yet.');
+    expect(mocks.getIslandsFor).not.toHaveBeenCalled();
   });
 
   it('says so for a Realm this child cannot see', async () => {

@@ -4,11 +4,11 @@ How to play Treasure Cove on your own machine against a local Django: PostgreSQL
 Django's `runserver`, and Vite proxying `/api` to it (TR-D14). Synthetic content and test
 accounts only. Nothing here touches a deployed environment.
 
-**Sign-in.** Amazon Cognito, as in every environment (ADR-040). You need a test Cognito pool
-(an Amplify sandbox or dev environment) and a **test** parent account in it. Django Admin keeps
-its own staff sign-in (step 3).
+**Sign-in.** Amazon Cognito, as in every environment (ADR-040): the existing user pool, configured
+by environment variables. No Amplify sandbox and no `amplify_outputs.json` are needed. You need a
+**test** parent account in that pool. Django Admin keeps its own staff sign-in (step 3).
 
-**Profiles live in Django (LAI-CHILD-001, ADR-039).** With `VITE_BACKEND=django` the parent
+**Profiles live in Django (LAI-CHILD-001, ADR-039).** With the Django backend (`vite dev`'s default) the parent
 dashboard lists, creates, edits and deactivates children through Django, so you add a child in the
 app and pick it from the dashboard. Not available yet in this mode: profile photos (LAI-1103),
 deleting the account (turn the profile off instead; deleting a child needs a recent Cognito sign-in, LAI-0209), and the Amplify-backed
@@ -18,8 +18,8 @@ Django child. Treasure Rush runs entirely on Django.
 ## Prerequisites
 
 - Docker (for PostgreSQL 16), Python 3.12+, Node 22+.
-- An Amplify sandbox or dev environment you can sign in to with a **test** parent account.
-  `amplify_outputs.json` from it is in the main checkout's root.
+- The existing Cognito user pool's region, pool id and web app client id, and a **test** parent
+  account in it.
 
 ## 1. Python environment and database
 
@@ -50,14 +50,14 @@ what changed.
 
 ## 3. Cognito settings for Django, and an optional admin
 
-Django verifies the app's Cognito **access** tokens (ADR-024, ADR-040). Take the three values from
-`amplify_outputs.json` (`auth.aws_region`, `auth.user_pool_id`, `auth.user_pool_client_id`) and
-export them in the shell that runs Django (template: `lai/.env.example`):
+Django verifies the app's Cognito **access** tokens (ADR-024, ADR-040). Put the pool's three values
+in the repository-root `.env` (`cp .env.sample .env`); `make runserver` passes them to Django and
+`npm run dev` reuses the pool id and the first client id for browser sign-in:
 
 ```bash
-export COGNITO_REGION=<auth.aws_region>
-export COGNITO_USER_POOL_ID=<auth.user_pool_id>
-export COGNITO_ALLOWED_CLIENT_IDS=<auth.user_pool_client_id>
+COGNITO_REGION=<region, e.g. us-west-2>
+COGNITO_USER_POOL_ID=<pool id>
+COGNITO_ALLOWED_CLIENT_IDS=<web app client id>
 ```
 
 Without all three every API request is rejected (fail closed). ADR-024 gate A6 (verification
@@ -84,16 +84,16 @@ make runserver      # http://127.0.0.1:8010, settings config.settings.local
 curl http://127.0.0.1:8010/api/v1/health/
 ```
 
+The port is `DJANGO_DEV_PORT` (default 8010). To use 8000, put `DJANGO_DEV_PORT=8000` in the
+root `.env`, or pass it on both commands (`make runserver DJANGO_DEV_PORT=8000`, `make web DJANGO_DEV_PORT=8000`);
+`make runserver` and the Vite proxy read the same value.
+
 ## 5. Frontend environment
 
-Create `react/.env.local` (Vite reads env files from `react/`; it is gitignored). A template is in
-`react/.env.example`:
-
-```bash
-VITE_BACKEND=django
-# Optional; this is the default. Must be a loopback origin.
-DJANGO_DEV_PROXY_TARGET=http://127.0.0.1:8010
-```
+Nothing is required: `vite dev` uses the Django backend by default, proxies `/api` to
+`127.0.0.1:$DJANGO_DEV_PORT`, and takes Cognito from the root `.env`. Optional overrides go in
+`react/.env.local` (gitignored; template `react/.env.example`): `VITE_COGNITO_USER_POOL_ID`,
+`VITE_COGNITO_CLIENT_ID`, `DJANGO_DEV_PORT` or `DJANGO_DEV_PROXY_TARGET` (loopback only).
 
 Leave `VITE_DJANGO_API_BASE` unset: the app calls `/api/...` on the Vite origin and Vite
 forwards it to Django, so no CORS is needed.
@@ -102,23 +102,24 @@ forwards it to Django, so no CORS is needed.
 
 ```bash
 npm install         # repository root, once
-npm run dev
+make web            # or npm run dev
 ```
 
-Sign in as the test parent with the Amplify form. The first Django request sets up the parent's
+The dev server prints `[lai] dev` lines: backend, proxy target, whether Django answered, and
+whether Cognito is configured. Sign in as the test parent on the app's sign-in page. The first Django request sets up the parent's
 Django account through `POST /api/v1/me/`; there is no separate step. On the dashboard choose
 **Add a child profile**, save it, then play as that child and open
 `/island/<childId>/explore/treasure-rush-cove` (the id is in the address bar). Walk to Pirate Pip
 (E or Enter to talk), accept the quest, find the chest, answer, and open the backpack (bottom
 right).
 
-To bring over test children that already exist in that Amplify sandbox, export them and use
+To bring over test children that already exist in an old Amplify sandbox, export them and use
 `manage.py import_amplify_profiles` (docs/platform/AMPLIFY_PROFILE_IMPORT.md), which keeps their
 ids.
 
 ## 7. Sign out
 
-Use **Sign out** in the account menu (Amplify Auth). Any later API call answers 401 until you sign
+Use **Sign out** in the account menu (Cognito). Any later API call answers 401 until you sign
 in again.
 
 To start over, remove that child's progress (sessions, attempts, world changes, items, quests)
@@ -163,7 +164,10 @@ the cove. Full workflow and troubleshooting: `docs/ASSET_LIBRARY.md` section 19.
 | "This part of the island isn't open yet." | Step 2's publish not run, or the child id is not this parent's |
 | "Please ask a grown-up to sign in again." | Django rejected the Cognito token: check step 3's three values |
 | "We are still getting your island ready." | `POST /api/v1/me/` failed: check the Django console |
-| Requests to `/api` return Vite's 404 | `react/.env.local` missing `VITE_BACKEND=django`; restart `npm run dev` |
+| Requests to `/api` return Vite's 404 | `react/.env.local` sets `VITE_BACKEND=amplify`; remove it and restart `npm run dev` |
+| Requests to `/api` return 502, or "We could not reach the island" | Django is not on the proxied port: compare the `[lai] dev API proxy` line with runserver's port (`DJANGO_DEV_PORT`) |
+| "Parent sign-in is not available right now" | No Cognito pool configured: see the `[lai] dev Cognito` line and step 3 |
+| "Realms are not open on this island yet." | `VITE_BACKEND=amplify` is set; the Realm catalog needs Django |
 | A pink box where Pip or a model should be | That model failed from both Django and the bundle; the console warning says why (TR-7a) |
 | `[assets] the asset library request failed (...)` | Not a publishing problem: the kind and status say which (401 sign-in, 404 child not in Django) |
 | A newly published model does not show | It is not the default version yet, or you have not left and re-entered the cove |
