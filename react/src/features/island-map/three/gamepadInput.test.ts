@@ -3,6 +3,7 @@ import {
   applyDeadzone,
   DEFAULT_GAMEPAD_BINDINGS,
   GAMEPAD_BUTTON_CAMERA,
+  GAMEPAD_BUTTON_SPRINT,
   GAMEPAD_BUTTON_INTERACT,
   GAMEPAD_BUTTON_JUMP,
   GamepadReader,
@@ -89,5 +90,21 @@ describe('gamepad camera button (LAI-JMP-01a)', () => {
       reader.read([pad({ pressed: [GAMEPAD_BUTTON_CAMERA] })], 0.016).cameraTogglePressed,
     ).toBe(false);
     expect(reader.read([pad({ pressed: [9] })], 0.016).cameraTogglePressed).toBe(true);
+  });
+});
+
+describe('gamepad sprint button (running & sprinting)', () => {
+  it('reports L3 once per press, and can be rebound', () => {
+    const reader = new GamepadReader();
+    const held = [pad({ pressed: [GAMEPAD_BUTTON_SPRINT] })];
+    expect(reader.read(held, 0.016).sprintPressed).toBe(true);
+    expect(reader.read(held, 0.016).sprintPressed).toBe(false);
+    const rebound = new GamepadReader({ ...DEFAULT_GAMEPAD_BINDINGS, sprint: 4 });
+    expect(rebound.read([pad({ pressed: [4] })], 0.016).sprintPressed).toBe(true);
+  });
+
+  it('passes the stick’s tilt through as a speed (walk to run)', () => {
+    const frame = new GamepadReader().read([pad({ axes: [0, -0.6, 0, 0] })], 0.016);
+    expect(frame.forward).toBeCloseTo(0.5);
   });
 });

@@ -1,8 +1,8 @@
 import type { WebGLRenderer } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FirstPersonController } from './firstPersonController';
-import { attachPointerControls, type PointerControls } from './pointerControls';
-import { GAMEPAD_BUTTON_JUMP, type GamepadLike } from './gamepadInput';
+import { attachPointerControls, touchDrag, type PointerControls } from './pointerControls';
+import { GAMEPAD_BUTTON_JUMP, GAMEPAD_BUTTON_SPRINT, type GamepadLike } from './gamepadInput';
 
 const FRAME = 1 / 60;
 let controls: PointerControls | null = null;
@@ -198,5 +198,141 @@ describe('attachPointerControls camera input (LAI-JMP-01a)', () => {
     const doubled = setup({ lookSensitivity: () => 2 });
     doubled.controls.update(0.1);
     expect(doubled.controller.yaw).toBeCloseTo(normalYaw * 2);
+  });
+});
+
+describe('attachPointerControls running & sprinting', () => {
+  function sprintSetup(mode: 'hold' | 'toggle' = 'hold') {
+    const canvas = document.createElement('canvas');
+    document.body.appendChild(canvas);
+    canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 300 }) as DOMRect;
+    const renderer = { domElement: canvas } as unknown as WebGLRenderer;
+    const controller = new FirstPersonController();
+    controls = attachPointerControls(renderer, controller, { sprintMode: () => mode });
+    return { controller, controls, canvas };
+  }
+  const settle = (attached: PointerControls, seconds = 1) => {
+    for (let i = 0; i < Math.round(seconds * 60); i += 1) attached.update(FRAME);
+  };
+
+  it('holding Shift sprints, letting go walks again', () => {
+    const { controller, controls: attached } = sprintSetup();
+    key('keydown', { key: 'w' });
+    key('keydown', { key: 'Shift' });
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('sprint');
+    key('keyup', { key: 'Shift' });
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('walk');
+  });
+
+  it('in toggle mode, a Shift press switches sprint on and another switches it off', () => {
+    const { controller, controls: attached } = sprintSetup('toggle');
+    key('keydown', { key: 'w' });
+    key('keydown', { key: 'Shift' });
+    key('keyup', { key: 'Shift' });
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('sprint');
+    key('keydown', { key: 'Shift' });
+    key('keyup', { key: 'Shift' });
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('walk');
+  });
+
+  it('a toggled sprint ends when the child stops', () => {
+    const { controller, controls: attached } = sprintSetup('toggle');
+    key('keydown', { key: 'w' });
+    key('keydown', { key: 'Shift' });
+    settle(attached, 1);
+    key('keyup', { key: 'w' });
+    settle(attached, 0.5);
+    key('keydown', { key: 'w' });
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('walk');
+  });
+
+  it('Shift while typing does nothing', () => {
+    const { controller, controls: attached } = sprintSetup('toggle');
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    key('keydown', { key: 'Shift' }, input);
+    key('keydown', { key: 'w' });
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('walk');
+  });
+
+  it('losing focus, or a panel opening (resetInput), ends a sprint', () => {
+    const { controller, controls: attached } = sprintSetup('toggle');
+    key('keydown', { key: 'w' });
+    key('keydown', { key: 'Shift' });
+    settle(attached, 1);
+    window.dispatchEvent(new Event('blur'));
+    key('keydown', { key: 'w' });
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('walk');
+    key('keydown', { key: 'Shift' });
+    settle(attached, 1);
+    attached.resetInput();
+    key('keydown', { key: 'w' });
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('walk');
+  });
+
+  it('maps the move drag: 40 px walks as before, 60 px runs, past 72 px sprints', () => {
+    expect(Math.hypot(touchDrag(40, 0).x, touchDrag(40, 0).y)).toBeCloseTo(0.8);
+    expect(Math.hypot(touchDrag(0, 20).x, touchDrag(0, 20).y)).toBeCloseTo(0.4);
+    expect(touchDrag(60, 0).x).toBeCloseTo(1);
+    expect(touchDrag(100, 0).x).toBeCloseTo(1);
+    expect(touchDrag(71, 0).sprint).toBe(false);
+    expect(touchDrag(72, 0).sprint).toBe(true);
+    expect(touchDrag(0, 0)).toEqual({ x: 0, y: 0, sprint: false });
+  });
+
+  it('a short drag walks, a long drag runs, a drag past the edge sprints, and jumping still works', () => {
+    const { controller, controls: attached, canvas } = sprintSetup();
+    const touch = (x: number, y: number) => ({ identifier: 1, clientX: x, clientY: y }) as Touch;
+    const fire = (type: string, at: Touch) => {
+      const event = new Event(type) as TouchEvent;
+      Object.defineProperty(event, 'changedTouches', { value: [at] });
+      canvas.dispatchEvent(event);
+    };
+    fire('touchstart', touch(100, 200));
+    fire('touchmove', touch(100, 170)); // 30 px: walking
+    settle(attached);
+    expect(controller.gait).toBe('walk');
+    fire('touchmove', touch(100, 140)); // 60 px: running
+    settle(attached);
+    expect(controller.gait).toBe('run');
+    fire('touchmove', touch(100, 110)); // 90 px: sprinting
+    controller.pressJump();
+    settle(attached, 0.1);
+    expect(controller.grounded).toBe(false);
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('sprint');
+    fire('touchend', touch(100, 110));
+    settle(attached, 0.5);
+    expect(controller.gait).toBe('idle');
+  });
+
+  it('a gamepad stick walks when partly tilted, runs fully tilted, and L3 sprints until the child stops', () => {
+    const buttons = Array.from({ length: 16 }, () => ({ pressed: false }));
+    const gamepad = { connected: true, mapping: 'standard', axes: [0, -0.55, 0, 0], buttons };
+    vi.stubGlobal('navigator', { ...navigator, getGamepads: () => [gamepad] });
+    const { controller, controls: attached } = sprintSetup();
+    settle(attached);
+    expect(controller.gait).toBe('walk');
+    gamepad.axes = [0, -1, 0, 0];
+    settle(attached);
+    expect(controller.gait).toBe('run');
+    buttons[GAMEPAD_BUTTON_SPRINT] = { pressed: true };
+    attached.update(FRAME);
+    buttons[GAMEPAD_BUTTON_SPRINT] = { pressed: false };
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('sprint');
+    gamepad.axes = [0, 0, 0, 0];
+    settle(attached, 0.5);
+    gamepad.axes = [0, -1, 0, 0];
+    settle(attached, 1.5);
+    expect(controller.gait).toBe('run');
   });
 });
