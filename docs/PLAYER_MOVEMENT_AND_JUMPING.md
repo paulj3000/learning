@@ -34,9 +34,9 @@ HUD Jump button ──> engine.pressJump() ──────┘    (walk, jump,
 | `WorldHud.tsx` | The touch Jump button. |
 | `runtime/ThreeLocationWorldView.tsx` | Shows the Jump button where jumping is on; resets input when a panel opens over the scene. |
 
-The player is first-person in every location today (`camera = controller position + eye
-height`). There is no third-person avatar or orbit camera in the codebase; see "Known
-limitations".
+LAI-JMP-01a (`docs/PLAYER_AVATAR_AND_CAMERA.md`) adds a third-person avatar and camera on top of
+this controller, without changing its physics; the first-person view described here is still
+one of the two perspectives.
 
 ## Configuration
 
@@ -121,8 +121,8 @@ steps ease more gently. Look controls, pitch limits and the near plane are uncha
 onto the existing NPC Manager animation vocabulary (`idle`, `walk`, `jump`) for
 `createNpcAnimator`, which already resolves a state to a GLB clip through an avatar's
 `animationMap`. An avatar without a jump clip keeps its walk or idle clip while airborne (not the
-NPC fallback chain, which would play a celebration). Because the player is first-person, no
-avatar is drawn and the driver is not wired yet; it is the contract for the third-person follow-up.
+NPC fallback chain, which would play a celebration). LAI-JMP-01a draws the avatar in
+third-person and wires this (`docs/PLAYER_AVATAR_AND_CAMERA.md`).
 
 ## Sound
 
@@ -154,8 +154,8 @@ collider is a wall, so there is nothing to hop onto. Authoring low obstacles is 
 
 ## Known limitations
 
-- First-person only. There is no third-person avatar or orbit camera, so jump animations are not
-  visible yet and "camera clipping" is limited to the near plane. Follow-up card created.
+- (Resolved by LAI-JMP-01a: third-person avatar, camera and jump animations,
+  `docs/PLAYER_AVATAR_AND_CAMERA.md`.)
 - No running: the controller has one walking speed today. A run speed would add a `RUN` state.
 - Ground is flat (height 0) in every location. `groundHeightAt` supports terrain and holes for
   the platforming subproject, but no location authors terrain yet.

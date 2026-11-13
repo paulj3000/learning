@@ -60,9 +60,12 @@ export class CameraHeightFollower {
     return this.height - this.dip;
   }
 
-  /** Drop any easing (after a teleport the view should already be there). */
-  reset(feetY: number): void {
-    this.height = feetY;
+  /**
+   * Drop any easing (after a teleport the view should already be there).
+   * With no height, the next frame starts from wherever the feet are.
+   */
+  reset(feetY?: number): void {
+    this.height = feetY ?? null;
     this.dip = 0;
   }
 }

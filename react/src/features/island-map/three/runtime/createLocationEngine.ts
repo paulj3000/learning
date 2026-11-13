@@ -18,7 +18,6 @@ import {
   PointLight,
   Raycaster,
   Scene,
-  Vector2,
   Vector3,
   WebGLRenderer,
   type AnimationAction,
@@ -38,7 +37,22 @@ import { cloneAssetScene } from '../assets/cloneAsset';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { FirstPersonController } from '../firstPersonController';
-import { CameraHeightFollower } from '../cameraHeightFollower';
+import {
+  colliderObstruction,
+  lookDirection,
+  PlayerCameraController,
+  THIRD_PERSON_ENTRY_PITCH,
+  thirdPersonPitch,
+  type PlayerCameraFrame,
+} from '../playerCamera';
+import { AvatarFacing, createPlayerAvatar, type PlayerAvatar } from '../playerAvatar';
+import {
+  initialCameraMode,
+  resolvePlayerAvatar,
+  resolvePlayerCamera,
+  type CameraMode,
+  type PlayerCameraConfiguration,
+} from '../playerPresentation';
 import type { JumpConfiguration } from '../jumpConfiguration';
 import { attachPointerControls, type PointerControls } from '../pointerControls';
 import {
@@ -144,7 +158,13 @@ export interface LocationEngineDeps<R extends RendererLike> {
   attachControls(
     renderer: R,
     controller: FirstPersonController,
-    options: { onInteract: () => void },
+    options: {
+      onInteract: () => void;
+      /** LAI-JMP-01a: V and the gamepad camera button. */
+      onToggleCamera?: () => void;
+      /** LAI-JMP-01a: the location's look sensitivity. */
+      lookSensitivity?: () => number;
+    },
   ): PointerControls;
   /** Keeps the renderer and camera sized to `parent`. Returns the disconnect. */
   fitToParent(parent: HTMLElement, camera: PerspectiveCamera, renderer: R): () => void;
@@ -194,6 +214,19 @@ export interface LocationEngine extends ThreeEngineHandle {
   readonly jump: Readonly<JumpConfiguration>;
   /** Forgets held keys, drags and buttons, e.g. when a panel opens over the scene. */
   resetInput(): void;
+  /** LAI-JMP-01a: the perspective the child is seeing now. */
+  cameraMode(): CameraMode;
+  /**
+   * Switches perspective. `false`, and no change, where the location does not
+   * allow switching. Fires `onCameraModeChange` on a real change.
+   */
+  setCameraMode(mode: CameraMode): boolean;
+  /** Switches to the other perspective, where allowed. Returns the mode now in force. */
+  toggleCameraMode(): CameraMode;
+  /** The camera tuning this location plays with (`manifest.player.camera` over the defaults). */
+  readonly camera: Readonly<PlayerCameraConfiguration>;
+  /** The child's avatar, while third-person can show it; `null` where the location turns it off. */
+  readonly avatar: PlayerAvatar | null;
   /** Settles once every asynchronously loaded piece has been placed or has failed. Never rejects. */
   readonly ready: Promise<void>;
 }
@@ -213,6 +246,15 @@ export interface LocationEngineOptions {
   reducedMotion?: boolean;
   /** The device pixel ratio, capped by the tier. Defaults to `window.devicePixelRatio`. */
   devicePixelRatio?: number;
+  /**
+   * LAI-JMP-01a: the child's saved perspective. Used where the location allows
+   * switching; otherwise, or when absent, the location's default.
+   */
+  cameraMode?: CameraMode;
+  /** LAI-JMP-01a: the child's `ChildProfile.avatarKey`, for their avatar's look. */
+  avatarKey?: string | null;
+  /** LAI-JMP-01a: the perspective changed (V, a button, the gamepad), so the view can save it. */
+  onCameraModeChange?: (mode: CameraMode) => void;
 }
 
 /** The outdoor rig `sceneKit.createSceneBootstrap` defaults to; manifest lighting overrides per field. */
@@ -385,7 +427,61 @@ export function createLocationEngine<R extends RendererLike>(
       Math.abs(x) <= manifest.bounds.halfExtentX + playableMargin &&
       Math.abs(z) <= manifest.bounds.halfExtentZ + playableMargin,
   });
-  const cameraHeight = new CameraHeightFollower({ reducedMotion: options.reducedMotion });
+  /*
+    LAI-JMP-01a: how the player is seen. One camera controller for both
+    perspectives, over the same live colliders the controller walks into, and
+    one avatar that only copies the controller's position. Neither moves the
+    player.
+  */
+  const cameraConfig = resolvePlayerCamera(manifest.player?.camera);
+  const avatarConfig = resolvePlayerAvatar(manifest.player?.avatar);
+  const playerCamera = new PlayerCameraController(
+    cameraConfig,
+    initialCameraMode(cameraConfig, options.cameraMode),
+    {
+      eyeHeight: EYE_HEIGHT,
+      reducedMotion: options.reducedMotion,
+      obstruction: colliderObstruction(colliders),
+    },
+  );
+  if (playerCamera.mode === 'third-person') {
+    controller.pitch = THIRD_PERSON_ENTRY_PITCH;
+  }
+  const avatar: PlayerAvatar | null = avatarConfig.enabled
+    ? createPlayerAvatar({
+        avatarKey: options.avatarKey,
+        config: avatarConfig,
+        loadModel: (assetId) => deps.assets.loadModel(assetId),
+        reducedMotion: () => options.reducedMotion === true,
+      })
+    : null;
+  const avatarFacing = new AvatarFacing(controller.yaw);
+  if (avatar) {
+    avatar.setPose(controller.position, controller.yaw);
+    avatar.setVisible(false);
+    scene.add(avatar.root);
+  }
+  /** The last frame's camera, for aiming an interaction between frames. */
+  let lastCameraFrame: PlayerCameraFrame | null = null;
+
+  function setCameraMode(mode: CameraMode): boolean {
+    if (disposed) return false;
+    if (mode === playerCamera.mode) return true;
+    if (!cameraConfig.allowModeSwitch) return false;
+    playerCamera.setMode(mode);
+    lastCameraFrame = null;
+    if (mode === 'third-person') {
+      // A gentle look down over the shoulder, unless already looking further down.
+      controller.pitch = Math.min(thirdPersonPitch(controller.pitch), THIRD_PERSON_ENTRY_PITCH);
+    }
+    options.onCameraModeChange?.(mode);
+    return true;
+  }
+
+  function toggleCameraMode(): CameraMode {
+    setCameraMode(playerCamera.mode === 'first-person' ? 'third-person' : 'first-person');
+    return playerCamera.mode;
+  }
   /** Where the child could stand, which is where `SCATTER` scenery must not go. */
   const walkable = walkableProbe(manifest, worldState);
   const spawn = resolveSpawnCheckpoint(manifest.regionId, options.startCheckpointId);
@@ -878,7 +974,6 @@ export function createLocationEngine<R extends RendererLike>(
   // Raycast focus and interaction, resolved by semantic entity id (acceptance W6).
   const raycaster = new Raycaster();
   raycaster.far = RAYCAST_RANGE_METERS;
-  const screenCentre = new Vector2(0, 0);
 
   function raycastFocus(): FocusTarget | null {
     const aimable = focusTargets.filter((target) => target.focusable);
@@ -886,7 +981,12 @@ export function createLocationEngine<R extends RendererLike>(
     // Raycasts read world matrices, which otherwise only refresh inside
     // `render`; a model swapped in since the last frame would be missed.
     for (const target of aimable) target.root.updateMatrixWorld(true);
-    raycaster.setFromCamera(screenCentre, camera);
+    // From the child, never from a third-person camera metres behind them, so
+    // reach is the same in both perspectives (LAI-JMP-01a). In first-person
+    // this is exactly the screen-centre ray from the camera, as before.
+    aimRay(raycaster.ray.origin, raycaster.ray.direction);
+    // Sprites (labels, beacons) face the camera and need it to be hit-tested.
+    raycaster.camera = camera;
     const hits = raycaster.intersectObjects(
       aimable.map((target) => target.root),
       true,
@@ -972,10 +1072,23 @@ export function createLocationEngine<R extends RendererLike>(
     focusMarker.rotation.y += deltaSeconds * 1.5;
   }
 
+  /** The line interactions are aimed along: from the player, through the screen-centre reticle. */
+  function aimRay(origin: Vector3, direction: Vector3): void {
+    if (lastCameraFrame) {
+      origin.copy(lastCameraFrame.aimOrigin);
+      lookDirection(lastCameraFrame.yaw, lastCameraFrame.pitch, direction);
+      return;
+    }
+    origin.set(controller.position.x, controller.position.y + EYE_HEIGHT, controller.position.z);
+    lookDirection(controller.yaw, controller.pitch, direction);
+  }
+
   function interact(): void {
     if (disposed) return;
     const target = raycastFocus();
     if (!target) return;
+    // The avatar's small gesture, where its model has one. Presentation only.
+    avatar?.interact();
     // An extension may own this entity's interaction entirely (a plate going
     // into a socket is a move inside a puzzle, not a domain event).
     for (const handler of interactHandlers) {
@@ -1007,7 +1120,11 @@ export function createLocationEngine<R extends RendererLike>(
     }
   }
 
-  const controls = deps.attachControls(renderer, controller, { onInteract: interact });
+  const controls = deps.attachControls(renderer, controller, {
+    onInteract: interact,
+    onToggleCamera: () => void toggleCameraMode(),
+    lookSensitivity: () => cameraConfig.rotationSensitivity,
+  });
   const stopFitting = deps.fitToParent(parent, camera, renderer);
 
   // Extensions the manifest declares, found by id, never by location. A
@@ -1063,7 +1180,8 @@ export function createLocationEngine<R extends RendererLike>(
         playerPosition: () => ({ x: controller.position.x, z: controller.position.z }),
         teleportPlayer: (x, z, yaw) => {
           controller.teleport(x, z, yaw);
-          cameraHeight.reset(controller.position.y);
+          playerCamera.reset();
+          avatarFacing.snap(yaw);
         },
         now: () => deps.now(),
         placeChild,
@@ -1107,22 +1225,43 @@ export function createLocationEngine<R extends RendererLike>(
           bus.emit('PlayerJumped', { airJump: event.airJump });
           break;
         case 'LANDED':
-          cameraHeight.landed(event.impactSpeed);
+          playerCamera.landed(event.impactSpeed);
           bus.emit('PlayerLanded', { impactSpeed: event.impactSpeed });
           break;
         case 'RECOVERED':
-          cameraHeight.reset(controller.position.y);
+          playerCamera.reset();
           bus.emit('PlayerRecovered', { reason: event.reason });
           break;
       }
     }
 
-    const eyeOffset = cameraHeight.update(delta, controller.position.y, controller.grounded);
-    camera.position.set(controller.position.x, EYE_HEIGHT + eyeOffset, controller.position.z);
+    // Third-person keeps the look within its own range, so the orbit never dives under the ground.
+    if (playerCamera.mode === 'third-person') controller.pitch = thirdPersonPitch(controller.pitch);
+    const view = playerCamera.update(delta, {
+      feet: controller.position,
+      grounded: controller.grounded,
+      yaw: controller.yaw,
+      pitch: controller.pitch,
+    });
+    lastCameraFrame = view;
+    camera.position.copy(view.position);
     // +PI: the controller's forward at yaw 0 is +Z, a camera's default forward is -Z.
-    camera.rotation.y = controller.yaw + Math.PI;
-    camera.rotation.x = controller.pitch;
+    camera.rotation.y = view.yaw + Math.PI;
+    camera.rotation.x = view.pitch;
     camera.updateMatrixWorld();
+
+    // The avatar follows the controller; it never leads it.
+    if (avatar) {
+      const facingYaw = avatarFacing.update(delta, controller.horizontalVelocity);
+      avatar.setPose(controller.position, facingYaw);
+      avatar.setVisible(view.avatarVisible);
+      avatar.animate(
+        delta,
+        controller.movementState,
+        controller.horizontalSpeed,
+        controller.walkSpeed,
+      );
+    }
 
     for (const mixer of mixers) mixer.update(delta);
     for (const callback of frameCallbacks) callback(delta);
@@ -1146,6 +1285,7 @@ export function createLocationEngine<R extends RendererLike>(
     uninstallProbe?.();
     deps.cancelFrame(frameHandle);
     controls.dispose();
+    avatar?.dispose();
     stopFitting();
     for (const mounted of extensionMounts.values()) mounted.dispose?.();
     frameCallbacks.clear();
@@ -1176,6 +1316,7 @@ export function createLocationEngine<R extends RendererLike>(
         })
       : null;
 
+  if (avatar) pending.push(avatar.ready);
   const ready = Promise.all(pending).then(() => undefined);
 
   return {
@@ -1189,6 +1330,11 @@ export function createLocationEngine<R extends RendererLike>(
     },
     jump: controller.jump,
     resetInput: () => controls.resetInput(),
+    cameraMode: () => playerCamera.mode,
+    setCameraMode,
+    toggleCameraMode,
+    camera: cameraConfig,
+    avatar,
     ready,
   };
 }

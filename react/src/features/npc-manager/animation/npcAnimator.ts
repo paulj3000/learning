@@ -70,6 +70,11 @@ export interface NpcAnimator {
   /** Stops the overlay at exactly this band; the behaviour band resets the base to idle. */
   stop(priority: number): void;
   update(deltaSeconds: number): void;
+  /**
+   * Playback speed of every clip, 1 by default. The player's avatar (LAI-JMP-01a) matches its
+   * walk cycle to its speed with it; NPCs never call it, so their animation is unchanged.
+   */
+  setTimeScale(scale: number): void;
   snapshot(): NpcAnimatorSnapshot;
   /** The clip a state resolves to for this model, or null. */
   resolveClip(state: AnimationState): AnimationClip | null;
@@ -253,6 +258,11 @@ export function createNpcAnimator(options: NpcAnimatorOptions): NpcAnimator {
         root.position.y = restY;
         bobbing = false;
       }
+    },
+
+    setTimeScale(scale) {
+      if (disposed || !Number.isFinite(scale) || scale <= 0) return;
+      mixer.timeScale = scale;
     },
 
     snapshot() {

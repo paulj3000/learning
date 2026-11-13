@@ -6,7 +6,10 @@
  * mainstream controller reports in the browser:
  * - left stick: move; right stick: look;
  * - button 0 (A on Xbox, Cross on PlayStation): jump;
- * - button 2 (X on Xbox, Square on PlayStation): interact.
+ * - button 2 (X on Xbox, Square on PlayStation): interact;
+ * - button 3 (Y on Xbox, Triangle on PlayStation): switch camera perspective.
+ *
+ * Every button is rebindable through `GamepadBindings`.
  *
  * Buttons are edge-triggered: holding A jumps once.
  */
@@ -21,6 +24,21 @@ export interface GamepadLike {
 
 export const GAMEPAD_BUTTON_JUMP = 0;
 export const GAMEPAD_BUTTON_INTERACT = 2;
+/** LAI-JMP-01a: Y (Xbox) / Triangle (PlayStation) switches first- and third-person. */
+export const GAMEPAD_BUTTON_CAMERA = 3;
+
+/** Which standard-mapping button does what. Change one entry to rebind it. */
+export interface GamepadBindings {
+  jump: number;
+  interact: number;
+  cameraToggle: number;
+}
+
+export const DEFAULT_GAMEPAD_BINDINGS: Readonly<GamepadBindings> = Object.freeze({
+  jump: GAMEPAD_BUTTON_JUMP,
+  interact: GAMEPAD_BUTTON_INTERACT,
+  cameraToggle: GAMEPAD_BUTTON_CAMERA,
+});
 /** Stick travel ignored around the centre, so a worn stick does not drift. */
 export const GAMEPAD_DEADZONE = 0.2;
 /** Look speed at full right-stick deflection, in the same units as a mouse's movementX per second. */
@@ -38,6 +56,8 @@ export interface GamepadFrame {
   jumpPressed: boolean;
   /** Interact was pressed since the last frame. */
   interactPressed: boolean;
+  /** The camera-perspective button was pressed since the last frame. */
+  cameraTogglePressed: boolean;
 }
 
 export const NO_GAMEPAD_INPUT: GamepadFrame = Object.freeze({
@@ -47,6 +67,7 @@ export const NO_GAMEPAD_INPUT: GamepadFrame = Object.freeze({
   lookY: 0,
   jumpPressed: false,
   interactPressed: false,
+  cameraTogglePressed: false,
 });
 
 /** Rescales a stick axis so the deadzone edge is 0 and full travel stays 1. */
@@ -72,6 +93,12 @@ export class GamepadReader {
   private held = new Set<string>();
   private suppressed = new Set<string>();
 
+  private readonly bindings: Readonly<GamepadBindings>;
+
+  constructor(bindings: Readonly<GamepadBindings> = DEFAULT_GAMEPAD_BINDINGS) {
+    this.bindings = bindings;
+  }
+
   read(pads: readonly (GamepadLike | null)[], deltaSeconds: number): GamepadFrame {
     let forward = 0;
     let strafe = 0;
@@ -79,6 +106,8 @@ export class GamepadReader {
     let lookY = 0;
     let jumpPressed = false;
     let interactPressed = false;
+    let cameraTogglePressed = false;
+    const { jump, interact, cameraToggle } = this.bindings;
     const nowHeld = new Set<string>();
 
     pads.forEach((pad, padIndex) => {
@@ -89,13 +118,14 @@ export class GamepadReader {
       forward -= applyDeadzone(ly);
       lookX += applyDeadzone(rx) * GAMEPAD_LOOK_SPEED * deltaSeconds;
       lookY += applyDeadzone(ry) * GAMEPAD_LOOK_SPEED * deltaSeconds;
-      for (const button of [GAMEPAD_BUTTON_JUMP, GAMEPAD_BUTTON_INTERACT]) {
+      for (const button of new Set([jump, interact, cameraToggle])) {
         if (!isPressed(pad, button)) continue;
         const key = `${padIndex}:${button}`;
         nowHeld.add(key);
         if (this.held.has(key) || this.suppressed.has(key)) continue;
-        if (button === GAMEPAD_BUTTON_JUMP) jumpPressed = true;
-        else interactPressed = true;
+        if (button === jump) jumpPressed = true;
+        if (button === interact) interactPressed = true;
+        if (button === cameraToggle) cameraTogglePressed = true;
       }
     });
 
@@ -109,6 +139,7 @@ export class GamepadReader {
       lookY,
       jumpPressed,
       interactPressed,
+      cameraTogglePressed,
     };
   }
 

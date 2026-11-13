@@ -242,3 +242,20 @@ def test_findings_are_structured_for_administrators():
     finding = next(f for f in result.report() if f["code"] == "duplicate_clip")
     assert set(finding) == {"code", "severity", "message", "path"}
     assert finding["severity"] == "error" and finding["path"] == "animations[1]"
+
+
+def test_clip_vocabulary_mirrors_the_react_one():
+    """LAI-JMP-01a added Run and Jump on both sides; the two lists must never drift apart."""
+    import re
+    from pathlib import Path
+
+    from apps.assets import validation
+
+    source = (
+        Path(__file__).resolve().parents[4]
+        / "react/src/features/island-map/three/assets/animationVocabulary.ts"
+    ).read_text()
+    block = source.split("ANIMATION_CLIP_NAMES = [", 1)[1].split("] as const", 1)[0]
+    react_names = set(re.findall(r"'([A-Za-z]+)'", block))
+    assert react_names == set(validation.CLIP_VOCABULARY)
+    assert {"Run", "Jump"} <= react_names

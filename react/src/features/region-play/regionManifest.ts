@@ -398,6 +398,10 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     ...(isObject(model.scene.movement)
       ? { movement: model.scene.movement as unknown as ThreeLocationManifest['movement'] }
       : {}),
+    // LAI-JMP-01a: camera and avatar, the same way (`scene.player`, validated with the manifest).
+    ...(isObject(model.scene.player)
+      ? { player: model.scene.player as unknown as ThreeLocationManifest['player'] }
+      : {}),
     extensions: [
       { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
     ],

@@ -45,6 +45,8 @@ import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
 import { prefersReducedMotion } from '../../../../lib/motionPreference';
 import { createPendingWrites, useExitParticipant } from '../../../portal/exit';
+import { loadCameraPreference, saveCameraPreference } from '../cameraPreference';
+import type { CameraMode } from '../playerPresentation';
 
 /**
  * The one React view for any manifest-driven 3D location
@@ -80,6 +82,8 @@ export interface ThreeLocationWorldViewProps {
    * region served by Django gets the asset library's (TR-10, `regionAssetsFor`).
    */
   assets?: LocationEngineAssets;
+  /** LAI-JMP-01a: the child's `ChildProfile.avatarKey`, for their avatar's look in third-person. */
+  avatarKey?: string | null;
 }
 
 const TOAST_DURATION_MS = 4000;
@@ -157,6 +161,7 @@ export function ThreeLocationWorldView({
   repository = sourceLocationManifestRepository,
   viewExtensions = SOURCE_VIEW_EXTENSIONS,
   assets = DEFAULT_LOCATION_ENGINE_DEPS.assets,
+  avatarKey = null,
 }: ThreeLocationWorldViewProps) {
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
@@ -197,6 +202,20 @@ export function ThreeLocationWorldView({
     visit and quietly do nothing.
   */
   const [engine, setEngine] = useState<LocationEngine | null>(null);
+  /*
+    LAI-JMP-01a: the perspective. The child's saved choice goes into the
+    engine; the engine reports every change (V, the HUD button, the gamepad,
+    the setting below), and the view shows it and saves it for next time.
+  */
+  const [savedCameraMode] = useState(() => loadCameraPreference(childId));
+  const [cameraMode, setCameraModeState] = useState<CameraMode | null>(null);
+  const onCameraModeChange = useCallback(
+    (mode: CameraMode) => {
+      setCameraModeState(mode);
+      saveCameraPreference(childId, mode);
+    },
+    [childId],
+  );
   // Read by bus listeners, so a refreshed context never forces re-subscribing.
   const contextRef = useRef<WorldInteractionContext>(EMPTY_CONTEXT);
   useEffect(() => {
@@ -441,6 +460,9 @@ export function ThreeLocationWorldView({
                 worldState: snapshot.context,
                 quality: chooseRenderQuality(deviceHintsFromNavigator()),
                 reducedMotion: prefersReducedMotion(),
+                cameraMode: savedCameraMode ?? undefined,
+                avatarKey,
+                onCameraModeChange,
               },
               { ...DEFAULT_LOCATION_ENGINE_DEPS, assets },
             )
@@ -448,6 +470,7 @@ export function ThreeLocationWorldView({
           onEngineReady={(ready) => {
             engineRef.current = ready;
             setEngine(ready);
+            setCameraModeState(ready.cameraMode?.() ?? null);
           }}
         />
         <WorldHud
@@ -465,6 +488,9 @@ export function ThreeLocationWorldView({
             : {})}
           showBackpack={!companionOwnsBackpack}
           {...(engine?.jump?.enabled ? { onJump: () => engineRef.current?.pressJump?.() } : {})}
+          {...(cameraMode && engine?.camera?.allowModeSwitch
+            ? { cameraMode, onToggleCamera: () => engineRef.current?.toggleCameraMode?.() }
+            : {})}
         />
         <div ref={setHudSlot} className={styles.stageControls} />
         <div ref={setSpeechSlot} className={styles.stageSpeech} />
@@ -510,6 +536,28 @@ export function ThreeLocationWorldView({
           onDiscovered={() => void refreshWorld()}
           regionId={manifest.regionId}
         />
+      ) : null}
+      {cameraMode && engine?.camera?.allowModeSwitch ? (
+        <fieldset className={styles.cameraSetting}>
+          <legend>Camera view</legend>
+          {(
+            [
+              ['third-person', 'Behind my explorer'],
+              ['first-person', 'Through my eyes'],
+            ] as const
+          ).map(([mode, label]) => (
+            <label key={mode} className={styles.cameraSettingOption}>
+              <input
+                type="radio"
+                name="camera-view"
+                value={mode}
+                checked={cameraMode === mode}
+                onChange={() => engineRef.current?.setCameraMode?.(mode)}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
       ) : null}
       <details className={styles.thingsToDo}>
         <summary>Things to do here</summary>

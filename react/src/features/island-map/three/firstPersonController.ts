@@ -193,9 +193,22 @@ export class FirstPersonController {
     return this.verticalSpeed;
   }
 
+  /** Top walking speed, m/s (what a full stick reaches). */
+  get walkSpeed(): number {
+    return this.maxSpeed;
+  }
+
   /** Horizontal speed, m/s. */
   get horizontalSpeed(): number {
     return Math.hypot(this.velocity.x, this.velocity.z);
+  }
+
+  /**
+   * Horizontal velocity, m/s, as a copy (LAI-JMP-01a: the avatar faces where
+   * the child is going). Reading it never changes the movement.
+   */
+  get horizontalVelocity(): { x: number; z: number } {
+    return { x: this.velocity.x, z: this.velocity.z };
   }
 
   get movementState(): MovementState {

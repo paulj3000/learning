@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyDeadzone,
+  DEFAULT_GAMEPAD_BINDINGS,
+  GAMEPAD_BUTTON_CAMERA,
   GAMEPAD_BUTTON_INTERACT,
   GAMEPAD_BUTTON_JUMP,
   GamepadReader,
@@ -69,5 +71,23 @@ describe('gamepad input (LAI-JMP-01)', () => {
       0.016,
     );
     expect(frame).toMatchObject({ forward: 0, strafe: 0, jumpPressed: false });
+  });
+});
+
+describe('gamepad camera button (LAI-JMP-01a)', () => {
+  it('switches perspective on Y/Triangle, once per press', () => {
+    const reader = new GamepadReader();
+    const held = [pad({ pressed: [GAMEPAD_BUTTON_CAMERA] })];
+    expect(reader.read(held, 0.016).cameraTogglePressed).toBe(true);
+    expect(reader.read(held, 0.016).cameraTogglePressed).toBe(false);
+    expect(reader.read(held, 0.016)).toMatchObject({ jumpPressed: false, interactPressed: false });
+  });
+
+  it('can be rebound', () => {
+    const reader = new GamepadReader({ ...DEFAULT_GAMEPAD_BINDINGS, cameraToggle: 9 });
+    expect(
+      reader.read([pad({ pressed: [GAMEPAD_BUTTON_CAMERA] })], 0.016).cameraTogglePressed,
+    ).toBe(false);
+    expect(reader.read([pad({ pressed: [9] })], 0.016).cameraTogglePressed).toBe(true);
   });
 });

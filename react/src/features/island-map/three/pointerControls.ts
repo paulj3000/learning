@@ -1,10 +1,24 @@
 import { Vector2, type WebGLRenderer } from 'three';
 import type { FirstPersonController } from './firstPersonController';
-import { GamepadReader, NO_GAMEPAD_INPUT, type GamepadLike } from './gamepadInput';
+import {
+  GamepadReader,
+  NO_GAMEPAD_INPUT,
+  type GamepadBindings,
+  type GamepadLike,
+} from './gamepadInput';
 
 export interface PointerControlsOptions {
   /** Fired on the interact key (`E` or `Enter`), desktop only - touch has its own on-screen button. */
   onInteract?: () => void;
+  /** LAI-JMP-01a: fired on V or the gamepad camera button; the HUD has its own button. */
+  onToggleCamera?: () => void;
+  /** Gamepad button mapping. Defaults to `DEFAULT_GAMEPAD_BINDINGS`. */
+  gamepadBindings?: GamepadBindings;
+  /**
+   * Multiplier on mouse, touch and right-stick look speed (a location's
+   * `player.camera.rotationSensitivity`). Defaults to 1.
+   */
+  lookSensitivity?: () => number;
 }
 
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ']);
@@ -70,7 +84,16 @@ export function attachPointerControls(
   options: PointerControlsOptions = {},
 ): PointerControls {
   const keysDown = new Set<string>();
-  const gamepads = new GamepadReader();
+  const gamepads = new GamepadReader(options.gamepadBindings);
+  const sensitivity = () => {
+    const value = options.lookSensitivity?.() ?? 1;
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  };
+  /** Every look delta goes through here, so the location's sensitivity applies to all of them. */
+  const look = (dx: number, dy: number) => {
+    const scale = sensitivity();
+    controller.applyLookDelta(dx * scale, dy * scale);
+  };
   const onKeyDown = (event: KeyboardEvent) => {
     // Typing in a form field (an adventure's number input, a story answer) is
     // typing, not playing: no movement, no jump, no interact, and the page
@@ -89,6 +112,10 @@ export function attachPointerControls(
     if (key === 'e' || event.key === 'Enter') {
       options.onInteract?.();
     }
+    // One switch per press: auto-repeat on a held V does not flip the view back and forth.
+    if (key === 'v' && !event.repeat) {
+      options.onToggleCamera?.();
+    }
   };
   const onKeyUp = (event: KeyboardEvent) => {
     keysDown.delete(isJumpKey(event) ? ' ' : event.key.toLowerCase());
@@ -105,7 +132,7 @@ export function attachPointerControls(
 
   const onMouseMove = (event: MouseEvent) => {
     if (document.pointerLockElement !== renderer.domElement) return;
-    controller.applyLookDelta(event.movementX, event.movementY);
+    look(event.movementX, event.movementY);
   };
   document.addEventListener('mousemove', onMouseMove);
 
@@ -145,7 +172,7 @@ export function attachPointerControls(
       } else if (touch.identifier === lookTouchId) {
         const dx = touch.clientX - lookTouchLast.x;
         const dy = touch.clientY - lookTouchLast.y;
-        controller.applyLookDelta(dx * 8, dy * 8);
+        look(dx * 8, dy * 8);
         lookTouchLast = new Vector2(touch.clientX, touch.clientY);
       }
     }
@@ -191,9 +218,10 @@ export function attachPointerControls(
 
     const pads = readGamepads();
     const pad = pads.length > 0 ? gamepads.read(pads, deltaSeconds) : NO_GAMEPAD_INPUT;
-    if (pad.lookX !== 0 || pad.lookY !== 0) controller.applyLookDelta(pad.lookX, pad.lookY);
+    if (pad.lookX !== 0 || pad.lookY !== 0) look(pad.lookX, pad.lookY);
     if (pad.jumpPressed) controller.pressJump();
     if (pad.interactPressed) options.onInteract?.();
+    if (pad.cameraTogglePressed) options.onToggleCamera?.();
 
     controller.update(deltaSeconds, {
       forward: Math.max(-1, Math.min(1, keyboardForward - touchMoveVector.y + pad.forward)),

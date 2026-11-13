@@ -17,6 +17,10 @@ export const ANIMATION_CLIP_NAMES = [
   'Open',
   'Close',
   'Activate',
+  // LAI-JMP-01a: the player avatar's locomotion (docs/PLAYER_AVATAR_AND_CAMERA.md). `Run` is
+  // reserved for a future run speed; nothing plays it yet.
+  'Run',
+  'Jump',
 ] as const;
 
 export type AnimationClipName = (typeof ANIMATION_CLIP_NAMES)[number];

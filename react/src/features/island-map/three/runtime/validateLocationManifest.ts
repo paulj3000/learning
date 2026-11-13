@@ -16,6 +16,7 @@ import {
   type BindableStep,
 } from './adventureStepBindings';
 import { validateMovementSpec } from '../jumpConfiguration';
+import { validatePlayerPresentation } from '../playerPresentation';
 
 /**
  * Pure validation for `ThreeLocationManifest`
@@ -309,6 +310,15 @@ export function validateLocationManifest(
   // LAI-JMP-01: movement tuning, when a region authors any.
   for (const issue of validateMovementSpec(manifest.movement)) {
     report('INVALID_VALUE', issue.path, issue.message);
+  }
+
+  // LAI-JMP-01a: camera and avatar settings, and that an avatar costume is a real asset.
+  for (const issue of validatePlayerPresentation(manifest.player)) {
+    report('INVALID_VALUE', issue.path, issue.message);
+  }
+  const avatarAsset = manifest.player?.avatar?.assetKey;
+  if (typeof avatarAsset === 'string' && avatarAsset.trim() !== '') {
+    checkAsset(avatarAsset, 'player.avatar.assetKey');
   }
 
   manifest.buildings.forEach((building, index) => {

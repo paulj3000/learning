@@ -4000,3 +4000,46 @@ tested by real height.
 becomes jumpable by accident. Hopping onto things is opt-in content work (mark a low collider
 jumpable). The player stays first-person: jump animations wait for a third-person avatar
 (follow-up card). Details: `docs/PLAYER_MOVEMENT_AND_JUMPING.md`.
+
+## ADR-056: One player camera controller with first- and third-person perspectives; the avatar and its animation only mirror the movement controller
+
+Status: Proposed (LAI-JMP-01a, 2026-11-13). Development only; awaiting owner QA. Depends on
+ADR-055 (LAI-JMP-01, PR #26, unmerged when this was written).
+
+**Context.** Every 3D location was first-person: the camera was the player. Children could not
+see their character walk or jump. LAI-JMP-01a asks for a Roblox-like third-person view as the
+recommended default, while keeping first-person, without per-adventure movement or camera code,
+without changing collision or progression, and without new avatar asset systems or database
+models.
+
+**Decision.**
+
+1. **Four shared pieces, separated.** The movement controller (`FirstPersonController`) stays
+   the only authority on position and collision. A camera controller (`playerCamera.ts`), an
+   avatar renderer (`playerAvatar.ts`) and an animation controller (`playerAnimation.ts`, driving
+   the NPC Manager's `createNpcAnimator`) read it every frame and write nothing back. Animation
+   clips are stripped of root motion.
+2. **Third-person is the default; first-person is kept.** `player.camera.defaultMode` per
+   location (`third-person` unless authored); `allowModeSwitch` lets the child switch with V,
+   gamepad Y/Triangle, a HUD button or a setting.
+3. **The controller's yaw is the camera heading in both modes,** so movement is camera-relative
+   with no new movement code, and the avatar faces its velocity.
+4. **Interactions are aimed from the player,** along the view through the reticle, never from
+   the third-person camera. Reach is identical in both perspectives.
+5. **Camera collision uses the scene's existing solid colliders** (the live `Box3` list the
+   controller walks into): pulled in on the same frame, eased back out, never closer than needed
+   and never into a wall; `maxHeight` keeps it under indoor ceilings.
+6. **Avatar looks come from what exists:** a location costume (`assetKey`), else a model
+   registered per `ChildProfile.avatarKey` (none yet), else a placeholder in the child's existing
+   avatar colours and accessory. Models load through the location's own asset loader and cache.
+7. **The preference is browser storage per child** (`lai:camera-mode:<childId>`, only the mode).
+   No database model is added; cross-device sync is a follow-up that needs a schema change.
+8. **`Run` and `Jump` join the closed clip vocabulary** on both sides (React and Django), with a
+   parity test.
+
+**Consequences.** Every eligible 3D location gets third-person with no per-location code, and the
+first-person engine tests keep guarding the original view (the test harness defaults to
+first-person; third-person has its own tests). Children see placeholders until 3D avatar models
+are made (LAI-JMP-01c). The camera avoids colliders, not meshes, so decorative scenery without a
+collider can sit between camera and child. Details: `docs/PLAYER_AVATAR_AND_CAMERA.md`.
+

@@ -196,3 +196,57 @@ describe('WorldHud Jump button (LAI-JMP-01)', () => {
     expect(jump.parentElement).not.toBe(backpack.parentElement);
   });
 });
+
+describe('WorldHud camera button (LAI-JMP-01a)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const device = (coarse: boolean) =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: coarse ? query === '(any-pointer: coarse)' : query === '(pointer: fine)',
+      })),
+    );
+
+  it('names the view in force and switches it', async () => {
+    device(false);
+    const onToggleCamera = vi.fn();
+    const { rerender } = render(
+      <WorldHud {...baseProps} cameraMode="third-person" onToggleCamera={onToggleCamera} />,
+    );
+    const button = screen.getByRole('button', { name: 'View: Behind me. Change view' });
+    await userEvent.click(button);
+    expect(onToggleCamera).toHaveBeenCalledTimes(1);
+    rerender(<WorldHud {...baseProps} cameraMode="first-person" onToggleCamera={onToggleCamera} />);
+    expect(screen.getByRole('button', { name: 'View: My eyes. Change view' })).toBeInTheDocument();
+  });
+
+  it('shows the V key only with a mouse or trackpad', () => {
+    device(false);
+    render(<WorldHud {...baseProps} cameraMode="third-person" onToggleCamera={vi.fn()} />);
+    expect(screen.getByText('V')).toBeInTheDocument();
+  });
+
+  it('sits beside the Jump button on a touch screen, as its own control', () => {
+    device(true);
+    render(
+      <WorldHud
+        {...baseProps}
+        cameraMode="third-person"
+        onToggleCamera={vi.fn()}
+        onJump={vi.fn()}
+      />,
+    );
+    const camera = screen.getByRole('button', { name: /Change view/ });
+    const jump = screen.getByRole('button', { name: 'Jump' });
+    expect(camera).not.toBe(jump);
+    expect(camera.className).toMatch(/cameraBesideJump/);
+    expect(screen.queryByText('V')).not.toBeInTheDocument();
+  });
+
+  it('is absent where the location does not allow switching', () => {
+    device(true);
+    render(<WorldHud {...baseProps} cameraMode="third-person" />);
+    expect(screen.queryByRole('button', { name: /Change view/ })).not.toBeInTheDocument();
+  });
+});
