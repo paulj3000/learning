@@ -21,6 +21,9 @@ export const ANIMATION_CLIP_NAMES = [
   // reserved for a future run speed; nothing plays it yet.
   'Run',
   'Jump',
+  // LAI-JMP-01c: optional air clips for player avatars (docs/PLAYER_AVATAR_ASSETS.md).
+  'Fall',
+  'Land',
 ] as const;
 
 export type AnimationClipName = (typeof ANIMATION_CLIP_NAMES)[number];

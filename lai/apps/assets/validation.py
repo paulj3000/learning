@@ -33,10 +33,12 @@ CHUNK_JSON = 0x4E4F534A
 CHUNK_BIN = 0x004E4942
 
 # Mirrors react/src/features/island-map/three/assets/animationVocabulary.ts. `Run` and `Jump`
-# are the player avatar's locomotion clips (LAI-JMP-01a).
+# are the player avatar's locomotion clips (LAI-JMP-01a); `Fall` and `Land` its optional air
+# clips (LAI-JMP-01c).
 CLIP_VOCABULARY = frozenset(
     (
-        "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate Run Jump"
+        "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate"
+        " Run Jump Fall Land"
     ).split()
 )
 
