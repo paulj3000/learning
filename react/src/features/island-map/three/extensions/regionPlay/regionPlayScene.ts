@@ -1,5 +1,6 @@
 import {
   AnimationMixer,
+  Box3,
   BoxGeometry,
   CylinderGeometry,
   Group,
@@ -9,6 +10,7 @@ import {
   OctahedronGeometry,
   SphereGeometry,
   Sprite,
+  Vector3,
   SpriteMaterial,
   TorusGeometry,
   CanvasTexture,
@@ -30,6 +32,7 @@ import {
 } from '../../../../region-play/regionPlayConfig';
 import type { NpcHostScene } from '../../../../npc-manager/host/types';
 import { buildFireflies, shimmerWater } from './livingCove';
+import { mountInstancedModels, type ModelPlacement } from './instancedModels';
 import { buildProceduralScenery } from './proceduralScenery';
 
 /**
@@ -51,6 +54,12 @@ import { buildProceduralScenery } from './proceduralScenery';
  *   flags, the rowboat, pillars, the pedestal and the gate, drawn from
  *   primitives until finished models exist (`proceduralScenery.ts`), and
  *   held still when the device asks for reduced motion.
+ * - **Palm models (TR-PALM-05).** A palm that names a published asset library model is drawn
+ *   from it, instanced per model, and its primitive is hidden once the model has loaded; a model
+ *   that fails leaves the primitive (`instancedModels.ts`).
+ * - **Barrels and logs (TR-ENV-06).** Props drawn from published models, instanced the same way.
+ *   Their colliders are added, and the bundled barrels and logs they replace hidden, only once
+ *   the model is drawn: until then the cove is exactly as it was.
  * - **Figures.** A placeholder character for an NPC published without a
  *   model, so the region still renders and the NPC still talks.
  * - **The way to Lookout Point (TR-17).** When the quest's completion world change is
@@ -140,6 +149,14 @@ function worldPositionReader(object: Object3D): (out: [number, number, number]) 
   };
 }
 
+/** TR-PALM-05, TR-ENV-06: names of the instanced model sets, and the palms' sway. */
+export const PALM_MODEL_NAME = 'region-play:palm-model';
+export const PROP_MODEL_NAME = 'region-play:prop-model';
+export const PALM_SWAY = 0.02;
+/** A prop collider's height range: the same as a manifest rectangle's (sceneLayout.ts). */
+const PROP_COLLIDER_MIN_Y = -1;
+const PROP_COLLIDER_MAX_Y = 3;
+
 /** Names, so tests and debugging can find them (TR-14). */
 export const KEY_NAME = 'region-play:key';
 export const RUNE_STONE_NAME = 'region-play:rune-stone';
@@ -192,6 +209,10 @@ export const regionPlaySceneExtension: WorldExtension = {
         // Models for stand-ins, declared only when one can be delivered (FP-3).
         ...parsed.drawn.flatMap((drawn) => (drawn.assetId ? [drawn.assetId] : [])),
         ...(parsed.effects.backdrop?.assetId ? [parsed.effects.backdrop.assetId] : []),
+        // TR-PALM-05, TR-ENV-06: palm, barrel and log models, only those the server says can be
+        // delivered (the manifest builder drops the rest).
+        ...(parsed.procedural ?? []).flatMap((entry) => (entry.assetId ? [entry.assetId] : [])),
+        ...(parsed.props ?? []).map((prop) => prop.assetId),
       ]),
     ];
   },
@@ -371,6 +392,52 @@ export const regionPlaySceneExtension: WorldExtension = {
 
     const procedural = buildProceduralScenery(config.procedural ?? []);
     context.scene.add(procedural.root);
+    // TR-PALM-05: published palm models take the primitives' places as they load.
+    const palmPlacements: ModelPlacement[] = (config.procedural ?? []).flatMap((entry) =>
+      entry.shape === 'PALM' && entry.assetId
+        ? [
+            {
+              id: entry.id,
+              assetId: entry.assetId,
+              x: entry.x,
+              z: entry.z,
+              ...(entry.rotationY !== undefined ? { rotationY: entry.rotationY } : {}),
+              ...(entry.height !== undefined ? { height: entry.height } : {}),
+            },
+          ]
+        : [],
+    );
+    const palmModels = mountInstancedModels(palmPlacements, context.loadModel, {
+      name: PALM_MODEL_NAME,
+      sway: PALM_SWAY,
+      onDrawn: (_assetId, ids) => procedural.hidePalms(ids),
+    });
+    context.scene.add(palmModels.root);
+
+    // TR-ENV-06: barrels and logs. A model, once drawn, makes its props solid and hides the
+    // bundled scenery it replaces; one that never loads leaves both as they were.
+    const props = config.props ?? [];
+    const propModels = mountInstancedModels(props, context.loadModel, {
+      name: PROP_MODEL_NAME,
+      onDrawn: (assetId) => {
+        for (const prop of props) {
+          if (prop.assetId !== assetId) continue;
+          for (const rect of prop.colliders) {
+            context.addCollider(
+              new Box3(
+                new Vector3(rect.minX, PROP_COLLIDER_MIN_Y, rect.minZ),
+                new Vector3(rect.maxX, PROP_COLLIDER_MAX_Y, rect.maxZ),
+              ),
+            );
+          }
+        }
+        for (const id of config.propReplaces?.[assetId] ?? []) {
+          const stale = context.sceneryRoot(id);
+          if (stale) stale.visible = false;
+        }
+      },
+    });
+    context.scene.add(propModels.root);
     const still = prefersReducedMotion();
 
     // TR-18: the water and the fireflies. Held where they were first drawn when `still`.
@@ -452,6 +519,7 @@ export const regionPlaySceneExtension: WorldExtension = {
       for (const chest of chests.values()) chest.tick(delta);
       if (!still) {
         procedural.tick(delta);
+        palmModels.tick(delta);
         water.tick(delta);
         fireflies.tick(delta);
       }
@@ -594,6 +662,8 @@ export const regionPlaySceneExtension: WorldExtension = {
         for (const beacon of beacons.values()) context.scene.remove(beacon.mesh);
         for (const rune of runes.values()) rune.label.material.map?.dispose();
         procedural.dispose();
+        palmModels.dispose();
+        propModels.dispose();
         water.dispose();
         fireflies.dispose();
         for (const chest of chests.values()) chest.dispose();
