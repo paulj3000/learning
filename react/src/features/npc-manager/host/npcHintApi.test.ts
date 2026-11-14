@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient } from '../../../api/client';
 import { ApiError } from '../../../api/errors';
-import { createNpcHintApi, npcHintApiFor } from './npcHintApi';
+import { createNpcHintApi } from './npcHintApi';
 
 const CHILD = 'child-1';
 const CONVERSATION = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -47,13 +47,5 @@ describe('npc hint API', () => {
     expect(String(fetch.mock.calls[0][0])).toContain(
       'places/storykeeper-castle/npcs/keeper-quill/',
     );
-  });
-
-  it('is disabled without a Django API', async () => {
-    const api = npcHintApiFor(CHILD, { kind: 'area', regionId: 'r' }, {
-      enabled: false,
-      baseUrl: '',
-    } as never);
-    await expect(api.hint('pirate-pip', CONVERSATION)).rejects.toMatchObject({ kind: 'disabled' });
   });
 });

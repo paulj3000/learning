@@ -6,9 +6,21 @@ const { getChildProfile } = vi.hoisted(() => ({ getChildProfile: vi.fn() }));
 
 vi.mock('../features/child-profile/api', () => ({ getChildProfile }));
 // The runner owns the session; here only where its finish link points matters.
+vi.mock('../features/adventures/DjangoAdventureRunner', () => ({
+  DjangoAdventureRunner: ({
+    backToMapHref,
+    backToMapLabel,
+  }: Record<string, string | undefined>) => (
+    <a href={backToMapHref} data-runner="django">
+      {backToMapLabel ?? 'Back to the map'}
+    </a>
+  ),
+}));
 vi.mock('../features/adventures/AdventureRunner', () => ({
-  AdventureRunner: ({ backToMapHref, backToMapLabel }: Record<string, string | undefined>) => (
-    <a href={backToMapHref}>{backToMapLabel ?? 'Back to the map'}</a>
+  AdventureRunner: ({ backToMapHref, coopSessionId }: Record<string, string | undefined>) => (
+    <a href={backToMapHref} data-runner="classic" data-coop={coopSessionId}>
+      Back to the map
+    </a>
   ),
 }));
 
@@ -59,5 +71,20 @@ describe('the finish link', () => {
     renderAt(`${ADVENTURE}?returnTo=${encodeURIComponent(value)}`);
     const link = await screen.findByRole('link', { name: 'Back to the map' });
     expect(link).toHaveAttribute('href', `/island/${CHILD}/locations/pirate-builder-bay`);
+  });
+});
+
+describe('which runner plays it (Django is the only backend)', () => {
+  it('plays a solo adventure through the Django step runner', async () => {
+    renderAt(ADVENTURE);
+    const link = await screen.findByRole('link', { name: 'Back to the map' });
+    expect(link).toHaveAttribute('data-runner', 'django');
+  });
+
+  it('keeps a co-op launch on the classic runner, which owns co-op play', async () => {
+    renderAt(`${ADVENTURE}?coop=coop-1`);
+    const link = await screen.findByRole('link', { name: 'Back to the map' });
+    expect(link).toHaveAttribute('data-runner', 'classic');
+    expect(link).toHaveAttribute('data-coop', 'coop-1');
   });
 });

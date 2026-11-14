@@ -123,12 +123,8 @@ describe('createDjangoAudioSource', () => {
 });
 
 describe('djangoAudioSourceFor', () => {
-  it('is null for a build without the Django API, so no sound is attempted', () => {
-    expect(djangoAudioSourceFor(CHILD, { enabled: false })).toBeNull();
-  });
-
   it('builds a source when the Django API is on', () => {
-    const source = djangoAudioSourceFor(CHILD, { enabled: true, baseUrl: '' });
+    const source = djangoAudioSourceFor(CHILD, { baseUrl: '' });
     expect(source?.fetchManifest).toBeTypeOf('function');
     expect(source?.resolver.resolve).toBeTypeOf('function');
   });

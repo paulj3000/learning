@@ -216,12 +216,6 @@ export function stepRunnerApiFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): StepRunnerApi {
-  if (!config.enabled) {
-    const disabled = async (): Promise<never> => {
-      throw new ApiError('disabled');
-    };
-    return { start: disabled, getStep: disabled, submitAnswer: disabled, requestHint: disabled };
-  }
   return createStepRunnerApi(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
     childId,

@@ -8,7 +8,7 @@ import { ApiError } from '../api/errors';
 /** AP-03: the Realm Explorer and a Realm's preview, with the Django API. */
 
 const mocks = vi.hoisted(() => ({
-  config: { enabled: true, baseUrl: '' } as { enabled: boolean; baseUrl?: string },
+  config: { baseUrl: '' } as { baseUrl: string },
   getIslandsFor: vi.fn(),
   getChildProfile: vi.fn(),
   resolve: vi.fn(),
@@ -65,7 +65,7 @@ const card = (name: string) => screen.getByRole('article', { name });
 beforeEach(() => {
   vi.clearAllMocks();
   clearRealmCatalogCache();
-  mocks.config = { enabled: true, baseUrl: '' };
+  mocks.config = { baseUrl: '' };
   mocks.getChildProfile.mockResolvedValue({
     id: 'child-1',
     nickname: 'Robin',
@@ -222,18 +222,6 @@ describe('RealmExplorerPage (AP-03)', () => {
     expect(mocks.resolve).not.toHaveBeenCalled();
   });
 
-  it('explains, instead of silently redirecting, in a build without the Django API', async () => {
-    mocks.config = { enabled: false };
-    renderAt('/island/child-1/realms', { leftIsland: true });
-    expect(screen.queryByTestId('where')).not.toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Realms are not open on this island yet.');
-    expect(screen.getByRole('link', { name: 'Go to Home' })).toHaveAttribute(
-      'href',
-      '/island/child-1',
-    );
-    expect(mocks.getIslandsFor).not.toHaveBeenCalled();
-  });
-
   it('says why a load failed, and stops waiting, when the island does not answer', async () => {
     mocks.getIslandsFor.mockRejectedValueOnce(new ApiError('network', { code: 'timeout' }));
     renderAt('/island/child-1/realms');
@@ -332,14 +320,6 @@ describe('RealmDetailPage (AP-03)', () => {
       '/island/child-1/worlds/creature-care-cove',
     );
     expect(screen.getByText('Sail to Creature Care Cove to visit.')).toBeInTheDocument();
-  });
-
-  it('explains, instead of silently redirecting, in a build without the Django API', async () => {
-    mocks.config = { enabled: false };
-    renderAt('/island/child-1/realms/treasure-cove');
-    expect(screen.queryByTestId('where')).not.toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Realms are not open on this island yet.');
-    expect(mocks.getIslandsFor).not.toHaveBeenCalled();
   });
 
   it('says so for a Realm this child cannot see', async () => {

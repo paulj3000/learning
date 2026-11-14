@@ -76,10 +76,4 @@ describe('imageResolverFor', () => {
     resolverMock.resolve.mockRejectedValueOnce(new Error('unknown asset'));
     expect(await imageResolverFor('child-1', config)('c')).toBeNull();
   });
-
-  it('never calls the asset library in a build without the Django API', async () => {
-    resolverMock.resolve.mockClear();
-    expect(await imageResolverFor('child-1', { enabled: false })('a')).toBeNull();
-    expect(resolverMock.resolve).not.toHaveBeenCalled();
-  });
 });

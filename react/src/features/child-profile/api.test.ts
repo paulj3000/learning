@@ -12,8 +12,7 @@ import { createDjangoProfileStore } from './djangoProfiles';
 
 describe('profileStoreFor', () => {
   it('uses Django for every build (AMP-03: no Amplify Data store remains)', () => {
-    expect(profileStoreFor({ enabled: true, baseUrl: '' }).source).toBe('django');
-    expect(profileStoreFor({ enabled: false }).source).toBe('django');
+    expect(profileStoreFor({ baseUrl: '' }).source).toBe('django');
   });
 
   it('deletes the Cognito user with the injected deleter, after Django', async () => {

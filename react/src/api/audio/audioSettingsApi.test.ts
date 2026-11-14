@@ -64,8 +64,7 @@ describe('the audio settings client', () => {
     await expect(api.get()).rejects.toThrow();
   });
 
-  it('is null in a build without the Django API, and for no child', () => {
-    expect(audioSettingsApiFor('c', { enabled: false })).toBeNull();
-    expect(audioSettingsApiFor('', { enabled: true, baseUrl: 'http://x' })).toBeNull();
+  it('is null for no child', () => {
+    expect(audioSettingsApiFor('', { baseUrl: 'http://x' })).toBeNull();
   });
 });

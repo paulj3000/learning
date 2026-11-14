@@ -89,7 +89,7 @@ export function createRegionManifestRepository(
     try {
       bootstrap = await api.getRegion(regionId);
     } catch (error) {
-      if (isApiError(error) && (error.kind === 'not_found' || error.kind === 'disabled')) {
+      if (isApiError(error) && error.kind === 'not_found') {
         throw new LocationManifestNotFoundError(regionId);
       }
       throw error;

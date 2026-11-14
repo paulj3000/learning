@@ -125,7 +125,6 @@ export async function getNextLearningActivity(
   childProfileId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): Promise<NextLearningActivity> {
-  if (!config.enabled) return NO_SUGGESTION;
   try {
     const client = createApiClient({
       baseUrl: config.baseUrl,

@@ -7,7 +7,6 @@ import { createAssetLoader } from '../../features/island-map/three/assets/assetL
 import { BUNDLED_ASSET_RESOLVER } from '../../features/island-map/three/assets/assetResolver';
 import {
   createDjangoAssetResolver,
-  djangoAssetResolverFor,
   reportAssetResolutionIssue,
   type AssetResolutionIssue,
 } from './djangoAssetResolver';
@@ -154,12 +153,6 @@ describe('createDjangoAssetResolver', () => {
     expect(fetched).toHaveLength(1);
     expect(fetched[0]).toContain('/api/v1/asset-files/token-npc-pip/model.glb');
     expect(request).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('djangoAssetResolverFor', () => {
-  it('is the bundled resolver in builds without the Django API', () => {
-    expect(djangoAssetResolverFor('c', { enabled: false })).toBe(BUNDLED_ASSET_RESOLVER);
   });
 });
 

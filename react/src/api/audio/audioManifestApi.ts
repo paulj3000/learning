@@ -80,7 +80,6 @@ export function djangoAudioSourceFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): DjangoAudioSource | null {
-  if (!config.enabled) return null;
   return createDjangoAudioSource({
     client: createApiClient({ baseUrl: config.baseUrl, getAccessToken }),
     childId,

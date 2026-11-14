@@ -85,12 +85,8 @@ describe('recordDiscoveryOnServer', () => {
 });
 
 describe('discoveriesApiFor', () => {
-  it('is undefined in a build without the Django API, so the Amplify path is untouched', () => {
-    expect(discoveriesApiFor('c', { enabled: false })).toBeUndefined();
-  });
-
   it('has the two calls when the Django API is on', () => {
-    const api = discoveriesApiFor('c', { enabled: true, baseUrl: '' });
+    const api = discoveriesApiFor('c', { baseUrl: '' });
     expect(typeof api?.list).toBe('function');
     expect(typeof api?.record).toBe('function');
   });

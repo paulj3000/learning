@@ -360,7 +360,7 @@ describe('the castle mounts the shared NPC host for its Place', () => {
 
   it.each([
     ['no release', async () => ({ ...MANAGED_SCENE, release: 0, characters: {}, placements: [] })],
-    ['Django off', async () => Promise.reject(new ApiError('disabled'))],
+    ['no NPCs served', async () => Promise.reject(new ApiError('not_found'))],
     ['a failed load', async () => Promise.reject(new ApiError('network'))],
   ])('keeps the legacy Quill and his conversation on %s', async (_label, getPlaceNpcs) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

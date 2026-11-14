@@ -74,8 +74,7 @@ describe('getStorybook', () => {
 });
 
 describe('storybookApiFor', () => {
-  it('is undefined without the Django API, and has a getter with it', () => {
-    expect(storybookApiFor('c', { enabled: false })).toBeUndefined();
-    expect(typeof storybookApiFor('c', { enabled: true, baseUrl: '' })?.get).toBe('function');
+  it('has a getter', () => {
+    expect(typeof storybookApiFor('c', { baseUrl: '' })?.get).toBe('function');
   });
 });

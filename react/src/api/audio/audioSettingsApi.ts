@@ -104,7 +104,7 @@ export function audioSettingsApiFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): AudioSettingsApi | null {
-  if (!config.enabled || !childId) return null;
+  if (!childId) return null;
   return createAudioSettingsApi(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken }),
     childId,

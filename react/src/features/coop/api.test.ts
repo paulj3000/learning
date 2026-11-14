@@ -116,13 +116,6 @@ describe('coop api (Django, AMP-05)', () => {
     const session = await getCoopSession('child-a', 'coop-1', client);
     expect(session.sharedState).toEqual({ slots: {}, presence: [] });
   });
-
-  it('fails as disabled, without a request, in a build without the Django API', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    await expect(getCoopSession('child-a', 'coop-1')).rejects.toMatchObject({ kind: 'disabled' });
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
-  });
 });
 
 describe('subscribeToCoopSession (polling replaces the AppSync subscription)', () => {

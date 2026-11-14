@@ -1,123 +1,168 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getChildProfile, getCompanionProfile, listAllWorldChanges, loadCatalogSnapshot } =
-  vi.hoisted(() => ({
-    getChildProfile: vi.fn(),
-    getCompanionProfile: vi.fn(),
-    listAllWorldChanges: vi.fn(),
-    loadCatalogSnapshot: vi.fn(),
-  }));
+/** AP-02 and AP-03: the child homepage in a build with the Django API (`VITE_BACKEND=django`). */
 
-vi.mock('../features/child-profile/api', () => ({ getChildProfile }));
+const mocks = vi.hoisted(() => ({
+  getChildProfile: vi.fn(),
+  getIslandsFor: vi.fn(),
+  getChildHomeFor: vi.fn(),
+  getCompanionProfile: vi.fn(),
+  listAllWorldChanges: vi.fn(),
+  loadCatalogSnapshot: vi.fn(),
+}));
+
+vi.mock('../api/config', () => ({ DJANGO_API_CONFIG: { baseUrl: '' } }));
+vi.mock('../api/play/islandsApi', () => ({ getIslandsFor: mocks.getIslandsFor }));
+vi.mock('../api/play/homeApi', () => ({ getChildHomeFor: mocks.getChildHomeFor }));
+vi.mock('../features/child-profile/api', () => ({ getChildProfile: mocks.getChildProfile }));
 vi.mock('../features/island/api', () => ({
-  getCompanionProfile,
+  getCompanionProfile: mocks.getCompanionProfile,
   getOrCreateCompanionProfile: vi.fn(),
 }));
-vi.mock('../features/adventures/api', () => ({ listAllWorldChanges }));
-vi.mock('../features/catalog/availabilityApi', () => ({ loadCatalogSnapshot }));
+vi.mock('../features/adventures/api', () => ({ listAllWorldChanges: mocks.listAllWorldChanges }));
+vi.mock('../features/catalog/availabilityApi', () => ({
+  loadCatalogSnapshot: mocks.loadCatalogSnapshot,
+}));
 
 import { WelcomeHarbor } from './WelcomeHarbor';
 
-/** LAI-0808: the child's homepage is an Island Explorer. */
+const AREA = { regionId: 'treasure-rush-cove', title: 'Treasure Cove', available: true };
+
+function islandsView() {
+  return {
+    autoSelectIslandId: null,
+    islands: [
+      {
+        islandId: 'learning-adventure-island',
+        title: 'Learning Adventure Island',
+        tagline: 'Home',
+        isHome: true,
+        ageBands: ['PATHFINDER'],
+        subjects: ['Counting'],
+        thumbnailAssetId: null,
+        unlocked: true,
+        lockedHint: null,
+        progress: { placesExplored: 1, placesTotal: 2 },
+        places: [
+          {
+            placeId: 'pirate-builder-bay',
+            title: 'Pirate Builder Bay',
+            tagline: 'Build',
+            adventureCount: 2,
+            explored: true,
+            area: AREA,
+          },
+          {
+            placeId: 'storykeeper-castle',
+            title: 'Storykeeper Castle',
+            tagline: 'Stories',
+            adventureCount: 1,
+            explored: false,
+            area: null,
+          },
+        ],
+      },
+      {
+        islandId: 'creature-care-cove',
+        title: 'Creature Care Cove',
+        tagline: 'Cove',
+        isHome: false,
+        ageBands: ['PATHFINDER'],
+        subjects: ['Caring routines'],
+        thumbnailAssetId: null,
+        unlocked: false,
+        lockedHint: 'Help Pip at Pirate Builder Bay.',
+        progress: { placesExplored: 0, placesTotal: 2 },
+        places: [],
+      },
+    ],
+  };
+}
+
+const HOME = {
+  lastRegion: null,
+  resume: [
+    {
+      regionId: 'treasure-rush-cove',
+      title: 'Treasure Cove',
+      description: 'Help Pip.',
+      placeTitle: 'Pirate Builder Bay',
+      available: true,
+      status: 'IN_PROGRESS',
+      chestsTotal: 4,
+      chestsOpened: 2,
+      canResume: true,
+    },
+  ],
+  nextRegions: [],
+  progress: {
+    completedSessions: 1,
+    worldChanges: 1,
+    items: 1,
+    questsCompleted: 0,
+    questsActive: 1,
+  },
+  recentItems: [{ itemId: 'coin', displayName: 'Gold coin' }],
+};
 
 function renderHome(state?: unknown) {
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/island/child-1', state }]}>
       <Routes>
         <Route path="/island/:childId" element={<WelcomeHarbor />} />
-        <Route path="/island/:childId/locations/:slug" element={<p>Place page</p>} />
-        <Route path="/island/:childId/worlds/:worldSlug" element={<p>Island hub</p>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
-function changes(...keys: string[]) {
-  return keys.map((changeKey) => ({ changeKey }));
-}
-
 beforeEach(() => {
-  getChildProfile.mockResolvedValue({
+  vi.clearAllMocks();
+  mocks.getChildProfile.mockResolvedValue({
     id: 'child-1',
     nickname: 'Robin',
     ageBand: 'PATHFINDER',
     avatarKey: 'fox',
   });
-  getCompanionProfile.mockResolvedValue({ id: 'companion-1' });
-  listAllWorldChanges.mockResolvedValue([]);
-  loadCatalogSnapshot.mockResolvedValue({ islands: [], adventures: [] });
+  mocks.getIslandsFor.mockResolvedValue(islandsView());
+  mocks.getChildHomeFor.mockResolvedValue(HOME);
 });
 
-describe('WelcomeHarbor Island Explorer (LAI-0808)', () => {
-  it('shows the home island first with its places, and a locked island with its hint', async () => {
+describe('WelcomeHarbor (AP-02, AP-03; Django is the only backend)', () => {
+  it('draws the dashboard and the way to the Realm Explorer, and reads only the home summary', async () => {
     renderHome();
-    const explorer = await screen.findByRole('region', { name: 'Where to next?' });
-    const islands = within(explorer)
-      .getAllByRole('listitem')
-      .filter((item) => item.parentElement?.parentElement === explorer);
-    expect(islands).toHaveLength(2);
-    expect(within(islands[0]).getByText('Learning Adventure Island')).toBeInTheDocument();
-    expect(within(islands[0]).getByText('You are here')).toBeInTheDocument();
-    expect(within(islands[0]).getByRole('link', { name: /Pirate Builder Bay/ })).toHaveAttribute(
+    expect(
+      await screen.findByRole('heading', { name: 'Continue your adventure' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Keep going' })).toHaveAttribute(
       'href',
-      '/island/child-1/locations/pirate-builder-bay',
+      '/island/child-1/explore/treasure-rush-cove',
     );
 
-    expect(within(islands[1]).getByText('Creature Care Cove')).toBeInTheDocument();
-    expect(within(islands[1]).getByText('Not open yet')).toBeInTheDocument();
-    expect(within(islands[1]).getByText(/Help Pip at Pirate Builder Bay/)).toBeInTheDocument();
-    expect(within(islands[1]).queryByRole('link')).not.toBeInTheDocument();
-    expect(within(islands[1]).queryByRole('button')).not.toBeInTheDocument();
-  });
+    const teaser = screen.getByRole('region', { name: /Realm Explorer/ });
+    expect(within(teaser).getByRole('link', { name: 'Explore the Realms' })).toHaveAttribute(
+      'href',
+      '/island/child-1/realms',
+    );
+    // The Realms have their own page now; Home neither lists them nor reads the catalog.
+    expect(screen.queryByRole('region', { name: 'Where to next?' })).not.toBeInTheDocument();
+    expect(mocks.getIslandsFor).not.toHaveBeenCalled();
 
-  it('opens the cove once the bridge is repaired, and sailing there navigates to its hub', async () => {
-    listAllWorldChanges.mockResolvedValue(changes('BRIDGE_REPAIRED'));
-    renderHome();
-    const sail = await screen.findByRole('link', { name: /Creature Care Cove/ });
-    expect(sail).toHaveAttribute('href', '/island/child-1/worlds/creature-care-cove');
-    expect(screen.queryByText('Not open yet')).not.toBeInTheDocument();
-    await userEvent.click(sail);
-    expect(await screen.findByText('Island hub')).toBeInTheDocument();
-  });
-
-  it('navigates to a place when its card is chosen', async () => {
-    renderHome();
-    await userEvent.click(await screen.findByRole('link', { name: /Wonderwild Forest/ }));
-    expect(await screen.findByText('Place page')).toBeInTheDocument();
-  });
-
-  it('respects the age band: an Explorer opens the cove with the tide gate', async () => {
-    getChildProfile.mockResolvedValue({
-      id: 'child-1',
-      nickname: 'Robin',
-      ageBand: 'EXPLORER',
-      avatarKey: 'fox',
-    });
-    listAllWorldChanges.mockResolvedValue(changes('TIDE_GATE_SET'));
-    renderHome();
-    expect(await screen.findByRole('link', { name: /Creature Care Cove/ })).toBeInTheDocument();
-  });
-
-  it('hides a place an admin has switched off', async () => {
-    loadCatalogSnapshot.mockResolvedValue({
-      islands: [{ id: 'i-1', slug: 'wonderwild-forest', active: false }],
-      adventures: [],
-    });
-    renderHome();
-    await screen.findByRole('region', { name: 'Where to next?' });
-    expect(screen.queryByRole('link', { name: /Wonderwild Forest/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Pirate Builder Bay/ })).toBeInTheDocument();
+    expect(mocks.getChildHomeFor).toHaveBeenCalledWith('child-1');
+    expect(mocks.getCompanionProfile).not.toHaveBeenCalled();
+    expect(mocks.listAllWorldChanges).not.toHaveBeenCalled();
+    expect(mocks.loadCatalogSnapshot).not.toHaveBeenCalled();
   });
 
   it('says calmly that the adventure is saved after "Leave island" (AP-04), and only then', async () => {
     renderHome({ leftIsland: true });
-    expect(await screen.findByRole('status')).toHaveTextContent('Your adventure is saved.');
+    expect(
+      await screen.findByText('Your adventure is saved.', { exact: false }),
+    ).toBeInTheDocument();
     cleanup();
     renderHome();
-    await screen.findByRole('heading', { name: 'Where to next?' });
+    await screen.findByRole('heading', { name: 'Continue your adventure' });
     expect(screen.queryByText(/Your adventure is saved/)).not.toBeInTheDocument();
   });
 
@@ -128,23 +173,34 @@ describe('WelcomeHarbor Island Explorer (LAI-0808)', () => {
     expect(hero).toHaveClass('bg-ocean-700', 'text-white');
     expect(hero.closest('[data-shell="child"]')).not.toBeNull();
     expect(screen.getByRole('navigation', { name: 'Island' })).toBeInTheDocument();
-
-    const here = within(screen.getByRole('region', { name: 'Where to next?' }))
-      .getByText('You are here')
-      .closest('[data-slot="portal-card"]');
-    expect(here).toHaveClass('bg-ocean-50');
-
     const library = screen.getByRole('link', { name: 'Open the adventure library (new!)' });
     expect(library).toHaveAttribute('href', '/island/child-1/library');
     expect(library).toHaveAttribute('data-slot', 'portal-button');
     expect(library).toHaveClass('bg-purple-700', 'min-h-14');
   });
 
-  it('shows a calm error when the island cannot load', async () => {
-    listAllWorldChanges.mockRejectedValue(new Error('offline'));
+  it('keeps the way to the Realms when the home summary fails, and says so calmly', async () => {
+    mocks.getChildHomeFor.mockRejectedValue(new Error('offline'));
+    renderHome();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'You can still explore the Realms below.',
+    );
+    expect(screen.getByRole('link', { name: 'Explore the Realms' })).toBeInTheDocument();
+  });
+
+  it('shows the calm error when the child profile itself cannot load', async () => {
+    mocks.getChildProfile.mockRejectedValue(new Error('offline'));
     renderHome();
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Something went wrong loading the island.',
+    );
+  });
+
+  it('says so when the child profile does not exist', async () => {
+    mocks.getChildProfile.mockResolvedValue(null);
+    renderHome();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not find that child profile.',
     );
   });
 });

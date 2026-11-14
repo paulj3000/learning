@@ -19,8 +19,7 @@ import type { LocationManifestRepository } from '../island-map/three/runtime/loc
  * back to the bundled files, and a model neither can supply draws the
  * runtime's placeholder (TR-7a).
  *
- * Source-controlled regions, and every build without the Django API
- * (`VITE_BACKEND` unset), keep the bundled loader exactly as before.
+ * Source-controlled regions keep the bundled loader exactly as before.
  *
  * Call it once per visit: each visit gets its own resolver and loader, so it
  * asks Django again and a newly published default is picked up on re-entry.
@@ -33,7 +32,7 @@ export function regionAssetsFor(
   config: DjangoApiConfig = DJANGO_API_CONFIG,
   resolverFor: (childId: string, config: DjangoApiConfig) => AssetResolver = djangoAssetResolverFor,
 ): LocationEngineAssets {
-  if (!config.enabled || source.listRegionIds().includes(regionId)) {
+  if (source.listRegionIds().includes(regionId)) {
     return DEFAULT_LOCATION_ENGINE_DEPS.assets;
   }
   return engineAssetsFrom(createAssetLoader(resolverFor(childId, config)));

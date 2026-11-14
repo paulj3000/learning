@@ -73,7 +73,6 @@ export function discoveriesApiFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): DiscoveriesApi | undefined {
-  if (!config.enabled) return undefined;
   const client = createApiClient({
     baseUrl: config.baseUrl,
     getAccessToken,

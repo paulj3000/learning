@@ -17,7 +17,6 @@ export function regionRepositoryForChild(
   source: LocationManifestRepository,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): LocationManifestRepository {
-  if (!config.enabled) return source;
   return createRegionManifestRepository({
     source,
     api: playApiFor(childId, config),

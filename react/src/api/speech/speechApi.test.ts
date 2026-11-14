@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from '../client';
-import { createSpeechApi, parseSpeechClip, speechApiFor, speechPath } from './speechApi';
+import { createSpeechApi, parseSpeechClip, speechPath } from './speechApi';
 
 const valid = (overrides: object = {}) => ({
   speech: {
@@ -90,10 +90,5 @@ describe('the speech client', () => {
     );
     expect(await on.enabled()).toBe(true);
     expect(await broken.enabled()).toBe(false);
-  });
-
-  it('is null in a build without the Django API', () => {
-    expect(speechApiFor('c', { enabled: false })).toBeNull();
-    expect(speechApiFor('', { enabled: true, baseUrl: 'http://x' })).toBeNull();
   });
 });

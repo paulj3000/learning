@@ -10,11 +10,7 @@ import { isReauthenticating, onReauthenticationEnd } from './recentSignIn/recent
  *   as signed out, so a slow network does not bounce a parent to the sign-in page.
  */
 export type AuthStatus =
-  | 'unconfigured'
-  | 'loading'
-  | 'authenticated'
-  | 'unauthenticated'
-  | 'unavailable';
+  'unconfigured' | 'loading' | 'authenticated' | 'unauthenticated' | 'unavailable';
 
 interface AuthContextValue {
   status: AuthStatus;

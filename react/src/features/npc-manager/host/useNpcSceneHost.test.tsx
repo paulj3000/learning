@@ -281,11 +281,11 @@ describe('NPC scene host: lifecycle', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('reports failed (and serves no NPCs) when Django is off or the request fails', async () => {
+  it('reports failed (and serves no NPCs) when nothing is served or the request fails', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const api: NpcApi = {
       getCatalog: vi.fn(),
-      getAreaNpcs: vi.fn(async () => Promise.reject(new ApiError('disabled'))),
+      getAreaNpcs: vi.fn(async () => Promise.reject(new ApiError('not_found'))),
       getPlaceNpcs: vi.fn(),
     };
     const { world, host } = setup({ api });

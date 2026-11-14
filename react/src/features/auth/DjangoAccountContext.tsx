@@ -32,8 +32,8 @@ export function DjangoAccountProvider({
 }) {
   const { status, userId } = useAuth();
   const [result, setResult] = useState<(DjangoAccountValue & { userId: string }) | null>(null);
-  const ready = config.enabled && status === 'authenticated' && !!userId;
-  const baseUrl = config.enabled ? config.baseUrl : '';
+  const ready = status === 'authenticated' && !!userId;
+  const { baseUrl } = config;
 
   useEffect(() => {
     if (!ready || !userId) return;

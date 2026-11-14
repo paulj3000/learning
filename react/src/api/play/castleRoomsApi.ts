@@ -61,7 +61,6 @@ export function castleRoomsApiFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): CastleRoomsApi | undefined {
-  if (!config.enabled) return undefined;
   const client = createApiClient({
     baseUrl: config.baseUrl,
     getAccessToken,

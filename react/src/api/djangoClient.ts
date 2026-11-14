@@ -13,7 +13,7 @@ import { DJANGO_API_CONFIG, type DjangoApiConfig } from './config';
  * first use, and it provisions a first-time parent's Django account itself.
  */
 export function djangoBaseUrl(config: DjangoApiConfig = DJANGO_API_CONFIG): string {
-  return config.enabled ? config.baseUrl : '';
+  return config.baseUrl;
 }
 
 let client: ApiClient | null = null;

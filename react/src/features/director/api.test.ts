@@ -115,18 +115,11 @@ describe('fetchNextLearningActivity', () => {
 });
 
 describe('getNextLearningActivity', () => {
-  it('returns no suggestion, without any request, in a build without the Django API', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    expect(await getNextLearningActivity('child-1', { enabled: false })).toBe(NO_SUGGESTION);
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
-  });
-
   it('never throws: a failed request degrades to no suggestion', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'));
-    expect(
-      await getNextLearningActivity('child-1', { enabled: true, baseUrl: 'https://api.test' }),
-    ).toBe(NO_SUGGESTION);
+    expect(await getNextLearningActivity('child-1', { baseUrl: 'https://api.test' })).toBe(
+      NO_SUGGESTION,
+    );
     fetchSpy.mockRestore();
   });
 
@@ -137,10 +130,7 @@ describe('getNextLearningActivity', () => {
         headers: { 'Content-Type': 'application/json' },
       }),
     );
-    const result = await getNextLearningActivity('child-1', {
-      enabled: true,
-      baseUrl: 'https://api.test',
-    });
+    const result = await getNextLearningActivity('child-1', { baseUrl: 'https://api.test' });
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://api.test/api/v1/children/child-1/next-learning-activity/',
       expect.objectContaining({ method: 'GET' }),

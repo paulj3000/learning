@@ -1,6 +1,6 @@
 import { createApiClient } from '../client';
 import { ApiError } from '../errors';
-import { createPlayApi, playApiFor } from './playApi';
+import { createPlayApi } from './playApi';
 import type { AnswerSubmission } from './types';
 import {
   ATTEMPT_ID,
@@ -236,16 +236,6 @@ describe('play API response checking', () => {
   });
 });
 
-describe('playApiFor', () => {
-  it('fails every call as disabled when the build has no Django API', async () => {
-    const api = playApiFor(CHILD_A, { enabled: false });
-    await expect(api.getRegion('treasure-rush-cove')).rejects.toMatchObject({ kind: 'disabled' });
-    await expect(api.submitAnswer(ATTEMPT_ID, { answer: 1 })).rejects.toMatchObject({
-      kind: 'disabled',
-    });
-  });
-});
-
 describe("Pip's Missing Treasure requests (TR-14)", () => {
   const empty = { flagsSet: [], questUpdates: [], completionRewards: [] };
   const key = {
@@ -349,11 +339,5 @@ describe("Pip's Missing Treasure requests (TR-14)", () => {
     );
     expect((await api.submitAnswer(ATTEMPT_ID, { answer: 5 })).completionRewards).toEqual([]);
     expect((await api.submitAnswer(ATTEMPT_ID, { answer: 5 })).completionRewards).toEqual([]);
-  });
-
-  it('refuses the new routes when the build has no Django API', async () => {
-    const api = playApiFor(CHILD_A, { enabled: false });
-    await expect(api.collectPickup(SESSION_ID, 'k')).rejects.toBeInstanceOf(ApiError);
-    await expect(api.talkToNpc(SESSION_ID, 'p')).rejects.toBeInstanceOf(ApiError);
   });
 });

@@ -79,7 +79,7 @@ export function speechApiFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): SpeechApi | null {
-  if (!config.enabled || !childId) return null;
+  if (!childId) return null;
   return createSpeechApi(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken }),
     childId,

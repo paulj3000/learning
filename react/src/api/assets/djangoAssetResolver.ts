@@ -272,7 +272,6 @@ export function djangoAssetResolverFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): AssetResolver {
-  if (!config.enabled) return BUNDLED_ASSET_RESOLVER;
   return createDjangoAssetResolver({
     client: createApiClient({ baseUrl: config.baseUrl, getAccessToken }),
     childId,

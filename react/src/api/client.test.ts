@@ -1,5 +1,5 @@
 import { createApiClient } from './client';
-import { readDjangoApiConfig } from './config';
+import { assertValidApiBase, parseApiBase, readDjangoApiConfig } from './config';
 import { ApiError } from './errors';
 import { errorJson, jsonResponse } from '../test/playFixtures';
 
@@ -225,44 +225,35 @@ describe('createApiClient bounds every request in time (P0)', () => {
   });
 });
 
-describe('readDjangoApiConfig', () => {
-  it('is off unless the backend is django', () => {
-    expect(readDjangoApiConfig({})).toEqual({ enabled: false });
-    expect(readDjangoApiConfig({ VITE_BACKEND: 'amplify' })).toEqual({ enabled: false });
-  });
-
-  it('defaults to same-origin', () => {
-    expect(readDjangoApiConfig({ VITE_BACKEND: 'django' })).toEqual({ enabled: true, baseUrl: '' });
+describe('readDjangoApiConfig (Django is the only backend)', () => {
+  it('defaults to same-origin, with no setting at all', () => {
+    expect(readDjangoApiConfig({})).toEqual({ baseUrl: '' });
+    expect(readDjangoApiConfig({ VITE_DJANGO_API_BASE: '  ' })).toEqual({ baseUrl: '' });
   });
 
   it('accepts https anywhere and http only in dev', () => {
-    const https = { VITE_BACKEND: 'django', VITE_DJANGO_API_BASE: 'https://api.lai.example/' };
-    expect(readDjangoApiConfig(https)).toEqual({
-      enabled: true,
+    expect(readDjangoApiConfig({ VITE_DJANGO_API_BASE: 'https://api.lai.example/' })).toEqual({
       baseUrl: 'https://api.lai.example',
     });
-    const http = { VITE_BACKEND: 'django', VITE_DJANGO_API_BASE: 'http://localhost:8000' };
-    expect(readDjangoApiConfig(http)).toEqual({ enabled: false });
+    const http = { VITE_DJANGO_API_BASE: 'http://localhost:8000' };
+    expect(readDjangoApiConfig(http)).toEqual({ baseUrl: '' });
     expect(readDjangoApiConfig({ ...http, DEV: true })).toEqual({
-      enabled: true,
       baseUrl: 'http://localhost:8000',
     });
   });
 
-  it('refuses a base with a path or that is not a URL', () => {
-    expect(
-      readDjangoApiConfig({
-        VITE_BACKEND: 'django',
-        VITE_DJANGO_API_BASE: 'https://x.example/api',
-      }),
-    ).toEqual({
-      enabled: false,
-    });
-    expect(
-      readDjangoApiConfig({ VITE_BACKEND: 'django', VITE_DJANGO_API_BASE: 'not a url' }),
-    ).toEqual({
-      enabled: false,
-    });
+  it('falls back to same-origin for a base with a path or that is not a URL', () => {
+    for (const value of ['https://x.example/api', 'not a url', 'https://x.example/?q=1']) {
+      expect(readDjangoApiConfig({ VITE_DJANGO_API_BASE: value })).toEqual({ baseUrl: '' });
+      expect(parseApiBase({ VITE_DJANGO_API_BASE: value })).toBeNull();
+    }
+  });
+
+  it('lets the Vite config refuse a bad value before it starts', () => {
+    expect(() => assertValidApiBase({ VITE_DJANGO_API_BASE: 'not a url' })).toThrow(
+      /VITE_DJANGO_API_BASE/,
+    );
+    expect(() => assertValidApiBase({})).not.toThrow();
   });
 });
 

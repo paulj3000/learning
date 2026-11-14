@@ -186,7 +186,6 @@ export function createDjangoAiApi(client: ApiClient): DjangoAiApi {
 
 /** The build's Django AI API, or null when this build still uses the Amplify routes. */
 export function djangoAiApiFor(config: DjangoApiConfig = DJANGO_API_CONFIG): DjangoAiApi | null {
-  if (!config.enabled) return null;
   return createDjangoAiApi(
     createApiClient({
       baseUrl: config.baseUrl,

@@ -10,9 +10,8 @@ test-results/
 .env.*
 !.env.example
 !.env.sample
+# Legacy: an old checkout may still hold an Amplify outputs file; never commit it.
 amplify_outputs.json
-amplify/.config/
-.amplify/
 .DS_Store
 *.log
 .vscode/*

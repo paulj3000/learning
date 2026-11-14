@@ -45,7 +45,6 @@ export function npcHintApiFor(
   scope: DialogueScope,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): NpcHintApi {
-  if (!config.enabled) return { hint: () => Promise.reject(new ApiError('disabled')) };
   return createNpcHintApi(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
     childId,

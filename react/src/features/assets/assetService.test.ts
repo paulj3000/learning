@@ -7,7 +7,7 @@ vi.mock('../../api/assets/djangoAssetResolver', () => ({ djangoAssetResolverFor 
 
 import { publishedAssetResolverFor, resolveAssetUrl } from './assetService';
 
-const DJANGO = { enabled: true, baseUrl: '' } as const;
+const DJANGO = { baseUrl: '' } as const;
 
 function resolverAnswering(url: string): AssetResolver {
   return {
@@ -42,15 +42,5 @@ describe('assetService (AMP-04: Django only)', () => {
       'https://cdn.example/rock.glb',
     );
     expect(resolver.resolve).toHaveBeenCalledWith('rock', 'model');
-  });
-
-  it('passes a build without the Django API to the same selector (it answers with bundled files)', async () => {
-    const bundled = resolverAnswering('/models/kenney-rock-small.glb');
-    djangoAssetResolverFor.mockReturnValue(bundled);
-
-    await expect(resolveAssetUrl('child-1', 'rock', 'model', { enabled: false })).resolves.toBe(
-      '/models/kenney-rock-small.glb',
-    );
-    expect(djangoAssetResolverFor).toHaveBeenCalledWith('child-1', { enabled: false });
   });
 });
