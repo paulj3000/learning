@@ -58,6 +58,25 @@ QUATERNIUS_LICENCE_EVIDENCE = (
     "packs). The files carry no licence text."
 )
 
+# CC0 1.0, as the owner confirmed it for every Quaternius pack below (2026-11-14).
+CC0 = {
+    "licenceId": "CC0-1.0",
+    "licenceName": "Creative Commons Zero 1.0 Universal",
+    "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "licenceLegalCode": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+    "licenceLegalCodeText": "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt",
+}
+LICENCE_VERIFIED_ON = "2026-11-14"
+OWNER_CONFIRMATION = (
+    "Owner confirmation, 2026-11-14: Quaternius assets explicitly distributed under CC0-1.0; "
+    "publishing their validated versions in local development authorised (Trello WkboJVve, "
+    "PR paulj3000/learning#36)."
+)
+CONFIRMED_EVIDENCE = (
+    "Confirmed CC0-1.0 by the owner against the source listings. "
+    + QUATERNIUS_LICENCE_EVIDENCE
+)
+
 
 @dataclass(frozen=True)
 class PackModel:
@@ -112,6 +131,10 @@ class ModelPack:
     fixes: gltf_prep.MaterialFixes = gltf_prep.MaterialFixes()
     # Tag definitions with the author's name; off when the files name no author (TR-NAT).
     tag_author: bool = True
+    # Licence confirmation (2026-11-14): when, by whom, and the pack's own source pages.
+    licence_verified_on: str = ""
+    owner_confirmation: str = ""
+    source_pages: tuple[str, ...] = ()
 
     def provenance(self, model: PackModel, source_sha256: str, *, confirmed: bool) -> dict:
         return {
@@ -123,6 +146,10 @@ class ModelPack:
             "licenceUrl": self.licence_url,
             "licenceEvidence": self.licence_evidence,
             "licenceStatus": "confirmed" if confirmed else "unconfirmed",
+            **(CC0 if confirmed and self.licence == CC0["licenceName"] else {}),
+            **({"licenceVerifiedOn": self.licence_verified_on} if self.licence_verified_on else {}),
+            **({"ownerConfirmation": self.owner_confirmation} if self.owner_confirmation else {}),
+            **({"sourcePages": list(self.source_pages)} if self.source_pages else {}),
             "sourceSha256": source_sha256,
             "pipelineVersion": PIPELINE_VERSION,
         }
@@ -135,11 +162,12 @@ QUATERNIUS_PALM_TREES = ModelPack(
     group="palms",
     title="Palm Trees",
     author="Quaternius",
-    licence="CC0 1.0 Universal",
-    licence_url="https://creativecommons.org/publicdomain/zero/1.0/",
-    licence_evidence="Owner-provided download from poly.pizza, stated CC0 by the owner. "
-    + QUATERNIUS_LICENCE_EVIDENCE,
-    licence_confirmed=True,  # stated by the owner in the TR-PALM request (2026-11-14)
+    licence=CC0["licenceName"],
+    licence_url=CC0["licenceUrl"],
+    licence_evidence=CONFIRMED_EVIDENCE,
+    licence_confirmed=True,
+    licence_verified_on=LICENCE_VERIFIED_ON,
+    owner_confirmation=OWNER_CONFIRMATION,
     kind="kit-piece",
     category=AssetCategory.SCENERY,
     tags=("nature", "vegetation", "trees", "tropical", "environment", "treasure-rush", "cc0"),
@@ -204,21 +232,18 @@ QUATERNIUS_PALM_TREES = ModelPack(
     ),
 )
 
-_UNCONFIRMED_EVIDENCE = (
-    "Owner-provided poly.pizza downloads whose file names credit Quaternius. "
-    + QUATERNIUS_LICENCE_EVIDENCE
-    + " Not yet confirmed by the owner: the poly.pizza pages could not be reached to check."
-)
 
 QUATERNIUS_BARRELS = ModelPack(
     pack_id="quaternius-barrel",
     group="barrels",
     title="Barrel",
     author="Quaternius",
-    licence="CC0 1.0 Universal (expected)",
-    licence_url="https://creativecommons.org/publicdomain/zero/1.0/",
-    licence_evidence=_UNCONFIRMED_EVIDENCE,
-    licence_confirmed=False,
+    licence=CC0["licenceName"],
+    licence_url=CC0["licenceUrl"],
+    licence_evidence=CONFIRMED_EVIDENCE,
+    licence_confirmed=True,
+    licence_verified_on=LICENCE_VERIFIED_ON,
+    owner_confirmation=OWNER_CONFIRMATION,
     kind="prop",
     category=AssetCategory.PROP,
     tags=("environment", "props", "wood", "pirate", "treasure-rush"),
@@ -250,10 +275,12 @@ QUATERNIUS_LOGS = ModelPack(
     group="logs",
     title="Wood Log, Wood Log with Moss, Wood",
     author="Quaternius",
-    licence="CC0 1.0 Universal (expected)",
-    licence_url="https://creativecommons.org/publicdomain/zero/1.0/",
-    licence_evidence=_UNCONFIRMED_EVIDENCE,
-    licence_confirmed=False,
+    licence=CC0["licenceName"],
+    licence_url=CC0["licenceUrl"],
+    licence_evidence=CONFIRMED_EVIDENCE,
+    licence_confirmed=True,
+    licence_verified_on=LICENCE_VERIFIED_ON,
+    owner_confirmation=OWNER_CONFIRMATION,
     kind="kit-piece",
     category=AssetCategory.SCENERY,
     tags=("environment", "nature", "wood", "treasure-rush"),
@@ -305,13 +332,18 @@ QUATERNIUS_LOGS = ModelPack(
 # One owner-supplied stylised nature kit, delivered as three ZIPs: the .gltf files with their .bin
 # buffers (MapleTree_5_2.zip) and two texture sets (png.zip, PalmTree_Leaves.zip). Only the
 # bushes, flower clumps and grass suit a tropical island; the birch, maple and dead trees do not.
-# The files name no author and carry no licence, so nothing here is published until the owner
-# states both (licence_confirmed).
+# The files themselves name no author and carry no licence; the owner identified them as
+# Quaternius' Ultimate Stylized Nature Pack and confirmed it CC0-1.0 (2026-11-14).
 
-_NATURE_SOURCE = "Owner-supplied stylised nature kit: MapleTree_5_2.zip with png.zip (2026-11-14)"
+_NATURE_SOURCE = "https://quaternius.com/packs/ultimatestylizednature.html"
+_NATURE_PAGES = (
+    "https://quaternius.com/packs/ultimatestylizednature.html",
+    "https://poly.pizza/bundle/Ultimate-Stylized-Nature-Pack-zyIyYd9yGr",
+)
 _NATURE_EVIDENCE = (
-    "The .gltf files (Blender glTF I/O 4.0.44) and textures carry no author, licence or readme. "
-    "Author and licence are unknown until the owner states them."
+    "Owner-supplied files (MapleTree_5_2.zip with png.zip) identified by the owner as Quaternius' "
+    "Ultimate Stylized Nature Pack and confirmed CC0-1.0. The files carry no author or licence "
+    "text; the License.txt the owner supplied names Quaternius' Ultimate Platformer Pack, CC0 1.0."
 )
 _VEGETATION_FIXES = gltf_prep.MaterialFixes(
     blend_to_mask=True, alpha_cutoff=0.5, double_sided_cutouts=True, metallic=0.0, roughness=1.0
@@ -322,12 +354,15 @@ def _nature_pack(pack_id: str, group: str, title: str, tags: tuple, models) -> M
     return ModelPack(
         pack_id=pack_id,
         group=group,
-        title=title,
-        author="Not stated in the supplied files",
-        licence="Not stated in the supplied files",
-        licence_url="",
+        title=f"Ultimate Stylized Nature Pack: {title}",
+        author="Quaternius",
+        licence=CC0["licenceName"],
+        licence_url=CC0["licenceUrl"],
         licence_evidence=_NATURE_EVIDENCE,
-        licence_confirmed=False,
+        licence_confirmed=True,
+        licence_verified_on=LICENCE_VERIFIED_ON,
+        owner_confirmation=OWNER_CONFIRMATION,
+        source_pages=_NATURE_PAGES,
         kind="kit-piece",
         category=AssetCategory.SCENERY,
         tags=("nature", "environment", "vegetation", "tropical", "treasure-rush", *tags),
@@ -348,7 +383,6 @@ def _nature_pack(pack_id: str, group: str, title: str, tags: tuple, models) -> M
         # and every model under about 60 KB.
         max_texture_size=256,
         fixes=_VEGETATION_FIXES,
-        tag_author=False,
     )
 
 
@@ -450,6 +484,8 @@ class PackReport:
     unresolved: list[dict] = field(default_factory=list)
     created_definitions: list[str] = field(default_factory=list)
     ignored_files: list[dict] = field(default_factory=list)
+    refreshed: list[dict] = field(default_factory=list)
+    provenance_updated: list[str] = field(default_factory=list)
 
     @property
     def source(self) -> dict:
@@ -706,7 +742,7 @@ def import_pack(
                 model.node,
                 max_texture_size=pack.max_texture_size,
                 fixes=pack.fixes,
-                asset_copyright=f"{pack.author}, {pack.licence}",
+                asset_copyright=_credit(pack, confirmed),
                 texture_cache=texture_cache,
                 **model.prep_options(),
             )
@@ -744,7 +780,23 @@ def import_pack(
             },
         }
         existing = _existing_version(asset, stats["sha256"], source_sha256, model.node)
+        if (
+            existing is not None
+            and existing.status == VersionStatus.VALIDATED
+            and existing.sha256 != stats["sha256"]
+        ):
+            # Never published, and prepared before something it embeds changed (the licence
+            # credit once the owner confirmed it): replace it, so the version that is published,
+            # and then frozen, carries the right credit. Published versions are never touched.
+            report.refreshed.append({**entry, "version": existing.number})
+            if dry_run:
+                report.skipped.append({**entry, "version": existing.number, "status": "STALE"})
+                continue
+            services.delete_unpublished_version(existing)
+            existing = None
         if existing is not None:
+            if existing.status == VersionStatus.VALIDATED and not dry_run:
+                _refresh_provenance(existing, metadata)
             report.skipped.append({**entry, "version": existing.number, "status": existing.status})
             version = existing
         else:
@@ -791,6 +843,22 @@ def import_pack(
     return report
 
 
+def _credit(pack: ModelPack, confirmed: bool) -> str:
+    """The `asset.copyright` written into each prepared file."""
+    if confirmed and pack.licence == CC0["licenceName"]:
+        return f"{pack.author}, {CC0['licenceId']}"
+    return f"{pack.author}, {pack.licence}"
+
+
+def _refresh_provenance(version: AssetVersion, metadata: dict) -> None:
+    """A never-published version's provenance follows the pack (metadata freezes at publish)."""
+    current = version.metadata or {}
+    if current.get("provenance") == metadata["provenance"]:
+        return
+    version.metadata = {**current, "provenance": metadata["provenance"]}
+    version.save(update_fields=["metadata"])
+
+
 def _source_triangles(document: dict, node_name: str) -> int:
     node = next(n for n in document["nodes"] if n.get("name") == node_name)
     mesh = document["meshes"][node["mesh"]]
@@ -815,7 +883,13 @@ def _definition(pack, model, provenance, report, *, dry_run) -> ContentAsset | N
                 {"asset": model.asset_id, "node": model.node, "reason": "asset_kind_conflict"}
             )
             return None
-        return asset  # an existing definition keeps whatever an administrator set
+        # An existing definition keeps whatever an administrator set; only its provenance
+        # record follows the pack (licence confirmed, source pages added).
+        if not dry_run and (asset.source or {}).get("provenance") != provenance:
+            asset.source = {**(asset.source or {}), "provenance": provenance}
+            asset.save(update_fields=["source", "updated_at"])
+            report.provenance_updated.append(model.asset_id)
+        return asset
     asset = ContentAsset(
         asset_id=model.asset_id,
         kind=kind,

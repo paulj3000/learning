@@ -130,6 +130,13 @@ class Command(BaseCommand):
         for item in report.skipped:
             self.stdout.write(f"  {item['asset']} v{item['version']} ({item['status']})")
         self.stdout.write(f"New definitions: {', '.join(report.created_definitions) or 'none'}.")
+        for item in report.refreshed:
+            self.stdout.write(
+                f"  {'would re-prepare' if dry_run else 're-prepared'} never-published "
+                f"{item['asset']} v{item['version']} (stale bytes)"
+            )
+        if report.provenance_updated:
+            self.stdout.write(f"Provenance updated: {', '.join(report.provenance_updated)}.")
         if publish:
             self.stdout.write(f"Published: {len(report.published)}.")
             for item in report.unpublished:

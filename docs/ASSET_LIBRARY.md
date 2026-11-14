@@ -873,19 +873,22 @@ nothing.
 | Local development (`DEBUG`, loopback database, `local` or `memory` storage) | Yes | With `--publish`. The first published version becomes the default |
 | S3 storage (a shared AWS environment) | Only with `--allow-shared-storage`, after the owner approves | Never by the command. Publish in Django Admin (section 19.2) |
 | A pack whose licence the owner has not confirmed | Yes, as `VALIDATED` | Never, until a run with `--licence-confirmed` records the owner's confirmation |
+| A never-published version whose prepared bytes are now stale (e.g. the embedded credit changed when the licence was confirmed) | Re-prepared: the old unpublished version and its file are deleted and the new one takes its number | As above. A published version is never re-prepared |
 
 ### 23.3 The packs (2026-11-14)
 
 | Asset id | Source (poly.pizza) | Node | Prepared size | Triangles | Licence |
 |---|---|---|---|---|---|
-| `nature-palm-tree-small` | Quaternius Palm Trees `VYslw9DEi6` | `PalmTree_5` | 2.8 m tall | 264 | CC0, owner-stated |
-| `nature-palm-tree-standard` | same | `PalmTree_3` | 4.6 m tall | 344 | CC0, owner-stated |
-| `nature-palm-tree-tall` | same | `PalmTree_1` | 6.5 m tall | 472 | CC0, owner-stated |
-| `nature-palm-tree-curved` | same | `PalmTree_2` | 5.3 m tall | 368 | CC0, owner-stated |
-| `prop-wooden-barrel` | Quaternius Barrel `zjCQP1TAci` | `Barrel` | 1.0 m tall, 0.77 m across | 1,312 | CC0 expected, **unconfirmed** |
-| `nature-wood-log` | Quaternius Wood Log `L4E32Wee6C` | `WoodLog` | 2.3 m long, 0.68 m thick | 202 | CC0 expected, **unconfirmed** |
-| `nature-wood-log-moss` | Quaternius Wood Log with Moss `nwsYvcI0bC` | `WoodLog_Moss` | 2.6 m long | 614 | CC0 expected, **unconfirmed** |
-| `prop-wood-pile` | Quaternius Wood `ajBNpMsQ8z` | `UI_Wood` | 1.4 m long, 1.03 m tall | 420 | CC0 expected, **unconfirmed** |
+| `nature-palm-tree-small` | Quaternius Palm Trees `VYslw9DEi6` | `PalmTree_5` | 2.8 m tall | 264 | CC0-1.0, confirmed, published v1 |
+| `nature-palm-tree-standard` | same | `PalmTree_3` | 4.6 m tall | 344 | CC0-1.0, confirmed, published v1 |
+| `nature-palm-tree-tall` | same | `PalmTree_1` | 6.5 m tall | 472 | CC0-1.0, confirmed, published v1 |
+| `nature-palm-tree-curved` | same | `PalmTree_2` | 5.3 m tall | 368 | CC0-1.0, confirmed, published v1 |
+| `prop-wooden-barrel` | Quaternius Barrel `zjCQP1TAci` | `Barrel` | 1.0 m tall, 0.77 m across | 1,312 | CC0-1.0, confirmed, published v1 |
+| `nature-wood-log` | Quaternius Wood Log `L4E32Wee6C` | `WoodLog` | 2.3 m long, 0.68 m thick | 202 | CC0-1.0, confirmed, published v1 |
+| `nature-wood-log-moss` | Quaternius Wood Log with Moss `nwsYvcI0bC` | `WoodLog_Moss` | 2.6 m long | 614 | CC0-1.0, confirmed, published v1 |
+| `prop-wood-pile` | Quaternius Wood `ajBNpMsQ8z` | `UI_Wood` | 1.4 m long, 1.03 m tall | 420 | CC0-1.0, confirmed, published v1 |
+
+The owner confirmed CC0-1.0 for every pack on 2026-11-14 (`docs/ASSET_LICENCES.md`).
 
 Not imported: `PalmTree_4` (a fifth, low-leaning palm; four shapes give enough variety and each
 model is another download on a phone) and `Barrel.fbx` (the same barrel as `Barrel.glb`, with no
@@ -958,7 +961,11 @@ and `PalmTree_Leaves.zip` (more textures, `0f3027ca...6c0`). The import now read
 and finds their `.bin` and images **by plain file name anywhere under `--source`**, including
 other ZIPs. A name with a path, a scheme or a URL is refused, and nothing is fetched. No file
 names an author or a licence, so these packs record both as "Not stated in the supplied files",
-carry no author tag, and are **imported and validated but not published** (section 23.2).
+carry no author tag, and were imported and validated but held unpublished. **Update 2026-11-14:** the
+owner identified the files as Quaternius' Ultimate Stylized Nature Pack
+(https://quaternius.com/packs/ultimatestylizednature.html,
+https://poly.pizza/bundle/Ultimate-Stylized-Nature-Pack-zyIyYd9yGr) and confirmed CC0-1.0. All ten
+are now **published locally (v1)** with that provenance.
 
 | Asset id | Node | Prepared size | Triangles | Stored | Textures |
 |---|---|---|---|---|---|

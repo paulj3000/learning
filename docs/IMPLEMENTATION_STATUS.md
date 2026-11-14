@@ -59,8 +59,10 @@ Combines `feature/pirates-leap` (all P1 gameplay, Cognito-direct, Django-only), 
 - Checks: Vitest 4,748 passed; typecheck; migrations (no changes, no new migration); `content:check`,
   `golden:check`, `adr:check`, `admin-preview:check`; pytest (see the PR). Not done: Playwright,
   lint and format (merge readiness), browser, WebGL, device and gamepad checks; owner QA.
-- External: the environment GLB/glTF packs are owner-supplied and not in Git; barrel, log and
-  vegetation licences unconfirmed, so those stay unpublished.
+- External: the environment GLB/glTF packs are owner-supplied and not in Git. Licences: CC0-1.0,
+  owner-confirmed (merged from the assets branch's licence commits).
+- `feature/treasure-rush-palm-trees` fast-forwarded to this branch at the owner's request, so the
+  assets branch also has jumping and the rest of the P1 stack.
 
 ## LAI-JMP-03: Treasure Cove: Pirate's Leap (2026-11-14, `feature/pirates-leap`); development complete, owner QA pending, NOT merged
 
@@ -219,6 +221,29 @@ quests, assets, core, regions, ai, audio, game sessions, npcs and `tests/repo`.
 Deferred to merge verification or owner QA: Playwright, WebGL checks, the build, lint and format,
 and a live Cognito sign-in (needs the owner's pool values). The hosted `amplify.yml` still
 deploys the Amplify backend; retiring it is the AMP-08 runbook, not this branch.
+
+## Treasure Rush environment licences confirmed and assets published (2026-11-14) — local development only; owner visual QA NOT done
+
+- **Licence.** The owner confirmed CC0-1.0 (Quaternius) for the palms, barrel, logs, wood pile
+  and the Ultimate Stylized Nature Pack. `model_packs.py` records:
+  - the licence identifier, name, deed, legal code and plain-text URLs;
+  - `licenceVerifiedOn` and the owner confirmation reference;
+  - per-model source URLs, plus the nature pack's pages.
+
+  Existing definitions got the new provenance; administrator-edited fields were kept.
+- **Publication.** All 18 environment models are published locally as v1 and are the default
+  versions.
+  - The 14 never-published ones (barrel, logs, wood pile, vegetation) were first re-prepared
+    through the normal import, so their frozen `asset.copyright` reads "Quaternius, CC0-1.0".
+  - Published palm versions are unchanged.
+  - The storage audit shows no orphans and nothing missing.
+- **Verification.**
+  - Treasure Cove (seeded locally, layout v7) lists all 18 ids in its catalog, all deliverable.
+  - The resolver resolves each one to v1.
+  - Each signed delivery URL returns bytes matching the recorded SHA-256 (18 of 18).
+  - Engine tests cover models drawn and colliders added once deliverable.
+- **Not done:** owner visual QA in a browser; no S3 or production upload (needs separate
+  approval).
 
 ## Treasure Rush ENV-2: bushes, flowers and grass (TR-NAT-01 to 14) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); licence and author NOT stated, so NOT published; rocks, ferns and coconuts NOT supplied; owner visual QA NOT done
 

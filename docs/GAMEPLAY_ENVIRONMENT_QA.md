@@ -76,8 +76,7 @@ cd lai && ../.venv/bin/python manage.py import_treasure_rush_environment --sourc
 cd lai && ../.venv/bin/python manage.py import_treasure_rush_environment --source /path/to/environment-assets --category all --publish && cd ..
 ```
 
-Barrels, logs and vegetation are validated but stay unpublished until you confirm their licences;
-once you do, publish them locally with:
+With the licences confirmed, publish all of them locally with:
 
 ```bash
 cd lai && ../.venv/bin/python manage.py import_treasure_rush_environment --source /path/to/environment-assets --category all --publish --licence-confirmed && cd ..
@@ -98,15 +97,13 @@ Navigation: choose a child > Island > Pirate Builder Bay > Treasure Cove (Realms
 
 | Pack | Files | Asset ids | Licence |
 |---|---|---|---|
-| Quaternius Palm Trees | `PalmTree_1/2/3/5` | `nature-palm-tree-{tall,curved,standard,small}` | CC0, owner-stated; publishable |
-| Quaternius Barrel | `Barrel.glb` | `prop-wooden-barrel` | CC0 expected, **unconfirmed** |
-| Quaternius Wood Log, Log with Moss, Wood | `WoodLog`, `WoodLog_Moss`, `UI_Wood` | `nature-wood-log`, `nature-wood-log-moss`, `prop-wood-pile` | CC0 expected, **unconfirmed** |
-| Nature kit (`MapleTree_5_2.zip`, `png.zip`, `PalmTree_Leaves.zip`) | bushes, flowers, grass `.gltf` | `nature-bush-*`, `nature-flower-tropical-*`, `nature-grass-*` | author and licence **not stated** |
+| Quaternius Palm Trees | `PalmTree_1/2/3/5` | `nature-palm-tree-{tall,curved,standard,small}` | CC0-1.0, owner-confirmed |
+| Quaternius Barrel | `Barrel.glb` | `prop-wooden-barrel` | CC0-1.0, owner-confirmed |
+| Quaternius Wood Log, Log with Moss, Wood | `WoodLog`, `WoodLog_Moss`, `UI_Wood` | `nature-wood-log`, `nature-wood-log-moss`, `prop-wood-pile` | CC0-1.0, owner-confirmed |
+| Quaternius Ultimate Stylized Nature Pack (`MapleTree_5_2.zip`, `png.zip`, `PalmTree_Leaves.zip`) | bushes, flowers, grass `.gltf` | `nature-bush-*`, `nature-flower-tropical-*`, `nature-grass-*` | CC0-1.0, owner-confirmed |
 
-Licence note: the Trello environment card records the owner's CC0-1.0 confirmation for every pack
-(2026-11-14) and local publication, but `docs/ASSET_LICENCES.md` on this branch still reads
-"unconfirmed" / "not stated" for the barrel, logs and nature kit. Reconcile that record before
-merge; until then `--licence-confirmed` is the owner's call.
+Licences: the owner confirmed CC0-1.0 for every pack on 2026-11-14 (`docs/ASSET_LICENCES.md`);
+all 18 models can be published with `--publish --licence-confirmed`.
 
 Without them the cove plays with its primitive palms and bundled barrels and logs, and no
 vegetation; nothing errors. Imported files live in `lai/.asset-storage/` (git-ignored).
