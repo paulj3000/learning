@@ -1,7 +1,8 @@
 import type { InstancePlacement } from '../assets/assetLoader';
 import { ASSET_MANIFEST } from '../assets/manifest';
 import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
-import { derivedColliders } from './derivedColliders';
+import type { CollisionProfiles } from './collisionProfile';
+import { buildingEntrances, derivedColliders } from './derivedColliders';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { runPlacements, WALL_HEIGHT } from '../sceneKit';
 import type {
@@ -412,6 +413,8 @@ const ASSET_KINDS = new Map(ASSET_MANIFEST.map((entry) => [entry.id, entry.kind]
 export function solidColliders(
   manifest: ThreeLocationManifest,
   context: WorldInteractionContext = NO_WORLD_STATE,
+  /** Staff-configured collision profiles by asset id (Asset Manager); absent: built-in defaults. */
+  profiles?: CollisionProfiles,
 ): SolidCollider[] {
   const authored: SolidCollider[] = [
     ...boundaryWallRects(manifest.bounds).map((rect) => ({
@@ -435,7 +438,11 @@ export function solidColliders(
   const derived = derivedColliders(manifest, context, {
     assetKinds: ASSET_KINDS,
     authored: covering,
-    keepClear: ALL_CHECKPOINTS.filter((checkpoint) => checkpoint.regionId === manifest.regionId),
+    keepClear: [
+      ...ALL_CHECKPOINTS.filter((checkpoint) => checkpoint.regionId === manifest.regionId),
+      ...buildingEntrances(manifest),
+    ],
+    ...(profiles ? { profiles } : {}),
   });
   return [...authored, ...derived];
 }

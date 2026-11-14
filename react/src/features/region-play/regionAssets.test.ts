@@ -165,11 +165,11 @@ describe('regionAssetsFor', () => {
   });
 
   it('keeps the bundled loader for a source-controlled region', () => {
-    const resolverFor = vi.fn();
+    // A resolver without collision profiles (only Django's has them) changes nothing at all.
+    const resolverFor = vi.fn(() => BUNDLED_ASSET_RESOLVER);
     expect(regionAssetsFor('child-1', 'welcome-harbor', SOURCE, enabled, resolverFor)).toBe(
       DEFAULT_LOCATION_ENGINE_DEPS.assets,
     );
-    expect(resolverFor).not.toHaveBeenCalled();
   });
 
   it('resolves a Django region through this child’s asset resolver', async () => {
@@ -270,5 +270,32 @@ describe('Treasure Cove with the Django asset library (TR-10)', () => {
     expect(
       cove.fetched.some((url) => url.endsWith('/api/v1/asset-files/ground-v1/model.glb')),
     ).toBe(true);
+  });
+});
+
+describe('regionAssetsFor and Asset Manager collision profiles', () => {
+  const enabled = { enabled: true as const, baseUrl: '' };
+  const profiles = new Map();
+  const withProfiles = () => ({
+    resolve: vi.fn(),
+    collisionProfiles: vi.fn(async () => profiles),
+  });
+
+  it('gives a served region the resolver\'s profiles', async () => {
+    const resolver = withProfiles();
+    const assets = regionAssetsFor('child-1', REGION, SOURCE, enabled, () => resolver);
+    await expect(assets.collisionProfiles?.(['crate'])).resolves.toBe(profiles);
+    expect(resolver.collisionProfiles).toHaveBeenCalledWith(['crate']);
+  });
+
+  it('gives a source-controlled region bundled models with the Django profiles', async () => {
+    const resolver = withProfiles();
+    const assets = regionAssetsFor('child-1', 'welcome-harbor', SOURCE, enabled, () => resolver);
+    expect(assets.loadModel).toBe(DEFAULT_LOCATION_ENGINE_DEPS.assets.loadModel);
+    await expect(assets.collisionProfiles?.(['rock'])).resolves.toBe(profiles);
+  });
+
+  it('asks nothing of a build without the Django API', () => {
+    expect(regionAssetsFor('child-1', REGION, SOURCE, { enabled: false }).collisionProfiles).toBeUndefined();
   });
 });

@@ -1,4 +1,7 @@
-import { djangoAssetResolverFor } from '../../api/assets/djangoAssetResolver';
+import {
+  djangoAssetResolverFor,
+  type DjangoAssetResolver,
+} from '../../api/assets/djangoAssetResolver';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../../api/config';
 import { createAssetLoader, type AssetLoader } from '../island-map/three/assets/assetLoader';
 import type { AssetResolver } from '../island-map/three/assets/assetResolver';
@@ -33,17 +36,38 @@ export function regionAssetsFor(
   config: DjangoApiConfig = DJANGO_API_CONFIG,
   resolverFor: (childId: string, config: DjangoApiConfig) => AssetResolver = djangoAssetResolverFor,
 ): LocationEngineAssets {
-  if (!config.enabled || source.listRegionIds().includes(regionId)) {
-    return DEFAULT_LOCATION_ENGINE_DEPS.assets;
+  if (!config.enabled) return DEFAULT_LOCATION_ENGINE_DEPS.assets;
+  if (source.listRegionIds().includes(regionId)) {
+    // Bundled models, but the Asset Manager's collision profiles still apply (one request).
+    if (!childId) return DEFAULT_LOCATION_ENGINE_DEPS.assets;
+    const profiles = resolverFor(childId, config);
+    return hasCollisionProfiles(profiles)
+      ? {
+          ...DEFAULT_LOCATION_ENGINE_DEPS.assets,
+          collisionProfiles: (ids) => profiles.collisionProfiles(ids),
+        }
+      : DEFAULT_LOCATION_ENGINE_DEPS.assets;
   }
-  return engineAssetsFrom(createAssetLoader(resolverFor(childId, config)));
+  const resolver = resolverFor(childId, config);
+  return engineAssetsFrom(
+    createAssetLoader(resolver),
+    hasCollisionProfiles(resolver) ? resolver : undefined,
+  );
 }
 
-/** The engine's view of one loader. */
-export function engineAssetsFrom(loader: AssetLoader): LocationEngineAssets {
+function hasCollisionProfiles(resolver: AssetResolver): resolver is DjangoAssetResolver {
+  return typeof (resolver as Partial<DjangoAssetResolver>).collisionProfiles === 'function';
+}
+
+/** The engine's view of one loader, and of its resolver's collision profiles when it has them. */
+export function engineAssetsFrom(
+  loader: AssetLoader,
+  profiles?: Pick<DjangoAssetResolver, 'collisionProfiles'>,
+): LocationEngineAssets {
   return {
     loadModel: (assetId) => loader.loadAsset(assetId),
     instanced: (assetId, placements) => loader.createInstancedMeshFromAsset(assetId, placements),
     withLod: (assetId) => loader.instantiateWithLod(assetId),
+    ...(profiles ? { collisionProfiles: (ids) => profiles.collisionProfiles(ids) } : {}),
   };
 }

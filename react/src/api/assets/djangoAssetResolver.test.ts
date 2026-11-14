@@ -329,3 +329,37 @@ describe('createDjangoAssetResolver: images and audio (AM-13)', () => {
     await expect(make(entry).resolve('sand-texture', 'image')).rejects.toThrow();
   });
 });
+
+describe('collision profiles from the asset resolver (Asset Manager)', () => {
+  const crateBoxes = [{ minX: -0.4, minY: 0, minZ: -0.4, maxX: 0.4, maxY: 0.8, maxZ: 0.4 }];
+
+  it('reads profiles from the same batched request the models use, published or not', async () => {
+    const { client, request } = fakeClient(() => ({
+      assets: [
+        { ...resolved('crate'), collision: { behavior: 'JUMPABLE', shape: 'BOX', boxes: crateBoxes } },
+        { ref: 'path', id: 'path', status: 'unavailable', collision: { behavior: 'WALKABLE', shape: 'BOX', boxes: [] } },
+        resolved('rock'),
+        { ...resolved('bad'), collision: { behavior: 'SOLID', boxes: [{ minX: 1, maxX: 0 }] } },
+      ],
+    }));
+    const resolver = createDjangoAssetResolver({ client, childId: 'c1', now: () => NOW, onIssue: () => {} });
+    const [profiles] = await Promise.all([
+      resolver.collisionProfiles(['crate', 'path', 'rock', 'bad']),
+      resolver.resolve('crate'),
+    ]);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(profiles.get('crate')).toEqual({ behavior: 'JUMPABLE', shape: 'BOX', boxes: crateBoxes });
+    expect(profiles.get('path')).toEqual({ behavior: 'WALKABLE', shape: 'BOX', boxes: [] });
+    expect(profiles.has('rock')).toBe(false); // no profile: built-in defaults
+    expect(profiles.has('bad')).toBe(false); // malformed: built-in defaults
+    // The model load after it is answered from the cache.
+    await resolver.resolve('crate');
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers no profiles when the request fails, so every default stays', async () => {
+    const client = { request: vi.fn(async () => { throw new ApiError('network'); }) } as unknown as ApiClient;
+    const resolver = createDjangoAssetResolver({ client, childId: 'c1', now: () => NOW, onIssue: () => {} });
+    expect((await resolver.collisionProfiles(['crate'])).size).toBe(0);
+  });
+});

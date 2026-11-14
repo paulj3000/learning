@@ -5,7 +5,8 @@ import type { ThreeLocationManifest } from './locationManifest';
 import { WELCOME_HARBOR_MANIFEST } from './manifests/welcomeHarbor';
 import { SOURCE_LOCATION_MANIFESTS } from './manifests';
 import { NO_WORLD_STATE, solidColliders } from './sceneLayout';
-import { derivedColliders, JUMPABLE_MAX_HEIGHT } from './derivedColliders';
+import { buildingEntrances, derivedColliders, JUMPABLE_MAX_HEIGHT } from './derivedColliders';
+import { parseCollisionProfile, type CollisionProfile } from './collisionProfile';
 import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 
 const KINDS = new Map([['npc-test', 'character' as const]]);
@@ -168,4 +169,83 @@ describe('every source location after the collision fix', () => {
       }
     });
   }
+});
+
+describe('collision profiles from the Asset Manager', () => {
+  const crate: CollisionProfile = {
+    behavior: 'SOLID',
+    shape: 'BOX',
+    boxes: [{ minX: -1, minY: 0, minZ: -0.5, maxX: 1, maxY: 0.8, maxZ: 0.5 }],
+  };
+  const placed = (assetId: string, x = 5, z = 2, rotationY = 0) =>
+    bare([{ kind: 'CLUSTER', id: 'pieces', assetId, positions: [{ x, z, rotationY }] }]);
+
+  it('replaces the built-in footprint with the profile, behaviour included', () => {
+    const profiles = new Map([['barrel', crate]]);
+    const [box, ...rest] = derivedColliders(placed('barrel'), NO_WORLD_STATE, { ...NONE, profiles });
+    expect(rest).toHaveLength(0);
+    expect(box!.box.minX).toBeCloseTo(4);
+    expect(box!.box.maxX).toBeCloseTo(6);
+    // SOLID even though it is low enough to hop over: the staff said so.
+    expect(box!.jumpable).toBeUndefined();
+    expect(box!.box.minY).toBeLessThan(0);
+  });
+
+  it('respects the placement rotation for a profile box', () => {
+    const profiles = new Map([['barrel', crate]]);
+    const parts = derivedColliders(placed('barrel', 0, 0, Math.PI / 2), NO_WORLD_STATE, { ...NONE, profiles });
+    expect(Math.min(...parts.map((p) => p.box.minZ))).toBeCloseTo(-1);
+    expect(Math.max(...parts.map((p) => p.box.maxX))).toBeCloseTo(0.5);
+  });
+
+  it('gives an asset with an empty profile no collider at all, not the default', () => {
+    const profiles = new Map([['barrel', { behavior: 'DECORATIVE', shape: 'NONE', boxes: [] } as CollisionProfile]]);
+    expect(derivedColliders(placed('barrel'), NO_WORLD_STATE, { ...NONE, profiles })).toEqual([]);
+    // A profile on an asset with no built-in default gives it a collider.
+    const statue = new Map([['statue-x', crate]]);
+    expect(derivedColliders(placed('statue-x'), NO_WORLD_STATE, { ...NONE, profiles: statue })).toHaveLength(1);
+  });
+
+  it('keeps walkable pieces (paths, and any WALKABLE profile) clear of other boxes', () => {
+    const manifest = bare([
+      { kind: 'CLUSTER', id: 'trail', assetId: 'path', positions: [{ x: 0, z: 0 }] },
+      { kind: 'CLUSTER', id: 'boards', assetId: 'deck-board', positions: [{ x: 6, z: 0 }] },
+      { kind: 'CLUSTER', id: 'crates', assetId: 'crate', positions: [{ x: 0.2, z: 0 }, { x: 6.1, z: 0 }, { x: 3, z: 3 }] },
+    ]);
+    const profiles = new Map([['deck-board', { behavior: 'WALKABLE', shape: 'BOX', boxes: [] } as CollisionProfile]]);
+    const ids = derivedColliders(manifest, NO_WORLD_STATE, { ...NONE, profiles }).map((c) => c.id);
+    expect(ids).toEqual(['derived:crates#2']);
+  });
+
+  it('keeps building entrances clear, and only the open sides', () => {
+    const manifest = bare([], {
+      buildings: [
+        {
+          id: 'hut', label: 'Hut', x: 0, z: 0, halfWidth: 2, halfDepth: 2, height: 3,
+          wallSides: ['north', 'east', 'west'],
+          interiorZone: { id: 'hut-in', minX: -2, maxX: 2, minZ: -2, maxZ: 2 },
+          wallAssetId: 'wall',
+        },
+      ],
+    } as Partial<ThreeLocationManifest>);
+    expect(buildingEntrances(manifest)).toEqual([{ x: 0, z: 2 }, { x: 0, z: 3 }]);
+    const blocking = bare(
+      [{ kind: 'CLUSTER', id: 'crates', assetId: 'crate', positions: [{ x: 0, z: 2.9 }] }],
+      { buildings: manifest.buildings } as Partial<ThreeLocationManifest>,
+    );
+    expect(solidColliders(blocking).filter((c) => c.id?.startsWith('derived:'))).toEqual([]);
+  });
+});
+
+describe('parseCollisionProfile', () => {
+  it('accepts a valid answer and refuses malformed ones', () => {
+    const box = { minX: -1, minY: 0, minZ: -1, maxX: 1, maxY: 1, maxZ: 1 };
+    expect(parseCollisionProfile({ behavior: 'JUMPABLE', shape: 'BOX', boxes: [box] })?.boxes).toEqual([box]);
+    expect(parseCollisionProfile({ behavior: 'WALKABLE', shape: 'BOX', boxes: [box] })?.boxes).toEqual([]);
+    expect(parseCollisionProfile({ behavior: 'FLYING', boxes: [] })).toBeUndefined();
+    expect(parseCollisionProfile({ behavior: 'SOLID', boxes: [{ ...box, maxX: -2 }] })).toBeUndefined();
+    expect(parseCollisionProfile({ behavior: 'SOLID', boxes: [{ ...box, maxY: 9999 }] })).toBeUndefined();
+    expect(parseCollisionProfile({ behavior: 'SOLID', boxes: Array(33).fill(box) })).toBeUndefined();
+    expect(parseCollisionProfile(null)).toBeUndefined();
+  });
 });

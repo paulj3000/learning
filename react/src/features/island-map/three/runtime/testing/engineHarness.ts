@@ -94,6 +94,8 @@ export function mount(
     /** LAI-JMP-01c: the play API's published avatar model, and how avatar models load. */
     publishedAvatar?: LocationEngineOptions['publishedAvatar'];
     loadAvatarModel?: LocationEngineOptions['loadAvatarModel'];
+    /** Asset Manager collision profiles, as the asset resolver would answer them. */
+    collisionProfiles?: LocationEngineDeps<FakeRenderer>['assets']['collisionProfiles'];
   } = {},
 ): Harness {
   const parent = options.parent ?? document.createElement('div');
@@ -127,6 +129,7 @@ export function mount(
         options.instanced ??
         vi.fn(async () => new Mesh(new BoxGeometry(), new MeshBasicMaterial())),
       withLod: vi.fn(async () => new Group()),
+      ...(options.collisionProfiles ? { collisionProfiles: options.collisionProfiles } : {}),
     },
     attachControls: (_renderer, attached, attachOptions) => {
       controller = attached;

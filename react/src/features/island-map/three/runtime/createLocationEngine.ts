@@ -1,3 +1,5 @@
+import type { CollisionProfiles } from './collisionProfile';
+import { locationAssetIds } from './locationAssetUsage';
 import {
   AmbientLight,
   AnimationMixer,
@@ -151,6 +153,11 @@ export interface LocationEngineAssets {
   instanced(assetId: string, placements: readonly InstancePlacement[]): Promise<Object3D>;
   /** A fresh, LOD-aware copy of `assetId`. */
   withLod(assetId: string): Promise<Object3D>;
+  /**
+   * Staff-configured collision profiles for these asset ids (Asset Manager), from the same
+   * resolver the models come from. Absent, or an id missing from the answer: built-in defaults.
+   */
+  collisionProfiles?(assetIds: readonly string[]): Promise<CollisionProfiles>;
 }
 
 export interface LocationEngineDeps<R extends RendererLike> {
@@ -552,6 +559,45 @@ export function createLocationEngine<R extends RendererLike>(
         // place rather than breaking the region (acceptance AS3).
         console.warn(`[location ${manifest.regionId}] could not place ${what}`, error);
       }),
+    );
+  }
+
+  /**
+   * Asset Manager collision profiles: once they arrive, the derived boxes are rebuilt from them
+   * (authored colliders, gates and extension boxes are untouched). A new box is never put where
+   * the child is standing, so a profile arriving mid-visit cannot trap them.
+   */
+  function applyCollisionProfiles(profiles: CollisionProfiles): void {
+    if (disposed || profiles.size === 0) return;
+    const isDerived = (solid: { id?: string }) => solid.id?.startsWith('derived:') === true;
+    for (let index = solids.length - 1; index >= 0; index -= 1) {
+      const solid = solids[index]!;
+      if (!isDerived(solid)) continue;
+      const at = colliders.indexOf(solid.box);
+      if (at >= 0) colliders.splice(at, 1);
+      jumpableColliders.delete(solid.box);
+      solids.splice(index, 1);
+    }
+    const here = controller.position;
+    for (const solid of solidColliders(manifest, worldState, profiles).filter(isDerived)) {
+      const box = toBox3(solid.box);
+      if (here.x >= box.min.x && here.x <= box.max.x && here.z >= box.min.z && here.z <= box.max.z) {
+        continue;
+      }
+      const jumpable = solid.jumpable === true;
+      solids.push({ id: solid.id, box, jumpable });
+      colliders.push(box);
+      if (jumpable) jumpableColliders.add(box);
+    }
+  }
+  if (deps.assets.collisionProfiles) {
+    const ids = locationAssetIds(manifest, {
+      extensionAssetIds: () => [],
+      lowDetailIdOf: () => undefined,
+    });
+    track(
+      deps.assets.collisionProfiles(ids).then(applyCollisionProfiles),
+      'collision profiles',
     );
   }
 

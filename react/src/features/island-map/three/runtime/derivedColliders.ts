@@ -3,6 +3,7 @@ import { areRequirementsMet, type WorldInteractionContext } from '../../worldObj
 import type { InstancePlacement } from '../assets/assetLoader';
 import type { AssetManifestEntry } from '../assets/manifest';
 import { runPlacements } from '../sceneKit';
+import type { CollisionBehavior, CollisionProfiles, ModelBox } from './collisionProfile';
 import type { ModelAnchor, ScaleSpec, ThreeLocationManifest, Vec3 } from './locationManifest';
 
 /**
@@ -23,7 +24,10 @@ import type { ModelAnchor, ScaleSpec, ThreeLocationManifest, Vec3 } from './loca
  *   ferns, reeds, flowers, rope coils, archways, cave mouths. So do large irregular models
  *   (the shipwreck), whose locations author their colliders by hand.
  * - A piece an authored collider already covers is skipped: what an author wrote wins.
- * - A box that would cover a checkpoint is dropped, so no spawn point is ever walled in.
+ * - A piece with a box over a checkpoint, a building entrance or a walkable piece (a path tile,
+ *   a plank) is dropped, so no spawn point, doorway or trail is ever walled in.
+ * - A staff-configured profile (Asset Manager, `collisionProfile.ts`) replaces an asset's
+ *   built-in footprint everywhere it is placed; assets without one keep the defaults below.
  * - Collectibles never block (they are picked up), and a prop with no `assetId` is drawn by an
  *   extension, which adds its own colliders.
  */
@@ -100,30 +104,50 @@ const euler = new Euler();
 const scaleVector = new Vector3();
 const positionVector = new Vector3();
 
-/**
- * The footprint under the piece's transform, as axis-aligned boxes. A long piece (a log, a
- * fence panel) turned off the axes would get one box covering a lot of empty air, so it is cut
- * along its length into pieces about as long as it is wide, and each piece is boxed.
- */
-function placedBoxes(footprint: AssetFootprint, placement: Placement): Box3[] {
+/** A built-in footprint as one model-space box, standing on the pivot. */
+export function footprintBox(footprint: AssetFootprint): ModelBox {
   const cx = footprint.offsetX ?? 0;
   const cz = footprint.offsetZ ?? 0;
+  return {
+    minX: cx - footprint.halfX,
+    minY: 0,
+    minZ: cz - footprint.halfZ,
+    maxX: cx + footprint.halfX,
+    maxY: footprint.height,
+    maxZ: cz + footprint.halfZ,
+  };
+}
+
+/**
+ * A model-space box under the piece's transform, as world axis-aligned boxes. A long box (a log,
+ * a fence panel) turned off the axes would get one world box covering a lot of empty air, so it
+ * is cut along its length into pieces about as long as it is wide, and each piece is boxed.
+ */
+function placedBoxes(model: ModelBox, placement: Placement): Box3[] {
   const rotation = placement.rotation ?? { x: 0, y: 0, z: 0 };
   quaternion.setFromEuler(euler.set(rotation.x, rotation.y, rotation.z));
   scaleVector.set(placement.scale?.x ?? 1, placement.scale?.y ?? 1, placement.scale?.z ?? 1);
   positionVector.set(placement.position.x, placement.position.y, placement.position.z);
   matrix.compose(positionVector, quaternion, scaleVector);
-  const alongX = footprint.halfX >= footprint.halfZ;
-  const long = alongX ? footprint.halfX : footprint.halfZ;
-  const short = Math.max(alongX ? footprint.halfZ : footprint.halfX, 0.05);
-  const pieces = Math.max(1, Math.ceil(long / (2 * short)));
+  const sizeX = model.maxX - model.minX;
+  const sizeZ = model.maxZ - model.minZ;
+  const alongX = sizeX >= sizeZ;
+  const long = alongX ? sizeX : sizeZ;
+  const short = Math.max(alongX ? sizeZ : sizeX, 0.1);
+  const pieces = Math.max(1, Math.min(64, Math.ceil(long / (2 * short))));
   const boxes: Box3[] = [];
   for (let i = 0; i < pieces; i += 1) {
-    const from = -long + (2 * long * i) / pieces;
-    const to = -long + (2 * long * (i + 1)) / pieces;
-    const box = alongX
-      ? new Box3(new Vector3(cx + from, 0, cz - footprint.halfZ), new Vector3(cx + to, footprint.height, cz + footprint.halfZ))
-      : new Box3(new Vector3(cx - footprint.halfX, 0, cz + from), new Vector3(cx + footprint.halfX, footprint.height, cz + to));
+    const box = new Box3(
+      new Vector3(model.minX, model.minY, model.minZ),
+      new Vector3(model.maxX, model.maxY, model.maxZ),
+    );
+    if (alongX) {
+      box.min.x = model.minX + (sizeX * i) / pieces;
+      box.max.x = model.minX + (sizeX * (i + 1)) / pieces;
+    } else {
+      box.min.z = model.minZ + (sizeZ * i) / pieces;
+      box.max.z = model.minZ + (sizeZ * (i + 1)) / pieces;
+    }
     boxes.push(box.applyMatrix4(matrix));
   }
   return boxes;
@@ -205,12 +229,62 @@ export interface DeriveOptions {
   assetKinds: AssetKinds;
   /** The authored colliders: a piece whose centre one already covers is left to it. */
   authored: readonly DerivedCollider['box'][];
-  /** Points that must stay clear (checkpoints): a box covering one is dropped. */
+  /** Points that must stay clear (checkpoints, entrances): a piece with a box over one is dropped. */
   keepClear: readonly { x: number; z: number }[];
+  /**
+   * Staff-configured profiles by asset id (Asset Manager). A profile replaces the built-in
+   * footprint for every placement of that asset; one with no boxes means "never blocks".
+   */
+  profiles?: CollisionProfiles;
 }
 
 function insideXZ(box: DerivedCollider['box'], x: number, z: number): boolean {
   return x >= box.minX && x <= box.maxX && z >= box.minZ && z <= box.maxZ;
+}
+
+/** Paths and planks the child walks along: their tiles stay clear of every derived box. */
+export const DEFAULT_WALKABLE_ASSETS: ReadonlySet<string> = new Set([
+  'path',
+  'path-forest',
+  'bridge-plank',
+  'bridge-plank-repaired',
+  'carpet',
+]);
+
+/** What a placement of `assetId` blocks with: model boxes and how, or null for nothing. */
+function collisionOf(
+  assetId: string,
+  options: DeriveOptions,
+): { boxes: readonly ModelBox[]; behavior: CollisionBehavior | 'AUTO' } | null {
+  const profile = options.profiles?.get(assetId);
+  if (profile) return profile.boxes.length ? { boxes: profile.boxes, behavior: profile.behavior } : null;
+  const footprint = footprintFor(assetId, options.assetKinds);
+  return footprint ? { boxes: [footprintBox(footprint)], behavior: 'AUTO' } : null;
+}
+
+function isWalkable(assetId: string, options: DeriveOptions): boolean {
+  const profile = options.profiles?.get(assetId);
+  return profile ? profile.behavior === 'WALKABLE' : DEFAULT_WALKABLE_ASSETS.has(assetId);
+}
+
+/** Each open side of a building (no wall there) is an entrance: its middle and a step outside. */
+export function buildingEntrances(manifest: ThreeLocationManifest): { x: number; z: number }[] {
+  const out: { x: number; z: number }[] = [];
+  const sides = [
+    ['north', 0, -1],
+    ['south', 0, 1],
+    ['east', 1, 0],
+    ['west', -1, 0],
+  ] as const;
+  for (const building of manifest.buildings) {
+    for (const [side, dx, dz] of sides) {
+      if (building.wallSides.includes(side)) continue;
+      const edgeX = building.x + dx * building.halfWidth;
+      const edgeZ = building.z + dz * building.halfDepth;
+      out.push({ x: edgeX, z: edgeZ }, { x: edgeX + dx, z: edgeZ + dz });
+    }
+  }
+  return out;
 }
 
 export function derivedColliders(
@@ -218,26 +292,40 @@ export function derivedColliders(
   context: WorldInteractionContext,
   options: DeriveOptions,
 ): DerivedCollider[] {
+  const placements = placementsOf(manifest, context);
+  // Required paths: the centre of every walkable piece stays clear, like a checkpoint.
+  const keepClear = [
+    ...options.keepClear,
+    ...placements
+      .filter((placement) => isWalkable(placement.assetId, options))
+      .map((placement) => ({ x: placement.position.x, z: placement.position.z })),
+  ];
   const out: DerivedCollider[] = [];
-  for (const placement of placementsOf(manifest, context)) {
+  for (const placement of placements) {
     // A centre-anchored piece hangs on a wall at a measured height; it is not in the way.
     if (placement.anchor === 'CENTRE') continue;
-    const footprint = footprintFor(placement.assetId, options.assetKinds);
-    if (!footprint) continue;
+    const collision = collisionOf(placement.assetId, options);
+    if (!collision) continue;
     const { x, z } = placement.position;
     if (options.authored.some((box) => insideXZ(box, x, z))) continue;
-    const boxes = placedBoxes(footprint, placement).map((placed) => ({
-      minX: placed.min.x,
-      minY: placed.min.y,
-      minZ: placed.min.z,
-      maxX: placed.max.x,
-      maxY: placed.max.y,
-      maxZ: placed.max.z,
-    }));
-    // One spawn point inside any part drops the whole piece, never half a log.
-    if (boxes.some((box) => options.keepClear.some((point) => insideXZ(box, point.x, point.z)))) continue;
+    const boxes = collision.boxes
+      .flatMap((model) => placedBoxes(model, placement))
+      .map((placed) => ({
+        minX: placed.min.x,
+        minY: placed.min.y,
+        minZ: placed.min.z,
+        maxX: placed.max.x,
+        maxY: placed.max.y,
+        maxZ: placed.max.z,
+      }));
+    // One kept-clear point inside any part drops the whole piece, never half a log.
+    if (boxes.some((box) => keepClear.some((point) => insideXZ(box, point.x, point.z)))) continue;
     boxes.forEach((box, part) => {
-      const jumpable = box.maxY - box.minY <= JUMPABLE_MAX_HEIGHT || box.minY > 0;
+      // A raised box has to keep its height to block (only jumpable boxes do), whatever it is.
+      const jumpable =
+        box.minY > 0 ||
+        collision.behavior === 'JUMPABLE' ||
+        (collision.behavior === 'AUTO' && box.maxY - box.minY <= JUMPABLE_MAX_HEIGHT);
       out.push({
         id: boxes.length === 1 ? `derived:${placement.id}` : `derived:${placement.id}:${part}`,
         box: jumpable ? box : { ...box, minY: Math.min(box.minY, SOLID_MIN_Y) },
