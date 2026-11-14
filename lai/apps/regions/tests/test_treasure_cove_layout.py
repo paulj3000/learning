@@ -194,10 +194,15 @@ class TestSeedAppliesTheLayout:
         )
         region.spawn_points.update(yaw=0.0)
 
-        assert seed_treasure_rush() == [f"WorldRegion {REGION_ID} layout v{LAYOUT_VERSION}"]
+        # The cove layout is upgraded; a scene from before Pirate's Leap also gets the course, once
+        # (LAI-JMP-03 keeps its own version, so neither ever replaces the other).
+        assert seed_treasure_rush() == [
+            f"WorldRegion {REGION_ID} layout v{LAYOUT_VERSION}",
+            "Pirate's Leap course v1",
+        ]
         region.refresh_from_db()
         assert region.title == "Pirate Cove"
-        assert region.version == 4
+        assert region.version == 5  # the layout upgrade and the Pirate's Leap course, one each
         assert region.scene["copy"] == {"instructions": "An admin's words."}
         assert region.scene["adventureVersion"] == 1
         assert region.scene["bounds"] == BOUNDS

@@ -139,8 +139,9 @@ def test_the_replay_is_not_a_chest_the_quest_or_the_region_list_counts(play):
     finish_the_quest(play)
     region_list = play.client.get(f"{play.base}regions/").json()["regions"]
     [cove] = [r for r in region_list if r["regionId"] == REGION]
-    assert cove["chestsTotal"] == 4 and cove["chestsOpened"] == 4
-    [entry] = play.region()["quests"]
+    # Pip's four chests, plus Pirate's Leap's riddle drum and treasure (LAI-JMP-03), not opened here.
+    assert cove["chestsTotal"] == 6 and cove["chestsOpened"] == 4
+    [entry] = [q for q in play.region()["quests"] if q["questId"] != "pirates-leap"]
     assert len(entry["stages"][0]["objectives"]) == 4  # the quest still asks for four chests
 
 
