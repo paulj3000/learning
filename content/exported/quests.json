@@ -813,6 +813,40 @@
     },
     {
       "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You crossed the pirate training course and found Pip's secret treasure."
+      },
+      "entryStageId": "find-the-secret-treasure",
+      "giverNpcId": "pirate-pip",
+      "id": "pirates-leap",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "find-the-secret-treasure",
+          "objectives": [
+            {
+              "changeKey": "PIRATES_LEAP_CHEST_OPENED",
+              "id": "pirates-leap-open-chest",
+              "kind": "BUILD",
+              "label": "Open Pip's secret treasure in the crow's nest"
+            }
+          ],
+          "title": "Find Pip's secret treasure"
+        }
+      ],
+      "summary": "Pip hid a secret treasure beyond the old pirate training course. Jump, ride and climb to find it!",
+      "title": "Pirate's Leap"
+    },
+    {
+      "ageBands": [
         "PATHFINDER",
         "EXPLORER"
       ],

@@ -400,3 +400,22 @@ export function pipsBootstrapJson(
     ...overrides,
   };
 }
+
+/**
+ * Treasure Cove with Pirate's Leap (LAI-JMP-03): the cove scene plus the course the seed writes
+ * (`lai/apps/regions/pirates_leap_course.json`, kept equal to `pirates_leap_seed.py` by Django
+ * tests), as the region's `scene` serves it. `platformTuning` is staff tuning, when given.
+ */
+export async function piratesLeapSceneJson(platformTuning?: Record<string, unknown>) {
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const platforming: unknown = JSON.parse(
+    readFileSync(resolve(process.cwd(), '../lai/apps/regions/pirates_leap_course.json'), 'utf8'),
+  );
+  return {
+    ...(await coveSceneJson()),
+    piratesLeapVersion: 1,
+    platforming,
+    ...(platformTuning ? { platformTuning } : {}),
+  };
+}

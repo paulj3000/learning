@@ -42,6 +42,31 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## LAI-JMP-03: Treasure Cove: Pirate's Leap (2026-11-14, `feature/pirates-leap`); development complete, owner QA pending, NOT merged
+
+Stacked on `feature/interactive-platforms` (PR #37). Docs: `docs/PIRATES_LEAP.md`; combined owner QA
+for all three P1 workstreams: `docs/P1_PLATFORMING_QA.md`.
+
+- Course in the cove's empty south-west, six sections (Learn to Leap, Barrel Crossing, Fallen Log
+  Trail, Moving Dock, Pirate Lift, Secret Treasure), each with a walking alternative; four course
+  checkpoints, three water pools, a goal, Pip's section narration as zones.
+- Seed: `lai/apps/regions/pirates_leap_seed.py` writes `scene["platforming"]` with its own
+  `piratesLeapVersion` (never touches the cove scenery layout another workstream owns), the quest
+  offer, the secret treasure and Pip's optional riddle drum (challenge specs per band), two
+  collectibles and a signpost; snapshot `pirates_leap_course.json` for frontend tests.
+- Content export: quest `pirates-leap`, four keepsakes, four one-time reward rules (golden vectors
+  regenerated: content digest only).
+- Runtime: recorded world changes raise `world:<changeKey>` platform signals on entry and live (the
+  riddle raises the plank bridge at once); a woken platform waits one pause first; hazards draw as
+  water; course checkpoints are kept clear of derived colliders; `scene.platforming.zones` merge
+  into the manifest.
+- Realm card: the cove now counts six chests (Pip's four, the riddle drum and the secret treasure).
+
+Tests: Vitest features, routes, api, test: 420 files / 4653 tests (all passing after expected count
+and golden updates); new `piratesLeap.engine.test.ts` (9). pytest: new `test_pirates_leap.py` (10);
+existing cove tests updated where they pinned the exact chests, quests, rows or versions.
+Deferred: browser, WebGL, device and gamepad QA.
+
 ## LAI-JMP-02 / LAI-JMP-04: shared platforms, checkpoints and safe recovery (2026-11-14, `feature/interactive-platforms`); development complete, owner QA pending, NOT merged
 
 Stacked on `integration/p1-movement-base` (avatar stack, Amplify-free main, derived colliders,

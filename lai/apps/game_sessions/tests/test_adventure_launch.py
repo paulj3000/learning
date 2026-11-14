@@ -406,5 +406,5 @@ def test_quests_stay_island_owned_and_are_still_offered_in_the_3d_area(a, treasu
     # Known export gap: no Island's content pack lists the Treasure Rush quest yet.
     assert quest.world_id is None
     body = client.get(f"{base(child)}regions/{REGION}/").json()
-    assert [q["questId"] for q in body["quests"]] == [quest.slug]
+    assert [q["questId"] for q in body["quests"] if q["questId"] != "pirates-leap"] == [quest.slug]
     assert post(client, f"{base(child)}quests/{quest.slug}/accept/").status_code == 201
