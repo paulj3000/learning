@@ -246,6 +246,8 @@ export interface RegionPlayConfig {
   props?: RegionPlayPropConfig[];
   /** TR-ENV-06: the scenery ids each prop model hides once it is drawn (the bundled stand-ins). */
   propReplaces?: { [assetId: string]: string[] };
+  /** ENV-2: bushes, flowers and grass. Walk-through (no colliders), decorative, swaying. */
+  vegetation?: RegionPlayPropConfig[];
   /** TR-14. Absent in configs built before it. */
   pickups?: RegionPlayPickupConfig[];
   runes?: RegionPlayRuneConfig[];
@@ -648,8 +650,10 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
   const unlock = unlockConfig(config.unlock);
   const ambience = ambienceConfig(config.ambience);
   const props = config.props === undefined ? [] : list(config.props, propEntry);
+  const vegetation = config.vegetation === undefined ? [] : list(config.vegetation, propEntry);
   const propReplaces = propReplacesConfig(config.propReplaces);
   if (!procedural || !pickups || !runes || !drawnEntities || !puzzles || !props) return null;
+  if (!vegetation) return null;
   if (unlock === null || ambience === null || propReplaces === null) return null;
   return {
     chests,
@@ -664,6 +668,7 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
     runes,
     ...(props.length > 0 ? { props } : {}),
     ...(propReplaces ? { propReplaces } : {}),
+    ...(vegetation.length > 0 ? { vegetation } : {}),
     ...(unlock ? { unlock } : {}),
     ...(ambience ? { ambience } : {}),
   };

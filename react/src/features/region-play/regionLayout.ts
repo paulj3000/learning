@@ -50,6 +50,8 @@ export interface RegionLayout {
   /** TR-ENV-06: barrels and logs drawn from the asset library, and what each model replaces. */
   props: RegionPlayPropConfig[];
   propReplaces: { [assetId: string]: string[] };
+  /** ENV-2: bushes, flowers and grass from the asset library; walk-through, so no colliders. */
+  vegetation: RegionPlayPropConfig[];
   /** What a world change opens, without whether the child has it yet (the builder adds that). */
   unlock?: Omit<RegionPlayUnlockConfig, 'unlocked'>;
   ambience?: RegionPlayAmbienceConfig;
@@ -64,6 +66,7 @@ export const EMPTY_LAYOUT: RegionLayout = {
   procedural: [],
   props: [],
   propReplaces: {},
+  vegetation: [],
 };
 
 export class RegionLayoutError extends Error {
@@ -431,6 +434,7 @@ export function readRegionLayout(value: JsonValue | undefined): RegionLayout {
     procedural: each('procedural', procedural),
     props: fields.props === undefined ? [] : each('props', prop),
     propReplaces: propReplaces(fields.propReplaces, `${path}.propReplaces`),
+    vegetation: fields.vegetation === undefined ? [] : each('vegetation', prop),
     ...(fields.unlock !== undefined ? { unlock: unlock(fields.unlock, `${path}.unlock`) } : {}),
     ...(fields.ambience !== undefined
       ? { ambience: ambience(fields.ambience, `${path}.ambience`) }

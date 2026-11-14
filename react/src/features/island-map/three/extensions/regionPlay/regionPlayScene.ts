@@ -20,6 +20,7 @@ import {
   type Object3D,
 } from 'three';
 import { prefersReducedMotion } from '../../../../../lib/motionPreference';
+import { DEFAULT_RENDER_QUALITY, RENDER_QUALITY_PRESETS } from '../../runtime/visual/renderQuality';
 import { cloneAssetScene } from '../../assets/cloneAsset';
 import { mountAreaEffects, type AreaEffectsApi } from './areaEffectsScene';
 import { mountAreaPuzzles, type AreaPuzzleApi } from './areaPuzzleScene';
@@ -60,6 +61,8 @@ import { buildProceduralScenery } from './proceduralScenery';
  * - **Barrels and logs (TR-ENV-06).** Props drawn from published models, instanced the same way.
  *   Their colliders are added, and the bundled barrels and logs they replace hidden, only once
  *   the model is drawn: until then the cove is exactly as it was.
+ * - **Vegetation (ENV-2).** Bushes, flowers and grass, instanced the same way, walk-through (no
+ *   colliders), swaying gently unless reduced motion is asked for, and thinned at LOW quality.
  * - **Figures.** A placeholder character for an NPC published without a
  *   model, so the region still renders and the NPC still talks.
  * - **The way to Lookout Point (TR-17).** When the quest's completion world change is
@@ -153,6 +156,23 @@ function worldPositionReader(object: Object3D): (out: [number, number, number]) 
 export const PALM_MODEL_NAME = 'region-play:palm-model';
 export const PROP_MODEL_NAME = 'region-play:prop-model';
 export const PALM_SWAY = 0.02;
+/** ENV-2: vegetation, and how far it leans in the wind (a little more than a palm: it is small). */
+export const VEGETATION_MODEL_NAME = 'region-play:vegetation-model';
+export const VEGETATION_SWAY = 0.04;
+
+/**
+ * Keeps `density` of the placements of each model (ENV-2): 1 keeps them all, 0.5 every other one
+ * in layout order, so the thinning is spread across the cove and is the same on every visit.
+ */
+export function thinDecor<T extends { assetId: string }>(placements: readonly T[], density: number): T[] {
+  if (density >= 1) return [...placements];
+  const seen = new Map<string, number>();
+  return placements.filter((placement) => {
+    const index = seen.get(placement.assetId) ?? 0;
+    seen.set(placement.assetId, index + 1);
+    return Math.floor((index + 1) * density) > Math.floor(index * density);
+  });
+}
 /** A prop collider's height range: the same as a manifest rectangle's (sceneLayout.ts). */
 const PROP_COLLIDER_MIN_Y = -1;
 const PROP_COLLIDER_MAX_Y = 3;
@@ -213,6 +233,7 @@ export const regionPlaySceneExtension: WorldExtension = {
         // delivered (the manifest builder drops the rest).
         ...(parsed.procedural ?? []).flatMap((entry) => (entry.assetId ? [entry.assetId] : [])),
         ...(parsed.props ?? []).map((prop) => prop.assetId),
+        ...(parsed.vegetation ?? []).map((plant) => plant.assetId),
       ]),
     ];
   },
@@ -438,6 +459,16 @@ export const regionPlaySceneExtension: WorldExtension = {
       },
     });
     context.scene.add(propModels.root);
+
+    // ENV-2: bushes, flowers and grass. Walk-through (no colliders), swaying gently with the
+    // palms' clock, thinned at LOW quality (every other placement of each model).
+    const density = RENDER_QUALITY_PRESETS[context.quality ?? DEFAULT_RENDER_QUALITY].decorDensity;
+    const vegetationModels = mountInstancedModels(
+      thinDecor(config.vegetation ?? [], density),
+      context.loadModel,
+      { name: VEGETATION_MODEL_NAME, sway: VEGETATION_SWAY },
+    );
+    context.scene.add(vegetationModels.root);
     const still = prefersReducedMotion();
 
     // TR-18: the water and the fireflies. Held where they were first drawn when `still`.
@@ -520,6 +551,7 @@ export const regionPlaySceneExtension: WorldExtension = {
       if (!still) {
         procedural.tick(delta);
         palmModels.tick(delta);
+        vegetationModels.tick(delta);
         water.tick(delta);
         fireflies.tick(delta);
       }
@@ -664,6 +696,7 @@ export const regionPlaySceneExtension: WorldExtension = {
         procedural.dispose();
         palmModels.dispose();
         propModels.dispose();
+        vegetationModels.dispose();
         water.dispose();
         fireflies.dispose();
         for (const chest of chests.values()) chest.dispose();

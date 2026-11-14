@@ -191,6 +191,10 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       (prop) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(prop.assetId),
     ),
     propReplaces: layout.propReplaces,
+    // ENV-2: the same rule for vegetation; nothing stands in for it, so undeliverable means absent.
+    vegetation: layout.vegetation.filter(
+      (plant) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(plant.assetId),
+    ),
     pickups: [],
     runes: [],
     // TR-17: what the quest's completion opens, and whether this child has already earned it.

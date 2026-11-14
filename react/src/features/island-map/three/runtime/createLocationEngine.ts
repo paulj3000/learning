@@ -1000,6 +1000,7 @@ export function createLocationEngine<R extends RendererLike>(
         camera,
         bus,
         manifest,
+        quality,
         config: binding.config,
         addCollider: (box) => colliders.push(box),
         removeCollider,
