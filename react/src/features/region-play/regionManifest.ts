@@ -172,7 +172,25 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
           : effects.backdrop,
     },
     changeKeys: [...model.worldChangeKeys],
-    procedural: layout.procedural,
+    // TR-PALM-05: a placeholder asks for its model only when the server's catalog lists one
+    // that can be delivered now; otherwise (no catalog, nothing published) it stays the
+    // primitive, with no request, no warning, and no asset id the validator cannot know.
+    procedural: layout.procedural.map((entry) => {
+      if (
+        entry.assetId === undefined ||
+        (model.deliverableAssetIds !== null && model.deliverableAssetIds.has(entry.assetId))
+      ) {
+        return entry;
+      }
+      const { assetId: _undeliverable, ...primitive } = entry;
+      return primitive;
+    }),
+    // TR-ENV-06: a prop is drawn only when the catalog says its model can be delivered; until
+    // then the bundled barrels and logs it replaces stay, and its colliders are never added.
+    props: layout.props.filter(
+      (prop) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(prop.assetId),
+    ),
+    propReplaces: layout.propReplaces,
     pickups: [],
     runes: [],
     // TR-17: what the quest's completion opens, and whether this child has already earned it.

@@ -350,6 +350,13 @@ def region_catalog(region: WorldRegion) -> dict:
     for value in (scene.get("groundAssetId"), (effects.get("backdrop") or {}).get("assetId")):
         if isinstance(value, str) and value:
             ids.add(value)
+    # TR-PALM-05: models that replace layout placeholders (the cove's palms).
+    layout = scene.get("layout") if isinstance(scene.get("layout"), dict) else {}
+    # TR-ENV-06: and the barrels and logs it draws from the asset library.
+    for entry in [*(layout.get("procedural") or []), *(layout.get("props") or [])]:
+        value = entry.get("assetId") if isinstance(entry, dict) else None
+        if isinstance(value, str) and value:
+            ids.add(value)
     assets = ContentAsset.objects.filter(asset_id__in=ids).order_by("asset_id")
     return {
         "worldSlug": region.location.world.slug,
