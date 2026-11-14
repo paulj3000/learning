@@ -7,10 +7,8 @@ import { createRegionManifestRepository } from './regionManifestRepository';
 
 /**
  * The manifest repository `LocationWorldPage` uses for one child (TR-7).
- * Without the Django API (`VITE_BACKEND` unset) it is `source` itself, so a
- * build that has not opted in behaves exactly as before. With it, source
- * regions still come from `source` and any other region id is read from
- * the play API.
+ * Source regions still come from `source`; any other region id is read from the Django play
+ * API.
  */
 export function regionRepositoryForChild(
   childId: string,

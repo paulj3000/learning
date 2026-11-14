@@ -72,9 +72,7 @@ export async function requestTutorTurn(input: RequestTutorTurnInput): Promise<Tu
   if (input.aiEnabled === false || !isTutorableSkill(input.skillId)) {
     return { turn: authoredFallback(input), source: 'FALLBACK' };
   }
-  const django = currentDjangoAiApi();
-  if (!django) return { turn: authoredFallback(input), source: 'FALLBACK' };
-  return requestDjangoTutorTurn(django, input);
+  return requestDjangoTutorTurn(currentDjangoAiApi(), input);
 }
 
 /**

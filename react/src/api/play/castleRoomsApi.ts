@@ -54,13 +54,12 @@ export async function discoverRoom(
 }
 
 /**
- * The configured API for one child, or `undefined` in a build without the Django API
- * (the Amplify-only baseline), where nothing is saved and the map still works for the visit.
+ * The castle rooms API for one child (Django, the only backend).
  */
 export function castleRoomsApiFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
-): CastleRoomsApi | undefined {
+): CastleRoomsApi {
   const client = createApiClient({
     baseUrl: config.baseUrl,
     getAccessToken,

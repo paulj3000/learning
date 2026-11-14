@@ -72,7 +72,7 @@ export async function recordDiscoveryOnServer(
 export function discoveriesApiFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
-): DiscoveriesApi | undefined {
+): DiscoveriesApi {
   const client = createApiClient({
     baseUrl: config.baseUrl,
     getAccessToken,

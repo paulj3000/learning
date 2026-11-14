@@ -58,7 +58,7 @@ export function DjangoAccountProvider({
   );
 }
 
-/** Outside a provider (and in Amplify-only builds) this is always the signed-out value. */
+/** Outside a provider this is always the signed-out value. */
 export function useDjangoAccount(): DjangoAccountValue {
   return useContext(DjangoAccountContext);
 }

@@ -8,9 +8,8 @@ export const AI_REQUEST_TIMEOUT_MS = 70_000;
 
 /**
  * Chatty's companion and tutor turns on the Django API (LAI-0706, ADR-044,
- * docs/AI_SERVICE.md section 2). Selected by the build's backend: with
- * `VITE_BACKEND=django` every turn goes to Django; without it this module
- * returns `null` and the feature modules keep calling the Amplify routes.
+ * docs/AI_SERVICE.md section 2). Every turn goes to Django (AMP-05 removed the Amplify AI Kit
+ * routes).
  *
  * Django builds the prompt, applies the Guardrail, validates the model
  * output, falls back to authored content and writes the audit row. The
@@ -184,8 +183,8 @@ export function createDjangoAiApi(client: ApiClient): DjangoAiApi {
   };
 }
 
-/** The build's Django AI API, or null when this build still uses the Amplify routes. */
-export function djangoAiApiFor(config: DjangoApiConfig = DJANGO_API_CONFIG): DjangoAiApi | null {
+/** The app's Django AI API (the only AI route; nothing calls a model from the browser). */
+export function djangoAiApiFor(config: DjangoApiConfig = DJANGO_API_CONFIG): DjangoAiApi {
   return createDjangoAiApi(
     createApiClient({
       baseUrl: config.baseUrl,
@@ -197,10 +196,10 @@ export function djangoAiApiFor(config: DjangoApiConfig = DJANGO_API_CONFIG): Dja
   );
 }
 
-let cached: DjangoAiApi | null | undefined;
+let cached: DjangoAiApi | undefined;
 
 /** One shared instance per page load (the config is fixed at build time). */
-export function currentDjangoAiApi(): DjangoAiApi | null {
-  if (cached === undefined) cached = djangoAiApiFor();
+export function currentDjangoAiApi(): DjangoAiApi {
+  cached ??= djangoAiApiFor();
   return cached;
 }
