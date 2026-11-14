@@ -42,6 +42,37 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Amplify final removal and Django-only cutover (AMP-01 to AMP-08) — source complete on `feature/amplify-final-removal` (2026-11-14); AWS deployment and legacy data NOT done
+
+The owner deleted the Amplify app and disabled Amplify Hosting, and authorized removing Amplify
+from the source. Record: `docs/platform/AMPLIFY_FINAL_REMOVAL.md`.
+
+- **Done:** PR #15 merged onto current `main` (newer `main` kept on every conflict); direct Cognito
+  client (`react/src/lib/cognito`, no SDK); Django-only data with no `VITE_BACKEND` selector and no
+  Amplify fallback; solo template adventures on Django's step runner, co-op on the classic runner
+  over Django routes; `amplify/`, `amplify.yml`, `customHttp.yml`, `amplify-hosting/`, the Amplify
+  packages (1,229 lockfile packages fewer), `npm run sandbox` and the Amplify typecheck removed;
+  Chatty's prompts owned by Python and pinned by hash; S3/CloudFront site build and SPA rewrite
+  tested; README 10-step local startup (Django 8000, React 5183); `noAmplify.test.ts` guard.
+- **Checks (2026-11-14):** pytest on PostgreSQL 3411 passed, 4 skipped; Vitest 437 files, 4908
+  passed; typecheck, oxlint, Prettier, Ruff, Django check, makemigrations check, ADR, content,
+  golden and admin-preview checks pass; build passes; Playwright smoke 7 passed, 11 skipped
+  (Firepeak `fixme`, never run). Acceptance run 1: 105 passed, 2 skipped. Run 2 (with pytest and a
+  fresh-clone install running alongside): 102 passed, 2 failed, 2 skipped. The failures were
+  `treasure-rush.spec.ts` "the finale" (Pip's line and the toast showed the same text at once, a
+  strict-mode locator match) and "keyboard walking" (no movement within 1.5 s); the spec alone,
+  three times, then passed 30 of 30 with 3 conditional skips. Recorded as intermittent under load,
+  not fixed.
+- **Fresh clone:** no Amplify files or packages; `npm ci`, `make py-install`, migrate,
+  `load_content`, `seed_treasure_rush`, `publish_treasure_rush` pass; Django on 8000 and Vite on
+  5183 serve health directly and through the proxy, 401 without a token, and the public pages
+  with no console errors. Settings came from the shell (a deny rule blocks copying `.env.sample`)
+  with a stand-in pool, so live sign-in is not covered.
+- **Owner checks and approvals:** live Cognito sign-in with a real test parent; Cognito pool
+  deletion protection (it sits in the Amplify sandbox stack); deploy the Django, guardrail and
+  site stacks (no frontend is hosted until then); count and import retained Amplify data; delete
+  retained Amplify resources only afterwards; remove `VITE_BACKEND` from `react/.env.example`.
+
 ## P0: Cognito without Amplify outputs, Realm Explorer navigation — fixed on `fix/p0-cognito-env-realm-explorer` (2026-11-13); awaiting owner acceptance, NOT merged
 
 Owner-reported: the homepage told parents to run an Amplify sandbox; Realms sent a child back to
