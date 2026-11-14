@@ -34,8 +34,8 @@ from django.views.decorators.cache import never_cache
 from apps.catalog.models import AssetStatus, ContentAsset
 from apps.core.exceptions import error_body
 
-from . import preview, services
-from .models import AssetVersion
+from . import collision, preview, services
+from .models import AssetVersion, CollisionProfile, VersionStatus
 from .storage import StorageError, get_storage, sha256_of
 from .validation import largest_upload_bytes, max_bytes_for
 
@@ -253,6 +253,14 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 ),
                 preview_token_header=preview.TOKEN_HEADER,
                 max_bytes=max_bytes_for(version.family),
+                # The boxes the game would use for this version (`collision.py`), drawn over it.
+                collision_json=json.dumps(
+                    collision.runtime_collision(
+                        collision.profile_for(version.asset, version), version
+                    )
+                ),
+                collision_url=reverse("admin:assets_collisionprofile_changelist")
+                + f"?asset__id__exact={version.asset_id}",
             )
         logger.info("asset version previewed: %s v%s", version.asset.asset_id, version.number)
         return TemplateResponse(request, "admin/assets/assetversion/preview.html", context)
@@ -462,3 +470,123 @@ def _preview_unavailable(version) -> JsonResponse:
 def done_message(done: str, version) -> str:
     """The text recorded in the admin history for a lifecycle action."""
     return f"{done} {version.label} ({version.get_status_display()})."
+
+
+# --- collision profiles (`docs/ASSET_COLLISION_PROFILES.md`) ------------------------------------
+
+
+class CollisionProfileForm(forms.ModelForm):
+    class Meta:
+        model = CollisionProfile
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "version" in self.fields:
+            self.fields["version"].queryset = AssetVersion.objects.filter(
+                status__in=[VersionStatus.VALIDATED, VersionStatus.PUBLISHED]
+            ).select_related("asset")
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors:
+            return cleaned
+        candidate = self.instance
+        for name, value in cleaned.items():
+            setattr(candidate, name, value)
+        collision.clean_profile(candidate)
+        return cleaned
+
+
+@admin.register(CollisionProfile)
+class CollisionProfileAdmin(admin.ModelAdmin):
+    """Staff configure how an asset blocks movement wherever it is placed. Changes reach children
+    on their next visit, through the asset resolver; no release or rebuild is needed."""
+
+    form = CollisionProfileForm
+    list_display = ("asset", "scope", "shape", "behavior", "box_count", "updated_at")
+    list_filter = ("shape", "behavior", "asset__category")
+    search_fields = ("asset__asset_id", "asset__display_name", "notes")
+    list_select_related = ("asset", "version", "asset__default_version")
+    autocomplete_fields = ("asset",)
+    readonly_fields = ("measured_bounds", "runtime_preview", "preview_links", "updated_by", "updated_at")
+    fieldsets = (
+        (None, {"fields": ("asset", "version", "shape", "behavior", "axis")}),
+        (
+            "Size and offset (empty: from the model's measured bounds)",
+            {"fields": (("width", "height", "depth"), "radius", ("offset_x", "offset_y", "offset_z"))},
+        ),
+        ("Compound boxes", {"fields": ("boxes",)}),
+        (
+            "What the game uses",
+            {"fields": ("measured_bounds", "runtime_preview", "preview_links")},
+        ),
+        (None, {"fields": ("notes", "updated_by", "updated_at")}),
+    )
+
+    def _perm(self, request, codename: str) -> bool:
+        return request.user.has_perm(f"assets.{codename}_collisionprofile")
+
+    def has_view_permission(self, request, obj=None):
+        return self._perm(request, "view") or self._perm(request, "change")
+
+    def has_add_permission(self, request):
+        return self._perm(request, "add")
+
+    def has_change_permission(self, request, obj=None):
+        return self._perm(request, "change")
+
+    def has_delete_permission(self, request, obj=None):
+        return self._perm(request, "delete")
+
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+        logger.info("collision profile saved: %s", obj)
+
+    def _version(self, obj):
+        if obj is None or obj.pk is None and not obj.asset_id:
+            return None
+        return obj.version if obj.version_id else obj.asset.default_version
+
+    @admin.display(description="Scope")
+    def scope(self, obj):
+        return f"v{obj.version.number} only" if obj.version_id else "Asset default"
+
+    @admin.display(description="Boxes")
+    def box_count(self, obj):
+        result = collision.runtime_collision(obj, self._version(obj))
+        return "defaults" if result is None else len(result["boxes"])
+
+    @admin.display(description="Measured bounds")
+    def measured_bounds(self, obj):
+        bounds = collision.version_bounds(self._version(obj))
+        if bounds is None:
+            return "Not measured: publish a validated version, or enter the sizes by hand."
+        low = ", ".join(f"{v:.2f}" for v in bounds.low)
+        high = ", ".join(f"{v:.2f}" for v in bounds.high)
+        size = " x ".join(f"{v:.2f}" for v in bounds.size)
+        return f"min ({low}) max ({high}); {size} m ({bounds.source})"
+
+    @admin.display(description="Runtime collision")
+    def runtime_preview(self, obj):
+        if obj is None or obj.pk is None:
+            return "Saved profiles show the boxes the game receives here."
+        result = collision.runtime_collision(obj, self._version(obj))
+        if result is None:
+            return "Cannot be sized yet: the game keeps its built-in default for this asset."
+        if not result["boxes"]:
+            return f"{result['behavior'].title()}: no collider (never blocks)."
+        return format_html(
+            "<p>{} {} box(es), model space, metres:</p><pre>{}</pre>",
+            result["behavior"].title(),
+            len(result["boxes"]),
+            json.dumps(result["boxes"], indent=1),
+        )
+
+    @admin.display(description="Preview")
+    def preview_links(self, obj):
+        version = self._version(obj)
+        if version is None or version.family != "model":
+            return "No model version to preview."
+        return preview.link_for(version)

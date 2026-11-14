@@ -32,9 +32,14 @@ GLB_MAGIC = 0x46546C67  # "glTF"
 CHUNK_JSON = 0x4E4F534A
 CHUNK_BIN = 0x004E4942
 
-# Mirrors react/src/features/island-map/three/assets/animationVocabulary.ts.
+# Mirrors react/src/features/island-map/three/assets/animationVocabulary.ts. `Run` and `Jump`
+# are the player avatar's locomotion clips (LAI-JMP-01a); `Fall` and `Land` its optional air
+# clips (LAI-JMP-01c).
 CLIP_VOCABULARY = frozenset(
-    "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate".split()
+    (
+        "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate"
+        " Run Jump Fall Land"
+    ).split()
 )
 
 # Default take names that describe no motion: Mixamo's FBX take (`mixamo.com`, which Blender
@@ -350,7 +355,8 @@ def _check_document(result, document, bin_info, stream, definition):
     buffer_lengths = _check_buffers(result, document, bin_info)
     _check_buffer_views_and_accessors(result, document, buffer_lengths)
     _check_images(result, document, bin_info, stream)
-    dimensions = _bounds(result, document)
+    box: dict[str, list[float]] = {}
+    dimensions = _bounds(result, document, box)
     clips = _check_animations(result, document, definition)
 
     result.clips = clips
@@ -361,6 +367,9 @@ def _check_document(result, document, bin_info, stream, definition):
         "extensionsUsed": sorted(str(e) for e in _list(document, "extensionsUsed"))[:50],
         "skinned": bool(_list(document, "skins")),
     }
+    if box:
+        # Collision profiles size themselves from this (`collision.py`): min and max corners, metres.
+        result.metadata["bounds"] = box
 
 
 def _check_extensions(result, document):
@@ -605,7 +614,8 @@ def _vector(value, length, fill, default_last=None):
     return out
 
 
-def _bounds(result, document) -> dict[str, float] | None:
+def _bounds(result, document, box: dict | None = None) -> dict[str, float] | None:
+    """The default scene's size; also fills `box` with its `min`/`max` corners when given."""
     nodes = _list(document, "nodes")
     meshes = _list(document, "meshes")
     accessors = _list(document, "accessors")
@@ -672,6 +682,9 @@ def _bounds(result, document) -> dict[str, float] | None:
             "missing_bounds",
             "Some meshes have no POSITION min/max; the size is approximate.",
         )
+    if box is not None:
+        box["min"] = [round(value, 4) for value in low]
+        box["max"] = [round(value, 4) for value in high]
     return {axis: round(high[i] - low[i], 4) for i, axis in enumerate("xyz")}
 
 

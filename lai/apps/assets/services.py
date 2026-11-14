@@ -69,10 +69,22 @@ def _locked(asset: ContentAsset) -> ContentAsset:
     return ContentAsset.objects.select_for_update().get(pk=asset.pk)
 
 
-def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename: str, user=None):
+def upload_version(
+    asset: ContentAsset,
+    upload: IO[bytes],
+    *,
+    original_filename: str,
+    user=None,
+    extra_metadata: dict | None = None,
+    notes: str = "",
+):
     """Checksum, validate and store a new version of any supported family (AM-13).
 
     Returns it `VALIDATED`, or raises.
+
+    `extra_metadata` (TR-PALM-03: provenance, licence, how a pack model was prepared) is merged
+    into the version's metadata beside what validation detected; validation's own keys win. Like
+    the rest of the metadata it becomes immutable once the version is published.
 
     A file that fails validation is never stored and makes no row: the admin sees the findings
     and nothing needs cleaning up. A storage or database failure leaves no row and no object.
@@ -127,8 +139,9 @@ def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename:
                 format=result.format,
                 clips=result.clips,
                 dimensions=result.dimensions,
-                metadata=result.metadata,
+                metadata={**(extra_metadata or {}), **result.metadata},
                 validation_report=result.report(),
+                notes=(notes or "")[:500],
                 validated_at=timezone.now(),
                 uploaded_by=user,
             )

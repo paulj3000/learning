@@ -1,3 +1,4 @@
+import type { CameraMode } from '../../playerPresentation';
 import { vi, type Mock } from 'vitest';
 import {
   AnimationClip,
@@ -10,6 +11,7 @@ import {
 } from 'three';
 import {
   createLocationEngine,
+  type LocationEngineOptions,
   type LocationEngineDeps,
   type LoadedModel,
 } from '../createLocationEngine';
@@ -46,12 +48,18 @@ export interface Harness {
   parent: HTMLDivElement;
   deps: LocationEngineDeps<FakeRenderer>;
   renderer: FakeRenderer;
-  controls: { update: Mock<(deltaSeconds: number) => void>; dispose: Mock<() => void> };
+  controls: {
+    update: Mock<(deltaSeconds: number) => void>;
+    resetInput: Mock<() => void>;
+    dispose: Mock<() => void>;
+  };
   stopFitting: Mock<() => void>;
   events: { name: keyof WorldEngineEventMap; detail: unknown }[];
   runFrames(count: number, milliseconds?: number): void;
   setDrive(drive: Drive): void;
   pressInteractKey(): void;
+  /** LAI-JMP-01a: what V (or the gamepad camera button) does. */
+  pressCameraKey(): void;
   camera(): PerspectiveCamera;
   scene(): Scene;
 }
@@ -75,6 +83,19 @@ export function mount(
     worldState?: WorldInteractionContext;
     quality?: RenderQuality;
     reducedMotion?: boolean;
+    /**
+     * LAI-JMP-01a. Defaults to first-person, so every test that reads the
+     * camera as the player's eye keeps guarding the first-person experience;
+     * third-person tests pass `'third-person'` (or `null` for the location's own default).
+     */
+    cameraMode?: CameraMode | null;
+    avatarKey?: string | null;
+    onCameraModeChange?: (mode: CameraMode) => void;
+    /** LAI-JMP-01c: the play API's published avatar model, and how avatar models load. */
+    publishedAvatar?: LocationEngineOptions['publishedAvatar'];
+    loadAvatarModel?: LocationEngineOptions['loadAvatarModel'];
+    /** Asset Manager collision profiles, as the asset resolver would answer them. */
+    collisionProfiles?: LocationEngineDeps<FakeRenderer>['assets']['collisionProfiles'];
   } = {},
 ): Harness {
   const parent = options.parent ?? document.createElement('div');
@@ -83,6 +104,7 @@ export function mount(
   let clock = 0;
   let drive: Drive = () => undefined;
   let onInteract: () => void = () => undefined;
+  let onToggleCamera: () => void = () => undefined;
   let controller: FirstPersonController | null = null;
 
   const renderer: FakeRenderer = {
@@ -95,6 +117,7 @@ export function mount(
     update: vi.fn((delta: number) => {
       if (controller) drive(controller, delta);
     }),
+    resetInput: vi.fn<() => void>(),
     dispose: vi.fn<() => void>(),
   };
   const stopFitting = vi.fn<() => void>();
@@ -106,10 +129,12 @@ export function mount(
         options.instanced ??
         vi.fn(async () => new Mesh(new BoxGeometry(), new MeshBasicMaterial())),
       withLod: vi.fn(async () => new Group()),
+      ...(options.collisionProfiles ? { collisionProfiles: options.collisionProfiles } : {}),
     },
     attachControls: (_renderer, attached, attachOptions) => {
       controller = attached;
       onInteract = attachOptions.onInteract;
+      onToggleCamera = attachOptions.onToggleCamera ?? (() => undefined);
       return controls;
     },
     fitToParent: () => stopFitting,
@@ -133,6 +158,22 @@ export function mount(
     'ObjectInteracted',
     'CollectiblePickedUp',
     'BuildActionRequested',
+    'PlayerJumped',
+    'PlayerLanded',
+    'PlayerRecovered',
+    'PlayerGaitChanged',
+    'PlayerFootstep',
+    'PlatformActivated',
+    'PlatformMoving',
+    'PlatformStopped',
+    'PlatformVanished',
+    'PlatformAppeared',
+    'PlayerBounced',
+    'PressurePlatePressed',
+    'PressurePlateReleased',
+    'PlatformSwitchToggled',
+    'CourseCheckpointReached',
+    'PlatformGoalReached',
   ] as const) {
     bus.on(name, (detail) => events.push({ name, detail }));
   }
@@ -146,6 +187,12 @@ export function mount(
       worldState: options.worldState,
       quality: options.quality,
       reducedMotion: options.reducedMotion,
+      cameraMode:
+        options.cameraMode === undefined ? 'first-person' : (options.cameraMode ?? undefined),
+      avatarKey: options.avatarKey,
+      onCameraModeChange: options.onCameraModeChange,
+      publishedAvatar: options.publishedAvatar,
+      loadAvatarModel: options.loadAvatarModel,
     },
     deps,
   );
@@ -174,6 +221,7 @@ export function mount(
       drive = next;
     },
     pressInteractKey: () => onInteract(),
+    pressCameraKey: () => onToggleCamera(),
     camera: () => lastRender()[1],
     scene: () => lastRender()[0],
   };

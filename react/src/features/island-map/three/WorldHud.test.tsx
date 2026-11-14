@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -138,5 +138,115 @@ describe('WorldHud exit and backpack (TR-13)', () => {
   it('shows its backpack by default, as every other region expects', () => {
     render(<WorldHud {...baseProps} />);
     expect(screen.getByRole('button', { name: 'Backpack (0)' })).toBeInTheDocument();
+  });
+});
+
+describe('WorldHud Jump button (LAI-JMP-01)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const touchScreen = (coarse: boolean) =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query === '(any-pointer: coarse)' && coarse })),
+    );
+
+  it('shows a large Jump button on a touch screen where jumping is available', () => {
+    touchScreen(true);
+    render(<WorldHud {...baseProps} onJump={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Jump' })).toBeInTheDocument();
+  });
+
+  it('is absent where jumping is not available', () => {
+    touchScreen(true);
+    render(<WorldHud {...baseProps} />);
+    expect(screen.queryByRole('button', { name: 'Jump' })).not.toBeInTheDocument();
+  });
+
+  it('is absent with no touch screen (Space and the gamepad jump there)', () => {
+    touchScreen(false);
+    render(<WorldHud {...baseProps} onJump={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Jump' })).not.toBeInTheDocument();
+  });
+
+  it('jumps the moment a finger lands, once per tap', () => {
+    touchScreen(true);
+    const onJump = vi.fn();
+    render(<WorldHud {...baseProps} onJump={onJump} />);
+    const button = screen.getByRole('button', { name: 'Jump' });
+    fireEvent.pointerDown(button);
+    expect(onJump).toHaveBeenCalledTimes(1);
+    // The click a tap also produces does not jump a second time.
+    fireEvent.click(button, { detail: 1 });
+    expect(onJump).toHaveBeenCalledTimes(1);
+  });
+
+  it('can be pressed from a keyboard or switch (a click with no pointer)', () => {
+    touchScreen(true);
+    const onJump = vi.fn();
+    render(<WorldHud {...baseProps} onJump={onJump} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Jump' }), { detail: 0 });
+    expect(onJump).toHaveBeenCalledTimes(1);
+  });
+
+  it('sits apart from the Backpack button', () => {
+    touchScreen(true);
+    render(<WorldHud {...baseProps} onJump={vi.fn()} />);
+    const jump = screen.getByRole('button', { name: 'Jump' });
+    const backpack = screen.getByRole('button', { name: /Backpack/ });
+    expect(jump.parentElement).not.toBe(backpack.parentElement);
+  });
+});
+
+describe('WorldHud camera button (LAI-JMP-01a)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const device = (coarse: boolean) =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: coarse ? query === '(any-pointer: coarse)' : query === '(pointer: fine)',
+      })),
+    );
+
+  it('names the view in force and switches it', async () => {
+    device(false);
+    const onToggleCamera = vi.fn();
+    const { rerender } = render(
+      <WorldHud {...baseProps} cameraMode="third-person" onToggleCamera={onToggleCamera} />,
+    );
+    const button = screen.getByRole('button', { name: 'View: Behind me. Change view' });
+    await userEvent.click(button);
+    expect(onToggleCamera).toHaveBeenCalledTimes(1);
+    rerender(<WorldHud {...baseProps} cameraMode="first-person" onToggleCamera={onToggleCamera} />);
+    expect(screen.getByRole('button', { name: 'View: My eyes. Change view' })).toBeInTheDocument();
+  });
+
+  it('shows the V key only with a mouse or trackpad', () => {
+    device(false);
+    render(<WorldHud {...baseProps} cameraMode="third-person" onToggleCamera={vi.fn()} />);
+    expect(screen.getByText('V')).toBeInTheDocument();
+  });
+
+  it('sits beside the Jump button on a touch screen, as its own control', () => {
+    device(true);
+    render(
+      <WorldHud
+        {...baseProps}
+        cameraMode="third-person"
+        onToggleCamera={vi.fn()}
+        onJump={vi.fn()}
+      />,
+    );
+    const camera = screen.getByRole('button', { name: /Change view/ });
+    const jump = screen.getByRole('button', { name: 'Jump' });
+    expect(camera).not.toBe(jump);
+    expect(camera.className).toMatch(/cameraBesideJump/);
+    expect(screen.queryByText('V')).not.toBeInTheDocument();
+  });
+
+  it('is absent where the location does not allow switching', () => {
+    device(true);
+    render(<WorldHud {...baseProps} cameraMode="third-person" />);
+    expect(screen.queryByRole('button', { name: /Change view/ })).not.toBeInTheDocument();
   });
 });

@@ -249,7 +249,9 @@ def test_the_launch_point_form_offers_only_this_areas_objects_and_places_adventu
     form = LaunchPointForm(region=treasure.region)
     objects = [value for value, _ in form.fields["entity_id"].choices if value]
     # Every placement here, including TR-14's rune stones and key; chests are not offered.
-    assert set(objects) == {
+    # Pirate's Leap's signpost and collectibles (LAI-JMP-03) are placements of the cove too.
+    leap = {"cove-leap-signpost", "cove-leap-shell", "cove-leap-feather"}
+    assert set(objects) - leap == {
         "cove-pip",
         SIGNPOST_ID,
         "cove-brass-key",

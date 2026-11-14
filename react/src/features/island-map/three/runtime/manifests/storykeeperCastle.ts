@@ -682,6 +682,33 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
   */
   adventureBindings: CASTLE_CHOICE_BINDINGS,
 
+  /*
+    LAI-JMP-01: jumping indoors. A lower hop than outdoors keeps the eye well
+    under the 3.1 m ceiling slabs at the top of a jump, and every wall, door
+    and the secret passage are solid colliders, so a jump never skips a room's
+    story beat.
+  */
+  /*
+    Running & sprinting indoors: walking pace as everywhere, but a gentler run
+    and sprint, so a child does not shoot through the narrow passages and
+    small rooms past what the story wants them to notice.
+  */
+  movement: { jump: { jumpHeight: 0.9 }, locomotion: { runSpeed: 4.8, sprintSpeed: 5.6 } },
+  /*
+    LAI-JMP-01a: an indoor third-person camera. Closer than outdoors so the
+    child stays in view through archways and in the narrow passages, and held
+    under the ceiling slabs (their underside is at 3.1 m), so it never looks
+    over a wall into a room the story has not opened yet.
+  */
+  player: {
+    camera: {
+      distance: 2.6,
+      minDistance: 1.2,
+      maxDistance: 3.5,
+      heightOffset: 1.45,
+      maxHeight: 2.95,
+    },
+  },
   extensions: [
     {
       extensionId: 'castle-tale',

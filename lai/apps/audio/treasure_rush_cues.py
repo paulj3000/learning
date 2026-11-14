@@ -23,7 +23,9 @@ class CueSpec:
     cooldown_ms: int = 0
     fade_in_ms: int = 0
     fade_out_ms: int = 0
-    #: False for a cue the game can use but no current mechanic raises.
+    #: False for an optional cue: one the game can use but no current mechanic raises, or a
+    #: decorative one (player movement, LAI-JMP-01) the game plays only when audio exists. Optional
+    #: cues are reported but never hold up a game's readiness.
     wired: bool = True
 
     @property
@@ -88,6 +90,39 @@ TREASURE_RUSH_CUES: tuple[CueSpec, ...] = (
     _sfx("sfx.learning.retry", "Try again", "Gentle and soft, never a buzzer. Ages 5 to 8."),
     _sfx("sfx.learning.complete", "Challenge complete", "A solved rune puzzle."),
     _sfx("sfx.quest.complete", "Quest complete", "Rewards are committed and a quest is finished."),
+    # LAI-JMP-01: the player's own movement, generic ids any region's audio can reuse. Raised by
+    # the game, but optional: jumping is silent and complete without them.
+    _sfx(
+        "sfx.player.jump",
+        "Player jumps",
+        "Optional. A light hop when the child presses Jump.",
+        wired=False,
+        cooldown_ms=80,
+    ),
+    _sfx(
+        "sfx.player.land",
+        "Player lands",
+        "Optional. A soft thump on a firm landing (not on small steps).",
+        wired=False,
+        cooldown_ms=120,
+    ),
+    # Running & sprinting: optional footsteps (the game sets the volume by walk, run or sprint).
+    _sfx(
+        "sfx.player.footstep",
+        "Player footstep",
+        "Optional. One soft footstep; repeated at walking, running or sprinting pace.",
+        wired=False,
+        cooldown_ms=150,
+    ),
+    # LAI-JMP-02 / LAI-JMP-04 platforms (any region): optional; a missing cue is silent.
+    _sfx("sfx.platform.activate", "Platform activated", "Optional. A platform starts up.", wired=False),
+    _sfx("sfx.platform.move", "Platform moving", "Optional. A soft creak as it sets off.", wired=False),
+    _sfx("sfx.platform.stop", "Platform stopped", "Optional. A gentle bump at a stop.", wired=False),
+    _sfx("sfx.platform.plate", "Pressure plate", "Optional. A click underfoot.", wired=False),
+    _sfx("sfx.platform.bounce", "Bounce", "Optional. A springy boing.", wired=False),
+    _sfx("sfx.platform.checkpoint", "Checkpoint reached", "Optional. A cheerful chime.", wired=False),
+    _sfx("sfx.player.recover", "Player recovered", "Optional. A soft whoosh back to safety.", wired=False),
+    _sfx("sfx.platform.goal", "Course complete", "Optional. A short fanfare.", wired=False),
     _sfx("sfx.coin.collect", "Coin collected", "No coin pickup mechanic yet.", wired=False),
     _sfx("sfx.gem.collect", "Gem collected", "No gem pickup mechanic yet.", wired=False),
     _sfx("sfx.item.pickup", "Item picked up", "Only keys are picked up today.", wired=False),

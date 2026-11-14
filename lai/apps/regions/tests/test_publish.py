@@ -41,8 +41,9 @@ def test_publishes_the_seeded_region_and_challenges(local):
     changed = publish_treasure_rush()
     # Region, eighteen challenge specs (three bands for each of the four chests, the ruins puzzle
     # and the Lookout spyglass, TR-14 and TR-20) and the signpost's three launch points
-    # (ADR-041); the quest is catalog content.
-    assert len(changed) == 22
+    # (ADR-041); the quest is catalog content. Pirate's Leap (LAI-JMP-03) adds six specs: three
+    # bands for its riddle drum and its secret treasure.
+    assert len(changed) == 28
     assert statuses() == (ContentStatus.PUBLISHED, [ContentStatus.PUBLISHED])
     assert publish_treasure_rush() == []  # idempotent
 

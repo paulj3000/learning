@@ -53,7 +53,9 @@ def test_every_seeded_row_is_valid_and_draft_and_the_quest_is_catalog_content(se
     # The cove offers Pip's Missing Treasure (TR-14); the one-chest quest stays in the catalog.
     quest = QuestDefinition.objects.get(slug="pips-missing-treasure")
     assert quest.last_seen_release is not None  # imported from the export, not seeded
-    assert list(seeded.offered_quests.all()) == [quest]
+    # ... and Pirate's Leap (LAI-JMP-03), also catalog content.
+    leap = QuestDefinition.objects.get(slug="pirates-leap")
+    assert set(seeded.offered_quests.all()) == {quest, leap}
     chest = seeded.chests.get(entity_id=CHEST_ID)
     assert chest.reward_rule.rule_id == "reward-treasure-rush-cove-chest"
 
