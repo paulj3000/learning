@@ -180,7 +180,7 @@ export class DjangoEc2Stack extends Stack {
     }).valueAsString;
     const cognitoPoolId = new CfnParameter(this, 'CognitoUserPoolId', {
       type: 'String',
-      description: 'The existing Amplify Cognito user pool (COGNITO_USER_POOL_ID)',
+      description: 'The existing Cognito user pool, kept from the retired Amplify backend (COGNITO_USER_POOL_ID)',
       allowedPattern: '^[a-z]{2}(-[a-z]+)+-[0-9]_[A-Za-z0-9]+$',
     }).valueAsString;
     const cognitoClientIds = new CfnParameter(this, 'CognitoAllowedClientIds', {

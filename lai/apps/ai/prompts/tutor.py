@@ -1,7 +1,6 @@
-"""Copied verbatim from `amplify/data/tutorPersona.ts` (version 2).
+"""Copied verbatim from `amplify/data/tutorPersona.ts` (v2); now the only copy (AMP-07).
 
-Do not edit here alone: change the TypeScript, bump its version, and copy both
-(`apps/ai/tests/test_prompts.py` enforces it).
+To change the text, bump the version and update its pin in `apps/ai/tests/test_prompts.py`.
 """
 
 TUTOR_PERSONA_VERSION = 2

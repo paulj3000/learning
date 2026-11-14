@@ -228,7 +228,7 @@ fi
 site_stack="LaiFrontend-$env_name"
 site_status=$(stack_status "$site_stack" "$SITE_REGION")
 if [ -z "${LAI_SITE_DOMAIN:-}" ] && [ -z "$site_status" ]; then
-    skip "React site on CloudFront ($site_stack not deployed; Amplify Hosting still serves the app)"
+    skip "React site on CloudFront ($site_stack not deployed; no frontend is published since Amplify Hosting was retired)"
 else
     if is_complete "$site_status"; then pass "stack $site_stack ($SITE_REGION): $site_status"; else fail "stack $site_stack ($SITE_REGION): ${site_status:-missing}"; fi
     site=${LAI_SITE_DOMAIN:-$(stack_output "$site_stack" SiteUrl "$SITE_REGION" | sed 's|^https://||')}

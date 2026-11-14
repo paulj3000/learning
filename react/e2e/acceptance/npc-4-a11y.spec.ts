@@ -180,7 +180,7 @@ test.describe('NPC Manager accessibility and comfort', () => {
     request,
     problems,
   }) => {
-    problems.allowConsole(/amplify|graphql|backpack|No credentials|UserUnAuthenticated/i);
+    problems.allowConsole(/backpack/i);
     const { parent, childId } = await parentWithChild(request, 'npc-mute', {
       nickname: 'Dee',
       ageBand: 'PATHFINDER',

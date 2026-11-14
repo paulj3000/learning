@@ -9,10 +9,10 @@ import { placeNpcs, shot, type RuntimeRead } from './support/npc';
  * NPC release 3 (Pip and Quill) ACTIVE. Quill is a Place-level placement (the castle has no 3D
  * Area in Django).
  *
- * Not automatable here, and recorded as such in the QA report: the castle's tale, its quest log
- * and backpack run on Amplify Data, which the local e2e stack does not provide (the page shows
- * "We could not load your backpack just now"). So the tale's start, mid-tale tap, gestures and
- * completion, and the quest accept's effect on the castle quest log, stay owner checks (B13).
+ * Not automated here, and recorded as such in the QA report: the castle's tale, its quest log
+ * and backpack. They were Amplify-only when this spec was written; since AMP-03 they read Django,
+ * but this spec does not seed a tale, so the tale's start, mid-tale tap, gestures and completion,
+ * and the quest accept's effect on the castle quest log, stay owner checks (B13).
  */
 
 type Npc = ReturnType<E2EProbe['npcs']>[number];
@@ -49,7 +49,7 @@ async function child(request: Parameters<typeof parentWithChild>[0], ageBand: Ag
 }
 
 /**
- * The castle's Amplify-backed backpack and quest log are not available in the e2e stack.
+ * The castle's backpack and quest log are not seeded in the e2e stack.
  *
  * Quill has a voice profile. The acceptance stack synthesizes speech with the fake provider
  * (tests/e2e/django_server.py), so this spec refuses Quill's speech requests itself, with the
@@ -64,7 +64,7 @@ async function castleStack(
     allowStatus(pattern: RegExp, status: number): void;
   },
 ) {
-  problems.allowConsole(/amplify|graphql|backpack|Amplify|No credentials|UserUnAuthenticated/i);
+  problems.allowConsole(/backpack/i);
   problems.allowConsole(/Failed to load resource: the server responded with a status of 503/);
   problems.allowStatus(/\/audio\/speech\/$/, 503);
   await page.route(/\/api\/v1\/children\/[^/]+\/audio\/speech\/$/, (route) =>
@@ -218,7 +218,7 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
       expect((await npcs(page)).filter((n) => n.npcId === 'keeper-quill')).toHaveLength(1);
     }
     // No welcome-back line here: the castle raises on_return_visit only when its tale resumes,
-    // and the tale runs on Amplify sessions (not in this stack). Owner check B13.9.
+    // and this stack seeds no tale. Owner check B13.9.
     await shot(page, 'castle-04-return-one-quill');
   });
 });
@@ -249,8 +249,8 @@ test.describe("Storykeeper's Castle: legacy Quill when the NPC Manager serves no
       await expect.poll(() => page.evaluate(() => window.__laiE2E!.focused())).toBe('keeper-quill');
       await expect(page.getByText('Keeper Quill: press E to talk')).toBeVisible();
       await page.keyboard.press('e');
-      // The legacy conversation (features/npc) opens; no managed panel is involved. Its lines
-      // come from Amplify, absent here, so it shows its own calm offline line.
+      // The legacy conversation (features/npc) opens; no managed panel is involved. It shows
+      // either its authored lines or its own calm offline line.
       const legacy = page.getByRole('dialog', { name: QUILL });
       await expect(legacy).toContainText(/ideas|story|castle|too busy to talk just now/i);
       await legacy.getByRole('button', { name: 'Not now' }).click();
