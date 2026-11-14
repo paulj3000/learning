@@ -4493,6 +4493,1250 @@
    "cove-lookout-lanterns"
   ]
  },
+ "vegetation": [
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-landing-bush-0",
+   "rotationY": 3.52,
+   "scale": 0.94,
+   "x": 4.95,
+   "z": 27.96
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-landing-bush-1",
+   "rotationY": 4.08,
+   "scale": 1.02,
+   "x": -8.79,
+   "z": 2.84
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-landing-bush-2",
+   "rotationY": 3.96,
+   "scale": 0.93,
+   "x": 6.4,
+   "z": 26.56
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-landing-bush-3",
+   "rotationY": 2.61,
+   "scale": 1.08,
+   "x": -6.54,
+   "z": 23.6
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-landing-flower-0",
+   "rotationY": 5.29,
+   "scale": 0.97,
+   "x": -7.07,
+   "z": 1.11
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-landing-flower-1",
+   "rotationY": 4.39,
+   "scale": 0.92,
+   "x": 4.71,
+   "z": 20.83
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-landing-flower-2",
+   "rotationY": 0.93,
+   "scale": 1.02,
+   "x": -6.85,
+   "z": 20.71
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-landing-flower-3",
+   "rotationY": 1.46,
+   "scale": 0.95,
+   "x": -6.23,
+   "z": 25.79
+  },
+  {
+   "assetId": "nature-flower-tropical-yellow",
+   "colliders": [],
+   "id": "cove-landing-flower-4",
+   "rotationY": 1.73,
+   "scale": 0.85,
+   "x": -4.0,
+   "z": 29.48
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-landing-flower-5",
+   "rotationY": 1.36,
+   "scale": 0.98,
+   "x": 8.05,
+   "z": 12.76
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-landing-grass-0",
+   "rotationY": 5.8,
+   "scale": 1.04,
+   "x": -7.15,
+   "z": 3.42
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-landing-grass-1",
+   "rotationY": 0.29,
+   "scale": 0.88,
+   "x": 8.24,
+   "z": 28.47
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-landing-grass-2",
+   "rotationY": 4.2,
+   "scale": 0.9,
+   "x": -9.2,
+   "z": 22.64
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-landing-grass-3",
+   "rotationY": 3.93,
+   "scale": 0.92,
+   "x": 3.53,
+   "z": 20.05
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-landing-grass-4",
+   "rotationY": 5.97,
+   "scale": 0.93,
+   "x": -0.33,
+   "z": 11.45
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-landing-grass-5",
+   "rotationY": 5.39,
+   "scale": 0.94,
+   "x": -1.66,
+   "z": 8.51
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-landing-grass-6",
+   "rotationY": 4.57,
+   "scale": 0.87,
+   "x": -9.47,
+   "z": 17.58
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-landing-grass-7",
+   "rotationY": 2.38,
+   "scale": 0.98,
+   "x": 7.1,
+   "z": 20.06
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-landing-grass-8",
+   "rotationY": 4.6,
+   "scale": 0.89,
+   "x": -3.76,
+   "z": 19.21
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-landing-grass-9",
+   "rotationY": 0.57,
+   "scale": 1.01,
+   "x": -7.81,
+   "z": -0.16
+  },
+  {
+   "assetId": "nature-bush-large",
+   "colliders": [],
+   "id": "cove-beach-bush-0",
+   "rotationY": 2.59,
+   "scale": 0.95,
+   "x": 19.24,
+   "z": -0.55
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-beach-bush-1",
+   "rotationY": 1.74,
+   "scale": 1.18,
+   "x": 27.58,
+   "z": -19.05
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-beach-bush-2",
+   "rotationY": 0.38,
+   "scale": 1.08,
+   "x": 25.7,
+   "z": 27.58
+  },
+  {
+   "assetId": "nature-flower-tropical-blue",
+   "colliders": [],
+   "id": "cove-beach-flower-0",
+   "rotationY": 3.68,
+   "scale": 0.99,
+   "x": 28.48,
+   "z": -9.11
+  },
+  {
+   "assetId": "nature-flower-tropical-blue",
+   "colliders": [],
+   "id": "cove-beach-flower-1",
+   "rotationY": 5.36,
+   "scale": 1.12,
+   "x": 23.05,
+   "z": -12.19
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-beach-flower-2",
+   "rotationY": 1.53,
+   "scale": 0.9,
+   "x": 19.42,
+   "z": 17.43
+  },
+  {
+   "assetId": "nature-flower-tropical-blue",
+   "colliders": [],
+   "id": "cove-beach-flower-3",
+   "rotationY": 5.86,
+   "scale": 0.9,
+   "x": 22.39,
+   "z": -22.35
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-beach-grass-0",
+   "rotationY": 1.17,
+   "scale": 1.04,
+   "x": 24.87,
+   "z": -19.39
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-beach-grass-1",
+   "rotationY": 1.88,
+   "scale": 1.09,
+   "x": 15.19,
+   "z": 21.2
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-beach-grass-2",
+   "rotationY": 2.14,
+   "scale": 0.93,
+   "x": 22.49,
+   "z": -15.75
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-beach-grass-3",
+   "rotationY": 1.37,
+   "scale": 0.9,
+   "x": 20.75,
+   "z": -7.94
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-beach-grass-4",
+   "rotationY": 4.32,
+   "scale": 0.91,
+   "x": 23.45,
+   "z": 12.87
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-beach-grass-5",
+   "rotationY": 1.87,
+   "scale": 0.94,
+   "x": 20.35,
+   "z": -6.08
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-beach-grass-6",
+   "rotationY": 2.67,
+   "scale": 1.08,
+   "x": 16.9,
+   "z": 21.24
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-beach-grass-7",
+   "rotationY": 1.92,
+   "scale": 0.98,
+   "x": 19.11,
+   "z": -23.22
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-beach-grass-8",
+   "rotationY": 2.32,
+   "scale": 0.97,
+   "x": 24.09,
+   "z": 11.52
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-beach-grass-9",
+   "rotationY": 1.78,
+   "scale": 1.07,
+   "x": 29.96,
+   "z": -23.68
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-beach-grass-10",
+   "rotationY": 4.98,
+   "scale": 1.15,
+   "x": 28.47,
+   "z": 29.14
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-beach-grass-11",
+   "rotationY": 1.28,
+   "scale": 0.98,
+   "x": 28.18,
+   "z": 9.54
+  },
+  {
+   "assetId": "nature-bush-large",
+   "colliders": [],
+   "id": "cove-grove-bush-0",
+   "rotationY": 3.24,
+   "scale": 1.06,
+   "x": -15.91,
+   "z": -10.66
+  },
+  {
+   "assetId": "nature-bush-large",
+   "colliders": [],
+   "id": "cove-grove-bush-1",
+   "rotationY": 5.08,
+   "scale": 1.01,
+   "x": -18.08,
+   "z": -5.6
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-grove-bush-2",
+   "rotationY": 2.51,
+   "scale": 0.98,
+   "x": -34.02,
+   "z": -3.6
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-grove-bush-3",
+   "rotationY": 5.08,
+   "scale": 1.11,
+   "x": -13.08,
+   "z": 11.81
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-grove-bush-4",
+   "rotationY": 5.88,
+   "scale": 0.86,
+   "x": -34.16,
+   "z": 2.61
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-grove-bush-5",
+   "rotationY": 1.34,
+   "scale": 1.11,
+   "x": -28.47,
+   "z": 7.84
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-grove-bush-6",
+   "rotationY": 3.67,
+   "scale": 1.05,
+   "x": -32.49,
+   "z": 15.12
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-grove-bush-7",
+   "rotationY": 1.04,
+   "scale": 0.85,
+   "x": -21.08,
+   "z": -13.58
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-grove-bush-8",
+   "rotationY": 2.9,
+   "scale": 0.96,
+   "x": -27.31,
+   "z": 24.24
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-grove-bush-9",
+   "rotationY": 3.25,
+   "scale": 1.1,
+   "x": -25.78,
+   "z": 20.57
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-grove-bush-10",
+   "rotationY": 3.54,
+   "scale": 0.99,
+   "x": -25.01,
+   "z": 25.03
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-grove-bush-11",
+   "rotationY": 3.59,
+   "scale": 0.91,
+   "x": -25.21,
+   "z": 7.93
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-grove-flower-0",
+   "rotationY": 2.21,
+   "scale": 1.12,
+   "x": -32.19,
+   "z": 6.59
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-grove-flower-1",
+   "rotationY": 0.72,
+   "scale": 1.14,
+   "x": -28.73,
+   "z": -2.34
+  },
+  {
+   "assetId": "nature-flower-tropical-blue",
+   "colliders": [],
+   "id": "cove-grove-flower-2",
+   "rotationY": 5.08,
+   "scale": 0.99,
+   "x": -25.68,
+   "z": -9.79
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-grove-flower-3",
+   "rotationY": 0.36,
+   "scale": 1.1,
+   "x": -17.66,
+   "z": 26.4
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-grove-flower-4",
+   "rotationY": 5.42,
+   "scale": 0.92,
+   "x": -13.83,
+   "z": 3.37
+  },
+  {
+   "assetId": "nature-flower-tropical-yellow",
+   "colliders": [],
+   "id": "cove-grove-flower-5",
+   "rotationY": 1.01,
+   "scale": 0.96,
+   "x": -19.85,
+   "z": -14.34
+  },
+  {
+   "assetId": "nature-flower-tropical-yellow",
+   "colliders": [],
+   "id": "cove-grove-flower-6",
+   "rotationY": 2.92,
+   "scale": 1.16,
+   "x": -23.5,
+   "z": -13.8
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-grove-flower-7",
+   "rotationY": 2.42,
+   "scale": 1.07,
+   "x": -22.56,
+   "z": 28.64
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-grove-flower-8",
+   "rotationY": 4.95,
+   "scale": 1.15,
+   "x": -29.45,
+   "z": 1.29
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-grove-flower-9",
+   "rotationY": 6.14,
+   "scale": 1.05,
+   "x": -31.63,
+   "z": -1.16
+  },
+  {
+   "assetId": "nature-flower-tropical-yellow",
+   "colliders": [],
+   "id": "cove-grove-flower-10",
+   "rotationY": 2.76,
+   "scale": 1.12,
+   "x": -20.38,
+   "z": 18.55
+  },
+  {
+   "assetId": "nature-flower-tropical-yellow",
+   "colliders": [],
+   "id": "cove-grove-flower-11",
+   "rotationY": 0.2,
+   "scale": 1.03,
+   "x": -31.13,
+   "z": -4.99
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-0",
+   "rotationY": 5.78,
+   "scale": 0.94,
+   "x": -30.3,
+   "z": 5.61
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-1",
+   "rotationY": 3.32,
+   "scale": 1.05,
+   "x": -15.21,
+   "z": 26.09
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-2",
+   "rotationY": 1.24,
+   "scale": 1.1,
+   "x": -32.52,
+   "z": -11.52
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-3",
+   "rotationY": 3.68,
+   "scale": 1.17,
+   "x": -23.55,
+   "z": -10.48
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-4",
+   "rotationY": 4.97,
+   "scale": 0.86,
+   "x": -13.67,
+   "z": 27.05
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-grove-grass-5",
+   "rotationY": 4.72,
+   "scale": 1.04,
+   "x": -26.52,
+   "z": -6.1
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-6",
+   "rotationY": 0.03,
+   "scale": 1.09,
+   "x": -15.48,
+   "z": 27.63
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-7",
+   "rotationY": 6.17,
+   "scale": 0.92,
+   "x": -14.29,
+   "z": 15.31
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-grove-grass-8",
+   "rotationY": 3.22,
+   "scale": 0.99,
+   "x": -29.21,
+   "z": 2.36
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-9",
+   "rotationY": 3.37,
+   "scale": 1.02,
+   "x": -32.18,
+   "z": 23.47
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-grove-grass-10",
+   "rotationY": 5.61,
+   "scale": 0.89,
+   "x": -26.64,
+   "z": 6.56
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-11",
+   "rotationY": 5.13,
+   "scale": 0.96,
+   "x": -33.95,
+   "z": -7.47
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-12",
+   "rotationY": 6.24,
+   "scale": 0.94,
+   "x": -32.25,
+   "z": 7.7
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-13",
+   "rotationY": 2.97,
+   "scale": 0.89,
+   "x": -18.42,
+   "z": -15.04
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-14",
+   "rotationY": 3.38,
+   "scale": 0.93,
+   "x": -25.5,
+   "z": 2.99
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-15",
+   "rotationY": 1.77,
+   "scale": 1.1,
+   "x": -29.89,
+   "z": 9.11
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-grove-grass-16",
+   "rotationY": 5.78,
+   "scale": 0.86,
+   "x": -28.79,
+   "z": -12.96
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-17",
+   "rotationY": 5.23,
+   "scale": 1.13,
+   "x": -15.24,
+   "z": 19.87
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-18",
+   "rotationY": 5.6,
+   "scale": 0.89,
+   "x": -31.31,
+   "z": 0.68
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-19",
+   "rotationY": 5.49,
+   "scale": 1.11,
+   "x": -22.84,
+   "z": -12.78
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-20",
+   "rotationY": 4.29,
+   "scale": 1.04,
+   "x": -15.08,
+   "z": 24.04
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-21",
+   "rotationY": 4.43,
+   "scale": 1.04,
+   "x": -13.27,
+   "z": 0.01
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-22",
+   "rotationY": 3.38,
+   "scale": 0.97,
+   "x": -25.52,
+   "z": -8.93
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-23",
+   "rotationY": 4.24,
+   "scale": 0.93,
+   "x": -17.36,
+   "z": -11.72
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-grove-grass-24",
+   "rotationY": 0.77,
+   "scale": 0.93,
+   "x": -16.87,
+   "z": 18.95
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-25",
+   "rotationY": 5.17,
+   "scale": 0.95,
+   "x": -29.61,
+   "z": -5.4
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-grove-grass-26",
+   "rotationY": 4.09,
+   "scale": 1.17,
+   "x": -14.53,
+   "z": 0.69
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-grove-grass-27",
+   "rotationY": 1.18,
+   "scale": 1.04,
+   "x": -28.67,
+   "z": -5.11
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-grove-grass-28",
+   "rotationY": 6.11,
+   "scale": 1.01,
+   "x": -29.59,
+   "z": 28.99
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-grove-grass-29",
+   "rotationY": 6.14,
+   "scale": 0.86,
+   "x": -19.88,
+   "z": -5.76
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-ruins-bush-0",
+   "rotationY": 2.52,
+   "scale": 1.16,
+   "x": 7.31,
+   "z": -32.21
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-ruins-bush-1",
+   "rotationY": 5.96,
+   "scale": 1.04,
+   "x": -8.18,
+   "z": -20.51
+  },
+  {
+   "assetId": "nature-bush-medium",
+   "colliders": [],
+   "id": "cove-ruins-bush-2",
+   "rotationY": 0.04,
+   "scale": 1.0,
+   "x": 10.32,
+   "z": -19.61
+  },
+  {
+   "assetId": "nature-bush-large",
+   "colliders": [],
+   "id": "cove-ruins-bush-3",
+   "rotationY": 2.87,
+   "scale": 0.92,
+   "x": 11.3,
+   "z": -24.83
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-ruins-bush-4",
+   "rotationY": 1.15,
+   "scale": 1.11,
+   "x": -10.67,
+   "z": -18.33
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-ruins-bush-5",
+   "rotationY": 5.52,
+   "scale": 0.96,
+   "x": -11.99,
+   "z": -32.02
+  },
+  {
+   "assetId": "nature-flower-tropical-blue",
+   "colliders": [],
+   "id": "cove-ruins-flower-0",
+   "rotationY": 1.69,
+   "scale": 1.09,
+   "x": 7.47,
+   "z": -28.04
+  },
+  {
+   "assetId": "nature-flower-tropical-yellow",
+   "colliders": [],
+   "id": "cove-ruins-flower-1",
+   "rotationY": 5.35,
+   "scale": 1.1,
+   "x": 8.53,
+   "z": -23.58
+  },
+  {
+   "assetId": "nature-flower-tropical-yellow",
+   "colliders": [],
+   "id": "cove-ruins-flower-2",
+   "rotationY": 2.76,
+   "scale": 1.08,
+   "x": 8.39,
+   "z": -22.6
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-ruins-flower-3",
+   "rotationY": 3.65,
+   "scale": 1.08,
+   "x": -7.74,
+   "z": -30.3
+  },
+  {
+   "assetId": "nature-flower-tropical-yellow",
+   "colliders": [],
+   "id": "cove-ruins-flower-4",
+   "rotationY": 2.3,
+   "scale": 1.03,
+   "x": 11.7,
+   "z": -22.18
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-ruins-flower-5",
+   "rotationY": 3.89,
+   "scale": 1.16,
+   "x": 7.58,
+   "z": -22.76
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-ruins-flower-6",
+   "rotationY": 4.68,
+   "scale": 1.14,
+   "x": -10.02,
+   "z": -25.21
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-ruins-flower-7",
+   "rotationY": 5.51,
+   "scale": 0.92,
+   "x": -11.99,
+   "z": -22.75
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-ruins-grass-0",
+   "rotationY": 1.06,
+   "scale": 0.86,
+   "x": -10.01,
+   "z": -33.76
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-ruins-grass-1",
+   "rotationY": 0.94,
+   "scale": 1.18,
+   "x": -5.56,
+   "z": -19.84
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-ruins-grass-2",
+   "rotationY": 4.41,
+   "scale": 0.86,
+   "x": -9.28,
+   "z": -32.59
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-ruins-grass-3",
+   "rotationY": 3.91,
+   "scale": 1.14,
+   "x": -12.34,
+   "z": -21.05
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-ruins-grass-4",
+   "rotationY": 5.91,
+   "scale": 1.01,
+   "x": -8.96,
+   "z": -34.2
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-ruins-grass-5",
+   "rotationY": 2.76,
+   "scale": 1.07,
+   "x": -9.2,
+   "z": -28.54
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-ruins-grass-6",
+   "rotationY": 2.14,
+   "scale": 1.1,
+   "x": -0.96,
+   "z": -16.97
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-ruins-grass-7",
+   "rotationY": 1.04,
+   "scale": 0.94,
+   "x": -5.44,
+   "z": -31.0
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-ruins-grass-8",
+   "rotationY": 2.96,
+   "scale": 1.13,
+   "x": -8.52,
+   "z": -21.81
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-ruins-grass-9",
+   "rotationY": 3.17,
+   "scale": 0.86,
+   "x": 2.02,
+   "z": -26.08
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-ruins-grass-10",
+   "rotationY": 2.92,
+   "scale": 1.12,
+   "x": 4.91,
+   "z": -31.8
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-ruins-grass-11",
+   "rotationY": 4.42,
+   "scale": 1.07,
+   "x": -12.32,
+   "z": -30.03
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-ruins-grass-12",
+   "rotationY": 5.16,
+   "scale": 1.12,
+   "x": 7.21,
+   "z": -21.03
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-ruins-grass-13",
+   "rotationY": 5.92,
+   "scale": 1.15,
+   "x": 8.47,
+   "z": -18.78
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-ruins-grass-14",
+   "rotationY": 2.49,
+   "scale": 0.89,
+   "x": -9.22,
+   "z": -30.06
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-lookout-bush-0",
+   "rotationY": 0.44,
+   "scale": 0.94,
+   "x": 7.64,
+   "z": -42.21
+  },
+  {
+   "assetId": "nature-bush-small",
+   "colliders": [],
+   "id": "cove-lookout-bush-1",
+   "rotationY": 3.52,
+   "scale": 0.9,
+   "x": -16.1,
+   "z": -43.44
+  },
+  {
+   "assetId": "nature-bush-large",
+   "colliders": [],
+   "id": "cove-lookout-bush-2",
+   "rotationY": 5.25,
+   "scale": 0.96,
+   "x": 24.41,
+   "z": -42.49
+  },
+  {
+   "assetId": "nature-flower-tropical-purple",
+   "colliders": [],
+   "id": "cove-lookout-flower-0",
+   "rotationY": 0.67,
+   "scale": 1.19,
+   "x": -12.46,
+   "z": -42.59
+  },
+  {
+   "assetId": "nature-flower-tropical-blue",
+   "colliders": [],
+   "id": "cove-lookout-flower-1",
+   "rotationY": 4.07,
+   "scale": 1.14,
+   "x": -9.67,
+   "z": -42.77
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-lookout-flower-2",
+   "rotationY": 2.61,
+   "scale": 0.94,
+   "x": 17.15,
+   "z": -41.84
+  },
+  {
+   "assetId": "nature-flower-tropical-blue",
+   "colliders": [],
+   "id": "cove-lookout-flower-3",
+   "rotationY": 6.14,
+   "scale": 1.03,
+   "x": 31.09,
+   "z": -41.58
+  },
+  {
+   "assetId": "nature-flower-tropical-pink",
+   "colliders": [],
+   "id": "cove-lookout-flower-4",
+   "rotationY": 0.17,
+   "scale": 1.15,
+   "x": -7.03,
+   "z": -41.99
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-lookout-grass-0",
+   "rotationY": 3.12,
+   "scale": 0.94,
+   "x": -10.0,
+   "z": -41.87
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-lookout-grass-1",
+   "rotationY": 0.7,
+   "scale": 1.13,
+   "x": -2.55,
+   "z": -43.2
+  },
+  {
+   "assetId": "nature-grass-short",
+   "colliders": [],
+   "id": "cove-lookout-grass-2",
+   "rotationY": 5.09,
+   "scale": 1.15,
+   "x": 19.43,
+   "z": -41.92
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-lookout-grass-3",
+   "rotationY": 0.04,
+   "scale": 0.89,
+   "x": -11.38,
+   "z": -41.6
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-lookout-grass-4",
+   "rotationY": 5.07,
+   "scale": 0.87,
+   "x": -16.1,
+   "z": -41.63
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-lookout-grass-5",
+   "rotationY": 4.57,
+   "scale": 1.06,
+   "x": 11.56,
+   "z": -41.39
+  },
+  {
+   "assetId": "nature-grass-medium",
+   "colliders": [],
+   "id": "cove-lookout-grass-6",
+   "rotationY": 0.84,
+   "scale": 0.92,
+   "x": -5.31,
+   "z": -41.66
+  },
+  {
+   "assetId": "nature-grass-tall",
+   "colliders": [],
+   "id": "cove-lookout-grass-7",
+   "rotationY": 2.52,
+   "scale": 1.08,
+   "x": 12.49,
+   "z": -42.82
+  }
+ ],
  "zones": [
   {
    "enterMessage": "Pirate Landing. This is Pip's camp.",

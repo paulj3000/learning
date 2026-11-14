@@ -46,8 +46,10 @@ import json
 import math
 from pathlib import Path
 
+from .treasure_cove_vegetation import vegetation as grow_vegetation
+
 # Bump whenever the layout changes, so the seed refreshes an existing region's layout.
-LAYOUT_VERSION = 6
+LAYOUT_VERSION = 7
 BOUNDS = {"halfExtentX": 36, "halfExtentZ": 44, "wallThickness": 1}
 SNAPSHOT_PATH = Path(__file__).with_name("treasure_cove_layout.json")
 
@@ -235,6 +237,17 @@ GROVE_TO_RUINS = [(-19, 9), (-18, -2), (-9, -10), (-0.8, -14.5)]
 RUINS_AISLE = [(0, -17), (0, -23)]
 # The clue for the hidden chest: flowers from the end of the grove path to the hiding place.
 FLOWER_TRAIL = [(-23.5, 12.8), (-25.5, 15), (-27.5, 17.2), (-28.6, 18.4)]
+# Every walkable line in the cove, for keeping scenery off it.
+PATHS = [
+    LANDING_TO_RUINS,
+    LANDING_TO_DOCK,
+    LANDING_TO_GROVE,
+    LANDING_TO_BEACH,
+    BEACH_TO_RUINS,
+    GROVE_TO_RUINS,
+    RUINS_AISLE,
+    FLOWER_TRAIL,
+]
 
 # --- Palms (TR-PALM-05) -------------------------------------------------------------------------
 
@@ -404,6 +417,9 @@ SHORE_ROCKS = [(35, -14), (34.6, -20), (33.8, 6), (35.2, 14), (31, -24), (25, -2
 PEDESTAL = SPOTS["ruins-pedestal"]
 RUIN_PILLARS = _ring(PEDESTAL[0], PEDESTAL[1], 7, 8, start=math.pi / 8)
 RUNE_STONES = [(-3.0, -23.0), (3.0, -23.0), (0.0, -29.4)]
+# Where people stand or meet something: the spawn point, Pip and the first chest's helpers
+# (treasure_rush_seed), the encounter spots and the rune stones. Scenery keeps clear of them.
+KEEP_CLEAR = [(0.0, 10.0), (0.0, -6.0), (3.0, 6.0), (-3.0, 6.0), *SPOTS.values(), *RUNE_STONES]
 # Palms in the ruins' corners, clear of the walls, the pillars, the aisle and the gate.
 RUINS_PALMS = [(-10.6, -20.4, M), (10.4, -32.4, C), (-10.4, -31.2, S), (9.8, -22.8, M)]
 # Lookout Point: the two that frame the flag, and two at the far ends of the sand, so the view
@@ -859,12 +875,25 @@ def cove_layout() -> dict:
             LANDING_PROPS + BEACH_PROPS + GROVE_PROPS + RUINS_PROPS + LOOKOUT_PROPS
         )
     ]
+    # ENV-2: bushes, flowers and grass round the palms and props, clear of every path and spot.
+    vegetation = grow_vegetation(
+        {
+            "scenery": scenery,
+            "colliders": colliders,
+            "procedural": procedural,
+            "props": props,
+            "zones": zones,
+        },
+        paths=PATHS,
+        keep_clear=KEEP_CLEAR,
+    )
 
     return {
         "scenery": scenery,
         "colliders": colliders,
         "props": props,
         "propReplaces": PROP_REPLACES,
+        "vegetation": vegetation,
         "zones": zones,
         "ambient": ambient,
         "lights": lights,
