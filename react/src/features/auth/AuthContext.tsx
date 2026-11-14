@@ -1,7 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { fetchAuthSession, getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
-import { Hub } from 'aws-amplify/utils';
-import { isAuthConfigured } from '../../lib/amplify-config';
+import { cognitoAuth, isCognitoConfigured } from '../../lib/cognito';
 import { TimeoutError, withTimeout } from '../../lib/withTimeout';
 import { AUTH_CHECK_TIMEOUT_MS } from './authNoticeCopy';
 import { isReauthenticating, onReauthenticationEnd } from './recentSignIn/recentSignIn';
@@ -51,7 +49,7 @@ export function adminAccessFromGroups(groups: unknown): { isAdmin: boolean; isSu
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>(isAuthConfigured ? 'loading' : 'unconfigured');
+  const [status, setStatus] = useState<AuthStatus>(isCognitoConfigured ? 'loading' : 'unconfigured');
   // Only the newest session read may set state, so a late answer cannot overwrite a newer one.
   const generation = useRef(0);
   const [userId, setUserId] = useState<string | null>(null);
@@ -59,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSuperuser, setIsSuperuser] = useState(false);
 
   async function refresh(options: { quiet?: boolean } = {}): Promise<void> {
-    if (!isAuthConfigured) {
+    if (!isCognitoConfigured) {
       setStatus('unconfigured');
       return;
     }
@@ -67,17 +65,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Quiet keeps the current screen mounted while the session is re-read.
     if (!options.quiet) setStatus('loading');
     try {
-      const { user, session } = await withTimeout(
+      const { user, tokens } = await withTimeout(
         (async () => {
-          const signedIn = await getCurrentUser();
-          return { user: signedIn, session: await fetchAuthSession() };
+          const auth = cognitoAuth();
+          const signedIn = await auth.getCurrentUser();
+          return { user: signedIn, tokens: await auth.getTokens() };
         })(),
         AUTH_CHECK_TIMEOUT_MS,
         'Reading the Cognito session',
       );
       if (current !== generation.current) return;
       setUserId(user.userId);
-      const groups = session.tokens?.idToken?.payload['cognito:groups'];
+      const groups = tokens?.idClaims?.['cognito:groups'];
       const access = adminAccessFromGroups(groups);
       setIsAdmin(access.isAdmin);
       setIsSuperuser(access.isSuperuser);
@@ -97,12 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
-    if (!isAuthConfigured) return;
-    const stopListening = Hub.listen('auth', ({ payload }) => {
+    if (!isCognitoConfigured) return;
+    const stopListening = cognitoAuth().onEvent((event) => {
       // A recent sign-in verification (LAI-0209) signs out and in again on
       // purpose; the page stays as it is and the session is read once it ends.
       if (isReauthenticating()) return;
-      if (payload.event === 'signedIn' || payload.event === 'signedOut') {
+      if (event === 'signedIn' || event === 'signedOut') {
         void refresh();
       }
     });
@@ -114,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signOut(): Promise<void> {
-    await amplifySignOut();
+    if (isCognitoConfigured) await cognitoAuth().signOut();
     await refresh();
   }
 

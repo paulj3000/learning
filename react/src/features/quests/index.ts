@@ -16,7 +16,6 @@ export {
   listQuestStates,
   startQuest,
   syncQuestProgress,
-  type ChildQuestStateRow,
   type QuestProgressResult,
 } from './api';
 export { QUEST_DEFINITIONS, getQuestDefinition, getQuestsOfferedBy } from './content';

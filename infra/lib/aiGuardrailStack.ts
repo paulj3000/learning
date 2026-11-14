@@ -1,5 +1,6 @@
 import { CfnOutput, Duration, Stack, Tags, type StackProps } from 'aws-cdk-lib';
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
+import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -155,16 +156,55 @@ export function turnPattern(where: Partial<Record<TurnField, string>> = {}): str
   return `[${AI_TURN_FIELDS.map((field) => fixed[field] ?? field).join(', ')}]`;
 }
 
+/**
+ * The `ai.safety v1` line (lai/apps/ai/services/auditing.py `emit_safety_metric`, AMP-05): one
+ * per SafetyEvent, closed vocabulary only. It replaces the Amplify `operational-metrics` stream
+ * consumer's `SafetyEventCount` by severity. Change it only together with `emit_safety_metric`.
+ */
+export const AI_SAFETY_FIELDS = [
+  'date',
+  'time',
+  'level',
+  'logger',
+  'req',
+  'event',
+  'version',
+  'route',
+  'severity',
+  'source',
+  'audit',
+] as const;
+type SafetyField = (typeof AI_SAFETY_FIELDS)[number];
+
+export function safetyPattern(where: Partial<Record<SafetyField, string>> = {}): string {
+  const fixed: Partial<Record<SafetyField, string>> = {
+    logger: 'logger="lai.ai"',
+    event: 'event="ai.safety"',
+    version: 'version="v1"',
+    ...where,
+  };
+  return `[${AI_SAFETY_FIELDS.map((field) => fixed[field] ?? field).join(', ')}]`;
+}
+
 export interface AiGuardrailStackProps extends StackProps {
   envName: AssetEnvironment;
   /** The Django workload role, when it is not the EC2 instance role `lai-django-ec2-<env>`. */
   djangoRoleArn?: string;
   /**
-   * Alarm thresholds (LAI-0708), sized for the pilot. Every alarm goes to the Django stack's
-   * `lai-django-alarms-<env>` topic; none pages on a single event.
+   * Alarm thresholds (LAI-0708, AMP-05), sized for the pilot. Every alarm goes to the Django
+   * stack's `lai-django-alarms-<env>` topic. None pages on a single event, except a HIGH
+   * severity SafetyEvent, as the Amplify `HighSeveritySafetyEventAlarm` did.
    */
   alarms?: Partial<typeof DEFAULT_AI_ALARMS>;
+  /**
+   * Monthly Amazon Bedrock cost budget in USD (AMP-05; was the Amplify
+   * `BedrockMonthlyCostBudget`, default 50). Bedrock cost is account-wide, so while the Amplify
+   * budget still exists both notify; AMP-08 removes the Amplify one.
+   */
+  monthlyBedrockBudgetUsd?: number;
 }
+
+export const DEFAULT_MONTHLY_BEDROCK_BUDGET_USD = 50;
 
 export const DEFAULT_AI_ALARMS = {
   /** Provider failures (timeouts, throttling, access denied) in 15 minutes. */
@@ -182,6 +222,13 @@ export const DEFAULT_AI_ALARMS = {
   outputTokensPerDay: 2_000_000,
   /** Rate-limited or kill-switched turns in 15 minutes. */
   rateLimitedPer15Min: 100,
+  /**
+   * Model output that failed schema or content validation in 15 minutes (AMP-05; was the
+   * Amplify `AiValidationFailureAlarm`). Every such turn already fell back to authored content.
+   */
+  validationFailuresPer15Min: 5,
+  /** HIGH severity SafetyEvents in 5 minutes (AMP-05; was `HighSeveritySafetyEventAlarm`). */
+  highSeveritySafetyEventsPer5Min: 1,
 };
 
 export class AiGuardrailStack extends Stack {
@@ -267,6 +314,10 @@ export class AiGuardrailStack extends Stack {
     });
 
     this.addMonitoring(props.envName, { ...DEFAULT_AI_ALARMS, ...props.alarms });
+    this.addBedrockBudget(
+      props.envName,
+      props.monthlyBedrockBudgetUsd ?? DEFAULT_MONTHLY_BEDROCK_BUDGET_USD,
+    );
 
     new CfnOutput(this, 'GuardrailId', {
       value: this.guardrail.attrGuardrailId,
@@ -279,6 +330,33 @@ export class AiGuardrailStack extends Stack {
     new CfnOutput(this, 'ModelId', {
       value: AI_INFERENCE_PROFILE_ID,
       description: 'SSM /lai/<env>/django/LAI_AI_MODEL_ID',
+    });
+  }
+
+  /**
+   * Actual spend above 80% and forecast above 100% of the monthly Bedrock budget notify the
+   * Django alarm topic, which trusts `budgets.amazonaws.com` (LaiDjangoEc2, AMP-05).
+   */
+  private addBedrockBudget(env: string, monthlyUsd: number): void {
+    const topicArn = `arn:${Stack.of(this).partition}:sns:${Stack.of(this).region}:${Stack.of(this).account}:lai-django-alarms-${env}`;
+    const notify = (notificationType: string, threshold: number) => ({
+      notification: {
+        notificationType,
+        comparisonOperator: 'GREATER_THAN',
+        threshold,
+        thresholdType: 'PERCENTAGE',
+      },
+      subscribers: [{ subscriptionType: 'SNS', address: topicArn }],
+    });
+    new budgets.CfnBudget(this, 'BedrockMonthlyCostBudget', {
+      budget: {
+        budgetName: `lai-bedrock-monthly-${env}`,
+        budgetType: 'COST',
+        timeUnit: 'MONTHLY',
+        budgetLimit: { amount: monthlyUsd, unit: 'USD' },
+        costFilters: { Service: ['Amazon Bedrock'] },
+      },
+      notificationsWithSubscribers: [notify('ACTUAL', 80), notify('FORECASTED', 100)],
     });
   }
 
@@ -343,6 +421,39 @@ export class AiGuardrailStack extends Stack {
     metric('InputTokens', {}, '$inputTokens', 'Sum', Duration.hours(1));
     const outputTokens = metric('OutputTokens', {}, '$outputTokens', 'Sum', Duration.days(1));
     metric('EstimatedCostMicroUsd', {}, '$costMicroUsd', 'Sum', Duration.days(1));
+    const validationFailures = metric(
+      'ValidationFailures',
+      { status: 'status="INVALID*"' },
+      '1',
+      'Sum',
+      m15,
+    );
+    // SafetyEvents (AMP-05): the Django side of the Amplify SafetyEventCount by severity.
+    const safetyMetric = (
+      name: string,
+      where: Partial<Record<SafetyField, string>>,
+      period: Duration,
+    ) => {
+      new logs.MetricFilter(this, `${name}Filter`, {
+        logGroup,
+        filterPattern: logs.FilterPattern.literal(safetyPattern(where)),
+        metricNamespace: AI_METRICS_NAMESPACE,
+        metricName: name,
+        metricValue: '1',
+      });
+      return new cloudwatch.Metric({
+        namespace: AI_METRICS_NAMESPACE,
+        metricName: name,
+        statistic: 'Sum',
+        period,
+      });
+    };
+    safetyMetric('SafetyEvents', {}, Duration.hours(1));
+    const highSeverity = safetyMetric(
+      'HighSeveritySafetyEvents',
+      { severity: 'severity="HIGH"' },
+      Duration.minutes(5),
+    );
 
     const notify = new cwActions.SnsAction(topic);
     const gte = cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD;
@@ -409,6 +520,20 @@ export class AiGuardrailStack extends Stack {
       'Django AI: many turns are being rate limited or kill-switched',
       rateLimited,
       thresholds.rateLimitedPer15Min,
+    );
+    alarm(
+      'ValidationFailures',
+      'Django AI: model output is failing validation (a Bedrock behaviour change or a prompt or ' +
+        'schema regression); every failed turn already fell back to authored content',
+      validationFailures,
+      thresholds.validationFailuresPer15Min,
+    );
+    alarm(
+      'HighSeveritySafetyEvent',
+      'Django AI: a HIGH severity SafetyEvent was recorded; review it in Django Admin now ' +
+        '(docs/AI_AND_CHILD_SAFETY.md human review)',
+      highSeverity,
+      thresholds.highSeveritySafetyEventsPer5Min,
     );
   }
 }

@@ -42,6 +42,40 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Integration: Amplify exit with player movement and avatars — `integration/avatar-amplify-exit` (2026-11-14); local QA branch, NOT merged
+
+A QA-only branch combining the open player stack with the Amplify exit, so the avatar work runs
+locally without an Amplify sandbox. No pull request was merged into `main`, nothing was deployed,
+and no AWS or Cognito resource was touched.
+
+Built as: `feature/player-avatar-assets` (PR #28, which contains PR #27 and PR #26), then `main`
+(PRs #30 to #34; clean merge), then `ccr-a0f9421a-g0ifoe` (PR #15).
+
+Conflict resolution (all between main's P0 fix, PR #30, and PR #15's AMP-02 to AMP-07):
+- Auth (`api/auth.ts`, `AuthContext`, `RequireParent`, `RequireAdmin`): PR #15's direct Cognito
+  client (`lib/cognito`) with PR #30's bounds kept: 15 s token and session reads, the
+  `unavailable` status with Try again, and `AuthStatusNotice` copy without Amplify or sandbox text.
+  `lib/amplify-config.ts` and its test are deleted (PR #15); `lib/cognito` covers the config.
+- `VITE_BACKEND=amplify` is retired (`api/backend.ts`): Django is the only backend, the dev server
+  refuses the old value, and `vite dev` still defaults to Django.
+- Place page: PR #15's Django world-change and catalog reads replace PR #30's skip of Amplify Data.
+- Site release: PR #15's version (Cognito ids as inputs, no `ampx generate outputs`).
+- Docs: main's local-development steps (root `.env` `COGNITO_*` reused by `vite dev`) with the
+  Amplify-backend and sandbox lines removed.
+- Django: no migration conflicts (`avatars` is a new app; PR #15's merge migrations stand);
+  `makemigrations --check` clean. No URL clash (`children/<id>/avatar/` vs `children/<id>/photo/`).
+- Pre-existing on PR #28: two Django Admin app allow-list tests (`core/tests/test_django_admin.py`,
+  `game_sessions/tests/test_sessions.py`) did not list `avatars`; added (staff content, no child data).
+
+Verified here: `npm run typecheck`; Vitest for auth, API, Cognito, routes, Realms, assets, player
+avatar, movement and engine boundary, plus every test file PR #15 or PR #28 changed (all pass);
+pytest with PostgreSQL 16 for avatars, users (tenant isolation), education, progression, inventory,
+quests, assets, core, regions, ai, audio, game sessions, npcs and `tests/repo`.
+
+Deferred to merge verification or owner QA: Playwright, WebGL checks, the build, lint and format,
+and a live Cognito sign-in (needs the owner's pool values). The hosted `amplify.yml` still
+deploys the Amplify backend; retiring it is the AMP-08 runbook, not this branch.
+
 ## P0: Cognito without Amplify outputs, Realm Explorer navigation — fixed on `fix/p0-cognito-env-realm-explorer` (2026-11-13); awaiting owner acceptance, NOT merged
 
 Owner-reported: the homepage told parents to run an Amplify sandbox; Realms sent a child back to
@@ -90,6 +124,16 @@ Remaining: the Place page's classic adventure ("Start: ...") and world changes s
 Data until AMP-03 (PR #15). In a Django build world changes are not shown and the classic
 adventure is not expected to work (not exercised here); the 3D Areas and walk-around worlds are.
 PR #15 remains unmerged pending its AWS cutover stages.
+
+## AMP-04 Amplify Storage to Django S3 (2026-11-10) — code and tests done; live inventory, copy and acceptance NOT run
+
+React resolves assets and child photos through Django only (`features/assets/assetService.ts`,
+`features/child-profile/avatarPhoto.ts`); Amplify builds no longer show or upload photos. The one
+Amplify Storage call left is the delete-only legacy photo removal in `child-profile/deletion.ts`
+(goes with AMP-03). New commands `migrate_amplify_child_photos` and
+`migrate_amplify_asset_objects` inventory, copy (through the Django pipelines), verify by SHA-256
+and roll back, never touching the source bucket. Runbook and the owner's open steps:
+`docs/platform/AMPLIFY_STORAGE_CUTOVER.md`.
 
 ## `make createsuper` (local Django Admin superuser) — added 2026-11-11; dry-run checked only
 
@@ -583,6 +627,44 @@ closed — see ADR-018). CLAUDE.md section 12 still
 keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
+
+## AMP-03: Amplify Data to Django REST for per-child state — code complete, unit and API tested; NOT deployed or seen in a browser
+
+Trello AMP-03, from the AMP-01 audit (`docs/platform/AMPLIFY_EXIT_MATRIX.md` sections 3.2 and 4,
+gaps G2, G3, G4, G5 and G10). The React modules below no longer import `lib/data-client` or the
+Amplify schema; they call Django through `react/src/api/djangoClient.ts` (same origin unless
+`VITE_BACKEND=django` names one). The routes are listed in `docs/PLAY_API.md`, "Per-child state
+outside region play (AMP-03)".
+
+- **Classic adventures** (`adventures/api.ts`, `useAdventureSession.ts`): start or resume,
+  answers, hints, sessions, attempts, world changes and saved stories on Django. The server
+  grades, records the attempt and its evidence, advances, records a WORLD_CHANGE step's world
+  change, and completes the session; the client writes none of those any more. The hint ladder
+  is the server's (`hints/`), so the support level an answer is graded with is no longer a client
+  value. The dev20261103 step runner (`sessions/<id>/step/`, `content/adventures/<slug>/start/`)
+  overlaps `adventures/<slug>/session/`: reconcile when that branch merges.
+- **Per-child state writers**: stories, quests (validated save; completion effects on the
+  server), NPC dialogue, discoveries (server authority; the Amplify merge path is gone), the
+  backpack (read and parent clear only), mastery (read only; derived on the server).
+- **Companion choice**: two columns on `ChildProfile` (`companion_type`, `companion_chosen_at`).
+- **Availability**: `children/<id>/availability/`, release flags only. The existing `islands/` and
+  `regions/<id>/adventures/` routes hide inactive content, so they cannot tell "out of play" from
+  "not in the catalog"; starting an adventure is checked on the server either way.
+- **AI history** (`parent-dashboard/api.ts`): Django only; the Amplify branch is deleted.
+- **Account deletion**: `DELETE me/` (recent sign-in) deletes every child as child deletion does,
+  then the account; the client then deletes the Cognito user through an injected deleter
+  (`child-profile/deletion.ts`). `amplifyProfiles.ts` is deleted; profiles are Django only.
+- **React admin retired**: the Families, child progress, Islands and Adventures pages, their
+  catalog components, `admin/api.ts`, `admin/catalogApi.ts` and the catalog form, import-plan and
+  delete-guard rules are deleted. Every `/admin/*` address shows one page pointing to Django
+  Admin (ADR-034, ADR-043). The owner still has to confirm Django Admin covers the reviews these
+  pages offered (AMP-01 G10).
+
+Remaining, not done here: co-op, director, companion and tutor AI modules (AMP-05), assets and
+avatar photos (AMP-04), auth (AMP-02), an importer for existing DynamoDB progress rows (G8), and
+deleting `lib/data-client.ts` and `amplify/` once every module has moved. Quest objectives the
+server cannot prove are still accepted from the client's projection (a validated write, as on
+Amplify); an NPC dialogue node's conditions are not re-checked on the server.
 
 ## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 10, 16 (3D regions) and 17 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
 
@@ -13384,6 +13466,62 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - `tests/deploy`: all passed.
   - Prettier and ruff are clean.
   - No AWS call was made.
+
+## AMP-03 / AMP-07 Multiplayer room server off Amplify (2026-11-10)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-03 / AMP-07 (room server slice) | `server/multiplayer` reads no `amplify_outputs.json` and no AppSync; ownership through Django `GET /api/v1/children/<id>/` | **None**: not run against a live Cognito pool or Django API | Open until the owner sets the three env vars and runs the two-browser check |
+
+- Config: `MP_USER_POOL_ID`, `MP_USER_POOL_CLIENT_ID` and `MP_DJANGO_API_BASE` are required
+  (https only in production). A missing one stops start-up naming every missing variable.
+- Token: the client sends the Cognito **access** token (`cognitoIdentity.ts`); the server verifies
+  it (`token_use: access`, `client_id`) and forwards it as a bearer token to Django, which returns
+  the child only to its owner. 401, 403 and 404 refuse as `NOT_YOUR_CHILD`; other statuses,
+  malformed bodies, redirects and timeouts as `LOOKUP_FAILED`.
+- `ChildProfileRecord` is now `{ id, avatarKey }`; the `ownerSub` / `owner` check is gone because
+  Django enforces ownership. `MultiplayerIdentity.idToken` is renamed `accessToken`.
+- Risk: the Django route returns the nickname and settings to the room server, which discards
+  them; a narrower route would remove that exposure.
+- Checks: multiplayer server and client Vitest suites, `tsc --noEmit -p server/tsconfig.json`,
+  `tsc -b` in `react/`. ADR-026 gains an amendment.
+
+## AMP-05 Amplify functions and AI runtime exit (2026-11-10, branch `worktree-agent-a311a41f33ad917d3`, not deployed)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-05 | `docs/platform/AMPLIFY_FUNCTIONS_EXIT.md`; Director and co-op Django routes; React director, co-op, companion and tutor off Amplify; safety and validation metrics, alarms and Bedrock budget in CDK | **None** (no deploy, no AWS call) | Open: owner actions in the exit doc, section 5 (merge ordering with `VITE_BACKEND=django`, co-op decision confirmation, CDK deploy approval, live metric checks) |
+
+- Director (G6): `GET children/<id>/next-learning-activity/`, a port of the Lambda on the
+  canonical catalog, `WorldChange`, `AdventureSession` and `SkillProgress` rows.
+- Co-op (G7): child-scoped create, get, claim, presence and complete routes on
+  `CoopSession`/`CoopParticipant`, first claim wins under a row lock; polling replaces the
+  AppSync subscription (Django, not the room server, per ADR-026; owner to confirm).
+- Companion and tutor: the Amplify AI Kit branch and browser audit writes are gone; without
+  Django a turn is the authored fallback with no network call.
+- Adventure answers: `AnswersView` parity confirmed by `test_answers_api.py`; React wiring stays
+  with AMP-03.
+- Metrics (G11, Django half): `ai.safety v1` line; `ValidationFailures`, `SafetyEvents`,
+  `HighSeveritySafetyEvents` filters; two alarms; `lai-bedrock-monthly-<env>` budget and the
+  alarm topic's Budgets publish permission.
+- Checks run: pytest (education director, game_sessions co-op and answers, users tenant
+  isolation, core, ai) and vitest (director, coop, companion, tutor, adventures, routes, api,
+  infra AI guardrail, Django deployment and cross-stack), `tsc -b` in react,
+  `tsc --noEmit -p infra/tsconfig.json`; ruff and Prettier on the changed files.
+
+## AMP-02, AMP-06, AMP-07, AMP-08 Amplify exit (2026-11-10, branch `ccr-a0f9421a-g0ifoe`)
+
+| Task | Deliverable | Live verification | Final |
+|---|---|---|---|
+| AMP-02 | `react/src/lib/cognito` (SRP sign-in, refresh, sign-out, account calls); every auth screen, the Django token, deletion, multiplayer and scripts switched | Open: browser and live-pool acceptance | Not complete |
+| AMP-06 | Site release and `LaiFrontend` need no Amplify read; Cognito ids from repository variables | Open: change set, variables, DNS, smoke | Not complete |
+| AMP-07 | `aws-amplify`, Amplify client config and sandbox script removed; backend definition kept until AMP-08 | n/a | Not complete (stage 6 removal) |
+| AMP-08 | `docs/platform/AMPLIFY_DECOMMISSION.md` staged runbook | Every stage needs owner approval | Not complete |
+
+Summary and checks: `docs/platform/AMPLIFY_EXIT_STATUS.md` (typecheck, build, Vitest 4311 passed,
+pytest 2638 passed against PostgreSQL 16, ruff, Prettier). Merging the branch is the frontend
+cutover; see its merge gate.
+
 
 ## LAI-0821 content-authoring milestone accepted (2026-11-10, branch `claude/jolly-ride-92xktb`)
 

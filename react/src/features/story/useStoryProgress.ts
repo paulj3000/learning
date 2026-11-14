@@ -2,9 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getChapter } from './engine/types';
 import type { StoryChapter, StoryDefinition } from './engine/types';
 import {
-  advanceChapter,
-  completeStory,
-  parseStoryFlags,
+  completeChapter as completeChapterOnServer,
   setStoryFlag,
   startOrResumeStoryProgress,
 } from './api';
@@ -44,11 +42,7 @@ export function useStoryProgress(
 
     async function load() {
       try {
-        const started = await startOrResumeStoryProgress(
-          childProfileId,
-          story.slug,
-          story.entryChapterId,
-        );
+        const started = await startOrResumeStoryProgress(childProfileId, story.slug);
         if (cancelled) return;
         setProgress(started);
         setLoadState('ready');
@@ -66,7 +60,7 @@ export function useStoryProgress(
 
   const chapter =
     progress && !progress.completedAt ? getChapter(story, progress.currentChapterId) : null;
-  const flags = progress ? parseStoryFlags(progress.storyFlags) : {};
+  const flags = progress ? progress.storyFlags : {};
 
   const setFlag = useCallback(
     async (flagKey: string, flagValue: string) => {
@@ -79,11 +73,11 @@ export function useStoryProgress(
 
   const completeChapter = useCallback(async () => {
     if (!progress || !chapter) return;
-    const updated = chapter.nextChapterId
-      ? await advanceChapter(progress, chapter.id, chapter.nextChapterId)
-      : await completeStory(progress, chapter.id, story.completionWorldChange);
+    // The server moves to the authored next chapter, or completes the story and records its
+    // completion world change when this was the last chapter.
+    const updated = await completeChapterOnServer(progress, chapter.id);
     setProgress(updated);
-  }, [progress, chapter, story]);
+  }, [progress, chapter]);
 
   return { loadState, progress, chapter, flags, setFlag, completeChapter };
 }

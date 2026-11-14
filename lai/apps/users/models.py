@@ -159,6 +159,17 @@ class ParentRecord(ParentAccount):
         verbose_name = "parent account"
 
 
+class CompanionType(models.TextChoices):
+    """The island companions a child can choose (CLAUDE.md section 6). Replaces Amplify
+    `CompanionProfile`: one choice per child, so it is two columns on the child, not a table."""
+
+    CHATTY_PARROT = "CHATTY_PARROT", "Chatty the Parrot"
+
+
+# What a child hears the companion called; authored, never parent or child text.
+COMPANION_DISPLAY_NAMES = {CompanionType.CHATTY_PARROT: "Chatty"}
+
+
 class ChildProfileQuerySet(models.QuerySet):
     def owned_by(self, parent: "ParentAccount") -> "ChildProfileQuerySet":
         """Every read of child data must start here (or go through `services`)."""
@@ -196,6 +207,9 @@ class ChildProfile(models.Model):
     active = models.BooleanField(default=True)
     # Parent kill switch: when false no child data goes to the AI model at all.
     ai_enabled = models.BooleanField(default=True)
+    # The companion the child chose at Welcome Harbor (AMP-03); blank until they choose.
+    companion_type = models.CharField(max_length=32, choices=CompanionType.choices, blank=True)
+    companion_chosen_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -213,6 +227,13 @@ class ChildProfile(models.Model):
             models.CheckConstraint(
                 condition=models.Q(reading_mode__in=ReadingMode.values),
                 name="users_childprofile_reading_mode_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(companion_type="", companion_chosen_at__isnull=True)
+                | models.Q(
+                    companion_type__in=CompanionType.values, companion_chosen_at__isnull=False
+                ),
+                name="users_childprofile_companion_valid",
             ),
         ]
         indexes = [models.Index(fields=["parent", "created_at"], name="users_child_parent_created")]

@@ -61,6 +61,7 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 | `amplify.yml` (`ampx pipeline-deploy` and the frontend build) | root | `deploy-site.yml` (gated, LAI-INFRA-004); backend deploy until AMP-08 | AMP-06 |
 | `customHttp.yml`, `amplify-hosting/custom-rules.json` | root | `LaiFrontend` response headers policy and SPA rewrite (LAI-INFRA-003) | AMP-06 |
 | `amplify_outputs.json` (generated, gitignored) | read by `react/src/lib/amplify-config.ts` | None needed once AMP-02 configures Cognito directly. **Until then the site release depends on `ampx generate outputs`** (`.github/actions/site-release`) | AMP-02, AMP-06 |
+| `server/multiplayer` (room server, ADR-026) | read `amplify_outputs.json` for Cognito ids and the AppSync URL; checked child ownership with the parent's ID token against AppSync `getChildProfile` | Env-only config (`MP_USER_POOL_ID`, `MP_USER_POOL_CLIENT_ID`, `MP_DJANGO_API_BASE`); access token verified and forwarded to Django `children/<id>/` (**done**, `docs/multiplayer/MULTIPLAYER_SERVER.md`) | AMP-03, AMP-07 |
 | `scripts/live-smoke.ts` | Amplify sign-in plus Data | Django smoke (`scripts/aws/verify-dev.sh` covers the API side) | AMP-07 |
 | `scripts/ai-red-team.ts` | Amplify sign-in; `--target django` already supported | Keep the Django target; replace the sign-in in AMP-02 | AMP-02 |
 | `.github/workflows/ci.yml` | No Amplify step | n/a | n/a |
@@ -115,10 +116,10 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 | Function | Django replacement | Status |
 |---|---|---|
 | `submit-adventure-answer` | `sessions/<id>/answers/` (`AnswersView`, `test_answers_api`); the step runner `sessions/<id>/step/` | Replaced server-side; React wiring is in AMP-03 |
-| `claim-coop-slot` | None (model only) | **Gap** |
-| `get-next-learning-activity` | None | **Gap** |
-| `operational-metrics` (DynamoDB stream to CloudWatch EMF) | Django privacy-filtered logs; the `LaiAiGuardrail` AI metric filters | Partial: no SafetyEvent or AppSync-equivalent alarms on Django yet (U6) |
-| AI Kit generation routes | `ai/companion-turns/`, `ai/tutor-turns/` | Replaced (3.1) |
+| `claim-coop-slot` | `children/<id>/coop-sessions/<id>/slots/` and the other co-op routes (AMP-05, `docs/platform/AMPLIFY_FUNCTIONS_EXIT.md`) | Replaced on the branch; React switched; not deployed |
+| `get-next-learning-activity` | `children/<id>/next-learning-activity/` (AMP-05, `education/director.py`) | Replaced on the branch; React switched; not deployed |
+| `operational-metrics` (DynamoDB stream to CloudWatch EMF) | Django privacy-filtered logs; the `LaiAiGuardrail` AI metric filters | AMP-05 adds the `ai.safety v1` line, SafetyEvent and validation-failure filters and alarms, and the Bedrock budget (synthesized, not deployed); the dashboard is AMP-08 |
+| AI Kit generation routes | `ai/companion-turns/`, `ai/tutor-turns/` | Replaced (3.1); AMP-05 removed the React Amplify branch |
 
 ## 4. Prioritized gap list
 
@@ -129,12 +130,12 @@ DynamoDB, AppSync or Cognito data was read**: the session cannot run AWS command
 | G3 | Parent account deletion has no Django route | Privacy and right-to-delete | AMP-03 (with G9 / LAI-0308) |
 | G4 | Per-child state writers (story, quests, rewards, NPC, discovery, mastery) outside region play | Data would split between DynamoDB and PostgreSQL | AMP-03 |
 | G5 | Companion choice has no Django model | Small; needed for onboarding parity | AMP-03 |
-| G6 | Director "next learning activity" has no Django service | Adaptive learning | AMP-05 |
-| G7 | Co-op: no route, no realtime replacement | Feature-scoped; needs a decision (Django polling vs. the room server) | AMP-05 (owner decision) |
-| G8 | Data importers for everything except profiles | Needed only if DynamoDB holds real family data (unknown) | AMP-03, AMP-08 |
+| G6 | Director "next learning activity" has no Django service | Adaptive learning | AMP-05 (done on the branch, not deployed) |
+| G7 | Co-op: no route, no realtime replacement | Feature-scoped; needs a decision (Django polling vs. the room server) | AMP-05: Django routes plus polling, per ADR-026 (owner to confirm) |
+| G8 | Data importers for everything except profiles | Not needed: owner decision D4 (2026-11-11) keeps profiles only (`AMPLIFY_DECOMMISSION.md` section 4) | Closed |
 | G9 | Amplify Storage objects (photos, models) | Migration with checksums | AMP-04 |
 | G10 | React admin pages vs Django Admin | Retire after owner confirmation | AMP-03 |
-| G11 | Metrics and alarms parity | Before Amplify monitoring is removed | AMP-05, AMP-08 |
+| G11 | Metrics and alarms parity | Before Amplify monitoring is removed | AMP-05 (alarms and budget synthesized), AMP-08 (dashboard, removal) |
 
 ## 5. Resources that must be preserved (until their card says otherwise)
 

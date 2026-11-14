@@ -65,7 +65,7 @@ export function WelcomeHarbor() {
           getChildProfile(childId),
           getCompanionProfile(childId),
           listAllWorldChanges(childId),
-          loadCatalogSnapshot(),
+          loadCatalogSnapshot(childId),
         ]);
         if (cancelled) return;
         if (!child) {

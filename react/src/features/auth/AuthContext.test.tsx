@@ -1,22 +1,21 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
-import { Hub } from 'aws-amplify/utils';
-import { AuthProvider, useAuth } from './AuthContext';
+import { AuthProvider, adminAccessFromGroups, useAuth } from './AuthContext';
 import { AUTH_CHECK_TIMEOUT_MS } from './authNoticeCopy';
 import { endReauthentication, verifyRecentSignIn } from './recentSignIn/recentSignIn';
 
-vi.mock('../../lib/amplify-config', () => ({ isAuthConfigured: true }));
-vi.mock('aws-amplify/auth', () => ({
-  fetchAuthSession: vi.fn(),
+const fake = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
-  signIn: vi.fn(),
+  getTokens: vi.fn(),
+  onEvent: vi.fn(),
   signOut: vi.fn(),
 }));
-vi.mock('aws-amplify/utils', () => ({ Hub: { listen: vi.fn() } }));
+vi.mock('../../lib/cognito', () => ({ cognitoAuth: () => fake, isCognitoConfigured: true }));
+const getCurrentUser = fake.getCurrentUser;
 
-type HubCallback = (capsule: { payload: { event: string } }) => void;
-let hubCallback: HubCallback = () => undefined;
+type EventCallback = (event: string) => void;
+let eventCallback: EventCallback = () => undefined;
+const hubCallback = ({ payload }: { payload: { event: string } }) => eventCallback(payload.event);
 
 function Probe() {
   const { status } = useAuth();
@@ -25,12 +24,13 @@ function Probe() {
 
 beforeEach(() => {
   endReauthentication();
-  vi.mocked(Hub.listen).mockImplementation(((_channel: string, callback: HubCallback) => {
-    hubCallback = callback;
+  fake.onEvent.mockImplementation((callback: EventCallback) => {
+    eventCallback = callback;
     return () => undefined;
-  }) as unknown as typeof Hub.listen);
-  vi.mocked(getCurrentUser).mockResolvedValue({ userId: 'u1', username: 'u1' });
-  vi.mocked(fetchAuthSession).mockResolvedValue({ tokens: undefined } as never);
+  });
+  getCurrentUser.mockReset();
+  getCurrentUser.mockResolvedValue({ userId: 'u1', username: 'u1' });
+  fake.getTokens.mockResolvedValue(null);
 });
 
 describe('AuthContext during a recent sign-in verification (LAI-0209)', () => {
@@ -48,7 +48,7 @@ describe('AuthContext during a recent sign-in verification (LAI-0209)', () => {
     };
     await verifyRecentSignIn({ userId: 'u1', loginId: 'p@example.com' }, 'pw', deps);
 
-    vi.mocked(getCurrentUser).mockClear();
+    getCurrentUser.mockClear();
     act(() => hubCallback({ payload: { event: 'signedOut' } }));
     act(() => hubCallback({ payload: { event: 'signedIn' } }));
     expect(getCurrentUser).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe('AuthContext during a recent sign-in verification (LAI-0209)', () => {
         throw Object.assign(new Error('no'), { name: 'NotAuthorizedException' });
       }),
     });
-    vi.mocked(getCurrentUser).mockRejectedValue(new Error('signed out'));
+    getCurrentUser.mockRejectedValue(new Error('signed out'));
     act(() => endReauthentication());
     expect(await screen.findByText('status:unauthenticated')).toBeInTheDocument();
   });
@@ -86,9 +86,30 @@ describe('AuthContext during a recent sign-in verification (LAI-0209)', () => {
       </AuthProvider>,
     );
     expect(await screen.findByText('status:authenticated')).toBeInTheDocument();
-    vi.mocked(getCurrentUser).mockRejectedValue(new Error('signed out'));
+    getCurrentUser.mockRejectedValue(new Error('signed out'));
     act(() => hubCallback({ payload: { event: 'signedOut' } }));
     expect(await screen.findByText('status:unauthenticated')).toBeInTheDocument();
+  });
+});
+
+describe('AuthContext admin flags', () => {
+  it('reads the groups from the ID token claims', async () => {
+    fake.getTokens.mockResolvedValue({ idClaims: { 'cognito:groups': ['Admins', 'Superusers'] } });
+    function Flags() {
+      const { isAdmin, isSuperuser } = useAuth();
+      return <p>{`admin:${isAdmin} super:${isSuperuser}`}</p>;
+    }
+    render(
+      <AuthProvider>
+        <Flags />
+      </AuthProvider>,
+    );
+    expect(await screen.findByText('admin:true super:true')).toBeInTheDocument();
+  });
+
+  it('a Superuser outside Admins gets neither flag', () => {
+    expect(adminAccessFromGroups(['Superusers'])).toEqual({ isAdmin: false, isSuperuser: false });
+    expect(adminAccessFromGroups(undefined)).toEqual({ isAdmin: false, isSuperuser: false });
   });
 });
 
@@ -96,7 +117,7 @@ describe('AuthContext bounds the session read (P0)', () => {
   it('reports Cognito as unavailable, not signed out, when the session read never finishes', async () => {
     vi.useFakeTimers();
     try {
-      vi.mocked(fetchAuthSession).mockReturnValue(new Promise(() => undefined));
+      getCurrentUser.mockReturnValue(new Promise(() => undefined));
       render(
         <AuthProvider>
           <Probe />

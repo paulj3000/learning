@@ -18,13 +18,16 @@ describe('djangoDevProxy (TR-D14)', () => {
   it('is off when the build does not use the Django API', () => {
     expect(djangoDevProxy({})).toBeUndefined();
     expect(djangoDevProxy({ MODE: 'production' })).toBeUndefined();
-    expect(
+  });
+
+  it('refuses the retired Amplify backend instead of running without Django (AMP-07)', () => {
+    expect(() =>
       djangoDevProxy({
         VITE_BACKEND: 'amplify',
         MODE: 'development',
         DJANGO_DEV_PROXY_TARGET: 'http://127.0.0.1:9000',
       }),
-    ).toBeUndefined();
+    ).toThrow(/VITE_BACKEND must be "django" or unset/);
   });
 
   it('is on by default in vite dev (local development defaults to Django)', () => {

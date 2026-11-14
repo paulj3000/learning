@@ -1,8 +1,4 @@
-import {
-  getCurrentUser as amplifyGetCurrentUser,
-  signIn as amplifySignIn,
-  signOut as amplifySignOut,
-} from 'aws-amplify/auth';
+import { cognitoAuth } from '../../../lib/cognito';
 import { describeAuthError } from '../errors';
 
 /**
@@ -12,14 +8,14 @@ import { describeAuthError } from '../errors';
  * Django decides whether a sign-in is recent enough, from the Cognito access
  * token alone. This module only reacts to Django's answer,
  * `403 recent_auth_required`, by running a real Cognito sign-in for the same
- * account (Amplify `signIn`, SRP: the password goes to Cognito, never to
- * Django, and is never stored). A silent token refresh is never used for
+ * account (`lib/cognito` `signIn`, SRP: the password never leaves the
+ * browser, never goes to Django, and is never stored). A silent token refresh is never used for
  * this: Django would refuse it, because a refresh keeps the original
  * `auth_time`.
  *
- * Amplify refuses `signIn` while a session exists, so verification signs the
- * current session out first (which also revokes its refresh token) and then
- * signs in again. While that happens, `AuthContext` ignores the sign-out so
+ * Verification signs the current session out first (which also revokes its
+ * refresh token) and then signs in again, so the old refresh token cannot
+ * outlive the check. While that happens, `AuthContext` ignores the sign-out so
  * the page, and whatever the parent was doing on it, stays mounted.
  */
 
@@ -89,10 +85,10 @@ export interface ReauthDeps {
   signOut: () => Promise<void>;
 }
 
-const amplifyDeps: ReauthDeps = {
-  getCurrentUser: amplifyGetCurrentUser,
-  signIn: amplifySignIn,
-  signOut: () => amplifySignOut(),
+const cognitoDeps: ReauthDeps = {
+  getCurrentUser: () => cognitoAuth().getCurrentUser(),
+  signIn: (input) => cognitoAuth().signIn(input),
+  signOut: () => cognitoAuth().signOut(),
 };
 
 /**
@@ -100,7 +96,7 @@ const amplifyDeps: ReauthDeps = {
  * expired: the parent must sign in from the sign-in page instead).
  */
 export async function currentIdentity(
-  deps: ReauthDeps = amplifyDeps,
+  deps: ReauthDeps = cognitoDeps,
 ): Promise<ReauthIdentity | null> {
   try {
     const user = await deps.getCurrentUser();
@@ -118,7 +114,7 @@ export async function currentIdentity(
 export async function verifyRecentSignIn(
   identity: ReauthIdentity,
   password: string,
-  deps: ReauthDeps = amplifyDeps,
+  deps: ReauthDeps = cognitoDeps,
 ): Promise<ReauthOutcome> {
   reauthenticating = true;
   try {

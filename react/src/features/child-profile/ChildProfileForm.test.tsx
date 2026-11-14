@@ -2,34 +2,23 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const {
-  uploadData,
-  remove,
-  getUrl,
-  prepareIconBlob,
-  applyChildPhotoSelection,
-  updateChildProfile,
-  getChildPhotoUrl,
-} = vi.hoisted(() => ({
-  uploadData: vi.fn(),
-  remove: vi.fn(),
-  getUrl: vi.fn(),
-  prepareIconBlob: vi.fn(),
-  applyChildPhotoSelection: vi.fn(),
-  updateChildProfile: vi.fn(),
-  getChildPhotoUrl: vi.fn(),
-}));
-
-vi.mock('aws-amplify/storage', () => ({ uploadData, remove, getUrl }));
+const { prepareIconBlob, applyChildPhotoSelection, updateChildProfile, getChildPhotoUrl } =
+  vi.hoisted(() => ({
+    prepareIconBlob: vi.fn(),
+    applyChildPhotoSelection: vi.fn(),
+    updateChildProfile: vi.fn(),
+    getChildPhotoUrl: vi.fn(),
+  }));
 
 // Only the canvas re-encode is stubbed - jsdom has no image decoder. The
-// validation, upload-ordering, and cleanup logic under test stays real.
+// validation and save-then-photo ordering under test stay real.
 vi.mock('./avatarPhoto', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./avatarPhoto')>()),
   prepareIconBlob,
 }));
 
-// The Django photo calls (LAI-0905) are spied on; the build's default store stays Amplify.
+// The Django photo calls (LAI-0905) are spied on; the build's default store stays Amplify, which
+// offers no photo field (AMP-04), so the Django tests pass `photosEnabled`.
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api')>()),
   applyChildPhotoSelection,
@@ -59,11 +48,6 @@ const IMAGE_FILE = new File(['fake-image-bytes'], 'child.jpg', { type: 'image/jp
 beforeEach(() => {
   vi.clearAllMocks();
   prepareIconBlob.mockResolvedValue(new Blob(['icon'], { type: 'image/jpeg' }));
-  uploadData.mockImplementation(() => ({
-    result: Promise.resolve({ path: 'child-photos/identity-1/new.jpg' }),
-  }));
-  remove.mockResolvedValue(undefined);
-  getUrl.mockResolvedValue({ url: new URL('https://example.invalid/stored.jpg') });
   getChildPhotoUrl.mockResolvedValue('https://example.invalid/stored.jpg');
   applyChildPhotoSelection.mockResolvedValue(undefined);
   updateChildProfile.mockResolvedValue(SAVED_CHILD);
@@ -109,17 +93,25 @@ describe('ChildProfileForm', () => {
   });
 });
 
-describe('ChildProfileForm photo icon', () => {
-  it('saves a profile with no photo when the parent does not choose one', async () => {
+describe('ChildProfileForm photo icon in a build without the Django API (AMP-04)', () => {
+  it('offers no photo upload and sends an existing photo reference back unchanged', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
+    render(
+      <ChildProfileForm
+        submitLabel="Save changes"
+        initialValue={{ nickname: 'Robin', avatarPhotoKey: 'child-photos/identity-1/old.jpg' }}
+        onSubmit={onSubmit}
+      />,
+    );
 
-    await user.type(screen.getByLabelText(/nickname/i), 'Robin');
-    await user.click(screen.getByRole('button', { name: /create profile/i }));
+    expect(screen.queryByLabelText(/choose a photo/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
 
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ avatarPhotoKey: null }));
-    expect(uploadData).not.toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ avatarPhotoKey: 'child-photos/identity-1/old.jpg' }),
+    );
+    expect(applyChildPhotoSelection).not.toHaveBeenCalled();
   });
 
   it('offers no photo upload where photos are turned off', async () => {
@@ -134,30 +126,14 @@ describe('ChildProfileForm photo icon', () => {
     await user.click(screen.getByRole('button', { name: /create profile/i }));
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ avatarPhotoKey: null }));
-    expect(uploadData).not.toHaveBeenCalled();
   });
+});
 
-  it('uploads a chosen photo and saves the profile with its stored path', async () => {
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
-    const user = userEvent.setup();
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
-
-    await user.type(screen.getByLabelText(/nickname/i), 'Robin');
-    await user.upload(screen.getByLabelText(/choose a photo/i), IMAGE_FILE);
-    await waitFor(() => expect(prepareIconBlob).toHaveBeenCalled());
-    await user.click(screen.getByRole('button', { name: /create profile/i }));
-
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ avatarPhotoKey: 'child-photos/identity-1/new.jpg' }),
-      ),
-    );
-  });
-
+describe('ChildProfileForm photo icon with the Django photo API (LAI-0905)', () => {
   it('rejects an oversized photo, and prepares or uploads nothing', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
+    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} photosEnabled />);
 
     // A real 9 MB file would just slow the suite down; only `size` is read.
     const oversized = new File(['x'], 'huge.jpg', { type: 'image/jpeg' });
@@ -167,7 +143,7 @@ describe('ChildProfileForm photo icon', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/smaller than 8 MB/i);
     expect(prepareIconBlob).not.toHaveBeenCalled();
-    expect(uploadData).not.toHaveBeenCalled();
+    expect(applyChildPhotoSelection).not.toHaveBeenCalled();
   });
 
   /**
@@ -178,7 +154,7 @@ describe('ChildProfileForm photo icon', () => {
    */
   it('only offers the image types the browser can decode', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
+    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} photosEnabled />);
 
     expect(screen.getByLabelText(/choose a photo/i)).toHaveAttribute(
       'accept',
@@ -186,46 +162,6 @@ describe('ChildProfileForm photo icon', () => {
     );
   });
 
-  it('clears the stored photo and deletes it when the parent removes it', async () => {
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
-    const user = userEvent.setup();
-    render(
-      <ChildProfileForm
-        submitLabel="Save changes"
-        initialValue={{
-          nickname: 'Robin',
-          avatarPhotoKey: 'child-photos/identity-1/old.jpg',
-        }}
-        onSubmit={onSubmit}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /remove photo/i }));
-    await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ avatarPhotoKey: null })),
-    );
-    expect(remove).toHaveBeenCalledWith({ path: 'child-photos/identity-1/old.jpg' });
-  });
-
-  it('reports a failed upload without saving the profile', async () => {
-    uploadData.mockImplementation(() => ({ result: Promise.reject(new Error('AccessDenied')) }));
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
-    const user = userEvent.setup();
-    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} />);
-
-    await user.type(screen.getByLabelText(/nickname/i), 'Robin');
-    await user.upload(screen.getByLabelText(/choose a photo/i), IMAGE_FILE);
-    await waitFor(() => expect(prepareIconBlob).toHaveBeenCalled());
-    await user.click(screen.getByRole('button', { name: /create profile/i }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save that photo/i);
-    expect(onSubmit).not.toHaveBeenCalled();
-  });
-});
-
-describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI-0905)', () => {
   async function fillAndPickPhoto(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByLabelText(/nickname/i), 'Robin');
     await user.upload(screen.getByLabelText(/choose a photo/i), IMAGE_FILE);
@@ -248,7 +184,7 @@ describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI
         submitLabel="Create profile"
         onSubmit={onSubmit}
         onSaved={onSaved}
-        photoWrite="after-save"
+        photosEnabled
       />,
     );
 
@@ -261,7 +197,6 @@ describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI
       kind: 'replace',
       icon: expect.any(Blob),
     });
-    expect(uploadData).not.toHaveBeenCalled();
   });
 
   it('removes the photo of the saved child', async () => {
@@ -272,7 +207,7 @@ describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI
         submitLabel="Save changes"
         initialValue={{ nickname: 'Robin', avatarPhotoKey: 'c1' }}
         onSubmit={onSubmit}
-        photoWrite="after-save"
+        photosEnabled
       />,
     );
 
@@ -282,7 +217,6 @@ describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI
     await waitFor(() =>
       expect(applyChildPhotoSelection).toHaveBeenCalledWith('c1', { kind: 'remove' }),
     );
-    expect(remove).not.toHaveBeenCalled();
   });
 
   it('makes no photo call when the photo is unchanged', async () => {
@@ -294,7 +228,7 @@ describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI
         submitLabel="Create profile"
         onSubmit={onSubmit}
         onSaved={onSaved}
-        photoWrite="after-save"
+        photosEnabled
       />,
     );
 
@@ -317,7 +251,7 @@ describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI
         submitLabel="Create profile"
         onSubmit={onSubmit}
         onSaved={onSaved}
-        photoWrite="after-save"
+        photosEnabled
       />,
     );
 
@@ -343,9 +277,7 @@ describe('ChildProfileForm photo icon with the Django photo API (after-save, LAI
   it('uploads nothing when the profile save fails', async () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error('Could not create the child profile.'));
     const user = userEvent.setup();
-    render(
-      <ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} photoWrite="after-save" />,
-    );
+    render(<ChildProfileForm submitLabel="Create profile" onSubmit={onSubmit} photosEnabled />);
 
     await fillAndPickPhoto(user);
     await user.click(screen.getByRole('button', { name: /create profile/i }));

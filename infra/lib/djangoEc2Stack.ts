@@ -761,6 +761,17 @@ export class DjangoEc2Stack extends Stack {
 
     // --- Alarms --------------------------------------------------------------------------------
     const topic = new sns.Topic(this, 'AlarmTopic', { topicName: `lai-django-alarms-${env}` });
+    // AWS Budgets publishes only to a topic that trusts it: the Bedrock monthly budget in
+    // LaiAiGuardrail (AMP-05, replacing the Amplify `BedrockMonthlyCostBudget`).
+    topic.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowBudgetsPublish',
+        actions: ['sns:Publish'],
+        principals: [new iam.ServicePrincipal('budgets.amazonaws.com')],
+        resources: [topic.topicArn],
+        conditions: { StringEquals: { 'aws:SourceAccount': Stack.of(this).account } },
+      }),
+    );
     const hasEmail = new CfnCondition(this, 'HasAlarmEmail', {
       expression: Fn.conditionNot(Fn.conditionEquals(alarmEmailParam.valueAsString, '')),
     });

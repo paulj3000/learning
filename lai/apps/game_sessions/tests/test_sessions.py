@@ -256,6 +256,7 @@ class TestChildIsolation:
             "assets",
             "audio",
             "auth",
+            "avatars",  # Player Avatars (LAI-JMP-01c, ADR-057): staff content, no child data
             "catalog",
             "education",
             "npcs",  # NPC Manager content and releases; conversation state unregistered (ADR-054)

@@ -68,8 +68,26 @@ _CODED = {
     "photo_too_large": "That photo file is too large.",
     "photo_type_unsupported": "Only JPEG photos are accepted.",
     "photo_storage_unavailable": "Photos are not available right now. Please try again later.",
+    # Household co-op (AMP-05)
+    "partner_invalid": "Choose another one of your children to play with.",
+    "adventure_invalid": "This adventure cannot be shared by these children.",
+    "slot_invalid": "That step cannot be shared.",
+    "coop_session_not_active": "This shared adventure is no longer active.",
     # Asset library administrator API (AM-14)
     "asset_too_large": "That file is larger than the upload limit.",
+    # Amplify Data exit (AMP-03): account deletion and per-child state outside region play
+    "account_deletion_incomplete": "The account could not be fully deleted yet. Please try again.",
+    "staff_account_not_deletable": "This account is managed in the administration site.",
+    "story_scene_rejected": "That story could not be saved.",
+    "chapter_not_finished": "This chapter is not finished yet.",
+    "chapter_not_current": "That chapter is not the current one.",
+    "unknown_chapter": "That chapter is not part of this story.",
+    "unknown_choice": "That choice is not part of this story.",
+    "unknown_scene": "That scene is not part of this story.",
+    "unknown_dialogue_node": "That is not something this character says.",
+    "unknown_character": "That character is not on the island.",
+    "invalid_source": "That source is not accepted.",
+    "world_change_limit": "No more changes can be recorded.",
     # NPC Manager (ADR-054). Child-facing where a child can see them: calm, no blame.
     "npc_not_found": "That character is not here right now.",
     "no_active_release": "The island characters are resting right now.",

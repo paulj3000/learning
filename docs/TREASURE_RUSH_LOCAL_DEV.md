@@ -8,12 +8,11 @@ accounts only. Nothing here touches a deployed environment.
 by environment variables. No Amplify sandbox and no `amplify_outputs.json` are needed. You need a
 **test** parent account in that pool. Django Admin keeps its own staff sign-in (step 3).
 
-**Profiles live in Django (LAI-CHILD-001, ADR-039).** With the Django backend (`vite dev`'s default) the parent
-dashboard lists, creates, edits and deactivates children through Django, so you add a child in the
-app and pick it from the dashboard. Not available yet in this mode: profile photos (LAI-1103),
-deleting the account (turn the profile off instead; deleting a child needs a recent Cognito sign-in, LAI-0209), and the Amplify-backed
-extras (companion name, Amplify backpack items, the older Amplify adventures), which do not know a
-Django child. Treasure Rush runs entirely on Django.
+**Profiles live in Django (LAI-CHILD-001, ADR-039).** The parent dashboard lists, creates, edits
+and deactivates children through Django, so you add a child in the app and pick it from the
+dashboard. Since the Amplify exit (AMP-03, AMP-04) the per-child extras (companion name, backpack,
+the classic adventures and world changes), profile photos and account deletion are Django routes
+too; nothing in the app reads Amplify Data or Storage. Treasure Rush runs entirely on Django.
 
 ## Prerequisites
 
@@ -164,10 +163,9 @@ the cove. Full workflow and troubleshooting: `docs/ASSET_LIBRARY.md` section 19.
 | "This part of the island isn't open yet." | Step 2's publish not run, or the child id is not this parent's |
 | "Please ask a grown-up to sign in again." | Django rejected the Cognito token: check step 3's three values |
 | "We are still getting your island ready." | `POST /api/v1/me/` failed: check the Django console |
-| Requests to `/api` return Vite's 404 | `react/.env.local` sets `VITE_BACKEND=amplify`; remove it and restart `npm run dev` |
+| `npm run dev` stops with `VITE_BACKEND must be "django" or unset` | `react/.env.local` still sets the retired `VITE_BACKEND=amplify`; remove it and restart `npm run dev` |
 | Requests to `/api` return 502, or "We could not reach the island" | Django is not on the proxied port: compare the `[lai] dev API proxy` line with runserver's port (`DJANGO_DEV_PORT`) |
 | "Parent sign-in is not available right now" | No Cognito pool configured: see the `[lai] dev Cognito` line and step 3 |
-| "Realms are not open on this island yet." | `VITE_BACKEND=amplify` is set; the Realm catalog needs Django |
 | A pink box where Pip or a model should be | That model failed from both Django and the bundle; the console warning says why (TR-7a) |
 | `[assets] the asset library request failed (...)` | Not a publishing problem: the kind and status say which (401 sign-in, 404 child not in Django) |
 | A newly published model does not show | It is not the default version yet, or you have not left and re-entered the cove |

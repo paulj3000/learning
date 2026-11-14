@@ -27,7 +27,7 @@ export function diagnosticsLines({ env, cognitoSource, health }: DiagnosticsInpu
   const backend = resolveBackend(env);
   const explicit = readBackendSetting(env) !== null;
   lines.push(
-    `[lai] dev backend: ${backend} (${explicit ? 'VITE_BACKEND' : 'default for vite dev'})`,
+    `[lai] dev backend: ${backend ?? 'unknown'} (${explicit ? 'VITE_BACKEND' : 'default for vite dev'})`,
   );
 
   if (backend === 'django') {
@@ -48,7 +48,7 @@ export function diagnosticsLines({ env, cognitoSource, health }: DiagnosticsInpu
       );
     }
   } else {
-    lines.push('[lai] dev API proxy: off (VITE_BACKEND=amplify; Realms need the Django API)');
+    lines.push('[lai] dev API proxy: off (VITE_BACKEND is not "django"; the app needs the Django API)');
   }
 
   const cognito = readCognitoConfig(env);

@@ -7,8 +7,7 @@ import { readBackendSetting, resolveBackend } from './backend.ts';
  * forwards it. Dev server only: production builds and `vite preview` are
  * unaffected, and nothing here reaches the client bundle.
  *
- * - On whenever the backend is Django (`resolveBackend`): `VITE_BACKEND=django`,
- *   or unset in `vite dev`. `VITE_BACKEND=amplify` turns it off.
+ * - On whenever the backend is Django (`resolveBackend`): `VITE_BACKEND=django` or unset.
  * - The target, in order: `DJANGO_DEV_PROXY_TARGET` (a full origin), else
  *   `http://127.0.0.1:$DJANGO_DEV_PORT`, else `http://127.0.0.1:8010`
  *   (`make runserver`'s default). `DJANGO_DEV_PORT` is the same variable the
@@ -39,11 +38,11 @@ export type DevProxyConfig = Record<
 /** How long the proxy waits for Django before answering 504, so no request hangs forever. */
 export const DEV_PROXY_TIMEOUT_MS = 30_000;
 
-/** Throws on a `VITE_BACKEND` that is neither `django` nor `amplify`. */
+/** Throws on a `VITE_BACKEND` other than `django` (the Amplify Data backend was removed, AMP-07). */
 export function assertValidBackendSetting(env: DevProxyEnv): void {
   if (readBackendSetting(env) === undefined) {
     throw new Error(
-      `VITE_BACKEND must be "django" or "amplify" (or unset for django in vite dev); got "${env.VITE_BACKEND}"`,
+      `VITE_BACKEND must be "django" or unset (the Amplify backend was removed); got "${env.VITE_BACKEND}"`,
     );
   }
 }

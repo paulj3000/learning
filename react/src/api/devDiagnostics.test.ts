@@ -44,7 +44,7 @@ describe('dev start-up diagnostics (P0)', () => {
     expect(text).toContain('Cognito: NOT configured');
   });
 
-  it('notes that the proxy is off for an explicit legacy Amplify build', () => {
+  it('notes that the proxy is off for a VITE_BACKEND that is not django', () => {
     expect(
       diagnosticsLines({ env: { VITE_BACKEND: 'amplify' }, cognitoSource: null, health: null })[1],
     ).toContain('proxy: off');

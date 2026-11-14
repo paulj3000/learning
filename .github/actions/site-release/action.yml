@@ -3,7 +3,7 @@
 # (site-dev / site-prod), whose OIDC subject is the only one the site deploy role trusts. Needs
 # the repository checked out at the commit being released.
 name: React site release
-description: Build the site against the Amplify main backend, publish it to S3, invalidate, smoke test.
+description: Build the site against the Cognito user pool and Django, publish it to S3, invalidate, smoke test.
 
 inputs:
   target:
@@ -15,13 +15,12 @@ inputs:
   role-arn:
     description: The environment's site deploy role (vars.LAI_SITE_DEPLOY_ROLE_ARN)
     required: true
-  amplify-app-id:
-    description: The Amplify app whose main-branch backend holds the Cognito pool
+  cognito-user-pool-id:
+    description: The parent user pool (vars.LAI_COGNITO_USER_POOL_ID), e.g. us-west-1_AbC123
     required: true
-  amplify-region:
-    description: Region of the Amplify app
-    required: false
-    default: us-west-1
+  cognito-client-id:
+    description: The pool's public web app client (vars.LAI_COGNITO_CLIENT_ID); never a secret client
+    required: true
   bucket:
     description: LaiFrontend-<env> output WebBucketName
     required: true
@@ -47,37 +46,22 @@ runs:
     - uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ inputs.role-arn }}
-        aws-region: ${{ inputs.amplify-region }}
+        aws-region: us-east-1
         role-session-name: lai-site-${{ inputs.target }}-${{ github.run_id }}
 
-    # The same Cognito pool and config the Amplify Hosting build uses (read-only).
-    - name: Amplify main backend outputs
-      shell: bash
-      env:
-        APP_ID: ${{ inputs.amplify-app-id }}
-      run: |
-        npx ampx generate outputs --branch main --app-id "$APP_ID"
-        test -f amplify_outputs.json
-
-    # A Django build reads Cognito only from VITE_COGNITO_* (react/src/lib/amplify-config.ts), never
-    # from amplify_outputs.json, so pass the same pool and web client explicitly. Not secrets.
-    - name: Cognito pool and client for the build
-      shell: bash
-      run: |
-        node -e '
-          const auth = require("./amplify_outputs.json").auth ?? {};
-          const pool = auth.user_pool_id, client = auth.user_pool_client_id;
-          if (!pool || !client) { console.error("amplify_outputs.json has no auth pool/client"); process.exit(1); }
-          require("fs").appendFileSync(process.env.GITHUB_ENV,
-            `VITE_COGNITO_USER_POOL_ID=${pool}\nVITE_COGNITO_CLIENT_ID=${client}\n`);
-        '
-
-    - name: Build (Django backend, same-origin /api/)
+    # The pool and client are public identifiers (AMP-02, react/src/lib/cognito/config.ts); a
+    # build without them would ship a site nobody can sign in to, so refuse it.
+    - name: Build (Cognito sign-in, Django backend on same-origin /api/)
       shell: bash
       env:
         VITE_BACKEND: django
         VITE_DJANGO_API_BASE: ''
-      run: npm run build
+        VITE_COGNITO_USER_POOL_ID: ${{ inputs.cognito-user-pool-id }}
+        VITE_COGNITO_CLIENT_ID: ${{ inputs.cognito-client-id }}
+      run: |
+        [[ "$VITE_COGNITO_USER_POOL_ID" =~ ^[a-z]{2}(-gov)?-[a-z]+-[0-9]_[A-Za-z0-9]+$ ]] || { echo "bad cognito-user-pool-id"; exit 1; }
+        [[ "$VITE_COGNITO_CLIENT_ID" =~ ^[a-z0-9]{1,128}$ ]] || { echo "bad cognito-client-id"; exit 1; }
+        npm run build
 
     - name: Publish to S3 and invalidate the shells
       shell: bash

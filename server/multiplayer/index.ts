@@ -1,27 +1,22 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { householdKeyFor } from '../../react/src/features/multiplayer/householdKey';
-import { createAppSyncChildProfileLookup } from './appSyncChildProfiles';
 import { createPlayerAuthenticator } from './auth';
-import { createCognitoIdTokenVerifier } from './cognitoVerifier';
+import { createCognitoAccessTokenVerifier } from './cognitoVerifier';
 import { readRoomServerConfig } from './config';
+import { createDjangoChildProfileLookup } from './djangoChildProfiles';
 import { consoleRoomEventLog } from './roomEventLog';
 import { createRoomServer } from './roomServer';
 
 /**
  * Entry point: `npm run mp:dev`. See docs/multiplayer/MULTIPLAYER_SERVER.md.
  */
-const outputsUrl = new URL('../../amplify_outputs.json', import.meta.url);
-const outputs: unknown = existsSync(outputsUrl)
-  ? JSON.parse(readFileSync(outputsUrl, 'utf8'))
-  : null;
-const config = readRoomServerConfig(process.env, outputs);
+const config = readRoomServerConfig(process.env);
 
 const server = createRoomServer({
   allowedOrigins: config.allowedOrigins,
   log: consoleRoomEventLog,
   authenticate: createPlayerAuthenticator({
-    verifyIdToken: createCognitoIdTokenVerifier(config.userPoolId, config.userPoolClientId),
-    fetchOwnChildProfile: createAppSyncChildProfileLookup(config.appSyncUrl),
+    verifyAccessToken: createCognitoAccessTokenVerifier(config.userPoolId, config.userPoolClientId),
+    fetchOwnChildProfile: createDjangoChildProfileLookup(config.djangoApiBase),
     householdKeyFor,
   }),
 });
