@@ -84,8 +84,13 @@ export type MovementEvent =
     }
   | {
       type: 'RECOVERED';
-      /** Why the child was put back. */
-      reason: 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION';
+      /** Why the child was put back (`HAZARD`: a platforming hazard such as water). */
+      reason: 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' | 'HAZARD';
+    }
+  | {
+      /** Platforms: a bounce pad threw the child up, to about `height` metres. */
+      type: 'LAUNCHED';
+      height: number;
     };
 
 export interface FirstPersonControllerOptions {
@@ -120,6 +125,17 @@ export interface FirstPersonControllerOptions {
   recoveryDepth?: number;
   /** Where the child may be at all. Outside it they are put back. Defaults to anywhere. */
   isInPlayableArea?: (x: number, z: number) => boolean;
+  /**
+   * Platforms: whether the ground under the feet may be remembered as the safe place to put a
+   * lost child back. A moving or vanishing platform is not (it may be gone by then). Defaults
+   * to everywhere.
+   */
+  isSafeGround?: (x: number, y: number, z: number) => boolean;
+  /**
+   * Platforms: where to put a lost child instead of the last safe ground (the latest course
+   * checkpoint). `null` or absent: the last safe ground, as always.
+   */
+  recoveryPoint?: () => { x: number; z: number; yaw?: number } | null;
 }
 
 const DEFAULT_MAX_PITCH = Math.PI / 2 - 0.05; // just short of straight up/down
@@ -141,6 +157,8 @@ const GAIT_MARGIN = 0.25;
  * this can be skipped (every authored collider is thicker; a test checks).
  */
 export const MAX_COLLISION_STEP = 0.1;
+/** Platforms: feet within this of a box's top count as standing on it, metres. */
+const SUPPORT_TOLERANCE = 0.05;
 /** In the air with no input, the fraction of ground deceleration (times `airControl`) that applies. */
 const AIR_DRAG_FACTOR = 0.2;
 /** Tolerance for floating-point contact, metres. */
@@ -161,6 +179,8 @@ export class FirstPersonController {
   private readonly groundHeightAt: (x: number, z: number) => number | null;
   private readonly recoveryDepth: number;
   private readonly isInPlayableArea: (x: number, z: number) => boolean;
+  private readonly isSafeGround: (x: number, y: number, z: number) => boolean;
+  private readonly recoveryPoint: () => { x: number; z: number; yaw?: number } | null;
   private jumpConfig: JumpConfiguration;
 
   private verticalSpeed = 0;
@@ -189,6 +209,8 @@ export class FirstPersonController {
     this.groundHeightAt = options.groundHeightAt ?? (() => 0);
     this.recoveryDepth = options.recoveryDepth ?? DEFAULT_RECOVERY_DEPTH;
     this.isInPlayableArea = options.isInPlayableArea ?? (() => true);
+    this.isSafeGround = options.isSafeGround ?? (() => true);
+    this.recoveryPoint = options.recoveryPoint ?? (() => null);
     this.jumpConfig = resolveJumpConfiguration(options.jump);
     this.position = options.startPosition?.clone() ?? new Vector3();
     this.lastSafe.copy(this.position);
@@ -413,6 +435,84 @@ export class FirstPersonController {
     return true;
   }
 
+  /**
+   * Platforms: the jumpable box the child is standing on, if any (the highest whose top is at
+   * the feet). `null` in the air or on plain ground.
+   */
+  supportingBox(): Box3 | null {
+    if (!this.onGround) return null;
+    const { x, y, z } = this.position;
+    let best: Box3 | null = null;
+    for (const box of this.colliders) {
+      if (!this.jumpable.has(box) || !insideFootprint(box, x, z)) continue;
+      if (Math.abs(box.max.y - y) > SUPPORT_TOLERANCE) continue;
+      if (best === null || box.max.y > best.max.y) best = box;
+    }
+    return best;
+  }
+
+  /**
+   * Platforms: moves a rider with the platform under them. Sideways movement is collision
+   * tested like walking, so a platform never pushes the child through a wall (they stay put
+   * and the platform slides on); height follows the platform exactly.
+   */
+  carry(dx: number, dy: number, dz: number): void {
+    if (dx !== 0 || dz !== 0) {
+      const vx = this.velocity.x;
+      const vz = this.velocity.z;
+      this.moveWithCollision(dx, dz);
+      // Being carried is not walking: the child's own speed is left as it was.
+      this.velocity.x = vx;
+      this.velocity.z = vz;
+    }
+    if (dy !== 0) this.position.y += dy;
+  }
+
+  /**
+   * Platforms: a child leaving a moving platform keeps its sideways speed, so a jump from a
+   * ferry lands on the ferry rather than behind it. Air drag then eases it as usual.
+   */
+  inheritVelocity(vx: number, vz: number): void {
+    if (Number.isFinite(vx)) this.velocity.x += vx;
+    if (Number.isFinite(vz)) this.velocity.z += vz;
+  }
+
+  /**
+   * Platforms: a bounce pad throws the child up to about `height` metres, like a jump that
+   * needs no press. Gravity, air control and landing are the jump's own.
+   */
+  launch(height: number): void {
+    if (!(height > 0)) return;
+    this.verticalSpeed = Math.sqrt(2 * this.jumpConfig.gravity * height);
+    this.onGround = false;
+    this.coyoteRemaining = 0;
+    this.bufferRemaining = 0;
+    this.jumpStartRemaining = JUMP_START_SECONDS;
+    this.landingRemaining = 0;
+    this.events.push({ type: 'LAUNCHED', height });
+  }
+
+  /**
+   * Platforms: puts the child back after a hazard (water under a missed jump): at the
+   * recovery point if there is one and it is clear, else where they last stood safely.
+   */
+  recover(reason: 'HAZARD'): void {
+    this.returnToSafety();
+    this.events.push({ type: 'RECOVERED', reason });
+  }
+
+  private returnToSafety(): void {
+    const point = this.recoveryPoint();
+    if (point && this.canStandAt(point.x, point.z)) {
+      this.position.set(point.x, this.groundHeightAt(point.x, point.z) ?? 0, point.z);
+      if (point.yaw !== undefined) this.yaw = point.yaw;
+      this.pitch = 0;
+    } else {
+      this.position.copy(this.lastSafe);
+    }
+    this.stopEverything();
+  }
+
   private stopEverything(): void {
     this.velocity.set(0, 0, 0);
     this.verticalSpeed = 0;
@@ -629,11 +729,10 @@ export class FirstPersonController {
       reason = 'LEFT_PLAYABLE_AREA';
     }
     if (reason === null) {
-      if (this.onGround) this.lastSafe.copy(this.position);
+      if (this.onGround && this.isSafeGround(x, y, z)) this.lastSafe.copy(this.position);
       return;
     }
-    this.position.copy(this.lastSafe);
-    this.stopEverything();
+    this.returnToSafety();
     this.events.push({ type: 'RECOVERED', reason });
   }
 }
