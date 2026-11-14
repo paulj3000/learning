@@ -2,7 +2,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-/** AP-02 and AP-03: the child homepage in a build with the Django API (`VITE_BACKEND=django`). */
+/** AP-02 and AP-03: the child homepage on the Django API (the only backend, AMP-03). */
 
 const mocks = vi.hoisted(() => ({
   getChildProfile: vi.fn(),

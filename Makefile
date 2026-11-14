@@ -94,7 +94,7 @@ runserver:
 	cd lai && $(PY) manage.py runserver 127.0.0.1:$(DJANGO_DEV_PORT)
 
 # The React dev server (Vite, 5183), proxying /api to the runserver above on the same
-# DJANGO_DEV_PORT. Prints the backend, proxy target and Cognito status when it starts.
+# DJANGO_DEV_PORT. Prints the proxy target, whether Django answers, and Cognito status.
 web:
 	DJANGO_DEV_PORT=$(DJANGO_DEV_PORT) npm run dev
 

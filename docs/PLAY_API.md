@@ -650,9 +650,10 @@ In React, use `useRegionPlay(childId, regionId, { onUnauthenticated })` rather t
 directly: it owns loading, the in-flight action, stale-reply protection, and re-reading after an
 answer or conflict. `toRegionSceneModel(state.bootstrap)` gives the scene plain entities by id.
 
-**Configuration.** `VITE_BACKEND=django` enables the client; without it every call fails with
-kind `disabled`. `VITE_DJANGO_API_BASE` is empty for same-origin (deployed) or an `http://`
-origin in `vite dev`.
+**Configuration.** Django is the only backend (AMP-03): the client is always on, and there is no
+`VITE_BACKEND` selector or `disabled` error kind any more. `VITE_DJANGO_API_BASE` is empty for
+same-origin (deployed, and `vite dev` through its proxy), an `https://` origin, or an `http://`
+origin in `vite dev` only.
 
 **Error handling.** Every failure is an `ApiError`:
 

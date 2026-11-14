@@ -839,8 +839,8 @@ last at most 8 hours and end when the browser closes. Cookies (`lai_admin_sessio
 
 **React link.** `POST /api/v1/me/` (the sign-in call above) returns `django_admin: true` for active
 staff. The account menu's "Admin" item goes to `VITE_DJANGO_ADMIN_URL` only when the build sets that
-variable and has the Django API on (`VITE_BACKEND=django`) and Django returns true. Otherwise the existing `/admin` link for the
-Amplify `Admins` group is unchanged. Django Admin checks its own sign-in either way.
+variable and Django returns true (every build calls Django since AMP-03). Otherwise the existing `/admin` link for the
+Cognito `Admins` group is unchanged. Django Admin checks its own sign-in either way.
 
 **Known limitations.** Separate credentials from Cognito, with no MFA on the Django login yet (a
 Cognito-backed admin sign-in is the upgrade path, TR-D5 option a). No throttling of failed admin
@@ -992,10 +992,10 @@ Quests (catalog.Quest) are owned by the Island and may span its Places.
   "Explore <3D Area>" when Django has a published one for it.
 - **Admin.** 3D Areas and launch points are managed on the Django Admin "3D Areas" pages
   (`apps/regions/admin.py`). Spatial layout is read-only there until LAI-0805.
-- **Gap.** With `VITE_BACKEND=django` the step-adventure runner is still Amplify-backed, and
-  Django's answer engine records no world changes, evidence or quest progress yet. A launch
-  starts the Django session, but steps are not recorded in Django until a Django step client
-  exists (ADR-041 consequences).
+- **Gap (historical, closed by AMP-03).** When this was written the step-adventure runner was
+  Amplify-backed. Every build now runs solo template launches on Django's step runner
+  (`DjangoAdventureRunner`) and co-op launches on the classic runner over Django's co-op routes
+  (`docs/platform/AMPLIFY_FINAL_REMOVAL.md`).
 
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 
