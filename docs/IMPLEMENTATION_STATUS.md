@@ -42,6 +42,37 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Asset Manager: configurable collision profiles (2026-11-14, `feature/asset-collision-profiles`); development complete, owner QA pending, NOT merged
+
+Trello: "Asset Manager — Configurable Collision Profiles". Branch from `integration/avatar-amplify-exit`
+at `9b10f1f` (shared derived colliders). Full workflow: `docs/ASSET_COLLISION_PROFILES.md`.
+
+- Django: `assets.CollisionProfile` (migration `assets/0003_collision_profiles`): one default per
+  asset and one override per version; shapes none, box, cylinder, capsule, compound boxes;
+  behaviours automatic, solid, jumpable, walkable, decorative; manual sizes and offsets override
+  the measured bounds. GLB validation now records `metadata["bounds"]` (min and max corners);
+  older versions fall back to their size, ground-pivoted. `collision.py` turns every shape into
+  model-space boxes; the resolver answer carries them as `collision` (unpublished assets too, so
+  bundled models follow them). Django Admin page with validation, measured bounds and the exact
+  runtime boxes; publishers edit, editors view (`ensure_asset_roles`).
+- React: `collisionProfile.ts` (validated parse), `derivedColliders.ts` applies a profile in
+  place of the built-in footprint under each placement's transform; walkable pieces and building
+  entrances are now kept clear like checkpoints. The engine asks the resolver once
+  (`LocationEngineAssets.collisionProfiles`), swaps the derived boxes when the answer arrives and
+  never places one on the child; authored location colliders and quest gates are untouched. Served
+  and source-controlled locations both apply profiles when the Django API is on.
+- Preview: "Show collision" in the Asset Manager preview draws the boxes (profile or built-in
+  default); bundle rebuilt and `admin-preview:check` fresh.
+- No new physics engine and no movement controller change: every shape is axis-aligned boxes.
+
+Tests: pytest `lai/apps/assets` 296 passed (25 new); core Django Admin, game-session admin
+isolation, avatars, users tenant isolation and catalog 306 passed; `makemigrations --check` clean.
+Vitest `island-map/three`, `region-play`, `assets`, `api`, `npc-manager`, `player-avatar`: 194
+files, 2541 tests passed. `npm run typecheck` passes.
+
+Deferred to merge verification / owner QA: browser and WebGL checks, Playwright, lint and format,
+full suites; configuring real profiles in a local Django Admin and walking into them.
+
 ## Fix: the child could walk through drawn objects (2026-11-14, `integration/avatar-amplify-exit`)
 
 Owner-reported: many objects could be walked through. Cause: colliders were only ever written by

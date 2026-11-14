@@ -821,3 +821,13 @@ unchanged. The `audio` app adds a configuration layer over published audio asset
 `SoundAssignment` and immutable `SoundRelease` snapshots that pin an exact `AssetVersion` per cue.
 Retiring an asset or version removes its sound from the live manifest and blocks the next publish
 until fixed. See `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
+
+## 23. Collision profiles (Asset Manager, 2026-11-14)
+
+Staff configure how a 3D asset blocks movement wherever it is placed: **Assets > Collision
+profiles** in Django Admin (an asset default, or a per-version override). The resolver answer
+carries the result as `collision`, and the shared runtime applies it under each placement's
+transform; assets without a profile keep the built-in derived defaults. Validation now also
+records each model's bounding corners in `metadata["bounds"]`, which automatic profiles size
+themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
+behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
