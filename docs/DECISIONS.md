@@ -76,6 +76,11 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-052 | The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme | Accepted | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4); scope widened to the whole app 2026-11-10; owner-accepted 2026-11-10 with AP-01. Amends ADR-023's route boundary. Not merged or deployed |
 | ADR-053 | No platform-imposed play-time limits; the session-time control and calm stop are retired | Accepted | Branch `claude/festive-faraday-fjechb` (Trello card 123) | Owner-directed 2026-11-11 (Trello "[LAI] Remove child gameplay time limits and forced session cutoffs"); drops `ChildProfile.session_minutes` (migration `users.0007`). Amends CLAUDE.md section 11 item 11. Amplify field kept until the Django cutover |
 | ADR-054 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-049, ADR-050 |
+| ADR-055 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending |
+| ADR-056 | One player camera controller with first- and third-person perspectives; the avatar and its animation only mirror the movement controller | Proposed | `feature/third-person-avatar` (LAI-JMP-01a, PR #27) | Owner QA pending |
+| ADR-057 | Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference | Proposed | `feature/player-avatar-assets` (LAI-JMP-01c, PR #28) | Owner QA pending |
+| ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller | Proposed | `feature/player-running` (PR #29) | Owner QA pending |
+| ADR-059 | Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored | Proposed | `feature/interactive-platforms` (LAI-JMP-02, LAI-JMP-04) | Owner QA pending; leaves LAI-0805 open |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4128,3 +4133,41 @@ penalties, and without changing how walking already feels.
 walking and jumping are unchanged (every existing test passes). The keyboard has two speeds
 (walk, sprint). Details: `docs/PLAYER_RUNNING_AND_SPRINTING.md`.
 
+## ADR-059: Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored
+
+Status: Proposed (LAI-JMP-02 and LAI-JMP-04, 2026-11-14). Development only; awaiting owner QA.
+Depends on ADR-055 to ADR-058 and the shared derived colliders.
+
+**Context.** Platforming adventures (Pirate's Leap first) need static, moving, vertical,
+interactive, vanishing, bounce and turntable platforms, safe checkpoints and recovery, in any
+Three.js location, without a second physics engine and without changing how walking, running and
+jumping already behave.
+
+**Decision.**
+
+1. **A platform is one axis-aligned jumpable box** in the movement controller's live collider list.
+   The controller already stands children on jumpable tops and stops them at their sides.
+2. **One platform runtime (`platforms/platformSystem.ts`) moves each box in place every frame,
+   before the controller moves the child,** and tells the controller to carry a rider
+   (`carry`, collision-tested), keep a platform's speed on leaving it (`inheritVelocity`),
+   bounce (`launch`) or go back to a checkpoint (`recover`). The controller stays authoritative.
+3. **Platforms yield to children**: a platform never moves or reappears into a child's body and a
+   lift never squeezes its rider into anything above, so nobody is pushed through walls, trapped
+   or squashed. A vanished platform's box is emptied (no invisible collision).
+4. **Motion is deterministic** (`platformMotion.ts`): waypoint paths, ping-pong, loop and once,
+   speeds and pauses within forgiving limits; reduced motion slows platforms and turntables.
+5. **Triggers reuse what exists**: pressure plates, interactive props as switches, manifest zones,
+   world-state requirements read on entry, and named signals the React layer raises (an
+   educational challenge completed). Platform motion is not persisted; persistent unlocks are
+   world changes as always.
+6. **Recovery is non-punitive**: course checkpoints and hazards; moving or vanishing platforms are
+   never "safe ground"; no lives, no game over.
+7. **Authoring:** positions and paths are seed- or manifest-authored layout (`scene.platforming`,
+   ADR-033; LAI-0805 stays open). Speeds, pauses, bounce heights, vanish timings and on/off are
+   staff-editable in Django Admin through the 3D Area's content revision (`platformTuning`,
+   ADR-047), validated in Django and the client.
+8. **Sound gets events, not assets**: optional platform cues in the Sound Manager catalogue.
+
+**Consequences.** Any manifest-driven location can add a course with no engine change.
+Turntable collision is the platform's square (round models approximate). Staff cannot move
+platforms in Django Admin until LAI-0805 is decided. Details: `docs/PLATFORMING.md`.
