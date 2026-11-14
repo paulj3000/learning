@@ -42,6 +42,26 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Integration: gameplay and environment assets (2026-11-14, `integration/gameplay-environment-qa`); development checks pass, owner QA pending, NOT merged
+
+Combines `feature/pirates-leap` (all P1 gameplay, Cognito-direct, Django-only), `feature/treasure-rush-palm-trees`
+(PR #36: palms, barrels, logs, vegetation) and `main`. Owner guide: `docs/GAMEPLAY_ENVIRONMENT_QA.md`.
+
+- Cove layout v8: the environment branch's v7 placements plus each prop's drawn `height`, so low
+  library props are jumpable. The jump branch's separate landing-barrel colliders are removed;
+  stand-in barrels are jumpable through the shared derived colliders.
+- A drawn library model removes its stand-in's `derived:` boxes (`removeCollider('derived:<id>')`,
+  suppressed against later collision profiles); a failed model keeps the stand-in blocking.
+- Pirate's Leap unchanged in `scene.platforming` (v1); a test keeps every cove placement out of
+  the course area. Seeds rerun idempotently; v7 to v8 upgrade keeps the course and staff tuning.
+- `docs/ASSET_LIBRARY.md`: main's Sound cues stay section 22; environment packs renumbered to 23,
+  collision profiles to 24 (references updated).
+- Checks: Vitest 4,748 passed; typecheck; migrations (no changes, no new migration); `content:check`,
+  `golden:check`, `adr:check`, `admin-preview:check`; pytest (see the PR). Not done: Playwright,
+  lint and format (merge readiness), browser, WebGL, device and gamepad checks; owner QA.
+- External: the environment GLB/glTF packs are owner-supplied and not in Git; barrel, log and
+  vegetation licences unconfirmed, so those stay unpublished.
+
 ## LAI-JMP-03: Treasure Cove: Pirate's Leap (2026-11-14, `feature/pirates-leap`); development complete, owner QA pending, NOT merged
 
 Stacked on `feature/interactive-platforms` (PR #37). Docs: `docs/PIRATES_LEAP.md`; combined owner QA
@@ -199,6 +219,54 @@ quests, assets, core, regions, ai, audio, game sessions, npcs and `tests/repo`.
 Deferred to merge verification or owner QA: Playwright, WebGL checks, the build, lint and format,
 and a live Cognito sign-in (needs the owner's pool values). The hosted `amplify.yml` still
 deploys the Amplify backend; retiring it is the AMP-08 runbook, not this branch.
+
+## Treasure Rush ENV-2: bushes, flowers and grass (TR-NAT-01 to 14) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); licence and author NOT stated, so NOT published; rocks, ferns and coconuts NOT supplied; owner visual QA NOT done
+
+- **Import.** `import_treasure_rush_environment` now reads `.gltf` + `.bin` + textures by plain
+  file name across folders and ZIPs (`gltf_prep.read_gltf`), with categories `bushes`, `flowers`,
+  `grass`, `vegetation` and `all`; `rocks`, `ferns` and `coconuts` are refused because none were
+  supplied. Ten models (3 bushes, 4 flower clumps, 3 grasses, 256² textures, 25 to 88 KB each)
+  are imported locally as validated versions, not published: the files state no author or
+  licence.
+- **Cove (layout v7).** 138 walk-through plants (`treasure_cove_vegetation.py`), deterministic and
+  clustered round palms and props, kept off paths, water, colliders, spots and scenery. Instanced
+  (12 draw calls), cut-out alpha, sway 0.04 rad (still under reduced motion), halved at LOW quality
+  (`decorDensity`; extensions now receive `quality`). Drawn only when the catalog says deliverable.
+- **Tests.** pytest: `.gltf` assembly and refusals, vegetation packs and categories, vegetation
+  layout rules, catalog. Vitest: vegetation drawn, walk-through, LOW density, reduced motion,
+  `thinDecor`, quality pass-through, layout parsing.
+- **Deferred:** author and licence from the owner, then `--publish --licence-confirmed`; rock,
+  fern and coconut models; thumbnails; owner visual QA (TR-NAT-14); merge-readiness checks.
+
+## Treasure Rush environment assets: palms, barrels and logs (TR-PALM-01 to 08, TR-ENV-01 to 09) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); owner visual QA NOT done, barrel and log licences NOT confirmed
+
+- **Import (TR-PALM-02/03, TR-ENV-02/03).** `manage.py import_treasure_rush_environment`
+  (`--category palms|barrels|logs`, `--dry-run`, `--publish`, `--licence-confirmed`,
+  `--allow-shared-storage`, `--json`; `import_treasure_rush_palm_trees` kept as the palms
+  category) prepares declared models from owner-supplied GLBs (`apps/assets/model_packs.py`,
+  `gltf_prep.py`, `png_tools.py`: split, Z-up to Y-up, grounded, sized, cut-out foliage, 512 px
+  textures), validates and stores them through the configured storage as versions with
+  provenance metadata. Idempotent. `services.upload_version` gained `extra_metadata` and `notes`.
+- **Assets.** Four palms (CC0, owner-stated: published locally), `prop-wooden-barrel`,
+  `nature-wood-log`, `nature-wood-log-moss`, `prop-wood-pile` (CC0 expected, **unconfirmed**:
+  imported as validated versions, not published). `Barrel.fbx` and `PalmTree_4` not imported.
+  No model binary, texture or thumbnail is in Git; `.gitignore` covers download folders.
+- **Cove (TR-PALM-05, TR-ENV-06, layout v6).** 43 palms (landing 5, beach 11, grove 19, ruins 4,
+  lookout 4; two moved off paths, one off the key spot, one off the spyglass) with 0.6 m trunk
+  colliders; 37 props (barrels/logs: landing 4/2, beach 8/4, grove 2/8, ruins 4/3, lookout
+  1/1) whose colliders follow their footprint and are added only once the model is drawn. The
+  play API catalog lists the models; the client draws one only when it can be delivered,
+  instanced per model (`instancedModels.ts`), otherwise keeps the primitive palms and bundled
+  barrels/logs. Palms sway 0.02 rad, still under reduced motion. No jumping exists in the engine,
+  so barrels and logs are simply solid.
+- **Tests.** pytest: `test_gltf_prep.py`, `test_model_packs.py` (memory, local and stubbed-S3
+  storage, licence gate, idempotency, commands), cove layout placement and collider rules,
+  `test_environment_catalog.py`. Vitest: `instancedModels.test.ts`, cove engine tests (models
+  drawn, colliders only when drawn, fallbacks, paths walkable, dispose), layout parser tests.
+- **Deferred to merge verification / owner:** owner visual QA (TR-PALM-08, TR-ENV-09) in a
+  browser; licence confirmation for the barrel and logs; thumbnails (no thumbnail workflow
+  exists); S3 upload in a deployed environment (owner approval); Ruff, Prettier, oxlint,
+  Playwright, full suites and builds per `docs/TESTING_STRATEGY.md`.
 
 ## Amplify final removal and Django-only cutover (AMP-01 to AMP-08) — source complete on `feature/amplify-final-removal` (2026-11-14); AWS deployment and legacy data NOT done
 

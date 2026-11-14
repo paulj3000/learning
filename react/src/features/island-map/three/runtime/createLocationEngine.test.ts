@@ -437,6 +437,21 @@ describe('createLocationEngine: extensions', () => {
     expect(harness.camera().position.z).toBeLessThan(9.5);
   });
 
+  it('tells an extension the render-quality tier it is drawn at (ENV-2)', () => {
+    const seen: (string | undefined)[] = [];
+    for (const quality of ['LOW', 'HIGH'] as const) {
+      mount({
+        manifest: {
+          ...WELCOME_HARBOR_MANIFEST,
+          extensions: [{ extensionId: 'test-quality', config: {} }],
+        },
+        quality,
+        extensions: [{ id: 'test-quality', mount: (context) => void seen.push(context.quality) }],
+      });
+    }
+    expect(seen).toEqual(['LOW', 'HIGH']);
+  });
+
   it('loads only the assets an extension declared for its binding (engine Phase 10)', async () => {
     const loaded: string[] = [];
     const mounted: {

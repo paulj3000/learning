@@ -1,3 +1,4 @@
+import { solidColliders } from '../island-map/three/runtime/sceneLayout';
 import { read } from '../../api/parse';
 import * as parse from '../../api/play/parse';
 import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../discovery/checkpoints';
@@ -88,13 +89,13 @@ describe('buildRegionManifest', () => {
     const built = build({ region });
     expect(issues(built)).toEqual([]);
     expect(built.manifest.movement).toBeUndefined();
-    const jumpable = built.manifest.colliders.filter((collider) => collider.jumpable);
-    expect(jumpable.map((collider) => collider.rect.id)).toEqual([
-      'cove-landing-barrel-0:collider',
-      'cove-landing-barrel-1:collider',
-      'cove-landing-barrel-2:collider',
-      'cove-landing-barrel-3:collider',
-    ]);
+    // No authored jumpable colliders: the barrels' stand-ins are jumpable derived boxes, and the
+    // library barrels drawn over them carry their own jumpable colliders (layout v8).
+    expect(built.manifest.colliders.filter((collider) => collider.jumpable)).toEqual([]);
+    const solids = solidColliders(built.manifest);
+    const landing = solids.filter((solid) => solid.id?.startsWith('derived:cove-landing-barrels#'));
+    expect(landing).toHaveLength(4);
+    expect(landing.every((solid) => solid.jumpable)).toBe(true);
   });
 
   it('carries a Django-authored camera and avatar, which the validator checks (LAI-JMP-01a)', async () => {

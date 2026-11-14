@@ -86,7 +86,9 @@ is always a new version and a new object key.
   `data:` URI, like the generated pack in `public/models/`.
 - Not accepted: external `uri` references of any kind, `KHR_draco_mesh_compression` and
   `EXT_meshopt_compression` (the loader has no decoders configured), FBX, Blender files, ZIP or
-  RAR. There is no conversion pipeline; export browser-ready glTF from the authoring tool.
+  RAR. There is no general conversion pipeline; export browser-ready glTF from the authoring
+  tool. The one exception is a declared environment pack (section 23), whose GLB models are
+  prepared (split, re-oriented, grounded, sized) by the import before the same validation.
 
 The type comes from the file's content (GLB magic or a glTF JSON document), never the extension.
 
@@ -336,8 +338,10 @@ Browser verification in a Django-enabled build has not been done (owner: after d
   follows is deferred work, not open parts of that decision.
 - **Delivery mode in production:** decided 2026-10-30, `django` from the S3 bucket (section 8).
   Revisit with `s3` delivery or signed CloudFront URLs (AM-11) if model traffic grows.
-- **Licence and source fields** (the Amplify `AssetSource` and notes) are not modelled; the import
-  keeps only tags. Decide whether licence tracking belongs on the definition or the version.
+- **Licence and source fields** (the Amplify `AssetSource` and notes) are not modelled as columns;
+  the Amplify import keeps only tags. Pack imports (section 23) record licence and source in the
+  version's immutable `metadata` and the definition's `source` JSON. Whether licence tracking
+  deserves real columns is still open.
 - **Thumbnails** are not built. The interactive admin preview is (AM-10, section 17).
 - **The Amplify `AdventureAsset` join** (which adventure uses which asset) has no Django model.
   Catalog `LocationAsset` and region placements already reference assets by id.
@@ -821,7 +825,204 @@ unchanged. The `audio` app adds a configuration layer over published audio asset
 Retiring an asset or version removes its sound from the live manifest and blocks the next publish
 until fixed. See `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
 
-## 23. Collision profiles (Asset Manager, 2026-11-14)
+## 23. Environment packs: palms, barrels and logs (TR-PALM, TR-ENV; 2026-11-14)
+
+Third-party environment models (the Quaternius palm trees, barrel, wood logs and wood pile) reach
+the library through a **declared pack import**, not through a hand upload per file. The source
+files never enter the repository: an administrator keeps the downloads outside it and points the
+command at them. Code: `apps/assets/model_packs.py` (the declarations and the import),
+`apps/assets/gltf_prep.py` (preparing one model), `apps/assets/png_tools.py` (shrinking textures).
+
+### 23.1 What the import does
+
+For each declared model it:
+
+1. Finds the model by its node name in any GLB under `--source` (a `.glb`, a `.zip` read in
+   memory and never extracted, or a directory of either). FBX, OBJ, Blender, `.gltf` and other
+   files are listed as `unsupported_format` and skipped: there is no FBX converter, and every
+   supplied model so far also came as GLB.
+2. Prepares it (`gltf_prep.extract_model`): only that node's mesh, materials, textures and images
+   are kept (other nodes, cameras, lights, animations and FBX `extras` go); its rotation and
+   scale are baked into the vertices (Z-up to Y-up); it is re-posed where declared (a log turned
+   to lie along X, the wood pile laid down from its icon angle); its lowest point is put on
+   y = 0; it is scaled uniformly to its declared size; blended alpha becomes cut-out alpha for
+   foliage; FBX's stray metalness is removed; PNG textures over 512 px are halved until they fit.
+   Pure Python, no new dependency, deterministic.
+3. Validates the result with `validate_upload`, the same check every admin upload gets.
+4. Stores it with `services.upload_version` through the configured backend (`local` under
+   `lai/.asset-storage/`, `s3` in the private bucket, `memory` in tests), under the usual
+   server-made key `assets/models/<asset_id>/<version_uuid>/model.glb`. One file per model; every
+   placement in a scene reuses it.
+5. Records provenance on the version's immutable `metadata` (`provenance`: pack, author, source
+   URL, licence, evidence, licence status, source SHA-256, pipeline version; `preparation`:
+   source node and file, every modification, texture sizes, triangle and vertex counts, source
+   triangles and size) and a one-line summary in `notes`. A definition it creates also carries the
+   provenance in `ContentAsset.source`. This answers section 16's open licence question for
+   imported packs without a schema change.
+6. Creates a missing definition (`origin=DJANGO`) with the declared kind, category and tags. An
+   existing definition is never edited: an administrator's name, description and tags stay.
+
+**Idempotent.** A model is skipped when a non-rejected version of its asset has the same bytes,
+or was made by the same pipeline version from the same source file and node. Re-running creates
+nothing.
+
+### 23.2 Publication rules
+
+| Environment | Upload | Publish |
+|---|---|---|
+| Local development (`DEBUG`, loopback database, `local` or `memory` storage) | Yes | With `--publish`. The first published version becomes the default |
+| S3 storage (a shared AWS environment) | Only with `--allow-shared-storage`, after the owner approves | Never by the command. Publish in Django Admin (section 19.2) |
+| A pack whose licence the owner has not confirmed | Yes, as `VALIDATED` | Never, until a run with `--licence-confirmed` records the owner's confirmation |
+
+### 23.3 The packs (2026-11-14)
+
+| Asset id | Source (poly.pizza) | Node | Prepared size | Triangles | Licence |
+|---|---|---|---|---|---|
+| `nature-palm-tree-small` | Quaternius Palm Trees `VYslw9DEi6` | `PalmTree_5` | 2.8 m tall | 264 | CC0, owner-stated |
+| `nature-palm-tree-standard` | same | `PalmTree_3` | 4.6 m tall | 344 | CC0, owner-stated |
+| `nature-palm-tree-tall` | same | `PalmTree_1` | 6.5 m tall | 472 | CC0, owner-stated |
+| `nature-palm-tree-curved` | same | `PalmTree_2` | 5.3 m tall | 368 | CC0, owner-stated |
+| `prop-wooden-barrel` | Quaternius Barrel `zjCQP1TAci` | `Barrel` | 1.0 m tall, 0.77 m across | 1,312 | CC0 expected, **unconfirmed** |
+| `nature-wood-log` | Quaternius Wood Log `L4E32Wee6C` | `WoodLog` | 2.3 m long, 0.68 m thick | 202 | CC0 expected, **unconfirmed** |
+| `nature-wood-log-moss` | Quaternius Wood Log with Moss `nwsYvcI0bC` | `WoodLog_Moss` | 2.6 m long | 614 | CC0 expected, **unconfirmed** |
+| `prop-wood-pile` | Quaternius Wood `ajBNpMsQ8z` | `UI_Wood` | 1.4 m long, 1.03 m tall | 420 | CC0 expected, **unconfirmed** |
+
+Not imported: `PalmTree_4` (a fifth, low-leaning palm; four shapes give enough variety and each
+model is another download on a phone) and `Barrel.fbx` (the same barrel as `Barrel.glb`, with no
+author recorded and no converter needed). There is one barrel, so there is no `-alt` barrel.
+
+Palms are kind `kit-piece`, category `scenery`, tagged `nature vegetation trees tropical
+environment treasure-rush cc0 quaternius`; the logs `kit-piece` / `scenery`; the barrel and wood
+pile `prop` / `prop`. Nothing in them is specific to Treasure Rush: any region can place them by id.
+
+### 23.4 Commands
+
+```bash
+# From lai/. Look first, then import; add --publish only in local development.
+python manage.py import_treasure_rush_environment --source /path/to/environment-assets --dry-run
+python manage.py import_treasure_rush_environment --source /path/to/environment-assets --publish
+# One group at a time: palms, barrels or logs.
+python manage.py import_treasure_rush_environment --source /path/to/barrel-assets --category barrels
+# Once the owner confirms the barrel and log licences:
+python manage.py import_treasure_rush_environment --source DIR --publish --licence-confirmed
+# Kept for compatibility, the same as --category palms:
+python manage.py import_treasure_rush_palm_trees --source /path/to/palm-tree-assets --dry-run
+```
+
+`--json` prints the full report: sources and their SHA-256, models discovered and rejected, sizes
+before and after, triangle counts, versions and storage keys, skips and anything unresolved.
+
+**Another environment.** Copy the downloads there (never through Git), then in that environment's
+Django container: `--dry-run`; with the owner's approval, the same command with
+`--allow-shared-storage`; then publish each version in Django Admin (Asset library, Asset
+versions, action "Publish selected versions"). The first published version becomes the default.
+
+### 23.5 Managing them in Django Admin
+
+They are ordinary library assets: **Catalog, Content assets** shows each definition with its
+versions, provenance (`source`) and tags; **Asset library, Asset versions** shows each version's
+metadata, notes and validation report, with the 3D preview (section 17), publish, make default,
+retire, rollback and verify actions. A replacement model is uploaded as a new version of the same
+id.
+
+### 23.6 In Treasure Cove
+
+`treasure_cove_layout.py` places the palms (`procedural` `PALM` entries naming an `assetId`) and
+the barrels and logs (`props`, each with its own collider rectangles). The play API's catalog
+lists those ids with whether each can be delivered (`region_catalog`); the client draws a model
+only when it can, instanced per model (`instancedModels.ts`), and otherwise keeps the primitive
+palms and the bundled barrels and logs, with no request and no warning. A prop's colliders are
+added only once its model is drawn. See `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+
+**Collision with the shared movement stack (integration, layout v8).** Until a model is drawn,
+the bundled stand-in barrels and logs block through the shared derived colliders (low ones are
+jumpable). Once a library prop is drawn, its stand-in's `derived:<id>` boxes are removed and the
+prop's own footprint colliders take over; a prop no taller than 1.2 m (each layout prop now
+carries its drawn `height`) is jumpable, so barrels can be stood on and logs hopped over. Palms
+keep their authored 0.6 m trunk colliders only, so the fronds are walk-through. Vegetation never
+blocks. Collision profiles (section 24) apply to resolver-placed assets; extension-drawn library
+props use the layout's footprint colliders.
+
+### 23.7 Not done
+
+- **Thumbnails.** The library has no thumbnail workflow (section 16); none is generated. The
+  interactive 3D preview (section 17) is how a version is checked by eye.
+- **AWS.** Nothing has been uploaded to S3; the S3 path is covered by stubbed-boto3 tests only.
+- **Licences for the barrel and logs** need the owner's confirmation before they are published.
+
+### 23.8 ENV-2: bushes, flowers and grass (TR-NAT, 2026-11-14)
+
+**Source.** One owner-supplied stylised nature kit in three ZIPs: `MapleTree_5_2.zip` (36 `.gltf`
+files and their `.bin` buffers, sha256 `0c0f285b...89`), `png.zip` (textures, `9e0ec154...cd4`)
+and `PalmTree_Leaves.zip` (more textures, `0f3027ca...6c0`). The import now reads `.gltf` models
+and finds their `.bin` and images **by plain file name anywhere under `--source`**, including
+other ZIPs. A name with a path, a scheme or a URL is refused, and nothing is fetched. No file
+names an author or a licence, so these packs record both as "Not stated in the supplied files",
+carry no author tag, and are **imported and validated but not published** (section 23.2).
+
+| Asset id | Node | Prepared size | Triangles | Stored | Textures |
+|---|---|---|---|---|---|
+| `nature-bush-small` | `Bush` | 0.8 m tall | 400 | 42 KB | 256² |
+| `nature-bush-medium` | `Bush_Flowers` | 1.0 m tall | 478 | 88 KB | 2 × 256² |
+| `nature-bush-large` | `Bush_Large_Flowers` | 1.3 m tall, 2 m long | 402 | 81 KB | 2 × 256² |
+| `nature-flower-tropical-yellow` / `-blue` / `-purple` | `Flower_2/3/5_Clump` | 0.55 m | 136 each | 47 KB each | 256² |
+| `nature-flower-tropical-pink` | `Flower_4_Clump` | 0.6 m | 136 | 47 KB | 256² |
+| `nature-grass-short` / `-medium` / `-tall` | `Grass_Small` / `Grass_Large` / `Grass_Large_Extruded` | 0.35 / 0.5 / 0.9 m | 58 / 108 / 516 | 25 / 28 / 49 KB | 256² |
+
+Not imported:
+- **Trees:** the five birch, five maple and ten dead trees (temperate, 1,250 to 7,700 triangles).
+- **Flowers:** the two single-stem flowers (too small to read in play) and `Flower_1_Clump` (a teal
+  hydrangea, temperate).
+- **Bushes:** `Bush_Small`, `Bush_Large` and `Bush_Small_Flowers` (clipped hedge shapes).
+
+Asked for but not supplied: **rocks, ferns and coconuts** (only a `Rocks.jpg` texture).
+`--category rocks|ferns|coconuts` says so instead of importing nothing.
+
+**Categories.** `--category bushes|flowers|grass`, `vegetation` (all three) or `all`.
+
+**In Treasure Cove** (`apps/regions/treasure_cove_vegetation.py`, layout v7): 138 placements
+generated from fixed seeds and clustered round each zone's palms and props.
+
+| Zone | Bushes | Flowers | Grass |
+|---|---|---|---|
+| Landing | 4 | 6 | 10 |
+| Beach | 3 | 4 | 12 |
+| Grove | 12 | 12 | 30 |
+| Ruins | 6 | 8 | 15 |
+| Lookout Point | 3 | 5 | 8 |
+
+Placement rules:
+- Bushes stay 2 m off path centre lines, 3 m from chests, Pip and other encounter spots, and out
+  of the yard's open middle.
+- Grass and flowers stay about 1 m off paths.
+- Nothing grows in water, inside a collider, or on other scenery.
+
+**Collision.** All vegetation is walk-through: no colliders. **Rendering.** The same instanced
+renderer as palms and props, one batch per model part (12 draw calls for all vegetation), with
+cut-out alpha (no transparency sorting) and no shadows. It sways 0.04 rad and holds still under
+reduced motion. At LOW render quality it is thinned to every other placement of each model (the
+new `decorDensity` preset field; extensions now receive the quality tier). Like palms and props,
+it is drawn only once the catalog says the model can be delivered; nothing stands in for it before
+that.
+
+Totals in the cove once everything is published:
+
+| Measure | Value |
+|---|---|
+| Unique models | 18 |
+| Instances | 218 (43 palms, 37 props, 138 plants) |
+| Draw calls for library models | 31 |
+| Triangles drawn | about 77k (vegetation about 30k) |
+| Total model download | 2.1 MB (vegetation 0.5 MB; the palms' 512² textures are most of it) |
+
+```bash
+python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --dry-run
+python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --publish
+# Once the owner states the author and licence:
+python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --publish --licence-confirmed
+```
+
+## 24. Collision profiles (Asset Manager, 2026-11-14)
 
 Staff configure how a 3D asset blocks movement wherever it is placed: **Assets > Collision
 profiles** in Django Admin (an asset default, or a per-version override). The resolver answer

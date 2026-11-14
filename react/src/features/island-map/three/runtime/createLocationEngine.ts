@@ -571,7 +571,28 @@ export function createLocationEngine<R extends RendererLike>(
   controller.position.set(spawn.x, 0, spawn.z);
   controller.yaw = spawn.yaw;
 
+  /** `derived:<scenery id>` prefixes whose derived boxes an extension removed for good. */
+  const suppressedDerived = new Set<string>();
+  const isSuppressed = (id: string | undefined) =>
+    id !== undefined &&
+    [...suppressedDerived].some((prefix) => id === prefix || id.startsWith(`${prefix}#`) || id.startsWith(`${prefix}:`));
+
   function removeCollider(id: string): boolean {
+    if (id.startsWith('derived:')) {
+      // Every box of that scenery item (a cluster's placements, a long piece's segments).
+      suppressedDerived.add(id);
+      let removed = false;
+      for (let index = solids.length - 1; index >= 0; index -= 1) {
+        const solid = solids[index]!;
+        if (!isSuppressed(solid.id)) continue;
+        const at = colliders.indexOf(solid.box);
+        if (at >= 0) colliders.splice(at, 1);
+        jumpableColliders.delete(solid.box);
+        solids.splice(index, 1);
+        removed = true;
+      }
+      return removed;
+    }
     const solid = solids.find((candidate) => candidate.id === id);
     if (!solid) return false;
     const index = colliders.indexOf(solid.box);
@@ -633,6 +654,7 @@ export function createLocationEngine<R extends RendererLike>(
     }
     const here = controller.position;
     for (const solid of solidColliders(manifest, worldState, profiles).filter(isDerived)) {
+      if (isSuppressed(solid.id)) continue; // replaced by an extension-drawn model
       const box = toBox3(solid.box);
       if (here.x >= box.min.x && here.x <= box.max.x && here.z >= box.min.z && here.z <= box.max.z) {
         continue;
@@ -1284,8 +1306,12 @@ export function createLocationEngine<R extends RendererLike>(
         camera,
         bus,
         manifest,
+        quality,
         config: binding.config,
-        addCollider: (box) => colliders.push(box),
+        addCollider: (box, colliderOptions) => {
+          colliders.push(box);
+          if (colliderOptions?.jumpable) jumpableColliders.add(box);
+        },
         removeCollider,
         isBlocked: (x, z) =>
           colliders.some(
