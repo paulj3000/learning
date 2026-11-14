@@ -42,6 +42,35 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Fix: the child could walk through drawn objects (2026-11-14, `integration/avatar-amplify-exit`)
+
+Owner-reported: many objects could be walked through. Cause: colliders were only ever written by
+hand (`ColliderSpec`), separately from what a location draws, so every barrel, crate, rock,
+tree, bush, fallen log, signpost, mooring post, standing stone, fence, prop and NPC without a
+hand-written box was walk-through. An audit found 173 of 597 drawn pieces in the six
+source locations, and most of Treasure Cove's trees, bushes, logs, posts and rocks, uncovered.
+
+Fix (`react/src/features/island-map/three/runtime/derivedColliders.ts`, used by
+`solidColliders`): each placed piece whose asset has a solid footprint gets a box, under the
+same position, rotation and scale the renderer uses. Footprints are measured from the model files
+(`ASSET_FOOTPRINTS`); trees and posts use the trunk or post. Pieces up to 1.2 m are jumpable
+(hop onto or over), taller ones solid. Long pieces are cut along their length so a diagonal log
+blocks only where it lies. Applies to every location, the Django-published Treasure Cove
+included, with no manifest or Django change; NPC Manager movement reads the same boxes.
+
+Deliberately not blocking: ground, paths, planks, carpets, ferns, reeds, flowers, rope coils,
+archways, cave mouths, collectibles, the shipwreck (authored by hand), and extension-drawn props.
+Guards: an authored collider over a piece wins; a box covering a checkpoint is dropped.
+
+Known: Pirate Builder Bay's `cove-treasure` chest sits exactly on the `pirate-builder-bay:cove`
+checkpoint (9, 0), so it stays walk-through until a content author moves one of them.
+
+Tests: new `derivedColliders.test.ts` (sizes, rotation and scale, jumpable vs solid, walkable
+pieces, authored wins, checkpoints clear in every source location, requirements, a child stopped
+by a barrel, a diagonal log). Checked against Treasure Cove's Django layout: 68 boxes, spawn and
+every trail tile clear. Vitest for `island-map/three`, `npc-manager` and `region-play`: 169 files,
+2253 tests, pass. `npm run typecheck` passes. Deferred: in-browser play check (owner QA).
+
 ## Fix: left and right movement were swapped (2026-11-14, `integration/avatar-amplify-exit`)
 
 Owner-reported: ArrowLeft walked right and ArrowRight walked left. Cause: the shared movement

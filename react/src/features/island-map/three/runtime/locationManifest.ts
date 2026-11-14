@@ -119,7 +119,10 @@ export interface CheckpointSpec {
   triggerHalfSize: number;
 }
 
-/** A solid, invisible collider. Visible geometry that should block movement declares its own collider instead. */
+/**
+ * A solid, invisible collider. Pieces with a solid footprint (`derivedColliders.ts`) get a box
+ * automatically; author one for anything else that should block, or to shape a piece by hand.
+ */
 export interface ColliderSpec {
   /** `rect.id` is how an extension removes this collider (e.g. a bridge once it is mended). */
   rect: RectZone;
