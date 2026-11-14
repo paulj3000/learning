@@ -1,3 +1,5 @@
+import { checkpointReachedText, recoveredText } from '../platforms/platformCopy';
+import { worldSignal } from '../platforms/platformSystem';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../../IslandWorldView.module.css';
@@ -361,6 +363,11 @@ export function ThreeLocationWorldView({
           .then(() => refreshWorld())
           .catch(() => undefined);
       }),
+      // LAI-JMP-02: friendly course feedback; a missed jump is never a loss.
+      bus.on('CourseCheckpointReached', ({ label }) => setToast(checkpointReachedText(label))),
+      bus.on('PlayerRecovered', ({ reason, checkpointId }) => {
+        if (reason === 'HAZARD' || checkpointId) setToast(recoveredText(manifest.platforming, checkpointId));
+      }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
           void pendingWrites.track(saveCheckpoint(childId, zoneId)).catch(() => undefined);
@@ -378,6 +385,14 @@ export function ThreeLocationWorldView({
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
   }, [bus, childId, manifest, openInteractionFor, pendingWrites, refreshWorld]);
+
+  // LAI-JMP-02/03: a world change recorded during the visit (a riddle solved) raises its platform
+  // signal at once, so a bridge it unlocks appears without leaving the location.
+  const worldKeys = snapshot?.context.worldChangeKeys;
+  useEffect(() => {
+    if (!engine || !worldKeys) return;
+    for (const key of worldKeys) engine.signalPlatforms?.(worldSignal(key));
+  }, [engine, worldKeys]);
 
   /*
     "You are back at the pond." Said once, when a returning child's saved

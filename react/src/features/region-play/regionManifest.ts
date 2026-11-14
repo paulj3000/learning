@@ -1,3 +1,4 @@
+import type { PlatformingSpec } from '../island-map/three/platforms/platformSpec';
 import type { RegionCheckpoint } from '../discovery/checkpoints';
 import type { JsonObject, JsonValue } from '../../api/parse';
 import {
@@ -387,7 +388,13 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     npcs,
     props,
     collectibles: [],
-    zones: layout.zones,
+    // LAI-JMP-03: a course's section zones travel with its platforming block.
+    zones: [
+      ...layout.zones,
+      ...(isObject(model.scene.platforming) && Array.isArray(model.scene.platforming.zones)
+        ? (model.scene.platforming.zones as unknown as ThreeLocationManifest['zones'])
+        : []),
+    ],
     ...(lights.length > 0 ? { lights } : {}),
     ambient: layout.ambient,
     interactions,
@@ -397,6 +404,19 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     // through `scene.movement` (validated with the rest of the manifest).
     ...(isObject(model.scene.movement)
       ? { movement: model.scene.movement as unknown as ThreeLocationManifest['movement'] }
+      : {}),
+    // LAI-JMP-02 / LAI-JMP-04: platforms are seed-authored layout (`scene.platforming`, ADR-033);
+    // staff tuning from the 3D Area's content revision (`scene.platformTuning`) is merged over
+    // them. Validated with the rest of the manifest.
+    ...(isObject(model.scene.platforming)
+      ? {
+          platforming: {
+            ...(model.scene.platforming as unknown as PlatformingSpec),
+            ...(isObject(model.scene.platformTuning)
+              ? { tuning: model.scene.platformTuning as unknown as PlatformingSpec['tuning'] }
+              : {}),
+          },
+        }
       : {}),
     // LAI-JMP-01a: camera and avatar, the same way (`scene.player`, validated with the manifest).
     ...(isObject(model.scene.player)

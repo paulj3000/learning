@@ -163,6 +163,17 @@ export function mount(
     'PlayerRecovered',
     'PlayerGaitChanged',
     'PlayerFootstep',
+    'PlatformActivated',
+    'PlatformMoving',
+    'PlatformStopped',
+    'PlatformVanished',
+    'PlatformAppeared',
+    'PlayerBounced',
+    'PressurePlatePressed',
+    'PressurePlateReleased',
+    'PlatformSwitchToggled',
+    'CourseCheckpointReached',
+    'PlatformGoalReached',
   ] as const) {
     bus.on(name, (detail) => events.push({ name, detail }));
   }

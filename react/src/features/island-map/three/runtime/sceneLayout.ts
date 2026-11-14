@@ -441,6 +441,8 @@ export function solidColliders(
     keepClear: [
       ...ALL_CHECKPOINTS.filter((checkpoint) => checkpoint.regionId === manifest.regionId),
       ...buildingEntrances(manifest),
+      // Course checkpoints too (LAI-JMP-02): a derived box never walls one in.
+      ...(manifest.platforming?.checkpoints ?? []),
     ],
     ...(profiles ? { profiles } : {}),
   });

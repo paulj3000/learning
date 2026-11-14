@@ -42,6 +42,30 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## LAI-JMP-02 / LAI-JMP-04: shared platforms, checkpoints and safe recovery (2026-11-14, `feature/interactive-platforms`); development complete, owner QA pending, NOT merged
+
+Stacked on `integration/p1-movement-base` (avatar stack, Amplify-free main, derived colliders,
+collision profiles, running PR #29). ADR-059 (Proposed). Docs: `docs/PLATFORMING.md`.
+
+- `react/src/features/island-map/three/platforms/`: `platformSpec.ts` (types, validation, staff
+  tuning), `platformMotion.ts` (deterministic waypoint motion), `platformSystem.ts` (triggers,
+  motion that yields to the child, carrying, inherited speed, bounce, vanishing with collision
+  removed, turntables, course checkpoints, hazards, goals, events), `platformPresentation.ts`
+  (procedural blocks with shared geometry, optional models, destination rings, checkpoint flags,
+  plates), `platformCopy.ts` (child-facing recovery copy).
+- `FirstPersonController`: `supportingBox`, `carry`, `inheritVelocity`, `launch`, `recover`,
+  `isSafeGround`, `recoveryPoint` (all additive; walking, running and jumping unchanged).
+- Engine: `manifest.platforming`, platform events on the bus, `signalPlatforms`, `platforms()`;
+  switches are interactive props. Django scenes: `scene.platforming` (seed layout) +
+  `scene.platformTuning` (staff, through the Area content revision, ADR-047).
+- Sound Manager: eight optional platform cues (`wired=False`) and their listeners.
+- Django: `apps/regions/platforming.py` (`layout_problems`, `tuning_problems`), "area-copy" kind
+  offers `platformTuning` only for Areas with platforms. No migration.
+
+Tests: Vitest island-map, region-play, npc-manager, player-avatar, test: 218 files, 2667 tests
+passed (33 new platform tests). pytest regions, catalog authoring, audio: 330 passed.
+`npm run typecheck`, `npm run adr:check` pass. Deferred: browser, WebGL, device QA.
+
 ## Asset Manager: configurable collision profiles (2026-11-14, `feature/asset-collision-profiles`); development complete, owner QA pending, NOT merged
 
 Trello: "Asset Manager — Configurable Collision Profiles". Branch from `integration/avatar-amplify-exit`

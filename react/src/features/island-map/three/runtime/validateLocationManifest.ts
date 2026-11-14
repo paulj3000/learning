@@ -16,6 +16,7 @@ import {
   type BindableStep,
 } from './adventureStepBindings';
 import { validateMovementSpec } from '../jumpConfiguration';
+import { validatePlatforming } from '../platforms/platformSpec';
 import { validatePlayerPresentation } from '../playerPresentation';
 
 /**
@@ -309,6 +310,16 @@ export function validateLocationManifest(
 
   // LAI-JMP-01: movement tuning, when a region authors any.
   for (const issue of validateMovementSpec(manifest.movement)) {
+    report('INVALID_VALUE', issue.path, issue.message);
+  }
+
+  // LAI-JMP-02 / LAI-JMP-04: platforms, plates, course checkpoints, hazards and goals.
+  for (const issue of validatePlatforming(manifest.platforming, {
+    propIds: new Set(manifest.props.map((prop) => prop.entityId)),
+    zoneIds: new Set(manifest.zones.map((zone) => zone.rect.id)),
+    bounds: manifest.bounds,
+    solids: manifest.colliders.filter((collider) => !collider.jumpable).map((collider) => collider.rect),
+  })) {
     report('INVALID_VALUE', issue.path, issue.message);
   }
 

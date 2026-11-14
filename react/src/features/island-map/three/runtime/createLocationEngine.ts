@@ -1,3 +1,5 @@
+import { PlatformSystem, type PlatformEvent, type PlatformState } from '../platforms/platformSystem';
+import { createPlatformPresentation } from '../platforms/platformPresentation';
 import type { CollisionProfiles } from './collisionProfile';
 import { locationAssetIds } from './locationAssetUsage';
 import {
@@ -226,6 +228,13 @@ export interface LocationEngine extends ThreeEngineHandle {
   readonly jump: Readonly<JumpConfiguration>;
   /** Forgets held keys, drags and buttons, e.g. when a panel opens over the scene. */
   resetInput(): void;
+  /**
+   * LAI-JMP-02 / LAI-JMP-04: raises (or clears) a platform `SIGNAL`, e.g. when the child completes
+   * an educational challenge that opens a lift. Ignored where nothing listens for it.
+   */
+  signalPlatforms(name: string, on?: boolean): void;
+  /** The platforms' live state (position, present, moving), for HUD hints and tests. */
+  platforms(): readonly PlatformState[];
   /** LAI-JMP-01a: the perspective the child is seeing now. */
   cameraMode(): CameraMode;
   /**
@@ -454,7 +463,24 @@ export function createLocationEngine<R extends RendererLike>(
     solids.filter((solid) => solid.jumpable).map((solid) => solid.box),
   );
   const playableMargin = manifest.bounds.wallThickness + 1;
+  // LAI-JMP-02 / LAI-JMP-04: platforms are jumpable boxes in the same live collider list,
+  // moved in place each frame; the controller stays authoritative for the child.
+  const platformSystem = manifest.platforming
+    ? new PlatformSystem(manifest.platforming, {
+        colliders,
+        jumpable: jumpableColliders,
+        worldState,
+        zones: new Map(manifest.zones.map((zone) => [zone.rect.id, zone.rect] as const)),
+        reducedMotion: options.reducedMotion === true,
+      })
+    : null;
   const controller = new FirstPersonController({
+    ...(platformSystem
+      ? {
+          isSafeGround: (x: number, y: number, z: number) => platformSystem.isSafeGround(x, y, z),
+          recoveryPoint: () => platformSystem.recoveryPoint(),
+        }
+      : {}),
     colliders,
     jumpableColliders,
     jump: manifest.movement?.jump,
@@ -617,6 +643,17 @@ export function createLocationEngine<R extends RendererLike>(
       if (jumpable) jumpableColliders.add(box);
     }
   }
+  const platformPresentation =
+    platformSystem && manifest.platforming
+      ? createPlatformPresentation(platformSystem, manifest.platforming, {
+          reducedMotion: options.reducedMotion === true,
+          loadModel: (assetId) => deps.assets.loadModel(assetId),
+          clone: cloneAssetScene,
+          track,
+        })
+      : null;
+  if (platformPresentation) scene.add(platformPresentation.root);
+
   if (deps.assets.collisionProfiles) {
     const ids = locationAssetIds(manifest, {
       extensionAssetIds: () => [],
@@ -1187,6 +1224,11 @@ export function createLocationEngine<R extends RendererLike>(
     avatar?.interact();
     // An extension may own this entity's interaction entirely (a plate going
     // into a socket is a move inside a puzzle, not a domain event).
+    // A platform switch (an interactive prop a platform names) flips its platform.
+    if (platformSystem?.isSwitch(target.entityId)) {
+      platformSystem.toggleSwitch(target.entityId);
+      return;
+    }
     for (const handler of interactHandlers) {
       if (handler(target.entityId)) return;
     }
@@ -1303,6 +1345,47 @@ export function createLocationEngine<R extends RendererLike>(
     APPROACH_RANGE_METERS,
   );
 
+  function emitPlatformEvent(event: PlatformEvent): void {
+    switch (event.type) {
+      case 'ACTIVATED':
+        bus.emit('PlatformActivated', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        return;
+      case 'MOVING':
+        bus.emit('PlatformMoving', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        return;
+      case 'STOPPED':
+        bus.emit('PlatformStopped', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        return;
+      case 'VANISHED':
+        bus.emit('PlatformVanished', { platformId: event.platformId });
+        return;
+      case 'APPEARED':
+        bus.emit('PlatformAppeared', { platformId: event.platformId });
+        return;
+      case 'BOUNCED':
+        bus.emit('PlayerBounced', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        return;
+      case 'PLATE_PRESSED':
+        bus.emit('PressurePlatePressed', { plateId: event.plateId });
+        return;
+      case 'PLATE_RELEASED':
+        bus.emit('PressurePlateReleased', { plateId: event.plateId });
+        return;
+      case 'SWITCH':
+        bus.emit('PlatformSwitchToggled', { entityId: event.entityId, on: event.on });
+        return;
+      case 'CHECKPOINT':
+        bus.emit('CourseCheckpointReached', { checkpointId: event.checkpointId, label: event.label });
+        return;
+      case 'GOAL':
+        bus.emit('PlatformGoalReached', { goalId: event.goalId });
+        return;
+      case 'RECOVERED_TO':
+        // Reported with PlayerRecovered (the controller's own event this frame).
+        return;
+    }
+  }
+
   let lastFrameAt = deps.now();
   let frameHandle = 0;
 
@@ -1312,7 +1395,15 @@ export function createLocationEngine<R extends RendererLike>(
     const delta = Math.min((now - lastFrameAt) / 1000, MAX_FRAME_SECONDS);
     lastFrameAt = now;
 
+    // Platforms move (and carry their rider) before the child does, so a step off a moving
+    // platform starts from where it really is.
+    if (platformSystem) {
+      platformSystem.update(delta, controller);
+      for (const event of platformSystem.consumeEvents()) emitPlatformEvent(event);
+    }
+
     controls.update(delta);
+    platformPresentation?.update(delta);
 
     // LAI-JMP-01: jumps, landings and safe returns, as typed events for sound
     // and anything else listening. The engine decides nothing about them.
@@ -1327,7 +1418,13 @@ export function createLocationEngine<R extends RendererLike>(
           break;
         case 'RECOVERED':
           playerCamera.reset();
-          bus.emit('PlayerRecovered', { reason: event.reason });
+          bus.emit('PlayerRecovered', {
+            reason: event.reason,
+            ...(platformSystem ? { checkpointId: platformSystem.latestCheckpointId() } : {}),
+          });
+          break;
+        case 'LAUNCHED':
+          // A bounce pad; the platform system reports it as PlayerBounced.
           break;
       }
     }
@@ -1422,6 +1519,8 @@ export function createLocationEngine<R extends RendererLike>(
       mixer.stopAllAction();
       mixer.uncacheRoot(mixer.getRoot());
     }
+    platformSystem?.dispose();
+    platformPresentation?.dispose();
     for (const geometry of ownedGeometries) geometry.dispose();
     for (const material of ownedMaterials) material.dispose();
     materialLibrary.dispose();
@@ -1467,6 +1566,10 @@ export function createLocationEngine<R extends RendererLike>(
     setSprintMode: (mode) => {
       sprintMode = mode;
     },
+    signalPlatforms: (name, on = true) => {
+      if (!disposed) platformSystem?.signal(name, on);
+    },
+    platforms: () => platformSystem?.platforms ?? [],
     ready,
   };
 }

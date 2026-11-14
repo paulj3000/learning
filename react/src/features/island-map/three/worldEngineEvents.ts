@@ -65,8 +65,32 @@ export type WorldEngineEventMap = {
   PlayerGaitChanged: { gait: 'idle' | 'walk' | 'run' | 'sprint' };
   /** Running & sprinting: one footstep, at the pace of the gait, for optional footstep audio. */
   PlayerFootstep: { gait: 'walk' | 'run' | 'sprint' };
-  /** LAI-JMP-01: the player fell out of the world and was put back where they last stood. */
-  PlayerRecovered: { reason: 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' };
+  /**
+   * LAI-JMP-01: the player fell out of the world and was put back where they last stood.
+   * LAI-JMP-02: `HAZARD` is a platforming hazard (water under a missed jump); `checkpointId` is
+   * the course checkpoint they went back to, when there was one. Never a loss of progress.
+   */
+  PlayerRecovered: {
+    reason: 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' | 'HAZARD';
+    checkpointId?: string | null;
+  };
+  /**
+   * LAI-JMP-02 / LAI-JMP-04 platforms, for sound and presentation only; nothing about progress
+   * depends on them. `cue` is a platform's own Sound Manager cue id, when it names one.
+   */
+  PlatformActivated: { platformId: string; cue?: string };
+  PlatformMoving: { platformId: string; cue?: string };
+  PlatformStopped: { platformId: string; cue?: string };
+  PlatformVanished: { platformId: string };
+  PlatformAppeared: { platformId: string };
+  PlayerBounced: { platformId: string; cue?: string };
+  PressurePlatePressed: { plateId: string };
+  PressurePlateReleased: { plateId: string };
+  PlatformSwitchToggled: { entityId: EntityId; on: boolean };
+  /** A course checkpoint reached for the first time this visit (`label` is child-facing). */
+  CourseCheckpointReached: { checkpointId: string; label: string };
+  /** A platforming goal reached for the first time this visit (the end of a course). */
+  PlatformGoalReached: { goalId: string };
   // domain -> Three.js
   QuestStateChanged: { questId: string; state: string };
   WorldStateChanged: { worldStateKey: WorldStateKey };
