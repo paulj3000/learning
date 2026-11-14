@@ -1,66 +1,44 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { confirmUserAttribute, updatePassword, updateUserAttributes } = vi.hoisted(() => ({
-  confirmUserAttribute: vi.fn(),
-  updatePassword: vi.fn(),
-  updateUserAttributes: vi.fn(),
+const fake = vi.hoisted(() => ({
+  updateEmail: vi.fn(),
+  confirmEmail: vi.fn(),
+  changePassword: vi.fn(),
 }));
 
-vi.mock('aws-amplify/auth', () => ({
-  confirmUserAttribute,
-  updatePassword,
-  updateUserAttributes,
-}));
+vi.mock('../../lib/cognito', () => ({ cognitoAuth: () => fake, isCognitoConfigured: true }));
 
 import { changeEmail, changePassword, confirmEmailChange } from './accountSettings';
 
+beforeEach(() => {
+  fake.updateEmail.mockReset();
+  fake.confirmEmail.mockReset();
+  fake.changePassword.mockReset();
+});
+
 describe('changeEmail', () => {
-  beforeEach(() => {
-    updateUserAttributes.mockReset();
-  });
-
-  it('reports needsConfirmation when Cognito requires a confirmation code', async () => {
-    updateUserAttributes.mockResolvedValueOnce({
-      email: { isUpdated: false, nextStep: { updateAttributeStep: 'CONFIRM_ATTRIBUTE_WITH_CODE' } },
-    });
-
-    const result = await changeEmail('new@example.com');
-
-    expect(updateUserAttributes).toHaveBeenCalledWith({
-      userAttributes: { email: 'new@example.com' },
-    });
-    expect(result).toEqual({ needsConfirmation: true });
+  it('reports needsConfirmation when Cognito sent a confirmation code', async () => {
+    fake.updateEmail.mockResolvedValueOnce(true);
+    expect(await changeEmail('new@example.com')).toEqual({ needsConfirmation: true });
+    expect(fake.updateEmail).toHaveBeenCalledWith('new@example.com');
   });
 
   it('reports no confirmation needed when the update completes immediately', async () => {
-    updateUserAttributes.mockResolvedValueOnce({
-      email: { isUpdated: true, nextStep: { updateAttributeStep: 'DONE' } },
-    });
-
-    const result = await changeEmail('new@example.com');
-
-    expect(result).toEqual({ needsConfirmation: false });
+    fake.updateEmail.mockResolvedValueOnce(false);
+    expect(await changeEmail('new@example.com')).toEqual({ needsConfirmation: false });
   });
 });
 
 describe('confirmEmailChange', () => {
   it('confirms the email attribute with the given code', async () => {
-    confirmUserAttribute.mockReset();
     await confirmEmailChange('123456');
-    expect(confirmUserAttribute).toHaveBeenCalledWith({
-      userAttributeKey: 'email',
-      confirmationCode: '123456',
-    });
+    expect(fake.confirmEmail).toHaveBeenCalledWith('123456');
   });
 });
 
 describe('changePassword', () => {
-  it('passes the old and new password through to Amplify', async () => {
-    updatePassword.mockReset();
+  it('passes the old and new password through to Cognito', async () => {
     await changePassword('old-pass', 'new-pass');
-    expect(updatePassword).toHaveBeenCalledWith({
-      oldPassword: 'old-pass',
-      newPassword: 'new-pass',
-    });
+    expect(fake.changePassword).toHaveBeenCalledWith('old-pass', 'new-pass');
   });
 });

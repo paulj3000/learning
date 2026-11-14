@@ -2,23 +2,21 @@
  * Persistence-facing half of the Director (docs/ROADMAP.md Phase 28,
  * Phase 41 / docs/DECISIONS.md ADR-016).
  *
- * As of Phase 41, this no longer assembles a `DirectorContext` or ranks
- * anything itself — that decision now runs once, server-side, in
- * `amplify/functions/get-next-learning-activity/handler.ts`, shared by
- * every client rather than reimplemented per client. This module's only
- * job is calling that query and reconstructing its flattened wire shape
- * back into the `SelectionRecord[]` this app's UI and `explain.ts` already
- * know how to render — the same "client renders, backend decides"
- * boundary `submitAdventureAnswer` already established for the Adventure
- * Engine.
+ * The ranking runs once, server-side. Since AMP-05 that is Django
+ * (`GET /api/v1/children/<id>/next-learning-activity/`,
+ * `lai/apps/education/director.py`), a port of the Amplify
+ * `getNextLearningActivity` Lambda with the same rules and wire shape. This
+ * module only calls it and reconstructs the flattened reasons back into the
+ * `SelectionRecord[]` this app's UI and `explain.ts` already render: "client
+ * renders, backend decides".
  */
-import { client } from '../../lib/data-client';
-import type { Schema } from '../../../../amplify/data/resource';
+import { getAccessToken } from '../../api/auth';
+import { createApiClient, type ApiClient } from '../../api/client';
+import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../../api/config';
+import { ApiError } from '../../api/errors';
+import { read, type Reader } from '../../api/parse';
 import type { SelectionReason, SelectionRecord } from './types';
 import type { SkillStatus } from '../mastery/types';
-
-type WireSuggestion = Schema['NextAdventureSuggestion']['type'];
-type WireReason = Schema['SelectionReasonType']['type'];
 
 const SELECTION_REASON_KINDS: readonly SelectionReason['kind'][] = [
   'PRACTISES_SKILL',
@@ -28,44 +26,53 @@ const SELECTION_REASON_KINDS: readonly SelectionReason['kind'][] = [
   'NO_SKILLS_NEEDED',
 ];
 
+const SKILL_STATUSES: readonly SkillStatus[] = [
+  'LOCKED',
+  'INTRODUCED',
+  'DEVELOPING',
+  'PROFICIENT',
+  'MASTERED',
+];
+
+function optionalString(reader: Reader): string | null {
+  return reader.value === null || reader.value === undefined ? null : reader.string();
+}
+
+function optionalNumber(reader: Reader): number | null {
+  return reader.value === null || reader.value === undefined ? null : reader.number();
+}
+
 /**
  * Reconstructs one `SelectionReason` from its flattened wire shape.
  * `kind` is external data at this boundary (CLAUDE.md section 13): an
- * unrecognized value degrades to `NO_SKILLS_NEEDED` — the one reason with
- * no further fields to get wrong — rather than throwing and losing the
- * whole suggestion list over one malformed reason.
+ * unrecognized value degrades to `NO_SKILLS_NEEDED`, the one reason with
+ * no further fields to get wrong, rather than losing the whole list.
  */
-function toSelectionReason(wire: WireReason): SelectionReason {
-  const kind = SELECTION_REASON_KINDS.includes(wire.kind as SelectionReason['kind'])
-    ? (wire.kind as SelectionReason['kind'])
+function toSelectionReason(reader: Reader): SelectionReason {
+  const rawKind = reader.field('kind').string();
+  const kind = (SELECTION_REASON_KINDS as readonly string[]).includes(rawKind)
+    ? (rawKind as SelectionReason['kind'])
     : 'NO_SKILLS_NEEDED';
   switch (kind) {
-    case 'PRACTISES_SKILL':
+    case 'PRACTISES_SKILL': {
+      const status = optionalString(reader.field('status'));
       return {
         kind,
-        skillId: wire.skillId ?? '',
-        status: (wire.status ?? 'LOCKED') as SkillStatus,
-        weight: wire.weight ?? 0,
+        skillId: optionalString(reader.field('skillId')) ?? '',
+        status: (SKILL_STATUSES as readonly string[]).includes(status ?? '')
+          ? (status as SkillStatus)
+          : 'LOCKED',
+        weight: optionalNumber(reader.field('weight')) ?? 0,
       };
+    }
     case 'CONTINUES_STORY':
-      return { kind, storyId: wire.storyId ?? '' };
+      return { kind, storyId: optionalString(reader.field('storyId')) ?? '' };
     case 'ALREADY_COMPLETED':
     case 'PLAYED_RECENTLY':
-      return { kind, penalty: wire.penalty ?? 0 };
+      return { kind, penalty: optionalNumber(reader.field('penalty')) ?? 0 };
     case 'NO_SKILLS_NEEDED':
       return { kind };
   }
-}
-
-function toSelectionRecord(wire: WireSuggestion): SelectionRecord {
-  return {
-    adventureSlug: wire.adventureSlug,
-    title: wire.title,
-    score: wire.score,
-    reasons: (wire.reasons ?? [])
-      .filter((reason): reason is WireReason => reason !== null && reason !== undefined)
-      .map(toSelectionReason),
-  };
 }
 
 export interface NextLearningActivity {
@@ -82,29 +89,50 @@ export interface NextLearningActivity {
 
 export const NO_SUGGESTION: NextLearningActivity = { ranking: [], hasPersonalizedSignal: false };
 
+/** Reads the route's response; throws `ApiError('invalid_response')` on any other shape. */
+export function parseNextLearningActivity(data: unknown): NextLearningActivity {
+  return read(data, (r) => ({
+    ranking: r.field('suggestions').array((s) => ({
+      adventureSlug: s.field('adventureSlug').string(),
+      title: s.field('title').string(),
+      score: s.field('score').number(),
+      reasons: s.field('reasons').array(toSelectionReason),
+    })),
+    hasPersonalizedSignal: r.field('hasPersonalizedSignal').boolean(),
+  }));
+}
+
+/** One call to the Django route. Throws `ApiError` on any failure. */
+export async function fetchNextLearningActivity(
+  client: ApiClient,
+  childProfileId: string,
+): Promise<NextLearningActivity> {
+  if (!childProfileId) throw new ApiError('invalid_request', { code: 'empty_id' });
+  const response = await client.request(
+    'GET',
+    `children/${encodeURIComponent(childProfileId)}/next-learning-activity/`,
+  );
+  return parseNextLearningActivity(response.data);
+}
+
 /**
  * What this child could do next, ranked. Never throws: a Director failure
  * must degrade to "no suggestion" rather than break a child's screen, since
- * every surface it feeds already works without it — same contract this
- * function had before Phase 41 moved the ranking itself server-side.
+ * every surface it feeds already works without it. A build without the
+ * Django API has no Director and gets no suggestion.
  */
 export async function getNextLearningActivity(
   childProfileId: string,
+  config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): Promise<NextLearningActivity> {
+  if (!config.enabled) return NO_SUGGESTION;
   try {
-    const { data, errors } = await client.queries.getNextLearningActivity({ childProfileId });
-    if (!data) {
-      throw new Error(errors?.[0]?.message ?? 'Could not load a suggestion.');
-    }
-    return {
-      ranking: (data.suggestions ?? [])
-        .filter(
-          (suggestion): suggestion is WireSuggestion =>
-            suggestion !== null && suggestion !== undefined,
-        )
-        .map(toSelectionRecord),
-      hasPersonalizedSignal: data.hasPersonalizedSignal,
-    };
+    const client = createApiClient({
+      baseUrl: config.baseUrl,
+      getAccessToken,
+      provisionAccount: true,
+    });
+    return await fetchNextLearningActivity(client, childProfileId);
   } catch {
     return NO_SUGGESTION;
   }

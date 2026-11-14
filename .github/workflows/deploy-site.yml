@@ -118,7 +118,8 @@ jobs:
           target: dev
           git-sha: ${{ github.sha }}
           role-arn: ${{ vars.LAI_SITE_DEPLOY_ROLE_ARN }}
-          amplify-app-id: ${{ vars.LAI_AMPLIFY_APP_ID }}
+          cognito-user-pool-id: ${{ vars.LAI_COGNITO_USER_POOL_ID }}
+          cognito-client-id: ${{ vars.LAI_COGNITO_CLIENT_ID }}
           bucket: ${{ vars.LAI_SITE_BUCKET }}
           distribution-id: ${{ vars.LAI_SITE_DISTRIBUTION_ID }}
           site-url: ${{ vars.LAI_SITE_URL }}
@@ -153,7 +154,8 @@ jobs:
           target: prod
           git-sha: ${{ github.sha }}
           role-arn: ${{ vars.LAI_SITE_DEPLOY_ROLE_ARN }}
-          amplify-app-id: ${{ vars.LAI_AMPLIFY_APP_ID }}
+          cognito-user-pool-id: ${{ vars.LAI_COGNITO_USER_POOL_ID }}
+          cognito-client-id: ${{ vars.LAI_COGNITO_CLIENT_ID }}
           bucket: ${{ vars.LAI_SITE_BUCKET }}
           distribution-id: ${{ vars.LAI_SITE_DISTRIBUTION_ID }}
           site-url: ${{ vars.LAI_SITE_URL }}

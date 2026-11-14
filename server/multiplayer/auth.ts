@@ -5,12 +5,15 @@ import { parseJoinOptions, toAvatarKey } from '../../react/src/features/multipla
  * Who is asking for a seat, re-derived on the server (docs/DECISIONS.md
  * ADR-026 part C). Nothing the client says about itself is trusted:
  *
- * 1. the Cognito ID token must verify (signature, issuer, audience, expiry);
+ * 1. the Cognito access token must verify (signature, issuer, client id,
+ *    `token_use: access`, expiry);
  * 2. the household key must be the one this server computes from that
  *    token's `sub`, so a client cannot aim at another family's room;
- * 3. the child must belong to that parent: AppSync returns the row only to
- *    its owner, and `ownerSub` must match too (the `claimCoopSlot` /
- *    `submitAdventureAnswer` pattern, ADR-012).
+ * 3. the child must belong to that parent: the Django API returns
+ *    `GET /api/v1/children/<id>/` only to the owning parent (404 for anyone
+ *    else), with the same token, so Django's child scoping is the ownership
+ *    check and the server re-checks only that the returned id is the one
+ *    asked for.
  *
  * Every rejection is the same opaque error to the client. The reason stays
  * on the server, for tests and counters, and never names the child.
@@ -22,18 +25,19 @@ export interface VerifiedIdentity {
   expiresAt: number;
 }
 
+/** The two fields the room server keeps from the parent's own view of the child. */
 export interface ChildProfileRecord {
   id: string;
-  ownerSub: string | null;
-  /** Amplify's owner field, `<sub>::<username>`; the fallback for rows written before `ownerSub`. */
-  owner: string | null;
   avatarKey: string | null;
 }
 
 export interface PlayerAuthDeps {
-  verifyIdToken(token: string): Promise<VerifiedIdentity>;
-  /** The child profile as the token's owner sees it, or null if AppSync says it is not theirs. */
-  fetchOwnChildProfile(idToken: string, childProfileId: string): Promise<ChildProfileRecord | null>;
+  verifyAccessToken(token: string): Promise<VerifiedIdentity>;
+  /** The child profile as the token's owner sees it, or null if Django says it is not theirs. */
+  fetchOwnChildProfile(
+    accessToken: string,
+    childProfileId: string,
+  ): Promise<ChildProfileRecord | null>;
   householdKeyFor(sub: string): Promise<string>;
 }
 
@@ -68,11 +72,6 @@ export type PlayerAuthenticator = (
   rawOptions: unknown,
 ) => Promise<AuthenticatedPlayer>;
 
-function ownedBy(profile: ChildProfileRecord, sub: string): boolean {
-  if (profile.ownerSub) return profile.ownerSub === sub;
-  return profile.owner?.split('::')[0] === sub;
-}
-
 export function createPlayerAuthenticator(deps: PlayerAuthDeps): PlayerAuthenticator {
   return async (token, rawOptions) => {
     const options = parseJoinOptions(rawOptions);
@@ -81,7 +80,7 @@ export function createPlayerAuthenticator(deps: PlayerAuthDeps): PlayerAuthentic
 
     let identity: VerifiedIdentity;
     try {
-      identity = await deps.verifyIdToken(token);
+      identity = await deps.verifyAccessToken(token);
     } catch {
       throw new PlayerAuthRejected('INVALID_TOKEN');
     }
@@ -96,7 +95,7 @@ export function createPlayerAuthenticator(deps: PlayerAuthDeps): PlayerAuthentic
     } catch {
       throw new PlayerAuthRejected('LOOKUP_FAILED');
     }
-    if (!profile || profile.id !== options.childProfileId || !ownedBy(profile, identity.sub)) {
+    if (!profile || profile.id !== options.childProfileId) {
       throw new PlayerAuthRejected('NOT_YOUR_CHILD');
     }
 

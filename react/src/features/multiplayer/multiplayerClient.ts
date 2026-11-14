@@ -29,7 +29,7 @@ export interface MultiplayerSnapshot {
 }
 
 export interface MultiplayerIdentity {
-  idToken: string;
+  accessToken: string;
   sub: string;
 }
 
@@ -78,7 +78,7 @@ export function createMultiplayerClient(deps: MultiplayerClientDeps): Multiplaye
       if (!isCurrent()) return;
       const joined = await deps.transport.join(
         { regionId, childProfileId, householdKey },
-        identity.idToken,
+        identity.accessToken,
         {
           onWelcome: ({ playerId }) => {
             if (isCurrent()) update({ selfPlayerId: playerId });

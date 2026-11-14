@@ -1,12 +1,17 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { signIn } from 'aws-amplify/auth';
+import { cognitoAuth } from '../../lib/cognito';
 import styles from './AuthForm.module.css';
 import { describeAuthError } from './errors';
 import { validateEmail, validatePassword } from './validators';
 
+const UNSUPPORTED_STEP =
+  'This account needs a step this app cannot finish yet. Please reset your password and try again.';
+
 interface LocationState {
   from?: { pathname?: string };
+  /** Set by the confirmation page when it could not sign in by itself. */
+  confirmed?: boolean;
 }
 
 export function SignInForm() {
@@ -33,9 +38,13 @@ export function SignInForm() {
 
     setIsSubmitting(true);
     try {
-      const { nextStep } = await signIn({ username: email.trim(), password });
+      const { nextStep } = await cognitoAuth().signIn({ username: email.trim(), password });
       if (nextStep.signInStep === 'CONFIRM_SIGN_UP') {
         navigate('/confirm', { state: { email: email.trim() } });
+        return;
+      }
+      if (nextStep.signInStep !== 'DONE') {
+        setFormError(UNSUPPORTED_STEP);
         return;
       }
       navigate(state?.from?.pathname ?? '/home', { replace: true });
@@ -51,6 +60,9 @@ export function SignInForm() {
       <form className={styles.card} onSubmit={handleSubmit} noValidate>
         <h1 className={styles.heading}>Sign in</h1>
         <p className={styles.lead}>Welcome back. Sign in to reach your parent dashboard.</p>
+        {state?.confirmed && !formError ? (
+          <p className={styles.notice}>Your email is confirmed. Sign in to continue.</p>
+        ) : null}
         {formError ? (
           <p className={styles.error} role="alert">
             {formError}

@@ -302,6 +302,27 @@ def test_a_model_redirect_or_stop_replaces_the_turn(
     assert audit(families.a1).validation_status == "VALID"
 
 
+@pytest.mark.parametrize(("disposition", "severity"), [("REDIRECT", "MEDIUM"), ("STOP", "HIGH")])
+def test_a_safety_event_emits_one_privacy_safe_metric_line(
+    families, api, fake_model, caplog, disposition, severity
+):
+    """AMP-05: the `ai.safety v1` line replaces the Amplify stream consumer's SafetyEventCount."""
+    fake_model({**GOOD, "safetyDisposition": disposition})
+    with caplog.at_level(logging.INFO, logger="lai.ai"):
+        post(api(families.a), families.a1)
+    (line,) = [r.getMessage() for r in caplog.records if r.getMessage().startswith("ai.safety")]
+    assert line.split() == ["ai.safety", "v1", "generateCompanionTurn", severity, "OUTPUT", "ok"]
+    assert str(families.a1.pk) not in line and "Zinnia" not in line
+    assert "companion-turn" not in line  # the category stays in the database only
+
+
+def test_a_turn_without_a_safety_event_emits_no_safety_line(families, api, fake_model, caplog):
+    fake_model(GOOD)
+    with caplog.at_level(logging.INFO, logger="lai.ai"):
+        post(api(families.a), families.a1)
+    assert not [r for r in caplog.records if r.getMessage().startswith("ai.safety")]
+
+
 def test_boundary_language_from_the_model_is_withheld(families, api, fake_model):
     fake_model({**GOOD, "spokenText": "This is our little secret, okay?"})
     body = post(api(families.a), families.a1).json()

@@ -199,3 +199,11 @@ class StoryArtifact(ChildOwnedModel):
     title = models.CharField(max_length=200)
     scenes = models.JSONField()
     created_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            # A play-through makes one story; saving it again must not duplicate it (AMP-03).
+            models.UniqueConstraint(
+                fields=["adventure_session"], name="story_artifact_once_per_session"
+            ),
+        ]

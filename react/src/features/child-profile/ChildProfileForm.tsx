@@ -12,11 +12,10 @@ import {
 } from './constants';
 import { validateInterests, validateNickname } from './validators';
 import { ChildPhotoField } from './ChildPhotoField';
-import { persistPhotoSelection, type PhotoSelection } from './avatarPhoto';
+import type { PhotoSelection } from './avatarPhoto';
 import {
   applyChildPhotoSelection,
   profilePhotosSupported,
-  profilePhotoWrite,
   updateChildProfile,
   type ChildProfile,
   type ChildProfileInput,
@@ -27,16 +26,14 @@ interface ChildProfileFormProps {
   initialValue?: Partial<ChildProfileInput>;
   submitLabel: string;
   /**
-   * Saves the profile. Return the saved profile: `after-save` stores (Django) need its id to
-   * upload the photo afterwards.
+   * Saves the profile. Return the saved profile: the photo (Django builds) is uploaded to it
+   * afterwards, so its id is needed.
    */
   onSubmit: (input: ChildProfileInput) => Promise<ChildProfile | void>;
   /** Called once the profile and its photo are both saved (for example, to navigate away). */
   onSaved?: () => void;
   /** Offer the photo upload. Defaults to whether this build's profile store keeps photos. */
   photosEnabled?: boolean;
-  /** How photos are written; defaults to this build's store (`ProfileStore.photoWrite`). */
-  photoWrite?: 'before-save' | 'after-save';
 }
 
 interface FieldErrors {
@@ -50,7 +47,6 @@ export function ChildProfileForm({
   onSubmit,
   onSaved,
   photosEnabled = profilePhotosSupported(),
-  photoWrite = profilePhotoWrite(),
 }: ChildProfileFormProps) {
   const [nickname, setNickname] = useState(initialValue?.nickname ?? '');
   const [ageBand, setAgeBand] = useState<AgeBandValue>(initialValue?.ageBand ?? 'SPROUT');
@@ -67,7 +63,7 @@ export function ChildProfileForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   /**
-   * Set when an `after-save` profile was saved but its photo step failed. A second submit then
+   * Set when the profile was saved but its photo step failed. A second submit then
    * updates that profile instead of calling `onSubmit` again, which on the create screen would
    * add a duplicate child.
    */
@@ -102,15 +98,12 @@ export function ChildProfileForm({
       readingMode,
     };
     try {
-      if (photosEnabled && photoWrite === 'after-save') {
+      if (photosEnabled) {
         await saveThenApplyPhoto(input);
       } else {
-        // Uploads the chosen photo (if any) first, saves the profile with the
-        // resulting path, then cleans up a replaced photo - see
-        // `persistPhotoSelection` for why that order matters.
-        await persistPhotoSelection(photoSelection, existingPhotoKey, async (avatarPhotoKey) => {
-          await onSubmit({ ...input, avatarPhotoKey });
-        });
+        // No photo field (a build without the Django API, AMP-04): any existing photo
+        // reference is sent back unchanged.
+        await onSubmit(input);
       }
       onSaved?.();
     } catch (error) {

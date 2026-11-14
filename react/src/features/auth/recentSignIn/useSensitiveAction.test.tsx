@@ -6,7 +6,7 @@ import { ApiError } from '../../../api/errors';
 import { endReauthentication, isReauthenticating, type ReauthDeps } from './recentSignIn';
 import { useSensitiveAction } from './useSensitiveAction';
 
-vi.mock('aws-amplify/auth', () => ({ getCurrentUser: vi.fn(), signIn: vi.fn(), signOut: vi.fn() }));
+vi.mock('../../../lib/cognito', () => ({ cognitoAuth: vi.fn(), isCognitoConfigured: true }));
 
 const stale = () => new ApiError('forbidden', { status: 403, code: 'recent_auth_required' });
 

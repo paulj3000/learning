@@ -1,6 +1,5 @@
 /**
- * Room server configuration, read from the environment with the Amplify
- * sandbox's `amplify_outputs.json` as the source of Cognito and AppSync ids
+ * Room server configuration, read only from the environment
  * (docs/multiplayer/MULTIPLAYER_SERVER.md has the full table).
  */
 
@@ -11,7 +10,8 @@ export interface RoomServerConfig {
   allowedOrigins: readonly string[];
   userPoolId: string;
   userPoolClientId: string;
-  appSyncUrl: string;
+  /** Origin of the Django API, e.g. `https://api.example.org`, without `/api/v1`. */
+  djangoApiBase: string;
 }
 
 export class RoomServerConfigError extends Error {
@@ -23,18 +23,38 @@ export class RoomServerConfigError extends Error {
 
 const DEV_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
-function stringAt(value: unknown, path: readonly string[]): string | undefined {
-  let current: unknown = value;
-  for (const key of path) {
-    if (typeof current !== 'object' || current === null) return undefined;
-    current = (current as Record<string, unknown>)[key];
+const REQUIRED = ['MP_USER_POOL_ID', 'MP_USER_POOL_CLIENT_ID', 'MP_DJANGO_API_BASE'] as const;
+
+function nonEmpty(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function readDjangoApiBase(raw: string, production: boolean): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new RoomServerConfigError(`MP_DJANGO_API_BASE is not a URL: ${raw}`);
   }
-  return typeof current === 'string' && current.length > 0 ? current : undefined;
+  const allowed = production ? ['https:'] : ['https:', 'http:'];
+  if (!allowed.includes(url.protocol)) {
+    throw new RoomServerConfigError(
+      production
+        ? 'MP_DJANGO_API_BASE must be https:// in production.'
+        : 'MP_DJANGO_API_BASE must be http:// or https://.',
+    );
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new RoomServerConfigError(
+      'MP_DJANGO_API_BASE must be a plain origin (and optional path), without credentials, query or fragment.',
+    );
+  }
+  return url.toString().replace(/\/+$/, '');
 }
 
 export function readRoomServerConfig(
   env: Readonly<Record<string, string | undefined>>,
-  amplifyOutputs: unknown,
 ): RoomServerConfig {
   const production = env.NODE_ENV === 'production';
 
@@ -61,16 +81,16 @@ export function readRoomServerConfig(
     );
   }
 
-  const userPoolId = env.MP_USER_POOL_ID ?? stringAt(amplifyOutputs, ['auth', 'user_pool_id']);
-  const userPoolClientId =
-    env.MP_USER_POOL_CLIENT_ID ?? stringAt(amplifyOutputs, ['auth', 'user_pool_client_id']);
-  const appSyncUrl = env.MP_APPSYNC_URL ?? stringAt(amplifyOutputs, ['data', 'url']);
-  if (!userPoolId || !userPoolClientId || !appSyncUrl) {
+  const userPoolId = nonEmpty(env.MP_USER_POOL_ID);
+  const userPoolClientId = nonEmpty(env.MP_USER_POOL_CLIENT_ID);
+  const apiBase = nonEmpty(env.MP_DJANGO_API_BASE);
+  if (!userPoolId || !userPoolClientId || !apiBase) {
+    const missing = REQUIRED.filter((name) => !nonEmpty(env[name]));
     throw new RoomServerConfigError(
-      'Cognito and AppSync ids are missing: set MP_USER_POOL_ID, MP_USER_POOL_CLIENT_ID and ' +
-        'MP_APPSYNC_URL, or run from a checkout with amplify_outputs.json.',
+      `Missing required environment variables: ${missing.join(', ')}.`,
     );
   }
+  const djangoApiBase = readDjangoApiBase(apiBase, production);
 
-  return { port, production, allowedOrigins, userPoolId, userPoolClientId, appSyncUrl };
+  return { port, production, allowedOrigins, userPoolId, userPoolClientId, djangoApiBase };
 }

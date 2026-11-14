@@ -110,7 +110,7 @@ export function CastleSecretDoorStory({
         childProfileId={childId}
         ageBand={ageBand}
         aiEnabled={aiEnabled}
-        storyProgressId={progress.id}
+        storyId={progress.storyId}
         chapter={chapter}
         flags={flags}
         backToStoryHref={backToMapHref}

@@ -2,14 +2,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { signUp } from 'aws-amplify/auth';
 import { SignUpForm } from './SignUpForm';
 
-vi.mock('aws-amplify/auth', () => ({
-  signUp: vi.fn(),
+const signUpMock = vi.hoisted(() => vi.fn());
+vi.mock('../../lib/cognito', () => ({
+  cognitoAuth: () => ({ signUp: signUpMock }),
+  isCognitoConfigured: true,
 }));
-
-const signUpMock = vi.mocked(signUp);
 
 describe('SignUpForm', () => {
   beforeEach(() => {

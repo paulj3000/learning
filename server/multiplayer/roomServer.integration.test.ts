@@ -17,7 +17,7 @@ import { createRoomServer } from './roomServer';
 
 /**
  * Roadmap Phase 1 acceptance, against a real Colyseus server and the real
- * SDK over real WebSockets. Only Cognito and AppSync are faked, behind the
+ * SDK over real WebSockets. Only Cognito and the Django child lookup are faked, behind the
  * same `PlayerAuthDeps` seam the production server fills in.
  */
 
@@ -29,11 +29,11 @@ const TOKENS: Record<string, { sub: string; expiresAt: number }> = {
   'parent-b': { sub: 'sub-b', expiresAt: Date.now() + 3_600_000 },
   'parent-a-expiring': { sub: 'sub-a', expiresAt: Date.now() + 1500 },
 };
-/** Child -> owner, standing in for AppSync's owner rule. */
-const CHILDREN: Record<string, ChildProfileRecord> = {
-  'child-a1': { id: 'child-a1', ownerSub: 'sub-a', owner: null, avatarKey: 'FOX' },
-  'child-a2': { id: 'child-a2', ownerSub: 'sub-a', owner: null, avatarKey: 'OWL' },
-  'child-b1': { id: 'child-b1', ownerSub: 'sub-b', owner: null, avatarKey: 'ROBOT' },
+/** Child -> owning parent's sub, standing in for Django's child scoping (404 for anyone else). */
+const CHILDREN: Record<string, { ownerSub: string; profile: ChildProfileRecord }> = {
+  'child-a1': { ownerSub: 'sub-a', profile: { id: 'child-a1', avatarKey: 'FOX' } },
+  'child-a2': { ownerSub: 'sub-a', profile: { id: 'child-a2', avatarKey: 'OWL' } },
+  'child-b1': { ownerSub: 'sub-b', profile: { id: 'child-b1', avatarKey: 'ROBOT' } },
 };
 
 let server: Server;
@@ -58,14 +58,14 @@ beforeAll(async () => {
     reconnectGraceSeconds: 5,
     tokenSweepMs: 250,
     authenticate: createPlayerAuthenticator({
-      verifyIdToken: async (token) => {
+      verifyAccessToken: async (token) => {
         const identity = TOKENS[token];
         if (!identity) throw new Error('invalid');
         return identity;
       },
       fetchOwnChildProfile: async (token, id) => {
         const child = CHILDREN[id];
-        return child && child.ownerSub === TOKENS[token]?.sub ? child : null;
+        return child && child.ownerSub === TOKENS[token]?.sub ? child.profile : null;
       },
       householdKeyFor,
     }),

@@ -1,28 +1,23 @@
-import { getUrl, remove, uploadData } from 'aws-amplify/storage';
-import {
-  PHOTO_PREPARE_MESSAGE,
-  PHOTO_REMOVE_MESSAGE,
-  PHOTO_SIZE_MESSAGE,
-  PHOTO_TYPE_MESSAGE,
-  PHOTO_UPLOAD_MESSAGE,
-} from './photoMessages';
+import { PHOTO_PREPARE_MESSAGE, PHOTO_SIZE_MESSAGE, PHOTO_TYPE_MESSAGE } from './photoMessages';
 import type { PhotoSelection } from './profileTypes';
 
 export type { PhotoSelection };
 
 /**
- * The optional photo a parent may upload as a child's profile icon.
+ * The optional photo a parent may upload as a child's profile icon: choosing, checking and
+ * preparing it in the browser. Storing it is Django's job (`djangoPhotos.ts`,
+ * `children/<id>/photo/`; ADR-042, AMP-04). Nothing here talks to a backend, and the Amplify
+ * Storage path (identity-scoped `child-photos/<identity id>/` objects) is gone: existing objects
+ * are copied into the Django photo bucket by `manage.py migrate_amplify_child_photos`
+ * (docs/platform/AMPLIFY_STORAGE_CUTOVER.md).
  *
- * Everything here is parent-initiated and parent-only: the field lives on
- * the parent-managed profile form, the bytes land in an identity-scoped
- * prefix of the Storage bucket (amplify/storage/resource.ts), and the key
- * is never part of any AI prompt context (CLAUDE.md section 7).
+ * Everything here is parent-initiated and parent-only: the field lives on the parent-managed
+ * profile form, and the photo is never part of any AI prompt context (CLAUDE.md section 7).
  *
- * The browser re-encodes the picture before upload rather than sending the
- * camera file as-is. That is not only a size optimization: drawing through
- * a canvas discards every EXIF tag the original carried, including GPS
- * coordinates, so a photo taken at home does not ship the family's
- * location to S3 with it.
+ * The browser re-encodes the picture before upload rather than sending the camera file as-is.
+ * That is not only a size optimization: drawing through a canvas discards every EXIF tag the
+ * original carried, including GPS coordinates, so a photo taken at home does not ship the
+ * family's location with it. Django strips metadata again on the server (`photo_validation.py`).
  */
 
 /** Formats a browser can reliably decode; HEIC and friends are rejected up front. */
@@ -36,9 +31,6 @@ export const ICON_PIXEL_SIZE = 256;
 
 const ICON_MIME_TYPE = 'image/jpeg';
 const ICON_QUALITY = 0.85;
-
-/** Objects live under `child-photos/<identity id>/`, matching the access rule in amplify/storage/resource.ts. */
-const CHILD_PHOTO_PREFIX = 'child-photos';
 
 export { PHOTO_SIZE_MESSAGE, PHOTO_TYPE_MESSAGE };
 
@@ -115,92 +107,5 @@ export async function prepareIconBlob(file: Blob): Promise<Blob> {
     return icon;
   } finally {
     bitmap.close();
-  }
-}
-
-/**
- * Uploads one prepared icon and returns the stored path.
- *
- * The file name is a fresh UUID on every upload rather than the child's id:
- * replacing a photo writes a new object and deletes the old one, which
- * keeps a stale browser or CDN copy from being shown after a parent has
- * changed or removed the picture.
- */
-export async function uploadChildPhoto(icon: Blob): Promise<string> {
-  const fileName = `${crypto.randomUUID()}.jpg`;
-  try {
-    const { path } = await uploadData({
-      path: ({ identityId }) => {
-        if (!identityId) {
-          throw new Error(PHOTO_UPLOAD_MESSAGE);
-        }
-        return `${CHILD_PHOTO_PREFIX}/${identityId}/${fileName}`;
-      },
-      data: icon,
-      options: { contentType: ICON_MIME_TYPE },
-    }).result;
-    return path;
-  } catch {
-    // Deliberately not re-thrown or logged as-is: the underlying error can
-    // carry the bucket path, which contains the parent's identity id.
-    throw new Error(PHOTO_UPLOAD_MESSAGE);
-  }
-}
-
-/** Deletes one stored photo. S3 deletes are idempotent, so a missing object is not an error. */
-export async function removeChildPhoto(path: string): Promise<void> {
-  try {
-    await remove({ path });
-  } catch {
-    throw new Error(PHOTO_REMOVE_MESSAGE);
-  }
-}
-
-/**
- * A short-lived signed URL for one stored photo, or null if it cannot be
- * resolved (no Storage backend deployed yet, object already deleted,
- * expired credentials). Never throws: a missing icon must degrade to the
- * authored avatar character, not break the screen it appears on.
- */
-export async function getChildPhotoUrl(path: string): Promise<string | null> {
-  try {
-    const { url } = await getUrl({ path });
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Applies a photo selection around saving the profile, in the one order
- * that cannot strand a profile pointing at an object that no longer
- * exists: upload the new icon first, save the profile (which is what makes
- * the new path authoritative), and only then clean up the object the
- * profile no longer references.
- *
- * The cleanup is best effort by design. If it fails, the parent sees the
- * photo they asked for and the bucket holds one orphaned 256px object;
- * failing the whole save instead would be a worse trade for them.
- */
-export async function persistPhotoSelection(
-  selection: PhotoSelection,
-  existingKey: string | null,
-  saveProfile: (avatarPhotoKey: string | null) => Promise<void>,
-): Promise<void> {
-  const nextKey =
-    selection.kind === 'replace'
-      ? await uploadChildPhoto(selection.icon)
-      : selection.kind === 'remove'
-        ? null
-        : existingKey;
-
-  await saveProfile(nextKey);
-
-  if (existingKey && existingKey !== nextKey) {
-    try {
-      await removeChildPhoto(existingKey);
-    } catch {
-      // Orphaned object, not a broken profile - see the note above.
-    }
   }
 }

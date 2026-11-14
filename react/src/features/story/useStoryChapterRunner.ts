@@ -41,7 +41,7 @@ export function useStoryChapterRunner(
   childProfileId: string,
   ageBand: AgeBandValue,
   aiEnabled: boolean,
-  storyProgressId: string,
+  storyId: string,
   chapter: StoryChapter,
   flags: Record<string, string>,
   onFlag: (flagKey: string, flagValue: string) => Promise<void>,
@@ -134,12 +134,12 @@ export function useStoryChapterRunner(
   const continueReflection = useCallback(async () => {
     if (scene?.kind !== 'REFLECTION') return;
     try {
-      await recordStoryReflectionEvidence(childProfileId, storyProgressId, scene.objectiveIds);
+      await recordStoryReflectionEvidence(childProfileId, storyId, scene.id);
       setSceneIndex((index) => index + 1);
     } catch {
       setError('Something went wrong saving your progress.');
     }
-  }, [scene, childProfileId, storyProgressId]);
+  }, [scene, childProfileId, storyId]);
 
   const handleAdventureComplete = useCallback(() => setAdventureJustCompleted(true), []);
   const continueAfterAdventure = useCallback(() => setSceneIndex((index) => index + 1), []);

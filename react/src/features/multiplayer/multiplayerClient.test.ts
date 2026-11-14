@@ -8,7 +8,7 @@ import {
 
 interface FakeJoin {
   options: IslandJoinOptions;
-  idToken: string;
+  accessToken: string;
   handlers: TransportRoomHandlers;
   left: boolean;
 }
@@ -16,9 +16,9 @@ interface FakeJoin {
 function fakeTransport(failWith?: MultiplayerJoinError) {
   const joins: FakeJoin[] = [];
   const transport: MultiplayerTransport = {
-    async join(options, idToken, handlers) {
+    async join(options, accessToken, handlers) {
       if (failWith) throw failWith;
-      const join: FakeJoin = { options, idToken, handlers, left: false };
+      const join: FakeJoin = { options, accessToken, handlers, left: false };
       joins.push(join);
       return {
         async leave() {
@@ -31,7 +31,7 @@ function fakeTransport(failWith?: MultiplayerJoinError) {
 }
 
 let tokenNumber = 0;
-const getIdentity = async () => ({ idToken: `token-${++tokenNumber}`, sub: 'parent-sub' });
+const getIdentity = async () => ({ accessToken: `token-${++tokenNumber}`, sub: 'parent-sub' });
 
 async function joined(transport: MultiplayerTransport): Promise<MultiplayerClient> {
   const client = createMultiplayerClient({ transport, getIdentity });
@@ -113,7 +113,7 @@ describe('createMultiplayerClient', () => {
     const client = await joined(transport);
     joins[0].handlers.onClosed(ROOM_CLOSE_CODES.SESSION_EXPIRED);
     await vi.waitFor(() => expect(joins).toHaveLength(2));
-    expect(joins[1].idToken).not.toBe(joins[0].idToken);
+    expect(joins[1].accessToken).not.toBe(joins[0].accessToken);
     await vi.waitFor(() => expect(client.getSnapshot().status).toBe('CONNECTED'));
 
     joins[1].handlers.onClosed(ROOM_CLOSE_CODES.SESSION_EXPIRED);

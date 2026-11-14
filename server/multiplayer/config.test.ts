@@ -2,65 +2,93 @@
 import { readRoomServerConfig, RoomServerConfigError } from './config';
 import { isAllowedOrigin } from './origin';
 
-const OUTPUTS = {
-  auth: { user_pool_id: 'us-west-1_pool', user_pool_client_id: 'client' },
-  data: { url: 'https://example.appsync-api.us-west-1.amazonaws.com/graphql' },
+const REQUIRED = {
+  MP_USER_POOL_ID: 'us-west-1_pool',
+  MP_USER_POOL_CLIENT_ID: 'client',
+  MP_DJANGO_API_BASE: 'http://localhost:8000',
 };
 
 describe('readRoomServerConfig', () => {
-  it('reads ids from amplify_outputs.json with development defaults', () => {
-    expect(readRoomServerConfig({}, OUTPUTS)).toEqual({
+  it('reads the required ids from the environment with development defaults', () => {
+    expect(readRoomServerConfig(REQUIRED)).toEqual({
       port: 2567,
       production: false,
       allowedOrigins: ['http://localhost:5173', 'http://127.0.0.1:5173'],
       userPoolId: 'us-west-1_pool',
       userPoolClientId: 'client',
-      appSyncUrl: OUTPUTS.data.url,
+      djangoApiBase: 'http://localhost:8000',
     });
   });
 
-  it('lets the environment override everything', () => {
-    const config = readRoomServerConfig(
-      {
-        MP_PORT: '9000',
-        MP_ALLOWED_ORIGINS: 'https://a.example, https://b.example',
-        MP_USER_POOL_ID: 'p',
-        MP_USER_POOL_CLIENT_ID: 'c',
-        MP_APPSYNC_URL: 'https://x/graphql',
-      },
-      null,
-    );
+  it('reads every optional setting', () => {
+    const config = readRoomServerConfig({
+      ...REQUIRED,
+      MP_PORT: '9000',
+      MP_ALLOWED_ORIGINS: 'https://a.example, https://b.example',
+      MP_DJANGO_API_BASE: 'https://api.example.org/',
+    });
     expect(config).toMatchObject({
       port: 9000,
       allowedOrigins: ['https://a.example', 'https://b.example'],
-      userPoolId: 'p',
+      userPoolId: 'us-west-1_pool',
+      djangoApiBase: 'https://api.example.org',
     });
   });
 
-  it('requires explicit https origins in production', () => {
-    expect(() => readRoomServerConfig({ NODE_ENV: 'production' }, OUTPUTS)).toThrow(
-      RoomServerConfigError,
+  it('names every missing variable, and never falls back to a file', () => {
+    expect(() => readRoomServerConfig({})).toThrow(RoomServerConfigError);
+    expect(() => readRoomServerConfig({})).toThrow(
+      'Missing required environment variables: MP_USER_POOL_ID, MP_USER_POOL_CLIENT_ID, MP_DJANGO_API_BASE.',
     );
+    expect(() => readRoomServerConfig({ ...REQUIRED, MP_DJANGO_API_BASE: '  ' })).toThrow(
+      /: MP_DJANGO_API_BASE\.$/,
+    );
+  });
+
+  it('requires an https Django API in production, and allows http in development', () => {
+    const production = {
+      ...REQUIRED,
+      NODE_ENV: 'production',
+      MP_ALLOWED_ORIGINS: 'https://a.example',
+    };
+    expect(() => readRoomServerConfig(production)).toThrow(/MP_DJANGO_API_BASE must be https/);
+    expect(
+      readRoomServerConfig({ ...production, MP_DJANGO_API_BASE: 'https://api.example.org' })
+        .djangoApiBase,
+    ).toBe('https://api.example.org');
+    expect(readRoomServerConfig(REQUIRED).djangoApiBase).toBe('http://localhost:8000');
+  });
+
+  it('rejects a Django API base that is not a plain http(s) URL', () => {
+    for (const bad of [
+      'api.example.org',
+      'ftp://api.example.org',
+      'https://u:p@api.example.org',
+      'https://api.example.org/?x=1',
+    ]) {
+      expect(() => readRoomServerConfig({ ...REQUIRED, MP_DJANGO_API_BASE: bad })).toThrow(
+        /MP_DJANGO_API_BASE/,
+      );
+    }
+  });
+
+  it('requires explicit https origins in production', () => {
+    const production = {
+      ...REQUIRED,
+      NODE_ENV: 'production',
+      MP_DJANGO_API_BASE: 'https://api.example.org',
+    };
+    expect(() => readRoomServerConfig(production)).toThrow(RoomServerConfigError);
     expect(() =>
-      readRoomServerConfig(
-        { NODE_ENV: 'production', MP_ALLOWED_ORIGINS: 'http://a.example' },
-        OUTPUTS,
-      ),
+      readRoomServerConfig({ ...production, MP_ALLOWED_ORIGINS: 'http://a.example' }),
     ).toThrow(/https/);
     expect(
-      readRoomServerConfig(
-        { NODE_ENV: 'production', MP_ALLOWED_ORIGINS: 'https://a.example' },
-        OUTPUTS,
-      ).production,
+      readRoomServerConfig({ ...production, MP_ALLOWED_ORIGINS: 'https://a.example' }).production,
     ).toBe(true);
   });
 
-  it('fails clearly without Cognito or AppSync ids', () => {
-    expect(() => readRoomServerConfig({}, null)).toThrow(/amplify_outputs/);
-  });
-
   it('rejects a bad port', () => {
-    expect(() => readRoomServerConfig({ MP_PORT: 'eighty' }, OUTPUTS)).toThrow(/MP_PORT/);
+    expect(() => readRoomServerConfig({ ...REQUIRED, MP_PORT: 'eighty' })).toThrow(/MP_PORT/);
   });
 });
 

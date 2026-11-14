@@ -123,7 +123,7 @@ def test_me_rejects_other_methods(key):
     token = key.sign(access_claims())
     call(token, method="post")  # provision first: permissions are checked before the method
     assert call(token, method="put").status_code == 405
-    assert call(token, method="delete").status_code == 405
+    # DELETE is account deletion (AMP-03), tested in test_account_deletion.py.
 
 
 # --- missing and invalid credentials -------------------------------------------------
@@ -291,9 +291,10 @@ def test_default_permission_denies_unauthenticated_and_names_the_scheme(settings
 
 
 def test_no_sensitive_endpoints_exist_yet():
-    """The users routes are onboarding and child profile settings. Child deletion is the one
-    sensitive action and requires a recent sign-in (LAI-0209, apps/users/tests/test_recent_auth.py).
-    The profile photo (LAI-0904) is a profile setting: removing it reduces the data held."""
+    """The users routes are onboarding and child profile settings. Child deletion and account
+    deletion (`DELETE me/`, AMP-03) are the sensitive actions and require a recent sign-in
+    (LAI-0209, apps/users/tests/test_recent_auth.py and test_account_deletion.py). The profile
+    photo (LAI-0904) and the companion choice (AMP-03) are profile settings."""
     from config import urls
 
     assert sorted(str(p.pattern) for p in urls.urlpatterns[0].url_patterns) == [
@@ -303,6 +304,7 @@ def test_no_sensitive_endpoints_exist_yet():
     assert sorted(str(p.pattern) for p in urls.urlpatterns[1].url_patterns) == [
         "children/",
         "children/<uuid:child_id>/",
+        "children/<uuid:child_id>/companion/",
         "children/<uuid:child_id>/photo/",
         "children/<uuid:child_id>/photo/content/",
         "me/",

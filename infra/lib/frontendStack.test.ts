@@ -165,10 +165,9 @@ describe('FrontendStack', () => {
     expect(actions).toContain('s3:PutObject');
     expect(actions).toContain('cloudfront:CreateInvalidation');
     expect(actions.filter((action) => /Delete|\*/.test(action))).toEqual([]);
-    const amplify = JSON.stringify(statements.filter((s) => s.Sid.startsWith('ReadAmplify')));
-    expect(amplify).toContain('AmplifyAppId');
-    expect(amplify).toContain('-main-');
-    expect(amplify).toContain('us-west-1');
+    // AMP-06: the build no longer reads the Amplify backend, so the role has no Amplify access.
+    expect(actions.filter((action) => action.startsWith('amplify:'))).toEqual([]);
+    expect(JSON.stringify(statements)).not.toMatch(/amplify/i);
   });
 
   it('creates no Lambda or file asset', () => {

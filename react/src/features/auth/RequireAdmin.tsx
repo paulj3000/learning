@@ -14,7 +14,7 @@ import styles from './AuthForm.module.css';
  * (docs/ISLAND_ADVENTURE_MANAGEMENT.md section 6). Nothing admin is rendered
  * while auth is still loading. There is no self-serve way to become an admin
  * (CLAUDE.md section 10); group membership is granted out-of-band (see the
- * comment in amplify/auth/resource.ts). This is only the UI gate: every
+ * Cognito pool's `Admins` group, scripts/grant-admin.ts). This is only the UI gate: every
  * admin read and write is also refused by the backend's group rules.
  */
 export function RequireAdmin({ children }: { children: ReactNode }) {
