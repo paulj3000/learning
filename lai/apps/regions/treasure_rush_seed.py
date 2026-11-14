@@ -56,6 +56,7 @@ from .pips_treasure_seed import (
     upgrade_pips_treasure,
 )
 from .seeding import record_seed_revision
+from .pirates_leap_seed import seed_pirates_leap
 from .treasure_cove_layout import BOUNDS, LAYOUT_VERSION, cove_layout
 
 REGION_ID = "treasure-rush-cove"
@@ -261,6 +262,8 @@ def seed_treasure_rush() -> list[str]:
         created.append(f"WorldRegion {region} adventure v{ADVENTURE_VERSION}")
     if not region.offered_quests.exists():
         region.offered_quests.add(quest)
+    # LAI-JMP-03: Pirate's Leap, in its own versioned scene block (never the cove layout).
+    created.extend(seed_pirates_leap(region, get_or_create))
     # ADR-047: seed-authored content rows get their first published version.
     for row in [region, *specs.values()]:
         record_seed_revision(row)

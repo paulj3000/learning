@@ -124,10 +124,10 @@ describe('preservation of the existing content', () => {
       learningObjectives: 19,
       wonderWallQuestions: 4,
       stories: 5,
-      quests: 12, // 9 + the three Great Storybook quests (SC-R04)
-      items: 33, // + the Great Storybook seal
+      quests: 13, // 9 + the three Great Storybook quests (SC-R04) + Pirate's Leap (LAI-JMP-03)
+      items: 37, // + the Great Storybook seal + Pirate's Leap's four keepsakes
       collectibleSets: 2,
-      rewardRules: 26, // + one seal rule per band's Great Storybook quest
+      rewardRules: 30, // + one seal rule per band's Great Storybook quest + Pirate's Leap's four
       npcs: 7,
       discoveries: 6,
       checkpoints: 30,

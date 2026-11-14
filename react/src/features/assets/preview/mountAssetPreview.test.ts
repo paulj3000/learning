@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { mountAssetPreview } from './mountAssetPreview';
+import { mountAssetPreview, previewCollision } from './mountAssetPreview';
 import { PreviewError } from './previewModelSource';
 import type { ModelPreviewViewer } from './modelPreviewViewer';
 import { fakeResponse, glbFile, gltfFile } from './previewFixtures';
@@ -24,6 +24,8 @@ function page(overrides: Record<string, string | null> = {}): HTMLElement {
     <button type="button" data-preview-action="fit" disabled>Fit model</button>
     <button type="button" data-preview-action="zoom-in" disabled>+</button>
     <button type="button" data-preview-action="zoom-out" disabled>-</button>
+    <button type="button" data-preview-action="collision" disabled aria-pressed="false">Show collision</button>
+    <p data-preview-collision-status>Collision: placeholder <a href="#">Collision profiles</a></p>
     <div data-preview-stage></div>
     <p data-preview-status role="status">Loading the model...</p>`;
   document.body.appendChild(root);
@@ -38,6 +40,8 @@ function fakeViewer(): FakeViewer {
     resetCamera: vi.fn(),
     fitModel: vi.fn(),
     zoom: vi.fn(),
+    setCollision: vi.fn(),
+    showCollision: vi.fn(() => true),
     dispose: vi.fn(),
   };
 }
@@ -215,5 +219,52 @@ describe('mountAssetPreview', () => {
     release();
     await mounted.loaded;
     expect(createViewer).not.toHaveBeenCalled();
+  });
+});
+
+describe('the collision preview (Asset Manager collision profiles)', () => {
+  const crate = JSON.stringify({
+    behavior: 'JUMPABLE',
+    shape: 'BOX',
+    boxes: [{ minX: -0.4, minY: 0, minZ: -0.4, maxX: 0.4, maxY: 0.8, maxZ: 0.4 }],
+  });
+
+  it('draws the profile the game will use and toggles it from the toolbar', async () => {
+    const root = page({ 'data-collision': crate, 'data-asset-id': 'crate' });
+    const viewer = fakeViewer();
+    const mounted = mountAssetPreview(root, {
+      fetchImpl: vi.fn(async () => fakeResponse(200, glbFile())),
+      createViewer: () => viewer,
+    });
+    expect(await mounted.loaded).toBe('ready');
+    expect(viewer.setCollision).toHaveBeenCalledWith(
+      [{ minX: -0.4, minY: 0, minZ: -0.4, maxX: 0.4, maxY: 0.8, maxZ: 0.4 }],
+      'jumpable',
+    );
+    const status = root.querySelector('[data-preview-collision-status]')!;
+    expect(status.textContent).toContain('Collision profile: jumpable, box as 1 box(es).');
+    expect(status.querySelector('a')).not.toBeNull();
+    const toggle = button(root, 'collision');
+    toggle.click();
+    expect(viewer.showCollision).toHaveBeenLastCalledWith(true);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(toggle.textContent).toBe('Hide collision');
+    toggle.click();
+    expect(viewer.showCollision).toHaveBeenLastCalledWith(false);
+  });
+
+  it('shows the built-in default when the asset has no profile', () => {
+    const result = previewCollision('null', 'barrel');
+    expect(result.summary).toBe('No collision profile: the built-in default box is shown.');
+    expect(result.kind).toBe('jumpable');
+    expect(result.boxes[0]!.maxY).toBeCloseTo(0.9);
+    expect(previewCollision('null', 'foliage-tree').kind).toBe('solid');
+  });
+
+  it('says when a piece never blocks, and survives a malformed attribute', () => {
+    const walkable = JSON.stringify({ behavior: 'WALKABLE', shape: 'BOX', boxes: [] });
+    expect(previewCollision(walkable, 'path').summary).toBe('Collision profile: walkable, never blocks.');
+    expect(previewCollision('{not json', 'path').summary).toContain('never blocks');
+    expect(previewCollision(undefined, undefined).boxes).toEqual([]);
   });
 });

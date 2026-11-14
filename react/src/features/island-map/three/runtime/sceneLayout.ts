@@ -1,4 +1,8 @@
 import type { InstancePlacement } from '../assets/assetLoader';
+import { ASSET_MANIFEST } from '../assets/manifest';
+import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
+import type { CollisionProfiles } from './collisionProfile';
+import { buildingEntrances, derivedColliders } from './derivedColliders';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { runPlacements, WALL_HEIGHT } from '../sceneKit';
 import type {
@@ -391,20 +395,28 @@ export function walkableProbe(
 
 /** A solid box, with the manifest collider id it came from when it has one. */
 export interface SolidCollider {
-  /** The authored `ColliderSpec.rect.id`; absent for boundary and building walls. */
+  /** The authored `ColliderSpec.rect.id`, or `derived:<piece id>`; absent for boundary and building walls. */
   id?: string;
   box: BoxBounds;
+  /** LAI-JMP-01: the child may jump onto or over it (authored `ColliderSpec.jumpable`, or a low derived piece). */
+  jumpable?: boolean;
 }
+
+const ASSET_KINDS = new Map(ASSET_MANIFEST.map((entry) => [entry.id, entry.kind] as const));
 
 /**
  * Every solid box the player cannot walk through: boundary, authored
- * colliders whose requirements hold in `context`, and building walls.
+ * colliders whose requirements hold in `context`, building walls, and a box
+ * for each drawn piece with a solid footprint that no authored collider
+ * already covers (`derivedColliders.ts`).
  */
 export function solidColliders(
   manifest: ThreeLocationManifest,
   context: WorldInteractionContext = NO_WORLD_STATE,
+  /** Staff-configured collision profiles by asset id (Asset Manager); absent: built-in defaults. */
+  profiles?: CollisionProfiles,
 ): SolidCollider[] {
-  return [
+  const authored: SolidCollider[] = [
     ...boundaryWallRects(manifest.bounds).map((rect) => ({
       box: rectToBox(rect, RECT_MIN_Y, WALL_HEIGHT),
     })),
@@ -413,9 +425,28 @@ export function solidColliders(
       .map((collider) => ({
         id: collider.rect.id,
         box: rectToBox(collider.rect, collider.minY ?? RECT_MIN_Y, collider.maxY ?? WALL_HEIGHT),
+        // A gated collider is a progression gate: never jumpable, whatever was authored.
+        ...(collider.jumpable === true && !collider.requirements?.length ? { jumpable: true } : {}),
       })),
     ...manifest.buildings.flatMap(buildingWallColliders).map((box) => ({ box })),
   ];
+  // Gated colliders count as covering, whatever their state, so a gate's own piece never
+  // gets a second, ungated box that would outlive the gate opening.
+  const covering = manifest.colliders.map((collider) =>
+    rectToBox(collider.rect, RECT_MIN_Y, WALL_HEIGHT),
+  );
+  const derived = derivedColliders(manifest, context, {
+    assetKinds: ASSET_KINDS,
+    authored: covering,
+    keepClear: [
+      ...ALL_CHECKPOINTS.filter((checkpoint) => checkpoint.regionId === manifest.regionId),
+      ...buildingEntrances(manifest),
+      // Course checkpoints too (LAI-JMP-02): a derived box never walls one in.
+      ...(manifest.platforming?.checkpoints ?? []),
+    ],
+    ...(profiles ? { profiles } : {}),
+  });
+  return [...authored, ...derived];
 }
 
 /**

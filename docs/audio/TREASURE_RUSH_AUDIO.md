@@ -46,6 +46,8 @@ returning true, `lastPickup.pickedUp`, `justCompleted`).
 | `replayWin` | A right answer on the spyglass practice | `sfx.learning.correct` |
 | `keyPickup` | `pickedUp` with new items | `sfx.key.discover` |
 | `bridgeOpen` | The scene opened the gate for the first time this visit | `sfx.world.bridge_open` |
+| (engine) `PlayerJumped` | The child jumps (LAI-JMP-01) | `sfx.player.jump` (optional) |
+| (engine) `PlayerLanded` | The child lands at 3 m/s or more | `sfx.player.land` (optional) |
 
 Not implemented because no mechanic exists: `sfx.coin.collect`, `sfx.gem.collect`,
 `sfx.item.pickup`. They are listed as optional cues. "Objective completed" has no event separate
@@ -196,6 +198,7 @@ All cues are required for a full pass, except the optional ones.
 | 15 | `sfx.quest.complete` | `sfx-quest-complete` | sfx / sound | no | Quest finished |
 | 16 | `ambient.treasure_rush.wind` | `ambient-treasure-rush-wind` | ambient / sound | yes | Lookout Point (SM-P7) |
 | opt | `sfx.coin.collect`, `sfx.gem.collect`, `sfx.item.pickup` | `sfx-coin-collect`, `sfx-gem-collect`, `sfx-item-pickup` | sfx / sound | no | No mechanic yet; unwired |
+| opt | `sfx.player.jump`, `sfx.player.land` | `sfx-player-jump`, `sfx-player-land` | sfx / sound | no | Player jumps / lands firmly (LAI-JMP-01); optional, jumping is silent without them |
 
 Status today: cues already available **none verified**; cues configured but missing audio **all
 16**; cues needing publication **all 16**; optional **3**. Run the seed with `--dry-run` for the

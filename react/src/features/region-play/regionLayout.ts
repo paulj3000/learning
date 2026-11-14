@@ -17,6 +17,7 @@ import {
   type ProceduralShape,
   type RegionPlayAmbienceConfig,
   type RegionPlayProceduralConfig,
+  type RegionPlayPropConfig,
   type RegionPlayUnlockConfig,
 } from './regionPlayConfig';
 
@@ -46,6 +47,11 @@ export interface RegionLayout {
   ambient: AmbientSpec[];
   lights: LightSpec[];
   procedural: RegionPlayProceduralConfig[];
+  /** TR-ENV-06: barrels and logs drawn from the asset library, and what each model replaces. */
+  props: RegionPlayPropConfig[];
+  propReplaces: { [assetId: string]: string[] };
+  /** ENV-2: bushes, flowers and grass from the asset library; walk-through, so no colliders. */
+  vegetation: RegionPlayPropConfig[];
   /** What a world change opens, without whether the child has it yet (the builder adds that). */
   unlock?: Omit<RegionPlayUnlockConfig, 'unlocked'>;
   ambience?: RegionPlayAmbienceConfig;
@@ -58,6 +64,9 @@ export const EMPTY_LAYOUT: RegionLayout = {
   ambient: [],
   lights: [],
   procedural: [],
+  props: [],
+  propReplaces: {},
+  vegetation: [],
 };
 
 export class RegionLayoutError extends Error {
@@ -263,7 +272,18 @@ function scenery(value: JsonValue, path: string): ScenerySpec {
 
 function collider(value: JsonValue, path: string): ColliderSpec {
   const fields = object(value, path);
-  return { rect: rect(fields.rect, `${path}.rect`) };
+  const minY = optionalNum(fields.minY, `${path}.minY`);
+  const maxY = optionalNum(fields.maxY, `${path}.maxY`);
+  if (fields.jumpable !== undefined && typeof fields.jumpable !== 'boolean') {
+    throw new RegionLayoutError(`${path}.jumpable`, 'expected true or false');
+  }
+  return {
+    rect: rect(fields.rect, `${path}.rect`),
+    ...(minY !== undefined ? { minY } : {}),
+    ...(maxY !== undefined ? { maxY } : {}),
+    // LAI-JMP-01: a low obstacle the child may jump onto or over.
+    ...(fields.jumpable === true ? { jumpable: true } : {}),
+  };
 }
 
 function zone(value: JsonValue, path: string): ZoneSpec {
@@ -326,6 +346,8 @@ function procedural(value: JsonValue, path: string): RegionPlayProceduralConfig 
   const height =
     fields.height === undefined ? undefined : positive(fields.height, `${path}.height`);
   const tint = fields.color === undefined ? undefined : color(fields.color, `${path}.color`);
+  const assetId =
+    fields.assetId === undefined ? undefined : str(fields.assetId, `${path}.assetId`);
   return {
     id: str(fields.id, `${path}.id`),
     shape: shape as ProceduralShape,
@@ -334,7 +356,37 @@ function procedural(value: JsonValue, path: string): RegionPlayProceduralConfig 
     ...(rotationY !== undefined ? { rotationY } : {}),
     ...(height !== undefined ? { height } : {}),
     ...(tint !== undefined ? { color: tint } : {}),
+    ...(assetId !== undefined ? { assetId } : {}),
   };
+}
+
+function prop(value: JsonValue, path: string): RegionPlayPropConfig {
+  const fields = object(value, path);
+  const rotationY = optionalNum(fields.rotationY, `${path}.rotationY`);
+  const rotationZ = optionalNum(fields.rotationZ, `${path}.rotationZ`);
+  const scale = fields.scale === undefined ? undefined : positive(fields.scale, `${path}.scale`);
+  const height = fields.height === undefined ? undefined : positive(fields.height, `${path}.height`);
+  return {
+    id: str(fields.id, `${path}.id`),
+    assetId: str(fields.assetId, `${path}.assetId`),
+    x: num(fields.x, `${path}.x`),
+    z: num(fields.z, `${path}.z`),
+    ...(rotationY !== undefined ? { rotationY } : {}),
+    ...(rotationZ !== undefined ? { rotationZ } : {}),
+    ...(scale !== undefined ? { scale } : {}),
+    ...(height !== undefined ? { height } : {}),
+    colliders: array(fields.colliders, `${path}.colliders`).map((item, index) =>
+      rect(item, `${path}.colliders[${index}]`),
+    ),
+  };
+}
+
+function propReplaces(value: JsonValue | undefined, path: string): { [assetId: string]: string[] } {
+  if (value === undefined) return {};
+  const fields = object(value, path);
+  const out: { [assetId: string]: string[] } = {};
+  for (const [assetId, ids] of Object.entries(fields)) out[assetId] = strings(ids, `${path}.${assetId}`);
+  return out;
 }
 
 function strings(value: JsonValue | undefined, path: string): string[] {
@@ -393,6 +445,9 @@ export function readRegionLayout(value: JsonValue | undefined): RegionLayout {
     ambient: each('ambient', ambient),
     lights: each('lights', light),
     procedural: each('procedural', procedural),
+    props: fields.props === undefined ? [] : each('props', prop),
+    propReplaces: propReplaces(fields.propReplaces, `${path}.propReplaces`),
+    vegetation: fields.vegetation === undefined ? [] : each('vegetation', prop),
     ...(fields.unlock !== undefined ? { unlock: unlock(fields.unlock, `${path}.unlock`) } : {}),
     ...(fields.ambience !== undefined
       ? { ambience: ambience(fields.ambience, `${path}.ambience`) }

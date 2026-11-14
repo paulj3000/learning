@@ -166,3 +166,28 @@
 .stageSpeech > * {
   pointer-events: auto;
 }
+
+/* LAI-JMP-01a: the camera-view setting below the stage. */
+.cameraSetting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.cameraSetting legend {
+  font-weight: 600;
+  padding: 0 var(--space-1);
+}
+
+.cameraSettingOption {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  cursor: pointer;
+}

@@ -42,6 +42,257 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Integration: gameplay and environment assets (2026-11-14, `integration/gameplay-environment-qa`); development checks pass, owner QA pending, NOT merged
+
+Combines `feature/pirates-leap` (all P1 gameplay, Cognito-direct, Django-only), `feature/treasure-rush-palm-trees`
+(PR #36: palms, barrels, logs, vegetation) and `main`. Owner guide: `docs/GAMEPLAY_ENVIRONMENT_QA.md`.
+
+- Cove layout v8: the environment branch's v7 placements plus each prop's drawn `height`, so low
+  library props are jumpable. The jump branch's separate landing-barrel colliders are removed;
+  stand-in barrels are jumpable through the shared derived colliders.
+- A drawn library model removes its stand-in's `derived:` boxes (`removeCollider('derived:<id>')`,
+  suppressed against later collision profiles); a failed model keeps the stand-in blocking.
+- Pirate's Leap unchanged in `scene.platforming` (v1); a test keeps every cove placement out of
+  the course area. Seeds rerun idempotently; v7 to v8 upgrade keeps the course and staff tuning.
+- `docs/ASSET_LIBRARY.md`: main's Sound cues stay section 22; environment packs renumbered to 23,
+  collision profiles to 24 (references updated).
+- Checks: Vitest 4,748 passed; typecheck; migrations (no changes, no new migration); `content:check`,
+  `golden:check`, `adr:check`, `admin-preview:check`; pytest (see the PR). Not done: Playwright,
+  lint and format (merge readiness), browser, WebGL, device and gamepad checks; owner QA.
+- External: the environment GLB/glTF packs are owner-supplied and not in Git. Licences: CC0-1.0,
+  owner-confirmed (merged from the assets branch's licence commits).
+- `feature/treasure-rush-palm-trees` fast-forwarded to this branch at the owner's request, so the
+  assets branch also has jumping and the rest of the P1 stack.
+
+## LAI-JMP-03: Treasure Cove: Pirate's Leap (2026-11-14, `feature/pirates-leap`); development complete, owner QA pending, NOT merged
+
+Stacked on `feature/interactive-platforms` (PR #37). Docs: `docs/PIRATES_LEAP.md`; combined owner QA
+for all three P1 workstreams: `docs/P1_PLATFORMING_QA.md`.
+
+- Course in the cove's empty south-west, six sections (Learn to Leap, Barrel Crossing, Fallen Log
+  Trail, Moving Dock, Pirate Lift, Secret Treasure), each with a walking alternative; four course
+  checkpoints, three water pools, a goal, Pip's section narration as zones.
+- Seed: `lai/apps/regions/pirates_leap_seed.py` writes `scene["platforming"]` with its own
+  `piratesLeapVersion` (never touches the cove scenery layout another workstream owns), the quest
+  offer, the secret treasure and Pip's optional riddle drum (challenge specs per band), two
+  collectibles and a signpost; snapshot `pirates_leap_course.json` for frontend tests.
+- Content export: quest `pirates-leap`, four keepsakes, four one-time reward rules (golden vectors
+  regenerated: content digest only).
+- Runtime: recorded world changes raise `world:<changeKey>` platform signals on entry and live (the
+  riddle raises the plank bridge at once); a woken platform waits one pause first; hazards draw as
+  water; course checkpoints are kept clear of derived colliders; `scene.platforming.zones` merge
+  into the manifest.
+- Realm card: the cove now counts six chests (Pip's four, the riddle drum and the secret treasure).
+
+Tests: Vitest features, routes, api, test: 420 files / 4653 tests (all passing after expected count
+and golden updates); new `piratesLeap.engine.test.ts` (9). pytest: new `test_pirates_leap.py` (10);
+existing cove tests updated where they pinned the exact chests, quests, rows or versions.
+Deferred: browser, WebGL, device and gamepad QA.
+
+## LAI-JMP-02 / LAI-JMP-04: shared platforms, checkpoints and safe recovery (2026-11-14, `feature/interactive-platforms`); development complete, owner QA pending, NOT merged
+
+Stacked on `integration/p1-movement-base` (avatar stack, Amplify-free main, derived colliders,
+collision profiles, running PR #29). ADR-059 (Proposed). Docs: `docs/PLATFORMING.md`.
+
+- `react/src/features/island-map/three/platforms/`: `platformSpec.ts` (types, validation, staff
+  tuning), `platformMotion.ts` (deterministic waypoint motion), `platformSystem.ts` (triggers,
+  motion that yields to the child, carrying, inherited speed, bounce, vanishing with collision
+  removed, turntables, course checkpoints, hazards, goals, events), `platformPresentation.ts`
+  (procedural blocks with shared geometry, optional models, destination rings, checkpoint flags,
+  plates), `platformCopy.ts` (child-facing recovery copy).
+- `FirstPersonController`: `supportingBox`, `carry`, `inheritVelocity`, `launch`, `recover`,
+  `isSafeGround`, `recoveryPoint` (all additive; walking, running and jumping unchanged).
+- Engine: `manifest.platforming`, platform events on the bus, `signalPlatforms`, `platforms()`;
+  switches are interactive props. Django scenes: `scene.platforming` (seed layout) +
+  `scene.platformTuning` (staff, through the Area content revision, ADR-047).
+- Sound Manager: eight optional platform cues (`wired=False`) and their listeners.
+- Django: `apps/regions/platforming.py` (`layout_problems`, `tuning_problems`), "area-copy" kind
+  offers `platformTuning` only for Areas with platforms. No migration.
+
+Tests: Vitest island-map, region-play, npc-manager, player-avatar, test: 218 files, 2667 tests
+passed (33 new platform tests). pytest regions, catalog authoring, audio: 330 passed.
+`npm run typecheck`, `npm run adr:check` pass. Deferred: browser, WebGL, device QA.
+
+## Asset Manager: configurable collision profiles (2026-11-14, `feature/asset-collision-profiles`); development complete, owner QA pending, NOT merged
+
+Trello: "Asset Manager — Configurable Collision Profiles". Branch from `integration/avatar-amplify-exit`
+at `9b10f1f` (shared derived colliders). Full workflow: `docs/ASSET_COLLISION_PROFILES.md`.
+
+- Django: `assets.CollisionProfile` (migration `assets/0003_collision_profiles`): one default per
+  asset and one override per version; shapes none, box, cylinder, capsule, compound boxes;
+  behaviours automatic, solid, jumpable, walkable, decorative; manual sizes and offsets override
+  the measured bounds. GLB validation now records `metadata["bounds"]` (min and max corners);
+  older versions fall back to their size, ground-pivoted. `collision.py` turns every shape into
+  model-space boxes; the resolver answer carries them as `collision` (unpublished assets too, so
+  bundled models follow them). Django Admin page with validation, measured bounds and the exact
+  runtime boxes; publishers edit, editors view (`ensure_asset_roles`).
+- React: `collisionProfile.ts` (validated parse), `derivedColliders.ts` applies a profile in
+  place of the built-in footprint under each placement's transform; walkable pieces and building
+  entrances are now kept clear like checkpoints. The engine asks the resolver once
+  (`LocationEngineAssets.collisionProfiles`), swaps the derived boxes when the answer arrives and
+  never places one on the child; authored location colliders and quest gates are untouched. Served
+  and source-controlled locations both apply profiles when the Django API is on.
+- Preview: "Show collision" in the Asset Manager preview draws the boxes (profile or built-in
+  default); bundle rebuilt and `admin-preview:check` fresh.
+- No new physics engine and no movement controller change: every shape is axis-aligned boxes.
+
+Tests: pytest `lai/apps/assets` 296 passed (25 new); core Django Admin, game-session admin
+isolation, avatars, users tenant isolation and catalog 306 passed; `makemigrations --check` clean.
+Vitest `island-map/three`, `region-play`, `assets`, `api`, `npc-manager`, `player-avatar`: 194
+files, 2541 tests passed. `npm run typecheck` passes.
+
+Deferred to merge verification / owner QA: browser and WebGL checks, Playwright, lint and format,
+full suites; configuring real profiles in a local Django Admin and walking into them.
+
+## Fix: the child could walk through drawn objects (2026-11-14, `integration/avatar-amplify-exit`)
+
+Owner-reported: many objects could be walked through. Cause: colliders were only ever written by
+hand (`ColliderSpec`), separately from what a location draws, so every barrel, crate, rock,
+tree, bush, fallen log, signpost, mooring post, standing stone, fence, prop and NPC without a
+hand-written box was walk-through. An audit found 173 of 597 drawn pieces in the six
+source locations, and most of Treasure Cove's trees, bushes, logs, posts and rocks, uncovered.
+
+Fix (`react/src/features/island-map/three/runtime/derivedColliders.ts`, used by
+`solidColliders`): each placed piece whose asset has a solid footprint gets a box, under the
+same position, rotation and scale the renderer uses. Footprints are measured from the model files
+(`ASSET_FOOTPRINTS`); trees and posts use the trunk or post. Pieces up to 1.2 m are jumpable
+(hop onto or over), taller ones solid. Long pieces are cut along their length so a diagonal log
+blocks only where it lies. Applies to every location, the Django-published Treasure Cove
+included, with no manifest or Django change; NPC Manager movement reads the same boxes.
+
+Deliberately not blocking: ground, paths, planks, carpets, ferns, reeds, flowers, rope coils,
+archways, cave mouths, collectibles, the shipwreck (authored by hand), and extension-drawn props.
+Guards: an authored collider over a piece wins; a box covering a checkpoint is dropped.
+
+Known: Pirate Builder Bay's `cove-treasure` chest sits exactly on the `pirate-builder-bay:cove`
+checkpoint (9, 0), so it stays walk-through until a content author moves one of them.
+
+Tests: new `derivedColliders.test.ts` (sizes, rotation and scale, jumpable vs solid, walkable
+pieces, authored wins, checkpoints clear in every source location, requirements, a child stopped
+by a barrel, a diagonal log). Checked against Treasure Cove's Django layout: 68 boxes, spawn and
+every trail tile clear. Vitest for `island-map/three`, `npc-manager` and `region-play`: 169 files,
+2253 tests, pass. `npm run typecheck` passes. Deferred: in-browser play check (owner QA).
+
+## Fix: left and right movement were swapped (2026-11-14, `integration/avatar-amplify-exit`)
+
+Owner-reported: ArrowLeft walked right and ArrowRight walked left. Cause: the shared movement
+controller (`firstPersonController.ts`) pushed strafe toward world +X at yaw 0, but the camera
+(`rotation.y = yaw + PI`) faces +Z there, so screen-right is -X. Only the X part of the sideways
+vector had the wrong sign, so the swap showed when facing north or south and not exactly east or
+west. Pre-existing since the controller was written; not introduced by the integration. One fix
+covers keyboard (arrows and A/D), gamepad stick and touch, in first- and third-person, in every 3D
+location and the sandbox.
+
+Tests: new regression tests compare strafe with the real Three.js camera's right vector at five
+headings and check strafe is at right angles to forward (they fail on the old code). Vitest for
+the controller, pointer controls, gamepad, camera, presentation, animation and runtime: 56 files,
+749 tests, pass. `npm run typecheck` passes. Deferred: browser/WebGL play check (owner QA).
+
+## Integration: Amplify exit with player movement and avatars — `integration/avatar-amplify-exit` (2026-11-14); local QA branch, NOT merged
+
+A QA-only branch combining the open player stack with the Amplify exit, so the avatar work runs
+locally without an Amplify sandbox. No pull request was merged into `main`, nothing was deployed,
+and no AWS or Cognito resource was touched.
+
+Built as: `feature/player-avatar-assets` (PR #28, which contains PR #27 and PR #26), then `main`
+(PRs #30 to #34; clean merge), then `ccr-a0f9421a-g0ifoe` (PR #15).
+
+Conflict resolution (all between main's P0 fix, PR #30, and PR #15's AMP-02 to AMP-07):
+- Auth (`api/auth.ts`, `AuthContext`, `RequireParent`, `RequireAdmin`): PR #15's direct Cognito
+  client (`lib/cognito`) with PR #30's bounds kept: 15 s token and session reads, the
+  `unavailable` status with Try again, and `AuthStatusNotice` copy without Amplify or sandbox text.
+  `lib/amplify-config.ts` and its test are deleted (PR #15); `lib/cognito` covers the config.
+- `VITE_BACKEND=amplify` is retired (`api/backend.ts`): Django is the only backend, the dev server
+  refuses the old value, and `vite dev` still defaults to Django.
+- Place page: PR #15's Django world-change and catalog reads replace PR #30's skip of Amplify Data.
+- Site release: PR #15's version (Cognito ids as inputs, no `ampx generate outputs`).
+- Docs: main's local-development steps (root `.env` `COGNITO_*` reused by `vite dev`) with the
+  Amplify-backend and sandbox lines removed.
+- Django: no migration conflicts (`avatars` is a new app; PR #15's merge migrations stand);
+  `makemigrations --check` clean. No URL clash (`children/<id>/avatar/` vs `children/<id>/photo/`).
+- Pre-existing on PR #28: two Django Admin app allow-list tests (`core/tests/test_django_admin.py`,
+  `game_sessions/tests/test_sessions.py`) did not list `avatars`; added (staff content, no child data).
+
+Verified here: `npm run typecheck`; Vitest for auth, API, Cognito, routes, Realms, assets, player
+avatar, movement and engine boundary, plus every test file PR #15 or PR #28 changed (all pass);
+pytest with PostgreSQL 16 for avatars, users (tenant isolation), education, progression, inventory,
+quests, assets, core, regions, ai, audio, game sessions, npcs and `tests/repo`.
+
+Deferred to merge verification or owner QA: Playwright, WebGL checks, the build, lint and format,
+and a live Cognito sign-in (needs the owner's pool values). The hosted `amplify.yml` still
+deploys the Amplify backend; retiring it is the AMP-08 runbook, not this branch.
+
+## Treasure Rush environment licences confirmed and assets published (2026-11-14) — local development only; owner visual QA NOT done
+
+- **Licence.** The owner confirmed CC0-1.0 (Quaternius) for the palms, barrel, logs, wood pile
+  and the Ultimate Stylized Nature Pack. `model_packs.py` records:
+  - the licence identifier, name, deed, legal code and plain-text URLs;
+  - `licenceVerifiedOn` and the owner confirmation reference;
+  - per-model source URLs, plus the nature pack's pages.
+
+  Existing definitions got the new provenance; administrator-edited fields were kept.
+- **Publication.** All 18 environment models are published locally as v1 and are the default
+  versions.
+  - The 14 never-published ones (barrel, logs, wood pile, vegetation) were first re-prepared
+    through the normal import, so their frozen `asset.copyright` reads "Quaternius, CC0-1.0".
+  - Published palm versions are unchanged.
+  - The storage audit shows no orphans and nothing missing.
+- **Verification.**
+  - Treasure Cove (seeded locally, layout v7) lists all 18 ids in its catalog, all deliverable.
+  - The resolver resolves each one to v1.
+  - Each signed delivery URL returns bytes matching the recorded SHA-256 (18 of 18).
+  - Engine tests cover models drawn and colliders added once deliverable.
+- **Not done:** owner visual QA in a browser; no S3 or production upload (needs separate
+  approval).
+
+## Treasure Rush ENV-2: bushes, flowers and grass (TR-NAT-01 to 14) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); licence and author NOT stated, so NOT published; rocks, ferns and coconuts NOT supplied; owner visual QA NOT done
+
+- **Import.** `import_treasure_rush_environment` now reads `.gltf` + `.bin` + textures by plain
+  file name across folders and ZIPs (`gltf_prep.read_gltf`), with categories `bushes`, `flowers`,
+  `grass`, `vegetation` and `all`; `rocks`, `ferns` and `coconuts` are refused because none were
+  supplied. Ten models (3 bushes, 4 flower clumps, 3 grasses, 256² textures, 25 to 88 KB each)
+  are imported locally as validated versions, not published: the files state no author or
+  licence.
+- **Cove (layout v7).** 138 walk-through plants (`treasure_cove_vegetation.py`), deterministic and
+  clustered round palms and props, kept off paths, water, colliders, spots and scenery. Instanced
+  (12 draw calls), cut-out alpha, sway 0.04 rad (still under reduced motion), halved at LOW quality
+  (`decorDensity`; extensions now receive `quality`). Drawn only when the catalog says deliverable.
+- **Tests.** pytest: `.gltf` assembly and refusals, vegetation packs and categories, vegetation
+  layout rules, catalog. Vitest: vegetation drawn, walk-through, LOW density, reduced motion,
+  `thinDecor`, quality pass-through, layout parsing.
+- **Deferred:** author and licence from the owner, then `--publish --licence-confirmed`; rock,
+  fern and coconut models; thumbnails; owner visual QA (TR-NAT-14); merge-readiness checks.
+
+## Treasure Rush environment assets: palms, barrels and logs (TR-PALM-01 to 08, TR-ENV-01 to 09) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); owner visual QA NOT done, barrel and log licences NOT confirmed
+
+- **Import (TR-PALM-02/03, TR-ENV-02/03).** `manage.py import_treasure_rush_environment`
+  (`--category palms|barrels|logs`, `--dry-run`, `--publish`, `--licence-confirmed`,
+  `--allow-shared-storage`, `--json`; `import_treasure_rush_palm_trees` kept as the palms
+  category) prepares declared models from owner-supplied GLBs (`apps/assets/model_packs.py`,
+  `gltf_prep.py`, `png_tools.py`: split, Z-up to Y-up, grounded, sized, cut-out foliage, 512 px
+  textures), validates and stores them through the configured storage as versions with
+  provenance metadata. Idempotent. `services.upload_version` gained `extra_metadata` and `notes`.
+- **Assets.** Four palms (CC0, owner-stated: published locally), `prop-wooden-barrel`,
+  `nature-wood-log`, `nature-wood-log-moss`, `prop-wood-pile` (CC0 expected, **unconfirmed**:
+  imported as validated versions, not published). `Barrel.fbx` and `PalmTree_4` not imported.
+  No model binary, texture or thumbnail is in Git; `.gitignore` covers download folders.
+- **Cove (TR-PALM-05, TR-ENV-06, layout v6).** 43 palms (landing 5, beach 11, grove 19, ruins 4,
+  lookout 4; two moved off paths, one off the key spot, one off the spyglass) with 0.6 m trunk
+  colliders; 37 props (barrels/logs: landing 4/2, beach 8/4, grove 2/8, ruins 4/3, lookout
+  1/1) whose colliders follow their footprint and are added only once the model is drawn. The
+  play API catalog lists the models; the client draws one only when it can be delivered,
+  instanced per model (`instancedModels.ts`), otherwise keeps the primitive palms and bundled
+  barrels/logs. Palms sway 0.02 rad, still under reduced motion. No jumping exists in the engine,
+  so barrels and logs are simply solid.
+- **Tests.** pytest: `test_gltf_prep.py`, `test_model_packs.py` (memory, local and stubbed-S3
+  storage, licence gate, idempotency, commands), cove layout placement and collider rules,
+  `test_environment_catalog.py`. Vitest: `instancedModels.test.ts`, cove engine tests (models
+  drawn, colliders only when drawn, fallbacks, paths walkable, dispose), layout parser tests.
+- **Deferred to merge verification / owner:** owner visual QA (TR-PALM-08, TR-ENV-09) in a
+  browser; licence confirmation for the barrel and logs; thumbnails (no thumbnail workflow
+  exists); S3 upload in a deployed environment (owner approval); Ruff, Prettier, oxlint,
+  Playwright, full suites and builds per `docs/TESTING_STRATEGY.md`.
+
 ## Amplify final removal and Django-only cutover (AMP-01 to AMP-08) — source complete on `feature/amplify-final-removal` (2026-11-14); AWS deployment and legacy data NOT done
 
 The owner deleted the Amplify app and disabled Amplify Hosting, and authorized removing Amplify
@@ -121,6 +372,8 @@ Remaining: the Place page's classic adventure ("Start: ...") and world changes s
 Data until AMP-03 (PR #15). In a Django build world changes are not shown and the classic
 adventure is not expected to work (not exercised here); the 3D Areas and walk-around worlds are.
 PR #15 remains unmerged pending its AWS cutover stages.
+
+
 ## AMP-04 Amplify Storage to Django S3 (2026-11-10) — code and tests done; live inventory, copy and acceptance NOT run
 
 React resolves assets and child photos through Django only (`features/assets/assetService.ts`,
@@ -137,6 +390,101 @@ and roll back, never touching the source bucket. Runbook and the owner's open st
 --superuser`, which asks for the password twice and validates it. It receives the `.env`
 Django settings like `make migrate`. Django's `createsuperuser` stays disabled. Checked with
 `make -n createsuper`; not yet run against a live database (needs `make up` and `make migrate`).
+
+## Shared player running & sprinting (`feature/player-running`, ADR-058 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
+
+Stacked on PR #28 -> #27 -> #26 (none merged). The shared `FirstPersonController` now walks
+(4 m/s, unchanged), runs (5.5, full analog input) and sprints (6.5, Shift hold or tap, L3, a long
+touch drag), with smooth rate-limited gait changes, RUN/SPRINT states, running jumps that carry
+their momentum, and horizontal collision substepped to 10 cm (no tunnelling; a test pins every
+authored collider thicker). Per-location tuning `movement.locomotion` (Django
+`scene.movement.locomotion`); Storykeeper Castle runs 4.8 and sprints 5.6. Run clip or a bounded
+faster Walk; an optional 3-degree sprint FOV widening (off under reduced motion);
+`PlayerGaitChanged` / `PlayerFootstep` events and an optional `sfx.player.footstep` cue. No
+stamina or penalties.
+
+- Adventures: Treasure Cove, Storykeeper Castle, Pirate Builder Bay (engine-tested), plus Welcome
+  Harbor, Wonderwild Forest, Clockwork Harbor, Dragon's Sanctuary, Firepeak (defaults).
+- Tests: Vitest (island-map, region-play, npc-manager, player-avatar, child-profile, routes, api)
+  pass; `npm run typecheck` passes; pytest for the changed audio cue catalogue passes.
+- Deferred to merge verification: full gates, build, Playwright/WebGL, device and gamepad QA
+  (owner checklist in `docs/PLAYER_RUNNING_AND_SPRINTING.md`).
+
+## Player avatar asset integration (LAI-JMP-01c, `feature/player-avatar-assets`, ADR-057 Proposed) — ASSET INTEGRATION DEVELOPMENT COMPLETE (2026-11-13); PRODUCTION ART NOT READY; unit-tested only
+
+Built on `feature/third-person-avatar` (PR #27, on PR #26; neither merged). New Django app
+`apps.avatars`: `PlayerAvatar` (one row per identity, seeded as drafts by migrations 0001/0002)
+references a character asset in the existing Asset Manager (optional pinned version), with scale,
+facing, animation map, colour materials, attachment points, thumbnail and status. Django Admin
+configures it (editors) and makes it available (publishers); a retirement guard protects served
+models. `GET children/<child>/avatar/` (child-scoped) serves the child's own identity by asset
+reference; React loads it through the existing Django asset resolver and loader, never blocking
+the scene, and falls back to the placeholder on anything missing or broken. Animation adds
+`fall`, `land`, `interact`, `celebrate` (celebrate on world changes and pickups); vocabularies
+parity-tested React/Django.
+
+- **Production art: none of the six models exist.** Every child sees the placeholder until real
+  GLBs are uploaded and made available (follow-up LAI-JMP-01e). The CC0 `npc-harbor-master.gltf`
+  is documented as a test fixture only.
+- Tests: Vitest (island-map, region-play, npc-manager, child-profile, player-avatar, routes, api)
+  pass; `npm run typecheck` passes; pytest for `apps.avatars`, `apps.assets`, `apps.npcs` passes;
+  `makemigrations --check` clean.
+- Deferred to merge verification: full gates, build, Playwright/WebGL, an end-to-end upload of a
+  real GLB, device and gamepad QA (owner checklist in `docs/PLAYER_AVATAR_ASSETS.md`).
+
+## Third-person avatar, camera and animations (LAI-JMP-01a, `feature/third-person-avatar`, ADR-056 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
+
+Built on `feature/shared-jump-controller` (LAI-JMP-01, PR #26, not yet merged): merge that first.
+Every free-roaming 3D location now supports first- and third-person, with third-person the
+default. One camera controller (`playerCamera.ts`: follow, orbit, same-frame wall avoidance,
+indoor ceilings, reduced motion), one avatar renderer (`playerAvatar.ts`: location costume, else
+a model per `avatarKey`, else a placeholder in the child's avatar colours), one animation
+controller over the NPC Manager animator (`playerAnimation.ts`: idle, walk speed-matched, jump,
+land, interact gesture, no celebration fallback, no root motion). The movement controller stays
+authoritative; interactions are aimed from the player in both views. Switch with V, gamepad
+Y/Triangle, the camera-view button or the "Camera view" setting; the choice is remembered per
+child in the browser. Per-location tuning is `player.camera` / `player.avatar` (manifest) or
+`scene.player` (Django); Storykeeper Castle uses a closer camera under its ceilings.
+
+- Third-person in: Treasure Cove, Storykeeper Castle, Pirate Builder Bay (verified by engine
+  tests), and Welcome Harbor, Wonderwild Forest, Clockwork Harbor, Dragon's Sanctuary, Firepeak
+  (same runtime, default config).
+- Follow-ups: LAI-JMP-01c (3D avatar models per `avatarKey`; none exist, children see
+  placeholders), LAI-JMP-01d (sync the camera preference across devices; needs a schema field).
+- Clip vocabulary gains `Run` and `Jump` in React and Django (parity test added).
+- Tests: Vitest for `src/features/island-map`, `region-play`, `npc-manager`, `child-profile`,
+  `src/routes` (226 files, 2668 tests) pass; `npm run typecheck` passes; pytest for the changed
+  Python (asset validation) passes.
+- Deferred to merge verification: full lint/format gates, full suites, `npm run build`,
+  Playwright acceptance suites (written in first-person), WebGL/browser, device and gamepad QA
+  (owner checklist in `docs/PLAYER_AVATAR_AND_CAMERA.md`).
+
+## Shared jump controller (LAI-JMP-01, `feature/shared-jump-controller`, ADR-055 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
+
+Jumping is standard movement in every free-roaming 3D location. The shared
+`FirstPersonController` gained gravity, landing, coyote time (120 ms), jump buffer (150 ms),
+air control, head bumps, step-up, no default double jump, and safe recovery; the shared input
+layer gained Space (edge-triggered, ignored in form fields), gamepad (A/Cross jump, sticks,
+X/Square interact) and stuck-input resets; the HUD gained a touch Jump button. Per-location
+tuning is `movement.jump` on a manifest or `scene.movement` on a Django region. Only authored
+low obstacles (`jumpable` colliders) can be jumped onto; every other collider, every gate and the
+world's edge stay solid at any height.
+
+- Jumping on: Treasure Cove (barrels jumpable), Storykeeper Castle (`jumpHeight` 0.9), Pirate
+  Builder Bay (low crates jumpable), Welcome Harbor, Wonderwild Forest, Clockwork Harbor,
+  Dragon's Sanctuary, Firepeak Volcano, the Three.js sandbox.
+- Not eligible: Phaser 2D worlds (ADR-020). Follow-up cards: third-person avatar and jump
+  animations; jumping in Phaser-only worlds once converted.
+- Sound: `PlayerJumped`/`PlayerLanded` bus events; Treasure Rush plays optional cues
+  `sfx.player.jump`/`sfx.player.land` (Django catalogue, `wired=False`).
+- Treasure Cove layout version 4 -> 5 (barrel colliders); takes effect where
+  `seed_treasure_rush` runs. No Django schema change, no migration.
+- Tests: Vitest for `src/features/island-map/three` and `src/features/region-play` (133 files,
+  1767 tests) pass; `npm run typecheck` passes; pytest for the changed Python (treasure cove
+  layout, Treasure Rush sound seed and library report) passes.
+- Deferred to merge verification: full lint/format gates, full test suites, `npm run build`,
+  Playwright/browser and WebGL checks, device and gamepad QA (owner checklist in
+  `docs/PLAYER_MOVEMENT_AND_JUMPING.md`).
 
 ## No child play-time limits (ADR-053) — complete and merged to `main` (2026-11-11); migration not yet run on a deployed database
 
@@ -13822,6 +14170,8 @@ PostgreSQL passed; end-to-end tests passed.
 - No Realm or Place has published art yet (see the AP-03 entry above).
 - Firepeak's `subjectAreas` reaches an existing database after `load_content` and, where the
   record is Django-authoritative, publishing the import draft.
+
+
 ## Treasure Rush QA closed for now (2026-11-11, Trello WTQR3qTS)
 
 **Status: owner-reported QA acceptance of Treasure Rush as merged in `main`; no code change.**

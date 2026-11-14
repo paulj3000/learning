@@ -1,3 +1,4 @@
+import type { PlatformingSpec } from '../island-map/three/platforms/platformSpec';
 import type { RegionCheckpoint } from '../discovery/checkpoints';
 import type { JsonObject, JsonValue } from '../../api/parse';
 import {
@@ -172,7 +173,29 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
           : effects.backdrop,
     },
     changeKeys: [...model.worldChangeKeys],
-    procedural: layout.procedural,
+    // TR-PALM-05: a placeholder asks for its model only when the server's catalog lists one
+    // that can be delivered now; otherwise (no catalog, nothing published) it stays the
+    // primitive, with no request, no warning, and no asset id the validator cannot know.
+    procedural: layout.procedural.map((entry) => {
+      if (
+        entry.assetId === undefined ||
+        (model.deliverableAssetIds !== null && model.deliverableAssetIds.has(entry.assetId))
+      ) {
+        return entry;
+      }
+      const { assetId: _undeliverable, ...primitive } = entry;
+      return primitive;
+    }),
+    // TR-ENV-06: a prop is drawn only when the catalog says its model can be delivered; until
+    // then the bundled barrels and logs it replaces stay, and its colliders are never added.
+    props: layout.props.filter(
+      (prop) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(prop.assetId),
+    ),
+    propReplaces: layout.propReplaces,
+    // ENV-2: the same rule for vegetation; nothing stands in for it, so undeliverable means absent.
+    vegetation: layout.vegetation.filter(
+      (plant) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(plant.assetId),
+    ),
     pickups: [],
     runes: [],
     // TR-17: what the quest's completion opens, and whether this child has already earned it.
@@ -387,12 +410,40 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     npcs,
     props,
     collectibles: [],
-    zones: layout.zones,
+    // LAI-JMP-03: a course's section zones travel with its platforming block.
+    zones: [
+      ...layout.zones,
+      ...(isObject(model.scene.platforming) && Array.isArray(model.scene.platforming.zones)
+        ? (model.scene.platforming.zones as unknown as ThreeLocationManifest['zones'])
+        : []),
+    ],
     ...(lights.length > 0 ? { lights } : {}),
     ambient: layout.ambient,
     interactions,
     adventureBindings: [],
     interactionAssist: true,
+    // LAI-JMP-01: jumping is on with the defaults; Django may tune or disable it per region
+    // through `scene.movement` (validated with the rest of the manifest).
+    ...(isObject(model.scene.movement)
+      ? { movement: model.scene.movement as unknown as ThreeLocationManifest['movement'] }
+      : {}),
+    // LAI-JMP-02 / LAI-JMP-04: platforms are seed-authored layout (`scene.platforming`, ADR-033);
+    // staff tuning from the 3D Area's content revision (`scene.platformTuning`) is merged over
+    // them. Validated with the rest of the manifest.
+    ...(isObject(model.scene.platforming)
+      ? {
+          platforming: {
+            ...(model.scene.platforming as unknown as PlatformingSpec),
+            ...(isObject(model.scene.platformTuning)
+              ? { tuning: model.scene.platformTuning as unknown as PlatformingSpec['tuning'] }
+              : {}),
+          },
+        }
+      : {}),
+    // LAI-JMP-01a: camera and avatar, the same way (`scene.player`, validated with the manifest).
+    ...(isObject(model.scene.player)
+      ? { player: model.scene.player as unknown as ThreeLocationManifest['player'] }
+      : {}),
     extensions: [
       { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
     ],

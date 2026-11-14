@@ -13,6 +13,7 @@ from django.db.models import Q
 
 from apps.catalog.models import AssetStatus, ContentAsset
 
+from .collision import profile_for, runtime_collision
 from .delivery import deliver, ttl
 from .models import AssetVersion, VersionStatus
 
@@ -46,7 +47,9 @@ def resolve(references: list[tuple[str, str, int | None]]) -> list[dict]:
     ids = {asset_id for _ref, asset_id, _n in references}
     assets = {
         asset.asset_id: asset
-        for asset in ContentAsset.objects.filter(asset_id__in=ids).select_related("default_version")
+        for asset in ContentAsset.objects.filter(asset_id__in=ids)
+        .select_related("default_version")
+        .prefetch_related("collision_profiles")
     }
     pins = {(asset_id, n) for _ref, asset_id, n in references if n is not None}
     pinned: dict[tuple[str, int], AssetVersion] = {}
@@ -63,6 +66,21 @@ def resolve(references: list[tuple[str, str, int | None]]) -> list[dict]:
 
 
 def _entry(ref, asset_id, number, asset, pinned) -> dict:
+    entry = _delivery_entry(ref, asset_id, number, asset, pinned)
+    if asset is not None and entry["status"] in ("resolved", "unavailable"):
+        # Collision applies wherever the asset is drawn, bundled fallback included (collision.py).
+        version = entry.pop("_version", None) or (
+            asset.default_version if number is None else None
+        )
+        if entry.get("family", "model") == "model":
+            collision = runtime_collision(profile_for(asset, version), version)
+            if collision is not None:
+                entry["collision"] = collision
+    entry.pop("_version", None)
+    return entry
+
+
+def _delivery_entry(ref, asset_id, number, asset, pinned) -> dict:
     base = {"ref": ref, "id": asset_id}
     if asset is None:
         return {**base, "status": "unavailable"}
@@ -76,6 +94,7 @@ def _entry(ref, asset_id, number, asset, pinned) -> dict:
     delivery = deliver(version)
     entry = {
         **base,
+        "_version": version,
         "status": "resolved",
         "kind": asset.kind,
         "category": asset.category,

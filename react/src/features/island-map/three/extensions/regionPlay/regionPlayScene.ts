@@ -1,5 +1,7 @@
+import { JUMPABLE_MAX_HEIGHT } from '../../runtime/derivedColliders';
 import {
   AnimationMixer,
+  Box3,
   BoxGeometry,
   CylinderGeometry,
   Group,
@@ -9,6 +11,7 @@ import {
   OctahedronGeometry,
   SphereGeometry,
   Sprite,
+  Vector3,
   SpriteMaterial,
   TorusGeometry,
   CanvasTexture,
@@ -18,6 +21,7 @@ import {
   type Object3D,
 } from 'three';
 import { prefersReducedMotion } from '../../../../../lib/motionPreference';
+import { DEFAULT_RENDER_QUALITY, RENDER_QUALITY_PRESETS } from '../../runtime/visual/renderQuality';
 import { cloneAssetScene } from '../../assets/cloneAsset';
 import { mountAreaEffects, type AreaEffectsApi } from './areaEffectsScene';
 import { mountAreaPuzzles, type AreaPuzzleApi } from './areaPuzzleScene';
@@ -30,6 +34,7 @@ import {
 } from '../../../../region-play/regionPlayConfig';
 import type { NpcHostScene } from '../../../../npc-manager/host/types';
 import { buildFireflies, shimmerWater } from './livingCove';
+import { mountInstancedModels, type ModelPlacement } from './instancedModels';
 import { buildProceduralScenery } from './proceduralScenery';
 
 /**
@@ -51,6 +56,14 @@ import { buildProceduralScenery } from './proceduralScenery';
  *   flags, the rowboat, pillars, the pedestal and the gate, drawn from
  *   primitives until finished models exist (`proceduralScenery.ts`), and
  *   held still when the device asks for reduced motion.
+ * - **Palm models (TR-PALM-05).** A palm that names a published asset library model is drawn
+ *   from it, instanced per model, and its primitive is hidden once the model has loaded; a model
+ *   that fails leaves the primitive (`instancedModels.ts`).
+ * - **Barrels and logs (TR-ENV-06).** Props drawn from published models, instanced the same way.
+ *   Their colliders are added, and the bundled barrels and logs they replace hidden, only once
+ *   the model is drawn: until then the cove is exactly as it was.
+ * - **Vegetation (ENV-2).** Bushes, flowers and grass, instanced the same way, walk-through (no
+ *   colliders), swaying gently unless reduced motion is asked for, and thinned at LOW quality.
  * - **Figures.** A placeholder character for an NPC published without a
  *   model, so the region still renders and the NPC still talks.
  * - **The way to Lookout Point (TR-17).** When the quest's completion world change is
@@ -140,6 +153,31 @@ function worldPositionReader(object: Object3D): (out: [number, number, number]) 
   };
 }
 
+/** TR-PALM-05, TR-ENV-06: names of the instanced model sets, and the palms' sway. */
+export const PALM_MODEL_NAME = 'region-play:palm-model';
+export const PROP_MODEL_NAME = 'region-play:prop-model';
+export const PALM_SWAY = 0.02;
+/** ENV-2: vegetation, and how far it leans in the wind (a little more than a palm: it is small). */
+export const VEGETATION_MODEL_NAME = 'region-play:vegetation-model';
+export const VEGETATION_SWAY = 0.04;
+
+/**
+ * Keeps `density` of the placements of each model (ENV-2): 1 keeps them all, 0.5 every other one
+ * in layout order, so the thinning is spread across the cove and is the same on every visit.
+ */
+export function thinDecor<T extends { assetId: string }>(placements: readonly T[], density: number): T[] {
+  if (density >= 1) return [...placements];
+  const seen = new Map<string, number>();
+  return placements.filter((placement) => {
+    const index = seen.get(placement.assetId) ?? 0;
+    seen.set(placement.assetId, index + 1);
+    return Math.floor((index + 1) * density) > Math.floor(index * density);
+  });
+}
+/** A prop collider's height range: the same as a manifest rectangle's (sceneLayout.ts). */
+const PROP_COLLIDER_MIN_Y = -1;
+const PROP_COLLIDER_MAX_Y = 3;
+
 /** Names, so tests and debugging can find them (TR-14). */
 export const KEY_NAME = 'region-play:key';
 export const RUNE_STONE_NAME = 'region-play:rune-stone';
@@ -192,6 +230,11 @@ export const regionPlaySceneExtension: WorldExtension = {
         // Models for stand-ins, declared only when one can be delivered (FP-3).
         ...parsed.drawn.flatMap((drawn) => (drawn.assetId ? [drawn.assetId] : [])),
         ...(parsed.effects.backdrop?.assetId ? [parsed.effects.backdrop.assetId] : []),
+        // TR-PALM-05, TR-ENV-06: palm, barrel and log models, only those the server says can be
+        // delivered (the manifest builder drops the rest).
+        ...(parsed.procedural ?? []).flatMap((entry) => (entry.assetId ? [entry.assetId] : [])),
+        ...(parsed.props ?? []).map((prop) => prop.assetId),
+        ...(parsed.vegetation ?? []).map((plant) => plant.assetId),
       ]),
     ];
   },
@@ -371,6 +414,68 @@ export const regionPlaySceneExtension: WorldExtension = {
 
     const procedural = buildProceduralScenery(config.procedural ?? []);
     context.scene.add(procedural.root);
+    // TR-PALM-05: published palm models take the primitives' places as they load.
+    const palmPlacements: ModelPlacement[] = (config.procedural ?? []).flatMap((entry) =>
+      entry.shape === 'PALM' && entry.assetId
+        ? [
+            {
+              id: entry.id,
+              assetId: entry.assetId,
+              x: entry.x,
+              z: entry.z,
+              ...(entry.rotationY !== undefined ? { rotationY: entry.rotationY } : {}),
+              ...(entry.height !== undefined ? { height: entry.height } : {}),
+            },
+          ]
+        : [],
+    );
+    const palmModels = mountInstancedModels(palmPlacements, context.loadModel, {
+      name: PALM_MODEL_NAME,
+      sway: PALM_SWAY,
+      onDrawn: (_assetId, ids) => procedural.hidePalms(ids),
+    });
+    context.scene.add(palmModels.root);
+
+    // TR-ENV-06: barrels and logs. A model, once drawn, makes its props solid and hides the
+    // bundled scenery it replaces; one that never loads leaves both as they were.
+    const props = config.props ?? [];
+    const propModels = mountInstancedModels(props, context.loadModel, {
+      name: PROP_MODEL_NAME,
+      onDrawn: (assetId) => {
+        for (const prop of props) {
+          if (prop.assetId !== assetId) continue;
+          // Integration: a low prop (a barrel, a log) is jumpable from its drawn height, like the
+          // stand-in's derived collider it replaces; anything taller, or of unknown height, is solid.
+          const low = prop.height !== undefined && prop.height <= JUMPABLE_MAX_HEIGHT;
+          for (const rect of prop.colliders) {
+            context.addCollider(
+              new Box3(
+                new Vector3(rect.minX, low ? 0 : PROP_COLLIDER_MIN_Y, rect.minZ),
+                new Vector3(rect.maxX, low ? prop.height! : PROP_COLLIDER_MAX_Y, rect.maxZ),
+              ),
+              low ? { jumpable: true } : undefined,
+            );
+          }
+        }
+        for (const id of config.propReplaces?.[assetId] ?? []) {
+          const stale = context.sceneryRoot(id);
+          if (stale) stale.visible = false;
+          // The hidden stand-in's derived colliders go too: no invisible box left behind.
+          context.removeCollider(`derived:${id}`);
+        }
+      },
+    });
+    context.scene.add(propModels.root);
+
+    // ENV-2: bushes, flowers and grass. Walk-through (no colliders), swaying gently with the
+    // palms' clock, thinned at LOW quality (every other placement of each model).
+    const density = RENDER_QUALITY_PRESETS[context.quality ?? DEFAULT_RENDER_QUALITY].decorDensity;
+    const vegetationModels = mountInstancedModels(
+      thinDecor(config.vegetation ?? [], density),
+      context.loadModel,
+      { name: VEGETATION_MODEL_NAME, sway: VEGETATION_SWAY },
+    );
+    context.scene.add(vegetationModels.root);
     const still = prefersReducedMotion();
 
     // TR-18: the water and the fireflies. Held where they were first drawn when `still`.
@@ -452,6 +557,8 @@ export const regionPlaySceneExtension: WorldExtension = {
       for (const chest of chests.values()) chest.tick(delta);
       if (!still) {
         procedural.tick(delta);
+        palmModels.tick(delta);
+        vegetationModels.tick(delta);
         water.tick(delta);
         fireflies.tick(delta);
       }
@@ -594,6 +701,9 @@ export const regionPlaySceneExtension: WorldExtension = {
         for (const beacon of beacons.values()) context.scene.remove(beacon.mesh);
         for (const rune of runes.values()) rune.label.material.map?.dispose();
         procedural.dispose();
+        palmModels.dispose();
+        propModels.dispose();
+        vegetationModels.dispose();
         water.dispose();
         fireflies.dispose();
         for (const chest of chests.values()) chest.dispose();

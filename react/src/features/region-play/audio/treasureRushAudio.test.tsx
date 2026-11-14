@@ -16,7 +16,7 @@ import {
   type TreasureRushAudio,
   type TreasureRushSceneAudio,
 } from './useTreasureRushAudio';
-import { CUE_SOUNDS, TR_SOUND, ZONE_AMBIENCE } from './treasureRushSounds';
+import { CUE_SOUNDS, LANDING_SOUND_MIN_SPEED, TR_SOUND, ZONE_AMBIENCE } from './treasureRushSounds';
 
 const REGION = 'treasure-rush-cove';
 /** Asset ids are slugs: the cue id with dashes, as `seed_treasure_rush_sound` expects. */
@@ -713,6 +713,70 @@ describe('NPC moments (LAI-NPC-015)', () => {
     playCue('npcGreet', { npcId: 'keeper-quill' });
     playCue('npcTalk', { npcId: 'pirate-pip' });
     playCue('npcGreet');
+    await flush();
+    expect(engine.heard().slice(before)).toEqual([]);
+  });
+});
+
+describe('player movement sounds (LAI-JMP-01)', () => {
+  const heardAfter = (engine: RecordingEngine, before: number) => engine.heard().slice(before);
+
+  it('plays the jump cue when the child jumps', async () => {
+    const { engine, bus } = await mount();
+    const before = engine.heard().length;
+    act(() => bus.emit('PlayerJumped', { airJump: false }));
+    await flush();
+    expect(heardAfter(engine, before)).toEqual([TR_SOUND.playerJump]);
+  });
+
+  it('plays the landing cue on a firm landing only, not on a little hop down', async () => {
+    const { engine, bus } = await mount();
+    const before = engine.heard().length;
+    act(() => bus.emit('PlayerLanded', { impactSpeed: LANDING_SOUND_MIN_SPEED - 1 }));
+    await flush();
+    expect(heardAfter(engine, before)).toEqual([]);
+    act(() => bus.emit('PlayerLanded', { impactSpeed: 7 }));
+    await flush();
+    expect(heardAfter(engine, before)).toEqual([TR_SOUND.playerLand]);
+  });
+
+  it('jumping still works, silently, when the region has no jump or landing audio', async () => {
+    const world = build(
+      ALL_CUES.filter((cue) => cue !== TR_SOUND.playerJump && cue !== TR_SOUND.playerLand),
+    );
+    const { engine, bus } = await mount(world);
+    const before = engine.heard().length;
+    expect(() =>
+      act(() => {
+        bus.emit('PlayerJumped', { airJump: false });
+        bus.emit('PlayerLanded', { impactSpeed: 7 });
+      }),
+    ).not.toThrow();
+    await flush();
+    expect(heardAfter(engine, before)).toEqual([]);
+  });
+});
+
+describe('footsteps (running & sprinting)', () => {
+  it('plays the optional footstep cue for each step the engine reports', async () => {
+    const { engine, bus } = await mount();
+    const before = engine.heard().length;
+    act(() => {
+      bus.emit('PlayerFootstep', { gait: 'walk' });
+      bus.emit('PlayerFootstep', { gait: 'sprint' });
+    });
+    await flush();
+    expect(engine.heard().slice(before)).toEqual([
+      TR_SOUND.playerFootstep,
+      TR_SOUND.playerFootstep,
+    ]);
+  });
+
+  it('keeps silent, and keeps going, with no footstep audio published', async () => {
+    const world = build(ALL_CUES.filter((cue) => cue !== TR_SOUND.playerFootstep));
+    const { engine, bus } = await mount(world);
+    const before = engine.heard().length;
+    expect(() => act(() => bus.emit('PlayerFootstep', { gait: 'run' }))).not.toThrow();
     await flush();
     expect(engine.heard().slice(before)).toEqual([]);
   });

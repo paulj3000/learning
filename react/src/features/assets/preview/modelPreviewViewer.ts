@@ -1,6 +1,7 @@
 import {
   AxesHelper,
   Box3,
+  Box3Helper,
   Color,
   DirectionalLight,
   GridHelper,
@@ -71,8 +72,26 @@ export interface ModelPreviewViewer {
   fitModel(): void;
   /** Moves the camera toward (factor < 1) or away from (factor > 1) the target. */
   zoom(factor: number): void;
+  /**
+   * Draws collision boxes (model space, metres) as wireframes over the model, sharing its
+   * centring: red for solid, amber for jumpable. Replaces any drawn before. Hidden until shown.
+   */
+  setCollision(boxes: readonly PreviewCollisionBox[], kind: 'solid' | 'jumpable'): void;
+  /** Shows or hides the collision wireframes; returns whether any are drawn. */
+  showCollision(visible: boolean): boolean;
   dispose(): void;
 }
+
+export interface PreviewCollisionBox {
+  minX: number;
+  minY: number;
+  minZ: number;
+  maxX: number;
+  maxY: number;
+  maxZ: number;
+}
+
+export const COLLISION_COLOURS = { solid: 0xdc2626, jumpable: 0xd97706 } as const;
 
 export interface Framing {
   position: Vector3;
@@ -185,6 +204,17 @@ export function createModelPreviewViewer(
   scene.add(holder);
   let model: Object3D | null = null;
   let helpers: Array<GridHelper | AxesHelper> = [];
+  const collision = new Group();
+  collision.name = 'collision';
+  collision.visible = false;
+  holder.add(collision);
+
+  function clearCollision(): void {
+    for (const child of [...collision.children]) {
+      collision.remove(child);
+      (child as Box3Helper).dispose();
+    }
+  }
   let bounds: Sphere | null = null;
   let homeFraming: Framing | null = null;
   let pendingFrame: number | null = null;
@@ -299,9 +329,33 @@ export function createModelPreviewViewer(
       controls.update();
       scheduleRender();
     },
+    setCollision(boxes, kind) {
+      if (disposed) return;
+      clearCollision();
+      const colour = new Color(COLLISION_COLOURS[kind]);
+      for (const box of boxes) {
+        collision.add(
+          new Box3Helper(
+            new Box3(
+              new Vector3(box.minX, box.minY, box.minZ),
+              new Vector3(box.maxX, box.maxY, box.maxZ),
+            ),
+            colour,
+          ),
+        );
+      }
+      scheduleRender();
+    },
+    showCollision(visible) {
+      if (disposed) return false;
+      collision.visible = visible && collision.children.length > 0;
+      scheduleRender();
+      return collision.children.length > 0;
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
+      clearCollision();
       if (pendingFrame !== null) cancelFrame(pendingFrame);
       pendingFrame = null;
       observer?.disconnect();
