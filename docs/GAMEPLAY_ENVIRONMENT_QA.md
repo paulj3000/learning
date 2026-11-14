@@ -103,6 +103,11 @@ Navigation: choose a child > Island > Pirate Builder Bay > Treasure Cove (Realms
 | Quaternius Wood Log, Log with Moss, Wood | `WoodLog`, `WoodLog_Moss`, `UI_Wood` | `nature-wood-log`, `nature-wood-log-moss`, `prop-wood-pile` | CC0 expected, **unconfirmed** |
 | Nature kit (`MapleTree_5_2.zip`, `png.zip`, `PalmTree_Leaves.zip`) | bushes, flowers, grass `.gltf` | `nature-bush-*`, `nature-flower-tropical-*`, `nature-grass-*` | author and licence **not stated** |
 
+Licence note: the Trello environment card records the owner's CC0-1.0 confirmation for every pack
+(2026-11-14) and local publication, but `docs/ASSET_LICENCES.md` on this branch still reads
+"unconfirmed" / "not stated" for the barrel, logs and nature kit. Reconcile that record before
+merge; until then `--licence-confirmed` is the owner's call.
+
 Without them the cove plays with its primitive palms and bundled barrels and logs, and no
 vegetation; nothing errors. Imported files live in `lai/.asset-storage/` (git-ignored).
 
