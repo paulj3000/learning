@@ -32,12 +32,17 @@ EDITOR_PERMISSIONS = (
     "assets.delete_assetversion",
     "avatars.view_playeravatar",
     "avatars.change_playeravatar",
+    # Collision profiles change what children meet on their next visit, so editors only read them.
+    "assets.view_collisionprofile",
 )
 PUBLISHER_PERMISSIONS = (
     *EDITOR_PERMISSIONS,
     "assets.publish_assetversion",
     "assets.retire_assetversion",
     "avatars.publish_playeravatar",
+    "assets.add_collisionprofile",
+    "assets.change_collisionprofile",
+    "assets.delete_collisionprofile",
 )
 ROLES = {EDITORS: EDITOR_PERMISSIONS, PUBLISHERS: PUBLISHER_PERMISSIONS}
 
