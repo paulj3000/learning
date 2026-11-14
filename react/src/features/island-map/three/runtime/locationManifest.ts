@@ -4,6 +4,7 @@ import type { AdventureStepBinding } from './adventureStepBindings';
 import type { MovementSpec } from '../jumpConfiguration';
 import type { PlayerPresentationSpec } from '../playerPresentation';
 
+import type { PlatformingSpec } from '../platforms/platformSpec';
 export type { MovementSpec } from '../jumpConfiguration';
 export type { PlayerPresentationSpec } from '../playerPresentation';
 
@@ -697,6 +698,11 @@ export interface ThreeLocationManifest {
    * keeps the child on the ground here.
    */
   movement?: MovementSpec;
+  /**
+   * LAI-JMP-02 / LAI-JMP-04: platforms, pressure plates, course checkpoints, hazards and goals
+   * (`platforms/platformSpec.ts`). Absent means none: the location plays exactly as before.
+   */
+  platforming?: PlatformingSpec;
   /**
    * LAI-JMP-01a: how the player is seen here: camera perspective and tuning,
    * and the avatar. Absent means the defaults (third-person, switchable, the

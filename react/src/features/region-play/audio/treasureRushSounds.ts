@@ -28,6 +28,15 @@ export const TR_SOUND = {
   playerLand: 'sfx.player.land',
   // Running & sprinting: one optional footstep cue, played softer when walking.
   playerFootstep: 'sfx.player.footstep',
+  // LAI-JMP-02 / LAI-JMP-04: platforms (any region). Optional; missing audio is silent.
+  platformActivate: 'sfx.platform.activate',
+  platformMove: 'sfx.platform.move',
+  platformStop: 'sfx.platform.stop',
+  pressurePlate: 'sfx.platform.plate',
+  bounce: 'sfx.platform.bounce',
+  checkpoint: 'sfx.platform.checkpoint',
+  playerRecover: 'sfx.player.recover',
+  platformGoal: 'sfx.platform.goal',
 } as const;
 
 /** Footstep loudness by gait (0 to 1): quiet walking, fuller running and sprinting. */

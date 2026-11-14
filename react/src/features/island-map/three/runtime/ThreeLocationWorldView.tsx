@@ -1,3 +1,4 @@
+import { checkpointReachedText, recoveredText } from '../platforms/platformCopy';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../../IslandWorldView.module.css';
@@ -360,6 +361,11 @@ export function ThreeLocationWorldView({
           )
           .then(() => refreshWorld())
           .catch(() => undefined);
+      }),
+      // LAI-JMP-02: friendly course feedback; a missed jump is never a loss.
+      bus.on('CourseCheckpointReached', ({ label }) => setToast(checkpointReachedText(label))),
+      bus.on('PlayerRecovered', ({ reason, checkpointId }) => {
+        if (reason === 'HAZARD' || checkpointId) setToast(recoveredText(manifest.platforming, checkpointId));
       }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
