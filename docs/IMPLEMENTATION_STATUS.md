@@ -42,6 +42,21 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Fix: left and right movement were swapped (2026-11-14, `integration/avatar-amplify-exit`)
+
+Owner-reported: ArrowLeft walked right and ArrowRight walked left. Cause: the shared movement
+controller (`firstPersonController.ts`) pushed strafe toward world +X at yaw 0, but the camera
+(`rotation.y = yaw + PI`) faces +Z there, so screen-right is -X. Only the X part of the sideways
+vector had the wrong sign, so the swap showed when facing north or south and not exactly east or
+west. Pre-existing since the controller was written; not introduced by the integration. One fix
+covers keyboard (arrows and A/D), gamepad stick and touch, in first- and third-person, in every 3D
+location and the sandbox.
+
+Tests: new regression tests compare strafe with the real Three.js camera's right vector at five
+headings and check strafe is at right angles to forward (they fail on the old code). Vitest for
+the controller, pointer controls, gamepad, camera, presentation, animation and runtime: 56 files,
+749 tests, pass. `npm run typecheck` passes. Deferred: browser/WebGL play check (owner QA).
+
 ## Integration: Amplify exit with player movement and avatars — `integration/avatar-amplify-exit` (2026-11-14); local QA branch, NOT merged
 
 A QA-only branch combining the open player stack with the Amplify exit, so the avatar work runs

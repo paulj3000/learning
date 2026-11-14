@@ -268,13 +268,16 @@ export class FirstPersonController {
     const hasInput = moveInput.forward !== 0 || moveInput.strafe !== 0;
     const forwardX = Math.sin(this.yaw);
     const forwardZ = Math.cos(this.yaw);
-    const strafeX = Math.cos(this.yaw);
-    const strafeZ = -Math.sin(this.yaw);
+    // The child's right: forward turned a quarter clockwise seen from above. The camera
+    // looks along forward (`rotation.y = yaw + PI`), so this is screen-right; at yaw 0 the
+    // child faces +Z and right is -X. (It was +X, which walked left on ArrowRight.)
+    const rightX = -Math.cos(this.yaw);
+    const rightZ = Math.sin(this.yaw);
 
     const targetVelocity = new Vector3(
-      forwardX * moveInput.forward + strafeX * moveInput.strafe,
+      forwardX * moveInput.forward + rightX * moveInput.strafe,
       0,
-      forwardZ * moveInput.forward - strafeZ * moveInput.strafe,
+      forwardZ * moveInput.forward + rightZ * moveInput.strafe,
     );
     if (targetVelocity.lengthSq() > 1) {
       targetVelocity.normalize();
