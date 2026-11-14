@@ -2,8 +2,9 @@
 
 Status (2026-11-01, branch `features/ai`, unmerged, not pushed): **implemented and verified
 locally with the fake model; not live-accepted.** No Bedrock call has been made, nothing is
-deployed, and the deployed React build still uses the Amplify routes. React switches to Django
-only in a build with `VITE_BACKEND=django`. Section 10 has the per-task status matrix.
+deployed. Since AMP-05 every React build calls Django's AI routes (there is no `VITE_BACKEND`
+selector and no Amplify AI route; `docs/platform/AMPLIFY_FINAL_REMOVAL.md`). Section 10 has the
+per-task status matrix.
 
 Decision: ADR-044 (builds on ADR-019 sub-decision 9). Safety principles:
 `docs/AI_AND_CHILD_SAFETY.md`. Code: `lai/apps/ai/`. Infrastructure:
@@ -385,8 +386,8 @@ Amplify-connected branch deploys the Amplify backend.
 
 ### Rollback (keep until LAI-0710 is accepted)
 
-- *Frontend AI routing:* rebuild without `VITE_BACKEND=django` (or with the previous artifact):
-  every AI call goes back to the Amplify routes, which stay deployed until LAI-0710.
+- *Frontend AI routing:* no longer available. The Amplify routes are deleted (owner,
+  2026-11-14) and every build calls Django; use the two Django switches below.
 - *Django AI:* `LAI_AI_PROVIDER=disabled` (SSM, re-release) or the Admin kill switch (no
   deploy): authored content everywhere, gameplay unaffected.
 - *Failing invocations:* the `ai.turn` metrics and alarms, the audit rows (`failure_category`,
@@ -476,7 +477,11 @@ parent-initiated clearing unchanged and immediate; a scheduled run only after th
 `--apply` has been checked in a non-production environment. Today one setting covers both kinds
 of row; separate periods and a scheduled job are the follow-up task LAI-0711.
 
-### Amplify routing and retirement prerequisites (LAI-0710; nothing removed)
+### Amplify routing and retirement prerequisites (LAI-0710; historical, retired by AMP-05 and AMP-07)
+
+The table and list below describe the state before the Amplify removal. Today every caller is on
+Django; the persona files live only in `lai/apps/ai/prompts/` and `scripts/ai-red-team.ts` has
+only the Django target.
 
 | Caller | Django build (`VITE_BACKEND=django`) | Other builds |
 |---|---|---|

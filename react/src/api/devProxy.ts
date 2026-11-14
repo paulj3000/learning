@@ -1,5 +1,3 @@
-import { readBackendSetting, resolveBackend } from './backend.ts';
-
 /**
  * The `vite dev` proxy to a local Django (TR-7, decision TR-D14). Django has
  * no CORS on purpose (same-origin in every deployed environment), so in
@@ -7,7 +5,7 @@ import { readBackendSetting, resolveBackend } from './backend.ts';
  * forwards it. Dev server only: production builds and `vite preview` are
  * unaffected, and nothing here reaches the client bundle.
  *
- * - On whenever the backend is Django (`resolveBackend`): `VITE_BACKEND=django` or unset.
+ * - Always on: Django is the only application backend (AMP-03).
  * - The target, in order: `DJANGO_DEV_PROXY_TARGET` (a full origin), else
  *   `http://127.0.0.1:$DJANGO_DEV_PORT`, else `http://127.0.0.1:8010`
  *   (`make runserver`'s default). `DJANGO_DEV_PORT` is the same variable the
@@ -24,8 +22,6 @@ export const DEFAULT_DJANGO_DEV_TARGET = `http://127.0.0.1:${DEFAULT_DJANGO_DEV_
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 export interface DevProxyEnv {
-  VITE_BACKEND?: string;
-  MODE?: string;
   DJANGO_DEV_PROXY_TARGET?: string;
   DJANGO_DEV_PORT?: string;
 }
@@ -37,15 +33,6 @@ export type DevProxyConfig = Record<
 
 /** How long the proxy waits for Django before answering 504, so no request hangs forever. */
 export const DEV_PROXY_TIMEOUT_MS = 30_000;
-
-/** Throws on a `VITE_BACKEND` other than `django` (the Amplify Data backend was removed, AMP-07). */
-export function assertValidBackendSetting(env: DevProxyEnv): void {
-  if (readBackendSetting(env) === undefined) {
-    throw new Error(
-      `VITE_BACKEND must be "django" or unset (the Amplify backend was removed); got "${env.VITE_BACKEND}"`,
-    );
-  }
-}
 
 /** The proxy's Django origin, validated. Throws with a message naming the bad variable. */
 export function djangoDevTarget(env: DevProxyEnv): string {
@@ -73,9 +60,7 @@ export function djangoDevTarget(env: DevProxyEnv): string {
   return url.origin;
 }
 
-export function djangoDevProxy(env: DevProxyEnv): DevProxyConfig | undefined {
-  assertValidBackendSetting(env);
-  if (resolveBackend(env) !== 'django') return undefined;
+export function djangoDevProxy(env: DevProxyEnv): DevProxyConfig {
   return {
     '/api': {
       target: djangoDevTarget(env),

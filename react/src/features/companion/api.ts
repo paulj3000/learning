@@ -68,9 +68,8 @@ function authoredFallback(input: RequestCompanionTurnInput): CompanionTurn {
  *
  * Generation runs only on Django (`POST ai/companion-turns/`, LAI-0706),
  * which validates, falls back, audits and records safety events
- * server-side. AMP-05 removed the Amplify AI Kit route: a build without the
- * Django API, or a parent who switched AI off, gets the authored fallback
- * without any network call.
+ * server-side (AMP-05 removed the Amplify AI Kit route). A parent who switched AI off gets the
+ * authored fallback without any network call.
  */
 export async function requestCompanionTurn(
   input: RequestCompanionTurnInput,
@@ -78,9 +77,7 @@ export async function requestCompanionTurn(
   if (input.aiEnabled === false) {
     return { turn: authoredFallback(input), source: 'FALLBACK' };
   }
-  const django = currentDjangoAiApi();
-  if (!django) return { turn: authoredFallback(input), source: 'FALLBACK' };
-  return requestDjangoCompanionTurn(django, input);
+  return requestDjangoCompanionTurn(currentDjangoAiApi(), input);
 }
 
 /**

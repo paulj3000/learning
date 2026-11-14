@@ -17,9 +17,9 @@ interface AuthContextValue {
   userId: string | null;
   /**
    * Whether the signed-in user belongs to the Cognito `Admins` group
-   * (amplify/auth/resource.ts). Read from the ID token's `cognito:groups`
-   * claim rather than a separate call, since `fetchAuthSession` already
-   * has to run once per sign-in to get a fresh token. Always `false` while
+   * (created with the user pool; granted out of band, `scripts/grant-admin.ts`). Read from the ID token's `cognito:groups`
+   * claim rather than a separate call, since the session is already read
+   * once per sign-in to get a fresh token. Always `false` while
    * unauthenticated/unconfigured — `RequireAdmin` (src/features/auth/RequireAdmin.tsx)
    * is what actually gates the admin section, this is just the signal it reads.
    */
@@ -28,7 +28,7 @@ interface AuthContextValue {
    * Whether the signed-in admin is also in `Superusers` (ADR-031), which is
    * what unlocks destructive admin actions such as deleting an adventure.
    * Only ever `true` alongside `isAdmin`; the backend enforces the same rule
-   * on its own (`allow.group('Superusers')` in amplify/data/resource.ts).
+   * on its own (Django checks the same group claim).
    */
   isSuperuser: boolean;
   refresh: () => Promise<void>;
@@ -49,7 +49,9 @@ export function adminAccessFromGroups(groups: unknown): { isAdmin: boolean; isSu
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>(isCognitoConfigured ? 'loading' : 'unconfigured');
+  const [status, setStatus] = useState<AuthStatus>(
+    isCognitoConfigured ? 'loading' : 'unconfigured',
+  );
   // Only the newest session read may set state, so a late answer cannot overwrite a newer one.
   const generation = useRef(0);
   const [userId, setUserId] = useState<string | null>(null);
@@ -65,9 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Quiet keeps the current screen mounted while the session is re-read.
     if (!options.quiet) setStatus('loading');
     try {
+      const auth = cognitoAuth();
+      // Bounded: reading the session can refresh tokens over the network.
       const { user, tokens } = await withTimeout(
         (async () => {
-          const auth = cognitoAuth();
           const signedIn = await auth.getCurrentUser();
           return { user: signedIn, tokens: await auth.getTokens() };
         })(),

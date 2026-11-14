@@ -163,7 +163,6 @@ export function getIslandsFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): Promise<IslandsView> {
-  if (!config.enabled) return Promise.reject(new ApiError('disabled'));
   return getIslands(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
     childId,

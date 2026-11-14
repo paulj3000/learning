@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError } from '../errors';
 import { Reader } from '../parse';
-import { childHome, getChildHomeFor } from './homeApi';
+import { childHome } from './homeApi';
 
 export const REGION_JSON = {
   regionId: 'treasure-rush-cove',
@@ -58,9 +57,5 @@ describe('childHome (AP-02)', () => {
       questsActive: 2,
     });
     expect(home.recentItems).toEqual([{ itemId: 'gold-coin', displayName: 'Gold coin' }]);
-  });
-
-  it('is disabled in a build without the Django API', async () => {
-    await expect(getChildHomeFor('child-1', { enabled: false })).rejects.toBeInstanceOf(ApiError);
   });
 });

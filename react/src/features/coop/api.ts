@@ -58,10 +58,6 @@ const sessionPath = (childId: string, coopId: string) =>
   `${base(childId)}${encodeURIComponent(coopId)}/`;
 
 function defaultClient(config: DjangoApiConfig = DJANGO_API_CONFIG): ApiClient {
-  if (!config.enabled) {
-    // A build without the Django API has no co-op backend at all.
-    throw new ApiError('disabled');
-  }
   return createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true });
 }
 

@@ -526,9 +526,8 @@ an approval step.
    (add `--dry-run` first to see what it would do). Idempotent; publishes nothing.
 7. **Publish** the three versions in Django Admin (19.2, step 3). Until then the game uses its
    bundled copies, so this step can come later.
-8. **React.** Build with `VITE_BACKEND=django` (and `VITE_DJANGO_API_BASE` unset for a
-   same-origin API). Today every hosted Amplify branch keeps `VITE_BACKEND` unset
-   (`docs/platform/AMPLIFY_HOSTING.md` section 5); changing that is an owner decision.
+8. **React.** Nothing to set: every build calls Django (AMP-03; leave `VITE_DJANGO_API_BASE`
+   unset for a same-origin API). Amplify Hosting is retired.
 9. **Children.** A child must exist in Django to play: real families need the child-profile
    migration (LAI-0502/0602, TR-9). **Open blocker.**
 
@@ -541,7 +540,7 @@ administrative actions.
 |---|---|
 | A bad model version | Make the previous published version the default (19.2, step 4). Versions are immutable, so the old bytes are untouched. Retiring the bad one stops it at once with `django` delivery |
 | An asset that should not be in the game at all | Retire the definition (admin action): every reference becomes `retired` and the game uses the bundled file |
-| TR-10 itself | Build React without `VITE_BACKEND=django`: every region uses the bundled loader again. Nothing else changes |
+| TR-10 itself | Retire the region's asset definitions (above): its models fall back to the bundled loader. The `VITE_BACKEND` switch that used to do this is gone (AMP-03) |
 | The storage stack | It retains the bucket on delete, so tearing the stack down never deletes content. A deleted object can be restored from its noncurrent version for 30 days (`aws s3api list-object-versions`, then copy it back) |
 | A whole Django release | Roll the service back to the previous image; asset rows and objects are unaffected (the asset migrations are additive) |
 

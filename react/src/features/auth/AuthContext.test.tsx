@@ -117,7 +117,7 @@ describe('AuthContext bounds the session read (P0)', () => {
   it('reports Cognito as unavailable, not signed out, when the session read never finishes', async () => {
     vi.useFakeTimers();
     try {
-      getCurrentUser.mockReturnValue(new Promise(() => undefined));
+      fake.getTokens.mockReturnValue(new Promise(() => undefined));
       render(
         <AuthProvider>
           <Probe />

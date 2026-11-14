@@ -16,7 +16,7 @@ interface DjangoAdventureRunnerProps {
 
 /**
  * The existing step card driven by Django's runner (LAI-0816). Chatty's AI bubble, coop and the
- * tutor's scaffold stay with the Amplify runner for now: this path shows authored text only,
+ * tutor's scaffold stay with the classic runner (`AdventureRunner`) for now: this path shows authored text only,
  * which is the safe fallback by construction.
  */
 export function DjangoAdventureRunner({

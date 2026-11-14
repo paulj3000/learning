@@ -71,8 +71,7 @@ export async function getStorybook(client: ApiClient, childId: string): Promise<
 export function storybookApiFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
-): StorybookApi | undefined {
-  if (!config.enabled) return undefined;
+): StorybookApi {
   const client = createApiClient({
     baseUrl: config.baseUrl,
     getAccessToken,

@@ -14,10 +14,8 @@ import type { AssetFamily, AssetResolver } from '../island-map/three/assets/asse
  * `manage.py migrate_amplify_asset_objects`
  * (docs/platform/AMPLIFY_STORAGE_CUTOVER.md), and Django publishes them.
  *
- * - A build with the Django API (`VITE_BACKEND=django`) resolves through
- *   `djangoAssetResolverFor`: the child's published version, falling back to
- *   the bundled file when nothing usable is published.
- * - A build without it uses the bundled `public/models/` files only.
+ * Every build resolves through `djangoAssetResolverFor`: the child's published version,
+ * falling back to the bundled `public/models/` file when nothing usable is published.
  *
  * The admin catalog's Amplify `Asset` reads live with that admin code
  * (`features/admin/catalogApi.ts`, retired with AMP-03), not here.

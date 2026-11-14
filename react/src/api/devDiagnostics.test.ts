@@ -4,10 +4,9 @@ const POOL_ID = 'us-west-2_SecretLooking1';
 const CLIENT_ID = 'clientidshouldnotprint';
 
 describe('dev start-up diagnostics (P0)', () => {
-  it('reports the default backend, the proxy target, Django and Cognito', () => {
+  it('reports the proxy target, Django and Cognito', () => {
     const lines = diagnosticsLines({
       env: {
-        MODE: 'development',
         DJANGO_DEV_PORT: '8000',
         VITE_COGNITO_USER_POOL_ID: POOL_ID,
         VITE_COGNITO_CLIENT_ID: CLIENT_ID,
@@ -16,7 +15,6 @@ describe('dev start-up diagnostics (P0)', () => {
       health: { ok: true },
     });
     expect(lines).toEqual([
-      '[lai] dev backend: django (default for vite dev)',
       '[lai] dev API proxy: /api -> http://127.0.0.1:8000 (DJANGO_DEV_PORT)',
       '[lai] dev Django: reachable (GET /api/v1/health/ answered)',
       '[lai] dev Cognito: configured (region us-west-2, from react env)',
@@ -35,19 +33,13 @@ describe('dev start-up diagnostics (P0)', () => {
 
   it('says how to fix an unreachable Django and a missing Cognito pool', () => {
     const text = diagnosticsLines({
-      env: { VITE_BACKEND: 'django' },
+      env: {},
       cognitoSource: null,
       health: { ok: false, reason: 'refused' },
     }).join('\n');
     expect(text).toContain('NOT reachable at http://127.0.0.1:8010 (refused)');
     expect(text).toContain('make runserver DJANGO_DEV_PORT=8010');
     expect(text).toContain('Cognito: NOT configured');
-  });
-
-  it('notes that the proxy is off for a VITE_BACKEND that is not django', () => {
-    expect(
-      diagnosticsLines({ env: { VITE_BACKEND: 'amplify' }, cognitoSource: null, health: null })[1],
-    ).toContain('proxy: off');
   });
 });
 

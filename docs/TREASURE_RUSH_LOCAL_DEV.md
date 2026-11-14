@@ -8,11 +8,12 @@ accounts only. Nothing here touches a deployed environment.
 by environment variables. No Amplify sandbox and no `amplify_outputs.json` are needed. You need a
 **test** parent account in that pool. Django Admin keeps its own staff sign-in (step 3).
 
-**Profiles live in Django (LAI-CHILD-001, ADR-039).** The parent dashboard lists, creates, edits
-and deactivates children through Django, so you add a child in the app and pick it from the
-dashboard. Since the Amplify exit (AMP-03, AMP-04) the per-child extras (companion name, backpack,
-the classic adventures and world changes), profile photos and account deletion are Django routes
-too; nothing in the app reads Amplify Data or Storage. Treasure Rush runs entirely on Django.
+**Profiles live in Django (LAI-CHILD-001, ADR-039).** Django is the only backend (AMP-03): the
+parent dashboard lists, creates, edits and deactivates children through Django, so you add a child
+in the app and pick it from the dashboard. Profile photos go to Django's private photo storage
+(local disk in development). Deleting a child needs a recent Cognito sign-in (LAI-0209). Children
+and photos from the retired Amplify backend are not here unless imported (below). Treasure Rush
+runs entirely on Django.
 
 ## Prerequisites
 
@@ -112,9 +113,9 @@ Django account through `POST /api/v1/me/`; there is no separate step. On the das
 (E or Enter to talk), accept the quest, find the chest, answer, and open the backpack (bottom
 right).
 
-To bring over test children that already exist in an old Amplify sandbox, export them and use
-`manage.py import_amplify_profiles` (docs/platform/AMPLIFY_PROFILE_IMPORT.md), which keeps their
-ids.
+To bring over test children from the retired Amplify backend's retained tables, export them and
+use `manage.py import_amplify_profiles` (docs/platform/AMPLIFY_PROFILE_IMPORT.md), which keeps
+their ids. Importing production data is an owner approval.
 
 ## 7. Sign out
 
@@ -136,7 +137,7 @@ curl -s -H "Authorization: Bearer $TOKEN" $base/children/    # the parent's chil
 
 ## 9. Models from the asset library (TR-10)
 
-With `VITE_BACKEND=django` the cove already asks Django for its three models (`npc-pip`,
+The cove always asks Django for its three models (`npc-pip`,
 `treasure-chest`, `ground-tile`); with nothing published it uses the bundled files, and the
 browser console says so once per model. To manage them in Django instead:
 
@@ -163,7 +164,6 @@ the cove. Full workflow and troubleshooting: `docs/ASSET_LIBRARY.md` section 19.
 | "This part of the island isn't open yet." | Step 2's publish not run, or the child id is not this parent's |
 | "Please ask a grown-up to sign in again." | Django rejected the Cognito token: check step 3's three values |
 | "We are still getting your island ready." | `POST /api/v1/me/` failed: check the Django console |
-| `npm run dev` stops with `VITE_BACKEND must be "django" or unset` | `react/.env.local` still sets the retired `VITE_BACKEND=amplify`; remove it and restart `npm run dev` |
 | Requests to `/api` return 502, or "We could not reach the island" | Django is not on the proxied port: compare the `[lai] dev API proxy` line with runserver's port (`DJANGO_DEV_PORT`) |
 | "Parent sign-in is not available right now" | No Cognito pool configured: see the `[lai] dev Cognito` line and step 3 |
 | A pink box where Pip or a model should be | That model failed from both Django and the bundle; the console warning says why (TR-7a) |

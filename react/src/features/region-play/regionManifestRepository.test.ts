@@ -64,17 +64,14 @@ describe('createRegionManifestRepository', () => {
     expect((await chestOpen())[0].isOpen).toBe(true);
   });
 
-  it.each(['not_found', 'disabled'] as const)(
-    'treats %s as a region that is not open',
-    async (kind) => {
-      const repository = repositoryWith(async () => {
-        throw new ApiError(kind);
-      });
-      await expect(repository.getPublished(REGION)).rejects.toBeInstanceOf(
-        LocationManifestNotFoundError,
-      );
-    },
-  );
+  it.each(['not_found'] as const)('treats %s as a region that is not open', async (kind) => {
+    const repository = repositoryWith(async () => {
+      throw new ApiError(kind);
+    });
+    await expect(repository.getPublished(REGION)).rejects.toBeInstanceOf(
+      LocationManifestNotFoundError,
+    );
+  });
 
   it('passes a network failure through for the view’s calm error', async () => {
     const repository = repositoryWith(async () => {
@@ -113,15 +110,8 @@ describe('createRegionManifestRepository', () => {
 });
 
 describe('regionRepositoryForChild', () => {
-  it('is the source repository itself when the build has no Django API', () => {
-    expect(
-      regionRepositoryForChild('child', sourceLocationManifestRepository, { enabled: false }),
-    ).toBe(sourceLocationManifestRepository);
-  });
-
-  it('wraps the source repository when the Django API is on', () => {
+  it('wraps the source repository with the Django-served regions', () => {
     const repository = regionRepositoryForChild('child', sourceLocationManifestRepository, {
-      enabled: true,
       baseUrl: '',
     });
     expect(repository).not.toBe(sourceLocationManifestRepository);

@@ -13,9 +13,6 @@ export function realmLoadFailure(error: unknown): RealmLoadFailure {
 }
 
 export const REALM_NOTICE_COPY = {
-  unavailable: 'Realms are not open on this island yet.',
-  unavailableNext: 'You can keep exploring from Home.',
-  goHome: 'Go to Home',
   signIn: 'Ask a grown-up to sign in again',
   tryAgain: 'Try again',
   /** A second line saying why, when we know. */

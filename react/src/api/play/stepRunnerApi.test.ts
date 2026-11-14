@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient } from '../client';
 import { ApiError } from '../errors';
-import { createStepRunnerApi, stepRunnerApiFor } from './stepRunnerApi';
+import { createStepRunnerApi } from './stepRunnerApi';
 import { jsonResponse } from '../../test/playFixtures';
 import { SESSION_ID as SESSION, sessionJson, viewJson } from '../../test/stepRunnerFixtures';
 
@@ -128,10 +128,5 @@ describe('the Django step runner API (LAI-0816)', () => {
     await api.start('a/b');
     expect(sent(fetch).url).toContain('content/adventures/a%2Fb/start/');
     await expect(api.getStep('')).rejects.toMatchObject({ kind: 'invalid_request' });
-  });
-
-  it('is disabled in a build without the Django API', async () => {
-    const api = stepRunnerApiFor(CHILD, { enabled: false });
-    await expect(api.start('mend-bridge')).rejects.toMatchObject({ kind: 'disabled' });
   });
 });

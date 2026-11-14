@@ -38,7 +38,7 @@ export function playerAvatarSourceFor(
   const published = fetchAnswer(childId, config)
     .then((answer) => answer?.model ?? null)
     .catch(() => null);
-  if (!config.enabled || !childId) return { published };
+  if (!childId) return { published };
   const loader = createAssetLoader(resolverFor(childId, config));
   return { published, loadModel: (ref) => loader.loadAsset(ref) };
 }

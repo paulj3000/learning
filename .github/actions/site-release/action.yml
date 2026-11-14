@@ -54,7 +54,6 @@ runs:
     - name: Build (Cognito sign-in, Django backend on same-origin /api/)
       shell: bash
       env:
-        VITE_BACKEND: django
         VITE_DJANGO_API_BASE: ''
         VITE_COGNITO_USER_POOL_ID: ${{ inputs.cognito-user-pool-id }}
         VITE_COGNITO_CLIENT_ID: ${{ inputs.cognito-client-id }}

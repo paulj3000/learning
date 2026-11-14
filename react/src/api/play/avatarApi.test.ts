@@ -38,7 +38,6 @@ describe('child avatar API (LAI-JMP-01c)', () => {
   });
 
   it('is null without the Django API or a child', async () => {
-    expect(await childAvatarFor('c1', { enabled: false, baseUrl: '' } as never)).toBeNull();
     expect(await childAvatarFor('', { enabled: true, baseUrl: '' } as never)).toBeNull();
   });
 });

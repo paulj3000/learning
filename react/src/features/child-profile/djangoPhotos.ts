@@ -152,7 +152,7 @@ export function parsePhotoBody(data: unknown, childId: string): DjangoChildPhoto
   return null;
 }
 
-/** Maps the photo API's errors onto the messages parents already see in Amplify builds. */
+/** Maps the photo API's errors onto the messages parents see. */
 export function toPhotoError(error: unknown, fallback: string): ProfileRequestError {
   if (!isApiError(error)) return new ProfileRequestError(fallback, { cause: error });
   const code = error.code;

@@ -1,7 +1,7 @@
 # Learning Adventure Island — Claude Project Instructions
 
 ## 1. Mission
-Build **Learning Adventure Island**, an AI-powered learning adventure world for children ages **3–8** using **AWS Amplify Gen 2**.
+Build **Learning Adventure Island**, an AI-powered learning adventure world for children ages **3–8** on **React + Three.js, Django REST and PostgreSQL, Amazon Cognito, and Amazon Bedrock** (section 8; Amplify is retired, section 18).
 
 The product is not a collection of worksheets or a generic chatbot. It is a living island where children learn by solving meaningful problems, helping characters, creating things, and changing the world.
 
@@ -123,7 +123,7 @@ Child action
 Rules:
 - Never call a foundation model directly from the browser.
 - Never expose model credentials to the client.
-- Prefer Amplify AI Kit generation/conversation routes backed by Amazon Bedrock where appropriate.
+- Route every AI call through Django's AI pipeline (`lai/apps/ai`), backed by Amazon Bedrock, with the deterministic fake provider for local development and tests.
 - AI output must use explicit schemas for dialogue, choices, hints, challenge metadata, and safety disposition.
 - Gameplay correctness must be evaluated by application code whenever possible, not by the model.
 - Do not send full child profiles or unnecessary history to the model.
@@ -145,13 +145,15 @@ Unless an architectural decision record changes it, use:
 - Vitest and React Testing Library
 - Playwright for critical user journeys
 
-### AWS / Amplify Gen 2
-- Amplify Gen 2 code-first backend in TypeScript
-- Amplify Auth / Amazon Cognito for parent accounts
-- Amplify Data / AppSync / DynamoDB for application data
-- Amplify Storage / Amazon S3 for approved media and generated artifacts
-- Amplify Functions / AWS Lambda for orchestration, moderation, reporting, and privileged operations
-- Amplify AI Kit and Amazon Bedrock for constrained AI generation where supported
+### Backend and AWS (ADR-019; Amplify retired, AMP-01 to AMP-08)
+- Django + Django REST Framework in `lai/` on PostgreSQL 16 for application data and rules
+- Amazon Cognito for parent accounts: the existing user pool and web app client, used directly
+  from the browser (`react/src/lib/cognito`) and verified by Django; no Amplify SDK
+- Amazon S3 through Django for approved media, assets and child photos
+- Amazon Bedrock (and Polly for speech) called only by Django, with fake providers for local work
+- Django Admin for administrators and content designers
+- AWS CDK in `infra/` for the Django EC2 platform and the S3/CloudFront site; deploys only with
+  explicit owner approval
 - CloudWatch for logs and operational metrics
 
 ### Repository expectations
@@ -160,13 +162,9 @@ Unless an architectural decision record changes it, use:
 learning-adventure-island/
 ├── CLAUDE.md
 ├── README.md
-├── amplify/
-│   ├── auth/resource.ts
-│   ├── data/resource.ts
-│   ├── storage/resource.ts
-│   ├── functions/
-│   └── backend.ts
-├── src/
+├── lai/            # Django project (config/, apps/)
+├── infra/          # AWS CDK stacks
+├── react/src/
 │   ├── app/
 │   ├── components/
 │   ├── features/
@@ -306,7 +304,7 @@ A feature is done only when:
 
 When starting from an empty repository, implement in this order:
 
-1. Scaffold React + Vite + TypeScript and Amplify Gen 2.
+1. Scaffold React + Vite + TypeScript and the backend (originally Amplify Gen 2; now Django, section 18).
 2. Establish linting, formatting, unit testing, and CI.
 3. Add design tokens and application shell.
 4. Define Auth and parent authentication flows.
@@ -336,12 +334,15 @@ Read these before major work:
 - `docs/IMPLEMENTATION_STATUS.md`
 
 
-## 18. Proposed backend migration (not in effect)
+## 18. Backend migration (Django in effect; Amplify retired)
 
 ADR-019 in `docs/DECISIONS.md` moves the backend from Amplify Gen 2 to Django + DRF. It is
 **Accepted in part**: the architectural direction (Django + DRF, PostgreSQL, React 19,
-Cognito initially, S3, FinWin-style layout) is approved; section 8 above remains the
-**deployed and operating** baseline until cutover. Operational, data, and security items are
+Cognito initially, S3, FinWin-style layout) is approved. The owner deleted the Amplify app and
+disabled Amplify Hosting (2026-11-14), and the source no longer contains or calls Amplify
+(AMP-01 to AMP-08, `docs/platform/AMPLIFY_FINAL_REMOVAL.md`); section 8 describes the code. The
+Django and S3/CloudFront deployments, and the import of retained Amplify data, are still owner
+approvals, not done. Operational, data, and security items are
 open gates (G1 to G10 in the ADR; G4 is resolved: Python rules, Django content authority) and must not be assumed settled. Track A tasks (Phases 1 to
 13) proceed when their explicit dependencies and the architecture gates that apply to them are
 satisfied (owner, 2026-10-24), and stop for approval at every task marked APPROVAL in
@@ -350,8 +351,9 @@ satisfied (owner, 2026-10-24), and stop for approval at every task marked APPROV
   "in order, skipping nothing" wording means no task skips its own dependencies, not that
   numbering order gates unrelated work.
 - Open earlier tasks stay tracked as open and are never marked complete by implication.
-- No task bypasses an unresolved dependency, an open gate it touches, or a decision it needs. Never delete or change deployed Amplify or
-AWS resources, migrate production data, or deploy without explicit approval.
+- No task bypasses an unresolved dependency, an open gate it touches, or a decision it needs. Never delete or change deployed AWS
+resources (the Cognito pool and the retained Amplify tables and buckets included), migrate
+production data, or deploy without explicit approval. Never reintroduce Amplify.
 
 ## 19. Accepted game engine decision (in effect)
 

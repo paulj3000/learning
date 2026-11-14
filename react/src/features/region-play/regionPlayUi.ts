@@ -322,7 +322,6 @@ export function playErrorMessage(error: ApiError | null): string | null {
         ? PLAY_COPY.errorAccountSetup
         : PLAY_COPY.errorNotAllowed;
     case 'not_found':
-    case 'disabled':
       return PLAY_COPY.errorNotHere;
     case 'conflict':
       if (error.code === 'chest_already_open') return PLAY_COPY.chestOpen;
@@ -360,7 +359,7 @@ export const CONTROL_KEYS = new Set([
 /** What to tell the child when an Adventure could not begin (ADR-041). */
 export function launchErrorMessage(error: ApiError | null): string | null {
   if (!error) return null;
-  if (error.kind === 'conflict' || error.kind === 'not_found' || error.kind === 'disabled') {
+  if (error.kind === 'conflict' || error.kind === 'not_found') {
     return PLAY_COPY.launchUnavailable;
   }
   return playErrorMessage(error);

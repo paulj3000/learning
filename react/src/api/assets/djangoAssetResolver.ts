@@ -301,14 +301,13 @@ export function djangoAssetResolverFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): AssetResolver {
-  if (!config.enabled) return BUNDLED_ASSET_RESOLVER;
   return createDjangoResolverFor(childId, config);
 }
 
-/** The Django resolver itself (with collision profiles); callers check `config.enabled` first. */
+/** The Django resolver itself, with collision profiles (Asset Manager). */
 export function createDjangoResolverFor(
   childId: string,
-  config: Extract<DjangoApiConfig, { enabled: true }>,
+  config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): DjangoAssetResolver {
   return createDjangoAssetResolver({
     client: createApiClient({ baseUrl: config.baseUrl, getAccessToken }),

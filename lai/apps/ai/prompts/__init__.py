@@ -1,9 +1,9 @@
 """Fixed system prompts, versioned (LAI-0701).
 
-Each prompt is copied verbatim from its Amplify source and carries that source's version number,
-so an audit row from either backend names the same persona text. `tests/test_prompts.py` reads
-the TypeScript files and fails if a prompt or version drifts. Bump the version in both places
-whenever the text changes.
+Chatty's prompts were copied verbatim from their Amplify sources at the same version numbers, so
+an audit row from either backend names the same persona text. Python is now the only copy
+(AMP-07): `tests/test_prompts.py` pins each prompt's text to its version, so bump the version
+(and the pin) whenever the text changes.
 
 Call-specific context never goes into these strings; it is a separate, typed user message
 (`services/pipeline.py`), so per-call content cannot dilute the safety rules.
@@ -28,12 +28,12 @@ COMPANION_PERSONA = Persona(
     "chatty-companion",
     CHATTY_PERSONA_VERSION,
     CHATTY_SYSTEM_PROMPT,
-    "amplify/data/chattyPersona.ts",
+    "lai/apps/ai/prompts/companion.py",
 )
 TUTOR_PERSONA = Persona(
-    "chatty-tutor", TUTOR_PERSONA_VERSION, TUTOR_SYSTEM_PROMPT, "amplify/data/tutorPersona.ts"
+    "chatty-tutor", TUTOR_PERSONA_VERSION, TUTOR_SYSTEM_PROMPT, "lai/apps/ai/prompts/tutor.py"
 )
-# Django only (LAI-NPC-030): no Amplify source, so `source` names the Python module.
+# `source` names the Python module that owns the prompt (the Amplify copies are retired, AMP-07).
 NPC_HINT_PERSONA = Persona(
     "npc-hint", NPC_HINT_PROMPT_VERSION, NPC_HINT_SYSTEM_PROMPT, "lai/apps/ai/prompts/npc.py"
 )

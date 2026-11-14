@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { DJANGO_API_CONFIG } from '../api/config';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { isLeftIslandState, LEAVE_ISLAND_COPY } from '../features/portal/exit';
 import { PortalButton } from '../features/portal/ui';
@@ -19,29 +18,16 @@ import {
   writeFilter,
   type RealmFilter,
 } from '../features/realms/realmFilters';
-import { RealmLoadError, RealmsUnavailable } from '../features/realms/RealmNotices';
+import { RealmLoadError } from '../features/realms/RealmNotices';
 import { useRealmCatalog } from '../features/realms/useRealmCatalog';
 
 /**
  * The Realm Explorer (AP-03) at `/island/:childId/realms`: every Realm this child can see, from
  * Django's published catalog, as illustrated discovery cards with subject and age filters.
  * It is also where "Leave island" returns (AP-04).
- *
- * A build without the Django API (`VITE_BACKEND=amplify`) has no published catalog. It used to
- * send the child to Home without a word, which looked like the Realms button was broken; it
- * now says so and offers Home (P0 fix). Local development uses Django by default.
  */
 export function RealmExplorerPage() {
   const { childId } = useParams<{ childId: string }>();
-  if (!DJANGO_API_CONFIG.enabled && childId) {
-    return (
-      <IslandLayout childId={childId}>
-        <div className="flex w-full max-w-7xl flex-col gap-6" data-portal="realm-explorer">
-          <RealmsUnavailable childId={childId} />
-        </div>
-      </IslandLayout>
-    );
-  }
   return <RealmExplorer childId={childId} />;
 }
 

@@ -13,9 +13,9 @@ import type { Page } from '@playwright/test';
  *
  * What does not: the model is Django's deterministic fake provider (never Bedrock), and the
  * screens that render Chatty's bubble (adventure runner, story chapters, castle tales, NPC
- * conversation, the child dashboard's safety section) load Amplify Data first, which this
- * offline harness does not provide (LAI-0706 Gate B). Those are left to a Django-enabled dev
- * deploy; the bubble's rendering is covered by Vitest.
+ * conversation, the child dashboard's safety section) are not driven by this spec; the bubble's
+ * rendering is covered by Vitest. (They read Amplify Data when this spec was written; since
+ * AMP-03 they read Django.)
  */
 
 const COMPANION = '/src/features/companion/api.ts';

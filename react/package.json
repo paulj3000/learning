@@ -13,7 +13,7 @@
     "build": "tsc -b && vite build",
     "build:admin-preview": "vite build --config vite.admin-preview.config.ts",
     "preview": "vite preview",
-    "typecheck": "tsc -b && tsc --noEmit -p ../amplify/tsconfig.json && tsc --noEmit -p ../scripts/tsconfig.json && tsc --noEmit -p ../server/tsconfig.json && tsc --noEmit -p ../infra/tsconfig.json",
+    "typecheck": "tsc -b && tsc --noEmit -p ../scripts/tsconfig.json && tsc --noEmit -p ../server/tsconfig.json && tsc --noEmit -p ../infra/tsconfig.json",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:acceptance": "playwright test -c playwright.acceptance.config.ts"
@@ -42,8 +42,6 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
-    "@aws-amplify/backend": "^1.24.0",
-    "@aws-amplify/backend-cli": "^1.9.0",
     "@aws-sdk/client-dynamodb": "^3.1112.0",
     "@aws-sdk/lib-dynamodb": "^3.1112.0",
     "@axe-core/playwright": "^4.14.0",

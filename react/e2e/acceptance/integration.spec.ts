@@ -54,10 +54,8 @@ test('a parent cannot reach another family’s child, through the API or the app
 });
 
 /*
- * The harbor map, adventure log and the Amplify-session places read Amplify Data (companion,
- * world changes), which this offline harness does not provide (docs/TREASURE_RUSH_LOCAL_DEV.md:
- * "the Amplify-backed extras ... do not know a Django child"). This branch does not change
- * them; they are left to the Amplify sandbox check recorded in IMPLEMENTATION_STATUS.md.
+ * The child dashboard and an adventure launched from the cove, both on Django (AMP-03: the
+ * Amplify-backed harbor map and its sandbox check are retired).
  */
 test('beside Treasure Rush: the dashboard and an adventure launched from the cove', async ({
   page,

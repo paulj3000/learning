@@ -158,12 +158,6 @@ afterEach(() => {
 describe('regionAssetsFor', () => {
   const enabled = { enabled: true as const, baseUrl: '' };
 
-  it('keeps the bundled loader in a build without the Django API', () => {
-    expect(regionAssetsFor('child-1', REGION, SOURCE, { enabled: false })).toBe(
-      DEFAULT_LOCATION_ENGINE_DEPS.assets,
-    );
-  });
-
   it('keeps the bundled loader for a source-controlled region', () => {
     // A resolver without collision profiles (only Django's has them) changes nothing at all.
     const resolverFor = vi.fn(() => BUNDLED_ASSET_RESOLVER);
@@ -293,9 +287,5 @@ describe('regionAssetsFor and Asset Manager collision profiles', () => {
     const assets = regionAssetsFor('child-1', 'welcome-harbor', SOURCE, enabled, () => resolver);
     expect(assets.loadModel).toBe(DEFAULT_LOCATION_ENGINE_DEPS.assets.loadModel);
     await expect(assets.collisionProfiles?.(['rock'])).resolves.toBe(profiles);
-  });
-
-  it('asks nothing of a build without the Django API', () => {
-    expect(regionAssetsFor('child-1', REGION, SOURCE, { enabled: false }).collisionProfiles).toBeUndefined();
   });
 });

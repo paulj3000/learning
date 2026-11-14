@@ -14,7 +14,7 @@ reward, the backpack, persistence after a reload, keyboard, tap and touch-drag c
 screen, and exit. What it cannot judge is yours: how it feels, motion, frame rate on your tablet,
 tap sizes for the youngest band, timing, and sound. Leave the boxes for your own playthrough.
 
-Setup: `docs/TREASURE_RUSH_LOCAL_DEV.md` (local Django on PostgreSQL, `VITE_BACKEND=django`,
+Setup: `docs/TREASURE_RUSH_LOCAL_DEV.md` (local Django on PostgreSQL,
 `publish_treasure_rush`). An existing local cove gets layout v4 from `seed_treasure_rush` and a
 new migration (`regions.0004`) from `migrate`. Use one child per age band if you can: Sprouts
 (3 to 4), Pathfinders (5 to 6), Explorers (7 to 8).

@@ -20,12 +20,11 @@ export type { ChildProfile, ChildProfileInput, ParentProfile, ProfileStore };
  *
  * Django keeps every profile (AMP-03: the Amplify Data store is gone). The parent always signs
  * in with Cognito (ADR-040); the Cognito access token identifies the parent, and Django
- * authorizes access and owns the data. A build without `VITE_BACKEND=django` calls Django on the
- * same origin, the deployed shape.
+ * authorizes access and owns the data.
  *
  * `deleteCognitoUser` is the one auth call this module needs: account deletion removes the
  * Cognito user after Django has deleted the account. It is injected here, the single place the
- * auth layer's deleter is named (AMP-02 swaps the Amplify Auth call for its own Cognito client).
+ * auth layer's deleter is named (AMP-02's direct Cognito client).
  */
 const deleteCognitoUser: DeleteCognitoUser = () => cognitoAuth().deleteUser();
 

@@ -99,13 +99,12 @@ describe('DjangoAccountProvider', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('never calls Django when signed out or in a build without the Django API', () => {
+  it('never calls Django when signed out', () => {
     const fetchMock = djangoReplies({ id: 'account-1', django_admin: true });
-    renderProvider({ enabled: false });
     auth('unauthenticated');
     renderProvider();
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.getAllByText('none not-staff no-link')).toHaveLength(2);
+    expect(screen.getAllByText('none not-staff no-link')).toHaveLength(1);
   });
 
   it('is the signed-out value outside a provider', () => {

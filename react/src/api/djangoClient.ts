@@ -7,13 +7,12 @@ import { DJANGO_API_CONFIG, type DjangoApiConfig } from './config';
  * changes, sessions, stories, quests, NPCs, the backpack, mastery reads, saved stories, the
  * companion choice, availability and account deletion.
  *
- * These modules have no Amplify branch any more, so Django is their only backend. A build with
- * `VITE_BACKEND=django` uses its configured origin; any other build calls the same origin
- * (`/api/v1/`), which is the deployed shape (CloudFront routes `/api/` to Django). Created on
+ * Django is the only backend: the client calls `VITE_DJANGO_API_BASE`, by default the same
+ * origin (`/api/v1/`), which is the deployed shape (CloudFront routes `/api/` to Django). Created on
  * first use, and it provisions a first-time parent's Django account itself.
  */
 export function djangoBaseUrl(config: DjangoApiConfig = DJANGO_API_CONFIG): string {
-  return config.enabled ? config.baseUrl : '';
+  return config.baseUrl;
 }
 
 let client: ApiClient | null = null;

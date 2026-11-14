@@ -285,7 +285,7 @@ class Command(BaseCommand):
         add(
             "client-authored context",
             "WARN" if settings.LAI_AI_ALLOW_CLIENT_AUTHORED else "PASS",
-            "allowed (Amplify sessions and story scenes still need it)"
+            "allowed (the classic adventure runner and story scenes still need it)"
             if settings.LAI_AI_ALLOW_CLIENT_AUTHORED
             else "refused",
         )

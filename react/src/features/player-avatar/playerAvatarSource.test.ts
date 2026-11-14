@@ -3,7 +3,6 @@ import type { AssetResolver } from '../island-map/three/assets/assetResolver';
 import { playerAvatarSourceFor } from './playerAvatarSource';
 
 const ENABLED = { enabled: true, baseUrl: 'https://api.example' } as never;
-const DISABLED = { enabled: false, baseUrl: '' } as never;
 const MODEL = {
   ref: 'player-fox@2',
   assetId: 'player-fox',
@@ -43,8 +42,8 @@ describe('playerAvatarSourceFor (LAI-JMP-01c)', () => {
     expect(await failed.published).toBeNull();
   });
 
-  it('has no loader without the Django API, so the location’s own loader is used', async () => {
-    const source = playerAvatarSourceFor('c1', DISABLED, async () => null);
+  it('has no loader without a child, so the location own loader is used', async () => {
+    const source = playerAvatarSourceFor('', ENABLED, async () => null);
     expect(source.loadModel).toBeUndefined();
     expect(await source.published).toBeNull();
   });

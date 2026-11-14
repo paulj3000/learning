@@ -41,6 +41,6 @@ export function childAvatarFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): Promise<PlayerAvatarAnswer | null> {
-  if (!config.enabled || !childId) return Promise.resolve(null);
+  if (!childId) return Promise.resolve(null);
   return fetchChildAvatar(createApiClient({ baseUrl: config.baseUrl, getAccessToken }), childId);
 }

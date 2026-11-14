@@ -15,39 +15,17 @@ const route = (target: string) => ({
 });
 
 describe('djangoDevProxy (TR-D14)', () => {
-  it('is off when the build does not use the Django API', () => {
-    expect(djangoDevProxy({})).toBeUndefined();
-    expect(djangoDevProxy({ MODE: 'production' })).toBeUndefined();
-  });
-
-  it('refuses the retired Amplify backend instead of running without Django (AMP-07)', () => {
-    expect(() =>
-      djangoDevProxy({
-        VITE_BACKEND: 'amplify',
-        MODE: 'development',
-        DJANGO_DEV_PROXY_TARGET: 'http://127.0.0.1:9000',
-      }),
-    ).toThrow(/VITE_BACKEND must be "django" or unset/);
-  });
-
-  it('is on by default in vite dev (local development defaults to Django)', () => {
-    expect(djangoDevProxy({ MODE: 'development' })).toEqual(route(DEFAULT_DJANGO_DEV_TARGET));
-  });
-
-  it('forwards /api to runserver by default, with a bounded timeout', () => {
-    expect(djangoDevProxy({ VITE_BACKEND: 'django' })).toEqual(route(DEFAULT_DJANGO_DEV_TARGET));
+  it('always forwards /api to runserver (Django is the only backend), with a bounded timeout', () => {
+    expect(djangoDevProxy({})).toEqual(route(DEFAULT_DJANGO_DEV_TARGET));
   });
 
   it('follows DJANGO_DEV_PORT, the same variable make runserver binds to', () => {
-    expect(djangoDevProxy({ VITE_BACKEND: 'django', DJANGO_DEV_PORT: '8000' })).toEqual(
-      route('http://127.0.0.1:8000'),
-    );
+    expect(djangoDevProxy({ DJANGO_DEV_PORT: '8000' })).toEqual(route('http://127.0.0.1:8000'));
   });
 
   it('prefers an explicit loopback origin over DJANGO_DEV_PORT', () => {
     expect(
       djangoDevProxy({
-        VITE_BACKEND: 'django',
         DJANGO_DEV_PORT: '8000',
         DJANGO_DEV_PROXY_TARGET: 'http://localhost:8001/',
       }),
@@ -60,10 +38,6 @@ describe('djangoDevProxy (TR-D14)', () => {
     }
   });
 
-  it('refuses an unknown VITE_BACKEND', () => {
-    expect(() => djangoDevProxy({ VITE_BACKEND: 'djnago' })).toThrow(/VITE_BACKEND/);
-  });
-
   it('refuses anything that would send tokens off this machine', () => {
     for (const target of [
       'https://api.example.com',
@@ -71,9 +45,7 @@ describe('djangoDevProxy (TR-D14)', () => {
       'ftp://127.0.0.1',
       'not a url',
     ]) {
-      expect(() =>
-        djangoDevProxy({ VITE_BACKEND: 'django', DJANGO_DEV_PROXY_TARGET: target }),
-      ).toThrow();
+      expect(() => djangoDevProxy({ DJANGO_DEV_PROXY_TARGET: target })).toThrow();
     }
   });
 });

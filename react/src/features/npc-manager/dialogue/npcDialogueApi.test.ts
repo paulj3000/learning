@@ -1,6 +1,6 @@
 import { createApiClient } from '../../../api/client';
 import { ApiError } from '../../../api/errors';
-import { createNpcDialogueApi, npcDialogueApiFor, type DialogueScope } from './npcDialogueApi';
+import { createNpcDialogueApi, type DialogueScope } from './npcDialogueApi';
 
 const CHILD = '11111111-2222-3333-4444-555555555555';
 const CONVERSATION = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -101,12 +101,8 @@ describe('NPC dialogue API', () => {
     });
   });
 
-  it('refuses empty ids and a build without the Django API', async () => {
+  it('refuses empty ids', async () => {
     const { api } = setup(AREA);
     await expect(api.end('', CONVERSATION)).rejects.toBeInstanceOf(ApiError);
-    const disabled = npcDialogueApiFor(CHILD, AREA, { enabled: false });
-    await expect(disabled.start('pip', { trigger: 'on_interact' })).rejects.toMatchObject({
-      kind: 'disabled',
-    });
   });
 });

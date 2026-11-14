@@ -12,7 +12,7 @@
 #   LAI_ADMIN_DOMAIN           required: the Django Admin host, e.g. ladm.example.com
 #   LAI_SITE_DOMAIN            optional: the React site host, e.g. lai.example.com; deploys
 #                              LaiFrontend-<env> in us-east-1 (CloudFront) when set or already deployed
-#   LAI_COGNITO_USER_POOL_ID   required: the existing parent user pool (created by Amplify; kept)
+#   LAI_COGNITO_USER_POOL_ID   required: the existing parent user pool (created by the retired Amplify backend; kept)
 #   LAI_COGNITO_CLIENT_IDS     required: comma-separated app client ids
 #   LAI_INSTANCE_TYPE          default t3.medium
 #   LAI_ALARM_EMAIL            optional
@@ -96,7 +96,8 @@ deploy_stack "$ec2_stack" \
     "CognitoUserPoolId=$pool" "CognitoAllowedClientIds=$clients" \
     "AlarmEmail=$alarm_email"
 
-# The React site. Optional until the owner moves the frontend off Amplify Hosting (INFRA-002 D2).
+# The React site. Optional until the owner deploys the S3/CloudFront site (INFRA-002 D2; Amplify
+# Hosting is retired, AMP-06).
 site_stack="LaiFrontend-$env_name"
 site_domain=${LAI_SITE_DOMAIN:-$(existing "$site_stack" SiteDomainName us-east-1)}
 if [ -n "$site_domain" ]; then
