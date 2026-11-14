@@ -33,6 +33,15 @@ __pycache__/
 # in docs/ASSET_LICENCES.md. What ships is the handful of normalised files
 # the importer writes into react/public/models/, which are checked in.
 assets/*.zip
+# Environment model downloads (TR-PALM, TR-ENV) and their temporary processing: the asset
+# library stores the prepared models; no model, texture or archive is ever committed.
+assets/*.glb
+assets/*.gltf
+assets/*.fbx
+assets/*.obj
+assets/*.blend
+.asset-import/
+lai/.asset-import/
 
 # Django collectstatic output (LAI-0404); built in the container, never committed
 lai/staticfiles/
