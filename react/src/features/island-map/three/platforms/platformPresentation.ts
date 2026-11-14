@@ -48,6 +48,7 @@ const COLOURS = {
   marker: 0xffd166,
   flag: 0x27ae60,
   pole: 0x8d6e63,
+  water: 0x3aa8d8,
 } as const;
 
 export function createPlatformPresentation(
@@ -134,6 +135,18 @@ export function createPlatformPresentation(
     root.add(mesh);
     return { plate, mesh };
   });
+
+  // Hazards read as water: a translucent blue pool, so a child sees where not to land.
+  const water = new MeshStandardMaterial({ color: COLOURS.water, transparent: true, opacity: 0.7, roughness: 0.2 });
+  owned.push(water);
+  for (const hazard of spec.hazards ?? []) {
+    const { minX, maxX, minZ, maxZ } = hazard.rect;
+    const pool = new Mesh(unitBox, water);
+    pool.scale.set(maxX - minX, 0.02, maxZ - minZ);
+    pool.position.set((minX + maxX) / 2, 0.02, (minZ + maxZ) / 2);
+    pool.name = `platform-hazard:${hazard.id}`;
+    root.add(pool);
+  }
 
   for (const checkpoint of spec.checkpoints ?? []) {
     const flag = new Group();

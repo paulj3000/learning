@@ -185,6 +185,9 @@ export class PlatformSystem {
     });
     this.platforms = this.runtimes;
     this.plates = (spec.pressurePlates ?? []).map((plate) => ({ spec: plate, pressed: false }));
+    // Every world change already recorded is a signal too (`world:<changeKey>`), so a platform an
+    // earlier visit unlocked is there on entry; the view raises new ones live.
+    for (const key of options.worldState.worldChangeKeys) this.signals.add(worldSignal(key));
     this.switchIds = new Set(
       this.runtimes
         .filter((runtime) => runtime.spec.activation?.trigger === 'SWITCH')
@@ -356,6 +359,12 @@ export class PlatformSystem {
         if (runtime.delayLeft > 0) return;
       }
       if (!runtime.active) {
+        // Woken at its start: it waits one pause first, so a child who pressed the plate has
+        // time to step on.
+        const woken = runtime.spec.activation !== undefined && runtime.spec.activation.trigger !== 'ALWAYS';
+        if (woken && runtime.motion && runtime.state.from === 0 && runtime.state.along <= 1e-9) {
+          runtime.state.pauseLeft = runtime.motion.pauseSeconds;
+        }
         runtime.active = true;
         runtime.returning = false;
         runtime.everActivated = true;
@@ -538,6 +547,11 @@ export class PlatformSystem {
       }
     }
   }
+}
+
+/** The signal a recorded world change raises (`SIGNAL` sources may name it). */
+export function worldSignal(changeKey: string): string {
+  return `world:${changeKey}`;
 }
 
 function inRect(rect: RectZone, x: number, z: number): boolean {

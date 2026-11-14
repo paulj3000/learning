@@ -1,5 +1,5 @@
 import type { WorldRequirement } from '../../worldObjects';
-import type { GroundPoint, RectZone, Vec3 } from '../runtime/locationManifest';
+import type { GroundPoint, RectZone, Vec3, ZoneSpec } from '../runtime/locationManifest';
 
 /**
  * Platforming content for any manifest-driven 3D location (LAI-JMP-02, LAI-JMP-04; ADR-059).
@@ -160,6 +160,11 @@ export interface PlatformingSpec {
   goals?: readonly PlatformGoalSpec[];
   /** Per platform id, merged over the authored values when the scene is built. */
   tuning?: Readonly<Record<string, PlatformTuning>>;
+  /**
+   * Section zones with narration (a Django scene keeps them with its course so a cove layout
+   * upgrade never drops them); merged into `manifest.zones` when a Django scene is built.
+   */
+  zones?: readonly ZoneSpec[];
 }
 
 // --- limits (forgiving by design, ages 3 to 8) -------------------------------------------------
@@ -317,7 +322,7 @@ export function validatePlatforming(
       if (activation.trigger === 'ZONE' && !(typeof source === 'string' && context.zoneIds.has(source))) {
         report(`${at}.source`, 'must name a zone of this location');
       }
-      if (activation.trigger === 'SIGNAL' && !(typeof source === 'string' && /^[a-z0-9][a-z0-9:_.-]{0,79}$/.test(source))) {
+      if (activation.trigger === 'SIGNAL' && !(typeof source === 'string' && /^[A-Za-z0-9][A-Za-z0-9:_.-]{0,99}$/.test(source))) {
         report(`${at}.source`, 'must be a signal name');
       }
       if (activation.trigger === 'WORLD_STATE' && !(Array.isArray(activation.requirements) && activation.requirements.length > 0)) {

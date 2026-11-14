@@ -194,6 +194,18 @@ describe('interactive platforms', () => {
     expect(system.platforms[1]!.active).toBe(true);
   });
 
+  it('a woken platform waits one pause first, so the child who pressed the plate can step on', () => {
+    const { system, controller, run } = rig({
+      platforms: [dock({ id: 'lift', motion: { path: [{ x: 0, y: 3, z: 0 }], speed: 1, pauseSeconds: 2 }, activation: { trigger: 'SIGNAL', source: 'go' } })],
+    });
+    controller.position.set(10, 0, 10);
+    system.signal('go');
+    run(1.5);
+    expect(system.platforms[0]!.position.y).toBeCloseTo(0);
+    run(1);
+    expect(system.platforms[0]!.position.y).toBeGreaterThan(0.2);
+  });
+
   it('a hidden bridge appears when activated, not inside the child', () => {
     const { system, controller, run } = rig({
       platforms: [dock({ id: 'bridge', activation: { trigger: 'SIGNAL', source: 'solved', hiddenUntilActive: true } })],

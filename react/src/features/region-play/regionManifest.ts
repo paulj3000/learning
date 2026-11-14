@@ -388,7 +388,13 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     npcs,
     props,
     collectibles: [],
-    zones: layout.zones,
+    // LAI-JMP-03: a course's section zones travel with its platforming block.
+    zones: [
+      ...layout.zones,
+      ...(isObject(model.scene.platforming) && Array.isArray(model.scene.platforming.zones)
+        ? (model.scene.platforming.zones as unknown as ThreeLocationManifest['zones'])
+        : []),
+    ],
     ...(lights.length > 0 ? { lights } : {}),
     ambient: layout.ambient,
     interactions,
