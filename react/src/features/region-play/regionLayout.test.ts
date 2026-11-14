@@ -216,6 +216,16 @@ describe('library palms, barrels and logs (TR-PALM-05, TR-ENV-06)', () => {
     expect(layout.propReplaces['prop-wooden-barrel']).toContain('cove-beach-barrels');
   });
 
+  it('reads the vegetation: walk-through library models with no colliders (ENV-2)', async () => {
+    const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
+    expect(layout.vegetation.length).toBe(138);
+    expect(layout.vegetation.every((plant) => plant.colliders.length === 0)).toBe(true);
+    expect(new Set(layout.vegetation.map((plant) => plant.assetId.split('-')[1]))).toEqual(
+      new Set(['bush', 'flower', 'grass']),
+    );
+    expect(readRegionLayout({ scenery: [plane] } as JsonValue).vegetation).toEqual([]);
+  });
+
   it('defaults to no props for a layout written before them', () => {
     const layout = readRegionLayout({ scenery: [plane] } as JsonValue);
     expect(layout.props).toEqual([]);

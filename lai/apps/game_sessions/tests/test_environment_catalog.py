@@ -24,11 +24,13 @@ def test_the_catalog_names_the_library_models_and_whether_each_can_be_delivered(
     published.default_version = version
     published.save(update_fields=["default_version"])
     make_definition("nature-palm-tree-tall", kind="kit-piece", category="scenery")  # unpublished
+    make_definition("nature-grass-tall", kind="kit-piece", category="scenery")  # ENV-2
 
     catalog = region_catalog(WorldRegion.objects.get(region_id=REGION_ID))
     by_id = {asset["assetId"]: asset for asset in catalog["assets"]}
     assert by_id["prop-wooden-barrel"]["deliverable"] is True
     assert by_id["nature-palm-tree-tall"]["deliverable"] is False
+    assert by_id["nature-grass-tall"]["deliverable"] is False  # vegetation is listed too
     # Ids with no definition at all are simply absent: the client then keeps its stand-ins.
     assert "nature-wood-log-moss" not in by_id
 

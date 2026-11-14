@@ -17,8 +17,9 @@ import {
   type Drive,
 } from '../../runtime/testing/engineHarness';
 import type { LoadedModel } from '../../runtime/extensionRegistry';
+import type { RenderQuality } from '../../runtime/visual/renderQuality';
 import { GATE_BARS_NAME, PALM_TRUNKS_NAME, PROCEDURAL_NAME } from './proceduralScenery';
-import { regionPlaySceneExtension } from './regionPlayScene';
+import { regionPlaySceneExtension, thinDecor } from './regionPlayScene';
 
 /**
  * Treasure Cove's four-zone layout (TR-13) on the real runtime: the snapshot
@@ -171,15 +172,29 @@ const LIBRARY_MODELS = [
   'nature-wood-log-moss',
   'prop-wood-pile',
 ];
+/** ENV-2: the bushes, flowers and grass. */
+const VEGETATION_MODELS = [
+  'nature-bush-small',
+  'nature-bush-medium',
+  'nature-bush-large',
+  'nature-flower-tropical-yellow',
+  'nature-flower-tropical-blue',
+  'nature-flower-tropical-pink',
+  'nature-flower-tropical-purple',
+  'nature-grass-short',
+  'nature-grass-medium',
+  'nature-grass-tall',
+];
 
 async function libraryCove(
   deliverable: readonly string[],
   loadModel: (assetId: string) => Promise<LoadedModel> = async () => standingBox(),
+  options: { quality?: RenderQuality; reducedMotion?: boolean } = {},
 ) {
   const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
   const catalog = {
     worldSlug: 'learning-adventure-island',
-    assets: LIBRARY_MODELS.map((assetId) => ({
+    assets: [...LIBRARY_MODELS, ...VEGETATION_MODELS].map((assetId) => ({
       assetId,
       kind: assetId.startsWith('prop-') ? 'prop' : 'kit-piece',
       clips: [],
@@ -193,6 +208,7 @@ async function libraryCove(
     manifest: built.manifest,
     extensions: [regionPlaySceneExtension],
     loadModel,
+    ...options,
   });
   await harness.engine.ready;
   // Let the extension's own model loads settle.
@@ -316,3 +332,112 @@ describe('Treasure Cove with asset library palms, barrels and logs (TR-PALM-05, 
     expect(materialDispose).not.toHaveBeenCalled();
   });
 });
+
+describe('Treasure Cove vegetation (ENV-2)', () => {
+  const vegetationCount = (harness: { scene(): Object3D }) =>
+    instancedAll(harness.scene())
+      .filter((mesh) => mesh.name.startsWith('region-play:vegetation-model:'))
+      .reduce((sum, mesh) => sum + mesh.count, 0);
+
+  it('draws no vegetation and asks for none while nothing is deliverable', async () => {
+    const loadModel = vi.fn(async (_assetId: string) => standingBox());
+    const { harness } = await libraryCove(LIBRARY_MODELS, loadModel);
+    expect(vegetationCount(harness)).toBe(0);
+    const requested = loadModel.mock.calls.map(([id]) => id);
+    for (const id of VEGETATION_MODELS) expect(requested).not.toContain(id);
+  });
+
+  it('draws every bush, flower and grass placement once deliverable, one batch per model', async () => {
+    const loadModel = vi.fn(async (_assetId: string) => standingBox());
+    const { harness, built } = await libraryCove([...LIBRARY_MODELS, ...VEGETATION_MODELS], loadModel);
+    const config = built.manifest.extensions?.[0]?.config as { vegetation?: unknown[] };
+    expect(vegetationCount(harness)).toBe(config.vegetation?.length);
+    expect(config.vegetation?.length).toBe(138);
+    for (const id of VEGETATION_MODELS) {
+      expect(loadModel.mock.calls.filter(([asked]) => asked === id)).toHaveLength(1);
+    }
+  });
+
+  it('thins the vegetation to half at LOW quality, and nothing else', async () => {
+    const { harness, built } = await libraryCove(
+      [...LIBRARY_MODELS, ...VEGETATION_MODELS],
+      undefined,
+      { quality: 'LOW' },
+    );
+    const config = built.manifest.extensions?.[0]?.config as { vegetation: { assetId: string }[] };
+    const perModel = new Map<string, number>();
+    for (const plant of config.vegetation) {
+      perModel.set(plant.assetId, (perModel.get(plant.assetId) ?? 0) + 1);
+    }
+    const half = [...perModel.values()].reduce((sum, n) => sum + Math.floor(n / 2), 0);
+    expect(vegetationCount(harness)).toBe(half);
+    expect(half).toBeLessThanOrEqual(config.vegetation.length / 2);
+    expect(instanced(harness.scene(), 'region-play:prop-model:prop-wooden-barrel')[0]!.count).toBe(19);
+  });
+
+  it('is walk-through: a child walks straight through a clump of tall grass', async () => {
+    const scene = (await coveSceneJson()) as {
+      layout: {
+        vegetation: { assetId: string; x: number; z: number }[];
+        colliders: { rect: { minX: number; maxX: number; minZ: number; maxZ: number } }[];
+        props: { colliders: { minX: number; maxX: number; minZ: number; maxZ: number }[] }[];
+      };
+    };
+    const solids = [
+      ...scene.layout.colliders.map((c) => c.rect),
+      ...scene.layout.props.flatMap((p) => p.colliders),
+    ];
+    const clear = (x0: number, x1: number, z: number) =>
+      solids.every((r) => r.maxX < x0 || r.minX > x1 || r.maxZ < z - 0.3 || r.minZ > z + 0.3);
+    const grass = scene.layout.vegetation.find(
+      (plant) => plant.assetId === 'nature-grass-tall' && clear(plant.x - 3, plant.x + 3, plant.z),
+    )!;
+    expect(grass).toBeDefined();
+    const { harness } = await libraryCove([...LIBRARY_MODELS, ...VEGETATION_MODELS]);
+    harness.setDrive(at(grass.x - 2.5, grass.z, Math.PI / 2)); // facing +X
+    harness.runFrames(1);
+    harness.setDrive(walk(Math.PI / 2));
+    harness.runFrames(60);
+    expect(harness.camera().position.x).toBeGreaterThan(grass.x + 1);
+  });
+
+  it('sways gently, and holds still when the device asks for reduced motion', async () => {
+    const all = [...LIBRARY_MODELS, ...VEGETATION_MODELS];
+    const grassMatrices = (harness: { scene(): Object3D }) =>
+      instancedAll(harness.scene()).find((m) => m.name.endsWith('nature-grass-tall'))!.instanceMatrix
+        .array;
+    const moving = (await libraryCove(all)).harness;
+    const before = grassMatrices(moving).slice();
+    moving.runFrames(30, 50);
+    expect(grassMatrices(moving)).not.toEqual(before);
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query === '(prefers-reduced-motion: reduce)' })),
+    );
+    try {
+      const still = (await libraryCove(all)).harness;
+      const held = grassMatrices(still).slice();
+      still.runFrames(30, 50);
+      expect(grassMatrices(still)).toEqual(held);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('thinDecor', () => {
+  const placements = ['a', 'a', 'a', 'a', 'b', 'b', 'b'].map((assetId, i) => ({ assetId, i }));
+  it('keeps everything at full density', () => {
+    expect(thinDecor(placements, 1)).toEqual(placements);
+  });
+  it('keeps every other placement of each model at half density, the same every time', () => {
+    const half = thinDecor(placements, 0.5);
+    expect(half.map((p) => p.i)).toEqual([1, 3, 5]);
+    expect(thinDecor(placements, 0.5)).toEqual(half);
+  });
+});
+
+const instancedAll = (scene: Object3D) =>
+  scene.children
+    .flatMap((child) => child.children)
+    .filter((child): child is InstancedMesh => child instanceof InstancedMesh);

@@ -940,3 +940,75 @@ added only once its model is drawn. See `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.m
   interactive 3D preview (section 17) is how a version is checked by eye.
 - **AWS.** Nothing has been uploaded to S3; the S3 path is covered by stubbed-boto3 tests only.
 - **Licences for the barrel and logs** need the owner's confirmation before they are published.
+
+### 22.8 ENV-2: bushes, flowers and grass (TR-NAT, 2026-11-14)
+
+**Source.** One owner-supplied stylised nature kit in three ZIPs: `MapleTree_5_2.zip` (36 `.gltf`
+files and their `.bin` buffers, sha256 `0c0f285b...89`), `png.zip` (textures, `9e0ec154...cd4`)
+and `PalmTree_Leaves.zip` (more textures, `0f3027ca...6c0`). The import now reads `.gltf` models
+and finds their `.bin` and images **by plain file name anywhere under `--source`**, including
+other ZIPs. A name with a path, a scheme or a URL is refused, and nothing is fetched. No file
+names an author or a licence, so these packs record both as "Not stated in the supplied files",
+carry no author tag, and are **imported and validated but not published** (section 22.2).
+
+| Asset id | Node | Prepared size | Triangles | Stored | Textures |
+|---|---|---|---|---|---|
+| `nature-bush-small` | `Bush` | 0.8 m tall | 400 | 42 KB | 256² |
+| `nature-bush-medium` | `Bush_Flowers` | 1.0 m tall | 478 | 88 KB | 2 × 256² |
+| `nature-bush-large` | `Bush_Large_Flowers` | 1.3 m tall, 2 m long | 402 | 81 KB | 2 × 256² |
+| `nature-flower-tropical-yellow` / `-blue` / `-purple` | `Flower_2/3/5_Clump` | 0.55 m | 136 each | 47 KB each | 256² |
+| `nature-flower-tropical-pink` | `Flower_4_Clump` | 0.6 m | 136 | 47 KB | 256² |
+| `nature-grass-short` / `-medium` / `-tall` | `Grass_Small` / `Grass_Large` / `Grass_Large_Extruded` | 0.35 / 0.5 / 0.9 m | 58 / 108 / 516 | 25 / 28 / 49 KB | 256² |
+
+Not imported:
+- **Trees:** the five birch, five maple and ten dead trees (temperate, 1,250 to 7,700 triangles).
+- **Flowers:** the two single-stem flowers (too small to read in play) and `Flower_1_Clump` (a teal
+  hydrangea, temperate).
+- **Bushes:** `Bush_Small`, `Bush_Large` and `Bush_Small_Flowers` (clipped hedge shapes).
+
+Asked for but not supplied: **rocks, ferns and coconuts** (only a `Rocks.jpg` texture).
+`--category rocks|ferns|coconuts` says so instead of importing nothing.
+
+**Categories.** `--category bushes|flowers|grass`, `vegetation` (all three) or `all`.
+
+**In Treasure Cove** (`apps/regions/treasure_cove_vegetation.py`, layout v7): 138 placements
+generated from fixed seeds and clustered round each zone's palms and props.
+
+| Zone | Bushes | Flowers | Grass |
+|---|---|---|---|
+| Landing | 4 | 6 | 10 |
+| Beach | 3 | 4 | 12 |
+| Grove | 12 | 12 | 30 |
+| Ruins | 6 | 8 | 15 |
+| Lookout Point | 3 | 5 | 8 |
+
+Placement rules:
+- Bushes stay 2 m off path centre lines, 3 m from chests, Pip and other encounter spots, and out
+  of the yard's open middle.
+- Grass and flowers stay about 1 m off paths.
+- Nothing grows in water, inside a collider, or on other scenery.
+
+**Collision.** All vegetation is walk-through: no colliders. **Rendering.** The same instanced
+renderer as palms and props, one batch per model part (12 draw calls for all vegetation), with
+cut-out alpha (no transparency sorting) and no shadows. It sways 0.04 rad and holds still under
+reduced motion. At LOW render quality it is thinned to every other placement of each model (the
+new `decorDensity` preset field; extensions now receive the quality tier). Like palms and props,
+it is drawn only once the catalog says the model can be delivered; nothing stands in for it before
+that.
+
+Totals in the cove once everything is published:
+
+| Measure | Value |
+|---|---|
+| Unique models | 18 |
+| Instances | 218 (43 palms, 37 props, 138 plants) |
+| Draw calls for library models | 31 |
+| Triangles drawn | about 77k (vegetation about 30k) |
+| Total model download | 2.1 MB (vegetation 0.5 MB; the palms' 512² textures are most of it) |
+
+```bash
+python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --dry-run
+python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --publish
+# Once the owner states the author and licence:
+python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --publish --licence-confirmed
+```

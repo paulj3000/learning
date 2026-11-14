@@ -435,8 +435,8 @@ def test_command_refusals(real_source, tmp_path):
 
 def test_the_declared_packs_are_well_formed_and_reusable():
     ids = [model.asset_id for pack in PACKS.values() for model in pack.models]
-    assert len(ids) == len(set(ids)) == 8
-    assert set(model_packs.GROUPS) == {"palms", "barrels", "logs"}
+    assert len(ids) == len(set(ids)) == 18
+    assert set(model_packs.GROUPS) == {"palms", "barrels", "logs", "bushes", "flowers", "grass"}
     for pack in PACKS.values():
         for model in pack.models:
             definition = ContentAsset(
@@ -446,14 +446,23 @@ def test_the_declared_packs_are_well_formed_and_reusable():
                 origin="DJANGO",
                 display_name=model.display_name,
                 description=model.description,
-                tags=list(dict.fromkeys((*pack.tags, *model.tags, slugify(pack.author)))),
+                tags=list(
+                    dict.fromkeys(
+                        (*pack.tags, *model.tags, *((slugify(pack.author),) if pack.tag_author else ()))
+                    )
+                ),
             )
             definition.full_clean()
             assert re.fullmatch(r"[0-9a-f]{64}", model.known_source_sha256)
-            assert model.source_url.startswith("https://poly.pizza/m/")
+            if pack.group in ("palms", "barrels", "logs"):
+                assert model.source_url.startswith("https://poly.pizza/m/")
     assert QUATERNIUS_PALM_TREES.licence_confirmed is True
     assert QUATERNIUS_BARRELS.licence_confirmed is False
     assert QUATERNIUS_LOGS.licence_confirmed is False
+    # ENV-2: the files name no author or licence, so nothing is invented and nothing published.
+    for pack in (model_packs.NATURE_BUSHES, model_packs.NATURE_FLOWERS, model_packs.NATURE_GRASS):
+        assert pack.licence_confirmed is False and pack.tag_author is False
+        assert pack.author == pack.licence == "Not stated in the supplied files"
 
 
 def test_the_declared_sizes_match_the_treasure_rush_scale():
@@ -464,3 +473,113 @@ def test_the_declared_sizes_match_the_treasure_rush_scale():
         assert axis == "x" and 1.5 <= length <= 3.5
     assert fits["nature-palm-tree-small"] == ("y", 2.8)
     assert 6.0 <= fits["nature-palm-tree-tall"][1] <= 7.0
+
+
+# --- ENV-2: .gltf packs, vegetation categories --------------------------------------------------
+
+
+def _gltf_files(name: str, texture: bytes):
+    """A .gltf, its .bin and a texture, from a synthetic GLB of one node (Y-up already)."""
+    from apps.assets import gltf_prep
+
+    document, binary = gltf_prep.read_glb(
+        pack_glb({name: (0.5, 0.5, 0.4)}, texture=texture, rotation=[0, 0, 0, 1], scale=1.0)
+    )
+    image_view = document["images"][0].pop("bufferView")
+    view = document["bufferViews"][image_view]
+    image = binary[view["byteOffset"] : view["byteOffset"] + view["byteLength"]]
+    document["images"][0]["uri"] = "Leaves.png"
+    document["buffers"] = [{"byteLength": len(binary), "uri": f"{name}.bin"}]
+    return json.dumps(document).encode(), binary, image
+
+
+@pytest.fixture
+def gltf_source(tmp_path):
+    """Models and texture in separate ZIPs, as the owner supplied the nature kit."""
+    directory = tmp_path / "kit"
+    directory.mkdir()
+    with zipfile.ZipFile(directory / "models.zip", "w") as models:
+        for name in ("Bush", "Grass_Small", "BirchTree_1"):
+            gltf, binary, image = _gltf_files(name, rgba_png(16, 16))
+            models.writestr(f"{name}.gltf", gltf)
+            models.writestr(f"{name}.bin", binary)
+    with zipfile.ZipFile(directory / "textures.zip", "w") as textures:
+        textures.writestr("Leaves.png", image)
+    return directory
+
+
+GLTF_PACK = dataclasses.replace(
+    TREES,
+    pack_id="test-kit",
+    group="bushes",
+    licence_confirmed=False,
+    tag_author=False,
+    models=(
+        PackModel(
+            "test-bush",
+            "Bush",
+            "Bush",
+            "A bush.",
+            source_url="owner-supplied",
+            known_source_sha256="0" * 64,
+            fit=("y", 0.8),
+            center_footprint=True,
+        ),
+        PackModel(
+            "test-grass",
+            "Grass_Small",
+            "Grass",
+            "Grass.",
+            source_url="owner-supplied",
+            known_source_sha256="0" * 64,
+            fit=("y", 0.35),
+        ),
+    ),
+)
+
+
+def test_a_gltf_pack_is_assembled_from_siblings_across_zips(gltf_source):
+    report = import_pack(GLTF_PACK, gltf_source)
+    assert sorted(item["asset"] for item in report.imported) == ["test-bush", "test-grass"]
+    bush = versions("test-bush")[0]
+    files = {entry["file"] for entry in bush.metadata["preparation"]["sourceFiles"]}
+    assert files == {"Bush.gltf", "Bush.bin", "Leaves.png"}
+    assert bush.dimensions["y"] == pytest.approx(0.8, abs=1e-3)
+    assert ContentAsset.objects.get(asset_id="test-bush").tags == ["nature", "trees"]
+    again = import_pack(GLTF_PACK, gltf_source)
+    assert again.imported == [] and len(again.skipped) == 2
+
+
+def test_a_gltf_whose_texture_is_missing_is_reported_not_imported(gltf_source):
+    (gltf_source / "textures.zip").unlink()
+    report = import_pack(GLTF_PACK, gltf_source)
+    assert report.imported == []
+    assert {item["reason"] for item in report.unresolved} == {"prep_failed"}
+    assert "Leaves.png" in report.unresolved[0]["detail"]
+
+
+def test_vegetation_is_imported_but_held_back_until_the_licence_is_known(gltf_source, local_dev):
+    report = import_pack(GLTF_PACK, gltf_source, publish=True)
+    assert report.published == [] and len(report.unpublished) == 2
+    assert versions("test-bush")[0].metadata["provenance"]["licenceStatus"] == "unconfirmed"
+
+
+@pytest.mark.parametrize(
+    ("category", "groups"),
+    [
+        ("vegetation", {"bushes", "flowers", "grass"}),
+        ("flowers", {"flowers"}),
+        ("all", set(model_packs.GROUPS)),
+        (None, set(model_packs.GROUPS)),
+    ],
+)
+def test_categories_and_aliases(category, groups):
+    assert {pack.group for pack in model_packs.packs_for(category)} == groups
+
+
+@pytest.mark.parametrize("category", ["rocks", "ferns", "coconuts"])
+def test_categories_with_no_supplied_models_are_refused_with_the_reason(category, tmp_path):
+    with pytest.raises(PackRefused, match="no .* models were supplied"):
+        model_packs.packs_for(category)
+    with pytest.raises(CommandError, match="Nothing to import"):
+        run("import_treasure_rush_environment", "--source", str(tmp_path), "--category", category)

@@ -42,6 +42,24 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Treasure Rush ENV-2: bushes, flowers and grass (TR-NAT-01 to 14) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); licence and author NOT stated, so NOT published; rocks, ferns and coconuts NOT supplied; owner visual QA NOT done
+
+- **Import.** `import_treasure_rush_environment` now reads `.gltf` + `.bin` + textures by plain
+  file name across folders and ZIPs (`gltf_prep.read_gltf`), with categories `bushes`, `flowers`,
+  `grass`, `vegetation` and `all`; `rocks`, `ferns` and `coconuts` are refused because none were
+  supplied. Ten models (3 bushes, 4 flower clumps, 3 grasses, 256² textures, 25 to 88 KB each)
+  are imported locally as validated versions, not published: the files state no author or
+  licence.
+- **Cove (layout v7).** 138 walk-through plants (`treasure_cove_vegetation.py`), deterministic and
+  clustered round palms and props, kept off paths, water, colliders, spots and scenery. Instanced
+  (12 draw calls), cut-out alpha, sway 0.04 rad (still under reduced motion), halved at LOW quality
+  (`decorDensity`; extensions now receive `quality`). Drawn only when the catalog says deliverable.
+- **Tests.** pytest: `.gltf` assembly and refusals, vegetation packs and categories, vegetation
+  layout rules, catalog. Vitest: vegetation drawn, walk-through, LOW density, reduced motion,
+  `thinDecor`, quality pass-through, layout parsing.
+- **Deferred:** author and licence from the owner, then `--publish --licence-confirmed`; rock,
+  fern and coconut models; thumbnails; owner visual QA (TR-NAT-14); merge-readiness checks.
+
 ## Treasure Rush environment assets: palms, barrels and logs (TR-PALM-01 to 08, TR-ENV-01 to 09) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); owner visual QA NOT done, barrel and log licences NOT confirmed
 
 - **Import (TR-PALM-02/03, TR-ENV-02/03).** `manage.py import_treasure_rush_environment`

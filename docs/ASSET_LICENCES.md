@@ -78,11 +78,17 @@ supplied, and records the provenance below on every version it imports
 | `nature-wood-log-moss` | Quaternius, Wood Log with Moss, https://poly.pizza/m/nwsYvcI0bC (sha256 `d148deb2...5b0`) | CC0 1.0 expected | **Unconfirmed** | None if CC0 |
 | `prop-wood-pile` | Quaternius, Wood, https://poly.pizza/m/ajBNpMsQ8z (sha256 `9ef528dc...1f8d8`) | CC0 1.0 expected | **Unconfirmed** | None if CC0 |
 
+| `nature-bush-small`, `-medium`, `-large`; `nature-flower-tropical-yellow`, `-blue`, `-pink`, `-purple`; `nature-grass-short`, `-medium`, `-tall` | Owner-supplied stylised nature kit (`MapleTree_5_2.zip` sha256 `0c0f285b...89` with `png.zip` `9e0ec154...cd4`), 2026-11-14 | **Not stated** in the supplied files | **Unknown**: imported, not published | Unknown |
+
 **Evidence and what is missing.** None of the supplied files carries licence text; `Barrel.fbx`
 (not imported) has an empty author field. The file names credit Quaternius, who publishes models
 as CC0, consistent with the Quaternius packs above. The poly.pizza pages could not be reached
 from the development session to confirm each listing, so the barrel and log versions stay
 unpublished until the owner confirms (`--licence-confirmed`, section 22.2).
+
+The nature kit's files (Blender glTF I/O 4.0.44 exports) carry no author, licence or readme,
+so its author and licence are recorded as not stated; nothing is invented, and nothing is
+published until the owner provides both.
 
 **Modifications** (recorded per version): each model was split out of its file, re-oriented
 Y-up, grounded, uniformly scaled, its textures downscaled to 512 px, foliage alpha changed from

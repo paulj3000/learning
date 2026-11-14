@@ -1,6 +1,7 @@
 """Preparing one model out of a multi-model pack (TR-PALM-02, TR-ENV-02). No database."""
 
 import io
+import json
 import struct
 import zlib
 
@@ -215,3 +216,41 @@ def test_downscale_png_leaves_small_and_unsupported_images_alone():
     assert png_tools.downscale_png(bytes(palette), 8) is None
     shrunk = png_tools.downscale_png(rgba_png(16, 16), 8)
     assert png_tools.dimensions(shrunk) == (8, 8)
+
+
+# --- .gltf with sibling files (ENV-2) -----------------------------------------------------------
+
+
+def _split(data: bytes):
+    document, binary = gltf_prep.read_glb(data)
+    document["buffers"] = [{"byteLength": len(binary), "uri": "Model.bin"}]
+    return json.dumps(document).encode(), binary
+
+
+def test_read_gltf_pulls_in_its_bin_and_images_by_plain_name():
+    gltf, binary = _split(pack_glb(NODES))
+    document, assembled = gltf_prep.read_gltf(gltf, {"Model.bin": binary}.get)
+    assert document["buffers"] == [{"byteLength": len(assembled)}]
+    model = gltf_prep.extract_model(document, assembled, "Tall")
+    assert model.dimensions["y"] == pytest.approx(5.0)
+
+
+@pytest.mark.parametrize(
+    "uri", ["../secret.bin", "/etc/passwd", "https://example.invalid/m.bin", "sub/dir.bin"]
+)
+def test_read_gltf_never_follows_paths_or_urls(uri):
+    gltf, binary = _split(pack_glb(NODES))
+    document = json.loads(gltf)
+    document["buffers"][0]["uri"] = uri
+    with pytest.raises(gltf_prep.PrepError, match="plain file name"):
+        gltf_prep.read_gltf(json.dumps(document).encode(), lambda name: binary)
+
+
+def test_read_gltf_refuses_missing_and_short_files():
+    gltf, binary = _split(pack_glb(NODES))
+    with pytest.raises(gltf_prep.PrepError, match="not in the source"):
+        gltf_prep.read_gltf(gltf, lambda name: None)
+    with pytest.raises(gltf_prep.PrepError, match="shorter"):
+        gltf_prep.read_gltf(gltf, lambda name: binary[:10])
+    with pytest.raises(gltf_prep.PrepError, match="glTF 2.0"):
+        gltf_prep.read_gltf(b'{"asset": {"version": "1.0"}}', lambda name: None)

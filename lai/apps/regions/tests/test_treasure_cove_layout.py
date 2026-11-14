@@ -8,24 +8,18 @@ import pytest
 from apps.assets.model_packs import PACKS
 from apps.catalog.importer import import_content
 from apps.regions.models import WorldRegion
+from apps.regions import treasure_cove_vegetation as VEG
 from apps.regions.treasure_cove_layout import (
     BARREL,
-    BEACH_TO_RUINS,
     BOUNDS,
-    FLOWER_TRAIL,
-    GROVE_TO_RUINS,
-    LANDING_TO_BEACH,
-    LANDING_TO_DOCK,
-    LANDING_TO_GROVE,
-    LANDING_TO_RUINS,
+    KEEP_CLEAR,
     LAYOUT_VERSION,
     LOG,
     MOSS_LOG,
     PALM_HEIGHTS,
     PALM_TRUNK_HALF,
+    PATHS,
     PROP_SIZES,
-    RUINS_AISLE,
-    RUNE_STONES,
     SNAPSHOT_PATH,
     SPOTS,
     WOOD_PILE,
@@ -248,26 +242,6 @@ PALM_COUNTS = {
     "cove-ruins-palm": (4, 6),
     "cove-lookout-palm": (2, 4),
 }
-# Where people stand or walk that no trunk may crowd: the spawn point, Pip, the first chest's
-# helpers (treasure_rush_seed), the encounter spots and the rune stones.
-KEEP_CLEAR = [
-    (0.0, 10.0),
-    (0.0, -6.0),
-    (3.0, 6.0),
-    (-3.0, 6.0),
-    *SPOTS.values(),
-    *RUNE_STONES,
-]
-PATHS = [
-    LANDING_TO_RUINS,
-    LANDING_TO_DOCK,
-    LANDING_TO_GROVE,
-    LANDING_TO_BEACH,
-    BEACH_TO_RUINS,
-    GROVE_TO_RUINS,
-    RUINS_AISLE,
-    FLOWER_TRAIL,
-]
 
 
 def palms(layout):
@@ -519,3 +493,79 @@ def test_lying_barrels_and_turned_props_are_authored(layout):
     assert lying and all(p["assetId"] == BARREL for p in lying)
     assert all(p["rotationZ"] == pytest.approx(math.pi / 2, abs=0.01) for p in lying)
     assert cove_layout()["props"] == layout["props"]
+
+
+# --- Bushes, flowers and grass (ENV-2, TR-NAT-10/11) -------------------------------------------
+
+VEGETATION_MODELS = {
+    model.asset_id
+    for pack in PACKS.values()
+    if pack.group in ("bushes", "flowers", "grass")
+    for model in pack.models
+}
+
+
+def plants(layout):
+    return layout["vegetation"]
+
+
+def test_every_zone_gets_its_planned_vegetation_from_library_models(layout):
+    for zone, plan in VEG.PLAN.items():
+        for category, count in plan.items():
+            made = [p for p in plants(layout) if p["id"].startswith(f"cove-{zone}-{category}-")]
+            assert len(made) == count, (zone, category)
+    assert {p["assetId"] for p in plants(layout)} == VEGETATION_MODELS
+    ids = [p["id"] for p in plants(layout)]
+    assert len(ids) == len(set(ids))
+
+
+def test_vegetation_is_walk_through_and_the_same_every_time(layout):
+    assert all(p["colliders"] == [] for p in plants(layout))
+    assert cove_layout()["vegetation"] == plants(layout)
+    for plant in plants(layout):
+        assert 0.85 <= plant["scale"] <= 1.2 and 0 <= plant["rotationY"] < 2 * math.pi
+
+
+def test_vegetation_keeps_paths_spots_and_solids_clear(layout):
+    solids = [c["rect"] for c in layout["colliders"]] + [
+        rect for prop in layout["props"] for rect in prop["colliders"]
+    ]
+    for plant in plants(layout):
+        category = plant["id"].split("-")[2]
+        x, z = plant["x"], plant["z"]
+        nearest = min(
+            distance_to_segment(x, z, a, b)
+            for path in PATHS
+            for a, b in zip(path, path[1:], strict=False)
+        )
+        assert nearest >= VEG.PATH_CLEARANCE[category], (plant["id"], round(nearest, 2))
+        for kx, kz in KEEP_CLEAR:
+            assert math.hypot(x - kx, z - kz) >= VEG.SPOT_CLEARANCE[category], plant["id"]
+        for rect in solids:
+            assert not inside(rect, x, z), (plant["id"], rect["id"])
+        for water in VEG.NO_GROW:
+            assert not inside(water, x, z), plant["id"]
+
+
+def test_vegetation_stands_in_its_zone_and_does_not_pile_up(layout):
+    zones = {zone["rect"]["id"]: zone["rect"] for zone in layout["zones"]}
+    radius = {**VEG.BUSHES, **VEG.FLOWERS, **VEG.GRASS}
+    for plant in plants(layout):
+        zone = zones[VEG.ZONE_RECTS[plant["id"].split("-")[1]]]
+        assert inside(zone, plant["x"], plant["z"]), plant["id"]
+    for i, a in enumerate(plants(layout)):
+        for b in plants(layout)[i + 1 :]:
+            gap = math.hypot(a["x"] - b["x"], a["z"] - b["z"])
+            least = radius[a["assetId"]] * a["scale"] + radius[b["assetId"]] * b["scale"]
+            assert gap >= least, (a["id"], b["id"])
+
+
+def test_bushes_never_hide_a_chest_or_crowd_the_yard(layout):
+    for plant in plants(layout):
+        if "-bush-" not in plant["id"]:
+            continue
+        assert not inside(VEG.OPEN_YARD, plant["x"], plant["z"]), plant["id"]
+        for spot in ("landing-chest", "grove-hidden-chest", "beach-locked-chest",
+                     "ruins-final-chest", "lookout-spyglass"):
+            sx, sz = SPOTS[spot]
+            assert math.hypot(plant["x"] - sx, plant["z"] - sz) >= 3.0, (plant["id"], spot)
