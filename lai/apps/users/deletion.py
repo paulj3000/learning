@@ -58,3 +58,42 @@ def delete_child_profile(parent: ParentAccount, child_id) -> None:
     except Exception:  # noqa: BLE001 - never block a deletion that already succeeded
         logger.warning("child deletion: speech cleanup deferred to expiry")
     logger.info("child profile deleted")
+
+
+class StaffAccountNotDeletable(Exception):
+    """The account is also Django Admin staff: staff rows are managed only in Django Admin."""
+
+
+def delete_parent_account(parent: ParentAccount) -> None:
+    """Delete a parent's account and everything it owns (AMP-03, right to delete).
+
+    Each child goes through `delete_child_profile` first (photo objects, then the child and its
+    cascade), exactly as when a parent deletes one child. A storage failure raises
+    `ChildDeletionIncomplete`: the children already deleted stay deleted, the rest and the account
+    are kept, and a retry finishes the job. Then, in one transaction, the parent's household co-op
+    sessions (their foreign key protects the account) and the account row itself, which cascades
+    its sign-in anchors, launch tickets and game sessions.
+
+    The Cognito user is not deleted here: the client deletes it after this succeeds, while its
+    token is still valid (Django holds no Cognito administrator right). A staff account (Django
+    Admin) is refused: staff rows are created and removed only through Django Admin (ADR-034).
+    """
+    from apps.game_sessions.models import CoopSession
+
+    if parent.is_staff or parent.admin_username:
+        raise StaffAccountNotDeletable
+    for child_id in list(services.list_child_profiles(parent).values_list("pk", flat=True)):
+        try:
+            delete_child_profile(parent, child_id)
+        except services.ChildProfileNotFound:  # deleted by a concurrent request
+            continue
+    with transaction.atomic():
+        locked = ParentAccount.objects.select_for_update().get(pk=parent.pk)
+        if services.list_child_profiles(locked).exists():
+            # A child created while the others were being deleted: keep the account, so the
+            # child is never orphaned; a retry deletes it too.
+            logger.warning("account deletion deferred: a child was added during deletion")
+            raise ChildDeletionIncomplete
+        CoopSession.objects.filter(host_parent=locked).delete()
+        locked.delete()
+    logger.info("parent account deleted")

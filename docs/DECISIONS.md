@@ -2566,6 +2566,16 @@ existing region stays single-player.
 - *Part D.* Confirmed by the product owner: same-family rooms only for the
   MVP.
 
+**Amendment (AMP-03 / AMP-07, Amplify exit, 2026-11-10).** *Part C* now uses
+the Cognito **access** token instead of the ID token, and the child lookup
+moves from AppSync to the Django API: the server calls
+`GET /api/v1/children/<id>/` with the caller's token, and Django's child
+scoping (404 for another family's child) is the ownership check, so the
+`ownerSub` comparison is gone. The server reads no `amplify_outputs.json`;
+`MP_USER_POOL_ID`, `MP_USER_POOL_CLIENT_ID` and `MP_DJANGO_API_BASE` are
+required (docs/multiplayer/MULTIPLAYER_SERVER.md). It still needs no AWS
+credentials or database access.
+
 
 ## ADR-033: One Django backbone: Treasure Rush runs on the canonical catalog and progress models; play-region layouts are seed-authored until LAI-0805
 

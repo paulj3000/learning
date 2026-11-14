@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { showDevHints } from '../auth/authNoticeCopy';
 import { REALM_NOTICE_COPY, type RealmLoadFailure } from './realmLoadFailure';
-import { portalPath } from '../portal/exit';
 import { PortalButton } from '../portal/ui';
 
 /**
@@ -21,32 +20,6 @@ const DEV_FAILURE_HINT: Record<RealmLoadFailure, string> = {
   server: 'Developer note: Django answered with a server error. Check the runserver console.',
   other: 'Developer note: see the browser console and the runserver console.',
 };
-
-/** A build whose backend has no published catalog (`VITE_BACKEND=amplify`). */
-export function RealmsUnavailable({ childId }: { childId: string }) {
-  return (
-    <div
-      className="flex flex-col items-start gap-3 rounded-2xl bg-sand px-4 py-4 text-ink"
-      role="alert"
-      data-portal="realms-unavailable"
-    >
-      <p className="m-0 font-semibold">{REALM_NOTICE_COPY.unavailable}</p>
-      <p className="m-0">{REALM_NOTICE_COPY.unavailableNext}</p>
-      <PortalButton asChild tone="ocean">
-        <Link to={portalPath(childId, { kind: 'island-explorer' })}>
-          <span aria-hidden="true">🏠</span>
-          {REALM_NOTICE_COPY.goHome}
-        </Link>
-      </PortalButton>
-      {showDevHints() ? (
-        <p className="m-0 text-sm">
-          Developer note: this build has VITE_BACKEND=amplify, which has no Realm catalog. Remove it
-          (local development defaults to Django) or set VITE_BACKEND=django.
-        </p>
-      ) : null}
-    </div>
-  );
-}
 
 /** The catalog read failed. Always offers a next step; never waits forever (bounded client). */
 export function RealmLoadError({

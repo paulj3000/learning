@@ -1,71 +1,47 @@
-import { client } from '../../lib/data-client';
-import type { AdventureDefinition } from '../adventures/engine/types';
-import {
-  EMPTY_CATALOG,
-  isAdventureAvailable,
-  type CatalogAdventureFlags,
-  type CatalogIslandFlags,
-  type CatalogSnapshot,
-} from './availability';
-import { islandSlugForTemplate } from './islandForTemplate';
+import { childPath, djangoClient } from '../../api/djangoClient';
+import { read } from '../../api/parse';
+import { EMPTY_CATALOG, type CatalogSnapshot } from './availability';
 
 /**
- * The child app's read of the admin catalog (ADR-031): only the fields the
- * availability rule needs, through an explicit selection set, so a parent's
- * session never asks for the Admins-only `createdBy`/`updatedBy` fields.
+ * The child app's read of which places and adventures are in play (ADR-031), from Django's
+ * catalog: `GET children/<id>/availability/` (AMP-03). Release flags only, no content.
  *
- * Fails open to `EMPTY_CATALOG` (everything available). The catalog is a
- * release control over curated, already-safe content, not a safety
- * boundary, and a network blip or a backend deployed before these models
- * existed must not lock a child out of the whole island.
+ * Django's catalog has Island > Place > Adventure (ADR-041); this app's availability rule calls
+ * a Place an "island" (`availability.ts`), so each Place becomes a `CatalogIslandFlags` keyed by
+ * its slug, already combined with its Island's flag on the server.
+ *
+ * Fails open to `EMPTY_CATALOG` (everything available). The catalog is a release control over
+ * curated, already-safe content, not a safety boundary, and a network blip must not lock a child
+ * out of the whole island. Starting an adventure is checked again on the server
+ * (`resumeOrStartSession`), so failing open here never lets a child play something out of play.
  */
-export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
+export async function loadCatalogSnapshot(childProfileId: string): Promise<CatalogSnapshot> {
   try {
-    const islands: CatalogIslandFlags[] = [];
-    let islandToken: string | null | undefined;
-    do {
-      const { data, errors, nextToken } = await client.models.Island.list({
-        selectionSet: ['id', 'slug', 'active'],
-        nextToken: islandToken,
-      });
-      if (errors?.length) return EMPTY_CATALOG;
-      islands.push(...data);
-      islandToken = nextToken;
-    } while (islandToken);
-
-    const adventures: CatalogAdventureFlags[] = [];
-    let adventureToken: string | null | undefined;
-    do {
-      const { data, errors, nextToken } = await client.models.Adventure.list({
-        selectionSet: ['slug', 'islandId', 'active'],
-        nextToken: adventureToken,
-      });
-      if (errors?.length) return EMPTY_CATALOG;
-      adventures.push(...data);
-      adventureToken = nextToken;
-    } while (adventureToken);
-
-    return { islands, adventures };
+    const response = await djangoClient().request(
+      'GET',
+      childPath(childProfileId, 'availability/'),
+    );
+    return read(response.data, (r) => ({
+      islands: r.field('places').array((p) => {
+        const slug = p.field('slug').string();
+        return { id: slug, slug, active: p.field('active').boolean() };
+      }),
+      adventures: r.field('adventures').array((a) => ({
+        slug: a.field('slug').string(),
+        islandId: a.field('placeSlug').string(),
+        active: a.field('active').boolean(),
+      })),
+    }));
   } catch {
     return EMPTY_CATALOG;
   }
 }
 
-/** Thrown when a child tries to start or resume an adventure an admin has taken out of play. */
+/** Thrown when a child tries to start or resume an adventure that was taken out of play. */
 export class AdventureUnavailableError extends Error {
   constructor() {
     super('This adventure is resting right now. Let us pick a different one.');
     this.name = 'AdventureUnavailableError';
-  }
-}
-
-/** Throws `AdventureUnavailableError` unless the catalog allows this adventure to be played. */
-export async function assertAdventureAvailable(
-  definition: Pick<AdventureDefinition, 'slug' | 'locationSlug'>,
-): Promise<void> {
-  const catalog = await loadCatalogSnapshot();
-  if (!isAdventureAvailable(catalog, definition.slug, islandSlugForTemplate(definition))) {
-    throw new AdventureUnavailableError();
   }
 }
 

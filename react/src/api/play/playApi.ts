@@ -183,23 +183,6 @@ function segment(id: string): string {
 
 /** The app's play API for a child, or a `disabled` error when this build has no Django API. */
 export function playApiFor(childId: string, config: DjangoApiConfig = DJANGO_API_CONFIG): PlayApi {
-  if (!config.enabled) {
-    const disabled = () => Promise.reject(new ApiError('disabled'));
-    return {
-      getRegion: disabled,
-      startSession: disabled,
-      getSession: disabled,
-      changeSession: disabled,
-      acceptQuest: disabled,
-      requestChestChallenge: disabled,
-      submitAnswer: disabled,
-      getProgress: disabled,
-      solvePuzzle: disabled,
-      startLaunchPoint: disabled,
-      collectPickup: disabled,
-      talkToNpc: disabled,
-    };
-  }
   return createPlayApi(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
     childId,

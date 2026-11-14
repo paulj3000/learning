@@ -28,9 +28,7 @@ export type ApiErrorKind =
   /** A response arrived but did not match the documented contract. */
   | 'invalid_response'
   /** The caller cancelled it (a newer request replaced it). Not shown to anyone. */
-  | 'aborted'
-  /** The Django API is not configured for this build (`VITE_BACKEND`). */
-  | 'disabled';
+  | 'aborted';
 
 /** The 409 codes the play API documents (docs/PLAY_API.md, "Error codes specific to play"). */
 export type PlayConflictCode =

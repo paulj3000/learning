@@ -167,7 +167,7 @@ export function CastleTaleCompanion({
       try {
         const openSession = await getActiveSession(childId, THE_STORYKEEPERS_TALE.slug);
         if (cancelled || !openSession) return;
-        const actions = await listActionsForSessions([openSession.id]);
+        const actions = await listActionsForSessions(childId, [openSession.id]);
         if (cancelled) return;
         /*
           The last answer this child gave to a step, excluding ones the engine

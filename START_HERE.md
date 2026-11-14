@@ -1,21 +1,18 @@
 # Start Here With Claude
 
-Paste this as the first implementation request:
+The repository is past its scaffolding phase. React (Vite, Three.js) runs on a Django REST
+backend with PostgreSQL, parents sign in through the existing Amazon Cognito user pool, and the
+Amplify Gen 2 backend and Amplify Hosting are retired (`docs/platform/AMPLIFY_FINAL_REMOVAL.md`).
 
-```text
-Read CLAUDE.md and every Markdown file in docs/. This repository contains specifications but no application source. Implement only Phase 0 from docs/ROADMAP.md.
+To work on it:
 
-Requirements:
-1. Scaffold React, Vite, and strict TypeScript.
-2. Scaffold an AWS Amplify Gen 2 backend using the current official package conventions.
-3. Add linting, formatting, Vitest, React Testing Library, and Playwright.
-4. Add a basic accessible application shell and design tokens, but no product features.
-5. Add CI for typecheck, lint, unit tests, and build.
-6. Document local Amplify sandbox setup without committing secrets or amplify_outputs.json.
-7. Run all available checks.
-8. Update docs/IMPLEMENTATION_STATUS.md.
-9. Report all created and changed files and any unresolved issues.
+1. Read `CLAUDE.md` and the documents listed in its section 17.
+2. Check `docs/IMPLEMENTATION_STATUS.md` and `docs/DJANGO_MIGRATION_ROADMAP.md` for what is open,
+   and which tasks need owner approval.
+3. Start the app locally with the ten steps in `README.md`, "Local development". No Amplify
+   sandbox, `amplify_outputs.json` or AWS credentials are needed.
+4. Run the development checks in `docs/TESTING_STRATEGY.md` for your change, and update
+   `docs/IMPLEMENTATION_STATUS.md` when you finish.
 
-Do not add authentication, data models, AI routes, or adventure features in this phase.
-```
-
+The original Phase 0 instruction, which scaffolded an Amplify Gen 2 backend, is kept in the git
+history only; do not follow it.

@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { confirmResetPassword, resetPassword } from 'aws-amplify/auth';
+import { cognitoAuth } from '../../lib/cognito';
 import styles from './AuthForm.module.css';
 import { describeAuthError } from './errors';
 import { validateConfirmationCode, validateEmail, validatePassword } from './validators';
@@ -31,7 +31,7 @@ export function ForgotPasswordForm() {
 
     setIsSubmitting(true);
     try {
-      await resetPassword({ username: email.trim() });
+      await cognitoAuth().resetPassword(email.trim());
       setStep('confirm');
     } catch (error) {
       setFormError(describeAuthError(error));
@@ -53,9 +53,9 @@ export function ForgotPasswordForm() {
 
     setIsSubmitting(true);
     try {
-      await confirmResetPassword({
-        username: email.trim(),
-        confirmationCode: code.trim(),
+      await cognitoAuth().confirmResetPassword({
+        email: email.trim(),
+        code: code.trim(),
         newPassword,
       });
       navigate('/sign-in', { replace: true });

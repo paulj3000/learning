@@ -21,7 +21,6 @@ const webgl = {
 
 export default defineConfig({
   testDir: './e2e/acceptance',
-  globalTeardown: './e2e/acceptance/support/global-teardown.ts',
   outputDir: './test-results/acceptance',
   fullyParallel: false,
   workers: 1,

@@ -159,7 +159,7 @@ function StoryPageContent({
         childProfileId={childProfileId}
         ageBand={ageBand}
         aiEnabled={aiEnabled}
-        storyProgressId={progress.id}
+        storyId={progress.storyId}
         chapter={chapter}
         flags={flags}
         backToStoryHref={`/island/${childId}/stories/${story.slug}`}

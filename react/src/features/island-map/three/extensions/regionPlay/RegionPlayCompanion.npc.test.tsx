@@ -377,7 +377,7 @@ describe('exactly one Pip', () => {
 
   it.each([
     ['no release', async () => ({ ...MANAGED_SCENE, release: 0, characters: {}, placements: [] })],
-    ['Django off', async () => Promise.reject(new ApiError('disabled'))],
+    ['no NPCs served', async () => Promise.reject(new ApiError('not_found'))],
     ['a failed load', async () => Promise.reject(new ApiError('network'))],
   ])('keeps the legacy Pip and PipDialog on %s', async (_label, getAreaNpcs) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

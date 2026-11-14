@@ -314,7 +314,7 @@ LAI_AI_MODEL_ID = os.environ.get(
 LAI_AI_GUARDRAIL_ID = os.environ.get("LAI_AI_GUARDRAIL_ID", "").strip()
 LAI_AI_GUARDRAIL_VERSION = os.environ.get("LAI_AI_GUARDRAIL_VERSION", "").strip()
 LAI_AI_STRUCTURED_OUTPUT = env_bool("LAI_AI_STRUCTURED_OUTPUT", True)
-# Same limits as the Amplify routes (temperature 0.4, 300 output tokens).
+# Same limits as the retired Amplify routes (temperature 0.4, 300 output tokens).
 LAI_AI_MAX_OUTPUT_TOKENS = int(os.environ.get("LAI_AI_MAX_OUTPUT_TOKENS", "300"))
 LAI_AI_TEMPERATURE = float(os.environ.get("LAI_AI_TEMPERATURE", "0.4"))
 LAI_AI_TIMEOUT_SECONDS = float(os.environ.get("LAI_AI_TIMEOUT_SECONDS", "10"))
@@ -343,8 +343,9 @@ LAI_AI_PRICE_INPUT_PER_MTOK_USD = float(_price_in) if _price_in else None
 LAI_AI_PRICE_OUTPUT_PER_MTOK_USD = float(_price_out) if _price_out else None
 LAI_AI_PRICE_TABLE_VERSION = os.environ.get("LAI_AI_PRICE_TABLE_VERSION", "").strip()
 # CLIENT_AUTHORED context (the browser's authored copy) is a migration path (LAI-0709). It can
-# be switched off once every caller has a server-owned context; adventures (Amplify sessions)
-# and story scenes (no Django story catalog yet) still need it.
+# be switched off once every caller has a server-owned context; the classic adventure runner
+# (co-op, formerly on Amplify sessions) and story scenes (no Django story catalog yet) still
+# need it. Turning it off is an owner decision, not part of the Amplify removal (AMP-05).
 LAI_AI_ALLOW_CLIENT_AUTHORED = env_bool("LAI_AI_ALLOW_CLIENT_AUTHORED", True)
 
 # Content authoring (ADR-047-Q1, LAI-0818). Off: one administrator with the publish permission
@@ -354,8 +355,9 @@ LAI_CONTENT_INDEPENDENT_APPROVAL = env_bool("LAI_CONTENT_INDEPENDENT_APPROVAL", 
 
 # NPC narration may be limited to dialogue nodes the child is eligible for, judged from Django
 # records (relationship, memory flags, world changes, quests). Off until Django holds NPC state
-# for children (LAI-0605); React NPC state still lives in Amplify, so enforcing now would refuse
-# narration a child has legitimately unlocked. The check is built and tested either way.
+# for children (LAI-0605); NPC state written before the Amplify exit was never imported, so
+# enforcing now could refuse narration a child has legitimately unlocked. The check is built and
+# tested either way.
 LAI_AI_NPC_ENFORCE_ELIGIBILITY = env_bool("LAI_AI_NPC_ENFORCE_ELIGIBILITY", False)
 # No approved retention period yet (LAI-0707, LAI-0308 gate G9): unset means `ai_retention`
 # refuses to delete unless an operator passes --older-than-days explicitly.
@@ -434,8 +436,9 @@ def compose_database() -> dict:
 
 
 # Cognito (ADR-024). No defaults: if any is empty, every bearer token is rejected (fail closed).
-# Production settings require all three. The client ids are an allow-list; the Amplify web app
-# client is the only one in use and no new app client is created.
+# Production settings require all three. The client ids are an allow-list; the web app client
+# (created with the pool by the retired Amplify backend, kept) is the only one in use and no new
+# app client is created.
 COGNITO_REGION = os.environ.get("COGNITO_REGION", "").strip()
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "").strip()
 COGNITO_ALLOWED_CLIENT_IDS = env_list("COGNITO_ALLOWED_CLIENT_IDS")

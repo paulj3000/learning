@@ -1,43 +1,25 @@
-import { resolveBackend } from './backend';
-
 /**
- * Where the Django API is, and whether this build uses it at all (TR-6,
- * docs/PLAY_API.md). A production build uses it only when it opts in, so a
- * hosted Amplify build keeps running unchanged; `vite dev` uses it by default
- * (`resolveBackend`, react/src/api/backend.ts).
+ * Where the Django API is (TR-6, docs/PLAY_API.md). Django is the only application backend
+ * (AMP-03, Amplify retired): every build calls it.
  *
- * - `VITE_BACKEND=django` turns the Django API on; `VITE_BACKEND=amplify` turns it off.
- * - `VITE_DJANGO_API_BASE` is the origin to call. Empty (the default) means
- *   same-origin, which is the deployed shape: CloudFront routes `/api/` to
- *   Django and Django has no CORS on purpose. A production build only
- *   accepts an `https://` origin; `http://` is for `vite dev` only.
+ * - `VITE_DJANGO_API_BASE` is the origin to call. Empty (the default) means same-origin, which
+ *   is the deployed shape (CloudFront routes `/api/` to Django; Django has no CORS on purpose)
+ *   and the local one (the `vite dev` proxy). A production build only accepts an `https://`
+ *   origin; `http://` is for `vite dev` only. Anything else falls back to same-origin; the Vite
+ *   config refuses such a value before a build or dev server starts (`assertValidApiBase`).
  */
 
-export type DjangoApiConfig = { enabled: false } | { enabled: true; baseUrl: string };
+import { parseApiBase, type DjangoApiEnv } from './apiBase';
 
-export interface DjangoApiEnv {
-  VITE_BACKEND?: string;
-  VITE_DJANGO_API_BASE?: string;
-  DEV?: boolean;
-  MODE?: string;
+export { assertValidApiBase, parseApiBase, type DjangoApiEnv } from './apiBase';
+
+export interface DjangoApiConfig {
+  /** '' for same-origin, else an `https://` (or, in dev, `http://`) origin with no path. */
+  baseUrl: string;
 }
 
-const DISABLED: DjangoApiConfig = { enabled: false };
-
 export function readDjangoApiConfig(env: DjangoApiEnv): DjangoApiConfig {
-  if (resolveBackend(env) !== 'django') return DISABLED;
-  const base = (env.VITE_DJANGO_API_BASE ?? '').trim();
-  if (base === '') return { enabled: true, baseUrl: '' };
-
-  let url: URL;
-  try {
-    url = new URL(base);
-  } catch {
-    return DISABLED;
-  }
-  const allowed = url.protocol === 'https:' || (env.DEV === true && url.protocol === 'http:');
-  if (!allowed || url.pathname !== '/' || url.search || url.hash) return DISABLED;
-  return { enabled: true, baseUrl: url.origin };
+  return { baseUrl: parseApiBase(env) ?? '' };
 }
 
 export const DJANGO_API_CONFIG: DjangoApiConfig = readDjangoApiConfig(import.meta.env);

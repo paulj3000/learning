@@ -89,7 +89,6 @@ export function getChildHomeFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): Promise<ChildHome> {
-  if (!config.enabled) return Promise.reject(new ApiError('disabled'));
   return getChildHome(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
     childId,

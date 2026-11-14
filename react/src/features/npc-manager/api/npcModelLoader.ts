@@ -117,7 +117,7 @@ export function npcModelLoaderFor(
   const resolver = withBundledIdFallback(djangoAssetResolverFor(childId, config));
   // Single use per miss: the cache is the only holder of the parsed source.
   const loadAsset = (id: string) => createAssetLoader(resolver).loadAsset(id);
-  const scope = config.enabled ? `${config.baseUrl}|${childId}` : 'bundled';
+  const scope = `${config.baseUrl}|${childId}`;
   return npcModelLoaderFrom({ loadAsset }, { cache, scope });
 }
 

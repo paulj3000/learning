@@ -158,12 +158,6 @@ afterEach(() => {
 describe('regionAssetsFor', () => {
   const enabled = { enabled: true as const, baseUrl: '' };
 
-  it('keeps the bundled loader in a build without the Django API', () => {
-    expect(regionAssetsFor('child-1', REGION, SOURCE, { enabled: false })).toBe(
-      DEFAULT_LOCATION_ENGINE_DEPS.assets,
-    );
-  });
-
   it('keeps the bundled loader for a source-controlled region', () => {
     const resolverFor = vi.fn();
     expect(regionAssetsFor('child-1', 'welcome-harbor', SOURCE, enabled, resolverFor)).toBe(

@@ -11,7 +11,7 @@ import {
   type ReauthDeps,
 } from './recentSignIn';
 
-vi.mock('aws-amplify/auth', () => ({ getCurrentUser: vi.fn(), signIn: vi.fn(), signOut: vi.fn() }));
+vi.mock('../../../lib/cognito', () => ({ cognitoAuth: vi.fn(), isCognitoConfigured: true }));
 
 const ME = { userId: 'user-1', loginId: 'parent@example.com' };
 

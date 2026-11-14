@@ -73,7 +73,10 @@ export function mintParent(label: string, options: { groups?: string[] } = {}): 
   return { sub, username, email, accessToken, idToken };
 }
 
-/** Puts the parent's tokens where Amplify v6 keeps them, before the app's first script runs. */
+/**
+ * Puts the parent's tokens under the localStorage keys the Cognito client reads (the names Amplify
+ * v6 used, kept so existing sessions survive, AMP-02), before the app's first script runs.
+ */
 export async function signInAs(page: Page, parent: Parent): Promise<void> {
   const { clientId } = e2eState();
   await page.addInitScript(

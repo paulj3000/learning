@@ -2,22 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DjangoAiApi } from '../../api/ai/djangoAi';
 import { ApiError } from '../../api/errors';
 
-const { generateTutorTurn, createAudit, listSkillProgress, listQuestStates, current } = vi.hoisted(
-  () => ({
-    generateTutorTurn: vi.fn(),
-    createAudit: vi.fn(),
-    listSkillProgress: vi.fn(),
-    listQuestStates: vi.fn(),
-    current: { api: null as DjangoAiApi | null },
-  }),
-);
-
-vi.mock('../../lib/data-client', () => ({
-  client: {
-    generations: { generateTutorTurn },
-    models: { AIInteractionAudit: { create: createAudit }, SafetyEvent: { create: vi.fn() } },
-  },
+const { listSkillProgress, listQuestStates, current } = vi.hoisted(() => ({
+  listSkillProgress: vi.fn(),
+  listQuestStates: vi.fn(),
+  current: { api: null as DjangoAiApi | null },
 }));
+
 vi.mock('../mastery/api', () => ({ listSkillProgress }));
 vi.mock('../quests/api', () => ({ listQuestStates }));
 vi.mock('../../api/ai/djangoAi', async (importOriginal) => {
@@ -72,10 +62,8 @@ describe('requestTutorTurn with the Django backend (LAI-0706)', () => {
       sessionId: 'session-1',
       stepId: 'count-planks',
     });
-    expect(generateTutorTurn).not.toHaveBeenCalled();
     expect(listSkillProgress).not.toHaveBeenCalled();
     expect(listQuestStates).not.toHaveBeenCalled();
-    expect(createAudit).not.toHaveBeenCalled();
   });
 
   it('keeps the hint ladder: a model turn with another strategy falls back', async () => {

@@ -15,7 +15,6 @@ export function imageResolverFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): ImageResolver {
-  if (!config.enabled) return () => Promise.resolve(null);
   const resolver = djangoAssetResolverFor(childId, config);
   return (assetId) =>
     resolver.resolve(assetId, 'image').then(

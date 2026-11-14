@@ -6,7 +6,6 @@ import { test } from '@playwright/test';
  * PREPARED, NOT EXECUTED. Every scenario is `test.fixme`, so the runner lists it as pending and
  * never reports it as passed. They need what this repository cannot provide in CI:
  * - a running Django API with Firepeak seeded and published (`seed_firepeak`, `publish_firepeak`);
- * - a build with `VITE_BACKEND=django`;
  * - a real Cognito test parent with a Pathfinder child (ADR-024 gate A6).
  *
  * To run one, provide those, replace `fixme` with a sign-in fixture, and fill in the steps below.

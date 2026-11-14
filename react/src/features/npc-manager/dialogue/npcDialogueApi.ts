@@ -91,10 +91,6 @@ export function npcDialogueApiFor(
   scope: DialogueScope,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): NpcDialogueApi {
-  if (!config.enabled) {
-    const disabled = () => Promise.reject(new ApiError('disabled'));
-    return { start: disabled, choose: disabled, advance: disabled, end: disabled };
-  }
   return createNpcDialogueApi(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
     childId,

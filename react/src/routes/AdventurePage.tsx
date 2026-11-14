@@ -3,7 +3,6 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { AdventureRunner } from '../features/adventures/AdventureRunner';
 import { DjangoAdventureRunner } from '../features/adventures/DjangoAdventureRunner';
-import { DJANGO_API_CONFIG } from '../api/config';
 import { getAdventureTemplate } from '../features/adventures/content';
 import { getChildProfile } from '../features/child-profile/api';
 import type { ChildProfile } from '../features/child-profile/api';
@@ -54,9 +53,11 @@ export function AdventurePage() {
     return null;
   }
 
-  // LAI-0816: a Django build plays the published adventure through the Django step runner. The
-  // adventure may exist only in Django (authored in Admin), so no local definition is needed.
-  if (DJANGO_API_CONFIG.enabled && templateSlug) {
+  // LAI-0816: the published adventure plays through the Django step runner. It may exist only in
+  // Django (authored in Admin), so no local definition is needed. A co-op launch (`?coop=`, from
+  // the co-op setup page) keeps the classic runner, which owns co-op play and calls Django's
+  // co-op and session routes (AMP-03, AMP-05).
+  if (templateSlug && !coopSessionId) {
     return (
       <IslandLayout childId={childId}>
         <DjangoAdventureRunner

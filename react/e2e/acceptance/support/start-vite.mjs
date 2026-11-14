@@ -19,7 +19,6 @@ const vite = spawn(
     stdio: 'inherit',
     env: {
       ...process.env,
-      VITE_BACKEND: 'django',
       VITE_COGNITO_USER_POOL_ID: 'us-east-1_E2Elocal',
       VITE_COGNITO_CLIENT_ID: 'e2elocalclient',
       DJANGO_DEV_PROXY_TARGET: `http://127.0.0.1:${process.env.LAI_E2E_DJANGO_PORT ?? '8765'}`,

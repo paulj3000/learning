@@ -111,3 +111,25 @@ def emit_metric(audit: AuditFields, *, source: str, audited: bool) -> None:
         audit.estimated_cost_microusd or 0,
         "ok" if audited else "failed",
     )
+
+
+def emit_safety_metric(audit: AuditFields, safety: SafetyFields, *, audited: bool) -> None:
+    """One line per SafetyEvent (AMP-05): the Django replacement for the Amplify
+    `operational-metrics` stream consumer's `SafetyEventCount` by severity.
+
+    Closed vocabulary only: no ids, no category text, nothing a child wrote. Schema v1, after
+    the logger prefix:
+
+        ai.safety v1 <route> <LOW|MEDIUM|HIGH> <INPUT|OUTPUT|SYSTEM> <ok|failed>
+
+    `failed` means the row could not be written; the event still happened and is still counted.
+    Read by the `SafetyEvents` metric filters (`infra/lib/aiGuardrailStack.ts`): change both
+    together, and bump the version.
+    """
+    logger.info(
+        "ai.safety v1 %s %s %s %s",
+        audit.route_name,
+        safety.severity,
+        safety.source,
+        "ok" if audited else "failed",
+    )

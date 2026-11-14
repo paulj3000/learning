@@ -8,8 +8,9 @@
 #
 # The same system as deploy-django-ec2.yml: GitHub Actions with OIDC, no stored keys. Each site
 # deploy role (LaiFrontend-<env>) trusts only its own GitHub Environment (site-dev, site-prod).
-# Until the repository variable LAI_SITE_DEPLOY_ENABLED is 'true' nothing here runs, so Amplify
-# Hosting stays the only frontend publisher until the owner switches this on.
+# Until the repository variable LAI_SITE_DEPLOY_ENABLED is 'true' nothing here runs. Amplify
+# Hosting is retired (AMP-06, owner 2026-11-14), so no frontend is published until the owner
+# switches this on after the S3/CloudFront acceptance (docs/platform/AMPLIFY_FINAL_REMOVAL.md).
 name: Deploy site (CloudFront)
 
 on:
@@ -118,7 +119,8 @@ jobs:
           target: dev
           git-sha: ${{ github.sha }}
           role-arn: ${{ vars.LAI_SITE_DEPLOY_ROLE_ARN }}
-          amplify-app-id: ${{ vars.LAI_AMPLIFY_APP_ID }}
+          cognito-user-pool-id: ${{ vars.LAI_COGNITO_USER_POOL_ID }}
+          cognito-client-id: ${{ vars.LAI_COGNITO_CLIENT_ID }}
           bucket: ${{ vars.LAI_SITE_BUCKET }}
           distribution-id: ${{ vars.LAI_SITE_DISTRIBUTION_ID }}
           site-url: ${{ vars.LAI_SITE_URL }}
@@ -153,7 +155,8 @@ jobs:
           target: prod
           git-sha: ${{ github.sha }}
           role-arn: ${{ vars.LAI_SITE_DEPLOY_ROLE_ARN }}
-          amplify-app-id: ${{ vars.LAI_AMPLIFY_APP_ID }}
+          cognito-user-pool-id: ${{ vars.LAI_COGNITO_USER_POOL_ID }}
+          cognito-client-id: ${{ vars.LAI_COGNITO_CLIENT_ID }}
           bucket: ${{ vars.LAI_SITE_BUCKET }}
           distribution-id: ${{ vars.LAI_SITE_DISTRIBUTION_ID }}
           site-url: ${{ vars.LAI_SITE_URL }}

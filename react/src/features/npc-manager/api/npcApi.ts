@@ -88,10 +88,6 @@ function segment(id: string): string {
 
 /** The app's NPC API for a child, or a `disabled` error when this build has no Django API. */
 export function npcApiFor(childId: string, config: DjangoApiConfig = DJANGO_API_CONFIG): NpcApi {
-  if (!config.enabled) {
-    const disabled = () => Promise.reject(new ApiError('disabled'));
-    return { getCatalog: disabled, getAreaNpcs: disabled, getPlaceNpcs: disabled };
-  }
   return createNpcApi(
     createApiClient({ baseUrl: config.baseUrl, getAccessToken, provisionAccount: true }),
     childId,

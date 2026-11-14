@@ -173,7 +173,6 @@ describe('Django profile store', () => {
   it('keeps photos as a child sub-resource written after the profile save (LAI-0905)', () => {
     const store = createDjangoProfileStore(fakeClient(() => null));
     expect(store.supportsPhotos).toBe(true);
-    expect(store.photoWrite).toBe('after-save');
   });
 
   it('uses the child id as the photo reference only when Django reports a photo', () => {

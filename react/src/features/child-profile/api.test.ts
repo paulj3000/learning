@@ -1,16 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { ApiClient } from '../../api/client';
 
-vi.mock('./amplifyProfiles', () => ({ amplifyProfileStore: { source: 'amplify' } }));
-vi.mock('../../lib/amplify-config', () => ({ isAuthConfigured: false }));
+const { deleteUser } = vi.hoisted(() => ({ deleteUser: vi.fn() }));
+vi.mock('../../lib/cognito', () => ({
+  cognitoAuth: () => ({ deleteUser, getTokens: vi.fn() }),
+  isCognitoConfigured: true,
+}));
 
 import { profileStoreFor } from './api';
+import { createDjangoProfileStore } from './djangoProfiles';
 
 describe('profileStoreFor', () => {
-  it('uses Django for every build with the Django API, whatever the sign-in', () => {
-    expect(profileStoreFor({ enabled: true, baseUrl: '' }).source).toBe('django');
+  it('uses Django for every build (AMP-03: no Amplify Data store remains)', () => {
+    expect(profileStoreFor({ baseUrl: '' }).source).toBe('django');
   });
 
-  it('keeps Amplify only for a build without the Django API (until the cutover)', () => {
-    expect(profileStoreFor({ enabled: false }).source).toBe('amplify');
+  it('deletes the Cognito user with the injected deleter, after Django', async () => {
+    const order: string[] = [];
+    const request = vi.fn(async () => {
+      order.push('django');
+      return { status: 204, data: null };
+    });
+    const deleteCognitoUser = vi.fn(async () => {
+      order.push('cognito');
+    });
+    const store = createDjangoProfileStore(
+      { request } as unknown as ApiClient,
+      undefined,
+      deleteCognitoUser,
+    );
+    await store.deleteAccountAndAllData();
+    expect(request).toHaveBeenCalledWith('DELETE', 'me/');
+    expect(order).toEqual(['django', 'cognito']);
+    expect(deleteUser).not.toHaveBeenCalled();
   });
 });

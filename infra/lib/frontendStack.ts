@@ -62,8 +62,6 @@ export interface FrontendStackProps extends StackProps {
   hostedZone?: { id: string; name: string };
   /** `owner/repo` whose `site-<env>` GitHub Environment may publish (LAI-INFRA-004). */
   githubRepository: string;
-  /** Where the Amplify Gen 2 backend (and its Cognito pool) lives. Default us-west-1. */
-  amplifyRegion?: string;
 }
 
 export class FrontendStack extends Stack {
@@ -76,7 +74,6 @@ export class FrontendStack extends Stack {
     if (!isGithubRepository(props.githubRepository)) {
       throw new Error(`githubRepository must be owner/repo, got "${props.githubRepository}"`);
     }
-    const amplifyRegion = props.amplifyRegion ?? 'us-west-1';
     Tags.of(this).add('Project', 'learning-adventure-island');
     Tags.of(this).add('Component', 'frontend');
     Tags.of(this).add('Environment', env);
@@ -91,13 +88,6 @@ export class FrontendStack extends Stack {
       description:
         'The Django API host (LaiDjangoEc2 ApiDomainName); CloudFront sends /api/* there',
       allowedPattern: HOST_NAME_PATTERN,
-    }).valueAsString;
-    const amplifyAppId = new CfnParameter(this, 'AmplifyAppId', {
-      type: 'String',
-      description:
-        'The Amplify Hosting app whose main-branch backend holds the Cognito pool; the site build ' +
-        'reads its amplify_outputs.json (aws amplify list-apps)',
-      allowedPattern: '^d[a-z0-9]{5,}$',
     }).valueAsString;
 
     this.bucket = new s3.Bucket(this, 'WebBucket', {
@@ -127,7 +117,7 @@ export class FrontendStack extends Stack {
         : acm.CertificateValidation.fromDns(),
     });
 
-    // The same headers Amplify Hosting sends today (customHttp.yml).
+    // The same security headers Amplify Hosting sends (customHttp.yml, retired with it in AMP-08).
     const securityHeaders = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
       comment: `Learning Adventure Island ${env} security headers`,
       securityHeadersBehavior: {
@@ -202,8 +192,8 @@ export class FrontendStack extends Stack {
 
     // --- Release role (LAI-INFRA-004): GitHub OIDC, the site-<env> GitHub Environment only ----
     // Publishes the build and invalidates the shells. No delete: old hashed files stay for open
-    // tabs and rollbacks (scripts/aws/publish-site.sh). Reads the Amplify main backend's outputs
-    // so the build signs in against the same Cognito pool.
+    // tabs and rollbacks (scripts/aws/publish-site.sh). The build takes the Cognito pool and client
+    // from GitHub variables (AMP-06), so the role reads nothing from Amplify.
     const partition = Stack.of(this).partition;
     const account = Stack.of(this).account;
     const deployRole = new iam.Role(this, 'GithubSiteDeployRole', {
@@ -238,36 +228,6 @@ export class FrontendStack extends Stack {
         ],
       }),
     );
-    // Read-only, the main branch only. The exact set `ampx generate outputs` needs is confirmed on
-    // the first gated run (docs/infrastructure/deployment-design.md section 9); add only what an
-    // AccessDenied names.
-    deployRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'ReadAmplifyMainBackend',
-        actions: ['amplify:GetApp', 'amplify:GetBranch'],
-        resources: [
-          `arn:${partition}:amplify:${amplifyRegion}:${account}:apps/${amplifyAppId}`,
-          `arn:${partition}:amplify:${amplifyRegion}:${account}:apps/${amplifyAppId}/branches/main`,
-        ],
-      }),
-    );
-    deployRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'ReadAmplifyMainStacks',
-        actions: ['cloudformation:DescribeStacks', 'cloudformation:ListStackResources'],
-        resources: [
-          `arn:${partition}:cloudformation:${amplifyRegion}:${account}:stack/amplify-${amplifyAppId}-main-branch-*/*`,
-        ],
-      }),
-    );
-    deployRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'ReadAmplifyMainArtifacts',
-        actions: ['s3:GetObject'],
-        resources: [`arn:${partition}:s3:::amplify-${amplifyAppId}-main-*/*`],
-      }),
-    );
-
     const output = (outputId: string, value: string, description: string) =>
       new CfnOutput(this, outputId, { value, description });
     output('WebBucketName', this.bucket.bucketName, 'Upload the React build here');

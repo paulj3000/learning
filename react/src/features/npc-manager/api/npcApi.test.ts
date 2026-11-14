@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createApiClient } from '../../../api/client';
 import { ApiError } from '../../../api/errors';
 import { errorJson, jsonResponse } from '../../../test/playFixtures';
-import { createNpcApi, npcApiFor } from './npcApi';
+import { createNpcApi } from './npcApi';
 
 const CHILD = '0b9f6f5e-3f1a-4b8e-9d2c-1a2b3c4d5e6f';
 
@@ -137,10 +137,5 @@ describe('NPC runtime API', () => {
     const { api, fetch } = setup();
     await expect(api.getAreaNpcs('')).rejects.toMatchObject({ code: 'empty_id' });
     expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('is disabled when the build has no Django API', async () => {
-    const api = npcApiFor(CHILD, { enabled: false });
-    await expect(api.getCatalog()).rejects.toMatchObject({ kind: 'disabled' });
   });
 });

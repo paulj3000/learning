@@ -2,8 +2,9 @@
 
 Status (2026-11-01, branch `features/ai`, unmerged, not pushed): **implemented and verified
 locally with the fake model; not live-accepted.** No Bedrock call has been made, nothing is
-deployed, and the deployed React build still uses the Amplify routes. React switches to Django
-only in a build with `VITE_BACKEND=django`. Section 10 has the per-task status matrix.
+deployed. Since AMP-05 every React build calls Django's AI routes (there is no `VITE_BACKEND`
+selector and no Amplify AI route; `docs/platform/AMPLIFY_FINAL_REMOVAL.md`). Section 10 has the
+per-task status matrix.
 
 Decision: ADR-044 (builds on ADR-019 sub-decision 9). Safety principles:
 `docs/AI_AND_CHILD_SAFETY.md`. Code: `lai/apps/ai/`. Infrastructure:
@@ -222,6 +223,11 @@ EstimatedCostMicroUsd). Seven alarms on the existing `lai-django-alarms-<env>` t
 data not breaching: provider errors (10 per 15 min), fallback rate (50% over 30 min once 20
 turns ran), Guardrail blocks (25 per hour), request spike (3000 per hour), average latency
 (6 s over 15 min), output tokens (2M per day), rate-limited turns (100 per 15 min).
+AMP-05 adds the `ValidationFailures` filter (`ai.turn` status `INVALID*`), an `ai.safety v1
+<route> <severity> <source> <ok|failed>` line per SafetyEvent with `SafetyEvents` and
+`HighSeveritySafetyEvents` filters, two alarms (validation failures 5 per 15 min, any HIGH
+severity SafetyEvent in 5 min) and a `lai-bedrock-monthly-<env>` budget, replacing the Amplify
+`operational-metrics` alarms (`docs/platform/AMPLIFY_FUNCTIONS_EXIT.md`).
 
 **Budget finding.** The Amplify stack's $50 budget filters `Service: Amazon Bedrock`. The Haiku
 4.5 model card says Claude usage is billed through AWS Marketplace "under the model provider
@@ -368,8 +374,8 @@ the two blockers above are cleared and accepted.
 |---|---|---|
 | `amplify/data/resource.ts` `generateCompanionTurn`, `generateTutorTurn`, `CompanionTurn`, `TutorTurn`, `TutorStrategy` | live AppSync routes | after LAI-0706 acceptance and approval |
 | `amplify/backend.ts` `grantBedrockInvoke` (two IAM role patches), the validation-failure alarm, the Bedrock budget | live IAM and monitoring | with the routes; replace the budget first (section 6 finding) |
-| `amplify/data/chattyPersona.ts`, `tutorPersona.ts` | prompts; also imported by `react/src/features/{companion,tutor}/api.ts` for audit versions and read by `lai/apps/ai/tests/test_prompts.py` | move the prompt source of truth to Django, then delete |
-| `react/src/features/companion/api.ts`, `tutor/api.ts` Amplify branch, browser audit writes | client code for builds without `VITE_BACKEND=django` (today's deployed build) | when every deployed build sets `VITE_BACKEND=django` |
+| `amplify/data/chattyPersona.ts`, `tutorPersona.ts` | prompts; read by `lai/apps/ai/tests/test_prompts.py` (React no longer imports them since AMP-05) | move the prompt source of truth to Django, then delete |
+| `react/src/features/companion/api.ts`, `tutor/api.ts` Amplify branch, browser audit writes | client code for builds without `VITE_BACKEND=django` (today's deployed build) | **Removed in AMP-05**: such a build now gets the authored fallback |
 | `amplify/data/resource.ts` `AIInteractionAudit`, `SafetyEvent` models, `parent-dashboard/api.ts` and `child-profile/deletion.ts` Amplify paths | live data and parent controls | after the Phase 11 data migration (rows exist in Amplify) |
 | `scripts/live-smoke.ts`, `scripts/ai-red-team.ts --target amplify` | operator scripts | with the routes |
 | `lai/apps/ai` route names `generateCompanionTurn`/`generateTutorTurn` | audit vocabulary kept for continuity | keep |
@@ -380,8 +386,8 @@ Amplify-connected branch deploys the Amplify backend.
 
 ### Rollback (keep until LAI-0710 is accepted)
 
-- *Frontend AI routing:* rebuild without `VITE_BACKEND=django` (or with the previous artifact):
-  every AI call goes back to the Amplify routes, which stay deployed until LAI-0710.
+- *Frontend AI routing:* no longer available. The Amplify routes are deleted (owner,
+  2026-11-14) and every build calls Django; use the two Django switches below.
 - *Django AI:* `LAI_AI_PROVIDER=disabled` (SSM, re-release) or the Admin kill switch (no
   deploy): authored content everywhere, gameplay unaffected.
 - *Failing invocations:* the `ai.turn` metrics and alarms, the audit rows (`failure_category`,
@@ -471,7 +477,11 @@ parent-initiated clearing unchanged and immediate; a scheduled run only after th
 `--apply` has been checked in a non-production environment. Today one setting covers both kinds
 of row; separate periods and a scheduled job are the follow-up task LAI-0711.
 
-### Amplify routing and retirement prerequisites (LAI-0710; nothing removed)
+### Amplify routing and retirement prerequisites (LAI-0710; historical, retired by AMP-05 and AMP-07)
+
+The table and list below describe the state before the Amplify removal. Today every caller is on
+Django; the persona files live only in `lai/apps/ai/prompts/` and `scripts/ai-red-team.ts` has
+only the Django target.
 
 | Caller | Django build (`VITE_BACKEND=django`) | Other builds |
 |---|---|---|

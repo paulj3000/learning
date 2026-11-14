@@ -71,12 +71,8 @@ describe('discoverRoom', () => {
 });
 
 describe('castleRoomsApiFor', () => {
-  it('is undefined in a build without the Django API, so nothing is saved and nothing fails', () => {
-    expect(castleRoomsApiFor('child-1', { enabled: false })).toBeUndefined();
-  });
-
   it('is an API with the two calls when the Django API is on', () => {
-    const api = castleRoomsApiFor('child-1', { enabled: true, baseUrl: '' });
+    const api = castleRoomsApiFor('child-1', { baseUrl: '' });
     expect(typeof api?.list).toBe('function');
     expect(typeof api?.record).toBe('function');
   });

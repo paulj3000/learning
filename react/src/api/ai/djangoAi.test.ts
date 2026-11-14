@@ -12,12 +12,8 @@ function fakeClient(data: unknown = { turn: { spokenText: 'Hi' }, source: 'AI', 
 }
 
 describe('djangoAiApiFor', () => {
-  it('is null for a build without the Django API, so callers keep using Amplify', () => {
-    expect(djangoAiApiFor({ enabled: false })).toBeNull();
-  });
-
   it('exists for a Django build', () => {
-    expect(djangoAiApiFor({ enabled: true, baseUrl: '' })).not.toBeNull();
+    expect(djangoAiApiFor({ baseUrl: '' })).not.toBeNull();
   });
 });
 

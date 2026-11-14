@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { AuthUnconfiguredHint } from '../features/auth/AuthStatusNotice';
 import { AUTH_UNCONFIGURED_COPY } from '../features/auth/authNoticeCopy';
-import { isAuthConfigured } from '../lib/amplify-config';
+import { isCognitoConfigured } from '../lib/cognito';
 import '../features/portal/portal.css';
 import { PortalButton, PortalCard } from '../features/portal/ui';
 
@@ -53,7 +53,7 @@ export function Home() {
             Learning Adventure Island is a guided, AI-powered adventure world for children ages 3 to
             8. Create a parent account to set up child profiles and get started.
           </p>
-          {isAuthConfigured ? (
+          {isCognitoConfigured ? (
             <div className="flex flex-wrap justify-center gap-3">
               <PortalButton asChild tone="treasure" size="lg">
                 <Link to="/sign-up">Create a parent account</Link>

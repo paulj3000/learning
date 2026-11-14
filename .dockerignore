@@ -9,7 +9,6 @@ react/*
 !react/public
 react/public/*
 !react/public/models
-amplify
 dist
 .git
 lai/staticfiles

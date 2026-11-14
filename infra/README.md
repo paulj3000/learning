@@ -1,8 +1,8 @@
 # infra
 
 The CDK app for the Django platform's AWS resources (`docs/DJANGO_MIGRATION_ROADMAP.md` Phase 10,
-LAI-1001 layout). It is separate from `amplify/`, which keeps deploying the Amplify Gen 2 backend
-on its own pipeline; nothing here is deployed by a push.
+LAI-1001 layout). The Amplify Gen 2 backend and Amplify Hosting are retired (AMP-07, AMP-06);
+this is the only infrastructure code in the repository. Nothing here is deployed by a push.
 
 | Stack                   | Scope       | What                                                                                   | Doc                                          |
 | ----------------------- | ----------- | -------------------------------------------------------------------------------------- | -------------------------------------------- |
