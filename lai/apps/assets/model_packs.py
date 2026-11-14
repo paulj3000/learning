@@ -30,6 +30,7 @@ Publication rules (TR-PALM-04):
 
 import hashlib
 import io
+import json
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,9 +47,11 @@ from .validation import validate_upload
 PIPELINE_VERSION = 1
 # The largest source file or archive member this reads into memory.
 MAX_SOURCE_BYTES = 64 * 1024 * 1024
-MODEL_SUFFIXES = (".glb",)
+MODEL_SUFFIXES = (".glb", ".gltf")
+# Files a .gltf may pull in by name (TR-NAT: .gltf + .bin + shared textures, possibly in other ZIPs).
+RESOURCE_SUFFIXES = (".bin", ".png", ".jpg", ".jpeg")
 # Recognised but not convertible here: there is no conversion pipeline (ASSET_LIBRARY.md s. 4).
-UNSUPPORTED_SUFFIXES = (".gltf", ".fbx", ".obj", ".blend", ".dae", ".3ds", ".stl", ".usdz")
+UNSUPPORTED_SUFFIXES = (".fbx", ".obj", ".blend", ".dae", ".3ds", ".stl", ".usdz")
 
 QUATERNIUS_LICENCE_EVIDENCE = (
     "Quaternius publishes its models as CC0 (docs/ASSET_LICENCES.md records earlier Quaternius "
@@ -107,6 +110,8 @@ class ModelPack:
     not_imported: tuple[SkippedModel, ...] = ()
     max_texture_size: int = 512
     fixes: gltf_prep.MaterialFixes = gltf_prep.MaterialFixes()
+    # Tag definitions with the author's name; off when the files name no author (TR-NAT).
+    tag_author: bool = True
 
     def provenance(self, model: PackModel, source_sha256: str, *, confirmed: bool) -> dict:
         return {
@@ -296,15 +301,132 @@ QUATERNIUS_LOGS = ModelPack(
     fixes=_FBX_PBR,
 )
 
+# --- ENV-2: natural vegetation (TR-NAT) ---------------------------------------------------------
+# One owner-supplied stylised nature kit, delivered as three ZIPs: the .gltf files with their .bin
+# buffers (MapleTree_5_2.zip) and two texture sets (png.zip, PalmTree_Leaves.zip). Only the
+# bushes, flower clumps and grass suit a tropical island; the birch, maple and dead trees do not.
+# The files name no author and carry no licence, so nothing here is published until the owner
+# states both (licence_confirmed).
+
+_NATURE_SOURCE = "Owner-supplied stylised nature kit: MapleTree_5_2.zip with png.zip (2026-11-14)"
+_NATURE_EVIDENCE = (
+    "The .gltf files (Blender glTF I/O 4.0.44) and textures carry no author, licence or readme. "
+    "Author and licence are unknown until the owner states them."
+)
+_VEGETATION_FIXES = gltf_prep.MaterialFixes(
+    blend_to_mask=True, alpha_cutoff=0.5, double_sided_cutouts=True, metallic=0.0, roughness=1.0
+)
+
+
+def _nature_pack(pack_id: str, group: str, title: str, tags: tuple, models) -> ModelPack:
+    return ModelPack(
+        pack_id=pack_id,
+        group=group,
+        title=title,
+        author="Not stated in the supplied files",
+        licence="Not stated in the supplied files",
+        licence_url="",
+        licence_evidence=_NATURE_EVIDENCE,
+        licence_confirmed=False,
+        kind="kit-piece",
+        category=AssetCategory.SCENERY,
+        tags=("nature", "environment", "vegetation", "tropical", "treasure-rush", *tags),
+        models=tuple(
+            PackModel(
+                asset_id,
+                node,
+                display_name,
+                description,
+                source_url=_NATURE_SOURCE,
+                known_source_sha256=digest,
+                fit=("y", height),
+                center_footprint=True,
+            )
+            for asset_id, node, display_name, description, height, digest in models
+        ),
+        # Small on screen: 256 px keeps the shared leaf, flower and grass sheets sharp enough
+        # and every model under about 60 KB.
+        max_texture_size=256,
+        fixes=_VEGETATION_FIXES,
+        tag_author=False,
+    )
+
+
+NATURE_BUSHES = _nature_pack(
+    "nature-kit-bushes",
+    "bushes",
+    "Bushes",
+    ("bushes",),
+    (
+        ("nature-bush-small", "Bush", "Bush, small", "A round leafy bush, 0.8 m tall.", 0.8,
+         "1a1e2fc0a08ed1160f49cdf9227d1304a1344fc0b9ff8f3ada7df59d016634e9"),
+        ("nature-bush-medium", "Bush_Flowers", "Bush, flowering", "A round bush with pink "
+         "flowers, 1 m tall.", 1.0, "1ea57104dadd52c678b5eb097170adc964a1637ee16ff381d4c0d590eadbf7cf"),
+        ("nature-bush-large", "Bush_Large_Flowers", "Bush, large flowering", "A long, tall "
+         "flowering bush, 1.3 m tall, good for edging a clearing.", 1.3, "e9ddbe65ba2766829c0bf506e599870bfe13b12fff633484fca8942588a4e320"),
+    ),
+)
+NATURE_FLOWERS = _nature_pack(
+    "nature-kit-flowers",
+    "flowers",
+    "Flower clumps",
+    ("flowers",),
+    (
+        ("nature-flower-tropical-yellow", "Flower_2_Clump", "Flowers, yellow", "A clump of "
+         "yellow flowers, 0.55 m tall.", 0.55, "e15632d5e7bb83320c111223aba50a012d9f45c594bc2ae16c9dc42987f0e90d"),
+        ("nature-flower-tropical-blue", "Flower_3_Clump", "Flowers, blue", "A clump of blue "
+         "flowers, 0.55 m tall.", 0.55, "a551f245fce387decd368fe3017a583855517ef70ea67bfc7bab06b761239fe9"),
+        ("nature-flower-tropical-pink", "Flower_4_Clump", "Flowers, pink", "A clump of large "
+         "pink flowers, 0.6 m tall.", 0.6, "a6a0983a625ee0680408b91319ceca5bd0dfbca505729dafe11e34918eeab94b"),
+        ("nature-flower-tropical-purple", "Flower_5_Clump", "Flowers, purple", "A clump of "
+         "purple flowers, 0.55 m tall.", 0.55, "89e23f88bf6b9f00b9b75ff8dbfd0f29a5fbb642160bd4eb0dbd44f36733a2a4"),
+    ),
+)
+NATURE_GRASS = _nature_pack(
+    "nature-kit-grass",
+    "grass",
+    "Grass",
+    ("grass",),
+    (
+        ("nature-grass-short", "Grass_Small", "Grass, short", "A low tuft of grass.", 0.35,
+         "15a2407cf53220ca43d9adcf9bcf9d33b8a9ade47cbf3aac896e76718e1f95aa"),
+        ("nature-grass-medium", "Grass_Large", "Grass, medium", "A tuft of grass, 0.5 m.", 0.5,
+         "b85988199e3d3e3c325985642fadbe1ecfa7696c9deb7dbc6ac66bba8219faf7"),
+        ("nature-grass-tall", "Grass_Large_Extruded", "Grass, tall", "A tall clump of grass "
+         "blades, 0.9 m.", 0.9, "940069c9edbc6bab3f6789dde3bd0186a56f1ef9fa160f3cf18557641490ccd2"),
+    ),
+)
+
 PACKS = {
-    pack.pack_id: pack for pack in (QUATERNIUS_PALM_TREES, QUATERNIUS_BARRELS, QUATERNIUS_LOGS)
+    pack.pack_id: pack
+    for pack in (
+        QUATERNIUS_PALM_TREES,
+        QUATERNIUS_BARRELS,
+        QUATERNIUS_LOGS,
+        NATURE_BUSHES,
+        NATURE_FLOWERS,
+        NATURE_GRASS,
+    )
 }
 GROUPS = tuple(dict.fromkeys(pack.group for pack in PACKS.values()))
+# Combined categories for the command.
+GROUP_ALIASES = {"vegetation": ("bushes", "flowers", "grass")}
+# Asked for in ENV-2 but in none of the supplied files: a clear refusal beats importing nothing.
+ABSENT_GROUPS = {
+    "rocks": "no rock models were supplied (only a Rocks.jpg texture)",
+    "ferns": "no fern models were supplied",
+    "coconuts": "no coconut models were supplied",
+}
+CATEGORIES = (*GROUPS, *GROUP_ALIASES, *ABSENT_GROUPS)
 
 
 def packs_for(group: str | None) -> list[ModelPack]:
-    if group is None:
+    if group is None or group == "all":
         return list(PACKS.values())
+    if group in ABSENT_GROUPS:
+        raise PackRefused(f"Nothing to import for {group!r}: {ABSENT_GROUPS[group]}.")
+    if group in GROUP_ALIASES:
+        return [pack for pack in PACKS.values() if pack.group in GROUP_ALIASES[group]]
     if group not in GROUPS:
         raise PackRefused(f"Unknown category {group!r}; choose one of: {', '.join(GROUPS)}.")
     return [pack for pack in PACKS.values() if pack.group == group]
@@ -376,87 +498,157 @@ def check_environment(*, dry_run: bool, publish: bool, allow_shared_storage: boo
 
 
 @dataclass
-class _Source:
+class _File:
+    """A file under the source, on disk or inside a ZIP, read only when needed."""
+
     label: str
-    data: bytes
-    document: dict
-    binary: bytes
-    sha256: str
+    name: str
+    size: int
+    reader: object  # () -> bytes
+
+    def read(self) -> bytes:
+        data = self.reader()
+        if len(data) > MAX_SOURCE_BYTES:
+            raise gltf_prep.PrepError(f"{self.name!r} is too large.")
+        return data
 
 
-def _candidates(source: Path, report: PackReport) -> list[tuple[str, bytes]]:
-    """Every GLB in `source`: the file itself, a ZIP's members, or a directory's files (sorted)."""
+@dataclass
+class _Source:
+    """One model file (.glb, or .gltf with its sibling .bin and images), loaded on first use."""
+
+    label: str
+    model: _File
+    resources: dict
+    _loaded: tuple | None = None
+
+    def load(self) -> tuple[dict, bytes, int, str, list[dict]]:
+        """(document, binary, total bytes, digest, files) or PrepError."""
+        if self._loaded is None:
+            data = self.model.read()
+            if self.model.name.lower().endswith(".glb"):
+                document, binary = gltf_prep.read_glb(data)
+                files = [{"file": self.model.name, "sizeBytes": len(data)}]
+                digest = hashlib.sha256(data).hexdigest()
+                total = len(data)
+            else:
+                used: dict[str, bytes] = {}
+
+                def resolve(name: str):
+                    entry = self.resources.get(name)
+                    if entry is None:
+                        return None
+                    used[name] = used.get(name) or entry.read()
+                    return used[name]
+
+                document, binary = gltf_prep.read_gltf(data, resolve)
+                # The digest covers the .gltf and every file it pulled in, in a fixed order.
+                digest_input = hashlib.sha256(data)
+                files = [{"file": self.model.name, "sizeBytes": len(data)}]
+                for name in sorted(used):
+                    digest_input.update(name.encode() + b"\0" + hashlib.sha256(used[name]).digest())
+                    files.append({"file": name, "sizeBytes": len(used[name])})
+                digest = digest_input.hexdigest()
+                total = len(data) + sum(len(content) for content in used.values())
+            self._loaded = (document, binary, total, digest, files)
+        return self._loaded
+
+
+def _files(source: Path, report: PackReport) -> list[_File]:
+    """Every file under `source` (itself, a ZIP's members, a directory's files and ZIPs), sorted."""
     if not source.exists():
         raise PackRefused(f"The source {source.name!r} does not exist.")
-    files = sorted(p for p in source.rglob("*") if p.is_file()) if source.is_dir() else [source]
+    paths = sorted(p for p in source.rglob("*") if p.is_file()) if source.is_dir() else [source]
     found = []
-    for path in files:
-        suffix = path.suffix.lower()
+    for path in paths:
         label = path.name if source.is_file() else str(path.relative_to(source))
-        if suffix in MODEL_SUFFIXES:
-            if path.stat().st_size > MAX_SOURCE_BYTES:
-                report.ignored_files.append({"file": label, "reason": "too_large"})
-                continue
-            found.append((label, path.read_bytes()))
-        elif suffix == ".zip":
+        if path.suffix.lower() == ".zip":
             found += _zip_members(path, label, report)
-        elif suffix in UNSUPPORTED_SUFFIXES:
-            report.ignored_files.append({"file": label, "reason": "unsupported_format"})
-        elif source.is_file():
-            report.ignored_files.append({"file": label, "reason": "not_a_model"})
+        else:
+            found.append(
+                _File(label, path.name, path.stat().st_size, lambda path=path: path.read_bytes())
+            )
     return found
 
 
-def _zip_members(path: Path, label: str, report: PackReport) -> list[tuple[str, bytes]]:
+def _zip_members(path: Path, label: str, report: PackReport) -> list[_File]:
     found = []
     try:
         with zipfile.ZipFile(path) as archive:
             for info in sorted(archive.infolist(), key=lambda i: i.filename):
-                name = info.filename
-                suffix = Path(name).suffix.lower()
-                member = f"{label}:{name}"
                 if info.is_dir():
                     continue
-                if suffix in UNSUPPORTED_SUFFIXES:
-                    report.ignored_files.append({"file": member, "reason": "unsupported_format"})
-                elif suffix in MODEL_SUFFIXES:
-                    if info.file_size > MAX_SOURCE_BYTES:
-                        report.ignored_files.append({"file": member, "reason": "too_large"})
-                        continue
-                    # Read into memory only: nothing is extracted to disk, so no path traversal.
-                    data = archive.read(info)
-                    if len(data) > MAX_SOURCE_BYTES:
-                        report.ignored_files.append({"file": member, "reason": "too_large"})
-                        continue
-                    found.append((member, data))
+
+                # Read into memory only: nothing is extracted to disk, so no path traversal.
+                def read(path=path, info=info) -> bytes:
+                    with zipfile.ZipFile(path) as again:
+                        return again.read(info)
+
+                found.append(
+                    _File(f"{label}:{info.filename}", Path(info.filename).name, info.file_size, read)
+                )
     except (zipfile.BadZipFile, OSError):
         report.ignored_files.append({"file": label, "reason": "unreadable_archive"})
     return found
 
 
 def _index_sources(source: Path, report: PackReport) -> dict[str, _Source]:
-    """Node name to the first (sorted) GLB that holds it."""
+    """Node name to the first (sorted) model file that holds it; .gltf siblings found by name."""
+    files = _files(source, report)
+    resources: dict[str, _File] = {}
+    for entry in files:
+        if Path(entry.name).suffix.lower() in RESOURCE_SUFFIXES:
+            resources.setdefault(entry.name, entry)
     by_node: dict[str, _Source] = {}
-    for label, data in _candidates(source, report):
-        try:
-            document, binary = gltf_prep.read_glb(data)
-        except gltf_prep.PrepError:
-            report.ignored_files.append({"file": label, "reason": "not_a_glb"})
+    for entry in files:
+        suffix = Path(entry.name).suffix.lower()
+        if suffix in RESOURCE_SUFFIXES:
             continue
-        parsed = _Source(label, data, document, binary, hashlib.sha256(data).hexdigest())
-        for name in gltf_prep.node_names(document):
-            by_node.setdefault(name, parsed)
+        if suffix in UNSUPPORTED_SUFFIXES:
+            report.ignored_files.append({"file": entry.label, "reason": "unsupported_format"})
+            continue
+        if suffix not in MODEL_SUFFIXES:
+            if source.is_file():
+                report.ignored_files.append({"file": entry.label, "reason": "not_a_model"})
+            continue
+        if entry.size > MAX_SOURCE_BYTES:
+            report.ignored_files.append({"file": entry.label, "reason": "too_large"})
+            continue
+        try:
+            names = _node_names_of(entry)
+        except gltf_prep.PrepError:
+            report.ignored_files.append({"file": entry.label, "reason": "not_a_model"})
+            continue
+        found = _Source(entry.label, entry, resources)
+        for name in names:
+            by_node.setdefault(name, found)
     return by_node
 
 
+def _node_names_of(entry: _File) -> list[str]:
+    """Node names without loading buffers or images (cheap for the many models never imported)."""
+    data = entry.read()
+    if entry.name.lower().endswith(".glb"):
+        document, _binary = gltf_prep.read_glb(data)
+    else:
+        try:
+            document = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            raise gltf_prep.PrepError("not JSON") from None
+        if not isinstance(document, dict):
+            raise gltf_prep.PrepError("not a glTF document")
+    return gltf_prep.node_names(document)
+
+
 def _describe(found: _Source, pack: ModelPack) -> dict:
-    document = found.document
+    document, _binary, total, digest, files = found.load()
     known = {model.known_source_sha256 for model in pack.models}
     return {
         "file": found.label,
-        "sizeBytes": len(found.data),
-        "sha256": found.sha256,
-        "matchesKnownDownload": found.sha256 in known,
+        "files": files,
+        "sizeBytes": total,
+        "sha256": digest,
+        "matchesKnownDownload": digest in known,
         "generator": str(document.get("asset", {}).get("generator", "")),
         "nodes": gltf_prep.node_names(document),
         "cameras": len(document.get("cameras", [])),
@@ -503,13 +695,14 @@ def import_pack(
         if found is None:
             report.unresolved.append({**entry, "reason": "source_missing"})
             continue
-        if found.label not in described:
-            report.sources.append(_describe(found, pack))
-            described.add(found.label)
         try:
+            document, binary, source_size, source_sha256, _files_used = found.load()
+            if found.label not in described:
+                report.sources.append(_describe(found, pack))
+                described.add(found.label)
             prepared = gltf_prep.extract_model(
-                found.document,
-                found.binary,
+                document,
+                binary,
                 model.node,
                 max_texture_size=pack.max_texture_size,
                 fixes=pack.fixes,
@@ -525,14 +718,14 @@ def import_pack(
             "vertices": prepared.vertices,
             "dimensions": prepared.dimensions,
             "sizeBytes": len(prepared.data),
-            "sourceSizeBytes": len(found.data),
+            "sourceSizeBytes": source_size,
             "sha256": hashlib.sha256(prepared.data).hexdigest(),
-            "sourceTriangles": _source_triangles(found.document, model.node),
+            "sourceTriangles": _source_triangles(document, model.node),
         }
         report.discovered.append(
             {"node": model.node, "selected": True, "asset": model.asset_id, **stats}
         )
-        provenance = pack.provenance(model, found.sha256, confirmed=confirmed)
+        provenance = pack.provenance(model, source_sha256, confirmed=confirmed)
         asset = _definition(pack, model, provenance, report, dry_run=dry_run)
         if asset is None:
             continue
@@ -546,10 +739,11 @@ def import_pack(
                 "triangles": prepared.triangles,
                 "vertices": prepared.vertices,
                 "sourceTriangles": stats["sourceTriangles"],
-                "sourceSizeBytes": len(found.data),
+                "sourceSizeBytes": source_size,
+                "sourceFiles": _files_used,
             },
         }
-        existing = _existing_version(asset, stats["sha256"], found.sha256, model.node)
+        existing = _existing_version(asset, stats["sha256"], source_sha256, model.node)
         if existing is not None:
             report.skipped.append({**entry, "version": existing.number, "status": existing.status})
             version = existing
@@ -629,7 +823,11 @@ def _definition(pack, model, provenance, report, *, dry_run) -> ContentAsset | N
         origin=AssetOrigin.DJANGO,
         display_name=model.display_name,
         description=model.description,
-        tags=list(dict.fromkeys((*pack.tags, *model.tags, slugify(pack.author)))),
+        tags=list(
+            dict.fromkeys(
+                (*pack.tags, *model.tags, *((slugify(pack.author),) if pack.tag_author else ()))
+            )
+        ),
         source={"provenance": provenance, "sourceNode": model.node},
     )
     asset.full_clean()

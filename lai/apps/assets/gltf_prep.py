@@ -27,8 +27,11 @@ indices, tightly packed or strided, no sparse accessors); anything else raises `
 
 import json
 import math
+import re
 import struct
+import urllib.parse
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from . import png_tools
 
@@ -89,6 +92,79 @@ def read_glb(data: bytes) -> tuple[dict, bytes]:
     if not isinstance(document, dict):
         raise PrepError("The GLB has no JSON chunk.")
     return document, binary
+
+
+# A resource a .gltf may name: a plain file name next to it. Never a path, a scheme or a URL.
+SAFE_RESOURCE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._()-]{0,200}$")
+IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
+def resource_uris(document: dict) -> list[str]:
+    """The external files a .gltf names (buffers, then images), in order, `data:` URIs excluded."""
+    uris = [entry.get("uri") for key in ("buffers", "images") for entry in document.get(key, [])]
+    return [uri for uri in uris if isinstance(uri, str) and not uri.startswith("data:")]
+
+
+def read_gltf(data: bytes, resolve) -> tuple[dict, bytes]:
+    """A .gltf with its sibling .bin and images, as (document, binary) like `read_glb` returns.
+
+    `resolve(name)` returns a sibling file's bytes or None. Every buffer is concatenated into the
+    one binary chunk and every image becomes a buffer view, so the result is self-contained (TR-NAT
+    packs ship as .gltf + .bin + shared textures). A name that is not a plain file name, or a file
+    that is missing or the wrong length, is a PrepError: nothing is fetched from anywhere else.
+    """
+    try:
+        document = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        raise PrepError("The .gltf is not valid JSON.") from None
+    if not isinstance(document, dict) or document.get("asset", {}).get("version") != "2.0":
+        raise PrepError("The file is not a glTF 2.0 document.")
+
+    def fetch(uri: str) -> bytes:
+        if uri.startswith("data:"):
+            raise PrepError("Embedded data URIs inside a .gltf pack are not supported here.")
+        name = urllib.parse.unquote(uri)
+        if not SAFE_RESOURCE.fullmatch(name) or ".." in name:
+            raise PrepError(f"The .gltf names a resource that is not a plain file name: {uri!r}.")
+        content = resolve(name)
+        if content is None:
+            raise PrepError(f"The .gltf needs {name!r}, which is not in the source.")
+        return content
+
+    binary = bytearray()
+    offsets = []
+    for buffer in document.get("buffers", []):
+        if "uri" not in buffer:
+            raise PrepError("A .gltf buffer has no uri.")
+        content = fetch(buffer["uri"])
+        if len(content) < int(buffer.get("byteLength", 0)):
+            raise PrepError(f"{buffer['uri']!r} is shorter than the .gltf says.")
+        binary.extend(b"\x00" * (-len(binary) % 4))
+        offsets.append(len(binary))
+        binary.extend(content[: int(buffer["byteLength"])])
+    views = document.get("bufferViews", [])
+    for view in views:
+        index = int(view.get("buffer", 0))
+        if not 0 <= index < len(offsets):
+            raise PrepError("A buffer view names a buffer that does not exist.")
+        view["byteOffset"] = int(view.get("byteOffset", 0)) + offsets[index]
+        view["buffer"] = 0
+    for image in document.get("images", []):
+        if "uri" not in image:
+            continue
+        content = fetch(image["uri"])
+        mime = image.get("mimeType") or IMAGE_TYPES.get(Path(image["uri"]).suffix.lower())
+        if mime not in IMAGE_TYPES.values():
+            raise PrepError(f"Unsupported image type for {image['uri']!r}.")
+        binary.extend(b"\x00" * (-len(binary) % 4))
+        views.append({"buffer": 0, "byteOffset": len(binary), "byteLength": len(content)})
+        binary.extend(content)
+        image["bufferView"] = len(views) - 1
+        image["mimeType"] = mime
+        del image["uri"]
+    document["bufferViews"] = views
+    document["buffers"] = [{"byteLength": len(binary)}]
+    return document, bytes(binary)
 
 
 def node_names(document: dict) -> list[str]:

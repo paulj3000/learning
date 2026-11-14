@@ -9,7 +9,8 @@
 it is read, never written, and should live outside the repository. Each declared model is found
 by its node name, prepared (one model per file, Y-up, grounded, sized, smaller textures),
 validated, and stored through the configured asset storage as a VALIDATED version. `--category`
-limits the run to `palms`, `barrels` or `logs`.
+limits the run to `palms`, `barrels`, `logs`, `bushes`, `flowers` or `grass`, or `vegetation`
+(the last three); `rocks`, `ferns` and `coconuts` are refused because none were supplied.
 
 Publishing (`--publish`) is refused outside local development, and skips any pack whose licence
 the owner has not confirmed unless `--licence-confirmed` records that they now have. With S3
@@ -23,7 +24,13 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.assets.model_packs import GROUPS, PackRefused, check_environment, import_pack, packs_for
+from apps.assets.model_packs import (
+    CATEGORIES,
+    PackRefused,
+    check_environment,
+    import_pack,
+    packs_for,
+)
 
 
 class Command(BaseCommand):
@@ -34,7 +41,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--source", required=True, help="A .glb, a .zip, or a directory.")
         if self.fixed_category is None:
-            parser.add_argument("--category", choices=GROUPS, help="Import only this group.")
+            parser.add_argument(
+                "--category",
+                choices=(*CATEGORIES, "all"),
+                help="Import only this group (vegetation = bushes, flowers and grass).",
+            )
         parser.add_argument("--dry-run", action="store_true", help="Report only; write nothing.")
         parser.add_argument(
             "--publish",
@@ -79,7 +90,7 @@ class Command(BaseCommand):
                         )
                     )
                 except PackRefused as refused:
-                    if category is not None:
+                    if len(packs) == 1:
                         raise
                     # Importing everything from a folder that holds only some packs is normal.
                     self.stdout.write(f"{pack.title}: skipped ({refused}).")
