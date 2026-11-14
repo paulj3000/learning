@@ -31,6 +31,16 @@ export const COVE_KEY_FOUND_KEY = 'TREASURE_COVE_KEY_FOUND';
 /** Recorded when the quest completes: what TR-17's bridge and Lookout Point unlock listens for. */
 export const COVE_QUEST_COMPLETE_KEY = 'TREASURE_COVE_QUEST_COMPLETE';
 
+/*
+  Pirate's Leap (LAI-JMP-03): a platforming course in the cove's south-west. Its layout is seeded
+  by `lai/apps/regions/pirates_leap_seed.py` with these same keys.
+*/
+export const PIRATES_LEAP_QUEST_ID = 'pirates-leap';
+export const PIRATES_LEAP_CHEST_KEY = 'PIRATES_LEAP_CHEST_OPENED';
+export const PIRATES_LEAP_RIDDLE_KEY = 'PIRATES_LEAP_RIDDLE_SOLVED';
+export const PIRATES_LEAP_SHELL_KEY = 'PIRATES_LEAP_SHELL_FOUND';
+export const PIRATES_LEAP_FEATHER_KEY = 'PIRATES_LEAP_FEATHER_FOUND';
+
 export const TREASURE_RUSH_ITEMS: readonly ItemDefinition[] = [
   {
     id: 'golden-doubloon',
@@ -74,6 +84,34 @@ export const TREASURE_RUSH_ITEMS: readonly ItemDefinition[] = [
     category: 'KEEPSAKE',
     rarity: 'RARE',
   },
+  {
+    id: 'pirates-leap-medal',
+    displayName: "Pirate's Leap Medal",
+    description: "Pip's secret treasure, for crossing the whole pirate training course.",
+    category: 'KEEPSAKE',
+    rarity: 'RARE',
+  },
+  {
+    id: 'pirates-leap-sea-star',
+    displayName: 'Sea Star',
+    description: "A little star from the sea, for answering Pip's counting riddle.",
+    category: 'KEEPSAKE',
+    rarity: 'COMMON',
+  },
+  {
+    id: 'pirates-leap-shell',
+    displayName: 'Sparkly Shell',
+    description: 'A shiny shell found on top of a barrel at Barrel Crossing.',
+    category: 'KEEPSAKE',
+    rarity: 'COMMON',
+  },
+  {
+    id: 'pirates-leap-feather',
+    displayName: 'Parrot Feather',
+    description: 'A bright feather found on the Fallen Log Trail.',
+    category: 'KEEPSAKE',
+    rarity: 'COMMON',
+  },
 ];
 
 export const TREASURE_RUSH_REWARD_RULES: RewardTable = [
@@ -112,6 +150,30 @@ export const TREASURE_RUSH_REWARD_RULES: RewardTable = [
     trigger: { type: 'QUEST_COMPLETED', questId: PIPS_TREASURE_QUEST_ID },
     itemIds: ['treasure-cove-explorer'],
     message: 'You are a Treasure Cove Explorer!',
+  },
+  {
+    id: 'reward-pirates-leap-chest',
+    trigger: { type: 'WORLD_CHANGE', changeKey: PIRATES_LEAP_CHEST_KEY },
+    itemIds: ['pirates-leap-medal'],
+    message: "You found Pip's secret treasure! Here is your Pirate's Leap Medal!",
+  },
+  {
+    id: 'reward-pirates-leap-riddle',
+    trigger: { type: 'WORLD_CHANGE', changeKey: PIRATES_LEAP_RIDDLE_KEY },
+    itemIds: ['pirates-leap-sea-star'],
+    message: 'You solved the riddle! A secret bridge rose over the water.',
+  },
+  {
+    id: 'reward-pirates-leap-shell',
+    trigger: { type: 'WORLD_CHANGE', changeKey: PIRATES_LEAP_SHELL_KEY },
+    itemIds: ['pirates-leap-shell'],
+    message: 'You found a Sparkly Shell!',
+  },
+  {
+    id: 'reward-pirates-leap-feather',
+    trigger: { type: 'WORLD_CHANGE', changeKey: PIRATES_LEAP_FEATHER_KEY },
+    itemIds: ['pirates-leap-feather'],
+    message: 'You found a Parrot Feather!',
   },
 ];
 
@@ -204,5 +266,30 @@ export const TREASURE_RUSH_QUESTS: readonly QuestDefinition[] = [
         },
       ],
     },
+  },
+  {
+    id: PIRATES_LEAP_QUEST_ID,
+    title: "Pirate's Leap",
+    summary:
+      "Pip hid a secret treasure beyond the old pirate training course. Jump, ride and climb to find it!",
+    giverNpcId: 'pirate-pip',
+    ageBands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
+    prerequisites: [{ type: 'ALWAYS' }],
+    entryStageId: 'find-the-secret-treasure',
+    stages: [
+      {
+        id: 'find-the-secret-treasure',
+        title: "Find Pip's secret treasure",
+        objectives: [
+          {
+            id: 'pirates-leap-open-chest',
+            label: "Open Pip's secret treasure in the crow's nest",
+            kind: 'BUILD',
+            changeKey: PIRATES_LEAP_CHEST_KEY,
+          },
+        ],
+      },
+    ],
+    completion: { journalNote: "You crossed the pirate training course and found Pip's secret treasure." },
   },
 ];
