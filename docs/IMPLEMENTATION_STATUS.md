@@ -42,6 +42,29 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Treasure Rush environment licences confirmed and assets published (2026-11-14) — local development only; owner visual QA NOT done
+
+- **Licence.** The owner confirmed CC0-1.0 (Quaternius) for the palms, barrel, logs, wood pile
+  and the Ultimate Stylized Nature Pack. `model_packs.py` records:
+  - the licence identifier, name, deed, legal code and plain-text URLs;
+  - `licenceVerifiedOn` and the owner confirmation reference;
+  - per-model source URLs, plus the nature pack's pages.
+
+  Existing definitions got the new provenance; administrator-edited fields were kept.
+- **Publication.** All 18 environment models are published locally as v1 and are the default
+  versions.
+  - The 14 never-published ones (barrel, logs, wood pile, vegetation) were first re-prepared
+    through the normal import, so their frozen `asset.copyright` reads "Quaternius, CC0-1.0".
+  - Published palm versions are unchanged.
+  - The storage audit shows no orphans and nothing missing.
+- **Verification.**
+  - Treasure Cove (seeded locally, layout v7) lists all 18 ids in its catalog, all deliverable.
+  - The resolver resolves each one to v1.
+  - Each signed delivery URL returns bytes matching the recorded SHA-256 (18 of 18).
+  - Engine tests cover models drawn and colliders added once deliverable.
+- **Not done:** owner visual QA in a browser; no S3 or production upload (needs separate
+  approval).
+
 ## Treasure Rush ENV-2: bushes, flowers and grass (TR-NAT-01 to 14) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); licence and author NOT stated, so NOT published; rocks, ferns and coconuts NOT supplied; owner visual QA NOT done
 
 - **Import.** `import_treasure_rush_environment` now reads `.gltf` + `.bin` + textures by plain

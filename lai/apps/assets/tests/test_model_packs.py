@@ -167,11 +167,51 @@ def test_a_rerun_creates_nothing_new(source):
     assert AssetVersion.objects.count() == 2
 
 
-def test_a_rerun_with_different_bytes_from_the_same_source_and_pipeline_is_still_skipped(source):
-    import_pack(TREES, source)
+def test_a_never_published_version_with_stale_bytes_is_re_prepared(source):
+    first = import_pack(TREES, source)
+    old_keys = {v.storage_key for v in AssetVersion.objects.all()}
     sharper = dataclasses.replace(TREES, max_texture_size=16)  # other bytes, same source
+    dry = import_pack(sharper, source, dry_run=True)
+    assert len(dry.refreshed) == 2 and AssetVersion.objects.count() == 2  # nothing written
     again = import_pack(sharper, source)
-    assert again.imported == [] and len(again.skipped) == 2
+    assert len(again.refreshed) == 2 and len(again.imported) == 2
+    versions_now = list(AssetVersion.objects.all())
+    assert [v.number for v in versions_now] == [1, 1]  # still version 1, new bytes and key
+    assert not {v.storage_key for v in versions_now} & old_keys
+    assert first.imported[0]["sha256"] != again.imported[0]["sha256"]
+
+
+def test_a_published_version_is_never_re_prepared(source, local_dev):
+    import_pack(TREES, source, publish=True)
+    published = {v.pk: v.sha256 for v in AssetVersion.objects.all()}
+    sharper = dataclasses.replace(TREES, max_texture_size=16)
+    again = import_pack(sharper, source, publish=True)
+    assert again.refreshed == [] and again.imported == [] and len(again.skipped) == 2
+    assert {v.pk: v.sha256 for v in AssetVersion.objects.all()} == published
+
+
+def test_an_existing_definition_gets_the_confirmed_provenance_but_keeps_its_edits(source):
+    import_pack(LOGS, source)
+    ContentAsset.objects.filter(asset_id="test-log").update(display_name="Driftwood", tags=["x"])
+    confirmed = dataclasses.replace(
+        LOGS,
+        licence_confirmed=True,
+        licence=model_packs.CC0["licenceName"],
+        licence_verified_on="2026-11-14",
+        owner_confirmation="Owner confirmed in a test",
+    )
+    report = import_pack(confirmed, source)
+    assert report.provenance_updated == ["test-log"]
+    log = ContentAsset.objects.get(asset_id="test-log")
+    assert (log.display_name, log.tags) == ("Driftwood", ["x"])
+    provenance = log.source["provenance"]
+    assert provenance["licenceStatus"] == "confirmed"
+    assert provenance["licenceId"] == "CC0-1.0"
+    assert provenance["licenceLegalCode"].endswith("/legalcode")
+    assert provenance["licenceVerifiedOn"] == "2026-11-14"
+    assert provenance["ownerConfirmation"] == "Owner confirmed in a test"
+    (version,) = versions("test-log")
+    assert version.metadata["provenance"] == provenance  # re-prepared with the new credit
 
 
 def test_a_dry_run_validates_but_writes_nothing(source):
@@ -400,23 +440,16 @@ def test_the_palm_command_is_the_palm_category(real_source):
     assert AssetVersion.objects.filter(asset__asset_id__startswith="nature-palm-tree-").count() == 4
 
 
-def test_publish_through_the_command_holds_back_unconfirmed_licences(real_source, local_dev):
+def test_publish_through_the_command_publishes_every_confirmed_pack(real_source, local_dev):
     text = run("import_treasure_rush_environment", "--source", str(real_source), "--publish")
-    published = set(
-        AssetVersion.objects.filter(status=VersionStatus.PUBLISHED).values_list(
-            "asset__asset_id", flat=True
-        )
-    )
-    assert published == {model.asset_id for model in QUATERNIUS_PALM_TREES.models}
-    assert "not published: prop-wooden-barrel v1 (licence_unconfirmed" in text
-    run(
-        "import_treasure_rush_environment",
-        "--source",
-        str(real_source),
-        "--publish",
-        "--licence-confirmed",
-    )
-    assert AssetVersion.objects.filter(status=VersionStatus.PUBLISHED).count() == 8
+    published = AssetVersion.objects.filter(status=VersionStatus.PUBLISHED)
+    assert published.count() == 8 and "licence_unconfirmed" not in text
+    for version in published:
+        provenance = version.metadata["provenance"]
+        assert provenance["author"] == "Quaternius" and provenance["licenceId"] == "CC0-1.0"
+        assert provenance["licenceStatus"] == "confirmed"
+    again = run("import_treasure_rush_environment", "--source", str(real_source), "--publish")
+    assert "Imported 0 model(s)" in again and AssetVersion.objects.count() == 8
 
 
 def test_command_refusals(real_source, tmp_path):
@@ -456,13 +489,22 @@ def test_the_declared_packs_are_well_formed_and_reusable():
             assert re.fullmatch(r"[0-9a-f]{64}", model.known_source_sha256)
             if pack.group in ("palms", "barrels", "logs"):
                 assert model.source_url.startswith("https://poly.pizza/m/")
-    assert QUATERNIUS_PALM_TREES.licence_confirmed is True
-    assert QUATERNIUS_BARRELS.licence_confirmed is False
-    assert QUATERNIUS_LOGS.licence_confirmed is False
-    # ENV-2: the files name no author or licence, so nothing is invented and nothing published.
+            else:
+                assert model.source_url == "https://quaternius.com/packs/ultimatestylizednature.html"
+    # Every pack confirmed CC0-1.0 by the owner (2026-11-14), with the confirmation recorded.
+    for pack in PACKS.values():
+        assert pack.licence_confirmed is True and pack.author == "Quaternius"
+        assert pack.licence == model_packs.CC0["licenceName"]
+        assert pack.licence_verified_on == "2026-11-14" and "Owner confirmation" in (
+            pack.owner_confirmation
+        )
+    for pack in (QUATERNIUS_PALM_TREES, QUATERNIUS_BARRELS, QUATERNIUS_LOGS):
+        assert pack.source_pages == ()
     for pack in (model_packs.NATURE_BUSHES, model_packs.NATURE_FLOWERS, model_packs.NATURE_GRASS):
-        assert pack.licence_confirmed is False and pack.tag_author is False
-        assert pack.author == pack.licence == "Not stated in the supplied files"
+        assert pack.source_pages == (
+            "https://quaternius.com/packs/ultimatestylizednature.html",
+            "https://poly.pizza/bundle/Ultimate-Stylized-Nature-Pack-zyIyYd9yGr",
+        )
 
 
 def test_the_declared_sizes_match_the_treasure_rush_scale():

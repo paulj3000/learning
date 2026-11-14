@@ -62,37 +62,66 @@ argued, or delete it.
 
 ---
 
-## Models — served from the asset library, never in this repository (TR-PALM, TR-ENV)
+## Models — served from the asset library, never in this repository (TR-PALM, TR-ENV, ENV-2)
 
 These third-party models are stored by the Django asset library (local disk in development, the
-private S3 bucket in AWS), not in Git. The owner downloaded them from poly.pizza and supplied
-them on 2026-11-14; `apps/assets/model_packs.py` declares each one, with the SHA-256 of the file
-supplied, and records the provenance below on every version it imports
+private S3 bucket in AWS), not in Git. The owner downloaded and supplied them on 2026-11-14.
+`apps/assets/model_packs.py` declares each one, with the SHA-256 of the file supplied, and
+records the provenance below on every definition and version it imports
 (`docs/ASSET_LIBRARY.md` section 22).
 
-| Asset ids | Source | Licence | Status | Attribution owed |
-| --- | --- | --- | --- | --- |
-| `nature-palm-tree-small`, `-standard`, `-tall`, `-curved` | Quaternius, Palm Trees, https://poly.pizza/m/VYslw9DEi6 (sha256 `70275b71...a2904`) | CC0 1.0 Universal | Stated by the owner in the TR-PALM request | None |
-| `prop-wooden-barrel` | Quaternius, Barrel, https://poly.pizza/m/zjCQP1TAci (sha256 `acf56e7e...f2238`) | CC0 1.0 expected | **Unconfirmed**: imported, not published | None if CC0 |
-| `nature-wood-log` | Quaternius, Wood Log, https://poly.pizza/m/L4E32Wee6C (sha256 `7c3489a6...03844`) | CC0 1.0 expected | **Unconfirmed** | None if CC0 |
-| `nature-wood-log-moss` | Quaternius, Wood Log with Moss, https://poly.pizza/m/nwsYvcI0bC (sha256 `d148deb2...5b0`) | CC0 1.0 expected | **Unconfirmed** | None if CC0 |
-| `prop-wood-pile` | Quaternius, Wood, https://poly.pizza/m/ajBNpMsQ8z (sha256 `9ef528dc...1f8d8`) | CC0 1.0 expected | **Unconfirmed** | None if CC0 |
+**Licence: CC0-1.0, confirmed by the owner on 2026-11-14** for every model in this section. They
+are all by Quaternius. In full: Creative Commons Zero 1.0 Universal, public domain dedication.
+- Deed: https://creativecommons.org/publicdomain/zero/1.0/
+- Legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+- Plain text: https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt
 
-| `nature-bush-small`, `-medium`, `-large`; `nature-flower-tropical-yellow`, `-blue`, `-pink`, `-purple`; `nature-grass-short`, `-medium`, `-tall` | Owner-supplied stylised nature kit (`MapleTree_5_2.zip` sha256 `0c0f285b...89` with `png.zip` `9e0ec154...cd4`), 2026-11-14 | **Not stated** in the supplied files | **Unknown**: imported, not published | Unknown |
+Attribution owed: none (CC0). Quaternius is credited anyway, in each definition's provenance and
+in each prepared file's `asset.copyright` ("Quaternius, CC0-1.0").
 
-**Evidence and what is missing.** None of the supplied files carries licence text; `Barrel.fbx`
-(not imported) has an empty author field. The file names credit Quaternius, who publishes models
-as CC0, consistent with the Quaternius packs above. The poly.pizza pages could not be reached
-from the development session to confirm each listing, so the barrel and log versions stay
-unpublished until the owner confirms (`--licence-confirmed`, section 22.2).
+| Asset ids | Source | Source file supplied (sha256) | Published locally |
+| --- | --- | --- | --- |
+| `nature-palm-tree-small`, `-standard`, `-tall`, `-curved` | Palm Trees, https://poly.pizza/m/VYslw9DEi6 | `70275b71...a2904` | v1 each (since TR-PALM) |
+| `prop-wooden-barrel` | Barrel, https://poly.pizza/m/zjCQP1TAci | `acf56e7e...f2238` | v1 |
+| `nature-wood-log` | Wood Log, https://poly.pizza/m/L4E32Wee6C | `7c3489a6...03844` | v1 |
+| `nature-wood-log-moss` | Wood Log with Moss, https://poly.pizza/m/nwsYvcI0bC | `d148deb2...5b0` | v1 |
+| `prop-wood-pile` | Wood, https://poly.pizza/m/ajBNpMsQ8z | `9ef528dc...1f8d8` | v1 |
+| `nature-bush-small`, `-medium`, `-large`; `nature-flower-tropical-yellow`, `-blue`, `-pink`, `-purple`; `nature-grass-short`, `-medium`, `-tall` | Ultimate Stylized Nature Pack, https://quaternius.com/packs/ultimatestylizednature.html and https://poly.pizza/bundle/Ultimate-Stylized-Nature-Pack-zyIyYd9yGr | `MapleTree_5_2.zip` `0c0f285b...89` with `png.zip` `9e0ec154...cd4` | v1 each |
 
-The nature kit's files (Blender glTF I/O 4.0.44 exports) carry no author, licence or readme,
-so its author and licence are recorded as not stated; nothing is invented, and nothing is
-published until the owner provides both.
+**Recorded per definition** (`ContentAsset.source.provenance`) and, for the barrel, logs and
+vegetation, per version (`AssetVersion.metadata.provenance`, frozen at publication):
+- the author (Quaternius) and the source URL, plus the pack's own pages for the nature pack;
+- the licence identifier, name, deed, legal code and plain text;
+- `licenceStatus: confirmed`, `licenceVerifiedOn: 2026-11-14`;
+- the owner confirmation reference;
+- the source SHA-256.
 
-**Modifications** (recorded per version): each model was split out of its file, re-oriented
-Y-up, grounded, uniformly scaled, its textures downscaled to 512 px, foliage alpha changed from
-blended to cut-out, and FBX metalness removed; the wood pile was re-posed from an icon angle.
+**Evidence.**
+- **The owner's written confirmation** (2026-11-14) against the source listings above.
+- **The files carry no licence text.** `Barrel.fbx` (not imported) has an empty author field, and
+  the nature pack's `.gltf` files name no author.
+- **The `License.txt` supplied with the confirmation** (sha256 `de990ef6...f6e`) reads "Ultimate
+  Platformer Pack by @Quaternius ... CC0 1.0 Universal". That is Quaternius' licence for another
+  pack. It supports Quaternius' CC0 practice, but the owner's confirmation is the authority for
+  the packs above.
+- **Not checked online.** The poly.pizza and quaternius.com pages could not be reached from the
+  development session.
+
+**History.** Until the owner confirmed (2026-11-14), the barrel, logs and nature pack were
+imported but held unpublished.
+- **Barrel and logs:** recorded as "CC0 expected, unconfirmed".
+- **Nature pack:** author and licence recorded as not stated.
+
+Their never-published versions were then re-prepared, so that the credit frozen into each
+published file is the confirmed one. They are still version 1. The palm versions, published
+before, are unchanged: their definitions carry the full record, and each version still records
+`licenceStatus: confirmed`.
+
+**Modifications** (recorded per version):
+- each model was split out of its file, re-oriented Y-up, grounded and uniformly scaled;
+- textures downscaled to 512 px (palms, wood pile) or 256 px (vegetation);
+- foliage alpha changed from blended to cut-out, and FBX metalness removed;
+- the wood pile was re-posed from an icon angle.
 
 ---
 
