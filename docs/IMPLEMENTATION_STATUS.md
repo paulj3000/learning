@@ -249,6 +249,25 @@ and roll back, never touching the source bucket. Runbook and the owner's open st
 Django settings like `make migrate`. Django's `createsuperuser` stays disabled. Checked with
 `make -n createsuper`; not yet run against a live database (needs `make up` and `make migrate`).
 
+## Shared player running & sprinting (`feature/player-running`, ADR-058 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
+
+Stacked on PR #28 -> #27 -> #26 (none merged). The shared `FirstPersonController` now walks
+(4 m/s, unchanged), runs (5.5, full analog input) and sprints (6.5, Shift hold or tap, L3, a long
+touch drag), with smooth rate-limited gait changes, RUN/SPRINT states, running jumps that carry
+their momentum, and horizontal collision substepped to 10 cm (no tunnelling; a test pins every
+authored collider thicker). Per-location tuning `movement.locomotion` (Django
+`scene.movement.locomotion`); Storykeeper Castle runs 4.8 and sprints 5.6. Run clip or a bounded
+faster Walk; an optional 3-degree sprint FOV widening (off under reduced motion);
+`PlayerGaitChanged` / `PlayerFootstep` events and an optional `sfx.player.footstep` cue. No
+stamina or penalties.
+
+- Adventures: Treasure Cove, Storykeeper Castle, Pirate Builder Bay (engine-tested), plus Welcome
+  Harbor, Wonderwild Forest, Clockwork Harbor, Dragon's Sanctuary, Firepeak (defaults).
+- Tests: Vitest (island-map, region-play, npc-manager, player-avatar, child-profile, routes, api)
+  pass; `npm run typecheck` passes; pytest for the changed audio cue catalogue passes.
+- Deferred to merge verification: full gates, build, Playwright/WebGL, device and gamepad QA
+  (owner checklist in `docs/PLAYER_RUNNING_AND_SPRINTING.md`).
+
 ## Player avatar asset integration (LAI-JMP-01c, `feature/player-avatar-assets`, ADR-057 Proposed) — ASSET INTEGRATION DEVELOPMENT COMPLETE (2026-11-13); PRODUCTION ART NOT READY; unit-tested only
 
 Built on `feature/third-person-avatar` (PR #27, on PR #26; neither merged). New Django app

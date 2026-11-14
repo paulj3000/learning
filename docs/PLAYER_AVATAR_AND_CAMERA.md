@@ -195,6 +195,9 @@ No Django schema change: Django regions carry the block inside their existing `s
 | Jump | Space | Jump button | A / Cross |
 | Interact | E / Enter, or click the action prompt | Tap the action prompt | X / Square |
 | Switch camera view | **V**, or the camera-view button | **Camera-view button** (left of Jump) | **Y / Triangle** |
+| Run / sprint | Hold Shift to sprint | Drag further to run, further still to sprint | Tilt fully to run, L3 to sprint |
+
+(Running and sprinting: `docs/PLAYER_RUNNING_AND_SPRINTING.md`.)
 
 The gamepad mapping is a `GamepadBindings` object (`gamepadInput.ts`); change one entry to
 rebind a button. Move and look drags use separate touches, so a child can walk, turn the camera

@@ -1,5 +1,6 @@
 import { Vector2, type WebGLRenderer } from 'three';
 import type { FirstPersonController } from './firstPersonController';
+import { RUN_INPUT_THRESHOLD } from './locomotionConfiguration';
 import {
   GamepadReader,
   NO_GAMEPAD_INPUT,
@@ -12,6 +13,12 @@ export interface PointerControlsOptions {
   onInteract?: () => void;
   /** LAI-JMP-01a: fired on V or the gamepad camera button; the HUD has its own button. */
   onToggleCamera?: () => void;
+  /**
+   * Running & sprinting: how Shift sprints. `hold` (default): while held. `toggle`: each press
+   * switches sprint on or off. Read on every press, so a setting change applies at once. Either
+   * way sprint ends when the child stops moving, a panel opens or the window loses focus.
+   */
+  sprintMode?: () => SprintMode;
   /** Gamepad button mapping. Defaults to `DEFAULT_GAMEPAD_BINDINGS`. */
   gamepadBindings?: GamepadBindings;
   /**
@@ -41,6 +48,40 @@ export interface PointerControls {
    */
   resetInput(): void;
   dispose(): void;
+}
+
+/** Hold Shift to sprint, or press it to switch sprint on and off. */
+export type SprintMode = 'hold' | 'toggle';
+
+/** A move drag this long (px) is full walking pace, exactly as before running existed. */
+export const TOUCH_WALK_RADIUS = 40;
+/** Dragging further, up to this, rises to full running pace. */
+export const TOUCH_RUN_RADIUS = 60;
+/** Dragging past this sprints. */
+export const TOUCH_SPRINT_RADIUS = 72;
+
+/**
+ * A move drag as an analog input: a direction scaled so a 40 px drag is full
+ * walking pace (the old joystick, unchanged), 60 px full running pace, and
+ * anything past 72 px a sprint. No extra button: a child just drags further.
+ */
+export function touchDrag(dx: number, dy: number): { x: number; y: number; sprint: boolean } {
+  const distance = Math.hypot(dx, dy);
+  if (distance === 0) return { x: 0, y: 0, sprint: false };
+  const magnitude =
+    distance <= TOUCH_WALK_RADIUS
+      ? (RUN_INPUT_THRESHOLD * distance) / TOUCH_WALK_RADIUS
+      : Math.min(
+          1,
+          RUN_INPUT_THRESHOLD +
+            ((1 - RUN_INPUT_THRESHOLD) * (distance - TOUCH_WALK_RADIUS)) /
+              (TOUCH_RUN_RADIUS - TOUCH_WALK_RADIUS),
+        );
+  return {
+    x: (dx / distance) * magnitude,
+    y: (dy / distance) * magnitude,
+    sprint: distance >= TOUCH_SPRINT_RADIUS,
+  };
 }
 
 /** The keys that jump. Space only; `event.code` too, for layouts where `key` differs. */
@@ -84,6 +125,11 @@ export function attachPointerControls(
   options: PointerControlsOptions = {},
 ): PointerControls {
   const keysDown = new Set<string>();
+  /** Shift in toggle mode, and the gamepad's sprint button: on until pressed again or stopped. */
+  let keyboardSprintLatched = false;
+  let padSprintLatched = false;
+  /** A touch drag past the joystick's edge sprints. */
+  let touchSprint = false;
   const gamepads = new GamepadReader(options.gamepadBindings);
   const sensitivity = () => {
     const value = options.lookSensitivity?.() ?? 1;
@@ -109,6 +155,9 @@ export function attachPointerControls(
       controller.pressJump();
     }
     keysDown.add(isJumpKey(event) ? ' ' : key);
+    if (key === 'shift' && !event.repeat && options.sprintMode?.() === 'toggle') {
+      keyboardSprintLatched = !keyboardSprintLatched;
+    }
     if (key === 'e' || event.key === 'Enter') {
       options.onInteract?.();
     }
@@ -164,11 +213,9 @@ export function attachPointerControls(
       if (touch.identifier === moveTouchId) {
         const dx = touch.clientX - moveTouchStart.x;
         const dy = touch.clientY - moveTouchStart.y;
-        const maxRadius = 40;
-        touchMoveVector.set(
-          Math.max(-1, Math.min(1, dx / maxRadius)),
-          Math.max(-1, Math.min(1, dy / maxRadius)),
-        );
+        const drag = touchDrag(dx, dy);
+        touchMoveVector.set(drag.x, drag.y);
+        touchSprint = drag.sprint;
       } else if (touch.identifier === lookTouchId) {
         const dx = touch.clientX - lookTouchLast.x;
         const dy = touch.clientY - lookTouchLast.y;
@@ -182,6 +229,7 @@ export function attachPointerControls(
       if (touch.identifier === moveTouchId) {
         moveTouchId = null;
         touchMoveVector.set(0, 0);
+        touchSprint = false;
       } else if (touch.identifier === lookTouchId) {
         lookTouchId = null;
       }
@@ -197,6 +245,9 @@ export function attachPointerControls(
     moveTouchId = null;
     lookTouchId = null;
     touchMoveVector.set(0, 0);
+    touchSprint = false;
+    keyboardSprintLatched = false;
+    padSprintLatched = false;
     gamepads.reset();
     controller.clearJumpInput();
   }
@@ -222,10 +273,23 @@ export function attachPointerControls(
     if (pad.jumpPressed) controller.pressJump();
     if (pad.interactPressed) options.onInteract?.();
     if (pad.cameraTogglePressed) options.onToggleCamera?.();
+    if (pad.sprintPressed) padSprintLatched = !padSprintLatched;
 
+    const forward = Math.max(-1, Math.min(1, keyboardForward - touchMoveVector.y + pad.forward));
+    const strafe = Math.max(-1, Math.min(1, keyboardStrafe + touchMoveVector.x + pad.strafe));
+    const moving = forward !== 0 || strafe !== 0;
+    // A toggled sprint ends when the child stops, so it never surprises them on the next step.
+    if (!moving) {
+      keyboardSprintLatched = false;
+      padSprintLatched = false;
+    }
+    const holdShift = options.sprintMode?.() !== 'toggle' && keysDown.has('shift');
     controller.update(deltaSeconds, {
-      forward: Math.max(-1, Math.min(1, keyboardForward - touchMoveVector.y + pad.forward)),
-      strafe: Math.max(-1, Math.min(1, keyboardStrafe + touchMoveVector.x + pad.strafe)),
+      forward,
+      strafe,
+      // A joystick drag or a stick: a strong push runs. Keys alone walk, as they always did.
+      analog: touchMoveVector.lengthSq() > 0 || pad.forward !== 0 || pad.strafe !== 0,
+      sprint: holdShift || keyboardSprintLatched || padSprintLatched || touchSprint,
     });
   }
 

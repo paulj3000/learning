@@ -216,3 +216,43 @@ describe('PlayerCameraController (LAI-JMP-01a)', () => {
     });
   });
 });
+
+describe('camera while running & sprinting', () => {
+  it('widens the view a little while sprinting, eased, and back again', () => {
+    const camera = thirdPerson();
+    const first = camera.update(FRAME, input({ sprinting: true })).fovOffset;
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThan(DEFAULT_PLAYER_CAMERA.sprintFovBoost);
+    expect(run(camera, 120, input({ sprinting: true })).fovOffset).toBe(
+      DEFAULT_PLAYER_CAMERA.sprintFovBoost,
+    );
+    expect(run(camera, 120, input()).fovOffset).toBe(0);
+  });
+
+  it('never widens under reduced motion, or where a location turns it off', () => {
+    const calm = thirdPerson([], DEFAULT_PLAYER_CAMERA, true);
+    expect(run(calm, 60, input({ sprinting: true })).fovOffset).toBe(0);
+    const off = thirdPerson([], resolvePlayerCamera({ sprintFovBoost: 0 }));
+    expect(run(off, 60, input({ sprinting: true })).fovOffset).toBe(0);
+  });
+
+  it('tracks a sprinting child closely: the follow lag stays under a metre', () => {
+    const camera = thirdPerson();
+    let z = 0;
+    let frame = camera.update(FRAME, input());
+    for (let i = 0; i < 180; i += 1) {
+      z += 6.5 * FRAME;
+      frame = camera.update(FRAME, input({ feet: { x: 0, y: 0, z }, sprinting: true }));
+    }
+    const lag = z - (frame.position.z + frame.distance * Math.cos(0.25));
+    expect(lag).toBeGreaterThan(0);
+    expect(lag).toBeLessThan(1);
+  });
+
+  it('still stops in front of a wall at sprinting speed', () => {
+    const wall = new Box3(new Vector3(-5, -1, -1.5), new Vector3(5, 3, -1));
+    const frame = thirdPerson([wall]).update(FRAME, input({ sprinting: true }));
+    expect(wall.containsPoint(frame.position)).toBe(false);
+    expect(frame.position.z).toBeGreaterThan(-1);
+  });
+});

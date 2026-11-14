@@ -4095,3 +4095,36 @@ asset system, without a React admin, and with safe fallbacks.
 models are content work, not code. One new table and migration. Until real models are supplied
 every child sees the placeholder. Details: `docs/PLAYER_AVATAR_ASSETS.md`.
 
+## ADR-058: Walking, running and sprinting are gaits of the one shared movement controller
+
+Status: Proposed ("Shared Player Running & Sprinting", 2026-11-13). Development only; awaiting
+owner QA. Depends on ADR-055 to ADR-057 (PRs #26 to #28, unmerged when this was written).
+
+**Context.** Children should be able to walk, run and sprint, and jump from any of them, in every
+free-roaming 3D adventure, without separate controllers per adventure, without stamina or
+penalties, and without changing how walking already feels.
+
+**Decision.**
+
+1. **Speed comes from input strength and gait inside `FirstPersonController`.** Keys walk at full
+   walking pace (4 m/s, unchanged); analog input rises continuously from walking to running pace
+   (5.5 m/s) past 80% deflection; sprint is 6.5 m/s. Per-location tuning is
+   `movement.locomotion` (Django: `scene.movement.locomotion`), validated, no schema change.
+2. **Gait changes are rate-limited above walking pace** (8 m/s² up, 10 m/s² down), so they are
+   smooth, while starting and stopping keep their existing response.
+3. **Horizontal collision is substepped (at most 10 cm per test)**, so higher speeds and long
+   frames cannot tunnel; a test pins every authored collider above that thickness.
+4. **Controls reuse the shared input layer:** hold or tap Shift (a per-child setting), touch drag
+   distance (no new HUD button), stick tilt and a rebindable L3. Sprint is cleared on blur,
+   hidden tab, panel open and stopping.
+5. **Animation reuses the player animation controller:** `RUN`/`SPRINT` play `Run`, or `Walk`
+   sped up within bounds when a model has no `Run`; never a gesture.
+6. **The only camera effect is an optional 3-degree field-of-view widening while sprinting,**
+   eased, configurable per location, off under reduced motion.
+7. **Sound gets events, not assets:** `PlayerGaitChanged` and stride-paced `PlayerFootstep`;
+   Treasure Rush plays an optional footstep cue.
+
+**Consequences.** Every eligible adventure gains running and sprinting with no per-location code;
+walking and jumping are unchanged (every existing test passes). The keyboard has two speeds
+(walk, sprint). Details: `docs/PLAYER_RUNNING_AND_SPRINTING.md`.
+

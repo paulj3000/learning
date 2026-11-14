@@ -161,6 +161,8 @@ export function mount(
     'PlayerJumped',
     'PlayerLanded',
     'PlayerRecovered',
+    'PlayerGaitChanged',
+    'PlayerFootstep',
   ] as const) {
     bus.on(name, (detail) => events.push({ name, detail }));
   }

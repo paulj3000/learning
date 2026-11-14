@@ -64,3 +64,46 @@ export function saveCameraPreference(
     return false;
   }
 }
+
+/*
+  Running & sprinting: whether Shift is held or pressed to sprint, remembered
+  the same way (this browser, per child, the value only).
+*/
+const SPRINT_KEY_PREFIX = 'lai:sprint-mode:';
+
+export type SprintModePreference = 'hold' | 'toggle';
+
+function isSprintMode(value: unknown): value is SprintModePreference {
+  return value === 'hold' || value === 'toggle';
+}
+
+export function sprintModePreferenceKey(childId: string): string {
+  return `${SPRINT_KEY_PREFIX}${childId}`;
+}
+
+export function loadSprintModePreference(
+  childId: string,
+  storage: PreferenceStorage | null = defaultStorage(),
+): SprintModePreference | null {
+  if (!childId || !storage) return null;
+  try {
+    const value = storage.getItem(sprintModePreferenceKey(childId));
+    return isSprintMode(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSprintModePreference(
+  childId: string,
+  mode: SprintModePreference,
+  storage: PreferenceStorage | null = defaultStorage(),
+): boolean {
+  if (!childId || !storage || !isSprintMode(mode)) return false;
+  try {
+    storage.setItem(sprintModePreferenceKey(childId), mode);
+    return true;
+  } catch {
+    return false;
+  }
+}
