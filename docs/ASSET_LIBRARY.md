@@ -1,6 +1,12 @@
 # Shared Django Asset Library (LAI-2200)
 
 Status: AM-1 to AM-10 merged into `main` on 2026-10-25 after merge verification (section 18).
+AM-13 and AM-17 (Django Admin ownership, images and audio, lifecycle completion; ADR-045) merged
+into `main` in `5222b690` on 2026-11-02. **Owner-reported local QA accepted 2026-11-05**: QA-01 to
+QA-07 and the Treasure Rush integration pass, in an isolated local environment. That is not
+deployed AWS acceptance: **AM-16** (deployed dev S3 and Django signed delivery) and **AM-11**
+(signed CloudFront, deferred) stay open. Closure report:
+`docs/qa/ASSET_LIBRARY_CLOSURE_2026-11-11.md`.
 **Treasure Cove uses it (TR-10, 2026-10-30):** with `VITE_BACKEND=django`, the cove's models
 resolve through the asset library, so a version published in Django Admin reaches the game with
 no React rebuild (section 15). **AWS storage is defined but not deployed:** `infra/` synthesizes
@@ -278,11 +284,11 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-10 | Admin 3D model preview (section 17) | Done (unit-tested; not checked in a browser) |
 | AM-11 | Signed CloudFront delivery | Not needed for launch (section 8); later optimisation once LAI-1005's distribution exists |
 | AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
-| AM-13 | Non-model asset kinds: textures, images and sprites, audio. Each family gets validation, a key directory under `assets/`, a matching IAM prefix and previews (section 21) | **Development done 2026-11-02** (unit-tested). Animation clips remain a property of models. Not checked in a browser or against AWS |
+| AM-13 | Non-model asset kinds: textures, images and sprites, audio. Each family gets validation, a key directory under `assets/`, a matching IAM prefix and previews (section 21) | **Done 2026-11-02, in `main` (`5222b690`)**; owner-reported local QA accepted 2026-11-05. Animation clips remain a property of models. Not checked against AWS (AM-16) |
 | AM-14 | Administrator REST API (section 20) | **Superseded by ADR-045 (2026-11-02): removed.** Staff administer assets in Django Admin only |
 | AM-15 | React staff pages on that API (section 20) | **Superseded by ADR-045 (2026-11-02): removed**, together with the Amplify upload wizard and the admin "Game assets" hub |
-| AM-16 | End-to-end publish and delivery verification on the deployed dev environment, now through Django Admin | **Not started, pending**: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and a browser/manual pass. Nothing in this branch claims it |
-| AM-17 | Django Admin lifecycle completion under ADR-045: rollback, reactivation, stored-file verification, admin-history audit, image and audio previews (section 21) | **Development done 2026-11-02** (unit-tested) |
+| AM-16 | End-to-end publish and delivery verification on the deployed dev environment, now through Django Admin | **Not started, pending**: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and a browser/manual pass against them. Local QA does not satisfy it. Nothing in `main` claims it |
+| AM-17 | Django Admin lifecycle completion under ADR-045: rollback, reactivation, stored-file verification, admin-history audit, image and audio previews (section 21) | **Done 2026-11-02, in `main` (`5222b690`)**; owner-reported local QA accepted 2026-11-05 |
 
 ## 15. Treasure Rush TR-10 (done 2026-10-30)
 

@@ -256,6 +256,9 @@ def test_4xx_is_logged_once_not_twice(client, logs):
 # --- deny by default and versioning ---------------------------------------------------------
 
 
+SITE_ICON_ROUTE = "favicon.ico"
+
+
 def _views(patterns, prefix=""):
     for entry in patterns:
         if isinstance(entry, URLResolver):
@@ -271,6 +274,9 @@ def test_only_the_health_route_is_public(settings):
     for route, callback in _views(urls.urlpatterns):
         if route.startswith(settings.ADMIN_URL_PATH):
             continue  # Django Admin: staff sign-in on every page (test_django_admin.py)
+        if route == SITE_ICON_ROUTE:
+            public.append(route)  # a redirect to a public static file; no data, no API
+            continue
         permissions = [p.__name__ for p in callback.cls.permission_classes]
         if "AllowAny" in permissions:
             public.append(route)
@@ -282,6 +288,9 @@ def test_only_the_health_route_is_public(settings):
         "api/v1/health/ready/",
         "api/v1/asset-files/<str:token>/<str:filename>",
         "api/v1/speech-files/<str:token>/speech.mp3",
+        # Browsers request /favicon.ico on any page without an icon link (Trello IIGt0JWT); it
+        # only redirects to the Admin's static icon (test_admin_favicon.py).
+        SITE_ICON_ROUTE,
     ]
 
 
@@ -290,7 +299,10 @@ def test_every_route_lives_under_api_v1_except_django_admin(settings):
 
     routes = [route for route, _ in _views(urls.urlpatterns)]
     outside = {route for route in routes if not route.startswith("api/v1/")}
-    assert all(route.startswith(settings.ADMIN_URL_PATH) for route in outside)
+    # The one exception is the site icon redirect, which carries no data.
+    assert all(
+        route.startswith(settings.ADMIN_URL_PATH) or route == SITE_ICON_ROUTE for route in outside
+    )
 
 
 def test_project_never_enables_cookie_based_api_authentication(settings):

@@ -1,3 +1,5 @@
+import { readBackendSetting, resolveBackend } from './backend.ts';
+
 /**
  * The `vite dev` proxy to a local Django (TR-7, decision TR-D14). Django has
  * no CORS on purpose (same-origin in every deployed environment), so in
@@ -5,27 +7,61 @@
  * forwards it. Dev server only: production builds and `vite preview` are
  * unaffected, and nothing here reaches the client bundle.
  *
- * - On only when `VITE_BACKEND=django`, so a build that has not opted in
- *   behaves exactly as before.
- * - `DJANGO_DEV_PROXY_TARGET` (default `http://127.0.0.1:8010`, Django's
- *   `runserver`). Deliberately not `VITE_`-prefixed: it is server config,
- *   not something the app should see. Only a loopback `http(s)` origin is
- *   accepted, so a typo can never send a parent's token elsewhere.
+ * - On whenever the backend is Django (`resolveBackend`): `VITE_BACKEND=django`,
+ *   or unset in `vite dev`. `VITE_BACKEND=amplify` turns it off.
+ * - The target, in order: `DJANGO_DEV_PROXY_TARGET` (a full origin), else
+ *   `http://127.0.0.1:$DJANGO_DEV_PORT`, else `http://127.0.0.1:8010`
+ *   (`make runserver`'s default). `DJANGO_DEV_PORT` is the same variable the
+ *   Makefile binds `runserver` to, so one setting keeps both sides in step.
+ *   Neither is `VITE_`-prefixed: it is server config, not something the app
+ *   should see.
+ * - Only a loopback `http(s)` origin is accepted, so a typo can never send a
+ *   parent's token elsewhere. Every invalid value stops the dev server with a
+ *   message naming the variable, rather than proxying somewhere unexpected.
  */
 
-export const DEFAULT_DJANGO_DEV_TARGET = 'http://127.0.0.1:8010';
+export const DEFAULT_DJANGO_DEV_PORT = 8010;
+export const DEFAULT_DJANGO_DEV_TARGET = `http://127.0.0.1:${DEFAULT_DJANGO_DEV_PORT}`;
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 export interface DevProxyEnv {
   VITE_BACKEND?: string;
+  MODE?: string;
   DJANGO_DEV_PROXY_TARGET?: string;
+  DJANGO_DEV_PORT?: string;
 }
 
-export type DevProxyConfig = Record<string, { target: string; changeOrigin: boolean }>;
+export type DevProxyConfig = Record<
+  string,
+  { target: string; changeOrigin: boolean; timeout: number; proxyTimeout: number }
+>;
 
-export function djangoDevProxy(env: DevProxyEnv): DevProxyConfig | undefined {
-  if (env.VITE_BACKEND !== 'django') return undefined;
-  const raw = (env.DJANGO_DEV_PROXY_TARGET ?? '').trim() || DEFAULT_DJANGO_DEV_TARGET;
+/** How long the proxy waits for Django before answering 504, so no request hangs forever. */
+export const DEV_PROXY_TIMEOUT_MS = 30_000;
+
+/** Throws on a `VITE_BACKEND` that is neither `django` nor `amplify`. */
+export function assertValidBackendSetting(env: DevProxyEnv): void {
+  if (readBackendSetting(env) === undefined) {
+    throw new Error(
+      `VITE_BACKEND must be "django" or "amplify" (or unset for django in vite dev); got "${env.VITE_BACKEND}"`,
+    );
+  }
+}
+
+/** The proxy's Django origin, validated. Throws with a message naming the bad variable. */
+export function djangoDevTarget(env: DevProxyEnv): string {
+  const explicit = (env.DJANGO_DEV_PROXY_TARGET ?? '').trim();
+  const portSetting = (env.DJANGO_DEV_PORT ?? '').trim();
+  let raw = DEFAULT_DJANGO_DEV_TARGET;
+  if (explicit !== '') {
+    raw = explicit;
+  } else if (portSetting !== '') {
+    const port = Number(portSetting);
+    if (!/^\d+$/.test(portSetting) || port < 1 || port > 65_535) {
+      throw new Error(`DJANGO_DEV_PORT must be a port number (1 to 65535); got "${portSetting}"`);
+    }
+    raw = `http://127.0.0.1:${port}`;
+  }
   let url: URL;
   try {
     url = new URL(raw);
@@ -35,5 +71,18 @@ export function djangoDevProxy(env: DevProxyEnv): DevProxyConfig | undefined {
   if (!['http:', 'https:'].includes(url.protocol) || !LOOPBACK.has(url.hostname)) {
     throw new Error('DJANGO_DEV_PROXY_TARGET must be a loopback http(s) origin');
   }
-  return { '/api': { target: url.origin, changeOrigin: false } };
+  return url.origin;
+}
+
+export function djangoDevProxy(env: DevProxyEnv): DevProxyConfig | undefined {
+  assertValidBackendSetting(env);
+  if (resolveBackend(env) !== 'django') return undefined;
+  return {
+    '/api': {
+      target: djangoDevTarget(env),
+      changeOrigin: false,
+      timeout: DEV_PROXY_TIMEOUT_MS,
+      proxyTimeout: DEV_PROXY_TIMEOUT_MS,
+    },
+  };
 }

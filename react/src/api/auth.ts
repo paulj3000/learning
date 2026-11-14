@@ -1,4 +1,8 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { withTimeout } from '../lib/withTimeout';
+
+/** Reading (and, if needed, refreshing) the token is bounded like every request. */
+export const TOKEN_TIMEOUT_MS = 15_000;
 
 /**
  * The signed-in parent's Cognito **access** token, which is what Django
@@ -12,6 +16,10 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 export async function getAccessToken(
   options: { forceRefresh?: boolean } = {},
 ): Promise<string | null> {
-  const session = await fetchAuthSession({ forceRefresh: options.forceRefresh ?? false });
+  const session = await withTimeout(
+    fetchAuthSession({ forceRefresh: options.forceRefresh ?? false }),
+    TOKEN_TIMEOUT_MS,
+    'Reading the Cognito access token',
+  );
   return session.tokens?.accessToken?.toString() ?? null;
 }

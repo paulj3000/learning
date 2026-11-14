@@ -73,9 +73,21 @@ describe('RequireAdmin', () => {
     expect(screen.queryByRole('heading', { name: 'Page not found' })).toBeNull();
   });
 
-  it('shows a backend-not-connected message when unconfigured', () => {
+  it('shows a friendly sign-in-unavailable message, never setup commands, when unconfigured', () => {
     renderAt('/admin', 'unconfigured', false);
-    expect(screen.getByText(/not connected yet/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /parent sign-in is not available/i }),
+    ).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/amplify|sandbox|npm run/i);
+  });
+
+  it('offers to try again when Cognito did not answer in time', () => {
+    renderAt('/admin', 'unavailable', false);
+    expect(
+      screen.getByRole('heading', { name: /could not reach parent sign-in/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.queryByText('Admin dashboard')).not.toBeInTheDocument();
   });
 });
 

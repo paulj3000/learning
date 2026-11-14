@@ -49,17 +49,34 @@ async function child(request: Parameters<typeof parentWithChild>[0], ageBand: Ag
 }
 
 /**
- * The castle's Amplify-backed backpack and quest log are not available in the e2e stack; and
- * Quill has a voice profile while speech is disabled, so each voiced line is refused with
- * `503 speech_unavailable` and read as a caption (ADR-049 behaviour, see the QA report).
+ * The castle's Amplify-backed backpack and quest log are not available in the e2e stack.
+ *
+ * Quill has a voice profile. The acceptance stack synthesizes speech with the fake provider
+ * (tests/e2e/django_server.py), so this spec refuses Quill's speech requests itself, with the
+ * server's own `503 speech_unavailable` envelope, to keep checking the ADR-049 fallback: each
+ * voiced line is read as a caption and offers no "Hear it again" (QA-D4). The refusal and the
+ * 503 it produces are scoped to this spec; every other spec hears speech normally.
  */
-function allowAmplify(problems: {
-  allowConsole(pattern: RegExp): void;
-  allowStatus(pattern: RegExp, status: number): void;
-}) {
+async function castleStack(
+  page: Page,
+  problems: {
+    allowConsole(pattern: RegExp): void;
+    allowStatus(pattern: RegExp, status: number): void;
+  },
+) {
   problems.allowConsole(/amplify|graphql|backpack|Amplify|No credentials|UserUnAuthenticated/i);
   problems.allowConsole(/Failed to load resource: the server responded with a status of 503/);
   problems.allowStatus(/\/audio\/speech\/$/, 503);
+  await page.route(/\/api\/v1\/children\/[^/]+\/audio\/speech\/$/, (route) =>
+    route.request().method() === 'POST'
+      ? route.fulfill({
+          status: 503,
+          json: {
+            error: { code: 'speech_unavailable', message: 'Speech is resting. Please read along.' },
+          },
+        })
+      : route.fallback(),
+  );
 }
 
 test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", () => {
@@ -68,7 +85,7 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
     request,
     problems,
   }) => {
-    allowAmplify(problems);
+    await castleStack(page, problems);
     const { parent, childId } = await child(request, 'PATHFINDER');
     const read = (await (
       await placeNpcs(request, parent, childId, 'storykeeper-castle')
@@ -104,7 +121,7 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
     request,
     problems,
   }) => {
-    allowAmplify(problems);
+    await castleStack(page, problems);
     const { parent, childId } = await child(request, 'PATHFINDER');
     await signInAs(page, parent);
     await enterCastle(page, childId);
@@ -128,7 +145,7 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
       .poll(async () => (await npcs(page))[0]?.animation?.overlay?.state ?? null)
       .toBe('talk');
     await expect(dialog(page).getByRole('button', { name: 'Yes, I will help!' })).toBeVisible();
-    // QA-D4: speech is disabled, so the refused line offers no "Hear it again".
+    // QA-D4: the refused line offers no "Hear it again".
     await expect(dialog(page).getByRole('button', { name: 'Hear it again' })).toHaveCount(0);
     await shot(page, 'castle-02-quest-offer');
     await dialog(page).getByRole('button', { name: 'I am just visiting.' }).click();
@@ -149,7 +166,7 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
     request,
     problems,
   }) => {
-    allowAmplify(problems);
+    await castleStack(page, problems);
     const { parent, childId } = await child(request, 'EXPLORER');
     await signInAs(page, parent);
     await enterCastle(page, childId);
@@ -172,7 +189,7 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
     request,
     problems,
   }) => {
-    allowAmplify(problems);
+    await castleStack(page, problems);
     const { parent, childId } = await child(request, 'SPROUT');
     await signInAs(page, parent);
     await enterCastle(page, childId);
@@ -186,7 +203,7 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
   });
 
   test('leaving and coming back never doubles Quill', async ({ page, request, problems }) => {
-    allowAmplify(problems);
+    await castleStack(page, problems);
     const { parent, childId } = await child(request, 'PATHFINDER');
     await signInAs(page, parent);
     await enterCastle(page, childId);
@@ -209,7 +226,7 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
 test.describe("Storykeeper's Castle: legacy Quill when the NPC Manager serves nothing", () => {
   for (const status of [404, 502]) {
     test(`fallback on ${status}`, async ({ page, request, problems }) => {
-      allowAmplify(problems);
+      await castleStack(page, problems);
       problems.allowConsole(/npc host|Failed to load resource/);
       problems.allowStatus(/\/npcs\//, status);
       const { parent, childId } = await child(request, 'PATHFINDER');

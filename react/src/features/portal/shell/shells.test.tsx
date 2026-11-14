@@ -1,7 +1,7 @@
 import type React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CHILD_NAV_ITEMS, ChildShell } from './ChildShell';
 import { ParentShell } from './ParentShell';
 
@@ -18,6 +18,10 @@ function renderChildShell(path: string, profile?: React.ReactNode) {
     </MemoryRouter>,
   );
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('ChildShell', () => {
   it('has one navigation landmark with every link exactly once (bottom bar and sidebar are one nav)', () => {
@@ -36,6 +40,43 @@ describe('ChildShell', () => {
     expect(nav.className).toMatch(/\bbottom-0\b/);
     expect(nav.className).toMatch(/\bmd:left-0\b/);
     expect(nav.className).toMatch(/\bmd:w-56\b/);
+  });
+
+  it('publishes the nav insets on the shell, for fixed game layers', () => {
+    const { container } = renderChildShell('/island/child-1');
+    const shell = container.querySelector('[data-shell="child"]');
+    expect(shell?.className).toMatch(/shell/);
+    expect(shell?.className).not.toMatch(/\bpb-20\b|\bmd:pl-56\b/);
+  });
+
+  it('publishes how far down the top bar reaches, and keeps the bar above game layers', () => {
+    const rect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return { bottom: this.tagName === 'HEADER' ? 168.4 : 0 } as DOMRect;
+      });
+    const { container } = renderChildShell('/island/child-1');
+    const shell = container.querySelector<HTMLElement>('[data-shell="child"]')!;
+    expect(shell.style.getPropertyValue('--child-header-inset')).toBe('168px');
+    expect(screen.getByRole('banner').className).toMatch(/\brelative\b.*\bz-30\b/);
+    rect.mockRestore();
+  });
+
+  it('follows the top bar when the page scrolls, never below zero', async () => {
+    let bottom = 120;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return { bottom: this.tagName === 'HEADER' ? bottom : 0 } as DOMRect;
+    });
+    const { container } = renderChildShell('/island/child-1');
+    const shell = container.querySelector<HTMLElement>('[data-shell="child"]')!;
+    bottom = -40; // scrolled past the bar
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    });
+    expect(shell.style.getPropertyValue('--child-header-inset')).toBe('0px');
   });
 
   it('marks the current page and hides the pictures from screen readers', () => {
