@@ -42,6 +42,36 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Treasure Rush environment assets: palms, barrels and logs (TR-PALM-01 to 08, TR-ENV-01 to 09) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); owner visual QA NOT done, barrel and log licences NOT confirmed
+
+- **Import (TR-PALM-02/03, TR-ENV-02/03).** `manage.py import_treasure_rush_environment`
+  (`--category palms|barrels|logs`, `--dry-run`, `--publish`, `--licence-confirmed`,
+  `--allow-shared-storage`, `--json`; `import_treasure_rush_palm_trees` kept as the palms
+  category) prepares declared models from owner-supplied GLBs (`apps/assets/model_packs.py`,
+  `gltf_prep.py`, `png_tools.py`: split, Z-up to Y-up, grounded, sized, cut-out foliage, 512 px
+  textures), validates and stores them through the configured storage as versions with
+  provenance metadata. Idempotent. `services.upload_version` gained `extra_metadata` and `notes`.
+- **Assets.** Four palms (CC0, owner-stated: published locally), `prop-wooden-barrel`,
+  `nature-wood-log`, `nature-wood-log-moss`, `prop-wood-pile` (CC0 expected, **unconfirmed**:
+  imported as validated versions, not published). `Barrel.fbx` and `PalmTree_4` not imported.
+  No model binary, texture or thumbnail is in Git; `.gitignore` covers download folders.
+- **Cove (TR-PALM-05, TR-ENV-06, layout v6).** 43 palms (landing 5, beach 11, grove 19, ruins 4,
+  lookout 4; two moved off paths, one off the key spot, one off the spyglass) with 0.6 m trunk
+  colliders; 37 props (barrels/logs: landing 4/2, beach 8/4, grove 2/8, ruins 4/3, lookout
+  1/1) whose colliders follow their footprint and are added only once the model is drawn. The
+  play API catalog lists the models; the client draws one only when it can be delivered,
+  instanced per model (`instancedModels.ts`), otherwise keeps the primitive palms and bundled
+  barrels/logs. Palms sway 0.02 rad, still under reduced motion. No jumping exists in the engine,
+  so barrels and logs are simply solid.
+- **Tests.** pytest: `test_gltf_prep.py`, `test_model_packs.py` (memory, local and stubbed-S3
+  storage, licence gate, idempotency, commands), cove layout placement and collider rules,
+  `test_environment_catalog.py`. Vitest: `instancedModels.test.ts`, cove engine tests (models
+  drawn, colliders only when drawn, fallbacks, paths walkable, dispose), layout parser tests.
+- **Deferred to merge verification / owner:** owner visual QA (TR-PALM-08, TR-ENV-09) in a
+  browser; licence confirmation for the barrel and logs; thumbnails (no thumbnail workflow
+  exists); S3 upload in a deployed environment (owner approval); Ruff, Prettier, oxlint,
+  Playwright, full suites and builds per `docs/TESTING_STRATEGY.md`.
+
 ## Amplify final removal and Django-only cutover (AMP-01 to AMP-08) — source complete on `feature/amplify-final-removal` (2026-11-14); AWS deployment and legacy data NOT done
 
 The owner deleted the Amplify app and disabled Amplify Hosting, and authorized removing Amplify

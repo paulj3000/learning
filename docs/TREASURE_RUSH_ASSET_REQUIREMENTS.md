@@ -1,5 +1,13 @@
 # Treasure Rush: Asset Requirements (Treasure Cove)
 
+> **2026-11-14 (TR-PALM, TR-ENV):** the palms, barrels and logs are now asset library models
+> (`nature-palm-tree-*`, `prop-wooden-barrel`, `nature-wood-log`, `nature-wood-log-moss`,
+> `prop-wood-pile`), imported from Quaternius packs and placed by `treasure_cove_layout.py`
+> (`docs/ASSET_LIBRARY.md` section 22). The `PALM` primitive and the bundled `barrel` and
+> `log-fallen` models below remain as the fallback until those models are published. Palms:
+> landing 5, beach 11, grove 19, ruins 4, Lookout Point 4. Barrels and logs: landing 4 and 2,
+> beach 8 and 4, grove 2 and 8, ruins 4 and 3, Lookout Point 1 and 1.
+
 **Compiled 2026-11-01 for TR-13** (`docs/TREASURE_RUSH_ROADMAP.md` section 17). Lists what
 Treasure Cove's four-zone layout uses today, what it draws as placeholders, and what an artist
 needs to deliver to replace each one. Nothing here blocks gameplay work: every missing model has

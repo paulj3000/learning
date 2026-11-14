@@ -62,6 +62,34 @@ argued, or delete it.
 
 ---
 
+## Models — served from the asset library, never in this repository (TR-PALM, TR-ENV)
+
+These third-party models are stored by the Django asset library (local disk in development, the
+private S3 bucket in AWS), not in Git. The owner downloaded them from poly.pizza and supplied
+them on 2026-11-14; `apps/assets/model_packs.py` declares each one, with the SHA-256 of the file
+supplied, and records the provenance below on every version it imports
+(`docs/ASSET_LIBRARY.md` section 22).
+
+| Asset ids | Source | Licence | Status | Attribution owed |
+| --- | --- | --- | --- | --- |
+| `nature-palm-tree-small`, `-standard`, `-tall`, `-curved` | Quaternius, Palm Trees, https://poly.pizza/m/VYslw9DEi6 (sha256 `70275b71...a2904`) | CC0 1.0 Universal | Stated by the owner in the TR-PALM request | None |
+| `prop-wooden-barrel` | Quaternius, Barrel, https://poly.pizza/m/zjCQP1TAci (sha256 `acf56e7e...f2238`) | CC0 1.0 expected | **Unconfirmed**: imported, not published | None if CC0 |
+| `nature-wood-log` | Quaternius, Wood Log, https://poly.pizza/m/L4E32Wee6C (sha256 `7c3489a6...03844`) | CC0 1.0 expected | **Unconfirmed** | None if CC0 |
+| `nature-wood-log-moss` | Quaternius, Wood Log with Moss, https://poly.pizza/m/nwsYvcI0bC (sha256 `d148deb2...5b0`) | CC0 1.0 expected | **Unconfirmed** | None if CC0 |
+| `prop-wood-pile` | Quaternius, Wood, https://poly.pizza/m/ajBNpMsQ8z (sha256 `9ef528dc...1f8d8`) | CC0 1.0 expected | **Unconfirmed** | None if CC0 |
+
+**Evidence and what is missing.** None of the supplied files carries licence text; `Barrel.fbx`
+(not imported) has an empty author field. The file names credit Quaternius, who publishes models
+as CC0, consistent with the Quaternius packs above. The poly.pizza pages could not be reached
+from the development session to confirm each listing, so the barrel and log versions stay
+unpublished until the owner confirms (`--licence-confirmed`, section 22.2).
+
+**Modifications** (recorded per version): each model was split out of its file, re-oriented
+Y-up, grounded, uniformly scaled, its textures downscaled to 512 px, foliage alpha changed from
+blended to cut-out, and FBX metalness removed; the wood pile was re-posed from an icon angle.
+
+---
+
 ## Models — shipped to users
 
 | File | Source | Licence | Attribution owed |

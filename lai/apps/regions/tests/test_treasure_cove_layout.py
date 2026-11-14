@@ -5,13 +5,31 @@ import math
 
 import pytest
 
+from apps.assets.model_packs import PACKS
 from apps.catalog.importer import import_content
 from apps.regions.models import WorldRegion
 from apps.regions.treasure_cove_layout import (
+    BARREL,
+    BEACH_TO_RUINS,
     BOUNDS,
+    FLOWER_TRAIL,
+    GROVE_TO_RUINS,
+    LANDING_TO_BEACH,
+    LANDING_TO_DOCK,
+    LANDING_TO_GROVE,
+    LANDING_TO_RUINS,
     LAYOUT_VERSION,
+    LOG,
+    MOSS_LOG,
+    PALM_HEIGHTS,
+    PALM_TRUNK_HALF,
+    PROP_SIZES,
+    RUINS_AISLE,
+    RUNE_STONES,
     SNAPSHOT_PATH,
     SPOTS,
+    WOOD_PILE,
+    _prop,
     cove_layout,
 )
 from apps.regions.treasure_rush_seed import LANDING_YAW, REGION_ID, seed_treasure_rush
@@ -212,3 +230,292 @@ class TestSeedAppliesTheLayout:
         region.spawn_points.update(yaw=1.0)
         seed_treasure_rush()
         assert region.spawn_points.get().yaw == pytest.approx(1.0)
+
+
+# --- Palms (TR-PALM-05) ------------------------------------------------------------------------
+
+PALM_MODELS = {
+    "nature-palm-tree-small",
+    "nature-palm-tree-standard",
+    "nature-palm-tree-tall",
+    "nature-palm-tree-curved",
+}
+# How many palms each zone has: the owner's guideline ranges.
+PALM_COUNTS = {
+    "cove-landing-palm": (4, 6),
+    "cove-beach-palm": (8, 12),
+    "cove-grove-palm": (15, 20),
+    "cove-ruins-palm": (4, 6),
+    "cove-lookout-palm": (2, 4),
+}
+# Where people stand or walk that no trunk may crowd: the spawn point, Pip, the first chest's
+# helpers (treasure_rush_seed), the encounter spots and the rune stones.
+KEEP_CLEAR = [
+    (0.0, 10.0),
+    (0.0, -6.0),
+    (3.0, 6.0),
+    (-3.0, 6.0),
+    *SPOTS.values(),
+    *RUNE_STONES,
+]
+PATHS = [
+    LANDING_TO_RUINS,
+    LANDING_TO_DOCK,
+    LANDING_TO_GROVE,
+    LANDING_TO_BEACH,
+    BEACH_TO_RUINS,
+    GROVE_TO_RUINS,
+    RUINS_AISLE,
+    FLOWER_TRAIL,
+]
+
+
+def palms(layout):
+    return [item for item in layout["procedural"] if item["shape"] == "PALM"]
+
+
+def distance_to_segment(px, pz, a, b):
+    (ax, az), (bx, bz) = a, b
+    dx, dz = bx - ax, bz - az
+    length = dx * dx + dz * dz
+    t = 0.0 if length == 0 else max(0.0, min(1.0, ((px - ax) * dx + (pz - az) * dz) / length))
+    return math.hypot(px - ax - t * dx, pz - az - t * dz)
+
+
+def distance_to_rect(px, pz, rect):
+    dx = max(rect["minX"] - px, 0.0, px - rect["maxX"])
+    dz = max(rect["minZ"] - pz, 0.0, pz - rect["maxZ"])
+    return math.hypot(dx, dz)
+
+
+def test_each_zone_has_its_share_of_palms(layout):
+    for prefix, (low, high) in PALM_COUNTS.items():
+        count = sum(1 for palm in palms(layout) if palm["id"].startswith(f"{prefix}-"))
+        assert low <= count <= high, (prefix, count)
+    assert sum(PALM_COUNTS[p][0] for p in PALM_COUNTS) <= len(palms(layout))
+
+
+def test_every_palm_names_a_library_model_and_uses_all_four(layout):
+    used = set()
+    for palm in palms(layout):
+        assert palm["assetId"] in PALM_MODELS, palm["id"]
+        assert PALM_HEIGHTS[palm["assetId"]] * 0.9 <= palm["height"] <= PALM_HEIGHTS[
+            palm["assetId"]
+        ] * 1.1
+        assert 0 <= palm["rotationY"] < 2 * math.pi
+        used.add(palm["assetId"])
+    assert used == PALM_MODELS
+
+
+def test_the_placement_is_authored_so_every_visit_is_the_same(layout):
+    assert cove_layout()["procedural"] == layout["procedural"]
+    assert json.dumps(cove_layout(), sort_keys=True) == json.dumps(layout, sort_keys=True)
+
+
+def test_every_trunk_has_a_small_collider_and_nothing_else_does(layout):
+    colliders = colliders_by_id(layout)
+    for palm in palms(layout):
+        rect = colliders[f"{palm['id']}:collider"]
+        assert rect["maxX"] - rect["minX"] == pytest.approx(2 * PALM_TRUNK_HALF)
+        assert rect["maxZ"] - rect["minZ"] == pytest.approx(2 * PALM_TRUNK_HALF)
+        assert inside(rect, palm["x"], palm["z"])
+
+
+def test_palms_keep_the_paths_open(layout):
+    for palm in palms(layout):
+        nearest = min(
+            distance_to_segment(palm["x"], palm["z"], a, b)
+            for path in PATHS
+            for a, b in zip(path, path[1:], strict=False)
+        )
+        assert nearest >= 2.0, (palm["id"], round(nearest, 2))
+
+
+def test_palms_keep_people_and_encounters_clear(layout):
+    for palm in palms(layout):
+        for x, z in KEEP_CLEAR:
+            assert math.hypot(palm["x"] - x, palm["z"] - z) >= 2.5, (palm["id"], (x, z))
+
+
+def test_palm_trunks_do_not_crowd_other_colliders(layout):
+    others = [c["rect"] for c in layout["colliders"] if "-palm-" not in c["rect"]["id"]]
+    for palm in palms(layout):
+        for rect in others:
+            assert distance_to_rect(palm["x"], palm["z"], rect) >= 0.9, (palm["id"], rect["id"])
+
+
+def test_palms_stand_apart_from_each_other_and_the_other_scenery(layout):
+    trees = palms(layout)
+    for a in trees:
+        for b in trees:
+            if a is not b:
+                assert math.hypot(a["x"] - b["x"], a["z"] - b["z"]) >= 3.0, (a["id"], b["id"])
+    placed = [
+        (item["id"], p["x"], p["z"])
+        for item in layout["scenery"]
+        if item["kind"] == "CLUSTER" and item["assetId"] not in ("path", "path-forest")
+        for p in item["positions"]
+    ]
+    placed += [
+        (item["id"], item["position"]["x"], item["position"]["z"])
+        for item in layout["scenery"]
+        if item["kind"] == "MODEL"
+    ]
+    placed += [(p["id"], p["x"], p["z"]) for p in layout["procedural"] if p["shape"] != "PALM"]
+    for palm in trees:
+        for item_id, x, z in placed:
+            assert math.hypot(palm["x"] - x, palm["z"] - z) >= 1.5, (palm["id"], item_id)
+
+
+def test_palms_stand_inside_the_cove(layout):
+    for palm in palms(layout):
+        assert abs(palm["x"]) <= BOUNDS["halfExtentX"] - 1
+        assert abs(palm["z"]) <= BOUNDS["halfExtentZ"] - 1
+        assert not inside({"minX": -2, "maxX": 2, "minZ": -40.4, "maxZ": -35.4}, palm["x"], palm["z"])
+
+
+# --- Barrels and logs (TR-ENV-06) --------------------------------------------------------------
+
+PROP_COUNTS = {  # zone prefix: (barrels, logs and wood piles)
+    "cove-landing-": (4, 2),
+    "cove-beach-": (8, 4),
+    "cove-grove-": (2, 8),
+    "cove-ruins-": (4, 3),
+    "cove-lookout-": (1, 1),
+}
+
+
+def rect_gap(a, b):
+    dx = max(a["minX"] - b["maxX"], b["minX"] - a["maxX"], 0.0)
+    dz = max(a["minZ"] - b["maxZ"], b["minZ"] - a["maxZ"], 0.0)
+    return math.hypot(dx, dz)
+
+
+def rects_overlap(a, b):
+    return (
+        a["minX"] < b["maxX"]
+        and b["minX"] < a["maxX"]
+        and a["minZ"] < b["maxZ"]
+        and b["minZ"] < a["maxZ"]
+    )
+
+
+def test_each_zone_has_its_barrels_and_logs(layout):
+    for prefix, (barrels, logs) in PROP_COUNTS.items():
+        props = [p for p in layout["props"] if p["id"].startswith(prefix)]
+        assert sum(p["assetId"] == BARREL for p in props) == barrels, prefix
+        assert sum(p["assetId"] != BARREL for p in props) == logs, prefix
+    assert {p["assetId"] for p in layout["props"]} == set(PROP_SIZES)
+
+
+def test_prop_sizes_match_what_the_import_prepares():
+    fits = {
+        model.asset_id: model.fit
+        for pack in PACKS.values()
+        for model in pack.models
+        if model.asset_id in PROP_SIZES
+    }
+    assert set(fits) == set(PROP_SIZES)
+    for asset_id, (axis, metres) in fits.items():
+        length, _width, height = PROP_SIZES[asset_id]
+        assert {"x": length, "y": height}[axis] == pytest.approx(metres)
+
+
+@pytest.mark.parametrize(
+    ("asset_id", "yaw", "options"),
+    [
+        (BARREL, 0.0, {}),
+        (BARREL, 0.0, {"lying": True}),
+        (LOG, 0.0, {}),
+        (LOG, math.pi / 2, {"scale": 0.8}),
+        (MOSS_LOG, 0.0, {}),
+        (WOOD_PILE, 0.0, {}),
+    ],
+)
+def test_colliders_cover_exactly_the_footprint(asset_id, yaw, options):
+    prop = _prop("p", asset_id, 3.0, -2.0, yaw, **options)
+    length, width, height = PROP_SIZES[asset_id]
+    if options.get("lying"):
+        length = height
+    scale = options.get("scale", 1.0)
+    rects = prop["colliders"]
+    span_x = max(r["maxX"] for r in rects) - min(r["minX"] for r in rects)
+    span_z = max(r["maxZ"] for r in rects) - min(r["minZ"] for r in rects)
+    along, across = (span_x, span_z) if abs(math.cos(yaw)) > 0.5 else (span_z, span_x)
+    assert along == pytest.approx(length * scale, abs=0.02)
+    assert across == pytest.approx(width * scale, abs=0.02)
+    for a, b in zip(rects, rects[1:], strict=False):
+        assert rects_overlap(a, b) or rect_gap(a, b) == 0  # one solid shape, no cracks
+
+
+def test_a_turned_log_never_grows_an_invisible_corner():
+    prop = _prop("p", LOG, 0.0, 0.0, math.pi / 4)
+    length, width, _ = PROP_SIZES[LOG]
+    for rect in prop["colliders"]:
+        cx, cz = (rect["minX"] + rect["maxX"]) / 2, (rect["minZ"] + rect["maxZ"]) / 2
+        # Every square's centre is on the log's axis and inside its length.
+        assert abs(cx + cz) < 0.02
+        assert math.hypot(cx, cz) <= (length - width) / 2 + 0.02
+
+
+def test_barrels_and_logs_keep_paths_people_and_encounters_clear(layout):
+    for prop in layout["props"]:
+        for rect in prop["colliders"]:
+            cx, cz = (rect["minX"] + rect["maxX"]) / 2, (rect["minZ"] + rect["maxZ"]) / 2
+            half = (rect["maxX"] - rect["minX"]) / 2
+            nearest = min(
+                distance_to_segment(cx, cz, a, b)
+                for path in PATHS
+                for a, b in zip(path, path[1:], strict=False)
+            )
+            assert nearest - half >= 1.0, (prop["id"], round(nearest - half, 2))
+            for x, z in KEEP_CLEAR:
+                assert distance_to_rect(x, z, rect) >= 1.5, (prop["id"], (x, z))
+
+
+def test_no_cracks_and_no_traps_between_props_walls_and_trunks(layout):
+    rects = [(p["id"], r) for p in layout["props"] for r in p["colliders"]]
+    walls = [(c["rect"]["id"], c["rect"]) for c in layout["colliders"]]
+    for prop_id, rect in rects:
+        for other_id, other in rects + walls:
+            if other_id == prop_id:
+                continue
+            gap = rect_gap(rect, other)
+            # Touching things are one solid shape; anything else leaves a child-sized way through.
+            assert gap == 0 or gap >= 0.6, (prop_id, other_id, round(gap, 2))
+            if other_id.endswith(":collider") or "-palm-" in other_id:
+                assert not rects_overlap(rect, other), (prop_id, other_id)
+
+
+def test_props_stand_clear_of_the_scenery_that_stays(layout):
+    replaced = {item for ids in layout["propReplaces"].values() for item in ids}
+    staying = [
+        (item["id"], p["x"], p["z"])
+        for item in layout["scenery"]
+        if item["kind"] == "CLUSTER"
+        and item["assetId"] not in ("path", "path-forest")
+        and item["id"] not in replaced
+        for p in item["positions"]
+    ]
+    staying += [(p["id"], p["x"], p["z"]) for p in layout["procedural"]]
+    for prop in layout["props"]:
+        for rect in prop["colliders"]:
+            assert abs(rect["minX"]) <= BOUNDS["halfExtentX"] and abs(rect["maxX"]) <= 36
+            assert rect["minZ"] >= -BOUNDS["halfExtentZ"] and rect["maxZ"] <= 44
+            for item_id, x, z in staying:
+                limit = 0.9 if item_id.startswith("cove-") and "-palm-" in item_id else 0.6
+                assert distance_to_rect(x, z, rect) >= limit, (prop["id"], item_id)
+
+
+def test_what_the_props_replace_is_bundled_scenery_that_exists(layout):
+    scenery = {item["id"] for item in layout["scenery"]}
+    assert set(layout["propReplaces"]) <= set(PROP_SIZES)
+    for ids in layout["propReplaces"].values():
+        assert ids and set(ids) <= scenery
+
+
+def test_lying_barrels_and_turned_props_are_authored(layout):
+    lying = [p for p in layout["props"] if "rotationZ" in p]
+    assert lying and all(p["assetId"] == BARREL for p in lying)
+    assert all(p["rotationZ"] == pytest.approx(math.pi / 2, abs=0.01) for p in lying)
+    assert cove_layout()["props"] == layout["props"]

@@ -86,7 +86,9 @@ is always a new version and a new object key.
   `data:` URI, like the generated pack in `public/models/`.
 - Not accepted: external `uri` references of any kind, `KHR_draco_mesh_compression` and
   `EXT_meshopt_compression` (the loader has no decoders configured), FBX, Blender files, ZIP or
-  RAR. There is no conversion pipeline; export browser-ready glTF from the authoring tool.
+  RAR. There is no general conversion pipeline; export browser-ready glTF from the authoring
+  tool. The one exception is a declared environment pack (section 22), whose GLB models are
+  prepared (split, re-oriented, grounded, sized) by the import before the same validation.
 
 The type comes from the file's content (GLB magic or a glTF JSON document), never the extension.
 
@@ -336,8 +338,10 @@ Browser verification in a Django-enabled build has not been done (owner: after d
   follows is deferred work, not open parts of that decision.
 - **Delivery mode in production:** decided 2026-10-30, `django` from the S3 bucket (section 8).
   Revisit with `s3` delivery or signed CloudFront URLs (AM-11) if model traffic grows.
-- **Licence and source fields** (the Amplify `AssetSource` and notes) are not modelled; the import
-  keeps only tags. Decide whether licence tracking belongs on the definition or the version.
+- **Licence and source fields** (the Amplify `AssetSource` and notes) are not modelled as columns;
+  the Amplify import keeps only tags. Pack imports (section 22) record licence and source in the
+  version's immutable `metadata` and the definition's `source` JSON. Whether licence tracking
+  deserves real columns is still open.
 - **Thumbnails** are not built. The interactive admin preview is (AM-10, section 17).
 - **The Amplify `AdventureAsset` join** (which adventure uses which asset) has no Django model.
   Catalog `LocationAsset` and region placements already reference assets by id.
@@ -820,3 +824,119 @@ unchanged. The `audio` app adds a configuration layer over published audio asset
 `SoundAssignment` and immutable `SoundRelease` snapshots that pin an exact `AssetVersion` per cue.
 Retiring an asset or version removes its sound from the live manifest and blocks the next publish
 until fixed. See `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
+
+## 22. Environment packs: palms, barrels and logs (TR-PALM, TR-ENV; 2026-11-14)
+
+Third-party environment models (the Quaternius palm trees, barrel, wood logs and wood pile) reach
+the library through a **declared pack import**, not through a hand upload per file. The source
+files never enter the repository: an administrator keeps the downloads outside it and points the
+command at them. Code: `apps/assets/model_packs.py` (the declarations and the import),
+`apps/assets/gltf_prep.py` (preparing one model), `apps/assets/png_tools.py` (shrinking textures).
+
+### 22.1 What the import does
+
+For each declared model it:
+
+1. Finds the model by its node name in any GLB under `--source` (a `.glb`, a `.zip` read in
+   memory and never extracted, or a directory of either). FBX, OBJ, Blender, `.gltf` and other
+   files are listed as `unsupported_format` and skipped: there is no FBX converter, and every
+   supplied model so far also came as GLB.
+2. Prepares it (`gltf_prep.extract_model`): only that node's mesh, materials, textures and images
+   are kept (other nodes, cameras, lights, animations and FBX `extras` go); its rotation and
+   scale are baked into the vertices (Z-up to Y-up); it is re-posed where declared (a log turned
+   to lie along X, the wood pile laid down from its icon angle); its lowest point is put on
+   y = 0; it is scaled uniformly to its declared size; blended alpha becomes cut-out alpha for
+   foliage; FBX's stray metalness is removed; PNG textures over 512 px are halved until they fit.
+   Pure Python, no new dependency, deterministic.
+3. Validates the result with `validate_upload`, the same check every admin upload gets.
+4. Stores it with `services.upload_version` through the configured backend (`local` under
+   `lai/.asset-storage/`, `s3` in the private bucket, `memory` in tests), under the usual
+   server-made key `assets/models/<asset_id>/<version_uuid>/model.glb`. One file per model; every
+   placement in a scene reuses it.
+5. Records provenance on the version's immutable `metadata` (`provenance`: pack, author, source
+   URL, licence, evidence, licence status, source SHA-256, pipeline version; `preparation`:
+   source node and file, every modification, texture sizes, triangle and vertex counts, source
+   triangles and size) and a one-line summary in `notes`. A definition it creates also carries the
+   provenance in `ContentAsset.source`. This answers section 16's open licence question for
+   imported packs without a schema change.
+6. Creates a missing definition (`origin=DJANGO`) with the declared kind, category and tags. An
+   existing definition is never edited: an administrator's name, description and tags stay.
+
+**Idempotent.** A model is skipped when a non-rejected version of its asset has the same bytes,
+or was made by the same pipeline version from the same source file and node. Re-running creates
+nothing.
+
+### 22.2 Publication rules
+
+| Environment | Upload | Publish |
+|---|---|---|
+| Local development (`DEBUG`, loopback database, `local` or `memory` storage) | Yes | With `--publish`. The first published version becomes the default |
+| S3 storage (a shared AWS environment) | Only with `--allow-shared-storage`, after the owner approves | Never by the command. Publish in Django Admin (section 19.2) |
+| A pack whose licence the owner has not confirmed | Yes, as `VALIDATED` | Never, until a run with `--licence-confirmed` records the owner's confirmation |
+
+### 22.3 The packs (2026-11-14)
+
+| Asset id | Source (poly.pizza) | Node | Prepared size | Triangles | Licence |
+|---|---|---|---|---|---|
+| `nature-palm-tree-small` | Quaternius Palm Trees `VYslw9DEi6` | `PalmTree_5` | 2.8 m tall | 264 | CC0, owner-stated |
+| `nature-palm-tree-standard` | same | `PalmTree_3` | 4.6 m tall | 344 | CC0, owner-stated |
+| `nature-palm-tree-tall` | same | `PalmTree_1` | 6.5 m tall | 472 | CC0, owner-stated |
+| `nature-palm-tree-curved` | same | `PalmTree_2` | 5.3 m tall | 368 | CC0, owner-stated |
+| `prop-wooden-barrel` | Quaternius Barrel `zjCQP1TAci` | `Barrel` | 1.0 m tall, 0.77 m across | 1,312 | CC0 expected, **unconfirmed** |
+| `nature-wood-log` | Quaternius Wood Log `L4E32Wee6C` | `WoodLog` | 2.3 m long, 0.68 m thick | 202 | CC0 expected, **unconfirmed** |
+| `nature-wood-log-moss` | Quaternius Wood Log with Moss `nwsYvcI0bC` | `WoodLog_Moss` | 2.6 m long | 614 | CC0 expected, **unconfirmed** |
+| `prop-wood-pile` | Quaternius Wood `ajBNpMsQ8z` | `UI_Wood` | 1.4 m long, 1.03 m tall | 420 | CC0 expected, **unconfirmed** |
+
+Not imported: `PalmTree_4` (a fifth, low-leaning palm; four shapes give enough variety and each
+model is another download on a phone) and `Barrel.fbx` (the same barrel as `Barrel.glb`, with no
+author recorded and no converter needed). There is one barrel, so there is no `-alt` barrel.
+
+Palms are kind `kit-piece`, category `scenery`, tagged `nature vegetation trees tropical
+environment treasure-rush cc0 quaternius`; the logs `kit-piece` / `scenery`; the barrel and wood
+pile `prop` / `prop`. Nothing in them is specific to Treasure Rush: any region can place them by id.
+
+### 22.4 Commands
+
+```bash
+# From lai/. Look first, then import; add --publish only in local development.
+python manage.py import_treasure_rush_environment --source /path/to/environment-assets --dry-run
+python manage.py import_treasure_rush_environment --source /path/to/environment-assets --publish
+# One group at a time: palms, barrels or logs.
+python manage.py import_treasure_rush_environment --source /path/to/barrel-assets --category barrels
+# Once the owner confirms the barrel and log licences:
+python manage.py import_treasure_rush_environment --source DIR --publish --licence-confirmed
+# Kept for compatibility, the same as --category palms:
+python manage.py import_treasure_rush_palm_trees --source /path/to/palm-tree-assets --dry-run
+```
+
+`--json` prints the full report: sources and their SHA-256, models discovered and rejected, sizes
+before and after, triangle counts, versions and storage keys, skips and anything unresolved.
+
+**Another environment.** Copy the downloads there (never through Git), then in that environment's
+Django container: `--dry-run`; with the owner's approval, the same command with
+`--allow-shared-storage`; then publish each version in Django Admin (Asset library, Asset
+versions, action "Publish selected versions"). The first published version becomes the default.
+
+### 22.5 Managing them in Django Admin
+
+They are ordinary library assets: **Catalog, Content assets** shows each definition with its
+versions, provenance (`source`) and tags; **Asset library, Asset versions** shows each version's
+metadata, notes and validation report, with the 3D preview (section 17), publish, make default,
+retire, rollback and verify actions. A replacement model is uploaded as a new version of the same
+id.
+
+### 22.6 In Treasure Cove
+
+`treasure_cove_layout.py` places the palms (`procedural` `PALM` entries naming an `assetId`) and
+the barrels and logs (`props`, each with its own collider rectangles). The play API's catalog
+lists those ids with whether each can be delivered (`region_catalog`); the client draws a model
+only when it can, instanced per model (`instancedModels.ts`), and otherwise keeps the primitive
+palms and the bundled barrels and logs, with no request and no warning. A prop's colliders are
+added only once its model is drawn. See `docs/TREASURE_RUSH_ASSET_REQUIREMENTS.md`.
+
+### 22.7 Not done
+
+- **Thumbnails.** The library has no thumbnail workflow (section 16); none is generated. The
+  interactive 3D preview (section 17) is how a version is checked by eye.
+- **AWS.** Nothing has been uploaded to S3; the S3 path is covered by stubbed-boto3 tests only.
+- **Licences for the barrel and logs** need the owner's confirmation before they are published.

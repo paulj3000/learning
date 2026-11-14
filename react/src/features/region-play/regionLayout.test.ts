@@ -98,6 +98,28 @@ describe('readRegionLayout (TR-13)', () => {
       'scene.layout.ambient[0].path',
     ],
     ['a list that is not a list', { zones: { rect: {} } }, 'scene.layout.zones'],
+    [
+      'a prop without a model',
+      { props: [{ id: 'b', x: 0, z: 0, colliders: [] }] },
+      'scene.layout.props[0].assetId',
+    ],
+    [
+      'a prop collider inside out',
+      {
+        props: [
+          {
+            id: 'b',
+            assetId: 'prop-wooden-barrel',
+            x: 0,
+            z: 0,
+            colliders: [{ id: 'b:c', minX: 1, maxX: 0, minZ: 0, maxZ: 1 }],
+          },
+        ],
+      },
+      'scene.layout.props[0].colliders[0]',
+    ],
+    ['a prop scale of zero', { props: [{ id: 'b', assetId: 'x', x: 0, z: 0, scale: 0, colliders: [] }] }, 'scene.layout.props[0].scale'],
+    ['replacements that are not ids', { propReplaces: { barrel: [1] } }, 'scene.layout.propReplaces.barrel[0]'],
   ])('refuses %s, naming where', (_name, layout, path) => {
     expect(failure(layout as JsonValue).path).toBe(path);
   });
@@ -171,5 +193,33 @@ describe('the unlock and ambience blocks (TR-17, TR-18)', () => {
     expect(failure({ ambience: { water: [], fireflies: [{ ...cloud, count: 5000 }] } }).path).toBe(
       'scene.layout.ambience.fireflies[0].count',
     );
+  });
+});
+
+describe('library palms, barrels and logs (TR-PALM-05, TR-ENV-06)', () => {
+  it('reads every palm with its model, and the props with their colliders and replacements', async () => {
+    const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
+    const palms = layout.procedural.filter((item) => item.shape === 'PALM');
+    expect(palms.length).toBeGreaterThanOrEqual(33);
+    expect(new Set(palms.map((palm) => palm.assetId))).toEqual(
+      new Set([
+        'nature-palm-tree-small',
+        'nature-palm-tree-standard',
+        'nature-palm-tree-tall',
+        'nature-palm-tree-curved',
+      ]),
+    );
+    expect(layout.props.length).toBe(37);
+    const lying = layout.props.find((prop) => prop.id === 'cove-beach-barrel-5');
+    expect(lying?.rotationZ).toBeCloseTo(Math.PI / 2);
+    expect(lying?.colliders.length).toBe(2); // a 1 m barrel on its side, 0.77 m wide
+    expect(layout.propReplaces['prop-wooden-barrel']).toContain('cove-beach-barrels');
+  });
+
+  it('defaults to no props for a layout written before them', () => {
+    const layout = readRegionLayout({ scenery: [plane] } as JsonValue);
+    expect(layout.props).toEqual([]);
+    expect(layout.propReplaces).toEqual({});
+    expect(EMPTY_LAYOUT.props).toEqual([]);
   });
 });
