@@ -191,6 +191,13 @@ export class FirstPersonController {
   private airJumpsUsed = 0;
   private jumpStartRemaining = 0;
   private landingRemaining = 0;
+  /**
+   * How fast the child's own walking really moved them in the last update, m/s, after
+   * collisions: the distance actually covered, not the speed asked for. Being carried by a
+   * platform is not counted. Gait and animation read this, so a child pushing into a wall
+   * stands idle instead of walking on the spot (or away from the camera).
+   */
+  private walkedSpeed = 0;
   private readonly lastSafe = new Vector3();
   private events: MovementEvent[] = [];
 
@@ -262,16 +269,29 @@ export class FirstPersonController {
     return this.locomotion;
   }
 
-  /** How the child is moving over the ground right now, from their real speed. */
+  /**
+   * How the child is moving over the ground right now, from how far their own walking really
+   * moved them (`locomotionSpeed`): blocked by a wall is idle, sliding along it is walking,
+   * standing still on a moving platform is idle.
+   */
   get gait(): Gait {
-    const speed = this.horizontalSpeed;
+    const speed = this.walkedSpeed;
     if (speed <= WALK_SPEED_THRESHOLD) return 'idle';
     if (speed > this.locomotion.runSpeed + GAIT_MARGIN) return 'sprint';
     if (speed > this.locomotion.walkSpeed + GAIT_MARGIN) return 'run';
     return 'walk';
   }
 
-  /** Horizontal speed, m/s. */
+  /**
+   * Speed actually covered by the child's own walking in the last update, m/s, after
+   * collisions (never more than `horizontalSpeed`, and 0 against a wall). Animation playback
+   * and gait use this; platform carrying is excluded.
+   */
+  get locomotionSpeed(): number {
+    return this.walkedSpeed;
+  }
+
+  /** Horizontal speed, m/s (the controller's velocity, before it meets anything). */
   get horizontalSpeed(): number {
     return Math.hypot(this.velocity.x, this.velocity.z);
   }
@@ -390,7 +410,12 @@ export class FirstPersonController {
     }
     this.tryJump(false);
 
+    const fromX = this.position.x;
+    const fromZ = this.position.z;
     this.moveWithCollision(this.velocity.x * dt, this.velocity.z * dt);
+    if (dt > 0) {
+      this.walkedSpeed = Math.hypot(this.position.x - fromX, this.position.z - fromZ) / dt;
+    }
 
     // Vertical motion in fixed substeps, so the arc does not depend on frame rate.
     let remaining = dt;
@@ -521,6 +546,7 @@ export class FirstPersonController {
     this.airJumpsUsed = 0;
     this.jumpStartRemaining = 0;
     this.landingRemaining = 0;
+    this.walkedSpeed = 0;
     this.clearJumpInput();
     this.lastSafe.copy(this.position);
   }
@@ -671,24 +697,33 @@ export class FirstPersonController {
     }
   }
 
-  /** One collision-tested step; reports which axes were blocked. */
+  /**
+   * One collision-tested step; reports which axes were blocked. A blocked axis still comes up
+   * to the obstacle (`CONTACT_SEARCH_ITERATIONS` halvings), so the child rests against a wall
+   * rather than a few centimetres short of it. Otherwise the next frame finds a gap, walks into
+   * it, and the gait flickers between walking and idle at every contact.
+   */
   private moveStep(dx: number, dz: number): { x: boolean; z: boolean } {
     const blocked = { x: false, z: false };
     const allowance = this.stepHeight;
     if (dx !== 0) {
-      const nextX = this.position.x + dx;
-      if (!this.blockedAt(nextX, this.position.z, this.position.y, allowance)) {
-        this.position.x = nextX;
+      const { x, z, y } = this.position;
+      const free = (t: number) => !this.blockedAt(x + dx * t, z, y, allowance, x, z);
+      if (free(1)) {
+        this.position.x = x + dx;
       } else {
+        this.position.x = x + dx * contactFraction(free);
         this.velocity.x = 0;
         blocked.x = true;
       }
     }
     if (dz !== 0) {
-      const nextZ = this.position.z + dz;
-      if (!this.blockedAt(this.position.x, nextZ, this.position.y, allowance)) {
-        this.position.z = nextZ;
+      const { x, z, y } = this.position;
+      const free = (t: number) => !this.blockedAt(x, z + dz * t, y, allowance, x, z);
+      if (free(1)) {
+        this.position.z = z + dz;
       } else {
+        this.position.z = z + dz * contactFraction(free);
         this.velocity.z = 0;
         blocked.z = true;
       }
@@ -702,7 +737,14 @@ export class FirstPersonController {
    * always were, so they block at every height. Jumpable ones block only
    * where they overlap the body, less a step the feet may climb.
    */
-  private blockedAt(x: number, z: number, feetY: number, stepAllowance: number): boolean {
+  private blockedAt(
+    x: number,
+    z: number,
+    feetY: number,
+    stepAllowance: number,
+    _fromX?: number,
+    _fromZ?: number,
+  ): boolean {
     for (const box of this.colliders) {
       if (this.jumpable.has(box)) {
         if (!insideFootprint(box, x, z)) continue;
@@ -738,6 +780,21 @@ export class FirstPersonController {
 }
 
 const groundProbe = new Vector3();
+
+/** Halvings used to bring a blocked step up to the obstacle: 0.1 m / 2^10, about 0.1 mm. */
+const CONTACT_SEARCH_ITERATIONS = 10;
+
+/** The largest fraction of a step (0..1) that is still free, by bisection. */
+function contactFraction(free: (t: number) => boolean): number {
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < CONTACT_SEARCH_ITERATIONS; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (free(mid)) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
 
 function insideFootprint(box: Box3, x: number, z: number): boolean {
   return x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z;

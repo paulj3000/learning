@@ -93,6 +93,19 @@ const VERTICAL_FOLLOW_FRACTION = 0.5;
 const REDUCED_MOTION_VERTICAL_FOLLOW_FRACTION = 0.3;
 /** Per second: how fast the sprint field-of-view widening eases in and out. */
 const FOV_EASE_RATE = 5;
+/**
+ * Boom lift (Defect: backing into a wall hid the child). When a wall behind the child pulls the
+ * camera closer than this, metres, it looks for a higher boom (a steeper look down over the
+ * child, up to `THIRD_PERSON_MIN_PITCH`) with room to show them, and eases up to it.
+ */
+export const BOOM_LIFT_TRIGGER = 1.2;
+/** A higher boom is used only if it has at least this much room: enough to show the child. */
+export const BOOM_LIFT_MIN_ROOM = AVATAR_HIDE_DISTANCE + 0.2;
+/** Pitch steps tried when looking for a higher boom, radians. */
+const BOOM_LIFT_STEP = 0.15;
+/** Per second: how fast the boom rises and settles back (gentle; slower with reduced motion). */
+const BOOM_LIFT_RATE = 3;
+const REDUCED_MOTION_BOOM_LIFT_RATE = 1.5;
 /** A jump of the follow point bigger than this (a teleport) snaps rather than eases. */
 const SNAP_DISTANCE = 3;
 
@@ -126,6 +139,8 @@ export class PlayerCameraController {
   private readonly pivot = new Vector3();
   private pivotReady = false;
   private currentDistance: number;
+  /** Radians (<= 0) the boom is lifted below the child's own pitch, eased. */
+  private liftOffset = 0;
 
   private fovOffset = 0;
   private readonly position = new Vector3();
@@ -165,6 +180,7 @@ export class PlayerCameraController {
   reset(): void {
     this.pivotReady = false;
     this.currentDistance = this.config.distance;
+    this.liftOffset = 0;
     this.heightFollower.reset();
   }
 
@@ -227,26 +243,54 @@ export class PlayerCameraController {
       this.pivot.y = Math.min(this.pivot.y, config.maxHeight - CEILING_MARGIN);
     }
 
-    const pitch = thirdPersonPitch(input.pitch);
-    lookDirection(input.yaw, pitch, this.direction);
-    this.back.copy(this.direction).negate();
+    const ownPitch = thirdPersonPitch(input.pitch);
+    // How much room a boom at this pitch has: its distance, less any wall or ceiling, and the
+    // distance at which it would touch something.
+    const room = (pitch: number): { allowed: number; limit: number } => {
+      lookDirection(input.yaw, pitch, this.direction);
+      this.back.copy(this.direction).negate();
+      let allowed = config.distance;
+      let limit = Number.POSITIVE_INFINITY;
+      if (config.collisionEnabled && this.obstruction) {
+        const hit = this.obstruction(this.pivot, this.back, config.distance + CAMERA_RADIUS);
+        if (hit !== null) {
+          limit = hit;
+          allowed = Math.min(allowed, hit - CAMERA_RADIUS);
+        }
+      }
+      if (config.maxHeight !== undefined && this.back.y > 1e-6) {
+        const ceiling = (config.maxHeight - CEILING_MARGIN - this.pivot.y) / this.back.y;
+        limit = Math.min(limit, ceiling + CEILING_MARGIN);
+        allowed = Math.min(allowed, ceiling);
+      }
+      return { allowed, limit };
+    };
 
-    // How far back the camera may go this frame: its distance, less any wall or ceiling.
-    let allowed = config.distance;
-    // How far back the camera could go before touching something solid.
-    let limit = Number.POSITIVE_INFINITY;
-    if (config.collisionEnabled && this.obstruction) {
-      const hit = this.obstruction(this.pivot, this.back, config.distance + CAMERA_RADIUS);
-      if (hit !== null) {
-        limit = hit;
-        allowed = Math.min(allowed, hit - CAMERA_RADIUS);
+    // A wall right behind the child would put the camera at their shoulder and hide them: lift
+    // the boom over it where a higher one has room, eased so it is never a jolt. The child's
+    // own pitch is untouched (walking and aiming do not change); only the view looks down more.
+    let liftTarget = 0;
+    if (config.collisionEnabled && this.obstruction && room(ownPitch).allowed < BOOM_LIFT_TRIGGER) {
+      // Steps down from the child's pitch, always ending exactly at the lowest look allowed.
+      for (let step = 1; ; step += 1) {
+        const pitch = Math.max(THIRD_PERSON_MIN_PITCH, ownPitch - step * BOOM_LIFT_STEP);
+        if (room(pitch).allowed >= BOOM_LIFT_MIN_ROOM) {
+          liftTarget = pitch - ownPitch;
+          break;
+        }
+        if (pitch <= THIRD_PERSON_MIN_PITCH) break;
       }
     }
-    if (config.maxHeight !== undefined && this.back.y > 1e-6) {
-      const ceiling = (config.maxHeight - CEILING_MARGIN - this.pivot.y) / this.back.y;
-      limit = Math.min(limit, ceiling + CEILING_MARGIN);
-      allowed = Math.min(allowed, ceiling);
-    }
+    // Always eased (a fresh start begins unlifted), so the view never swings at once.
+    const liftRate = this.reducedMotion ? REDUCED_MOTION_BOOM_LIFT_RATE : BOOM_LIFT_RATE;
+    this.liftOffset = ease(this.liftOffset, liftTarget, liftRate, dt);
+    if (Math.abs(this.liftOffset - liftTarget) < 1e-3) this.liftOffset = liftTarget;
+    const pitch = thirdPersonPitch(ownPitch + this.liftOffset);
+
+    // The boom actually used this frame, tested again: whatever the lift, never through a wall.
+    const used = room(pitch);
+    const limit = used.limit;
+    let allowed = used.allowed;
     // Keep a little room from the follow point, but never at the price of going
     // into the wall: a child flush against a wall gets a camera at their
     // shoulder (and the avatar hidden), not one inside the stone.

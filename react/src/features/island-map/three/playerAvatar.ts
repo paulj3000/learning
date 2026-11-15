@@ -20,7 +20,7 @@ import type { MovementState } from './firstPersonController';
 import {
   createPlayerAnimationController,
   toAnimatorMap,
-  withoutRootMotion,
+  withoutRootMotionFor,
   type PlayerAnimationController,
 } from './playerAnimation';
 import {
@@ -258,8 +258,9 @@ export function createPlayerAvatar(options: PlayerAvatarOptions): PlayerAvatar {
     // A location costume keeps its own facing and scale; a published model adds its own.
     model.scale.multiplyScalar(config.scale * (published?.scale ?? 1));
     model.rotation.y += published?.rotationOffset ?? 0;
-    const rootNames = new Set<string>([model.name, ...model.children.map((child) => child.name)]);
-    const clips = withoutRootMotion(loaded.animations, rootNames);
+    // No root motion, including a skeleton root bone's forward travel (a Mixamo walk's hips):
+    // the body stays exactly on the controller's resolved position.
+    const clips = withoutRootMotionFor(loaded.animations, model);
     const playerMap = effectivePlayerAnimationMap(
       published?.animationMap ?? {},
       clips.map((clip) => clip.name),

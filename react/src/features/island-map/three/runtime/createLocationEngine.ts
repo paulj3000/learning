@@ -1,4 +1,8 @@
-import { PlatformSystem, type PlatformEvent, type PlatformState } from '../platforms/platformSystem';
+import {
+  PlatformSystem,
+  type PlatformEvent,
+  type PlatformState,
+} from '../platforms/platformSystem';
 import { createPlatformPresentation } from '../platforms/platformPresentation';
 import type { CollisionProfiles } from './collisionProfile';
 import { locationAssetIds } from './locationAssetUsage';
@@ -575,7 +579,9 @@ export function createLocationEngine<R extends RendererLike>(
   const suppressedDerived = new Set<string>();
   const isSuppressed = (id: string | undefined) =>
     id !== undefined &&
-    [...suppressedDerived].some((prefix) => id === prefix || id.startsWith(`${prefix}#`) || id.startsWith(`${prefix}:`));
+    [...suppressedDerived].some(
+      (prefix) => id === prefix || id.startsWith(`${prefix}#`) || id.startsWith(`${prefix}:`),
+    );
 
   function removeCollider(id: string): boolean {
     if (id.startsWith('derived:')) {
@@ -656,7 +662,12 @@ export function createLocationEngine<R extends RendererLike>(
     for (const solid of solidColliders(manifest, worldState, profiles).filter(isDerived)) {
       if (isSuppressed(solid.id)) continue; // replaced by an extension-drawn model
       const box = toBox3(solid.box);
-      if (here.x >= box.min.x && here.x <= box.max.x && here.z >= box.min.z && here.z <= box.max.z) {
+      if (
+        here.x >= box.min.x &&
+        here.x <= box.max.x &&
+        here.z >= box.min.z &&
+        here.z <= box.max.z
+      ) {
         continue;
       }
       const jumpable = solid.jumpable === true;
@@ -681,10 +692,7 @@ export function createLocationEngine<R extends RendererLike>(
       extensionAssetIds: () => [],
       lowDetailIdOf: () => undefined,
     });
-    track(
-      deps.assets.collisionProfiles(ids).then(applyCollisionProfiles),
-      'collision profiles',
-    );
+    track(deps.assets.collisionProfiles(ids).then(applyCollisionProfiles), 'collision profiles');
   }
 
   /**
@@ -1374,13 +1382,22 @@ export function createLocationEngine<R extends RendererLike>(
   function emitPlatformEvent(event: PlatformEvent): void {
     switch (event.type) {
       case 'ACTIVATED':
-        bus.emit('PlatformActivated', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        bus.emit('PlatformActivated', {
+          platformId: event.platformId,
+          ...(event.cue ? { cue: event.cue } : {}),
+        });
         return;
       case 'MOVING':
-        bus.emit('PlatformMoving', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        bus.emit('PlatformMoving', {
+          platformId: event.platformId,
+          ...(event.cue ? { cue: event.cue } : {}),
+        });
         return;
       case 'STOPPED':
-        bus.emit('PlatformStopped', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        bus.emit('PlatformStopped', {
+          platformId: event.platformId,
+          ...(event.cue ? { cue: event.cue } : {}),
+        });
         return;
       case 'VANISHED':
         bus.emit('PlatformVanished', { platformId: event.platformId });
@@ -1389,7 +1406,10 @@ export function createLocationEngine<R extends RendererLike>(
         bus.emit('PlatformAppeared', { platformId: event.platformId });
         return;
       case 'BOUNCED':
-        bus.emit('PlayerBounced', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        bus.emit('PlayerBounced', {
+          platformId: event.platformId,
+          ...(event.cue ? { cue: event.cue } : {}),
+        });
         return;
       case 'PLATE_PRESSED':
         bus.emit('PressurePlatePressed', { plateId: event.plateId });
@@ -1401,7 +1421,10 @@ export function createLocationEngine<R extends RendererLike>(
         bus.emit('PlatformSwitchToggled', { entityId: event.entityId, on: event.on });
         return;
       case 'CHECKPOINT':
-        bus.emit('CourseCheckpointReached', { checkpointId: event.checkpointId, label: event.label });
+        bus.emit('CourseCheckpointReached', {
+          checkpointId: event.checkpointId,
+          label: event.label,
+        });
         return;
       case 'GOAL':
         bus.emit('PlatformGoalReached', { goalId: event.goalId });
@@ -1508,7 +1531,8 @@ export function createLocationEngine<R extends RendererLike>(
       avatar.animate(
         delta,
         controller.movementState,
-        controller.horizontalSpeed,
+        // What the child's walking really covered (0 against a wall), not the speed asked for.
+        controller.locomotionSpeed,
         controller.walkSpeed,
         controller.runSpeed,
       );
