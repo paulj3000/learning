@@ -93,9 +93,10 @@ describe('movement state follows the movement that really happened', () => {
       expect(new Set(states.slice(contact))).toEqual(new Set(['IDLE']));
       expect(Math.max(...speeds.slice(contact))).toBeLessThan(0.2);
       expect(controller.gait).toBe('idle');
-      // The child rests at the wall, not inside it and not short of it.
-      expect(controller.position.z).toBeGreaterThanOrEqual(-1);
-      expect(controller.position.z).toBeLessThan(-1 + 0.01);
+      // The child's body rests at the wall: their footprint touches it, not inside, not short.
+      const reach = controller.collision.radius + controller.collision.skin;
+      expect(controller.position.z).toBeGreaterThanOrEqual(-1 + reach - 1e-6);
+      expect(controller.position.z).toBeLessThan(-1 + reach + 0.01);
     });
   }
 

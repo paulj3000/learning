@@ -9,6 +9,11 @@ import {
   resolveJumpConfiguration,
   type JumpConfiguration,
 } from './jumpConfiguration';
+import {
+  footprintDistance,
+  resolvePlayerCollision,
+  type PlayerCollisionConfiguration,
+} from './playerCollision';
 
 /**
  * Movement/look state for the player in every free-roaming 3D location: the
@@ -22,6 +27,15 @@ import {
  * testable in jsdom. The runtime reads `position`/`yaw`/`pitch` each frame
  * and applies them to the actual `PerspectiveCamera`; `position.y` is the
  * height of the child's feet (0 on the ground).
+ *
+ * The child is a vertical cylinder, not a point (Defect 2, castle walls): `collision.radius`
+ * (0.35 m by default, `playerCollision.ts`) plus a small `skin` around the feet position, the
+ * same in first- and third-person. Blocking uses `radius + skin`; standing on, landing on and
+ * riding a jumpable box go by the feet first, and by the body's `radius` only where nothing
+ * jumpable is under the feet (a body half over a crate's edge stands on it).
+ * Heights never change: a barrel or platform is exactly as tall as before. A child
+ * already overlapping something (an authored spawn too close to a wall) may always move away
+ * from it, never further in.
  *
  * Collision rules (LAI-JMP-01, "safe by architecture"):
  * - A **solid** collider (the default) blocks at every height. It is tested
@@ -113,6 +127,8 @@ export interface FirstPersonControllerOptions {
   jump?: Partial<JumpConfiguration>;
   /** Tallest ledge walked up without jumping, metres. */
   stepHeight?: number;
+  /** The child's horizontal footprint (radius, skin). Missing fields take the defaults. */
+  collision?: Partial<PlayerCollisionConfiguration>;
   /** Feet to top of head, metres, for head bumps on jumpable colliders. */
   bodyHeight?: number;
   /**
@@ -163,6 +179,8 @@ const SUPPORT_TOLERANCE = 0.05;
 const AIR_DRAG_FACTOR = 0.2;
 /** Tolerance for floating-point contact, metres. */
 const CONTACT_EPSILON = 1e-4;
+/** How much closer an overlapping box may get in one step (rounding only): never a creep in. */
+const ESCAPE_EPSILON = 1e-9;
 
 export class FirstPersonController {
   readonly position: Vector3;
@@ -176,6 +194,9 @@ export class FirstPersonController {
   private readonly jumpable: ReadonlySet<Box3>;
   private readonly stepHeight: number;
   private readonly bodyHeight: number;
+  private readonly collisionConfig: PlayerCollisionConfiguration;
+  /** `radius + skin`: how close the feet position may come to a blocking box, metres. */
+  private readonly reach: number;
   private readonly groundHeightAt: (x: number, z: number) => number | null;
   private readonly recoveryDepth: number;
   private readonly isInPlayableArea: (x: number, z: number) => boolean;
@@ -213,6 +234,8 @@ export class FirstPersonController {
     this.jumpable = options.jumpableColliders ?? new Set();
     this.stepHeight = options.stepHeight ?? DEFAULT_STEP_HEIGHT;
     this.bodyHeight = options.bodyHeight ?? DEFAULT_BODY_HEIGHT;
+    this.collisionConfig = resolvePlayerCollision(options.collision);
+    this.reach = this.collisionConfig.radius + this.collisionConfig.skin;
     this.groundHeightAt = options.groundHeightAt ?? (() => 0);
     this.recoveryDepth = options.recoveryDepth ?? DEFAULT_RECOVERY_DEPTH;
     this.isInPlayableArea = options.isInPlayableArea ?? (() => true);
@@ -221,6 +244,11 @@ export class FirstPersonController {
     this.jumpConfig = resolveJumpConfiguration(options.jump);
     this.position = options.startPosition?.clone() ?? new Vector3();
     this.lastSafe.copy(this.position);
+  }
+
+  /** The child's footprint in force (radius and skin, metres). */
+  get collision(): Readonly<PlayerCollisionConfiguration> {
+    return this.collisionConfig;
   }
 
   /** The jump tuning in force. */
@@ -467,13 +495,18 @@ export class FirstPersonController {
   supportingBox(): Box3 | null {
     if (!this.onGround) return null;
     const { x, y, z } = this.position;
-    let best: Box3 | null = null;
-    for (const box of this.colliders) {
-      if (!this.jumpable.has(box) || !insideFootprint(box, x, z)) continue;
-      if (Math.abs(box.max.y - y) > SUPPORT_TOLERANCE) continue;
-      if (best === null || box.max.y > best.max.y) best = box;
+    // As `supportHeight`: a box under the feet first, else one the body's edge rests on.
+    for (const underFeet of [true, false]) {
+      let best: Box3 | null = null;
+      for (const box of this.colliders) {
+        if (!this.jumpable.has(box)) continue;
+        if (underFeet ? !insideFootprint(box, x, z) : !this.standsOver(box, x, z)) continue;
+        if (Math.abs(box.max.y - y) > SUPPORT_TOLERANCE) continue;
+        if (best === null || box.max.y > best.max.y) best = box;
+      }
+      if (best) return best;
     }
-    return best;
+    return null;
   }
 
   /**
@@ -633,10 +666,17 @@ export class FirstPersonController {
   private supportHeight(x: number, z: number, feetY: number, allowance: number): number | null {
     let best = this.groundHeightAt(x, z);
     if (best !== null && best > feetY + allowance) best = null;
-    for (const box of this.colliders) {
-      if (!this.jumpable.has(box) || !insideFootprint(box, x, z)) continue;
-      const top = box.max.y;
-      if (top <= feetY + allowance && (best === null || top > best)) best = top;
+    // The feet decide first, so a taller box beside the one underfoot never lifts the child;
+    // only with nothing jumpable under the feet does the body's edge rest on a box.
+    for (const underFeet of [true, false]) {
+      let found: number | null = null;
+      for (const box of this.colliders) {
+        if (!this.jumpable.has(box)) continue;
+        if (underFeet ? !insideFootprint(box, x, z) : !this.standsOver(box, x, z)) continue;
+        const top = box.max.y;
+        if (top <= feetY + allowance && (found === null || top > found)) found = top;
+      }
+      if (found !== null) return best === null || found > best ? found : best;
     }
     return best;
   }
@@ -645,7 +685,7 @@ export class FirstPersonController {
   private ceilingHeight(x: number, z: number, headY: number): number | null {
     let lowest: number | null = null;
     for (const box of this.colliders) {
-      if (!this.jumpable.has(box) || !insideFootprint(box, x, z)) continue;
+      if (!this.jumpable.has(box) || !this.standsOver(box, x, z)) continue;
       const bottom = box.min.y;
       if (bottom >= headY - CONTACT_EPSILON && (lowest === null || bottom < lowest))
         lowest = bottom;
@@ -732,31 +772,51 @@ export class FirstPersonController {
   }
 
   /**
-   * Whether the body standing with its feet at `feetY` would be inside a
-   * collider at (x, z). Solid colliders are tested at ground level, as they
-   * always were, so they block at every height. Jumpable ones block only
-   * where they overlap the body, less a step the feet may climb.
+   * Whether the body standing with its feet at `feetY` would be blocked at (x, z). The body is
+   * a cylinder of `radius + skin` around the feet position. Solid colliders are tested at ground
+   * level, as they always were, so they block at every height. Jumpable ones block only where
+   * they overlap the body, less a step the feet may climb.
+   *
+   * With a `from` position (a move), a box the body already overlaps blocks only a move that
+   * goes further into it: a child placed too close to something can always step away.
    */
   private blockedAt(
     x: number,
     z: number,
     feetY: number,
     stepAllowance: number,
-    _fromX?: number,
-    _fromZ?: number,
+    fromX?: number,
+    fromZ?: number,
   ): boolean {
+    const reach = this.reach;
     for (const box of this.colliders) {
       if (this.jumpable.has(box)) {
-        if (!insideFootprint(box, x, z)) continue;
         const overlapsBody =
           box.max.y > feetY + stepAllowance + CONTACT_EPSILON &&
           box.min.y < feetY + this.bodyHeight - CONTACT_EPSILON;
-        if (overlapsBody) return true;
-      } else if (box.containsPoint(groundProbe.set(x, 0, z))) {
-        return true;
+        if (!overlapsBody) continue;
+      } else if (box.min.y > 0 || box.max.y < 0) {
+        continue; // a solid box not at ground level (as `containsPoint` at y 0 was)
       }
+      const distance = footprintDistance(box, x, z);
+      if (distance >= reach) continue;
+      if (fromX !== undefined && fromZ !== undefined) {
+        const before = footprintDistance(box, fromX, fromZ);
+        // Already overlapping: moving out of it, or along it, is allowed.
+        if (before < reach && distance >= before - ESCAPE_EPSILON) continue;
+      }
+      return true;
     }
     return false;
+  }
+
+  /**
+   * Whether the child's body (its `radius`, not the skin) is over a box's footprint: enough to
+   * stand on its top, ride it, or bump a head on it. A body half over a crate's edge stands on
+   * it, as a real child would, so a jump from right beside a crate still lands on it.
+   */
+  private standsOver(box: Box3, x: number, z: number): boolean {
+    return footprintDistance(box, x, z) < this.collisionConfig.radius;
   }
 
   /** Safe recovery: a child who falls out of the world goes back to the last place they stood. */
@@ -778,8 +838,6 @@ export class FirstPersonController {
     this.events.push({ type: 'RECOVERED', reason });
   }
 }
-
-const groundProbe = new Vector3();
 
 /** Halvings used to bring a blocked step up to the obstacle: 0.1 m / 2^10, about 0.1 mm. */
 const CONTACT_SEARCH_ITERATIONS = 10;

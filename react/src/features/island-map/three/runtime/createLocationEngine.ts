@@ -44,7 +44,7 @@ import {
 import { cloneAssetScene } from '../assets/cloneAsset';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
-import { FirstPersonController, type Gait } from '../firstPersonController';
+import { DEFAULT_BODY_HEIGHT, FirstPersonController, type Gait } from '../firstPersonController';
 import type { LocomotionConfiguration } from '../locomotionConfiguration';
 import type { SprintMode } from '../pointerControls';
 import {
@@ -56,6 +56,11 @@ import {
   type PlayerCameraFrame,
 } from '../playerCamera';
 import { AvatarFacing, createPlayerAvatar, type PlayerAvatar } from '../playerAvatar';
+import {
+  collisionDebugEnabled,
+  createCollisionDebugOverlay,
+  type CollisionDebugOverlay,
+} from './collisionDebug';
 import type { PlayerAvatarModel } from '../playerAvatarCatalog';
 import {
   initialCameraMode,
@@ -296,6 +301,12 @@ export interface LocationEngineOptions {
   onCameraModeChange?: (mode: CameraMode) => void;
   /** Running & sprinting: hold Shift to sprint (default) or press it to toggle. */
   sprintMode?: SprintMode;
+  /**
+   * Development only: draw the collision footprint, nearby colliders and sync markers
+   * (`collisionDebug.ts`). Defaults to `?collisionDebug=1` or the `lai.collisionDebug`
+   * localStorage flag in a Vite development build; always off in a production build.
+   */
+  collisionDebug?: boolean;
 }
 
 /** The outdoor rig `sceneKit.createSceneBootstrap` defaults to; manifest lighting overrides per field. */
@@ -490,6 +501,8 @@ export function createLocationEngine<R extends RendererLike>(
     jump: manifest.movement?.jump,
     // Running & sprinting: per-location speeds (walking pace defaults to the old 4 m/s).
     locomotion: manifest.movement?.locomotion,
+    // The child's footprint (Defect 2): a 0.35 m radius by default, one for both perspectives.
+    collision: manifest.movement?.collision,
     // A safety net behind the boundary walls: anyone who ends up past them goes back.
     isInPlayableArea: (x, z) =>
       Math.abs(x) <= manifest.bounds.halfExtentX + playableMargin &&
@@ -1435,6 +1448,17 @@ export function createLocationEngine<R extends RendererLike>(
     }
   }
 
+  // Development only (`collisionDebug.ts`): `import.meta.env.DEV` is `false` in production builds.
+  const debugOn =
+    options.collisionDebug ??
+    (import.meta.env.DEV &&
+      typeof window !== 'undefined' &&
+      collisionDebugEnabled(true, window.location.search, safeLocalStorage()));
+  const collisionDebug: CollisionDebugOverlay | null = debugOn
+    ? createCollisionDebugOverlay(parent)
+    : null;
+  if (collisionDebug) scene.add(collisionDebug.root);
+
   let lastFrameAt = deps.now();
   let frameHandle = 0;
 
@@ -1538,6 +1562,21 @@ export function createLocationEngine<R extends RendererLike>(
       );
     }
 
+    collisionDebug?.update(delta, {
+      feet: controller.position,
+      avatar: avatar ? avatar.root.position : null,
+      aim: view.aimOrigin,
+      radius: controller.collision.radius,
+      skin: controller.collision.skin,
+      bodyHeight: DEFAULT_BODY_HEIGHT,
+      colliders,
+      jumpable: jumpableColliders,
+      movementState: controller.movementState,
+      locomotionSpeed: controller.locomotionSpeed,
+      cameraMode: view.mode,
+      cameraDistance: view.distance,
+    });
+
     for (const mixer of mixers) mixer.update(delta);
     for (const callback of frameCallbacks) callback(delta);
 
@@ -1562,6 +1601,7 @@ export function createLocationEngine<R extends RendererLike>(
     controls.dispose();
     for (const stop of stopCelebrating) stop();
     avatar?.dispose();
+    collisionDebug?.dispose();
     stopFitting();
     for (const mounted of extensionMounts.values()) mounted.dispose?.();
     frameCallbacks.clear();
@@ -1622,4 +1662,13 @@ export function createLocationEngine<R extends RendererLike>(
     platforms: () => platformSystem?.platforms ?? [],
     ready,
   };
+}
+
+/** The page's localStorage, or `null` where reading it throws (private mode, blocked storage). */
+function safeLocalStorage(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
 }

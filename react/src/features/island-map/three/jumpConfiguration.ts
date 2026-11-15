@@ -1,4 +1,5 @@
 import { validateLocomotion, type LocomotionConfiguration } from './locomotionConfiguration';
+import { validatePlayerCollision, type PlayerCollisionConfiguration } from './playerCollision';
 
 /**
  * Jump tuning for the shared player movement controller (LAI-JMP-01).
@@ -80,6 +81,11 @@ export interface MovementSpec {
   jump?: Partial<JumpConfiguration>;
   /** Walking, running and sprinting speeds (`locomotionConfiguration.ts`). */
   locomotion?: Partial<LocomotionConfiguration>;
+  /**
+   * The child's footprint (`playerCollision.ts`): radius and skin. Override only where a
+   * location really needs it; the default suits every shipped location.
+   */
+  collision?: Partial<PlayerCollisionConfiguration>;
 }
 
 type NumericKey = keyof typeof JUMP_LIMITS;
@@ -138,12 +144,18 @@ export function validateMovementSpec(
     return [{ path, message: 'must be an object' }];
   }
   for (const key of Object.keys(movement)) {
-    if (key !== 'jump' && key !== 'locomotion') {
+    if (key !== 'jump' && key !== 'locomotion' && key !== 'collision') {
       issues.push({ path: `${path}.${key}`, message: 'is not a movement setting' });
     }
   }
   issues.push(
     ...validateLocomotion((movement as { locomotion?: unknown }).locomotion, `${path}.locomotion`),
+  );
+  issues.push(
+    ...validatePlayerCollision(
+      (movement as { collision?: unknown }).collision,
+      `${path}.collision`,
+    ),
   );
   const jump = (movement as { jump?: unknown }).jump;
   if (jump === undefined) return issues;
