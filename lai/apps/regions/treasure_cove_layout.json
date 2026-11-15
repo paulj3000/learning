@@ -218,10 +218,10 @@
   {
    "rect": {
     "id": "cove-campfire:collider",
-    "maxX": -4.2,
-    "maxZ": 10.3,
-    "minX": -5.8,
-    "minZ": 8.7
+    "maxX": -4.4,
+    "maxZ": 10.1,
+    "minX": -5.6,
+    "minZ": 8.9
    }
   },
   {
@@ -980,6 +980,7 @@
    "z": 15
   },
   {
+   "assetId": "campfire",
    "id": "cove-campfire",
    "shape": "CAMPFIRE",
    "x": -5,

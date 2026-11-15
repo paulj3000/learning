@@ -38,6 +38,11 @@ turned log never grows an invisible corner. The client adds a prop's colliders o
 model is drawn, and then hides the older bundled barrels and logs its group `replaces`; until an
 administrator publishes the models, those older ones stay, with no colliders, exactly as before.
 
+**Campfire (2026-11-15).** The `CAMPFIRE` entry at Pip's camp names the `campfire` asset library
+model (Kenney Survival Kit, imported with `--category campfire`). Once drawn, it replaces the
+primitive stones and logs; the primitive's flickering flame and the camp light stay, since the
+model has no flames. Its collider is a 1.2 m square (`CAMPFIRE_COLLIDER_HALF`).
+
 Run `python -m apps.regions.treasure_cove_layout` from `lai/` to rewrite the JSON snapshot the
 frontend tests load; `test_treasure_cove_layout.py` fails while the two differ.
 """
@@ -48,8 +53,12 @@ from pathlib import Path
 
 from .treasure_cove_vegetation import vegetation as grow_vegetation
 
+# The campfire at Pip's camp (2026-11-15): the asset library model, and its collider's half-size.
+CAMPFIRE_MODEL = "campfire"
+CAMPFIRE_COLLIDER_HALF = 0.6
+
 # Bump whenever the layout changes, so the seed refreshes an existing region's layout.
-LAYOUT_VERSION = 8
+LAYOUT_VERSION = 9
 BOUNDS = {"halfExtentX": 36, "halfExtentZ": 44, "wallThickness": 1}
 SNAPSHOT_PATH = Path(__file__).with_name("treasure_cove_layout.json")
 
@@ -544,11 +553,15 @@ def cove_layout() -> dict:
     colliders += [
         {"rect": _rect("cove-landing-crates:collider", 6, 7.8, 14.5, 16.3)},
         {"rect": _rect("cove-tent:collider", -7.6, -4.4, 13.4, 16.6)},
-        _solid("cove-campfire:collider", -5, 9.5, 0.8),
+        # Fits the published `campfire` model (1.1 m across); the child's 0.35 m body keeps them
+        # off the stones. Was 0.8 for the primitive ring (layout v9).
+        _solid("cove-campfire:collider", -5, 9.5, CAMPFIRE_COLLIDER_HALF),
     ]
     procedural += [
         _procedural("cove-tent", "TENT", -6, 15, rotationY=0.4),
-        _procedural("cove-campfire", "CAMPFIRE", -5, 9.5),
+        # The published Kenney campfire replaces the primitive stones and logs; the flickering
+        # flame and its light stay (the model has none). Unpublished: the primitive, as before.
+        _procedural("cove-campfire", "CAMPFIRE", -5, 9.5) | {"assetId": CAMPFIRE_MODEL},
         _procedural("cove-landing-flag", "FLAG", 8, 3, height=5),
         _procedural("cove-rowboat", "ROWBOAT", 2.6, 41, rotationY=0.2),
         *[

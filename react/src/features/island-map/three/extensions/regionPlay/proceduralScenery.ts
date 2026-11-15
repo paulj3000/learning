@@ -39,6 +39,10 @@ import type { RegionPlayProceduralConfig } from '../../../../region-play/regionP
 
 /** The name of each placeholder's root, so tests and debugging can find it. */
 export const PROCEDURAL_NAME = 'region-play:procedural';
+/** The primitive campfire's stones and logs: hidden once the `campfire` model stands there. */
+export const CAMPFIRE_BASE_NAME = 'region-play:campfire-base';
+/** The primitive campfire's flames: kept with the model (the model has no fire of its own). */
+export const CAMPFIRE_FLAMES_NAME = 'region-play:campfire-flames';
 export const PALM_TRUNKS_NAME = 'region-play:palm-trunks';
 /** The gate's bars, which TR-17 lifts when the gate opens. */
 export const GATE_BARS_NAME = 'region-play:gate-bars';
@@ -92,6 +96,11 @@ export interface ProceduralScenery {
    * once drawn stays for the visit.
    */
   hidePalms(ids: Iterable<string>): void;
+  /**
+   * Stops drawing the primitive stones and logs of these campfires, because the asset library
+   * model now stands there; their flames keep flickering on top. Unknown ids are ignored.
+   */
+  hideCampfireBases(ids: Iterable<string>): void;
   dispose(): void;
 }
 
@@ -189,6 +198,12 @@ export function buildProceduralScenery(
     hidePalms(ids) {
       palmBatch?.hide(ids, time);
     },
+    hideCampfireBases(ids) {
+      for (const id of ids) {
+        const base = groups.get(id)?.getObjectByName(CAMPFIRE_BASE_NAME);
+        if (base) base.visible = false;
+      }
+    },
     liftGate(id, instant) {
       const bars = groups.get(id)?.getObjectByName(GATE_BARS_NAME);
       if (!bars) return false;
@@ -257,9 +272,13 @@ const BUILDERS: Record<Exclude<RegionPlayProceduralConfig['shape'], 'PALM'>, Bui
       ),
       kit.material(COLORS.darkWood),
     );
+    const base = new Group();
+    base.name = CAMPFIRE_BASE_NAME;
+    base.add(stones, logs);
     const flames = flameGroup(kit, shared, 2.2);
+    flames.name = CAMPFIRE_FLAMES_NAME;
     flames.position.y = 0.15;
-    group.add(stones, logs, flames);
+    group.add(base, flames);
     return flicker(flames, phase);
   },
 

@@ -167,6 +167,41 @@ def read_gltf(data: bytes, resolve) -> tuple[dict, bytes]:
     return document, bytes(binary)
 
 
+def embed_external_images(document: dict, binary: bytes, resolve) -> bytes:
+    """Embeds the images a GLB names by uri (Kenney's GLBs point at `Textures/colormap.png`).
+
+    Returns the new binary chunk; the document is changed in place so every image is a buffer
+    view, like `read_gltf`'s result. A uri may hold a relative folder (`Textures/x.png`), but every
+    part must be a plain name and only the last is looked up, inside the supplied source, by
+    `resolve(name)`: nothing is ever read from the file system or the network.
+    """
+    out = bytearray(binary)
+    views = document.setdefault("bufferViews", [])
+    for image in document.get("images", []):
+        uri = image.get("uri")
+        if not isinstance(uri, str):
+            continue
+        if uri.startswith("data:"):
+            raise PrepError("Embedded data URIs are not supported here.")
+        parts = urllib.parse.unquote(uri).split("/")
+        if any(not SAFE_RESOURCE.fullmatch(part) or part == ".." for part in parts):
+            raise PrepError(f"The model names a resource that is not a plain file name: {uri!r}.")
+        content = resolve(parts[-1])
+        if content is None:
+            raise PrepError(f"The model needs {parts[-1]!r}, which is not in the source.")
+        mime = image.get("mimeType") or IMAGE_TYPES.get(Path(parts[-1]).suffix.lower())
+        if mime not in IMAGE_TYPES.values():
+            raise PrepError(f"Unsupported image type for {uri!r}.")
+        out.extend(b"\x00" * (-len(out) % 4))
+        views.append({"buffer": 0, "byteOffset": len(out), "byteLength": len(content)})
+        out.extend(content)
+        image["bufferView"] = len(views) - 1
+        image["mimeType"] = mime
+        del image["uri"]
+    document["buffers"] = [{"byteLength": len(out)}]
+    return bytes(out)
+
+
 def node_names(document: dict) -> list[str]:
     return [str(node.get("name", "")) for node in document.get("nodes", [])]
 
@@ -314,8 +349,13 @@ def extract_model(
     fixes: MaterialFixes = MaterialFixes(),
     asset_copyright: str = "",
     texture_cache: dict | None = None,
+    include_children: bool = False,
 ) -> PreparedModel:
-    """The node called `node_name`, as a standalone engine-ready GLB (see the module doc)."""
+    """The node called `node_name`, as a standalone engine-ready GLB (see the module doc).
+
+    `include_children` also bakes in every mesh below the node, each through its own local
+    transforms (a Kenney campfire is a stone ring with its logs as a child node).
+    """
     nodes = document.get("nodes", [])
     matches = [n for n in nodes if n.get("name") == node_name]
     if len(matches) != 1:
@@ -327,46 +367,26 @@ def extract_model(
     if max(scale) - min(scale) > 1e-6 * max(abs(v) for v in scale) or scale[0] <= 0:
         raise PrepError(f'Node "{node_name}" has a non-uniform or negative scale.')
     rotation = _rotation_matrix(node.get("rotation", (0, 0, 0, 1)))
-    mesh = document["meshes"][node["mesh"]]
+
+    # The node itself, then (if asked) each descendant with the chain of local transforms that
+    # carries its vertices into the node's own space.
+    parts: list[tuple[dict, list[dict]]] = [(node, [])]
+    if include_children:
+        stack = [(child, []) for child in reversed(node.get("children", []))]
+        while stack:
+            index, chain = stack.pop()
+            child = nodes[index]
+            if "matrix" in child:
+                raise PrepError(f'Node "{child.get("name", index)}" uses a matrix transform.')
+            here = [child, *chain]
+            if "mesh" in child:
+                parts.append((child, here))
+            stack.extend((grandchild, here) for grandchild in reversed(child.get("children", [])))
 
     # Pass 1: bake rotation and scale, collect geometry per primitive.
     primitives = []
-    for primitive in mesh.get("primitives", []):
-        if primitive.get("mode", 4) != 4:
-            raise PrepError("Only triangle primitives are supported.")
-        attributes = primitive.get("attributes", {})
-        if "POSITION" not in attributes:
-            raise PrepError("A primitive has no POSITION attribute.")
-        positions = [
-            tuple(v * scale[0] for v in _apply(rotation, p))
-            for p in _read_accessor(document, binary, attributes["POSITION"])
-        ]
-        normals = (
-            [_normalised(_apply(rotation, n)) for n in _read_accessor(document, binary, attributes["NORMAL"])]
-            if "NORMAL" in attributes
-            else None
-        )
-        uvs = (
-            _read_accessor(document, binary, attributes["TEXCOORD_0"])
-            if "TEXCOORD_0" in attributes
-            else None
-        )
-        indices = (
-            [i[0] for i in _read_accessor(document, binary, primitive["indices"])]
-            if "indices" in primitive
-            else list(range(len(positions)))
-        )
-        if any(i >= len(positions) for i in indices):
-            raise PrepError("An index points past the end of its vertices.")
-        primitives.append(
-            {
-                "positions": positions,
-                "normals": normals,
-                "uvs": uvs,
-                "indices": indices,
-                "material": primitive.get("material"),
-            }
-        )
+    for part, chain in parts:
+        _collect_primitives(document, binary, part, chain, rotation, scale[0], primitives)
     if not primitives:
         raise PrepError(f'Node "{node_name}" has an empty mesh.')
 
@@ -418,6 +438,12 @@ def extract_model(
         "Baked the node rotation (Z-up to Y-up) and its x{:g} scale into the vertices".format(scale[0]),
         "Origin moved to ground level (lowest vertex at y = 0), pivot kept on the vertical axis",
     ]
+    if len(parts) > 1:
+        modifications.append(
+            f"Included {len(parts) - 1} child mesh(es) "
+            f"({', '.join(str(part.get('name', '')) for part, _chain in parts[1:])}), "
+            "baked through their own transforms"
+        )
     if align_axis is not None:
         modifications.append(
             "Re-posed: long axis ({:.3f}, {:.3f}, {:.3f}) turned onto X".format(*align_axis)
@@ -590,6 +616,70 @@ def extract_model(
         textures=texture_report,
         modifications=modifications,
     )
+
+
+def _local_transform(node: dict, point, *, is_normal: bool = False):
+    """One node's local TRS applied to a point (or a normal: rotation only)."""
+    if not is_normal:
+        s = [float(v) for v in node.get("scale", (1, 1, 1))]
+        point = (point[0] * s[0], point[1] * s[1], point[2] * s[2])
+    point = _apply(_rotation_matrix(node.get("rotation", (0, 0, 0, 1))), point)
+    if not is_normal:
+        t = [float(v) for v in node.get("translation", (0, 0, 0))]
+        point = (point[0] + t[0], point[1] + t[1], point[2] + t[2])
+    return point
+
+
+def _collect_primitives(document, binary, part, chain, rotation, scale, primitives) -> None:
+    """Appends `part`'s primitives, carried through `chain` (innermost first) into the extracted
+    node's space, then the node's own rotation and uniform scale."""
+
+    def place(p):
+        for link in chain:
+            p = _local_transform(link, p)
+        return tuple(v * scale for v in _apply(rotation, p))
+
+    def turn(n):
+        for link in chain:
+            n = _local_transform(link, n, is_normal=True)
+        return _normalised(_apply(rotation, n))
+
+    mesh = document["meshes"][part["mesh"]]
+    for primitive in mesh.get("primitives", []):
+        if primitive.get("mode", 4) != 4:
+            raise PrepError("Only triangle primitives are supported.")
+        attributes = primitive.get("attributes", {})
+        if "POSITION" not in attributes:
+            raise PrepError("A primitive has no POSITION attribute.")
+        positions = [
+            place(p) for p in _read_accessor(document, binary, attributes["POSITION"])
+        ]
+        normals = (
+            [turn(n) for n in _read_accessor(document, binary, attributes["NORMAL"])]
+            if "NORMAL" in attributes
+            else None
+        )
+        uvs = (
+            _read_accessor(document, binary, attributes["TEXCOORD_0"])
+            if "TEXCOORD_0" in attributes
+            else None
+        )
+        indices = (
+            [i[0] for i in _read_accessor(document, binary, primitive["indices"])]
+            if "indices" in primitive
+            else list(range(len(positions)))
+        )
+        if any(i >= len(positions) for i in indices):
+            raise PrepError("An index points past the end of its vertices.")
+        primitives.append(
+            {
+                "positions": positions,
+                "normals": normals,
+                "uvs": uvs,
+                "indices": indices,
+                "material": primitive.get("material"),
+            }
+        )
 
 
 def _shortest_arc(source, target) -> tuple[float, float, float, float]:

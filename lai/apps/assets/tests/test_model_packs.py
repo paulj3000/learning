@@ -468,8 +468,11 @@ def test_command_refusals(real_source, tmp_path):
 
 def test_the_declared_packs_are_well_formed_and_reusable():
     ids = [model.asset_id for pack in PACKS.values() for model in pack.models]
-    assert len(ids) == len(set(ids)) == 18
-    assert set(model_packs.GROUPS) == {"palms", "barrels", "logs", "bushes", "flowers", "grass"}
+    assert len(ids) == len(set(ids)) == 19
+    assert set(model_packs.GROUPS) == {
+        "palms", "barrels", "logs", "bushes", "flowers", "grass", "campfire"
+    }
+    environment = [p for p in PACKS.values() if p.group not in ("campfire", "feather")]
     for pack in PACKS.values():
         for model in pack.models:
             definition = ContentAsset(
@@ -487,12 +490,14 @@ def test_the_declared_packs_are_well_formed_and_reusable():
             )
             definition.full_clean()
             assert re.fullmatch(r"[0-9a-f]{64}", model.known_source_sha256)
+            if pack.group in ("campfire", "feather"):
+                continue  # their own tests (test_gameplay_prop_packs.py)
             if pack.group in ("palms", "barrels", "logs"):
                 assert model.source_url.startswith("https://poly.pizza/m/")
             else:
                 assert model.source_url == "https://quaternius.com/packs/ultimatestylizednature.html"
-    # Every pack confirmed CC0-1.0 by the owner (2026-11-14), with the confirmation recorded.
-    for pack in PACKS.values():
+    # Every environment pack confirmed CC0-1.0 by the owner (2026-11-14), recorded.
+    for pack in environment:
         assert pack.licence_confirmed is True and pack.author == "Quaternius"
         assert pack.licence == model_packs.CC0["licenceName"]
         assert pack.licence_verified_on == "2026-11-14" and "Owner confirmation" in (

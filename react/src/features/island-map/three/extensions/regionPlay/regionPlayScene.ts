@@ -155,6 +155,8 @@ function worldPositionReader(object: Object3D): (out: [number, number, number]) 
 
 /** TR-PALM-05, TR-ENV-06: names of the instanced model sets, and the palms' sway. */
 export const PALM_MODEL_NAME = 'region-play:palm-model';
+/** The campfire's asset library model (2026-11-15). */
+export const CAMPFIRE_MODEL_NAME = 'region-play:campfire-model';
 export const PROP_MODEL_NAME = 'region-play:prop-model';
 export const PALM_SWAY = 0.02;
 /** ENV-2: vegetation, and how far it leans in the wind (a little more than a palm: it is small). */
@@ -165,7 +167,10 @@ export const VEGETATION_SWAY = 0.04;
  * Keeps `density` of the placements of each model (ENV-2): 1 keeps them all, 0.5 every other one
  * in layout order, so the thinning is spread across the cove and is the same on every visit.
  */
-export function thinDecor<T extends { assetId: string }>(placements: readonly T[], density: number): T[] {
+export function thinDecor<T extends { assetId: string }>(
+  placements: readonly T[],
+  density: number,
+): T[] {
   if (density >= 1) return [...placements];
   const seen = new Map<string, number>();
   return placements.filter((placement) => {
@@ -436,6 +441,28 @@ export const regionPlaySceneExtension: WorldExtension = {
     });
     context.scene.add(palmModels.root);
 
+    // The campfire (2026-11-15): the published model takes the primitive stones' and logs' place;
+    // the primitive's flame keeps flickering on top. Its collider is the layout's, as before, so
+    // the campfire is solid whether or not the model ever loads.
+    const campfirePlacements: ModelPlacement[] = (config.procedural ?? []).flatMap((entry) =>
+      entry.shape === 'CAMPFIRE' && entry.assetId
+        ? [
+            {
+              id: entry.id,
+              assetId: entry.assetId,
+              x: entry.x,
+              z: entry.z,
+              ...(entry.rotationY !== undefined ? { rotationY: entry.rotationY } : {}),
+            },
+          ]
+        : [],
+    );
+    const campfireModels = mountInstancedModels(campfirePlacements, context.loadModel, {
+      name: CAMPFIRE_MODEL_NAME,
+      onDrawn: (_assetId, ids) => procedural.hideCampfireBases(ids),
+    });
+    context.scene.add(campfireModels.root);
+
     // TR-ENV-06: barrels and logs. A model, once drawn, makes its props solid and hides the
     // bundled scenery it replaces; one that never loads leaves both as they were.
     const props = config.props ?? [];
@@ -702,6 +729,7 @@ export const regionPlaySceneExtension: WorldExtension = {
         for (const rune of runes.values()) rune.label.material.map?.dispose();
         procedural.dispose();
         palmModels.dispose();
+        campfireModels.dispose();
         propModels.dispose();
         vegetationModels.dispose();
         water.dispose();

@@ -41,7 +41,7 @@ from django.utils.text import slugify
 from apps.catalog.models import AssetCategory, AssetOrigin, AssetStatus, ContentAsset
 
 from . import gltf_prep, services
-from .models import AssetVersion, VersionStatus
+from .models import AssetVersion, CollisionProfile, VersionStatus
 from .validation import validate_upload
 
 PIPELINE_VERSION = 1
@@ -95,6 +95,11 @@ class PackModel:
     kind: str = ""  # defaults to the pack's
     category: str = ""
     tags: tuple[str, ...] = ()
+    # Bake the node's child meshes in too (a Kenney campfire: the stone ring, its logs a child).
+    include_children: bool = False
+    # The asset's default collision profile (`CollisionProfile` fields), created only when the
+    # asset has none: an administrator's own profile is never replaced.
+    collision: tuple[tuple[str, object], ...] = ()
 
     def prep_options(self) -> dict:
         return {
@@ -103,6 +108,7 @@ class PackModel:
             "align_axis": self.align_axis,
             "roll_degrees": self.roll_degrees,
             "center_footprint": self.center_footprint,
+            "include_children": self.include_children,
         }
 
 
@@ -135,6 +141,11 @@ class ModelPack:
     licence_verified_on: str = ""
     owner_confirmation: str = ""
     source_pages: tuple[str, ...] = ()
+    # SPDX id and the attribution a licence such as CC-BY-4.0 requires, where it is not CC0.
+    licence_id: str = ""
+    attribution: str = ""
+    # Recorded with the provenance: what the asset is for in the game (an asset's own notes).
+    usage: str = ""
 
     def provenance(self, model: PackModel, source_sha256: str, *, confirmed: bool) -> dict:
         return {
@@ -147,6 +158,9 @@ class ModelPack:
             "licenceEvidence": self.licence_evidence,
             "licenceStatus": "confirmed" if confirmed else "unconfirmed",
             **(CC0 if confirmed and self.licence == CC0["licenceName"] else {}),
+            **({"licenceId": self.licence_id} if self.licence_id else {}),
+            **({"attribution": self.attribution} if self.attribution else {}),
+            **({"usage": self.usage} if self.usage else {}),
             **({"licenceVerifiedOn": self.licence_verified_on} if self.licence_verified_on else {}),
             **({"ownerConfirmation": self.owner_confirmation} if self.owner_confirmation else {}),
             **({"sourcePages": list(self.source_pages)} if self.source_pages else {}),
@@ -431,6 +445,64 @@ NATURE_GRASS = _nature_pack(
     ),
 )
 
+# --- Gameplay props (2026-11-15): the campfire --------------------------------------------------------------
+# Kenney's Survival Kit 2.0 ships its own License.txt: Creative Commons Zero (CC0), "personal,
+# educational, and commercial purposes", crediting Kenney optional. Only `campfire-pit` (a stone
+# ring with crossed logs, no flames: the game adds a small flickering flame) is imported; its GLB
+# names its texture by file (`Textures/colormap.png`), embedded from the same ZIP.
+KENNEY_SURVIVAL_LICENCE_EVIDENCE = (
+    "License.txt in the owner-supplied kenney_survival-kit.zip (Survival Kit 2.0, created "
+    "03-04-2024): 'License: (Creative Commons Zero, CC0) "
+    "http://creativecommons.org/publicdomain/zero/1.0/'."
+)
+KENNEY_CAMPFIRE = ModelPack(
+    pack_id="kenney-survival-campfire",
+    group="campfire",
+    title="Survival Kit 2.0: campfire pit",
+    author="Kenney",
+    licence=CC0["licenceName"],
+    licence_url=CC0["licenceUrl"],
+    licence_evidence=KENNEY_SURVIVAL_LICENCE_EVIDENCE,
+    licence_confirmed=True,
+    licence_verified_on="2026-11-15",
+    source_pages=("https://kenney.nl/assets/survival-kit",),
+    usage="Treasure Cove's campfire at Pip's camp (cove-campfire); flames are drawn by the game.",
+    kind="prop",
+    category=AssetCategory.PROP,
+    tags=("environment", "props", "camp", "fire", "treasure-rush", "cc0"),
+    models=(
+        PackModel(
+            "campfire",
+            "campfire-pit",
+            "Campfire",
+            "A ring of stones round crossed logs, about 1.1 m across and 0.43 m tall, origin at "
+            "the middle of its base. No flames in the model: the game draws a small flickering "
+            "flame on top. Kenney Survival Kit 2.0, campfire-pit.",
+            source_url="https://kenney.nl/assets/survival-kit",
+            # The GLB with its embedded colormap.png, as the importer digests them.
+            known_source_sha256="42950786baaa0e4b0b70ccf79143c58303f07d8f1d09af12911677443666e213",
+            fit=("x", 1.1),
+            center_footprint=True,
+            include_children=True,
+            # Solid, never jumpable, round the stones and logs only (the flames add no height).
+            collision=(
+                ("shape", "CYLINDER"),
+                ("behavior", "SOLID"),
+                ("axis", "Y"),
+                ("radius", 0.55),
+                ("height", 0.45),
+            ),
+        ),
+    ),
+    not_imported=(
+        SkippedModel(
+            "campfire-stand, campfire-fishing-stand and the rest of the Survival Kit",
+            "Only the campfire pit was asked for; the kit's other models stay out of the library.",
+        ),
+    ),
+    max_texture_size=512,
+)
+
 PACKS = {
     pack.pack_id: pack
     for pack in (
@@ -440,6 +512,7 @@ PACKS = {
         NATURE_BUSHES,
         NATURE_FLOWERS,
         NATURE_GRASS,
+        KENNEY_CAMPFIRE,
     )
 }
 GROUPS = tuple(dict.fromkeys(pack.group for pack in PACKS.values()))
@@ -483,6 +556,7 @@ class PackReport:
     unpublished: list[dict] = field(default_factory=list)
     unresolved: list[dict] = field(default_factory=list)
     created_definitions: list[str] = field(default_factory=list)
+    collision: list[dict] = field(default_factory=list)
     ignored_files: list[dict] = field(default_factory=list)
     refreshed: list[dict] = field(default_factory=list)
     provenance_updated: list[str] = field(default_factory=list)
@@ -567,6 +641,28 @@ class _Source:
                 files = [{"file": self.model.name, "sizeBytes": len(data)}]
                 digest = hashlib.sha256(data).hexdigest()
                 total = len(data)
+                # A GLB may still name its texture by file (Kenney's `Textures/colormap.png`).
+                external: dict[str, bytes] = {}
+
+                def from_source(name: str):
+                    entry = self.resources.get(name)
+                    if entry is None:
+                        return None
+                    external[name] = external.get(name) or entry.read()
+                    return external[name]
+
+                if any(
+                    isinstance(image.get("uri"), str) for image in document.get("images", [])
+                ):
+                    binary = gltf_prep.embed_external_images(document, binary, from_source)
+                    digest_input = hashlib.sha256(data)
+                    for name in sorted(external):
+                        digest_input.update(
+                            name.encode() + b"\0" + hashlib.sha256(external[name]).digest()
+                        )
+                        files.append({"file": name, "sizeBytes": len(external[name])})
+                    digest = digest_input.hexdigest()
+                    total += sum(len(content) for content in external.values())
             else:
                 used: dict[str, bytes] = {}
 
@@ -756,7 +852,7 @@ def import_pack(
             "sizeBytes": len(prepared.data),
             "sourceSizeBytes": source_size,
             "sha256": hashlib.sha256(prepared.data).hexdigest(),
-            "sourceTriangles": _source_triangles(document, model.node),
+            "sourceTriangles": _source_triangles(document, model.node, model.include_children),
         }
         report.discovered.append(
             {"node": model.node, "selected": True, "asset": model.asset_id, **stats}
@@ -765,6 +861,7 @@ def import_pack(
         asset = _definition(pack, model, provenance, report, dry_run=dry_run)
         if asset is None:
             continue
+        _default_collision(asset, model, report, dry_run=dry_run)
         metadata = {
             "provenance": provenance,
             "preparation": {
@@ -847,6 +944,9 @@ def _credit(pack: ModelPack, confirmed: bool) -> str:
     """The `asset.copyright` written into each prepared file."""
     if confirmed and pack.licence == CC0["licenceName"]:
         return f"{pack.author}, {CC0['licenceId']}"
+    if pack.attribution:
+        # CC-BY: the credit the licence requires travels inside the file itself.
+        return pack.attribution
     return f"{pack.author}, {pack.licence}"
 
 
@@ -859,14 +959,36 @@ def _refresh_provenance(version: AssetVersion, metadata: dict) -> None:
     version.save(update_fields=["metadata"])
 
 
-def _source_triangles(document: dict, node_name: str) -> int:
-    node = next(n for n in document["nodes"] if n.get("name") == node_name)
-    mesh = document["meshes"][node["mesh"]]
+def _source_triangles(document: dict, node_name: str, include_children: bool = False) -> int:
+    nodes = document["nodes"]
+    pending = [next(n for n in nodes if n.get("name") == node_name)]
     triangles = 0
-    for primitive in mesh.get("primitives", []):
-        index = primitive.get("indices", primitive["attributes"]["POSITION"])
-        triangles += int(document["accessors"][index]["count"]) // 3
+    while pending:
+        node = pending.pop()
+        if "mesh" in node:
+            for primitive in document["meshes"][node["mesh"]].get("primitives", []):
+                index = primitive.get("indices", primitive["attributes"]["POSITION"])
+                triangles += int(document["accessors"][index]["count"]) // 3
+        if include_children:
+            pending.extend(nodes[i] for i in node.get("children", []))
     return triangles
+
+
+def _default_collision(asset, model: PackModel, report, *, dry_run: bool) -> None:
+    """Gives a new asset the pack's collision profile; one an administrator made is kept."""
+    if not model.collision:
+        return
+    if asset.pk is not None and asset.collision_profiles.filter(version__isnull=True).exists():
+        report.collision.append({"asset": model.asset_id, "status": "kept"})
+        return
+    fields = dict(model.collision)
+    profile = CollisionProfile(
+        asset=asset, notes=f"Default from the {model.asset_id} import.", **fields
+    )
+    if not dry_run:
+        profile.full_clean()
+        profile.save()
+    report.collision.append({"asset": model.asset_id, "status": "created", **fields})
 
 
 def _definition(pack, model, provenance, report, *, dry_run) -> ContentAsset | None:

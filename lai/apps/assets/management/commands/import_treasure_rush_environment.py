@@ -4,13 +4,16 @@
     python manage.py import_treasure_rush_environment --source /path/to/environment-assets
     python manage.py import_treasure_rush_environment --source DIR --category barrels --publish
     python manage.py import_treasure_rush_environment --source DIR --publish --licence-confirmed
+    python manage.py import_treasure_rush_environment --source kenney_survival-kit.zip \
+        --category campfire --publish
 
 `--source` is a downloaded GLB, a ZIP, or a directory holding them (palms, barrels, logs, mixed);
 it is read, never written, and should live outside the repository. Each declared model is found
 by its node name, prepared (one model per file, Y-up, grounded, sized, smaller textures),
 validated, and stored through the configured asset storage as a VALIDATED version. `--category`
-limits the run to `palms`, `barrels`, `logs`, `bushes`, `flowers` or `grass`, or `vegetation`
-(the last three); `rocks`, `ferns` and `coconuts` are refused because none were supplied.
+limits the run to `palms`, `barrels`, `logs`, `bushes`, `flowers` or `grass`, `vegetation`
+(those three), or `campfire` (Kenney's Survival Kit campfire pit, with its default solid
+collision profile); `rocks`, `ferns` and `coconuts` are refused because none were supplied.
 
 Publishing (`--publish`) is refused outside local development, and skips any pack whose licence
 the owner has not confirmed unless `--licence-confirmed` records that they now have. With S3
@@ -130,6 +133,14 @@ class Command(BaseCommand):
         for item in report.skipped:
             self.stdout.write(f"  {item['asset']} v{item['version']} ({item['status']})")
         self.stdout.write(f"New definitions: {', '.join(report.created_definitions) or 'none'}.")
+        for item in report.collision:
+            detail = ", ".join(
+                f"{key} {value}" for key, value in item.items() if key not in ("asset", "status")
+            )
+            self.stdout.write(
+                f"Collision profile for {item['asset']}: {item['status']}"
+                + (f" ({detail})" if detail else " (an administrator's profile, unchanged)")
+            )
         for item in report.refreshed:
             self.stdout.write(
                 f"  {'would re-prepare' if dry_run else 're-prepared'} never-published "
