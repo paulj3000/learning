@@ -28,7 +28,7 @@ from pathlib import Path
 
 from django.db.models import Q
 
-from apps.catalog.models import ItemDefinition, Quest, RewardRule
+from apps.catalog.models import ContentAsset, ItemDefinition, Quest, RewardRule
 from apps.education.models import ChallengeSpec
 from apps.users.models import AgeBand
 
@@ -47,6 +47,8 @@ LEAP_FEATHER_KEY = "PIRATES_LEAP_FEATHER_FOUND"
 LEAP_SIGNPOST_ID = "cove-leap-signpost"
 LEAP_SHELL_ID = "cove-leap-shell"
 LEAP_FEATHER_ID = "cove-leap-feather"
+# The feather's asset library model (owner-supplied, imported with `--category feather`).
+LEAP_FEATHER_ASSET = "feather"
 LEDGE_TOP = 3.2
 NEST_TOP = 3.4
 
@@ -277,6 +279,8 @@ def seed_pirates_leap(region: WorldRegion, get_or_create) -> list[str]:
                 "pickup_reward_rule": rules[rule_id],
             },
         )
+    if link_feather_model(region):
+        notes.append(f"{LEAP_FEATHER_ID} now names the {LEAP_FEATHER_ASSET!r} model")
     get_or_create(
         TreasureChest,
         {"region": region, "entity_id": LEAP_RIDDLE_ID},
@@ -316,6 +320,22 @@ def seed_pirates_leap(region: WorldRegion, get_or_create) -> list[str]:
         },
     )
     return notes
+
+
+def link_feather_model(region: WorldRegion) -> bool:
+    """Points the Parrot Feather at the `feather` model once that asset exists (Feather defect).
+
+    Only a feather placement with no model yet is changed, so an administrator's own choice is
+    kept; its id, label, pickup key and reward rule are untouched, so a child who already found
+    the feather keeps it. Until the asset exists (or while it is unpublished) the game draws its
+    primitive feather, never a key. Returns whether anything changed.
+    """
+    if not ContentAsset.objects.filter(asset_id=LEAP_FEATHER_ASSET).exists():
+        return False
+    changed = WorldObjectPlacement.objects.filter(
+        region=region, entity_id=LEAP_FEATHER_ID, asset_id=""
+    ).update(asset_id=LEAP_FEATHER_ASSET)
+    return changed > 0
 
 
 def leap_rows(region: WorldRegion) -> dict:

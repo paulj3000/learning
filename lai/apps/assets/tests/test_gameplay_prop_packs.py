@@ -5,6 +5,7 @@ a fixture, so these run without the owner's files.
 """
 
 import dataclasses
+import json
 import zipfile
 from io import StringIO
 
@@ -15,6 +16,7 @@ from apps.assets import gltf_prep, model_packs
 from apps.assets.collision import profile_for, runtime_collision
 from apps.assets.model_packs import KENNEY_CAMPFIRE, import_pack
 from apps.assets.models import AssetVersion, CollisionProfile, VersionStatus
+from apps.assets.storage import get_storage
 from apps.catalog.models import ContentAsset
 
 from .pack_files import pack_glb, rgba_png
@@ -187,3 +189,78 @@ def test_children_are_left_out_unless_asked_for(kenney_zip):
     )
     report = import_pack(single, kenney_zip, dry_run=True)
     assert report.imported[0]["triangles"] == 12
+
+
+# --- the Pirate's Leap feather (CC-BY-4.0: held back until the owner accepts it) ----------------
+
+
+def sketchfab_style_zip(tmp_path):
+    """Like the supplied feather: a .gltf + .bin whose mesh node sits under a matrix-turned root,
+    with no texture, in a ZIP with its licence."""
+    built = pack_glb({"Object_2": (0.19, 0.17, 6.8)}, scale=1.0)
+    document, binary = gltf_prep.read_glb(built)
+    document["buffers"] = [{"byteLength": len(binary), "uri": "scene.bin"}]
+    document["nodes"][0] = {"name": "Sketchfab_model", "children": [1], "matrix": [
+        1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1
+    ]}  # fmt: skip
+    document["nodes"][1].pop("translation")
+    document["asset"]["extras"] = {"license": "CC-BY-4.0", "author": "dudecon"}
+    archive = tmp_path / "light_princess_feather_lowpoly.zip"
+    with zipfile.ZipFile(archive, "w") as out:
+        out.writestr("scene.gltf", json.dumps(document))
+        out.writestr("scene.bin", binary)
+        out.writestr("license.txt", "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)")
+    return archive
+
+
+def test_the_feather_pack_records_cc_by_and_is_not_confirmed():
+    pack = model_packs.DUDECON_FEATHER
+    assert pack.group == "feather" and pack.author == "dudecon"
+    assert pack.licence_id == "CC-BY-4.0" and not pack.licence_confirmed
+    assert pack.licence_url == "https://creativecommons.org/licenses/by/4.0/"
+    assert 'by dudecon (https://sketchfab.com/dudecon) licensed under CC-BY-4.0' in pack.attribution
+    (model,) = pack.models
+    assert model.asset_id == "feather" and model.fit == ("y", 0.55)
+    assert dict(model.collision) == {"shape": "NONE", "behavior": "DECORATIVE"}
+
+
+def test_the_feather_is_imported_and_validated_but_not_published_by_default(tmp_path, local_dev):
+    report = import_pack(model_packs.DUDECON_FEATHER, sketchfab_style_zip(tmp_path), publish=True)
+    assert report.unresolved == []
+    assert report.published == []
+    assert report.unpublished == [
+        {"asset": "feather", "node": "Object_2", "version": 1, "reason": "licence_unconfirmed"}
+    ]
+    version = AssetVersion.objects.get(asset__asset_id="feather")
+    assert version.status == VersionStatus.VALIDATED
+    assert version.dimensions["y"] == pytest.approx(0.55)
+    provenance = version.metadata["provenance"]
+    assert provenance["licenceStatus"] == "unconfirmed"
+    assert provenance["licenceId"] == "CC-BY-4.0"
+    assert "dudecon" in provenance["attribution"]
+    assert provenance["author"] == "dudecon"
+    asset = ContentAsset.objects.get(asset_id="feather")
+    profile = CollisionProfile.objects.get(asset=asset, version__isnull=True)
+    assert (profile.shape, profile.behavior) == ("NONE", "DECORATIVE")
+    assert runtime_collision(profile_for(asset, version), version)["boxes"] == []
+
+
+def test_the_feather_publishes_once_the_owner_accepts_cc_by(tmp_path, local_dev):
+    archive = sketchfab_style_zip(tmp_path)
+    import_pack(model_packs.DUDECON_FEATHER, archive, publish=True)
+    report = import_pack(
+        model_packs.DUDECON_FEATHER, archive, publish=True, licence_confirmed=True
+    )
+    assert [item["asset"] for item in report.published] == ["feather"]
+    asset = ContentAsset.objects.get(asset_id="feather")
+    assert asset.versions.count() == 1  # the same version, not a second one
+    assert asset.default_version.status == VersionStatus.PUBLISHED
+
+
+def test_the_prepared_feather_carries_its_attribution(tmp_path):
+    report = import_pack(model_packs.DUDECON_FEATHER, sketchfab_style_zip(tmp_path))
+    assert report.imported[0]["triangles"] == 12
+    version = AssetVersion.objects.get(asset__asset_id="feather")
+    with get_storage().open(version.storage_key) as stored:
+        document, _binary = gltf_prep.read_glb(stored.read())
+    assert document["asset"]["copyright"] == model_packs.DUDECON_FEATHER_ATTRIBUTION

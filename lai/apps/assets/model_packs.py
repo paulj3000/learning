@@ -445,7 +445,7 @@ NATURE_GRASS = _nature_pack(
     ),
 )
 
-# --- Gameplay props (2026-11-15): the campfire --------------------------------------------------------------
+# --- Gameplay props (2026-11-15): the campfire and the Pirate's Leap feather ---------------------
 # Kenney's Survival Kit 2.0 ships its own License.txt: Creative Commons Zero (CC0), "personal,
 # educational, and commercial purposes", crediting Kenney optional. Only `campfire-pit` (a stone
 # ring with crossed logs, no flames: the game adds a small flickering flame) is imported; its GLB
@@ -503,6 +503,67 @@ KENNEY_CAMPFIRE = ModelPack(
     max_texture_size=512,
 )
 
+# The owner supplied light_princess_feather_lowpoly.zip for the Pirate's Leap Parrot Feather.
+# The brief named Pixor's CC0 feather, but this file is a different model: its own license.txt
+# and glTF `asset.extras` say "Light Princess Feather LowPoly" by dudecon on Sketchfab,
+# CC-BY-4.0 (attribution required, commercial use allowed). So it is imported and validated but
+# NOT published unless the owner accepts CC-BY-4.0 with the credit below
+# (`--licence-confirmed`). Until then the game draws its procedural feather, never a key.
+DUDECON_FEATHER_ATTRIBUTION = (
+    'This work is based on "Light Princess Feather LowPoly" '
+    "(https://sketchfab.com/3d-models/"
+    "light-princess-feather-lowpoly-d423b5a3e60c43faa21953c9b14e105b) "
+    "by dudecon (https://sketchfab.com/dudecon) licensed under CC-BY-4.0 "
+    "(http://creativecommons.org/licenses/by/4.0/)"
+)
+DUDECON_FEATHER = ModelPack(
+    pack_id="dudecon-light-princess-feather",
+    group="feather",
+    title="Light Princess Feather LowPoly",
+    author="dudecon",
+    licence="Creative Commons Attribution 4.0 International",
+    licence_url="https://creativecommons.org/licenses/by/4.0/",
+    licence_id="CC-BY-4.0",
+    attribution=DUDECON_FEATHER_ATTRIBUTION,
+    licence_evidence=(
+        "license.txt and the glTF asset.extras in the owner-supplied "
+        "light_princess_feather_lowpoly.zip: 'CC-BY-4.0 (http://creativecommons.org/licenses/by/"
+        "4.0/)', 'Author must be credited. Commercial use is allowed.' Not the Pixor CC0 feather "
+        "the brief named; the owner pointed to a further licence page that could not be reached "
+        "from the development environment."
+    ),
+    licence_confirmed=False,
+    source_pages=(
+        "https://sketchfab.com/3d-models/"
+        "light-princess-feather-lowpoly-d423b5a3e60c43faa21953c9b14e105b",
+    ),
+    usage="Pirate's Leap Parrot Feather collectible (cove-leap-feather).",
+    kind="prop",
+    category=AssetCategory.PROP,
+    tags=("collectible", "feather", "pirates-leap", "treasure-rush", "cc-by"),
+    models=(
+        PackModel(
+            "feather",
+            "Object_2",
+            "Feather",
+            "A single low-poly feather standing upright, 0.55 m tall: big enough for a child to "
+            "spot as a pickup. Golden, untextured. dudecon, Light Princess Feather LowPoly "
+            "(CC-BY-4.0).",
+            source_url=(
+                "https://sketchfab.com/3d-models/"
+                "light-princess-feather-lowpoly-d423b5a3e60c43faa21953c9b14e105b"
+            ),
+            # scene.gltf with its scene.bin, as the importer digests them.
+            known_source_sha256="e9daf3bea8bccea5f129516300e2162220ae6650df7378fd58a8d3539cc5c0ea",
+            fit=("y", 0.55),
+            center_footprint=True,
+            # A collectible: picked up, never walked into.
+            collision=(("shape", "NONE"), ("behavior", "DECORATIVE")),
+        ),
+    ),
+    max_texture_size=256,
+)
+
 PACKS = {
     pack.pack_id: pack
     for pack in (
@@ -513,6 +574,7 @@ PACKS = {
         NATURE_FLOWERS,
         NATURE_GRASS,
         KENNEY_CAMPFIRE,
+        DUDECON_FEATHER,
     )
 }
 GROUPS = tuple(dict.fromkeys(pack.group for pack in PACKS.values()))

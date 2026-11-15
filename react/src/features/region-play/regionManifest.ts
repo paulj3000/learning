@@ -1,4 +1,5 @@
 import type { PlatformingSpec } from '../island-map/three/platforms/platformSpec';
+import { pickupLook } from './pickupLook';
 import type { RegionCheckpoint } from '../discovery/checkpoints';
 import type { JsonObject, JsonValue } from '../../api/parse';
 import {
@@ -316,7 +317,8 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       config.interactions.push({ interactionId, kind, entityId: entity.entityId, npcId: null });
     } else if (entity.pickup) {
       // TR-14: a collectible picked up through the play API. Once picked up it is not drawn
-      // again; until then the extension draws it (a key has no catalogue model yet).
+      // again; until then the extension draws it: its model when the catalog can deliver one,
+      // else a primitive that looks like what it is (a feather, a shell, a key: `pickupLook`).
       if (entity.collected) continue;
       const interactionId = `${regionId}:pickup:${entity.entityId}`;
       props.push(drawnProp(entity, interactionId, REGION_ACTIONS.pickUp));
@@ -328,7 +330,11 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         targetId: entity.entityId,
         action: { kind: 'SHOW_MESSAGE', message: entity.label },
       });
-      config.pickups?.push({ entityId: entity.entityId });
+      config.pickups?.push({
+        entityId: entity.entityId,
+        ...(entity.assetId && deliverable(entity.assetId) ? { assetId: entity.assetId } : {}),
+        look: pickupLook(entity),
+      });
       config.interactions.push({
         interactionId,
         kind: 'pickup',

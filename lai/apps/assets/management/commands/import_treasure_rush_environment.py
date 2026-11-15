@@ -6,14 +6,17 @@
     python manage.py import_treasure_rush_environment --source DIR --publish --licence-confirmed
     python manage.py import_treasure_rush_environment --source kenney_survival-kit.zip \
         --category campfire --publish
+    python manage.py import_treasure_rush_environment --source light_princess_feather_lowpoly.zip \
+        --category feather --publish [--licence-confirmed]
 
 `--source` is a downloaded GLB, a ZIP, or a directory holding them (palms, barrels, logs, mixed);
 it is read, never written, and should live outside the repository. Each declared model is found
 by its node name, prepared (one model per file, Y-up, grounded, sized, smaller textures),
 validated, and stored through the configured asset storage as a VALIDATED version. `--category`
 limits the run to `palms`, `barrels`, `logs`, `bushes`, `flowers` or `grass`, `vegetation`
-(those three), or `campfire` (Kenney's Survival Kit campfire pit, with its default solid
-collision profile); `rocks`, `ferns` and `coconuts` are refused because none were supplied.
+(those three), `campfire` (Kenney's Survival Kit campfire pit, with its default solid
+collision profile), or `feather` (the Pirate's Leap feather: CC-BY-4.0, so published only with
+`--licence-confirmed`, the owner's acceptance of the attribution it requires); `rocks`, `ferns` and `coconuts` are refused because none were supplied.
 
 Publishing (`--publish`) is refused outside local development, and skips any pack whose licence
 the owner has not confirmed unless `--licence-confirmed` records that they now have. With S3

@@ -159,3 +159,41 @@ def test_a_wrong_answer_never_opens_the_chest(play):
     assert play.chest(leap.LEAP_CHEST_ID)["isOpen"] is False
     assert WorldRegion.objects.filter(region_id=REGION).exists()
     assert right(issued["attemptId"]) is not None
+
+def test_the_feather_names_its_model_once_imported_and_keeps_a_childs_find(play):
+    """Feather defect: the placement gains the `feather` model when the asset exists; its id,
+    pickup key and reward are unchanged, so a feather already found stays found."""
+    from apps.catalog.models import ContentAsset
+    from apps.regions.models import WorldObjectPlacement
+
+    region = WorldRegion.objects.get(region_id=REGION)
+    feather = WorldObjectPlacement.objects.get(region=region, entity_id=leap.LEAP_FEATHER_ID)
+    assert feather.asset_id == ""
+    # Not imported yet: nothing changes.
+    assert leap.link_feather_model(region) is False
+    # A child picks it up before the model exists.
+    assert play.pickup(leap.LEAP_FEATHER_ID).status_code in (200, 201)
+    assert owned(play.child, "pirates-leap-feather") == 1
+
+    ContentAsset.objects.create(
+        asset_id="feather", kind="prop", category="prop", display_name="Feather", origin="DJANGO"
+    )
+    assert leap.link_feather_model(region) is True
+    feather.refresh_from_db()
+    assert feather.asset_id == "feather"
+    feather.full_clean()  # a valid reference for a collectible
+    assert (feather.pickup_change_key, feather.pickup_reward_rule.rule_id) == (
+        leap.LEAP_FEATHER_KEY,
+        "reward-pirates-leap-feather",
+    )
+    # Idempotent, and an administrator's own choice is never replaced.
+    assert leap.link_feather_model(region) is False
+    WorldObjectPlacement.objects.filter(pk=feather.pk).update(asset_id="prop-wooden-barrel")
+    assert leap.link_feather_model(region) is False
+    # The child's find survives (same entity id, same item).
+    assert owned(play.child, "pirates-leap-feather") == 1
+    play.pickup(leap.LEAP_FEATHER_ID)
+    assert owned(play.child, "pirates-leap-feather") == 1
+    # The play API still serves the feather by its id, now naming its model.
+    served = {o["entityId"]: o for o in play.region()["objects"]}
+    assert served[leap.LEAP_FEATHER_ID]["collected"] is True

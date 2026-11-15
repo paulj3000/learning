@@ -33,6 +33,7 @@ import {
   type RegionPlayChestConfig,
 } from '../../../../region-play/regionPlayConfig';
 import type { NpcHostScene } from '../../../../npc-manager/host/types';
+import type { PickupLook } from '../../../../region-play/pickupLook';
 import { buildFireflies, shimmerWater } from './livingCove';
 import { mountInstancedModels, type ModelPlacement } from './instancedModels';
 import { buildProceduralScenery } from './proceduralScenery';
@@ -185,6 +186,12 @@ const PROP_COLLIDER_MAX_Y = 3;
 
 /** Names, so tests and debugging can find them (TR-14). */
 export const KEY_NAME = 'region-play:key';
+/** A pickup's holder (`${PICKUP_NAME}:${entityId}`), its primitive looks, and a drawn model. */
+export const PICKUP_NAME = 'region-play:pickup';
+export const FEATHER_NAME = 'region-play:feather';
+export const SHELL_NAME = 'region-play:shell';
+export const GEM_NAME = 'region-play:gem';
+export const PICKUP_MODEL_NAME = 'region-play:pickup-model';
 export const RUNE_STONE_NAME = 'region-play:rune-stone';
 export const RUNE_LABEL_NAME = 'region-play:rune-label';
 const STONE = 0x8f8a80;
@@ -202,6 +209,12 @@ export const BOUNCE_SECONDS = 0.8;
 const WOOD = 0x8a5a2b;
 const TRIM = 0xd4a937;
 const GOLD = 0xf2c94c;
+const FEATHER_QUILL = 0xf3ead2;
+const FEATHER_RED = 0xe0453a;
+const FEATHER_BLUE = 0x2f7fd8;
+const SHELL_PINK = 0xf6b8b0;
+const SHELL_RIB = 0xe89488;
+const GEM_TEAL = 0x5fd6c6;
 const FIGURE = 0x2f8f4e;
 /** How far a built lid swings back when open, in radians. */
 export const OPEN_LID_ANGLE = -1.9;
@@ -239,6 +252,8 @@ export const regionPlaySceneExtension: WorldExtension = {
         // delivered (the manifest builder drops the rest).
         ...(parsed.procedural ?? []).flatMap((entry) => (entry.assetId ? [entry.assetId] : [])),
         ...(parsed.props ?? []).map((prop) => prop.assetId),
+        // The feather (and any pickup with a deliverable model).
+        ...(parsed.pickups ?? []).flatMap((pickup) => (pickup.assetId ? [pickup.assetId] : [])),
         ...(parsed.vegetation ?? []).map((plant) => plant.assetId),
       ]),
     ];
@@ -364,16 +379,40 @@ export const regionPlaySceneExtension: WorldExtension = {
       );
     }
 
-    // TR-14: pickups (the key), drawn here until a catalogue model exists, and gone once taken.
+    // TR-14: pickups, gone once taken. Each is drawn as what it is (Feather defect: every pickup
+    // used to be the gold key): its asset library model when deliverable, else a primitive
+    // feather, shell, key or gem (`pickupLook.ts`). The holder hovers and turns either way.
     const pickups = new Map<string, Object3D>();
     const collected = new Set<string>();
     for (const pickup of config.pickups ?? []) {
       const root = context.entityRoot(pickup.entityId);
       if (!root) continue;
-      const key = builtKey(own);
-      root.add(key);
-      pickups.set(pickup.entityId, key);
+      const holder = new Group();
+      holder.name = `${PICKUP_NAME}:${pickup.entityId}`;
+      const look = pickup.look ?? 'GEM';
+      const primitive = PICKUP_BUILDERS[look](own);
+      holder.add(primitive);
+      root.add(holder);
+      pickups.set(pickup.entityId, holder);
       addBeacon(pickup.entityId, 0.3, () => !collected.has(pickup.entityId));
+      if (!pickup.assetId) continue;
+      const assetId = pickup.assetId;
+      context
+        .loadModel(assetId)
+        .then((asset) => {
+          if (disposed || collected.has(pickup.entityId)) return;
+          const model = cloneAssetScene(asset.scene);
+          model.name = `${PICKUP_MODEL_NAME}:${assetId}`;
+          primitive.removeFromParent();
+          holder.add(model);
+        })
+        .catch((error: unknown) => {
+          // A model that fails to load keeps the primitive (never a key unless it is a key).
+          console.warn(
+            `[region-play] pickup ${pickup.entityId}: could not load "${assetId}"; drawing the ${look.toLowerCase()} stand-in`,
+            error,
+          );
+        });
     }
 
     // TR-14: rune stones a puzzle is answered with, each with a number while its challenge is out.
@@ -756,8 +795,66 @@ function puzzleState(solved: boolean): DrawnChest {
   return drawn;
 }
 
+type Own = (geometry: BufferGeometry, color: number) => Mesh;
+
+/** The primitive for each pickup look. */
+const PICKUP_BUILDERS: Readonly<Record<PickupLook, (own: Own) => Group>> = {
+  FEATHER: builtFeather,
+  SHELL: builtShell,
+  KEY: builtKey,
+  GEM: builtGem,
+};
+
+/**
+ * A feather from primitives, about 0.5 m tall and standing up, so it reads as a feather from
+ * across the trail: a flattened leaf-shaped vane in bright parrot colours on a pale quill.
+ */
+function builtFeather(own: Own): Group {
+  const feather = new Group();
+  feather.name = FEATHER_NAME;
+  const quill = own(new CylinderGeometry(0.012, 0.02, 0.5, 6).translate(0, 0.25, 0), FEATHER_QUILL);
+  const vane = own(
+    new SphereGeometry(0.1, 10, 8).scale(0.9, 2.1, 0.18).translate(0, 0.28, 0),
+    FEATHER_RED,
+  );
+  const tip = own(
+    new SphereGeometry(0.07, 8, 6).scale(0.8, 1.4, 0.2).translate(0, 0.43, 0.004),
+    FEATHER_BLUE,
+  );
+  feather.add(quill, vane, tip);
+  // A little lean, as a feather lands, without hiding which way is up.
+  feather.rotation.z = 0.18;
+  return feather;
+}
+
+/** A pink scallop shell from primitives: a fan of ribs over a half dome. */
+function builtShell(own: Own): Group {
+  const shell = new Group();
+  shell.name = SHELL_NAME;
+  const dome = own(
+    new SphereGeometry(0.16, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.55, 1),
+    SHELL_PINK,
+  );
+  shell.add(dome);
+  for (let i = 0; i < 5; i += 1) {
+    const rib = own(new BoxGeometry(0.02, 0.03, 0.17).translate(0, 0.07, 0.07), SHELL_RIB);
+    rib.rotation.y = (i - 2) * 0.4;
+    shell.add(rib);
+  }
+  shell.rotation.x = -0.6; // tipped toward the child, ribs showing
+  return shell;
+}
+
+/** A neutral sparkling gem: what an unknown pickup looks like (never a key). */
+function builtGem(own: Own): Group {
+  const gem = new Group();
+  gem.name = GEM_NAME;
+  gem.add(own(new OctahedronGeometry(0.14), GEM_TEAL));
+  return gem;
+}
+
 /** A gold key from primitives (TR-14), until `treasure-key` exists as a model. */
-function builtKey(own: (geometry: BufferGeometry, color: number) => Mesh): Group {
+function builtKey(own: Own): Group {
   const key = new Group();
   key.name = KEY_NAME;
   const bow = own(new TorusGeometry(0.1, 0.03, 6, 12), GOLD);

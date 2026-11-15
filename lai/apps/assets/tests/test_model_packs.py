@@ -468,9 +468,9 @@ def test_command_refusals(real_source, tmp_path):
 
 def test_the_declared_packs_are_well_formed_and_reusable():
     ids = [model.asset_id for pack in PACKS.values() for model in pack.models]
-    assert len(ids) == len(set(ids)) == 19
+    assert len(ids) == len(set(ids)) == 20
     assert set(model_packs.GROUPS) == {
-        "palms", "barrels", "logs", "bushes", "flowers", "grass", "campfire"
+        "palms", "barrels", "logs", "bushes", "flowers", "grass", "campfire", "feather"
     }
     environment = [p for p in PACKS.values() if p.group not in ("campfire", "feather")]
     for pack in PACKS.values():

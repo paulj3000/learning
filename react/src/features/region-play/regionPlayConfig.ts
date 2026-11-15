@@ -1,4 +1,5 @@
 import type { JsonValue } from '../island-map/three/runtime/locationManifest';
+import { isPickupLook, type PickupLook } from './pickupLook';
 
 /** The region-play extension's id (TR-7). Here, not in `regionManifest.ts`, so the engine-side
  * scene can import it without reaching the API types that module parses (LAI-0203). */
@@ -23,6 +24,13 @@ export interface RegionPlayChestConfig {
 /** A collectible the child picks up through the play API (TR-14), drawn by the extension. */
 export interface RegionPlayPickupConfig {
   entityId: string;
+  /** Its asset library model, only when the catalog can deliver it (the feather). */
+  assetId?: string;
+  /**
+   * What to draw until (or unless) the model is drawn: a feather, a shell, a key or a gem
+   * (`pickupLook.ts`). Absent in configs built before it: a gem, never a key by default.
+   */
+  look?: PickupLook;
 }
 
 /** An object that answers a puzzle by being touched (TR-14): choice `index` of `puzzleEntityId`. */
@@ -641,7 +649,13 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
       ? []
       : list(config.pickups, (item) => {
           const entityId = text(item.entityId);
-          return entityId ? { entityId } : undefined;
+          if (!entityId) return undefined;
+          const assetId = text(item.assetId);
+          return {
+            entityId,
+            ...(assetId ? { assetId } : {}),
+            ...(isPickupLook(item.look) ? { look: item.look } : {}),
+          };
         });
   const runes =
     config.runes === undefined
