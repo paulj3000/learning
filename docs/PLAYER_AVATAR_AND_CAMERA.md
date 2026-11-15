@@ -117,6 +117,18 @@ States from the controller: Idle, Walk, Jump Start, Airborne, Falling, Landing; 
 | Landing | back to `Walk` or `Idle` | same |
 | Interact | `Point`, else `Wave`, once | nothing |
 
+**Movement, not input, picks the clip (ADR-060).** Walk and Run play only while the child's own
+walking really covers ground (`FirstPersonController.locomotionSpeed`): blocked by a wall is
+Idle, sliding along one is Walk, and standing on a moving platform is Idle. **No root motion from
+any rig:** `withoutRootMotionFor` drops position tracks on the model's top-level nodes and keeps
+only the vertical motion of the skeleton's root bones (a Mixamo walk's hips travel forward 1 to
+1.5 m per cycle otherwise, which once walked the avatar away from a stopped camera).
+
+**Camera boom lift.** When a wall behind the child pulls the third-person camera closer than
+1.2 m, the boom eases up (a steeper look down, up to the third-person limit) wherever that gives
+room to show the child, never through a wall, slower under reduced motion, and settles back once
+clear. It never moves the player.
+
 The controller only changes the animator's state when the state changes (no restarting a clip
 every frame), and crossfades take 0.2 s. `Run` is in the vocabulary and mapped, ready for a
 future run speed; nothing plays it yet. Sprint, swim, climb and emotes would add vocabulary

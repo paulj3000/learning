@@ -71,6 +71,15 @@ the client validates it with the rest of the manifest.
 
 ## Collision and safety rules
 
+- **The child has a body, not a point (ADR-060).** Blocking treats the child as an upright
+  cylinder of `movement.collision.radius` (0.35 m) plus `skin` (0.02 m) around the feet, in both
+  perspectives (`playerCollision.ts`; a location overrides only where it must, 0.15 to 0.6 m).
+  Heights never change: standing on, landing on and riding a box go by the feet first, by the
+  body's edge only where nothing jumpable is underfoot. A child already overlapping something may
+  only move away from it. Gait and movement state follow the distance the child's walking really
+  covered (`locomotionSpeed`), so pushing into a wall is Idle and sliding along it is Walk; a
+  blocked step comes up flush to the obstacle. Development only: `?collisionDebug=1` draws the
+  footprint and nearby colliders (`docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md` section 5).
 - **Solid colliders (the default) block at every height.** They are tested at ground level
   exactly as before, so walking is unchanged and a jump never carries a child over a wall,
   boundary, locked gate, broken bridge, quest barrier or anything an extension adds at runtime.

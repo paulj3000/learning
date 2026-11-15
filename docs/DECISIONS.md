@@ -81,6 +81,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-057 | Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference | Proposed | `feature/player-avatar-assets` (LAI-JMP-01c, PR #28) | Owner QA pending |
 | ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller | Proposed | `feature/player-running` (PR #29) | Owner QA pending |
 | ADR-059 | Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored | Proposed | `feature/interactive-platforms` (LAI-JMP-02, LAI-JMP-04) | Owner QA pending; leaves LAI-0805 open |
+| ADR-060 | The player has a configurable cylindrical footprint, and gait follows the movement collisions allowed | Proposed | `feature/treasure-rush-palm-trees` (movement QA defects, 2026-11-15) | Owner QA pending; radius is a starting value |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4171,3 +4172,42 @@ jumping already behave.
 **Consequences.** Any manifest-driven location can add a course with no engine change.
 Turntable collision is the platform's square (round models approximate). Staff cannot move
 platforms in Django Admin until LAI-0805 is decided. Details: `docs/PLATFORMING.md`.
+
+## ADR-060: The player has a configurable cylindrical footprint, and gait follows the movement collisions allowed
+
+Status: Proposed (2026-11-15, owner QA defects 1 and 2). Development only; awaiting owner QA.
+Amends ADR-055 (collision) and ADR-056 (the avatar mirrors the controller).
+
+**Context.** Owner play-testing found the third-person avatar walking away from a camera that had
+stopped (backing into a wall), and a child able to walk half into Storykeeper Castle's walls. The
+shared controller tested a single point against every collider, chose gait from the velocity it
+asked for rather than what collisions allowed, and `withoutRootMotion` dropped only top-level
+position tracks, leaving a Mixamo walk's travel on its hips bone.
+
+**Decision.**
+
+1. **The child is a vertical cylinder**: `movement.collision.radius` (0.35 m) plus a `skin`
+   (0.02 m), the same in both perspectives, per-location override only where needed
+   (`playerCollision.ts`, validated). Only the horizontal footprint grows; heights never change.
+2. **Blocking is circle-versus-box**; standing, landing and riding go by the feet first and by the
+   body's edge only where nothing jumpable is underfoot, so no barrel or platform gets taller.
+   A child already overlapping a box may only move away from it.
+3. **Gait, movement state and walk playback come from the distance the child's own walking
+   really covered** (`locomotionSpeed`), not from the velocity requested; platform carry is not
+   walking. A blocked step comes up flush to the obstacle, so contacts never flicker.
+4. **No root motion from any rig**: position tracks on the model's top-level nodes are dropped
+   and the skeleton root bones keep only their vertical motion (`withoutRootMotionFor`).
+5. **The third-person boom may lift**, eased and slower under reduced motion, over a wall behind
+   the child when pulling in would hide them; it never moves the player or enters a wall.
+
+**Why 0.35 m.** The placeholder explorer's body is 0.27 m in radius; a typical published
+character is about 0.23 to 0.28 m at the shoulders. 0.35 m keeps the visible body out of a wall
+face with a small margin and passes every authored doorway (2 m in the castle). It is a starting
+value within the 0.30 to 0.45 m band, not an objective truth; owner QA may tune it. Swinging arms,
+wings and held items are deliberately not counted, so the footprint is stable across frames.
+
+**Consequences.** Children stop about 0.37 m from walls and solid props (was 0); Pirate Builder
+Bay's broken bridge stops them 0.37 m earlier. Storykeeper Castle's costume racks moved back 0.7 m
+so the Trophy Room door's landing point stays clear. A development-only collision view
+(`?collisionDebug=1`) shows the footprint, both positions and nearby colliders.
+

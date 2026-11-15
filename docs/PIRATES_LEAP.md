@@ -106,3 +106,12 @@ gold pressure plate and a training-course arch. The course uses procedural block
 - Django: `lai/apps/game_sessions/tests/test_pirates_leap.py` (seed and versioning, snapshot, no
   jump needed, quest offered, treasure completes the quest and rewards once, replay grants nothing,
   the riddle is optional, collectibles once, child ownership, wrong answers open nothing).
+
+## The Parrot Feather's look (2026-11-15)
+
+Pickups used to be drawn as the gold key whatever they were, so the feather and the shell looked
+like keys. They are now drawn as a feather, a shell (and the brass key as a key), and the feather
+as the `feather` asset library model once published; the seed links `cove-leap-feather` to it
+when the asset exists. Ids, pickup keys and rewards are unchanged. See
+`docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`.
+

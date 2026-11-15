@@ -1029,6 +1029,21 @@ python manage.py import_treasure_rush_environment --source /path/to/nature-kit -
 python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --publish --licence-confirmed
 ```
 
+### 23.9 Gameplay props: the campfire and the feather (2026-11-15)
+
+Two more groups in the same importer: `campfire` (Kenney Survival Kit 2.0, CC0: asset
+`campfire`) and `feather` (dudecon, CC-BY-4.0: asset `feather`, held unpublished until the
+owner passes `--licence-confirmed`). Three importer additions, for any pack:
+
+- **Child meshes** (`PackModel.include_children`): the node's descendants are baked in through
+  their own transforms (Kenney's logs are a child of the stone ring).
+- **Textures a GLB names by file** (`gltf_prep.embed_external_images`): embedded from the same
+  source, looked up by plain file name only; a path that tries to leave the source is refused.
+- **A default collision profile** (`PackModel.collision`): created when the asset has none; an
+  administrator's own profile is never replaced. Reported by the command.
+
+Commands, Django Admin steps and QA: `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`.
+
 ## 24. Collision profiles (Asset Manager, 2026-11-14)
 
 Staff configure how a 3D asset blocks movement wherever it is placed: **Assets > Collision

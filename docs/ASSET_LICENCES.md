@@ -125,6 +125,20 @@ before, are unchanged: their definitions carry the full record, and each version
 
 ---
 
+## Gameplay models — served from the asset library, never in this repository (2026-11-15)
+
+Supplied by the owner on 2026-11-15 and declared in `apps/assets/model_packs.py`
+(`KENNEY_CAMPFIRE`, `DUDECON_FEATHER`); details in `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`.
+
+| Asset id | Source | Licence | Attribution owed | Publication |
+| --- | --- | --- | --- | --- |
+| `campfire` | Kenney, Survival Kit 2.0, `campfire-pit.glb` + `colormap.png`, https://kenney.nl/assets/survival-kit | CC0 1.0 (`License.txt` in the ZIP) | None (Kenney credited in provenance) | Allowed |
+| `feather` | dudecon, "Light Princess Feather LowPoly", https://sketchfab.com/3d-models/light-princess-feather-lowpoly-d423b5a3e60c43faa21953c9b14e105b | **CC-BY-4.0** (`license.txt` and glTF `asset.extras`), https://creativecommons.org/licenses/by/4.0/ | **Yes**: the credit recorded in provenance and in the file's `asset.copyright` | Held until the owner accepts CC-BY-4.0 (`--licence-confirmed`) |
+
+The feather is not the Pixor CC0 feather the request named. Modifications: each model extracted
+to its own file, grounded, centred and uniformly scaled (campfire to 1.1 m across with its logs
+child baked in and its texture embedded; feather to 0.55 m tall).
+
 ## Models — shipped to users
 
 | File | Source | Licence | Attribution owed |

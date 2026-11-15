@@ -42,6 +42,28 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Movement defects, campfire and feather (2026-11-15, `feature/treasure-rush-palm-trees`); development complete, owner QA pending, NOT merged
+
+Owner guide: `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`. Decision: ADR-060 (Proposed).
+
+- **P0 avatar drift (fixed):** root motion on a skeleton root bone (Mixamo hips) is now pinned
+  horizontally (`withoutRootMotionFor`); gait, movement state and walk playback follow the
+  distance really covered (`locomotionSpeed`); blocked steps come up flush (no flicker); the
+  third-person boom lifts gently over a wall behind the child.
+- **P0 wall penetration (fixed):** the child is a 0.35 m (+0.02 m skin) cylinder in both
+  perspectives (`playerCollision.ts`, `movement.collision`); costume racks moved back so the
+  Trophy Room door's landing is clear; a development-only collision view (`?collisionDebug=1`).
+- **P1 campfire:** asset `campfire` (Kenney Survival Kit, CC0) via `import_treasure_rush_environment
+  --category campfire`, with a default SOLID cylinder profile; Treasure Cove layout v9 draws it at
+  `cove-campfire` with the primitive flame on top; primitive fallback.
+- **P1 feather (fixed):** every region pickup was drawn as a key (`builtKey`); pickups now look
+  like what they are (`pickupLook.ts`) and draw their published model. Asset `feather` imports
+  with `--category feather` but is **CC-BY-4.0** (not the Pixor CC0 model named), so it is held
+  unpublished unless the owner passes `--licence-confirmed`; the seed links `cove-leap-feather`
+  to it once the asset exists. Saved progress unchanged (same ids).
+- Not done: browser, WebGL, device and gamepad checks; the owner's own import (no model was
+  uploaded to the owner's database or storage); owner QA. No migration. Nothing deployed.
+
 ## Integration: gameplay and environment assets (2026-11-14, `integration/gameplay-environment-qa`); development checks pass, owner QA pending, NOT merged
 
 Combines `feature/pirates-leap` (all P1 gameplay, Cognito-direct, Django-only), `feature/treasure-rush-palm-trees`
