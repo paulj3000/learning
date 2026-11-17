@@ -136,6 +136,18 @@ included) the object is deleted, no row or job remains, and the upload fails wit
 stored."). Any other failure also deletes the object and re-raises. Admin tells staff the version
 was stored as a draft and is being validated in the background.
 
+Other callers of `upload_version` with the flag on:
+
+- `manage.py import_assets` (`importer.py`) imports a GLB as a `DRAFT` with a queued job and
+  reports it as `Imported (DRAFT, background validation queued)`; every imported entry carries
+  its version's status (`docs/ASSET_LIBRARY.md` section 11). It never publishes.
+- `manage.py add_pip_pirate_variant` (NPC Manager) uploads the pirate GLB and publishes it. When
+  the upload is a `DRAFT` (a queue backend), it prints "Model: queued for background validation;
+  rerun this command after it passes." and exits cleanly before publishing, creating the variant,
+  moving the placement or publishing an NPC release. A rerun finds the same file (no second
+  version); once it is `VALIDATED` with a passing job the rerun publishes it and continues. With
+  the inline backend the draft is validated before the upload returns, so one run completes.
+
 ## 7. Django Admin
 
 On the asset version change page, a read-only **Background validation** section appears when
@@ -150,14 +162,33 @@ the flag is on or the version has a validation job (otherwise the page is unchan
   materials, textures, skins and animation clips (exact names, durations).
 
 Every value is escaped (`format_html`). Only a passing verdict for exactly this version's file is
-reported as passed; a pass by an older processor version says a new validation is needed.
+reported as passed; a pass by an older processor version says a new validation is needed. The
+Processing status also says whether publishing is allowed now ("Publishing: allowed now", "not
+allowed now (`code`)" with the reason, or "this version is published"). It comes from the gate
+itself, `services.publish_refusal` (asset active, `VALIDATED`, and `_has_passing_validation` when
+asynchronous validation applies), the same checks `publish_version` runs before it re-reads the
+stored file. Animation clip names are shown verbatim in `<code>` with `white-space: pre`, so
+`"Idle "` and `"Idle"` differ visibly; an empty name is "(empty name)" and a missing one "(no
+name)".
+
+**Saving the change page** writes only the editable field (`notes`, `EDITABLE_FIELDS` in
+`admin.py`) with `save(update_fields=...)`, so the model's transition and immutability checks
+still run. It never writes the row as it was loaded: a result applied while the form was open
+(`DRAFT` to `VALIDATED`, the report and `metadata["model_validation"]`) is kept. The change is
+recorded in the admin history as before.
 
 **Validate in background** (bulk action; staff with upload and view permission on asset
-versions; at most 50 versions per run): submits `asset.validate_model` for each selected GLB of
-an active asset, or reports the existing job for the same file (section 9 says exactly when a new
-job is made). It works whatever the flag says and never changes the version. It is the way to revalidate an existing or published model
-without rewriting its metadata (a non-draft gets `result_recorded`). Retired assets and non-GLB
-formats are refused with a message.
+versions): submits `asset.validate_model` for each selected GLB of an active asset, or reports the
+existing job for the same file (section 9 says exactly when a new job is made). At most 50
+versions are processed per run; when more are selected, a warning says only the first 50 were
+processed. It works whatever the flag says and never changes the version itself. It is the way
+to revalidate an existing or published model without rewriting its metadata (a non-draft gets
+`result_recorded`). Retired assets and non-GLB formats are refused with a message. Each newly
+submitted job is recorded in the version's admin history (`LogEntry`, "Submitted background
+validation job <id>."); a reported existing job is not. When a new job replaces an earlier one,
+the message gives the actual reason: the earlier job failed; its result was not applied (refused
+or superseded); the validator version changed; its verdict was `fail`; or it passed but the
+version is still a draft (recovery, section 9).
 
 ## 8. Publication gate
 
@@ -221,7 +252,8 @@ sees the first one's job), `submit_model_validation` reads the newest job of the
 |---|---|
 | none | submits a new job |
 | `PENDING` or `RUNNING` | returns it (never a duplicate) |
-| `COMPLETED`, outcome `version_validated` or `result_recorded`, verdict `pass` | returns it |
+| `COMPLETED`, outcome `version_validated` or `result_recorded`, verdict `pass`, version not a `DRAFT` | returns it |
+| `COMPLETED`, verdict `pass`, but the version is still a `DRAFT` | submits a new job (recovery; see below) |
 | `COMPLETED`, verdict `fail` (`version_rejected`, or `result_recorded` for a non-draft) | submits a new job (explicit action only; see below) |
 | `COMPLETED`, refused or not applied (`*_mismatch`, `result_invalid`, `version_missing`, `result_superseded`) | submits a new job |
 | `FAILED`, any code: `timeout` (swept, DLQ), `submit_failed`, `marked_failed` (operator), `cancelled`, `job_expired`, `input_missing`, `checksum_mismatch`, `resource_limit_exceeded`, `permission_denied`, `invalid_payload`, `internal_error` | submits a new job |
@@ -235,6 +267,14 @@ a file the worker can never read: each attempt costs up to 3 Lambda receives and
 times out), so the cap is needed. It counts the job rows that exist: failed jobs are kept, so the
 count is effectively per file and processor version; a new processor version or a new upload of
 the file (a new version) starts again, and an operator may delete failed job rows.
+
+**A pass whose version is still a draft.** A passing result moves the draft to `VALIDATED` in the
+transaction that records it, so a `DRAFT` with an applied pass means that change was lost (the
+Admin change form's save is now limited to the notes for this reason). `reusable(job,
+version_status=...)` does not return such a pass; `submit_model_validation` re-reads the version's
+status under the asset lock. Validate in background then submits a new job, which is the newest
+one, so its result applies to the draft (the old job's result is not re-applied). The attempt cap
+still applies; when it is reached the remedy is the same as for exhausted attempts below.
 
 **Cancelled.** `ProcessingJob` has no cancelled status, and none was added. A contract
 `CANCELLED` result (`RetryClass.CANCELLED`) leaves the worker as a non-retryable `TaskError` and

@@ -5,8 +5,9 @@ LAI-LAMBDA-006 and 007, docs/processing/CANONICAL_PATH.md).
   version's stored object and submits it with `apps.jobs.services.submit` (the media queue, the
   transactional outbox), under the asset row lock. The latest job for the same logical work (same
   version, file and processor: the idempotency key) is returned while it is unfinished or holds an
-  accepted pass; otherwise (failed, cancelled, refused, not applied) a new job is submitted, at
-  most `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` per logical work (docs/processing/
+  accepted pass (unless the version is still a draft, so that pass was lost); otherwise (failed,
+  cancelled, refused, not applied) a new job is submitted, at most
+  `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` per logical work (docs/processing/
   ASYNC_MODEL_VALIDATION.md, "Retry and resubmission semantics").
 - `apply(job)` is the kind's handler: `jobs_consume_results` (or the inline backend) calls it once,
   under the job row lock, inside the transaction that records the result. It verifies the
@@ -170,11 +171,16 @@ def max_attempts() -> int:
     return int(getattr(settings, "LAI_ASSET_VALIDATION_MAX_ATTEMPTS", 5))
 
 
-def reusable(job) -> bool:
+def reusable(job, *, version_status: str | None = None) -> bool:
     """True when a resubmission of the same logical work returns `job` instead of a new job: it
     is still pending or running, or it completed with an accepted, passing result. A failed job
     (any code, `timeout`, `cancelled` and `marked_failed` included), a `fail` verdict, a refused
-    result (a mismatch, `result_invalid`, `version_missing`) and a superseded one are not."""
+    result (a mismatch, `result_invalid`, `version_missing`) and a superseded one are not.
+
+    `version_status` is the version's status now. A passing result whose version is still a
+    `DRAFT` is not reused: the pass moved the draft to `VALIDATED` when it was applied, so a draft
+    means that change was lost (for example overwritten by a stale save). A new job lets staff
+    recover by validating again; the attempt cap still bounds it."""
     from apps.jobs.models import JobStatus
 
     if job.status in (JobStatus.PENDING, JobStatus.RUNNING):
@@ -183,6 +189,7 @@ def reusable(job) -> bool:
         job.status == JobStatus.COMPLETED
         and job.subject_outcome in _REUSED_PASS_OUTCOMES
         and (job.result or {}).get("verdict") == "pass"
+        and version_status != "DRAFT"
     )
 
 
@@ -191,8 +198,9 @@ def submit_model_validation(version, *, user):
 
     Under the asset row lock (so concurrent submissions of one version serialize), the newest
     job with the same idempotency key (same version, stored file and processor version) is
-    returned when `reusable`; otherwise a new job with a new attempt id is submitted, unless the
-    logical work already has `max_attempts()` jobs (`JobsError("attempts_exhausted")`).
+    returned when `reusable` (given the version's status, re-read under the lock); otherwise a new
+    job with a new attempt id is submitted, unless the logical work already has `max_attempts()`
+    jobs (`JobsError("attempts_exhausted")`).
 
     Raises `apps.jobs.services.JobsError` (`JobsDisabled` when the jobs backend is disabled)."""
     from django.db import transaction
@@ -214,7 +222,9 @@ def submit_model_validation(version, *, user):
         ContentAsset.objects.select_for_update().filter(pk=version.asset_id).first()
         same_work = validation_jobs(version).filter(idempotency_key=payload["idempotency_key"])
         latest = same_work.first()
-        if latest is not None and reusable(latest):
+        current = type(version).objects.filter(pk=version.pk).values_list("status", flat=True)
+        status = current.first()
+        if latest is not None and reusable(latest, version_status=status):
             logger.info("asset validation existing job=%s version=%s", latest.pk, version.pk)
             return latest
         if same_work.count() >= max_attempts():

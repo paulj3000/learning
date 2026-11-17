@@ -166,3 +166,42 @@ def test_the_command_prints_a_summary_and_json(release, public):
     out = StringIO()
     call_command("import_assets", "--from-bundled", "--root", str(public), "--json", stdout=out)
     assert json.loads(out.getvalue())["imported"][0]["asset"] == "rock"
+
+
+def test_the_report_shows_each_imported_version_status(release, public):
+    exported(release, "rock", "/models/rock.glb")
+    out = StringIO()
+    call_command("import_assets", "--from-bundled", "--root", str(public), stdout=out)
+    assert "rock version 1: Imported (VALIDATED) from /models/rock.glb" in out.getvalue()
+
+
+def test_flag_on_an_imported_glb_is_a_draft_with_queued_background_validation(
+    release, public, settings
+):
+    """With `LAI_ASSET_ASYNC_VALIDATION=on` (and a queue backend) an imported GLB is a DRAFT with
+    its `asset.validate_model` job queued; a glTF keeps the synchronous path. Nothing publishes."""
+    from apps.assets.processing import validation_jobs
+    from apps.assets.tests.admin_jobs import use_fake_sqs
+    from apps.jobs import services as jobs
+
+    settings.LAI_ASSET_ASYNC_VALIDATION = "on"
+    use_fake_sqs(settings)
+    try:
+        exported(release, "npc-pip", "/models/npc-pip.gltf", kind="character", clips=["Idle"])
+        rock = exported(release, "rock", "/models/rock.glb")
+        out = StringIO()
+        call_command("import_assets", "--from-bundled", "--root", str(public), stdout=out)
+    finally:
+        jobs.set_aws_clients()
+    text = out.getvalue()
+    assert (
+        "rock version 1: Imported (DRAFT, background validation queued) from /models/rock.glb"
+        in text
+    )
+    assert "npc-pip version 1: Imported (VALIDATED) from /models/npc-pip.gltf" in text
+    version = AssetVersion.objects.get(asset=rock)
+    assert version.status == VersionStatus.DRAFT
+    assert validation_jobs(version).get().status == "pending"
+    assert not AssetVersion.objects.filter(status=VersionStatus.PUBLISHED).exists()
+    report = import_bundled(root=public)  # a rerun skips the draft (same bytes)
+    assert report.imported == [] and len(report.skipped) == 2

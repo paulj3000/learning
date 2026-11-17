@@ -18,7 +18,12 @@ Every action is a Django permission (grant them with the groups from `ensure_ass
   revalidate an existing or published model without rewriting its metadata. The result is shown
   read-only in the version's "Background validation" section; a stuck job is failed from its
   background job page (`jobs.fail_processingjob`)
-Every lifecycle action is recorded in Django Admin's history (`LogEntry`) with who and what.
+Every lifecycle action is recorded in Django Admin's history (`LogEntry`) with who and what,
+and so is each background validation job the action submits.
+
+Saving the change page writes only the editable fields (`EDITABLE_FIELDS`, the notes), never the
+whole row as it was loaded: a background result applied meanwhile (DRAFT to VALIDATED, its
+metadata and report) is never overwritten by a stale form.
 
 The binary fields are read-only for everyone, always; a published version is never deletable.
 All state changes go through `apps.assets.services`.
@@ -44,6 +49,7 @@ from apps.core.exceptions import error_body
 from . import preview, services
 from .models import AssetVersion, VersionStatus
 from .processing import (
+    APPLIED_OUTCOMES,
     ASYNC_FORMATS,
     PROCESSING_SOURCE,
     async_validation_enabled,
@@ -173,7 +179,19 @@ class AssetVersionAdmin(admin.ModelAdmin):
         )
 
     def get_readonly_fields(self, request, obj=None):
-        return [name for name in self.fields if name != "notes"] + list(BACKGROUND_FIELDS)
+        return [name for name in self.fields if name not in EDITABLE_FIELDS] + list(
+            BACKGROUND_FIELDS
+        )
+
+    def save_model(self, request, obj, form, change):
+        """Write only the editable fields of an existing version. The object was loaded when the
+        form was shown; saving every field would put back its old status, metadata and report
+        over a background result applied since (a lost update). `update_fields` keeps the
+        model's own transition and immutability checks."""
+        if not change:
+            super().save_model(request, obj, form, change)
+            return
+        obj.save(update_fields=list(EDITABLE_FIELDS))
 
     def get_fieldsets(self, request, obj=None):
         """The page as before, plus a read-only "Background validation" section when
@@ -419,15 +437,16 @@ class AssetVersionAdmin(admin.ModelAdmin):
     )
     def validate_in_background(self, request, queryset):
         """Submit each selected GLB version for `asset.validate_model`, or report its existing
-        job for the same file. A failed, cancelled, refused or superseded job, or a `fail`
-        verdict, is resubmitted as a new job (at most `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` per
-        file and processor version). The version is never changed here: the result appears in
-        its "Background validation" section, and publishing stays a separate staff action. A
-        new result never un-rejects a rejected version or changes a published one."""
+        job for the same file. A failed, cancelled, refused or superseded job, a `fail`
+        verdict, or a pass whose version is still a draft, is resubmitted as a new job (at most
+        `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` per file and processor version). Each new job is
+        recorded in the version's admin history. The version is never changed here: the result
+        appears in its "Background validation" section, and publishing stays a separate staff
+        action. A new result never un-rejects a rejected version or changes a published one."""
         from apps.jobs.services import JobsDisabled, JobsError
 
         submitted = 0
-        for version in queryset.select_related("asset")[:50]:
+        for version in self._first_batch(request, queryset):
             if version.asset.status != AssetStatus.ACTIVE:
                 self.message_user(
                     request,
@@ -477,21 +496,10 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 continue
             if job.pk not in known:
                 submitted += 1
-                if previous is not None and previous.status == "failed":
-                    self.message_user(
-                        request,
-                        f"{version.label}: The earlier background validation failed, so a new "
-                        "one was submitted.",
-                        messages.INFO,
-                    )
-                elif previous is not None and previous.status == "completed":
-                    self.message_user(
-                        request,
-                        f"{version.label}: The earlier background validation did not pass this "
-                        "file, so a new one was submitted. The version's status is not changed "
-                        "by it.",
-                        messages.INFO,
-                    )
+                self.log_change(request, version, f"Submitted background validation job {job.pk}.")
+                reason = _resubmission_reason(previous, job, version)
+                if reason:
+                    self.message_user(request, f"{version.label}: {reason}", messages.INFO)
             elif job.is_terminal:
                 self.message_user(
                     request,
@@ -525,7 +533,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
         from . import jobs
 
         submitted = []
-        for version in queryset.select_related("asset")[:50]:
+        for version in self._first_batch(request, queryset):
             try:
                 job = jobs.submit_inspection(version, request.user)
             except JobsError as error:
@@ -549,6 +557,18 @@ class AssetVersionAdmin(admin.ModelAdmin):
             "Results are on the background jobs page.",
             messages.SUCCESS,
         )
+
+    def _first_batch(self, request, queryset) -> list:
+        """At most `BULK_LIMIT` of the selected versions; says so when more were selected."""
+        batch = list(queryset.select_related("asset")[: BULK_LIMIT + 1])
+        if len(batch) > BULK_LIMIT:
+            self.message_user(
+                request,
+                f"More than {BULK_LIMIT} versions were selected: only the first {BULK_LIMIT} "
+                "were processed. Run the action again for the rest.",
+                messages.WARNING,
+            )
+        return batch[:BULK_LIMIT]
 
     # --- display ---
 
@@ -599,8 +619,13 @@ class AssetVersionAdmin(admin.ModelAdmin):
     @admin.display(description="Processing status")
     def background_status(self, obj):
         job = _latest_job(obj)
+        publishing = _publishing_notice(obj)
         if job is None:
-            return "No background validation has run for this version."
+            return format_html(
+                "<p>{}</p><p>{}</p>",
+                "No background validation has run for this version.",
+                publishing,
+            )
         rows = [
             ("Status", _status_label(job)),
             ("Outcome", _outcome_label(job)),
@@ -612,8 +637,9 @@ class AssetVersionAdmin(admin.ModelAdmin):
             ("Error code", job.error_code or "-"),
         ]
         return format_html(
-            '<p>{}</p><dl>{}</dl><p><a href="{}">{}</a></p>',
+            '<p>{}</p><p>{}</p><dl>{}</dl><p><a href="{}">{}</a></p>',
             _status_notice(job, obj),
+            publishing,
             format_html_join("", "<dt>{}</dt><dd>{}</dd>", rows),
             reverse("admin:jobs_processingjob_change", args=[job.pk]),
             "Open the background job (a stuck job can be marked failed there)",
@@ -654,6 +680,10 @@ class AssetVersionAdmin(admin.ModelAdmin):
 
 #: The read-only "Background validation" section of the version change page.
 BACKGROUND_FIELDS = ("background_status", "background_result", "background_model")
+#: The only fields the change page edits (and the only ones its save writes).
+EDITABLE_FIELDS = ("notes",)
+#: Most versions one background action processes.
+BULK_LIMIT = 50
 
 _OUTCOME_LABELS = {
     "version_validated": "The version was marked validated.",
@@ -752,6 +782,53 @@ def _status_notice(job, version) -> str:
     return "The result has no verdict."
 
 
+def _resubmission_reason(previous, job, version) -> str:
+    """Why a new validation job was made for `version` when `previous` (its newest job before the
+    action) existed, in words chosen from the actual reason. Empty for a first validation."""
+    if previous is None:
+        return ""
+    if previous.status == "failed":
+        return "The earlier background validation failed, so a new one was submitted."
+    if previous.status != "completed":
+        return ""
+    # A new job's result decides a draft's status; any other version keeps its status.
+    tail = (
+        ""
+        if version.status == VersionStatus.DRAFT
+        else " The version's status is not changed by it."
+    )
+    if previous.subject_outcome not in APPLIED_OUTCOMES:
+        return (
+            "The earlier background validation result was not applied to this version (it was "
+            "refused or superseded), so a new one was submitted." + tail
+        )
+    if previous.idempotency_key != job.idempotency_key:
+        return (
+            "The validator version has changed since the earlier background validation, so a "
+            "new one was submitted with the current validator." + tail
+        )
+    if (previous.result or {}).get("verdict") != "pass":
+        return (
+            "The earlier background validation did not pass this file, so a new one was "
+            "submitted." + tail
+        )
+    return (
+        "The earlier background validation passed, but this version is still a draft, so a new "
+        "one was submitted to apply its result."
+    )
+
+
+def _publishing_notice(version) -> str:
+    """One sentence: may this version be published now? From the publication gate itself
+    (`services.publish_refusal`); the stored file is still re-verified when publishing."""
+    if version.status == VersionStatus.PUBLISHED:
+        return "Publishing: this version is published."
+    refusal = services.publish_refusal(version)
+    if refusal is None:
+        return "Publishing: allowed now. The stored file is checked again when it is published."
+    return f"Publishing: not allowed now ({refusal.code}). {refusal.message}"
+
+
 def _when(value) -> str:
     return localtime(value).strftime("%Y-%m-%d %H:%M:%S %Z") if value else "-"
 
@@ -840,10 +917,20 @@ def _model_information(summary: dict):
         _titled_table(
             "Animation clips",
             ("Name (exact)", "Duration (seconds)"),
-            ((a.get("name") or "-", _number(a.get("duration_seconds"))) for a in clips),
+            ((_clip_name(a.get("name")), _number(a.get("duration_seconds"))) for a in clips),
         ),
     ]
     return format_html_join("", "{}", ((part,) for part in parts))
+
+
+def _clip_name(name):
+    """A clip name exactly as stored: in `<code>` with `white-space: pre`, so outer spaces show,
+    and an empty or missing name said explicitly. Always escaped."""
+    if name is None:
+        return format_html("<em>{}</em>", "(no name)")
+    if name == "":
+        return format_html("<em>{}</em>", "(empty name)")
+    return format_html('<code style="white-space: pre">{}</code>', str(name))
 
 
 def _titled_list(title: str, items: list[str]):

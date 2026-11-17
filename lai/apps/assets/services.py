@@ -248,22 +248,15 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
     with transaction.atomic():
         asset = _locked(version.asset)
         version = AssetVersion.objects.select_for_update().get(pk=version.pk)
-        if asset.status != AssetStatus.ACTIVE:
-            raise AssetActionRefused("asset_retired", "This asset is retired.")
-        if version.status != VersionStatus.VALIDATED:
-            raise AssetActionRefused(
-                "not_validated",
-                f"Only a validated version can be published (this one is {version.status}).",
-            )
-        if async_validation_applies(version) and not _has_passing_validation(version):
-            logger.info(
-                "asset publish refused: %s v%s processing_required", asset.asset_id, version.number
-            )
-            raise AssetActionRefused(
-                "processing_required",
-                "This model has no passing background validation for its current file. Run "
-                "Validate in background, wait for a passing result, then publish again.",
-            )
+        refusal = publish_refusal(version, asset=asset)
+        if refusal is not None:
+            if refusal.code == "processing_required":
+                logger.info(
+                    "asset publish refused: %s v%s processing_required",
+                    asset.asset_id,
+                    version.number,
+                )
+            raise refusal
         try:
             stored = get_storage().open(version.storage_key)
         except StorageError:
@@ -298,6 +291,32 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
             "invalid_file", "The stored file failed validation; it was rejected.", result.findings
         )
     return version
+
+
+def publish_refusal(
+    version: AssetVersion, *, asset: ContentAsset | None = None
+) -> AssetActionRefused | None:
+    """Why `publish_version` would refuse `version` before reading its stored file, or None.
+
+    The same checks, in the same order, as the publication itself: the asset is active, the
+    version is `VALIDATED`, and, when asynchronous validation applies, `_has_passing_validation`.
+    Read only (Django Admin shows it); `publish_version` calls it under its locks and still
+    re-reads and re-validates the stored bytes afterwards."""
+    asset = asset if asset is not None else version.asset
+    if asset.status != AssetStatus.ACTIVE:
+        return AssetActionRefused("asset_retired", "This asset is retired.")
+    if version.status != VersionStatus.VALIDATED:
+        return AssetActionRefused(
+            "not_validated",
+            f"Only a validated version can be published (this one is {version.status}).",
+        )
+    if async_validation_applies(version) and not _has_passing_validation(version):
+        return AssetActionRefused(
+            "processing_required",
+            "This model has no passing background validation for its current file. Run "
+            "Validate in background, wait for a passing result, then publish again.",
+        )
+    return None
 
 
 #: `ProcessingJob.subject_outcome` codes after which a job's result does not count for the gate.

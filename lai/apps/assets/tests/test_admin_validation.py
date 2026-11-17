@@ -42,6 +42,7 @@ SCRIPT = "<script>alert(1)</script>"
 IMG = '"><img src=x onerror=1>'
 SCRIPT_ESCAPED = "&lt;script&gt;alert(1)&lt;/script&gt;"
 IMG_ESCAPED = "&quot;&gt;&lt;img src=x onerror=1&gt;"
+CLIP = '<code style="white-space: pre">{}</code>'
 
 
 @pytest.fixture(autouse=True)
@@ -179,8 +180,8 @@ def test_a_passing_result_shows_its_verdict_and_model_information(version, edito
     assert "<li>Body</li>" in content
     assert "<td>0</td><td>image/png</td><td>64 x 32</td>" in content
     assert "<td>Armature</td><td>2</td>" in content
-    assert f"<td>{MIXAMO}</td><td>1.25</td>" in content  # the exact clip name
-    assert "<td>Idle</td><td>2.5</td>" in content
+    assert f"<td>{CLIP.format(MIXAMO)}</td><td>1.25</td>" in content  # the exact clip name
+    assert f"<td>{CLIP.format('Idle')}</td><td>2.5</td>" in content
 
 
 def test_a_failing_verdict_is_shown_as_rejected_with_its_findings(editor, sqs):
@@ -277,8 +278,8 @@ def test_job_and_asset_controlled_text_is_escaped(editor, sqs):
     content = page(editor, version)
     assert SCRIPT not in content and "<img src=x" not in content
     assert content.count(SCRIPT_ESCAPED) >= 6 and content.count(IMG_ESCAPED) >= 5
-    assert f"<td>{SCRIPT_ESCAPED}</td><td>1.25</td>" in content  # clip names
-    assert f"<td>{IMG_ESCAPED}</td><td>2.5</td>" in content
+    assert f"<td>{CLIP.format(SCRIPT_ESCAPED)}</td><td>1.25</td>" in content  # clip names
+    assert f"<td>{CLIP.format(IMG_ESCAPED)}</td><td>2.5</td>" in content
     assert f"<li>{SCRIPT_ESCAPED}</li>" in content  # material
     assert f"<td>{IMG_ESCAPED}</td><td>2</td>" in content  # skin
     assert row("Generator", SCRIPT_ESCAPED) in content
@@ -381,19 +382,31 @@ def test_a_failed_job_is_retried_with_a_new_one(version, editor, sqs):
     assert row("Status", "Queued") in page(editor, version)
 
 
+FAILED_VERDICT = "did not pass this file, so a new one was submitted"
+NOT_APPLIED = "result was not applied to this version (it was refused or superseded)"
+
+
 @pytest.mark.parametrize(
-    "outcome, verdict",
-    [("version_rejected", "fail"), ("result_recorded", "fail"), ("checksum_mismatch", "pass")],
+    "outcome, verdict, message",
+    [
+        ("version_rejected", "fail", FAILED_VERDICT),
+        ("result_recorded", "fail", FAILED_VERDICT),
+        ("checksum_mismatch", "pass", NOT_APPLIED),
+        ("result_superseded", "pass", NOT_APPLIED),
+        ("result_invalid", "fail", NOT_APPLIED),
+    ],
 )
 def test_a_refused_or_failing_result_may_be_resubmitted_explicitly(
-    version, editor, sqs, outcome, verdict
+    version, editor, sqs, outcome, verdict, message
 ):
     first = completed(submit(version), outcome=outcome)
     first.result = {**first.result, "verdict": verdict}
     first.save(update_fields=["result"])
     before = unchanged(version)
     response = run_action(editor, "validate_in_background", version)
-    assert b"did not pass this file, so a new one was submitted" in response.content
+    content = text(response.content.decode())
+    assert message in content
+    assert (NOT_APPLIED if message == FAILED_VERDICT else FAILED_VERDICT) not in content
     assert ProcessingJob.objects.count() == 2
     version.refresh_from_db()
     assert unchanged(version) == before
@@ -516,3 +529,179 @@ def test_non_staff_cannot_validate_or_see_the_section(version, sqs):
     assert response.status_code == 302 and "/login/" in response["Location"]
     assert client.get(f"{VERSIONS}{version.pk}/change/").status_code == 302
     assert not ProcessingJob.objects.exists()
+
+
+# --- review fixes: lost update, recovery, messages, publishing line, clip names, audit ----------
+
+
+def test_saving_notes_never_overwrites_a_background_result_applied_meanwhile(editor, sqs):
+    """The change form loads the row; the background result moves the draft to VALIDATED; then
+    the stale form is saved. Only the notes are written: status, metadata and report survive."""
+    from django.contrib import admin as django_admin
+    from django.test import RequestFactory
+
+    from apps.assets import processing
+    from apps.assets.admin import AssetVersionAdmin
+
+    version = stored_version(status=VersionStatus.DRAFT)
+    job = submit(version)
+    stale = AssetVersion.objects.get(pk=version.pk)  # what the change form holds
+    processing.apply(completed(job))  # the result arrives while the form is open
+    assert ProcessingJob.objects.get(pk=job.pk).subject_outcome == "version_validated"
+
+    stale.notes = "Checked by hand."
+    model_admin = AssetVersionAdmin(AssetVersion, django_admin.site)
+    model_admin.save_model(RequestFactory().post("/"), stale, None, True)
+
+    version.refresh_from_db()
+    assert version.notes == "Checked by hand."
+    assert version.status == VersionStatus.VALIDATED and version.validated_at is not None
+    assert version.metadata["model_validation"]["verdict"] == "pass"
+    assert version.metadata["model_validation"]["job_id"] == str(job.pk)
+
+
+def test_the_change_form_saves_notes_and_records_the_change(version, editor):
+    from django.contrib.admin.models import LogEntry
+
+    response = editor.post(
+        f"{VERSIONS}{version.pk}/change/", {"notes": "Looks right.", "_save": "Save"}
+    )
+    assert response.status_code == 302
+    before = unchanged(version)
+    version.refresh_from_db()
+    assert version.notes == "Looks right." and unchanged(version) == before
+    entry = LogEntry.objects.get(object_id=str(version.pk))
+    assert "Notes" in entry.get_change_message()
+
+
+def test_a_draft_whose_pass_was_lost_is_recovered_by_validating_again(editor):
+    """Inline jobs: the pass validates the draft; a lost update puts it back to DRAFT; Validate in
+    background then submits a new job (not the old pass) and the draft becomes VALIDATED."""
+    version = stored_version(status=VersionStatus.DRAFT)
+    run_action(editor, "validate_in_background", version)
+    first = ProcessingJob.objects.get()
+    assert first.subject_outcome == "version_validated"
+    AssetVersion.objects.filter(pk=version.pk).update(status=VersionStatus.DRAFT, validated_at=None)
+
+    response = run_action(editor, "validate_in_background", version)
+    content = text(response.content.decode())
+    assert "passed, but this version is still a draft, so a new one was submitted" in content
+    assert ProcessingJob.objects.count() == 2
+    version.refresh_from_db()
+    assert version.status == VersionStatus.VALIDATED
+    newest = ProcessingJob.objects.exclude(pk=first.pk).get()
+    assert newest.subject_outcome == "version_validated"
+    assert newest.idempotency_key == first.idempotency_key
+
+    # Validated again: the newest pass is reused, no third job.
+    response = run_action(editor, "validate_in_background", version)
+    assert b"already validated this file" in response.content
+    assert ProcessingJob.objects.count() == 2
+
+
+def test_the_draft_recovery_is_bounded_by_the_attempt_cap(editor, settings):
+    settings.LAI_ASSET_VALIDATION_MAX_ATTEMPTS = 1
+    version = stored_version(status=VersionStatus.DRAFT)
+    run_action(editor, "validate_in_background", version)
+    AssetVersion.objects.filter(pk=version.pk).update(status=VersionStatus.DRAFT, validated_at=None)
+    response = run_action(editor, "validate_in_background", version)
+    assert b"has reached the limit of background validation attempts" in response.content
+    assert ProcessingJob.objects.count() == 1
+
+
+def test_reusable_refuses_a_pass_for_a_draft_only(version, sqs):
+    from apps.assets.processing import reusable
+
+    job = completed(submit(version), outcome="version_validated")
+    assert reusable(job) and reusable(job, version_status=VersionStatus.VALIDATED)
+    assert not reusable(job, version_status=VersionStatus.DRAFT)
+
+
+def test_a_pass_by_an_older_validator_is_resubmitted_with_the_right_reason(version, editor, sqs):
+    old = completed(submit(version))
+    ProcessingJob.objects.filter(pk=old.pk).update(idempotency_key="0" * 64)  # older processor
+    response = run_action(editor, "validate_in_background", version)
+    content = text(response.content.decode())
+    assert "The validator version has changed since the earlier background validation" in content
+    assert FAILED_VERDICT not in content and NOT_APPLIED not in content
+    assert ProcessingJob.objects.count() == 2
+
+
+def test_each_submitted_job_is_recorded_in_the_admin_history(version, editor, sqs):
+    from django.contrib.admin.models import LogEntry
+
+    run_action(editor, "validate_in_background", version)
+    job = ProcessingJob.objects.get()
+    entry = LogEntry.objects.get(object_id=str(version.pk))
+    assert entry.user.admin_username == "editor"
+    assert entry.get_change_message() == f"Submitted background validation job {job.pk}."
+    run_action(editor, "validate_in_background", version)  # the same job: nothing new recorded
+    assert LogEntry.objects.filter(object_id=str(version.pk)).count() == 1
+
+
+def test_more_than_fifty_selected_says_only_the_first_fifty_were_processed(editor):
+    from apps.assets.tests.helpers import make_definition, make_version
+
+    asset = make_definition("npc-many")
+    many = [make_version(asset, number, format=FileFormat.GLTF) for number in range(1, 52)]
+    response = run_action(editor, "validate_in_background", *many)
+    content = text(response.content.decode())
+    assert "only the first 50 were processed" in content
+    assert content.count("Only GLB models can be validated in background.") == 50
+    few = run_action(editor, "validate_in_background", *many[:50])
+    assert b"only the first 50" not in few.content
+
+
+@pytest.mark.parametrize(
+    "flag, status, job_state, expected",
+    [
+        ("on", VersionStatus.VALIDATED, None, "Publishing: not allowed now (processing_required)."),
+        ("on", VersionStatus.VALIDATED, "pass", "Publishing: allowed now."),
+        (
+            "on",
+            VersionStatus.VALIDATED,
+            "fail",
+            "Publishing: not allowed now (processing_required).",
+        ),
+        ("on", VersionStatus.DRAFT, None, "Publishing: not allowed now (not_validated)."),
+        ("off", VersionStatus.VALIDATED, "fail", "Publishing: allowed now."),
+        ("on", VersionStatus.PUBLISHED, "pass", "Publishing: this version is published."),
+    ],
+)
+def test_the_section_says_whether_publishing_is_allowed_now(
+    editor, sqs, settings, flag, status, job_state, expected
+):
+    settings.LAI_ASSET_ASYNC_VALIDATION = flag
+    version = stored_version(status=status)
+    if job_state is not None:
+        job = completed(submit(version))
+        if job_state == "fail":
+            job.result = {**job.result, "verdict": "fail"}
+            job.save(update_fields=["result"])
+    content = text(page(editor, version))
+    assert expected in content
+    for other in ("allowed now.", "not allowed now", "this version is published"):
+        if other not in expected:
+            assert f"Publishing: {other}" not in content
+
+
+def test_clip_names_are_shown_verbatim_with_empty_and_missing_names_explicit(version, editor, sqs):
+    job = submit(version)
+    result = real_result(job)
+    result["metadata"]["animations"] = [
+        {"name": "Idle ", "duration_seconds": 1.0},
+        {"name": "Idle", "duration_seconds": 2.0},
+        {"name": "", "duration_seconds": 3.0},
+        {"duration_seconds": 4.0},
+        {"name": MIXAMO, "duration_seconds": 5.0},
+        {"name": SCRIPT, "duration_seconds": 6.0},
+    ]
+    completed(job, result=result)
+    content = page(editor, version)
+    assert f"<td>{CLIP.format('Idle ')}</td><td>1.0</td>" in content
+    assert f"<td>{CLIP.format('Idle')}</td><td>2.0</td>" in content
+    assert "<td><em>(empty name)</em></td><td>3.0</td>" in content
+    assert "<td><em>(no name)</em></td><td>4.0</td>" in content
+    assert f"<td>{CLIP.format(MIXAMO)}</td><td>5.0</td>" in content
+    assert f"<td>{CLIP.format(SCRIPT_ESCAPED)}</td><td>6.0</td>" in content
+    assert SCRIPT not in content
