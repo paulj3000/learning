@@ -1,6 +1,6 @@
 """Background validation jobs attached to asset versions, for the admin and gate tests.
 
-The completion hook (workstream B) is not on this branch, so a job is submitted for real
+Jobs are submitted for real
 (`submit_model_validation`, `local` backend: nothing runs) and its applied state and result are
 then written straight to the row, keeping every identity field `identity_mismatch` checks.
 """
@@ -9,6 +9,7 @@ import io
 import uuid
 from datetime import UTC, datetime
 
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.assets import services
@@ -37,8 +38,12 @@ METADATA = {
 
 
 def upload(asset, data):
-    """A VALIDATED version through the synchronous upload path (flag off)."""
-    return services.upload_version(asset, io.BytesIO(data), original_filename="pip.glb")
+    """A VALIDATED version through the synchronous upload path, with the flag off for the upload
+    only: the gate and admin tests start from a validated version (as one uploaded before the
+    flag was switched on). The flag-on DRAFT path is covered by test_async_upload.py and the
+    end-to-end tests."""
+    with override_settings(LAI_ASSET_ASYNC_VALIDATION="off"):
+        return services.upload_version(asset, io.BytesIO(data), original_filename="pip.glb")
 
 
 def submit(version, user=None):
