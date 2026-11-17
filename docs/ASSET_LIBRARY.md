@@ -61,8 +61,10 @@ AssetReference = "npc-pip" (follows the default) or "npc-pip@1" (pinned)
 upload (checksum + validate) -> VALIDATED -> publish (re-verify) -> PUBLISHED -> retire -> RETIRED
                                                    \-> REJECTED (stored bytes or definition changed)
 A file that fails validation at upload is never stored and makes no row: the admin sees the
-findings on the form. DRAFT exists in the schema for a future asynchronous validation step; no
-code path creates it today (upload and import both validate synchronously).
+findings on the form. DRAFT is created only by asynchronous model validation (section 23):
+with LAI_ASSET_ASYNC_VALIDATION=on a GLB upload is stored as DRAFT, and its background job moves
+it to VALIDATED or REJECTED. With the flag off (the default) upload and import validate
+synchronously as above.
 ```
 
 | Action | Who (permission) | Effect |
@@ -706,7 +708,8 @@ rejected with a finding, never published half-working. Package it as `.glb` or e
   the asset answer `duplicate_version`.
 - Published and retired versions are immutable (checksum, key, metadata); the model layer raises
   `ImmutableVersion` on any change and on deletion.
-- A new version is `VALIDATED` and invisible to games. Only **Publish** makes it servable; the
+- A new version is `VALIDATED` (a GLB with asynchronous validation on starts as `DRAFT`,
+  section 23) and invisible to games. Only **Publish** makes it servable; the
   definition's `default_version` decides what an unpinned reference gets. React never chooses a
   version: it receives what Django resolved.
 - Transitions: `DRAFT > VALIDATED | REJECTED`, `VALIDATED > PUBLISHED | REJECTED`,
@@ -820,3 +823,40 @@ unchanged. The `audio` app adds a configuration layer over published audio asset
 `SoundAssignment` and immutable `SoundRelease` snapshots that pin an exact `AssetVersion` per cue.
 Retiring an asset or version removes its sound from the live manifest and blocks the next publish
 until fixed. See `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
+
+## 23. Asynchronous model validation (LAI-LAMBDA-006 and 007, ADR-064)
+
+Developer-complete on `feature/serverless-processing-canonical`; not merged, not deployed. Full
+flow, outcome codes, retries and deployment order: `docs/processing/ASYNC_MODEL_VALIDATION.md`.
+
+- **Flag.** `LAI_ASSET_ASYNC_VALIDATION` (`off` by default everywhere; refused with
+  `LAI_JOBS_BACKEND=disabled`; production needs `sqs`). It applies to GLB models only; `.gltf`,
+  images and audio keep the synchronous path.
+- **Upload with the flag on.** The synchronous checks run first, as before. A passing GLB is
+  stored, then its `DRAFT` version and an `asset.validate_model` job (media queue) are created in
+  one transaction. If the job cannot be submitted, the file is deleted and the upload fails with
+  `processing_unavailable`. The background GLB validator (`docs/processing/GLB_VALIDATION.md`)
+  reads the stored bytes; its result moves the draft to `VALIDATED` (verdict `pass`) or `REJECTED`
+  (verdict `fail`), appends its findings to the validation report with `source: "processing"`,
+  and stores a summary in `metadata["model_validation"]`. A result is applied only when it matches
+  the version's stored file exactly (key, SHA-256, size, asset and version identity, profile).
+- **Django Admin.** The version page shows a read-only "Background validation" section (status,
+  outcome, verdict, findings, model information) when the flag is on or the version has a
+  validation job. The upload report separates "Upload checks" from "Background validation"
+  findings.
+- **Validate in background** (action on asset versions; staff with upload and view permission):
+  submits a validation of each selected GLB of an active asset, or reports the existing job for
+  the same file; a failed job is replaced by a new one. It never changes the version, whatever the
+  flag says: this is how an existing or published model is revalidated without rewriting its
+  metadata (published versions are immutable; the result stays on the job).
+- **Publication gate.** With the flag on, publishing a GLB is refused with `processing_required`
+  unless a completed validation job passed for exactly this version's file, by the processor
+  version this build runs. A draft is refused with `not_validated` first. No job ever publishes:
+  publishing is still the explicit staff action. Rollback, Make default and republishing during a
+  rollback are not gated. Completed jobs are pruned after `LAI_JOBS_RETENTION_DAYS` (30); a
+  `VALIDATED` GLB whose passing job was pruned needs Validate in background again before it can
+  be published.
+- **`asset.inspect` versus `asset.validate_model`.** "Inspect in background" (`asset.inspect`) is
+  informational: it reads structure and dimensions of a model, image or sound, keeps the result on
+  the job and never changes a version. `asset.validate_model` is the full GLB validator; its
+  applied result decides a draft's status and is what the publication gate reads.

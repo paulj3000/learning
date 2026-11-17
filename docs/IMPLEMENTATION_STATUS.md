@@ -42,6 +42,62 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
+
+Repository only; no AWS resource was created or changed. Re-lands the compatible parts of PR #40,
+PR #41 and `feature/serverless-processing-wave3` (all unmerged, branches kept as implementation
+references) on the one processing path. Details: `docs/processing/CANONICAL_PATH.md` ("Re-land
+status") and `docs/processing/ASYNC_MODEL_VALIDATION.md`. The earlier Wave 1, 2 and 3 status
+entries live on those branches and are superseded by ADR-064 and this entry.
+
+- **Foundation (principal).** `processing/lai_processing` and the GLB validator re-landed
+  unchanged; `asset.validate_model` and `reference.checksum` as `apps.jobs` kinds on the media
+  queue (`envelope.KIND_QUEUE`, `JobKind`, migration `jobs.0003_contract_kinds` with
+  `idempotency_key` and `subject_outcome`, `services.submit(job_id=, idempotency_key=)`);
+  `core/contract.py` runs the ADR-061 request in the schema-1 payload and returns the ADR-061
+  result (retryable failures redeliver through SQS, permanent ones become `failed` results, no
+  artifact writes); `lambda/build.py` vendors the library into the worker zip; settings put
+  `processing/` on `sys.path` and add `LAI_ASSET_ASYNC_VALIDATION` (default `off`).
+- **Workstream 1 (upload and gate, LAI-LAMBDA-006 and 007).** Flag-on GLB upload: `DRAFT` and its
+  job in one transaction, `processing_unavailable` when submission is refused; publication gate
+  `processing_required`.
+- **Workstream 2 (result tests).** `asset.validate_model` results through `apply_result` and
+  `jobs_consume_results`: verdicts, failures, duplicates and late results, forged and mismatched
+  results, identity changes, manual revalidation, handler database errors, lock order and
+  concurrency, idempotent submission; `reference.checksum` end to end.
+- **Workstream 3 (Django Admin, LAI-LAMBDA-007).** Read-only "Background validation" section and
+  the "Validate in background" action; every value escaped.
+- **Workstream 4 (worker, zip, packaging, guard).** Contract kinds through the packaged handler;
+  zip contents, determinism, import guard and 2 MiB budget (about 351 KB); the native release and
+  `lai/Dockerfile` ship `processing/lai_processing`; workflows trigger on it;
+  `tests/repo/test_canonical_processing_guard.py`.
+- **Defects found and fixed on this branch:**
+  - the contract status was not checked: a failed or cancelled `ProcessingJobResult` inside a
+    schema-1 `succeeded` envelope rejected the draft; it is now `result_invalid`;
+  - a refused result (mismatch or invalid) blocked resubmission for good; only pending, running
+    or applied jobs are reused now;
+  - a transient S3 read during the engine's input copy was `unexpected_failure` (manual, never
+    retried); it is now `storage_failure` and retried through SQS;
+  - the `glb-default` profile's 300 s budget exceeded the media function's 120 s timeout; the
+    request now carries 90 s.
+- **Tests:** full pytest (PostgreSQL) 5866 passed, 7 skipped, 1 failed; the failure,
+  `test_speech_storage.py::TestS3::test_presigned_urls_use_the_regional_host`, also fails on
+  `origin/main` 466a497 when its module runs whole (it depends on test order and passes alone), so it is
+  not from this branch. After the last code commit, the assets, jobs, Lambda, repository and processing
+  suites ran again: 2504 passed. Ruff check and format, `manage.py check`, `makemigrations
+  --check`, the ADR check, Prettier and the infra Vitest suite (141) are clean.
+- **Local demo** (`scripts/processing/local-demo.sh`; Django with the packaged worker zip,
+  in-memory SQS and S3): a flag-on upload committed as `DRAFT` with its job on the media queue;
+  publication refused with `not_validated` (the draft) and `processing_required` (a flag-off
+  `VALIDATED` GLB); the packaged worker validated the GLB and `apply_result` recorded `running`
+  then applied the result (`VALIDATED`, exact clip names); a redelivered work message was ignored
+  as a duplicate; the Admin section rendered; explicit publish passed the gate and the resolver
+  served the version; a failing model became `REJECTED` (`invalid_json`); zero AWS calls.
+- **Not verified (live only, LAI-LAMBDA-011):** a deployed upload, worker run, DLQ redrive and
+  outage drill. **Owner decisions open:** `s3:ListBucket` for the media role (a missing asset
+  key is retried into the DLQ instead of failing as `input_missing`), the 50 MiB input ceiling
+  versus the 64 MiB `asset.inspect` ceiling, artifact writes on this path.
+
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 
 Owner decisions 1 to 8 of 2026-11-17. Repository only; no AWS resource was created or changed.

@@ -1016,3 +1016,53 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
       SC-11 gate)
+
+# Serverless Background Processing (`docs/processing/`, ADR-061 amended by ADR-064)
+
+One processing path (ADR-064, `docs/processing/CANONICAL_PATH.md`): `apps.jobs`, the ADR-055
+queues, the zip Lambda workers and `jobs_consume_results`. PR #40 (`feature/serverless-processing`),
+PR #41 (`feature/serverless-processing-wave2`) and `feature/serverless-processing-wave3` are not
+merged and are kept as implementation references; their compatible parts are re-landed on
+`feature/serverless-processing-canonical` (developer-complete 2026-11-17, owner review pending,
+not merged, not deployed). Trello cards LAI-LAMBDA-001 to 013.
+
+- [x] **LAI-LAMBDA-001** Shared processing library and job contracts (ADR-061). Re-landed on
+      `feature/serverless-processing-canonical`: `processing/lai_processing` unchanged from PR #40
+      plus the wave2/wave3 fixes, tests in `tests/processing/`. Pending owner review, not merged
+- [x] **LAI-LAMBDA-002** GLB validator and metadata extractor (`asset.glb_validator`,
+      `asset.validate_model`, parity with `lai/apps/assets/validation.py`). Re-landed and vendored
+      into the jobs worker zip (`lambda/build.py`). Pending owner review, not merged, not deployed
+- [x] **LAI-LAMBDA-003** Local worker and runtime adapters. **Superseded by ADR-064:** the existing
+      zip worker (`lambda/jobs_worker`, `core/contract.py`) runs the contract kinds;
+      `lai_processing_runtime`, the ECR image and `Dockerfile.lambda` are not taken
+- [x] **LAI-LAMBDA-004** Django job records. Done through `apps.jobs` (no second model):
+      `asset.validate_model` and `reference.checksum` kinds, `idempotency_key` and
+      `subject_outcome` (migration `jobs.0003_contract_kinds`), handler `apps.assets.processing`.
+      Pending owner review, not merged, no live migration
+- [x] **LAI-LAMBDA-005** Processing infrastructure. **Superseded by ADR-064:** no new
+      infrastructure; the media queue and worker `lai-<env>-jobs-media` are reused.
+      `LaiProcessing-<env>`, its queues, bucket, ECR and `deploy-processing.yml` are not taken.
+      Open owner decision: `s3:ListBucket` on the asset bucket for the media role
+- [x] **LAI-LAMBDA-006** Upload and completion integration. Developer-complete on
+      `feature/serverless-processing-canonical`: `LAI_ASSET_ASYNC_VALIDATION` (default `off`), a
+      flag-on GLB upload stored `DRAFT` with its job in one transaction, `apply(job)` moves it to
+      `VALIDATED` or `REJECTED`. Evidence: `test_async_upload.py`,
+      `test_model_validation_results.py`, `scripts/processing/local-demo.sh`. Pending owner review,
+      not merged, not deployed
+- [x] **LAI-LAMBDA-007** Asset Library validation results and release gates. Developer-complete on
+      `feature/serverless-processing-canonical`: Django Admin "Background validation" section and
+      "Validate in background" action; publication gate `processing_required` (rollback and make
+      default not gated; no automatic publication). Evidence: `test_publication_gate.py`,
+      `test_admin_validation.py`. Pending owner review, not merged, not deployed
+- [ ] **LAI-LAMBDA-008** Audio validation and transcoding (`asset.process_audio`). Not started;
+      native tools need their own ADR (`docs/processing/WAVE4_HANDOFF.md`)
+- [ ] **LAI-LAMBDA-009** NPC animation inspection and mapping assistance
+      (`asset.analyze_animation`, zip). Not started
+- [ ] **LAI-LAMBDA-010** Texture compression and GLB optimisation benchmarking (`asset.optimize`;
+      reuses 013's image tooling). Not started; native tools need their own ADR
+- [ ] **LAI-LAMBDA-011** Live AWS end-to-end, failure, performance and cost acceptance (depends:
+      006, 007 merged; owner deployment approval). Open
+- [ ] **LAI-LAMBDA-012** Production rollout, observability and rollback (depends: 011, owner
+      approval). Open
+- [ ] **LAI-LAMBDA-013** Asset thumbnail generation and image conversion (owns thumbnails; split
+      from 010 on 2026-11-16). Not started
