@@ -156,7 +156,9 @@ This section is the complete runbook for the low-cost AWS development and debugg
 Production keeps its own design (ADR-037, `docs/platform/DJANGO_EC2_DEPLOYMENT.md`) and is not
 changed by anything here.
 
-> **Status:** implemented and tested locally (CDK synthesis, cfn-lint, unit and script tests).
+> **Status:** implemented and tested locally (CDK synthesis, cfn-lint, unit and script tests),
+> including the 2026-11-17 blocker resolution (ADR-064: one processing path, zip Lambda workers,
+> Studio roles automated, configurable Bedrock Region).
 > **Nothing has been deployed yet.** Every command below that changes AWS or GitHub is an
 > owner-approved step, and the environment is not operational until the acceptance checklist at
 > the end of this section has passed against a live deployment.
@@ -171,10 +173,11 @@ changed by anything here.
  us-west-1   https://api.pauldimitriu.com (Elastic IP, Let's Encrypt on nginx)
    EC2 t4g.small ARM64, Amazon Linux 2023 (public subnet, SSM only, no SSH)
      nginx :443 -> gunicorn 127.0.0.1:8000 (systemd) -> Django (venv, DEBUG=False)
-     lai-jobs-consumer (results queue -> database)
+     lai-jobs-consumer (results queue -> database; also the outbox relay)
    RDS PostgreSQL 16 db.t4g.micro (private subnets, Single-AZ, TLS, encrypted)
    SQS lai-dev-jobs-ai / lai-dev-jobs-media -> Lambda (arm64, outside the VPC)
         -> Bedrock with the Guardrail, Polly, S3 -> SQS lai-dev-job-results -> Django
+ Bedrock region (LAI_DEV_BEDROCK_REGION, default us-west-1): LaiAiGuardrail-dev, model calls
    Step Functions lai-dev-power <- EventBridge Scheduler (stop 00:00, start 07:35 Pacific)
  Admin: https://ladm.pauldimitriu.com/admin/ -> Elastic IP directly (owner CIDR only)
 ```
@@ -185,7 +188,8 @@ changed by anything here.
 - **RDS** holds all application data, reachable only from the instance, with forced TLS.
 - **Lambda and SQS** do slow external calls (AI Question Studio generation through Bedrock,
   Polly speech pre-generation, asset inspection). Lambda never touches the database; Django
-  applies results from the results queue, which keeps them for 14 days while dev is stopped.
+  applies results from the results queue, which keeps them for 14 days while dev is stopped. This
+  is the only background-processing path (ADR-064, section "Background processing" below).
 - **S3** holds the React build, the asset library, child photos (private, never behind a CDN),
   generated speech, release artifacts and temporary job results, each with lifecycle rules.
 - **CloudFront** serves the React app and routes `/api/*` to Django on the same origin, so the
@@ -194,7 +198,8 @@ changed by anything here.
 **Development versus production:** production uses Docker images from ECR behind an ALB with a
 WAF on x86 EC2 (ADR-037). Dev needs none of that: one instance needs no load balancer, nginx gets
 a free Let's Encrypt certificate, nginx `limit_req` replaces the WAF's admin login rate rule, and
-releases are tarballs with prebuilt ARM64 wheels, so there is no image registry. There is also no
+releases are tarballs with prebuilt ARM64 wheels and the Lambda workers are zip packages, so there
+is no image registry (no ECR in dev, ADR-064). There is also no
 NAT gateway (the instance has a public address; Lambda runs outside the VPC), no Multi-AZ, no ECS,
 CodeBuild, CodePipeline, RDS Proxy or VPC endpoints.
 
@@ -203,7 +208,13 @@ CodeBuild, CodePipeline, RDS Proxy or VPC endpoints.
 - A Linux workstation with `bash`, `git`, `jq`, `curl`, `zip`, `tar` (GNU), `openssl`.
 - AWS CLI v2, a 2025 or newer release (S3 conditional writes, `--if-none-match`), and the Session
   Manager plugin (for `connect` and `db-tunnel`).
-- GitHub CLI (`gh auth login` as a repository administrator, for environments and variables).
+- GitHub CLI 2.x, signed in as a repository administrator (`install-debug.sh` uses it for the
+  GitHub environments and variables; pass `--skip-github` to do those by hand). Install it on
+  Debian or Ubuntu with
+  `sudo apt-get install -y gh` (or the official repository at <https://cli.github.com/>), on
+  Fedora or Amazon Linux with `sudo dnf install -y gh`, on macOS with `brew install gh`; then
+  `gh auth login` (GitHub.com, HTTPS, browser) and check with `gh auth status` and
+  `gh repo view paulj3000/learning`.
 - Node.js 22+ and npm; Python 3.12 (for packaging the release and the tests).
 - An AWS profile for the dev account with administrator-equivalent rights for CloudFormation,
   IAM, EC2, RDS, S3, SQS, Lambda, Step Functions, Scheduler, SSM, Route 53, ACM, CloudFront and
@@ -217,6 +228,9 @@ CodeBuild, CodePipeline, RDS Proxy or VPC endpoints.
   (`aws route53 list-hosted-zones`). Then certificates validate and records are created
   automatically. Without one, `deploy-debug.sh` prints the records to create at your DNS
   provider, and port 80 is opened for Let's Encrypt HTTP validation.
+- **Bedrock model access** (only for `--enable-ai`): in the Bedrock console of the Bedrock Region
+  (us-west-1 by default), Model access, enable Anthropic Claude Haiku 4.5 (a one-time use-case
+  form for Anthropic models). `scripts/aws/smoke-ai-speech.sh` checks it.
 - Optional: your public IP as a `/32` (`curl -s https://checkip.amazonaws.com`) to reach the
   Django Admin host and the API host directly.
 - Use synthetic test accounts and data only. Never import real production child data into dev.
@@ -236,7 +250,8 @@ Set at least `LAI_DEV_ACCOUNT_ID` (the 12-digit dev account, required for `--exe
 `lai.pauldimitriu.com`, `api.pauldimitriu.com` and `ladm.pauldimitriu.com`; set
 `LAI_SITE_DOMAIN`, `LAI_API_DOMAIN` and `LAI_ADMIN_DOMAIN` (for example `dev-lai.pauldimitriu.com`)
 to keep the canonical names free for production later. Every other setting (sizes, schedule,
-Lambda, alarm email, `LAI_ADMIN_ALLOWED_CIDR`) is documented in the template, with safe defaults.
+Lambda, alarm email, `LAI_ADMIN_ALLOWED_CIDR`, `LAI_DEV_BEDROCK_REGION`) is documented in the
+template, with safe defaults.
 No secret ever goes in this file: the Django secret key is generated into SSM by the installer.
 
 ### Complete first-time deployment
@@ -307,22 +322,22 @@ What each step does and asks:
 ```text
 Learning Adventure Island - DEV
 
-Environment: dev
-Region: us-west-1
-
-EC2: RUNNING
-RDS: AVAILABLE
-Django: READY
-Nightly shutdown: ENABLED
-
-CloudFront: https://dxxxxxxxx.cloudfront.net
-Game:       https://lai.pauldimitriu.com
-API:        https://api.pauldimitriu.com
-Admin:      https://ladm.pauldimitriu.com/admin/
-
-Shutdown:   00:00 America/Los_Angeles
-Startup:    08:00 America/Los_Angeles
+Environment:      dev
+Region:           us-west-1
+EC2:              running (i-0123456789abcdef0, t4g.small)
+RDS:              available (lai-dev)
+Django:           ready
+Nightly shutdown: enabled
+CloudFront:       https://d111111abcdef8.cloudfront.net
+Game:             https://lai.pauldimitriu.com/
+API:              https://api.pauldimitriu.com
+Admin:            https://ladm.pauldimitriu.com/admin/
+Shutdown:         00:00 America/Los_Angeles (next 2026-11-18 00:00 PST)
+Startup:          07:35 America/Los_Angeles, available by 08:00 (next 2026-11-18 07:35 PST)
 ```
+
+The CloudFront URL alone: `./scripts/aws/manage-dev.sh urls`, or
+`aws cloudformation describe-stacks --region us-east-1 --stack-name LaiFrontend-dev --query "Stacks[0].Outputs[?OutputKey=='CloudFrontUrl'].OutputValue" --output text`.
 
 Other commands: `./scripts/aws/deploy-debug.sh --status` (stack states) and `--outputs`
 (all outputs of both regions). Infrastructure provisioning and application deployment stay
@@ -333,6 +348,127 @@ a stack.
 `ElasticIPAddress`, and a `CNAME` from the site host to `DistributionDomainName`. The instance
 retries its Let's Encrypt certificate twice a day and ten minutes after each boot; until then
 the API through CloudFront answers 502.
+
+### What initializes the instance, the database and the application
+
+1. **Raw EC2 initialization (automatic).** The instance boots Amazon Linux 2023 (arm64) with a
+   small user-data script that registers it with Systems Manager. The platform stack then runs
+   the `lai-dev-native-setup` document (`scripts/aws/native/setup-native.sh`): packages (nginx,
+   Python 3.12, the PostgreSQL 16 client, certbot in a virtual environment), the `lai` user,
+   `/opt/lai`, swap, the CloudWatch agent, the systemd units and timers (gunicorn, the jobs
+   consumer, certificate renewal, daily maintenance), a placeholder certificate and the first
+   Let's Encrypt request. It ends by writing `/opt/lai/state/setup-complete`; every deploy refuses
+   to run before that file exists (exit 30). Nothing to do by hand; `install-debug.sh` waits for it.
+2. **RDS initialization (automatic).** CloudFormation creates the `lai` database and the
+   `lai_admin` master secret (`lai/dev/django/database` in Secrets Manager). Django's settings
+   build `DATABASE_URL` from that secret at each deploy (`sslmode=verify-full`). The schema is
+   created by the first deploy's `migrate`; nothing is ever run against RDS from your
+   workstation. For a manual look: `./scripts/aws/manage-dev.sh db-tunnel`.
+3. **Native Django deployment.** `install-debug.sh` (first time) or the "Deploy DEV backend
+   (native)" workflow (every push to `main`) packages an ARM64 release tarball, uploads it to the
+   artifacts bucket and runs `lai-dev-native-deploy` through SSM: verify the checksum, unpack to
+   `/opt/lai/releases/<sha>`, install the wheels into a fresh virtual environment, render
+   `django.env` from SSM, `migrate`, `collectstatic`, switch the `current` link, restart gunicorn
+   and the consumer, check readiness, and roll back automatically if it is unhealthy. By hand:
+   `./scripts/aws/dev-release.sh deploy --git-sha <40-character sha>` for an uploaded release,
+   `./scripts/aws/dev-release.sh status` and `./scripts/aws/dev-release.sh rollback`.
+4. **Bootstrap (first time, rerunnable).** `install-debug.sh` runs the `lai-dev-native-bootstrap`
+   tasks: `check`, `ensure-roles` (every `ensure_*_roles` command, Question Studio included),
+   `load-content`, `seed-content`, `import-assets`, and `publish-seed-content` only with
+   `--dev-bootstrap-publish`. Rerun only these with `./scripts/aws/install-debug.sh --skip-release`.
+
+### Question Studio permissions
+
+`ensure_studio_roles` creates or resets four Django groups: **Question authors** (generate,
+edit drafts, and **cancel** and **retry** their batches: `cancel_generationbatch`,
+`retry_generationbatch`), **Question reviewers**, **Question publishers** and **Pool managers**.
+It runs in the bootstrap's `ensure-roles` task, so `install-debug.sh` applies it on every run; it
+never changes who is in a group. Then, in Django Admin as a superuser, open the staff account
+(Accounts) and add it to the groups it needs. Every Studio permission also requires a staff
+account, so parents and children can never use it. Rerun only the roles with
+`./scripts/aws/install-debug.sh --skip-release` (or locally:
+`cd lai && ../.venv/bin/python manage.py ensure_studio_roles`).
+
+### Background processing (Lambda and SQS)
+
+One path (ADR-064): Django records a job, sends it to `lai-dev-jobs-ai` or `lai-dev-jobs-media`,
+a zip-packaged arm64 Lambda does the work, writes the result to S3 and sends it to
+`lai-dev-job-results`, and `lai-jobs-consumer` applies it. Details:
+`docs/infrastructure/dev-native-environment.md` section 9 and `docs/processing/CANONICAL_PATH.md`.
+
+- **Lambda deployment.** `deploy-debug.sh` packages the workers
+  (`scripts/aws/package-lambda.sh` -> `jobs-worker-<hash16>.zip`), uploads them to
+  `s3://<ArtifactBucketName>/lambda/` and sets the `WorkerCodeKey` parameter; `install-debug.sh`
+  updates both functions (`--skip-lambda` skips it); afterwards "Deploy DEV Lambda workers"
+  updates them on every push that touches `lambda/`. There is no container image and no ECR.
+- **Outbox.** A job that could not be sent (SQS unreachable, a crash between commit and send) is
+  re-sent by the consumer within about a minute; after 5 failed sends it fails as
+  `submit_failed`.
+- **Database outages.** The consumer checks PostgreSQL before every receive, so while RDS is
+  stopped, restarting or unreachable no result is received and none can reach the DLQ because of
+  the outage; results wait (14 days) and are applied when the database answers. The daily sweep
+  does not fail old jobs while results are still queued.
+- **Dead letters.** Each DLQ (`lai-dev-jobs-ai-dlq`, `lai-dev-jobs-media-dlq`,
+  `lai-dev-job-results-dlq`) alarms on its first message. Read the Lambda or jobs logs, fix the
+  cause, then (authorized operators only) move the messages back:
+  `aws sqs start-message-move-task --source-arn arn:aws:sqs:us-west-1:<account>:lai-dev-job-results-dlq`
+  and watch it with `aws sqs list-message-move-tasks --source-arn <same arn>`.
+- **Turning it off:** `LAI_ENABLE_LAMBDA=false` then `deploy-debug.sh --execute` (the stack then
+  sets `LAI_JOBS_BACKEND=disabled` and the Studio to `manual`).
+
+### React deployment
+
+`install-debug.sh` builds the React app with the Cognito ids and publishes it to the private web
+bucket (`scripts/aws/publish-site.sh`), then invalidates CloudFront (`--skip-frontend` skips it).
+Afterwards "Deploy site (CloudFront)" publishes every push that touches `react/`, once you enable
+it with `gh variable set LAI_SITE_DEPLOY_ENABLED --body true`; it waits for the backend release
+of the same commit. Roll back with that workflow's `rollback` action.
+
+### Bedrock and Polly
+
+EC2, RDS, SQS, Lambda and logs stay in us-west-1. Bedrock runs in `LAI_DEV_BEDROCK_REGION`
+(default: the dev Region), where `LaiAiGuardrail-dev` (the child-safety Guardrail and Django's
+AI policy) is deployed and where Django and the AI worker call Claude Haiku 4.5 through the US
+inference profile `us.anthropic.claude-haiku-4-5-20251001-v1:0`. AWS lists us-west-1 as a source
+Region of that profile (it routes to us-east-1, us-east-2, us-west-1 and us-west-2), so the
+default needs nothing else. Polly runs in `LAI_SPEECH_AWS_REGION` (default the dev Region).
+
+1. Enable model access for Claude Haiku 4.5 in the Bedrock Region (Prerequisites).
+2. Free smoke test (no inference, no synthesis): `./scripts/aws/smoke-ai-speech.sh`. It checks
+   the profile from the Bedrock Region, the Guardrail version is `READY`, the Django settings in
+   SSM match, and the Polly voices exist.
+3. Turn AI and speech on: `./scripts/aws/install-debug.sh --enable-ai --enable-speech`.
+4. Paid smoke test (one 40-token Converse turn with the Guardrail, one Guardrail probe that must
+   be blocked, one short Polly sample; a fraction of a cent):
+   `./scripts/aws/smoke-ai-speech.sh --paid --confirm-paid-calls`.
+5. Through the instance role: run one Question Studio batch (acceptance checklist), and for the
+   full audited check follow `docs/AI_BEDROCK_ACCEPTANCE.md` (`ai_live_check`).
+
+**If us-west-1 cannot invoke the profile** (step 2 fails at the profile, or Converse is
+refused), use us-west-2 without moving anything else:
+
+```bash
+echo 'LAI_DEV_BEDROCK_REGION=us-west-2' >> .lai-dev.env
+# On an existing deployment, remove the us-west-1 Guardrail stack first: its IAM policy and alarm
+# names are reused (AI turns fall back to authored lines until step 3 finishes):
+aws cloudformation delete-stack --region us-west-1 --stack-name LaiAiGuardrail-dev
+aws cloudformation wait stack-delete-complete --region us-west-1 --stack-name LaiAiGuardrail-dev
+./scripts/aws/deploy-debug.sh --plan      # LaiAiGuardrail-dev planned in us-west-2; alarms move to the platform
+./scripts/aws/deploy-debug.sh --execute
+./scripts/aws/deploy-debug.sh --outputs   # note LaiAiGuardrail-dev GuardrailId and GuardrailVersion
+aws ssm put-parameter --region us-west-1 --overwrite --type String --name /lai/dev/django/LAI_AI_BEDROCK_REGION --value us-west-2
+aws ssm put-parameter --region us-west-1 --overwrite --type String --name /lai/dev/django/LAI_AI_GUARDRAIL_ID --value <GuardrailId>
+aws ssm put-parameter --region us-west-1 --overwrite --type String --name /lai/dev/django/LAI_AI_GUARDRAIL_VERSION --value <GuardrailVersion>
+# redeploy the current main commit so Django renders the new settings:
+./scripts/aws/install-debug.sh --skip-github --skip-bootstrap --skip-lambda --skip-frontend
+./scripts/aws/smoke-ai-speech.sh
+```
+
+Before the first `--execute`, setting `LAI_DEV_BEDROCK_REGION` is all it takes (and
+`install-debug.sh --enable-ai` then writes the us-west-2 settings itself). With us-west-2, the AI
+and child-safety log alarms are created by `LaiDevPlatform-dev` (they must sit beside the Django
+log group), and the AI worker may apply Guardrails only in us-west-2. The Guardrail, model
+allowlist and every Django safety check are unchanged. Production stays single-Region.
 
 ### CloudFormation console deployment (alternative)
 
@@ -355,7 +491,8 @@ LAI_HOSTED_ZONE_ID=<zone or empty> LAI_HOSTED_ZONE_NAME=<zone name or empty> npm
       `CreateGithubOidcProvider=false` if `aws iam list-open-id-connect-providers` already shows
       `token.actions.githubusercontent.com`. The template is about 200 KB; the console stages it in
       S3 for you. The defaults give the target sizes and schedule; `StartupHour`/`StartupMinute` (7 and 35) are when startup begins, for 08:00 availability. Enter hours and minutes without a leading zero.
-   4. `LaiAiGuardrail-dev` (after the platform: it attaches its policy to the instance role).
+   4. `LaiAiGuardrail-dev` (after the platform: it attaches its policy to the instance role), in
+      the Bedrock Region (us-west-1 unless you synthesized with `LAI_BEDROCK_REGION=us-west-2`).
 4. In **us-east-1**, create `LaiFrontend-dev` with `SiteDomainName` and `ApiDomainName`. Its
    certificate validates through Route 53 automatically when the zone was set at synthesis;
    otherwise open Certificate Manager in us-east-1 and add the CNAME it shows while the stack waits.
@@ -509,7 +646,8 @@ smaller instance. Set `LAI_ALARM_EMAIL` to get the monthly budget alert (default
 - **Preserving the database:** deletion protection is on by default, and deleting the stack
   takes a final snapshot.
 - **Deleting the environment (owner only):** set `LAI_DB_DELETION_PROTECTION=false`, run
-  `deploy-debug.sh --execute`, then delete `LaiFrontend-dev` (us-east-1), `LaiAiGuardrail-dev`,
+  `deploy-debug.sh --execute`, then delete `LaiFrontend-dev` (us-east-1), `LaiAiGuardrail-dev`
+  (in the Bedrock Region),
   `LaiDevPlatform-dev`, and only if wanted `LaiChildPhotos-dev`, `LaiAssetStorage-dev` and
   `LaiDevArtifacts-dev`. Buckets, log groups and the final RDS snapshot are retained and must be
   emptied and deleted by hand.
@@ -526,8 +664,9 @@ Each of these is your decision and is never done by a push or a workflow on its 
    release, seed content; `--dev-bootstrap-publish` publishes the Treasure Rush seed).
 4. `--enable-ai` and `--enable-speech` (paid Bedrock and Polly use).
 5. `gh variable set LAI_SITE_DEPLOY_ENABLED --body true` (automatic site publishing).
-6. Granting Django Admin staff the Question Studio permissions `cancel_generationbatch` and
-   `retry_generationbatch` (Admin, Groups) for anyone other than superusers.
+6. Adding staff accounts to the Question Studio groups (the groups and their permissions,
+   including `cancel_generationbatch` and `retry_generationbatch`, are created automatically by
+   `ensure_studio_roles`; who belongs to them is your decision).
 7. Disabling deletion protection and deleting stacks (section "Recovery and cleanup").
 
 ### Verified before deployment, and what only a live run can prove
@@ -544,8 +683,10 @@ Only the live deployment can prove: the first `dnf` and `pip` installs on the ar
 Let's Encrypt issuance (five certificates per week for the same names; every instance
 replacement uses one), Scheduler and Step Functions runs end to end, RDS creation with engine
 version 16, the CloudFront to nginx TLS handshake, the GitHub OIDC role assumption, a Bedrock
-Converse call with the Guardrail through the `us.` inference profile from us-west-1 (model access
-must be enabled in the Bedrock console), the Polly voice in `LAI_SPEECH_AWS_REGION`, the budget's
+Converse call with the Guardrail through the `us.` inference profile (AWS documents us-west-1 as a
+source Region; model access must be enabled in the Bedrock console; `smoke-ai-speech.sh --paid`),
+the Polly voice in `LAI_SPEECH_AWS_REGION`, the consumer's behaviour during a real RDS stop and a
+DLQ redrive, the budget's
 cost allocation tag `Environment` (activate it under Billing, Cost allocation tags), and the
 hardened systemd units with the real gunicorn.
 
@@ -565,7 +706,10 @@ hardened systemd units with the real gunicorn.
 - [ ] Anonymous requests to the web, asset and child photo buckets return 403.
 - [ ] A push to `main` deploys the backend and the site; a rollback works.
 - [ ] A Question Studio batch completes through Lambda and its jobs show as completed in Admin;
-      Cancel and Retry work from the batch page.
+      Cancel and Retry work from the batch page for a member of Question authors.
+- [ ] `./scripts/aws/smoke-ai-speech.sh` passes (and `--paid --confirm-paid-calls` once AI is on).
+- [ ] With a job in flight, stop RDS only (`aws rds stop-db-instance --db-instance-identifier lai-dev`),
+      wait 15 minutes, start it again: the result is applied and `lai-dev-job-results-dlq` stays empty.
 - [ ] The midnight stop and the morning start run, and the app is ready by 08:00 Pacific.
 - [ ] A push while stopped is reported as pending and applied at the next start.
 - [ ] "Manage DEV Infrastructure" start, stop, status and hold work from GitHub.
@@ -575,6 +719,8 @@ hardened systemd units with the real gunicorn.
 ### Remaining limitations and approvals
 
 Live AWS deployment and the checklist above are owner gates and have not been run. Known
-limitations: GLB optimization, thumbnail and image conversion, and audio transcoding are not on
-Lambda yet (they need native tools; tracked in `docs/infrastructure/dev-native-environment.md`);
-deploys restart gunicorn, so dev has a few seconds of 502s per release.
+limitations: GLB optimization (LAI-LAMBDA-010), audio transcoding (LAI-LAMBDA-008), thumbnails
+and image conversion (LAI-LAMBDA-013) are not on Lambda yet and do not block the first
+deployment; the PR #40/#41 contract kinds and GLB validator re-land on the canonical path later
+(`docs/processing/CANONICAL_PATH.md`); deploys restart gunicorn, so dev has a few seconds of 502s
+per release.

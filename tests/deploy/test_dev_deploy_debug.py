@@ -260,3 +260,24 @@ def test_execute_refuses_to_update_the_platform_while_stopped(dev):
     assert result.returncode == 7
     assert "manage-dev.sh start" in result.stderr
     assert created(dev) == []
+
+
+def test_a_separate_bedrock_region_moves_only_the_guardrail_stack(dev):
+    """ADR-064: LAI_DEV_BEDROCK_REGION places LaiAiGuardrail-dev; EC2, RDS and SQS stay put."""
+    result = run(dev, "--plan", LAI_DEV_BEDROCK_REGION="us-west-2")
+    assert result.returncode == 0, result.stderr
+    keys = set(change_sets(dev))
+    assert any(k.startswith("us-west-2/LaiAiGuardrail-dev") for k in keys)
+    for stack in STACKS:
+        if stack in ("LaiAiGuardrail-dev", "LaiFrontend-dev"):
+            continue
+        assert any(k.startswith(f"us-west-1/{stack}") for k in keys), stack
+    assert "Bedrock us-west-2" in result.stderr
+
+
+@pytest.mark.parametrize("region", ["eu-west-1", "us-west-3", "ca-central-1"])
+def test_a_bedrock_region_outside_the_us_profile_is_refused(dev, region):
+    result = run(dev, "--plan", LAI_DEV_BEDROCK_REGION=region)
+    assert result.returncode == 2
+    assert "LAI_DEV_BEDROCK_REGION" in result.stderr
+    assert dev.calls("aws") == []

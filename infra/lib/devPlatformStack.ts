@@ -29,7 +29,8 @@ import * as scheduler from 'aws-cdk-lib/aws-scheduler';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
-import type { Construct } from 'constructs';
+import { Construct } from 'constructs';
+import { addAiMonitoring } from './aiGuardrailStack';
 import { devArtifactBucketName } from './devArtifactsStack';
 import { POWER_STATE_MACHINE_NAME, PowerStateMachine } from './devPowerStateMachine';
 import {
@@ -145,6 +146,12 @@ export function speechBucketName(account: string, region: string): string {
 export interface DevPlatformStackProps extends StackProps {
   /** Default of the GitHubRepository parameter (`owner/repo`). */
   githubRepository?: string;
+  /**
+   * The Bedrock runtime Region when it is not this stack's (ADR-064, `bedrockRegion`). The AI
+   * worker may then apply only Guardrails there, and this stack creates the Django AI log alarms
+   * that LaiAiGuardrail-dev cannot create from another Region. Unset: Bedrock runs here.
+   */
+  bedrockRegion?: string;
 }
 
 export class DevPlatformStack extends Stack {
@@ -555,7 +562,12 @@ export class DevPlatformStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
-    const queue = (name: string, visibilitySeconds: number, retentionDays: number) => {
+    const queue = (
+      name: string,
+      visibilitySeconds: number,
+      retentionDays: number,
+      maxReceiveCount: number,
+    ) => {
       const dlq = new sqs.Queue(this, `${kebabToPascal(name)}Dlq`, {
         queueName: `${name}-dlq`,
         encryption: sqs.QueueEncryption.SQS_MANAGED,
@@ -567,15 +579,17 @@ export class DevPlatformStack extends Stack {
         encryption: sqs.QueueEncryption.SQS_MANAGED,
         visibilityTimeout: Duration.seconds(visibilitySeconds),
         retentionPeriod: Duration.days(retentionDays),
-        deadLetterQueue: { queue: dlq, maxReceiveCount: 3 },
+        deadLetterQueue: { queue: dlq, maxReceiveCount },
         enforceSSL: true,
       });
-      return { main, dlq };
+      return { main, dlq, maxReceiveCount };
     };
-    const aiQueue = queue(DEV_QUEUES.ai, 6 * DEV_FUNCTIONS.ai.timeoutSeconds, 4);
-    const mediaQueue = queue(DEV_QUEUES.media, 6 * DEV_FUNCTIONS.media.timeoutSeconds, 4);
-    // Django's consumer (lai-jobs-consumer) long-polls this; 5 minutes covers a slow write.
-    const resultsQueue = queue(DEV_QUEUES.results, 300, 14);
+    const aiQueue = queue(DEV_QUEUES.ai, 6 * DEV_FUNCTIONS.ai.timeoutSeconds, 4, 3);
+    const mediaQueue = queue(DEV_QUEUES.media, 6 * DEV_FUNCTIONS.media.timeoutSeconds, 4, 3);
+    // Django's consumer (lai-jobs-consumer) long-polls this; 5 minutes covers a slow write. Five
+    // receives (ADR-064): the consumer checks PostgreSQL before every receive, so an RDS outage
+    // spends no receives; a receive is spent only by a real application attempt.
+    const resultsQueue = queue(DEV_QUEUES.results, 300, 14, 5);
 
     // =============================================================================================
     // Database
@@ -1086,7 +1100,7 @@ export class DevPlatformStack extends Stack {
       aiRole,
       'ApplyGuardrail',
       ['bedrock:ApplyGuardrail'],
-      [`arn:${partition}:bedrock:${region}:${account}:guardrail/*`],
+      [`arn:${partition}:bedrock:${props.bedrockRegion ?? region}:${account}:guardrail/*`],
     );
     allow(
       aiRole,
@@ -1440,6 +1454,13 @@ export class DevPlatformStack extends Stack {
       2,
     );
     alarm('DiskHigh', 'Dev root disk above 85%', instanceMetric('disk_used_percent'), 85, gt, 1);
+    if (props.bedrockRegion) {
+      // LaiAiGuardrail-dev is in the Bedrock Region; the Django log metric filters and the AI and
+      // child-safety alarms must sit beside the log group and topic, here (ADR-064).
+      const aiMonitoring = new Construct(this, 'AiMonitoring');
+      aiMonitoring.node.addDependency(topic, instanceLogs[0]);
+      addAiMonitoring(aiMonitoring, DEV);
+    }
     for (const [name, q] of [
       ['Ai', aiQueue],
       ['Media', mediaQueue],
@@ -1447,7 +1468,7 @@ export class DevPlatformStack extends Stack {
     ] as const) {
       alarm(
         `${name}DeadLetters`,
-        `${q.dlq.node.id}: a ${name.toLowerCase()} job message failed three times`,
+        `${q.dlq.node.id}: a ${name.toLowerCase()} job message failed ${q.maxReceiveCount} times`,
         q.dlq.metricApproximateNumberOfMessagesVisible({
           period: Duration.minutes(5),
           statistic: 'Maximum',

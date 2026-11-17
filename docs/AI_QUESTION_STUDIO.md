@@ -196,7 +196,10 @@ hints and parser entry in the React play client.
 
 ## 10. Operating it
 
-Staff need Django permissions, not `is_staff` alone. Suggested groups: **Question authors**
+Staff need Django permissions, not `is_staff` alone. `python manage.py ensure_studio_roles`
+creates or resets these groups idempotently (it never changes membership; the dev bootstrap
+`ensure-roles` task and `install-debug.sh` run it); add staff to them on the Admin accounts page.
+Groups: **Question authors** (also `cancel_generationbatch` and `retry_generationbatch`)
 (`add_generationbatch`, `view_generationbatch`, `view_question`, `add_question`, `change_question`),
 **Question reviewers** (`view_question`, `change_question`, `approve_question`,
 `view_questionrevision`), **Question publishers** (reviewer rights plus `publish_question`,

@@ -6,9 +6,13 @@
 - `inline`: in this process, through the same task code the Lambda worker runs
   (`apps.jobs.core.tasks`) with in-process ports (the configured model client, fake or real
   Polly, the configured storages). The result goes through `apply_result` like any other.
-- `sqs`: a schema-1 work envelope to the work queue for the kind, sent after the surrounding
-  transaction commits (so a worker never sees a job Django has not stored). A send that fails
-  fails the job (`submit_failed`).
+- `sqs`: a transactional outbox (ADR-064). The committed PENDING row is the durable intent; a
+  schema-1 work envelope goes to the kind's work queue after the surrounding transaction commits
+  (so a worker never sees a job Django has not stored), and `dispatched_at` records the send. A
+  send that fails, or a process that dies before sending, leaves the row undispatched; `relay()`
+  (run by the results consumer about once a minute) re-sends it, and after `DISPATCH_ATTEMPTS`
+  failed sends the job fails (`submit_failed`). Delivery is at-least-once: workers write results
+  to S3 first and `apply_result` ignores duplicates.
 - `disabled`: `JobsDisabled`.
 
 `apply_result(message)` validates a result envelope strictly, fetches an S3-held result, locks
@@ -43,6 +47,10 @@ HANDLER_MODULES = {
 }
 #: The largest work message accepted (SQS allows 256 KiB).
 MAX_WORK_BYTES = 240 * 1024
+#: Failed sends after which an undispatched job fails with `submit_failed`.
+DISPATCH_ATTEMPTS = 5
+#: Undispatched rows younger than this are left to their own on-commit send.
+RELAY_GRACE = timedelta(seconds=30)
 
 # Outcomes of `apply_result`, for the consumer and tests.
 APPLIED = "applied"
@@ -171,18 +179,58 @@ def submit(kind: str, payload: dict, *, user=None, subject=None) -> ProcessingJo
     return job
 
 
-def _send(job_id) -> None:
-    job = ProcessingJob.objects.filter(pk=job_id).first()
-    if job is None or job.status != JobStatus.PENDING:
-        return
-    try:
-        body = envelope.encode(envelope.build_work(str(job.pk), job.kind, job.payload))
-        _client("sqs").send_message(QueueUrl=queue_url_for(job.kind), MessageBody=body)
-    except Exception as error:  # noqa: BLE001 - classified by type only (ADR-025)
-        logger.warning(
-            "jobs.send failed id=%s kind=%s type=%s", job.pk, job.kind, type(error).__name__
+def _send(job_id) -> str:
+    """Send one committed, undispatched job's work message. Returns sent, skipped, deferred or
+    failed. The row stays locked while the message is sent, so the on-commit send and the relay
+    never both send the same job."""
+    with transaction.atomic():
+        job = (
+            ProcessingJob.objects.select_for_update(skip_locked=True)
+            .filter(pk=job_id, status=JobStatus.PENDING, dispatched_at__isnull=True)
+            .first()
         )
-        fail_job(job.pk, "submit_failed")
+        if job is None:
+            return "skipped"  # already sent, finished, or being sent by another process
+        try:
+            body = envelope.encode(envelope.build_work(str(job.pk), job.kind, job.payload))
+            _client("sqs").send_message(QueueUrl=queue_url_for(job.kind), MessageBody=body)
+        except Exception as error:  # noqa: BLE001 - classified by type only (ADR-025)
+            job.dispatch_attempts += 1
+            logger.warning(
+                "jobs.send failed id=%s kind=%s attempt=%s type=%s",
+                job.pk,
+                job.kind,
+                job.dispatch_attempts,
+                type(error).__name__,
+            )
+            if job.dispatch_attempts >= DISPATCH_ATTEMPTS:
+                _finalize(job, JobStatus.FAILED, error_code="submit_failed")
+                return "failed"
+            job.save(update_fields=["dispatch_attempts"])
+            return "deferred"
+        job.dispatched_at = now()
+        job.save(update_fields=["dispatched_at"])
+    return "sent"
+
+
+def relay(*, limit: int = 50) -> dict[str, int]:
+    """Re-send committed SQS jobs that were never dispatched (the outbox relay)."""
+    ids = list(
+        ProcessingJob.objects.filter(
+            status=JobStatus.PENDING,
+            dispatched_at__isnull=True,
+            backend="sqs",
+            created_at__lt=now() - RELAY_GRACE,
+        )
+        .order_by("created_at")
+        .values_list("pk", flat=True)[:limit]
+    )
+    counts = {"sent": 0, "skipped": 0, "deferred": 0, "failed": 0}
+    for job_id in ids:
+        counts[_send(job_id)] += 1
+    if ids:
+        logger.info("jobs.relay %s", " ".join(f"{k}={v}" for k, v in counts.items()))
+    return counts
 
 
 def _run_inline(job: ProcessingJob) -> None:
@@ -311,8 +359,29 @@ def fail_job(job_id, code: str) -> bool:
     return True
 
 
+def results_backlog() -> int | None:
+    """Messages waiting on (or in flight from) the results queue; None when unknown."""
+    if backend() != "sqs":
+        return 0
+    try:
+        attributes = _client("sqs").get_queue_attributes(
+            QueueUrl=settings.LAI_JOBS_RESULTS_QUEUE_URL,
+            AttributeNames=["ApproximateNumberOfMessages", "ApproximateNumberOfMessagesNotVisible"],
+        )["Attributes"]
+        return int(attributes["ApproximateNumberOfMessages"]) + int(
+            attributes["ApproximateNumberOfMessagesNotVisible"]
+        )
+    except Exception as error:  # noqa: BLE001 - unknown backlog: be conservative
+        logger.warning("jobs.sweep backlog_unknown type=%s", type(error).__name__)
+        return None
+
+
 def sweep(*, dry_run: bool = False) -> dict[str, int]:
-    """Fail stale unfinished jobs (`timeout`) and delete old completed ones."""
+    """Fail stale unfinished jobs (`timeout`) and delete old completed ones.
+
+    Timeouts wait while the results queue holds messages (or its depth cannot be read): after the
+    overnight stop or a database outage, completions for "stale" jobs may still be queued, and
+    failing those jobs first would turn valid results into ignored duplicates."""
     stamp = now()
     stale_ids = list(
         ProcessingJob.objects.filter(
@@ -324,9 +393,14 @@ def sweep(*, dry_run: bool = False) -> dict[str, int]:
         status=JobStatus.COMPLETED,
         finished_at__lt=stamp - timedelta(days=settings.LAI_JOBS_RETENTION_DAYS),
     )
-    report = {"stale": len(stale_ids), "timed_out": 0, "pruned": old.count()}
+    report = {"stale": len(stale_ids), "timed_out": 0, "deferred": 0, "pruned": old.count()}
     if dry_run:
         return report
+    if stale_ids:
+        backlog = results_backlog()
+        if backlog != 0:
+            report["deferred"] = len(stale_ids)
+            stale_ids = []
     for job_id in stale_ids:
         if fail_job(job_id, "timeout"):
             report["timed_out"] += 1

@@ -20,7 +20,7 @@ LAI_SCRIPTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 . "$LAI_SCRIPTS_DIR/lib-native.sh"
 
 TREASURE_RUSH_ASSETS=npc-pip,treasure-chest,ground-tile
-ROLE_COMMANDS=(ensure_asset_roles ensure_content_roles ensure_npc_roles ensure_sound_roles ensure_speech_roles)
+ROLE_COMMANDS=(ensure_asset_roles ensure_content_roles ensure_npc_roles ensure_sound_roles ensure_speech_roles ensure_studio_roles)
 # Create-only and safe to rerun. Voices come before the characters that use them.
 SEED_COMMANDS=(seed_treasure_rush seed_speech_voices seed_npc_pip seed_npc_quill)
 

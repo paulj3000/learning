@@ -456,9 +456,12 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     expect(queues['lai-dev-jobs-ai'].VisibilityTimeout).toBe(1800);
     expect(queues['lai-dev-jobs-media'].VisibilityTimeout).toBe(720);
     expect(queues['lai-dev-job-results'].MessageRetentionPeriod).toBe(14 * 24 * 3600);
-    for (const name of ['lai-dev-jobs-ai', 'lai-dev-jobs-media', 'lai-dev-job-results']) {
+    for (const name of ['lai-dev-jobs-ai', 'lai-dev-jobs-media']) {
       expect(queues[name].RedrivePolicy).toMatchObject({ maxReceiveCount: 3 });
     }
+    // The consumer never receives while PostgreSQL is down (ADR-064), so five receives are
+    // five real application attempts, not outage minutes.
+    expect(queues['lai-dev-job-results'].RedrivePolicy).toMatchObject({ maxReceiveCount: 5 });
   });
 
   it('keeps the speech bucket private and expires child speech after 7 days', () => {
@@ -900,5 +903,30 @@ describe('infra/bin/app.ts', { timeout: 180_000 }, () => {
     expect(types('LaiDjangoEc2-prod')).toContain('AWS::ElasticLoadBalancingV2::LoadBalancer');
     expect(types('LaiDjangoEc2-prod')).toContain('AWS::WAFv2::WebACL');
     expect(types('LaiDjangoRelease')).toContain('AWS::ECR::Repository');
+  });
+});
+
+describe('LaiDevPlatform-dev with Bedrock in another Region (ADR-064)', { timeout: 60_000 }, () => {
+  const oregon = Template.fromStack(
+    new DevPlatformStack(new App(), 'LaiDevPlatform-dev', {
+      env,
+      githubRepository: REPO,
+      bedrockRegion: 'us-west-2',
+    }),
+  );
+
+  it('creates the AI log alarms here, beside the Django log group', () => {
+    expect(Object.keys(oregon.findResources('AWS::Logs::MetricFilter')).length).toBeGreaterThan(5);
+    oregon.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'lai-django-ai-dev-high-severity-safety-event',
+    });
+    // Same Region as before: nothing about EC2, RDS or the queues moves.
+    template.resourceCountIs('AWS::Logs::MetricFilter', 0);
+  });
+
+  it('lets the AI worker apply Guardrails only in the Bedrock Region', () => {
+    const text = JSON.stringify(oregon.findResources('AWS::IAM::Policy'));
+    expect(text).toContain(':bedrock:us-west-2:');
+    expect(text).not.toMatch(/bedrock:us-west-1:[^"]*guardrail/);
   });
 });

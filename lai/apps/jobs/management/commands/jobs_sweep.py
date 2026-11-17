@@ -4,6 +4,8 @@
 
 Pending or running jobs older than `LAI_JOBS_STALE_MINUTES` become FAILED with error code
 `timeout`, and their kind's handler runs (a Studio batch waiting on that chunk is finished).
+With the SQS backend, timeouts wait (`deferred`) while the results queue still holds messages,
+so completions queued during the overnight stop or a database outage are applied first.
 Completed jobs older than `LAI_JOBS_RETENTION_DAYS` are deleted; failed jobs are kept for review.
 Prints counts only.
 """

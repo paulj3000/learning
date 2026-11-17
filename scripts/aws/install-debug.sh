@@ -94,6 +94,7 @@ step "1. stacks and outputs"
 for stack in "$DEV_ARTIFACTS_STACK" LaiAssetStorage-dev LaiChildPhotos-dev LaiAiGuardrail-dev "$DEV_PLATFORM_STACK" "$DEV_FRONTEND_STACK"; do
     region=$DEV_REGION
     [ "$stack" != "$DEV_FRONTEND_STACK" ] || region=$DEV_FRONTEND_REGION
+    [ "$stack" != LaiAiGuardrail-dev ] || region=$DEV_BEDROCK_REGION
     dev_guard_stack "$stack" "$region"
     status=$(dev_stack_status "$stack" "$region")
     case "$status" in
@@ -184,13 +185,14 @@ ensure_setting() { # ensure_setting <NAME> <value>: create /lai/dev/django/<NAME
     ok "created $1"
 }
 if [ "$enable_ai" = true ]; then
-    # The Guardrail lives in the dev region, so Bedrock is called there (US inference profile).
-    guardrail_out() { stack_output LaiAiGuardrail-dev "$1"; }
+    # Bedrock is called in the Guardrail's Region (LAI_DEV_BEDROCK_REGION, default the dev Region),
+    # through the US inference profile; EC2, RDS and the jobs stay in the dev Region.
+    guardrail_out() { stack_output LaiAiGuardrail-dev "$1" "$DEV_BEDROCK_REGION"; }
     model=$(guardrail_out ModelId) guardrail=$(guardrail_out GuardrailId) version=$(guardrail_out GuardrailVersion)
     [ -n "$model" ] && [ -n "$guardrail" ] && [ -n "$version" ] ||
         die "$EX_MISSING" "LaiAiGuardrail-dev outputs are missing (deploy-debug.sh --execute first)"
     ensure_setting LAI_AI_PROVIDER bedrock
-    ensure_setting LAI_AI_BEDROCK_REGION "$DEV_REGION"
+    ensure_setting LAI_AI_BEDROCK_REGION "$DEV_BEDROCK_REGION"
     ensure_setting LAI_AI_MODEL_ID "$model"
     ensure_setting LAI_AI_GUARDRAIL_ID "$guardrail"
     ensure_setting LAI_AI_GUARDRAIL_VERSION "$version"

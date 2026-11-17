@@ -62,6 +62,7 @@ COMMANDS = [
     "ensure_content_roles",
     "ensure_npc_roles",
     "ensure_sound_roles",
+    "ensure_studio_roles",
     "seed_treasure_rush",
     "seed_speech_voices",
     "seed_npc_pip",

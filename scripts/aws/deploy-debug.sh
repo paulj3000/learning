@@ -8,9 +8,10 @@
 #   deploy-debug.sh --status | --outputs
 #
 # Stacks, in order: LaiDevArtifacts-dev, LaiAssetStorage-dev, LaiChildPhotos-dev,
-# LaiDevPlatform-dev, LaiAiGuardrail-dev (all us-west-1; the Guardrail stack attaches its policy
-# to the platform's instance role and uses its log group and alarm topic), LaiFrontend-dev
-# (us-east-1). --execute refuses to update LaiDevPlatform-dev while the environment is stopped
+# LaiDevPlatform-dev (all us-west-1), LaiAiGuardrail-dev (the Bedrock Region, LAI_DEV_BEDROCK_REGION,
+# default us-west-1; it attaches its IAM policy to the platform's instance role and, in the dev
+# Region, also owns the AI log alarms, which the platform stack owns instead when Bedrock runs in
+# another Region), LaiFrontend-dev (us-east-1). --execute refuses to update LaiDevPlatform-dev while the environment is stopped
 # (CloudFormation cannot modify a stopped RDS instance): run manage-dev.sh start first.
 #
 # Steps: 1 credentials; 2 account (LAI_DEV_ACCOUNT_ID; required for --execute); 3 environment
@@ -81,7 +82,13 @@ done
 
 STACKS=("$DEV_ARTIFACTS_STACK" LaiAssetStorage-dev LaiChildPhotos-dev "$DEV_PLATFORM_STACK"
     LaiAiGuardrail-dev "$DEV_FRONTEND_STACK")
-stack_region() { if [ "$1" = "$DEV_FRONTEND_STACK" ]; then echo "$DEV_FRONTEND_REGION"; else echo "$DEV_REGION"; fi; }
+stack_region() {
+    case "$1" in
+        "$DEV_FRONTEND_STACK") echo "$DEV_FRONTEND_REGION" ;;
+        LaiAiGuardrail-dev) echo "$DEV_BEDROCK_REGION" ;;
+        *) echo "$DEV_REGION" ;;
+    esac
+}
 if [ -n "$only" ]; then
     dev_guard_name "$only"
     [[ " ${STACKS[*]} " == *" $only "* ]] || die "$EX_USAGE" "--only must be one of: ${STACKS[*]}"
@@ -92,7 +99,7 @@ selected() { [ -z "$only" ] || [ "$only" = "$1" ]; }
 dev_init
 step "1-3. credentials, account and environment"
 if [ "$mode" = execute ]; then dev_guard_account required; else dev_guard_account; fi
-info "account $DEV_ACCOUNT as $DEV_CALLER, region $DEV_REGION (frontend $DEV_FRONTEND_REGION), environment dev, mode $mode"
+info "account $DEV_ACCOUNT as $DEV_CALLER, region $DEV_REGION (frontend $DEV_FRONTEND_REGION, Bedrock $DEV_BEDROCK_REGION), environment dev, mode $mode"
 for stack in "${STACKS[@]}"; do dev_guard_stack "$stack" "$(stack_region "$stack")"; done
 
 if [ "$mode" = status ]; then
@@ -312,7 +319,7 @@ info "CreateGithubOidcProvider=$create_oidc"
 step "8. synthesize (npm run infra:synth)"
 out=${LAI_CDK_OUT:-$DEV_REPO_ROOT/infra/cdk.out}
 synth_env=(LAI_ENV=dev "CDK_DEFAULT_ACCOUNT=$DEV_ACCOUNT" "CDK_DEFAULT_REGION=$DEV_REGION"
-    "CDK_OUTDIR=$out" "LAI_GITHUB_REPOSITORY=$repository")
+    "CDK_OUTDIR=$out" "LAI_GITHUB_REPOSITORY=$repository" "LAI_BEDROCK_REGION=$DEV_BEDROCK_REGION")
 [ -z "$zone_id" ] || synth_env+=("LAI_HOSTED_ZONE_ID=$zone_id" "LAI_HOSTED_ZONE_NAME=${zone_name%.}")
 env "${synth_env[@]}" npm --prefix "$DEV_REPO_ROOT" run --silent infra:synth >&2 ||
     die "$EX_FAIL" "infra:synth failed"

@@ -59,9 +59,8 @@ def aws():
 
 
 def pending(**fields):
-    return ProcessingJob.objects.create(
-        kind=KIND, queue="media", backend="sqs", payload=PAYLOAD, **fields
-    )
+    fields = {"backend": "sqs", **fields}
+    return ProcessingJob.objects.create(kind=KIND, queue="media", payload=PAYLOAD, **fields)
 
 
 # --- submit ---------------------------------------------------------------------------------------
@@ -108,18 +107,52 @@ def test_sqs_submit_sends_after_commit_to_the_kind_queue(
     assert message["QueueUrl"] == helpers.MEDIA_URL
     work = envelope.parse_work(message["Body"])
     assert work["job_id"] == str(job.pk) and work["payload"] == PAYLOAD
+    job.refresh_from_db()
+    assert job.dispatched_at is not None and job.dispatch_attempts == 0
     with django_capture_on_commit_callbacks(execute=True):
         services.submit("studio.generate_chunk", {"x": 1})
     assert aws.sqs.sent[-1]["QueueUrl"] == helpers.AI_URL
 
 
-def test_a_failed_send_fails_the_job_and_runs_the_handler(
+def test_a_failed_send_leaves_the_outbox_row_for_the_relay(
     settings, recorder, aws, django_capture_on_commit_callbacks
 ):
     use_sqs(settings)
     aws.sqs.fail_send = True
     with django_capture_on_commit_callbacks(execute=True):
         job = services.submit(KIND, PAYLOAD)
+    job.refresh_from_db()
+    assert job.status == JobStatus.PENDING and job.dispatched_at is None
+    assert job.dispatch_attempts == 1 and recorder.applied == []
+    ProcessingJob.objects.filter(pk=job.pk).update(created_at=now() - timedelta(minutes=5))
+    aws.sqs.fail_send = False
+    assert services.relay() == {"sent": 1, "skipped": 0, "deferred": 0, "failed": 0}
+    job.refresh_from_db()
+    assert job.dispatched_at is not None and len(aws.sqs.sent) == 1
+    assert services.relay()["sent"] == 0  # dispatched rows are never re-sent
+
+
+def test_the_relay_sends_a_row_whose_on_commit_send_never_ran(settings, recorder, aws):
+    """A process that died between commit and send: the committed row is the durable intent."""
+    use_sqs(settings)
+    lost = pending(created_at=now() - timedelta(minutes=2))
+    young = pending()  # inside the grace period: its own on-commit send is still due
+    inline = pending(created_at=now() - timedelta(minutes=2), backend="inline")
+    assert services.relay()["sent"] == 1
+    [message] = aws.sqs.sent
+    assert envelope.parse_work(message["Body"])["job_id"] == str(lost.pk)
+    for job in (young, inline):
+        job.refresh_from_db()
+        assert job.dispatched_at is None
+
+
+def test_repeated_send_failures_fail_the_job_and_run_the_handler(settings, recorder, aws):
+    use_sqs(settings)
+    aws.sqs.fail_send = True
+    job = pending(created_at=now() - timedelta(minutes=2))
+    outcomes = [services.relay() for _ in range(services.DISPATCH_ATTEMPTS)]
+    assert [o["deferred"] for o in outcomes[:-1]] == [1] * (services.DISPATCH_ATTEMPTS - 1)
+    assert outcomes[-1]["failed"] == 1
     job.refresh_from_db()
     assert job.status == JobStatus.FAILED and job.error_code == "submit_failed"
     assert recorder.applied == [(str(job.pk), "failed", None)]
@@ -247,6 +280,22 @@ def test_sweep_fails_stale_jobs_and_prunes_old_completed(recorder, settings):
     assert len(recorder.applied) == 2
 
 
+@pytest.mark.parametrize("backlog, unreadable", [(3, False), (0, True)])
+def test_sweep_waits_while_results_are_queued(settings, recorder, aws, backlog, unreadable):
+    """After the overnight stop or a database outage, results for "stale" jobs may still be
+    queued; timing those jobs out first would turn valid results into ignored duplicates."""
+    use_sqs(settings)
+    settings.LAI_JOBS_STALE_MINUTES = 60
+    stale = pending(created_at=now() - timedelta(hours=9), dispatched_at=now())
+    aws.sqs.backlog, aws.sqs.fail_attributes = backlog, unreadable
+    report = services.sweep()
+    assert report["deferred"] == 1 and report["timed_out"] == 0
+    stale.refresh_from_db()
+    assert stale.status == JobStatus.PENDING
+    aws.sqs.backlog, aws.sqs.fail_attributes = 0, False
+    assert services.sweep()["timed_out"] == 1
+
+
 # --- consumer -------------------------------------------------------------------------------------
 
 
@@ -269,6 +318,8 @@ def test_consumer_once_applies_and_deletes(settings, recorder, aws, capsys):
         "deleted": 2,
         "left": 2,
         "received": 4,
+        "released": 0,
+        "relayed": 0,
     }
     assert aws.sqs.deleted == [done, final]
     assert poison not in aws.sqs.deleted and stray not in aws.sqs.deleted
@@ -284,3 +335,44 @@ def test_consumer_survives_a_receive_failure(settings, aws, monkeypatch):
 
     monkeypatch.setattr(aws.sqs, "receive_message", broken)
     call_command("jobs_consume_results", "--once")  # logs and exits 0
+
+
+def test_consumer_never_receives_while_the_database_is_down(settings, aws, monkeypatch):
+    """A prolonged RDS outage must not spend receives: valid results stay in the queue, out of
+    the DLQ, until the database answers again."""
+    from django.db import OperationalError
+
+    from apps.jobs.management.commands import jobs_consume_results as command
+
+    use_sqs(settings)
+    job = pending()
+    handle = aws.sqs.queue(result(job, "succeeded", result={"n": 1}))
+
+    def down():
+        raise OperationalError("could not connect")
+
+    monkeypatch.setattr(command.Command, "_check_database", staticmethod(down))
+    for _ in range(10):
+        call_command("jobs_consume_results", "--once", "--wait-seconds", "0")
+    assert aws.sqs.receives == 0 and aws.sqs.deleted == [] and len(aws.sqs.inbox) == 1
+    monkeypatch.undo()
+    use_sqs(settings)
+    call_command("jobs_consume_results", "--once", "--wait-seconds", "0")
+    assert aws.sqs.deleted == [handle]
+    job.refresh_from_db()
+    assert job.status == JobStatus.COMPLETED
+
+
+def test_a_database_error_mid_batch_hands_the_rest_back(settings, recorder, aws, monkeypatch):
+    from django.db import OperationalError
+
+    use_sqs(settings)
+    jobs = [pending() for _ in range(3)]
+    handles = [aws.sqs.queue(result(job, "succeeded", result={"n": 1})) for job in jobs]
+
+    def broken(raw):
+        raise OperationalError("server closed the connection")
+
+    monkeypatch.setattr(services, "apply_result", broken)
+    call_command("jobs_consume_results", "--once", "--wait-seconds", "0")
+    assert aws.sqs.deleted == [] and aws.sqs.released == handles

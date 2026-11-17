@@ -42,6 +42,40 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
+
+Owner decisions 1 to 8 of 2026-11-17. Repository only; no AWS resource was created or changed.
+
+- **One processing path.** `apps.jobs` on the ADR-055 queues, zip Lambda workers and the single
+  results consumer is canonical (`docs/processing/CANONICAL_PATH.md`). Added: a transactional
+  outbox (`ProcessingJob.dispatched_at`, `dispatch_attempts`, migration `jobs.0002`,
+  `services.relay()` run by the consumer once a minute); a consumer that runs `SELECT 1` before
+  every receive, so a prolonged RDS outage spends no receives and cannot push valid results into
+  the DLQ, and that releases the rest of a batch after a mid-batch database error; a sweep that
+  does not time jobs out while results are queued; results DLQ after 5 receives (work queues 3).
+- **PR #40 and PR #41** are not merged; both branches are kept. Their outage-safe consumer and
+  outbox relay are ported; `LaiProcessing-<env>`, `LaiProcessingImages-<env>`, ECR, the second
+  consumer and the two extra systemd units are not taken. The `lai_processing` package, the GLB
+  validator and the contract kinds re-land on the canonical path (LAI-LAMBDA-002 and 004 open).
+  ADR-061 is amended and ADR-062 superseded in part by ADR-064; ADR numbering reconciled (056 to
+  060 and 063 reserved for the movement branches; next free 065).
+- **Zip packaging** is the recorded default for dev Lambda workers; dev has no ECR. Container
+  workers need their own ADR.
+- **Question Studio roles.** `manage.py ensure_studio_roles` (Question authors, reviewers,
+  publishers, pool managers; authors get cancel and retry); run by the dev bootstrap
+  `ensure-roles` task and therefore by `install-debug.sh`.
+- **Bedrock Region.** `LAI_DEV_BEDROCK_REGION` (default us-west-1, which AWS lists as a source
+  Region of the US Haiku 4.5 profile) places `LaiAiGuardrail-dev`; with us-west-2 the AI log alarms
+  move to `LaiDevPlatform-dev` and nothing else moves. Production synthesis refuses a separate
+  Bedrock Region. `scripts/aws/smoke-ai-speech.sh` is the owner smoke test (free by default; paid
+  calls only with `--paid --confirm-paid-calls`).
+- **Verified:** targeted pytest (jobs, Studio roles and jobs mode, speech and asset jobs, dev
+  deploy, install, native release and smoke scripts), infra Vitest, typecheck, synthesis for dev,
+  dev with us-west-2 and prod, cfn-lint (0 errors), production templates byte-identical to the
+  previous `main`, ShellCheck, Ruff, Prettier, the ADR check, `makemigrations --check`.
+- **Not verified (live only):** everything in the README's live list, the Bedrock smoke test, a
+  DLQ redrive, and an RDS outage drill against the real consumer.
+
 ## Low-cost native AWS dev environment (ADR-055) — implemented and tested in the repository on `main` (2026-11-16); NOT deployed, live acceptance NOT run
 
 Owner-directed and authorized 2026-11-16 ("Low-Cost AWS Development Infrastructure"). Runbook:

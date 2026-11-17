@@ -147,6 +147,11 @@ dev_init() {
     export AWS_REGION=${AWS_REGION:-us-west-1}
     DEV_REGION=$AWS_REGION
     [[ $DEV_REGION =~ ^[a-z]{2}(-gov)?-[a-z]+-[0-9]$ ]] || die "$EX_USAGE" "bad region '$DEV_REGION'"
+    # Bedrock runtime Region (ADR-064): LaiAiGuardrail-dev and every Bedrock call live here. EC2,
+    # RDS, SQS, Lambda and logs stay in DEV_REGION whatever this is.
+    DEV_BEDROCK_REGION=${LAI_DEV_BEDROCK_REGION:-$DEV_REGION}
+    [[ $DEV_BEDROCK_REGION =~ ^us-(east|west)-[12]$ ]] ||
+        die "$EX_USAGE" "LAI_DEV_BEDROCK_REGION must be a US source Region of the us. inference profile (us-east-1, us-east-2, us-west-1, us-west-2)"
     dev_guard_env
 }
 

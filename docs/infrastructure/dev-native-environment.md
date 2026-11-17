@@ -203,15 +203,57 @@ always on, and the backend catches up at the next start.
 
 ## 9. Background processing
 
-Django keeps every database write. A job is a `ProcessingJob` row; Django sends a work message to
-SQS; the Lambda worker does the external call and writes the result to S3 (`jobs/results/`) before
-sending a result message; `lai-jobs-consumer` applies results in a transaction and ignores
-duplicates and results for finished jobs. Lambda is outside the VPC and never connects to RDS, so
-no NAT gateway or endpoint is needed, and results simply wait in the queue (14 days) while the
-instance is stopped. Retries: three receives, then the queue's DLQ (alarmed). A job that never
-reports is marked failed (`timeout`) by `jobs_sweep` in the daily maintenance timer. The model id
-must be on the approved list, and the Guardrail id and version are read by the worker from SSM,
-never from the message; model output is validated by Django exactly as before. With `EnableLambdaProcessing=false` the stack sets `LAI_JOBS_BACKEND=disabled` and `LAI_STUDIO_RUN_MODE=manual`; production settings refuse `thread` and `inline`.
+This is the one canonical background-processing path (ADR-055, ADR-064); there is no second job
+model, queue family, consumer, bucket or stack. Contract kinds from PR #40/#41 (the
+`lai_processing` package and the GLB validator) re-land on it as `apps.jobs` kinds
+(`docs/processing/CANONICAL_PATH.md`).
+
+```text
+services.submit -> ProcessingJob row (PENDING, committed: the outbox)
+  -> on-commit send (row locked, dispatched_at stamped)   | relay: lai-jobs-consumer re-sends
+  -> SQS lai-dev-jobs-ai | lai-dev-jobs-media              |   undispatched rows once a minute
+       (DLQ after 3 receives)
+  -> Lambda lai-dev-jobs-ai | lai-dev-jobs-media (zip, arm64, outside the VPC, no database)
+  -> result JSON to S3 jobs/results/ first, then SQS lai-dev-job-results (DLQ after 5, 14 days)
+  -> lai-jobs-consumer (jobs_consume_results): SELECT 1, then receive, apply_result under a row
+     lock, the kind's handler in the same transaction, delete only after commit
+```
+
+- **Reliable submission (transactional outbox).** The committed row is the durable intent. The
+  on-commit send locks the row (`FOR UPDATE SKIP LOCKED`) and stamps `dispatched_at`; a failed
+  send or a crashed process leaves it for the relay, which runs inside the consumer at most once a
+  minute for rows older than 30 seconds. After 5 failed sends the job fails with `submit_failed`.
+- **Database outages.** The consumer checks PostgreSQL before every receive and backs off while
+  it is unreachable, so a prolonged RDS outage spends no receives and valid results never move to
+  the DLQ because of it. A database error in the middle of a batch hands the rest back at once.
+  While dev is stopped the consumer is not running at all, and results wait in the queue.
+- **Idempotency.** Results are in S3 before the message is sent; duplicates, late messages and
+  anything for a finished job are ignored; Studio slots are unique.
+- **Timeouts.** `jobs_sweep` (daily maintenance timer) fails jobs older than
+  `LAI_JOBS_STALE_MINUTES` with `timeout`, but only when the results queue is empty: results queued
+  overnight or during an outage are applied first.
+- **Cancellation and retries.** Admin "Mark selected unfinished jobs failed"
+  (`fail_processingjob`); Studio Cancel and Retry (`cancel_generationbatch`,
+  `retry_generationbatch`, granted to Question authors by `ensure_studio_roles`). SQS redelivery is
+  the transport retry; the Studio retries a chunk `LAI_STUDIO_MAX_ATTEMPTS` times.
+- **Dead letters.** Every DLQ alarms on its first message. Fix the cause first, then an authorized
+  operations administrator (never ordinary staff) moves the messages back:
+  `aws sqs start-message-move-task --source-arn <dlq arn>` (to the source queue by default);
+  check with `aws sqs list-message-move-tasks --source-arn <dlq arn>`.
+- **Packaging (ADR-064).** The workers are one zip (`scripts/aws/package-lambda.sh`,
+  `jobs-worker-<hash16>.zip`) uploaded to the artifacts bucket under `lambda/` and referenced by
+  the `WorkerCodeKey` parameter; `deploy-dev-lambda.yml` updates both functions on a push. Dev has
+  no ECR repository. A container-image worker needs its own ADR.
+- **Bedrock Region (ADR-064).** `LAI_DEV_BEDROCK_REGION` (default the dev Region, us-west-1)
+  places `LaiAiGuardrail-dev` and every Bedrock call; with us-west-2 the AI log alarms move into
+  `LaiDevPlatform-dev` and the AI worker's Guardrail permission names us-west-2. EC2, RDS, SQS,
+  Lambda and logs never move.
+
+Lambda is outside the VPC and never connects to RDS, so no NAT gateway or endpoint is needed. The
+model id must be on the approved list, and the Guardrail id and version are read by the worker
+from SSM, never from the message; model output is validated by Django exactly as before. With
+`EnableLambdaProcessing=false` the stack sets `LAI_JOBS_BACKEND=disabled` and
+`LAI_STUDIO_RUN_MODE=manual`; production settings refuse `thread` and `inline`.
 
 Workload status:
 

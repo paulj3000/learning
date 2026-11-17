@@ -64,6 +64,11 @@ class ProcessingJob(models.Model):
     #: stable id, such as a speech cache key). A plain reference: jobs never cascade-delete.
     subject_type = models.CharField(max_length=64, blank=True)
     subject_id = models.CharField(max_length=64, blank=True)
+    #: Transactional outbox (ADR-064): the committed PENDING row is the durable intent to send.
+    #: Set once the work message is accepted by SQS; the relay re-sends rows still unset.
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    #: Failed sends so far; the job fails with `submit_failed` at `services.DISPATCH_ATTEMPTS`.
+    dispatch_attempts = models.PositiveSmallIntegerField(default=0)
     worker_function = models.CharField(max_length=140, blank=True)
     worker_request_id = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(default=now, editable=False)
@@ -77,6 +82,11 @@ class ProcessingJob(models.Model):
         indexes = [
             models.Index(fields=["status", "created_at"], name="jobs_status_created"),
             models.Index(fields=["subject_type", "subject_id"], name="jobs_subject"),
+            models.Index(
+                fields=["created_at"],
+                name="jobs_undispatched",
+                condition=models.Q(status="pending", dispatched_at__isnull=True),
+            ),
         ]
         constraints = [
             models.CheckConstraint(

@@ -78,6 +78,19 @@ if (Boolean(hostedZoneId) !== Boolean(hostedZoneName)) {
 }
 
 const env = { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION };
+/**
+ * The Bedrock runtime Region (ADR-064): where LaiAiGuardrail-<env> is deployed and Django calls
+ * Bedrock. Defaults to the platform Region. Dev only may differ (e.g. us-west-2 when us-west-1
+ * cannot invoke the US Haiku 4.5 profile); EC2, RDS, SQS, Lambda and logs never move.
+ */
+const bedrockRegion = setting('bedrockRegion', 'LAI_BEDROCK_REGION') || env.region;
+if (bedrockRegion && !/^us-(east|west)-[12]$/.test(bedrockRegion)) {
+  throw new Error(`bedrockRegion ${bedrockRegion} is not a US source Region of the us. profile`);
+}
+const bedrockElsewhere = Boolean(bedrockRegion && env.region && bedrockRegion !== env.region);
+if (bedrockElsewhere && envName !== 'dev') {
+  throw new Error('A separate Bedrock Region is supported for dev only (ADR-064)');
+}
 // No file assets anywhere, so no `cdk bootstrap` stack (and its IAM roles, LAI-0104) is needed:
 // every synthesized template deploys with `aws cloudformation deploy` or `cdk deploy` alike.
 const synthesizer = () => new BootstraplessSynthesizer();
@@ -116,6 +129,7 @@ if (envName === 'dev') {
   });
   new DevPlatformStack(app, DEV_PLATFORM_STACK, {
     githubRepository,
+    bedrockRegion: bedrockElsewhere ? bedrockRegion : undefined,
     env,
     synthesizer: synthesizer(),
     description:
@@ -145,7 +159,8 @@ if (envName === 'dev') {
 new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, {
   envName: envName as AssetEnvironment,
   djangoRoleArn: setting('djangoRoleArn', 'LAI_DJANGO_ROLE_ARN') || undefined,
-  env,
+  platformRegion: bedrockElsewhere ? env.region : undefined,
+  env: { account: env.account, region: bedrockRegion },
   synthesizer: synthesizer(),
   description: `Learning Adventure Island child-safety Guardrail and Django AI policy (${envName})`,
 });

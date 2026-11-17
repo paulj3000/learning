@@ -28,6 +28,9 @@ class FakeSQS:
         self.deleted: list[str] = []
         self.fail_send = False
         self.receives = 0
+        self.released: list[str] = []
+        self.backlog = 0  # ApproximateNumberOfMessages reported for the results queue
+        self.fail_attributes = False
 
     def send_message(self, QueueUrl, MessageBody):
         if self.fail_send:
@@ -42,6 +45,19 @@ class FakeSQS:
 
     def delete_message(self, QueueUrl, ReceiptHandle):
         self.deleted.append(ReceiptHandle)
+
+    def change_message_visibility(self, QueueUrl, ReceiptHandle, VisibilityTimeout):
+        self.released.append(ReceiptHandle)
+
+    def get_queue_attributes(self, QueueUrl, AttributeNames):
+        if self.fail_attributes:
+            raise RuntimeError("unreachable")
+        return {
+            "Attributes": {
+                "ApproximateNumberOfMessages": str(self.backlog),
+                "ApproximateNumberOfMessagesNotVisible": "0",
+            }
+        }
 
     def queue(self, body, handle=None):
         text = body if isinstance(body, str) else json.dumps(body)
