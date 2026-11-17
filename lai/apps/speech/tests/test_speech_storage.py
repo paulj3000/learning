@@ -136,8 +136,17 @@ class TestS3:
         SignatureDoesNotMatch because the signature covers the original host (2026-11-11)."""
         from urllib.parse import urlsplit
 
-        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
-        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+        # boto3 caches a default session across tests; changing the environment after
+        # an earlier client has resolved credentials does not refresh that session.
+        # Use an isolated session with explicit dummy credentials, then restore it.
+        monkeypatch.setattr(
+            boto3,
+            "DEFAULT_SESSION",
+            boto3.Session(
+                aws_access_key_id="testing",
+                aws_secret_access_key="testing",  # noqa: S106 - local signing only
+            ),
+        )
         settings.LAI_SPEECH_STORAGE = "s3"
         settings.LAI_SPEECH_BUCKET = "speech-bucket"
         settings.LAI_SPEECH_S3_REGION = "us-west-2"
