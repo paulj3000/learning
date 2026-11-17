@@ -282,27 +282,32 @@ def _corpus() -> list[ParityCase]:
         ParityCase("glb_version_1", glb(*static_model(), version=1), E({"glb_version"})),
         ParityCase("truncated", static[:-16], E({"glb_length"})),
         ParityCase("length_mismatch", glb(*static_model(), length_delta=4), E({"glb_length"})),
-        ParityCase("first_chunk_not_json", glb(*static_model(), json_type=0x12345678),
-                   E({"glb_chunks"})),
-        ParityCase("second_chunk_not_bin", glb(*static_model(), bin_type=0x12345678),
-                   E({"glb_chunks"})),
-        ParityCase("bin_chunk_beyond_file", glb(*static_model(), bin_length_delta=64),
-                   E({"glb_chunks"})),
-        ParityCase("json_chunk_beyond_file", glb(*static_model(), json_length_delta=10**6),
-                   E({"json_size"})),
+        ParityCase(
+            "first_chunk_not_json", glb(*static_model(), json_type=0x12345678), E({"glb_chunks"})
+        ),
+        ParityCase(
+            "second_chunk_not_bin", glb(*static_model(), bin_type=0x12345678), E({"glb_chunks"})
+        ),
+        ParityCase(
+            "bin_chunk_beyond_file", glb(*static_model(), bin_length_delta=64), E({"glb_chunks"})
+        ),
+        ParityCase(
+            "json_chunk_beyond_file",
+            glb(*static_model(), json_length_delta=10**6),
+            E({"json_size"}),
+        ),
         ParityCase("invalid_json", glb(b"{not json", b""), E({"invalid_json"})),
         ParityCase("json_not_object", glb(b"[1, 2]", b""), E({"invalid_json"})),
         ParityCase("invalid_utf8", glb(b'{"asset": "\xff"}', b""), E({"invalid_json"})),
         ParityCase("gltf_version_1", mutated(_set("asset.version", "1.0")), E({"gltf_version"})),
         ParityCase(
             "draco_required",
-            mutated(
-                _set("extensionsRequired", ["KHR_draco_mesh_compression"])
-            ),
+            mutated(_set("extensionsRequired", ["KHR_draco_mesh_compression"])),
             E({"needs_decoder"}),
         ),
         ParityCase(
-            "meshopt_used", mutated(_set("extensionsUsed", ["EXT_meshopt_compression"])),
+            "meshopt_used",
+            mutated(_set("extensionsUsed", ["EXT_meshopt_compression"])),
             E({"needs_decoder"}),
         ),
         ParityCase(
@@ -382,7 +387,8 @@ def _corpus() -> list[ParityCase]:
         ),
         ParityCase("no_scene", mutated(_set("scenes", [])), E({"no_scene"})),
         ParityCase(
-            "scene_missing_node", mutated(_set("scenes.0.nodes", [7])),
+            "scene_missing_node",
+            mutated(_set("scenes.0.nodes", [7])),
             E({"invalid_node", "no_geometry"}),
         ),
         ParityCase(
@@ -390,9 +396,7 @@ def _corpus() -> list[ParityCase]:
             mutated(_set("nodes", [{"mesh": 0, "children": [1]}, {"children": [0]}])),
             E({"node_cycle"}),
         ),
-        ParityCase(
-            "duplicate_clip", skinned_glb(("Idle", "Idle")), E({"duplicate_clip"})
-        ),
+        ParityCase("duplicate_clip", skinned_glb(("Idle", "Idle")), E({"duplicate_clip"})),
         ParityCase("long_clip_name", skinned_glb(("W" * 65,)), E({"clip_name"})),
         ParityCase(
             "too_many_nodes",
@@ -425,8 +429,7 @@ def _corpus() -> list[ParityCase]:
         ),
         ParityCase(
             "deep_json",
-            glb(b'{"asset": {"version": "2.0"}, "extras": ' + b"[" * 100 + b"]" * 100 + b"}",
-                b""),
+            glb(b'{"asset": {"version": "2.0"}, "extras": ' + b"[" * 100 + b"]" * 100 + b"}", b""),
             E({"no_scene"}),
             E({"invalid_json"}),
             "Nesting deeper than max_json_depth (64) is refused; Django parses up to Python's "

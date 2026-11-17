@@ -294,9 +294,7 @@ def test_cancellation_mid_validation(tmp_path: Path) -> None:
 
     nodes = [{"mesh": 0}] + [{} for _ in range(3000)]
     document = {"asset": {"version": "2.0"}, "scenes": [{"nodes": [0]}], "nodes": nodes}
-    result, _ = run(
-        tmp_path, glb(document, None), clock=CancellingClock(), cancellation=token
-    )
+    result, _ = run(tmp_path, glb(document, None), clock=CancellingClock(), cancellation=token)
     assert result.status is ResultStatus.CANCELLED
     assert result.errors[0].code is ErrorCode.CANCELLED
 
@@ -308,9 +306,7 @@ def test_cli_runs_the_glb_validator(tmp_path: Path) -> None:
     input_path = tmp_path / "model.glb"
     input_path.write_bytes(data)
     out, err = io.StringIO(), io.StringIO()
-    code = main(
-        ["run", str(request_path), "--input-file", str(input_path)], stdout=out, stderr=err
-    )
+    code = main(["run", str(request_path), "--input-file", str(input_path)], stdout=out, stderr=err)
     assert code == 0, err.getvalue()
     result = json.loads(out.getvalue())
     assert result["status"] == "succeeded"

@@ -263,12 +263,8 @@ def test_sparse_accessor() -> None:
 
     assert change(sparse()) == set()
     assert change(sparse(count=99)) == {"invalid_accessor"}
-    assert change(sparse(indices={"bufferView": 99, "componentType": 5123})) == {
-        "invalid_accessor"
-    }
-    assert change(sparse(indices={"bufferView": 1, "componentType": 5126})) == {
-        "invalid_accessor"
-    }
+    assert change(sparse(indices={"bufferView": 99, "componentType": 5123})) == {"invalid_accessor"}
+    assert change(sparse(indices={"bufferView": 1, "componentType": 5126})) == {"invalid_accessor"}
     assert change(sparse(values={"bufferView": 1, "byteOffset": 10})) == {"buffer_bounds"}
     assert change(sparse(count=4, values={"bufferView": 1})) == {"buffer_bounds"}
     assert change(setter("accessors.0.sparse", "x")) == {"invalid_accessor"}
@@ -317,9 +313,7 @@ def test_quantized_positions_need_the_extension() -> None:
     assert "invalid_mesh" not in change(quantized)
 
 
-@pytest.mark.parametrize(
-    ("mode", "triangles"), [(4, 2), (5, 4), (6, 4), (0, 0), (1, 0), (3, 0)]
-)
+@pytest.mark.parametrize(("mode", "triangles"), [(4, 2), (5, 4), (6, 4), (0, 0), (1, 0), (3, 0)])
 def test_triangle_counts_by_mode(mode: int, triangles: int) -> None:
     outcome = validate(mutated(setter("meshes.0.primitives.0.mode", mode)))
     assert outcome.facts.triangle_count == triangles

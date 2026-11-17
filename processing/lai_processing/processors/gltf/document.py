@@ -549,15 +549,11 @@ class _Validator:
             offset = view.get("byteOffset", 0)
             length = view.get("byteLength")
             if not _index(buffer, self.buffer_lengths):
-                self.error(
-                    "invalid_buffer_view", "A buffer view points at a missing buffer.", path
-                )
+                self.error("invalid_buffer_view", "A buffer view points at a missing buffer.", path)
             elif not (_whole(offset) and _whole(length) and length > 0):  # type: ignore[operator]
                 self.error("invalid_buffer_view", "A buffer view has an invalid range.", path)
             elif offset + length > self.buffer_lengths[buffer]:  # type: ignore[operator,index]
-                self.error(
-                    "buffer_bounds", "A buffer view runs past the end of its buffer.", path
-                )
+                self.error("buffer_bounds", "A buffer view runs past the end of its buffer.", path)
             else:
                 ok = True
             stride = view.get("byteStride")
@@ -611,9 +607,7 @@ class _Validator:
             return None
         components = TYPE_COMPONENTS[kind]
         normalized = accessor.get("normalized", False)
-        if type(normalized) is not bool or (
-            normalized and component_type in (FLOAT, UNSIGNED_INT)
-        ):
+        if type(normalized) is not bool or (normalized and component_type in (FLOAT, UNSIGNED_INT)):
             self.error("invalid_accessor", "An accessor has an invalid normalized flag.", path)
             normalized = False
         minimum = maximum = None
@@ -645,9 +639,7 @@ class _Validator:
                 view = _dict(views[view_index]) or {}  # type: ignore[index]
                 self._accessor_range(view, offset, count, component_type, element, path)
             else:
-                self.error(
-                    "invalid_accessor", "An accessor points at a missing buffer view.", path
-                )
+                self.error("invalid_accessor", "An accessor points at a missing buffer view.", path)
         if "sparse" in accessor:
             self._sparse(accessor["sparse"], count, element, path)
         return info
@@ -880,9 +872,7 @@ class _Validator:
                     continue
                 info = _dict(holder[slot])
                 tex_coord = info.get("texCoord", 0) if info else None
-                if info is None or not _index(info.get("index"), textures) or not _whole(
-                    tex_coord
-                ):
+                if info is None or not _index(info.get("index"), textures) or not _whole(tex_coord):
                     self.error(
                         "invalid_material",
                         "A material refers to a missing texture.",
@@ -950,9 +940,7 @@ class _Validator:
             if position.type != "VEC3" or position.component_type not in allowed:
                 self.error("invalid_mesh", "A mesh's POSITION data is not 3D vectors.", path)
         if len(counts) > 1:
-            self.error(
-                "invalid_mesh", "A mesh primitive's attributes have different counts.", path
-            )
+            self.error("invalid_mesh", "A mesh primitive's attributes have different counts.", path)
         mode = primitive.get("mode", 4)
         if not _whole(mode) or mode > MAX_MODE:  # type: ignore[operator]
             self.error("invalid_mesh", "A mesh primitive has an unknown drawing mode.", path)
@@ -1022,9 +1010,7 @@ class _Validator:
                 if not _index(child, nodes):
                     self.error("invalid_node", "A node refers to a missing child node.", path)
                 elif child == index or self.parents[child] is not None:
-                    self.error(
-                        "node_cycle", "A node has two parents or is its own ancestor.", path
-                    )
+                    self.error("node_cycle", "A node has two parents or is its own ancestor.", path)
                 else:
                     self.parents[child] = index
         self._hierarchy(nodes)
@@ -1056,7 +1042,8 @@ class _Validator:
             self.check()
             if not seen:
                 self.error(
-                    "node_cycle", "A node is part of a cycle in the node hierarchy.",
+                    "node_cycle",
+                    "A node is part of a cycle in the node hierarchy.",
                     f"nodes[{index}]",
                 )
                 break
@@ -1083,9 +1070,7 @@ class _Validator:
                     self.error("node_cycle", "A node appears twice in the scene graph.", path)
                 else:
                     if self.parents[root] is not None:
-                        self.error(
-                            "node_cycle", "A scene root node also has a parent node.", path
-                        )
+                        self.error("node_cycle", "A scene root node also has a parent node.", path)
                     roots.append(root)
             roots_by_scene.append(roots)
         default = self.doc.get("scene", 0)
@@ -1115,9 +1100,12 @@ class _Validator:
                 self.check()
                 attributes = _dict(primitive.get("attributes")) if _dict(primitive) else None
                 info = self.accessor(attributes.get("POSITION")) if attributes else None
-                if info is None or info.minimum is None or info.maximum is None or len(
-                    info.minimum
-                ) != 3:
+                if (
+                    info is None
+                    or info.minimum is None
+                    or info.maximum is None
+                    or len(info.minimum) != 3
+                ):
                     missing = True
                     continue
                 box = (info.minimum, info.maximum)
@@ -1178,9 +1166,7 @@ class _Validator:
                 matrices_index = skin["inverseBindMatrices"]
                 info = self.accessor(matrices_index)
                 if not _index(matrices_index, self.accessors):
-                    self.error(
-                        "invalid_skin", "A skin's inverse bind matrices are missing.", path
-                    )
+                    self.error("invalid_skin", "A skin's inverse bind matrices are missing.", path)
                 elif info is not None and (
                     info.type != "MAT4" or info.component_type != FLOAT or info.count < len(joints)
                 ):
@@ -1232,9 +1218,7 @@ class _Validator:
             self._clip_name(animation.get("name"), names, path)
         self.facts.counts["channels"] = channels_total
         if self.settings.require_animations and not self.items("animations"):
-            self.error(
-                "animations_required", "This profile requires at least one animation clip."
-            )
+            self.error("animations_required", "This profile requires at least one animation clip.")
 
     def _animation_data(
         self, samplers: list[Any], channels: list[Any], nodes: list[Any], path: str

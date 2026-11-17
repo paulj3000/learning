@@ -35,7 +35,7 @@ def test_valid_static_model_has_no_findings() -> None:
         (b"glTF", "not_glb"),
         (b"glTF\x02\x00\x00\x00", "not_glb"),
         (b"PK\x03\x04" + b"\x00" * 40, "not_a_model"),
-        (b"  {\"asset\": {}}", "gltf_not_supported"),
+        (b'  {"asset": {}}', "gltf_not_supported"),
         (b"gl", "not_a_model"),
     ],
 )

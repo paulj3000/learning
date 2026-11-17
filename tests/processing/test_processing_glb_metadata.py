@@ -245,5 +245,5 @@ def test_same_bytes_give_identical_metadata() -> None:
 def test_metadata_holds_no_findings_text_or_paths() -> None:
     document, binary = static_model()
     rendered = canonical_json(metadata(glb(document, binary))).decode()
-    for forbidden in ("/tmp", "input.bin", "processing/"):
+    for forbidden in ("/tmp", "input.bin", "processing/"):  # noqa: S108 - asserted absent
         assert forbidden not in rendered
