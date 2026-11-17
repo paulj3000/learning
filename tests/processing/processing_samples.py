@@ -124,7 +124,7 @@ def reference_request(**overrides: Any) -> ProcessingJobRequest:
 
 def asset_request() -> ProcessingJobRequest:
     subject = SubjectRef("asset_version", ASSET_VERSION_ID)
-    profile = ProfileRef("model-default", 1)
+    profile = ProfileRef("glb-default", 1)
     inp = InputObject(
         ref=ObjectRef(StoreName.ASSETS, ASSET_KEY, "3sL4kqtJlcpXroDTDmJ.rmSpXd3dIbrHY", NAMESPACE),
         content_type="model/gltf-binary",

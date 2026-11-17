@@ -132,10 +132,27 @@ def test_validate_job_reads_standard_input():
     assert json.loads(out)["valid"] is True
 
 
-def test_validate_job_reports_an_unknown_profile_for_the_asset_fixture():
-    # The frozen fixture names profile `model-default` v1; the GLB processor (LAI-LAMBDA-002)
-    # serves `glb-default` v1, so the request is refused as a profile problem (permanent).
+def test_validate_job_accepts_the_asset_fixture_with_the_glb_processor():
     code, out, _ = run_cli("validate-job", str(ASSET_REQUEST))
+    assert code == EXIT_OK
+    report = json.loads(out)
+    assert report["processor"] == {
+        "processor_id": "asset.glb_validator",
+        "processor_version": "1.0.0",
+    }
+    assert report["profile"] == {"profile_id": "glb-default", "version": 1}
+
+
+def _with_unknown_profile(tmp_path) -> str:
+    data = json.loads(ASSET_REQUEST.read_text())
+    data["profile"]["profile_id"] = "no-such-profile"
+    path = tmp_path / "unknown-profile.json"
+    path.write_text(json.dumps(data))
+    return str(path)
+
+
+def test_validate_job_reports_an_unknown_profile(tmp_path):
+    code, out, _ = run_cli("validate-job", _with_unknown_profile(tmp_path))
     assert code == EXIT_INVALID
     error = json.loads(out)["error"]
     assert error["code"] == "invalid_processing_profile"
@@ -309,7 +326,7 @@ def test_run_without_input_file_is_a_usage_error():
 
 def test_run_rejects_an_invalid_request_before_reading_input(tmp_path):
     code, out, _ = run_cli(
-        "run", str(ASSET_REQUEST), "--input-file", str(tmp_path / "never-read.glb")
+        "run", _with_unknown_profile(tmp_path), "--input-file", str(tmp_path / "never-read.glb")
     )
     assert code == EXIT_INVALID
     assert json.loads(out)["error"]["code"] == "invalid_processing_profile"

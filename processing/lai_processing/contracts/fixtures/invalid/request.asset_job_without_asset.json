@@ -4,7 +4,7 @@
   "attempt_number": 1,
   "correlation_id": "corr-asset-model-0001",
   "expires_at": null,
-  "idempotency_key": "ik1:e7263b7573a41af60f33933d380a84b707beb879f6c5594c8f9d0365d249ac38",
+  "idempotency_key": "ik1:476c4b5d2b51c56633a86982387b852a75bc18a31de228ef9ac5262f9a0438f5",
   "input": {
     "content_type": "model/gltf-binary",
     "ref": {
@@ -31,7 +31,7 @@
   "namespace": "local",
   "options": {},
   "profile": {
-    "profile_id": "model-default",
+    "profile_id": "glb-default",
     "version": 1
   },
   "schema_version": 1,
