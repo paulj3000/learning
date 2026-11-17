@@ -4,6 +4,9 @@ Owner: Wave 2 workstream C. Trello: https://trello.com/c/tMJsWpFd. Binding inter
 `WAVE2_INTERFACES.md` sections 0, 4, 5 and 6. Lifecycle rules: `LIFECYCLE.md`. Decision:
 ADR-062 (one job backbone), on ADR-033, ADR-055 and ADR-061.
 
+Wave 3 (LAI-LAMBDA-006 and 007, `WAVE3_INTERFACES.md`) adds the completion hook registry and
+`subject_outcome` (section 3.1, migration `jobs.0003`) and the reconcile advisory lock (section 5).
+
 ## 1. One backbone, two families of kinds
 
 `apps.jobs.ProcessingJob` stays the only job table, admin and sweep. No new Django app and no
@@ -43,6 +46,7 @@ migration keeps every existing row as it is):
 | `current_attempt` | The attempt most recently created (FK to `JobAttempt`) |
 | `expires_at` | Submission + `LAI_PROCESSING_JOB_TTL_HOURS` |
 | `cancel_requested_at`, `cancelled_by` | Staff cancellation |
+| `subject_outcome` | Wave 3, migration `jobs.0003_processing_subject_outcome` (`CharField`, 64, blank): the safe code the subject's completion hook returned (section 3.1), or `hook_error`; blank when no hook ran |
 
 For contract kinds `payload` holds the attempt-1 `ProcessingJobRequest.to_dict()` (ids, keys,
 checksums and resolved options; no content), the template from which every later attempt is
@@ -100,7 +104,8 @@ The coarse `status` the existing admin, filters and sweep use is kept in step wi
 Every state change happens on a row held by `select_for_update()` and goes through
 `lifecycle.check_transition`. `requeue_job` checks for `failed` explicitly because
 `queued -> queued` is also a legal transition (the automatic retry) and must never be a staff
-action. Nothing here changes an `AssetVersion` or publishes anything.
+action. Nothing in these services changes an `AssetVersion` or publishes anything; since Wave 3
+the only path from a completion to a subject row is a registered completion hook (section 3.1).
 
 **Open decision: resubmitting cancelled work.** `cancelled` is terminal in the lifecycle, so
 `requeue_job` refuses it, and `submit_processing_job` for the same work (same idempotency key)
@@ -113,6 +118,33 @@ SHA-256, size and content type; subject `asset_version`/version uuid; the asset 
 `glb-default` v1) and submits it. It changes neither the version's status nor its metadata or
 validation report, and never publishes. `default_registry()` registers `asset.glb_validator`
 (LAI-LAMBDA-002), so the job runs the real validator.
+
+### 3.1 Completion hooks (Wave 3, `WAVE3_INTERFACES.md` section 3)
+
+The registry lives in `apps.jobs.hooks` (no `lai_processing` imports, so an app can register from
+`AppConfig.ready()` while `manage.py check` runs without `processing/` on the path) and is
+re-exported by `apps.jobs.processing`.
+
+| Symbol | Behaviour |
+|---|---|
+| `HookResult(code: str, review_ready: bool = False)` | What a hook did. `code` is stored in `subject_outcome` (cut to 64 characters); `review_ready` moves a `validated` job to `ready_for_review` |
+| `register_completion_hook(job_type, subject_type, hook)` | Explicit, no discovery. `job_type` must be a contract kind and `subject_type` 1 to 64 characters, else `ImproperlyConfigured`. The same callable again is a no-op (a second `ready()`); another callable for a registered pair raises `ImproperlyConfigured` |
+| `completion_hook(job_type, subject_type)` | The registered hook or `None` |
+| `set_completion_hooks_for_tests(mapping or None)` | Replaces the registry and returns the previous one, for restoring |
+
+`_run_completion_hook` is called by `_apply_locked` after every **APPLY** (a succeeded, failed or
+cancelled result), inside the completion transaction, under the job row lock and in a savepoint.
+It never runs for DUPLICATE, STALE, RETRY or REJECT, so a subject is changed at most once per
+job. A `DatabaseError` (an `IntegrityError` included) propagates: the whole completion rolls back
+and is deferred. Any other exception rolls back the hook's savepoint only; the job keeps its
+applied result with `subject_outcome = "hook_error"` and `processing.hook_error job=.. kind=..
+type=<class>` is logged at ERROR. A hook must not change the job object: `apps.jobs.processing`
+owns it and saves it after the hook, so an in-memory change would be saved even when the hook
+then failed. Lock order: job row, then the hook's own rows.
+
+Registered hooks: `("asset.validate_model", "asset_version")` ->
+`apps.assets.completion.apply_model_validation`, from `AssetsConfig.ready()`. Its outcome codes
+are in `LIFECYCLE.md` section 10.2. `reference.checksum` has no hook and is applied as before.
 
 ## 4. Applying a completion (WAVE2_INTERFACES section 5)
 
@@ -169,7 +201,7 @@ results and artifacts are keyed by attempt.
 |---|---|
 | `jobs_dispatch [--once] [--interval S] [--limit N]` | Outbox relay loop. SIGTERM finishes the current pass and exits. A `DatabaseError` closes the connection and backs off (2^n s, at most 60). `disabled`: exits 0. `inline`: a pass runs the jobs in-process. Prints `{"sent": n}` with `--once`. |
 | `jobs_consume_completions [--once] [--max-messages N] [--wait-seconds S] [--visibility S]` | Completion consumer. Runs `SELECT 1` before every receive and receives nothing while PostgreSQL is down (backing off 2, 4, 8 s up to 60 s; with `--once` it prints `{"database": "unavailable", ...}` and exits 2). Acknowledges only after `apply_completion` returned (committed). `invalid`: left for the DLQ. `CompletionDeferred` or an unexpected error: `release` with `min(300, 5 * 2^(receive_count-1))` seconds; a database outage (not an `IntegrityError`) also closes the connection, hands the rest of the batch back with delay 0 and backs off before the next receive. A failure after a receive still counts as a receive for that batch (`OPERATIONS.md` section 7). `--wait-seconds` is passed to adapters whose `receive` accepts `wait_seconds`; otherwise an empty receive sleeps briefly. `disabled` and `inline`: exits 0. |
-| `jobs_reconcile [--dry-run] [--stuck-minutes M]` | Expires overdue open jobs (`job_expired`) and reports stuck outbox rows (logged as `processing.outbox_stuck`). Prints counts. |
+| `jobs_reconcile [--dry-run] [--stuck-minutes M]` | Expires overdue open jobs (`job_expired`) and reports stuck outbox rows (logged as `processing.outbox_stuck`). Prints counts. On PostgreSQL a run that changes rows holds the session advisory lock `RECONCILE_LOCK_KEY`, so two runs never overlap: the second prints `{"dryRun": false, "skipped": "already_running"}` and exits 0. `--dry-run` takes no lock. An unexpected error logs `processing.reconcile_failed type=<class>` and exits 1. Scheduled on native dev by `lai-jobs-reconcile.timer` (`OPERATIONS.md` section 6.1). |
 
 ## 6. Transport and settings
 
@@ -216,6 +248,9 @@ also serves contract kinds:
 - actions: **Cancel** needs `jobs.cancel_processingjob`, **Requeue** needs
   `jobs.requeue_processingjob` (both also need view); "Mark failed" (`jobs.fail_processingjob`)
   never touches contract kinds. There is no publish action, and no child data exists here.
+- `subject_outcome` is not shown on the job page; for asset validation jobs it appears, with the
+  result summary and findings, in the asset version's read-only "Background validation" section
+  (`ASSET_LIBRARY.md` section 23).
 
 Legacy jobs show exactly the fields and the action they did before.
 

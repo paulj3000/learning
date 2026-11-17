@@ -77,8 +77,13 @@ and `LAI_PROCESSING_LOCAL_ROOT` must point the worker and Django at the same dir
 (`--assets-root` and `--root`). Worker flags, exit codes and stop behaviour: `RUNTIME.md`
 section 4. `local-demo.sh` creates its own database (`lai_processing_demo*` only) and temporary
 directories, uses the real upload service, the real GLB validator and the real commands, and
-touches nothing in AWS. It ran successfully at integration (job validated, verdict `pass`, clips
-`["Idle", "Armature|mixamo.com|Layer0"]`, `AssetVersion` status unchanged at `VALIDATED`).
+touches nothing in AWS. Since Wave 3 it sets `LAI_ASSET_ASYNC_VALIDATION=on` and shows the whole
+asset path: a flag-off upload for comparison (`VALIDATED`, no job), a flag-on Treasure Rush chest
+upload stored as `DRAFT` with its job, publication refused before a result (`not_validated` for
+the draft, `processing_required` for a GLB validated before the flag), the round trip (`DRAFT ->
+VALIDATED`, clips `["Idle", "Armature|mixamo.com|Layer0"]`), a resent work message recorded as a
+`duplicate` completion, the Admin "Background validation" text, an explicit publish through the
+gate and the existing resolver, then a failing model (`DRAFT -> REJECTED`, never publishable).
 
 ## 4. Queue and worker settings (as synthesized)
 
@@ -261,7 +266,7 @@ incident notes.
 | `lai-<env>-processing-completion-dead-letters` | completion DLQ depth | 8.4 or 8.5 completion DLQ |
 | `processing.completion_invalid code=... field=...` in `/lai/dev/jobs` | consumer | poison completion (8.5) |
 | `processing.completion_rejected ... reason=...` | consumer, alarm `processing-completion-rejected` | identity or signature failure (8.6), **not** a DLQ case |
-| Job `failed` with a verdict `fail` result, or `error_code` such as `model_invalid` | Django Admin | permanent validation failure (8.7), **not** a DLQ case |
+| Job `ready_for_review` with verdict `fail` (version `REJECTED`), or job `failed` with a permanent error code | Django Admin | permanent validation failure (8.7), **not** a DLQ case |
 | `processing.consumer database_error` repeated, alarm `processing-consumer-database-error` | consumer | temporary database failure (section 7, 8.8) |
 | Job `failed` with `retries_exhausted` | Django Admin | retry exhaustion (8.9) |
 | Job `queued` long after `expires_at`, or `processing.outbox_stuck` | reconcile | stale attempts (8.10) |
@@ -488,7 +493,7 @@ value 1 per matching line, no default value.
 | `outbox-stuck` | `"processing.outbox_stuck"` | at least 1 in each of 2 x 15 min | Section 8.10 |
 | `reconcile-failed` | `"processing.reconcile_failed"` | at least 1 in 15 min | Section 6.1, 8.8 |
 | `subject-mismatch` | `"processing.subject_mismatch"` | at least 1 in 15 min | Section 8.6 |
-| `hook-error` | `"processing.hook_error"` | at least 1 in 15 min | A completion hook bug: the job kept its result with `subject_outcome = hook_error` and the version was not changed. Fix the hook, then **Validate in background** on the version |
+| `hook-error` | `"processing.hook_error"` | at least 1 in 15 min | A completion hook bug: the job kept its result with `subject_outcome = hook_error` (state `validated`) and the version was not changed. Fix and release the hook. **Validate in background** returns the same finished job for the same file and validator (same idempotency key) and does not rerun the hook, and the job cannot be requeued (not `failed`); delete the draft and upload the file again |
 | `consumer-database-error` | `"processing.consumer database_error"` (also matches `database_error_in_batch`) | at least 5 in 15 min | Section 7, 8.8 |
 
 `outbox-stuck` needs two consecutive periods because the startup reconciliation may count delayed
@@ -502,9 +507,11 @@ The filters match fixed event names. Every one of these lines carries only ids, 
 counts and exception class names (`type=OperationalError`), never message text, content, names,
 object keys or presigned URLs, so a metric filter never extracts anything sensitive.
 
-**Prod:** `LaiDjangoEc2-prod` runs Django in containers that log to `/lai/prod/django` and does
-not run the processing consumers, relay or reconciliation yet, so no prod log alarms exist. When
-the prod deployment gains them, add the same filters on the group that stack owns.
+**Prod:** no processing log metric filters or alarms exist. `LaiDjangoEc2-prod` runs Django in
+containers; its compose project includes the `jobs-dispatch` and `jobs-completions` services
+(section 1), which log to the app log group that stack owns (`LAI_APP_LOG_GROUP`) and idle unless
+the backend is `sqs`. Prod has no reconciliation schedule. When prod processing is enabled, add the
+same filters on the group that stack owns.
 
 ## 10. Cost notes (estimates; see `processing-infrastructure.md` section 11)
 

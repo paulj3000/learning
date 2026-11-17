@@ -182,9 +182,11 @@ owns no Django log group and gets none.
 Overrides: the `processingLogAlarms` context (environment `LAI_PROCESSING_LOG_ALARMS`), JSON per
 alarm with `threshold`, `periodMinutes` (1, 5, 10, 15, 30, 60) and `evaluationPeriods`; invalid
 values fail the synth. Missing data is not breaching. They duplicate no queue alarm above: those
-watch SQS and Lambda metrics, these watch Django's decisions. Prod (`LaiDjangoEc2-prod`, logs in
-`/lai/prod/django`) runs none of the processing commands yet, so it has no such filters. Response
-for each alarm: `../processing/OPERATIONS.md` section 9.1.
+watch SQS and Lambda metrics, these watch Django's decisions. Prod has no such filters: in
+`LaiDjangoEc2-prod` the compose services `jobs-dispatch` and `jobs-completions` (section 10) log
+to the stack's app log group (`/lai/prod/django`) and idle unless the backend is `sqs`, and prod
+has no reconciliation schedule. Add the same filters there when prod processing is enabled.
+Response for each alarm: `../processing/OPERATIONS.md` section 9.1.
 
 ## 6. Two-phase provisioning (bootstrapless)
 

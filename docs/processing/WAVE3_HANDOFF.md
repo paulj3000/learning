@@ -1,10 +1,16 @@
 # Wave 3 handoff (LAI-LAMBDA-006 and 007)
 
-> **Superseded in part by `WAVE3_INTERFACES.md` (2026-11-17)**, which is on the Wave 3 branch
-> (`feature/serverless-processing-wave3`), not on this one. Where they differ, that page wins.
-> Since this page was written: ADR-062 is accepted, the flag name `LAI_ASSET_ASYNC_VALIDATION` is
-> approved (default off everywhere; implemented in Wave 3), Option A (section 3) is chosen, and
-> the consumer database-outage fix is done in Wave 2 (section 7).
+> **Superseded in part by `WAVE3_INTERFACES.md` (2026-11-17).** Where they differ, that page
+> wins. Since this page was written: ADR-062 is accepted, the flag name
+> `LAI_ASSET_ASYNC_VALIDATION` is approved (default off everywhere), Option A (section 3) is
+> chosen, and the consumer database-outage fix is done in Wave 2 (section 7).
+>
+> **Implemented (2026-11-17)** on `feature/serverless-processing-wave3`: sections 3 (Option A), 4,
+> 5, 6 and 7 are built and tested locally; each section below starts with a pointer to the code.
+> Owner review is pending; the branch is **not merged** and depends on the PR #40 and #41 merges.
+> Option B stays a future enhancement that needs an owner decision. The dev verification in
+> section 10 is not done: it moves to live AWS acceptance (LAI-LAMBDA-011) and needs deployment
+> approval. The text below is kept as the plan that was briefed.
 
 Written 2026-11-17 by the Wave 2 documentation agent, for the Wave 3 implementation agents, their
 reviewer and the project owner. Cards:
@@ -101,6 +107,10 @@ metadata" (animations with exact clip names, `counts`, `material_names`, `triang
 
 ## 3. Upload integration (006): two options
 
+> **Implemented (Option A).** `services.upload_version` and `_create_draft_and_submit`
+> (`lai/apps/assets/services.py`); tests `lai/apps/assets/tests/test_async_upload.py`. A refused
+> submission becomes `processing_unavailable` and leaves no row, job or object.
+
 ### Option A (chosen): existing synchronous upload, then submit
 
 1. Staff upload in Django Admin exactly as today (`AssetVersionAdmin.upload_view` ->
@@ -127,9 +137,19 @@ No new upload surface, no CORS, no new IAM. It does not lift the 50 MB request-s
 Option B prerequisites: a CORS rule on the processing bucket for the admin origin (none exists in
 `processingStack.ts`), the admin Content Security Policy `connect-src` for the bucket, a design
 review of the promotion copy (it doubles storage writes), and an owner decision. Do not start it
-without that decision.
+without that decision. **Status: not built**; a future enhancement, only if large uploads need
+it.
 
 ## 4. AssetVersion hook and feature flag (006)
+
+> **Implemented.** Flag in `config/settings/base.py` (and the production `sqs` rule); registry in
+> `apps.jobs.hooks` (re-exported by `apps.jobs.processing`), run by `_run_completion_hook`; asset
+> hook `apps/assets/completion.py`, registered in `AssetsConfig.ready()`; outcome stored in
+> `ProcessingJob.subject_outcome` (migration `jobs.0003`). As built, `clips` keep their
+> synchronous values (exact clip names are in `metadata["model_validation"]`), a non-`DRAFT`
+> version records `result_recorded`, and any verdict other than `pass` rejects the draft
+> (`LIFECYCLE.md` section 10, `WAVE3_INTERFACES.md` sections 3 and 8). Tests:
+> `test_completion_hook.py`, `lai/apps/jobs/tests/test_completion_hooks.py`.
 
 **Flag.** One Django setting, `LAI_ASSET_ASYNC_VALIDATION` (name approved by the owner on
 2026-11-17; `off` by default in every environment, `on`), read in `config/settings/base.py`,
@@ -160,6 +180,10 @@ never writes to a version that is not `DRAFT`.
 
 ## 5. Staff review in Django Admin (007)
 
+> **Implemented.** `lai/apps/assets/admin.py`: the read-only "Background validation" section and
+> the action "Validate in background" (upload and view permission). Tests:
+> `lai/apps/assets/tests/test_admin_processing.py`. `docs/ASSET_LIBRARY.md` section 23.
+
 - On the `AssetVersion` change page (read-only section): the latest `asset.validate_model` job
   for the version (by `subject_type="asset_version"`, `subject_id=<version uuid>`), its `state`,
   verdict, findings table (reuse the jobs admin's escaping and formatting), warnings, and the
@@ -176,6 +200,11 @@ never writes to a version that is not `DRAFT`.
 
 ## 6. Publication gates (007)
 
+> **Implemented.** `services.publish_version` and `_has_passing_validation`; refusal code
+> `processing_required`. Treasure Rush replacement and rollback verified locally with the flag on
+> (`test_processing_wave3_end_to_end.py`, `scripts/processing/local-demo.sh`); flag off unchanged.
+> Tests: `lai/apps/assets/tests/test_publication_gate.py`.
+
 - `publish_version` keeps re-reading the stored bytes and re-validating synchronously. Do not
   remove it.
 - When the flag is `on`, `publish_version` also requires a job with `kind = asset.validate_model`,
@@ -190,6 +219,11 @@ never writes to a version that is not `DRAFT`.
   behaviour with the flag off (unchanged) and on (an extra wait for the job).
 
 ## 7. Retry, reconciliation and replay (006)
+
+> **Implemented.** `lai-jobs-reconcile.{service,timer}` (`deploy/native/systemd/`), the
+> `jobs_reconcile` advisory lock, the startup reconciliation in `power-native.sh verify`, the
+> backlog report (`processing-native.sh backlog`), the DLQ runbook (`OPERATIONS.md` section 8)
+> and the dev log metric filters and alarms (`OPERATIONS.md` section 9.1). Not deployed.
 
 - Automatic retries, expiry, cancel and requeue are built (`LIFECYCLE.md` 9.5, 9.6). Wave 3 adds:
   a schedule for `jobs_reconcile` (for example a systemd timer installed with the other units,
@@ -212,6 +246,10 @@ Alarms already synthesized in `LaiProcessing-<env>` (to `lai-django-alarms-<env>
 `worker-duration-high`, `worker-concurrency-high` (`processing-infrastructure.md` section 5).
 Wave 3 adds a log metric filter and alarm on `processing.completion_rejected` and on
 `processing.outbox_stuck` (both logged by Django today, neither alarmed).
+
+> **Implemented** in `LaiDevPlatform-dev` on `/lai/dev/jobs`, for those two events plus
+> `processing.reconcile_failed`, `processing.subject_mismatch`, `processing.hook_error` and
+> `processing.consumer database_error` (`OPERATIONS.md` section 9.1). Prod has none yet.
 
 ## 9. Local testing
 
@@ -269,7 +307,7 @@ change set.
 | Acceptance | Flag off: no behaviour change (existing suites pass untouched). Flag on: upload creates `DRAFT` and a job atomically; pass moves `DRAFT -> VALIDATED`, fail moves `DRAFT -> REJECTED`, findings and metadata on the version; job reaches `ready_for_review`; duplicates, stale and out-of-order completions change the version at most once; a version whose identity differs from the job's input is never touched; never publishes; reconcile scheduled; DLQ runbook written; dev verification (section 10) done or listed as blocked with reasons |
 | Tests | Unit: hook transitions, identity mismatch, non-DRAFT no-op, rollback of the upload transaction leaves no job, duplicate and stale completions, flag validation. End-to-end: extend `test_processing_wave2_end_to_end.py` for flag on |
 | Prohibited | A second job model or app; changes to frozen contracts, setting names, queue names or retry behaviour without the principal; any automatic publish; S3 event triggers; changes to legacy kinds or `apps/assets/jobs.py`; worker database access; deploying without approval |
-| Status | **BLOCKED** on the Wave 1 merge and the Wave 2 review/merge. Code work is otherwise dependency-ready; option B additionally needs an owner decision |
+| Status | **DONE (development)** 2026-11-17 on `feature/serverless-processing-wave3`; owner review pending, not merged, not deployed; depends on the PR #40 and #41 merges. Dev verification (section 10) moves to LAI-LAMBDA-011. Option B not built (needs an owner decision) |
 
 ### LAI-LAMBDA-007: Django Asset Library validation results and release gates
 
@@ -280,4 +318,4 @@ change set.
 | Acceptance | Staff see clip names, materials, mesh and triangle counts, warnings and errors on the version page, with explicit empty, queued, failed and expired states; publish refused with a safe message unless a passing job matches the version's checksum and current processor version (flag on); re-validation at publish unchanged; explicit staff publish is the only path; Treasure Rush and AM-11/AM-16 verified with the flag off and on; child delivery (signed URLs, CloudFront) unchanged |
 | Tests | Admin rendering (escaping, permissions, each state), gate allowed and refused cases, rollback and default-version ungated, flag off unchanged |
 | Prohibited | Publishing from a completion or a job state; rewriting published version metadata; exposing results through React or any API; reopening unrelated accepted QA |
-| Status | **BLOCKED** on 006 (and therefore on the Wave 1 and Wave 2 merges) |
+| Status | **DONE (development)** 2026-11-17 on `feature/serverless-processing-wave3`, with 006; owner review pending, not merged, not deployed; depends on the PR #40 and #41 merges |

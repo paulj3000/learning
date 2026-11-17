@@ -128,3 +128,43 @@ cycle. The asset hook must lock the asset before the version (as `publish_versio
 | C, operations | `deploy/native/systemd/`, `scripts/aws/native/`, log metric filters and alarms in `infra/` (where the Django log group is owned), `jobs_reconcile` command, `OPERATIONS.md` | `apps/assets/*`; the queue policies and sender lists in `processingStack.ts` (Wave 2 fix) |
 | D, admin and gate | `apps/assets/admin.py`, admin templates, `services.publish_version`, admin and gate tests | `upload_version`, the hook |
 | Principal | this page, `apps.assets.processing`, `apps.jobs.processing` hook registry, settings, migrations, ADRs, README, trackers, integration | |
+
+## 8. Integration notes (2026-11-17)
+
+Recorded by the principal at integration. The sections above stay as frozen; these notes record
+what the integrated code does where the freeze left it open, and one bug fixed.
+
+- **`async_validation_applies` accepts a format string.** It takes a version or a format name
+  (`"glb"`). The first version read `.format` from its argument, and a `str` has a `.format`
+  method, so a format name never matched and the upload path stayed synchronous with the flag on.
+  Fixed at integration: a `str` is used as the format directly.
+- **The registry lives in `apps.jobs.hooks`.** `HookResult`, `register_completion_hook`,
+  `completion_hook` and `set_completion_hooks_for_tests` moved to a module without
+  `lai_processing` imports, so `AssetsConfig.ready()` does not load the processing contracts at
+  start-up (`manage.py check` runs without `processing/` on the path). `apps.jobs.processing`
+  re-exports them; section 3's names and behaviour are unchanged.
+- **Hooks must not mutate the job object.** A non-database hook error rolls back the hook's
+  savepoint, but `apps.jobs.processing` saves the job object afterwards, so an in-memory change a
+  hook made to it would still be saved. Hooks return a `HookResult` and change only their own
+  rows.
+- **An `IntegrityError` inside a hook is deferred like a database error.** It is a
+  `DatabaseError`, so it propagates, the whole completion rolls back and is retried once, then
+  deferred (`integrity_error`); the message is redelivered until it reaches the completion DLQ.
+  It is never recorded as `hook_error`.
+- **`subject_mismatch` and `profile_mismatch` are handled but not reachable through
+  `apply_completion`.** The hook is found by the job's own kind and subject type, and
+  `apply_completion` refuses a result whose profile differs (`REJECT profile_mismatch`) before any
+  hook runs. `identity_mismatch` still returns both codes for a direct call and for the gate.
+- **Any non-pass verdict rejects the draft.** The asset hook moves a `DRAFT` to `VALIDATED` only
+  on `pass`; `fail` and also `not_applicable` move it to `REJECTED` (`version_rejected`).
+- **"Validate in background" on a finished job returns that job.** The idempotency key covers the
+  namespace, kind, subject, input identity, profile, options and processor version, so a second
+  run for the same file and validator returns the existing job (Admin says it already finished)
+  and does not run the hook again. A `failed` job can be requeued from its job page. A `cancelled`
+  job cannot be requeued (the lifecycle has no transition out of `cancelled`). Workaround until
+  the owner decides: delete the draft and upload the file again (a new version, so a new key).
+- **Gate and Admin tests start from versions uploaded with the flag off.** They create a
+  `VALIDATED` version synchronously, then turn the flag on, so the gate (`processing_required`
+  until a passing job exists) and the Admin section are tested independently of the draft path;
+  the draft path itself is covered by `test_async_upload.py`, `test_completion_hook.py` and
+  `test_processing_wave3_end_to_end.py`.

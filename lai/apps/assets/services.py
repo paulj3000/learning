@@ -97,8 +97,6 @@ def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename:
             "invalid_file", "The file did not pass validation.", result.findings
         )
 
-    # Passed as an object with `.format`: a plain string has a `.format` method, which the
-    # helper's getattr would pick up instead of the format name.
     deferred = async_validation_applies(result.format)
     storage = get_storage()
     with transaction.atomic():

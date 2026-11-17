@@ -579,23 +579,23 @@ limitations: GLB optimization, thumbnail and image conversion, and audio transco
 Lambda yet (they need native tools; tracked in `docs/infrastructure/dev-native-environment.md`);
 deploys restart gunicorn, so dev has a few seconds of 502s per release.
 
-## Serverless background processing (LAI-LAMBDA; Waves 1 and 2 built; nothing deployed)
+## Serverless background processing (LAI-LAMBDA; Waves 1 to 3 built; nothing deployed)
 
 Heavy asset work (GLB validation now; audio, NPC animation and optimisation later) runs as
 background jobs. Django is authoritative for every job's state and for publication; workers only
 compute. Decisions: ADR-061 (contracts, accepted 2026-11-16) and ADR-062 (one job backbone,
-accepted 2026-11-17). Design and reference: `docs/processing/` (start with `ARCHITECTURE.md` and
-`WAVE2_INTERFACES.md`; Wave 3 next steps in `WAVE3_HANDOFF.md`) and
-`docs/infrastructure/processing-infrastructure.md`.
+accepted 2026-11-17). Design and reference: `docs/processing/` (start with `ARCHITECTURE.md`,
+`WAVE2_INTERFACES.md` and `WAVE3_INTERFACES.md`), `docs/processing/OPERATIONS.md`,
+`docs/ASSET_LIBRARY.md` section 23 and `docs/infrastructure/processing-infrastructure.md`.
 
-> **Status (2026-11-17).** Wave 1 (PR #40) passed every required check but is not merged yet
-> (owner action). Wave 2 (PR #41) is integrated on `feature/serverless-processing-wave2`, has had
-> five read-only reviews with their fixes applied, and is not merged. The owner accepted ADR-062
-> and decided B4 to B7 (OIDC deploy roles; `processing-dev` and `processing-prod` environments
-> approved with deployment still disabled; phase-one processing stacks before dependent platform
-> updates; DLQ redrive only by authorized operations administrators). Deployment is not
-> authorized: no image has been built or pushed, nothing is deployed, and no live AWS acceptance
-> has run.
+> **Status (2026-11-17).** Wave 1 (PR #40) is merge-ready (every required check green) but not
+> merged; the merge needs the owner. Wave 2 (PR #41, draft, `feature/serverless-processing-wave2`)
+> has been reviewed, its review fixes are applied, and it is not merged. Wave 3 (LAI-LAMBDA-006 and 007) is developer-complete on `feature/serverless-processing-wave3`, owner review pending, not
+> merged, and depends on the PR #40 and #41 merges. The owner accepted ADR-062 and decided B4 to B7
+> (OIDC deploy roles; `processing-dev` and `processing-prod` environments approved with
+> deployment still disabled; phase-one processing stacks before dependent platform updates; DLQ
+> redrive only by authorized operations administrators). Deployment is not authorized: no image
+> has been built or pushed, nothing is deployed, and no live AWS acceptance has run.
 
 ### Owner-approved architecture (2026-11-16)
 
@@ -610,14 +610,17 @@ schedule, with manual control. No deployment is authorized.
 ### How a job flows
 
 ```text
-Staff action in Django Admin (Wave 3 wires uploads to it)
+Staff GLB upload in Django Admin (flag on), or the action "Validate in background"
   -> apps.jobs: ProcessingJob + JobAttempt + JobOutbox row in one PostgreSQL transaction
+     (for an upload, the same transaction that creates the DRAFT AssetVersion)
   -> manage.py jobs_dispatch: outbox relay -> SQS lai-<env>-processing-work
   -> Lambda lai-<env>-processing-worker (ECR image): verify input checksum, run the processor,
      write immutable artifacts to the private processing bucket
   -> SQS lai-<env>-processing-completions (result inline, or by reference when large)
-  -> manage.py jobs_consume_completions: verify, decide, commit, then acknowledge
-  -> staff review in Django Admin -> staff publish (never automatic)
+  -> manage.py jobs_consume_completions: verify, decide, apply; the asset completion hook moves a
+     DRAFT version to VALIDATED (pass) or REJECTED in the same transaction; commit, then acknowledge
+  -> staff review in Django Admin ("Background validation") -> staff publish through the gate
+     (never automatic)
 ```
 
 Lambda never connects to RDS and never publishes. It keeps working while dev is stopped overnight;
@@ -638,6 +641,29 @@ a receipt ledger and guarded transitions. `apps.jobs` also still runs ADR-055's 
 | `.github/workflows/deploy-processing.yml`                       | Dispatch-only, gated image publication and deployment                                                                                                                                                |
 | `deploy/native/systemd/lai-jobs-{dispatch,completions}.service` | The relay and consumer on native dev; prod runs them as the `jobs-dispatch` and `jobs-completions` services in `deploy/ec2/docker-compose.yml`                                                       |
 
+### Wave 3: Asset Library asynchronous validation (Option A)
+
+The existing Django Admin upload stays the upload surface (no presigned upload, no new API, no
+React staff page, same 50 MB ceiling). Everything below is behind `LAI_ASSET_ASYNC_VALIDATION`,
+which is **off by default in every environment** (base, production and test settings); `on` is
+refused with the backend `disabled`, and in production unless the backend is `sqs`. No deployment
+sets it.
+
+| Piece               | Behaviour (flag on)                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upload              | A GLB that passes the synchronous checks is stored as a `DRAFT` version, and its `asset.validate_model` job, attempt and outbox row commit in the same transaction (a refused submission keeps nothing: `processing_unavailable`). Images, audio and every upload with the flag off stay synchronous (`VALIDATED`)                                                                                                                                              |
+| Dispatch and worker | The outbox relay sends the job; the worker (Lambda, or the local worker) verifies the input and runs the GLB validator                                                                                                                                                                                                                                                                                                                                          |
+| Completion          | Applied under the job row lock, acknowledged after commit. The registered asset hook (`apps/assets/completion.py`, registry `apps.jobs.hooks`) changes only a `DRAFT` version of exactly the validated bytes: `VALIDATED` on `pass`, `REJECTED` otherwise, findings and model summary added; the job moves to `ready_for_review`. Duplicate, stale, retried and rejected completions never reach the hook. Its outcome is stored on the job (`subject_outcome`) |
+| Publication gate    | `publish_version` of a GLB needs a passing background result for exactly its file by the current validator, else `processing_required`; it still re-reads and re-validates the bytes. Rollback and make default are not gated; nothing publishes automatically                                                                                                                                                                                                  |
+| Admin results       | Version page, read-only "Background validation" section (status, outcome, verdict, findings, clip names, materials, counts; all escaped) and the action "Validate in background" for existing or published GLB versions (never rewrites them)                                                                                                                                                                                                                   |
+| RDS outage          | The consumer runs `SELECT 1` before every receive and receives nothing while PostgreSQL is down. A failure after a receive still uses that receive (the message is released with backoff, the rest of the batch handed back), so five such failures send a completion to the DLQ                                                                                                                                                                                |
+| Reconciliation      | `lai-jobs-reconcile.timer` (native dev, every 10 minutes) runs `jobs_reconcile`, which expires overdue jobs under a PostgreSQL advisory lock (an overlapping run exits 0); `power-native.sh verify` runs one reconciliation after the database check. It never retries                                                                                                                                                                                          |
+| DLQs                | Runbook in `OPERATIONS.md` section 8. Redrive only by authorized operations administrators listed in the separate `workRedriveRoleArns` and `completionRedriveRoleArns` (B7); never the Django role, and no Django code redrives                                                                                                                                                                                                                                |
+| Monitoring          | Six log metric filters and alarms on `/lai/dev/jobs` in `LaiDevPlatform-dev` (rejected completions, stuck outbox, reconcile failure, subject mismatch, hook error, consumer database errors); prod has none yet                                                                                                                                                                                                                                                 |
+
+Details: `docs/processing/WAVE3_INTERFACES.md` (including integration notes),
+`docs/processing/LIFECYCLE.md` section 10, `docs/ASSET_LIBRARY.md` sections 3, 9 and 23.
+
 ### Local use (no AWS)
 
 ```bash
@@ -651,7 +677,12 @@ scripts/processing/local-demo.sh   # the whole chain on its own PostgreSQL datab
 
 With `LAI_PROCESSING_BACKEND=local` Django writes work to `LAI_PROCESSING_LOCAL_ROOT/queues/work`;
 run `manage.py jobs_dispatch --once`, the worker above, then `manage.py jobs_consume_completions
---once`. `inline` (the test default) runs jobs in-process after commit. Settings:
+--once`. `inline` (the test default) runs jobs in-process after commit. To try Wave 3 locally, set
+`LAI_ASSET_ASYNC_VALIDATION=on` with `LAI_PROCESSING_BACKEND=inline` (a draft is validated right
+after the upload commits) or `local` (run the three commands). `local-demo.sh` shows the whole
+Wave 3 path on its own database: flag-off upload, flag-on `DRAFT`, refusals `not_validated` and
+`processing_required`, `DRAFT -> VALIDATED`, a duplicate completion recorded as `duplicate`, the
+Admin text, an explicit publish and the resolver, and a failing model ending `REJECTED`. Settings:
 `docs/processing/WAVE2_INTERFACES.md` section 4. Staff see contract jobs in Django Admin under
 background jobs (view permission; cancel and requeue need their own permissions).
 
@@ -660,25 +691,34 @@ background jobs (view permission; cancel and requeue need their own permissions)
 ```bash
 .venv/bin/python -m pytest -q tests/processing/                       # core, GLB, runtime (no DB, no AWS)
 POSTGRES_DB=lai_processing_tests .venv/bin/python -m pytest -q lai/apps/jobs lai/apps/assets
+# Wave 3 only: upload, hook, gate, admin, registry, end to end
+POSTGRES_DB=lai_processing_tests .venv/bin/python -m pytest -q lai/apps/assets/tests/test_async_upload.py \
+  lai/apps/assets/tests/test_completion_hook.py lai/apps/assets/tests/test_publication_gate.py \
+  lai/apps/assets/tests/test_admin_processing.py lai/apps/jobs/tests/test_completion_hooks.py \
+  lai/apps/jobs/tests/test_processing_wave3_end_to_end.py
 npm run infra:synth:dev && npm run infra:synth:prod                    # CDK templates, no AWS calls
 (cd react && npx vitest run ../infra/lib/)                             # CDK assertions
 ```
 
 ### Deployment gates
 
-Nothing deploys on merge. `deploy-processing.yml` runs only on manual dispatch, only when
-`LAI_PROCESSING_DEPLOY_ENABLED` is `true`, and only through the protected `processing-<env>`
-GitHub environment. Order: `LaiProcessingImages-<env>`, build and push the image, then
+Nothing deploys on merge unless the owner has set a deploy variable. The push-triggered deploy
+workflows are gated by repository variables: `deploy-django-ec2.yml` by `LAI_DEPLOY_ENABLED`,
+`deploy-dev-native.yml` and `deploy-dev-lambda.yml` by `LAI_DEV_NATIVE_ENABLED`, and
+`deploy-site.yml` by `LAI_SITE_DEPLOY_ENABLED`; each deploys nothing unless its variable is `'true'` (`deploy-django-ec2.yml` still runs its tests).
+`deploy-processing.yml` runs only on manual dispatch, only when `LAI_PROCESSING_DEPLOY_ENABLED` is
+`true`, and only through the protected `processing-<env>` GitHub environment. Order: `LaiProcessingImages-<env>`, build and push the image, then
 `LaiProcessing-<env>` with the digest, before any platform update that attaches
 `lai-django-processing-<env>` (`docs/infrastructure/processing-infrastructure.md`, sections 6, 7
-and 12).
+and 12). Remaining live AWS acceptance (the dev steps in `docs/processing/WAVE3_HANDOFF.md`
+section 10) is LAI-LAMBDA-011 and needs deployment approval.
 
 ### Development waves
 
-| Wave | Tasks                                                                                          | Status                                                                                                        |
-| ---- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 1    | LAI-LAMBDA-001 contracts, engine, CLI                                                          | Merge-ready (PR #40, checks green), awaiting the owner's merge                                                |
-| 2    | LAI-LAMBDA-002 GLB validator, 003 runtime and Lambda image, 004 Django jobs, 005 CDK and CI/CD | Integrated on `feature/serverless-processing-wave2` (PR #41), reviewed, not merged                            |
-| 3    | LAI-LAMBDA-006 upload and dispatch integration, 007 Asset Library results and release gates    | In progress on `feature/serverless-processing-wave3` (not on this branch); `docs/processing/WAVE3_HANDOFF.md` |
-| 4    | LAI-LAMBDA-008 audio, 009 NPC animation, 010 optimisation, 013 thumbnails and image conversion | Not started                                                                                                   |
-| 5    | LAI-LAMBDA-011 AWS acceptance, 012 production rollout                                          | Not started; needs deployment approval                                                                        |
+| Wave | Tasks                                                                                          | Status                                                                                                      |
+| ---- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 1    | LAI-LAMBDA-001 contracts, engine, CLI                                                          | Merge-ready (PR #40, checks green), awaiting the owner's merge                                              |
+| 2    | LAI-LAMBDA-002 GLB validator, 003 runtime and Lambda image, 004 Django jobs, 005 CDK and CI/CD | PR #41 (draft) on `feature/serverless-processing-wave2`: reviewed, review fixes applied, not merged         |
+| 3    | LAI-LAMBDA-006 upload and dispatch integration, 007 Asset Library results and release gates    | Developer-complete on `feature/serverless-processing-wave3`; owner review pending, not merged, not deployed |
+| 4    | LAI-LAMBDA-008 audio, 009 NPC animation, 010 optimisation, 013 thumbnails and image conversion | Not started                                                                                                 |
+| 5    | LAI-LAMBDA-011 AWS acceptance, 012 production rollout                                          | Not started; needs deployment approval                                                                      |

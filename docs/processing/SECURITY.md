@@ -7,8 +7,9 @@ owned by the child profile subsystem, and nothing here may read or write it.
 
 "Wave 1" means the control exists in `lai_processing` (LAI-LAMBDA-001, PR #40, merge-ready but
 not merged). "Downstream" in section 2 names the task that was to deliver it; section 3 (added
-2026-11-17) records what Wave 2 actually built for each of those items, and section 4 lists what
-is still open. **Nothing here is deployed**: the IAM, queue policies and alarms below are
+2026-11-17) records what Wave 2 actually built for each of those items, section 3.1 what Wave 3
+(LAI-LAMBDA-006 and 007, `feature/serverless-processing-wave3`, not merged) added, and section 4
+lists what is still open. **Nothing here is deployed**: the IAM, queue policies and alarms below are
 synthesized by CDK and pinned by tests, not live in AWS.
 
 ## 1. Trust boundaries
@@ -73,15 +74,33 @@ CDK output pinned by `infra/lib/processingStack.test.ts`, not deployed.
 | **Supply chain, image** (003, 005) | Image copies only `lai_processing/` and `lai_processing_runtime/`; runtime pins equal `requirements.txt` (tested); no secret, bucket or URL baked in. CI builds it for linux/arm64 and scans it with Trivy (fails on fixable CRITICAL; `trivy-action` pinned to the v0.36.0 commit SHA). The function references the image by digest only; ECR tags immutable, scan on push | `processing/Dockerfile.lambda`, `ci.yml` `processing-image`, `processingImagesStack.ts` |
 | **Unreviewed deployment** (005) | `deploy-processing.yml` is `workflow_dispatch` only, from `main`, gated by `LAI_PROCESSING_DEPLOY_ENABLED == 'true'` and a protected `processing-<env>` environment; `execute_change_set` defaults to false. Merging deploys nothing new | `.github/workflows/deploy-processing.yml` |
 
+### 3.1 Wave 3 controls (as built, 2026-11-17)
+
+Code on `feature/serverless-processing-wave3`, with its tests; active only with
+`LAI_ASSET_ASYNC_VALIDATION=on` (default `off` everywhere) except where noted. Not merged, not
+deployed.
+
+| Threat | Wave 3 control | Where |
+|---|---|---|
+| **A result applied to the wrong version or bytes** | Completions are first verified by `apply_completion` (section 3). The asset hook then re-checks, under the job, asset and version row locks, that the job validated exactly this version's stored bytes (`identity_mismatch`: kind, subject, namespace, asset context, store `assets`, key, no object version, SHA-256, size, profile). A mismatch changes nothing and logs `processing.subject_mismatch job=.. reason=..` | `apps/assets/processing.py`, `apps/assets/completion.py`, `test_completion_hook.py` |
+| **A completion rewriting reviewed or published content** | The hook writes only to a `DRAFT` version; any other status (validated, published, retired, rejected) is left untouched (`result_recorded`). The hook runs only for an applied completion, never for a duplicate, stale, retry or reject | `apps/assets/completion.py`, `apps/jobs/processing.py` (`_run_completion_hook`) |
+| **Automatic publication** | No job state or completion publishes. `publish_version` stays the explicit staff action (`assets.publish_assetversion`); with the flag on it additionally requires a passing background result for exactly this file by the current processor version (`processing_required` otherwise), then still re-reads and re-validates the stored bytes | `apps/assets/services.py`, `test_publication_gate.py` |
+| **A faulty hook** | A non-database exception rolls back the hook's savepoint, keeps the applied job result, sets `subject_outcome = hook_error` and logs `processing.hook_error` with the exception class only; a database error defers the whole completion | `apps/jobs/processing.py`, `test_completion_hooks.py` |
+| **Script injection in Admin** | The read-only "Background validation" section and the findings list render every job value (summary, findings, clip and material names, codes) with `format_html` and `format_html_join`; no `mark_safe` on job data. A test renders `<script>` in job data and asserts it is escaped | `apps/assets/admin.py`, `test_admin_processing.py` |
+| **Unauthorized revalidation** | "Validate in background" needs `assets.add_assetversion` and `assets.view_assetversion`; it refuses retired assets and non-GLB versions, and never changes the version | `apps/assets/admin.py` |
+| **Redrive as Django** (B7) | Two separate redrive role lists (`workRedriveRoleArns`, `completionRedriveRoleArns`); the stack refuses the Django and worker roles; no Django code, admin action or command sends to or redrives a DLQ. Runbook: `OPERATIONS.md` section 8 | `processingStack.ts` (synthesized; a Wave 2 review fix merged into Wave 3) |
+| **Undetected rejects and mismatches** | Dev log metric filters and alarms on `/lai/dev/jobs` for `processing.completion_rejected`, `processing.subject_mismatch`, `processing.hook_error`, `processing.outbox_stuck`, `processing.reconcile_failed` and `processing.consumer database_error`; the filters match fixed event names in lines that carry ids and codes only. Prod has none yet | `devPlatformStack.ts` (synthesized), `OPERATIONS.md` section 9.1 |
+| **Sensitive logging, Wave 3** | Hook, gate, upload and reconcile logs carry ids, version numbers and codes only; reconcile failures log the exception class, never a message | `completion.py`, `services.py`, `jobs_reconcile.py` |
+
 ## 4. Remaining downstream items
 
 | Item | Owner |
 |---|---|
-| Live verification of every IAM statement, queue policy and alarm (nothing is deployed) | Owner deploy approval, then 006/007 dev verification (`WAVE3_HANDOFF.md`) |
-| Presigned uploads to `processing/quarantine/<env>/...`: checksum-bound PUT, size limit, content sniffing after upload, quarantine-to-assets promotion | 006/007 |
-| Mapping results onto `AssetVersion` without trusting the worker (Django re-checks identity; `publish_version` keeps re-validating) | 006/007 |
-| REJECT alerting: no CloudWatch metric filter or alarm on `processing.completion_rejected` exists yet | 006 |
-| DLQ replay runbook; creating the operations-administrator redrive role(s) outside CDK and listing them in `workRedriveRoleArns` / `completionRedriveRoleArns` (B7) | 006 |
+| Live verification of every IAM statement, queue policy, metric filter and alarm (nothing is deployed) | Owner deploy approval, then LAI-LAMBDA-011 (dev steps in `WAVE3_HANDOFF.md` section 10) |
+| Presigned uploads to `processing/quarantine/<env>/...` (Option B): checksum-bound PUT, size limit, content sniffing after upload, quarantine-to-assets promotion | Not built; a future enhancement that needs an owner decision |
+| Mapping results onto `AssetVersion` without trusting the worker | Done in Wave 3 (section 3.1); not merged |
+| REJECT alerting | Done in Wave 3 for dev (section 3.1); prod log alarms when prod runs the processing commands with a log group to filter |
+| Creating the operations-administrator redrive role(s) outside CDK and listing them in `workRedriveRoleArns` / `completionRedriveRoleArns` (B7). The DLQ runbook is written (`OPERATIONS.md` section 8) | Owner, before a redrive |
 | Resolved in Wave 2: the consumer runs `SELECT 1` before each receive and never receives while PostgreSQL is known to be down, so an outage in progress does not spend receives. Residual: a database failure after a receive still spends that receive for the batch (the rest is handed back with delay 0), so repeated mid-batch failures can still bring a completion to `maxReceiveCount` 5 and the DLQ | Done; residual accepted (`OPERATIONS.md` section 7) |
 | Optional HMAC over completion events (not designed) | Later, if the owner wants defence beyond IAM |
 | Residual: a hard link inside a filesystem store root to a file outside it is not detected; roots must not be writable by untrusted local users | Accepted for local use |

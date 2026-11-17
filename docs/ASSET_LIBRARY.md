@@ -61,15 +61,32 @@ AssetReference = "npc-pip" (follows the default) or "npc-pip@1" (pinned)
 upload (checksum + validate) -> VALIDATED -> publish (re-verify) -> PUBLISHED -> retire -> RETIRED
                                                    \-> REJECTED (stored bytes or definition changed)
 A file that fails validation at upload is never stored and makes no row: the admin sees the
-findings on the form. DRAFT exists in the schema for a future asynchronous validation step; no
-code path creates it today (upload and import both validate synchronously).
+findings on the form.
+
+With LAI_ASSET_ASYNC_VALIDATION=on (default off), a GLB model upload instead goes:
+upload (checksum + validate) -> DRAFT + background job -> VALIDATED (pass) | REJECTED (other verdict)
+-> publish (background pass required, then re-verify) -> PUBLISHED
 ```
+
+**Upload with the flag on (Wave 3, not merged).** `LAI_ASSET_ASYNC_VALIDATION` is `off` in every
+environment, and no deployment sets it. When it is `on` and the upload is a GLB model, the same
+Django Admin upload form runs the same synchronous checks; a failing file is still never stored.
+A passing file is stored and its version is created `DRAFT` (with the synchronous report, clips,
+dimensions and metadata, no `validated_at`), and its `asset.validate_model` job, attempt and outbox
+row commit in the same transaction. If the job cannot be submitted, the upload is refused with
+`processing_unavailable` and nothing is kept (no row, no job, no object). Staff see "It is stored
+as a draft and is being validated in the background. It can be published once validation
+passes." The completion hook later moves the draft (section 23). Images, audio and every upload
+with the flag off are created `VALIDATED` exactly as before. Import (`import_assets`) stays
+synchronous. To try it locally: `LAI_ASSET_ASYNC_VALIDATION=on` with `LAI_PROCESSING_BACKEND=inline`
+(jobs run in-process after commit) or `local` (run the relay, worker and consumer); `on` is refused
+with the backend `disabled`, and in production unless the backend is `sqs`.
 
 | Action | Who (permission) | Effect |
 |---|---|---|
 | Create a definition | `catalog.add_contentasset` | `origin=DJANGO`, `status=ACTIVE`, no versions |
-| Upload a version | `assets.add_assetversion` | Server makes the key, checksums, stores, validates in one step. Passing: `VALIDATED`. Failing: `REJECTED` |
-| Publish | `assets.publish_assetversion` | `VALIDATED` to `PUBLISHED`. The first published version becomes the default |
+| Upload a version | `assets.add_assetversion` | Server makes the key, checksums, stores, validates in one step. Passing: `VALIDATED` (with the flag on, a GLB is `DRAFT` until its background result). Failing: never stored |
+| Publish | `assets.publish_assetversion` | `VALIDATED` to `PUBLISHED`. The first published version becomes the default. With the flag on, a GLB also needs a passing background validation of its file (section 9) |
 | Make default | `assets.publish_assetversion` | Points `default_version` at another **published** version of the same asset |
 | Retire a version | `assets.retire_assetversion` | `PUBLISHED` to `RETIRED`. Refused while it is the default unless another published version takes over |
 | Retire a definition | `assets.retire_assetversion` | `status=RETIRED`; nothing of it resolves |
@@ -193,6 +210,16 @@ later optimisation for when LAI-1005's distribution exists.
 | Older adventure pins `id@1` | Keeps getting version 1 while version 1 is published |
 | Scene already loaded the asset | Unaffected: parsed geometry is in memory |
 | URL expires while a scene runs | Loaded assets are unaffected. The adapter re-resolves before loading anything whose URL is within 60 s of expiry |
+
+**Publication gate (Wave 3, flag on only).** With `LAI_ASSET_ASYNC_VALIDATION=on`, publishing a
+GLB version needs, besides `VALIDATED` (else `not_validated`), a background validation job for it
+in state `validated` or `ready_for_review` with verdict `pass`, for exactly its stored file
+(key, SHA-256, size, asset context) and by the validator version this build runs. Otherwise the
+publish is refused with `processing_required` ("This model has no passing background validation
+for its current file. Run Validate in background, wait for a passing result, then publish
+again.") and nothing changes. The existing re-read and re-validation of the stored bytes still
+follow. Rollback, make default and republishing a retired version are **not** gated. Publishing
+is always the explicit staff action; no job result publishes anything.
 
 ## 10. Frontend adapter
 
@@ -665,6 +692,9 @@ published assets through the read-only resolver (section 7). There is no React s
 | Reactivate a retired asset | Content assets > action "Reactivate" | `assets.retire_assetversion` |
 | Verify stored files (present, checksum, still valid) | Action "Verify the stored files" | view |
 | Delete a never-published version and its file | Version page > Delete | `assets.delete_assetversion` |
+| Validate a GLB version in background (Wave 3; full model check, result for review, never changes the version) | Asset versions > action "Validate in background" | `assets.add_assetversion` and view |
+| See the background result: status, outcome, verdict, findings, model summary, job link (Wave 3) | Version page > "Background validation" section (read-only) | view |
+| Cancel or requeue a background validation job | The linked background job page | `jobs.cancel_processingjob`, `jobs.requeue_processingjob` |
 
 Groups come from `manage.py ensure_asset_roles` (viewers, editors, publishers). Every upload,
 publish, default change, rollback, retirement and deletion is written to Django Admin's history
@@ -706,7 +736,8 @@ rejected with a finding, never published half-working. Package it as `.glb` or e
   the asset answer `duplicate_version`.
 - Published and retired versions are immutable (checksum, key, metadata); the model layer raises
   `ImmutableVersion` on any change and on deletion.
-- A new version is `VALIDATED` and invisible to games. Only **Publish** makes it servable; the
+- A new version is `VALIDATED` (with the flag on, a GLB starts `DRAFT`, section 3) and invisible
+  to games. Only **Publish** makes it servable; the
   definition's `default_version` decides what an unpinned reference gets. React never chooses a
   version: it receives what Django resolved.
 - Transitions: `DRAFT > VALIDATED | REJECTED`, `VALIDATED > PUBLISHED | REJECTED`,
@@ -821,24 +852,24 @@ unchanged. The `audio` app adds a configuration layer over published audio asset
 Retiring an asset or version removes its sound from the live manifest and blocks the next publish
 until fixed. See `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
 
-## 23. Background processing (LAI-LAMBDA; ADR-061 and ADR-062 accepted; Waves 1 and 2)
+## 23. Background processing (LAI-LAMBDA; ADR-061 and ADR-062 accepted; Waves 1 to 3)
 
-Updated for Wave 2 (2026-11-17). Asset uploads, validation and publishing in Django Admin are
-**still unchanged**: the synchronous path in `services.py`, `validation.py` and
-`validation_media.py` is the only path that sets a version's status. Wave 1 (PR #40) is
-merge-ready but not merged, so Wave 2 (PR #41, not merged) is provisional on it; nothing is
-deployed. The owner approved the setting `LAI_ASSET_ASYNC_VALIDATION` (default off in every
-environment) on 2026-11-17; it is implemented in Wave 3, not on the Wave 2 branch. Design:
-`docs/processing/` (start with `ARCHITECTURE.md`; next steps in `WAVE3_HANDOFF.md`).
+Updated for Wave 3 (2026-11-17). Wave 1 (PR #40) is merge-ready but not merged; Wave 2 (PR #41,
+draft, reviewed, not merged) and Wave 3 (`feature/serverless-processing-wave3`, owner review
+pending, not merged) build on it; nothing is deployed. **With `LAI_ASSET_ASYNC_VALIDATION` off
+(the default in every environment) uploads, validation and publishing are unchanged**: the
+synchronous path in `services.py`, `validation.py` and `validation_media.py` sets every status.
+With it on, GLB uploads follow section 23.1. Design: `docs/processing/` (start with
+`ARCHITECTURE.md`; as built: `WAVE3_INTERFACES.md`, `LIFECYCLE.md` section 10).
 
-What exists now (Wave 2):
+What exists (Wave 2, extended in Wave 3):
 
 | Piece | State |
 |---|---|
 | `asset.validate_model` processor | `asset.glb_validator` 1.0.0, profile `glb-default` v1, in `processing/lai_processing/processors/gltf/`, registered in `default_registry()`. Stdlib only, no network, bounded against hostile files. **Parity-tested** against `validation.py` (`lai/apps/assets/tests/test_glb_processing_parity.py`; policy constants are read from `validation.py` and must be equal). Every corpus case gives the same verdict and error codes except documented cases where the processor is stricter (trailing bytes, duplicate JSON keys, `NaN`, deep JSON, `byteStride`, texture size, animation and skin structure, `.gltf` input), plus processor-only checks added at the 2026-11-17 review (integers too large for a float, too many mesh instances to measure bounds, non-finite bounds, textures in data-URI buffers): `docs/processing/GLB_VALIDATION.md` section 7. It never passes a file Django refuses |
-| `apps.assets.processing.submit_model_validation(version, *, user)` | Builds the request (input store `assets`, the version's `storage_key`, `sha256`, `size_bytes`, `content_type`; subject `asset_version` with the version uuid; `AssetContext` with the asset slug, version uuid and number; profile `glb-default` v1) and calls `apps.jobs.processing.submit_processing_job`. **It never changes the version**: not its status, metadata or validation report, and it never publishes. Resubmitting the same version returns the same job (same idempotency key), even when that job was cancelled; a cancelled job cannot be requeued, so the workaround is to delete the draft and upload again (an open owner decision). No admin action or upload path calls it yet |
-| Where results live | On the job only: `apps.jobs.ProcessingJob` (`state`, `result`), `JobAttempt` (`result`, `verdict`, error code), `JobArtifact` (artifact references, e.g. the optional `glb-report`) and `CompletionReceipt`. Staff see them in the "background job" admin (findings table, metadata, attempts, artifacts) |
-| Validation of the stored file at publish | Unchanged: `publish_version` re-reads and re-validates the stored bytes |
+| `apps.assets.processing.submit_model_validation(version, *, user)` | Builds the request (input store `assets`, the version's `storage_key`, `sha256`, `size_bytes`, `content_type`; subject `asset_version` with the version uuid; `AssetContext` with the asset slug, version uuid and number; profile `glb-default` v1) and calls `apps.jobs.processing.submit_processing_job`. **It never changes the version**: not its status, metadata or validation report, and it never publishes. Resubmitting the same version returns the same job (same idempotency key), even when that job was cancelled; a cancelled job cannot be requeued, so the workaround is to delete the draft and upload again (an open owner decision). Since Wave 3 it is called by `upload_version` (flag on, GLB) and by the action "Validate in background" |
+| Where results live | On the job: `apps.jobs.ProcessingJob` (`state`, `result`, and since Wave 3 `subject_outcome`), `JobAttempt`, `JobArtifact` (e.g. the optional `glb-report`) and `CompletionReceipt`, shown in the "background job" admin. Since Wave 3, a result applied to a `DRAFT` version is also copied onto it: processing findings (`source: "processing"`) appended to `validation_report`, and the normalized summary in `metadata["model_validation"]` |
+| Validation of the stored file at publish | Unchanged: `publish_version` re-reads and re-validates the stored bytes; with the flag on, the gate (section 9) runs first |
 
 Contract facts that the Wave 3 integration relies on (unchanged from Wave 1):
 
@@ -855,10 +886,45 @@ Contract facts that the Wave 3 integration relies on (unchanged from Wave 1):
   (`lai-processing-<env>-<account>-<region>`), never over an `assets/...` key. The worker role
   reads `assets/*` only; it cannot write or delete there.
 
-**Not done; Wave 3 (LAI-LAMBDA-006 and 007, `docs/processing/WAVE3_HANDOFF.md`):** copying job
-results onto `AssetVersion.validation_report` and metadata; creating versions as `DRAFT` and
-moving them by job result (`VersionStatus.DRAFT` still exists only in the schema for a future asynchronous
-validation step and no code path creates it, section 3); the job `READY_FOR_REVIEW` step;
-presigned uploads into `processing/quarantine/<env>/...`; showing job findings on the version
-admin; publication gates that require a passing job; all behind a per-environment setting that
-defaults to off. Switching `validation.py` to the shared parser is a separate follow-up.
+### 23.1 Asynchronous validation (Wave 3, LAI-LAMBDA-006 and 007; Option A)
+
+Built and tested locally on `feature/serverless-processing-wave3`; not merged, not deployed.
+Option A only: the existing Django Admin upload stays the upload surface (same 50 MB ceiling);
+there is no presigned upload, no browser-to-S3 path, no new API and no React staff page.
+
+| Step | What happens |
+|---|---|
+| Upload (flag on, GLB) | Synchronous checks as before, then a `DRAFT` version and its `asset.validate_model` job in one transaction (section 3) |
+| Background run | The relay sends the job; the worker runs `asset.glb_validator` on the stored file; Django applies the completion and acknowledges after commit |
+| Completion hook | In the completion transaction (lock order job, asset, version): a `DRAFT` becomes `VALIDATED` on verdict `pass`, `REJECTED` on any other verdict, with processing findings and the summary added. `clips` and `dimensions` keep their upload values; exact clip names and durations are in the summary. A version that is not `DRAFT` is never changed (`result_recorded`); a result for other bytes changes nothing (`processing.subject_mismatch`). The job moves to `ready_for_review` |
+| Review | Version page, read-only "Background validation" section: one explicit status sentence (queued, awaiting retry, processing, failed, expired, cancelled, passed, passed with an older validator, rejected, result for another file), the outcome on the version, verdict, error and warning counts, findings, and the model summary (clip names, materials, mesh and triangle counts, bounds, images, skins, extensions), with a link to the job page. Every value is escaped. With the flag off and no job the page is unchanged |
+| Publish | Explicit staff action only, through the gate (section 9) |
+
+**Revalidating an existing or published model.** "Validate in background" (GLB only, active
+assets only, upload and view permission) submits the model validation job for a version, or
+returns its existing job for the same file and validator. It never changes the version: for a
+version that is not `DRAFT` (validated before the flag, published, retired) the result is recorded
+on the job (`result_recorded`) and shown in the section, and the version's metadata and report
+are not rewritten. Such a passing result is what lets a `VALIDATED` version uploaded before the
+flag pass the gate. A version whose job already finished gets that job back (Admin says so); a
+failed job is requeued from its job page; a cancelled job cannot be requeued, so delete the
+draft and upload again (open owner decision).
+
+**What does not change.** Existing published content is untouched: published versions are never
+rewritten and keep resolving. Rollback and make default are not gated. Treasure Rush model
+replacement and rollback were verified locally with the flag on by
+`lai/apps/jobs/tests/test_processing_wave3_end_to_end.py` and `scripts/processing/local-demo.sh`
+(upload a chest as `DRAFT`, background pass, explicit publish, the existing resolver serves it;
+a failing model ends `REJECTED`). AM-11 and AM-16 are not reopened; live AWS acceptance is
+LAI-LAMBDA-011.
+
+**`asset.inspect` versus `asset.validate_model`.** These are not two authoritative paths.
+"Inspect in background" (`asset.inspect`) is the ADR-055 legacy probe on the media queue: it
+reports file structure and dimensions on a background job, is informational only, and never
+changes a version. "Validate in background" and the flag-on upload use `asset.validate_model`, the
+contract job whose result the hook applies to a `DRAFT` version and which the publication gate
+requires.
+
+Not done: presigned uploads into `processing/quarantine/<env>/...` (Option B, a future
+enhancement that needs an owner decision); live AWS acceptance (LAI-LAMBDA-011); switching
+`validation.py` to the shared parser (a separate follow-up).

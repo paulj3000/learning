@@ -1,6 +1,6 @@
 # Background processing architecture (LAI-LAMBDA-001 to 005)
 
-Status (updated for Wave 2, 2026-11-17):
+Status (updated for Wave 3, 2026-11-17):
 
 | Item | State |
 |---|---|
@@ -8,6 +8,7 @@ Status (updated for Wave 2, 2026-11-17):
 | ADR-062 (one Django job backbone) | Accepted by the owner, 2026-11-17, with decisions B4 to B7, the `LAI_ASSET_ASYNC_VALIDATION` flag (approved, default off; implemented in Wave 3) and prod reserved concurrency 5 |
 | Wave 1 (LAI-LAMBDA-001) | Pull request #40 is merge-ready (all required checks green on `8ac16b4`) but **not merged**: the owner must press Merge (the GitHub connector returned 403) |
 | Wave 2 (LAI-LAMBDA-002 to 005) | Integrated on `feature/serverless-processing-wave2` (pull request #41, **not merged**), tested locally, reviewed (five read-only reviews, fixes applied 2026-11-17), **provisional** on the unmerged Wave 1 foundation |
+| Wave 3 (LAI-LAMBDA-006, 007) | Developer-complete on `feature/serverless-processing-wave3` (2026-11-17): Option A asynchronous validation behind `LAI_ASSET_ASYNC_VALIDATION` (default off everywhere), the completion hook registry and asset hook, the publication gate, the Admin "Background validation" section and action, the reconciliation timer and processing log alarms. Owner review pending, **not merged**, depends on the PR #40 and #41 merges (`WAVE3_INTERFACES.md`) |
 | Deployment | **Nothing is deployed and deployment is not authorized** (`LAI_PROCESSING_DEPLOY_ENABLED` is not `true`). `infra/` now synthesizes `LaiProcessingImages-<env>` and `LaiProcessing-<env>`, but no stack has been deployed, no image has been built or pushed, and no live AWS acceptance has run |
 
 Trello: [LAI-LAMBDA-001](https://trello.com/c/N5lWZeq4). Related documents in this folder:
@@ -24,7 +25,8 @@ Trello: [LAI-LAMBDA-001](https://trello.com/c/N5lWZeq4). Related documents in th
 | `DJANGO_JOBS.md` | Wave 2, 004: models, outbox, consumer, admin, commands, settings |
 | `../infrastructure/processing-infrastructure.md` | Wave 2, 005: CDK stacks, IAM, alarms, workflows, native units |
 | `WAVE2_HANDOFF.md` | The Wave 2 plan as briefed (historical; superseded where it differs) |
-| `WAVE3_HANDOFF.md` | Wave 3 (006, 007): AssetVersion integration, uploads, review and publication gates |
+| `WAVE3_HANDOFF.md` | Wave 3 (006, 007): the plan as briefed, with pointers to what was built |
+| `WAVE3_INTERFACES.md` | Wave 3 as frozen and built: the flag, the upload draft path, the completion hook, lock order, the Admin section and the publication gate, plus integration notes |
 
 ## 1. Overview
 
@@ -100,7 +102,9 @@ separate decision.
 ## 3. End-to-end flow (contract kinds)
 
 Steps 1 to 6 are built in Wave 2 (and demonstrated locally); steps 7 to 10 for an
-`AssetVersion` are Wave 3 (`WAVE3_HANDOFF.md`).
+`AssetVersion` are built in Wave 3 (`WAVE3_INTERFACES.md`), active only with
+`LAI_ASSET_ASYNC_VALIDATION=on` (default off). With the flag on, step 2 creates a GLB version as
+`DRAFT` and step 3 runs in the same transaction as the upload.
 
 ```text
  Staff (Django Admin)                       Django + PostgreSQL (authoritative)
@@ -140,16 +144,18 @@ Steps 1 to 6 are built in Wave 2 (and demonstrated locally); steps 7 to 10 for a
                                                THEN ack the message
                                             6. job VALIDATED; result, verdict, findings and
                                                metadata on JobAttempt / job.result; JobArtifact rows
-                                            7. (Wave 3) results shown on the AssetVersion and the
-                                               version moved to review
- 8. (Wave 3) staff review findings <------
+                                            7. (Wave 3) completion hook, same transaction: a DRAFT
+                                               version becomes VALIDATED (pass) or REJECTED; the
+                                               job moves to READY_FOR_REVIEW
+ 8. (Wave 3) staff review findings <------  ("Background validation" section in Django Admin)
  9. staff explicitly publishes ---------->  10. AssetVersion PUBLISHED (existing publish_version,
-                                                which re-validates)
+                                                which re-validates; with the flag on it also needs
+                                                a passing background result, the gate)
 ```
 
-Steps 6 and 10 are separate on purpose: no completion message, however valid, can publish. In
-Wave 2 nothing moves a job from `VALIDATED` to `READY_FOR_REVIEW`, and nothing writes to an
-`AssetVersion`.
+Steps 6 and 10 are separate on purpose: no completion message, however valid, can publish. The
+Wave 3 hook (`apps/assets/completion.py`) writes only to a `DRAFT` version and never publishes;
+with the flag off, uploads stay synchronous and no job is created at upload.
 
 ## 4. Components and ownership
 
@@ -162,7 +168,7 @@ Wave 2 nothing moves a job from `VALIDATED` to `READY_FOR_REVIEW`, and nothing w
 | Processors | `reference.checksum` (Wave 1), `asset.glb_validator` for `asset.validate_model` (002) | Network access, non-stdlib imports | `processing/lai_processing/processors/` (built) |
 | Completion queue + DLQ | Holding completions durably until Django consumes them | Accept sends from anyone but the worker role | `LaiProcessing-<env>` (synthesized, not deployed) |
 | Completion consumer | Verifying and applying completions transactionally, then acknowledging | Acknowledge before commit | `manage.py jobs_consume_completions`, unit `lai-jobs-completions.service` (built, not deployed) |
-| Reconciliation | Expiring overdue open jobs, reporting stuck outbox rows | Retry automatically | `manage.py jobs_reconcile` (built; no schedule yet) |
+| Reconciliation | Expiring overdue open jobs, reporting stuck outbox rows | Retry automatically | `manage.py jobs_reconcile` with a PostgreSQL advisory lock; `lai-jobs-reconcile.timer` every 10 minutes on native dev and one run in `power-native.sh verify` (Wave 3, built, not deployed); no prod schedule |
 | S3 | Asset originals (read-only for workers), quarantine inputs and immutable artifacts | Serve artifacts publicly | Existing asset bucket plus a new private `lai-processing-<env>-<account>-<region>` bucket (A8; synthesized, not deployed) |
 | Image publication | Building the worker image off-host and pushing it by digest | Deploy on merge | `LaiProcessingImages-<env>`, `.github/workflows/deploy-processing.yml` (dispatch-only, gated) and `ci.yml` job `processing-image` |
 
@@ -279,7 +285,7 @@ application (`LIFECYCLE.md`, section 6).
 |---|---|---|---|
 | 1 | LAI-LAMBDA-001 | Contracts v1, errors, limits, canonical encoding, ports, fakes, lifecycle, retry policy, execution engine, explicit registry, reference processor, CLI, fixtures, JSON Schemas, these docs, ADR-061 | PR #40 merge-ready, not merged |
 | 2 | 002, 003, 004, 005 | GLB validator processor; runtime adapters, local worker and Lambda handler; `apps.jobs` contract kinds (models, outbox, consumer, admin, commands); CDK stacks `LaiProcessingImages-<env>` and `LaiProcessing-<env>`, workflows, native units | Integrated 2026-11-17, provisional on Wave 1; not deployed |
-| 3 | [006](https://trello.com/c/SYUqyvWM), [007](https://trello.com/c/WQAi4PAi) | AssetVersion integration: presigned or synchronous upload then submit, `DRAFT` hook behind a flag, results onto the version, `READY_FOR_REVIEW`, publication gates, replay runbooks, deployment verification in dev | See `WAVE3_HANDOFF.md` |
+| 3 | [006](https://trello.com/c/SYUqyvWM), [007](https://trello.com/c/WQAi4PAi) | AssetVersion integration (Option A, synchronous upload then submit), `DRAFT` hook behind a flag, results onto the version, `READY_FOR_REVIEW`, publication gate, reconcile timer, replay runbooks; deployment verification in dev moves to LAI-LAMBDA-011 | Developer-complete on `feature/serverless-processing-wave3`, not merged (`WAVE3_INTERFACES.md`) |
 | 4 | [008](https://trello.com/c/r7BVm0fV), [009](https://trello.com/c/ga6LzukZ), [010](https://trello.com/c/l1ahd2je) | 008: audio processing with FFmpeg in a reproducible container. 009: animation analysis. 010: ECS Fargate fallback for runs over 15 minutes | After Wave 3 |
 | 5 | [011](https://trello.com/c/gUbA86BZ), [012](https://trello.com/c/CCHrKhmj) | 012: immutable ECR image digests and rollback (Wave 2 already deploys by digest); the small EC2 instance is **not** the default heavy-processing fallback. 011: see its card | After Wave 4 |
 
@@ -296,7 +302,7 @@ the worker writes to risks output-trigger loops. `LaiProcessing-<env>` configure
 notification. If S3 events are ever added (for example for auditing), they must be filtered to
 input prefixes and must never dispatch work.
 
-## 10. Implemented versus not (Wave 2)
+## 10. Implemented versus not (Waves 2 and 3)
 
 | Area | State |
 |---|---|
@@ -306,14 +312,15 @@ input prefixes and must never dispatch work.
 | Worker image (`processing/Dockerfile.lambda`) | Written; **not built or pushed** (the base image pull needs network); `ci.yml` `processing-image` builds and scans it in CI |
 | Django contract kinds: fields, `JobAttempt`, `JobOutbox`, `CompletionReceipt`, `JobArtifact`, status mapping | **Wave 2, implemented** (`DJANGO_JOBS.md`, migration `jobs.0002_processing_contract_kinds`) |
 | `submit_processing_job`, `relay_outbox`, `apply_completion`, `cancel_job`, `requeue_job`, `reconcile`, `run_inline` | **Wave 2, implemented** |
-| `jobs_dispatch`, `jobs_consume_completions`, `jobs_reconcile` | **Wave 2, implemented**; systemd units (dev) and `docker-compose.yml` services `jobs-dispatch` and `jobs-completions` (prod) for the first two; no schedule for `jobs_reconcile` |
+| `jobs_dispatch`, `jobs_consume_completions`, `jobs_reconcile` | **Wave 2, implemented**; systemd units (dev) and `docker-compose.yml` services `jobs-dispatch` and `jobs-completions` (prod) for the first two; Wave 3 adds `lai-jobs-reconcile.timer` (dev only) and the reconcile advisory lock |
 | Django Admin for contract jobs (read-only fields, findings, attempts, artifacts, receipts; Cancel and Requeue actions) | **Wave 2, implemented** |
-| `apps.assets.processing.submit_model_validation` | **Wave 2, implemented**; submits only; called by no admin action or upload path yet |
+| `apps.assets.processing.submit_model_validation` | **Wave 2, implemented**; submits only. Wave 3 calls it from `upload_version` (flag on, GLB) and from the Admin action "Validate in background" |
 | CDK `LaiProcessingImages-<env>`, `LaiProcessing-<env>`, IAM, queue policies, alarms, SSM settings, workflows | **Wave 2, synthesized and tested; not deployed** (`processing-infrastructure.md`) |
-| Local end-to-end demonstration | **Ran successfully** at integration (`scripts/processing/local-demo.sh`; `lai/apps/jobs/tests/test_processing_wave2_end_to_end.py`) |
-| Job `VALIDATED -> READY_FOR_REVIEW` transition | Not built (Wave 3) |
-| AssetVersion integration: results onto `validation_report`, `DRAFT` flow, presigned uploads, review UI on the version, publication gates | Not built (Wave 3, 006/007) |
-| DLQ replay runbooks and commands, reject-count metric filter | Not built (006) |
+| Local end-to-end demonstration | **Ran successfully** at integration (`scripts/processing/local-demo.sh`, which since Wave 3 runs the flag-on draft, hook, gate and publish path; `lai/apps/jobs/tests/test_processing_wave2_end_to_end.py` and `test_processing_wave3_end_to_end.py`) |
+| Job `VALIDATED -> READY_FOR_REVIEW` transition | **Wave 3, implemented**: set when a completion hook returns `review_ready` |
+| AssetVersion integration: `DRAFT` flow, results onto `validation_report` and `metadata["model_validation"]`, review section on the version, publication gate | **Wave 3, implemented** behind `LAI_ASSET_ASYNC_VALIDATION` (default off) |
+| Presigned uploads (Option B) | Not built; a future enhancement that needs an owner decision |
+| DLQ runbook, processing log metric filters and alarms (dev) | **Wave 3, implemented** (`OPERATIONS.md` sections 8 and 9.1); no replay command by design |
 | Live AWS acceptance | Not done; needs owner deployment authorization (A9, ADR-019 G7) and LAI-LAMBDA-011 |
 | AI Question Studio | Unchanged. It keeps its PostgreSQL-backed `GenerationBatch` queue (`LAI_STUDIO_RUN_MODE`); LAI-AQS-027 stays open. Moving it to SQS needs a separate approval |
 | Legacy `apps.jobs` kinds (ADR-055) | Unchanged in behaviour, envelopes, queues, worker zip and consumer |

@@ -42,7 +42,75 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
-## Serverless background processing, Wave 2 (LAI-LAMBDA-002 to 005) — developer-complete and reviewed on `feature/serverless-processing-wave2` (2026-11-17); PR #41 NOT merged, NOT deployed
+## Serverless background processing, Wave 3 (LAI-LAMBDA-006 and 007) — developer-complete on `feature/serverless-processing-wave3` (2026-11-17); owner review pending, NOT merged, NOT deployed
+
+Built on Wave 1 (PR #40, merge-ready, not merged; the merge needs the owner) and Wave 2 (PR #41,
+draft, reviewed, review fixes applied, not merged), whose review fixes were merged into this
+branch. Owner scope (2026-11-17): **Option A only**: the existing Django Admin upload stays the
+upload surface; no presigned PUT, browser-to-S3, CORS, new API, React staff UI, quarantine
+promotion or automatic publication. Everything is behind `LAI_ASSET_ASYNC_VALIDATION`, default
+`off` in base, production and test settings (`on` refused with the backend `disabled`, and in
+production unless the backend is `sqs`). Frozen contract: `docs/processing/WAVE3_INTERFACES.md`.
+
+- **006 upload and flag** (`lai/apps/assets/services.py`, `processing.py`, settings): with the
+  flag on, a GLB that passes the synchronous checks is stored as a `DRAFT` version and its
+  `asset.validate_model` job, attempt 1 and outbox row commit in the same transaction
+  (`_create_draft_and_submit`); a refused submission is `processing_unavailable` and keeps no
+  row, job or object. Other formats and flag off: the synchronous `VALIDATED` path, unchanged.
+  Shared helpers: `async_validation_applies`, `validation_jobs`, `identity_mismatch`,
+  `model_validation_summary`, `processing_findings`.
+- **006 hook registry and asset hook**: `apps.jobs.hooks` (`HookResult`,
+  `register_completion_hook`; re-exported by `apps.jobs.processing`), run after every APPLY in a
+  savepoint under the job row lock, never for duplicate, stale, retry or reject; outcome in
+  `ProcessingJob.subject_outcome` (migration `jobs.0003_processing_subject_outcome`);
+  `review_ready` moves the job `validated -> ready_for_review`; a non-database hook error is
+  contained as `hook_error`, a database error defers the completion. Asset hook
+  `apps/assets/completion.py` (registered in `AssetsConfig.ready()`): lock order job -> asset ->
+  version; only a `DRAFT` of exactly the validated bytes changes (`VALIDATED` on pass, `REJECTED`
+  otherwise, processing findings and `metadata["model_validation"]` added); never publishes.
+- **006 operations**: `lai-jobs-reconcile.{service,timer}` (every 10 minutes, installed and
+  quiesced with the other units), `jobs_reconcile` PostgreSQL session advisory lock (an
+  overlapping run exits 0, `skipped: already_running`), one startup reconciliation in
+  `power-native.sh verify` after the database check plus `processing-native.sh backlog`; six
+  processing log metric filters and alarms on `/lai/dev/jobs` in `LaiDevPlatform-dev` (prod has
+  none); the DLQ runbook in `docs/processing/OPERATIONS.md` section 8 (B7 restricted redrive).
+- **007 Admin and gate** (`lai/apps/assets/admin.py`, `services.publish_version`): the read-only
+  "Background validation" section on the version page (explicit state sentence, outcome,
+  verdict, findings, model summary, job link; every value escaped), the action "Validate in
+  background" (upload and view permission; GLB and active assets only; returns an existing job;
+  never changes the version), and the publication gate (`processing_required` unless a passing
+  job for exactly this file by the current validator exists; re-read and re-validation kept;
+  rollback and make default not gated).
+- **Parallel workstreams** (ownership in `WAVE3_INTERFACES.md` section 7): A upload; B completion
+  hook; C operations (systemd, scripts, alarms, reconcile, runbook); D Admin and gate. The
+  principal owned the helpers, the registry, settings, migration, docs and integration.
+- **Integration fixes:** `async_validation_applies` given a format string read the string's
+  `.format` method, so the flag-on upload stayed synchronous (fixed: a `str` is the format);
+  workstream tests updated to the hook contract (`HookResult`, `subject_outcome`); a shared gate
+  test helper for a passing validation; the database markers lost while merging the consumer
+  tests restored; the hook registry moved to `apps.jobs.hooks` so Django starts without
+  `processing/` on the path (`manage.py check` in CI).
+- **Checks (2026-11-17):**
+  - `pytest lai/apps/assets lai/apps/jobs tests/deploy tests/processing tests/repo lai/apps/core` (isolated PostgreSQL): 3260 passed, 7 skipped
+  - <INFRA_TOTALS>
+  - `scripts/processing/local-demo.sh` ran end to end: flag-off upload `VALIDATED` with no job;
+    flag-on Treasure Rush chest `DRAFT` with its job; publish refused `not_validated` (draft)
+    and `processing_required` (a GLB validated before the flag); round trip `DRAFT ->
+    VALIDATED` (verdict pass, exact clips); a resent work message recorded as a `duplicate`
+    completion, version unchanged; Admin text shown; explicit publish through the gate and the
+    existing resolver serves it; a failing model `DRAFT -> REJECTED` with `invalid_json` and
+    never publishable.
+- **Not done / blocked:**
+  - Live AWS acceptance (LAI-LAMBDA-011): nothing deployed, no image pushed, no flag set in any
+    environment; deployment needs owner approval.
+  - Option B (presigned uploads into quarantine): not built; a future enhancement that needs an
+    owner decision.
+  - Wave 4 (LAI-LAMBDA-008, 009, 010, 013): not started (`docs/processing/WAVE4_HANDOFF.md`).
+  - Owner decision on resubmitting cancelled work: a cancelled job cannot be requeued and
+    "Validate in background" returns it; workaround: delete the draft and upload again.
+  - Owner review, then merges in order: PR #40, PR #41, then this branch.
+
+## Serverless background processing, Wave 2 (LAI-LAMBDA-002 to 005) — developer-complete and reviewed on `feature/serverless-processing-wave2` (2026-11-17); review fixes applied; PR #41 (draft) NOT merged, NOT deployed
 
 Built on Wave 1 (PR #40, merge-ready but not merged; merging needs the owner). ADR-062
 (accepted by the owner 2026-11-17) extends the existing `apps.jobs` backbone (ADR-055) with
@@ -123,9 +191,8 @@ role); flag `LAI_ASSET_ASYNC_VALIDATION` approved, default off everywhere (imple
   - Owner steps already decided but not yet done: create the B4 OIDC deploy role and the B5
     GitHub environments, and the B7 operator redrive roles.
   - Merging PR #40 and then PR #41 needs the owner.
-  - Wave 3 (006, 007) is handed off in `docs/processing/WAVE3_HANDOFF.md` (superseded in part by
-    `WAVE3_INTERFACES.md` on the Wave 3 branch). Its merge depends on the Wave 1 and Wave 2
-    merges.
+  - Wave 3 (006, 007) is developer-complete on `feature/serverless-processing-wave3` (entry
+    above); its merge depends on the Wave 1 and Wave 2 merges.
 
 ## Serverless background processing, Wave 1 (LAI-LAMBDA-001) — developer-complete on `feature/serverless-processing` (2026-11-16); owner review, merge, Django integration and AWS NOT done
 

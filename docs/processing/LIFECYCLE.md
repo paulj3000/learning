@@ -50,7 +50,8 @@ They are kept apart deliberately. Mixing them is how "processing succeeded" turn
 | Asset review and publication | `AssetVersion`: `DRAFT`, `VALIDATED`, `REJECTED`, `PUBLISHED`, `RETIRED` | Django Admin staff | `assets.AssetVersion` |
 
 A succeeded result with verdict `fail` is a **successful job** whose input failed validation:
-the job reaches review and the asset version would be `REJECTED`, never published. No transition
+the job reaches review and, with `LAI_ASSET_ASYNC_VALIDATION=on`, the asset completion hook moves
+the `DRAFT` version to `REJECTED`; it is never published (section 10). No transition
 in any machine publishes an asset; only the existing staff publish action does (ADR-045).
 
 ## 3. Application job transitions
@@ -216,9 +217,10 @@ step with `state` on every transition:
 | `validated`, `ready_for_review` | `completed` |
 | `failed`, `cancelled` | `failed` |
 
-In Wave 2 nothing sets `uploading`, `processing` or `ready_for_review`: a submission goes
-`created -> queued` directly, the worker cannot report a start, and the `validated ->
-ready_for_review` step belongs to Wave 3.
+Nothing sets `uploading` or `processing`: a submission goes `created -> queued` directly and the
+worker cannot report a start. Since Wave 3, `validated -> ready_for_review` is set in the
+completion transaction when a registered completion hook returns `review_ready` (section 10); a
+kind without a hook, or a hook that is not review-ready, leaves the job `validated`.
 
 ### 9.5 Reconciliation, expiry and the legacy sweep
 
@@ -256,3 +258,78 @@ version and upload it again, which gives a new key.
 and the Wave 2 end-to-end file `test_processing_wave2_end_to_end.py` (local transport, real GLB
 validator: valid model, invalid model, redelivered work and duplicate completions applied once,
 resubmission returns the same job, paused dispatch).
+
+## 10. Asset version lifecycle with asynchronous validation (Wave 3)
+
+Added 2026-11-17 (LAI-LAMBDA-006 and 007, `WAVE3_INTERFACES.md`). Applies only when
+`LAI_ASSET_ASYNC_VALIDATION=on` (default `off` in every environment) and the upload is a GLB
+model (`apps.assets.processing.async_validation_applies`). With the flag off, or for images and
+audio, the upload is synchronous and the version is created `VALIDATED`, exactly as before.
+
+### 10.1 Two machines, one transaction each
+
+| Step | `AssetVersion` | `ProcessingJob` | Where |
+|---|---|---|---|
+| Staff upload passes the synchronous checks | created `DRAFT` (`validated_at` empty) | `asset.validate_model` submitted in the same transaction: `created -> queued`, attempt 1, outbox row | `services.upload_version`, `_create_draft_and_submit` |
+| Completion `APPLY`, result `succeeded`, verdict `pass` | `DRAFT -> VALIDATED`, `validated_at` set | `queued -> validated -> ready_for_review` | `apply_completion`, then the asset hook `apps/assets/completion.py` |
+| Completion `APPLY`, result `succeeded`, any other verdict (`fail`, also `not_applicable`) | `DRAFT -> REJECTED` | `validated -> ready_for_review` | the asset hook |
+| Completion `APPLY` of a failed or cancelled result | stays `DRAFT` | `failed` or `cancelled` | the hook returns `processing_failed` |
+| `RETRY`, `DUPLICATE`, `STALE`, `REJECT` | unchanged (the hook does not run) | as section 9.3 | `_apply_locked` |
+| Staff Publish | `VALIDATED -> PUBLISHED` only with a passing background result (the gate, 10.3) | unchanged (read, never locked) | `services.publish_version` |
+
+The job result is applied first; the hook then runs in a savepoint of the same transaction,
+under the job row lock. Both commit together, so a version is changed at most once per job,
+however often the completion is delivered.
+
+### 10.2 Hook outcomes (`ProcessingJob.subject_outcome`)
+
+| Outcome code | Situation | Version | Job moves to `ready_for_review` |
+|---|---|---|---|
+| `version_validated` | `DRAFT`, verdict `pass` | `VALIDATED`; report = upload findings plus processing findings (`source: "processing"`); summary in `metadata["model_validation"]` | Yes |
+| `version_rejected` | `DRAFT`, any verdict other than `pass` | `REJECTED`; same report and summary | Yes |
+| `result_recorded` | The version is no longer `DRAFT` (validated before the flag, published, retired, rejected): a revalidation through "Validate in background" | Unchanged; published versions are never rewritten | Yes |
+| `processing_failed` | The result is not `succeeded` | Unchanged (stays `DRAFT`) | No (the job is `failed` or `cancelled`) |
+| `version_missing` | The version row no longer exists | None | No |
+| `kind_mismatch`, `subject_mismatch`, `namespace_mismatch`, `asset_mismatch`, `storage_mismatch`, `checksum_mismatch`, `size_mismatch`, `profile_mismatch` | `identity_mismatch(job, version)`: the job did not validate exactly this version's stored bytes. Logged `processing.subject_mismatch job=.. reason=..` | Unchanged | No |
+| `hook_error` | The hook raised something other than a `DatabaseError` (a bug). Its savepoint is rolled back; the applied job result is kept; logged `processing.hook_error` | Unchanged | No (the job stays `validated`) |
+
+A `DatabaseError` (an `IntegrityError` included) raised inside the hook is not an outcome: it
+rolls back the whole completion, which is deferred and redelivered (and reaches the completion
+DLQ if it keeps failing). `clips` and `dimensions` keep their synchronous upload values; exact
+clip names and durations are in the summary.
+
+### 10.3 Publication gate
+
+With the flag on, `publish_version` of a GLB version first requires `VALIDATED` (otherwise
+`not_validated`), then a job in `validation_jobs(version)` with state `validated` or
+`ready_for_review`, verdict `pass`, and `identity_mismatch(job, version,
+require_current_processor=True) is None` (exactly this file, by the processor version this build
+runs). Otherwise it refuses with `processing_required` and changes nothing. The existing re-read
+and synchronous re-validation of the stored bytes still run afterwards. Rollback, set default
+and republishing a retired version are not gated. No job state publishes anything.
+
+### 10.4 Lock order
+
+| Path | Locks, in order |
+|---|---|
+| Completion and asset hook | job row -> `ContentAsset` row -> `AssetVersion` row |
+| Upload | `ContentAsset` row; inserts the version, job, attempt and outbox rows |
+| Publish, set default, retire, rollback | `ContentAsset` row -> `AssetVersion` row; the gate reads jobs without locking |
+| Cancel, requeue, reconcile | job row, then its own outbox and attempt rows |
+
+No path locks a job after an asset or version row, so these paths cannot deadlock each other.
+
+### 10.5 Recovery cases
+
+- **Processing failed or expired.** The version stays `DRAFT`. A staff member with
+  `jobs.requeue_processingjob` requeues the failed job; the next applied pass or fail moves the
+  draft.
+- **Cancelled job.** A cancelled job cannot be requeued, and "Validate in background" returns the
+  same cancelled job (same idempotency key). Workaround until the owner decides (9.6): delete the
+  draft and upload the file again.
+- **Hook error or identity mismatch.** The version stays `DRAFT` and the job keeps its result.
+  For the same file and validator, "Validate in background" returns the same finished job and does
+  not run the hook again; delete the draft and upload again once the cause is fixed.
+- Tests: `lai/apps/assets/tests/test_async_upload.py`, `test_completion_hook.py`,
+  `test_publication_gate.py`, `lai/apps/jobs/tests/test_completion_hooks.py` and
+  `test_processing_wave3_end_to_end.py`.
