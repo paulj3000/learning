@@ -10,7 +10,8 @@
 #    2. validate; refuse an older commit       9. migrate
 #    3. render the runtime configuration      10. collectstatic into the release
 #    4. venv from the bundled wheels          11. switch /opt/lai/current atomically
-#    5. install units, gunicorn and nginx     12. restart gunicorn and the jobs consumer, reload nginx
+#       (lai-processing included)
+#    5. install units, gunicorn and nginx     12. restart gunicorn and the jobs services, reload nginx
 #       config (`nginx -t`)                    13. health check (live and ready over 127.0.0.1:8080)
 #    6. database connectivity                 14. record it; prune old releases
 #    7. manage.py check --deploy
@@ -121,6 +122,16 @@ if [ ! -f "$release_dir/venv/.lai-complete" ]; then
     "$release_dir/venv/bin/python" -m pip install --quiet --no-index --disable-pip-version-check \
         --find-links "$release_dir/wheels" -r "$release_dir/requirements.txt" ||
         fail "$E_PREFLIGHT" "pip could not install the bundled wheels"
+    # lai_processing and lai_processing_runtime (processing/, LAI-LAMBDA-005): one pure-Python
+    # wheel that package-release.sh builds; it has no dependencies of its own.
+    processing_wheels=("$release_dir"/wheels/lai_processing-*.whl)
+    if [ -f "${processing_wheels[0]}" ]; then
+        "$release_dir/venv/bin/python" -m pip install --quiet --no-index --no-deps \
+            --disable-pip-version-check "${processing_wheels[@]}" ||
+            fail "$E_PREFLIGHT" "pip could not install the lai-processing wheel"
+    else
+        log "WARNING: this release has no lai-processing wheel (built with --skip-wheels?)"
+    fi
     touch "$release_dir/venv/.lai-complete"
 fi
 

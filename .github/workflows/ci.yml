@@ -67,6 +67,59 @@ jobs:
       - name: Run Playwright tests
         run: npm run test:e2e
 
+  # The processing worker image (LAI-LAMBDA-005): build processing/Dockerfile.lambda for
+  # linux/arm64 under QEMU, import the handler inside it, and scan it. Never pushed, no AWS, no
+  # secrets: the image only exists on the runner. The push is deploy-processing.yml (manual).
+  processing-image:
+    name: Processing worker image (linux/arm64, no push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dockerfile present
+        id: present
+        run: |
+          if [ -f processing/Dockerfile.lambda ]; then
+            echo "found=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "::notice::processing/Dockerfile.lambda is not on this branch yet (LAI-LAMBDA-003); skipping"
+            echo "found=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-qemu-action@v3
+        if: steps.present.outputs.found == 'true'
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.present.outputs.found == 'true'
+
+      - name: Build for linux/arm64 (loaded locally, not pushed)
+        if: steps.present.outputs.found == 'true'
+        run: |
+          docker buildx build --platform linux/arm64 --provenance=false --sbom=false \
+            --file processing/Dockerfile.lambda --tag lai-processing:ci --load processing
+
+      - name: Smoke test (the handler imports inside the image)
+        if: steps.present.outputs.found == 'true'
+        run: |
+          docker run --rm --platform linux/arm64 --entrypoint python lai-processing:ci \
+            -c "import lai_processing_runtime.lambda_handler"
+
+      # Fails on CRITICAL vulnerabilities that have a fix; HIGH and below are not gated
+      # (docs/infrastructure/processing-infrastructure.md, "CI image checks").
+      - name: Vulnerability scan (CRITICAL fails the job)
+        if: steps.present.outputs.found == 'true'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: lai-processing:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          vuln-type: os,library
+          exit-code: '1'
+
   python:
     name: Python, Django, PostgreSQL
     runs-on: ubuntu-latest

@@ -665,6 +665,8 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     expect(managed).toContain('AmazonSSMManagedInstanceCore');
     expect(managed).toContain(':policy/lai-django-asset-storage-dev');
     expect(managed).toContain(':policy/lai-django-child-photos-dev');
+    // LaiProcessing-dev (deployed first): processing queues and objects only.
+    expect(managed).toContain(':policy/lai-django-processing-dev');
     const statements = roleStatements('InstanceRole');
     const text = JSON.stringify(statements);
     expect(text).toContain('LearningAdventureIsland/DevEC2');
@@ -808,7 +810,7 @@ describe('infra/bin/app.ts', { timeout: 180_000 }, () => {
     }
   };
 
-  it('synthesizes the native dev stacks and no Docker or ECR stack for dev', () => {
+  it('synthesizes the native dev stacks and no Docker stack for dev', () => {
     const templates = synth('dev');
     expect(Object.keys(templates).sort()).toEqual(
       [
@@ -818,8 +820,21 @@ describe('infra/bin/app.ts', { timeout: 180_000 }, () => {
         'LaiDevArtifacts-dev',
         'LaiDevPlatform-dev',
         'LaiFrontend-dev',
+        'LaiProcessing-dev',
+        'LaiProcessingImages-dev',
       ].sort(),
     );
+    const types = (name: string) =>
+      Object.values(templates[name].Resources).map((resource) => resource.Type);
+    // The only ECR repository in dev holds the Lambda worker image (built off EC2); nothing in
+    // dev runs Docker, and without a digest no processing function is synthesized.
+    for (const name of Object.keys(templates)) {
+      if (name !== 'LaiProcessingImages-dev')
+        expect(types(name)).not.toContain('AWS::ECR::Repository');
+      expect(types(name).filter((type) => type.startsWith('AWS::ECS::'))).toEqual([]);
+    }
+    expect(types('LaiProcessingImages-dev')).toContain('AWS::ECR::Repository');
+    expect(types('LaiProcessing-dev')).not.toContain('AWS::Lambda::Function');
   });
 
   it('still synthesizes LaiDjangoEc2-prod with its load balancer and LaiDjangoRelease for prod', () => {
@@ -832,6 +847,8 @@ describe('infra/bin/app.ts', { timeout: 180_000 }, () => {
         'LaiDjangoEc2-prod',
         'LaiDjangoRelease',
         'LaiFrontend-prod',
+        'LaiProcessing-prod',
+        'LaiProcessingImages-prod',
       ].sort(),
     );
     const types = (name: string) =>

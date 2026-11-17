@@ -16,6 +16,11 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
+# lai_processing and lai_processing_runtime (processing/, ADR-061/062): Django imports both for the
+# contract processing kinds. Standard library only, so --no-deps; boto3 comes from requirements.
+COPY processing/ ./processing/
+RUN pip install --no-deps ./processing && rm -rf ./processing/build ./processing/*.egg-info
+
 # The app and the content export `manage.py load_content` reads (settings.CONTENT_DIR).
 COPY lai/ ./lai/
 COPY content/ ./content/

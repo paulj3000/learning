@@ -54,7 +54,10 @@ LAI_RELEASES_DIR="$LAI_ROOT/releases"
 LAI_RUNTIME_DIR="$LAI_ROOT/runtime"
 LAI_HISTORY="$LAI_STATE_DIR/releases.jsonl"
 LAI_CURRENT="$LAI_STATE_DIR/current.json"
-LAI_UNITS=(lai-gunicorn.service lai-jobs-consumer.service)
+# The processing services (lai-jobs-dispatch, lai-jobs-completions) skip themselves through
+# ExecCondition unless LAI_PROCESSING_BACKEND is sqs (deploy/native/systemd).
+LAI_UNITS=(lai-gunicorn.service lai-jobs-consumer.service lai-jobs-dispatch.service
+    lai-jobs-completions.service)
 
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
@@ -195,6 +198,8 @@ install_release_config() {
 restart_services() {
     systemctl restart lai-gunicorn.service || return 1
     systemctl restart lai-jobs-consumer.service || log "WARNING: lai-jobs-consumer did not restart"
+    systemctl restart lai-jobs-completions.service || log "WARNING: lai-jobs-completions did not restart"
+    systemctl restart lai-jobs-dispatch.service || log "WARNING: lai-jobs-dispatch did not restart"
     if systemctl is-active --quiet nginx.service; then
         systemctl reload nginx.service || return 1
     else

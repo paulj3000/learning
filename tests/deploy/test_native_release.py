@@ -306,7 +306,12 @@ def test_first_release_is_downloaded_installed_switched_checked_and_recorded(box
     assert (release / "release.env").read_text() == f"LAI_RELEASE_SHA={sha(1)}\n"
     assert (box.state / "collectstatic_settings").read_text() == "config.settings.static_build"
     # Units, gunicorn config and the rendered nginx config are installed from the release.
-    for unit in ("lai-gunicorn.service", "lai-jobs-consumer.service"):
+    for unit in (
+        "lai-gunicorn.service",
+        "lai-jobs-consumer.service",
+        "lai-jobs-dispatch.service",
+        "lai-jobs-completions.service",
+    ):
         assert (box.systemd / unit).read_text() == (
             REPO / "deploy/native/systemd" / unit
         ).read_text()
@@ -322,7 +327,11 @@ def test_first_release_is_downloaded_installed_switched_checked_and_recorded(box
     assert "nginx -t -q" in calls
     assert "systemctl restart lai-gunicorn.service" in calls
     assert "systemctl restart lai-jobs-consumer.service" in calls
+    assert "systemctl restart lai-jobs-completions.service" in calls
+    assert "systemctl restart lai-jobs-dispatch.service" in calls
     assert "systemctl reload nginx.service" in calls
+    # --skip-wheels releases carry no processing wheel; the deploy says so and carries on.
+    assert "no lai-processing wheel" in box.output(result)
     last = json.loads(box.single_value("/lai/dev/deploy/last-release"))
     assert (last["git_sha"], last["status"]) == (sha(1), "healthy")
 
@@ -715,14 +724,16 @@ def pending_record(box: Box, n: int) -> str:
     )
 
 
-def test_power_quiesce_stops_the_consumer_then_gunicorn(box):
+def test_power_quiesce_stops_dispatch_then_completions_then_the_consumer_then_gunicorn(box):
     assert box.deploy(1).returncode == 0
     result = box.run(NATIVE / "power-native.sh", LAI_REQ_ACTION="quiesce")
     assert result.returncode == 0, box.output(result)
     calls = box.calls()
+    dispatch = calls.index("systemctl stop lai-jobs-dispatch.service")
+    completions = calls.index("systemctl stop lai-jobs-completions.service")
     consumer = calls.index("systemctl stop lai-jobs-consumer.service")
     gunicorn = calls.index("systemctl stop lai-gunicorn.service")
-    assert consumer < gunicorn
+    assert dispatch < completions < consumer < gunicorn
 
 
 def test_power_verify_starts_services_and_applies_a_pending_release(box):
@@ -742,6 +753,11 @@ def test_power_verify_starts_services_and_applies_a_pending_release(box):
     calls = box.calls()
     assert "systemctl start lai-gunicorn.service" in calls
     assert "systemctl start lai-jobs-consumer.service" in calls
+    # After the health check: completions drain the overnight backlog, then dispatch resumes.
+    health = calls.index("systemctl start lai-jobs-consumer.service")
+    completions = calls.index("systemctl start lai-jobs-completions.service")
+    dispatch = calls.index("systemctl start lai-jobs-dispatch.service")
+    assert health < completions < dispatch
 
 
 def test_power_verify_keeps_a_pending_release_that_failed(box):

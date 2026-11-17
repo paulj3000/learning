@@ -414,12 +414,15 @@ def npm(state: dict, args: list[str]) -> str:
     if "infra:synth" in args:
         out = Path(os.environ["CDK_OUTDIR"])
         out.mkdir(parents=True, exist_ok=True)
+        state["synth_digest"] = os.environ.get("LAI_PROCESSING_WORKER_IMAGE_DIGEST")
         for name in (
             "LaiDevArtifacts-dev",
             "LaiAssetStorage-dev",
             "LaiChildPhotos-dev",
+            "LaiProcessing-dev",
             "LaiAiGuardrail-dev",
             "LaiDevPlatform-dev",
+            "LaiProcessingImages-dev",
             "LaiFrontend-dev",
         ):
             template = state["templates"].get(name, {"Resources": {}})

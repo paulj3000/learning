@@ -8,6 +8,12 @@ import { DEV_PLATFORM_STACK, DevPlatformStack } from '../lib/devPlatformStack';
 import { DjangoEc2Stack, type DatabaseMode } from '../lib/djangoEc2Stack';
 import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
 import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
+import { ProcessingImagesStack } from '../lib/processingImagesStack';
+import {
+  ProcessingStack,
+  processingStackName,
+  type ProcessingAlarmThresholds,
+} from '../lib/processingStack';
 
 /**
  * The CDK app (LAI-1001). See infra/README.md for synth and deploy commands
@@ -23,11 +29,18 @@ import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
  * | `LaiDjangoRelease`      | prod  | ECR repository, GitHub OIDC, image publisher role            |
  * | `LaiDjangoEc2-prod`     | prod  | VPC, ALB, EC2 (Docker), RDS, SSM documents, deploy role      |
  * | `LaiAiGuardrail-<env>`  | both  | child-safety Guardrail, Django AI policy (LAI-0704)          |
+ * | `LaiProcessingImages-<env>` | both | ECR `lai/processing-<env>`, image publisher role (OIDC)  |
+ * | `LaiProcessing-<env>`   | both  | processing bucket, work/completion SQS + DLQs, Lambda worker |
+ * |                         |       | (image by digest, phase 2 only), Django policy, alarms       |
  * | `LaiFrontend-<env>`     | both  | React site: S3, CloudFront, `/api/*` to Django (us-east-1)   |
  *
  * Dev deploy order: LaiDevArtifacts-dev, LaiAssetStorage-dev, LaiChildPhotos-dev,
- * LaiDevPlatform-dev, LaiAiGuardrail-dev (attaches its policy to the platform's instance role and
- * filters its logs), LaiFrontend-dev.
+ * LaiProcessing-dev (its Django policy must exist before the platform attaches it by name),
+ * LaiDevPlatform-dev, LaiProcessingImages-dev (trusts the OIDC provider the platform may create),
+ * LaiAiGuardrail-dev (attaches its policy to the platform's instance role and filters its logs),
+ * LaiFrontend-dev. Prod: storage, LaiDjangoRelease, LaiProcessingImages-prod, LaiProcessing-prod,
+ * LaiDjangoEc2-prod. The worker needs a second LaiProcessing deploy with an image digest
+ * (docs/infrastructure/processing-infrastructure.md, "Two-phase provisioning").
  *
  * Settings come from CDK context (`-c name=value`) or, for a plain
  * `npx tsx infra/bin/app.ts` synth without the CDK CLI, the environment:
@@ -44,6 +57,9 @@ import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
  * | `createOidcProvider` | `LAI_CREATE_OIDC_PROVIDER`  | `false` if the account already has GitHub's   |
  * | `hostedZoneId`       | `LAI_HOSTED_ZONE_ID`        | Route 53 zone for the API, admin and site names |
  * | `hostedZoneName`     | `LAI_HOSTED_ZONE_NAME`      | that zone's name, e.g. `example.com`          |
+ * | `processingWorkerImageDigest` | `LAI_PROCESSING_WORKER_IMAGE_DIGEST` | `sha256:...` worker image; empty = phase 1 |
+ * | `processingReservedConcurrency` | `LAI_PROCESSING_RESERVED_CONCURRENCY` | worker reserved concurrency (dev 2, prod 5) |
+ * | `processingAlarms`   | `LAI_PROCESSING_ALARMS`     | JSON overrides of the processing alarm thresholds |
  *
  * Deploy-time values (API and admin host names, AMI, instance type, Cognito ids, alarm
  * e-mail) are CloudFormation parameters of `LaiDjangoEc2-prod` (scripts/aws/provision.sh) and
@@ -141,6 +157,34 @@ if (envName === 'dev') {
     description: `Learning Adventure Island Django on EC2 (${envName})`,
   });
 }
+
+// Background processing (LAI-LAMBDA-005): the image repository, then the pipeline. A worker
+// exists only when an image digest is given (two-phase provisioning).
+new ProcessingImagesStack(app, `LaiProcessingImages-${envName}`, {
+  envName: envName as AssetEnvironment,
+  githubRepository,
+  env,
+  synthesizer: synthesizer(),
+  description: `Learning Adventure Island processing worker images: ECR and publisher role (${envName})`,
+});
+
+const reservedConcurrency = setting(
+  'processingReservedConcurrency',
+  'LAI_PROCESSING_RESERVED_CONCURRENCY',
+);
+const alarmOverrides = setting('processingAlarms', 'LAI_PROCESSING_ALARMS');
+new ProcessingStack(app, processingStackName(envName as AssetEnvironment), {
+  envName: envName as AssetEnvironment,
+  workerImageDigest:
+    setting('processingWorkerImageDigest', 'LAI_PROCESSING_WORKER_IMAGE_DIGEST') || undefined,
+  sizing: reservedConcurrency ? { reservedConcurrency: Number(reservedConcurrency) } : undefined,
+  alarms: alarmOverrides
+    ? (JSON.parse(alarmOverrides) as Partial<ProcessingAlarmThresholds>)
+    : undefined,
+  env,
+  synthesizer: synthesizer(),
+  description: `Learning Adventure Island background processing: S3, SQS, Lambda worker (${envName})`,
+});
 
 new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, {
   envName: envName as AssetEnvironment,

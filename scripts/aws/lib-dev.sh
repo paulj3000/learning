@@ -36,6 +36,7 @@ readonly DEV_FRONTEND_REGION=us-east-1
 readonly DEV_PLATFORM_STACK=LaiDevPlatform-dev
 readonly DEV_ARTIFACTS_STACK=LaiDevArtifacts-dev
 readonly DEV_FRONTEND_STACK=LaiFrontend-dev
+readonly DEV_PROCESSING_STACK=LaiProcessing-dev
 readonly DEV_LEGACY_STACK=LaiDjangoEc2-dev
 readonly DEV_POWER_PREFIX=/lai/dev/power
 readonly DEV_DEPLOY_PREFIX=/lai/dev/deploy

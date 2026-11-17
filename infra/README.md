@@ -4,22 +4,26 @@ The CDK app for the Django platform's AWS resources (`docs/DJANGO_MIGRATION_ROAD
 LAI-1001 layout). The Amplify Gen 2 backend and Amplify Hosting are retired (AMP-07, AMP-06);
 this is the only infrastructure code in the repository. Nothing here is deployed by a push.
 
-| Stack                   | Scope              | What                                                                                     | Doc                                             |
-| ----------------------- | ------------------ | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `LaiDevArtifacts-dev`   | dev                | Release tarballs, Lambda zips, job results, template uploads (ADR-055)                   | `docs/infrastructure/dev-native-environment.md` |
-| `LaiDevPlatform-dev`    | dev                | Native EC2 (ARM64), Elastic IP, private RDS, SQS, Lambda, power state machine, schedules | `docs/infrastructure/dev-native-environment.md` |
-| `LaiAssetStorage-<env>` | environment        | The asset library's private S3 bucket and the Django role policy                         | `docs/ASSET_LIBRARY.md` sections 12 and 19      |
-| `LaiChildPhotos-<env>`  | environment        | The private child photo bucket (separate from assets, ADR-042) and its Django policy     | `docs/platform/CHILD_PHOTO_STORAGE.md`          |
-| `LaiAiGuardrail-<env>`  | environment        | Child-safety Guardrail and the Django AI policy                                          | `docs/AI_SERVICE.md`                            |
-| `LaiFrontend-<env>`     | environment        | React site in us-east-1: private S3, CloudFront (OAC), `/api/*` to the API host          | `docs/infrastructure/domains-and-hosting.md`    |
-| `LaiDjangoRelease`      | account, prod only | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                     | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`        |
-| `LaiDjangoEc2-prod`     | prod only          | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms   | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`        |
+| Stack                       | Scope              | What                                                                                     | Doc                                                |
+| --------------------------- | ------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `LaiDevArtifacts-dev`       | dev                | Release tarballs, Lambda zips, job results, template uploads (ADR-055)                   | `docs/infrastructure/dev-native-environment.md`    |
+| `LaiDevPlatform-dev`        | dev                | Native EC2 (ARM64), Elastic IP, private RDS, SQS, Lambda, power state machine, schedules | `docs/infrastructure/dev-native-environment.md`    |
+| `LaiAssetStorage-<env>`     | environment        | The asset library's private S3 bucket and the Django role policy                         | `docs/ASSET_LIBRARY.md` sections 12 and 19         |
+| `LaiChildPhotos-<env>`      | environment        | The private child photo bucket (separate from assets, ADR-042) and its Django policy     | `docs/platform/CHILD_PHOTO_STORAGE.md`             |
+| `LaiAiGuardrail-<env>`      | environment        | Child-safety Guardrail and the Django AI policy                                          | `docs/AI_SERVICE.md`                               |
+| `LaiFrontend-<env>`         | environment        | React site in us-east-1: private S3, CloudFront (OAC), `/api/*` to the API host          | `docs/infrastructure/domains-and-hosting.md`       |
+| `LaiProcessingImages-<env>` | environment        | ECR `lai/processing-<env>` (worker image, by digest) and its GitHub OIDC publisher role  | `docs/infrastructure/processing-infrastructure.md` |
+| `LaiProcessing-<env>`       | environment        | Processing bucket, work/completion SQS and DLQs, Lambda worker (phase 2), Django policy  | `docs/infrastructure/processing-infrastructure.md` |
+| `LaiDjangoRelease`          | account, prod only | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                     | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`           |
+| `LaiDjangoEc2-prod`         | prod only          | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms   | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`           |
 
 `LAI_ENV=dev` (the default) synthesizes the native dev stacks and no longer synthesizes
 `LaiDjangoEc2-dev` or `LaiDjangoRelease` (ADR-055). The dev environment is provisioned with
 `scripts/aws/deploy-debug.sh --plan|--execute` (root `README.md`, "AWS Development
 Infrastructure"). Dev deploy order: `LaiDevArtifacts-dev`, `LaiAssetStorage-dev`,
-`LaiChildPhotos-dev`, `LaiDevPlatform-dev`, `LaiAiGuardrail-dev`, `LaiFrontend-dev` (us-east-1).
+`LaiChildPhotos-dev`, `LaiProcessing-dev`, `LaiDevPlatform-dev`, `LaiProcessingImages-dev`,
+`LaiAiGuardrail-dev`, `LaiFrontend-dev` (us-east-1). The processing worker exists only when
+`LAI_PROCESSING_WORKER_IMAGE_DIGEST` (context `processingWorkerImageDigest`) names an image.
 
 The production EC2 release pipeline (ADR-037) is provisioned with `scripts/aws/provision.sh <env>`, which
 creates change sets and applies them only with `--execute`; its settings and parameters are in

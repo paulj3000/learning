@@ -30,6 +30,7 @@ import { readFileSync } from 'node:fs';
 import type { Construct } from 'constructs';
 import { DJANGO_REPOSITORY_NAME } from './djangoReleaseStack';
 import { githubOidcProviderArn, githubPrincipal, isGithubRepository } from './githubOidc';
+import { djangoProcessingPolicyName } from './processingStack';
 
 /**
  * One Django environment on a single EC2 instance (ADR-037,
@@ -263,6 +264,13 @@ export class DjangoEc2Stack extends Stack {
           this,
           'ChildPhotoStoragePolicy',
           `lai-django-child-photos-${env}`,
+        ),
+        // LaiProcessing-<env> (infra/lib/processingStack.ts): processing queues and objects
+        // only. LaiProcessing-<env> deploys first: a missing policy fails this stack's update.
+        iam.ManagedPolicy.fromManagedPolicyName(
+          this,
+          'ProcessingPolicy',
+          djangoProcessingPolicyName(env),
         ),
       ],
     });

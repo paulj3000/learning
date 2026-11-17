@@ -56,7 +56,57 @@ def test_ssm_embedded_scripts_are_self_contained(script):
     assert "LAI_SCRIPT_EOF" not in text  # the bashWrapper heredoc terminator
 
 
-@pytest.mark.parametrize("unit", ["lai-gunicorn.service", "lai-jobs-consumer.service"])
+UNITS = [
+    "lai-gunicorn.service",
+    "lai-jobs-consumer.service",
+    "lai-jobs-dispatch.service",
+    "lai-jobs-completions.service",
+]
+
+
+def test_the_release_installs_and_setup_enables_every_unit():
+    assert sorted(p.name for p in (DEPLOY / "systemd").glob("*.service")) == sorted(UNITS)
+    lib = (NATIVE / "lib-native.sh").read_text()
+    match = re.search(r"^LAI_UNITS=\(([^)]*)\)", lib, re.M)
+    assert match and match.group(1).split() == UNITS
+    setup = (NATIVE / "setup-native.sh").read_text()
+    assert "for u in " + " ".join(u.removesuffix(".service") for u in UNITS) + "; do" in setup
+    for log in ("jobs-consumer.log", "jobs-dispatch.log", "jobs-completions.log"):
+        assert f"/var/log/lai/{log}" in setup, log
+
+
+@pytest.mark.parametrize(
+    ("unit", "command", "log"),
+    [
+        ("lai-jobs-dispatch.service", "jobs_dispatch", "jobs-dispatch.log"),
+        ("lai-jobs-completions.service", "jobs_consume_completions", "jobs-completions.log"),
+    ],
+)
+def test_processing_units_run_only_with_the_sqs_backend(unit, command, log):
+    lines = (DEPLOY / "systemd" / unit).read_text().splitlines()
+    assert f"ExecStart=/opt/lai/current/venv/bin/python manage.py {command}" in lines
+    # Skipped, not failed, while LaiProcessing-<env> says the backend is disabled.
+    assert 'ExecCondition=/usr/bin/test "${LAI_PROCESSING_BACKEND}" = sqs' in lines
+    assert f"StandardOutput=append:/var/log/lai/{log}" in lines
+    assert "StartLimitIntervalSec=0" in lines
+    assert any(re.fullmatch(r"TimeoutStopSec=\d+", line) for line in lines)
+    consumer = (DEPLOY / "systemd/lai-jobs-consumer.service").read_text().splitlines()
+    shared = [line for line in consumer if line.startswith(("Protect", "Restrict", "Capability"))]
+    for line in shared:
+        assert line in lines, (unit, line)
+
+
+def test_the_release_ships_and_installs_the_processing_wheel_offline():
+    package = (NATIVE / "package-release.sh").read_text()
+    assert "-m pip wheel --quiet --no-deps" in package
+    assert "SOURCE_DATE_EPOCH=$epoch" in package
+    assert '"$work/processing-src" -w "$tree/wheels"' in package
+    deploy = (NATIVE / "deploy-native.sh").read_text()
+    assert '"$release_dir"/wheels/lai_processing-*.whl' in deploy
+    assert "-m pip install --quiet --no-index --no-deps" in deploy
+
+
+@pytest.mark.parametrize("unit", UNITS)
 def test_units_run_as_lai_hardened_with_the_release_environment(unit):
     text = (DEPLOY / "systemd" / unit).read_text()
     for line in (
@@ -76,6 +126,8 @@ def test_units_run_as_lai_hardened_with_the_release_environment(unit):
     if unit == "lai-jobs-consumer.service":
         assert "manage.py jobs_consume_results" in text
         assert "StartLimitIntervalSec=0" in text
+    elif unit != "lai-gunicorn.service":
+        assert "manage.py jobs_" in text
     else:
         assert "-c /etc/lai/gunicorn.conf.py config.wsgi:application" in text
 
