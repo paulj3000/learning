@@ -2,4 +2,10 @@
 
 from .fakes import ManualClock, MemoryObjectStorage, MemoryQueue, RecordingTelemetry, StoredObject
 
-__all__ = ["ManualClock", "MemoryObjectStorage", "MemoryQueue", "RecordingTelemetry", "StoredObject"]
+__all__ = [
+    "ManualClock",
+    "MemoryObjectStorage",
+    "MemoryQueue",
+    "RecordingTelemetry",
+    "StoredObject",
+]

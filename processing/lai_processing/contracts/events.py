@@ -7,7 +7,8 @@ that the result it reads is the one the worker emitted.
 
 The event is not trusted on its own. Django accepts it only when the job, attempt, idempotency
 key, namespace and input checksum match its own record (docs/processing/LIFECYCLE.md). Queue
-permissions (only the worker role may send) are the transport-level control (Wave 2, LAI-LAMBDA-005).
+permissions (only the worker role may send) are the transport-level control (Wave 2,
+LAI-LAMBDA-005).
 """
 
 from __future__ import annotations
@@ -29,8 +30,8 @@ from .common import (
     check_schema_header,
 )
 from .identifiers import CORRELATION_ID, IDEMPOTENCY_KEY, SHA256, UUID
-from .jobs import MAX_ATTEMPT_NUMBER
 from .job_types import job_type_spec
+from .jobs import MAX_ATTEMPT_NUMBER
 from .results import ProcessingJobResult, ResultStatus
 
 __all__ = [
@@ -102,9 +103,7 @@ class CompletionEvent:
 
     def __post_init__(self) -> None:
         if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
-            raise ProcessingError(
-                ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"}
-            )
+            raise ProcessingError(ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"})
         f.string(self.event_id, "event_id", UUID, max_length=36)
         object.__setattr__(self, "emitted_at", f.aware(self.emitted_at, "emitted_at"))
         f.string(self.job_id, "job_id", UUID, max_length=36)

@@ -10,6 +10,29 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
+from processing_samples import (
+    ASSET_VERSION_ID,
+    ATTEMPT_ID,
+    FIXTURES,
+    JOB_ID,
+    NAMESPACE,
+    OTHER_ATTEMPT_ID,
+    OTHER_JOB_ID,
+    PROCESSOR,
+    REFERENCE_PROFILE,
+    SUBMITTED,
+    VALID_BUILDERS,
+    asset_request,
+    contract_object_paths,
+    event_by_reference,
+    event_inline,
+    node_at,
+    reference_request,
+    result_cancelled,
+    result_failed_retryable,
+    result_succeeded,
+)
+
 from lai_processing.contracts import (
     JOB_TYPES,
     ArtifactReference,
@@ -38,28 +61,6 @@ from lai_processing.contracts.events import RESULT_ARTIFACT_TYPE, result_digest
 from lai_processing.core.canonical import canonical_json, sha256_hex
 from lai_processing.core.errors import SAFE_MESSAGES, ErrorCode, ProcessingError, RetryClass
 from lai_processing.core.limits import DEFAULT_LIMITS
-from processing_samples import (
-    ASSET_VERSION_ID,
-    ATTEMPT_ID,
-    FIXTURES,
-    JOB_ID,
-    NAMESPACE,
-    OTHER_ATTEMPT_ID,
-    OTHER_JOB_ID,
-    PROCESSOR,
-    REFERENCE_PROFILE,
-    SUBMITTED,
-    VALID_BUILDERS,
-    asset_request,
-    contract_object_paths,
-    event_by_reference,
-    event_inline,
-    node_at,
-    reference_request,
-    result_cancelled,
-    result_failed_retryable,
-    result_succeeded,
-)
 
 
 def _code(fn: Any, *args: Any, **kwargs: Any) -> ErrorCode:
@@ -191,8 +192,10 @@ def test_timestamps_are_normalised_to_utc() -> None:
         ({"options": {"x": 2**53 + 1}}, ErrorCode.INVALID_INPUT),
         ({"options": {"x": "tab\there"}}, ErrorCode.INVALID_INPUT),
         ({"limits": DEFAULT_LIMITS.to_dict()}, ErrorCode.INVALID_INPUT),
-        ({"limits": replace(DEFAULT_LIMITS, max_input_bytes=31)},
-         ErrorCode.RESOURCE_LIMIT_EXCEEDED),
+        (
+            {"limits": replace(DEFAULT_LIMITS, max_input_bytes=31)},
+            ErrorCode.RESOURCE_LIMIT_EXCEEDED,
+        ),
         ({"schema_version": 2}, ErrorCode.UNSUPPORTED_SCHEMA_VERSION),
     ],
 )
@@ -320,8 +323,10 @@ def test_valid_results() -> None:
         {"verdict": None},
         {"processor": None},
         {"errors": result_failed_retryable().errors},
-        {"verdict": Verdict.PASS,
-         "findings": (Finding("bad_mesh", Severity.ERROR, "Mesh has no faces."),)},
+        {
+            "verdict": Verdict.PASS,
+            "findings": (Finding("bad_mesh", Severity.ERROR, "Mesh has no faces."),),
+        },
         {"completed_at": SUBMITTED},
         {"duration_ms": -1},
         {"duration_ms": 86_400_001},
@@ -355,8 +360,10 @@ def test_fail_verdict_may_carry_error_findings() -> None:
         ({"errors": ()}, ErrorCode.INVALID_INPUT),
         ({"verdict": Verdict.FAIL}, ErrorCode.INVALID_INPUT),
         ({"status": ResultStatus.CANCELLED}, ErrorCode.INVALID_INPUT),
-        ({"errors": (JobError.from_error(ProcessingError(ErrorCode.THROTTLED)),) * 9},
-         ErrorCode.RESOURCE_LIMIT_EXCEEDED),
+        (
+            {"errors": (JobError.from_error(ProcessingError(ErrorCode.THROTTLED)),) * 9},
+            ErrorCode.RESOURCE_LIMIT_EXCEEDED,
+        ),
     ],
 )
 def test_invalid_failed_results(overrides: dict[str, Any], code: ErrorCode) -> None:

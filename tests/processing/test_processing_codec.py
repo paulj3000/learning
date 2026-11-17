@@ -6,6 +6,8 @@ import json
 from typing import Any
 
 import pytest
+from processing_samples import FIXTURES, VALID_BUILDERS, VALID_DECODERS
+
 from lai_processing.contracts import (
     DEFAULT_MAX_MESSAGE_BYTES,
     CompletionEvent,
@@ -20,7 +22,6 @@ from lai_processing.contracts import (
 )
 from lai_processing.core.canonical import canonical_json
 from lai_processing.core.errors import ErrorCode, ProcessingError
-from processing_samples import FIXTURES, VALID_BUILDERS, VALID_DECODERS
 
 VALID = sorted(VALID_BUILDERS)
 DECODERS = {"request": decode_request, "result": decode_result, "event": decode_event}

@@ -91,9 +91,7 @@ def _load_request(path: str, max_message_bytes: int) -> ProcessingJobRequest:
     return decode_request(data, max_bytes=max_message_bytes)
 
 
-def _check_resolvable(
-    request: ProcessingJobRequest, registry: ProcessorRegistry
-) -> dict[str, Any]:
+def _check_resolvable(request: ProcessingJobRequest, registry: ProcessorRegistry) -> dict[str, Any]:
     """Everything a worker would check before reading the input. Raises ProcessingError."""
     processor, profile = registry.resolve(request.job_type, request.profile)
     options = profile.resolve_options(request.options)

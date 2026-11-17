@@ -90,9 +90,7 @@ class ProcessingJobRequest:
 
     def __post_init__(self) -> None:
         if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
-            raise ProcessingError(
-                ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"}
-            )
+            raise ProcessingError(ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"})
         f.string(self.job_id, "job_id", UUID, max_length=36)
         spec = job_type_spec(self.job_type)
         check_namespace(self.namespace)
@@ -125,9 +123,7 @@ class ProcessingJobRequest:
         if not isinstance(self.limits, ResourceLimits):
             raise f.invalid("limits")
         if self.input is not None and self.input.size_bytes > self.limits.max_input_bytes:
-            raise ProcessingError(
-                ErrorCode.RESOURCE_LIMIT_EXCEEDED, {"field": "input.size_bytes"}
-            )
+            raise ProcessingError(ErrorCode.RESOURCE_LIMIT_EXCEEDED, {"field": "input.size_bytes"})
         self._check_against_spec(spec)
 
     def _check_against_spec(self, spec: JobTypeSpec) -> None:

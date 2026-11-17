@@ -8,6 +8,20 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+from processing_samples import (
+    ASSET_JOB_ID,
+    FIXTURES,
+    INPUT_KEY,
+    NAMESPACE,
+    OTHER_ATTEMPT_ID,
+    OTHER_JOB_ID,
+    REFERENCE_OPTIONS,
+    REFERENCE_PROFILE,
+    asset_request,
+    reference_input,
+    reference_request,
+)
+
 from lai_processing.contracts import (
     InputObject,
     ObjectRef,
@@ -27,19 +41,6 @@ from lai_processing.core.idempotency import (
     verify_idempotency_key,
 )
 from lai_processing.core.limits import ResourceLimits
-from processing_samples import (
-    ASSET_JOB_ID,
-    FIXTURES,
-    INPUT_KEY,
-    NAMESPACE,
-    OTHER_ATTEMPT_ID,
-    OTHER_JOB_ID,
-    REFERENCE_OPTIONS,
-    REFERENCE_PROFILE,
-    asset_request,
-    reference_input,
-    reference_request,
-)
 
 SUBJECT = SubjectRef("reference_input", "subject-1")
 

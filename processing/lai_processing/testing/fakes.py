@@ -202,7 +202,9 @@ class MemoryQueue:
         if len(body) > self.max_message_bytes:
             raise ValueError("message exceeds the queue limit")
         message_id = f"msg-{next(self._ids):06d}"
-        self._messages[message_id] = _Message(message_id, bytes(body), self._clock() + delay_seconds)
+        self._messages[message_id] = _Message(
+            message_id, bytes(body), self._clock() + delay_seconds
+        )
         return SendReceipt(message_id)
 
     def inject_duplicate(self, message_id: str) -> str:

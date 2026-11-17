@@ -118,11 +118,7 @@
     },
     "status": {
       "description": "Mirrors the result's status.",
-      "enum": [
-        "succeeded",
-        "failed",
-        "cancelled"
-      ]
+      "enum": ["succeeded", "failed", "cancelled"]
     }
   },
   "required": [

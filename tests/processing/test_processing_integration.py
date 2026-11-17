@@ -28,8 +28,8 @@ from lai_processing.contracts import (
     SubjectRef,
     build_completion_event,
     decode_event,
-    decode_result,
     decode_request,
+    decode_result,
     encode,
 )
 from lai_processing.core.errors import ErrorCode, ProcessingError, RetryClass
@@ -191,7 +191,9 @@ class World:
         for delivery in self.work.receive(max_messages=10):
             request = decode_request(delivery.body)
             result = self.engine.execute(request)
-            event = self.engine.complete(result, max_message_bytes=self.completions.max_message_bytes)
+            event = self.engine.complete(
+                result, max_message_bytes=self.completions.max_message_bytes
+            )
             self.completions.send(encode(event))
             if not crash_before_ack:
                 self.work.ack(delivery)

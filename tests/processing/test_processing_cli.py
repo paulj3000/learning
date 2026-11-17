@@ -264,9 +264,7 @@ def test_run_reference_job_writes_result_event_and_artifact(tmp_path):
 
 
 def test_run_prints_the_result_without_an_output_dir():
-    code, out, _ = run_cli(
-        "run", str(REFERENCE_REQUEST), "--input-file", str(REFERENCE_INPUT)
-    )
+    code, out, _ = run_cli("run", str(REFERENCE_REQUEST), "--input-file", str(REFERENCE_INPUT))
     assert code == EXIT_OK
     assert decode_result(out).status.value == "succeeded"
 

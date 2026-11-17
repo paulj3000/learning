@@ -14,9 +14,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from lai_processing.contracts import decode, decode_event, decode_request, decode_result
-from lai_processing.core.canonical import sha256_hex
-from lai_processing.core.errors import ErrorCode, ProcessingError
 from processing_samples import (
     FIXTURES,
     INPUT_BYTES,
@@ -34,6 +31,10 @@ from processing_samples import (
     result_failed_retryable,
     result_succeeded,
 )
+
+from lai_processing.contracts import decode, decode_event, decode_request, decode_result
+from lai_processing.core.canonical import sha256_hex
+from lai_processing.core.errors import ErrorCode, ProcessingError
 
 DECODERS = {
     "request": decode_request,

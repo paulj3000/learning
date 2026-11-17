@@ -132,9 +132,7 @@ class ProcessingContext:
         """Cooperative checkpoint: refuse to continue a cancelled or overdue job."""
         self.cancellation.raise_if_cancelled()
         if self.clock.monotonic() >= self.deadline:
-            raise ProcessingError(
-                ErrorCode.PROCESSING_TIMEOUT, {"limit": "max_execution_seconds"}
-            )
+            raise ProcessingError(ErrorCode.PROCESSING_TIMEOUT, {"limit": "max_execution_seconds"})
 
     def write_artifact(
         self,

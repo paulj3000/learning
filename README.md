@@ -585,12 +585,12 @@ code packaging) are listed in ADR-061 and `docs/processing/WAVE2_HANDOFF.md`.
 
 ### Local versus AWS execution
 
-| | Local workstation and tests | AWS |
-|---|---|---|
-| Database | local PostgreSQL 16 (`make up`) or none for the processing tests | RDS PostgreSQL, Single-AZ |
-| Storage | in-memory fakes (Wave 1); filesystem adapter (Wave 2) | S3 |
-| Queues | in-memory fake queue (Wave 1); local worker (Wave 2) | SQS work and completion queues with DLQs |
-| Worker | `python -m lai_processing run` | Lambda (Wave 2) |
+|          | Local workstation and tests                                      | AWS                                      |
+| -------- | ---------------------------------------------------------------- | ---------------------------------------- |
+| Database | local PostgreSQL 16 (`make up`) or none for the processing tests | RDS PostgreSQL, Single-AZ                |
+| Storage  | in-memory fakes (Wave 1); filesystem adapter (Wave 2)            | S3                                       |
+| Queues   | in-memory fake queue (Wave 1); local worker (Wave 2)             | SQS work and completion queues with DLQs |
+| Worker   | `python -m lai_processing run`                                   | Lambda (Wave 2)                          |
 
 ### The processing package
 
@@ -646,13 +646,13 @@ They need no database, AWS or network. The processing tests are also part of `ma
 
 ### Development waves
 
-| Wave | Tasks | Scope | Status |
-|---|---|---|---|
-| 1 | LAI-LAMBDA-001 | Shared package, contracts, registry, ports, idempotency, lifecycle, CLI | Built on `feature/serverless-processing`, owner review pending |
-| 2 | LAI-LAMBDA-002, 003, 004, 005 | GLB validator; local worker and S3/SQS adapters with Lambda handler; Django `ProcessingJob` app and Admin; AWS infrastructure | Specified (`docs/processing/WAVE2_HANDOFF.md`), not started |
-| 3 | LAI-LAMBDA-006, 007 | End-to-end processing; Asset Library integration | Not started |
-| 4 | LAI-LAMBDA-008, 009, 010 | Audio, NPC animation, asset optimisation | Not started |
-| 5 | LAI-LAMBDA-011, 012 | AWS acceptance; production rollout | Not started |
+| Wave | Tasks                         | Scope                                                                                                                         | Status                                                         |
+| ---- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 1    | LAI-LAMBDA-001                | Shared package, contracts, registry, ports, idempotency, lifecycle, CLI                                                       | Built on `feature/serverless-processing`, owner review pending |
+| 2    | LAI-LAMBDA-002, 003, 004, 005 | GLB validator; local worker and S3/SQS adapters with Lambda handler; Django `ProcessingJob` app and Admin; AWS infrastructure | Specified (`docs/processing/WAVE2_HANDOFF.md`), not started    |
+| 3    | LAI-LAMBDA-006, 007           | End-to-end processing; Asset Library integration                                                                              | Not started                                                    |
+| 4    | LAI-LAMBDA-008, 009, 010      | Audio, NPC animation, asset optimisation                                                                                      | Not started                                                    |
+| 5    | LAI-LAMBDA-011, 012           | AWS acceptance; production rollout                                                                                            | Not started                                                    |
 
 Wave 1 implemented the runtime-independent package, contracts and CLI only. Nothing is deployed;
 no Django model, migration, queue, Lambda function or IAM policy exists yet; asset upload and

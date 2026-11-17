@@ -146,9 +146,7 @@ def _violations(path: Path) -> list[str]:
     return found
 
 
-@pytest.mark.parametrize(
-    "path", _package_files(), ids=lambda p: str(p.relative_to(PROCESSING))
-)
+@pytest.mark.parametrize("path", _package_files(), ids=lambda p: str(p.relative_to(PROCESSING)))
 def test_ast_scan_refuses_runtime_imports_and_dynamic_code(path: Path) -> None:
     assert _violations(path) == []
 
@@ -187,8 +185,6 @@ def test_scanner_catches_known_violations(source: str, tmp_path: Path) -> None:
 
 def test_package_has_no_non_python_code_or_native_extensions() -> None:
     suffixes = {
-        p.suffix
-        for p in PACKAGE.rglob("*")
-        if p.is_file() and "__pycache__" not in p.parts
+        p.suffix for p in PACKAGE.rglob("*") if p.is_file() and "__pycache__" not in p.parts
     }
     assert suffixes <= {".py", ".json", ".txt"}

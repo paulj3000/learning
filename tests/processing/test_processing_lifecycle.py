@@ -7,6 +7,21 @@ from itertools import product
 from typing import Any
 
 import pytest
+from processing_samples import (
+    ATTEMPT_ID,
+    JOB_ID,
+    NAMESPACE,
+    OTHER_ATTEMPT_ID,
+    OTHER_JOB_ID,
+    event_by_reference,
+    event_inline,
+    reference_request,
+    result_base,
+    result_cancelled,
+    result_failed_retryable,
+    result_succeeded,
+)
+
 from lai_processing.contracts import InputIdentity, JobError, ProcessingJobResult, ResultStatus
 from lai_processing.core.errors import ErrorCode, ProcessingError
 from lai_processing.core.lifecycle import (
@@ -22,20 +37,6 @@ from lai_processing.core.lifecycle import (
     check_transition,
     decide_completion,
     next_attempt_number,
-)
-from processing_samples import (
-    ATTEMPT_ID,
-    JOB_ID,
-    NAMESPACE,
-    OTHER_ATTEMPT_ID,
-    OTHER_JOB_ID,
-    result_base,
-    event_by_reference,
-    event_inline,
-    reference_request,
-    result_cancelled,
-    result_failed_retryable,
-    result_succeeded,
 )
 
 S = JobState
@@ -133,8 +134,12 @@ def _job(**overrides: Any) -> JobSnapshot:
     return JobSnapshot(**fields)
 
 
-def _expect(decision: CompletionDecision, action: CompletionAction, reason: str,
-            next_state: JobState | None = None) -> None:
+def _expect(
+    decision: CompletionDecision,
+    action: CompletionAction,
+    reason: str,
+    next_state: JobState | None = None,
+) -> None:
     assert decision == CompletionDecision(action, next_state, reason, True)
 
 
@@ -215,8 +220,7 @@ def test_non_retryable_failures_fail(code: ErrorCode, reason: str) -> None:
 
 def test_by_reference_failure_is_routed_by_the_event_retry_class() -> None:
     event = event_by_reference(result_failed_retryable())
-    _expect(decide_completion(_job(), event), CompletionAction.RETRY, "retryable_failure",
-            S.QUEUED)
+    _expect(decide_completion(_job(), event), CompletionAction.RETRY, "retryable_failure", S.QUEUED)
     _expect(
         decide_completion(_job(), event, result_failed_retryable()),
         CompletionAction.RETRY,
@@ -231,23 +235,30 @@ def test_duplicate_delivery_is_duplicate_in_every_state(state: JobState) -> None
     _expect(decide_completion(job, event_inline()), CompletionAction.DUPLICATE, "already_applied")
 
 
-@pytest.mark.parametrize(
-    "state", [S.VALIDATED, S.READY_FOR_REVIEW, S.FAILED, S.CANCELLED]
-)
+@pytest.mark.parametrize("state", [S.VALIDATED, S.READY_FOR_REVIEW, S.FAILED, S.CANCELLED])
 @pytest.mark.parametrize("builder", [result_succeeded, result_failed_retryable, result_cancelled])
 def test_finished_jobs_ignore_late_events(state: JobState, builder: Any) -> None:
-    _expect(decide_completion(_job(state=state), event_inline(builder())),
-            CompletionAction.STALE, "job_finished")
+    _expect(
+        decide_completion(_job(state=state), event_inline(builder())),
+        CompletionAction.STALE,
+        "job_finished",
+    )
 
 
 def test_late_success_after_cancel_is_stale() -> None:
-    _expect(decide_completion(_job(state=S.CANCELLED), event_inline()),
-            CompletionAction.STALE, "job_finished")
+    _expect(
+        decide_completion(_job(state=S.CANCELLED), event_inline()),
+        CompletionAction.STALE,
+        "job_finished",
+    )
 
 
 def test_cancel_after_completion_is_stale() -> None:
-    _expect(decide_completion(_job(state=S.VALIDATED), event_inline(result_cancelled())),
-            CompletionAction.STALE, "job_finished")
+    _expect(
+        decide_completion(_job(state=S.VALIDATED), event_inline(result_cancelled())),
+        CompletionAction.STALE,
+        "job_finished",
+    )
 
 
 @pytest.mark.parametrize("state", [S.QUEUED, S.PROCESSING])
@@ -258,13 +269,17 @@ def test_superseded_attempt_is_stale(state: JobState) -> None:
 
 @pytest.mark.parametrize("state", [S.CREATED, S.UPLOADING])
 def test_not_running_is_stale(state: JobState) -> None:
-    _expect(decide_completion(_job(state=state), event_inline()),
-            CompletionAction.STALE, "not_running")
+    _expect(
+        decide_completion(_job(state=state), event_inline()), CompletionAction.STALE, "not_running"
+    )
 
 
 def test_no_current_attempt_is_superseded() -> None:
-    _expect(decide_completion(_job(current_attempt_id=None), event_inline()),
-            CompletionAction.STALE, "superseded_attempt")
+    _expect(
+        decide_completion(_job(current_attempt_id=None), event_inline()),
+        CompletionAction.STALE,
+        "superseded_attempt",
+    )
 
 
 @pytest.mark.parametrize(
@@ -287,8 +302,11 @@ def test_identity_check_precedes_duplicate_check() -> None:
 
 
 def test_input_checksum_mismatch_is_rejected() -> None:
-    _expect(decide_completion(_job(input_sha256="f" * 64), event_inline()),
-            CompletionAction.REJECT, "input_mismatch")
+    _expect(
+        decide_completion(_job(input_sha256="f" * 64), event_inline()),
+        CompletionAction.REJECT,
+        "input_mismatch",
+    )
 
 
 def test_input_checksum_unknown_or_unread_is_not_rejected() -> None:
@@ -315,8 +333,11 @@ def test_input_mismatch_found_through_fetched_result() -> None:
 
 def test_result_not_matching_event_is_rejected() -> None:
     event = event_by_reference()
-    _expect(decide_completion(_job(), event, result_failed_retryable()),
-            CompletionAction.REJECT, "result_mismatch")
+    _expect(
+        decide_completion(_job(), event, result_failed_retryable()),
+        CompletionAction.REJECT,
+        "result_mismatch",
+    )
 
 
 def test_every_decision_acks() -> None:
@@ -332,8 +353,12 @@ def test_next_attempt_number() -> None:
 def test_snapshot_validation() -> None:
     job = _job(state="queued", applied_attempt_ids={ATTEMPT_ID})
     assert job.state is S.QUEUED and isinstance(job.applied_attempt_ids, frozenset)
-    for bad in ({"max_attempts": 0}, {"current_attempt_number": -1},
-                {"current_attempt_number": True}, {"state": "done"}):
+    for bad in (
+        {"max_attempts": 0},
+        {"current_attempt_number": -1},
+        {"current_attempt_number": True},
+        {"state": "done"},
+    ):
         with pytest.raises(ValueError):
             _job(**bad)
 
@@ -353,8 +378,9 @@ def test_full_retry_scenario() -> None:
     request2 = reference_request(attempt_id=OTHER_ATTEMPT_ID, attempt_number=2)
     second = decide_completion(job, event_inline(result_succeeded(request2)))
     _expect(second, CompletionAction.APPLY, "succeeded", S.VALIDATED)
-    job = replace(job, state=S.VALIDATED,
-                  applied_attempt_ids=job.applied_attempt_ids | {OTHER_ATTEMPT_ID})
+    job = replace(
+        job, state=S.VALIDATED, applied_attempt_ids=job.applied_attempt_ids | {OTHER_ATTEMPT_ID}
+    )
     late = decide_completion(job, event_inline(result_failed_retryable()))
     _expect(late, CompletionAction.DUPLICATE, "already_applied")
     unknown_late = decide_completion(

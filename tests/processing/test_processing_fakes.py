@@ -7,6 +7,7 @@ import logging
 from datetime import UTC, datetime
 
 import pytest
+
 from lai_processing.contracts import ObjectRef, StoreName
 from lai_processing.core.canonical import sha256_hex
 from lai_processing.core.errors import ErrorCode, ProcessingError

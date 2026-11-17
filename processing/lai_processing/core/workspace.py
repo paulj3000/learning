@@ -29,8 +29,8 @@ from .errors import ErrorCode, ProcessingError
 __all__ = ["WORKSPACE_NAME", "Workspace"]
 
 WORKSPACE_NAME: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
-_OPEN_FLAGS: Final = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(
-    os, "O_CLOEXEC", 0
+_OPEN_FLAGS: Final = (
+    os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
 )
 
 

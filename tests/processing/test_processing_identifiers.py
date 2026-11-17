@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from lai_processing.contracts.common import ObjectRef
 from lai_processing.contracts.identifiers import (
     CORRELATION_ID,
@@ -118,8 +119,14 @@ def test_artifact_key_refuses_bad_names(logical_id: str, extension: str) -> None
 
 @pytest.mark.parametrize(
     ("value", "ok"),
-    [(JOB, True), (JOB.upper(), False), (JOB[:-1], False), (JOB + "0", False), (None, False),
-     ("6f1c2d3e4b5a4c6d8e7f0a1b2c3d4e5f", False)],
+    [
+        (JOB, True),
+        (JOB.upper(), False),
+        (JOB[:-1], False),
+        (JOB + "0", False),
+        (None, False),
+        ("6f1c2d3e4b5a4c6d8e7f0a1b2c3d4e5f", False),
+    ],
 )
 def test_is_uuid(value: object, ok: bool) -> None:
     assert is_uuid(value) is ok

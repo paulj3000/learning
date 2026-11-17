@@ -302,9 +302,7 @@ VALID_BUILDERS: dict[str, Callable[[], Any]] = {
 }
 
 # Which decoder each valid fixture belongs to.
-VALID_DECODERS: dict[str, str] = {
-    name: name.split(".", 1)[0] for name in VALID_BUILDERS
-}
+VALID_DECODERS: dict[str, str] = {name: name.split(".", 1)[0] for name in VALID_BUILDERS}
 
 
 def _mutate(base: dict[str, Any], fn: Callable[[dict[str, Any]], None]) -> str:

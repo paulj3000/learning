@@ -41,8 +41,8 @@ from .common import (
     check_schema_header,
 )
 from .identifiers import CORRELATION_ID, IDEMPOTENCY_KEY, SHA256, SNAKE, UUID
-from .jobs import MAX_ATTEMPT_NUMBER
 from .job_types import job_type_spec
+from .jobs import MAX_ATTEMPT_NUMBER
 
 __all__ = [
     "MAX_FINDINGS",
@@ -74,7 +74,7 @@ class ResultStatus(StrEnum):
 
 
 class Verdict(StrEnum):
-    PASS = "pass"
+    PASS = "pass"  # noqa: S105 - a validation verdict, not a credential
     FAIL = "fail"
     NOT_APPLICABLE = "not_applicable"
 
@@ -228,7 +228,9 @@ class InputIdentity:
     @classmethod
     def from_dict(cls, data: object, namespace: str) -> InputIdentity:
         d = f.obj(data, "input")
-        f.exact_keys(d, frozenset({"ref", "sha256", "size_bytes", "verified"}), frozenset(), "input")
+        f.exact_keys(
+            d, frozenset({"ref", "sha256", "size_bytes", "verified"}), frozenset(), "input"
+        )
         return cls(
             ref=ObjectRef.from_dict(d["ref"], "input.ref", namespace),
             sha256=d["sha256"],
@@ -292,9 +294,7 @@ class ProcessingJobResult:
 
     def __post_init__(self) -> None:
         if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
-            raise ProcessingError(
-                ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"}
-            )
+            raise ProcessingError(ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"})
         f.string(self.job_id, "job_id", UUID, max_length=36)
         job_type_spec(self.job_type)
         check_namespace(self.namespace)
@@ -348,7 +348,8 @@ class ProcessingJobResult:
                 )
             if artifact.ref.namespace != self.namespace:
                 raise ProcessingError(
-                    ErrorCode.INVALID_OBJECT_REFERENCE, {"field": "artifacts", "reason": "namespace"}
+                    ErrorCode.INVALID_OBJECT_REFERENCE,
+                    {"field": "artifacts", "reason": "namespace"},
                 )
             if artifact.profile != self.profile or artifact.processor != self.processor:
                 raise f.invalid("artifacts")
@@ -444,7 +445,9 @@ class ProcessingJobResult:
             profile=ProfileRef.from_dict(d["profile"]),
             status=_enum(ResultStatus, d["status"], "status"),
             verdict=_enum(Verdict, d["verdict"], "verdict") if d["verdict"] is not None else None,
-            input=InputIdentity.from_dict(d["input"], namespace) if d["input"] is not None else None,
+            input=InputIdentity.from_dict(d["input"], namespace)
+            if d["input"] is not None
+            else None,
             started_at=f.timestamp(d["started_at"], "started_at"),
             completed_at=f.timestamp(d["completed_at"], "completed_at"),
             duration_ms=d["duration_ms"],

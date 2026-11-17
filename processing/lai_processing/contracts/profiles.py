@@ -57,7 +57,8 @@ class OptionSpec:
         if self.choices is not None and value not in self.choices:
             raise _profile_error(f"options.{name}")
         if self.type == "int":
-            assert isinstance(value, int)
+            if not isinstance(value, int):  # narrowed above; kept explicit for type checkers
+                raise _profile_error(f"options.{name}")
             if self.minimum is not None and value < self.minimum:
                 raise _profile_error(f"options.{name}")
             if self.maximum is not None and value > self.maximum:

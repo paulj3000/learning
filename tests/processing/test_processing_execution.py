@@ -386,9 +386,7 @@ def test_expired_job(tmp_path: Path) -> None:
     h = Harness(tmp_path)
     h.seed()
     expires = h.clock.now() - timedelta(seconds=1)
-    result = h.run(
-        make_request(expires_at=expires, submitted_at=expires - timedelta(hours=1))
-    )
+    result = h.run(make_request(expires_at=expires, submitted_at=expires - timedelta(hours=1)))
     assert_error(result, ErrorCode.JOB_EXPIRED)
     assert result.processor is None
 

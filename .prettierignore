@@ -23,3 +23,6 @@ lai/**/templates/**/*.html
 # generated: the Treasure Cove layout snapshot (python -m apps.regions.treasure_cove_layout from
 # lai/), written with json.dumps(indent=1); the frontend tests load it
 lai/apps/regions/treasure_cove_layout.json
+# generated, byte-exact: processing contract fixtures (python tests/processing/processing_samples.py),
+# checked against their generator by tests/processing/test_processing_fixtures.py
+processing/lai_processing/contracts/fixtures

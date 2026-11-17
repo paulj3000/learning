@@ -119,9 +119,7 @@ def load_json(data: bytes | str, *, max_bytes: int = DEFAULT_MAX_MESSAGE_BYTES) 
     if not _cheap_depth_ok(text):
         raise f.invalid("message")
     try:
-        value = json.loads(
-            text, object_pairs_hook=_no_duplicates, parse_constant=_reject_constant
-        )
+        value = json.loads(text, object_pairs_hook=_no_duplicates, parse_constant=_reject_constant)
     except (ValueError, RecursionError):
         raise f.invalid("message") from None
     if not _depth_ok(value):

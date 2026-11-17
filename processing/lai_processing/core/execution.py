@@ -355,9 +355,7 @@ class ExecutionEngine:
 
     # Results -------------------------------------------------------------------------------
 
-    def _finish(
-        self, run: _Run, outcome: ProcessorOutput | ProcessingError
-    ) -> ProcessingJobResult:
+    def _finish(self, run: _Run, outcome: ProcessorOutput | ProcessingError) -> ProcessingJobResult:
         completed_at = self.clock.now()
         if completed_at < run.started_at:
             completed_at = run.started_at
@@ -414,9 +412,7 @@ class ExecutionEngine:
         )
         return ProcessingJobResult(**common, status=status, errors=(JobError.from_error(error),))
 
-    def _fallback(
-        self, run: _Run, completed_at: datetime, duration_ms: int
-    ) -> ProcessingJobResult:
+    def _fallback(self, run: _Run, completed_at: datetime, duration_ms: int) -> ProcessingJobResult:
         """The minimal FAILED result, built only from the already-validated request."""
         request = run.request
         error = ProcessingError(ErrorCode.UNEXPECTED_FAILURE, {"reason": "result_build"})

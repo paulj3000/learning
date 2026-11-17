@@ -131,9 +131,7 @@ def test_failed_registration_leaves_no_partial_state() -> None:
     registry = ProcessorRegistry()
     registry.register(_processor("test.alpha", profiles=(_profile("alpha"),)))
     with pytest.raises(ValueError):
-        registry.register(
-            _processor("test.beta", profiles=(_profile("beta"), _profile("alpha")))
-        )
+        registry.register(_processor("test.beta", profiles=(_profile("beta"), _profile("alpha"))))
     assert [p.processor_id for p in registry.processors()] == ["test.alpha"]
     assert [p.profile_id for p in registry.profiles()] == ["alpha"]
 

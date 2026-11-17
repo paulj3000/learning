@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from lai_processing.core.errors import (
     ERROR_CLASSIFICATION,
     SAFE_MESSAGES,
@@ -41,8 +42,12 @@ def test_only_cancelled_code_has_cancelled_class() -> None:
 
 @pytest.mark.parametrize(
     "code",
-    [ErrorCode.PROCESSING_TIMEOUT, ErrorCode.TEMPORARY_FAILURE, ErrorCode.THROTTLED,
-     ErrorCode.STORAGE_FAILURE],
+    [
+        ErrorCode.PROCESSING_TIMEOUT,
+        ErrorCode.TEMPORARY_FAILURE,
+        ErrorCode.THROTTLED,
+        ErrorCode.STORAGE_FAILURE,
+    ],
 )
 def test_transient_codes_are_retryable(code: ErrorCode) -> None:
     assert ProcessingError(code).retryable
@@ -50,8 +55,14 @@ def test_transient_codes_are_retryable(code: ErrorCode) -> None:
 
 @pytest.mark.parametrize(
     "code",
-    [ErrorCode.INVALID_INPUT, ErrorCode.CHECKSUM_MISMATCH, ErrorCode.UNEXPECTED_FAILURE,
-     ErrorCode.PERMISSION_DENIED, ErrorCode.CANCELLED, ErrorCode.ARTIFACT_CONFLICT],
+    [
+        ErrorCode.INVALID_INPUT,
+        ErrorCode.CHECKSUM_MISMATCH,
+        ErrorCode.UNEXPECTED_FAILURE,
+        ErrorCode.PERMISSION_DENIED,
+        ErrorCode.CANCELLED,
+        ErrorCode.ARTIFACT_CONFLICT,
+    ],
 )
 def test_input_bugs_permissions_and_cancel_are_not_retryable(code: ErrorCode) -> None:
     assert not ProcessingError(code).retryable
@@ -123,8 +134,10 @@ def test_error_from_exception_handles_subclassed_processing_error() -> None:
     [
         (None, {}),
         ({}, {}),
-        ({"field": "job_id", "count": 3, "ratio": 0.5, "ok": True, "none": None},
-         {"field": "job_id", "count": 3, "ratio": 0.5, "ok": True, "none": None}),
+        (
+            {"field": "job_id", "count": 3, "ratio": 0.5, "ok": True, "none": None},
+            {"field": "job_id", "count": 3, "ratio": 0.5, "ok": True, "none": None},
+        ),
         ({"multi_line": "a\nb\rc"}, {"multi_line": "a b c"}),
         ({"long": "x" * 500}, {"long": "x" * 200}),
         ({"free text": "child said hi"}, {}),
