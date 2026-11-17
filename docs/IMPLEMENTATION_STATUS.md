@@ -173,7 +173,10 @@ entries live on those branches and are superseded by ADR-064 and this entry.
   (`test_speech_storage.py::TestS3::test_presigned_urls_use_the_regional_host`, order dependent)
   is fixed: a boto3 default session cached ambient credentials; fixed by 7e94966 plus a module
   fixture in 2333d9e. Final suite results:
-  <FINAL_SUITE_RESULTS>
+  at `55657cb`, full pytest on PostgreSQL 6110 passed, 7 skipped; React unit tests, build,
+  typecheck, infra Vitest, offline dev and prod synth, Ruff, Prettier, oxlint (3 existing
+  warnings), content, golden, ADR and `makemigrations --check` all pass; the worker zip
+  `jobs-worker-e40163430cfccc67.zip` (361,456 bytes) builds identically twice; GitHub CI green.
 - **Local demo** (`scripts/processing/local-demo.sh`; Django with the packaged worker zip,
   in-memory SQS and S3): a flag-on upload committed as `DRAFT` with its job on the media queue;
   publication refused with `not_validated` (the draft) and `processing_required` (a flag-off
