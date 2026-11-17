@@ -109,9 +109,12 @@ remains: `docs/processing/WAVE4_HANDOFF.md`.
   staff user refused the actions (no job made); an S3 503 on a ranged read raised retryable
   (`throttled`) and succeeded on redelivery. The demo now keeps its asset files in its temporary
   directory (the settings fix `LAI_ASSET_LOCAL_ROOT`, which the script's export did not change).
-- **Tests:** <W4_FINAL_SUITE>
-- **Not verified:** any live worker run (LAI-LAMBDA-011, owner approval); full merge-readiness
-  suites and builds. **Not done:** 008 phase 2, any 010 or 013 implementation, artifact writes,
+- **Tests:** at `6e5cab6`, full pytest on PostgreSQL 6276 passed, 7 skipped, 0 failed; React unit
+  tests, build, typecheck, infra Vitest, offline dev and prod synth, Ruff, Prettier, oxlint,
+  content, golden, ADR and `makemigrations --check` all pass; the worker zip
+  `jobs-worker-b287c21bc908adc9.zip` (467,111 bytes) builds identically twice; the local demo
+  passes all 17 steps with 0 AWS client attempts.
+- **Not verified:** any live worker run (LAI-LAMBDA-011, owner approval). **Not done:** 008 phase 2, any 010 or 013 implementation, artifact writes,
   native tools or container images, deployment (owner decisions W4-1 to W4-8).
 
 ## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
