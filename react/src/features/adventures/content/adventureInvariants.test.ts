@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ADVENTURE_TEMPLATES,
   LEARNING_OBJECTIVES,
+  PREFERRED_ONLY_ADVENTURES,
   getAdventureTemplatesForLocation,
 } from './index';
 import { ISLAND_LOCATIONS } from '../../island/locations';
@@ -81,9 +82,16 @@ describe('band coverage at real island locations', () => {
    * a levelled group must carry *distinct* levels, and must not be mixed with
    * an unlevelled template competing for the same band.
    */
+  /**
+   * Missions reached only through a world interaction that names the template (the Painted Words, SC-R04-05).
+   * `resolveAdventureForAgeBand` honours the named template first, and the card route offers the
+   * location's first template, so these cannot make a child's adventure an accident of order.
+   */
   it('never leaves two adventures ambiguous for the same band at one location', () => {
     for (const location of ISLAND_LOCATIONS) {
-      const templates = getAdventureTemplatesForLocation(location.slug);
+      const templates = getAdventureTemplatesForLocation(location.slug).filter(
+        (template) => !PREFERRED_ONLY_ADVENTURES.includes(template.slug),
+      );
       for (const ageBand of ['SPROUT', 'PATHFINDER', 'EXPLORER'] as const) {
         const matching = templates.filter((template) => template.ageBands.includes(ageBand));
         const where = `${location.slug} @ ${ageBand}`;

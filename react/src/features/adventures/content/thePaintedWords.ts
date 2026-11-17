@@ -25,10 +25,13 @@ import {
  * of one story: the same page, the same world change (idempotent), different
  * words. `selectPaintedWordsSlug` picks between them.
  *
- * `locationSlug: 'castle-painted-words'` is a story-only pseudo-location, filed
- * under Storykeeper Castle by `STORY_ARC_ISLANDS`, like the secret-door arc.
+ * It lives at the real `storykeeper-castle` location, because both the content export and
+ * the location-manifest validator require a START_ADVENTURE interaction's location to be a real
+ * one that the adventure is authored for. The card route offers the location's first template
+ * (the Tale); this mission is reached through its own named interaction, so it is exempt from the
+ * one-adventure-per-band invariant (`PREFERRED_ONLY_ADVENTURES` in adventureInvariants.test.ts).
  */
-export const PAINTED_WORDS_LOCATION_SLUG = 'castle-painted-words';
+export const PAINTED_WORDS_LOCATION_SLUG = 'storykeeper-castle';
 export const PAINTED_WORDS_CHANGE_KEY = 'STUDIO_PAGE_MENDED';
 export const PAINTED_WORDS_PAGE_ID = 'page-painted-words';
 export const PAINTED_WORDS_SLUG = 'the-painted-words';
@@ -251,6 +254,12 @@ export const THE_PAINTED_WORDS_AGAIN: AdventureDefinition = buildPaintedWords(
   'The Painted Words, Again',
   PAINTED_WORDS_SETS[1],
 );
+
+/**
+ * Adventure slugs that are reached only through a named interaction at a location that already has a
+ * first-listed adventure. The one-adventure-per-band invariants skip them (see the file header).
+ */
+export const PREFERRED_ONLY_ADVENTURES: readonly string[] = [PAINTED_WORDS_SLUG, PAINTED_WORDS_AGAIN_SLUG];
 
 export const PAINTED_WORDS_ADVENTURES: AdventureDefinition[] = [
   THE_PAINTED_WORDS,

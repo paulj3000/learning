@@ -51,7 +51,7 @@ def write(child, key, location="storykeeper-castle"):
 def write_pathfinder_pages(child):
     """Both required Pathfinder pages: the first story, and the Painted Words (SC-R04-05)."""
     write(child, "FIRST_STORY_TOLD")
-    write(child, "STUDIO_PAGE_MENDED", location="castle-painted-words")
+    write(child, "STUDIO_PAGE_MENDED", location="storykeeper-castle")
 
 
 def refresh(child, slug):
@@ -148,10 +148,10 @@ def test_a_pathfinder_needs_the_painted_words_page_as_well_as_the_first_story(tr
     update, rewards = refresh(child, PATHFINDERS)
     assert update.progress.status == QuestStatus.ACTIVE and not rewards
     # Only the page's own world change restores it: the first story alone is not enough.
-    write(child, "SOME_OTHER_STUDIO_RECORD", location="castle-painted-words")
+    write(child, "SOME_OTHER_STUDIO_RECORD", location="storykeeper-castle")
     update, _ = refresh(child, PATHFINDERS)
     assert update.progress.status == QuestStatus.ACTIVE
-    write(child, "STUDIO_PAGE_MENDED", location="castle-painted-words")
+    write(child, "STUDIO_PAGE_MENDED", location="storykeeper-castle")
     update, rewards = refresh(child, PATHFINDERS)
     assert update.progress.status == QuestStatus.COMPLETED and seals(child) == 1
 

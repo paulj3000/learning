@@ -127,7 +127,7 @@ def test_a_page_is_back_exactly_when_its_record_exists(fam, api):
     half = get(client, fam.a1)
     assert half["pages"][0]["restored"] is True and half["pages"][1]["restored"] is False
     assert half["restoredRequired"] == 1 and half["complete"] is False
-    write(fam.a1, "STUDIO_PAGE_MENDED", "castle-painted-words")
+    write(fam.a1, "STUDIO_PAGE_MENDED", "storykeeper-castle")
     back = get(client, fam.a1)
     assert back["pages"][1]["restored"] is True
     assert back["restoredRequired"] == 2 and back["complete"] is True

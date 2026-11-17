@@ -1244,7 +1244,7 @@
         "PATHFINDER"
       ],
       "entryStepId": "paint-room-intro",
-      "locationSlug": "castle-painted-words",
+      "locationSlug": "storykeeper-castle",
       "slug": "the-painted-words",
       "steps": [
         {
@@ -1607,7 +1607,7 @@
             "payload": {
               "changeKey": "STUDIO_PAGE_MENDED",
               "changeType": "REPAIR",
-              "locationSlug": "castle-painted-words"
+              "locationSlug": "storykeeper-castle"
             },
             "text": "One by one, the words fly out of the paintings and settle back onto the page. The picture is whole again!"
           },
@@ -1641,7 +1641,7 @@
         "PATHFINDER"
       ],
       "entryStepId": "paint-room-intro",
-      "locationSlug": "castle-painted-words",
+      "locationSlug": "storykeeper-castle",
       "slug": "the-painted-words-again",
       "steps": [
         {
@@ -2004,7 +2004,7 @@
             "payload": {
               "changeKey": "STUDIO_PAGE_MENDED",
               "changeType": "REPAIR",
-              "locationSlug": "castle-painted-words"
+              "locationSlug": "storykeeper-castle"
             },
             "text": "One by one, the words fly out of the paintings and settle back onto the page. The picture is whole again!"
           },

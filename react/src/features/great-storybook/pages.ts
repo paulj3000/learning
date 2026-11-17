@@ -67,7 +67,7 @@ export const STORYBOOK_PAGES: readonly StorybookPage[] = [
     source: {
       kind: 'WORLD_CHANGE',
       changeKey: 'STUDIO_PAGE_MENDED',
-      locationSlug: 'castle-painted-words',
+      locationSlug: 'storykeeper-castle',
     },
     roomId: 'illustration-studio',
     hint: 'A page ran into the paintings in the Illustration Studio.',

@@ -37,7 +37,7 @@ def test_four_simultaneous_refreshes_complete_the_quest_and_grant_the_seal_once(
     )
     record_world_change(
         child,
-        location_slug="castle-painted-words",
+        location_slug="storykeeper-castle",
         change_type="REPAIR",
         change_key="STUDIO_PAGE_MENDED",
     )

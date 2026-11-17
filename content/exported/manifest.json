@@ -1,5 +1,5 @@
 {
-  "contentDigest": "acf348916a80a7b901f2386841b83c800230bea8ee6435ac19f4c6e16e9c4449",
+  "contentDigest": "8a2256d8a4b1262c82eb55c85c03b74ff06a293bba6600a990beea1fac1cde9d",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -26,7 +26,7 @@
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "10b52da660825e25b4e5ffedba131b5f9218fee49b4a1da9f72468bed5d1d06d"
+      "sha256": "0b8d721d8f5aa64c2e595f58f7e4339bdedb3b9d8c53b2f67c5187ad81aac777"
     },
     {
       "counts": {
@@ -97,7 +97,6 @@
       "detail": "These adventure locationSlug values have no IslandLocation. The source comments call them story-only pseudo-locations for story-arc challenges. They are exported as written; no location record was invented.",
       "ids": [
         "butterfly-garden",
-        "castle-painted-words",
         "castle-secret-passage",
         "ember-mountain",
         "fossil-ridge",

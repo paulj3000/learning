@@ -202,6 +202,6 @@ describe('replay selection', () => {
       ),
     );
     expect(keys[0]).toEqual(keys[1]);
-    expect(THE_PAINTED_WORDS.locationSlug).toBe('castle-painted-words');
+    expect(THE_PAINTED_WORDS.locationSlug).toBe('storykeeper-castle');
   });
 });
