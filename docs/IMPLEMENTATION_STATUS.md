@@ -75,6 +75,12 @@ Owner decisions 1 to 8 of 2026-11-17. Repository only; no AWS resource was creat
   previous `main`, ShellCheck, Ruff, Prettier, the ADR check, `makemigrations --check`.
 - **Not verified (live only):** everything in the README's live list, the Bedrock smoke test, a
   DLQ redrive, and an RDS outage drill against the real consumer.
+- **GitHub CLI optional (2026-11-17, follow-up):** `install-debug.sh --skip-github` never calls
+  `gh`; without it, `gh` presence and sign-in are checked before anything changes (exit 8). A
+  GitHub-only run (`--skip-release --skip-bootstrap --skip-lambda --skip-frontend`) configures the
+  environments and variables later, even while dev is stopped. README "Deploying without the
+  GitHub CLI" lists both paths and what stays unavailable until GitHub is configured. Tests in
+  `tests/deploy/test_dev_install.py`, including a guard that no other dev script calls `gh`.
 
 ## Low-cost native AWS dev environment (ADR-055) — implemented and tested in the repository on `main` (2026-11-16); NOT deployed, live acceptance NOT run
 

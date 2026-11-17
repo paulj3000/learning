@@ -398,6 +398,10 @@ def aws(state: dict, args: list[str]) -> object:
 
 
 def gh(state: dict, args: list[str]) -> str:
+    if args[:2] == ["auth", "status"]:
+        if state.get("gh_signed_out"):
+            raise Fail(1, "You are not logged into any GitHub hosts.")
+        return "Logged in to github.com"
     if args[:2] == ["repo", "view"]:
         return "owner/repo"
     if args[:2] == ["variable", "list"]:

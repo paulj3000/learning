@@ -208,13 +208,14 @@ CodeBuild, CodePipeline, RDS Proxy or VPC endpoints.
 - A Linux workstation with `bash`, `git`, `jq`, `curl`, `zip`, `tar` (GNU), `openssl`.
 - AWS CLI v2, a 2025 or newer release (S3 conditional writes, `--if-none-match`), and the Session
   Manager plugin (for `connect` and `db-tunnel`).
-- GitHub CLI 2.x, signed in as a repository administrator (`install-debug.sh` uses it for the
-  GitHub environments and variables; pass `--skip-github` to do those by hand). Install it on
-  Debian or Ubuntu with
-  `sudo apt-get install -y gh` (or the official repository at <https://cli.github.com/>), on
-  Fedora or Amazon Linux with `sudo dnf install -y gh`, on macOS with `brew install gh`; then
-  `gh auth login` (GitHub.com, HTTPS, browser) and check with `gh auth status` and
-  `gh repo view paulj3000/learning`.
+- **Optional:** GitHub CLI 2.x, signed in as a repository administrator. Only the GitHub step of
+  `install-debug.sh` uses it (environments and variables for the deploy workflows); provisioning,
+  installation, Lambda deployment, site publication, acceptance checks and every
+  `manage-dev.sh` command work without it. See "Deploying without the GitHub CLI" below. To
+  install it: Debian or Ubuntu `sudo apt-get install -y gh` (or the official repository at
+  <https://cli.github.com/>), Fedora or Amazon Linux `sudo dnf install -y gh`, macOS
+  `brew install gh`; then `gh auth login` (GitHub.com, HTTPS, browser) and check with
+  `gh auth status` and `gh repo view paulj3000/learning`.
 - Node.js 22+ and npm; Python 3.12 (for packaging the release and the tests).
 - An AWS profile for the dev account with administrator-equivalent rights for CloudFormation,
   IAM, EC2, RDS, S3, SQS, Lambda, Step Functions, Scheduler, SSM, Route 53, ACM, CloudFront and
@@ -276,6 +277,7 @@ aws sts get-caller-identity                     # must show the dev account
 ./scripts/aws/deploy-debug.sh --execute         # apply the change sets in dependency order
 
 ./scripts/aws/install-debug.sh --create-admin <your-admin-username> --dev-bootstrap-publish
+# no GitHub CLI yet? add --skip-github (section "Deploying without the GitHub CLI")
 
 # optional, starts paid Bedrock and Polly use:
 # ./scripts/aws/install-debug.sh --enable-ai --enable-speech   # redeploys, so the new settings load
@@ -348,6 +350,78 @@ a stack.
 `ElasticIPAddress`, and a `CNAME` from the site host to `DistributionDomainName`. The instance
 retries its Let's Encrypt certificate twice a day and ten minutes after each boot; until then
 the API through CloudFront answers 502.
+
+### Deploying without the GitHub CLI
+
+The GitHub CLI is optional for the first deployment. Without `--skip-github`, `install-debug.sh`
+checks that `gh` is installed and signed in **before it changes anything** and stops with exit 8
+if not. With `--skip-github` it never calls `gh`. No other script needs it: `deploy-debug.sh`,
+`install-debug.sh` (every other step), `dev-release.sh`, `package-lambda.sh`, `publish-site.sh`,
+`manage-dev.sh`, `show-endpoints.sh` and `smoke-ai-speech.sh` use only the AWS CLI, `git`, `npm`
+and `curl` (a test, `tests/deploy/test_dev_install.py`, fails if any of them starts calling `gh`).
+
+**Path 1: initial deployment without the GitHub CLI.**
+
+```bash
+export AWS_PROFILE=learning-dev
+export AWS_REGION=us-west-1
+./scripts/aws/deploy-debug.sh --plan
+./scripts/aws/deploy-debug.sh --execute
+./scripts/aws/install-debug.sh --skip-github --create-admin admin --dev-bootstrap-publish
+./scripts/aws/show-endpoints.sh
+```
+
+This does everything except GitHub: the Django secret key, the first backend release (packaged
+and deployed from your checkout of `main`), migrations, roles (Question Studio included), content,
+seed data and the published Treasure Rush seed, the admin account, both Lambda workers, the React
+build published to S3 and CloudFront, and the acceptance checks. It ends with a warning that
+GitHub is not configured and prints the command for path 2.
+
+**Path 2: deferred GitHub configuration, after installing the GitHub CLI.**
+
+```bash
+gh auth login
+gh auth status
+./scripts/aws/install-debug.sh --skip-release --skip-bootstrap --skip-lambda --skip-frontend
+gh variable list
+gh variable list --env dev-backend
+```
+
+This runs only the GitHub step: it works while dev is stopped (it does not start it, wait for the
+instance or rerun the acceptance checks). It creates the `dev-backend`,
+`dev-infrastructure` and `site-dev` environments (deployments from `main` only) and their
+variables, and the repository variables `LAI_AWS_REGION`, `LAI_DEV_NATIVE_ENABLED=true` and
+`LAI_DEV_STOPPED_DEPLOY=defer`. It deploys nothing, publishes nothing, does not rerun the bootstrap
+and never replaces the existing secret key. Then, when you want automatic site publishing:
+`gh variable set LAI_SITE_DEPLOY_ENABLED --body true`. (Doing the same by hand in the GitHub web
+interface, Settings, Environments and Variables, is equivalent; the names and values are the
+outputs printed by `./scripts/aws/deploy-debug.sh --outputs`.)
+
+**Unavailable until GitHub is configured:**
+
+- **Automatic backend deployment.** "Deploy DEV backend (native)" does nothing on a push to `main`
+  (it needs `LAI_DEV_NATIVE_ENABLED=true` and the `dev-backend` role). Deploy from your workstation
+  instead: rerun `./scripts/aws/install-debug.sh --skip-github --skip-bootstrap --skip-lambda --skip-frontend`
+  on an up-to-date `main`, and `./scripts/aws/dev-release.sh status` or `rollback`.
+- **Automatic Lambda deployment.** "Deploy DEV Lambda workers" is skipped; rerun
+  `./scripts/aws/install-debug.sh --skip-github --skip-release --skip-bootstrap --skip-frontend`
+  (or `./scripts/aws/dev-release.sh lambda-deploy`).
+- **Automatic site publishing and site rollback from GitHub.** "Deploy site (CloudFront)" needs
+  the `site-dev` variables and `LAI_SITE_DEPLOY_ENABLED=true`; republish with
+  `./scripts/aws/install-debug.sh --skip-github --skip-release --skip-bootstrap --skip-lambda`.
+- **"Manage DEV Infrastructure" from GitHub** (start, stop, hold, status in the Actions tab): it
+  needs `LAI_DEV_INFRA_ROLE_ARN`. `./scripts/aws/manage-dev.sh` does the same from your
+  workstation, and the nightly stop and morning start run in AWS regardless.
+- **Deploy-on-push while dev is stopped.** A push is not recorded as a pending release (no
+  workflow runs); deploy from your workstation after the next start.
+
+Everything else works: the site, API and admin, Cognito sign-in, Lambda and SQS jobs, the nightly
+schedule, `manage-dev.sh`, the Bedrock and Polly settings and smoke test, and the acceptance
+checks (except the GitHub items in the checklist). One caveat: while `LAI_DEV_NATIVE_ENABLED` is
+unset, the old Docker dev job of "Deploy Django (EC2)" is not suppressed. It only runs when the
+repository variable `LAI_DEPLOY_ENABLED` is `true`, and then fails because `LaiDjangoEc2-dev` does
+not exist. If that variable was ever set, complete path 2 soon, or turn it off under Settings,
+Variables.
 
 ### What initializes the instance, the database and the application
 
@@ -660,8 +734,9 @@ Each of these is your decision and is never done by a push or a workflow on its 
 
 1. `./scripts/aws/deploy-debug.sh --execute` (creates the stacks and starts billing).
 2. DNS: the Route 53 zone choice, or the manual records `deploy-debug.sh` prints.
-3. `./scripts/aws/install-debug.sh` (secret key, GitHub environments and variables, first
-   release, seed content; `--dev-bootstrap-publish` publishes the Treasure Rush seed).
+3. `./scripts/aws/install-debug.sh` (secret key, GitHub environments and variables unless
+   `--skip-github`, first release, seed content; `--dev-bootstrap-publish` publishes the Treasure
+   Rush seed), and later the deferred GitHub step if you skipped it.
 4. `--enable-ai` and `--enable-speech` (paid Bedrock and Polly use).
 5. `gh variable set LAI_SITE_DEPLOY_ENABLED --body true` (automatic site publishing).
 6. Adding staff accounts to the Question Studio groups (the groups and their permissions,

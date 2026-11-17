@@ -1,6 +1,7 @@
 """scripts/aws/install-debug.sh, run for real against fake aws/gh/curl (dev_fakes)."""
 
 import shutil
+import subprocess
 
 import pytest
 from dev_fakes import CLOUDFRONT, SITE, DevEnv
@@ -192,3 +193,129 @@ def test_ai_and_speech_settings_are_opt_in_and_never_overwritten(dev):
     assert params["/lai/dev/django/LAI_STUDIO_APPROVED_MODEL_IDS"] == "us.model-x"
     assert params["/lai/dev/django/LAI_SPEECH_PROVIDER"] == "polly"
     assert params["/lai/dev/django/LAI_SPEECH_AWS_REGION"] == "us-west-1"
+
+
+# --- GitHub CLI is optional (README, "Deploying without the GitHub CLI") ------------------------
+
+
+def no_gh(dev):
+    """Replace the fake gh with a tripwire: any call is recorded and fails like a missing gh."""
+    trip = dev.bin / "gh"
+    trip.write_text(f'#!/bin/sh\necho "$@" >>"{dev.state_dir}/gh-tripwire"\nexit 127\n')
+    trip.chmod(0o755)
+    return dev.state_dir / "gh-tripwire"
+
+
+def full_checkout(dev):
+    """A git checkout with stub release and site collaborators (each tested on its own)."""
+    log = dev.state_dir / "collaborators.log"
+    dev.script("dev-release.sh", f'echo "dev-release $*" >>"{log}"\n')
+    dev.script("publish-site.sh", f'echo "publish-site $1" >>"{log}"\n')
+    (dev.root / "node_modules").mkdir()
+    for command in (
+        ["git", "init", "-q", "-b", "main"],
+        ["git", "-c", "user.email=t@example.test", "-c", "user.name=t", "add", "-A"],
+        ["git", "-c", "user.email=t@example.test", "-c", "user.name=t", "commit", "-qm", "x"],
+    ):
+        subprocess.run(command, cwd=dev.root, check=True, capture_output=True)
+    return log
+
+
+def test_initial_install_without_the_github_cli(dev):
+    """Path 1: every step except GitHub runs, and gh is never invoked."""
+    tripwire = no_gh(dev)
+    log = full_checkout(dev)
+    result = dev.run(
+        "install-debug.sh",
+        "--skip-github",
+        "--allow-unpushed",  # the test checkout has no origin; the owner's run omits this
+        "--create-admin",
+        "admin",
+        "--dev-bootstrap-publish",
+        stdin="a-long-test-password\na-long-test-password\n",
+    )
+    assert result.returncode == 0, result.stderr
+    assert not tripwire.exists(), tripwire.read_text()
+    assert dev.calls("gh") == []
+    steps = log.read_text()
+    for expected in ("dev-release package", "dev-release upload", "dev-release deploy"):
+        assert expected in steps
+    assert "dev-release lambda-deploy" in steps
+    assert "publish-site publish" in steps
+    assert any("run" in c and "build" in c for c in dev.calls("npm"))
+    tasks = [
+        s["parameters"]["Task"][0]
+        for s in dev.state["sent"]
+        if s["document"] == "lai-dev-native-bootstrap"
+    ]
+    assert tasks == [
+        "check",
+        "ensure-roles",
+        "load-content",
+        "seed-content",
+        "import-assets",
+        "publish-seed-content",
+        "create-admin",
+    ]
+    assert SECRET in dev.state["params"]
+    assert "skipped (--skip-github)" in result.stderr
+    assert "--skip-release --skip-bootstrap --skip-lambda --skip-frontend" in result.stderr
+
+
+def test_deferred_github_configuration_changes_nothing_else(dev):
+    """Path 2: after gh is installed, only the GitHub step does anything."""
+    dev.state["params"][SECRET] = {"Value": "the-existing-secret", "Type": "SecureString"}
+    dev.state["params"]["/lai/dev/django/WEB_CONCURRENCY"] = {"Value": "3", "Type": "String"}
+    log = full_checkout(dev)
+    result = dev.run("install-debug.sh", *SKIP)
+    assert result.returncode == 0, result.stderr
+    assert any(c[1:3] == ["variable", "set"] for c in dev.calls("gh"))
+    assert not log.exists() or log.read_text() == ""  # no release, Lambda or site publication
+    assert dev.state.get("sent", []) == []  # no SSM document at all: no deploy or bootstrap
+    assert not any("build" in c for c in dev.calls("npm"))
+    assert secret_puts(dev) == []
+    assert dev.state["params"][SECRET]["Value"] == "the-existing-secret"
+
+
+@pytest.mark.parametrize("problem", ["missing", "signed_out"])
+def test_without_skip_github_a_missing_gh_fails_before_any_change(dev, problem):
+    if problem == "missing":
+        no_gh(dev)
+    else:
+        dev.state["gh_signed_out"] = True
+    result = dev.run("install-debug.sh", *SKIP)
+    assert result.returncode == 8
+    assert "--skip-github" in result.stderr
+    assert secret_puts(dev) == []
+    assert dev.state.get("sent", []) == []
+    assert dev.aws_ops() == ["sts get-caller-identity"]
+
+
+def test_only_the_installers_github_step_uses_the_github_cli():
+    """Provisioning, release, Lambda, site, smoke and management scripts never need gh."""
+    import re
+    from pathlib import Path
+
+    scripts = Path(__file__).resolve().parents[2] / "scripts/aws"
+    call = re.compile(r"(^|[\s;&|(`$])gh\s+(api|auth|repo|variable|secret|workflow|run|pr)\b")
+    users = sorted(
+        str(path.relative_to(scripts))
+        for path in scripts.rglob("*.sh")
+        if any(
+            call.search(line) and not line.lstrip().startswith("#")
+            for line in path.read_text().splitlines()
+        )
+    )
+    assert users == ["install-debug.sh"]
+
+
+def test_deferred_github_configuration_works_while_dev_is_stopped(dev):
+    dev.state.update(ec2="stopped", rds="stopped")
+    dev.state["params"]["/lai/dev/power/state"]["Value"] = "stopped"
+    result = dev.run("install-debug.sh", *SKIP)
+    assert result.returncode == 0, result.stderr
+    assert any(c[1:3] == ["variable", "set"] for c in dev.calls("gh"))
+    assert "stepfunctions start-execution" not in dev.aws_ops()  # dev stays stopped
+    assert "ssm send-command" not in dev.aws_ops()
+    assert dev.calls("curl") == []  # no acceptance checks: nothing was deployed
+    assert "GitHub configured" in result.stderr

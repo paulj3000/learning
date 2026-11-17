@@ -10,7 +10,9 @@
 #
 # Steps (each prints what it does; --dry-run prints this plan and touches nothing):
 #   1  discover the stack outputs; every stack must be complete
-#   2  the environment must be running (--start runs manage-dev.sh start; on a terminal you are asked)
+#   2  the environment must be running (--start runs manage-dev.sh start; on a terminal you are asked),
+#      except in a GitHub-only run (--skip-release --skip-bootstrap --skip-lambda --skip-frontend
+#      without --skip-github), which also skips steps 5 and 11 and works while dev is stopped
 #   3  /lai/dev/django/DJANGO_SECRET_KEY: created as a SecureString only when missing (generated
 #      locally, passed through a 0600 file, never printed); WEB_CONCURRENCY=3 only when missing;
 #      --enable-ai: the Bedrock settings from LaiAiGuardrail-dev's outputs (provider, region, model,
@@ -83,8 +85,25 @@ if [ "$dry_run" = true ]; then
     exit 0
 fi
 
+# GitHub-only run (README "Deploying without the GitHub CLI", path 2): every other step skipped.
+# It only configures GitHub, so it works while dev is stopped and skips the instance checks.
+github_only=false
+if [ "$skip_github" != true ] && [ "$skip_release" = true ] && [ "$skip_bootstrap" = true ] &&
+    [ "$skip_lambda" = true ] && [ "$skip_frontend" = true ] && [ -z "$admin_user" ] &&
+    [ "$publish_seed" != true ] && [ "$start" != true ]; then
+    github_only=true
+fi
+
 dev_init
 dev_guard_account
+# GitHub CLI preflight: only step 4 uses gh. Without --skip-github, check it before anything is
+# written, so a missing or signed-out gh never leaves a half-done install.
+if [ "$skip_github" != true ]; then
+    command -v gh >/dev/null ||
+        die "$EX_MISSING" "the GitHub CLI (gh) is not installed; install it, or pass --skip-github and configure GitHub later (README, 'Deploying without the GitHub CLI')"
+    gh auth status >/dev/null 2>&1 ||
+        die "$EX_MISSING" "the GitHub CLI is not signed in (gh auth login), or pass --skip-github and configure GitHub later"
+fi
 SECRET_PARAM="$DEV_DJANGO_PREFIX/DJANGO_SECRET_KEY"
 ADMIN_PARAM=/lai/dev/bootstrap/DJANGO_ADMIN_PASSWORD
 failures=0
@@ -130,18 +149,22 @@ done
 
 # --- 2. power -----------------------------------------------------------------------------------
 step "2. environment power"
-ec2=$(dev_ec2_state "$DEV_INSTANCE_ID")
-power_state=$(dev_param "$DEV_POWER_PREFIX/state")
-if [ "$ec2" != running ] || [[ ! ${power_state:-running} =~ ^(running|degraded)$ ]]; then
-    if [ "$start" != true ] && [ -t 0 ] && [ -t 2 ]; then
-        read -r -p "The environment is ${power_state:-$ec2}. Start it now? [y/N] " answer
-        [[ $answer =~ ^[Yy] ]] && start=true
+if [ "$github_only" = true ]; then
+    info "GitHub-only run: the environment may be running or stopped"
+else
+    ec2=$(dev_ec2_state "$DEV_INSTANCE_ID")
+    power_state=$(dev_param "$DEV_POWER_PREFIX/state")
+    if [ "$ec2" != running ] || [[ ! ${power_state:-running} =~ ^(running|degraded)$ ]]; then
+        if [ "$start" != true ] && [ -t 0 ] && [ -t 2 ]; then
+            read -r -p "The environment is ${power_state:-$ec2}. Start it now? [y/N] " answer
+            [[ $answer =~ ^[Yy] ]] && start=true
+        fi
+        [ "$start" = true ] ||
+            die "$EX_NOT_RUNNING" "the environment is ${power_state:-$ec2}; run scripts/aws/manage-dev.sh start, or pass --start"
+        "$DEV_SCRIPTS_DIR/manage-dev.sh" start --region "$DEV_REGION" || die "$EX_FAIL" "could not start the environment"
     fi
-    [ "$start" = true ] ||
-        die "$EX_NOT_RUNNING" "the environment is ${power_state:-$ec2}; run scripts/aws/manage-dev.sh start, or pass --start"
-    "$DEV_SCRIPTS_DIR/manage-dev.sh" start --region "$DEV_REGION" || die "$EX_FAIL" "could not start the environment"
+    ok "environment running"
 fi
-ok "environment running"
 
 # --- 3. runtime secrets and defaults ------------------------------------------------------------
 step "3. Django secret key and defaults"
@@ -257,17 +280,21 @@ fi
 # setup has finished, and step 6 retries it until LAI_SETUP_MAX_WAIT_SECONDS.
 step "5. instance setup"
 deadline=$((SECONDS + ${LAI_SETUP_MAX_WAIT_SECONDS:-1800}))
-until [ "$(dev_ssm_ping "$DEV_INSTANCE_ID")" = Online ]; do
-    [ "$SECONDS" -lt "$deadline" ] || die "$EX_TIMEOUT" "the instance never came online in SSM (manage-dev.sh status)"
-    info "waiting for the SSM agent..."
-    sleep "${LAI_SETUP_POLL_SECONDS:-30}"
-done
-rc=0
-dev_ssm_run lai-dev-native-status '{}' 2>/dev/null || rc=$?
-if [ "$rc" -eq 0 ]; then
-    ok "instance set up, a release is installed"
+if [ "$github_only" = true ]; then
+    info "skipped (GitHub-only run)"
 else
-    info "no status yet (no release installed); the first deploy waits for setup-complete"
+    until [ "$(dev_ssm_ping "$DEV_INSTANCE_ID")" = Online ]; do
+        [ "$SECONDS" -lt "$deadline" ] || die "$EX_TIMEOUT" "the instance never came online in SSM (manage-dev.sh status)"
+        info "waiting for the SSM agent..."
+        sleep "${LAI_SETUP_POLL_SECONDS:-30}"
+    done
+    rc=0
+    dev_ssm_run lai-dev-native-status '{}' 2>/dev/null || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        ok "instance set up, a release is installed"
+    else
+        info "no status yet (no release installed); the first deploy waits for setup-complete"
+    fi
 fi
 
 # --- 6. release ---------------------------------------------------------------------------------
@@ -375,6 +402,11 @@ fi
 
 # --- 11. acceptance -----------------------------------------------------------------------------
 step "11. acceptance checks"
+if [ "$github_only" = true ]; then
+    info "skipped (GitHub-only run; nothing was deployed)"
+    ok "GitHub configured; pushes to main now deploy dev (the site once LAI_SITE_DEPLOY_ENABLED=true)"
+    exit 0
+fi
 check() { # check <label> <ok?> <detail>
     if [ "$2" = true ]; then ok "$1: $3"; else err "$1: $3"; failures=$((failures + 1)); fi
 }
@@ -414,3 +446,8 @@ check "RDS $db_id" "$([ "$public" = false ] && echo true || echo false)" "Public
 "$DEV_SCRIPTS_DIR/show-endpoints.sh" --region "$DEV_REGION" || true
 if [ "$failures" -gt 0 ]; then die "$EX_FAIL" "$failures acceptance check(s) failed"; fi
 ok "installation complete"
+if [ "$skip_github" = true ]; then
+    warn "GitHub was not configured (--skip-github): pushes to main do not deploy, and the Manage DEV" \
+        "Infrastructure workflow cannot run. After installing and signing in to gh, run:" \
+        "./scripts/aws/install-debug.sh --skip-release --skip-bootstrap --skip-lambda --skip-frontend"
+fi
