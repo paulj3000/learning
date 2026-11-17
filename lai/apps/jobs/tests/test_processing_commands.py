@@ -21,6 +21,7 @@ from apps.jobs.models import (
 )
 
 from .processing_fakes import (
+    KEY,
     current_request,
     event_bytes,
     fake_transport,
@@ -211,3 +212,58 @@ def test_legacy_sweep_never_times_out_or_prunes_contract_jobs(fake_transport, se
     assert legacy.status == JobStatus.FAILED and legacy.error_code == "timeout"
     assert ProcessingJob.objects.filter(pk=done.pk).exists()
     assert services.fail_job(queued.pk, "marked_failed") is False  # contract kinds refused
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+def test_no_message_is_received_while_the_database_is_unreachable(
+    fake_transport, monkeypatch, capsys
+):
+    """A receive counts toward maxReceiveCount; receiving during an RDS outage would push valid
+    completions into the DLQ. The consumer checks the database first and backs off instead."""
+    from apps.jobs.management.commands import jobs_consume_completions as command
+
+    job = submit_reference(fake_transport.storage)
+    fake_transport.completions.send(event_bytes(result_for(current_request(job))))
+
+    def unreachable():
+        raise DatabaseError("connection refused")
+
+    monkeypatch.setattr(command.Command, "_check_database", staticmethod(unreachable))
+    spy = SpyQueue(fake_transport.completions)
+    install(fake_transport, spy)
+    run("jobs_consume_completions", "--once", "--wait-seconds", "0", capsys=capsys)
+    [message] = fake_transport.completions._messages.values()  # noqa: SLF001 - test inspection
+    assert message.receive_count == 0  # never received, so never closer to the DLQ
+    assert spy.acks == [] and spy.releases == []
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+def test_after_a_database_failure_the_rest_of_the_batch_is_handed_back_untried(
+    fake_transport, monkeypatch, capsys
+):
+    first = submit_reference(fake_transport.storage)
+    second = submit_reference(
+        fake_transport.storage,
+        data=b"another input\n",
+        key=KEY.replace("model.glb", "second.glb"),
+        subject=("test_subject", "subject-2"),
+    )
+    for job in (first, second):
+        fake_transport.completions.send(event_bytes(result_for(current_request(job))))
+    attempts = []
+    real = processing._apply_locked
+
+    def database_down(*args, **kwargs):
+        attempts.append(1)
+        raise DatabaseError("server closed the connection")
+
+    monkeypatch.setattr(processing, "_apply_locked", database_down)
+    spy = SpyQueue(fake_transport.completions)
+    install(fake_transport, spy)
+    out = run("jobs_consume_completions", "--once", "--wait-seconds", "0", capsys=capsys)
+    assert json.loads(out) == {"acked": 0, "left": 0, "received": 2, "released": 2}
+    assert len(attempts) == 1  # the second message was not spent on a doomed attempt
+    assert spy.releases[1][1] == 0  # handed back at once
+    del real

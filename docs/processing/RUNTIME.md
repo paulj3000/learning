@@ -181,8 +181,8 @@ python -m lai_processing_runtime worker --root ../lai/.processing-local \
     --assets-root ../lai/.asset-storage --concurrency 2 --poll-interval 1
 ```
 
-(The reference fixture expires on 2026-11-17T12:00Z; after that a run reports `job_expired`,
-which is the correct behaviour. The tests run it on a fixed clock.)
+(The reference fixture has no expiry, so this demo keeps working; expiry is covered by tests that
+set their own `expires_at` and clock.)
 
 Flags: `--namespace` (default `local`; must match Django), `--once`, `--concurrency N` (threads),
 `--poll-interval S`, `--max-messages N`, `--job-timeout S` (default 600, the Lambda timeout; the

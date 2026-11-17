@@ -106,8 +106,8 @@ action. Nothing here changes an `AssetVersion` or publishes anything.
 `asset.validate_model` request for an `AssetVersion` (input store `assets`, its storage key,
 SHA-256, size and content type; subject `asset_version`/version uuid; the asset context; profile
 `glb-default` v1) and submits it. It changes neither the version's status nor its metadata or
-validation report, and never publishes. Until LAI-LAMBDA-002 registers `asset.glb_validator`
-in `default_registry()`, the submission is refused with `unsupported_processor`.
+validation report, and never publishes. `default_registry()` registers `asset.glb_validator`
+(LAI-LAMBDA-002), so the job runs the real validator.
 
 ## 4. Applying a completion (WAVE2_INTERFACES section 5)
 

@@ -821,26 +821,42 @@ unchanged. The `audio` app adds a configuration layer over published audio asset
 Retiring an asset or version removes its sound from the live manifest and blocks the next publish
 until fixed. See `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
 
-## 23. Background processing (LAI-LAMBDA, ADR-061 proposed; Wave 1 only)
+## 23. Background processing (LAI-LAMBDA; ADR-061 accepted, ADR-062 proposed; Waves 1 and 2)
 
-Asset uploads, validation and publishing in Django Admin are unchanged by Wave 1. The
-runtime-independent processing package (`processing/lai_processing`, `docs/processing/`) defines
-the job contracts that later waves will use to run heavy validation and derivation outside the
-request:
+Updated for Wave 2 (2026-11-17). Asset uploads, validation and publishing in Django Admin are
+**still unchanged**: the synchronous path in `services.py`, `validation.py` and
+`validation_media.py` is the only path that sets a version's status. Wave 1 (PR #40) is
+merge-ready but not merged, so Wave 2 is provisional on it; nothing is deployed. Design:
+`docs/processing/` (start with `ARCHITECTURE.md`; next steps in `WAVE3_HANDOFF.md`).
+
+What exists now (Wave 2):
+
+| Piece | State |
+|---|---|
+| `asset.validate_model` processor | `asset.glb_validator` 1.0.0, profile `glb-default` v1, in `processing/lai_processing/processors/gltf/`, registered in `default_registry()`. Stdlib only, no network, bounded against hostile files. **Parity-tested** against `validation.py` (`lai/apps/assets/tests/test_glb_processing_parity.py`; policy constants are read from `validation.py` and must be equal). Every corpus case gives the same verdict and error codes except documented cases where the processor is stricter (trailing bytes, duplicate JSON keys, `NaN`, deep JSON, `byteStride`, texture size, animation and skin structure, `.gltf` input): `docs/processing/GLB_VALIDATION.md` section 7. It never passes a file Django refuses |
+| `apps.assets.processing.submit_model_validation(version, *, user)` | Builds the request (input store `assets`, the version's `storage_key`, `sha256`, `size_bytes`, `content_type`; subject `asset_version` with the version uuid; `AssetContext` with the asset slug, version uuid and number; profile `glb-default` v1) and calls `apps.jobs.processing.submit_processing_job`. **It never changes the version**: not its status, metadata or validation report, and it never publishes. Resubmitting the same version returns the same job (same idempotency key). No admin action or upload path calls it yet |
+| Where results live | On the job only: `apps.jobs.ProcessingJob` (`state`, `result`), `JobAttempt` (`result`, `verdict`, error code), `JobArtifact` (artifact references, e.g. the optional `glb-report`) and `CompletionReceipt`. Staff see them in the "background job" admin (findings table, metadata, attempts, artifacts) |
+| Validation of the stored file at publish | Unchanged: `publish_version` re-reads and re-validates the stored bytes |
+
+Contract facts that the Wave 3 integration relies on (unchanged from Wave 1):
 
 - An asset job names the version it processes: `AssetContext` (`asset_id` is the
   `ContentAsset.asset_id` slug, `asset_version_id` is `AssetVersion.version_id`) and a subject of
   type `asset_version` with the same id. Its input is the version's existing `storage_key` in the
   `assets` store, with the version's `sha256`, `size_bytes` and `content_type`.
 - Result findings keep this library's finding shape (`code`, `severity`, `message`, `path`), so a
-  validator's result maps onto `AssetVersion.validation_report` without translation.
-- A job result is never a publication. `VersionStatus.DRAFT`, reserved here for "a future
-  asynchronous validation step", is the intended home for a version awaiting its processing
-  result (LAI-LAMBDA-004 and 007); a successful result moves it to review, and only a staff
-  action in Django Admin publishes it.
-- `validation.py` and `validation_media.py` stay the synchronous path. LAI-LAMBDA-002 extracts a
-  pure parser from them, with the Django settings reads replaced by injected limits, and must keep
-  both paths' verdicts identical (parity tests). `publish_version` keeps re-validating.
-- Derived artifacts go under `processing/artifacts/<namespace>/<job>/<attempt>/` in a separate
-  prefix, never over an `assets/...` key. The current IAM policy allows only
-  `assets/{models,images,audio}/*`; the processing prefixes need their own policy (LAI-LAMBDA-005).
+  validator's result maps onto `AssetVersion.validation_report` without translation. Django-only
+  codes that need the definition (`missing_clip`, `no_clips`, `asset_id`, `asset_retired`,
+  `wrong_file_family`) are not produced by the processor and stay Django's concern.
+- A job result is never a publication. Derived artifacts go under
+  `processing/artifacts/<namespace>/<job>/<attempt>/` in the separate processing bucket
+  (`lai-processing-<env>-<account>-<region>`), never over an `assets/...` key. The worker role
+  reads `assets/*` only; it cannot write or delete there.
+
+**Not done; Wave 3 (LAI-LAMBDA-006 and 007, `docs/processing/WAVE3_HANDOFF.md`):** copying job
+results onto `AssetVersion.validation_report` and metadata; creating versions as `DRAFT` and
+moving them by job result (`VersionStatus.DRAFT` still exists only in the schema for a future asynchronous
+validation step and no code path creates it, section 3); the job `READY_FOR_REVIEW` step;
+presigned uploads into `processing/quarantine/<env>/...`; showing job findings on the version
+admin; publication gates that require a passing job; all behind a per-environment setting that
+defaults to off. Switching `validation.py` to the shared parser is a separate follow-up.

@@ -44,7 +44,7 @@ They are kept apart deliberately. Mixing them is how "processing succeeded" turn
 
 | Machine | States | Owner | Stored in |
 |---|---|---|---|
-| Application job state | `CREATED`, `UPLOADING`, `QUEUED`, `PROCESSING`, `VALIDATED`, `READY_FOR_REVIEW`, `FAILED`, `CANCELLED` | Django | `ProcessingJob` row (004) |
+| Application job state | `CREATED`, `UPLOADING`, `QUEUED`, `PROCESSING`, `VALIDATED`, `READY_FOR_REVIEW`, `FAILED`, `CANCELLED` | Django | `apps.jobs.ProcessingJob.state` (Wave 2; lower-case values, coarse `status` kept in step) |
 | Worker result | `status`: `succeeded`, `failed`, `cancelled`; `verdict`: `pass`, `fail`, `not_applicable` | Worker | `ProcessingJobResult` |
 | Delivery | in flight, acknowledged, released (visible again), dead-lettered | SQS | Queue |
 | Asset review and publication | `AssetVersion`: `DRAFT`, `VALIDATED`, `REJECTED`, `PUBLISHED`, `RETIRED` | Django Admin staff | `assets.AssetVersion` |
@@ -82,8 +82,10 @@ the message **acknowledged after the commit**; none leaves a message to be redel
 
 A retryable failure with attempts exhausted is applied as `FAILED`.
 
-A malformed message that cannot even be decoded is not passed to `decide_completion`; the
-consumer releases it, and after `maxReceiveCount` it moves to the completion DLQ (`OPERATIONS.md`).
+A malformed message that cannot even be decoded is not passed to `decide_completion`. As built
+(Wave 2) the consumer neither acknowledges nor releases it (outcome `invalid`, `ack=False`), so it
+becomes visible again after the queue's visibility timeout and after `maxReceiveCount` (5) moves
+to the completion DLQ (`OPERATIONS.md`). Section 9 lists the reasons the built consumer records.
 
 ## 5. Stale, duplicate and cancel semantics
 
@@ -99,6 +101,11 @@ consumer releases it, and after `maxReceiveCount` it moves to the completion DLQ
 - **Out of order.** A completion arriving while Django still shows `QUEUED` is normal (section 3).
 
 ## 6. How Wave 2 and Wave 3 make this durable (Django and PostgreSQL)
+
+This was the Wave 1 plan. Wave 2 built it under different names (no `lai/apps/processing` app,
+ADR-062): `ProcessingAttempt` is `apps.jobs.JobAttempt`, `ProcessingOutbox` is
+`apps.jobs.JobOutbox`, and a `CompletionReceipt` ledger was added. Section 9 describes exactly
+what exists.
 
 | Mechanism | Guarantees | Task |
 |---|---|---|
@@ -136,3 +143,107 @@ A request may carry `expires_at` (after `submitted_at`). A worker that receives 
 request does not run it and reports `job_expired` (permanent). This bounds how stale a queued
 job can be after a long stop (`OPERATIONS.md`). Django re-queues an expired job only on a staff
 request, as a new attempt with a new `expires_at`.
+
+## 9. Durable enforcement as built (Wave 2)
+
+Added 2026-11-17 (LAI-LAMBDA-004, integrated). Everything below is code in `lai/apps/jobs`
+(`models.py`, `processing.py`, `processing_transport.py`, `admin.py`, the three `jobs_*`
+commands) and migration `jobs.0002_processing_contract_kinds`. It applies to contract kinds only
+(`models.CONTRACT_KINDS`: `asset.validate_model`, `reference.checksum`); legacy ADR-055 kinds are
+unchanged. Detail and settings: `DJANGO_JOBS.md`.
+
+### 9.1 Records and constraints
+
+| Mechanism | As built | Code |
+|---|---|---|
+| One job per logical work | Unique (`namespace`, `idempotency_key`) where the key is non-empty, constraint `jobs_idempotency_key_unique`. The key includes the expected processor version from `default_registry()`. A concurrent duplicate submit loses on the constraint (`IntegrityError`) and is handed the winning job | `models.ProcessingJob.Meta`, `processing.submit_processing_job` |
+| Contract fields required | Check `jobs_contract_fields`: a contract kind has `state`, `namespace` and `idempotency_key`; a legacy kind has an empty `state` | `models.py` |
+| Attempts | `JobAttempt`: `attempt_id` unique, (`job`, `number`) unique (`jobs_attempt_number_unique`), number 1 to 100, `outcome` in `pending`, `succeeded`, `failed`, `cancelled`, `abandoned` | `models.JobAttempt` |
+| Applied-attempt ledger | `JobAttempt.applied_at`; `_snapshot` passes every applied `attempt_id` to `decide_completion` as `JobSnapshot.applied_attempt_ids`, so `DUPLICATE` survives restarts | `processing._snapshot` |
+| Event ledger | `CompletionReceipt` per completion received, `event_id` unique, with `action` and `reason`. The same event seen again is `DUPLICATE event_seen`; a reused `event_id` for another job or attempt is `REJECT event_id_reused` | `models.CompletionReceipt`, `processing._apply_locked` |
+| Transactional outbox | `JobOutbox`: one row per attempt (`attempt` one-to-one), canonical request `body`, `available_at`, `sent_at`, `cancelled_at`, `send_attempts`, `last_error_code`; index (`sent_at`, `available_at`) | `models.JobOutbox` |
+| Artifacts | `JobArtifact` rows for an applied success (including a by-reference `job-result`); (`attempt`, `logical_id`) unique | `models.JobArtifact`, `processing._record_artifacts` |
+| Request template | `ProcessingJob.payload` holds attempt 1's `ProcessingJobRequest.to_dict()`; every later attempt is re-encoded from it with only `attempt_id` and `attempt_number` replaced (and, on a staff requeue, `submitted_at` and `expires_at`), so the idempotency key never changes | `processing._new_attempt` |
+
+### 9.2 Transactions and locks
+
+| Operation | Transaction and lock |
+|---|---|
+| Submit | One `transaction.atomic()`: job row (`created`), `JobAttempt` 1, `created -> queued` through `check_transition`, `JobOutbox` row. With the `inline` backend, `run_inline` is scheduled with `transaction.on_commit` |
+| Relay | One short transaction per row: `JobOutbox.objects.select_for_update(skip_locked=True)` on unsent, uncancelled, due rows, ordered by (`available_at`, `pk`); send; then `sent_at` and `JobAttempt.dispatched_at`. Concurrent relays never send the same row at the same time. A crash after the send and before the commit leaves the row unsent, so it is sent again (duplicate, never lost) |
+| Completion | `apply_completion` decodes outside the transaction, then `_apply_locked` runs inside one `transaction.atomic()` holding `select_for_update()` on the job row (`processing._locked`) for the decision, the persistence and the receipt |
+| Cancel, requeue, expire | Each in its own `transaction.atomic()` with the job row locked; every state change goes through `_set_state`, which calls `lifecycle.check_transition` and sets `status` from `STATE_STATUS` |
+
+**Acknowledge after commit.** `apply_completion` returns only after its transaction has
+committed; `jobs_consume_completions` calls `queue.ack(delivery)` only then. A failed ack is
+logged and left: the redelivery is recognised as `DUPLICATE event_seen`.
+
+### 9.3 Completion outcomes and reasons
+
+`apply_completion(body, *, storage)` returns `CompletionOutcome(action, ack, reason, job_id)`.
+
+| Action | `ack` | Reasons (as recorded on the receipt) | Effect |
+|---|---|---|---|
+| `invalid` | False | the contract error code (e.g. `invalid_input`, `unsupported_schema_version`, `message_too_large`) | Logged `processing.completion_invalid` (code and field only); no receipt; left for the DLQ |
+| `apply` | True | `succeeded`, `cancelled`, `retries_exhausted`, `failed_<retry class>` (`failed_permanent`, `failed_manual`, `failed_cancelled`), `retry_class_unknown` (from `decide_completion`) | Succeeded: job `validated`, attempt `succeeded` and applied, `job.result`, `JobArtifact` rows. Otherwise `failed` or `cancelled` with the primary error code on the job |
+| `retry` | True | `retryable_failure` | Attempt `failed` and applied; job stays `queued`; new attempt and outbox row with `RetryPolicy.delay_seconds` in the same transaction |
+| `duplicate` | True | `already_applied`, `event_seen` | Receipt only |
+| `stale` | True | `job_finished` (job `validated`, `failed`, `cancelled` or `ready_for_review`), `superseded_attempt`, `not_running` | Receipt only |
+| `reject` | True | From `decide_completion`: `identity_mismatch`, `result_mismatch`, `input_mismatch`. From Django: `unknown_job`, `namespace_mismatch`, `event_id_reused`, `unknown_attempt`, `attempt_mismatch`, `processor_mismatch`, `profile_mismatch`, `input_unverified`, `artifact_foreign`, `result_too_large` | Receipt plus `logger.warning("processing.completion_rejected job=... attempt=... reason=...")`; nothing applied |
+
+Order of checks: decode; namespace (an event for another namespace is rejected without touching
+any job); a by-reference result is read (at most 4 MiB) only for a job Django knows, then
+`verify_result`; under the lock, `event_seen`, then `kind` equals `job_type`, then
+`decide_completion`, then (for `apply` and `retry` only) `_check_against_job`.
+
+Transient failures raise `CompletionDeferred` (`database_error`, `result_unavailable`): nothing
+was committed and the consumer releases the message with `release_delay(receive_count) =
+min(300, 5 x 2^(receive_count - 1))` seconds. An unexpected exception is released the same way
+(`apply_error`).
+
+### 9.4 Status mapping
+
+`models.STATE_STATUS` keeps the coarse `status` used by the existing admin, filters and sweep in
+step with `state` on every transition:
+
+| `state` | `status` |
+|---|---|
+| `created`, `uploading`, `queued` | `pending` |
+| `processing` | `running` |
+| `validated`, `ready_for_review` | `completed` |
+| `failed`, `cancelled` | `failed` |
+
+In Wave 2 nothing sets `uploading`, `processing` or `ready_for_review`: a submission goes
+`created -> queued` directly, the worker cannot report a start, and the `validated ->
+ready_for_review` step belongs to Wave 3.
+
+### 9.5 Reconciliation, expiry and the legacy sweep
+
+- `expires_at` is set at submission to `submitted_at + LAI_PROCESSING_JOB_TTL_HOURS` (default 72)
+  and carried in the request; a worker refuses an expired request with `job_expired`.
+- `processing.reconcile(dry_run=False, stuck_minutes=15)` (command `jobs_reconcile`): every open
+  contract job (`created`, `uploading`, `queued`, `processing`) past `expires_at` is re-checked
+  under its row lock and moved to `failed` with `error_code = job_expired`; its unsent outbox
+  rows are cancelled and pending attempts `abandoned`. Outbox rows unsent for more than
+  `stuck_minutes` are counted and logged as `processing.outbox_stuck`. It never retries.
+- `services.sweep` (`jobs_sweep`) excludes contract kinds from both the 60-minute timeout and
+  completed-job pruning, and `services.fail_job` (the admin "Mark failed" action) refuses them,
+  so an overnight backlog of queued contract jobs is never timed out by the legacy rule.
+
+### 9.6 Cancel and requeue (staff)
+
+| Action | Allowed from | Effect | Permission (admin) |
+|---|---|---|---|
+| `processing.cancel_job(job, user=)` | `created`, `uploading`, `queued`, `processing` | `cancelled`, `cancel_requested_at`, `cancelled_by`, `error_code = cancelled`; unsent outbox rows cancelled; pending attempts `abandoned`. A later completion is `STALE job_finished` | `jobs.cancel_processingjob` |
+| `processing.requeue_job(job, user=)` | `failed` only (checked explicitly, because `queued -> queued` is the automatic retry) | Manual `failed -> queued` (`check_transition(..., manual=True)`): pending attempts `abandoned`, a new attempt (new uuid, next number, same key) with a new expiry window and an outbox row; `error_code`, `result` and `finished_at` cleared | `jobs.requeue_processingjob` |
+
+`processing.retry_eligible(job)` is true only when a requeue is allowed. A relay send that the
+queue can never accept (`ValueError`, message too large) cancels the row and fails the job with
+`message_too_large`; transient send failures only delay the row.
+
+### 9.7 Tests
+
+`lai/apps/jobs/tests/test_processing_{models,submit,relay,completions,commands,admin,transport}.py`
+and the Wave 2 end-to-end file `test_processing_wave2_end_to_end.py` (local transport, real GLB
+validator: valid model, invalid model, redelivered work and duplicate completions applied once,
+resubmission returns the same job, paused dispatch).

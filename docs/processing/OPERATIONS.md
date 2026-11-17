@@ -1,141 +1,194 @@
 # Processing operations
 
-**Nothing on this page is deployed or provisioned.** No queue, DLQ, Lambda function, alarm,
-schedule or setting described here exists in `infra/` or AWS at the time of writing. This is the
-operating design that LAI-LAMBDA-004 (Django), LAI-LAMBDA-005 (infrastructure,
-[card](https://trello.com/c/cgbkYzMc)) and LAI-LAMBDA-006 (enqueue, poison jobs, replay,
-stopped-host backlog, [card](https://trello.com/c/SYUqyvWM)) implement. Values marked
-"recommended" are proposals for owner approval.
+Updated for Wave 2 (2026-11-17). **Nothing on this page is deployed or provisioned.** The
+commands, systemd units, CDK stacks and alarms below exist in the repository (built and tested
+locally, synthesized by CDK), but no queue, DLQ, Lambda function, image, alarm or SSM setting
+exists in AWS. Deploying them needs explicit owner approval (A9, ADR-019 G7). Items still only
+planned are marked **Planned**.
+
+Related: `DJANGO_JOBS.md` (Django commands and settings), `RUNTIME.md` (worker),
+`../infrastructure/processing-infrastructure.md` (stacks, IAM, alarms, deployment order),
+`WAVE3_HANDOFF.md` (dev deployment verification steps).
 
 ## 1. What runs where
 
-| Piece | Runs on | Needs | Keeps working when EC2 and RDS are stopped |
+| Piece | Runs on | Built as | Needs | Keeps working when EC2 and RDS are stopped |
+|---|---|---|---|---|
+| Outbox relay | Django host | `manage.py jobs_dispatch`, unit `lai-jobs-dispatch.service` | RDS, SQS | No (and nothing new is created then) |
+| Work queue + DLQ | SQS | `lai-<env>-processing-work`, `-work-dlq` (`LaiProcessing-<env>`) | nothing | Yes: holds messages (14 days) |
+| Worker | Lambda | `lai-<env>-processing-worker`, ECR image `lai/processing-<env>` by digest, built in GitHub Actions | S3, SQS | **Yes**: it needs only S3 and SQS |
+| Completion queue + DLQ | SQS | `lai-<env>-processing-completions`, `-completions-dlq` | nothing | Yes: completions accumulate (14 days) |
+| Completion consumer | Django host | `manage.py jobs_consume_completions`, unit `lai-jobs-completions.service` | RDS, SQS, S3 (by-reference results) | No; drains the backlog on startup |
+| Reconciliation | Django host | `manage.py jobs_reconcile` | RDS | No. **Planned**: no timer or schedule runs it yet; run it by hand |
+| Legacy ADR-055 consumer | Django host | `lai-jobs-consumer.service` (`jobs_consume_results`) | | Unchanged; legacy kinds only |
+
+There is no Docker requirement on EC2: the worker image is built in GitHub Actions and pushed to
+ECR. The small EC2 instance is not a heavy-processing fallback (card 012); runs longer than 15
+minutes go to the ECS Fargate fallback (card 010, Wave 4).
+
+Both processing units carry `ExecCondition=/usr/bin/test "${LAI_PROCESSING_BACKEND}" = sqs`:
+while the backend is `disabled` (phase 1 of the stack, or before a worker image exists) systemd
+skips them rather than restarting a failing command. Logs go to
+`/var/log/lai/jobs-dispatch.log` and `/var/log/lai/jobs-completions.log` (and the `/lai/dev/jobs`
+log group). Units run as `lai` with the hardening of the other `lai-*` units, `Restart=on-failure`,
+`RestartSec=30`, `TimeoutStopSec` 40 (dispatch) and 60 (completions).
+
+## 2. Commands (built)
+
+| Command | Options | Behaviour |
+|---|---|---|
+| `manage.py jobs_dispatch` | `--once`, `--interval S` (default 2), `--limit N` (default 50, 1 to 500) | Relays due outbox rows (`relay_outbox`). SIGTERM finishes the pass and exits. A database error closes the connection and backs off (2^n s, at most 60). Backend `disabled`: exits 0. `inline`: a pass also runs the jobs in-process. `--once` prints `{"sent": n}` |
+| `manage.py jobs_consume_completions` | `--once`, `--max-messages N` (1 to 10, default 10), `--wait-seconds S` (0 to 20, default 20), `--visibility S` (30 to 3600, default 300) | Applies completions (`apply_completion`) and acknowledges only after commit. `invalid`: neither acked nor released (reaches the DLQ after 5 receives). Transient (`CompletionDeferred`) or an unexpected error: released with `min(300, 5 x 2^(receive_count - 1))` s. Receive errors back off (2^n s, at most 60). Backend `disabled` or `inline`: exits 0. `--once` prints `{"received", "acked", "released", "left"}` |
+| `manage.py jobs_reconcile` | `--dry-run`, `--stuck-minutes M` (1 to 1440, default 15) | Expires open contract jobs past `expires_at` (`failed`, `job_expired`) and counts outbox rows unsent for more than M minutes (logs `processing.outbox_stuck`). Prints `{"dryRun", "expired_due", "expired", "stuck_outbox"}` |
+| `manage.py jobs_sweep` | (existing) | Legacy kinds only; contract kinds are excluded |
+
+Staff actions in Django Admin ("background job" admin): **Cancel selected processing jobs**
+(`jobs.cancel_processingjob`) and **Requeue selected failed processing jobs**
+(`jobs.requeue_processingjob`). "Mark failed" never touches contract kinds.
+
+## 3. Local worker (built)
+
+```sh
+# Default development and tests: LAI_PROCESSING_BACKEND=inline (work runs after commit, in-process).
+# Separate local worker: LAI_PROCESSING_BACKEND=local, then in three shells:
+cd lai && python manage.py jobs_dispatch
+python -m lai_processing_runtime worker --root lai/.processing-local \
+    --assets-root lai/.asset-storage --namespace local --concurrency 2 --poll-interval 1
+cd lai && python manage.py jobs_consume_completions --wait-seconds 0
+
+# Inspect the local queues:
+python -m lai_processing_runtime status --root lai/.processing-local
+
+# Whole flow against a throwaway database (compose PostgreSQL on 127.0.0.1:5442):
+scripts/processing/local-demo.sh [--keep]
+```
+
+`processing/` must be on `PYTHONPATH` for Django to load contract kinds. `LAI_ASSET_LOCAL_ROOT`
+and `LAI_PROCESSING_LOCAL_ROOT` must point the worker and Django at the same directories
+(`--assets-root` and `--root`). Worker flags, exit codes and stop behaviour: `RUNTIME.md`
+section 4. `local-demo.sh` creates its own database (`lai_processing_demo*` only) and temporary
+directories, uses the real upload service, the real GLB validator and the real commands, and
+touches nothing in AWS. It ran successfully at integration (job validated, verdict `pass`, clips
+`["Idle", "Armature|mixamo.com|Layer0"]`, `AssetVersion` status unchanged at `VALIDATED`).
+
+## 4. Queue and worker settings (as synthesized)
+
+| Setting | Work queue | Completion queue |
+|---|---|---|
+| Type | Standard, SSE-SQS, TLS-only policy | Standard, SSE-SQS, TLS-only policy |
+| Retention | 14 days | 14 days |
+| Visibility timeout | 3600 s (6 x the 600 s worker timeout x batch 1; validated at synth) | 300 s |
+| DLQ | `maxReceiveCount` 5, 14 days | `maxReceiveCount` 5, 14 days |
+| Who may send | Only `lai-django-ec2-<env>` (plus `additionalSenderRoleArns`) | Only the worker role (plus `additionalSenderRoleArns`) |
+| Consumer | Lambda event source mapping: batch 1, `ReportBatchItemFailures`, `maximumConcurrency` = reserved concurrency | `jobs_consume_completions`, long polling 20 s |
+
+Worker: 600 s timeout (at most 840 s), cleanup margin 30 s (a job's deadline is at most 570 s),
+2048 MB memory and ephemeral storage, arm64, no VPC, reserved concurrency dev 2 / prod 5. Message
+bodies stay at or below 240 KiB (`max_message_bytes`); a larger result goes by reference as the
+`report.job_result` artifact.
+
+## 5. Dispatch controls per environment
+
+| Control | Values | Effect | State |
 |---|---|---|---|
-| Outbox dispatcher | Django host (management command or systemd service) | RDS, SQS | No (and nothing new is created then) |
-| Work queue + DLQ | SQS | nothing | Yes: holds messages |
-| Worker | Lambda (container image from ECR, built off-host) | S3, SQS | **Yes**: it needs only S3 and SQS |
-| Completion queue + DLQ | SQS | nothing | Yes: completions accumulate |
-| Completion consumer | Django host (management command or systemd service) | RDS, SQS | No; drains the backlog on startup |
+| `LAI_PROCESSING_BACKEND` | `disabled`, `inline`, `local`, `sqs` (production allows `disabled` or `sqs`; default `disabled`) | `disabled`: `submit_processing_job` raises `ProcessingDisabled`, the units are skipped; the synchronous Asset Library path is the only one | Built. SSM `/lai/<env>/django/LAI_PROCESSING_BACKEND` is written by `LaiProcessing-<env>`: `disabled` in phase 1, `sqs` once a worker digest is deployed |
+| `LAI_PROCESSING_DISPATCH` | `enabled` (default), `paused` | `paused`: jobs are still created and outbox rows written, but `relay_outbox` sends nothing; resuming sends them | Built. No CDK parameter: an operator may create `/lai/<env>/django/LAI_PROCESSING_DISPATCH`; `render-env-native.sh` renders every parameter under that prefix at the next deploy, rollback or bootstrap, then restart `lai-jobs-dispatch` |
+| `LAI_PROCESSING_MAX_ATTEMPTS` | 1 to 10, default 3 | `RetryPolicy.max_attempts` for automatic retries | Built |
+| `LAI_PROCESSING_JOB_TTL_HOURS` | 1 to 336, default 72 | `expires_at` of every attempt window | Built |
+| Lambda event source mapping | enabled / disabled | Disabled: work waits in the queue (up to retention) | Console or CDK; no command |
+| Reserved concurrency 0 | | Emergency stop for the worker | Console or CDK |
 
-There is no Docker requirement on EC2 for any of this: the worker image is built in GitHub
-Actions and pushed to ECR (cards 005 and 012). The small EC2 instance is not a heavy-processing
-fallback (card 012); runs longer than 15 minutes go to the ECS Fargate fallback (card 010).
+The existing synchronous upload and validation (`lai/apps/assets/services.py`) keeps working in
+every mode; nothing in Wave 2 calls `submit_model_validation` automatically.
 
-## 2. Queue settings (recommended)
+## 6. Overnight shutdown (00:00 to 08:00 `America/Los_Angeles`) and manual stop/start
 
-| Setting | Work queue | Completion queue | Why |
-|---|---|---|---|
-| Type | Standard | Standard | At-least-once is designed for; FIFO adds nothing the idempotency rules do not already give |
-| Message retention | 14 days (SQS maximum) | 14 days | Survives an overnight stop with a wide margin, and a long weekend or an outage |
-| Visibility timeout | at least 6 x the Lambda timeout (for 900 s: 5,400 s) | longer than the consumer's worst-case transaction, e.g. 300 s | 6x is the AWS guidance for Lambda event source mappings; the consumer value is a starting point |
-| Max message size | 256 KiB (contracts stay at or below 240 KiB) | same | `DEFAULT_MAX_MESSAGE_BYTES` |
-| DLQ | yes, `maxReceiveCount` 5 | yes, `maxReceiveCount` 5 | Poison messages stop cycling |
-| DLQ retention | 14 days | 14 days | Time to diagnose and replay |
-| Encryption | SSE (SQS-managed) | SSE | |
-| Queue policy | Send: Django role only. Receive/delete: worker role | Send: worker role only. Receive/delete: Django role | Forged messages (`SECURITY.md`) |
-| Long polling | (event source mapping) | `WaitTimeSeconds` 20 | Fewer empty receives |
-
-Lambda event source mapping (recommended): batch size 1 to start (one job per invocation keeps
-the time budget simple); `ReportBatchItemFailures` enabled so a failing record in a larger batch
-is retried alone (card 005); **reserved concurrency** set low for dev (for example 2) to cap cost
-and protect S3 request rates; timeout 900 s; memory and ephemeral storage sized above
-`PLATFORM_CEILINGS` (temporary bytes up to 10 GiB) per processor need, measured in 002.
-
-## 3. Overnight shutdown (00:00 to 08:00 Pacific) and manual stop/start
-
-The owner's target allows the dev environment to stop EC2 and RDS overnight. **No schedule
-exists in IaC today**; adding one (for example EventBridge Scheduler or an SSM Automation) is an
-approval item for 005.
+The dev schedule exists already: ADR-055's `lai-dev-power` state machine runs the power document,
+whose body is `scripts/aws/native/power-native.sh` (extended in Wave 2). Production has no
+schedule.
 
 What happens during a stop:
 
 1. Django is down, so no new jobs are created and no outbox rows are sent.
-2. Work messages already queued keep being processed by Lambda; it needs only S3 and SQS.
-3. Each finished attempt sends a completion event. Events accumulate in the completion queue
-   (retention 14 days, well above 8 hours).
-4. On start, the completion consumer drains the backlog. Application is idempotent, so a
-   message delivered twice, or a message whose processing was interrupted by the stop, is safe.
-5. The dispatcher sends any outbox rows committed before the stop but not yet sent.
+2. Work messages already queued keep being processed by Lambda (S3 and SQS only).
+3. Each finished attempt sends a completion. Completions accumulate in the completion queue
+   (14 days, far above 8 hours). The dev `completion-backlog` alarm threshold is 12 h, so the
+   nightly stop does not page.
+4. On start, the completion consumer drains the backlog. Application is idempotent.
+5. The relay sends outbox rows committed before the stop but not yet sent.
+6. Jobs do not expire overnight: `expires_at` is 72 h by default and contract kinds are excluded
+   from the legacy 60-minute sweep. A worker still refuses a request that is past `expires_at`
+   (`job_expired`).
 
-### Graceful shutdown order
+### `power-native.sh quiesce` (before the instance stops)
 
-1. Pause dispatch (`LAI_PROCESSING_DISPATCH=paused`, section 4) so no new work leaves.
-2. Let the completion consumer drain what is visible (optional: completions are durable anyway).
-3. Stop the consumer and dispatcher services, then gunicorn, then EC2 and RDS.
+1. Wait briefly for a running release to finish (deploy lock, up to 240 s).
+2. Stop `lai-jobs-dispatch` (no new work leaves; equivalent to pausing dispatch).
+3. Stop `lai-jobs-completions`.
+4. Stop `lai-jobs-consumer` (legacy), then `lai-gunicorn`.
 
-### Startup order
+Exits 0 unless the action is invalid. Stopping the consumer mid-message is safe: an unacknowledged
+completion is delivered again and recognised as a duplicate.
 
-1. RDS, then EC2 and Django.
-2. Consumer service starts and drains the completion queue.
-3. Dispatcher resumes (`enabled`).
-4. Reconciliation (004, "lease/reconciliation") finds jobs `QUEUED` past their expiry or lease
-   and fails or re-queues them per policy.
+### `power-native.sh verify` (after the instance starts)
 
-## 4. Dispatch controls per environment (proposed)
+1. nginx and `lai-gunicorn` active, database reachable, readiness 200.
+2. Start `lai-jobs-consumer`, then `lai-jobs-completions` (drains the overnight backlog), then
+   `lai-jobs-dispatch`.
+3. Apply a pending release when `/lai/dev/deploy/apply-pending-on-start` is true.
 
-| Control | Values | Effect |
-|---|---|---|
-| `LAI_PROCESSING_DISPATCH` (Django setting, proposed name) | `enabled` | Outbox rows are sent |
-| | `paused` | Jobs are created and outbox rows written, but not sent; resume sends them |
-| | `disabled` | New processing jobs are refused; the existing synchronous Asset Library path stays the only path |
-| Lambda event source mapping | enabled / disabled | Disabled: work messages wait in the queue (up to retention) |
-| Reserved concurrency 0 | | Emergency stop for the worker |
+**Planned:** running `jobs_reconcile` after verify. Until it is scheduled, run
+`manage.py jobs_reconcile --dry-run` and then without `--dry-run` by hand after a long outage.
 
-The default for an environment without queues is `disabled`. The existing synchronous upload and
-validation (`lai/apps/assets/services.py`) keeps working in every mode.
+## 7. When RDS is unavailable while the consumer runs
 
-## 5. Job expiry
+`apply_completion` raises `CompletionDeferred` on a database error; the consumer closes the
+connection and releases the message with `min(300, 5 x 2^(receive_count - 1))` s. The rest of
+that batch is handed back at once without being attempted, and the loop backs off (2^n s, at
+most 60). Before every receive the consumer runs `SELECT 1`; while PostgreSQL is unreachable it
+receives nothing, so an outage of any length does not spend the completions' receives or move
+them to the DLQ (built at Wave 2 integration; tests in `test_processing_commands.py`). On dev the
+nightly stop is not affected either way (the consumer is stopped before RDS).
 
-Each request may carry `expires_at`. Recommended: Django sets it on every attempt, shorter than
-queue retention (for example 72 hours; owner choice). A worker refuses an expired request with
-`job_expired` (permanent), so a job that waited through a long outage is not processed against
-stale assumptions. Staff re-queue an expired job from Django Admin; that creates a new attempt
-with a new expiry.
-
-## 6. When RDS is unavailable
-
-The consumer opens a transaction per event. If the database is unreachable, the transaction
-fails and the consumer **releases** the message with a backoff delay (it never acks before a
-commit). Repeated failures raise the receive count; the backoff should keep a long outage from
-pushing healthy messages into the DLQ (for example by stopping the consumer loop after
-consecutive database errors rather than cycling messages). Messages that still reach the DLQ are
-replayed after recovery (section 7).
-
-## 7. Replay from a DLQ
+## 8. DLQ handling and replay
 
 | DLQ | Typical cause | Procedure |
 |---|---|---|
-| Work DLQ | Worker crash or timeout five times; undecodable message | Diagnose from logs (closed telemetry fields only). If the cause was transient, redrive to the source queue (SQS redrive). If the job needs a fresh attempt (expired, or the input changed), **re-queue from Django Admin instead**: a new attempt id, new artifact keys, new outbox row. A redriven old attempt that Django has since superseded is simply `STALE` on completion |
-| Completion DLQ | Consumer bug, decode failure, long database outage | Fix the cause, then redrive. Application is idempotent (`DUPLICATE`, `STALE` and `REJECT` are all safe outcomes). Undecodable events stay for analysis and are deleted only by an operator |
+| Work DLQ | Undecodable work (`work.invalid` in the worker log), or a worker crash, timeout or completion-send failure five times | Diagnose from the worker log group (closed telemetry fields only). If transient, redrive to the source queue. If the job needs a fresh attempt (expired, input changed, processor fixed), **requeue it from Django Admin instead** (requires the job to be `failed`; use `jobs_reconcile` or wait for expiry otherwise): new attempt id, new artifact keys, new outbox row. A redriven old attempt that Django has since superseded is `STALE` on completion |
+| Completion DLQ | `processing.completion_invalid` (undecodable or contract-invalid), a consumer bug, a long database outage (section 7) | Fix the cause, then redrive. `DUPLICATE`, `STALE` and `REJECT` are all safe outcomes. Undecodable events stay for analysis and are deleted only by an operator |
 
-Replay commands and runbooks are delivered by 006 (card: "poison jobs, replay, stopped-host
-backlog").
+**Redrive permissions.** The queue policies deny `sqs:SendMessage` on the work queue to everyone
+except `lai-django-ec2-<env>`, and on the completion queue to everyone except the worker role.
+An SQS redrive sends as the caller, so an operator redrive is **denied** unless the operator role
+is passed to `LaiProcessing-<env>` in `additionalSenderRoleArns` (stack prop) and the stack is
+redeployed, or the redrive runs as the Django role. **Planned (006):** the replay runbook and any
+replay command.
 
-## 8. CloudWatch metrics and alarms (recommended, 005)
+## 9. Alarms (as synthesized in `LaiProcessing-<env>`)
 
-| Alarm | Metric | Suggested threshold |
+All go to the existing `lai-django-alarms-<env>` topic, missing data not breaching; thresholds are
+overridable with the `processingAlarms` context. Full table:
+`processing-infrastructure.md` section 5.
+
+| Alarm (`lai-<env>-processing-...`) | Signal | Default |
 |---|---|---|
-| Work backlog age | `ApproximateAgeOfOldestMessage` on the work queue | above 1 hour while Lambda is enabled |
-| Completion backlog age | same, completion queue | above 1 hour during working hours (suppressed during the overnight window) |
-| Work DLQ not empty | `ApproximateNumberOfMessagesVisible` on the work DLQ | at least 1 |
-| Completion DLQ not empty | same, completion DLQ | at least 1 |
-| Worker errors | Lambda `Errors` | at least 1 in 15 minutes |
-| Worker throttles | Lambda `Throttles` | at least 1 in 15 minutes |
-| Worker duration | Lambda `Duration` p95 | above 80% of the timeout |
-| `REJECT` decisions | log metric filter on the consumer's `job.rejected` event (name per 004) | at least 1 |
+| `work-oldest-message` | worker not consuming | at least 3600 s |
+| `work-queue-depth` | backlog | dev 50, prod 200 visible |
+| `completion-backlog` | consumer not draining | dev 12 h, prod 1 h |
+| `work-dead-letters`, `completion-dead-letters` | poison messages | at least 1 |
+| `worker-errors`, `worker-throttles` | Lambda health (phase 2 only) | at least 1 in 15 min |
+| `worker-duration-high` | jobs near the timeout | p95 above 480,000 ms |
+| `worker-concurrency-high` | concurrency cap reached | dev 2, prod 5 |
 
-Alarms go to the environment's existing SNS topic `lai-django-alarms-<env>` (defined in
-`LaiDjangoEc2-<env>`), referenced by name like the other stacks do. Log groups get an explicit
-retention (card 005).
+**Planned (006):** a log metric filter and alarm on the consumer's
+`processing.completion_rejected` warnings (no such filter exists; consumer logs are on the
+instance and in `/lai/dev/jobs`).
 
-## 9. Cost notes (unverified, check current AWS pricing)
+## 10. Cost notes (estimates; see `processing-infrastructure.md` section 11)
 
-- SQS: billed per request; long polling keeps an idle consumer to roughly three receives a
-  minute. Standard-queue request volume for this workload is small.
-- Lambda: billed per request and per GB-second; reserved concurrency caps the worst case.
-  Ephemeral storage above the 512 MB default is billed extra.
-- ECR: storage of image versions; a lifecycle rule should keep a bounded number (card 012 needs
-  old digests for rollback, so do not expire those in use).
-- No NAT gateway and no VPC endpoints in the preferred option (`SECURITY.md` section 3).
-- CloudWatch: alarms and log ingestion; set log retention.
+- About $5 a month in dev and $37 in prod at the assumed volumes; idle about $2 per environment
+  (SQS polling, ECR storage, alarms, logs).
+- No NAT gateway, VPC endpoint, load balancer or KMS key is added.
+- ECR keeps the newest 30 images (rollback targets must be among them); untagged images expire
+  after 7 days.
 - Stopping EC2 and RDS overnight does not stop SQS or Lambda charges, which are usage based.

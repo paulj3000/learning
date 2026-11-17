@@ -99,7 +99,11 @@ class Command(BaseCommand):
                 counts = None
                 try:
                     counts = self.consume(max_messages, wait_seconds, visibility)
-                    failures = 0
+                    if self._database_failed:
+                        failures += 1  # back off before the next receive (see _check_database)
+                        logger.warning("processing.consumer database_error_in_batch")
+                    else:
+                        failures = 0
                 except DatabaseError as error:
                     failures += 1
                     logger.warning(
@@ -146,25 +150,58 @@ class Command(BaseCommand):
             kwargs["wait_seconds"] = wait_seconds
         return queue.receive(**kwargs), accepts_wait
 
+    @staticmethod
+    def _check_database() -> None:
+        """Raise DatabaseError when PostgreSQL is unreachable, before anything is received.
+
+        Every receive counts toward the completion queue's maxReceiveCount (5). Receiving while
+        the database is down (RDS stopped, failing over, or still starting after the overnight
+        stop) would push valid completions into the DLQ, so the consumer backs off instead and
+        the messages wait, untouched, in the queue."""
+        _refresh_connections()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+
     def consume(self, max_messages: int, wait_seconds: int, visibility: int) -> dict[str, int]:
+        self._check_database()
         queue = transport.completion_queue()
         storage = transport.object_storage()
         deliveries, waited = self._receive(queue, max_messages, wait_seconds, visibility)
         counts = {"received": 0, "acked": 0, "released": 0, "left": 0}
+        self._database_failed = False
         for delivery in deliveries:
             counts["received"] += 1
+            if self._database_failed:
+                # The database failed earlier in this batch: hand the rest back at once rather
+                # than spending their receives on doomed attempts.
+                self._release_now(queue, delivery)
+                counts["released"] += 1
+                continue
             _refresh_connections()
             counts[self._handle(queue, storage, delivery)] += 1
         if not deliveries and not waited and wait_seconds:
             self._sleep(min(wait_seconds, 5))  # an adapter without long polling: do not spin
         return counts
 
+    @staticmethod
+    def _release_now(queue, delivery) -> None:
+        try:
+            queue.release(delivery, delay_seconds=0)
+        except Exception as error:  # noqa: BLE001 - it reappears after its visibility timeout
+            logger.log(
+                log_level(error), "processing.consumer release_error type=%s", type(error).__name__
+            )
+
+    _database_failed = False
+
     def _handle(self, queue, storage, delivery) -> str:
         try:
             outcome = processing.apply_completion(delivery.body, storage=storage)
         except processing.CompletionDeferred as error:
-            if isinstance(error.__cause__, DatabaseError) and not connection.in_atomic_block:
-                connection.close()
+            if isinstance(error.__cause__, DatabaseError):
+                self._database_failed = True
+                if not connection.in_atomic_block:
+                    connection.close()
             return self._release(queue, delivery, error.code)
         except Exception as error:  # noqa: BLE001 - a bug: release with backoff, then DLQ
             logger.error("processing.consumer apply_error type=%s", type(error).__name__)

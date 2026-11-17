@@ -90,10 +90,11 @@ The worker has no RDS, Secrets Manager, SSM, KMS, Bedrock, Cognito, IAM or STS p
 `s3:Delete*`, `s3:List*` or ACL right, and no `*` resource. Tests pin every statement
 (`infra/lib/processingStack.test.ts`).
 
-Known limits for LAI-LAMBDA-003 and 004 to confirm: without `s3:ListBucket`, a `HeadObject` of a
-missing key returns 403, not 404 (map it to `ObjectMissing` or ask for `ListBucket` on this
-bucket); and the worker cannot read back an artifact it wrote, so "identical rewrite is
-idempotent" must rely on the conditional write, not a read.
+Confirmed at integration: without `s3:ListBucket`, a `HeadObject` of a missing key returns 403,
+which the S3 adapter reports as `permission_denied` (MANUAL, like `input_missing`). The worker
+may read back its own `processing/artifacts/<env>/*` objects (grant `VerifyOwnArtifacts`): the
+create-only put resolves a 412 by comparing the existing object's checksum, so a redelivered
+attempt's identical rewrite is an idempotent success rather than `permission_denied`.
 
 ## 4. Queue and timeout arithmetic
 
@@ -180,7 +181,7 @@ Django. To delete: detach the policy (deploy the platform stack without it) befo
 
 | Workflow | Triggers | Deploys? | AWS |
 |---|---|---|---|
-| `ci.yml` job `processing-image` | existing `push` to `main`, `pull_request` | No | None. Builds `processing/Dockerfile.lambda` for linux/arm64 with buildx and QEMU, loads it locally, imports `lai_processing_runtime.lambda_handler` inside it, scans it with `aquasecurity/trivy-action@0.28.0`. Skips itself while the Dockerfile (LAI-LAMBDA-003) is absent |
+| `ci.yml` job `processing-image` | existing `push` to `main`, `pull_request` | No | None. Builds `processing/Dockerfile.lambda` for linux/arm64 with buildx and QEMU, loads it locally, imports `lai_processing_runtime.lambda_handler` inside it, scans it with `aquasecurity/trivy-action@0.28.0` |
 | `deploy-processing.yml` | `workflow_dispatch` only | Only when dispatched by a person, approved in `processing-<env>`, from `main`, with `LAI_PROCESSING_DEPLOY_ENABLED == 'true'` | OIDC: `LAI_PROCESSING_PUBLISHER_ROLE_ARN` (build-push), `LAI_PROCESSING_DEPLOY_ROLE_ARN` (deploy, rollback) |
 | `deploy-dev-native.yml` | existing `push` to `main` on backend paths, now including `processing/**` | Native dev only, already gated by `LAI_DEV_NATIVE_ENABLED` | unchanged roles |
 
@@ -260,8 +261,8 @@ the queue never empties). No NAT gateway, VPC endpoint, load balancer or KMS key
 | # | Blocker | Owner step |
 |---|---|---|
 | B1 | Deployment approval (ADR-019 G7, WAVE2_HANDOFF A9) | Approve each change set (sections 6 and 7) |
-| B2 | `processing/Dockerfile.lambda` and `lai_processing_runtime` (LAI-LAMBDA-003) are not on this branch | Merge 003 before `build-push`; CI's `processing-image` job skips until then |
-| B3 | `manage.py jobs_dispatch` and `jobs_consume_completions` (LAI-LAMBDA-004) are not on this branch | Keep the backend `disabled` (phase 1) until 004 is released; the units skip themselves |
+| B2 | Resolved at integration: `processing/Dockerfile.lambda` and `lai_processing_runtime` (LAI-LAMBDA-003) are on the Wave 2 branch; the image has not yet been built by CI or anyone | Let CI build it on the Wave 2 PR before any `build-push` |
+| B3 | Resolved at integration: `manage.py jobs_dispatch` and `jobs_consume_completions` (LAI-LAMBDA-004) are on the Wave 2 branch | Keep the backend `disabled` (phase 1) until a release with 004 is deployed; the units skip themselves |
 | B4 | No IaC role can deploy `LaiProcessing-<env>` from GitHub: `lai-dev-infra-manage` only operates power, `lai-github-deploy-prod` only sends SSM documents, and both trust other GitHub environments | Either deploy with `scripts/aws/provision.sh <env> --only LaiProcessing-<env>` from an admin workstation, or approve a deploy role trusting `processing-<env>` (CloudFormation on `LaiProcessing-<env>` only, with a CloudFormation service role scoped to the stack's resources) and set `LAI_PROCESSING_DEPLOY_ROLE_ARN`. Note: such a role can change the Django policy's content, so it is as privileged as the reviewers of `processing-<env>` |
 | B5 | GitHub configuration | Create environments `processing-dev` and `processing-prod` with required reviewers and a `main`-only deployment branch rule; set `LAI_PROCESSING_PUBLISHER_ROLE_ARN` (images stack output) and, after B4, `LAI_PROCESSING_DEPLOY_ROLE_ARN` on each; set repository variable `LAI_PROCESSING_DEPLOY_ENABLED=true` |
 | B6 | The platform stack update needs the policy | Deploy `LaiProcessing-<env>` before the next platform update from this branch (section 7) |

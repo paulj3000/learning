@@ -1,5 +1,16 @@
 # Wave 2 handoff (LAI-LAMBDA-002 to 005)
 
+> **Executed 2026-11-17.** This page is the Wave 2 plan as briefed and is kept unchanged below for
+> the record. Where it differs, it is superseded by [`WAVE2_INTERFACES.md`](WAVE2_INTERFACES.md)
+> (the frozen Wave 2 decisions) and ADR-062 (`docs/DECISIONS.md`). Notably: **no new
+> `lai/apps/processing` app was created; `apps.jobs` was extended** with contract kinds,
+> `JobAttempt`, `JobOutbox`, `CompletionReceipt` and `JobArtifact`. What was built:
+> [`GLB_VALIDATION.md`](GLB_VALIDATION.md) (002), [`RUNTIME.md`](RUNTIME.md) (003),
+> [`DJANGO_JOBS.md`](DJANGO_JOBS.md) (004) and
+> [`processing-infrastructure.md`](../infrastructure/processing-infrastructure.md) (005). Next:
+> [`WAVE3_HANDOFF.md`](WAVE3_HANDOFF.md). Wave 1 (PR #40) was merge-ready but not merged at the
+> time, so Wave 2 is provisional on it.
+
 Audience: the four Wave 2 implementation agents and their reviewer. Read `ARCHITECTURE.md`,
 `CONTRACTS.md` and `LIFECYCLE.md` first. Wave 2 starts from the merged Wave 1 commit on
 `feature/serverless-processing` (LAI-LAMBDA-001). Symbol names below are those of the merged
