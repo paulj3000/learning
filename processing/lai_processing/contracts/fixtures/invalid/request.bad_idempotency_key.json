@@ -3,7 +3,7 @@
   "attempt_id": "0b9a8c7d-6e5f-4a3b-9c2d-1e0f2a3b4c5d",
   "attempt_number": 1,
   "correlation_id": "corr-reference-0001",
-  "expires_at": "2026-11-17T12:00:00.000000Z",
+  "expires_at": null,
   "idempotency_key": "ik2:0000000000000000000000000000000000000000000000000000000000000000",
   "input": {
     "content_type": "text/plain",

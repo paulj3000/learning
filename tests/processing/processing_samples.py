@@ -114,7 +114,7 @@ def reference_request(**overrides: Any) -> ProcessingJobRequest:
         "attempt_id": ATTEMPT_ID,
         "attempt_number": 1,
         "submitted_at": SUBMITTED,
-        "expires_at": SUBMITTED + timedelta(days=1),
+        "expires_at": None,  # no fixed-date expiry: fixtures must not go stale
         "options": REFERENCE_OPTIONS,
         "limits": DEFAULT_LIMITS,
     }
