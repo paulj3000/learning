@@ -490,6 +490,40 @@ a zip-packaged arm64 Lambda does the work, writes the result to S3 and sends it 
 - **Turning it off:** `LAI_ENABLE_LAMBDA=false` then `deploy-debug.sh --execute` (the stack then
   sets `LAI_JOBS_BACKEND=disabled` and the Studio to `manual`).
 
+#### Asynchronous model validation (LAI-LAMBDA-001 to 007, ADR-064)
+
+On `feature/serverless-processing-canonical` (PR #42; not deployed). The standard-library processing
+library (`processing/lai_processing`) and its GLB validator run as the `apps.jobs` kind
+`asset.validate_model` on the media queue, inside the existing worker zip. With
+`LAI_ASSET_ASYNC_VALIDATION=on` (default `off` everywhere; refused with `LAI_JOBS_BACKEND=disabled`,
+production needs `sqs`), a GLB upload is stored as a `DRAFT` with its job in the same transaction;
+the result moves it to `VALIDATED` or `REJECTED`, and publishing a GLB needs a passing result for
+exactly that file (`processing_required`). Nothing is published by a job. Django Admin shows a
+read-only "Background validation" section and a "Validate in background" action that revalidates
+existing or published models without changing them. PR #40 and #41 are superseded implementation
+sources (branches kept, not merged).
+
+- **Try it locally:** `LAI_JOBS_BACKEND=inline LAI_ASSET_ASYNC_VALIDATION=on make runserver`, then
+  upload a GLB in Django Admin; or `scripts/processing/local-demo.sh` (compose PostgreSQL, its own
+  database, the packaged worker zip, in-memory SQS and S3, no AWS).
+- **Tests:** `tests/processing`, `tests/lambda/test_jobs_worker_contract.py`,
+  `tests/lambda/test_jobs_worker_package.py`, `tests/lambda/test_jobs_worker_asset_errors.py`,
+  `tests/repo/test_canonical_processing_guard.py`, `tests/deploy/test_upload_body_limit.py`,
+  `lai/apps/jobs/tests/test_contract_kinds.py`, `lai/apps/jobs/tests/test_contract_storage_errors.py`,
+  `lai/apps/jobs/tests/test_migration_rollback.py`, `lai/apps/assets/tests/test_glb_limit.py`,
+  `lai/apps/assets/tests/test_model_validation_retry.py` and the `lai/apps/assets/tests` files for
+  upload, results, gate, admin and parity (list in `docs/processing/ASYNC_MODEL_VALIDATION.md`
+  section 12).
+- **Zip contents:** `jobs_worker/`, its vendored `jobs_core` (now with `contract.py`) and AI
+  providers, and `lai_processing` at the zip root without `testing/`, `cli/` and `__main__.py`
+  (about 351 KB; budget 2 MiB). The native release and the Django image ship
+  `processing/lai_processing` beside `lai/`.
+- **Decided and implemented, not deployed (owner, 2026-11-17):** scoped `s3:ListBucket` for the
+  media role (`ListAssetBucket`) and the 50 MiB GLB input ceiling (`LAI_ASSET_MAX_GLB_BYTES`).
+- **Remaining:** live acceptance (LAI-LAMBDA-011) and the owner decision on artifact writes
+  (`docs/processing/CANONICAL_PATH.md`, "Re-land status"). Release Django and the worker zip
+  together.
+
 ### React deployment
 
 `install-debug.sh` builds the React app with the Cognito ids and publishes it to the private web
@@ -796,6 +830,6 @@ hardened systemd units with the real gunicorn.
 Live AWS deployment and the checklist above are owner gates and have not been run. Known
 limitations: GLB optimization (LAI-LAMBDA-010), audio transcoding (LAI-LAMBDA-008), thumbnails
 and image conversion (LAI-LAMBDA-013) are not on Lambda yet and do not block the first
-deployment; the PR #40/#41 contract kinds and GLB validator re-land on the canonical path later
-(`docs/processing/CANONICAL_PATH.md`); deploys restart gunicorn, so dev has a few seconds of 502s
-per release.
+deployment; the PR #40/#41 contract kinds and GLB validator are re-landed on the canonical path
+(`docs/processing/CANONICAL_PATH.md`, "Re-land status"), not yet verified live
+(LAI-LAMBDA-011); deploys restart gunicorn, so dev has a few seconds of 502s per release.

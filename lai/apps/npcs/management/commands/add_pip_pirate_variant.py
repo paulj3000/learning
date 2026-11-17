@@ -7,7 +7,10 @@ What it does, through the same services the Django Admin uses (nothing bypasses 
 1. Creates the Django-authored character asset `npc-pip-pirate` (category NPC) if missing, with
    its declared clips (Idle, Walk, Wave, Point).
 2. Uploads `--file` (default `content/models/npc-pip-pirate.glb`) as a version, which validates
-   it, and publishes that version. Rerunning with the same file is `unchanged`.
+   it, and publishes that version. Rerunning with the same file is `unchanged`. With
+   `LAI_ASSET_ASYNC_VALIDATION=on` and a background jobs backend the upload is a `DRAFT` queued
+   for background validation (ADR-064): the command says so and stops before publishing or
+   touching the variant; rerun it after the validation passes (a rejected file is refused).
 3. Creates Pip's `pirate` variant on that asset (scale 1.25, map idle/walk/wave/point). The
    `classic` variant and its placeholder model stay as they were, and stay the default.
 4. `--use-in-cove`: points Pip's Treasure Cove placement at the `pirate` variant, so children
@@ -57,8 +60,14 @@ def ensure_asset() -> tuple[ContentAsset, bool]:
     return asset, True
 
 
+#: `ensure_published_version` result: the version is a draft awaiting background validation.
+QUEUED = "queued"
+
+
 def ensure_published_version(asset: ContentAsset, path: Path) -> str:
-    """Upload and publish `path`; returns what happened (`uploaded`, `unchanged`)."""
+    """Upload and publish `path`; returns what happened (`uploaded`, `existing`, `unchanged`,
+    or `QUEUED` when the version is still a `DRAFT` being validated in the background, in which
+    case nothing is published)."""
     with path.open("rb") as upload:
         try:
             version = upload_version(asset, upload, original_filename=path.name)
@@ -71,6 +80,8 @@ def ensure_published_version(asset: ContentAsset, path: Path) -> str:
             status = "existing"
         else:
             status = "uploaded"
+    if version.status == VersionStatus.DRAFT:
+        return QUEUED
     publish_version(version)
     return status
 
@@ -136,6 +147,12 @@ class Command(BaseCommand):
             for finding in getattr(refused, "findings", None) or []:
                 self.stdout.write(f"  finding: {finding}")
             raise CommandError(f"Model refused: {refused.code}.") from refused
+        if status == QUEUED:
+            self.stdout.write(
+                "Model: queued for background validation; rerun this command after it passes. "
+                "Nothing was published and the variant was not changed."
+            )
+            return
         asset.refresh_from_db()
         version = asset.default_version
         clips = ", ".join(version.clips)

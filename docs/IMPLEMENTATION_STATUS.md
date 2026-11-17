@@ -42,6 +42,109 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
+
+Repository only; no AWS resource was created or changed. Re-lands the compatible parts of PR #40,
+PR #41 and `feature/serverless-processing-wave3` (all unmerged, branches kept as implementation
+references) on the one processing path. Details: `docs/processing/CANONICAL_PATH.md` ("Re-land
+status") and `docs/processing/ASYNC_MODEL_VALIDATION.md`. The earlier Wave 1, 2 and 3 status
+entries live on those branches and are superseded by ADR-064 and this entry.
+
+- **Foundation (principal).** `processing/lai_processing` and the GLB validator re-landed with the
+  Wave 2/3 review fixes, plus a comment in `core/limits.py`; `asset.validate_model` and
+  `reference.checksum` as `apps.jobs` kinds on the media queue (`envelope.KIND_QUEUE`, `JobKind`,
+  migration `jobs.0003_contract_kinds` with `idempotency_key` and `subject_outcome`,
+  `services.submit(job_id=, idempotency_key=)`); `core/contract.py` runs the ADR-061 request in the
+  schema-1 payload and returns the ADR-061 result (retryable failures redeliver through SQS,
+  permanent ones become `failed` results, no artifact writes); `lambda/build.py` vendors the library
+  into the worker zip; settings put `processing/` on `sys.path` and add `LAI_ASSET_ASYNC_VALIDATION`
+  (default `off`).
+- **Workstream 1 (upload and gate, LAI-LAMBDA-006 and 007).** Flag-on GLB upload: `DRAFT` and its
+  job in one transaction, `processing_unavailable` when submission is refused; publication gate
+  `processing_required`.
+- **Workstream 2 (result tests).** `asset.validate_model` results through `apply_result` and
+  `jobs_consume_results`: verdicts, failures, duplicates and late results, forged and mismatched
+  results, identity changes, manual revalidation, handler database errors, lock order and
+  concurrency, idempotent submission; `reference.checksum` end to end.
+- **Workstream 3 (Django Admin, LAI-LAMBDA-007).** Read-only "Background validation" section and
+  the "Validate in background" action; every value escaped.
+- **Workstream 4 (worker, zip, packaging, guard).** Contract kinds through the packaged handler;
+  zip contents, determinism, import guard and 2 MiB budget (about 351 KB); the native release and
+  `lai/Dockerfile` ship `processing/lai_processing`; workflows trigger on it;
+  `tests/repo/test_canonical_processing_guard.py`.
+- **Defects found and fixed on this branch:**
+  - the contract status was not checked: a failed or cancelled `ProcessingJobResult` inside a
+    schema-1 `succeeded` envelope rejected the draft; it is now `result_invalid`;
+  - a refused result (mismatch or invalid) blocked resubmission for good; only pending, running
+    or applied jobs are reused now;
+  - a transient S3 read during the engine's input copy was `unexpected_failure` (manual, never
+    retried); it is now `storage_failure` and retried through SQS;
+  - the `glb-default` profile's 300 s budget exceeded the media function's 120 s timeout; the
+    request now carries 90 s.
+- **Retry and retention (owner decisions 2026-11-17; `fix/can-retry-retention` merged into
+  `feature/serverless-processing-canonical`).** Staff resubmission of a failed (any code, `timeout`
+  and `cancelled` included), refused, superseded or `fail`-verdict validation job makes a new job
+  under the asset row lock (double clicks make one); pending, running and passing jobs are reused;
+  at most `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` (5) jobs per file and processor version
+  (`attempts_exhausted`). No cancelled job status: a contract cancel is `failed`/`cancelled`. A
+  result whose job is no longer the version's newest is `result_superseded` and changes nothing; the
+  gate follows the newest accepted result. A `REJECTED` version stays rejected and a published one
+  never changes. `jobs_sweep` keeps completed `asset.validate_model` jobs
+  `LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90; exactly 90 days is kept), other kinds keep
+  `LAI_JOBS_RETENTION_DAYS`; pending, running and failed jobs are never pruned. An unpublished GLB
+  whose passing job was pruned needs a new validation; published delivery is unaffected. Tests:
+  `test_model_validation_retry.py`, additions to `test_admin_validation.py`, `test_jobs_services.py`
+  and `test_jobs_admin_settings.py`. Docs: `ASYNC_MODEL_VALIDATION.md` sections 9 and 10. Open:
+  whether failed validation jobs should also expire; a compact immutable evidence record (evaluated,
+  not implemented); `.env.sample` not updated (not readable in this session).
+- **Tests:** the speech storage test that failed earlier in the full run
+  (`test_speech_storage.py::TestS3::test_presigned_urls_use_the_regional_host`, order dependent)
+  is fixed: a boto3 default session cached ambient credentials; fixed by 7e94966 plus a module
+  fixture in 2333d9e. Final suite results:
+  at `55657cb`, full pytest on PostgreSQL 6110 passed, 7 skipped; React unit tests, build,
+  typecheck, infra Vitest, offline dev and prod synth, Ruff, Prettier, oxlint (3 existing
+  warnings), content, golden, ADR and `makemigrations --check` all pass; the worker zip
+  `jobs-worker-e40163430cfccc67.zip` (361,456 bytes) builds identically twice; GitHub CI green.
+- **Local demo** (`scripts/processing/local-demo.sh`; Django with the packaged worker zip,
+  in-memory SQS and S3): a flag-on upload committed as `DRAFT` with its job on the media queue;
+  publication refused with `not_validated` (the draft) and `processing_required` (a flag-off
+  `VALIDATED` GLB); the packaged worker validated the GLB and `apply_result` recorded `running`
+  then applied the result (`VALIDATED`, exact clip names); a redelivered work message was ignored
+  as a duplicate; the Admin section rendered; explicit publish passed the gate and the resolver
+  served the version; a failing model became `REJECTED` (`invalid_json`); zero AWS calls.
+- **Not verified (live only, LAI-LAMBDA-011):** a deployed upload, worker run, DLQ redrive and
+  outage drill. **Owner decisions open:** artifact writes on this path. `s3:ListBucket` for the
+  media role: approved 2026-11-17 and done in the repository (`fix/can-s3-missing` merged into
+  `feature/serverless-processing-canonical`; not deployed): `ListAssetBucket` on the asset bucket
+  only (`StringLikeIfExists` `assets/*`), and asset read errors classified (missing: terminal
+  `object_missing`/`input_missing`; 403: terminal `access_denied`/`permission_denied`, never
+  "missing"; throttling, 5xx, transport: retried). `docs/processing/CANONICAL_PATH.md`, "Asset read
+  errors"; live 404 check in LAI-LAMBDA-011.
+- **GLB input limit decided (owner, 2026-11-17; `fix/can-glb-limit` merged into
+  `feature/serverless-processing-canonical`):** `LAI_ASSET_MAX_GLB_BYTES`, default 50 MiB =
+  52,428,800 bytes, bounds 1 MiB to 50 MiB (the `glb-default` profile limit), applied to the Admin
+  upload, the `asset.validate_model` request and the `asset.inspect` payload (`max_bytes`, enforced
+  by the worker; old payloads keep 64 MiB). nginx `client_max_body_size 55m` already covers 50 MiB
+  plus overhead. Tests: `lai/apps/assets/tests/test_glb_limit.py`,
+  `tests/deploy/test_upload_body_limit.py`, one worker test in
+  `tests/lambda/test_jobs_worker_handler.py`. Deploy the worker zip before or with Django.
+- **GLB validator memory and metadata fixes (review findings, merged into the canonical branch).**
+  A 16 MiB JSON chunk of tiny values peaked at 870 MB (`[{},{},...]`) in the 512 MB media
+  function; a linear, string-aware structural pre-scan now runs before `json.loads` in both the
+  processor (`jsonparse.scan_structure`) and Django's upload validator (`_scan_json`, mirrored,
+  parity-tested): nesting over 64 is `invalid_json`, more than 1,000,000 elements
+  (`max_json_elements`, not raisable by a request) is `too_complex`. Worst admitted 16 MiB chunk
+  measured at 235 MB peak RSS; the old worst cases are refused at 68 MB. The depth walk is gone.
+  Django now also refuses JSON nested deeper than 64 (the `deep_json` parity difference is
+  gone). Oversized extension names no longer fail the job with `resource_limit_exceeded`: the
+  extension lists and `generator` are dropped to fit, with a minimal fallback. Processor stays
+  1.0.0 (never deployed, no stored result). No infra or memory change.
+  `docs/processing/GLB_VALIDATION.md` section 3, "JSON memory budget".
+- **Worker cache lookups (review finding, `fix/can-cache-403` merged).** A 403 on the worker's
+  own stored-result lookup or speech clip HEAD now means "not stored yet" instead of a retry; it
+  kept every job's first delivery out of the DLQ when the plain `s3:prefix` ListBucket grants do
+  not apply. No IAM change; asset inputs keep 403 as `access_denied`. Pre-existing on `main`.
+
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 
 Owner decisions 1 to 8 of 2026-11-17. Repository only; no AWS resource was created or changed.

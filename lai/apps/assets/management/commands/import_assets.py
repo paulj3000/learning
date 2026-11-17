@@ -1,10 +1,12 @@
-"""Import existing models as validated (unpublished) asset versions (LAI-2200 AM-8).
+"""Import existing models as unpublished asset versions (LAI-2200 AM-8).
 
     python manage.py import_assets --from-bundled [--ids a,b] [--root react/public] [--dry-run]
     python manage.py import_assets --from-amplify export.json --files ./downloads [--dry-run]
 
 Idempotent: files already imported (same SHA-256) are skipped. Nothing is published, deleted or
-re-pointed. `--ids` limits a bundled import to those asset ids (for example the Treasure Cove
+re-pointed. Versions are `VALIDATED`; with `LAI_ASSET_ASYNC_VALIDATION=on` an imported GLB is a
+`DRAFT` until its background validation finishes, and each imported file is listed with its
+status. `--ids` limits a bundled import to those asset ids (for example the Treasure Cove
 models: `--ids npc-pip,treasure-chest,ground-tile`). `--json` prints the full report. See
 apps/assets/importer.py and docs/ASSET_LIBRARY.md section 11.
 """
@@ -18,7 +20,7 @@ from apps.assets.importer import import_amplify, import_bundled
 
 
 class Command(BaseCommand):
-    help = "Import bundled or Amplify models into the asset library as validated versions."
+    help = "Import bundled or Amplify models into the asset library as unpublished versions."
 
     def add_arguments(self, parser):
         source = parser.add_mutually_exclusive_group(required=True)
@@ -58,11 +60,26 @@ class Command(BaseCommand):
             return
         prefix = "Dry run: would import" if dry_run else "Imported"
         self.stdout.write(f"{prefix} {len(report.imported)} file(s).")
+        for item in report.imported:
+            if not dry_run:
+                self.stdout.write(f"  {_imported_line(item)}")
         self.stdout.write(f"Already imported (skipped): {len(report.skipped)}.")
         self.stdout.write(f"New definitions: {len(report.created_definitions)}.")
         self.stdout.write(f"Unresolved: {len(report.unresolved)}.")
         for item in report.unresolved:
             self.stdout.write(f"  {_dumps(item)}")
+
+
+def _imported_line(item: dict) -> str:
+    """One imported file and its version status, for example
+    `npc-pip version 2: Imported (DRAFT, background validation queued)`."""
+    status = item.get("status", "")
+    if item.get("background_validation") == "queued":
+        state = f"Imported ({status}, background validation queued)"
+    else:
+        state = f"Imported ({status})"
+    where = item.get("path") or item.get("slug") or ""
+    return f"{item.get('asset')} version {item.get('version')}: {state} from {where}"
 
 
 def _dumps(value) -> str:

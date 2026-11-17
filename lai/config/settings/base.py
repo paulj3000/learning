@@ -2,12 +2,18 @@
 
 import os
 import re
+import sys
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # lai/
+# The standard-library processing library (ADR-061, ADR-064) ships as processing/ beside lai/ in
+# the repository, the native release and the Django image; the contract job kinds import it.
+PROCESSING_DIR = BASE_DIR.parent / "processing"
+if PROCESSING_DIR.is_dir() and str(PROCESSING_DIR) not in sys.path:
+    sys.path.append(str(PROCESSING_DIR))
 # The versioned content export and its schema (LAI-0302); the catalog imports from here.
 CONTENT_DIR = BASE_DIR.parent / "content"
 
@@ -212,7 +218,31 @@ LAI_ASSET_REGION = os.environ.get("LAI_ASSET_REGION", "").strip()
 LAI_ASSET_LOCAL_ROOT = BASE_DIR / ".asset-storage"
 LAI_ASSET_DELIVERY = os.environ.get("LAI_ASSET_DELIVERY", "django").strip()
 LAI_ASSET_URL_TTL_SECONDS = int(os.environ.get("LAI_ASSET_URL_TTL_SECONDS", "3600"))
-LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))  # 50 MB
+# 50 MiB = 52,428,800 bytes. The upload limit for 3D models (.glb and .gltf); images and audio
+# have their own (LAI_ASSET_MAX_IMAGE_BYTES, LAI_ASSET_MAX_AUDIO_BYTES).
+LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))
+# GLB processing and inspection limit (owner decision 2026-11-17; docs/ASSET_LIBRARY.md section
+# 13): one number for the Admin upload of a .glb, the `asset.validate_model` request's
+# `max_input_bytes` and the `asset.inspect` payload's `max_bytes`. Default 50 MiB = 52,428,800
+# bytes. Bounds: at least 1 MiB, at most LAI_ASSET_GLB_CEILING_BYTES. The effective limit is
+# min(LAI_ASSET_MAX_GLB_BYTES, LAI_ASSET_MAX_UPLOAD_BYTES), so lowering the model upload limit
+# still lowers it (apps.assets.validation.max_glb_bytes).
+# The ceiling is the GLB validator profile's own input limit (`glb-default` v1,
+# lai_processing GLB_LIMITS.max_input_bytes, 50 MiB), which is below the 64 MiB `asset.inspect`
+# hard ceiling (apps.jobs.core.tasks.MAX_ASSET_BYTES). A larger GLB could be uploaded but never
+# validated in the background, so raising it needs a new profile version first. Not configurable;
+# lai/apps/assets/tests/test_glb_limit.py keeps it equal to the profile.
+LAI_ASSET_GLB_CEILING_BYTES = 50 * 1024 * 1024
+_glb_bytes_raw = os.environ.get("LAI_ASSET_MAX_GLB_BYTES", "52428800").strip()
+try:
+    LAI_ASSET_MAX_GLB_BYTES = int(_glb_bytes_raw)
+except ValueError:
+    raise ImproperlyConfigured("LAI_ASSET_MAX_GLB_BYTES must be a whole number of bytes.") from None
+if not 1024 * 1024 <= LAI_ASSET_MAX_GLB_BYTES <= LAI_ASSET_GLB_CEILING_BYTES:
+    raise ImproperlyConfigured(
+        "LAI_ASSET_MAX_GLB_BYTES must be between 1048576 (1 MiB) and "
+        f"{LAI_ASSET_GLB_CEILING_BYTES} (50 MiB) bytes."
+    )
 if LAI_ASSET_STORAGE not in {"s3", "local", "memory"}:
     raise ImproperlyConfigured("LAI_ASSET_STORAGE must be s3, local or memory.")
 if LAI_ASSET_DELIVERY not in {"django", "s3"}:
@@ -512,6 +542,15 @@ LAI_JOBS_RESULTS_BUCKET = os.environ.get("LAI_JOBS_RESULTS_BUCKET", "").strip()
 LAI_JOBS_STALE_MINUTES = int(os.environ.get("LAI_JOBS_STALE_MINUTES", "60"))
 # Completed jobs older than this are deleted by `jobs_sweep`. Failed jobs are kept for review.
 LAI_JOBS_RETENTION_DAYS = int(os.environ.get("LAI_JOBS_RETENTION_DAYS", "30"))
+# Completed `asset.validate_model` jobs (the publication gate's evidence) are kept this long
+# instead (owner decision 2026-11-17). An unpublished GLB whose passing job was pruned must be
+# validated again before it can be published; published versions are never affected.
+LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS = int(
+    os.environ.get("LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS", "90")
+)
+# Validation jobs allowed per logical validation (one version, file and processor version):
+# bounds staff resubmissions after failures (owner decision 2026-11-17).
+LAI_ASSET_VALIDATION_MAX_ATTEMPTS = int(os.environ.get("LAI_ASSET_VALIDATION_MAX_ATTEMPTS", "5"))
 if LAI_JOBS_BACKEND not in {"inline", "sqs", "disabled"}:
     raise ImproperlyConfigured("LAI_JOBS_BACKEND must be inline, sqs or disabled.")
 if LAI_JOBS_BACKEND == "sqs":
@@ -533,5 +572,23 @@ if not 5 <= LAI_JOBS_STALE_MINUTES <= 1440:
     raise ImproperlyConfigured("LAI_JOBS_STALE_MINUTES must be between 5 and 1440.")
 if not 1 <= LAI_JOBS_RETENTION_DAYS <= 365:
     raise ImproperlyConfigured("LAI_JOBS_RETENTION_DAYS must be between 1 and 365.")
+if not 1 <= LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS <= 730:
+    raise ImproperlyConfigured("LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS must be between 1 and 730.")
+if not 1 <= LAI_ASSET_VALIDATION_MAX_ATTEMPTS <= 20:
+    raise ImproperlyConfigured("LAI_ASSET_VALIDATION_MAX_ATTEMPTS must be between 1 and 20.")
 if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND == "disabled":
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND inline or sqs.")
+
+# Asynchronous model validation (LAI-LAMBDA-006, owner-approved 2026-11-17, ADR-064). `off` (the
+# default in every environment): uploads behave exactly as before. `on`: a GLB upload that passes
+# the synchronous checks is stored as a DRAFT version and an `asset.validate_model` job (media
+# queue) is submitted in the same transaction; its result moves the draft to VALIDATED or
+# REJECTED, and publishing a GLB needs a matching passing result. Refused with the jobs backend
+# disabled. Never switched on by a deployment.
+LAI_ASSET_ASYNC_VALIDATION = os.environ.get("LAI_ASSET_ASYNC_VALIDATION", "off").strip().lower()
+if LAI_ASSET_ASYNC_VALIDATION not in {"off", "on"}:
+    raise ImproperlyConfigured("LAI_ASSET_ASYNC_VALIDATION must be off or on.")
+if LAI_ASSET_ASYNC_VALIDATION == "on" and LAI_JOBS_BACKEND == "disabled":
+    raise ImproperlyConfigured(
+        "LAI_ASSET_ASYNC_VALIDATION=on needs LAI_JOBS_BACKEND inline or sqs."
+    )

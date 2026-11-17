@@ -125,6 +125,9 @@ if LAI_STUDIO_RUN_MODE not in {"jobs", "manual"}:
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE must be jobs or manual in production.")
 if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND != "sqs":
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND=sqs.")
+# Re-checked here because production's jobs backend default (`disabled`) differs from base.py's.
+if LAI_ASSET_ASYNC_VALIDATION == "on" and LAI_JOBS_BACKEND != "sqs":
+    raise ImproperlyConfigured("LAI_ASSET_ASYNC_VALIDATION=on needs LAI_JOBS_BACKEND=sqs.")
 
 # Development bootstrap (ADR-055, docs/infrastructure/dev-native-environment.md): the dev
 # environment's installer may publish the approved Treasure Rush seed content once. Both values

@@ -6,7 +6,8 @@ the metadata a published version carries (animation clips, bounding dimensions, 
 
 Safety rules, all enforced here:
 - The format comes from the bytes (GLB magic or a JSON document), never the file name.
-- Reads are bounded: the size is checked before anything is read, the JSON is capped, and the
+- Reads are bounded: the size is checked before anything is read (a GLB's own, possibly lower,
+  limit `max_glb_bytes` right after its 12-byte header), the JSON is capped, and the
   binary chunk is never loaded (only a few bytes are peeked to check embedded image types).
 - Nothing is fetched or opened: every `uri` must be an embedded `data:` URI. External files,
   `http(s)`, `file:` and relative paths are rejected.
@@ -82,6 +83,9 @@ LIMITS = {
     "materials": 500,
     "images": 200,
     "depth": 64,
+    # The JSON structure pre-scan (`_scan_json`), before `json.loads`: nesting and elements.
+    "json_depth": 64,
+    "json_elements": 1_000_000,
 }
 COMPONENT_BYTES = {5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4}
 COUNTED = ("nodes", "meshes", "materials", "textures", "images", "animations", "skins")
@@ -135,7 +139,18 @@ class _Stop(Exception):
 
 
 def max_upload_bytes() -> int:
+    """The model upload limit (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MiB = 52,428,800 bytes)."""
     return int(getattr(settings, "LAI_ASSET_MAX_UPLOAD_BYTES", 50 * 1024 * 1024))
+
+
+def max_glb_bytes() -> int:
+    """The GLB processing and inspection limit: `LAI_ASSET_MAX_GLB_BYTES` (default 50 MiB =
+    52,428,800 bytes, bounds checked in settings), never above the model upload limit.
+
+    One number for the Admin upload of a .glb, the `asset.validate_model` request's
+    `max_input_bytes` and the `asset.inspect` payload's `max_bytes`."""
+    glb = int(getattr(settings, "LAI_ASSET_MAX_GLB_BYTES", 50 * 1024 * 1024))
+    return min(glb, max_upload_bytes())
 
 
 def max_bytes_for(family: str) -> int:
@@ -213,6 +228,14 @@ def validate_model(stream: IO[bytes], *, size: int, definition=None) -> Validati
         head = stream.read(12)
         if len(head) >= 4 and struct.unpack_from("<I", head)[0] == GLB_MAGIC:
             result.format = ModelFormat.GLB
+            if size > max_glb_bytes():
+                result.error(
+                    "too_large",
+                    f"The file is {size:,} bytes; the limit for GLB models is "
+                    f"{max_glb_bytes():,} bytes. Reduce texture sizes or polygon count and "
+                    "export again.",
+                )
+                raise _Stop
             document, bin_info = _read_glb(result, stream, head, size)
         else:
             result.format = ModelFormat.GLTF
@@ -308,7 +331,57 @@ def _read_gltf_json(result, stream, size):
     return _parse_json(result, raw)
 
 
+# Mirrors `scan_structure` in processing/lai_processing/processors/gltf/jsonparse.py (the
+# parity tests run both); see that function for the reasoning, and
+# docs/processing/GLB_VALIDATION.md section 3 for the measured memory it bounds. Possessive
+# quantifiers keep the regular expression from storing one backtracking entry per escape.
+_JSON_TOKEN = re.compile(rb'"[^"\\]*+(?:\\.[^"\\]*+)*+"|["\[\]{}:,]', re.DOTALL)
+
+
+def _scan_json(raw: bytes) -> str | None:
+    """`"unterminated"`, `"depth"` or `"elements"` when the raw JSON breaks a structural bound,
+    else None. One linear pass that skips strings whole, before anything is parsed."""
+    max_depth, max_elements = LIMITS["json_depth"], LIMITS["json_elements"]
+    depth = elements = 0
+    for tokens, match in enumerate(_JSON_TOKEN.finditer(raw), 1):
+        if tokens > 3 * max_elements + 1:
+            return "elements"
+        start = match.start()
+        first = raw[start]
+        if first == 0x22:  # '"'
+            if match.end() - start == 1:
+                return "unterminated"
+            continue
+        if first in b"]}":
+            depth -= 1
+            continue
+        elements += 1
+        if elements > max_elements:
+            return "elements"
+        if first in b"[{":
+            depth += 1
+            if depth > max_depth:
+                return "depth"
+    return None
+
+
 def _parse_json(result, raw: bytes) -> dict:
+    # Parsing millions of tiny values costs far more memory than the bytes themselves, so the
+    # structure is bounded before json.loads runs.
+    exceeded = _scan_json(raw)
+    if exceeded == "elements":
+        result.error(
+            "too_complex",
+            f"The model's JSON has more than {LIMITS['json_elements']:,} elements.",
+            "json",
+        )
+        raise _Stop
+    if exceeded == "depth":
+        result.error("invalid_json", "The model's JSON is nested too deeply.", "json")
+        raise _Stop
+    if exceeded is not None:
+        result.error("invalid_json", "The model's JSON is not valid.")
+        raise _Stop
     try:
         document = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, ValueError, RecursionError):
@@ -593,7 +666,14 @@ def _point(value) -> bool:
 
 
 def _finite(value) -> bool:
-    return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value)
+    """A finite JSON number. An integer too large for a float is not finite; `math.isfinite`
+    would raise OverflowError on it."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _vector(value, length, fill, default_last=None):

@@ -172,7 +172,9 @@ SiteCertificateArn, SiteDeployRoleArn and FrontendDeploymentRoleArn (the same ro
 
 1. CI (`deploy-dev-native.yml`) or the installer runs the Django checks, then
    `scripts/aws/native/package-release.sh`: a deterministic tarball (`git ls-files`, sorted, fixed
-   times and owners) with `lai/`, `content/`, `react/public/models/`, `requirements.txt`, an
+   times and owners) with `lai/`, `processing/lai_processing/` (the standard-library processing
+   library Django imports from beside `lai/`, without its contract test fixtures; ADR-064),
+   `content/`, `react/public/models/`, `requirements.txt`, an
    aarch64 cp312 wheelhouse from `pip download --only-binary=:all:`, `deploy/native/` and
    `scripts/aws/native/`, plus a manifest with its SHA-256.
 2. `scripts/aws/dev-release.sh upload` puts both under `releases/django/<sha>` with a conditional
@@ -206,7 +208,9 @@ always on, and the backend catches up at the next start.
 This is the one canonical background-processing path (ADR-055, ADR-064); there is no second job
 model, queue family, consumer, bucket or stack. Contract kinds from PR #40/#41 (the
 `lai_processing` package and the GLB validator) re-land on it as `apps.jobs` kinds
-(`docs/processing/CANONICAL_PATH.md`).
+(`docs/processing/CANONICAL_PATH.md`, "Re-land status"; `docs/processing/ASYNC_MODEL_VALIDATION.md`):
+the media worker also runs `asset.validate_model` and `reference.checksum`, with the same asset
+bucket ports as `asset.inspect` (read only).
 
 ```text
 services.submit -> ProcessingJob row (PENDING, committed: the outbox)
@@ -262,6 +266,7 @@ Workload status:
 | AI Question Studio batch generation (Bedrock) | **Lambda** (`studio.generate_chunk`, `LAI_STUDIO_RUN_MODE=jobs`) | One chunk in flight per batch; Django does the same accounting, validation, kill switch and token quota as before, then queues the next chunk. Questions stay drafts |
 | NPC speech pre-generation after a publish (Polly, authored lines only) | **Lambda** (`speech.synthesize`) when `LAI_JOBS_BACKEND=sqs` | Same cache key, caps and records as the synchronous path; child-scoped speech never leaves Django. Polly runs in Django's `LAI_SPEECH_AWS_REGION` |
 | Asset inspection: GLB/glTF structure, PNG/JPEG/WebP size, WAV/Ogg/MP3 basics | **Lambda** (`asset.inspect`), Django Admin action "Inspect in background" | Results are stored on the job; published asset metadata is never rewritten |
+| Full GLB model validation (LAI-LAMBDA-006, 007; on `feature/serverless-processing-canonical`, not deployed) | **Lambda** (`asset.validate_model`, media queue), on upload when `LAI_ASSET_ASYNC_VALIDATION=on` (default `off`) and by the Admin action "Validate in background" | The result moves a `DRAFT` to `VALIDATED` or `REJECTED` and gates publishing a GLB; it never publishes and never changes a non-draft |
 | Chatty companion and tutor turns, interactive `speak()` | Django, synchronous | Latency-sensitive gameplay; deliberately not queued |
 | Upload validation (size, format sniffing) | Django, synchronous | Fast, needed before the upload is accepted |
 | Speech cache cleanup, AI audit retention, job sweep | EC2 `lai-maintenance.timer` | Need the database; Lambda has no database access by design |
@@ -270,7 +275,9 @@ Workload status:
 
 Settings: `LAI_JOBS_BACKEND` (`inline` locally and in tests, `sqs` in dev, `disabled` by default in
 production), `LAI_JOBS_AI_QUEUE_URL`, `LAI_JOBS_MEDIA_QUEUE_URL`, `LAI_JOBS_RESULTS_QUEUE_URL`,
-`LAI_JOBS_RESULTS_BUCKET`, `LAI_JOBS_STALE_MINUTES` (60), `LAI_JOBS_RETENTION_DAYS` (30). Staff see
+`LAI_JOBS_RESULTS_BUCKET`, `LAI_JOBS_STALE_MINUTES` (60), `LAI_JOBS_RETENTION_DAYS` (30),
+`LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90, completed model validation jobs) and
+`LAI_ASSET_VALIDATION_MAX_ATTEMPTS` (5). Staff see
 every job (pending, running, completed, failed) under Django Admin, Jobs, Processing jobs, and a
 Studio batch shows its jobs. The `npc_pregenerate_speech` report gains a `queued` count.
 
@@ -281,6 +288,28 @@ any stack, because turning them on starts paid Bedrock and Polly use. `install-d
 --enable-ai --enable-speech` creates them from `LaiAiGuardrail-dev`'s outputs when missing and
 never overwrites an existing value. Without them the AI routes use their authored fallbacks and a
 Studio chunk fails with `configuration`.
+
+**Media worker and model validation (owner decisions recorded; ListBucket applied in the
+repository, not deployed).**
+
+- *Timeout.* `lai-dev-jobs-media` has a 120 s timeout. Django's `asset.validate_model` request
+  carries a 90 s execution budget (`MAX_EXECUTION_SECONDS` in `lai/apps/assets/processing.py`; the
+  `glb-default` profile alone would allow 300 s), so the engine stops first with a classified,
+  retryable `processing_timeout` and leaves time to report, instead of Lambda ending the run
+  part-way. The queue's visibility timeout is 6 times the function timeout.
+- *`s3:ListBucket` (owner decision 2026-11-17).* The media role (only) has `ListAssetBucket`:
+  `s3:ListBucket` on the asset bucket ARN with `StringLikeIfExists: {s3:prefix: ["assets/*"]}`,
+  beside its unchanged `ReadAssets` (`s3:GetObject` on the asset objects). S3 answers a missing
+  key with 404 only when ListBucket applies; a HEAD or GET carries no `s3:prefix`, so a plain
+  `StringLike` would not apply and the answer would stay 403. The IfExists form also allows a
+  list with no prefix, acceptable because the bucket holds only `assets/` library objects. A
+  missing key now fails at once (`object_missing` for `asset.inspect`, `input_missing` for the
+  contract kinds); a 403 fails at once as `access_denied`/`permission_denied` and is never read
+  as missing; throttling, 5xx and connection errors are retried. Table and reasoning:
+  `docs/processing/CANONICAL_PATH.md`, "Asset read errors". Live check: LAI-LAMBDA-011.
+- *Release order.* Ship Django (migration `jobs.0003` and the handlers) and the worker zip in the
+  same release, and do not switch the flag on or use Validate in background until both are
+  deployed.
 
 Known ordering caveat: `jobs_sweep` runs at 20:00 UTC while dev is up, after the consumer has
 drained the night's results. If it ever ran before the consumer caught up, a job whose result was

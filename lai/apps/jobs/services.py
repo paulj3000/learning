@@ -25,11 +25,13 @@ Logs carry job ids, kinds and codes only: never payloads, prompts, text or model
 import json
 import logging
 import re
+import uuid
 from datetime import timedelta
 from importlib import import_module
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils.timezone import now
 
 from .core import envelope, tasks
@@ -44,6 +46,8 @@ HANDLER_MODULES = {
     envelope.STUDIO_GENERATE_CHUNK: "apps.question_studio.jobs",
     envelope.SPEECH_SYNTHESIZE: "apps.speech.jobs",
     envelope.ASSET_INSPECT: "apps.assets.jobs",
+    envelope.ASSET_VALIDATE_MODEL: "apps.assets.processing",
+    envelope.REFERENCE_CHECKSUM: "apps.jobs.reference",
 }
 #: The largest work message accepted (SQS allows 256 KiB).
 MAX_WORK_BYTES = 240 * 1024
@@ -146,8 +150,19 @@ def _subject_ref(subject) -> tuple[str, str]:
     return f"{meta.app_label}.{meta.model_name}", str(subject.pk)
 
 
-def submit(kind: str, payload: dict, *, user=None, subject=None) -> ProcessingJob:
-    """Record and dispatch one job. `subject` is a model instance or a (type, id) pair."""
+def submit(
+    kind: str,
+    payload: dict,
+    *,
+    user=None,
+    subject=None,
+    job_id=None,
+    idempotency_key: str = "",
+) -> ProcessingJob:
+    """Record and dispatch one job. `subject` is a model instance or a (type, id) pair.
+
+    `job_id` and `idempotency_key` are for contract kinds, whose payload (an ADR-061 request)
+    names its own job id and logical key (core/contract.py)."""
     if kind not in envelope.KINDS:
         raise JobsError("unknown_kind")
     mode = backend()
@@ -160,7 +175,15 @@ def submit(kind: str, payload: dict, *, user=None, subject=None) -> ProcessingJo
     if size > MAX_WORK_BYTES:
         raise JobsError("payload_too_large")
     subject_type, subject_id = _subject_ref(subject)
+    try:
+        # Normalized so the returned job compares equal to the same row read back (a UUID pk on
+        # every backend, not the caller's str).
+        extra = {"id": uuid.UUID(str(job_id))} if job_id is not None else {}
+    except ValueError:
+        raise JobsError("invalid_job_id") from None
     job = ProcessingJob.objects.create(
+        **extra,
+        idempotency_key=idempotency_key,
         kind=kind,
         queue=envelope.KIND_QUEUE[kind],
         backend=mode,
@@ -376,8 +399,32 @@ def results_backlog() -> int | None:
         return None
 
 
+#: Kinds whose completed jobs are kept for their own period instead of `LAI_JOBS_RETENTION_DAYS`:
+#: a model validation job is the evidence the asset publication gate reads.
+RETENTION_SETTINGS = {envelope.ASSET_VALIDATE_MODEL: "LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS"}
+
+
+def retention_days(kind: str) -> int:
+    """Days a completed job of `kind` is kept before `sweep` deletes it."""
+    return int(getattr(settings, RETENTION_SETTINGS.get(kind, "LAI_JOBS_RETENTION_DAYS")))
+
+
+def prunable(stamp):
+    """Completed jobs `sweep` deletes at `stamp`: finished strictly more than their kind's
+    retention period before it (a job finished exactly that long ago is kept). Pending, running
+    and failed jobs are never pruned, whatever their age."""
+    special = list(RETENTION_SETTINGS)
+    expired = Q(
+        ~Q(kind__in=special),
+        finished_at__lt=stamp - timedelta(days=settings.LAI_JOBS_RETENTION_DAYS),
+    )
+    for kind in special:
+        expired |= Q(kind=kind, finished_at__lt=stamp - timedelta(days=retention_days(kind)))
+    return ProcessingJob.objects.filter(expired, status=JobStatus.COMPLETED)
+
+
 def sweep(*, dry_run: bool = False) -> dict[str, int]:
-    """Fail stale unfinished jobs (`timeout`) and delete old completed ones.
+    """Fail stale unfinished jobs (`timeout`) and delete old completed ones (`prunable`).
 
     Timeouts wait while the results queue holds messages (or its depth cannot be read): after the
     overnight stop or a database outage, completions for "stale" jobs may still be queued, and
@@ -389,10 +436,7 @@ def sweep(*, dry_run: bool = False) -> dict[str, int]:
             created_at__lt=stamp - timedelta(minutes=settings.LAI_JOBS_STALE_MINUTES),
         ).values_list("pk", flat=True)
     )
-    old = ProcessingJob.objects.filter(
-        status=JobStatus.COMPLETED,
-        finished_at__lt=stamp - timedelta(days=settings.LAI_JOBS_RETENTION_DAYS),
-    )
+    old = prunable(stamp)
     report = {"stale": len(stale_ids), "timed_out": 0, "deferred": 0, "pruned": old.count()}
     if dry_run:
         return report

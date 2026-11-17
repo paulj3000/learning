@@ -1123,6 +1123,23 @@ export class DevPlatformStack extends Stack {
       StringLike: { 's3:prefix': ['speech/*'] },
     });
     allow(mediaRole, 'ReadAssets', ['s3:GetObject'], [`${assetBucketArn}/*`]);
+    /*
+      Owner decision 2026-11-17: ListBucket on the asset bucket only, so that a HeadObject or
+      GetObject of a missing key answers 404 (NoSuchKey) instead of 403 (AccessDenied) and the
+      worker can tell a missing asset from a denied one. S3 returns 404 for a missing key only
+      when the caller is allowed s3:ListBucket on the bucket. A HEAD or GET carries no s3:prefix
+      key, and a plain StringLike condition on a key absent from the request context evaluates
+      false (IAM condition semantics), so `StringLike: {s3:prefix: assets/*}` would most likely
+      leave the 403 in place. StringLikeIfExists evaluates true when the key is absent (the
+      HEAD/GET case) and still holds an explicit list prefix to `assets/*`. Trade-off: it also
+      allows a ListObjects call with no prefix, which on this bucket lists only asset library
+      keys: it holds nothing but `assets/models|images|audio/...` (AssetStorageStack); child
+      photos and speech live in their own buckets, which this statement does not name. The
+      worker never calls ListObjects. Live 404 verification: LAI-LAMBDA-011.
+    */
+    allow(mediaRole, 'ListAssetBucket', ['s3:ListBucket'], [assetBucketArn], {
+      StringLikeIfExists: { 's3:prefix': ['assets/*'] },
+    });
 
     const worker = (kind: 'ai' | 'media', workerRoleResource: iam.Role, work: sqs.Queue) => {
       const spec = DEV_FUNCTIONS[kind];

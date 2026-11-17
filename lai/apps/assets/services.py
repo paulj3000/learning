@@ -20,6 +20,13 @@ from django.utils import timezone
 from apps.catalog.models import AssetStatus, ContentAsset
 
 from .models import CONTENT_TYPES, AssetVersion, VersionStatus
+from .processing import (
+    async_validation_applies,
+    identity_mismatch,
+    model_validation_summary,
+    submit_model_validation,
+    validation_jobs,
+)
 from .storage import KEY_PREFIX, StorageError, get_storage, object_key, sha256_of
 from .validation import Finding, ValidationResult, validate_upload
 
@@ -72,19 +79,29 @@ def _locked(asset: ContentAsset) -> ContentAsset:
 def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename: str, user=None):
     """Checksum, validate and store a new version of any supported family (AM-13).
 
-    Returns it `VALIDATED`, or raises.
+    Returns it `VALIDATED`, or raises. With `LAI_ASSET_ASYNC_VALIDATION=on` and a GLB model
+    (`async_validation_applies`), the version is created `DRAFT` and its `asset.validate_model`
+    job is submitted in the same transaction (ADR-064); the job's handler later moves the draft
+    to `VALIDATED` or `REJECTED` (with the inline backend, before this returns). The version
+    returned is re-read from the database.
 
     A file that fails validation is never stored and makes no row: the admin sees the findings
-    and nothing needs cleaning up. A storage or database failure leaves no row and no object.
+    and nothing needs cleaning up. A storage or database failure, or a refused job submission,
+    leaves no row, no job and no object.
     """
-    sha256, size = sha256_of(upload)
-    result = validate_upload(upload, size=size, definition=asset)
+    # Validate before hashing: an oversized file (above the model or GLB limit) is refused from
+    # its size and header alone, before the whole upload is read.
+    upload.seek(0, 2)
+    result = validate_upload(upload, size=upload.tell(), definition=asset)
+    upload.seek(0)
     if not result.passed:
         logger.info("asset upload rejected: %s %s", asset.asset_id, _codes(result))
         raise AssetActionRefused(
             "invalid_file", "The file did not pass validation.", result.findings
         )
+    sha256, size = sha256_of(upload)
 
+    deferred = async_validation_applies(result.format)
     storage = get_storage()
     with transaction.atomic():
         asset = _locked(asset)
@@ -113,30 +130,106 @@ def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename:
             raise AssetActionRefused(
                 "storage_failed", "The file could not be stored. Try again."
             ) from None
-        try:
-            version = AssetVersion.objects.create(
-                version_id=version_id,
+        if deferred:
+            version = _create_draft_and_submit(
+                storage,
+                key,
                 asset=asset,
+                version_id=version_id,
                 number=number,
-                status=VersionStatus.VALIDATED,
-                storage_key=key,
-                original_filename=(original_filename or "")[:255],
+                original_filename=original_filename,
                 content_type=content_type,
-                size_bytes=size,
+                size=size,
                 sha256=sha256,
-                format=result.format,
-                clips=result.clips,
-                dimensions=result.dimensions,
-                metadata=result.metadata,
-                validation_report=result.report(),
-                validated_at=timezone.now(),
-                uploaded_by=user,
+                result=result,
+                user=user,
             )
-        except Exception:
-            _delete_quietly(storage, key)  # the row failed: do not leave an orphan behind
-            raise
-    logger.info("asset version uploaded: %s v%s", asset.asset_id, number)
+        else:
+            try:
+                version = AssetVersion.objects.create(
+                    version_id=version_id,
+                    asset=asset,
+                    number=number,
+                    status=VersionStatus.VALIDATED,
+                    storage_key=key,
+                    original_filename=(original_filename or "")[:255],
+                    content_type=content_type,
+                    size_bytes=size,
+                    sha256=sha256,
+                    format=result.format,
+                    clips=result.clips,
+                    dimensions=result.dimensions,
+                    metadata=result.metadata,
+                    validation_report=result.report(),
+                    validated_at=timezone.now(),
+                    uploaded_by=user,
+                )
+            except Exception:
+                _delete_quietly(storage, key)  # the row failed: do not leave an orphan behind
+                raise
+    if deferred:
+        logger.info("asset version uploaded as draft: %s v%s", asset.asset_id, number)
+    else:
+        logger.info("asset version uploaded: %s v%s", asset.asset_id, number)
     return version
+
+
+def _create_draft_and_submit(
+    storage,
+    key: str,
+    *,
+    asset: ContentAsset,
+    version_id: uuid.UUID,
+    number: int,
+    original_filename: str,
+    content_type: str,
+    size: int,
+    sha256: str,
+    result: ValidationResult,
+    user,
+) -> AssetVersion:
+    """The asynchronous half of `upload_version`, run in its transaction (asset row locked) after
+    the object is stored: the `DRAFT` row and its model validation job commit together or not at
+    all. Any failure deletes the just-stored object and re-raises; a refused submission
+    (`JobsError`, `JobsDisabled` included) becomes `AssetActionRefused("processing_unavailable")`.
+    Returns the version re-read from the database: the inline backend has already applied the
+    job, so it may be `VALIDATED` or `REJECTED`."""
+    from apps.jobs.services import JobsError
+
+    try:
+        version = AssetVersion.objects.create(
+            version_id=version_id,
+            asset=asset,
+            number=number,
+            status=VersionStatus.DRAFT,
+            storage_key=key,
+            original_filename=(original_filename or "")[:255],
+            content_type=content_type,
+            size_bytes=size,
+            sha256=sha256,
+            format=result.format,
+            clips=result.clips,
+            dimensions=result.dimensions,
+            metadata=result.metadata,
+            validation_report=result.report(),
+            validated_at=None,
+            uploaded_by=user,
+        )
+        submit_model_validation(version, user=user)
+        return AssetVersion.objects.select_related("asset").get(pk=version.pk)
+    except JobsError as error:
+        _delete_quietly(storage, key)
+        logger.warning(
+            "asset upload processing refused: %s v%s %s", asset.asset_id, number, error.code
+        )
+        raise AssetActionRefused(
+            "processing_unavailable",
+            "Background validation is not available right now, so the file was not stored. "
+            "Try again later.",
+        ) from None
+    except Exception:
+        _delete_quietly(storage, key)  # the row or the job failed: do not leave an orphan
+        raise
 
 
 def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
@@ -145,17 +238,25 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
     The stored object must still match the recorded checksum and size, and must still pass
     validation against the definition as it is now (its declared clips may have grown). A
     failure marks the version `REJECTED`. The first published version becomes the default.
+
+    When asynchronous validation applies (`LAI_ASSET_ASYNC_VALIDATION=on` and a GLB model), the
+    version also needs a completed, passing `asset.validate_model` job for exactly its stored
+    file, by the processor version this build runs; without one it is refused with
+    `processing_required` and left unchanged. Jobs are read, never locked. Publishing is always
+    this explicit call: no job result publishes a version.
     """
     with transaction.atomic():
         asset = _locked(version.asset)
         version = AssetVersion.objects.select_for_update().get(pk=version.pk)
-        if asset.status != AssetStatus.ACTIVE:
-            raise AssetActionRefused("asset_retired", "This asset is retired.")
-        if version.status != VersionStatus.VALIDATED:
-            raise AssetActionRefused(
-                "not_validated",
-                f"Only a validated version can be published (this one is {version.status}).",
-            )
+        refusal = publish_refusal(version, asset=asset)
+        if refusal is not None:
+            if refusal.code == "processing_required":
+                logger.info(
+                    "asset publish refused: %s v%s processing_required",
+                    asset.asset_id,
+                    version.number,
+                )
+            raise refusal
         try:
             stored = get_storage().open(version.storage_key)
         except StorageError:
@@ -190,6 +291,61 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
             "invalid_file", "The stored file failed validation; it was rejected.", result.findings
         )
     return version
+
+
+def publish_refusal(
+    version: AssetVersion, *, asset: ContentAsset | None = None
+) -> AssetActionRefused | None:
+    """Why `publish_version` would refuse `version` before reading its stored file, or None.
+
+    The same checks, in the same order, as the publication itself: the asset is active, the
+    version is `VALIDATED`, and, when asynchronous validation applies, `_has_passing_validation`.
+    Read only (Django Admin shows it); `publish_version` calls it under its locks and still
+    re-reads and re-validates the stored bytes afterwards."""
+    asset = asset if asset is not None else version.asset
+    if asset.status != AssetStatus.ACTIVE:
+        return AssetActionRefused("asset_retired", "This asset is retired.")
+    if version.status != VersionStatus.VALIDATED:
+        return AssetActionRefused(
+            "not_validated",
+            f"Only a validated version can be published (this one is {version.status}).",
+        )
+    if async_validation_applies(version) and not _has_passing_validation(version):
+        return AssetActionRefused(
+            "processing_required",
+            "This model has no passing background validation for its current file. Run "
+            "Validate in background, wait for a passing result, then publish again.",
+        )
+    return None
+
+
+#: `ProcessingJob.subject_outcome` codes after which a job's result does not count for the gate.
+_UNUSABLE_OUTCOMES = frozenset(
+    {"result_invalid", "version_missing", "processing_failed", "result_superseded"}
+)
+
+
+def _has_passing_validation(version: AssetVersion) -> bool:
+    """The publication gate (read only). The newest completed `asset.validate_model` job of this
+    version whose result was accepted when it was applied (no mismatch, not invalid, not
+    superseded) and whose request matches this version's stored bytes decides: it must be a pass
+    by the current processor version. An older pass never outvotes a newer accepted `fail`, and
+    a pruned job is no evidence (`jobs_sweep` retention): the version needs a new validation."""
+    from apps.jobs.models import JobStatus
+
+    for job in validation_jobs(version).filter(status=JobStatus.COMPLETED):
+        outcome = job.subject_outcome or ""
+        if outcome.endswith("_mismatch") or outcome in _UNUSABLE_OUTCOMES:
+            continue
+        if identity_mismatch(job, version) is not None:
+            continue
+        summary = model_validation_summary(job)
+        return (
+            summary is not None
+            and summary.get("verdict") == "pass"
+            and identity_mismatch(job, version, require_current_processor=True) is None
+        )
+    return False
 
 
 def set_default_version(version: AssetVersion) -> ContentAsset:
