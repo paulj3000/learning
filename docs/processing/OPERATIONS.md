@@ -36,12 +36,17 @@ with the hardening of the other `lai-*` units. The two long-running ones have
 `Restart=on-failure`, `RestartSec=30`, `TimeoutStopSec` 40 (dispatch) and 60 (completions); the
 reconcile service is `Type=oneshot` with no restart and `TimeoutStartSec=300` (section 6.1).
 
+Production runs the same two commands as the `jobs-dispatch` and `jobs-completions` services of
+`deploy/ec2/docker-compose.yml` (same image, settings and database as `django`, no port). They
+start, stop and roll back with the rest of the compose project and idle unless
+`LAI_PROCESSING_BACKEND` is `sqs`.
+
 ## 2. Commands (built)
 
 | Command | Options | Behaviour |
 |---|---|---|
 | `manage.py jobs_dispatch` | `--once`, `--interval S` (default 2), `--limit N` (default 50, 1 to 500) | Relays due outbox rows (`relay_outbox`). SIGTERM finishes the pass and exits. A database error closes the connection and backs off (2^n s, at most 60). Backend `disabled`: exits 0. `inline`: a pass also runs the jobs in-process. `--once` prints `{"sent": n}` |
-| `manage.py jobs_consume_completions` | `--once`, `--max-messages N` (1 to 10, default 10), `--wait-seconds S` (0 to 20, default 20), `--visibility S` (30 to 3600, default 300) | Applies completions (`apply_completion`) and acknowledges only after commit. `invalid`: neither acked nor released (reaches the DLQ after 5 receives). Transient (`CompletionDeferred`) or an unexpected error: released with `min(300, 5 x 2^(receive_count - 1))` s. Receive errors back off (2^n s, at most 60). Backend `disabled` or `inline`: exits 0. `--once` prints `{"received", "acked", "released", "left"}` |
+| `manage.py jobs_consume_completions` | `--once`, `--max-messages N` (1 to 10, default 10), `--wait-seconds S` (0 to 20, default 20), `--visibility S` (30 to 3600, default 300) | Runs `SELECT 1` before every receive and receives nothing while PostgreSQL is down. Applies completions (`apply_completion`) and acknowledges only after commit. `invalid`: neither acked nor released (reaches the DLQ after 5 receives). Transient (`CompletionDeferred`) or an unexpected error: released with `min(300, 5 x 2^(receive_count - 1))` s. After a database failure the rest of the batch is handed back with delay 0. Receive and database errors back off (2^n s, at most 60). Backend `disabled` or `inline`: exits 0. `--once` prints `{"received", "acked", "released", "left"}`; when the pre-receive check fails it prints those as 0 with `"database": "unavailable"` and exits 2 |
 | `manage.py jobs_reconcile` | `--dry-run`, `--stuck-minutes M` (1 to 1440, default 15) | Expires open contract jobs past `expires_at` (`failed`, `job_expired`) and counts outbox rows unsent for more than M minutes (logs `processing.outbox_stuck`). Prints `{"dryRun", "expired_due", "expired", "stuck_outbox"}`. A run that changes rows holds a PostgreSQL session advisory lock: an overlapping run prints `{"dryRun": false, "skipped": "already_running"}` and exits 0; `--dry-run` only reads and takes no lock. An unexpected error logs `processing.reconcile_failed type=<class>` and exits 1 |
 | `scripts/aws/native/processing-native.sh backlog` | `--stuck-minutes M` | Read only: runs `jobs_reconcile --dry-run` with the current release's settings as `lai` and prints one JSON line `{"backend", "dryRun", "expired_due", "expired", "stuck_outbox"}`; output that is not that JSON is refused, never echoed. Exit 0, 1 (report failed), 2 (usage), 3 (no release or no command) |
 | `manage.py jobs_sweep` | (existing) | Legacy kinds only; contract kinds are excluded |
@@ -83,11 +88,15 @@ touches nothing in AWS. It ran successfully at integration (job validated, verdi
 | Retention | 14 days | 14 days |
 | Visibility timeout | 3600 s (6 x the 600 s worker timeout x batch 1; validated at synth) | 300 s |
 | DLQ | `maxReceiveCount` 5, 14 days | `maxReceiveCount` 5, 14 days |
-| Who may send | Only `lai-django-ec2-<env>` (plus `additionalSenderRoleArns`) | Only the worker role (plus `additionalSenderRoleArns`) |
+| Who may send | Only `lai-django-ec2-<env>` (plus `workRedriveRoleArns`) | Only the worker role (plus `completionRedriveRoleArns`) |
 | Consumer | Lambda event source mapping: batch 1, `ReportBatchItemFailures`, `maximumConcurrency` = reserved concurrency | `jobs_consume_completions`, long polling 20 s |
 
-Worker: 600 s timeout (at most 840 s), cleanup margin 30 s (a job's deadline is at most 570 s),
-2048 MB memory and ephemeral storage, arm64, no VPC, reserved concurrency dev 2 / prod 5. Message
+Worker: 600 s timeout (at least 120 s, at most 840 s), cleanup margin 60 s (a job's deadline is
+at most 540 s at the 600 s timeout), 2048 MB memory and ephemeral storage, arm64, no VPC,
+reserved concurrency dev 2 / prod 5 (configurable; the deployed value is read back from the
+`ReservedConcurrency` stack output and kept by `provision.sh`, `deploy-debug.sh` and
+`deploy-processing.yml`, as are `AlarmOverrides`, `WorkRedriveRoleArns` and
+`CompletionRedriveRoleArns`). Message
 bodies stay at or below 240 KiB (`max_message_bytes`); a larger result goes by reference as the
 `report.job_result` artifact.
 
@@ -187,13 +196,22 @@ nothing due.
 
 ## 7. When RDS is unavailable while the consumer runs
 
-`apply_completion` raises `CompletionDeferred` on a database error; the consumer closes the
-connection and releases the message with `min(300, 5 x 2^(receive_count - 1))` s. The rest of
-that batch is handed back at once without being attempted, and the loop backs off (2^n s, at
-most 60). Before every receive the consumer runs `SELECT 1`; while PostgreSQL is unreachable it
-receives nothing, so an outage of any length does not spend the completions' receives or move
-them to the DLQ (built at Wave 2 integration; tests in `test_processing_commands.py`). On dev the
-nightly stop is not affected either way (the consumer is stopped before RDS).
+Before every receive the consumer runs `SELECT 1`. While PostgreSQL is known to be down it
+receives nothing and backs off (2, 4, 8 s and so on, at most 60 s), so the completions wait
+untouched in the queue and their receive counts do not grow. With `--once` the failed check
+prints `{"database": "unavailable", ...}` and exits 2.
+
+When the database fails after a receive, `apply_completion` raises `CompletionDeferred`; the
+consumer closes the connection and releases that message with `min(300, 5 x 2^(receive_count -
+1))` s, hands the rest of the batch back with delay 0 without attempting them, and backs off
+before the next receive. Messages are acknowledged only after commit. An `IntegrityError` is not
+treated as an outage (`processing.is_database_outage`).
+
+Limit: a database failure that happens after a receive still uses up that receive for every
+message in the batch, so repeated mid-batch failures can still bring a completion to
+`maxReceiveCount` 5 and the DLQ. An outage that is already in progress before the receive cannot.
+Tests: `test_processing_commands.py`. On dev the nightly stop is not affected (the consumer is
+stopped before RDS).
 
 What the check cannot prevent: a failure **after** a receive still spends that receive. If
 PostgreSQL fails between `SELECT 1` and the end of a batch, the message being applied is released
@@ -229,11 +247,9 @@ incident notes.
   redrive the work DLQ is not thereby allowed to redrive completions, and the reverse. SQS
   redrive sends as the caller, so a role not on the matching list is denied by the queue policy.
   Django Admin users, staff permissions and the Django instance role are **never** a redrive
-  path: no Django code, admin action or management command sends to a DLQ or redrives one. (The
-  separate lists and the redrive role list are the Wave 2 review fix B7 on
-  `feature/serverless-processing-wave2`; until it is merged this branch has only
-  `additionalSenderRoleArns`, which adds a role to both queues, and nothing is deployed either
-  way.)
+  path: no Django code, admin action or management command sends to a DLQ or redrives one. The
+  lists are the stack props `workRedriveRoleArns` and `completionRedriveRoleArns` (see
+  "Redrive permissions" below). Nothing is deployed.
 - **Messages expire.** Queues and DLQs keep messages 14 days. A message that has sat in a DLQ for
   most of that time has little left once redriven (SQS keeps the original enqueue time).
 
@@ -426,6 +442,18 @@ applied as `failed` with reason `retries_exhausted`. No message is in a DLQ. Aft
 6. Afterwards: DLQ depth back to 0; the job in Django Admin shows the expected state and
    `subject_outcome`; `processing-native.sh backlog` reports no `expired_due` and no lasting
    `stuck_outbox`.
+
+**Redrive permissions (owner decision B7, 2026-11-17).** The queue policies deny
+`sqs:SendMessage` on the work queue to everyone except `lai-django-ec2-<env>`, and on the
+completion queue to everyone except the worker role. An SQS redrive sends as the caller, so only
+authorized operations administrators may redrive: their role ARNs go in the stack props
+`workRedriveRoleArns` (work DLQ into the work queue) and `completionRedriveRoleArns` (completion
+DLQ into the completion queue), two separate lists, each granting the DLQ message-move actions
+and `sqs:SendMessage` on its own source queue only. The stack refuses the Django and worker roles
+in either list; redrive never runs as the Django role. Both lists default to empty; keep
+`completionRedriveRoleArns` empty unless a completion redrive is under way. The deployed lists
+are read back from the `WorkRedriveRoleArns` and `CompletionRedriveRoleArns` stack outputs so a
+later deploy keeps them.
 
 ## 9. Alarms (as synthesized in `LaiProcessing-<env>`)
 

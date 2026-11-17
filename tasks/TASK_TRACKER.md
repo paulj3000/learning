@@ -1015,13 +1015,15 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
       SC-11 gate)
 
-# Serverless Background Processing (`docs/processing/`, ADR-061 proposed)
+# Serverless Background Processing (`docs/processing/`, ADR-061 and ADR-062 accepted)
 
 Runtime-independent processing package `processing/lai_processing` (standard library only), with
 Django authoritative for job state and publication, SQS work and completion queues, and Lambda
-workers that never touch the database or publish. Trello cards LAI-LAMBDA-001 to 012. Wave 2
-workstreams, interfaces and file ownership: `docs/processing/WAVE2_HANDOFF.md`. No AWS resource is
-defined or deployed by any task until its approvals (ADR-061, A1 to A10) are given.
+workers that never touch the database or publish. Trello cards LAI-LAMBDA-001 to 013. Wave 2
+workstreams, interfaces and file ownership: `docs/processing/WAVE2_HANDOFF.md` (historical) and
+`docs/processing/WAVE2_INTERFACES.md`. ADR-061 accepted 2026-11-16; ADR-062 accepted 2026-11-17
+with owner decisions B4 to B7. The processing CDK stacks are defined and synthesized (LAI-LAMBDA-005)
+but not deployed; deployment is not authorized.
 
 ## Wave 1: foundation
 
@@ -1038,10 +1040,10 @@ defined or deployed by any task until its approvals (ADR-061, A1 to A10) are giv
 
 ## Wave 2: parallel workstreams (each depends on LAI-LAMBDA-001)
 
-- [x] **LAI-LAMBDA-002** GLB validator and metadata extractor (processor `asset.glb_validator`, job type `asset.validate_model`; parity with `lai/apps/assets/validation.py`). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; owner review pending, not merged
-- [x] **LAI-LAMBDA-003** Local worker, filesystem/S3/SQS adapters, Lambda handler packaging (separate adapters package; core stays boto3-free). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2` (ECR image per A4); owner review pending, nothing pushed to ECR
-- [x] **LAI-LAMBDA-004** Django `ProcessingJob` app: models, migrations, outbox, completion consumer, Django Admin status (extends `apps.jobs`, ADR-062 proposed). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; owner review pending, no live migration
-- [x] **LAI-LAMBDA-005** AWS infrastructure: `LaiProcessing-<env>` CDK stack, SQS work/completion queues and DLQs, Lambda, IAM, alarms. Code and synth tests DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; NOT deployed; any deploy BLOCKED on the deploy role (B4), GitHub environments (B5) and explicit owner approval
+- [x] **LAI-LAMBDA-002** GLB validator and metadata extractor (processor `asset.glb_validator`, job type `asset.validate_model`; parity with `lai/apps/assets/validation.py`). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; reviewed 2026-11-17 (fixes applied), PR #41 not merged
+- [x] **LAI-LAMBDA-003** Local worker, filesystem/S3/SQS adapters, Lambda handler packaging (separate adapters package; core stays boto3-free). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2` (ECR image per A4); reviewed 2026-11-17 (fixes applied), PR #41 not merged, nothing pushed to ECR
+- [x] **LAI-LAMBDA-004** Django `ProcessingJob` app: models, migrations, outbox, completion consumer, Django Admin status (extends `apps.jobs`, ADR-062 accepted 2026-11-17). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; reviewed 2026-11-17 (fixes applied), PR #41 not merged, no live migration. Open owner decision: resubmitting cancelled work (a cancelled job cannot be requeued; workaround: delete the draft and upload again)
+- [x] **LAI-LAMBDA-005** AWS infrastructure: `LaiProcessing-<env>` CDK stack, SQS work/completion queues and DLQs, Lambda, IAM, alarms. Code and synth tests DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; reviewed 2026-11-17 (fixes applied), PR #41 not merged; NOT deployed. B4 (OIDC deploy roles), B5 (`processing-dev`/`processing-prod` environments, deployment kept disabled), B6 (phase-one stacks first) and B7 (redrive only by authorized operations administrators) are decided; the deploy role and environments are still to be created, and any deploy needs explicit owner authorization
 
 ## Waves 3 to 5
 
@@ -1050,5 +1052,6 @@ defined or deployed by any task until its approvals (ADR-061, A1 to A10) are giv
 - [ ] **LAI-LAMBDA-008** Audio validation and transcoding worker (depends: 003, 005, 006)
 - [ ] **LAI-LAMBDA-009** NPC animation inspection and mapping assistance (depends: 002, 007)
 - [ ] **LAI-LAMBDA-010** Texture compression and GLB optimisation benchmarking (depends: 007)
+- [ ] **LAI-LAMBDA-013** Asset thumbnail generation and image conversion worker. Split from 010 on 2026-11-16 (Trello https://trello.com/c/hj71jv81). Not started
 - [ ] **LAI-LAMBDA-011** Staging end-to-end, failure, performance and cost acceptance (depends: 006, 007)
 - [ ] **LAI-LAMBDA-012** Production rollout, observability and rollback (depends: 011, owner approval)

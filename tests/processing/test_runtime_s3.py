@@ -310,6 +310,50 @@ def test_put_existing_different_or_unknown_is_conflict(
         do_put(storage)
 
 
+@pytest.mark.parametrize(
+    ("existing", "expected"),
+    [(B64, None), (base64.b64encode(b"\x01" * 32).decode(), ObjectExists)],
+)
+def test_put_racing_duplicate_409_is_resolved_like_412(
+    s3: tuple[S3ObjectStorage, Stubber], existing: str, expected: type[Exception] | None
+) -> None:
+    """A concurrent identical write is a success, not a transient failure."""
+    storage, stub = s3
+    stub.add_client_error(
+        "put_object",
+        service_error_code="ConditionalRequestConflict",
+        http_status_code=409,
+        expected_params=put_params(),
+    )
+    stub.add_response(
+        "head_object",
+        {"ContentLength": len(DATA), "VersionId": "v1", "ChecksumSHA256": existing},
+        {"Bucket": PROC_BUCKET, "Key": A_KEY, "ChecksumMode": "ENABLED"},
+    )
+    if expected is None:
+        info = do_put(storage)
+        assert info.version_id == "v1" and info.sha256 == SHA
+    else:
+        with pytest.raises(expected):
+            do_put(storage)
+
+
+def test_put_409_before_the_other_write_is_visible_is_transient(
+    s3: tuple[S3ObjectStorage, Stubber],
+) -> None:
+    storage, stub = s3
+    stub.add_client_error(
+        "put_object",
+        service_error_code="ConditionalRequestConflict",
+        http_status_code=409,
+        expected_params=put_params(),
+    )
+    stub.add_client_error("head_object", service_error_code="404", http_status_code=404)
+    with pytest.raises(StorageUnavailable) as caught:
+        do_put(storage)
+    assert caught.value.details["aws_code"] == "ConditionalRequestConflict"
+
+
 def test_put_verifies_bytes_before_any_request(s3: tuple[S3ObjectStorage, Stubber]) -> None:
     storage, _ = s3  # no stubbed response: a request would fail the stubber
     with pytest.raises(ProcessingError) as caught:

@@ -474,6 +474,22 @@ def _corpus() -> list[ParityCase]:
             "The processor requires a POSITION attribute on every primitive.",
         ),
         ParityCase(
+            "huge_integer_translation",
+            mutated(_set("nodes.0.translation", [10**400, 0, 0])),
+            E(),
+            E({"invalid_json"}),
+            "An integer too large for a float is refused by the strict parser; Django ignores "
+            "the transform (it once crashed with OverflowError).",
+        ),
+        ParityCase(
+            "huge_integer_accessor_max",
+            mutated(_set("accessors.0.max", [10**400, 0, 0])),
+            E({"no_geometry"}),
+            E({"invalid_json"}),
+            "An integer too large for a float is refused by the strict parser; Django treats "
+            "the POSITION bounds as missing.",
+        ),
+        ParityCase(
             "webp_texture",
             static_glb(texture=webp(64, 64), mime="image/webp"),
             E({"image_type"}),

@@ -21,7 +21,7 @@ ENV = {
 def test_defaults_and_store_mapping() -> None:
     config = RuntimeConfig.from_env(ENV)
     assert config.namespace == "dev"
-    assert config.cleanup_margin_seconds == 30
+    assert config.cleanup_margin_seconds == 60
     assert config.log_level == "INFO"
     assert config.buckets() == {
         StoreName.ASSETS: "lai-assets-dev",
@@ -32,9 +32,9 @@ def test_defaults_and_store_mapping() -> None:
 
 def test_optional_settings() -> None:
     config = RuntimeConfig.from_env(
-        {**ENV, "LAI_PROCESSING_CLEANUP_MARGIN_SECONDS": "60", "LAI_PROCESSING_LOG_LEVEL": "debug"}
+        {**ENV, "LAI_PROCESSING_CLEANUP_MARGIN_SECONDS": "90", "LAI_PROCESSING_LOG_LEVEL": "debug"}
     )
-    assert config.cleanup_margin_seconds == 60
+    assert config.cleanup_margin_seconds == 90
     assert config.log_level == "DEBUG"
 
 
@@ -71,6 +71,8 @@ def test_required_settings(name: str) -> None:
         ("LAI_PROCESSING_COMPLETION_QUEUE_URL", "https://user:pw@sqs.x.com/123456789012/q"),
         ("LAI_PROCESSING_COMPLETION_QUEUE_URL", "sqs-queue"),
         ("LAI_PROCESSING_CLEANUP_MARGIN_SECONDS", "4"),
+        ("LAI_PROCESSING_CLEANUP_MARGIN_SECONDS", "30"),  # below the AWS call budget
+        ("LAI_PROCESSING_CLEANUP_MARGIN_SECONDS", "55"),
         ("LAI_PROCESSING_CLEANUP_MARGIN_SECONDS", "301"),
         ("LAI_PROCESSING_CLEANUP_MARGIN_SECONDS", "30s"),
         ("LAI_PROCESSING_CLEANUP_MARGIN_SECONDS", "-5"),
@@ -84,7 +86,7 @@ def test_invalid_values_name_the_setting_not_the_value(name: str, value: str) ->
     assert value not in str(caught.value) or value in name
 
 
-@pytest.mark.parametrize("margin", ["5", "300"])
+@pytest.mark.parametrize("margin", ["56", "300"])
 def test_margin_bounds_are_inclusive(margin: str) -> None:
     env = {**ENV, "LAI_PROCESSING_CLEANUP_MARGIN_SECONDS": margin}
     assert RuntimeConfig.from_env(env).cleanup_margin_seconds == int(margin)
@@ -104,3 +106,17 @@ def test_local_config_layout(tmp_path: Path) -> None:
         LocalRuntimeConfig(root=tmp_path, assets_root=tmp_path, namespace="Bad")
     with pytest.raises(ConfigError):
         LocalRuntimeConfig(root=tmp_path, assets_root=tmp_path, cleanup_margin_seconds=1)
+    # The local worker makes no AWS calls, so its margin may stay small.
+    local = LocalRuntimeConfig(root=tmp_path, assets_root=tmp_path, cleanup_margin_seconds=5)
+    assert local.cleanup_margin_seconds == 5
+
+
+def test_the_lambda_margin_minimum_also_applies_to_direct_construction() -> None:
+    with pytest.raises(ConfigError):
+        RuntimeConfig(
+            namespace="dev",
+            processing_bucket=ENV["LAI_PROCESSING_BUCKET"],
+            asset_bucket=ENV["LAI_ASSET_BUCKET"],
+            completion_queue_url=URL,
+            cleanup_margin_seconds=30,
+        )

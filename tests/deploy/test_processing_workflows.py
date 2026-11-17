@@ -2,6 +2,7 @@
 gated and OIDC-only; ci.yml's processing-image job never pushes or talks to AWS; the native dev
 release ships processing/ (docs/infrastructure/processing-infrastructure.md, section 8)."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -94,7 +95,8 @@ def test_ci_builds_and_scans_the_image_without_pushing_or_aws():
     assert "--entrypoint python" in text
     assert "import lai_processing_runtime.lambda_handler" in text
     scan = next(s for s in job["steps"] if str(s.get("uses", "")).startswith("aquasecurity/"))
-    assert scan["uses"].split("@")[1][0].isdigit()  # pinned to a version, never a branch
+    # Pinned to a full commit SHA: a re-published or withdrawn tag can neither move nor break it.
+    assert re.fullmatch(r"[0-9a-f]{40}", scan["uses"].split("@")[1])
     assert scan["with"]["severity"] == "CRITICAL"
     assert scan["with"]["exit-code"] == "1"
 

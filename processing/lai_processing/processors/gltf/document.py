@@ -21,6 +21,7 @@ import base64
 import binascii
 import math
 import re
+import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Final
@@ -108,6 +109,13 @@ INTERPOLATIONS: Final = frozenset({"LINEAR", "STEP", "CUBICSPLINE"})
 TARGET_PATHS: Final = {"translation": "VEC3", "rotation": "VEC4", "scale": "VEC3", "weights": ""}
 MAX_MODE: Final = 6
 MAX_SAFE_INT: Final = 2**53
+# The largest integer a float can hold without overflowing to infinity.
+MAX_FLOAT_INT: Final = int(sys.float_info.max)
+# Node-primitive pairs whose bounds are measured one primitive at a time (rotated or sheared
+# instances of multi-primitive meshes); beyond it the scene is `too_complex` to measure.
+MAX_BOUNDS_PAIRS: Final = 200_000
+# Bytes of an embedded image decoded to read its header (any PNG/JPEG/WebP header we read).
+IMAGE_PREFIX_BYTES: Final = 65_535
 MAX_LISTED_EXTENSIONS: Final = 50
 MATERIAL_TEXTURES: Final = (
     ("pbrMetallicRoughness", "baseColorTexture"),
@@ -245,7 +253,13 @@ def _whole(value: object) -> bool:
 
 
 def _finite(value: object) -> bool:
-    return type(value) in (int, float) and math.isfinite(value)  # type: ignore[arg-type]
+    """A finite JSON number. An integer too large for a float is not finite (and never raises:
+    `math.isfinite` overflows on such an integer)."""
+    if type(value) is float:
+        return math.isfinite(value)
+    if type(value) is int:
+        return -MAX_FLOAT_INT <= value <= MAX_FLOAT_INT
+    return False
 
 
 def _numbers(value: object, length: int) -> tuple[float, ...] | None:
@@ -290,6 +304,22 @@ def _data_uri_payload_length(uri: str) -> int | None:
     return len(encoded) * 3 // 4 - padding
 
 
+def _data_uri_range(uri: str, offset: int, size: int) -> bytes:
+    """Bytes `offset .. offset + size` of a valid base64 data URI, decoding only the base64
+    quanta that cover them (never the whole buffer). Empty when they cannot be decoded."""
+    match = DATA_URI.match(uri)
+    if not match or offset < 0 or size <= 0:
+        return b""
+    first = match.end() + (offset // 3) * 4
+    last = match.end() + -(-(offset + size) // 3) * 4
+    try:
+        decoded = base64.b64decode(uri[first:last], validate=True)
+    except (binascii.Error, ValueError):
+        return b""
+    skip = offset % 3
+    return decoded[skip : skip + size]
+
+
 def _media_type(uri: str) -> str:
     match = DATA_URI.match(uri)
     return (match.group(1) or "").lower() if match else ""
@@ -328,6 +358,35 @@ def _node_matrix(node: dict[str, Any]) -> Matrix:
     return rotation
 
 
+Box = tuple[tuple[float, ...], tuple[float, ...]]
+
+
+@dataclass(frozen=True, slots=True)
+class _MeshBoxes:
+    boxes: list[Box]
+    union: Box | None
+    missing: bool
+
+
+def _axis_aligned(world: Matrix) -> bool:
+    """Whether each world axis depends on at most one local axis (no rotation or shear)."""
+    return all(sum(1 for k in range(3) if world[k * 4 + axis] != 0) <= 1 for axis in range(3))
+
+
+def _box_extent(world: Matrix, box: Box, axis: int) -> tuple[float, float]:
+    """The lowest and highest `axis` coordinate of the box's 8 transformed corners, computed
+    exactly as `t + (w0 * p0 + w1 * p1 + w2 * p2)` over every corner would give them."""
+    low = high = 0
+    for k in range(3):
+        weight = world[k * 4 + axis]
+        a, b = weight * box[0][k], weight * box[1][k]
+        if b < a:
+            a, b = b, a
+        low += a
+        high += b
+    return world[12 + axis] + low, world[12 + axis] + high
+
+
 # --- the validator -------------------------------------------------------------------------
 
 
@@ -351,6 +410,8 @@ class _Validator:
         self.arrays: dict[str, list[Any]] = {}
         self.buffer_lengths: list[int] = []
         self.buffer_embedded: list[bool] = []
+        # The data URI of each buffer whose base64 payload is valid, else None.
+        self.buffer_uris: list[str | None] = []
         self.views_ok: list[bool] = []
         self.accessors: list[AccessorInfo | None] = []
         self.parents: list[int | None] = []
@@ -492,12 +553,14 @@ class _Validator:
                 self.error("invalid_buffer", "A buffer entry is malformed.", path)
                 self.buffer_lengths.append(0)
                 self.buffer_embedded.append(False)
+                self.buffer_uris.append(None)
                 continue
             declared = buffer.get("byteLength")
             if not _whole(declared) or declared < 1:  # type: ignore[operator]
                 self.error("invalid_buffer", "A buffer has no valid byteLength.", path)
                 declared = 0
             uri = buffer.get("uri")
+            data_uri: str | None = None
             if uri is None:
                 if index != 0 or bin_length is None:
                     self.error("missing_buffer", "A buffer has no data.", path)
@@ -532,8 +595,11 @@ class _Validator:
                     self.error(
                         "buffer_bounds", "An embedded buffer is shorter than its byteLength.", path
                     )
+                else:
+                    data_uri = uri
             self.buffer_lengths.append(declared)  # type: ignore[arg-type]
             self.buffer_embedded.append(embedded)
+            self.buffer_uris.append(data_uri)
 
     def _buffer_views(self) -> None:
         for index, raw in enumerate(self.items("bufferViews")):
@@ -757,9 +823,15 @@ class _Validator:
                 self.error("invalid_image", "A texture points at a missing buffer view.", path)
                 continue
             view = _dict(views[view_index]) or {}  # type: ignore[index]
-            if not (self.views_ok[view_index] and view.get("buffer") == 0):  # type: ignore[index]
-                continue
-            if not self.buffer_embedded or not self.buffer_embedded[0]:
+            if not self.views_ok[view_index]:  # type: ignore[index]
+                continue  # already reported on the buffer view
+            buffer_index = view["buffer"]
+            if not self.buffer_embedded[buffer_index]:
+                # A texture in a data-URI buffer is read from a bounded decoded prefix, so its
+                # dimensions are still checked (an unusable buffer is reported on the buffer).
+                uri = self.buffer_uris[buffer_index]
+                if uri is not None:
+                    self._buffer_uri_image(entry, media, uri, view, path)
                 continue
             bin_offset = self.layout.bin_offset
             assert bin_offset is not None  # noqa: S101 - buffer 0 is embedded
@@ -780,6 +852,22 @@ class _Validator:
 
             self._record_image(entry, media, image_dimensions(media, read, length), path)
 
+    def _buffer_uri_image(
+        self, entry: dict[str, Any], media: str, uri: str, view: dict[str, Any], path: str
+    ) -> None:
+        prefix = _data_uri_range(
+            uri, view.get("byteOffset", 0), min(view["byteLength"], IMAGE_PREFIX_BYTES)
+        )
+        if sniff_image(prefix[:32]) != media:
+            if media in ALLOWED_IMAGE_TYPES:
+                self.error("image_type", "A texture is not the image type it claims.", path)
+            return
+
+        def read(offset: int, size: int) -> bytes:
+            return prefix[offset : offset + size] if offset >= 0 else b""
+
+        self._record_image(entry, media, image_dimensions(media, read, len(prefix)), path)
+
     def _data_uri_image(self, index: int, uri: object, image: dict[str, Any], path: str) -> None:
         if not isinstance(uri, str) or not uri[:5].lower() == "data:":
             self.error(
@@ -799,7 +887,7 @@ class _Validator:
         match = DATA_URI.match(uri)
         assert match is not None  # noqa: S101 - the media type matched
         # Decode only a bounded prefix (whole base64 quanta): enough for any header we read.
-        encoded = uri[match.end() : match.end() + 87_380]
+        encoded = uri[match.end() : match.end() + IMAGE_PREFIX_BYTES * 4 // 3 + 4]
         encoded = encoded[: len(encoded) - len(encoded) % 4]
         try:
             prefix = base64.b64decode(encoded, validate=True)
@@ -1057,6 +1145,7 @@ class _Validator:
             path = f"scenes[{index}]"
             scene = _dict(raw)
             roots: list[int] = []
+            seen: set[int] = set()
             entries = scene.get("nodes", []) if scene else None
             if not isinstance(entries, list):
                 self.error("invalid_scene", "A scene is malformed.", path)
@@ -1066,12 +1155,13 @@ class _Validator:
                 self.check()
                 if not _index(root, nodes):
                     self.error("invalid_node", "The scene refers to a missing node.", path)
-                elif root in roots:
+                elif root in seen:
                     self.error("node_cycle", "A node appears twice in the scene graph.", path)
                 else:
                     if self.parents[root] is not None:
                         self.error("node_cycle", "A scene root node also has a parent node.", path)
                     roots.append(root)
+                    seen.add(root)
             roots_by_scene.append(roots)
         default = self.doc.get("scene", 0)
         if not scenes or not _index(default, scenes):
@@ -1079,11 +1169,51 @@ class _Validator:
             return
         self._bounds(nodes, roots_by_scene[default])  # type: ignore[index]
 
+    def _mesh_boxes(self, mesh_index: int) -> _MeshBoxes:
+        """The POSITION boxes of one mesh's primitives and their union, computed once."""
+        mesh = _dict(self.items("meshes")[mesh_index])
+        entries = mesh.get("primitives") if mesh else None
+        boxes: list[tuple[tuple[float, ...], tuple[float, ...]]] = []
+        missing = False
+        for primitive in entries if isinstance(entries, list) else []:
+            self.check()
+            attributes = _dict(primitive.get("attributes")) if _dict(primitive) else None
+            info = self.accessor(attributes.get("POSITION")) if attributes else None
+            if info is None or info.minimum is None or info.maximum is None:
+                missing = True
+            elif len(info.minimum) != 3:
+                missing = True
+            else:
+                boxes.append((info.minimum, info.maximum))
+        union = None
+        if boxes:
+            union = (
+                tuple(min(box[0][axis] for box in boxes) for axis in range(3)),
+                tuple(max(box[1][axis] for box in boxes) for axis in range(3)),
+            )
+        return _MeshBoxes(boxes, union, missing)
+
     def _bounds(self, nodes: list[Any], roots: list[int]) -> None:
+        """The default scene's world-space bounds, equal to transforming every primitive's
+        POSITION box corners by its node's world matrix (as Django does), in
+        O(nodes + primitives) for the common cases:
+
+        - per axis, the extreme over a box's 8 corners is the sum of each term's own extreme
+          (rounded addition is monotonic), so a box costs 3 x 3 products, not 8 x 9;
+        - when a node's world matrix maps axes to axes (translation, scale, axis swaps), the
+          extreme over a mesh's primitives is the extreme of their union box, exactly;
+        - otherwise each primitive is measured, and the node-primitive pairs this needs are
+          bounded by `MAX_BOUNDS_PAIRS` (`too_complex` beyond it).
+
+        Any non-finite world coordinate (overflowing transforms) is an `invalid_node` error
+        rather than being silently dropped by `min`/`max`.
+        """
         meshes = self.items("meshes")
+        cache: dict[int, _MeshBoxes] = {}
         low = [math.inf] * 3
         high = [-math.inf] * 3
-        missing = False
+        missing = nonfinite = False
+        pairs = 0
         visited = [False] * len(nodes)
         stack: list[tuple[int, Matrix]] = [(root, IDENTITY) for root in reversed(roots)]
         while stack:
@@ -1094,31 +1224,37 @@ class _Validator:
                 continue
             visited[index] = True
             world = _multiply(parent, _node_matrix(node))
-            mesh = _dict(meshes[node["mesh"]]) if _index(node.get("mesh"), meshes) else None
-            entries = mesh.get("primitives") if mesh else None
-            for primitive in entries if isinstance(entries, list) else []:
-                self.check()
-                attributes = _dict(primitive.get("attributes")) if _dict(primitive) else None
-                info = self.accessor(attributes.get("POSITION")) if attributes else None
-                if (
-                    info is None
-                    or info.minimum is None
-                    or info.maximum is None
-                    or len(info.minimum) != 3
-                ):
-                    missing = True
-                    continue
-                box = (info.minimum, info.maximum)
-                for corner in range(8):
-                    point = [box[(corner >> axis) & 1][axis] for axis in range(3)]
-                    for axis in range(3):
-                        value = world[12 + axis] + sum(
-                            world[k * 4 + axis] * point[k] for k in range(3)
+            mesh_index = node.get("mesh")
+            if _index(mesh_index, meshes):
+                assert isinstance(mesh_index, int)  # noqa: S101 - narrowed above
+                if mesh_index not in cache:
+                    cache[mesh_index] = self._mesh_boxes(mesh_index)
+                found = cache[mesh_index]
+                missing = missing or found.missing
+                if found.union is not None and (len(found.boxes) == 1 or _axis_aligned(world)):
+                    boxes = [found.union]
+                else:
+                    boxes = found.boxes
+                    pairs += len(boxes)
+                    if pairs > MAX_BOUNDS_PAIRS:
+                        self.error(
+                            "too_complex", "The scene has too many mesh instances to measure."
                         )
-                        low[axis] = min(low[axis], value)
-                        high[axis] = max(high[axis], value)
+                        return
+                for number, box in enumerate(boxes):
+                    if number % 1024 == 1023:
+                        self.check()
+                    for axis in range(3):
+                        lo, hi = _box_extent(world, box, axis)
+                        if not (math.isfinite(lo) and math.isfinite(hi)):
+                            nonfinite = True
+                        low[axis] = min(low[axis], lo)
+                        high[axis] = max(high[axis], hi)
             children = self._children(nodes, index)
             stack.extend((child, world) for child in reversed(children))
+        if nonfinite:
+            self.error("invalid_node", "The scene's transforms produce non-finite bounds.")
+            return
         if low[0] == math.inf:
             self.error("no_geometry", "The default scene has no geometry with known bounds.")
             return

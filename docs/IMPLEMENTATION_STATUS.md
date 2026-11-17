@@ -42,10 +42,17 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
-## Serverless background processing, Wave 2 (LAI-LAMBDA-002 to 005) — developer-complete on `feature/serverless-processing-wave2` (2026-11-17); owner review pending, NOT merged, NOT deployed
+## Serverless background processing, Wave 2 (LAI-LAMBDA-002 to 005) — developer-complete and reviewed on `feature/serverless-processing-wave2` (2026-11-17); PR #41 NOT merged, NOT deployed
 
-Built on Wave 1 (PR #40, merge-ready but not merged). ADR-062 (Proposed) extends the existing
-`apps.jobs` backbone (ADR-055) with contract kinds instead of adding a second job system.
+Built on Wave 1 (PR #40, merge-ready but not merged; merging needs the owner). ADR-062
+(accepted by the owner 2026-11-17) extends the existing `apps.jobs` backbone (ADR-055) with
+contract kinds instead of adding a second job system. Owner decisions of 2026-11-17: B4 GitHub
+Actions with AWS OIDC deploy roles; B5 `processing-dev` and `processing-prod` environments
+approved with deployment kept disabled (`LAI_PROCESSING_DEPLOY_ENABLED` not `true`); B6
+phase-one processing stacks before dependent platform updates; B7 DLQ redrive only by authorized
+operations administrators (`workRedriveRoleArns`, `completionRedriveRoleArns`; never the Django
+role); flag `LAI_ASSET_ASYNC_VALIDATION` approved, default off everywhere (implemented in Wave
+3); prod reserved concurrency 5, configurable and kept across deploys.
 `docs/processing/WAVE2_INTERFACES.md` freezes the shared names, settings and semantics.
 
 - **002 GLB validator** (`processing/lai_processing/processors/gltf/`, processor
@@ -58,19 +65,49 @@ Built on Wave 1 (PR #40, merge-ready but not merged). ADR-062 (Proposed) extends
   Docs: `docs/processing/RUNTIME.md`.
 - **004 Django jobs** (`lai/apps/jobs/`, migration `0002_processing_contract_kinds`): job
   attempts, transactional outbox, completion receipts (dedup ledger), artifacts; the
-  `jobs_dispatch`, `jobs_consume_completions` (ack only after commit; never receives while
-  PostgreSQL is unreachable) and `jobs_reconcile` commands; Admin status;
+  `jobs_dispatch`, `jobs_consume_completions` (ack only after commit; `SELECT 1` before every
+  receive, so it never receives while PostgreSQL is known to be down; a failure after a receive
+  hands the rest of the batch back with delay 0 but still spends that receive) and
+  `jobs_reconcile` commands; Admin status;
   `apps.assets.processing.submit_model_validation`. Processing never changes or publishes an
   AssetVersion. Docs: `docs/processing/DJANGO_JOBS.md`.
 - **005 infrastructure** (code and synth tests only): CDK `LaiProcessingImages-<env>` (ECR) and
   `LaiProcessing-<env>` (private bucket, work and completion queues with DLQs, Lambda by image
   digest, least-privilege IAM, alarms); `deploy-processing.yml` (manual dispatch only, gated by
   `LAI_PROCESSING_DEPLOY_ENABLED` and the `processing-<env>` environments); a CI image build; two
-  systemd units for native dev EC2; power-management quiesce and verify.
+  systemd units for native dev EC2 and the `jobs-dispatch` and `jobs-completions` services in
+  the prod `deploy/ec2/docker-compose.yml`; power-management quiesce and verify.
   Docs: `docs/infrastructure/processing-infrastructure.md`.
 - **Integration fixes:** runtime package exports, worker read-back of its own artifacts (needed
   for idempotent redelivery), the `glb-default` profile in fixtures, an env-overridable
   `LAI_ASSET_LOCAL_ROOT`, and the consumer's database-outage handling.
+- **Review (2026-11-17):** five read-only reviews (A GLB parser, B runtime, C Django jobs, D
+  infrastructure, E documentation); fixes applied on this branch:
+  - GLB validator: integers too large for a float refused as `invalid_json`; bounds computed
+    without the node x primitive loop (exact per axis; rotated multi-primitive instances
+    measured per primitive, capped at `MAX_BOUNDS_PAIRS` 200,000, then `too_complex`);
+    duplicate scene roots tracked in a set; non-finite world coordinates are `invalid_node`;
+    textures inside data-URI buffers checked from a 64 KiB decoded prefix.
+  - Runtime: a by-reference rerun after a failed send reuses the stored `job-result`
+    (`job.result_reused`) and resends the original completion; S3 409
+    `ConditionalRequestConflict` handled like 412; boto3 clients 3 s connect, 10 s read, 2
+    attempts; cleanup margin default 60 s (Lambda minimum 56 s, local worker minimum 5 s);
+    remaining time re-checked before `complete` and the send (`insufficient_time`, redelivered);
+    worker timeout minimum 120 s in `processingStack.ts`.
+  - Django jobs: staff requeue writes the renewed `submitted_at` and `expires_at` into
+    `job.payload`; `IntegrityError` retried once in-process, persistent ones deferred as
+    `integrity_error` and not treated as an outage; new reject reason `artifact_duplicate`; the
+    relay's `message_too_large` path commits the row first, then fails the job in a second
+    transaction (job lock first); `jobs_consume_completions --once` prints
+    `{"database": "unavailable", ...}` and exits 2 when the pre-receive check fails.
+  - Infrastructure: separate `workRedriveRoleArns` and `completionRedriveRoleArns` replace
+    `additionalSenderRoleArns` (B7); prod compose services `jobs-dispatch` and
+    `jobs-completions` (idle unless the backend is `sqs`); stack outputs `ReservedConcurrency`,
+    `AlarmOverrides`, `WorkRedriveRoleArns` and `CompletionRedriveRoleArns` reused by
+    `provision.sh`, `deploy-debug.sh` and `deploy-processing.yml`; CI `trivy-action` pinned to
+    the v0.36.0 commit SHA (the 0.28.0 tag was withdrawn).
+  - Documentation: `docs/processing/`, the README section, `ASSET_LIBRARY.md` section 23 and
+    `TASK_TRACKER.md` brought in line with the code and the owner decisions.
 - **Checks (2026-11-17):**
   - Full suite `pytest` on an isolated PostgreSQL database: 5968 passed, 8 skipped.
   - Wave 2 end-to-end tests (`lai/apps/jobs/tests/test_processing_wave2_end_to_end.py`, 5) and
@@ -79,15 +116,20 @@ Built on Wave 1 (PR #40, merge-ready but not merged). ADR-062 (Proposed) extends
     unchanged.
 - **Not done / blocked:**
   - No AWS deployment, no ECR push, no live migration, and no schedule activation (A9).
-  - Owner approvals still needed: ADR-062; a deploy role for LaiProcessing (B4); the GitHub
-    environments and variables (B5); deploying LaiProcessing before any platform update (B6);
-    the `LAI_ASSET_ASYNC_VALIDATION` flag; and prod reserved concurrency.
-  - Wave 3 (006, 007) is handed off in `docs/processing/WAVE3_HANDOFF.md`. It is blocked on the
-    Wave 1 merge and the Wave 2 review.
+  - Owner approvals still needed: deployment authorization and live AWS acceptance
+    (LAI-LAMBDA-011); the decision on resubmitting cancelled work (a cancelled job cannot be
+    requeued and resubmitting the same version returns it; workaround: delete the draft and
+    upload again).
+  - Owner steps already decided but not yet done: create the B4 OIDC deploy role and the B5
+    GitHub environments, and the B7 operator redrive roles.
+  - Merging PR #40 and then PR #41 needs the owner.
+  - Wave 3 (006, 007) is handed off in `docs/processing/WAVE3_HANDOFF.md` (superseded in part by
+    `WAVE3_INTERFACES.md` on the Wave 3 branch). Its merge depends on the Wave 1 and Wave 2
+    merges.
 
 ## Serverless background processing, Wave 1 (LAI-LAMBDA-001) — developer-complete on `feature/serverless-processing` (2026-11-16); owner review, merge, Django integration and AWS NOT done
 
-ADR-061 (proposed) and `docs/processing/` describe the design: Django stays authoritative for
+ADR-061 (accepted by the owner 2026-11-16) and `docs/processing/` describe the design: Django stays authoritative for
 processing jobs and publication; a transactional outbox feeds an SQS work queue; Lambda workers
 verify inputs, run processors and write immutable artifacts to S3; completions return on a
 separate SQS queue that Django consumes and acknowledges only after commit. Lambda never connects

@@ -821,20 +821,22 @@ unchanged. The `audio` app adds a configuration layer over published audio asset
 Retiring an asset or version removes its sound from the live manifest and blocks the next publish
 until fixed. See `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
 
-## 23. Background processing (LAI-LAMBDA; ADR-061 accepted, ADR-062 proposed; Waves 1 and 2)
+## 23. Background processing (LAI-LAMBDA; ADR-061 and ADR-062 accepted; Waves 1 and 2)
 
 Updated for Wave 2 (2026-11-17). Asset uploads, validation and publishing in Django Admin are
 **still unchanged**: the synchronous path in `services.py`, `validation.py` and
 `validation_media.py` is the only path that sets a version's status. Wave 1 (PR #40) is
-merge-ready but not merged, so Wave 2 is provisional on it; nothing is deployed. Design:
+merge-ready but not merged, so Wave 2 (PR #41, not merged) is provisional on it; nothing is
+deployed. The owner approved the setting `LAI_ASSET_ASYNC_VALIDATION` (default off in every
+environment) on 2026-11-17; it is implemented in Wave 3, not on the Wave 2 branch. Design:
 `docs/processing/` (start with `ARCHITECTURE.md`; next steps in `WAVE3_HANDOFF.md`).
 
 What exists now (Wave 2):
 
 | Piece | State |
 |---|---|
-| `asset.validate_model` processor | `asset.glb_validator` 1.0.0, profile `glb-default` v1, in `processing/lai_processing/processors/gltf/`, registered in `default_registry()`. Stdlib only, no network, bounded against hostile files. **Parity-tested** against `validation.py` (`lai/apps/assets/tests/test_glb_processing_parity.py`; policy constants are read from `validation.py` and must be equal). Every corpus case gives the same verdict and error codes except documented cases where the processor is stricter (trailing bytes, duplicate JSON keys, `NaN`, deep JSON, `byteStride`, texture size, animation and skin structure, `.gltf` input): `docs/processing/GLB_VALIDATION.md` section 7. It never passes a file Django refuses |
-| `apps.assets.processing.submit_model_validation(version, *, user)` | Builds the request (input store `assets`, the version's `storage_key`, `sha256`, `size_bytes`, `content_type`; subject `asset_version` with the version uuid; `AssetContext` with the asset slug, version uuid and number; profile `glb-default` v1) and calls `apps.jobs.processing.submit_processing_job`. **It never changes the version**: not its status, metadata or validation report, and it never publishes. Resubmitting the same version returns the same job (same idempotency key). No admin action or upload path calls it yet |
+| `asset.validate_model` processor | `asset.glb_validator` 1.0.0, profile `glb-default` v1, in `processing/lai_processing/processors/gltf/`, registered in `default_registry()`. Stdlib only, no network, bounded against hostile files. **Parity-tested** against `validation.py` (`lai/apps/assets/tests/test_glb_processing_parity.py`; policy constants are read from `validation.py` and must be equal). Every corpus case gives the same verdict and error codes except documented cases where the processor is stricter (trailing bytes, duplicate JSON keys, `NaN`, deep JSON, `byteStride`, texture size, animation and skin structure, `.gltf` input), plus processor-only checks added at the 2026-11-17 review (integers too large for a float, too many mesh instances to measure bounds, non-finite bounds, textures in data-URI buffers): `docs/processing/GLB_VALIDATION.md` section 7. It never passes a file Django refuses |
+| `apps.assets.processing.submit_model_validation(version, *, user)` | Builds the request (input store `assets`, the version's `storage_key`, `sha256`, `size_bytes`, `content_type`; subject `asset_version` with the version uuid; `AssetContext` with the asset slug, version uuid and number; profile `glb-default` v1) and calls `apps.jobs.processing.submit_processing_job`. **It never changes the version**: not its status, metadata or validation report, and it never publishes. Resubmitting the same version returns the same job (same idempotency key), even when that job was cancelled; a cancelled job cannot be requeued, so the workaround is to delete the draft and upload again (an open owner decision). No admin action or upload path calls it yet |
 | Where results live | On the job only: `apps.jobs.ProcessingJob` (`state`, `result`), `JobAttempt` (`result`, `verdict`, error code), `JobArtifact` (artifact references, e.g. the optional `glb-report`) and `CompletionReceipt`. Staff see them in the "background job" admin (findings table, metadata, attempts, artifacts) |
 | Validation of the stored file at publish | Unchanged: `publish_version` re-reads and re-validates the stored bytes |
 

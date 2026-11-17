@@ -1,5 +1,11 @@
 # Wave 3 handoff (LAI-LAMBDA-006 and 007)
 
+> **Superseded in part by `WAVE3_INTERFACES.md` (2026-11-17)**, which is on the Wave 3 branch
+> (`feature/serverless-processing-wave3`), not on this one. Where they differ, that page wins.
+> Since this page was written: ADR-062 is accepted, the flag name `LAI_ASSET_ASYNC_VALIDATION` is
+> approved (default off everywhere; implemented in Wave 3), Option A (section 3) is chosen, and
+> the consumer database-outage fix is done in Wave 2 (section 7).
+
 Written 2026-11-17 by the Wave 2 documentation agent, for the Wave 3 implementation agents, their
 reviewer and the project owner. Cards:
 [LAI-LAMBDA-006](https://trello.com/c/SYUqyvWM) (S3 upload, queue dispatch and completion
@@ -95,7 +101,7 @@ metadata" (animations with exact clip names, `counts`, `material_names`, `triang
 
 ## 3. Upload integration (006): two options
 
-### Option A (recommended first): existing synchronous upload, then submit
+### Option A (chosen): existing synchronous upload, then submit
 
 1. Staff upload in Django Admin exactly as today (`AssetVersionAdmin.upload_view` ->
    `services.upload_version`): server-made key, checksum, synchronous validation. A file that
@@ -125,11 +131,11 @@ without that decision.
 
 ## 4. AssetVersion hook and feature flag (006)
 
-**Flag.** Add one Django setting, proposed name `LAI_ASSET_ASYNC_VALIDATION` (`off` default in
-every environment, `on`), read in `config/settings/base.py`, validated like the other
-`LAI_PROCESSING_*` settings, and refused as `on` unless `LAI_PROCESSING_BACKEND` is not
-`disabled`. The name is a proposal: record it in `WAVE2_INTERFACES.md` through the principal
-before use. With the flag `off` nothing changes (today's behaviour and every existing test).
+**Flag.** One Django setting, `LAI_ASSET_ASYNC_VALIDATION` (name approved by the owner on
+2026-11-17; `off` by default in every environment, `on`), read in `config/settings/base.py`,
+validated like the other `LAI_PROCESSING_*` settings, and refused as `on` while
+`LAI_PROCESSING_BACKEND` is `disabled`. It is implemented in Wave 3, not on the Wave 2 branch.
+With the flag `off` nothing changes (today's behaviour and every existing test).
 
 **DRAFT flow when `on`.**
 
@@ -188,11 +194,14 @@ never writes to a version that is not `DRAFT`.
 - Automatic retries, expiry, cancel and requeue are built (`LIFECYCLE.md` 9.5, 9.6). Wave 3 adds:
   a schedule for `jobs_reconcile` (for example a systemd timer installed with the other units,
   and a run after `power-native.sh verify`), and the DLQ runbook in `OPERATIONS.md` section 8.
-- Replay: an operator redrive is denied by the queue policies unless the operator role is in
-  `additionalSenderRoleArns` (`LaiProcessing-<env>` prop), or the redrive runs as the Django role.
+- Replay (owner decision B7): only authorized operations administrators redrive, with their
+  roles listed in the `LaiProcessing-<env>` props `workRedriveRoleArns` or
+  `completionRedriveRoleArns` (separate lists); never the Django role, which the stack refuses.
   Prefer requeue from Django Admin for a job that needs a fresh attempt.
-- Known gap to fix: the consumer does not pause after consecutive per-message database errors
-  (`OPERATIONS.md` section 7), so a long RDS outage moves completions to the DLQ.
+- Consumer database outage: done in Wave 2. The consumer runs `SELECT 1` before every receive
+  and receives nothing while PostgreSQL is down, hands the rest of a batch back with delay 0
+  after a database failure, and backs off up to 60 s (`OPERATIONS.md` section 7). Residual: a
+  failure after a receive still spends that receive.
 - Expected-version check: covered by the hook's re-check in section 4.
 
 ## 8. Operational monitoring
@@ -223,9 +232,10 @@ change set.
    `LaiDevPlatform-dev` update, because that stack attaches `lai-django-processing-dev` by name.
 2. **Platform.** Update `LaiDevPlatform-dev` (attaches the policy to `lai-django-ec2-dev`).
 3. **Images stack.** Deploy `LaiProcessingImages-dev`; create GitHub environment
-   `processing-dev` (reviewers, `main` only), set `LAI_PROCESSING_PUBLISHER_ROLE_ARN` and
-   `LAI_PROCESSING_DEPLOY_ENABLED=true`; resolve B4 (deploy role) in
-   `processing-infrastructure.md` section 12.
+   `processing-dev` (approved by the owner under B5; reviewers, `main` only), set
+   `LAI_PROCESSING_PUBLISHER_ROLE_ARN`; create the B4 OIDC deploy role (decided, not yet
+   created; `processing-infrastructure.md` section 12) and set `LAI_PROCESSING_DEPLOY_ROLE_ARN`;
+   set `LAI_PROCESSING_DEPLOY_ENABLED=true` only once the owner authorizes deployment.
 4. **Image.** Run `deploy-processing.yml` `build-push` for dev; record the `sha256:...` digest.
 5. **Phase 2.** Run `deploy-processing.yml` `deploy` with the digest (change set first, then
    `execute_change_set`): the function, event source mapping and worker alarms appear; SSM
@@ -254,8 +264,8 @@ change set.
 
 | Item | Content |
 |---|---|
-| Prerequisites | Wave 1 PR #40 merged (owner presses Merge); Wave 2 reviewed and merged, including ADR-062 accepted; the flag name agreed through the principal. AWS verification (section 10) needs separate owner deploy approvals |
-| Owns | `lai/apps/assets/services.py` (`upload_version` DRAFT branch, flag-gated), `lai/apps/assets/processing.py` (hook implementation), a hook registry in `lai/apps/jobs/processing.py`, `lai/config/settings/base.py` (the flag), `jobs_reconcile` scheduling (`deploy/native/systemd/`, `scripts/aws/native/` with 005's conventions), the consumer back-off on consecutive database errors, `docs/processing/OPERATIONS.md` runbooks, tests |
+| Prerequisites | Wave 1 PR #40 merged (owner presses Merge); Wave 2 (PR #41) merged. Already settled: ADR-062 accepted, flag name `LAI_ASSET_ASYNC_VALIDATION` approved, Option A chosen. AWS verification (section 10) needs separate owner deploy authorization |
+| Owns | `lai/apps/assets/services.py` (`upload_version` DRAFT branch, flag-gated), `lai/apps/assets/processing.py` (hook implementation), a hook registry in `lai/apps/jobs/processing.py`, `lai/config/settings/base.py` (the flag), `jobs_reconcile` scheduling (`deploy/native/systemd/`, `scripts/aws/native/` with 005's conventions), `docs/processing/OPERATIONS.md` runbooks, tests (the consumer back-off on database errors is already done in Wave 2) |
 | Acceptance | Flag off: no behaviour change (existing suites pass untouched). Flag on: upload creates `DRAFT` and a job atomically; pass moves `DRAFT -> VALIDATED`, fail moves `DRAFT -> REJECTED`, findings and metadata on the version; job reaches `ready_for_review`; duplicates, stale and out-of-order completions change the version at most once; a version whose identity differs from the job's input is never touched; never publishes; reconcile scheduled; DLQ runbook written; dev verification (section 10) done or listed as blocked with reasons |
 | Tests | Unit: hook transitions, identity mismatch, non-DRAFT no-op, rollback of the upload transaction leaves no job, duplicate and stale completions, flag validation. End-to-end: extend `test_processing_wave2_end_to_end.py` for flag on |
 | Prohibited | A second job model or app; changes to frozen contracts, setting names, queue names or retry behaviour without the principal; any automatic publish; S3 event triggers; changes to legacy kinds or `apps/assets/jobs.py`; worker database access; deploying without approval |

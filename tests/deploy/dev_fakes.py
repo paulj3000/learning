@@ -417,6 +417,15 @@ def npm(state: dict, args: list[str]) -> str:
         out = Path(os.environ["CDK_OUTDIR"])
         out.mkdir(parents=True, exist_ok=True)
         state["synth_digest"] = os.environ.get("LAI_PROCESSING_WORKER_IMAGE_DIGEST")
+        state["synth_processing"] = {
+            name: os.environ.get(name)
+            for name in (
+                "LAI_PROCESSING_RESERVED_CONCURRENCY",
+                "LAI_PROCESSING_ALARMS",
+                "LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS",
+                "LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS",
+            )
+        }
         for name in (
             "LaiDevArtifacts-dev",
             "LaiAssetStorage-dev",

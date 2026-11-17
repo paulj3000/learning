@@ -88,8 +88,8 @@ first. Vertex data is never decoded.
    `max_json_bytes`; an optional BIN chunk second whose length stays within the file; no bytes
    after the last chunk; 4-byte padding of each chunk (a warning, as in Django).
 2. **JSON** (`jsonparse.py`): strict UTF-8 (no BOM), unique object keys, no `NaN`/`Infinity`
-   or numbers that overflow to infinity, integers within Python's digit limit, an object at the
-   top, nesting at most `max_json_depth` (nesting beyond Python's recursion limit is caught and
+   or numbers that overflow to infinity, no integer too large for a float (no glTF value can be
+   one), an object at the top, nesting at most `max_json_depth` (nesting beyond Python's recursion limit is caught and
    refused, never a crash).
 3. **Asset**: `asset.version == "2.0"`; `asset.minVersion`, when present, `"2.0"`.
 4. **Top-level arrays**: each present one is an array, within its count limit.
@@ -119,7 +119,8 @@ first. Vertex data is never decoded.
     type; dimensions come from the PNG IHDR, the first JPEG start-of-frame (at most 256 segments,
     inside the image's own byte range) or the WebP VP8/VP8L/VP8X header. A width or height over
     `max_texture_dimension` is `texture_too_large`; an unreadable header warns. Data-URI images
-    decode only a bounded base64 prefix (64 KiB).
+    decode only a bounded base64 prefix (64 KiB). An image in a buffer view of a data-URI buffer
+    is sniffed and measured from a decoded prefix of at most 64 KiB of that view.
 11. **Textures**: `source` and `sampler` in range. **Materials**: texture references
     (`baseColorTexture`, `metallicRoughnessTexture`, `normalTexture`, `occlusionTexture`,
     `emissiveTexture`) in range with a whole `texCoord`.
@@ -133,10 +134,15 @@ first. Vertex data is never decoded.
     `translation` (3), `rotation` (4), `scale` (3); one parent per node, no self-parenting, no
     cycles (a node no root reaches is in a cycle); hierarchy depth within `max_node_depth`.
 14. **Scenes and bounds**: a default scene (`scene`, default 0) must exist (`no_scene`); scene
-    nodes in range, unique and parentless; the default scene must contain geometry with
-    `POSITION` min/max (`no_geometry`). Bounds are the 8 corners of each reachable primitive's
-    `POSITION` min/max box through the node transforms, computed exactly as Django does (missing
-    min/max on some primitives warns `missing_bounds`); non-finite results are refused.
+    nodes in range, unique (tracked in a set) and parentless; the default scene must contain
+    geometry with `POSITION` min/max (`no_geometry`). Bounds equal the 8 corners of each
+    reachable primitive's `POSITION` min/max box through the node transforms, as Django computes
+    them (missing min/max on some primitives warns `missing_bounds`), but without a node x
+    primitive loop: each axis extreme is computed exactly from the matrix terms; a single
+    primitive, or a node whose world matrix maps axes to axes, uses the union box of its mesh;
+    only a rotated instance of a multi-primitive mesh is measured per primitive, and those
+    node-primitive pairs are capped at `MAX_BOUNDS_PAIRS` (200,000), beyond which the scene is
+    `too_complex`. A non-finite world coordinate (overflowing transforms) is `invalid_node`.
 15. **Skins**: non-empty unique joints in range; total joints within the limit; `skeleton` in
     range; `inverseBindMatrices` a float MAT4 accessor with at least one matrix per joint.
 16. **Animations**: samplers and channels non-empty; sampler `input` a float scalar accessor
@@ -169,7 +175,7 @@ file content (clip and extension names), so the processor's messages differ in w
 | `invalid_json` | error | yes | Not strict UTF-8 JSON, duplicate keys, NaN, too deep, not an object |
 | `gltf_version` | error | yes | `asset.version` is not "2.0" or `minVersion` is newer |
 | `invalid_structure` | error | new | A top-level property that must be an array is not |
-| `too_complex` | error | yes | A complexity limit is exceeded |
+| `too_complex` | error | yes | A complexity limit is exceeded, or too many mesh instances to measure bounds |
 | `needs_decoder` | error | yes | Draco, meshopt or BasisU |
 | `unsupported_extension` | error | yes | A required extension the game does not support |
 | `unknown_extension` | warning | yes | A used extension the game ignores |
@@ -268,7 +274,6 @@ Honest limits of this validator (it does not claim Khronos conformance):
 - Images are not decoded: only the header signature and dimensions are read. PNG CRCs and JPEG
   structure beyond the frame header are not checked (Django's standalone image validation does
   that for image assets, not for embedded textures).
-- Images in a data-URI buffer (rather than the BIN chunk) are not sniffed.
 - Extension *contents* (`extensions` objects) and `extras` are not interpreted; they are data
   and never reach players.
 - Cameras, lights, morph target accessor types, `KHR_materials_variants` mappings and
@@ -304,6 +309,12 @@ every case):
 | Skins | not checked | `invalid_skin` | Broken skins would fail at load |
 | Primitive without `POSITION` | `no_geometry` only | also `invalid_mesh` | Every primitive needs positions |
 | `.gltf` JSON input | validated | `gltf_not_supported` | GLB only |
+
+Processor-only checks added at the 2026-11-17 review (not in Django, so Django may answer
+differently): an integer too large for a float is `invalid_json` (Django passes the file or
+reports `no_geometry`); more than `MAX_BOUNDS_PAIRS` node-primitive pairs to measure is
+`too_complex`; non-finite (NaN or infinite) world bounds are `invalid_node`; textures inside a
+data-URI buffer are sniffed and measured.
 
 Further stricter checks without a corpus case (each covered by the unit tests): accessor offset
 alignment, `normalized` rules, `min`/`max` shapes, sparse accessors, stride versus element size,

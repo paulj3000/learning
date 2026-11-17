@@ -584,13 +584,18 @@ deploys restart gunicorn, so dev has a few seconds of 502s per release.
 Heavy asset work (GLB validation now; audio, NPC animation and optimisation later) runs as
 background jobs. Django is authoritative for every job's state and for publication; workers only
 compute. Decisions: ADR-061 (contracts, accepted 2026-11-16) and ADR-062 (one job backbone,
-proposed). Design and reference: `docs/processing/` (start with `ARCHITECTURE.md` and
+accepted 2026-11-17). Design and reference: `docs/processing/` (start with `ARCHITECTURE.md` and
 `WAVE2_INTERFACES.md`; Wave 3 next steps in `WAVE3_HANDOFF.md`) and
 `docs/infrastructure/processing-infrastructure.md`.
 
 > **Status (2026-11-17).** Wave 1 (PR #40) passed every required check but is not merged yet
-> (owner action). Wave 2 is integrated on `feature/serverless-processing-wave2` for owner review.
-> No image has been built or pushed, nothing is deployed, and no live AWS acceptance has run.
+> (owner action). Wave 2 (PR #41) is integrated on `feature/serverless-processing-wave2`, has had
+> five read-only reviews with their fixes applied, and is not merged. The owner accepted ADR-062
+> and decided B4 to B7 (OIDC deploy roles; `processing-dev` and `processing-prod` environments
+> approved with deployment still disabled; phase-one processing stacks before dependent platform
+> updates; DLQ redrive only by authorized operations administrators). Deployment is not
+> authorized: no image has been built or pushed, nothing is deployed, and no live AWS acceptance
+> has run.
 
 ### Owner-approved architecture (2026-11-16)
 
@@ -631,7 +636,7 @@ a receipt ledger and guarded transitions. `apps.jobs` also still runs ADR-055's 
 | `lai/apps/jobs/`                                                | Contract kinds on the one Django job backbone: attempts, outbox, receipts, artifacts, admin, commands (`docs/processing/DJANGO_JOBS.md`)                                                             |
 | `infra/lib/processingImagesStack.ts`, `processingStack.ts`      | `LaiProcessingImages-<env>` (ECR) and `LaiProcessing-<env>` (bucket, queues and DLQs, worker, IAM, alarms, SSM settings)                                                                             |
 | `.github/workflows/deploy-processing.yml`                       | Dispatch-only, gated image publication and deployment                                                                                                                                                |
-| `deploy/native/systemd/lai-jobs-{dispatch,completions}.service` | The relay and consumer on native dev                                                                                                                                                                 |
+| `deploy/native/systemd/lai-jobs-{dispatch,completions}.service` | The relay and consumer on native dev; prod runs them as the `jobs-dispatch` and `jobs-completions` services in `deploy/ec2/docker-compose.yml`                                                       |
 
 ### Local use (no AWS)
 
@@ -670,10 +675,10 @@ and 12).
 
 ### Development waves
 
-| Wave | Tasks                                                                                          | Status                                                            |
-| ---- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1    | LAI-LAMBDA-001 contracts, engine, CLI                                                          | Merge-ready (PR #40, checks green), awaiting the owner's merge    |
-| 2    | LAI-LAMBDA-002 GLB validator, 003 runtime and Lambda image, 004 Django jobs, 005 CDK and CI/CD | Integrated on `feature/serverless-processing-wave2`, owner review |
-| 3    | LAI-LAMBDA-006 upload and dispatch integration, 007 Asset Library results and release gates    | Specified in `docs/processing/WAVE3_HANDOFF.md`, not started      |
-| 4    | LAI-LAMBDA-008 audio, 009 NPC animation, 010 optimisation                                      | Not started                                                       |
-| 5    | LAI-LAMBDA-011 AWS acceptance, 012 production rollout                                          | Not started; needs deployment approval                            |
+| Wave | Tasks                                                                                          | Status                                                                                                        |
+| ---- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 1    | LAI-LAMBDA-001 contracts, engine, CLI                                                          | Merge-ready (PR #40, checks green), awaiting the owner's merge                                                |
+| 2    | LAI-LAMBDA-002 GLB validator, 003 runtime and Lambda image, 004 Django jobs, 005 CDK and CI/CD | Integrated on `feature/serverless-processing-wave2` (PR #41), reviewed, not merged                            |
+| 3    | LAI-LAMBDA-006 upload and dispatch integration, 007 Asset Library results and release gates    | In progress on `feature/serverless-processing-wave3` (not on this branch); `docs/processing/WAVE3_HANDOFF.md` |
+| 4    | LAI-LAMBDA-008 audio, 009 NPC animation, 010 optimisation, 013 thumbnails and image conversion | Not started                                                                                                   |
+| 5    | LAI-LAMBDA-011 AWS acceptance, 012 production rollout                                          | Not started; needs deployment approval                                                                        |

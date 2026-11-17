@@ -89,10 +89,10 @@ The coarse `status` the existing admin, filters and sweep use is kept in step wi
 | Symbol | Behaviour |
 |---|---|
 | `submit_processing_job(*, job_type, subject, input, profile, options=None, asset=None, user=None)` | Resolves the profile and options with `default_registry()` (`resolve_options` fills defaults), computes the idempotency key **including the expected processor version**, and returns the existing job for that key, or creates job + attempt 1 + outbox row in one `transaction.atomic()` (`created -> queued` through `check_transition`). A concurrent duplicate loses on the unique constraint and gets the winner. `disabled` raises `ProcessingDisabled`; invalid requests raise `ProcessingJobsError` with the contract's error code. `subject` may be a `SubjectRef` or a (type, id) pair, `profile` a `ProfileRef` or (id, version), `input` an `InputObject` or a mapping (store, key, version_id, sha256, size_bytes, content_type). |
-| `relay_outbox(queue, *, limit=50, ignore_delay=False) -> int` | Sends due rows, one per short transaction, claimed with `select_for_update(skip_locked=True)`; marks `sent_at` after the send. `LAI_PROCESSING_DISPATCH=paused` sends nothing. `QueueFull` or any transport error increments `send_attempts`, sets `available_at` with full-jitter backoff (`RetryPolicy`, at most 900 s) and ends the pass; the job is never failed for a transient send. A message the queue can never accept (`ValueError`, too large) cancels the row and fails the job (`message_too_large`). |
+| `relay_outbox(queue, *, limit=50, ignore_delay=False) -> int` | Sends due rows, one per short transaction, claimed with `select_for_update(skip_locked=True)`; marks `sent_at` after the send. `LAI_PROCESSING_DISPATCH=paused` sends nothing. `QueueFull` or any transport error increments `send_attempts`, sets `available_at` with full-jitter backoff (`RetryPolicy`, at most 900 s) and ends the pass; the job is never failed for a transient send. A message the queue can never accept (`ValueError`, too large) is noted on the row and committed; a second transaction then locks the job first, fails it (`message_too_large`) and cancels the row, so the job-then-outbox lock order of cancel, requeue and expiry is kept. |
 | `apply_completion(body, *, storage) -> CompletionOutcome(action, ack, reason, job_id)` | See section 4. |
 | `cancel_job(job, *, user) -> bool` | `created/uploading/queued/processing -> cancelled`; unsent outbox rows are cancelled and pending attempts abandoned. A later completion is STALE. |
-| `requeue_job(job, *, user) -> bool` | Only from `failed`: the manual `failed -> queued` (`check_transition(..., manual=True)`), a new attempt (new uuid, next number, same key) with a new expiry window and an outbox row. |
+| `requeue_job(job, *, user) -> bool` | Only from `failed`: the manual `failed -> queued` (`check_transition(..., manual=True)`), a new attempt (new uuid, next number, same key) with a new expiry window and an outbox row. The renewed `submitted_at` and `expires_at` are written into `job.payload`, so later automatic retries keep the new expiry. A `cancelled` job cannot be requeued (see "Open decision" below). |
 | `reconcile(*, dry_run=False, stuck_minutes=15)` | Open jobs past `expires_at` become `failed` / `job_expired` (rows cancelled, attempts abandoned); counts outbox rows unsent for longer than `stuck_minutes`. |
 | `retry_eligible(job)` | True when a staff requeue is allowed. |
 | `run_inline()` | The `inline` backend's in-process loop (section 6). |
@@ -101,6 +101,11 @@ Every state change happens on a row held by `select_for_update()` and goes throu
 `lifecycle.check_transition`. `requeue_job` checks for `failed` explicitly because
 `queued -> queued` is also a legal transition (the automatic retry) and must never be a staff
 action. Nothing here changes an `AssetVersion` or publishes anything.
+
+**Open decision: resubmitting cancelled work.** `cancelled` is terminal in the lifecycle, so
+`requeue_job` refuses it, and `submit_processing_job` for the same work (same idempotency key)
+returns the cancelled job. Workaround: delete the draft version and upload it again (a new
+version is a new subject, so a new key). Recorded for the owner (`IMPLEMENTATION_STATUS.md`).
 
 `apps.assets.processing.submit_model_validation(version, *, user)` builds an
 `asset.validate_model` request for an `AssetVersion` (input store `assets`, its storage key,
@@ -126,7 +131,9 @@ validation report, and never publishes. `default_registry()` registers `asset.gl
    expected ones (`processor_mismatch`), the profile must match (`profile_mismatch`), the
    observed input store, key, pinned version and size must match (`input_mismatch`), a success
    must have read and verified its input (`input_unverified`), and every artifact must belong to
-   the job, the attempt and the namespace (`artifact_foreign`).
+   the job, the attempt and the namespace (`artifact_foreign`). A by-reference result whose
+   artifacts include one with the `job-result` logical id would break the artifact uniqueness
+   constraint on every delivery, so it is rejected (`artifact_duplicate`).
 5. Persist and record a `CompletionReceipt`:
 
 | Action | Effect |
@@ -138,7 +145,12 @@ validation report, and never publishes. `default_registry()` registers `asset.gl
 | REJECT | Receipt and `logger.warning("processing.completion_rejected job=%s attempt=%s reason=%s")` (ids and reason only) |
 
 Every action except `invalid` returns `ack=True`, after the transaction has committed. A
-`DatabaseError` anywhere raises `CompletionDeferred` (its `__cause__` is the database error).
+`DatabaseError` anywhere raises `CompletionDeferred("database_error")` (its `__cause__` is the
+database error). An `IntegrityError` is retried once in-process: it is a race on a receipt
+inserted without the job row lock (two consumers, the same unknown-job or other-namespace event,
+or an `event_id` reused across jobs), and the second run resolves to DUPLICATE or REJECT. One
+that persists raises `CompletionDeferred("integrity_error")`, which
+`processing.is_database_outage` does not count as an outage.
 
 **Decision: processor or profile mismatch is a REJECT, not a warning.** The idempotency key
 includes the expected processor version, so a result from another processor id, version or
@@ -156,7 +168,7 @@ results and artifacts are keyed by attempt.
 | Command | Behaviour |
 |---|---|
 | `jobs_dispatch [--once] [--interval S] [--limit N]` | Outbox relay loop. SIGTERM finishes the current pass and exits. A `DatabaseError` closes the connection and backs off (2^n s, at most 60). `disabled`: exits 0. `inline`: a pass runs the jobs in-process. Prints `{"sent": n}` with `--once`. |
-| `jobs_consume_completions [--once] [--max-messages N] [--wait-seconds S] [--visibility S]` | Completion consumer. Acknowledges only after `apply_completion` returned (committed). `invalid`: left for the DLQ. `CompletionDeferred` or an unexpected error: `release` with `min(300, 5 * 2^(receive_count-1))` seconds; a database error also closes the connection. `--wait-seconds` is passed to adapters whose `receive` accepts `wait_seconds`; otherwise an empty receive sleeps briefly. `disabled` and `inline`: exits 0. |
+| `jobs_consume_completions [--once] [--max-messages N] [--wait-seconds S] [--visibility S]` | Completion consumer. Runs `SELECT 1` before every receive and receives nothing while PostgreSQL is down (backing off 2, 4, 8 s up to 60 s; with `--once` it prints `{"database": "unavailable", ...}` and exits 2). Acknowledges only after `apply_completion` returned (committed). `invalid`: left for the DLQ. `CompletionDeferred` or an unexpected error: `release` with `min(300, 5 * 2^(receive_count-1))` seconds; a database outage (not an `IntegrityError`) also closes the connection, hands the rest of the batch back with delay 0 and backs off before the next receive. A failure after a receive still counts as a receive for that batch (`OPERATIONS.md` section 7). `--wait-seconds` is passed to adapters whose `receive` accepts `wait_seconds`; otherwise an empty receive sleeps briefly. `disabled` and `inline`: exits 0. |
 | `jobs_reconcile [--dry-run] [--stuck-minutes M]` | Expires overdue open jobs (`job_expired`) and reports stuck outbox rows (logged as `processing.outbox_stuck`). Prints counts. |
 
 ## 6. Transport and settings

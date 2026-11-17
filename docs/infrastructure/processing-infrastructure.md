@@ -82,9 +82,30 @@ There is no S3 event notification on the bucket: work is dispatched only from Dj
 
 Queue policies add explicit denies: `sqs:SendMessage` to the work queue is denied to every
 principal except `lai-django-ec2-<env>`, and to the completion queue to every principal except
-the worker role (plus TLS-only denies on all four queues). `additionalSenderRoleArns` (stack
-prop) adds an operator role for DLQ redrives; without it, redriving a DLQ into its source queue
-must run as the Django role (LAI-LAMBDA-006 owns the replay runbook).
+the worker role (plus TLS-only denies on all four queues). The worker role is the only normal
+sender of completions.
+
+**DLQ redrive (owner decision B7, 2026-11-17).** Only specifically authorized operations
+administrators may redrive a DLQ: never ordinary staff or users, and never the Django role or the
+worker role (the stack refuses both). Two separate stack props, both empty by default, name them:
+
+| Prop (context / environment) | Granted by queue policy | Notes |
+|---|---|---|
+| `workRedriveRoleArns` (`processingWorkRedriveRoleArns` / `LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS`) | work DLQ: `sqs:StartMessageMoveTask`, `ListMessageMoveTasks`, `CancelMessageMoveTask`, `ReceiveMessage`, `DeleteMessage`, `GetQueueAttributes`; work queue: `sqs:SendMessage` (exempt from `OnlyDjangoSendsWork`) | The normal redrive, after a worker fix |
+| `completionRedriveRoleArns` (`processingCompletionRedriveRoleArns` / `LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS`) | the same on the completion DLQ and completion queue (exempt from `OnlyTheWorkerSendsCompletions`) | **Rare** (a consumer fix after completions dead-lettered). A role listed here can put any message on the completion queue, so list one only for the redrive, then deploy again with `none` |
+
+A work redrive role is never exempt on the completion queue, so it cannot forge completions.
+The props take comma-separated `arn:aws:iam::<12 digits>:role/...` ARNs in the stack's account;
+wildcards, users, other accounts, `lai-django-ec2-<env>` and `lai-<env>-processing-worker` are
+refused at synth. The roles live outside CDK (the owner creates them, each with its own trust,
+for example an IAM Identity Center permission set role) and must exist before the deploy that names
+them: SQS rejects a policy whose principal does not exist. Operator path: assume the redrive
+role, inspect the DLQ, then `aws sqs start-message-move-task --source-arn <DLQ ARN>` (no
+destination: back to the source queue), and watch `list-message-move-tasks`. If the account's
+guardrails (an SCP or a permissions boundary) do not honour same-account queue-policy grants for
+the message-move actions, attach the same statements as an identity policy to that role. The
+roles are `WorkRedriveRoleArns` and `CompletionRedriveRoleArns` outputs and are kept by later
+deploys (section 6). LAI-LAMBDA-006 owns the replay runbook.
 
 The worker has no RDS, Secrets Manager, SSM, KMS, Bedrock, Cognito, IAM or STS permission, no
 `s3:Delete*`, `s3:List*` or ACL right, and no `*` resource. Tests pin every statement
@@ -100,23 +121,30 @@ attempt's identical rewrite is an idempotent success rather than `permission_den
 
 | Quantity | Value | Rule |
 |---|---|---|
-| Worker timeout | 600 s | at most 840 s (`PLATFORM_CEILINGS.max_execution_seconds`); validated at synth |
-| Cleanup margin | 30 s | `LAI_PROCESSING_CLEANUP_MARGIN_SECONDS`; a job's deadline is at most 570 s |
+| Worker timeout | 600 s | at least 120 s (twice the cleanup margin) and at most 840 s (`PLATFORM_CEILINGS.max_execution_seconds`); validated at synth |
+| Cleanup margin | 60 s | `LAI_PROCESSING_CLEANUP_MARGIN_SECONDS` (Lambda minimum 56 s: two AWS calls of at most 28 s each, with 3 s connect, 10 s read and 2 attempts); a job's deadline is at most 540 s at the 600 s timeout |
 | Work visibility | 3600 s | at least 6 x timeout x batch size (6 x 600 x 1 = 3600); validated at synth |
 | Completion visibility | 300 s | longer than the consumer's worst-case transaction |
 | Retention | 14 days | covers the nightly stop, a weekend, an outage |
 | Receives before the DLQ | 5 | both queues |
 | Worker ephemeral storage | 2048 MB | input plus `max_temp_bytes` must fit; `DEFAULT_LIMITS` (50 MiB + 400 MiB) does. A profile that needs more raises `ephemeralStorageMb` (up to 10240) |
-| Reserved concurrency | dev 2, prod 5 | `processingReservedConcurrency` context; also the mapping's `maximumConcurrency` (minimum 2) |
+| Reserved concurrency | dev 2, prod 5 | `processingReservedConcurrency` context (`LAI_PROCESSING_RESERVED_CONCURRENCY`); also the mapping's `maximumConcurrency` (minimum 2); kept across deploys through the `ReservedConcurrency` output (section 6) |
 
 A work message is delivered at most five times; a stuck attempt is visible again after an hour,
 long after the 600 s function has ended.
+
+Reserved concurrency is carved out of the account's regional Lambda concurrency, and Lambda
+always keeps 100 unreserved: a reservation that would leave fewer fails the deploy. New accounts
+can have a quota as low as 10. **Before phase 2, check the quota** (Service Quotas, "Concurrent
+executions", and `aws lambda get-account-settings`, `UnreservedConcurrentExecutions`) and raise it
+if needed; this is an owner step.
 
 ## 5. Alarms
 
 All go to `lai-django-alarms-<env>` with missing data not breaching. Thresholds are props, and
 the `processingAlarms` context (environment `LAI_PROCESSING_ALARMS`) takes JSON overrides, for
-example `-c processingAlarms='{"workOldestMessageSeconds":900}'`.
+example `-c processingAlarms='{"workOldestMessageSeconds":900}'`. An unknown key is refused. The
+overrides are the `AlarmOverrides` output and are kept across deploys (section 6).
 
 | Alarm | Metric | Default | Phase |
 |---|---|---|---|
@@ -177,9 +205,24 @@ synthesizes no function at all instead of a function with a placeholder image.
    renders the new settings; `lai-jobs-dispatch` and `lai-jobs-completions` then stop skipping
    themselves.
 
-A deploy without the digest removes the worker. `scripts/aws/deploy-debug.sh` and
-`scripts/aws/provision.sh` therefore reuse the deployed `WorkerImageDigest` output when
-`LAI_PROCESSING_WORKER_IMAGE_DIGEST` is unset; set it to `none` to remove the worker on purpose.
+A deploy without the digest removes the worker. Every deploy-time setting of this stack is CDK
+context, not a CloudFormation parameter, so a deploy that leaves one out would silently reset it.
+The stack therefore outputs each one, and `scripts/aws/provision.sh` (and so `deploy-processing.yml`,
+which calls it) and `scripts/aws/deploy-debug.sh` reuse the deployed value when the variable is
+unset:
+
+| Variable | Output | `''` or `none` |
+|---|---|---|
+| `LAI_PROCESSING_WORKER_IMAGE_DIGEST` | `WorkerImageDigest` | removes the worker on purpose |
+| `LAI_PROCESSING_RESERVED_CONCURRENCY` | `ReservedConcurrency` | the default (dev 2, prod 5) |
+| `LAI_PROCESSING_ALARMS` | `AlarmOverrides` (JSON, `{}` for none) | no overrides |
+| `LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS` | `WorkRedriveRoleArns` | no role |
+| `LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS` | `CompletionRedriveRoleArns` | no role |
+
+A stack deployed before these outputs existed has only the digest to keep; its first deploy from
+this branch uses the defaults for the rest (which is what it was deployed with unless overridden).
+`ReservedConcurrency` records the effective value, so once deployed it stays pinned even if the
+code default later changes; set the variable to change it.
 
 ## 7. Deployment order
 
@@ -209,7 +252,7 @@ Django. To delete: detach the policy (deploy the platform stack without it) befo
 |---|---|---|---|
 | `ci.yml` job `processing-image` | existing `push` to `main`, `pull_request` | No | None. Builds `processing/Dockerfile.lambda` for linux/arm64 with buildx and QEMU, loads it locally, imports `lai_processing_runtime.lambda_handler` inside it, scans it with `aquasecurity/trivy-action` v0.36.0 (pinned by commit SHA) |
 | `deploy-processing.yml` | `workflow_dispatch` only | Only when dispatched by a person, approved in `processing-<env>`, from `main`, with `LAI_PROCESSING_DEPLOY_ENABLED == 'true'` | OIDC: `LAI_PROCESSING_PUBLISHER_ROLE_ARN` (build-push), `LAI_PROCESSING_DEPLOY_ROLE_ARN` (deploy, rollback) |
-| `deploy-dev-native.yml` | existing `push` to `main` on backend paths, now including `processing/**` | Native dev only, already gated by `LAI_DEV_NATIVE_ENABLED` | unchanged roles |
+| `deploy-dev-native.yml` | existing `push` to `main` on backend paths, now including `processing/**` | Native dev only. Every job requires the repository variable `LAI_DEV_NATIVE_ENABLED == 'true'` and `refs/heads/main`, directly or through the job it `needs`: a merge to `main` that touches `processing/**` releases native dev **only when that variable is exactly `true`**; otherwise the run starts and every job is skipped | unchanged roles |
 
 `deploy-processing.yml` inputs: `environment` (`dev`, `prod`), `action` (`build-push`, `deploy`,
 `rollback`), `image_digest` (deploy and rollback), `execute_change_set` (default false: the change
@@ -220,6 +263,21 @@ the digest. `deploy` checks that the digest is in `lai/processing-<env>`, then r
 `scripts/aws/provision.sh <env> --only LaiProcessing-<env> [--execute]`, which synthesizes with the
 digest and creates the change set. `rollback` is `deploy` with an earlier digest; the repository
 keeps the newest 30 images, so the target must be among them.
+
+**ECR retention and the running digest.** The "newest 30 images" rule counts pushes, not
+deployments: after 30 newer `build-push` runs, the digest the function runs can be expired. Lambda
+keeps serving a cached copy for a while, but a function whose image is gone fails when Lambda next
+re-optimizes it (for example after it goes idle) and cannot be redeployed or rolled back to that
+digest. Mitigation, until a tag-based retention rule exists: deploy (or roll back) to one of the
+newest 30 images before pushing the 30th newer one, which in practice means deploying what you
+build; the deploy job already refuses a digest that is no longer in the repository. A later
+improvement is to tag deployed images `deployed-<sha>` and exclude that prefix from the count
+rule (needs `ecr:PutImage` for the deploy role).
+
+**Branch enforcement.** The workflow checks `github.ref == 'refs/heads/main'`, but what enforces
+`main` for the OIDC roles is the `processing-<env>` environment's deployment branch rule
+(`main` only, owner step B5): the roles trust `repo:<owner/repo>:environment:processing-<env>`, and
+only a job admitted to that environment receives a token with that subject.
 
 CI image checks: the scan fails only on CRITICAL vulnerabilities that have a fix
 (`ignore-unfixed`), so the job reports actionable findings without blocking on unfixable base
@@ -265,6 +323,15 @@ pre-existing native dev release, now also started by a `processing/**` change.
   has them, enables only the timer and restarts it after a deploy; the setup script ships
   `/var/log/lai/jobs-reconcile.log` to `/lai/dev/jobs`. A schedule drop-in
   (`lai-jobs-reconcile.timer.d/`) is never overwritten by a release.
+- Prod (ADR-037): `deploy/ec2/docker-compose.yml` runs the same two commands as services
+  `jobs-dispatch` and `jobs-completions` (Django's image, `django.env`, certificates and network; no
+  port; `restart: unless-stopped`; the image's gunicorn health check disabled; 60 s stop grace for
+  the consumer's long poll). They are in the release's compose project, so every release and
+  rollback (`up -d --wait --remove-orphans`) starts and replaces them with Django and the next
+  image's settings. A shell gate runs the command only while `LAI_PROCESSING_BACKEND` is `sqs`;
+  otherwise the service idles until stopped (the commands exit 0 at once for `disabled`, which
+  would fail `up --wait` or hot-loop). Logs go to the app log group, streams
+  `jobs-{dispatch,completions}-<sha>`. Tests: `tests/deploy/test_prod_compose_processing.py`.
 
 ## 11. Cost assumptions (estimates, not quotes)
 
@@ -298,9 +365,9 @@ the queue never empties). No NAT gateway, VPC endpoint, load balancer or KMS key
 | B1 | Deployment approval (ADR-019 G7, WAVE2_HANDOFF A9) | Approve each change set (sections 6 and 7) |
 | B2 | Resolved at integration: `processing/Dockerfile.lambda` and `lai_processing_runtime` (LAI-LAMBDA-003) are on the Wave 2 branch; the image has not yet been built by CI or anyone | Let CI build it on the Wave 2 PR before any `build-push` |
 | B3 | Resolved at integration: `manage.py jobs_dispatch` and `jobs_consume_completions` (LAI-LAMBDA-004) are on the Wave 2 branch | Keep the backend `disabled` (phase 1) until a release with 004 is deployed; the units skip themselves |
-| B4 | No IaC role can deploy `LaiProcessing-<env>` from GitHub: `lai-dev-infra-manage` only operates power, `lai-github-deploy-prod` only sends SSM documents, and both trust other GitHub environments | Either deploy with `scripts/aws/provision.sh <env> --only LaiProcessing-<env>` from an admin workstation, or approve a deploy role trusting `processing-<env>` (CloudFormation on `LaiProcessing-<env>` only, with a CloudFormation service role scoped to the stack's resources) and set `LAI_PROCESSING_DEPLOY_ROLE_ARN`. Note: such a role can change the Django policy's content, so it is as privileged as the reviewers of `processing-<env>` |
-| B5 | GitHub configuration | Create environments `processing-dev` and `processing-prod` with required reviewers and a `main`-only deployment branch rule; set `LAI_PROCESSING_PUBLISHER_ROLE_ARN` (images stack output) and, after B4, `LAI_PROCESSING_DEPLOY_ROLE_ARN` on each; set repository variable `LAI_PROCESSING_DEPLOY_ENABLED=true` |
-| B6 | The platform stack update needs the policy | Deploy `LaiProcessing-<env>` before the next platform update from this branch (section 7) |
-| B7 | DLQ redrive by an operator is denied by the queue policies | Pass the operator role in `additionalSenderRoleArns`, or redrive as the Django role (LAI-LAMBDA-006) |
+| B4 | Decided (owner, 2026-11-17): GitHub Actions with AWS OIDC deployment roles. Not yet provisioned: no IaC role can deploy `LaiProcessing-<env>` from GitHub (`lai-dev-infra-manage` only operates power, `lai-github-deploy-prod` only sends SSM documents, and both trust other GitHub environments) | Create a deploy role per environment trusting `repo:<owner/repo>:environment:processing-<env>` (CloudFormation on `LaiProcessing-<env>` only, with a CloudFormation service role scoped to the stack's resources; `cloudformation:DescribeStacks` for the kept settings; `ecr:DescribeImages` on `lai/processing-<env>`; and `ecr:BatchGetImage` and `ecr:GetDownloadUrlForLayer` on that repository, which CloudFormation needs, through the caller or the service role, to create or update an image function) and set `LAI_PROCESSING_DEPLOY_ROLE_ARN`. Until then, `scripts/aws/provision.sh <env> --only LaiProcessing-<env>` from an admin workstation. Such a role can change the Django policy's content, so it is as privileged as the reviewers of `processing-<env>` |
+| B5 | Approved (owner, 2026-11-17); deployment stays disabled | Create environments `processing-dev` and `processing-prod` with required reviewers and a **`main`-only deployment branch rule** (this rule, not the workflow's `github.ref` check, is what limits the OIDC roles to `main`); set `LAI_PROCESSING_PUBLISHER_ROLE_ARN` (images stack output) and, after B4, `LAI_PROCESSING_DEPLOY_ROLE_ARN` on each. Leave repository variable `LAI_PROCESSING_DEPLOY_ENABLED` unset (or anything but `true`) until deployment is approved |
+| B6 | Decided (owner, 2026-11-17): provision the phase-one processing stacks before dependent platform updates | Deploy `LaiProcessing-<env>` (phase 1) before the next platform update from this branch (section 7) |
+| B7 | Decided (owner, 2026-11-17): DLQ redrive only by specifically authorized operations administrators, never ordinary staff or users, never the Django role | Create the operator role(s) outside CDK, then deploy `LaiProcessing-<env>` with `LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS` (and, only for a rare completion redrive, `LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS`); section 3. The Django role has no redrive permission and the stack refuses to name it (LAI-LAMBDA-006 owns the runbook) |
 | B8 | Alarm topic: dev's topic is created by `LaiDevPlatform-dev`, prod's by `LaiDjangoEc2-prod` | Nothing in order; alarms created first point at the topic by ARN and notify once it exists |
 | B9 | `docs/IMPLEMENTATION_STATUS.md` | The principal records this task when merging Wave 2 |

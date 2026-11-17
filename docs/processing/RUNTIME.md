@@ -96,8 +96,10 @@ location for.
   request), then `put_object` with `ChecksumAlgorithm='SHA256'`, `ChecksumSHA256`,
   `IfNoneMatch='*'`, `ContentLength`, `ContentType` and `ServerSideEncryption` (default
   `AES256`, constructor argument for 005 if the bucket mandates KMS). `412 PreconditionFailed`:
-  the existing object is headed; same recorded SHA-256 is an idempotent success, a different or
-  unknown checksum is `ObjectExists`.
+  the existing object is headed (with `ChecksumMode='ENABLED'`); same recorded SHA-256 is an
+  idempotent success, a different or unknown checksum is `ObjectExists`. A `409
+  ConditionalRequestConflict` (a racing duplicate write) is resolved the same way once the other
+  writer's object is visible, and is `StorageUnavailable` (transient) until then.
 - Error classification (codes only, AWS messages are discarded):
 
 | Botocore failure | Port error |
@@ -143,7 +145,12 @@ as `decode_and_execute`) and executed, `complete(max_message_bytes=completions.m
 inlines or stores the result by reference, and the completion is sent. **The record succeeds
 only after the send.** Any failure in `complete` or the send fails the record, so the transport
 redelivers it and the same attempt reruns (create-only artifacts make the rerun harmless, and
-Django deduplicates the second completion). Retryable and permanent job results both produce a
+Django deduplicates the second completion). Before `complete` and again before the send the
+remaining time is read again; when less than one AWS call's budget (28 s) remains, the record
+fails as `insufficient_time` (logged `work.skipped`) and is redelivered instead of being killed
+mid-call. A rerun whose by-reference `job-result` was stored but never sent conflicts on that
+create-only key; the engine reads the stored result back, checks it belongs to the same job and
+attempt, emits `job.result_reused` and resends the original completion. Retryable and permanent job results both produce a
 completion and succeed. An undecodable body (bad JSON, wrong kind, unsupported schema version,
 invalid contract, oversize) produces no completion, fails the record and is logged as
 `work.invalid` with only `error_code` and `receive_count`.
@@ -158,9 +165,10 @@ not a job cancellation: its CANCELLED result is not sent and the record fails fo
 | Undecodable work | batch item failure each receive; SQS moves it to the work DLQ after `maxReceiveCount` 5 | released with backoff; moved to `queues/work/dead/` after 5 receives |
 | Completion send or by-reference store failure | batch item failure; same attempt reruns | released with `RetryPolicy` full-jitter delay (base 2 s, cap 60 s) keyed on the receive count |
 | Lambda time below margin | not started; batch item failure (it counts as a receive) | n/a |
+| Too little time left before `complete` or the send | batch item failure (`insufficient_time`); same attempt reruns | n/a (no remaining-time reading) |
 | Job failed (retryable or permanent) | completion sent; record succeeds; Django decides the retry | same |
 
-Replay from the DLQ is in `OPERATIONS.md` section 7.
+Replay from the DLQ is in `OPERATIONS.md` section 8.
 
 ## 4. Local worker
 
@@ -187,7 +195,7 @@ set their own `expires_at` and clock.)
 Flags: `--namespace` (default `local`; must match Django), `--once`, `--concurrency N` (threads),
 `--poll-interval S`, `--max-messages N`, `--job-timeout S` (default 600, the Lambda timeout; the
 lease is the timeout plus twice the margin, so a healthy job is never redelivered while it
-runs), `--cleanup-margin S`, `--log-level`, `--assets-root DIR` (default: `--root`).
+runs), `--cleanup-margin S` (default 30, minimum 5), `--log-level`, `--assets-root DIR` (default: `--root`).
 Completions land in `<root>/queues/completions/ready/` for Django's `local` consumer (004).
 Job workspaces are under `<root>/tmp/workspaces` and are removed after every job.
 
@@ -207,7 +215,8 @@ delivery failed, 2 usage, 3 invalid request (`enqueue`), 4 file or storage error
   `attributes.ApproximateReceiveCount`, `eventSource`, `eventSourceARN`) and returns
   `{"batchItemFailures": [{"itemIdentifier": messageId}, ...]}`.
 - Before each record reads `context.get_remaining_time_in_millis()`; below the cleanup margin
-  (`LAI_PROCESSING_CLEANUP_MARGIN_SECONDS`, default 30) it starts nothing more and reports that
+  (`LAI_PROCESSING_CLEANUP_MARGIN_SECONDS`, default 60, at least 56 so it covers storing a
+  by-reference result and sending the completion, at most 300) it starts nothing more and reports that
   record and all later ones as failures. A started job is clamped to `remaining - margin`.
 - **Malformed invocation (documented choice): raise.** An event that is not a mapping, has no
   `Records` list, or has a record without a `messageId` raises `ValueError`: there is no item
@@ -218,7 +227,8 @@ delivery failed, 2 usage, 3 invalid request (`enqueue`), 4 file or storage error
   invocation from `RuntimeConfig.from_env(os.environ)` and cached for the execution
   environment; the engine's namespace is pinned to `LAI_PROCESSING_NAMESPACE`. A missing or
   invalid setting raises `ConfigError` naming the setting (never its value). boto3 clients use
-  standard retries (3 attempts), 5 s connect and 60 s read timeouts; the region and credentials
+  standard retries with 2 attempts, 3 s connect and 10 s read timeouts (at most 28 s per call,
+  retry included); the region and credentials
   come from the Lambda environment and role.
 - `/tmp`: job workspaces live in `/tmp/lai-processing-workspaces`; anything there is removed at
   the start and end of every invocation (leftovers of a killed invocation), without following

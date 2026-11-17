@@ -283,3 +283,41 @@ def test_the_processing_worker_digest_is_kept_given_or_refused(dev):
     result = run(dev, "--plan", LAI_PROCESSING_WORKER_IMAGE_DIGEST="latest")
     assert result.returncode == 2
     assert "sha256" in result.stderr
+
+
+def test_the_processing_settings_survive_a_routine_update(dev):
+    # Nothing deployed: every setting is its default (empty: the CDK app's defaults apply).
+    assert run(dev, "--plan").returncode == 0
+    assert set(dev.state["synth_processing"].values()) == {""}
+    operator = "arn:aws:iam::123456789012:role/lai-processing-work-redrive"
+    dev.state["stacks"]["us-west-1/LaiProcessing-dev"] = stack(
+        {
+            "WorkerImageDigest": DIGEST,
+            "ReservedConcurrency": "3",
+            "AlarmOverrides": '{"workQueueDepth":80}',
+            "WorkRedriveRoleArns": operator,
+            "CompletionRedriveRoleArns": "none",
+        }
+    )
+    assert run(dev, "--plan").returncode == 0
+    assert dev.state["synth_processing"] == {
+        "LAI_PROCESSING_RESERVED_CONCURRENCY": "3",
+        "LAI_PROCESSING_ALARMS": '{"workQueueDepth":80}',
+        "LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS": operator,
+        "LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS": "",
+    }
+    # Given wins; 'none' or '' returns a setting to its default.
+    assert (
+        run(
+            dev,
+            "--plan",
+            LAI_PROCESSING_RESERVED_CONCURRENCY="4",
+            LAI_PROCESSING_ALARMS="none",
+            LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS="",
+        ).returncode
+        == 0
+    )
+    assert dev.state["synth_processing"]["LAI_PROCESSING_RESERVED_CONCURRENCY"] == "4"
+    assert dev.state["synth_processing"]["LAI_PROCESSING_ALARMS"] == ""
+    assert dev.state["synth_processing"]["LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS"] == ""
+    assert run(dev, "--plan", LAI_PROCESSING_RESERVED_CONCURRENCY="many").returncode == 2
