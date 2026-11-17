@@ -1,0 +1,39 @@
+{
+  "attempt_id": "0b9a8c7d-6e5f-4a3b-9c2d-1e0f2a3b4c5d",
+  "attempt_number": 1,
+  "correlation_id": "corr-reference-0001",
+  "emitted_at": "2026-11-16T12:00:06.270000Z",
+  "event_id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+  "idempotency_key": "ik1:2cefb1cb904bdd88e72571e4b2cb48cc070dbad4a83d2d005df386e8f18eaf9a",
+  "job_id": "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+  "job_type": "reference.checksum",
+  "kind": "lai.processing.job_completed",
+  "namespace": "local",
+  "result": null,
+  "result_ref": {
+    "artifact_type": "report.job_result",
+    "content_type": "application/json",
+    "logical_id": "job-result",
+    "processor": {
+      "processor_id": "reference.checksum",
+      "processor_version": "1.0.0"
+    },
+    "profile": {
+      "profile_id": "reference-default",
+      "version": 1
+    },
+    "ref": {
+      "key": "processing/artifacts/local/6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f/0b9a8c7d-6e5f-4a3b-9c2d-1e0f2a3b4c5d/job-result.json",
+      "store": "artifacts",
+      "version_id": "v000002"
+    },
+    "sha256": "2d83e8d6e6ef6f29dbe656f786927e8e44e6ce2538a958693c8122bc8f190651",
+    "size_bytes": 1745,
+    "source_attempt_id": "0b9a8c7d-6e5f-4a3b-9c2d-1e0f2a3b4c5d",
+    "source_job_id": "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f"
+  },
+  "result_sha256": "2d83e8d6e6ef6f29dbe656f786927e8e44e6ce2538a958693c8122bc8f190651",
+  "retry_class": null,
+  "schema_version": 1,
+  "status": "succeeded"
+}

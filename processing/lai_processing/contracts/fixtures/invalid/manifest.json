@@ -1,0 +1,217 @@
+[
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.unknown_field.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.unknown_nested_field.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.missing_field.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.wrong_kind.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "unsupported_schema_version",
+    "file": "request.schema_version_2.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.schema_version_string.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_object_reference",
+    "file": "request.key_traversal.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_object_reference",
+    "file": "request.key_absolute.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_object_reference",
+    "file": "request.key_backslash.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_object_reference",
+    "file": "request.key_other_namespace.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_object_reference",
+    "file": "request.store_bucket_name.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_object_reference",
+    "file": "request.key_presigned_url.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_object_reference",
+    "file": "request.key_url_scheme.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.naive_timestamp.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.offset_timestamp.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.nan.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.duplicate_key.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.deep_nesting.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.bool_as_int.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.oversized_option.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.option_control_chars.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "unsupported_job_type",
+    "file": "request.unknown_job_type.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.asset_job_without_asset.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.subject_not_asset_version.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.bad_idempotency_key.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "invalid_input",
+    "file": "request.zero_limit.json"
+  },
+  {
+    "decoder": "request",
+    "error_code": "resource_limit_exceeded",
+    "file": "request.input_over_limit.json"
+  },
+  {
+    "decoder": "result",
+    "error_code": "invalid_input",
+    "file": "result.smuggled_error_message.json"
+  },
+  {
+    "decoder": "result",
+    "error_code": "invalid_input",
+    "file": "result.error_retry_class_inconsistent.json"
+  },
+  {
+    "decoder": "result",
+    "error_code": "invalid_input",
+    "file": "result.top_retry_class_inconsistent.json"
+  },
+  {
+    "decoder": "result",
+    "error_code": "invalid_input",
+    "file": "result.unsafe_error_details.json"
+  },
+  {
+    "decoder": "result",
+    "error_code": "invalid_input",
+    "file": "result.succeeded_with_errors.json"
+  },
+  {
+    "decoder": "result",
+    "error_code": "invalid_input",
+    "file": "result.pass_with_error_findings.json"
+  },
+  {
+    "decoder": "result",
+    "error_code": "invalid_object_reference",
+    "file": "result.cross_job_artifact_key.json"
+  },
+  {
+    "decoder": "result",
+    "error_code": "invalid_object_reference",
+    "file": "result.foreign_artifact_source.json"
+  },
+  {
+    "decoder": "event",
+    "error_code": "checksum_mismatch",
+    "file": "event.result_sha256_mismatch.json"
+  },
+  {
+    "decoder": "event",
+    "error_code": "invalid_input",
+    "file": "event.status_mirror_mismatch.json"
+  },
+  {
+    "decoder": "event",
+    "error_code": "invalid_input",
+    "file": "event.result_and_ref.json"
+  },
+  {
+    "decoder": "event",
+    "error_code": "invalid_input",
+    "file": "event.result_ref_wrong_type.json"
+  },
+  {
+    "decoder": "event",
+    "error_code": "unsupported_schema_version",
+    "file": "event.schema_version_2.json"
+  },
+  {
+    "decoder": "any",
+    "error_code": "invalid_input",
+    "file": "any.unknown_kind.json"
+  },
+  {
+    "decoder": "any",
+    "error_code": "unsupported_schema_version",
+    "file": "any.schema_version_2.json"
+  },
+  {
+    "decoder": "any",
+    "error_code": "invalid_input",
+    "file": "any.not_an_object.json"
+  }
+]
