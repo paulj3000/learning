@@ -329,6 +329,8 @@ def test_reconcile_skips_while_another_run_holds_the_lock(fake_transport, capsys
     _hold_reconcile_lock().close()
 
 
+@pytest.mark.postgres
+@pytest.mark.django_db
 def test_a_database_error_after_acks_keeps_them_and_hands_back_the_rest(
     fake_transport, monkeypatch, capsys
 ):
