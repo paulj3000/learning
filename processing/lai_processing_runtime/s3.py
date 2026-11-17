@@ -12,8 +12,10 @@
 - `put` is create-only (`IfNoneMatch='*'`). A `412 PreconditionFailed` means the key exists: the
   existing object's recorded SHA-256 is compared, so an identical rewrite (a redelivered
   attempt) is an idempotent success and anything else, including an object whose checksum is
-  unknown, is `ObjectExists`. The body is spooled and verified locally before the upload, so a
-  short or altered stream is refused before any request is made.
+  unknown, is `ObjectExists`. A `409 ConditionalRequestConflict` (a racing duplicate write) is
+  resolved the same way once the other object is visible, and is transient until then. The
+  body is spooled and verified locally before the upload, so a short or altered stream is
+  refused before any request is made.
 - Errors are classified from botocore codes into `ObjectMissing`, `StoragePermissionDenied` and
   `StorageUnavailable` (`classify_error`); AWS error messages are never kept or logged, only the
   error code as a short detail.
@@ -91,6 +93,9 @@ TRANSIENT_CODES: Final = frozenset(
     }
 )
 PRECONDITION_CODES: Final = frozenset({"PreconditionFailed", "412"})
+# A concurrent conditional write to the same key (a racing duplicate delivery) is answered
+# with 409; it is resolved like 412, against the object the other writer created.
+CONFLICT_CODES: Final = frozenset({"ConditionalRequestConflict"})
 SPOOL_MEMORY_BYTES: Final = 8 * 1024 * 1024
 MAX_CODE_LENGTH: Final = 64
 
@@ -361,6 +366,8 @@ class S3ObjectStorage:
                 code, status = _error_code(exc)
                 if code in PRECONDITION_CODES or (not code and status == 412):
                     return self._existing(ref, sha256)
+                if code in CONFLICT_CODES or (not code and status == 409):
+                    return self._raced(ref, sha256, code or str(status))
                 raise classify_error(exc, ref.store, "put") from None
         version = response.get("VersionId") or None
         return ObjectInfo(
@@ -376,6 +383,17 @@ class S3ObjectStorage:
         if info.sha256 is None or info.sha256 != sha256:
             raise ObjectExists({"store": ref.store.value, "operation": "put"})
         return info
+
+    def _raced(self, ref: ObjectRef, sha256: str, code: str) -> ObjectInfo:
+        """A 409 from a concurrent conditional write: identical bytes already stored are a
+        success, different bytes a conflict. If the other write is not visible yet, the
+        outcome is unknown, so it is transient and the caller retries."""
+        try:
+            return self._existing(ref, sha256)
+        except ObjectMissing:
+            raise StorageUnavailable(
+                {"store": ref.store.value, "operation": "put", "aws_code": code}
+            ) from None
 
     def delete(self, ref: ObjectRef) -> None:
         if ref.store is StoreName.ASSETS or ref.store not in self._writable:

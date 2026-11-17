@@ -266,6 +266,31 @@ def test_byte_identical_results_apart_from_timestamps(tmp_path: Path) -> None:
     assert canonical_json(without_time(first)) == canonical_json(without_time(stepped))
 
 
+def test_report_artifact_is_byte_deterministic_across_a_rerun(tmp_path: Path) -> None:
+    """A redelivered attempt reruns later on the same store: its glb-report must be the same
+    bytes, so the create-only write is an idempotent success and never a conflict."""
+    data = skinned_glb((MIXAMO_CLIP, "Idle"))
+    storage = MemoryObjectStorage()
+    storage.seed(ObjectRef(StoreName.QUARANTINE, KEY, None, NS), data)
+    results = []
+    for index, clock in enumerate((ManualClock(), SteppingClock(0.01))):
+        clock.advance(3600 * index)
+        engine = ExecutionEngine(
+            registry=default_registry(),
+            storage=storage,
+            clock=clock,
+            workspace_root=tmp_path,
+            id_factory=lambda: "44444444-4444-4444-8444-444444444444",
+        )
+        results.append(engine.execute(make_request(data, {"write_report": True})))
+    first, second = results
+    assert first.status is second.status is ResultStatus.SUCCEEDED
+    assert first.started_at != second.started_at
+    assert first.artifacts == second.artifacts
+    (artifact,) = first.artifacts
+    assert len(storage.objects[("artifacts", artifact.ref.key)]) == 1
+
+
 def test_deadline_in_a_parsing_loop_is_a_retryable_timeout(tmp_path: Path) -> None:
     nodes = [{"mesh": 0}] + [{} for _ in range(5000)]
     document = {
