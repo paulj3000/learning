@@ -38,8 +38,16 @@ class _PortStream(io.RawIOBase):
     def readinto(self, buffer) -> int:
         if self._position >= self._size:
             return 0
+        from lai_processing.ports.storage import StorageUnavailable
+
+        from .tasks import TaskError
+
         length = min(len(buffer), READ_CHUNK, self._size - self._position)
-        data = self._ports.read_asset(self._key, self._position, length)
+        try:
+            data = self._ports.read_asset(self._key, self._position, length)
+        except TaskError:
+            # A transient read fault is a storage failure (retryable), not an unexpected one.
+            raise StorageUnavailable({"store": "assets"}) from None
         if not data:
             return 0
         buffer[: len(data)] = data
