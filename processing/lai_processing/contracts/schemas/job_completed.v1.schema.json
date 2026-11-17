@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lai.invalid/processing/schemas/job_completed.v1.schema.json",
+  "title": "CompletionEvent v1",
+  "description": "The message a worker sends to the completion queue (lai_processing.contracts.events.CompletionEvent). Exactly one of result (inline) and result_ref (the canonical result JSON stored as a report.job_result artifact of the same attempt) is set. The event is not trusted on its own: Django accepts it only when job, attempt, idempotency key, namespace and input checksum match its record (core/lifecycle.py decide_completion). The Python decoder is authoritative and also checks that the envelope mirrors the inline result and that result_sha256 is the SHA-256 of the result's canonical JSON.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "event_id",
+    "emitted_at",
+    "job_id",
+    "job_type",
+    "namespace",
+    "idempotency_key",
+    "correlation_id",
+    "attempt_id",
+    "attempt_number",
+    "status",
+    "retry_class",
+    "result_sha256",
+    "result",
+    "result_ref"
+  ],
+  "properties": {
+    "kind": {
+      "description": "Message kind discriminator.",
+      "const": "lai.processing.job_completed"
+    },
+    "schema_version": {
+      "description": "Contract schema version.",
+      "type": "integer",
+      "const": 1
+    },
+    "event_id": {
+      "description": "Unique id of this event (lowercase UUID). A redelivered message keeps it.",
+      "$ref": "job_request.v1.schema.json#/$defs/uuid"
+    },
+    "emitted_at": {
+      "description": "When the worker emitted the event (UTC, Z suffix).",
+      "$ref": "job_request.v1.schema.json#/$defs/timestamp"
+    },
+    "job_id": {
+      "description": "Mirrors the result's job_id.",
+      "$ref": "job_request.v1.schema.json#/$defs/uuid"
+    },
+    "job_type": {
+      "description": "Mirrors the result's job_type.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 64
+    },
+    "namespace": {
+      "description": "Mirrors the result's namespace.",
+      "$ref": "job_request.v1.schema.json#/$defs/namespace"
+    },
+    "idempotency_key": {
+      "description": "Mirrors the result's idempotency_key.",
+      "type": "string",
+      "pattern": "^ik1:[0-9a-f]{64}$"
+    },
+    "correlation_id": {
+      "description": "Mirrors the result's correlation_id.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{8,64}$"
+    },
+    "attempt_id": {
+      "description": "Mirrors the result's attempt_id.",
+      "$ref": "job_request.v1.schema.json#/$defs/uuid"
+    },
+    "attempt_number": {
+      "description": "Mirrors the result's attempt_number.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "status": {
+      "description": "Mirrors the result's status.",
+      "enum": ["succeeded", "failed", "cancelled"]
+    },
+    "retry_class": {
+      "description": "The inline result's retry_class (null for a success). For a by-reference event the encoder writes null; the consumer reads the retry class from the fetched result.",
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "job_result.v1.schema.json#/$defs/retry_class" }
+      ]
+    },
+    "result_sha256": {
+      "description": "SHA-256 of the result's canonical JSON; the consumer checks the result it reads against it.",
+      "$ref": "job_request.v1.schema.json#/$defs/sha256"
+    },
+    "result": {
+      "description": "The result inline, when the encoded event fits the message limit; otherwise null.",
+      "oneOf": [{ "type": "null" }, { "$ref": "job_result.v1.schema.json" }]
+    },
+    "result_ref": {
+      "description": "Reference to the stored result (artifact_type report.job_result, same job and attempt, sha256 equal to result_sha256) when the result is not inline; otherwise null.",
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "job_result.v1.schema.json#/$defs/artifact_reference" }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "description": "Inline result.",
+      "properties": { "result": { "type": "object" }, "result_ref": { "type": "null" } }
+    },
+    {
+      "description": "Result by reference.",
+      "properties": { "result": { "type": "null" }, "result_ref": { "type": "object" } }
+    }
+  ]
+}

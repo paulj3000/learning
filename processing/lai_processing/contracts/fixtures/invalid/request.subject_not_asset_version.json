@@ -1,0 +1,47 @@
+{
+  "asset": {
+    "asset_id": "npc-pip",
+    "asset_version_id": "c0ffee00-1234-4abc-8def-0123456789ab",
+    "asset_version_number": 3
+  },
+  "attempt_id": "7e6d5c4b-3a29-4180-9f7e-6d5c4b3a2918",
+  "attempt_number": 1,
+  "correlation_id": "corr-asset-model-0001",
+  "expires_at": null,
+  "idempotency_key": "ik1:e7263b7573a41af60f33933d380a84b707beb879f6c5594c8f9d0365d249ac38",
+  "input": {
+    "content_type": "model/gltf-binary",
+    "ref": {
+      "key": "assets/models/npc-pip/c0ffee00-1234-4abc-8def-0123456789ab/model.glb",
+      "store": "assets",
+      "version_id": "3sL4kqtJlcpXroDTDmJ.rmSpXd3dIbrHY"
+    },
+    "sha256": "9834f8e4b07060dc2240803f64b2278f1206babfe00944a32b69516442dc0ab4",
+    "size_bytes": 482133
+  },
+  "job_id": "2d4f6a8c-1b3d-4e5f-8a7b-9c0d1e2f3a4b",
+  "job_type": "asset.validate_model",
+  "kind": "lai.processing.job_request",
+  "limits": {
+    "complexity": {},
+    "max_artifact_count": 16,
+    "max_execution_seconds": 300,
+    "max_input_bytes": 52428800,
+    "max_message_bytes": 65536,
+    "max_metadata_bytes": 65536,
+    "max_output_bytes": 209715200,
+    "max_temp_bytes": 419430400
+  },
+  "namespace": "local",
+  "options": {},
+  "profile": {
+    "profile_id": "model-default",
+    "version": 1
+  },
+  "schema_version": 1,
+  "subject": {
+    "subject_id": "99999999-8888-4777-8666-555555555555",
+    "subject_type": "asset_version"
+  },
+  "submitted_at": "2026-11-16T12:00:00.000000Z"
+}
