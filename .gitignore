@@ -41,6 +41,8 @@ lai/staticfiles/
 
 # Local asset-library storage (LAI-2200)
 lai/.asset-storage/
+# local processing stores and queues (LAI_PROCESSING_LOCAL_ROOT, LAI-LAMBDA-004)
+lai/.processing-local/
 lai/.child-photo-storage/
 
 # CDK synth output (infra/)

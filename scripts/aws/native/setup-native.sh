@@ -219,7 +219,7 @@ WantedBy=timers.target
 EOF
 systemctl daemon-reload
 systemctl enable --now lai-certbot-renew.timer lai-maintenance.timer >/dev/null 2>&1
-for u in lai-gunicorn lai-jobs-consumer; do
+for u in lai-gunicorn lai-jobs-consumer lai-jobs-dispatch lai-jobs-completions; do
     [ ! -f /etc/systemd/system/$u.service ] || systemctl enable $u.service >/dev/null 2>&1 || true
 done
 systemctl enable nginx >/dev/null 2>&1
@@ -249,7 +249,9 @@ cat >$cw.tmp <<EOF
   $(f /var/log/nginx/error.log "$P/nginx"),
   $(f /var/log/lai/deploy.log "$P/deploy"),
   $(f /var/log/lai/maintenance.log "$P/deploy"),
-  $(f /var/log/lai/jobs-consumer.log "$P/jobs")]}}},
+  $(f /var/log/lai/jobs-consumer.log "$P/jobs"),
+  $(f /var/log/lai/jobs-dispatch.log "$P/jobs"),
+  $(f /var/log/lai/jobs-completions.log "$P/jobs")]}}},
  "metrics":{"namespace":"LearningAdventureIsland/DevEC2",
   "append_dimensions":{"InstanceId":"\${aws:InstanceId}"},"aggregation_dimensions":[["InstanceId"]],
   "metrics_collected":{"mem":{"measurement":["mem_used_percent"]},

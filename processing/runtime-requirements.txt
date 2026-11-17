@@ -1,0 +1,10 @@
+# Python dependencies of the processing Lambda image (processing/Dockerfile.lambda, LAI-LAMBDA-003).
+# lai_processing is standard-library only; lai_processing_runtime needs boto3 for S3 and SQS.
+# Every version is pinned exactly to the repository's requirements.txt (a test enforces it).
+boto3==1.43.118
+botocore==1.43.118
+s3transfer==0.19.3
+jmespath==1.1.0
+python-dateutil==2.9.0.post0
+six==1.17.0
+urllib3==2.8.0

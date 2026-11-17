@@ -42,6 +42,90 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Serverless background processing, Wave 2 (LAI-LAMBDA-002 to 005) — developer-complete on `feature/serverless-processing-wave2` (2026-11-17); owner review pending, NOT merged, NOT deployed
+
+Built on Wave 1 (PR #40, merge-ready but not merged). ADR-062 (Proposed) extends the existing
+`apps.jobs` backbone (ADR-055) with contract kinds instead of adding a second job system.
+`docs/processing/WAVE2_INTERFACES.md` freezes the shared names, settings and semantics.
+
+- **002 GLB validator** (`processing/lai_processing/processors/gltf/`, processor
+  `asset.glb_validator` 1.0.0, profile `glb-default`): container, JSON, document, image and
+  metadata checks. Verdicts match `lai/apps/assets/validation.py`, enforced by a Django parity
+  test. Docs: `docs/processing/GLB_VALIDATION.md`.
+- **003 runtime** (`processing/lai_processing_runtime/`): filesystem, S3 (ChecksumSHA256, never
+  the ETag), SQS and local-directory queue adapters; JSON telemetry; local worker and CLI; Lambda
+  handler with partial batch failures; arm64 ECR image (`processing/Dockerfile.lambda`).
+  Docs: `docs/processing/RUNTIME.md`.
+- **004 Django jobs** (`lai/apps/jobs/`, migration `0002_processing_contract_kinds`): job
+  attempts, transactional outbox, completion receipts (dedup ledger), artifacts; the
+  `jobs_dispatch`, `jobs_consume_completions` (ack only after commit; never receives while
+  PostgreSQL is unreachable) and `jobs_reconcile` commands; Admin status;
+  `apps.assets.processing.submit_model_validation`. Processing never changes or publishes an
+  AssetVersion. Docs: `docs/processing/DJANGO_JOBS.md`.
+- **005 infrastructure** (code and synth tests only): CDK `LaiProcessingImages-<env>` (ECR) and
+  `LaiProcessing-<env>` (private bucket, work and completion queues with DLQs, Lambda by image
+  digest, least-privilege IAM, alarms); `deploy-processing.yml` (manual dispatch only, gated by
+  `LAI_PROCESSING_DEPLOY_ENABLED` and the `processing-<env>` environments); a CI image build; two
+  systemd units for native dev EC2; power-management quiesce and verify.
+  Docs: `docs/infrastructure/processing-infrastructure.md`.
+- **Integration fixes:** runtime package exports, worker read-back of its own artifacts (needed
+  for idempotent redelivery), the `glb-default` profile in fixtures, an env-overridable
+  `LAI_ASSET_LOCAL_ROOT`, and the consumer's database-outage handling.
+- **Checks (2026-11-17):**
+  - Full suite `pytest` on an isolated PostgreSQL database: 5968 passed, 8 skipped.
+  - Wave 2 end-to-end tests (`lai/apps/jobs/tests/test_processing_wave2_end_to_end.py`, 5) and
+    CDK synth tests pass.
+  - `scripts/processing/local-demo.sh` ran end to end: verdict pass, clips listed, version
+    unchanged.
+- **Not done / blocked:**
+  - No AWS deployment, no ECR push, no live migration, and no schedule activation (A9).
+  - Owner approvals still needed: ADR-062; a deploy role for LaiProcessing (B4); the GitHub
+    environments and variables (B5); deploying LaiProcessing before any platform update (B6);
+    the `LAI_ASSET_ASYNC_VALIDATION` flag; and prod reserved concurrency.
+  - Wave 3 (006, 007) is handed off in `docs/processing/WAVE3_HANDOFF.md`. It is blocked on the
+    Wave 1 merge and the Wave 2 review.
+
+## Serverless background processing, Wave 1 (LAI-LAMBDA-001) — developer-complete on `feature/serverless-processing` (2026-11-16); owner review, merge, Django integration and AWS NOT done
+
+ADR-061 (proposed) and `docs/processing/` describe the design: Django stays authoritative for
+processing jobs and publication; a transactional outbox feeds an SQS work queue; Lambda workers
+verify inputs, run processors and write immutable artifacts to S3; completions return on a
+separate SQS queue that Django consumes and acknowledges only after commit. Lambda never connects
+to RDS and never publishes.
+
+- **Done:** the runtime-independent package `processing/lai_processing` (standard library only,
+  enforced by an import scan and an isolated-interpreter test). It contains:
+  - versioned contracts with strict decoding, plus fixtures (7 valid, 43 invalid with a manifest)
+    and JSON Schemas;
+  - the error and retry taxonomy (22 codes), resource limits clamped to platform ceilings,
+    idempotency keys, the job lifecycle and `decide_completion`, and a bounded retry policy with
+    full jitter;
+  - the processor interface, an explicit registry, and an execution engine that verifies the
+    input checksum before any processor runs, checks idempotency keys, enforces limits and
+    always cleans up;
+  - the reference processor, storage/queue/telemetry/clock ports with in-memory fakes, and the
+    CLI (`python -m lai_processing`).
+
+  Docs: README section "Serverless background processing", `docs/processing/` (architecture,
+  contracts, lifecycle, security, operations, Wave 2 handoff), ADR-061, plus cross-references in
+  `docs/ASSET_LIBRARY.md` section 23, `docs/AI_QUESTION_STUDIO.md` and
+  `docs/infrastructure/resource-ownership.md` 3.4. The registry reserves ADR-055 to ADR-060 for
+  the open movement PRs.
+- **Checks (2026-11-16):**
+  - `pytest tests/processing/`: 1579 passed.
+  - Regression: `tests/repo` and `tests/golden` 357 passed; `lai/apps/assets` 270 passed on
+    PostgreSQL (with a separate test database name, because the shared one was in use).
+  - `scripts/check-adrs.ts` passes.
+  - Ruff, Prettier, full suites and browser checks were not run (merge readiness).
+- **Not done (by design, later waves):**
+  - Django `ProcessingJob` app and migrations (004);
+  - S3/SQS adapters and the Lambda handler (003);
+  - the GLB validator (002);
+  - any CDK stack, queue, function, role or alarm (005, owner approvals A1 to A10 in ADR-061);
+  - deployment, and the overnight stop schedule.
+  
+  Asset upload and publication in Django Admin are unchanged.
+
 ## Low-cost native AWS dev environment (ADR-055) — implemented and tested in the repository on `main` (2026-11-16); NOT deployed, live acceptance NOT run
 
 Owner-directed and authorized 2026-11-16 ("Low-Cost AWS Development Infrastructure"). Runbook:

@@ -1,0 +1,35 @@
+# The runtime-independent processing package (LAI-LAMBDA-001, ADR-061). It has no runtime
+# dependencies: standard library only. Django, boto3 and AWS Lambda adapters live outside the
+# core (Wave 2). Installable so a Lambda bundle or the Django image can vendor it:
+#   pip install ./processing
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lai-processing"
+version = "0.1.0"
+description = "Learning Adventure Island background processing contracts and execution core"
+requires-python = ">=3.12"
+dependencies = []
+
+# Runtime package (LAI-LAMBDA-003): `lai_processing_runtime` (adapters, local worker, Lambda
+# handler) ships in the same distribution; it needs boto3 only for the S3/SQS adapters and the
+# Lambda wiring, so boto3 is an optional extra (`pip install './processing[aws]'`), pinned to
+# the version in the repository's requirements.txt.
+[project.optional-dependencies]
+aws = ["boto3==1.43.118"]
+
+[project.scripts]
+lai-processing = "lai_processing.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["lai_processing*", "lai_processing_runtime*"]
+
+[tool.setuptools.package-data]
+"lai_processing.contracts" = [
+    "fixtures/*.json",
+    "fixtures/*.txt",
+    "fixtures/invalid/*.json",
+    "schemas/*.json",
+]

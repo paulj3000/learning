@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lai.invalid/processing/schemas/job_request.v1.schema.json",
+  "title": "ProcessingJobRequest v1",
+  "description": "One attempt to run one logical processing job, sent by Django to a worker (lai_processing.contracts.jobs.ProcessingJobRequest). Never carries file bytes, presigned URLs, child data or credentials. The Python decoder is authoritative: it also enforces cross-field rules this schema cannot express (job-type requirements, subject/asset agreement, namespaced object keys, expires_at after submitted_at, input size within limits).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "job_id",
+    "job_type",
+    "namespace",
+    "subject",
+    "asset",
+    "profile",
+    "input",
+    "idempotency_key",
+    "correlation_id",
+    "attempt_id",
+    "attempt_number",
+    "submitted_at",
+    "expires_at",
+    "options",
+    "limits"
+  ],
+  "properties": {
+    "kind": {
+      "description": "Message kind discriminator.",
+      "const": "lai.processing.job_request"
+    },
+    "schema_version": {
+      "description": "Contract schema version. Readers refuse unsupported versions with unsupported_schema_version.",
+      "type": "integer",
+      "const": 1
+    },
+    "job_id": {
+      "description": "Django's job row id for this logical work (lowercase UUID).",
+      "$ref": "#/$defs/uuid"
+    },
+    "job_type": {
+      "description": "A job type from the closed catalog in contracts/job_types.py (for example reference.checksum, asset.validate_model). Unknown types fail with unsupported_job_type.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 64
+    },
+    "namespace": {
+      "description": "Environment namespace (for example local, staging, prod). Quarantine and artifact keys must sit inside it.",
+      "$ref": "#/$defs/namespace"
+    },
+    "subject": {
+      "description": "What the job is about, generically.",
+      "$ref": "#/$defs/subject"
+    },
+    "asset": {
+      "description": "Asset identity; required by asset job types, null otherwise.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/asset_context" }]
+    },
+    "profile": {
+      "description": "The immutable processing profile version that configures the job.",
+      "$ref": "#/$defs/profile_ref"
+    },
+    "input": {
+      "description": "The input object the job reads, or null for a job without an input.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/input_object" }]
+    },
+    "idempotency_key": {
+      "description": "ik1: plus the SHA-256 of the logical work (core/idempotency.py). Excludes job, attempt, correlation, timestamps and limits.",
+      "type": "string",
+      "pattern": "^ik1:[0-9a-f]{64}$"
+    },
+    "correlation_id": {
+      "description": "Opaque id tying logs across Django, queues and workers. Carries no meaning.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{8,64}$"
+    },
+    "attempt_id": {
+      "description": "One execution attempt of the job; a retry gets a new attempt id (lowercase UUID).",
+      "$ref": "#/$defs/uuid"
+    },
+    "attempt_number": {
+      "description": "1 for the first attempt, increasing per retry (at most 100).",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "submitted_at": {
+      "description": "When Django dispatched this attempt: UTC, ISO 8601, Z suffix.",
+      "$ref": "#/$defs/timestamp"
+    },
+    "expires_at": {
+      "description": "After this moment the worker refuses the attempt with job_expired; null means no expiry. Must be later than submitted_at.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/timestamp" }]
+    },
+    "options": {
+      "description": "Fully resolved processing options (profile defaults applied by Django): snake_case keys to scalars or short scalar lists. At most 32 entries.",
+      "$ref": "#/$defs/options"
+    },
+    "limits": {
+      "description": "Requested resource limits; the worker clamps them to its platform ceilings.",
+      "$ref": "#/$defs/limits"
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "description": "Lowercase hyphenated UUID.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "namespace": {
+      "description": "Lowercase hyphenated environment name, at most 32 characters.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "maxLength": 32
+    },
+    "timestamp": {
+      "description": "Strict UTC timestamp YYYY-MM-DDTHH:MM:SS[.ffffff]Z. Offsets and naive times are refused.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"
+    },
+    "sha256": {
+      "description": "Lowercase hex SHA-256.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "subject": {
+      "description": "Generic subject reference, e.g. (asset_version, <uuid>).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_type", "subject_id"],
+      "properties": {
+        "subject_type": {
+          "description": "snake_case subject kind. Asset job types require asset_version.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 64
+        },
+        "subject_id": {
+          "description": "Subject identifier. For asset_version subjects it must equal asset.asset_version_id.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+        }
+      }
+    },
+    "asset_context": {
+      "description": "Asset Library identity (Django AssetVersion).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "asset_version_id", "asset_version_number"],
+      "properties": {
+        "asset_id": {
+          "description": "Asset slug (the Asset Library's asset id rule).",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "maxLength": 100
+        },
+        "asset_version_id": {
+          "description": "AssetVersion primary key (lowercase UUID).",
+          "$ref": "#/$defs/uuid"
+        },
+        "asset_version_number": {
+          "description": "The version's sequence number within its asset (from 1).",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "profile_ref": {
+      "description": "A processing profile by id and integer version.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "version"],
+      "properties": {
+        "profile_id": {
+          "description": "Profile slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "maxLength": 64
+        },
+        "version": {
+          "description": "Profile version; immutable once used.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      }
+    },
+    "object_ref": {
+      "description": "A logical object location. Names a logical store, never a bucket or URL; adapters map (namespace, store) to physical storage.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["store", "key", "version_id"],
+      "properties": {
+        "store": {
+          "description": "Logical store: assets or quarantine for inputs, artifacts for outputs.",
+          "enum": ["assets", "quarantine", "artifacts"]
+        },
+        "key": {
+          "description": "Object key: conservative characters only, no traversal, no leading or trailing slash, under the store prefix (assets/, processing/quarantine/<namespace>/, processing/artifacts/<namespace>/).",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._=-]+(?:/[A-Za-z0-9._=-]+)*$",
+          "not": { "pattern": "(?:^|/)\\.{1,2}(?:/|$)" },
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "version_id": {
+          "description": "Exact object version where the store has one; null for the current object.",
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[A-Za-z0-9._=+-]{1,1024}$" }
+          ]
+        }
+      }
+    },
+    "input_object": {
+      "description": "The job input: where it is and what it must be. The worker verifies size and SHA-256 before processing.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "content_type", "size_bytes", "sha256"],
+      "properties": {
+        "ref": {
+          "description": "Input location (store assets or quarantine).",
+          "$ref": "#/$defs/object_ref"
+        },
+        "content_type": {
+          "description": "Declared media type, e.g. model/gltf-binary.",
+          "type": "string",
+          "pattern": "^[a-z]+/[a-z0-9][a-z0-9.+-]*$",
+          "maxLength": 100
+        },
+        "size_bytes": {
+          "description": "Exact input size in bytes; must not exceed limits.max_input_bytes.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        },
+        "sha256": {
+          "description": "Expected SHA-256 of the input bytes.",
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "option_scalar": {
+      "description": "An option value: null, boolean, number, or a string of at most 256 characters without control characters.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string", "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f]*$" }
+      ]
+    },
+    "options": {
+      "description": "Flat option object.",
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/$defs/option_scalar" },
+          { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/option_scalar" } }
+        ]
+      }
+    },
+    "limit_value": {
+      "description": "A positive integer limit (at most 2^53).",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740992
+    },
+    "limits": {
+      "description": "Per-job resource limits (core/limits.py ResourceLimits).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_input_bytes",
+        "max_output_bytes",
+        "max_execution_seconds",
+        "max_temp_bytes",
+        "max_artifact_count",
+        "max_metadata_bytes",
+        "max_message_bytes",
+        "complexity"
+      ],
+      "properties": {
+        "max_input_bytes": {
+          "description": "Largest input object the job may read.",
+          "$ref": "#/$defs/limit_value"
+        },
+        "max_output_bytes": {
+          "description": "Total bytes of all artifacts the job may write.",
+          "$ref": "#/$defs/limit_value"
+        },
+        "max_execution_seconds": {
+          "description": "Wall-clock budget, enforced cooperatively by the engine.",
+          "$ref": "#/$defs/limit_value"
+        },
+        "max_temp_bytes": {
+          "description": "Bytes the job may write to its private temporary workspace.",
+          "$ref": "#/$defs/limit_value"
+        },
+        "max_artifact_count": {
+          "description": "Number of artifacts in one result.",
+          "$ref": "#/$defs/limit_value"
+        },
+        "max_metadata_bytes": {
+          "description": "Canonical JSON size of the result's metadata object.",
+          "$ref": "#/$defs/limit_value"
+        },
+        "max_message_bytes": {
+          "description": "Encoded size of any request, result or completion message.",
+          "$ref": "#/$defs/limit_value"
+        },
+        "complexity": {
+          "description": "Processor-specific named counters, e.g. {\"max_vertices\": 200000}. At most 32 entries.",
+          "type": "object",
+          "maxProperties": 32,
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+          "additionalProperties": { "$ref": "#/$defs/limit_value" }
+        }
+      }
+    }
+  }
+}

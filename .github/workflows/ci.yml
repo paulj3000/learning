@@ -67,6 +67,46 @@ jobs:
       - name: Run Playwright tests
         run: npm run test:e2e
 
+  # The processing worker image (LAI-LAMBDA-005): build processing/Dockerfile.lambda for
+  # linux/arm64 under QEMU, import the handler inside it, and scan it. Never pushed, no AWS, no
+  # secrets: the image only exists on the runner. The push is deploy-processing.yml (manual).
+  processing-image:
+    name: Processing worker image (linux/arm64, no push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build for linux/arm64 (loaded locally, not pushed)
+        run: |
+          docker buildx build --platform linux/arm64 --provenance=false --sbom=false \
+            --file processing/Dockerfile.lambda --tag lai-processing:ci --load processing
+
+      - name: Smoke test (the handler imports inside the image)
+        run: |
+          docker run --rm --platform linux/arm64 --entrypoint python lai-processing:ci \
+            -c "import lai_processing_runtime.lambda_handler"
+
+      # Fails on CRITICAL vulnerabilities that have a fix; HIGH and below are not gated
+      # (docs/infrastructure/processing-infrastructure.md, "CI image checks").
+      - name: Vulnerability scan (CRITICAL fails the job)
+        # Pinned to the commit of v0.36.0: the unprefixed 0.x tags were withdrawn upstream, and a
+        # commit pin cannot be moved by a re-published tag.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: lai-processing:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          vuln-type: os,library
+          exit-code: '1'
+
   python:
     name: Python, Django, PostgreSQL
     runs-on: ubuntu-latest

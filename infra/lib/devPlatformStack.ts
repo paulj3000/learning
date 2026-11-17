@@ -40,6 +40,7 @@ import {
   readScript,
 } from './djangoEc2Stack';
 import { GITHUB_OIDC_HOST, githubOidcProviderArn, githubPrincipal } from './githubOidc';
+import { djangoProcessingPolicyName } from './processingStack';
 
 /**
  * The native (no Docker) dev environment, `LaiDevPlatform-dev`. It replaces `LaiDjangoEc2-dev`
@@ -56,9 +57,10 @@ import { GITHUB_OIDC_HOST, githubOidcProviderArn, githubPrincipal } from './gith
  * the template is synthesized once and deployed bootstraplessly: no file assets, no custom
  * resources. The Lambda code is read from the artifacts bucket (`WorkerCodeKey`).
  *
- * Deploy after LaiDevArtifacts-dev, LaiAssetStorage-dev and LaiChildPhotos-dev (their policies
- * are attached by name) and before LaiAiGuardrail-dev, which attaches `lai-django-ai-dev` to this
- * stack's instance role `lai-django-ec2-dev` and filters this stack's `/lai/dev/django` logs.
+ * Deploy after LaiDevArtifacts-dev, LaiAssetStorage-dev, LaiChildPhotos-dev and LaiProcessing-dev
+ * (their policies are attached by name) and before LaiAiGuardrail-dev, which attaches
+ * `lai-django-ai-dev` to this stack's instance role `lai-django-ec2-dev` and filters this stack's
+ * `/lai/dev/django` logs.
  */
 
 export const DEV = 'dev';
@@ -650,6 +652,13 @@ export class DevPlatformStack extends Stack {
           this,
           'ChildPhotoStoragePolicy',
           `lai-django-child-photos-${DEV}`,
+        ),
+        // LaiProcessing-dev: processing queues and objects only. Deploy LaiProcessing-dev
+        // first: attaching a policy that does not exist yet fails this stack's update.
+        iam.ManagedPolicy.fromManagedPolicyName(
+          this,
+          'ProcessingPolicy',
+          djangoProcessingPolicyName(DEV),
         ),
         // `lai-django-ai-dev` is attached by LaiAiGuardrail-dev, deployed after this stack.
       ],

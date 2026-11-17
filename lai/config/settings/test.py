@@ -33,3 +33,7 @@ DATABASES = {"default": compose_database()}
 LAI_STUDIO_RUN_MODE = "manual"
 # Background jobs run in-process through the worker's own task code (apps.jobs.core).
 LAI_JOBS_BACKEND = "inline"
+# Contract processing jobs run in-process after commit, on in-memory queues (apps.jobs.processing).
+LAI_PROCESSING_BACKEND = "inline"
+LAI_PROCESSING_NAMESPACE = "test"
+LAI_PROCESSING_DISPATCH = "enabled"

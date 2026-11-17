@@ -1,0 +1,203 @@
+# Processing worker image and stack (LAI-LAMBDA-005; docs/infrastructure/processing-infrastructure.md).
+#
+#   build-push: build processing/Dockerfile.lambda for linux/arm64 (off EC2), push it to
+#               lai/processing-<env> tagged with the full commit SHA (immutable), print the digest
+#   deploy:     synthesize LaiProcessing-<env> with that digest and create a CloudFormation change
+#               set (scripts/aws/provision.sh --only); apply it only with execute_change_set
+#   rollback:   the same as deploy, with an earlier digest
+#
+# Manual only (workflow_dispatch): no push, pull_request or schedule trigger, so merging a PR never
+# builds, pushes or deploys anything here. Every job also needs the repository variable
+# LAI_PROCESSING_DEPLOY_ENABLED == 'true', runs only from main, and runs in the GitHub environment
+# processing-<env>, whose required reviewers the owner configures. AWS access is GitHub OIDC only:
+# LAI_PROCESSING_PUBLISHER_ROLE_ARN (LaiProcessingImages-<env> output, trusts processing-<env>) for
+# build-push, LAI_PROCESSING_DEPLOY_ROLE_ARN for deploy and rollback (owner-provisioned; see the
+# doc, "Deployment blockers"). Both are variables of the processing-<env> environment.
+name: Deploy processing worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        default: dev
+      action:
+        description: build-push a new image, deploy a digest, or roll back to an earlier digest
+        type: choice
+        options: [build-push, deploy, rollback]
+        default: build-push
+      image_digest:
+        description: 'deploy and rollback: sha256:<64 hex> of an image in lai/processing-<env>'
+        type: string
+        default: ''
+      execute_change_set:
+        description: 'deploy and rollback: apply the change set (false: create and print it only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-processing-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.LAI_AWS_REGION || 'us-west-1' }}
+
+jobs:
+  build-push:
+    name: Build and push the worker image (${{ inputs.environment }})
+    if: >-
+      vars.LAI_PROCESSING_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' &&
+      inputs.action == 'build-push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: processing-${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Publisher role configured
+        env:
+          ROLE: ${{ vars.LAI_PROCESSING_PUBLISHER_ROLE_ARN }}
+        run: |
+          [ -n "$ROLE" ] || { echo "::error::set LAI_PROCESSING_PUBLISHER_ROLE_ARN on the processing-${{ inputs.environment }} environment (LaiProcessingImages output ImagePublisherRoleArn)"; exit 1; }
+          [ -f processing/Dockerfile.lambda ] || { echo "::error::processing/Dockerfile.lambda is missing (LAI-LAMBDA-003)"; exit 1; }
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_PROCESSING_PUBLISHER_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-processing-image-${{ github.run_id }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build for linux/arm64 and push by immutable tag (the commit SHA)
+        id: push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: lai/processing-${{ inputs.environment }}
+          TAG: ${{ github.sha }}
+        run: |
+          existing=$(aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=$TAG" \
+            --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)
+          if [[ $existing =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "$REPOSITORY:$TAG already exists (tags are immutable); reusing it"
+          else
+            # One single-platform manifest: Lambda does not take an image index, and provenance or
+            # SBOM attestations would turn the push into one.
+            docker buildx build --platform linux/arm64 --provenance=false --sbom=false \
+              --file processing/Dockerfile.lambda \
+              --label "org.opencontainers.image.revision=$TAG" \
+              --tag "$REGISTRY/$REPOSITORY:$TAG" --push processing
+          fi
+          digest=$(aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=$TAG" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          [[ $digest =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::no digest for $REPOSITORY:$TAG"; exit 1; }
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+          {
+            echo "### Worker image ($REPOSITORY)"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`$TAG\` |"
+            echo "| Digest | \`$digest\` |"
+            echo ""
+            echo "Deploy it: run this workflow with action \`deploy\` and image_digest \`$digest\`."
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: ${{ inputs.action }} LaiProcessing-${{ inputs.environment }}
+    if: >-
+      vars.LAI_PROCESSING_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' &&
+      (inputs.action == 'deploy' || inputs.action == 'rollback')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: processing-${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Inputs and role
+        env:
+          DIGEST: ${{ inputs.image_digest }}
+          ROLE: ${{ vars.LAI_PROCESSING_DEPLOY_ROLE_ARN }}
+        run: |
+          [[ $DIGEST =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::image_digest must be sha256:<64 hex>"; exit 2; }
+          [ -n "$ROLE" ] || { echo "::error::set LAI_PROCESSING_DEPLOY_ROLE_ARN on the processing-${{ inputs.environment }} environment (owner-provisioned, see docs/infrastructure/processing-infrastructure.md)"; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_PROCESSING_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-processing-deploy-${{ github.run_id }}
+
+      - name: The digest is an image in lai/processing-${{ inputs.environment }}
+        env:
+          DIGEST: ${{ inputs.image_digest }}
+          REPOSITORY: lai/processing-${{ inputs.environment }}
+        run: |
+          aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageDigest=$DIGEST" \
+            --query 'imageDetails[0].[imageDigest,imageTags[0],imagePushedAt]' --output text ||
+            { echo "::error::$DIGEST is not in $REPOSITORY (lifecycle-expired, or the other environment's)"; exit 1; }
+
+      - name: Change set (synthesized with the digest; applied only with execute_change_set)
+        env:
+          LAI_PROCESSING_WORKER_IMAGE_DIGEST: ${{ inputs.image_digest }}
+          LAI_GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET: ${{ inputs.environment }}
+          EXECUTE: ${{ inputs.execute_change_set && 'true' || 'false' }}
+        run: |
+          flags=(--only "LaiProcessing-$TARGET")
+          if [ "$EXECUTE" = true ]; then flags+=(--execute); fi
+          scripts/aws/provision.sh "$TARGET" "${flags[@]}"
+
+      - name: Summary
+        if: always()
+        env:
+          TARGET: ${{ inputs.environment }}
+          ACTION: ${{ inputs.action }}
+          DIGEST: ${{ inputs.image_digest }}
+          EXECUTE: ${{ inputs.execute_change_set && 'true' || 'false' }}
+        run: |
+          deployed=$(aws cloudformation describe-stacks --stack-name "LaiProcessing-$TARGET" \
+            --query "Stacks[0].Outputs[?OutputKey=='WorkerImageDigest'].OutputValue" --output text 2>/dev/null || echo unknown)
+          {
+            echo "### LaiProcessing-$TARGET: $ACTION"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Requested digest | \`$DIGEST\` |"
+            echo "| Change set applied | $EXECUTE |"
+            echo "| Deployed digest | \`$deployed\` |"
+          } >>"$GITHUB_STEP_SUMMARY"

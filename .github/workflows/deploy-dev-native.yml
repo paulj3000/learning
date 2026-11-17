@@ -22,6 +22,7 @@ on:
     branches: [main]
     paths:
       - 'lai/**'
+      - 'processing/**'
       - 'content/**'
       - 'react/public/models/**'
       - 'requirements.txt'
@@ -170,6 +171,8 @@ jobs:
             exit 1
           fi
           echo "$(wc -l <<<"$wheels") wheels, all aarch64 or none-any"
+          grep -qE '(^|/)lai_processing-[^/]+-py3-none-any\.whl$' <<<"$wheels" ||
+            { echo "::error::the release has no lai-processing wheel (built from processing/)"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:

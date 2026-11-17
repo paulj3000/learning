@@ -209,7 +209,11 @@ LOGGING = {
 LAI_ASSET_STORAGE = os.environ.get("LAI_ASSET_STORAGE", "local").strip()
 LAI_ASSET_BUCKET = os.environ.get("LAI_ASSET_BUCKET", "").strip()
 LAI_ASSET_REGION = os.environ.get("LAI_ASSET_REGION", "").strip()
-LAI_ASSET_LOCAL_ROOT = BASE_DIR / ".asset-storage"
+# The local asset storage root (default lai/.asset-storage). Overridable so a local worker and
+# Django can share one explicit directory (scripts/processing/local-demo.sh, LAI-LAMBDA-003/004).
+LAI_ASSET_LOCAL_ROOT = Path(
+    os.environ.get("LAI_ASSET_LOCAL_ROOT", "").strip() or BASE_DIR / ".asset-storage"
+)
 LAI_ASSET_DELIVERY = os.environ.get("LAI_ASSET_DELIVERY", "django").strip()
 LAI_ASSET_URL_TTL_SECONDS = int(os.environ.get("LAI_ASSET_URL_TTL_SECONDS", "3600"))
 LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))  # 50 MB
@@ -535,3 +539,51 @@ if not 1 <= LAI_JOBS_RETENTION_DAYS <= 365:
     raise ImproperlyConfigured("LAI_JOBS_RETENTION_DAYS must be between 1 and 365.")
 if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND == "disabled":
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND inline or sqs.")
+
+
+# --- Contract processing jobs (apps.jobs.processing; docs/processing/DJANGO_JOBS.md) ----------
+# Contract kinds (asset.validate_model, reference.checksum) on the Wave 1 contracts, separate
+# from LAI_JOBS_* above (WAVE2_INTERFACES section 4). `inline` runs them in this process after
+# commit, `local` uses a local worker on directories under LAI_PROCESSING_LOCAL_ROOT
+# (`.processing-local/`, gitignored), `sqs` uses the processing queues and bucket, `disabled`
+# refuses to submit. Production allows only `disabled` or `sqs` (production.py).
+LAI_PROCESSING_BACKEND = os.environ.get("LAI_PROCESSING_BACKEND", "inline").strip()
+LAI_PROCESSING_NAMESPACE = os.environ.get("LAI_PROCESSING_NAMESPACE", "local").strip()
+LAI_PROCESSING_WORK_QUEUE_URL = os.environ.get("LAI_PROCESSING_WORK_QUEUE_URL", "").strip()
+LAI_PROCESSING_COMPLETION_QUEUE_URL = os.environ.get(
+    "LAI_PROCESSING_COMPLETION_QUEUE_URL", ""
+).strip()
+LAI_PROCESSING_BUCKET = os.environ.get("LAI_PROCESSING_BUCKET", "").strip()
+LAI_PROCESSING_LOCAL_ROOT = Path(
+    os.environ.get("LAI_PROCESSING_LOCAL_ROOT", "").strip() or BASE_DIR / ".processing-local"
+)
+# `paused`: the outbox relay sends nothing; jobs stay queued until it is `enabled` again.
+LAI_PROCESSING_DISPATCH = os.environ.get("LAI_PROCESSING_DISPATCH", "enabled").strip()
+LAI_PROCESSING_MAX_ATTEMPTS = int(os.environ.get("LAI_PROCESSING_MAX_ATTEMPTS", "3"))
+LAI_PROCESSING_JOB_TTL_HOURS = int(os.environ.get("LAI_PROCESSING_JOB_TTL_HOURS", "72"))
+if LAI_PROCESSING_BACKEND not in {"disabled", "inline", "local", "sqs"}:
+    raise ImproperlyConfigured("LAI_PROCESSING_BACKEND must be disabled, inline, local or sqs.")
+if len(LAI_PROCESSING_NAMESPACE) > 32 or not re.fullmatch(
+    r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", LAI_PROCESSING_NAMESPACE
+):
+    raise ImproperlyConfigured("LAI_PROCESSING_NAMESPACE must be a lowercase slug of 32 or less.")
+if LAI_PROCESSING_DISPATCH not in {"enabled", "paused"}:
+    raise ImproperlyConfigured("LAI_PROCESSING_DISPATCH must be enabled or paused.")
+if not 1 <= LAI_PROCESSING_MAX_ATTEMPTS <= 10:
+    raise ImproperlyConfigured("LAI_PROCESSING_MAX_ATTEMPTS must be between 1 and 10.")
+if not 1 <= LAI_PROCESSING_JOB_TTL_HOURS <= 336:
+    raise ImproperlyConfigured("LAI_PROCESSING_JOB_TTL_HOURS must be between 1 and 336.")
+if LAI_PROCESSING_BACKEND == "sqs":
+    for _name in (
+        "LAI_PROCESSING_WORK_QUEUE_URL",
+        "LAI_PROCESSING_COMPLETION_QUEUE_URL",
+        "LAI_PROCESSING_BUCKET",
+    ):
+        if not globals()[_name]:
+            raise ImproperlyConfigured(f"LAI_PROCESSING_BACKEND=sqs needs {_name}.")
+    _queue_url = re.compile(r"https://sqs\.[a-z0-9-]+\.amazonaws\.com/\d{12}/[\w-]{1,80}")
+    for _name in ("LAI_PROCESSING_WORK_QUEUE_URL", "LAI_PROCESSING_COMPLETION_QUEUE_URL"):
+        if not _queue_url.fullmatch(globals()[_name]):
+            raise ImproperlyConfigured(f"{_name} must be an https SQS queue URL.")
+    if not re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", LAI_PROCESSING_BUCKET):
+        raise ImproperlyConfigured("LAI_PROCESSING_BUCKET must be an S3 bucket name.")

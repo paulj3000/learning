@@ -578,3 +578,102 @@ Live AWS deployment and the checklist above are owner gates and have not been ru
 limitations: GLB optimization, thumbnail and image conversion, and audio transcoding are not on
 Lambda yet (they need native tools; tracked in `docs/infrastructure/dev-native-environment.md`);
 deploys restart gunicorn, so dev has a few seconds of 502s per release.
+
+## Serverless background processing (LAI-LAMBDA; Waves 1 and 2 built; nothing deployed)
+
+Heavy asset work (GLB validation now; audio, NPC animation and optimisation later) runs as
+background jobs. Django is authoritative for every job's state and for publication; workers only
+compute. Decisions: ADR-061 (contracts, accepted 2026-11-16) and ADR-062 (one job backbone,
+proposed). Design and reference: `docs/processing/` (start with `ARCHITECTURE.md` and
+`WAVE2_INTERFACES.md`; Wave 3 next steps in `WAVE3_HANDOFF.md`) and
+`docs/infrastructure/processing-infrastructure.md`.
+
+> **Status (2026-11-17).** Wave 1 (PR #40) passed every required check but is not merged yet
+> (owner action). Wave 2 is integrated on `feature/serverless-processing-wave2` for owner review.
+> No image has been built or pushed, nothing is deployed, and no live AWS acceptance has run.
+
+### Owner-approved architecture (2026-11-16)
+
+GitHub Actions with OIDC only (no CodePipeline or CodeBuild); CDK is the single infrastructure
+source; dev and prod only; dev has no load balancer or WAF and runs Django natively on EC2 with
+nginx, gunicorn under systemd and private RDS PostgreSQL 16 Single-AZ (ADR-055; no Docker and no
+PostgreSQL on the instance); processing workers are Lambda container images from ECR, deployed by
+immutable digest and built off EC2; separate private processing buckets per environment; dev
+stops at 00:00 and starts at 08:00 `America/Los_Angeles` through the existing `lai-dev-power`
+schedule, with manual control. No deployment is authorized.
+
+### How a job flows
+
+```text
+Staff action in Django Admin (Wave 3 wires uploads to it)
+  -> apps.jobs: ProcessingJob + JobAttempt + JobOutbox row in one PostgreSQL transaction
+  -> manage.py jobs_dispatch: outbox relay -> SQS lai-<env>-processing-work
+  -> Lambda lai-<env>-processing-worker (ECR image): verify input checksum, run the processor,
+     write immutable artifacts to the private processing bucket
+  -> SQS lai-<env>-processing-completions (result inline, or by reference when large)
+  -> manage.py jobs_consume_completions: verify, decide, commit, then acknowledge
+  -> staff review in Django Admin -> staff publish (never automatic)
+```
+
+Lambda never connects to RDS and never publishes. It keeps working while dev is stopped overnight;
+completions wait (14-day retention) and Django drains them after the morning start. Delivery is at
+least once; duplicates, late and forged completions are handled by idempotency keys, attempt ids,
+a receipt ledger and guarded transitions. `apps.jobs` also still runs ADR-055's legacy kinds
+(Question Studio chunks, speech, asset inspection) on their own queues, unchanged.
+
+### Components
+
+| Path                                                            | What                                                                                                                                                                                                 |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `processing/lai_processing/`                                    | Standard-library core: contracts, engine, registry, idempotency, lifecycle, CLI; processors `reference.checksum` and `asset.glb_validator` (`processors/gltf/`, `docs/processing/GLB_VALIDATION.md`) |
+| `processing/lai_processing_runtime/`                            | Filesystem and S3 storage, local-directory and SQS queues, JSON telemetry, the local worker and the Lambda handler (`docs/processing/RUNTIME.md`)                                                    |
+| `processing/Dockerfile.lambda`                                  | The arm64 Lambda image (built in CI without pushing)                                                                                                                                                 |
+| `lai/apps/jobs/`                                                | Contract kinds on the one Django job backbone: attempts, outbox, receipts, artifacts, admin, commands (`docs/processing/DJANGO_JOBS.md`)                                                             |
+| `infra/lib/processingImagesStack.ts`, `processingStack.ts`      | `LaiProcessingImages-<env>` (ECR) and `LaiProcessing-<env>` (bucket, queues and DLQs, worker, IAM, alarms, SSM settings)                                                                             |
+| `.github/workflows/deploy-processing.yml`                       | Dispatch-only, gated image publication and deployment                                                                                                                                                |
+| `deploy/native/systemd/lai-jobs-{dispatch,completions}.service` | The relay and consumer on native dev                                                                                                                                                                 |
+
+### Local use (no AWS)
+
+```bash
+export PYTHONPATH=processing
+python -m lai_processing processors list                  # reference.checksum, asset.glb_validator
+python -m lai_processing validate-job processing/lai_processing/contracts/fixtures/request.asset_validate_model.json
+python -m lai_processing_runtime worker --root lai/.processing-local --assets-root lai/.asset-storage --once
+python -m lai_processing_runtime status --root lai/.processing-local
+scripts/processing/local-demo.sh   # the whole chain on its own PostgreSQL database (make up first)
+```
+
+With `LAI_PROCESSING_BACKEND=local` Django writes work to `LAI_PROCESSING_LOCAL_ROOT/queues/work`;
+run `manage.py jobs_dispatch --once`, the worker above, then `manage.py jobs_consume_completions
+--once`. `inline` (the test default) runs jobs in-process after commit. Settings:
+`docs/processing/WAVE2_INTERFACES.md` section 4. Staff see contract jobs in Django Admin under
+background jobs (view permission; cancel and requeue need their own permissions).
+
+### Tests and synthesis
+
+```bash
+.venv/bin/python -m pytest -q tests/processing/                       # core, GLB, runtime (no DB, no AWS)
+POSTGRES_DB=lai_processing_tests .venv/bin/python -m pytest -q lai/apps/jobs lai/apps/assets
+npm run infra:synth:dev && npm run infra:synth:prod                    # CDK templates, no AWS calls
+(cd react && npx vitest run ../infra/lib/)                             # CDK assertions
+```
+
+### Deployment gates
+
+Nothing deploys on merge. `deploy-processing.yml` runs only on manual dispatch, only when
+`LAI_PROCESSING_DEPLOY_ENABLED` is `true`, and only through the protected `processing-<env>`
+GitHub environment. Order: `LaiProcessingImages-<env>`, build and push the image, then
+`LaiProcessing-<env>` with the digest, before any platform update that attaches
+`lai-django-processing-<env>` (`docs/infrastructure/processing-infrastructure.md`, sections 6, 7
+and 12).
+
+### Development waves
+
+| Wave | Tasks                                                                                          | Status                                                            |
+| ---- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 1    | LAI-LAMBDA-001 contracts, engine, CLI                                                          | Merge-ready (PR #40, checks green), awaiting the owner's merge    |
+| 2    | LAI-LAMBDA-002 GLB validator, 003 runtime and Lambda image, 004 Django jobs, 005 CDK and CI/CD | Integrated on `feature/serverless-processing-wave2`, owner review |
+| 3    | LAI-LAMBDA-006 upload and dispatch integration, 007 Asset Library results and release gates    | Specified in `docs/processing/WAVE3_HANDOFF.md`, not started      |
+| 4    | LAI-LAMBDA-008 audio, 009 NPC animation, 010 optimisation                                      | Not started                                                       |
+| 5    | LAI-LAMBDA-011 AWS acceptance, 012 production rollout                                          | Not started; needs deployment approval                            |

@@ -221,6 +221,16 @@ then add an enabled **Question pool** naming the region (for example `treasure-r
 chest entity (`cove-chest`), with a minimum pool size. Disabling the pool restores the authored
 challenge at once. Already issued attempts keep their snapshot.
 
+### Relation to the serverless processing jobs (LAI-LAMBDA, ADR-061 proposed)
+
+The Studio's batches stay PostgreSQL jobs run in a thread, inline, or by `studio_run_batch`; the
+LAI-LAMBDA processing pipeline (SQS and Lambda, `docs/processing/`) does not replace them, and
+LAI-AQS-027 (heartbeat, stalled state, single-chunk retry) is unaffected. The two share ideas
+only: the processing package's retry taxonomy (`lai_processing.core.errors`) mirrors the Studio's
+`RETRYABLE` categories, and its lifecycle separates application state from delivery state in the
+way LAI-AQS-027 will need. Moving Studio generation onto SQS or Lambda would need its own
+approved decision.
+
 ### Live five-question batch (LAI-AQS-025 readiness, 2026-11-04)
 
 Tooling for the owner-run test; the steps are in `docs/AI_BEDROCK_ACCEPTANCE.md` section 3. No batch

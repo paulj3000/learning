@@ -4,7 +4,7 @@ import json
 import shutil
 
 import pytest
-from dev_fakes import ACCOUNT, ARTIFACTS, DevEnv
+from dev_fakes import ACCOUNT, ARTIFACTS, DevEnv, stack
 
 pytestmark = pytest.mark.skipif(
     shutil.which("bash") is None or shutil.which("jq") is None, reason="needs bash and jq"
@@ -51,7 +51,9 @@ STACKS = [
     "LaiDevArtifacts-dev",
     "LaiAssetStorage-dev",
     "LaiChildPhotos-dev",
+    "LaiProcessing-dev",
     "LaiDevPlatform-dev",
+    "LaiProcessingImages-dev",
     "LaiAiGuardrail-dev",
     "LaiFrontend-dev",
 ]
@@ -260,3 +262,24 @@ def test_execute_refuses_to_update_the_platform_while_stopped(dev):
     assert result.returncode == 7
     assert "manage-dev.sh start" in result.stderr
     assert created(dev) == []
+
+
+DIGEST = "sha256:" + "ab" * 32
+
+
+def test_the_processing_worker_digest_is_kept_given_or_refused(dev):
+    # Phase 1: nothing deployed and nothing given, so the synth has no worker.
+    assert run(dev, "--plan").returncode == 0
+    assert dev.state["synth_digest"] == ""
+    # A deployed worker keeps its digest when the setting is unset.
+    dev.state["stacks"]["us-west-1/LaiProcessing-dev"] = stack({"WorkerImageDigest": DIGEST})
+    assert run(dev, "--plan").returncode == 0
+    assert dev.state["synth_digest"] == DIGEST
+    other = "sha256:" + "cd" * 32
+    assert run(dev, "--plan", LAI_PROCESSING_WORKER_IMAGE_DIGEST=other).returncode == 0
+    assert dev.state["synth_digest"] == other
+    assert run(dev, "--plan", LAI_PROCESSING_WORKER_IMAGE_DIGEST="none").returncode == 0
+    assert dev.state["synth_digest"] == ""
+    result = run(dev, "--plan", LAI_PROCESSING_WORKER_IMAGE_DIGEST="latest")
+    assert result.returncode == 2
+    assert "sha256" in result.stderr

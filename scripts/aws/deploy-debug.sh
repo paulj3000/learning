@@ -8,9 +8,12 @@
 #   deploy-debug.sh --status | --outputs
 #
 # Stacks, in order: LaiDevArtifacts-dev, LaiAssetStorage-dev, LaiChildPhotos-dev,
-# LaiDevPlatform-dev, LaiAiGuardrail-dev (all us-west-1; the Guardrail stack attaches its policy
+# LaiProcessing-dev (the platform attaches its Django policy by name, so it comes first),
+# LaiDevPlatform-dev, LaiProcessingImages-dev (its publisher role trusts the OIDC provider the
+# platform may create), LaiAiGuardrail-dev (all us-west-1; the Guardrail stack attaches its policy
 # to the platform's instance role and uses its log group and alarm topic), LaiFrontend-dev
-# (us-east-1). --execute refuses to update LaiDevPlatform-dev while the environment is stopped
+# (us-east-1). LaiProcessing-dev has a worker only with LAI_PROCESSING_WORKER_IMAGE_DIGEST
+# (sha256:..., pushed by deploy-processing.yml); unset, the deployed digest is kept. --execute refuses to update LaiDevPlatform-dev while the environment is stopped
 # (CloudFormation cannot modify a stopped RDS instance): run manage-dev.sh start first.
 #
 # Steps: 1 credentials; 2 account (LAI_DEV_ACCOUNT_ID; required for --execute); 3 environment
@@ -49,7 +52,8 @@
 #   LAI_DB_INSTANCE_CLASS, LAI_DB_STORAGE, LAI_DB_BACKUP_RETENTION, LAI_DB_DELETION_PROTECTION,
 #   LAI_ENABLE_SCHEDULE, LAI_SHUTDOWN_TIME, LAI_AVAILABLE_BY, LAI_STARTUP_WARMUP_MINUTES,
 #   LAI_SCHEDULE_TIMEZONE, LAI_ENABLE_LAMBDA, LAI_LAMBDA_MEMORY, LAI_LAMBDA_CONCURRENCY,
-#   LAI_GITHUB_REPOSITORY, LAI_RELEASE_RETENTION_DAYS, LAI_CREATE_OIDC_PROVIDER
+#   LAI_GITHUB_REPOSITORY, LAI_RELEASE_RETENTION_DAYS, LAI_CREATE_OIDC_PROVIDER,
+#   LAI_PROCESSING_WORKER_IMAGE_DIGEST ('' or 'none' removes the processing worker)
 #
 # Exit codes: 0 done (plan made, or stacks applied); 1 a stack operation or synth failed;
 # 2 usage or invalid setting; 3 AWS failure; 4 refused by the dev guard (environment, prod name,
@@ -79,8 +83,8 @@ while [ "$#" -gt 0 ]; do
 done
 [ -n "$mode" ] || usage
 
-STACKS=("$DEV_ARTIFACTS_STACK" LaiAssetStorage-dev LaiChildPhotos-dev "$DEV_PLATFORM_STACK"
-    LaiAiGuardrail-dev "$DEV_FRONTEND_STACK")
+STACKS=("$DEV_ARTIFACTS_STACK" LaiAssetStorage-dev LaiChildPhotos-dev "$DEV_PROCESSING_STACK"
+    "$DEV_PLATFORM_STACK" LaiProcessingImages-dev LaiAiGuardrail-dev "$DEV_FRONTEND_STACK")
 stack_region() { if [ "$1" = "$DEV_FRONTEND_STACK" ]; then echo "$DEV_FRONTEND_REGION"; else echo "$DEV_REGION"; fi; }
 if [ -n "$only" ]; then
     dev_guard_name "$only"
@@ -190,6 +194,16 @@ lambda_memory=$(setting LAI_LAMBDA_MEMORY "$P" LambdaMemorySize 512)
 lambda_concurrency=$(setting LAI_LAMBDA_CONCURRENCY "$P" LambdaConcurrencyLimit 2)
 repository=$(setting LAI_GITHUB_REPOSITORY "$P" GitHubRepository paulj3000/learning)
 retention=$(setting LAI_RELEASE_RETENTION_DAYS "$DEV_ARTIFACTS_STACK" ReleaseRetentionDays 45)
+# The worker image is CDK context, not a parameter: keep the deployed digest unless one is given,
+# so a routine platform update never removes the processing worker.
+if [[ -v LAI_PROCESSING_WORKER_IMAGE_DIGEST ]]; then
+    worker_digest=$LAI_PROCESSING_WORKER_IMAGE_DIGEST
+else
+    worker_digest=$(stack_output "$DEV_PROCESSING_STACK" WorkerImageDigest 2>/dev/null || true)
+fi
+[ "$worker_digest" != none ] || worker_digest=""
+[[ -z $worker_digest || $worker_digest =~ ^sha256:[a-f0-9]{64}$ ]] ||
+    die "$EX_USAGE" "LAI_PROCESSING_WORKER_IMAGE_DIGEST must be sha256:<64 hex>, got '$worker_digest'"
 # StartupTime is when startup BEGINS: available-by minus the warm-up.
 if [[ -v LAI_AVAILABLE_BY ]] || [[ -v LAI_STARTUP_WARMUP_MINUTES ]] || ! deployed_time StartupHour StartupMinute >/dev/null; then
     available=${LAI_AVAILABLE_BY:-08:00}
@@ -312,8 +326,10 @@ info "CreateGithubOidcProvider=$create_oidc"
 step "8. synthesize (npm run infra:synth)"
 out=${LAI_CDK_OUT:-$DEV_REPO_ROOT/infra/cdk.out}
 synth_env=(LAI_ENV=dev "CDK_DEFAULT_ACCOUNT=$DEV_ACCOUNT" "CDK_DEFAULT_REGION=$DEV_REGION"
-    "CDK_OUTDIR=$out" "LAI_GITHUB_REPOSITORY=$repository")
+    "CDK_OUTDIR=$out" "LAI_GITHUB_REPOSITORY=$repository"
+    "LAI_PROCESSING_WORKER_IMAGE_DIGEST=$worker_digest")
 [ -z "$zone_id" ] || synth_env+=("LAI_HOSTED_ZONE_ID=$zone_id" "LAI_HOSTED_ZONE_NAME=${zone_name%.}")
+info "processing worker image: ${worker_digest:-none (phase 1: no worker)}"
 env "${synth_env[@]}" npm --prefix "$DEV_REPO_ROOT" run --silent infra:synth >&2 ||
     die "$EX_FAIL" "infra:synth failed"
 for stack in "${STACKS[@]}"; do

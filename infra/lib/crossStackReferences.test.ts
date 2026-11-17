@@ -10,14 +10,17 @@ import { DevPlatformStack } from './devPlatformStack';
 import { DjangoEc2Stack } from './djangoEc2Stack';
 import { DjangoReleaseStack } from './djangoReleaseStack';
 import { FRONTEND_REGION, FrontendStack } from './frontendStack';
+import { ProcessingImagesStack } from './processingImagesStack';
+import { ProcessingStack } from './processingStack';
 
 /**
  * The stacks find each other by physical name, not by CloudFormation exports
  * (docs/infrastructure/resource-ownership.md section 4), so CloudFormation never checks that a
  * referenced policy, role, log group, topic, bucket or repository exists. This synthesizes the
  * whole app the way infra/bin/app.ts does (dev: the native LaiDevArtifacts and LaiDevPlatform
- * stacks; prod: LaiDjangoRelease and LaiDjangoEc2) and checks every such name against what some
- * stack creates (LAI-INFRA-005). No AWS call is made.
+ * stacks; prod: LaiDjangoRelease and LaiDjangoEc2; both: LaiProcessingImages and LaiProcessing,
+ * the latter with a worker image digest so its function and alarms are included) and checks every
+ * such name against what some stack creates (LAI-INFRA-005). No AWS call is made.
  */
 
 const ACCOUNT = '123456789012';
@@ -93,6 +96,18 @@ function synthesize(envName: 'dev' | 'prod') {
             githubRepository: REPO,
           }),
         ]),
+    new ProcessingImagesStack(app, `LaiProcessingImages-${envName}`, {
+      ...base,
+      env,
+      envName,
+      githubRepository: REPO,
+    }),
+    new ProcessingStack(app, `LaiProcessing-${envName}`, {
+      ...base,
+      env,
+      envName,
+      workerImageDigest: `sha256:${'0'.repeat(64)}`,
+    }),
     new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, { ...base, env, envName }),
     new FrontendStack(app, `LaiFrontend-${envName}`, {
       ...base,
@@ -162,6 +177,8 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
       [`LaiAssetStorage-${envName}`]: 'us-west-1',
       [`LaiChildPhotos-${envName}`]: 'us-west-1',
       ...platform,
+      [`LaiProcessingImages-${envName}`]: 'us-west-1',
+      [`LaiProcessing-${envName}`]: 'us-west-1',
       [`LaiAiGuardrail-${envName}`]: 'us-west-1',
       [`LaiFrontend-${envName}`]: 'us-east-1',
     });
@@ -172,6 +189,20 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
     const attached = referenced(stacks, /arn:aws:iam::123456789012:policy\/([a-z0-9-]+)/g);
     expect(attached.size).toBeGreaterThanOrEqual(2);
     for (const name of attached) expect(policies, name).toContain(name);
+    expect(attached).toContain(`lai-django-processing-${envName}`);
+  });
+
+  it('wires the processing worker to its own environment only', () => {
+    const processing = stacks.find((stack) => stack.name === `LaiProcessing-${envName}`)!;
+    const other = envName === 'dev' ? 'prod' : 'dev';
+    expect(processing.json).not.toContain(`-${other}-`);
+    expect(processing.json).not.toContain(`/${other}/`);
+    expect(processing.json).toContain(`lai-assets-${envName}-123456789012-us-west-1`);
+    expect(processing.json).toContain(
+      `123456789012.dkr.ecr.us-west-1.amazonaws.com/lai/processing-${envName}@sha256:`,
+    );
+    // The platform stack's role is the one the work queue admits.
+    expect(processing.json).toContain(`role/lai-django-ec2-${envName}`);
   });
 
   it('names only roles that a stack creates', () => {
@@ -220,10 +251,13 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
     for (const name of used) expect(buckets, name).toContain(name);
   });
 
-  it('pulls from and publishes to the one ECR repository the release stack creates', () => {
+  it('pulls from and publishes to only the ECR repositories the release stacks create', () => {
     const repositories = created(stacks, 'RepositoryName');
-    // The native dev environment has no ECR repository (and no image to pull).
-    expect(repositories).toEqual(new Set(envName === 'dev' ? [] : ['lai/django']));
+    // The native dev environment has no Django image; both environments have the processing
+    // worker's repository (LaiProcessingImages-<env>), which only Lambda pulls from.
+    expect(repositories).toEqual(
+      new Set(envName === 'dev' ? ['lai/processing-dev'] : ['lai/django', 'lai/processing-prod']),
+    );
     const used = referenced(
       stacks,
       /arn:aws:ecr:us-west-1:123456789012:repository\/([a-z0-9/_-]+)/g,
