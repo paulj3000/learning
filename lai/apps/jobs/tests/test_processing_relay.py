@@ -182,3 +182,68 @@ def test_queue_errors_back_off_when_transient_and_fail_loudly_otherwise(fake_tra
     import logging
 
     assert (log_level(denied), log_level(transient)) == (logging.ERROR, logging.WARNING)
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db(transaction=True)
+def test_a_too_large_message_never_locks_the_job_while_holding_an_outbox_row(
+    fake_transport, monkeypatch
+):
+    """Lock order is job, then outbox rows (cancel, requeue, expiry). The relay must not lock the
+    job while it still holds the row it claimed, or it can deadlock with a cancel."""
+    job = submit_reference(fake_transport.storage)
+    row = JobOutbox.objects.get(job=job)
+    real = processing._locked
+    observed = []
+
+    def probe(job_id):
+        def other():
+            from django.db import transaction
+
+            try:
+                with transaction.atomic():
+                    JobOutbox.objects.select_for_update(nowait=True).filter(pk=row.pk).first()
+                observed.append("row_free")
+            except DatabaseError:
+                observed.append("row_locked")
+            finally:
+                connection.close()
+
+        thread = threading.Thread(target=other)
+        thread.start()
+        thread.join(10)
+        return real(job_id)
+
+    monkeypatch.setattr(processing, "_locked", probe)
+    assert processing.relay_outbox(FlakyQueue(ValueError("too large"))) == 0
+    assert observed == ["row_free"]
+    job.refresh_from_db()
+    row.refresh_from_db()
+    assert (job.state, job.error_code) == (JobState.FAILED, "message_too_large")
+    assert row.cancelled_at is not None and row.last_error_code == "message_too_large"
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+def test_a_crash_before_the_too_large_job_is_failed_is_repaired_by_the_next_pass(
+    fake_transport, monkeypatch
+):
+    job = submit_reference(fake_transport.storage)
+
+    def crash(job_id):
+        raise DatabaseError("connection lost")
+
+    monkeypatch.setattr(processing, "_locked", crash)
+    with pytest.raises(DatabaseError):
+        processing.relay_outbox(FlakyQueue(ValueError("too large")))
+    monkeypatch.undo()
+    row = JobOutbox.objects.get(job=job)
+    # Not lost and not silently dropped: the row is still pending, so the next pass retries.
+    assert row.cancelled_at is None and row.last_error_code == "message_too_large"
+    job.refresh_from_db()
+    assert job.state == JobState.QUEUED
+    assert processing.relay_outbox(FlakyQueue(ValueError("too large"))) == 0
+    job.refresh_from_db()
+    row.refresh_from_db()
+    assert (job.state, job.error_code) == (JobState.FAILED, "message_too_large")
+    assert row.cancelled_at is not None

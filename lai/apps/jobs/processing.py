@@ -392,14 +392,11 @@ def _relay_one(queue, *, ignore_delay: bool) -> str | None:
         try:
             queue.send(row.body.encode("utf-8"))
         except ValueError:  # larger than the queue accepts: it never will be sent
+            # Only noted here. The job is failed and the row cancelled by `_drop_too_large`
+            # after this commit: locking the job while this row is held would invert the
+            # job-then-outbox lock order of cancel, requeue and expiry (a deadlock).
             row.last_error_code = "message_too_large"
-            row.cancelled_at = stamp
-            row.save(update_fields=["send_attempts", "last_error_code", "cancelled_at"])
-            job = _locked(row.job_id)
-            if job is not None and job.state in _OPEN_STATES:
-                _fail_job_locked(job, "message_too_large", stamp)
-            logger.error("processing.dispatch dropped job=%s code=message_too_large", row.job_id)
-            return "dropped"
+            row.save(update_fields=["send_attempts", "last_error_code"])
         except Exception as error:  # noqa: BLE001 - QueueFull or a transport failure: later
             if getattr(error, "transient", None) is False:
                 # `lai_processing_runtime.sqs.QueueError(transient=False)`: a configuration or
@@ -422,14 +419,33 @@ def _relay_one(queue, *, ignore_delay: bool) -> str | None:
                 type(error).__name__,
             )
             return "deferred"
-        # A crash from here to the commit leaves the row unsent: it is sent again (a duplicate
-        # work message the worker and `apply_completion` tolerate), never lost.
-        row.sent_at = stamp
-        row.last_error_code = ""
-        row.save(update_fields=["send_attempts", "last_error_code", "sent_at"])
-        JobAttempt.objects.filter(pk=row.attempt_id).update(dispatched_at=stamp)
+        else:
+            # A crash from here to the commit leaves the row unsent: it is sent again (a
+            # duplicate work message the worker and `apply_completion` tolerate), never lost.
+            row.sent_at = stamp
+            row.last_error_code = ""
+            row.save(update_fields=["send_attempts", "last_error_code", "sent_at"])
+            JobAttempt.objects.filter(pk=row.attempt_id).update(dispatched_at=stamp)
+    if row.sent_at is None:
+        _drop_too_large(row, stamp)
+        return "dropped"
     logger.info("processing.dispatch sent job=%s attempt=%s", row.job_id, row.attempt_id)
     return "sent"
+
+
+def _drop_too_large(row: JobOutbox, stamp) -> None:
+    """Fail the job of a row the queue can never take and cancel its unsent rows, locking the
+    job first and then the rows (the order every other transition uses). A crash before this
+    commits leaves the row unsent with `message_too_large`: the next pass sends it, fails the
+    same way and gets here again, so the job is never left queued for a row nobody sends."""
+    with transaction.atomic():
+        job = _locked(row.job_id)
+        if job is not None and job.state in _OPEN_STATES:
+            _fail_job_locked(job, "message_too_large", stamp)  # cancels this row too
+        JobOutbox.objects.filter(pk=row.pk, sent_at__isnull=True, cancelled_at__isnull=True).update(
+            cancelled_at=stamp
+        )
+    logger.error("processing.dispatch dropped job=%s code=message_too_large", row.job_id)
 
 
 def relay_outbox(queue, *, limit: int = 50, ignore_delay: bool = False) -> int:
