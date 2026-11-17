@@ -30,6 +30,7 @@ from typing import Any, BinaryIO, Final
 
 from ..gltf.container import GlbLayout, read_at, read_layout
 from ..gltf.document import (
+    COMPLEXITY_CEILINGS,
     COMPLEXITY_DEFAULTS,
     FLOAT,
     GENERIC_TAKE_NAME,
@@ -64,6 +65,7 @@ ANIMATION_COMPLEXITY_DEFAULTS: Final[Mapping[str, int]] = {
     "max_joints": COMPLEXITY_DEFAULTS["max_joints"],
     "max_json_bytes": COMPLEXITY_DEFAULTS["max_json_bytes"],
     "max_json_depth": COMPLEXITY_DEFAULTS["max_json_depth"],
+    "max_json_elements": COMPLEXITY_DEFAULTS["max_json_elements"],
     # Keyframes summed over every sampler (counted from accessors, never iterated).
     "max_keyframes": COMPLEXITY_DEFAULTS["max_accessor_count"],
     "max_node_depth": COMPLEXITY_DEFAULTS["max_node_depth"],
@@ -74,6 +76,8 @@ ANIMATION_COMPLEXITY_CEILINGS: Final[Mapping[str, int]] = {
     **{name: value * 10 for name, value in ANIMATION_COMPLEXITY_DEFAULTS.items()},
     "max_json_bytes": 64 * 1024 * 1024,
     "max_json_depth": 128,
+    # Not raisable, as in the GLB validator: it keeps parsing inside the media function's memory.
+    "max_json_elements": COMPLEXITY_CEILINGS["max_json_elements"],
     "max_node_depth": 256,
 }
 
@@ -677,7 +681,13 @@ def inspect_glb(
         outcome.layout = read_layout(handle, size, report, settings.limit("max_json_bytes"))
         raw = read_at(handle, outcome.layout.json_offset, outcome.layout.json_length, size)
         check()
-        document = parse_document(raw, report, settings.limit("max_json_depth"), check)
+        document = parse_document(
+            raw,
+            report,
+            settings.limit("max_json_depth"),
+            settings.limit("max_json_elements"),
+            check,
+        )
         del raw
         _Inspector(handle, outcome.layout, document, settings, report, check).run(outcome)
     except Stop:

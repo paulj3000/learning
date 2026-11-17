@@ -3,8 +3,9 @@
 Operator and developer guide. Code wins over this page:
 `processing/lai_processing/processors/animation/`, `lai/apps/npcs/animation_inspection.py`,
 `lai/apps/npcs/admin_animation.py`, `lai/apps/jobs/core/`. Status: developer-complete on
-`feature/w4-npc-animation` (based on `feature/serverless-processing-canonical`), not merged, not
-deployed. Read with `CANONICAL_PATH.md`, `ASYNC_MODEL_VALIDATION.md` and `WAVE4_HANDOFF.md`.
+the Wave 4 integration branch `feature/serverless-processing-wave4` (from `feature/w4-npc-animation`,
+on the reviewed canonical PR #42 head), not merged to `main`, not deployed. Local end-to-end run:
+`scripts/processing/local-demo.sh` steps 10, 13 and 15 (packaged worker zip, in-memory SQS and S3). Read with `CANONICAL_PATH.md`, `ASYNC_MODEL_VALIDATION.md` and `WAVE4_HANDOFF.md`.
 
 | Item | Value |
 |---|---|
@@ -14,7 +15,7 @@ deployed. Read with `CANONICAL_PATH.md`, `ASYNC_MODEL_VALIDATION.md` and `WAVE4_
 | Handler module | `apps.npcs.animation_inspection` (`apply`, `inline_ports`) |
 | Worker ports | `AssetPorts` (read only, `assets` store) |
 | Dependencies | Python standard library only, in the existing worker zip |
-| Migration | `jobs.0004_asset_analyze_animation` (kind choices and the `jobs_kind_valid` check only) |
+| Migration | `jobs.0004_wave4_inspection_kinds`, shared with `asset.process_audio` (kind choices and the `jobs_kind_valid` check only) |
 
 ## 1. What it does
 
@@ -47,7 +48,9 @@ Read-only and bounded:
   `max_json_depth` 128, `max_node_depth` 256): `max_animations` 200, `max_channels` and
   `max_animation_samplers` 20,000 in total, `max_keyframes` 10,000,000 (summed counts, never
   iterated), `max_nodes` 10,000, `max_accessors` 20,000, `max_skins` 200, `max_joints` 10,000,
-  `max_json_bytes` 16 MiB, `max_json_depth` 64, `max_node_depth` 64. Beyond one: `too_complex`.
+  `max_json_bytes` 16 MiB, `max_json_depth` 64, `max_node_depth` 64, and `max_json_elements`
+  1,000,000 (the GLB validator's string-aware structural pre-scan before `json.loads`; not
+  raisable). Beyond one: `too_complex` (excess nesting is `invalid_json`).
   Child entries walked to build the hierarchy are bounded by `max_nodes`.
 - Input size: the profile carries the GLB validator's limits (`GLB_LIMITS`), so a change to the
   model input ceiling (`max_input_bytes`, 50 MiB today) applies to both. A larger file is refused
@@ -185,4 +188,5 @@ LAI_REQUIRE_POSTGRES=1 /Coding/ENV/bin/python -m pytest -q \
 - Rollout is consumer first (`WAVE4_HANDOFF.md` section 3): the worker zip and Django
   (migration, handler) ship together; do not use the action before both are deployed. Every
   deployment is an owner approval.
-- The integrator folds `jobs.0004_asset_analyze_animation` into the single Wave 4 jobs migration.
+- The branch's `jobs.0004_asset_analyze_animation` was folded into the single Wave 4 jobs migration
+  `jobs.0004_wave4_inspection_kinds` on the integration branch.

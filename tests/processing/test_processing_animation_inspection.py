@@ -352,6 +352,17 @@ def test_requested_limits_are_clamped_to_the_ceilings() -> None:
     assert settings.limit("max_animations") == 2_000
 
 
+def test_too_many_json_elements_is_too_complex_and_the_limit_cannot_be_raised() -> None:
+    # The GLB validator's structural pre-scan runs before json.loads here too.
+    assert AnimationSettings.resolve({"max_json_elements": 10**9}).limit(
+        "max_json_elements"
+    ) == AnimationSettings().limit("max_json_elements")
+    settings = AnimationSettings.resolve({"max_json_elements": 5})
+    outcome, metadata = inspect(skinned_glb(("A", "B")), settings)
+    assert codes(outcome, "error") == ["too_complex"]
+    assert metadata["clips"] == []
+
+
 def test_metadata_is_fitted_under_the_budget_and_counts_stay_complete() -> None:
     clips = tuple(f"clip-{n:03d}-" + "x" * 150 for n in range(150))
     outcome, metadata = inspect(skinned_glb(clips), max_bytes=20_000)
