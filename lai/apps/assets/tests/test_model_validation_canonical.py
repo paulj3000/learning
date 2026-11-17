@@ -59,3 +59,23 @@ def test_the_request_budget_ends_inside_the_media_worker_timeout():
     version = stored_draft(glb_bytes(), asset_id="budget-check")
     request = model_validation_request(version, job_id="00000000-0000-4000-8000-000000000001")
     assert request["limits"]["max_execution_seconds"] == MAX_EXECUTION_SECONDS
+
+
+def test_a_request_the_profile_refuses_is_a_safe_jobs_error(settings, monkeypatch):
+    """A file above the profile's input limit is refused while the request is built: the
+    caller gets a JobsError with a safe code (upload: processing_unavailable), never a crash."""
+    from apps.assets import processing
+    from apps.jobs.services import JobsError
+    from lai_processing.core.errors import ErrorCode, ProcessingError
+
+    settings.LAI_ASSET_STORAGE = "memory"
+    version = stored_draft(glb_bytes(), asset_id="too-big")
+
+    def refuse(*args, **kwargs):
+        raise ProcessingError(ErrorCode.RESOURCE_LIMIT_EXCEEDED, {"limit": "input"})
+
+    monkeypatch.setattr(processing, "model_validation_request", refuse)
+    with pytest.raises(JobsError) as raised:
+        submit_model_validation(version, user=None)
+    assert raised.value.code == "resource_limit_exceeded"
+    assert not validation_jobs(version).exists()

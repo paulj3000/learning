@@ -156,9 +156,15 @@ def submit_model_validation(version, *, user):
     Raises `apps.jobs.services.JobsError` (`JobsDisabled` when the jobs backend is disabled)."""
     from apps.jobs import services as jobs
     from apps.jobs.models import JobStatus
+    from lai_processing.core.errors import ProcessingError
 
     job_id = str(uuid.uuid4())
-    payload = model_validation_request(version, job_id=job_id)
+    try:
+        payload = model_validation_request(version, job_id=job_id)
+    except ProcessingError as error:
+        # The request itself is refused (for example a file above the profile's input limit):
+        # a safe code, the same path as any other refused submission.
+        raise jobs.JobsError(error.code.value) from None
     from django.db.models import Q
 
     # Reused: a job still waiting or running, or one whose result was applied. A failed job, or a
