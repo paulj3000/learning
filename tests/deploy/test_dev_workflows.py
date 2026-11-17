@@ -103,7 +103,13 @@ def test_native_test_job_matches_the_django_workflow():
 
 def test_lambda_workflow():
     paths = LAMBDA["on"]["push"]["paths"]
-    for path in ("lambda/**", "lai/apps/ai/providers/**", "scripts/aws/package-lambda.sh"):
+    for path in (
+        "lambda/**",
+        "lai/apps/ai/providers/**",
+        "lai/apps/jobs/core/**",
+        "processing/lai_processing/**",
+        "scripts/aws/package-lambda.sh",
+    ):
         assert path in paths
     assert "vars.LAI_DEV_NATIVE_ENABLED == 'true'" in LAMBDA["jobs"]["test"]["if"]
     deploy = LAMBDA["jobs"]["deploy"]
@@ -156,6 +162,15 @@ def test_django_workflow_skips_docker_dev_when_native_is_on():
         "LAI_PROD_AUTO_DEPLOY"
         in (WORKFLOWS / "deploy-django-ec2.yml").read_text().split("name:")[0]
     )
+
+
+def test_the_processing_library_releases_every_component_that_ships_it():
+    """lambda/build.py zips it, package-release.sh and lai/Dockerfile ship it (ADR-064)."""
+    for workflow in (LAMBDA, NATIVE, DJANGO):
+        assert "processing/lai_processing/**" in workflow["on"]["push"]["paths"]
+    text = (WORKFLOWS / "deploy-site.yml").read_text()
+    for pattern in re.findall(r"grep -qE '([^']+)'", text):
+        assert re.search(pattern, "processing/lai_processing/core/execution.py"), pattern
 
 
 def test_site_waits_for_the_native_release_with_the_native_paths():

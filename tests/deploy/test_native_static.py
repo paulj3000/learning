@@ -284,6 +284,7 @@ def test_package_is_deterministic_and_has_the_contract_layout(tmp_path):
         tops = {n.split("/")[0] for n in names if n and n != "."}
         assert tops == {
             "lai",
+            "processing",
             "content",
             "react",
             "requirements.txt",
@@ -294,6 +295,10 @@ def test_package_is_deterministic_and_has_the_contract_layout(tmp_path):
         }
         for required in (
             "lai/manage.py",
+            # Django imports the processing library from processing/ beside lai/ (ADR-064).
+            "processing/lai_processing/__init__.py",
+            "processing/lai_processing/core/execution.py",
+            "processing/lai_processing/processors/gltf/processor.py",
             "scripts/aws/native/deploy-native.sh",
             "deploy/native/nginx.conf.template",
             "deploy/native/systemd/lai-gunicorn.service",
@@ -301,6 +306,10 @@ def test_package_is_deterministic_and_has_the_contract_layout(tmp_path):
         ):
             assert any(n == required or n.startswith(required + "/") for n in names), required
         assert not any("__pycache__" in n or n.endswith(".pyc") for n in names)
+        # Only the library: no contract test fixtures, no tests and no tooling configuration.
+        processing = [n for n in names if n.startswith("processing/")]
+        assert all(n.split("/")[1] == "lai_processing" for n in processing), processing
+        assert not any("/contracts/fixtures" in n for n in names)
         assert not any(
             n.startswith("scripts/aws/") and not n.startswith("scripts/aws/native")
             for n in names

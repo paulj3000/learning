@@ -18,6 +18,9 @@ RUN pip install -r requirements.txt
 
 # The app and the content export `manage.py load_content` reads (settings.CONTENT_DIR).
 COPY lai/ ./lai/
+# The standard-library processing library (ADR-061, ADR-064). Settings put /app/processing (beside
+# /app/lai) on sys.path; the contract job kinds and the Asset Library import it.
+COPY processing/lai_processing/ ./processing/lai_processing/
 COPY content/ ./content/
 # The bundled models (about 3 MB), so `manage.py import_assets --from-bundled` can run as a one-off
 # task in this image (docs/ASSET_LIBRARY.md section 19). Read only by that command; gameplay gets
