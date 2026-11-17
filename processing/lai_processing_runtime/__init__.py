@@ -11,6 +11,20 @@ This package never imports Django. boto3 and botocore are imported lazily, only 
 SQS adapters and the Lambda wiring, so the local worker runs without them.
 """
 
-__all__ = ["__version__"]
+from .filesystem import FilesystemObjectStorage
+from .local_queue import LocalDirectoryQueue
+from .s3 import S3ObjectStorage
+from .sqs import QueueError, SqsMessageQueue
+from .telemetry import JsonLogTelemetry
+
+__all__ = [
+    "FilesystemObjectStorage",
+    "JsonLogTelemetry",
+    "LocalDirectoryQueue",
+    "QueueError",
+    "S3ObjectStorage",
+    "SqsMessageQueue",
+    "__version__",
+]
 
 __version__ = "0.1.0"
