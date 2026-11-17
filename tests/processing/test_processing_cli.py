@@ -98,7 +98,11 @@ def test_processors_list_json_is_deterministic():
     assert code == EXIT_OK
     assert first == second
     listing = json.loads(first)
-    assert [p["processor_id"] for p in listing] == ["asset.glb_validator", "reference.checksum"]
+    assert [p["processor_id"] for p in listing] == [
+        "asset.animation_inspector",
+        "asset.glb_validator",
+        "reference.checksum",
+    ]
 
 
 def test_job_types_list_marks_downstream_types_as_declared_only():
@@ -108,6 +112,7 @@ def test_job_types_list_marks_downstream_types_as_declared_only():
     assert rows["reference.checksum"]["processor_available"] is True
     assert rows["asset.validate_model"]["processor_available"] is True  # LAI-LAMBDA-002
     assert rows["asset.validate_model"]["owner_task"] == "LAI-LAMBDA-002"
+    assert rows["asset.analyze_animation"]["processor_available"] is True  # LAI-LAMBDA-009
     assert rows["asset.process_audio"]["processor_available"] is False
 
 

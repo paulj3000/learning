@@ -71,7 +71,7 @@ _SPECS: Final = (
         requires_input=True,
         subject_type=ASSET_VERSION_SUBJECT,
         owner_task="LAI-LAMBDA-009",
-        description="Analyse NPC animation clips in a model version (reserved).",
+        description="Inspect the animation clips, skins and joints of a GLB model version.",
     ),
     JobTypeSpec(
         job_type="asset.optimize",

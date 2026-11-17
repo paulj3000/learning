@@ -20,6 +20,7 @@ from lai_processing.core.processor import (
     ProcessorOutput,
 )
 from lai_processing.core.registry import ProcessorRegistry, default_registry
+from lai_processing.processors.animation import AnimationInspectorProcessor
 from lai_processing.processors.gltf import GlbValidatorProcessor
 from lai_processing.processors.reference import ReferenceProcessor
 
@@ -211,7 +212,11 @@ def test_listing_is_sorted_and_describe_is_deterministic() -> None:
 def test_default_registry_describe() -> None:
     registry = default_registry()
     assert registry.frozen
-    assert [type(p) for p in registry.processors()] == [GlbValidatorProcessor, ReferenceProcessor]
+    assert [type(p) for p in registry.processors()] == [
+        AnimationInspectorProcessor,
+        GlbValidatorProcessor,
+        ReferenceProcessor,
+    ]
     # The GLB processor's own description is covered by test_processing_glb_processor.py.
     described = [p for p in registry.describe() if p["processor_id"] == "reference.checksum"]
     assert described == [
