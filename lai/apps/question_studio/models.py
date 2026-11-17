@@ -46,6 +46,12 @@ class BatchStatus(models.TextChoices):
     COMPLETED = "COMPLETED", "Completed"
     PARTIAL = "PARTIAL", "Partly completed"
     FAILED = "FAILED", "Failed"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
+TERMINAL_BATCH_STATUSES = frozenset(
+    {BatchStatus.COMPLETED, BatchStatus.PARTIAL, BatchStatus.FAILED, BatchStatus.CANCELLED}
+)
 
 
 class StudioLimits(models.Model):
@@ -74,7 +80,13 @@ class StudioLimits(models.Model):
 
 
 class GenerationBatch(models.Model):
-    """One generation request and what it cost. Provenance for every question it produced."""
+    """One generation request and what it cost. Provenance for every question it produced.
+
+    A batch fills `requested_count` numbered slots (0 to requested_count - 1). Each stored
+    question holds its slot under a unique (batch, slot) constraint, so a chunk result applied
+    twice, or a retry, can never store the same slot twice (docs/AI_QUESTION_STUDIO.md,
+    "Background processing").
+    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     requested_by = models.ForeignKey(
@@ -117,6 +129,17 @@ class GenerationBatch(models.Model):
     output_tokens = models.PositiveIntegerField(default=0)
     cost_microusd = models.PositiveBigIntegerField(null=True, blank=True)
     failure_category = models.CharField(max_length=40, blank=True)
+    #: One per rendered Generate form, so a double click or a resubmitted page returns the batch
+    #: the first submit made instead of queuing a second one.
+    submission_key = models.UUIDField(null=True, blank=True, editable=False)
+    #: Staff asked to stop. The runner submits or calls no further chunk; the batch ends
+    #: CANCELLED (or COMPLETED when the last chunk had already been applied).
+    cancel_requested_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    #: Staff retries of the batch's missing slots.
+    retry_count = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(default=now)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
@@ -124,15 +147,28 @@ class GenerationBatch(models.Model):
     class Meta:
         ordering = ["-created_at"]
         verbose_name_plural = "generation batches"
+        permissions = [
+            ("cancel_generationbatch", "Can cancel queued or running generation batches"),
+            ("retry_generationbatch", "Can retry the missing questions of a generation batch"),
+        ]
         indexes = [models.Index(fields=["requested_by", "created_at"])]
         constraints = [
             models.CheckConstraint(
                 condition=Q(requested_count__gte=1), name="studio_batch_count_positive"
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["requested_by", "submission_key"],
+                condition=Q(submission_key__isnull=False),
+                name="studio_batch_one_per_submission",
+            ),
         ]
 
     def __str__(self) -> str:
         return f"{self.topic} grade {self.grade} x{self.requested_count} ({self.status})"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in TERMINAL_BATCH_STATUSES
 
 
 class Question(models.Model):
@@ -142,6 +178,9 @@ class Question(models.Model):
     batch = models.ForeignKey(
         GenerationBatch, null=True, blank=True, on_delete=models.SET_NULL, related_name="questions"
     )
+    #: The batch slot this draft fills (unique per batch). Null for questions written by hand and
+    #: for drafts generated before slots existed.
+    slot = models.PositiveSmallIntegerField(null=True, blank=True, editable=False)
     replaces = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replacements"
     )
@@ -199,6 +238,13 @@ class Question(models.Model):
         indexes = [
             models.Index(fields=["review_status", "validation_status"]),
             models.Index(fields=["subject", "grade", "topic"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["batch", "slot"],
+                condition=Q(batch__isnull=False, slot__isnull=False),
+                name="studio_question_one_per_batch_slot",
+            )
         ]
 
     def __str__(self) -> str:

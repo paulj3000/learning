@@ -116,10 +116,15 @@ if LAI_AI_PROVIDER == "bedrock":
 LAI_JOBS_BACKEND = os.environ.get("LAI_JOBS_BACKEND", "disabled").strip()
 if LAI_JOBS_BACKEND not in {"sqs", "disabled"}:
     raise ImproperlyConfigured("LAI_JOBS_BACKEND must be sqs or disabled in production.")
-if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND != "sqs":  # noqa: F405
+# AI Question Studio (ADR-055, docs/AI_QUESTION_STUDIO.md "Background processing"): a batch never
+# runs on a web request or a thread of the web process here, where a restart would strand it.
+# `jobs` hands each chunk to the Lambda workers; `manual` leaves queued batches for an operator's
+# `manage.py studio_run_batch`. Unset is `manual`. `thread` and `inline` are local/test modes.
+LAI_STUDIO_RUN_MODE = os.environ.get("LAI_STUDIO_RUN_MODE", "manual").strip()
+if LAI_STUDIO_RUN_MODE not in {"jobs", "manual"}:
+    raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE must be jobs or manual in production.")
+if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND != "sqs":
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND=sqs.")
-if LAI_STUDIO_RUN_MODE == "inline":  # noqa: F405
-    raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=inline is for tests only.")
 
 # Contract processing jobs (apps.jobs.processing, WAVE2_INTERFACES section 4): `sqs` or
 # `disabled`, unset is `disabled`; `inline` and `local` never run here. With `sqs` the namespace

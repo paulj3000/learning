@@ -70,7 +70,15 @@ export const DEV_DATABASE_ID = 'lai-dev';
 export const DEV_INSTANCE_ROLE = 'lai-django-ec2-dev';
 /** Graviton (arm64) families only: the AMI is ARM64 (t4g, m7g, c6gn, r8gd, x2gd, ...). */
 export const GRAVITON_INSTANCE_PATTERN = '^[a-z]+[0-9]+g[a-z]*\\.[a-z0-9]+$';
-export const HH_MM_PATTERN = '^([01][0-9]|2[0-3]):[0-5][0-9]$';
+/**
+ * Schedule hour and minute parameters: plain numbers without a leading zero, so the cron fields
+ * are exactly what the EventBridge Scheduler documentation shows (`cron(35 7 * * ? *)`).
+ * CloudFormation cannot strip a zero from `07:35` without a transform (Fn::FindInMap accepts only
+ * Ref and Fn::FindInMap as keys), so the stack takes the fields separately and
+ * scripts/aws/deploy-debug.sh converts the operator's HH:MM.
+ */
+export const HOUR_PATTERN = '^([0-9]|1[0-9]|2[0-3])$';
+export const MINUTE_PATTERN = '^([0-9]|[1-5][0-9])$';
 export const DEV_DOCUMENTS = {
   setup: 'lai-dev-native-setup',
   deploy: 'lai-dev-native-deploy',
@@ -241,7 +249,7 @@ export class DevPlatformStack extends Stack {
     const enableLambda = bool(
       'EnableLambdaProcessing',
       true,
-      'Create the Lambda workers and their queue triggers (false: Django runs jobs in a thread)',
+      'Create the Lambda workers and their queue triggers (false: jobs disabled, Studio batches manual)',
     );
     const workerCodeKey = param('WorkerCodeKey', {
       type: 'String',
@@ -267,20 +275,26 @@ export class DevPlatformStack extends Stack {
     const enableSchedule = bool(
       'EnableScheduledShutdown',
       true,
-      'Stop the environment at ShutdownTime and start it at StartupTime',
+      'Stop the environment at ShutdownHour:ShutdownMinute and start it at StartupHour:StartupMinute',
     );
-    const shutdownTime = param('ShutdownTime', {
-      type: 'String',
-      default: '00:00',
-      allowedPattern: HH_MM_PATTERN,
-      description: 'Nightly stop, HH:MM in ScheduleTimezone',
-    });
-    const startupTime = param('StartupTime', {
-      type: 'String',
-      default: '07:35',
-      allowedPattern: HH_MM_PATTERN,
-      description: 'Morning start begins, HH:MM in ScheduleTimezone',
-    });
+    const timeParam = (name: string, hour: boolean, defaultValue: string, description: string) =>
+      param(name, {
+        type: 'String',
+        default: defaultValue,
+        allowedPattern: hour ? HOUR_PATTERN : MINUTE_PATTERN,
+        constraintDescription: hour
+          ? 'an hour 0 to 23 without a leading zero'
+          : 'a minute 0 to 59 without a leading zero',
+        description,
+      });
+    const shutdownTime = {
+      hour: timeParam('ShutdownHour', true, '0', 'Nightly stop hour (0-23) in ScheduleTimezone'),
+      minute: timeParam('ShutdownMinute', false, '0', 'Nightly stop minute (0-59)'),
+    };
+    const startupTime = {
+      hour: timeParam('StartupHour', true, '7', 'Morning start begins: hour (0-23)'),
+      minute: timeParam('StartupMinute', false, '35', 'Morning start begins: minute (0-59)'),
+    };
     const warmupMinutes = param('StartupWarmupMinutes', {
       type: 'Number',
       default: 25,
@@ -775,7 +789,7 @@ export class DevPlatformStack extends Stack {
       LAI_JOBS_MEDIA_QUEUE_URL: mediaQueue.main.queueUrl,
       LAI_JOBS_RESULTS_QUEUE_URL: resultsQueue.main.queueUrl,
       LAI_JOBS_RESULTS_BUCKET: artifactBucketName,
-      LAI_STUDIO_RUN_MODE: Token.asString(Fn.conditionIf(lambdaOn.logicalId, 'jobs', 'thread')),
+      LAI_STUDIO_RUN_MODE: Token.asString(Fn.conditionIf(lambdaOn.logicalId, 'jobs', 'manual')),
     };
     for (const [name, value] of Object.entries(settings)) {
       new ssm.StringParameter(this, `Setting${name}`, {
@@ -1173,16 +1187,14 @@ export class DevPlatformStack extends Stack {
       }),
     });
     allow(schedulerRole, 'StartPower', ['states:StartExecution'], [stateMachine.stateMachineArn]);
-    // HH:MM -> cron(MM HH * * ? *). CloudFormation cannot strip the leading zero (Fn::FindInMap
-    // takes no Fn::Select without a transform); cron parses '07' as 7.
-    const cron = (time: CfnParameter) => {
-      const parts = Fn.split(':', time.valueAsString);
-      return `cron(${Fn.select(1, parts)} ${Fn.select(0, parts)} * * ? *)`;
-    };
+    // cron(Minutes Hours Day-of-month Month Day-of-week Year), unpadded numbers (HOUR_PATTERN).
+    type ScheduleTime = { hour: CfnParameter; minute: CfnParameter };
+    const cron = (time: ScheduleTime) =>
+      `cron(${time.minute.valueAsString} ${time.hour.valueAsString} * * ? *)`;
     const schedule = (
       constructId: string,
       name: string,
-      time: CfnParameter,
+      time: ScheduleTime,
       action: 'start' | 'stop',
       description: string,
     ) =>

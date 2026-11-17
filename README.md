@@ -201,7 +201,8 @@ CodeBuild, CodePipeline, RDS Proxy or VPC endpoints.
 ### Prerequisites
 
 - A Linux workstation with `bash`, `git`, `jq`, `curl`, `zip`, `tar` (GNU), `openssl`.
-- AWS CLI v2 and the Session Manager plugin (for `connect` and `db-tunnel`).
+- AWS CLI v2, a 2025 or newer release (S3 conditional writes, `--if-none-match`), and the Session
+  Manager plugin (for `connect` and `db-tunnel`).
 - GitHub CLI (`gh auth login` as a repository administrator, for environments and variables).
 - Node.js 22+ and npm; Python 3.12 (for packaging the release and the tests).
 - An AWS profile for the dev account with administrator-equivalent rights for CloudFormation,
@@ -353,8 +354,7 @@ LAI_HOSTED_ZONE_ID=<zone or empty> LAI_HOSTED_ZONE_NAME=<zone name or empty> npm
       `HostedZoneId`/`HostedZoneName`, or both empty with `OpenHttpPort=true`;
       `CreateGithubOidcProvider=false` if `aws iam list-open-id-connect-providers` already shows
       `token.actions.githubusercontent.com`. The template is about 200 KB; the console stages it in
-      S3 for you. The defaults give the target sizes and schedule; `StartupTime` is when startup
-      begins (07:35 for 08:00 availability).
+      S3 for you. The defaults give the target sizes and schedule; `StartupHour`/`StartupMinute` (7 and 35) are when startup begins, for 08:00 availability. Enter hours and minutes without a leading zero.
    4. `LaiAiGuardrail-dev` (after the platform: it attaches its policy to the instance role).
 4. In **us-east-1**, create `LaiFrontend-dev` with `SiteDomainName` and `ApiDomainName`. Its
    certificate validates through Route 53 automatically when the zone was set at synthesis;
@@ -516,6 +516,39 @@ smaller instance. Set `LAI_ALARM_EMAIL` to get the monthly budget alert (default
 - **Avoiding production deletion:** every name here ends in `-dev`. Never type a stack name that
   does not; the scripts refuse any stack that is not tagged `Environment=dev`.
 
+### Required owner approvals
+
+Each of these is your decision and is never done by a push or a workflow on its own:
+
+1. `./scripts/aws/deploy-debug.sh --execute` (creates the stacks and starts billing).
+2. DNS: the Route 53 zone choice, or the manual records `deploy-debug.sh` prints.
+3. `./scripts/aws/install-debug.sh` (secret key, GitHub environments and variables, first
+   release, seed content; `--dev-bootstrap-publish` publishes the Treasure Rush seed).
+4. `--enable-ai` and `--enable-speech` (paid Bedrock and Polly use).
+5. `gh variable set LAI_SITE_DEPLOY_ENABLED --body true` (automatic site publishing).
+6. Granting Django Admin staff the Question Studio permissions `cancel_generationbatch` and
+   `retry_generationbatch` (Admin, Groups) for anyone other than superusers.
+7. Disabling deletion protection and deleting stacks (section "Recovery and cleanup").
+
+### Verified before deployment, and what only a live run can prove
+
+Checked in the repository (2026-11-16): package names and versions in an Amazon Linux 2023
+container (nginx 1.30, python3.12, the postgresql16 client, systemd 252), certbot 4.0.0 with the
+Route 53 plugin in a Python 3.12 virtual environment, `nginx -t` and the host routing of the
+rendered configuration, every requirement resolving to an aarch64 or pure-Python wheel, the Step
+Functions request and response field names against AWS samples, unpadded Scheduler cron fields,
+OIDC trust conditions, SQS visibility timeouts (six times the function timeout), the Lambda zip,
+CDK synthesis and cfn-lint (no errors).
+
+Only the live deployment can prove: the first `dnf` and `pip` installs on the arm64 instance,
+Let's Encrypt issuance (five certificates per week for the same names; every instance
+replacement uses one), Scheduler and Step Functions runs end to end, RDS creation with engine
+version 16, the CloudFront to nginx TLS handshake, the GitHub OIDC role assumption, a Bedrock
+Converse call with the Guardrail through the `us.` inference profile from us-west-1 (model access
+must be enabled in the Bedrock console), the Polly voice in `LAI_SPEECH_AWS_REGION`, the budget's
+cost allocation tag `Environment` (activate it under Billing, Cost allocation tags), and the
+hardened systemd units with the real gunicorn.
+
 ### Acceptance checklist (owner, against the live deployment)
 
 - [ ] `deploy-debug.sh --plan` lists only `*-dev` stacks and contains no ALB, WAF, NAT gateway,
@@ -531,7 +564,8 @@ smaller instance. Set `LAI_ALARM_EMAIL` to get the monthly budget alert (default
       reachable from elsewhere; `https://api.pauldimitriu.com/admin/` returns 404.
 - [ ] Anonymous requests to the web, asset and child photo buckets return 403.
 - [ ] A push to `main` deploys the backend and the site; a rollback works.
-- [ ] A Question Studio batch completes through Lambda and its jobs show as completed in Admin.
+- [ ] A Question Studio batch completes through Lambda and its jobs show as completed in Admin;
+      Cancel and Retry work from the batch page.
 - [ ] The midnight stop and the morning start run, and the app is ready by 08:00 Pacific.
 - [ ] A push while stopped is reported as pending and applied at the next start.
 - [ ] "Manage DEV Infrastructure" start, stop, status and hold work from GitHub.

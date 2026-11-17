@@ -77,6 +77,13 @@ if [ "$apply" = true ] && [ -n "$pending" ] && [ "$pending" != none ]; then
         and ((.commit_epoch | tostring) | test("^[0-9]{9,11}$"))' >/dev/null 2>&1 <<<"$pending"; then
         say "ERROR: $deploy_prefix/pending is not a valid release record; leaving it for a person"
         ok=false
+    elif jq -e --argjson p "$pending" '.git_sha == $p.git_sha or ((.commit_epoch // 0) > ($p.commit_epoch | tonumber))' \
+        "$LAI_ROOT/state/current.json" >/dev/null 2>&1; then
+        # Already running it, or a newer release (deploy-native.sh would refuse it as out of order):
+        # clear it, or it would be retried and refused at every start.
+        say "pending release $(jq -r .git_sha <<<"$pending") is already applied or superseded; clearing it"
+        aws ssm put-parameter --name "$deploy_prefix/pending" --type String --overwrite --value none \
+            >/dev/null 2>&1 || say "WARNING: $deploy_prefix/pending could not be cleared"
     elif [ ! -f "$scripts/ssm-native-entry.sh" ]; then
         say "ERROR: no installed release to apply the pending one with; deploy it again"
         ok=false

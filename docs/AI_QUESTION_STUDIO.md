@@ -206,7 +206,7 @@ per day by default); the ADR-044 `AIServiceControl` kill switch also stops gener
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `LAI_STUDIO_RUN_MODE` | `thread` | `thread`, `manual` (use `studio_run_batch`), `inline` (tests) |
+| `LAI_STUDIO_RUN_MODE` | `thread` (production: `manual`) | `jobs` (Lambda/SQS chunk jobs), `manual` (use `studio_run_batch`), `thread` and `inline` (local and tests only; production refuses them). See section 14 |
 | `LAI_STUDIO_CHUNK_SIZE` | 5 | Questions per model call |
 | `LAI_STUDIO_MAX_ATTEMPTS` | 2 | Attempts per chunk (retry timeout, throttle, unavailable, bad shape) |
 | `LAI_STUDIO_MAX_OUTPUT_TOKENS` / `LAI_STUDIO_TEMPERATURE` | 2500 / 0.7 | Per call |
@@ -272,13 +272,82 @@ any deployment.
 - Only Treasure Rush chests consume the bank. Storykeeper Castle and the Amplify-session
   adventures are unchanged; pools are keyed by region and chest, with the adventure link kept on
   each revision for later adoption.
-- Batches run on a background thread by default; there is no queue, so a worker restart can strand
-  a batch (reclaimed after 15 minutes when it is run again).
+- Locally, batches run on a background thread by default, so a restart can strand a batch
+  (reclaimed after 15 minutes when it is run again, or cancelled by staff). Deployed
+  environments use the Lambda/SQS jobs or the manual command (section 14).
 - Near-duplicate detection is a bounded word-overlap check, not semantic.
 - `SHORT_ANSWER` is authorable but unverifiable by code and not served to children.
 
 ## 13. Status
 
 See `tasks/TASK_TRACKER.md` (Phase 28) for per-task status.
-Open gates are tracked as LAI-AQS-025 (live Bedrock, APPROVAL), 026 (Admin browser pass), 027
-(task queue) and 028 (other adventures adopt the bank). None is started.
+Open gates are tracked as LAI-AQS-025 (live Bedrock, APPROVAL), 026 (Admin browser pass) and 028
+(other adventures adopt the bank). LAI-AQS-027 (task queue) is superseded by the ADR-055
+Lambda/SQS jobs path; its useful features were folded into that path (section 14).
+
+## 14. Background processing, cancel and retry
+
+**One processing architecture.** In AWS, generation runs on the ADR-055 Lambda/SQS jobs
+(`LAI_STUDIO_RUN_MODE=jobs`, `LAI_JOBS_BACKEND=sqs`; `docs/infrastructure/dev-native-environment.md`
+section 9). Each chunk is one `studio.generate_chunk` job; the next chunk is submitted only after
+the previous result was applied (`generation.apply_chunk_job`, under the job and batch row locks),
+so a batch never has two chunks in flight. The EC2 web process never runs a batch: production
+settings accept only `jobs` or `manual` (unset is `manual`, for an operator's
+`manage.py studio_run_batch`) and refuse `thread` and `inline`.
+
+**Locally, no AWS is needed.** `thread` (default), `manual` and `inline` run the same chunk code in
+process; `jobs` with `LAI_JOBS_BACKEND=inline` runs the worker's task code in process through
+`apps.jobs`, exactly as the Lambda would.
+
+**Slots make results idempotent.** A batch fills slots `0..requested_count-1`; each stored draft
+holds its slot under the unique constraint `studio_question_one_per_batch_slot` (batch, slot).
+Every chunk fills one contiguous window of empty slots. In jobs mode the window is the payload's
+`requested_before` (its start) and `want` (its size), so the worker contract is unchanged and a
+result applied twice finds its window taken and stores nothing. This sits behind the existing
+guards (a finished `ProcessingJob` ignores a redelivered result; a result whose `chunk_index` is
+not the batch's next chunk is ignored).
+
+**Cancel** (`cancel_generationbatch`; Admin button on the batch page and a bulk action). A QUEUED
+batch, or a RUNNING one with nothing working on it (jobs mode with no unfinished chunk job, or an
+in-process run older than 15 minutes), ends `CANCELLED` at once. Otherwise the request is recorded
+(`cancel_requested_at`, `cancelled_by`) and every runner checks it before the next chunk: no further
+model call is made and no further chunk job is submitted. A chunk already in flight is **still
+accounted**: its tokens were spent, so they count against the daily quota, and its drafts are kept
+(they are drafts, reviewed like any other). A failed or timed-out in-flight job also ends the batch
+`CANCELLED`. A cancel that arrives after the last chunk was applied leaves the batch `COMPLETED`.
+
+**Retry** (`retry_generationbatch` plus `add_generationbatch`; Admin button and bulk action). Only a
+`FAILED` or `PARTIAL` batch, at most three times, and only while the prompt version, approved
+model, Studio switch, kill switch and daily token quota allow. The batch goes back to `QUEUED` and
+is started in the configured mode; the run walks the slots from 0 and asks only for the empty
+ones (failed chunks and short answers). Stored drafts are never asked for again and never
+duplicated. Batches generated before slots existed are refused (`legacy_batch`).
+
+**Failure detail.** Admin shows a fixed message per failure category
+(`generation.failure_message`), never provider, worker or model text, next to the progress
+("n of m questions, c of t chunks") and the batch's chunk jobs.
+
+**Duplicate submit.** The Generate form carries a hidden `submission_key`; a second submit of the
+same form (double click, browser resubmit) returns the first batch instead of queuing another
+(unique constraint `studio_batch_one_per_submission`).
+
+**Statuses.** `QUEUED`, `RUNNING`, `COMPLETED`, `PARTIAL`, `FAILED` and the new `CANCELLED`.
+Migration `question_studio/0002_batch_cancel_retry_slots` is additive (new nullable or defaulted
+columns, two partial unique constraints, two permissions); existing rows are untouched.
+
+### What was taken from LAI-AQS-027 (branch `feature/ai-studio-queue`) and what was not
+
+Taken, adapted to the jobs path: cooperative cancellation and its permission; staff retry of
+failed work only, never duplicating drafts (a slot per draft instead of `GenerationChunk` rows);
+fixed, sanitized failure messages; the duplicate-submit key; Admin progress, Cancel and Retry
+buttons and bulk actions behind permissions; the `CANCELLED` status; production refusing
+`thread` and `inline`.
+
+Deliberately not taken: the PostgreSQL lease/claim queue, `manage.py studio_worker` and
+`studio_worker_health`, `StudioWorker` check-ins, the `studio-worker` compose service and ADR-052
+(a second, competing production processing path on EC2); per-batch leases, heartbeats and
+fencing tokens (the jobs framework's row locks, ordered single in-flight chunk and `jobs_sweep`
+timeout cover them); in-worker exponential backoff (chunk attempts are bounded by
+`LAI_STUDIO_MAX_ATTEMPTS` inside the job; SQS redrive and the sweep handle the rest); the
+`GenerationChunk` model; and the status rename to `SUCCEEDED` / `PARTIALLY_FAILED` (churn without
+benefit).

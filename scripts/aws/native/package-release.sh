@@ -65,8 +65,11 @@ chmod 0755 "$tree"/scripts/aws/native/*.sh
 
 if [ "$skip_wheels" != true ]; then
     say "downloading linux/arm64 CPython 3.12 wheels"
+    # Every manylinux tag Amazon Linux 2023 (glibc 2.34) satisfies, listed explicitly so pip never
+    # depends on its own tag expansion: 2014 (= 2_17), 2_28 (psycopg-binary) and 2_34.
     "${LAI_PACKAGE_PYTHON:-python3}" -m pip download --quiet --disable-pip-version-check \
-        --only-binary=:all: --platform manylinux2014_aarch64 --platform manylinux_2_28_aarch64 \
+        --only-binary=:all: --platform manylinux2014_aarch64 --platform manylinux_2_17_aarch64 \
+        --platform manylinux_2_28_aarch64 --platform manylinux_2_34_aarch64 \
         --implementation cp --python-version 3.12 -r "$tree/requirements.txt" -d "$tree/wheels" ||
         fail 20 "pip download failed (every requirement needs an aarch64 cp312 or pure-Python wheel)"
     # Django imports lai_processing and lai_processing_runtime (docs/processing/WAVE2_INTERFACES.md

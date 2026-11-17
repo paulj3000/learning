@@ -21,9 +21,12 @@ P=${LAI_LOG_GROUP_PREFIX:-/lai/$LAI_ENV}
 # The Elastic IP is associated just after launch, so the first downloads may fail: retry them.
 retry() { local n; for n in 1 2 3 4 5 6; do "$@" && return 0; say "retrying ($n): $1"; sleep $((n * 10)); done; "$@"; }
 say "installing packages"
+# postgresql16 is the database client package (no server). gettext gives envsubst
+# (nginx template), diffutils cmp, util-linux flock and setpriv, awscli-2 the aws CLI: all on the
+# standard AMI today, listed so a minimal or future image still has them.
 retry dnf install -y -q --setopt=install_weak_deps=False --setopt=retries=10 nginx python3.12 \
     python3.12-devel python3.12-pip gcc postgresql16 jq git tar gzip logrotate openssl util-linux \
-    amazon-cloudwatch-agent >/dev/null
+    gettext diffutils awscli-2 amazon-cloudwatch-agent >/dev/null
 systemctl enable --now amazon-ssm-agent >/dev/null 2>&1 || true
 
 getent group lai >/dev/null || groupadd --system lai
@@ -85,17 +88,20 @@ events { worker_connections 1024; }
 http {
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
+    types_hash_max_size 4096;
     sendfile on;
     tcp_nopush on;
     keepalive_timeout 65;
-    server_tokens off;
-    access_log off;
+    # server_tokens and access_log are set by conf.d/lai.conf (bootstrap or release): nginx refuses
+    # a flag directive such as server_tokens twice in the same (http) context.
     include /etc/nginx/conf.d/*.conf;
 }
 EOF
 if [ ! -f $CONF ] || grep -q '^# lai-bootstrap' $CONF; then
     cat >$CONF <<EOF
 # lai-bootstrap: replaced by the first release (deploy/native/nginx.conf.template).
+server_tokens off;
+access_log off;
 server {
     listen 80 default_server;
     server_name _;
@@ -139,14 +145,25 @@ placeholder() {
         -keyout $LIVE/privkey.pem -out $LIVE/fullchain.pem 2>/dev/null
     chmod 0600 $LIVE/privkey.pem
 }
-if [ -f /etc/letsencrypt/renewal/lai-dev.conf ]; then
+# Setup only makes sure a certificate file exists; it never contacts Let's Encrypt from here.
+[ "${1:-}" = --placeholder ] && { [ -s $LIVE/fullchain.pem ] || placeholder; exit 0; }
+# The names the certificate must cover, sorted, against the names it covers now.
+want=$(printf '%s\n' "$LAI_API_HOST" "$LAI_ADMIN_HOST" | sort -u | paste -sd' ' -)
+have=$(openssl x509 -in $LIVE/fullchain.pem -noout -ext subjectAltName 2>/dev/null |
+    grep -o 'DNS:[^,[:space:]]*' | cut -d: -f2 | sort -u | paste -sd' ' -)
+if [ -f /etc/letsencrypt/renewal/lai-dev.conf ] && [ "$want" = "$have" ]; then
     exec $CB renew -q --cert-name lai-dev --deploy-hook 'systemctl reload nginx'
 fi
-[ "${1:-}" = --placeholder ] && { [ -s $LIVE/fullchain.pem ] || placeholder; exit 0; }
 [ -x $CB ] || { [ -s $LIVE/fullchain.pem ] || placeholder; exit 1; }
 args=(certonly -n -q --agree-tos --cert-name lai-dev -d "$LAI_API_HOST" -d "$LAI_ADMIN_HOST")
 if [ -n "${LAI_CERT_EMAIL:-}" ]; then args+=(-m "$LAI_CERT_EMAIL"); else args+=(--register-unsafely-without-email); fi
 if [ "${LAI_ACME_MODE:-http}" = route53 ]; then args+=(--dns-route53); else args+=(--webroot -w /var/lib/lai/acme); fi
+if [ -f /etc/letsencrypt/renewal/lai-dev.conf ]; then
+    # The host names changed: reissue the existing lineage with the new names (keeps nginx's path).
+    echo "lai-cert: certificate names '$have' differ from '$want'; reissuing" >&2
+    if timeout 900 $CB "${args[@]}" --renew-with-new-domains; then reload; exit 0; fi
+    exit 1
+fi
 rm -rf $LIVE # the placeholder (certbot owns the lineage from here)
 if timeout 900 $CB "${args[@]}"; then
     reload

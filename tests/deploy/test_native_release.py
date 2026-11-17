@@ -773,6 +773,19 @@ def test_power_verify_keeps_a_pending_release_that_failed(box):
     assert box.single_value("/lai/dev/deploy/pending") == record
 
 
+def test_power_verify_clears_a_pending_release_that_is_already_superseded(box):
+    pending = pending_record(box, 1)
+    assert box.deploy(2).returncode == 0
+    box.single(
+        {"/lai/dev/deploy/apply-pending-on-start": "true", "/lai/dev/deploy/pending": pending}
+    )
+    result = box.run(NATIVE / "power-native.sh", LAI_REQ_ACTION="verify")
+    assert result.returncode == 0, box.output(result)
+    assert box.current_link() == sha(2)  # never redeployed the older release
+    assert box.single_value("/lai/dev/deploy/pending") == "none"
+    assert "superseded" in box.output(result)
+
+
 def test_power_verify_ignores_pending_when_not_configured_and_fails_when_unhealthy(box):
     assert box.deploy(1).returncode == 0
     box.single(
