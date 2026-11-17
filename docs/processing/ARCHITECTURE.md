@@ -5,10 +5,10 @@ Status (updated for Wave 2, 2026-11-17):
 | Item | State |
 |---|---|
 | ADR-061 (runtime-independent processing) | Accepted by the owner, 2026-11-16 |
-| ADR-062 (one Django job backbone) | Proposed, for owner review with the Wave 2 pull request |
+| ADR-062 (one Django job backbone) | Accepted by the owner, 2026-11-17, with decisions B4 to B7, the `LAI_ASSET_ASYNC_VALIDATION` flag (approved, default off; implemented in Wave 3) and prod reserved concurrency 5 |
 | Wave 1 (LAI-LAMBDA-001) | Pull request #40 is merge-ready (all required checks green on `8ac16b4`) but **not merged**: the owner must press Merge (the GitHub connector returned 403) |
-| Wave 2 (LAI-LAMBDA-002 to 005) | Integrated on `feature/serverless-processing-wave2`, tested locally, **provisional** on the unmerged Wave 1 foundation |
-| Deployment | **Nothing is deployed.** `infra/` now synthesizes `LaiProcessingImages-<env>` and `LaiProcessing-<env>`, but no stack has been deployed, no image has been built or pushed, and no live AWS acceptance has run |
+| Wave 2 (LAI-LAMBDA-002 to 005) | Integrated on `feature/serverless-processing-wave2` (pull request #41, **not merged**), tested locally, reviewed (five read-only reviews, fixes applied 2026-11-17), **provisional** on the unmerged Wave 1 foundation |
+| Deployment | **Nothing is deployed and deployment is not authorized** (`LAI_PROCESSING_DEPLOY_ENABLED` is not `true`). `infra/` now synthesizes `LaiProcessingImages-<env>` and `LaiProcessing-<env>`, but no stack has been deployed, no image has been built or pushed, and no live AWS acceptance has run |
 
 Trello: [LAI-LAMBDA-001](https://trello.com/c/N5lWZeq4). Related documents in this folder:
 
@@ -306,7 +306,7 @@ input prefixes and must never dispatch work.
 | Worker image (`processing/Dockerfile.lambda`) | Written; **not built or pushed** (the base image pull needs network); `ci.yml` `processing-image` builds and scans it in CI |
 | Django contract kinds: fields, `JobAttempt`, `JobOutbox`, `CompletionReceipt`, `JobArtifact`, status mapping | **Wave 2, implemented** (`DJANGO_JOBS.md`, migration `jobs.0002_processing_contract_kinds`) |
 | `submit_processing_job`, `relay_outbox`, `apply_completion`, `cancel_job`, `requeue_job`, `reconcile`, `run_inline` | **Wave 2, implemented** |
-| `jobs_dispatch`, `jobs_consume_completions`, `jobs_reconcile` | **Wave 2, implemented**; systemd units for the first two; no schedule for `jobs_reconcile` |
+| `jobs_dispatch`, `jobs_consume_completions`, `jobs_reconcile` | **Wave 2, implemented**; systemd units (dev) and `docker-compose.yml` services `jobs-dispatch` and `jobs-completions` (prod) for the first two; no schedule for `jobs_reconcile` |
 | Django Admin for contract jobs (read-only fields, findings, attempts, artifacts, receipts; Cancel and Requeue actions) | **Wave 2, implemented** |
 | `apps.assets.processing.submit_model_validation` | **Wave 2, implemented**; submits only; called by no admin action or upload path yet |
 | CDK `LaiProcessingImages-<env>`, `LaiProcessing-<env>`, IAM, queue policies, alarms, SSM settings, workflows | **Wave 2, synthesized and tested; not deployed** (`processing-infrastructure.md`) |
@@ -314,7 +314,7 @@ input prefixes and must never dispatch work.
 | Job `VALIDATED -> READY_FOR_REVIEW` transition | Not built (Wave 3) |
 | AssetVersion integration: results onto `validation_report`, `DRAFT` flow, presigned uploads, review UI on the version, publication gates | Not built (Wave 3, 006/007) |
 | DLQ replay runbooks and commands, reject-count metric filter | Not built (006) |
-| Live AWS acceptance | Not done; needs owner deployment approval (A9, ADR-019 G7) |
+| Live AWS acceptance | Not done; needs owner deployment authorization (A9, ADR-019 G7) and LAI-LAMBDA-011 |
 | AI Question Studio | Unchanged. It keeps its PostgreSQL-backed `GenerationBatch` queue (`LAI_STUDIO_RUN_MODE`); LAI-AQS-027 stays open. Moving it to SQS needs a separate approval |
 | Legacy `apps.jobs` kinds (ADR-055) | Unchanged in behaviour, envelopes, queues, worker zip and consumer |
 | Child photos | Out of scope. They must never use this pipeline without a separate approved decision (ADR-042) |

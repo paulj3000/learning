@@ -69,7 +69,7 @@ hash decides. **An ETag is never treated as a SHA-256.**
 | Name | Values / default | Meaning |
 |---|---|---|
 | `LAI_PROCESSING_BACKEND` | `disabled`, `inline`, `local`, `sqs`. Default `inline` in base and test; production allows only `disabled` or `sqs`, default `disabled` | How contract jobs are transported |
-| `LAI_PROCESSING_NAMESPACE` | default `local`; must match the namespace pattern; production requires it set (`dev` or `prod`) | Contract namespace for every job |
+| `LAI_PROCESSING_NAMESPACE` | default `local`; must match the namespace pattern; production requires it set (`dev` or `prod`) only when the backend is `sqs` | Contract namespace for every job |
 | `LAI_PROCESSING_WORK_QUEUE_URL` | required for `sqs` | Processing work queue |
 | `LAI_PROCESSING_COMPLETION_QUEUE_URL` | required for `sqs` | Processing completion queue |
 | `LAI_PROCESSING_BUCKET` | required for `sqs` | Private processing bucket |
@@ -86,7 +86,7 @@ hash decides. **An ETag is never treated as a SHA-256.**
 | `LAI_PROCESSING_BUCKET` | `quarantine` and `artifacts` stores |
 | `LAI_ASSET_BUCKET` | `assets` store (read-only) |
 | `LAI_PROCESSING_COMPLETION_QUEUE_URL` | Where completions go |
-| `LAI_PROCESSING_CLEANUP_MARGIN_SECONDS` | Default 30: stop starting work, and cap a job's deadline, this long before the Lambda deadline |
+| `LAI_PROCESSING_CLEANUP_MARGIN_SECONDS` | Default 60 (Lambda minimum 56, maximum 300): stop starting work, and cap a job's deadline, this long before the Lambda deadline. The local worker's `--cleanup-margin` defaults to 30 (minimum 5) |
 | `LAI_PROCESSING_LOG_LEVEL` | Default `INFO` |
 
 ## 5. Transport semantics (003 and 004 both implement exactly this)
@@ -102,10 +102,14 @@ hash decides. **An ETag is never treated as a SHA-256.**
      `remaining - margin`, so a deadline becomes `processing_timeout` (retryable), never a
      silent kill.
   3. `complete`.
-  4. Send the completion.
+  4. Send the completion. Before 3 and before 4 the remaining time is read again; too little
+     for one AWS call fails the record as `insufficient_time` (logged `work.skipped`), and it
+     is redelivered.
   5. Return success for the record only after the completion send succeeded; otherwise report a
      batch item failure (the same attempt reruns; artifacts are create-only and identical
-     rewrites are idempotent; the duplicate completion is deduplicated by Django).
+     rewrites are idempotent; the duplicate completion is deduplicated by Django). A rerun whose
+     by-reference `job-result` was stored but never sent reuses the stored result (event
+     `job.result_reused`) and resends the original completion.
   An undecodable work message is a batch item failure and reaches the DLQ after
   `maxReceiveCount` (5); it is logged as `work.invalid` with no body content.
 - **Django consumer, per completion delivery,** inside one transaction under the job row lock:
@@ -130,11 +134,11 @@ through one factory, `apps.jobs.processing_transport`, from the settings above, 
 | Symbol | Behaviour |
 |---|---|
 | `apps.jobs.processing.submit_processing_job(*, job_type, subject, input, profile, options=None, asset=None, user=None) -> ProcessingJob` | Resolves options against the profile, computes the idempotency key, and creates job + attempt 1 + outbox row in one transaction. An existing job with the same key is returned (no second job). |
-| `apps.jobs.processing.relay_outbox(queue, *, limit=50) -> int` | Sends due outbox rows (`select_for_update(skip_locked=True)`), marks them sent after the send; a crash between send and mark causes a duplicate send, never a lost job. |
+| `apps.jobs.processing.relay_outbox(queue, *, limit=50, ignore_delay=False) -> int` | Sends due outbox rows (`select_for_update(skip_locked=True)`), marks them sent after the send; a crash between send and mark causes a duplicate send, never a lost job. |
 | `apps.jobs.processing.apply_completion(body, *, storage) -> CompletionOutcome` | Section 5; `CompletionOutcome(action, ack, reason)` |
 | `apps.jobs.processing.cancel_job(job, *, user)` / `requeue_job(job, *, user)` | Staff actions; requeue is the manual FAILED -> QUEUED transition with a new attempt |
 | `manage.py jobs_dispatch [--once] [--interval S]` | Outbox relay loop |
-| `manage.py jobs_consume_completions [--once] [--max-messages N] [--wait-seconds S]` | Completion consumer loop |
+| `manage.py jobs_consume_completions [--once] [--max-messages N] [--wait-seconds S] [--visibility S]` | Completion consumer loop |
 | `manage.py jobs_reconcile [--dry-run]` | Expires overdue queued jobs (`job_expired`) and reports stuck outbox rows |
 
 Status mapping for contract kinds (the coarse `status` the existing admin, filters and sweep use):
@@ -157,8 +161,8 @@ so an overnight backlog is never timed out by the 60-minute legacy rule.
 | Image publisher role (GitHub OIDC) | `lai-github-processing-publisher-<env>` |
 | Alarm topic | existing `lai-django-alarms-<env>` |
 
-Defaults: worker timeout 600 s (at most 840 s, the Wave 1 ceiling), memory 2048 MB, ephemeral
-storage 2048 MB, arm64, batch size 1, `ReportBatchItemFailures`, reserved concurrency 2 (dev);
+Defaults: worker timeout 600 s (at least 120 s, twice the cleanup margin; at most 840 s, the Wave 1 ceiling), memory 2048 MB, ephemeral
+storage 2048 MB, arm64, batch size 1, `ReportBatchItemFailures`, reserved concurrency 2 (dev) and 5 (prod, configurable);
 work queue visibility 3600 s (6 x timeout), completion queue visibility 300 s, retention 14 days,
 `maxReceiveCount` 5, SSE-SQS, TLS-only queue policies. The function exists only when an image
 digest (`sha256:...`) is supplied (two-phase provisioning: repository, then image, then worker).

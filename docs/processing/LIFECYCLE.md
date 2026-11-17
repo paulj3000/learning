@@ -163,15 +163,15 @@ unchanged. Detail and settings: `DJANGO_JOBS.md`.
 | Event ledger | `CompletionReceipt` per completion received, `event_id` unique, with `action` and `reason`. The same event seen again is `DUPLICATE event_seen`; a reused `event_id` for another job or attempt is `REJECT event_id_reused` | `models.CompletionReceipt`, `processing._apply_locked` |
 | Transactional outbox | `JobOutbox`: one row per attempt (`attempt` one-to-one), canonical request `body`, `available_at`, `sent_at`, `cancelled_at`, `send_attempts`, `last_error_code`; index (`sent_at`, `available_at`) | `models.JobOutbox` |
 | Artifacts | `JobArtifact` rows for an applied success (including a by-reference `job-result`); (`attempt`, `logical_id`) unique | `models.JobArtifact`, `processing._record_artifacts` |
-| Request template | `ProcessingJob.payload` holds attempt 1's `ProcessingJobRequest.to_dict()`; every later attempt is re-encoded from it with only `attempt_id` and `attempt_number` replaced (and, on a staff requeue, `submitted_at` and `expires_at`), so the idempotency key never changes | `processing._new_attempt` |
+| Request template | `ProcessingJob.payload` holds attempt 1's `ProcessingJobRequest.to_dict()`; every later attempt is re-encoded from it with only `attempt_id` and `attempt_number` replaced (and, on a staff requeue, `submitted_at` and `expires_at`). A staff requeue writes the renewed `submitted_at` and `expires_at` into `payload` itself, so the automatic retries that follow keep the new expiry. The idempotency key never changes | `processing._new_attempt` |
 
 ### 9.2 Transactions and locks
 
 | Operation | Transaction and lock |
 |---|---|
 | Submit | One `transaction.atomic()`: job row (`created`), `JobAttempt` 1, `created -> queued` through `check_transition`, `JobOutbox` row. With the `inline` backend, `run_inline` is scheduled with `transaction.on_commit` |
-| Relay | One short transaction per row: `JobOutbox.objects.select_for_update(skip_locked=True)` on unsent, uncancelled, due rows, ordered by (`available_at`, `pk`); send; then `sent_at` and `JobAttempt.dispatched_at`. Concurrent relays never send the same row at the same time. A crash after the send and before the commit leaves the row unsent, so it is sent again (duplicate, never lost) |
-| Completion | `apply_completion` decodes outside the transaction, then `_apply_locked` runs inside one `transaction.atomic()` holding `select_for_update()` on the job row (`processing._locked`) for the decision, the persistence and the receipt |
+| Relay | One short transaction per row: `JobOutbox.objects.select_for_update(skip_locked=True)` on unsent, uncancelled, due rows, ordered by (`available_at`, `pk`); send; then `sent_at` and `JobAttempt.dispatched_at`. Concurrent relays never send the same row at the same time. A crash after the send and before the commit leaves the row unsent, so it is sent again (duplicate, never lost). A message the queue can never accept (`message_too_large`) is only noted on the row and committed; a second transaction then locks the job first, fails it and cancels the row, keeping the job-then-outbox lock order of cancel, requeue and expiry |
+| Completion | `apply_completion` decodes outside the transaction, then `_apply_locked` runs inside one `transaction.atomic()` holding `select_for_update()` on the job row (`processing._locked`) for the decision, the persistence and the receipt. An `IntegrityError` (a race on a receipt inserted without the job row lock, for example two consumers handling the same unknown-job event) is retried once in-process, and the second run resolves to `duplicate` or `reject`; one that persists is deferred as `integrity_error` |
 | Cancel, requeue, expire | Each in its own `transaction.atomic()` with the job row locked; every state change goes through `_set_state`, which calls `lifecycle.check_transition` and sets `status` from `STATE_STATUS` |
 
 **Acknowledge after commit.** `apply_completion` returns only after its transaction has
@@ -189,17 +189,20 @@ logged and left: the redelivery is recognised as `DUPLICATE event_seen`.
 | `retry` | True | `retryable_failure` | Attempt `failed` and applied; job stays `queued`; new attempt and outbox row with `RetryPolicy.delay_seconds` in the same transaction |
 | `duplicate` | True | `already_applied`, `event_seen` | Receipt only |
 | `stale` | True | `job_finished` (job `validated`, `failed`, `cancelled` or `ready_for_review`), `superseded_attempt`, `not_running` | Receipt only |
-| `reject` | True | From `decide_completion`: `identity_mismatch`, `result_mismatch`, `input_mismatch`. From Django: `unknown_job`, `namespace_mismatch`, `event_id_reused`, `unknown_attempt`, `attempt_mismatch`, `processor_mismatch`, `profile_mismatch`, `input_unverified`, `artifact_foreign`, `result_too_large` | Receipt plus `logger.warning("processing.completion_rejected job=... attempt=... reason=...")`; nothing applied |
+| `reject` | True | From `decide_completion`: `identity_mismatch`, `result_mismatch`, `input_mismatch`. From Django: `unknown_job`, `namespace_mismatch`, `event_id_reused`, `unknown_attempt`, `attempt_mismatch`, `processor_mismatch`, `profile_mismatch`, `input_unverified`, `artifact_foreign`, `artifact_duplicate` (a by-reference result lists an artifact with the same logical id as its `job-result`), `result_too_large` | Receipt plus `logger.warning("processing.completion_rejected job=... attempt=... reason=...")`; nothing applied |
 
 Order of checks: decode; namespace (an event for another namespace is rejected without touching
 any job); a by-reference result is read (at most 4 MiB) only for a job Django knows, then
 `verify_result`; under the lock, `event_seen`, then `kind` equals `job_type`, then
 `decide_completion`, then (for `apply` and `retry` only) `_check_against_job`.
 
-Transient failures raise `CompletionDeferred` (`database_error`, `result_unavailable`): nothing
-was committed and the consumer releases the message with `release_delay(receive_count) =
-min(300, 5 x 2^(receive_count - 1))` seconds. An unexpected exception is released the same way
-(`apply_error`).
+Transient failures raise `CompletionDeferred` (`database_error`, `integrity_error`,
+`result_unavailable`): nothing was committed and the consumer releases the message with
+`release_delay(receive_count) = min(300, 5 x 2^(receive_count - 1))` seconds. An unexpected
+exception is released the same way (`apply_error`). A database error (never an `IntegrityError`,
+`processing.is_database_outage`) also makes the consumer hand the rest of the batch back with
+delay 0 and back off; before every receive it runs `SELECT 1` and receives nothing while
+PostgreSQL is down (`OPERATIONS.md` section 7).
 
 ### 9.4 Status mapping
 
@@ -239,7 +242,13 @@ ready_for_review` step belongs to Wave 3.
 
 `processing.retry_eligible(job)` is true only when a requeue is allowed. A relay send that the
 queue can never accept (`ValueError`, message too large) cancels the row and fails the job with
-`message_too_large`; transient send failures only delay the row.
+`message_too_large` (section 9.2); transient send failures only delay the row.
+
+**Open decision: resubmitting cancelled work.** A `cancelled` job is terminal: it cannot be
+requeued (no transition leaves `cancelled`), and submitting the same work again (same namespace
+and idempotency key, so the same asset version, processor version and profile) returns the
+cancelled job instead of creating a new one. Workaround until the owner decides: delete the draft
+version and upload it again, which gives a new key.
 
 ### 9.7 Tests
 

@@ -121,8 +121,8 @@ attempt's identical rewrite is an idempotent success rather than `permission_den
 
 | Quantity | Value | Rule |
 |---|---|---|
-| Worker timeout | 600 s | at most 840 s (`PLATFORM_CEILINGS.max_execution_seconds`); validated at synth |
-| Cleanup margin | 30 s | `LAI_PROCESSING_CLEANUP_MARGIN_SECONDS`; a job's deadline is at most 570 s |
+| Worker timeout | 600 s | at least 120 s (twice the cleanup margin) and at most 840 s (`PLATFORM_CEILINGS.max_execution_seconds`); validated at synth |
+| Cleanup margin | 60 s | `LAI_PROCESSING_CLEANUP_MARGIN_SECONDS` (Lambda minimum 56 s: two AWS calls of at most 28 s each, with 3 s connect, 10 s read and 2 attempts); a job's deadline is at most 540 s at the 600 s timeout |
 | Work visibility | 3600 s | at least 6 x timeout x batch size (6 x 600 x 1 = 3600); validated at synth |
 | Completion visibility | 300 s | longer than the consumer's worst-case transaction |
 | Retention | 14 days | covers the nightly stop, a weekend, an outage |
