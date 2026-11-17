@@ -159,3 +159,13 @@ on and is resubmitted after the fix. If the `ListAssetBucket` grant were missing
 missing key would show as `access_denied`/`permission_denied`, which is the signal to check IAM.
 An object deleted between the size check and the ranged read is also `object_missing`. Django's
 inline ports (`apps.assets.jobs.InlinePorts`) report the same codes.
+
+**The worker's own cache lookups** (the stored result read before every run, and the shared
+speech clip HEAD) are different: the role holds `s3:GetObject` on exactly those prefixes, and the
+results and speech `s3:ListBucket` grants carry a plain `s3:prefix` condition that a GET or HEAD
+may not satisfy, so S3 can answer 403 for a key that simply does not exist yet. There a 403 means
+"not stored yet" (`_is_absent_cache_entry` in `lambda/jobs_worker/aws.py`): the cost is repeating
+idempotent work at worst, and a real permission fault still fails the PutObject that follows. This
+keeps the first delivery of every job (all kinds, pre-existing on `main`) from retrying into the
+DLQ without broadening any IAM grant. Whether those grants should become `StringLikeIfExists` is
+an owner decision; the live check is in LAI-LAMBDA-011.

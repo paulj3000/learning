@@ -118,6 +118,29 @@ def _is_missing(error: BaseException) -> bool:
     return error_code(error) in _MISSING_CODES or status == 404
 
 
+#: A 403 on a lookup in the worker's OWN cache prefixes (stored results, shared speech clips).
+_DENIED_CODES = frozenset({"AccessDenied", "403", "Forbidden"})
+
+
+def _is_absent_cache_entry(error: BaseException) -> bool:
+    """Missing, for a cache lookup the role is allowed to read.
+
+    S3 answers 403 instead of 404 for a missing key unless the caller is allowed s3:ListBucket on
+    the bucket, and the results and speech ListBucket grants carry a plain `s3:prefix` condition
+    that a GET or HEAD request may not satisfy. The role holds s3:GetObject on exactly these
+    prefixes, so a 403 there means "not stored yet". Treating it as absent only costs a repeat of
+    idempotent work: the result is re-applied as a duplicate by Django, a speech clip is
+    re-synthesized. A real permission fault still surfaces at the PutObject that follows
+    (`results_unavailable` / `storage`, retried). Asset INPUTS never use this rule: there a 403
+    is `access_denied`, never missing (_asset_error).
+    """
+    if _is_missing(error):
+        return True
+    response = getattr(error, "response", None)
+    status = response.get("ResponseMetadata", {}).get("HTTPStatusCode") if response else None
+    return error_code(error) in _DENIED_CODES or status == 403
+
+
 class Settings:
     """The function's environment, validated once."""
 
@@ -241,7 +264,7 @@ class Runtime:
                 Bucket=self.settings.results_bucket, Key=envelope.result_key(job_id)
             )
         except Exception as error:  # noqa: BLE001
-            if _is_missing(error):
+            if _is_absent_cache_entry(error):
                 return None
             raise TaskError("results_unavailable", retryable=True) from None
         try:
@@ -366,7 +389,7 @@ class SpeechPorts:
         try:
             head = self._runtime.client("s3").head_object(Bucket=self._bucket, Key=key)
         except Exception as error:  # noqa: BLE001
-            if _is_missing(error):
+            if _is_absent_cache_entry(error):
                 return None
             raise TaskError("storage", retryable=True) from None
         size = head.get("ContentLength")
