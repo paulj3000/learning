@@ -401,7 +401,7 @@ def test_namespace_mismatch(tmp_path: Path) -> None:
 
 def test_unsupported_processor(tmp_path: Path) -> None:
     h = Harness(tmp_path)
-    request = make_request(job_type="asset.process_audio")  # declared, no processor yet
+    request = make_request(job_type="asset.optimize")  # declared, no processor yet
     result = h.run(request)
     assert_error(result, ErrorCode.UNSUPPORTED_PROCESSOR)
     assert result.retry_class is RetryClass.MANUAL
