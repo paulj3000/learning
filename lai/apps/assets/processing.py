@@ -68,7 +68,8 @@ def async_validation_enabled() -> bool:
 
 def async_validation_applies(version_or_format) -> bool:
     """True when the flag is on and the version (or a format name) is a GLB model."""
-    fmt = getattr(version_or_format, "format", version_or_format)
+    # A str has a `.format` method, so a format name is never looked up as an attribute.
+    fmt = version_or_format if isinstance(version_or_format, str) else version_or_format.format
     return async_validation_enabled() and fmt in ASYNC_FORMATS
 
 

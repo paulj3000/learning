@@ -93,15 +93,22 @@ def test_a_valid_model_is_validated_end_to_end_and_the_version_is_untouched(loca
     call_command("jobs_consume_completions", "--once", "--wait-seconds", "0")
 
     job.refresh_from_db()
-    assert job.state == JobState.VALIDATED and job.status == "completed"
+    assert job.state == JobState.READY_FOR_REVIEW and job.status == "completed"
+    assert job.subject_outcome == "version_validated"
     attempt = JobAttempt.objects.get(job=job, number=1)
     assert attempt.verdict == "pass"
     metadata = attempt.result["metadata"]
     assert [clip["name"] for clip in metadata["animations"]] == ["Idle", MIXAMO]
     assert metadata["counts"]["meshes"] == 1
     assert CompletionReceipt.objects.filter(job=job, action="apply").count() == 1
-    # Staff review and publication are separate: the version is exactly as it was.
-    assert _snapshot(version) == before
+    # Wave 3: the hook moves the DRAFT to VALIDATED with the summary; publication stays a
+    # separate staff action, and the upload's clips and dimensions are kept.
+    status, version_metadata, report, published_at = _snapshot(version)
+    assert (status, published_at) == (VersionStatus.VALIDATED, None)
+    summary = version_metadata["model_validation"]
+    assert [clip["name"] for clip in summary["animations"]] == ["Idle", MIXAMO]
+    assert summary["job_id"] == str(job.pk)
+    assert report[: len(before[2])] == before[2]
 
 
 def test_an_invalid_model_is_a_successful_job_with_a_failing_verdict(local_env):
@@ -114,11 +121,14 @@ def test_an_invalid_model_is_a_successful_job_with_a_failing_verdict(local_env):
 
     job.refresh_from_db()
     attempt = JobAttempt.objects.get(job=job, number=1)
-    assert job.state == JobState.VALIDATED
+    assert job.state == JobState.READY_FOR_REVIEW
+    assert job.subject_outcome == "version_rejected"
     assert attempt.verdict == "fail"
     codes = {finding["code"] for finding in attempt.result["findings"]}
     assert codes, "an invalid model must explain itself with findings"
-    assert version.status == VersionStatus.DRAFT
+    version.refresh_from_db()
+    assert version.status == VersionStatus.REJECTED
+    assert {f["code"] for f in version.validation_report if f.get("source") == "processing"} == codes
 
 
 def test_redelivered_work_and_duplicate_completions_apply_once(local_env):
@@ -136,7 +146,7 @@ def test_redelivered_work_and_duplicate_completions_apply_once(local_env):
     call_command("jobs_consume_completions", "--once", "--wait-seconds", "0")
 
     job.refresh_from_db()
-    assert job.state == JobState.VALIDATED
+    assert job.state == JobState.READY_FOR_REVIEW
     actions = sorted(CompletionReceipt.objects.filter(job=job).values_list("action", flat=True))
     assert actions.count("apply") == 1
     assert set(actions) <= {"apply", "duplicate"}
@@ -160,4 +170,4 @@ def test_paused_dispatch_keeps_the_job_queued_until_resumed(local_env, settings)
     settings.LAI_PROCESSING_DISPATCH = "enabled"
     _round_trip(local_env)
     job.refresh_from_db()
-    assert job.state == JobState.VALIDATED
+    assert job.state == JobState.READY_FOR_REVIEW

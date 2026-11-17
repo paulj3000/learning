@@ -122,17 +122,22 @@ def test_submit_queues_once_and_leaves_the_version_alone(settings, registry, ver
     assert snapshot(version) == before
 
 
-def test_inline_validation_reads_the_stored_version_and_still_changes_nothing(
+def test_inline_validation_reads_the_stored_version_and_moves_only_the_draft(
     settings, registry, version, django_capture_on_commit_callbacks
 ):
+    """Wave 3 (WAVE3_INTERFACES section 3): the asset hook moves a passing DRAFT to VALIDATED
+    and the job to ready_for_review. It never publishes."""
     settings.LAI_PROCESSING_BACKEND = "inline"
-    before = snapshot(version)
     with django_capture_on_commit_callbacks(execute=True):
         job = submit_model_validation(version, user=None)
     job.refresh_from_db()
-    assert job.state == JobState.VALIDATED
+    assert job.state == JobState.READY_FOR_REVIEW
+    assert job.subject_outcome == "version_validated"
     assert job.result["metadata"] == {"byte_length": version.size_bytes}
-    assert snapshot(version) == before  # validated by processing, never published by it
+    version.refresh_from_db()
+    assert version.status == VersionStatus.VALIDATED
+    assert version.published_at is None
+    assert version.metadata["model_validation"]["verdict"] == "pass"
 
 
 def test_without_a_glb_processor_the_submission_is_refused(settings, version):
