@@ -120,8 +120,8 @@ describe('preservation of the existing content', () => {
     ).toEqual({
       islands: 2,
       locations: 11,
-      adventures: 24,
-      learningObjectives: 19,
+      adventures: 26,
+      learningObjectives: 20,
       wonderWallQuestions: 4,
       stories: 5,
       quests: 13, // 9 + the three Great Storybook quests (SC-R04) + the Pathfinder follow-up

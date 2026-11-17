@@ -250,6 +250,10 @@ def test_the_response_is_valid_json_with_the_documented_keys(fam, api):
         "restoredBonus",
         "complete",
         "quest",
+        # Additive, versioned completion (old clients keep reading `complete`).
+        "state",
+        "edition",
+        "moreQuest",
     }
     assert set(body["pages"][0]) == {"id", "title", "required", "restored", "roomId", "text"}
     json.dumps(body)
