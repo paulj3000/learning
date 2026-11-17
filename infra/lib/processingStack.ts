@@ -49,6 +49,8 @@ export const PROCESSING_STACK_PREFIX = 'LaiProcessing';
 export const PROCESSING_WORKER_HANDLER = 'lai_processing_runtime.lambda_handler.handler';
 /** The Wave 1 worker ceiling (`PLATFORM_CEILINGS`); Lambda itself allows 900. */
 export const MAX_WORKER_TIMEOUT_SECONDS = 840;
+/** Twice the worker's 60 s cleanup margin, so a job always has time left to run. */
+export const MIN_WORKER_TIMEOUT_SECONDS = 120;
 /** The AWS guidance for an SQS event source: visibility at least six times the function timeout. */
 export const VISIBILITY_FACTOR = 6;
 export const MAX_RECEIVE_COUNT = 5;
@@ -168,7 +170,9 @@ export function validateWorkerSizing(sizing: WorkerSizing): void {
       throw new Error(`${name} must be an integer from ${min} to ${max}, got ${value}`);
     }
   };
-  integer('timeoutSeconds', 30, MAX_WORKER_TIMEOUT_SECONDS);
+  // At least twice the worker's 60 s cleanup margin (LAI_PROCESSING_CLEANUP_MARGIN_SECONDS), so a
+  // job always gets time to run after the margin is reserved.
+  integer('timeoutSeconds', MIN_WORKER_TIMEOUT_SECONDS, MAX_WORKER_TIMEOUT_SECONDS);
   integer('memoryMb', 128, 10240);
   integer('ephemeralStorageMb', 512, 10240);
   // An SQS event source mapping's maximumConcurrency is at least 2 and is set to this value.

@@ -720,6 +720,9 @@ describe('ProcessingStack validation', () => {
   });
 
   it('refuses a timeout over 840 s and a visibility under six times timeout x batch', () => {
+    expect(() => synth({ envName: 'dev', sizing: { timeoutSeconds: 90 } })).toThrow(
+      /timeoutSeconds/,
+    );
     expect(() => synth({ envName: 'dev', sizing: { timeoutSeconds: 900 } })).toThrow(
       /timeoutSeconds/,
     );
