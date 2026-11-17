@@ -52,6 +52,11 @@ the text):
 - Publishing refuses: a retired asset, the wrong kind, an unpublished pinned or default version,
   or an asset with neither a published version nor a bundled path.
 - Every reference a release uses is recorded in `NpcReleaseAsset` (asset and version, PROTECT).
+- Animation inspection (LAI-LAMBDA-009, `docs/processing/NPC_ANIMATION_INSPECTION.md`): staff
+  may inspect the model version a variant resolves to in the background (`asset.analyze_animation`).
+  The result is facts only; it never writes `animation_map`, never publishes, and never changes a
+  published version. Its mapping helper suggests exact or case-insensitive matches with
+  `ANIMATION_STATES` and is advisory; no contract name changes.
 
 ## 3. Published release format (snapshot schema 1)
 
@@ -283,3 +288,4 @@ integrator; it does not add migrations to `npcs`.
 | 1 | 2026-11-05 | Before any workstream started: `admin.py` split into `admin_characters` (A), `admin_behavior` (D), `admin_persona` (F); `BehaviorController` interface added to `engine.ts` (D implements, B consumes). |
 | 1.1 | 2026-11-05 | Integrator, after wave 1 (additive, backward compatible): `BehaviorControllerArgs.reducedMotion?`, `BehaviorFrame.animation?` (scripted `play`), `BehaviorController.cancel()`; interaction routes use `path()` converters (`<uuid:conversation_id>`; `choose`, `advance`, `end`, `hint` as fixed segments); Place and catalog NPC routes are bearer-only (`api.bearer_only`), so the game cookie gets 401/403 there instead of 404; `SpeechReference` gains `npcDialogueNode`; publish and rollback schedule speech pre-generation after commit; `npcs/management/` added to workstream A. |
 | 1.1 | 2026-11-05 | Clarified (no code change): a calm-stop session completion is not `on_adventure_complete` (Treasure Rush integration). |
+| 1.1 | 2026-11-17 | LAI-LAMBDA-009 (additive, no schema or contract change): `npcs/animation_inspection.py` (job handler) and `npcs/admin_animation.py` (variant admin action and read-only report), with a section hook in `admin_characters.py`; see section 2. |
