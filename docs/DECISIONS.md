@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 062.**
+**Next free identifier number: 063.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -83,6 +83,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-059 | Platforms are jumpable boxes in the shared controller's collider list (open PR branches, not merged) | Reserved | `feature/shared-jump-controller` and its stacked branches (PRs #26 to #39) | Reserved 2026-11-16 by LAI-LAMBDA-001 so ADR-061 does not collide; the defining branch adds the heading when it merges. Those branches also use ADR-055 for jumping, which now collides with the merged ADR-055 (native dev) and must be renumbered when they merge |
 | ADR-060 | The player has a configurable cylindrical footprint (open PR branch, not merged) | Reserved | `feature/shared-jump-controller` and its stacked branches (PRs #26 to #39) | Reserved 2026-11-16 by LAI-LAMBDA-001 so ADR-061 does not collide; the defining branch adds the heading when it merges. Those branches also use ADR-055 for jumping, which now collides with the merged ADR-055 (native dev) and must be renumbered when they merge |
 | ADR-061 | Runtime-independent background processing: Django-authoritative jobs, SQS work and completion queues, and Lambda workers that never touch the database or publish | Accepted | `feature/serverless-processing` (LAI-LAMBDA-001, PR #40) | Accepted by the owner 2026-11-16, subject to a number check (done: free on main and every open PR) |
+| ADR-062 | Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest | Proposed | `feature/serverless-processing-wave2` (LAI-LAMBDA-002 to 005) | Records the owner's Wave 2 infrastructure decisions (A1 to A9, 2026-11-16); the apps.jobs reconciliation awaits owner review |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4152,3 +4153,75 @@ versioned, consumer-first change. Results can arrive while a job still shows `QU
 | A7 | Card 005 names staging; the repository has only dev and prod |
 | A8 | Asset bucket IAM: new prefixes in the asset bucket or a separate processing bucket |
 | A9 | Every deployment (ADR-019 G7) |
+
+## ADR-062: Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest
+
+Status: Proposed (principal integration agent, 2026-11-17, for owner review with the Wave 2 pull
+request). The owner decisions it records were made on 2026-11-16 in the Wave 2 brief and are not
+reopened here. Builds on ADR-033, ADR-055 and ADR-061. Detail: `docs/processing/WAVE2_INTERFACES.md`.
+
+**Context.** While ADR-061's Wave 1 was in review, `main` merged ADR-055, which added `apps.jobs`:
+a Django `ProcessingJob`, a schema-1 work and result envelope, zip-packaged arm64 Lambda workers
+(`lai-dev-jobs-ai`, `lai-dev-jobs-media`), a results consumer and an `asset.inspect` probe. The
+Wave 2 brief asked for a Django `ProcessingJob` app, SQS work and completion queues, separate
+processing buckets and an ECR-image Lambda worker. Building those literally would have created a
+second job table, admin, consumer and Lambda family next to ADR-055's, which ADR-033 forbids.
+`apps.jobs` also lacks what the brief requires: a durable outbox, attempt ids, idempotency keys, a
+completion ledger, artifact records and cancellation.
+
+**Owner decisions recorded (2026-11-16, Wave 2 brief).**
+- **A1:** GitHub Actions with OIDC only; no CodePipeline or CodeBuild.
+- **A2:** no load balancer or WAF in dev.
+- **A3:** CDK is the single infrastructure source.
+- **A4:** processing Lambda workers are ECR container images deployed by immutable digest, built
+  off EC2.
+- **A5:** automatic dev shutdown at 00:00 and startup at 08:00 `America/Los_Angeles`, plus manual
+  control. This is already provided by ADR-055's `lai-dev-power`.
+- **A6:** native Django on dev EC2 (ADR-055).
+- **A7:** dev and prod only.
+- **A8:** separate private processing buckets per environment.
+- **A9:** no deployment without a further explicit authorization.
+- **ADR-061** is accepted.
+
+**Decision.**
+
+1. **One backbone.** `apps.jobs.ProcessingJob` remains the only job model, admin and sweep.
+   Contract kinds (`asset.validate_model`, `reference.checksum`) are added to it. Their work
+   message is an ADR-061 `ProcessingJobRequest` and their completion is a `CompletionEvent`.
+   They have the durable records ADR-061 needs: attempts, a transactional outbox, a receipt
+   ledger and artifacts. Legacy kinds keep their envelope, queues, worker and consumer
+   unchanged. Moving them onto the contracts is a later, separate decision.
+2. **Separate processing transport and storage.** Contract kinds run on
+   `lai-<env>-processing-work` and `lai-<env>-processing-completions`, each with a dead-letter
+   queue.
+   - Derived data goes to a private `lai-processing-<env>-<account>-<region>` bucket, and the
+     worker reads published asset originals read-only.
+   - All of this is in `LaiProcessing-<env>`, synthesized for dev and prod.
+   - ADR-055's queues, functions and artifacts bucket are not reused, so the two lifecycles
+     cannot interfere.
+3. **The processing worker is an ECR image (A4).**
+   - `LaiProcessingImages-<env>` owns the `lai/processing-<env>` repository and its GitHub
+     publisher role.
+   - The function exists only when an image digest is supplied: repository first, then the
+     image, then the worker (two-phase provisioning).
+   - This amends ADR-055's "no ECR in dev" for this worker only. The ADR-055 zip workers are
+     unchanged.
+4. **Lambda never connects to RDS.** It needs only SQS and S3, keeps working while dev is stopped
+   overnight, and Django drains completions after `lai-dev-power` starts it. The two new systemd
+   units (dispatch relay and completion consumer) are stopped and started by the existing
+   quiesce and verify steps.
+5. **Nothing deploys on merge.** Image publication and stack deployment are dispatch-only
+   workflows gated by `LAI_PROCESSING_DEPLOY_ENABLED` and a protected GitHub environment.
+
+**Consequences.**
+- One table, admin and sweep, with two transports until legacy kinds migrate.
+- Dev has one ECR repository (A4) and therefore a small storage cost.
+- The Django release and the production image must ship the `processing/` packages.
+- Deploying `LaiProcessing-<env>` must precede any platform update that attaches
+  `lai-django-processing-<env>`, because managed policies are attached by name.
+- **Alternatives rejected:**
+  - a separate `lai/apps/processing` app, which would duplicate the backbone (ADR-033);
+  - putting contract kinds on the ADR-055 queues and zip worker, which contradicts A4 and A8 and
+    would couple two retry models on one queue;
+  - replacing `apps.jobs` outright, which would regress working Studio, speech and inspection
+    flows without approval.
