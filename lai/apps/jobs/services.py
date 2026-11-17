@@ -29,7 +29,7 @@ from django.db import transaction
 from django.utils.timezone import now
 
 from .core import envelope, tasks
-from .models import JobStatus, ProcessingJob
+from .models import CONTRACT_KINDS, JobStatus, ProcessingJob
 
 logger = logging.getLogger("lai.jobs")
 
@@ -302,25 +302,32 @@ def _finalize(job: ProcessingJob, status: str, *, result=None, error_code: str =
 
 
 def fail_job(job_id, code: str) -> bool:
-    """Fail an unfinished job (timeout, a failed send, an operator). False if it had finished."""
+    """Fail an unfinished legacy job (timeout, a failed send, an operator). False if it had
+    finished or is a contract kind (those fail only through `apps.jobs.processing`)."""
     with transaction.atomic():
         job = ProcessingJob.objects.select_for_update().filter(pk=job_id).first()
-        if job is None or job.is_terminal:
+        if job is None or job.is_terminal or job.is_contract:  # contract kinds: processing.py
             return False
         _finalize(job, JobStatus.FAILED, error_code=code)
     return True
 
 
 def sweep(*, dry_run: bool = False) -> dict[str, int]:
-    """Fail stale unfinished jobs (`timeout`) and delete old completed ones."""
+    """Fail stale unfinished jobs (`timeout`) and delete old completed ones.
+
+    Legacy kinds only: contract kinds carry their own `expires_at` (`jobs_reconcile`) and
+    their records (attempts, receipts, artifacts) are kept, so an overnight backlog of queued
+    contract jobs is never timed out by the legacy rule.
+    """
     stamp = now()
+    legacy = ProcessingJob.objects.exclude(kind__in=sorted(CONTRACT_KINDS))
     stale_ids = list(
-        ProcessingJob.objects.filter(
+        legacy.filter(
             status__in=[JobStatus.PENDING, JobStatus.RUNNING],
             created_at__lt=stamp - timedelta(minutes=settings.LAI_JOBS_STALE_MINUTES),
         ).values_list("pk", flat=True)
     )
-    old = ProcessingJob.objects.filter(
+    old = legacy.filter(
         status=JobStatus.COMPLETED,
         finished_at__lt=stamp - timedelta(days=settings.LAI_JOBS_RETENTION_DAYS),
     )

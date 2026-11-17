@@ -121,6 +121,16 @@ if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND != "sqs":  # noqa: F405
 if LAI_STUDIO_RUN_MODE == "inline":  # noqa: F405
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=inline is for tests only.")
 
+# Contract processing jobs (apps.jobs.processing, WAVE2_INTERFACES section 4): `sqs` or
+# `disabled`, unset is `disabled`; `inline` and `local` never run here. With `sqs` the namespace
+# must be set explicitly (`dev` or `prod`), never the `local` default. Queue URLs and the bucket
+# are validated in base.py.
+LAI_PROCESSING_BACKEND = os.environ.get("LAI_PROCESSING_BACKEND", "disabled").strip()
+if LAI_PROCESSING_BACKEND not in {"sqs", "disabled"}:
+    raise ImproperlyConfigured("LAI_PROCESSING_BACKEND must be sqs or disabled in production.")
+if LAI_PROCESSING_BACKEND == "sqs":
+    LAI_PROCESSING_NAMESPACE = _required("LAI_PROCESSING_NAMESPACE")
+
 # Development bootstrap (ADR-055, docs/infrastructure/dev-native-environment.md): the dev
 # environment's installer may publish the approved Treasure Rush seed content once. Both values
 # arrive only in the environment of that single bootstrap command (bootstrap-native.sh); the
