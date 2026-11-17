@@ -593,7 +593,14 @@ def _point(value) -> bool:
 
 
 def _finite(value) -> bool:
-    return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value)
+    """A finite JSON number. An integer too large for a float is not finite; `math.isfinite`
+    would raise OverflowError on it."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _vector(value, length, fill, default_last=None):
