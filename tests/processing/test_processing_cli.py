@@ -98,7 +98,7 @@ def test_processors_list_json_is_deterministic():
     assert code == EXIT_OK
     assert first == second
     listing = json.loads(first)
-    assert [p["processor_id"] for p in listing] == ["reference.checksum"]
+    assert [p["processor_id"] for p in listing] == ["asset.glb_validator", "reference.checksum"]
 
 
 def test_job_types_list_marks_downstream_types_as_declared_only():
@@ -106,8 +106,9 @@ def test_job_types_list_marks_downstream_types_as_declared_only():
     assert code == EXIT_OK
     rows = {row["job_type"]: row for row in json.loads(out)}
     assert rows["reference.checksum"]["processor_available"] is True
-    assert rows["asset.validate_model"]["processor_available"] is False
+    assert rows["asset.validate_model"]["processor_available"] is True  # LAI-LAMBDA-002
     assert rows["asset.validate_model"]["owner_task"] == "LAI-LAMBDA-002"
+    assert rows["asset.process_audio"]["processor_available"] is False
 
 
 # --- validate-job ----------------------------------------------------------------------------
@@ -131,12 +132,14 @@ def test_validate_job_reads_standard_input():
     assert json.loads(out)["valid"] is True
 
 
-def test_validate_job_reports_a_declared_job_type_without_a_processor():
+def test_validate_job_reports_an_unknown_profile_for_the_asset_fixture():
+    # The frozen fixture names profile `model-default` v1; the GLB processor (LAI-LAMBDA-002)
+    # serves `glb-default` v1, so the request is refused as a profile problem (permanent).
     code, out, _ = run_cli("validate-job", str(ASSET_REQUEST))
     assert code == EXIT_INVALID
     error = json.loads(out)["error"]
-    assert error["code"] == "unsupported_processor"
-    assert error["retry_class"] == "manual"
+    assert error["code"] == "invalid_processing_profile"
+    assert error["retry_class"] == "permanent"
 
 
 def test_validate_job_refuses_a_tampered_idempotency_key(tmp_path):
@@ -309,7 +312,7 @@ def test_run_rejects_an_invalid_request_before_reading_input(tmp_path):
         "run", str(ASSET_REQUEST), "--input-file", str(tmp_path / "never-read.glb")
     )
     assert code == EXIT_INVALID
-    assert json.loads(out)["error"]["code"] == "unsupported_processor"
+    assert json.loads(out)["error"]["code"] == "invalid_processing_profile"
 
 
 def test_run_moves_a_large_result_out_of_the_completion_message(tmp_path):

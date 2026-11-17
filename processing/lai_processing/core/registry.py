@@ -18,6 +18,7 @@ from typing import Any
 from ..contracts.common import ProfileRef
 from ..contracts.job_types import JOB_TYPES
 from ..contracts.profiles import ProcessingProfile
+from ..processors.gltf.processor import GlbValidatorProcessor
 from ..processors.reference import ReferenceProcessor
 from .errors import ErrorCode, ProcessingError
 from .processor import Processor
@@ -142,7 +143,7 @@ class ProcessorRegistry:
 def default_registry() -> ProcessorRegistry:
     """A new frozen registry with the processors this build ships, listed explicitly."""
     registry = ProcessorRegistry()
-    for processor in (ReferenceProcessor(),):
+    for processor in (ReferenceProcessor(), GlbValidatorProcessor()):
         registry.register(processor)
     registry.freeze()
     return registry

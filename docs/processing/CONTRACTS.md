@@ -326,3 +326,44 @@ python -m lai_processing validate-job $FIX/request.reference.json
 python -m lai_processing run $FIX/request.reference.json \
     --input-file $FIX/request.reference.input.txt --output-dir /tmp/lai-job
 ```
+
+## GLB validation metadata
+
+`ProcessingJobResult.metadata` for job type `asset.validate_model` (processor
+`asset.glb_validator` 1.0.0, profile `glb-default` v1; LAI-LAMBDA-002). Checks, findings and
+parity with Django are in `GLB_VALIDATION.md`. The object is deterministic (the same bytes and
+options give byte-identical canonical JSON), holds no timestamps, paths, ids or staff-supplied
+file names, and always has every key below. Keys marked "document" are empty lists or `null`
+when the JSON document could not be read (`document_read: false`).
+
+| Key | Type | Meaning |
+|---|---|---|
+| `metadata_version` | int | `1` for this schema |
+| `format` | `"glb"` or null | `null` when the bytes are not a GLB container |
+| `file_size_bytes` | int | Input size |
+| `json_chunk_bytes`, `bin_chunk_bytes` | int or null | Chunk data lengths |
+| `document_read` | bool | Whether the JSON document was parsed and checked |
+| `gltf_version` | `"2.0"` or null | document |
+| `min_version` | `"2.0"` or null | document; `asset.minVersion` when present |
+| `generator` | string or null | document; cleaned, at most 200 characters |
+| `counts` | object or null | document; ints: `scenes`, `nodes`, `meshes`, `primitives`, `materials`, `textures`, `images`, `samplers`, `skins`, `joints`, `animations`, `channels`, `accessors`, `buffer_views`, `buffers` |
+| `vertex_count` | int or null | document; sum of `POSITION` accessor counts over all primitives (not instances) |
+| `triangle_count` | int or null | document; from index or vertex counts and the primitive mode |
+| `material_names` | list of string or null | document; in material order, exact apart from cleaning |
+| `images` | list of `{index, mime_type, width, height}` | document; embedded images whose header was read or attempted; `mime_type` is `image/png`, `image/jpeg`, `image/webp` or null; dimensions null when unreadable |
+| `skins` | list of `{name, joint_count}` | document |
+| `animations` | list of `{name, duration_seconds, channel_count, sampler_count}` | document; `name` exact (e.g. `Armature\|mixamo.com\|Layer0`), `duration_seconds` the largest keyframe time rounded to 6 places, null when no valid sampler |
+| `clip_vocabulary_matches` | sorted list of string | document; clip names that are exactly (case-sensitively) in the clip vocabulary. Clips are never classified |
+| `bounds` | `{min: [x,y,z], max: [x,y,z]}` or null | document; world-space box of the default scene from `POSITION` min/max through node transforms (as Django's dimensions), rounded to 6 places; null without valid geometry |
+| `extensions_used`, `extensions_required` | sorted list of string | document; at most 50 each |
+| `unsupported_extensions` | sorted list of string | document; used or required names outside the supported set (decoder extensions included) |
+| `lists_truncated` | bool | True when the per-item lists were emptied to fit `limits.max_metadata_bytes` |
+
+Bounds on size: every string copied from the file is stripped of control, format, surrogate and
+private-use characters and cut to 200 characters (run warning `metadata_text_truncated`); the
+`animations`, `images`, `material_names` and `skins` lists keep at most 100 entries (run
+warning `metadata_list_truncated`); if the encoded object still exceeds the job's
+`max_metadata_bytes`, those lists and `clip_vocabulary_matches` are emptied, `lists_truncated`
+is true and the run warning is `metadata_truncated`. `counts` always stay complete. With
+`write_report: true` the same metadata, the findings, the run warnings and the verdict are also
+stored as the `glb-report` artifact (`report.glb_validation`, `application/json`).
