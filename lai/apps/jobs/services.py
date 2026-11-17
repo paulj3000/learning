@@ -44,6 +44,8 @@ HANDLER_MODULES = {
     envelope.STUDIO_GENERATE_CHUNK: "apps.question_studio.jobs",
     envelope.SPEECH_SYNTHESIZE: "apps.speech.jobs",
     envelope.ASSET_INSPECT: "apps.assets.jobs",
+    envelope.ASSET_VALIDATE_MODEL: "apps.assets.processing",
+    envelope.REFERENCE_CHECKSUM: "apps.jobs.reference",
 }
 #: The largest work message accepted (SQS allows 256 KiB).
 MAX_WORK_BYTES = 240 * 1024
@@ -146,8 +148,19 @@ def _subject_ref(subject) -> tuple[str, str]:
     return f"{meta.app_label}.{meta.model_name}", str(subject.pk)
 
 
-def submit(kind: str, payload: dict, *, user=None, subject=None) -> ProcessingJob:
-    """Record and dispatch one job. `subject` is a model instance or a (type, id) pair."""
+def submit(
+    kind: str,
+    payload: dict,
+    *,
+    user=None,
+    subject=None,
+    job_id=None,
+    idempotency_key: str = "",
+) -> ProcessingJob:
+    """Record and dispatch one job. `subject` is a model instance or a (type, id) pair.
+
+    `job_id` and `idempotency_key` are for contract kinds, whose payload (an ADR-061 request)
+    names its own job id and logical key (core/contract.py)."""
     if kind not in envelope.KINDS:
         raise JobsError("unknown_kind")
     mode = backend()
@@ -160,7 +173,10 @@ def submit(kind: str, payload: dict, *, user=None, subject=None) -> ProcessingJo
     if size > MAX_WORK_BYTES:
         raise JobsError("payload_too_large")
     subject_type, subject_id = _subject_ref(subject)
+    extra = {"id": job_id} if job_id is not None else {}
     job = ProcessingJob.objects.create(
+        **extra,
+        idempotency_key=idempotency_key,
         kind=kind,
         queue=envelope.KIND_QUEUE[kind],
         backend=mode,

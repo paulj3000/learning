@@ -2,12 +2,18 @@
 
 import os
 import re
+import sys
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # lai/
+# The standard-library processing library (ADR-061, ADR-064) ships as processing/ beside lai/ in
+# the repository, the native release and the Django image; the contract job kinds import it.
+PROCESSING_DIR = BASE_DIR.parent / "processing"
+if PROCESSING_DIR.is_dir() and str(PROCESSING_DIR) not in sys.path:
+    sys.path.append(str(PROCESSING_DIR))
 # The versioned content export and its schema (LAI-0302); the catalog imports from here.
 CONTENT_DIR = BASE_DIR.parent / "content"
 
@@ -535,3 +541,17 @@ if not 1 <= LAI_JOBS_RETENTION_DAYS <= 365:
     raise ImproperlyConfigured("LAI_JOBS_RETENTION_DAYS must be between 1 and 365.")
 if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND == "disabled":
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND inline or sqs.")
+
+# Asynchronous model validation (LAI-LAMBDA-006, owner-approved 2026-11-17, ADR-064). `off` (the
+# default in every environment): uploads behave exactly as before. `on`: a GLB upload that passes
+# the synchronous checks is stored as a DRAFT version and an `asset.validate_model` job (media
+# queue) is submitted in the same transaction; its result moves the draft to VALIDATED or
+# REJECTED, and publishing a GLB needs a matching passing result. Refused with the jobs backend
+# disabled. Never switched on by a deployment.
+LAI_ASSET_ASYNC_VALIDATION = os.environ.get("LAI_ASSET_ASYNC_VALIDATION", "off").strip().lower()
+if LAI_ASSET_ASYNC_VALIDATION not in {"off", "on"}:
+    raise ImproperlyConfigured("LAI_ASSET_ASYNC_VALIDATION must be off or on.")
+if LAI_ASSET_ASYNC_VALIDATION == "on" and LAI_JOBS_BACKEND == "disabled":
+    raise ImproperlyConfigured(
+        "LAI_ASSET_ASYNC_VALIDATION=on needs LAI_JOBS_BACKEND inline or sqs."
+    )

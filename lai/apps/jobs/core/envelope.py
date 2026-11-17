@@ -24,12 +24,17 @@ SCHEMA = 1
 STUDIO_GENERATE_CHUNK = "studio.generate_chunk"
 SPEECH_SYNTHESIZE = "speech.synthesize"
 ASSET_INSPECT = "asset.inspect"
+#: Contract kinds (ADR-061 payload and result inside the schema-1 envelope; core/contract.py).
+ASSET_VALIDATE_MODEL = "asset.validate_model"
+REFERENCE_CHECKSUM = "reference.checksum"
 
 #: Which work queue (and so which worker function) runs each kind.
 KIND_QUEUE = {
     STUDIO_GENERATE_CHUNK: "ai",
     SPEECH_SYNTHESIZE: "media",
     ASSET_INSPECT: "media",
+    ASSET_VALIDATE_MODEL: "media",
+    REFERENCE_CHECKSUM: "media",
 }
 KINDS = frozenset(KIND_QUEUE)
 QUEUES = frozenset(KIND_QUEUE.values())

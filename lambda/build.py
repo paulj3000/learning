@@ -4,7 +4,9 @@
 
 The zip holds `jobs_worker/` plus code vendored from the Django project:
 `jobs_worker/vendor/jobs_core/` (lai/apps/jobs/core) and `jobs_worker/vendor/ai_providers/`
-(lai/apps/ai/providers/base.py and bedrock.py, with an empty package `__init__`). Vendored files
+(lai/apps/ai/providers/base.py and bedrock.py, with an empty package `__init__`), and the
+standard-library `lai_processing` package at the zip root (processing/lai_processing, without its
+`testing`, `cli` and `__main__` modules; ADR-064 contract kinds, core/contract.py). Vendored files
 must not import Django or `apps.*`; the build refuses if they do. Entries are sorted, timestamps
 fixed, permissions normalised and nothing compressed, so the same sources always give the same
 bytes and name.
@@ -30,10 +32,19 @@ VENDORED = {
     "jobs_worker/vendor/jobs_core/envelope.py": ROOT / "lai/apps/jobs/core/envelope.py",
     "jobs_worker/vendor/jobs_core/probe.py": ROOT / "lai/apps/jobs/core/probe.py",
     "jobs_worker/vendor/jobs_core/tasks.py": ROOT / "lai/apps/jobs/core/tasks.py",
+    "jobs_worker/vendor/jobs_core/contract.py": ROOT / "lai/apps/jobs/core/contract.py",
     "jobs_worker/vendor/ai_providers/__init__.py": None,
     "jobs_worker/vendor/ai_providers/base.py": ROOT / "lai/apps/ai/providers/base.py",
     "jobs_worker/vendor/ai_providers/bedrock.py": ROOT / "lai/apps/ai/providers/bedrock.py",
 }
+#: The processing library, vendored at the zip root so `import lai_processing` works in Lambda.
+PROCESSING = ROOT / "processing" / "lai_processing"
+#: Not shipped: test fakes, the command-line interface and its `python -m` entry point.
+PROCESSING_EXCLUDED = (
+    "lai_processing/testing/",
+    "lai_processing/cli/",
+    "lai_processing/__main__.py",
+)
 _FORBIDDEN_IMPORT = re.compile(r"^\s*(?:from|import)\s+(?:django|apps|rest_framework)\b", re.M)
 
 
@@ -54,6 +65,14 @@ def entries() -> dict[str, bytes]:
             files[archive_path] = VENDOR_PACKAGE_INIT.encode()
             continue
         data = source.read_bytes()
+        if _FORBIDDEN_IMPORT.search(data.decode("utf-8")):
+            raise BuildError(f"{archive_path} would vendor a Django or apps.* import")
+        files[archive_path] = data
+    for path in sorted(PROCESSING.rglob("*.py")):
+        archive_path = path.relative_to(PROCESSING.parent).as_posix()
+        if "__pycache__" in archive_path or archive_path.startswith(PROCESSING_EXCLUDED):
+            continue
+        data = path.read_bytes()
         if _FORBIDDEN_IMPORT.search(data.decode("utf-8")):
             raise BuildError(f"{archive_path} would vendor a Django or apps.* import")
         files[archive_path] = data

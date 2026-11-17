@@ -293,7 +293,11 @@ class Runtime:
             return StudioPorts(self, context)
         if kind == envelope.SPEECH_SYNTHESIZE:
             return SpeechPorts(self)
-        if kind == envelope.ASSET_INSPECT:
+        if kind in (
+            envelope.ASSET_INSPECT,
+            envelope.ASSET_VALIDATE_MODEL,
+            envelope.REFERENCE_CHECKSUM,
+        ):
             return AssetPorts(self)
         raise TaskError("unknown_kind")
 

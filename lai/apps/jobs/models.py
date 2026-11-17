@@ -31,6 +31,8 @@ class JobKind(models.TextChoices):
     STUDIO_GENERATE_CHUNK = envelope.STUDIO_GENERATE_CHUNK, "Question Studio chunk"
     SPEECH_SYNTHESIZE = envelope.SPEECH_SYNTHESIZE, "Shared speech clip"
     ASSET_INSPECT = envelope.ASSET_INSPECT, "Asset inspection"
+    ASSET_VALIDATE_MODEL = envelope.ASSET_VALIDATE_MODEL, "Model validation"
+    REFERENCE_CHECKSUM = envelope.REFERENCE_CHECKSUM, "Reference checksum"
 
 
 class JobQueue(models.TextChoices):
@@ -69,6 +71,13 @@ class ProcessingJob(models.Model):
     dispatched_at = models.DateTimeField(null=True, blank=True)
     #: Failed sends so far; the job fails with `submit_failed` at `services.DISPATCH_ATTEMPTS`.
     dispatch_attempts = models.PositiveSmallIntegerField(default=0)
+    #: Contract kinds only (core/contract.py): the ADR-061 logical idempotency key of the request
+    #: in `payload`. Submitting the same logical work again returns the unfinished or completed
+    #: job with this key; a failed one may be submitted again (a new job, a new attempt id).
+    idempotency_key = models.CharField(max_length=68, blank=True, db_index=True)
+    #: Contract kinds only: what the kind's handler did with the result for its subject (a safe
+    #: code such as "version_validated" or "identity_mismatch"; blank before a result).
+    subject_outcome = models.CharField(max_length=64, blank=True)
     worker_function = models.CharField(max_length=140, blank=True)
     worker_request_id = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(default=now, editable=False)

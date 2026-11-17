@@ -63,7 +63,12 @@ def test_work_envelopes_are_checked_against_the_queue():
     assert envelope.parse_work(json.dumps(work))["kind"] == "studio.generate_chunk"
     with pytest.raises(envelope.EnvelopeError, match="queue"):
         envelope.parse_work(work, allowed_kinds=envelope.kinds_for_queue("media"))
-    assert envelope.kinds_for_queue("media") == {"speech.synthesize", "asset.inspect"}
+    assert envelope.kinds_for_queue("media") == {
+        "speech.synthesize",
+        "asset.inspect",
+        "asset.validate_model",
+        "reference.checksum",
+    }
 
 
 def test_large_results_become_pointers():
