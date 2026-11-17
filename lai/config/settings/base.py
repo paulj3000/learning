@@ -209,7 +209,11 @@ LOGGING = {
 LAI_ASSET_STORAGE = os.environ.get("LAI_ASSET_STORAGE", "local").strip()
 LAI_ASSET_BUCKET = os.environ.get("LAI_ASSET_BUCKET", "").strip()
 LAI_ASSET_REGION = os.environ.get("LAI_ASSET_REGION", "").strip()
-LAI_ASSET_LOCAL_ROOT = BASE_DIR / ".asset-storage"
+# The local asset storage root (default lai/.asset-storage). Overridable so a local worker and
+# Django can share one explicit directory (scripts/processing/local-demo.sh, LAI-LAMBDA-003/004).
+LAI_ASSET_LOCAL_ROOT = Path(
+    os.environ.get("LAI_ASSET_LOCAL_ROOT", "").strip() or BASE_DIR / ".asset-storage"
+)
 LAI_ASSET_DELIVERY = os.environ.get("LAI_ASSET_DELIVERY", "django").strip()
 LAI_ASSET_URL_TTL_SECONDS = int(os.environ.get("LAI_ASSET_URL_TTL_SECONDS", "3600"))
 LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))  # 50 MB
