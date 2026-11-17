@@ -362,6 +362,10 @@ export class ProcessingStack extends Stack {
       [`${assetBucketArn}/assets/*`, quarantineObjects],
     );
     grant('WriteArtifacts', ['s3:PutObject'], [artifactObjects]);
+    // A redelivered attempt rewrites the same immutable keys. The create-only put answers a
+    // conflict (412) by reading the existing object's checksum, so an identical rewrite is an
+    // idempotent success; without this read it would be a 403 (permission_denied). Own prefix only.
+    grant('VerifyOwnArtifacts', ['s3:GetObject'], [artifactObjects]);
     grant(
       'PullWorkerImage',
       ['ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer'],

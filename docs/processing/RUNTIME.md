@@ -289,3 +289,13 @@ pins, the Dockerfile, telemetry privacy).
   CI job.
 - Lambda-side `CancellationToken` cancellation on a timer is not used: the job deadline clamp
   already converts a near-deadline job into `processing_timeout`.
+
+## IAM consequences for the S3 adapter (integration note, LAI-LAMBDA-005)
+
+- The worker role has no `s3:ListBucket`, so a HEAD of a missing input key returns 403, which
+  the adapter classifies as `permission_denied` (MANUAL), not `input_missing` (also MANUAL). Both
+  stop automatic retries and surface for review; the job's safe error says which code applied.
+- A redelivered attempt rewrites the same immutable artifact keys. `put` answers a create-only
+  conflict (412) by reading the existing object's checksum, which needs `s3:GetObject` on the
+  worker's own `processing/artifacts/<env>/*` prefix (grant `VerifyOwnArtifacts`), so an
+  identical rewrite stays an idempotent success.

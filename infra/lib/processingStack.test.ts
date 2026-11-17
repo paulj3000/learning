@@ -258,6 +258,7 @@ describe.each(['dev', 'prod'] as const)('ProcessingStack (%s)', { timeout: 60_00
         'PullWorkerImage',
         'ReadInputs',
         'SendCompletions',
+        'VerifyOwnArtifacts',
         'WriteArtifacts',
         'WriteLogs',
       ].sort(),
@@ -280,6 +281,10 @@ describe.each(['dev', 'prod'] as const)('ProcessingStack (%s)', { timeout: 60_00
     ]);
     expect(actions(bySid.WriteArtifacts)).toEqual(['s3:PutObject']);
     expect(bySid.WriteArtifacts.Resource).toBe(`${bucketArn}/processing/artifacts/${envName}/*`);
+    expect(actions(bySid.VerifyOwnArtifacts)).toEqual(['s3:GetObject']);
+    expect(bySid.VerifyOwnArtifacts.Resource).toBe(
+      `${bucketArn}/processing/artifacts/${envName}/*`,
+    );
     expect(actions(bySid.PullWorkerImage).sort()).toEqual([
       'ecr:BatchGetImage',
       'ecr:GetDownloadUrlForLayer',
