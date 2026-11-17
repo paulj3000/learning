@@ -27,6 +27,8 @@ ASSET_INSPECT = "asset.inspect"
 #: Contract kinds (ADR-061 payload and result inside the schema-1 envelope; core/contract.py).
 ASSET_VALIDATE_MODEL = "asset.validate_model"
 REFERENCE_CHECKSUM = "reference.checksum"
+#: LAI-LAMBDA-009: NPC animation inspection (a contract kind; apps.npcs.animation_inspection).
+ASSET_ANALYZE_ANIMATION = "asset.analyze_animation"
 
 #: Which work queue (and so which worker function) runs each kind.
 KIND_QUEUE = {
@@ -35,6 +37,7 @@ KIND_QUEUE = {
     ASSET_INSPECT: "media",
     ASSET_VALIDATE_MODEL: "media",
     REFERENCE_CHECKSUM: "media",
+    ASSET_ANALYZE_ANIMATION: "media",
 }
 KINDS = frozenset(KIND_QUEUE)
 QUEUES = frozenset(KIND_QUEUE.values())

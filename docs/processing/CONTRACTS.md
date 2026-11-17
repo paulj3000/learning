@@ -208,7 +208,7 @@ values; the Lambda function's own timeout is the binding limit.
 | `reference.checksum` | reference | No | Yes | any | LAI-LAMBDA-001 | Reference processor; `apps.jobs` kind on the media queue |
 | `asset.validate_model` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-002 | GLB validator; `apps.jobs` kind on the media queue |
 | `asset.process_audio` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-008 | Reserved |
-| `asset.analyze_animation` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-009 | Reserved |
+| `asset.analyze_animation` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-009 | Animation inspector; `apps.jobs` kind on the media queue (`NPC_ANIMATION_INSPECTION.md`) |
 | `asset.optimize` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-010 | Reserved |
 
 A job type is declared in code before any message may name it. A job type becomes runnable on
@@ -398,3 +398,14 @@ verdict as the `glb-report` artifact (`report.glb_validation`, `application/json
 writes are not supported on the canonical path, and Django never sets that option. Django keeps a
 normalized subset as `metadata["model_validation"]` on a draft version
 (`model_validation_summary`).
+
+## Animation inspection metadata
+
+`ProcessingJobResult.metadata` for job type `asset.analyze_animation` (processor
+`asset.animation_inspector` 1.0.0, profile `animation-default` v1, no options; LAI-LAMBDA-009).
+Read only: no artifact, no buffer decoded, no clip name interpreted. Keys: `metadata_version` (1),
+`format`, `file_size_bytes`, `document_read`, `counts`, `clip_count`, `generic_clip_count`,
+`clips`, `skins`, `lists_truncated`. The per-clip and per-skin fields, finding codes and bounds
+are in `NPC_ANIMATION_INSPECTION.md` section 3. Django keeps a summary as
+`metadata["animation_inspection"]` only on a version that was never published; for a published
+version the result stays on the job.

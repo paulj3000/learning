@@ -321,6 +321,7 @@ class Runtime:
             envelope.ASSET_INSPECT,
             envelope.ASSET_VALIDATE_MODEL,
             envelope.REFERENCE_CHECKSUM,
+            envelope.ASSET_ANALYZE_ANIMATION,
         ):
             return AssetPorts(self)
         raise TaskError("unknown_kind")

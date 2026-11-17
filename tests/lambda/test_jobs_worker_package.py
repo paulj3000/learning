@@ -94,6 +94,9 @@ def test_the_zip_carries_the_processing_library_without_its_tooling(build_module
         "lai_processing/processors/reference.py",
         "lai_processing/processors/gltf/processor.py",
         "lai_processing/processors/gltf/document.py",
+        "lai_processing/processors/animation/__init__.py",
+        "lai_processing/processors/animation/inspect.py",
+        "lai_processing/processors/animation/processor.py",
         "jobs_worker/vendor/jobs_core/contract.py",
     ):
         assert required in names, required
@@ -153,10 +156,12 @@ from lai_processing.core.registry import default_registry
 assert lai_processing.__file__.startswith(sys.argv[1]), lai_processing.__file__
 registry = default_registry()
 for kind, profile in (("asset.validate_model", "glb-default"),
-                      ("reference.checksum", "reference-default")):
+                      ("reference.checksum", "reference-default"),
+                      ("asset.analyze_animation", "animation-default")):
     from lai_processing.contracts.common import ProfileRef
     registry.resolve(kind, ProfileRef(profile, 1))
-assert contract.CONTRACT_KINDS == {"asset.validate_model", "reference.checksum"}
+assert contract.CONTRACT_KINDS == {"asset.validate_model", "reference.checksum",
+                                  "asset.analyze_animation"}
 bad = sorted(m for m in sys.modules
              if m.split(".")[0] in {"django", "apps", "rest_framework", "boto3", "botocore"})
 assert not bad, bad

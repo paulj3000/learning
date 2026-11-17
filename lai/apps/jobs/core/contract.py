@@ -21,7 +21,13 @@ import io
 from . import envelope
 
 #: The contract kinds and the media-queue kinds they are (envelope.KIND_QUEUE).
-CONTRACT_KINDS = frozenset({envelope.ASSET_VALIDATE_MODEL, envelope.REFERENCE_CHECKSUM})
+CONTRACT_KINDS = frozenset(
+    {
+        envelope.ASSET_VALIDATE_MODEL,
+        envelope.REFERENCE_CHECKSUM,
+        envelope.ASSET_ANALYZE_ANIMATION,
+    }
+)
 #: Reads for one window of an asset object (the engine copies the input into its workspace).
 READ_CHUNK = 1024 * 1024
 
