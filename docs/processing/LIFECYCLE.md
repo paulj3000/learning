@@ -2,11 +2,8 @@
 
 This page explains identities, the four state machines, the transition table, and how
 duplicates, stale results, cancellation and retries behave. The pure decision logic is
-`lai_processing.core.lifecycle` and the retry policy is `lai_processing.core.retry`. Both are
-being written by parallel Wave 1 agents and were **not** in commit `3c34409`. The names below
-(`JobState`, `decide_completion`, `RetryPolicy` and the decision values) follow the Wave 1 design
-and must be checked against the merged code; if they differ, the code wins and this page is
-corrected.
+`lai_processing.core.lifecycle` and the retry policy is `lai_processing.core.retry`. If this page
+and the code disagree, the code wins and this page is corrected.
 
 **Delivery guarantee: at-least-once.** Every queue may deliver a message more than once, late,
 or out of order. The system never claims exactly-once processing. It claims **idempotent
@@ -31,9 +28,14 @@ application**: applying the same completion twice has the effect of applying it 
 attempt ids, correlation ids, timestamps and limits, so a retry or a re-submission of the same
 work maps to the same key.
 
-Open point: commit `3c34409` has no helper that computes the key, and the request has no
-processor field, so the processor version must come from the registry when Django computes the
-key. Wave 1 must ship the helper (pure function in the core) before LAI-LAMBDA-004 depends on it.
+The helper is `lai_processing.core.idempotency`: `idempotency_key(...)`,
+`request_idempotency_key(request, processor_version=None)` and `verify_idempotency_key(...)`
+(constant-time comparison); `idempotency_material(...)` returns the exact dict that is hashed.
+The request has no processor field, so `processor_version` is optional: Django either omits it or
+takes it from `default_registry()` for the job's profile. The execution engine accepts a key that
+matches either form and refuses any other with `invalid_input` (field `idempotency_key`) before it
+reads a byte of input, so a hand-edited or forged request cannot run under another job's
+identity. Requests must carry fully resolved options, or the key will not verify.
 
 ## 2. Four separate state machines
 

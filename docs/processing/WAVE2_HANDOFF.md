@@ -2,24 +2,24 @@
 
 Audience: the four Wave 2 implementation agents and their reviewer. Read `ARCHITECTURE.md`,
 `CONTRACTS.md` and `LIFECYCLE.md` first. Wave 2 starts from the merged Wave 1 commit on
-`feature/serverless-processing` (LAI-LAMBDA-001). Modules marked "Wave 1, name to confirm" were
-being written in parallel when this page was drafted; take their exact names from the merged
-code, and tell the principal if they differ from this page.
+`feature/serverless-processing` (LAI-LAMBDA-001). Symbol names below are those of the merged
+code; if the code and this page ever disagree, the code wins and the principal corrects the page.
 
 ## 1. Frozen interfaces (Wave 2 consumes, never changes)
 
 | Interface | Module and symbols |
 |---|---|
-| Contract schema v1 | `lai_processing.contracts`: `ProcessingJobRequest`, `ProcessingJobResult`, `CompletionEvent`, `ArtifactReference`, `ObjectRef`, `InputObject`, `SubjectRef`, `AssetContext`, `ProfileRef`, `ProcessorIdentity`, `Finding`, `ProcessingWarning`, `JobError`, `InputIdentity`, `ResultStatus`, `Verdict`, `Severity`, `MessageKind`, `SCHEMA_VERSION`, `SUPPORTED_SCHEMA_VERSIONS`, `StoreName`, `artifact_key`, `artifact_prefix`, `check_object_key`, `build_completion_event`, `RESULT_ARTIFACT_TYPE`, `encode`, `decode`, `decode_request`, `decode_result`, `decode_event`, `load_json`, `DEFAULT_MAX_MESSAGE_BYTES` |
+| Contract schema v1 | `lai_processing.contracts`: `ProcessingJobRequest`, `ProcessingJobResult`, `CompletionEvent`, `ArtifactReference`, `ObjectRef`, `InputObject`, `SubjectRef`, `AssetContext`, `ProfileRef`, `ProcessorIdentity`, `Finding`, `ProcessingWarning`, `JobError`, `InputIdentity`, `ResultStatus`, `Verdict`, `Severity`, `MessageKind`, `SCHEMA_VERSION`, `SUPPORTED_SCHEMA_VERSIONS`, `StoreName`, `artifact_key`, `artifact_prefix`, `check_object_key`, `build_completion_event`, `result_digest`, `RESULT_ARTIFACT_TYPE`, `RESULT_LOGICAL_ID`, `encode`, `decode`, `decode_request`, `decode_result`, `decode_event`, `load_json`, `DEFAULT_MAX_MESSAGE_BYTES` |
 | Job types and profiles | `lai_processing.contracts`: `JOB_TYPES`, `JobTypeSpec`, `job_type_spec`, `ProcessingProfile`, `OptionSpec` |
 | Errors and limits | `lai_processing.core.errors`: `ErrorCode`, `RetryClass`, `ProcessingError`, `ERROR_CLASSIFICATION`, `SAFE_MESSAGES`, `error_from_exception`, `safe_details`. `lai_processing.core.limits`: `ResourceLimits`, `DEFAULT_LIMITS`, `PLATFORM_CEILINGS`, `effective_limits` |
 | Canonical encoding | `lai_processing.core.canonical`: `canonical_json`, `sha256_hex`, `sha256_stream`, `format_timestamp`, `parse_timestamp` |
 | Ports | `lai_processing.ports`: `ObjectStorage`, `ObjectInfo`, `StorageError`, `ObjectMissing`, `ObjectExists`, `StoragePermissionDenied`, `StorageUnavailable`, `MessageQueue`, `Delivery`, `SendReceipt`, `QueueFull`, `Clock`, `SystemClock`, `Telemetry`, `LoggingTelemetry`, `NullTelemetry`, `SAFE_FIELDS`, `check_fields` |
 | Test fakes | `lai_processing.testing`: `MemoryObjectStorage`, `MemoryQueue`, `ManualClock`, `RecordingTelemetry`, `StoredObject` |
-| Lifecycle API | `lai_processing.core.lifecycle`: `JobState`, the transition table, `decide_completion` and its decision values `APPLY`, `RETRY`, `DUPLICATE`, `STALE`, `REJECT` (Wave 1, name to confirm) |
-| Retry API | `lai_processing.core.retry`: `RetryPolicy` (Wave 1, name to confirm) |
-| Execution and registry API | `lai_processing.core.execution` (engine entry point) and the explicit processor registry (Wave 1, names to confirm) |
-| Idempotency key helper | Not present at `3c34409`; must exist in the core before 004 merges (`LIFECYCLE.md` section 1) |
+| Lifecycle API | `lai_processing.core.lifecycle`: `JobState`, `TRANSITIONS`, `TERMINAL_STATES`, `AUTOMATION_STOP_STATES`, `MANUAL_TRANSITIONS`, `InvalidTransition`, `check_transition(current, target, *, manual=False)`, `JobSnapshot`, `CompletionAction` (`APPLY`, `RETRY`, `DUPLICATE`, `STALE`, `REJECT`), `CompletionDecision`, `decide_completion(job, event, result=None)`, `next_attempt_number` |
+| Retry API | `lai_processing.core.retry`: `RetryPolicy` (`should_retry`, `delay_seconds`, `backoff_ceiling`), `DEFAULT_RETRY_POLICY`, `SQS_MAX_DELAY_SECONDS`, `MAX_ATTEMPTS_CEILING` |
+| Idempotency API | `lai_processing.core.idempotency`: `IDEMPOTENCY_KEY_VERSION`, `idempotency_key`, `idempotency_material`, `request_idempotency_key`, `verify_idempotency_key` |
+| Processor and registry API | `lai_processing.core.processor`: `Processor` (ClassVars `processor_id`, `version`, `job_types`; `profiles()`, `validate()`, `process()`, `cleanup()`), `ProcessorOutput`, `ProcessingContext` (`check()`, `write_artifact(...)`, `input_path`), `CancellationToken`, `RESERVED_LOGICAL_IDS`. `lai_processing.core.registry`: `ProcessorRegistry` (`register`, `freeze`, `resolve`, `processors`, `profiles`, `describe`), `default_registry()` |
+| Execution API | `lai_processing.core.execution`: `ExecutionEngine(registry, storage, telemetry, clock, ceilings, namespace, workspace_root, id_factory, verify_idempotency_keys=True)` with `execute(request, *, cancellation=None)`, `decode_and_execute(body)`, `complete(result, *, max_message_bytes)`. `lai_processing.core.workspace`: `Workspace` |
 
 ### Change control
 
@@ -46,7 +46,9 @@ code, and tell the principal if they differ from this page.
 - **Prerequisites:** Wave 1 merged (registry, execution engine, contracts).
 - **Interfaces consumed:** `ProcessingProfile`, `OptionSpec`, `ResourceLimits.complexity_limit`,
   `Finding`, `Severity`, `Verdict`, `ProcessingError`, `ErrorCode`, the registry registration API
-  and processor protocol (Wave 1, names to confirm), `job_type_spec("asset.validate_model")`.
+  (`ProcessorRegistry.register`; add the processor to `default_registry()`'s explicit list) and
+  the `Processor` base class, `ProcessingContext.check()` (call it in every parsing loop),
+  `job_type_spec("asset.validate_model")`.
 - **Owns:** `processing/lai_processing/processors/glb.py` (and helper modules under
   `processors/`, e.g. a pure `gltf` parser), its profile declaration(s), its registry entry,
   `tests/processing/processors/test_glb*.py`, fixtures under `tests/processing/fixtures/glb/`
@@ -83,7 +85,8 @@ code, and tell the principal if they differ from this page.
 - **Interfaces consumed:** `ObjectStorage`, `ObjectInfo`, storage error classes, `MessageQueue`,
   `Delivery`, `SendReceipt`, `QueueFull`, `Telemetry`, `LoggingTelemetry`, `Clock`,
   `decode_request`, `encode`, `build_completion_event`, `artifact_key`, `StoreName`, the
-  execution engine entry point (Wave 1, name to confirm).
+  `ExecutionEngine.decode_and_execute` and `ExecutionEngine.complete`, `CancellationToken`
+  (cancel when the Lambda context's remaining time falls below the cleanup margin).
 - **Owns:** a separate adapters package so the core stays boto3-free, proposed
   `processing/lai_processing_adapters/` with: `filesystem.py` (`ObjectStorage` on a directory
   root), `s3.py` (`ObjectStorage` on S3: `GetObject` with `VersionId`, `PutObject` with
@@ -205,14 +208,18 @@ code, and tell the principal if they differ from this page.
 | A9 | Any deployment (ADR-019 G7) | Per-stack change set review by the owner |
 | A10 | ADR numbering: `docs/DECISIONS.md` says the next free number is 055, but open PRs hold 055 to 060 | Use ADR-061 and add a registry note |
 
-## 9. Inconsistencies to resolve
+## 9. Inconsistencies found while drafting, and how they were resolved
 
-- `contracts/job_types.py` gives `asset.optimize` the owner task LAI-LAMBDA-010, but card 010 is
-  the ECS Fargate fallback. Correct the owner task (principal) before Wave 4.
-- The request carries no processor identity, yet the idempotency key includes the processor
-  version; the key helper is not yet in the core.
-- `CompletionEvent.to_dict` writes `retry_class: null` for a by-reference event even when the
-  decoded event declared a value, so a decode then encode of such an event does not reproduce
-  its bytes.
-- `ports/storage.py` mentions a local filesystem adapter in Wave 1 testing; only the memory
-  adapter exists. The filesystem adapter is 003's.
+- `asset.optimize` is owned by LAI-LAMBDA-010 (texture compression and GLB optimisation; ECS
+  Fargate is only that card's fallback runtime for runs over 15 minutes). The catalog is correct.
+- The idempotency key helper now exists (`core/idempotency.py`); the request still carries no
+  processor identity, so `processor_version` is optional in the key and both forms verify.
+- `CompletionEvent` now carries `retry_class` as its own field, so a by-reference event
+  round-trips byte for byte and `decide_completion` routes a by-reference failure without
+  fetching the result.
+- `ports/storage.py` no longer mentions a Wave 1 filesystem adapter; that adapter is 003's.
+- Request `options` accept floats, nulls and lists, while `OptionSpec` declares only `bool`,
+  `int` and `str` in v1. That is intentional: a profile is stricter than the envelope, and any
+  undeclared type is refused by `resolve_options`. A processor that needs another option type
+  adds it to `OptionSpec` (principal change).
+

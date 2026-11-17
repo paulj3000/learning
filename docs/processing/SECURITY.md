@@ -5,8 +5,7 @@ of processing jobs. **No child data is processed by these jobs.** Child photos (
 never use this pipeline without a separate, approved decision: they live in their own bucket,
 owned by the child profile subsystem, and nothing here may read or write it.
 
-"Wave 1" means the control exists in `lai_processing` now (commit `3c34409` or the in-progress
-Wave 1 modules, as marked). "Downstream" names the task that must deliver it. Nothing here is
+"Wave 1" means the control exists in `lai_processing` now (on `feature/serverless-processing`). "Downstream" names the task that must deliver it. Nothing here is
 deployed.
 
 ## 1. Trust boundaries
@@ -23,7 +22,7 @@ deployed.
 
 | Threat | Control in Wave 1 | Required downstream |
 |---|---|---|
-| **Untrusted uploads** | Input identity (`sha256`, `size_bytes`, `content_type`) is part of the request. The engine heads the object and streams it into the private workspace computing SHA-256 and size **before** the processor runs; a mismatch is `checksum_mismatch` (engine: Wave 1, in progress). Processors only see verified bytes. | 002 validators treat every byte as hostile; 004 stores the expected identity from Django's own upload, never from the client |
+| **Untrusted uploads** | Input identity (`sha256`, `size_bytes`, `content_type`) is part of the request. The engine heads the object and streams it into the private workspace computing SHA-256 and size **before** the processor runs; a mismatch is `checksum_mismatch` (engine: Wave 1). Processors only see verified bytes. | 002 validators treat every byte as hostile; 004 stores the expected identity from Django's own upload, never from the client |
 | **Path traversal** | `check_object_key` refuses `..`, `.`, empty segments, leading or trailing `/`, backslashes, control and non-conservative characters, keys over 1024 chars, keys outside the store prefix and (for quarantine and artifacts) outside the namespace. Artifact keys are built only by `artifact_key`. | 003 filesystem adapter must resolve paths under its root and refuse anything that escapes (symlinks included) |
 | **Archive expansion** (zip bombs, GLB chunk lengths that lie) | Byte budgets: `max_input_bytes`, `max_temp_bytes`, `max_output_bytes`, clamped by `PLATFORM_CEILINGS`; `sha256_stream(max_bytes=...)` stops reading once over the limit. ZIP and RAR are not accepted asset formats (`docs/ASSET_LIBRARY.md` section 4). | 002: every GLB chunk and buffer length checked against the remaining file size before allocation; complexity counters (`max_vertices` and similar) from the profile |
 | **Malformed GLB or audio** | Errors become classified codes with fixed messages; an unknown exception is `unexpected_failure` (manual), never retried in a loop and never echoed. | 002 and 008: bounded parsers, hostile and oversize fixtures (card 002), structures must end where the file ends |
@@ -36,7 +35,7 @@ deployed.
 | **Duplicate processing** | Attempt-scoped immutable keys, create-only writes (identical rewrite is idempotent, different bytes `artifact_conflict`). | 004: unique idempotency key, applied-attempt ledger, `DUPLICATE` decision |
 | **Stale results** | Results identify their attempt. | 004: `STALE` decision under the row lock (`LIFECYCLE.md`) |
 | **Sensitive logging** | Telemetry accepts only `SAFE_FIELDS` (closed vocabulary of ids, codes, counts and durations), scalar values up to 128 chars, no newlines; anything else raises. Error messages are fixed per code; `details` pass through `safe_details`. Consistent with ADR-025. | 003: Lambda handler logs only through `Telemetry`; never log message bodies. 005: log retention set; G10 deployed-logging verification applies |
-| **Temporary files** | Engine (Wave 1, in progress): private workspace (mode 0700), byte budget, always removed in a `finally`, including on timeout. | 003: Lambda `/tmp` is per-execution-environment and reused; the handler must clean between invocations (card 003 asks for `/tmp` tests) |
+| **Temporary files** | Engine (Wave 1): private workspace (mode 0700), byte budget, always removed in a `finally`, including on timeout. | 003: Lambda `/tmp` is per-execution-environment and reused; the handler must clean between invocations (card 003 asks for `/tmp` tests) |
 | **Resource exhaustion** | Limits on input, output, temp bytes, execution time (cooperative), artifact count, metadata size, message size, findings (500), warnings (50), errors (8), JSON depth (16 in contracts, 32 in the parser), option counts. | 005: Lambda timeout, memory, ephemeral storage sized above `PLATFORM_CEILINGS`; **reserved concurrency** to cap parallel runs (card 005); queue alarms |
 | **Output-trigger loops** | Dispatch is only through the Django outbox; S3 events never dispatch work (`ARCHITECTURE.md` section 8). | 005: if any object-created notification is configured, filter it to input prefixes, never `processing/artifacts/` |
 | **Compromised worker** | No database credentials, no publish capability, no Bedrock access in the contract. | 005: worker role has no RDS, no Secrets Manager, no Bedrock, no Cognito rights |

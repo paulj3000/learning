@@ -1,6 +1,6 @@
 # Background processing architecture (LAI-LAMBDA-001)
 
-Status: Wave 1 foundation. Proposed design, recorded in ADR-061 (`docs/processing/ADR-061-draft.md`,
+Status: Wave 1 foundation. Proposed design, recorded in ADR-061 (`docs/DECISIONS.md`,
 owner acceptance pending). **Nothing in this subsystem is deployed.** No SQS queue, Lambda
 function, EventBridge rule or processing IAM role exists in `infra/` or in AWS today.
 
@@ -13,7 +13,6 @@ Trello: [LAI-LAMBDA-001](https://trello.com/c/N5lWZeq4). Related documents in th
 | `SECURITY.md` | Threats and the control for each, Wave 1 versus downstream |
 | `OPERATIONS.md` | Overnight shutdown, queues, DLQs, replay, alarms, cost |
 | `WAVE2_HANDOFF.md` | The four parallel Wave 2 workstreams and their frozen interfaces |
-| `ADR-061-draft.md` | The decision text to paste into `docs/DECISIONS.md` |
 
 ## 1. Overview
 
@@ -90,39 +89,40 @@ Steps 6 and 10 are separate on purpose: no completion message, however valid, ca
 
 ## 4. Package layout
 
-At commit `3c34409` (Wave 1 foundation) the package contains the modules marked **present**.
-Modules marked **Wave 1, in progress** are being written by parallel Wave 1 agents; their
-names below follow the Wave 1 design brief and must be confirmed against the merged code.
+Everything below exists on `feature/serverless-processing` (Wave 1, LAI-LAMBDA-001).
 
 ```text
 processing/
   pyproject.toml                    # lai-processing 0.1.0, requires-python >=3.12, no dependencies
   lai_processing/
-    __init__.py, version.py         # present; __version__ = "0.1.0"
+    __init__.py, version.py         # __version__ = "0.1.0"; __main__.py runs the CLI
     core/
-      errors.py                     # present: ErrorCode, RetryClass, ProcessingError, safe messages
-      limits.py                     # present: ResourceLimits, DEFAULT_LIMITS, PLATFORM_CEILINGS
-      canonical.py                  # present: canonical_json, sha256_*, strict UTC timestamps
-      lifecycle.py                  # Wave 1, in progress: JobState, transitions, decide_completion
-      retry.py                      # Wave 1, in progress: RetryPolicy
-      execution.py                  # Wave 1, in progress: the execution engine
-      (registry)                    # Wave 1, in progress: explicit processor registry
+      errors.py                     # ErrorCode, RetryClass, ProcessingError, safe messages
+      limits.py                     # ResourceLimits, DEFAULT_LIMITS, PLATFORM_CEILINGS
+      canonical.py                  # canonical_json, sha256_*, strict UTC timestamps
+      idempotency.py                # idempotency_key, request_idempotency_key, verify_*
+      lifecycle.py                  # JobState, TRANSITIONS, check_transition, decide_completion
+      retry.py                      # RetryPolicy, DEFAULT_RETRY_POLICY
+      processor.py                  # Processor, ProcessorOutput, ProcessingContext, CancellationToken
+      registry.py                   # ProcessorRegistry, default_registry (explicit list)
+      workspace.py                  # Workspace: private temp dir with a byte budget
+      execution.py                  # ExecutionEngine: execute, decode_and_execute, complete
     contracts/
-      common.py, identifiers.py,    # present: envelope building blocks, key safety rules
-      jobs.py, results.py,          # present: ProcessingJobRequest, ProcessingJobResult
-      artifacts.py, events.py,      # present: ArtifactReference, CompletionEvent
-      profiles.py, job_types.py,    # present: ProcessingProfile, closed job-type catalog
-      codec.py, _fields.py          # present: strict decode/encode
-      fixtures/                     # Wave 1, in progress (empty at 3c34409)
-      schemas/                      # Wave 1, in progress (absent at 3c34409)
+      common.py, identifiers.py,    # envelope building blocks, key safety rules
+      jobs.py, results.py,          # ProcessingJobRequest, ProcessingJobResult
+      artifacts.py, events.py,      # ArtifactReference, CompletionEvent
+      profiles.py, job_types.py,    # ProcessingProfile, closed job-type catalog
+      codec.py, _fields.py          # strict decode/encode
+      fixtures/                     # valid examples, invalid/ with manifest.json
+      schemas/                      # JSON Schema 2020-12 for request, result, event (v1)
     ports/
-      storage.py, queue.py,         # present: ObjectStorage, MessageQueue protocols
-      clock.py, telemetry.py        # present: Clock, Telemetry with SAFE_FIELDS
-    processors/                     # reference processor (reference.checksum), Wave 1
-    testing/fakes.py                # present: MemoryObjectStorage, MemoryQueue, ManualClock,
+      storage.py, queue.py,         # ObjectStorage, MessageQueue protocols
+      clock.py, telemetry.py        # Clock, Telemetry with SAFE_FIELDS
+    processors/reference.py         # ReferenceProcessor (reference.checksum, profile reference-default v1)
+    testing/fakes.py                # MemoryObjectStorage, MemoryQueue, ManualClock,
                                     #          RecordingTelemetry
-    cli/                            # Wave 1, in progress: python -m lai_processing
-tests/processing/                   # Wave 1 unit tests (in progress)
+    cli/main.py                     # python -m lai_processing
+tests/processing/                   # unit, contract, adversarial and integration tests
 ```
 
 Rule: nothing under `lai_processing` imports Django, boto3, AWS Lambda libraries, an HTTP client
@@ -178,7 +178,7 @@ application (`LIFECYCLE.md`, section 6).
 
 | Wave | Tasks | Content | Parallelism |
 |---|---|---|---|
-| 1 | LAI-LAMBDA-001 | Contracts v1, errors, limits, canonical encoding, ports, fakes, lifecycle, retry policy, execution engine, explicit registry, reference processor, CLI, fixtures, JSON Schemas, these docs, ADR-061 draft | One task, several agents on disjoint files |
+| 1 | LAI-LAMBDA-001 | Contracts v1, errors, limits, canonical encoding, ports, fakes, lifecycle, retry policy, execution engine, explicit registry, reference processor, CLI, fixtures, JSON Schemas, these docs, ADR-061 (proposed) | One task, several agents on disjoint files |
 | 2 | 002, 003, 004, 005 | GLB validator processor; adapters (filesystem, S3, SQS) and Lambda handler; Django `processing` app (models, outbox, consumer, Admin); CDK stack `LaiProcessing-<env>` | All four in parallel against the frozen Wave 1 interfaces (`WAVE2_HANDOFF.md`) |
 | 3 | [006](https://trello.com/c/SYUqyvWM), [007](https://trello.com/c/WQAi4PAi) | 006: Django presigned uploads plus durable enqueue after upload, ack completions only after commit, poison jobs, replay, stopped-host backlog. 007: see its card | After Wave 2 |
 | 4 | [008](https://trello.com/c/r7BVm0fV), [009](https://trello.com/c/ga6LzukZ), [010](https://trello.com/c/l1ahd2je) | 008: audio processing with FFmpeg in a reproducible container. 009: animation analysis. 010: ECS Fargate fallback for runs over 15 minutes | Parallel |
@@ -204,8 +204,8 @@ prefixes and must never dispatch work.
 | Contracts v1 (request, result, artifact, event, profile, limits) | Implemented in `contracts/`, strict decoding in `codec.py` |
 | Error taxonomy, limits, canonical JSON | Implemented in `core/` |
 | Ports and in-memory fakes | Implemented in `ports/`, `testing/fakes.py` |
-| Lifecycle, retry policy, execution engine, registry, reference processor, CLI, fixtures, schemas | Wave 1, being written in parallel (not in commit `3c34409`) |
-| Idempotency key helper | Not present in `3c34409`; designed in `LIFECYCLE.md` section 1; must ship before Wave 2 relies on it |
+| Lifecycle, retry policy, execution engine, registry, reference processor, CLI, fixtures, schemas | Implemented in Wave 1 and unit-tested (`tests/processing/`) |
+| Idempotency key helper | Implemented: `core/idempotency.py`; the execution engine verifies every request's key before reading input |
 | Django `processing` app, outbox, consumer | Not built (004) |
 | S3/SQS adapters, Lambda handler | Not built (003) |
 | SQS queues, DLQs, Lambda, IAM, alarms | Not defined in `infra/`, not deployed (005, approvals needed) |

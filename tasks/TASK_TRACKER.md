@@ -1014,3 +1014,40 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
       SC-11 gate)
+
+# Serverless Background Processing (`docs/processing/`, ADR-061 proposed)
+
+Runtime-independent processing package `processing/lai_processing` (standard library only), with
+Django authoritative for job state and publication, SQS work and completion queues, and Lambda
+workers that never touch the database or publish. Trello cards LAI-LAMBDA-001 to 012. Wave 2
+workstreams, interfaces and file ownership: `docs/processing/WAVE2_HANDOFF.md`. No AWS resource is
+defined or deployed by any task until its approvals (ADR-061, A1 to A10) are given.
+
+## Wave 1: foundation
+
+- [x] **LAI-LAMBDA-001** Shared processing library and job contracts (depends: none; ADR-061). DONE
+      (development) 2026-11-16 on `feature/serverless-processing`, owner review pending; not merged.
+      Versioned contracts (request, result, artifact, completion event, profile, limits) with
+      strict decoding, fixtures and JSON Schemas; error and retry taxonomy; idempotency keys,
+      lifecycle (`decide_completion`) and bounded retry policy; processor interface, explicit
+      registry, execution engine with verified-input workspace; reference processor; storage,
+      queue, telemetry and clock ports with in-memory fakes; CLI (`python -m lai_processing`).
+      Tests: `tests/processing/` (pytest, no database, AWS or network). Not done here by design:
+      Django models, adapters, AWS resources, real processors
+
+## Wave 2: parallel workstreams (each depends on LAI-LAMBDA-001)
+
+- [ ] **LAI-LAMBDA-002** GLB validator and metadata extractor (processor `asset.validate_model`; parity with `lai/apps/assets/validation.py`). READY once 001 is accepted
+- [ ] **LAI-LAMBDA-003** Local worker, filesystem/S3/SQS adapters, Lambda handler packaging (separate adapters package; core stays boto3-free). READY once 001 is accepted; Lambda packaging choice needs approval A4
+- [ ] **LAI-LAMBDA-004** Django `ProcessingJob` app: models, migrations, outbox, completion consumer, Django Admin status (depends also: Asset Library contracts). READY once 001 is accepted; the Django image must vendor `processing/`
+- [ ] **LAI-LAMBDA-005** AWS infrastructure: `LaiProcessing-<env>` CDK stack, SQS work/completion queues and DLQs, Lambda, IAM, alarms. Code and synth tests READY once 001 is accepted; BLOCKED for any deploy on approvals A1 to A9
+
+## Waves 3 to 5
+
+- [ ] **LAI-LAMBDA-006** S3 upload, queue dispatch and completion integration (depends: 002, 003, 004, 005)
+- [ ] **LAI-LAMBDA-007** Asset Library validation results and release gates (depends: 002, 004, 006)
+- [ ] **LAI-LAMBDA-008** Audio validation and transcoding worker (depends: 003, 005, 006)
+- [ ] **LAI-LAMBDA-009** NPC animation inspection and mapping assistance (depends: 002, 007)
+- [ ] **LAI-LAMBDA-010** Texture compression and GLB optimisation benchmarking (depends: 007)
+- [ ] **LAI-LAMBDA-011** Staging end-to-end, failure, performance and cost acceptance (depends: 006, 007)
+- [ ] **LAI-LAMBDA-012** Production rollout, observability and rollback (depends: 011, owner approval)
