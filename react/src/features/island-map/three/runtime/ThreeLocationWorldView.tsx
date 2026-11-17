@@ -1,5 +1,6 @@
 import { checkpointReachedText, recoveredText } from '../platforms/platformCopy';
 import { worldSignal } from '../platforms/platformSystem';
+import { manifestForBand } from './manifestForBand';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../../IslandWorldView.module.css';
@@ -495,7 +496,8 @@ export function ThreeLocationWorldView({
             createLocationEngine(
               parent,
               bus,
-              manifest,
+              // SC-JMP: the child's own band's platforming (flat markers for Sprouts), else the manifest as authored.
+              manifestForBand(manifest, ageBand),
               {
                 startCheckpointId,
                 worldState: snapshot.context,

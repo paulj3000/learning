@@ -1,4 +1,9 @@
-import { resolveAdventureForAgeBand } from '../../../../adventures/content';
+import { getAdventureTemplate, resolveAdventureForAgeBand } from '../../../../adventures/content';
+import {
+  PAINTED_WORDS_AGAIN_SLUG,
+  PAINTED_WORDS_SLUG,
+} from '../../../../adventures/content/thePaintedWords';
+import type { WorldInteraction } from '../../../worldObjects';
 import { THE_STORYKEEPERS_TALE } from '../../../../adventures/content/theStorykeepersTale';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import type { AgeBandValue } from '../../../../child-profile/constants';
@@ -37,4 +42,23 @@ export function castleTaleClaims(
     return taleAdventureForBand(ageBand) !== undefined;
   if (interactionId === config.storyInteractionId) return isSecretDoorStoryForBand(ageBand);
   return false;
+}
+
+/**
+ * SC-JMP: the Painted Words, hosted in the Illustration Studio so its three painted pads can
+ * answer. `castle-tale` takes over the wall's two interactions (first play and replay) only for a
+ * band the mission is authored for (Pathfinders); any other band leaves the wall to the generic
+ * panel, and a claim is never made that would open nothing (C-2).
+ */
+export function paintedWordsAdventureFor(
+  interaction: Pick<WorldInteraction, 'action'>,
+  ageBand: AgeBandValue,
+): AdventureDefinition | undefined {
+  if (interaction.action.kind !== 'START_ADVENTURE') return undefined;
+  const { templateSlug } = interaction.action;
+  if (templateSlug !== PAINTED_WORDS_SLUG && templateSlug !== PAINTED_WORDS_AGAIN_SLUG) {
+    return undefined;
+  }
+  const template = getAdventureTemplate(templateSlug);
+  return template && template.ageBands.includes(ageBand) ? template : undefined;
 }

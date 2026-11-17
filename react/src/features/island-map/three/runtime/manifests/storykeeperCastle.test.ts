@@ -65,7 +65,9 @@ describe('Storykeeper Castle manifest', () => {
   it('keeps every authored zone and every authored interaction', () => {
     // Every authored zone, with only the three gallery ones suffixed because
     // they shared a name with the portraits standing in them.
-    expect(MANIFEST.zones.map((zone) => zone.rect.id)).toEqual(
+    // (SC-JMP then appends the `pad:*` answer zones of the platforms; they are checked in
+    // `castlePlatforms.test.ts`.)
+    expect(MANIFEST.zones.map((zone) => zone.rect.id).filter((id) => !id.startsWith('pad:'))).toEqual(
       ZONES.map((zone) =>
         GALLERY_PORTRAIT_SPOTS.some((spot) => spot.entityId === zone.id)
           ? `${zone.id}:approach`

@@ -314,13 +314,20 @@ export function validateLocationManifest(
   }
 
   // LAI-JMP-02 / LAI-JMP-04: platforms, plates, course checkpoints, hazards and goals.
-  for (const issue of validatePlatforming(manifest.platforming, {
+  const platformingContext = {
     propIds: new Set(manifest.props.map((prop) => prop.entityId)),
     zoneIds: new Set(manifest.zones.map((zone) => zone.rect.id)),
     bounds: manifest.bounds,
     solids: manifest.colliders.filter((collider) => !collider.jumpable).map((collider) => collider.rect),
-  })) {
+  };
+  for (const issue of validatePlatforming(manifest.platforming, platformingContext)) {
     report('INVALID_VALUE', issue.path, issue.message);
+  }
+  // SC-JMP: each age band's own variant is held to the same rules as the default.
+  for (const [band, variant] of Object.entries(manifest.platformingByBand ?? {})) {
+    for (const issue of validatePlatforming(variant, platformingContext)) {
+      report('INVALID_VALUE', issue.path.replace(/^platforming/, `platformingByBand.${band}`), issue.message);
+    }
   }
 
   // LAI-JMP-01a: camera and avatar settings, and that an avatar costume is a real asset.

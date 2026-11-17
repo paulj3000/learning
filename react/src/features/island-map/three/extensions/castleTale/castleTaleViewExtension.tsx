@@ -1,6 +1,6 @@
 import type { LocationViewExtension } from '../../runtime/viewExtensionRegistry';
 import { CastleTaleCompanion } from './CastleTaleCompanion';
-import { castleTaleClaims } from './castleTaleClaims';
+import { castleTaleClaims, paintedWordsAdventureFor } from './castleTaleClaims';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
 import { managedCastleNpcFor } from './castleNpcHandover';
 
@@ -22,7 +22,9 @@ export const castleTaleViewExtension: LocationViewExtension = {
     const parsed = tryParseCastleTaleConfig(config);
     if (!parsed) return false;
     return (
-      castleTaleClaims(interaction.id, parsed, ageBand) || managedCastleNpcFor(interaction) !== null
+      castleTaleClaims(interaction.id, parsed, ageBand) ||
+      paintedWordsAdventureFor(interaction, ageBand) !== undefined ||
+      managedCastleNpcFor(interaction) !== null
     );
   },
   Companion: CastleTaleCompanion,

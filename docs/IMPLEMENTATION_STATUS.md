@@ -143,6 +143,33 @@ root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; 
   leases and heartbeats, worker check-ins and the status renames. The branch is kept, unmerged.
   Tests: question_studio, jobs and settings, 297 passed on PostgreSQL.
 
+## SC-JMP: jumping integrated into every primary Storykeeper Castle adventure (2026-11-17, worktree of `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged
+
+Owner rule: jumping is not a separate adventure category. Every primary castle adventure has
+meaningful jumping through the SHARED platforms runtime (no new movement engine, no castle physics).
+Inventory and per-adventure design: `docs/regions/storykeeper_castle_jumping_inventory.md`.
+
+- Pads: story stones (Tale, Picture Story), painted pads (Painted Words, set A or B from the
+  approved bank), enchanted books, pattern stones and rod stones (Secret Door chapters 1 and 2), a
+  six-pad Great Storybook page pathway (hidden until each page is restored), two Observatory star
+  stones. Tops at most 0.5 m under the 3.1 m ceiling; static; no bounce, vanish, lift or motion.
+- A pad is a second way to give an answer the HUD card accepts. Each answering pad has a
+  ground-plane `pad:*` zone; `usePadAnswers` waits for a 0.7 s stand, then calls the session's own
+  `submitAnswer` (one submit at a time). The adventure engine grades; the server rewards; pads
+  grade and grant nothing, and a repeated landing cannot repeat anything.
+- The Painted Words are now hosted in the Illustration Studio for Pathfinders (`castle-tale` claims
+  the wall's two interactions, `paintedWordsAdventureFor`), where before they ran on the card route.
+- Sprouts get flat floor markers with no colliders: new generic `manifest.platformingByBand`
+  (`runtime/manifestForBand.ts`, validated), applied by `ThreeLocationWorldView`.
+- Tests added: `castlePlatforms.test.ts`, `castlePlatforms.engine.test.ts`,
+  `castlePlatformAnswers.test.ts`, `usePadAnswers.test.tsx`, `CastlePaintedWordsSession.test.tsx`,
+  extended `castleHudEquivalence.test.tsx`, `storykeeperCastleBudgets.test.ts` (counts platforms).
+- Decisions to confirm and open items are listed in the inventory (two Observatory stones, not five;
+  `SIGNAL` not `WORLD_STATE` for pathway pads; 0.8 to 0.9 m footprints; no word or picture drawn on
+  a pad yet, a colour guide names each word).
+- Not run: browser, WebGL, device, gamepad and screen-reader checks, full suites, lint, format.
+  `tsc` reports existing errors in `great-storybook` (`StorybookStatus`) that are not from this work.
+
 ## LAI-JMP-02 / LAI-JMP-04: shared platforms, checkpoints and safe recovery (2026-11-14, `feature/interactive-platforms`); development complete, owner QA pending, NOT merged
 
 Stacked on `integration/p1-movement-base` (avatar stack, Amplify-free main, derived colliders,
