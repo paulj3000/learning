@@ -181,7 +181,7 @@ Django. To delete: detach the policy (deploy the platform stack without it) befo
 
 | Workflow | Triggers | Deploys? | AWS |
 |---|---|---|---|
-| `ci.yml` job `processing-image` | existing `push` to `main`, `pull_request` | No | None. Builds `processing/Dockerfile.lambda` for linux/arm64 with buildx and QEMU, loads it locally, imports `lai_processing_runtime.lambda_handler` inside it, scans it with `aquasecurity/trivy-action@0.28.0` |
+| `ci.yml` job `processing-image` | existing `push` to `main`, `pull_request` | No | None. Builds `processing/Dockerfile.lambda` for linux/arm64 with buildx and QEMU, loads it locally, imports `lai_processing_runtime.lambda_handler` inside it, scans it with `aquasecurity/trivy-action` v0.36.0 (pinned by commit SHA) |
 | `deploy-processing.yml` | `workflow_dispatch` only | Only when dispatched by a person, approved in `processing-<env>`, from `main`, with `LAI_PROCESSING_DEPLOY_ENABLED == 'true'` | OIDC: `LAI_PROCESSING_PUBLISHER_ROLE_ARN` (build-push), `LAI_PROCESSING_DEPLOY_ROLE_ARN` (deploy, rollback) |
 | `deploy-dev-native.yml` | existing `push` to `main` on backend paths, now including `processing/**` | Native dev only, already gated by `LAI_DEV_NATIVE_ENABLED` | unchanged roles |
 
