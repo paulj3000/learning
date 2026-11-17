@@ -1,8 +1,9 @@
 """Strict parsing of the GLB JSON chunk.
 
 Stricter than `json.loads` defaults (and than Django's `_parse_json`): the bytes must be strict
-UTF-8, object keys must be unique, `NaN`, `Infinity` and numbers that overflow to infinity are
-refused, and nesting is bounded by `max_json_depth`. Every refusal is the Asset Library's
+UTF-8, object keys must be unique, `NaN`, `Infinity`, numbers that overflow to infinity and
+integers too large for a float (which no glTF value can be, and which `math.isfinite` cannot
+take) are refused, and nesting is bounded by `max_json_depth`. Every refusal is the Asset Library's
 `invalid_json` code. The size is already bounded by the container check.
 """
 
@@ -10,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from collections.abc import Callable
 from typing import Any, Final
 
@@ -18,6 +20,9 @@ from .report import Report, Stop
 __all__ = ["parse_document"]
 
 _CHECK_EVERY: Final = 4096
+_MAX_FLOAT_INT: Final = int(sys.float_info.max)
+# Digits (with a sign) of the largest float integer; a longer literal is refused unparsed.
+_MAX_INT_TEXT: Final = len(str(_MAX_FLOAT_INT)) + 1
 
 
 class _Refused(ValueError):
@@ -39,6 +44,15 @@ def _float(text: str) -> float:
     value = float(text)
     if not math.isfinite(value):
         raise _Refused("non-finite number")
+    return value
+
+
+def _int(text: str) -> int:
+    if len(text) > _MAX_INT_TEXT:
+        raise _Refused("integer too large")
+    value = int(text)
+    if abs(value) > _MAX_FLOAT_INT:
+        raise _Refused("integer too large")
     return value
 
 
@@ -70,7 +84,11 @@ def parse_document(
     try:
         text = raw.decode("utf-8")
         document = json.loads(
-            text, object_pairs_hook=_pairs, parse_constant=_constant, parse_float=_float
+            text,
+            object_pairs_hook=_pairs,
+            parse_constant=_constant,
+            parse_float=_float,
+            parse_int=_int,
         )
     except (UnicodeDecodeError, ValueError, RecursionError):
         report.error("invalid_json", "The model's JSON is not valid.")

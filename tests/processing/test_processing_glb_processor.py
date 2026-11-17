@@ -339,7 +339,30 @@ def test_cli_runs_the_glb_validator(tmp_path: Path) -> None:
     assert result["processor"]["processor_id"] == "asset.glb_validator"
 
 
-@pytest.mark.parametrize("data", [b"", b"glTF", static_glb()[:-3], b"\xff" * 1000])
+def _huge_integer_glb(path: str) -> bytes:
+    from glb_builder import mutated
+
+    def apply(document: dict[str, Any]) -> None:
+        target: Any = document
+        *keys, last = path.split(".")
+        for key in keys:
+            target = target[int(key)] if isinstance(target, list) else target[key]
+        target[last] = [10**400, 0, 0]
+
+    return mutated(apply)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"",
+        b"glTF",
+        static_glb()[:-3],
+        b"\xff" * 1000,
+        _huge_integer_glb("nodes.0.translation"),
+        _huge_integer_glb("accessors.0.max"),
+    ],
+)
 def test_hostile_inputs_always_give_a_contract_valid_success(tmp_path: Path, data: bytes) -> None:
     result, _ = run(tmp_path, data)
     assert result.status is ResultStatus.SUCCEEDED

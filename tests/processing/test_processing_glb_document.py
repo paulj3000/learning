@@ -748,3 +748,166 @@ def test_bin_offsets_are_aligned_in_builder_fixtures() -> None:
     data = static_glb()
     json_length = struct.unpack_from("<I", data, 12)[0]
     assert json_length % 4 == 0
+
+
+# --- hostile inputs: huge integers, bounds complexity, NaN, data-URI textures ------------------
+
+
+def test_finite_never_overflows_on_huge_integers() -> None:
+    from lai_processing.processors.gltf.document import _finite
+
+    assert _finite(10**400) is False and _finite(-(10**400)) is False
+    assert _finite(2**53) is True and _finite(1.5) is True
+    assert _finite(True) is False and _finite(float("nan")) is False
+
+
+@pytest.mark.parametrize(
+    "path", ["nodes.0.translation", "accessors.0.max", "nodes.0.matrix", "nodes.0.scale"]
+)
+def test_integer_too_large_for_a_float_is_invalid_json(path: str) -> None:
+    length = 16 if path.endswith("matrix") else 3
+    value = [10**400] + [0] * (length - 1)
+    assert change(setter(path, value)) == {"invalid_json"}
+    # 308 digits still fit a float: an ordinary (if absurd) number, not a parse failure.
+    assert "invalid_json" not in change(setter("nodes.0.translation", [10**307, 0, 0]))
+
+
+def test_integer_digit_limit_is_refused_not_raised() -> None:
+    raw = b'{"asset": {"version": "2.0"}, "x": ' + b"9" * 5000 + b"}"
+    assert error_codes(glb(raw, b"")) == {"invalid_json"}
+
+
+def _instanced(primitives: int, nodes: int, rotated: bool) -> bytes:
+    """One mesh of `primitives` primitives (distinct POSITION boxes) instantiated by `nodes`
+    nodes, each translated, and rotated about y when `rotated`."""
+
+    def apply(document: Document) -> None:
+        accessors = document["accessors"]
+        base = copy.deepcopy(accessors[0])
+        first = len(accessors)
+        for number in range(primitives):
+            accessor = copy.deepcopy(base)
+            accessor["min"] = [-0.5 - number * 1e-3, 0.0, -0.5]
+            accessor["max"] = [0.5, number * 1e-3, 0.5 + number * 1e-3]
+            accessors.append(accessor)
+        document["meshes"] = [
+            {"primitives": [{"attributes": {"POSITION": first + i}} for i in range(primitives)]}
+        ]
+        rotation = [0.0, 0.38268343236, 0.0, 0.92387953251] if rotated else [0.0, 0.0, 0.0, 1.0]
+        document["nodes"] = [
+            {"mesh": 0, "translation": [i * 2.0, 0.0, 0.0], "rotation": rotation}
+            for i in range(nodes)
+        ]
+        document["scenes"] = [{"nodes": list(range(nodes))}]
+        for name in ("materials", "textures", "images", "samplers"):
+            document.pop(name, None)
+
+    return mutated(apply)
+
+
+def _brute_force_bounds(data: bytes) -> tuple[list[float], list[float]]:
+    """Django's algorithm: every corner of every primitive box through every node matrix."""
+    import json as _json
+
+    from lai_processing.processors.gltf.document import IDENTITY, _multiply, _node_matrix
+
+    length = struct.unpack_from("<I", data, 12)[0]
+    document = _json.loads(data[20 : 20 + length])
+    low, high = [float("inf")] * 3, [float("-inf")] * 3
+    for root in document["scenes"][0]["nodes"]:
+        node = document["nodes"][root]
+        world = _multiply(IDENTITY, _node_matrix(node))
+        for primitive in document["meshes"][node["mesh"]]["primitives"]:
+            accessor = document["accessors"][primitive["attributes"]["POSITION"]]
+            box = accessor["min"], accessor["max"]
+            for corner in range(8):
+                point = [box[(corner >> axis) & 1][axis] for axis in range(3)]
+                for axis in range(3):
+                    value = world[12 + axis] + sum(world[k * 4 + axis] * point[k] for k in range(3))
+                    low[axis] = min(low[axis], value)
+                    high[axis] = max(high[axis], value)
+    return low, high
+
+
+@pytest.mark.parametrize("rotated", [False, True])
+def test_bounds_are_exactly_the_per_corner_bounds(rotated: bool) -> None:
+    data = _instanced(primitives=7, nodes=5, rotated=rotated)
+    outcome = validate(data)
+    assert outcome.report.codes(_error()) == []
+    low, high = _brute_force_bounds(data)
+    assert outcome.facts.bounds_min == low
+    assert outcome.facts.bounds_max == high
+
+
+def test_many_instances_of_a_many_primitive_mesh_stay_fast() -> None:
+    import time
+
+    # Just under the primitive and accessor limits: a small, valid file.
+    primitives = COMPLEXITY_DEFAULTS["max_primitives"] - 10
+    data = _instanced(primitives=primitives, nodes=700, rotated=False)
+    started = time.monotonic()
+    outcome = validate(data)
+    assert outcome.report.codes(_error()) == []
+    assert outcome.facts.bounds_max[0] == pytest.approx(699 * 2.0 + 0.5)
+    assert time.monotonic() - started < 20.0, "translated instances use the mesh's union box"
+
+    rotated = _instanced(primitives=primitives, nodes=700, rotated=True)
+    started = time.monotonic()
+    assert error_codes(rotated) == {"too_complex"}
+    assert time.monotonic() - started < 20.0  # the unbounded loop took minutes
+
+
+def test_many_distinct_scene_roots_are_checked_in_linear_time() -> None:
+    import time
+
+    count = COMPLEXITY_DEFAULTS["max_nodes"]
+
+    def apply(document: Document) -> None:
+        document["nodes"] = [{"mesh": 0}] + [{} for _ in range(count - 1)]
+        document["scenes"] = [{"nodes": list(range(count))}]
+
+    data = mutated(apply)
+    started = time.monotonic()
+    assert error_codes(data) == set()
+    assert time.monotonic() - started < 2.0
+
+
+def test_nan_bounds_from_overflowing_transforms_are_invalid_not_dropped() -> None:
+    big = [1e200, 1e200, 1e200]  # the product overflows to inf; inf * 0 is NaN
+
+    def apply(document: Document) -> None:
+        document["accessors"][0]["min"] = [0.0, 0.0, 0.0]
+        document["accessors"][0]["max"] = [0.0, 0.0, 0.0]
+        document["nodes"] = [{"scale": big, "children": [1]}, {"mesh": 0, "scale": big}]
+
+    assert change(apply) == {"invalid_node"}
+
+
+def _texture_in_data_uri_buffer(texture: bytes) -> bytes:
+    document, binary = static_model(texture=texture)
+    document = copy.deepcopy(document)
+    document["buffers"][0]["uri"] = data_uri("application/octet-stream", binary)
+    return glb(document, b"")
+
+
+def test_texture_in_a_data_uri_buffer_is_still_size_checked() -> None:
+    outcome = validate(_texture_in_data_uri_buffer(png(64, 32)))
+    assert outcome.report.codes(_error()) == []
+    assert outcome.facts.images == [
+        {"index": 0, "mime_type": "image/png", "width": 64, "height": 32}
+    ]
+    huge = _texture_in_data_uri_buffer(png(100_000, 100_000))
+    assert error_codes(huge) == {"texture_too_large"}
+    assert error_codes(_texture_in_data_uri_buffer(b"\x00" * 64)) == {"image_type"}
+    broken = _texture_in_data_uri_buffer(b"\x89PNG\r\n\x1a\n" + b"\x00" * 24)
+    assert "image_dimensions_unknown" in warning_codes(broken)
+
+
+def test_data_uri_range_decodes_only_the_requested_bytes() -> None:
+    from lai_processing.processors.gltf.document import _data_uri_range
+
+    payload = bytes(range(256)) * 4
+    uri = data_uri("application/octet-stream", payload)
+    for offset, size in [(0, 10), (1, 5), (2, 7), (3, 3), (1000, 100), (255, 1)]:
+        assert _data_uri_range(uri, offset, size) == payload[offset : offset + size]
+    assert _data_uri_range("data:x;base64,@@@@", 0, 4) == b""
