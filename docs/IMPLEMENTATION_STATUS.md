@@ -92,7 +92,7 @@ production unless the backend is `sqs`). Frozen contract: `docs/processing/WAVE3
   `processing/` on the path (`manage.py check` in CI).
 - **Checks (2026-11-17):**
   - `pytest lai/apps/assets lai/apps/jobs tests/deploy tests/processing tests/repo lai/apps/core` (isolated PostgreSQL): 3260 passed, 7 skipped
-  - <INFRA_TOTALS>
+  - infra `vitest run lib/`: 189 passed
   - `scripts/processing/local-demo.sh` ran end to end: flag-off upload `VALIDATED` with no job;
     flag-on Treasure Rush chest `DRAFT` with its job; publish refused `not_validated` (draft)
     and `processing_required` (a GLB validated before the flag); round trip `DRAFT ->
