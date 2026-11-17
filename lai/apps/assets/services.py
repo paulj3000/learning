@@ -11,6 +11,7 @@ import logging
 import uuid
 from collections.abc import Callable
 from datetime import timedelta
+from types import SimpleNamespace
 from typing import IO
 
 from django.db import transaction
@@ -20,6 +21,7 @@ from django.utils import timezone
 from apps.catalog.models import AssetStatus, ContentAsset
 
 from .models import CONTENT_TYPES, AssetVersion, VersionStatus
+from .processing import async_validation_applies, submit_model_validation
 from .storage import KEY_PREFIX, StorageError, get_storage, object_key, sha256_of
 from .validation import Finding, ValidationResult, validate_upload
 
@@ -72,10 +74,14 @@ def _locked(asset: ContentAsset) -> ContentAsset:
 def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename: str, user=None):
     """Checksum, validate and store a new version of any supported family (AM-13).
 
-    Returns it `VALIDATED`, or raises.
+    Returns it `VALIDATED`, or raises. With `LAI_ASSET_ASYNC_VALIDATION=on` and a GLB model
+    (`async_validation_applies`), returns it `DRAFT` instead, with its contract model validation
+    job (`asset.validate_model`) submitted in the same transaction; the completion hook moves it
+    on (WAVE3_INTERFACES section 2).
 
     A file that fails validation is never stored and makes no row: the admin sees the findings
-    and nothing needs cleaning up. A storage or database failure leaves no row and no object.
+    and nothing needs cleaning up. A storage or database failure, or a refused job submission,
+    leaves no row, no job and no object.
     """
     sha256, size = sha256_of(upload)
     result = validate_upload(upload, size=size, definition=asset)
@@ -85,6 +91,9 @@ def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename:
             "invalid_file", "The file did not pass validation.", result.findings
         )
 
+    # Passed as an object with `.format`: a plain string has a `.format` method, which the
+    # helper's getattr would pick up instead of the format name.
+    deferred = async_validation_applies(SimpleNamespace(format=result.format))
     storage = get_storage()
     with transaction.atomic():
         asset = _locked(asset)
@@ -113,29 +122,102 @@ def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename:
             raise AssetActionRefused(
                 "storage_failed", "The file could not be stored. Try again."
             ) from None
-        try:
-            version = AssetVersion.objects.create(
-                version_id=version_id,
+        if deferred:
+            version = _create_draft_and_submit(
+                storage,
+                key,
                 asset=asset,
+                version_id=version_id,
                 number=number,
-                status=VersionStatus.VALIDATED,
-                storage_key=key,
-                original_filename=(original_filename or "")[:255],
+                original_filename=original_filename,
                 content_type=content_type,
-                size_bytes=size,
+                size=size,
                 sha256=sha256,
-                format=result.format,
-                clips=result.clips,
-                dimensions=result.dimensions,
-                metadata=result.metadata,
-                validation_report=result.report(),
-                validated_at=timezone.now(),
-                uploaded_by=user,
+                result=result,
+                user=user,
             )
-        except Exception:
-            _delete_quietly(storage, key)  # the row failed: do not leave an orphan behind
-            raise
-    logger.info("asset version uploaded: %s v%s", asset.asset_id, number)
+        else:
+            try:
+                version = AssetVersion.objects.create(
+                    version_id=version_id,
+                    asset=asset,
+                    number=number,
+                    status=VersionStatus.VALIDATED,
+                    storage_key=key,
+                    original_filename=(original_filename or "")[:255],
+                    content_type=content_type,
+                    size_bytes=size,
+                    sha256=sha256,
+                    format=result.format,
+                    clips=result.clips,
+                    dimensions=result.dimensions,
+                    metadata=result.metadata,
+                    validation_report=result.report(),
+                    validated_at=timezone.now(),
+                    uploaded_by=user,
+                )
+            except Exception:
+                _delete_quietly(storage, key)  # the row failed: do not leave an orphan behind
+                raise
+    logger.info(
+        "asset version uploaded%s: %s v%s", " as draft" if deferred else "", asset.asset_id, number
+    )
+    return version
+
+
+def _create_draft_and_submit(
+    storage,
+    key: str,
+    *,
+    asset: ContentAsset,
+    version_id: uuid.UUID,
+    number: int,
+    original_filename: str,
+    content_type: str,
+    size: int,
+    sha256: str,
+    result: ValidationResult,
+    user,
+) -> AssetVersion:
+    """The asynchronous half of `upload_version`, run in its transaction after the object is
+    stored: the `DRAFT` row and its model validation job (job, attempt 1, outbox row) commit
+    together or not at all. Any failure deletes the just-stored object and re-raises; a refused
+    submission becomes `AssetActionRefused("processing_unavailable")`."""
+    from apps.jobs.processing import ProcessingJobsError
+
+    try:
+        version = AssetVersion.objects.create(
+            version_id=version_id,
+            asset=asset,
+            number=number,
+            status=VersionStatus.DRAFT,
+            storage_key=key,
+            original_filename=(original_filename or "")[:255],
+            content_type=content_type,
+            size_bytes=size,
+            sha256=sha256,
+            format=result.format,
+            clips=result.clips,
+            dimensions=result.dimensions,
+            metadata=result.metadata,
+            validation_report=result.report(),
+            validated_at=None,
+            uploaded_by=user,
+        )
+        submit_model_validation(version, user=user)
+    except ProcessingJobsError as error:
+        _delete_quietly(storage, key)
+        logger.warning(
+            "asset upload processing refused: %s v%s %s", asset.asset_id, number, error.code
+        )
+        raise AssetActionRefused(
+            "processing_unavailable",
+            "Background validation is not available right now, so the file was not stored. "
+            "Try again later.",
+        ) from None
+    except Exception:
+        _delete_quietly(storage, key)  # the row or the job failed: do not leave an orphan
+        raise
     return version
 
 

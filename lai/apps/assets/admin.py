@@ -197,10 +197,16 @@ class AssetVersionAdmin(admin.ModelAdmin):
                         version.notes = form.cleaned_data["notes"]
                         version.save(update_fields=["notes"])
                     self.log_addition(request, version, [{"added": {}}])
+                    if version.status == services.VersionStatus.DRAFT:
+                        state = (
+                            "It is stored as a draft and is being validated in the background. "
+                            "It can be published once validation passes."
+                        )
+                    else:
+                        state = "It is validated and not yet published."
                     self.message_user(
                         request,
-                        f"Uploaded {version.asset.asset_id} version {version.number}. It is "
-                        "validated and not yet published.",
+                        f"Uploaded {version.asset.asset_id} version {version.number}. {state}",
                         messages.SUCCESS,
                     )
                     return redirect(reverse("admin:assets_assetversion_change", args=[version.pk]))
