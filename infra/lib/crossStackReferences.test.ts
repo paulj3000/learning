@@ -219,8 +219,22 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
       stacks,
       /"Type":"AWS::Logs::MetricFilter","Properties":\{[^}]*?"LogGroupName":"([^"]+)"/g,
     );
-    expect(filtered).toEqual(new Set([`/lai/${envName}/django`]));
-    for (const name of filtered) expect(logGroups, name).toContain(name);
+    // By name across stacks: only the Guardrail stack's filters on the Django group. A reference
+    // (`{LogicalId}`) is to a group in the same stack: the dev platform's processing filters on
+    // its own /lai/dev/jobs (LAI-LAMBDA-006).
+    const byName = [...filtered].filter((name) => !name.startsWith('{'));
+    const byRef = [...filtered].filter((name) => name.startsWith('{'));
+    expect(new Set(byName)).toEqual(new Set([`/lai/${envName}/django`]));
+    for (const name of byName) expect(logGroups, name).toContain(name);
+    if (envName === 'dev') {
+      const platform = stacks.find((stack) => stack.name === platformStack(envName))!.template;
+      const groups = platform.findResources('AWS::Logs::LogGroup');
+      expect(byRef).toHaveLength(1);
+      const group = groups[byRef[0].slice(1, -1)];
+      expect(group?.Properties?.LogGroupName).toBe('/lai/dev/jobs');
+    } else {
+      expect(byRef).toEqual([]);
+    }
     const alarmed = referenced(stacks, /arn:aws:sns:us-west-1:123456789012:([a-z0-9-]+)/g);
     expect(alarmed).toContain(`lai-django-alarms-${envName}`);
     for (const name of alarmed) expect(topics, name).toContain(name);
