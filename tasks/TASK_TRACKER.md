@@ -1026,7 +1026,8 @@ defined or deployed by any task until its approvals (ADR-061, A1 to A10) are giv
 ## Wave 1: foundation
 
 - [x] **LAI-LAMBDA-001** Shared processing library and job contracts (depends: none; ADR-061). DONE
-      (development) 2026-11-16 on `feature/serverless-processing`, owner review pending; not merged.
+      (development) 2026-11-16 on `feature/serverless-processing`, PR #40 merge-ready (checks
+      fixed 2026-11-17) but not merged: the owner must merge it.
       Versioned contracts (request, result, artifact, completion event, profile, limits) with
       strict decoding, fixtures and JSON Schemas; error and retry taxonomy; idempotency keys,
       lifecycle (`decide_completion`) and bounded retry policy; processor interface, explicit
@@ -1037,10 +1038,10 @@ defined or deployed by any task until its approvals (ADR-061, A1 to A10) are giv
 
 ## Wave 2: parallel workstreams (each depends on LAI-LAMBDA-001)
 
-- [ ] **LAI-LAMBDA-002** GLB validator and metadata extractor (processor `asset.validate_model`; parity with `lai/apps/assets/validation.py`). READY once 001 is accepted
-- [ ] **LAI-LAMBDA-003** Local worker, filesystem/S3/SQS adapters, Lambda handler packaging (separate adapters package; core stays boto3-free). READY once 001 is accepted; Lambda packaging choice needs approval A4
-- [ ] **LAI-LAMBDA-004** Django `ProcessingJob` app: models, migrations, outbox, completion consumer, Django Admin status (depends also: Asset Library contracts). READY once 001 is accepted; the Django image must vendor `processing/`
-- [ ] **LAI-LAMBDA-005** AWS infrastructure: `LaiProcessing-<env>` CDK stack, SQS work/completion queues and DLQs, Lambda, IAM, alarms. Code and synth tests READY once 001 is accepted; BLOCKED for any deploy on approvals A1 to A9
+- [x] **LAI-LAMBDA-002** GLB validator and metadata extractor (processor `asset.glb_validator`, job type `asset.validate_model`; parity with `lai/apps/assets/validation.py`). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; owner review pending, not merged
+- [x] **LAI-LAMBDA-003** Local worker, filesystem/S3/SQS adapters, Lambda handler packaging (separate adapters package; core stays boto3-free). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2` (ECR image per A4); owner review pending, nothing pushed to ECR
+- [x] **LAI-LAMBDA-004** Django `ProcessingJob` app: models, migrations, outbox, completion consumer, Django Admin status (extends `apps.jobs`, ADR-062 proposed). DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; owner review pending, no live migration
+- [x] **LAI-LAMBDA-005** AWS infrastructure: `LaiProcessing-<env>` CDK stack, SQS work/completion queues and DLQs, Lambda, IAM, alarms. Code and synth tests DONE (development) 2026-11-17 on `feature/serverless-processing-wave2`; NOT deployed; any deploy BLOCKED on the deploy role (B4), GitHub environments (B5) and explicit owner approval
 
 ## Waves 3 to 5
 
