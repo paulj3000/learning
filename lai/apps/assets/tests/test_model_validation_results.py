@@ -356,11 +356,6 @@ def test_a_key_mismatch_with_the_job_row_changes_nothing(aws):
 
 
 @pytest.mark.parametrize("status", ["failed", "cancelled"])
-@pytest.mark.xfail(
-    strict=True,
-    reason="defect: result_mismatch never checks the contract result's own status, so a "
-    "failed/cancelled ProcessingJobResult inside a schema-1 succeeded envelope rejects the draft",
-)
 def test_a_result_whose_contract_status_is_not_succeeded_changes_nothing(aws, status):
     version = stored_version(valid_model())
     job = submitted(version)
@@ -550,11 +545,6 @@ def test_submission_is_idempotent_per_version_and_retries_after_a_failure(aws):
     assert submit_model_validation(version, user=None).pk == retry.pk  # completed: reused
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="defect: submit_model_validation reuses a COMPLETED job whose result was refused "
-    "(a *_mismatch or result_invalid outcome), so the draft can never be validated again",
-)
 def test_a_refused_result_does_not_block_a_new_submission(aws):
     version = stored_version(valid_model())
     job = submitted(version)

@@ -80,9 +80,11 @@ class DemoS3:
 class DemoSQS:
     def __init__(self):
         self.sent: list[tuple[str, str]] = []
+        self.history: list[str] = []
 
     def send_message(self, QueueUrl, MessageBody, **kwargs):  # noqa: N803
         self.sent.append((QueueUrl, MessageBody))
+        self.history.append(QueueUrl.rsplit("/", 1)[-1])
         return {"MessageId": f"m{len(self.sent)}"}
 
     def take(self, url):
@@ -239,6 +241,10 @@ except services.AssetActionRefused as refused:
 step("10. what never happened")
 print(
     json.dumps(
-        {"published_by_a_job": False, "aws_calls": 0, "queues": sorted({q for q, _ in sqs.sent})}
+        {
+            "published_by_a_job": False,
+            "aws_calls": 0,
+            "messages_by_queue": {q: sqs.history.count(q) for q in sorted(set(sqs.history))},
+        }
     )
 )

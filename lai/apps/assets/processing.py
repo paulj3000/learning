@@ -37,6 +37,8 @@ SUBJECT_TYPE = "asset_version"
 JOB_SUBJECT = "assets.assetversion"
 #: Formats asynchronous validation applies to (the GLB validator reads the GLB container only).
 ASYNC_FORMATS = frozenset({"glb"})
+#: Handler outcomes of a result that was accepted for its version (a resubmission returns the job).
+APPLIED_OUTCOMES = frozenset({"version_validated", "version_rejected", "result_recorded"})
 #: A request expires (the worker refuses it) after this long.
 REQUEST_TTL = timedelta(hours=72)
 
@@ -148,10 +150,17 @@ def submit_model_validation(version, *, user):
 
     job_id = str(uuid.uuid4())
     payload = model_validation_request(version, job_id=job_id)
+    from django.db.models import Q
+
+    # Reused: a job still waiting or running, or one whose result was applied. A failed job, or a
+    # completed one whose result was refused (a mismatch or an invalid result), may be retried.
     existing = (
         validation_jobs(version)
         .filter(idempotency_key=payload["idempotency_key"])
-        .exclude(status=JobStatus.FAILED)
+        .filter(
+            Q(status__in=[JobStatus.PENDING, JobStatus.RUNNING])
+            | Q(status=JobStatus.COMPLETED, subject_outcome__in=APPLIED_OUTCOMES)
+        )
         .first()
     )
     if existing is not None:
@@ -183,13 +192,17 @@ def result_mismatch(job) -> str | None:
     """None when `job.result` is a valid ADR-061 result of exactly the request in `job.payload`
     (job, attempt, key, type, namespace, profile, verified input), else a reason code."""
     from lai_processing.contracts.jobs import ProcessingJobRequest
-    from lai_processing.contracts.results import ProcessingJobResult
+    from lai_processing.contracts.results import ProcessingJobResult, ResultStatus
     from lai_processing.core.errors import ProcessingError
 
     try:
         request = ProcessingJobRequest.from_dict(job.payload)
         result = ProcessingJobResult.from_dict(job.result)
     except (ProcessingError, KeyError, TypeError, ValueError):
+        return "result_invalid"
+    # A completed job carries a successful contract result with a verdict; anything else inside
+    # a "succeeded" envelope is not a validation of the file.
+    if result.status is not ResultStatus.SUCCEEDED or result.verdict is None:
         return "result_invalid"
     if request.job_id != str(job.pk) or result.job_id != str(job.pk):
         return "job_mismatch"
