@@ -1012,7 +1012,33 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       records it holds, so Amplify-run adventure completions reach the quest when they are synced
       (SC-R04-06 / the Amplify to Django sync). Owner acceptance: play the Tale and each secret-door
       chapter and watch the page return in both card and 3D. Browser: none run
-- [ ] **SC-R04-05 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
-      provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
-      retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
-      SC-11 gate)
+- [x] **SC-R04-05** The Painted Words (depends: SC-R04-04). DONE (development), not owner accepted.
+      Branch `feature/storykeeper-castle-completion`, commits `091d763c` and `6ad0225f`. A Pathfinder
+      phonemic-awareness mission in the Illustration Studio (rhyme gallery, beginning-sound hunt, syllable
+      workshop, restoration) writing `STUDIO_PAGE_MENDED` and restoring `page-painted-words`, required for
+      Pathfinders only. Approved word bank with rime, onset and syllable facts proven by tests
+      (`paintedWordsBank.ts`); two approved word sets so a replay shows fresh words (`the-painted-words`,
+      `the-painted-words-again`, same page and record, idempotent); existing step types only, no timers,
+      no free text, wrong answers loop. Lives at `storykeeper-castle` (the content export and the manifest
+      validator require a real location); the one-adventure-per-band invariants skip
+      `PREFERRED_ONLY_ADVENTURES`. Studio wall zone `castle-painted-wall` plus first-play and replay
+      interactions. **Phaser note**: a 2D zone mirror was added only because `storykeeperCastleZones.test.ts`
+      requires one per APPROACH interaction (a shim, no new 2D feature; removal waits on ADR-020 and
+      LAI-2303). Tests: **Django 40 passed** (4 Storybook files, run on commit `32afe8b6`); **Vitest 35
+      files, 438 passed** (adventures, great-storybook, catalog, worlds) and the previously failing
+      island-map files pass on re-run; `content:check` and `golden:check` clean. Not run: browser,
+      Playwright, end-to-end. Owner acceptance: play the mission on the Studio wall in both word sets.
+- [x] **SC-R04-06** Storybook progression (depends: SC-R04-05). DONE (development), not owner accepted.
+      Commit `32afe8b6`. `great-storybook/pageStates.ts`: derived page state (undiscovered, discovered, in
+      progress, restored), the adventure each page links to (with Painted Words replay selection), and
+      retired content set aside without ever removing an earned page. 10 unit tests.
+- [x] **SC-R04-07** Storybook completion and polish (depends: SC-R04-06). DONE (development), not owner
+      accepted. Commit `32afe8b6`. `useGreatStorybook` reports loading, offline (with retry) and local;
+      `StorybookSection` shows page-state words, a celebration status region (animation only when motion is
+      allowed), and empty and offline states. Not here: page-turn animation in the 3D book and sound cues
+      (SC-R06). **Open**: Pathfinders who finished the book before SC-R04-05 now read `complete: false`;
+      the versioned completion milestone is designed in `docs/regions/prep/storybook_integrity_prep.md`
+      and tracked as a follow-up. The generic world-change POST can forge a page record (same audit).
+- [ ] **SC-R05 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
+      Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
+      ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
