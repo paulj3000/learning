@@ -1243,6 +1243,800 @@
       "ageBands": [
         "PATHFINDER"
       ],
+      "entryStepId": "paint-room-intro",
+      "locationSlug": "castle-painted-words",
+      "slug": "the-painted-words",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The words ran into the paintings. Help them find their way home."
+          },
+          "id": "paint-room-intro",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "When the Great Storybook tore, one page landed in the Illustration Studio, and its words ran off into the paintings. Each picture still remembers its sound. Can you help the words find their way home?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "rhyme-cat",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "cat and hat sound the same at the end."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say cat out loud. Which word sounds like it at the end?",
+              "Listen to the end of each word: hat, dog, sun.",
+              "cat ends with at. Which one ends with at too?",
+              "cat and hat both end with at.",
+              "The answer is hat."
+            ]
+          },
+          "id": "rhyme-cat",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-hat",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-hat",
+                "label": "hat"
+              },
+              {
+                "id": "opt-dog",
+                "label": "dog"
+              },
+              {
+                "id": "opt-sun",
+                "label": "sun"
+              }
+            ],
+            "prompt": "Which word rhymes with cat?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "rhyme-moon",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "rhyme-cat",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "moon and spoon sound the same at the end."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say moon out loud. Which word sounds like it at the end?",
+              "Listen to the end of each word: star, spoon, tree.",
+              "moon ends with oon. Which one ends with oon too?",
+              "moon and spoon both end with oon.",
+              "The answer is spoon."
+            ]
+          },
+          "id": "rhyme-moon",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-spoon",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-star",
+                "label": "star"
+              },
+              {
+                "id": "opt-spoon",
+                "label": "spoon"
+              },
+              {
+                "id": "opt-tree",
+                "label": "tree"
+              }
+            ],
+            "prompt": "Which word rhymes with moon?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "first-sound-ball",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "rhyme-moon",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "ball and bat start with the same sound."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say ball slowly. What sound do you hear first?",
+              "Listen to the start of each word: cup, fish, bat.",
+              "ball and one of these start with the very same sound.",
+              "ball and bat start with the same sound.",
+              "The answer is bat."
+            ]
+          },
+          "id": "first-sound-ball",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-bat",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-cup",
+                "label": "cup"
+              },
+              {
+                "id": "opt-fish",
+                "label": "fish"
+              },
+              {
+                "id": "opt-bat",
+                "label": "bat"
+              }
+            ],
+            "prompt": "Which one starts with the same sound as ball?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "first-sound-sun",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "first-sound-ball",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "sun and sock start with the same sound."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say sun slowly. What sound do you hear first?",
+              "Listen to the start of each word: pig, sock, lamp.",
+              "sun and one of these start with the very same sound.",
+              "sun and sock start with the same sound.",
+              "The answer is sock."
+            ]
+          },
+          "id": "first-sound-sun",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-sock",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-pig",
+                "label": "pig"
+              },
+              {
+                "id": "opt-sock",
+                "label": "sock"
+              },
+              {
+                "id": "opt-lamp",
+                "label": "lamp"
+              }
+            ],
+            "prompt": "Which one starts with the same sound as sun?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "rhyme-odd-one-out",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "first-sound-sun",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "cake is the word that does not rhyme."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say each word out loud. Listen to how each one ends.",
+              "Three of these words end with og.",
+              "log, frog, dog all end the same way.",
+              "cake does not end like the others.",
+              "The answer is cake."
+            ]
+          },
+          "id": "rhyme-odd-one-out",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-cake",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-log",
+                "label": "log"
+              },
+              {
+                "id": "opt-frog",
+                "label": "frog"
+              },
+              {
+                "id": "opt-cake",
+                "label": "cake"
+              },
+              {
+                "id": "opt-dog",
+                "label": "dog"
+              }
+            ],
+            "prompt": "Three of these rhyme. Which one does not?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "clap-apple",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "rhyme-odd-one-out",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "apple has 2 claps."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say apple slowly and clap each part.",
+              "Put your hand under your chin. Each part makes your chin dip.",
+              "Try it in pieces: ap, ple.",
+              "apple has 2 parts: ap-ple.",
+              "The answer is 2."
+            ]
+          },
+          "id": "clap-apple",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctValue": 2,
+            "kind": "number-input",
+            "prompt": "Clap the parts in apple. How many claps?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "clap-banana",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "clap-apple",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "banana has 3 claps."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say banana slowly and clap each part.",
+              "Put your hand under your chin. Each part makes your chin dip.",
+              "Try it in pieces: ba, na, na.",
+              "banana has 3 parts: ba-na-na.",
+              "The answer is 3."
+            ]
+          },
+          "id": "clap-banana",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctValue": 3,
+            "kind": "number-input",
+            "prompt": "Clap the parts in banana. How many claps?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "favourite-painting",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "clap-banana",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Think of your favourite painting."
+          },
+          "id": "favourite-painting",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "reflection",
+            "prompt": "Look at the words you brought home. Which painting would you like to add to the page?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "page-mended",
+              "when": "always"
+            }
+          ],
+          "type": "REFLECTION"
+        },
+        {
+          "fallback": {
+            "text": "The words are back on the page."
+          },
+          "id": "page-mended",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "STUDIO_PAGE_MENDED",
+              "changeType": "REPAIR",
+              "locationSlug": "castle-painted-words"
+            },
+            "text": "One by one, the words fly out of the paintings and settle back onto the page. The picture is whole again!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "The words are home."
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "The words are home. Let us take this page to the Great Storybook."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Painted Words",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "entryStepId": "paint-room-intro",
+      "locationSlug": "castle-painted-words",
+      "slug": "the-painted-words-again",
+      "steps": [
+        {
+          "fallback": {
+            "text": "The words ran into the paintings. Help them find their way home."
+          },
+          "id": "paint-room-intro",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "narrative",
+            "speaker": "Keeper Quill",
+            "text": "When the Great Storybook tore, one page landed in the Illustration Studio, and its words ran off into the paintings. Each picture still remembers its sound. Can you help the words find their way home?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "rhyme-cake",
+              "when": "always"
+            }
+          ],
+          "type": "NARRATIVE"
+        },
+        {
+          "fallback": {
+            "text": "cake and lake sound the same at the end."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say cake out loud. Which word sounds like it at the end?",
+              "Listen to the end of each word: lake, tree, fish.",
+              "cake ends with ake. Which one ends with ake too?",
+              "cake and lake both end with ake.",
+              "The answer is lake."
+            ]
+          },
+          "id": "rhyme-cake",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-lake",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-lake",
+                "label": "lake"
+              },
+              {
+                "id": "opt-tree",
+                "label": "tree"
+              },
+              {
+                "id": "opt-fish",
+                "label": "fish"
+              }
+            ],
+            "prompt": "Which word rhymes with cake?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "rhyme-bee",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "rhyme-cake",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "bee and tree sound the same at the end."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say bee out loud. Which word sounds like it at the end?",
+              "Listen to the end of each word: sun, tree, cup.",
+              "bee ends with ee. Which one ends with ee too?",
+              "bee and tree both end with ee.",
+              "The answer is tree."
+            ]
+          },
+          "id": "rhyme-bee",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-tree",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-sun",
+                "label": "sun"
+              },
+              {
+                "id": "opt-tree",
+                "label": "tree"
+              },
+              {
+                "id": "opt-cup",
+                "label": "cup"
+              }
+            ],
+            "prompt": "Which word rhymes with bee?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "first-sound-fish",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "rhyme-bee",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "fish and fan start with the same sound."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say fish slowly. What sound do you hear first?",
+              "Listen to the start of each word: bed, cow, fan.",
+              "fish and one of these start with the very same sound.",
+              "fish and fan start with the same sound.",
+              "The answer is fan."
+            ]
+          },
+          "id": "first-sound-fish",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-fan",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-bed",
+                "label": "bed"
+              },
+              {
+                "id": "opt-cow",
+                "label": "cow"
+              },
+              {
+                "id": "opt-fan",
+                "label": "fan"
+              }
+            ],
+            "prompt": "Which one starts with the same sound as fish?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "first-sound-bear",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "first-sound-fish",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "bear and bed start with the same sound."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say bear slowly. What sound do you hear first?",
+              "Listen to the start of each word: sun, bed, fan.",
+              "bear and one of these start with the very same sound.",
+              "bear and bed start with the same sound.",
+              "The answer is bed."
+            ]
+          },
+          "id": "first-sound-bear",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-bed",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-sun",
+                "label": "sun"
+              },
+              {
+                "id": "opt-bed",
+                "label": "bed"
+              },
+              {
+                "id": "opt-fan",
+                "label": "fan"
+              }
+            ],
+            "prompt": "Which one starts with the same sound as bear?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "rhyme-odd-one-out",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "first-sound-bear",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "dog is the word that does not rhyme."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say each word out loud. Listen to how each one ends.",
+              "Three of these words end with ake.",
+              "cake, lake, snake all end the same way.",
+              "dog does not end like the others.",
+              "The answer is dog."
+            ]
+          },
+          "id": "rhyme-odd-one-out",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctOptionId": "opt-dog",
+            "kind": "choice",
+            "options": [
+              {
+                "id": "opt-cake",
+                "label": "cake"
+              },
+              {
+                "id": "opt-lake",
+                "label": "lake"
+              },
+              {
+                "id": "opt-dog",
+                "label": "dog"
+              },
+              {
+                "id": "opt-snake",
+                "label": "snake"
+              }
+            ],
+            "prompt": "Three of these rhyme. Which one does not?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "clap-pig",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "rhyme-odd-one-out",
+              "when": "incorrect"
+            }
+          ],
+          "type": "CHOICE"
+        },
+        {
+          "fallback": {
+            "text": "pig has 1 clap."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say pig slowly and clap each part.",
+              "Put your hand under your chin. Each part makes your chin dip.",
+              "Try it in pieces: pig.",
+              "pig has 1 part: pig.",
+              "The answer is 1."
+            ]
+          },
+          "id": "clap-pig",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctValue": 1,
+            "kind": "number-input",
+            "prompt": "Clap the parts in pig. How many claps?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "clap-butterfly",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "clap-pig",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "butterfly has 3 claps."
+          },
+          "hintPolicy": {
+            "ladder": [
+              "Say butterfly slowly and clap each part.",
+              "Put your hand under your chin. Each part makes your chin dip.",
+              "Try it in pieces: but, ter, fly.",
+              "butterfly has 3 parts: but-ter-fly.",
+              "The answer is 3."
+            ]
+          },
+          "id": "clap-butterfly",
+          "objectiveIds": [
+            "phonemic-awareness"
+          ],
+          "presentation": {
+            "correctValue": 3,
+            "kind": "number-input",
+            "prompt": "Clap the parts in butterfly. How many claps?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "favourite-painting",
+              "when": "correct"
+            },
+            {
+              "nextStepId": "clap-butterfly",
+              "when": "incorrect"
+            }
+          ],
+          "type": "NUMBER_INPUT"
+        },
+        {
+          "fallback": {
+            "text": "Think of your favourite painting."
+          },
+          "id": "favourite-painting",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "reflection",
+            "prompt": "Look at the words you brought home. Which painting would you like to add to the page?"
+          },
+          "transitions": [
+            {
+              "nextStepId": "page-mended",
+              "when": "always"
+            }
+          ],
+          "type": "REFLECTION"
+        },
+        {
+          "fallback": {
+            "text": "The words are back on the page."
+          },
+          "id": "page-mended",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "world-change",
+            "payload": {
+              "changeKey": "STUDIO_PAGE_MENDED",
+              "changeType": "REPAIR",
+              "locationSlug": "castle-painted-words"
+            },
+            "text": "One by one, the words fly out of the paintings and settle back onto the page. The picture is whole again!"
+          },
+          "transitions": [
+            {
+              "nextStepId": "complete",
+              "when": "always"
+            }
+          ],
+          "type": "WORLD_CHANGE"
+        },
+        {
+          "fallback": {
+            "text": "The words are home."
+          },
+          "id": "complete",
+          "objectiveIds": [],
+          "presentation": {
+            "kind": "complete",
+            "text": "The words are home. Let us take this page to the Great Storybook."
+          },
+          "transitions": [],
+          "type": "COMPLETE"
+        }
+      ],
+      "title": "The Painted Words, Again",
+      "version": 1
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
       "entryStepId": "wonder-wall",
       "locationSlug": "wonderwild-forest",
       "slug": "buzz-and-the-waggle-dance",
@@ -5099,6 +5893,11 @@
       "code": "multiplication-facts",
       "domain": "numeracy",
       "title": "Multiplication facts"
+    },
+    {
+      "code": "phonemic-awareness",
+      "domain": "literacy",
+      "title": "Hearing rhymes and the sounds in words"
     }
   ],
   "schemaVersion": 3,

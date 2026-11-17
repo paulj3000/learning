@@ -5,6 +5,7 @@ import { THREE_PLANKS_FOR_THE_BRIDGE } from './threePlanksForTheBridge';
 import { THE_TIDE_GATE_CALCULATION } from './theTideGateCalculation';
 import { THE_STORYKEEPERS_TALE } from './theStorykeepersTale';
 import { QUILLS_PICTURE_STORY } from './quillsPictureStory';
+import { PAINTED_WORDS_ADVENTURES } from './thePaintedWords';
 import { BUZZ_AND_THE_WAGGLE_DANCE } from './buzzAndTheWaggleDance';
 import { EMBER_MOUNTAIN_CHAPTER_ADVENTURES } from './emberMountainChapterAdventures';
 import { DINOSAUR_EXPEDITION_ADVENTURES } from './dinosaurExpeditionAdventures';
@@ -26,6 +27,7 @@ export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   THE_TIDE_GATE_CALCULATION,
   THE_STORYKEEPERS_TALE,
   QUILLS_PICTURE_STORY,
+  ...PAINTED_WORDS_ADVENTURES,
   BUZZ_AND_THE_WAGGLE_DANCE,
   ...EMBER_MOUNTAIN_CHAPTER_ADVENTURES,
   ...DINOSAUR_EXPEDITION_ADVENTURES,
@@ -118,6 +120,8 @@ export function getAdventureTemplatesForLocation(locationSlug: string): Adventur
 }
 
 export * from './learningObjectives';
+export * from './thePaintedWords';
+export * from './paintedWordsBank';
 export * from './wonderWallQuestions';
 export * from './emberMountainChapterAdventures';
 export * from './dinosaurExpeditionAdventures';

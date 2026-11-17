@@ -35,6 +35,12 @@ def test_four_simultaneous_refreshes_complete_the_quest_and_grant_the_seal_once(
         change_type="CREATE",
         change_key="FIRST_STORY_TOLD",
     )
+    record_world_change(
+        child,
+        location_slug="castle-painted-words",
+        change_type="REPAIR",
+        change_key="STUDIO_PAGE_MENDED",
+    )
     progress, _ = services.start_quest(child, Quest.objects.get(slug=SLUG))
 
     def work():

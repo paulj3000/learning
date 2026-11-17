@@ -37,6 +37,8 @@ const FROZEN_INTERACTIONS = [
   'castle-costume-room SHOW_MESSAGE ALWAYS',
   'castle-great-library SHOW_MESSAGE ALWAYS',
   'castle-illustration-studio SHOW_MESSAGE ALWAYS',
+  'castle-painted-words START_ADVENTURE ABSENT:STUDIO_PAGE_MENDED',
+  'castle-painted-words-again START_ADVENTURE PRESENT:STUDIO_PAGE_MENDED',
   'castle-harbor-exit NAVIGATE ALWAYS',
   'castle-tapestry-stair DISCOVER ALWAYS',
   'castle-secret-door START_STORY ABSENT:THE_CASTLES_SECRET_DOOR_COMPLETE',

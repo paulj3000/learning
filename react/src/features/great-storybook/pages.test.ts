@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AgeBandValue } from '../child-profile/constants';
-import { getAdventureTemplate } from '../adventures/content';
+import { PAINTED_WORDS_ADVENTURES, getAdventureTemplate } from '../adventures/content';
 import type { AdventureDefinition } from '../adventures/engine/types';
 import { findIslandDiscovery } from '../discovery/content';
 import { CASTLE_ROOM_IDS } from '../island-map/three/castleLayout';
@@ -41,6 +41,9 @@ function worldChangesForBand(band: AgeBandValue): Set<string> {
   const written = new Set<string>();
   const tale = taleAdventureForBand(band);
   if (tale) writtenBy(tale).forEach((key) => written.add(key));
+  if (band === 'PATHFINDER') {
+    for (const mission of PAINTED_WORDS_ADVENTURES) writtenBy(mission).forEach((key) => written.add(key));
+  }
   if (isSecretDoorStoryForBand(band)) {
     for (const chapter of THE_CASTLES_SECRET_DOOR.chapters) {
       for (const scene of chapter.scenes) {
@@ -159,12 +162,15 @@ describe('storybookProgress', () => {
       complete: true,
     });
     const withBonus = storybookProgress(
-      { worldChangeKeys: ['FIRST_STORY_TOLD'], discoveryIds: ['castle-tapestry-stair'] },
+      {
+        worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'],
+        discoveryIds: ['castle-tapestry-stair'],
+      },
       'PATHFINDER',
     );
     expect(withBonus).toMatchObject({
-      restoredRequired: 1,
-      totalRequired: 1,
+      restoredRequired: 2,
+      totalRequired: 2,
       restoredBonus: 1,
       complete: true,
     });
@@ -220,12 +226,14 @@ describe('what a child is shown, and merging the server', () => {
     const merged = withRestored(local, new Set(['page-tapestry']));
     expect(merged.entries.map((e) => [e.page.id, e.restored])).toEqual([
       ['page-first-story', true],
+      ['page-painted-words', false],
       ['page-tapestry', true],
     ]);
-    expect(merged.complete).toBe(true);
+    expect(merged.complete).toBe(false);
+    expect(withRestored(merged, new Set(['page-painted-words'])).complete).toBe(true);
     const serverOnly = withRestored(
       storybookProgress(NOTHING, 'PATHFINDER'),
-      new Set(['page-first-story']),
+      new Set(['page-first-story', 'page-painted-words']),
     );
     expect(serverOnly.complete).toBe(true);
   });
@@ -244,6 +252,13 @@ describe('what a child is shown, and merging the server', () => {
       'PATHFINDER',
     );
     expect(newlyRestored(before, after).map((p) => p.id)).toEqual(['page-first-story']);
+    const mended = storybookProgress(
+      { worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], discoveryIds: [] },
+      'PATHFINDER',
+    );
+    expect(newlyRestored(restoredIds(after), mended).map((p) => p.id)).toEqual([
+      'page-painted-words',
+    ]);
     expect(newlyRestored(restoredIds(after), after)).toEqual([]);
   });
 });

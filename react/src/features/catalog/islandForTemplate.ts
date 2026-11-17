@@ -21,6 +21,8 @@ export const STORY_ARC_ISLANDS: Readonly<Record<string, string>> = {
   'robot-repair-reef': 'bolts-workshop',
   // The Castle's Secret Door is also entered from Storykeeper Castle (ADR-027).
   'castle-secret-passage': 'storykeeper-castle',
+  // The Painted Words is the Illustration Studio's mission (SC-R04-05).
+  'castle-painted-words': 'storykeeper-castle',
   // The Butterfly Garden is the Adventure Library's nature arc.
   'butterfly-garden': 'wonderwild-forest',
 };

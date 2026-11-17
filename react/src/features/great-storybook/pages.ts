@@ -60,6 +60,20 @@ export const STORYBOOK_PAGES: readonly StorybookPage[] = [
     restoredText: 'The story you told has flown back into the book.',
   },
   {
+    id: 'page-painted-words',
+    title: 'The Painted Words',
+    bands: ['PATHFINDER'],
+    required: true,
+    source: {
+      kind: 'WORLD_CHANGE',
+      changeKey: 'STUDIO_PAGE_MENDED',
+      locationSlug: 'castle-painted-words',
+    },
+    roomId: 'illustration-studio',
+    hint: 'A page ran into the paintings in the Illustration Studio.',
+    restoredText: 'The painted words found their way home, and this page is back in the book.',
+  },
+  {
     id: 'page-three-clues',
     title: 'Three Clues',
     bands: ['EXPLORER'],

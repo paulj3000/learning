@@ -147,11 +147,11 @@ describe('the quest completes exactly when the book is whole', () => {
     const start = startQuest(definition, '2026-11-03T00:00:00Z');
     const early = advanceQuest(definition, start, context([], [], true));
     expect(early.worldChanges).toEqual([]);
-    const done = advanceQuest(definition, start, context(['FIRST_STORY_TOLD'], [], true));
+    const done = advanceQuest(definition, start, context(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], [], true));
     expect(done.state.status).toBe('COMPLETED');
     expect(done.worldChanges.map((c) => c.changeKey)).toEqual(['GREAT_STORYBOOK_RESTORED']);
     // A finished quest does not complete again.
-    const again = advanceQuest(definition, done.state, context(['FIRST_STORY_TOLD'], [], true));
+    const again = advanceQuest(definition, done.state, context(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], [], true));
     expect(again.changed).toBe(false);
     expect(again.worldChanges).toEqual([]);
   });

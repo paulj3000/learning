@@ -849,6 +849,8 @@ export const ZONES: readonly RectZone[] = [
   { id: 'tower-window-cave', minX: 6.3, maxX: 8.2, minZ: 5.4, maxZ: 6.6 },
 
   { id: 'castle-illustration-studio', minX: 6.5, maxX: 8.5, minZ: 0, maxZ: 2 },
+  // The painted wall (SC-R04-05): walk-up spot before the east wall's drawings, clear of the easel zone and the paint table.
+  { id: 'castle-painted-wall', minX: 8.7, maxX: 9.5, minZ: -0.9, maxZ: 0.9 },
   { id: 'castle-great-library', minX: 5.5, maxX: 8, minZ: -7, maxZ: -5 },
   { id: 'castle-last-bookshelf', minX: 11.8, maxX: 13.4, minZ: -9.2, maxZ: -7.8 },
 

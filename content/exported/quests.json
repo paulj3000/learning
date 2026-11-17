@@ -460,6 +460,12 @@
               "label": "Bring back the page called \"The First Story\""
             },
             {
+              "changeKey": "STUDIO_PAGE_MENDED",
+              "id": "storybook-page-painted-words",
+              "kind": "BUILD",
+              "label": "Bring back the page called \"The Painted Words\""
+            },
+            {
               "discoveryKey": "castle-tapestry-stair",
               "id": "storybook-page-tapestry",
               "kind": "DISCOVER",

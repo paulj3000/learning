@@ -1,5 +1,5 @@
 {
-  "contentDigest": "434363904778cd2939d2e9b0ee1158b048e6b061e93b0618e7f8c9e90e63b818",
+  "contentDigest": "acf348916a80a7b901f2386841b83c800230bea8ee6435ac19f4c6e16e9c4449",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -10,7 +10,7 @@
         "islands": 2
       },
       "path": "islands.json",
-      "sha256": "e713618bdec5b875c50ee572390b26fd2579dee0a71c55e4cfb3e086aca5695a"
+      "sha256": "9628265d52c3fbcf0db279dcc0134b086f6fade17179c91ff5db330b3eadfafb"
     },
     {
       "counts": {
@@ -21,12 +21,12 @@
     },
     {
       "counts": {
-        "adventures": 24,
-        "learningObjectives": 19,
+        "adventures": 26,
+        "learningObjectives": 20,
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "3401d680016b41699f1d42e477496e40c74bcd242ef39f9c1d9befdcdf11aec1"
+      "sha256": "10b52da660825e25b4e5ffedba131b5f9218fee49b4a1da9f72468bed5d1d06d"
     },
     {
       "counts": {
@@ -40,7 +40,7 @@
         "quests": 12
       },
       "path": "quests.json",
-      "sha256": "74866b4b6a2d5694b52a815a1344009923d8611e10c3fd7791beb995197db4c6"
+      "sha256": "59931c58f04b0a6230ac7403963b69c81b76287ae41e9a870883d21f1ece84e0"
     },
     {
       "counts": {
@@ -71,7 +71,7 @@
         "interactions": 8
       },
       "path": "interactions.json",
-      "sha256": "c07277883bacc1b50c17e5a6d681ebc1dc3aafc800e695b9a075a11fbdc7315d"
+      "sha256": "85c478c1ffbba9f82d54aec747895d2b8b783a69b8f07b3b287e32dbd55a2438"
     },
     {
       "counts": {
@@ -97,6 +97,7 @@
       "detail": "These adventure locationSlug values have no IslandLocation. The source comments call them story-only pseudo-locations for story-arc challenges. They are exported as written; no location record was invented.",
       "ids": [
         "butterfly-garden",
+        "castle-painted-words",
         "castle-secret-passage",
         "ember-mountain",
         "fossil-ridge",

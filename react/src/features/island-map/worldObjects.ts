@@ -717,6 +717,43 @@ export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
       message: 'An easel with a blank page waits, ready for pictures once your story is told.',
     },
   },
+  /**
+   * "The Painted Words" (SC-R04-05): a Pathfinder mission on the Illustration
+   * Studio's painted wall. Two interactions share one zone with complementary
+   * requirements, as the story hall does: the first play uses the first
+   * approved word set, and once the page is mended the same spot offers the
+   * second set, so a replay shows fresh words. Age gating is the adventure's
+   * own (`resolveAdventureForAgeBand`); Sprouts and Explorers keep the wall as
+   * scenery. The replay writes the same world change, which is idempotent.
+   */
+  {
+    id: 'castle-painted-words',
+    type: 'ADVENTURE',
+    trigger: 'APPROACH',
+    title: 'The painted words',
+    targetId: 'castle-painted-words',
+    requirements: [{ type: 'WORLD_CHANGE_ABSENT', changeKey: 'STUDIO_PAGE_MENDED' }],
+    action: {
+      kind: 'START_ADVENTURE',
+      locationSlug: 'storykeeper-castle',
+      templateSlug: 'the-painted-words',
+    },
+    zoneId: 'castle-painted-wall',
+  },
+  {
+    id: 'castle-painted-words-again',
+    type: 'ADVENTURE',
+    trigger: 'APPROACH',
+    title: 'The painted words, again',
+    targetId: 'castle-painted-words',
+    requirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'STUDIO_PAGE_MENDED' }],
+    action: {
+      kind: 'START_ADVENTURE',
+      locationSlug: 'storykeeper-castle',
+      templateSlug: 'the-painted-words-again',
+    },
+    zoneId: 'castle-painted-wall',
+  },
   {
     id: 'castle-harbor-exit',
     type: 'LOCATION',

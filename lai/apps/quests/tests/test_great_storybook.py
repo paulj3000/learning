@@ -48,6 +48,12 @@ def write(child, key, location="storykeeper-castle"):
     record_world_change(child, location_slug=location, change_type="CREATE", change_key=key)
 
 
+def write_pathfinder_pages(child):
+    """Both required Pathfinder pages: the first story, and the Painted Words (SC-R04-05)."""
+    write(child, "FIRST_STORY_TOLD")
+    write(child, "STUDIO_PAGE_MENDED", location="castle-painted-words")
+
+
 def refresh(child, slug):
     """Accept the quest, walk it against the child's real records, grant what completion owes."""
     quest = Quest.objects.get(slug=slug)
@@ -72,7 +78,7 @@ def seals(child) -> int:
 def test_three_quests_are_imported_one_per_band_with_their_own_pages(treasure):
     expected = {
         SPROUTS: ("SPROUT", {"FIRST_STORY_TOLD"}),
-        PATHFINDERS: ("PATHFINDER", {"FIRST_STORY_TOLD"}),
+        PATHFINDERS: ("PATHFINDER", {"FIRST_STORY_TOLD", "STUDIO_PAGE_MENDED"}),
         EXPLORERS: (
             "EXPLORER",
             {
@@ -128,17 +134,38 @@ def test_a_pathfinder_restores_the_book_by_telling_the_first_story(treasure):
     update, _ = refresh(child, PATHFINDERS)
     assert update.progress.current_stage_id == "bring-back-the-pages"
 
-    write(child, "FIRST_STORY_TOLD")
+    write_pathfinder_pages(child)
     update, rewards = refresh(child, PATHFINDERS)
     assert update.progress.status == QuestStatus.COMPLETED and update.result.just_completed
     assert restored(child) == 1 and seals(child) == 1
     assert [r.grant.granted for r in rewards] == [True]
 
 
-def test_replaying_a_finished_quest_changes_and_grants_nothing(treasure):
+def test_a_pathfinder_needs_the_painted_words_page_as_well_as_the_first_story(treasure):
     child = band(treasure.families.a1, "PATHFINDER")
     meet_quill(child)
     write(child, "FIRST_STORY_TOLD")
+    update, rewards = refresh(child, PATHFINDERS)
+    assert update.progress.status == QuestStatus.ACTIVE and not rewards
+    # Only the page's own world change restores it: the first story alone is not enough.
+    write(child, "SOME_OTHER_STUDIO_RECORD", location="castle-painted-words")
+    update, _ = refresh(child, PATHFINDERS)
+    assert update.progress.status == QuestStatus.ACTIVE
+    write(child, "STUDIO_PAGE_MENDED", location="castle-painted-words")
+    update, rewards = refresh(child, PATHFINDERS)
+    assert update.progress.status == QuestStatus.COMPLETED and seals(child) == 1
+
+
+def test_a_sprout_is_never_asked_for_the_painted_words_page(treasure):
+    quest = Quest.objects.get(slug=SPROUTS)
+    keys = {o["changeKey"] for st in quest.source["stages"] for o in st["objectives"] if o["kind"] == "BUILD"}
+    assert "STUDIO_PAGE_MENDED" not in keys
+
+
+def test_replaying_a_finished_quest_changes_and_grants_nothing(treasure):
+    child = band(treasure.families.a1, "PATHFINDER")
+    meet_quill(child)
+    write_pathfinder_pages(child)
     refresh(child, PATHFINDERS)
     again, rewards = refresh(child, PATHFINDERS)
     assert not again.result.changed and not again.result.just_completed and not rewards
@@ -182,7 +209,7 @@ def test_the_hidden_page_counts_when_found_but_never_when_missing(treasure):
     child = band(treasure.families.a1, "PATHFINDER")
     meet_quill(child)
     discoveries.record_discovery(child, NOOK)  # the server's own record, SC-R04-00
-    write(child, "FIRST_STORY_TOLD")
+    write_pathfinder_pages(child)
     update, _ = refresh(child, PATHFINDERS)
     assert update.progress.status == QuestStatus.COMPLETED
     assert "storybook-page-tapestry" in update.progress.completed_objective_ids

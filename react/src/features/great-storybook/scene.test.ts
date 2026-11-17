@@ -24,7 +24,7 @@ describe('toSceneState', () => {
     expect(
       toSceneState(storybookProgress({ worldChangeKeys: [], discoveryIds: [] }, 'PATHFINDER')),
     ).toEqual({
-      required: [false],
+      required: [false, false],
       bonusFound: false,
       complete: false,
     });
@@ -41,6 +41,10 @@ describe('toSceneState', () => {
     expect(
       toSceneState(storybookProgress({ worldChangeKeys: [], discoveryIds: [] }, 'SPROUT')).required,
     ).toHaveLength(1);
+    expect(
+      toSceneState(storybookProgress({ worldChangeKeys: [], discoveryIds: [] }, 'PATHFINDER'))
+        .required,
+    ).toHaveLength(2);
   });
 
   it('reports the bonus page and a whole book separately: the bonus never makes it whole', () => {

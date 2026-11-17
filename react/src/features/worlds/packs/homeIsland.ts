@@ -30,6 +30,8 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'the-tide-gate-calculation',
     'the-storykeepers-tale',
     'quills-picture-story',
+    'the-painted-words',
+    'the-painted-words-again',
     'buzz-and-the-waggle-dance',
     'dragon-chapter-1-broken-path',
     'dragon-chapter-2-whispering-forest',

@@ -648,6 +648,44 @@
         },
         {
           "action": {
+            "kind": "START_ADVENTURE",
+            "locationSlug": "storykeeper-castle",
+            "templateSlug": "the-painted-words"
+          },
+          "id": "castle-painted-words",
+          "requirements": [
+            {
+              "changeKey": "STUDIO_PAGE_MENDED",
+              "type": "WORLD_CHANGE_ABSENT"
+            }
+          ],
+          "targetId": "castle-painted-words",
+          "title": "The painted words",
+          "trigger": "APPROACH",
+          "type": "ADVENTURE",
+          "zoneId": "castle-painted-wall"
+        },
+        {
+          "action": {
+            "kind": "START_ADVENTURE",
+            "locationSlug": "storykeeper-castle",
+            "templateSlug": "the-painted-words-again"
+          },
+          "id": "castle-painted-words-again",
+          "requirements": [
+            {
+              "changeKey": "STUDIO_PAGE_MENDED",
+              "type": "WORLD_CHANGE_PRESENT"
+            }
+          ],
+          "targetId": "castle-painted-words",
+          "title": "The painted words, again",
+          "trigger": "APPROACH",
+          "type": "ADVENTURE",
+          "zoneId": "castle-painted-wall"
+        },
+        {
+          "action": {
             "kind": "NAVIGATE",
             "to": "world"
           },
