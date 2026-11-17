@@ -142,7 +142,7 @@ def test_valid_requests() -> None:
 
 
 def test_is_expired_boundary() -> None:
-    request = reference_request()
+    request = reference_request(expires_at=SUBMITTED + timedelta(days=1))
     assert request.expires_at is not None
     assert not request.is_expired(request.expires_at - timedelta(microseconds=1))
     assert request.is_expired(request.expires_at)
