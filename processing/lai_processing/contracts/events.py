@@ -1,14 +1,16 @@
 """`CompletionEvent`: the message a worker sends to the completion queue.
 
+Library-only; not used on the canonical path (ADR-064).
+
 The event carries the result inline when it fits the message limit, and otherwise a reference
 to the result stored as an artifact (`artifact_type == "report.job_result"`). Either way it
 carries `result_sha256`, the SHA-256 of the result's canonical JSON, so the consumer can check
 that the result it reads is the one the worker emitted.
 
 The event is not trusted on its own. Django accepts it only when the job, attempt, idempotency
-key, namespace and input checksum match its own record (docs/processing/LIFECYCLE.md). Queue
-permissions (only the worker role may send) are the transport-level control (Wave 2,
-LAI-LAMBDA-005).
+key, namespace and input checksum match its own record (docs/processing/CONTRACTS.md, section
+5.2; docs/processing/CANONICAL_PATH.md). Queue permissions (only the worker role may send) are
+the transport-level control (Wave 2, LAI-LAMBDA-005).
 """
 
 from __future__ import annotations

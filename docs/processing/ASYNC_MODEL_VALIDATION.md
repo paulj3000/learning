@@ -343,11 +343,13 @@ retried. The sweep does not time jobs out while results are queued.
 ```bash
 # Unit and integration tests (no AWS):
 .venv/bin/python -m pytest -q tests/processing tests/lambda/test_jobs_worker_contract.py \
-  tests/lambda/test_jobs_worker_package.py tests/repo/test_canonical_processing_guard.py \
-  lai/apps/jobs/tests/test_contract_kinds.py lai/apps/assets/tests/test_async_upload.py \
+  tests/lambda/test_jobs_worker_package.py tests/lambda/test_jobs_worker_asset_errors.py \
+  tests/repo/test_canonical_processing_guard.py tests/deploy/test_upload_body_limit.py \
+  lai/apps/jobs/tests/test_contract_kinds.py lai/apps/jobs/tests/test_contract_storage_errors.py \
+  lai/apps/jobs/tests/test_migration_rollback.py lai/apps/assets/tests/test_async_upload.py \
   lai/apps/assets/tests/test_model_validation_results.py \
   lai/apps/assets/tests/test_model_validation_canonical.py \
-  lai/apps/assets/tests/test_model_validation_retry.py \
+  lai/apps/assets/tests/test_model_validation_retry.py lai/apps/assets/tests/test_glb_limit.py \
   lai/apps/assets/tests/test_publication_gate.py lai/apps/assets/tests/test_admin_validation.py \
   lai/apps/assets/tests/test_glb_processing_parity.py
 
@@ -395,6 +397,7 @@ the resolver; a broken model `REJECTED`; and a count showing no AWS calls.
   refuses the extra field as `invalid_payload` (a failed inspection job, nothing else), so deploy
   the worker zip before, or with, the Django release that sends it. An old payload still queued
   when the new worker arrives is accepted (64 MiB ceiling).
-- Open owner decisions before live use are listed in `CANONICAL_PATH.md`, "Remaining work and
-  owner decisions" (media role `s3:ListBucket`, artifact writes). The input ceiling is decided:
-  `LAI_ASSET_MAX_GLB_BYTES`, 50 MiB (owner, 2026-11-17).
+- The open owner decision before live use (artifact writes) is listed in `CANONICAL_PATH.md`,
+  "Remaining work and owner decisions". Decided (owner, 2026-11-17) and implemented, not
+  deployed: the media role's scoped `s3:ListBucket` (`ListAssetBucket`) and the input ceiling,
+  `LAI_ASSET_MAX_GLB_BYTES`, 50 MiB.

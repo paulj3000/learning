@@ -2,11 +2,14 @@
 
 Owner decision, 2026-11-17: Django `apps.jobs`, SQS, Lambda and ADR-055 are the one
 background-processing architecture. This page records how the serverless processing pull
-requests were reconciled with it and what remains to re-land.
+requests were reconciled with it and what was re-landed.
 
 ## The path
 
-| Concern | Implementation on `main` |
+The model validation retries and retention, `ListAssetBucket` and `LAI_ASSET_ASYNC_VALIDATION`
+in this table arrive with PR #42 (`feature/serverless-processing-canonical`); the rest is on `main`.
+
+| Concern | Implementation on `main` plus PR #42 |
 |---|---|
 | Job record | `apps.jobs.ProcessingJob` (one table, one admin, one sweep) |
 | Reliable submission | Transactional outbox: committed `PENDING` row, on-commit send under `FOR UPDATE SKIP LOCKED`, `dispatched_at`; `services.relay()` in the consumer re-sends undispatched rows once a minute; 5 failed sends fail the job (`submit_failed`) |
@@ -20,7 +23,7 @@ requests were reconciled with it and what remains to re-land.
 | Retention | `jobs_sweep` deletes completed jobs after `LAI_JOBS_RETENTION_DAYS` (30), completed `asset.validate_model` jobs after `LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90; a job exactly at the limit is kept); pending, running and failed jobs are never deleted. An unpublished GLB whose passing job was pruned needs a new validation; published versions are unaffected (`ASYNC_MODEL_VALIDATION.md` section 10) |
 | Monitoring | One CloudWatch alarm per DLQ; Lambda, jobs and Django log groups; Django Admin job list |
 | IAM | Instance: send to work queues, consume results. Workers: own queue, send results, own S3 prefix; media worker: read asset objects and list the asset bucket (`ListAssetBucket`, "Asset read errors" below); AI worker: US inference profile and Guardrail in the Bedrock Region |
-| Flags | `EnableLambdaProcessing`, `LAI_JOBS_BACKEND`, `LAI_STUDIO_RUN_MODE`, `LAI_DEV_NATIVE_ENABLED`; `LAI_ASSET_ASYNC_VALIDATION` (approved, default off) arrives with the contract kinds |
+| Flags | `EnableLambdaProcessing`, `LAI_JOBS_BACKEND`, `LAI_STUDIO_RUN_MODE`, `LAI_DEV_NATIVE_ENABLED`; `LAI_ASSET_ASYNC_VALIDATION` (implemented, default off) |
 | Infrastructure | `LaiDevPlatform-dev` only; no ECR in dev |
 
 ## Disposition of the pull requests
@@ -39,7 +42,8 @@ branch kept. Ported to `main` now:
 - the outbox relay semantics of `jobs_dispatch`, folded into the existing consumer so no new
   systemd unit is needed.
 
-To re-land on this path (LAI-LAMBDA-002 and 004 stay open until then):
+Re-landed on this path (LAI-LAMBDA-002 and 004, done on `feature/serverless-processing-canonical`;
+see "Re-land status" below):
 
 - the `asset.validate_model` and `reference.checksum` kinds, as `JobKind` values on the media
   queue, with their attempt, receipt and artifact records extending `ProcessingJob` (no second
@@ -71,7 +75,7 @@ not deployed. The flow is described in `ASYNC_MODEL_VALIDATION.md`; the library 
 
 | Item | Source | Where on this branch |
 |---|---|---|
-| `lai_processing` library: contracts, codec, limits, errors, idempotency, lifecycle, retry, registry, execution engine, ports, reference processor, CLI, fakes | PR #40 (LAI-LAMBDA-001) | `processing/lai_processing/` (identical to the wave3 branch), tests in `tests/processing/` |
+| `lai_processing` library: contracts, codec, limits, errors, idempotency, lifecycle, retry, registry, execution engine, ports, reference processor, CLI, fakes | PR #40 (LAI-LAMBDA-001) | `processing/lai_processing/` (re-landed with the Wave 2/3 review fixes, plus a comment in `core/limits.py`), tests in `tests/processing/` |
 | GLB validator (`asset.glb_validator` 1.0.0, profile `glb-default` v1) and its Django parity test | PR #41 (LAI-LAMBDA-002) | `processing/lai_processing/processors/gltf/`, `lai/apps/assets/tests/test_glb_processing_parity.py` |
 | `asset.validate_model` and `reference.checksum` as `apps.jobs` kinds on the media queue | PR #41 (LAI-LAMBDA-004), reshaped | `lai/apps/jobs/core/envelope.py` (`KIND_QUEUE`), `models.py` (`JobKind`, `idempotency_key`, `subject_outcome`), `migrations/0003_contract_kinds.py`, `services.submit(job_id=, idempotency_key=)`, `services.HANDLER_MODULES` |
 | Contract execution inside the schema-1 envelope (ADR-061 request as `payload`, ADR-061 result as `result`) | new on this branch | `lai/apps/jobs/core/contract.py`, `tasks.RUNNERS` |
@@ -101,10 +105,10 @@ package, the processing workflow, the two commands or the two units return in de
 | Item | State |
 |---|---|
 | Owner review and merge of this branch | Pending |
-| Validation retry and retention (owner decisions 2026-11-17) | Implemented on `fix/can-retry-retention`: bounded staff resubmission, superseded results, newest-result gate, 90-day validation job retention (`ASYNC_MODEL_VALIDATION.md` sections 9 and 10). Open: whether failed validation jobs should also expire after 90 days (kept, as for every kind), and a compact immutable evidence record (not implemented) |
+| Validation retry and retention (owner decisions 2026-11-17) | Implemented; `fix/can-retry-retention` merged into this branch: bounded staff resubmission, superseded results, newest-result gate, 90-day validation job retention (`ASYNC_MODEL_VALIDATION.md` sections 9 and 10). Open: whether failed validation jobs should also expire after 90 days (kept, as for every kind), and a compact immutable evidence record (not implemented) |
 | Live AWS acceptance (LAI-LAMBDA-011): deploy Django and the worker zip, run a flag-on upload, a failure and a DLQ redrive in dev | Open; every deploy needs owner approval |
 | Media worker IAM and missing assets | Done in the repository (owner decision 2026-11-17), not deployed: `ListAssetBucket` on the media role and the error classification below. Live 404 verification stays in LAI-LAMBDA-011 |
-| GLB input limit (owner decision 2026-11-17): `LAI_ASSET_MAX_GLB_BYTES`, default 52,428,800 bytes (50 MiB), bounds 1,048,576 (1 MiB) to 52,428,800 (`LAI_ASSET_GLB_CEILING_BYTES`, the `glb-default` profile's `max_input_bytes`, below the 64 MiB `asset.inspect` hard ceiling); effective value min of it and `LAI_ASSET_MAX_UPLOAD_BYTES`. Applied to the Admin upload (`too_large` before hashing or storing), the `asset.validate_model` request (`max_input_bytes = min(profile, setting)`; a larger version is refused with `resource_limit_exceeded` before any job exists) and `asset.inspect` (`max_bytes` in the payload; Django refuses with `object_too_large` before submitting and the worker before reading; a payload without the field keeps 64 MiB). nginx `client_max_body_size 55m` covers it | Done on `fix/can-glb-limit`; deploy the worker zip before or with Django (an old worker refuses `max_bytes` as `invalid_payload`) |
+| GLB input limit (owner decision 2026-11-17): `LAI_ASSET_MAX_GLB_BYTES`, default 52,428,800 bytes (50 MiB), bounds 1,048,576 (1 MiB) to 52,428,800 (`LAI_ASSET_GLB_CEILING_BYTES`, the `glb-default` profile's `max_input_bytes`, below the 64 MiB `asset.inspect` hard ceiling); effective value min of it and `LAI_ASSET_MAX_UPLOAD_BYTES`. Applied to the Admin upload (`too_large` before hashing or storing), the `asset.validate_model` request (`max_input_bytes = min(profile, setting)`; a larger version is refused with `resource_limit_exceeded` before any job exists) and `asset.inspect` (`max_bytes` in the payload; Django refuses with `object_too_large` before submitting and the worker before reading; a payload without the field keeps 64 MiB). nginx `client_max_body_size 55m` covers it | Done; `fix/can-glb-limit` merged into this branch, not deployed; deploy the worker zip before or with Django (an old worker refuses `max_bytes` as `invalid_payload`) |
 | Artifact writes (for example `write_report: true`) | Not supported on this path: the worker's storage port is read-only for the `assets` store, so the engine classifies a write as `permission_denied`. Needs its own design before any kind writes artifacts |
 | Wave 4 workloads (LAI-LAMBDA-008, 009, 010, 013) | Not started; see `WAVE4_HANDOFF.md` |
 
