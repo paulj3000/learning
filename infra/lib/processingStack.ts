@@ -470,7 +470,7 @@ export class ProcessingStack extends Stack {
         LAI_PROCESSING_BUCKET: this.bucket.bucketName,
         LAI_ASSET_BUCKET: `lai-assets-${env}-${account}-${region}`,
         LAI_PROCESSING_COMPLETION_QUEUE_URL: this.completionQueue.queueUrl,
-        LAI_PROCESSING_CLEANUP_MARGIN_SECONDS: '30',
+        LAI_PROCESSING_CLEANUP_MARGIN_SECONDS: '60',
         LAI_PROCESSING_LOG_LEVEL: 'INFO',
       };
       const fn = new lambda.CfnFunction(this, 'Worker', {
