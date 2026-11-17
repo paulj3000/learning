@@ -475,3 +475,19 @@ def test_missing_asset_object_fails(worker, fakes, make_runtime, context):
         make_runtime("media"),
     )
     assert fakes.sqs.sent[-1]["Body"]["error"]["code"] == "object_missing"
+
+
+@pytest.mark.parametrize(("slack", "code"), [(0, None), (-1, "object_too_large")])
+def test_asset_inspection_honours_the_payload_limit(
+    worker, fakes, make_runtime, context, slack, code
+):
+    """Django sends `max_bytes` (LAI_ASSET_MAX_GLB_BYTES) for a GLB; the packaged worker refuses
+    an object above it before reading it. A payload without the field keeps the 64 MiB ceiling."""
+    fakes.s3.objects[(ASSET_BUCKET, ASSET_KEY)] = tiny_glb()
+    payload = {"storage_key": ASSET_KEY, "format": "glb", "max_bytes": len(tiny_glb()) + slack}
+    worker.handler.process(work(worker, "asset.inspect", payload), context, make_runtime("media"))
+    body = fakes.sqs.sent[-1]["Body"]
+    if code is None:
+        assert body["status"] == "succeeded" and body["result"]["size_bytes"] == len(tiny_glb())
+    else:
+        assert body["error"] == {"code": code, "retryable": False}

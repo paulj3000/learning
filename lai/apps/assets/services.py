@@ -89,13 +89,17 @@ def upload_version(asset: ContentAsset, upload: IO[bytes], *, original_filename:
     and nothing needs cleaning up. A storage or database failure, or a refused job submission,
     leaves no row, no job and no object.
     """
-    sha256, size = sha256_of(upload)
-    result = validate_upload(upload, size=size, definition=asset)
+    # Validate before hashing: an oversized file (above the model or GLB limit) is refused from
+    # its size and header alone, before the whole upload is read.
+    upload.seek(0, 2)
+    result = validate_upload(upload, size=upload.tell(), definition=asset)
+    upload.seek(0)
     if not result.passed:
         logger.info("asset upload rejected: %s %s", asset.asset_id, _codes(result))
         raise AssetActionRefused(
             "invalid_file", "The file did not pass validation.", result.findings
         )
+    sha256, size = sha256_of(upload)
 
     deferred = async_validation_applies(result.format)
     storage = get_storage()

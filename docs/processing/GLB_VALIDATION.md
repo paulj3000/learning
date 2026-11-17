@@ -73,8 +73,9 @@ because the platform ceilings do not name processor counters. Exceeding a comple
 | `max_extensions` (each list) | 64 | (none) |
 | `max_vertices`, `max_triangles` (whole model) | 10,000,000 | (none) |
 
-The input size is bounded by `max_input_bytes` (50 MiB, `DEFAULT_LIMITS`, equal to the default
-`LAI_ASSET_MAX_UPLOAD_BYTES` of 52,428,800 bytes). A request for a larger input is refused with
+The input size is bounded by `max_input_bytes` (50 MiB = 52,428,800 bytes, `DEFAULT_LIMITS`; Django's
+request carries min(this, `LAI_ASSET_MAX_GLB_BYTES`), whose ceiling it is, `docs/ASSET_LIBRARY.md`
+section 13). A request for a larger input is refused with
 `resource_limit_exceeded` when it is built, so on the canonical path Django refuses it before any
 job exists; the engine checks the size again before the processor runs. Django's request also
 lowers `max_execution_seconds` to 90 (inside the 120 s media function timeout).

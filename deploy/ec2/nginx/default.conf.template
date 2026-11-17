@@ -33,8 +33,9 @@ upstream lai_django {
 }
 
 # Shared by every server: limits sized for gunicorn and the asset upload cap.
-# Asset uploads are capped at 50 MB by Django (LAI_ASSET_MAX_UPLOAD_BYTES); allow the form
-# overhead, refuse anything larger before it reaches gunicorn.
+# Asset uploads are capped by Django at 50 MiB = 52,428,800 bytes (LAI_ASSET_MAX_UPLOAD_BYTES; GLB
+# models LAI_ASSET_MAX_GLB_BYTES, never above 50 MiB). 55m is 55 MiB = 57,671,680 bytes: the file
+# plus 5 MiB of multipart overhead; anything larger is refused before it reaches gunicorn.
 client_max_body_size 55m;
 client_body_timeout 60s;
 proxy_read_timeout 35s; # gunicorn's own timeout is 30 s

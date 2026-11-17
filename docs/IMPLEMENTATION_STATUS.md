@@ -95,8 +95,14 @@ entries live on those branches and are superseded by ADR-064 and this entry.
   served the version; a failing model became `REJECTED` (`invalid_json`); zero AWS calls.
 - **Not verified (live only, LAI-LAMBDA-011):** a deployed upload, worker run, DLQ redrive and
   outage drill. **Owner decisions open:** `s3:ListBucket` for the media role (a missing asset
-  key is retried into the DLQ instead of failing as `input_missing`), the 50 MiB input ceiling
-  versus the 64 MiB `asset.inspect` ceiling, artifact writes on this path.
+  key is retried into the DLQ instead of failing as `input_missing`), artifact writes on this path.
+- **GLB input limit decided (owner, 2026-11-17; branch `fix/can-glb-limit`, not merged):**
+  `LAI_ASSET_MAX_GLB_BYTES`, default 50 MiB = 52,428,800 bytes, bounds 1 MiB to 50 MiB (the
+  `glb-default` profile limit), applied to the Admin upload, the `asset.validate_model` request
+  and the `asset.inspect` payload (`max_bytes`, enforced by the worker; old payloads keep 64 MiB).
+  nginx `client_max_body_size 55m` already covers 50 MiB plus overhead. Tests:
+  `lai/apps/assets/tests/test_glb_limit.py`, `tests/deploy/test_upload_body_limit.py`, one worker
+  test in `tests/lambda/test_jobs_worker_handler.py`. Deploy the worker zip before or with Django.
 
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 

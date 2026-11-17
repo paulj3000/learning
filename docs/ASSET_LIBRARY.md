@@ -97,7 +97,8 @@ The type comes from the file's content (GLB magic or a glTF JSON document), neve
 One service, used by upload, import and publish. Reads at most the configured limits, never
 executes anything, never follows a URI. Each finding is `{code, severity, message, path}`;
 any `error` means `REJECTED`. Checks: identity (id pattern, definition active), format by
-signature, size (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MB; JSON chunk 16 MB), GLB header,
+signature, size (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MiB = 52,428,800 bytes, and for a GLB
+`LAI_ASSET_MAX_GLB_BYTES`, section 13; JSON chunk 16 MB), GLB header,
 length and chunk layout, glTF `asset.version == "2.0"`, buffer, buffer-view and accessor
 bounds, embedded-only resources with allowed image types, supported extensions only, mesh,
 node and accessor count limits, a default scene with geometry, animation names (unique, from
@@ -258,7 +259,8 @@ live AWS call: `infra/lib/assetStorageStack.test.ts` asserts on the synthesized 
 | `LAI_ASSET_BUCKET`, `LAI_ASSET_REGION` | none | Required for `s3`; never hard-coded |
 | `LAI_ASSET_DELIVERY` | `django` | `django` or `s3` |
 | `LAI_ASSET_URL_TTL_SECONDS` | 3600 | Delivery URL lifetime (60 to 43200) |
-| `LAI_ASSET_MAX_UPLOAD_BYTES` | 52428800 | Upload limit (also the largest file the admin preview shows) |
+| `LAI_ASSET_MAX_UPLOAD_BYTES` | 52428800 (50 MiB) | Model upload limit, `.glb` and `.gltf` (also the largest model the admin preview shows) |
+| `LAI_ASSET_MAX_GLB_BYTES` | 52428800 (50 MiB) | GLB processing and inspection limit, 1,048,576 (1 MiB) to 52,428,800 (50 MiB); anything else refuses to start. See below |
 
 Production (`config.settings.production`) refuses to start unless `LAI_ASSET_STORAGE=s3` and both
 `LAI_ASSET_BUCKET` and `LAI_ASSET_REGION` are set, so a container can never fall back to its own
@@ -266,6 +268,44 @@ disk. The key prefix (`assets/models/`) is fixed in code and in the IAM policy, 
 React build needs nothing new: `VITE_BACKEND=django` (and `VITE_DJANGO_API_BASE` only for a
 non-same-origin API) are the whole client configuration; no bucket name, key or credential ever
 reaches Vite.
+
+**GLB limit (owner decision 2026-11-17).** `LAI_ASSET_MAX_GLB_BYTES` is one number for every GLB
+step: the Admin upload of a `.glb`, the `asset.validate_model` request's `limits.max_input_bytes`
+(min of the `glb-default` profile and the setting) and the `asset.inspect` payload's `max_bytes`,
+which the media worker enforces. The effective limit is min(`LAI_ASSET_MAX_GLB_BYTES`,
+`LAI_ASSET_MAX_UPLOAD_BYTES`) (`apps.assets.validation.max_glb_bytes`), so lowering the model
+upload limit still lowers it. Bounds, checked in settings with `ImproperlyConfigured`: a whole
+number of bytes, at least 1 MiB, at most `LAI_ASSET_GLB_CEILING_BYTES` (50 MiB, a constant, not an
+environment variable). The ceiling is the GLB validator profile's own input limit (`glb-default`
+v1, 50 MiB), which is below the 64 MiB `asset.inspect` hard ceiling: a larger GLB could be
+uploaded but never validated in the background, so raising the ceiling needs a new profile version
+first. `.gltf`, images and audio are unaffected (they keep `LAI_ASSET_MAX_UPLOAD_BYTES`,
+`LAI_ASSET_MAX_IMAGE_BYTES` and `LAI_ASSET_MAX_AUDIO_BYTES`).
+
+- *Upload.* A GLB above the limit is refused from its size and 12-byte header, before it is
+  hashed or stored, with the `too_large` finding ("The file is N bytes; the limit for GLB models
+  is M bytes."), as `invalid_file`; nothing is stored, no version or job is created. The upload
+  page lists the GLB limit beside the others.
+- *Validate in background.* A GLB above the limit gets no job: the request is refused with
+  `resource_limit_exceeded` before anything is written, and the action says the file is larger
+  than the limit. The version is unchanged.
+- *Inspect in background.* A GLB above the limit gets no job (`object_too_large`), and the action
+  goes on with the other selected versions. A worker refuses an object above the payload's
+  `max_bytes` with `object_too_large`; a payload without `max_bytes` (sent before this change, or
+  for another format) keeps the 64 MiB ceiling.
+- *Already published GLBs above a (lowered) limit* are not invalidated: they stay `PUBLISHED`,
+  resolve and are delivered as before (delivery and the resolver do not read the GLB limit).
+  Revalidating one is refused with `resource_limit_exceeded` and inspecting one with
+  `object_too_large`, with no job and no change. Publishing a `VALIDATED` GLB re-runs the upload
+  checks on the stored file, so one above the current limit is rejected (`too_large`) at publish,
+  exactly as a lowered `LAI_ASSET_MAX_UPLOAD_BYTES` always did. With the default of 50 MiB no
+  stored GLB can be above the limit, because the model upload limit was already 50 MiB.
+- *nginx.* Both templates (`deploy/native/nginx.conf.template`,
+  `deploy/ec2/nginx/default.conf.template`) set `client_max_body_size 55m` (55 MiB = 57,671,680
+  bytes): the 50 MiB file plus 5 MiB of multipart overhead, so Django, not nginx, refuses an
+  oversized file with a readable message. Django's `DATA_UPLOAD_MAX_MEMORY_SIZE` does not apply
+  to file parts; `FILE_UPLOAD_MAX_MEMORY_SIZE` (5 MiB) only moves larger uploads to a temporary
+  file. `tests/deploy/test_upload_body_limit.py` checks the templates.
 
 The admin preview (section 17) adds no variable. Its token lifetime is the constant
 `apps.assets.preview.PREVIEW_TTL_SECONDS` (600 seconds).
@@ -678,7 +718,7 @@ A definition's `kind` decides the family of file it accepts. The family is read 
 
 | Kind | Family | Accepted formats | Limit (setting) |
 |---|---|---|---|
-| `character`, `prop`, `collectible`, `kit-piece` | 3D model | `.glb`; `.gltf` only if self-contained (every buffer and texture embedded as a `data:` URI) | 50 MB (`LAI_ASSET_MAX_UPLOAD_BYTES`) |
+| `character`, `prop`, `collectible`, `kit-piece` | 3D model | `.glb`; `.gltf` only if self-contained (every buffer and texture embedded as a `data:` URI) | 50 MiB (`LAI_ASSET_MAX_UPLOAD_BYTES`; a `.glb` also `LAI_ASSET_MAX_GLB_BYTES`, section 13) |
 | `texture`, `image`, `sprite` | Image | PNG, JPEG, WebP | 10 MB (`LAI_ASSET_MAX_IMAGE_BYTES`), 4096 px a side, 16 M pixels |
 | `audio` | Audio | MP3 (Layer III), WAV (PCM or float, 8 to 32 bit), Ogg (Vorbis or Opus) | 20 MB (`LAI_ASSET_MAX_AUDIO_BYTES`), mono or stereo, 8 to 96 kHz, 15 minutes |
 

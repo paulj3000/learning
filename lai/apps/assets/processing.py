@@ -91,7 +91,10 @@ def current_processor() -> tuple[str, str]:
 
 
 def model_validation_request(version, *, job_id: str) -> dict:
-    """The ADR-061 request for `version` as a dict (no database writes)."""
+    """The ADR-061 request for `version` as a dict (no database writes).
+
+    `limits.max_input_bytes` is min(profile, `max_glb_bytes()`): a file above it is refused here
+    with `ProcessingError(resource_limit_exceeded)`, before any job exists."""
     from lai_processing.contracts.common import (
         AssetContext,
         InputObject,
@@ -101,6 +104,8 @@ def model_validation_request(version, *, job_id: str) -> dict:
     )
     from lai_processing.contracts.jobs import ProcessingJobRequest
     from lai_processing.core.idempotency import idempotency_key
+
+    from .validation import max_glb_bytes
 
     space = namespace()
     subject = SubjectRef(subject_type=SUBJECT_TYPE, subject_id=str(version.version_id))
@@ -144,6 +149,7 @@ def model_validation_request(version, *, job_id: str) -> dict:
         options=options,
         limits=dataclasses.replace(
             profile.limits,
+            max_input_bytes=min(profile.limits.max_input_bytes, max_glb_bytes()),
             max_execution_seconds=min(profile.limits.max_execution_seconds, MAX_EXECUTION_SECONDS),
         ),
     )

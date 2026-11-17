@@ -218,7 +218,31 @@ LAI_ASSET_REGION = os.environ.get("LAI_ASSET_REGION", "").strip()
 LAI_ASSET_LOCAL_ROOT = BASE_DIR / ".asset-storage"
 LAI_ASSET_DELIVERY = os.environ.get("LAI_ASSET_DELIVERY", "django").strip()
 LAI_ASSET_URL_TTL_SECONDS = int(os.environ.get("LAI_ASSET_URL_TTL_SECONDS", "3600"))
-LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))  # 50 MB
+# 50 MiB = 52,428,800 bytes. The upload limit for 3D models (.glb and .gltf); images and audio
+# have their own (LAI_ASSET_MAX_IMAGE_BYTES, LAI_ASSET_MAX_AUDIO_BYTES).
+LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))
+# GLB processing and inspection limit (owner decision 2026-11-17; docs/ASSET_LIBRARY.md section
+# 13): one number for the Admin upload of a .glb, the `asset.validate_model` request's
+# `max_input_bytes` and the `asset.inspect` payload's `max_bytes`. Default 50 MiB = 52,428,800
+# bytes. Bounds: at least 1 MiB, at most LAI_ASSET_GLB_CEILING_BYTES. The effective limit is
+# min(LAI_ASSET_MAX_GLB_BYTES, LAI_ASSET_MAX_UPLOAD_BYTES), so lowering the model upload limit
+# still lowers it (apps.assets.validation.max_glb_bytes).
+# The ceiling is the GLB validator profile's own input limit (`glb-default` v1,
+# lai_processing GLB_LIMITS.max_input_bytes, 50 MiB), which is below the 64 MiB `asset.inspect`
+# hard ceiling (apps.jobs.core.tasks.MAX_ASSET_BYTES). A larger GLB could be uploaded but never
+# validated in the background, so raising it needs a new profile version first. Not configurable;
+# lai/apps/assets/tests/test_glb_limit.py keeps it equal to the profile.
+LAI_ASSET_GLB_CEILING_BYTES = 50 * 1024 * 1024
+_glb_bytes_raw = os.environ.get("LAI_ASSET_MAX_GLB_BYTES", "52428800").strip()
+try:
+    LAI_ASSET_MAX_GLB_BYTES = int(_glb_bytes_raw)
+except ValueError:
+    raise ImproperlyConfigured("LAI_ASSET_MAX_GLB_BYTES must be a whole number of bytes.") from None
+if not 1024 * 1024 <= LAI_ASSET_MAX_GLB_BYTES <= LAI_ASSET_GLB_CEILING_BYTES:
+    raise ImproperlyConfigured(
+        "LAI_ASSET_MAX_GLB_BYTES must be between 1048576 (1 MiB) and "
+        f"{LAI_ASSET_GLB_CEILING_BYTES} (50 MiB) bytes."
+    )
 if LAI_ASSET_STORAGE not in {"s3", "local", "memory"}:
     raise ImproperlyConfigured("LAI_ASSET_STORAGE must be s3, local or memory.")
 if LAI_ASSET_DELIVERY not in {"django", "s3"}:
