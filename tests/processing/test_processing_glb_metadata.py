@@ -193,6 +193,46 @@ def test_metadata_fits_the_job_limit() -> None:
     assert "metadata_truncated" in [w.code for w in outcome.report.warnings()]
 
 
+def _astral_extension_glb() -> bytes:
+    # 64 extension names of 200 astral characters: about 120 KB per list under ensure_ascii.
+    names = [f"X{i:02d}" + "\U0001f600" * 199 for i in range(64)]
+    document = {
+        "asset": {"version": "2.0", "generator": "\U0001f600" * 300},
+        "extensionsUsed": names,
+        "extensionsRequired": names,
+    }
+    return glb(json.dumps(document).encode(), None)
+
+
+def test_extension_lists_and_generator_are_dropped_to_fit() -> None:
+    outcome = validate(_astral_extension_glb())
+    meta = build_metadata(outcome, 64 * 1024)
+    assert len(canonical_json(meta)) <= 64 * 1024
+    assert set(meta) == TOP_LEVEL_KEYS
+    assert meta["lists_truncated"] is True
+    assert meta["extensions_used"] == meta["extensions_required"] == []
+    assert meta["unsupported_extensions"] == []
+    assert meta["generator"] is None
+    assert "metadata_truncated" in [w.code for w in outcome.report.warnings()]
+
+
+def test_minimal_fallback_when_even_the_trimmed_object_does_not_fit() -> None:
+    outcome = validate(static_glb())
+    full = build_metadata(outcome, 64 * 1024)
+    trimmed = build_metadata(validate(static_glb()), len(canonical_json(full)) - 1)
+    assert trimmed["bounds"] is not None  # emptying the lists was enough here
+    limit = len(canonical_json(trimmed)) - 1
+    meta = build_metadata(validate(static_glb()), limit)
+    assert len(canonical_json(meta)) <= limit
+    assert set(meta) == TOP_LEVEL_KEYS
+    assert meta["lists_truncated"] is True
+    assert meta["counts"] == full["counts"]
+    assert meta["vertex_count"] == full["vertex_count"]
+    assert meta["triangle_count"] == full["triangle_count"]
+    assert meta["bounds"] is None
+    assert meta["gltf_version"] == "2.0"
+
+
 def test_metadata_for_an_unreadable_file() -> None:
     meta = metadata(b"not a model at all")
     assert set(meta) == TOP_LEVEL_KEYS

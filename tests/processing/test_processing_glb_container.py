@@ -16,8 +16,11 @@ from glb_builder import (
     warning_codes,
 )
 
-from lai_processing.processors.gltf import GlbSettings
+from lai_processing.processors.gltf import GlbSettings, jsonparse
 from lai_processing.processors.gltf.document import COMPLEXITY_DEFAULTS
+from lai_processing.processors.gltf.jsonparse import scan_structure
+
+MAX_JSON_BYTES = COMPLEXITY_DEFAULTS["max_json_bytes"]
 
 
 def test_valid_static_model_has_no_findings() -> None:
@@ -153,6 +156,111 @@ def test_json_depth_limit() -> None:
 def test_json_nesting_beyond_the_recursion_limit_is_refused_not_crashed() -> None:
     raw = b'{"x": ' + b"[" * 200_000 + b"]" * 200_000 + b"}"
     assert error_codes(glb(raw, None)) == {"invalid_json"}
+
+
+# --- the structural pre-scan (worst-case memory) ----------------------------------------------
+
+
+def _full_chunk(unit: bytes) -> bytes:
+    """A JSON chunk as close to `max_json_bytes` as `unit` repeats allow."""
+    head, tail = b'{"asset": {"version": "2.0"}, "x": [', b"0]}"
+    return head + unit * ((MAX_JSON_BYTES - len(head) - len(tail) - 4) // len(unit)) + tail
+
+
+@pytest.fixture
+def no_parse(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail the test if the JSON parser is ever reached."""
+
+    def refuse(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("json.loads ran on a document the pre-scan must refuse")
+
+    monkeypatch.setattr(jsonparse.json, "loads", refuse)
+
+
+@pytest.mark.parametrize("unit", [b"{},", b"[],", b"1,", b"1.5,", b'"",'])
+@pytest.mark.usefixtures("no_parse")
+def test_a_full_chunk_of_tiny_values_is_refused_before_parsing(unit: bytes) -> None:
+    # 16 MiB of `[{},{},...]` once peaked at 870 MB in the 512 MB media function.
+    raw = _full_chunk(unit)
+    assert len(raw) > MAX_JSON_BYTES - 16
+    outcome = validate(glb(raw, None))
+    assert outcome.report.codes() == ["too_complex"]
+    assert outcome.report.findings()[0].path == "json"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b'{"x": ' + b"[" * 65 + b"]" * 65 + b"}",
+        b'{"x": ' + b"[" * 200_000 + b"]" * 200_000 + b"}",
+        b'{"x": "never closed}',
+        b'{"x": "escaped quote at the end\\"}',
+    ],
+    ids=["depth_65", "depth_200000", "unterminated", "unterminated_escape"],
+)
+@pytest.mark.usefixtures("no_parse")
+def test_depth_and_unterminated_strings_are_refused_before_parsing(raw: bytes) -> None:
+    assert error_codes(glb(raw, None)) == {"invalid_json"}
+
+
+def test_element_limit_is_exact() -> None:
+    # `{`, `[`, `,` and `:` each count: here 1 + 1 + 1 + (n - 1) commas = n + 2.
+    def doc(n: int) -> bytes:
+        return b'{"x": [' + b",".join(b"0" for _ in range(n)) + b"]}"
+
+    assert scan_structure(doc(8), 64, 10) is None
+    assert scan_structure(doc(9), 64, 10) == "elements"
+    settings = GlbSettings(dict(COMPLEXITY_DEFAULTS, max_json_elements=10))
+    assert "too_complex" not in validate(glb(doc(8), None), settings).report.codes()
+    assert validate(glb(doc(9), None), settings).report.codes() == ["too_complex"]
+
+
+def test_depth_limit_is_exact() -> None:
+    assert scan_structure(b"[[[]]]", 3, 100) is None
+    assert scan_structure(b"[[[[]]]]", 3, 100) == "depth"
+    assert scan_structure(b"[[],[],[]]", 2, 100) is None
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b'{"a": "[[[[[[{{{{,,,,::::"}',
+        b'{"a": "\\"[[[[[[,,,,"}',  # an escaped quote does not end the string
+        b'{"a": "\\\\", "b": 1}',  # an escaped backslash does
+        b'{"[[[[[[": "]]]]]]"}',
+        '{"a": "\\u00e9\\u0022[[[[[[ \u00e9\U0001f600"}'.encode(),  # JSON escapes, UTF-8
+    ],
+)
+def test_brackets_and_separators_inside_strings_do_not_count(raw: bytes) -> None:
+    json.loads(raw)  # each case is valid JSON
+    assert scan_structure(raw, 2, 4) is None
+
+
+def test_scan_counts_match_a_real_parse() -> None:
+    raw = b'{"a": [1, {"b": "x,y"}, [2, 3]], "c": {"d": null}}'
+    json.loads(raw)
+    # Containers 5, commas 4, colons 4: 13 elements; depth 3.
+    assert scan_structure(raw, 3, 13) is None
+    assert scan_structure(raw, 3, 12) == "elements"
+    assert scan_structure(raw, 2, 13) == "depth"
+
+
+def test_junk_without_elements_stops_at_the_token_bound() -> None:
+    # 1 million closers or empty strings are not valid JSON; the loop still ends early.
+    assert scan_structure(b"]" * 1_000_000, 64, 1000) == "elements"
+    assert scan_structure(b'""' * 1_000_000, 64, 1000) == "elements"
+
+
+def test_escape_heavy_strings_scan_in_linear_time() -> None:
+    # A backtracking repeat would keep one entry per escape (hundreds of MB here).
+    raw = b'{"a": "' + b'\\"' * 2_000_000 + b'"}'
+    assert scan_structure(raw, 64, 10) is None
+    assert scan_structure(raw[:-2], 64, 10) == "unterminated"
+
+
+def test_a_request_cannot_raise_the_element_limit() -> None:
+    settings = GlbSettings.resolve({"max_json_elements": 10**9})
+    assert settings.limit("max_json_elements") == COMPLEXITY_DEFAULTS["max_json_elements"]
 
 
 def test_lying_chunk_never_reads_beyond_the_file() -> None:

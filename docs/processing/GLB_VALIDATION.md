@@ -48,14 +48,16 @@ Options (unknown options are refused):
 
 Limits: the profile carries `DEFAULT_LIMITS` plus these complexity defaults. A request's
 `limits.complexity` overrides a default, and the processor clamps every value to its own ceiling
-(10 times the default; `max_json_bytes` 64 MiB, `max_json_depth` 128, `max_node_depth` 256),
-because the platform ceilings do not name processor counters. Exceeding a complexity limit is a
+(10 times the default; `max_json_bytes` 64 MiB, `max_json_depth` 128, `max_node_depth` 256;
+`max_json_elements` cannot be raised at all, because it is what keeps parsing inside the media
+function's 512 MB), because the platform ceilings do not name processor counters. Exceeding a complexity limit is a
 `too_complex` finding (verdict `fail`), matching Django.
 
 | Limit | Default | Django `LIMITS` |
 |---|---|---|
 | `max_json_bytes` | 16 MiB | `json_bytes` (same) |
-| `max_json_depth` | 64 | (none; Python's recursion limit) |
+| `max_json_depth` | 64 | `json_depth` (same) |
+| `max_json_elements` (`{`, `[`, `,` and `:` outside strings) | 1,000,000 | `json_elements` (same) |
 | `max_node_depth` | 64 | `depth` (same) |
 | `max_nodes` (also cameras) | 10,000 | `nodes` (same) |
 | `max_meshes` | 2,000 | `meshes` (same) |
@@ -82,7 +84,7 @@ lowers `max_execution_seconds` to 90 (inside the 120 s media function timeout).
 
 ## 3. Checks, in order
 
-Every loop over a document array, and the JSON depth walk, calls `context.check()`, so
+Every loop over a document array, and the JSON structure pre-scan, calls `context.check()`, so
 cancellation and the deadline stop work mid-file. Every array is counted against its limit
 before it is walked. Nothing is allocated from a size a file declares: Python integers do not
 overflow, and every count that feeds a product (`stride * (count - 1)`) is capped by a limit
@@ -93,33 +95,44 @@ first. Vertex data is never decoded.
    length equal to the file size; a JSON chunk first; JSON chunk length within the file and
    `max_json_bytes`; an optional BIN chunk second whose length stays within the file; no bytes
    after the last chunk; 4-byte padding of each chunk (a warning, as in Django).
-2. **JSON** (`jsonparse.py`): strict UTF-8 (no BOM), unique object keys, no `NaN`/`Infinity`
+2. **JSON structure pre-scan** (`jsonparse.scan_structure`, before anything is parsed): one
+   linear pass over the raw bytes that skips strings whole (escaped quotes included, so
+   brackets, commas and colons inside a string never count) and refuses nesting deeper than
+   `max_json_depth` (`invalid_json`), more than `max_json_elements` structural elements
+   (`too_complex`, path `json`) and a string with no closing quote (`invalid_json`). Elements are
+   every `{`, `[`, `,` and `:` outside strings, which bounds the values and keys `json.loads`
+   would allocate. In valid JSON every string follows one of those and every closer matches an
+   opener, so more than `3 * max_json_elements + 1` tokens of any kind is also `too_complex`;
+   that bounds the loop for junk such as 16 MiB of `]` (about 1 s). The regular expression uses
+   possessive quantifiers: an ordinary repeat kept one backtracking entry per escape (16 MiB of
+   `\"` cost 686 MB). See "JSON memory budget" below.
+3. **JSON** (`jsonparse.py`): strict UTF-8 (no BOM), unique object keys, no `NaN`/`Infinity`
    or numbers that overflow to infinity, no integer too large for a float (no glTF value can be
-   one), an object at the top, nesting at most `max_json_depth` (nesting beyond Python's recursion limit is caught and
-   refused, never a crash).
-3. **Asset**: `asset.version == "2.0"`; `asset.minVersion`, when present, `"2.0"`.
-4. **Top-level arrays**: each present one is an array, within its count limit.
-5. **Extensions**: Draco, meshopt and BasisU (`NEEDS_DECODER`) are refused; a required extension
+   one), an object at the top. Nesting is already bounded by the pre-scan, so the parser never
+   reaches Python's recursion limit (a `RecursionError` is still caught and refused).
+4. **Asset**: `asset.version == "2.0"`; `asset.minVersion`, when present, `"2.0"`.
+5. **Top-level arrays**: each present one is an array, within its count limit.
+6. **Extensions**: Draco, meshopt and BasisU (`NEEDS_DECODER`) are refused; a required extension
    outside `SUPPORTED_EXTENSIONS` is refused; an unknown used extension is a warning; entries
    must be non-empty strings.
-6. **Buffers**: `byteLength` a positive integer; a buffer without `uri` must be buffer 0 of a
+7. **Buffers**: `byteLength` a positive integer; a buffer without `uri` must be buffer 0 of a
    GLB with a BIN chunk at least as long (a BIN chunk more than 3 bytes longer warns); a `uri`
    must be a `data:` URI of type `application/octet-stream` or `application/gltf-buffer`,
    valid base64, at least `byteLength` long. Its length is computed from the base64 text; the
    buffer is never decoded. Every other `uri` (`http(s)`, `file:`, `s3:`, relative or traversal
    paths, non-strings) is `external_resource` and is never fetched.
-7. **Buffer views**: buffer index in range; `byteOffset` and `byteLength` whole, length > 0;
+8. **Buffer views**: buffer index in range; `byteOffset` and `byteLength` whole, length > 0;
    `byteOffset + byteLength` within the buffer; `byteStride` 4 to 252 and a multiple of 4;
    `target` 34962 or 34963.
-8. **Accessors**: `count >= 1`, valid `componentType` and `type`; `count <=
+9. **Accessors**: `count >= 1`, valid `componentType` and `type`; `count <=
    max_accessor_count`; `normalized` a boolean and not on float or unsigned-int data; `min`/`max`
    of the type's length and finite; `byteOffset` whole and aligned to the component size (also
    with the view's offset); stride not smaller than the element; `byteOffset + stride * (count -
    1) + elementSize <= view.byteLength` (element size with glTF's column padding for small
    matrices); sparse: `1 <= count <= accessor.count`, index type unsigned, both views in range,
    both data ranges within their views.
-9. **Samplers**: filters and wrap modes from the glTF enums.
-10. **Images**: a `uri` image must be a `data:` URI (else `external_resource`) and not also
+10. **Samplers**: filters and wrap modes from the glTF enums.
+11. **Images**: a `uri` image must be a `data:` URI (else `external_resource`) and not also
     have a `bufferView`; a `bufferView` image needs `mimeType`. PNG and JPEG are accepted (the
     game's loader); WebP and everything else is `image_type`. The leading bytes must match the
     type; dimensions come from the PNG IHDR, the first JPEG start-of-frame (at most 256 segments,
@@ -127,19 +140,19 @@ first. Vertex data is never decoded.
     `max_texture_dimension` is `texture_too_large`; an unreadable header warns. Data-URI images
     decode only a bounded base64 prefix (64 KiB). An image in a buffer view of a data-URI buffer
     is sniffed and measured from a decoded prefix of at most 64 KiB of that view.
-11. **Textures**: `source` and `sampler` in range. **Materials**: texture references
+12. **Textures**: `source` and `sampler` in range. **Materials**: texture references
     (`baseColorTexture`, `metallicRoughnessTexture`, `normalTexture`, `occlusionTexture`,
     `emissiveTexture`) in range with a whole `texCoord`.
-12. **Meshes**: at least one primitive; total primitives within the limit; attributes reference
+13. **Meshes**: at least one primitive; total primitives within the limit; attributes reference
     accessors; `POSITION` required and VEC3 float (or quantized types with
     `KHR_mesh_quantization`); equal attribute counts; indices an unsigned integer scalar
     accessor; `mode` 0 to 6; `material` in range; morph targets reference accessors. Vertex
     count is the sum of `POSITION` counts; triangle count is index (or vertex) count `// 3` for
     mode 4 and `n - 2` for strips and fans (5, 6), 0 for points and lines. Both are limited.
-13. **Nodes**: `mesh`, `skin`, `camera`, `children` in range; finite `matrix` (16),
+14. **Nodes**: `mesh`, `skin`, `camera`, `children` in range; finite `matrix` (16),
     `translation` (3), `rotation` (4), `scale` (3); one parent per node, no self-parenting, no
     cycles (a node no root reaches is in a cycle); hierarchy depth within `max_node_depth`.
-14. **Scenes and bounds**: a default scene (`scene`, default 0) must exist (`no_scene`); scene
+15. **Scenes and bounds**: a default scene (`scene`, default 0) must exist (`no_scene`); scene
     nodes in range, unique (tracked in a set) and parentless; the default scene must contain
     geometry with `POSITION` min/max (`no_geometry`). Bounds equal the 8 corners of each
     reachable primitive's `POSITION` min/max box through the node transforms, as Django computes
@@ -149,9 +162,9 @@ first. Vertex data is never decoded.
     only a rotated instance of a multi-primitive mesh is measured per primitive, and those
     node-primitive pairs are capped at `MAX_BOUNDS_PAIRS` (200,000), beyond which the scene is
     `too_complex`. A non-finite world coordinate (overflowing transforms) is `invalid_node`.
-15. **Skins**: non-empty unique joints in range; total joints within the limit; `skeleton` in
+16. **Skins**: non-empty unique joints in range; total joints within the limit; `skeleton` in
     range; `inverseBindMatrices` a float MAT4 accessor with at least one matrix per joint.
-16. **Animations**: samplers and channels non-empty; sampler `input` a float scalar accessor
+17. **Animations**: samplers and channels non-empty; sampler `input` a float scalar accessor
     with `min`/`max`, non-negative and ordered; `output` in range; interpolation `LINEAR`,
     `STEP` or `CUBICSPLINE`; channel sampler in range; target `path` translation, rotation,
     scale or weights; target `node` in range; output type and count match the keyframes (3 values
@@ -160,6 +173,37 @@ first. Vertex data is never decoded.
     `clip_name`, repeated `duplicate_clip`, outside the clip vocabulary `unknown_clip`
     (warning), an exporter default take such as Mixamo's `Armature|mixamo.com|Layer0`
     `generic_clip_name` (warning). Nothing ever guesses what a clip shows.
+
+### JSON memory budget
+
+`json.loads` costs far more memory than the bytes it parses when a chunk is made of tiny
+values, and the media function has 512 MB. Peak RSS of the whole `validate_glb` for a 16 MiB
+JSON chunk (CPython 3.12.3, `GlbSettings()` defaults, `ru_maxrss`; the review's reproduction
+script, plus shape scripts for the admitted worst cases, each in a fresh process):
+
+| Chunk (16 MiB) | Before (1.0.0 without the pre-scan) | After |
+|---|---|---|
+| `[{},{},...]` | 870 MB (parse alone 451 MB) | 68 MB, `too_complex` before parsing |
+| `[[],[],...]` | 868 MB | 68 MB, `too_complex` |
+| `[1,1,...]` | 740 MB (depth walk about 575 MB) | 67 MB, `too_complex` |
+| `[1.5,1.5,...]` | 548 MB | 68 MB, `too_complex` |
+
+Worst admitted documents, just under the 1,000,000-element bound and padded with one string
+to a full 16 MiB chunk: one object with 500,000 distinct 28-character keys 235 MB; 500,000
+distinct short keys 199 MB; `[{"a0":0},...]` with distinct keys 196 MB; `[[[[]]]],...` 169 MB;
+`[{"a":1},...]` 163 MB; distinct strings 163 MB; floats 138 MB; a single 16 MiB string 100 MB.
+So the worst case stays under about 240 MB, inside the 300 MB target and the 512 MB function.
+At 2,000,000 elements the distinct-key object reached 309 MB, which is why the bound is
+1,000,000 and cannot be raised by a request. Real exporter JSON is far below it: the largest
+model in `content/models` (`npc-pip-pirate.glb`, 3.2 MB) has a 177 KB JSON chunk with 24,477
+elements, about 40 times under the bound. A pre-scan of a full 16 MiB chunk takes about 1 s.
+
+Processor version: still 1.0.0. The pre-scan refuses documents of more than 1,000,000
+elements, so an extreme but valid file (near every count limit at once) could in principle
+change from `pass` to `too_complex`, but 1.0.0 has never run in any environment and no stored
+result carries it, so there is nothing for `processor_outdated` or the idempotency key to tell
+apart. This change is part of the first released 1.0.0; any verdict change after the first
+deployment bumps the version.
 
 ## 4. Findings
 
@@ -178,10 +222,10 @@ file content (clip and extension names), so the processor's messages differ in w
 | `glb_trailing_data` | error | new | Bytes after the last chunk |
 | `glb_padding` | warning | yes | A chunk is not padded to 4 bytes |
 | `json_size` | error | yes | JSON chunk too large or past the end of the file |
-| `invalid_json` | error | yes | Not strict UTF-8 JSON, duplicate keys, NaN, too deep, not an object |
+| `invalid_json` | error | yes | Not strict UTF-8 JSON, duplicate keys, NaN, too deep, an unterminated string, not an object |
 | `gltf_version` | error | yes | `asset.version` is not "2.0" or `minVersion` is newer |
 | `invalid_structure` | error | new | A top-level property that must be an array is not |
-| `too_complex` | error | yes | A complexity limit is exceeded, or too many mesh instances to measure bounds |
+| `too_complex` | error | yes | A complexity limit is exceeded (including more than `max_json_elements` JSON elements, path `json`), or too many mesh instances to measure bounds |
 | `needs_decoder` | error | yes | Draco, meshopt or BasisU |
 | `unsupported_extension` | error | yes | A required extension the game does not support |
 | `unknown_extension` | warning | yes | A used extension the game ignores |
@@ -266,7 +310,13 @@ a Mixamo take):
 Strings copied from the file (`generator`, material, skin and clip names, extension names) are
 stripped of control, format (for example bidirectional overrides), surrogate and private-use
 characters and cut to 200 characters, with the `metadata_text_truncated` warning; a non-string
-becomes `null`. Apart from that, clip names are exact. `clip_vocabulary_matches` is exact,
+becomes `null`. If the encoded object exceeds the job's `max_metadata_bytes` (64 KiB), the
+per-item lists, `clip_vocabulary_matches`, the three extension lists and `generator` are dropped
+(`lists_truncated: true`, warning `metadata_truncated`): 64 extension names of 200 astral
+characters encode to about 120 KB per list, which once made the job fail with
+`resource_limit_exceeded` instead of returning its verdict. If even that does not fit, every
+document value except `counts`, `vertex_count`, `triangle_count` and the versions is emptied
+too, so the job always returns its verdict. Apart from that, clip names are exact. `clip_vocabulary_matches` is exact,
 case-sensitive membership in the clip vocabulary; clips are never classified.
 
 ## 6. What is not validated
@@ -292,7 +342,13 @@ Honest limits of this validator (it does not claim Khronos conformance):
 ## 7. Parity with Django (`lai/apps/assets/validation.py`)
 
 Django's validator is unchanged apart from one fix (`_finite` treats an integer too large for a
-float as not finite instead of raising `OverflowError`). The native release and the Django image
+float as not finite instead of raising `OverflowError`) and the JSON structure pre-scan:
+`_scan_json` mirrors `scan_structure` with the same bounds (`LIMITS["json_depth"]` 64,
+`LIMITS["json_elements"]` 1,000,000), so the synchronous upload path refuses the same
+pathological chunks before `json.loads`, with the same codes. A test runs both scanners over the
+same inputs, and the corpus cases `deep_json`, `json_too_many_elements`,
+`json_unterminated_string` and `json_structure_inside_strings` (no intentional difference)
+cover them end to end. The native release and the Django image
 now ship `processing/lai_processing` beside `lai/`, so switching Django's synchronous checks to
 the shared parser is possible; it remains a separate follow-up. The policy constants
 (`CLIP_VOCABULARY`, `GENERIC_TAKE_NAME`, `SUPPORTED_EXTENSIONS`, `NEEDS_DECODER`, the count
@@ -310,7 +366,6 @@ every case):
 | Bytes after the BIN chunk | pass | `glb_trailing_data` | A structure must end where the file ends |
 | Duplicate JSON keys | last value wins | `invalid_json` | Ambiguous documents are refused |
 | `NaN` / `Infinity` in JSON | accepted | `invalid_json` | Not JSON; non-finite numbers |
-| JSON nested deeper than 64 | accepted up to Python's limit | `invalid_json` | Bounded work |
 | `byteStride` outside 4..252 or not a multiple of 4 | not checked | `invalid_buffer_view` | glTF rule |
 | Texture over `max_texture_dimension` | not checked | `texture_too_large` | Bounded GPU memory |
 | Animation samplers and channels | names only | `invalid_animation` | Broken clips would fail at load |

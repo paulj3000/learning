@@ -125,6 +125,22 @@ entries live on those branches and are superseded by ADR-064 and this entry.
   plus overhead. Tests: `lai/apps/assets/tests/test_glb_limit.py`,
   `tests/deploy/test_upload_body_limit.py`, one worker test in
   `tests/lambda/test_jobs_worker_handler.py`. Deploy the worker zip before or with Django.
+- **GLB validator memory and metadata fixes (review findings, merged into the canonical branch).**
+  A 16 MiB JSON chunk of tiny values peaked at 870 MB (`[{},{},...]`) in the 512 MB media
+  function; a linear, string-aware structural pre-scan now runs before `json.loads` in both the
+  processor (`jsonparse.scan_structure`) and Django's upload validator (`_scan_json`, mirrored,
+  parity-tested): nesting over 64 is `invalid_json`, more than 1,000,000 elements
+  (`max_json_elements`, not raisable by a request) is `too_complex`. Worst admitted 16 MiB chunk
+  measured at 235 MB peak RSS; the old worst cases are refused at 68 MB. The depth walk is gone.
+  Django now also refuses JSON nested deeper than 64 (the `deep_json` parity difference is
+  gone). Oversized extension names no longer fail the job with `resource_limit_exceeded`: the
+  extension lists and `generator` are dropped to fit, with a minimal fallback. Processor stays
+  1.0.0 (never deployed, no stored result). No infra or memory change.
+  `docs/processing/GLB_VALIDATION.md` section 3, "JSON memory budget".
+- **Worker cache lookups (review finding, `fix/can-cache-403` merged).** A 403 on the worker's
+  own stored-result lookup or speech clip HEAD now means "not stored yet" instead of a retry; it
+  kept every job's first delivery out of the DLQ when the plain `s3:prefix` ListBucket grants do
+  not apply. No IAM change; asset inputs keep 403 as `access_denied`. Pre-existing on `main`.
 
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 

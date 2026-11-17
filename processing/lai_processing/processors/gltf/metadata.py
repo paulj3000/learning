@@ -8,8 +8,10 @@ otherwise preserved exactly (e.g. Mixamo's `Armature|mixamo.com|Layer0`) and nev
 `clip_vocabulary_matches` is exact string membership in the clip vocabulary, nothing fuzzier.
 
 Lists are capped at `MAX_LISTED` entries and, if the encoded object still exceeds the job's
-`max_metadata_bytes`, the per-item lists are emptied (`lists_truncated: true`), with a run
-warning either way; counts always stay complete.
+`max_metadata_bytes`, the per-item and extension lists are emptied and the generator dropped
+(`lists_truncated: true`), with a run warning either way. If even that does not fit (a very low
+`max_metadata_bytes`), every document value except the counts is emptied too, so the job always
+returns its verdict instead of failing on the metadata size; counts always stay complete.
 """
 
 from __future__ import annotations
@@ -24,7 +26,22 @@ __all__ = ["MAX_LISTED", "METADATA_VERSION", "build_metadata"]
 
 METADATA_VERSION: Final = 1
 MAX_LISTED: Final = 100
-_LIST_KEYS: Final = ("animations", "images", "material_names", "skins", "clip_vocabulary_matches")
+# Emptied (or, for `generator`, nulled) when the metadata does not fit `max_metadata_bytes`.
+# Extension names are copied from the file: 64 names of 200 astral characters encode to about
+# 120 KB per list under `ensure_ascii`, so they are dropped with the per-item lists.
+_LIST_KEYS: Final = (
+    "animations",
+    "images",
+    "material_names",
+    "skins",
+    "clip_vocabulary_matches",
+    "extensions_required",
+    "extensions_used",
+    "unsupported_extensions",
+)
+# Kept by the last-resort fallback: integers and the fixed "2.0" versions, nothing copied from
+# the file, so the object is small and its size does not depend on the file.
+_MINIMAL_KEYS: Final = ("counts", "gltf_version", "min_version", "triangle_count", "vertex_count")
 
 
 def _round(value: float) -> float:
@@ -137,9 +154,13 @@ def build_metadata(outcome: ValidationOutcome, max_bytes: int) -> dict[str, Any]
     if len(canonical_json(metadata)) > max_bytes:
         for key in _LIST_KEYS:
             metadata[key] = []
+        metadata["generator"] = None
         metadata["lists_truncated"] = True
         report.note(
             "metadata_truncated",
             "The model's per-item metadata lists did not fit in the result and were left out.",
         )
+        if len(canonical_json(metadata)) > max_bytes:
+            # Every key stays present (the contract); only the counts keep their values.
+            metadata.update({k: v for k, v in _empty_document().items() if k not in _MINIMAL_KEYS})
     return dict(sorted(metadata.items()))

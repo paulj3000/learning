@@ -98,7 +98,9 @@ One service, used by upload, import and publish. Reads at most the configured li
 executes anything, never follows a URI. Each finding is `{code, severity, message, path}`;
 any `error` means `REJECTED`. Checks: identity (id pattern, definition active), format by
 signature, size (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MiB = 52,428,800 bytes, and for a GLB
-`LAI_ASSET_MAX_GLB_BYTES`, section 13; JSON chunk 16 MB), GLB header,
+`LAI_ASSET_MAX_GLB_BYTES`, section 13; JSON chunk 16 MB, and before parsing at most 64 levels
+of nesting and 1,000,000 structural elements, `docs/processing/GLB_VALIDATION.md` section 3),
+GLB header,
 length and chunk layout, glTF `asset.version == "2.0"`, buffer, buffer-view and accessor
 bounds, embedded-only resources with allowed image types, supported extensions only, mesh,
 node and accessor count limits, a default scene with geometry, animation names (unique, from

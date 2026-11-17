@@ -160,6 +160,23 @@ def test_profile_limits_carry_the_complexity_defaults() -> None:
 # --- engine end to end ------------------------------------------------------------------------
 
 
+def test_oversized_extension_metadata_still_returns_the_verdict(tmp_path: Path) -> None:
+    # 64 extension names of 200 astral characters once made the metadata 358,520 bytes, over
+    # the 65,536-byte limit, and the job failed with resource_limit_exceeded instead.
+    names = [f"X{i:02d}" + "\U0001f600" * 199 for i in range(64)]
+    document = {
+        "asset": {"version": "2.0", "generator": "\U0001f600" * 300},
+        "extensionsUsed": names,
+        "extensionsRequired": names,
+    }
+    result, _ = run(tmp_path, glb(json.dumps(document).encode(), None))
+    assert result.status is ResultStatus.SUCCEEDED
+    assert result.verdict is Verdict.FAIL
+    assert result.metadata["lists_truncated"] is True
+    assert list(result.metadata["extensions_used"]) == []
+    assert result.metadata["generator"] is None
+
+
 def test_valid_static_model_passes(tmp_path: Path) -> None:
     result, storage = run(tmp_path, static_glb())
     assert result.status is ResultStatus.SUCCEEDED

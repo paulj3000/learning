@@ -3,21 +3,28 @@
 Stricter than `json.loads` defaults (and than Django's `_parse_json`): the bytes must be strict
 UTF-8, object keys must be unique, `NaN`, `Infinity`, numbers that overflow to infinity and
 integers too large for a float (which no glTF value can be, and which `math.isfinite` cannot
-take) are refused, and nesting is bounded by `max_json_depth`. Every refusal is the Asset Library's
-`invalid_json` code. The size is already bounded by the container check.
+take) are refused. The size is already bounded by the container check.
+
+Before `json.loads` runs, `scan_structure` makes one linear, string-aware pass over the raw bytes
+and refuses nesting deeper than `max_json_depth` (`invalid_json`) or more than
+`max_json_elements` structural elements (`too_complex`), so a pathological chunk never reaches
+the parser: parsing millions of tiny values costs far more memory than the chunk itself
+(16 MiB of `[{},{},...]` peaked at 870 MB, `docs/processing/GLB_VALIDATION.md` section 3).
+Every other refusal is the Asset Library's `invalid_json` code.
 """
 
 from __future__ import annotations
 
 import json
 import math
+import re
 import sys
 from collections.abc import Callable
 from typing import Any, Final
 
 from .report import Report, Stop
 
-__all__ = ["parse_document"]
+__all__ = ["parse_document", "scan_structure"]
 
 _CHECK_EVERY: Final = 4096
 _MAX_FLOAT_INT: Final = int(sys.float_info.max)
@@ -56,31 +63,80 @@ def _int(text: str) -> int:
     return value
 
 
-def _depth_exceeds(document: object, max_depth: int, check: Callable[[], None]) -> bool:
-    """Whether any container is nested deeper than `max_depth` (iterative, no recursion)."""
-    stack: list[tuple[object, int]] = [(document, 1)]
-    seen = 0
-    while stack:
-        value, depth = stack.pop()
-        seen += 1
-        if seen % _CHECK_EVERY == 0:
+# One token: a whole JSON string (escapes included, so a quote, bracket or separator inside it
+# never counts), a lone quote (a string with no closing quote), an opening or closing bracket, or
+# a separator. Everything else (numbers, literals, whitespace) is skipped inside the regular
+# expression engine. The quantifiers are possessive: an ordinary repeat keeps a backtracking
+# entry per escape (5 million escapes cost 686 MB), a possessive one keeps none.
+_TOKEN: Final = re.compile(rb'"[^"\\]*+(?:\\.[^"\\]*+)*+"|["\[\]{}:,]', re.DOTALL)
+_QUOTE: Final = ord('"')
+_OPEN: Final = frozenset(b"[{")
+_CLOSE: Final = frozenset(b"]}")
+UNTERMINATED: Final = "unterminated"
+DEPTH_EXCEEDED: Final = "depth"
+ELEMENTS_EXCEEDED: Final = "elements"
+
+
+def scan_structure(
+    raw: bytes, max_depth: int, max_elements: int, check: Callable[[], None] = lambda: None
+) -> str | None:
+    """Which structural bound `raw` breaks, or `None`: `"depth"`, `"elements"`, or
+    `"unterminated"` (a string with no closing quote, so the JSON is invalid).
+
+    One linear pass, without parsing: strings are skipped whole (escaped quotes included), so
+    brackets and separators inside them never count. Depth counts open containers (the top
+    object is depth 1). Elements count every `{`, `[`, `,` and `:`, which bounds the number of
+    values and keys `json.loads` would allocate. In valid JSON every string follows one of
+    those and every closer matches an opener, so more than `3 * max_elements + 1` tokens in
+    all also means too many elements (this bounds the loop for junk such as 16 MiB of `]`).
+    The pass stops at the first bound broken. Other malformed JSON is not judged here: whatever
+    passes the scan still goes through the strict parser, which refuses it.
+    """
+    depth = 0
+    elements = 0
+    max_tokens = 3 * max_elements + 1
+    for tokens, match in enumerate(_TOKEN.finditer(raw), 1):
+        if not tokens % _CHECK_EVERY:
             check()
-        if isinstance(value, dict):
-            children: Any = value.values()
-        elif isinstance(value, list):
-            children = value
-        else:
+        if tokens > max_tokens:
+            return ELEMENTS_EXCEEDED
+        start = match.start()
+        first = raw[start]
+        if first == _QUOTE:
+            if match.end() - start == 1:
+                return UNTERMINATED
             continue
-        if depth > max_depth:
-            return True
-        stack.extend((child, depth + 1) for child in children)
-    return False
+        if first in _CLOSE:
+            depth -= 1
+            continue
+        elements += 1
+        if elements > max_elements:
+            return ELEMENTS_EXCEEDED
+        if first in _OPEN:
+            depth += 1
+            if depth > max_depth:
+                return DEPTH_EXCEEDED
+    return None
 
 
 def parse_document(
-    raw: bytes, report: Report, max_depth: int, check: Callable[[], None]
+    raw: bytes, report: Report, max_depth: int, max_elements: int, check: Callable[[], None]
 ) -> dict[str, Any]:
-    """The JSON object in `raw`, or `Stop` after recording `invalid_json`."""
+    """The JSON object in `raw`, or `Stop` after recording `invalid_json` (or `too_complex`
+    for more than `max_elements` structural elements)."""
+    exceeded = scan_structure(raw, max_depth, max_elements, check)
+    if exceeded == UNTERMINATED:
+        report.error("invalid_json", "The model's JSON is not valid.")
+        raise Stop
+    if exceeded == DEPTH_EXCEEDED:
+        report.error("invalid_json", "The model's JSON is nested too deeply.", "json")
+        raise Stop
+    if exceeded == ELEMENTS_EXCEEDED:
+        report.error(
+            "too_complex", f"The model's JSON has more than {max_elements:,} elements.", "json"
+        )
+        raise Stop
+    check()
     try:
         text = raw.decode("utf-8")
         document = json.loads(
@@ -96,8 +152,5 @@ def parse_document(
     check()
     if not isinstance(document, dict):
         report.error("invalid_json", "The model's JSON must be an object.")
-        raise Stop
-    if _depth_exceeds(document, max_depth, check):
-        report.error("invalid_json", "The model's JSON is nested too deeply.", "json")
         raise Stop
     return document
