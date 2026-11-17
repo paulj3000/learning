@@ -301,26 +301,31 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
 
 
 #: `ProcessingJob.subject_outcome` codes after which a job's result does not count for the gate.
-_UNUSABLE_OUTCOMES = frozenset({"result_invalid", "version_missing", "processing_failed"})
+_UNUSABLE_OUTCOMES = frozenset(
+    {"result_invalid", "version_missing", "processing_failed", "result_superseded"}
+)
 
 
 def _has_passing_validation(version: AssetVersion) -> bool:
-    """The publication gate (read only): a completed `asset.validate_model` job whose result is a
-    pass, for exactly this version's stored bytes and by the current processor version, and
-    whose result was not refused when it was applied."""
+    """The publication gate (read only). The newest completed `asset.validate_model` job of this
+    version whose result was accepted when it was applied (no mismatch, not invalid, not
+    superseded) and whose request matches this version's stored bytes decides: it must be a pass
+    by the current processor version. An older pass never outvotes a newer accepted `fail`, and
+    a pruned job is no evidence (`jobs_sweep` retention): the version needs a new validation."""
     from apps.jobs.models import JobStatus
 
     for job in validation_jobs(version).filter(status=JobStatus.COMPLETED):
         outcome = job.subject_outcome or ""
         if outcome.endswith("_mismatch") or outcome in _UNUSABLE_OUTCOMES:
             continue
+        if identity_mismatch(job, version) is not None:
+            continue
         summary = model_validation_summary(job)
-        if (
+        return (
             summary is not None
             and summary.get("verdict") == "pass"
             and identity_mismatch(job, version, require_current_processor=True) is None
-        ):
-            return True
+        )
     return False
 
 

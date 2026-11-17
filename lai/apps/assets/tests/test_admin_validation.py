@@ -381,6 +381,33 @@ def test_a_failed_job_is_retried_with_a_new_one(version, editor, sqs):
     assert row("Status", "Queued") in page(editor, version)
 
 
+@pytest.mark.parametrize(
+    "outcome, verdict",
+    [("version_rejected", "fail"), ("result_recorded", "fail"), ("checksum_mismatch", "pass")],
+)
+def test_a_refused_or_failing_result_may_be_resubmitted_explicitly(
+    version, editor, sqs, outcome, verdict
+):
+    first = completed(submit(version), outcome=outcome)
+    first.result = {**first.result, "verdict": verdict}
+    first.save(update_fields=["result"])
+    before = unchanged(version)
+    response = run_action(editor, "validate_in_background", version)
+    assert b"did not pass this file, so a new one was submitted" in response.content
+    assert ProcessingJob.objects.count() == 2
+    version.refresh_from_db()
+    assert unchanged(version) == before
+
+
+def test_resubmission_stops_at_the_attempt_cap(version, editor, sqs, settings):
+    settings.LAI_ASSET_VALIDATION_MAX_ATTEMPTS = 2
+    failed(submit(version), "timeout")
+    failed(submit(version), "cancelled")
+    response = run_action(editor, "validate_in_background", version)
+    assert b"has reached the limit of background validation attempts" in response.content
+    assert ProcessingJob.objects.count() == 2
+
+
 def test_a_published_model_is_revalidated_without_changing_it(version, editor):
     """The inline backend runs the real validator; the result is only recorded on the job."""
     services.publish_version(version)
@@ -460,6 +487,13 @@ def test_view_only_staff_see_the_section_but_cannot_validate(version, sqs):
     assert listing.status_code == 200 and b"validate_in_background" not in listing.content
     assert b"inspect_in_background" in listing.content
     run_action(client, "validate_in_background", version)
+    assert ProcessingJob.objects.count() == 1
+
+
+def test_view_only_staff_cannot_resubmit_a_failed_job(version, sqs):
+    failed(submit(version), "timeout")
+    run_action(_account("viewer", "view_assetversion"), "validate_in_background", version)
+    run_action(staff("outsider"), "validate_in_background", version)
     assert ProcessingJob.objects.count() == 1
 
 

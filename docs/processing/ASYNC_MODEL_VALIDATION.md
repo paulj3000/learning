@@ -92,13 +92,15 @@ order, and records the first failing code in `ProcessingJob.subject_outcome`:
 2. The version still exists; then the asset row and the version row are locked.
 3. `identity_mismatch(job, version)`: the request matches the version as stored now (kind,
    subject, namespace, asset context, storage key with no object version, SHA-256, size, profile).
-4. Only a `DRAFT` is changed.
+4. No newer validation job of this version exists (`result_superseded` otherwise; section 9).
+5. Only a `DRAFT` is changed.
 
 | `subject_outcome` | Meaning | Version changed |
 |---|---|---|
 | `version_validated` | Verdict `pass`; draft is now `VALIDATED` (`validated_at` set) | Yes |
 | `version_rejected` | Verdict `fail`; draft is now `REJECTED` | Yes |
-| `result_recorded` | Version is not a draft (for example published); a manual revalidation. Result stays on the job | No |
+| `result_recorded` | Version is not a draft (validated, rejected or published); a manual revalidation. Result stays on the job | No |
+| `result_superseded` | A newer validation job of this version exists, so this (late) result is recorded on its job only and does not count for the gate | No |
 | `processing_failed` | The job failed (no result) | No |
 | `version_missing` | The version no longer exists | No |
 | `result_invalid` | Not a valid succeeded result with a verdict | No |
@@ -152,42 +154,35 @@ reported as passed; a pass by an older processor version says a new validation i
 
 **Validate in background** (bulk action; staff with upload and view permission on asset
 versions; at most 50 versions per run): submits `asset.validate_model` for each selected GLB of
-an active asset, or reports the existing job for the same file. It works whatever the flag says
-and never changes the version. It is the way to revalidate an existing or published model
+an active asset, or reports the existing job for the same file (section 9 says exactly when a new
+job is made). It works whatever the flag says and never changes the version. It is the way to revalidate an existing or published model
 without rewriting its metadata (a non-draft gets `result_recorded`). Retired assets and non-GLB
 formats are refused with a message.
 
 ## 8. Publication gate
 
-`services.publish_version` refuses a GLB with `processing_required` when the flag is on and no
-completed job of this version passes `_has_passing_validation`: verdict `pass`, outcome not a
-mismatch, `result_invalid`, `version_missing` or `processing_failed`, `identity_mismatch` clean,
-and the result's processor version equal to the one this build runs (`processor_outdated`
-otherwise). A draft is still refused first with `not_validated`. The gate does not apply to
+`services.publish_version` refuses a GLB with `processing_required` when the flag is on and
+`_has_passing_validation` is false. That reads the version's completed jobs newest first, skips
+those whose outcome is a mismatch, `result_invalid`, `version_missing`, `processing_failed` or
+`result_superseded` and those whose request does not match the version's stored file
+(`identity_mismatch`), and lets the first remaining one decide: it must have verdict `pass` and
+the processor version this build runs (`processor_outdated` otherwise). An older pass never
+outvotes a newer accepted `fail`. A draft is still refused first with `not_validated`. The gate does not apply to
 rollback, `set_default_version` or republishing, and the flag off leaves publishing unchanged.
 
-`jobs_sweep` deletes completed jobs after `LAI_JOBS_RETENTION_DAYS` (30). A `VALIDATED` GLB whose
-passing job was pruned is refused by the gate until staff run Validate in background again.
+The job rows are the gate's only evidence: a `VALIDATED` GLB whose passing job was pruned
+(section 10) is refused until staff run Validate in background again.
 
-## 9. Retries, duplicates, timeouts
+## 9. Retry and resubmission semantics
 
-- **Same logical work.** `submit_model_validation` reuses a job with the same idempotency key
-  that is `PENDING`, `RUNNING`, or `COMPLETED` with an applied outcome (`version_validated`,
-  `version_rejected`, `result_recorded`). A `FAILED` job, or a completed one whose result was
-  refused (a mismatch or `result_invalid`), may be submitted again as a new job with a new attempt
-  id.
-- **Redelivery.** The worker stores the result in S3 before sending it; a redelivered work
-  message re-sends the stored result without a second run, and `apply_result` ignores it as a
-  duplicate (the job is terminal). A redelivered result message is ignored the same way.
-- **Retryable failures** (for example a transient S3 read during the input copy) are redelivered
-  by SQS and land in `lai-<env>-jobs-media-dlq` after 3 receives. The job stays `RUNNING` until
-  `jobs_sweep` fails it as `timeout` (after `LAI_JOBS_STALE_MINUTES`, 60, and only when the
-  results queue is empty). Staff then run Validate in background again.
-- **Execution budget.** The request carries `max_execution_seconds` 90 (the profile allows 300).
-  The media function's timeout is 120 s (`infra/lib/devPlatformStack.ts`), so the engine stops
-  first with a classified, logged `processing_timeout` (retryable: SQS redelivers it, DLQ after 3
-  receives) instead of Lambda ending the run part-way with nothing classified.
-- **Expiry.** A request older than 72 hours is refused by the worker with `job_expired`.
+Owner decision 2026-11-17: bounded retries, and resubmission of eligible failed, refused or
+cancelled validation jobs by authorized staff. There is one job model (`ProcessingJob`), one
+retry mechanism for transport (SQS redelivery) and one explicit resubmission path
+(`submit_model_validation`, used by the upload and by the Admin action). Nothing resubmits by
+itself.
+
+**Input size limits.**
+
 - **Input size.** `LAI_ASSET_MAX_GLB_BYTES` (default 50 MiB = 52,428,800 bytes; bounds 1 MiB to
   50 MiB, checked at start-up with `ImproperlyConfigured`; effective value min of it and
   `LAI_ASSET_MAX_UPLOAD_BYTES`) is the one GLB limit (`docs/ASSET_LIBRARY.md` section 13). The
@@ -205,7 +200,125 @@ passing job was pruned is refused by the gate until staff run Validate in backgr
   this change, or for another format) keeps the worker's 64 MiB hard ceiling; a `max_bytes` above
   64 MiB is clamped to it.
 
-## 10. Database outage
+**Logical work.** A validation is identified by its ADR-061 idempotency key, which covers the
+namespace, the version (subject), the profile and options, the stored file (key, SHA-256, size)
+and the processor version. "The same logical work" below means the same key; a new processor
+version is new logical work.
+
+**Transport retries (same job).** A retryable engine failure (`storage_failure`,
+`processing_timeout`, `temporary_failure`, `throttled`) makes the worker raise; SQS redelivers the
+same work message (same job id, attempt id and request), at most 3 receives on the media queue,
+then `lai-<env>-jobs-media-dlq`. Django sees the duplicate `running` messages as duplicates and
+creates no job. A redelivered message whose result was already stored re-sends that result; a
+redelivered result message is ignored once the job is terminal (5 receives on the results
+queue). When the work lands in the DLQ the job stays `RUNNING` until `jobs_sweep` fails it with
+`timeout` (after `LAI_JOBS_STALE_MINUTES`, 60, and only while the results queue is empty).
+
+**Staff resubmission (new job).** Under the asset row lock (concurrent clicks serialize; the second
+sees the first one's job), `submit_model_validation` reads the newest job of the same logical work:
+
+| Newest job of the same logical work | Resubmission does |
+|---|---|
+| none | submits a new job |
+| `PENDING` or `RUNNING` | returns it (never a duplicate) |
+| `COMPLETED`, outcome `version_validated` or `result_recorded`, verdict `pass` | returns it |
+| `COMPLETED`, verdict `fail` (`version_rejected`, or `result_recorded` for a non-draft) | submits a new job (explicit action only; see below) |
+| `COMPLETED`, refused or not applied (`*_mismatch`, `result_invalid`, `version_missing`, `result_superseded`) | submits a new job |
+| `FAILED`, any code: `timeout` (swept, DLQ), `submit_failed`, `marked_failed` (operator), `cancelled`, `job_expired`, `input_missing`, `checksum_mismatch`, `resource_limit_exceeded`, `permission_denied`, `invalid_payload`, `internal_error` | submits a new job |
+
+A new job has a new job id, attempt id, correlation id and `expires_at` (72 hours), and the same
+idempotency key. The count is bounded: when the logical work already has
+`LAI_ASSET_VALIDATION_MAX_ATTEMPTS` jobs (default 5, 1 to 20), resubmission is refused with
+`JobsError("attempts_exhausted")` and the Admin says the limit was reached. The idempotency rules
+alone bound concurrent duplicates but not a sequence of resubmissions after failures (for example
+a file the worker can never read: each attempt costs up to 3 Lambda receives and an hour before it
+times out), so the cap is needed. It counts the job rows that exist: failed jobs are kept, so the
+count is effectively per file and processor version; a new processor version or a new upload of
+the file (a new version) starts again, and an operator may delete failed job rows.
+
+**Cancelled.** `ProcessingJob` has no cancelled status, and none was added. A contract
+`CANCELLED` result (`RetryClass.CANCELLED`) leaves the worker as a non-retryable `TaskError` and
+becomes a schema-1 `failed` result with error code `cancelled`; an operator's cancel is the jobs
+admin's mark failed (`marked_failed`). Both are `FAILED` with `subject_outcome`
+`processing_failed`, change no version, and are resubmittable. A `cancelled` contract status
+inside a `succeeded` envelope is `result_invalid`.
+
+**A model the validator refuses.** A deterministic `fail` verdict is a successful job
+(`version_rejected`); nothing retries it. Staff may resubmit it explicitly (for example after a
+processor fix), but a `REJECTED` version never changes again: the new result is
+`result_recorded`, whatever its verdict, and `publish_version` refuses it with `not_validated`.
+Uploading the same bytes again as a new version is allowed (`REJECTED` versions do not count as
+duplicates) and is the way to publish a file a newer processor accepts.
+
+**Late results.** A job's result applies only while the job is unfinished (`apply_result` ignores
+anything for a terminal job), and `apply(job)` changes a version only when no newer validation job
+of that version exists (`result_superseded` otherwise). The gate reads the newest accepted result
+(section 8). So a result from an earlier attempt never overwrites the current one, in either
+arrival order.
+
+**Published versions.** Resubmission and every result leave a published version's status,
+metadata, report and delivery unchanged (`result_recorded`; the model's immutability guard also
+refuses any change).
+
+**Permissions.** Only the Admin action resubmits, and only for staff with upload (`add`) and view
+permission on asset versions; view-only staff, staff without an asset role and non-staff cannot.
+
+**Execution budget and expiry.** The request carries `max_execution_seconds` 90 (the profile
+allows 300). The media function's timeout is 120 s (`infra/lib/devPlatformStack.ts`), so the
+engine stops first with a classified `processing_timeout`. It is retryable (the engine's
+classification, kept): a slow run may succeed on another receive, and a deterministic one costs at
+most 3 receives before the DLQ and the sweep's `timeout`, after which staff may resubmit within
+the cap. A request older than 72 hours is refused by the worker with `job_expired` (permanent,
+resubmittable).
+
+| Case | Path | Same job or new | Version |
+|---|---|---|---|
+| Transient S3 read | `storage_failure`, SQS redelivery (3 receives, DLQ) | same | unchanged until a result |
+| Missing input | `input_missing`, `failed` | resubmit: new | unchanged |
+| Processing timeout | `processing_timeout`, redelivery, DLQ, sweep `timeout` | resubmit: new | unchanged |
+| Validation refusal | succeeded, verdict `fail`, `version_rejected` | explicit resubmit: new, `result_recorded` | `REJECTED` for good |
+| Cancelled | `failed`, `cancelled` or `marked_failed` | resubmit: new | unchanged |
+| Duplicate submission (double click) | asset row lock, reuse | same | unchanged |
+| Duplicate result | `apply_result` DUPLICATE | same | applied once |
+| Late result | DUPLICATE (terminal) or `result_superseded` | none | unchanged |
+| Expired job | sweep `timeout`, or worker `job_expired` | resubmit: new | unchanged |
+| Published version | `result_recorded` | either | never changed |
+| Unauthorized staff | action not offered or refused | none | unchanged |
+
+## 10. Retention
+
+Owner decision 2026-11-17: `jobs_sweep` keeps completed `asset.validate_model` jobs for
+`LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (default 90, 1 to 730; checked at startup) instead of
+`LAI_JOBS_RETENTION_DAYS` (30, unchanged for `asset.inspect`, Studio, speech and
+`reference.checksum`, which no gate reads). `apps.jobs.services.prunable(stamp)` selects:
+
+- only `COMPLETED` jobs: pending and running jobs are never pruned whatever their age (the sweep
+  times them out instead), and failed jobs are kept for review, as for every kind;
+- whose `finished_at` is strictly more than the period before the sweep (`finished_at < now -
+  period`): a job that finished exactly 90 days ago is kept, one a microsecond older is pruned.
+
+Publication integrity:
+
+- The gate (section 8) reads job rows only. After the passing job of an unpublished `VALIDATED`
+  GLB is pruned, `publish_version` refuses it with `processing_required`; staff run Validate in
+  background, the new result is `result_recorded`, and only the explicit publish then publishes.
+  Pruning never publishes, un-publishes or changes a version.
+- A published version is unaffected: the resolver and delivery read the version row and the
+  stored object, never jobs, so its status, metadata (including `metadata["model_validation"]`),
+  report and delivery stay as they were.
+
+Evidence on the version. `metadata["model_validation"]` holds the applied summary (job and
+attempt id, processor and profile, verdict, counts) of the result that moved the draft, so a
+pruned job's verdict remains visible on the version. It is not used as gate evidence: it is
+written only when a draft is changed (never for a `result_recorded` revalidation), it does not
+carry the stored file's identity that `identity_mismatch` checks, and `metadata` is a general
+field rather than an append-only record. If revalidating after 90 days becomes a burden, a
+compact immutable evidence row (version, SHA-256, size, storage key, profile, processor version,
+verdict, job id, completed at; insert-only, protected like published versions) would let the gate
+outlive job retention without keeping whole results. That is a design option for the owner and is
+not implemented.
+
+## 11. Database outage
 
 Unchanged from `main`'s consumer (ADR-064): `jobs_consume_results` runs `SELECT 1` before every
 receive and does not receive while PostgreSQL is unreachable, so results wait in the results queue
@@ -213,7 +326,7 @@ receive and does not receive while PostgreSQL is unreachable, so results wait in
 A database error inside `apply(job)` rolls the whole result application back and the message is
 retried. The sweep does not time jobs out while results are queued.
 
-## 11. Local testing
+## 12. Local testing
 
 ```bash
 # Unit and integration tests (no AWS):
@@ -222,6 +335,7 @@ retried. The sweep does not time jobs out while results are queued.
   lai/apps/jobs/tests/test_contract_kinds.py lai/apps/assets/tests/test_async_upload.py \
   lai/apps/assets/tests/test_model_validation_results.py \
   lai/apps/assets/tests/test_model_validation_canonical.py \
+  lai/apps/assets/tests/test_model_validation_retry.py \
   lai/apps/assets/tests/test_publication_gate.py lai/apps/assets/tests/test_admin_validation.py \
   lai/apps/assets/tests/test_glb_processing_parity.py
 
@@ -243,7 +357,7 @@ refused (`not_validated`, `processing_required`); the packaged worker validates 
 applies the result; a redelivery ignored as a duplicate; the Admin section; explicit publish and
 the resolver; a broken model `REJECTED`; and a count showing no AWS calls.
 
-## 12. Deployment ordering
+## 13. Deployment ordering
 
 - Release Django (migration `jobs.0003`, the new kinds and handlers) and the worker zip in the
   same release. Django is the only sender of the new kinds; a work message reaching a worker

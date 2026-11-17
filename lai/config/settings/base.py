@@ -542,6 +542,15 @@ LAI_JOBS_RESULTS_BUCKET = os.environ.get("LAI_JOBS_RESULTS_BUCKET", "").strip()
 LAI_JOBS_STALE_MINUTES = int(os.environ.get("LAI_JOBS_STALE_MINUTES", "60"))
 # Completed jobs older than this are deleted by `jobs_sweep`. Failed jobs are kept for review.
 LAI_JOBS_RETENTION_DAYS = int(os.environ.get("LAI_JOBS_RETENTION_DAYS", "30"))
+# Completed `asset.validate_model` jobs (the publication gate's evidence) are kept this long
+# instead (owner decision 2026-11-17). An unpublished GLB whose passing job was pruned must be
+# validated again before it can be published; published versions are never affected.
+LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS = int(
+    os.environ.get("LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS", "90")
+)
+# Validation jobs allowed per logical validation (one version, file and processor version):
+# bounds staff resubmissions after failures (owner decision 2026-11-17).
+LAI_ASSET_VALIDATION_MAX_ATTEMPTS = int(os.environ.get("LAI_ASSET_VALIDATION_MAX_ATTEMPTS", "5"))
 if LAI_JOBS_BACKEND not in {"inline", "sqs", "disabled"}:
     raise ImproperlyConfigured("LAI_JOBS_BACKEND must be inline, sqs or disabled.")
 if LAI_JOBS_BACKEND == "sqs":
@@ -563,6 +572,10 @@ if not 5 <= LAI_JOBS_STALE_MINUTES <= 1440:
     raise ImproperlyConfigured("LAI_JOBS_STALE_MINUTES must be between 5 and 1440.")
 if not 1 <= LAI_JOBS_RETENTION_DAYS <= 365:
     raise ImproperlyConfigured("LAI_JOBS_RETENTION_DAYS must be between 1 and 365.")
+if not 1 <= LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS <= 730:
+    raise ImproperlyConfigured("LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS must be between 1 and 730.")
+if not 1 <= LAI_ASSET_VALIDATION_MAX_ATTEMPTS <= 20:
+    raise ImproperlyConfigured("LAI_ASSET_VALIDATION_MAX_ATTEMPTS must be between 1 and 20.")
 if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND == "disabled":
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND inline or sqs.")
 

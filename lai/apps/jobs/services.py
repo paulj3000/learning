@@ -30,6 +30,7 @@ from importlib import import_module
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils.timezone import now
 
 from .core import envelope, tasks
@@ -392,8 +393,32 @@ def results_backlog() -> int | None:
         return None
 
 
+#: Kinds whose completed jobs are kept for their own period instead of `LAI_JOBS_RETENTION_DAYS`:
+#: a model validation job is the evidence the asset publication gate reads.
+RETENTION_SETTINGS = {envelope.ASSET_VALIDATE_MODEL: "LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS"}
+
+
+def retention_days(kind: str) -> int:
+    """Days a completed job of `kind` is kept before `sweep` deletes it."""
+    return int(getattr(settings, RETENTION_SETTINGS.get(kind, "LAI_JOBS_RETENTION_DAYS")))
+
+
+def prunable(stamp):
+    """Completed jobs `sweep` deletes at `stamp`: finished strictly more than their kind's
+    retention period before it (a job finished exactly that long ago is kept). Pending, running
+    and failed jobs are never pruned, whatever their age."""
+    special = list(RETENTION_SETTINGS)
+    expired = Q(
+        ~Q(kind__in=special),
+        finished_at__lt=stamp - timedelta(days=settings.LAI_JOBS_RETENTION_DAYS),
+    )
+    for kind in special:
+        expired |= Q(kind=kind, finished_at__lt=stamp - timedelta(days=retention_days(kind)))
+    return ProcessingJob.objects.filter(expired, status=JobStatus.COMPLETED)
+
+
 def sweep(*, dry_run: bool = False) -> dict[str, int]:
-    """Fail stale unfinished jobs (`timeout`) and delete old completed ones.
+    """Fail stale unfinished jobs (`timeout`) and delete old completed ones (`prunable`).
 
     Timeouts wait while the results queue holds messages (or its depth cannot be read): after the
     overnight stop or a database outage, completions for "stale" jobs may still be queued, and
@@ -405,10 +430,7 @@ def sweep(*, dry_run: bool = False) -> dict[str, int]:
             created_at__lt=stamp - timedelta(minutes=settings.LAI_JOBS_STALE_MINUTES),
         ).values_list("pk", flat=True)
     )
-    old = ProcessingJob.objects.filter(
-        status=JobStatus.COMPLETED,
-        finished_at__lt=stamp - timedelta(days=settings.LAI_JOBS_RETENTION_DAYS),
-    )
+    old = prunable(stamp)
     report = {"stale": len(stale_ids), "timed_out": 0, "deferred": 0, "pruned": old.count()}
     if dry_run:
         return report
