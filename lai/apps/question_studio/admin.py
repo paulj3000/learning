@@ -10,10 +10,12 @@ import logging
 
 from django.contrib import admin, messages
 from django.contrib.admin.options import ActionLocation
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseNotAllowed, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils.html import format_html
 
 from . import contracts, generation, regeneration, validation, workflow
@@ -38,17 +40,29 @@ def _perm(request, codename: str) -> bool:
     return bool(user.is_active and user.is_staff and user.has_perm(f"question_studio.{codename}"))
 
 
+def _progress(batch: GenerationBatch) -> str:
+    return (
+        f"{batch.produced_count} of {batch.requested_count} questions, "
+        f"{batch.chunks_done} of {batch.chunks_total} chunks"
+    )
+
+
+def _state(batch: GenerationBatch) -> str:
+    if not batch.is_terminal and batch.cancel_requested_at:
+        return "Cancelling"
+    return batch.get_status_display()
+
+
 @admin.register(GenerationBatch)
 class GenerationBatchAdmin(admin.ModelAdmin):
     list_display = (
         "created_at",
-        "status",
+        "state",
         "subject",
         "grade",
         "topic",
         "question_type",
-        "produced_count",
-        "requested_count",
+        "progress",
         "total_tokens",
         "cost_microusd",
         "failure_category",
@@ -69,12 +83,38 @@ class GenerationBatchAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    def has_cancel_permission(self, request, obj=None):
+        return _perm(request, "cancel_generationbatch")
+
+    def has_retry_permission(self, request, obj=None):
+        return _perm(request, "retry_generationbatch") and _perm(request, "add_generationbatch")
+
     @admin.display(description="tokens")
     def total_tokens(self, obj):
         return obj.input_tokens + obj.output_tokens
 
+    @admin.display(description="state", ordering="status")
+    def state(self, obj):
+        return _state(obj)
+
+    @admin.display(description="progress")
+    def progress(self, obj):
+        return _progress(obj)
+
+    @admin.display(description="failure detail")
+    def failure_detail(self, obj):
+        """A fixed message per failure category: never provider, worker or model text."""
+        return generation.failure_message(obj) or "-"
+
     def get_readonly_fields(self, request, obj=None):
-        return [*(f.name for f in self.model._meta.fields), "review_link", "job_status"]
+        return [
+            "state",
+            "progress",
+            "failure_detail",
+            *(f.name for f in self.model._meta.fields),
+            "review_link",
+            "job_status",
+        ]
 
     @admin.display(description="Background jobs")
     def job_status(self, obj):
@@ -113,7 +153,20 @@ class GenerationBatchAdmin(admin.ModelAdmin):
         form = GenerateQuestionsForm(request.POST or None)
         if request.method == "POST" and form.is_valid():
             try:
-                batch = generation.create_batch(request.user, form.params())
+                batch = generation.create_batch(
+                    request.user,
+                    form.params(),
+                    submission_key=form.cleaned_data.get("submission_key"),
+                )
+            except generation.DuplicateSubmission as duplicate:
+                messages.info(
+                    request, "This request was already submitted; showing the batch it created."
+                )
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:question_studio_generationbatch_change", args=[duplicate.batch.pk]
+                    )
+                )
             except generation.StudioError as error:
                 form.add_error(None, str(error) or error.code)
             except contracts.InvalidGenerationRequest as error:
@@ -143,8 +196,24 @@ class GenerationBatchAdmin(admin.ModelAdmin):
         batch = GenerationBatch.objects.filter(pk=object_id).first()
         extra = dict(extra_context or {})
         if batch is not None:
+            extra.update(
+                studio_can_cancel=not batch.is_terminal
+                and self.has_cancel_permission(request, batch),
+                studio_can_retry=batch.status in (BatchStatus.FAILED, BatchStatus.PARTIAL)
+                and self.has_retry_permission(request, batch),
+                studio_cancel_url=reverse(
+                    "admin:question_studio_generationbatch_cancel", args=[batch.pk]
+                ),
+                studio_retry_url=reverse(
+                    "admin:question_studio_generationbatch_retry", args=[batch.pk]
+                ),
+            )
             if batch.status in (BatchStatus.QUEUED, BatchStatus.RUNNING):
-                messages.info(request, f"This batch is {batch.status.lower()}; refresh to update.")
+                messages.info(
+                    request,
+                    f"This batch is {_state(batch).lower()} ({_progress(batch)}); "
+                    "refresh to update.",
+                )
             elif batch.status == BatchStatus.PARTIAL:
                 messages.warning(
                     request,
@@ -157,7 +226,105 @@ class GenerationBatchAdmin(admin.ModelAdmin):
                 messages.error(
                     request, f"Generation failed: {batch.failure_category or 'unknown'}."
                 )
+            elif batch.status == BatchStatus.CANCELLED:
+                messages.info(
+                    request,
+                    f"This batch was cancelled ({_progress(batch)}). Questions already stored "
+                    "stay as drafts.",
+                )
         return super().change_view(request, object_id, form_url, extra)
+
+    # --- cancel and retry (LAI-AQS-027 functionality on the jobs path) ------------------------
+
+    def get_urls(self):
+        info = f"{self.opts.app_label}_{self.opts.model_name}"
+        return [
+            path(
+                "<uuid:object_id>/cancel/",
+                self.admin_site.admin_view(self.cancel_view),
+                name=f"{info}_cancel",
+            ),
+            path(
+                "<uuid:object_id>/retry/",
+                self.admin_site.admin_view(self.retry_view),
+                name=f"{info}_retry",
+            ),
+            *super().get_urls(),
+        ]
+
+    def _cancel(self, request, batch) -> str:
+        outcome = generation.request_cancel(batch.pk, request.user)
+        if outcome == "cancelled":
+            return "Batch cancelled. Questions already stored stay as drafts."
+        return "Cancel requested: the batch stops before its next chunk."
+
+    def _retry(self, request, batch) -> str:
+        batch, missing = generation.retry_batch(batch.pk, request.user)
+        generation.start_batch(batch)
+        return f"Retrying {missing} missing question(s); stored drafts are kept."
+
+    def _batch_view(self, request, object_id, allowed: bool, verb: str, operation):
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        if not allowed:
+            raise PermissionDenied
+        batch = get_object_or_404(GenerationBatch, pk=object_id)
+        try:
+            message = operation(request, batch)
+        except generation.StudioError as error:
+            messages.error(request, f"Not {verb}: {error}.")
+            outcome = getattr(error, "code", "refused")
+        else:
+            messages.success(request, message)
+            outcome = "ok"
+        audit_logger.info(
+            "studio_%s staff=%s batch=%s outcome=%s", verb, request.user.pk, batch.pk, outcome
+        )
+        return HttpResponseRedirect(
+            reverse("admin:question_studio_generationbatch_change", args=[batch.pk])
+        )
+
+    def cancel_view(self, request, object_id):
+        return self._batch_view(
+            request, object_id, self.has_cancel_permission(request), "cancelled", self._cancel
+        )
+
+    def retry_view(self, request, object_id):
+        return self._batch_view(
+            request, object_id, self.has_retry_permission(request), "retried", self._retry
+        )
+
+    actions = ("action_cancel", "action_retry")
+
+    @admin.action(description="Cancel selected batches", permissions=["cancel"])
+    def action_cancel(self, request, queryset):
+        self._bulk(request, queryset, "cancelled", self._cancel)
+
+    @admin.action(description="Retry missing questions of selected batches", permissions=["retry"])
+    def action_retry(self, request, queryset):
+        self._bulk(request, queryset, "retried", self._retry)
+
+    def _bulk(self, request, queryset, verb, operation):
+        done, refused = 0, []
+        for batch in queryset:
+            try:
+                operation(request, batch)
+            except generation.StudioError as error:
+                refused.append(getattr(error, "code", "refused"))
+            else:
+                done += 1
+        if done:
+            self.message_user(request, f"{done} batch(es) {verb}.", messages.SUCCESS)
+        if refused:
+            reasons = ", ".join(sorted(set(refused)))
+            self.message_user(request, f"{len(refused)} skipped ({reasons}).", messages.WARNING)
+        audit_logger.info(
+            "studio_bulk_batch verb=%s staff=%s done=%s refused=%s",
+            verb,
+            request.user.pk,
+            done,
+            len(refused),
+        )
 
 
 class _ReadOnlyInline(admin.TabularInline):

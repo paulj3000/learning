@@ -87,8 +87,21 @@ root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; 
   first bill. Unverified until then: AL2023 package names (`python3.12`, `postgresql16`), certbot
   4.0.0, Step Functions SDK response field names, zero-padded cron hours in Scheduler, hardened
   systemd units on a real host. With native dev enabled, prod is released by manual dispatch only.
-  The unmerged `feature/ai-studio-queue` (LAI-AQS-027, an EC2 PostgreSQL worker queue for Studio)
-  overlaps with the Lambda path and needs an owner decision before either is extended.
+  LAI-AQS-027 is reconciled (predeployment audit, below).
+
+### Predeployment audit (2026-11-16)
+
+- **Question Studio queue (LAI-AQS-027):** Lambda/SQS is the one processing path (owner decision).
+  From `feature/ai-studio-queue` the jobs path gained cooperative cancellation (all run modes),
+  staff retry of failed chunks only (at most 3), a `Question.slot` unique per batch so a result
+  applied twice or a retry never duplicates drafts, a fixed sanitized failure message,
+  a duplicate-submit key, Admin progress, Cancel and Retry buttons and bulk actions behind the new
+  `cancel_generationbatch` and `retry_generationbatch` permissions (grant them to the question
+  author group by hand; there is no roles command for Studio), and production refusing the
+  `thread` and `inline` modes (dev writes `manual` when Lambda is off). Migration
+  `question_studio.0002_batch_cancel_retry_slots` (additive). Not adopted: the EC2 `studio_worker`,
+  leases and heartbeats, worker check-ins and the status renames. The branch is kept, unmerged.
+  Tests: question_studio, jobs and settings, 297 passed on PostgreSQL.
 
 ## Amplify final removal and Django-only cutover (AMP-01 to AMP-08) — source complete on `feature/amplify-final-removal` (2026-11-14); AWS deployment and legacy data NOT done
 

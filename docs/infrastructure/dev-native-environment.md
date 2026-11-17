@@ -92,8 +92,7 @@ brackets): `Environment` [dev], `AmiId` (required; pinned ARM64 AL2023 image), `
 `DatabaseInstanceClass` [db.t4g.micro], `DatabaseStorageSize` [20], `DatabaseMaxStorageSize` [50],
 `DatabaseMultiAZ` [false], `DatabaseBackupRetention` [3], `DatabaseDeletionProtection` [true],
 `EnableLambdaProcessing` [true], `WorkerCodeKey` (required when Lambda is on), `LambdaMemorySize`
-[512], `LambdaConcurrencyLimit` [2], `EnableScheduledShutdown` [true], `ShutdownTime` [00:00],
-`StartupTime` [07:35, when startup begins], `StartupWarmupMinutes` [25], `ScheduleTimezone`
+[512], `LambdaConcurrencyLimit` [2], `EnableScheduledShutdown` [true], `ShutdownHour` [0], `ShutdownMinute` [0], `StartupHour` [7], `StartupMinute` [35] (when startup begins; whole numbers without a leading zero, so the schedules are exactly `cron(0 0 * * ? *)` and `cron(35 7 * * ? *)`), `StartupWarmupMinutes` [25], `ScheduleTimezone`
 [America/Los_Angeles], `SiteDomainName` [lai.pauldimitriu.com], `ApiDomainName`
 [api.pauldimitriu.com], `AdminDomainName` [ladm.pauldimitriu.com], `CognitoUserPoolId` and
 `CognitoClientId` (required), `HostedZoneId` and `HostedZoneName` ['' = DNS elsewhere],
@@ -111,8 +110,7 @@ alias records), `LAI_GITHUB_REPOSITORY`, `CDK_DEFAULT_ACCOUNT`, `CDK_DEFAULT_REG
 are runtime switches rather than infrastructure (Gunicorn workers, schedule pause, shutdown hold,
 pending deployments) are SSM parameters, so changing them needs no stack update (section 7).
 
-`deploy-debug.sh` computes `StartupTime` from `LAI_AVAILABLE_BY` (08:00) minus
-`LAI_STARTUP_WARMUP_MINUTES` (25), resolves the AMI and the CloudFront origin-facing prefix list,
+`deploy-debug.sh` takes HH:MM settings (`LAI_SHUTDOWN_TIME`, default 00:00; `LAI_AVAILABLE_BY`, default 08:00, minus `LAI_STARTUP_WARMUP_MINUTES`, default 25) and passes them as the unpadded `ShutdownHour`/`ShutdownMinute` and `StartupHour`/`StartupMinute` parameters, resolves the AMI and the CloudFront origin-facing prefix list,
 and detects an existing GitHub OIDC provider.
 
 ## 5. Outputs
@@ -129,10 +127,8 @@ SiteCertificateArn, SiteDeployRoleArn and FrontendDeploymentRoleArn (the same ro
 
 ## 6. The instance
 
-- **Setup** (`scripts/aws/native/setup-native.sh`, about 10.5 KB, run from user data and by the
-  SSM document `lai-dev-native-setup`): packages from the Amazon Linux 2023 repositories (nginx,
-  python3.12, python3.12-devel, gcc, the postgresql16 client, jq, git, logrotate, the CloudWatch
-  agent), the `lai` service account, `/opt/lai/{releases,current,runtime,state}`, `/etc/lai`,
+- **Setup** (`scripts/aws/native/setup-native.sh`, about 12 KB, run from user data and by the
+  SSM document `lai-dev-native-setup`): packages from the Amazon Linux 2023 repositories (nginx, python3.12, python3.12-devel, python3.12-pip, gcc, the postgresql16 client, jq, git, gettext for envsubst, diffutils, awscli-2, logrotate, the CloudWatch agent; names verified against an Amazon Linux 2023 container, 2026-11-16), the `lai` service account, `/opt/lai/{releases,current,runtime,state}`, `/etc/lai`,
   `/var/log/lai`, a 1 GB swap file, the RDS CA bundle, certbot 4.0.0 in its own venv, systemd
   timers, and the CloudWatch agent (logs to `/lai/dev/{django,nginx,deploy,jobs}`; memory and
   disk metrics). No Docker and no PostgreSQL server. It is idempotent. User data runs only on the
@@ -145,10 +141,10 @@ SiteCertificateArn, SiteDeployRoleArn and FrontendDeploymentRoleArn (the same ro
 - **TLS**: one Let's Encrypt certificate `lai-dev` for the API and admin hosts. With a Route 53
   zone it is issued by DNS-01 (the instance may change only `_acme-challenge.*` records);
   otherwise by HTTP-01 on port 80, which needs the A records to point at the Elastic IP first.
-  Until it is issued nginx serves a self-signed placeholder and CloudFront's `/api/*` answers 502.
+  Until it is issued nginx serves a self-signed placeholder and CloudFront's `/api/*` answers 502. If the API or admin host name changes, the next `lai-certbot-renew` run reissues the `lai-dev` certificate with the new names. Each instance replacement issues a new certificate; Let's Encrypt allows five for the same names per week.
 - **nginx**: no access log (request paths carry child ids, ADR-025); the API host serves `/api/`
   only; the admin host serves the admin and redirects `/` to `/admin/`; unknown hosts get no
-  answer; admin login POSTs are limited per IP; bodies are capped at 55 MB.
+  answer; admin login POSTs are limited per IP; bodies are capped at 55 MB. `/etc/nginx/nginx.conf` (written by setup) holds no `server_tokens` or `access_log`; `conf.d/lai.conf` sets them, because nginx refuses those directives twice in the http context.
 - **Django**: `config.settings.production`, `DEBUG=False`, settings from SSM `/lai/dev/django/*`
   rendered into `/opt/lai/runtime/django.env` (root:lai 0640) with `DATABASE_URL` built from the
   RDS secret and `sslmode=verify-full`. The renderer refuses `DEBUG`, `DJANGO_SETTINGS_MODULE`,
@@ -201,7 +197,7 @@ back, 70 another release holds the lock, 75 refused because dev is stopping or s
 `LAI_DEV_STOPPED_DEPLOY=defer` (default) the deploy step records it in `/lai/dev/deploy/pending`
 (only if newer than what is already pending) and succeeds with a "pending" summary; nothing is
 started, so no unexpected EC2 or RDS charge. At the next start the verify step applies it before
-reporting ready. To deploy immediately, run `./scripts/aws/manage-dev.sh start-and-deploy` or the
+reporting ready. A pending release that is already running, or older than the running one, is cleared without being deployed. To deploy immediately, run `./scripts/aws/manage-dev.sh start-and-deploy` or the
 workflow operation of the same name. The site (S3) is published regardless: S3 and CloudFront are
 always on, and the backend catches up at the next start.
 
@@ -215,7 +211,7 @@ no NAT gateway or endpoint is needed, and results simply wait in the queue (14 d
 instance is stopped. Retries: three receives, then the queue's DLQ (alarmed). A job that never
 reports is marked failed (`timeout`) by `jobs_sweep` in the daily maintenance timer. The model id
 must be on the approved list, and the Guardrail id and version are read by the worker from SSM,
-never from the message; model output is validated by Django exactly as before.
+never from the message; model output is validated by Django exactly as before. With `EnableLambdaProcessing=false` the stack sets `LAI_JOBS_BACKEND=disabled` and `LAI_STUDIO_RUN_MODE=manual`; production settings refuse `thread` and `inline`.
 
 Workload status:
 
@@ -270,8 +266,7 @@ catalog rows) still applies; only the local-machine guard is waived.
   `available`; start EC2 and wait for `running` and SSM `Online`; `verify` on the instance (nginx,
   gunicorn, database, readiness, start the consumer, apply a pending release); state `running`,
   or `degraded` with a failed execution.
-- **Schedules**: `lai-dev-nightly-stop` at `ShutdownTime` and `lai-dev-morning-start` at
-  `StartupTime`, both in `America/Los_Angeles`; EventBridge Scheduler applies daylight saving time
+- **Schedules**: `lai-dev-nightly-stop` at `ShutdownHour:ShutdownMinute` and `lai-dev-morning-start` at `StartupHour:StartupMinute`, both in `America/Los_Angeles`; EventBridge Scheduler applies daylight saving time
   itself. `EnableScheduledShutdown=false` disables both; `pause-schedule` and `hold` are runtime
   overrides that need no stack update.
 - **RDS seven-day restart**: AWS restarts a stopped DB instance after seven days. The rule on

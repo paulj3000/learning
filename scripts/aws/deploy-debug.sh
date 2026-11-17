@@ -168,7 +168,21 @@ db_storage=$(setting LAI_DB_STORAGE "$P" DatabaseStorageSize 20)
 db_backup=$(setting LAI_DB_BACKUP_RETENTION "$P" DatabaseBackupRetention 3)
 db_protect=$(setting LAI_DB_DELETION_PROTECTION "$P" DatabaseDeletionProtection true)
 schedule=$(setting LAI_ENABLE_SCHEDULE "$P" EnableScheduledShutdown true)
-shutdown_time=$(setting LAI_SHUTDOWN_TIME "$P" ShutdownTime 00:00)
+# The stack takes each schedule time as unpadded hour and minute parameters (ShutdownHour, ...;
+# cron fields without a leading zero); the settings and this script work in HH:MM.
+# deployed_time <HourKey> <MinuteKey>: the deployed value as HH:MM; exit 1 when absent.
+deployed_time() {
+    local h m
+    h=$(stack_param "$P" "$1" "$(stack_region "$P")" 2>/dev/null) || return 1
+    m=$(stack_param "$P" "$2" "$(stack_region "$P")" 2>/dev/null) || return 1
+    [[ $h =~ ^[0-9]{1,2}$ && $m =~ ^[0-9]{1,2}$ ]] || return 1
+    printf '%02d:%02d' "$((10#$h))" "$((10#$m))"
+}
+if [[ -v LAI_SHUTDOWN_TIME ]]; then
+    shutdown_time=$LAI_SHUTDOWN_TIME
+else
+    shutdown_time=$(deployed_time ShutdownHour ShutdownMinute || echo 00:00)
+fi
 warmup=$(setting LAI_STARTUP_WARMUP_MINUTES "$P" StartupWarmupMinutes 25)
 timezone=$(setting LAI_SCHEDULE_TIMEZONE "$P" ScheduleTimezone America/Los_Angeles)
 lambda=$(setting LAI_ENABLE_LAMBDA "$P" EnableLambdaProcessing true)
@@ -177,13 +191,13 @@ lambda_concurrency=$(setting LAI_LAMBDA_CONCURRENCY "$P" LambdaConcurrencyLimit 
 repository=$(setting LAI_GITHUB_REPOSITORY "$P" GitHubRepository paulj3000/learning)
 retention=$(setting LAI_RELEASE_RETENTION_DAYS "$DEV_ARTIFACTS_STACK" ReleaseRetentionDays 45)
 # StartupTime is when startup BEGINS: available-by minus the warm-up.
-if [[ -v LAI_AVAILABLE_BY ]] || [[ -v LAI_STARTUP_WARMUP_MINUTES ]] || ! stack_param "$P" StartupTime >/dev/null 2>&1; then
+if [[ -v LAI_AVAILABLE_BY ]] || [[ -v LAI_STARTUP_WARMUP_MINUTES ]] || ! deployed_time StartupHour StartupMinute >/dev/null; then
     available=${LAI_AVAILABLE_BY:-08:00}
     minutes=$(dev_hhmm_to_minutes "$available") || die "$EX_USAGE" "LAI_AVAILABLE_BY must be HH:MM"
     [[ $warmup =~ ^[0-9]{1,3}$ ]] || die "$EX_USAGE" "LAI_STARTUP_WARMUP_MINUTES must be minutes"
     startup_time=$(dev_minutes_to_hhmm $(((minutes - warmup + 1440) % 1440)))
 else
-    startup_time=$(stack_param "$P" StartupTime)
+    startup_time=$(deployed_time StartupHour StartupMinute)
 fi
 
 host_re='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
@@ -355,7 +369,11 @@ params_for() {
                   DatabaseInstanceClass: $dbc, DatabaseStorageSize: $dbs, DatabaseBackupRetention: $dbb,
                   DatabaseDeletionProtection: $dbp, EnableLambdaProcessing: $lam, WorkerCodeKey: $key,
                   LambdaMemorySize: $mem, LambdaConcurrencyLimit: $conc, EnableScheduledShutdown: $sch,
-                  ShutdownTime: $shut, StartupTime: $start, StartupWarmupMinutes: $warm,
+                  ShutdownHour: ($shut | split(":")[0] | tonumber | tostring),
+                  ShutdownMinute: ($shut | split(":")[1] | tonumber | tostring),
+                  StartupHour: ($start | split(":")[0] | tonumber | tostring),
+                  StartupMinute: ($start | split(":")[1] | tonumber | tostring),
+                  StartupWarmupMinutes: $warm,
                   ScheduleTimezone: $tz, SiteDomainName: $site, ApiDomainName: $api,
                   AdminDomainName: $adm, CognitoUserPoolId: $pool, CognitoClientId: $clients,
                   HostedZoneId: $zid, HostedZoneName: $zname, CertificateEmail: $email,

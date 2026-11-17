@@ -24,8 +24,10 @@ PLATFORM_KEYS = [
     "LambdaMemorySize",
     "LambdaConcurrencyLimit",
     "EnableScheduledShutdown",
-    "ShutdownTime",
-    "StartupTime",
+    "ShutdownHour",
+    "ShutdownMinute",
+    "StartupHour",
+    "StartupMinute",
     "StartupWarmupMinutes",
     "ScheduleTimezone",
     "SiteDomainName",
@@ -117,8 +119,10 @@ def test_plan_parameters(dev):
     assert platform["type"] == "UPDATE"
     assert params["Environment"] == "dev"
     assert params["AmiId"] == "ami-0123456789abcdef0"  # pinned: the deployed AMI is reused
-    assert params["StartupTime"] == "07:35"
-    assert params["ShutdownTime"] == "00:00"
+    # Unpadded hour and minute fields (cron(35 7 * * ? *)), from the deployed values.
+    assert (params["StartupHour"], params["StartupMinute"]) == ("7", "35")
+    assert (params["ShutdownHour"], params["ShutdownMinute"]) == ("0", "0")
+    assert "StartupTime" not in params and "ShutdownTime" not in params
     assert params["OpenHttpPort"] == "true"  # no Route 53 zone
     assert params["CloudFrontOriginPrefixListId"] == "pl-82a045eb"
     assert params["WorkerCodeKey"] == "lambda/jobs-worker-0123456789abcdef.zip"
@@ -137,12 +141,14 @@ def test_refresh_ami_and_settings_override_the_deployed_values(dev):
         LAI_AVAILABLE_BY="09:00",
         LAI_STARTUP_WARMUP_MINUTES="30",
         LAI_INSTANCE_TYPE="t4g.medium",
+        LAI_SHUTDOWN_TIME="23:05",
     )
     assert result.returncode == 0, result.stderr
     platform = next(v for k, v in change_sets(dev).items() if "/LaiDevPlatform-dev/" in k)
     params = {p["ParameterKey"]: p["ParameterValue"] for p in platform["parameters"]}
     assert params["AmiId"] == "ami-0fedcba9876543210"
-    assert params["StartupTime"] == "08:30"
+    assert (params["StartupHour"], params["StartupMinute"]) == ("8", "30")
+    assert (params["ShutdownHour"], params["ShutdownMinute"]) == ("23", "5")
     assert params["InstanceType"] == "t4g.medium"
 
 

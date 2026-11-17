@@ -14,7 +14,8 @@ import {
   DEV_PLATFORM_OUTPUTS,
   DevPlatformStack,
   GRAVITON_INSTANCE_PATTERN,
-  HH_MM_PATTERN,
+  HOUR_PATTERN,
+  MINUTE_PATTERN,
   speechBucketName,
 } from './devPlatformStack';
 import { POWER_LOOPS } from './devPowerStateMachine';
@@ -133,8 +134,10 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
       LambdaMemorySize: 512,
       LambdaConcurrencyLimit: 2,
       EnableScheduledShutdown: 'true',
-      ShutdownTime: '00:00',
-      StartupTime: '07:35',
+      ShutdownHour: '0',
+      ShutdownMinute: '0',
+      StartupHour: '7',
+      StartupMinute: '35',
       StartupWarmupMinutes: 25,
       ScheduleTimezone: 'America/Los_Angeles',
       SiteDomainName: 'lai.pauldimitriu.com',
@@ -190,9 +193,21 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     ]) {
       expect(pattern.test(bad), bad).toBe(false);
     }
-    const time = new RegExp(HH_MM_PATTERN);
-    expect(['00:00', '07:35', '23:59'].every((value) => time.test(value))).toBe(true);
-    expect(['24:00', '7:35', '07:60', ''].some((value) => time.test(value))).toBe(false);
+    // Schedule fields: unpadded numbers only, so the cron expression never carries '07' or '00'.
+    const hour = new RegExp(HOUR_PATTERN);
+    const minute = new RegExp(MINUTE_PATTERN);
+    expect(['0', '7', '10', '23'].every((value) => hour.test(value))).toBe(true);
+    expect(['00', '07', '24', '', '7:35'].some((value) => hour.test(value))).toBe(false);
+    expect(['0', '5', '35', '59'].every((value) => minute.test(value))).toBe(true);
+    expect(['00', '05', '60', ''].some((value) => minute.test(value))).toBe(false);
+    for (const name of ['ShutdownHour', 'StartupHour']) {
+      expect(json.Parameters[name].AllowedPattern, name).toBe(HOUR_PATTERN);
+    }
+    for (const name of ['ShutdownMinute', 'StartupMinute']) {
+      expect(json.Parameters[name].AllowedPattern, name).toBe(MINUTE_PATTERN);
+    }
+    expect(json.Parameters.ShutdownTime).toBeUndefined();
+    expect(json.Parameters.StartupTime).toBeUndefined();
   });
 
   it('runs one IMDSv2-only instance with an encrypted gp3 root and an Elastic IP, no key pair', () => {
@@ -385,6 +400,10 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     expect(value('/lai/dev/django/LAI_JOBS_BACKEND')).toEqual({
       'Fn::If': ['LambdaEnabled', 'sqs', 'disabled'],
     });
+    // Production settings refuse `thread`: without Lambda, Studio batches are run by hand.
+    expect(value('/lai/dev/django/LAI_STUDIO_RUN_MODE')).toEqual({
+      'Fn::If': ['LambdaEnabled', 'jobs', 'manual'],
+    });
     // No secret is ever a plain template value.
     expect(names.some((name) => /SECRET_KEY|PASSWORD/.test(String(name)))).toBe(false);
   });
@@ -521,9 +540,14 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
         source: 'schedule',
         force: false,
       });
-      const time = name === 'lai-dev-nightly-stop' ? 'ShutdownTime' : 'StartupTime';
-      expect(JSON.stringify(schedule.ScheduleExpression)).toContain(`{"Ref":"${time}"}`);
-      expect(JSON.stringify(schedule.ScheduleExpression)).toContain('cron(');
+      // cron(<minute> <hour> * * ? *) from the unpadded parameters, nothing else.
+      const prefix = name === 'lai-dev-nightly-stop' ? 'Shutdown' : 'Startup';
+      expect(schedule.ScheduleExpression).toEqual({
+        'Fn::Join': [
+          '',
+          ['cron(', { Ref: `${prefix}Minute` }, ' ', { Ref: `${prefix}Hour` }, ' * * ? *)'],
+        ],
+      });
     }
   });
 
@@ -583,6 +607,43 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     }
     const waits = states.filter((state) => state.Type === 'Wait');
     expect(waits.length).toBeGreaterThanOrEqual(7);
+
+    // AWS SDK integrations use the SDK's PascalCase shapes, where RDS acronyms are `Db...`
+    // (aws-samples/step-functions-workflows-collection uses DbInstanceIdentifier and
+    // $.DbInstances[0].DbInstanceStatus). `DBInstanceIdentifier` would fail validation at run time.
+    const byResource = (call: string) =>
+      tasks.filter((task) => String(task.Resource).endsWith(`aws-sdk:${call}`));
+    for (const call of ['rds:describeDBInstances', 'rds:stopDBInstance', 'rds:startDBInstance']) {
+      expect(byResource(call).length, call).toBeGreaterThan(0);
+      for (const task of byResource(call)) {
+        expect(Object.keys(task.Parameters as Json), call).toEqual(['DbInstanceIdentifier']);
+      }
+    }
+    for (const task of byResource('rds:describeDBInstances')) {
+      expect(task.ResultSelector).toEqual({ 'status.$': '$.DbInstances[0].DbInstanceStatus' });
+    }
+    for (const task of byResource('ec2:describeInstances')) {
+      expect(task.ResultSelector).toEqual({
+        'state.$': '$.Reservations[0].Instances[0].State.Name',
+      });
+    }
+    for (const task of byResource('ssm:sendCommand')) {
+      expect(task.ResultSelector).toEqual({ 'commandId.$': '$.Command.CommandId' });
+      expect(Object.keys(task.Parameters as Json).sort()).toEqual(
+        ['Comment', 'DocumentName', 'InstanceIds', 'Parameters', 'TimeoutSeconds'].sort(),
+      );
+    }
+    for (const task of byResource('ssm:getCommandInvocation')) {
+      expect(task.ResultSelector).toEqual({ 'status.$': '$.Status' });
+      expect(Object.keys(task.Parameters as Json).sort()).toEqual(['CommandId.$', 'InstanceId']);
+    }
+    for (const task of byResource('ssm:describeInstanceInformation')) {
+      expect(task.ResultSelector).toEqual({ 'list.$': '$.InstanceInformationList' });
+    }
+    expect(text).toContain('"Variable":"$.ssm.list[0].PingStatus"');
+    for (const task of byResource('ssm:getParameter')) {
+      expect(task.ResultSelector).toEqual({ 'value.$': '$.Parameter.Value' });
+    }
   });
 
   it('lets the power state machine start and stop only the dev instance and database', () => {

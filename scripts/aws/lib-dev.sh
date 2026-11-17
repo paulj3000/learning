@@ -313,6 +313,16 @@ dev_cron_hhmm() {
         printf '%02d:%02d' "$((10#${BASH_REMATCH[2]}))" "$((10#${BASH_REMATCH[1]}))"
     fi
 }
+# dev_param_hhmm <HourKey> <MinuteKey> <default HH:MM>: the platform stack's schedule time as HH:MM.
+dev_param_hhmm() {
+    local h m
+    if h=$(stack_param "$DEV_PLATFORM_STACK" "$1" 2>/dev/null) && m=$(stack_param "$DEV_PLATFORM_STACK" "$2" 2>/dev/null) &&
+        [[ $h =~ ^[0-9]{1,2}$ && $m =~ ^[0-9]{1,2}$ ]]; then
+        printf '%02d:%02d' "$((10#$h))" "$((10#$m))"
+    else
+        printf '%s' "$3"
+    fi
+}
 dev_minutes_to_hhmm() { printf '%02d:%02d' "$(($1 / 60))" "$(($1 % 60))"; }
 dev_hhmm_to_minutes() {
     [[ $1 =~ ^([01][0-9]|2[0-3]):([0-5][0-9])$ ]] || return 1
@@ -350,8 +360,9 @@ dev_status_json() {
     tz=$(stack_param "$DEV_PLATFORM_STACK" ScheduleTimezone 2>/dev/null || echo America/Los_Angeles)
     warmup=$(stack_param "$DEV_PLATFORM_STACK" StartupWarmupMinutes 2>/dev/null || echo 25)
     schedule_enabled=$(stack_param "$DEV_PLATFORM_STACK" EnableScheduledShutdown 2>/dev/null || echo true)
-    shut_time=$(stack_param "$DEV_PLATFORM_STACK" ShutdownTime 2>/dev/null || echo 00:00)
-    start_time=$(stack_param "$DEV_PLATFORM_STACK" StartupTime 2>/dev/null || echo 07:35)
+    # Fallbacks when the schedules cannot be read: the stack's unpadded hour and minute parameters.
+    shut_time=$(dev_param_hhmm ShutdownHour ShutdownMinute 00:00)
+    start_time=$(dev_param_hhmm StartupHour StartupMinute 07:35)
     shut_state=$([ "$schedule_enabled" = true ] && echo ENABLED || echo DISABLED)
     start_state=$shut_state
     shut_name=$(dev_out ShutdownScheduleName)

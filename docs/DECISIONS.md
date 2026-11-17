@@ -4013,7 +4013,12 @@ asynchronous work leave the small instance.
    functions outside the VPC call Bedrock (with the Guardrail read from SSM, never from the
    message), Polly or S3 and put results on a results queue; a Django systemd consumer applies
    them idempotently in the database. Lambda never connects to RDS. Question Studio generation is
-   the first migrated workload. Database cleanup stays on a systemd timer.
+   the first migrated workload. Database cleanup stays on a systemd timer. This is the only
+   production job-processing path: the EC2 PostgreSQL worker proposed on the unmerged branch
+   `feature/ai-studio-queue` (LAI-AQS-027) is not adopted; its cancellation, failed-chunk retry,
+   duplicate-draft protection, duplicate-submit key and Admin controls were reconciled into the
+   jobs path (`docs/AI_QUESTION_STUDIO.md` section 14). Production settings accept only the `jobs`
+   and `manual` Studio run modes; `thread` and `inline` remain for local development.
 7. **Power schedule.** A Step Functions Standard state machine (`lai-dev-power`, SDK integrations,
    bounded polling) stops and starts EC2 and RDS in order; EventBridge Scheduler runs it at
    midnight and before 08:00 `America/Los_Angeles`, an RDS-EVENT-0154 rule stops a database AWS
