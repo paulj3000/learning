@@ -524,6 +524,44 @@ sources (branches kept, not merged).
   (`docs/processing/CANONICAL_PATH.md`, "Re-land status"). Release Django and the worker zip
   together.
 
+#### Wave 4 processing (LAI-LAMBDA-008 to 013)
+
+On `feature/serverless-processing-wave4` (the reviewed PR #42 head plus the Wave 4 work; not
+merged, not deployed). Status and what remains: `docs/processing/WAVE4_HANDOFF.md`.
+
+- **NPC animation inspection (LAI-LAMBDA-009, developer-complete).** Kind `asset.analyze_animation`
+  on the media queue, standard library, in the existing worker zip. "Inspect animations in
+  background" on NPC model variants reports exact clip names (for example
+  `Armature|mixamo.com|Layer0`), durations, channels, keyframes, skins and joints, with a
+  suggestion-only mapping helper. It never writes `animation_map`, publishes nothing and never
+  changes a published version. `docs/processing/NPC_ANIMATION_INSPECTION.md`.
+- **Audio inspection (LAI-LAMBDA-008 phase 1, developer-complete).** Kind `asset.process_audio`:
+  WAV, MP3 and Ogg header facts (format, codec, sample rate, channels, duration exact or
+  estimated) from "Inspect audio in background" on Sound Manager audio files and cues
+  (`audio.inspect_audiofile`). Results stay on the job; nothing is published or rewritten.
+  Transcoding and loudness (phase 2) are not authorized. `docs/processing/AUDIO_INSPECTION.md`.
+- **One migration:** `jobs.0004_wave4_inspection_kinds` adds both kinds. Rollout is consumer
+  first: the worker zip and Django ship together before either action is used.
+- **Feasibility only:** GLB and texture optimization (LAI-LAMBDA-010,
+  `docs/processing/feasibility/LAI-LAMBDA-010-glb-optimization.md`) and image conversion and
+  thumbnails (LAI-LAMBDA-013, `docs/processing/feasibility/LAI-LAMBDA-013-*.md`), with offline
+  bench scripts in `scripts/processing/bench/`. No dependency was added and nothing is enabled.
+- **Native-runtime proposals (not accepted, unnumbered):** `docs/processing/proposals/`
+  (`ADR-PROPOSED-glb-optimization.md`, `ADR-PROPOSED-image-conversion-and-thumbnails.md`,
+  `ADR-PROPOSED-native-audio-transcoding.md`). They change nothing until the owner accepts one.
+- **Readiness (documentation only, not executed):** the DEV live-acceptance checklist
+  `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (section 5 covers the Wave 4 kinds) and the
+  production rollout plan `docs/processing/LAI-LAMBDA-012-production-rollout.md`.
+- **Try it locally:** `scripts/processing/local-demo.sh` (set `LAI_DEMO_DB=lai_processing_demo_<x>`
+  to choose the database) now also runs NPC and audio inspection through the packaged worker zip
+  and the failure paths: invalid media, a duplicate result, a stale version, an unauthorized
+  admin action and a transient S3 503. Tests: `tests/processing/test_processing_animation_inspection.py`,
+  `tests/processing/test_processing_audio_inspector.py`, `tests/lambda/test_jobs_worker_contract.py`,
+  `lai/apps/npcs/tests/test_animation_inspection.py`, `lai/apps/audio/tests/test_audio_inspection.py`.
+- **Restrictions:** no deployment, AWS change, native tool, container image or artifact write
+  without explicit owner approval (`WAVE4_HANDOFF.md` section 6, W4-1 to W4-8). Child audio,
+  photos and text are never processed.
+
 ### React deployment
 
 `install-debug.sh` builds the React app with the Cognito ids and publishes it to the private web

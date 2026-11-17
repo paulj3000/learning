@@ -668,8 +668,8 @@ sections 6 to 8, then switch it off as in 11.1.
 
 **Not part of core acceptance.** Only if the release commit contains the Wave 4 kinds
 (`asset.analyze_animation`, LAI-LAMBDA-009; `asset.process_audio` phase 1, LAI-LAMBDA-008). On
-`2333d9e` neither exists: `feature/w4-npc-animation` and `feature/w4-audio-inspection` have no
-commits yet. Rules from `WAVE4_HANDOFF.md`: one jobs migration (`0004_...`) for the Wave 4 kinds,
+`2333d9e` neither exists; both are on the Wave 4 integration branch
+`feature/serverless-processing-wave4` (migration `jobs.0004_wave4_inspection_kinds`), not merged. Rules from `WAVE4_HANDOFF.md`: one jobs migration (`0004_...`) for the Wave 4 kinds,
 consumer first, standard library only, no artifact writes, no child audio.
 
 | # | Check | Command or action | Pass |

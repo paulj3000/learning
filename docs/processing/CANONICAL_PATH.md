@@ -61,9 +61,14 @@ processing bucket, `jobs_dispatch` and `jobs_consume_completions` as separate se
 
 | Workload | Card | Packaging |
 |---|---|---|
-| GLB optimization (meshopt, Draco, KTX2) | LAI-LAMBDA-010 | Native tools; a container image only after its own ADR |
-| Audio transcoding and loudness | LAI-LAMBDA-008 | FFmpeg; a container image only after its own ADR |
-| Thumbnails and image conversion | LAI-LAMBDA-013 | Pillow or libvips wheels may fit the zip; decided with the card |
+| NPC animation inspection, kind `asset.analyze_animation` (media queue) | LAI-LAMBDA-009 | Zip, standard library; developer-complete on `feature/serverless-processing-wave4` (`NPC_ANIMATION_INSPECTION.md`), not merged, not deployed |
+| Audio header inspection, kind `asset.process_audio` phase 1 (media queue) | LAI-LAMBDA-008 | Zip, standard library; developer-complete on `feature/serverless-processing-wave4` (`AUDIO_INSPECTION.md`), not merged, not deployed |
+| GLB optimization (meshopt, Draco, KTX2) | LAI-LAMBDA-010 | Native tools; a container image only after its own ADR (feasibility only) |
+| Audio transcoding and loudness (008 phase 2) | LAI-LAMBDA-008 | FFmpeg; a container image only after its own ADR (proposal only, not authorized) |
+| Thumbnails and image conversion | LAI-LAMBDA-013 | Pillow or libvips wheels may fit the zip; decided with the card (feasibility only) |
+
+Both Wave 4 kinds share one jobs migration, `jobs.0004_wave4_inspection_kinds`, and ship consumer
+first (`WAVE4_HANDOFF.md` section 3).
 
 ## Re-land status (branch `feature/serverless-processing-canonical`, 2026-11-17)
 

@@ -7,6 +7,36 @@ transcoding), LAI-LAMBDA-009 (NPC Manager animation inspection and mapping assis
 LAI-LAMBDA-010 (texture compression and GLB optimization benchmarking) and LAI-LAMBDA-013 (asset
 thumbnail generation and image conversion, split out of 010 on 2026-11-16).
 
+## Status (2026-11-17, integration branch `feature/serverless-processing-wave4`)
+
+Integrated on `feature/serverless-processing-wave4`: the reviewed canonical PR #42 head plus every
+Wave 4 workstream. Not merged, not deployed; no AWS resource was touched.
+
+**Done (repository only):**
+
+- **009** `asset.analyze_animation`: developer-complete (`NPC_ANIMATION_INSPECTION.md`).
+- **008 phase 1** `asset.process_audio` header inspection: developer-complete
+  (`AUDIO_INSPECTION.md`). Transcoding (phase 2, tracked as LAI-LAMBDA-008b) is not authorized.
+- One jobs migration for both kinds: `jobs.0004_wave4_inspection_kinds`.
+- **010** and **013**: feasibility studies only (`feasibility/`), proposed native-runtime decisions
+  that are not accepted (`proposals/`), offline bench scripts (`scripts/processing/bench/`).
+- **011** and **012**: documentation only (`LAI-LAMBDA-011-dev-acceptance.md`,
+  `LAI-LAMBDA-012-production-rollout.md`); nothing executed.
+- Integration fix after the canonical merge: the animation inspector now passes the GLB JSON
+  element bound (`max_json_elements`) to `parse_document`.
+- `scripts/processing/local-demo.sh` runs both kinds through the packaged worker zip with
+  in-memory SQS and S3, plus invalid media, a duplicate result, a stale version, an unauthorized
+  admin action and a transient S3 503 (retried, then applied).
+
+**Remains:**
+
+- Owner review and merge (W0), then the release with the consumer-first order (section 3).
+- Live verification of both kinds: LAI-LAMBDA-011 section 5, owner-run, after a deployment the
+  owner approves (W4-8).
+- Owner decisions W4-1 to W4-8 (section 6) before any of 008 phase 2, 010 or 013 is implemented;
+  no native tool, container image or artifact write exists or is authorized.
+- Production: LAI-LAMBDA-012 decisions P1 to P13.
+
 Read first: `CANONICAL_PATH.md`, `ASYNC_MODEL_VALIDATION.md`, `CONTRACTS.md`,
 `GLB_VALIDATION.md`, `../infrastructure/dev-native-environment.md` section 9, and ADR-055,
 ADR-061 and ADR-064 in `../DECISIONS.md`. The code wins over this page.
@@ -17,7 +47,7 @@ ADR-061 and ADR-064 in `../DECISIONS.md`. The code wins over this page.
 |---|---|
 | LAI-LAMBDA-001 to 007 | Re-landed on `feature/serverless-processing-canonical`: developer-complete, owner review pending, not merged, not deployed |
 | Live AWS acceptance | LAI-LAMBDA-011, open; every deployment needs owner approval |
-| Wave 4 | 008 phase 1 (audio header inspection, `asset.process_audio`, standard library, staff-triggered) developer-complete on `feature/w4-audio-inspection`: `AUDIO_INSPECTION.md`; phase 2 is a proposal only (`proposals/ADR-PROPOSED-native-audio-transcoding.md`). Everything else not started. Nothing here is approved scope until its card's prerequisites and approvals (section 6) are met |
+| Wave 4 | Integrated on `feature/serverless-processing-wave4` (see "Status" above): 009 and 008 phase 1 developer-complete; 008 phase 2 (transcoding) not authorized; 010 and 013 feasibility only; 011 and 012 documentation only. Nothing here is approved scope beyond that until its card's prerequisites and approvals (section 6) are met |
 
 ## 2. Rules from ADR-064
 

@@ -1,7 +1,10 @@
 # Audio inspection (`asset.process_audio`, LAI-LAMBDA-008 phase 1)
 
-Status: developer-complete on `feature/w4-audio-inspection` (based on
-`feature/serverless-processing-canonical`), 2026-11-17. Not merged, not deployed. Phase 2
+Status: developer-complete on the Wave 4 integration branch `feature/serverless-processing-wave4`
+(from `feature/w4-audio-inspection`, on the reviewed canonical PR #42 head), 2026-11-17. Not merged
+to `main`, not deployed; transcoding is not authorized. Local end-to-end run:
+`scripts/processing/local-demo.sh` steps 11, 12, 14, 15 and 16 (packaged worker zip, in-memory SQS
+and S3). Phase 2
 (transcoding and loudness) is a proposal only:
 `proposals/ADR-PROPOSED-native-audio-transcoding.md`.
 
@@ -18,7 +21,7 @@ Child speech and recordings never use it, and Polly speech (`speech.synthesize`)
 | Job type (closed catalog, LAI-LAMBDA-008) | `processing/lai_processing/contracts/job_types.py` |
 | Processor `asset.audio_inspector` 1.0.0, profile `audio-inspect` v1 | `processing/lai_processing/processors/audio/` |
 | Registered | `processing/lai_processing/core/registry.py` (`default_registry`) |
-| `apps.jobs` kind on the media queue | `lai/apps/jobs/core/envelope.py` (`ASSET_PROCESS_AUDIO`, `KIND_QUEUE`), `core/tasks.py` (`RUNNERS`), `core/contract.py` (`CONTRACT_KINDS`), `models.py` (`JobKind`), migration `jobs.0004_asset_process_audio` (choices and check constraint only) |
+| `apps.jobs` kind on the media queue | `lai/apps/jobs/core/envelope.py` (`ASSET_PROCESS_AUDIO`, `KIND_QUEUE`), `core/tasks.py` (`RUNNERS`), `core/contract.py` (`CONTRACT_KINDS`), `models.py` (`JobKind`), migration `jobs.0004_wave4_inspection_kinds`, shared with `asset.analyze_animation` (choices and check constraint only) |
 | Handler (`apply`, `inline_ports`) | `lai/apps/audio/inspection.py`, registered in `lai/apps/jobs/services.py` (`HANDLER_MODULES`) |
 | Worker ports | `lambda/jobs_worker/aws.py` (`AssetPorts`, read only); the library is vendored by `lambda/build.py` unchanged |
 | Admin | `lai/apps/audio/admin.py`: "Audio files (inspection)" (`AudioFile`, a proxy over audio `AssetVersion` rows, migration `audio.0005_audio_file_proxy`) and the Sound cue page |

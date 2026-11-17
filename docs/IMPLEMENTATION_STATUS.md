@@ -42,69 +42,77 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
-## Audio inspection, LAI-LAMBDA-008 phase 1 (`asset.process_audio`): developer-complete on `feature/w4-audio-inspection` (2026-11-17); NOT merged, NOT deployed
+## Wave 4 processing (LAI-LAMBDA-008 to 013): integrated on `feature/serverless-processing-wave4` (2026-11-17); NOT merged, NOT deployed
 
-Repository only; based on `feature/serverless-processing-canonical`. Details:
-`docs/processing/AUDIO_INSPECTION.md`.
+Repository only; no AWS resource was created or changed. The branch is the reviewed canonical
+PR #42 head plus the Wave 4 workstreams (`feature/w4-npc-animation`, `feature/w4-audio-inspection`,
+`feature/w4-image-feasibility`, `feature/w4-optimization-feasibility`,
+`feature/w4-release-readiness`). This entry replaces the per-workstream entries. Handoff and what
+remains: `docs/processing/WAVE4_HANDOFF.md`.
 
-- **Processor.** `asset.audio_inspector` 1.0.0, profile `audio-inspect` v1
-  (`processing/lai_processing/processors/audio/`): standard-library header inspection of WAV
-  (RIFF, fmt/extensible, fact, data), MP3 (ID3v2, frame headers, Xing/Info/VBRI, bounded frame
-  walk) and Ogg (pages, CRC, Vorbis and Opus identification headers, chained and multiplexed
-  streams). Format from the bytes; declared-type mismatch is a finding; exact or estimated
-  durations; explicit limitations (no decoding, playback or loudness claims). 20 MiB input (the
-  audio upload ceiling); bounded chunk, frame and page walks. No FFmpeg, no subprocess, no
-  artifacts.
-- **Jobs path.** `asset.process_audio` is a media-queue contract kind (`envelope`, `tasks.RUNNERS`,
-  `contract.CONTRACT_KINDS`, `JobKind`, migration `jobs.0004_asset_process_audio`, choices only,
-  for the integrator to fold into the Wave 4 migration), handler `apps.audio.inspection`, worker
-  `AssetPorts`; vendored into the worker zip by the existing build.
-- **Django and Admin.** Staff-triggered only (never on upload; not behind
-  `LAI_ASSET_ASYNC_VALIDATION`). Exact `ik1:` identity per version, checksum and processor;
-  result and identity verification on apply; stale or deleted versions refused; duplicates are
-  no-ops. Results stay on the job; no version, cue or release is changed. "Inspect audio in
-  background" on Audio files (inspection) (a proxy over audio versions, migration
-  `audio.0005_audio_file_proxy`) and Sound cues, gated by `audio.inspect_audiofile` (granted to
-  the Sound groups); escaped read-only panels and a link to the background job.
-- **Phase 2** (FFmpeg transcoding and loudness) is a proposal only:
-  `docs/processing/proposals/ADR-PROPOSED-native-audio-transcoding.md` (no ADR number).
-- **Not verified:** live worker run (LAI-LAMBDA-011, owner approval); full suites and builds at
-  merge readiness.
+| Card | Status |
+|---|---|
+| LAI-LAMBDA-009 NPC animation inspection | Developer-complete on the branch |
+| LAI-LAMBDA-008 audio | Phase 1 (header inspection) developer-complete; transcoding and loudness (phase 2) not authorized, proposal only |
+| LAI-LAMBDA-010 GLB and texture optimization | Feasibility only |
+| LAI-LAMBDA-013 image conversion and thumbnails | Feasibility only |
+| LAI-LAMBDA-011 DEV live acceptance | Documentation only (checklist, not executed) |
+| LAI-LAMBDA-012 production rollout | Documentation only (plan) |
 
-## Image conversion and thumbnails feasibility (LAI-LAMBDA-013): study complete on `feature/w4-image-feasibility` (2026-11-17); NOTHING implemented, NO dependency added, NOT deployed
-
-Documentation and offline benchmark scripts only: `docs/processing/feasibility/LAI-LAMBDA-013-*.md`,
-the proposed ADR `docs/processing/proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`
-(not accepted, no number), and `scripts/processing/bench/` (`measure_native_wheels.py`,
-`image_bench.py`, `thumbnail_bench.py`; each does nothing without an explicit flag).
-
-- **Measured:** worker zip 351,023 B (budget 2 MiB); Pillow 13.0.0 arm64 wheel 6.5 MB, 21.6 MB
-  unpacked; pyvips with libvips 8.5 MB, 20.1 MB unpacked; Chrome headless shell 273 MB unpacked
-  (x86); Pillow peak RSS 208 to 271 MiB at the pixel limit and SwiftShader 512-pixel renders in
-  1.2 to 4.4 s (both on an x86 workstation, not Lambda).
-- **Recommended:** phase 1 Admin thumbnails by staff browser capture (no native code); phase 2
-  Pillow conversion in a dedicated image worker; derived files as staff-only `DerivedObject` rows
-  with promotion into new unpublished versions (Option C); no server-side GLB renderer without
-  its own ADR. Texture resize is shared design owned by 013 (LAI-LAMBDA-010 reuses it).
-- **Findings:** uploaded images keep EXIF and GPS data, which published delivery passes to the
-  game unchanged (staff content); EXIF orientation is ignored.
-- **Blocked on:** owner decisions D-1 to D-12 in the proposed ADR, then W0 and W1 of
-  `docs/processing/WAVE4_HANDOFF.md`. No arm64 or Lambda measurement yet.
-
-## GLB and texture optimization feasibility (LAI-LAMBDA-010): study and benchmark scaffolding only (2026-11-17, branch `feature/w4-optimization-feasibility`); not approved scope, nothing enabled or deployed
-
-- Report: `docs/processing/feasibility/LAI-LAMBDA-010-glb-optimization.md` (measured baseline of
-  the six repository GLBs with the existing validator, tool evaluation, Three.js compatibility
-  audit, runtime recommendation, rollout and owner decisions). Proposed decision, not accepted
-  and unnumbered: `docs/processing/proposals/ADR-PROPOSED-glb-optimization.md`.
-- Scripts: `scripts/processing/bench/glb_baseline.py` (standard library; runs the existing GLB
-  validator) and `optimization_bench.py` (local only: refuses CI, never downloads, skips tools
-  that are not installed). No tool was installed, so **no optimization saving is measured**.
-- Findings: no decoder is configured or shipped; both validators refuse meshopt, Draco and
-  BasisU (`needs_decoder`); models appear to travel uncompressed (CloudFront does not compress
-  `model/gltf-*`). 013 owns image resize and the derived-artifact design this depends on.
-- Not changed: requirements, `processing/lai_processing`, the worker zip, `package.json`,
-  loaders, validators, infrastructure.
+- **009, `asset.analyze_animation`** (`docs/processing/NPC_ANIMATION_INSPECTION.md`). Processor
+  `asset.animation_inspector` 1.0.0, profile `animation-default` v1, standard library in the
+  existing worker zip; reuses the GLB validator's container and JSON modules without changing its
+  version (so no version becomes `processor_outdated`). Reports exact clip names, durations,
+  channels, samplers, keyframe counts, targets, skins and joints. Handler
+  `apps.npcs.animation_inspection`: result and identity verification, a copy on never-published
+  versions only (`inspection_stored`), published versions untouched (`result_recorded`). Admin
+  (`admin_animation.py`): "Inspect animations in background" on NPC model variants
+  (`npcs.change_npcmodelvariant`), an escaped read-only section and a suggestion-only mapping
+  helper that never suggests exporter take names. `NpcModelVariant.animation_map` is never
+  written.
+- **008 phase 1, `asset.process_audio`** (`docs/processing/AUDIO_INSPECTION.md`). Processor
+  `asset.audio_inspector` 1.0.0, profile `audio-inspect` v1: WAV, MP3 and Ogg (Vorbis, Opus)
+  header inspection in the standard library, format from the bytes, declared-type mismatch as a
+  finding, exact or estimated durations, explicit limitations; 20 MiB input. Staff-triggered
+  only ("Inspect audio in background" on Audio files and Sound cues, `audio.inspect_audiofile`;
+  proxy `audio.0005_audio_file_proxy`); never on upload. Results stay on the job; no version, cue
+  or release changes. Phase 2 (FFmpeg transcoding and loudness) is a proposal only:
+  `docs/processing/proposals/ADR-PROPOSED-native-audio-transcoding.md`.
+- **One jobs migration:** `jobs.0004_wave4_inspection_kinds` (kind choices and the
+  `jobs_kind_valid` check for both kinds). Rollout is consumer first.
+- **010 feasibility** (`docs/processing/feasibility/LAI-LAMBDA-010-glb-optimization.md`; proposed,
+  unaccepted `proposals/ADR-PROPOSED-glb-optimization.md`; `scripts/processing/bench/glb_baseline.py`,
+  `optimization_bench.py`). Baseline of the repository GLBs measured; no optimization tool was
+  installed, so no saving is measured. No decoder is shipped and both validators refuse meshopt,
+  Draco and BasisU. 013 owns image resize and the derived-artifact design.
+- **013 feasibility** (`docs/processing/feasibility/LAI-LAMBDA-013-*.md`; proposed, unaccepted
+  `proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`; `measure_native_wheels.py`,
+  `image_bench.py`, `thumbnail_bench.py`). Measured: worker zip about 351 KB (budget 2 MiB), Pillow
+  arm64 wheel 6.5 MB (21.6 MB unpacked), pyvips with libvips 8.5 MB, Chrome headless shell 273 MB
+  unpacked; x86 workstation timings only, no arm64 or Lambda measurement. Finding: uploaded images
+  keep EXIF and GPS data. Blocked on owner decisions D-1 to D-12.
+- **011 and 012:** `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (section 5: optional Wave 4
+  acceptance) and `docs/processing/LAI-LAMBDA-012-production-rollout.md` (owner decisions P1 to
+  P13). Nothing executed.
+- **Integration fix (2026-11-17):** the canonical review fix made `gltf.jsonparse.parse_document`
+  take a `max_elements` bound (string-aware structural pre-scan before `json.loads`); the
+  animation inspector still called the old signature, so every inspection raised `TypeError`
+  (31 failing tests). The inspector now carries `max_json_elements` (1,000,000, not raisable, as
+  in the GLB validator); a test covers the bound.
+- **Local demo** (`scripts/processing/local-demo.sh`, own PostgreSQL database, the packaged worker
+  zip, in-memory SQS and S3, zero AWS client attempts): the core steps 1 to 9 as before, then an
+  animated GLB inspected through the packaged worker (exact clips `Armature|mixamo.com|Layer0`,
+  `Idle`; NPC Admin section rendered; `animation_map` unchanged), a synthetic WAV inspected (wav,
+  pcm, 8000 Hz, 1 channel, 16 bit, 0.5 s exact; Sound Manager panel rendered; still `VALIDATED`),
+  and the failure paths: a GLB refused for audio (`not_audio`) and a non-audio `.wav` with verdict
+  `fail`; a duplicate result ignored; a stale version refused (`checksum_mismatch`); a view-only
+  staff user refused the actions (no job made); an S3 503 on a ranged read raised retryable
+  (`throttled`) and succeeded on redelivery. The demo now keeps its asset files in its temporary
+  directory (the settings fix `LAI_ASSET_LOCAL_ROOT`, which the script's export did not change).
+- **Tests:** <W4_FINAL_SUITE>
+- **Not verified:** any live worker run (LAI-LAMBDA-011, owner approval); full merge-readiness
+  suites and builds. **Not done:** 008 phase 2, any 010 or 013 implementation, artifact writes,
+  native tools or container images, deployment (owner decisions W4-1 to W4-8).
 
 ## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
 
