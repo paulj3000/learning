@@ -91,6 +91,21 @@ the proposed ADR `docs/processing/proposals/ADR-PROPOSED-image-conversion-and-th
 - **Blocked on:** owner decisions D-1 to D-12 in the proposed ADR, then W0 and W1 of
   `docs/processing/WAVE4_HANDOFF.md`. No arm64 or Lambda measurement yet.
 
+## GLB and texture optimization feasibility (LAI-LAMBDA-010): study and benchmark scaffolding only (2026-11-17, branch `feature/w4-optimization-feasibility`); not approved scope, nothing enabled or deployed
+
+- Report: `docs/processing/feasibility/LAI-LAMBDA-010-glb-optimization.md` (measured baseline of
+  the six repository GLBs with the existing validator, tool evaluation, Three.js compatibility
+  audit, runtime recommendation, rollout and owner decisions). Proposed decision, not accepted
+  and unnumbered: `docs/processing/proposals/ADR-PROPOSED-glb-optimization.md`.
+- Scripts: `scripts/processing/bench/glb_baseline.py` (standard library; runs the existing GLB
+  validator) and `optimization_bench.py` (local only: refuses CI, never downloads, skips tools
+  that are not installed). No tool was installed, so **no optimization saving is measured**.
+- Findings: no decoder is configured or shipped; both validators refuse meshopt, Draco and
+  BasisU (`needs_decoder`); models appear to travel uncompressed (CloudFront does not compress
+  `model/gltf-*`). 013 owns image resize and the derived-artifact design this depends on.
+- Not changed: requirements, `processing/lai_processing`, the worker zip, `package.json`,
+  loaders, validators, infrastructure.
+
 ## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
 
 Repository only; no AWS resource was created or changed. Re-lands the compatible parts of PR #40,
