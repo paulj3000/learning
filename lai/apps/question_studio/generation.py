@@ -18,9 +18,11 @@ from django.db.models import Sum
 from django.utils.timezone import now
 
 from apps.ai.providers import get_model_client
-from apps.ai.providers.base import ModelClient, ModelRequest, ProviderError
+from apps.ai.providers.base import ModelClient, ModelRequest
 from apps.ai.services.costs import estimate_microusd
 from apps.ai.services.usage import model_calls_enabled
+from apps.jobs.core import envelope as job_envelope
+from apps.jobs.core import tasks as job_tasks
 
 from . import contracts, prompts, taxonomy, validation
 from .models import (
@@ -36,7 +38,11 @@ from .models import (
 logger = logging.getLogger("lai.studio")
 
 STALE_RUNNING = timedelta(minutes=15)
-RETRYABLE = frozenset({"TIMEOUT", "THROTTLED", "UNAVAILABLE", "INVALID_RESPONSE", "TRUNCATED"})
+# One rule set for every runner (thread, inline, manual and the background jobs).
+RETRYABLE = job_tasks.STUDIO_RETRYABLE
+# A chunk failing like this stops the batch: retrying every chunk against a broken setup only
+# costs more.
+STOP_FAILURES = frozenset({"CONFIGURATION", "ACCESS_DENIED", "GUARDRAIL"})
 
 
 class StudioError(Exception):
@@ -171,6 +177,8 @@ def start_batch(batch: GenerationBatch) -> None:
         run_batch(batch.pk)
     elif mode == "thread":
         threading.Thread(target=_run_in_thread, args=(batch.pk,), daemon=True).start()
+    elif mode == "jobs":
+        start_jobs(batch.pk)
     # "manual": `manage.py studio_run_batch` picks it up.
 
 
@@ -205,9 +213,8 @@ class _Chunk:
     failure: str = ""
 
 
-def run_batch(batch_id, client: ModelClient | None = None) -> GenerationBatch:
-    """Generate a queued batch chunk by chunk. A failed chunk loses only itself (partial
-    success); a stale RUNNING batch is reclaimed; a finished batch is left alone."""
+def _claim(batch_id) -> tuple[GenerationBatch, bool]:
+    """Move a QUEUED (or stale RUNNING) batch to RUNNING. (batch, False) if it is not ours."""
     with transaction.atomic():
         batch = GenerationBatch.objects.select_for_update().get(pk=batch_id)
         stale = (
@@ -216,10 +223,19 @@ def run_batch(batch_id, client: ModelClient | None = None) -> GenerationBatch:
             and now() - batch.started_at > STALE_RUNNING
         )
         if batch.status != BatchStatus.QUEUED and not stale:
-            return batch
+            return batch, False
         batch.status = BatchStatus.RUNNING
         batch.started_at = now()
         batch.save(update_fields=["status", "started_at"])
+    return batch, True
+
+
+def run_batch(batch_id, client: ModelClient | None = None) -> GenerationBatch:
+    """Generate a queued batch chunk by chunk. A failed chunk loses only itself (partial
+    success); a stale RUNNING batch is reclaimed; a finished batch is left alone."""
+    batch, claimed = _claim(batch_id)
+    if not claimed:
+        return batch
     try:
         _generate(batch, client)
     except Exception as error:  # a bug must not leave a batch RUNNING; log the type only (ADR-025)
@@ -228,54 +244,70 @@ def run_batch(batch_id, client: ModelClient | None = None) -> GenerationBatch:
     return _finish(batch)
 
 
+def _context(batch: GenerationBatch) -> tuple[contracts.GenerationParams, str, str]:
+    island = batch.world.title if batch.world_id else ""
+    setting = batch.adventure.title if batch.adventure_id else ""
+    return _params_of(batch), island, setting
+
+
+def _next_want(batch: GenerationBatch, requested_before: int) -> int:
+    """How many questions the next chunk asks for; 0 when the batch is done or must stop.
+
+    The per-chunk gates every runner shares: the kill switch and the daily token quota."""
+    remaining = batch.requested_count - requested_before
+    if remaining <= 0:
+        return 0
+    if not model_calls_enabled():
+        batch.failure_category = batch.failure_category or "KILL_SWITCH"
+        return 0
+    if tokens_today() >= StudioLimits.current().max_tokens_per_day:
+        batch.failure_category = batch.failure_category or "TOKEN_QUOTA"
+        return 0
+    return min(max(1, settings.LAI_STUDIO_CHUNK_SIZE), remaining)
+
+
+def _apply_chunk(batch: GenerationBatch, params, chunk: _Chunk, want: int) -> bool:
+    """Account for one chunk and store its drafts. False when the batch must stop here."""
+    batch.attempts += chunk.attempts
+    batch.input_tokens += chunk.input_tokens
+    batch.output_tokens += chunk.output_tokens
+    batch.chunks_done += 1
+    if chunk.failure:
+        batch.failure_category = batch.failure_category or chunk.failure
+    for item in chunk.items[:want]:
+        _store(batch, params, item)
+        batch.produced_count += 1
+    batch.save(
+        update_fields=[
+            "model_id",
+            "attempts",
+            "input_tokens",
+            "output_tokens",
+            "chunks_done",
+            "produced_count",
+            "failure_category",
+        ]
+    )
+    return chunk.failure not in STOP_FAILURES
+
+
 def _generate(batch: GenerationBatch, client: ModelClient | None) -> None:
     client = client or studio_client()
     if client is None:
         batch.failure_category = "DISABLED"
         return
     batch.model_id = client.model_id
-    params = _params_of(batch)
-    island = batch.world.title if batch.world_id else ""
-    setting = batch.adventure.title if batch.adventure_id else ""
-    limits = StudioLimits.current()
-    chunk_size = max(1, settings.LAI_STUDIO_CHUNK_SIZE)
-    remaining = batch.requested_count
-    while remaining > 0:
-        if not model_calls_enabled():
-            batch.failure_category = batch.failure_category or "KILL_SWITCH"
-            break
-        if tokens_today() >= limits.max_tokens_per_day:
-            batch.failure_category = batch.failure_category or "TOKEN_QUOTA"
-            break
-        want = min(chunk_size, remaining)
+    params, island, setting = _context(batch)
+    requested_before = 0
+    while want := _next_want(batch, requested_before):
         chunk = _call_chunk(client, params, want, island, setting, offset=batch.produced_count)
-        batch.attempts += chunk.attempts
-        batch.input_tokens += chunk.input_tokens
-        batch.output_tokens += chunk.output_tokens
-        batch.chunks_done += 1
-        if chunk.failure:
-            batch.failure_category = batch.failure_category or chunk.failure
-        for item in chunk.items[:want]:
-            _store(batch, params, item)
-            batch.produced_count += 1
-        remaining -= want
-        batch.save(
-            update_fields=[
-                "attempts",
-                "input_tokens",
-                "output_tokens",
-                "chunks_done",
-                "produced_count",
-                "failure_category",
-            ]
-        )
-        if chunk.failure in {"CONFIGURATION", "ACCESS_DENIED", "GUARDRAIL"}:
-            break  # retrying every chunk against a broken setup only costs more
+        requested_before += want
+        if not _apply_chunk(batch, params, chunk, want):
+            break
 
 
-def _call_chunk(client, params, want, island, setting, *, offset: int = 0) -> _Chunk:
-    chunk = _Chunk(items=[])
-    request = ModelRequest(
+def chunk_request(params, want, island, setting, *, offset: int = 0) -> ModelRequest:
+    return ModelRequest(
         route="studio",
         system_prompt=prompts.SYSTEM_PROMPT,
         content=prompts.build_content(params, want, island=island, adventure=setting),
@@ -285,28 +317,156 @@ def _call_chunk(client, params, want, island, setting, *, offset: int = 0) -> _C
         temperature=settings.LAI_STUDIO_TEMPERATURE,
         fake_hints={"studio": True, "count": want, "params": params, "offset": offset},
     )
-    for _ in range(max(1, settings.LAI_STUDIO_MAX_ATTEMPTS)):
-        chunk.attempts += 1
-        try:
-            response = client.invoke(request)
-        except ProviderError as error:
-            chunk.failure = error.category
-            if error.category not in RETRYABLE:
-                return chunk
-            continue
-        chunk.input_tokens += response.input_tokens or 0
-        chunk.output_tokens += response.output_tokens or 0
-        if response.guardrail_intervened:
-            chunk.failure = "GUARDRAIL"
-            return chunk
-        output = response.output
-        questions = output.get("questions") if isinstance(output, dict) else None
-        if not isinstance(questions, list):
-            chunk.failure = "INVALID_RESPONSE"
-            continue
-        chunk.items, chunk.failure = questions, ""
-        return chunk
-    return chunk
+
+
+def _chunk_from(data: dict) -> _Chunk:
+    return _Chunk(
+        items=list(data["items"]),
+        input_tokens=data["input_tokens"],
+        output_tokens=data["output_tokens"],
+        attempts=data["attempts"],
+        failure=data["failure"],
+    )
+
+
+def _call_chunk(client, params, want, island, setting, *, offset: int = 0) -> _Chunk:
+    request = chunk_request(params, want, island, setting, offset=offset)
+    return _chunk_from(
+        job_tasks.call_chunk(lambda: client.invoke(request), settings.LAI_STUDIO_MAX_ATTEMPTS)
+    )
+
+
+# --- background jobs (LAI_STUDIO_RUN_MODE=jobs) -----------------------------------------------
+#
+# Each chunk is one `studio.generate_chunk` job, submitted only after the previous one was
+# applied, so a batch never has two chunks in flight. The worker makes the model call(s) with the
+# same attempt rules (`job_tasks.call_chunk`); the result is applied here by `_apply_chunk`, the
+# same accounting the in-process runners use, and then the next chunk is submitted or the batch
+# finished.
+
+
+def start_jobs(batch_id) -> GenerationBatch:
+    batch, claimed = _claim(batch_id)
+    if not claimed:
+        return batch
+    if settings.LAI_AI_PROVIDER == "disabled":
+        batch.failure_category = "DISABLED"
+        return _finish(batch)
+    try:
+        submit_next_chunk(batch, requested_before=0)
+    except Exception as error:  # noqa: BLE001 - never leave a batch RUNNING on a bug
+        logger.error("studio.batch internal_error type=%s", type(error).__name__)
+        batch.refresh_from_db()
+        if batch.status == BatchStatus.RUNNING:
+            batch.failure_category = "INTERNAL"
+            _finish(batch)
+    return GenerationBatch.objects.get(pk=batch_id)
+
+
+def chunk_payload(batch: GenerationBatch, *, want: int, requested_before: int) -> dict:
+    params, island, setting = _context(batch)
+    request = chunk_request(params, want, island, setting, offset=batch.produced_count)
+    return {
+        "batch_id": str(batch.pk),
+        "chunk_index": batch.chunks_done,
+        "want": want,
+        "offset": batch.produced_count,
+        "requested_before": requested_before,
+        "max_attempts": min(5, max(1, settings.LAI_STUDIO_MAX_ATTEMPTS)),
+        "model_id": studio_model_id(),
+        "request": {
+            "route": request.route,
+            "system_prompt": request.system_prompt,
+            "content": [
+                {"text": part.text, "untrusted": part.untrusted, "guarded": part.guarded}
+                for part in request.content
+            ],
+            "output_schema": request.output_schema,
+            "schema_name": request.schema_name,
+            "max_output_tokens": request.max_output_tokens,
+            "temperature": request.temperature,
+        },
+    }
+
+
+def submit_next_chunk(batch: GenerationBatch, *, requested_before: int) -> None:
+    """Submit the next chunk job, or finish the batch when nothing is left or a gate stops it.
+
+    With the inline jobs backend the job (and every later chunk) runs before this returns, so
+    `batch` may be stale afterwards; callers reload it."""
+    from apps.jobs import services as jobs
+
+    want = _next_want(batch, requested_before)
+    if not want:
+        _finish(batch)
+        return
+    payload = chunk_payload(batch, want=want, requested_before=requested_before)
+    try:
+        jobs.submit(
+            job_envelope.STUDIO_GENERATE_CHUNK, payload, user=batch.requested_by, subject=batch
+        )
+    except jobs.JobsError as error:
+        logger.warning("studio.batch id=%s submit_refused code=%s", batch.pk, error.code)
+        batch.failure_category = batch.failure_category or "JOBS_UNAVAILABLE"
+        _finish(batch)
+
+
+def job_failure_category(code: str) -> str:
+    if code == "model_not_approved":
+        return "MODEL_NOT_APPROVED"
+    if code == "submit_failed":
+        return "JOBS_UNAVAILABLE"
+    return f"JOB_{code.upper()}"[:40]
+
+
+def _count(value: object) -> int:
+    return value if type(value) is int and 0 <= value <= 10_000_000 else 0
+
+
+def apply_chunk_job(job) -> None:
+    """The `studio.generate_chunk` result handler (runs inside the job's transaction)."""
+    payload = job.payload
+    batch = GenerationBatch.objects.select_for_update().filter(pk=payload.get("batch_id")).first()
+    if batch is None or batch.status != BatchStatus.RUNNING:
+        logger.info("studio.batch chunk_ignored job=%s reason=not_running", job.pk)
+        return
+    if payload.get("chunk_index") != batch.chunks_done:
+        logger.warning("studio.batch chunk_ignored job=%s reason=out_of_order", job.pk)
+        return
+    want = payload["want"]
+    try:
+        with transaction.atomic():
+            if job.status != "completed":
+                batch.failure_category = batch.failure_category or job_failure_category(
+                    job.error_code or "failed"
+                )
+                go_on = False
+            else:
+                result = job.result or {}
+                items = result.get("items")
+                failure = result.get("failure")
+                chunk = _Chunk(
+                    items=items if isinstance(items, list) else [],
+                    input_tokens=_count(result.get("input_tokens")),
+                    output_tokens=_count(result.get("output_tokens")),
+                    attempts=_count(result.get("attempts")),
+                    failure=failure[:40] if isinstance(failure, str) else "INVALID_RESPONSE",
+                )
+                model_id = result.get("model_id")
+                if isinstance(model_id, str) and model_id:
+                    batch.model_id = model_id[:200]
+                params = _params_of(batch)
+                go_on = _apply_chunk(batch, params, chunk, want)
+    except Exception as error:  # a bug must not leave a batch RUNNING; log the type only
+        logger.error("studio.batch internal_error type=%s", type(error).__name__)
+        batch.refresh_from_db()
+        batch.failure_category = "INTERNAL"
+        _finish(batch)
+        return
+    if go_on:
+        submit_next_chunk(batch, requested_before=payload["requested_before"] + want)
+    else:
+        _finish(batch)
 
 
 def _store(batch: GenerationBatch, params, item: object) -> Question:

@@ -34,7 +34,9 @@
     "assets:import-kenney": "tsx scripts/import-kenney-assets.ts",
     "assets:import-characters": "tsx scripts/import-character-assets.ts",
     "grant-admin": "tsx scripts/grant-admin.ts",
-    "infra:synth": "tsx infra/bin/app.ts"
+    "infra:synth": "tsx infra/bin/app.ts",
+    "infra:synth:dev": "LAI_ENV=dev tsx infra/bin/app.ts",
+    "infra:synth:prod": "LAI_ENV=prod CDK_OUTDIR=infra/cdk.out/prod tsx infra/bin/app.ts"
   },
   "keywords": [
     "education",

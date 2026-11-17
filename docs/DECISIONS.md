@@ -76,6 +76,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-052 | The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme | Accepted | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4); scope widened to the whole app 2026-11-10; owner-accepted 2026-11-10 with AP-01. Amends ADR-023's route boundary. Not merged or deployed |
 | ADR-053 | No platform-imposed play-time limits; the session-time control and calm stop are retired | Accepted | Branch `claude/festive-faraday-fjechb` (Trello card 123) | Owner-directed 2026-11-11 (Trello "[LAI] Remove child gameplay time limits and forced session cutoffs"); drops `ChildProfile.session_minutes` (migration `users.0007`). Amends CLAUDE.md section 11 item 11. Amplify field kept until the Django cutover |
 | ADR-054 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-049, ADR-050 |
+| ADR-055 | The dev environment runs Django natively on one ARM64 EC2 instance with private RDS, Lambda and SQS for asynchronous work, and a nightly Step Functions shutdown; production keeps ADR-037 | Accepted | `main` (owner-directed native dev infrastructure, 2026-11-16) | Owner-directed and authorized 2026-11-16. Dev only: amends ADR-037 for `dev`; production unchanged. Repository side only: provisioning and every deploy stay owner-approved |
 
 ## ADR-001: Parent-owned accounts
 
@@ -3972,3 +3973,59 @@ character without a deploy. Two more places hold NPC truth until the content aut
 (the export record and the NPC Manager release); the NPC Manager wins at runtime for characters
 it publishes. The `feature/sound-manager` work (ADR-048 to ADR-050, still Proposed) becomes a
 dependency of this branch. Contract details: `docs/NPC_MANAGER_CONTRACTS.md`.
+
+## ADR-055: The dev environment runs Django natively on one ARM64 EC2 instance with private RDS, Lambda and SQS for asynchronous work, and a nightly Step Functions shutdown; production keeps ADR-037
+
+Status: Accepted (project owner, 2026-11-16, "Low-Cost AWS Development Infrastructure"). Repository
+side only: nothing is deployed, and provisioning, every deploy and live acceptance stay
+owner-approved steps.
+
+**Context.** ADR-037's per-environment design (Docker Compose on x86 EC2, ECR images, an ALB with
+ACM and a WAF rate rule) costs roughly $80 or more a month per environment before the database.
+The owner wants a development and debugging environment for about $30 a month in `us-west-1`,
+reproducible from a clean account, with an automatic nightly shutdown, and asked that heavy or
+asynchronous work leave the small instance.
+
+**Decision.**
+
+1. **Dev only.** `LAI_ENV=dev` synthesizes `LaiDevArtifacts-dev` and `LaiDevPlatform-dev` instead
+   of `LaiDjangoEc2-dev`; `LaiDjangoRelease` (ECR) and `LaiDjangoEc2-<env>` are synthesized only
+   for `prod`. Production infrastructure and `deploy-django-ec2.yml`'s prod jobs are unchanged.
+2. **Native Django.** One `t4g.small` (Graviton, Amazon Linux 2023 ARM64) in a public subnet with an
+   Elastic IP, nginx and gunicorn under systemd, a Python 3.12 virtual environment per release,
+   access through Systems Manager only (no SSH, no key pair). No Docker, ECR, ALB, NLB, WAF, NAT
+   gateway or VPC endpoint.
+3. **Database.** RDS PostgreSQL 16 `db.t4g.micro`, Single-AZ, encrypted, private isolated subnets,
+   TLS enforced (`rds.force_ssl`), credentials generated into Secrets Manager. Never PostgreSQL on
+   the instance.
+4. **TLS without a load balancer.** CloudFront (ACM in `us-east-1`) serves the React build from a
+   private bucket and sends `/api/*` to the API host. nginx on the instance terminates TLS with a
+   Let's Encrypt certificate (Route 53 DNS-01, or HTTP-01 when DNS is elsewhere) renewed by a
+   systemd timer. Port 443 admits the CloudFront origin-facing prefix list, plus one optional
+   owner CIDR for the Django Admin host, which is never routed through the public site.
+5. **Releases.** GitHub Actions (OIDC) builds an immutable tarball with an `aarch64` cp312
+   wheelhouse, stores it in the artifacts bucket by commit, and sends a fixed SSM document that
+   verifies the checksum, builds the release's virtual environment offline, checks the
+   database and `check --deploy`, keeps ADR-037's destructive-migration guard, migrates, collects
+   static files, switches `/opt/lai/current` atomically, restarts, and rolls back to the previous
+   release when unhealthy. Migrations are never reversed.
+6. **Asynchronous work.** Django submits jobs (`apps.jobs.ProcessingJob`) to SQS; arm64 Lambda
+   functions outside the VPC call Bedrock (with the Guardrail read from SSM, never from the
+   message), Polly or S3 and put results on a results queue; a Django systemd consumer applies
+   them idempotently in the database. Lambda never connects to RDS. Question Studio generation is
+   the first migrated workload. Database cleanup stays on a systemd timer.
+7. **Power schedule.** A Step Functions Standard state machine (`lai-dev-power`, SDK integrations,
+   bounded polling) stops and starts EC2 and RDS in order; EventBridge Scheduler runs it at
+   midnight and before 08:00 `America/Los_Angeles`, an RDS-EVENT-0154 rule stops a database AWS
+   restarted after seven days, and the CLI, GitHub workflow and schedules all use the same state
+   machine. A commit that reaches `main` while dev is stopped is recorded as pending and applied at
+   the next start; nothing starts dev implicitly.
+
+**Consequences.** About $30 a month with the schedule (about $40 always on), versus several times
+that under ADR-037. Dev no longer exercises the production container path, so a production
+release is not proven by dev; `LAI_PROD_AUTO_DEPLOY` (which needs the Docker dev job) is unusable
+while native dev is enabled, and prod releases are manual dispatches. A single instance means
+deploys restart gunicorn (seconds of 502s) and dev is down between midnight and about 08:00.
+The Elastic IP, storage, CloudFront and S3 still cost money while stopped. Workloads Lambda cannot
+host well (GLB optimization, media transcoding with native tools) are tracked, not forced.
+Details: `docs/infrastructure/dev-native-environment.md`.

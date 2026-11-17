@@ -1,0 +1,356 @@
+# Native DEV backend release (LaiDevPlatform-dev: Django on one ARM64 EC2 instance, no Docker).
+#
+#   push to main (backend paths) -> test -> package (aarch64 wheelhouse tarball)
+#     -> [start the environment, only when asked] -> upload to the artifacts bucket and deploy
+#        through the lai-dev-native-deploy SSM document
+#   workflow_dispatch: deploy this commit, roll back, or apply the deferred (pending) release.
+#
+# A stopped environment (nightly shutdown) is not an error: with LAI_DEV_STOPPED_DEPLOY 'defer'
+# (the default) the release is recorded in /lai/dev/deploy/pending and the power state machine
+# applies it on the next start; the run succeeds and its summary says "deployment pending". With
+# LAI_DEV_STOPPED_DEPLOY 'start', or the start_if_stopped input, a job in the dev-infrastructure
+# environment starts the environment first (the backend role cannot start anything).
+#
+# AWS access is GitHub OIDC only: the backend role (vars.LAI_DEV_BACKEND_ROLE_ARN) trusts the
+# dev-backend environment, the infrastructure role (vars.LAI_DEV_INFRA_ROLE_ARN) trusts
+# dev-infrastructure. Nothing runs until the repository variable LAI_DEV_NATIVE_ENABLED is 'true'
+# (which also makes deploy-django-ec2.yml skip its Docker dev deployment).
+name: Deploy DEV backend (native)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lai/**'
+      - 'content/**'
+      - 'react/public/models/**'
+      - 'requirements.txt'
+      - 'requirements-dev.txt'
+      - 'pyproject.toml'
+      - 'scripts/aws/native/**'
+      - 'scripts/aws/dev-release.sh'
+      - 'scripts/aws/lib-dev.sh'
+      - 'deploy/native/**'
+      - '.github/workflows/deploy-dev-native.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: deploy this commit of main, roll back, or apply the pending (deferred) release
+        type: choice
+        options: [deploy, rollback, deploy-pending]
+        default: deploy
+      start_if_stopped:
+        description: start the environment first when it is stopped (otherwise the release is deferred)
+        type: boolean
+        default: false
+      rollback_to:
+        description: 'rollback only: full commit SHA of an earlier healthy release (empty: the previous one)'
+        type: string
+        default: ''
+      allow_older:
+        description: 'deploy only: allow a commit older than the running release'
+        type: boolean
+        default: false
+      allow_destructive_migrations:
+        description: 'deploy only: allow migrations that remove or rename columns/tables (read the runbook first)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.LAI_AWS_REGION || 'us-west-1' }}
+
+jobs:
+  test:
+    name: Django tests and checks
+    if: >-
+      vars.LAI_DEV_NATIVE_ENABLED == 'true' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || inputs.action == 'deploy')
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lai
+          POSTGRES_USER: lai
+          POSTGRES_PASSWORD: local-dev-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lai -d lai"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # Throwaway service container on the runner (same values as ci.yml); not secrets.
+      POSTGRES_USER: lai
+      POSTGRES_PASSWORD: local-dev-only-password
+      POSTGRES_DB: lai
+      POSTGRES_PORT: '5432'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install pinned dependencies
+        run: make py-install
+
+      - name: Django system checks
+        run: make django-check
+
+      - name: Migration consistency (no model change without a migration)
+        run: make migrate-check
+
+      - name: Production settings pass check --deploy
+        working-directory: lai
+        env:
+          # Placeholder values so the settings import; no database or AWS is contacted.
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: ci-only-not-a-secret-ci-only-not-a-secret-ci-only-not-a-secret
+          DJANGO_ALLOWED_HOSTS: api.example.invalid
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://api.example.invalid
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/lai?sslmode=disable
+          DJANGO_TRUST_PROXY_SSL_HEADER: 'true'
+          COGNITO_REGION: us-west-1
+          COGNITO_USER_POOL_ID: us-west-1_CIPLACEHOLDER
+          COGNITO_ALLOWED_CLIENT_IDS: ciplaceholder
+          LAI_ASSET_STORAGE: s3
+          LAI_ASSET_BUCKET: lai-assets-ci-placeholder
+          LAI_ASSET_REGION: us-west-1
+        run: ../.venv/bin/python manage.py check --deploy --fail-level ERROR
+
+      - name: Pytest, including the release script tests (PostgreSQL tests must run)
+        run: make py-test-db
+
+  package:
+    name: Package the release (linux/arm64 wheelhouse)
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      git_sha: ${{ github.sha }}
+      commit_epoch: ${{ steps.commit.outputs.epoch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Commit time (the release ordering key)
+        id: commit
+        run: echo "epoch=$(git log -1 --format=%ct HEAD)" >>"$GITHUB_OUTPUT"
+
+      - name: Build the tarball and manifest
+        env:
+          GIT_SHA: ${{ github.sha }}
+          EPOCH: ${{ steps.commit.outputs.epoch }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: scripts/aws/dev-release.sh package --git-sha "$GIT_SHA" --commit-epoch "$EPOCH" --run-url "$RUN_URL"
+
+      - name: Every wheel is aarch64 or pure Python
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          wheels=$(tar -tzf "dist/dev-release/$GIT_SHA.tar.gz" | grep -E '^(\./)?wheels/[^/]+\.whl$' || true)
+          [ -n "$wheels" ] || { echo "::error::the release has no wheelhouse"; exit 1; }
+          bad=$(grep -vE '(aarch64|none-any)\.whl$' <<<"$wheels" || true)
+          if [ -n "$bad" ]; then
+            echo "::error::wheels that will not install on linux/arm64:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "$(wc -l <<<"$wheels") wheels, all aarch64 or none-any"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev-release-${{ github.sha }}
+          path: |
+            dist/dev-release/${{ github.sha }}.tar.gz
+            dist/dev-release/${{ github.sha }}.json
+          retention-days: 14
+          if-no-files-found: error
+
+  start:
+    name: Start the DEV environment
+    needs: package
+    # Only when asked: the start_if_stopped input, or LAI_DEV_STOPPED_DEPLOY 'start'. A no-op
+    # when the environment is already running.
+    if: >-
+      always() && vars.LAI_DEV_NATIVE_ENABLED == 'true' && github.ref == 'refs/heads/main' &&
+      (needs.package.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.action == 'deploy-pending')) &&
+      ((github.event_name == 'workflow_dispatch' && inputs.start_if_stopped) || vars.LAI_DEV_STOPPED_DEPLOY == 'start')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: dev-infrastructure
+    # Its own group, so it never displaces a queued manual operation; a power run already in
+    # progress is joined (same action) or refused (other action) by manage-dev.sh itself.
+    concurrency:
+      group: deploy-dev-native-start
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_DEV_INFRA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-dev-start-${{ github.run_id }}
+
+      - name: Start (waits until Django is verified)
+        run: scripts/aws/manage-dev.sh start
+
+  deploy:
+    name: Upload and deploy to DEV
+    needs: [package, start]
+    if: >-
+      always() && needs.package.result == 'success' &&
+      (needs.start.result == 'success' || needs.start.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: dev-backend
+      url: ${{ vars.LAI_API_BASE_URL }}
+    concurrency:
+      group: deploy-dev-native
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dev-release-${{ github.sha }}
+          path: dist/dev-release
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_DEV_BACKEND_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-dev-deploy-${{ github.run_id }}
+
+      - name: Upload (immutable; an earlier upload of this commit is kept)
+        env:
+          GIT_SHA: ${{ github.sha }}
+          LAI_DEV_ARTIFACT_BUCKET: ${{ vars.LAI_DEV_ARTIFACT_BUCKET }}
+        run: scripts/aws/dev-release.sh upload --git-sha "$GIT_SHA" --reuse-existing
+
+      - name: Deploy through SSM (or record it as pending while stopped)
+        id: deploy
+        env:
+          GIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          LAI_DEV_ARTIFACT_BUCKET: ${{ vars.LAI_DEV_ARTIFACT_BUCKET }}
+          # The backend role cannot start the environment; the start job did that when asked.
+          LAI_DEV_STOPPED_DEPLOY: defer
+          ALLOW_OLDER: ${{ inputs.allow_older && 'true' || 'false' }}
+          ALLOW_DESTRUCTIVE: ${{ inputs.allow_destructive_migrations && 'true' || 'false' }}
+        run: |
+          flags=()
+          if [ "$ALLOW_OLDER" = true ]; then flags+=(--allow-older); fi
+          if [ "$ALLOW_DESTRUCTIVE" = true ]; then flags+=(--allow-destructive-migrations); fi
+          scripts/aws/dev-release.sh deploy --git-sha "$GIT_SHA" --run-url "$RUN_URL" "${flags[@]}"
+
+      - name: Summary
+        if: always()
+        env:
+          GIT_SHA: ${{ github.sha }}
+          RESULT: ${{ steps.deploy.outputs.result || 'failed' }}
+        run: |
+          pending=$(aws ssm get-parameter --name /lai/dev/deploy/pending --query Parameter.Value --output text 2>/dev/null || echo unknown)
+          {
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`$GIT_SHA\` |"
+            echo "| Result | $RESULT |"
+            echo "| Pending release | \`$pending\` |"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  deploy-pending:
+    name: Apply the pending release
+    needs: start
+    if: >-
+      always() && vars.LAI_DEV_NATIVE_ENABLED == 'true' && github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'deploy-pending' &&
+      (needs.start.result == 'success' || needs.start.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: dev-backend
+      url: ${{ vars.LAI_API_BASE_URL }}
+    concurrency:
+      group: deploy-dev-native
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_DEV_BACKEND_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-dev-pending-${{ github.run_id }}
+
+      - name: Deploy the pending release
+        run: scripts/aws/manage-dev.sh deploy-pending
+
+  rollback:
+    name: Roll DEV back
+    if: >-
+      vars.LAI_DEV_NATIVE_ENABLED == 'true' && github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: dev-backend
+      url: ${{ vars.LAI_API_BASE_URL }}
+    concurrency:
+      group: deploy-dev-native
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_DEV_BACKEND_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-dev-rollback-${{ github.run_id }}
+
+      - name: Roll back through SSM
+        env:
+          TO: ${{ inputs.rollback_to }}
+        run: |
+          if [ -n "$TO" ]; then
+            [[ $TO =~ ^[a-f0-9]{40}$ ]] || { echo "::error::rollback_to must be a full commit SHA"; exit 2; }
+            scripts/aws/dev-release.sh rollback --to "$TO"
+          else
+            scripts/aws/dev-release.sh rollback
+          fi

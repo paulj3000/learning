@@ -46,7 +46,9 @@ permissions:
 jobs:
   # A commit that changes both the API and the site ships the API first: the site waits for that
   # commit's Django release (deploy-django-ec2.yml) and stops if it failed. A site-only commit
-  # has no Django run and goes straight on.
+  # has no Django run and goes straight on. With native dev on (LAI_DEV_NATIVE_ENABLED 'true') a
+  # dev release waits for deploy-dev-native.yml instead; a backend release deferred because the
+  # environment is stopped ("deployment pending") ends successfully and the site goes on.
   backend:
     name: Wait for this commit's Django release
     if: >-
@@ -64,19 +66,28 @@ jobs:
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
           EVENT: ${{ github.event_name }}
+          # Native dev releases come from deploy-dev-native.yml (pushes, and dev dispatches).
+          NATIVE: ${{ vars.LAI_DEV_NATIVE_ENABLED == 'true' && (github.event_name == 'push' || inputs.environment == 'dev') }}
         run: |
-          # Did this push change a path deploy-django-ec2.yml releases? Then its run must appear
+          # Did this push change a path the backend workflow releases? Then its run must appear
           # and succeed; otherwise (and for a manual dispatch) a run is waited for only if one exists.
+          workflow=deploy-django-ec2.yml
+          [ "$NATIVE" != true ] || workflow=deploy-dev-native.yml
           expect=false
           if [ "$EVENT" = push ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
             files=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" --jq '.files[].filename')
-            if grep -qE '^(lai/|content/|react/public/models/|scripts/aws/|deploy/ec2/|tests/deploy/|requirements(-dev)?\.txt$|pyproject\.toml$|\.dockerignore$|\.github/workflows/deploy-django-ec2\.yml$)' <<<"$files"; then
+            # Each pattern mirrors its workflow's push paths (tests/deploy guard both).
+            if [ "$NATIVE" != true ]; then
+              if grep -qE '^(lai/|content/|react/public/models/|scripts/aws/|deploy/ec2/|tests/deploy/|requirements(-dev)?\.txt$|pyproject\.toml$|\.dockerignore$|\.github/workflows/deploy-django-ec2\.yml$)' <<<"$files"; then
+                expect=true
+              fi
+            elif grep -qE '^(lai/|content/|react/public/models/|scripts/aws/native/|scripts/aws/dev-release\.sh$|scripts/aws/lib-dev\.sh$|deploy/native/|requirements(-dev)?\.txt$|pyproject\.toml$|\.github/workflows/deploy-dev-native\.yml$)' <<<"$files"; then
               expect=true
             fi
           fi
-          echo "this commit changes the backend: $expect"
+          echo "this commit changes the backend ($workflow): $expect"
           for _ in $(seq 1 140); do
-            run=$(gh run list -R "$REPO" --workflow deploy-django-ec2.yml --commit "$SHA" \
+            run=$(gh run list -R "$REPO" --workflow "$workflow" --commit "$SHA" \
               --event push --limit 1 --json status,conclusion,url --jq '.[0] // empty')
             if [ -z "$run" ]; then
               if [ "$expect" = false ]; then echo "no Django release for $SHA; the site goes on its own"; exit 0; fi
@@ -86,7 +97,9 @@ jobs:
             status=$(jq -r .status <<<"$run")
             conclusion=$(jq -r .conclusion <<<"$run")
             if [ "$status" = completed ]; then
-              if [ "$conclusion" = success ]; then echo "Django release done"; exit 0; fi
+              # A native release deferred while dev is stopped also concludes success (pending).
+              if [ "$conclusion" = success ]; then echo "Django release done (or pending until dev starts)"; exit 0; fi
+              if [ "$NATIVE" = true ] && [ "$conclusion" = skipped ]; then echo "native release skipped"; exit 0; fi
               echo "::error::the Django release for $SHA ended $conclusion ($(jq -r .url <<<"$run")); not publishing a site that may need it"
               exit 1
             fi

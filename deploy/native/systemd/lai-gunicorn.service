@@ -1,0 +1,43 @@
+# Installed by scripts/aws/native/deploy-native.sh from the release being deployed.
+[Unit]
+Description=Learning Adventure Island Django (gunicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lai
+Group=lai
+WorkingDirectory=/opt/lai/current/lai
+Environment=DJANGO_SETTINGS_MODULE=config.settings.production
+Environment=DJANGO_TRUST_PROXY_SSL_HEADER=true
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+# Runtime settings and secrets (root:lai 0640), then LAI_RELEASE_SHA from the release itself.
+EnvironmentFile=/opt/lai/runtime/django.env
+EnvironmentFile=/opt/lai/current/release.env
+ExecStart=/opt/lai/current/venv/bin/python -m gunicorn -c /etc/lai/gunicorn.conf.py config.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStartSec=60
+TimeoutStopSec=40
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/lai/django.log
+StandardError=inherit
+UMask=0027
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/lai
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

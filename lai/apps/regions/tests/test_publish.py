@@ -106,3 +106,15 @@ def test_the_command_reports_and_fails_cleanly(local, settings, capsys):
     settings.DEBUG = False
     with pytest.raises(CommandError):
         call_command("publish_treasure_rush")
+
+
+def test_dev_bootstrap_waives_only_the_local_machine_guard(local, settings):
+    # The AWS dev installer (ADR-055): DEBUG off and a remote database, but the flag is set.
+    settings.DEBUG = False
+    settings.LAI_DEV_BOOTSTRAP_PUBLISH = True
+    settings.DATABASES["default"]["HOST"] = "lai-dev.example.us-west-1.rds.amazonaws.com"
+    try:
+        assert publish_treasure_rush()
+        assert statuses() == (ContentStatus.PUBLISHED, [ContentStatus.PUBLISHED])
+    finally:
+        settings.DATABASES["default"]["HOST"] = "127.0.0.1"

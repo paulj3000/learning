@@ -10,6 +10,7 @@ import logging
 
 from django.contrib import admin, messages
 from django.contrib.admin.options import ActionLocation
+from django.db.models import Count
 from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -73,7 +74,26 @@ class GenerationBatchAdmin(admin.ModelAdmin):
         return obj.input_tokens + obj.output_tokens
 
     def get_readonly_fields(self, request, obj=None):
-        return [*(f.name for f in self.model._meta.fields), "review_link"]
+        return [*(f.name for f in self.model._meta.fields), "review_link", "job_status"]
+
+    @admin.display(description="Background jobs")
+    def job_status(self, obj):
+        """The chunk jobs of a batch run with LAI_STUDIO_RUN_MODE=jobs (counts and codes only)."""
+        from apps.jobs.models import ProcessingJob
+
+        jobs = ProcessingJob.objects.filter(
+            subject_type="question_studio.generationbatch", subject_id=str(obj.pk)
+        )
+        total = jobs.count()
+        if not total:
+            return "No background jobs (this batch ran in process)."
+        latest = jobs.order_by("-created_at").first()
+        counts = ", ".join(
+            f"{row['status']} {row['n']}"
+            for row in jobs.values("status").annotate(n=Count("pk")).order_by("status")
+        )
+        code = f", error {latest.error_code}" if latest.error_code else ""
+        return f"{total} chunk job(s): {counts}. Latest: {latest.status}{code}."
 
     @admin.display(description="Questions")
     def review_link(self, obj):

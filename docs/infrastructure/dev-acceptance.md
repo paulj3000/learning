@@ -1,5 +1,9 @@
 # AWS dev infrastructure acceptance (LAI-1002/1004)
 
+> **Superseded (2026-11-16, ADR-055).** This checklist was for the Docker `LaiDjangoEc2-dev`
+> design. The native dev environment's acceptance checklist is in the root `README.md`, "AWS
+> Development Infrastructure", section "Acceptance checklist".
+
 Date: 2026-11-10. Trello: [LAI-1002/1004](https://trello.com/c/NIbMspLz). Base: `main` at
 `89d1172` (LAI-INFRA-001 to 005 merged).
 

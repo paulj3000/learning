@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.quests",
     "apps.ai",
     "apps.question_studio",
+    "apps.jobs",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.
@@ -287,6 +288,9 @@ if not 30 <= LAI_CHILD_PHOTO_URL_TTL_SECONDS <= 900:
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+# Development bootstrap of the approved seed content on the AWS dev environment (ADR-055). Only
+# production settings can turn it on, and only for LAI_ENVIRONMENT=dev; see production.py.
+LAI_DEV_BOOTSTRAP_PUBLISH = False
 
 
 def env_bool(name: str, default: bool) -> bool:
@@ -476,6 +480,7 @@ if any(not origin.startswith("https://") for origin in LAI_GAME_ALLOWED_ORIGINS)
 # Staff authoring reuses the ADR-044 model client and Guardrail. `LAI_STUDIO_RUN_MODE`: `thread`
 # runs a queued batch on a background thread, `manual` leaves it for `manage.py studio_run_batch`,
 # `inline` runs it in the request (tests only).
+# `jobs` hands each chunk to the background workers (`LAI_JOBS_BACKEND`, apps.jobs).
 LAI_STUDIO_RUN_MODE = os.environ.get("LAI_STUDIO_RUN_MODE", "thread").strip()
 # Questions per model call. A batch is split into chunks so each call is bounded and a failed
 # chunk costs only itself (partial success).
@@ -489,3 +494,44 @@ LAI_STUDIO_TIMEOUT_SECONDS = float(os.environ.get("LAI_STUDIO_TIMEOUT_SECONDS", 
 # model is refused, never silently substituted.
 LAI_STUDIO_APPROVED_MODEL_IDS = env_list("LAI_STUDIO_APPROVED_MODEL_IDS")
 LAI_STUDIO_MODEL_ID = os.environ.get("LAI_STUDIO_MODEL_ID", "").strip()
+if LAI_STUDIO_RUN_MODE not in {"thread", "manual", "inline", "jobs"}:
+    raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE must be thread, manual, inline or jobs.")
+
+
+# --- Background jobs (apps.jobs; Lambda + SQS in the native dev environment) ------------------
+# `inline` runs a job in-process through the same task code the Lambda worker runs (local
+# development and tests), `sqs` sends it to the work queue for its kind and applies results from
+# `manage.py jobs_consume_results`, `disabled` refuses to submit. Production must choose `sqs` or
+# `disabled` explicitly (production.py).
+LAI_JOBS_BACKEND = os.environ.get("LAI_JOBS_BACKEND", "inline").strip()
+LAI_JOBS_AI_QUEUE_URL = os.environ.get("LAI_JOBS_AI_QUEUE_URL", "").strip()
+LAI_JOBS_MEDIA_QUEUE_URL = os.environ.get("LAI_JOBS_MEDIA_QUEUE_URL", "").strip()
+LAI_JOBS_RESULTS_QUEUE_URL = os.environ.get("LAI_JOBS_RESULTS_QUEUE_URL", "").strip()
+LAI_JOBS_RESULTS_BUCKET = os.environ.get("LAI_JOBS_RESULTS_BUCKET", "").strip()
+# Pending or running jobs older than this are failed by `jobs_sweep` (error code `timeout`).
+LAI_JOBS_STALE_MINUTES = int(os.environ.get("LAI_JOBS_STALE_MINUTES", "60"))
+# Completed jobs older than this are deleted by `jobs_sweep`. Failed jobs are kept for review.
+LAI_JOBS_RETENTION_DAYS = int(os.environ.get("LAI_JOBS_RETENTION_DAYS", "30"))
+if LAI_JOBS_BACKEND not in {"inline", "sqs", "disabled"}:
+    raise ImproperlyConfigured("LAI_JOBS_BACKEND must be inline, sqs or disabled.")
+if LAI_JOBS_BACKEND == "sqs":
+    for _name in (
+        "LAI_JOBS_AI_QUEUE_URL",
+        "LAI_JOBS_MEDIA_QUEUE_URL",
+        "LAI_JOBS_RESULTS_QUEUE_URL",
+        "LAI_JOBS_RESULTS_BUCKET",
+    ):
+        if not globals()[_name]:
+            raise ImproperlyConfigured(f"LAI_JOBS_BACKEND=sqs needs {_name}.")
+    _queue_url = re.compile(r"https://sqs\.[a-z0-9-]+\.amazonaws\.com/\d{12}/[\w-]{1,80}")
+    for _name in ("LAI_JOBS_AI_QUEUE_URL", "LAI_JOBS_MEDIA_QUEUE_URL"):
+        if not _queue_url.fullmatch(globals()[_name]):
+            raise ImproperlyConfigured(f"{_name} must be an https SQS queue URL.")
+    if not _queue_url.fullmatch(LAI_JOBS_RESULTS_QUEUE_URL):
+        raise ImproperlyConfigured("LAI_JOBS_RESULTS_QUEUE_URL must be an https SQS queue URL.")
+if not 5 <= LAI_JOBS_STALE_MINUTES <= 1440:
+    raise ImproperlyConfigured("LAI_JOBS_STALE_MINUTES must be between 5 and 1440.")
+if not 1 <= LAI_JOBS_RETENTION_DAYS <= 365:
+    raise ImproperlyConfigured("LAI_JOBS_RETENTION_DAYS must be between 1 and 365.")
+if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND == "disabled":
+    raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND inline or sqs.")

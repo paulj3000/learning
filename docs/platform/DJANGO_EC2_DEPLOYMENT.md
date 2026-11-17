@@ -1,5 +1,10 @@
 # Django on EC2: automated release from GitHub (ADR-037)
 
+> **Production only since 2026-11-16 (ADR-055).** `dev` no longer uses this Docker/ECR/ALB
+> pipeline: it runs natively on an ARM64 instance (`docs/infrastructure/dev-native-environment.md`,
+> root `README.md` "AWS Development Infrastructure"), and `LaiDjangoEc2-dev` is no longer
+> synthesized. Amplify Hosting, mentioned below, is retired (AMP-06); the site is S3 and CloudFront.
+
 **State (2026-10-30): built and tested in the repository, not provisioned.** No AWS resource
 exists for it yet. Creating the stacks, the first release and every production release are
 owner-approved steps (ADR-019 G1, G7). The React app stays on Amplify Hosting

@@ -31,3 +31,5 @@ if os.environ.get("POSTGRES_HOST", "127.0.0.1") not in LOOPBACK_HOSTS:
 
 DATABASES = {"default": compose_database()}
 LAI_STUDIO_RUN_MODE = "manual"
+# Background jobs run in-process through the worker's own task code (apps.jobs.core).
+LAI_JOBS_BACKEND = "inline"
