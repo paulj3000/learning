@@ -1,0 +1,15 @@
+# Build context: processing/ (docker buildx build -f processing/Dockerfile.lambda processing/).
+# Only the two packages and the pinned requirements enter the image.
+*
+!lai_processing/
+!lai_processing_runtime/
+!runtime-requirements.txt
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+# Contract fixtures and JSON Schemas are documentation and test data, not runtime code.
+lai_processing/contracts/fixtures
+lai_processing/contracts/schemas

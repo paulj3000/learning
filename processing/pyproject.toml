@@ -13,11 +13,18 @@ description = "Learning Adventure Island background processing contracts and exe
 requires-python = ">=3.12"
 dependencies = []
 
+# Runtime package (LAI-LAMBDA-003): `lai_processing_runtime` (adapters, local worker, Lambda
+# handler) ships in the same distribution; it needs boto3 only for the S3/SQS adapters and the
+# Lambda wiring, so boto3 is an optional extra (`pip install './processing[aws]'`), pinned to
+# the version in the repository's requirements.txt.
+[project.optional-dependencies]
+aws = ["boto3==1.43.118"]
+
 [project.scripts]
 lai-processing = "lai_processing.cli.main:main"
 
 [tool.setuptools.packages.find]
-include = ["lai_processing*"]
+include = ["lai_processing*", "lai_processing_runtime*"]
 
 [tool.setuptools.package-data]
 "lai_processing.contracts" = [
