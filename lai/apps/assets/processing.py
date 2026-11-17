@@ -20,6 +20,7 @@ job in the same transaction, a row no other transaction can see or wait for, so 
 Logs carry ids and codes only.
 """
 
+import dataclasses
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -39,6 +40,11 @@ JOB_SUBJECT = "assets.assetversion"
 ASYNC_FORMATS = frozenset({"glb"})
 #: Handler outcomes of a result that was accepted for its version (a resubmission returns the job).
 APPLIED_OUTCOMES = frozenset({"version_validated", "version_rejected", "result_recorded"})
+#: The engine's execution budget for one validation, seconds. It must end well inside the media
+#: worker's Lambda timeout (`lai-dev-jobs-media`, 120 s in infra/lib/devPlatformStack.ts), so the
+#: engine reports a classified timeout instead of Lambda killing the run with nothing stored. The
+#: profile allows 300 s; the request carries the tighter budget.
+MAX_EXECUTION_SECONDS = 90
 #: A request expires (the worker refuses it) after this long.
 REQUEST_TTL = timedelta(hours=72)
 
@@ -136,7 +142,10 @@ def model_validation_request(version, *, job_id: str) -> dict:
         ),
         expires_at=stamp + REQUEST_TTL,
         options=options,
-        limits=profile.limits,
+        limits=dataclasses.replace(
+            profile.limits,
+            max_execution_seconds=min(profile.limits.max_execution_seconds, MAX_EXECUTION_SECONDS),
+        ),
     )
     return request.to_dict()
 

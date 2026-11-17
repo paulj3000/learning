@@ -43,3 +43,19 @@ def test_a_passing_model_moves_the_draft_to_validated(settings):
     assert [clip["name"] for clip in summary["animations"]] == ["Idle", MIXAMO]
     assert submit_model_validation(version, user=None).pk == job.pk
     assert validation_jobs(version).count() == 1
+
+
+def test_the_request_budget_ends_inside_the_media_worker_timeout():
+    """The media Lambda times out at 120 s (infra/lib/devPlatformStack.ts); the engine's own
+    budget must end first so a slow validation reports a classified timeout."""
+    import re
+    from pathlib import Path
+
+    from apps.assets.processing import MAX_EXECUTION_SECONDS, model_validation_request
+
+    stack = (Path(__file__).resolve().parents[4] / "infra/lib/devPlatformStack.ts").read_text()
+    timeout = int(re.search(r"media: \{ name: '[^']+', timeoutSeconds: (\d+) \}", stack).group(1))
+    assert MAX_EXECUTION_SECONDS + 20 <= timeout
+    version = stored_draft(glb_bytes(), asset_id="budget-check")
+    request = model_validation_request(version, job_id="00000000-0000-4000-8000-000000000001")
+    assert request["limits"]["max_execution_seconds"] == MAX_EXECUTION_SECONDS
