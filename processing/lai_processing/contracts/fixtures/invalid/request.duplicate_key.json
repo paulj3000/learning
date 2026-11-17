@@ -1,0 +1,47 @@
+{
+  "asset": null,
+  "attempt_id": "0b9a8c7d-6e5f-4a3b-9c2d-1e0f2a3b4c5d",
+  "attempt_number": 1,
+  "correlation_id": "corr-reference-0001",
+  "expires_at": "2026-11-17T12:00:00.000000Z",
+  "idempotency_key": "ik1:2cefb1cb904bdd88e72571e4b2cb48cc070dbad4a83d2d005df386e8f18eaf9a",
+  "input": {
+    "content_type": "text/plain",
+    "ref": {
+      "key": "processing/quarantine/local/6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f/input.bin",
+      "store": "quarantine",
+      "version_id": null
+    },
+    "sha256": "7228b8cb21ffad641de9607d97d79e3cc25a23abe67650925eda16358638c800",
+    "size_bytes": 32
+  },
+  "job_id": "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+  "job_id": "99999999-8888-4777-8666-555555555555",
+  "job_type": "reference.checksum",
+  "kind": "lai.processing.job_request",
+  "limits": {
+    "complexity": {},
+    "max_artifact_count": 16,
+    "max_execution_seconds": 300,
+    "max_input_bytes": 52428800,
+    "max_message_bytes": 65536,
+    "max_metadata_bytes": 65536,
+    "max_output_bytes": 209715200,
+    "max_temp_bytes": 419430400
+  },
+  "namespace": "local",
+  "options": {
+    "metadata_level": "full",
+    "write_report": true
+  },
+  "profile": {
+    "profile_id": "reference-default",
+    "version": 1
+  },
+  "schema_version": 1,
+  "subject": {
+    "subject_id": "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    "subject_type": "reference_input"
+  },
+  "submitted_at": "2026-11-16T12:00:00.000000Z"
+}
