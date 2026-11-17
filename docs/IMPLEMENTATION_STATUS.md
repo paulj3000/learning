@@ -71,6 +71,26 @@ Repository only; based on `feature/serverless-processing-canonical`. Details:
 - **Not verified:** live worker run (LAI-LAMBDA-011, owner approval); full suites and builds at
   merge readiness.
 
+## Image conversion and thumbnails feasibility (LAI-LAMBDA-013): study complete on `feature/w4-image-feasibility` (2026-11-17); NOTHING implemented, NO dependency added, NOT deployed
+
+Documentation and offline benchmark scripts only: `docs/processing/feasibility/LAI-LAMBDA-013-*.md`,
+the proposed ADR `docs/processing/proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`
+(not accepted, no number), and `scripts/processing/bench/` (`measure_native_wheels.py`,
+`image_bench.py`, `thumbnail_bench.py`; each does nothing without an explicit flag).
+
+- **Measured:** worker zip 351,023 B (budget 2 MiB); Pillow 13.0.0 arm64 wheel 6.5 MB, 21.6 MB
+  unpacked; pyvips with libvips 8.5 MB, 20.1 MB unpacked; Chrome headless shell 273 MB unpacked
+  (x86); Pillow peak RSS 208 to 271 MiB at the pixel limit and SwiftShader 512-pixel renders in
+  1.2 to 4.4 s (both on an x86 workstation, not Lambda).
+- **Recommended:** phase 1 Admin thumbnails by staff browser capture (no native code); phase 2
+  Pillow conversion in a dedicated image worker; derived files as staff-only `DerivedObject` rows
+  with promotion into new unpublished versions (Option C); no server-side GLB renderer without
+  its own ADR. Texture resize is shared design owned by 013 (LAI-LAMBDA-010 reuses it).
+- **Findings:** uploaded images keep EXIF and GPS data, which published delivery passes to the
+  game unchanged (staff content); EXIF orientation is ignored.
+- **Blocked on:** owner decisions D-1 to D-12 in the proposed ADR, then W0 and W1 of
+  `docs/processing/WAVE4_HANDOFF.md`. No arm64 or Lambda measurement yet.
+
 ## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
 
 Repository only; no AWS resource was created or changed. Re-lands the compatible parts of PR #40,
