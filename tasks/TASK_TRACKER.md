@@ -1036,9 +1036,16 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       accepted. Commit `32afe8b6`. `useGreatStorybook` reports loading, offline (with retry) and local;
       `StorybookSection` shows page-state words, a celebration status region (animation only when motion is
       allowed), and empty and offline states. Not here: page-turn animation in the 3D book and sound cues
-      (SC-R06). **Open**: Pathfinders who finished the book before SC-R04-05 now read `complete: false`;
-      the versioned completion milestone is designed in `docs/regions/prep/storybook_integrity_prep.md`
-      and tracked as a follow-up. The generic world-change POST can forge a page record (same audit).
+      (SC-R06). The generic world-change POST can forge a page record (storybook_integrity_prep.md B, open).
+- [x] **SC-R04-08** Versioned Storybook completion (section A of `docs/regions/prep/storybook_integrity_prep.md`).
+      DONE (development), not owner accepted. Commits `bc7a79a3`, `88ee0c1a`, plus the verification commit
+      that follows them. Each page has `since`; derived `state` IN_PROGRESS / RESTORED_MORE_PAGES / RESTORED
+      (edition 1 counts via `GREAT_STORYBOOK_RESTORED`; `complete` stays strict); `GREAT_STORYBOOK_RESTORED_V2`;
+      follow-up quest `restore-the-great-storybook-pathfinders-more` (no second seal); new Pathfinders write
+      both changes; no migration; reads write nothing. Verified: vitest 223 tests in 15 files (great-storybook,
+      storybookApi, castleTale, content-export, quests) all pass after correcting two export counts; tsc clean;
+      Django 22 passed (test_great_storybook, _concurrency, _editions) and 18 passed (test_castle_storybook);
+      content:export, golden:generate, content:check, golden:check clean.
 - [ ] **SC-R05 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
