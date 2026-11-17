@@ -37,3 +37,5 @@ LAI_JOBS_BACKEND = "inline"
 LAI_PROCESSING_BACKEND = "inline"
 LAI_PROCESSING_NAMESPACE = "test"
 LAI_PROCESSING_DISPATCH = "enabled"
+# Asynchronous model validation stays off unless a test turns it on (settings fixture).
+LAI_ASSET_ASYNC_VALIDATION = "off"

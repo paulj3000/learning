@@ -587,3 +587,15 @@ if LAI_PROCESSING_BACKEND == "sqs":
             raise ImproperlyConfigured(f"{_name} must be an https SQS queue URL.")
     if not re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", LAI_PROCESSING_BUCKET):
         raise ImproperlyConfigured("LAI_PROCESSING_BUCKET must be an S3 bucket name.")
+
+# Asynchronous model validation (LAI-LAMBDA-006, owner-approved 2026-11-17; docs/processing/
+# WAVE3_INTERFACES.md). `off` (the default in every environment): uploads behave exactly as
+# before. `on`: a GLB upload that passes the synchronous checks is stored as a DRAFT version and an
+# `asset.validate_model` job is submitted in the same transaction; the job's result moves the
+# draft to VALIDATED or REJECTED, and publishing a GLB needs a matching passing result. Refused
+# with a disabled processing backend. Never switched on by a deployment.
+LAI_ASSET_ASYNC_VALIDATION = os.environ.get("LAI_ASSET_ASYNC_VALIDATION", "off").strip().lower()
+if LAI_ASSET_ASYNC_VALIDATION not in {"off", "on"}:
+    raise ImproperlyConfigured("LAI_ASSET_ASYNC_VALIDATION must be off or on.")
+if LAI_ASSET_ASYNC_VALIDATION == "on" and LAI_PROCESSING_BACKEND == "disabled":
+    raise ImproperlyConfigured("LAI_ASSET_ASYNC_VALIDATION=on needs a processing backend.")

@@ -135,6 +135,9 @@ if LAI_PROCESSING_BACKEND not in {"sqs", "disabled"}:
     raise ImproperlyConfigured("LAI_PROCESSING_BACKEND must be sqs or disabled in production.")
 if LAI_PROCESSING_BACKEND == "sqs":
     LAI_PROCESSING_NAMESPACE = _required("LAI_PROCESSING_NAMESPACE")
+# Re-checked here because production's backend default (`disabled`) differs from base.py's.
+if LAI_ASSET_ASYNC_VALIDATION == "on" and LAI_PROCESSING_BACKEND != "sqs":
+    raise ImproperlyConfigured("LAI_ASSET_ASYNC_VALIDATION=on needs LAI_PROCESSING_BACKEND=sqs.")
 
 # Development bootstrap (ADR-055, docs/infrastructure/dev-native-environment.md): the dev
 # environment's installer may publish the approved Treasure Rush seed content once. Both values

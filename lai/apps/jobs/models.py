@@ -137,6 +137,9 @@ class ProcessingJob(models.Model):
         "JobAttempt", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     expires_at = models.DateTimeField(null=True, blank=True)
+    #: What the subject's completion hook did with an applied result (a safe code such as
+    #: "version_validated" or "identity_mismatch"; blank when no hook ran). WAVE3_INTERFACES 3.
+    subject_outcome = models.CharField(max_length=64, blank=True)
     cancel_requested_at = models.DateTimeField(null=True, blank=True)
     cancelled_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
