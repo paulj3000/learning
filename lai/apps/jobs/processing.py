@@ -556,20 +556,26 @@ def _new_attempt(job: ProcessingJob, stamp, *, available_at, renew: bool) -> Job
     """Create the next attempt of a locked job and its outbox row (same transaction).
 
     The request is the job's template with a new `attempt_id` and `attempt_number`; the
-    idempotency key is unchanged. `renew` (a staff requeue) also starts a new expiry window.
+    idempotency key is unchanged. `renew` (a staff requeue) also starts a new expiry window and
+    writes it into the template (`job.payload`, saved by the caller), so the automatic retries
+    that follow are built with the renewed window, not attempt 1's expired one. The template
+    keeps attempt 1's `attempt_id` and `attempt_number`; they are replaced on every re-encode.
     """
     current = job.current_attempt
     number = (current.number if current else 0) + 1
     if number > MAX_ATTEMPT_NUMBER:
         raise ProcessingJobsError("attempt_limit")
     template = ProcessingJobRequest.from_dict(job.payload)
-    attempt_id = uuid.uuid4()
-    changes: dict[str, Any] = {"attempt_id": str(attempt_id), "attempt_number": number}
     if renew:
-        changes["submitted_at"] = stamp
-        changes["expires_at"] = stamp + timedelta(hours=settings.LAI_PROCESSING_JOB_TTL_HOURS)
-        job.expires_at = changes["expires_at"]
-    request = dataclasses.replace(template, **changes)
+        template = dataclasses.replace(
+            template,
+            submitted_at=stamp,
+            expires_at=stamp + timedelta(hours=settings.LAI_PROCESSING_JOB_TTL_HOURS),
+        )
+        job.payload = template.to_dict()
+        job.expires_at = template.expires_at
+    attempt_id = uuid.uuid4()
+    request = dataclasses.replace(template, attempt_id=str(attempt_id), attempt_number=number)
     attempt = JobAttempt.objects.create(attempt_id=attempt_id, job=job, number=number)
     JobOutbox.objects.create(
         job=job, attempt=attempt, body=encode(request).decode("utf-8"), available_at=available_at

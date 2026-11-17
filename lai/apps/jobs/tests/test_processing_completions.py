@@ -305,3 +305,30 @@ def test_staff_transitions_go_through_the_lifecycle(fake_transport, queued):
     )
     with pytest.raises(processing.ProcessingJobsError):
         processing.cancel_job(legacy, user=None)
+
+
+def test_retries_after_a_staff_requeue_carry_the_renewed_expiry(
+    fake_transport, queued, monkeypatch
+):
+    """The requeue renews the expiry for every later attempt, not only for its own: an
+    automatic retry built from the job's template must not carry attempt 1's past expiry."""
+    job, first = queued
+    later = processing._now() + processing.timedelta(
+        hours=processing.settings.LAI_PROCESSING_JOB_TTL_HOURS + 1
+    )
+    monkeypatch.setattr(processing, "_now", lambda: later)  # attempt 1's window has passed
+    assert processing.reconcile()["expired"] == 1
+    assert processing.requeue_job(job, user=None)
+    second = current_request(job)
+    assert second.expires_at > later
+    temporary = {"status": "failed", "code": ErrorCode.TEMPORARY_FAILURE}
+    assert apply(fake_transport, event_bytes(result_for(second, **temporary))).action == "retry"
+    third = current_request(job)
+    assert third.attempt_number == 3
+    assert third.expires_at > later
+    assert (third.submitted_at, third.expires_at) == (second.submitted_at, second.expires_at)
+    job.refresh_from_db()
+    assert job.expires_at == third.expires_at
+    # The template keeps its attempt-1 identity; only the window moved.
+    assert job.payload["attempt_number"] == 1 and job.payload["attempt_id"] == first.attempt_id
+
