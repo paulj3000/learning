@@ -263,7 +263,18 @@ function scenery(value: JsonValue, path: string): ScenerySpec {
 
 function collider(value: JsonValue, path: string): ColliderSpec {
   const fields = object(value, path);
-  return { rect: rect(fields.rect, `${path}.rect`) };
+  const minY = optionalNum(fields.minY, `${path}.minY`);
+  const maxY = optionalNum(fields.maxY, `${path}.maxY`);
+  if (fields.jumpable !== undefined && typeof fields.jumpable !== 'boolean') {
+    throw new RegionLayoutError(`${path}.jumpable`, 'expected true or false');
+  }
+  return {
+    rect: rect(fields.rect, `${path}.rect`),
+    ...(minY !== undefined ? { minY } : {}),
+    ...(maxY !== undefined ? { maxY } : {}),
+    // LAI-JMP-01: a low obstacle the child may jump onto or over.
+    ...(fields.jumpable === true ? { jumpable: true } : {}),
+  };
 }
 
 function zone(value: JsonValue, path: string): ZoneSpec {

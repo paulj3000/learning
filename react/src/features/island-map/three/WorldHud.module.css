@@ -195,6 +195,143 @@
   color: var(--color-text-muted);
 }
 
+/*
+  LAI-JMP-01: the touch Jump button. Right edge, where the right thumb rests,
+  raised above the Hint and Backpack column (stage controls) and below the exit
+  link, so it overlaps neither. The left half of the stage stays free for the
+  move drag. Large and round: at least 4.5rem across for small fingers.
+*/
+.jumpButton {
+  pointer-events: auto;
+  position: absolute;
+  right: var(--space-3);
+  bottom: max(42%, 9.5rem);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 4.75rem;
+  height: 4.75rem;
+  padding: 0;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  /* No double-tap zoom, no scroll, no text selection while a thumb holds it. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.jumpButton:active {
+  background: rgba(244, 211, 94, 0.55);
+  border-color: #f4d35e;
+}
+
+.jumpButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.jumpIcon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.jumpText {
+  font-size: 0.85rem;
+  line-height: 1.1;
+}
+
+/* Tablets and larger: a little bigger, still clear of the controls below it. */
+@media (min-width: 900px) {
+  .jumpButton {
+    width: 5.5rem;
+    height: 5.5rem;
+    right: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .jumpButton {
+    transition: background-color 80ms ease-out;
+  }
+}
+
+/*
+  LAI-JMP-01a: the camera-view button. On a touch screen it sits just left of
+  the Jump button, in the same band on the right edge, so it overlaps neither
+  Jump nor the Hint and Backpack column below nor the exit link above. With no
+  Jump button (a mouse and keyboard) it takes the Jump button's spot.
+*/
+.cameraButton {
+  pointer-events: auto;
+  position: absolute;
+  right: var(--space-3);
+  bottom: max(42%, 9.5rem);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 3rem;
+  min-width: 3rem;
+  padding: var(--space-1) var(--space-3);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.cameraBesideJump {
+  /* Jump's own width plus a gap, and centred on Jump's height. */
+  right: calc(var(--space-3) + 4.75rem + var(--space-2));
+  bottom: calc(max(42%, 9.5rem) + 0.875rem);
+}
+
+.cameraButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.cameraIcon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.cameraText {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* Narrow phones in portrait: icon only, so it never reaches the move half of the screen. */
+@media (max-width: 420px) {
+  .cameraText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 900px) {
+  .cameraBesideJump {
+    right: calc(var(--space-4) + 5.5rem + var(--space-2));
+    bottom: calc(max(42%, 9.5rem) + 1.25rem);
+  }
+}
+
 /* Phones: the toast sits above the stacked Hint and Backpack buttons instead of under them. */
 @media (max-width: 599px) {
   .toast {

@@ -40,6 +40,7 @@ import {
   SHORE_ROCK_SCALE,
   SHORE_ROCK_SPACING,
   SOLID_PROPS,
+  HOP_PROPS,
   TIDE_BANK_TOP_CM,
   TIDE_POST_SPOT,
   TIDE_TUNNEL_BOULDERS,
@@ -139,6 +140,13 @@ export const PIRATE_BUILDER_BAY_MANIFEST: ThreeLocationManifest = {
   },
   colliders: [
     ...SOLID_PROPS.map((rect) => ({ rect: { ...rect } })),
+    // LAI-JMP-01: low crates to jump onto and over; the water and bridge gap below stay solid.
+    ...HOP_PROPS.map(({ rect, height }) => ({
+      rect: { ...rect },
+      minY: 0,
+      maxY: height,
+      jumpable: true,
+    })),
     { rect: { ...CHANNEL_NORTH_WATER }, minY: -1, maxY: 4 },
     { rect: { ...CHANNEL_SOUTH_WATER }, minY: -1, maxY: 4 },
     // The gap where the bridge should be, until it is mended.
