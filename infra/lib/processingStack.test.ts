@@ -10,6 +10,7 @@ import {
   WORKER_ENVIRONMENT_NAMES,
   defaultWorkerSizing,
   validateWorkerSizing,
+  type ProcessingAlarmThresholds,
   type ProcessingStackProps,
 } from './processingStack';
 
@@ -230,15 +231,130 @@ describe.each(['dev', 'prod'] as const)('ProcessingStack (%s)', { timeout: 60_00
     for (const q of phase1.resources('AWS::SQS::Queue')) {
       expect(JSON.stringify(queuePolicyStatements(phase1, q.id))).toContain('aws:SecureTransport');
     }
-    // An operator role can be added for DLQ redrives.
-    const operator = `arn:aws:iam::${ACCOUNT}:role/lai-operator`;
-    const withOperator = synth({ envName, additionalSenderRoleArns: [operator] });
-    const workId = queueByName(withOperator, `lai-${envName}-processing-work`).id;
-    expect(deny(queuePolicyStatements(withOperator, workId), 'OnlyDjangoSendsWork')).toEqual([
+    // No redrive role by default: nothing but the TLS denies and the sender denies.
+    expect(
+      phase1
+        .resources('AWS::SQS::QueuePolicy')
+        .flatMap((p) => (p.Properties.PolicyDocument as { Statement: Statement[] }).Statement)
+        .filter((statement) => statement.Effect === 'Allow'),
+    ).toEqual([]);
+  });
+
+  it('lets separate operator roles redrive each DLQ, and nothing more (B7)', () => {
+    const workOperator = `arn:aws:iam::${ACCOUNT}:role/ops/lai-processing-work-redrive`;
+    const doneOperator = `arn:aws:iam::${ACCOUNT}:role/lai-processing-completion-redrive`;
+    const built = synth({
+      envName,
+      workRedriveRoleArns: [workOperator],
+      completionRedriveRoleArns: [doneOperator],
+    });
+    const id = (name: string) => queueByName(built, name).id;
+    const work = queuePolicyStatements(built, id(`lai-${envName}-processing-work`));
+    const workDlq = queuePolicyStatements(built, id(`lai-${envName}-processing-work-dlq`));
+    const done = queuePolicyStatements(built, id(`lai-${envName}-processing-completions`));
+    const doneDlq = queuePolicyStatements(built, id(`lai-${envName}-processing-completions-dlq`));
+    const role = built.resources('AWS::IAM::Role').find((r) => r.id.startsWith('WorkerRole'))!;
+    const exempt = (statements: Statement[], sid: string) =>
+      (
+        statements.find((statement) => statement.Sid === sid)!.Condition as {
+          ArnNotEquals: { 'aws:PrincipalArn': unknown };
+        }
+      ).ArnNotEquals['aws:PrincipalArn'];
+    // The work operator is exempt from the work queue's deny only; the completion operator from
+    // the completion queue's only. Neither can send to the other queue.
+    expect(exempt(work, 'OnlyDjangoSendsWork')).toEqual([
       `arn:aws:iam::${ACCOUNT}:role/lai-django-ec2-${envName}`,
-      operator,
+      workOperator,
     ]);
-    expect(() => synth({ envName, additionalSenderRoleArns: ['*'] })).toThrow(/role ARNs/);
+    expect(exempt(done, 'OnlyTheWorkerSendsCompletions')).toEqual([
+      `{${role.id}.Arn}`,
+      doneOperator,
+    ]);
+    const allows = (statements: Statement[]) =>
+      statements.filter((statement) => statement.Effect === 'Allow');
+    const redriveActions = [
+      'sqs:StartMessageMoveTask',
+      'sqs:ListMessageMoveTasks',
+      'sqs:CancelMessageMoveTask',
+      'sqs:ReceiveMessage',
+      'sqs:DeleteMessage',
+      'sqs:GetQueueAttributes',
+    ];
+    const queueArn = (name: string) => `{${id(name)}.Arn}`;
+    expect(allows(workDlq)).toEqual([
+      {
+        Sid: 'WorkRedriveFromDlq',
+        Effect: 'Allow',
+        Principal: { AWS: workOperator },
+        Action: redriveActions,
+        Resource: queueArn(`lai-${envName}-processing-work-dlq`),
+      },
+    ]);
+    expect(allows(work)).toEqual([
+      {
+        Sid: 'WorkRedriveIntoSource',
+        Effect: 'Allow',
+        Principal: { AWS: workOperator },
+        Action: 'sqs:SendMessage',
+        Resource: queueArn(`lai-${envName}-processing-work`),
+      },
+    ]);
+    expect(allows(doneDlq)).toEqual([
+      {
+        Sid: 'CompletionRedriveFromDlq',
+        Effect: 'Allow',
+        Principal: { AWS: doneOperator },
+        Action: redriveActions,
+        Resource: queueArn(`lai-${envName}-processing-completions-dlq`),
+      },
+    ]);
+    expect(allows(done)).toEqual([
+      {
+        Sid: 'CompletionRedriveIntoSource',
+        Effect: 'Allow',
+        Principal: { AWS: doneOperator },
+        Action: 'sqs:SendMessage',
+        Resource: queueArn(`lai-${envName}-processing-completions`),
+      },
+    ]);
+    // A work redrive alone leaves the completion queue to the worker.
+    const workOnly = synth({ envName, workRedriveRoleArns: [workOperator] });
+    const doneOnly = queuePolicyStatements(
+      workOnly,
+      queueByName(workOnly, `lai-${envName}-processing-completions`).id,
+    );
+    const workerRole = workOnly
+      .resources('AWS::IAM::Role')
+      .find((r) => r.id.startsWith('WorkerRole'))!;
+    expect(exempt(doneOnly, 'OnlyTheWorkerSendsCompletions')).toEqual([`{${workerRole.id}.Arn}`]);
+    expect(JSON.stringify(doneOnly)).not.toContain(workOperator);
+    // The Django policy never gains a redrive action.
+    expect(JSON.stringify(built.resources('AWS::IAM::ManagedPolicy'))).not.toContain('MessageMove');
+    // The settings are outputs, so a later deploy can keep them.
+    expect(built.json.Outputs.WorkRedriveRoleArns.Value).toBe(workOperator);
+    expect(built.json.Outputs.CompletionRedriveRoleArns.Value).toBe(doneOperator);
+    expect(phase1.json.Outputs.WorkRedriveRoleArns.Value).toBe('none');
+    expect(phase1.json.Outputs.CompletionRedriveRoleArns.Value).toBe('none');
+  });
+
+  it('refuses wildcard, malformed, foreign, Django and worker redrive roles', () => {
+    const refused = [
+      '*',
+      `arn:aws:iam::${ACCOUNT}:role/*`,
+      `arn:aws:iam::${ACCOUNT}:role/ops-*`,
+      `arn:aws:iam::${ACCOUNT}:user/operator`,
+      `arn:aws:iam::12345:role/operator`,
+      'lai-operator',
+      `arn:aws:iam::${ACCOUNT}:role/lai-django-ec2-${envName}`,
+      `arn:aws:iam::${ACCOUNT}:role/lai-${envName}-processing-worker`,
+    ];
+    for (const arn of refused) {
+      expect(() => synth({ envName, workRedriveRoleArns: [arn] }), arn).toThrow();
+      expect(() => synth({ envName, completionRedriveRoleArns: [arn] }), arn).toThrow();
+    }
+    expect(() =>
+      synth({ envName, workRedriveRoleArns: ['arn:aws:iam::210987654321:role/operator'] }),
+    ).toThrow(/account/);
   });
 
   it('gives the worker exactly its queues, prefixes, image and log group', () => {
@@ -534,22 +650,45 @@ describe.each(['dev', 'prod'] as const)('ProcessingStack (%s)', { timeout: 60_00
     expect(tunedAlarm('work-oldest-message')).toBe(900);
     expect(tunedAlarm('completion-backlog')).toBe(7200);
     expect(() => synth({ envName, alarms: { workerErrors: 0 } })).toThrow(/positive/);
+    expect(() =>
+      synth({ envName, alarms: { workOldestMessage: 900 } as Partial<ProcessingAlarmThresholds> }),
+    ).toThrow(/unknown alarm threshold/);
+    // The overrides (not the defaults) and the reserved concurrency are outputs, so provision.sh
+    // and deploy-debug.sh can reuse them on the next deploy instead of resetting them.
+    expect(JSON.parse(tuned.json.Outputs.AlarmOverrides.Value as string)).toEqual({
+      workOldestMessageSeconds: 900,
+      completionOldestMessageSeconds: 7200,
+    });
+    expect(phase1.json.Outputs.AlarmOverrides.Value).toBe('{}');
+  });
+
+  it('outputs the reserved concurrency (prod 5, dev 2, configurable) in both phases', () => {
+    expect(phase1.json.Outputs.ReservedConcurrency.Value).toBe(prod ? '5' : '2');
+    expect(phase2.json.Outputs.ReservedConcurrency.Value).toBe(prod ? '5' : '2');
+    const sized = synth({ envName, workerImageDigest: DIGEST, sizing: { reservedConcurrency: 7 } });
+    expect(sized.json.Outputs.ReservedConcurrency.Value).toBe('7');
+    const [fn] = sized.resources('AWS::Lambda::Function');
+    expect(fn.Properties.ReservedConcurrentExecutions).toBe(7);
   });
 
   it('protects prod from deletion and exposes only non-secret outputs', () => {
     expect(phase2.stack.terminationProtection).toBe(prod);
     expect(Object.keys(phase2.json.Outputs).sort()).toEqual(
       [
+        'AlarmOverrides',
         'CompletionDeadLetterQueueUrl',
         'CompletionQueueUrl',
+        'CompletionRedriveRoleArns',
         'DjangoProcessingPolicyArn',
         'ProcessingBackend',
         'ProcessingBucketName',
+        'ReservedConcurrency',
         'WorkDeadLetterQueueUrl',
         'WorkQueueUrl',
         'WorkerFunctionName',
         'WorkerImageDigest',
         'WorkerRoleArn',
+        'WorkRedriveRoleArns',
       ].sort(),
     );
     expect(phase2.json.Outputs.WorkerFunctionName.Value).toBe(`lai-${envName}-processing-worker`);
