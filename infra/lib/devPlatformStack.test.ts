@@ -749,6 +749,64 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     );
   });
 
+  it('lets only the media worker list the asset bucket, so a missing asset reads as 404', () => {
+    // The bucket ARN itself (no `/key` part), as CloudFormation renders it.
+    const assetBucket = {
+      'Fn::Join': [
+        '',
+        [
+          'arn:',
+          { Ref: 'AWS::Partition' },
+          ':s3:::lai-assets-dev-',
+          { Ref: 'AWS::AccountId' },
+          '-',
+          { Ref: 'AWS::Region' },
+        ],
+      ],
+    };
+    const media = roleStatements('MediaWorkerRole');
+    const listing = media.filter((statement) => actions(statement).includes('s3:ListBucket'));
+    const [list] = listing.filter((statement) => statement.Sid === 'ListAssetBucket');
+    expect(list).toBeDefined();
+    expect(actions(list)).toEqual(['s3:ListBucket']);
+    expect(resourcesOf(list)).toEqual([assetBucket]);
+    expect(list.Condition).toEqual({ StringLikeIfExists: { 's3:prefix': ['assets/*'] } });
+    // The other ListBucket statements are unchanged and none of them names the asset bucket.
+    expect(listing.map((statement) => statement.Sid).sort()).toEqual([
+      'ListAssetBucket',
+      'ListResults',
+      'ListSpeech',
+    ]);
+    for (const statement of listing.filter((s) => s.Sid !== 'ListAssetBucket')) {
+      expect(JSON.stringify(statement.Resource)).not.toContain('lai-assets-');
+    }
+    // Object reads stay GetObject only, on the asset objects, with no write or delete.
+    const [read] = media.filter((statement) => statement.Sid === 'ReadAssets');
+    expect(actions(read)).toEqual(['s3:GetObject']);
+    const join = assetBucket['Fn::Join'];
+    expect(resourcesOf(read)).toEqual([{ 'Fn::Join': [join[0], [...join[1], '/*']] }]);
+    const assetText = (s: Statement) => JSON.stringify(s.Resource).includes('lai-assets-');
+    expect(
+      media
+        .filter(assetText)
+        .map((s) => s.Sid)
+        .sort(),
+    ).toEqual(['ListAssetBucket', 'ReadAssets']);
+    // No wildcard S3 action, and no S3 action on every resource, for either worker.
+    for (const prefix of ['MediaWorkerRole', 'AiWorkerRole']) {
+      for (const statement of roleStatements(prefix)) {
+        for (const action of actions(statement)) {
+          expect(action, prefix).not.toMatch(/^s3:[^:]*\*|^\*$/);
+          if (action.startsWith('s3:')) expect(resourcesOf(statement), prefix).not.toContain('*');
+        }
+      }
+    }
+    // The AI worker gains nothing on the asset bucket.
+    const ai = JSON.stringify(roleStatements('AiWorkerRole'));
+    expect(ai).not.toContain('lai-assets-');
+    expect(ai).not.toContain('ListAssetBucket');
+  });
+
   it('alarms on memory, disk, dead letters and database storage; budget only with an e-mail', () => {
     const alarms = Object.fromEntries(
       resources('AWS::CloudWatch::Alarm').map((alarm) => [

@@ -287,19 +287,24 @@ any stack, because turning them on starts paid Bedrock and Polly use. `install-d
 never overwrites an existing value. Without them the AI routes use their authored fallbacks and a
 Studio chunk fails with `configuration`.
 
-**Media worker and model validation (owner decisions recorded, not applied).**
+**Media worker and model validation (owner decisions recorded; ListBucket applied in the
+repository, not deployed).**
 
 - *Timeout.* `lai-dev-jobs-media` has a 120 s timeout. Django's `asset.validate_model` request
   carries a 90 s execution budget (`MAX_EXECUTION_SECONDS` in `lai/apps/assets/processing.py`; the
   `glb-default` profile alone would allow 300 s), so the engine stops first with a classified,
   retryable `processing_timeout` and leaves time to report, instead of Lambda ending the run
   part-way. The queue's visibility timeout is 6 times the function timeout.
-- *`s3:ListBucket`.* The media role has `s3:GetObject` on the asset bucket but not
-  `s3:ListBucket`, so S3 answers 403 for a missing key. The worker treats that as a transient
-  storage error: the message is retried into `lai-dev-jobs-media-dlq` and the job later times
-  out, instead of failing at once as `input_missing` (`asset.inspect` behaves the same way).
-  Recommendation: grant `s3:ListBucket` on the asset bucket, scoped to the `assets/` prefix. This
-  is an IAM change and needs owner approval; it has not been made.
+- *`s3:ListBucket` (owner decision 2026-11-17).* The media role (only) has `ListAssetBucket`:
+  `s3:ListBucket` on the asset bucket ARN with `StringLikeIfExists: {s3:prefix: ["assets/*"]}`,
+  beside its unchanged `ReadAssets` (`s3:GetObject` on the asset objects). S3 answers a missing
+  key with 404 only when ListBucket applies; a HEAD or GET carries no `s3:prefix`, so a plain
+  `StringLike` would not apply and the answer would stay 403. The IfExists form also allows a
+  list with no prefix, acceptable because the bucket holds only `assets/` library objects. A
+  missing key now fails at once (`object_missing` for `asset.inspect`, `input_missing` for the
+  contract kinds); a 403 fails at once as `access_denied`/`permission_denied` and is never read
+  as missing; throttling, 5xx and connection errors are retried. Table and reasoning:
+  `docs/processing/CANONICAL_PATH.md`, "Asset read errors". Live check: LAI-LAMBDA-011.
 - *Release order.* Ship Django (migration `jobs.0003` and the handlers) and the worker zip in the
   same release, and do not switch the flag on or use Validate in background until both are
   deployed.

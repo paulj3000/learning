@@ -94,9 +94,13 @@ entries live on those branches and are superseded by ADR-064 and this entry.
   as a duplicate; the Admin section rendered; explicit publish passed the gate and the resolver
   served the version; a failing model became `REJECTED` (`invalid_json`); zero AWS calls.
 - **Not verified (live only, LAI-LAMBDA-011):** a deployed upload, worker run, DLQ redrive and
-  outage drill. **Owner decisions open:** `s3:ListBucket` for the media role (a missing asset
-  key is retried into the DLQ instead of failing as `input_missing`), the 50 MiB input ceiling
-  versus the 64 MiB `asset.inspect` ceiling, artifact writes on this path.
+  outage drill. **Owner decisions open:** the 50 MiB input ceiling versus the 64 MiB
+  `asset.inspect` ceiling, artifact writes on this path. `s3:ListBucket` for the media role:
+  approved 2026-11-17 and done in the repository (branch `fix/can-s3-missing`, not deployed):
+  `ListAssetBucket` on the asset bucket only (`StringLikeIfExists` `assets/*`), and asset read
+  errors classified (missing: terminal `object_missing`/`input_missing`; 403: terminal
+  `access_denied`/`permission_denied`, never "missing"; throttling, 5xx, transport: retried).
+  `docs/processing/CANONICAL_PATH.md`, "Asset read errors"; live 404 check in LAI-LAMBDA-011.
 
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 

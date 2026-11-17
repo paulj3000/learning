@@ -31,6 +31,30 @@ SSM_NAMES = (
 MAX_AUDIO_BYTES = 8 * 1024 * 1024
 
 _MISSING_CODES = frozenset({"NoSuchKey", "404", "NotFound"})
+# Asset reads (`asset.inspect`, `asset.validate_model`, `reference.checksum`): see
+# `_asset_error` and docs/processing/CANONICAL_PATH.md, "Asset read errors".
+_S3_VERSION_MISSING = frozenset({"NoSuchVersion"})
+_S3_DENIED = frozenset(
+    {
+        "AccessDenied",
+        "403",
+        "Forbidden",
+        "AllAccessDisabled",
+        "AccountProblem",
+        "InvalidAccessKeyId",
+        "SignatureDoesNotMatch",
+    }
+)
+_S3_THROTTLED = frozenset(
+    {
+        "SlowDown",
+        "Throttling",
+        "ThrottlingException",
+        "TooManyRequestsException",
+        "RequestLimitExceeded",
+        "503",
+    }
+)
 _POLLY_RETRYABLE = frozenset(
     {
         "ThrottlingException",
@@ -402,7 +426,45 @@ def _polly_error(error: BaseException) -> TaskError:
     return TaskError("unexpected")
 
 
+def _status(error: BaseException) -> int | None:
+    response = getattr(error, "response", None)
+    if isinstance(response, dict):
+        status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        return status if isinstance(status, int) else None
+    return None
+
+
+def _asset_error(error: BaseException) -> TaskError:
+    """One asset-bucket S3 error as a stable, safe code (never the AWS message).
+
+    - NoSuchKey / 404 and NoSuchVersion: `object_missing`, permanent. The media role holds
+      s3:ListBucket on the asset bucket (ListAssetBucket), so S3 answers a missing key with 404.
+    - AccessDenied / 403: `access_denied`, permanent. A 403 is never read as "missing": without
+      ListBucket S3 also answers a missing key with 403, so the two cannot be told apart here,
+      and a retry cannot cure a policy, key or bucket-setting problem (it needs a change and a
+      deploy), so retrying would only spend the three receives and land in the DLQ later. The
+      job fails at once with a code an operator can act on, and is resubmitted after the fix.
+    - SlowDown, Throttling, 503: `throttled`, retryable (SQS redelivers).
+    - Connection and timeout errors: `connection` / `timeout`, retryable.
+    - 5xx (InternalError) and anything unrecognised: `storage`, retryable, bounded by the DLQ.
+    """
+    code, name, status = error_code(error), type(error).__name__, _status(error)
+    if code in _MISSING_CODES or code in _S3_VERSION_MISSING or status == 404:
+        return TaskError("object_missing")
+    if code in _S3_DENIED or status == 403:
+        return TaskError("access_denied")
+    if code in _S3_THROTTLED or status in (429, 503):
+        return TaskError("throttled", retryable=True)
+    if name in _TRANSPORT or name in {"ResponseStreamingError", "IncompleteReadError"}:
+        return TaskError("timeout" if "Timeout" in name else "connection", retryable=True)
+    return TaskError("storage", retryable=True)
+
+
 class AssetPorts:
+    """Read-only asset ports. `asset_object_size` returns None for a missing object (the
+    `asset.inspect` contract) and raises `TaskError` from `_asset_error` otherwise; `read_asset`
+    raises `TaskError` for every failure, `object_missing` included."""
+
     def __init__(self, runtime: Runtime):
         if not runtime.settings.asset_bucket:
             raise TaskError("configuration")
@@ -412,10 +474,11 @@ class AssetPorts:
     def asset_object_size(self, key: str) -> int | None:
         try:
             head = self._runtime.client("s3").head_object(Bucket=self._bucket, Key=key)
-        except Exception as error:  # noqa: BLE001
-            if _is_missing(error):
+        except Exception as error:  # noqa: BLE001 - classified, never logged
+            failure = _asset_error(error)
+            if failure.code == "object_missing":
                 return None
-            raise TaskError("storage", retryable=True) from None
+            raise failure from None
         size = head.get("ContentLength")
         return size if isinstance(size, int) else None
 
@@ -427,8 +490,8 @@ class AssetPorts:
                 Bucket=self._bucket, Key=key, Range=f"bytes={start}-{start + length - 1}"
             )
             return response["Body"].read(length)
-        except Exception:  # noqa: BLE001
-            raise TaskError("storage", retryable=True) from None
+        except Exception as error:  # noqa: BLE001 - classified, never logged
+            raise _asset_error(error) from None
 
 
 def log(event: str, **fields) -> None:

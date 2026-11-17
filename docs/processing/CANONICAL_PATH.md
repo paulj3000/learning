@@ -18,7 +18,7 @@ requests were reconciled with it and what remains to re-land.
 | Idempotency | Duplicate and late results ignored under a row lock; Studio slot uniqueness; S3 results written before the message |
 | Cancellation, retries | Admin fail action (`fail_processingjob`); Studio cancel and retry (`cancel_generationbatch`, `retry_generationbatch`); SQS redelivery bounded by DLQs |
 | Monitoring | One CloudWatch alarm per DLQ; Lambda, jobs and Django log groups; Django Admin job list |
-| IAM | Instance: send to work queues, consume results. Workers: own queue, send results, own S3 prefix; AI worker: US inference profile and Guardrail in the Bedrock Region |
+| IAM | Instance: send to work queues, consume results. Workers: own queue, send results, own S3 prefix; media worker: read asset objects and list the asset bucket (`ListAssetBucket`, "Asset read errors" below); AI worker: US inference profile and Guardrail in the Bedrock Region |
 | Flags | `EnableLambdaProcessing`, `LAI_JOBS_BACKEND`, `LAI_STUDIO_RUN_MODE`, `LAI_DEV_NATIVE_ENABLED`; `LAI_ASSET_ASYNC_VALIDATION` (approved, default off) arrives with the contract kinds |
 | Infrastructure | `LaiDevPlatform-dev` only; no ECR in dev |
 
@@ -101,7 +101,59 @@ package, the processing workflow, the two commands or the two units return in de
 |---|---|
 | Owner review and merge of this branch | Pending |
 | Live AWS acceptance (LAI-LAMBDA-011): deploy Django and the worker zip, run a flag-on upload, a failure and a DLQ redrive in dev | Open; every deploy needs owner approval |
-| Media worker IAM: the role has `s3:GetObject` on the asset bucket but no `s3:ListBucket`, so S3 answers 403 (not 404) for a missing key. The worker treats it as a transient storage error: the message is retried and lands in the media DLQ instead of failing as `input_missing`. `asset.inspect` has the same behaviour | Recommendation: add `s3:ListBucket` on the asset bucket (scoped to `assets/`) to the media role. Owner-approved IAM change needed; not made |
+| Media worker IAM and missing assets | Done in the repository (owner decision 2026-11-17), not deployed: `ListAssetBucket` on the media role and the error classification below. Live 404 verification stays in LAI-LAMBDA-011 |
 | Input ceiling: profile `glb-default` allows 50 MiB (`DEFAULT_LIMITS.max_input_bytes`), below the 64 MiB `asset.inspect` ceiling. The default upload ceiling (`LAI_ASSET_MAX_UPLOAD_BYTES`, 52,428,800 bytes) equals it. A larger file is refused with `resource_limit_exceeded` when Django builds the request, before any job exists: the upload is refused as `processing_unavailable` and the admin action shows the safe code | Open; decide with the owner before raising the upload ceiling |
 | Artifact writes (for example `write_report: true`) | Not supported on this path: the worker's storage port is read-only for the `assets` store, so the engine classifies a write as `permission_denied`. Needs its own design before any kind writes artifacts |
 | Wave 4 workloads (LAI-LAMBDA-008, 009, 010, 013) | Not started; see `WAVE4_HANDOFF.md` |
+
+## Asset read errors (media worker)
+
+Owner decision, 2026-11-17: the media worker may list the asset bucket so a missing object can be
+told apart from a denied one. S3 answers a HeadObject or GetObject of a missing key with 404 only
+when the caller is allowed `s3:ListBucket` on the bucket; otherwise it answers 403.
+
+The statement on `lai-dev-jobs-media-worker` (`infra/lib/devPlatformStack.ts`), and on no other
+role:
+
+```json
+{
+  "Sid": "ListAssetBucket",
+  "Effect": "Allow",
+  "Action": "s3:ListBucket",
+  "Resource": "arn:aws:s3:::lai-assets-dev-<account>-<region>",
+  "Condition": { "StringLikeIfExists": { "s3:prefix": ["assets/*"] } }
+}
+```
+
+Why `StringLikeIfExists` and not `StringLike`: a HEAD or GET request carries no `s3:prefix` key,
+and in IAM a condition operator other than `...IfExists` (or `Null`) on a key absent from the
+request context does not match. A plain `StringLike` on `s3:prefix` would therefore most likely
+not apply to the HEAD, and the 403 would stay. `StringLikeIfExists` matches when the key is
+absent and still holds an explicit list prefix to `assets/*`. The limitation: it also allows a
+`ListObjectsV2` call with no prefix. That is acceptable because the bucket holds only asset
+library objects under `assets/models|images|audio/` (`AssetStorageStack`; the Django policy on
+the same bucket already lists it without a condition, `docs/ASSET_LIBRARY.md`), child photos and
+speech are in their own buckets which this statement does not name, and the worker never calls
+`ListObjects`. Object reads are unchanged (`ReadAssets`: `s3:GetObject` on the asset objects
+only); the AI worker gains nothing. Not yet verified against S3: LAI-LAMBDA-011 checks a 404 for
+a missing key live.
+
+Classification (`lambda/jobs_worker/aws.py` `_asset_error`, `lai/apps/jobs/core/contract.py`
+`_storage_error`):
+
+| S3 outcome | Worker code | `asset.inspect` | `asset.validate_model`, `reference.checksum` | Retried |
+|---|---|---|---|---|
+| NoSuchKey, 404 (HEAD returns `None`) | `object_missing` | failed `object_missing` | failed `input_missing` (`ObjectMissing`) | No |
+| NoSuchVersion | `object_missing` | failed `object_missing` | failed `input_missing` | No |
+| AccessDenied, 403 (also InvalidAccessKeyId, SignatureDoesNotMatch, AllAccessDisabled, AccountProblem) | `access_denied` | failed `access_denied` | failed `permission_denied` (`StoragePermissionDenied`) | No |
+| SlowDown, Throttling, 503, 429 | `throttled` | retried | retried, `throttled` | Yes (SQS, then DLQ) |
+| Connection, connect or read timeout, broken response stream | `connection` / `timeout` | retried | retried, `storage_failure` | Yes |
+| 5xx InternalError and anything unrecognised | `storage` | retried | retried, `storage_failure` | Yes |
+
+A 403 is never read as "missing". AccessDenied is permanent: a retry cannot cure a policy, key or
+bucket-setting problem (it needs a change and a deploy), so retrying would only spend the three
+receives and reach the DLQ later; the job fails at once with a distinct code an operator can act
+on and is resubmitted after the fix. If the `ListAssetBucket` grant were missing or ineffective, a
+missing key would show as `access_denied`/`permission_denied`, which is the signal to check IAM.
+An object deleted between the size check and the ranged read is also `object_missing`. Django's
+inline ports (`apps.assets.jobs.InlinePorts`) report the same codes.
