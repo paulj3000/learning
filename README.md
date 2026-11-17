@@ -148,3 +148,116 @@ calls it on same-origin `/api/` (`VITE_DJANGO_API_BASE` may name another `https:
 deployed, CloudFront routes `/api/` to Django and serves the React build from S3
 (`docs/platform/AMPLIFY_FINAL_REMOVAL.md`, section "Hosting"). Deploying that stack is an owner
 step and has not happened yet.
+
+## Serverless background processing (LAI-LAMBDA, Wave 1 built; AWS not deployed)
+
+Heavy asset work (validating GLB models, processing audio, analysing NPC animation, optimising
+assets) is moving to background jobs (ADR-061, proposed). Django stays authoritative for every
+job's state and for publication; AWS Lambda only computes. Full design: `docs/processing/`
+(`ARCHITECTURE.md`, `CONTRACTS.md`, `LIFECYCLE.md`, `SECURITY.md`, `OPERATIONS.md`,
+`WAVE2_HANDOFF.md`).
+
+### Architecture
+
+```text
+Staff upload (Django Admin)
+  -> Django: ProcessingJob row in PostgreSQL (RDS) + original stored privately in S3
+  -> transactional outbox -> SQS work queue
+  -> Lambda worker: verify input checksum, run the processor, write artifacts to S3
+  -> SQS completion queue (result inline, or a reference to a stored result)
+  -> Django completion consumer: verify job, attempt, idempotency key and checksum,
+     commit the result, then acknowledge the message
+  -> staff review in Django Admin -> staff explicitly approve and publish
+```
+
+- Lambda never connects to RDS and never publishes an asset. It needs only S3 and SQS, so work
+  and completions queue up safely while the development EC2 instance and database are stopped
+  overnight (00:00 to 08:00 Pacific), and Django drains the backlog when it starts.
+- Delivery is at least once. Duplicates and late results are expected and handled by
+  idempotency keys, attempt ids and guarded state transitions; nothing claims exactly-once.
+
+### AWS development environment (target; owner approved; not yet deployed)
+
+Region `us-west-1`: a small EC2 instance with Nginx and Django/DRF; Amazon RDS PostgreSQL 16,
+Single-AZ, reachable only privately (no PostgreSQL on the EC2 instance, no Docker on it); S3 and
+CloudFront for the React build; S3 for models, audio, textures and generated artifacts; Lambda
+and SQS work/completion queues for processing; Cognito, Bedrock, Polly and CloudWatch. Lambda
+code may be packaged as a container image when a native dependency needs it; EC2 never runs
+Docker. Infrastructure is defined once, in the CDK app in `infra/`, synthesized to
+CloudFormation. Open owner decisions (release pipeline, the dev load balancer and WAF, Lambda
+code packaging) are listed in ADR-061 and `docs/processing/WAVE2_HANDOFF.md`.
+
+### Local versus AWS execution
+
+| | Local workstation and tests | AWS |
+|---|---|---|
+| Database | local PostgreSQL 16 (`make up`) or none for the processing tests | RDS PostgreSQL, Single-AZ |
+| Storage | in-memory fakes (Wave 1); filesystem adapter (Wave 2) | S3 |
+| Queues | in-memory fake queue (Wave 1); local worker (Wave 2) | SQS work and completion queues with DLQs |
+| Worker | `python -m lai_processing run` | Lambda (Wave 2) |
+
+### The processing package
+
+`processing/lai_processing/` is a standard-library-only Python 3.12 package: no Django, boto3,
+Lambda, HTTP or database imports (a test enforces it). It is installable with
+`pip install ./processing` and already importable in this repository's tooling (pytest's
+`pythonpath` includes `processing`). Layout:
+
+- `contracts/`: versioned job request, result, artifact, completion-event and profile contracts;
+  strict JSON codec; example fixtures (`contracts/fixtures/`) and JSON Schemas
+  (`contracts/schemas/`).
+- `core/`: error and retry taxonomy, resource limits, idempotency keys, job lifecycle, retry
+  policy, processor interface and registry, execution engine, private temporary workspace.
+- `ports/`: storage, queue, telemetry and clock interfaces.
+- `processors/reference.py`: the reference processor (checksum and deterministic metadata).
+- `testing/`: in-memory storage, queue, telemetry and clock for tests.
+- `cli/`: the command-line interface.
+
+### CLI
+
+Runs without AWS credentials, Django, PostgreSQL or internet access. From the repository root,
+with the project's Python environment:
+
+```bash
+export PYTHONPATH=processing   # or: pip install ./processing
+FIX=processing/lai_processing/contracts/fixtures
+
+python -m lai_processing --help
+python -m lai_processing --version
+python -m lai_processing processors list            # add --json for machine-readable output
+python -m lai_processing job-types list             # declared job types and their owner tasks
+python -m lai_processing validate-job $FIX/request.reference.json
+python -m lai_processing encode-job $FIX/request.reference.json   # the canonical queue message
+python -m lai_processing run $FIX/request.reference.json \
+    --input-file $FIX/request.reference.input.txt --output-dir /tmp/lai-job
+```
+
+`run` writes `result.json`, `completion-event.json` and `artifacts/`. Exit codes: 0 success,
+1 the job ran and did not succeed, 2 usage error, 3 invalid request, 4 local file error.
+
+To inspect the contracts: read `docs/processing/CONTRACTS.md`, the JSON Schemas in
+`processing/lai_processing/contracts/schemas/`, and the valid and invalid example messages in
+`processing/lai_processing/contracts/fixtures/` (`invalid/manifest.json` names the error each
+invalid message must produce).
+
+### Unit tests
+
+```bash
+.venv/bin/python -m pytest -q tests/processing/      # the processing package only
+```
+
+They need no database, AWS or network. The processing tests are also part of `make py-test`.
+
+### Development waves
+
+| Wave | Tasks | Scope | Status |
+|---|---|---|---|
+| 1 | LAI-LAMBDA-001 | Shared package, contracts, registry, ports, idempotency, lifecycle, CLI | Built on `feature/serverless-processing`, owner review pending |
+| 2 | LAI-LAMBDA-002, 003, 004, 005 | GLB validator; local worker and S3/SQS adapters with Lambda handler; Django `ProcessingJob` app and Admin; AWS infrastructure | Specified (`docs/processing/WAVE2_HANDOFF.md`), not started |
+| 3 | LAI-LAMBDA-006, 007 | End-to-end processing; Asset Library integration | Not started |
+| 4 | LAI-LAMBDA-008, 009, 010 | Audio, NPC animation, asset optimisation | Not started |
+| 5 | LAI-LAMBDA-011, 012 | AWS acceptance; production rollout | Not started |
+
+Wave 1 implemented the runtime-independent package, contracts and CLI only. Nothing is deployed;
+no Django model, migration, queue, Lambda function or IAM policy exists yet; asset upload and
+publication in Django Admin are unchanged.

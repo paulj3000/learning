@@ -820,3 +820,27 @@ unchanged. The `audio` app adds a configuration layer over published audio asset
 `SoundAssignment` and immutable `SoundRelease` snapshots that pin an exact `AssetVersion` per cue.
 Retiring an asset or version removes its sound from the live manifest and blocks the next publish
 until fixed. See `docs/audio/PHASE_2_ASSET_INTEGRATION.md`.
+
+## 23. Background processing (LAI-LAMBDA, ADR-061 proposed; Wave 1 only)
+
+Asset uploads, validation and publishing in Django Admin are unchanged by Wave 1. The
+runtime-independent processing package (`processing/lai_processing`, `docs/processing/`) defines
+the job contracts that later waves will use to run heavy validation and derivation outside the
+request:
+
+- An asset job names the version it processes: `AssetContext` (`asset_id` is the
+  `ContentAsset.asset_id` slug, `asset_version_id` is `AssetVersion.version_id`) and a subject of
+  type `asset_version` with the same id. Its input is the version's existing `storage_key` in the
+  `assets` store, with the version's `sha256`, `size_bytes` and `content_type`.
+- Result findings keep this library's finding shape (`code`, `severity`, `message`, `path`), so a
+  validator's result maps onto `AssetVersion.validation_report` without translation.
+- A job result is never a publication. `VersionStatus.DRAFT`, reserved here for "a future
+  asynchronous validation step", is the intended home for a version awaiting its processing
+  result (LAI-LAMBDA-004 and 007); a successful result moves it to review, and only a staff
+  action in Django Admin publishes it.
+- `validation.py` and `validation_media.py` stay the synchronous path. LAI-LAMBDA-002 extracts a
+  pure parser from them, with the Django settings reads replaced by injected limits, and must keep
+  both paths' verdicts identical (parity tests). `publish_version` keeps re-validating.
+- Derived artifacts go under `processing/artifacts/<namespace>/<job>/<attempt>/` in a separate
+  prefix, never over an `assets/...` key. The current IAM policy allows only
+  `assets/{models,images,audio}/*`; the processing prefixes need their own policy (LAI-LAMBDA-005).
