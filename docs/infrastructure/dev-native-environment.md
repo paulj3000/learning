@@ -71,9 +71,11 @@ verified by their own pipeline.
 | 1 | `LaiDevArtifacts-dev` | us-west-1 | release tarballs, Lambda zips, large job results, CloudFormation template uploads (`tmp/cfn/`) |
 | 2 | `LaiAssetStorage-dev` | us-west-1 | asset library bucket and Django policy |
 | 3 | `LaiChildPhotos-dev` | us-west-1 | private child photo bucket and policy |
-| 4 | `LaiDevPlatform-dev` | us-west-1 | VPC, EC2, Elastic IP, RDS, speech bucket, SQS, Lambda, power state machine, schedules, SSM, IAM, alarms, budget |
-| 5 | `LaiAiGuardrail-dev` | us-west-1 | child-safety Guardrail; attaches its policy to the instance role `lai-django-ec2-dev`, so it follows the platform |
-| 6 | `LaiFrontend-dev` | us-east-1 | web bucket, CloudFront, ACM certificate for the site |
+| 4 | `LaiProcessing-dev` | us-west-1 | processing bucket, queues, worker (with an image digest), Django policy the platform attaches by name (`docs/infrastructure/processing-infrastructure.md`) |
+| 5 | `LaiDevPlatform-dev` | us-west-1 | VPC, EC2, Elastic IP, RDS, speech bucket, SQS, Lambda, power state machine, schedules, SSM, IAM, alarms, budget |
+| 6 | `LaiProcessingImages-dev` | us-west-1 | ECR `lai/processing-dev` and the image publisher role (trusts the OIDC provider the platform may create) |
+| 7 | `LaiAiGuardrail-dev` | us-west-1 | child-safety Guardrail; attaches its policy to the instance role `lai-django-ec2-dev`, so it follows the platform |
+| 8 | `LaiFrontend-dev` | us-east-1 | web bucket, CloudFront, ACM certificate for the site |
 
 All templates are synthesized by `npm run infra:synth` into `infra/cdk.out/` with CDK's
 bootstrapless synthesizer: no `cdk bootstrap` stack is needed. `LaiDevPlatform-dev` is about

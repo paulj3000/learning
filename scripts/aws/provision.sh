@@ -18,10 +18,19 @@
 #   LAI_ALARM_EMAIL            optional
 #   LAI_GITHUB_REPOSITORY, LAI_DATABASE_MODE, LAI_CREATE_OIDC_PROVIDER, LAI_HOSTED_ZONE_ID,
 #   LAI_HOSTED_ZONE_NAME, LAI_DB_MULTI_AZ   passed to the CDK app (infra/bin/app.ts)
+#   LAI_PROCESSING_WORKER_IMAGE_DIGEST   sha256:<64 hex> of the processing worker image; without
+#                              it LaiProcessing-<env> has no worker (phase 1). Passed to the CDK app.
+#
+# Processing only (LAI-LAMBDA-005, also how .github/workflows/deploy-processing.yml deploys):
+#   scripts/aws/provision.sh <dev|prod> --only LaiProcessing-<env> [--execute]
+# needs no domain, Cognito or AMI settings. The native dev platform itself is deployed with
+# scripts/aws/deploy-debug.sh, which deploys the processing stacks in its own order.
 #
 # Order: LaiAssetStorage-<env> (the asset policy the instance role attaches), LaiChildPhotos-<env>
 # (the private child photo bucket and the photo policy the instance role attaches, ADR-042),
-# LaiDjangoRelease (account-wide, ECR and GitHub OIDC), LaiDjangoEc2-<env>, then LaiFrontend-<env>
+# LaiDjangoRelease (account-wide, ECR and GitHub OIDC), LaiProcessingImages-<env> (the worker
+# image repository; its publisher role trusts the OIDC provider), LaiProcessing-<env> (the
+# processing policy the instance role attaches), LaiDjangoEc2-<env>, then LaiFrontend-<env>
 # (us-east-1; its /api/* origin is the EC2 stack's API host, LAI-INFRA-003). Both storage stacks
 # must exist before the EC2 stack, which attaches their policies by name. Without a Route 53 zone the EC2 stack
 # waits while ACM validates the certificate: add the CNAME ACM shows (console, Certificate Manager).
@@ -45,6 +54,17 @@ account=$(aws sts get-caller-identity --query Account --output text)
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 out="$repo_root/infra/cdk.out"
 echo "account $account, region $AWS_REGION, environment $env_name, execute=$execute"
+
+# The worker image is CDK context, not a parameter: unset, keep the deployed digest, so a routine
+# run never removes the processing worker ('' or 'none' removes it on purpose).
+if [ -z "${LAI_PROCESSING_WORKER_IMAGE_DIGEST+set}" ]; then
+    deployed_digest=$(aws cloudformation describe-stacks --region "$AWS_REGION" \
+        --stack-name "LaiProcessing-$env_name" \
+        --query "Stacks[0].Outputs[?OutputKey=='WorkerImageDigest'].OutputValue" --output text 2>/dev/null || true)
+    if [[ $deployed_digest =~ ^sha256:[a-f0-9]{64}$ ]]; then export LAI_PROCESSING_WORKER_IMAGE_DIGEST=$deployed_digest; fi
+fi
+[ "${LAI_PROCESSING_WORKER_IMAGE_DIGEST:-}" != none ] || LAI_PROCESSING_WORKER_IMAGE_DIGEST=""
+export LAI_PROCESSING_WORKER_IMAGE_DIGEST=${LAI_PROCESSING_WORKER_IMAGE_DIGEST:-}
 
 LAI_ENV=$env_name CDK_DEFAULT_ACCOUNT=$account CDK_DEFAULT_REGION=$AWS_REGION \
     npm --prefix "$repo_root" run --silent infra:synth
@@ -72,8 +92,19 @@ deploy_stack() { # deploy_stack <stack> [Key=Value ...]; STACK_REGION overrides 
 deploy_stack "LaiAssetStorage-$env_name"
 deploy_stack "LaiChildPhotos-$env_name"
 deploy_stack LaiDjangoRelease
+deploy_stack "LaiProcessingImages-$env_name"
+if [ -n "${LAI_PROCESSING_WORKER_IMAGE_DIGEST:-}" ]; then
+    echo "processing worker image $LAI_PROCESSING_WORKER_IMAGE_DIGEST"
+else
+    echo "no LAI_PROCESSING_WORKER_IMAGE_DIGEST: LaiProcessing-$env_name has no worker (phase 1)"
+fi
+deploy_stack "LaiProcessing-$env_name"
 
 ec2_stack="LaiDjangoEc2-$env_name"
+if [ -n "$only" ] && [ "$only" != "$ec2_stack" ] && [ "$only" != "LaiFrontend-$env_name" ]; then
+    [ "$execute" = true ] || echo "Change set created for $only, nothing applied. Review it, then rerun with --execute."
+    exit 0
+fi
 api_domain=${LAI_API_DOMAIN:-$(existing "$ec2_stack" ApiDomainName)}
 admin_domain=${LAI_ADMIN_DOMAIN:-$(existing "$ec2_stack" AdminDomainName)}
 pool=${LAI_COGNITO_USER_POOL_ID:-$(existing "$ec2_stack" CognitoUserPoolId)}

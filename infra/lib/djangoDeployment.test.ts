@@ -309,6 +309,7 @@ describe('DjangoEc2Stack', { timeout: 60_000 }, () => {
     expect(managed).toContain('AmazonSSMManagedInstanceCore');
     expect(managed).toContain('lai-django-asset-storage-prod');
     expect(managed).toContain('lai-django-child-photos-prod');
+    expect(managed).toContain('lai-django-processing-prod');
     expect(managed).not.toContain('-dev');
     const all = statements(template, 'InstanceRole');
     const wildcard = all.filter((statement) => statement.Resource === '*');

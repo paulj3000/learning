@@ -6,11 +6,13 @@
 #
 # Writes DIR/<sha>.tar.gz and DIR/<sha>.json and prints both paths, one per line. The tarball holds
 # lai/, content/, react/public/models/, requirements.txt, wheels/ (aarch64 CPython 3.12 wheels from
-# `pip download`, so the instance installs with --no-index), deploy/native/, scripts/aws/native/
+# `pip download`, so the instance installs with --no-index, plus the pure-Python lai-processing
+# wheel built from processing/ with `pip wheel --no-deps`), deploy/native/, scripts/aws/native/
 # and RELEASE.json. It is deterministic: files sorted by name, mtime set to the commit time, owner
 # root, gzip without a timestamp; the same inputs give the same SHA-256. Files come from
 # `git ls-files` (tracked plus untracked, not ignored) when the source is a git checkout, so local
-# caches and ignored files never ship. --skip-wheels leaves wheels/ empty (tests only).
+# caches and ignored files never ship. --skip-wheels leaves wheels/ empty (tests only). The
+# processing wheel is built with SOURCE_DATE_EPOCH set to the commit time, so it is reproducible.
 # Exit codes: 0 ok, 2 usage, 10 invalid, 20 packaging failed.
 set -Eeuo pipefail
 
@@ -67,6 +69,17 @@ if [ "$skip_wheels" != true ]; then
         --only-binary=:all: --platform manylinux2014_aarch64 --platform manylinux_2_28_aarch64 \
         --implementation cp --python-version 3.12 -r "$tree/requirements.txt" -d "$tree/wheels" ||
         fail 20 "pip download failed (every requirement needs an aarch64 cp312 or pure-Python wheel)"
+    # Django imports lai_processing and lai_processing_runtime (docs/processing/WAVE2_INTERFACES.md
+    # section 8). Pure Python with no dependencies, so the instance installs it with --no-deps.
+    [ -f "$source_dir/processing/pyproject.toml" ] || fail 10 "$source_dir has no processing/pyproject.toml"
+    say "building the lai-processing wheel from processing/"
+    # From a copy, so the in-tree build (build/, *.egg-info) never touches the checkout.
+    cp -R "$source_dir/processing" "$work/processing-src" || fail 20 "copying processing/ failed"
+    SOURCE_DATE_EPOCH=$epoch "${LAI_PACKAGE_PYTHON:-python3}" -m pip wheel --quiet --no-deps \
+        --disable-pip-version-check --no-cache-dir "$work/processing-src" -w "$tree/wheels" ||
+        fail 20 "pip wheel ./processing failed"
+    ls "$tree"/wheels/lai_processing-*-py3-none-any.whl >/dev/null 2>&1 ||
+        fail 20 "the lai-processing wheel is missing or not pure Python"
 fi
 
 jq -n --arg sha "$git_sha" --argjson epoch "$epoch" --arg run_url "$run_url" \

@@ -3,9 +3,12 @@
 # Self-contained (no lib). LAI_REQ_ACTION (from the document, or $1):
 #
 #   quiesce   before the instance stops: wait briefly for a running release to finish, then stop
-#             lai-jobs-consumer and lai-gunicorn. Always exits 0 unless the action is invalid.
+#             lai-jobs-dispatch (no new work leaves), lai-jobs-completions, lai-jobs-consumer and
+#             lai-gunicorn. Always exits 0 unless the action is invalid. The Lambda workers keep
+#             running; their completions wait in SQS until verify starts the consumers again.
 #   verify    after the instance starts: nginx and lai-gunicorn active, database reachable,
-#             readiness 200, start lai-jobs-consumer; then, when /lai/dev/deploy/apply-pending-on-start
+#             readiness 200, start lai-jobs-consumer, lai-jobs-completions (drains the overnight
+#             backlog) and lai-jobs-dispatch; then, when /lai/dev/deploy/apply-pending-on-start
 #             is true, apply the release recorded in /lai/dev/deploy/pending and set it to `none`
 #             once that succeeds. Exits 0 when the instance ends healthy, 1 when it does not.
 # Exit 2 for an unknown action, 30 when the instance was never set up.
@@ -32,6 +35,8 @@ if [ "$action" = quiesce ]; then
     mkdir -p "$(dirname "$LAI_LOCK_FILE")"
     exec 9>"$LAI_LOCK_FILE"
     flock -w "$LAI_QUIESCE_LOCK_WAIT" 9 || say "WARNING: a release still holds the lock; stopping anyway"
+    systemctl stop lai-jobs-dispatch.service || say "WARNING: could not stop lai-jobs-dispatch"
+    systemctl stop lai-jobs-completions.service || say "WARNING: could not stop lai-jobs-completions"
     systemctl stop lai-jobs-consumer.service || say "WARNING: could not stop lai-jobs-consumer"
     systemctl stop lai-gunicorn.service || say "WARNING: could not stop lai-gunicorn"
     say "quiesced"
@@ -55,6 +60,9 @@ done
 if [ "$ok" = true ] && healthy "$LAI_VERIFY_ATTEMPTS"; then
     say "nginx, gunicorn and the database are healthy"
     systemctl start lai-jobs-consumer.service || say "WARNING: lai-jobs-consumer did not start"
+    # Skipped by their ExecCondition unless LAI_PROCESSING_BACKEND is sqs.
+    systemctl start lai-jobs-completions.service || say "WARNING: lai-jobs-completions did not start"
+    systemctl start lai-jobs-dispatch.service || say "WARNING: lai-jobs-dispatch did not start"
 else
     ok=false
     say "ERROR: the instance is not healthy after start"
