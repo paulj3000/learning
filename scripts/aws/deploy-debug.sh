@@ -53,7 +53,9 @@
 #   LAI_ENABLE_SCHEDULE, LAI_SHUTDOWN_TIME, LAI_AVAILABLE_BY, LAI_STARTUP_WARMUP_MINUTES,
 #   LAI_SCHEDULE_TIMEZONE, LAI_ENABLE_LAMBDA, LAI_LAMBDA_MEMORY, LAI_LAMBDA_CONCURRENCY,
 #   LAI_GITHUB_REPOSITORY, LAI_RELEASE_RETENTION_DAYS, LAI_CREATE_OIDC_PROVIDER,
-#   LAI_PROCESSING_WORKER_IMAGE_DIGEST ('' or 'none' removes the processing worker)
+#   LAI_PROCESSING_WORKER_IMAGE_DIGEST ('' or 'none' removes the processing worker),
+#   LAI_PROCESSING_RESERVED_CONCURRENCY, LAI_PROCESSING_ALARMS, LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS,
+#   LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS (LaiProcessing-dev outputs; '' or 'none' = default)
 #
 # Exit codes: 0 done (plan made, or stacks applied); 1 a stack operation or synth failed;
 # 2 usage or invalid setting; 3 AWS failure; 4 refused by the dev guard (environment, prod name,
@@ -204,6 +206,27 @@ fi
 [ "$worker_digest" != none ] || worker_digest=""
 [[ -z $worker_digest || $worker_digest =~ ^sha256:[a-f0-9]{64}$ ]] ||
     die "$EX_USAGE" "LAI_PROCESSING_WORKER_IMAGE_DIGEST must be sha256:<64 hex>, got '$worker_digest'"
+# The other processing settings are CDK context too: unset, keep the deployed output (so the
+# reserved concurrency, alarm overrides and redrive roles survive a routine update); '' or 'none'
+# returns one to its default.
+processing_setting() { # processing_setting <variable> <output key> <accepted pattern>
+    local var=$1 value
+    if [[ -v $var ]]; then
+        value=${!var}
+    else
+        value=$(stack_output "$DEV_PROCESSING_STACK" "$2" 2>/dev/null || true)
+        [[ $value =~ $3 ]] || value=""
+    fi
+    [ "$value" != none ] || value=""
+    printf '%s' "$value"
+}
+processing_concurrency=$(processing_setting LAI_PROCESSING_RESERVED_CONCURRENCY ReservedConcurrency '^[0-9]+$')
+[[ -z $processing_concurrency || $processing_concurrency =~ ^[0-9]+$ ]] ||
+    die "$EX_USAGE" "LAI_PROCESSING_RESERVED_CONCURRENCY must be a whole number, got '$processing_concurrency'"
+processing_alarms=$(processing_setting LAI_PROCESSING_ALARMS AlarmOverrides '^\{.*\}$')
+[ "$processing_alarms" != '{}' ] || processing_alarms=""
+work_redrive=$(processing_setting LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS WorkRedriveRoleArns '^arn:')
+completion_redrive=$(processing_setting LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS CompletionRedriveRoleArns '^arn:')
 # StartupTime is when startup BEGINS: available-by minus the warm-up.
 if [[ -v LAI_AVAILABLE_BY ]] || [[ -v LAI_STARTUP_WARMUP_MINUTES ]] || ! deployed_time StartupHour StartupMinute >/dev/null; then
     available=${LAI_AVAILABLE_BY:-08:00}
@@ -327,9 +350,14 @@ step "8. synthesize (npm run infra:synth)"
 out=${LAI_CDK_OUT:-$DEV_REPO_ROOT/infra/cdk.out}
 synth_env=(LAI_ENV=dev "CDK_DEFAULT_ACCOUNT=$DEV_ACCOUNT" "CDK_DEFAULT_REGION=$DEV_REGION"
     "CDK_OUTDIR=$out" "LAI_GITHUB_REPOSITORY=$repository"
-    "LAI_PROCESSING_WORKER_IMAGE_DIGEST=$worker_digest")
+    "LAI_PROCESSING_WORKER_IMAGE_DIGEST=$worker_digest"
+    "LAI_PROCESSING_RESERVED_CONCURRENCY=$processing_concurrency"
+    "LAI_PROCESSING_ALARMS=$processing_alarms"
+    "LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS=$work_redrive"
+    "LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS=$completion_redrive")
 [ -z "$zone_id" ] || synth_env+=("LAI_HOSTED_ZONE_ID=$zone_id" "LAI_HOSTED_ZONE_NAME=${zone_name%.}")
 info "processing worker image: ${worker_digest:-none (phase 1: no worker)}"
+info "processing reserved concurrency: ${processing_concurrency:-default}, alarm overrides: ${processing_alarms:-none}"
 env "${synth_env[@]}" npm --prefix "$DEV_REPO_ROOT" run --silent infra:synth >&2 ||
     die "$EX_FAIL" "infra:synth failed"
 for stack in "${STACKS[@]}"; do

@@ -1,4 +1,13 @@
-import { Aws, CfnOutput, Duration, RemovalPolicy, Stack, Tags, type StackProps } from 'aws-cdk-lib';
+import {
+  Aws,
+  CfnOutput,
+  Duration,
+  RemovalPolicy,
+  Stack,
+  Tags,
+  Token,
+  type StackProps,
+} from 'aws-cdk-lib';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -199,11 +208,60 @@ export interface ProcessingStackProps extends StackProps {
   /** Overrides of {@link defaultAlarmThresholds}. */
   alarms?: Partial<ProcessingAlarmThresholds>;
   /**
-   * IAM role ARNs, besides the Django instance role `lai-django-ec2-<env>`, that may send to the
-   * work queue and, with the worker role, to the completion queue (for example an operator role
-   * that redrives a DLQ). Default none.
+   * Operations-administrator IAM role ARNs (owner decision B7) allowed to redrive the work DLQ
+   * into the work queue: `sqs:StartMessageMoveTask`, `ListMessageMoveTasks`,
+   * `CancelMessageMoveTask`, `ReceiveMessage`, `DeleteMessage` and `GetQueueAttributes` on the
+   * work DLQ and `sqs:SendMessage` on the work queue, through the queue policies (the roles live
+   * outside this stack). Never the Django role or the worker role. Default none.
    */
-  additionalSenderRoleArns?: readonly string[];
+  workRedriveRoleArns?: readonly string[];
+  /**
+   * The same for the completion DLQ into the completion queue. Rare (a consumer bug fixed after
+   * completions dead-lettered): a role listed here can put a message on the completion queue, which
+   * otherwise only the worker can, so keep it empty unless a completion redrive is under way.
+   * Default none.
+   */
+  completionRedriveRoleArns?: readonly string[];
+}
+
+/** `arn:aws:iam::<12 digits>:role/<path and name>`, no wildcard. */
+export const REDRIVE_ROLE_ARN_PATTERN = /^arn:aws(-[a-z]+)*:iam::([0-9]{12}):role\/[\w+=,.@/-]+$/;
+
+/** The SQS actions a DLQ redrive (message move task) needs on the dead-letter queue. */
+export const DLQ_REDRIVE_ACTIONS = [
+  'sqs:StartMessageMoveTask',
+  'sqs:ListMessageMoveTasks',
+  'sqs:CancelMessageMoveTask',
+  'sqs:ReceiveMessage',
+  'sqs:DeleteMessage',
+  'sqs:GetQueueAttributes',
+] as const;
+
+/**
+ * Validates redrive role ARNs: IAM role ARNs without wildcards, in the stack's account when it is
+ * known, and never the Django instance role or the worker role (B7).
+ */
+export function validateRedriveRoleArns(
+  name: string,
+  arns: readonly string[],
+  envName: AssetEnvironment,
+  account?: string,
+): void {
+  for (const arn of arns) {
+    const match = REDRIVE_ROLE_ARN_PATTERN.exec(arn);
+    if (!match || arn.includes('*') || arn.includes('?')) {
+      throw new Error(
+        `${name} must be IAM role ARNs (arn:aws:iam::<account>:role/...), got "${arn}"`,
+      );
+    }
+    if (account && match[2] !== account) {
+      throw new Error(`${name}: ${arn} is not in the stack's account ${account}`);
+    }
+    const roleName = arn.slice(arn.lastIndexOf('/') + 1);
+    if (roleName === `lai-django-ec2-${envName}` || roleName === processingWorkerName(envName)) {
+      throw new Error(`${name}: ${roleName} must never redrive a DLQ (owner decision B7)`);
+    }
+  }
 }
 
 export class ProcessingStack extends Stack {
@@ -225,17 +283,20 @@ export class ProcessingStack extends Stack {
     }
     const sizing: WorkerSizing = { ...defaultWorkerSizing(env), ...props.sizing };
     validateWorkerSizing(sizing);
+    const defaults = defaultAlarmThresholds(env);
+    for (const name of Object.keys(props.alarms ?? {})) {
+      if (!(name in defaults)) throw new Error(`unknown alarm threshold ${name}`);
+    }
     const thresholds: ProcessingAlarmThresholds = {
-      ...defaultAlarmThresholds(env),
+      ...defaults,
       ...props.alarms,
     };
     validateThresholds(thresholds);
-    const senders = props.additionalSenderRoleArns ?? [];
-    for (const arn of senders) {
-      if (!/^arn:aws[a-z-]*:iam::[0-9]{12}:role\/[\w+=,.@/-]+$/.test(arn)) {
-        throw new Error(`additionalSenderRoleArns must be IAM role ARNs, got "${arn}"`);
-      }
-    }
+    const workRedrivers = [...new Set(props.workRedriveRoleArns ?? [])];
+    const completionRedrivers = [...new Set(props.completionRedriveRoleArns ?? [])];
+    const knownAccount = Token.isUnresolved(this.account) ? undefined : this.account;
+    validateRedriveRoleArns('workRedriveRoleArns', workRedrivers, env, knownAccount);
+    validateRedriveRoleArns('completionRedriveRoleArns', completionRedrivers, env, knownAccount);
     const prod = env === 'prod';
     const partition = Aws.PARTITION;
     const account = Aws.ACCOUNT_ID;
@@ -387,11 +448,36 @@ export class ProcessingStack extends Stack {
           conditions: { ArnNotEquals: { 'aws:PrincipalArn': allowed } },
         }),
       );
-    onlySenders(this.workQueue, 'OnlyDjangoSendsWork', [djangoRoleArn, ...senders]);
+    // A redrive role is a sender of the source queue only while it moves messages back from the
+    // DLQ (B7): work redrive and completion redrive are separate lists, so a work redrive
+    // operator can never put a message on the completion queue.
+    onlySenders(this.workQueue, 'OnlyDjangoSendsWork', [djangoRoleArn, ...workRedrivers]);
     onlySenders(this.completionQueue, 'OnlyTheWorkerSendsCompletions', [
       this.workerRole.roleArn,
-      ...senders,
+      ...completionRedrivers,
     ]);
+    const redrive = (source: sqs.Queue, dlq: sqs.Queue, prefix: string, roles: string[]) => {
+      if (roles.length === 0) return;
+      const principals = roles.map((arn) => new iam.ArnPrincipal(arn));
+      dlq.addToResourcePolicy(
+        new iam.PolicyStatement({
+          sid: `${prefix}RedriveFromDlq`,
+          principals,
+          actions: [...DLQ_REDRIVE_ACTIONS],
+          resources: [dlq.queueArn],
+        }),
+      );
+      source.addToResourcePolicy(
+        new iam.PolicyStatement({
+          sid: `${prefix}RedriveIntoSource`,
+          principals,
+          actions: ['sqs:SendMessage'],
+          resources: [source.queueArn],
+        }),
+      );
+    };
+    redrive(this.workQueue, this.workDlq, 'Work', workRedrivers);
+    redrive(this.completionQueue, this.completionDlq, 'Completion', completionRedrivers);
 
     // ===========================================================================================
     // Django: managed policy, attached by name to lai-django-ec2-<env> by the platform stack
@@ -620,6 +706,24 @@ export class ProcessingStack extends Stack {
       DjangoProcessingPolicyArn: [
         this.djangoPolicy.managedPolicyArn,
         `Attached by name to lai-django-ec2-${env}`,
+      ],
+      // The deploy-time settings, read back by provision.sh and deploy-debug.sh so a later deploy
+      // keeps them unless the operator sets them again.
+      ReservedConcurrency: [
+        String(sizing.reservedConcurrency),
+        'Worker reserved concurrency (processingReservedConcurrency)',
+      ],
+      AlarmOverrides: [
+        JSON.stringify(props.alarms ?? {}),
+        'JSON alarm threshold overrides (processingAlarms)',
+      ],
+      WorkRedriveRoleArns: [
+        workRedrivers.join(',') || 'none',
+        'Roles that may redrive the work DLQ (processingWorkRedriveRoleArns)',
+      ],
+      CompletionRedriveRoleArns: [
+        completionRedrivers.join(',') || 'none',
+        'Roles that may redrive the completion DLQ (processingCompletionRedriveRoleArns)',
       ],
     };
     for (const [name, [value, description]] of Object.entries(outputs)) {

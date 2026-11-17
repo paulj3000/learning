@@ -20,6 +20,12 @@
 #   LAI_HOSTED_ZONE_NAME, LAI_DB_MULTI_AZ   passed to the CDK app (infra/bin/app.ts)
 #   LAI_PROCESSING_WORKER_IMAGE_DIGEST   sha256:<64 hex> of the processing worker image; without
 #                              it LaiProcessing-<env> has no worker (phase 1). Passed to the CDK app.
+#   LAI_PROCESSING_RESERVED_CONCURRENCY  worker reserved concurrency (default dev 2, prod 5)
+#   LAI_PROCESSING_ALARMS      JSON overrides of the processing alarm thresholds
+#   LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS, LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS
+#                              comma-separated operator roles that may redrive each DLQ (B7)
+#   Each of these five, when unset, keeps the value LaiProcessing-<env> was deployed with (its
+#   outputs); '' or 'none' returns it to the default (no worker, dev 2 / prod 5, no override, no role).
 #
 # Processing only (LAI-LAMBDA-005, also how .github/workflows/deploy-processing.yml deploys):
 #   scripts/aws/provision.sh <dev|prod> --only LaiProcessing-<env> [--execute]
@@ -55,16 +61,34 @@ repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 out="$repo_root/infra/cdk.out"
 echo "account $account, region $AWS_REGION, environment $env_name, execute=$execute"
 
-# The worker image is CDK context, not a parameter: unset, keep the deployed digest, so a routine
-# run never removes the processing worker ('' or 'none' removes it on purpose).
-if [ -z "${LAI_PROCESSING_WORKER_IMAGE_DIGEST+set}" ]; then
-    deployed_digest=$(aws cloudformation describe-stacks --region "$AWS_REGION" \
-        --stack-name "LaiProcessing-$env_name" \
-        --query "Stacks[0].Outputs[?OutputKey=='WorkerImageDigest'].OutputValue" --output text 2>/dev/null || true)
-    if [[ $deployed_digest =~ ^sha256:[a-f0-9]{64}$ ]]; then export LAI_PROCESSING_WORKER_IMAGE_DIGEST=$deployed_digest; fi
-fi
-[ "${LAI_PROCESSING_WORKER_IMAGE_DIGEST:-}" != none ] || LAI_PROCESSING_WORKER_IMAGE_DIGEST=""
-export LAI_PROCESSING_WORKER_IMAGE_DIGEST=${LAI_PROCESSING_WORKER_IMAGE_DIGEST:-}
+# The processing settings are CDK context, not parameters, so the stack outputs them and an unset
+# variable keeps the deployed value: a routine run never removes the worker, resets the reserved
+# concurrency (prod 5) or the alarm thresholds, or drops a redrive role. Set a variable to change
+# it; '' or 'none' returns it to its default (for the digest: removes the worker on purpose).
+processing_output() { # processing_output <key>: the deployed LaiProcessing-<env> output, or nothing
+    aws cloudformation describe-stacks --region "$AWS_REGION" --stack-name "LaiProcessing-$env_name" \
+        --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text 2>/dev/null |
+        grep -v '^None$' || true
+}
+keep_processing_setting() { # keep_processing_setting <variable> <output key> <accepted pattern>
+    local variable=$1 deployed
+    if [ -z "${!variable+set}" ]; then
+        deployed=$(processing_output "$2")
+        if [[ $deployed =~ $3 ]]; then export "$variable=$deployed"; fi
+    fi
+    [ "${!variable:-}" != none ] || export "$variable="
+    export "$variable=${!variable:-}"
+}
+keep_processing_setting LAI_PROCESSING_WORKER_IMAGE_DIGEST WorkerImageDigest '^sha256:[a-f0-9]{64}$'
+keep_processing_setting LAI_PROCESSING_RESERVED_CONCURRENCY ReservedConcurrency '^[0-9]+$'
+keep_processing_setting LAI_PROCESSING_ALARMS AlarmOverrides '^\{.*\}$'
+[ "$LAI_PROCESSING_ALARMS" != '{}' ] || LAI_PROCESSING_ALARMS=""
+keep_processing_setting LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS WorkRedriveRoleArns '^arn:'
+keep_processing_setting LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS CompletionRedriveRoleArns '^arn:'
+echo "processing settings: reserved concurrency ${LAI_PROCESSING_RESERVED_CONCURRENCY:-default}," \
+    "alarm overrides ${LAI_PROCESSING_ALARMS:-none}," \
+    "work redrive roles ${LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS:-none}," \
+    "completion redrive roles ${LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS:-none}"
 
 LAI_ENV=$env_name CDK_DEFAULT_ACCOUNT=$account CDK_DEFAULT_REGION=$AWS_REGION \
     npm --prefix "$repo_root" run --silent infra:synth

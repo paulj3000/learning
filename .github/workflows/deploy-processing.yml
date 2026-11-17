@@ -5,6 +5,8 @@
 #   deploy:     synthesize LaiProcessing-<env> with that digest and create a CloudFormation change
 #               set (scripts/aws/provision.sh --only); apply it only with execute_change_set
 #   rollback:   the same as deploy, with an earlier digest
+# provision.sh keeps the stack's other deploy-time settings (reserved concurrency, alarm
+# overrides, DLQ redrive roles) from its outputs, so a deploy or rollback never resets them.
 #
 # Manual only (workflow_dispatch): no push, pull_request or schedule trigger, so merging a PR never
 # builds, pushes or deploys anything here. Every job also needs the repository variable
@@ -190,8 +192,13 @@ jobs:
           DIGEST: ${{ inputs.image_digest }}
           EXECUTE: ${{ inputs.execute_change_set && 'true' || 'false' }}
         run: |
-          deployed=$(aws cloudformation describe-stacks --stack-name "LaiProcessing-$TARGET" \
-            --query "Stacks[0].Outputs[?OutputKey=='WorkerImageDigest'].OutputValue" --output text 2>/dev/null || echo unknown)
+          output() {
+            aws cloudformation describe-stacks --stack-name "LaiProcessing-$TARGET" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text 2>/dev/null || echo unknown
+          }
+          deployed=$(output WorkerImageDigest)
+          concurrency=$(output ReservedConcurrency)
+          alarms=$(output AlarmOverrides)
           {
             echo "### LaiProcessing-$TARGET: $ACTION"
             echo ""
@@ -200,4 +207,6 @@ jobs:
             echo "| Requested digest | \`$DIGEST\` |"
             echo "| Change set applied | $EXECUTE |"
             echo "| Deployed digest | \`$deployed\` |"
+            echo "| Reserved concurrency | $concurrency |"
+            echo "| Alarm overrides | \`$alarms\` |"
           } >>"$GITHUB_STEP_SUMMARY"

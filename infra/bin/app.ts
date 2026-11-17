@@ -60,6 +60,11 @@ import {
  * | `processingWorkerImageDigest` | `LAI_PROCESSING_WORKER_IMAGE_DIGEST` | `sha256:...` worker image; empty = phase 1 |
  * | `processingReservedConcurrency` | `LAI_PROCESSING_RESERVED_CONCURRENCY` | worker reserved concurrency (dev 2, prod 5) |
  * | `processingAlarms`   | `LAI_PROCESSING_ALARMS`     | JSON overrides of the processing alarm thresholds |
+ * | `processingWorkRedriveRoleArns` | `LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS` | comma-separated operator roles that may redrive the work DLQ (B7) |
+ * | `processingCompletionRedriveRoleArns` | `LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS` | the same for the completion DLQ (rare) |
+ *
+ * scripts/aws/provision.sh and deploy-debug.sh read the five processing settings back from the
+ * deployed stack's outputs when they are unset, so a later deploy never silently resets them.
  *
  * Deploy-time values (API and admin host names, AMI, instance type, Cognito ids, alarm
  * e-mail) are CloudFormation parameters of `LaiDjangoEc2-prod` (scripts/aws/provision.sh) and
@@ -173,14 +178,36 @@ const reservedConcurrency = setting(
   'LAI_PROCESSING_RESERVED_CONCURRENCY',
 );
 const alarmOverrides = setting('processingAlarms', 'LAI_PROCESSING_ALARMS');
+function parseAlarmOverrides(text: string): Partial<ProcessingAlarmThresholds> {
+  const parsed: unknown = JSON.parse(text);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`processingAlarms must be a JSON object, got ${text}`);
+  }
+  return parsed as Partial<ProcessingAlarmThresholds>;
+}
+/** A comma-separated role ARN list; `none` (the stack output for an empty list) is empty. */
+function roleList(context: string, variable: string): string[] {
+  const value = setting(context, variable);
+  if (value === 'none') return [];
+  return value
+    .split(',')
+    .map((arn) => arn.trim())
+    .filter(Boolean);
+}
 new ProcessingStack(app, processingStackName(envName as AssetEnvironment), {
   envName: envName as AssetEnvironment,
   workerImageDigest:
     setting('processingWorkerImageDigest', 'LAI_PROCESSING_WORKER_IMAGE_DIGEST') || undefined,
   sizing: reservedConcurrency ? { reservedConcurrency: Number(reservedConcurrency) } : undefined,
-  alarms: alarmOverrides
-    ? (JSON.parse(alarmOverrides) as Partial<ProcessingAlarmThresholds>)
-    : undefined,
+  alarms: alarmOverrides ? parseAlarmOverrides(alarmOverrides) : undefined,
+  workRedriveRoleArns: roleList(
+    'processingWorkRedriveRoleArns',
+    'LAI_PROCESSING_WORK_REDRIVE_ROLE_ARNS',
+  ),
+  completionRedriveRoleArns: roleList(
+    'processingCompletionRedriveRoleArns',
+    'LAI_PROCESSING_COMPLETION_REDRIVE_ROLE_ARNS',
+  ),
   env,
   synthesizer: synthesizer(),
   description: `Learning Adventure Island background processing: S3, SQS, Lambda worker (${envName})`,
