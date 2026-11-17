@@ -20,6 +20,13 @@ from django.utils import timezone
 from apps.catalog.models import AssetStatus, ContentAsset
 
 from .models import CONTENT_TYPES, AssetVersion, VersionStatus
+from .processing import (
+    RESULT_STATES,
+    async_validation_applies,
+    identity_mismatch,
+    model_validation_summary,
+    validation_jobs,
+)
 from .storage import KEY_PREFIX, StorageError, get_storage, object_key, sha256_of
 from .validation import Finding, ValidationResult, validate_upload
 
@@ -145,6 +152,12 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
     The stored object must still match the recorded checksum and size, and must still pass
     validation against the definition as it is now (its declared clips may have grown). A
     failure marks the version `REJECTED`. The first published version becomes the default.
+
+    When asynchronous validation applies (`LAI_ASSET_ASYNC_VALIDATION` on and a GLB model), the
+    version also needs a passing background validation of exactly its file by the current
+    validator (WAVE3_INTERFACES section 5); without one it is refused with
+    `processing_required` and left unchanged. Jobs are read, never locked. Publishing is always
+    this explicit call: no job result publishes a version.
     """
     with transaction.atomic():
         asset = _locked(version.asset)
@@ -155,6 +168,15 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
             raise AssetActionRefused(
                 "not_validated",
                 f"Only a validated version can be published (this one is {version.status}).",
+            )
+        if async_validation_applies(version) and not _has_passing_validation(version):
+            logger.info(
+                "asset publish refused: %s v%s processing_required", asset.asset_id, version.number
+            )
+            raise AssetActionRefused(
+                "processing_required",
+                "This model has no passing background validation for its current file. Run "
+                "Validate in background, wait for a passing result, then publish again.",
             )
         try:
             stored = get_storage().open(version.storage_key)
@@ -190,6 +212,20 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
             "invalid_file", "The stored file failed validation; it was rejected.", result.findings
         )
     return version
+
+
+def _has_passing_validation(version: AssetVersion) -> bool:
+    """A validation job with an applied result, verdict pass, for exactly this version's bytes
+    and by the validator this build runs (the publication gate; read only)."""
+    for job in validation_jobs(version).filter(state__in=sorted(RESULT_STATES)):
+        summary = model_validation_summary(job)
+        if (
+            summary is not None
+            and summary.get("verdict") == "pass"
+            and identity_mismatch(job, version, require_current_processor=True) is None
+        ):
+            return True
+    return False
 
 
 def set_default_version(version: AssetVersion) -> ContentAsset:
