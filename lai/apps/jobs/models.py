@@ -74,10 +74,10 @@ class ProcessingJob(models.Model):
     #: Contract kinds only (core/contract.py): the ADR-061 logical idempotency key of the request
     #: in `payload`. Submitting the same logical work again returns the unfinished or completed
     #: job with this key; a failed one may be submitted again (a new job, a new attempt id).
-    idempotency_key = models.CharField(max_length=68, blank=True, db_index=True)
+    idempotency_key = models.CharField(max_length=68, blank=True, db_index=True, db_default="")
     #: Contract kinds only: what the kind's handler did with the result for its subject (a safe
     #: code such as "version_validated" or "identity_mismatch"; blank before a result).
-    subject_outcome = models.CharField(max_length=64, blank=True)
+    subject_outcome = models.CharField(max_length=64, blank=True, db_default="")
     worker_function = models.CharField(max_length=140, blank=True)
     worker_request_id = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(default=now, editable=False)

@@ -18,12 +18,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="processingjob",
             name="idempotency_key",
-            field=models.CharField(blank=True, db_index=True, max_length=68),
+            field=models.CharField(blank=True, db_default="", db_index=True, max_length=68),
         ),
         migrations.AddField(
             model_name="processingjob",
             name="subject_outcome",
-            field=models.CharField(blank=True, max_length=64),
+            field=models.CharField(blank=True, db_default="", max_length=64),
         ),
         migrations.AlterField(
             model_name="processingjob",
