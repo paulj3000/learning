@@ -113,7 +113,7 @@ class ProcessingJobRequest:
             if not isinstance(self.input, InputObject):
                 raise f.invalid("input")
             if self.input.ref.namespace != self.namespace:
-                # Rebuild against this request's namespace so namespaced keys are re-checked.
+                # The input ref must have been validated against this request's namespace.
                 raise ProcessingError(
                     ErrorCode.INVALID_OBJECT_REFERENCE,
                     {"field": "input.ref.key", "reason": "namespace"},

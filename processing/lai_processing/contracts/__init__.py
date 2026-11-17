@@ -22,7 +22,13 @@ from .common import (
     ProfileRef,
     SubjectRef,
 )
-from .events import RESULT_ARTIFACT_TYPE, CompletionEvent, build_completion_event
+from .events import (
+    RESULT_ARTIFACT_TYPE,
+    RESULT_LOGICAL_ID,
+    CompletionEvent,
+    build_completion_event,
+    result_digest,
+)
 from .identifiers import StoreName, artifact_key, artifact_prefix, check_object_key
 from .job_types import JOB_TYPES, JobTypeSpec, job_type_spec
 from .jobs import ProcessingJobRequest
@@ -42,6 +48,7 @@ __all__ = [
     "DEFAULT_MAX_MESSAGE_BYTES",
     "JOB_TYPES",
     "RESULT_ARTIFACT_TYPE",
+    "RESULT_LOGICAL_ID",
     "SCHEMA_VERSION",
     "SUPPORTED_SCHEMA_VERSIONS",
     "ArtifactReference",
@@ -78,4 +85,5 @@ __all__ = [
     "encode",
     "job_type_spec",
     "load_json",
+    "result_digest",
 ]

@@ -118,11 +118,14 @@ MAX_DETAIL_ENTRIES: Final = 16
 MAX_DETAIL_STRING: Final = 200
 
 
-def safe_details(details: Mapping[str, object] | None) -> dict[str, str | int | float | bool | None]:
+DetailValue = str | int | float | bool | None
+
+
+def safe_details(details: Mapping[str, object] | None) -> dict[str, DetailValue]:
     """Keep only short scalar details with identifier-like keys. Never free text from inputs."""
     if not details:
         return {}
-    clean: dict[str, str | int | float | bool | None] = {}
+    clean: dict[str, DetailValue] = {}
     for key, value in list(details.items())[:MAX_DETAIL_ENTRIES]:
         if not isinstance(key, str) or not key.replace("_", "").isalnum() or len(key) > 64:
             continue

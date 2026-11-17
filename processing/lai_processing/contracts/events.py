@@ -27,7 +27,13 @@ from .jobs import MAX_ATTEMPT_NUMBER
 from .job_types import job_type_spec
 from .results import ProcessingJobResult, ResultStatus
 
-__all__ = ["RESULT_ARTIFACT_TYPE", "CompletionEvent", "build_completion_event"]
+__all__ = [
+    "RESULT_ARTIFACT_TYPE",
+    "RESULT_LOGICAL_ID",
+    "CompletionEvent",
+    "build_completion_event",
+    "result_digest",
+]
 
 RESULT_ARTIFACT_TYPE: Final = "report.job_result"
 RESULT_LOGICAL_ID: Final = "job-result"
