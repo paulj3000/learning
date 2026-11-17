@@ -264,7 +264,6 @@ def test_after_a_database_failure_the_rest_of_the_batch_is_handed_back_untried(
     for job in (first, second):
         fake_transport.completions.send(event_bytes(result_for(current_request(job))))
     attempts = []
-    real = processing._apply_locked
 
     def database_down(*args, **kwargs):
         attempts.append(1)
@@ -276,8 +275,8 @@ def test_after_a_database_failure_the_rest_of_the_batch_is_handed_back_untried(
     out = run("jobs_consume_completions", "--once", "--wait-seconds", "0", capsys=capsys)
     assert json.loads(out) == {"acked": 0, "left": 0, "received": 2, "released": 2}
     assert len(attempts) == 1  # the second message was not spent on a doomed attempt
-    assert spy.releases[1][1] == 0  # handed back at once
-    del real
+    assert spy.releases[0] == ("msg-000001", release_delay(1))  # the failed one: backoff
+    assert spy.releases[1] == ("msg-000002", 0)  # the rest: handed back at once
 
 
 def two_jobs(fake, count=2):
@@ -294,6 +293,35 @@ def two_jobs(fake, count=2):
     for job in jobs:
         fake.completions.send(event_bytes(result_for(current_request(job))))
     return jobs
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+def test_a_database_error_after_acks_keeps_them_and_hands_back_the_rest(
+    fake_transport, monkeypatch, capsys
+):
+    jobs = two_jobs(fake_transport, count=3)
+    real = processing._apply_locked
+    calls = []
+
+    def second_fails(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 2:
+            raise DatabaseError("server closed the connection")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(processing, "_apply_locked", second_fails)
+    spy = SpyQueue(fake_transport.completions)
+    install(fake_transport, spy)
+    out = run("jobs_consume_completions", "--once", "--wait-seconds", "0", capsys=capsys)
+    assert json.loads(out) == {"acked": 1, "left": 0, "received": 3, "released": 2}
+    assert len(calls) == 2
+    assert spy.acks == ["msg-000001"]
+    assert spy.releases == [("msg-000002", release_delay(1)), ("msg-000003", 0)]
+    states = [ProcessingJob.objects.get(pk=job.pk).state for job in jobs]
+    assert states == [JobState.VALIDATED, JobState.QUEUED, JobState.QUEUED]
+    assert CompletionReceipt.objects.count() == 1  # the acked decision stays committed
+    assert len(fake_transport.completions) == 2
 
 
 @pytest.mark.postgres
@@ -318,3 +346,86 @@ def test_an_integrity_error_is_not_a_database_outage(fake_transport, monkeypatch
     assert json.loads(out) == {"acked": 1, "left": 0, "received": 2, "released": 1}
     assert spy.releases == [("msg-000001", release_delay(1))]
     assert spy.acks == ["msg-000002"]
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db(transaction=True)
+def test_the_real_database_check_passes_and_reconnects(fake_transport):
+    from apps.jobs.management.commands import jobs_consume_completions as command
+
+    command.Command._check_database()  # PostgreSQL is up: no error
+    connection.close()
+    command.Command._check_database()  # a closed connection is reopened
+    assert connection.is_usable()
+
+
+class ScriptedConsumer:
+    """Drives the run-forever loop: each step is "db" (a database error in the batch), "down"
+    (the pre-receive check fails), "ok" or "stop"."""
+
+    def __init__(self, steps):
+        self.steps = list(steps)
+        self.sleeps = []
+
+    def install(self, monkeypatch):
+        from apps.jobs.management.commands import jobs_consume_completions as command
+
+        script = self
+
+        def consume(self, max_messages, wait_seconds, visibility):
+            step = script.steps.pop(0)
+            self._database_failed = step == "db"
+            if step == "down":
+                raise DatabaseError("connection refused")
+            if step == "stop":
+                self._stopping = True
+            return {"received": 0, "acked": 0, "released": 0, "left": 0}
+
+        def sleep(self, seconds):
+            script.sleeps.append(seconds)
+
+        monkeypatch.setattr(command.Command, "consume", consume)
+        monkeypatch.setattr(command.Command, "_sleep", sleep)
+
+
+def test_the_loop_backs_off_after_database_failures_and_resets_after_a_clean_batch(
+    settings, monkeypatch
+):
+    settings.LAI_PROCESSING_BACKEND = "local"
+    script = ScriptedConsumer(["db", "down", "db", "ok", "ok", "db", "stop"])
+    script.install(monkeypatch)
+    call_command("jobs_consume_completions")
+    # 2, 4, 8 while failing; nothing after a clean batch; then 2 again from scratch.
+    assert script.sleeps == [2, 4, 8, 2]
+    assert script.steps == []
+
+
+def test_sigterm_during_the_back_off_sleep_stops_the_loop(settings, monkeypatch):
+    import os
+    import signal
+
+    from apps.jobs.management.commands import jobs_consume_completions as command
+
+    settings.LAI_PROCESSING_BACKEND = "local"
+    calls = []
+
+    def consume(self, max_messages, wait_seconds, visibility):
+        calls.append(1)
+        raise DatabaseError("connection refused")
+
+    naps = []
+
+    def nap(seconds):
+        naps.append(seconds)
+        if len(naps) == 1:
+            os.kill(os.getpid(), signal.SIGTERM)  # delivered to the handler the command set
+        if len(naps) > 50:
+            raise AssertionError("the sleep did not stop")
+
+    before = signal.getsignal(signal.SIGTERM)
+    monkeypatch.setattr(command.Command, "consume", consume)
+    monkeypatch.setattr(command.time, "sleep", nap)
+    call_command("jobs_consume_completions")
+    assert len(calls) == 1  # no second receive after SIGTERM
+    assert len(naps) == 1  # the 2 s back-off ended at the first tick
+    assert signal.getsignal(signal.SIGTERM) is before  # the previous handler is restored
