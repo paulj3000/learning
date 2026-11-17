@@ -53,6 +53,9 @@ class InlinePorts:
             with get_storage().open(key) as stream:
                 stream.seek(start)
                 return stream.read(length)
+        except ObjectMissing:
+            # Gone between the size check and the read: permanent, like the worker's NoSuchKey.
+            raise TaskError("object_missing") from None
         except StorageError:
             raise TaskError("storage", retryable=True) from None
 

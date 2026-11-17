@@ -26,6 +26,37 @@ CONTRACT_KINDS = frozenset({envelope.ASSET_VALIDATE_MODEL, envelope.REFERENCE_CH
 READ_CHUNK = 1024 * 1024
 
 
+def _storage_error(error):
+    """A `TaskError` from the asset ports as the engine's storage error, keeping its class:
+
+    - `object_missing` (NoSuchKey, 404, NoSuchVersion; also the object gone between the size
+      check and a read): `ObjectMissing`, code `input_missing`, not retried. Mapping it to
+      `StorageUnavailable` would retry a missing input until the work landed in the DLQ.
+    - `access_denied` (AccessDenied, 403): `StoragePermissionDenied`, code `permission_denied`,
+      not retried (a policy fix needs a deploy; see `jobs_worker.aws._asset_error`).
+    - `throttled`: `ProcessingError(THROTTLED)`, retried.
+    - any other retryable code (5xx, connection, timeout): `StorageUnavailable`, retried.
+    - any other permanent code: `UNEXPECTED_FAILURE` (manual), not retried.
+    """
+    from lai_processing.core.errors import ErrorCode, ProcessingError
+    from lai_processing.ports.storage import (
+        ObjectMissing,
+        StoragePermissionDenied,
+        StorageUnavailable,
+    )
+
+    details = {"store": "assets"}
+    if error.code == "object_missing":
+        return ObjectMissing(details)
+    if error.code == "access_denied":
+        return StoragePermissionDenied(details)
+    if error.code == "throttled":
+        return ProcessingError(ErrorCode.THROTTLED, details)
+    if error.retryable:
+        return StorageUnavailable(details)
+    return ProcessingError(ErrorCode.UNEXPECTED_FAILURE, details)
+
+
 class _PortStream(io.RawIOBase):
     """A forward-only binary stream over `read_asset(key, start, length)`."""
 
@@ -38,16 +69,14 @@ class _PortStream(io.RawIOBase):
     def readinto(self, buffer) -> int:
         if self._position >= self._size:
             return 0
-        from lai_processing.ports.storage import StorageUnavailable
-
         from .tasks import TaskError
 
         length = min(len(buffer), READ_CHUNK, self._size - self._position)
         try:
             data = self._ports.read_asset(self._key, self._position, length)
-        except TaskError:
+        except TaskError as error:
             # A transient read fault is a storage failure (retryable), not an unexpected one.
-            raise StorageUnavailable({"store": "assets"}) from None
+            raise _storage_error(error) from None
         if not data:
             return 0
         buffer[: len(data)] = data
@@ -108,14 +137,12 @@ class PortStorage:
         raise StoragePermissionDenied({"store": ref.store.value})
 
     def _size(self, key: str) -> int | None:
-        from lai_processing.ports.storage import StorageUnavailable
-
         from .tasks import TaskError
 
         try:
             return self._ports.asset_object_size(key)
-        except TaskError:
-            raise StorageUnavailable({"store": "assets"}) from None
+        except TaskError as error:
+            raise _storage_error(error) from None
 
 
 def run(kind: str, payload: dict, ports) -> dict:
