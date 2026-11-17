@@ -3,6 +3,22 @@
 from django.conf import settings
 from django.db import migrations, models
 
+NEW_KINDS = ("asset.validate_model", "reference.checksum")
+
+
+def refuse_reverse_with_new_kinds(apps, schema_editor):
+    """Reversing 0003 restores the old kind constraint, which rows of the new kinds violate.
+
+    Refuse with a clear message instead of a constraint IntegrityError. A code-only rollback
+    (schema left at 0003) does not need this; see docs/processing/ASYNC_MODEL_VALIDATION.md,
+    "Rollback"."""
+    job = apps.get_model("jobs", "ProcessingJob")
+    if job.objects.filter(kind__in=NEW_KINDS).exists():
+        raise RuntimeError(
+            "jobs 0003 cannot be reversed while asset.validate_model or reference.checksum jobs "
+            "exist; roll back code only (keep the schema), or delete those jobs first."
+        )
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -57,4 +73,6 @@ class Migration(migrations.Migration):
                 name="jobs_kind_valid",
             ),
         ),
+        # Last, so that it runs first when the migration is reversed.
+        migrations.RunPython(migrations.RunPython.noop, refuse_reverse_with_new_kinds),
     ]

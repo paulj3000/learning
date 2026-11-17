@@ -458,8 +458,9 @@ class AssetVersionAdmin(admin.ModelAdmin):
                     self.message_user(
                         request,
                         f"{version.label}: This file has reached the limit of background "
-                        "validation attempts, so no new one was submitted. Upload the file "
-                        "again as a new version, or ask an administrator.",
+                        "validation attempts, so no new one was submitted. Delete this "
+                        "unpublished version, then upload the file again, or ask an "
+                        "administrator.",
                         messages.ERROR,
                     )
                     continue

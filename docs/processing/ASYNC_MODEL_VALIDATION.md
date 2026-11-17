@@ -250,6 +250,18 @@ processor fix), but a `REJECTED` version never changes again: the new result is
 Uploading the same bytes again as a new version is allowed (`REJECTED` versions do not count as
 duplicates) and is the way to publish a file a newer processor accepts.
 
+**Attempts exhausted.** After `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` jobs for the same logical work
+the Admin refuses another (`attempts_exhausted`). A `DRAFT` or `VALIDATED` version still counts
+as a duplicate of its own bytes, so the remedy is to delete the unpublished version (Delete
+unpublished version) and upload the file again, which starts a new count. Failed jobs are kept
+for review and are not pruned (owner decision pending on pruning them after the validation
+retention period).
+
+**A job stuck `RUNNING`.** A job whose work reached the media DLQ stays `RUNNING` until
+`jobs_sweep` times it out, which it defers while the results queue holds messages; while it is
+`RUNNING`, Validate in background returns the same job. If steady result traffic keeps the sweep
+deferring, staff with the jobs permission use "mark failed" on the job, then validate again.
+
 **Late results.** A job's result applies only while the job is unfinished (`apply_result` ignores
 anything for a terminal job), and `apply(job)` changes a version only when no newer validation job
 of that version exists (`result_superseded` otherwise). The gate reads the newest accepted result
@@ -367,6 +379,15 @@ the resolver; a broken model `REJECTED`; and a count showing no AWS calls.
   `deploy-dev-lambda.yml`; Django by `deploy-dev-native.yml` (native release tarball with
   `processing/lai_processing`) or `deploy-django-ec2.yml` (image). All three trigger on
   `processing/lai_processing/**`.
+- **Rollback.** Prefer rolling forward. A code-only rollback (the schema stays at `jobs.0003`)
+  works for inserts (both new columns keep `DEFAULT ''`), but the earlier release knows neither
+  the new kinds nor their handlers, so before it: switch `LAI_ASSET_ASYNC_VALIDATION` off, wait
+  for the media queue and results queue to drain, then mark every unfinished
+  `asset.validate_model` and `reference.checksum` job failed (Django Admin, Background jobs,
+  "mark failed"). Otherwise the older `jobs_sweep` and outbox relay stop on the first such job
+  (`KeyError` for an unknown kind). Reversing the migration itself is refused while rows of the
+  new kinds exist (a clear error, not a constraint violation); delete them first if the schema
+  must go back.
 - Nothing deploys on merge unless the repository variables are `'true'`
   (`LAI_DEV_NATIVE_ENABLED` for the native release and the Lambda workers, `LAI_DEPLOY_ENABLED`
   for the image workflow). Every deployment is an owner approval; live acceptance is LAI-LAMBDA-011.
