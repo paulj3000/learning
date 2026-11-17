@@ -2,6 +2,7 @@
 
     python manage.py jobs_consume_completions                  # run until SIGTERM
     python manage.py jobs_consume_completions --once           # one receive, then exit
+                                                               # (exit 2 if the database is down)
     python manage.py jobs_consume_completions --max-messages 10 --wait-seconds 20 --visibility 300
 
 Receives from the processing completion queue and hands each message to
@@ -24,7 +25,7 @@ import signal
 import time
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError, close_old_connections, connection
 
 from apps.jobs import processing
@@ -94,9 +95,11 @@ class Command(BaseCommand):
         self._stopping = False
         previous = signal.signal(signal.SIGTERM, self._stop) if not once else None
         failures = 0
+        database_down = False
         try:
             while not self._stopping:
                 counts = None
+                database_down = False
                 try:
                     counts = self.consume(max_messages, wait_seconds, visibility)
                     if self._database_failed:
@@ -106,6 +109,7 @@ class Command(BaseCommand):
                         failures = 0
                 except DatabaseError as error:
                     failures += 1
+                    database_down = True
                     logger.warning(
                         "processing.consumer database_error type=%s", type(error).__name__
                     )
@@ -121,6 +125,10 @@ class Command(BaseCommand):
                 if once:
                     if counts is not None:
                         self.stdout.write(json.dumps(counts, sort_keys=True))
+                    elif database_down:
+                        report = dict.fromkeys(("received", "acked", "released", "left"), 0)
+                        report["database"] = "unavailable"
+                        self.stdout.write(json.dumps(report, sort_keys=True))
                     break
                 if failures:
                     self._sleep(min(2**failures, _BACKOFF_MAX))
@@ -128,6 +136,9 @@ class Command(BaseCommand):
             if previous is not None:
                 signal.signal(signal.SIGTERM, previous)
             _refresh_connections()
+        if once and database_down:
+            # A scripted health check must see the outage: nothing was received.
+            raise CommandError("database unavailable; nothing received", returncode=2)
 
     def _stop(self, signum, frame):
         logger.info("processing.consumer stopping")

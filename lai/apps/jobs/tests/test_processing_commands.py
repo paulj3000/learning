@@ -5,7 +5,7 @@ import json
 from datetime import timedelta
 
 import pytest
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.db import DatabaseError, IntegrityError, connection
 from django.utils.timezone import now
 
@@ -232,7 +232,18 @@ def test_no_message_is_received_while_the_database_is_unreachable(
     monkeypatch.setattr(command.Command, "_check_database", staticmethod(unreachable))
     spy = SpyQueue(fake_transport.completions)
     install(fake_transport, spy)
-    run("jobs_consume_completions", "--once", "--wait-seconds", "0", capsys=capsys)
+    # --once is a scripted health check: it must report the outage and exit non-zero.
+    with pytest.raises(CommandError) as error:
+        call_command("jobs_consume_completions", "--once", "--wait-seconds", "0")
+    assert error.value.returncode == 2
+    report = json.loads(capsys.readouterr().out.strip())
+    assert report == {
+        "acked": 0,
+        "database": "unavailable",
+        "left": 0,
+        "received": 0,
+        "released": 0,
+    }
     [message] = fake_transport.completions._messages.values()  # noqa: SLF001 - test inspection
     assert message.receive_count == 0  # never received, so never closer to the DLQ
     assert spy.acks == [] and spy.releases == []
