@@ -18,6 +18,8 @@ const serverBook = (restoredIds: string[]): ServerStorybook => ({
   totalRequired: 1,
   restoredBonus: 0,
   complete: false,
+  state: 'IN_PROGRESS' as const,
+  edition: 2,
   quest: { questId: null, status: 'NOT_STARTED' },
 });
 

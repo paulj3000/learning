@@ -33,6 +33,9 @@ const STATE_WORDS: Record<PageState, string> = {
 export function StorybookSection({ storybook, access, onGo, context }: StorybookSectionProps) {
   const { progress, entries, status, retry } = storybook;
   const headingId = useId();
+  // A child who restored the book in an earlier edition is never told it is incomplete: the book
+  // is restored, and a newly found page is an invitation, not a loss.
+  const morePages = progress.state === 'RESTORED_MORE_PAGES';
   return (
     <section aria-labelledby={headingId}>
       <h3 id={headingId} className={styles.title}>
@@ -41,7 +44,9 @@ export function StorybookSection({ storybook, access, onGo, context }: Storybook
       <p className={styles.where}>
         {progress.complete
           ? 'The Great Storybook is whole again.'
-          : `${progress.restoredRequired} of ${progress.totalRequired} missing pages are back.`}
+          : morePages
+            ? 'The Great Storybook is restored. A new page was found!'
+            : `${progress.restoredRequired} of ${progress.totalRequired} missing pages are back.`}
       </p>
       {progress.complete ? (
         <p role="status" className={styles.celebrate}>
@@ -64,11 +69,13 @@ export function StorybookSection({ storybook, access, onGo, context }: Storybook
       {entries.length === 0 ? (
         <p className={styles.note}>There are no pages to look for yet. Come back soon.</p>
       ) : null}
-      <progress
-        max={progress.totalRequired}
-        value={progress.restoredRequired}
-        aria-label="Missing pages that are back in the Great Storybook"
-      />
+      {morePages ? null : (
+        <progress
+          max={progress.totalRequired}
+          value={progress.restoredRequired}
+          aria-label="Missing pages that are back in the Great Storybook"
+        />
+      )}
       <ul className={styles.list}>
         {entries.map(({ page, restored }) => {
           const room = getCastleRoom(page.roomId);
@@ -79,7 +86,7 @@ export function StorybookSection({ storybook, access, onGo, context }: Storybook
               <span className={styles.note}>
                 {restored
                   ? `${STATE_WORDS.RESTORED} ${page.restoredText}`
-                  : `Missing. ${STATE_WORDS[pageState({ page, restored }, context)]} ${page.hint}`}
+                  : `${morePages ? 'A new page.' : 'Missing.'} ${STATE_WORDS[pageState({ page, restored }, context)]} ${page.hint}`}
               </span>
               {!restored && room ? (
                 reach === 'here' ? (

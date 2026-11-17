@@ -27,11 +27,17 @@ import {
  * A failure, or no Django API in this build, simply leaves the book as the records alone say.
  * `api` is injected for tests: omit it for the configured API, or pass `null` for none.
  */
+export type StorybookStatus = 'local' | 'loading' | 'ready' | 'offline';
+
 export interface GreatStorybook {
   /** The whole book for this band, with the server's pages counted too. */
   progress: StorybookProgress;
   /** What to show: required pages, and the hidden bonus page only once found. */
   entries: readonly StorybookEntry[];
+  /** Where the server's copy stands: `local` when this build has no Django API. */
+  status: StorybookStatus;
+  /** Ask the server again after a failure. */
+  retry: () => void;
 }
 
 export function useGreatStorybook(options: {
@@ -54,6 +60,7 @@ export function useGreatStorybook(options: {
   );
   const localKey = [...restoredIds(local)].sort().join(',');
   const [serverRestored, setServerRestored] = useState<ReadonlySet<string>>(new Set());
+  const [serverEdition1, setServerEdition1] = useState(false);
   const [status, setStatus] = useState<StorybookStatus>(server ? 'loading' : 'local');
   const [attempt, setAttempt] = useState(0);
 
@@ -71,6 +78,7 @@ export function useGreatStorybook(options: {
         setServerRestored(
           new Set(book.pages.filter((page) => page.restored).map((page) => page.id)),
         );
+        setServerEdition1(book.state !== 'IN_PROGRESS');
         setStatus('ready');
       })
       .catch(() => {
@@ -81,7 +89,10 @@ export function useGreatStorybook(options: {
     };
   }, [server, localKey, attempt]);
 
-  const progress = useMemo(() => withRestored(local, serverRestored), [local, serverRestored]);
+  const progress = useMemo(
+    () => withRestored(local, serverRestored, serverEdition1),
+    [local, serverRestored, serverEdition1],
+  );
 
   // The moment a page comes back: only from the child's own state, and never on first load.
   const seen = useRef<ReadonlySet<string> | null>(null);

@@ -166,3 +166,34 @@ describe('StorybookSection', () => {
     expect(screen.getByText(/no pages to look for yet/i)).toBeInTheDocument();
   });
 });
+
+describe('StorybookSection for a book restored in an earlier edition', () => {
+  const RESTORED_BEFORE: StorybookState = {
+    worldChangeKeys: ['FIRST_STORY_TOLD', 'GREAT_STORYBOOK_RESTORED'],
+    discoveryIds: [],
+  };
+
+  it('says the book is restored and a new page was found, never "missing pages"', () => {
+    const { container } = render(
+      <StorybookSection
+        storybook={book(RESTORED_BEFORE)}
+        access={() => 'ok'}
+        onGo={() => undefined}
+      />,
+    );
+    expect(
+      screen.getByText('The Great Storybook is restored. A new page was found!'),
+    ).toBeInTheDocument();
+    expect(container.textContent ?? '').not.toMatch(/missing/i);
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.queryByText(/Every missing page is back/)).toBeNull();
+  });
+
+  it('offers the new page as a new page, with a way to go there', () => {
+    const { onGo } = setup(book(RESTORED_BEFORE));
+    const item = screen.getByText('The Painted Words').closest('li')!;
+    expect(within(item).getByText(/A new page\./)).toBeInTheDocument();
+    fireEvent.click(within(item).getByRole('button', { name: /go to the illustration studio/i }));
+    expect(onGo).toHaveBeenCalledWith('illustration-studio');
+  });
+});

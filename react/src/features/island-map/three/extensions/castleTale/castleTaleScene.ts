@@ -603,16 +603,19 @@ export const castleTaleExtension: WorldExtension = {
     const pulsing = new Set<number>();
     const PULSE_SECONDS = 1.2;
     const setStorybook = (state: StorybookSceneState) => {
-      const pagesBack = state.required.some(Boolean) || state.bonusFound;
+      const pagesBack = state.required.some(Boolean) || state.bonusFound || state.morePages === true;
       const pages = context.sceneryRoot(STORYBOOK_PART_IDS.pages);
       if (pages) pages.visible = pagesBack;
+      // A book restored in an earlier edition keeps its sealed cover; its new page is the loose
+      // slot below (drawn as not yet back), so the child never sees a torn book they once mended.
+      const sealed = state.complete || state.morePages === true;
       paint(
         context.sceneryRoot(STORYBOOK_PART_IDS.cover),
-        state.complete ? STORYBOOK_COLOURS.coverWhole : STORYBOOK_COLOURS.coverTorn,
+        sealed ? STORYBOOK_COLOURS.coverWhole : STORYBOOK_COLOURS.coverTorn,
       );
       paint(
         context.sceneryRoot(ENTRY_MURAL_PARCHMENT.id),
-        state.complete ? ENTRY_MURAL_PARCHMENT.whole : ENTRY_MURAL_PARCHMENT.blank,
+        sealed ? ENTRY_MURAL_PARCHMENT.whole : ENTRY_MURAL_PARCHMENT.blank,
       );
       const bonusIndex = STORYBOOK_PART_IDS.slots.length - 1;
       const back = slotRoots.map((_, i) =>
