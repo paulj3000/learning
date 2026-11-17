@@ -266,6 +266,31 @@ def test_byte_identical_results_apart_from_timestamps(tmp_path: Path) -> None:
     assert canonical_json(without_time(first)) == canonical_json(without_time(stepped))
 
 
+def test_report_artifact_is_byte_deterministic_across_a_rerun(tmp_path: Path) -> None:
+    """A redelivered attempt reruns later on the same store: its glb-report must be the same
+    bytes, so the create-only write is an idempotent success and never a conflict."""
+    data = skinned_glb((MIXAMO_CLIP, "Idle"))
+    storage = MemoryObjectStorage()
+    storage.seed(ObjectRef(StoreName.QUARANTINE, KEY, None, NS), data)
+    results = []
+    for index, clock in enumerate((ManualClock(), SteppingClock(0.01))):
+        clock.advance(3600 * index)
+        engine = ExecutionEngine(
+            registry=default_registry(),
+            storage=storage,
+            clock=clock,
+            workspace_root=tmp_path,
+            id_factory=lambda: "44444444-4444-4444-8444-444444444444",
+        )
+        results.append(engine.execute(make_request(data, {"write_report": True})))
+    first, second = results
+    assert first.status is second.status is ResultStatus.SUCCEEDED
+    assert first.started_at != second.started_at
+    assert first.artifacts == second.artifacts
+    (artifact,) = first.artifacts
+    assert len(storage.objects[("artifacts", artifact.ref.key)]) == 1
+
+
 def test_deadline_in_a_parsing_loop_is_a_retryable_timeout(tmp_path: Path) -> None:
     nodes = [{"mesh": 0}] + [{} for _ in range(5000)]
     document = {
@@ -314,7 +339,30 @@ def test_cli_runs_the_glb_validator(tmp_path: Path) -> None:
     assert result["processor"]["processor_id"] == "asset.glb_validator"
 
 
-@pytest.mark.parametrize("data", [b"", b"glTF", static_glb()[:-3], b"\xff" * 1000])
+def _huge_integer_glb(path: str) -> bytes:
+    from glb_builder import mutated
+
+    def apply(document: dict[str, Any]) -> None:
+        target: Any = document
+        *keys, last = path.split(".")
+        for key in keys:
+            target = target[int(key)] if isinstance(target, list) else target[key]
+        target[last] = [10**400, 0, 0]
+
+    return mutated(apply)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"",
+        b"glTF",
+        static_glb()[:-3],
+        b"\xff" * 1000,
+        _huge_integer_glb("nodes.0.translation"),
+        _huge_integer_glb("accessors.0.max"),
+    ],
+)
 def test_hostile_inputs_always_give_a_contract_valid_success(tmp_path: Path, data: bytes) -> None:
     result, _ = run(tmp_path, data)
     assert result.status is ResultStatus.SUCCEEDED

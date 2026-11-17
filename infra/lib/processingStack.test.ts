@@ -349,7 +349,7 @@ describe.each(['dev', 'prod'] as const)('ProcessingStack (%s)', { timeout: 60_00
     expect(variables).toMatchObject({
       LAI_PROCESSING_NAMESPACE: envName,
       LAI_ASSET_BUCKET: `lai-assets-${envName}-${ACCOUNT}-${REGION}`,
-      LAI_PROCESSING_CLEANUP_MARGIN_SECONDS: '30',
+      LAI_PROCESSING_CLEANUP_MARGIN_SECONDS: '60',
       LAI_PROCESSING_LOG_LEVEL: 'INFO',
     });
     expect(String(variables.LAI_PROCESSING_BUCKET)).toContain('ProcessingBucket');

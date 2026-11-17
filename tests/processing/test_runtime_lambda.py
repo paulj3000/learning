@@ -33,7 +33,7 @@ ENV = {
     "LAI_PROCESSING_COMPLETION_QUEUE_URL": (
         "https://sqs.eu-west-2.amazonaws.com/123456789012/lai-dev-processing-completions"
     ),
-    "LAI_PROCESSING_CLEANUP_MARGIN_SECONDS": "30",
+    "LAI_PROCESSING_CLEANUP_MARGIN_SECONDS": "60",
 }
 
 # The shape of an SQS -> Lambda event as delivered by the event source mapping (synthetic ids).
@@ -150,7 +150,7 @@ def test_remaining_time_cutoff_reports_the_rest(tmp_path: Path) -> None:
     env = Env(tmp_path)
     body = env.seed()
     event = {"Records": [record(body, "m-1"), record(body, "m-2"), record(body, "m-3")]}
-    result = lambda_handler.handler(event, Context(600_000, 29_999, 600_000))
+    result = lambda_handler.handler(event, Context(600_000, 600_000, 600_000, 59_999, 600_000))
     assert result == {"batchItemFailures": [{"itemIdentifier": "m-2"}, {"itemIdentifier": "m-3"}]}
     assert len(env.completions) == 1
 
@@ -158,7 +158,7 @@ def test_remaining_time_cutoff_reports_the_rest(tmp_path: Path) -> None:
 def test_a_short_deadline_clamps_the_job(tmp_path: Path) -> None:
     env = Env(tmp_path)
     body = env.seed()
-    lambda_handler.handler({"Records": [record(body, "m-1")]}, Context(45_000))
+    lambda_handler.handler({"Records": [record(body, "m-1")]}, Context(75_000))
     [delivery] = env.completions.receive()
     assert decode_event(delivery.body).status is ResultStatus.SUCCEEDED
     assert env.rt.engine.ceilings.max_execution_seconds == 840  # the cached engine is intact
@@ -272,3 +272,37 @@ def test_lambda_and_local_runtimes_produce_the_same_result(tmp_path: Path) -> No
         assert event.result is not None
         results.append((event.result_sha256, encode(event.result)))
     assert results[0] == results[1]
+
+
+def test_boto_clients_fit_inside_the_cleanup_margin() -> None:
+    """One AWS call (all attempts) must fit the margin twice: by-reference store, then send."""
+    from lai_processing_runtime.config import (
+        CLIENT_CALL_SECONDS,
+        DEFAULT_CLEANUP_MARGIN_SECONDS,
+        MIN_LAMBDA_CLEANUP_MARGIN_SECONDS,
+    )
+
+    config = lambda_handler._client_config()
+    attempts = config.retries["max_attempts"]
+    worst = attempts * (config.connect_timeout + config.read_timeout) + (attempts - 1) * 2
+    assert worst <= CLIENT_CALL_SECONDS
+    assert 2 * CLIENT_CALL_SECONDS <= MIN_LAMBDA_CLEANUP_MARGIN_SECONDS
+    assert MIN_LAMBDA_CLEANUP_MARGIN_SECONDS <= DEFAULT_CLEANUP_MARGIN_SECONDS
+
+
+@pytest.mark.parametrize(
+    ("script", "phase"),
+    # Reads: before the record, before `complete`, before the send.
+    [((600_000, 1_000), "complete"), ((600_000, 600_000, 1_000), "send")],
+)
+def test_remaining_time_is_rechecked_before_the_completion(
+    tmp_path: Path, script: tuple[int, ...], phase: str
+) -> None:
+    """A job that ran close to the deadline does not start an AWS call it cannot finish."""
+    env = Env(tmp_path)
+    body = env.seed()
+    result = lambda_handler.handler({"Records": [record(body, "m-1")]}, Context(*script))
+    assert result == {"batchItemFailures": [{"itemIdentifier": "m-1"}]}
+    assert len(env.completions) == 0
+    lines = [json.loads(line) for line in env.logs.getvalue().splitlines()]
+    assert any(line.get("event") == "work.skipped" and line.get("phase") == phase for line in lines)

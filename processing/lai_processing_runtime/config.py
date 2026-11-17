@@ -20,7 +20,9 @@ from urllib.parse import urlsplit
 from lai_processing.contracts.identifiers import NAMESPACE, StoreName
 
 __all__ = [
+    "CLIENT_CALL_SECONDS",
     "DEFAULT_CLEANUP_MARGIN_SECONDS",
+    "MIN_LAMBDA_CLEANUP_MARGIN_SECONDS",
     "LOG_LEVELS",
     "ConfigError",
     "LocalRuntimeConfig",
@@ -39,7 +41,23 @@ ENV_COMPLETION_QUEUE_URL: Final = "LAI_PROCESSING_COMPLETION_QUEUE_URL"
 ENV_CLEANUP_MARGIN: Final = "LAI_PROCESSING_CLEANUP_MARGIN_SECONDS"
 ENV_LOG_LEVEL: Final = "LAI_PROCESSING_LOG_LEVEL"
 
-DEFAULT_CLEANUP_MARGIN_SECONDS: Final = 30
+# AWS client budget (the Lambda worker's boto3 clients). One call, retries included, takes at
+# most `CLIENT_CALL_SECONDS`: every attempt can spend the connect and read timeouts, and the
+# standard retry mode sleeps at most 2 s before the one retry.
+CLIENT_CONNECT_TIMEOUT_SECONDS: Final = 3
+CLIENT_READ_TIMEOUT_SECONDS: Final = 10
+CLIENT_MAX_ATTEMPTS: Final = 2
+CLIENT_RETRY_BACKOFF_SECONDS: Final = 2
+CLIENT_CALL_SECONDS: Final = (
+    CLIENT_MAX_ATTEMPTS * (CLIENT_CONNECT_TIMEOUT_SECONDS + CLIENT_READ_TIMEOUT_SECONDS)
+    + (CLIENT_MAX_ATTEMPTS - 1) * CLIENT_RETRY_BACKOFF_SECONDS
+)  # 28 s
+# The completion path after a job: storing a by-reference result, then sending the completion.
+COMPLETION_CALLS: Final = 2
+# The Lambda margin must cover the completion path; 60 s also matches the 840 s job ceiling
+# inside the 900 s Lambda maximum. The local worker has no AWS calls and keeps the low minimum.
+DEFAULT_CLEANUP_MARGIN_SECONDS: Final = 60
+MIN_LAMBDA_CLEANUP_MARGIN_SECONDS: Final = COMPLETION_CALLS * CLIENT_CALL_SECONDS  # 56 s
 MIN_CLEANUP_MARGIN_SECONDS: Final = 5
 MAX_CLEANUP_MARGIN_SECONDS: Final = 300
 LOG_LEVELS: Final = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
@@ -96,7 +114,12 @@ def check_queue_url(value: str | None, setting: str) -> str:
     return value
 
 
-def check_cleanup_margin(value: str | int | None, setting: str = ENV_CLEANUP_MARGIN) -> int:
+def check_cleanup_margin(
+    value: str | int | None,
+    setting: str = ENV_CLEANUP_MARGIN,
+    *,
+    minimum: int = MIN_CLEANUP_MARGIN_SECONDS,
+) -> int:
     if value is None or value == "":
         return DEFAULT_CLEANUP_MARGIN_SECONDS
     if isinstance(value, bool):
@@ -108,7 +131,7 @@ def check_cleanup_margin(value: str | int | None, setting: str = ENV_CLEANUP_MAR
         number = int(text)
     else:
         number = value
-    if not MIN_CLEANUP_MARGIN_SECONDS <= number <= MAX_CLEANUP_MARGIN_SECONDS:
+    if not minimum <= number <= MAX_CLEANUP_MARGIN_SECONDS:
         raise ConfigError(setting)
     return number
 
@@ -138,7 +161,7 @@ class RuntimeConfig:
         check_bucket_name(self.processing_bucket, ENV_PROCESSING_BUCKET)
         check_bucket_name(self.asset_bucket, ENV_ASSET_BUCKET)
         check_queue_url(self.completion_queue_url, ENV_COMPLETION_QUEUE_URL)
-        check_cleanup_margin(self.cleanup_margin_seconds)
+        check_cleanup_margin(self.cleanup_margin_seconds, minimum=MIN_LAMBDA_CLEANUP_MARGIN_SECONDS)
         check_log_level(self.log_level)
 
     @classmethod
@@ -152,7 +175,9 @@ class RuntimeConfig:
             completion_queue_url=check_queue_url(
                 environ.get(ENV_COMPLETION_QUEUE_URL), ENV_COMPLETION_QUEUE_URL
             ),
-            cleanup_margin_seconds=check_cleanup_margin(environ.get(ENV_CLEANUP_MARGIN)),
+            cleanup_margin_seconds=check_cleanup_margin(
+                environ.get(ENV_CLEANUP_MARGIN), minimum=MIN_LAMBDA_CLEANUP_MARGIN_SECONDS
+            ),
             log_level=check_log_level(environ.get(ENV_LOG_LEVEL)),
         )
 

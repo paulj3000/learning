@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 import json
 import uuid
 from collections.abc import Callable, Iterator
@@ -11,7 +13,7 @@ from typing import IO
 import pytest
 from processing_samples import INPUT_BYTES, reference_request
 
-from lai_processing.contracts.codec import decode_event, encode
+from lai_processing.contracts.codec import decode_event, decode_result, encode
 from lai_processing.contracts.common import ObjectRef, ProfileRef
 from lai_processing.contracts.events import RESULT_ARTIFACT_TYPE
 from lai_processing.contracts.identifiers import StoreName
@@ -34,6 +36,7 @@ from lai_processing.testing.fakes import (
     MemoryQueue,
     RecordingTelemetry,
 )
+from lai_processing_runtime.filesystem import FilesystemObjectStorage
 from lai_processing_runtime.worker import (
     OutcomeReason,
     RecordOutcome,
@@ -333,3 +336,64 @@ def test_telemetry_never_carries_the_body(h: Harness) -> None:
     rendered = repr(h.telemetry.events) + repr(h.telemetry.metrics)
     assert "SECRET" not in rendered
     assert "Learning makes the island grow" not in rendered
+
+
+class _FailFirstSend(MemoryQueue):
+    """A completions queue whose first send fails (after `complete` stored the result)."""
+
+    def __init__(self, max_message_bytes: int) -> None:
+        super().__init__(max_message_bytes=max_message_bytes)
+        self.sends = 0
+
+    def send(self, body: bytes, *, delay_seconds: int = 0) -> SendReceipt:
+        self.sends += 1
+        if self.sends == 1:
+            raise QueueFull("down")
+        return super().send(body, delay_seconds=delay_seconds)
+
+
+@pytest.mark.parametrize("backend", ["memory", "filesystem"])
+def test_by_reference_completion_survives_a_failed_send_and_a_later_clock(
+    tmp_path: Path, backend: str
+) -> None:
+    """Redelivery after a failed send reruns with new timestamps: the stored job-result is
+    this attempt's own and is resent, instead of conflicting forever (COMPLETION_FAILED)."""
+    queue = _FailFirstSend(max_message_bytes=2000)
+    h = Harness(tmp_path / "ws", completions=queue)
+    if backend == "filesystem":
+        roots = {
+            StoreName.ASSETS: tmp_path / "assets",
+            StoreName.QUARANTINE: tmp_path / "proc",
+            StoreName.ARTIFACTS: tmp_path / "proc",
+        }
+        fs = FilesystemObjectStorage(
+            roots, writable=frozenset({StoreName.ARTIFACTS, StoreName.QUARANTINE})
+        )
+        h.engine.storage = fs  # type: ignore[assignment]
+        request = reference_request()
+        assert request.input is not None
+        fs.put(
+            request.input.ref,
+            io.BytesIO(INPUT_BYTES),
+            content_type="text/plain",
+            sha256=hashlib.sha256(INPUT_BYTES).hexdigest(),
+            size_bytes=len(INPUT_BYTES),
+        )
+    else:
+        request = reference_request()
+        h.seed(request)
+    (tmp_path / "ws").mkdir(exist_ok=True)
+
+    first = h.run(encode(request))
+    assert first.reason is OutcomeReason.SEND_FAILED
+    h.clock.advance(5)
+    second = h.run(encode(request))
+    assert second.success and second.reason is OutcomeReason.COMPLETED
+    [body] = h.completion_bodies()
+    event = decode_event(body)
+    assert event.result_ref is not None
+    stored = h.engine.storage.read(event.result_ref.ref, max_bytes=1 << 22)
+    original = decode_result(stored)
+    event.verify_result(original)  # what Django does after reading result_ref
+    assert event.result_ref.belongs_to(request.job_id, request.attempt_id)
+    assert "job.result_reused" in h.telemetry.names()

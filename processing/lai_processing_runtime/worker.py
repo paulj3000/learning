@@ -7,7 +7,8 @@
    1 s, at most 840 s and never above the engine's own ceiling), so a deadline becomes a
    `processing_timeout` result (retryable), never a silent kill.
 3. `complete` (inline, or by reference when the result does not fit the completion queue).
-4. Send the completion.
+4. Send the completion. Before 3 and before 4 the remaining time is read again (when the
+   runtime can, the Lambda): too little for one AWS call fails the record (redelivered).
 5. The record succeeds only after the send succeeded. Any failure on steps 3 or 4 fails the
    record, so the transport redelivers it and the same attempt reruns; artifacts are
    create-only and identical rewrites are idempotent, and Django deduplicates the second
@@ -28,6 +29,7 @@ Nothing here acknowledges a message; the caller does, and only on `RecordOutcome
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
@@ -110,9 +112,16 @@ def process_work_message(
     cancellation: CancellationToken | None = None,
     telemetry: Telemetry | None = None,
     receive_count: int | None = None,
+    time_left: Callable[[], float] | None = None,
+    call_seconds: float = 0.0,
 ) -> RecordOutcome:
     """Run one work message to a sent completion. `deadline_seconds` is the time left before
-    the runtime's hard deadline (the Lambda remaining time, or the local job timeout)."""
+    the runtime's hard deadline (the Lambda remaining time, or the local job timeout).
+
+    With `time_left` (a fresh reading of that remaining time), the time is checked again
+    before the completion is stored and before it is sent: when less than `call_seconds` (the
+    longest one storage or queue call can take) remains, the record fails as
+    INSUFFICIENT_TIME instead of being killed mid-call, and the redelivered attempt reruns."""
     log = telemetry if telemetry is not None else NullTelemetry()
     if deadline_seconds < margin:
         _emit(log, "work.skipped", phase="deadline", receive_count=receive_count)
@@ -140,6 +149,17 @@ def process_work_message(
     status = result.status.value
     error = result.primary_error
     error_code = error.code.value if error else None
+
+    def out_of_time(phase: str) -> RecordOutcome | None:
+        if time_left is None or time_left() >= call_seconds:
+            return None
+        _emit(log, "work.skipped", phase=phase, receive_count=receive_count, **ids)
+        return RecordOutcome(
+            False, OutcomeReason.INSUFFICIENT_TIME, status=status, retry_class=retry_class, **ids
+        )
+
+    if (late := out_of_time("complete")) is not None:
+        return late
     try:
         event = run.complete(result, max_message_bytes=completions_queue.max_message_bytes)
         payload = encode(event)
@@ -156,6 +176,8 @@ def process_work_message(
         return RecordOutcome(
             False, OutcomeReason.COMPLETION_FAILED, status=status, retry_class=retry_class, **ids
         )
+    if (late := out_of_time("send")) is not None:
+        return late
     try:
         completions_queue.send(payload)
     except Exception as exc:  # noqa: BLE001 - never acknowledge work whose completion is lost

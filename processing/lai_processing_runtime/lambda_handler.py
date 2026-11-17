@@ -8,7 +8,10 @@ redelivered. A record succeeds only after its completion was sent.
 
 - **Deadline:** before each record the handler reads `context.get_remaining_time_in_millis()`.
   When less than the cleanup margin remains it starts nothing more and reports that record and
-  every later one as failures. A started record's job is clamped to `remaining - margin`.
+  every later one as failures. A started record's job is clamped to `remaining - margin`, and
+  the remaining time is read again before the completion is stored and before it is sent: an
+  AWS call needs up to `CLIENT_CALL_SECONDS` (connect 3 s, read 10 s, 2 attempts), and the
+  margin (at least 56 s, default 60 s) covers those two calls.
 - **Malformed invocation:** an event that is not an SQS batch (not a mapping, no `Records`
   list, a record without a `messageId`) raises `ValueError`. There is no item identifier to
   report, and a function error makes the event source return the whole batch to the queue,
@@ -42,7 +45,13 @@ from lai_processing.ports.queue import MessageQueue
 from lai_processing.ports.storage import ObjectStorage
 from lai_processing.ports.telemetry import Telemetry
 
-from .config import RuntimeConfig
+from .config import (
+    CLIENT_CALL_SECONDS,
+    CLIENT_CONNECT_TIMEOUT_SECONDS,
+    CLIENT_MAX_ATTEMPTS,
+    CLIENT_READ_TIMEOUT_SECONDS,
+    RuntimeConfig,
+)
 from .telemetry import JsonLogTelemetry
 from .worker import process_work_message
 
@@ -76,9 +85,9 @@ def _client_config() -> Any:
     from botocore.config import Config
 
     return Config(
-        retries={"mode": "standard", "max_attempts": 3},
-        connect_timeout=5,
-        read_timeout=60,
+        retries={"mode": "standard", "max_attempts": CLIENT_MAX_ATTEMPTS},
+        connect_timeout=CLIENT_CONNECT_TIMEOUT_SECONDS,
+        read_timeout=CLIENT_READ_TIMEOUT_SECONDS,
         user_agent_extra="lai-processing-worker",
     )
 
@@ -227,6 +236,8 @@ def handler(event: object, context: Any) -> dict[str, list[dict[str, str]]]:
                 margin=margin,
                 telemetry=rt.telemetry,
                 receive_count=count,
+                time_left=lambda: _remaining_seconds(context),
+                call_seconds=CLIENT_CALL_SECONDS,
             )
         except Exception as exc:  # noqa: BLE001 - an unexpected bug fails only this record
             _event(

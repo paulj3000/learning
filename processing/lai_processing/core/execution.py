@@ -35,13 +35,14 @@ from pathlib import Path
 from typing import Any, Final
 
 from ..contracts.artifacts import ArtifactReference
-from ..contracts.codec import DEFAULT_MAX_MESSAGE_BYTES, decode_request
+from ..contracts.codec import DEFAULT_MAX_MESSAGE_BYTES, decode_request, decode_result
 from ..contracts.common import ObjectRef, ProcessorIdentity
 from ..contracts.events import (
     RESULT_ARTIFACT_TYPE,
     RESULT_LOGICAL_ID,
     CompletionEvent,
     build_completion_event,
+    result_digest,
 )
 from ..contracts.identifiers import StoreName, artifact_key
 from ..contracts.jobs import ProcessingJobRequest
@@ -56,7 +57,7 @@ from ..contracts.results import (
     Verdict,
 )
 from ..ports.clock import Clock, SystemClock
-from ..ports.storage import ObjectStorage
+from ..ports.storage import ObjectExists, ObjectStorage
 from ..ports.telemetry import NullTelemetry, Telemetry
 from .canonical import CHUNK_BYTES, canonical_json
 from .errors import ErrorCode, ProcessingError, error_from_exception
@@ -69,6 +70,8 @@ from .workspace import Workspace
 __all__ = ["INPUT_FILE_NAME", "ExecutionEngine"]
 
 INPUT_FILE_NAME: Final = "input.bin"
+# The largest stored `job-result` read back on a redelivery (matches Django's read bound).
+MAX_RESULT_BYTES: Final = 4 * 1024 * 1024
 MAX_DURATION_MS: Final = 86_400_000
 VERDICT_ADJUSTED: Final = ProcessingWarning(
     code="verdict_adjusted",
@@ -166,42 +169,95 @@ class ExecutionEngine:
         processor (the job was refused before resolution) cannot name a producing processor,
         and inventing one would forge provenance, so it is refused with MESSAGE_TOO_LARGE.
         Unlike `execute`, this may raise: the caller decides whether to retry the publish.
+
+        The `job-result` key is fixed per attempt and create-only. A redelivered attempt whose
+        first completion was stored but never sent reruns with new timestamps, so its result
+        bytes differ and the write conflicts. The stored object is then this worker's own
+        earlier result for the same attempt: it is read back, checked to decode as a result of
+        the same job and attempt, and the completion is rebuilt from it, which resends the
+        original completion instead of failing the attempt forever.
         """
+        try:
+            return self._completion(result, max_message_bytes)
+        except ObjectExists:
+            stored = self._stored_result(result)
+            if stored is None:
+                raise
+            self._emit(
+                "job.result_reused",
+                job_id=result.job_id,
+                attempt_id=result.attempt_id,
+                status=stored.status.value,
+            )
+            return self._completion(stored, max_message_bytes)
 
-        def store_result(data: bytes, digest: str) -> ArtifactReference:
-            if result.processor is None:
-                raise ProcessingError(ErrorCode.MESSAGE_TOO_LARGE, {"field": "event"})
-            key = artifact_key(
-                result.namespace, result.job_id, result.attempt_id, RESULT_LOGICAL_ID, "json"
-            )
-            unversioned = ObjectRef(StoreName.ARTIFACTS, key, None, result.namespace)
-            info = self.storage.put(
-                unversioned,
-                io.BytesIO(data),
-                content_type="application/json",
-                sha256=digest,
-                size_bytes=len(data),
-            )
-            return ArtifactReference(
-                artifact_type=RESULT_ARTIFACT_TYPE,
-                logical_id=RESULT_LOGICAL_ID,
-                ref=ObjectRef(StoreName.ARTIFACTS, key, info.version_id, result.namespace),
-                content_type="application/json",
-                size_bytes=len(data),
-                sha256=digest,
-                source_job_id=result.job_id,
-                source_attempt_id=result.attempt_id,
-                processor=result.processor,
-                profile=result.profile,
-            )
-
+    def _completion(self, result: ProcessingJobResult, max_message_bytes: int) -> CompletionEvent:
         return build_completion_event(
             result,
             event_id=self.id_factory(),
             emitted_at=self.clock.now(),
             max_message_bytes=max_message_bytes,
-            store_result=store_result,
+            store_result=lambda data, digest: self._store_result(result, data, digest),
         )
+
+    @staticmethod
+    def _result_ref(result: ProcessingJobResult, version_id: str | None) -> ObjectRef:
+        key = artifact_key(
+            result.namespace, result.job_id, result.attempt_id, RESULT_LOGICAL_ID, "json"
+        )
+        return ObjectRef(StoreName.ARTIFACTS, key, version_id, result.namespace)
+
+    def _store_result(
+        self, result: ProcessingJobResult, data: bytes, digest: str
+    ) -> ArtifactReference:
+        if result.processor is None:
+            raise ProcessingError(ErrorCode.MESSAGE_TOO_LARGE, {"field": "event"})
+        info = self.storage.put(
+            self._result_ref(result, None),
+            io.BytesIO(data),
+            content_type="application/json",
+            sha256=digest,
+            size_bytes=len(data),
+        )
+        return ArtifactReference(
+            artifact_type=RESULT_ARTIFACT_TYPE,
+            logical_id=RESULT_LOGICAL_ID,
+            ref=self._result_ref(result, info.version_id),
+            content_type="application/json",
+            size_bytes=len(data),
+            sha256=digest,
+            source_job_id=result.job_id,
+            source_attempt_id=result.attempt_id,
+            processor=result.processor,
+            profile=result.profile,
+        )
+
+    def _stored_result(self, result: ProcessingJobResult) -> ProcessingJobResult | None:
+        """The attempt's already stored `job-result`, when it is a valid result of the same
+        job and attempt whose bytes are exactly its canonical form; otherwise None (the
+        conflict stands). Any read or decode failure also leaves the conflict standing."""
+        try:
+            data = self.storage.read(self._result_ref(result, None), max_bytes=MAX_RESULT_BYTES)
+            stored = decode_result(data, max_bytes=MAX_RESULT_BYTES)
+        except Exception:  # noqa: BLE001 - an unreadable object is still a conflict
+            return None
+        if hashlib.sha256(data).hexdigest() != result_digest(stored):
+            return None
+        same = all(
+            getattr(stored, name) == getattr(result, name)
+            for name in (
+                "job_id",
+                "attempt_id",
+                "attempt_number",
+                "job_type",
+                "namespace",
+                "idempotency_key",
+                "correlation_id",
+            )
+        )
+        if not same or stored.processor is None:
+            return None
+        return stored
 
     # Steps ---------------------------------------------------------------------------------
 
