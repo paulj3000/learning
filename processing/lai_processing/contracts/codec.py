@@ -101,7 +101,13 @@ def _cheap_depth_ok(text: str) -> bool:
 
 def load_json(data: bytes | str, *, max_bytes: int = DEFAULT_MAX_MESSAGE_BYTES) -> Any:
     """Parse untrusted JSON with a size bound, strict UTF-8, and no duplicate keys or NaN."""
-    raw = data.encode("utf-8") if isinstance(data, str) else data
+    if isinstance(data, str):
+        try:
+            raw: bytes | bytearray = data.encode("utf-8")
+        except UnicodeEncodeError:  # a lone surrogate is not valid Unicode text
+            raise f.invalid("message") from None
+    else:
+        raw = data
     if not isinstance(raw, (bytes, bytearray)):
         raise f.invalid("message")
     if len(raw) > max_bytes:

@@ -155,11 +155,5 @@ def test_processing_error_details_are_filtered() -> None:
     assert error.details == {"field": "x"}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="FOUNDATION DEFECT core/errors.py safe_details: str.isalnum() accepts non-ASCII "
-    "letters and digits, so keys like 'clé' or '٣' pass; the key rule should be "
-    "ASCII-only (e.g. re.fullmatch(r'[A-Za-z0-9_]{1,64}', key)).",
-)
 def test_safe_details_refuses_non_ascii_keys() -> None:
     assert safe_details({"clé": 1, "٣": 2}) == {}

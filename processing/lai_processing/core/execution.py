@@ -60,6 +60,7 @@ from ..ports.storage import ObjectStorage
 from ..ports.telemetry import NullTelemetry, Telemetry
 from .canonical import CHUNK_BYTES, canonical_json
 from .errors import ErrorCode, ProcessingError, error_from_exception
+from .idempotency import verify_idempotency_key
 from .limits import PLATFORM_CEILINGS, ResourceLimits, effective_limits
 from .processor import CancellationToken, ProcessingContext, Processor, ProcessorOutput
 from .registry import ProcessorRegistry
@@ -111,6 +112,9 @@ class ExecutionEngine:
     namespace: str | None = None
     workspace_root: Path | None = None
     id_factory: Callable[[], str] = _new_id
+    # Recompute and compare each request's idempotency key (ADR-061). Disable only in tests
+    # that exercise other behaviour with hand-written keys.
+    verify_idempotency_keys: bool = True
 
     # Public API ----------------------------------------------------------------------------
 
@@ -211,6 +215,14 @@ class ExecutionEngine:
 
         processor, profile = self.registry.resolve(request.job_type, request.profile)
         run.processor, run.profile = processor, profile
+        if self.verify_idempotency_keys and not (
+            verify_idempotency_key(request)
+            or verify_idempotency_key(request, processor_version=processor.version)
+        ):
+            # The key must be derived from the request's own stable fields; a key that is not
+            # (a forged or hand-edited message, or a Django bug) fails closed before any input
+            # is read, so two different jobs can never share one logical identity.
+            raise ProcessingError(ErrorCode.INVALID_INPUT, {"field": "idempotency_key"})
         options = profile.resolve_options(request.options)
         limits = effective_limits(request.limits, self.ceilings)
 

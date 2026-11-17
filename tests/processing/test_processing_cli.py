@@ -167,11 +167,20 @@ def test_validate_job_refuses_changed_options_under_the_old_key(tmp_path):
 
 def _invalid_request_fixtures() -> list[tuple[str, str]]:
     manifest = json.loads((FIXTURES / "invalid" / "manifest.json").read_text())
-    return [
-        (entry["file"], entry["error_code"])
-        for entry in manifest
-        if entry["decoder"] in {"request", "any"}
-    ]
+    entries = []
+    for entry in manifest:
+        if entry["decoder"] == "request":
+            entries.append((entry["file"], entry["error_code"]))
+        elif entry["decoder"] == "any":
+            # Generic-decoder fixtures count only when the message claims to be a request.
+            raw = (FIXTURES / "invalid" / entry["file"]).read_bytes()
+            try:
+                kind = json.loads(raw).get("kind")
+            except (ValueError, AttributeError):
+                continue
+            if kind == "lai.processing.job_request":
+                entries.append((entry["file"], entry["error_code"]))
+    return entries
 
 
 @pytest.mark.parametrize(("name", "code"), _invalid_request_fixtures())

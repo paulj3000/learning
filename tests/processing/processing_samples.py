@@ -282,6 +282,7 @@ def event_by_reference(result: ProcessingJobResult | None = None) -> CompletionE
         attempt_number=result.attempt_number,
         status=result.status,
         result_sha256=ref.sha256,
+        retry_class=result.retry_class,
         result_ref=ref,
     )
 

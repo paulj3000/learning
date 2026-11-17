@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,7 @@ from lai_processing.contracts import (
 from lai_processing.core.canonical import canonical_json
 from lai_processing.core.errors import ErrorCode, ProcessingError
 from lai_processing.core.execution import ExecutionEngine
+from lai_processing.core.idempotency import request_idempotency_key
 from lai_processing.core.limits import DEFAULT_LIMITS
 from lai_processing.core.processor import CancellationToken, ProcessingContext
 from lai_processing.core.registry import default_registry
@@ -38,7 +40,7 @@ KEY = f"processing/quarantine/{NS}/{JOB_ID}/input.bin"
 
 
 def make_request(data: bytes, options: dict[str, Any] | None = None) -> ProcessingJobRequest:
-    return ProcessingJobRequest(
+    request = ProcessingJobRequest(
         job_id=JOB_ID,
         job_type="reference.checksum",
         namespace=NS,
@@ -57,6 +59,8 @@ def make_request(data: bytes, options: dict[str, Any] | None = None) -> Processi
         ),
         options=options or {},
     )
+    # A real key, derived from the request, as the engine verifies it.
+    return replace(request, idempotency_key=request_idempotency_key(request))
 
 
 def run(tmp_path: Path, data: bytes, options: dict[str, Any] | None = None) -> Any:

@@ -20,4 +20,9 @@ lai-processing = "lai_processing.cli.main:main"
 include = ["lai_processing*"]
 
 [tool.setuptools.package-data]
-"lai_processing.contracts" = ["fixtures/*.json", "schemas/*.json"]
+"lai_processing.contracts" = [
+    "fixtures/*.json",
+    "fixtures/*.txt",
+    "fixtures/invalid/*.json",
+    "schemas/*.json",
+]

@@ -20,6 +20,7 @@ from ..core.limits import DEFAULT_LIMITS, ResourceLimits
 from . import _fields as f
 from .common import (
     SCHEMA_VERSION,
+    SUPPORTED_SCHEMA_VERSIONS,
     AssetContext,
     InputObject,
     MessageKind,
@@ -88,7 +89,7 @@ class ProcessingJobRequest:
     schema_version: int = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if self.schema_version != SCHEMA_VERSION:
+        if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
             raise ProcessingError(
                 ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"}
             )

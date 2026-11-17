@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ from lai_processing.contracts import (
 from lai_processing.core.canonical import canonical_json
 from lai_processing.core.errors import ErrorCode, RetryClass
 from lai_processing.core.execution import ExecutionEngine
+from lai_processing.core.idempotency import request_idempotency_key
 from lai_processing.core.limits import DEFAULT_LIMITS, PLATFORM_CEILINGS, ResourceLimits
 from lai_processing.core.processor import (
     CancellationToken,
@@ -78,7 +80,7 @@ def make_request(
         version_uuid = "33333333-3333-4333-8333-333333333333"
         asset = AssetContext("crab-model", version_uuid, 1)
         subject = SubjectRef("asset_version", version_uuid)
-    return ProcessingJobRequest(
+    request = ProcessingJobRequest(
         job_id=JOB_ID,
         job_type=job_type,
         namespace=namespace,
@@ -100,6 +102,8 @@ def make_request(
         options=options or {},
         limits=limits,
     )
+    # A real key, derived from the request, as the engine verifies it.
+    return replace(request, idempotency_key=request_idempotency_key(request))
 
 
 class Harness:

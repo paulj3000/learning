@@ -16,6 +16,7 @@ Retry classes:
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from enum import StrEnum
 from typing import Final
@@ -114,6 +115,7 @@ SAFE_MESSAGES: Final[Mapping[ErrorCode, str]] = {
 }
 
 _SAFE_DETAIL_VALUE = (str, int, float, bool, type(None))
+_DETAIL_KEY: Final = re.compile(r"^[A-Za-z0-9_]{1,64}$")
 MAX_DETAIL_ENTRIES: Final = 16
 MAX_DETAIL_STRING: Final = 200
 
@@ -127,7 +129,7 @@ def safe_details(details: Mapping[str, object] | None) -> dict[str, DetailValue]
         return {}
     clean: dict[str, DetailValue] = {}
     for key, value in list(details.items())[:MAX_DETAIL_ENTRIES]:
-        if not isinstance(key, str) or not key.replace("_", "").isalnum() or len(key) > 64:
+        if not isinstance(key, str) or not _DETAIL_KEY.fullmatch(key):
             continue
         if not isinstance(value, _SAFE_DETAIL_VALUE):
             continue

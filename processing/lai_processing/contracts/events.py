@@ -21,7 +21,13 @@ from ..core.canonical import canonical_json, format_timestamp, sha256_hex
 from ..core.errors import ErrorCode, ProcessingError, RetryClass
 from . import _fields as f
 from .artifacts import ArtifactReference
-from .common import SCHEMA_VERSION, MessageKind, check_namespace, check_schema_header
+from .common import (
+    SCHEMA_VERSION,
+    SUPPORTED_SCHEMA_VERSIONS,
+    MessageKind,
+    check_namespace,
+    check_schema_header,
+)
 from .identifiers import CORRELATION_ID, IDEMPOTENCY_KEY, SHA256, UUID
 from .jobs import MAX_ATTEMPT_NUMBER
 from .job_types import job_type_spec
@@ -89,12 +95,13 @@ class CompletionEvent:
     attempt_number: int
     status: ResultStatus
     result_sha256: str
+    retry_class: RetryClass | None = None
     result: ProcessingJobResult | None = None
     result_ref: ArtifactReference | None = None
     schema_version: int = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if self.schema_version != SCHEMA_VERSION:
+        if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
             raise ProcessingError(
                 ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"}
             )
@@ -112,6 +119,7 @@ class CompletionEvent:
         except ValueError:
             raise f.invalid("status") from None
         f.string(self.result_sha256, "result_sha256", SHA256)
+        self._check_retry_class()
         if (self.result is None) == (self.result_ref is None):
             raise f.invalid("result")
         if self.result is not None:
@@ -127,9 +135,22 @@ class CompletionEvent:
             if ref.ref.namespace != self.namespace:
                 raise f.invalid("result_ref")
 
-    @property
-    def retry_class(self) -> RetryClass | None:
-        return self.result.retry_class if self.result is not None else None
+    def _check_retry_class(self) -> None:
+        """The event carries the retry class itself, so a consumer can route a by-reference
+        failure without fetching the result first. It must agree with the status."""
+        if self.retry_class is not None:
+            try:
+                object.__setattr__(self, "retry_class", RetryClass(self.retry_class))
+            except ValueError:
+                raise f.invalid("retry_class") from None
+        if self.status is ResultStatus.SUCCEEDED:
+            if self.retry_class is not None:
+                raise f.invalid("retry_class")
+        elif self.status is ResultStatus.CANCELLED:
+            if self.retry_class is not RetryClass.CANCELLED:
+                raise f.invalid("retry_class")
+        elif self.retry_class is None or self.retry_class is RetryClass.CANCELLED:
+            raise f.invalid("retry_class")
 
     def verify_result(self, result: ProcessingJobResult) -> None:
         """Check that `result` is exactly the result this event describes (used for inline
@@ -137,6 +158,8 @@ class CompletionEvent:
         for name in _MIRRORED:
             if getattr(result, name) != getattr(self, name):
                 raise f.invalid(f"result.{name}")
+        if result.retry_class != self.retry_class:
+            raise f.invalid("result.retry_class")
         if result_digest(result) != self.result_sha256:
             raise ProcessingError(ErrorCode.CHECKSUM_MISMATCH, {"field": "result_sha256"})
 
@@ -180,6 +203,7 @@ class CompletionEvent:
             attempt_number=d["attempt_number"],
             status=d["status"],
             result_sha256=d["result_sha256"],
+            retry_class=d["retry_class"],
             result=(
                 ProcessingJobResult.from_dict(d["result"]) if d["result"] is not None else None
             ),
@@ -189,16 +213,6 @@ class CompletionEvent:
                 else None
             ),
         )
-        declared = d["retry_class"]
-        if event.result is not None:
-            actual = event.retry_class
-            if declared != (actual.value if actual else None):
-                raise f.invalid("retry_class")
-        elif declared is not None:
-            try:
-                RetryClass(declared)
-            except ValueError:
-                raise f.invalid("retry_class") from None
         return event
 
 
@@ -229,6 +243,7 @@ def build_completion_event(
         "attempt_number": result.attempt_number,
         "status": result.status,
         "result_sha256": digest,
+        "retry_class": result.retry_class,
     }
     inline = CompletionEvent(**common, result=result)
     if len(canonical_json(inline.to_dict())) <= max_message_bytes:

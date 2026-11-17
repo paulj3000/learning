@@ -1,7 +1,8 @@
 """Object storage port.
 
-Adapters (memory and local filesystem in Wave 1 testing; S3 in Wave 2, LAI-LAMBDA-003) map a
-logical `ObjectRef` (store + key + version) to physical storage for one namespace. Errors are
+Adapters (in-memory in Wave 1, `lai_processing.testing`; filesystem and S3 in Wave 2,
+LAI-LAMBDA-003) map a logical `ObjectRef` (store + key + version) to physical storage for one
+namespace. Errors are
 `ProcessingError` subclasses whose codes keep missing objects, permission problems and transient
 failures apart, because each has a different retry class.
 

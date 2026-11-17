@@ -98,12 +98,22 @@ def aware(value: object, field: str) -> datetime:
     return value.astimezone(UTC)
 
 
+def storable_string(value: str, field: str) -> str:
+    """Refuse NUL and lone surrogates: PostgreSQL jsonb cannot store them, so a result carrying
+    one would fail at Django's commit on every redelivery (a poison message)."""
+    if "\x00" in value or any("\ud800" <= ch <= "\udfff" for ch in value):
+        raise invalid(field)
+    return value
+
+
 def json_value(value: object, field: str, depth: int = 0) -> Any:
     """Plain JSON data (no NaN/infinity), bounded nesting depth, string keys only."""
     if depth > MAX_JSON_DEPTH:
         raise invalid(field)
-    if value is None or isinstance(value, (bool, str)):
+    if value is None or isinstance(value, bool):
         return value
+    if isinstance(value, str):
+        return storable_string(value, field)
     if isinstance(value, int):
         if abs(value) > MAX_INT:
             raise invalid(field)
@@ -119,7 +129,7 @@ def json_value(value: object, field: str, depth: int = 0) -> Any:
         for key, item in value.items():
             if not isinstance(key, str) or len(key) > 128:
                 raise invalid(field)
-            out[key] = json_value(item, field, depth + 1)
+            out[storable_string(key, field)] = json_value(item, field, depth + 1)
         return out
     raise invalid(field)
 

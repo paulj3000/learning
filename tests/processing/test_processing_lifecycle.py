@@ -213,10 +213,10 @@ def test_non_retryable_failures_fail(code: ErrorCode, reason: str) -> None:
     )
 
 
-def test_by_reference_failure_without_result_never_retries_blindly() -> None:
+def test_by_reference_failure_is_routed_by_the_event_retry_class() -> None:
     event = event_by_reference(result_failed_retryable())
-    _expect(decide_completion(_job(), event), CompletionAction.APPLY, "retry_class_unknown",
-            S.FAILED)
+    _expect(decide_completion(_job(), event), CompletionAction.RETRY, "retryable_failure",
+            S.QUEUED)
     _expect(
         decide_completion(_job(), event, result_failed_retryable()),
         CompletionAction.RETRY,

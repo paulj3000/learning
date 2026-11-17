@@ -147,7 +147,7 @@ A presigned URL is never an artifact identity; Django issues URLs on demand.
 | `event_id` | UUID | | Identity of this event (diagnostics; not the dedup key) |
 | `emitted_at` | timestamp | | When the worker emitted it |
 | `job_id`, `job_type`, `namespace`, `idempotency_key`, `correlation_id`, `attempt_id`, `attempt_number`, `status` | | must equal the result's fields (`_MIRRORED`) | Routing envelope |
-| `retry_class` | string or null | inline: must equal the result's; by reference: any valid RetryClass or null | Routing hint |
+| `retry_class` | string or null | null when `succeeded`; `cancelled` when `cancelled`; a non-cancelled class when `failed`; must equal the result's (checked by `verify_result` for inline and fetched results) | Lets the consumer route a by-reference failure without fetching the result |
 | `result_sha256` | SHA256 | SHA-256 of the result's canonical JSON | Integrity of the result |
 | `result` | object or null | exactly one of `result` and `result_ref` is non-null | Inline result |
 | `result_ref` | ArtifactReference or null | `artifact_type == "report.job_result"`, same job and attempt, same namespace, `sha256 == result_sha256` | Result stored as an artifact |

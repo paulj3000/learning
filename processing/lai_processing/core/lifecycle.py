@@ -245,9 +245,10 @@ def decide_completion(
         return _decision(CompletionAction.APPLY, "succeeded", JobState.VALIDATED)
     if event.status is ResultStatus.CANCELLED:
         return _decision(CompletionAction.APPLY, "cancelled", JobState.CANCELLED)
-    retry_class = result.retry_class if result is not None else None
-    if retry_class is None:
-        # A by-reference failure whose result the caller did not supply: never retry blindly.
+    # The event carries the retry class (checked against the result when one is supplied), so a
+    # by-reference failure can be routed without fetching its result first.
+    retry_class = event.retry_class
+    if retry_class is None:  # unreachable for a valid FAILED event; fail closed regardless
         return _decision(CompletionAction.APPLY, "retry_class_unknown", JobState.FAILED)
     if retry_class is RetryClass.RETRYABLE:
         if job.current_attempt_number < job.max_attempts:

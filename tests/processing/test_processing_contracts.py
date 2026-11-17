@@ -601,27 +601,12 @@ def test_inline_event_declared_retry_class_must_match() -> None:
     assert _code(decode, json.dumps(data)) is ErrorCode.INVALID_INPUT
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="FOUNDATION DEFECT contracts/events.py CompletionEvent: a by-reference event's "
-    "declared retry_class is validated by from_dict but not stored, and to_dict always "
-    "writes null, so encode(decode(x)) != x for a valid failed by-reference event and the "
-    "consumer cannot see the retry class without fetching the result. Store it as a field "
-    "(and check it against the fetched result in verify_result).",
-)
 def test_by_reference_failed_event_round_trips_retry_class() -> None:
     data = event_by_reference(result_failed_retryable()).to_dict()
     data["retry_class"] = "retryable"
     assert decode(json.dumps(data)).to_dict()["retry_class"] == "retryable"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="FOUNDATION DEFECT contracts/_fields.py json_value: result metadata strings and "
-    "keys may contain U+0000 (and lone surrogates), which PostgreSQL jsonb refuses, so such a "
-    "result would fail at the Django commit and loop as a poison completion. Refuse NUL and "
-    "surrogates in json_value strings and keys.",
-)
 def test_result_metadata_refuses_nul() -> None:
     assert _code(replace, result_succeeded(), metadata={"k": "a\u0000b"}) is (
         ErrorCode.INVALID_INPUT

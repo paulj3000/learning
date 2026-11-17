@@ -32,6 +32,7 @@ from .artifacts import ArtifactReference
 from .common import (
     MAX_SIZE_BYTES,
     SCHEMA_VERSION,
+    SUPPORTED_SCHEMA_VERSIONS,
     MessageKind,
     ObjectRef,
     ProcessorIdentity,
@@ -290,7 +291,7 @@ class ProcessingJobResult:
     schema_version: int = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if self.schema_version != SCHEMA_VERSION:
+        if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
             raise ProcessingError(
                 ErrorCode.UNSUPPORTED_SCHEMA_VERSION, {"field": "schema_version"}
             )

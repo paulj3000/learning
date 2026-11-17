@@ -116,13 +116,6 @@ def test_invalid_utf8_and_bom_are_refused(raw: bytes) -> None:
     assert _code(raw) is ErrorCode.INVALID_INPUT
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=UnicodeEncodeError,
-    reason="FOUNDATION DEFECT contracts/codec.py load_json: a str containing a lone surrogate "
-    "makes data.encode('utf-8') raise UnicodeEncodeError instead of ProcessingError "
-    "(INVALID_INPUT); wrap the encode in try/except UnicodeEncodeError.",
-)
 def test_lone_surrogate_str_is_invalid_input() -> None:
     assert _code('{"kind": "\ud800"}') is ErrorCode.INVALID_INPUT
 
