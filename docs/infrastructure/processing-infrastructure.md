@@ -132,6 +132,32 @@ example `-c processingAlarms='{"workOldestMessageSeconds":900}'`.
 In phase 1 the work queue alarms cannot fire from real traffic (Django's backend is `disabled`).
 In phase 2, `work-oldest-message` is the signal that the worker is not consuming.
 
+### 5.1 Processing log metric filters and alarms (dev, LAI-LAMBDA-006)
+
+Django's processing commands run on the instance and log to files that the CloudWatch agent
+ships to `/lai/dev/jobs` (`scripts/aws/native/setup-native.sh`: `jobs-dispatch.log`,
+`jobs-completions.log`, `jobs-reconcile.log`). That group is created by `LaiDevPlatform-dev`
+(`devPlatformStack.ts`), so the six metric filters (`AWS::Logs::MetricFilter`, namespace
+`LearningAdventureIsland/Processing`) and their alarms are in that stack, on the owned group,
+through its existing `alarm()` helper and `lai-django-alarms-dev` topic. `LaiProcessing-<env>`
+owns no Django log group and gets none.
+
+| Alarm (`lai-dev-processing-...`) | Filter | Default |
+|---|---|---|
+| `completion-rejected` | `"processing.completion_rejected"` | at least 1 in 15 min |
+| `outbox-stuck` | `"processing.outbox_stuck"` | at least 1 in each of 2 x 15 min |
+| `reconcile-failed` | `"processing.reconcile_failed"` | at least 1 in 15 min |
+| `subject-mismatch` | `"processing.subject_mismatch"` | at least 1 in 15 min |
+| `hook-error` | `"processing.hook_error"` | at least 1 in 15 min |
+| `consumer-database-error` | `"processing.consumer database_error"` | at least 5 in 15 min |
+
+Overrides: the `processingLogAlarms` context (environment `LAI_PROCESSING_LOG_ALARMS`), JSON per
+alarm with `threshold`, `periodMinutes` (1, 5, 10, 15, 30, 60) and `evaluationPeriods`; invalid
+values fail the synth. Missing data is not breaching. They duplicate no queue alarm above: those
+watch SQS and Lambda metrics, these watch Django's decisions. Prod (`LaiDjangoEc2-prod`, logs in
+`/lai/prod/django`) runs none of the processing commands yet, so it has no such filters. Response
+for each alarm: `../processing/OPERATIONS.md` section 9.1.
+
 ## 6. Two-phase provisioning (bootstrapless)
 
 The app has no CDK assets (`BootstraplessSynthesizer`, no `cdk bootstrap`), so the function's
@@ -216,6 +242,11 @@ pre-existing native dev release, now also started by a `processing/**` change.
 - Both new units carry `ExecCondition=/usr/bin/test "${LAI_PROCESSING_BACKEND}" = sqs`: while the
   backend is `disabled` (phase 1, or before LAI-LAMBDA-004 ships the commands) systemd skips them
   instead of restarting a failing command every 30 s.
+- LAI-LAMBDA-006 adds `lai-jobs-reconcile.service` (oneshot, same condition) and
+  `lai-jobs-reconcile.timer` (every 10 minutes). `quiesce` stops the timer and any running
+  reconciliation before everything else; `verify`, after the database check, runs one
+  reconciliation before starting `lai-jobs-dispatch`, then starts the timer and prints the backlog
+  (`processing-native.sh backlog`). Details: `../processing/OPERATIONS.md` section 6.
 
 ## 10. Native release and prod image
 
@@ -230,6 +261,10 @@ pre-existing native dev release, now also started by a `processing/**` change.
 - The deploy and setup scripts install and enable `lai-jobs-dispatch.service` and
   `lai-jobs-completions.service` with the other units (`LAI_UNITS` in `lib-native.sh`); their logs
   go to `/var/log/lai/jobs-{dispatch,completions}.log` and the `/lai/dev/jobs` log group.
+- Each release also installs `lai-jobs-reconcile.service` and `.timer` (`LAI_TIMER_UNITS`) when it
+  has them, enables only the timer and restarts it after a deploy; the setup script ships
+  `/var/log/lai/jobs-reconcile.log` to `/lai/dev/jobs`. A schedule drop-in
+  (`lai-jobs-reconcile.timer.d/`) is never overwritten by a release.
 
 ## 11. Cost assumptions (estimates, not quotes)
 
