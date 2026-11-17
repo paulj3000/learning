@@ -46,6 +46,7 @@ HANDLER_MODULES = {
     envelope.ASSET_INSPECT: "apps.assets.jobs",
     envelope.ASSET_VALIDATE_MODEL: "apps.assets.processing",
     envelope.REFERENCE_CHECKSUM: "apps.jobs.reference",
+    envelope.ASSET_PROCESS_AUDIO: "apps.audio.inspection",
 }
 #: The largest work message accepted (SQS allows 256 KiB).
 MAX_WORK_BYTES = 240 * 1024

@@ -317,6 +317,9 @@ RUNNERS = {
     envelope.REFERENCE_CHECKSUM: lambda payload, ports: contract.run(
         envelope.REFERENCE_CHECKSUM, payload, ports
     ),
+    envelope.ASSET_PROCESS_AUDIO: lambda payload, ports: contract.run(
+        envelope.ASSET_PROCESS_AUDIO, payload, ports
+    ),
 }
 
 

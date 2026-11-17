@@ -207,7 +207,7 @@ values; the Lambda function's own timeout is the binding limit.
 |---|---|---|---|---|---|---|
 | `reference.checksum` | reference | No | Yes | any | LAI-LAMBDA-001 | Reference processor; `apps.jobs` kind on the media queue |
 | `asset.validate_model` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-002 | GLB validator; `apps.jobs` kind on the media queue |
-| `asset.process_audio` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-008 | Reserved |
+| `asset.process_audio` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-008 | Phase 1 audio header inspector (`asset.audio_inspector`, profile `audio-inspect` v1); `apps.jobs` kind on the media queue, staff-triggered only |
 | `asset.analyze_animation` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-009 | Reserved |
 | `asset.optimize` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-010 | Reserved |
 
@@ -398,3 +398,38 @@ verdict as the `glb-report` artifact (`report.glb_validation`, `application/json
 writes are not supported on the canonical path, and Django never sets that option. Django keeps a
 normalized subset as `metadata["model_validation"]` on a draft version
 (`model_validation_summary`).
+
+## Audio inspection metadata
+
+`ProcessingJobResult.metadata` for job type `asset.process_audio` (processor
+`asset.audio_inspector` 1.0.0, profile `audio-inspect` v1, no options; LAI-LAMBDA-008 phase 1).
+Behaviour, findings and bounds are in `AUDIO_INSPECTION.md`. Deterministic, always every key
+below, no text copied from the file apart from sanitised RIFF chunk ids. Profile limits:
+`max_input_bytes` 20 MiB (the Asset Library audio ceiling), complexity `max_wav_chunks` 1,024,
+`max_mp3_frames` 200,000, `max_ogg_pages` 50,000, `max_id3_bytes` 8 MiB. The processor writes no
+artifacts. Django keeps the result on the job only (`apps.audio.inspection`, outcome
+`inspection_recorded`); no version is changed.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `metadata_version` | int | `1` |
+| `detected_format` | `"wav"`, `"mp3"`, `"ogg"` or null | From the leading bytes, never the name or declared type |
+| `container` | string or null | `riff_wave`, `rf64`, `rifx`, `mpeg_audio`, `ogg`, or a refused container (`flac`, `aiff`, `mp4`, ...) |
+| `codec` | string or null | `pcm`, `float`, `alaw`, `mulaw`, `ms_adpcm`, `ima_adpcm`, ..., `mp1`, `mp2`, `mp3`, `vorbis`, `opus`, `flac`, `speex`, ..., `unknown` |
+| `file_size_bytes` | int | Input size |
+| `declared_content_type` | string | The version's content type, as requested |
+| `declared_format` | string or null | The format the declared type names, null when it names none |
+| `declared_type_matches` | bool or null | null when either side is unknown |
+| `duration_seconds` | number or null | Rounded to 6 places |
+| `duration_kind` | `exact`, `estimated` or `unavailable` | `exact`: from container counts (sample frames, a header frame count, a granule); `estimated`: from bytes and bit rate, a partial walk, or no header count |
+| `sample_rate_hz` | int or null | Opus: 48,000 (the input rate is in `structure.streams`) |
+| `channels` | int or null | |
+| `sample_width_bits` | int or null | PCM and float WAV only |
+| `bitrate_bps` | int or null | Constant: the stream's rate; otherwise the average over the audio |
+| `bitrate_mode` | `constant`, `variable`, `unknown` or null | |
+| `scan` | object | `{unit: "chunk" | "frame" | "page" | null, units_scanned: int, complete: bool}` |
+| `structure` | object | Format-specific facts with sorted keys. WAV: `riff_declared_bytes`, `chunk_count`, `chunks` (at most 32 ids), `chunks_truncated`, `fmt_chunk_bytes`, `data_chunk_bytes`, `fact_sample_frames`, `format_tag`, `byte_rate`, `block_align`, `bits_per_sample`, `sample_frames`, extensible fields. MP3: `id3v2_bytes`, `trailing_tags`, `first_frame_offset`, `mpeg_version`, `layer`, `channel_mode`, `crc_protected`, `vbr_header`, `vbr_header_frames`, `vbr_header_bytes`, `frames_scanned`, `audio_frames_scanned`, `distinct_bitrates`, `first_frame_bitrate_bps`, `audio_bytes`. Ogg: `pages_scanned`, `crc_pages_checked`, `stream_count`, `chained_links`, `multiplexed`, `streams` (at most 8: index, link, codec, rate, channels, pre-skip, input rate, nominal bit rate, mapping family, pages, ended, duration), `streams_truncated` |
+| `limitations` | list of `{code, message}` | Always `header_only`, `playback_not_verified`, `loudness_not_measured`, plus format-specific ones |
+
+Findings follow the general `Finding` rules (at most 100 plus `too_many_findings`); the verdict is
+`fail` when any finding is an error.

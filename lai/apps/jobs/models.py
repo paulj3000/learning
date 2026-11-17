@@ -33,6 +33,7 @@ class JobKind(models.TextChoices):
     ASSET_INSPECT = envelope.ASSET_INSPECT, "Asset inspection"
     ASSET_VALIDATE_MODEL = envelope.ASSET_VALIDATE_MODEL, "Model validation"
     REFERENCE_CHECKSUM = envelope.REFERENCE_CHECKSUM, "Reference checksum"
+    ASSET_PROCESS_AUDIO = envelope.ASSET_PROCESS_AUDIO, "Audio inspection"
 
 
 class JobQueue(models.TextChoices):

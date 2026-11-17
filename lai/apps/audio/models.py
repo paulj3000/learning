@@ -18,6 +18,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator, RegexVa
 from django.db import models
 from django.utils.timezone import now
 
+from apps.assets.models import AssetVersion
 from apps.core.models import ChildOwnedModel
 
 from . import vocabulary as vocab
@@ -560,3 +561,18 @@ class SoundLibraryReport(SoundCue):
         proxy = True
         verbose_name = "library report"
         verbose_name_plural = "library report"
+
+
+class AudioFile(AssetVersion):
+    """A proxy over the Asset Library's audio versions, so Sound Manager staff can inspect audio
+    files in the background (`asset.process_audio`, LAI-LAMBDA-008 phase 1).
+
+    No table of its own and no new data: `admin.AudioFileAdmin` lists `AssetVersion` rows whose
+    format is audio and shows their inspection jobs. Inspection never changes a version.
+    """
+
+    class Meta:
+        proxy = True
+        verbose_name = "audio file"
+        verbose_name_plural = "audio files (inspection)"
+        permissions = [("inspect_audiofile", "Can inspect audio files in the background")]
