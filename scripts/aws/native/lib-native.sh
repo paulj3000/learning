@@ -58,6 +58,11 @@ LAI_CURRENT="$LAI_STATE_DIR/current.json"
 # ExecCondition unless LAI_PROCESSING_BACKEND is sqs (deploy/native/systemd).
 LAI_UNITS=(lai-gunicorn.service lai-jobs-consumer.service lai-jobs-dispatch.service
     lai-jobs-completions.service)
+# Processing reconciliation (LAI-LAMBDA-006): a oneshot service without [Install], started by its
+# timer. Installed when the release has them (older releases do not); only the timer is enabled.
+# A schedule drop-in (lai-jobs-reconcile.timer.d/) is never touched.
+LAI_TIMER_UNITS=(lai-jobs-reconcile.service lai-jobs-reconcile.timer)
+LAI_TIMERS=(lai-jobs-reconcile.timer)
 
 now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
@@ -177,6 +182,10 @@ install_release_config() {
     for unit in "${LAI_UNITS[@]}"; do
         install -m 0644 "$release_dir/deploy/native/systemd/$unit" "$LAI_SYSTEMD_DIR/$unit"
     done
+    for unit in "${LAI_TIMER_UNITS[@]}"; do
+        [ ! -f "$release_dir/deploy/native/systemd/$unit" ] ||
+            install -m 0644 "$release_dir/deploy/native/systemd/$unit" "$LAI_SYSTEMD_DIR/$unit"
+    done
     install -m 0644 "$release_dir/deploy/native/gunicorn.conf.py" "$LAI_ETC_DIR/gunicorn.conf.py"
     backup="$LAI_NGINX_CONF.previous"
     [ ! -f "$LAI_NGINX_CONF" ] || cp -f "$LAI_NGINX_CONF" "$backup"
@@ -192,6 +201,9 @@ install_release_config() {
     fi
     systemctl daemon-reload
     systemctl enable "${LAI_UNITS[@]}" >/dev/null 2>&1 || log "WARNING: could not enable the lai units"
+    if [ -f "$LAI_SYSTEMD_DIR/lai-jobs-reconcile.timer" ]; then
+        systemctl enable "${LAI_TIMERS[@]}" >/dev/null 2>&1 || log "WARNING: could not enable the lai timers"
+    fi
 }
 
 # Restart the application on whatever /opt/lai/current points at. 0 when gunicorn restarted.
@@ -200,6 +212,10 @@ restart_services() {
     systemctl restart lai-jobs-consumer.service || log "WARNING: lai-jobs-consumer did not restart"
     systemctl restart lai-jobs-completions.service || log "WARNING: lai-jobs-completions did not restart"
     systemctl restart lai-jobs-dispatch.service || log "WARNING: lai-jobs-dispatch did not restart"
+    if [ -f "$LAI_SYSTEMD_DIR/lai-jobs-reconcile.timer" ]; then
+        # Re-arms the schedule with the new unit files; the service skips itself unless sqs.
+        systemctl restart lai-jobs-reconcile.timer || log "WARNING: lai-jobs-reconcile.timer did not restart"
+    fi
     if systemctl is-active --quiet nginx.service; then
         systemctl reload nginx.service || return 1
     else

@@ -30,7 +30,8 @@ else
     echo "(none)"
 fi
 echo "== services"
-for unit in nginx.service "${LAI_UNITS[@]}" lai-maintenance.timer lai-certbot-renew.timer; do
+for unit in nginx.service "${LAI_UNITS[@]}" "${LAI_TIMERS[@]}" lai-maintenance.timer \
+    lai-certbot-renew.timer; do
     printf '%-28s %s\n' "$unit" "$(systemctl is-active "$unit" 2>/dev/null || true)"
 done
 echo "== health"

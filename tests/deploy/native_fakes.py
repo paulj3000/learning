@@ -174,6 +174,16 @@ def venvpython(args: list[str]) -> int:
             return 98  # static files never need a secret
         Path("staticfiles").mkdir(exist_ok=True)
         return 0
+    if command == "jobs_reconcile":
+        if flag("fail_jobs_reconcile"):
+            return 1
+        print(
+            read(
+                "reconcile_report",
+                '{"dryRun": true, "expired": 0, "expired_due": 2, "stuck_outbox": 1}',
+            ).strip()
+        )
+        return 0
     if command == "create_admin_account":
         (STATE / "admin_password_env").write_text(os.environ.get("DJANGO_ADMIN_PASSWORD", ""))
         return 0

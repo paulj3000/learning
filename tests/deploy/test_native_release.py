@@ -71,6 +71,7 @@ COMMANDS = [
     "load_content",
     "speech_cleanup",
     "ai_retention",
+    "jobs_reconcile",
 ]
 
 
@@ -311,6 +312,8 @@ def test_first_release_is_downloaded_installed_switched_checked_and_recorded(box
         "lai-jobs-consumer.service",
         "lai-jobs-dispatch.service",
         "lai-jobs-completions.service",
+        "lai-jobs-reconcile.service",
+        "lai-jobs-reconcile.timer",
     ):
         assert (box.systemd / unit).read_text() == (
             REPO / "deploy/native/systemd" / unit
@@ -329,6 +332,10 @@ def test_first_release_is_downloaded_installed_switched_checked_and_recorded(box
     assert "systemctl restart lai-jobs-consumer.service" in calls
     assert "systemctl restart lai-jobs-completions.service" in calls
     assert "systemctl restart lai-jobs-dispatch.service" in calls
+    # Only the timer is enabled (the oneshot service has no [Install]); a deploy re-arms it.
+    assert "systemctl enable lai-jobs-reconcile.timer" in calls
+    assert "systemctl enable lai-jobs-reconcile.service" not in calls
+    assert "systemctl restart lai-jobs-reconcile.timer" in calls
     assert "systemctl reload nginx.service" in calls
     # --skip-wheels releases carry no processing wheel; the deploy says so and carries on.
     assert "no lai-processing wheel" in box.output(result)
@@ -729,11 +736,22 @@ def test_power_quiesce_stops_dispatch_then_completions_then_the_consumer_then_gu
     result = box.run(NATIVE / "power-native.sh", LAI_REQ_ACTION="quiesce")
     assert result.returncode == 0, box.output(result)
     calls = box.calls()
+    # The reconcile timer stops first, then any running reconciliation, then the services.
+    timer = calls.index("systemctl stop lai-jobs-reconcile.timer")
+    reconcile = calls.index("systemctl stop lai-jobs-reconcile.service")
+    assert timer < reconcile < calls.index("systemctl stop lai-jobs-dispatch.service")
     dispatch = calls.index("systemctl stop lai-jobs-dispatch.service")
     completions = calls.index("systemctl stop lai-jobs-completions.service")
     consumer = calls.index("systemctl stop lai-jobs-consumer.service")
     gunicorn = calls.index("systemctl stop lai-gunicorn.service")
     assert dispatch < completions < consumer < gunicorn
+
+
+def test_power_quiesce_skips_the_reconcile_units_on_an_instance_without_them(box):
+    result = box.run(NATIVE / "power-native.sh", LAI_REQ_ACTION="quiesce")
+    assert result.returncode == 0, box.output(result)
+    assert "lai-jobs-reconcile" not in box.calls()
+    assert "WARNING" not in box.output(result)
 
 
 def test_power_verify_starts_services_and_applies_a_pending_release(box):
@@ -758,6 +776,81 @@ def test_power_verify_starts_services_and_applies_a_pending_release(box):
     completions = calls.index("systemctl start lai-jobs-completions.service")
     dispatch = calls.index("systemctl start lai-jobs-dispatch.service")
     assert health < completions < dispatch
+
+
+def test_power_verify_checks_the_database_then_reconciles_once_and_reports_the_backlog(box):
+    assert box.deploy(1).returncode == 0
+    box.run(NATIVE / "power-native.sh", LAI_REQ_ACTION="quiesce")
+    before = len(box.calls().splitlines())
+    result = box.run(NATIVE / "power-native.sh", LAI_REQ_ACTION="verify")
+    assert result.returncode == 0, box.output(result)
+    calls = box.calls().splitlines()[before:]
+
+    def at(text: str) -> int:
+        return next(i for i, line in enumerate(calls) if text in line)
+
+    # The database is checked (health-native.sh --db) before any processing unit starts.
+    database = at("venvpython -c import os, psycopg")
+    completions = at("systemctl start lai-jobs-completions.service")
+    reconcile = at("systemctl start lai-jobs-reconcile.service")
+    dispatch = at("systemctl start lai-jobs-dispatch.service")
+    timer = at("systemctl start lai-jobs-reconcile.timer")
+    backlog = at("manage.py jobs_reconcile --dry-run --stuck-minutes 15")
+    assert database < completions < reconcile < dispatch < timer < backlog
+    # Only the dry run runs as a command here; the real one is the unit (ExecCondition, lock).
+    assert not any(line.endswith("manage.py jobs_reconcile") for line in calls)
+    output = box.output(result)
+    assert (
+        'processing backlog: {"backend":"disabled","dryRun":true,"expired_due":2,'
+        '"expired":0,"stuck_outbox":1}' in output
+    )
+    assert "health: healthy; startup reconciliation ok; processing backlog {" in output
+
+
+def test_power_verify_warns_but_stays_healthy_when_processing_steps_fail(box):
+    assert box.deploy(1).returncode == 0
+    box.write("start_fail_lai-jobs-reconcile.service")
+    box.write("fail_jobs_reconcile")
+    result = box.run(NATIVE / "power-native.sh", LAI_REQ_ACTION="verify")
+    assert result.returncode == 0, box.output(result)
+    output = box.output(result)
+    assert "the startup reconciliation failed" in output
+    assert "the processing backlog could not be read" in output
+    summary = "health: healthy; startup reconciliation failed; processing backlog unavailable"
+    assert summary in output
+
+
+def test_power_verify_runs_no_processing_step_when_the_database_is_down(box):
+    assert box.deploy(1).returncode == 0
+    box.write("db_fail")
+    before = len(box.calls().splitlines())
+    result = box.run(NATIVE / "power-native.sh", LAI_REQ_ACTION="verify")
+    assert result.returncode == 1
+    calls = "\n".join(box.calls().splitlines()[before:])
+    assert "lai-jobs-reconcile" not in calls and "jobs_reconcile" not in calls
+    assert "systemctl start lai-jobs-completions.service" not in calls
+    assert "health: unhealthy; startup reconciliation not-installed" in box.output(result)
+
+
+def test_processing_backlog_report_is_counts_only_and_refuses_other_output(box):
+    script = NATIVE / "processing-native.sh"
+    assert box.run(script).returncode == 2
+    assert box.run(script, "backlog").returncode == 3  # no release yet
+    assert box.deploy(1).returncode == 0
+    result = box.run(script, "backlog", "--stuck-minutes", "30")
+    assert result.returncode == 0, box.output(result)
+    assert json.loads(result.stdout) == {
+        "backend": "disabled",
+        "dryRun": True,
+        "expired_due": 2,
+        "expired": 0,
+        "stuck_outbox": 1,
+    }
+    assert "manage.py jobs_reconcile --dry-run --stuck-minutes 30" in box.calls()
+    box.write("reconcile_report", "Traceback: password=hunter2")
+    result = box.run(script, "backlog")
+    assert result.returncode == 1 and "hunter2" not in box.output(result)
+    assert box.run(script, "backlog", "--stuck-minutes", "x").returncode == 2
 
 
 def test_power_verify_keeps_a_pending_release_that_failed(box):
