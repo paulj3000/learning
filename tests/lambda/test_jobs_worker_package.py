@@ -1,10 +1,13 @@
 """scripts/aws/package-lambda.sh: a deterministic zip, vendored providers, no Django."""
 
 import hashlib
+import shutil
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "aws" / "package-lambda.sh"
@@ -71,3 +74,99 @@ def test_a_vendored_file_that_imports_django_is_refused(build_module, monkeypatc
     except build_module.BuildError:
         return
     raise AssertionError("a Django import was vendored")
+
+
+# --- the processing library in the zip (ADR-064) ------------------------------------------------
+
+ZIP_BUDGET_BYTES = 2 * 1024 * 1024
+
+
+def test_the_zip_carries_the_processing_library_without_its_tooling(build_module):
+    names = set(build_module.entries())
+    for required in (
+        "lai_processing/__init__.py",
+        "lai_processing/version.py",
+        "lai_processing/core/execution.py",
+        "lai_processing/core/registry.py",
+        "lai_processing/contracts/jobs.py",
+        "lai_processing/contracts/results.py",
+        "lai_processing/ports/storage.py",
+        "lai_processing/processors/reference.py",
+        "lai_processing/processors/gltf/processor.py",
+        "lai_processing/processors/gltf/document.py",
+        "jobs_worker/vendor/jobs_core/contract.py",
+    ):
+        assert required in names, required
+    assert not [
+        n
+        for n in names
+        if n.startswith(("lai_processing/testing/", "lai_processing/cli/"))
+        or n == "lai_processing/__main__.py"
+    ]
+    # Only Python source: no fixtures, schemas or caches.
+    assert all(n.endswith(".py") for n in names)
+    contract = (ROOT / "lai/apps/jobs/core/contract.py").read_bytes()
+    assert build_module.entries()["jobs_worker/vendor/jobs_core/contract.py"] == contract
+
+
+def test_two_builds_give_the_same_bytes_and_name(build_module, tmp_path):
+    first = build_module.build(tmp_path / "a")
+    second = build_module.build(tmp_path / "b")
+    assert first.name == second.name
+    assert first.read_bytes() == second.read_bytes()
+
+
+def test_the_zip_stays_under_its_size_budget(build_module):
+    assert len(build_module.zip_bytes()) < ZIP_BUDGET_BYTES
+
+
+def test_a_processing_module_that_imports_django_is_refused(build_module, monkeypatch, tmp_path):
+    copy = tmp_path / "lai_processing"
+    shutil.copytree(build_module.PROCESSING, copy, ignore=shutil.ignore_patterns("__pycache__"))
+    (copy / "core" / "sneaky.py").write_text("import django\n")
+    monkeypatch.setattr(build_module, "PROCESSING", copy)
+    with pytest.raises(build_module.BuildError, match="lai_processing/core/sneaky.py"):
+        build_module.entries()
+
+
+def test_an_excluded_processing_module_is_not_checked_or_shipped(
+    build_module, monkeypatch, tmp_path
+):
+    copy = tmp_path / "lai_processing"
+    shutil.copytree(build_module.PROCESSING, copy, ignore=shutil.ignore_patterns("__pycache__"))
+    (copy / "testing" / "extra.py").write_text("x = 1\n")
+    monkeypatch.setattr(build_module, "PROCESSING", copy)
+    assert "lai_processing/testing/extra.py" not in build_module.entries()
+
+
+def test_the_contract_kinds_run_from_the_staged_zip_alone(build_module, tmp_path):
+    """Isolated interpreter, only the stage on sys.path: the worker and the processors import
+    and run without Django, boto3 or the repository's processing/ directory."""
+    staged = build_module.stage(tmp_path / "stage")
+    probe = """
+import sys
+sys.path[:] = [sys.argv[1]] + [p for p in sys.path if "site-packages" not in p]
+import jobs_worker.handler
+from jobs_worker.vendor.jobs_core import contract, tasks
+import lai_processing
+from lai_processing.core.registry import default_registry
+assert lai_processing.__file__.startswith(sys.argv[1]), lai_processing.__file__
+registry = default_registry()
+for kind, profile in (("asset.validate_model", "glb-default"),
+                      ("reference.checksum", "reference-default")):
+    from lai_processing.contracts.common import ProfileRef
+    registry.resolve(kind, ProfileRef(profile, 1))
+assert contract.CONTRACT_KINDS == {"asset.validate_model", "reference.checksum"}
+bad = sorted(m for m in sys.modules
+             if m.split(".")[0] in {"django", "apps", "rest_framework", "boto3", "botocore"})
+assert not bad, bad
+print("ok")
+"""
+    done = subprocess.run(
+        [sys.executable, "-I", "-c", probe, str(staged)],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "ok"
