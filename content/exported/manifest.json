@@ -1,5 +1,5 @@
 {
-  "contentDigest": "8a2256d8a4b1262c82eb55c85c03b74ff06a293bba6600a990beea1fac1cde9d",
+  "contentDigest": "5afa53c36c24f944313b057508423834bac3e9de3c145d15ddd7106bfdd8ee3e",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -10,7 +10,7 @@
         "islands": 2
       },
       "path": "islands.json",
-      "sha256": "9628265d52c3fbcf0db279dcc0134b086f6fade17179c91ff5db330b3eadfafb"
+      "sha256": "077a0ff6f40fd529bd15ffe4075424fc9afa0cab7534dc9c3ea7cf22044fca83"
     },
     {
       "counts": {
@@ -37,10 +37,10 @@
     },
     {
       "counts": {
-        "quests": 12
+        "quests": 13
       },
       "path": "quests.json",
-      "sha256": "59931c58f04b0a6230ac7403963b69c81b76287ae41e9a870883d21f1ece84e0"
+      "sha256": "3fa686cf3c5beefb0d3ab61e87f09598b11ea8cbb77d07f0930f1c6512e25e2b"
     },
     {
       "counts": {
@@ -56,7 +56,7 @@
         "npcs": 7
       },
       "path": "npcs.json",
-      "sha256": "1fb2b05269ee575fecfb631ff3bd3de4f27d76b94b83ffbebf0fb049dcaa25a9"
+      "sha256": "6ebfa5606bb74f53bf2adcca76b1d5b0789bc63bf209785fa8c86a297e4e4421"
     },
     {
       "counts": {

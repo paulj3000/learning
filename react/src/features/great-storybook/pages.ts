@@ -26,11 +26,24 @@ export type PageSource =
   | { kind: 'WORLD_CHANGE'; changeKey: string; locationSlug: string }
   | { kind: 'DISCOVERY'; discoveryId: string };
 
+/** Edition 1 was the first book. Edition 2 added the Pathfinder page `page-painted-words`. */
+export type StorybookEdition = 1 | 2;
+export const STORYBOOK_EDITION: StorybookEdition = 2;
+
+/** The world change an edition-1 completion wrote, and the one an edition-2 completion writes. */
+export const GREAT_STORYBOOK_RESTORED_KEY = 'GREAT_STORYBOOK_RESTORED';
+export const GREAT_STORYBOOK_RESTORED_V2_KEY = 'GREAT_STORYBOOK_RESTORED_V2';
+
 export interface StorybookPage {
   /** Stable. Never renamed: it is how a page is named in tests, docs and saves of the future. */
   id: string;
   /** Child-facing, readable aloud. */
   title: string;
+  /**
+   * The book edition that introduced this page. A child who restored an earlier edition keeps
+   * that restoration: a later edition's page asks for more, it never un-restores the book.
+   */
+  since: StorybookEdition;
   /** The bands whose Storybook has this page. */
   bands: readonly AgeBandValue[];
   /** Whether this band must recover it for the book to be whole. A bonus page never is. */
@@ -47,6 +60,7 @@ export interface StorybookPage {
 export const STORYBOOK_PAGES: readonly StorybookPage[] = [
   {
     id: 'page-first-story',
+    since: 1,
     title: 'The First Story',
     bands: ['SPROUT', 'PATHFINDER'],
     required: true,
@@ -61,6 +75,7 @@ export const STORYBOOK_PAGES: readonly StorybookPage[] = [
   },
   {
     id: 'page-painted-words',
+    since: 2,
     title: 'The Painted Words',
     bands: ['PATHFINDER'],
     required: true,
@@ -75,6 +90,7 @@ export const STORYBOOK_PAGES: readonly StorybookPage[] = [
   },
   {
     id: 'page-three-clues',
+    since: 1,
     title: 'Three Clues',
     bands: ['EXPLORER'],
     required: true,
@@ -89,6 +105,7 @@ export const STORYBOOK_PAGES: readonly StorybookPage[] = [
   },
   {
     id: 'page-pattern-lock',
+    since: 1,
     title: 'The Pattern Lock',
     bands: ['EXPLORER'],
     required: true,
@@ -103,6 +120,7 @@ export const STORYBOOK_PAGES: readonly StorybookPage[] = [
   },
   {
     id: 'page-what-was-waiting',
+    since: 1,
     title: 'What Was Waiting',
     bands: ['EXPLORER'],
     required: true,
@@ -117,6 +135,7 @@ export const STORYBOOK_PAGES: readonly StorybookPage[] = [
   },
   {
     id: 'page-tapestry',
+    since: 1,
     title: 'The Hidden Page',
     bands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
     // A bonus for children who explore. Never required: see the file header.
@@ -160,18 +179,43 @@ export interface StorybookProgress {
   restoredBonus: number;
   /** Whole when every required page is back. A band with no required page is never whole. */
   complete: boolean;
+  /**
+   * The child's own history with the book, derived and never stored. A child whose edition-1
+   * restoration exists (`GREAT_STORYBOOK_RESTORED`) stays restored when a later edition adds pages:
+   * they are `RESTORED_MORE_PAGES`, never "incomplete". `complete` keeps its strict meaning.
+   */
+  state: StorybookStanding;
+  /** Whether the edition-1 restoration is on record. */
+  edition1Restored: boolean;
+  /** The edition of the book as it is now. */
+  edition: StorybookEdition;
 }
 
-function summarize(band: AgeBandValue, entries: readonly StorybookEntry[]): StorybookProgress {
+export type StorybookStanding = 'IN_PROGRESS' | 'RESTORED_MORE_PAGES' | 'RESTORED';
+
+/** Pure: the book's standing from whether it is whole and whether edition 1 is on record. */
+export function standingOf(complete: boolean, edition1Restored: boolean): StorybookStanding {
+  return complete ? 'RESTORED' : edition1Restored ? 'RESTORED_MORE_PAGES' : 'IN_PROGRESS';
+}
+
+function summarize(
+  band: AgeBandValue,
+  entries: readonly StorybookEntry[],
+  edition1Restored: boolean,
+): StorybookProgress {
   const required = entries.filter((entry) => entry.page.required);
   const restoredRequired = required.filter((entry) => entry.restored).length;
+  const complete = required.length > 0 && restoredRequired === required.length;
   return {
     band,
     entries,
     restoredRequired,
     totalRequired: required.length,
     restoredBonus: entries.filter((entry) => !entry.page.required && entry.restored).length,
-    complete: required.length > 0 && restoredRequired === required.length,
+    complete,
+    state: standingOf(complete, edition1Restored),
+    edition1Restored: edition1Restored || complete,
+    edition: STORYBOOK_EDITION,
   };
 }
 
@@ -184,6 +228,7 @@ export function storybookProgress(state: StorybookState, band: AgeBandValue): St
   return summarize(
     band,
     pagesForBand(band).map((page) => ({ page, restored: isPageRestored(page, state) })),
+    state.worldChangeKeys.includes(GREAT_STORYBOOK_RESTORED_KEY),
   );
 }
 
@@ -198,11 +243,13 @@ export function visibleEntries(progress: StorybookProgress): readonly StorybookE
 /**
  * The same book, also counting the pages the server reports restored. A union: each store
  * only ever knows records that really exist, so a page either one holds is back. An id the
- * registry does not know is ignored.
+ * registry does not know is ignored. `serverEdition1Restored` is the server's own word that the
+ * edition-1 restoration is on record.
  */
 export function withRestored(
   progress: StorybookProgress,
   restoredPageIds: ReadonlySet<string>,
+  serverEdition1Restored = false,
 ): StorybookProgress {
   return summarize(
     progress.band,
@@ -210,6 +257,7 @@ export function withRestored(
       page: entry.page,
       restored: entry.restored || restoredPageIds.has(entry.page.id),
     })),
+    progress.edition1Restored || serverEdition1Restored,
   );
 }
 

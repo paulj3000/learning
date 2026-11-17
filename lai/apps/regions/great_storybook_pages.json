@@ -5,9 +5,14 @@
     "PATHFINDER": "restore-the-great-storybook-pathfinders",
     "EXPLORER": "restore-the-great-storybook-explorers"
   },
+  "edition": 2,
+  "moreQuests": {
+    "PATHFINDER": "restore-the-great-storybook-pathfinders-more"
+  },
   "pages": [
     {
       "id": "page-first-story",
+      "since": 1,
       "title": "The First Story",
       "bands": ["SPROUT", "PATHFINDER"],
       "required": true,
@@ -22,6 +27,7 @@
     },
     {
       "id": "page-painted-words",
+      "since": 2,
       "title": "The Painted Words",
       "bands": ["PATHFINDER"],
       "required": true,
@@ -36,6 +42,7 @@
     },
     {
       "id": "page-three-clues",
+      "since": 1,
       "title": "Three Clues",
       "bands": ["EXPLORER"],
       "required": true,
@@ -50,6 +57,7 @@
     },
     {
       "id": "page-pattern-lock",
+      "since": 1,
       "title": "The Pattern Lock",
       "bands": ["EXPLORER"],
       "required": true,
@@ -64,6 +72,7 @@
     },
     {
       "id": "page-what-was-waiting",
+      "since": 1,
       "title": "What Was Waiting",
       "bands": ["EXPLORER"],
       "required": true,
@@ -78,6 +87,7 @@
     },
     {
       "id": "page-tapestry",
+      "since": 1,
       "title": "The Hidden Page",
       "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "required": false,

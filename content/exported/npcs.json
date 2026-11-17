@@ -265,6 +265,21 @@
           ],
           "questId": "restore-the-great-storybook-explorers",
           "summary": "Pages of the Great Storybook are scattered through the castle. Find them all and restore the book."
+        },
+        {
+          "conditions": [
+            {
+              "questId": "restore-the-great-storybook-pathfinders",
+              "type": "QUEST_COMPLETED"
+            },
+            {
+              "equals": false,
+              "flag": "restoredTheStorybookMore",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "questId": "restore-the-great-storybook-pathfinders-more",
+          "summary": "A new page of the Great Storybook has been found. Help Keeper Quill bring it back."
         }
       ],
       "role": "Storykeeper Castle librarian. Invites children to build a story together.",

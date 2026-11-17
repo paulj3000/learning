@@ -1,5 +1,10 @@
 import type { AgeBandValue } from '../../child-profile/constants';
-import { pagesForBand, type StorybookPage } from '../../great-storybook/pages';
+import {
+  GREAT_STORYBOOK_RESTORED_KEY,
+  GREAT_STORYBOOK_RESTORED_V2_KEY,
+  pagesForBand,
+  type StorybookPage,
+} from '../../great-storybook/pages';
 import type { QuestDefinition, QuestObjective } from '../types';
 
 /**
@@ -50,8 +55,21 @@ import type { QuestDefinition, QuestObjective } from '../types';
 const GREAT_STORYBOOK_RESTORED = {
   locationSlug: 'storykeeper-castle',
   changeType: 'CREATE',
-  changeKey: 'GREAT_STORYBOOK_RESTORED',
+  changeKey: GREAT_STORYBOOK_RESTORED_KEY,
 };
+
+/**
+ * Edition 2 of the book (the Pathfinder page "The Painted Words") is recorded by its own world
+ * change, so a child who restored edition 1 keeps `GREAT_STORYBOOK_RESTORED` and its seal.
+ */
+const GREAT_STORYBOOK_RESTORED_V2 = {
+  locationSlug: 'storykeeper-castle',
+  changeType: 'CREATE',
+  changeKey: GREAT_STORYBOOK_RESTORED_V2_KEY,
+};
+
+/** Set when a child has finished the whole current book, so Quill does not offer the follow-up. */
+const MORE_PAGES_FLAG = 'restoredTheStorybookMore';
 
 function storybookObjective(page: StorybookPage): QuestObjective {
   if (page.source.kind === 'DISCOVERY') {
@@ -77,6 +95,8 @@ function greatStorybookQuest(
   id: string,
   summary: string,
   journalNote: string,
+  /** A band whose book is on edition 2 writes both restored changes in one completion. */
+  editionTwo = false,
 ): QuestDefinition {
   return {
     id,
@@ -109,8 +129,15 @@ function greatStorybookQuest(
     ],
     completion: {
       journalNote,
-      worldChanges: [GREAT_STORYBOOK_RESTORED],
-      setsNpcMemoryFlags: [{ npcId: 'keeper-quill', flags: ['restoredTheStorybook'] }],
+      worldChanges: editionTwo
+        ? [GREAT_STORYBOOK_RESTORED, GREAT_STORYBOOK_RESTORED_V2]
+        : [GREAT_STORYBOOK_RESTORED],
+      setsNpcMemoryFlags: [
+        {
+          npcId: 'keeper-quill',
+          flags: editionTwo ? ['restoredTheStorybook', MORE_PAGES_FLAG] : ['restoredTheStorybook'],
+        },
+      ],
     },
   };
 }
@@ -120,6 +147,45 @@ export const GREAT_STORYBOOK_QUEST_IDS = {
   PATHFINDER: 'restore-the-great-storybook-pathfinders',
   EXPLORER: 'restore-the-great-storybook-explorers',
 } as const satisfies Record<AgeBandValue, string>;
+
+/** The follow-up for children who restored edition 1 before "The Painted Words" was added. */
+export const GREAT_STORYBOOK_MORE_QUEST_IDS = {
+  PATHFINDER: 'restore-the-great-storybook-pathfinders-more',
+} as const;
+
+/**
+ * One new loose page, for a Pathfinder who already restored the book. It requires the original
+ * quest to be COMPLETED, asks for the one new page, and on completion writes only the V2 change:
+ * no reward rule names this quest, so the seal is never granted twice.
+ */
+const greatStorybookMoreQuest: QuestDefinition = {
+  id: GREAT_STORYBOOK_MORE_QUEST_IDS.PATHFINDER,
+  title: 'One More Page',
+  summary: 'A new page of the Great Storybook has been found. Help Keeper Quill bring it back.',
+  giverNpcId: 'keeper-quill',
+  ageBands: ['PATHFINDER'],
+  prerequisites: [{ type: 'QUEST_COMPLETED', questId: GREAT_STORYBOOK_QUEST_IDS.PATHFINDER }],
+  entryStageId: 'mend-the-painted-words',
+  stages: [
+    {
+      id: 'mend-the-painted-words',
+      title: 'Bring back the new page',
+      objectives: [
+        {
+          id: 'storybook-more-page-painted-words',
+          kind: 'BUILD',
+          changeKey: 'STUDIO_PAGE_MENDED',
+          label: 'Bring back the page called "The Painted Words"',
+        },
+      ],
+    },
+  ],
+  completion: {
+    journalNote: 'The new page is back. The Great Storybook is whole again, and its seal is still yours.',
+    worldChanges: [GREAT_STORYBOOK_RESTORED_V2],
+    setsNpcMemoryFlags: [{ npcId: 'keeper-quill', flags: [MORE_PAGES_FLAG] }],
+  },
+};
 
 const GREAT_STORYBOOK_QUESTS: QuestDefinition[] = [
   greatStorybookQuest(
@@ -133,6 +199,7 @@ const GREAT_STORYBOOK_QUESTS: QuestDefinition[] = [
     GREAT_STORYBOOK_QUEST_IDS.PATHFINDER,
     'The Great Storybook lost its pages. Find them and bring them back to Keeper Quill.',
     'You brought the pages back and restored the Great Storybook. Its first story is yours.',
+    true,
   ),
   greatStorybookQuest(
     'EXPLORER',
@@ -140,6 +207,7 @@ const GREAT_STORYBOOK_QUESTS: QuestDefinition[] = [
     'Pages of the Great Storybook are scattered through the castle. Find them all and restore the book.',
     'Every page is back. You solved the castle secrets and restored the Great Storybook.',
   ),
+  greatStorybookMoreQuest,
 ];
 
 export const ISLAND_QUESTS: QuestDefinition[] = [

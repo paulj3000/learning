@@ -102,10 +102,14 @@ def test_three_quests_are_imported_one_per_band_with_their_own_pages(treasure):
 def test_each_quest_is_offered_by_keeper_quill_and_ends_with_the_same_effects(treasure):
     for slug in (SPROUTS, PATHFINDERS, EXPLORERS):
         completion = Quest.objects.get(slug=slug).source["completion"]
-        assert [c["changeKey"] for c in completion["worldChanges"]] == ["GREAT_STORYBOOK_RESTORED"]
-        assert completion["setsNpcMemoryFlags"] == [
-            {"npcId": "keeper-quill", "flags": ["restoredTheStorybook"]}
-        ]
+        # Pathfinders are on edition 2 and write both restored changes in one completion.
+        expected = ["GREAT_STORYBOOK_RESTORED"]
+        flags = ["restoredTheStorybook"]
+        if slug == PATHFINDERS:
+            expected.append("GREAT_STORYBOOK_RESTORED_V2")
+            flags.append("restoredTheStorybookMore")
+        assert [c["changeKey"] for c in completion["worldChanges"]] == expected
+        assert completion["setsNpcMemoryFlags"] == [{"npcId": "keeper-quill", "flags": flags}]
         rule = RewardRule.objects.get(rule_id=f"reward-{slug}")
         assert rule.trigger == {"type": "QUEST_COMPLETED", "questId": slug}
         assert [i.item_id for i in rule.items.all()] == [SEAL]

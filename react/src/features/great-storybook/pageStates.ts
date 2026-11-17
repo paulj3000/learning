@@ -3,6 +3,7 @@ import type { AdventureDefinition } from '../adventures/engine/types';
 import type { AgeBandValue } from '../child-profile/constants';
 import { producersOf } from './adventureMapping';
 import {
+  standingOf,
   type StorybookEntry,
   type StorybookPage,
   type StorybookProgress,
@@ -79,13 +80,15 @@ export function withAvailability(
   );
   const required = entries.filter((entry) => entry.page.required);
   const restoredRequired = required.filter((entry) => entry.restored).length;
+  const complete = required.length > 0 && restoredRequired === required.length;
   return {
-    band: progress.band,
+    ...progress,
     entries,
     restoredRequired,
     totalRequired: required.length,
     restoredBonus: entries.filter((entry) => !entry.page.required && entry.restored).length,
-    complete: required.length > 0 && restoredRequired === required.length,
+    complete,
+    state: standingOf(complete, progress.edition1Restored),
   };
 }
 

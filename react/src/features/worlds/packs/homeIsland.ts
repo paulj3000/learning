@@ -59,6 +59,7 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'restore-the-great-storybook-sprouts',
     'restore-the-great-storybook-pathfinders',
     'restore-the-great-storybook-explorers',
+    'restore-the-great-storybook-pathfinders-more',
   ],
   itemIds: [
     'spiral-shell',

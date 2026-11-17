@@ -414,7 +414,8 @@
         "setsNpcMemoryFlags": [
           {
             "flags": [
-              "restoredTheStorybook"
+              "restoredTheStorybook",
+              "restoredTheStorybookMore"
             ],
             "npcId": "keeper-quill"
           }
@@ -422,6 +423,11 @@
         "worldChanges": [
           {
             "changeKey": "GREAT_STORYBOOK_RESTORED",
+            "changeType": "CREATE",
+            "locationSlug": "storykeeper-castle"
+          },
+          {
+            "changeKey": "GREAT_STORYBOOK_RESTORED_V2",
             "changeType": "CREATE",
             "locationSlug": "storykeeper-castle"
           }
@@ -558,6 +564,54 @@
       ],
       "summary": "Pages of the Great Storybook are scattered through the castle. Find them all and restore the book.",
       "title": "The Great Storybook"
+    },
+    {
+      "ageBands": [
+        "PATHFINDER"
+      ],
+      "completion": {
+        "journalNote": "The new page is back. The Great Storybook is whole again, and its seal is still yours.",
+        "setsNpcMemoryFlags": [
+          {
+            "flags": [
+              "restoredTheStorybookMore"
+            ],
+            "npcId": "keeper-quill"
+          }
+        ],
+        "worldChanges": [
+          {
+            "changeKey": "GREAT_STORYBOOK_RESTORED_V2",
+            "changeType": "CREATE",
+            "locationSlug": "storykeeper-castle"
+          }
+        ]
+      },
+      "entryStageId": "mend-the-painted-words",
+      "giverNpcId": "keeper-quill",
+      "id": "restore-the-great-storybook-pathfinders-more",
+      "prerequisites": [
+        {
+          "questId": "restore-the-great-storybook-pathfinders",
+          "type": "QUEST_COMPLETED"
+        }
+      ],
+      "stages": [
+        {
+          "id": "mend-the-painted-words",
+          "objectives": [
+            {
+              "changeKey": "STUDIO_PAGE_MENDED",
+              "id": "storybook-more-page-painted-words",
+              "kind": "BUILD",
+              "label": "Bring back the page called \"The Painted Words\""
+            }
+          ],
+          "title": "Bring back the new page"
+        }
+      ],
+      "summary": "A new page of the Great Storybook has been found. Help Keeper Quill bring it back.",
+      "title": "One More Page"
     },
     {
       "ageBands": [

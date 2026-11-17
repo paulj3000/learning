@@ -114,3 +114,18 @@ describe('nextMissingPage', () => {
     expect(nextMissingPage(whole)).toBeUndefined();
   });
 });
+
+describe('withAvailability keeps the edition standing', () => {
+  it('leaves a restored-in-edition-1 child RESTORED_MORE_PAGES, and complete only when whole', () => {
+    const progress = storybookProgress(
+      { worldChangeKeys: ['FIRST_STORY_TOLD', 'GREAT_STORYBOOK_RESTORED'], discoveryIds: [] },
+      'PATHFINDER',
+    );
+    const view = withAvailability(progress);
+    expect(view.state).toBe('RESTORED_MORE_PAGES');
+    expect(view.complete).toBe(false);
+    expect(view.edition1Restored).toBe(true);
+    // The new page's content is retired: the book is then whole for them, and RESTORED.
+    expect(withAvailability(progress, [THE_STORYKEEPERS_TALE]).state).toBe('RESTORED');
+  });
+});

@@ -124,7 +124,7 @@ describe('preservation of the existing content', () => {
       learningObjectives: 19,
       wonderWallQuestions: 4,
       stories: 5,
-      quests: 12, // 9 + the three Great Storybook quests (SC-R04)
+      quests: 13, // 9 + the three Great Storybook quests (SC-R04) + the Pathfinder follow-up
       items: 33, // + the Great Storybook seal
       collectibleSets: 2,
       rewardRules: 26, // + one seal rule per band's Great Storybook quest

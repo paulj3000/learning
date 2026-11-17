@@ -9,6 +9,12 @@ restore it, and nothing here grants or records anything. Asking is read-only.
 The pages are in `great_storybook_pages.json`, which mirrors the client's `STORYBOOK_PAGES`
 (`react/src/features/great-storybook/pages.ts`); a Vitest test fails if the two differ.
 
+**Editions.** Each page has a `since` edition. A child whose edition-1 restoration is on record
+(`GREAT_STORYBOOK_RESTORED`) keeps it when a later edition adds a required page: they are
+`RESTORED_MORE_PAGES` (not "incomplete"), with the original quest, world change and seal intact.
+`complete` keeps its strict meaning (every required page is back, which is `RESTORED`). A
+follow-up quest (`moreQuests`) asks for the new page and writes `GREAT_STORYBOOK_RESTORED_V2`.
+
 Age is the child's own band on their profile, read here and never taken from the request.
 Each band's book is whole when *its required pages* are back. The hidden nook page is a bonus in
 every band and is **listed only once it is restored**: a slot for a secret the child has not found
@@ -27,6 +33,15 @@ _DATA = json.loads((Path(__file__).parent / "great_storybook_pages.json").read_t
 PAGES: tuple[dict, ...] = tuple(_DATA["pages"])
 #: age band -> the slug of that band's Great Storybook quest.
 QUEST_SLUGS: dict[str, str] = dict(_DATA["quests"])
+#: age band -> the slug of the follow-up quest for children who restored an earlier edition.
+MORE_QUEST_SLUGS: dict[str, str] = dict(_DATA["moreQuests"])
+EDITION: int = int(_DATA["edition"])
+
+RESTORED_KEY = "GREAT_STORYBOOK_RESTORED"
+
+IN_PROGRESS = "IN_PROGRESS"
+RESTORED_MORE_PAGES = "RESTORED_MORE_PAGES"
+RESTORED = "RESTORED"
 
 NOT_STARTED = "NOT_STARTED"
 
@@ -59,6 +74,20 @@ def progress(child) -> dict:
         if quest_slug
         else None
     )
+    complete = bool(required) and restored_required == len(required)
+    edition1_restored = RESTORED_KEY in changes or complete
+    if complete:
+        state_name = RESTORED
+    elif edition1_restored:
+        state_name = RESTORED_MORE_PAGES
+    else:
+        state_name = IN_PROGRESS
+    more_slug = MORE_QUEST_SLUGS.get(band)
+    more = (
+        QuestProgress.objects.for_child(child).filter(quest__slug=more_slug).first()
+        if more_slug
+        else None
+    )
     return {
         "band": band,
         # A bonus page is shown only once found, never as an empty slot.
@@ -77,6 +106,14 @@ def progress(child) -> dict:
         "restoredRequired": restored_required,
         "totalRequired": len(required),
         "restoredBonus": sum(1 for page, restored in entries if restored and not page["required"]),
-        "complete": bool(required) and restored_required == len(required),
+        "complete": complete,
+        "state": state_name,
+        "edition": EDITION,
         "quest": {"questId": quest_slug, "status": quest.status if quest else NOT_STARTED},
+        # The follow-up for a child who restored an earlier edition. Null for a band with none.
+        "moreQuest": (
+            {"questId": more_slug, "status": more.status if more else NOT_STARTED}
+            if more_slug
+            else None
+        ),
     }

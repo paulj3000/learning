@@ -262,3 +262,86 @@ describe('what a child is shown, and merging the server', () => {
     expect(newlyRestored(restoredIds(after), after)).toEqual([]);
   });
 });
+
+describe('editions and the derived state', () => {
+  const state = (keys: string[], discoveries: string[] = []) => ({
+    worldChangeKeys: keys,
+    discoveryIds: discoveries,
+  });
+  const standing = (keys: string[], band: AgeBandValue = 'PATHFINDER') =>
+    storybookProgress(state(keys), band);
+
+  it('stamps each page with the edition that introduced it: only the Painted Words is edition 2', () => {
+    for (const page of STORYBOOK_PAGES) {
+      expect(page.since, page.id).toBe(page.id === 'page-painted-words' ? 2 : 1);
+    }
+    expect(standing([]).edition).toBe(2);
+  });
+
+  it.each([
+    ['nothing done', [], 'IN_PROGRESS', false],
+    ['only the first story', ['FIRST_STORY_TOLD'], 'IN_PROGRESS', false],
+    [
+      'restored in edition 1, new page not yet found',
+      ['FIRST_STORY_TOLD', 'GREAT_STORYBOOK_RESTORED'],
+      'RESTORED_MORE_PAGES',
+      false,
+    ],
+    [
+      'edition 1 marker alone still counts as restored',
+      ['GREAT_STORYBOOK_RESTORED'],
+      'RESTORED_MORE_PAGES',
+      false,
+    ],
+    [
+      'every required page back',
+      ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'],
+      'RESTORED',
+      true,
+    ],
+    [
+      'every page back with both markers',
+      [
+        'FIRST_STORY_TOLD',
+        'STUDIO_PAGE_MENDED',
+        'GREAT_STORYBOOK_RESTORED',
+        'GREAT_STORYBOOK_RESTORED_V2',
+      ],
+      'RESTORED',
+      true,
+    ],
+  ] as const)('a Pathfinder with %s is %s (complete %s)', (_label, keys, expected, complete) => {
+    const book = standing([...keys]);
+    expect(book.state).toBe(expected);
+    expect(book.complete).toBe(complete);
+  });
+
+  it('keeps complete strict: a restored-in-edition-1 Pathfinder is not complete', () => {
+    const book = standing(['FIRST_STORY_TOLD', 'GREAT_STORYBOOK_RESTORED']);
+    expect(book.complete).toBe(false);
+    expect(book.edition1Restored).toBe(true);
+  });
+
+  it('leaves Sprouts and Explorers unchanged', () => {
+    expect(standing(['FIRST_STORY_TOLD'], 'SPROUT').state).toBe('RESTORED');
+    expect(standing([], 'SPROUT').state).toBe('IN_PROGRESS');
+    const explorerKeys = [
+      'SECRET_DOOR_CLUES_COLLECTED',
+      'CASTLE_SECRET_DOOR_OPENED',
+      'THE_CASTLES_SECRET_DOOR_COMPLETE',
+    ];
+    expect(standing(explorerKeys, 'EXPLORER').state).toBe('RESTORED');
+    expect(standing(explorerKeys.slice(0, 2), 'EXPLORER').state).toBe('IN_PROGRESS');
+  });
+
+  it('counts the server saying edition 1 is restored, and never lowers it', () => {
+    const local = standing([]);
+    expect(withRestored(local, new Set(), true).state).toBe('RESTORED_MORE_PAGES');
+    const kept = withRestored(
+      standing(['GREAT_STORYBOOK_RESTORED']),
+      new Set(),
+      false,
+    );
+    expect(kept.state).toBe('RESTORED_MORE_PAGES');
+  });
+});

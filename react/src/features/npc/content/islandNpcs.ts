@@ -188,6 +188,16 @@ export const ISLAND_NPCS: NpcDefinition[] = [
         summary,
         conditions: [{ type: 'MEMORY_FLAG' as const, flag: 'restoredTheStorybook', equals: false }],
       })),
+      // A Pathfinder who restored the book before "The Painted Words" existed is offered the one
+      // new page. A child who finished the whole current book has the flag and is not.
+      {
+        questId: 'restore-the-great-storybook-pathfinders-more',
+        summary: 'A new page of the Great Storybook has been found. Help Keeper Quill bring it back.',
+        conditions: [
+          { type: 'QUEST_COMPLETED' as const, questId: 'restore-the-great-storybook-pathfinders' },
+          { type: 'MEMORY_FLAG' as const, flag: 'restoredTheStorybookMore', equals: false },
+        ],
+      },
     ],
   },
   {
