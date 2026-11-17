@@ -88,10 +88,18 @@ class MemoryObjectStorage:
         return f"v{next(self._versions):06d}"
 
     def seed(
-        self, ref: ObjectRef, data: bytes, *, content_type: str | None = None
+        self,
+        ref: ObjectRef,
+        data: bytes,
+        *,
+        content_type: str | None = None,
+        version_id: str | None = None,
     ) -> ObjectInfo:
-        """Place an object (any store), returning its info with a new version id."""
-        stored = StoredObject(data, content_type, self._next_version(), sha256_hex(data))
+        """Place an object (any store), returning its info. The version id is `version_id` when
+        given (to mirror a request that pins one), otherwise a new generated id."""
+        stored = StoredObject(
+            data, content_type, version_id or self._next_version(), sha256_hex(data)
+        )
         self.objects.setdefault((ref.store.value, ref.key), []).append(stored)
         return self._info(ref, stored)
 
