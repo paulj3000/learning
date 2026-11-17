@@ -161,3 +161,26 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.celebrate {
+  margin: 0.5rem 0;
+  font-weight: 700;
+}
+
+/* The celebration only moves for children who have not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .celebrate {
+    animation: storybook-glow 1.2s ease-out 1;
+  }
+}
+
+@keyframes storybook-glow {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

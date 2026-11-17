@@ -544,6 +544,7 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
     it('offers the already-told narration once a story is on the shelf', async () => {
       vi.mocked(listAllWorldChanges).mockResolvedValue([
         { changeKey: 'FIRST_STORY_TOLD' },
+        { changeKey: 'STUDIO_PAGE_MENDED' },
       ] as never);
       await renderAndWait();
       await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
@@ -827,13 +828,14 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       expect(
         await screen.findByRole('heading', { name: 'The Great Storybook' }),
       ).toBeInTheDocument();
-      expect(screen.getByText('0 of 1 missing pages are back.')).toBeInTheDocument();
-      expect(screen.getByText(/Missing\. Tell a story with Keeper Quill/)).toBeInTheDocument();
+      expect(screen.getByText('0 of 2 missing pages are back.')).toBeInTheDocument();
+      expect(screen.getByText(/Missing\. Not found yet\. Tell a story with Keeper Quill/)).toBeInTheDocument();
     });
 
     it('shows a child who finished the Tale long ago a whole book, and announces nothing', async () => {
       vi.mocked(listAllWorldChanges).mockResolvedValue([
         { changeKey: 'FIRST_STORY_TOLD' },
+        { changeKey: 'STUDIO_PAGE_MENDED' },
       ] as never);
       await renderAndWait('PATHFINDER');
       await openGuide();
@@ -844,7 +846,7 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
 
     it.each([
       ['SPROUT', ['The First Story']],
-      ['PATHFINDER', ['The First Story']],
+      ['PATHFINDER', ['The First Story', 'The Painted Words']],
       ['EXPLORER', ['Three Clues', 'The Pattern Lock', 'What Was Waiting']],
     ] as const)('gives a %s only their own pages', async (band, titles) => {
       await renderAndWait(band);
@@ -872,7 +874,7 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       await renderAndWait('PATHFINDER');
       await openGuide();
       expect(await screen.findByText('The Hidden Page')).toBeInTheDocument();
-      expect(screen.getByText('0 of 1 missing pages are back.')).toBeInTheDocument();
+      expect(screen.getByText('0 of 2 missing pages are back.')).toBeInTheDocument();
     });
   });
 

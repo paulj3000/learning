@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { storybookApiFor, type StorybookApi } from '../../api/play/storybookApi';
 import type { AgeBandValue } from '../child-profile/constants';
 import {
@@ -54,10 +54,16 @@ export function useGreatStorybook(options: {
   );
   const localKey = [...restoredIds(local)].sort().join(',');
   const [serverRestored, setServerRestored] = useState<ReadonlySet<string>>(new Set());
+  const [status, setStatus] = useState<StorybookStatus>(server ? 'loading' : 'local');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (!server) return;
+    if (!server) {
+      setStatus('local');
+      return;
+    }
     let cancelled = false;
+    setStatus('loading');
     server
       .get()
       .then((book) => {
@@ -65,12 +71,15 @@ export function useGreatStorybook(options: {
         setServerRestored(
           new Set(book.pages.filter((page) => page.restored).map((page) => page.id)),
         );
+        setStatus('ready');
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setStatus('offline');
+      });
     return () => {
       cancelled = true;
     };
-  }, [server, localKey]);
+  }, [server, localKey, attempt]);
 
   const progress = useMemo(() => withRestored(local, serverRestored), [local, serverRestored]);
 
@@ -90,5 +99,6 @@ export function useGreatStorybook(options: {
   }, [local, onPageRestored, onBookRestored]);
 
   const entries = useMemo(() => visibleEntries(progress), [progress]);
-  return { progress, entries };
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  return { progress, entries, status, retry };
 }
