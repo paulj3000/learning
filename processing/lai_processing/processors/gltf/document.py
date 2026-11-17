@@ -157,6 +157,7 @@ COMPLEXITY_DEFAULTS: Final[Mapping[str, int]] = {
     "max_joints": 10_000,
     "max_json_bytes": 16 * 1024 * 1024,
     "max_json_depth": 64,
+    "max_json_elements": 1_000_000,
     "max_materials": 500,
     "max_meshes": 2_000,
     "max_node_depth": 64,
@@ -175,6 +176,8 @@ COMPLEXITY_CEILINGS: Final[Mapping[str, int]] = {
     **{name: value * 10 for name, value in COMPLEXITY_DEFAULTS.items()},
     "max_json_bytes": 64 * 1024 * 1024,
     "max_json_depth": 128,
+    # Not raisable: the element bound is what keeps parsing inside the media function's memory.
+    "max_json_elements": 1_000_000,
     "max_node_depth": 256,
 }
 
@@ -1484,7 +1487,13 @@ def validate_glb(
         outcome.layout = read_layout(handle, size, report, settings.limit("max_json_bytes"))
         raw = read_at(handle, outcome.layout.json_offset, outcome.layout.json_length, size)
         check()
-        document = parse_document(raw, report, settings.limit("max_json_depth"), check)
+        document = parse_document(
+            raw,
+            report,
+            settings.limit("max_json_depth"),
+            settings.limit("max_json_elements"),
+            check,
+        )
         del raw
         validator = _Validator(handle, outcome.layout, document, settings, report, check)
         try:

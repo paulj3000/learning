@@ -136,6 +136,18 @@ included) the object is deleted, no row or job remains, and the upload fails wit
 stored."). Any other failure also deletes the object and re-raises. Admin tells staff the version
 was stored as a draft and is being validated in the background.
 
+Other callers of `upload_version` with the flag on:
+
+- `manage.py import_assets` (`importer.py`) imports a GLB as a `DRAFT` with a queued job and
+  reports it as `Imported (DRAFT, background validation queued)`; every imported entry carries
+  its version's status (`docs/ASSET_LIBRARY.md` section 11). It never publishes.
+- `manage.py add_pip_pirate_variant` (NPC Manager) uploads the pirate GLB and publishes it. When
+  the upload is a `DRAFT` (a queue backend), it prints "Model: queued for background validation;
+  rerun this command after it passes." and exits cleanly before publishing, creating the variant,
+  moving the placement or publishing an NPC release. A rerun finds the same file (no second
+  version); once it is `VALIDATED` with a passing job the rerun publishes it and continues. With
+  the inline backend the draft is validated before the upload returns, so one run completes.
+
 ## 7. Django Admin
 
 On the asset version change page, a read-only **Background validation** section appears when
@@ -150,14 +162,33 @@ the flag is on or the version has a validation job (otherwise the page is unchan
   materials, textures, skins and animation clips (exact names, durations).
 
 Every value is escaped (`format_html`). Only a passing verdict for exactly this version's file is
-reported as passed; a pass by an older processor version says a new validation is needed.
+reported as passed; a pass by an older processor version says a new validation is needed. The
+Processing status also says whether publishing is allowed now ("Publishing: allowed now", "not
+allowed now (`code`)" with the reason, or "this version is published"). It comes from the gate
+itself, `services.publish_refusal` (asset active, `VALIDATED`, and `_has_passing_validation` when
+asynchronous validation applies), the same checks `publish_version` runs before it re-reads the
+stored file. Animation clip names are shown verbatim in `<code>` with `white-space: pre`, so
+`"Idle "` and `"Idle"` differ visibly; an empty name is "(empty name)" and a missing one "(no
+name)".
+
+**Saving the change page** writes only the editable field (`notes`, `EDITABLE_FIELDS` in
+`admin.py`) with `save(update_fields=...)`, so the model's transition and immutability checks
+still run. It never writes the row as it was loaded: a result applied while the form was open
+(`DRAFT` to `VALIDATED`, the report and `metadata["model_validation"]`) is kept. The change is
+recorded in the admin history as before.
 
 **Validate in background** (bulk action; staff with upload and view permission on asset
-versions; at most 50 versions per run): submits `asset.validate_model` for each selected GLB of
-an active asset, or reports the existing job for the same file (section 9 says exactly when a new
-job is made). It works whatever the flag says and never changes the version. It is the way to revalidate an existing or published model
-without rewriting its metadata (a non-draft gets `result_recorded`). Retired assets and non-GLB
-formats are refused with a message.
+versions): submits `asset.validate_model` for each selected GLB of an active asset, or reports the
+existing job for the same file (section 9 says exactly when a new job is made). At most 50
+versions are processed per run; when more are selected, a warning says only the first 50 were
+processed. It works whatever the flag says and never changes the version itself. It is the way
+to revalidate an existing or published model without rewriting its metadata (a non-draft gets
+`result_recorded`). Retired assets and non-GLB formats are refused with a message. Each newly
+submitted job is recorded in the version's admin history (`LogEntry`, "Submitted background
+validation job <id>."); a reported existing job is not. When a new job replaces an earlier one,
+the message gives the actual reason: the earlier job failed; its result was not applied (refused
+or superseded); the validator version changed; its verdict was `fail`; or it passed but the
+version is still a draft (recovery, section 9).
 
 ## 8. Publication gate
 
@@ -221,7 +252,8 @@ sees the first one's job), `submit_model_validation` reads the newest job of the
 |---|---|
 | none | submits a new job |
 | `PENDING` or `RUNNING` | returns it (never a duplicate) |
-| `COMPLETED`, outcome `version_validated` or `result_recorded`, verdict `pass` | returns it |
+| `COMPLETED`, outcome `version_validated` or `result_recorded`, verdict `pass`, version not a `DRAFT` | returns it |
+| `COMPLETED`, verdict `pass`, but the version is still a `DRAFT` | submits a new job (recovery; see below) |
 | `COMPLETED`, verdict `fail` (`version_rejected`, or `result_recorded` for a non-draft) | submits a new job (explicit action only; see below) |
 | `COMPLETED`, refused or not applied (`*_mismatch`, `result_invalid`, `version_missing`, `result_superseded`) | submits a new job |
 | `FAILED`, any code: `timeout` (swept, DLQ), `submit_failed`, `marked_failed` (operator), `cancelled`, `job_expired`, `input_missing`, `checksum_mismatch`, `resource_limit_exceeded`, `permission_denied`, `invalid_payload`, `internal_error` | submits a new job |
@@ -236,6 +268,14 @@ times out), so the cap is needed. It counts the job rows that exist: failed jobs
 count is effectively per file and processor version; a new processor version or a new upload of
 the file (a new version) starts again, and an operator may delete failed job rows.
 
+**A pass whose version is still a draft.** A passing result moves the draft to `VALIDATED` in the
+transaction that records it, so a `DRAFT` with an applied pass means that change was lost (the
+Admin change form's save is now limited to the notes for this reason). `reusable(job,
+version_status=...)` does not return such a pass; `submit_model_validation` re-reads the version's
+status under the asset lock. Validate in background then submits a new job, which is the newest
+one, so its result applies to the draft (the old job's result is not re-applied). The attempt cap
+still applies; when it is reached the remedy is the same as for exhausted attempts below.
+
 **Cancelled.** `ProcessingJob` has no cancelled status, and none was added. A contract
 `CANCELLED` result (`RetryClass.CANCELLED`) leaves the worker as a non-retryable `TaskError` and
 becomes a schema-1 `failed` result with error code `cancelled`; an operator's cancel is the jobs
@@ -249,6 +289,18 @@ processor fix), but a `REJECTED` version never changes again: the new result is
 `result_recorded`, whatever its verdict, and `publish_version` refuses it with `not_validated`.
 Uploading the same bytes again as a new version is allowed (`REJECTED` versions do not count as
 duplicates) and is the way to publish a file a newer processor accepts.
+
+**Attempts exhausted.** After `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` jobs for the same logical work
+the Admin refuses another (`attempts_exhausted`). A `DRAFT` or `VALIDATED` version still counts
+as a duplicate of its own bytes, so the remedy is to delete the unpublished version (Delete
+unpublished version) and upload the file again, which starts a new count. Failed jobs are kept
+for review and are not pruned (owner decision pending on pruning them after the validation
+retention period).
+
+**A job stuck `RUNNING`.** A job whose work reached the media DLQ stays `RUNNING` until
+`jobs_sweep` times it out, which it defers while the results queue holds messages; while it is
+`RUNNING`, Validate in background returns the same job. If steady result traffic keeps the sweep
+deferring, staff with the jobs permission use "mark failed" on the job, then validate again.
 
 **Late results.** A job's result applies only while the job is unfinished (`apply_result` ignores
 anything for a terminal job), and `apply(job)` changes a version only when no newer validation job
@@ -331,11 +383,13 @@ retried. The sweep does not time jobs out while results are queued.
 ```bash
 # Unit and integration tests (no AWS):
 .venv/bin/python -m pytest -q tests/processing tests/lambda/test_jobs_worker_contract.py \
-  tests/lambda/test_jobs_worker_package.py tests/repo/test_canonical_processing_guard.py \
-  lai/apps/jobs/tests/test_contract_kinds.py lai/apps/assets/tests/test_async_upload.py \
+  tests/lambda/test_jobs_worker_package.py tests/lambda/test_jobs_worker_asset_errors.py \
+  tests/repo/test_canonical_processing_guard.py tests/deploy/test_upload_body_limit.py \
+  lai/apps/jobs/tests/test_contract_kinds.py lai/apps/jobs/tests/test_contract_storage_errors.py \
+  lai/apps/jobs/tests/test_migration_rollback.py lai/apps/assets/tests/test_async_upload.py \
   lai/apps/assets/tests/test_model_validation_results.py \
   lai/apps/assets/tests/test_model_validation_canonical.py \
-  lai/apps/assets/tests/test_model_validation_retry.py \
+  lai/apps/assets/tests/test_model_validation_retry.py lai/apps/assets/tests/test_glb_limit.py \
   lai/apps/assets/tests/test_publication_gate.py lai/apps/assets/tests/test_admin_validation.py \
   lai/apps/assets/tests/test_glb_processing_parity.py
 
@@ -367,6 +421,15 @@ the resolver; a broken model `REJECTED`; and a count showing no AWS calls.
   `deploy-dev-lambda.yml`; Django by `deploy-dev-native.yml` (native release tarball with
   `processing/lai_processing`) or `deploy-django-ec2.yml` (image). All three trigger on
   `processing/lai_processing/**`.
+- **Rollback.** Prefer rolling forward. A code-only rollback (the schema stays at `jobs.0003`)
+  works for inserts (both new columns keep `DEFAULT ''`), but the earlier release knows neither
+  the new kinds nor their handlers, so before it: switch `LAI_ASSET_ASYNC_VALIDATION` off, wait
+  for the media queue and results queue to drain, then mark every unfinished
+  `asset.validate_model` and `reference.checksum` job failed (Django Admin, Background jobs,
+  "mark failed"). Otherwise the older `jobs_sweep` and outbox relay stop on the first such job
+  (`KeyError` for an unknown kind). Reversing the migration itself is refused while rows of the
+  new kinds exist (a clear error, not a constraint violation); delete them first if the schema
+  must go back.
 - Nothing deploys on merge unless the repository variables are `'true'`
   (`LAI_DEV_NATIVE_ENABLED` for the native release and the Lambda workers, `LAI_DEPLOY_ENABLED`
   for the image workflow). Every deployment is an owner approval; live acceptance is LAI-LAMBDA-011.
@@ -374,6 +437,7 @@ the resolver; a broken model `REJECTED`; and a count showing no AWS calls.
   refuses the extra field as `invalid_payload` (a failed inspection job, nothing else), so deploy
   the worker zip before, or with, the Django release that sends it. An old payload still queued
   when the new worker arrives is accepted (64 MiB ceiling).
-- Open owner decisions before live use are listed in `CANONICAL_PATH.md`, "Remaining work and
-  owner decisions" (media role `s3:ListBucket`, artifact writes). The input ceiling is decided:
-  `LAI_ASSET_MAX_GLB_BYTES`, 50 MiB (owner, 2026-11-17).
+- The open owner decision before live use (artifact writes) is listed in `CANONICAL_PATH.md`,
+  "Remaining work and owner decisions". Decided (owner, 2026-11-17) and implemented, not
+  deployed: the media role's scoped `s3:ListBucket` (`ListAssetBucket`) and the input ceiling,
+  `LAI_ASSET_MAX_GLB_BYTES`, 50 MiB.

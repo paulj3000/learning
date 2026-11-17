@@ -238,6 +238,10 @@ def data_uri(media: str, data: bytes) -> str:
 
 # --- the shared parity corpus ----------------------------------------------------------------
 
+# COMPLEXITY_DEFAULTS["max_json_elements"] and Django's LIMITS["json_elements"] (a parity test
+# checks all three agree).
+JSON_ELEMENTS = 1_000_000
+
 
 @dataclass(frozen=True)
 class ParityCase:
@@ -299,6 +303,32 @@ def _corpus() -> list[ParityCase]:
         ParityCase("invalid_json", glb(b"{not json", b""), E({"invalid_json"})),
         ParityCase("json_not_object", glb(b"[1, 2]", b""), E({"invalid_json"})),
         ParityCase("invalid_utf8", glb(b'{"asset": "\xff"}', b""), E({"invalid_json"})),
+        # The JSON structure pre-scan, shared by both validators (`max_json_depth`,
+        # `max_json_elements`): refused before anything is parsed.
+        ParityCase(
+            "deep_json",
+            glb(b'{"asset": {"version": "2.0"}, "extras": ' + b"[" * 100 + b"]" * 100 + b"}", b""),
+            E({"invalid_json"}),
+        ),
+        ParityCase(
+            "json_too_many_elements",
+            glb(
+                b'{"asset": {"version": "2.0"}, "x": [' + b"0," * JSON_ELEMENTS + b"0]}",
+                b"",
+            ),
+            E({"too_complex"}),
+        ),
+        ParityCase(
+            "json_unterminated_string",
+            glb(b'{"asset": {"version": "2.0"}, "x": "abc\\"}', b""),
+            E({"invalid_json"}),
+        ),
+        ParityCase(
+            # Brackets, separators and escaped quotes inside strings are not structure.
+            "json_structure_inside_strings",
+            mutated(_set("asset.generator", '[{,:\\"' * 200)),
+            E(),
+        ),
         ParityCase("gltf_version_1", mutated(_set("asset.version", "1.0")), E({"gltf_version"})),
         ParityCase(
             "draco_required",
@@ -426,14 +456,6 @@ def _corpus() -> list[ParityCase]:
             E({"no_scene"}),
             E({"invalid_json"}),
             "NaN and Infinity are refused by the strict parser; Django accepts them.",
-        ),
-        ParityCase(
-            "deep_json",
-            glb(b'{"asset": {"version": "2.0"}, "extras": ' + b"[" * 100 + b"]" * 100 + b"}", b""),
-            E({"no_scene"}),
-            E({"invalid_json"}),
-            "Nesting deeper than max_json_depth (64) is refused; Django parses up to Python's "
-            "recursion limit.",
         ),
         ParityCase(
             "odd_byte_stride",

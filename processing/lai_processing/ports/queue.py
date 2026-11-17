@@ -1,10 +1,12 @@
 """Queue transport port: at-least-once delivery, explicit acknowledgement.
 
+Library-only; not used on the canonical path (ADR-064).
+
 The port models what SQS standard queues guarantee and nothing more: a message may be delivered
 more than once, out of order, and after a delay; it stays in flight until acknowledged or until
-its visibility timeout ends. Consumers must therefore be idempotent (docs/processing/
-LIFECYCLE.md). The same port serves the work queue (Django -> worker) and the completion queue
-(worker -> Django).
+its visibility timeout ends. Consumers must therefore be idempotent
+(docs/processing/CANONICAL_PATH.md). The same port serves the work queue (Django -> worker) and
+the completion queue (worker -> Django).
 
 `message_id` and `receipt` are transport identities. They never become job identity: the job,
 attempt and idempotency key live in the message body.

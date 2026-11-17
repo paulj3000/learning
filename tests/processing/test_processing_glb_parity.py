@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from glb_builder import PARITY_CORPUS, ParityCase, validate
+from glb_builder import JSON_ELEMENTS, PARITY_CORPUS, ParityCase, validate
 
 from lai_processing.contracts import Severity
 from lai_processing.processors.gltf.document import (
@@ -95,10 +95,13 @@ def test_count_limits_match_django() -> None:
         "materials": "max_materials",
         "images": "max_images",
         "depth": "max_node_depth",
+        "json_depth": "max_json_depth",
+        "json_elements": "max_json_elements",
     }
     assert set(django) == set(pairs)
     for name, ours in pairs.items():
         assert COMPLEXITY_DEFAULTS[ours] == django[name], name
+    assert JSON_ELEMENTS == COMPLEXITY_DEFAULTS["max_json_elements"]
 
 
 def _product(node: ast.expr) -> int:

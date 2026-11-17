@@ -4,8 +4,9 @@ The superseded serverless-processing plan (PR #40 and #41) must not come back by
 `LaiProcessing-<env>` or `LaiProcessingImages-<env>` stack, no ECR worker image
 (`Dockerfile.lambda`), no `deploy-processing.yml`, no `lai_processing_runtime`, no
 `jobs_dispatch` or `jobs_consume_completions` command and no `lai-jobs-dispatch` or
-`lai-jobs-completions` unit. `jobs_consume_results` is the only results consumer. Changing any
-of this needs a new ADR, not an edit to this test.
+`lai-jobs-completions` unit, and no `processing-dev` or `processing-prod` GitHub environment
+(the existing environments are reused). `jobs_consume_results` is the only results consumer.
+Changing any of this needs a new ADR, not an edit to this test.
 """
 
 import re
@@ -22,8 +23,10 @@ FORBIDDEN_NAMES = re.compile(
 FORBIDDEN_TEXT = re.compile(
     r"LaiProcessing|Dockerfile\.lambda|deploy-processing\.ya?ml|lai_processing_runtime"
     r"|jobs_dispatch|jobs_consume_completions|lai-jobs-dispatch|lai-jobs-completions"
+    r"|\bprocessing-(dev|prod)\b"
 )
-#: Deployable code and configuration (docs and this test describe the superseded plan by name).
+#: Deployable code and configuration. Only these roots are scanned, so the ADRs and history docs
+#: that name the superseded plan (and this test) stay allowed.
 CODE_ROOTS = ("infra", "lambda", "scripts", "deploy", ".github", "lai", "processing", "Makefile")
 
 

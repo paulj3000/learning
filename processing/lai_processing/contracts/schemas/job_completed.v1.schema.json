@@ -2,7 +2,7 @@
   "$id": "https://lai.invalid/processing/schemas/job_completed.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "The message a worker sends to the completion queue (lai_processing.contracts.events.CompletionEvent). Exactly one of result (inline) and result_ref (the canonical result JSON stored as a report.job_result artifact of the same attempt) is set. The event is not trusted on its own: Django accepts it only when job, attempt, idempotency key, namespace and input checksum match its record (core/lifecycle.py decide_completion). The Python decoder is authoritative and also checks that the envelope mirrors the inline result and that result_sha256 is the SHA-256 of the result's canonical JSON.",
+  "description": "Library-only; not used on the canonical path (ADR-064). The message a worker sends to the completion queue (lai_processing.contracts.events.CompletionEvent). Exactly one of result (inline) and result_ref (the canonical result JSON stored as a report.job_result artifact of the same attempt) is set. The event is not trusted on its own: Django accepts it only when job, attempt, idempotency key, namespace and input checksum match its record (core/lifecycle.py decide_completion). The Python decoder is authoritative and also checks that the envelope mirrors the inline result and that result_sha256 is the SHA-256 of the result's canonical JSON.",
   "oneOf": [
     {
       "description": "Inline result.",

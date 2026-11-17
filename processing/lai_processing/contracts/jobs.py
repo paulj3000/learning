@@ -63,7 +63,7 @@ _REQUIRED: Final = frozenset(
 class ProcessingJobRequest:
     """One attempt to run one logical job.
 
-    Identity, from most to least stable (docs/processing/LIFECYCLE.md):
+    Identity, from most to least stable (docs/processing/CONTRACTS.md, section 3):
     - idempotency_key: the logical work (same input, type, profile, options, namespace).
     - job_id: Django's job row for that logical work.
     - attempt_id: one execution attempt of the job; a retry gets a new attempt id.

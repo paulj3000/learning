@@ -98,7 +98,9 @@ One service, used by upload, import and publish. Reads at most the configured li
 executes anything, never follows a URI. Each finding is `{code, severity, message, path}`;
 any `error` means `REJECTED`. Checks: identity (id pattern, definition active), format by
 signature, size (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MiB = 52,428,800 bytes, and for a GLB
-`LAI_ASSET_MAX_GLB_BYTES`, section 13; JSON chunk 16 MB), GLB header,
+`LAI_ASSET_MAX_GLB_BYTES`, section 13; JSON chunk 16 MB, and before parsing at most 64 levels
+of nesting and 1,000,000 structural elements, `docs/processing/GLB_VALIDATION.md` section 3),
+GLB header,
 length and chunk layout, glTF `asset.version == "2.0"`, buffer, buffer-view and accessor
 bounds, embedded-only resources with allowed image types, supported extensions only, mesh,
 node and accessor count limits, a default scene with geometry, animation names (unique, from
@@ -227,6 +229,15 @@ next load asks again. Treasure Cove uses it (TR-10, section 15).
   unresolved.
 - `--dry-run` reports without writing. Nothing is deleted, in S3 or in Amplify, and no gameplay
   reference changes.
+- Each import goes through `services.upload_version`, and the report lists every imported file
+  with its version's status (for example `rock version 1: Imported (VALIDATED) from
+  /models/rock.glb`; `--json` adds `status` to each imported entry). With
+  `LAI_ASSET_ASYNC_VALIDATION=on` (section 23) an imported GLB is a `DRAFT` with a queued
+  `asset.validate_model` job, reported as `Imported (DRAFT, background validation queued)`, and
+  it becomes `VALIDATED` or `REJECTED` only when the background validator's result arrives (with
+  the inline jobs backend, before the command returns). `.gltf` files stay synchronous. A rerun
+  skips a draft like any other version of the same bytes; a `REJECTED` one does not count, so the
+  file would be imported again as a new version.
 
 ## 12. AWS storage (`infra/`, synthesized, not deployed)
 
@@ -565,9 +576,16 @@ an approval step.
    Publishing it in a deployed environment needs TR-3's region admin, which does not exist yet:
    `publish_treasure_rush` is local-only by design (DEBUG and loopback). **Open blocker.**
 6. **Models.** `python manage.py import_assets --from-bundled --ids npc-pip,treasure-chest,ground-tile`
-   (add `--dry-run` first to see what it would do). Idempotent; publishes nothing.
+   (add `--dry-run` first to see what it would do). Idempotent; publishes nothing. The report
+   gives each imported version's status. With `LAI_ASSET_ASYNC_VALIDATION=off` (the default)
+   they are `VALIDATED`. With it `on`, each GLB is a `DRAFT` whose background validation is
+   queued (section 11): wait until the jobs worker has validated it (the version's "Background
+   validation" section in Django Admin shows the result and whether publishing is allowed).
 7. **Publish** the three versions in Django Admin (19.2, step 3). Until then the game uses its
-   bundled copies, so this step can come later.
+   bundled copies, so this step can come later. With the flag on, only a version that is
+   `VALIDATED` with a passing background validation can be published; a draft is refused with
+   `not_validated`, a missing or outdated pass with `processing_required`, and a `REJECTED` model
+   needs a fixed file.
 8. **React.** Nothing to set: every build calls Django (AMP-03; leave `VITE_DJANGO_API_BASE`
    unset for a same-origin API). Amplify Hosting is retired.
 9. **Children.** A child must exist in Django to play: real families need the child-profile

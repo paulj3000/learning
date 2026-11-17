@@ -47,3 +47,38 @@ def test_an_insert_that_omits_the_new_columns_succeeds():
         )
     stored = ProcessingJob.objects.get(pk=job.pk)
     assert stored.idempotency_key == "" and stored.subject_outcome == ""
+
+
+def test_reversing_0003_is_refused_clearly_while_new_kind_rows_exist():
+    from importlib import import_module
+
+    from django.apps import apps as global_apps
+
+    from apps.jobs.models import ProcessingJob
+
+    migration = import_module("apps.jobs.migrations.0003_contract_kinds")
+    migration.refuse_reverse_with_new_kinds(global_apps, None)  # no rows: allowed
+    ProcessingJob.objects.create(
+        kind="reference.checksum", queue="media", payload={}, backend="inline"
+    )
+    with pytest.raises(RuntimeError, match="cannot be reversed"):
+        migration.refuse_reverse_with_new_kinds(global_apps, None)
+
+
+def test_submit_returns_a_uuid_pk_whatever_the_backend(settings):
+    from apps.jobs import services
+    from apps.jobs.models import ProcessingJob
+
+    settings.LAI_JOBS_BACKEND = "sqs"
+    settings.LAI_JOBS_MEDIA_QUEUE_URL = "https://sqs.us-west-1.amazonaws.com/123456789012/q"
+    services.set_aws_clients(sqs=object(), s3=object())
+    try:
+        job = services.submit(
+            "asset.inspect", {"asset_key": "assets/x.glb"}, job_id=str(uuid.uuid4())
+        )
+    finally:
+        services.set_aws_clients(sqs=None, s3=None)
+    assert isinstance(job.pk, uuid.UUID)
+    assert job.pk == ProcessingJob.objects.get(pk=job.pk).pk
+    with pytest.raises(services.JobsError):
+        services.submit("asset.inspect", {"asset_key": "assets/x.glb"}, job_id="not-a-uuid")

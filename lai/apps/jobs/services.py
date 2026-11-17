@@ -25,6 +25,7 @@ Logs carry job ids, kinds and codes only: never payloads, prompts, text or model
 import json
 import logging
 import re
+import uuid
 from datetime import timedelta
 from importlib import import_module
 
@@ -176,7 +177,12 @@ def submit(
     if size > MAX_WORK_BYTES:
         raise JobsError("payload_too_large")
     subject_type, subject_id = _subject_ref(subject)
-    extra = {"id": job_id} if job_id is not None else {}
+    try:
+        # Normalized so the returned job compares equal to the same row read back (a UUID pk on
+        # every backend, not the caller's str).
+        extra = {"id": uuid.UUID(str(job_id))} if job_id is not None else {}
+    except ValueError:
+        raise JobsError("invalid_job_id") from None
     job = ProcessingJob.objects.create(
         **extra,
         idempotency_key=idempotency_key,

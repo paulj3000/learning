@@ -385,14 +385,18 @@ when the JSON document could not be read (`document_read: false`).
 | `bounds` | `{min: [x,y,z], max: [x,y,z]}` or null | document; world-space box of the default scene from `POSITION` min/max through node transforms (as Django's dimensions), rounded to 6 places; null without valid geometry |
 | `extensions_used`, `extensions_required` | sorted list of string | document; at most 50 each |
 | `unsupported_extensions` | sorted list of string | document; used or required names outside the supported set (decoder extensions included) |
-| `lists_truncated` | bool | True when the per-item lists were emptied to fit `limits.max_metadata_bytes` |
+| `lists_truncated` | bool | True when the per-item and extension lists (and `generator`) were emptied to fit `limits.max_metadata_bytes` |
 
 Bounds on size: every string copied from the file is stripped of control, format, surrogate and
 private-use characters and cut to 200 characters (run warning `metadata_text_truncated`); the
 `animations`, `images`, `material_names` and `skins` lists keep at most 100 entries (run
 warning `metadata_list_truncated`); if the encoded object still exceeds the job's
-`max_metadata_bytes`, those lists and `clip_vocabulary_matches` are emptied, `lists_truncated`
-is true and the run warning is `metadata_truncated`. `counts` always stay complete. With
+`max_metadata_bytes`, those lists, `clip_vocabulary_matches`, `extensions_used`,
+`extensions_required` and `unsupported_extensions` are emptied and `generator` is null,
+`lists_truncated` is true and the run warning is `metadata_truncated`. If even that does not
+fit, every document value except `counts`, `vertex_count`, `triangle_count`, `gltf_version` and
+`min_version` is emptied as well (every key stays present), so the job always returns its
+verdict. `counts` always stay complete. With
 `write_report: true` the library would also store the same metadata, findings, run warnings and
 verdict as the `glb-report` artifact (`report.glb_validation`, `application/json`). Artifact
 writes are not supported on the canonical path, and Django never sets that option. Django keeps a

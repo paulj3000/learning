@@ -33,13 +33,13 @@ ADR-061 and ADR-064 in `../DECISIONS.md`. The code wins over this page.
    container image (or another runtime) only after an ADR for that workload approves it (ADR-064:
    containers only by a later decision; dev has no ECR). Pillow or libvips wheels might fit a zip
    for 013; that is decided with the card, by measurement.
-4. **Results do not rewrite published versions.** `AssetVersion.IMMUTABLE_FIELDS` include
-   `metadata`, `clips`, `dimensions` and `validation_report` once a version is published or
-   retired. A result about a published version stays on the job (`result_recorded`), as for
+4. **Results do not rewrite published versions.** The module-level `IMMUTABLE_FIELDS` in
+   `lai/apps/assets/models.py` include `metadata`, `clips`, `dimensions` and `validation_report`
+   once an `AssetVersion` is published or retired. A result about a published version stays on the job (`result_recorded`), as for
    `asset.inspect` and Validate in background.
 5. **No artifact writes yet.** The worker's contract storage port is read-only (`assets` store
    only). A workload that produces files (a transcode, an optimized GLB, a thumbnail) needs a
-   design for where results live and an owner decision (section 6, W4-5).
+   design for where results live and an owner decision (section 6, W4-4).
 
 ## 3. Adding a kind (checklist)
 

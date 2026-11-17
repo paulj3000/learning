@@ -83,6 +83,9 @@ LIMITS = {
     "materials": 500,
     "images": 200,
     "depth": 64,
+    # The JSON structure pre-scan (`_scan_json`), before `json.loads`: nesting and elements.
+    "json_depth": 64,
+    "json_elements": 1_000_000,
 }
 COMPONENT_BYTES = {5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4}
 COUNTED = ("nodes", "meshes", "materials", "textures", "images", "animations", "skins")
@@ -328,7 +331,57 @@ def _read_gltf_json(result, stream, size):
     return _parse_json(result, raw)
 
 
+# Mirrors `scan_structure` in processing/lai_processing/processors/gltf/jsonparse.py (the
+# parity tests run both); see that function for the reasoning, and
+# docs/processing/GLB_VALIDATION.md section 3 for the measured memory it bounds. Possessive
+# quantifiers keep the regular expression from storing one backtracking entry per escape.
+_JSON_TOKEN = re.compile(rb'"[^"\\]*+(?:\\.[^"\\]*+)*+"|["\[\]{}:,]', re.DOTALL)
+
+
+def _scan_json(raw: bytes) -> str | None:
+    """`"unterminated"`, `"depth"` or `"elements"` when the raw JSON breaks a structural bound,
+    else None. One linear pass that skips strings whole, before anything is parsed."""
+    max_depth, max_elements = LIMITS["json_depth"], LIMITS["json_elements"]
+    depth = elements = 0
+    for tokens, match in enumerate(_JSON_TOKEN.finditer(raw), 1):
+        if tokens > 3 * max_elements + 1:
+            return "elements"
+        start = match.start()
+        first = raw[start]
+        if first == 0x22:  # '"'
+            if match.end() - start == 1:
+                return "unterminated"
+            continue
+        if first in b"]}":
+            depth -= 1
+            continue
+        elements += 1
+        if elements > max_elements:
+            return "elements"
+        if first in b"[{":
+            depth += 1
+            if depth > max_depth:
+                return "depth"
+    return None
+
+
 def _parse_json(result, raw: bytes) -> dict:
+    # Parsing millions of tiny values costs far more memory than the bytes themselves, so the
+    # structure is bounded before json.loads runs.
+    exceeded = _scan_json(raw)
+    if exceeded == "elements":
+        result.error(
+            "too_complex",
+            f"The model's JSON has more than {LIMITS['json_elements']:,} elements.",
+            "json",
+        )
+        raise _Stop
+    if exceeded == "depth":
+        result.error("invalid_json", "The model's JSON is nested too deeply.", "json")
+        raise _Stop
+    if exceeded is not None:
+        result.error("invalid_json", "The model's JSON is not valid.")
+        raise _Stop
     try:
         document = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, ValueError, RecursionError):

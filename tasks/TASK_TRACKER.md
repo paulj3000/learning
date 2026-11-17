@@ -1027,8 +1027,9 @@ merged and are kept as implementation references; their compatible parts are re-
 not merged, not deployed). Trello cards LAI-LAMBDA-001 to 013.
 
 - [x] **LAI-LAMBDA-001** Shared processing library and job contracts (ADR-061). Re-landed on
-      `feature/serverless-processing-canonical`: `processing/lai_processing` unchanged from PR #40
-      plus the wave2/wave3 fixes, tests in `tests/processing/`. Pending owner review, not merged
+      `feature/serverless-processing-canonical`: `processing/lai_processing` from PR #40, re-landed
+      with the Wave 2/3 review fixes, plus a comment in `core/limits.py`; tests in
+      `tests/processing/`. Pending owner review, not merged
 - [x] **LAI-LAMBDA-002** GLB validator and metadata extractor (`asset.glb_validator`,
       `asset.validate_model`, parity with `lai/apps/assets/validation.py`). Re-landed and vendored
       into the jobs worker zip (`lambda/build.py`). Pending owner review, not merged, not deployed
@@ -1042,7 +1043,8 @@ not merged, not deployed). Trello cards LAI-LAMBDA-001 to 013.
 - [x] **LAI-LAMBDA-005** Processing infrastructure. **Superseded by ADR-064:** no new
       infrastructure; the media queue and worker `lai-<env>-jobs-media` are reused.
       `LaiProcessing-<env>`, its queues, bucket, ECR and `deploy-processing.yml` are not taken.
-      Open owner decision: `s3:ListBucket` on the asset bucket for the media role
+      `s3:ListBucket` for the media role: decided 2026-11-17; `ListAssetBucket` in the
+      repository, not deployed
 - [x] **LAI-LAMBDA-006** Upload and completion integration. Developer-complete on
       `feature/serverless-processing-canonical`: `LAI_ASSET_ASYNC_VALIDATION` (default `off`), a
       flag-on GLB upload stored `DRAFT` with its job in one transaction, `apply(job)` moves it to
