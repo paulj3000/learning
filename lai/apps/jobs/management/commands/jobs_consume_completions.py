@@ -198,7 +198,7 @@ class Command(BaseCommand):
         try:
             outcome = processing.apply_completion(delivery.body, storage=storage)
         except processing.CompletionDeferred as error:
-            if isinstance(error.__cause__, DatabaseError):
+            if processing.is_database_outage(error):  # never for an IntegrityError
                 self._database_failed = True
                 if not connection.in_atomic_block:
                     connection.close()

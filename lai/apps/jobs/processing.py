@@ -35,6 +35,7 @@ from django.conf import settings
 from django.db import DatabaseError, IntegrityError, transaction
 from django.utils.timezone import now as _now
 
+from lai_processing.contracts.artifacts import ArtifactReference
 from lai_processing.contracts.codec import (
     DEFAULT_MAX_MESSAGE_BYTES,
     decode_event,
@@ -112,6 +113,14 @@ class CompletionDeferred(ProcessingJobsError):
     committed; the consumer releases the message with a backoff and must not acknowledge it."""
 
     code = "completion_deferred"
+
+
+def is_database_outage(error: BaseException) -> bool:
+    """True when `error` (or, for `CompletionDeferred`, its cause) means the database is
+    unavailable. An `IntegrityError` is a constraint refused by a working database, never an
+    outage, so the consumer must not hand its batch back or back off for it."""
+    cause = error.__cause__ if isinstance(error, CompletionDeferred) else error
+    return isinstance(cause, DatabaseError) and not isinstance(cause, IntegrityError)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -470,12 +479,20 @@ def _snapshot(job: ProcessingJob) -> JobSnapshot:
 
 
 def _check_against_job(
-    job: ProcessingJob, attempt: JobAttempt, result: ProcessingJobResult
+    job: ProcessingJob,
+    attempt: JobAttempt,
+    result: ProcessingJobResult,
+    *,
+    result_ref: ArtifactReference | None = None,
 ) -> str | None:
     """Checks beyond `decide_completion` before a result may be applied. Returns a REJECT
     reason or None. Decision (docs/processing/DJANGO_JOBS.md): a result produced by another
     processor id or version than the one the job's key was computed for, or for another
-    profile, is not this job's work and is rejected, not applied with a warning."""
+    profile, is not this job's work and is rejected, not applied with a warning.
+
+    `result_ref` is a by-reference event's `job-result` artifact, recorded beside the result's
+    artifacts: an artifact with the same logical id would violate
+    `jobs_artifact_logical_unique` on every delivery, so it is rejected (`artifact_duplicate`)."""
     if result.processor is not None and (
         result.processor.processor_id != job.processor_id
         or result.processor.processor_version != job.processor_version
@@ -507,6 +524,10 @@ def _check_against_job(
             or artifact.ref.namespace != job.namespace
         ):
             return "artifact_foreign"
+    if result_ref is not None and any(
+        artifact.logical_id == result_ref.logical_id for artifact in result.artifacts
+    ):
+        return "artifact_duplicate"
     return None
 
 
@@ -643,7 +664,7 @@ def _apply_locked(
             action, reason = REJECT, "unknown_attempt"
         elif action in (CompletionAction.APPLY, CompletionAction.RETRY):
             assert result is not None  # noqa: S101 - decided on a result
-            problem = _check_against_job(job, attempt, result)
+            problem = _check_against_job(job, attempt, result, result_ref=event.result_ref)
             if problem is not None:
                 action, reason = REJECT, problem
 
@@ -691,12 +712,12 @@ def apply_completion(
         return CompletionOutcome(action=INVALID, ack=False, reason=error.code.value)
 
     if event.namespace != _namespace():
-        try:
-            with transaction.atomic():
-                if not CompletionReceipt.objects.filter(event_id=event.event_id).exists():
-                    _receipt(None, event, CompletionAction.REJECT, "namespace_mismatch")
-        except DatabaseError as error:
-            raise CompletionDeferred("database_error") from error
+
+        def reject_namespace() -> None:
+            if not CompletionReceipt.objects.filter(event_id=event.event_id).exists():
+                _receipt(None, event, CompletionAction.REJECT, "namespace_mismatch")
+
+        _atomic_with_integrity_retry(event, reject_namespace)
         return _outcome(None, event, CompletionAction.REJECT, "namespace_mismatch")
 
     result = event.result
@@ -729,14 +750,35 @@ def apply_completion(
                     event.verify_result(result)
                 except ProcessingError:
                     result, result_error = None, "result_mismatch"
-    try:
-        with transaction.atomic():
-            return _apply_locked(event, result, result_error)
-    except DatabaseError as error:
-        logger.warning(
-            "processing.completion deferred job=%s type=%s", event.job_id, type(error).__name__
-        )
-        raise CompletionDeferred("database_error") from error
+    return _atomic_with_integrity_retry(event, lambda: _apply_locked(event, result, result_error))
+
+
+def _atomic_with_integrity_retry(event: CompletionEvent, work):
+    """Run `work` in one transaction. A database error defers the message (`database_error`).
+    An `IntegrityError` is retried once: it is a race on an insert made without the job row
+    lock (two consumers writing the receipt of the same unknown-job or other-namespace event,
+    or of an `event_id` reused across jobs), and the second run finds the committed receipt and
+    answers duplicate or reject. One that persists is deferred as `integrity_error`, which the
+    consumer releases with backoff without treating the database as down (`is_database_outage`).
+    """
+    for remaining in (1, 0):
+        try:
+            with transaction.atomic():
+                return work()
+        except IntegrityError as error:
+            logger.warning(
+                "processing.completion integrity_error job=%s retry=%s",
+                event.job_id,
+                bool(remaining),
+            )
+            if not remaining:
+                raise CompletionDeferred("integrity_error") from error
+        except DatabaseError as error:
+            logger.warning(
+                "processing.completion deferred job=%s type=%s", event.job_id, type(error).__name__
+            )
+            raise CompletionDeferred("database_error") from error
+    raise AssertionError("unreachable")  # pragma: no cover
 
 
 # --- staff actions and maintenance -------------------------------------------------------------

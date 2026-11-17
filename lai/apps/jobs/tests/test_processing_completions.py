@@ -332,3 +332,109 @@ def test_retries_after_a_staff_requeue_carry_the_renewed_expiry(
     # The template keeps its attempt-1 identity; only the window moved.
     assert job.payload["attempt_number"] == 1 and job.payload["attempt_id"] == first.attempt_id
 
+
+def _forged_namespace(request):
+    from lai_processing.contracts.common import InputObject, ObjectRef
+
+    ref = request.input.ref
+    return dataclasses.replace(
+        request,
+        namespace="other",
+        input=InputObject(
+            ref=ObjectRef(ref.store, ref.key, ref.version_id, "other"),
+            content_type=request.input.content_type,
+            size_bytes=request.input.size_bytes,
+            sha256=request.input.sha256,
+        ),
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("reason", ["unknown_job", "namespace_mismatch"])
+def test_a_receipt_race_between_two_consumers_is_retried_not_a_database_outage(
+    fake_transport, reason, monkeypatch
+):
+    """Receipts for unknown jobs and other namespaces are written without a row lock: a second
+    consumer handling the same event can lose the unique `event_id` insert. That is a retry
+    (which then finds the receipt), never `CompletionDeferred`."""
+    import threading
+
+    from django.db import connection
+
+    job = submit_reference(fake_transport.storage)
+    request = current_request(job)
+    if reason == "unknown_job":
+        request = dataclasses.replace(request, job_id="00000000-0000-4000-8000-000000000000")
+    else:
+        request = _forged_namespace(request)
+    body = event_bytes(result_for(request))
+    from lai_processing.contracts.codec import decode_event
+
+    event = decode_event(body)
+    real = processing._receipt
+    calls = []
+
+    def racing(job_row, event_arg, action, why):
+        calls.append(why)
+        if len(calls) == 1:  # the other consumer commits its receipt first
+
+            def other():
+                try:
+                    real(None, event, "reject", why)
+                finally:
+                    connection.close()
+
+            thread = threading.Thread(target=other)
+            thread.start()
+            thread.join(10)
+        return real(job_row, event_arg, action, why)
+
+    monkeypatch.setattr(processing, "_receipt", racing)
+    outcome = apply(fake_transport, body)
+    assert (outcome.action, outcome.reason, outcome.ack) == ("reject", reason, True)
+    assert CompletionReceipt.objects.filter(event_id=event.event_id).count() == 1
+
+
+def test_a_by_reference_result_reusing_the_job_result_logical_id_is_rejected(
+    fake_transport, queued
+):
+    """An artifact named like the by-reference `job-result` would violate
+    `jobs_artifact_logical_unique` on every delivery; it is rejected before anything is written."""
+    from .processing_fakes import artifact_for
+
+    job, request = queued
+    result = result_for(
+        request,
+        artifacts=[artifact_for(request, logical_id="job-result")],
+        metadata={"note": "x" * 3000},
+    )
+    body = event_bytes(result, store=fake_transport.storage)
+    assert b'"result":null' in body
+    outcome = apply(fake_transport, body)
+    assert (outcome.action, outcome.reason, outcome.ack) == ("reject", "artifact_duplicate", True)
+    job.refresh_from_db()
+    assert job.state == JobState.QUEUED and job.current_attempt.outcome == AttemptOutcome.PENDING
+    assert not JobArtifact.objects.exists()
+    assert CompletionReceipt.objects.get().reason == "artifact_duplicate"
+
+
+def test_an_integrity_error_that_persists_is_deferred_without_a_database_cause(
+    fake_transport, queued, monkeypatch
+):
+    """A constraint violation is not an outage: after one retry it is deferred, but its cause
+    is not a `DatabaseError` the consumer would treat as the database being down."""
+    from django.db import IntegrityError
+
+    job, request = queued
+    calls = []
+
+    def violates(*args, **kwargs):
+        calls.append(1)
+        raise IntegrityError("duplicate key value violates unique constraint")
+
+    monkeypatch.setattr(processing, "_apply_locked", violates)
+    with pytest.raises(processing.CompletionDeferred) as error:
+        apply(fake_transport, event_bytes(result_for(request)))
+    assert error.value.code == "integrity_error"
+    assert len(calls) == 2  # retried once
+    assert not processing.is_database_outage(error.value)

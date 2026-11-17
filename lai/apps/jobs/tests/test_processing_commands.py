@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import pytest
 from django.core.management import call_command
-from django.db import DatabaseError, connection
+from django.db import DatabaseError, IntegrityError, connection
 from django.utils.timezone import now
 
 from apps.jobs import processing, services
@@ -267,3 +267,43 @@ def test_after_a_database_failure_the_rest_of_the_batch_is_handed_back_untried(
     assert len(attempts) == 1  # the second message was not spent on a doomed attempt
     assert spy.releases[1][1] == 0  # handed back at once
     del real
+
+
+def two_jobs(fake, count=2):
+    jobs = [submit_reference(fake.storage)]
+    for index in range(1, count):
+        jobs.append(
+            submit_reference(
+                fake.storage,
+                data=f"input {index}\n".encode(),
+                key=KEY.replace("model.glb", f"model-{index}.glb"),
+                subject=("test_subject", f"subject-{index + 1}"),
+            )
+        )
+    for job in jobs:
+        fake.completions.send(event_bytes(result_for(current_request(job))))
+    return jobs
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+def test_an_integrity_error_is_not_a_database_outage(fake_transport, monkeypatch, capsys):
+    """A constraint violation releases that message with backoff; the rest of the batch is
+    still applied (the database is up)."""
+    jobs = two_jobs(fake_transport)
+    real = processing._apply_locked
+    calls = []
+
+    def first_violates(event, *args, **kwargs):
+        calls.append(1)
+        if event.job_id == str(jobs[0].pk):
+            raise IntegrityError("duplicate key value violates unique constraint")
+        return real(event, *args, **kwargs)
+
+    monkeypatch.setattr(processing, "_apply_locked", first_violates)
+    spy = SpyQueue(fake_transport.completions)
+    install(fake_transport, spy)
+    out = run("jobs_consume_completions", "--once", "--wait-seconds", "0", capsys=capsys)
+    assert json.loads(out) == {"acked": 1, "left": 0, "received": 2, "released": 1}
+    assert spy.releases == [("msg-000001", release_delay(1))]
+    assert spy.acks == ["msg-000002"]
