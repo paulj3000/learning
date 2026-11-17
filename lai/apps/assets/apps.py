@@ -7,7 +7,7 @@ class AssetsConfig(AppConfig):
     verbose_name = "Asset library"
 
     def ready(self):
-        from apps.jobs.processing import register_completion_hook
+        from apps.jobs.hooks import register_completion_hook
 
         from . import signals  # noqa: F401  (delete guards)
         from .completion import apply_model_validation

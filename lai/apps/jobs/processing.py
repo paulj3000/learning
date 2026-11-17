@@ -27,12 +27,11 @@ import dataclasses
 import logging
 import random
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError, IntegrityError, transaction
 from django.utils.timezone import now as _now
 
@@ -69,6 +68,13 @@ from lai_processing.ports.storage import StorageError
 from lai_processing.ports.telemetry import LoggingTelemetry
 
 from . import processing_transport as transport
+from .hooks import (  # noqa: F401 - re-exported: the registry's historical import path
+    CompletionHook,
+    HookResult,
+    completion_hook,
+    register_completion_hook,
+    set_completion_hooks_for_tests,
+)
 from .models import (
     CONTRACT_KINDS,
     STATE_STATUS,
@@ -163,54 +169,7 @@ def _namespace() -> str:
     return settings.LAI_PROCESSING_NAMESPACE
 
 
-# --- completion hooks (WAVE3_INTERFACES section 3) ----------------------------------------------
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
-class HookResult:
-    """What a completion hook did. `code` is a safe outcome code stored on the job
-    (`subject_outcome`); `review_ready` moves a VALIDATED job to READY_FOR_REVIEW."""
-
-    code: str
-    review_ready: bool = False
-
-
-#: `hook(job, attempt, result) -> HookResult`, called inside the completion transaction, under the
-#: job row lock, after an APPLY has been recorded. A hook may lock rows of its own app (always
-#: after the job row: lock order job -> subject rows). It must not publish anything.
-CompletionHook = Callable[[ProcessingJob, JobAttempt, ProcessingJobResult], HookResult]
-_COMPLETION_HOOKS: dict[tuple[str, str], CompletionHook] = {}
-
-
-def register_completion_hook(job_type: str, subject_type: str, hook: CompletionHook) -> None:
-    """Register the hook for one (contract kind, subject type) pair, from an `AppConfig.ready()`.
-
-    Explicit and deterministic: no discovery or dynamic import. Registering the same callable
-    again is a no-op (a second `ready()`); a different callable for a registered pair is a
-    configuration error, never a silent replacement."""
-    if job_type not in CONTRACT_KINDS:
-        raise ImproperlyConfigured(f"No contract kind {job_type!r} for a completion hook.")
-    if not subject_type or len(subject_type) > 64:
-        raise ImproperlyConfigured("A completion hook needs a subject type of 64 or fewer.")
-    key = (job_type, subject_type)
-    current = _COMPLETION_HOOKS.get(key)
-    if current is not None and current is not hook:
-        raise ImproperlyConfigured(f"Another completion hook is registered for {key!r}.")
-    _COMPLETION_HOOKS[key] = hook
-
-
-def completion_hook(job_type: str, subject_type: str) -> CompletionHook | None:
-    return _COMPLETION_HOOKS.get((job_type, subject_type))
-
-
-def set_completion_hooks_for_tests(
-    hooks: Mapping[tuple[str, str], CompletionHook] | None,
-) -> dict[tuple[str, str], CompletionHook]:
-    """Replace the registered hooks (None: none); returns the previous ones for restoring."""
-    previous = dict(_COMPLETION_HOOKS)
-    _COMPLETION_HOOKS.clear()
-    _COMPLETION_HOOKS.update(hooks or {})
-    return previous
+# --- completion hooks (WAVE3_INTERFACES section 3; registry in apps.jobs.hooks) ----------------
 
 
 def _run_completion_hook(job: ProcessingJob, attempt: JobAttempt, result) -> None:

@@ -128,7 +128,9 @@ def test_an_invalid_model_is_a_successful_job_with_a_failing_verdict(local_env):
     assert codes, "an invalid model must explain itself with findings"
     version.refresh_from_db()
     assert version.status == VersionStatus.REJECTED
-    assert {f["code"] for f in version.validation_report if f.get("source") == "processing"} == codes
+    assert {
+        f["code"] for f in version.validation_report if f.get("source") == "processing"
+    } == codes
 
 
 def test_redelivered_work_and_duplicate_completions_apply_once(local_env):

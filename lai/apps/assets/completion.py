@@ -31,8 +31,7 @@ import uuid
 from django.utils.timezone import now
 
 from apps.catalog.models import ContentAsset
-from apps.jobs.processing import HookResult
-from lai_processing.contracts.results import ResultStatus, Verdict
+from apps.jobs.hooks import HookResult
 
 from .models import AssetVersion, VersionStatus
 from .processing import identity_mismatch, model_validation_summary, processing_findings
@@ -52,6 +51,8 @@ def _version_pk(subject_id: str) -> tuple[int, int] | None:
 
 
 def apply_model_validation(job, attempt, result) -> HookResult:
+    from lai_processing.contracts.results import ResultStatus, Verdict
+
     if result.status is not ResultStatus.SUCCEEDED:
         return HookResult("processing_failed")
 
