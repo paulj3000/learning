@@ -332,6 +332,9 @@ RUNNERS = {
     envelope.ASSET_ANALYZE_ANIMATION: lambda payload, ports: contract.run(
         envelope.ASSET_ANALYZE_ANIMATION, payload, ports
     ),
+    envelope.ASSET_PROCESS_AUDIO: lambda payload, ports: contract.run(
+        envelope.ASSET_PROCESS_AUDIO, payload, ports
+    ),
 }
 
 

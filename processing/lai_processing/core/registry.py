@@ -19,6 +19,7 @@ from ..contracts.common import ProfileRef
 from ..contracts.job_types import JOB_TYPES
 from ..contracts.profiles import ProcessingProfile
 from ..processors.animation.processor import AnimationInspectorProcessor
+from ..processors.audio.processor import AudioInspectorProcessor
 from ..processors.gltf.processor import GlbValidatorProcessor
 from ..processors.reference import ReferenceProcessor
 from .errors import ErrorCode, ProcessingError
@@ -148,6 +149,7 @@ def default_registry() -> ProcessorRegistry:
         ReferenceProcessor(),
         GlbValidatorProcessor(),
         AnimationInspectorProcessor(),
+        AudioInspectorProcessor(),
     ):
         registry.register(processor)
     registry.freeze()

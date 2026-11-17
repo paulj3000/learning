@@ -42,6 +42,35 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Audio inspection, LAI-LAMBDA-008 phase 1 (`asset.process_audio`): developer-complete on `feature/w4-audio-inspection` (2026-11-17); NOT merged, NOT deployed
+
+Repository only; based on `feature/serverless-processing-canonical`. Details:
+`docs/processing/AUDIO_INSPECTION.md`.
+
+- **Processor.** `asset.audio_inspector` 1.0.0, profile `audio-inspect` v1
+  (`processing/lai_processing/processors/audio/`): standard-library header inspection of WAV
+  (RIFF, fmt/extensible, fact, data), MP3 (ID3v2, frame headers, Xing/Info/VBRI, bounded frame
+  walk) and Ogg (pages, CRC, Vorbis and Opus identification headers, chained and multiplexed
+  streams). Format from the bytes; declared-type mismatch is a finding; exact or estimated
+  durations; explicit limitations (no decoding, playback or loudness claims). 20 MiB input (the
+  audio upload ceiling); bounded chunk, frame and page walks. No FFmpeg, no subprocess, no
+  artifacts.
+- **Jobs path.** `asset.process_audio` is a media-queue contract kind (`envelope`, `tasks.RUNNERS`,
+  `contract.CONTRACT_KINDS`, `JobKind`, migration `jobs.0004_asset_process_audio`, choices only,
+  for the integrator to fold into the Wave 4 migration), handler `apps.audio.inspection`, worker
+  `AssetPorts`; vendored into the worker zip by the existing build.
+- **Django and Admin.** Staff-triggered only (never on upload; not behind
+  `LAI_ASSET_ASYNC_VALIDATION`). Exact `ik1:` identity per version, checksum and processor;
+  result and identity verification on apply; stale or deleted versions refused; duplicates are
+  no-ops. Results stay on the job; no version, cue or release is changed. "Inspect audio in
+  background" on Audio files (inspection) (a proxy over audio versions, migration
+  `audio.0005_audio_file_proxy`) and Sound cues, gated by `audio.inspect_audiofile` (granted to
+  the Sound groups); escaped read-only panels and a link to the background job.
+- **Phase 2** (FFmpeg transcoding and loudness) is a proposal only:
+  `docs/processing/proposals/ADR-PROPOSED-native-audio-transcoding.md` (no ADR number).
+- **Not verified:** live worker run (LAI-LAMBDA-011, owner approval); full suites and builds at
+  merge readiness.
+
 ## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
 
 Repository only; no AWS resource was created or changed. Re-lands the compatible parts of PR #40,

@@ -322,6 +322,7 @@ class Runtime:
             envelope.ASSET_VALIDATE_MODEL,
             envelope.REFERENCE_CHECKSUM,
             envelope.ASSET_ANALYZE_ANIMATION,
+            envelope.ASSET_PROCESS_AUDIO,
         ):
             return AssetPorts(self)
         raise TaskError("unknown_kind")

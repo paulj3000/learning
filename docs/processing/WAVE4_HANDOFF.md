@@ -17,7 +17,7 @@ ADR-061 and ADR-064 in `../DECISIONS.md`. The code wins over this page.
 |---|---|
 | LAI-LAMBDA-001 to 007 | Re-landed on `feature/serverless-processing-canonical`: developer-complete, owner review pending, not merged, not deployed |
 | Live AWS acceptance | LAI-LAMBDA-011, open; every deployment needs owner approval |
-| Wave 4 | Not started. Nothing here is approved scope until its card's prerequisites and approvals (section 6) are met |
+| Wave 4 | 008 phase 1 (audio header inspection, `asset.process_audio`, standard library, staff-triggered) developer-complete on `feature/w4-audio-inspection`: `AUDIO_INSPECTION.md`; phase 2 is a proposal only (`proposals/ADR-PROPOSED-native-audio-transcoding.md`). Everything else not started. Nothing here is approved scope until its card's prerequisites and approvals (section 6) are met |
 
 ## 2. Rules from ADR-064
 

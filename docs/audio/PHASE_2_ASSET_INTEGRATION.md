@@ -140,6 +140,12 @@ All under **Sound library** in Django Admin; no React screen exists or was added
 4. **Sound releases, Publish the sound library**: shows every problem (or, when clean, what will be
    published), takes an optional note, and creates the next release atomically.
 5. **Roll back**: select a release, apply the action; it re-publishes that snapshot as a new release.
+6. **Inspect audio in background** (LAI-LAMBDA-008 phase 1, on **Audio files (inspection)** and on
+   **Sound cues**): a read-only header inspection of the exact stored version (format from the
+   bytes, codec, duration and whether it is exact or estimated, sample rate, channels, findings and
+   limitations), run by the media worker. The result is shown on the file or cue page with a link
+   to its background job. It changes no version, cue or release and publishes nothing. Needs
+   `audio.inspect_audiofile`. See `docs/processing/AUDIO_INSPECTION.md`.
 
 Cue list: filter by channel, enabled and shared; search by id, name, description and asset id; the
 Publishing status column reads `Not published`, `Published`, `Changes not yet published`,
@@ -148,8 +154,8 @@ disable actions apply at the next release. Django's history page lists every cha
 rollback also write a history entry on the release.
 
 Roles (`manage.py ensure_sound_roles`, idempotent like `ensure_asset_roles`): **Sound editors**
-create and edit cues and assignments and view releases; **Sound publishers** also publish and roll
-back. Neither can upload or publish audio files; that stays with the Asset Library groups.
+create and edit cues and assignments, view releases and inspect audio files in the background;
+**Sound publishers** also publish and roll back. Neither can upload or publish audio files; that stays with the Asset Library groups.
 
 ## 4. Publishing and version consistency (SM-P2-05)
 
