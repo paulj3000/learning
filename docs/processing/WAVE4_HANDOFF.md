@@ -102,3 +102,18 @@ LGPL build; `gltfpack` MIT; KTX-Software and Basis Universal Apache-2.0; libvips
 | W4-6 | Loader and validator support for meshopt, Draco or KTX2 | Using 010 outputs |
 | W4-7 | Any derivative delivered outside Django Admin | 013 beyond Admin |
 | W4-8 | Every deployment and sizing change | All live use |
+
+## 7. Release readiness (LAI-LAMBDA-011 and 012)
+
+Documentation only; nothing has been executed or deployed.
+
+- `LAI-LAMBDA-011-dev-acceptance.md`: the owner-run DEV live-acceptance checklist for the
+  canonical release (deployment gates and the variable values that make a merge deploy nothing,
+  infrastructure checks, consumer-first release order, the GLB cases, DLQ redrive, the RDS outage
+  drill, overnight stop and start, monitoring, cost and rollback). Its section 5 is the optional
+  acceptance for the Wave 4 kinds `asset.analyze_animation` and `asset.process_audio`, kept apart
+  from the core release; section 12 lists what a future native-runtime (container) acceptance
+  would add.
+- `LAI-LAMBDA-012-production-rollout.md`: the production rollout plan. Production has no jobs
+  queues, workers, consumer or maintenance schedule in CDK today, so turning processing on in
+  production needs the owner decisions listed there (P1 to P13).
