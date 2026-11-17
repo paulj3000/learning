@@ -206,7 +206,7 @@ code; if the code and this page ever disagree, the code wins and the principal c
 | A7 | Card 005 asks for separate staging and prod configs; the repository has only `dev` and `prod` environments | Confirm whether a staging environment is intended |
 | A8 | IAM change to the asset bucket (Django needs quarantine writes and artifact reads; the worker needs read and artifact-write rights) | Separate processing bucket per environment, or new prefixes in the asset bucket with reviewed policies |
 | A9 | Any deployment (ADR-019 G7) | Per-stack change set review by the owner |
-| A10 | ADR numbering: `docs/DECISIONS.md` says the next free number is 055, but open PRs hold 055 to 060 | Use ADR-061 and add a registry note |
+| A10 | ADR numbering: the registry said the next free number was 055, but open PRs hold 055 to 060 | **Resolved on this branch:** ADR-055 to ADR-060 are `Reserved` for those PRs, this decision is ADR-061, next free is 062. Owner to confirm the reservation when those PRs merge |
 
 ## 9. Inconsistencies found while drafting, and how they were resolved
 
