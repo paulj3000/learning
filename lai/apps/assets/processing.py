@@ -14,8 +14,10 @@ LAI-LAMBDA-006 and 007, docs/processing/CANONICAL_PATH.md).
   shared by the hook, the publication gate and Django Admin.
 
 Lock order: job row (held by the caller) -> ContentAsset row -> AssetVersion row, the same order
-`services.publish_version` uses after its asset lock; no path takes a job lock after an asset or
-version lock. Logs carry ids and codes only.
+`services.publish_version` uses after its asset lock. Only the inline backend (development and
+tests) locks a job after an asset: an upload holding its asset lock runs its own new, uncommitted
+job in the same transaction, a row no other transaction can see or wait for, so no cycle forms.
+Logs carry ids and codes only.
 """
 
 import logging

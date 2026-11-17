@@ -42,7 +42,7 @@ from apps.catalog.models import AssetStatus, ContentAsset
 from apps.core.exceptions import error_body
 
 from . import preview, services
-from .models import AssetVersion
+from .models import AssetVersion, VersionStatus
 from .processing import (
     ASYNC_FORMATS,
     PROCESSING_SOURCE,
@@ -232,10 +232,16 @@ class AssetVersionAdmin(admin.ModelAdmin):
                         version.notes = form.cleaned_data["notes"]
                         version.save(update_fields=["notes"])
                     self.log_addition(request, version, [{"added": {}}])
+                    if version.status == VersionStatus.DRAFT:
+                        state = "stored as a draft and is being validated in the background."
+                    elif version.status == VersionStatus.REJECTED:
+                        state = "rejected by background validation; see its validation report."
+                    else:
+                        state = "validated and not yet published."
                     self.message_user(
                         request,
                         f"Uploaded {version.asset.asset_id} version {version.number}. It is "
-                        "validated and not yet published.",
+                        + state,
                         messages.SUCCESS,
                     )
                     return redirect(reverse("admin:assets_assetversion_change", args=[version.pk]))
