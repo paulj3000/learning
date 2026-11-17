@@ -103,7 +103,8 @@ class ResourceLimits:
         return self.complexity.get(name)
 
 
-# Defaults for a request that does not need more. Input matches LAI_ASSET_MAX_UPLOAD_BYTES (50 MB).
+# Defaults for a request that does not need more. Input: 50 MiB = 52,428,800 bytes, the ceiling of
+# Django's LAI_ASSET_MAX_GLB_BYTES (a GLB request carries min(this, that setting)).
 DEFAULT_LIMITS: Final = ResourceLimits(
     max_input_bytes=50 * MIB,
     max_output_bytes=200 * MIB,

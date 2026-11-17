@@ -54,7 +54,7 @@ from .processing import (
     validation_jobs,
 )
 from .storage import StorageError, get_storage, sha256_of
-from .validation import largest_upload_bytes, max_bytes_for
+from .validation import largest_upload_bytes, max_bytes_for, max_glb_bytes
 
 logger = logging.getLogger("lai.assets")
 
@@ -255,6 +255,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
             "findings": findings,
             "limits": [
                 ("3D models", max_bytes_for("model")),
+                ("GLB models", max_glb_bytes()),
                 ("Images", max_bytes_for("image")),
                 ("Audio", max_bytes_for("audio")),
             ],
@@ -451,11 +452,16 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 )
                 return
             except JobsError as error:
-                self.message_user(
-                    request,
-                    f"{version.label}: Background validation could not start ({error.code}).",
-                    messages.ERROR,
-                )
+                if error.code == "resource_limit_exceeded":
+                    message = (
+                        f"{version.label}: The file is larger than the {max_glb_bytes():,} byte "
+                        "limit for GLB models, so it was not validated (resource_limit_exceeded)."
+                    )
+                else:
+                    message = (
+                        f"{version.label}: Background validation could not start ({error.code})."
+                    )
+                self.message_user(request, message, messages.ERROR)
                 continue
             if job.pk not in known:
                 submitted += 1
@@ -503,6 +509,14 @@ class AssetVersionAdmin(admin.ModelAdmin):
             try:
                 job = jobs.submit_inspection(version, request.user)
             except JobsError as error:
+                if error.code == "object_too_large":
+                    self.message_user(
+                        request,
+                        f"{version.label}: The file is larger than the {max_glb_bytes():,} byte "
+                        "limit for GLB models, so it was not inspected.",
+                        messages.ERROR,
+                    )
+                    continue
                 self.message_user(
                     request, f"Background jobs are unavailable ({error.code}).", messages.ERROR
                 )

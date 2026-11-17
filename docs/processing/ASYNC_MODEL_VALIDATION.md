@@ -64,8 +64,9 @@ Django's request for `asset.validate_model` (`model_validation_request`): namesp
 `LAI_ENVIRONMENT` (or `local` when unset; the dev release does not render `LAI_ENVIRONMENT`, so
 dev uses `local`), subject `("asset_version", <version uuid>)`, asset context (asset id, version
 uuid and number), input `ObjectRef("assets", storage_key)` with the version's content type, size
-and SHA-256, profile `glb-default` v1 with default options, `max_execution_seconds` 90 (see
-section 9), `expires_at` 72 hours after submission, and the ADR-061 idempotency key.
+and SHA-256, profile `glb-default` v1 with default options, `max_input_bytes` min(profile 50 MiB,
+`LAI_ASSET_MAX_GLB_BYTES`) and `max_execution_seconds` 90 (see section 9), `expires_at` 72 hours
+after submission, and the ADR-061 idempotency key.
 
 Worker outcomes (`core/contract.py`):
 
@@ -187,6 +188,22 @@ passing job was pruned is refused by the gate until staff run Validate in backgr
   first with a classified, logged `processing_timeout` (retryable: SQS redelivers it, DLQ after 3
   receives) instead of Lambda ending the run part-way with nothing classified.
 - **Expiry.** A request older than 72 hours is refused by the worker with `job_expired`.
+- **Input size.** `LAI_ASSET_MAX_GLB_BYTES` (default 50 MiB = 52,428,800 bytes; bounds 1 MiB to
+  50 MiB, checked at start-up with `ImproperlyConfigured`; effective value min of it and
+  `LAI_ASSET_MAX_UPLOAD_BYTES`) is the one GLB limit (`docs/ASSET_LIBRARY.md` section 13). The
+  upload refuses a larger GLB with `too_large` before hashing or storing it. The request carries
+  `limits.max_input_bytes = min(profile, setting)`; a version above it is refused while the
+  request is built (`ProcessingError(resource_limit_exceeded)`, mapped to
+  `JobsError("resource_limit_exceeded")` by `submit_model_validation`), so no job, no message and
+  no draft or publication change remain. The Admin action reports the limit and continues with
+  the other versions. The engine also refuses an object above the request's limit
+  (`resource_limit_exceeded`, permanent). A previously published GLB above a lowered limit stays
+  published and delivered; revalidating it is refused the same way.
+- **Inspection size.** `asset.inspect` for a GLB carries `max_bytes` (the same limit) in its
+  payload; Django refuses a larger version before submitting (`object_too_large`, no job) and the
+  worker refuses a larger object before reading it. A payload without `max_bytes` (sent before
+  this change, or for another format) keeps the worker's 64 MiB hard ceiling; a `max_bytes` above
+  64 MiB is clamped to it.
 
 ## 10. Database outage
 
@@ -239,5 +256,10 @@ the resolver; a broken model `REJECTED`; and a count showing no AWS calls.
 - Nothing deploys on merge unless the repository variables are `'true'`
   (`LAI_DEV_NATIVE_ENABLED` for the native release and the Lambda workers, `LAI_DEPLOY_ENABLED`
   for the image workflow). Every deployment is an owner approval; live acceptance is LAI-LAMBDA-011.
+- `asset.inspect` payloads for a GLB now carry `max_bytes`. A worker built before this change
+  refuses the extra field as `invalid_payload` (a failed inspection job, nothing else), so deploy
+  the worker zip before, or with, the Django release that sends it. An old payload still queued
+  when the new worker arrives is accepted (64 MiB ceiling).
 - Open owner decisions before live use are listed in `CANONICAL_PATH.md`, "Remaining work and
-  owner decisions" (media role `s3:ListBucket`, the 50 MiB input ceiling, artifact writes).
+  owner decisions" (media role `s3:ListBucket`, artifact writes). The input ceiling is decided:
+  `LAI_ASSET_MAX_GLB_BYTES`, 50 MiB (owner, 2026-11-17).

@@ -275,8 +275,11 @@ ASSET_KEY = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/"
     r"(model|image|audio)\.(glb|gltf|png|jpeg|webp|mp3|wav|ogg)$"
 )
-#: The largest object an inspection will touch (the asset library's own upload ceiling).
+#: The hard ceiling: the largest object an inspection will touch (64 MiB = 67,108,864 bytes).
+#: A payload's optional `max_bytes` (Django sends `LAI_ASSET_MAX_GLB_BYTES` for a GLB) lowers it;
+#: a payload without the field (sent before the field existed, or for another format) keeps it.
 MAX_ASSET_BYTES = 64 * 1024 * 1024
+_INSPECT_KEYS = frozenset({"storage_key", "format"})
 
 
 def valid_asset_key(key: object, file_format: object) -> bool:
@@ -292,14 +295,22 @@ def valid_asset_key(key: object, file_format: object) -> bool:
 
 
 def asset_inspect(payload: dict, ports) -> dict:
-    _exact(payload, {"storage_key", "format"})
+    _require(
+        isinstance(payload, dict)
+        and set(payload) in (_INSPECT_KEYS, _INSPECT_KEYS | {"max_bytes"}),
+        "keys",
+    )
+    limit = MAX_ASSET_BYTES
+    if "max_bytes" in payload:
+        _require(_int(payload["max_bytes"], 1, 2**53), "max_bytes")
+        limit = min(payload["max_bytes"], MAX_ASSET_BYTES)
     key, file_format = payload["storage_key"], payload["format"]
     if not valid_asset_key(key, file_format):
         raise TaskError("invalid_asset_key")
     size = ports.asset_object_size(key)
     if size is None:
         raise TaskError("object_missing")
-    if size > MAX_ASSET_BYTES:
+    if size > limit:
         raise TaskError("object_too_large")
     metadata = probe.probe(
         file_format, lambda start, length: ports.read_asset(key, start, length), size

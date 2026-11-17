@@ -185,7 +185,7 @@ the ceiling names it.
 
 | Field | Meaning | `DEFAULT_LIMITS` | `PLATFORM_CEILINGS` |
 |---|---|---|---|
-| `max_input_bytes` | Largest input object | 50 MiB (matches `LAI_ASSET_MAX_UPLOAD_BYTES` default) | 512 MiB |
+| `max_input_bytes` | Largest input object | 50 MiB = 52,428,800 bytes (the ceiling of Django's `LAI_ASSET_MAX_GLB_BYTES`; a GLB request carries min of both) | 512 MiB |
 | `max_output_bytes` | Total artifact bytes | 200 MiB | 1024 MiB |
 | `max_execution_seconds` | Wall-clock budget (cooperative) | 300 | 840 (below Lambda's 900 s, margin for cleanup and publish) |
 | `max_temp_bytes` | Private workspace budget | 400 MiB | 10 GiB (Lambda ephemeral maximum) |

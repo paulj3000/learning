@@ -6,7 +6,8 @@ the metadata a published version carries (animation clips, bounding dimensions, 
 
 Safety rules, all enforced here:
 - The format comes from the bytes (GLB magic or a JSON document), never the file name.
-- Reads are bounded: the size is checked before anything is read, the JSON is capped, and the
+- Reads are bounded: the size is checked before anything is read (a GLB's own, possibly lower,
+  limit `max_glb_bytes` right after its 12-byte header), the JSON is capped, and the
   binary chunk is never loaded (only a few bytes are peeked to check embedded image types).
 - Nothing is fetched or opened: every `uri` must be an embedded `data:` URI. External files,
   `http(s)`, `file:` and relative paths are rejected.
@@ -135,7 +136,18 @@ class _Stop(Exception):
 
 
 def max_upload_bytes() -> int:
+    """The model upload limit (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MiB = 52,428,800 bytes)."""
     return int(getattr(settings, "LAI_ASSET_MAX_UPLOAD_BYTES", 50 * 1024 * 1024))
+
+
+def max_glb_bytes() -> int:
+    """The GLB processing and inspection limit: `LAI_ASSET_MAX_GLB_BYTES` (default 50 MiB =
+    52,428,800 bytes, bounds checked in settings), never above the model upload limit.
+
+    One number for the Admin upload of a .glb, the `asset.validate_model` request's
+    `max_input_bytes` and the `asset.inspect` payload's `max_bytes`."""
+    glb = int(getattr(settings, "LAI_ASSET_MAX_GLB_BYTES", 50 * 1024 * 1024))
+    return min(glb, max_upload_bytes())
 
 
 def max_bytes_for(family: str) -> int:
@@ -213,6 +225,14 @@ def validate_model(stream: IO[bytes], *, size: int, definition=None) -> Validati
         head = stream.read(12)
         if len(head) >= 4 and struct.unpack_from("<I", head)[0] == GLB_MAGIC:
             result.format = ModelFormat.GLB
+            if size > max_glb_bytes():
+                result.error(
+                    "too_large",
+                    f"The file is {size:,} bytes; the limit for GLB models is "
+                    f"{max_glb_bytes():,} bytes. Reduce texture sizes or polygon count and "
+                    "export again.",
+                )
+                raise _Stop
             document, bin_info = _read_glb(result, stream, head, size)
         else:
             result.format = ModelFormat.GLTF
