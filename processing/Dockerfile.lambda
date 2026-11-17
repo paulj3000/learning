@@ -1,0 +1,33 @@
+# The processing worker image for AWS Lambda (LAI-LAMBDA-003; WAVE2_INTERFACES.md section 7).
+#
+# Build (developer machine or CI only; never on the EC2 Django host), from the repository root:
+#   docker buildx build --platform linux/arm64 -f processing/Dockerfile.lambda \
+#     -t lai-processing:local processing/
+#
+# Pin the base image by digest for a reproducible release (CI resolves and passes it):
+#   docker buildx imagetools inspect public.ecr.aws/lambda/python:3.12
+#   docker buildx build --platform linux/arm64 \
+#     --build-arg BASE_IMAGE=public.ecr.aws/lambda/python:3.12@sha256:<digest> ...
+# The default below is the tag, because no digest can be resolved offline.
+#
+# The AWS Lambda base image runs the handler as the Lambda sandbox user; there is no USER to
+# set. No secret, credential, bucket or queue URL is baked in: configuration is the function's
+# environment (RuntimeConfig.from_env) and credentials come from the function's role.
+ARG BASE_IMAGE=public.ecr.aws/lambda/python:3.12
+FROM ${BASE_IMAGE}
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Dependencies first (cached layer). Installed into the task root, which precedes the
+# runtime's bundled boto3 on sys.path, so the pinned versions are the ones imported.
+COPY runtime-requirements.txt ${LAMBDA_TASK_ROOT}/runtime-requirements.txt
+RUN pip install --no-cache-dir --target "${LAMBDA_TASK_ROOT}" \
+        -r "${LAMBDA_TASK_ROOT}/runtime-requirements.txt" \
+    && rm "${LAMBDA_TASK_ROOT}/runtime-requirements.txt"
+
+COPY lai_processing/ ${LAMBDA_TASK_ROOT}/lai_processing/
+COPY lai_processing_runtime/ ${LAMBDA_TASK_ROOT}/lai_processing_runtime/
+
+CMD ["lai_processing_runtime.lambda_handler.handler"]
