@@ -1,0 +1,45 @@
+# Installed by scripts/aws/native/deploy-native.sh from the release being deployed.
+# Processing reconciliation (LAI-LAMBDA-006, docs/processing/WAVE3_INTERFACES.md section 6):
+# expires open contract jobs past expires_at (FAILED, job_expired, pending outbox rows cancelled)
+# and counts outbox rows stuck unsent. It never creates an attempt or sends a message, so running
+# it repeatedly cannot loop retries. Started by lai-jobs-reconcile.timer and once by
+# power-native.sh verify; a PostgreSQL advisory lock makes an overlapping run exit 0 at once.
+# No [Install] section: only the timer (or a person) starts it.
+[Unit]
+Description=Learning Adventure Island processing reconciliation (expire overdue jobs)
+After=network-online.target lai-gunicorn.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lai
+Group=lai
+WorkingDirectory=/opt/lai/current/lai
+Environment=DJANGO_SETTINGS_MODULE=config.settings.production
+Environment=DJANGO_TRUST_PROXY_SSL_HEADER=true
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/opt/lai/runtime/django.env
+EnvironmentFile=/opt/lai/current/release.env
+# Skipped (not failed) unless the processing backend is sqs, like lai-jobs-dispatch and
+# lai-jobs-completions.
+ExecCondition=/usr/bin/test "${LAI_PROCESSING_BACKEND}" = sqs
+ExecStart=/opt/lai/current/venv/bin/python manage.py jobs_reconcile
+# A run expires at most the jobs that are due; a stuck one is stopped, not left running.
+TimeoutStartSec=300
+TimeoutStopSec=40
+StandardOutput=append:/var/log/lai/jobs-reconcile.log
+StandardError=inherit
+UMask=0027
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/lai
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+CapabilityBoundingSet=

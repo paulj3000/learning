@@ -177,7 +177,7 @@ EOF
 chmod 0755 /usr/local/sbin/lai-cert
 /usr/local/sbin/lai-cert --placeholder
 
-# --- systemd: certificate renewal and maintenance timers -----------------------------------------
+# --- systemd: certificate renewal and maintenance timers ---
 cat >/etc/systemd/system/lai-certbot-renew.service <<'EOF'
 [Unit]
 Description=Obtain or renew the lai-dev TLS certificate
@@ -229,7 +229,7 @@ else
     say "WARNING: nginx -t failed; nginx not (re)started"
 fi
 
-# --- logs and metrics ----------------------------------------------------------------------------
+# --- logs and metrics ---
 cat >/etc/logrotate.d/lai <<'EOF'
 /var/log/lai/*.log {
     weekly
@@ -251,7 +251,8 @@ cat >$cw.tmp <<EOF
   $(f /var/log/lai/maintenance.log "$P/deploy"),
   $(f /var/log/lai/jobs-consumer.log "$P/jobs"),
   $(f /var/log/lai/jobs-dispatch.log "$P/jobs"),
-  $(f /var/log/lai/jobs-completions.log "$P/jobs")]}}},
+  $(f /var/log/lai/jobs-completions.log "$P/jobs"),
+  $(f /var/log/lai/jobs-reconcile.log "$P/jobs")]}}},
  "metrics":{"namespace":"LearningAdventureIsland/DevEC2",
   "append_dimensions":{"InstanceId":"\${aws:InstanceId}"},"aggregation_dimensions":[["InstanceId"]],
   "metrics_collected":{"mem":{"measurement":["mem_used_percent"]},
@@ -266,7 +267,7 @@ else
     systemctl enable --now amazon-cloudwatch-agent >/dev/null 2>&1 || true
 fi
 
-# --- first certificate: never fails the setup ----------------------------------------------------
+# --- first certificate: never fails the setup ---
 if [ ! -f /etc/letsencrypt/renewal/lai-dev.conf ]; then
     say "requesting the Let's Encrypt certificate (${LAI_ACME_MODE:-http})"
     /usr/local/sbin/lai-cert || say "WARNING: certificate pending; lai-certbot-renew.timer retries"

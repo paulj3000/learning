@@ -4,7 +4,11 @@ import { AiGuardrailStack } from '../lib/aiGuardrailStack';
 import { AssetStorageStack, type AssetEnvironment } from '../lib/assetStorageStack';
 import { ChildPhotoStorageStack } from '../lib/childPhotoStorageStack';
 import { DevArtifactsStack } from '../lib/devArtifactsStack';
-import { DEV_PLATFORM_STACK, DevPlatformStack } from '../lib/devPlatformStack';
+import {
+  DEV_PLATFORM_STACK,
+  DevPlatformStack,
+  type DevPlatformStackProps,
+} from '../lib/devPlatformStack';
 import { DjangoEc2Stack, type DatabaseMode } from '../lib/djangoEc2Stack';
 import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
 import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
@@ -60,6 +64,7 @@ import {
  * | `processingWorkerImageDigest` | `LAI_PROCESSING_WORKER_IMAGE_DIGEST` | `sha256:...` worker image; empty = phase 1 |
  * | `processingReservedConcurrency` | `LAI_PROCESSING_RESERVED_CONCURRENCY` | worker reserved concurrency (dev 2, prod 5) |
  * | `processingAlarms`   | `LAI_PROCESSING_ALARMS`     | JSON overrides of the processing alarm thresholds |
+ * | `processingLogAlarms` | `LAI_PROCESSING_LOG_ALARMS` | JSON overrides of the dev processing log alarms |
  *
  * Deploy-time values (API and admin host names, AMI, instance type, Cognito ids, alarm
  * e-mail) are CloudFormation parameters of `LaiDjangoEc2-prod` (scripts/aws/provision.sh) and
@@ -130,8 +135,12 @@ if (envName === 'dev') {
     description:
       'Learning Adventure Island dev artifacts: Django releases, Lambda code, job results',
   });
+  const logAlarmOverrides = setting('processingLogAlarms', 'LAI_PROCESSING_LOG_ALARMS');
   new DevPlatformStack(app, DEV_PLATFORM_STACK, {
     githubRepository,
+    processingLogAlarms: logAlarmOverrides
+      ? (JSON.parse(logAlarmOverrides) as DevPlatformStackProps['processingLogAlarms'])
+      : undefined,
     env,
     synthesizer: synthesizer(),
     description:

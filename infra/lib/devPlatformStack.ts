@@ -140,6 +140,83 @@ export const DEV_PLATFORM_OUTPUTS = [
   'ParameterPrefix',
 ] as const;
 
+/** Namespace of the metrics the processing log filters publish (LAI-LAMBDA-006). */
+export const PROCESSING_LOG_METRICS_NAMESPACE = 'LearningAdventureIsland/Processing';
+
+/**
+ * One processing log alarm: at least `threshold` matching lines in each of `evaluationPeriods`
+ * consecutive periods of `periodMinutes`.
+ */
+export interface ProcessingLogAlarmThreshold {
+  threshold: number;
+  periodMinutes: number;
+  evaluationPeriods: number;
+}
+
+/**
+ * The Django processing log lines that page (docs/processing/OPERATIONS.md, section 10). Every
+ * pattern is a fixed event name the code logs with ids, codes and exception class names only, so
+ * a filter never sees content, names, keys or URLs. All of them are written by the
+ * `lai-jobs-completions` and `lai-jobs-reconcile` units to `/lai/dev/jobs`.
+ */
+export const PROCESSING_LOG_EVENTS = {
+  CompletionRejected: 'processing.completion_rejected',
+  OutboxStuck: 'processing.outbox_stuck',
+  ReconcileFailed: 'processing.reconcile_failed',
+  SubjectMismatch: 'processing.subject_mismatch',
+  HookError: 'processing.hook_error',
+  ConsumerDatabaseError: 'processing.consumer database_error',
+} as const;
+export type ProcessingLogAlarm = keyof typeof PROCESSING_LOG_EVENTS;
+export type ProcessingLogAlarmThresholds = Record<ProcessingLogAlarm, ProcessingLogAlarmThreshold>;
+
+/**
+ * Defaults. A rejected completion, a subject mismatch, a hook error and a failed reconciliation
+ * are each worth a look on their own. A stuck outbox must persist across two 15-minute periods
+ * (the startup reconciliation may count retry rows that came due overnight, which the relay sends
+ * a moment later). A short database blip makes the consumer back off and log a few lines, so its
+ * alarm needs 5 in 15 minutes (the backoff is at most 60 s, so an outage logs about 15).
+ */
+export function defaultProcessingLogAlarms(): ProcessingLogAlarmThresholds {
+  const each = { threshold: 1, periodMinutes: 15, evaluationPeriods: 1 };
+  return {
+    CompletionRejected: { ...each },
+    OutboxStuck: { threshold: 1, periodMinutes: 15, evaluationPeriods: 2 },
+    ReconcileFailed: { ...each },
+    SubjectMismatch: { ...each },
+    HookError: { ...each },
+    ConsumerDatabaseError: { threshold: 5, periodMinutes: 15, evaluationPeriods: 1 },
+  };
+}
+
+/** Merges overrides into the defaults and refuses values CloudWatch would reject. */
+export function processingLogAlarms(
+  overrides: Partial<Record<ProcessingLogAlarm, Partial<ProcessingLogAlarmThreshold>>> = {},
+): ProcessingLogAlarmThresholds {
+  const merged = defaultProcessingLogAlarms();
+  for (const [name, value] of Object.entries(overrides)) {
+    if (!(name in merged)) {
+      throw new Error(`unknown processing log alarm ${name}`);
+    }
+    const alarm = { ...merged[name as ProcessingLogAlarm], ...value };
+    if (!Number.isInteger(alarm.threshold) || alarm.threshold < 1) {
+      throw new Error(`${name}.threshold must be an integer of at least 1`);
+    }
+    if (![1, 5, 10, 15, 30, 60].includes(alarm.periodMinutes)) {
+      throw new Error(`${name}.periodMinutes must be 1, 5, 10, 15, 30 or 60`);
+    }
+    if (
+      !Number.isInteger(alarm.evaluationPeriods) ||
+      alarm.evaluationPeriods < 1 ||
+      alarm.evaluationPeriods * alarm.periodMinutes > 24 * 60
+    ) {
+      throw new Error(`${name}.evaluationPeriods must be 1 or more and span at most a day`);
+    }
+    merged[name as ProcessingLogAlarm] = alarm;
+  }
+  return merged;
+}
+
 export function speechBucketName(account: string, region: string): string {
   return `lai-speech-${DEV}-${account}-${region}`;
 }
@@ -147,6 +224,11 @@ export function speechBucketName(account: string, region: string): string {
 export interface DevPlatformStackProps extends StackProps {
   /** Default of the GitHubRepository parameter (`owner/repo`). */
   githubRepository?: string;
+  /**
+   * Overrides of the processing log alarms (`processingLogAlarms` context, JSON), e.g.
+   * `{"ConsumerDatabaseError": {"threshold": 10}}`.
+   */
+  processingLogAlarms?: Partial<Record<ProcessingLogAlarm, Partial<ProcessingLogAlarmThreshold>>>;
 }
 
 export class DevPlatformStack extends Stack {
@@ -474,6 +556,7 @@ export class DevPlatformStack extends Stack {
       logGroup(`${name[0].toUpperCase()}${name.slice(1)}LogGroup`, `/lai/${DEV}/${name}`),
     );
     const deployLogs = instanceLogs[2];
+    const jobsLogs = instanceLogs[3];
     const databaseLogs = logGroup(
       'DatabaseLogGroup',
       `/aws/rds/instance/${DEV_DATABASE_ID}/postgresql`,
@@ -1464,6 +1547,35 @@ export class DevPlatformStack extends Stack {
         1,
         gte,
         1,
+      );
+    }
+    // Processing (LAI-LAMBDA-006): metric filters on /lai/dev/jobs, the group this stack owns and
+    // the CloudWatch agent ships jobs-completions.log and jobs-reconcile.log to (setup-native.sh).
+    // No default value: a quiet night publishes nothing, and missing data is not breaching.
+    const logAlarms = processingLogAlarms(props.processingLogAlarms);
+    for (const [name, event] of Object.entries(PROCESSING_LOG_EVENTS)) {
+      const settings = logAlarms[name as ProcessingLogAlarm];
+      new logs.MetricFilter(this, `Processing${name}Filter`, {
+        logGroup: jobsLogs,
+        // A quoted term: the fixed event name, matched as written (it contains '.' and ' ').
+        filterPattern: logs.FilterPattern.literal(`"${event}"`),
+        metricNamespace: PROCESSING_LOG_METRICS_NAMESPACE,
+        metricName: name,
+        metricValue: '1',
+      });
+      alarm(
+        `Processing${name}`,
+        `${event} logged ${settings.threshold} or more times in ${settings.periodMinutes} min` +
+          ` (${settings.evaluationPeriods} period(s)); runbook: docs/processing/OPERATIONS.md`,
+        new cloudwatch.Metric({
+          namespace: PROCESSING_LOG_METRICS_NAMESPACE,
+          metricName: name,
+          statistic: 'Sum',
+          period: Duration.minutes(settings.periodMinutes),
+        }),
+        settings.threshold,
+        gte,
+        settings.evaluationPeriods,
       );
     }
     alarm(

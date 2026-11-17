@@ -267,3 +267,69 @@ def test_after_a_database_failure_the_rest_of_the_batch_is_handed_back_untried(
     assert len(attempts) == 1  # the second message was not spent on a doomed attempt
     assert spy.releases[1][1] == 0  # handed back at once
     del real
+
+
+def _hold_reconcile_lock():
+    """A second PostgreSQL session holding the reconcile advisory lock (another running timer)."""
+    from apps.jobs.management.commands.jobs_reconcile import RECONCILE_LOCK_KEY
+
+    other = connection.Database.connect(**connection.get_connection_params())
+    other.autocommit = True
+    with other.cursor() as cursor:
+        cursor.execute("SELECT pg_try_advisory_lock(%s)", [RECONCILE_LOCK_KEY])
+        assert cursor.fetchone()[0] is True
+    return other
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+def test_reconcile_skips_while_another_run_holds_the_lock(fake_transport, capsys):
+    overdue = submit_reference(fake_transport.storage)
+    ProcessingJob.objects.filter(pk=overdue.pk).update(expires_at=now() - timedelta(minutes=1))
+    other = _hold_reconcile_lock()
+    try:
+        report = json.loads(run("jobs_reconcile", capsys=capsys))
+        assert report == {"dryRun": False, "skipped": "already_running"}
+        overdue.refresh_from_db()
+        assert overdue.state == JobState.QUEUED  # nothing changed
+        # A dry run only reads, so it still reports while the lock is held.
+        report = json.loads(run("jobs_reconcile", "--dry-run", capsys=capsys))
+        assert report["expired_due"] == 1 and "skipped" not in report
+    finally:
+        other.close()
+    report = json.loads(run("jobs_reconcile", capsys=capsys))
+    assert report["expired"] == 1
+    # The lock is released after a run: a later run (another session) can take it again.
+    _hold_reconcile_lock().close()
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+def test_reconcile_failure_logs_the_type_only_and_exits_non_zero(monkeypatch, caplog, capsys):
+    from django.core.management.base import CommandError
+
+    def broken(**kwargs):
+        raise DatabaseError("password=hunter2 host=db.internal")
+
+    monkeypatch.setattr(processing, "reconcile", broken)
+    with caplog.at_level("ERROR", logger="lai.jobs"):
+        with pytest.raises(CommandError) as raised:
+            call_command("jobs_reconcile")
+    assert raised.value.returncode == 1
+    messages = [r.getMessage() for r in caplog.records]
+    assert "processing.reconcile_failed type=DatabaseError" in messages
+    assert not any("hunter2" in m or "db.internal" in m for m in messages)
+    assert capsys.readouterr().out == ""
+    # The lock was released despite the failure.
+    _hold_reconcile_lock().close()
+    with pytest.raises(CommandError):
+        call_command("jobs_reconcile", "--dry-run")
+
+
+def test_reconcile_creates_no_attempt_and_sends_nothing():
+    """Reconciliation only expires and counts: it never retries (no attempt, no outbox row)."""
+    import inspect
+
+    source = inspect.getsource(processing.reconcile)
+    assert "_new_attempt" not in source and "JobOutbox.objects.create" not in source
+    assert "relay" not in source and ".send(" not in source

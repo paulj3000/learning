@@ -16,6 +16,10 @@ import {
   GRAVITON_INSTANCE_PATTERN,
   HOUR_PATTERN,
   MINUTE_PATTERN,
+  PROCESSING_LOG_EVENTS,
+  PROCESSING_LOG_METRICS_NAMESPACE,
+  defaultProcessingLogAlarms,
+  processingLogAlarms,
   speechBucketName,
 } from './devPlatformStack';
 import { POWER_LOOPS } from './devPowerStateMachine';
@@ -781,6 +785,94 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
       BudgetLimit: { Amount: { Ref: 'MonthlyBudgetUsd' } },
     });
     template.hasResourceProperties('AWS::SNS::Topic', { TopicName: 'lai-django-alarms-dev' });
+  });
+
+  it('filters the processing events on /lai/dev/jobs and alarms on each (LAI-LAMBDA-006)', () => {
+    const jobsGroup = logicalId('AWS::Logs::LogGroup', 'JobsLogGroup');
+    const filters = resources('AWS::Logs::MetricFilter');
+    expect(filters).toHaveLength(Object.keys(PROCESSING_LOG_EVENTS).length);
+    const byMetric = Object.fromEntries(
+      filters.map((filter) => {
+        const [transformation] = filter.Properties.MetricTransformations as Json[];
+        return [transformation.MetricName as string, { filter, transformation }];
+      }),
+    );
+    const alarms = Object.fromEntries(
+      resources('AWS::CloudWatch::Alarm').map((alarm) => [
+        alarm.Properties.AlarmName,
+        alarm.Properties,
+      ]),
+    );
+    const topic = logicalId('AWS::SNS::Topic', 'AlarmTopic');
+    const defaults = defaultProcessingLogAlarms();
+    const names = {
+      CompletionRejected: 'processing-completion-rejected',
+      OutboxStuck: 'processing-outbox-stuck',
+      ReconcileFailed: 'processing-reconcile-failed',
+      SubjectMismatch: 'processing-subject-mismatch',
+      HookError: 'processing-hook-error',
+      ConsumerDatabaseError: 'processing-consumer-database-error',
+    } as const;
+    expect(Object.keys(names).sort()).toEqual(Object.keys(PROCESSING_LOG_EVENTS).sort());
+    for (const [metric, event] of Object.entries(PROCESSING_LOG_EVENTS)) {
+      const { filter, transformation } = byMetric[metric];
+      // On the group this stack owns (no imported or duplicate group), a fixed event name only.
+      expect(filter.Properties.LogGroupName).toEqual({ Ref: jobsGroup });
+      expect(filter.Properties.FilterPattern).toBe(`"${event}"`);
+      expect(transformation).toEqual({
+        MetricNamespace: PROCESSING_LOG_METRICS_NAMESPACE,
+        MetricName: metric,
+        MetricValue: '1',
+      });
+      const settings = defaults[metric as keyof typeof defaults];
+      expect(alarms[`lai-dev-${names[metric as keyof typeof names]}`]).toMatchObject({
+        Namespace: PROCESSING_LOG_METRICS_NAMESPACE,
+        MetricName: metric,
+        Statistic: 'Sum',
+        Period: settings.periodMinutes * 60,
+        Threshold: settings.threshold,
+        EvaluationPeriods: settings.evaluationPeriods,
+        ComparisonOperator: 'GreaterThanOrEqualToThreshold',
+        TreatMissingData: 'notBreaching',
+        AlarmActions: [{ Ref: topic }],
+      });
+    }
+    expect(defaults.OutboxStuck.evaluationPeriods).toBe(2);
+    expect(defaults.ConsumerDatabaseError.threshold).toBe(5);
+    // The CloudWatch agent ships the units' logs to this group (setup-native.sh).
+    const setup = readFileSync(join(repoRoot, 'scripts/aws/native/setup-native.sh'), 'utf8');
+    for (const log of ['jobs-completions.log', 'jobs-reconcile.log']) {
+      expect(setup).toContain(`$(f /var/log/lai/${log} "$P/jobs")`);
+    }
+  });
+
+  it('takes processing log alarm overrides and refuses invalid ones', () => {
+    const custom = new DevPlatformStack(new App(), 'LaiDevPlatform-dev', {
+      env,
+      githubRepository: REPO,
+      processingLogAlarms: { ConsumerDatabaseError: { threshold: 12, periodMinutes: 30 } },
+    });
+    Template.fromStack(custom).hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'lai-dev-processing-consumer-database-error',
+      Threshold: 12,
+      Period: 1800,
+      EvaluationPeriods: 1,
+    });
+    expect(processingLogAlarms({ HookError: { evaluationPeriods: 3 } }).HookError).toEqual({
+      threshold: 1,
+      periodMinutes: 15,
+      evaluationPeriods: 3,
+    });
+    expect(() => processingLogAlarms({ HookError: { threshold: 0 } })).toThrow(/threshold/);
+    expect(() => processingLogAlarms({ HookError: { periodMinutes: 7 } })).toThrow(/periodMinutes/);
+    expect(() =>
+      processingLogAlarms({ HookError: { periodMinutes: 60, evaluationPeriods: 25 } }),
+    ).toThrow(/evaluationPeriods/);
+    expect(() =>
+      processingLogAlarms({ Nope: { threshold: 1 } } as unknown as Parameters<
+        typeof processingLogAlarms
+      >[0]),
+    ).toThrow(/unknown/);
   });
 
   it('applies the log retention parameter to every log group', () => {

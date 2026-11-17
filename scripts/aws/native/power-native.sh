@@ -3,14 +3,24 @@
 # Self-contained (no lib). LAI_REQ_ACTION (from the document, or $1):
 #
 #   quiesce   before the instance stops: wait briefly for a running release to finish, then stop
-#             lai-jobs-dispatch (no new work leaves), lai-jobs-completions, lai-jobs-consumer and
-#             lai-gunicorn. Always exits 0 unless the action is invalid. The Lambda workers keep
-#             running; their completions wait in SQS until verify starts the consumers again.
-#   verify    after the instance starts: nginx and lai-gunicorn active, database reachable,
-#             readiness 200, start lai-jobs-consumer, lai-jobs-completions (drains the overnight
-#             backlog) and lai-jobs-dispatch; then, when /lai/dev/deploy/apply-pending-on-start
-#             is true, apply the release recorded in /lai/dev/deploy/pending and set it to `none`
-#             once that succeeds. Exits 0 when the instance ends healthy, 1 when it does not.
+#             lai-jobs-reconcile.timer and any running reconciliation (no expiry runs while
+#             services stop), lai-jobs-dispatch (no new work leaves), lai-jobs-completions,
+#             lai-jobs-consumer and lai-gunicorn. Always exits 0 unless the action is invalid. The
+#             Lambda workers keep running; their completions wait in SQS until verify starts the
+#             consumers again.
+#   verify    after the instance starts (the state machine starts RDS first and waits for it):
+#             nginx and lai-gunicorn active, then the database reachable with the current
+#             release's settings and readiness 200 (health-native.sh --db, bounded by
+#             LAI_VERIFY_ATTEMPTS x LAI_VERIFY_INTERVAL); only then start lai-jobs-consumer,
+#             lai-jobs-completions (drains the overnight backlog), run one reconciliation
+#             (lai-jobs-reconcile.service, synchronous; it expires overdue jobs and cancels their
+#             outbox rows before the relay resumes), start lai-jobs-dispatch and
+#             lai-jobs-reconcile.timer, and print the processing backlog
+#             (processing-native.sh backlog: jobs_reconcile --dry-run counts). Then, when
+#             /lai/dev/deploy/apply-pending-on-start is true, apply the release recorded in
+#             /lai/dev/deploy/pending and set it to `none` once that succeeds. Ends with one
+#             `health:` line. Exits 0 when the instance ends healthy, 1 when it does not; the
+#             processing steps only warn (the backend may be disabled or the release older).
 # Exit 2 for an unknown action, 30 when the instance was never set up.
 set -Eeuo pipefail
 LAI_ROOT=${LAI_ROOT:-/opt/lai}
@@ -30,11 +40,18 @@ case "$action" in quiesce | verify) ;; *) say "ERROR: action must be quiesce or 
 export AWS_REGION AWS_DEFAULT_REGION="${AWS_REGION:-}"
 deploy_prefix=${LAI_DEPLOY_PREFIX:-/lai/${LAI_ENV:-dev}/deploy}
 scripts=${LAI_NATIVE_SCRIPTS_DIR:-$LAI_ROOT/current/scripts/aws/native}
+systemd_dir=${LAI_SYSTEMD_DIR:-/etc/systemd/system}
 
 if [ "$action" = quiesce ]; then
     mkdir -p "$(dirname "$LAI_LOCK_FILE")"
     exec 9>"$LAI_LOCK_FILE"
     flock -w "$LAI_QUIESCE_LOCK_WAIT" 9 || say "WARNING: a release still holds the lock; stopping anyway"
+    # The timer first, so no reconciliation starts while the others stop; a running one is
+    # stopped too (each expiry is its own transaction, so a stop leaves no half-done job).
+    if [ -f "$systemd_dir/lai-jobs-reconcile.timer" ]; then
+        systemctl stop lai-jobs-reconcile.timer || say "WARNING: could not stop lai-jobs-reconcile.timer"
+        systemctl stop lai-jobs-reconcile.service || say "WARNING: could not stop lai-jobs-reconcile"
+    fi
     systemctl stop lai-jobs-dispatch.service || say "WARNING: could not stop lai-jobs-dispatch"
     systemctl stop lai-jobs-completions.service || say "WARNING: could not stop lai-jobs-completions"
     systemctl stop lai-jobs-consumer.service || say "WARNING: could not stop lai-jobs-consumer"
@@ -44,6 +61,8 @@ if [ "$action" = quiesce ]; then
 fi
 
 # --- verify --------------------------------------------------------------------------------------
+reconcile=not-installed
+backlog=not-reported
 healthy() {
     [ -x "$scripts/health-native.sh" ] || return 1
     LAI_HEALTH_ATTEMPTS=$1 LAI_HEALTH_INTERVAL=$LAI_VERIFY_INTERVAL "$scripts/health-native.sh" --db
@@ -62,7 +81,27 @@ if [ "$ok" = true ] && healthy "$LAI_VERIFY_ATTEMPTS"; then
     systemctl start lai-jobs-consumer.service || say "WARNING: lai-jobs-consumer did not start"
     # Skipped by their ExecCondition unless LAI_PROCESSING_BACKEND is sqs.
     systemctl start lai-jobs-completions.service || say "WARNING: lai-jobs-completions did not start"
+    if [ -f "$systemd_dir/lai-jobs-reconcile.service" ]; then
+        # A oneshot: `start` returns when the run has finished (or was skipped by its condition).
+        if systemctl start lai-jobs-reconcile.service; then
+            reconcile=ok
+        else
+            reconcile=failed
+            say "WARNING: the startup reconciliation failed (see /var/log/lai/jobs-reconcile.log)"
+        fi
+    fi
     systemctl start lai-jobs-dispatch.service || say "WARNING: lai-jobs-dispatch did not start"
+    if [ -f "$systemd_dir/lai-jobs-reconcile.timer" ]; then
+        systemctl start lai-jobs-reconcile.timer || say "WARNING: lai-jobs-reconcile.timer did not start"
+    fi
+    if [ -x "$scripts/processing-native.sh" ]; then
+        if backlog=$("$scripts/processing-native.sh" backlog 2>/dev/null); then
+            say "processing backlog: $backlog"
+        else
+            backlog=unavailable
+            say "WARNING: the processing backlog could not be read"
+        fi
+    fi
 else
     ok=false
     say "ERROR: the instance is not healthy after start"
@@ -111,5 +150,7 @@ if [ "$apply" = true ] && [ -n "$pending" ] && [ "$pending" != none ]; then
     fi
 fi
 
+status=$([ "$ok" = true ] && echo healthy || echo unhealthy)
+say "health: $status; startup reconciliation $reconcile; processing backlog $backlog"
 [ "$ok" = true ] || exit 1
 say "verified"

@@ -64,15 +64,73 @@ UNITS = [
 ]
 
 
+TIMER_UNITS = ["lai-jobs-reconcile.service", "lai-jobs-reconcile.timer"]
+
+
 def test_the_release_installs_and_setup_enables_every_unit():
-    assert sorted(p.name for p in (DEPLOY / "systemd").glob("*.service")) == sorted(UNITS)
+    services = sorted(p.name for p in (DEPLOY / "systemd").glob("*.service"))
+    assert services == sorted([*UNITS, "lai-jobs-reconcile.service"])
+    assert [p.name for p in (DEPLOY / "systemd").glob("*.timer")] == ["lai-jobs-reconcile.timer"]
     lib = (NATIVE / "lib-native.sh").read_text()
     match = re.search(r"^LAI_UNITS=\(([^)]*)\)", lib, re.M)
     assert match and match.group(1).split() == UNITS
+    match = re.search(r"^LAI_TIMER_UNITS=\(([^)]*)\)", lib, re.M)
+    assert match and match.group(1).split() == TIMER_UNITS
     setup = (NATIVE / "setup-native.sh").read_text()
     assert "for u in " + " ".join(u.removesuffix(".service") for u in UNITS) + "; do" in setup
-    for log in ("jobs-consumer.log", "jobs-dispatch.log", "jobs-completions.log"):
-        assert f"/var/log/lai/{log}" in setup, log
+    # The release enables the reconcile timer (install_release_config); setup keeps no copy, as
+    # the user data size limit is tight.
+    assert 'systemctl enable "${LAI_TIMERS[@]}"' in lib
+    for log in (
+        "jobs-consumer.log",
+        "jobs-dispatch.log",
+        "jobs-completions.log",
+        "jobs-reconcile.log",
+    ):
+        # Shipped by the CloudWatch agent to /lai/<env>/jobs, where the metric filters are.
+        assert f'$(f /var/log/lai/{log} "$P/jobs")' in setup, log
+
+
+def test_reconcile_service_is_a_oneshot_with_the_processing_conventions():
+    lines = (DEPLOY / "systemd/lai-jobs-reconcile.service").read_text().splitlines()
+    assert "Type=oneshot" in lines
+    assert "ExecStart=/opt/lai/current/venv/bin/python manage.py jobs_reconcile" in lines
+    assert 'ExecCondition=/usr/bin/test "${LAI_PROCESSING_BACKEND}" = sqs' in lines
+    assert "StandardOutput=append:/var/log/lai/jobs-reconcile.log" in lines
+    # Started only by its timer (or a person): no [Install], no Restart= loop.
+    assert "[Install]" not in lines
+    assert not any(line.startswith("Restart=") for line in lines)
+    assert any(re.fullmatch(r"TimeoutStartSec=\d+", line) for line in lines)
+    dispatch = (DEPLOY / "systemd/lai-jobs-dispatch.service").read_text().splitlines()
+    shared = [
+        line
+        for line in dispatch
+        if line.startswith(
+            ("User=", "Group=", "WorkingDirectory=", "Environment", "Protect", "Restrict")
+        )
+        or line.startswith(("Capability", "NoNewPrivileges", "PrivateTmp", "ReadWritePaths"))
+    ]
+    assert shared
+    for line in shared:
+        assert line in lines, line
+
+
+def test_reconcile_timer_schedule():
+    lines = (DEPLOY / "systemd/lai-jobs-reconcile.timer").read_text().splitlines()
+    for line in (
+        "OnBootSec=10min",
+        "OnUnitActiveSec=10min",
+        "RandomizedDelaySec=60",
+        "Persistent=false",
+        "Unit=lai-jobs-reconcile.service",
+        "WantedBy=timers.target",
+    ):
+        assert line in lines, line
+    # The documented override is a drop-in, which a release never overwrites.
+    text = "\n".join(lines)
+    assert "systemctl edit lai-jobs-reconcile.timer" in text
+    lib = (NATIVE / "lib-native.sh").read_text()
+    assert "timer.d" not in lib.replace("lai-jobs-reconcile.timer.d/) is never touched", "")
 
 
 @pytest.mark.parametrize(

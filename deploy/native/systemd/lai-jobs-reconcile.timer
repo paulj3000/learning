@@ -1,0 +1,28 @@
+# Installed by scripts/aws/native/deploy-native.sh from the release being deployed; enabled by
+# the release scripts and setup-native.sh, stopped first by power-native.sh quiesce and started
+# by power-native.sh verify after the database check.
+#
+# Change the schedule with a drop-in, which releases never overwrite (they install only this
+# file), for example `systemctl edit lai-jobs-reconcile.timer`:
+#   [Timer]
+#   OnBootSec=
+#   OnBootSec=15min
+#   OnUnitActiveSec=
+#   OnUnitActiveSec=30min
+# then `systemctl daemon-reload && systemctl restart lai-jobs-reconcile.timer`. The empty
+# assignments clear these defaults first (docs/processing/OPERATIONS.md, section 6).
+[Unit]
+Description=Learning Adventure Island processing reconciliation every 10 minutes
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=10min
+RandomizedDelaySec=60
+AccuracySec=30s
+# The dev instance is stopped overnight; power-native.sh verify runs one reconciliation at
+# start, so a missed run is not caught up again.
+Persistent=false
+Unit=lai-jobs-reconcile.service
+
+[Install]
+WantedBy=timers.target
