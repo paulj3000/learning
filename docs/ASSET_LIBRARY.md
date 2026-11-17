@@ -853,9 +853,12 @@ flow, outcome codes, retries and deployment order: `docs/processing/ASYNC_MODEL_
   unless a completed validation job passed for exactly this version's file, by the processor
   version this build runs. A draft is refused with `not_validated` first. No job ever publishes:
   publishing is still the explicit staff action. Rollback, Make default and republishing during a
-  rollback are not gated. Completed jobs are pruned after `LAI_JOBS_RETENTION_DAYS` (30); a
-  `VALIDATED` GLB whose passing job was pruned needs Validate in background again before it can
-  be published.
+  rollback are not gated. Completed validation jobs are pruned after
+  `LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90); a `VALIDATED` GLB whose passing job was pruned
+  needs Validate in background again before it can be published, and a published one is
+  unaffected. The newest accepted result decides, and staff resubmission is bounded
+  (`LAI_ASSET_VALIDATION_MAX_ATTEMPTS`, 5): `docs/processing/ASYNC_MODEL_VALIDATION.md` sections 9
+  and 10.
 - **`asset.inspect` versus `asset.validate_model`.** "Inspect in background" (`asset.inspect`) is
   informational: it reads structure and dimensions of a model, image or sound, keeps the result on
   the job and never changes a version. `asset.validate_model` is the full GLB validator; its

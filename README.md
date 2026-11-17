@@ -509,7 +509,7 @@ and #41 are superseded implementation sources (branches kept, not merged).
 - **Tests:** `tests/processing`, `tests/lambda/test_jobs_worker_contract.py`,
   `tests/lambda/test_jobs_worker_package.py`, `tests/repo/test_canonical_processing_guard.py`,
   `lai/apps/jobs/tests/test_contract_kinds.py` and the `lai/apps/assets/tests` files for upload,
-  results, gate, admin and parity (list in `docs/processing/ASYNC_MODEL_VALIDATION.md` section 11).
+  results, gate, admin and parity (list in `docs/processing/ASYNC_MODEL_VALIDATION.md` section 12).
 - **Zip contents:** `jobs_worker/`, its vendored `jobs_core` (now with `contract.py`) and AI
   providers, and `lai_processing` at the zip root without `testing/`, `cli/` and `__main__.py`
   (about 351 KB; budget 2 MiB). The native release and the Django image ship

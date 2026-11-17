@@ -92,6 +92,24 @@ def test_studio_jobs_mode_needs_a_backend(monkeypatch):
         _load("config.settings.base")
 
 
+@pytest.mark.parametrize(
+    "name, default, bad",
+    [
+        ("LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS", 90, ("0", "731")),
+        ("LAI_ASSET_VALIDATION_MAX_ATTEMPTS", 5, ("0", "21")),
+    ],
+)
+def test_validation_retention_and_attempt_settings_are_bounded(monkeypatch, name, default, bad):
+    monkeypatch.delenv(name, raising=False)
+    assert getattr(_load("config.settings.base"), name) == default
+    for value in bad:
+        monkeypatch.setenv(name, value)
+        with pytest.raises(ImproperlyConfigured, match=name):
+            _load("config.settings.base")
+    monkeypatch.setenv(name, "1")
+    assert getattr(_load("config.settings.base"), name) == 1
+
+
 def test_production_jobs_settings(monkeypatch):
     from apps.core.tests.test_settings import _prod_env
 

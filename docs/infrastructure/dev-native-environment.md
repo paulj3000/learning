@@ -275,7 +275,9 @@ Workload status:
 
 Settings: `LAI_JOBS_BACKEND` (`inline` locally and in tests, `sqs` in dev, `disabled` by default in
 production), `LAI_JOBS_AI_QUEUE_URL`, `LAI_JOBS_MEDIA_QUEUE_URL`, `LAI_JOBS_RESULTS_QUEUE_URL`,
-`LAI_JOBS_RESULTS_BUCKET`, `LAI_JOBS_STALE_MINUTES` (60), `LAI_JOBS_RETENTION_DAYS` (30). Staff see
+`LAI_JOBS_RESULTS_BUCKET`, `LAI_JOBS_STALE_MINUTES` (60), `LAI_JOBS_RETENTION_DAYS` (30),
+`LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90, completed model validation jobs) and
+`LAI_ASSET_VALIDATION_MAX_ATTEMPTS` (5). Staff see
 every job (pending, running, completed, failed) under Django Admin, Jobs, Processing jobs, and a
 Studio batch shows its jobs. The `npc_pregenerate_speech` report gains a `queued` count.
 

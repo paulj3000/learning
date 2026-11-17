@@ -418,9 +418,11 @@ class AssetVersionAdmin(admin.ModelAdmin):
     )
     def validate_in_background(self, request, queryset):
         """Submit each selected GLB version for `asset.validate_model`, or report its existing
-        job for the same file. A failed job is retried with a new one. The version is never
-        changed here: the result appears in its "Background validation" section, and
-        publishing stays a separate staff action."""
+        job for the same file. A failed, cancelled, refused or superseded job, or a `fail`
+        verdict, is resubmitted as a new job (at most `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` per
+        file and processor version). The version is never changed here: the result appears in
+        its "Background validation" section, and publishing stays a separate staff action. A
+        new result never un-rejects a rejected version or changes a published one."""
         from apps.jobs.services import JobsDisabled, JobsError
 
         submitted = 0
@@ -451,6 +453,15 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 )
                 return
             except JobsError as error:
+                if error.code == "attempts_exhausted":
+                    self.message_user(
+                        request,
+                        f"{version.label}: This file has reached the limit of background "
+                        "validation attempts, so no new one was submitted. Upload the file "
+                        "again as a new version, or ask an administrator.",
+                        messages.ERROR,
+                    )
+                    continue
                 self.message_user(
                     request,
                     f"{version.label}: Background validation could not start ({error.code}).",
@@ -464,6 +475,14 @@ class AssetVersionAdmin(admin.ModelAdmin):
                         request,
                         f"{version.label}: The earlier background validation failed, so a new "
                         "one was submitted.",
+                        messages.INFO,
+                    )
+                elif previous is not None and previous.status == "completed":
+                    self.message_user(
+                        request,
+                        f"{version.label}: The earlier background validation did not pass this "
+                        "file, so a new one was submitted. The version's status is not changed "
+                        "by it.",
                         messages.INFO,
                     )
             elif job.is_terminal:
@@ -627,6 +646,9 @@ _OUTCOME_LABELS = {
     "result_recorded": "The result was recorded; the version was not changed.",
     "processing_failed": "No result; the version was not changed.",
     "version_missing": "The version no longer exists.",
+    "result_superseded": (
+        "A newer validation of this version exists, so this result was recorded only."
+    ),
 }
 _MISMATCH_OUTCOME = "The result does not match this version's file; the version was not changed."
 

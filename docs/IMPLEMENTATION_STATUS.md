@@ -80,6 +80,23 @@ entries live on those branches and are superseded by ADR-064 and this entry.
     retried); it is now `storage_failure` and retried through SQS;
   - the `glb-default` profile's 300 s budget exceeded the media function's 120 s timeout; the
     request now carries 90 s.
+- **Retry and retention (owner decisions 2026-11-17, branch `fix/can-retry-retention`).**
+  Staff resubmission of a failed (any code, `timeout` and `cancelled` included), refused,
+  superseded or `fail`-verdict validation job makes a new job under the asset row lock (double
+  clicks make one); pending, running and passing jobs are reused; at most
+  `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` (5) jobs per file and processor version
+  (`attempts_exhausted`). No cancelled job status: a contract cancel is `failed`/`cancelled`. A
+  result whose job is no longer the version's newest is `result_superseded` and changes nothing;
+  the gate follows the newest accepted result. A `REJECTED` version stays rejected and a published
+  one never changes. `jobs_sweep` keeps completed `asset.validate_model` jobs
+  `LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90; exactly 90 days is kept), other kinds keep
+  `LAI_JOBS_RETENTION_DAYS`; pending, running and failed jobs are never pruned. An unpublished GLB
+  whose passing job was pruned needs a new validation; published delivery is unaffected. Tests:
+  `test_model_validation_retry.py`, additions to `test_admin_validation.py`,
+  `test_jobs_services.py` and `test_jobs_admin_settings.py`. Docs:
+  `ASYNC_MODEL_VALIDATION.md` sections 9 and 10. Open: whether failed validation jobs should also
+  expire; a compact immutable evidence record (evaluated, not implemented); `.env.sample` not
+  updated (not readable in this session).
 - **Tests:** full pytest (PostgreSQL) 5866 passed, 7 skipped, 1 failed; the failure,
   `test_speech_storage.py::TestS3::test_presigned_urls_use_the_regional_host`, also fails on
   `origin/main` 466a497 when its module runs whole (it depends on test order and passes alone), so it is

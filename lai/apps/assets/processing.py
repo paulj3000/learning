@@ -3,13 +3,17 @@ LAI-LAMBDA-006 and 007, docs/processing/CANONICAL_PATH.md).
 
 - `submit_model_validation(version, user=)` builds an ADR-061 `ProcessingJobRequest` for the
   version's stored object and submits it with `apps.jobs.services.submit` (the media queue, the
-  transactional outbox). The same logical work returns the existing unfinished or completed job;
-  a failed one may be submitted again.
+  transactional outbox), under the asset row lock. The latest job for the same logical work (same
+  version, file and processor: the idempotency key) is returned while it is unfinished or holds an
+  accepted pass; otherwise (failed, cancelled, refused, not applied) a new job is submitted, at
+  most `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` per logical work (docs/processing/
+  ASYNC_MODEL_VALIDATION.md, "Retry and resubmission semantics").
 - `apply(job)` is the kind's handler: `jobs_consume_results` (or the inline backend) calls it once,
   under the job row lock, inside the transaction that records the result. It verifies the
   contract result against the request, then the request against the version, and only then moves
-  a DRAFT version to VALIDATED or REJECTED. It never publishes and never changes a version that is
-  not a draft (published versions are immutable).
+  a DRAFT version to VALIDATED or REJECTED. It never publishes, never changes a version that is
+  not a draft (published versions are immutable, a rejected one stays rejected), and never applies
+  a result whose job was superseded by a newer validation job of the version.
 - `validation_jobs`, `identity_mismatch`, `model_validation_summary` and `processing_findings` are
   shared by the hook, the publication gate and Django Admin.
 
@@ -38,8 +42,13 @@ SUBJECT_TYPE = "asset_version"
 JOB_SUBJECT = "assets.assetversion"
 #: Formats asynchronous validation applies to (the GLB validator reads the GLB container only).
 ASYNC_FORMATS = frozenset({"glb"})
-#: Handler outcomes of a result that was accepted for its version (a resubmission returns the job).
+#: Handler outcomes of a result that was accepted for its version.
 APPLIED_OUTCOMES = frozenset({"version_validated", "version_rejected", "result_recorded"})
+#: Outcome of a result whose job is no longer the version's newest validation job.
+SUPERSEDED = "result_superseded"
+#: Applied outcomes that return the completed job to a resubmission when its verdict is `pass`
+#: (a `fail` verdict, a refused or a superseded result may be resubmitted by staff).
+_REUSED_PASS_OUTCOMES = frozenset({"version_validated", "result_recorded"})
 #: The engine's execution budget for one validation, seconds. It must end well inside the media
 #: worker's Lambda timeout (`lai-dev-jobs-media`, 120 s in infra/lib/devPlatformStack.ts), so the
 #: engine reports a classified timeout instead of Lambda killing the run with nothing stored. The
@@ -150,12 +159,40 @@ def model_validation_request(version, *, job_id: str) -> dict:
     return request.to_dict()
 
 
+def max_attempts() -> int:
+    """`LAI_ASSET_VALIDATION_MAX_ATTEMPTS`: jobs allowed per logical validation (default 5)."""
+    return int(getattr(settings, "LAI_ASSET_VALIDATION_MAX_ATTEMPTS", 5))
+
+
+def reusable(job) -> bool:
+    """True when a resubmission of the same logical work returns `job` instead of a new job: it
+    is still pending or running, or it completed with an accepted, passing result. A failed job
+    (any code, `timeout`, `cancelled` and `marked_failed` included), a `fail` verdict, a refused
+    result (a mismatch, `result_invalid`, `version_missing`) and a superseded one are not."""
+    from apps.jobs.models import JobStatus
+
+    if job.status in (JobStatus.PENDING, JobStatus.RUNNING):
+        return True
+    return (
+        job.status == JobStatus.COMPLETED
+        and job.subject_outcome in _REUSED_PASS_OUTCOMES
+        and (job.result or {}).get("verdict") == "pass"
+    )
+
+
 def submit_model_validation(version, *, user):
     """Submit (or return) the model validation job for `version`. Never changes the version.
 
+    Under the asset row lock (so concurrent submissions of one version serialize), the newest
+    job with the same idempotency key (same version, stored file and processor version) is
+    returned when `reusable`; otherwise a new job with a new attempt id is submitted, unless the
+    logical work already has `max_attempts()` jobs (`JobsError("attempts_exhausted")`).
+
     Raises `apps.jobs.services.JobsError` (`JobsDisabled` when the jobs backend is disabled)."""
+    from django.db import transaction
+
+    from apps.catalog.models import ContentAsset
     from apps.jobs import services as jobs
-    from apps.jobs.models import JobStatus
     from lai_processing.core.errors import ProcessingError
 
     job_id = str(uuid.uuid4())
@@ -165,30 +202,28 @@ def submit_model_validation(version, *, user):
         # The request itself is refused (for example a file above the profile's input limit):
         # a safe code, the same path as any other refused submission.
         raise jobs.JobsError(error.code.value) from None
-    from django.db.models import Q
-
-    # Reused: a job still waiting or running, or one whose result was applied. A failed job, or a
-    # completed one whose result was refused (a mismatch or an invalid result), may be retried.
-    existing = (
-        validation_jobs(version)
-        .filter(idempotency_key=payload["idempotency_key"])
-        .filter(
-            Q(status__in=[JobStatus.PENDING, JobStatus.RUNNING])
-            | Q(status=JobStatus.COMPLETED, subject_outcome__in=APPLIED_OUTCOMES)
+    with transaction.atomic():
+        # Lock order: asset row first, as `upload_version` and `publish_version` do. A second
+        # submission waits here and then sees the first one's committed job.
+        ContentAsset.objects.select_for_update().filter(pk=version.asset_id).first()
+        same_work = validation_jobs(version).filter(idempotency_key=payload["idempotency_key"])
+        latest = same_work.first()
+        if latest is not None and reusable(latest):
+            logger.info("asset validation existing job=%s version=%s", latest.pk, version.pk)
+            return latest
+        if same_work.count() >= max_attempts():
+            logger.warning(
+                "asset validation refused version=%s code=attempts_exhausted", version.pk
+            )
+            raise jobs.JobsError("attempts_exhausted")
+        return jobs.submit(
+            MODEL_VALIDATION_JOB_TYPE,
+            payload,
+            user=user,
+            subject=version,
+            job_id=job_id,
+            idempotency_key=payload["idempotency_key"],
         )
-        .first()
-    )
-    if existing is not None:
-        logger.info("asset validation existing job=%s version=%s", existing.pk, version.pk)
-        return existing
-    return jobs.submit(
-        MODEL_VALIDATION_JOB_TYPE,
-        payload,
-        user=user,
-        subject=version,
-        job_id=job_id,
-        idempotency_key=payload["idempotency_key"],
-    )
 
 
 def validation_jobs(version):
@@ -345,6 +380,10 @@ def _apply(job, ContentAsset, AssetVersion, VersionStatus) -> str:  # noqa: N803
     reason = identity_mismatch(job, version)
     if reason is not None:
         return reason
+    if validation_jobs(version).filter(created_at__gt=job.created_at).exists():
+        # A newer validation job of this version exists (a staff resubmission, or a submission
+        # by a newer processor version): only the newest job's result may change the version.
+        return SUPERSEDED
     if version.status != VersionStatus.DRAFT:
         return "result_recorded"  # a manual revalidation: the result stays on the job
     passed = (job.result or {}).get("verdict") == "pass"
