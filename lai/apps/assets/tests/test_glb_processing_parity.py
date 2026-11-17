@@ -7,6 +7,7 @@ difference, where the processor is stricter and the reason is recorded next to t
 `docs/processing/GLB_VALIDATION.md`). No database is needed.
 """
 
+import hashlib
 import importlib.util
 import io
 import sys
@@ -89,3 +90,47 @@ def test_django_helper_document_with_external_uri_fails_both():
     document, binary = gltf_document(buffer_uri="https://example.invalid/model.bin")
     data = glb_bytes(document, binary)
     assert django_errors(data)[1] == processor_errors(data)[1] == {"external_resource"}
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b'{"asset": {"version": "2.0"}}',
+        b'{"a": [1, {"b": "x,y"}, [2, 3]], "c": {"d": null}}',
+        b'{"a": "[[[[{{{{,,,,::::"}',
+        b'{"a": "\\"[[[[,,,,"}',
+        b'{"a": "\\\\", "b": 1}',
+        b'{"a": "never closed}',
+        b'{"a": "escaped at the end\\"}',
+        b'{"x": ' + b"[" * 64 + b"]" * 64 + b"}",
+        b'{"x": ' + b"[" * 63 + b"]" * 63 + b"}",
+        b'{"x": [' + b"0," * 1_000_000 + b"0]}",
+        b'{"x": [' + b"0," * 999_990 + b"0]}",
+        b"]" * 3_000_100,
+    ],
+    ids=lambda raw: f"{len(raw)}-bytes-{hashlib.sha256(raw).hexdigest()[:8]}",
+)
+def test_django_json_prescan_mirrors_the_processor(raw):
+    from apps.assets.validation import LIMITS, _scan_json
+    from lai_processing.processors.gltf.document import COMPLEXITY_DEFAULTS
+    from lai_processing.processors.gltf.jsonparse import scan_structure
+
+    assert LIMITS["json_depth"] == COMPLEXITY_DEFAULTS["max_json_depth"]
+    assert LIMITS["json_elements"] == COMPLEXITY_DEFAULTS["max_json_elements"]
+    expected = scan_structure(
+        raw, COMPLEXITY_DEFAULTS["max_json_depth"], COMPLEXITY_DEFAULTS["max_json_elements"]
+    )
+    assert _scan_json(raw) == expected
+
+
+def test_django_refuses_a_full_chunk_of_tiny_values_before_parsing(monkeypatch):
+    from apps.assets import validation
+
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("json.loads ran on a document the pre-scan must refuse")
+
+    monkeypatch.setattr(validation.json, "loads", refuse)
+    head = b'{"asset": {"version": "2.0"}, "x": ['
+    raw = head + b"{}," * ((validation.LIMITS["json_bytes"] - len(head) - 8) // 3) + b"{}]}"
+    data = builder.glb(raw, b"")
+    assert django_errors(data) == (False, {"too_complex"})
