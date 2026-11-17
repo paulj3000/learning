@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 063.**
+**Next free identifier number: 064.**
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -77,13 +77,14 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-053 | No platform-imposed play-time limits; the session-time control and calm stop are retired | Accepted | Branch `claude/festive-faraday-fjechb` (Trello card 123) | Owner-directed 2026-11-11 (Trello "[LAI] Remove child gameplay time limits and forced session cutoffs"); drops `ChildProfile.session_minutes` (migration `users.0007`). Amends CLAUDE.md section 11 item 11. Amplify field kept until the Django cutover |
 | ADR-054 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-049, ADR-050 |
 | ADR-055 | The dev environment runs Django natively on one ARM64 EC2 instance with private RDS, Lambda and SQS for asynchronous work, and a nightly Step Functions shutdown; production keeps ADR-037 | Accepted | `main` (owner-directed native dev infrastructure, 2026-11-16) | Owner-directed and authorized 2026-11-16. Dev only: amends ADR-037 for `dev`; production unchanged. Repository side only: provisioning and every deploy stay owner-approved |
-| ADR-056 | One player camera controller with first- and third-person perspectives (open PR branches, not merged) | Reserved | `feature/shared-jump-controller` and its stacked branches (PRs #26 to #39) | Reserved 2026-11-16 by LAI-LAMBDA-001 so ADR-061 does not collide; the defining branch adds the heading when it merges. Those branches also use ADR-055 for jumping, which now collides with the merged ADR-055 (native dev) and must be renumbered when they merge |
-| ADR-057 | Player avatar identities are a small Django catalogue over the existing Asset Manager (open PR branches, not merged) | Reserved | `feature/shared-jump-controller` and its stacked branches (PRs #26 to #39) | Reserved 2026-11-16 by LAI-LAMBDA-001 so ADR-061 does not collide; the defining branch adds the heading when it merges. Those branches also use ADR-055 for jumping, which now collides with the merged ADR-055 (native dev) and must be renumbered when they merge |
-| ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller (open PR branches, not merged) | Reserved | `feature/shared-jump-controller` and its stacked branches (PRs #26 to #39) | Reserved 2026-11-16 by LAI-LAMBDA-001 so ADR-061 does not collide; the defining branch adds the heading when it merges. Those branches also use ADR-055 for jumping, which now collides with the merged ADR-055 (native dev) and must be renumbered when they merge |
-| ADR-059 | Platforms are jumpable boxes in the shared controller's collider list (open PR branches, not merged) | Reserved | `feature/shared-jump-controller` and its stacked branches (PRs #26 to #39) | Reserved 2026-11-16 by LAI-LAMBDA-001 so ADR-061 does not collide; the defining branch adds the heading when it merges. Those branches also use ADR-055 for jumping, which now collides with the merged ADR-055 (native dev) and must be renumbered when they merge |
-| ADR-060 | The player has a configurable cylindrical footprint (open PR branch, not merged) | Reserved | `feature/shared-jump-controller` and its stacked branches (PRs #26 to #39) | Reserved 2026-11-16 by LAI-LAMBDA-001 so ADR-061 does not collide; the defining branch adds the heading when it merges. Those branches also use ADR-055 for jumping, which now collides with the merged ADR-055 (native dev) and must be renumbered when they merge |
+| ADR-056 | One player camera controller with first- and third-person perspectives (open PR branches, not merged) | Reserved | `feature/third-person-avatar` (LAI-JMP-01a, PR #27) and the branches stacked on it | Reserved 2026-11-16 and kept by the owner's ADR reconciliation (2026-11-17): the number and the decision stay with the movement branch, which adds the heading when it merges. Not merged here |
+| ADR-057 | Player avatar identities are a small Django catalogue over the existing Asset Manager (open PR branches, not merged) | Reserved | `feature/player-avatar-assets` (LAI-JMP-01c, PR #28) and the branches stacked on it | Reserved 2026-11-16 and kept by the owner's ADR reconciliation (2026-11-17): the number and the decision stay with the movement branch, which adds the heading when it merges. Not merged here |
+| ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller (open PR branches, not merged) | Reserved | `feature/player-running` (PR #29) and the branches stacked on it | Reserved 2026-11-16 and kept by the owner's ADR reconciliation (2026-11-17): the number and the decision stay with the movement branch, which adds the heading when it merges. Not merged here |
+| ADR-059 | Platforms are jumpable boxes in the shared controller's collider list (open PR branches, not merged) | Reserved | `feature/interactive-platforms` (LAI-JMP-02, LAI-JMP-04, PR #37) and the branches stacked on it | Reserved 2026-11-16 and kept by the owner's ADR reconciliation (2026-11-17): the number and the decision stay with the movement branch, which adds the heading when it merges. Not merged here |
+| ADR-060 | The player has a configurable cylindrical footprint (open PR branch, not merged) | Reserved | `feature/treasure-rush-palm-trees` (movement QA defects, PR #36) | Reserved 2026-11-16 and kept by the owner's ADR reconciliation (2026-11-17): the number and the decision stay with the movement branch, which adds the heading when it merges. Not merged here |
 | ADR-061 | Runtime-independent background processing: Django-authoritative jobs, SQS work and completion queues, and Lambda workers that never touch the database or publish | Accepted | `feature/serverless-processing` (LAI-LAMBDA-001, PR #40) | Accepted by the owner 2026-11-16, subject to a number check (done: free on main and every open PR) |
-| ADR-062 | Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest | Proposed | `feature/serverless-processing-wave2` (LAI-LAMBDA-002 to 005) | Records the owner's Wave 2 infrastructure decisions (A1 to A9, 2026-11-16); the apps.jobs reconciliation awaits owner review |
+| ADR-062 | Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest | Accepted | `feature/serverless-processing-wave2` (LAI-LAMBDA-002 to 005, PR #41) | Accepted by the owner 2026-11-17 with B4 to B7, the `LAI_ASSET_ASYNC_VALIDATION` flag (default off) and prod reserved concurrency 5 |
+| ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable (open PR branch, not merged) | Reserved | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) and the branches stacked on it | Reserved 2026-11-17 by the owner's ADR reconciliation: those branches number this decision ADR-055, which `main` already uses for the native dev environment. When PR #26 merges, its ADR-055 heading, registry row and references become ADR-063; the decision text is unchanged |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4161,9 +4162,9 @@ versioned, consumer-first change. Results can arrive while a job still shows `QU
 
 ## ADR-062: Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest
 
-Status: Proposed (principal integration agent, 2026-11-17, for owner review with the Wave 2 pull
-request). The owner decisions it records were made on 2026-11-16 in the Wave 2 brief and are not
-reopened here. Builds on ADR-033, ADR-055 and ADR-061. Detail: `docs/processing/WAVE2_INTERFACES.md`.
+Status: Accepted (project owner, 2026-11-17, with the Wave 3 brief). Proposed by the principal
+integration agent on 2026-11-17 with the Wave 2 pull request (#41). The owner decisions it records
+were made on 2026-11-16 and 2026-11-17 and are not reopened here. Builds on ADR-033, ADR-055 and ADR-061. Detail: `docs/processing/WAVE2_INTERFACES.md`.
 
 **Context.** While ADR-061's Wave 1 was in review, `main` merged ADR-055, which added `apps.jobs`:
 a Django `ProcessingJob`, a schema-1 work and result envelope, zip-packaged arm64 Lambda workers
@@ -4187,6 +4188,22 @@ completion ledger, artifact records and cancellation.
 - **A8:** separate private processing buckets per environment.
 - **A9:** no deployment without a further explicit authorization.
 - **ADR-061** is accepted.
+
+**Owner decisions recorded (2026-11-17, Wave 3 brief).**
+- **ADR-062 accepted:** extend `lai/apps/jobs`; no second Django processing app or job model.
+- **B4:** processing deploys use GitHub Actions with AWS OIDC roles
+  (`vars.LAI_PROCESSING_DEPLOY_ROLE_ARN`, `vars.LAI_PROCESSING_PUBLISHER_ROLE_ARN`). No role is
+  created or named by this decision.
+- **B5:** the `processing-dev` and `processing-prod` GitHub environments are approved, with
+  deployment kept disabled (`LAI_PROCESSING_DEPLOY_ENABLED` not `true`).
+- **B6:** the phase-one processing infrastructure (`LaiProcessingImages-<env>`, then
+  `LaiProcessing-<env>`) is provisioned before any dependent platform update.
+- **B7:** dead-letter queue redrive is restricted to specifically authorized operations
+  administrators. Ordinary staff and users never get redrive access.
+- **`LAI_ASSET_ASYNC_VALIDATION`** is approved, default off in every environment.
+- **Production reserved concurrency** is 5 initially and configurable
+  (`processingReservedConcurrency`, `LAI_PROCESSING_RESERVED_CONCURRENCY`).
+- **No live AWS deployment** is authorized.
 
 **Decision.**
 
