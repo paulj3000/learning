@@ -1,0 +1,43 @@
+# Installed by scripts/aws/native/deploy-native.sh from the release being deployed.
+# Reads the job results queue and updates ProcessingJob rows. The command exits 0 when
+# LAI_JOBS_BACKEND is not sqs, so on-failure never restarts it in that case. Failures retry every
+# 30 s without a start limit, so a queue or network outage never leaves it stopped for good.
+[Unit]
+Description=Learning Adventure Island async job results consumer
+After=network-online.target lai-gunicorn.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=lai
+Group=lai
+WorkingDirectory=/opt/lai/current/lai
+Environment=DJANGO_SETTINGS_MODULE=config.settings.production
+Environment=DJANGO_TRUST_PROXY_SSL_HEADER=true
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/opt/lai/runtime/django.env
+EnvironmentFile=/opt/lai/current/release.env
+ExecStart=/opt/lai/current/venv/bin/python manage.py jobs_consume_results
+TimeoutStopSec=40
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/var/log/lai/jobs-consumer.log
+StandardError=inherit
+UMask=0027
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/lai
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

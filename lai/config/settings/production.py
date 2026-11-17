@@ -109,3 +109,26 @@ if LAI_AI_PROVIDER == "bedrock":
     LAI_AI_GUARDRAIL_VERSION = _required("LAI_AI_GUARDRAIL_VERSION")
     if LAI_AI_GUARDRAIL_VERSION.upper() == "DRAFT":
         raise ImproperlyConfigured("LAI_AI_GUARDRAIL_VERSION must be a published version.")
+
+# Background jobs (apps.jobs): `sqs` (Lambda workers) or `disabled`, chosen explicitly; unset is
+# `disabled`. The in-process `inline` backend is for development and tests and never runs here.
+# The queue URLs and results bucket are validated in base.py when the backend is `sqs`.
+LAI_JOBS_BACKEND = os.environ.get("LAI_JOBS_BACKEND", "disabled").strip()
+if LAI_JOBS_BACKEND not in {"sqs", "disabled"}:
+    raise ImproperlyConfigured("LAI_JOBS_BACKEND must be sqs or disabled in production.")
+if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND != "sqs":  # noqa: F405
+    raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND=sqs.")
+if LAI_STUDIO_RUN_MODE == "inline":  # noqa: F405
+    raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=inline is for tests only.")
+
+# Development bootstrap (ADR-055, docs/infrastructure/dev-native-environment.md): the dev
+# environment's installer may publish the approved Treasure Rush seed content once. Both values
+# arrive only in the environment of that single bootstrap command (bootstrap-native.sh); the
+# settings renderer refuses LAI_DEV_BOOTSTRAP_PUBLISH from SSM, so a running server never has it.
+# The publish still runs every content validation; only the local-machine guard is waived.
+LAI_ENVIRONMENT = os.environ.get("LAI_ENVIRONMENT", "").strip()
+LAI_DEV_BOOTSTRAP_PUBLISH = env_bool("LAI_DEV_BOOTSTRAP_PUBLISH", False)
+if LAI_DEV_BOOTSTRAP_PUBLISH and LAI_ENVIRONMENT != "dev":
+    raise ImproperlyConfigured(
+        "LAI_DEV_BOOTSTRAP_PUBLISH is allowed only with LAI_ENVIRONMENT=dev."
+    )

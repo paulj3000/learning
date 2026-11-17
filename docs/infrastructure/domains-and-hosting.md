@@ -1,5 +1,10 @@
 # Target domains, hosting and security (LAI-INFRA-003)
 
+> **Updated for `dev` (2026-11-16, ADR-055).** In dev the API and admin hosts resolve to the
+> instance's Elastic IP and TLS is Let's Encrypt on nginx, not an ALB with ACM; the site stack is
+> unchanged. Amplify is retired (AMP-01 to AMP-08), so Amplify references below are historical.
+> Current dev runbook: root `README.md`, "AWS Development Infrastructure".
+
 Date: 2026-11-09. Trello: [LAI-INFRA-003](https://trello.com/c/gdwR5KXG). Base: `main` at
 `a268ac5` (LAI-INFRA-002 merged). Inputs: `docs/infrastructure/inventory.md`,
 `docs/infrastructure/resource-ownership.md`.

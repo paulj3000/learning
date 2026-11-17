@@ -83,6 +83,54 @@ to RDS and never publishes.
   
   Asset upload and publication in Django Admin are unchanged.
 
+## Low-cost native AWS dev environment (ADR-055) — implemented and tested in the repository on `main` (2026-11-16); NOT deployed, live acceptance NOT run
+
+Owner-directed and authorized 2026-11-16 ("Low-Cost AWS Development Infrastructure"). Runbook:
+root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; design:
+`docs/infrastructure/dev-native-environment.md`.
+
+- **Infrastructure (CDK, bootstrapless):** `LaiDevArtifacts-dev` and `LaiDevPlatform-dev` replace
+  `LaiDjangoEc2-dev` for dev: ARM64 `t4g.small` (Amazon Linux 2023, Elastic IP, IMDSv2, SSM, no
+  SSH), private RDS PostgreSQL 16 `db.t4g.micro` Single-AZ, speech bucket, SQS work, results and
+  dead-letter queues, two arm64 Lambda workers outside the VPC, the `lai-dev-power` Step Functions
+  state machine with EventBridge Scheduler (00:00 stop, 07:35 start, America/Los_Angeles) and an
+  RDS-EVENT-0154 rule, GitHub OIDC roles for `dev-backend` and `dev-infrastructure`, alarms and an
+  optional budget. No ALB, WAF, NAT gateway, ECR, ECS, Multi-AZ or VPC endpoint. `LaiDjangoRelease`
+  and `LaiDjangoEc2-prod` are synthesized only for prod and are byte-identical to before;
+  `LaiFrontend-<env>` gains 10-second error caching for 502/503/504 and two outputs.
+- **Native deployment:** `scripts/aws/native/` (idempotent instance setup, checksum-verified
+  release entry, per-release venv from an aarch64 wheelhouse, migration guard, atomic switch,
+  automatic rollback, bootstrap tasks, power quiesce and verify, maintenance), `deploy/native/`
+  (nginx with Let's Encrypt, gunicorn, systemd units).
+- **Background jobs:** `apps.jobs` (`ProcessingJob`, read-only admin, `jobs_consume_results`,
+  `jobs_sweep`), `lambda/jobs_worker`, `scripts/aws/package-lambda.sh`. Migrated: Question Studio
+  generation (`LAI_STUDIO_RUN_MODE=jobs`), NPC speech pre-generation (authored lines only), asset
+  inspection. Not migrated (tracked): GLB optimization, thumbnails and image conversion, audio
+  transcoding.
+- **Automation:** `deploy-debug.sh`, `install-debug.sh`, `manage-dev.sh`, `show-endpoints.sh`,
+  `dev-release.sh`; workflows "Deploy DEV backend (native)", "Deploy DEV Lambda workers", "Manage
+  DEV Infrastructure"; `deploy-django-ec2.yml` skips its Docker dev job and `deploy-site.yml` waits
+  for the native backend when `LAI_DEV_NATIVE_ENABLED` is `true`. A push while dev is stopped is
+  recorded as pending and applied at the next start.
+- **Also:** a dev-only, per-command bootstrap flag lets the installer publish the approved
+  Treasure Rush seed (`LAI_DEV_BOOTSTRAP_PUBLISH`, refused outside `LAI_ENVIRONMENT=dev`);
+  `install-debug.sh --enable-ai --enable-speech` writes the Bedrock and Polly settings only on
+  request.
+- **Checks (2026-11-16):** Vitest 439 files, 4943 passed (infra 137 among them);
+  targeted pytest on PostgreSQL: jobs, Question Studio, speech, assets, NPCs and settings (1184+
+  in Workstream C's run, re-run after integration changes: 212 and 68 passed), `tests/lambda` 41,
+  native release and static script tests 147 passed and 4 skipped (need nginx), dev automation
+  tests 106 plus 1; typecheck, Ruff, Prettier, oxlint (no errors), ShellCheck on all new scripts,
+  actionlint, `adr:check`, Django check, `makemigrations --check`, CDK synth and cfn-lint (0
+  errors, 5 justified warnings) pass. The full pytest suite was not run (owner, 2026-11-16).
+- **Not done / owner gates:** provisioning (`deploy-debug.sh --execute`), installation, DNS and
+  certificates, the README acceptance checklist, live Bedrock and Polly through Lambda, and the
+  first bill. Unverified until then: AL2023 package names (`python3.12`, `postgresql16`), certbot
+  4.0.0, Step Functions SDK response field names, zero-padded cron hours in Scheduler, hardened
+  systemd units on a real host. With native dev enabled, prod is released by manual dispatch only.
+  The unmerged `feature/ai-studio-queue` (LAI-AQS-027, an EC2 PostgreSQL worker queue for Studio)
+  overlaps with the Lambda path and needs an owner decision before either is extended.
+
 ## Amplify final removal and Django-only cutover (AMP-01 to AMP-08) — source complete on `feature/amplify-final-removal` (2026-11-14); AWS deployment and legacy data NOT done
 
 The owner deleted the Amplify app and disabled Amplify Hosting, and authorized removing Amplify

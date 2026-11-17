@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { AiGuardrailStack } from '../lib/aiGuardrailStack';
 import { AssetStorageStack, type AssetEnvironment } from '../lib/assetStorageStack';
 import { ChildPhotoStorageStack } from '../lib/childPhotoStorageStack';
+import { DevArtifactsStack } from '../lib/devArtifactsStack';
+import { DEV_PLATFORM_STACK, DevPlatformStack } from '../lib/devPlatformStack';
 import { DjangoEc2Stack, type DatabaseMode } from '../lib/djangoEc2Stack';
 import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
 import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
@@ -11,14 +13,21 @@ import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
  * The CDK app (LAI-1001). See infra/README.md for synth and deploy commands
  * and docs/platform/DJANGO_EC2_DEPLOYMENT.md for the release pipeline.
  *
- * | Stack                   | Scope       | What                                              |
- * | ----------------------- | ----------- | ------------------------------------------------- |
- * | `LaiAssetStorage-<env>` | environment | asset library bucket and Django policy (ADR-035)  |
- * | `LaiChildPhotos-<env>`  | environment | private child photo bucket and policy (ADR-042)   |
- * | `LaiDjangoRelease`      | account     | ECR repository, GitHub OIDC, image publisher role |
- * | `LaiDjangoEc2-<env>`    | environment | VPC, ALB, EC2, RDS, SSM documents, deploy role    |
- * | `LaiAiGuardrail-<env>`  | environment | child-safety Guardrail, Django AI policy (LAI-0704) |
- * | `LaiFrontend-<env>`     | environment | React site: S3, CloudFront, `/api/*` to Django (us-east-1) |
+ * | Stack                   | Env   | What                                                         |
+ * | ----------------------- | ----- | ------------------------------------------------------------ |
+ * | `LaiDevArtifacts-dev`   | dev   | artifacts bucket: releases, Lambda zip, job results          |
+ * | `LaiAssetStorage-<env>` | both  | asset library bucket and Django policy (ADR-035)             |
+ * | `LaiChildPhotos-<env>`  | both  | private child photo bucket and policy (ADR-042)              |
+ * | `LaiDevPlatform-dev`    | dev   | native EC2 (no Docker, no ALB), RDS, SQS + Lambda, power     |
+ * |                         |       | schedule (Step Functions, Scheduler), SSM documents, roles   |
+ * | `LaiDjangoRelease`      | prod  | ECR repository, GitHub OIDC, image publisher role            |
+ * | `LaiDjangoEc2-prod`     | prod  | VPC, ALB, EC2 (Docker), RDS, SSM documents, deploy role      |
+ * | `LaiAiGuardrail-<env>`  | both  | child-safety Guardrail, Django AI policy (LAI-0704)          |
+ * | `LaiFrontend-<env>`     | both  | React site: S3, CloudFront, `/api/*` to Django (us-east-1)   |
+ *
+ * Dev deploy order: LaiDevArtifacts-dev, LaiAssetStorage-dev, LaiChildPhotos-dev,
+ * LaiDevPlatform-dev, LaiAiGuardrail-dev (attaches its policy to the platform's instance role and
+ * filters its logs), LaiFrontend-dev.
  *
  * Settings come from CDK context (`-c name=value`) or, for a plain
  * `npx tsx infra/bin/app.ts` synth without the CDK CLI, the environment:
@@ -37,8 +46,9 @@ import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
  * | `hostedZoneName`     | `LAI_HOSTED_ZONE_NAME`      | that zone's name, e.g. `example.com`          |
  *
  * Deploy-time values (API and admin host names, AMI, instance type, Cognito ids, alarm
- * e-mail) are CloudFormation parameters of `LaiDjangoEc2-<env>`, passed by
- * scripts/aws/provision.sh.
+ * e-mail) are CloudFormation parameters of `LaiDjangoEc2-prod` (scripts/aws/provision.sh) and
+ * `LaiDevPlatform-dev` (scripts/aws/deploy-debug.sh). `databaseMode`, `multiAz` and
+ * `createOidcProvider` apply to prod only; dev takes them as parameters.
  */
 
 const app = new App({
@@ -96,24 +106,41 @@ new ChildPhotoStorageStack(app, `LaiChildPhotos-${envName}`, {
   description: `Learning Adventure Island private child photo storage (${envName})`,
 });
 
-new DjangoReleaseStack(app, 'LaiDjangoRelease', {
-  githubRepository,
-  createOidcProvider: setting('createOidcProvider', 'LAI_CREATE_OIDC_PROVIDER') !== 'false',
-  env,
-  synthesizer: synthesizer(),
-  description: 'Learning Adventure Island Django releases: ECR repository and GitHub OIDC',
-});
+if (envName === 'dev') {
+  // The native dev environment (no Docker, no load balancer): see infra/lib/devPlatformStack.ts.
+  new DevArtifactsStack(app, `LaiDevArtifacts-${envName}`, {
+    env,
+    synthesizer: synthesizer(),
+    description:
+      'Learning Adventure Island dev artifacts: Django releases, Lambda code, job results',
+  });
+  new DevPlatformStack(app, DEV_PLATFORM_STACK, {
+    githubRepository,
+    env,
+    synthesizer: synthesizer(),
+    description:
+      'Learning Adventure Island native dev platform: EC2, RDS, SQS, Lambda, power schedule',
+  });
+} else {
+  new DjangoReleaseStack(app, 'LaiDjangoRelease', {
+    githubRepository,
+    createOidcProvider: setting('createOidcProvider', 'LAI_CREATE_OIDC_PROVIDER') !== 'false',
+    env,
+    synthesizer: synthesizer(),
+    description: 'Learning Adventure Island Django releases: ECR repository and GitHub OIDC',
+  });
 
-new DjangoEc2Stack(app, `LaiDjangoEc2-${envName}`, {
-  envName: envName as AssetEnvironment,
-  githubRepository,
-  databaseMode: databaseMode as DatabaseMode,
-  multiAz: setting('multiAz', 'LAI_DB_MULTI_AZ') === 'true',
-  hostedZone: hostedZoneId ? { id: hostedZoneId, name: hostedZoneName } : undefined,
-  env,
-  synthesizer: synthesizer(),
-  description: `Learning Adventure Island Django on EC2 (${envName})`,
-});
+  new DjangoEc2Stack(app, `LaiDjangoEc2-${envName}`, {
+    envName: envName as AssetEnvironment,
+    githubRepository,
+    databaseMode: databaseMode as DatabaseMode,
+    multiAz: setting('multiAz', 'LAI_DB_MULTI_AZ') === 'true',
+    hostedZone: hostedZoneId ? { id: hostedZoneId, name: hostedZoneName } : undefined,
+    env,
+    synthesizer: synthesizer(),
+    description: `Learning Adventure Island Django on EC2 (${envName})`,
+  });
+}
 
 new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, {
   envName: envName as AssetEnvironment,

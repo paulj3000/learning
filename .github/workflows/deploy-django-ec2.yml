@@ -10,6 +10,13 @@
 # allowlisted SSM documents with pattern-checked parameters; it never runs a shell command on the
 # instance. Until the repository variable LAI_DEPLOY_ENABLED is 'true' only the test job runs, so
 # pushes before AWS is provisioned stay green. No browser tests run here.
+#
+# Native DEV: when the repository variable LAI_DEV_NATIVE_ENABLED is 'true', dev is released by
+# deploy-dev-native.yml (LaiDevPlatform-dev, no Docker) and this workflow no longer deploys or
+# rolls back dev: deploy-dev and the dev rollback are skipped, and the image is built only for a
+# manual prod release. Consequence for LAI_PROD_AUTO_DEPLOY: the push path to prod requires this
+# workflow's deploy-dev job to succeed, so with native dev switched on a push never reaches prod;
+# prod is released by a manual dispatch (environment prod) only. The prod logic is unchanged.
 name: Deploy Django (EC2)
 
 on:
@@ -127,7 +134,11 @@ jobs:
   build:
     name: Build and push the image
     needs: test
-    if: vars.LAI_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    # With native dev on, only a manual prod release needs the image (see the header).
+    if: >-
+      vars.LAI_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' &&
+      (vars.LAI_DEV_NATIVE_ENABLED != 'true' ||
+        (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -241,7 +252,10 @@ jobs:
   deploy-dev:
     name: Deploy to dev
     needs: build
-    if: github.event_name == 'push' || (inputs.environment == 'dev' && inputs.action == 'deploy')
+    # Skipped when native dev is on: deploy-dev-native.yml releases dev instead.
+    if: >-
+      vars.LAI_DEV_NATIVE_ENABLED != 'true' &&
+      (github.event_name == 'push' || (inputs.environment == 'dev' && inputs.action == 'deploy'))
     runs-on: ubuntu-latest
     environment:
       name: django-dev
@@ -310,7 +324,10 @@ jobs:
 
   rollback:
     name: Roll back ${{ inputs.environment }}
-    if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    # A dev rollback with native dev on goes through deploy-dev-native.yml (action rollback).
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.action == 'rollback' &&
+      !(inputs.environment == 'dev' && vars.LAI_DEV_NATIVE_ENABLED == 'true')
     runs-on: ubuntu-latest
     environment:
       name: django-${{ inputs.environment }}

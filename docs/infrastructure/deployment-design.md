@@ -1,5 +1,12 @@
 # Deployment design (LAI-INFRA-004)
 
+> **Superseded for `dev` (2026-11-16, ADR-055).** The dev environment now uses the native EC2
+> design and its workflows (`deploy-dev-native.yml`, `deploy-dev-lambda.yml`,
+> `manage-dev-infrastructure.yml`); see the root `README.md`, "AWS Development Infrastructure",
+> and `docs/infrastructure/dev-native-environment.md`. Amplify Hosting and the Amplify backend are
+> retired (AMP-01 to AMP-08), so the Amplify steps below are historical. The production design
+> here still applies.
+
 Date: 2026-11-09. Trello: [LAI-INFRA-004](https://trello.com/c/ehsOJaqJ). Base: `main` at
 `3b78951` (LAI-INFRA-003 merged). Inputs: `docs/infrastructure/resource-ownership.md` (section 3.6),
 `docs/infrastructure/domains-and-hosting.md`, ADR-037.

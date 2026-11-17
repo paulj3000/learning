@@ -258,6 +258,7 @@ class TestChildIsolation:
             "auth",
             "catalog",
             "education",
+            "jobs",  # background job status, read-only; payloads never carry child data
             "npcs",  # NPC Manager content and releases; conversation state unregistered (ADR-054)
             "question_studio",
             "regions",

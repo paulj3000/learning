@@ -92,6 +92,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
         "rollback_to_versions",
         "retire_versions",
         "verify_versions",
+        "inspect_in_background",
     ]
     fields = (
         "asset",
@@ -369,6 +370,34 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 self.message_user(request, f"{version.label}: {problem}", messages.ERROR)
         if problems == 0:
             self.message_user(request, "Every selected file is present and unchanged.")
+
+    @admin.action(
+        description="Inspect in background (file structure and dimensions)", permissions=["view"]
+    )
+    def inspect_in_background(self, request, queryset):
+        """Read-only: the media worker reads each file and reports its metadata on a background
+        job (Background jobs in this admin). Nothing on the version changes."""
+        from apps.jobs.services import JobsError
+
+        from . import jobs
+
+        submitted = []
+        for version in queryset.select_related("asset")[:50]:
+            try:
+                job = jobs.submit_inspection(version, request.user)
+            except JobsError as error:
+                self.message_user(
+                    request, f"Background jobs are unavailable ({error.code}).", messages.ERROR
+                )
+                return
+            submitted.append(job)
+        finished = sum(1 for job in submitted if job.is_terminal)
+        self.message_user(
+            request,
+            f"Inspection submitted for {len(submitted)} version(s); {finished} already finished. "
+            "Results are on the background jobs page.",
+            messages.SUCCESS,
+        )
 
     # --- display ---
 
