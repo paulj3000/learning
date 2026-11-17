@@ -821,6 +821,39 @@ def test_complete_inline_and_by_reference(tmp_path: Path) -> None:
     assert h.engine.complete(result, max_message_bytes=small).result_ref == ref
 
 
+def test_complete_resends_the_stored_result_of_a_rerun_attempt(tmp_path: Path) -> None:
+    """A rerun's result has new timestamps; the attempt's stored job-result is reused."""
+    h = Harness(tmp_path)
+    h.seed()
+    first = h.run(make_request(options={"metadata_level": "full"}))
+    small = len(encode(h.engine.complete(first, max_message_bytes=240 * 1024))) - 1
+    original = h.engine.complete(first, max_message_bytes=small)
+    h.clock.advance(7)
+    rerun = h.run(make_request(options={"metadata_level": "full"}))
+    assert rerun != first
+    event = h.engine.complete(rerun, max_message_bytes=small)
+    assert event.result_ref == original.result_ref
+    assert event.result_sha256 == original.result_sha256
+    assert event.result_ref is not None
+    stored = h.storage.read(event.result_ref.ref, max_bytes=1 << 22)
+    event.verify_result(decode_result(stored))
+    assert "job.result_reused" in h.telemetry.names()
+
+
+@pytest.mark.parametrize("junk", [b"not json", b"{}"])
+def test_complete_keeps_the_conflict_for_a_foreign_job_result(tmp_path: Path, junk: bytes) -> None:
+    from lai_processing.ports.storage import ObjectExists
+
+    h = Harness(tmp_path)
+    h.seed()
+    result = h.run(make_request(options={"metadata_level": "full"}))
+    small = len(encode(h.engine.complete(result, max_message_bytes=240 * 1024))) - 1
+    key = f"processing/artifacts/{NS}/{JOB_ID}/{ATTEMPT_ID}/job-result.json"
+    h.storage.seed(ObjectRef(StoreName.ARTIFACTS, key, None, NS), junk)
+    with pytest.raises(ObjectExists):
+        h.engine.complete(result, max_message_bytes=small)
+
+
 def test_complete_refuses_oversized_result_without_processor(tmp_path: Path) -> None:
     from lai_processing.core.errors import ProcessingError
 
