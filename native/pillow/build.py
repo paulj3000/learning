@@ -222,6 +222,11 @@ def collect(arch: str, wheel: Path) -> tuple[dict[str, tuple[bytes, int]], dict]
         files[relative] = (path.read_bytes(), 0o644)
     if "lai_native/image/__init__.py" not in files:
         raise BuildError("lai_native.image is missing")
+    shipped = [ROOT / "processing" / name for name in files if name.startswith("lai_native/")]
+    shipped += [ROOT / "lambda" / name for name in files if name.startswith("image_worker/")]
+    violations = build.audit_imports(shipped)  # the import policies of lambda/build.py
+    if violations:
+        raise BuildError(f"import policy: {violations[0]}")
     for name, data in kept.items():
         executable = name.endswith(".so") or ".so." in name
         files[name] = (data, 0o755 if executable else 0o644)

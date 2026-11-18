@@ -982,3 +982,39 @@ input as `access_denied` and never as a missing object (`tests/lambda/test_jobs_
 so a wrong policy fails jobs visibly. The only places a 403 may mean "not stored yet" are the
 worker's own results and shared speech cache lookups, pinned by a source test.
 
+
+## 25. Image conversion (LAI-LAMBDA-013a, ADR-068; Workstream D)
+
+Staff can convert, resize or thumbnail an image version. The work is done by a separate Pillow
+function (`docs/processing/IMAGE_CONVERSION.md`); this section is what staff see and the rules
+Django applies. Module: `apps/assets/image_conversion.py` (rules, submission, display rows),
+`apps/assets/admin_image.py` (the actions and the read-only section).
+
+- **Control.** `LAI_IMAGE_CONVERSION` (default `off`) and `LAI_JOBS_IMAGE_QUEUE_URL`. While the
+  control is off every action is refused with "Image conversion is switched off." and nothing is
+  recorded, locked or queued.
+- **Who.** Staff who may upload and view versions (the "Asset editors" group), as for background
+  validation. The result section needs `assets.view_derivedartifact`; reviewing and promoting an
+  output are the derived artifact permissions (`review`, and `promote` for "Asset publishers").
+- **Which versions.** PNG, JPEG or WebP versions that are validated, published or retired. Never
+  child photos, models or audio.
+- **Actions** (version list, one version at a time): *Convert image* (format, quality, lossless,
+  purpose, power of two, JPEG background), *Resize image* (longest side 16 to 4096 plus the same
+  settings), *Generate thumbnail* (128, 256 and 512 pixel WebP, no settings). Each goes through
+  `submit_derived_job`, so the idempotency key, attempt cap and request limits are the shared
+  ones. Purpose `artwork` converts colours to sRGB; `data` (normal, roughness, metallic, ORM,
+  masks) never changes channel values and is lossless only.
+- **Result.** Outputs are private `pending_review` derived artifacts (roles `image.converted`,
+  `image.resized`, `image.thumbnail`). Thumbnails are not promotable. Every output has location
+  data, camera details, comments and other embedded metadata removed and carries at most one
+  standard sRGB colour profile; "Sanitization" on the page says whether the worker verified that.
+  The original version is never changed.
+- **Version page, "Image conversions".** For each output: original and output dimensions and
+  sizes, output format, colour handling, sanitization status, a preview streamed by the derived
+  artifact route, and a link to the artifact page where staff accept, reject or promote.
+  Promotion creates a new, unpublished version; publishing stays the existing explicit action.
+  Nothing is ever published automatically.
+- **Stale and repeated results.** A result for a replaced or rejected source records nothing
+  (`stale_source`); a delivery repeated by the queue creates nothing more; a result from an older
+  processor than this build expects is `processor_outdated`; a newer run supersedes older outputs
+  of the same source and profile.
