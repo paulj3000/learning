@@ -13,6 +13,8 @@ import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import speechStyles from './CastleSpeech.module.css';
 import { useCastleSpeech } from './useCastleSpeech';
+import { useCastleAudio } from './useCastleAudio';
+import { playCastleCue } from './castleSoundCues';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
 import { SECRET_PASSAGE_DISCOVERY_ID } from '../../castleLayout';
 import { toSceneState } from '../../../../great-storybook/scene';
@@ -119,7 +121,26 @@ export function CastleTaleCompanion({
   sceneRef.current = scene;
 
   // Spoken dialogue (SM-P8-09): the castle opts in while it is mounted. See `useCastleSpeech`.
-  const { speech, speaker } = useCastleSpeech(childId, parsed?.quillEntityId, sceneRef);
+  const { speech, speaker, speakWord, speakPage } = useCastleSpeech(
+    childId,
+    parsed?.quillEntityId,
+    sceneRef,
+  );
+  // Sound (SC-R06-01, SC-R06-02): room beds, music, and the moments raised below.
+  const castleAudio = useCastleAudio({
+    childId,
+    ageBand,
+    bus,
+    scene,
+    quillEntityId: parsed?.quillEntityId,
+  });
+  const handleGuideOpenChange = useCallback(
+    (open: boolean) => {
+      playCastleCue(open ? 'bookOpen' : 'bookClose');
+      castleAudio.setStoryOpen(open);
+    },
+    [castleAudio],
+  );
   // The Great Storybook (SC-R04-02): derived from the records the castle already holds. Nothing
   // here restores or grants a page; it only shows the book and the moment a page comes back.
   const discoveryIds = useMemo(() => worldState.discoveryIds ?? [], [worldState.discoveryIds]);
@@ -129,13 +150,18 @@ export function CastleTaleCompanion({
     worldChangeKeys: worldState.worldChangeKeys,
     discoveryIds,
     onPageRestored: useCallback(
-      (page: { title: string }) => showToast(`A page flew back into the book: ${page.title}.`),
-      [showToast],
+      (page: { id: string; title: string; restoredText: string }) => {
+        showToast(`A page flew back into the book: ${page.title}.`);
+        // SC-R06: the page's sound and its words read aloud; the toast and the book say it too.
+        playCastleCue('pageRestored');
+        void speakPage(page);
+      },
+      [showToast, speakPage],
     ),
-    onBookRestored: useCallback(
-      () => showToast('The Great Storybook is whole again!'),
-      [showToast],
-    ),
+    onBookRestored: useCallback(() => {
+      showToast('The Great Storybook is whole again!');
+      playCastleCue('questComplete');
+    }, [showToast]),
   });
 
   // The 3D book is drawn from the same derived progress as the card: one source, two views.
@@ -146,6 +172,7 @@ export function CastleTaleCompanion({
 
   const [taleActive, setTaleActive] = useState(false);
   const [storyActive, setStoryActive] = useState(false);
+  const storyActiveRef = useRef(false);
   const [restoredChoices, setRestoredChoices] = useState<CastleChoiceState>(NO_CHOICES);
   /** Whether the tale and the story have finished here (their cards then stop holding Quill). */
   const [taleDone, setTaleDone] = useState(false);
@@ -257,12 +284,17 @@ export function CastleTaleCompanion({
   useEffect(() => {
     if (!parsed || !claimedInteraction) return;
     if (claimedInteraction.id === parsed.taleInteractionId && taleForBand) {
-      if (!taleActiveRef.current) taleStartedRef.current?.(false);
+      if (!taleActiveRef.current) {
+        taleStartedRef.current?.(false);
+        playCastleCue('questStart');
+      }
       taleActiveRef.current = true;
       setTaleActive(true);
       onCloseInteraction();
     }
     if (claimedInteraction.id === parsed.storyInteractionId && storyForBand) {
+      if (!storyActiveRef.current) playCastleCue('questStart');
+      storyActiveRef.current = true;
       setStoryActive(true);
       onCloseInteraction();
     }
@@ -280,6 +312,12 @@ export function CastleTaleCompanion({
       onCloseInteraction();
     }
   }, [parsed, claimedInteraction, taleForBand, storyForBand, ageBand, onCloseInteraction]);
+
+  // A new Painted Words run is a quest starting (SC-R06-01); a re-render of the same run is not.
+  const paintedWordsRun = paintedWords?.run ?? 0;
+  useEffect(() => {
+    if (paintedWordsRun > 0) playCastleCue('questStart');
+  }, [paintedWordsRun]);
 
   /*
     Beat 2's gestures: `Talk` while the conversation panel is open, then
@@ -356,17 +394,20 @@ export function CastleTaleCompanion({
   taleStartedRef.current = (resumed) => notifyTaleStarted(resumed, taleSlug);
 
   const handleTaleComplete = useCallback(() => {
+    playCastleCue('questComplete');
     setTaleDone(true);
     notifyTaleCompleted(taleSlug);
     void refreshWorld();
   }, [refreshWorld, notifyTaleCompleted, taleSlug]);
 
   const handleStoryComplete = useCallback(() => {
+    playCastleCue('questComplete');
     setStoryDone(true);
     void refreshWorld();
   }, [refreshWorld]);
 
   const handlePaintedWordsComplete = useCallback(() => {
+    playCastleCue('questComplete');
     paintedWordsDoneRef.current = true;
     setPaintedWordsDone(true);
     void refreshWorld();
@@ -393,7 +434,13 @@ export function CastleTaleCompanion({
   return (
     <>
       {hudSlot ? createPortal(captions, hudSlot) : captions}
-      <CastleGuide scene={scene} worldState={worldState} childId={childId} storybook={storybook} />
+      <CastleGuide
+        scene={scene}
+        worldState={worldState}
+        childId={childId}
+        storybook={storybook}
+        onOpenChange={handleGuideOpenChange}
+      />
       {npcStage ? (hudSlot ? createPortal(npcStage, hudSlot) : npcStage) : null}
       {npcAmbient ? (speechSlot ? createPortal(npcAmbient, speechSlot) : npcAmbient) : null}
       {taleActive && taleForBand ? (
@@ -419,6 +466,7 @@ export function CastleTaleCompanion({
           bus={bus}
           definition={paintedWords.definition}
           onComplete={handlePaintedWordsComplete}
+          speakWord={speakWord}
           backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
         />
       ) : null}

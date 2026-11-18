@@ -4,9 +4,10 @@ import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import type { AgeBandValue } from '../../../../child-profile/constants';
-import { paintedWordsPadGuide } from '../../castlePlatformAnswers';
+import { paintedWordsPadGuide, paintedWordsPadSlots } from '../../castlePlatformAnswers';
 import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import { usePadAnswers } from './usePadAnswers';
+import { useCastleAnswerCues } from './useCastleAnswerCues';
 
 /**
  * One in-world play-through of "The Painted Words" (SC-JMP), hosted in the Illustration Studio so
@@ -28,6 +29,11 @@ export interface CastlePaintedWordsSessionProps {
   definition: AdventureDefinition;
   onComplete: () => void;
   backToMapHref: string;
+  /**
+   * SC-R06-03: says a bank word aloud (the castle's speech). Without it there are no "hear it"
+   * buttons; the words are on the card either way.
+   */
+  speakWord?: (word: string) => void;
 }
 
 export function CastlePaintedWordsSession({
@@ -38,6 +44,7 @@ export function CastlePaintedWordsSession({
   definition,
   onComplete,
   backToMapHref,
+  speakWord,
 }: CastlePaintedWordsSessionProps) {
   const {
     loadState,
@@ -62,11 +69,15 @@ export function CastlePaintedWordsSession({
     }
   }, [session, onComplete]);
 
+  const stepId = currentStep?.id ?? null;
+  // SC-R06-01: right, try-again and hint sounds, from what the server decided.
+  const cuedSubmit = useCastleAnswerCues(submitAnswer, stepId, hintLevel);
+
   usePadAnswers({
     bus,
     definition,
-    stepId: currentStep?.id ?? null,
-    submit: submitAnswer,
+    stepId,
+    submit: cuedSubmit,
   });
 
   if (loadState === 'loading') {
@@ -81,13 +92,15 @@ export function CastlePaintedWordsSession({
   }
 
   const padGuide = paintedWordsPadGuide(currentStep);
+  // Only approved bank words get a "hear it" button (the slots refuse anything else).
+  const words = speakWord ? (paintedWordsPadSlots(currentStep)?.map((slot) => slot.word) ?? []) : [];
   return (
     <div className={styles.panel}>
       <AdventureStepCard
         currentStep={currentStep}
         submitting={submitting}
         error={error}
-        submitAnswer={submitAnswer}
+        submitAnswer={cuedSubmit}
         hintLevel={hintLevel}
         hintText={hintText}
         requestHint={requestHint}
@@ -100,6 +113,15 @@ export function CastlePaintedWordsSession({
         <p className={styles.status} data-testid="painted-words-pad-guide">
           If you like, hop onto a pad to answer. {padGuide}
         </p>
+      ) : null}
+      {speakWord && words.length > 0 ? (
+        <div role="group" aria-label="Hear the words" data-testid="painted-words-hear">
+          {words.map((word) => (
+            <button key={word} type="button" onClick={() => speakWord(word)}>
+              Hear {word}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );

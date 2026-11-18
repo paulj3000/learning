@@ -115,6 +115,54 @@ describe('the Painted Words, hosted in the Illustration Studio', () => {
   });
 });
 
+describe('sound and narration (SC-R06)', () => {
+  it('offers a "hear it" button for each bank word on the pads, which says that word', () => {
+    const speakWord = vi.fn();
+    render(
+      <CastlePaintedWordsSession
+        childId="child-1"
+        ageBand="PATHFINDER"
+        aiEnabled={false}
+        bus={new WorldEngineEventBus()}
+        definition={THE_PAINTED_WORDS}
+        onComplete={vi.fn()}
+        backToMapHref="/island/child-1"
+        speakWord={speakWord}
+      />,
+    );
+    const group = screen.getByTestId('painted-words-hear');
+    const buttons = group.querySelectorAll('button');
+    expect(buttons.length).toBe(3);
+    const word = (buttons[0]?.textContent ?? '').replace(/^Hear /, '');
+    act(() => buttons[0]?.click());
+    expect(speakWord).toHaveBeenCalledWith(word);
+  });
+
+  it('has no "hear it" buttons without speech, and the words stay on the card', () => {
+    renderSession();
+    expect(screen.queryByTestId('painted-words-hear')).toBeNull();
+  });
+
+  it('raises the right and try-again moments from the server grade', async () => {
+    const { setCastleSoundSink } = await import('./castleSoundCues');
+    const moments: string[] = [];
+    setCastleSoundSink((moment) => moments.push(moment));
+    try {
+      session.submitAnswer = vi.fn().mockResolvedValue('incorrect');
+      const { bus } = renderSession();
+      await stand(bus, padZoneId('studio', 'red'));
+      expect(session.submitAnswer).toHaveBeenCalledTimes(1);
+      expect(moments).toEqual(['answerRetry']);
+      session.submitAnswer.mockResolvedValue('correct');
+      bus.emit('PlayerLeftZone', { zoneId: padZoneId('studio', 'red') });
+      await stand(bus, padZoneId('studio', 'blue'));
+      expect(moments).toEqual(['answerRetry', 'answerRight']);
+    } finally {
+      setCastleSoundSink(null);
+    }
+  });
+});
+
 describe('who the castle hands the painted wall to', () => {
   const wall = (id: string) => STORYKEEPER_CASTLE_INTERACTIONS.find((interaction) => interaction.id === id)!;
 

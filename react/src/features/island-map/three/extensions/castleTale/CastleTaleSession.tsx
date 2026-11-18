@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../../../IslandWorldView.module.css';
 import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
+import { useCastleAnswerCues } from './useCastleAnswerCues';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import type { StepAnswer } from '../../../../adventures/engine/validators';
 import type { AgeBandValue } from '../../../../child-profile/constants';
@@ -143,6 +144,8 @@ export function CastleTaleSession({
   });
 
   const stepId = currentStep?.id ?? null;
+  // SC-R06-01: right, try-again and hint sounds, from what the server decided.
+  const cuedSubmit = useCastleAnswerCues(submitAnswer, stepId, hintLevel);
   /**
    * The one submit both routes use. Reflecting the choice here rather than at
    * each call site is what makes the card light the portrait too: a child who
@@ -168,9 +171,9 @@ export function CastleTaleSession({
       if (answer.kind === 'reflection' && stepId === STORY_REFLECTION_STEP_ID) {
         scene.current?.showEaselPainting(choices.hero, choices.setting);
       }
-      return submitAnswer(answer);
+      return cuedSubmit(answer);
     },
-    [submitAnswer, stepId, onChoice, scene, choices],
+    [cuedSubmit, stepId, onChoice, scene, choices],
   );
 
   const submitRef = useRef(submitAnswerAndReflect);

@@ -86,6 +86,23 @@ describe('CastleGuide', () => {
     ).toBeInTheDocument();
   });
 
+  it('reports opening and closing (for the Storybook sounds), never the first render (SC-R06-01)', () => {
+    const onOpenChange = vi.fn();
+    render(
+      <CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} onOpenChange={onOpenChange} />,
+    );
+    expect(onOpenChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /open the castle guide/i }));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onOpenChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('offers the child sound controls inside the guide (SC-R06-02)', () => {
+    render(<CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} />);
+    open();
+    expect(screen.getByRole('heading', { name: /^sound$/i })).toBeInTheDocument();
+  });
+
   it('closes on Escape, and only listens while it is open', () => {
     render(<CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} />);
     open();

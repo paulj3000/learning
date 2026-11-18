@@ -71,9 +71,15 @@ export function toPatch(settings: SoundSettings): SoundSettingsPatch {
   };
 }
 
+/**
+ * A loaded mix and whether the child has one saved at all (SC-R06-02). `saved` is absent from an
+ * older server; absent means "unknown", which a session default treats as saved (it never applies).
+ */
+export type LoadedAudioSettings = SoundSettings & { saved?: boolean };
+
 export interface AudioSettingsApi {
   /** Resolves a complete mix; rejects on any failure (the caller decides what silence means). */
-  get(signal?: AbortSignal): Promise<SoundSettings>;
+  get(signal?: AbortSignal): Promise<LoadedAudioSettings>;
   save(settings: SoundSettings, signal?: AbortSignal): Promise<SoundSettings>;
 }
 
@@ -87,7 +93,10 @@ export function createAudioSettingsApi(client: ApiClient, childId: string): Audi
   return {
     async get(signal) {
       const response = await client.request('GET', path, signal ? { signal } : {});
-      return read(response.data);
+      const settings: LoadedAudioSettings = read(response.data);
+      const saved = (response.data as { saved?: unknown } | null)?.saved;
+      if (typeof saved === 'boolean') settings.saved = saved;
+      return settings;
     },
     async save(settings, signal) {
       const response = await client.request('PATCH', path, {
