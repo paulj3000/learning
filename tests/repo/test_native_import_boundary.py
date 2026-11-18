@@ -1,14 +1,19 @@
 """Repository guard (independent of lambda/build.py): native code stays inside
 `processing/lai_native`. No other Python package in the repository imports PIL, and `subprocess`
 and `ctypes` appear only in `lai_native` (plus the existing tooling that already ran processes:
-Django management, scripts and tests). `lai_processing`, `lambda/*_worker` never import
-`lai_native`."""
+Django management, scripts and tests). `lai_processing` and `lambda/jobs_worker` never import
+`lai_native`; the native workers (`lambda/<name>_worker`) may call `lai_native` but never a native
+library or process execution directly."""
 
 import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-GUARDED = [ROOT / "processing" / "lai_processing", ROOT / "lambda" / "jobs_worker"]
+PURE = [ROOT / "processing" / "lai_processing", ROOT / "lambda" / "jobs_worker"]
+NATIVE_WORKERS = [p for p in sorted((ROOT / "lambda").glob("*_worker")) if p.name != "jobs_worker"]
+GUARDED = [(root, {"lai_native", "PIL", "subprocess", "ctypes"}) for root in PURE] + [
+    (root, {"PIL", "subprocess", "ctypes"}) for root in NATIVE_WORKERS
+]
 
 
 def imports(path: Path) -> set[str]:
@@ -21,27 +26,13 @@ def imports(path: Path) -> set[str]:
     return names
 
 
-def test_pure_and_jobs_worker_packages_never_import_native_code():
+def test_pure_and_worker_packages_never_import_native_code():
     offenders = []
-    for root in GUARDED:
+    for root, banned in GUARDED:
         for path in root.rglob("*.py"):
             if "__pycache__" in path.parts:
                 continue
-            bad = imports(path) & {"lai_native", "PIL", "subprocess", "ctypes"}
-            if bad:
-                offenders.append(f"{path.relative_to(ROOT)}: {sorted(bad)}")
-    assert offenders == []
-
-
-def test_native_workers_run_nothing_themselves():
-    offenders = []
-    for root in sorted((ROOT / "lambda").glob("*_worker")):
-        if root.name == "jobs_worker":
-            continue
-        for path in root.rglob("*.py"):
-            if "__pycache__" in path.parts:
-                continue
-            bad = imports(path) & {"PIL", "subprocess", "ctypes"}
+            bad = imports(path) & banned
             if bad:
                 offenders.append(f"{path.relative_to(ROOT)}: {sorted(bad)}")
     assert offenders == []
