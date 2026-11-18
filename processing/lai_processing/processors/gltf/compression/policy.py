@@ -11,10 +11,13 @@
 - `NOT_COMPRESSION`: not a compression extension; the validators' general extension table
   decides (for example `KHR_texture_transform`).
 
+It describes the compression rows of the one validator table
+(`gltf/extension_policy.py`, which the validators use; a test keeps the two in agreement).
+
 This module is a pure table. It never reads the environment: Django reads the two settings and
 passes the enabled set (the processor receives it in the job's validation profile), so the
 validator, the publication gate and the game see the same switch. Wiring into the validators'
-extension policy is done at integration (Workstream B owns that table).
+extension policy is in `extension_policy.py` (`Support.WHEN_ENABLED`, `CONTROLS`).
 """
 
 from __future__ import annotations
@@ -24,6 +27,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
+
+from ..extension_policy import KTX2_CONTROL, MESHOPT_CONTROL
 
 __all__ = [
     "COMPRESSION_POLICY",
@@ -37,8 +42,6 @@ __all__ = [
     "enabled_controls",
 ]
 
-MESHOPT_CONTROL: Final = "LAI_GLB_MESHOPT"
-KTX2_CONTROL: Final = "LAI_GLB_KTX2"
 _CONTROLS: Final = (MESHOPT_CONTROL, KTX2_CONTROL)
 
 

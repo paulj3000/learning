@@ -251,6 +251,8 @@ class ParityCase:
     processor_errors: frozenset[str] = field(default=frozenset())
     # Why the processor differs from Django on purpose (empty: they must agree exactly).
     difference: str = ""
+    # Compression controls that are on for this case (ADR-070); both validators get the same.
+    enabled: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         if not self.difference:
@@ -547,7 +549,86 @@ def _corpus() -> list[ParityCase]:
             "fails here anyway because its buffer has no data).",
         ),
     ]
-    return cases
+    return cases + _compression_corpus()
+
+
+def _compression_corpus() -> list[ParityCase]:
+    """ADR-070: compressed models with each control off and on. Both validators must agree."""
+    import sys
+    from pathlib import Path
+
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    from ktx2_builder import LINEAR, ZSTD, ktx2
+    from meshopt_builder import EXT, compress_views
+
+    E = frozenset  # noqa: N806
+    meshopt, ktx2_on = E({"LAI_GLB_MESHOPT"}), E({"LAI_GLB_KTX2"})
+    both = meshopt | ktx2_on
+
+    def meshopt_model(change=None) -> bytes:  # type: ignore[no-untyped-def]
+        document, binary = static_model()
+        view = document["accessors"][0]["bufferView"]
+        document, binary = compress_views(document, binary, [view])
+        if change:
+            change(document)
+        return glb(document, binary)
+
+    def ktx2_model(texture: bytes | None = None, change=None, meshopt_too: bool = False) -> bytes:  # type: ignore[no-untyped-def]
+        document, binary = static_model(texture=texture or ktx2(64, 32), mime="image/ktx2")
+        document["textures"] = [{"sampler": 0, "extensions": {"KHR_texture_basisu": {"source": 0}}}]
+        document["extensionsUsed"] = ["KHR_texture_basisu"]
+        document["extensionsRequired"] = ["KHR_texture_basisu"]
+        if meshopt_too:
+            view = document["accessors"][0]["bufferView"]
+            document, binary = compress_views(document, binary, [view])
+        if change:
+            change(document)
+        return glb(document, binary)
+
+    def stride(document: Document) -> None:
+        for view in document["bufferViews"]:
+            if "extensions" in view:
+                view["extensions"][EXT]["byteStride"] = 6
+
+    return [
+        ParityCase("meshopt_off", meshopt_model(), E({"needs_decoder", "missing_buffer"})),
+        ParityCase("meshopt_on", meshopt_model(), E(), enabled=meshopt),
+        ParityCase(
+            "meshopt_on_only_ktx2_enabled",
+            meshopt_model(),
+            E({"needs_decoder", "missing_buffer"}),
+            enabled=ktx2_on,
+        ),
+        ParityCase(
+            "meshopt_on_bad_stride",
+            meshopt_model(stride),
+            E({"meshopt_stride", "meshopt_stride_mismatch", "meshopt_length_mismatch"}),
+            enabled=meshopt,
+        ),
+        ParityCase(
+            "khr_meshopt_with_every_control_on",
+            mutated(_set("extensionsUsed", ["KHR_meshopt_compression"])),
+            E({"needs_decoder"}),
+            enabled=both,
+        ),
+        ParityCase("ktx2_off", ktx2_model(), E({"needs_decoder", "image_type"})),
+        ParityCase("ktx2_on", ktx2_model(), E(), enabled=ktx2_on),
+        ParityCase(
+            "ktx2_on_linear_base_colour",
+            ktx2_model(ktx2(64, 32, scheme=ZSTD, transfer=LINEAR)),
+            E({"ktx2_color_space"}),
+            enabled=ktx2_on,
+        ),
+        ParityCase(
+            "ktx2_on_bad_dimensions",
+            ktx2_model(ktx2(66, 32)),
+            E({"ktx2_dimensions"}),
+            enabled=ktx2_on,
+        ),
+        ParityCase("meshopt_and_ktx2_on", ktx2_model(meshopt_too=True), E(), enabled=both),
+    ]
 
 
 PARITY_CORPUS: list[ParityCase] = _corpus()

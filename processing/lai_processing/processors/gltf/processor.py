@@ -21,9 +21,10 @@ from ...core.errors import ErrorCode, ProcessingError
 from ...core.limits import DEFAULT_LIMITS, ResourceLimits
 from ...core.processor import ProcessingContext, Processor, ProcessorOutput
 from .document import COMPLEXITY_DEFAULTS, GlbSettings, validate_glb
+from .extension_policy import KTX2_CONTROL, MESHOPT_CONTROL
 from .metadata import build_metadata
 
-__all__ = ["GLB_PROFILE", "GLB_REPORT_TYPE", "GlbValidatorProcessor"]
+__all__ = ["GLB_PROFILE", "GLB_REPORT_TYPE", "GlbValidatorProcessor", "compression_from_options"]
 
 GLB_REPORT_TYPE: Final = "report.glb_validation"
 GLB_REPORT_LOGICAL_ID: Final = "glb-report"
@@ -51,14 +52,28 @@ GLB_PROFILE: Final = ProcessingProfile(
         ),
         "require_animations": OptionSpec("bool", default=False),
         "write_report": OptionSpec("bool", default=False),
+        # ADR-070: Django sets these from LAI_GLB_MESHOPT / LAI_GLB_KTX2 (default off), so the
+        # worker never reads Django settings and both validators decide with the same switch.
+        "allow_meshopt": OptionSpec("bool", default=False),
+        "allow_ktx2": OptionSpec("bool", default=False),
     },
     limits=GLB_LIMITS,
 )
 
 
+def compression_from_options(options) -> frozenset[str]:  # type: ignore[no-untyped-def]
+    """The enabled compression controls named by the request options."""
+    enabled = set()
+    if options.get("allow_meshopt") is True:
+        enabled.add(MESHOPT_CONTROL)
+    if options.get("allow_ktx2") is True:
+        enabled.add(KTX2_CONTROL)
+    return frozenset(enabled)
+
+
 class GlbValidatorProcessor(Processor):
     processor_id = "asset.glb_validator"
-    version = "1.1.0"
+    version = "1.2.0"
     job_types = frozenset({"asset.validate_model"})
 
     def profiles(self) -> tuple[ProcessingProfile, ...]:
@@ -75,6 +90,7 @@ class GlbValidatorProcessor(Processor):
             context.limits.complexity,
             max_texture_dimension=int(context.options.get("max_texture_dimension", 8192)),
             require_animations=context.options.get("require_animations") is True,
+            compression=compression_from_options(context.options),
         )
         with open(context.input_path, "rb") as handle:
             handle.seek(0, 2)

@@ -26,7 +26,22 @@ from typing import IO, Any
 
 from django.conf import settings
 
+from lai_processing.processors.gltf.compression.ktx2 import (
+    KTX2_IDENTIFIER,
+    KTX2_MIME,
+    ktx2_image_indices,
+    validate_basisu,
+)
+from lai_processing.processors.gltf.compression.meshopt import (
+    fallback_buffer_indices,
+    validate_meshopt,
+)
+from lai_processing.processors.gltf.extension_policy import (
+    CONTROLS as COMPRESSION_CONTROLS,
+)
 from lai_processing.processors.gltf.extension_policy import (  # noqa: F401  (re-exported)
+    KTX2_CONTROL,
+    MESHOPT_CONTROL,
     NEEDS_DECODER,
     SUPPORTED_EXTENSIONS,
 )
@@ -56,6 +71,10 @@ BUFFER_URI_TYPES = ("application/octet-stream", "application/gltf-buffer")
 DATA_URI = re.compile(r"^data:([a-z0-9.+/-]+)?(;[a-z0-9=.-]+)*;base64,", re.I)
 BASE64 = re.compile(r"[A-Za-z0-9+/]*={0,2}")
 ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+# KTX2 texture side limit: the processor's default `max_texture_dimension` (glb-default v1).
+KTX2_MAX_SIDE = 8192
+# A KTX2 texture is read whole (header, level index, DFD) for validate_basisu; bounded by this.
+KTX2_MAX_IMAGE_BYTES = 64 * 1024 * 1024
 
 LIMITS = {
     "json_bytes": 16 * 1024 * 1024,
@@ -193,8 +212,25 @@ def validate_upload(stream: IO[bytes], *, size: int, definition=None) -> Validat
 _FAMILY_NOUN = {formats.MODEL: "a 3D model", formats.IMAGE: "an image", formats.AUDIO: "audio"}
 
 
-def validate_model(stream: IO[bytes], *, size: int, definition=None) -> ValidationResult:
-    """Validate an untrusted model file. `stream` must be seekable; it is left at position 0."""
+def compression_controls() -> frozenset[str]:
+    """The compression controls that are on now (`LAI_GLB_MESHOPT`, `LAI_GLB_KTX2`; ADR-070).
+
+    The one place Django reads them for validation; the same set goes into the asynchronous
+    `asset.validate_model` request options (`processing.compression_options`)."""
+    return frozenset(
+        control
+        for control in set(COMPRESSION_CONTROLS.values())
+        if getattr(settings, control, "off") == "on"
+    )
+
+
+def validate_model(
+    stream: IO[bytes], *, size: int, definition=None, compression=None
+) -> ValidationResult:
+    """Validate an untrusted model file. `stream` must be seekable; it is left at position 0.
+
+    `compression` is the set of enabled compression controls; None reads the settings now."""
+    enabled = compression_controls() if compression is None else frozenset(compression)
     result = ValidationResult()
     try:
         _check_definition(result, definition)
@@ -224,7 +260,7 @@ def validate_model(stream: IO[bytes], *, size: int, definition=None) -> Validati
         else:
             result.format = ModelFormat.GLTF
             document, bin_info = _read_gltf_json(result, stream, size), None
-        _check_document(result, document, bin_info, stream, definition)
+        _check_document(result, document, bin_info, stream, definition, enabled)
     except _Stop:
         if not result.errors:  # pragma: no cover - every stop records why
             result.error("unreadable", "The file could not be read as a glTF 2.0 model.")
@@ -385,7 +421,7 @@ def _list(document, name) -> list:
     return value if isinstance(value, list) else []
 
 
-def _check_document(result, document, bin_info, stream, definition):
+def _check_document(result, document, bin_info, stream, definition, enabled=frozenset()):
     asset = document.get("asset")
     if not isinstance(asset, dict) or asset.get("version") != "2.0":
         result.error("gltf_version", 'Only glTF 2.0 models are supported ("asset.version": "2.0").')
@@ -403,10 +439,16 @@ def _check_document(result, document, bin_info, stream, definition):
             result.error("too_complex", f"The model has more than {LIMITS[limit]:,} {name}.", name)
             raise _Stop
 
-    _check_extensions(result, document)
-    buffer_lengths = _check_buffers(result, document, bin_info)
+    _check_extensions(result, document, enabled)
+    fallback = fallback_buffer_indices(document) if MESHOPT_CONTROL in enabled else frozenset()
+    ktx2_images = ktx2_image_indices(document) if KTX2_CONTROL in enabled else frozenset()
+    buffer_lengths = _check_buffers(result, document, bin_info, fallback)
     _check_buffer_views_and_accessors(result, document, buffer_lengths)
-    _check_images(result, document, bin_info, stream)
+    if MESHOPT_CONTROL in enabled:
+        _check_meshopt(result, document, bin_info, stream, buffer_lengths)
+    _check_images(result, document, bin_info, stream, ktx2_images)
+    if KTX2_CONTROL in enabled:
+        _check_ktx2(result, document, bin_info, stream)
     dimensions = _bounds(result, document)
     clips = _check_animations(result, document, definition)
 
@@ -420,11 +462,11 @@ def _check_document(result, document, bin_info, stream, definition):
     }
 
 
-def _check_extensions(result, document):
+def _check_extensions(result, document, enabled=frozenset()):
     used = {str(e) for e in _list(document, "extensionsUsed")}
     required = {str(e) for e in _list(document, "extensionsRequired")}
     for name in sorted(used | required):
-        code = extension_error_code(name)
+        code = extension_error_code(name, enabled)
         if code == "needs_decoder":
             result.error(
                 code,
@@ -455,7 +497,7 @@ def _media_type(uri: str) -> str:
     return (match.group(1) or "").lower() if match else ""
 
 
-def _check_buffers(result, document, bin_info) -> list[int]:
+def _check_buffers(result, document, bin_info, fallback=frozenset()) -> list[int]:
     lengths = []
     for index, buffer in enumerate(_list(document, "buffers")):
         path = f"buffers[{index}]"
@@ -469,7 +511,9 @@ def _check_buffers(result, document, bin_info) -> list[int]:
             declared = 0
         uri = buffer.get("uri")
         if uri is None:
-            if index != 0 or result.format != ModelFormat.GLB or bin_info is None:
+            if index in fallback:
+                pass  # a meshopt fallback buffer holds no data; _check_meshopt checks it
+            elif index != 0 or result.format != ModelFormat.GLB or bin_info is None:
                 result.error("missing_buffer", "A buffer has no data.", path)
             elif declared > bin_info["length"]:
                 result.error(
@@ -552,7 +596,7 @@ def _check_buffer_views_and_accessors(result, document, buffer_lengths):
             )
 
 
-def _check_images(result, document, bin_info, stream):
+def _check_images(result, document, bin_info, stream, ktx2_images=frozenset()):
     views = _list(document, "bufferViews")
     for index, image in enumerate(_list(document, "images")):
         path = f"images[{index}]"
@@ -560,6 +604,11 @@ def _check_images(result, document, bin_info, stream):
             result.error("invalid_image", "An image entry is malformed.", path)
             continue
         uri = image.get("uri")
+        if index in ktx2_images and _image_mime(image) == KTX2_MIME:
+            view_index = image.get("bufferView")
+            if uri is None and not (isinstance(view_index, int) and 0 <= view_index < len(views)):
+                result.error("invalid_image", "A texture points at a missing buffer view.", path)
+            continue  # checked by _check_ktx2
         if uri is not None:
             if not isinstance(uri, str) or not uri.lower().startswith("data:"):
                 result.error(
@@ -597,6 +646,70 @@ def _check_images(result, document, bin_info, stream):
             stream.seek(bin_info["offset"] + int(view.get("byteOffset", 0) or 0))
             if not stream.read(8).startswith(IMAGE_TYPES[media]):
                 result.error("image_type", "A texture is not the image type it claims.", path)
+
+
+def _image_mime(image) -> str:
+    uri = image.get("uri")
+    if isinstance(uri, str):
+        return _media_type(uri)
+    return str(image.get("mimeType", "")).lower()
+
+
+def _bin_reader(bin_info, stream):
+    """`read(buffer, offset, length)` over the GLB binary chunk (buffer 0 only), bounded."""
+
+    def read(buffer, offset, length):
+        if buffer != 0 or bin_info is None or offset < 0 or length <= 0:
+            return None
+        if offset >= bin_info["length"]:
+            return None
+        stream.seek(bin_info["offset"] + offset)
+        return stream.read(min(length, bin_info["length"] - offset))
+
+    return read
+
+
+def _check_meshopt(result, document, bin_info, stream, buffer_lengths):
+    """EXT_meshopt_compression structure (ADR-070), the same function the processor calls."""
+    lengths = list(buffer_lengths)
+    if lengths and bin_info is not None:
+        lengths[0] = min(lengths[0], bin_info["length"]) if lengths[0] else bin_info["length"]
+    validate_meshopt(document, result, buffer_lengths=lengths, read=_bin_reader(bin_info, stream))
+
+
+def _check_ktx2(result, document, bin_info, stream):
+    """KHR_texture_basisu and its KTX2 containers (ADR-070), the processor's function."""
+    images = _list(document, "images")
+    views = _list(document, "bufferViews")
+    read = _bin_reader(bin_info, stream)
+
+    def read_image(index):
+        image = images[index] if isinstance(images[index], dict) else {}
+        uri = image.get("uri")
+        path = f"images[{index}]"
+        if isinstance(uri, str):
+            match = DATA_URI.match(uri)
+            if match is None or len(uri) > KTX2_MAX_IMAGE_BYTES * 4 // 3 + 64:
+                return None
+            try:
+                return base64.b64decode(uri[match.end() :], validate=True)
+            except (binascii.Error, ValueError):
+                result.error("image_type", "An embedded KTX2 texture is not valid base64.", path)
+                return None
+        view_index = image.get("bufferView")
+        if not (isinstance(view_index, int) and 0 <= view_index < len(views)):
+            return None
+        view = views[view_index] if isinstance(views[view_index], dict) else {}
+        offset, length = view.get("byteOffset", 0), view.get("byteLength")
+        if view.get("buffer") != 0 or not _whole(offset) or not _whole(length):
+            return None
+        data = read(0, offset, min(length, KTX2_MAX_IMAGE_BYTES))
+        if data is not None and not data.startswith(KTX2_IDENTIFIER):
+            result.error("image_type", "A texture is not the image type it claims.", path)
+            return None
+        return data
+
+    validate_basisu(document, result, read_image=read_image, max_side=KTX2_MAX_SIDE)
 
 
 # --- bounds ------------------------------------------------------------------------------------

@@ -34,21 +34,23 @@ def _load_builder():
 builder = _load_builder()
 
 
-def django_errors(data: bytes) -> tuple[bool, set[str]]:
-    result = validate_model(io.BytesIO(data), size=len(data))
+def django_errors(data: bytes, enabled=frozenset()) -> tuple[bool, set[str]]:
+    result = validate_model(io.BytesIO(data), size=len(data), compression=enabled)
     return result.passed, {f.code for f in result.errors}
 
 
-def processor_errors(data: bytes) -> tuple[bool, set[str]]:
-    outcome = validate_glb(io.BytesIO(data), len(data), GlbSettings(), lambda: None)
+def processor_errors(data: bytes, enabled=frozenset()) -> tuple[bool, set[str]]:
+    outcome = validate_glb(
+        io.BytesIO(data), len(data), GlbSettings(compression=frozenset(enabled)), lambda: None
+    )
     errors = set(outcome.report.codes(Severity.ERROR))
     return not outcome.report.has_errors, errors
 
 
 @pytest.mark.parametrize("case", builder.PARITY_CORPUS, ids=lambda c: c.name)
 def test_same_verdict_and_error_codes(case):
-    django_passed, django = django_errors(case.data)
-    processor_passed, processor = processor_errors(case.data)
+    django_passed, django = django_errors(case.data, case.enabled)
+    processor_passed, processor = processor_errors(case.data, case.enabled)
     assert django == set(case.django_errors)
     assert processor == set(case.processor_errors)
     if not case.difference:

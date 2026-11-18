@@ -131,7 +131,9 @@ def test_every_difference_is_documented_and_stricter() -> None:
 
 @pytest.mark.parametrize("case", PARITY_CORPUS, ids=lambda c: c.name)
 def test_processor_side_of_the_corpus(case: ParityCase) -> None:
-    outcome = validate(case.data)
+    from lai_processing.processors.gltf import GlbSettings
+
+    outcome = validate(case.data, GlbSettings(compression=case.enabled))
     errors = set(outcome.report.codes(Severity.ERROR))
     assert errors == set(case.processor_errors)
     assert outcome.report.has_errors is bool(case.processor_errors)

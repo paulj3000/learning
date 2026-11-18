@@ -100,6 +100,22 @@ def current_processor() -> tuple[str, str]:
 # --- submission --------------------------------------------------------------------------------
 
 
+def compression_options() -> dict[str, bool]:
+    """The request options that carry the enabled compression controls to the processor
+    (ADR-070): `allow_meshopt` / `allow_ktx2`, from `validation.compression_controls()`. The
+    worker never reads Django settings; the options are part of the idempotency key, so turning
+    a control on or off makes a new logical validation (a fresh job), never a reused verdict."""
+    from lai_processing.processors.gltf.extension_policy import KTX2_CONTROL, MESHOPT_CONTROL
+
+    from .validation import compression_controls
+
+    enabled = compression_controls()
+    return {
+        "allow_meshopt": MESHOPT_CONTROL in enabled,
+        "allow_ktx2": KTX2_CONTROL in enabled,
+    }
+
+
 def model_validation_request(version, *, job_id: str) -> dict:
     """The ADR-061 request for `version` as a dict (no database writes).
 
@@ -121,7 +137,7 @@ def model_validation_request(version, *, job_id: str) -> dict:
     subject = SubjectRef(subject_type=SUBJECT_TYPE, subject_id=str(version.version_id))
     profile_ref = ProfileRef(*MODEL_VALIDATION_PROFILE)
     processor, profile = _registry().resolve(MODEL_VALIDATION_JOB_TYPE, profile_ref)
-    options = profile.resolve_options({})
+    options = profile.resolve_options(compression_options())
     source = InputObject(
         ref=ObjectRef("assets", version.storage_key, None, space),
         content_type=version.content_type,
