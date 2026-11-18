@@ -1,5 +1,51 @@
 # Learning Adventure Island — Claude Project Instructions
 
+## 0. Start here (mandatory for every agent session)
+
+Status: Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+
+This file is the entry point. It keeps the product rules (sections 1 to 20). How agents work is in
+[AGENTS.md](AGENTS.md); detailed policy is in [docs/engineering/](docs/engineering/README.md) and
+adventure standards in [docs/adventures/](docs/adventures/README.md). Precedence when sources
+disagree: owner decision, accepted ADR ([docs/DECISIONS.md](docs/DECISIONS.md)), this file,
+`AGENTS.md`, `docs/engineering/`. Report conflicts; never resolve them silently.
+
+Before a task, read `AGENTS.md` and the documents that apply:
+
+| Topic | Read |
+|---|---|
+| Lifecycle, approvals | [development-workflow](docs/engineering/development-workflow.md), [definition-of-done](docs/engineering/definition-of-done.md) |
+| Architecture, code | [architecture-rules](docs/engineering/architecture-rules.md), [coding-standards](docs/engineering/coding-standards.md) |
+| Tests | [testing-policy](docs/engineering/testing-policy.md) (cadence canonical in [TESTING_STRATEGY](docs/TESTING_STRATEGY.md)) |
+| Security, privacy | [security-policy](docs/engineering/security-policy.md), [AI_AND_CHILD_SAFETY](docs/AI_AND_CHILD_SAFETY.md) |
+| Git, worktrees, merges | [branch-policy](docs/engineering/branch-policy.md), [integration-policy](docs/engineering/integration-policy.md), [multi-agent-workflow](docs/engineering/multi-agent-workflow.md) |
+| Trello | [trello-workflow](docs/engineering/trello-workflow.md) |
+| Releases, AWS | [release-policy](docs/engineering/release-policy.md) |
+| Docs, ADRs | [documentation-policy](docs/engineering/documentation-policy.md), [ADR template](docs/engineering/templates/adr.md) |
+| Adventures | [adventure-standard](docs/adventures/adventure-standard.md) and the jumping, scoring, accessibility, asset, NPC, audio and educational-content standards |
+
+Mandatory rules in brief:
+- **Stack**: React 19 + TypeScript strict + Vite, Three.js as the only gameplay renderer, Django +
+  DRF on PostgreSQL 16, Cognito (verified by Django), Bedrock and Polly only through Django, Django
+  Admin for all staff authoring. Never reintroduce Amplify or Phaser (sections 8, 18 to 20).
+- **Restrictions**: work only in your own worktree and branch; never commit to `main`; never merge,
+  deploy, make live AWS calls or change deployed resources without explicit owner authorization;
+  no new framework or runtime dependency without approval; reserve ADR numbers in the `main`
+  registry first; stay in scope.
+- **Testing**: unit tests by path during development; Playwright, browser, end-to-end, live AWS,
+  full lint/format and build gates only at authorized merge readiness. Never fabricate results.
+- **Trello**: claim the ticket, record branch, worktree, baseline SHA and evidence; never mark
+  owner acceptance or Complete.
+- **Security**: no secrets in source, docs, fixtures or Trello; no child names, free text, audio or
+  identifiers in logs; deny-by-default authorization, tested.
+- **Adventures**: Realm, Adventure, Quest, Challenge hierarchy; meaningful jumping in every primary
+  adventure with an accessible alternative; reuse the shared engine and managers; no time limits,
+  no manipulative rewards, no arithmetic exit gates.
+- **Done**: an agent reaches Development Complete only; integration, owner acceptance, merge and
+  deployment are separate gates. Finish with the completion report
+  ([template](docs/engineering/templates/completion-report.md)) and update
+  `docs/IMPLEMENTATION_STATUS.md`.
+
 ## 1. Mission
 Build **Learning Adventure Island**, an AI-powered learning adventure world for children ages **3–8** on **React + Three.js, Django REST and PostgreSQL, Amazon Cognito, and Amazon Bedrock** (section 8; Amplify is retired, section 18).
 
@@ -268,9 +314,9 @@ Do not implement until separately approved:
 
 ## 14. Work Process for Claude
 
-For each implementation request:
+The full lifecycle is [docs/engineering/development-workflow.md](docs/engineering/development-workflow.md). For each implementation request:
 
-1. Read this file and relevant documents in `docs/`.
+1. Read this file, `AGENTS.md` and the relevant documents in `docs/`.
 2. Inspect the current repository before proposing files.
 3. State the acceptance criteria being implemented.
 4. Make the smallest coherent change that completes the feature.
@@ -279,18 +325,16 @@ For each implementation request:
    relevant unit tests, typechecking when TypeScript changed, and focused regression tests.
    Linting, formatting, full suites, builds, browser/WebGL and deployment checks run at merge
    or release readiness, when explicitly requested.
-7. Report:
-   - files created;
-   - files changed;
-   - tests run and results;
-   - remaining risks or TODOs.
+7. Report (completion report template): files created and changed, tests run and results,
+   remaining risks or TODOs, deferred checks.
 8. Update `docs/IMPLEMENTATION_STATUS.md`.
 
 Do not mark a task complete merely because files were generated. Completion requires passing acceptance criteria and the development checks, with anything deferred to merge verification listed, or a precise explanation of what remains blocked.
 
 ## 15. Definition of Done
 
-A feature is done only when:
+Completion gates (Development Complete, Integration Complete, Owner Accepted, Complete) are in
+[docs/engineering/definition-of-done.md](docs/engineering/definition-of-done.md). A feature's product quality bar:
 - child and parent flows work as specified;
 - authorization is explicit and tested;
 - loading, empty, error, and AI-fallback states exist;
@@ -322,7 +366,7 @@ Do not begin with AI generation. First make the core adventure playable determin
 
 ## 17. Source Documents
 
-Read these before major work:
+Read these before major work (and `AGENTS.md` plus `docs/engineering/README.md` before any task):
 - `docs/PRODUCT_VISION.md`
 - `docs/ARCHITECTURE.md`
 - `docs/DATA_MODEL.md`
