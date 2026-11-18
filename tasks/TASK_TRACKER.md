@@ -1149,6 +1149,10 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       Tests (SC-R06-01 to 03): Vitest castleTale, audio, api/audio, great-storybook, region-play
       64 files, 893 passed; `tsc --noEmit` app and node clean; pytest `apps/audio apps/speech`
       363 passed, 1 skipped (the opt-in live AWS smoke), 1 failed only from the machine's expired AWS SSO token (`test_presigned_urls_use_the_regional_host`, 20 passed with dummy AWS env; storage untouched) (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`).
+      **Merged** at `02569de2` (SC-R06 commit `9430b529`). Merged-tree evidence: Vitest island-map/three,
+      audio, api/audio, great-storybook, npc, region-play 231 files, 3053 passed; `tsc` app clean; Django
+      `apps/audio apps/speech` 364 passed, 1 skipped (opt-in live smoke), 0 failed, with dummy AWS keys
+      and `AWS_PROFILE` unset (the S3 and Polly client tests read the machine's AWS config otherwise).
 - [ ] **SC-R07 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
