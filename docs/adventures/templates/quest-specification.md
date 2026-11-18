@@ -16,8 +16,11 @@
 |---|---|
 | Quest title (child-facing) | `<title>` |
 | Quest slug (`catalog.Quest`) | `<slug>` |
-| Adventure | `<adventure slug>` |
-| Realm and Place | `<island slug> / <place slug>` |
+| Realm that owns it (`Quest.world`) | `<island slug>` |
+| Places its objectives span | `<place slugs>` |
+| Adventures that reference it | `<3D Area region ids and step adventure slugs>` |
+| Offered by 3D Area (`WorldRegion.offered_quests`) | `<region ids, or none>` |
+| Giver NPC (`giver_npc_id`) | `<npc id, or none; must match that NPC's quest offer>` |
 | Trello card | `<card id and title>` |
 
 ## 2. Age bands
@@ -37,14 +40,21 @@
 ## 4. Offer and acceptance
 
 - Offered by: `<npc id via OFFER_QUEST / launch point / automatic>`
-- Prerequisites: `<quest statuses, world changes>`
+- Prerequisites (closed `QuestCondition` list): `<ALWAYS / QUEST_COMPLETED / WORLD_CHANGE / ITEM_OWNED / OBJECTIVE_COMPLETED / RELATIONSHIP_AT_LEAST>`
 - Acceptance: the child's own tap through the quests API; never automatic from dialogue.
 
 ## 5. Stages and objectives
 
-| Stage | Child-facing instruction | Objective type | Completion signal (server) | Hint path |
+| Stage | Child-facing instruction | Objective kind | Completion signal (server) | Hint path |
 |---|---|---|---|---|
-| `<n>` | `<text, readable aloud>` | `<objective type>` | `<event>` | `<authored hints>` |
+| `<n>` | `<text, readable aloud>` | `<objective kind>` | `<record the server proves>` | `<authored hints>` |
+
+Objective kinds the server can prove today ([quests/engine.py](../../../lai/apps/quests/engine.py)):
+`BUILD` (world change), `FIND` and `CRAFT` (item owned), `COLLECT` (items owned), `SOLVE` (a
+COMPLETED step adventure session), `TALK_TO` (an NPC memory flag), `DISCOVER` (a recorded
+discovery). `HELP_NPC`, `DELIVER`, `EXPLORE`, `LEARN` and the `RELATIONSHIP_AT_LEAST` condition
+evaluate as not yet complete on the server; a required objective of those kinds needs its engine
+port first (an owner decision in section 12).
 
 ## 6. Branches
 
@@ -63,7 +73,7 @@
 |---|---|
 | Child leaves mid-quest | `<resume at stage>` |
 | Wrong answer in a stage | `<retry with hints; no progress lost>` |
-| Content republished mid-quest | `<pinned quest version used>` |
+| Content republished mid-quest | `<the quest revision pinned on the REGION session's AdventureSession.pinned_revisions when the 3D Area offers it (pin_region_content); state the behaviour for quests not offered by a 3D Area>` |
 
 ## 9. Accessibility
 
@@ -91,3 +101,4 @@
 - [ ] Consequences written by the play services, not by dialogue or the engine.
 - [ ] No timers; no progress lost on failure or exit.
 - [ ] Objective codes exist in the catalog.
+- [ ] Owning Realm, Places and referencing adventures stated; required objectives use server-provable kinds.

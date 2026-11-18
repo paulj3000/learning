@@ -52,7 +52,8 @@ areas need coordination before anyone edits them. Branch naming and commit rules
 An integration branch, `integration/<yyyymmdd>-<topic>`, combines completed feature branches
 to test that they work together before any of them reach `main`.
 
-1. It is created from current `main` by the agent or owner assigned to the integration ticket.
+1. It is created from current `main` by the owner, or by an agent the owner names on the
+   integration ticket. No other agent or coordinator note creates one.
 2. Only branches whose cards are at Development Complete or later are merged into it, using
    normal merges (no squash, no rebase), so each branch's history stays traceable.
 3. Fixes needed for compatibility are committed on the integration branch with the ticket ids
@@ -78,7 +79,7 @@ parallel without an agreed owner for the change.
 | Shared API contracts | React, game and Django clients depend on them; `/api/v1/` versioning | `lai/apps/*/views.py`, `serializers.py`, `react/src/api` |
 | Shared engine | ADR-020 engine boundaries | `react/src/features/island-map/three`, `game/` when it exists |
 | Player movement | One shared controller for every world | `react/src/features/island-map/three/firstPersonController.ts`; pending-merge branches (PR #26, #27, #29, #37, #36) |
-| Jumping and collision | Owner direction 2026-11-17: standard in every adventure | pending merge (`feature/shared-jump-controller`, ADR-063 reserved) |
+| Jumping and collision | Owner direction 2026-11-17: standard in every primary adventure ([jumping standard](../adventures/jumping-standard.md)) | pending merge (`feature/shared-jump-controller`, ADR-063 reserved) |
 | Camera | One camera controller (pending merge, `feature/third-person-avatar`) | shared engine |
 | Asset resolution | One resolver over the Asset Manager (ADR-045) | `react/src/features/island-map/three/assets/assetResolver.ts`, `react/src/api/assets` |
 | NPC systems | Versioned NPC releases (ADR-054) | `lai/apps/npcs`, `react/src/features/npc-manager` |
@@ -104,16 +105,12 @@ parallel without an agreed owner for the change.
 
 ### ADR numbers
 
-- Reserve the number first: add a `Reserved` row to the registry in
-  [docs/DECISIONS.md](../DECISIONS.md) on `main` (through a small pull request the owner
-  merges), then use it on the feature branch. Take the next free number after every row,
-  including `Reserved` rows, after checking `git show origin/main:docs/DECISIONS.md`.
-- Collisions have already happened. Parallel branches used ADR-055 for both the native dev
+- Number a new ADR only through the procedure in
+  [multi-agent-workflow.md](multi-agent-workflow.md#adr-number-reservation).
+- Collisions have already happened: parallel branches used ADR-055 for both the native dev
   environment and the jump controller; the jump decision was moved to ADR-063 (Reserved).
-  Other open branches use ADR-065 to ADR-071, ADR-080 and ADR-081, which must be registered as
-  Reserved before any new number is chosen.
-- Renumber only to remove a real collision, by reading content, never by search and replace
-  (governance rules 3 and 5).
+- Collisions are resolved by the owner, renumbering only by reading content, never by search
+  and replace (governance rules 3 and 5 in [docs/DECISIONS.md](../DECISIONS.md)).
 - `npm run adr:check` must pass before a merge is complete.
 
 ### Status and tracker files

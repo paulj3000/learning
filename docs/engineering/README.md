@@ -15,7 +15,7 @@ it points to their canonical sources.
 
 | Source | What it governs | Notes |
 |---|---|---|
-| [`CLAUDE.md`](../../CLAUDE.md) | Mandatory entry point for every agent session: mission, age bands, AI model, coding rules, work process (section 14), definition of done (section 15), in-effect ADR rules (sections 18 to 20) | Read first, every session |
+| [`CLAUDE.md`](../../CLAUDE.md) | Mandatory entry point for every agent session: mission, age bands, AI model, coding rules, work process (section 14), product quality bar (section 15), in-effect ADR rules (sections 18 to 20) | Read first, every session |
 | [`AGENTS.md`](../../AGENTS.md) | Tool-neutral agent rules (any coding agent, not only Claude) | Summary rules; points here for detail |
 | `docs/engineering/` (this directory) | Detailed engineering policy: lifecycle, branches, multi-agent coordination, testing policy, security, integration, release, documentation | Policy plus pointers, not copies |
 | [`docs/adventures/`](../adventures/README.md) | Adventure standards: realms, quests, challenges, jumping, scoring, accessibility, assets, NPCs, audio, educational content | Applies to every playable adventure |
@@ -26,12 +26,16 @@ it points to their canonical sources.
 
 ### Precedence when documents conflict
 
-1. Owner decision (recorded on the Trello card, in a PR review, or in an ADR)
+This is the one precedence list; [`CLAUDE.md`](../../CLAUDE.md), [`AGENTS.md`](../../AGENTS.md)
+and [`docs/adventures/README.md`](../adventures/README.md) summarize it and link here.
+
+1. Owner decision, given as owner authorization ([`AGENTS.md`](../../AGENTS.md#what-counts-as-owner-authorization)) or recorded in an accepted ADR
 2. Accepted ADR in [`docs/DECISIONS.md`](../DECISIONS.md)
 3. [`CLAUDE.md`](../../CLAUDE.md)
 4. [`AGENTS.md`](../../AGENTS.md)
 5. `docs/engineering/` and `docs/adventures/` documents with status Mandatory policy
-6. Guidance and Proposed documents
+6. `docs/engineering/` and `docs/adventures/` documents with status Proposed
+7. Guidance documents and templates
 
 An agent that finds a conflict reports it (Trello comment on the ticket, and in the handoff or
 completion report) and follows the higher-ranked source. It never silently edits one document to
@@ -67,6 +71,7 @@ change ([`documentation-policy.md`](documentation-policy.md)).
 | [`integration-policy.md`](integration-policy.md) | Integration branches, merge order, conflict resolution and merge readiness |
 | [`release-policy.md`](release-policy.md) | Release notes, environment promotion and the owner-approved deployment gate |
 | [`documentation-policy.md`](documentation-policy.md) | Document ownership, status values, naming, cross-references and deprecation |
+| [`initial-audit.md`](initial-audit.md) | Repository baseline audit at `466a4972`: structure, content hierarchy, existing policies, open branches, check commands and known conflicts |
 
 ### Engineering templates
 
@@ -115,7 +120,7 @@ wins; nothing is duplicated.
 | ADR template | [`templates/adr.md`](templates/adr.md) | Drafts a new `## ADR-NNN: Title` section for `docs/DECISIONS.md` |
 | ADR working notes | [`docs/decisions_adr.md`](../decisions_adr.md) | A working note (ADR-027), not the log |
 | Testing standard or test cadence | [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) | Canonical "When to run which checks"; [`testing-policy.md`](testing-policy.md) only applies it |
-| Definition of done | [`CLAUDE.md`](../../CLAUDE.md) section 15 | [`definition-of-done.md`](definition-of-done.md) expands it per workflow state |
+| Definition of done | [`definition-of-done.md`](definition-of-done.md) (completion gates) | [`CLAUDE.md`](../../CLAUDE.md) section 15 is the product quality bar a feature meets within Development Complete |
 | Architecture overview | [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) | [`architecture-rules.md`](architecture-rules.md) lists the binding rules only |
 | Content hierarchy (realm, place, area) | [`docs/platform/CANONICAL_CONTENT_MODEL.md`](../platform/CANONICAL_CONTENT_MODEL.md), [`docs/engine/02_CONTENT_MODEL_STRATEGY.md`](../engine/02_CONTENT_MODEL_STRATEGY.md) | Adventure standards reference, never redefine, the model |
 | Security and privacy | [`docs/THREAT_MODEL.md`](../THREAT_MODEL.md), [`docs/PRIVACY_AND_SAFETY_REVIEW.md`](../PRIVACY_AND_SAFETY_REVIEW.md), [`docs/AUTHORIZATION_REVIEW.md`](../AUTHORIZATION_REVIEW.md), [`docs/AI_AND_CHILD_SAFETY.md`](../AI_AND_CHILD_SAFETY.md) | [`security-policy.md`](security-policy.md) states the engineering rules and links these |

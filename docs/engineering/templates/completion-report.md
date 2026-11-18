@@ -6,8 +6,10 @@
 - **Canonical sources:** [CLAUDE.md](../../../CLAUDE.md) section 14 (report),
   [definition-of-done.md](../definition-of-done.md), [trello-workflow.md](../trello-workflow.md)
 
-Posted on the Trello card when an agent reaches Development Complete (or the gate the ticket
-closes at). It reports facts only: no test result, commit or approval that was not observed.
+Posted on the Trello card when an agent reaches Development Complete (or Integration Complete
+when assigned an integration ticket). Agents never report Owner Accepted or Complete, and never
+move a card to Complete. It reports facts only: no test result, commit or approval that was not
+observed.
 
 ---
 

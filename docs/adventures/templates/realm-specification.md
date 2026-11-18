@@ -15,8 +15,14 @@
 
 | Field | Value |
 |---|---|
-| Realm display name (child-facing) | `<name>` |
-| Island slug (`catalog.World`) | `<slug>` |
+| Realm display name (child-facing, `World.title`) | `<name>` |
+| Island slug (`World.slug`) | `<slug>` |
+| Tagline (`World.tagline`) | `<one line, readable aloud>` |
+| Description (`World.description`) | `<short text, readable aloud>` |
+| Pack version (`World.pack_version`) | `<integer>` |
+| Home Realm? (`World.is_home`) | `<yes/no>` |
+| Sort order (`World.sort_order`) | `<integer>` |
+| Active at launch? (`World.active`) | `<yes/no>` |
 | Trello card(s) | `<card id and title>` |
 | Branch | `<branch name>` |
 | Related ADRs | `<ADR-NNN, ...>` |
@@ -30,6 +36,8 @@
 
 ## 3. Age bands
 
+Supported bands are stored as `World.supported_age_bands`.
+
 | Age band | Supported? | Notes |
 |---|---|---|
 | Sprouts (3 to 4) | `<yes/no>` | `<notes>` |
@@ -38,46 +46,61 @@
 
 ## 4. Places and 3D Areas
 
-| Place slug (`catalog.Location`) | Place name | 3D Area id (`regions.WorldRegion`, or none) | Adventures launched here | Secret or locked? |
-|---|---|---|---|---|
-| `<slug>` | `<name>` | `<region id or none>` | `<adventure slugs>` | `<rule>` |
+| Place slug (`catalog.Location`) | Place title and tagline | Sort order | 3D Area id (`regions.WorldRegion`, or none) | Adventures launched here | Secret or locked? |
+|---|---|---|---|---|---|
+| `<slug>` | `<title; tagline>` | `<integer>` | `<region id or none>` | `<adventure slugs>` | `<rule>` |
+
+For each 3D Area:
+
+| 3D Area id (`region_id`) | Title | Version | Status | Age bands | Default `SpawnPoint` (`checkpoint_id`, `is_default`) |
+|---|---|---|---|---|---|
+| `<region id>` | `<child-facing title>` | `<integer>` | `<DRAFT / PUBLISHED>` | `<bands>` | `<checkpoint id>` |
 
 ## 5. Travel and unlock rules
 
-- Realm availability rule: `<rule, evaluated by Django>`
+- Realm travel requirement (kept in `World.source`, evaluated by Django): `<rule, or none>`
 - Place unlock rules: `<rules, each tied to a WorldChange or quest status>`
 
-## 6. Shared characters and NPCs
+## 6. Realm-owned Quests
+
+Quests belong to the Realm (`Quest.world`) and may span Places; adventures reference them. One
+[quest specification](quest-specification.md) per quest.
+
+| Quest slug | Places it spans | Adventures that reference it | Spec |
+|---|---|---|---|
+| `<slug>` | `<place slugs>` | `<region ids, step adventure slugs>` | `<path>` |
+
+## 7. Shared characters and NPCs
 
 | `npc_id` | Role | Places | Notes |
 |---|---|---|---|
 | `<npc id>` | `<NpcRole>` | `<places>` | `<notes>` |
 
-## 7. Audio identity
+## 8. Audio identity
 
 - Realm-scope ambient and music cues: `<cue ids, published through a sound release>`
 
-## 8. World changes and persistence
+## 9. World changes and persistence
 
 | World change key | Caused by | Visible consequence |
 |---|---|---|
 | `<key>` | `<adventure or quest>` | `<what the child sees>` |
 
-## 9. Shared components used
+## 10. Shared components used
 
 `<Asset Library, NPC Manager, Sound Manager, shared movement and jump controller (pending merge), quest engine, ...>`
 
-## 10. Assets and licensing
+## 11. Assets and licensing
 
 `<asset ids needed, fallback behaviour, ledger rows required>`
 
-## 11. Dependencies and owner decisions
+## 12. Dependencies and owner decisions
 
 | Item | Type (dependency or owner decision) | State |
 |---|---|---|
 | `<item>` | `<type>` | `<open/decided, date>` |
 
-## 12. Acceptance criteria
+## 13. Acceptance criteria
 
 1. `<criterion>`
 
@@ -88,5 +111,6 @@
 - [ ] Unlock rules evaluated by Django, tied to world changes or quests.
 - [ ] NPCs through the NPC Manager; audio through the Sound Manager; assets through the Asset Library.
 - [ ] Age bands stated for every Place.
+- [ ] Every required `World`, 3D Area and default `SpawnPoint` field filled; Realm-owned quests listed.
 - [ ] No play-time limits (ADR-053).
 - [ ] Owner decisions listed, none assumed.

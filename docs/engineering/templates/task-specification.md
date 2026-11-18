@@ -75,8 +75,9 @@ blockers: []
 ## Approvals and Constraints
 
 - Owner approval required for: <items, or none>
-- No live AWS deployment authorized: <yes, unless the owner wrote otherwise>
+- No live AWS deployment authorized: <yes, unless the owner authorized it, linked to the source ([what counts](../../../AGENTS.md#what-counts-as-owner-authorization))>
 
 ## Definition of Done Gate
 
-<Which gate closes this task: Development Complete | Integration Complete | Owner Accepted | Complete>
+<Which gate the agent's work closes at: Development Complete, or Integration Complete for an
+integration ticket. Owner Accepted and Complete are recorded only by the owner.>

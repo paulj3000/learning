@@ -13,12 +13,9 @@ locking, handoff) is in [`multi-agent-workflow.md`](multi-agent-workflow.md); Tr
 
 ## Roles
 
-| Role | Who | Decides |
-|---|---|---|
-| Owner | The project owner | Architecture, product scope, priorities, acceptance, merge, deployment, any AWS change |
-| Product and architecture specification | ChatGPT, working for the owner | Nothing on its own; drafts specifications and acceptance criteria for owner approval |
-| Development agent | One of Claude-01 to Claude-05 | How to implement an approved ticket inside its approved scope |
-| Coordinator | The owner, or an agent the owner names for a specific integration | Integration order and conflict resolution, within owner direction |
+The owner, ChatGPT (project manager and coordinator) and development agents are defined in the
+one role table in [`AGENTS.md`](../../AGENTS.md#1-roles), with what counts as owner authorization.
+"Coordinator" below means ChatGPT proposing and coordinating; the decision stays with the owner.
 
 ## Lifecycle
 
@@ -47,7 +44,7 @@ needs the owner's explicit decision; an agent may prepare it but never performs 
 | 18 | Owner QA | Owner | PR, [`templates/qa-checklist.md`](templates/qa-checklist.md) | QA result on the card; card in Owner QA | Owner only |
 | 19 | Defects corrected | Agent | [`templates/defect-report.md`](templates/defect-report.md) entries; card in Rework Required | Fix commits, tests, updated evidence; back to step 14 | Agent |
 | 20 | Owner approves acceptance | Owner | Passed QA | Recorded acceptance; card in Ready to Merge | Owner only |
-| 21 | Merge through the authorized process | Owner, or an agent the owner explicitly instructs | Accepted PR, passing CI | Merged commit on `main`; card in Complete | Owner authorizes every merge |
+| 21 | Merge through the authorized process | Owner, or an agent the owner explicitly instructs | Accepted PR, passing CI | Merged commit on `main`; the owner moves the card to Complete | Owner authorizes every merge; only the owner moves a card to Complete |
 | 22 | Deployment | Owner, or an agent with explicit per-deployment authorization | Merged code, [`release-policy.md`](release-policy.md) | Release notes from [`templates/release-notes.md`](templates/release-notes.md); deployment record | Owner only; never implied by merge |
 
 Rules that apply across steps:

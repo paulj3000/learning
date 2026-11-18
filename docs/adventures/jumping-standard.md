@@ -103,7 +103,8 @@ its ceilings.
 - **Platforms** are jumpable boxes in the same collider list: static, moving, pressure-plate,
   switch, zone, signal (a solved challenge), world-state unlocks, appearing bridges, vanishing,
   bounce and turntables. Tops at least 0.8 m; speeds 0.2 to 4 m/s; at most 64 platforms per Area.
-  Platforms yield to the child and never push them through walls.
+  Platforms yield to the child and never push them through walls. Where each type may sit:
+  [Platforms on required paths](#platforms-on-required-paths).
 - Tilting, seesaw, rolling and rope mechanics are not built; they would need a physics
   dependency the project has not approved. Do not add one without an ADR.
 
@@ -118,7 +119,7 @@ Jumping serves the adventure's learning goal or exploration, never replaces it. 
 | Collecting objects | `COLLECTIBLE` placements on or between platforms | The collectible is optional; the server records it once |
 | Answer by jumping | Jump onto the platform or object showing the answer; the server grades it | An equivalent button answer is always offered (as the rune stones' panel does) |
 | Bridges built by learning | `SIGNAL` or `WORLD_STATE` activation after a solved challenge | The bridge is walkable once built |
-| Counting jumps, sequencing pads | Plates and goals reported as events; Django grades | No timing requirement |
+| Counting jumps, sequencing pads | Plates and goals reported as events; Django grades | No timing requirement; an equivalent non-jump answer (buttons or a walking route) is always offered |
 
 The engine only emits events (`PlayerJumped`, `PlayerLanded`, `PlatformGoalReached` and others);
 React and Django decide what they mean (ADR-020).
@@ -137,8 +138,15 @@ React and Django decide what they mean (ADR-020).
 
 - No lives, no game over, no score loss, no timer, no "try again from the start".
 - A missed jump never undoes learning progress or a solved challenge.
-- Vanishing platforms warn before they go (blink; a steady dim under reduced motion) and are only
-  on optional routes.
+- Vanishing platforms warn before they go (blink; a steady dim under reduced motion).
+
+## Platforms on required paths
+
+This is the one platform placement rule; other standards link here. In every age band, moving,
+vanishing and bounce platforms sit only on optional routes, never on a required path. Required
+paths use static platforms (a bridge that appears after a solved challenge and then stays put
+counts as static), and every required step also has a walking route. The band limits below
+(speeds, sequence lengths) apply to optional routes.
 
 ## Difficulty by age band
 
@@ -195,7 +203,7 @@ walking jump clears 2.5 m); North Pole gaps up to 1.6 m.
 - [ ] Built on the shared controller and platform system; no new movement code; branch dependency stated.
 - [ ] Gates, boundaries and quest barriers are solid; no required zone can be skipped.
 - [ ] Every hazard has a checkpoint; recovery never removes progress, items or rewards.
-- [ ] No timers on required routes; vanishing or moving platforms only on optional routes.
+- [ ] No timers on any route; required paths use static platforms only; moving, vanishing and bounce platforms only on optional routes.
 - [ ] Per-band jump difficulty stated and within the controller limits.
 - [ ] Keyboard, touch and gamepad controls work; the Jump button covers no other control.
 - [ ] Reduced-motion behaviour checked.

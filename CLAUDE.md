@@ -2,13 +2,16 @@
 
 ## 0. Start here (mandatory for every agent session)
 
-Status: Mandatory policy. Engineering governance proposed under ADR-072 (owner acceptance pending).
+Status: Section 0 summarizes the engineering standards proposed in ADR-072 (owner acceptance
+pending); rules sourced to existing sections, accepted ADRs or TESTING_STRATEGY bind now.
 
 This file is the entry point. It keeps the product rules (sections 1 to 20). How agents work is in
 [AGENTS.md](AGENTS.md); detailed policy is in [docs/engineering/](docs/engineering/README.md) and
-adventure standards in [docs/adventures/](docs/adventures/README.md). Precedence when sources
-disagree: owner decision, accepted ADR ([docs/DECISIONS.md](docs/DECISIONS.md)), this file,
-`AGENTS.md`, `docs/engineering/`. Report conflicts; never resolve them silently.
+adventure standards in [docs/adventures/](docs/adventures/README.md). Precedence in brief: owner
+decision, accepted ADR ([docs/DECISIONS.md](docs/DECISIONS.md)), this file, `AGENTS.md`, then
+Mandatory, Proposed and Guidance documents in `docs/engineering/` and `docs/adventures/`; the full
+list is in [docs/engineering/README.md](docs/engineering/README.md#precedence-when-documents-conflict).
+Report conflicts; never resolve them silently.
 
 Before a task, read `AGENTS.md` and the documents that apply:
 
@@ -27,7 +30,8 @@ Before a task, read `AGENTS.md` and the documents that apply:
 Mandatory rules in brief:
 - **Stack**: React 19 + TypeScript strict + Vite, Three.js as the only gameplay renderer, Django +
   DRF on PostgreSQL 16, Cognito (verified by Django), Bedrock and Polly only through Django, Django
-  Admin for all staff authoring. Never reintroduce Amplify or Phaser (sections 8, 18 to 20).
+  Admin for all staff authoring. Never reintroduce Amplify; no new Phaser usage, and Phaser worlds
+  get bug fixes only until their Three.js replacements pass (sections 8, 18 to 20).
 - **Restrictions**: work only in your own worktree and branch; never commit to `main`; never merge,
   deploy, make live AWS calls or change deployed resources without explicit owner authorization;
   no new framework or runtime dependency without approval; reserve ADR numbers in the `main`
@@ -38,9 +42,11 @@ Mandatory rules in brief:
   owner acceptance or Complete.
 - **Security**: no secrets in source, docs, fixtures or Trello; no child names, free text, audio or
   identifiers in logs; deny-by-default authorization, tested.
-- **Adventures**: Realm, Adventure, Quest, Challenge hierarchy; meaningful jumping in every primary
-  adventure with an accessible alternative; reuse the shared engine and managers; no time limits,
-  no manipulative rewards, no arithmetic exit gates.
+- **Adventures**: Realm, Adventure, Quest, Challenge hierarchy; Quests belong to a Realm and may
+  span Places; Adventures reference them. Meaningful jumping with an accessible alternative in
+  every primary adventure, once the shared jump controller merges (PR #26, ADR-063 Reserved; owner
+  direction on Trello LAI-JMP-01). Reuse the shared engine and managers; no time limits, no
+  manipulative rewards, and no arithmetic exit gates (owner direction, LAI-JMP-03).
 - **Done**: an agent reaches Development Complete only; integration, owner acceptance, merge and
   deployment are separate gates. Finish with the completion report
   ([template](docs/engineering/templates/completion-report.md)) and update

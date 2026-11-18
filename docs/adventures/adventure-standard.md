@@ -30,6 +30,21 @@ A **step adventure** (`catalog.Adventure`, CLAUDE.md's `AdventureTemplate`) is a
 in the adventure UI. It can be a challenge inside a primary adventure or a card-route activity on
 a Place page. Terms and mappings: [realm standard](realm-standard.md#terminology-mapping).
 
+### Which rules apply to which shape
+
+A specification states its shape. Rules in this standard apply to both shapes unless this table
+says otherwise ([game_sessions/models.py](../../lai/apps/game_sessions/models.py),
+[quests/services.py](../../lai/apps/quests/services.py),
+[education/director.py](../../lai/apps/education/director.py)).
+
+| Rule | 3D Area primary adventure | Step adventure (`catalog.Adventure`) |
+|---|---|---|
+| Session | One `REGION`-kind `AdventureSession` per child and 3D Area, keyed by `region_id` (`adventure` and `template_version` are null) | An `ADVENTURE`-kind `AdventureSession` for the adventure and its template version |
+| Completion | Its quests reach `QuestProgress` COMPLETED, with their completion world changes recorded | The session reaches COMPLETED |
+| Director ranking (completed and recent-play penalties) | Does not apply: the Director ranks active catalog step adventures only | Applies |
+| Quest `SOLVE` objective | Cannot target it | A COMPLETED session satisfies it |
+| Content pinned on `AdventureSession.pinned_revisions` | The 3D Area, its puzzles, placed NPCs, offered quests and chest challenge specs (`pin_region_content`) | The adventure and its steps |
+
 ### Examples and their status (2026-11-18)
 
 | Adventure | Shape | Status |
@@ -136,7 +151,8 @@ return without pressure.
 
 ### Progress persistence
 All progress is server state on canonical models: `WorldChange`, `WorldState` (last checkpoint,
-discoveries), `QuestProgress`, `AdventureSession` (with pinned content revisions),
+discoveries), `QuestProgress`, `AdventureSession` (per shape, with pinned content revisions; see
+[Which rules apply to which shape](#which-rules-apply-to-which-shape)),
 `ChallengeAttempt`, `PuzzleAttempt`, `InventoryItem`, `SkillEvidence`, `SkillProgress`. Never
 persist raw coordinates or Three.js state as the canonical save ([engine doc 05](../engine/05_QUEST_NPC_DISCOVERY_INTEGRATION.md)).
 Leaving and returning resumes at the furthest checkpoint with everything kept. No new progress

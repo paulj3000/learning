@@ -17,12 +17,12 @@ one adventure.
 | Category | Form | Where | Graded by |
 |---|---|---|---|
 | Learning (step) | Answerable `AdventureStep` (`CHOICE`, `NUMBER_INPUT`, `ORDERING`, `MATCHING`, `SHORT_RESPONSE`, `CREATIVE_CHOICE`, `REFLECTION`) | `catalog.AdventureStep`, `AdventureSession`, `AdventureAction` | Deterministic engine on the server (ADR-012, LAI-0601) |
-| Learning (in the world) | Chest challenge: `TreasureChest` with a `ChallengeSpec` per age band, or a published Question Studio pool | `regions`, `education`, `ChallengeAttempt` | Django (`challenges.py`; ADR-046 for Question Studio) |
+| Learning (in the world) | Chest challenge: `TreasureChest` with a `ChallengeSpec` per age band, or an enabled Question Studio `QuestionPool` serving published `QuestionRevision`s | `regions`, `education`, `ChallengeAttempt` | Django (`challenges.py`; ADR-046 for Question Studio) |
 | Puzzle | `AreaPuzzle` of a closed `PuzzleKind`: `OBSERVE_FEATURES`, `PLACE_PLATFORMS`, `VALVE_SEQUENCE`, `COLLECT_OBJECT`, `RETURN_TO_NPC` | `regions.AreaPuzzle`, `PuzzleAttempt` | Django against the session's pinned revision |
 | Puzzle (touch the answer) | `TreasureChest` with `PUZZLE` presentation and answer objects | `regions` | Django (TR-D23) |
 | Exploration | Discovery, room discovery, `EXPLORE` objective, observe-features puzzle | `WorldState.discovered_objects`, `WorldChange` (ADR-051) | Server records; no correctness |
 | Collectible | Pickup on a `COLLECTIBLE` placement (`pickup_change_key`, `pickup_reward_rule`) | `regions.WorldObjectPlacement` | Server records once |
-| Movement | Platforming course: platforms, checkpoints, hazards, goals | `scene.platforming` | Pending merge (`feature/interactive-platforms`); the engine reports a goal, it never awards progress |
+| Movement | Platforming course: platforms, checkpoints, hazards, goals. Always optional | `scene.platforming` | Pending merge (`feature/interactive-platforms`); the engine reports a goal, it never awards progress |
 
 Further puzzle kinds (`CHOOSE_ANSWER`, `ORDER_SEQUENCE`) exist on the Firepeak and North Pole
 branches: pending merge, not available on `main`.
@@ -62,9 +62,9 @@ challenge states:
 3. **Supportive retries.** A wrong answer keeps the child in the activity with encouraging
    feedback; hints step up after attempts. No lives, no penalty, no lost items or progress, no
    "game over".
-4. **No time limits.** No countdown, timer or time-scored challenge (ADR-053). A moving or
-   vanishing platform is a movement mechanic, not a timer, and may only sit on an optional route
-   (see the [jumping standard](jumping-standard.md)).
+4. **No time limits.** No countdown, timer or time-scored challenge (ADR-053). Moving, vanishing
+   and bounce platforms are a movement mechanic, not a timer, and sit only on optional routes
+   ([platform rule](jumping-standard.md#platforms-on-required-paths)).
 5. **Evidence is honest.** Independent success and supported success are recorded separately;
    guided completion counts as participation, not mastery ([ADVENTURE_ENGINE.md](../ADVENTURE_ENGINE.md),
    "Hint ladder").
@@ -109,7 +109,7 @@ are never shown to a child.
 - [ ] Graded on the server; the client never holds the answer.
 - [ ] Parameters authored for every supported age band.
 - [ ] At least one adaptive hint path; authored fallback copy.
-- [ ] Accessible alternative: no precise aim, no jump and no audio required to complete it.
+- [ ] Accessible alternative: no precise aim, no jump and no audio required to complete a required challenge; movement challenges are always optional.
 - [ ] No timer; retries are supportive; nothing is lost on a wrong answer or a fall.
 - [ ] World change and reward recorded once only; replay grants nothing permanent.
 - [ ] Unit tests: grading, per-band parameters, prerequisites, idempotency; golden vectors where the kind has them.

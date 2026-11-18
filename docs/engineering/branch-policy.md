@@ -25,8 +25,8 @@ Rules:
 
 1. Agents never commit or push directly to `main`.
 2. Changes reach `main` only through a pull request merged by the owner, or by an agent the
-   owner has explicitly authorized for that specific merge. Authorization is recorded on the
-   Trello card or the pull request.
+   owner has explicitly authorized for that specific merge. What counts as authorization is
+   defined once in [AGENTS.md](../../AGENTS.md#what-counts-as-owner-authorization).
 3. Agents never force-push, rebase, reset or delete `main`, and never rewrite published history
    on any shared branch.
 4. A merge into `main` is not complete until the merge-readiness checks in
@@ -134,8 +134,10 @@ A pull request is opened by the agent that owns the branch. It is merged only as
 - Never delete another agent's or the owner's branch, local or remote, merged or not.
 - Never delete a branch that an open pull request, a stacked branch or an integration branch
   still uses.
-- Worktrees are removed by the agent that created them once the owner has approved deleting
-  the branch.
+- Worktrees are removed by the agent that created them (or by the owner) once the owner has
+  approved deleting the branch. An agent that received a ticket by handoff works in its own new
+  worktree and leaves the previous agent's worktree untouched
+  ([multi-agent-workflow.md](multi-agent-workflow.md#handoff)).
 
 ## Rollback
 

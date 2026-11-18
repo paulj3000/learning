@@ -8,8 +8,8 @@
 
 These standards say what every new or reworked adventure must have before it is built, tested
 and shown to the owner. They are policy and pointers. Where a rule already lives in a canonical
-document, these files summarise it and link to it; the canonical document wins on any conflict
-until it is changed through an ADR.
+document, these files summarise it and link to it. Conflicts follow
+[Precedence when documents conflict](../engineering/README.md#precedence-when-documents-conflict).
 
 ## Index
 
@@ -55,7 +55,8 @@ Realm                 catalog.World (shown as "Island" in ADR-041 and Django Adm
     3D Area           regions.WorldRegion (zero or one per Place)
       Adventure       the playable experience in a Place, usually in its 3D Area:
                       its quests, area puzzles, chests, launch points and step adventures
-        Quest         catalog.Quest (owned by the Realm, may span Places) + quests.QuestProgress
+        Quest         catalog.Quest (owned by the Realm, may span Places; adventures
+                      reference it) + quests.QuestProgress
           Challenge   one activity: an AdventureStep, a chest challenge (ChallengeSpec),
                       an AreaPuzzle, a pickup or discovery, or a platforming course (pending merge)
 Consequence           progression.WorldChange (append-only, child-scoped)
@@ -65,7 +66,7 @@ Consequence           progression.WorldChange (append-only, child-scoped)
 |---|---|
 | Realm | A larger themed world a child chooses to visit (Learning Adventure Island; North Pole on a branch) |
 | Adventure | A structured gameplay and educational experience with a story, a goal and a world consequence |
-| Quest | An objective-driven sequence of stages within an adventure |
+| Quest | An objective-driven sequence of stages, owned by a Realm and referenced by the adventures that use it |
 | Challenge | One learning, exploration, movement or puzzle activity |
 
 "Realm" is the player-facing word (Realm Explorer, AP-03). "Island", "IslandLocation", "world",

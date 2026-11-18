@@ -7,7 +7,7 @@
 > **How to use.** Copy this file once per challenge type and replace every `<placeholder>`.
 > Correctness is always decided by Django application code; the engine and the browser only
 > display and collect input, and no model ever grades. Prefer the existing sources (a
-> `ChallengeSpec` generator, a Question Studio pool, an authored adventure step) over anything new.
+> `ChallengeSpec` generator, a Question Studio `QuestionPool`, an authored adventure step) over anything new.
 > Write `<TBD: owner decision>` for anything undecided. Read
 > [`challenge-standard.md`](../challenge-standard.md) and
 > [`educational-content-standard.md`](../educational-content-standard.md) first.
@@ -32,7 +32,7 @@
 | Source | Detail |
 |---|---|
 | `ChallengeSpec` (seeded generator) | `<spec slugs per band, or none>` |
-| Question Studio pool | `<pool for region and chest, or none>` |
+| Question Studio `QuestionPool` (serves published `QuestionRevision`s) | `<pool for region and chest, or none>` |
 | Authored adventure step | `<step id, or none>` |
 | Other (requires owner approval) | `<describe, or none>` |
 
@@ -69,7 +69,7 @@
 
 | Failure | Fallback |
 |---|---|
-| Pool empty or too small | `<ChallengeSpec generator>` |
+| `QuestionPool` disabled, or fewer eligible `QuestionRevision`s than `min_pool_size` | `<ChallengeSpec generator>` |
 | AI hint unavailable | `<authored hint at the same level>` |
 | Grading request fails | `<calm retry message; answer not lost>` |
 
@@ -106,4 +106,4 @@
 - [ ] Fallback defined for every failure.
 - [ ] Gradable content snapshotted on the attempt.
 - [ ] No timers or countdowns; retry always possible.
-- [ ] AI-generated questions only from published Question Studio revisions.
+- [ ] AI-generated questions only from published `QuestionRevision`s (never a draft `Question`).

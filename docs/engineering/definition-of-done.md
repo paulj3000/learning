@@ -55,6 +55,10 @@ readiness, and is listed as deferred until then.
 
 ## Integration Complete
 
+Required when the ticket shares components with other open work, or when the owner requests an
+integration branch. Otherwise it is recorded on the card as "Integration Complete: not required"
+with the reason, and the ticket moves on from Development Complete.
+
 Reached on an integration branch or on the feature branch brought up to date with its base
 ([integration-policy.md](integration-policy.md)). All of these hold:
 
@@ -80,7 +84,8 @@ Recorded only by the owner. All of these hold:
 
 Recorded only by the owner. All of these hold:
 
-1. Development Complete, Integration Complete and Owner Accepted are met.
+1. Development Complete and Owner Accepted are met, and Integration Complete is met or recorded
+   as not required with the reason.
 2. The change is merged to `main` through an authorized pull request.
 3. Deployment is done only if it was in the ticket's scope and the owner authorized it, with
    post-deployment verification recorded. Otherwise the card says

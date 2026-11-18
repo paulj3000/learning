@@ -25,9 +25,18 @@ An agent never uses another agent's id, and never writes as the owner.
 
 ## Assignment and claiming
 
+Roles (who proposes assignment, who reassigns) are in the role table in
+[`AGENTS.md`](../../AGENTS.md#1-roles). This is the one list of claim conditions; other documents
+link here.
+
 1. Read the Ready for Development list in priority order (top first, unless the owner has said otherwise).
-2. Skip a card that is already claimed, whose dependencies are not Complete or merged, or whose
-   owned files overlap an active claim (see shared-file conflicts below).
+2. A card is eligible only when all of these hold:
+   - it is in Ready for Development and has testable acceptance criteria;
+   - its `assigned_agent` is empty, or names you by the owner's decision (ChatGPT may relay it);
+   - every dependency is merged to `main` or Complete, except a dependency whose contract is
+     pushed and frozen (work-package step 1 below), which may be consumed but not changed;
+   - its owned files do not overlap an active claim (see shared-file conflicts below);
+   - it does not touch an APPROVAL task, AWS or an open gate that the owner has not cleared.
 3. Claim the first eligible card: post the claim comment, fill the card's ticket block
    ([`trello-workflow.md`](trello-workflow.md#ticket-block)), then move the card to In Development.
 
@@ -38,7 +47,7 @@ Claim comment:
 ticket: <ticket-id>
 branch: <branch>
 worktree: <worktree-dir>
-baseline: <origin/main short SHA>
+baseline: <full origin/main SHA>
 scope: <one line>
 owned: <paths or components>
 ```
@@ -48,14 +57,17 @@ comment and picks another card.
 
 ## Locking and branch ownership
 
-- One owner per ticket. The lock is the claim comment plus the existing branch.
+- One owner per ticket. Ticket ownership (the branch and the lock) belongs to the agent named in
+  the card's current `assigned_agent`. The lock is tied to that ticket and agent id, not to a
+  session.
 - Only the owning agent pushes to the ticket branch. Others may read it (`git show origin/<branch>:<path>`)
   but do not commit to it, rebase it or force-push it.
-- The lock is released by a handoff comment (ticket returns to Ready for Development or goes to a
-  named agent), or by completion (card reaches Development Complete with the completion report).
-  The branch stays; ownership of rework returns to the same agent unless the owner reassigns it.
-- Only the owner or coordinator may break a lock (for example after stale detection). They record
-  it with a comment.
+- The lock is released by a handoff (see Handoff below), or by completion (card reaches
+  Development Complete with the completion report). The branch stays; ownership of rework returns
+  to the same agent unless the owner reassigns it.
+- Only the owner breaks a lock or reassigns a ticket (for example after stale detection); ChatGPT
+  may relay and record that decision with a link to its source. The change is recorded with a
+  comment and in `assigned_agent`.
 
 ## Branches and worktrees
 
@@ -108,20 +120,23 @@ taking one side wholesale.
 ## ADR number reservation
 
 Parallel branches have collided on ADR numbers: two decisions both used ADR-055, and the owner's
-reconciliation reserved ADR-063 for the movement branch. Today, open branches use ADR-065 to
-ADR-071, ADR-080 and ADR-081, while the registry on `main` still says the next free number is 065.
-To prevent another collision:
+reconciliation reserved ADR-063 for the movement branch. This is the one numbering procedure;
+[`integration-policy.md`](integration-policy.md#adr-numbers), [`templates/adr.md`](templates/adr.md),
+[`documentation-policy.md`](documentation-policy.md) and [`AGENTS.md`](../../AGENTS.md) link here.
+While drafting, write the identifier as the placeholder `ADR-NNN` (ignored by `npm run adr:check`).
 
-1. While drafting, write the identifier as the placeholder `ADR-NNN` (ignored by `npm run adr:check`).
-2. Request a number on the Trello card. The coordinator reads the registry on `main`
-   (`git show origin/main:docs/DECISIONS.md`) and every open branch's `## ADR-` headings, and takes
-   the next free number after all of them.
-3. The number is reserved by a `Reserved` registry row on `main` (governance rule 7), through a small
-   registry-only change merged with owner authorization. Record the number on the card.
-4. Only then replace the placeholder in the branch. When the branch merges, its heading and full
-   registry row replace the `Reserved` row (governance rule 4: `npm run adr:check` must pass).
+1. Read the registry on `main` (`git show origin/main:docs/DECISIONS.md`, including `Reserved`
+   rows) and grep every open branch for numbers in use:
+   `git fetch origin && git grep -E "ADR-[0-9]{3}" $(git for-each-ref --format='%(refname)' refs/remotes/origin) -- docs/DECISIONS.md`.
+2. Take the next number that is free everywhere: on `main`, in every `Reserved` row and on every
+   open branch.
+3. Record it immediately as a comment on the ticket's Trello card
+   (`[Claude-0N] ADR number: ADR-NNN for <title>`), so parallel agents see it before any merge.
+4. On the branch, replace the placeholder and add the registry row with status `Proposed`.
+5. If two branches still collide, the owner resolves it under governance rules 3 and 5 in
+   [`docs/DECISIONS.md`](../DECISIONS.md): renumber by reading content, never by search and replace.
 
-Never renumber another branch's ADR or search and replace ADR ids across files (governance rule 5).
+Never renumber another branch's ADR on your own.
 
 ## Dependency ordering, parallel and serial work
 
@@ -143,7 +158,7 @@ section 18). An open ticket is never marked complete by implication.
 2. **Parallel packages.** Each package gets its own ticket, branch, worktree and exclusive set of
    owned files. Packages use the contract and never change it; a needed contract change goes back to
    step 1 as its own ticket.
-3. **Integration (serial).** One agent, named by the coordinator, integrates the packages on
+3. **Integration (serial).** One agent, named by the owner on the integration ticket, integrates the packages on
    `integration/<yyyymmdd>-<topic>` per [`integration-policy.md`](integration-policy.md) and runs the
    authorized merge-readiness checks.
 
@@ -180,15 +195,16 @@ blockers:
 ## Integration coordination
 
 - Each agent records cross-ticket requirements at lifecycle step 16 ([`development-workflow.md`](development-workflow.md)).
-- The coordinator decides merge order (contracts and migrations first) and names who integrates.
-- Integration branches are created only by the coordinator or on its instruction.
+- ChatGPT proposes merge order (contracts and migrations first); the owner decides it.
+- Integration branches are created as [`integration-policy.md`](integration-policy.md#integration-branches)
+  states: by the owner or an agent the owner names on the integration ticket.
 
 ## Blocker escalation
 
 | Blocker | Action |
 |---|---|
 | Owner decision needed | Comment on the card with the question and options, move it to Blocked, continue only on independent work |
-| Dependency on another agent's ticket | Comment on both cards; if no answer in one working day, escalate to the coordinator |
+| Dependency on another agent's ticket | Comment on both cards; if no answer in one working day, escalate to ChatGPT and the owner |
 | Infrastructure failure (worker timeout, out of memory, missing database) | Report as infrastructure, separately from test failures ([`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md)); rerun only affected files |
 | Network or permission refusal | Report it; do not work around a security control |
 
@@ -196,28 +212,51 @@ blockers:
 
 A handoff uses [`templates/agent-handoff.md`](templates/agent-handoff.md) and includes the current
 ownership block, everything pushed (no unpushed work is handed off), checks run and their results,
-open questions and next steps. Post it as a Trello comment; the receiving agent posts its own claim
-comment before working.
+open questions and next steps. Post it as a Trello comment. A handoff is required when an agent
+stops deliberately before completion, and best-effort when a session ends abruptly (see Session
+recovery).
+
+- The departing agent does not choose its successor. The owner (or ChatGPT relaying a recorded
+  owner decision, with a link to it) names the new assignee, and `assigned_agent` on the card is
+  updated; until then the ticket returns to Ready for Development.
+- The receiving agent posts its own claim comment, then creates its **own** worktree from the
+  pushed branch and works only there. The old worktree still has the branch checked out, so the
+  new one starts detached and pushes to the same branch:
+
+  ```bash
+  git fetch origin
+  git worktree add --detach ../wt-<branch with / replaced by ->-<receiving agent id> origin/<branch>
+  git push origin HEAD:<branch>   # when pushing work
+  ```
+
+- The old worktree is left untouched until its creator or the owner removes it.
 
 ## Session recovery
 
-After a container restart or a new session on an existing ticket:
+Agents push at regular checkpoints (each meaningful commit), so an abrupt session end leaves the
+work on `origin`. A resumed session for the same ticket in the same worktree continues as the same
+assigned agent: the lock belongs to the ticket and agent id on the card, not to the session.
 
-1. Re-read [`CLAUDE.md`](../../CLAUDE.md), the card, and the latest handoff or ownership block.
-2. `git fetch origin`, then compare the worktree branch HEAD with `last_pushed_commit` and with
-   `origin/<branch>`.
-3. If local commits are not pushed, inspect them before pushing. If the remote is ahead, find out who
-   pushed and why before doing anything else.
-4. Never reset, force-push, or discard someone else's commits or uncommitted work. If the state is
+After a container restart, an abrupt session end, or a new session on an existing ticket:
+
+1. Check that the card's `assigned_agent` still names you. If it does not, stop: the ticket was
+   reassigned, and your old worktree is left as it is for the owner.
+2. Re-read [`CLAUDE.md`](../../CLAUDE.md), the card, and the latest handoff or ownership block.
+3. In your own worktree, `git fetch origin`, then inspect `git status`, `git stash list` and
+   unpushed commits (`git log origin/<branch>..HEAD`); compare HEAD with `last_pushed_commit` and
+   with `origin/<branch>`.
+4. Review leftover uncommitted changes and unpushed commits before committing or pushing them. If
+   the remote is ahead, find out who pushed and why before doing anything else.
+5. Never reset, force-push, or discard someone else's commits or uncommitted work. If the state is
    unclear, stop and ask on the card.
-5. Post a `[Claude-0N] RESUMED` comment with the verified HEAD.
+6. Post a `[Claude-0N] RESUMED` comment with the verified HEAD.
 
 ## Stale task detection
 
-A claimed ticket with no push and no Trello update for 48 hours is stale. Any agent or the
-coordinator may flag it with a comment and notify the owner. A stale ticket is never reassigned
-automatically: only the owner or coordinator reassigns it, after checking the branch for unpushed
-or in-progress work.
+A claimed ticket with no push and no Trello update for 48 hours is stale. Any agent or ChatGPT
+may flag it with a comment and notify the owner. A stale ticket is never reassigned
+automatically: only the owner reassigns it (ChatGPT may relay the decision), after checking the
+branch for unpushed or in-progress work.
 
 ## Reporting completed work
 

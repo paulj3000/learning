@@ -168,7 +168,7 @@ exceptions applies.
 ### Merge or release readiness (only when explicitly requested)
 
 Run the comprehensive gates for the changed code: `make check` (Ruff, Ruff format, Django
-check, migration check, pytest against PostgreSQL, ADR check, typecheck, oxlint, Prettier,
+check, migration check, pytest (PostgreSQL tests skip when it is down; `make py-test-db` requires it), ADR check, typecheck, oxlint, Prettier,
 the full Vitest suite, production build), `npm run test:e2e`, `npm run test:acceptance` and any
 other browser or WebGL checks relevant to the change, `npm run content:check`, architecture and ADR validation (governance
 rule 4 in `docs/DECISIONS.md`), the deferred checks recorded by each task being merged, and

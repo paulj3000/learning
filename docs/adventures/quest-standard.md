@@ -6,7 +6,8 @@
 - **Related ADRs:** ADR-005, ADR-033, ADR-041, ADR-047, ADR-053, ADR-054
 - **Canonical sources:** [react/src/features/quests/types.ts](../../react/src/features/quests/types.ts) (quest content shape), [lai/apps/catalog/models.py](../../lai/apps/catalog/models.py) (`Quest`), [lai/apps/quests/models.py](../../lai/apps/quests/models.py) (`QuestProgress`), [docs/engine/05_QUEST_NPC_DISCOVERY_INTEGRATION.md](../engine/05_QUEST_NPC_DISCOVERY_INTEGRATION.md), [docs/PLAY_API.md](../PLAY_API.md)
 
-A quest is an objective-driven sequence of stages within an adventure. It is the narrative and
+A quest is an objective-driven sequence of stages, owned by a Realm and referenced by the
+adventures that use it (see Ownership below). It is the narrative and
 journal layer: it tells the child what to do next and recognises what they have done. It does
 not grade answers, hold layout or grant rewards by itself.
 

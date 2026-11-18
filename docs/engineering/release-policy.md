@@ -1,6 +1,6 @@
 # Release Policy
 
-- **Status:** Mandatory policy
+- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-017, ADR-019, ADR-037, ADR-047, ADR-055, ADR-064, ADR-072 (proposed engineering governance)
@@ -20,7 +20,8 @@ Agents never do any of the following unless the owner has approved that specific
 that environment, in writing (Trello card or pull request), in the current task:
 
 - make live AWS calls that read or change account resources (AWS CLI, SDK, console automation,
-  `scripts/aws/*` against a real account);
+  `scripts/aws/*` against a real account), including read-only commands that
+  `.claude/settings.json` allows without a prompt;
 - deploy code, infrastructure, content or assets to any AWS environment;
 - run `cdk deploy`, apply a change set, or run `scripts/aws/provision.sh`;
 - dispatch, re-run or approve any `deploy-*` or `manage-dev-infrastructure` workflow;
@@ -60,8 +61,9 @@ The deploy workflows run on a push to `main` for their paths, and also by manual
 Whether these variables are on is a GitHub setting not visible in the repository. Therefore:
 
 - treat every merge to `main` as a possible `dev` deployment, and say so in the pull request;
-- the owner's merge approval covers the automatic `dev` release that the merge triggers, but no
-  other release;
+- a merge that would start a deploy workflow (its gate variable on) needs the owner's explicit
+  deploy approval, stated in the pull request, in addition to merge approval
+  ([CLAUDE.md](../../CLAUDE.md) section 18); merge approval alone is not deploy approval;
 - production is released only by the owner or with the owner's approval through the
   `*-prod` GitHub Environments.
 

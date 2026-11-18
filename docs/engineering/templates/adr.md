@@ -4,7 +4,7 @@
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
 - **Canonical sources:** [docs/DECISIONS.md](../../DECISIONS.md) ("ADR registry and governance"),
-  [integration-policy.md](../integration-policy.md) ("ADR numbers")
+  [multi-agent-workflow.md](../multi-agent-workflow.md) ("ADR number reservation")
 
 `docs/DECISIONS.md` is the only ADR log. Do not create separate ADR files or a `docs/adr/`
 directory. This file shows the content an ADR must have; the decision itself is added to
@@ -12,10 +12,10 @@ directory. This file shows the content an ADR must have; the decision itself is 
 
 ## How to add an ADR
 
-1. Reserve the number first. Read the registry on `main` (`git show origin/main:docs/DECISIONS.md`)
-   and take the next free number after every row, including `Reserved` rows. Add a registry row
-   with status `Reserved` through a pull request the owner merges, before using the number on a
-   branch.
+1. Take the number through the reservation procedure in
+   [multi-agent-workflow.md](../multi-agent-workflow.md#adr-number-reservation) (check `main`
+   and open branches, record the number on the Trello card, add a `Proposed` registry row on
+   your branch).
 2. Append the decision to `docs/DECISIONS.md` using the heading format below: exactly
    `## ADR-` plus three digits, a colon, and the title, followed by a `Status:` line.
 3. Update the registry row: same title as the heading, current status, origin branch, notes.

@@ -81,6 +81,26 @@ def test_template_missing_required_section_is_reported(tree: Path) -> None:
     )
 
 
+def test_numbered_template_heading_satisfies_required_section(tree: Path) -> None:
+    path = "docs/adventures/templates/quest-specification.md"
+    sections = docs_check.TEMPLATE_SECTIONS[path]
+    body = "\n\n".join(["# Quest"] + [f"## {n}. {s}" for n, s in enumerate(sections, start=1)])
+    _write(tree, path, body)
+    assert _errors(tree) == []
+
+
+def test_adventure_template_missing_required_section_is_reported(tree: Path) -> None:
+    path = "docs/adventures/templates/adventure-specification.md"
+    sections = [s for s in docs_check.TEMPLATE_SECTIONS[path] if s != "Movement and jumping"]
+    _write(tree, path, "\n\n".join(["# Adventure"] + [f"## {s}" for s in sections]))
+    assert f'{path}: missing required section "## Movement and jumping"' in _errors(tree)
+
+
+def test_adventure_templates_enforce_sections() -> None:
+    for name in ("realm", "adventure", "quest", "challenge"):
+        assert docs_check.TEMPLATE_SECTIONS[f"docs/adventures/templates/{name}-specification.md"]
+
+
 def test_conflict_marker_in_any_markdown_file_is_reported(tree: Path) -> None:
     _write(tree, "docs/other/NOTES.md", f"text\n{OURS} HEAD\nmine\n")
     assert "docs/other/NOTES.md:2: unresolved merge-conflict marker" in _errors(tree)

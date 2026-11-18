@@ -67,7 +67,9 @@ interaction adds its equivalent and a test.
 
 - All required progress has a walking route. Jump routes are optional.
 - Jump is a single press on keyboard, touch button, gamepad or switch.
-- Platforms are wide, slow and predictable, with warnings before they vanish.
+- Platforms are wide and predictable, with warnings before they vanish. Required paths use static
+  platforms only; moving, vanishing and bounce platforms sit on optional routes
+  ([platform rule](jumping-standard.md#platforms-on-required-paths)).
 - Details: [jumping standard](jumping-standard.md#accessibility-alternatives).
 
 ## Adjustable difficulty, where supported
@@ -114,8 +116,9 @@ jump assist control does not exist; adding one is a proposal for the owner.
 ## No arbitrary time limits
 
 No countdown, timed challenge, session clock, stop note, lockout or cooldown, and no session ended
-for elapsed time (ADR-053; CLAUDE.md section 11 item 11). A moving or vanishing platform on an
-optional route is a movement mechanic, not a time limit, and must never gate required progress.
+for elapsed time (ADR-053; CLAUDE.md section 11 item 11). Moving, vanishing and bounce platforms
+are a movement mechanic, not a time limit, and sit only on optional routes
+([platform rule](jumping-standard.md#platforms-on-required-paths)).
 
 ## Verification
 

@@ -1,6 +1,6 @@
 # Architecture Rules
 
-Status: Mandatory policy
+Status: Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
 Owner: project owner
 Last reviewed: 2026-11-18
 Related ADRs: ADR-019, ADR-020, ADR-029, ADR-033, ADR-036, ADR-037, ADR-040, ADR-041, ADR-044, ADR-045, ADR-046, ADR-047, ADR-048, ADR-049, ADR-050, ADR-052, ADR-053, ADR-054, ADR-055, ADR-061, ADR-062, ADR-064, ADR-072
@@ -71,7 +71,7 @@ for one adventure is not allowed.
 | Location runtime, manifests, validation | Implemented (main) | `react/src/features/island-map/three/runtime/` (`createLocationEngine.ts`, `locationManifest.ts`, `validateLocationManifest.ts`) | New 3D places are manifests plus extensions, not new engines (ADR-032, ADR-009). |
 | Interaction evaluation and evidence | Implemented (main) | `react/src/features/interaction/` | Presentation-side only; Django is authoritative for grading. |
 | Engine events | Implemented (main) | `react/src/features/island-map/three/worldEngineEvents.ts` | Add typed events here; never call APIs from the engine. |
-| Jumping (shared jump controller) | Pending merge | `feature/shared-jump-controller` (PR #26), registry row ADR-063 (Reserved) | Owner direction 2026-11-17: jumping is standard in every adventure, with an accessible non-jump route, no forced timers, no loss of learning progress, safe recovery. Do not build a local jump. |
+| Jumping (shared jump controller) | Pending merge | `feature/shared-jump-controller` (PR #26), registry row ADR-063 (Reserved) | Once PR #26 merges, owner direction 2026-11-17 applies: jumping is standard in every primary adventure ([jumping-standard.md](../adventures/jumping-standard.md)), with an accessible non-jump route, no forced timers, no loss of learning progress, safe recovery. Do not build a local jump. |
 | Third-person camera and perspective switch | Pending merge | `feature/third-person-avatar` (PR #27), ADR-056 (Reserved) | Wait for the merge; do not add a camera rig. |
 | Player avatar catalogue | Pending merge | `feature/player-avatar-assets` (PR #28), ADR-057 (Reserved) | Avatars come through the Asset Manager. |
 | Walking, running, sprinting gaits | Pending merge | `feature/player-running` (PR #29), ADR-058 (Reserved) | Gaits of the one controller. |
@@ -155,10 +155,10 @@ owning app or module. A second implementation needs an ADR.
 | Dev: native Django on one ARM64 EC2 instance, private RDS, Lambda and SQS, nightly shutdown | Approved future (code on main, nothing deployed) | `infra/lib/devPlatformStack.ts`, `devArtifactsStack.ts`. | ADR-055, [dev-native-environment.md](../infrastructure/dev-native-environment.md) |
 | React site on S3 and CloudFront | Approved future (gated by `LAI_SITE_DEPLOY_ENABLED`) | `infra/lib/frontendStack.ts`, `.github/workflows/deploy-site.yml`. | [deployment-design.md](../infrastructure/deployment-design.md) |
 | Private S3 buckets: asset storage and child photos | Approved future (code on main) | Separate buckets, Django is the control plane. | ADR-042 |
-| Bedrock Guardrail stack | Deployed for dev per the 2026-11-07 QA record (re-verify) | `infra/lib/aiGuardrailStack.ts`. | [inventory.md](../infrastructure/inventory.md) |
+| Bedrock Guardrail stack | Code on main, not deployed as `LaiAiGuardrail-dev`. The dev Guardrail `lai-child-safety-dev` was deployed out of band on 2026-11-07 as `LaiAiGuardrailOnly-dev` from a template not in the repository (re-verify) | `infra/lib/aiGuardrailStack.ts`. Deploying `LaiAiGuardrail-dev` would create a duplicate Guardrail; resolve under LAI-INFRA-002 first. | [inventory.md](../infrastructure/inventory.md) section 4 and section 7 item U1 |
 | SQS + zip Lambda workers | Approved future (code on main) | Canonical path only; no ECR in dev. | ADR-064 |
 | CloudWatch logs and alarms | Approved future with the stacks above | Log content rules: [security-policy.md](security-policy.md). | ADR-025, ADR-019 gate G10 |
-| Deploy workflows (`deploy-django-ec2.yml`, `deploy-site.yml`, `deploy-dev-native.yml`, `deploy-dev-lambda.yml`, `manage-dev-infrastructure.yml`) | Present, gated | Pushes to `main` start them by path (`react/**` and the npm manifests for the site; `lai/**`, `content/**`, `requirements*.txt`, `pyproject.toml` and more for Django; `lambda/**` for workers), and they release when `LAI_SITE_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED` or `LAI_DEPLOY_ENABLED` is `'true'`. A merge to `main` may therefore deploy. Agents never merge, change the gates or dispatch them. Paths: [testing-policy.md](testing-policy.md) section 4. | CLAUDE.md section 18 |
+| Deploy workflows (`deploy-django-ec2.yml`, `deploy-site.yml`, `deploy-dev-native.yml`, `deploy-dev-lambda.yml`, `manage-dev-infrastructure.yml`) | Present, gated | Pushes to `main` start them by path (`react/**` and the npm manifests for the site; `lai/**`, `content/**`, `requirements*.txt`, `pyproject.toml` and more for Django; `lambda/**` for workers), and they release when `LAI_SITE_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED` or `LAI_DEPLOY_ENABLED` is `'true'`; `LAI_PROD_AUTO_DEPLOY` `'true'` also releases to prod on push ([release-policy.md](release-policy.md) "How merges relate to deployments"). A merge to `main` may therefore deploy. Agents never merge, change the gates or dispatch them. Paths: [testing-policy.md](testing-policy.md) section 4. | CLAUDE.md section 18 |
 
 No Amplify, and no Phaser reintroduction, in any infrastructure or build change.
 

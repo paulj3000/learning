@@ -13,60 +13,34 @@ checklist, privacy logging, golden vectors, content export) is defined there too
 
 ## 1. During feature development (every task)
 
-Run the cheapest checks that prove correctness. The development machine is shared, so CPU counts.
+Summary of TESTING_STRATEGY.md "During development (every task)"; the canonical list is there.
 
-| Check | Command | When |
-|---|---|---|
-| Vitest, by path, capped workers | `npx vitest run --maxWorkers=2 <paths>` (use `1` when the machine is busy) | Modified TypeScript or React code and its direct dependents |
-| pytest, by path | `.venv/bin/python -m pytest -q <paths>` | Modified Django or Python code |
-| Typecheck | `npm run typecheck` | Any TypeScript changed (includes `infra/`, `scripts/`, `server/`) |
-| Focused regression | Vitest or pytest by path | Code the change can affect |
-| New or updated unit tests | In the same change | Every new behaviour |
-| Mocked service tests | Fake AI provider, fake Polly client, in-memory storage, local RSA keys for Cognito | Any code that would call AWS |
-
-Always run, when the change touches them, because they protect security and privacy (never skip
-or weaken them to save time):
-
-| Area | Tests |
-|---|---|
-| Authorization and tenant isolation | The LAI-0403 checklist; `lai/apps/users/tests/test_tenant_isolation.py` |
-| Authentication | `lai/apps/users/tests/test_authentication.py`, `test_jwks.py` (need PostgreSQL) |
-| Privacy-safe logging | `lai/apps/core/tests/test_privacy_logging.py` |
-| AI output validation and safety | `lai/apps/ai/tests/` and the affected React validators |
-| Exported content | `npm run content:check` when content sources change |
-
-Tests that need PostgreSQL skip when it is unreachable; start it with `make up`. A skip is not a
-pass: report it.
+- Vitest by path with capped workers, run from `react/`: `npx vitest run --maxWorkers=2 <paths>`
+  (`1` when the machine is busy).
+- pytest by path: `.venv/bin/python -m pytest -q <paths>`.
+- `npm run typecheck` when any TypeScript changed; focused regression tests by path; new or
+  updated tests in the same change; fake AI, Polly, storage and Cognito keys instead of AWS.
+- Always, when touched, the security and privacy tests (never skipped or weakened): the LAI-0403
+  authorization checklist and `lai/apps/users/tests/test_tenant_isolation.py`, authentication
+  (`test_authentication.py`, `test_jwks.py`), `lai/apps/core/tests/test_privacy_logging.py`,
+  `lai/apps/ai/tests/`, and `npm run content:check` when content sources change.
+- PostgreSQL tests skip when it is unreachable (`make up` starts it). A skip is not a pass.
 
 ## 2. Not run during development
 
 Unless the owner explicitly authorizes it for this task, or the task is an approved acceptance
-phase, do not run:
-
-- Playwright, any browser automation, end-to-end or acceptance suites (`npm run test:e2e`,
-  `npm run test:acceptance`), WebGL rendering checks;
-- live AWS verification, deployment tests, deploy workflows, `npm run ai:red-team` (calls live
-  endpoints), `speech_live_smoke`, `ai_live_check`;
-- full lint and format gates (Ruff, Ruff format, Prettier, oxlint), `npm run build`, full test
-  suites, `make check`.
-
-Code should still pass these; they simply run once, at merge readiness.
+phase: no Playwright or other browser automation (`npm run test:e2e`, `npm run test:acceptance`),
+WebGL checks, live AWS or deployment checks (`npm run ai:red-team`, `speech_live_smoke`,
+`ai_live_check`), full lint and format gates, `npm run build`, full suites or `make check`. Code
+should still pass them; they run once, at merge readiness.
 
 ## 3. Task completion
 
-A task may be marked complete (Trello: Development Complete) when the implementation is
-finished, the development checks pass, typechecking passes where TypeScript changed, the
-acceptance criteria are met at unit and integration level, and documentation and tracker are
-updated. The status entry lists everything **deferred to merge verification**.
-
-Two exceptions keep stronger checks:
-
-- A check an accepted ADR makes a gate stays a gate: deleting a Phaser world still needs its
-  Three.js replacement to pass parity tests and visual validation, and the Sprouts gate
-  (ADR-020, LAI-2303).
-- APPROVAL tasks and anything touching AWS stop for owner approval.
-
-See [definition-of-done.md](definition-of-done.md).
+TESTING_STRATEGY.md "Task completion" says a task may be "marked COMPLETE"; in these standards
+that means the **Development Complete** gate ([definition-of-done.md](definition-of-done.md)), not
+the owner's Complete. Its exceptions (ADR gates such as Phaser world deletion and the Sprouts
+gate, APPROVAL and AWS tasks) apply unchanged. The status entry lists everything **deferred to
+merge verification**.
 
 ## 4. Merge readiness (only when explicitly requested)
 
@@ -86,6 +60,8 @@ merge ([integration-policy.md](integration-policy.md)).
 | Golden vectors | `npm run golden:check` | `tests/golden/*.json` are current |
 | Admin preview bundle | `npm run admin-preview:check` | Committed bundle matches its source |
 | Production build | `npm run build` | `tsc -b` and `vite build` |
+| Browser smoke | `npm run test:e2e` | Playwright smoke suite (section 5) |
+| Browser acceptance | `npm run test:acceptance` | Playwright acceptance suite, when the change needs it (section 5) |
 | Infrastructure synth (when `infra/` changed) | `npm run infra:synth:dev`, `npm run infra:synth:prod` | Local synthesis only; never deploy |
 | Deferred checks | As recorded by each task being merged | |
 
@@ -115,10 +91,13 @@ merge, change the gate variables or dispatch these workflows.
 
 ## 5. Browser and acceptance testing (separately gated)
 
+Both suites run only at explicitly requested merge or release readiness (or in CI for the smoke
+suite), never during development.
+
 | Suite | Command | Gate |
 |---|---|---|
-| Smoke (backend-free) | `npm run test:e2e` | Merge readiness when explicitly requested, or CI |
-| Browser acceptance (real app and Django Admin, desktop and `@tablet`) | `npm run test:acceptance` | Explicit owner authorization or an approved acceptance phase. Required for changes to Treasure Rush, AI Question Studio or the Asset Library at merge readiness. Needs Docker PostgreSQL, `.venv` and Playwright Chromium; one worker. |
+| Smoke (backend-free) | `npm run test:e2e` | Part of every explicitly requested merge or release readiness run, and CI |
+| Browser acceptance (real app and Django Admin, desktop and `@tablet`) | `npm run test:acceptance` | Part of merge or release readiness for changes relevant to it (always for Treasure Rush, AI Question Studio or the Asset Library), or an approved acceptance phase. Needs Docker PostgreSQL, `.venv` and Playwright Chromium; one worker. |
 
 Neither suite covers live Cognito, live Bedrock, live Polly, S3 storage or signed CloudFront
 delivery. Those stay pending until an owner-approved live verification.

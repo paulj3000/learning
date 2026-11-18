@@ -15,7 +15,7 @@ when they must be updated, and how they are retired.
 |---|---|---|
 | [`CLAUDE.md`](../../CLAUDE.md), [`AGENTS.md`](../../AGENTS.md) | Project owner | Agents only with an owner-approved ticket |
 | `docs/engineering/`, `docs/adventures/` (Mandatory policy) | Project owner | Agents propose changes through a PR; the owner approves |
-| [`docs/DECISIONS.md`](../DECISIONS.md) | Project owner | Agents add their own reserved ADR and registry row; status changes need the owner |
+| [`docs/DECISIONS.md`](../DECISIONS.md) | Project owner | Agents add their own ADR and registry row, numbered per [`multi-agent-workflow.md`](multi-agent-workflow.md#adr-number-reservation); status changes need the owner |
 | [`docs/IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md), [`tasks/TASK_TRACKER.md`](../../tasks/TASK_TRACKER.md) | Project owner | The agent of each ticket updates its own entry |
 | Feature, subsystem and adventure docs (for example `docs/regions/`, `docs/audio/`, `docs/platform/`) | Project owner | The ticket that changes the behavior |
 | Generated files (`content/exported`, golden vectors) | Their generator | Regenerate; never hand-edit |

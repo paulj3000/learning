@@ -114,7 +114,7 @@ Rules:
 | any | Blocked | assigned agent | `blockers` filled with what is blocked, by whom or what, and what unblocks it |
 | Blocked | previous state | assigned agent or owner | Blocker resolution recorded |
 | In Development | Development Complete | assigned agent | All Development Complete criteria in [definition-of-done.md](definition-of-done.md); commit SHA pushed; PR link where applicable; handoff ([templates/agent-handoff.md](templates/agent-handoff.md)) or completion report ([templates/completion-report.md](templates/completion-report.md)) |
-| Development Complete | Integration | owner or integrating agent | Integration branch name; list of branches combined |
+| Development Complete | Integration | owner, or the agent the owner names on the integration ticket ([integration-policy.md](integration-policy.md#integration-branches)) | Integration branch name; list of branches combined |
 | Integration | Ready for QA | integrating agent | Integration Complete criteria met; check results attached |
 | Development Complete or Ready for QA | Owner QA | owner | QA checklist prepared ([templates/qa-checklist.md](templates/qa-checklist.md)) |
 | Owner QA | Rework Required | owner | Defect cards linked ([templates/defect-report.md](templates/defect-report.md)) |
@@ -124,27 +124,29 @@ Rules:
 
 Agents never move a card to ✅ Complete, never move a card to 🔀 Ready to Merge on their own
 judgment, and never write owner acceptance or owner approval on a card. They may quote an
-approval the owner gave, with its date and where it was given.
+approval the owner gave, with its date and a link to where it was given; what counts as owner
+authorization is defined in [AGENTS.md](../../AGENTS.md#what-counts-as-owner-authorization).
 
 ## Separate completion gates
 
-These are different events and are recorded separately on the card:
+These are different events and are recorded separately on the card. The gate names and their
+criteria are those of [definition-of-done.md](definition-of-done.md), which is canonical:
 
 | Gate | Meaning | Evidence |
 |---|---|---|
-| Development completion | Authorized scope built and unit-checked on a branch | Commit SHA, test results |
-| Integration completion | Works together with its dependencies | Integration branch, check results |
-| Owner acceptance | Owner verified it in QA | Owner's dated note |
-| Merge completion | On `main` | Merge commit, PR link |
-| Deployment completion | Released to a named environment | Workflow run, deployed SHA, health result |
+| Development Complete | Authorized scope built and unit-checked on a branch | Commit SHA, test results |
+| Integration Complete | Works together with its dependencies; required only when [definition-of-done.md](definition-of-done.md#integration-complete) says so, otherwise recorded as "not required" with the reason | Integration branch, check results |
+| Owner Accepted | Owner verified it in QA | Owner's dated note |
+| Complete | Merged to `main` (and deployed only when in scope and authorized) | Merge commit, PR link; deployment record when deployed |
 
 Use these lines on the card, filled only as each event happens:
 
 ```text
-Development complete: <date>, <commit SHA>
+Development Complete: <date>, <commit SHA>
 Unit tests passed: <date>, <command summary>
+Integration Complete: <date>, <integration branch>, <check summary>  (or "not required: <reason>")
 Owner QA required: <yes | no>
-Accepted: <date, owner>
+Owner Accepted: <date, owner>
 Merged: <date>, <merge commit SHA>, PR #<n>
 Deployed: <environment>, <date>, <deployed SHA>  (or "No live AWS deployment authorized")
 ```

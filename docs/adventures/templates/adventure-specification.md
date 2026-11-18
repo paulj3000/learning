@@ -17,7 +17,8 @@
 | Field | Value |
 |---|---|
 | Adventure title (child-facing) | `<title>` |
-| Adventure slug (`catalog.Adventure`) | `<slug>` |
+| Shape ([adventure standard](../adventure-standard.md#which-rules-apply-to-which-shape)) | `<3D Area primary adventure / step adventure>` |
+| Step adventure slug(s) (`catalog.Adventure`) | `<slugs, or none>` |
 | Adventure template id (sent with every AI request) | `<template id>` |
 | Trello card(s) | `<card id and title>` |
 | Branch | `<branch name>` |
@@ -31,7 +32,8 @@
 |---|---|
 | Realm (Island, `catalog.World`) | `<island slug>` |
 | Place (`catalog.Location`) | `<place slug>` |
-| 3D Area (`regions.WorldRegion`) | `<region id or none>` |
+| 3D Area (`regions.WorldRegion.region_id`) | `<region id, or none for a step adventure on a Place page>` |
+| Quest slugs (`catalog.Quest`, owned by the Realm; detail in section 8) | `<slugs, or none>` |
 | Launch point (`regions.AdventureLaunchPoint`) | `<launch object or none>` |
 
 ## 3. Age bands
@@ -86,7 +88,7 @@ Standard: [`quest-standard.md`](../quest-standard.md). One quest specification p
 
 Standard: [`challenge-standard.md`](../challenge-standard.md). One challenge specification per challenge type.
 
-| Challenge id | Objective | Source (`ChallengeSpec` / Question Studio pool / step) | Correctness owner | Spec |
+| Challenge id | Objective | Source (`ChallengeSpec` / Question Studio `QuestionPool` / step) | Correctness owner | Spec |
 |---|---|---|---|---|
 | `<id>` | `<code>` | `<source>` | `<Django function>` | `<path to challenge spec>` |
 
@@ -98,6 +100,13 @@ pending merge on open branches; use it, never a local one.
 | Element | Jump required? | Accessible non-jump alternative | Fall or miss recovery | Learning progress kept? |
 |---|---|---|---|---|
 | `<platform / obstacle>` | `<optional / never required>` | `<ramp, path, button, assisted move>` | `<safe respawn point>` | `<yes>` |
+
+Meaningful jump route(s): every primary adventure names at least one; jumping is never required
+to complete learning.
+
+| Jump route | Leads to | Sprouts (3 to 4) | Pathfinders (5 to 6) | Explorers (7 to 8) | Accessible alternative |
+|---|---|---|---|---|---|
+| `<route name>` | `<view, secret, collectible, shortcut>` | `<difficulty, or not offered>` | `<gaps, heights, platform types>` | `<gaps, heights, platform types>` | `<walking route or button equivalent>` |
 
 - Forced timers on movement: none.
 - Collision source: `<authored zones / collision profiles (pending merge)>`
@@ -157,13 +166,13 @@ Standard: [`accessibility-standard.md`](../accessibility-standard.md)
 
 | Data | Model | Written by |
 |---|---|---|
-| Session | `<AdventureSession / region session>` | `<service>` |
+| Session | `<REGION-kind AdventureSession keyed by region_id (3D Area adventure) / ADVENTURE-kind AdventureSession (step adventure)>` | `<service>` |
 | Answers and evidence | `ChallengeAttempt`, `SkillEvidence`, `SkillProgress` | `<service>` |
 | Quest state | `QuestProgress` | `<service>` |
 | World consequence | `WorldChange` | `<service>` |
 | Inventory | `<inventory model>` | `<service>` |
 
-Content pinned at session start: `<which revisions are pinned>`
+Content pinned at session start (`AdventureSession.pinned_revisions`): `<which revisions are pinned>`
 
 ## 18. Parent-facing summary
 
@@ -207,7 +216,7 @@ No project-wide budget is approved; state this adventure's targets and how they 
 | Sound Manager (`react/src/audio`, `apps/audio`, `apps/speech`) | `<use>` | `<no / describe>` |
 | Movement and jump controller (pending merge) | `<use>` | `<no / describe>` |
 | Quest engine and play services (`quests`, `game_sessions`, `progression`, `inventory`) | `<use>` | `<no / describe>` |
-| Education (`ChallengeSpec`, `grade_answer`, Question Studio pools) | `<use>` | `<no / describe>` |
+| Education (`ChallengeSpec`, `grade_answer`, Question Studio `QuestionPool`) | `<use>` | `<no / describe>` |
 | AI pipeline (`apps/ai`) | `<use or none>` | `<no / describe>` |
 | Location engine and manifests | `<use>` | `<no / describe>` |
 
@@ -234,6 +243,8 @@ No project-wide budget is approved; state this adventure's targets and how they 
 - [ ] Every section filled or marked `Not applicable: <reason>`.
 - [ ] Objectives exist in the catalog; correctness owned by Django code.
 - [ ] Every age band supported has its own variant.
+- [ ] Shape stated; 3D Area, quest slugs and step adventure slugs listed as applicable.
+- [ ] At least one meaningful jump route named, with per-band difficulty and an accessible alternative.
 - [ ] Jumping never required; accessible alternative and safe recovery for every jump.
 - [ ] No timers, countdowns or forced stops; no loss of learning progress.
 - [ ] Shared managers consumed; no replacement built.

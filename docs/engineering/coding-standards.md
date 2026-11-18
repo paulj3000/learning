@@ -1,6 +1,6 @@
 # Coding Standards
 
-Status: Mandatory policy
+Status: Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
 Owner: project owner
 Last reviewed: 2026-11-18
 Related ADRs: ADR-020, ADR-021, ADR-023, ADR-025, ADR-033, ADR-047, ADR-052, ADR-072
@@ -158,7 +158,8 @@ Write code that would pass them anyway.
   [DJANGO_EC2_DEPLOYMENT.md](../platform/DJANGO_EC2_DEPLOYMENT.md) if deployed environments need it.
 - Deployed environments read SSM Parameter Store (`/lai/<env>/...`) and Secrets Manager, never
   `.env`. Tests set their own values in `config.settings.test` and fixtures.
-- Feature flags default to off (`LAI_ASSET_ASYNC_VALIDATION` pattern).
+- Feature flags default to off (`LAI_CONTENT_INDEPENDENT_APPROVAL` pattern in
+  `lai/config/settings/base.py`).
 
 ## 12. Dependencies
 
