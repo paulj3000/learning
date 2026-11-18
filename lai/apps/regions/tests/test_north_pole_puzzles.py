@@ -3,6 +3,7 @@ contract table, and every answer is graded correct by the real grader. No databa
 
 import pytest
 
+from apps.regions import north_pole_layout as layout
 from apps.regions import north_pole_puzzles as np_puzzles
 from apps.regions import puzzles
 from apps.regions.models import PuzzleKind
@@ -200,6 +201,7 @@ def test_entity_ids_cover_every_binding():
         assert np_puzzles.ENTITY_IDS[pid]
     assert np_puzzles.ENTITY_IDS["np-stables-return"] == ["np-noel"]
     assert np_puzzles.ENTITY_IDS["np-eve-sleigh-bell"] == ["np-sleigh-bell"]
+    assert np_puzzles.ENTITY_IDS is layout.PUZZLE_ENTITIES
     for pid, bands in np_puzzles.ENTITY_MAPS.items():
         bound = set(np_puzzles.ENTITY_IDS[pid])
         for band, maps in bands.items():
@@ -232,12 +234,12 @@ def test_ginger_build_is_solvable_and_matches_entities():
     for band in BANDS:
         params = BY_ID["np-ginger-build"]["ageBands"][band]
         placements = dict(zip(
-            ("np-ginger-gap-1", "np-ginger-gap-2", "np-ginger-gap-3"),
-            ("np-ginger-beam-short", "np-ginger-beam-medium", "np-ginger-beam-long"),
+            tuple(f"np-ginger-slot-{i}" for i in range(1, 4)),
+            tuple(f"np-ginger-stone-{i}" for i in range(1, 4)),
             strict=True,
         ))
         assert puzzles.grade(PLACE, params, {"placements": placements}) is True
-        wrong = {**placements, "np-ginger-gap-1": "np-ginger-beam-long", "np-ginger-gap-3": "np-ginger-beam-short"}
+        wrong = {**placements, "np-ginger-slot-1": "np-ginger-stone-3", "np-ginger-slot-3": "np-ginger-stone-1"}
         assert puzzles.grade(PLACE, params, {"placements": wrong}) is False
 
 
@@ -245,3 +247,23 @@ def test_return_and_collect_use_contract_entities():
     for band in BANDS:
         assert BY_ID["np-stables-return"]["ageBands"][band]["npcEntityId"] == "np-noel"
         assert BY_ID["np-eve-sleigh-bell"]["ageBands"][band]["discoveryMessage"]
+
+
+def test_every_entity_reference_exists_in_the_layout():
+    for body in np_puzzles.PUZZLES:
+        pid = body["puzzleId"]
+        allowed = set(layout.PUZZLE_ENTITIES[pid])
+        for band, params in body["ageBands"].items():
+            refs = []
+            for key in ("optionEntities", "itemEntities"):
+                for ref, entity in (params.get(key) or {}).items():
+                    refs.append(entity)
+                    assert layout.PUZZLE_ENTITY_MAPS[pid][ref] == entity, (pid, band, ref)
+            refs += [f["id"] for f in params.get("features", [])]
+            refs += [s["id"] for s in params.get("stones", [])]
+            refs += [s["id"] for s in params.get("slots", [])]
+            refs += [params["npcEntityId"]] if "npcEntityId" in params else []
+            assert set(refs) <= allowed, (pid, band, set(refs) - allowed)
+    assert len(layout.PUZZLE_ENTITIES["np-obs-fragments"]) == 7
+    for band in ("PATHFINDER", "EXPLORER"):
+        assert set(np_puzzles.ENTITY_MAPS["np-obs-fragments"][band]["itemEntities"]) == set(layout.FRAGMENT_ZONES) - {"village"}

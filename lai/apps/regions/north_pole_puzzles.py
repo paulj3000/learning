@@ -17,6 +17,8 @@ dialogue, not here (puzzles.MOVED_TO_DIALOGUE).
 
 from apps.regions.models import PuzzleKind
 
+from . import north_pole_layout as layout
+
 BANDS = ("SPROUT", "PATHFINDER", "EXPLORER")
 REGION_ID = "north-pole-village"
 CYCLE = ("circle", "square", "triangle", "star")
@@ -833,36 +835,36 @@ def _obs_final(band):
 # --- observe, platforms, collect, return -----------------------------------------------------
 
 OBSERVE_FEATURES = {
-    "np-welcome-tree": (
+    "np-landmark-tree": (
         "Christmas tree",
         "A tall evergreen tree with lights and ornaments. Evergreen trees keep their needles all winter.",
         "The big tree stays green all winter.",
     ),
-    "np-welcome-map-board": (
-        "Map board",
-        "The map board shows the places on the North Pole map, from the village to the observatory.",
-        "The map board shows where we can go.",
+    "np-landmark-cottage": (
+        "Cosy cottage",
+        "A cottage with a steep roof. Snow slides off steep roofs, so it does not pile up and get too heavy.",
+        "A cosy cottage with a snowy roof.",
     ),
-    "np-welcome-workshop-sign": (
-        "Workshop sign",
-        "The sign points to the Toy Workshop. Signs use words and arrows to show the way.",
-        "The sign shows the way to the workshop.",
+    "np-landmark-snowman": (
+        "Snowman",
+        "A snowman is made of three balls of snow. Snow packs together best when it is a little wet.",
+        "A snowman made of three round snowballs.",
     ),
-    "np-welcome-sleigh": (
-        "Santa's sleigh",
-        "A sleigh slides over snow on its two long runners, which spread out the weight.",
-        "Santa's sleigh sits on two long runners.",
+    "np-landmark-lantern": (
+        "Glowing lantern",
+        "A lantern gives light in the long winter dark. Its glow shows the way along the path.",
+        "A lantern glows on the path.",
     ),
-    "np-welcome-lights": (
-        "Twinkling lights",
-        "Strings of colourful lights make the village glow in the long winter dark.",
-        "The little lights twinkle in the village.",
+    "np-landmark-gifts": (
+        "Pile of gifts",
+        "Wrapped gifts wait in a pile. Counting them shows how many friends will get one.",
+        "A pile of wrapped gifts.",
     ),
 }
 OBSERVE_BAND_IDS = {
-    "SPROUT": ("np-welcome-tree", "np-welcome-sleigh", "np-welcome-lights"),
-    "PATHFINDER": ("np-welcome-tree", "np-welcome-map-board", "np-welcome-sleigh", "np-welcome-lights"),
-    "EXPLORER": ("np-welcome-tree", "np-welcome-map-board", "np-welcome-workshop-sign", "np-welcome-sleigh", "np-welcome-lights"),
+    "SPROUT": ("np-landmark-tree", "np-landmark-snowman", "np-landmark-lantern"),
+    "PATHFINDER": ("np-landmark-tree", "np-landmark-snowman", "np-landmark-lantern", "np-landmark-gifts"),
+    "EXPLORER": tuple(OBSERVE_FEATURES),
 }
 
 
@@ -883,8 +885,8 @@ def _welcome_look(band):
 
 
 def _ginger_build(band):
-    stone_ids = ("np-ginger-beam-short", "np-ginger-beam-medium", "np-ginger-beam-long")
-    slot_ids = ("np-ginger-gap-1", "np-ginger-gap-2", "np-ginger-gap-3")
+    stone_ids = tuple(f"np-ginger-stone-{i}" for i in range(1, 4))
+    slot_ids = tuple(f"np-ginger-slot-{i}" for i in range(1, 4))
     if band == "EXPLORER":
         stone_labels = ("Beam 4 cm", "Beam 8 cm", "Beam 12 cm")
         slot_labels = ("Gap 1: 4 cm wide", "Gap 2: 8 cm wide", "Gap 3: 12 cm wide")
@@ -914,49 +916,34 @@ def _eve_bell(band):
 
 # --- entity maps and entity ids --------------------------------------------------------------
 
+# The layout workstream's ids are authoritative (north_pole_layout.PUZZLE_ENTITIES / _MAPS).
+ENTITY_IDS: dict[str, list[str]] = layout.PUZZLE_ENTITIES
+_LM = layout.PUZZLE_ENTITY_MAPS
+
+
+def _subset(pid: str, keys) -> dict[str, str]:
+    return {k: _LM[pid][k] for k in keys}
+
+
+# puzzle -> band -> {optionEntities | itemEntities: {key: entity}}.
+# np-lake-order: keys a..d are the floes in walking order; each variant paints its own numbers
+# on them (Sprouts use a to c). np-obs-fragments: ORDER items are capped at 6, so the village
+# fragment (the centre piece Jingle sets first) is not a key; Sprouts order workshop, forest and
+# lake only. The village socket and any unordered sockets stay in the puzzle's entity_ids and the
+# client lights them when the puzzle is solved.
 ENTITY_MAPS: dict[str, dict[str, dict[str, dict[str, str]]]] = {
-    "np-lake-sums": {
-        band: {"optionEntities": {"a": "np-lake-floe-a", "b": "np-lake-floe-b", "c": "np-lake-floe-c"}} for band in BANDS
-    },
-    # Keys a..d are the floes in walking order. Each variant paints its own numbers on them; the
-    # answer is the floes sorted by the number painted on them. Sprouts use the first three.
+    "np-lake-sums": {band: {"optionEntities": dict(_LM["np-lake-sums"])} for band in BANDS},
     "np-lake-order": {
-        "SPROUT": {"itemEntities": {k: f"np-lake-step-{i}" for i, k in enumerate("abc", 1)}},
-        "PATHFINDER": {"itemEntities": {k: f"np-lake-step-{i}" for i, k in enumerate("abcd", 1)}},
-        "EXPLORER": {"itemEntities": {k: f"np-lake-step-{i}" for i, k in enumerate("abcd", 1)}},
+        "SPROUT": {"itemEntities": _subset("np-lake-order", "abc")},
+        "PATHFINDER": {"itemEntities": _subset("np-lake-order", "abcd")},
+        "EXPLORER": {"itemEntities": _subset("np-lake-order", "abcd")},
     },
-    # Six sockets in a ring; the village fragment is the centre piece Jingle sets first (no
-    # socket the child orders). Sprouts order the first three; the client lights the rest on solve.
     "np-obs-fragments": {
-        "SPROUT": {"itemEntities": {k: f"np-socket-{k}" for k in ("workshop", "forest", "lake")}},
-        "PATHFINDER": {"itemEntities": {k: f"np-socket-{k}" for k, _ in JOURNEY}},
-        "EXPLORER": {"itemEntities": {k: f"np-socket-{k}" for k, _ in JOURNEY}},
+        "SPROUT": {"itemEntities": _subset("np-obs-fragments", ("workshop", "forest", "lake"))},
+        "PATHFINDER": {"itemEntities": _subset("np-obs-fragments", [k for k, _ in JOURNEY])},
+        "EXPLORER": {"itemEntities": _subset("np-obs-fragments", [k for k, _ in JOURNEY])},
     },
 }
-
-_STATION_PUZZLES = (
-    "np-workshop-count", "np-workshop-sort", "np-workshop-pattern", "np-workshop-assemble",
-    "np-forest-sequence", "np-forest-signs", "np-forest-stripes", "np-lake-shapes",
-    "np-stables-facts", "np-stables-tracks", "np-stables-supplies", "np-ginger-shapes",
-    "np-ginger-symmetry", "np-ginger-recipe", "np-ginger-measure", "np-mountain-weather",
-    "np-obs-stars", "np-obs-constellation", "np-obs-sequence", "np-obs-final",
-)  # fmt: skip
-
-ENTITY_IDS: dict[str, list[str]] = {pid: [f"{pid}-station"] for pid in _STATION_PUZZLES}
-ENTITY_IDS.update(
-    {
-        "np-welcome-look": list(OBSERVE_FEATURES),
-        "np-lake-sums": ["np-lake-floe-a", "np-lake-floe-b", "np-lake-floe-c"],
-        "np-lake-order": [f"np-lake-step-{i}" for i in range(1, 5)],
-        "np-obs-fragments": [f"np-socket-{k}" for k, _ in JOURNEY],
-        "np-ginger-build": [
-            "np-ginger-beam-short", "np-ginger-beam-medium", "np-ginger-beam-long",
-            "np-ginger-gap-1", "np-ginger-gap-2", "np-ginger-gap-3",
-        ],  # fmt: skip
-        "np-stables-return": ["np-noel"],
-        "np-eve-sleigh-bell": ["np-sleigh-bell"],
-    }
-)
 
 # --- the puzzle bodies, in contract order ----------------------------------------------------
 

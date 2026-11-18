@@ -27,7 +27,7 @@ Presentation / subject in brackets. Skill is the band's `skill` slug.
 
 | Puzzle | Sprout | Pathfinder | Explorer |
 |---|---|---|---|
-| `np-welcome-look` OBSERVE (3/4/5 landmarks) | observation: tree, sleigh, lights. "A tall evergreen..." | observation: adds map board | observation: adds workshop sign |
+| `np-welcome-look` OBSERVE (3/4/5 landmarks) | observation: tree, snowman, lantern | observation: adds gifts | observation: all five landmarks (adds cottage) |
 | `np-workshop-count` [CARDS, MATH] | counting-sets: "Tinker lined up 4 toy drums. How many?" | addition-within-ten: "4 trains and 3 robots, how many in all?" | multiplication-facts: "4 boxes with 3 toys each" |
 | `np-workshop-sort` [SHAPES, LOGIC] | classification: round, square, colour, big/small | classification: odd one out | classification: material, two rules (red AND square) |
 | `np-workshop-pattern` [CARDS, LOGIC] | patterns: AB with colours | patterns: AB, ABC, AAB, growing | patterns: AAB, ABB, ABCD, growth |
@@ -56,16 +56,23 @@ Presentation / subject in brackets. Skill is the band's `skill` slug.
 
 ## Entity binding decisions
 
-- `np-lake-order`: option keys `a b c d` map to floes `np-lake-step-1..4` (Sprouts use `a b c`).
+Entity ids come from the layout (`north_pole_layout.PUZZLE_ENTITIES` and `PUZZLE_ENTITY_MAPS`),
+which is authoritative; `north_pole_puzzles.ENTITY_IDS` is that same object and a test checks every
+reference.
+
+- `np-welcome-look`: features are `np-landmark-*` ids; Sprouts observe tree, snowman and lantern,
+  Pathfinders add gifts, Explorers observe all five (a subset of the entity ids is valid).
+- `np-lake-order`: option keys `a b c d` map to `np-lake-order-floe-a..d` (Sprouts use `a b c`).
   Each variant paints its own numbers on the floes; the answer is the floes sorted by number.
 - `np-obs-fragments`: order items are capped at 6, so the village fragment is the centre piece
-  Jingle sets first. Sockets `np-socket-workshop|forest|lake|stables|gingerbread|mountain`.
-  Sprouts order the first three only (`workshop`, `forest`, `lake`, band-specific
-  `itemEntities`); the client lights the remaining sockets when the puzzle is solved.
-- `np-lake-sums`: options `a b c` map to `np-lake-floe-a|b|c` in every band (so Explorers get 3
+  Jingle sets first and the map has the six keys workshop, forest, lake, stables, gingerbread,
+  mountain. Sprouts order workshop, forest and lake only. All 7 sockets stay in the puzzle's
+  entity ids (the authoring cross-check only requires mapped entities to be among them); the
+  client lights the unordered sockets when the puzzle is solved.
+- `np-lake-sums`: options `a b c` map to `np-lake-floe-a|b|c` in every band (Explorers get 3
   options here).
-- All other choice and order puzzles bind one interaction prop `<puzzleId>-station` with no
-  per-option entity.
+- `np-ginger-build`: stones `np-ginger-stone-1..3`, slots `np-ginger-slot-1..3`.
+- Other choice and order puzzles bind one board entity from the layout and no per-option entity.
 
 ## Chest challenge specs (contract section 5)
 
