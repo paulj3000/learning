@@ -310,6 +310,9 @@ def publish_refusal(
             "not_validated",
             f"Only a validated version can be published (this one is {version.status}).",
         )
+    compression = compression_refusal(version)
+    if compression is not None:
+        return compression
     if async_validation_applies(version) and not _has_passing_validation(version):
         return AssetActionRefused(
             "processing_required",
@@ -317,6 +320,37 @@ def publish_refusal(
             "Validate in background, wait for a passing result, then publish again.",
         )
     return None
+
+
+def compressed_extensions(version: AssetVersion) -> frozenset[str]:
+    """The gated compression extensions (ADR-070) a model version uses, from its recorded
+    validation metadata (`extensionsUsed`; a validator refuses compression that is not declared
+    there)."""
+    from lai_processing.processors.gltf.extension_policy import CONTROLS
+
+    used = (version.metadata or {}).get("extensionsUsed") or []
+    return frozenset(name for name in used if isinstance(name, str) and name in CONTROLS)
+
+
+def compression_refusal(version: AssetVersion) -> AssetActionRefused | None:
+    """ADR-070 publication gate: a compressed GLB is publishable only while the control of every
+    compression extension it uses is on NOW (`LAI_GLB_MESHOPT`, `LAI_GLB_KTX2`). Checked before
+    the stored bytes are re-validated, so switching a control off refuses the publication and
+    leaves the version unchanged (it is not rejected). Already-published versions are never
+    touched; the latest-validation gate (`_has_passing_validation`) still applies on top."""
+    from lai_processing.processors.gltf.extension_policy import CONTROLS
+
+    from .validation import compression_controls
+
+    enabled = compression_controls()
+    off = sorted(name for name in compressed_extensions(version) if CONTROLS[name] not in enabled)
+    if not off:
+        return None
+    return AssetActionRefused(
+        "compression_disabled",
+        "This model uses compression that is switched off for publishing "
+        f"({', '.join(off)}). Turn the setting on, or publish an uncompressed version.",
+    )
 
 
 #: `ProcessingJob.subject_outcome` codes after which a job's result does not count for the gate.
@@ -424,6 +458,9 @@ def republish_version(version: AssetVersion, *, user=None) -> AssetVersion:
             raise AssetActionRefused(
                 "not_retired", f"Only a retired version can be republished ({version.status})."
             )
+        compression = compression_refusal(version)
+        if compression is not None:
+            raise compression
         problem = _verify_bytes(version, asset)
         if problem is not None:
             raise AssetActionRefused("verification_failed", problem)

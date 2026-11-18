@@ -66,6 +66,11 @@ def promote_artifact(artifact: DerivedArtifact, user) -> AssetVersion:
             .get(pk=artifact.pk)
         )
         _refuse_unless_promotable(artifact, asset)
+        from .optimize import promotion_refusal  # ADR-070: compressed models need their control
+
+        refusal = promotion_refusal(artifact)
+        if refusal is not None:
+            raise refusal
         data = _verified_bytes(artifact)
         source = artifact.source_version
         version = services.upload_version(

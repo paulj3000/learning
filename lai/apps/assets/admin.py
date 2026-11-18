@@ -117,6 +117,8 @@ class AssetVersionAdmin(admin.ModelAdmin):
         "verify_versions",
         "validate_in_background",
         "inspect_in_background",
+        "optimize_meshopt",
+        "optimize_ktx2",
     ]
     fields = (
         "asset",
@@ -521,6 +523,54 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 "unchanged; results appear in each version's Background validation section.",
                 messages.SUCCESS,
             )
+
+    def _optimize(self, request, queryset, variant: str) -> None:
+        """Submit `asset.optimize` (ADR-070) for each selected GLB version, or report its job.
+        Refused unless the variant's control is on. The version is never changed: the result is
+        a derived artifact for review, and promotion and publication stay separate actions."""
+        from apps.jobs.services import JobsDisabled, JobsError
+
+        from . import optimize
+
+        submitted = 0
+        for version in self._first_batch(request, queryset):
+            try:
+                job = optimize.submit_optimization(version, variant, user=request.user)
+            except optimize.OptimizeRefused as refused:
+                self.message_user(request, f"{version.label}: {refused.message}", messages.ERROR)
+                if refused.code == "optimization_disabled":
+                    return
+                continue
+            except JobsDisabled:
+                self.message_user(
+                    request,
+                    "Background jobs are turned off on this server, so nothing was optimized.",
+                    messages.ERROR,
+                )
+                return
+            except JobsError as error:
+                message = (
+                    getattr(error, "message", "") or f"Optimization could not start ({error.code})."
+                )
+                self.message_user(request, f"{version.label}: {message}", messages.ERROR)
+                continue
+            submitted += 1
+            self.log_change(request, version, f"Submitted {variant} optimization job {job.pk}.")
+        if submitted:
+            self.message_user(
+                request,
+                f"Optimization submitted for {submitted} version(s). The versions are unchanged; "
+                "the optimized model and its report appear under Derived artifacts for review.",
+                messages.SUCCESS,
+            )
+
+    @admin.action(description="Optimize (Meshopt)", permissions=["validate"])
+    def optimize_meshopt(self, request, queryset):
+        self._optimize(request, queryset, "meshopt")
+
+    @admin.action(description="Optimize (KTX2)", permissions=["validate"])
+    def optimize_ktx2(self, request, queryset):
+        self._optimize(request, queryset, "ktx2")
 
     @admin.action(
         description="Inspect in background (file structure and dimensions)", permissions=["view"]

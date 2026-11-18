@@ -64,6 +64,9 @@ class OptimizeProfile:
     toktx_data: tuple[str, ...] = ()
     #: The Workstream D image profile used to prepare textures before encoding.
     texture_profile: str = ""
+    #: The pinned tool versions this profile was written and measured against
+    #: (`native/gltf/tools.lock`); recorded in the result's `tool_versions`.
+    tool_versions: tuple[tuple[str, str], ...] = ()
 
     @property
     def label(self) -> str:
@@ -102,6 +105,7 @@ MESHOPT_CONSERVATIVE: Final = OptimizeProfile(
         "-vpf",
         "-vtf",
     ),
+    tool_versions=(("gltfpack", "1.3"),),
 )
 
 #: `ktx2-basisu` v1 (KTX-Software 4.4.2 `toktx`): ETC1S for colour (base colour, emissive),
@@ -152,6 +156,7 @@ KTX2_BASISU: Final = OptimizeProfile(
         "1",
     ),
     texture_profile="ktx2-source",
+    tool_versions=(("toktx", "4.4.2"),),
 )
 
 PROFILES: dict[str, OptimizeProfile] = {

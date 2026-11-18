@@ -50,7 +50,7 @@ from .meshopt import (
 )
 from .profiles import KTX2_BASISU, OptimizeProfile, toktx_argv
 from .signature import compare_signatures
-from .texture_prep import PrepareTexture, TextureError, passthrough_texture
+from .texture_prep import PrepareTexture, TextureError, default_preparer
 from .textures import texture_memory
 
 __all__ = ["optimize_ktx2", "texture_classes"]
@@ -131,7 +131,7 @@ def optimize_ktx2(
     tools: ToolPaths,
     workspace: Workspace,
     profile: OptimizeProfile = KTX2_BASISU,
-    prepare: PrepareTexture = passthrough_texture,
+    prepare: PrepareTexture | None = None,
     run: Callable[..., Any] = run_tool,
     deadline: Deadline | None = None,
     cancelled: Callable[[], bool] | None = None,
@@ -149,6 +149,7 @@ def optimize_ktx2(
             [{"code": "extension", "path": name} for name in refused],
         )
     spec = tools.toktx_spec()
+    prepare = prepare or default_preparer()
     try:
         document, binary = read_glb(source)
     except (GlbLayoutError, ValueError):
@@ -163,7 +164,7 @@ def optimize_ktx2(
     for image_index, kind in sorted(classes.items()):
         view_index, data = _image_bytes(document, binary, image_index)
         try:
-            prepared = prepare(data, profile.texture_profile)
+            prepared = prepare(data, f"ktx2-{kind}")
         except TextureError as error:
             raise OptimizeError(
                 error.code,

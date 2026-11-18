@@ -21,7 +21,7 @@ import logging
 from django.contrib import admin, messages
 from django.http import FileResponse, JsonResponse
 from django.urls import path, reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.views.decorators.cache import never_cache
 
 from apps.core.exceptions import error_body
@@ -117,6 +117,7 @@ class DerivedArtifactAdmin(admin.ModelAdmin):
                     "processor_version",
                     "profile_id",
                     "profile_version",
+                    "optimization_view",
                     "metadata_view",
                 )
             },
@@ -186,6 +187,18 @@ class DerivedArtifactAdmin(admin.ModelAdmin):
             url = reverse("admin:jobs_processingjob_change", args=[obj.job_id])
             return format_html('<a href="{}">{}</a>', url, text)
         return text
+
+    @admin.display(description="Optimization report")
+    def optimization_view(self, obj):
+        from .optimize import facts_rows
+
+        rows = facts_rows(obj)
+        if not rows:
+            return "-"
+        return format_html(
+            "<table>{}</table>",
+            format_html_join("", "<tr><th>{}</th><td>{}</td></tr>", rows),
+        )
 
     @admin.display(description="Facts")
     def metadata_view(self, obj):
