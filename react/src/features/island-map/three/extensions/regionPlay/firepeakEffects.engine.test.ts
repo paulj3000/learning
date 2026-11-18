@@ -13,6 +13,7 @@ import {
   firepeakBootstrapJson,
 } from '../../../../../test/firepeakFixtures';
 import { FACE_SOUTH, mount, walk, type Drive } from '../../runtime/testing/engineHarness';
+import { isInDangerousLava } from './areaEffectsScene';
 import { regionPlaySceneExtension, type RegionPlaySceneApi } from './regionPlayScene';
 
 /**
@@ -22,13 +23,14 @@ import { regionPlaySceneExtension, type RegionPlaySceneApi } from './regionPlayS
  * lift brings them back. Only the renderer and asset loading are stand-ins.
  */
 
-function volcano(solved: string[] = []) {
+function volcano(solved: string[] = [], reducedMotion = false) {
   const model = toRegionSceneModel(read(firepeakBootstrapJson({ solved }), parse.regionBootstrap));
   const built = buildRegionManifest(model, { worldSlug: 'learning-adventure-island' });
   publishRegionCheckpoints(FIREPEAK, built.checkpoints);
   const harness = mount({
     manifest: built.manifest,
     extensions: [regionPlaySceneExtension],
+    reducedMotion,
     loadModel: async () => {
       throw new Error('no model published');
     },
@@ -126,5 +128,25 @@ describe('Firepeak effects', () => {
     expect(harness.scene().getObjectByName('stand-in:firepeak-telescope')).toBeDefined();
     expect(harness.scene().getObjectByName('lava:firepeak-lava-river')).toBeDefined();
     expect(harness.scene().getObjectByName('backdrop')).toBeDefined();
+  });
+
+  it('holds the lava still when the engine says reduced motion', () => {
+    const lavaTime = (reduced: boolean) => {
+      const { harness } = volcano([], reduced);
+      harness.runFrames(30);
+      const plane = harness.scene().getObjectByName('lava:firepeak-lava-river') as unknown as {
+        material: { uniforms: { uTime: { value: number } } };
+      };
+      return plane.material.uniforms.uTime.value;
+    };
+    expect(lavaTime(false)).toBeGreaterThan(0);
+    expect(lavaTime(true)).toBe(0);
+  });
+
+  it('draws visualOnly lava but never treats it as dangerous', () => {
+    const band = { id: 'l', minX: 0, maxX: 2, minZ: 0, maxZ: 2, safe: [] };
+    const keys = new Set<string>();
+    expect(isInDangerousLava([{ ...band, visualOnly: false }], keys, 1, 1)).toBe(true);
+    expect(isInDangerousLava([{ ...band, visualOnly: true }], keys, 1, 1)).toBe(false);
   });
 });

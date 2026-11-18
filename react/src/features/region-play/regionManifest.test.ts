@@ -98,6 +98,27 @@ describe('buildRegionManifest', () => {
     expect(landing.every((solid) => solid.jumpable)).toBe(true);
   });
 
+  it('keeps heights and jumpable on Django scene colliders, and stays a full wall without them', async () => {
+    const rect = (id: string) => ({ id, minX: 0, maxX: 1, minZ: 0, maxZ: 1 });
+    const scene = {
+      ...(await coveSceneJson()),
+      colliders: [
+        { ...rect('wall') },
+        { ...rect('step'), minY: 0, maxY: 0.5, jumpable: true },
+        { ...rect('half'), minY: 0, jumpable: true },
+        { ...rect('bad'), minY: 'x', maxY: null },
+      ],
+    };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    const byId = (id: string) => built.manifest.colliders.find((c) => c.rect.id === id);
+    expect(byId('wall')).toEqual({ rect: rect('wall') });
+    expect(byId('step')).toMatchObject({ minY: 0, maxY: 0.5, jumpable: true });
+    // A jump flag without both heights is dropped, so the validator rule is never tripped.
+    expect(byId('half')).toEqual({ rect: rect('half'), minY: 0 });
+    expect(byId('bad')).toEqual({ rect: rect('bad') });
+    expect(issues(built)).toEqual([]);
+  });
+
   it('carries a Django-authored camera and avatar, which the validator checks (LAI-JMP-01a)', async () => {
     const scene = { ...(await coveSceneJson()), player: { camera: { distance: 3 } } };
     const built = build({ region: { ...bootstrapJson().region, scene } });
