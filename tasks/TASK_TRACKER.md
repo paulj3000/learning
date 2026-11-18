@@ -1120,6 +1120,35 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       castleTale, content-export, new `castleSupportingNpcs.test.ts`); `tsc` app and node clean;
       content:export, golden:generate, content:check, golden:check clean; Django `apps/npcs`
       358 passed, 0 skipped (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`). Not run: browser, WebGL, e2e, lint, format, full suites.
-- [ ] **SC-R06 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
+- [x] **SC-R06-01** Castle sound cues through the shared Sound Manager (doc
+      `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`, contract `docs/regions/prep/sound_prep.md`). DONE
+      (development), not owner accepted, branch `work/sc-r06`. `castleSounds.ts` (cue ids, a bed and
+      priority for every `CastleRoomId`, positional cues, fallbacks), `castleSoundCues.ts` (castle moment
+      sink), `useCastleAudio.ts` mounted by `CastleTaleCompanion` (scope `castle`, manifest
+      `storykeeper-castle`, room bed crossfade 1500 ms from `currentRoomId()`, door cue, explore and
+      story music, Storybook open and close, page restored, quest start and complete, NPC greet on any
+      `NpcApproached`, shared jump, land and platform cues), `useCastleAnswerCues.ts` (right and retry
+      from the server grade, hint when the server's hint level rises). Shared `sfx.learning.*` and
+      `sfx.quest.complete` reused, not duplicated. Django `apps/audio/castle_cues.py`,
+      `manage.py seed_castle_sound` (reuses the Treasure Rush seed; never publishes). Missing audio is
+      silent; no asset committed (18 assets listed in the doc).
+- [x] **SC-R06-02** Mute and volume respected; Sprouts: no retry sound, reduced intensity as a session
+      default only when no mix is saved (`PreferenceSync.applySessionDefault`, new read-only `saved`
+      field on the child audio settings GET); Sound controls in the castle guide. DONE (development),
+      not owner accepted.
+- [x] **SC-R06-03** Narration through the existing Django speech pipeline (Polly, owner's choice; fake
+      provider in tests). `useCastleSpeech`: one utterance at a time, no-repeat guard, `speakWord`
+      (`castle-word-<word>`, "Hear" buttons in the Studio) and `speakPage` (`castle-page-<id>`, on page
+      restore); any failure keeps the caption. `manage.py seed_castle_speech_lines` (idempotent, never
+      overwrites staff edits) with Vitest and pytest parity against the word bank and
+      `great_storybook_pages.json`. No AI utterances. DONE (development), not owner accepted.
+      Consent: gated exactly like Keeper Quill's authored lines (`LAI_SPEECH_PROVIDER`, line and voice
+      `enabled`, voice mute and volume, child scoping; `ai_enabled` gates AI speech only). No parent
+      voice consent setting exists and none was invented. **Owner acceptance item: parent voice
+      consent review.** Also for the owner: listen in a browser once assets exist.
+      Tests (SC-R06-01 to 03): Vitest castleTale, audio, api/audio, great-storybook, region-play
+      64 files, 893 passed; `tsc --noEmit` app and node clean; pytest `apps/audio apps/speech`
+      363 passed, 1 skipped (the opt-in live AWS smoke), 1 failed only from the machine's expired AWS SSO token (`test_presigned_urls_use_the_regional_host`, 20 passed with dummy AWS env; storage untouched) (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`).
+- [ ] **SC-R07 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)

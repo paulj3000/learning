@@ -42,6 +42,15 @@ def test_a_partial_update_changes_only_what_was_sent_and_persists(api, families,
     assert ChildAudioSettings.objects.count() == 1
 
 
+def test_saved_says_whether_the_child_has_a_saved_mix(api, families, cognito):
+    """SC-R06-02: a session-only default may apply only when nothing is saved."""
+    client = api(families.a)
+    assert client.get(url(families.a1)).json()["saved"] is False
+    assert patch(client, families.a1, {"masterVolume": 0.4}).json()["saved"] is True
+    assert client.get(url(families.a1)).json()["saved"] is True
+    assert client.get(url(families.a2)).json()["saved"] is False
+
+
 def test_reduced_intensity_is_saved(api, families, cognito):
     client = api(families.a)
     patch(client, families.a1, {"reducedIntensity": True})

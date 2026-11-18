@@ -3,6 +3,17 @@ import { audioSettingsApiFor, type AudioSettingsApi } from '../../api/audio/audi
 import { useSoundManager } from '../react/hooks';
 import { createPreferenceSync, type PreferenceSync } from './AudioPreferencesSync';
 
+/** The live sync of each child whose island is open, for `preferenceSyncFor` (SC-R06-02). */
+const liveSyncs = new Map<string, PreferenceSync>();
+
+/**
+ * The preference sync of the child whose island is open, or `undefined` when none is mounted (a
+ * test, or a build without the child area). A game uses it only to ask for a session default.
+ */
+export function preferenceSyncFor(childId: string): PreferenceSync | undefined {
+  return liveSyncs.get(childId);
+}
+
 interface Held {
   childId: string;
   sync: PreferenceSync;
@@ -40,16 +51,21 @@ export function useChildAudioPreferences(
       clearTimeout(current.disposeTimer);
       current.disposeTimer = undefined;
     } else {
-      current?.sync.dispose();
+      if (current) {
+        current.sync.dispose();
+        if (liveSyncs.get(current.childId) === current.sync) liveSyncs.delete(current.childId);
+      }
       const sync = createPreferenceSync({ manager, api: apiFor(childId), debounceMs });
       current = { childId, sync, disposeTimer: undefined };
       held.current = current;
+      liveSyncs.set(childId, sync);
       void sync.start();
     }
     const mine = current;
     return () => {
       mine.disposeTimer = setTimeout(() => {
         mine.sync.dispose();
+        if (liveSyncs.get(mine.childId) === mine.sync) liveSyncs.delete(mine.childId);
         if (held.current === mine) held.current = null;
       }, 0);
     };

@@ -39,6 +39,8 @@ def _asset_problem(spec: CueSpec) -> tuple[ContentAsset | None, str | None]:
 
 class Command(BaseCommand):
     help = "Create missing Treasure Rush sound cues whose audio exists. Never publishes."
+    #: The cue table this command seeds. `seed_castle_sound` reuses the command with its own.
+    cues: tuple[CueSpec, ...] = TREASURE_RUSH_CUES
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Report only; write nothing.")
@@ -47,7 +49,7 @@ class Command(BaseCommand):
         dry = options["dry_run"]
         created, existing, needs_asset, invalid = [], [], [], []
         with transaction.atomic():
-            for spec in TREASURE_RUSH_CUES:
+            for spec in self.cues:
                 if SoundCue.objects.filter(cue_id=spec.cue_id).exists():
                     existing.append(spec.cue_id)
                     continue

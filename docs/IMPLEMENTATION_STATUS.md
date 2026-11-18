@@ -161,6 +161,28 @@ root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; 
 - Not run: browser, WebGL, device, e2e, lint, format, full suites. Seeds not run against any deployed
   database; publishing is global (a release carries every READY character).
 
+## SC-R06: Storykeeper Castle sound and narration (2026-11-17, `work/sc-r06` from `77731284`); development complete, unit-tested only, NOT merged
+
+Full account: `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`.
+
+- SC-R06-01: castle cues on the shared Sound Manager (`castleSounds.ts`, `useCastleAudio.ts`,
+  `castleSoundCues.ts`, `useCastleAnswerCues.ts`), mounted by `CastleTaleCompanion`. Room beds for
+  every room with crossfade, door cue, explore and story music, Storybook open and close, page
+  restore, quest start and complete, NPC greet for any NPC, right, retry and hint from the server's
+  answers, shared movement cues. Django `castle_cues.py` and `seed_castle_sound` (never publishes).
+  No audio, GLB or production asset committed; 18 needed assets are listed in the doc.
+- SC-R06-02: mute and volume are the child's mix; Sound controls in the castle guide. Sprouts: no
+  retry sound; reduced intensity as a session default only when the server reports no saved mix
+  (new `saved` field on `GET /children/<id>/audio/settings/`; `PreferenceSync.applySessionDefault`).
+- SC-R06-03: authored narration through the existing speech pipeline (Polly server side, fake in
+  tests): word pronunciations and restored pages as `SpeechLine`s seeded by
+  `seed_castle_speech_lines`, parity-tested with the word bank and the pages JSON; one utterance at a
+  time with a no-repeat guard; caption fallback on any failure. Gated like Keeper Quill's lines; no
+  parent voice consent setting exists, so "parent voice consent review" is an owner acceptance item.
+- Tests: Vitest 64 files, 893 passed (castleTale, audio, api/audio, great-storybook, region-play);
+  `tsc --noEmit` app and node clean; pytest `apps/audio apps/speech` 363 passed, 1 skipped (opt-in live AWS smoke), 1 environment failure (expired AWS SSO token in the presign test; 20 passed with dummy AWS env) on PostgreSQL.
+- Not run: browser, WebGL, live audio, live Polly, full suites, lint, format.
+
 ## SC-JMP: jumping integrated into every primary Storykeeper Castle adventure (2026-11-17, worktree of `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged
 
 Owner rule: jumping is not a separate adventure category. Every primary castle adventure has

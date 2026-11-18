@@ -174,3 +174,139 @@ describe('useCastleSpeech', () => {
     expect(getSpeechBinding()).toBe(earlier);
   });
 });
+
+describe('castle narration (SC-R06-03)', () => {
+  function narrator(request: SpeechSource['request']) {
+    const engine = new FakeEngine();
+    const manager = createSoundManager({ engine });
+    const source: SpeechSource = { request };
+    const sceneRef = { current: null as CastleTaleSceneApi | null };
+    let latest: ReturnType<typeof useCastleSpeech> | undefined;
+    function Probe() {
+      latest = useCastleSpeech('kid', QUILL, sceneRef, source);
+      return null;
+    }
+    const view = render(
+      <SoundProvider manager={manager} unlockOnGesture={false}>
+        <Probe />
+      </SoundProvider>,
+    );
+    return { engine, view, state: () => latest! };
+  }
+  const live = (engine: FakeEngine) =>
+    engine.voices.filter((v) => !v.stopped && v.options.channel === 'voice');
+
+  it('says a Painted Words word by its authored line, flat, with the word as the caption', async () => {
+    const request = vi.fn(async () => clip('cat'));
+    const w = narrator(request);
+    await tick();
+    await act(async () => void w.state().speakWord('cat'));
+    await tick();
+    expect(request).toHaveBeenCalledWith({ kind: 'line', id: 'castle-word-cat' }, expect.anything());
+    expect(live(w.engine)).toHaveLength(1);
+    expect(live(w.engine)[0]?.options.spatial).toBeUndefined();
+    expect(w.state().speech.state.caption).toBe('cat');
+  });
+
+  it('reads a restored page by its authored line', async () => {
+    const request = vi.fn(async () => clip('The First Story. The story you told is back.'));
+    const w = narrator(request);
+    await tick();
+    await act(
+      async () =>
+        void w.state().speakPage({
+          id: 'page-first-story',
+          title: 'The First Story',
+          restoredText: 'The story you told is back.',
+        }),
+    );
+    await tick();
+    expect(request).toHaveBeenCalledWith(
+      { kind: 'line', id: 'castle-page-page-first-story' },
+      expect.anything(),
+    );
+  });
+
+  it('never repeats the same line while it is still being fetched or spoken', async () => {
+    const request = vi.fn(async () => clip('dog'));
+    const w = narrator(request);
+    await tick();
+    await act(async () => {
+      void w.state().speakWord('dog');
+      void w.state().speakWord('dog');
+      void w.state().speakWord('dog');
+    });
+    await tick();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(live(w.engine)).toHaveLength(1);
+  });
+
+  it('speaks one line at a time: a new line replaces the one speaking', async () => {
+    const request = vi.fn(async (ref: unknown) =>
+      clip(JSON.stringify(ref).includes('sun') ? 'sun' : 'moon'),
+    );
+    const w = narrator(request);
+    await tick();
+    await act(async () => void w.state().speakWord('sun'));
+    await tick();
+    await act(async () => void w.state().speakWord('moon'));
+    await tick();
+    expect(live(w.engine)).toHaveLength(1);
+    expect(w.state().speech.state.caption).toBe('moon');
+  });
+
+  it('may say the same word again once it has finished', async () => {
+    const request = vi.fn(async () => clip('bee'));
+    const w = narrator(request);
+    await tick();
+    await act(async () => void w.state().speakWord('bee'));
+    await tick();
+    act(() => live(w.engine)[0]?.finish('finished'));
+    await tick();
+    await act(async () => void w.state().speakWord('bee'));
+    await tick();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to the caption when speech is unavailable (404, off, offline), and play goes on', async () => {
+    const request = vi.fn(async (): Promise<SpeechClipInfo> => {
+      throw Object.assign(new Error('not found'), { status: 404 });
+    });
+    const w = narrator(request);
+    await tick();
+    let settled = false;
+    await act(async () => {
+      await w.state().speakWord('frog');
+      settled = true;
+    });
+    await tick();
+    expect(settled).toBe(true);
+    expect(live(w.engine)).toHaveLength(0);
+    expect(w.state().speech.state).toMatchObject({ caption: 'frog', textOnly: true });
+    // A failed line can be asked for again (the guard is released).
+    await act(async () => void w.state().speakWord('frog'));
+    await tick();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('is text only, never a request, in a build without speech', async () => {
+    const engine = new FakeEngine();
+    const manager = createSoundManager({ engine });
+    let latest: ReturnType<typeof useCastleSpeech> | undefined;
+    const sceneRef = { current: null as CastleTaleSceneApi | null };
+    function Probe() {
+      latest = useCastleSpeech('kid', QUILL, sceneRef, null);
+      return null;
+    }
+    render(
+      <SoundProvider manager={manager} unlockOnGesture={false}>
+        <Probe />
+      </SoundProvider>,
+    );
+    await tick();
+    await act(async () => void latest!.speakWord('cake'));
+    await tick();
+    expect(engine.voices).toHaveLength(0);
+    expect(latest!.speech.state.caption).toBe('cake');
+  });
+});

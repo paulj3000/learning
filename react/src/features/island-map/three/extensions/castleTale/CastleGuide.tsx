@@ -14,6 +14,7 @@ import {
 import { trophyDisplay } from '../../castleTrophies';
 import type { CastleRoomsApi } from '../../../../../api/play/castleRoomsApi';
 import type { GreatStorybook } from '../../../../great-storybook/useGreatStorybook';
+import { ManagerAudioControls } from '../../../../../audio/ui';
 import { CastleMap } from './CastleMap';
 import { StorybookSection } from './StorybookSection';
 import { useCastleDiscovery } from './useCastleDiscovery';
@@ -49,6 +50,11 @@ export interface CastleGuideProps {
   roomsApi?: CastleRoomsApi | null;
   /** The child's Great Storybook (SC-R04-02), if the castle has computed it. */
   storybook?: GreatStorybook;
+  /**
+   * SC-R06-01: the guide (and the Storybook in it) opened or closed by the child. Called on a
+   * change only, never on the first render. For sound; the guide works the same without it.
+   */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /** "To the story hall, then To the east corridor": the doors a walking child would pass, in order. */
@@ -70,6 +76,7 @@ export function CastleGuide({
   childId = '',
   roomsApi,
   storybook,
+  onOpenChange,
 }: CastleGuideProps) {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState<CastleRoomId | undefined>(undefined);
@@ -79,6 +86,16 @@ export function CastleGuide({
   const { discovered } = useCastleDiscovery({ childId, roomId, api: childId ? roomsApi : null });
   const discovery = useMemo(() => discoveryState(discovered), [discovered]);
   const lastAnnounced = useRef<CastleRoomId | undefined>(undefined);
+
+  // Report a change of open (not the first render), for the Storybook's open and close sounds.
+  const reportedOpen = useRef(open);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+  useEffect(() => {
+    if (reportedOpen.current === open) return;
+    reportedOpen.current = open;
+    onOpenChangeRef.current?.(open);
+  }, [open]);
 
   // Escape closes the guide, only while it is open, so it never steals the key from anything else.
   useEffect(() => {
@@ -255,6 +272,13 @@ export function CastleGuide({
                 earn.
               </p>
             ) : null}
+          </section>
+          {/* SC-R06-02: the child's own sound mix (volume, mute, calmer sound), saved for them. */}
+          <section aria-labelledby={`${panelId}-sound`}>
+            <h3 id={`${panelId}-sound`} className={styles.title}>
+              Sound
+            </h3>
+            <ManagerAudioControls idPrefix="castle-audio" />
           </section>
         </div>
       ) : null}

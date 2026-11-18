@@ -37,6 +37,10 @@ PATCH /api/v1/children/<child_id>/audio/settings/   -> partial update, returns t
                 "voice": {...}, "ui": {...} } }
 ```
 
+Responses also carry a read-only `"saved"` boolean (SC-R06-02): false while the child has never
+saved a mix. A game may apply a session-only default (Sprouts' reduced intensity in Storykeeper
+Castle, `PreferenceSync.applySessionDefault`) only when it is false; it is never sent in a PATCH.
+
 Strict: unknown fields or channels, volumes outside 0 to 1, and non-booleans are a 400 and save
 nothing. Parent bearer token only (no game-runtime cookie write). 401 without a token, 404 for
 another family's child, 405 for other verbs. The model is not in Django Admin (child data stays

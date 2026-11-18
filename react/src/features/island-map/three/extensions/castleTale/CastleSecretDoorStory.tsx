@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import styles from '../../../IslandWorldView.module.css';
 import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
+import { useCastleAnswerCues } from './useCastleAnswerCues';
 import { StoryChapterRunner } from '../../../../story/StoryChapterRunner';
 import type { StoryAdventureRenderProps } from '../../../../story/StoryChapterRunner';
 import { useStoryProgress } from '../../../../story/useStoryProgress';
@@ -176,9 +177,11 @@ function CastleStoryAdventure({
     }
   }, [session, onComplete]);
 
-  const submitRef = useRef(submitAnswer);
-  submitRef.current = submitAnswer;
   const stepId = currentStep?.id ?? null;
+  // SC-R06-01: right, try-again and hint sounds, from what the server decided.
+  const cuedSubmit = useCastleAnswerCues(submitAnswer, stepId, hintLevel);
+  const submitRef = useRef(cuedSubmit);
+  submitRef.current = cuedSubmit;
 
   /**
    * Beat 10's payoff. Driven by the `WORLD_CHANGE` step being on screen
@@ -229,7 +232,7 @@ function CastleStoryAdventure({
     bus,
     definition,
     stepId,
-    submit: submitAnswer,
+    submit: cuedSubmit,
     onWrongOrder: () => scene.current?.playQuillClip('ReactConcerned'),
   });
 
@@ -249,7 +252,7 @@ function CastleStoryAdventure({
       currentStep={currentStep}
       submitting={submitting}
       error={error}
-      submitAnswer={submitAnswer}
+      submitAnswer={cuedSubmit}
       hintLevel={hintLevel}
       hintText={hintText}
       requestHint={requestHint}
