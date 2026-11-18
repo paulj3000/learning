@@ -623,10 +623,10 @@ def _writer(count: int, size: int, logical: Callable[[int], str] = lambda i: f"p
         for i in range(count):
             context.write_artifact(
                 logical_id=logical(i),
-                artifact_type="derived.part",
+                artifact_type="report.reference",
                 data=b"z" * size,
-                content_type="application/octet-stream",
-                extension="bin",
+                content_type="application/json",
+                extension="json",
             )
         return ProcessorOutput(verdict=Verdict.PASS)
 
@@ -677,10 +677,10 @@ def test_bad_artifact_content_type_writes_nothing(tmp_path: Path) -> None:
     def process(context: ProcessingContext) -> ProcessorOutput:
         context.write_artifact(
             logical_id="x",
-            artifact_type="derived.part",
+            artifact_type="report.reference",
             data=b"1",
             content_type="Text/HTML; charset=evil",
-            extension="bin",
+            extension="json",
         )
         return ProcessorOutput(verdict=Verdict.PASS)
 
@@ -915,3 +915,58 @@ def test_workspace_root_default_uses_system_temp(tmp_path: Path) -> None:
     assert result.status is ResultStatus.SUCCEEDED
     assert result.completed_at >= result.started_at
     assert os.path.isdir(tmp_path)
+
+
+# Declared roles (ADR-066): the worker refuses what Django would refuse -----------------------
+
+
+def _one(role: str, content_type: str, extension: str, size: int = 4) -> Any:
+    def process(context: ProcessingContext) -> ProcessorOutput:
+        context.write_artifact(
+            logical_id="x",
+            artifact_type=role,
+            data=b"z" * size,
+            content_type=content_type,
+            extension=extension,
+        )
+        return ProcessorOutput(verdict=Verdict.PASS)
+
+    return process
+
+
+@pytest.mark.parametrize(
+    ("role", "content_type", "extension", "size", "code"),
+    [
+        ("audio.transcoded", "audio/ogg", "ogg", 4, ErrorCode.ARTIFACT_CONFLICT),  # other kind
+        ("derived.part", "application/json", "json", 4, ErrorCode.ARTIFACT_CONFLICT),  # undeclared
+        ("model.thumbnail", "image/png", "png", 4, ErrorCode.ARTIFACT_CONFLICT),  # capture role
+        ("report.reference", "text/plain", "json", 4, ErrorCode.ARTIFACT_CONFLICT),  # type
+        ("report.reference", "application/json", "bin", 4, ErrorCode.ARTIFACT_CONFLICT),  # ext
+        (
+            "report.reference",
+            "application/json",
+            "json",
+            2 * 1024 * 1024,
+            ErrorCode.RESOURCE_LIMIT_EXCEEDED,
+        ),  # size bound
+    ],
+)
+def test_undeclared_role_type_extension_or_size_writes_nothing(
+    tmp_path: Path, role, content_type, extension, size, code
+) -> None:
+    h = Harness(tmp_path, registry=custom_registry(_one(role, content_type, extension, size)))
+    h.seed()
+    result = h.run(make_request(profile=CUSTOM))
+    assert_error(result, code)
+    assert h.storage.keys(StoreName.ARTIFACTS) == [] and result.artifacts == ()
+
+
+def test_role_count_is_bounded(tmp_path: Path) -> None:
+    from lai_processing.contracts.job_types import ARTIFACT_ROLES
+
+    maximum = ARTIFACT_ROLES["report.glb_validation"].max_count
+    assert maximum == 1
+    # report.reference allows 16 files, still bounded by the request's own artifact limit
+    h = Harness(tmp_path, registry=custom_registry(_writer(2, 4)))
+    h.seed()
+    assert len(h.run(make_request(profile=CUSTOM)).artifacts) == 2

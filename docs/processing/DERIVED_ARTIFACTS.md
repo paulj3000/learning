@@ -75,6 +75,10 @@ ArtifactReference(artifact_type=<role>, logical_id=<stable id, e.g. "opus", "thu
 
 Worker rules:
 
+0. `write_artifact` itself refuses (before any write) a role not declared for the job type (or a
+   staff-capture role), a content type or extension the role does not allow, a size above the
+   role's bound, and more files of the role than its maximum. The inspection job types declare
+   only their opt-in report roles (`report.reference`, `report.glb_validation`).
 1. Write only through `ProcessingContext.write_artifact(logical_id=, artifact_type=<role>, data=,
    content_type=, extension=)`. It confines the key to the attempt prefix and records the
    reference. Never write another key, store or bucket.
@@ -115,6 +119,17 @@ off after it was committed is failed `workload_disabled` instead of sent.
 | none (staff upload) | none | none | `LAI_THUMBNAIL_CAPTURE` |
 
 Results of every kind return on the one results queue to the one `jobs_consume_results`.
+
+**Release invariant (ADR-071).** `workload_enabled`/`submit_workload` also consult an optional
+`LAI_PROCESSING_RELEASE_MANIFEST` (a path to the manifest written by
+`scripts/release/processing_release.py manifest create`). When set, a workload kind is submitted
+only if an artifact of the manifest lists it in `supported_kinds` (refusal code
+`workload_not_released`); an unreadable or invalid file, or a `git_sha` that differs from
+`LAI_RELEASE_SHA` (when both are set), refuses every workload (fail closed). Unset: no extra check.
+`manage.py processing_release_check --json` prints the facts G's tool consumes (booleans only, no
+URLs) plus `failures`, exits 1 with safe reasons when a control that is `on` lacks a result
+handler, a queue URL, a manifest entry, applied migrations or artifact storage, and 0 when all
+controls are off. `--exit-zero` always exits 0 (tooling that decides from the JSON).
 Migration `jobs.0005_native_workload_kinds` (depends on `jobs.0004`) adds the kinds and queues.
 
 ## 6. Django submission (the one helper)

@@ -115,6 +115,11 @@ _OPTIMIZE_ROLES: Final = (
     ArtifactRoleSpec("texture.compressed", ("image/ktx2",), 16 * MIB, 4, True),
     ArtifactRoleSpec("model.optimize_report", (_REPORT,), 64 * KIB, 1, False),
 )
+# Opt-in report artifacts (`write_report`) of the inspection job types; never promotable.
+_REFERENCE_ROLES: Final = (ArtifactRoleSpec("report.reference", (_REPORT,), 1 * MIB, 16, False),)
+_VALIDATE_MODEL_ROLES: Final = (
+    ArtifactRoleSpec("report.glb_validation", (_REPORT,), 1 * MIB, 1, False),
+)
 #: Roles written by Django itself (staff browser capture), never by a worker.
 STAFF_CAPTURE_ROLES: Final[tuple[ArtifactRoleSpec, ...]] = (
     ArtifactRoleSpec(
@@ -136,6 +141,7 @@ _SPECS: Final = (
         subject_type=None,
         owner_task="LAI-LAMBDA-001",
         description="Reference job: verify the input checksum and report deterministic metadata.",
+        artifact_roles=_REFERENCE_ROLES,
     ),
     JobTypeSpec(
         job_type="asset.validate_model",
@@ -145,6 +151,7 @@ _SPECS: Final = (
         subject_type=ASSET_VERSION_SUBJECT,
         owner_task="LAI-LAMBDA-002",
         description="Validate a GLB/glTF model version and extract its metadata.",
+        artifact_roles=_VALIDATE_MODEL_ROLES,
     ),
     JobTypeSpec(
         job_type="asset.process_audio",
