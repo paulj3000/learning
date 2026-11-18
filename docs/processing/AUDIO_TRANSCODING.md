@@ -255,3 +255,38 @@ fixture (no Vorbis encoder is built); Opus and MP3 outputs were decoded back as 
 
 The Opus header stores a constant `encoder=Lavc libopus` comment and MP3 a `Lavf lame` info tag;
 no source-derived text survives (tested with a hostile RIFF `LIST` chunk).
+
+## 10. Sound Manager integration (phase 2, implemented)
+
+Code: `lai/apps/audio/transcoding.py` (submission, results, resolver), `lai/apps/audio/admin.py`
+(actions and pages), `lai/apps/audio/migrations/0006_transcode_permission.py`, tests in
+`lai/apps/audio/tests/test_audio_transcoding.py` and `tests/lambda/test_audio_worker.py`.
+
+- **Actions** (Audio files and Sound cues, staff Django Admin, permission
+  `audio.transcode_audiofile`, granted by `ensure_sound_roles` to Sound editors and publishers;
+  Sound editors also get read-only `assets.view_derivedartifact`): *Inspect audio* (existing
+  `asset.process_audio`), *Transcode* (`options={"normalize": false}`: Opus and MP3, level kept,
+  measured only) and *Normalise* (`normalize: true`: level set to the profile target). The profile is
+  `audio-<channel>` v1, with the channel taken from the cue, or from the file's cues when exactly one
+  channel uses it.
+- **Submission** is `apps.assets.artifact_jobs.submit_derived_job` with
+  `profile=("audio-<channel>", 1)`, `processor_version=AudioTranscodeProcessor.version` and the
+  `AUDIO_TRANSCODE_LIMITS` ceilings (20 MiB in, 48 MiB out, 4 artifacts). It refuses first, with
+  the message "This kind of background processing is switched off." (`WorkloadUnavailable`), when
+  `LAI_AUDIO_TRANSCODING` is off or the queue is not configured, creating no row, outbox entry or
+  message. The same work (version, file, profile, option, processor version) returns the existing job;
+  a failed one may be resubmitted up to `LAI_ASSET_VALIDATION_MAX_ATTEMPTS`.
+- **Results** are recorded by `apps.assets.artifact_results` (registered for the kind by A); the
+  processor version resolver is registered by `AudioConfig.ready()`
+  (`PROCESSOR_VERSION_RESOLVERS["asset.transcode_audio"]`), so an older processor's result is
+  `processor_outdated`. The worker's `metadata.tool_versions` and `metadata.artifact_facts` (duration,
+  bit rate, rate, channels, loudness, peaks per output) become each artifact's safe metadata.
+- **Display**: job status and outcome, and per output the format, duration, bit rate, size, loudness
+  and true peak before and after, the gain, findings, and links to A's review page and streamed
+  preview. Every value is escaped.
+- **Never automatic**: no version, cue, release or published file changes; the only way to the game
+  is `promote_artifact` (permission `assets.promote_derivedartifact`, Asset publishers), a new
+  unpublished version, then the normal publish and sound release.
+- **Worker**: `lambda/audio_worker` uses `jobs_worker.aws.Runtime.artifact_storage` (create-only,
+  `IfNoneMatch="*"`, computed-checksum idempotency) as the engine's storage; the earlier stub was
+  removed.

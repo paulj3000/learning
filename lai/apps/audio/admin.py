@@ -30,7 +30,7 @@ from django.utils.timezone import localtime
 from apps.assets import preview
 from apps.catalog.models import ContentAsset
 
-from . import inspection, reporting, services
+from . import inspection, reporting, services, transcoding
 from .models import AudioFile, SoundAssignment, SoundCue, SoundLibraryReport, SoundRelease
 from .vocabulary import AUDIO_KIND
 
@@ -71,11 +71,18 @@ class SoundCueAdmin(admin.ModelAdmin):
     list_filter = ("channel", "enabled", "shared")
     search_fields = ("cue_id", "name", "description", "asset__asset_id")
     list_select_related = ("asset", "asset__default_version", "pinned_version")
-    actions = ["enable_cues", "disable_cues", "inspect_audio"]
+    actions = [
+        "enable_cues",
+        "disable_cues",
+        "inspect_audio",
+        "transcode_audio",
+        "normalize_audio",
+    ]
     readonly_fields = (
         "audio_preview",
         "publishing",
         "audio_inspection",
+        "audio_transcoding",
         "created_at",
         "updated_at",
     )
@@ -90,6 +97,7 @@ class SoundCueAdmin(admin.ModelAdmin):
                     "audio_preview",
                     "publishing",
                     "audio_inspection",
+                    "audio_transcoding",
                 )
             },
         ),
@@ -189,8 +197,52 @@ class SoundCueAdmin(admin.ModelAdmin):
             inspection_result_html(version),
         )
 
+    @admin.display(description="Transcoding and normalising")
+    def audio_transcoding(self, obj):
+        if obj is None or obj.pk is None:
+            return "Save the cue to transcode its audio."
+        version = services.version_for(obj)
+        if version is None:
+            return "The cue has no audio version to transcode yet."
+        return transcoding_html(version)
+
     def has_inspect_permission(self, request):
         return can_inspect(request)
+
+    def has_transcode_permission(self, request):
+        return can_transcode(request)
+
+    def _transcode(self, request, queryset, normalize):
+        pairs, missing = [], 0
+        for cue in queryset.select_related("asset", "asset__default_version", "pinned_version")[
+            :50
+        ]:
+            version = services.version_for(cue)
+            if version is None:
+                missing += 1
+            else:
+                pairs.append((version, cue.channel))
+        if missing:
+            self.message_user(
+                request, f"{missing} cue(s) have no audio version to transcode.", messages.WARNING
+            )
+        submit_transcodes(self, request, pairs, normalize=normalize)
+
+    @admin.action(
+        description="Transcode to Opus and MP3 in background (keeps the level; outputs are "
+        "previews for review)",
+        permissions=["transcode"],
+    )
+    def transcode_audio(self, request, queryset):
+        self._transcode(request, queryset, False)
+
+    @admin.action(
+        description="Normalise loudness and transcode in background (to the channel target; "
+        "outputs are previews for review)",
+        permissions=["transcode"],
+    )
+    def normalize_audio(self, request, queryset):
+        self._transcode(request, queryset, True)
 
     @admin.action(
         description="Inspect audio in background (header facts, result for review)",
@@ -677,7 +729,7 @@ class AudioFileAdmin(admin.ModelAdmin):
     list_filter = ("format", "status")
     search_fields = ("asset__asset_id",)
     list_select_related = ("asset",)
-    actions = ["inspect_audio"]
+    actions = ["inspect_audio", "transcode_audio", "normalize_audio"]
     fields = (
         "file_label",
         "format",
@@ -687,6 +739,7 @@ class AudioFileAdmin(admin.ModelAdmin):
         "sha256",
         "inspection_status",
         "inspection_result",
+        "transcoding",
     )
     readonly_fields = fields
 
@@ -703,7 +756,11 @@ class AudioFileAdmin(admin.ModelAdmin):
         return bool(
             user.is_active
             and user.is_staff
-            and (user.has_perm("audio.view_audiofile") or user.has_perm("audio.inspect_audiofile"))
+            and (
+                user.has_perm("audio.view_audiofile")
+                or user.has_perm("audio.inspect_audiofile")
+                or user.has_perm("audio.transcode_audiofile")
+            )
         )
 
     def has_module_permission(self, request):
@@ -720,6 +777,33 @@ class AudioFileAdmin(admin.ModelAdmin):
 
     def has_inspect_permission(self, request):
         return can_inspect(request)
+
+    def has_transcode_permission(self, request):
+        return can_transcode(request)
+
+    @admin.display(description="Transcoding and normalising")
+    def transcoding(self, obj):
+        return transcoding_html(obj)
+
+    @admin.action(
+        description="Transcode to Opus and MP3 in background (keeps the level; outputs are "
+        "previews for review)",
+        permissions=["transcode"],
+    )
+    def transcode_audio(self, request, queryset):
+        submit_transcodes(
+            self, request, [(v, None) for v in queryset.select_related("asset")[:50]], normalize=False
+        )
+
+    @admin.action(
+        description="Normalise loudness and transcode in background (to the channel target; "
+        "outputs are previews for review)",
+        permissions=["transcode"],
+    )
+    def normalize_audio(self, request, queryset):
+        submit_transcodes(
+            self, request, [(v, None) for v in queryset.select_related("asset")[:50]], normalize=True
+        )
 
     @admin.display(description="File", ordering="asset__asset_id")
     def file_label(self, obj):
@@ -744,3 +828,198 @@ class AudioFileAdmin(admin.ModelAdmin):
     )
     def inspect_audio(self, request, queryset):
         submit_inspections(self, request, list(queryset.select_related("asset")[:50]))
+
+
+# --- transcoding and normalising (ADR-067; every value escaped; nothing is published) ------------
+
+
+def can_transcode(request) -> bool:
+    user = request.user
+    return bool(user.is_active and user.is_staff and user.has_perm("audio.transcode_audiofile"))
+
+
+def submit_transcodes(modeladmin, request, pairs, *, normalize: bool) -> None:
+    """Submit `asset.transcode_audio` for each (version, channel or None), or report its existing
+    job. Refused with a safe message while the control is off. Changes no version, cue or
+    release; outputs are private previews that staff review and may promote elsewhere."""
+    from apps.jobs.services import JobsDisabled, JobsError, WorkloadUnavailable
+
+    what = "Normalising" if normalize else "Transcoding"
+    submitted, seen = 0, set()
+    for version, channel in pairs:
+        if (version.pk, channel) in seen:
+            continue
+        seen.add((version.pk, channel))
+        known = set(transcoding.transcode_jobs(version).values_list("pk", flat=True))
+        try:
+            job = transcoding.submit_transcode(
+                version, normalize=normalize, user=request.user, channel=channel
+            )
+        except WorkloadUnavailable as error:
+            modeladmin.message_user(request, f"{what} is not available: {error.message}", messages.ERROR)
+            return
+        except JobsDisabled:
+            modeladmin.message_user(
+                request,
+                "Background jobs are turned off on this server, so nothing was sent.",
+                messages.ERROR,
+            )
+            return
+        except transcoding.TranscodeRefused as error:
+            modeladmin.message_user(request, f"{version.label}: {error.message}", messages.ERROR)
+            continue
+        except JobsError as error:
+            modeladmin.message_user(
+                request,
+                f"{version.label}: {what} could not start ({error.code}).",
+                messages.ERROR,
+            )
+            continue
+        if job.pk not in known:
+            submitted += 1
+        elif job.is_terminal:
+            modeladmin.message_user(
+                request,
+                f"{version.label}: This file was already processed this way ({_job_status(job)}).",
+                messages.INFO,
+            )
+        else:
+            modeladmin.message_user(
+                request,
+                f"{version.label}: This request is already queued or running.",
+                messages.INFO,
+            )
+    if submitted:
+        modeladmin.message_user(
+            request,
+            f"{what} submitted for {submitted} file(s). Nothing was changed or published; the "
+            "outputs appear as previews on each file's page for you to review and promote.",
+            messages.SUCCESS,
+        )
+
+
+def _fmt(value, unit: str = "") -> str:
+    if value is None:
+        return "-"
+    return f"{value:g}{unit}" if isinstance(value, int | float) else str(value)[:64]
+
+
+def transcoding_html(version):
+    job = transcoding.latest_job(version)
+    if job is None:
+        return format_html("<p>{}</p>", "This file has not been transcoded in the background.")
+    rows = [
+        ("Status", _job_status(job)),
+        ("Outcome", job.subject_outcome or "-"),
+        ("Submitted", _when(job.created_at)),
+        ("Finished", _when(job.finished_at)),
+        ("Error code", job.error_code or "-"),
+    ]
+    head = format_html(
+        '<dl>{}</dl><p><a href="{}">{}</a></p>',
+        format_html_join("", "<dt>{}</dt><dd>{}</dd>", rows),
+        reverse("admin:jobs_processingjob_change", args=[job.pk]),
+        "Open the background job",
+    )
+    data = transcoding.summary(job)
+    if data is None:
+        if job.status in ("pending", "running"):
+            note = "In progress: no result yet."
+        elif job.status == "failed":
+            note = "The job failed, so there is no result. Run the action again to retry."
+        else:
+            note = "No usable result for this file."
+        return format_html("{}<p>{}</p>", head, note)
+    kind = "Normalised to the channel target" if data["normalize"] else "Converted, level kept"
+    source = (
+        f"{data['source_format']} {data['source_codec']}, "
+        f"{_fmt(data['source_duration_seconds'], ' s')}, {_fmt(data['source_sample_rate_hz'], ' Hz')}, "
+        f"{_fmt(data['source_channels'], ' ch')}"
+    )
+    out_rows = []
+    for o in data["outputs"]:
+        link = "-"
+        if o.artifact_id:
+            link = format_html(
+                '<a href="{}">{}</a> | <a href="{}">{}</a> ({})',
+                reverse("admin:assets_derivedartifact_change", args=[o.artifact_id]),
+                "Review and promote",
+                reverse("admin:assets_derivedartifact_media", args=[o.artifact_id]),
+                "Play",
+                o.artifact_state,
+            )
+        out_rows.append(
+            (
+                o.label,
+                o.content_type,
+                _fmt(o.duration_seconds, " s"),
+                _fmt(o.bitrate_kbps, " kbit/s"),
+                _fmt(o.size_bytes, " bytes"),
+                f"{_fmt(o.before.get('integrated_lufs'))} to {_fmt(o.after.get('integrated_lufs'), ' LUFS')}",
+                f"{_fmt(o.before.get('true_peak_dbtp'))} to {_fmt(o.after.get('true_peak_dbtp'), ' dBTP')}",
+                _fmt(o.gain_db, " dB"),
+                link,
+            )
+        )
+    outputs = format_html(
+        "<table><thead><tr>{}</tr></thead><tbody>{}</tbody></table>",
+        format_html_join(
+            "",
+            "<th>{}</th>",
+            (
+                (h,)
+                for h in (
+                    "Output",
+                    "Type",
+                    "Duration",
+                    "Bit rate",
+                    "Size",
+                    "Loudness before to after",
+                    "True peak before to after",
+                    "Gain",
+                    "Preview",
+                )
+            ),
+        ),
+        format_html_join(
+            "",
+            "<tr>{}</tr>",
+            (
+                (format_html_join("", "<td>{}</td>", ((c,) for c in row)),)
+                for row in out_rows
+            ),
+        ),
+    )
+    findings = data["findings"]
+    table = (
+        format_html(
+            "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead>"
+            "<tbody>{}</tbody></table>",
+            "Severity",
+            "Code",
+            "Message",
+            "Output",
+            format_html_join(
+                "",
+                "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+                ((f["severity"], f["code"], f["message"], f["path"]) for f in findings),
+            ),
+        )
+        if findings
+        else format_html("<p>{}</p>", "No findings.")
+    )
+    return format_html(
+        "{}<p><strong>{}</strong> {} | {} | {}</p><p>{}</p>{}<p><strong>{}</strong></p>{}"
+        "<p>{}</p>",
+        head,
+        kind,
+        data["profile"],
+        data["tool"],
+        source,
+        "Outputs are private previews. Nothing is published or replaced until a staff member "
+        "promotes one and publishes it.",
+        outputs,
+        "Findings",
+        table,
+        "Loudness is measured by FFmpeg (EBU R128). Listen before you promote.",
+    )

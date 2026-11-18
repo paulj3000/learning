@@ -8,7 +8,7 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-GUARDED = [ROOT / "processing" / "lai_processing", *sorted((ROOT / "lambda").glob("*_worker"))]
+GUARDED = [ROOT / "processing" / "lai_processing", ROOT / "lambda" / "jobs_worker"]
 
 
 def imports(path: Path) -> set[str]:
@@ -21,13 +21,27 @@ def imports(path: Path) -> set[str]:
     return names
 
 
-def test_pure_and_worker_packages_never_import_native_code():
+def test_pure_and_jobs_worker_packages_never_import_native_code():
     offenders = []
     for root in GUARDED:
         for path in root.rglob("*.py"):
             if "__pycache__" in path.parts:
                 continue
             bad = imports(path) & {"lai_native", "PIL", "subprocess", "ctypes"}
+            if bad:
+                offenders.append(f"{path.relative_to(ROOT)}: {sorted(bad)}")
+    assert offenders == []
+
+
+def test_native_workers_run_nothing_themselves():
+    offenders = []
+    for root in sorted((ROOT / "lambda").glob("*_worker")):
+        if root.name == "jobs_worker":
+            continue
+        for path in root.rglob("*.py"):
+            if "__pycache__" in path.parts:
+                continue
+            bad = imports(path) & {"PIL", "subprocess", "ctypes"}
             if bad:
                 offenders.append(f"{path.relative_to(ROOT)}: {sorted(bad)}")
     assert offenders == []

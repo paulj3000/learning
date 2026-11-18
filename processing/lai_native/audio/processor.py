@@ -29,7 +29,7 @@ import hashlib
 import io
 import math
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Final
 
@@ -50,6 +50,7 @@ from .profiles import (
     CONTENT_TYPES,
     SHORT_AUDIO_SECONDS,
     AudioTranscodeProfile,
+    LoudnessSpec,
     OutputSpec,
     check_profile,
 )
@@ -256,8 +257,13 @@ class AudioTranscoder:
         deadline: Deadline | None = None,
         cancelled: Callable[[], bool] | None = None,
         only_labels: tuple[str, ...] | None = None,
+        normalize: bool = True,
     ) -> TranscodeOutcome:
+        """`normalize=False` converts the format only: the level is measured and reported
+        (loudness mode `none`, gain 0) but never changed."""
         try:
+            if not normalize:
+                profile = replace(profile, loudness=LoudnessSpec("none"))
             check_profile(profile)
         except ValueError:
             raise TranscodeError("profile_invalid") from None
@@ -294,6 +300,7 @@ class AudioTranscoder:
         facts = {
             "processor_version": PROCESSOR_VERSION,
             "profile": {"id": profile.profile_id, "version": profile.version},
+            "normalize": normalize,
             "source": {**source, "sha256": _sha256(data), "size_bytes": len(data)},
             "duration_seconds": duration,
             "measured_before": measured_before,

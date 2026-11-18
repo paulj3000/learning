@@ -19,7 +19,7 @@ from collections.abc import Callable
 from typing import Final
 
 from lai_native.runtime import Deadline, ToolLimits, ToolSpec
-from lai_processing.contracts.profiles import ProcessingProfile
+from lai_processing.contracts.profiles import OptionSpec, ProcessingProfile
 from lai_processing.contracts.results import Finding, Severity, Verdict
 from lai_processing.core.errors import ErrorCode, ProcessingError
 from lai_processing.core.limits import MIB, ResourceLimits
@@ -93,7 +93,7 @@ def profile_for(profile: AudioTranscodeProfile) -> ProcessingProfile:
         version=profile.version,
         job_type=JOB_TYPE,
         description=f"Transcode and loudness-normalise {profile.category} audio: {profile.description}",
-        options={},
+        options={"normalize": OptionSpec("bool", default=True)},
         limits=AUDIO_TRANSCODE_LIMITS,
     )
 
@@ -148,6 +148,7 @@ class AudioTranscodeProcessor(Processor):
                 profile,
                 deadline=deadline,
                 cancelled=lambda: context.cancellation.cancelled,
+                normalize=bool(context.options.get("normalize", True)),
             )
         except TranscodeError as error:
             raise map_error(error) from None
@@ -174,6 +175,8 @@ class AudioTranscodeProcessor(Processor):
         metadata["outputs"] = [
             {**o.facts, "artifact_logical_id": o.label} for o in outcome.outputs
         ]
+        metadata["tool_versions"] = {"ffmpeg": str(outcome.facts["tool"]["version"] or "unknown")}
+        metadata["artifact_facts"] = {o.label: _artifact_facts(o.facts) for o in outcome.outputs}
         findings = tuple(
             Finding(
                 code=f.code,
@@ -189,6 +192,23 @@ class AudioTranscodeProcessor(Processor):
             findings=findings,
             warnings=(),
         )
+
+
+def _artifact_facts(facts: dict) -> dict:
+    """Scalar per-output facts that become the artifact row's safe metadata (<= 12 keys)."""
+    after = facts.get("measured_after") or {}
+    wanted = {
+        "duration_seconds": facts.get("duration_seconds"),
+        "bitrate_kbps": facts.get("bitrate_kbps"),
+        "sample_rate_hz": facts.get("sample_rate_hz"),
+        "channels": facts.get("channels"),
+        "integrated_lufs": after.get("integrated_lufs"),
+        "true_peak_dbtp": after.get("true_peak_dbtp"),
+        "sample_peak_dbfs": after.get("sample_peak_dbfs"),
+        "loudness_range_lu": after.get("loudness_range_lu"),
+        "mode": facts.get("mode"),
+    }
+    return {k: v for k, v in wanted.items() if v is not None}
 
 
 #: Authored finding text (never derived from the file).

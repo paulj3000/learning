@@ -46,14 +46,16 @@ def test_profiles_are_registered_with_the_engine(monkeypatch):
     assert all(p.job_type == jobs.KIND and p.limits.max_input_bytes == 20 * 1024 * 1024 for p in registry.profiles())
 
 
-def test_registration_needs_the_declared_job_type():
-    # Without Workstream A's declaration the registry refuses the processor, by design.
-    processor = audio_engine.AudioTranscodeProcessor(TOOL, runner=FakeFfmpeg())
-    registry = ProcessorRegistry()
-    if jobs.KIND in __import__("lai_processing.contracts.job_types", fromlist=["JOB_TYPES"]).JOB_TYPES:
-        pytest.skip("job type already declared by Workstream A")
-    with pytest.raises(ValueError):
-        registry.register(processor)
+def test_the_job_type_is_declared_with_the_roles_the_processor_writes(monkeypatch):
+    from lai_processing.contracts.job_types import JOB_TYPES
+
+    spec = JOB_TYPES[jobs.KIND]
+    roles = {r.role: r for r in spec.artifact_roles}
+    assert set(roles) == {audio_engine.ARTIFACT_TRANSCODED, audio_engine.ARTIFACT_REPORT}
+    assert roles["audio.transcoded"].content_types == ("audio/ogg", "audio/mpeg") or set(
+        roles["audio.transcoded"].content_types
+    ) == {"audio/ogg", "audio/mpeg"}
+    assert roles["audio.transcoded"].max_count >= 2 and roles["audio.report"].max_count == 1
 
 
 def test_success_writes_artifacts_under_the_attempt_prefix_and_never_touches_the_input(monkeypatch):
