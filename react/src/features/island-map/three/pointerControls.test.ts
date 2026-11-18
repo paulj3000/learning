@@ -336,3 +336,56 @@ describe('attachPointerControls running & sprinting', () => {
     expect(controller.gait).toBe('run');
   });
 });
+
+describe('touchDrag as a pure clamp (SC-R11)', () => {
+  it('is still at zero and never exceeds unit length, however far the drag goes', () => {
+    expect(touchDrag(0, 0)).toEqual({ x: 0, y: 0, sprint: false });
+    for (const [dx, dy] of [[500, 0], [0, -900], [300, 400], [-1e6, 1e6]] as const) {
+      const { x, y } = touchDrag(dx, dy);
+      expect(Math.hypot(x, y)).toBeLessThanOrEqual(1 + 1e-9);
+    }
+  });
+
+  it('keeps the direction of the drag and is symmetric', () => {
+    const right = touchDrag(30, 0);
+    const left = touchDrag(-30, 0);
+    expect(left.x).toBeCloseTo(-right.x);
+    const diagonal = touchDrag(20, 20);
+    expect(diagonal.x).toBeCloseTo(diagonal.y);
+    expect(touchDrag(0, 80).sprint).toBe(true);
+  });
+
+  it('grows with the drag, so a smaller drag is always a gentler pace', () => {
+    let last = 0;
+    for (let distance = 1; distance <= 100; distance += 1) {
+      const magnitude = Math.hypot(touchDrag(distance, 0).x, touchDrag(distance, 0).y);
+      expect(magnitude).toBeGreaterThanOrEqual(last);
+      last = magnitude;
+    }
+  });
+});
+
+describe('attachPointerControls keyboard access (SC-R11)', () => {
+  it('leaves Tab and Escape alone, so keyboard focus can leave the canvas and pointer lock can end', () => {
+    const { controls, dispose } = (() => {
+      const renderer = { domElement: document.createElement('canvas') } as unknown as Parameters<
+        typeof attachPointerControls
+      >[0];
+      const controller = {
+        pressJump: vi.fn(),
+        clearJumpInput: vi.fn(),
+        update: vi.fn(),
+        applyLookDelta: vi.fn(),
+      } as unknown as Parameters<typeof attachPointerControls>[1];
+      const attached = attachPointerControls(renderer, controller);
+      return { controls: attached, dispose: () => attached.dispose() };
+    })();
+    for (const key of ['Tab', 'Escape']) {
+      const event = new KeyboardEvent('keydown', { key, cancelable: true, bubbles: true });
+      window.dispatchEvent(event);
+      expect(event.defaultPrevented, key).toBe(false);
+    }
+    void controls;
+    dispose();
+  });
+});
