@@ -255,7 +255,9 @@ def _send(job_id) -> str:
         )
         if job is None:
             return "skipped"  # already sent, finished, or being sent by another process
-        refusal = workloads.refusal_code(job.kind, backend="sqs")
+        refusal = workloads.refusal_code(
+            job.kind, variant=workloads.dispatch_variant(job.kind, job.payload), backend="sqs"
+        )
         if refusal is not None:
             # The control was switched off (or the queue unset) after this job was committed:
             # emit nothing (the RELEASE invariant) and finish the job so it is not stranded.

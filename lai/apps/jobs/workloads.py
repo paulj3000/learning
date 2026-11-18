@@ -144,6 +144,26 @@ def refusal_code(
     return None
 
 
+def dispatch_variant(kind: str, payload: dict) -> str | None:
+    """The variant a committed job was submitted under, derived from its request's profile.
+
+    Only `asset.optimize` has variants (`meshopt`, `ktx2`). A profile that maps to no variant
+    returns an unknown name, which `refusal_code` refuses (`workload_disabled`): fail closed, so a
+    switched-off or unrecognised profile can never be dispatched under the other variant's
+    control."""
+    workload = WORKLOADS.get(kind)
+    if workload is None or not workload.variants:
+        return None
+    from lai_processing.processors.gltf.compression.optimize_contract import variant_for_profile
+
+    profile = (payload or {}).get("profile") if isinstance(payload, dict) else None
+    try:
+        found = variant_for_profile(profile["profile_id"], int(profile["version"]))
+    except (KeyError, TypeError, ValueError):
+        found = None
+    return found.name if found is not None else "unknown"
+
+
 def workload_enabled(kind: str, *, variant: str | None = None) -> bool:
     """True when `kind` can be submitted now: not a workload, or its control is on and (sqs)
     its queue URL is configured. The jobs backend must also be on (not `disabled`)."""
