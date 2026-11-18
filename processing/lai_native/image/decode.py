@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import io
+import re
 import struct
 import warnings
 from dataclasses import dataclass, field
 
 from ._pil import Image, ImageOps
 from .errors import ImageError
-from .limits import MAX_ICC_BYTES, MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS, MAX_IMAGE_SIDE
+from .limits import (
+    MAX_ICC_BYTES,
+    MAX_IMAGE_BYTES,
+    MAX_IMAGE_PIXELS,
+    MAX_IMAGE_SIDE,
+    MAX_JPEG_SCANS,
+    MAX_JPEG_SEGMENTS,
+)
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _PIL_FORMAT = {"png": "PNG", "jpeg": "JPEG", "webp": "WEBP"}
@@ -28,6 +36,48 @@ def sniff_format(head: bytes) -> str | None:
     return None
 
 
+#: The next real marker in entropy-coded data: 0xFF followed by anything but a stuffed zero, a
+#: restart marker or a fill byte.
+_NEXT_MARKER = re.compile(rb"\xff[^\x00\xd0-\xd7\xff]")
+_NO_LENGTH = frozenset({0x01, 0xD8, *range(0xD0, 0xD8)})
+
+
+def count_jpeg_scans(data: bytes, limit: int = MAX_JPEG_SCANS) -> int:
+    """The number of scans (SOS segments) in a JPEG, counting no further than `limit + 1`.
+
+    A pure-Python walk of the marker structure, run before Pillow touches the file. It never
+    reads pixels: segment lengths are followed and entropy-coded data is skipped with one regular
+    expression search per scan. A structure it cannot follow stops the walk (Pillow then decides
+    whether the file is valid)."""
+    position, scans, segments, size = 2, 0, 0, len(data)
+    while position + 4 <= size and segments < MAX_JPEG_SEGMENTS:
+        segments += 1
+        if data[position] != 0xFF:
+            break
+        marker = data[position + 1]
+        if marker == 0xFF:
+            position += 1
+            continue
+        if marker == 0xD9:
+            break
+        if marker in _NO_LENGTH:
+            position += 2
+            continue
+        (length,) = struct.unpack_from(">H", data, position + 2)
+        if length < 2:
+            break
+        position += 2 + length
+        if marker == 0xDA:
+            scans += 1
+            if scans > limit:
+                return scans
+            found = _NEXT_MARKER.search(data, position)
+            if found is None:
+                break
+            position = found.start()
+    return scans
+
+
 @dataclass
 class DecodedImage:
     """Pixels after decode and orientation, plus value-free facts about the source."""
@@ -38,6 +88,8 @@ class DecodedImage:
     height: int
     icc_profile: bytes | None
     facts: dict = field(default_factory=dict)
+    #: Whether the EXIF orientation was applied to `image` (see `decode_image`).
+    orientation_applied: bool = True
 
 
 def _bit_depth(data: bytes, file_format: str) -> int | None:
@@ -52,8 +104,12 @@ def _png_header_size(data: bytes) -> tuple[int, int] | None:
     return None
 
 
-def decode_image(data: bytes, *, first_frame_only: bool = False) -> DecodedImage:
+def decode_image(
+    data: bytes, *, first_frame_only: bool = False, apply_orientation: bool = True
+) -> DecodedImage:
     """Decode `data` to an oriented image, or raise `ImageError`.
+
+    `apply_orientation=False` leaves the pixels as stored (glTF textures are UV mapped).
 
     Order: input byte size, format from bytes, Pillow header parse restricted to that format
     (pixel and side limits are checked on the parsed header, before `load()`), animation rule,
@@ -75,6 +131,8 @@ def decode_image(data: bytes, *, first_frame_only: bool = False) -> DecodedImage
             or size[0] * size[1] > MAX_IMAGE_PIXELS
         ):
             raise ImageError("image_too_large")
+    if file_format == "jpeg" and count_jpeg_scans(bytes(data)) > MAX_JPEG_SCANS:
+        raise ImageError("too_many_scans")
     with warnings.catch_warnings():
         warnings.simplefilter("error", Image.DecompressionBombWarning)
         try:
@@ -111,7 +169,7 @@ def decode_image(data: bytes, *, first_frame_only: bool = False) -> DecodedImage
     if image.size != (width, height):
         raise ImageError("malformed_image")
     orientation = facts["orientation"]
-    if orientation and orientation != 1:
+    if apply_orientation and orientation and orientation != 1:
         try:
             oriented = ImageOps.exif_transpose(image)
         except Exception:  # noqa: BLE001
@@ -125,6 +183,7 @@ def decode_image(data: bytes, *, first_frame_only: bool = False) -> DecodedImage
         height=height,
         icc_profile=icc,
         facts=facts,
+        orientation_applied=apply_orientation,
     )
 
 

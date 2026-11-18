@@ -91,7 +91,11 @@ def convert_many(data: bytes, profiles: Sequence[ImageProfile]) -> ConversionRep
     """Decode once, then prepare and encode each profile. Order and bytes are deterministic."""
     if not 1 <= len(profiles) <= MAX_OUTPUTS:
         raise ImageError("invalid_profile")
-    decoded = decode_image(data, first_frame_only=all(p.first_frame_only for p in profiles))
+    decoded = decode_image(
+        data,
+        first_frame_only=all(p.first_frame_only for p in profiles),
+        apply_orientation=not any(p.ignore_orientation for p in profiles),
+    )
     return convert_decoded(decoded, profiles)
 
 
