@@ -139,7 +139,8 @@ export const ISLAND_DISCOVERIES: DiscoveryDefinition[] = [
 
   // --- Storykeeper Castle, the Secret Chamber (SC-R08-02) ---
   // Two quiet finds inside the room the nook opens. Gated on the nook, so a child cannot reach them
-  // before the chamber exists for them. They grant nothing: the only record is the discovery itself
+  // before the chamber exists for them. They grant nothing but the record (Final F: the mouse door also
+  // pays one optional keepsake by an existing DISCOVERY reward rule): the discovery itself
   // and its world change (which the castle's ambient events read, like the nook's).
   {
     id: 'castle-chamber-star',

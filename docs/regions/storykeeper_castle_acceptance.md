@@ -143,7 +143,10 @@ AWS) unless a line says otherwise.
    `number-input` step. Acceptable?
 7. Draw-call estimate is now 300 of 300 (SC-R08-02): raise the budget or merge decor before any more
    castle scenery, including optional chamber platforms. Chamber proposals not built: a graded puzzle
-   at the sealed round door, a second hidden Storybook page, a reward for a find.
+   at the sealed round door and a second hidden Storybook page (deferred, needs owner curriculum
+   approval; see the reboot roadmap section 8). Final F built one optional reward: the mouse door find
+   grants `tiny-brass-knob` once through the existing DISCOVERY reward rule (no new pedestal; the star
+   find stays quiet).
 8. SC-R07 deviations: the six gold plates removed for the draw budget; Hall of Heroes 3D plates
    deferred (scenery 159 of 160, draws then 298 of 300, now 300): raise the budget or merge decor.
 9. Earlier Secret Door finishers get no `secret-door-key` without an approved backfill.

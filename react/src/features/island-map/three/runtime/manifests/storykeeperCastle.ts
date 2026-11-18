@@ -50,6 +50,7 @@ import {
   type WallMountedSpot,
 } from '../../storykeeperCastleRegion';
 import { facingIntoRoom, wallPanelPlacements } from '../sceneLayout';
+import { box } from './castleRooms/castleVisualKit';
 import {
   CASTLE_PAD_ZONES,
   CASTLE_VIEW_ZONES,
@@ -354,6 +355,54 @@ function buildLights(wallHeight: number): readonly LightSpec[] {
   ];
 }
 
+/**
+ * The wall panels for ceilings at `wallHeight` (SC-R11). The `wall-stone` plane is authored 3 m
+ * tall and is a plain stone face with no door or frame in it, so only its height scales. At the
+ * default the shipped positions are returned untouched.
+ */
+function wallPanelPositionsFor(wallHeight: number): ClusterPosition[] {
+  if (wallHeight === WALL_HEIGHT) return WALL_PANEL_POSITIONS;
+  return WALL_PANEL_POSITIONS.map((position) => ({
+    ...position,
+    scale: { ...position.scale, y: wallHeight / WALL_HEIGHT },
+  }));
+}
+
+/** The archway kit piece's lintel tops out at this height (`archway` in the asset generator). */
+export const ARCHWAY_TOP = 3;
+/** The archway lintel's stone colour (`CASTLE.stoneDark`), so a header course reads as the same stone. */
+const ARCH_HEADER_COLOR = 0x6d7380;
+
+/**
+ * Taller ceilings leave a gap above each archway, because the `archway` piece is 3 m tall
+ * (SC-R11). A plain stone course over the lintel closes it. The door opening is untouched (the
+ * course starts above the lintel), it adds no collider, and nothing is added at the default.
+ * The secret passage's course is built with the passage itself.
+ */
+function archwayHeaders(wallHeight: number): ScenerySpec[] {
+  if (wallHeight <= ARCHWAY_TOP) return [];
+  return ARCHWAYS.map((archway) => ({
+    ...box(
+      `castle-arch-header:${archway.id}`,
+      ARCH_HEADER_COLOR,
+      archway.gap.minX,
+      archway.gap.maxX,
+      archway.gap.minZ,
+      archway.gap.maxZ,
+      ARCHWAY_TOP,
+      wallHeight,
+    ),
+    static: true,
+    ...(archway.id === SECRET_ARCHWAY_ID
+      ? {
+          requirements: [
+            { type: 'DISCOVERY_PRESENT' as const, discoveryId: SECRET_PASSAGE_DISCOVERY_ID },
+          ],
+        }
+      : {}),
+  }));
+}
+
 function buildScenery(wallHeight: number): readonly ScenerySpec[] {
   return [
   {
@@ -368,7 +417,12 @@ function buildScenery(wallHeight: number): readonly ScenerySpec[] {
     assetId: 'ceiling-tile',
     positions: slabPositions(wallHeight + CEILING_SLAB_BOTTOM_OFFSET),
   },
-  { kind: 'CLUSTER', id: 'room-walls', assetId: 'wall-stone', positions: WALL_PANEL_POSITIONS },
+  {
+    kind: 'CLUSTER',
+    id: 'room-walls',
+    assetId: 'wall-stone',
+    positions: wallPanelPositionsFor(wallHeight),
+  },
   /*
     Seven archways, placed individually rather than instanced: `archway` is
     multi-part (a one-mesh archway cannot have a hole in it) and an instanced
@@ -412,6 +466,7 @@ function buildScenery(wallHeight: number): readonly ScenerySpec[] {
   },
   // Procedural decor from the visual pass (SC-R02): dais, beams, candles. Never interactive.
   ...castleDecor(wallHeight),
+  ...archwayHeaders(wallHeight),
   // The doors themselves, so the way out is a thing you can see from inside.
   {
     kind: 'LOD_PLACEMENTS',

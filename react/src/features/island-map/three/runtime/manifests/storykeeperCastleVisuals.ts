@@ -20,7 +20,7 @@ import { rect, type RoomLook, type RoomVisuals } from './castleRooms/castleVisua
 import { CHARACTER_GALLERY_VISUALS } from './castleRooms/characterGallery';
 import { COSTUME_ROOM_VISUALS } from './castleRooms/costumeRoom';
 import { EAST_CORRIDOR_VISUALS } from './castleRooms/eastCorridor';
-import { ENTRY_HALL_VISUALS, ENTRY_MURAL_PARCHMENT } from './castleRooms/entryHall';
+import { ENTRY_MURAL_PARCHMENT, entryHallVisuals } from './castleRooms/entryHall';
 import { greatLibraryVisuals, STORYBOOK_PART_IDS } from './castleRooms/greatLibrary';
 import { ILLUSTRATION_STUDIO_VISUALS } from './castleRooms/illustrationStudio';
 import { SETTING_TOWER_VISUALS } from './castleRooms/settingTower';
@@ -102,7 +102,7 @@ const SHARED_MATERIALS: readonly MaterialPresetSpec[] = [
 function roomVisualsFor(wallHeight: number): readonly RoomVisuals[] {
   return [
   greatLibraryVisuals(wallHeight),
-  ENTRY_HALL_VISUALS,
+  entryHallVisuals(wallHeight),
   STORY_HALL_VISUALS,
   CHARACTER_GALLERY_VISUALS,
   COSTUME_ROOM_VISUALS,

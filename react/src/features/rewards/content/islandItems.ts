@@ -191,6 +191,15 @@ export const ISLAND_ITEMS: ItemDefinition[] = [
     rarity: 'RARE',
     setId: 'castle-keepsakes',
   },
+  // Final F: a small optional keepsake for the Secret Chamber's mouse door. It is in no set, so it
+  // adds no pedestal and no gap: the Trophy Room's six pedestals stay the castle keepsakes.
+  {
+    id: 'tiny-brass-knob',
+    displayName: 'Tiny Brass Knob',
+    description: 'A knob as small as a pea, from the little mouse door in the Secret Chamber.',
+    category: 'KEEPSAKE',
+    rarity: 'COMMON',
+  },
 ];
 
 /**
@@ -313,6 +322,14 @@ export const ISLAND_REWARD_TABLE: RewardTable = [
     trigger: { type: 'DISCOVERY', discoveryKey: 'castle-tapestry-stair' },
     itemIds: ['blank-page-storybook'],
     message: 'You carry the book with the blank page down the stair with you.',
+  },
+  {
+    id: 'reward-castle-chamber-mouse-door',
+    // Final F: paid by the same server path as every discovery rule (`apps/progression/discoveries.py`),
+    // once per child. The star find stays a quiet observation.
+    trigger: { type: 'DISCOVERY', discoveryKey: 'castle-chamber-mouse-door' },
+    itemIds: ['tiny-brass-knob'],
+    message: 'The little door lets you keep its tiny brass knob.',
   },
   {
     id: 'reward-quiet-places',

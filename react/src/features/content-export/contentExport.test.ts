@@ -125,9 +125,9 @@ describe('preservation of the existing content', () => {
       wonderWallQuestions: 4,
       stories: 5,
       quests: 13, // 9 + the three Great Storybook quests (SC-R04) + the Pathfinder follow-up
-      items: 36, // + the Great Storybook seal, + three castle keepsakes (SC-R07-01)
+      items: 37, // + the Great Storybook seal, + three castle keepsakes (SC-R07-01), + the mouse door knob (Final F)
       collectibleSets: 3, // + castle-keepsakes (SC-R07-01)
-      rewardRules: 29, // + one seal rule per band's Great Storybook quest, + three keepsake rules
+      rewardRules: 30, // + one seal rule per band's Great Storybook quest, + three keepsake rules, + the mouse door knob
       npcs: 8, // + Professor Orion (SC-R05-03)
       discoveries: 8, // + the Secret Chamber's two quiet finds (SC-R08-02)
       checkpoints: 31,

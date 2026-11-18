@@ -195,6 +195,13 @@
       "setId": "castle-keepsakes"
     },
     {
+      "category": "KEEPSAKE",
+      "description": "A knob as small as a pea, from the little mouse door in the Secret Chamber.",
+      "displayName": "Tiny Brass Knob",
+      "id": "tiny-brass-knob",
+      "rarity": "COMMON"
+    },
+    {
       "category": "COLLECTIBLE",
       "description": "A thin, pale shell that glows faintly when you hold it up to a light.",
       "displayName": "Lantern Shell",
@@ -466,6 +473,17 @@
       "message": "You carry the book with the blank page down the stair with you.",
       "trigger": {
         "discoveryKey": "castle-tapestry-stair",
+        "type": "DISCOVERY"
+      }
+    },
+    {
+      "id": "reward-castle-chamber-mouse-door",
+      "itemIds": [
+        "tiny-brass-knob"
+      ],
+      "message": "The little door lets you keep its tiny brass knob.",
+      "trigger": {
+        "discoveryKey": "castle-chamber-mouse-door",
         "type": "DISCOVERY"
       }
     },

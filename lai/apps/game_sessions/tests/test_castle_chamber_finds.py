@@ -2,7 +2,8 @@
 
 They follow the tapestry nook's pattern: the server knows the ids from the verified content export,
 accepts them only once the nook is found (a locked find writes nothing), persists them per child,
-and a replay changes nothing. Finding one grants nothing: no item, no reward, no quest.
+and a replay changes nothing. Finding the star grants nothing: no item, no reward, no quest. The
+mouse door pays one optional keepsake (Final F) through the existing DISCOVERY reward rule, once.
 """
 
 import json
@@ -20,6 +21,10 @@ FINDS = {
     "castle-chamber-star": "CASTLE_CHAMBER_STAR_FOUND",
     "castle-chamber-mouse-door": "CASTLE_CHAMBER_MOUSE_DOOR_FOUND",
 }
+
+
+MOUSE_DOOR = "castle-chamber-mouse-door"
+KNOB = "tiny-brass-knob"
 
 
 def url(child) -> str:
@@ -52,8 +57,9 @@ def test_a_find_is_locked_until_the_nook_is_found_and_writes_nothing(a, discover
     assert client.get(url(child)).json() == {"discoveries": []}
 
 
-@pytest.mark.parametrize("discovery_id,key", list(FINDS.items()))
+@pytest.mark.parametrize("discovery_id,key", [("castle-chamber-star", FINDS["castle-chamber-star"])])
 def test_a_find_after_the_nook_is_persisted_and_grants_only_its_record(a, discovery_id, key):
+
     client, child = a
     assert post(client, child, {"discoveryId": NOOK}).status_code == 201
     items_before = InventoryItem.objects.for_child(child).count()
@@ -98,3 +104,47 @@ def test_a_find_by_one_child_does_not_reach_a_sibling(treasure, api):
         post(client, families.a2, {"discoveryId": "castle-chamber-star"}).json()["status"]
         == "LOCKED"
     )
+
+
+def knob_count(child) -> int:
+    return InventoryItem.objects.for_child(child).filter(item__item_id=KNOB).count()
+
+
+def test_the_mouse_door_pays_its_keepsake_once_and_a_replay_pays_nothing(a):
+    client, child = a
+    post(client, child, {"discoveryId": NOOK})
+    assert knob_count(child) == 0
+    first = post(client, child, {"discoveryId": MOUSE_DOOR})
+    assert first.status_code == 201
+    body = first.json()
+    assert body["status"] == "FOUND_NOW"
+    assert body["newItemIds"] == [KNOB]
+    assert body["rewardMessages"]
+    assert knob_count(child) == 1
+    granted = GrantedRule.objects.for_child(child).filter(
+        rule__rule_id="reward-castle-chamber-mouse-door"
+    )
+    assert granted.count() == 1
+    again = post(client, child, {"discoveryId": MOUSE_DOOR})
+    assert again.json() == {"discoveryId": MOUSE_DOOR, "status": "ALREADY_FOUND"}
+    assert knob_count(child) == 1
+
+
+def test_a_locked_mouse_door_pays_nothing_and_the_star_still_pays_nothing(a):
+    client, child = a
+    assert post(client, child, {"discoveryId": MOUSE_DOOR}).json()["status"] == "LOCKED"
+    assert knob_count(child) == 0
+    post(client, child, {"discoveryId": NOOK})
+    items = InventoryItem.objects.for_child(child).count()
+    assert not post(client, child, {"discoveryId": "castle-chamber-star"}).json().get("newItemIds")
+    assert InventoryItem.objects.for_child(child).count() == items
+    assert knob_count(child) == 0
+
+
+def test_the_knob_is_per_child_and_optional(treasure, api):
+    families = treasure.families
+    client = api(families.a)
+    post(client, families.a1, {"discoveryId": NOOK})
+    post(client, families.a1, {"discoveryId": MOUSE_DOOR})
+    assert knob_count(families.a1) == 1
+    assert knob_count(families.a2) == 0

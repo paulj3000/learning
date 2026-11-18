@@ -251,8 +251,9 @@ describe('ISLAND_REWARD_TABLE', () => {
         (rule) => (rule.trigger as { type: 'DISCOVERY'; discoveryKey: string }).discoveryKey,
       ),
     );
-    // SC-R08-02: the Secret Chamber's two quiet finds are observation only, and grant nothing by design.
-    const QUIET_FINDS = new Set(['castle-chamber-star', 'castle-chamber-mouse-door']);
+    // SC-R08-02: the Secret Chamber's star is observation only and grants nothing by design. The
+    // mouse door grants one optional keepsake (Final F), so it is not quiet and must be rewarded.
+    const QUIET_FINDS = new Set(['castle-chamber-star']);
     for (const discovery of ISLAND_DISCOVERIES) {
       if (QUIET_FINDS.has(discovery.id)) {
         expect(rewardedKeys.has(discovery.id), `${discovery.id} must grant nothing`).toBe(false);
@@ -287,6 +288,32 @@ describe('ISLAND_REWARD_TABLE', () => {
         rule.id,
       ).toEqual([]);
     }
+  });
+});
+
+describe('chamber mouse door keepsake (Final F)', () => {
+  it('is one optional discovery rule for one item outside every set', () => {
+    const rules = ISLAND_REWARD_TABLE.filter((rule) => rule.itemIds.includes('tiny-brass-knob'));
+    expect(rules).toHaveLength(1);
+    expect(rules[0]!.trigger).toEqual({
+      type: 'DISCOVERY',
+      discoveryKey: 'castle-chamber-mouse-door',
+    });
+    expect(rules[0]!.itemIds).toEqual(['tiny-brass-knob']);
+    const item = findItem('tiny-brass-knob');
+    expect(item?.setId).toBeUndefined();
+    expect(item?.hidden).toBeUndefined();
+    expect(CASTLE_KEEPSAKE_IDS as readonly string[]).not.toContain('tiny-brass-knob');
+    expect(findCollectibleSet('castle-keepsakes')?.itemIds).not.toContain('tiny-brass-knob');
+    expect(`${item?.displayName} ${item?.description} ${rules[0]!.message}`).not.toMatch(/\u2014|\u2013/);
+  });
+
+  it('leaves the star find granting nothing', () => {
+    expect(
+      ISLAND_REWARD_TABLE.some(
+        (rule) => rule.trigger.type === 'DISCOVERY' && rule.trigger.discoveryKey === 'castle-chamber-star',
+      ),
+    ).toBe(false);
   });
 });
 
