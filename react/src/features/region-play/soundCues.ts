@@ -64,13 +64,25 @@ export function playCue(cue: SoundCue, at?: SoundPlace): void {
 
 /**
  * The moments a server-confirmed puzzle solve raises: `puzzleComplete` for any first solve, and
- * `restoration` for a COLLECT_OBJECT one. Nothing for a wrong answer, an already solved puzzle or
+ * `restoration` for a COLLECT_OBJECT one, plus `questComplete` (the finale sound and music) when
+ * the solve finished a quest, as a talk or chest answer already does. Nothing for a wrong answer, an already solved puzzle or
  * a practice answer. A region that maps these moments to no cue stays silent (Treasure Rush).
  */
 export function puzzleSolveCues(
   kind: string | undefined,
-  outcome: { correct: boolean; solvedNow: boolean; practice?: boolean; alreadySolved?: boolean } | undefined,
+  outcome:
+    | {
+        correct: boolean;
+        solvedNow: boolean;
+        practice?: boolean;
+        alreadySolved?: boolean;
+        questUpdates?: readonly { justCompleted: boolean }[];
+      }
+    | undefined,
 ): SoundCue[] {
   if (!outcome?.correct || !outcome.solvedNow || outcome.practice || outcome.alreadySolved) return [];
-  return kind === 'COLLECT_OBJECT' ? ['puzzleComplete', 'restoration'] : ['puzzleComplete'];
+  const cues: SoundCue[] = ['puzzleComplete'];
+  if (kind === 'COLLECT_OBJECT') cues.push('restoration');
+  if (outcome.questUpdates?.some((update) => update.justCompleted)) cues.push('questComplete');
+  return cues;
 }

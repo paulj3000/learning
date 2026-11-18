@@ -44,6 +44,13 @@ describe('puzzleSolveCues', () => {
     expect(puzzleSolveCues('CHOOSE_ANSWER', first)).toEqual(['puzzleComplete']);
     expect(puzzleSolveCues('COLLECT_OBJECT', first)).toEqual(['puzzleComplete', 'restoration']);
   });
+  it('adds questComplete when the solve finished the quest (the Ignis return)', () => {
+    const done = { ...first, questUpdates: [{ justCompleted: true }] };
+    expect(puzzleSolveCues('RETURN_TO_NPC', done)).toEqual(['puzzleComplete', 'questComplete']);
+    expect(puzzleSolveCues('RETURN_TO_NPC', { ...first, questUpdates: [{ justCompleted: false }] })).toEqual([
+      'puzzleComplete',
+    ]);
+  });
   it('is silent for wrong, practice, already solved or no outcome', () => {
     expect(puzzleSolveCues('CHOOSE_ANSWER', { ...first, correct: false, solvedNow: false })).toEqual([]);
     expect(puzzleSolveCues('CHOOSE_ANSWER', { ...first, solvedNow: false, practice: true })).toEqual([]);
