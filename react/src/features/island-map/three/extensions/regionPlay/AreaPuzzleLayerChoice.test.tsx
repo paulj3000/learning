@@ -8,6 +8,7 @@ import { firstVariantIndex } from '../../../../region-play/areaPuzzles';
 import type { RegionPlayInteractionEvent } from '../../../../region-play/regionPlayInteractions';
 import { choiceBootstrap } from '../../../../../test/choicePuzzleFixtures';
 import { FIREPEAK_SESSION, puzzleOutcomeJson } from '../../../../../test/firepeakFixtures';
+import { setSoundSink, type SoundCue } from '../../../../region-play/soundCues';
 import { AreaPuzzleLayer } from './AreaPuzzleLayer';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 
@@ -60,6 +61,28 @@ function firstPrompt(puzzleId: string) {
   const index = firstVariantIndex(FIREPEAK_SESSION, puzzleId, 2);
   return ['What is 3 + 4?', 'What is 2 + 5?'][index];
 }
+
+describe('switch sounds', () => {
+  afterEach(() => setSoundSink(null));
+
+  it('plays switchFlip when a switch is added to the order, from the scene or the panel', async () => {
+    const heard: SoundCue[] = [];
+    setSoundSink((cue) => heard.push(cue));
+    const { open } = setup();
+    open('fh-order-1', 'fh-switch-blue');
+    expect(heard).toEqual(['switchFlip']);
+    await userEvent.click(screen.getByRole('button', { name: /Add: star, Sun switch/ }));
+    expect(heard).toEqual(['switchFlip', 'switchFlip']);
+  });
+
+  it('is silent for a choose-answer touch', () => {
+    const heard: SoundCue[] = [];
+    setSoundSink((cue) => heard.push(cue));
+    const { open } = setup();
+    open('fh-choose-1', 'fh-stone-b');
+    expect(heard).toEqual([]);
+  });
+});
 
 describe('choice puzzles in the layer', () => {
   it('opens the deterministic first variant and sends {variantId, choice} to the server', async () => {

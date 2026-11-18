@@ -61,3 +61,16 @@ export function playCue(cue: SoundCue, at?: SoundPlace): void {
     // Sound is decoration: a broken player must never interrupt play.
   }
 }
+
+/**
+ * The moments a server-confirmed puzzle solve raises: `puzzleComplete` for any first solve, and
+ * `restoration` for a COLLECT_OBJECT one. Nothing for a wrong answer, an already solved puzzle or
+ * a practice answer. A region that maps these moments to no cue stays silent (Treasure Rush).
+ */
+export function puzzleSolveCues(
+  kind: string | undefined,
+  outcome: { correct: boolean; solvedNow: boolean; practice?: boolean; alreadySolved?: boolean } | undefined,
+): SoundCue[] {
+  if (!outcome?.correct || !outcome.solvedNow || outcome.practice || outcome.alreadySolved) return [];
+  return kind === 'COLLECT_OBJECT' ? ['puzzleComplete', 'restoration'] : ['puzzleComplete'];
+}

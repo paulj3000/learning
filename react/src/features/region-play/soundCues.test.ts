@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { playCue, setSoundSink, type SoundCue } from './soundCues';
+import { playCue, puzzleSolveCues, setSoundSink, type SoundCue } from './soundCues';
 
 afterEach(() => setSoundSink(null));
 
@@ -35,5 +35,19 @@ describe('sound cues (TR-19, the moments only)', () => {
     setSoundSink(null);
     playCue('replayWin');
     expect(sink).not.toHaveBeenCalled();
+  });
+});
+
+describe('puzzleSolveCues', () => {
+  const first = { correct: true, solvedNow: true, practice: false, alreadySolved: false };
+  it('raises puzzleComplete for a first solve and restoration for a COLLECT_OBJECT one', () => {
+    expect(puzzleSolveCues('CHOOSE_ANSWER', first)).toEqual(['puzzleComplete']);
+    expect(puzzleSolveCues('COLLECT_OBJECT', first)).toEqual(['puzzleComplete', 'restoration']);
+  });
+  it('is silent for wrong, practice, already solved or no outcome', () => {
+    expect(puzzleSolveCues('CHOOSE_ANSWER', { ...first, correct: false, solvedNow: false })).toEqual([]);
+    expect(puzzleSolveCues('CHOOSE_ANSWER', { ...first, solvedNow: false, practice: true })).toEqual([]);
+    expect(puzzleSolveCues('COLLECT_OBJECT', { ...first, solvedNow: false, alreadySolved: true })).toEqual([]);
+    expect(puzzleSolveCues('COLLECT_OBJECT', undefined)).toEqual([]);
   });
 });

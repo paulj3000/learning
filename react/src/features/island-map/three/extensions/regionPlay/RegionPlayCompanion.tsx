@@ -34,7 +34,7 @@ import {
   hasSceneAudio,
   useTreasureRushAudio,
 } from '../../../../region-play/audio/useTreasureRushAudio';
-import { playCue, type SoundCue } from '../../../../region-play/soundCues';
+import { playCue, puzzleSolveCues, type SoundCue } from '../../../../region-play/soundCues';
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import type { RegionPlaySceneApi } from './regionPlayScene';
@@ -351,6 +351,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     revealedPickup.current = lastPickup;
     if (lastPickup.pickedUp && lastPickup.newItems.length > 0) {
       playCue('keyPickup', { entityId: lastPickup.entityId });
+      playCue('crystalCollect', { entityId: lastPickup.entityId });
       react('cheer');
       setFound(lastPickup);
       void refreshProgress();
@@ -574,8 +575,16 @@ function RegionPlayGame(props: LocationCompanionProps) {
     ? parsePuzzleParams(currentStage.kind, currentStage.parameters)
     : null;
 
+  /** Solves through the play API and raises the confirmed-solve sounds (never for practice). */
+  async function solveWithSound(puzzleId: string, submission: JsonObject) {
+    const outcome = await solvePuzzle(puzzleId, submission);
+    const kind = state.bootstrap?.puzzles.find((p) => p.puzzleId === puzzleId)?.kind;
+    for (const cue of puzzleSolveCues(kind, outcome)) playCue(cue);
+    return outcome;
+  }
+
   async function returnToNpc(puzzleId: string, title: string) {
-    const outcome = await solvePuzzle(puzzleId, {});
+    const outcome = await solveWithSound(puzzleId, {});
     if (!outcome?.correct) return;
     const params = state.bootstrap?.puzzles.find((p) => p.puzzleId === puzzleId);
     const parsed = params ? parsePuzzleParams(params.kind, params.parameters) : null;
@@ -780,7 +789,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
           event={areaEvent}
           busy={state.busy === 'solvePuzzle'}
           solvePuzzle={async (puzzleId, submission) => {
-            const outcome = await solvePuzzle(puzzleId, submission as JsonObject);
+            const outcome = await solveWithSound(puzzleId, submission as JsonObject);
             if (outcome?.correct) void refreshProgress();
             return outcome;
           }}
