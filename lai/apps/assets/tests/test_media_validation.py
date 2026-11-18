@@ -77,6 +77,7 @@ def test_a_non_power_of_two_image_passes_with_a_warning():
         (b"\xff\xfb\x00\x00garbage", "mp3_no_frames"),
         (ogg_bytes(end=False), "ogg_truncated"),
         (ogg_bytes() + b"x", "trailing_data"),
+        (ogg_bytes(crc=False), "ogg_crc"),
     ],
 )
 def test_malformed_or_unsupported_files_are_rejected(data, code):
@@ -88,6 +89,39 @@ def test_a_png_with_a_flipped_byte_fails_its_crc():
     data = bytearray(png_bytes())
     data[-20] ^= 0xFF
     assert "png_crc" in codes(check(bytes(data)))
+
+
+def test_an_ogg_with_a_flipped_byte_fails_its_crc():
+    # Before LAI-LAMBDA-008 phase 1 review the upload check never read the page checksum, so a
+    # damaged Ogg passed upload and only the background inspection caught it.
+    data = bytearray(ogg_bytes(seconds=2))
+    data[-3] ^= 0xFF  # inside the last page's body
+    result = check(bytes(data))
+    assert not result.passed and "ogg_crc" in codes(result)
+
+
+def _ogg_pages(count: int, *, bad: set[int] = frozenset()) -> bytes:
+    """A Vorbis Ogg of `count` pages; pages listed in `bad` carry a zero checksum."""
+    from apps.assets.tests.media_files import _ogg_page
+
+    ident = b"\x01vorbis" + struct.pack("<I", 0) + bytes([2]) + struct.pack("<I", 44100)
+    ident += b"\x00" * 10
+    pages = [_ogg_page(0x02, 0, 0, ident, crc=0 not in bad)]
+    for seq in range(1, count):
+        flags = 0x04 if seq == count - 1 else 0
+        pages.append(_ogg_page(flags, seq * 441, seq, b"\x00" * 8, crc=seq not in bad))
+    return b"".join(pages)
+
+
+def test_ogg_checksums_are_sampled_like_the_worker():
+    sample = validation_media.OGG_CRC_PAGES
+    assert check(_ogg_pages(sample + 4)).passed
+    # Inside the sample and the last page: refused.
+    assert "ogg_crc" in codes(check(_ogg_pages(sample + 4, bad={sample - 1})))
+    assert "ogg_crc" in codes(check(_ogg_pages(sample + 4, bad={sample + 3})))
+    # A middle page past the sample is not read for its checksum (the background inspection
+    # samples the same pages); the structure walk still covers it.
+    assert check(_ogg_pages(sample + 4, bad={sample + 1})).passed
 
 
 def test_oversized_dimensions_are_rejected():

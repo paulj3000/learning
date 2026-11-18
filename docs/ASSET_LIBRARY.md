@@ -750,7 +750,8 @@ rejected with a finding, never published half-working. Package it as `.glb` or e
 - The family must suit the definition's kind (`wrong_file_family`).
 - Structures are walked with bounds and must end where the file ends. Extra bytes after a PNG
   `IEND`, a JPEG end marker, a WebP/WAV RIFF size, the last MP3 frame or the Ogg end page are
-  refused (`trailing_data`), so a polyglot file cannot be stored. PNG chunk CRCs are verified.
+  refused (`trailing_data`), so a polyglot file cannot be stored. PNG chunk CRCs are verified. Ogg page checksums are verified on the first 16 pages and the last
+  page (`ogg_crc`), the same sample as the background audio inspection.
 - Dimensions, channels, sample rate and duration are limited; non-power-of-two textures get a
   warning, not a refusal.
 - A file that fails is never stored and makes no row. SHA-256 is recorded, sent to S3 as the
@@ -850,7 +851,7 @@ needs it, with the kind check in `validate_asset_ref`. No scene editor is part o
 | Symptom | Cause and fix |
 |---|---|
 | Upload says `wrong_file_family` | The asset's kind takes another family. Create a definition of the right kind |
-| Upload says `trailing_data` or `png_crc` | The file is damaged or has data appended. Re-export it |
+| Upload says `trailing_data`, `png_crc` or `ogg_crc` | The file is damaged or has data appended. Re-export it |
 | `.gltf` rejected for an external `uri` | Pack it as `.glb` or embed buffers and textures |
 | Publish says verification failed or rejected | The stored object changed or is missing. Run "Verify the stored files", `asset_storage_audit`, re-upload |
 | Game shows the bundled fallback | The id is unpublished, retired or has no default. Check the version page |

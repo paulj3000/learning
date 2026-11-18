@@ -60,9 +60,12 @@ def mp3_bytes(frames=10) -> bytes:
     return frame * frames
 
 
-def _ogg_page(flags, granule, sequence, body) -> bytes:
+def _ogg_page(flags, granule, sequence, body, *, crc=True) -> bytes:
+    """One Ogg page with a single lacing value. `crc=False` leaves the checksum zero (damaged)."""
+    from lai_processing.processors.audio.ogg import ogg_crc
+
     table = bytes([len(body)])
-    return (
+    page = (
         b"OggS\x00"
         + bytes([flags])
         + struct.pack("<qIII", granule, 1, sequence, 0)
@@ -70,10 +73,13 @@ def _ogg_page(flags, granule, sequence, body) -> bytes:
         + table
         + body
     )
+    if not crc:
+        return page
+    return page[:22] + struct.pack("<I", ogg_crc(page)) + page[26:]
 
 
-def ogg_bytes(seconds=1, rate=44100, channels=2, end=True) -> bytes:
+def ogg_bytes(seconds=1, rate=44100, channels=2, end=True, crc=True) -> bytes:
     ident = b"\x01vorbis" + struct.pack("<I", 0) + bytes([channels]) + struct.pack("<I", rate)
     ident += b"\x00" * 10
-    last = _ogg_page(0x04 if end else 0, rate * seconds, 1, b"\x00" * 8)
-    return _ogg_page(0x02, 0, 0, ident) + last
+    last = _ogg_page(0x04 if end else 0, rate * seconds, 1, b"\x00" * 8, crc=crc)
+    return _ogg_page(0x02, 0, 0, ident, crc=crc) + last
