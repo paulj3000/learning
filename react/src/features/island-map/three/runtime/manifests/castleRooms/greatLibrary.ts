@@ -61,7 +61,8 @@ const SLOT_HALF_WIDTH = 0.14;
 
 const BEAM_Z = -6;
 const BEAM_HALF_WIDTH = 0.15;
-const BEAM_BOTTOM = WALL_HEIGHT - 0.25;
+/** How far below the ceiling the library beam hangs. */
+export const BEAM_DROP = 0.25;
 /** Library reading tables are 0.8 m high (`READING_TABLE_HALF` in the manifest). */
 const TABLE_TOP = 0.8;
 const CANDLE_SPOTS = [
@@ -71,7 +72,9 @@ const CANDLE_SPOTS = [
 
 const DAIS_TOP = STORYBOOK_DAIS.height;
 
-export const GREAT_LIBRARY_VISUALS: RoomVisuals = {
+/** The Great Library's visuals under a ceiling at `wallHeight` (its beam hangs from the ceiling). */
+export function greatLibraryVisuals(wallHeight: number = WALL_HEIGHT): RoomVisuals {
+  return {
   look: {
     roomId: 'great-library',
     floor: 'planks-library',
@@ -154,8 +157,8 @@ export const GREAT_LIBRARY_VISUALS: RoomVisuals = {
       14.7,
       BEAM_Z - BEAM_HALF_WIDTH,
       BEAM_Z + BEAM_HALF_WIDTH,
-      BEAM_BOTTOM,
-      WALL_HEIGHT,
+      wallHeight - BEAM_DROP,
+      wallHeight,
     ),
     // A candle on each reading table, off to the side of anything the child picks up.
     ...CANDLE_SPOTS.map((spot) =>
@@ -194,4 +197,7 @@ export const GREAT_LIBRARY_VISUALS: RoomVisuals = {
       STORYBOOK_DAIS.height,
     ),
   ],
-};
+  };
+}
+
+export const GREAT_LIBRARY_VISUALS: RoomVisuals = greatLibraryVisuals();

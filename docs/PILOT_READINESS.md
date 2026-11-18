@@ -357,6 +357,39 @@ development desktop:
    draw call today, and adding a level of detail against no measurement
    would be optimising a number nobody has looked at.
 
+**SC-R11 recording instructions (documentation only; every result below stays blank until a person measures it, and the provisional budgets of 30 fps and 8 seconds are targets, never results).**
+
+Profiling pass, on the target tablet or Chromebook only:
+
+- Use a **release build**, never the dev server. Normal network (not airplane mode), battery saver off.
+- Note the device, the browser and its version, and the quality tier the castle chose (low, medium or high).
+- Open the castle with `?lai-diag=1` on the address (or use Chrome DevTools remote debugging). The diagnostics (`react/src/features/island-map/three/runtime/diagnostics/`) keep numbers in memory only, record nothing about the child, send nothing anywhere, and print one console table when the castle is left; `window.__laiDiag.report()` reads the same numbers while it is open.
+- Record: time to first walkable frame, cold cache and warm cache; Great Library stand-still frame time (mean, p95, worst) with `renderer.info` calls and triangles; the worst frame on the hub-to-library walk; JS heap if the browser reports it.
+
+| Measurement | Cold cache | Warm cache | Notes |
+| --- | --- | --- | --- |
+| Device, browser and version, quality tier | | | |
+| Time to first walkable frame | | | |
+| Great Library standing: frame mean / p95 / worst (ms) | | | |
+| Great Library draw calls / triangles | | | |
+| Hub-to-library walk: worst frame (ms) | | | |
+| JS heap (if available) | | | |
+
+Sprouts playtest, with consent and no child names or identifiers in the notes:
+
+- One `SPROUT` child per session, with an adult observer who does not coach. Adventure: `quills-picture-story`.
+- Log per child: whether each beat completed, how long it took, any disorientation or discomfort, whether the tapestry nook was found, and whether the exit to Welcome Harbor was found.
+
+| Beat or question | Result |
+| --- | --- |
+| Pick the animal completed unaided | |
+| Pick the place completed unaided | |
+| Put the pictures in order completed unaided | |
+| Total duration | |
+| Disorientation or discomfort | |
+| Tapestry nook found | |
+| Exit to Welcome Harbor found | |
+
 **What has been done**: SC-11's third deliverable, the audit that every
 learning step in the region has a working HUD equivalent, is complete - and
 is a test rather than a paragraph

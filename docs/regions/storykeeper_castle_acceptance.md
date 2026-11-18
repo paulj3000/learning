@@ -31,13 +31,13 @@ means a target tablet or Chromebook. "Playtest" means a child, under
 | A-11 | Keyboard: WASD/arrows, E/Enter, Tab through the HUD | `pointerControls` tests; `WorldHud`/`WorldActionPanel` tests | Full visit without a mouse | |
 | A-12 | Touch: two-zone drag; the "Things to do" list reaches every objective | `ThreeLocationWorldView` tests | iPad Safari full visit | Tablet |
 | A-13 | Model and texture budgets (art direction section 7) | Static budget tests (SC-R02-08) | | |
-| A-14 | Tablet performance: 30 fps in the Great Library at MEDIUM; under 8 s to first walkable frame (provisional) | none | | **Device (SC-R11-01)** |
+| A-14 | Tablet performance: 30 fps in the Great Library at MEDIUM; under 8 s to first walkable frame (provisional; not measured, not results) | Diagnostics exist (`runtime/diagnostics/`, `?lai-diag=1`) and are unit-tested; they measure nothing by themselves | Profile a release build on the target tablet (PILOT_READINESS 5b); results blank until measured | **Device (SC-R11-01)** |
 | A-15 | Save / resume: an open session resumes in the room with its choices | `CastleTaleCompanion` resume path (to be unit-covered) | Leave mid-tale, return next day | |
 | A-16 | Storybook pages derived correctly per band (SC-R04) | Pure-function tests | Page appears after the source world change | |
 | A-17 | Artifacts displayed, never granted, by the castle (SC-R07) | Display-requirement tests | Earned artifact on a pedestal | |
 | A-18 | Sound settings respected (SC-R06) | Cue tests with a fake sink | Mute persists | |
 | A-19 | AI fallbacks: every AI line has an authored fallback; no live Bedrock in tests (SC-R09) | Fake-model tests | Kill switch on: castle still complete | |
-| A-20 | Sprouts can complete their mission on the 3D route | none | | **Playtest (SC-R11-02)** |
+| A-20 | Sprouts can complete their mission on the 3D route | `castleSproutNoAim.test.ts` (every picture-story answer is a place to stand or a pad; reticle hidden); `castleExitsNoArithmetic.test.ts` | One SPROUT per session with an adult observer (PILOT_READINESS 5b); results blank until observed | **Playtest (SC-R11-02)** |
 | A-21 | Phaser castle retired only after parity and the Sprouts gate (SC-R10) | Parity tests | Route switch verified | Playtest |
 
 The SC-11 gate, carried as SC-R11 (A-14 and A-20), **stays open** until the

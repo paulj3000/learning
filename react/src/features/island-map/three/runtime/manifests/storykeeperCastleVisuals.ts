@@ -21,7 +21,7 @@ import { CHARACTER_GALLERY_VISUALS } from './castleRooms/characterGallery';
 import { COSTUME_ROOM_VISUALS } from './castleRooms/costumeRoom';
 import { EAST_CORRIDOR_VISUALS } from './castleRooms/eastCorridor';
 import { ENTRY_HALL_VISUALS } from './castleRooms/entryHall';
-import { GREAT_LIBRARY_VISUALS } from './castleRooms/greatLibrary';
+import { greatLibraryVisuals } from './castleRooms/greatLibrary';
 import { ILLUSTRATION_STUDIO_VISUALS } from './castleRooms/illustrationStudio';
 import { SETTING_TOWER_VISUALS } from './castleRooms/settingTower';
 import { SECRET_CHAMBER_VISUALS, SECRET_SEAL_SURFACE_IDS } from './castleRooms/secretChamber';
@@ -70,6 +70,10 @@ export const FLOOR_SURFACE_Y = 0.01;
 export const INLAY_SURFACE_Y = 0.015;
 /** The ceiling surface hangs 0.1 m below the kit ceiling slab, which rests on top of the walls. */
 export const CEILING_SURFACE_Y = WALL_HEIGHT;
+/** The same, for a castle built with a ceiling at `wallHeight` (SC-R11). */
+export function ceilingSurfaceY(wallHeight: number = WALL_HEIGHT): number {
+  return wallHeight;
+}
 /** Wall surfaces stand this far off the kit wall panel, in front of it, so the two never share a plane. */
 export const WALL_SURFACE_INSET = 0.02;
 /** Trim stands proud of the wall surface for the same reason. */
@@ -95,8 +99,9 @@ const SHARED_MATERIALS: readonly MaterialPresetSpec[] = [
 ];
 
 /** Every room that has had its visual pass, in castle order (the Library first, as SC-R02-02 came first). */
-const ROOM_VISUALS: readonly RoomVisuals[] = [
-  GREAT_LIBRARY_VISUALS,
+function roomVisualsFor(wallHeight: number): readonly RoomVisuals[] {
+  return [
+  greatLibraryVisuals(wallHeight),
   ENTRY_HALL_VISUALS,
   STORY_HALL_VISUALS,
   CHARACTER_GALLERY_VISUALS,
@@ -106,7 +111,9 @@ const ROOM_VISUALS: readonly RoomVisuals[] = [
   ILLUSTRATION_STUDIO_VISUALS,
   TROPHY_ROOM_VISUALS,
   SECRET_CHAMBER_VISUALS,
-];
+  ];
+}
+const ROOM_VISUALS: readonly RoomVisuals[] = roomVisualsFor(WALL_HEIGHT);
 
 export const ROOM_LOOKS: readonly RoomLook[] = ROOM_VISUALS.map((room) => room.look);
 
@@ -208,7 +215,7 @@ export function roomWallFaces(
   return faces;
 }
 
-function lookSurfaces(look: RoomLook): SurfaceSpec[] {
+function lookSurfaces(look: RoomLook, wallHeight: number): SurfaceSpec[] {
   const { floor } = roomById(look.roomId);
   const id = (kind: string) => `look:${look.roomId}:${kind}`;
   const surfaces: SurfaceSpec[] = [
@@ -221,7 +228,7 @@ function lookSurfaces(look: RoomLook): SurfaceSpec[] {
       id: id('ceiling'),
       materialId: look.ceiling,
       faces: [
-        { kind: 'CEILING', area: { ...floor, id: id('ceiling:area') }, y: CEILING_SURFACE_Y },
+        { kind: 'CEILING', area: { ...floor, id: id('ceiling:area') }, y: ceilingSurfaceY(wallHeight) },
       ],
     },
   ];
@@ -259,7 +266,7 @@ function lookSurfaces(look: RoomLook): SurfaceSpec[] {
       look.roomId,
       WALL_SURFACE_INSET,
       wainscot?.height ?? 0,
-      WALL_HEIGHT,
+      wallHeight,
       id('walls:face'),
     ),
   });
@@ -278,8 +285,8 @@ function lookSurfaces(look: RoomLook): SurfaceSpec[] {
         ...roomWallFaces(
           look.roomId,
           TRIM_SURFACE_INSET,
-          WALL_HEIGHT - CORNICE_HEIGHT,
-          WALL_HEIGHT,
+          wallHeight - CORNICE_HEIGHT,
+          wallHeight,
           id('cornice:face'),
         ),
       ],
@@ -319,7 +326,7 @@ function lookEffects(look: RoomLook): EffectSpec[] {
  */
 // `SECRET_SEAL_SURFACE_IDS` is declared with the chamber (`castleRooms/secretChamber.ts`).
 
-function secretSealSurfaces(): SurfaceSpec[] {
+function secretSealSurfaces(wallHeight: number): SurfaceSpec[] {
   const gap = archwayById('arch-secret').gap;
   const hall = roomById('story-hall');
   const seal: SurfaceSpec['requirements'] = [
@@ -347,7 +354,7 @@ function secretSealSurfaces(): SurfaceSpec[] {
       id: SECRET_SEAL_SURFACE_IDS[1],
       materialId: 'plaster-hall',
       requirements: seal,
-      faces: [face(`${SECRET_SEAL_SURFACE_IDS[1]}:face`, WALL_SURFACE_INSET, 1, WALL_HEIGHT)],
+      faces: [face(`${SECRET_SEAL_SURFACE_IDS[1]}:face`, WALL_SURFACE_INSET, 1, wallHeight)],
     },
     {
       id: SECRET_SEAL_SURFACE_IDS[2],
@@ -358,22 +365,30 @@ function secretSealSurfaces(): SurfaceSpec[] {
         face(
           `${SECRET_SEAL_SURFACE_IDS[2]}:cornice`,
           TRIM_SURFACE_INSET,
-          WALL_HEIGHT - CORNICE_HEIGHT,
-          WALL_HEIGHT,
+          wallHeight - CORNICE_HEIGHT,
+          wallHeight,
         ),
       ],
     },
   ];
 }
 
-export const CASTLE_SURFACES: readonly SurfaceSpec[] = [
-  ...ROOM_LOOKS.flatMap(lookSurfaces),
-  ...secretSealSurfaces(),
-];
+/** Every wall, floor, ceiling and trim surface for a castle with ceilings at `wallHeight`. */
+export function castleSurfaces(wallHeight: number = WALL_HEIGHT): readonly SurfaceSpec[] {
+  return [
+    ...ROOM_LOOKS.flatMap((look) => lookSurfaces(look, wallHeight)),
+    ...secretSealSurfaces(wallHeight),
+  ];
+}
+export const CASTLE_SURFACES: readonly SurfaceSpec[] = castleSurfaces();
 export const CASTLE_EFFECTS: readonly EffectSpec[] = ROOM_LOOKS.flatMap(lookEffects);
 
 /** Decor with no domain meaning: never raycast, never a collider (those are `CASTLE_DECOR_COLLIDERS`). */
-export const CASTLE_DECOR: readonly ScenerySpec[] = ROOM_VISUALS.flatMap((room) => room.decor);
+/** Decor for a castle with ceilings at `wallHeight` (the library beam hangs from the ceiling). */
+export function castleDecor(wallHeight: number = WALL_HEIGHT): readonly ScenerySpec[] {
+  return roomVisualsFor(wallHeight).flatMap((room) => room.decor);
+}
+export const CASTLE_DECOR: readonly ScenerySpec[] = castleDecor();
 
 /** The solid decor, so the child walks around it. A low step is still a wall to a first-person controller. */
 export const CASTLE_DECOR_COLLIDERS: readonly ColliderSpec[] = ROOM_VISUALS.flatMap(

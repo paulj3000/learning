@@ -289,6 +289,27 @@ describe('castle narration (SC-R06-03)', () => {
     expect(request).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps a restored page readable on screen when its voice fails (SC-R11)', async () => {
+    const request = vi.fn(async (): Promise<SpeechClipInfo> => {
+      throw Object.assign(new Error('offline'), { status: 503 });
+    });
+    const w = narrator(request);
+    await tick();
+    await act(
+      async () =>
+        void w.state().speakPage({
+          id: 'page-first-story',
+          title: 'The First Story',
+          restoredText: 'The story you told is back.',
+        }),
+    );
+    await tick();
+    expect(w.state().speech.state).toMatchObject({
+      caption: 'The First Story. The story you told is back.',
+      textOnly: true,
+    });
+  });
+
   it('is text only, never a request, in a build without speech', async () => {
     const engine = new FakeEngine();
     const manager = createSoundManager({ engine });
