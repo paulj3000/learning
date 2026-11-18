@@ -94,6 +94,11 @@ export interface CastlePlatformGroup {
   purpose: string;
   /** Whether stepping on a pad answers a step (through its zone) or is only enrichment. */
   answers: boolean;
+  /**
+   * A group that answers nothing normally has no Sprout marker. Set this for an optional group a
+   * Sprout may still enjoy as flat markers on the floor (the Secret Chamber's stepping stones).
+   */
+  sproutMarkers?: boolean;
   pads: readonly CastlePad[];
 }
 
@@ -231,6 +236,35 @@ export const OBSERVATORY_STAR_GROUP: CastlePlatformGroup = {
   ],
 };
 
+// --- Secret Chamber: the optional ledge -----------------------------------------------------
+
+/** The ledge's key and the id of its view zone (the zone is a toast, never an interaction). */
+export const CHAMBER_LEDGE_KEY = 'ledge';
+export const CHAMBER_VIEW_ZONE_ID = 'view:chamber:ledge';
+/** Read aloud when the child stands on the ledge. Observation only: nothing is granted or recorded. */
+export const CHAMBER_VIEW_MESSAGE =
+  'From up on the ledge, the whole chamber glows. What a lovely view!';
+
+/**
+ * WS-C: two low stepping stones to a ledge, for a child who likes to hop. Entirely optional
+ * (nothing in the chamber needs it), it answers nothing, grants nothing and teaches nothing new.
+ * The only reward is a view, a toast on the ledge. Sprouts see flat floor markers in the same
+ * places. The ledge is the highest a castle pad may be (0.5 m).
+ */
+export const CHAMBER_LEDGE_GROUP: CastlePlatformGroup = {
+  id: 'chamber',
+  roomId: 'secret-chamber',
+  kind: 'STEPPING_PAD',
+  purpose: 'Optional: hop up two stones to a ledge with a view. Observation only; nothing is granted.',
+  answers: false,
+  sproutMarkers: true,
+  pads: [
+    { key: 's1', x: -13.5, z: -7.6, height: 0.2, color: 0x8f7bd9, label: 'the first chamber stone' },
+    { key: 's2', x: -12.4, z: -7.3, height: 0.35, color: 0x6fd6c9, label: 'the second chamber stone' },
+    { key: CHAMBER_LEDGE_KEY, x: -12.4, z: -6.0, height: 0.5, color: 0xb99cff, label: 'the ledge' },
+  ],
+};
+
 /** Every group, in room order. */
 export const CASTLE_PLATFORM_GROUPS: readonly CastlePlatformGroup[] = [
   STORY_HALL_STONE_GROUP,
@@ -240,6 +274,7 @@ export const CASTLE_PLATFORM_GROUPS: readonly CastlePlatformGroup[] = [
   LIBRARY_PATTERN_GROUP,
   LIBRARY_MEASURE_GROUP,
   STORYBOOK_PATHWAY_GROUP,
+  CHAMBER_LEDGE_GROUP,
 ];
 
 // --- builders -------------------------------------------------------------------------------
@@ -336,7 +371,7 @@ export function buildSproutPlatforming(
   groups: readonly CastlePlatformGroup[] = CASTLE_PLATFORM_GROUPS,
 ): PlatformingSpec {
   const plates: PressurePlateSpec[] = groups
-    .filter((group) => group.answers)
+    .filter((group) => group.answers || group.sproutMarkers)
     .flatMap((group) =>
       group.pads.map((pad) => ({
         id: `castle-marker:${group.id}:${pad.key}`,
@@ -354,6 +389,20 @@ export function buildPadZones(
 ): ZoneSpec[] {
   return groups.filter((group) => group.answers).flatMap((group) => group.pads.map((pad) => padZone(group, pad)));
 }
+
+/** The ledge's view: a plain narration zone over the ledge, for every band (Sprouts walk into it on the floor). */
+export const CASTLE_VIEW_ZONES: readonly ZoneSpec[] = [
+  {
+    rect: {
+      ...padFootprint(
+        CHAMBER_LEDGE_GROUP,
+        CHAMBER_LEDGE_GROUP.pads.find((pad) => pad.key === CHAMBER_LEDGE_KEY)!,
+      ),
+      id: CHAMBER_VIEW_ZONE_ID,
+    },
+    enterMessage: CHAMBER_VIEW_MESSAGE,
+  },
+];
 
 export const CASTLE_PLATFORMING: PlatformingSpec = buildCastlePlatforming();
 export const CASTLE_PLATFORMING_SPROUT: PlatformingSpec = buildSproutPlatforming();

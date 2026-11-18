@@ -375,6 +375,20 @@ Profiling pass, on the target tablet or Chromebook only:
 | Hub-to-library walk: worst frame (ms) | | | |
 | JS heap (if available) | | | |
 
+**WS-C rendering optimisation (estimates, not measurements).** The numbers below come from the static estimator in `runtime/manifests/storykeeperCastleBudgets.test.ts` (one call per surface, mote emitter, scenery item or batch, prop, NPC and platform, plus 12 for the castle-tale extension variants). Nothing here was run in a browser, on a tablet or against `renderer.info`; the real-device table above stays blank until a person fills it. The 300 budget is unchanged.
+
+| Step | Estimated draw calls | Delta (estimate) |
+| --- | --- | --- |
+| Before WS-C (143 decor boxes, one mesh and one material each) | 300 of 300 | |
+| Static decor boxes merged per colour per 12 m cell (136 boxes into 74 batches; the 7 boxes an extension recolours or hides stay separate) | 238 | -62 |
+| Optional Secret Chamber ledge (two stones and a ledge, solid pads) | 241 | +3 |
+
+- Materials (estimate): the 143 per-box materials become one shared material per colour, 47 plus the 7 live boxes, so about 54, a saving of about 89 materials and the same number of disposals.
+- Frustum culling is kept by the spatial cell, so a batch in a room behind the child can still be culled. A merged mesh for the whole castle would have defeated that, which is why the cell exists.
+- Fresh worlds build fewer batches than the estimate counts, since trophies and the chamber finds are gated on world state; the estimate errs high.
+- Colliders, zones, interaction ids, checkpoints, props, NPCs and platforms are unchanged. `castleOptimisation.test.ts` compares them to a fixture captured before the change (`castleOptimisationBaseline.json`); the only additions are the ledge's own pads, Sprout markers and one narration zone.
+- Not changed: no shadow casting exists to limit (the runtime never enables shadow maps), the 8 `LOD_PLACEMENTS` archways and props stay individually placed because they are multi-part, and scoped asset disposal on castle exit belongs to a later workstream.
+
 Sprouts playtest, with consent and no child names or identifiers in the notes:
 
 - One `SPROUT` child per session, with an adult observer who does not coach. Adventure: `quills-picture-story`.

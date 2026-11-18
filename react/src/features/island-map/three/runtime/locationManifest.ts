@@ -244,6 +244,14 @@ export type ScenerySpec = SceneryBase &
         area: RectZone;
         minY: number;
         maxY: number;
+        /**
+         * Opt in only for decor nothing looks up by id, moves, recolours or
+         * hides after the scene is built. The engine then merges it with its
+         * neighbours of the same colour into one shared-material mesh (its
+         * root group stays, empty). Leave it off for anything an extension
+         * reaches through `sceneryRoot`.
+         */
+        static?: boolean;
       } /** One instanced draw call of a kit piece at many positions. */
     | {
         kind: 'CLUSTER';

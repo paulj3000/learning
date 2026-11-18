@@ -267,7 +267,10 @@ describe('castle platforming in the manifest', () => {
       const [, groupId, key] = plate.id.split(':');
       const pad = PADS.find((entry) => entry.group.id === groupId && entry.pad.key === key)!;
       expect(plate.position).toEqual({ x: pad.pad.x, z: pad.pad.z });
-      expect(MANIFEST.zones.some((zone) => zone.rect.id === padZoneId(groupId, key))).toBe(true);
+      // Only a group that answers a step has an answer zone; an optional one (the chamber ledge) has none.
+      if (pad.group.answers) {
+        expect(MANIFEST.zones.some((zone) => zone.rect.id === padZoneId(groupId, key))).toBe(true);
+      }
     }
     // Pathfinders and Explorers keep the solid pads.
     expect(manifestForBand(MANIFEST, 'PATHFINDER').platforming).toBe(CASTLE_PLATFORMING);

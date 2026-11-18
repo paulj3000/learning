@@ -52,6 +52,7 @@ import {
 import { facingIntoRoom, wallPanelPlacements } from '../sceneLayout';
 import {
   CASTLE_PAD_ZONES,
+  CASTLE_VIEW_ZONES,
   CASTLE_PLATFORMING,
   CASTLE_PLATFORMING_SPROUT,
 } from './castleRooms/castlePlatforms';
@@ -725,6 +726,8 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     // SC-JMP: one answer zone per pad that answers a step. Standing on the pad is standing in the
     // zone (ground plane), so a jump over it still counts, and the HUD card is the equivalent.
     ...CASTLE_PAD_ZONES,
+    // WS-C: the optional Secret Chamber ledge's view (a toast only; nothing is granted).
+    ...CASTLE_VIEW_ZONES,
   ],
   ambient: [],
 

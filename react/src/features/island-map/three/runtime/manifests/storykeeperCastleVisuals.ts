@@ -20,8 +20,8 @@ import { rect, type RoomLook, type RoomVisuals } from './castleRooms/castleVisua
 import { CHARACTER_GALLERY_VISUALS } from './castleRooms/characterGallery';
 import { COSTUME_ROOM_VISUALS } from './castleRooms/costumeRoom';
 import { EAST_CORRIDOR_VISUALS } from './castleRooms/eastCorridor';
-import { ENTRY_HALL_VISUALS } from './castleRooms/entryHall';
-import { greatLibraryVisuals } from './castleRooms/greatLibrary';
+import { ENTRY_HALL_VISUALS, ENTRY_MURAL_PARCHMENT } from './castleRooms/entryHall';
+import { greatLibraryVisuals, STORYBOOK_PART_IDS } from './castleRooms/greatLibrary';
 import { ILLUSTRATION_STUDIO_VISUALS } from './castleRooms/illustrationStudio';
 import { SETTING_TOWER_VISUALS } from './castleRooms/settingTower';
 import { SECRET_CHAMBER_VISUALS, SECRET_SEAL_SURFACE_IDS } from './castleRooms/secretChamber';
@@ -383,10 +383,26 @@ export function castleSurfaces(wallHeight: number = WALL_HEIGHT): readonly Surfa
 export const CASTLE_SURFACES: readonly SurfaceSpec[] = castleSurfaces();
 export const CASTLE_EFFECTS: readonly EffectSpec[] = ROOM_LOOKS.flatMap(lookEffects);
 
+/**
+ * Decor boxes the castle-tale extension looks up by id to recolour or hide
+ * (the Storybook's parts and the entry mural's parchment). Everything else is
+ * static, and the engine batches it (WS-C, `runtime/staticBoxBatches.ts`).
+ */
+export const LIVE_DECOR_IDS: ReadonlySet<string> = new Set<string>([
+  STORYBOOK_PART_IDS.cover,
+  STORYBOOK_PART_IDS.pages,
+  ...STORYBOOK_PART_IDS.slots,
+  ENTRY_MURAL_PARCHMENT.id,
+]);
+
 /** Decor with no domain meaning: never raycast, never a collider (those are `CASTLE_DECOR_COLLIDERS`). */
 /** Decor for a castle with ceilings at `wallHeight` (the library beam hangs from the ceiling). */
 export function castleDecor(wallHeight: number = WALL_HEIGHT): readonly ScenerySpec[] {
-  return roomVisualsFor(wallHeight).flatMap((room) => room.decor);
+  return roomVisualsFor(wallHeight)
+    .flatMap((room) => room.decor)
+    .map((item) =>
+      item.kind === 'BOX' && !LIVE_DECOR_IDS.has(item.id) ? { ...item, static: true } : item,
+    );
 }
 export const CASTLE_DECOR: readonly ScenerySpec[] = castleDecor();
 

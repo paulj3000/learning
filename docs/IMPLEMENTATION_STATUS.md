@@ -14427,3 +14427,5 @@ already used 5432. Older entries above that mention 5442 record what ran at the 
   `docs/regions/storykeeper_castle_release_notes.md`.
 - **Deferred to merge readiness:** Prettier, Ruff, oxlint, builds, full suites, Playwright and WebGL.
   Not merged to `main`, not deployed.
+
+- WS-C (castle rendering optimisation, 2026-11-18): static decor `BOX` scenery is merged per colour per 12 m cell with shared materials (`runtime/staticBoxBatches.ts`, opt-in `static` flag; the 7 boxes the castle-tale extension recolours or hides stay separate). Estimated draw calls 300 to 238, then 241 with the optional Secret Chamber ledge (two stones and a ledge, observation toast only, Sprout markers; nothing granted). These are estimator values, not measurements; the real-device table in `docs/PILOT_READINESS.md` 5b is still blank. The 300 budget is unchanged. Colliders, zones and ids are proven unchanged by `castleOptimisation.test.ts`.
