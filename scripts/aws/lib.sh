@@ -137,12 +137,19 @@ publish_record() {
     fi
 }
 
+# True when this instance's rendered runtime settings select the SQS jobs backend.
+jobs_enabled() {
+    [ -r "$LAI_RUNTIME_DIR/django.env" ] && grep -qx 'LAI_JOBS_BACKEND=sqs' "$LAI_RUNTIME_DIR/django.env"
+}
+
 # docker compose for one release directory (its compose file and its release.env).
 compose_for() {
     local release_dir=$1
     shift
     local profile=()
     [ "$LAI_DB_MODE" = container ] && profile=(--profile container-db)
+    # ADR-071: the jobs consumer and sweep run only when the rendered settings select SQS.
+    if jobs_enabled; then profile+=(--profile jobs); fi
     docker compose -p "$LAI_COMPOSE_PROJECT" \
         -f "$release_dir/deploy/ec2/docker-compose.yml" \
         --env-file "$release_dir/release.env" "${profile[@]}" "$@"
@@ -194,6 +201,10 @@ activate_release() {
     if ! compose_for "$release_dir" up -d --wait --wait-timeout "${LAI_START_TIMEOUT:-180}" --remove-orphans; then
         log "the containers did not become healthy within the start timeout"
         return 1
+    fi
+    if ! jobs_enabled; then
+        # The backend was switched off: stop a consumer and sweep left by an earlier release.
+        compose_for "$release_dir" --profile jobs rm --stop --force jobs-consumer jobs-sweep >/dev/null 2>&1 || true
     fi
     verify_health "$image" "$release_dir"
 }

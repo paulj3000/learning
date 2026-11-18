@@ -1,0 +1,169 @@
+# PROD background processing workers (ADR-071; LAI-LAMBDA-012 P6, docs/processing/PROCESSING_RELEASE.md).
+#
+#   workflow_dispatch only (never a push, schedule or pull request)
+#     gate     -> the repository variable LAI_PROD_PROCESSING_DEPLOY_ENABLED is 'true', the run is on
+#                 main, and the typed confirmation matches the action
+#     package  -> build every worker artifact of this commit (scripts/release/build-workers.sh),
+#                 write the release manifest (SHA-256 of every zip and the layer), keep it as the
+#                 immutable run artifact
+#     publish  -> environment django-prod (required reviewers): verify every SHA-256 against the
+#                 manifest, upload create-only (If-None-Match), store the manifest, point each
+#                 function at its zip and check the deployed CodeSha256
+#     rollback -> environment django-prod: read an earlier manifest from S3, verify each artifact,
+#                 point each function back at it
+#
+# The FFmpeg layer is uploaded but never published by this workflow: the function's layer is the
+# stack parameter AudioLayerKey (change set through scripts/aws/provision.sh prod, owner). Django
+# goes first (migrations and consumer support), then this workflow, with every feature control off
+# until `processing_release.py check-enable` passes (the RELEASE sequence). No stored AWS key:
+# OIDC to lai-github-workers-prod, which trusts only the django-prod environment.
+name: Release PROD processing workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: release this commit of main, or roll back to an earlier manifest
+        type: choice
+        options: [release, rollback]
+        default: release
+      confirm:
+        description: 'Type exactly: release lai-prod workers (or: rollback lai-prod workers)'
+        type: string
+        required: true
+      rollback_manifest:
+        description: 'rollback only: releases/processing/<40-hex sha>.json'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-prod-workers
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.LAI_AWS_REGION || 'us-west-1' }}
+
+jobs:
+  gate:
+    name: Gate and confirmation
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the typed confirmation
+        env:
+          ACTION: ${{ inputs.action }}
+          CONFIRM: ${{ inputs.confirm }}
+          TARGET: ${{ inputs.rollback_manifest }}
+        run: |
+          [ "$CONFIRM" = "$ACTION lai-prod workers" ] || { echo "::error::confirmation does not match '$ACTION lai-prod workers'"; exit 1; }
+          if [ "$ACTION" = rollback ]; then
+            [[ "$TARGET" =~ ^releases/processing/[a-f0-9]{40}\.json$ ]] || { echo "::error::rollback_manifest must be releases/processing/<sha>.json"; exit 1; }
+          fi
+
+  package:
+    name: Build artifacts and manifest
+    needs: gate
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build every worker artifact of this commit
+        env:
+          LAI_OPTIMIZE_WORKER: ${{ vars.LAI_PROD_OPTIMIZE_WORKER || 'false' }}
+        run: scripts/release/build-workers.sh dist/workers
+
+      - name: Write the release manifest (SHA-256 of every artifact)
+        run: |
+          python3 -I scripts/release/processing_release.py manifest create --env prod \
+            --git-sha "$GITHUB_SHA" --dist dist/workers --out dist/workers/manifest.json
+          python3 -I scripts/release/processing_release.py manifest verify dist/workers/manifest.json --dist dist/workers
+          cat dist/workers/manifest.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prod-workers-${{ github.sha }}
+          path: dist/workers
+          if-no-files-found: error
+          retention-days: 90
+
+  publish:
+    name: Publish and update PROD workers
+    needs: package
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: django-prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: prod-workers-${{ github.sha }}
+          path: dist/workers
+
+      - name: Verify every artifact against the manifest
+        run: python3 -I scripts/release/processing_release.py manifest verify dist/workers/manifest.json --dist dist/workers
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_PROD_WORKER_RELEASE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-prod-workers-${{ github.run_id }}
+
+      - name: Upload create-only, store the manifest, update the functions
+        env:
+          BUCKET: ${{ vars.LAI_PROD_ARTIFACT_BUCKET }}
+        run: scripts/release/publish-workers.sh publish dist/workers/manifest.json dist/workers
+
+  rollback:
+    name: Roll PROD workers back to a manifest
+    needs: gate
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: django-prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_PROD_WORKER_RELEASE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-prod-workers-rollback-${{ github.run_id }}
+
+      - name: Verify the earlier manifest's artifacts and point the functions at them
+        env:
+          BUCKET: ${{ vars.LAI_PROD_ARTIFACT_BUCKET }}
+          TARGET: ${{ inputs.rollback_manifest }}
+        run: scripts/release/publish-workers.sh rollback "$TARGET"
