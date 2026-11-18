@@ -171,8 +171,11 @@ logical id and profile id become `superseded` (30-day deadline). Stale results d
 keep the job outcome (open decision D7). A published or retired source version is not stale: the
 artifact is still useful for review, and promotion creates a new unpublished version.
 
-A workload that needs subject-specific behaviour keeps its own handler module, calls
-`apply_artifact_result(job)` for the artifacts and records its own outcome code.
+A workload that needs subject-specific behaviour keeps its own handler module (replace its entry
+in `HANDLER_MODULES`), calls `apply_artifact_result(job)` for the artifacts and records its own
+outcome code. A workload whose processor Django knows registers
+`artifact_results.PROCESSOR_VERSION_RESOLVERS[job_type] = fn(profile_id, profile_version) ->
+(processor_id, version)` so an older processor's result is `processor_outdated`.
 
 ## 8. The `DerivedArtifact` model (`apps.assets`, migration `assets.0003_derived_artifact`)
 
@@ -200,7 +203,7 @@ tombstone (`expired` or `deleted`); a capture has no job. Identity fields are im
 creation (`ImmutableArtifact`). Transitions:
 
 ```
-pending_review -> accepted | rejected | superseded | expired
+pending_review -> accepted | rejected | superseded | promoted | expired
 accepted       -> rejected | superseded | promoted
 rejected       -> accepted | expired
 superseded     -> expired
@@ -213,7 +216,8 @@ promoted       -> (terminal)
 Permissions on `assets.DerivedArtifact`: `view_derivedartifact` (list, detail, preview, download),
 `review_derivedartifact` (accept, reject, hold), `promote_derivedartifact` (promote; separate from
 publish), `capture_derivedartifact` (record a staff capture). There is no add, change or delete
-permission in the UI. All metadata is escaped. Admin history records accept, reject, hold and
+permission in the UI. `manage.py ensure_asset_roles` grants view, review and capture to "Asset
+editors" and additionally promote to "Asset publishers". All metadata is escaped. Admin history records accept, reject, hold and
 promote with who and what.
 
 Previews are streamed **through Django** (decision D5 stays open for presigned downloads): the
@@ -221,7 +225,8 @@ admin route `admin:assets_derivedartifact_media` re-checks permission and re-ver
 checksum while streaming, sends `X-Content-Type-Options: nosniff`, `Content-Security-Policy:
 default-src 'none'; sandbox`, `Cache-Control: private, no-store`, and serves only image and
 audio content types inline (anything else as an attachment). Service functions:
-`apps.assets.artifacts.open_for_view(artifact) -> IO[bytes]`.
+`apps.assets.artifacts.open_for_view(artifact, user) -> IO[bytes]` (permission check, then size and
+SHA-256 verification, then the stream).
 
 ## 10. Staff capture (Workstream E builds the UI on this)
 
