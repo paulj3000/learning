@@ -171,6 +171,11 @@ world change keys (puzzle, chest or pickup). Every puzzle has all three bands.
 | R1 | `np-replay-workshop-sums` | chest REPLAY (math practice) | workshop | `NORTH_POLE_CHRISTMAS_EVE` | `NORTH_POLE_REPLAY_WORKSHOP` | none |
 | R2 | `np-replay-lake-count` | chest REPLAY (math practice) | lake | `NORTH_POLE_CHRISTMAS_EVE` | `NORTH_POLE_REPLAY_LAKE` | none |
 
+NP-024 decisions: ORDER items are capped at 6, so `np-obs-fragments` orders the six fragments
+after the village one (the village fragment is the centre piece Jingle sets first), sockets
+`np-socket-<zone>`; Sprouts order the first three (band-specific `itemEntities`). `np-lake-order`
+keys `a b c d` map to `np-lake-step-1..4`. Details in `NORTH_POLE_CURRICULUM.md`.
+
 `LIFE_SCIENCE` is added to the shared CHOOSE_ANSWER/ORDER_SEQUENCE subject list (additive, one
 line, its own commit).
 
