@@ -18,6 +18,7 @@ import {
 import { createWorldExtensionRegistry, type WorldExtension } from '../extensionRegistry';
 import { WELCOME_HARBOR_MANIFEST } from '../manifests/welcomeHarbor';
 import type { ThreeLocationManifest } from '../locationManifest';
+import type { RendererInfoLike } from '../diagnostics';
 import type { RenderQuality } from '../visual/renderQuality';
 import type { FirstPersonController } from '../../firstPersonController';
 import type { WorldInteractionContext } from '../../../worldObjects';
@@ -69,6 +70,9 @@ export interface FakeRenderer {
   setSize: Mock<(width: number, height: number) => void>;
   render: Mock<(scene: Scene, camera: PerspectiveCamera) => void>;
   dispose: Mock<() => void>;
+  /** Optional, as on `RendererLike`; a test assigns a spy to assert it is called on dispose. */
+  forceContextLoss?: Mock<() => void>;
+  info?: RendererInfoLike;
 }
 
 export function mount(
