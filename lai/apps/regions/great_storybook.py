@@ -25,7 +25,8 @@ import json
 from pathlib import Path
 
 from apps.progression.models import WorldState
-from apps.progression.services import world_change_keys
+from apps.progression.protected_changes import is_misplaced
+from apps.progression.services import world_change_pairs
 from apps.quests.models import QuestProgress
 
 _DATA = json.loads((Path(__file__).parent / "great_storybook_pages.json").read_text("utf-8"))
@@ -50,10 +51,16 @@ def pages_for_band(band: str) -> list[dict]:
     return [page for page in PAGES if band in page["bands"]]
 
 
-def _restored(page: dict, *, changes: set[str], found: set[str]) -> bool:
+def _restored(page: dict, *, changes: set[tuple[str, str]], found: set[str]) -> bool:
+    """A page is back when its record exists *at the page's own location*.
+
+    The key alone is not enough (a copy of the key elsewhere does not restore the page); a legacy
+    row with a blank location, which predates the location being recorded, still counts.
+    """
     source = page["source"]
     if source["kind"] == "WORLD_CHANGE":
-        return source["changeKey"] in changes
+        key = source["changeKey"]
+        return (source["locationSlug"], key) in changes or ("", key) in changes
     return source["discoveryId"] in found
 
 
@@ -62,7 +69,7 @@ def progress(child) -> dict:
     band = child.age_band
     state = WorldState.objects.for_child(child).first()
     found = set(state.discovered_objects) if state else set()
-    changes = set(world_change_keys(child))
+    changes = world_change_pairs(child)
     entries = [
         (page, _restored(page, changes=changes, found=found)) for page in pages_for_band(band)
     ]
@@ -75,7 +82,9 @@ def progress(child) -> dict:
         else None
     )
     complete = bool(required) and restored_required == len(required)
-    edition1_restored = RESTORED_KEY in changes or complete
+    # `changes` holds (location, key) pairs; the edition-1 seal counts only where it belongs.
+    sealed = any(key == RESTORED_KEY and not is_misplaced(loc, key) for loc, key in changes)
+    edition1_restored = sealed or complete
     if complete:
         state_name = RESTORED
     elif edition1_restored:
