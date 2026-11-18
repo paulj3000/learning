@@ -16,6 +16,7 @@ import {
 } from '../../castlePatternLock';
 import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { CastleTaleSceneApi } from './castleTaleScene';
+import { usePadAnswers } from './usePadAnswers';
 
 /**
  * The Explorer arc, "The Castle's Secret Door", hosted in the room (engine
@@ -218,6 +219,19 @@ function CastleStoryAdventure({
       });
     });
   }, [bus, arrangement, scene]);
+
+  /*
+    SC-JMP: the Great Library's enchanted books, pattern stones and rod stones are a second way to
+    give the same answers (clues in order, the pattern, the rods short to long). The one
+    `submitAnswer` the card uses grades them.
+  */
+  usePadAnswers({
+    bus,
+    definition,
+    stepId,
+    submit: submitAnswer,
+    onWrongOrder: () => scene.current?.playQuillClip('ReactConcerned'),
+  });
 
   if (loadState === 'loading') {
     return <p className={styles.status}>Reading the clues...</p>;

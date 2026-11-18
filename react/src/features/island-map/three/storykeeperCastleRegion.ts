@@ -537,9 +537,14 @@ export const GALLERY_FILLER_FRAME_SPOTS: readonly WallMountedSpot[] = [
 
 /**
  * Three floor-to-ceiling arched windows in the tower's round lantern room.
- * Ground floor, deliberately: `firstPersonController.ts` moves on a flat
- * plane with no step height, so the tower is a room, not a climb
- * (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md`, "no vertical traversal").
+ * Ground floor, deliberately: the tower is a room, not a climb. Rooms and
+ * floors are flat and stay flat. The shared movement controller does let a
+ * child jump (`movement.jump`, 0.9 m here), and the castle adds a few low,
+ * static pads (`runtime/manifests/castleRooms/castlePlatforms.ts`, tops at
+ * most 0.5 m under the 3.1 m ceiling), each only a second way to give an
+ * answer the card and the walk-in route already accept. There is still no
+ * vertical traversal: no stairs, no upper floors, no bounce pads and no lifts,
+ * and no wall, doorway or room boundary can be jumped.
  */
 export const TOWER_WINDOW_SPOTS: readonly WallMountedSpot[] = [
   {

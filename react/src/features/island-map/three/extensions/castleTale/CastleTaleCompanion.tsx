@@ -20,7 +20,12 @@ import { useGreatStorybook } from '../../../../great-storybook/useGreatStorybook
 import { CastleGuide } from './CastleGuide';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
-import { isSecretDoorStoryForBand, taleAdventureForBand } from './castleTaleClaims';
+import {
+  isSecretDoorStoryForBand,
+  paintedWordsAdventureFor,
+  taleAdventureForBand,
+} from './castleTaleClaims';
+import { CastlePaintedWordsSession } from './CastlePaintedWordsSession';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
 import { useCastleNpcs, type CastleNpcHandover } from './useCastleNpcs';
 
@@ -145,6 +150,13 @@ export function CastleTaleCompanion({
   /** Whether the tale and the story have finished here (their cards then stop holding Quill). */
   const [taleDone, setTaleDone] = useState(false);
   const [storyDone, setStoryDone] = useState(false);
+  /** SC-JMP: the Painted Words, hosted in the Studio so its pads can answer. `run` remounts a replay. */
+  const [paintedWords, setPaintedWords] = useState<{
+    definition: AdventureDefinition;
+    run: number;
+  } | null>(null);
+  const [paintedWordsDone, setPaintedWordsDone] = useState(false);
+  const paintedWordsDoneRef = useRef(false);
 
   /** Which adventure this child's band gets here (SC-10), asked rather than assumed. */
   const taleForBand = useMemo(() => taleAdventureForBand(ageBand), [ageBand]);
@@ -254,7 +266,20 @@ export function CastleTaleCompanion({
       setStoryActive(true);
       onCloseInteraction();
     }
-  }, [parsed, claimedInteraction, taleForBand, storyForBand, onCloseInteraction]);
+    const painted = paintedWordsAdventureFor(claimedInteraction, ageBand);
+    if (painted) {
+      // A claim seen again while this same mission is still open (a re-render) changes nothing.
+      setPaintedWords((previous) => {
+        if (previous && previous.definition.slug === painted.slug && !paintedWordsDoneRef.current) {
+          return previous;
+        }
+        paintedWordsDoneRef.current = false;
+        setPaintedWordsDone(false);
+        return { definition: painted, run: (previous?.run ?? 0) + 1 };
+      });
+      onCloseInteraction();
+    }
+  }, [parsed, claimedInteraction, taleForBand, storyForBand, ageBand, onCloseInteraction]);
 
   /*
     Beat 2's gestures: `Talk` while the conversation panel is open, then
@@ -319,7 +344,11 @@ export function CastleTaleCompanion({
     handovers,
     claimedInteraction,
     onCloseInteraction,
-    suspended: (taleActive && !taleDone) || (storyActive && !storyDone) || openElsewhere,
+    suspended:
+      (taleActive && !taleDone) ||
+      (storyActive && !storyDone) ||
+      (paintedWords !== null && !paintedWordsDone) ||
+      openElsewhere,
     onStage: Boolean(speechSlot),
   });
   const { notifyTaleStarted, notifyTaleCompleted } = npcs;
@@ -334,6 +363,12 @@ export function CastleTaleCompanion({
 
   const handleStoryComplete = useCallback(() => {
     setStoryDone(true);
+    void refreshWorld();
+  }, [refreshWorld]);
+
+  const handlePaintedWordsComplete = useCallback(() => {
+    paintedWordsDoneRef.current = true;
+    setPaintedWordsDone(true);
     void refreshWorld();
   }, [refreshWorld]);
 
@@ -372,6 +407,18 @@ export function CastleTaleCompanion({
           restoredChoices={restoredChoices}
           onChoice={reflectChoice}
           onComplete={handleTaleComplete}
+          backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
+        />
+      ) : null}
+      {paintedWords ? (
+        <CastlePaintedWordsSession
+          key={`${paintedWords.definition.slug}:${paintedWords.run}`}
+          childId={childId}
+          ageBand={ageBand}
+          aiEnabled={aiEnabled}
+          bus={bus}
+          definition={paintedWords.definition}
+          onComplete={handlePaintedWordsComplete}
           backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
         />
       ) : null}

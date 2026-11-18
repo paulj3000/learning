@@ -704,6 +704,13 @@ export interface ThreeLocationManifest {
    */
   platforming?: PlatformingSpec;
   /**
+   * SC-JMP: a different platforming for one age band, replacing `platforming` whole when the
+   * child is in that band (`manifestForBand`). The castle gives Sprouts flat floor markers with
+   * no colliders where Pathfinders and Explorers get solid pads. The same zones answer either
+   * way, so the band changes how a step looks, never what it asks.
+   */
+  platformingByBand?: Partial<Record<AgeBandValue, PlatformingSpec>>;
+  /**
    * LAI-JMP-01a: how the player is seen here: camera perspective and tuning,
    * and the avatar. Absent means the defaults (third-person, switchable, the
    * child's own avatar); `playerPresentation.ts`.
