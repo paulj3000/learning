@@ -12,6 +12,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:admin-preview": "vite build --config vite.admin-preview.config.ts",
+    "build:admin-capture": "vite build --config vite.admin-capture.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc -b && tsc --noEmit -p ../scripts/tsconfig.json && tsc --noEmit -p ../server/tsconfig.json && tsc --noEmit -p ../infra/tsconfig.json",
     "test": "vitest run",

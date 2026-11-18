@@ -1,78 +1,92 @@
-"""SQS-triggered entry point: `image_worker.handler.handle` (ReportBatchItemFailures).
+"""SQS entry point for the image function: `image_worker.handler.handle`.
 
-Reuses `jobs_worker.handler.process` for everything except the work itself: strict envelope
-validation, wrong-queue rejection, redelivery from the stored result, `running` and final result
-messages, S3 result storage and pointers. This module adds only the runtime that knows the
-image queue and the runner for `asset.convert_image`.
+All envelope handling, redelivery, result storage and the batch-failure contract are the jobs
+worker's (`jobs_worker.handler.process`, imported, not copied). This module only:
 
-Registration is explicit and idempotent (`register()`): the runner goes into the vendored
-`tasks.RUNNERS`. The envelope must already know the kind and queue (Workstream A registers
-`asset.convert_image` on the `image` queue); until it does, every message is a batch item failure
-and nothing is converted. No message is processed for a kind this build does not run.
+* registers the image runner for `asset.convert_image` in the jobs core `RUNNERS` table,
+* supplies a `Runtime` whose ports add the create-only artifact store for the request's attempt,
+* runs the request through the ADR-061 `ExecutionEngine` with the `asset.image_converter`
+  processor (`lai_native.image.engine`), which verifies the input copy (size and SHA-256), applies
+  the limits and the deadline, and records every artifact reference in the result.
+
+Settings are `jobs_worker.aws.Settings` (queue `image`). No database, Bedrock or Polly access.
 """
 
 from __future__ import annotations
 
 from jobs_worker import aws
-from jobs_worker import handler as base
+from jobs_worker import handler as jobs_handler
+from jobs_worker.vendor.jobs_core import envelope
+from jobs_worker.vendor.jobs_core.tasks import RUNNERS, TaskError
 
-from .settings import KIND, ImageSettings
-from .task import ArtifactSink, UnconfiguredSink, run_convert_image
-from .vendor_tasks import TaskError, tasks
+KIND = envelope.ASSET_CONVERT_IMAGE
+QUEUE = "image"
 
 
 class ImagePorts(aws.AssetPorts):
-    """Read-only asset ports plus the artifact sink (stubbed until Workstream A's put lands)."""
+    """The asset ports plus the create-only artifact store of one attempt."""
 
-    def __init__(self, runtime: aws.Runtime, sink: ArtifactSink | None = None):
-        super().__init__(runtime)
-        self.artifacts = sink or UnconfiguredSink()
+    def artifact_storage(self, namespace: str, job_id: str, attempt_id: str):
+        return self._runtime.artifact_storage(namespace, job_id, attempt_id)
 
 
 class ImageRuntime(aws.Runtime):
-    def __init__(self, settings=None, clients=None, sink: ArtifactSink | None = None, **kwargs):
-        super().__init__(settings or ImageSettings(), clients, **kwargs)
-        self._sink = sink
-
     def ports(self, kind: str, context):
         if kind != KIND:
             raise TaskError("unknown_kind")
-        return ImagePorts(self, self._sink)
+        return ImagePorts(self)
 
 
-def register() -> None:
-    tasks.RUNNERS.setdefault(KIND, run_convert_image)
+_registry = None
 
 
-_runtime: ImageRuntime | None = None
+def engine_registry():
+    """The closed registry of this function: one processor, built once per container."""
+    global _registry
+    if _registry is None:
+        from lai_native.image.engine import registry
+
+        _registry = registry()
+    return _registry
 
 
-def runtime() -> ImageRuntime:
-    global _runtime
-    if _runtime is None:
-        _runtime = ImageRuntime()
-    return _runtime
-
-
-def set_runtime(value: ImageRuntime | None) -> None:
+def set_registry(value) -> None:
     """Test seam."""
-    global _runtime
-    _runtime = value
+    global _registry
+    _registry = value
+
+
+def run_convert(payload: dict, ports) -> dict:
+    """Decode the ADR-061 request, run the engine with this function's registry and the attempt's
+    artifact store, return the result dict or raise `TaskError`."""
+    from lai_processing.contracts.jobs import ProcessingJobRequest
+    from lai_processing.contracts.results import ResultStatus
+    from lai_processing.core.errors import ProcessingError, RetryClass
+    from lai_processing.core.execution import ExecutionEngine
+
+    try:
+        request = ProcessingJobRequest.from_dict(payload)
+    except (ProcessingError, KeyError, TypeError, ValueError):
+        raise TaskError("invalid_payload") from None
+    if request.job_type != KIND:
+        raise TaskError("invalid_payload")
+    engine = ExecutionEngine(
+        registry=engine_registry(),
+        storage=ports.artifact_storage(request.namespace, request.job_id, request.attempt_id),
+        namespace=request.namespace,
+    )
+    result = engine.execute(request)
+    if result.status is ResultStatus.SUCCEEDED:
+        return result.to_dict()
+    error = result.primary_error
+    code = error.code.value if error is not None else "processing_failed"
+    raise TaskError(code, retryable=result.retry_class is RetryClass.RETRYABLE)
+
+
+RUNNERS[KIND] = run_convert  # picked up by jobs_worker.handler.process via tasks.run
 
 
 def handle(event, context):
-    register()
-    failures = []
-    for record in (event or {}).get("Records", []):
-        message_id = record.get("messageId", "")
-        try:
-            base.process(record.get("body", ""), context, runtime())
-        except Exception as error:  # noqa: BLE001 - retried by SQS; never logs the message
-            aws.log(
-                "message.failed",
-                message=str(message_id)[:100],
-                type=type(error).__name__,
-                code=getattr(error, "code", None),
-            )
-            failures.append({"itemIdentifier": message_id})
-    return {"batchItemFailures": failures}
+    if jobs_handler._runtime is None:  # noqa: SLF001 - one runtime per warm container
+        jobs_handler.set_runtime(ImageRuntime(aws.Settings()))
+    return jobs_handler.handle(event, context)

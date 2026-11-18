@@ -1,8 +1,8 @@
 # Image conversion (LAI-LAMBDA-013a): contract, operations and measurements
 
-Status: phase 1 of Workstream D (packaging, processor, privacy, worker handler). Phase 2 (Django
-submission, the Asset Library actions, result recording) follows when Workstream A freezes the
-derived artifact interface. Decision record: `adr/ADR-068-image-conversion.md`. Nothing here is
+Status: phases 1 and 2 of Workstream D. Phase 1: packaging, processor, privacy. Phase 2 (this
+revision): the worker runs the ADR-061 engine over A's frozen derived artifact interface
+(`DERIVED_ARTIFACTS.md`), and the Asset Library has the staff actions (section 5b). Decision record: `adr/ADR-068-image-conversion.md`. Nothing here is
 deployed; no AWS call was made; no Lambda number exists.
 
 ## 1. What exists
@@ -10,14 +10,14 @@ deployed; no AWS call was made; no Lambda number exists.
 | Piece | Path |
 |---|---|
 | Processor (Pillow) | `processing/lai_native/image/` (`profiles`, `decode`, `prepare`, `colour`, `encode`, `audit`, `convert`) |
-| Worker | `lambda/image_worker/` (`handler`, `task`, `settings`, `vendor_tasks`) |
+| Worker | `lambda/image_worker/` (`handler`) and `lai_native/image/engine.py`, `contract.py` |
 | Packaging | `native/pillow/` (`requirements-*.txt` with hashes, `build.py`, notices, vulnerability note, SBOM, `bench.py`) |
 | Tests | `tests/native_image/` |
 
 `lai_processing` is untouched and stays standard-library only. The worker imports
-`jobs_worker.handler.process` (strict envelope, wrong-queue rejection, redelivery from the stored
-result, `running` and final messages, S3 result storage) and `jobs_worker.aws` (runtime, asset
-read ports, `log`); it does not fork them.
+`jobs_worker.handler` (strict envelope, wrong-queue rejection, redelivery from the stored result,
+`running` and final messages, S3 result storage) and `jobs_worker.aws` (settings, runtime, the
+create-only artifact store); it does not fork them.
 
 ## 2. Pipeline (one source, one or more profiles)
 
@@ -77,37 +77,55 @@ carry presence flags (`exifPresent`, `gpsPresent`, `xmpPresent`, `iccPresent`, `
 original object is read with ranged GETs and never written. Child photos, audio and text are
 never inputs (the asset key shape `assets/images/...` is enforced).
 
-## 5. Worker contract (phase 1 shape)
+## 5. Worker contract (canonical request, phase 2)
 
-Kind `asset.convert_image`, queue `image`. Payload keys (exact): `storage_key`, `format`,
-`size_bytes`, `sha256` (of the source; size and hash are verified), `profiles` (1 to 4 names),
-optional `options`. Result (success): `processor`, `source` (flags), `outputs[]` (`logicalId`,
-`profile`, `format`, `contentType`, `width`, `height`, `sizeBytes`, `sha256`, `sanitized`,
-`colour`, `alphaAction`, `orientationApplied`, `resized`), `findings`, `verdict: pass`,
-`artifacts[]` (what the artifact sink returned). Error codes (non-retryable unless noted):
-`invalid_payload`, `invalid_profile`, `object_missing`, `size_mismatch`, `checksum_mismatch`,
-`format_mismatch`, `input_too_large`, `unsupported_format`, `malformed_image`, `image_too_large`,
-`animated_not_supported`, `bit_depth_not_supported`, `colour_profile_invalid`,
-`colour_mode_not_supported`, `alpha_not_supported`, `output_too_large`, `output_check_failed`,
-`artifact_store_unconfigured`, `pillow_unavailable`; storage faults from the asset ports are
-retryable and keep `jobs_worker`'s classification.
+Kind `asset.convert_image`, queue `image`, settings `jobs_worker.aws.Settings`. The payload is the
+ADR-061 `ProcessingJobRequest` that `apps.assets.artifact_jobs.derived_request` builds (input =
+the stored object with its recorded size and SHA-256, subject = the version). The handler
+(`image_worker.handler.handle`) reuses `jobs_worker.handler.process`, registers `run_convert` in
+the jobs core `RUNNERS`, and runs `ExecutionEngine` with the `asset.image_converter` processor
+(`lai_native.image.engine`) and `Runtime.artifact_storage(namespace, job id, attempt id)`: the
+engine verifies the input copy, applies the limits and deadline, and every output is written with
+`ProcessingContext.write_artifact` (create-only, the attempt prefix, `IfNoneMatch="*"`, checksum).
 
-Artifact output is a stub: `image_worker.task.ArtifactSink.put(logical_id, content_type, data,
-sha256) -> dict`. The default sink refuses (`artifact_store_unconfigured`); Workstream A supplies
-the create-only S3 put keyed `processing/artifacts/<env>/<job id>/<attempt id>/<logical id>.<ext>`,
-and `ImageRuntime(sink=...)` takes it. Roles `image.converted`, `image.resized`, `image.thumbnail`
-(ADR-066) map to `convert-*`, resize options and `thumbnail-*`.
+| Contract profile (v1) | Options (defaults) | Role, logical ids |
+|---|---|---|
+| `image-convert` | `target_format` png, jpeg, webp (webp); `purpose` artwork, data (artwork); `quality` 1 to 100 (85); `lossless` (false); `power_of_two` (false); `flatten_background` `#rrggbb` or empty | `image.converted`, `converted` |
+| `image-resize` | the same, plus `max_side` 16 to 4096 (1024); `target_format` also `source` (source) | `image.resized`, `resized` |
+| `image-thumbnails` | none | `image.thumbnail`, `thumb-128`, `thumb-256`, `thumb-512` |
 
-### Needed changes elsewhere (not made here)
+Limits in the request (`IMAGE_LIMITS`): input 10 MiB, outputs 16 MiB in total, 60 s, 64 MiB temp,
+4 artifacts, 32 KiB metadata. The processor version is `1.0.0` (`PROCESSOR_VERSION`); Django
+registers `PROCESSOR_VERSION_RESOLVERS["asset.convert_image"]` from `lai_native.image.contract`
+(Pillow free), so an older processor's result is `processor_outdated`.
 
-| Owner | Change |
+Result metadata (value free): `tool_versions.pillow`, `source` (format, size, orientation number,
+animated), `source_flags` (EXIF, GPS, XMP, ICC present, booleans only) and
+`artifact_facts[logical id]` with `width`, `height`, `format`, `source_width`, `source_height`,
+`source_format`, `colour_action`, `colour_class`, `alpha_action`, `orientation`, `sanitized`,
+`profile`; Django stores these with each derived artifact. Findings: `cmyk_converted`,
+`gray_profile_ignored`, `bit_depth_reduced`. Engine error codes: `invalid_input` (malformed,
+bad colour profile), `unsupported_input` (format, animation, 16-bit or CMYK data, alpha into JPEG
+without a background), `resource_limit_exceeded` (input, pixels, output), `checksum_mismatch`,
+`invalid_processing_profile`, `unexpected_failure` (an output failed the metadata audit), plus
+the engine's storage and timeout codes.
+
+## 5b. Django side
+
+`apps/assets/image_conversion.py` (`submit`, `eligibility`, `output_rows`, the resolver) and
+`apps/assets/admin_image.py` (mixin on `AssetVersionAdmin`): Convert image, Resize image and
+Generate thumbnail, permission gated, refused with a safe message unless `LAI_IMAGE_CONVERSION` is
+on, and an "Image conversions" section with original and output dimensions and sizes, format,
+colour handling, sanitization, a preview and the link to review and promotion (A's). Details and
+rules: `docs/ASSET_LIBRARY.md` section 25. Nothing publishes automatically.
+
+### Shared-file changes (phase 2)
+
+| File | Change |
 |---|---|
-| A | `envelope.py`: kind `asset.convert_image` and queue `image` in `KIND_QUEUE`; `build_work`/`parse_work` then accept it. Until then `image_worker.handler.handle` reports every message as a batch item failure and converts nothing. Also the payload and result mapping onto `ProcessingJobRequest` and `ArtifactReference`, and the sink |
-| A | `tasks.py`: the runner may be registered natively instead of through `image_worker.handler.register()` (which writes `tasks.RUNNERS`) |
-| jobs_worker (A or B) | `aws.Settings` rejects any `LAI_WORKER_QUEUE` other than `ai` and `media`; the image function uses `image_worker.settings.ImageSettings` instead, so no change is required, but a shared settings class would remove the duplicate |
-| `lambda/build.py` | no change: `native/pillow/build.py` imports it and adds the image files; it must keep exposing `entries()` |
-| G | Image function: handler `image_worker.handler.handle`, arm64, python3.12, memory and timeout per ADR-068 O-1, environment `LAI_WORKER_QUEUE=image`, `LAI_RESULTS_QUEUE_URL`, `LAI_RESULTS_BUCKET`, `LAI_ASSET_BUCKET`; queue, DLQ, alarm, role with read on `assets/images/*` and create-only on the artifact prefix |
-| F | Reuse `prepare_texture`; see section 8 |
+| `lai/apps/assets/admin.py` | class base `ImageConversionAdminMixin` and `IMAGE_FIELDS` appended to the read-only field list (2 lines and an import) |
+| `lai/apps/assets/artifact_results.py` | none: the resolver is registered from `image_conversion.py` through `PROCESSOR_VERSION_RESOLVERS` |
+| `lambda/build.py`, `jobs_worker`, `tests/lambda` | none |
 
 ## 6. Packaging and sizes (measured by `native/pillow/build.py`, 2026-11-18)
 
@@ -120,16 +138,16 @@ x86_64 wheel for local tests.
 |---|---:|---:|
 | Wheel (compressed) | 6,519,309 B | 7,144,542 B |
 | Wheel unpacked, nothing pruned | 21,567,855 B | not measured |
-| **Function zip, stored (budget basis)** | **13,185,069 B (12.57 MiB)** | 12,343,825 B (11.77 MiB) |
-| Function zip, unpacked | 13,159,219 B | 12,317,985 B |
-| Function zip, deflate level 9 (informational) | 3,361,128 B | 3,507,283 B |
+| **Function zip, stored (budget basis)** | **13,280,922 B (12.67 MiB)** | 12,439,678 B (11.86 MiB) |
+| Function zip, unpacked | 13,253,828 B | 12,412,594 B |
+| Function zip, deflate level 9 (informational) | 3,391,518 B | 3,537,673 B |
 | Documented budget | 25,165,824 B (24 MiB) | |
 
 Composition of the aarch64 tree: `pillow.libs` 6,446,252 B, `PIL` 6,091,095 B, `lai_processing`
-375,124 B, wheel metadata and licences 114,124 B, `jobs_worker` (with vendored core) 82,807 B,
-`lai_native` 37,342 B, `image_worker` 9,394 B, notices 3,081 B. The zip is stored, not deflated,
+448,835 B, wheel metadata and licences 114,124 B, `jobs_worker` (with vendored core and the
+artifact store) 95,501 B, `lai_native` 50,861 B, `image_worker` 4,079 B, notices 3,081 B. The zip is stored, not deflated,
 so its bytes and name are reproducible regardless of the zlib build; the same inputs give the
-same zip (tested). The budget test fails the build above 24 MiB; actual use is 52 percent of it.
+same zip (tested). The budget test fails the build above 24 MiB; actual use is 53 percent of it.
 Lambda limits (250 MB unzipped, 50 MB direct upload) do not bind; the function is deployed from S3.
 
 Pruning (8,916,384 B less than the unpruned wheel contents): AVIF (`_avif`, libavif), font
