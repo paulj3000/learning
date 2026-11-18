@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from .decode import decode_image
+from .decode import DecodedImage, decode_image
 from .encode import EncodedImage, encode
 from .errors import ImageError
 from .prepare import PreparedImage, prepare_texture
@@ -63,12 +63,9 @@ def convert_image(data: bytes, profile: ImageProfile) -> ConvertedOutput:
     return convert_many(data, [profile]).outputs[0]
 
 
-def convert_many(data: bytes, profiles: Sequence[ImageProfile]) -> ConversionReport:
-    """Decode once, then prepare and encode each profile. Order and bytes are deterministic."""
-    if not 1 <= len(profiles) <= MAX_OUTPUTS:
-        raise ImageError("invalid_profile")
-    decoded = decode_image(data, first_frame_only=all(p.first_frame_only for p in profiles))
-    source = {
+def source_facts(decoded: DecodedImage) -> dict:
+    """Value-free facts about the source (flags, sizes, orientation number)."""
+    return {
         "format": decoded.format,
         "width": decoded.width,
         "height": decoded.height,
@@ -88,6 +85,20 @@ def convert_many(data: bytes, profiles: Sequence[ImageProfile]) -> ConversionRep
             )
         },
     }
+
+
+def convert_many(data: bytes, profiles: Sequence[ImageProfile]) -> ConversionReport:
+    """Decode once, then prepare and encode each profile. Order and bytes are deterministic."""
+    if not 1 <= len(profiles) <= MAX_OUTPUTS:
+        raise ImageError("invalid_profile")
+    decoded = decode_image(data, first_frame_only=all(p.first_frame_only for p in profiles))
+    return convert_decoded(decoded, profiles)
+
+
+def convert_decoded(decoded: DecodedImage, profiles: Sequence[ImageProfile]) -> ConversionReport:
+    """Prepare and encode each profile from an already decoded image."""
+    if not 1 <= len(profiles) <= MAX_OUTPUTS:
+        raise ImageError("invalid_profile")
     outputs: list[ConvertedOutput] = []
     total = 0
     for profile in profiles:
@@ -100,4 +111,4 @@ def convert_many(data: bytes, profiles: Sequence[ImageProfile]) -> ConversionRep
             raise ImageError("output_too_large")
         outputs.append(ConvertedOutput(profile, encoded, plan, findings))
     merged = tuple(sorted({code for output in outputs for code in output.findings}))
-    return ConversionReport(source=source, outputs=tuple(outputs), findings=merged)
+    return ConversionReport(source=source_facts(decoded), outputs=tuple(outputs), findings=merged)

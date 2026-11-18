@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main">
+  <p>Version {{ version.label }}. The result is a private copy for review. Nothing is published, and the original is not changed. The copy has location data, camera details and other embedded information removed.</p>
+  <form method="post">
+    {% csrf_token %}
+    <table>{{ form.as_table }}</table>
+    <div class="submit-row">
+      <input type="submit" class="default" value="Submit">
+      <a href="{% url 'admin:assets_assetversion_change' version.pk %}" class="closelink">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
