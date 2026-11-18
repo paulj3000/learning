@@ -1,9 +1,9 @@
 # Audio Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-020, ADR-033, ADR-035, ADR-044, ADR-045, ADR-048 (Proposed), ADR-049 (Proposed), ADR-050 (Proposed), ADR-053, ADR-054, ADR-064, ADR-072 (Proposed)
+- **Related ADRs:** ADR-020, ADR-033, ADR-035, ADR-044, ADR-045, ADR-048 (Proposed), ADR-049 (Proposed), ADR-050 (Proposed), ADR-053, ADR-054, ADR-064, ADR-072 (Accepted)
 - **Canonical sources:** [`docs/audio/SOUND_MANAGER_ARCHITECTURE.md`](../audio/SOUND_MANAGER_ARCHITECTURE.md), [`docs/audio/SOUND_MANAGER_USAGE.md`](../audio/SOUND_MANAGER_USAGE.md), [`docs/audio/PHASE_2_ASSET_INTEGRATION.md`](../audio/PHASE_2_ASSET_INTEGRATION.md), [`docs/audio/SPATIAL_AUDIO.md`](../audio/SPATIAL_AUDIO.md), [`docs/audio/MUSIC_MIXING.md`](../audio/MUSIC_MIXING.md), [`docs/audio/CHILD_AUDIO_PREFERENCES.md`](../audio/CHILD_AUDIO_PREFERENCES.md), [`docs/audio/AMAZON_POLLY_INTEGRATION.md`](../audio/AMAZON_POLLY_INTEGRATION.md), [`docs/DECISIONS.md`](../DECISIONS.md)
 
 Every sound an adventure plays (music, effects, ambience, narration, character voices, interface)

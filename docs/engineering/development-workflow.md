@@ -1,9 +1,9 @@
 # Development Workflow
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-072 (Proposed), ADR-019 (gates G1 to G10), ADR-020, ADR-033
+- **Related ADRs:** ADR-072 (Accepted), ADR-019 (gates G1 to G10), ADR-020, ADR-033
 - **Canonical sources:** [`CLAUDE.md`](../../CLAUDE.md) sections 14, 15 and 18; [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) "When to run which checks"; [`docs/DJANGO_MIGRATION_ROADMAP.md`](../DJANGO_MIGRATION_ROADMAP.md) section 1
 
 Every change, from a one-line fix to a new adventure, follows the same 22-step lifecycle. Small
@@ -69,12 +69,12 @@ Continue with independent work in the meantime only if it does not depend on the
 | Trigger | Source |
 |---|---|
 | The task is marked APPROVAL in [`docs/DJANGO_MIGRATION_ROADMAP.md`](../DJANGO_MIGRATION_ROADMAP.md) | Roadmap section 1, CLAUDE.md section 18 |
-| Anything that creates, changes, deletes or deploys an AWS resource, or migrates production data (the Cognito pool and retained Amplify resources included) | CLAUDE.md section 18, ADR-019 gate G7 |
+| Anything that creates, changes, deletes or deploys an AWS resource, or migrates production data (the Cognito pool and the retained legacy DynamoDB tables and S3 buckets from the retired backend included) | CLAUDE.md section 18, ADR-019 gate G7 |
 | The work touches an open ADR-019 gate (G1 to G3, G5 to G10) | [`docs/DECISIONS.md`](../DECISIONS.md) ADR-019 |
 | The change goes beyond the ticket's approved scope or acceptance criteria, or into CLAUDE.md section 12 out-of-scope items | CLAUDE.md sections 11 and 12 |
 | A change to a coordination hotspot or a shared component another ticket owns or depends on: record the planned change on the ticket before editing, and get the owner's or coordinator's acknowledgement before merging ([`integration-policy.md`](integration-policy.md#coordination-required), the single hotspot list) | [`integration-policy.md`](integration-policy.md) |
 | A new runtime or development dependency | CLAUDE.md section 13 |
-| A new framework, engine, renderer, styling system or service, or reintroducing a retired one (Amplify, Phaser as an alternative engine) | ADR-019, ADR-020 |
+| A new framework, engine, renderer, styling system or service, or reintroducing a retired one (the retired backend, Phaser as an alternative engine) | ADR-019, ADR-020 |
 | An architectural decision not covered by an accepted ADR (draft it from [`templates/adr.md`](templates/adr.md), number it only through the [reservation procedure](multi-agent-workflow.md#adr-number-reservation)) | [`docs/DECISIONS.md`](../DECISIONS.md) governance |
 | Two sources of policy conflict | [`README.md`](README.md) precedence |
 | Child data, privacy, authentication or authorization behavior changes beyond what the ticket states | [`security-policy.md`](security-policy.md) |

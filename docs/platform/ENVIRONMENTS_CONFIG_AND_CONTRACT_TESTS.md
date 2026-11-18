@@ -4,85 +4,57 @@ Covers `docs/android/android.md` Phase 19 ("Environment Strategy"), Phase
 20 ("Generated Client Configuration"), and Phase 21 ("Cross-Platform
 Contract Tests"), scoped per ADR-017 in `docs/DECISIONS.md`. **No
 production code, CI, or deployment configuration changes this phase.**
-Creating a real `staging`/`production` Amplify branch environment is an
-infrastructure action with real AWS cost and access-control consequences
-— the kind of change this project's own operating rules reserve for an
-explicit, human-authorized decision, not something to take unilaterally
-while documenting a roadmap phase. This document records what already
-exists, what is genuinely missing, and what a human would need to decide
-before any of it is built.
+Creating or deploying an environment is an infrastructure action with
+real AWS cost and access-control consequences — the kind of change this
+project's own operating rules reserve for an explicit, human-authorized
+decision, not something to take unilaterally while documenting a roadmap
+phase. This document records what exists, what is genuinely missing, and
+what a human would need to decide before any of it is built.
 
-## 1. Environment strategy: the mechanism already exists; only the branches don't
+**Updated for the current platform.** The environment and configuration
+model below is the Django + CDK one (`docs/ARCHITECTURE.md`, "Environment
+strategy"; `docs/infrastructure/deployment-design.md`).
+
+## 1. Environment strategy: CDK stages, not branches
 
 `docs/android/android.md` Phase 19 wants development/staging/production
-Amplify environments, mapped so a development build can never reach
-production data. Checking this repo's actual deploy configuration
-(`amplify.yml`, `.github/workflows/ci.yml`):
-
-```yaml
-# amplify.yml
-backend:
-  phases:
-    build:
-      commands:
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
-```
-
-**This already is Amplify Hosting's branch-per-environment model** —
-`ampx pipeline-deploy --branch $AWS_BRANCH` means every Git branch
-connected to Amplify Hosting gets its own, fully isolated backend
-(Cognito pool, AppSync API, DynamoDB tables, S3 bucket): pushing to a
-`staging` branch would already provision a completely separate `staging`
-environment from `main`, with no shared data path between them, using
-infrastructure this repo already has wired. **Nothing needs to be built
-for the mechanism to work.** What genuinely does not exist: any branch
-other than `main`. There is one deployed environment today (whatever
-`main` maps to, if this repo is even connected to Amplify Hosting in a
-live AWS account — this sandbox cannot confirm that, the same recurring
-constraint noted throughout `docs/IMPLEMENTATION_STATUS.md`), not three.
-
-Mapping android.md's vocabulary onto what a real second branch would need
-to be:
+environments, mapped so a development build can never reach production
+data. The environments are AWS CDK stages in `infra/`: `infra/bin/app.ts`
+accepts exactly two names, `dev` and `prod` (`npm run infra:synth:dev`,
+`npm run infra:synth:prod`), and each stage gets its own stacks
+(`LaiDjangoEc2-<env>`, `LaiAssetStorage-<env>`, `LaiChildPhotos-<env>`,
+`LaiAiGuardrail-<env>`, `LaiFrontend-<env>`), its own PostgreSQL database
+and its own S3 buckets. Local development runs React (Vite) against Django
+and PostgreSQL in Docker with fake AI and speech providers. The low-cost
+development environment is ADR-055's; production keeps ADR-037.
 
 | android.md environment | This repo's mechanism |
 |---|---|
-| `development` | `main` branch → whatever Amplify app/branch it is currently connected to (unconfirmed in this sandbox) |
-| `staging` | Not created. Would be: a `staging` Git branch connected to the same Amplify Hosting app, provisioning its own backend automatically via the existing `amplify.yml` |
-| `production` | Not created. Same mechanism, a `production`-mapped branch (commonly `main` itself is treated as production and a separate `develop` branch as development — the exact branch-to-environment naming is a team convention this repo has not yet had to decide, since only one branch exists) |
+| `development` | Local Docker stack, and the CDK `dev` stage (deployed only with owner approval) |
+| `staging` | Not defined. `infra/bin/app.ts` refuses any stage other than `dev` or `prod`; adding one is an owner decision |
+| `production` | The CDK `prod` stage (deployed only with owner approval) |
 
-**Not decided by this document**: which branch name maps to which
-environment tier, whether `main` should be treated as production or
-development, and when a `staging` branch should actually be created and
-connected in the Amplify Hosting console. These are deployment-topology
-decisions for whoever operates the real AWS account, not something a
+Infrastructure code existing is not the same as deployed: which stages
+are live, and whether a `staging` stage is ever added, are
+deployment-topology decisions for the owner, not something a
 documentation pass can decide on their behalf.
 
-## 2. Generated client configuration: already the mechanism the web client itself uses
+## 2. Client configuration: build-time variables, no generated file
 
-`docs/android/android.md` Phase 20 wants Android to obtain its Amplify
-configuration via `npx ampx generate outputs` rather than hand-maintained
-duplicated identifiers (AppSync endpoint, Cognito IDs, S3 bucket names,
-region). **This is already exactly how the web client gets its own
-configuration.** `src/lib/amplify-config.ts`'s own doc comment already
-documents it: `amplify_outputs.json` is generated by `ampx sandbox` (or a
-pipeline deploy) and gitignored, never hand-maintained — the web client
-reads it as generated output, the same file `ampx generate outputs` (a
-narrower, CI/scripting-friendly form of the same generation Amplify
-Hosting already performs automatically on every branch deploy) would
-produce for an Android project pointed at the `--branch`/`--app-id` of
-whichever environment it should use.
+`docs/android/android.md` Phase 20 wants clients to avoid hand-maintained
+duplicated identifiers. The web client reads three build-time variables:
+`VITE_COGNITO_USER_POOL_ID` and `VITE_COGNITO_CLIENT_ID`
+(`react/src/lib/cognito/config.ts`; the region is the pool id's prefix)
+and `VITE_DJANGO_API_BASE` (`react/src/api/apiBase.ts`; empty means
+same-origin, otherwise an `https://` origin, refused at build time if
+invalid). The site release workflow supplies them per environment. There
+is no generated configuration file and no S3 bucket name in the client:
+every bucket is reached only through Django.
 
-**Nothing new needs to be built for this either.** The moment a real
-Android project exists, it runs:
-
-```bash
-npx ampx generate outputs --app-id <the app id> --branch <e.g. development> --out-dir <android project's config dir>
-```
-
-against the exact same backend this repo already deploys, and gets a
-config file with no hand-copied identifier anywhere. This acceptance
-criterion is satisfied by tooling Amplify Gen 2 already ships, not by
-anything this repository needs to add.
+An Android client needs the same three values for its environment (the
+Cognito pool and app client it signs in with, and the Django API origin);
+the API itself is the `/api/v1/` contract in `docs/ARCHITECTURE.md`
+("Django API conventions") and `docs/android/ANDROID_API_CONTRACT.md`.
 
 ## 3. Cross-platform contract tests: nothing to test yet; largely already covered in spirit by Phase 40's audit
 
@@ -90,7 +62,7 @@ anything this repository needs to add.
 tests proving a write on one client is visible on the other, across auth,
 child profiles, learning, inventory, quests, and world unlocks. None can
 be written today — there is no second client. But the *underlying claim*
-these tests would check ("a write through Amplify Data is visible to any
+these tests would check ("a write through the backend API is visible to any
 other authenticated caller reading the same owner-scoped data") is the
 same claim `docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md` (Phase 40)
 already audited for cross-device sync, structurally: every model is
@@ -108,7 +80,7 @@ reverse" pairing android.md's own Phase 21 asks for):
 | Area | Would exercise |
 |---|---|
 | Authentication | A Cognito account created via one client signs in successfully via the other; the resolved identity (`sub`) matches |
-| Child profiles | `ChildProfile.create()` on one client is visible via `.list()`/`.get()` on the other; an update to a permitted field (nickname, `sessionMinutes`, etc.) propagates |
+| Child profiles | `ChildProfile.create()` on one client is visible via `.list()`/`.get()` on the other; an update to a permitted field (nickname, etc.) propagates |
 | Learning | `submitAdventureAnswer` (Phase 37) called from one client advances `AdventureSession.currentStepId`, visible to the other on its next read |
 | Inventory | `ChildInventory.ownedItemIds`, granted via `grantRewards` on one client, is visible on the other |
 | Quests | `ChildQuestState` status/stage, advanced via `syncQuestProgress` on one client, is visible on the other |
@@ -125,9 +97,8 @@ before.
 
 ## 4. What this document does not do
 
-- It does not create a `staging` or `production` Git branch, Amplify
-  Hosting environment, or any AWS resource.
-- It does not change `amplify.yml` or `.github/workflows/ci.yml`.
+- It does not create or deploy any environment or AWS resource.
+- It does not change `infra/` or any workflow under `.github/workflows/`.
 - It does not write any cross-platform contract test, since none can run
   without a second client.
 - It does not decide branch-naming or environment-promotion conventions —

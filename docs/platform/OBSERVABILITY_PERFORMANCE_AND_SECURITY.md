@@ -17,14 +17,14 @@ and duration, so production issues can be filtered by client and
 cross-device sync failures stay traceable.
 
 This backend already had one Lambda that turns table writes into
-CloudWatch metrics (`amplify/functions/operational-metrics/handler.ts`,
+CloudWatch metrics (`operational-metrics`,
 Phase 8), but none of the three synchronous custom resolvers
 (`claimCoopSlot`, `submitAdventureAnswer`, `getNextLearningActivity`)
 logged anything about their own invocations at all — a failed or slow
 call left no trace beyond whatever the Lambda platform captures by
 default.
 
-**New: `amplify/functions/shared/requestLog.ts`.** A small, framework-free
+**New: `shared/requestLog.ts` (backend functions).** A small, framework-free
 module, unit tested (`requestLog.test.ts`) the same way
 `claim-coop-slot/handler.ts`'s `decideClaim` and
 `submit-adventure-answer/handler.ts`'s `decideSubmission` already are —
@@ -74,7 +74,7 @@ not built this phase: `operational-metrics`' existing CloudWatch EMF
 metrics and alarms (Phase 8, `docs/PILOT_READINESS.md` section 3) already
 cover the safety/AI half; a dashboard over these new per-request log
 lines would need a CloudWatch Logs Insights query or metric filter wired
-in `amplify/backend.ts`, real infrastructure this phase did not add —
+in the backend definition, real infrastructure this phase did not add —
 tracked as follow-up once there is a real deploy to point one at (no AWS
 credentials in this sandbox, the same recurring constraint noted
 throughout `docs/IMPLEMENTATION_STATUS.md`).
@@ -89,7 +89,7 @@ so this reviews the equivalent web-client query shapes any Android
 screen would inherit from the same backend operations.
 
 **Every `.list()` call in this codebase is unbounded** — no `limit`, no
-pagination token consumed. Grepping `src/` and `amplify/` for
+pagination token consumed. Grepping `src/` and the backend for
 `.list(` finds every call site owner-scoped to a single family (`.list()`
 under owner authorization returns only that caller's own rows —
 `src/features/adventures/api.ts`, `src/features/mastery/api.ts`,
@@ -159,14 +159,14 @@ paths" claim is still exactly true rather than assuming it:
 
 Every one of these five models carries only `allow.owner()` (plus
 `allow.group('Admins').to(['read'])`) authorization in
-`amplify/data/resource.ts` — **ownership** is enforced server-side (a
+the backend data schema — **ownership** is enforced server-side (a
 parent cannot write another family's rows), but **correctness of the
 value written** is not: nothing stops a raw GraphQL call from writing any
 `relationshipPoints`, any `ownedItemIds` entry, or any quest `status` a
 caller chooses, the same category of gap `submitAdventureAnswer` closed
 for adventure-step correctness specifically. Confirmed: no dormant or
 stub custom mutation exists for any of the three write actions above —
-`amplify/data/resource.ts` defines exactly two Lambda-backed custom
+the backend data schema defines exactly two Lambda-backed custom
 mutations (`claimCoopSlot`, `submitAdventureAnswer`) and one Lambda-backed
 query (`getNextLearningActivity`); these five paths rely entirely on
 generated per-model CRUD.

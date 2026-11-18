@@ -1,6 +1,6 @@
 # Accessibility Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-008, ADR-020, ADR-052, ADR-053; pending merge: ADR-056, ADR-058, ADR-059, ADR-063
@@ -64,6 +64,9 @@ interaction adds its equivalent and a test.
   accessible alternative.
 
 ## Jumping alternatives
+
+Jumping is optional per adventure (a shared engine capability an adventure may enable). Where an
+adventure uses it:
 
 - All required progress has a walking route. Jump routes are optional.
 - Jump is a single press on keyboard, touch button, gamepad or switch.

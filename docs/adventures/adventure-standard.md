@@ -1,6 +1,6 @@
 # Adventure Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-002, ADR-005, ADR-011, ADR-020, ADR-027, ADR-033, ADR-041, ADR-045, ADR-047, ADR-050 (Proposed), ADR-051, ADR-053, ADR-054; pending merge: ADR-056 to ADR-060, ADR-063
@@ -34,10 +34,10 @@ a Place page. Terms and mappings: [realm standard](realm-standard.md#terminology
 
 | Adventure | Shape | Status |
 |---|---|---|
-| Treasure Rush, "Pip's Missing Treasure" | Pirate Builder Bay's 3D Area `treasure-rush-cove`: Pip's quest, four chests (hidden, locked with a key, rune-stone puzzle), finale, bridge, replay | Implemented (main), development complete and unit tested; browser journey TR-9 not done. Jumping: not yet compliant on `main` (retrofit card needed) |
+| Treasure Rush, "Pip's Missing Treasure" | Pirate Builder Bay's 3D Area `treasure-rush-cove`: Pip's quest, four chests (hidden, locked with a key, rune-stone puzzle), finale, bridge, replay | Implemented (main), development complete and unit tested; browser journey TR-9 not done. |
 | Treasure Rush, "Pirate's Leap" | Optional platforming course in the same 3D Area, with an optional riddle | Pending merge (`feature/pirates-leap`) |
-| Firepeak Volcano, "The Volcano Awakens" | Place and 3D Area `firepeak-volcano`, Professor Ember, five-stage quest, five area puzzles, Discovery Journal | Implemented (main), Pathfinders and Explorers only (FP-D2); owner played it locally; automated browser scenarios not run. Jumping: not yet compliant on `main` (retrofit card needed) |
-| Storykeeper Castle, "the Great Storybook" | Realm-level quest `restore-the-great-storybook`, step adventures per band, derived pages, room discovery | Implemented (main) in part; later SC-R tasks open; castle jumping is WIP (`wip/sc-jmp-castle-jumping`) |
+| Firepeak Volcano, "The Volcano Awakens" | Place and 3D Area `firepeak-volcano`, Professor Ember, five-stage quest, five area puzzles, Discovery Journal | Implemented (main), Pathfinders and Explorers only (FP-D2); owner played it locally; automated browser scenarios not run. |
+| Storykeeper Castle, "the Great Storybook" | Realm-level quest `restore-the-great-storybook`, step adventures per band, derived pages, room discovery | Implemented (main) in part; later SC-R tasks open; jumping not needed (owner, 2026-11-18) |
 | North Pole, "The Missing Christmas Star" | New Realm `north-pole` (ADR-080, Reserved on `main`, branch only), Place and 3D Area `north-pole-village`, nine quests | Pending merge (`feature/north-pole-adventure`), in development |
 
 ## Required elements
@@ -96,9 +96,12 @@ Shared controller only. Walking speed, footprint and camera come from the shared
 (pending merge for running, camera, avatar and footprint). No per-adventure movement code.
 
 ### Jumping
-Every primary adventure includes meaningful jumping, with a walking route for all required
-progress (owner direction 2026-11-17). Applies to new and reworked primary adventures; existing primary adventures (e.g. Treasure Rush, Firepeak on `main`) are tracked as not yet compliant until an approved retrofit card ships. See the [jumping standard](jumping-standard.md); until
-the movement branches merge, jumping work stacks on them.
+Jumping is a shared game-engine capability that an adventure may enable; it is not required
+(owner direction 2026-11-18). Storykeeper Castle and the Storybook adventures do not need it. The
+specification says whether the adventure uses jumping. Where it does: reuse the shared
+controller, keep an accessible non-jump route for all required progress, recover safely, lose no
+progress and add no timers. See the [jumping standard](jumping-standard.md); until the movement
+branches merge, jumping work stacks on them.
 
 ### Exploration
 Reward curiosity with discoveries, secrets and optional areas (the castle tapestry nook, North
@@ -183,7 +186,7 @@ Learning and age bands
 Gameplay
 - [ ] Clear child goal, stages, and an ending that records a visible world change.
 - [ ] Quests, challenges and rewards use canonical models; no second catalog, loader or progress model.
-- [ ] At least one meaningful jump route; every required step reachable without jumping.
+- [ ] Jumping use stated (yes or no). If yes: shared controller, meaningful jump route named, every required step reachable without jumping, safe recovery, no lost progress, no timers.
 - [ ] Exploration, collectibles and secrets are optional and recorded once.
 - [ ] Replay available after completion; replay grants nothing permanent.
 

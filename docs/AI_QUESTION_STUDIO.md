@@ -123,8 +123,8 @@ Recommended: extend, do not replace.
 - Selection falls back to the existing `ChallengeSpec` generator when the pool for the chest is
   empty or too small, so current behavior is unchanged when no questions are published.
 
-Storykeeper Castle and other step-based adventures run client-side on Amplify sessions with no
-Django catalog (LAI-0309, LAI-0603). The Studio does not integrate with them in this phase; the
+Storykeeper Castle and other step-based adventures had no Django story catalog when this was
+written (LAI-0309, LAI-0603). The Studio does not integrate with them in this phase; the
 `QuestionPool` link is by `Adventure.slug` so they can adopt it later.
 
 ## 7. ADR-046 (proposed here; accepted by the owner 2026-11-02)
@@ -191,7 +191,8 @@ hints and parser entry in the React play client.
   re-verified at serve time, so a bad key cannot be graded. Text and short-answer questions are
   stored and publishable but not served to children yet.
 - **Skill must be a catalog objective to be served.** Treasure Rush records evidence against
-  `LearningObjective`, which only the content export can create (ADR-033). The Studio warns when a
+  `LearningObjective`, which the content export creates and administrators can author in Django
+  Admin (ADR-033 as amended by ADR-047). The Studio warns when a
   skill code is not in the catalog and the selector skips such revisions.
 
 ## 10. Operating it
@@ -261,8 +262,9 @@ any deployment.
 
 - The curriculum holds one Grade 3 skill, `multiplication-facts` (Explorers only), added so Studio
   questions have an objective to record progress against. The rest of Grade 3 is not authored,
-  and other topics need their own exported objective before Treasure Rush will serve them.
-- Only Treasure Rush chests consume the bank. Storykeeper Castle and the Amplify-session
+  and other topics need their own catalog objective (exported or authored in Django Admin, ADR-047)
+  before Treasure Rush will serve them.
+- Only Treasure Rush chests consume the bank. Storykeeper Castle and the step-based
   adventures are unchanged; pools are keyed by region and chest, with the adventure link kept on
   each revision for later adoption.
 - Locally, batches run on a background thread by default, so a restart can strand a batch

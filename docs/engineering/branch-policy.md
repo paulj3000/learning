@@ -1,9 +1,9 @@
 # Branch Policy
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-037, ADR-055, ADR-064, ADR-072 (proposed engineering governance)
+- **Related ADRs:** ADR-037, ADR-055, ADR-064, ADR-072 (engineering governance, Accepted)
 - **Canonical sources:** [CLAUDE.md](../../CLAUDE.md) sections 14 and 18,
   [docs/DECISIONS.md](../DECISIONS.md) ("ADR registry and governance"),
   [docs/TESTING_STRATEGY.md](../TESTING_STRATEGY.md) ("When to run which checks")

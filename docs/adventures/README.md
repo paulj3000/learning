@@ -1,9 +1,9 @@
 # Adventure Development Standards
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-005, ADR-011, ADR-020, ADR-027, ADR-033, ADR-041, ADR-047, ADR-051, ADR-053, ADR-072 (proposed engineering governance); pending merge: ADR-056 to ADR-060, ADR-063
+- **Related ADRs:** ADR-005, ADR-011, ADR-020, ADR-027, ADR-033, ADR-041, ADR-047, ADR-051, ADR-053, ADR-072 (engineering governance, Accepted); pending merge: ADR-056 to ADR-060, ADR-063
 - **Canonical sources:** [CLAUDE.md](../../CLAUDE.md), [docs/DECISIONS.md](../DECISIONS.md), [docs/ADVENTURE_ENGINE.md](../ADVENTURE_ENGINE.md), [docs/DATA_MODEL.md](../DATA_MODEL.md), [docs/UX_AND_ACCESSIBILITY.md](../UX_AND_ACCESSIBILITY.md)
 
 These standards say what every new or reworked adventure must have before it is built, tested
@@ -21,7 +21,7 @@ until it is changed through an ADR.
 | [Realm standard](realm-standard.md) | Realms (catalog `World`), Places and 3D Areas |
 | [Quest standard](quest-standard.md) | Quests, stages and objectives |
 | [Challenge standard](challenge-standard.md) | Learning, exploration, movement and puzzle activities |
-| [Jumping standard](jumping-standard.md) | Meaningful jumping in every primary adventure, with accessible routes |
+| [Jumping standard](jumping-standard.md) | Jumping as an optional shared engine capability: rules for adventures that use it, with accessible routes |
 | [Scoring standard](scoring-standard.md) | Achievement, completion, mastery, rewards and what is prohibited |
 | [Accessibility standard](accessibility-standard.md) | Controls, presentation, alternatives, exits, no time limits |
 | [Asset standard](asset-standard.md) | Models, textures, placeholders and licences |
@@ -103,9 +103,9 @@ deployment need explicit owner approval (CLAUDE.md sections 14, 15 and 18).
 
 | Adventure | Realm, Place, 3D Area | Status |
 |---|---|---|
-| Treasure Rush: Pip's Missing Treasure | Learning Adventure Island, Pirate Builder Bay, `treasure-rush-cove` | Implemented (main), development complete and unit tested; browser playtest TR-9 not done ([roadmap](../TREASURE_RUSH_ROADMAP.md)). Jumping: not yet compliant on `main`; retrofit card needed |
+| Treasure Rush: Pip's Missing Treasure | Learning Adventure Island, Pirate Builder Bay, `treasure-rush-cove` | Implemented (main), development complete and unit tested; browser playtest TR-9 not done ([roadmap](../TREASURE_RUSH_ROADMAP.md)) |
 | Treasure Rush: Pirate's Leap | Same 3D Area | Pending merge (`feature/pirates-leap`) |
-| Firepeak Volcano: The Volcano Awakens | Learning Adventure Island, `firepeak-volcano` | Implemented (main) for Pathfinders and Explorers; owner played it locally 2026-11-01; automated browser scenarios not run ([roadmap](../FIREPEAK_VOLCANO_ROADMAP.md)). Jumping: not yet compliant on `main`; retrofit card needed. Further Firepeak work pending merge (`feature/firepeak-volcano-adventure`) |
-| Storykeeper Castle: the Great Storybook | Learning Adventure Island, Storykeeper Castle | Implemented (main) in part per the SC-R tracker; later SC-R tasks open ([roadmap](../regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md)); castle jumping is work in progress (`wip/sc-jmp-castle-jumping`) |
+| Firepeak Volcano: The Volcano Awakens | Learning Adventure Island, `firepeak-volcano` | Implemented (main) for Pathfinders and Explorers; owner played it locally 2026-11-01; automated browser scenarios not run ([roadmap](../FIREPEAK_VOLCANO_ROADMAP.md)). Further Firepeak work pending merge (`feature/firepeak-volcano-adventure`) |
+| Storykeeper Castle: the Great Storybook | Learning Adventure Island, Storykeeper Castle | Implemented (main) in part per the SC-R tracker; later SC-R tasks open ([roadmap](../regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md)); jumping not needed (owner, 2026-11-18) |
 | North Pole: The Missing Christmas Star | Realm `north-pole`, Place and 3D Area `north-pole-village` | Pending merge (`feature/north-pole-adventure`), in development |
 | Wonderwild Forest, Clockwork Harbor, Dragon's Sanctuary | Learning Adventure Island | Shared-engine locations on main; see their own documents under [docs/regions/](../regions/clockwork.md) |

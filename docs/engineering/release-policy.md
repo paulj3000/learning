@@ -1,9 +1,9 @@
 # Release Policy
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-017, ADR-019, ADR-037, ADR-047, ADR-055, ADR-064, ADR-072 (proposed engineering governance)
+- **Related ADRs:** ADR-017, ADR-019, ADR-037, ADR-047, ADR-055, ADR-064, ADR-072 (engineering governance, Accepted)
 - **Canonical sources:** [docs/infrastructure/deployment-design.md](../infrastructure/deployment-design.md),
   [docs/infrastructure/dev-native-environment.md](../infrastructure/dev-native-environment.md),
   [docs/platform/DJANGO_EC2_DEPLOYMENT.md](../platform/DJANGO_EC2_DEPLOYMENT.md),
@@ -28,7 +28,7 @@ that environment, in writing (Trello card or pull request), in the current task:
   `LAI_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED`, `LAI_SITE_DEPLOY_ENABLED`,
   `LAI_PROD_AUTO_DEPLOY`);
 - migrate, import or delete production data, or touch the Cognito pool or the retained
-  Amplify tables and buckets ([CLAUDE.md](../../CLAUDE.md) section 18).
+  legacy DynamoDB tables and S3 buckets from the retired backend ([CLAUDE.md](../../CLAUDE.md) section 18).
 
 Approval for one deployment is not approval for the next. Approval to write infrastructure code
 is not approval to deploy it.

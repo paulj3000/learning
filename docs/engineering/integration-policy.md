@@ -1,9 +1,9 @@
 # Integration Policy
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-020, ADR-033, ADR-047, ADR-063 (reserved), ADR-064, ADR-072 (proposed engineering governance)
+- **Related ADRs:** ADR-020, ADR-033, ADR-047, ADR-063 (reserved), ADR-064, ADR-072 (engineering governance, Accepted)
 - **Canonical sources:** [docs/DECISIONS.md](../DECISIONS.md) ("ADR registry and governance"),
   [docs/TESTING_STRATEGY.md](../TESTING_STRATEGY.md) ("When to run which checks"),
   [docs/ARCHITECTURE.md](../ARCHITECTURE.md) ("Consolidated Django backbone"),
@@ -82,7 +82,7 @@ for the change.
 | Shared API contracts | React, game and Django clients depend on them; `/api/v1/` versioning | `lai/apps/*/views.py`, `serializers.py`, `react/src/api` |
 | Shared engine | ADR-020 engine boundaries | `react/src/features/island-map/three`, `game/` when it exists |
 | Player movement | One shared controller for every world | `react/src/features/island-map/three/firstPersonController.ts`; pending-merge branches (PR #26, #27, #29, #37, #36) |
-| Jumping and collision | Owner direction 2026-11-17: standard in every adventure | pending merge (`feature/shared-jump-controller`, ADR-063 reserved) |
+| Jumping and collision | Shared engine capability adventures may enable (owner direction 2026-11-18; not required per adventure) | pending merge (`feature/shared-jump-controller`, ADR-063 reserved) |
 | Camera | One camera controller (pending merge, `feature/third-person-avatar`) | shared engine |
 | Asset resolution | One resolver over the Asset Manager (ADR-045) | `react/src/features/island-map/three/assets/assetResolver.ts`, `react/src/api/assets` |
 | NPC systems | Versioned NPC releases (ADR-054) | `lai/apps/npcs`, `react/src/features/npc-manager` |

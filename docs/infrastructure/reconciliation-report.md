@@ -25,14 +25,14 @@ permission settings refuse the AWS CLI.
 
 | Check | Tool | Scope | Result |
 |---|---|---|---|
-| YAML unique keys and syntax | PyYAML with a loader that rejects duplicate keys | All 9 tracked `*.yml`/`*.yaml` (workflows, actions, `amplify.yml`, `customHttp.yml`, both compose files) | **0** duplicates or errors |
+| YAML unique keys and syntax | PyYAML with a loader that rejects duplicate keys | All 9 tracked `*.yml`/`*.yaml` (workflows, actions, hosting configuration, both compose files) | **0** duplicates or errors |
 | JSON unique keys and syntax | `json` with a duplicate-key hook | 51 tracked `*.json` (excluding `package-lock.json`; `tsconfig*.json` are JSONC and skipped) | **0** |
 | CDK synth | `npm run infra:synth`, `LAI_ENV=dev` and `prod`, concrete account and region (as `provision.sh` runs it) | 6 stacks × 2 environments = 12 templates | All synthesize. No file assets and no Lambda; one IAM role in `LaiFrontend` |
 | CloudFormation syntax and best practice | `cfn-lint` 1.60.0, each template in its own region | 12 templates | 10 clean. `LaiDjangoEc2-{dev,prod}`: W3010 (fixed, section 3), W3691 and W3005 (section 5) |
 | Cross-stack references | **New** `infra/lib/crossStackReferences.test.ts` (18 cases, dev and prod) | Policies attached by name, the role named by the Guardrail policy, the log group and topic used by metric filters and alarms, bucket names in SSM, the ECR repository, the GitHub OIDC provider | All resolve to a resource some stack creates. A deliberate misspelling of a policy name or log group makes the test fail |
 | Naming and tags | Same test | Physical bucket, role, policy, topic, log group, alarm and repository names across all stacks | All unique; all `lai-` prefixed; every stack tagged `Project=learning-adventure-island` |
 | Regions | Same test, plus a `git grep` for region and account literals | Stacks, scripts, workflows | us-west-1 everywhere (overridable defaults). us-east-1 only for `LaiFrontend`, its certificate, publishing and rollback, plus the Bedrock US profile's destination list. No account id in code |
-| Secrets in definitions | Template scan, plus `git grep` for keys, tokens and password literals | 12 templates; `infra/`, `scripts/`, `deploy/`, `.github/`, `.claude/`, `amplify/` | Templates hold none. The RDS password is generated in Secrets Manager and resolved at deploy time (`{{resolve:secretsmanager:...}}`); there are no `NoEcho` or SecureString parameters. **One finding** in `.claude/settings.json` (section 5, C9) |
+| Secrets in definitions | Template scan, plus `git grep` for keys, tokens and password literals | 12 templates; `infra/`, `scripts/`, `deploy/`, `.github/`, `.claude/`, the backend definition | Templates hold none. The RDS password is generated in Secrets Manager and resolved at deploy time (`{{resolve:secretsmanager:...}}`); there are no `NoEcho` or SecureString parameters. **One finding** in `.claude/settings.json` (section 5, C9) |
 | Workflow syntax | `actionlint` | `deploy-django-ec2.yml`, `deploy-site.yml` | Clean |
 | Unit tests | `vitest` (infra), `pytest` (`tests/deploy`) | Infra stacks; release, publish, nginx and workflow-guard tests | Infra **82 passed**; `tests/deploy` **81 passed** |
 | Doc references | Script over `docs/infrastructure/*.md` | Repository paths cited in backticks | All exist (the only misses were a build output and an ECR repository name) |
@@ -61,8 +61,8 @@ LAI-INFRA-003 and LAI-INFRA-004 outcomes. Summary of who owns what now:
 | ECR `lai/django`, GitHub OIDC provider, image publisher role | `LaiDjangoRelease` (account-wide) |
 | Child-safety Guardrail, Django AI policy, AI alarms | `LaiAiGuardrail-<env>`, **after** `LaiAiGuardrailOnly-dev` is retired (C2) |
 | CloudFront, site bucket, us-east-1 certificate, site deploy role | `LaiFrontend-<env>` (us-east-1) |
-| Cognito, AppSync, DynamoDB, Amplify Storage, Amplify monitoring | Amplify Gen 2 `main` backend until cutover |
-| Releases | GitHub Actions only: `deploy-django-ec2.yml` (on), `deploy-site.yml` (gated off). Amplify Hosting for the Gen 2 backend |
+| Cognito user pool | The existing pool, outside `infra/`; Django verifies its tokens |
+| Releases | GitHub Actions only: `deploy-django-ec2.yml` (on), `deploy-site.yml` (gated off) |
 | Infrastructure changes | Operator through `provision.sh` change sets, with owner approval |
 
 ## 5. Conflicts and open items
@@ -72,15 +72,14 @@ LAI-INFRA-003 and LAI-INFRA-004 outcomes. Summary of who owns what now:
 | **B1** | **`lai-dev-complete.yaml` is still missing.** It is not in the repository or any branch's history. Its EC2/RDS/VPC and CloudFront would silently duplicate `LaiDjangoEc2` and `LaiFrontend` (resource-ownership section 4) | **Blocker** for comparing it; reference only (D1) | The owner attaches the file; then run resource-ownership section 5 |
 | C2 | Guardrail `lai-child-safety-dev` is owned by the out-of-band `LaiAiGuardrailOnly-dev` while `LaiAiGuardrail-dev` defines the same name | Open | Approval to delete it before deploying `LaiAiGuardrail-dev`, and to update the SSM Guardrail id (D3, AI-FU-2) |
 | C3 | GitHub OIDC provider: one per account, and the account is shared | Unknown | Run `aws iam list-open-id-connect-providers`; if one exists, set `LAI_CREATE_OIDC_PROVIDER=false` (D4) |
-| C4 | Cognito pool owned by Amplify; any Amplify stack change must keep it | Open by design | Detach-and-import plan at cutover (D5) |
+| C4 | The Cognito pool lives in a retained stack from the retired backend; any change to that stack must keep it | Open by design | Retain or protect the pool before that stack changes (D5) |
 | C5 | Is `pauldimitriu.com` in Route 53? Domain names per environment | Unknown (U10) | Owner answer (D6; `domains-and-hosting.md` section 7) |
-| C6 | Two alert topics (Amplify `OperationalAlertsTopic`, `lai-django-alarms-<env>`) | Open | Fold into one at cutover (U6) |
+| C6 | Two alert topics (the retired backend's `OperationalAlertsTopic`, `lai-django-alarms-<env>`) | Open | Fold into one (U6) |
 | C7 | `scripts/release-admin-static.sh` writes to `lai-admin-static-<env>`, which no stack creates; the admin now serves static files itself | Open | Approve retiring the script (U7) |
 | C8 | `CDKToolkit` in the shared account: owner unknown; `infra/` does not use it | Leave alone | n/a (U8) |
 | C9 | **`.claude/settings.json` (committed) holds a test parent's e-mail and password** in two allow-listed commands | **Security** | Approval to remove those lines; rotate the password (it stays in git history) |
 | C10 | `cfn-lint` W3691: PostgreSQL `EngineVersion: "16"` (major only) is flagged as unusable for new instances | Unverified | `aws rds describe-db-engine-versions --engine postgres --region us-west-1 --query "DBEngineVersions[?starts_with(EngineVersion,'16')].EngineVersion"`. If RDS rejects a major-only version, pin a listed minor (`rds.PostgresEngineVersion.of(...)`) |
 | C11 | `cfn-lint` W3005: redundant `DependsOn` on the instance (the database and secret are already referenced) | Harmless | None |
-| C12 | `ampx generate outputs` IAM actions for the site role are a best guess | Unverified | The first gated dev run (`deployment-design.md` section 9) |
 | C13 | React test `RegionPlayCompanion` "double-tapped answer" failed once in CI (paulj3000/learning#8), then passed; not reproduced locally | Intermittent | A separate task to make it deterministic |
 
 ## 6. Approval requests

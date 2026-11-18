@@ -1,6 +1,6 @@
 # Challenge Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-002, ADR-003, ADR-012, ADR-016, ADR-020, ADR-033, ADR-046, ADR-047, ADR-053; pending merge: ADR-059, ADR-063

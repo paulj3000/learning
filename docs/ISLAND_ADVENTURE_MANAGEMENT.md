@@ -131,9 +131,9 @@ setAdventureActive -> Admin or Superuser
 deleteAdventure    -> Superuser ONLY
 ```
 
-A user must not be able to bypass authorization by manually calling an Amplify Data mutation, Lambda, REST endpoint, GraphQL operation, or other backend interface.
+A user must not be able to bypass authorization by manually calling a REST endpoint, Lambda, or other backend interface.
 
-Reuse the project's existing Amplify Gen 2/Cognito authorization conventions.
+Reuse the project's existing Cognito and Django authorization conventions (Django Admin permissions and groups, ADR-034).
 
 ---
 
@@ -220,7 +220,7 @@ Avoid redirect loops and avoid briefly rendering admin content while authorizati
 
 # 7. Island Data Model
 
-First inspect the existing Amplify Gen 2 schema and reuse/extend existing models if Island/Region concepts already exist.
+First inspect the existing Django models (`lai/apps/catalog`, `lai/apps/regions`) and reuse/extend existing models if Island/Region concepts already exist.
 
 Do not create duplicate models representing the same concept.
 
@@ -813,7 +813,7 @@ deleteAdventure(id)
 listModelsByAdventure(adventureId)
 ```
 
-Do not create redundant custom Lambdas if Amplify Data can securely and cleanly perform an operation using the project's existing architecture. Use functions/custom operations where business rules require them.
+Do not create redundant Lambdas or endpoints if an existing Django service can securely and cleanly perform an operation using the project's existing architecture. Add a service function where business rules require one.
 
 ---
 
@@ -911,7 +911,7 @@ Implement in this order to minimize rework:
 
 Before coding:
 
-1. Inspect Amplify Gen 2 schema.
+1. Inspect the Django models in `lai/apps/`.
 2. Find existing Island/Region/World models.
 3. Find existing Adventure/Story/Chapter models.
 4. Find existing character/model/asset records and S3 asset conventions.
@@ -933,7 +933,7 @@ Island -> Adventures relationship
 Adventure -> Models relationship
 ```
 
-Run the required Amplify schema/backend generation/deployment workflow.
+Add the Django migrations; deploying them is an owner-approved step.
 
 ## Phase 3 — Authorization
 
@@ -1065,8 +1065,8 @@ When an existing implementation conflicts with an assumption in this roadmap, pr
 
 # Django Admin: Islands, Places, 3D Areas and Adventure launch points (LAI-0806, ADR-041)
 
-This section is the current guide for Django Admin. The sections above describe the earlier
-Amplify admin.
+This section is the current guide for Django Admin, which is where this specification is now
+implemented. Where the sections above name another admin surface, this section wins.
 
 | Admin page | What it is | What staff can do |
 |---|---|---|

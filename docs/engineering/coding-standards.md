@@ -1,6 +1,6 @@
 # Coding Standards
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-020, ADR-021, ADR-023, ADR-025, ADR-033, ADR-047, ADR-052, ADR-072
@@ -172,7 +172,7 @@ Write code that would pass them anyway.
   suffice.
 - Pin exactly in Python; npm uses the lockfile (`npm ci`). Commit lockfile changes with the
   manifest change, alone where possible.
-- Never add Amplify packages or new Phaser usage.
+- Never add new Phaser usage.
 
 ## 13. Comments
 

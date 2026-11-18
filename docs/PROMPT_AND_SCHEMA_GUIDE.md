@@ -33,8 +33,9 @@ The server resolves all trusted context from IDs. The browser does not send pers
 ## Tutoring generation request (Phase 27)
 
 The tutor route is a second, narrower generation route
-(`generateTutorTurn`, `amplify/data/resource.ts`), with its own system
-prompt (`amplify/data/tutorPersona.ts`) and its own version number in the
+(`POST /api/v1/children/{child_id}/ai/tutor-turns/`, route name
+`generateTutorTurn` in the audit trail), with its own system prompt
+(`lai/apps/ai/prompts/tutor.py`) and its own version number in the
 audit trail. Its argument list *is* the safe-context contract:
 
 ```ts

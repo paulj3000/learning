@@ -151,5 +151,5 @@ under "3D Area puzzles" and use "Edit content (start a draft)", then publish it.
 - "Secrets of the Crystal Caverns" does not exist. Completion records eligibility only (FP-D8).
 - A Sprouts child still sees the Firepeak Place card, with no 3D Area and no adventure (Places
   carry no age bands).
-- The Amplify build does not include Firepeak; it is a Django-backed 3D Area.
+- Firepeak is a Django-backed 3D Area.
 - Children with no voice support get subtitles only: no narration audio system exists (TR-D19).

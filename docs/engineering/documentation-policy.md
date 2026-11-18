@@ -1,9 +1,9 @@
 # Documentation Policy
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-072 (Proposed), ADR-027 (working note distinct from the ADR log)
+- **Related ADRs:** ADR-072 (Accepted), ADR-027 (working note distinct from the ADR log)
 - **Canonical sources:** [`CLAUDE.md`](../../CLAUDE.md) sections 13 to 15; [`docs/DECISIONS.md`](../DECISIONS.md) "ADR registry and governance"
 
 Documentation is part of the change. This policy says where documents live, how they are marked,
@@ -81,7 +81,7 @@ Every new policy, standard or template starts with a title and this header block
 
 | Status | Meaning |
 |---|---|
-| Mandatory policy | In effect and must be followed. It stays in effect while the ADR that records it awaits formal acceptance (for example "formal acceptance of ADR-072 pending"); that acceptance is a recorded owner step, not a condition for following the policy. Deviations need an owner decision, recorded on the ticket |
+| Mandatory policy | In effect and must be followed. Deviations need an owner decision, recorded on the ticket |
 | Guidance | Recommended practice. Deviate with a reason recorded in the PR or completion report |
 | Proposed | Not in effect. A draft not yet merged at the owner's direction; must not be cited as a rule |
 | Deprecated | Still present for reference, no longer to be followed; names its replacement |
@@ -157,7 +157,8 @@ canonical; do not merge or delete them without owner approval.
 - **Guidance** describes good practice; a reasoned deviation is allowed and recorded.
 - **Proposed** content is a draft. It may be discussed and planned against, but no agent treats it
   as permission or as a rule until the owner approves it and its status changes.
-- A document marked Mandatory policy whose governing ADR is still `Proposed` in the registry (the
-  engineering policies and ADR-072) is in effect. The ADR's formal acceptance is a separate owner
-  step recorded in [`docs/DECISIONS.md`](../DECISIONS.md); rules the document restates from
-  `CLAUDE.md` or accepted ADRs bind through those sources either way.
+- The standards (`CLAUDE.md`, `AGENTS.md`, `docs/engineering/`, `docs/adventures/`) are Mandatory
+  policy under ADR-072, accepted by the owner 2026-11-18. They are the final authority after the
+  owner: an owner decision ranks first, then these standards, then accepted ADRs in
+  [`docs/DECISIONS.md`](../DECISIONS.md) and every other document. An older document that
+  conflicts with the standards is stale and is corrected to match.

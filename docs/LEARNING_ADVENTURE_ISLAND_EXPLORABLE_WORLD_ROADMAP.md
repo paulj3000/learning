@@ -250,14 +250,15 @@ React Application
            └── Environmental Audio
 ```
 
-AWS Amplify Gen 2 remains the application backend.
+Django + DRF on PostgreSQL is the application backend (ADR-019); this
+roadmap's original backend is retired.
 
 ```text
-AWS Amplify Gen 2
+Django + DRF (PostgreSQL)
        │
-       ├── Cognito
+       ├── Cognito (verified tokens)
        ├── Data
-       ├── Storage
+       ├── S3 storage
        └── Bedrock
              │
              ▼

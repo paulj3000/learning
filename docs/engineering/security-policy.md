@@ -1,6 +1,6 @@
 # Security Policy
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-001, ADR-003, ADR-004, ADR-022, ADR-024, ADR-025, ADR-034, ADR-035, ADR-036, ADR-037, ADR-039, ADR-040, ADR-042, ADR-043, ADR-044, ADR-045, ADR-046, ADR-064, ADR-072
@@ -9,7 +9,7 @@
 The product serves children aged 3 to 8. Security and privacy rules here are mandatory for every
 task and every agent. They point to the canonical documents instead of copying them. Where a
 canonical document is older than the Django backend (the Phase 8 threat model and privacy
-review were written against Amplify), the Django rules on this page and in
+review were written against the retired backend), the Django rules on this page and in
 [ARCHITECTURE.md](../ARCHITECTURE.md) apply.
 
 ## 1. Legal and regulatory status
@@ -54,7 +54,7 @@ and deployed-logging verification (gate G10). Do not write "compliant" in code, 
 
 | Item | Rule |
 |---|---|
-| Parent sign-in | Cognito user pool, SRP from the browser (`react/src/lib/cognito`). No Amplify. |
+| Parent sign-in | Cognito user pool, SRP from the browser (`react/src/lib/cognito`). |
 | Token verification | Django verifies access tokens: signature by JWKS (`lai/apps/users/jwks.py`, https only, cache, fail closed), issuer, client id, `token_use`, expiry. ID tokens and query-string tokens are refused. |
 | Token storage | Browser `localStorage` under the keys the client uses today (`react/src/lib/cognito/auth.ts`). Any change needs an ADR. |
 | Sensitive actions | Recent interactive sign-in (`auth_time`, per-session anchor, `GetUser` revocation check) in `lai/apps/users/recent_auth.py`; ADR-043 is Proposed and its live Cognito gate is open. |
@@ -123,7 +123,7 @@ The ten layers in [AI_AND_CHILD_SAFETY.md](../AI_AND_CHILD_SAFETY.md) are mandat
 | AI audit and safety rows | No retention period approved. `manage.py ai_retention` deletes only with an explicit period and `--apply` (`lai/apps/ai/retention.py`). |
 | Child photos | Private bucket with 7-day version retention in the defined stack (ADR-042, [CHILD_PHOTO_STORAGE.md](../platform/CHILD_PHOTO_STORAGE.md)). |
 | Child and account deletion | Implemented with recent-sign-in protection; see [RECENT_SIGN_IN.md](../platform/RECENT_SIGN_IN.md). |
-| Retained Amplify data | Untouched until an approved import and retirement. |
+| Retained legacy DynamoDB tables and S3 buckets from the retired backend | Untouched until an approved import and retirement. |
 | Overall retention schedule | **Requires legal and owner review** (gate G9). |
 
 ## 10. Sensitive logging

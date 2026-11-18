@@ -1,9 +1,9 @@
 # Educational Content Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-019, ADR-033, ADR-044, ADR-046, ADR-047, ADR-053, ADR-054, ADR-064, ADR-072 (Proposed)
+- **Related ADRs:** ADR-019, ADR-033, ADR-044, ADR-046, ADR-047, ADR-053, ADR-054, ADR-064, ADR-072 (Accepted)
 - **Canonical sources:** [`CLAUDE.md`](../../CLAUDE.md) sections 3, 7 and 13, [`docs/AI_QUESTION_STUDIO.md`](../AI_QUESTION_STUDIO.md), [`docs/AI_AND_CHILD_SAFETY.md`](../AI_AND_CHILD_SAFETY.md), [`docs/PROMPT_AND_SCHEMA_GUIDE.md`](../PROMPT_AND_SCHEMA_GUIDE.md), [`docs/platform/DJANGO_CONTENT_AUTHORING.md`](../platform/DJANGO_CONTENT_AUTHORING.md), [`docs/ADVENTURE_ENGINE.md`](../ADVENTURE_ENGINE.md), [`docs/PLAY_API.md`](../PLAY_API.md), [`docs/DECISIONS.md`](../DECISIONS.md)
 
 This standard governs the learning in an adventure: what a child is asked, how hard it is, how the

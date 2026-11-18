@@ -32,25 +32,23 @@ when the stacks last synthesized on 2026-11-01.
 
 | Item | Value | Evidence |
 |---|---|---|
-| AWS account | `008331939914` (shared with other Amplify projects; no separate dev account) | [owner-cli 2026-11-01] |
-| Region | `us-west-1` everywhere: Amplify sandbox outputs, `provision.sh` default, workflow default (`vars.LAI_AWS_REGION \|\| 'us-west-1'`), Guardrail stack | [repo], [owner-cli 2026-11-01] |
-| Principals seen | SSO role `amplify-policy` (owner's CLI); IAM user `learning-dev` (QA, local `make runserver` profile) | [owner-cli 2026-11-01], [qa 2026-11-07] |
-| Environments in code | CDK: `dev`, `prod` (`LAI_ENV`). GitHub environments: `django-dev`, `django-prod`. Amplify: Hosting branch `main` plus personal sandboxes | [repo] |
-| CloudFormation stacks seen | Only `CDKToolkit` among non-Amplify stacks on 2026-11-01, plus the Amplify backend stacks; then `LaiAiGuardrailOnly-dev` from 2026-11-07 | [owner-cli 2026-11-01], [qa 2026-11-07] |
+| AWS account | `008331939914` (shared with other projects; no separate dev account) | [owner-cli 2026-11-01] |
+| Region | `us-west-1` everywhere: the Cognito pool, `provision.sh` default, workflow default (`vars.LAI_AWS_REGION \|\| 'us-west-1'`), Guardrail stack | [repo], [owner-cli 2026-11-01] |
+| Principals seen | The owner's SSO role (owner's CLI); IAM user `learning-dev` (QA, local `make runserver` profile) | [owner-cli 2026-11-01], [qa 2026-11-07] |
+| Environments in code | CDK: `dev`, `prod` (`LAI_ENV`). GitHub environments: `django-dev`, `django-prod` | [repo] |
+| CloudFormation stacks seen | Only `CDKToolkit` on 2026-11-01, plus the retained stacks from the retired backend; then `LaiAiGuardrailOnly-dev` from 2026-11-07 | [owner-cli 2026-11-01], [qa 2026-11-07] |
 
 ## 3. Definition sources
 
 | # | Path | Tool | Deploys through | Status |
 |---|---|---|---|---|
 | 1 | `infra/bin/app.ts`, `infra/lib/*.ts`, `infra/cdk.json` | AWS CDK (bootstrapless synthesizer, no assets) | `scripts/aws/provision.sh <env> [--execute] [--only <stack>]`, or `aws cloudformation deploy` / `cdk deploy` by hand. Never by a push | 5 stacks per env (section 4) |
-| 2 | `amplify/backend.ts`, `amplify/{auth,data,storage}/resource.ts`, `amplify/functions/*` | Amplify Gen 2 (CDK underneath) | Amplify Hosting build (`amplify.yml`: `ampx pipeline-deploy` on every build of a connected branch), or `ampx sandbox` | Deployed for `main` [inferred] (section 5) |
-| 3 | `amplify.yml`, `customHttp.yml`, `amplify-hosting/custom-rules.json` | Amplify Hosting build spec, headers, rewrites | Amplify Hosting console app | App exists [inferred]; app id unknown |
-| 4 | `.github/workflows/deploy-django-ec2.yml`, `.github/actions/django-release/action.yml` | GitHub Actions | Push to `main` on Django paths, or manual dispatch | Workflow present; build/deploy jobs gated by `vars.LAI_DEPLOY_ENABLED == 'true'` |
-| 5 | `deploy/ec2/docker-compose.yml`, `deploy/ec2/nginx/default.conf.template` | Docker Compose and nginx on the EC2 host | Copied by the SSM deploy document (`scripts/aws/deploy-django.sh`) | Not running: no EC2 host exists |
-| 6 | `scripts/aws/*.sh` | Shell (provision, setup, deploy, rollback, status, bootstrap) | Operator or SSM | `setup-ec2.sh` and `ssm-release-entry.sh` are embedded in the EC2 stack at synth time |
-| 7 | `.github/workflows/ci.yml` | GitHub Actions | Push/PR | Tests only; assumes no AWS role |
-| 8 | `docker-compose.yml` (root) | Local PostgreSQL 16 | Developer machine | Local only; no AWS |
-| 9 | `lai-dev-complete.yaml` (standalone CloudFormation) | CloudFormation | Unknown | **Absent.** Not in the repository, in any of its 30 branches' history (by file name and content), or named in any doc. **Requested from the owner** (section 7, blocker B1) |
+| 2 | `.github/workflows/deploy-django-ec2.yml`, `.github/actions/django-release/action.yml` | GitHub Actions | Push to `main` on Django paths, or manual dispatch | Workflow present; build/deploy jobs gated by `vars.LAI_DEPLOY_ENABLED == 'true'` |
+| 3 | `deploy/ec2/docker-compose.yml`, `deploy/ec2/nginx/default.conf.template` | Docker Compose and nginx on the EC2 host | Copied by the SSM deploy document (`scripts/aws/deploy-django.sh`) | Not running: no EC2 host exists |
+| 4 | `scripts/aws/*.sh` | Shell (provision, setup, deploy, rollback, status, bootstrap) | Operator or SSM | `setup-ec2.sh` and `ssm-release-entry.sh` are embedded in the EC2 stack at synth time |
+| 5 | `.github/workflows/ci.yml` | GitHub Actions | Push/PR | Tests only; assumes no AWS role |
+| 6 | `docker-compose.yml` (root) | Local PostgreSQL 16 | Developer machine | Local only; no AWS |
+| 7 | `lai-dev-complete.yaml` (standalone CloudFormation) | CloudFormation | Unknown | **Absent.** Not in the repository, in any of its 30 branches' history (by file name and content), or named in any doc. **Requested from the owner** (section 7, blocker B1) |
 
 There is no other CloudFormation, SAM, Terraform or Serverless definition in the repository.
 
@@ -137,24 +135,19 @@ stack **`LaiAiGuardrailOnly-dev`** (us-west-1): Guardrail `lai-child-safety-dev`
 later would create a **second** Guardrail with the same name unless `LaiAiGuardrailOnly-dev` is
 deleted first or the resource is imported. Flagged for LAI-INFRA-002.
 
-## 5. Amplify Gen 2 backend (`amplify/`)
+## 5. Retained legacy resources from the retired backend
 
-Deployed per branch by Amplify Hosting; stack names follow `amplify-<appId>-<branch>-branch-<hash>`
-(sandbox: `amplify-learningadventureisland-<user>-sandbox-<hash>`). App id is not in the repository.
+Nothing in the repository defines or deploys these; they are retained in the account and are not
+changed or deleted without separate owner approval.
 
 | Category | Resources | Evidence |
 |---|---|---|
-| Auth | Cognito user pool (email login), groups `Admins`, `Superusers`; identity pool with authenticated/unauthenticated/group roles; app client | [repo] `amplify/auth/resource.ts` |
-| Data | AppSync GraphQL API (user-pool auth); **22 models, one DynamoDB table each**: ParentProfile, ChildProfile, CompanionProfile, AdventureSession, AdventureAction, SkillEvidence, SkillProgress, WorldChange, AIInteractionAudit, SafetyEvent, StoryArtifact, ChildStoryProgress, CoopSession, ChildNpcState, ChildInventory, ChildQuestState, ChildWorldState, Asset, AssetVersion, Island, Adventure, AdventureModel; streams on SafetyEvent and AIInteractionAudit | [repo] `amplify/data/resource.ts`, `backend.ts` |
-| AI | AI Kit generation routes `generateCompanionTurn`, `generateTutorTurn` on Claude Haiku 4.5 through the **global** inference profile (`grantBedrockInvoke` patch) | [repo] |
-| Functions | `claim-coop-slot`, `submit-adventure-answer`, `get-next-learning-activity` (in the `data` nested stack), `operational-metrics` (stream consumer), plus the stream-activation `Trigger` and two `AwsCustomResource` lookups | [repo] |
-| Storage | S3 bucket `learningAdventureIslandMedia` (name generated): `child-photos/{entity_id}/*` (owner identity), `assets/*` (`Admins`) | [repo] `amplify/storage/resource.ts` |
-| Monitoring (`OperationalMonitoring` stack) | SNS `OperationalAlertsTopic` (`PILOT_ALERT_EMAIL`), alarms AppSync 5xx/4xx, AI validation failures, HIGH SafetyEvent; dashboard `<rootStack>-operations`; AWS Budget `BedrockMonthlyCostBudget` (50 USD default) | [repo] |
-| Hosting | Amplify Hosting app, branch `main`, serves `react/dist`; headers `customHttp.yml`; SPA rewrite `amplify-hosting/custom-rules.json` (not `/api/`) | [repo]; deployed [inferred] from the dashboard-name collision recorded in `backend.ts` and the owner's note that the account "holds the deployed LAI Amplify backend" |
+| Identity | The existing Cognito user pool (email login), groups `Admins`, `Superusers`, and the web app client. In use: the browser signs in directly (`react/src/lib/cognito`) and Django verifies its tokens | [repo], deployed [inferred] |
+| Data | Retained legacy DynamoDB tables (one per former model) | [inferred] |
+| Storage | Retained legacy S3 bucket `learningAdventureIslandMedia`: `child-photos/{entity_id}/*`, `assets/*` | [inferred] |
+| Monitoring (`OperationalMonitoring` stack) | SNS `OperationalAlertsTopic`, alarms, a dashboard and AWS Budget `BedrockMonthlyCostBudget` | [inferred] |
 
-Deployed state of individual Amplify resources, the app id, other connected branches and active
-sandboxes: **unverified**. `docs/CURRENT_AWS_RESOURCE_INVENTORY.md` holds the earlier (Aug 2026)
-migration dispositions; its model count (17) is now out of date.
+Deployed state of each retained resource: **unverified**.
 
 ## 6. Pipelines
 
@@ -179,8 +172,7 @@ health path.
 
 ### 6.3 Others
 
-`ci.yml` runs checks only. `amplify.yml` deploys the Amplify backend on every connected-branch
-build unless `LAI_SKIP_BACKEND_DEPLOY=true`.
+`ci.yml` runs checks only.
 
 ## 7. Ownership uncertainty and blockers
 
@@ -189,13 +181,12 @@ build unless `LAI_SKIP_BACKEND_DEPLOY=true`.
 | B1 | `lai-dev-complete.yaml` | **File not provided.** Its resources, stack name and region cannot be compared until the owner supplies it | Owner, then INFRA-002 |
 | U1 | Guardrail `lai-child-safety-dev` | Owned by out-of-band stack `LaiAiGuardrailOnly-dev`, but `LaiAiGuardrail-dev` defines the same resource | INFRA-002 |
 | U2 | GitHub OIDC provider | One per account; the account is shared. Whether one already exists decides `createOidcProvider` | INFRA-002, section 8 query |
-| U3 | Cognito user pool | Owned by the Amplify `main` backend; the Django stack only takes its id as a parameter. It must be detached before any Amplify stack deletion | INFRA-002 |
-| U4 | Child photos and assets | Two homes: Amplify Storage bucket (live, identity-scoped keys) and `LaiChildPhotos-<env>` / `LaiAssetStorage-<env>` (not deployed) | INFRA-002 |
-| U5 | Bedrock access paths | Amplify routes use the **global** profile; Django uses the **US** profile. Both need model access in the account | INFRA-002 |
-| U6 | Alarms and SNS | Amplify `OperationalAlertsTopic` and Budget vs. `lai-django-alarms-<env>`: two alerting topics | INFRA-002 |
+| U3 | Cognito user pool | Lives in a retained stack from the retired backend; the Django stack only takes its id as a parameter. It must be retained or detached before that stack is deleted | INFRA-002 |
+| U4 | Child photos and assets | Two homes: the retained legacy S3 bucket from the retired backend (identity-scoped keys) and `LaiChildPhotos-<env>` / `LaiAssetStorage-<env>` (not deployed) | INFRA-002 |
+| U5 | Bedrock access paths | Django uses the **US** profile; it needs model access in the account | INFRA-002 |
+| U6 | Alarms and SNS | The retained `OperationalAlertsTopic` and Budget vs. `lai-django-alarms-<env>`: two alerting topics | INFRA-002 |
 | U7 | `lai-admin-static-<env>` bucket | Named by `scripts/release-admin-static.sh` (LAI-0404) but defined by no IaC; ADR-026 (Fargate) era | INFRA-002 |
-| U8 | `CDKToolkit` stack | Present in the account, but `infra/` is bootstrapless and Amplify uses its own bootstrap; which project owns it is unknown | INFRA-002 |
-| U9 | Amplify app id, branches, sandboxes | Not in the repository; other Amplify projects share the account | Owner query |
+| U8 | `CDKToolkit` stack | Present in the account, but `infra/` is bootstrapless; which project owns it is unknown | INFRA-002 |
 | U10 | Route 53 zone and API domain | Optional in code; no zone id, domain or certificate is recorded anywhere | Owner |
 
 Observation outside scope: `.claude/settings.json` (committed) contains a test parent's e-mail
@@ -203,7 +194,7 @@ and password in an allow-listed command. Worth removing and rotating; not change
 
 ## 8. Read-only verification commands (owner to run)
 
-None of these change anything. Run with the `amplify-policy` SSO role in `us-west-1`.
+None of these change anything. Run with the owner's read-only SSO role in `us-west-1`.
 
 ```bash
 aws sts get-caller-identity
@@ -212,8 +203,6 @@ aws cloudformation list-stacks --region us-west-1 \
 aws cloudformation describe-stack-resources --stack-name LaiAiGuardrailOnly-dev --region us-west-1
 aws bedrock list-guardrails --region us-west-1
 aws iam list-open-id-connect-providers
-aws amplify list-apps --region us-west-1 --query "apps[].[name,appId,defaultDomain]"
-aws amplify list-branches --app-id <appId> --region us-west-1
 aws cognito-idp list-user-pools --max-results 60 --region us-west-1
 aws ecr describe-repositories --region us-west-1 --query "repositories[].repositoryName"
 aws s3api list-buckets --query "Buckets[?starts_with(Name,'lai-') || contains(Name,'learning')].Name"

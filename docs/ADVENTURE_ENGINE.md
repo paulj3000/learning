@@ -26,10 +26,9 @@ AI may vary presentation inside a step but may not create unauthorized step tran
 `getNextStepId` ran entirely in the browser (`src/features/adventures/engine/`),
 trusted only because the web client itself shipped that code. As of Phase
 37 (docs/DECISIONS.md ADR-012), a graded step's answer is checked by
-`submitAdventureAnswer`, a server-side Lambda
-(`amplify/functions/submit-adventure-answer/handler.ts`) that imports the
-exact same deterministic engine and content modules and is the one that
-writes the session's resulting `currentStepId`. The rule "AI never decides
+the server, which applies the same deterministic engine rules (today
+Django's answer endpoint, LAI-0601, ported against golden vectors) and is
+the one that writes the session's resulting current step. The rule "AI never decides
 correctness" is unchanged — this only moves *where* the same deterministic
 application code runs, from a context the caller can edit to one it
 cannot. `WORLD_CHANGE`'s always-`not_applicable` auto-advance and the
@@ -156,11 +155,11 @@ untouched by coop status — `validateStepAnswer`/`getNextStepId` never take a
 `correct` while a `coopSessionId` is present, `useAdventureSession` fires a
 fire-and-forget call to `claimCoopSlot` keyed by that step's own `id` —
 same "never gates `advance`" invariant as every existing AI/companion call
-in that function. `claimCoopSlot` is a function-backed custom mutation
-(`amplify/functions/claim-coop-slot/`) rather than a plain
-`CoopSession.update()`, specifically so its DynamoDB write can carry a
-`ConditionExpression` on that exact slot path — the actual mechanism behind
-"first write wins, second write rejected, not surfaced as an error." One
+in that function. The slot claim is a server operation (today
+`lai/apps/game_sessions/coop.py`) rather than a plain session update,
+specifically so it can lock the session row (`select_for_update`) while it
+checks that exact slot — the actual mechanism behind "first write wins,
+second write rejected, not surfaced as an error." One
 adventure is wired end-to-end as the proof: "Repair the Moonlight Bridge"
 (`src/features/adventures/content/repairTheMoonlightBridge.ts`), whose
 `count-planks` (`NUMBER_INPUT`), `order-planks` (`ORDERING`), and

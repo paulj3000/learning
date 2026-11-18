@@ -27,18 +27,19 @@ instruction is considered sufficient." Status of each, as implemented:
    the same reason as (2): there is no child free-text input path to
    normalize or classify. Revisit when one is built.
 4. **Prompt templates with explicit age and content constraints** -
-   implemented. `chattyPersona.ts`'s fixed system prompt plus
-   `generateCompanionTurn`'s typed arguments (age band, intent, max
-   length) constrain every call.
+   implemented. The fixed Chatty system prompt (`lai/apps/ai/prompts/`)
+   plus the companion route's typed request fields (intent, bounded
+   authored text), with the age band and length limit read by the server
+   from the child, constrain every call.
 5. **Structured output schemas** - implemented. `CompanionTurn`'s shape is
-   declared in the AI route (`amplify/data/resource.ts`) and re-validated
-   independently in application code (`schema.ts`).
+   declared in Django's contracts (`lai/apps/ai/contracts.py`) and
+   validated server-side before anything reaches a child.
 6. **Provider safety controls where available** - not separately
-   configured beyond Bedrock's platform defaults; no explicit Bedrock
-   Guardrails resource is provisioned in `amplify/backend.ts`. **Open
-   item**: evaluate Amazon Bedrock Guardrails as an additional layer
-   before wider release - not attempted this session since it requires a
-   live deploy to configure and test.
+   active beyond Bedrock's platform defaults until deployed. A Bedrock
+   Guardrail is defined in `infra/lib/aiGuardrailStack.ts`
+   (`docs/AI_SERVICE.md` section 6), synthesized but not deployed. **Open
+   item**: deploy and live-test it before wider release (an owner-approved
+   step, LAI-0705 Gate A).
 7. **Application-level output validation** - implemented and the
    strongest layer in the stack today: `validateCompanionTurn` checks
    structure, intent match, length, URL presence, personal-information
@@ -111,10 +112,11 @@ behavior would manifest as detectable text, also at the validation layer:
 
 ## 4. Prompt context minimization
 
-Confirmed correct by reading `generateCompanionTurn`'s argument list in
-`amplify/data/resource.ts`: `ageBand`, `intent`, `stepSummary`,
-`maxLength`, and optional `learningObjectiveCode`/`hintLevel`/
-`authoredBaseText`/`allowedChoiceIds`. There is no argument for parent
+Confirmed correct by reading the companion route's request fields in
+`lai/apps/ai/serializers.py`: `contextSource`, `intent`, and optional
+`templateId`/`sessionId`/`stepId`/`stepSummary`/`learningObjectiveCode`/
+`hintLevel`/`authoredBaseText`/`allowedChoiceIds`/`npcId`/`nodeId`; the age
+band and length limit are read by the server from the child. There is no argument for parent
 email, child legal name, exact birthdate, or raw free-text history -
 structurally impossible to send them by accident, since the schema has no
 field for them. This is the strongest privacy property in the system: it
@@ -188,17 +190,17 @@ before collecting free text or audio." Status:
 
 - Least-data principle - upheld structurally (no birthdate, legal name,
   contact info, or raw audio collected anywhere in the schema, confirmed
-  by reading `amplify/data/resource.ts` in full). **Amended after this
-  review**: the optional child profile photo (`ChildProfile.avatarPhotoKey`
-  plus the object in Amplify Storage) is the first personal *content*
+  by reading the Django models in `lai/apps/`). **Amended after this
+  review**: the optional child profile photo (a `users.ChildPhoto` row
+  plus the object in the private child-photo bucket, ADR-042) is the first personal *content*
   about a child, as opposed to metadata, that this product can store -
   and a photograph of a child under 8 is the most sensitive item in it.
   It stays consistent with least-data only because every part of it is
   opt-in and parent-controlled: no profile requires a photo, the picture
   is re-encoded in the browser to a 256px JPEG that carries no EXIF or GPS
-  data, the object is readable only by the uploading parent's own Cognito
-  identity (not by other parents, not by the `Admins` group, not by any
-  Lambda or AI route), and a parent can remove it in one click. See
+  data (Django strips metadata again), the object is reachable only through
+  the owning parent's child-scoped Django route (not by other parents, not
+  by administrators, not by any AI route), and a parent can remove it in one click. See
   `docs/DATA_MODEL.md` "Child profile photos" for the full handling rules.
 - Operational telemetry vs. child content separation - upheld:
   `AIInteractionAudit`/`SafetyEvent` are metadata-only; `StoryArtifact` is

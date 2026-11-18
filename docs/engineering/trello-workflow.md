@@ -1,9 +1,9 @@
 # Trello Workflow
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-072 (proposed engineering governance)
+- **Related ADRs:** ADR-072 (engineering governance, Accepted)
 - **Canonical sources:** Trello board "Learning Adventure Island — Master Development"
   (<https://trello.com/b/ePDDF4Lk/learning-adventure-island-master-development>),
   [tasks/TASK_TRACKER.md](../../tasks/TASK_TRACKER.md),
@@ -91,7 +91,7 @@ Existing prefixes, in use on the board and in the repository:
 | `LAI-NNNN` | Roadmap tasks ([docs/DJANGO_MIGRATION_ROADMAP.md](../DJANGO_MIGRATION_ROADMAP.md), [tasks/TASK_TRACKER.md](../../tasks/TASK_TRACKER.md)) |
 | `LAI-<AREA>-NNN` | Area series, for example `LAI-NPC-039`, `LAI-LAMBDA-008b`, `LAI-JMP-01` |
 | `SC-R` | Storykeeper Castle reboot (`SC-R04-05`) |
-| `SC-JMP` | Storykeeper Castle jumping (`SC-JMP-07`) |
+| `SC-JMP` | Storykeeper Castle jumping (`SC-JMP-07`); optional work, the castle does not need jumping (owner, 2026-11-18) |
 | `SEA` | Existing board series (`SEA-04`); check the board card for its area |
 | `AP` | Adventure Portal (`AP-11`) |
 | `NP` | North Pole adventure (`NP-001`) |

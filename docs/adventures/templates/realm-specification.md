@@ -70,7 +70,7 @@
 
 ## 9. Shared components used
 
-`<Asset Library, NPC Manager, Sound Manager, shared movement and jump controller (pending merge), quest engine, ...>`
+`<Asset Library, NPC Manager, Sound Manager, shared movement controller and, where adventures use jumping, the shared jump controller (pending merge), quest engine, ...>`
 
 ## 10. Assets and licensing
 

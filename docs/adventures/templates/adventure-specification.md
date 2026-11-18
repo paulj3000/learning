@@ -8,7 +8,7 @@
 > `Not applicable: <reason>` rather than deleting one. Do not invent data, evidence or results;
 > write `<TBD: owner decision>` for anything undecided and list it in section 25. Every adventure
 > consumes the shared managers (Asset Library, NPC Manager, Sound Manager, quest engine, play
-> services, movement and jump controller); a specification that proposes a replacement is
+> services, movement controller, and the shared jump controller where jumping is used); a specification that proposes a replacement is
 > rejected. Read [`adventure-standard.md`](../adventure-standard.md) and the standards linked in
 > each section first.
 
@@ -94,8 +94,18 @@ Standard: [`challenge-standard.md`](../challenge-standard.md). One challenge spe
 
 ## 10. Movement and jumping
 
-Standard: [`jumping-standard.md`](../jumping-standard.md). The shared movement and jump controller is
-pending merge on open branches; use it, never a local one.
+Standard: [`jumping-standard.md`](../jumping-standard.md). Jumping is a shared engine capability an
+adventure may enable; it is not required (Storykeeper Castle and the Storybook adventures do not
+need it). The shared movement and jump controller is pending merge on open branches; use it,
+never a local one.
+
+| Field | Value |
+|---|---|
+| Uses jumping? | `<yes / no>` |
+
+If **no**, write `Not applicable: adventure does not use jumping` for the jump tables below. If
+**yes**, complete them: every required step keeps an accessible non-jump route, recovery is safe,
+no progress is lost and nothing is timed.
 
 | Element | Jump required? | Accessible non-jump alternative | Fall or miss recovery | Learning progress kept? |
 |---|---|---|---|---|
@@ -155,7 +165,7 @@ Standard: [`accessibility-standard.md`](../accessibility-standard.md)
 | Failure | Child-facing behaviour | Progress effect |
 |---|---|---|
 | Wrong answer | `<encouraging retry, hint>` | `<none lost>` |
-| Fall or missed jump | `<safe recovery>` | `<none lost>` |
+| Fall or missed jump (if jumping is used) | `<safe recovery>` | `<none lost>` |
 | Asset fails to load | `<bundled fallback / placeholder>` | `<none>` |
 | AI unavailable | `<authored fallback>` | `<none>` |
 | Network or Django error | `<calm message, retry>` | `<none lost>` |
@@ -219,7 +229,7 @@ No project-wide budget is approved; state this adventure's targets and how they 
 | Asset Library (`apps/assets`, `djangoAssetResolver`) | `<use>` | `<no / describe>` |
 | NPC Manager (`apps/npcs`, `features/npc-manager`) | `<use>` | `<no / describe>` |
 | Sound Manager (`react/src/audio`, `apps/audio`, `apps/speech`) | `<use>` | `<no / describe>` |
-| Movement and jump controller (pending merge) | `<use>` | `<no / describe>` |
+| Movement controller; jump controller if jumping is used (pending merge) | `<use>` | `<no / describe>` |
 | Quest engine and play services (`quests`, `game_sessions`, `progression`, `inventory`) | `<use>` | `<no / describe>` |
 | Education (`ChallengeSpec`, `grade_answer`, Question Studio pools) | `<use>` | `<no / describe>` |
 | AI pipeline (`apps/ai`) | `<use or none>` | `<no / describe>` |
@@ -248,7 +258,7 @@ No project-wide budget is approved; state this adventure's targets and how they 
 - [ ] Every section filled or marked `Not applicable: <reason>`.
 - [ ] Objectives exist in the catalog; correctness owned by Django code.
 - [ ] Every age band supported has its own variant.
-- [ ] At least one meaningful jump route named; jumping never required to finish learning content; per-band jump difficulty within controller limits; accessible alternative and safe recovery for every jump.
+- [ ] "Uses jumping?" answered. If yes: shared controller, jump route(s) named, jumping never required to finish learning content, per-band jump difficulty within controller limits, accessible non-jump route and safe recovery for every jump.
 - [ ] No timers, countdowns or forced stops; no loss of learning progress.
 - [ ] Shared managers consumed; no replacement built.
 - [ ] Authored fallback for every AI path, asset and service failure.

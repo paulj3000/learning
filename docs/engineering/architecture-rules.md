@@ -1,14 +1,16 @@
 # Architecture Rules
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-019, ADR-020, ADR-029, ADR-033, ADR-036, ADR-037, ADR-040, ADR-041, ADR-044, ADR-045, ADR-046, ADR-047, ADR-048, ADR-049, ADR-050, ADR-052, ADR-053, ADR-054, ADR-055, ADR-061, ADR-062, ADR-064, ADR-072
 - **Canonical sources:** [DECISIONS.md](../DECISIONS.md) (decisions), [ARCHITECTURE.md](../ARCHITECTURE.md) ("Consolidated Django backbone" and later sections), [CLAUDE.md](../../CLAUDE.md) sections 8 and 18 to 20
 
 This page states the approved architecture as rules, with the status of every element on `main`
-at `466a4972` (2026-11-18). It does not replace the ADRs. When this page and an ADR disagree, the
-ADR in [DECISIONS.md](../DECISIONS.md) wins and this page is corrected.
+at `466a4972` (2026-11-18). Precedence: an owner decision, then these standards (this page,
+`CLAUDE.md`, `AGENTS.md`, `docs/engineering/`, `docs/adventures/`), then accepted ADRs in
+[DECISIONS.md](../DECISIONS.md) and every other document. An older document that conflicts with
+this page is stale and is corrected to match; report the conflict rather than resolving it silently.
 
 ## 1. Status vocabulary
 
@@ -23,15 +25,14 @@ ADR in [DECISIONS.md](../DECISIONS.md) wins and this page is corrected.
 
 "Infrastructure defined in code" is not "deployed". Deployment status comes from the owner and the
 dated records in [inventory.md](../infrastructure/inventory.md) and
-[CURRENT_AWS_RESOURCE_INVENTORY.md](../CURRENT_AWS_RESOURCE_INVENTORY.md), both of which predate
-the Amplify removal and must be re-verified before they are relied on.
+[CURRENT_AWS_RESOURCE_INVENTORY.md](../CURRENT_AWS_RESOURCE_INVENTORY.md), which are dated
+snapshots and must be re-verified before they are relied on.
 
 ## 2. Retired elements
 
 | Element | Status | Rule | Source |
 |---|---|---|---|
-| Amplify Gen 2 backend (Auth, Data, Storage, Functions, AI Kit) | Retired | Never reintroduce any Amplify package, SDK, `amplify/` directory or Amplify-style data client. `react/src/test/noAmplify.test.ts` guards this. | AMP-01 to AMP-08, [AMPLIFY_FINAL_REMOVAL.md](../platform/AMPLIFY_FINAL_REMOVAL.md), CLAUDE.md section 18 |
-| Amplify Hosting | Retired (owner disabled it 2026-11-14) | The site is published by `deploy-site.yml` to S3 and CloudFront, only with owner approval. | ADR-019, [deployment-design.md](../infrastructure/deployment-design.md) |
+| Previous backend | Retired | Amplify is retired; never reintroduce it. | ADR-019, CLAUDE.md section 0 |
 | Phaser as an alternative engine | Retired | Never start a new world, feature or engine abstraction on Phaser. | ADR-020, ADR-029 |
 | ADR-038 dual authentication (local Django sign-in for app users) | Retired (superseded by ADR-040) | Cognito is the only application-user authentication. | ADR-040 |
 | Play-time limits, session countdown, calm stop | Retired | Children are never counted down, nudged to stop or cut off for time. | ADR-053 |
@@ -41,7 +42,7 @@ the Amplify removal and must be re-verified before they are relied on.
 | Element | Status | Rule | Source |
 |---|---|---|---|
 | Phaser worlds (`phaser` in `package.json`; `react/src/features/island-map/scenes/` and the `*WorldView.tsx` hosts that import it) | Transitional | Bug fixes only. Delete a world only after its Three.js replacement passes parity tests and visual validation and the Sprouts gate (LAI-2303) allows it. | ADR-020, [THREEJS_ENGINE_CONVERSION.md](../THREEJS_ENGINE_CONVERSION.md) |
-| Retained Amplify data, buckets and tables in AWS | Transitional | Never delete, change or import them without explicit owner approval. Import code (`lai/apps/users/amplify_import.py`, `lai/apps/assets/amplify_object_migration.py`) exists; running it against real data is an approval step. | CLAUDE.md section 18, ADR-039, ADR-042 |
+| Retained legacy DynamoDB tables and S3 buckets from the retired backend | Transitional | Never delete, change or import them without explicit owner approval. Import code exists in `lai/apps/users/` and `lai/apps/assets/`; running it against real data is an approval step. | CLAUDE.md section 18, ADR-039, ADR-042 |
 | Existing Cognito user pool and web app client | Transitional (kept; pool ownership and detach plan open) | Use the existing pool directly. Never modify or recreate it without approval. | ADR-019 gate G2, ADR-024, ADR-040 |
 | ADR-019 gates G1, G2, G3, G5, G6, G7, G8, G9, G10 | Open | A task that touches a gate stops until the gate is resolved. G4 is resolved (Python rules, Django content authority). G8: application part done (LAI-0208, ADR-025); deployed part tracked as G10. | ADR-019 |
 | `CLIENT_AUTHORED` AI context path | Transitional | Kept behind `LAI_AI_ALLOW_CLIENT_AUTHORED` until adventures run on Django sessions. Do not extend it. | ADR-044 items 7 and 11 |
@@ -53,7 +54,7 @@ the Amplify removal and must be re-verified before they are relied on.
 |---|---|---|---|
 | React 19, Vite 8, TypeScript strict, React Router 7 | Implemented (main) | One client in `react/`. `strict: true` in every `tsconfig`. | ADR-019 sub-decision 5, `react/tsconfig.app.json` |
 | Three.js as the only gameplay renderer | Implemented (main) for every active 3D region on the generic route; Phaser worlds remain (section 3) | Every new playable environment is Three.js. Menus, HUD, dashboards and parent screens stay React. | ADR-020, ADR-032 |
-| Engine import boundary | Implemented (main), interim location | Engine modules (`.ts` under `react/src/features/island-map/three/` and `scenes/`) must not import React, Django clients, `api/`, AWS SDKs or Amplify. Enforced by `react/src/test/engineBoundary.test.ts`. | ADR-020, [ARCHITECTURE.md](../ARCHITECTURE.md) "Engine import boundary" |
+| Engine import boundary | Implemented (main), interim location | Engine modules (`.ts` under `react/src/features/island-map/three/` and `scenes/`) must not import React, Django clients, `api/` or AWS SDKs. Enforced by `react/src/test/engineBoundary.test.ts`. | ADR-020, [ARCHITECTURE.md](../ARCHITECTURE.md) "Engine import boundary" |
 | Top-level `game/` package | Approved future (LAI-2101) | Not created yet. Do not create it outside its task. | ADR-020 item 4 |
 | Engine never validates answers, awards progress or calls AI; it emits typed events | Implemented (main) | `worldEngineEvents.ts` is the event vocabulary. Django grades. | ADR-020 item 6, ADR-012 |
 | Styling: `react/src/styles/tokens.css` theme, CSS Modules, Tailwind CSS 4 for shells, portal pages and the admin section | Implemented (main) | `tokens.css` is the only owner of `--color-*`. Tailwind only where ADR-052 and ADR-023 allow it. | ADR-023, ADR-052 |
@@ -71,7 +72,7 @@ for one adventure is not allowed.
 | Location runtime, manifests, validation | Implemented (main) | `react/src/features/island-map/three/runtime/` (`createLocationEngine.ts`, `locationManifest.ts`, `validateLocationManifest.ts`) | New 3D places are manifests plus extensions, not new engines (ADR-032, ADR-009). |
 | Interaction evaluation and evidence | Implemented (main) | `react/src/features/interaction/` | Presentation-side only; Django is authoritative for grading. |
 | Engine events | Implemented (main) | `react/src/features/island-map/three/worldEngineEvents.ts` | Add typed events here; never call APIs from the engine. |
-| Jumping (shared jump controller) | Pending merge | `feature/shared-jump-controller` (PR #26), registry row ADR-063 (Reserved) | Owner direction 2026-11-17: jumping is standard in every adventure, with an accessible non-jump route, no forced timers, no loss of learning progress, safe recovery. Do not build a local jump. |
+| Jumping (shared jump controller) | Pending merge | `feature/shared-jump-controller` (PR #26), registry row ADR-063 (Reserved) | A shared engine capability that will be implemented; an adventure may enable it and is not required to (owner, 2026-11-18). Where used: the shared controller, an accessible non-jump route, no forced timers, no loss of learning progress, safe recovery. Do not build a local jump. |
 | Third-person camera and perspective switch | Pending merge | `feature/third-person-avatar` (PR #27), ADR-056 (Reserved) | Wait for the merge; do not add a camera rig. |
 | Player avatar catalogue | Pending merge | `feature/player-avatar-assets` (PR #28), ADR-057 (Reserved) | Avatars come through the Asset Manager. |
 | Walking, running, sprinting gaits | Pending merge | `feature/player-running` (PR #29), ADR-058 (Reserved) | Gaits of the one controller. |
@@ -88,7 +89,7 @@ for one adventure is not allowed.
 | One Django backbone | Implemented (main) | Extend the canonical app that owns a responsibility. Never add a second catalog, loader, child-owned base or progress model. | ADR-033, CLAUDE.md section 20 |
 | Server-authoritative state | Implemented (main) for answers, hints, region play, quests, world changes, discovery | The server decides correctness, progress, rewards and world changes. The client animates only. | ADR-012, ADR-051, [ARCHITECTURE.md](../ARCHITECTURE.md) "State ownership" |
 | API namespace `/api/v1/`, fixed error envelope, request IDs | Implemented (main) | Additive changes stay in v1; a breaking change gets `/api/v2/` beside v1. Contract: [ARCHITECTURE.md](../ARCHITECTURE.md) "Django API conventions". | LAI-0205 |
-| Content manifest and platform version negotiation | Approved future (design only) | [MANIFEST_AND_API_VERSIONING.md](../platform/MANIFEST_AND_API_VERSIONING.md) is a pre-Django design and still names Amplify files; treat it as background, not as a contract. Sessions pin content versions (LAI-0813). | ADR-014, ADR-047 |
+| Content manifest and platform version negotiation | Approved future (design only) | [MANIFEST_AND_API_VERSIONING.md](../platform/MANIFEST_AND_API_VERSIONING.md) is a pre-Django design that names files from the retired backend; treat it as background, not as a contract. Sessions pin content versions (LAI-0813). | ADR-014, ADR-047 |
 | Deny-by-default permissions, child scoping | Implemented (main) | `IsAuthenticated` default; child routes use `ChildScopedMixin` (`lai/apps/users/scoping.py`) and `<uuid:child_id>`. | ADR-024, LAI-0403 |
 | Migrations | Implemented (main) | One migration per model change, committed with the change; `make migrate-check` must be clean. Destructive migrations need their own approved release ([deployment-design.md](../infrastructure/deployment-design.md) section 4). Never edit a migration that has merged to `main`. | ADR-019 |
 | Django Admin for staff | Implemented (main) | Local staff sign-in, separate from Cognito. | ADR-034, ADR-040 |
@@ -98,7 +99,7 @@ for one adventure is not allowed.
 
 | Element | Status | Rule | Source |
 |---|---|---|---|
-| Cognito user pool used directly from the browser (`react/src/lib/cognito`) | Implemented (main) | No Amplify SDK. Tokens stay in the browser storage keys the client uses today. | ADR-040, AMP-02 |
+| Cognito user pool used directly from the browser (`react/src/lib/cognito`) | Implemented (main) | Tokens stay in the browser storage keys the client uses today. | ADR-040 |
 | Django verifies Cognito access tokens (JWKS, issuer, client, `token_use`) | Implemented (main) | `lai/apps/users/authentication.py`, `jwks.py`. Fail closed. | ADR-024 |
 | Parent-owned accounts; `ChildProfile` is a managed profile with no email or login | Implemented (main) | Children never authenticate. Up to three child profiles per parent (CLAUDE.md section 11). | ADR-001, ADR-022, ADR-039 |
 | Explicit authorization on every route | Implemented (main) | Section 5 rules plus [security-policy.md](security-policy.md). | ADR-024 |
@@ -160,7 +161,7 @@ owning app or module. A second implementation needs an ADR.
 | CloudWatch logs and alarms | Approved future with the stacks above | Log content rules: [security-policy.md](security-policy.md). | ADR-025, ADR-019 gate G10 |
 | Deploy workflows (`deploy-django-ec2.yml`, `deploy-site.yml`, `deploy-dev-native.yml`, `deploy-dev-lambda.yml`, `manage-dev-infrastructure.yml`) | Present, gated | The four `deploy-*` workflows start on pushes to `main` by path; `manage-dev-infrastructure.yml` is dispatch only. They release when their gate variables (`LAI_SITE_DEPLOY_ENABLED`, `LAI_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED`, `LAI_PROD_AUTO_DEPLOY`) allow it, so a merge to `main` may deploy. A merge approval is not a deployment approval. Agents never change the gates or dispatch the workflows without explicit per-action owner authorization. Paths and gates: [release-policy.md](release-policy.md#how-merges-relate-to-deployments). | CLAUDE.md section 18 |
 
-No Amplify, and no Phaser reintroduction, in any infrastructure or build change.
+No Phaser reintroduction in any infrastructure or build change.
 
 ## 10. Changes that require an ADR
 

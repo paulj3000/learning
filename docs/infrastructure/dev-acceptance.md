@@ -34,9 +34,9 @@ gated site release. Both are checked too.
 | P1 | Decide the dev host names: API, admin and (later) site. The card's `pauldimitriu.com` names fit one environment; dev can use `dev-api.`, `dev-ladm.` | `domains-and-hosting.md` section 7.1 |
 | P2 | Is `pauldimitriu.com` a Route 53 zone in `008331939914`? If yes, set `LAI_HOSTED_ZONE_ID` and `LAI_HOSTED_ZONE_NAME` and DNS is automatic | `reconciliation-report.md` C5 |
 | P3 | `aws iam list-open-id-connect-providers`: if `token.actions.githubusercontent.com` is listed, set `LAI_CREATE_OIDC_PROVIDER=false` | C3 |
-| P4 | Confirm no stack from `lai-dev-complete.yaml` exists (any non-`Lai*`, non-`amplify-*`, non-`CDKToolkit` stack in us-west-1) | B1 |
+| P4 | Confirm no stack from `lai-dev-complete.yaml` exists (any stack in us-west-1 that is not `Lai*`, `CDKToolkit` or a retained stack from the retired backend) | B1 |
 | P5 | Run `aws rds describe-db-engine-versions --engine postgres --region us-west-1 --query "DBEngineVersions[?starts_with(EngineVersion,'16')].EngineVersion"`. If RDS rejects a major-only `16`, Claude pins a listed minor before step A2 | C10 |
-| P6 | Collect `LAI_COGNITO_USER_POOL_ID` and `LAI_COGNITO_CLIENT_IDS` from the Amplify `main` backend (`amplify_outputs.json`, `auth.user_pool_id` and `auth.user_pool_client_id`) | `DJANGO_EC2_DEPLOYMENT.md` 5.1 |
+| P6 | Collect `LAI_COGNITO_USER_POOL_ID` and `LAI_COGNITO_CLIENT_IDS`: the existing user pool id and web app client id | `DJANGO_EC2_DEPLOYMENT.md` 5.1 |
 | P7 | Synth and review: `LAI_ENV=dev npm run infra:synth`, then read `infra/cdk.out/*.template.json` | Already validated in LAI-INFRA-005 (12 templates, `cfn-lint`) |
 
 ## 3. Provision and first release (each step needs owner approval)
@@ -92,8 +92,8 @@ The card is accepted when the run shows **0 FAIL** with the token checks include
 be explained: the Guardrail WARN is expected until A9. Exit code 0 means no FAIL.
 
 Not covered by the script (do once by hand, record in section 6):
-- Sign-in, child selection and one adventure in the browser, against Django
-  (`VITE_BACKEND=django` on a branch, `AMPLIFY_HOSTING.md` section 7).
+- Sign-in, child selection and one adventure in the browser, against Django (a site build
+  pointed at the dev API).
 - One admin sign-in on the admin host.
 - A deliberate rollback dispatch (`DJANGO_EC2_DEPLOYMENT.md` section 8).
 

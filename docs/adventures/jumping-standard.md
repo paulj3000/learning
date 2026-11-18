@@ -1,11 +1,11 @@
 # Jumping Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
-- **Scope note:** The adventure-level requirement is policy; the implementation it relies on is Pending merge.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
+- **Scope note:** Jumping is a shared game-engine capability that adventures may enable. The rules for using it are policy; the implementation is Pending merge.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-020, ADR-029, ADR-033, ADR-053; pending merge (Reserved on `main`): ADR-063 (jumping), ADR-056 (camera), ADR-057 (avatar), ADR-058 (running), ADR-059 (platforms), ADR-060 (footprint)
-- **Canonical sources:** owner direction 2026-11-17 (Trello: jumping is standard gameplay in every adventure); on branches, read-only: `origin/feature/interactive-platforms:docs/PLAYER_MOVEMENT_AND_JUMPING.md`, `origin/feature/interactive-platforms:docs/PLATFORMING.md`, `origin/feature/interactive-platforms:docs/PLAYER_AVATAR_AND_CAMERA.md`, `origin/feature/treasure-rush-palm-trees:docs/DECISIONS.md` (footprint)
+- **Canonical sources:** owner direction 2026-11-18 (jumping is a shared engine capability that will be implemented; adventures may use it and are not required to; Storykeeper Castle and the Storybook adventures do not need it); on branches, read-only: `origin/feature/interactive-platforms:docs/PLAYER_MOVEMENT_AND_JUMPING.md`, `origin/feature/interactive-platforms:docs/PLATFORMING.md`, `origin/feature/interactive-platforms:docs/PLAYER_AVATAR_AND_CAMERA.md`, `origin/feature/treasure-rush-palm-trees:docs/DECISIONS.md` (footprint)
 
 ## Status on 2026-11-18
 
@@ -28,22 +28,23 @@
 owner. It never re-implements jumping, gravity, platforms, checkpoints or recovery on `main` or
 in an adventure.**
 
-**Transition.** The requirement below applies to new and reworked primary adventures; existing
-primary adventures (e.g. Treasure Rush, Firepeak on `main`) are tracked as not yet compliant
-until an approved retrofit card ships.
+## Jumping is optional per adventure
 
-## The requirement
-
-1. **Every primary adventure includes meaningful jumping** (owner direction, 2026-11-17). A
-   primary adventure is one played in a 3D Area (see the [adventure standard](adventure-standard.md)).
-   "Meaningful" means jumping changes what the child can reach or do: a shortcut, an optional
-   collectible, an elevated view, a stepping-stone crossing, an answer chosen by jumping.
-2. **Not every challenge needs jumping.** Learning challenges, dialogue and step adventures stay
-   jump-free unless the spec gives a reason.
-3. **Required progress never needs a jump.** Every required route has a walking alternative;
-   jump routes lead to optional rewards, shortcuts or secrets (North Pole NP-D5, ADR-080
+1. **Jumping is a shared game-engine capability** that will be implemented by the shared
+   controller work above (reserved ADR-063, ADR-056 to ADR-060). An adventure **may** enable it;
+   no adventure is required to (owner direction, 2026-11-18). Storykeeper Castle and the Storybook
+   adventures do not need jumping. The adventure specification states whether the adventure uses
+   jumping.
+2. **Where an adventure uses jumping, make it meaningful:** jumping changes what the child can
+   reach or do (a shortcut, an optional collectible, an elevated view, a stepping-stone crossing,
+   an answer chosen by jumping).
+3. **Required progress never needs a jump.** Every required route has an accessible non-jump
+   route; jump routes lead to optional rewards, shortcuts or secrets (North Pole NP-D5, ADR-080
    Reserved on `main` and branch only, and Pirate's Leap on their branches already follow this).
 4. **No forced timers, no loss of learning progress, safe recovery** (owner direction, ADR-053).
+5. **Reuse the shared controller.** An adventure never builds its own jump.
+
+The rest of this standard applies to every adventure that uses jumping.
 
 ## Shared implementation (pending merge)
 
@@ -105,7 +106,7 @@ Controller constants (not per location): physics substep 1/120 s; `stepHeight` 0
 `bodyHeight` 1.7 m and `recoveryDepth` -10 m are controller defaults; adventures must not
 override them. Footprint: a 0.35 m radius cylinder plus 0.02 m skin (ADR-060,
 pending merge). Example override on a branch: Storykeeper Castle `jumpHeight` 0.9 to stay under
-its ceilings.
+its ceilings (optional work; the castle does not need jumping).
 
 ## Landing, collision and platforms
 
@@ -207,7 +208,10 @@ walking jump clears 2.5 m); North Pole gaps up to 1.6 m.
 
 ## Acceptance checklist
 
-- [ ] The adventure has at least one meaningful jump route, named in the spec.
+For an adventure whose specification says it uses jumping (an adventure that does not use it
+skips this list):
+
+- [ ] The spec names the jump route(s) and what each lets the child reach or do.
 - [ ] Every required step can be completed without jumping.
 - [ ] Built on the shared controller and platform system; no new movement code; branch dependency stated.
 - [ ] Gates, boundaries and quest barriers are solid; no required zone can be skipped.

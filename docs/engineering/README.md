@@ -1,9 +1,9 @@
 # Engineering Standards
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-072 (engineering governance, Proposed), ADR-019, ADR-020, ADR-033
+- **Related ADRs:** ADR-072 (engineering governance, Accepted), ADR-019, ADR-020, ADR-033
 - **Canonical sources:** [`CLAUDE.md`](../../CLAUDE.md), [`AGENTS.md`](../../AGENTS.md), [`docs/DECISIONS.md`](../DECISIONS.md), [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md)
 
 This directory holds the detailed engineering policy for Learning Adventure Island: how work moves
@@ -27,16 +27,15 @@ it points to their canonical sources.
 ### Precedence when documents conflict
 
 1. Owner decision (recorded on the Trello card, in a PR review, or in an ADR)
-2. Accepted ADR in [`docs/DECISIONS.md`](../DECISIONS.md)
-3. [`CLAUDE.md`](../../CLAUDE.md)
-4. [`AGENTS.md`](../../AGENTS.md)
-5. `docs/engineering/` and `docs/adventures/` documents with status Mandatory policy
-6. Guidance and Proposed documents
+2. These standards: [`CLAUDE.md`](../../CLAUDE.md), [`AGENTS.md`](../../AGENTS.md),
+   `docs/engineering/` and `docs/adventures/` (ADR-072, accepted by the owner 2026-11-18)
+3. Accepted ADRs in [`docs/DECISIONS.md`](../DECISIONS.md) and every other document
 
-An agent that finds a conflict reports it (Trello comment on the ticket, and in the handoff or
+An older document that conflicts with the standards is stale and is corrected to match them. An
+agent that finds a conflict reports it (Trello comment on the ticket, and in the handoff or
 completion report) and follows the higher-ranked source. It never silently edits one document to
-make it agree with another; the fix is a documentation change reviewed like any other policy
-change ([`documentation-policy.md`](documentation-policy.md)).
+make it agree with another; the correction is a documentation change reviewed like any other
+policy change ([`documentation-policy.md`](documentation-policy.md)).
 
 ## Reading order for a new agent
 
@@ -89,7 +88,7 @@ change ([`documentation-policy.md`](documentation-policy.md)).
 |---|---|
 | [`../adventures/README.md`](../adventures/README.md) | Index and reading order for the adventure standards |
 | [`../adventures/adventure-standard.md`](../adventures/adventure-standard.md) | What every adventure must contain: goal, learning objective, world consequence, fallbacks |
-| [`../adventures/jumping-standard.md`](../adventures/jumping-standard.md) | Jumping as standard gameplay, with an accessible non-jump route and safe recovery |
+| [`../adventures/jumping-standard.md`](../adventures/jumping-standard.md) | Jumping as an optional shared engine capability; where used, an accessible non-jump route and safe recovery |
 | [`../adventures/scoring-standard.md`](../adventures/scoring-standard.md) | Progress and rewards without economies, leaderboards or pressure |
 | [`../adventures/accessibility-standard.md`](../adventures/accessibility-standard.md) | Accessibility requirements for playable environments |
 | [`../adventures/realm-standard.md`](../adventures/realm-standard.md) | Realms, places and areas in the existing content model |
@@ -129,30 +128,31 @@ wins; nothing is duplicated.
 
 [`initial-audit.md`](initial-audit.md) records the repository as it stood at baseline `466a4972`
 (2026-11-18): structure, the content hierarchy as implemented, existing policies, work in flight on
-open branches, the discovered check commands, and 16 conflicts found while writing these
-standards (section 9). The standards follow the accepted ADR or the code in each case; none of the
-conflicting documents was edited by ADR-072's branch.
+open branches, the discovered check commands, and 15 conflicts found while writing these
+standards (section 9). The listed conflicts were corrected on 2026-11-18 at the owner's
+direction; the audit stays as a dated snapshot.
 
 ## Owner approval checklist
 
-Decisions ADR-072's branch cannot make. Each shows its default if the owner does nothing.
+Decisions ADR-072's branch cannot make. Each shows its default if the owner does nothing, or its
+outcome once decided.
 
 | # | Decision | Default until decided |
 |---|---|---|
-| 1 | Accept, amend or reject ADR-072 and the standards in `docs/engineering/` and `docs/adventures/` | Proposed |
+| 1 | Accept, amend or reject ADR-072 and the standards in `docs/engineering/` and `docs/adventures/` | Accepted 2026-11-18 |
 | 2 | Approve the `Reserved` registry rows for ADR-065 to 071, 080 and 081 (numbers already used on open branches) | Rows stay; each branch replaces its row on merge |
 | 3 | **Resolve the ADR-070 collision** (Heart of Firepeak and processing GLB optimization) under `docs/DECISIONS.md` rules 3 and 5 | Neither branch merges until decided |
 | 4 | Require the processing branches (`feature/lambda-*`, `feature/serverless-processing-completion`) to move their ADR bodies from `docs/processing/adr/` into `docs/DECISIONS.md` when they merge | The single-log rule applies |
-| 5 | **Rotate the test parent account password** that appears in two allow rules in the tracked `.claude/settings.json` (committed 2026-11-11), and decide whether to remove those rules; out of this ticket's scope, not edited | Credential stays exposed in history |
-| 6 | Before any merge to `main`, confirm the deploy gate variables (`LAI_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED`, `LAI_SITE_DEPLOY_ENABLED`, `LAI_PROD_AUTO_DEPLOY`); four deploy workflows run on push to `main` by path ([release-policy.md](release-policy.md)). The governance merge itself touches no trigger path | A merge touching a trigger path may start a release when a variable is on |
-| 7 | Keep or drop the new CI step (`python3 scripts/check_engineering_docs.py`) in `.github/workflows/ci.yml` | Added on this branch; effective on merge |
-| 8 | Trello: optional new lists or named labels for the Specification, Integration, Ready for QA and Accepted states ([trello-workflow.md](trello-workflow.md)) | Existing nine lists, mapped, not renamed |
-| 9 | The 48-hour stale-ticket threshold ([multi-agent-workflow.md](multi-agent-workflow.md)) | As written; flagged, never auto-reassigned |
-| 10 | Branch protection on `main` ([branch-policy.md](branch-policy.md)); needs GitHub admin access | Unchanged |
-| 11 | Whether a staging environment is planned ([release-policy.md](release-policy.md), ADR-017) | Dev and prod only |
-| 12 | Decisions on the Proposed ADRs whose code is already on `main` (ADR-036, ADR-043, ADR-048, ADR-049, ADR-050) | Proposed |
-| 13 | A naming decision for Realm (child-facing) versus Island (ADR-041 copy and Admin labels) | Code and API keep Island names |
-| 14 | Which stale documents to correct ([initial-audit.md](initial-audit.md), section 9) and whether to deprecate `docs/decisions_adr.md` | Unchanged |
+| 5 | Before any merge to `main`, confirm the deploy gate variables (`LAI_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED`, `LAI_SITE_DEPLOY_ENABLED`, `LAI_PROD_AUTO_DEPLOY`); four deploy workflows run on push to `main` by path ([release-policy.md](release-policy.md)). The governance merge itself touches no trigger path | A merge touching a trigger path may start a release when a variable is on |
+| 6 | Keep or drop the new CI step (`python3 scripts/check_engineering_docs.py`) in `.github/workflows/ci.yml` | Added on this branch; effective on merge |
+| 7 | Trello: optional new lists or named labels for the Specification, Integration, Ready for QA and Accepted states ([trello-workflow.md](trello-workflow.md)) | Existing nine lists, mapped, not renamed |
+| 8 | The 48-hour stale-ticket threshold ([multi-agent-workflow.md](multi-agent-workflow.md)) | As written; flagged, never auto-reassigned |
+| 9 | Branch protection on `main` ([branch-policy.md](branch-policy.md)); needs GitHub admin access | Unchanged |
+| 10 | Whether a staging environment is planned ([release-policy.md](release-policy.md), ADR-017) | Dev and prod only |
+| 11 | Decisions on the Proposed ADRs whose code is already on `main` (ADR-036, ADR-043, ADR-048, ADR-049, ADR-050) | Proposed |
+| 12 | A naming decision for Realm (child-facing) versus Island (ADR-041 copy and Admin labels) | Code and API keep Island names |
+| 13 | Correct the stale documents ([initial-audit.md](initial-audit.md), section 9) and the references to the retired backend | Done: documentation corrected 2026-11-18 |
+| 14 | Whether to deprecate `docs/decisions_adr.md` | Unchanged |
 | 15 | Legal review of the items listed in [security-policy.md](security-policy.md) | No compliance claim is made |
 
 ## Rolling these standards out to the existing worktrees

@@ -1,13 +1,13 @@
 # Learning Adventure Island
 ### Project White Paper — Current State and Trajectory
 
-*Last updated: 2026-08-20*
+*Last updated: 2026-08-20; architecture sections corrected 2026-11-18 (Django backend, ADR-019; Three.js as the only gameplay renderer, ADR-020).*
 
 ---
 
 ## 1. Executive Summary
 
-Learning Adventure Island is an AI-powered learning world for children ages 3–8, built on AWS Amplify Gen 2. It is not a worksheet catalog or a general-purpose chatbot wrapped in a kid-friendly skin. It is a persistent, explorable island where a child's learning has a visible, lasting effect on the world itself: a bridge gets rebuilt because the child solved a measurement problem, a forest floor blooms because a story was finished, a dragon appears in a new sanctuary because an adventure was completed weeks earlier.
+Learning Adventure Island is an AI-powered learning world for children ages 3–8, built on React, Three.js, Django REST, PostgreSQL, Amazon Cognito and Amazon Bedrock on AWS. It is not a worksheet catalog or a general-purpose chatbot wrapped in a kid-friendly skin. It is a persistent, explorable island where a child's learning has a visible, lasting effect on the world itself: a bridge gets rebuilt because the child solved a measurement problem, a forest floor blooms because a story was finished, a dragon appears in a new sanctuary because an adventure was completed weeks earlier.
 
 As of this writing, the project has shipped a complete MVP (Phases 0–8 of the original roadmap: parent accounts, the island shell, a deterministic adventure engine, a safety-reviewed AI companion, three full learning locations, a parent dashboard, and a formal hardening/pilot phase), and has gone considerably further: a nine-phase "explorable world" arc (Phases 9–17) that replaced static location screens with a real 2D game world (Phaser), added a Story Engine layer, built five full narrative adventure arcs across all three age bands, connected story completion to lasting world-wide changes, and shipped household co-presence so siblings can play the same adventure together in real time. A next-generation rendering direction has also been approved but not yet built: a first-person 3D world on Three.js, replacing Phaser as the child-facing renderer once a verified vertical slice reaches parity (Section 5).
 
@@ -49,7 +49,7 @@ What differentiates this from "an AI chatbot for kids" is the combination of a p
 
 ## 4. The World, As Built Today
 
-The island currently has five real, spatially explorable locations, each rendered with a real 2D game engine (Phaser) rather than static screens. This is the current, shipped, authoritative renderer; a first-person 3D successor built on Three.js is an approved direction, not yet built (Section 5).
+The island currently has five real, spatially explorable locations, each rendered with a real game engine rather than static screens. Three.js is the only gameplay renderer going forward (ADR-020): every active 3D region runs on it, and the remaining 2D Phaser worlds are transitional, converted and removed one by one after parity checks (Section 5).
 
 | Location | What happens there |
 |---|---|
@@ -73,14 +73,13 @@ Every adventure ends in a persistent `WorldChange` — a durable record that the
 ## 5. Architecture
 
 ```text
-React / Vite / TypeScript (strict mode) client, Phaser for the explorable world
-  |
+React / Vite / TypeScript (strict mode) client, Three.js for the explorable world
+  |  (Amazon Cognito parent sign-in, used directly from the browser)
   v
-Amplify Auth (Cognito, parent accounts only)
-Amplify Data (AppSync + DynamoDB, owner-scoped authorization)
-Amplify Functions (privileged mutations, conflict resolution, operational metrics)
-Amplify AI Kit (structured generation routes -> Amazon Bedrock)
-  |
+Django + DRF on PostgreSQL 16 (verifies Cognito tokens; child-scoped, deny-by-default authorization)
+  |-- Amazon S3 through Django (game assets, child photos)
+  |-- Amazon Bedrock (structured generation) and Amazon Polly (speech), called only by Django
+  |-- Amazon SQS + AWS Lambda (background jobs)
   v
 CloudWatch dashboards, alarms, and a Bedrock cost budget
 ```
@@ -88,22 +87,22 @@ CloudWatch dashboards, alarms, and a Bedrock cost budget
 **Layering discipline**, enforced architecturally, not just by convention:
 
 ```text
-World Engine (Phaser: movement, maps, animation, collision)
+World Engine (Three.js: movement, maps, animation, collision)
      -> Story Engine (chapters, scenes, narrative state, bounded choices)
      -> Adventure Engine (deterministic challenge progression, validation, hints)
      -> Learning Rules / AI Companion (evaluation / narration, never both)
      -> World State (permanent consequences, unlocks, discoveries)
 ```
 
-No layer takes over another's responsibility. In particular, the Phaser rendering layer never decides whether an answer is correct, never awards progress, and never calls an AI route directly — it fires events across a plain, engine-free event bus into already-audited application code.
+No layer takes over another's responsibility. In particular, the rendering layer never decides whether an answer is correct, never awards progress, and never calls an AI route directly — it fires events across a plain, engine-free event bus into already-audited application code.
 
 **Every AI call** follows the same pipeline: child action → adventure state machine → learning-objective selector → safe context builder → structured AI generation route → schema validation → safety-disposition check → approved UI component → progress event. Every route call carries an explicit adventure template ID, age band, allowed topic, learning objective, and maximum output length, and every response has an authored fallback in code — the model is never the only thing standing between a child and an unsafe response.
 
-Backend authorization is deny-by-default: every model uses Cognito owner-based authorization, verified by a source-level authorization review (Section 8) rather than assumed correct.
+Backend authorization is deny-by-default: Django verifies the parent's Cognito token and reaches every child record only through that parent, verified by a source-level authorization review (Section 8) rather than assumed correct.
 
-### 5.1 Next-Generation Rendering: Three.js First-Person World (Approved, Not Yet Shipped)
+### 5.1 Rendering: Three.js First-Person World
 
-ADR-008 (`docs/DECISIONS.md`) records an approved, but not yet built, successor to the Phaser world: a first-person 3D perspective rendered with **Three.js** — `PerspectiveCamera`, `Raycaster`-based interaction targeting, GLTF/GLB assets, and `AnimationMixer`-driven animation, in place of Phaser's top-down/isometric view. The rationale is product, not technical: a first-person view is judged to make "I am exploring my island" land more strongly than a top-down map does.
+ADR-008 (`docs/DECISIONS.md`) records the successor to the Phaser world, and ADR-020 makes it the only gameplay renderer: a first-person 3D perspective rendered with **Three.js** — `PerspectiveCamera`, `Raycaster`-based interaction targeting, GLTF/GLB assets, and `AnimationMixer`-driven animation, in place of Phaser's top-down/isometric view. The rationale is product, not technical: a first-person view is judged to make "I am exploring my island" land more strongly than a top-down map does.
 
 ```text
 React / Vite / TypeScript
@@ -115,13 +114,13 @@ React / Vite / TypeScript
   +-- Story / Adventure / Learning / Mastery engines
   |     deterministic application logic (unchanged)
   |
-  +-- Amplify Gen 2
-        Auth, Data, Functions, AI routes, persistence (unchanged)
+  +-- Django + DRF backend
+        auth verification, data, AI routes, persistence (unchanged)
 ```
 
-This is a presentation-layer migration, not a rewrite: the Adventure Engine, Story Engine, Learning/Mastery rules, AI safety pipeline, and Amplify persistence are untouched. The same layering discipline in Section 5's diagram applies with Three.js taking Phaser's slot — it never decides correctness, mastery, quest completion, or AI safety disposition, and durable domain state is keyed by stable semantic identifiers (`regionId`, `zoneId`, `entityId`), never a Three.js object UUID.
+This is a presentation-layer migration, not a rewrite: the Adventure Engine, Story Engine, Learning/Mastery rules, AI safety pipeline, and backend persistence are untouched. The same layering discipline in Section 5's diagram applies with Three.js taking Phaser's slot — it never decides correctness, mastery, quest completion, or AI safety disposition, and durable domain state is keyed by stable semantic identifiers (`regionId`, `zoneId`, `entityId`), never a Three.js object UUID.
 
-**Migration honesty:** Phaser is not being retroactively erased from project history and stays the shipped, authoritative child-facing renderer until a Three.js vertical slice (`docs/ROADMAP.md` Phases 31–34) reaches feature parity on the existing "walk to the bridge, repair it, walk across it" golden path and is verified — not before. This document will be updated to describe Three.js as shipped only once that happens.
+**Migration honesty:** a Phaser world is deleted only after its Three.js replacement passes parity tests and visual validation and the Sprouts gate (LAI-2303) allows it (ADR-020); until then the remaining Phaser worlds receive bug fixes only.
 
 **Open risk, deliberately not resolved by this decision alone:** first-person camera/look controls introduce accessibility and comfort concerns (fine motor control, motion sensitivity, disorientation) more acute for the Sprouts band (ages 3–4) than for Pathfinders or Explorers. ADR-008's status is explicitly conditional on a Sprouts playtest (Phase 32 exit criterion); if it fails for that band, Sprouts keeps a non-first-person primary route (map navigator, fixed camera, or the existing Phaser view) rather than being forced into first-person navigation.
 
@@ -155,16 +154,12 @@ This project has been unusually disciplined about not marking anything "done" wi
 
 - **Automated tests**: 84 test files / 648 tests passing (Vitest + React Testing Library), plus Playwright smoke coverage of unauthenticated routes, plus a full production build check on every change.
 - **Type safety**: TypeScript strict mode throughout, `any` avoided, all external and AI-generated data validated at runtime — never trusted on the strength of a schema declaration alone.
-- **Authorization review**: every model's Cognito owner-based rule confirmed correct against the product's actual trust boundary, plus a live test with two real accounts confirming cross-account access is denied.
+- **Authorization review**: every model's owner-based rule confirmed correct against the product's actual trust boundary, plus a live test with two real accounts confirming cross-account access is denied.
 - **Threat model**: assets, actors, and trust boundaries mapped STRIDE-style; cross-family data exposure — weighted as the most sensitive risk for this product's users — has no open gap.
 - **Privacy and child-safety review**: every requirement in the safety-architecture document checked against actual code, not the spec's prose.
 - **Accessibility audit**: every interactive element confirmed to be a real button or link (no clickable `<div>`s anywhere in the codebase), color contrast recomputed against actual usage and fixed where it failed.
 - **Live AI red-team suite**: run against real Amazon Bedrock output, not mocks (Section 6).
 - **Closed parent pilot**: run with real families; no major issues found.
-
-Two real upstream bugs in Amplify's own AI Kit tooling were found, root-caused, and fixed during this work (a missing IAM grant for cross-Region Bedrock inference profiles, and an unsafe GraphQL enum declaration for AI-generated fields that caused total response loss on a harmless casing mismatch) — both documented in code and in the implementation log so they don't have to be rediscovered if the model choice ever changes.
-
-Recent sessions also diagnosed and fixed three separate CI/CD deployment issues that only surfaced against a real pipeline deploy — a circular nested-stack CloudFormation dependency, a DynamoDB Stream activation race, and a stale stream-ARN attribute in Amplify's table-manager tooling — each fixed at the root cause rather than worked around.
 
 ---
 

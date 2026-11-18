@@ -60,8 +60,8 @@ stays the backend-free smoke check.
   `DEBUG` off.
 - Cognito is simulated, not bypassed: a fresh RSA key per run stands in for the pool's signing
   key (the server swaps its JWKS cache in-process; no production code reads anything new), the
-  tests sign access and ID tokens with it, and the app's Cognito client (`react/src/lib/cognito`,
-  AMP-02) reads them from the same storage keys Amplify used.
+  tests sign access and ID tokens with it, and the app's Cognito client (`react/src/lib/cognito`)
+  reads them from the storage keys the client uses today.
   `react/e2e/acceptance/support/start-vite.mjs` passes the e2e pool as `VITE_COGNITO_*`.
 - `vite --mode e2e` installs `window.__laiE2E` (`createLocationEngine` via `e2eProbe.ts`; other
   builds compile it out): where the player stands, what has focus, and "stand in front of this
@@ -72,8 +72,7 @@ stays the backend-free smoke check.
 
 Needs Docker PostgreSQL (`POSTGRES_PORT` if not the 5442 default), `.venv`, and Playwright's Chromium. One
 worker; about six minutes. Not covered here, and recorded as pending wherever it applies: live
-Cognito, live Bedrock, S3 storage and S3 signed delivery, and the Amplify Data screens (harbor
-map, adventure log, Amplify-session places), which need an Amplify sandbox.
+Cognito, live Bedrock, S3 storage and S3 signed delivery.
 
 ## AI evaluation suite
 
@@ -249,8 +248,7 @@ steps, objectives, items, NPCs, islands, skills, and navigation targets; unsuppo
 Map, NaN, undefined in arrays, symbol, class instance) fail with their path; the validator rejects unknown
 fields, missing fields, wrong types, bad enums, and unmatched variants; the manifest has digests and no
 timestamps; and the export runs in a child Node process with a scrubbed environment (no AWS variables).
-Hand-mutation check: editing an item without re-exporting, and making a content module import the Amplify
-data client, each turned the suite red. The built-in validator only supports the schema keywords the
+Hand-mutation check: editing an item without re-exporting turned the suite red. The built-in validator only supports the schema keywords the
 schema uses; the Python side must use a full JSON Schema validator.
 
 ## Golden vectors (LAI-0303)

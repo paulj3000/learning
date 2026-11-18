@@ -7,28 +7,24 @@ decisions: `docs/DECISIONS.md` ADR-019; tracker: `tasks/TASK_TRACKER.md` (ids ar
 `PP` = phase). This roadmap sits beside, not inside, `docs/ROADMAP.md`, which stays the
 product roadmap.
 
-**Two tracks (ADR-019 and ADR-020).** Track A, Phases 1 to 13, migrates the backend from
-Amplify to Django. Track B, Phases 20 to 23, converts every Phaser world to the unified
+**Two tracks (ADR-019 and ADR-020).** Track A, Phases 1 to 13, builds the backend on
+Django (Phases 12 and 13 have no remaining tasks). Track B, Phases 20 to 23, converts every Phaser world to the unified
 Three.js engine in a first-class `game/` package and then removes Phaser. Track B inventory,
 conversion matrix, and engine architecture: `docs/THREEJS_ENGINE_CONVERSION.md`. A task
 belongs to exactly one track. Phase numbers 14 to 19 are left unused.
 
 ## 1. Principles
 
-1. **Amplify keeps working until cutover.** Nothing under `amplify/` is edited or deleted
-   before Phase 13 except path fixes forced by the `react/` move (LAI-0201).
-2. **Strangler, not rewrite.** The React app talks to an interface (`react/src/api/*`);
-   a build-time flag (`VITE_BACKEND=amplify|django`) selects the implementation per module
-   until cutover.
-3. **Read before write.** Catalog and read endpoints precede any Django write path.
-4. **One implementation of each rule is tested against two languages.** Golden vectors run
+1. **Strangler, not rewrite.** The React app talks to an interface (`react/src/api/*`).
+2. **Read before write.** Catalog and read endpoints precede any Django write path.
+3. **One implementation of each rule is tested against two languages.** Golden vectors run
    in Vitest and pytest (assessment section 5.3).
-5. **Small tasks.** Each task fits one Claude session: one verifiable outcome, tests, docs,
+4. **Small tasks.** Each task fits one Claude session: one verifiable outcome, tests, docs,
    tracker update, no more than about 25 files.
-6. **One renderer at the end, a working app throughout.** Track B keeps each Phaser world
+5. **One renderer at the end, a working app throughout.** Track B keeps each Phaser world
    live until its Three.js replacement passes parity tests and visual validation. No task
    mixes a backend domain change with a world conversion.
-7. **No unapproved infrastructure.** Every AWS-touching task is marked **APPROVAL** and
+6. **No unapproved infrastructure.** Every AWS-touching task is marked **APPROVAL** and
    stops at a plan until a human approves.
 
 Every task also follows `CLAUDE.md` section 14: state acceptance criteria, smallest coherent
@@ -48,13 +44,11 @@ checks").
 | 4 | Cognito integration and authorization | same, plus tenant-isolation harness first |
 | 5 | Read-only frontend API migration | same |
 | 6 | Authoritative progression, inventory, mastery | Brief's phase 6, made explicit as server-authoritative writes |
-| 7 | AI service | Split out; AI Kit has no Django equivalent |
+| 7 | AI service | Split out; the previous managed AI routes have no Django equivalent |
 | 8 | Admin | same |
 | 9 | Realtime (co-op) and storage | Co-op is not true multiplayer here; storage moved up |
 | 10 | AWS dev/prod infrastructure | May start in parallel after Phase 4; local Docker is enough until Phase 11 |
-| 11 | Data migration and parallel verification | same, plus shadow comparison |
-| 12 | Cutover | same |
-| 13 | Retire Amplify | same, plus Cognito detach as its own gated task |
+| 11 | Retained legacy data import | Owner approval; read-only against AWS until an approved copy |
 | 20 | Engine discovery and architecture (Track B) | New, from ADR-020. Docs only; can run before ADR-019 is accepted |
 | 21 | Engine extraction into `game/` (Track B) | New. Needs LAI-0201; supersedes Phase 0's "defer `game/`" |
 | 22 | World conversions (Track B) | New. One task per Phaser world, eight in all |
@@ -97,26 +91,18 @@ output size, so later phases can prove no regression. Files: docs only.
 **LAI-0201 Move the frontend to `react/`. IMPLEMENTED on branch
 `lai-0201-move-frontend-to-react`, pending owner approval before merge; as-built deviations are
 listed at the end of this task.** Depends: 0101. Risk M. **APPROVAL: before merge
-(changes the Amplify build path).** Acceptance: `git mv` of `src/`, `public/`, `index.html`,
+(changes the build path).** Acceptance: `git mv` of `src/`, `public/`, `index.html`,
 `vite.config.ts`, `tsconfig*.json`, `e2e/`, `playwright.config.ts`, `.oxlintrc.json`,
-`.prettier*`, `package.json` to `react/`; `amplify/` imports of `../../../src/features/...`
-updated to `../../react/src/features/...`; `amplify.yml` and CI use `react/`; all 175 test
-files and 1,578 tests still pass; `npm run build` output identical in route/chunk list.
-Tests: full unit suite, typecheck (app, amplify, scripts), Playwright smoke. Rollback: revert
-the commit (pure moves). Deploy: Amplify Hosting appRoot must be set before merge.
+`.prettier*`, `package.json` to `react/`; CI uses `react/`; all 175 test files and 1,578 tests
+still pass; `npm run build` output identical in route/chunk list. Tests: full unit suite,
+typecheck (app, scripts), Playwright smoke. Rollback: revert the commit (pure moves).
 
-*LAI-0201 as built (deviations from the list above, each forced by the move).* `amplify/`
-and `scripts/` stay at the repository root, so (1) a thin root `package.json` declares the
-npm workspace `react` and delegates every script, which keeps one `node_modules`, one
-lockfile, and the existing `amplify.yml` and CI commands working; (2) `.oxlintrc.json`,
-`.prettierrc.json`, and `.prettierignore` stay at the root because they govern `amplify/`,
-`scripts/`, and docs as well; (3) `react/vite.config.ts` now also collects the five
-`amplify/**/*.test.ts` files, which a bare move would have silently dropped; (4) the
-`amplify_outputs.json` glob in `react/src/lib/amplify-config.ts` points at the root file;
-(5) `amplify.yml` `baseDirectory` is `react/dist`; (6) `amplify/` and `scripts/` import
-`react/src/...`, and `react/src/` imports `../amplify/...` one level further up; (7)
-`package-lock.json` was regenerated for the workspace (see IMPLEMENTATION_STATUS). The
-Amplify Hosting build with this layout is **unverified** (no deploy was run).
+*LAI-0201 as built (deviations from the list above, each forced by the move).* `scripts/` stays
+at the repository root, so (1) a thin root `package.json` declares the npm workspace `react` and
+delegates every script, which keeps one `node_modules`, one lockfile, and the CI commands
+working; (2) `.oxlintrc.json`, `.prettierrc.json`, and `.prettierignore` stay at the root because
+they govern `scripts/` and docs as well; (3) `scripts/` imports `react/src/...`; (4)
+`package-lock.json` was regenerated for the workspace (see IMPLEMENTATION_STATUS).
 
 **LAI-0202 Python tooling. DONE (see IMPLEMENTATION_STATUS; no CI job yet, no type checker yet).** Depends: 0201. Risk L. Acceptance: `pyproject.toml`
 (ruff, pytest), `requirements*.txt`, `docker-compose.yml` (PostgreSQL 16), `Makefile` `check`
@@ -126,7 +112,7 @@ introduce a new dependency").
 
 **LAI-0203 Engine import boundary guard. DONE (see IMPLEMENTATION_STATUS).** Depends: 0201. Risk L. Acceptance: a Vitest test
 (or oxlint rule) fails if any file in `island-map/three/**/*.ts`, `island-map/scenes/**`,
-or the geometry modules imports `*/api`, `lib/data-client`, or `aws-amplify`. Today it
+or the geometry modules imports `*/api` or a data client. Today it
 passes (assessment section 5.2). Protects the engine boundary during the migration. Interim
 guard only: LAI-2101 replaces it with the same rule applied to `game/` (and adds Django
 client and `react/` imports to the forbidden list). The `island-map/scenes/**` clause goes
@@ -154,7 +140,7 @@ log-redaction rule.
 ### Phase 3 - Content export and relational models
 
 **LAI-0301 Users domain models. DONE locally (ADR-022); `CompanionProfile` and `ParentConsent` split to LAI-0307 and LAI-0308; the cap counts all profiles, as the app does.** Depends: 0204. Risk M. Acceptance: `ParentAccount`
-(`cognito_sub` unique), `ChildProfile` (all fields of the Amplify model incl. age band,
+(`cognito_sub` unique), `ChildProfile` (all fields of the earlier client model incl. age band,
 reading mode, session minutes, `ai_enabled`, `owner_sub` equivalent via FK), `CompanionProfile`,
 `ParentConsent`; maximum three active child profiles enforced in the service (CLAUDE.md
 section 11); migrations. Data: schema only. Tests: model and service tests.
@@ -178,15 +164,14 @@ JSON Schema; row counts match the export. Tests: loader idempotency and schema r
 
 *Decisions LAI-0304 had to record (found while closing LAI-0303; resolved in LAI-0304, 2026-10-24: World -> Location -> Adventure -> Step with Quest under World, catalog fields import-once, schema 3 `locationAssets`, a `ContentRelease` per import; `docs/DATA_MODEL.md` "Django content catalog"). Not built here: the roadmap's `inventory` (ItemDefinition) and `education` (LearningObjective) models, which no consumer needs yet:*
 (1) **Island means two things.** The export's `islands` are worlds (`WORLD_DEFINITIONS`, two
-today) and its `locations` are regions (ten, each with a `worldSlug`); the Amplify catalog's
+today) and its `locations` are regions (ten, each with a `worldSlug`); the earlier catalog's
 `Island` (ADR-031) is a region. ADR-019's hierarchy reads Island as the themed world, so the
 Django shape is World/Island, then Location, then Adventure (`locationSlug`); the admin labels
-must say which. (2) **Activation and order are not content.** `active` and `sortOrder` live
-only in the Amplify overlay, so the loader defaults them (no row means available, ADR-031)
-and never overwrites them on reload; importing the overlay's values is data migration (Phase
-11, gates G1 and G5). (3) **Assets are thin in the export:** `id`, `kind`, `url` (a bundled
+must say which. (2) **Activation and order are not content.** `active` and `sortOrder` lived
+only in the earlier catalog overlay, so the loader defaults them (no row means available, ADR-031)
+and never overwrites them on reload. (3) **Assets are thin in the export:** `id`, `kind`, `url` (a bundled
 `/models/` path), `clips`, optional `lod`. Type, category, size, checksum, version, status
-and licence exist only on the Amplify `Asset`/`AssetVersion` (ADR-030), so the Django asset
+and licence existed only on the earlier `Asset`/`AssetVersion` (ADR-030), so the Django asset
 needs a version row with a storage key and fields the export cannot fill yet. (4)
 **Adventure-to-asset links are not exported.** `AdventureModel` rows are admin data, and scene
 usage comes from the spatial manifests the export excludes. Smallest option: export each
@@ -246,30 +231,30 @@ out of band; deny-by-default tests (CLAUDE.md section 10). Also mounts LAI-0304'
 
 **LAI-AUTH-DUAL Environment-selectable API authentication. CANCELED / REVERTED (2026-10-31, LAI-AUTH-ROLLBACK; ADR-040 supersedes ADR-038). Historical record: DONE (2026-10-30, ADR-038); merged to `main` 2026-10-31.** Depends: 0402, 0403, 0404 (Django Admin part). Risk H. Acceptance: `AUTH_PROVIDER` selects Cognito (every AWS environment, required explicitly in production) or a local Django sign-in (development only, default while `DEBUG` is on); both resolve to `ParentAccount` with unchanged authorization; a Django session never authenticates the API under Cognito; Django Admin keeps its own session; local development needs no AWS. Does not touch AWS resources.
 
-**LAI-CHILD-001 Parent and child profile management on Django. DONE (2026-10-31, ADR-039); merged to `main` 2026-10-31.** Depends: 0403 (originally also LAI-AUTH-DUAL; that dependency was removed by LAI-AUTH-ROLLBACK). Risk H. Acceptance: `GET/PATCH /api/v1/me/` and the children routes serve every React build with the Django API under either sign-in; screens use hand-owned profile shapes; archival through `active`; Django Admin inspects profiles read-only with an audit line; `import_amplify_profiles` plans and applies a non-destructive, idempotent import keyed by the Cognito sub. Covers the profile parts of LAI-0502 and the create/update/deactivate part of LAI-0602; deletion stays with LAI-0602 / LAI-0209. Does not touch AWS or production data.
+**LAI-CHILD-001 Parent and child profile management on Django. DONE (2026-10-31, ADR-039); merged to `main` 2026-10-31.** Depends: 0403 (originally also LAI-AUTH-DUAL; that dependency was removed by LAI-AUTH-ROLLBACK). Risk H. Acceptance: `GET/PATCH /api/v1/me/` and the children routes serve every React build with the Django API under either sign-in; screens use hand-owned profile shapes; archival through `active`; Django Admin inspects profiles read-only with an audit line. Covers the profile parts of LAI-0502 and the create/update/deactivate part of LAI-0602; deletion stays with LAI-0602 / LAI-0209. Does not touch AWS or production data.
 
 **LAI-AUTH-ROLLBACK Remove dual authentication; Cognito-only application sign-in. DONE (2026-10-31, ADR-040); merged to `main` 2026-10-31 on the owner's direction. All local merge gates passed; the real-Cognito browser acceptance is still open (needs a nonproduction pool and test credentials).** Depends: LAI-AUTH-DUAL (reverts it), LAI-CHILD-001 (keeps it). Risk H. Acceptance: gameplay and application APIs authenticate with Cognito access tokens only (signature, issuer, expiry, token use, client id) in every environment; identities resolve to the existing `ParentAccount` by `sub`; a Django session (including an admin session) never authenticates the API; `/api/v1/auth/{csrf,login,logout}/`, `AUTH_PROVIDER`, `VITE_AUTH_PROVIDER`, `create_local_parent`, the local sign-in form and the session credential are gone; Django Admin keeps its staff sign-in; Treasure Rush, profiles, assets, rewards and progress unchanged. Does not touch AWS resources.
 
 **LAI-0405 Cognito ownership runbook.** Depends: 0103. Risk H. **APPROVAL: human reviews
 before any rehearsal.** Acceptance: a written procedure for moving the user pool out of the
-Amplify stack's lifecycle (stack retention policy / import into a standalone stack),
+retained stack it lives in (stack retention policy / import into a standalone stack),
 including a rehearsal plan in a throwaway account. Docs only; no AWS action.
 
 ### Phase 5 - Read-only frontend API migration
 
-**LAI-0501 Frontend API layer, Amplify-backed.** Depends: 0201. Risk M. Acceptance:
+**LAI-0501 Frontend API layer.** Depends: 0201. Risk M. Acceptance:
 `react/src/api/{client,auth,islands,adventures,quests,inventory,progression,assets}.ts` exist
-with hand-owned DTO types; the 16 existing files' call sites go through them; Amplify
-implementation behind the interface; all existing tests pass; no behaviour change. This task
+with hand-owned DTO types; the 16 existing files' call sites go through them; all existing
+tests pass; no behaviour change. This task
 needs no Django and can start right after LAI-0201.
 
 **LAI-0502 Profiles read endpoints + client.** Depends: 0403, 0501. Risk M. Acceptance:
-`GET /api/v1/children`, `GET /api/v1/children/{id}`, companion profile; client module with
-`VITE_BACKEND=django` implementation; contract test compares DTOs against OpenAPI.
+`GET /api/v1/children`, `GET /api/v1/children/{id}`, companion profile; Django client module;
+contract test compares DTOs against OpenAPI.
 
 **LAI-0503 Catalog read endpoints + client.** Depends: 0304, 0501. Risk L. Acceptance:
 islands, adventures (by slug/version), quests, items, learning objectives, asset manifest
-served from the DB; the React app can run its content from the API behind the flag; content
+served from the DB; the React app can run its content from the API; content
 parity test: API output equals the exported package.
 
 **LAI-0504 Progress read endpoints + client.** Depends: 0305, 0403. Risk M. Acceptance:
@@ -279,7 +264,7 @@ harness.
 
 **LAI-0505 Parent dashboard and admin read endpoints.** Depends: 0504. Risk M. Acceptance:
 skill-level summaries (no raw transcripts); admin directory paginated (replaces unbounded
-`.list()`); admin endpoints limited to what Amplify rules allow today (no widening).
+`.list()`); admin endpoints limited to the existing administrator rules (no widening).
 
 ### Phase 6 - Authoritative progression, inventory, mastery
 
@@ -323,13 +308,13 @@ parent-viewable, parent-deletable artifacts; JSON scenes validated.
 
 *Status ladder (docs/AI_SERVICE.md section 10), kept separately for every Phase 7 task:
 (1) Django AI functionality implemented, (2) verified with the fake provider, (3) live Bedrock
-verified, (4) React cutover completed, (5) Amplify AI routes retired. 2026-11-01, `features/ai`
+verified, (4) React cutover completed, (5) previous AI routes retired. 2026-11-01, `features/ai`
 (unmerged, not pushed): LAI-0701 to 0704 at levels 1 and 2; levels 3 to 5 not started. Decision:
-ADR-044. 2026-11-01 (later): LAI-0705 to 0710 progressed locally, see each entry and
+ADR-044. 2026-11-01 (later): LAI-0705 to 0709 progressed locally, see each entry and
 docs/AI_SERVICE.md section 10; no AWS call, deploy or retirement happened.*
 
 **LAI-0701 AI domain without Bedrock. DONE (levels 1-2).** Depends: 0306. Risk M. Acceptance: persona registry
-(copied verbatim from `amplify/data/*Persona.ts`, versioned), request validation (adventure
+(`lai/apps/ai/prompts/`, versioned), request validation (adventure
 template id, age band, allowed topic, objective, max length per CLAUDE.md section 7), output
 schema validation, content/safety checks, authored fallbacks; a fake model client drives
 tests; fallback emits a metric. *Done: `lai/apps/ai`; golden suite `ai-safety` proves the
@@ -341,14 +326,13 @@ credentials and Bedrock access.** Acceptance: `POST .../companion-turns` calls B
 boto3 with the same model and limits; `AIInteractionAudit` written; invalid output falls
 back; live smoke executed once by a human and recorded. *Done:
 `POST /api/v1/children/{id}/ai/companion-turns/`, Converse with structured text output and the
-Guardrail. Model: the US profile `us.anthropic.claude-haiku-4-5-20251001-v1:0` (Amplify uses
-`global.`), same temperature and token limit. Not accepted until the live smoke (LAI-0705).*
+Guardrail. Model: the US profile `us.anthropic.claude-haiku-4-5-20251001-v1:0`, same temperature
+and token limit. Not accepted until the live smoke (LAI-0705).*
 
 **LAI-0703 Tutor turn and red-team re-point. IMPLEMENTED (levels 1-2); live run open.** Depends: 0702. Risk M. Acceptance: tutor
 endpoint; `scripts/ai-red-team.ts` runs against the Django endpoint with the same pass
-criteria as the Amplify route. *Done: `POST .../ai/tutor-turns/`; the script takes
-`--target amplify|django`, keeps every Amplify fixture, and adds Django fixtures for prompt
-injection, safety bypass, restricted information, unauthorized child, beyond-hint answers,
+criteria as before. *Done: `POST .../ai/tutor-turns/`; the script targets Django and has
+fixtures for prompt injection, safety bypass, restricted information, unauthorized child, beyond-hint answers,
 score and mastery manipulation, and malformed requests (malformed model output is covered by
 unit tests, since a live model cannot be made to return it).*
 
@@ -367,7 +351,7 @@ US profile confirmed from us-west-1; `LaiAiGuardrail-dev` deployed; SSM settings
 companion and one tutor turn and the Django red-team run recorded (docs/AI_SERVICE.md section 9).
 
 **LAI-0706 React cutover of AI turns. IMPLEMENTED (level 4); browser acceptance and deploy open (Gate B).** Depends: 0705, 0501. Risk M. Acceptance:
-`react/src/api/ai.ts` behind `VITE_BACKEND`; requests send `templateId` and use `DJANGO_SESSION`
+`react/src/api/ai.ts` calls Django; requests send `templateId` and use `DJANGO_SESSION`
 where the session runs on Django; no browser audit writes on the Django path; same UI states.
 
 **LAI-0707 Safety review and retention. IMPLEMENTED (level 4); retention period not approved.** Depends: 0306, 0404 (retention with 0308). Risk M.
@@ -375,16 +359,12 @@ Acceptance: read-only, audited admin views of safety events and audit rows; revi
 changes; a documented retention schedule.
 
 **LAI-0708 AI operations. IMPLEMENTED (level 4, synthesized); not deployed.** Depends: 0705. Risk M. Acceptance: a shared rate-limit store, metric
-filters and alarms on `ai.turn` (the Amplify validation-failure alarm ported), the Bedrock
+filters and alarms on `ai.turn` (including a validation-failure alarm), the Bedrock
 budget kept.
 
 **LAI-0709 Server-built context everywhere. PARTIAL: NPC narration server-owned; adventures and stories blocked.** Depends: 0603, 0605, 0607. Risk M. Acceptance:
 NPC and story turns built from Django catalog rows, server mastery status in the tutor context,
 `CLIENT_AUTHORED` removed.
-
-**LAI-0710 Retire Amplify AI routes. AUDIT ONLY; nothing removed.** Depends: 0706. Risk M. **APPROVAL.** Acceptance:
-`generateCompanionTurn`, `generateTutorTurn`, their IAM grant patch and client code removed; the
-Amplify budget alarm replaced (part of Phase 13).
 
 ### Phase 8 - Admin
 
@@ -393,7 +373,7 @@ adventures, quests, items, assets editable; activation flag respected by the cat
 delete restricted to superusers; every change audited; no child data models registered.
 
 **LAI-0802 React admin views on Django.** Depends: 0505, 0404. Risk M. Acceptance: existing
-admin pages run on the Django API behind the flag; any widened access (for example
+admin pages run on the Django API; any widened access (for example
 safety-review queue) is listed and **APPROVAL: product owner** before enabling.
 
 **LAI-0805 Spatial layout administration (needs its own ADR first).** Depends: 0801, 0304,
@@ -422,7 +402,8 @@ that decision.
   return path to the 3D Area.
 - **Not in scope.** Spatial editing stays LAI-0805.
 - **Follow-up.** A Django-backed step-adventure client: the LAI-0601 answer engine does not yet
-  record world changes, evidence or quest progress, and React runs step adventures on Amplify.
+  record world changes, evidence or quest progress, and React runs step adventures in the
+  classic client runner.
 
 **ADR-047 content authoring follow-ups (added by the 2026-11-02 audit).** Detail, order and
 dependency graph: `docs/platform/DJANGO_CONTENT_AUTHORING.md` section 13; statuses in
@@ -497,7 +478,6 @@ Acceptance:
 - Errors map to the existing parent-facing messages.
 - The Android contract (prepare a JPEG within the limits, never send metadata) is documented in
   `docs/android/`.
-- Amplify builds are unchanged until LAI-1301.
 
 *Started 2026-10-31 on `feature/lai-0905-photo-clients`: the React client and the Android
 contract are done and unit tested, committed, not merged. Not accepted: it needs the deployed dev
@@ -539,99 +519,29 @@ metrics, dashboard and Bedrock budget are not moved yet.* Acceptance: ALB 4xx/5x
 **LAI-1007 Production ECS Fargate definitions.** Depends: 1005. Risk M. Acceptance: defined
 and synthesized, **not deployed**.
 
-### Phase 11 - Data migration and parallel verification
+### Phase 11 - Retained legacy data import
 
-**LAI-1101 DynamoDB export tool (read-only).** Depends: 0103, 0305. Risk M. **APPROVAL:
-read access to production tables.** Acceptance: exports all 17 tables to local encrypted
-files; no write to AWS; PII handling documented.
+Importing the retained legacy DynamoDB tables and S3 buckets from the retired backend into
+Django is an owner approval (CLAUDE.md section 18). No import tool is in the repository.
+
+**LAI-1101 Legacy table export (read-only).** Depends: 0103, 0305. Risk M. **APPROVAL:
+read access to the retained legacy DynamoDB tables.** Acceptance: exports the tables to local
+encrypted files; no write to AWS; PII handling documented.
 **LAI-1102 Transform and import dry-run.** Depends: 1101. Risk H. Acceptance: loads into a
 scratch Postgres; per-table row counts and checksums reported; array and JSON fields mapped;
 unmappable rows listed, none dropped silently.
-**LAI-1103 Photo object migration plan and dry-run.** Depends: 0904, 1101. Risk M.
-**APPROVAL: read access to the Amplify bucket; any copy into `LaiChildPhotos-<env>`.** Target:
-the private child photo bucket and `users.ChildPhoto` (ADR-042), never the asset bucket.
-Never modifies or deletes an Amplify object. Design: `docs/platform/CHILD_PHOTO_STORAGE.md`
-section 10. Specified 2026-10-31; no utility was built, because LAI-1101's export and bucket read
-access do not exist yet. The identity contract does exist: Amplify child ids are kept and owners
-are resolved by Cognito `sub` (`import_amplify_profiles`). Also drops the deprecated
+**LAI-1103 Legacy photo import plan and dry-run.** Depends: 0904, 1101. Risk M.
+**APPROVAL: read access to the retained legacy S3 bucket; any copy into
+`LaiChildPhotos-<env>`.** Target: the private child photo bucket and `users.ChildPhoto`
+(ADR-042), never the asset bucket. Never modifies or deletes a legacy object. Children keep their
+ids and owners are resolved by Cognito `sub`. Also drops the deprecated
 `ChildProfile.avatar_photo_key` column once nothing needs it (a destructive migration, released
-with `--allow-destructive-migrations`). Subtasks:
-- **LAI-1103a Legacy photo inventory (read-only).** Depends: 1101, G1. Acceptance: key, size,
-  ETag and last-modified time for every object under `child-photos/`; stored like the LAI-1101
-  export (local, encrypted); no AWS write.
-- **LAI-1103b Photo migration planner and dry run.** Depends: 1103a, the profile import applied
-  to the target. Acceptance:
-  - Maps each exported child's `avatarPhotoKey` to the Django child with the same id.
-  - Validates the owner `sub` against the Django parent and checks that each parent has one
-    identity id.
-  - Reports `ok`, `child_not_imported`, `owner_mismatch`, `missing_object`, `invalid_key`,
-    `identity_conflict`, `unreferenced_object` and `django_photo_newer` as counts, with no keys,
-    names or subs.
-  - Writes nothing.
-- **LAI-1103c Photo copy.** Depends: 1103b, 0904 deployed, G9. **APPROVAL.** Acceptance:
-  - Checks integrity (SHA-256, and ETag MD5 for single-part objects) and runs the upload
-    validation and metadata stripping.
-  - Deterministic photo ids (`uuid5` of the legacy key), `If-None-Match` writes, and rows only
-    where no current photo exists.
-  - Bounded retries; resumable and idempotent; dry run by default.
-  - The report lists every non-`ok` outcome.
-  - Rollback removes exactly the rows and objects whose ids derive from legacy keys.
-- **LAI-1103d Photo migration verification.** Depends: 1103c. Acceptance:
-  - Migrated count equals the planned `ok` count, and every SHA-256 matches its row.
-  - Sampled owner access works and a cross-family read gives `404`.
-  - `child_photo_storage_audit` shows no orphans and no missing objects.
-  - Every exception is signed off by a person.
-**LAI-1104 Shadow comparison.** Depends: 1102, Phase 6. Risk M. Acceptance: for a sample of
-children, Amplify and Django return equal DTOs for reads and equal outcomes for replayed
-answers.
-
-### Phase 12 - Cutover
-
-**LAI-1201 Cutover and rollback runbook.** Depends: 1104, 1007. Risk H. Acceptance: freeze
-window, final export/import, flag flip order, verification checklist, rollback steps.
-**LAI-1202 Rehearsal on dev.** Depends: 1201. Risk H. **APPROVAL.**
-**LAI-1203 Production cutover.** Depends: 1202, 0405. Risk H. **APPROVAL: product owner,
-in person.** Rollback: flip `VITE_BACKEND` back and keep Amplify stack and DynamoDB intact
-and read-write-frozen for a defined window (suggest 14 days).
-**LAI-1204 Retire legacy Amplify S3 storage (added 2026-10-31, ADR-042).** Risk H.
-**APPROVAL: explicit, final, before any deletion.**
-Depends:
-- the asset library's Amplify import verified (`import_assets --from-amplify`, AM-8, run against
-  production);
-- LAI-1103d;
-- LAI-1203 accepted;
-- every affected client confirmed on Django-backed storage (LAI-0905, and LAI-1301 for removing
-  the Amplify code paths);
-- no remaining runtime reference to legacy bucket objects;
-- explicit approval to retire the bucket.
-
-Acceptance:
-- Every required object is confirmed migrated, with integrity checked.
-- Child photo authorization is confirmed on Django.
-- React works, and Android where it applies.
-- Backup and retention requirements are confirmed, including the `unreferenced_object` list from
-  LAI-1103b.
-- Every remaining bucket consumer is reviewed (`docs/platform/CHILD_PHOTO_STORAGE.md`
-  section 9).
-- A deletion plan with rollback considerations is written and approved.
-- This task never deletes the bucket implicitly. Amplify storage auto-deletes its objects when the
-  Amplify stack is deleted, so LAI-1302 waits for this task.
-
-### Phase 13 - Retire Amplify
-
-**LAI-1301 Remove Amplify from the frontend.** Depends: 1203 + stability window; for storage,
-also 0904 deployed, 1103d (photos migrated), AM-16 (assets on Django; AM-15 superseded by ADR-045), 1002. Risk M.
-Acceptance: `aws-amplify` data/storage code and `amplify_outputs.json` handling removed;
-Cognito configured by Vite env; tests green. Storage specifically (ADR-042 amendment, 2026-11-01):
-no Amplify Storage upload, delete or download-link call and no `aws-amplify/storage` import left
-in `react/`; the Amplify photo and asset branches removed; the browser-side storage grants in
-`amplify/storage/resource.ts` (and the identity pool permissions they generate) removed; React
-and Android confirmed free of legacy-bucket references; assets and photos confirmed migrated.
-The legacy bucket itself is LAI-1204, never changed here.
-**LAI-1302 Detach Cognito, then delete Amplify stacks.** Depends: 1301, 0405, 1204. Risk H.
-**APPROVAL: explicit, per resource group.** Never delete the user pool with the stack.
-**LAI-1303 Remove `amplify/`, `amplify.yml`, dev dependencies; supersede ADR-010.** Depends:
-1302. Risk L. Update `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `README.md`, `CLAUDE.md`.
+with `--allow-destructive-migrations`). Steps: LAI-1103a read-only inventory of `child-photos/`;
+LAI-1103b planner and dry run (counts only, no keys, names or subs; writes nothing); LAI-1103c
+copy (**APPROVAL**, after 0904 is deployed and gate G9): integrity checks, the upload validation
+and metadata stripping, idempotent and resumable; LAI-1103d verification (counts and checksums
+match, cross-family reads give `404`, `child_photo_storage_audit` clean, every exception signed
+off by a person).
 
 ### Phase 20 - Engine discovery and architecture (Track B, docs only)
 
@@ -673,7 +583,7 @@ gameplay change.
 **LAI-2101 `game/` package skeleton and boundary guard.** Depends: 0201, 2003. Risk M.
 Acceptance: `game/` exists with the build wiring chosen in LAI-2003, one trivial exported
 module, and its own test run; a boundary test fails if `game/**` imports `react`,
-`react-router`, `aws-amplify`, any `features/*/api`, or a Django client; replaces LAI-0203's
+`react-router`, any `features/*/api`, or a Django client; replaces LAI-0203's
 guard. Files: `game/**`, build config, CI step. No directories without a file. Verification:
 `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, boundary test red-green
 demonstrated. Rollback: revert the commit (no code has moved yet). Docs: `ARCHITECTURE.md`,
@@ -737,7 +647,7 @@ typecheck`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`; aft
 these run under `react/`. **Rollback:** revert the world's commits; the 2D route was never
 removed, so nothing is lost. **Docs:** `IMPLEMENTATION_STATUS.md`, conversion doc section 5
 row marked verified, `docs/ROADMAP.md` if scope moved. Constraint: no task here changes data
-access, Django, or Amplify.
+access or Django.
 
 **LAI-2201 Welcome Harbor.** Parity-verify the existing 3D region against the 12-interaction
 2D table; make the 3D route the default for the world; keep 2D behind a flag. Needs the
@@ -820,14 +730,15 @@ Storykeeper Castle and other adventures. Not started.
 
 ## 4. Manual approval points (summary)
 
-LAI-0101, 0103 (credentials), 0104, 0201 (before merge), 0401, 0405, 0702, 0705, 0710, 0802, 0904,
-every Phase 10 deploy, 1101, 1103 (bucket read, copy), 1202, 1203, 1204, 1302, and for Track B: 2003, 2302, 2303, 2304.
+LAI-0101, 0103 (credentials), 0104, 0201 (before merge), 0401, 0405, 0702, 0705, 0802, 0904,
+every Phase 10 deploy, 1101, 1103 (bucket read, copy), and for Track B: 2003, 2302, 2303, 2304.
 Claude must stop and ask at each.
 
 ## 5. Data migration implications
 
-- Phase 0-10 migrate no data. The sandbox DynamoDB contents are disposable.
-- Phase 11 is the only task group touching deployed data; it is read-only against AWS.
+- Phase 0-10 migrate no data.
+- Phase 11 is the only task group touching the retained legacy data; it is read-only against AWS
+  until an approved copy.
 - Hard problems: string-set fields to rows; JSON (`payload`, `sharedState`, `scenes`,
   `storyFlags`, `memoryFlags`) validated before import; DynamoDB `id` strings preserved as
   Django UUID/char keys so URLs and audit references survive; S3 key rewrite for photos into the
@@ -837,18 +748,17 @@ Claude must stop and ask at each.
 
 ## 6. Rollback strategy
 
-Before cutover: revert the PR and flip the flag; Amplify is untouched. After cutover:
-flip back to Amplify within the freeze window; any Django-only writes since cutover must be
-exported and replayed (this is why the window must be short, tested, and writes during it
-minimized). After Phase 13 starts, rollback is a restore, not a flip; do not begin it until
-the stability window passes.
+Code: revert the PR. Releases: Django rolls back to an earlier healthy image and the site to an
+earlier release's shells (`docs/infrastructure/deployment-design.md` section 5); migrations are
+never reversed, so a destructive migration ships as its own approved release. Retained legacy
+data is never modified by an import, so an import rolls back by removing exactly the rows and
+objects it created.
 
 ## 7. Deployment implications
 
-- `amplify.yml` changes only with LAI-0201 (appRoot) and is removed in LAI-1303.
-- Two backends run side by side in dev during Phases 5-11. Cognito is shared.
+- Cognito is shared by every environment.
 - CORS and CloudFront path routing are the first deployment failures to expect (LAI-1005).
-- Fixed monthly cost rises (RDS, ALB, compute) versus pay-per-use Amplify. Estimate in
+- Fixed monthly cost (RDS, ALB, compute) is real. Estimate in
   LAI-1001 and record in `IAM_ROLE_AUDIT.md`/this file.
 
 ## 8. First task after this assessment

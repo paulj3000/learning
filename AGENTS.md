@@ -1,6 +1,6 @@
 # AGENTS.md: Operating Rules for AI Coding Agents
 
-Status: Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+Status: Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 Applies to: every AI coding agent (Claude Code, Codex and others) working on Learning Adventure Island
 Last reviewed: 2026-11-18
 
@@ -11,9 +11,11 @@ Detailed policy is in [docs/engineering/](docs/engineering/README.md) and advent
 
 **Relationship to CLAUDE.md.** `CLAUDE.md` says _what_ to build and the rules the product must
 keep. `AGENTS.md` says _how_ an agent works. They must not contradict each other. If they appear
-to, the precedence is: owner decision, then an accepted ADR in
-[docs/DECISIONS.md](docs/DECISIONS.md), then `CLAUDE.md`, then this file, then `docs/engineering/`.
-Report the conflict in your handoff; do not resolve it silently.
+to, the precedence is: owner decision, then these standards (`CLAUDE.md`, this file,
+`docs/engineering/`, `docs/adventures/`), then accepted ADRs in
+[docs/DECISIONS.md](docs/DECISIONS.md) and every other document. An older document that conflicts
+with the standards is stale and is corrected to match. Report the conflict in your handoff; do not
+resolve it silently.
 
 ## 1. Roles
 
@@ -38,8 +40,8 @@ unclaimed card in **Ready for Development**. See
 4. Never deploy to AWS or make live AWS calls without explicit owner authorization for that
    action. Infrastructure code work does not authorize deployment.
 5. Never introduce a new architectural framework, runtime dependency or engine without owner
-   approval (and an ADR when it is architectural). Never reintroduce Amplify; add no features to
-   Phaser worlds (bug fixes only until each is converted, CLAUDE.md section 19).
+   approval (and an ADR when it is architectural). Amplify is retired; never reintroduce it. Add
+   no features to Phaser worlds (bug fixes only until each is converted, CLAUDE.md section 19).
 6. Identify every change to a shared component before implementing it, and record it in the
    ticket and handoff.
 7. Document unresolved dependencies and integration risks.

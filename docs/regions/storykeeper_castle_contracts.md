@@ -46,10 +46,9 @@ now fall through to the generic panel.
   calls.
 - **Visual work writes nothing.** SC-R02 adds no persistence, no world change,
   no reward and no progress record.
-- **Persistence target.** Today: Amplify (`ChildStoryProgress`, world
-  changes, discoveries, `ChildNpcState`, `ChildInventory`). After the
-  platform cutover (LAI-0309, LAI-0603, LAI-0709): Django `progression`,
-  `inventory` and `quests` models. The castle adds no Django model of its
+- **Persistence target.** Django `progression`, `inventory` and `quests`
+  models (story progress, world changes, discoveries, NPC relationships,
+  inventory), through the Django API (`docs/PLAY_API.md`). The castle adds no Django model of its
   own (ADR-033).
 - **Resume.** A session left open resumes in place, its choices read back
   from recorded answers. No reboot phase adds a second resume store.

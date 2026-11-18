@@ -3,7 +3,7 @@
 - **Status:** Guidance (point-in-time audit record, not a policy)
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-072 (engineering governance, Proposed)
+- **Related ADRs:** ADR-072 (engineering governance, Accepted)
 - **Related tickets:** LAI-ENG-001
 
 This audit was taken before the engineering standards in `docs/engineering/` and `docs/adventures/`
@@ -109,8 +109,6 @@ Rewards and progress: `catalog.RewardRule`, `catalog.CollectibleSet`, `catalog.I
 
 ### 5.3 Retired or superseded architecture still referenced
 
-- Amplify Gen 2 and Amplify Hosting: retired (AMP-01 to AMP-08). Referenced historically in
-  ADR-010, ADR-031 and many `docs/platform/AMPLIFY_*` records, which stay as history.
 - Phaser: ADR-007 accepted, retirement mandated by ADR-020. Still a runtime dependency.
 - ADR-038 (dual local authentication): superseded by ADR-040.
 - ECR-image processing worker and separate processing queues (ADR-061 items, ADR-062 decisions
@@ -179,26 +177,26 @@ unmerged.
 
 Listed in `docs/engineering/README.md` ("Owner approval checklist").
 
-## 9. Conflicts found while writing the standards (not resolved here)
+## 9. Conflicts found while writing the standards
 
 The standards follow the accepted ADR or the code in each case. None of these documents was
-edited by ADR-072's branch.
+edited by ADR-072's branch. **Note (2026-11-18):** the conflicts listed here were corrected on
+2026-11-18 at the owner's direction; the table stays as the dated snapshot of what was found.
 
 | # | Conflict | Where |
 |---|---|---|
-| 1 | **A test parent account's email and password are in tracked allow rules.** They should be rotated and removed. | `.claude/settings.json` (committed 2026-11-11) |
-| 2 | ADR-070 is claimed by two open branches (processing GLB optimization; Heart of Firepeak). | See 5.2 item 6 |
-| 3 | The processing branches keep ADR bodies in `docs/processing/adr/`, a second ADR location. | `feature/lambda-*` branches |
-| 4 | Four deploy workflows run on push to `main` (path-filtered) when their repository variables are on, so a merge can be a release action. | `.github/workflows/deploy-*.yml` |
-| 5 | ADR-041 A says the catalog `World` reads as "Island" in copy and Admin; AP-03 made the child-facing word "Realm" without an ADR, and Admin labels still say "island". | `docs/DECISIONS.md`, `react/src/features/realms/` |
-| 6 | "End sessions at calm narrative checkpoints", and session-limit wording, survive after ADR-053 retired session limits. | `docs/UX_AND_ACCESSIBILITY.md`, `docs/THREAT_MODEL.md` (AP-04 entry), `docs/audio/CHILD_AUDIO_PREFERENCES.md` |
-| 7 | "Per-child sign-in is still ahead" contradicts ADR-022 ("Children never authenticate"); no ADR approves child login. | `docs/IMPLEMENTATION_STATUS.md` (around lines 9438 and 9476) |
-| 8 | "Proposed backend migration (not in effect)" heading is stale after ADR-019 and AMP-01 to AMP-08; "Security defaults" names `IsAuthenticated` where settings use `IsProvisionedParent`. | `docs/ARCHITECTURE.md` |
-| 9 | ADR-043 and ADR-052 registry notes say "not merged" but their code is on `main`. | `docs/DECISIONS.md` registry |
-| 10 | Threat model, authorization review and IAM audit review the retired Amplify backend; the AWS inventory (2026-11-09) still lists Amplify Hosting. | `docs/THREAT_MODEL.md`, `docs/AUTHORIZATION_REVIEW.md`, `docs/IAM_ROLE_AUDIT.md`, `docs/infrastructure/inventory.md` |
-| 11 | ADR-028 described as "still Proposed" (it is Accepted), and the retired Amplify upload flow is still described. | `docs/THREE_WORLD_ASSET_CONVENTIONS.md` |
-| 12 | ADR-046 says `LearningObjective` rows come only from the export; ADR-047 made them authorable in Django Admin. | `docs/DECISIONS.md`, `docs/AI_QUESTION_STUDIO.md` |
-| 13 | Out-of-date asset and content references (old `public/models/` paths, "no audio code", `amplify/data/chattyPersona.ts`). | `docs/ASSET_SOURCING.md`, `docs/CONTENT_SOURCES.md` |
-| 14 | `content/models/npc-pip-pirate.glb` has no licence row. | `docs/ASSET_LICENCES.md` |
-| 15 | `.claude/settings.json` blocks only mutating AWS CLI commands; `docs/infrastructure/dev-acceptance.md` says it denies all `aws` commands. | `.claude/settings.json`, `docs/infrastructure/dev-acceptance.md` |
-| 16 | The parent gate rule ("external navigation") is narrower in practice: AP-04 removed the gate on the adult exit. | `docs/UX_AND_ACCESSIBILITY.md` |
+| 1 | ADR-070 is claimed by two open branches (processing GLB optimization; Heart of Firepeak). | See 5.2 item 6 |
+| 2 | The processing branches keep ADR bodies in `docs/processing/adr/`, a second ADR location. | `feature/lambda-*` branches |
+| 3 | Four deploy workflows run on push to `main` (path-filtered) when their repository variables are on, so a merge can be a release action. | `.github/workflows/deploy-*.yml` |
+| 4 | ADR-041 A says the catalog `World` reads as "Island" in copy and Admin; AP-03 made the child-facing word "Realm" without an ADR, and Admin labels still say "island". | `docs/DECISIONS.md`, `react/src/features/realms/` |
+| 5 | "End sessions at calm narrative checkpoints", and session-limit wording, survive after ADR-053 retired session limits. | `docs/UX_AND_ACCESSIBILITY.md`, `docs/THREAT_MODEL.md` (AP-04 entry), `docs/audio/CHILD_AUDIO_PREFERENCES.md` |
+| 6 | "Per-child sign-in is still ahead" contradicts ADR-022 ("Children never authenticate"); no ADR approves child login. | `docs/IMPLEMENTATION_STATUS.md` (around lines 9438 and 9476) |
+| 7 | "Proposed backend migration (not in effect)" heading is stale after ADR-019; "Security defaults" names `IsAuthenticated` where settings use `IsProvisionedParent`. | `docs/ARCHITECTURE.md` |
+| 8 | ADR-043 and ADR-052 registry notes say "not merged" but their code is on `main`. | `docs/DECISIONS.md` registry |
+| 9 | Threat model, authorization review and IAM audit review the retired backend; the AWS inventory (2026-11-09) still lists the retired backend's hosting. | `docs/THREAT_MODEL.md`, `docs/AUTHORIZATION_REVIEW.md`, `docs/IAM_ROLE_AUDIT.md`, `docs/infrastructure/inventory.md` |
+| 10 | ADR-028 described as "still Proposed" (it is Accepted), and the retired backend's upload flow is still described. | `docs/THREE_WORLD_ASSET_CONVENTIONS.md` |
+| 11 | ADR-046 says `LearningObjective` rows come only from the export; ADR-047 made them authorable in Django Admin. | `docs/DECISIONS.md`, `docs/AI_QUESTION_STUDIO.md` |
+| 12 | Out-of-date asset and content references (old `public/models/` paths, "no audio code", a persona file path from the retired backend). | `docs/ASSET_SOURCING.md`, `docs/CONTENT_SOURCES.md` |
+| 13 | `content/models/npc-pip-pirate.glb` has no licence row. | `docs/ASSET_LICENCES.md` |
+| 14 | `.claude/settings.json` blocks only mutating AWS CLI commands; `docs/infrastructure/dev-acceptance.md` says it denies all `aws` commands. | `.claude/settings.json`, `docs/infrastructure/dev-acceptance.md` |
+| 15 | The parent gate rule ("external navigation") is narrower in practice: AP-04 removed the gate on the adult exit. | `docs/UX_AND_ACCESSIBILITY.md` |

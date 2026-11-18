@@ -120,7 +120,7 @@ It must not own:
 
 - renderer lifecycle
 - React routing
-- Amplify clients
+- Django API clients
 - child identity
 - generic quest logic
 - generic NPC conversation logic

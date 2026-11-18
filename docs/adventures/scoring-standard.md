@@ -1,6 +1,6 @@
 # Scoring Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Scope note:** The "Proposed future enhancements" section is Proposed only.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18

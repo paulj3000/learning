@@ -6,7 +6,7 @@ ADR-015 in `docs/DECISIONS.md`. Splits the same way Phase 39 did: real
 audit work where this product already has a real subject (sync behavior,
 retry safety of its existing mutations), design-only where it does not
 (device registration, an offline request queue). **No model is added to
-`amplify/data/resource.ts` and no production code changes this phase.**
+the backend schema and no production code changes this phase.**
 
 ## 1. Device Registration — design-only, genuinely nothing to build against
 
@@ -34,7 +34,7 @@ DeviceRegistration: a.model({
 `userId` from android.md's suggestion is dropped: this schema's owner
 model already ties every row to the signed-in parent implicitly
 (`allow.owner()`), so a separate `userId` column would duplicate what
-Amplify Data already tracks for free.
+the owner-scoped data layer already tracks for free.
 
 ## 2. Cross-device sync: mostly already true, and precisely so — a real audit finding
 
@@ -44,7 +44,7 @@ adventures, inventory, achievements, world unlocks, avatar, settings`.
 Four of those (`XP`, `levels`, `coins`, and by extension any
 achievement/leaderboard economy built on them) do not exist in this
 product at all — ADR-011 already rejected them. Of what remains, every
-single one is already an Amplify Data model, not client-cached state:
+single one is already a backend data model, not client-cached state:
 `SkillProgress`, `AdventureSession`, `ChildInventory`, `ChildQuestState`,
 `ChildWorldState` (world unlocks are derived from `WorldChange`,
 `docs/platform/CURRENT_PLATFORM_AUDIT.md` section 1), `ChildProfile`
@@ -53,7 +53,7 @@ single one is already an Amplify Data model, not client-cached state:
 
 **"Completing content on one client appears on another" already holds —
 *sequentially*.** A device that loads any of these routes always fetches
-fresh from Amplify Data; there is nothing cached locally to go stale.
+fresh from the backend; there is nothing cached locally to go stale.
 Two browser tabs signed into the same parent account today, opened one
 after the other, already see consistent state with zero code written for
 this phase.
@@ -123,8 +123,8 @@ unenforced.** `sessionId` + `stepId` + `attemptNumber` is already a
 locally-computed, monotonically-increasing tuple per step
 (`useAdventureSession.ts`'s `attemptNumber = (currentProgress?.attemptNumber
 ?? 0) + 1`) — a genuine retry of the same attempt would carry the exact
-same tuple. Amplify Data has no built-in composite-uniqueness constraint
-to enforce this without a custom resolver, so nothing rejects a duplicate
+same tuple. The data layer at the time had no built-in composite-uniqueness
+constraint to enforce this without a custom resolver, so nothing rejects a duplicate
 today; a future implementation could either add a
 `requestId`-based `ProcessedCommand` model (android.md's own suggestion)
 or reuse this already-present tuple as the dedup key, avoiding a new
@@ -153,7 +153,7 @@ sandbox.
 ## 5. What this document does not do
 
 - It does not add `DeviceRegistration` or `ProcessedCommand` to
-  `amplify/data/resource.ts`.
+  the backend schema.
 - It does not add any subscription beyond `CoopSession`'s existing one.
 - It does not change `recordAction`/`recordSkillEvidence`/
   `saveStoryArtifact` to accept or check a `requestId`.

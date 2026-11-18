@@ -1,6 +1,6 @@
 # Quest Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-005, ADR-033, ADR-041, ADR-047, ADR-053, ADR-054
@@ -66,8 +66,8 @@ tests, not a content field.
    branch; ADR-080, Reserved on `main`, branch only).
 2. **Short stages.** Sprouts: one-step decisions. Pathfinders: two or three steps. Explorers:
    multi-stage missions (CLAUDE.md section 3).
-3. **Optional objectives never gate.** Use `optional: true` for side errands, collectibles and
-   jump routes.
+3. **Optional objectives never gate.** Use `optional: true` for side errands, collectibles and,
+   in adventures that use jumping, jump routes.
 4. **One clear next step.** The HUD cue and hint follow the current stage, from server state.
 5. **No time conditions.** No objective, branch or failure depends on elapsed time (ADR-053).
 6. **Nothing is lost.** Failing an objective never removes progress, items or completed stages.

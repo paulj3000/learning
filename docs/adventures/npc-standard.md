@@ -1,9 +1,9 @@
 # NPC Standard
 
-- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Status:** Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-020, ADR-033, ADR-035, ADR-041, ADR-044, ADR-045, ADR-048 (Proposed), ADR-049 (Proposed), ADR-050 (Proposed), ADR-053, ADR-054, ADR-072 (Proposed)
+- **Related ADRs:** ADR-020, ADR-033, ADR-035, ADR-041, ADR-044, ADR-045, ADR-048 (Proposed), ADR-049 (Proposed), ADR-050 (Proposed), ADR-053, ADR-054, ADR-072 (Accepted)
 - **Canonical sources:** [`docs/NPC_MANAGER_CONTRACTS.md`](../NPC_MANAGER_CONTRACTS.md), [`docs/NPC_MANAGER_IMPLEMENTATION_PLAN.md`](../NPC_MANAGER_IMPLEMENTATION_PLAN.md), [`docs/NPC_MANAGER_ACCESSIBILITY.md`](../NPC_MANAGER_ACCESSIBILITY.md), [`docs/AI_AND_CHILD_SAFETY.md`](../AI_AND_CHILD_SAFETY.md), [`docs/AI_SERVICE.md`](../AI_SERVICE.md), [`CLAUDE.md`](../../CLAUDE.md) section 6, [`docs/DECISIONS.md`](../DECISIONS.md)
 
 Every character a child meets in an adventure (Pirate Pip, Keeper Quill, Chatty, later ones) is
