@@ -1070,6 +1070,19 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       (`POSTGRES_PORT=5432 LAI_REQUIRE_POSTGRES=1`); Vitest `clientWorldChangeKeys.test.ts` 2 passed.
       Residual risks (in the doc): non-page adventure keys stay client-postable; EXPLORE/HELP_NPC/DELIVER
       quest objectives still trust the client; the client's offline page fallback matches key only.
+- [x] **SC-JMP** Jumping inside every primary castle adventure (contract `docs/regions/prep/jumping_prep.md`;
+      inventory `storykeeper_castle_jumping_inventory.md`). DONE (development), not owner accepted. From
+      `origin/wip/sc-jmp-castle-jumping` (`fae5bbc3`), reviewed and verified; merge `c81ee466`, into the
+      feature branch `7afcc039`. Shared platforms runtime only: story stones (Tale; Sprouts get flat
+      markers in `quills-picture-story`), painted pads (Painted Words A and B, bank words only), library
+      book, pattern and rod stones (Secret Door chapters 1 and 2), the Storybook page pathway, two
+      Observatory stones. Tops 0.5 m or less, static; a pad needs a 0.7 s stand and submits through the
+      session's own `submitAnswer` (the engine grades); every pad answer is on the HUD card in the same
+      words. Behaviour change: Pathfinders now play the Painted Words in the Studio room (castle-tale
+      claims the wall) instead of the card route. Tests: Vitest island-map, great-storybook, adventures,
+      worlds 208 files, 2517 passed on the work branch; after merging with SC-SEC-01, island-map/three and
+      great-storybook 149 files, 1905 passed; `tsc --noEmit` app and node clean. Owner acceptance: play
+      each adventure once by jumping and once without, and check Sprouts see flat markers.
 - [ ] **SC-R05 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
