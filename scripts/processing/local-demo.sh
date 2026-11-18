@@ -9,6 +9,13 @@
 # failure paths (invalid media, duplicate result, stale version, unauthorized action, a
 # transient S3 503). See canonical_demo.py.
 #
+# After the canonical scenarios, completion_demo.py demonstrates the completion work (ADR-066 to
+# ADR-071): derived artifacts, review and promotion, retention, audio, images, staff thumbnail
+# capture, GLB optimization and the controls-off refusals. Its output tags every line [REAL],
+# [MOCKED], [REAL-NATIVE] or [SKIPPED]. Native scenarios run only when their tool is found:
+# LAI_FFMPEG_BIN (or ffmpeg on PATH), Pillow (optionally LAI_DEMO_PILLOW_SITE=<site-packages>),
+# LAI_GLTFPACK_PATH + LAI_TOKTX_PATH (+ LAI_KTX_LIBRARY_PATH); otherwise they print SKIPPED.
+#
 # Simulated: the SQS and S3 clients (in memory; the queue URLs below are placeholders and are
 # never contacted) and the synthetic GLBs. Needs the compose PostgreSQL (`make up`,
 # 127.0.0.1:5442). Uses its OWN database (default lai_processing_demo), never the shared
@@ -34,6 +41,9 @@ export DATABASE_URL="postgres://$PGUSER:$PGPASSWORD_VALUE@127.0.0.1:$PGPORT/$DEM
 export LAI_JOBS_BACKEND=sqs
 export LAI_JOBS_AI_QUEUE_URL="$QUEUES/lai-demo-jobs-ai"
 export LAI_JOBS_MEDIA_QUEUE_URL="$QUEUES/lai-demo-jobs-media"
+export LAI_JOBS_AUDIO_QUEUE_URL="$QUEUES/lai-demo-jobs-audio"
+export LAI_JOBS_IMAGE_QUEUE_URL="$QUEUES/lai-demo-jobs-image"
+export LAI_JOBS_OPTIMIZE_QUEUE_URL="$QUEUES/lai-demo-jobs-optimize"
 export LAI_JOBS_RESULTS_QUEUE_URL="$QUEUES/lai-demo-job-results"
 export LAI_JOBS_RESULTS_BUCKET=lai-demo-results
 export LAI_ASSET_STORAGE=local
@@ -57,4 +67,5 @@ with psycopg.connect(host="127.0.0.1", port=port, user=user, dbname="postgres",
 PYEOF
 (cd "$ROOT/lai" && "$PY" manage.py migrate --noinput -v 0)
 (cd "$ROOT/lai" && "$PY" manage.py shell -v 0 -c "exec(open('$ROOT/scripts/processing/canonical_demo.py').read())")
+(cd "$ROOT/lai" && "$PY" manage.py shell -v 0 -c "exec(open('$ROOT/scripts/processing/completion_demo.py').read())")
 printf '\nDemo complete. Work directory: %s %s\n' "$WORK" "$([ "$KEEP" = "--keep" ] && echo '(kept)' || echo '(removed)')"
