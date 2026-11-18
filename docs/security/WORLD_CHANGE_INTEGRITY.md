@@ -102,6 +102,7 @@ write an arbitrary protected key, award a rule, or complete a session.
 | Group | Routes (method) | Protection |
 |-------|-----------------|------------|
 | Profile and settings | `/` PATCH DELETE, `photo/`, `companion/`, `audio/settings/`, `audio/speech/`, `ai/*`, `rewards/` DELETE, `quests/` DELETE, `npc-memory/` DELETE, `story-artifacts/` | No progression grant. Deletes only remove the child's own rows. Story artifacts store narration only. |
+| Writing Room story (SC-final-B) | `story-artifacts/written/` POST | Only the child's own ACTIVE session of one of the three `castle-writing-room` templates for the child's band (else 404). Sprout and Pathfinder text is composed server-side from authored option labels; an Explorer paragraph passes `screen_untrusted_text` and the unkind-word screen or nothing is stored. Completes the session through `complete_session` (status only: no reward rule, world change, quest or mastery). One artifact per session (unique constraint). |
 | Generic world change | `world-changes/` POST | `client_changes.record_client_world_change`: protected keys need proof of play, registered location and type; never pays rewards. |
 | World state | `world-state/` PATCH DELETE | Only a known NPC id and a checkpoint id; no world change. |
 | Adventure runner | `adventures/<slug>/session/`, `content/adventures/<slug>/start/`, `sessions/<id>/answers/`, `hints/` POST | Server-graded; completion, WORLD_CHANGE steps and rewards run only in the answer transaction. |
@@ -169,6 +170,7 @@ Frozen write-route list (method and path after `children/<id>`):
 - `POST /stories/<slug:story_slug>/reflections/`
 - `POST /stories/<slug:story_slug>/start/`
 - `POST /story-artifacts/`
+- `POST /story-artifacts/written/`
 - `POST /world-changes/`
 - `PUT /companion/`
 - `PUT /photo/`

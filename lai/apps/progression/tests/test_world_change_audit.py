@@ -74,6 +74,7 @@ CHILD_WRITE_ROUTES = {
     "POST /stories/<slug:story_slug>/reflections/",
     "POST /stories/<slug:story_slug>/start/",
     "POST /story-artifacts/",
+    "POST /story-artifacts/written/",
     "POST /world-changes/",
     "PUT /companion/",
     "PUT /photo/",
