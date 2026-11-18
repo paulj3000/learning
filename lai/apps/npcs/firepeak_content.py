@@ -110,7 +110,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Flint",
         role=NpcRole.GUIDE,
         zone="Explorer's Landing",
-        asset_id="firepeak-npc-flint",
+        asset_id="firepeak-flint",
         # A guide needs authored waypoints, which belong to the area layout; until staff add them
         # Flint waits at the landing and turns to the child.
         behaviors=_stationary("flint-landing", "Flint at Explorer's Landing"),
@@ -145,7 +145,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Kindle",
         role=NpcRole.COMPANION,
         zone="Emberwood Forest and the Heart Chamber",
-        asset_id="firepeak-npc-kindle",
+        asset_id="firepeak-kindle",
         behaviors={
             **{
                 "kindle-follow": {
@@ -197,7 +197,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Professor Basalt",
         role=NpcRole.TEACHER,
         zone="Crystal Caverns and Firepeak Summit",
-        asset_id="firepeak-npc-basalt",
+        asset_id="firepeak-professor-basalt",
         behaviors=_stationary("basalt-stands", "Professor Basalt at work"),
         spots=(
             Spot("fh-basalt", "basalt-stands", -6.0, 1.5, 0.6),
@@ -237,7 +237,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Cinder",
         role=NpcRole.QUEST_GIVER,
         zone="Ancient Forge",
-        asset_id="firepeak-npc-cinder",
+        asset_id="firepeak-cinder",
         behaviors=_stationary("cinder-forge", "Cinder at the Ancient Forge"),
         spots=(Spot("fh-cinder", "cinder-forge", -5.0, -31.0, 0.5),),
         personality={
@@ -269,7 +269,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Ignis",
         role=NpcRole.GUIDE,
         zone="Heart Chamber",
-        asset_id="firepeak-npc-ignis",
+        asset_id="firepeak-ignis",
         behaviors=_stationary("ignis-heart", "Ignis at the Heart"),
         spots=(Spot("fh-ignis", "ignis-heart", -4.0, -87.0, 0.3),),
         personality={

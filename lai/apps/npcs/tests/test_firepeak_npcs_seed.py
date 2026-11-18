@@ -163,7 +163,12 @@ def test_draft_until_the_model_is_live_then_promote():
     assert set(NpcCharacter.objects.values_list("status", flat=True)) == {CharacterStatus.DRAFT}
     from apps.catalog.models import ContentAsset
 
-    ContentAsset.objects.filter(asset_id__startswith="firepeak-npc-").update(
+    ContentAsset.objects.filter(
+        asset_id__in=[
+            "firepeak-flint", "firepeak-kindle", "firepeak-professor-basalt",
+            "firepeak-cinder", "firepeak-ignis",
+        ]
+    ).update(
         bundled_path="/models/x.glb"
     )
     assert "Promote:" in run("--promote")
