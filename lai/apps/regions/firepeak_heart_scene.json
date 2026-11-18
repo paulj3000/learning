@@ -1,0 +1,5302 @@
+{
+ "assets": [
+  {
+   "assetId": "firepeak-volcano-main",
+   "kind": "kit-piece"
+  },
+  {
+   "assetId": "firepeak-crystal-pedestal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-flint",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-kindle",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-professor-basalt",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-cinder",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-ignis",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-ember-shard",
+   "kind": "collectible"
+  },
+  {
+   "assetId": "firepeak-map-sign",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-campfire",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-tree",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-log",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-rock",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-ember-crystal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-count-card",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-lava-stone",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-path-marker",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-shape-stone",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-cave-crystal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-forge-switch",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-gear",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-rock-sample",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-story-stone",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-heart-crystal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-return-portal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-arch",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-sign",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-circuit-lamp",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-stream",
+   "kind": "prop"
+  }
+ ],
+ "placements": [
+  {
+   "asset": "firepeak-flint",
+   "elevation": 0.0,
+   "entity_id": "fh-flint",
+   "kind": "NPC",
+   "label": "Flint",
+   "npc": "flint",
+   "rotation_y": 0.4,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -4.0,
+   "z": 86.0
+  },
+  {
+   "asset": "firepeak-kindle",
+   "elevation": 0.0,
+   "entity_id": "fh-kindle",
+   "kind": "NPC",
+   "label": "Kindle",
+   "npc": "kindle",
+   "rotation_y": -0.4,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": 3.0,
+   "z": 58.0
+  },
+  {
+   "asset": "firepeak-professor-basalt",
+   "elevation": 0.0,
+   "entity_id": "fh-basalt",
+   "kind": "NPC",
+   "label": "Professor Basalt",
+   "npc": "professor-basalt",
+   "rotation_y": 0.6,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -6.0,
+   "z": 1.5
+  },
+  {
+   "asset": "firepeak-cinder",
+   "elevation": 0.0,
+   "entity_id": "fh-cinder",
+   "kind": "NPC",
+   "label": "Cinder",
+   "npc": "cinder",
+   "rotation_y": 0.5,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -5.0,
+   "z": -31.0
+  },
+  {
+   "asset": "firepeak-professor-basalt",
+   "elevation": 1.6,
+   "entity_id": "fh-basalt-summit",
+   "kind": "NPC",
+   "label": "Professor Basalt",
+   "npc": "professor-basalt",
+   "rotation_y": 1.0,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -6.0,
+   "z": -64.6
+  },
+  {
+   "asset": "firepeak-ignis",
+   "elevation": 0.0,
+   "entity_id": "fh-ignis",
+   "kind": "NPC",
+   "label": "Ignis",
+   "npc": "ignis",
+   "rotation_y": 0.3,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -4.0,
+   "z": -87.0
+  },
+  {
+   "asset": "firepeak-kindle",
+   "elevation": 0.0,
+   "entity_id": "fh-kindle-heart",
+   "kind": "NPC",
+   "label": "Kindle",
+   "npc": "kindle",
+   "rotation_y": -0.3,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": 4.0,
+   "z": -86.0
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 0.0,
+   "entity_id": "fh-shard-landing",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_LANDING",
+   "pickup_rule": "fh-rule-shard-landing",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 12.0,
+   "z": 73.8
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 0.0,
+   "entity_id": "fh-shard-emberwood",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_EMBERWOOD",
+   "pickup_rule": "fh-rule-shard-emberwood",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": -22.0,
+   "z": 44.4
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 0.5,
+   "entity_id": "fh-shard-lava-jumper",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_LAVA",
+   "pickup_rule": "fh-rule-shard-lava",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 18.0,
+   "z": 22.0
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 1.0,
+   "entity_id": "fh-shard-caverns",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_CAVERNS",
+   "pickup_rule": "fh-rule-shard-caverns",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": -10.4,
+   "z": -19.0
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 2.6,
+   "entity_id": "fh-shard-forge",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_FORGE",
+   "pickup_rule": "fh-rule-shard-forge",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 20.0,
+   "z": -37.5
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 1.6,
+   "entity_id": "fh-shard-summit",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_SUMMIT",
+   "pickup_rule": "fh-rule-shard-summit",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 5.5,
+   "z": -67.8
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 0.0,
+   "entity_id": "fh-shard-heart",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_HEART",
+   "pickup_rule": "fh-rule-shard-heart",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 8.0,
+   "z": -91.0
+  },
+  {
+   "asset": "firepeak-map-sign",
+   "elevation": 0.0,
+   "entity_id": "fh-map-sign",
+   "kind": "PROP",
+   "label": "Explorer's map",
+   "rotation_y": 0.3,
+   "size": [
+    0.8,
+    1.6,
+    0.3
+   ],
+   "x": 3.5,
+   "z": 80.0
+  },
+  {
+   "asset": "firepeak-ember-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-ember-crystal-a",
+   "kind": "PROP",
+   "label": "Crystal A",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.2,
+    0.7
+   ],
+   "x": -5.0,
+   "z": 53.0
+  },
+  {
+   "asset": "firepeak-ember-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-ember-crystal-b",
+   "kind": "PROP",
+   "label": "Crystal B",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.2,
+    0.7
+   ],
+   "x": 0.0,
+   "z": 53.0
+  },
+  {
+   "asset": "firepeak-ember-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-ember-crystal-c",
+   "kind": "PROP",
+   "label": "Crystal C",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.2,
+    0.7
+   ],
+   "x": 5.0,
+   "z": 53.0
+  },
+  {
+   "asset": "firepeak-count-card",
+   "elevation": 0.0,
+   "entity_id": "fh-count-card-a",
+   "kind": "PROP",
+   "label": "Card A",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    1.1,
+    0.2
+   ],
+   "x": -5.0,
+   "z": 46.5
+  },
+  {
+   "asset": "firepeak-count-card",
+   "elevation": 0.0,
+   "entity_id": "fh-count-card-b",
+   "kind": "PROP",
+   "label": "Card B",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    1.1,
+    0.2
+   ],
+   "x": 0.0,
+   "z": 46.5
+  },
+  {
+   "asset": "firepeak-count-card",
+   "elevation": 0.0,
+   "entity_id": "fh-count-card-c",
+   "kind": "PROP",
+   "label": "Card C",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    1.1,
+    0.2
+   ],
+   "x": 5.0,
+   "z": 46.5
+  },
+  {
+   "asset": "firepeak-lava-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-stone-a",
+   "kind": "PROP",
+   "label": "Stone A",
+   "rotation_y": 0.0,
+   "size": [
+    1.1,
+    0.5,
+    1.1
+   ],
+   "x": -5.0,
+   "z": 32.5
+  },
+  {
+   "asset": "firepeak-lava-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-stone-b",
+   "kind": "PROP",
+   "label": "Stone B",
+   "rotation_y": 0.0,
+   "size": [
+    1.1,
+    0.5,
+    1.1
+   ],
+   "x": 0.0,
+   "z": 32.5
+  },
+  {
+   "asset": "firepeak-lava-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-stone-c",
+   "kind": "PROP",
+   "label": "Stone C",
+   "rotation_y": 0.0,
+   "size": [
+    1.1,
+    0.5,
+    1.1
+   ],
+   "x": 5.0,
+   "z": 32.5
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-path-a",
+   "kind": "PROP",
+   "label": "Path A",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": -8.0,
+   "z": 10.0
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-path-b",
+   "kind": "PROP",
+   "label": "Path B",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": 0.0,
+   "z": 10.0
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-path-c",
+   "kind": "PROP",
+   "label": "Path C",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": 8.0,
+   "z": 10.0
+  },
+  {
+   "asset": "firepeak-shape-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-shape-a",
+   "kind": "PROP",
+   "label": "Shape A",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.2,
+    0.8
+   ],
+   "x": -9.0,
+   "z": -3.0
+  },
+  {
+   "asset": "firepeak-shape-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-shape-b",
+   "kind": "PROP",
+   "label": "Shape B",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.2,
+    0.8
+   ],
+   "x": -3.0,
+   "z": -3.0
+  },
+  {
+   "asset": "firepeak-shape-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-shape-c",
+   "kind": "PROP",
+   "label": "Shape C",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.2,
+    0.8
+   ],
+   "x": 3.0,
+   "z": -3.0
+  },
+  {
+   "asset": "firepeak-shape-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-shape-d",
+   "kind": "PROP",
+   "label": "Shape D",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.2,
+    0.8
+   ],
+   "x": 9.0,
+   "z": -3.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-crystal-a",
+   "kind": "PROP",
+   "label": "Crystal A",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": -7.5,
+   "z": -10.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-crystal-b",
+   "kind": "PROP",
+   "label": "Crystal B",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": -2.5,
+   "z": -10.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-crystal-c",
+   "kind": "PROP",
+   "label": "Crystal C",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": 2.5,
+   "z": -10.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-crystal-d",
+   "kind": "PROP",
+   "label": "Crystal D",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": 7.5,
+   "z": -10.0
+  },
+  {
+   "asset": "firepeak-forge-switch",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-switch-red",
+   "kind": "PROP",
+   "label": "Red switch",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.1,
+    0.5
+   ],
+   "x": -7.5,
+   "z": -38.0
+  },
+  {
+   "asset": "firepeak-forge-switch",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-switch-blue",
+   "kind": "PROP",
+   "label": "Blue switch",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.1,
+    0.5
+   ],
+   "x": -2.5,
+   "z": -38.0
+  },
+  {
+   "asset": "firepeak-forge-switch",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-switch-gold",
+   "kind": "PROP",
+   "label": "Gold switch",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.1,
+    0.5
+   ],
+   "x": 2.5,
+   "z": -38.0
+  },
+  {
+   "asset": "firepeak-forge-switch",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-switch-green",
+   "kind": "PROP",
+   "label": "Green switch",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.1,
+    0.5
+   ],
+   "x": 7.5,
+   "z": -38.0
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-circuit-path-a",
+   "kind": "PROP",
+   "label": "Wire path A",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": -7.0,
+   "z": -43.5
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-circuit-path-b",
+   "kind": "PROP",
+   "label": "Wire path B",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": 0.0,
+   "z": -43.5
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-circuit-path-c",
+   "kind": "PROP",
+   "label": "Wire path C",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": 7.0,
+   "z": -43.5
+  },
+  {
+   "asset": "firepeak-circuit-lamp",
+   "elevation": 0.0,
+   "entity_id": "fh-circuit-lamp",
+   "kind": "PROP",
+   "label": "The forge lamp",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.0,
+    0.8
+   ],
+   "x": 0.0,
+   "z": -45.6
+  },
+  {
+   "asset": "firepeak-rock-sample",
+   "elevation": 1.6,
+   "entity_id": "fh-rock-sample-a",
+   "kind": "PROP",
+   "label": "Rock sample A",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.8,
+    0.9
+   ],
+   "x": -4.0,
+   "z": -63.0
+  },
+  {
+   "asset": "firepeak-rock-sample",
+   "elevation": 1.6,
+   "entity_id": "fh-rock-sample-b",
+   "kind": "PROP",
+   "label": "Rock sample B",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.8,
+    0.9
+   ],
+   "x": 0.0,
+   "z": -63.0
+  },
+  {
+   "asset": "firepeak-rock-sample",
+   "elevation": 1.6,
+   "entity_id": "fh-rock-sample-c",
+   "kind": "PROP",
+   "label": "Rock sample C",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.8,
+    0.9
+   ],
+   "x": 4.0,
+   "z": -63.0
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-a",
+   "kind": "PROP",
+   "label": "Story stone A",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": -5.0,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-b",
+   "kind": "PROP",
+   "label": "Story stone B",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": -2.5,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-c",
+   "kind": "PROP",
+   "label": "Story stone C",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": 0.0,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-d",
+   "kind": "PROP",
+   "label": "Story stone D",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": 2.5,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-e",
+   "kind": "PROP",
+   "label": "Story stone E",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": 5.0,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-crystal-forest",
+   "kind": "PROP",
+   "label": "Forest crystal",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": -9.0,
+   "z": -82.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-crystal-magma",
+   "kind": "PROP",
+   "label": "Magma crystal",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": -3.0,
+   "z": -82.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-crystal-cavern",
+   "kind": "PROP",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": 3.0,
+   "z": -82.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-crystal-forge",
+   "kind": "PROP",
+   "label": "Forge crystal",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": 9.0,
+   "z": -82.0
+  },
+  {
+   "asset": "firepeak-crystal-pedestal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-pedestal",
+   "kind": "PROP",
+   "label": "Ancient pedestal",
+   "rotation_y": 0.0,
+   "size": [
+    1.2,
+    1.0,
+    1.2
+   ],
+   "x": 0.0,
+   "z": -90.5
+  },
+  {
+   "asset": "firepeak-heart-crystal",
+   "elevation": 1.0,
+   "entity_id": "fh-heart-crystal",
+   "kind": "PROP",
+   "label": "The Heart of Firepeak",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.1,
+    0.7
+   ],
+   "x": 0.0,
+   "z": -90.5
+  },
+  {
+   "asset": "firepeak-return-portal",
+   "elevation": 0.0,
+   "entity_id": "fh-return-portal",
+   "kind": "PROP",
+   "label": "Portal back to the landing",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    2.4,
+    0.4
+   ],
+   "x": 11.0,
+   "z": -86.0
+  },
+  {
+   "asset": "firepeak-campfire",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-campfire",
+   "kind": "PROP",
+   "label": "Campfire",
+   "rotation_y": 0.0,
+   "size": [
+    1.1,
+    0.7,
+    1.1
+   ],
+   "x": 7.0,
+   "z": 86.0
+  },
+  {
+   "asset": "firepeak-sign",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-sign",
+   "kind": "PROP",
+   "label": "Welcome to Firepeak",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.5,
+    0.2
+   ],
+   "x": -2.0,
+   "z": 77.0
+  },
+  {
+   "asset": "firepeak-sign",
+   "elevation": 1.6,
+   "entity_id": "fh-lookout-sign",
+   "kind": "SCENERY",
+   "label": "Lookout point",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.5,
+    0.2
+   ],
+   "x": -18.8,
+   "z": -65.0
+  },
+  {
+   "asset": "firepeak-log",
+   "elevation": 0.0,
+   "entity_id": "fh-jump-log-model",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.0,
+    0.45,
+    0.9000000000000057
+   ],
+   "x": 12.0,
+   "z": 75.95
+  },
+  {
+   "asset": "firepeak-log",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-log-1-model",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.0,
+    0.4,
+    0.8999999999999986
+   ],
+   "x": 18.0,
+   "z": 56.05
+  },
+  {
+   "asset": "firepeak-log",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-log-2-model",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.0,
+    0.4,
+    0.8999999999999986
+   ],
+   "x": 18.0,
+   "z": 53.05
+  },
+  {
+   "asset": "firepeak-log",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-log-3-model",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.0,
+    0.4,
+    0.8999999999999986
+   ],
+   "x": 18.0,
+   "z": 50.05
+  },
+  {
+   "asset": "firepeak-stream",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-stream",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    0.06,
+    10.0
+   ],
+   "x": -14.0,
+   "z": 54.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": 65.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": 37.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": 7.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": -23.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": -49.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-6",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": -77.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": -11.8,
+   "z": 2.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": 12.0,
+   "z": -1.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": -12.0,
+   "z": -14.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": 12.0,
+   "z": -17.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": -12.0,
+   "z": -8.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-6",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": 12.0,
+   "z": 4.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-secret-crystal-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.6,
+    1.0
+   ],
+   "x": 17.0,
+   "z": -5.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-secret-crystal-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.6,
+    1.0
+   ],
+   "x": 20.0,
+   "z": -7.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-block-west-model",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    2.4,
+    2.4,
+    0.8
+   ],
+   "x": -17.0,
+   "z": -31.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-block-east-near-model",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    2.4,
+    2.4,
+    0.8
+   ],
+   "x": 12.0,
+   "z": -41.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    2.6,
+    2.6,
+    0.8
+   ],
+   "x": -26.0,
+   "z": -44.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    2.6,
+    2.6,
+    0.8
+   ],
+   "x": 26.0,
+   "z": -28.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    2.6,
+    2.6,
+    0.8
+   ],
+   "x": -25.0,
+   "z": -27.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -20.5,
+   "z": 49.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -23.0,
+   "z": 49.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -25.5,
+   "z": 49.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -27.8,
+   "z": 45.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -27.8,
+   "z": 42.4
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 19.8,
+   "z": 69.7
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 27.1,
+   "z": 84.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 27.1,
+   "z": 77.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 29.6,
+   "z": 86.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 26.4,
+   "z": 69.8
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-6",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 21.2,
+   "z": 72.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-7",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -23.4,
+   "z": 81.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-8",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -28.1,
+   "z": 74.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-9",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 25.9,
+   "z": 81.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-10",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -25.4,
+   "z": 91.8
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-11",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -27.3,
+   "z": 87.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-12",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -23.7,
+   "z": 72.1
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-13",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 19.9,
+   "z": 80.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-14",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -29.4,
+   "z": 90.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 21.4,
+   "z": 46.8
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -13.7,
+   "z": 52.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 19.4,
+   "z": 61.7
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -15.8,
+   "z": 45.8
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 28.0,
+   "z": 45.1
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-6",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 24.9,
+   "z": 45.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-7",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 14.3,
+   "z": 43.4
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-8",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 18.8,
+   "z": 43.1
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-9",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -25.4,
+   "z": 58.3
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-10",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -10.4,
+   "z": 59.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-11",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -15.4,
+   "z": 41.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-12",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 12.0,
+   "z": 49.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-13",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 28.5,
+   "z": 59.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-14",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -20.4,
+   "z": 59.1
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-15",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -22.3,
+   "z": 52.7
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-16",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 11.6,
+   "z": 40.4
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-17",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -14.6,
+   "z": 59.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-18",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 11.7,
+   "z": 53.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-19",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -15.9,
+   "z": 56.3
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-20",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 29.2,
+   "z": 56.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-21",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -13.0,
+   "z": 48.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-22",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 24.1,
+   "z": 40.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-23",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -12.5,
+   "z": 44.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-24",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -16.2,
+   "z": 49.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 25.3,
+   "z": 50.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 16.6,
+   "z": 41.3
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -10.3,
+   "z": 50.9
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 13.5,
+   "z": 60.0
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 25.0,
+   "z": 55.8
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-6",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.3,
+   "z": 55.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -20.4,
+   "z": 35.3
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -16.6,
+   "z": 35.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -22.7,
+   "z": 32.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 11.9,
+   "z": 35.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -24.6,
+   "z": 35.1
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-6",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -15.2,
+   "z": 32.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-7",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -27.7,
+   "z": 35.1
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-8",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 15.7,
+   "z": 33.6
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-far-rock-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 24.2,
+   "z": 9.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-far-rock-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 10.6,
+   "z": 9.9
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-far-rock-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.5,
+   "z": 12.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-far-rock-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -13.5,
+   "z": 8.9
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.1,
+   "z": -41.3
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 23.5,
+   "z": -42.7
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 27.2,
+   "z": -27.7
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -26.7,
+   "z": -27.6
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -26.1,
+   "z": -35.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-6",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 28.2,
+   "z": -35.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-7",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 26.4,
+   "z": -45.7
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-8",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -25.3,
+   "z": -43.6
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.7,
+   "z": -73.8
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 20.1,
+   "z": -54.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -21.5,
+   "z": -55.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 25.4,
+   "z": -62.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-5",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -29.0,
+   "z": -62.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-6",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 23.1,
+   "z": -67.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-7",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 19.5,
+   "z": -63.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-8",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -28.9,
+   "z": -70.7
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-rock-1",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -29.9,
+   "z": -86.6
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-rock-2",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -26.7,
+   "z": -83.3
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-rock-3",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -20.2,
+   "z": -80.0
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-rock-4",
+   "kind": "SCENERY",
+   "label": "",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.5,
+   "z": -86.1
+  }
+ ],
+ "puzzles": [
+  {
+   "entityIds": [
+    "fh-map-sign"
+   ],
+   "kind": "OBSERVE_FEATURES",
+   "puzzleId": "fh-landing-map",
+   "title": "Read the explorer's map"
+  },
+  {
+   "entityIds": [
+    "fh-ember-crystal-a",
+    "fh-ember-crystal-b",
+    "fh-ember-crystal-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-emberwood-pattern",
+   "title": "Finish the crystal pattern"
+  },
+  {
+   "entityIds": [
+    "fh-count-card-a",
+    "fh-count-card-b",
+    "fh-count-card-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-emberwood-count",
+   "title": "Count the embers"
+  },
+  {
+   "entityIds": [
+    "fh-lava-stone-a",
+    "fh-lava-stone-b",
+    "fh-lava-stone-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-lava-numbers",
+   "title": "Build the lava bridge"
+  },
+  {
+   "entityIds": [
+    "fh-lava-path-a",
+    "fh-lava-path-b",
+    "fh-lava-path-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-lava-compare",
+   "title": "Choose the right path"
+  },
+  {
+   "entityIds": [
+    "fh-cavern-shape-a",
+    "fh-cavern-shape-b",
+    "fh-cavern-shape-c",
+    "fh-cavern-shape-d"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-caverns-shapes",
+   "title": "Match the cave shapes"
+  },
+  {
+   "entityIds": [
+    "fh-cavern-crystal-a",
+    "fh-cavern-crystal-b",
+    "fh-cavern-crystal-c",
+    "fh-cavern-crystal-d"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "fh-caverns-arrange",
+   "title": "Arrange the cave crystals"
+  },
+  {
+   "entityIds": [
+    "fh-forge-switch-red",
+    "fh-forge-switch-blue",
+    "fh-forge-switch-gold",
+    "fh-forge-switch-green"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "fh-forge-switches",
+   "title": "Wake the forge machines"
+  },
+  {
+   "entityIds": [
+    "fh-circuit-path-a",
+    "fh-circuit-path-b",
+    "fh-circuit-path-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-forge-circuit",
+   "title": "Light the forge lamp"
+  },
+  {
+   "entityIds": [
+    "fh-rock-sample-a",
+    "fh-rock-sample-b",
+    "fh-rock-sample-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-summit-rocks",
+   "title": "Name the rocks"
+  },
+  {
+   "entityIds": [
+    "fh-island-step-a",
+    "fh-island-step-b",
+    "fh-island-step-c",
+    "fh-island-step-d",
+    "fh-island-step-e"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "fh-summit-island",
+   "title": "Tell the story of the island"
+  },
+  {
+   "entityIds": [
+    "fh-heart-crystal-forest",
+    "fh-heart-crystal-magma",
+    "fh-heart-crystal-cavern",
+    "fh-heart-crystal-forge"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "fh-heart-crystals",
+   "title": "Set the elemental crystals"
+  },
+  {
+   "entityIds": [
+    "fh-heart-crystal"
+   ],
+   "kind": "COLLECT_OBJECT",
+   "puzzleId": "fh-heart-restore",
+   "title": "Wake the Heart of Firepeak"
+  },
+  {
+   "entityIds": [
+    "fh-ignis"
+   ],
+   "kind": "RETURN_TO_NPC",
+   "puzzleId": "fh-heart-return",
+   "title": "Tell Ignis the good news"
+  }
+ ],
+ "scene": {
+  "bounds": {
+   "halfExtentX": 32,
+   "halfExtentZ": 96,
+   "wallThickness": 1
+  },
+  "colliders": [
+   {
+    "id": "fh-gate-emberwood-west",
+    "maxX": -4.0,
+    "maxZ": 65.75,
+    "minX": -32.0,
+    "minZ": 64.25
+   },
+   {
+    "id": "fh-gate-emberwood",
+    "maxX": 4.0,
+    "maxZ": 65.75,
+    "minX": -4.0,
+    "minZ": 64.25
+   },
+   {
+    "id": "fh-gate-emberwood-east",
+    "maxX": 32.0,
+    "maxZ": 65.75,
+    "minX": 4.0,
+    "minZ": 64.25
+   },
+   {
+    "id": "fh-gate-lava-west",
+    "maxX": -4.0,
+    "maxZ": 37.75,
+    "minX": -32.0,
+    "minZ": 36.25
+   },
+   {
+    "id": "fh-gate-lava",
+    "maxX": 4.0,
+    "maxZ": 37.75,
+    "minX": -4.0,
+    "minZ": 36.25
+   },
+   {
+    "id": "fh-gate-lava-east",
+    "maxX": 32.0,
+    "maxZ": 37.75,
+    "minX": 4.0,
+    "minZ": 36.25
+   },
+   {
+    "id": "fh-gate-caverns-west",
+    "maxX": -4.0,
+    "maxZ": 7.75,
+    "minX": -32.0,
+    "minZ": 6.25
+   },
+   {
+    "id": "fh-gate-caverns",
+    "maxX": 4.0,
+    "maxZ": 7.75,
+    "minX": -4.0,
+    "minZ": 6.25
+   },
+   {
+    "id": "fh-gate-caverns-east",
+    "maxX": 32.0,
+    "maxZ": 7.75,
+    "minX": 4.0,
+    "minZ": 6.25
+   },
+   {
+    "id": "fh-gate-forge-west",
+    "maxX": -4.0,
+    "maxZ": -22.25,
+    "minX": -32.0,
+    "minZ": -23.75
+   },
+   {
+    "id": "fh-gate-forge",
+    "maxX": 4.0,
+    "maxZ": -22.25,
+    "minX": -4.0,
+    "minZ": -23.75
+   },
+   {
+    "id": "fh-gate-forge-east",
+    "maxX": 32.0,
+    "maxZ": -22.25,
+    "minX": 4.0,
+    "minZ": -23.75
+   },
+   {
+    "id": "fh-gate-summit-west",
+    "maxX": -4.0,
+    "maxZ": -48.25,
+    "minX": -32.0,
+    "minZ": -49.75
+   },
+   {
+    "id": "fh-gate-summit",
+    "maxX": 4.0,
+    "maxZ": -48.25,
+    "minX": -4.0,
+    "minZ": -49.75
+   },
+   {
+    "id": "fh-gate-summit-east",
+    "maxX": 32.0,
+    "maxZ": -48.25,
+    "minX": 4.0,
+    "minZ": -49.75
+   },
+   {
+    "id": "fh-gate-heart-west",
+    "maxX": -4.0,
+    "maxZ": -76.25,
+    "minX": -32.0,
+    "minZ": -77.75
+   },
+   {
+    "id": "fh-gate-heart",
+    "maxX": 4.0,
+    "maxZ": -76.25,
+    "minX": -4.0,
+    "minZ": -77.75
+   },
+   {
+    "id": "fh-gate-heart-east",
+    "maxX": 32.0,
+    "maxZ": -76.25,
+    "minX": 4.0,
+    "minZ": -77.75
+   },
+   {
+    "id": "fh-cave-wall-west",
+    "maxX": -13.0,
+    "maxZ": 6.25,
+    "minX": -32.0,
+    "minZ": -22.25
+   },
+   {
+    "id": "fh-cave-wall-east-north",
+    "maxX": 32.0,
+    "maxZ": 6.25,
+    "minX": 13.0,
+    "minZ": -3.5
+   },
+   {
+    "id": "fh-cave-wall-east-south",
+    "maxX": 32.0,
+    "maxZ": -8.5,
+    "minX": 13.0,
+    "minZ": -22.25
+   },
+   {
+    "id": "fh-cave-alcove-back",
+    "maxX": 32.0,
+    "maxZ": -3.5,
+    "minX": 22.0,
+    "minZ": -8.5
+   },
+   {
+    "id": "fh-cavern-secret",
+    "maxX": 14.0,
+    "maxZ": -3.5,
+    "minX": 13.0,
+    "minZ": -8.5
+   },
+   {
+    "id": "col-fh-tree-screen-1",
+    "maxX": -20.15,
+    "maxZ": 49.35,
+    "minX": -20.85,
+    "minZ": 48.65
+   },
+   {
+    "id": "col-fh-tree-screen-2",
+    "maxX": -22.65,
+    "maxZ": 49.95,
+    "minX": -23.35,
+    "minZ": 49.25
+   },
+   {
+    "id": "col-fh-tree-screen-3",
+    "maxX": -25.15,
+    "maxZ": 49.35,
+    "minX": -25.85,
+    "minZ": 48.65
+   },
+   {
+    "id": "col-fh-tree-screen-4",
+    "maxX": -27.45,
+    "maxZ": 45.95,
+    "minX": -28.150000000000002,
+    "minZ": 45.25
+   },
+   {
+    "id": "col-fh-tree-screen-5",
+    "maxX": -27.45,
+    "maxZ": 42.75,
+    "minX": -28.150000000000002,
+    "minZ": 42.05
+   },
+   {
+    "id": "col-fh-landing-tree-1",
+    "maxX": 20.150000000000002,
+    "maxZ": 70.05,
+    "minX": 19.45,
+    "minZ": 69.35000000000001
+   },
+   {
+    "id": "col-fh-landing-tree-2",
+    "maxX": 27.450000000000003,
+    "maxZ": 84.55,
+    "minX": 26.75,
+    "minZ": 83.85000000000001
+   },
+   {
+    "id": "col-fh-landing-tree-3",
+    "maxX": 27.450000000000003,
+    "maxZ": 77.35,
+    "minX": 26.75,
+    "minZ": 76.65
+   },
+   {
+    "id": "col-fh-landing-tree-4",
+    "maxX": 29.950000000000003,
+    "maxZ": 86.85,
+    "minX": 29.25,
+    "minZ": 86.15
+   },
+   {
+    "id": "col-fh-landing-tree-5",
+    "maxX": 26.75,
+    "maxZ": 70.14999999999999,
+    "minX": 26.049999999999997,
+    "minZ": 69.45
+   },
+   {
+    "id": "col-fh-landing-tree-6",
+    "maxX": 21.55,
+    "maxZ": 73.25,
+    "minX": 20.849999999999998,
+    "minZ": 72.55000000000001
+   },
+   {
+    "id": "col-fh-landing-tree-7",
+    "maxX": -23.049999999999997,
+    "maxZ": 81.55,
+    "minX": -23.75,
+    "minZ": 80.85000000000001
+   },
+   {
+    "id": "col-fh-landing-tree-8",
+    "maxX": -27.75,
+    "maxZ": 74.94999999999999,
+    "minX": -28.450000000000003,
+    "minZ": 74.25
+   },
+   {
+    "id": "col-fh-landing-tree-9",
+    "maxX": 26.25,
+    "maxZ": 81.35,
+    "minX": 25.549999999999997,
+    "minZ": 80.65
+   },
+   {
+    "id": "col-fh-landing-tree-10",
+    "maxX": -25.049999999999997,
+    "maxZ": 92.14999999999999,
+    "minX": -25.75,
+    "minZ": 91.45
+   },
+   {
+    "id": "col-fh-landing-tree-11",
+    "maxX": -26.95,
+    "maxZ": 87.94999999999999,
+    "minX": -27.650000000000002,
+    "minZ": 87.25
+   },
+   {
+    "id": "col-fh-landing-tree-12",
+    "maxX": -23.349999999999998,
+    "maxZ": 72.44999999999999,
+    "minX": -24.05,
+    "minZ": 71.75
+   },
+   {
+    "id": "col-fh-landing-tree-13",
+    "maxX": 20.25,
+    "maxZ": 80.85,
+    "minX": 19.549999999999997,
+    "minZ": 80.15
+   },
+   {
+    "id": "col-fh-landing-tree-14",
+    "maxX": -29.049999999999997,
+    "maxZ": 91.25,
+    "minX": -29.75,
+    "minZ": 90.55000000000001
+   },
+   {
+    "id": "col-fh-forest-tree-1",
+    "maxX": 21.75,
+    "maxZ": 47.15,
+    "minX": 21.049999999999997,
+    "minZ": 46.449999999999996
+   },
+   {
+    "id": "col-fh-forest-tree-2",
+    "maxX": -13.35,
+    "maxZ": 52.550000000000004,
+    "minX": -14.049999999999999,
+    "minZ": 51.85
+   },
+   {
+    "id": "col-fh-forest-tree-3",
+    "maxX": 19.75,
+    "maxZ": 62.050000000000004,
+    "minX": 19.049999999999997,
+    "minZ": 61.35
+   },
+   {
+    "id": "col-fh-forest-tree-4",
+    "maxX": -15.450000000000001,
+    "maxZ": 46.15,
+    "minX": -16.150000000000002,
+    "minZ": 45.449999999999996
+   },
+   {
+    "id": "col-fh-forest-tree-5",
+    "maxX": 28.35,
+    "maxZ": 45.45,
+    "minX": 27.65,
+    "minZ": 44.75
+   },
+   {
+    "id": "col-fh-forest-tree-6",
+    "maxX": 25.25,
+    "maxZ": 46.25,
+    "minX": 24.549999999999997,
+    "minZ": 45.55
+   },
+   {
+    "id": "col-fh-forest-tree-7",
+    "maxX": 14.65,
+    "maxZ": 43.75,
+    "minX": 13.950000000000001,
+    "minZ": 43.05
+   },
+   {
+    "id": "col-fh-forest-tree-8",
+    "maxX": 19.150000000000002,
+    "maxZ": 43.45,
+    "minX": 18.45,
+    "minZ": 42.75
+   },
+   {
+    "id": "col-fh-forest-tree-9",
+    "maxX": -25.049999999999997,
+    "maxZ": 58.65,
+    "minX": -25.75,
+    "minZ": 57.949999999999996
+   },
+   {
+    "id": "col-fh-forest-tree-10",
+    "maxX": -10.05,
+    "maxZ": 59.85,
+    "minX": -10.75,
+    "minZ": 59.15
+   },
+   {
+    "id": "col-fh-forest-tree-11",
+    "maxX": -15.05,
+    "maxZ": 42.25,
+    "minX": -15.75,
+    "minZ": 41.55
+   },
+   {
+    "id": "col-fh-forest-tree-12",
+    "maxX": 12.35,
+    "maxZ": 49.35,
+    "minX": 11.65,
+    "minZ": 48.65
+   },
+   {
+    "id": "col-fh-forest-tree-13",
+    "maxX": 28.85,
+    "maxZ": 60.25,
+    "minX": 28.15,
+    "minZ": 59.55
+   },
+   {
+    "id": "col-fh-forest-tree-14",
+    "maxX": -20.049999999999997,
+    "maxZ": 59.45,
+    "minX": -20.75,
+    "minZ": 58.75
+   },
+   {
+    "id": "col-fh-forest-tree-15",
+    "maxX": -21.95,
+    "maxZ": 53.050000000000004,
+    "minX": -22.650000000000002,
+    "minZ": 52.35
+   },
+   {
+    "id": "col-fh-forest-tree-16",
+    "maxX": 11.95,
+    "maxZ": 40.75,
+    "minX": 11.25,
+    "minZ": 40.05
+   },
+   {
+    "id": "col-fh-forest-tree-17",
+    "maxX": -14.25,
+    "maxZ": 59.95,
+    "minX": -14.95,
+    "minZ": 59.25
+   },
+   {
+    "id": "col-fh-forest-tree-18",
+    "maxX": 12.049999999999999,
+    "maxZ": 53.85,
+    "minX": 11.35,
+    "minZ": 53.15
+   },
+   {
+    "id": "col-fh-forest-tree-19",
+    "maxX": -15.55,
+    "maxZ": 56.65,
+    "minX": -16.25,
+    "minZ": 55.949999999999996
+   },
+   {
+    "id": "col-fh-forest-tree-20",
+    "maxX": 29.55,
+    "maxZ": 56.85,
+    "minX": 28.849999999999998,
+    "minZ": 56.15
+   },
+   {
+    "id": "col-fh-forest-tree-21",
+    "maxX": -12.65,
+    "maxZ": 48.85,
+    "minX": -13.35,
+    "minZ": 48.15
+   },
+   {
+    "id": "col-fh-forest-tree-22",
+    "maxX": 24.450000000000003,
+    "maxZ": 40.550000000000004,
+    "minX": 23.75,
+    "minZ": 39.85
+   },
+   {
+    "id": "col-fh-forest-tree-23",
+    "maxX": -12.15,
+    "maxZ": 44.550000000000004,
+    "minX": -12.85,
+    "minZ": 43.85
+   },
+   {
+    "id": "col-fh-forest-tree-24",
+    "maxX": -15.85,
+    "maxZ": 49.550000000000004,
+    "minX": -16.55,
+    "minZ": 48.85
+   },
+   {
+    "id": "col-fh-forest-rock-1",
+    "maxX": 25.8,
+    "maxZ": 50.9,
+    "minX": 24.8,
+    "minZ": 49.9
+   },
+   {
+    "id": "col-fh-forest-rock-2",
+    "maxX": 17.1,
+    "maxZ": 41.8,
+    "minX": 16.1,
+    "minZ": 40.8
+   },
+   {
+    "id": "col-fh-forest-rock-3",
+    "maxX": -9.8,
+    "maxZ": 51.4,
+    "minX": -10.8,
+    "minZ": 50.4
+   },
+   {
+    "id": "col-fh-forest-rock-4",
+    "maxX": 14.0,
+    "maxZ": 60.5,
+    "minX": 13.0,
+    "minZ": 59.5
+   },
+   {
+    "id": "col-fh-forest-rock-5",
+    "maxX": 25.5,
+    "maxZ": 56.3,
+    "minX": 24.5,
+    "minZ": 55.3
+   },
+   {
+    "id": "col-fh-forest-rock-6",
+    "maxX": -22.8,
+    "maxZ": 56.0,
+    "minX": -23.8,
+    "minZ": 55.0
+   },
+   {
+    "id": "col-fh-lava-rock-1",
+    "maxX": -19.9,
+    "maxZ": 35.8,
+    "minX": -20.9,
+    "minZ": 34.8
+   },
+   {
+    "id": "col-fh-lava-rock-2",
+    "maxX": -16.1,
+    "maxZ": 36.0,
+    "minX": -17.1,
+    "minZ": 35.0
+   },
+   {
+    "id": "col-fh-lava-rock-3",
+    "maxX": -22.2,
+    "maxZ": 32.9,
+    "minX": -23.2,
+    "minZ": 31.9
+   },
+   {
+    "id": "col-fh-lava-rock-4",
+    "maxX": 12.4,
+    "maxZ": 35.9,
+    "minX": 11.4,
+    "minZ": 34.9
+   },
+   {
+    "id": "col-fh-lava-rock-5",
+    "maxX": -24.1,
+    "maxZ": 35.6,
+    "minX": -25.1,
+    "minZ": 34.6
+   },
+   {
+    "id": "col-fh-lava-rock-6",
+    "maxX": -14.7,
+    "maxZ": 33.0,
+    "minX": -15.7,
+    "minZ": 32.0
+   },
+   {
+    "id": "col-fh-lava-rock-7",
+    "maxX": -27.2,
+    "maxZ": 35.6,
+    "minX": -28.2,
+    "minZ": 34.6
+   },
+   {
+    "id": "col-fh-lava-rock-8",
+    "maxX": 16.2,
+    "maxZ": 34.1,
+    "minX": 15.2,
+    "minZ": 33.1
+   },
+   {
+    "id": "col-fh-lava-far-rock-1",
+    "maxX": 24.7,
+    "maxZ": 9.7,
+    "minX": 23.7,
+    "minZ": 8.7
+   },
+   {
+    "id": "col-fh-lava-far-rock-2",
+    "maxX": 11.1,
+    "maxZ": 10.4,
+    "minX": 10.1,
+    "minZ": 9.4
+   },
+   {
+    "id": "col-fh-lava-far-rock-3",
+    "maxX": -23.0,
+    "maxZ": 12.7,
+    "minX": -24.0,
+    "minZ": 11.7
+   },
+   {
+    "id": "col-fh-lava-far-rock-4",
+    "maxX": -13.0,
+    "maxZ": 9.4,
+    "minX": -14.0,
+    "minZ": 8.4
+   },
+   {
+    "id": "col-fh-forge-rock-1",
+    "maxX": -22.6,
+    "maxZ": -40.8,
+    "minX": -23.6,
+    "minZ": -41.8
+   },
+   {
+    "id": "col-fh-forge-rock-2",
+    "maxX": 24.0,
+    "maxZ": -42.2,
+    "minX": 23.0,
+    "minZ": -43.2
+   },
+   {
+    "id": "col-fh-forge-rock-3",
+    "maxX": 27.7,
+    "maxZ": -27.2,
+    "minX": 26.7,
+    "minZ": -28.2
+   },
+   {
+    "id": "col-fh-forge-rock-4",
+    "maxX": -26.2,
+    "maxZ": -27.1,
+    "minX": -27.2,
+    "minZ": -28.1
+   },
+   {
+    "id": "col-fh-forge-rock-5",
+    "maxX": -25.6,
+    "maxZ": -35.0,
+    "minX": -26.6,
+    "minZ": -36.0
+   },
+   {
+    "id": "col-fh-forge-rock-6",
+    "maxX": 28.7,
+    "maxZ": -34.7,
+    "minX": 27.7,
+    "minZ": -35.7
+   },
+   {
+    "id": "col-fh-forge-rock-7",
+    "maxX": 26.9,
+    "maxZ": -45.2,
+    "minX": 25.9,
+    "minZ": -46.2
+   },
+   {
+    "id": "col-fh-forge-rock-8",
+    "maxX": -24.8,
+    "maxZ": -43.1,
+    "minX": -25.8,
+    "minZ": -44.1
+   },
+   {
+    "id": "col-fh-summit-rock-1",
+    "maxX": -23.2,
+    "maxZ": -73.3,
+    "minX": -24.2,
+    "minZ": -74.3
+   },
+   {
+    "id": "col-fh-summit-rock-2",
+    "maxX": 20.6,
+    "maxZ": -53.7,
+    "minX": 19.6,
+    "minZ": -54.7
+   },
+   {
+    "id": "col-fh-summit-rock-3",
+    "maxX": -21.0,
+    "maxZ": -55.0,
+    "minX": -22.0,
+    "minZ": -56.0
+   },
+   {
+    "id": "col-fh-summit-rock-4",
+    "maxX": 25.9,
+    "maxZ": -62.0,
+    "minX": 24.9,
+    "minZ": -63.0
+   },
+   {
+    "id": "col-fh-summit-rock-5",
+    "maxX": -28.5,
+    "maxZ": -61.9,
+    "minX": -29.5,
+    "minZ": -62.9
+   },
+   {
+    "id": "col-fh-summit-rock-6",
+    "maxX": 23.6,
+    "maxZ": -66.9,
+    "minX": 22.6,
+    "minZ": -67.9
+   },
+   {
+    "id": "col-fh-summit-rock-7",
+    "maxX": 20.0,
+    "maxZ": -63.0,
+    "minX": 19.0,
+    "minZ": -64.0
+   },
+   {
+    "id": "col-fh-summit-rock-8",
+    "maxX": -28.4,
+    "maxZ": -70.2,
+    "minX": -29.4,
+    "minZ": -71.2
+   },
+   {
+    "id": "col-fh-heart-rock-1",
+    "maxX": -29.4,
+    "maxZ": -86.1,
+    "minX": -30.4,
+    "minZ": -87.1
+   },
+   {
+    "id": "col-fh-heart-rock-2",
+    "maxX": -26.2,
+    "maxZ": -82.8,
+    "minX": -27.2,
+    "minZ": -83.8
+   },
+   {
+    "id": "col-fh-heart-rock-3",
+    "maxX": -19.7,
+    "maxZ": -79.5,
+    "minX": -20.7,
+    "minZ": -80.5
+   },
+   {
+    "id": "col-fh-heart-rock-4",
+    "maxX": -23.0,
+    "maxZ": -85.6,
+    "minX": -24.0,
+    "minZ": -86.6
+   },
+   {
+    "id": "fh-gear-block-west",
+    "maxX": -15.8,
+    "maxZ": -29.8,
+    "minX": -18.2,
+    "minZ": -32.2
+   },
+   {
+    "id": "fh-gear-block-east-near",
+    "maxX": 13.2,
+    "maxZ": -39.8,
+    "minX": 10.8,
+    "minZ": -42.2
+   },
+   {
+    "id": "fh-heart-pillar-nw",
+    "maxX": -13.2,
+    "maxZ": -83.2,
+    "minX": -14.8,
+    "minZ": -84.8
+   },
+   {
+    "id": "fh-heart-pillar-ne",
+    "maxX": 14.8,
+    "maxZ": -83.2,
+    "minX": 13.2,
+    "minZ": -84.8
+   },
+   {
+    "id": "fh-heart-pillar-sw",
+    "maxX": -13.2,
+    "maxZ": -90.2,
+    "minX": -14.8,
+    "minZ": -91.8
+   },
+   {
+    "id": "fh-heart-pillar-se",
+    "maxX": 14.8,
+    "maxZ": -90.2,
+    "minX": 13.2,
+    "minZ": -91.8
+   },
+   {
+    "id": "fh-jump-log",
+    "jumpable": true,
+    "maxX": 16.0,
+    "maxY": 0.45,
+    "maxZ": 76.4,
+    "minX": 8.0,
+    "minY": 0.0,
+    "minZ": 75.5
+   },
+   {
+    "id": "fh-forest-log-1",
+    "jumpable": true,
+    "maxX": 22.0,
+    "maxY": 0.4,
+    "maxZ": 56.5,
+    "minX": 14.0,
+    "minY": 0.0,
+    "minZ": 55.6
+   },
+   {
+    "id": "fh-forest-log-2",
+    "jumpable": true,
+    "maxX": 22.0,
+    "maxY": 0.4,
+    "maxZ": 53.5,
+    "minX": 14.0,
+    "minY": 0.0,
+    "minZ": 52.6
+   },
+   {
+    "id": "fh-forest-log-3",
+    "jumpable": true,
+    "maxX": 22.0,
+    "maxY": 0.4,
+    "maxZ": 50.5,
+    "minX": 14.0,
+    "minY": 0.0,
+    "minZ": 49.6
+   }
+  ],
+  "copy": {
+   "altNavLabel": "Go back to the harbor",
+   "instructions": "Talk to Flint, then follow the glowing path to the mountain.",
+   "loading": "Hiking up to the Heart of Firepeak."
+  },
+  "effects": {
+   "backdrop": {
+    "assetId": "firepeak-volcano-main",
+    "height": 54,
+    "radius": 38,
+    "x": 0,
+    "z": -128
+   },
+   "checkpoints": [
+    {
+     "id": "fh-cp-landing",
+     "label": "Explorer's Landing",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 90.0
+    },
+    {
+     "id": "fh-cp-emberwood",
+     "label": "Emberwood Forest",
+     "whenChangeKey": "FIREPEAK_HEART_MAP_READ",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 61.5
+    },
+    {
+     "id": "fh-cp-lava-near",
+     "label": "the near bank",
+     "whenChangeKey": "FIREPEAK_HEART_EMBERWOOD_DONE",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 34.5
+    },
+    {
+     "id": "fh-cp-lava-far",
+     "label": "the far bank",
+     "whenChangeKey": "FIREPEAK_HEART_LAVA_BRIDGE",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 12.4
+    },
+    {
+     "id": "fh-cp-caverns",
+     "label": "the Crystal Caverns",
+     "whenChangeKey": "FIREPEAK_HEART_LAVA_CROSSED",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 3.5
+    },
+    {
+     "id": "fh-cp-forge",
+     "label": "the Ancient Forge",
+     "whenChangeKey": "FIREPEAK_HEART_CAVERN_LIT",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": -26.0
+    },
+    {
+     "id": "fh-cp-summit",
+     "label": "the foot of the summit",
+     "whenChangeKey": "FIREPEAK_HEART_FORGE_RESTORED",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": -51.5
+    },
+    {
+     "id": "fh-cp-heart",
+     "label": "the Heart Chamber",
+     "whenChangeKey": "FIREPEAK_HEART_SUMMIT_REACHED",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": -79.5
+    }
+   ],
+   "lava": [
+    {
+     "id": "fh-lava-river",
+     "maxX": 32.0,
+     "maxZ": 30.0,
+     "minX": -32.0,
+     "minZ": 14.0,
+     "safe": [],
+     "visualOnly": true
+    }
+   ],
+   "lights": [
+    {
+     "color": 16738842,
+     "distance": 26,
+     "id": "fh-lava-glow",
+     "intensity": 2.6,
+     "x": 0,
+     "y": 1.5,
+     "z": 22
+    },
+    {
+     "color": 8382463,
+     "distance": 14,
+     "id": "fh-cave-glow-west",
+     "intensity": 2.6,
+     "x": -9,
+     "y": 2.0,
+     "z": -5
+    },
+    {
+     "color": 11898111,
+     "distance": 14,
+     "id": "fh-cave-glow-east",
+     "intensity": 2.6,
+     "x": 9,
+     "y": 2.0,
+     "z": -13
+    },
+    {
+     "color": 16765803,
+     "distance": 9,
+     "id": "fh-secret-glow",
+     "intensity": 2.2,
+     "x": 18,
+     "y": 1.6,
+     "z": -6
+    },
+    {
+     "color": 16747066,
+     "distance": 24,
+     "id": "fh-forge-glow",
+     "intensity": 2.8,
+     "x": 0,
+     "y": 2.5,
+     "z": -36
+    },
+    {
+     "color": 16769162,
+     "distance": 20,
+     "id": "fh-summit-glow",
+     "intensity": 2.0,
+     "x": 0,
+     "y": 3.0,
+     "z": -64
+    },
+    {
+     "color": 8382463,
+     "distance": 18,
+     "id": "fh-heart-glow",
+     "intensity": 3.2,
+     "x": 0,
+     "y": 2.5,
+     "z": -90
+    }
+   ],
+   "openings": [
+    {
+     "colliderId": "fh-gate-emberwood",
+     "whenChangeKey": "FIREPEAK_HEART_MAP_READ"
+    },
+    {
+     "colliderId": "fh-gate-lava",
+     "whenChangeKey": "FIREPEAK_HEART_EMBERWOOD_DONE"
+    },
+    {
+     "colliderId": "fh-gate-caverns",
+     "whenChangeKey": "FIREPEAK_HEART_LAVA_CROSSED"
+    },
+    {
+     "colliderId": "fh-gate-forge",
+     "whenChangeKey": "FIREPEAK_HEART_CAVERN_LIT"
+    },
+    {
+     "colliderId": "fh-gate-summit",
+     "whenChangeKey": "FIREPEAK_HEART_FORGE_RESTORED"
+    },
+    {
+     "colliderId": "fh-gate-heart",
+     "whenChangeKey": "FIREPEAK_HEART_SUMMIT_REACHED"
+    },
+    {
+     "colliderId": "fh-cavern-secret",
+     "whenChangeKey": "FIREPEAK_HEART_CAVERN_LIT"
+    }
+   ],
+   "returns": [
+    {
+     "entityId": "fh-return-portal",
+     "label": "Step through the portal back to Explorer's Landing",
+     "toCheckpoint": "fh-cp-landing",
+     "whenChangeKey": "FIREPEAK_HEART_RESTORED"
+    }
+   ],
+   "standIns": [
+    {
+     "color": 14254635,
+     "entityId": "fh-flint",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 16742959,
+     "entityId": "fh-kindle",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 7244700,
+     "entityId": "fh-basalt",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 9071183,
+     "entityId": "fh-cinder",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 7244700,
+     "entityId": "fh-basalt-summit",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 15316044,
+     "entityId": "fh-ignis",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 16742959,
+     "entityId": "fh-kindle-heart",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-landing",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-emberwood",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-lava-jumper",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-caverns",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-forge",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-summit",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-heart",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 12946255,
+     "entityId": "fh-map-sign",
+     "shape": "MARKER"
+    },
+    {
+     "color": 16738877,
+     "entityId": "fh-ember-crystal-a",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16738877,
+     "entityId": "fh-ember-crystal-b",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16738877,
+     "entityId": "fh-ember-crystal-c",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 15983541,
+     "entityId": "fh-count-card-a",
+     "shape": "BOX"
+    },
+    {
+     "color": 15983541,
+     "entityId": "fh-count-card-b",
+     "shape": "BOX"
+    },
+    {
+     "color": 15983541,
+     "entityId": "fh-count-card-c",
+     "shape": "BOX"
+    },
+    {
+     "color": 5985360,
+     "entityId": "fh-lava-stone-a",
+     "shape": "STONE"
+    },
+    {
+     "color": 5985360,
+     "entityId": "fh-lava-stone-b",
+     "shape": "STONE"
+    },
+    {
+     "color": 5985360,
+     "entityId": "fh-lava-stone-c",
+     "shape": "STONE"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-lava-path-a",
+     "shape": "MARKER"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-lava-path-b",
+     "shape": "MARKER"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-lava-path-c",
+     "shape": "MARKER"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-cavern-shape-a",
+     "shape": "STONE"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-cavern-shape-b",
+     "shape": "STONE"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-cavern-shape-c",
+     "shape": "STONE"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-cavern-shape-d",
+     "shape": "STONE"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cavern-crystal-a",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cavern-crystal-b",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cavern-crystal-c",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cavern-crystal-d",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-forge-switch-red",
+     "shape": "SWITCH"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-forge-switch-blue",
+     "shape": "SWITCH"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-forge-switch-gold",
+     "shape": "SWITCH"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-forge-switch-green",
+     "shape": "SWITCH"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-circuit-path-a",
+     "shape": "MARKER"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-circuit-path-b",
+     "shape": "MARKER"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-circuit-path-c",
+     "shape": "MARKER"
+    },
+    {
+     "color": 16769162,
+     "entityId": "fh-circuit-lamp",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 4867664,
+     "entityId": "fh-rock-sample-a",
+     "shape": "ROCK"
+    },
+    {
+     "color": 4867664,
+     "entityId": "fh-rock-sample-b",
+     "shape": "ROCK"
+    },
+    {
+     "color": 4867664,
+     "entityId": "fh-rock-sample-c",
+     "shape": "ROCK"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-a",
+     "shape": "STONE"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-b",
+     "shape": "STONE"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-c",
+     "shape": "STONE"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-d",
+     "shape": "STONE"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-e",
+     "shape": "STONE"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-heart-crystal-forest",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-heart-crystal-magma",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-heart-crystal-cavern",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-heart-crystal-forge",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-pedestal",
+     "shape": "PEDESTAL"
+    },
+    {
+     "color": 9414579,
+     "entityId": "fh-heart-crystal",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16765803,
+     "entityId": "fh-return-portal",
+     "shape": "PORTAL"
+    },
+    {
+     "color": 16747066,
+     "entityId": "fh-landing-campfire",
+     "shape": "BOX"
+    },
+    {
+     "color": 12946255,
+     "entityId": "fh-landing-sign",
+     "shape": "MARKER"
+    },
+    {
+     "color": 12946255,
+     "entityId": "fh-lookout-sign",
+     "shape": "MARKER"
+    },
+    {
+     "color": 8081973,
+     "entityId": "fh-jump-log-model",
+     "shape": "LOG"
+    },
+    {
+     "color": 8081973,
+     "entityId": "fh-forest-log-1-model",
+     "shape": "LOG"
+    },
+    {
+     "color": 8081973,
+     "entityId": "fh-forest-log-2-model",
+     "shape": "LOG"
+    },
+    {
+     "color": 8081973,
+     "entityId": "fh-forest-log-3-model",
+     "shape": "LOG"
+    },
+    {
+     "color": 5020630,
+     "entityId": "fh-forest-stream",
+     "shape": "BOX"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-1",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-2",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-3",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-4",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-5",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-6",
+     "shape": "ARCH"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-1",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-2",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-3",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-4",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-5",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-6",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-secret-crystal-1",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-secret-crystal-2",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-block-west-model",
+     "shape": "GEAR"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-block-east-near-model",
+     "shape": "GEAR"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-1",
+     "shape": "GEAR"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-2",
+     "shape": "GEAR"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-3",
+     "shape": "GEAR"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-1",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-2",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-3",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-4",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-5",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-1",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-2",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-3",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-4",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-5",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-6",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-7",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-8",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-9",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-10",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-11",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-12",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-13",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-14",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-1",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-2",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-3",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-4",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-5",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-6",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-7",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-8",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-9",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-10",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-11",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-12",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-13",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-14",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-15",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-16",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-17",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-18",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-19",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-20",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-21",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-22",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-23",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-24",
+     "shape": "TREE"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-5",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-6",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-5",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-6",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-7",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-8",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-far-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-far-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-far-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-far-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-5",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-6",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-7",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-8",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-5",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-6",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-7",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-8",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-rock-4",
+     "shape": "ROCK"
+    }
+   ],
+   "steam": [
+    {
+     "height": 4,
+     "hiddenWhenChangeKey": "FIREPEAK_HEART_FORGE_RESTORED",
+     "id": "fh-forge-steam-west",
+     "x": -2.0,
+     "z": -47.0
+    },
+    {
+     "height": 4,
+     "hiddenWhenChangeKey": "FIREPEAK_HEART_FORGE_RESTORED",
+     "id": "fh-forge-steam-east",
+     "x": 2.0,
+     "z": -47.0
+    }
+   ]
+  },
+  "environment": {
+   "backgroundColor": 3877427
+  },
+  "firepeakHeartVersion": 1,
+  "groundAssetId": "ground-tile-stone",
+  "platforming": {
+   "checkpoints": [
+    {
+     "id": "fh-cp-landing",
+     "label": "Explorer's Landing",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 90.0
+    },
+    {
+     "id": "fh-cp-emberwood",
+     "label": "Emberwood Forest",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 61.5
+    },
+    {
+     "id": "fh-cp-lava-near",
+     "label": "the near bank",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 34.5
+    },
+    {
+     "id": "fh-cp-lava-far",
+     "label": "the far bank",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 12.4
+    },
+    {
+     "id": "fh-cp-caverns",
+     "label": "the Crystal Caverns",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": 3.5
+    },
+    {
+     "id": "fh-cp-forge",
+     "label": "the Ancient Forge",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": -26.0
+    },
+    {
+     "id": "fh-cp-summit",
+     "label": "the foot of the summit",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": -51.5
+    },
+    {
+     "id": "fh-cp-heart",
+     "label": "the Heart Chamber",
+     "x": 0.0,
+     "yaw": 3.142,
+     "z": -79.5
+    }
+   ],
+   "hazards": [
+    {
+     "id": "fh-lava-hazard",
+     "rect": {
+      "id": "fh-lava-hazard",
+      "maxX": 32.0,
+      "maxZ": 30.0,
+      "minX": -32.0,
+      "minZ": 14.0
+     }
+    }
+   ],
+   "platforms": [
+    {
+     "activation": {
+      "hiddenUntilActive": true,
+      "source": "world:FIREPEAK_HEART_LAVA_BRIDGE",
+      "trigger": "SIGNAL"
+     },
+     "color": 4867664,
+     "id": "fh-lava-bridge",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 22.0
+     },
+     "size": {
+      "depth": 18.0,
+      "height": 0.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-1",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 28.0
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-2",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 25.2
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-islet",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 22.0
+     },
+     "size": {
+      "depth": 2.4,
+      "height": 0.5,
+      "width": 2.4
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-vanish",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 18.8
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     },
+     "vanish": {
+      "hiddenSeconds": 2.5,
+      "mode": "STAND",
+      "visibleSeconds": 4,
+      "warningSeconds": 1
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-5",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 16.0
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-ledge",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -19.0
+     },
+     "size": {
+      "depth": 5.0,
+      "height": 1.0,
+      "width": 4.8
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-step-1",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -16.1
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.8,
+      "width": 3.8
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-step-2",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -15.3
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.6,
+      "width": 3.8
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-step-3",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -14.5
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.4,
+      "width": 3.8
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-step-4",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -13.7
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.2,
+      "width": 3.8
+     }
+    },
+    {
+     "activation": {
+      "source": "world:FIREPEAK_HEART_FORGE_POWERED",
+      "trigger": "SIGNAL"
+     },
+     "color": 4171734,
+     "id": "fh-forge-lift",
+     "motion": {
+      "path": [
+       {
+        "x": 0.0,
+        "y": 2.4,
+        "z": 0.0
+       }
+      ],
+      "pauseSeconds": 3,
+      "speed": 0.8
+     },
+     "position": {
+      "x": 20.0,
+      "y": 0.0,
+      "z": -33.0
+     },
+     "size": {
+      "depth": 2.4,
+      "height": 0.2,
+      "width": 2.4
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-forge-ledge",
+     "position": {
+      "x": 20.0,
+      "y": 0.0,
+      "z": -36.8
+     },
+     "size": {
+      "depth": 5.2,
+      "height": 2.6,
+      "width": 5.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-1",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -55.4
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-2",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -56.2
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.4,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-3",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -57.0
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.6,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-4",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -57.8
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.8,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-5",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -58.6
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.0,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-6",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -59.4
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-7",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -60.2
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.4,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-plateau",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -64.6
+     },
+     "size": {
+      "depth": 8.0,
+      "height": 1.6,
+      "width": 14.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-1",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -69.0
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.4,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-2",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -69.8
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-3",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -70.6
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.0,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-4",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -71.4
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.8,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-5",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -72.2
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.6,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-6",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -73.0
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.4,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-7",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -73.8
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-summit-hop-1",
+     "position": {
+      "x": 9.0,
+      "y": 0.0,
+      "z": -56.4
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-summit-hop-2",
+     "position": {
+      "x": 9.0,
+      "y": 0.0,
+      "z": -59.2
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 1.0,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-summit-hop-3",
+     "position": {
+      "x": 9.0,
+      "y": 0.0,
+      "z": -62.0
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 1.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 4171734,
+     "id": "fh-summit-shuttle",
+     "motion": {
+      "path": [
+       {
+        "x": -6.0,
+        "y": 0.0,
+        "z": 0.0
+       }
+      ],
+      "pauseSeconds": 3,
+      "speed": 1.2
+     },
+     "position": {
+      "x": -8.3,
+      "y": 1.4,
+      "z": -65.0
+     },
+     "size": {
+      "depth": 2.4,
+      "height": 0.2,
+      "width": 2.4
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-lookout",
+     "position": {
+      "x": -18.8,
+      "y": 0.0,
+      "z": -65.0
+     },
+     "size": {
+      "depth": 6.0,
+      "height": 1.6,
+      "width": 6.4
+     }
+    }
+   ],
+   "zones": [
+    {
+     "enterMessage": "Flint: Welcome to Firepeak! Use the stick or the arrow keys to walk. Say hello to me, then read the map.",
+     "rect": {
+      "id": "fh-zone-landing",
+      "maxX": 32,
+      "maxZ": 94,
+      "minX": -32,
+      "minZ": 66
+     }
+    },
+    {
+     "enterMessage": "Tip: You can press Jump to hop over this log. Jumping is just for fun. You can always walk around.",
+     "rect": {
+      "id": "fh-zone-jump-tip",
+      "maxX": 18,
+      "maxZ": 78,
+      "minX": 6,
+      "minZ": 73
+     }
+    },
+    {
+     "enterMessage": "Emberwood Forest. Kindle the fire spirit is here to help. Hop the logs or walk around them.",
+     "rect": {
+      "id": "fh-zone-emberwood",
+      "maxX": 32,
+      "maxZ": 64,
+      "minX": -32,
+      "minZ": 38
+     }
+    },
+    {
+     "enterMessage": "The Lava Crossing. Solve the stone numbers to build a bridge. If you slip, you just go back to a safe spot.",
+     "rect": {
+      "id": "fh-zone-lava",
+      "maxX": 32,
+      "maxZ": 36,
+      "minX": -32,
+      "minZ": 8
+     }
+    },
+    {
+     "enterMessage": "The Crystal Caverns. Professor Basalt knows all about these rocks. The crystals glow!",
+     "rect": {
+      "id": "fh-zone-caverns",
+      "maxX": 13,
+      "maxZ": 6,
+      "minX": -13,
+      "minZ": -22
+     }
+    },
+    {
+     "enterMessage": "The Ancient Forge. Cinder keeps the old machines. Can you wake them up?",
+     "rect": {
+      "id": "fh-zone-forge",
+      "maxX": 32,
+      "maxZ": -24,
+      "minX": -32,
+      "minZ": -48
+     }
+    },
+    {
+     "enterMessage": "Firepeak Summit. Climb the steps, or take the hopping stones if you like.",
+     "rect": {
+      "id": "fh-zone-summit",
+      "maxX": 32,
+      "maxZ": -50,
+      "minX": -32,
+      "minZ": -76
+     }
+    },
+    {
+     "enterMessage": "The Heart Chamber. The Heart of Firepeak is dim. Set the crystals in order to wake it.",
+     "rect": {
+      "id": "fh-zone-heart",
+      "maxX": 32,
+      "maxZ": -78,
+      "minX": -32,
+      "minZ": -94
+     }
+    }
+   ]
+  }
+ },
+ "spawn": {
+  "checkpointId": "fh-cp-landing",
+  "label": "Explorer's Landing",
+  "x": 0.0,
+  "yaw": 3.141592653589793,
+  "z": 90.0
+ }
+}
