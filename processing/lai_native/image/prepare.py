@@ -99,10 +99,21 @@ def prepare_texture(source: bytes | DecodedImage, profile: ImageProfile) -> Prep
     decoded = (
         source
         if isinstance(source, DecodedImage)
-        else decode_image(source, first_frame_only=profile.first_frame_only)
+        else decode_image(
+            source,
+            first_frame_only=profile.first_frame_only,
+            apply_orientation=not profile.ignore_orientation,
+        )
     )
+    if decoded.orientation_applied == profile.ignore_orientation:
+        # A decoded image cannot be un-rotated (or rotated later): decode for this profile.
+        raise ImageError("invalid_profile")
     findings: list[str] = []
-    plan: dict = {"orientationApplied": decoded.facts.get("orientation") or 0}
+    plan: dict = {
+        "orientationApplied": (decoded.facts.get("orientation") or 0)
+        if decoded.orientation_applied
+        else 0
+    }
     depth = decoded.facts.get("bitDepth")
     if depth == 16:
         if profile.purpose == DATA:
@@ -115,7 +126,12 @@ def prepare_texture(source: bytes | DecodedImage, profile: ImageProfile) -> Prep
     image = _resize(image, target, profile)
 
     if profile.purpose == ARTWORK:
-        image, colour = to_srgb(image, decoded.icc_profile)
+        # glTF textures: the embedded profile is ignored (CMYK, which has no glTF meaning,
+        # is still converted without one).
+        icc = None if profile.ignore_icc else decoded.icc_profile
+        image, colour = to_srgb(image, icc)
+        if profile.ignore_icc and decoded.icc_profile is not None:
+            colour = {**colour, "action": "icc_ignored_gltf", "profileClass": "dropped"}
         if image.mode == "RGBA" and image.getchannel("A").getextrema() == (255, 255):
             image = image.convert("RGB")
             plan["alphaAction"] = "dropped_opaque"

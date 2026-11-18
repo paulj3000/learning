@@ -58,10 +58,34 @@ def test_invalid_and_oversized_profiles_are_refused():
     with pytest.raises(ImageError) as caught:
         convert_image(huge, get_profile("convert-png"))
     assert caught.value.code == "colour_profile_invalid"
-    big_png = encode(gradient(), "PNG", icc_profile=wide_gamut_icc() + bytes(200 * 1024))
+    # PNG: the parser's chunk limit equals the profile limit, so one past it is malformed
+    big_png = encode(gradient(), "PNG", icc_profile=wide_gamut_icc() + bytes(1024 * 1024))
     with pytest.raises(ImageError) as caught:
         convert_image(big_png, get_profile("convert-png"))
     assert caught.value.code == "malformed_image"
+
+
+def test_png_with_a_large_icc_profile_converts():
+    """100 KiB and 800 KiB profiles are allowed (MAX_ICC_BYTES is 1 MiB), in PNG as in JPEG."""
+    for extra in (100 * 1024, 800 * 1024):
+        icc = wide_gamut_icc() + bytes(extra)
+        source = Image.new("RGB", (16, 16), (200, 40, 40))
+        for fmt in ("PNG", "JPEG"):
+            out = convert_image(encode(source, fmt, icc_profile=icc), get_profile("convert-png"))
+            assert out.summary()["colour"]["action"] == "converted_to_srgb", (fmt, extra)
+
+
+def test_png_text_stays_bounded_by_text_memory():
+    from builders import png_with_text
+    from PIL import PngImagePlugin
+
+    info = PngImagePlugin.PngInfo()
+    for index in range(12):
+        info.add_text(f"k{index}", "x" * 60_000)  # 720 KB of text in all, over the 256 KiB bound
+    with pytest.raises(ImageError) as caught:
+        convert_image(encode(gradient(), "PNG", pnginfo=info), get_profile("convert-png"))
+    assert caught.value.code == "malformed_image"
+    assert convert_image(png_with_text(), get_profile("convert-png")).image.sanitized
 
 
 def test_cmyk_jpeg_is_converted_with_a_finding():
