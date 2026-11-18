@@ -327,9 +327,11 @@ class _Build:
 ASSET_IDS_USED = (
     "north-pole-bridge",
     "north-pole-candy-cane",
+    "north-pole-candy-cane-tall",
     "north-pole-christmas-star",
     "north-pole-christmas-tree",
     "north-pole-cookie-platform",
+    "north-pole-fragment-socket",
     "north-pole-gingerbread-house",
     "north-pole-golden-bell",
     "north-pole-ice-platform",
@@ -340,6 +342,7 @@ ASSET_IDS_USED = (
     "north-pole-present",
     "north-pole-signpost",
     "north-pole-sleigh",
+    "north-pole-sleigh-bell",
     "north-pole-snowbank",
     "north-pole-snowflake",
     "north-pole-snowman",
@@ -424,7 +427,7 @@ def _landing(b: _Build) -> None:
         activation={"trigger": "SIGNAL", "source": f"world:{CH['eve']}"},
         indicator=False,
     )
-    b.prop("np-sleigh-bell", "Santa's sleigh bell", 14, 82, "north-pole-golden-bell", (0.6, 0.8, 0.6), "LANTERN", GOLD)
+    b.prop("np-sleigh-bell", "Santa's sleigh bell", 14, 82, "north-pole-sleigh-bell", (0.6, 0.8, 0.6), "LANTERN", GOLD)
     # Ice cave (post-story): three golden bells.
     for i, (x, z) in enumerate(((16.5, 96.0), (20.0, 97.0), (22.5, 94.5)), start=1):
         b.pickup(f"np-golden-bell-{i}", "Golden bell", x, z, "north-pole-golden-bell", f"NORTH_POLE_GOLDEN_BELL_{i}", "LANTERN", GOLD, 0.2)
@@ -502,7 +505,7 @@ def _forest(b: _Build) -> None:
     b.npc("np-peppermint", "peppermint", "Peppermint", 35, 58, yaw=WEST)
     b.prop("np-forest-sequence-sign", "Number path sign", 40, 64, "", (1.4, 1.6, 0.4), "SIGN", PEPPERMINT)
     b.prop("np-forest-signs-post", "Direction signpost", 44, 72, SIGNPOST, (0.6, 2.2, 0.4), "SIGN", WOOD)
-    b.prop("np-forest-stripes-arch", "Candy stripe arch", 46, 82, "north-pole-candy-cane", (2.4, 2.6, 0.6), "CANE", PEPPERMINT)
+    b.prop("np-forest-stripes-arch", "Candy stripe arch", 46, 82, "north-pole-candy-cane-tall", (2.4, 2.6, 0.6), "CANE", PEPPERMINT)
     # The frozen creek, a walking bridge, and the peppermint stepping stones (optional).
     b.ledge("np-bridge-creek", 51, 55, 66, 70, 0.2, WOOD)
     for i, x in enumerate((47.5, 50.5, 53.5, 56.5, 59.5), start=1):
@@ -648,7 +651,7 @@ def _observatory(b: _Build) -> None:
     b.ledge("np-ledge-obs-terrace", 24, 60, -91, -82, 0.8, 0xE6EDF7)
     b.stairs("np-stair-obs", "z", -82, +1, 38, 46, 0.8, 3, 0xE6EDF7)
     for i, zone in enumerate(FRAGMENT_ZONES):
-        b.prop(f"np-socket-{zone}", f"Fragment socket {i + 1}", 28 + 4 * i, -87, "north-pole-star-fragment", (0.8, 1.0, 0.8), "PEDESTAL", 0x6E6A7A, elev=0.8)
+        b.prop(f"np-socket-{zone}", f"Fragment socket {i + 1}", 28 + 4 * i, -87, "north-pole-fragment-socket", (0.8, 1.0, 0.8), "PEDESTAL", 0x6E6A7A, elev=0.8)
     b.prop("np-obs-final-console", "The star console", 56, -85, "", (1.6, 1.4, 1.0), "PEDESTAL", GOLD, elev=0.8)
     b.prop("np-obs-stars-telescope", "The big telescope", 22, -76, "", (1.2, 2.0, 1.2), "TELESCOPE", 0x8C6A3F)
     b.prop("np-obs-constellation-board", "Constellation board", 30, -74, "", (1.8, 1.6, 0.4), "SIGN", 0x3A4A7A)

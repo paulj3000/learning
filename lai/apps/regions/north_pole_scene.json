@@ -68,7 +68,7 @@
    "z": 82.0
   },
   {
-   "asset_id": "north-pole-golden-bell",
+   "asset_id": "north-pole-sleigh-bell",
    "elevation": 0.0,
    "entity_id": "np-sleigh-bell",
    "kind": "PROP",
@@ -653,7 +653,7 @@
    "z": 72.0
   },
   {
-   "asset_id": "north-pole-candy-cane",
+   "asset_id": "north-pole-candy-cane-tall",
    "elevation": 0.0,
    "entity_id": "np-forest-stripes-arch",
    "kind": "PROP",
@@ -1793,7 +1793,7 @@
    "z": -95.0
   },
   {
-   "asset_id": "north-pole-star-fragment",
+   "asset_id": "north-pole-fragment-socket",
    "elevation": 0.8,
    "entity_id": "np-socket-village",
    "kind": "PROP",
@@ -1808,7 +1808,7 @@
    "z": -87.0
   },
   {
-   "asset_id": "north-pole-star-fragment",
+   "asset_id": "north-pole-fragment-socket",
    "elevation": 0.8,
    "entity_id": "np-socket-workshop",
    "kind": "PROP",
@@ -1823,7 +1823,7 @@
    "z": -87.0
   },
   {
-   "asset_id": "north-pole-star-fragment",
+   "asset_id": "north-pole-fragment-socket",
    "elevation": 0.8,
    "entity_id": "np-socket-forest",
    "kind": "PROP",
@@ -1838,7 +1838,7 @@
    "z": -87.0
   },
   {
-   "asset_id": "north-pole-star-fragment",
+   "asset_id": "north-pole-fragment-socket",
    "elevation": 0.8,
    "entity_id": "np-socket-lake",
    "kind": "PROP",
@@ -1853,7 +1853,7 @@
    "z": -87.0
   },
   {
-   "asset_id": "north-pole-star-fragment",
+   "asset_id": "north-pole-fragment-socket",
    "elevation": 0.8,
    "entity_id": "np-socket-stables",
    "kind": "PROP",
@@ -1868,7 +1868,7 @@
    "z": -87.0
   },
   {
-   "asset_id": "north-pole-star-fragment",
+   "asset_id": "north-pole-fragment-socket",
    "elevation": 0.8,
    "entity_id": "np-socket-gingerbread",
    "kind": "PROP",
@@ -1883,7 +1883,7 @@
    "z": -87.0
   },
   {
-   "asset_id": "north-pole-star-fragment",
+   "asset_id": "north-pole-fragment-socket",
    "elevation": 0.8,
    "entity_id": "np-socket-mountain",
    "kind": "PROP",

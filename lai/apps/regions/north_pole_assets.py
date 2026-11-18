@@ -361,6 +361,20 @@ ASSETS: tuple[NorthPoleAsset, ...] = (
         "White stone, copper dome with an opening slit; one 2048 px atlas at most.",
     ),
     _model(
+        "north-pole-fragment-socket", "prop", "equipment", "Star fragment socket",
+        "The seven sockets np-socket-<zone> of the Star mechanism in the observatory.",
+        (0.8, 1.0, 0.8), Collision("BOX", "SOLID"), "PEDESTAL", 1200,
+        "Silver and night blue; an emissive inset that lights when its fragment is set.",
+        animations=("Activate",),
+    ),
+    _model(
+        "north-pole-sleigh-bell", "prop", "equipment", "Santa's sleigh bell",
+        "The bell np-sleigh-bell the child rings to start the Christmas Eve celebration.",
+        (0.6, 0.8, 0.6), Collision("CYLINDER", "SOLID", 0.3), "LANTERN", 1200,
+        "Polished gold bell on a red wooden post; vertex colours.",
+        animations=("Activate",),
+    ),
+    _model(
         "north-pole-telescope", "prop", "equipment", "Observatory telescope",
         "Polaris's telescope (star observation puzzle).",
         (1.0, 2.0, 2.2), Collision("BOX", "SOLID"), "TELESCOPE", 3000,
