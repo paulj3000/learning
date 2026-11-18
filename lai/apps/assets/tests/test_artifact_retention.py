@@ -368,9 +368,7 @@ def test_a_failing_delete_does_not_starve_later_rows(monkeypatch):
     for _ in range(3):
         _v, _j, row = recorded()
         rows.append(row)
-    DerivedArtifact.objects.filter(pk__in=[r.pk for r in rows]).update(
-        state=ArtifactState.EXPIRED
-    )
+    DerivedArtifact.objects.filter(pk__in=[r.pk for r in rows]).update(state=ArtifactState.EXPIRED)
     bad = rows[0]
     real = store.delete_object
 

@@ -202,7 +202,14 @@ def _keyed(kind, days, *, outcome="", verdict="pass", subject_id=None, status=Jo
 
 @pytest.mark.parametrize(
     "outcome",
-    ["artifact_invalid", "stale_source", "processor_outdated", "result_invalid", "key_mismatch", ""],
+    [
+        "artifact_invalid",
+        "stale_source",
+        "processor_outdated",
+        "result_invalid",
+        "key_mismatch",
+        "",
+    ],
 )
 def test_a_completed_job_that_was_not_applied_keeps_its_attempt(outcome):
     version = upload(make_definition("npc-keep"), glb_bytes())

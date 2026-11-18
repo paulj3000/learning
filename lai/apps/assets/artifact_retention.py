@@ -90,8 +90,7 @@ def _expire(report, stamp, apply) -> None:
     # fill the batch and starve the rows that can expire. They are reported by their own bounded
     # queries.
     report["protected_hold"] += [
-        str(pk)
-        for pk in due_rows.filter(retention_hold=True).values_list("pk", flat=True)[:BATCH]
+        str(pk) for pk in due_rows.filter(retention_hold=True).values_list("pk", flat=True)[:BATCH]
     ]
     report["protected_active_job"] += [
         str(pk)

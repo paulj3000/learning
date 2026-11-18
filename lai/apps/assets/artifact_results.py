@@ -316,9 +316,9 @@ def _verify_objects(job, request, result) -> str | None:
     from .models import DerivedArtifact
 
     existing = set(
-        DerivedArtifact.objects.filter(job_id_text=job.pk, attempt_id=request.attempt_id).values_list(
-            "logical_id", flat=True
-        )
+        DerivedArtifact.objects.filter(
+            job_id_text=job.pk, attempt_id=request.attempt_id
+        ).values_list("logical_id", flat=True)
     )
     for ref in result.artifacts:
         if ref.logical_id in existing:

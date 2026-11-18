@@ -105,8 +105,7 @@ def result_dict(
         "correlation_id": payload["correlation_id"],
         "attempt_id": payload["attempt_id"],
         "attempt_number": payload["attempt_number"],
-        "processor": processor
-        or {"processor_id": PROCESSOR[0], "processor_version": PROCESSOR[1]},
+        "processor": processor or {"processor_id": PROCESSOR[0], "processor_version": PROCESSOR[1]},
         "profile": payload["profile"],
         "status": "succeeded",
         "verdict": verdict,

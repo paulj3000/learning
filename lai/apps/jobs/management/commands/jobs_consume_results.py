@@ -34,6 +34,7 @@ from apps.jobs import services
 
 logger = logging.getLogger("lai.jobs")
 
+
 #: Outcomes after which the message is done with and deleted.
 def _artifact_storage_unavailable():
     from apps.assets.artifact_storage import ArtifactStorageUnavailable
