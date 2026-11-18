@@ -12,7 +12,7 @@ from io import StringIO
 import pytest
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.core.management import CommandError, call_command
+from django.core.management import call_command
 from django.test import Client
 
 from apps.assets.models import AssetVersion, VersionStatus
@@ -85,13 +85,6 @@ def test_an_unknown_id_is_reported_rather_than_silently_skipped(treasure, storag
     output = import_cove("treasure-chest,treasure-chets")
     assert "Imported 1 file(s)." in output
     assert '"asset": "treasure-chets"' in output and '"reason": "unknown_asset"' in output
-
-
-def test_ids_is_for_bundled_imports_only(tmp_path):
-    with pytest.raises(CommandError, match="--from-bundled"):
-        call_command(
-            "import_assets", "--from-amplify", "x.json", "--files", str(tmp_path), "--ids", "a"
-        )
 
 
 def test_staff_publish_reaches_the_cove_and_a_new_default_replaces_it(

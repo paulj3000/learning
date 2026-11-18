@@ -6,7 +6,7 @@ from io import StringIO
 import pytest
 from django.core.management import call_command
 
-from apps.assets.importer import import_amplify, import_bundled
+from apps.assets.importer import import_bundled
 from apps.assets.models import AssetVersion, VersionStatus
 from apps.assets.tests.helpers import glb_bytes, gltf_json_bytes
 from apps.catalog.models import AssetOrigin, ContentAsset, ContentRelease
@@ -79,83 +79,6 @@ def test_missing_invalid_unsafe_and_clip_breaking_files_are_unresolved(release, 
     assert unresolved_paths["/models/broken.glb"]["reason"] == "invalid_file"
     assert "missing_clip" in unresolved_paths["/models/npc-pip.gltf"]["codes"]
     assert not AssetVersion.objects.exists()
-
-
-@pytest.fixture
-def amplify(tmp_path):
-    files = tmp_path / "downloads"
-    (files / "assets/models/npcs/captain/v1").mkdir(parents=True)
-    (files / "assets/models/npcs/captain/v2").mkdir(parents=True)
-    (files / "assets/models/npcs/captain/v1/model.glb").write_bytes(glb_bytes(clips=("Idle",)))
-    (files / "assets/models/npcs/captain/v2/model.glb").write_bytes(
-        glb_bytes(clips=("Idle", "Wave"))
-    )
-    records = {
-        "assets": [
-            {
-                "slug": "pirate-captain",
-                "name": "Pirate Captain",
-                "description": "Leads the crew",
-                "category": "NPC",
-                "versions": [
-                    {"version": 2, "s3Key": "assets/models/npcs/captain/v2/model.glb"},
-                    {"version": 1, "s3Key": "assets/models/npcs/captain/v1/model.glb"},
-                ],
-            },
-            {"slug": "Bad Slug", "category": "PROP", "versions": []},
-            {
-                "slug": "lost-boat",
-                "category": "VEHICLE",
-                "s3Key": "nowhere.glb",
-                "currentVersion": 1,
-            },
-        ]
-    }
-    export = tmp_path / "amplify.json"
-    export.write_text(json.dumps(records))
-    return export, files
-
-
-def test_amplify_records_import_idempotently_and_record_what_is_unresolved(amplify):
-    export, files = amplify
-    report = import_amplify(export, files)
-    assert report.created_definitions == ["pirate-captain", "lost-boat"]
-    captain = ContentAsset.objects.get(asset_id="pirate-captain")
-    assert (captain.kind, captain.category) == ("character", "npc")
-    assert captain.origin == AssetOrigin.DJANGO
-    assert captain.display_name == "Pirate Captain" and "imported-from-amplify" in captain.tags
-    versions = list(AssetVersion.objects.filter(asset=captain).order_by("number"))
-    assert [v.clips for v in versions] == [["Idle"], ["Idle", "Wave"]]  # Amplify order kept
-    assert {v.status for v in versions} == {VersionStatus.VALIDATED}
-    assert {(u.get("slug"), u["reason"]) for u in report.unresolved} == {
-        ("Bad Slug", "invalid_slug"),
-        ("lost-boat", "file_missing"),
-    }
-    again = import_amplify(export, files)
-    assert again.imported == [] and again.created_definitions == [] and len(again.skipped) == 2
-    assert AssetVersion.objects.count() == 2
-
-
-def test_an_existing_definition_keeps_its_fields(amplify):
-    export, files = amplify
-    ContentAsset.objects.create(
-        asset_id="pirate-captain",
-        kind="character",
-        category="character",
-        origin=AssetOrigin.DJANGO,
-        display_name="Captain Kept",
-    )
-    import_amplify(export, files)
-    captain = ContentAsset.objects.get(asset_id="pirate-captain")
-    assert captain.display_name == "Captain Kept" and captain.category == "character"
-
-
-def test_an_amplify_dry_run_creates_no_definition(amplify, storage):
-    export, files = amplify
-    report = import_amplify(export, files, dry_run=True)
-    assert len(report.imported) == 2
-    assert report.created_definitions == ["pirate-captain", "lost-boat"]
-    assert not ContentAsset.objects.exists() and not list(storage.list())
 
 
 def test_the_command_prints_a_summary_and_json(release, public):

@@ -1,9 +1,9 @@
 """Parent and child profile management in Django (LAI-CHILD-001).
 
 `PATCH /api/v1/me/`, the child CRUD routes with a Cognito access token (ADR-040), the
-archival policy (deactivate; hard deletion stays blocked by LAI-0209), the read-only audited
-Django Admin view (ADR-039), and the Amplify profile import. The LAI-0403 checklist for the
-child routes themselves is in test_children_api.py and test_tenant_isolation.py.
+archival policy (deactivate; hard deletion stays blocked by LAI-0209) and the read-only audited
+Django Admin view (ADR-039). The LAI-0403 checklist for the child routes themselves is in
+test_children_api.py and test_tenant_isolation.py.
 """
 
 import json
@@ -13,10 +13,8 @@ import uuid
 
 import pytest
 from django.contrib.auth.models import Permission
-from django.core.management import CommandError, call_command
 from django.test import Client
 
-from apps.users import amplify_import, services
 from apps.users.models import ADMIN_ONLY_SUB_PREFIX, ChildProfile, ParentAccount
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
@@ -244,169 +242,3 @@ def test_parent_records_list_parents_only(families):
     staff, client = _staff("support-lead", superuser=True)
     page = client.get("/admin/users/parentrecord/").content.decode()
     assert str(families.a.pk) in page and str(staff.pk) not in page
-
-
-# --- Amplify profile import --------------------------------------------------------------------
-
-
-def amplify_child(child_id=None, owner_sub="sub-family-a", **overrides):
-    item = {
-        "id": str(child_id or uuid.uuid4()),
-        "parentProfileId": "pp-a",
-        "ownerSub": owner_sub,
-        "nickname": "Imported",
-        "ageBand": "EXPLORER",
-        "avatarKey": "ROBOT",
-        "interests": ["Robots", None],
-        "readingMode": "INDEPENDENT",
-        "sessionMinutes": 12,
-        "active": True,
-        "aiEnabled": None,
-        "createdAt": "2026-05-01T09:30:00.000Z",
-    }
-    item.update(overrides)
-    return item
-
-
-def amplify_parent(amplify_id="pp-a", sub="sub-family-a", **overrides):
-    item = {"id": amplify_id, "owner": f"{sub}::someone@example.invalid", "displayName": "Ada"}
-    item.update(overrides)
-    return item
-
-
-def outcomes(plan, kind="child"):
-    return [item.outcome for item in plan.outcomes if item.kind == kind]
-
-
-def test_a_dry_run_plans_without_writing(families):
-    export = {"parentProfiles": [amplify_parent()], "childProfiles": [amplify_child()]}
-    plan = amplify_import.plan_import(export)
-    assert outcomes(plan) == ["create"] and outcomes(plan, "parent") == ["update"]
-    assert ChildProfile.objects.owned_by(families.a).count() == 2
-    assert ParentAccount.objects.get(pk=families.a.pk).display_name == ""
-
-
-def test_apply_keeps_the_amplify_id_owner_and_settings_and_is_idempotent(families):
-    child_id = uuid.uuid4()
-    export = {"parentProfiles": [amplify_parent()], "childProfiles": [amplify_child(child_id)]}
-    amplify_import.apply_plan(amplify_import.plan_import(export))
-    child = ChildProfile.objects.get(pk=child_id)
-    assert child.parent_id == families.a.pk
-    assert (child.age_band, child.interests, child.ai_enabled) == ("EXPLORER", ["Robots"], True)
-    assert child.created_at.isoformat().startswith("2026-05-01T09:30")
-    assert ParentAccount.objects.get(pk=families.a.pk).display_name == "Ada"
-
-    again = amplify_import.plan_import(export)
-    assert outcomes(again) == ["unchanged"] and outcomes(again, "parent") == ["unchanged"]
-    amplify_import.apply_plan(again)
-    assert ChildProfile.objects.owned_by(families.a).count() == 3
-
-
-def test_conflicts_are_reported_never_overwritten(families):
-    export = {
-        "parentProfiles": [amplify_parent()],
-        "childProfiles": [
-            amplify_child(families.b1.pk),  # the id belongs to another family
-            amplify_child(families.a1.pk, nickname="Renamed"),  # same owner, different settings
-            amplify_child(nickname="zinnia-a1 ", ageBand="PATHFINDER", sessionMinutes=10),
-            amplify_child(owner_sub="sub-family-b", parentProfileId="pp-a"),  # owners disagree
-            amplify_child(owner_sub=None, parentProfileId="unknown"),
-            amplify_child(owner_sub="sub-nobody", parentProfileId=None),
-            amplify_child(readingMode="LOUD"),
-            amplify_child("not-a-uuid"),
-        ],
-    }
-    plan = amplify_import.plan_import(export)
-    assert outcomes(plan) == [
-        "conflict_other_parent",
-        "differs",
-        "possible_duplicate",
-        "owner_mismatch",
-        "unresolved_owner",
-        "parent_not_provisioned",
-        "invalid",
-        "invalid_id",
-    ]
-    amplify_import.apply_plan(plan)
-    families.a1.refresh_from_db()
-    families.b1.refresh_from_db()
-    assert (families.a1.nickname, families.b1.parent_id) == ("Zinnia-A1", families.b.pk)
-    assert ChildProfile.objects.count() == 4
-
-
-def test_the_three_profile_cap_holds_across_existing_and_planned_children(families):
-    export = {"childProfiles": [amplify_child(nickname=f"New {n}") for n in range(2)]}
-    assert outcomes(amplify_import.plan_import(export)) == ["create", "limit_reached"]
-
-
-def test_parents_are_provisioned_only_when_asked_and_never_matched_by_email(families):
-    export = {
-        "parentProfiles": [amplify_parent("pp-new", "sub-brand-new", owner="sub-brand-new::a@b.c")],
-        "childProfiles": [amplify_child(owner_sub=None, parentProfileId="pp-new")],
-    }
-    assert outcomes(amplify_import.plan_import(export)) == ["parent_not_provisioned"]
-    plan = amplify_import.plan_import(export, provision_parents=True)
-    assert outcomes(plan) == ["create"]
-    amplify_import.apply_plan(plan)
-    created = ParentAccount.objects.get(cognito_sub="sub-brand-new")
-    assert ChildProfile.objects.owned_by(created).count() == 1
-    assert created.display_name == "Ada"
-
-
-def test_an_inactive_account_is_never_an_import_target(families):
-    ParentAccount.objects.filter(pk=families.a.pk).update(is_active=False)
-    assert outcomes(amplify_import.plan_import({"childProfiles": [amplify_child()]})) == [
-        "account_not_eligible"
-    ]
-
-
-def test_the_report_carries_ids_and_outcomes_only(families, tmp_path):
-    export = tmp_path / "export.json"
-    report = tmp_path / "report.json"
-    export.write_text(
-        json.dumps(
-            {
-                "parentProfiles": [amplify_parent()],
-                "childProfiles": [amplify_child(avatarPhotoKey="child-photos/x/y.jpg")],
-            }
-        )
-    )
-    call_command("import_amplify_profiles", str(export), "--report", str(report))
-    text = report.read_text()
-    body = json.loads(text)
-    assert body["applied"] is False and body["photosLeftInAmplifyStorage"] == 1
-    for secret in ("Imported", "Ada", "sub-family-a", "example.invalid", "child-photos"):
-        assert secret not in text
-    assert ChildProfile.objects.count() == 4
-
-
-def test_the_command_applies_only_with_apply_and_rejects_a_bad_file(families, tmp_path):
-    export = tmp_path / "export.json"
-    export.write_text(json.dumps({"childProfiles": [amplify_child()]}))
-    call_command("import_amplify_profiles", str(export), "--apply")
-    assert ChildProfile.objects.owned_by(families.a).count() == 3
-    export.write_text(json.dumps({"childProfiles": {"not": "a list"}}))
-    with pytest.raises(CommandError):
-        call_command("import_amplify_profiles", str(export))
-    export.write_text("{not json")
-    with pytest.raises(CommandError):
-        call_command("import_amplify_profiles", str(export))
-
-
-def test_import_lookups_are_not_exposed_by_any_view():
-    """The cross-family lookups are for the import only (and the AMP-04 photo migration, a
-    management command that maps an exported child to its Django row the same way)."""
-    from pathlib import Path
-
-    apps_root = Path(services.__file__).resolve().parent.parent
-    offenders = [
-        str(path)
-        for path in apps_root.rglob("*.py")
-        if "tests" not in path.parts
-        and path.name not in {"services.py", "amplify_import.py", "amplify_photo_migration.py"}
-        and (
-            "child_profile_for_import" in path.read_text()
-            or "import_child_profile" in path.read_text()
-        )
-    ]
-    assert offenders == []

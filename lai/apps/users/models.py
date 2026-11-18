@@ -196,9 +196,9 @@ class ChildProfile(models.Model):
     nickname = models.CharField(max_length=NICKNAME_MAX_LENGTH)
     age_band = models.CharField(max_length=16, choices=AgeBand.choices)
     avatar_key = models.CharField(max_length=32)
-    # Deprecated by `ChildPhoto` (LAI-0904, ADR-042): never written by the API or the Amplify
-    # import and never read. Kept only because dropping a column is a destructive migration;
-    # removal is tracked with LAI-1103.
+    # Deprecated by `ChildPhoto` (LAI-0904, ADR-042): never written by the API and never read.
+    # Kept only because dropping a column is a destructive migration; removal is tracked with
+    # LAI-1103.
     avatar_photo_key = models.CharField(max_length=255, blank=True)
     interests = ArrayField(
         models.CharField(max_length=32), size=MAX_INTERESTS, blank=True, default=list
