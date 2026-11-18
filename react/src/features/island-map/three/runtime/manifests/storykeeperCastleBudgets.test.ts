@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CASTLE_ROOM_IDS, castleRoomAt } from '../../castleLayout';
 import type { ScenerySpec, ThreeLocationManifest } from '../locationManifest';
+import { countBoxDrawCalls } from '../staticBoxBatches';
 import { countSurfaceQuads } from '../visual/surfaceGeometry';
 import { RENDER_QUALITY_PRESETS } from '../visual/renderQuality';
 import { STORYKEEPER_CASTLE_MANIFEST as MANIFEST } from './storykeeperCastle';
@@ -28,8 +29,11 @@ const EXTENSION_VARIANT_DRAWS = 12;
 export function estimateDrawCalls(manifest: ThreeLocationManifest): number {
   let calls = (manifest.surfaces?.length ?? 0) + (manifest.effects?.length ?? 0);
   for (const item of manifest.scenery) {
+    if (item.kind === 'BOX') continue; // counted below, since static boxes batch
     calls += item.kind === 'LOD_PLACEMENTS' ? item.positions.length : 1;
   }
+  // WS-C: static decor boxes are merged per colour per spatial cell (`runtime/staticBoxBatches.ts`).
+  calls += countBoxDrawCalls(manifest.scenery);
   calls += manifest.props.length + manifest.npcs.length + manifest.collectibles.length;
   // SC-JMP: the shared platforms runtime draws one block per platform and one tile per flat marker.
   // The solid pads (Pathfinders and Explorers) are the larger set, so they are what is counted.

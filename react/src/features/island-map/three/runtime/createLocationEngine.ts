@@ -98,6 +98,7 @@ import {
   walkableProbe,
   type BoxBounds,
 } from './sceneLayout';
+import { groupStaticBoxes, mergeStaticBoxGeometry } from './staticBoxBatches';
 import { WorldTriggerTracker } from './worldTriggerTracker';
 import { installE2EProbe } from './e2eProbe';
 import {
@@ -983,6 +984,7 @@ export function createLocationEngine<R extends RendererLike>(
         return;
       }
       case 'BOX': {
+        if (item.static) return; // batched with its neighbours by `buildStaticBoxes`
         const width = item.area.maxX - item.area.minX;
         const depth = item.area.maxZ - item.area.minZ;
         const height = item.maxY - item.minY;
@@ -1060,9 +1062,33 @@ export function createLocationEngine<R extends RendererLike>(
         return;
     }
   }
-  manifest.scenery
-    .filter((item) => areRequirementsMet(item.requirements, worldState))
-    .forEach(buildScenery);
+  const liveScenery = manifest.scenery.filter((item) =>
+    areRequirementsMet(item.requirements, worldState),
+  );
+  liveScenery.forEach(buildScenery);
+
+  /*
+    Static decor boxes (WS-C): one merged mesh and one shared material per
+    colour per spatial cell, instead of a mesh and a material per box.
+  */
+  const batchMaterials = new Map<number, MeshStandardMaterial>();
+  for (const [key, boxes] of groupStaticBoxes(liveScenery)) {
+    const geometry = mergeStaticBoxGeometry(boxes);
+    if (!geometry) continue;
+    ownedGeometries.push(geometry);
+    diagnostics?.count('geometriesCreated');
+    const color = boxes[0].color;
+    let material = batchMaterials.get(color);
+    if (!material) {
+      material = new MeshStandardMaterial({ color });
+      batchMaterials.set(color, material);
+      ownedMaterials.push(material);
+      diagnostics?.count('materialsCreated');
+    }
+    const mesh = new Mesh(geometry, material);
+    mesh.name = `static-boxes:${key}`;
+    scene.add(mesh);
+  }
 
   /*
     Built architecture (SC-R02-01): floors, walls and ceilings drawn with a
