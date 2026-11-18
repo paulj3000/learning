@@ -5,8 +5,9 @@ canonical `catalog.NpcDefinition` (ADR-033, ADR-054 item 1) that the content exp
 this module never creates or edits it. `seed_npc_firepeak` applies the rows below create-only,
 so staff edits in Django Admin survive a rerun.
 
-Nothing here grants, unlocks or completes anything. Choice actions used are `NONE`, `END` and
-`REQUEST_HINT` (Kindle only, hybrid mode). Puzzle intros, answers and rewards stay with the
+Nothing here grants, unlocks or completes anything. Choice actions used are `NONE`, `END`,
+`REQUEST_HINT` (Kindle only, hybrid mode) and `OFFER_QUEST` (Flint only: accepting is the child's
+own tap through the quests API, the same flow Pip uses). Puzzle intros, answers and rewards stay with the
 puzzle engine; these lines are the friendly baseline around them.
 
 Copy rules: readable aloud, no em dash, no question about the child's name, address, school or
@@ -51,6 +52,7 @@ _REACTIONS = {
     "adventure.completed": "celebrate",
 }
 
+HEART_QUEST_ID = "the-heart-of-firepeak"
 KINDLE_TOPIC = "patterns and counting in Emberwood Forest"
 
 
@@ -331,13 +333,29 @@ def dialogues(npc: FirepeakNpc) -> tuple[Dialogue, ...]:
                 _kindle_hint_node(),
             )
         else:
+            # Flint is the quest giver. A managed NPC does not use the legacy panel's quest list,
+            # so the offer is a choice here. A repeat offer is ignored by the client unless the
+            # quest is still available.
+            offer = (
+                (
+                    Choice(
+                        "help",
+                        "Yes, I will help!",
+                        next="bye",
+                        action="OFFER_QUEST",
+                        value=HEART_QUEST_ID,
+                    ),
+                )
+                if npc.npc_id == "flint"
+                else ()
+            )
             nodes = (
                 Node(
                     "welcome",
                     text,
                     emotion="happy",
                     animation="wave",
-                    choices=(Choice("ok", "Okay!", next="bye"),),
+                    choices=(*offer, Choice("ok", "Okay!", next="bye")),
                 ),
                 Node("bye", npc.farewell, emotion="happy", animation="point"),
             )

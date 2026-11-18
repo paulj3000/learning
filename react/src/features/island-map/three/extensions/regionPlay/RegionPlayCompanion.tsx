@@ -17,6 +17,7 @@ import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConf
 import {
   chestStateChanges,
   resolveRegionPlayInteraction,
+  usesLegacyNpcDialogue,
 } from '../../../../region-play/regionPlayInteractions';
 import {
   PLAY_COPY,
@@ -484,7 +485,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
   // time the child does it; the server decides what it means.
   useEffect(() => {
     if (!event || !claimedInteraction || handledFor.current === claimedInteraction) return;
-    if (event.kind === 'npc' && managedNpcIds.has(event.npcId)) {
+    if (event.kind === 'npc' && !usesLegacyNpcDialogue(event, managedNpcIds)) {
       // The NPC Manager's Pip: the host runs the talk call and the conversation.
       handledFor.current = claimedInteraction;
       hostRef.current.interact(event.npcId, 'pointer');
@@ -648,9 +649,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
         }}
       />
     );
-  } else if (event?.kind === 'npc' && !managedNpcIds.has(event.npcId)) {
-    // A managed NPC (NPC Manager) answers through its own panel instead. Follow-up: that panel
-    // has no launch or puzzle-return actions yet; Treasure Cove's Pip uses neither today.
+  } else if (event?.kind === 'npc' && usesLegacyNpcDialogue(event, managedNpcIds)) {
+    // A managed NPC (NPC Manager) answers through its own panel instead, except while a
+    // RETURN_TO_NPC puzzle bound to it is open (`usesLegacyNpcDialogue`): this panel carries that
+    // action and the stage line. Launch points on a managed NPC remain a follow-up.
     const returnPuzzle = event.returnPuzzle;
     panel = (
       <PipDialog

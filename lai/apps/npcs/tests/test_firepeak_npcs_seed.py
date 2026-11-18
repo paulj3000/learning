@@ -37,7 +37,8 @@ def run(*args) -> str:
 
 
 def catalog_npcs() -> None:
-    """What `load_content` gives: the five catalog NPC rows (created directly here)."""
+    """What `load_content` gives: the five catalog NPC rows and the Heart quest (made directly)."""
+    catalog_quest()
     for npc in fp.NPCS:
         NpcDefinition.objects.get_or_create(
             npc_id=npc.npc_id,
@@ -47,6 +48,22 @@ def catalog_npcs() -> None:
                 "origin": AssetOrigin.DJANGO,
             },
         )
+
+
+def catalog_quest() -> None:
+    """What `load_content` gives: the Heart quest Flint offers (validated as an active quest)."""
+    from apps.catalog.models import Quest
+
+    Quest.objects.get_or_create(
+        slug=fp.HEART_QUEST_ID,
+        defaults={
+            "title": "The Heart of Firepeak",
+            "age_bands": ["PATHFINDER", "EXPLORER"],
+            "active": True,
+            "source": {"stages": []},
+            "last_seen_release": content_release(),
+        },
+    )
 
 
 def models_live() -> None:
@@ -213,3 +230,21 @@ def test_copy_is_child_safe():
         assert "Never ask for private" in npc.persona_prompt
     basalt = next(n for n in fp.NPCS if n.npc_id == "professor-basalt")
     assert "Real volcanoes" in basalt.greeting_explorer
+
+
+def _choice_actions(npc_id: str) -> set[tuple[str, str]]:
+    npc = next(n for n in fp.NPCS if n.npc_id == npc_id)
+    return {
+        (c.action, c.value)
+        for d in fp.dialogues(npc)
+        for node in d.nodes
+        for c in node.choices
+        if c.action == "OFFER_QUEST"
+    }
+
+
+def test_only_flint_offers_the_quest_and_it_is_the_catalog_quest():
+    # A managed NPC does not use the legacy quest list, so Flint's greeting offers it (FPV-NPC).
+    assert _choice_actions("flint") == {("OFFER_QUEST", "the-heart-of-firepeak")}
+    for other in ("kindle", "professor-basalt", "cinder", "ignis"):
+        assert _choice_actions(other) == set()
