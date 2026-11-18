@@ -32,6 +32,8 @@ const FROZEN_INTERACTIONS = [
   'castle-story-hall START_ADVENTURE ABSENT:FIRST_STORY_TOLD',
   'castle-story-hall-told SHOW_MESSAGE PRESENT:FIRST_STORY_TOLD',
   'talk-to-keeper-quill TALK_TO ALWAYS',
+  // SC-R05-03 (owner approved): an addition, not a change to an inherited interaction.
+  'talk-to-professor-orion TALK_TO ALWAYS',
   'castle-character-gallery SHOW_MESSAGE ALWAYS',
   'castle-setting-tower SHOW_MESSAGE ALWAYS',
   'castle-costume-room SHOW_MESSAGE ALWAYS',

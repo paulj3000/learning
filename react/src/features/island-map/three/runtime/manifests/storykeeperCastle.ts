@@ -30,6 +30,10 @@ import {
   LOCK_CARVING_SPOTS,
   LOCK_ROD_RACK_SPOT,
   LOCK_ROD_SPOTS,
+  ORION_COLLIDER_HALF_METERS,
+  ORION_FACING_ROOM_YAW,
+  PROFESSOR_ORION_ID,
+  PROFESSOR_ORION_SPOT,
   QUILL_LECTERN_SPOT,
   ROOMS,
   SECRET_DOOR_SPOT,
@@ -275,6 +279,8 @@ const COLLIDERS: readonly ColliderSpec[] = [
   // person you are about to talk to undoes the point of him being a place.
   standingCollider('collider:keeper-quill', KEEPER_QUILL_SPOT, QUILL_COLLIDER_HALF_METERS, 2),
   standingCollider('collider:quill-lectern', QUILL_LECTERN_SPOT, LECTERN_COLLIDER_HALF_METERS, 1.2),
+  // SC-R05-03: Professor Orion in the Setting Tower, solid like Quill (a slim corner footprint).
+  standingCollider('collider:professor-orion', PROFESSOR_ORION_SPOT, ORION_COLLIDER_HALF_METERS, 2),
   propCollider(
     'collider:binding-lectern',
     BINDING_LECTERN_SPOT,
@@ -649,6 +655,22 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
       idleClip: 'Idle',
       placeholderColor: 0x4a5b8c,
       interactionId: 'talk-to-keeper-quill',
+    },
+    /*
+      SC-R05-03 (owner approved): Professor Orion, the Setting Tower's star-watcher. The model is
+      the `npc-professor-ticktock` stand-in (Idle/Walk/Wave) until a commissioned
+      `npc-professor-orion` replaces it (owner TODO, `docs/regions/prep/npc_prep.md` section 5).
+    */
+    {
+      entityId: PROFESSOR_ORION_ID,
+      npcId: PROFESSOR_ORION_ID,
+      assetId: 'npc-professor-ticktock',
+      position: { x: PROFESSOR_ORION_SPOT.x, z: PROFESSOR_ORION_SPOT.z },
+      yaw: ORION_FACING_ROOM_YAW,
+      label: 'Professor Orion',
+      idleClip: 'Idle',
+      placeholderColor: 0x3d4f6e,
+      interactionId: 'talk-to-professor-orion',
     },
   ],
 

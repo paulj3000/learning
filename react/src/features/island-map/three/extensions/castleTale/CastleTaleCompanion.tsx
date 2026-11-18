@@ -64,6 +64,8 @@ const CHOOSE_HERO_STEP_ID = 'choose-hero';
 const CHOOSE_SETTING_STEP_ID = 'choose-setting';
 const STORY_REFLECTION_STEP_ID = 'story-reflection';
 const TALK_TO_QUILL_INTERACTION_ID = 'talk-to-keeper-quill';
+/** The manifest Orion (`PROFESSOR_ORION_ID`): his entity id is also his NPC id. */
+const ORION_HANDOVER: CastleNpcHandover = { entityId: 'professor-orion', npcId: 'professor-orion' };
 
 const NO_CHOICES: CastleChoiceState = {
   heroEntityId: null,
@@ -329,8 +331,12 @@ export function CastleTaleCompanion({
   // --- Keeper Quill on the NPC Manager (LAI-NPC-039) ---------------------------------------
   const quillEntityId = parsed?.quillEntityId;
   const handovers = useMemo<readonly CastleNpcHandover[]>(
-    // The manifest Quill's entity id is also his NPC id (`KEEPER_QUILL_ID`).
-    () => (quillEntityId ? [{ entityId: quillEntityId, npcId: quillEntityId }] : []),
+    // The manifest Quill's entity id is also his NPC id (`KEEPER_QUILL_ID`). Professor Orion
+    // (SC-R05-03) is handed over the same way whenever the NPC Manager serves him.
+    () => [
+      ...(quillEntityId ? [{ entityId: quillEntityId, npcId: quillEntityId }] : []),
+      ORION_HANDOVER,
+    ],
     [quillEntityId],
   );
   const openElsewhere =

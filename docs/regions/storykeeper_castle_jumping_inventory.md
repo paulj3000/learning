@@ -51,6 +51,7 @@ Group ids below are keys of `CASTLE_PLATFORM_GROUPS`. "Config" is the platform c
 3. **`SIGNAL` for pathway pads.** The audit named `WORLD_STATE`; a `WORLD_STATE` platform reads the world only when the scene is built, so a page restored this visit would not appear until the next one. The shared runtime already turns every recorded change into the signal `world:<changeKey>`, on entry and live (the view does this today), so world-change pages use it; only the discovery page, which has no signal, uses `WORLD_STATE`.
 4. **Footprints.** 0.8 m to 0.9 m (the shared runtime's minimum top is 0.8 m), not the audit's 1.2 m: the Studio and the Tower cannot hold 1.2 m pads clear of their live zones.
 5. **Pad pictures.** Pads are coloured blocks. The pad guide line names the word on each colour for the card and for a child who cannot see the pad. Drawing the word and picture card on the pad needs a label asset path that does not exist yet (the bank's `pictureId` is carried in `PaintedWordsPadSlot` for it).
+6. **SC-R05-03 moved the second star stone.** Professor Orion stands in the tower's south-east corner, where the second stone was. The stone moved 0.25 m west (x 8.95 to 8.7); it is still 0.1 m clear of the cave window zone and 0.15 m from Orion's collider (`castlePlatforms.test.ts`, `castleSupportingNpcs.test.ts`).
 
 ## 4. Owner-approved exceptions
 

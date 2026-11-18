@@ -568,6 +568,22 @@
         },
         {
           "action": {
+            "kind": "TALK_TO",
+            "npcId": "professor-orion"
+          },
+          "id": "talk-to-professor-orion",
+          "requirements": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "targetId": "professor-orion",
+          "title": "Professor Orion",
+          "trigger": "TAP",
+          "type": "NPC"
+        },
+        {
+          "action": {
             "kind": "SHOW_MESSAGE",
             "message": "Portraits of brave heroes line the walls: puppies, dragons, foxes, and more. Maybe you will meet one in your next story!"
           },

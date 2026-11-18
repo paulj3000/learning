@@ -655,6 +655,16 @@ export const STORYKEEPER_CASTLE_INTERACTIONS: WorldInteraction[] = [
     action: { kind: 'TALK_TO', npcId: 'keeper-quill' },
   },
   {
+    // SC-R05-03 (owner approved): the Setting Tower's star-watcher.
+    id: 'talk-to-professor-orion',
+    type: 'NPC',
+    trigger: 'TAP',
+    title: 'Professor Orion',
+    targetId: 'professor-orion',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'TALK_TO', npcId: 'professor-orion' },
+  },
+  {
     id: 'castle-character-gallery',
     type: 'OBJECT',
     trigger: 'TAP',

@@ -16,7 +16,6 @@ import { box, solid, type RoomVisuals } from './castleVisualKit';
  */
 
 const BRASS_DARK = 0x6b5a3a;
-const BRASS = 0xc9a24a;
 const PLANET = 0x4a7ac2;
 const TELESCOPE_BODY = 0x3d4f6e;
 const LENS = 0xcfe6f0;
@@ -99,16 +98,9 @@ export const SETTING_TOWER_VISUALS: RoomVisuals = {
       TOWER_ORRERY.z - TOWER_ORRERY.half,
       TOWER_ORRERY.z + TOWER_ORRERY.half,
       0,
-      0.9,
-    ),
-    box(
-      'castle-orrery-ring',
-      BRASS,
-      TOWER_ORRERY.x - 0.3,
-      TOWER_ORRERY.x + 0.3,
-      TOWER_ORRERY.z - 0.3,
-      TOWER_ORRERY.z + 0.3,
-      0.9,
+      // SC-R05-03: the 4 cm brass ring that sat on top is merged into the base (one draw call
+      // fewer), so Professor Orion fits the castle's 300 draw-call budget. The planet still
+      // stands at 0.94 m. A decision to confirm with the owner (TASK_TRACKER SC-R05-03).
       0.94,
     ),
     box(

@@ -1053,6 +1053,43 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       four `quests/tests/test_great_storybook*.py`, `npcs/tests/test_castle_quill_seed.py`,
       `game_sessions/tests/test_castle_storybook.py` and `test_castle_rooms.py`: **518 passed, 0
       skipped** (16 min 49 s). Nothing to fix.
-- [ ] **SC-R05 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
+- [x] **SC-R05-01** Keeper Quill reconcile (branch `work/sc-r05` from `c81ee466`). DONE (development),
+      not owner accepted. `quill_content.py` gains the SC-R04 lines it lacked: `storybook-restored`
+      (`WORLD_CHANGE GREAT_STORYBOOK_RESTORED`, once, priority 40) and `the-damaged-book` (premise:
+      `RETURN_VISIT` and book not restored, once, priority 15), word for word with the client nodes
+      `quill-storybook-restored` and `quill-the-damaged-book`. `LEGACY_LINES` plus
+      `test_castle_npc_mirror.py` read `islandNpcs.ts` and fail if either side changes alone (the
+      existing `test_contract_mirror.py` mirrors only the vocabulary, so the mirror is a new file).
+      Seed stays create-only: a rerun on an existing database adds the two dialogues only.
+      **Owner TODO:** the commissioned `npc-quill` GLB swap (same id and clip names); no asset committed.
+- [x] **SC-R05-02** Ember visits the castle. DONE (development), not owner accepted. One
+      `ember-dragon` character (no second identity), new `ember_content.py` + `seed_npc_ember`
+      (create-only, `--publish`), one Place-level placement `castle-ember` beside the Story Hall hearth
+      (`EMBER_CASTLE_SPOT` 2.1, -4.9), sort order 20 so Quill stays the first placement, spawn
+      conditions `WORLD_CHANGE DRAGON_OF_EMBER_MOUNTAIN_COMPLETE`, `WORLD_CHANGE GREAT_STORYBOOK_RESTORED`
+      (place `storykeeper-castle`) and `RETURN_VISIT` (has met her). Castle-only lines per band plus a
+      fallback, `END` choices only, variant on the sanctuary's `npc-pip` stand-in. Client catalog and
+      sanctuary unchanged. Deviations from the prep: no sanctuary Django placement (it would hand the
+      sanctuary's Ember to the NPC Manager with no sanctuary dialogue there); `GREAT_STORYBOOK_RESTORED`
+      instead of three per-band `QUEST_STATUS` conditions (conditions are AND-only, and every band's
+      quest writes the change); `meet-ember-dragon` is not added to the castle interaction list
+      (interaction ids are island-unique, and the managed Ember is talked to through the NPC host).
+- [x] **SC-R05-03** Professor Orion (owner approved). DONE (development), not owner accepted. Client
+      `NpcDefinition` `professor-orion`, manifest NPC (stand-in `npc-professor-ticktock`), collider,
+      `talk-to-professor-orion` interaction (hidden from the legacy Phaser card view, ADR-020),
+      castle handover, `homeIsland` pack id; Django `orion_content.py` + `seed_npc_orion` (create-only,
+      `--publish`, shared `castle_seed.py`), age-band first meetings and telescope lines (Sprout,
+      Pathfinder word for word with the client, Explorer), star counting that is always praised.
+      **Deviations to confirm:** (1) the prep's spot (9.1, 5.9) is where SC-JMP's second star stone
+      stands, so the stone moved 0.25 m west (8.95 to 8.7) and Orion stands at (9.5, 5.8) with a 0.24 m
+      half collider; (2) adding one NPC took the provisional draw-call estimate to 301, so the orrery's
+      4 cm brass ring was merged into its base (300 again; the budget number was not edited);
+      (3) Orion reads world changes (`GREAT_STORYBOOK_RESTORED`, `FIRST_STORY_TOLD`), not Quill's memory
+      flags, because NPC memory flags are per NPC. **Owner TODO:** commissioned `npc-professor-orion` GLB.
+      Evidence (SC-R05-01 to 03): vitest 33 files, 570 tests passed (castle suites, islandNpcs, packs,
+      castleTale, content-export, new `castleSupportingNpcs.test.ts`); `tsc` app and node clean;
+      content:export, golden:generate, content:check, golden:check clean; Django `apps/npcs`
+      358 passed, 0 skipped (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`). Not run: browser, WebGL, e2e, lint, format, full suites.
+- [ ] **SC-R06 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
