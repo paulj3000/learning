@@ -1201,6 +1201,14 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       great-storybook, rewards, content-export, audio, npc, worlds 229 files, 3021 passed; `tsc` app clean;
       content:check and golden:check clean; Django `apps/inventory apps/progression apps/quests apps/catalog`
       + `game_sessions/test_answers_api.py`, `test_castle_storybook.py`: 432 passed, 0 skipped.
+- [x] **Post-merge Django baseline re-run (2026-11-18, fresh machine, at `53f783ba`).** `apps/regions apps/avatars
+      apps/assets` plus every Django test file naming the castle or the Storybook (29 files across ai, quests,
+      progression, npcs, audio, game_sessions, speech, inventory): 892 passed, 1 failed (PostgreSQL,
+      `LAI_REQUIRE_POSTGRES=1`, dummy AWS keys, `AWS_PROFILE` unset). The failure was a stale fixture, not a
+      regression: `test_adventure_launch.py::test_a_secret_place_is_hidden_until_its_world_change_exists`
+      wrote `THE_CASTLES_SECRET_DOOR_COMPLETE` at `storykeeper-castle`, which the world-change security work
+      now correctly treats as a misplaced (forged) protected key. The test now asserts the forged copy keeps
+      the Writing Room hidden and the copy at `castle-secret-passage` reveals it; the file passes 27 of 27.
 - [x] **SC-R10-01** Three.js Writing Room with chapter 3 parity (contract `docs/regions/prep/writing_room_prep.md`;
       branch `work/sc-r10`, commit `7c18219f`). DONE (development), not owner accepted.
       `CASTLE_WRITING_ROOM_MANIFEST` (`three/runtime/manifests/castleWritingRoom.ts`, constants in

@@ -345,10 +345,20 @@ def test_a_secret_place_is_hidden_until_its_world_change_exists(a):
         return {p["placeId"] for p in home["places"]}
 
     assert "castle-writing-room" not in home_places()
+    # A protected key recorded away from its registered place is a forgery and opens nothing
+    # (docs/security/WORLD_CHANGE_INTEGRITY.md).
     WorldChange.objects.create(
         child=child,
         location_slug="storykeeper-castle",
         change_type="UNLOCK",
+        change_key="THE_CASTLES_SECRET_DOOR_COMPLETE",
+        created_at=timezone.now(),
+    )
+    assert "castle-writing-room" not in home_places()
+    WorldChange.objects.create(
+        child=child,
+        location_slug="castle-secret-passage",
+        change_type="STORY_COMPLETED",
         change_key="THE_CASTLES_SECRET_DOOR_COMPLETE",
         created_at=timezone.now(),
     )
