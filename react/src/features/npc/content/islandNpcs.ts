@@ -200,6 +200,96 @@ export const ISLAND_NPCS: NpcDefinition[] = [
       },
     ],
   },
+  /*
+    Professor Orion (SC-R05-03, owner approved 2026-11): the Setting Tower's star-watcher, a
+    supporting character with no quest of his own. Story Hall memory flags belong to Quill (flags
+    are per child *and* per NPC), so Orion reads the castle's world changes instead: the book
+    restored (`GREAT_STORYBOOK_RESTORED`) and a first story told (`FIRST_STORY_TOLD`).
+
+    The star count he asks about is the chart's (`OBSERVATORY_CHART_STAR_COUNT`), and no answer
+    is ever marked wrong: there is no answer to give, only "I counted them!". Age-band versions
+    of his lines live in Django (`lai/apps/npcs/orion_content.py`); this catalog copy targets
+    Pathfinders, like the rest of the cast, and the Django lines keep it word for word.
+  */
+  {
+    id: 'professor-orion',
+    displayName: 'Professor Orion',
+    role: 'Star-watcher in the Setting Tower at Storykeeper Castle. Shares what he sees through his telescope.',
+    homeLocationSlug: 'storykeeper-castle',
+    interactionId: 'talk-to-professor-orion',
+    schedule: [
+      { timeOfDay: 'MORNING', locationSlug: 'storykeeper-castle' },
+      { timeOfDay: 'AFTERNOON', locationSlug: 'storykeeper-castle' },
+      { timeOfDay: 'EVENING', locationSlug: 'storykeeper-castle' },
+    ],
+    dialogue: [
+      {
+        id: 'orion-storybook-restored',
+        conditions: [{ type: 'WORLD_CHANGE', changeKey: 'GREAT_STORYBOOK_RESTORED' }],
+        text: 'The Great Storybook is whole again! Even the stars look brighter tonight. Thank you for bringing its pages home.',
+        choices: [{ id: 'orion-restored-bye', label: 'You are welcome!' }],
+        narration: {
+          allowedTopic: 'a star-watcher thanking the child for restoring the castle storybook',
+          fallbackText:
+            'The Great Storybook is whole again! Even the stars look brighter tonight. Thank you for bringing its pages home.',
+        },
+        setsMemoryFlags: ['metOrion', 'metOrionAfterRestore'],
+        awardsRelationshipPoints: 2,
+      },
+      {
+        id: 'orion-story-told',
+        conditions: [{ type: 'WORLD_CHANGE', changeKey: 'FIRST_STORY_TOLD' }],
+        text: 'Your story has its own star now. Shall we find the one that fits it?',
+        choices: [
+          { id: 'orion-find-the-star', label: 'Yes, let us look!', nextNodeId: 'orion-telescope' },
+          { id: 'orion-story-told-bye', label: 'Maybe next time.' },
+        ],
+        setsMemoryFlags: ['metOrion'],
+        awardsRelationshipPoints: 1,
+      },
+      {
+        id: 'orion-returning',
+        conditions: [{ type: 'RELATIONSHIP_AT_LEAST', level: 'ACQUAINTANCE' }],
+        text: 'Welcome back, star friend. Can you count the gold stars on my chart? Take your time.',
+        choices: [
+          { id: 'orion-counted', label: 'I counted them!', nextNodeId: 'orion-counting-praise' },
+          { id: 'orion-returning-bye', label: 'Not right now.' },
+        ],
+        awardsRelationshipPoints: 1,
+      },
+      {
+        id: 'orion-greeting',
+        conditions: [{ type: 'ALWAYS' }],
+        text: 'Hello there! I am Professor Orion. I watch the stars from this tower, and every star has a story.',
+        choices: [
+          { id: 'orion-greeting-ask', label: 'What do you see?', nextNodeId: 'orion-telescope' },
+          { id: 'orion-greeting-bye', label: 'Hello, Professor!' },
+        ],
+        narration: {
+          allowedTopic: 'a friendly star-watcher introducing himself in the castle tower',
+          fallbackText:
+            'Hello there! I am Professor Orion. I watch the stars from this tower, and every star has a story.',
+        },
+        setsMemoryFlags: ['metOrion'],
+        awardsRelationshipPoints: 1,
+      },
+      {
+        id: 'orion-telescope',
+        followUpOnly: true,
+        conditions: [{ type: 'ALWAYS' }],
+        text: 'Through my telescope I see tiny lights, far, far away. People join the stars with lines to make pictures in the sky.',
+        choices: [{ id: 'orion-telescope-bye', label: 'I will look for pictures!' }],
+      },
+      {
+        id: 'orion-counting-praise',
+        followUpOnly: true,
+        conditions: [{ type: 'ALWAYS' }],
+        text: 'Wonderful counting! Stars are easier to count when friends look together.',
+        choices: [{ id: 'orion-counting-bye', label: 'Thank you, Professor!' }],
+      },
+    ],
+    questOffers: [],
+  },
   {
     id: 'bolt',
     displayName: 'Bolt',

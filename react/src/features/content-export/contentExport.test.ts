@@ -128,7 +128,7 @@ describe('preservation of the existing content', () => {
       items: 33, // + the Great Storybook seal
       collectibleSets: 2,
       rewardRules: 26, // + one seal rule per band's Great Storybook quest
-      npcs: 7,
+      npcs: 8, // + Professor Orion (SC-R05-03)
       discoveries: 6,
       checkpoints: 30,
       interactions: 8,

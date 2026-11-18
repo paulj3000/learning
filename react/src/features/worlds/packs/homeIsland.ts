@@ -84,6 +84,7 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
   npcIds: [
     'pirate-pip',
     'keeper-quill',
+    'professor-orion',
     'bolt',
     'ember-dragon',
     'harbor-master',

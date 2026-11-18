@@ -225,7 +225,9 @@ export const OBSERVATORY_STAR_GROUP: CastlePlatformGroup = {
   answers: false,
   pads: [
     { key: 's1', x: 6.75, z: 7.45, label: 'the first star stone' },
-    { key: 's2', x: 8.95, z: 5.85, label: 'the second star stone' },
+    // SC-R05-03: 0.25 m west of where SC-JMP put it (8.95), so Professor Orion fits in the
+    // corner behind it. Still clear of the cave window zone (ends x 8.2) by 0.1 m.
+    { key: 's2', x: 8.7, z: 5.85, label: 'the second star stone' },
   ],
 };
 

@@ -143,6 +143,24 @@ root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; 
   leases and heartbeats, worker check-ins and the status renames. The branch is kept, unmerged.
   Tests: question_studio, jobs and settings, 297 passed on PostgreSQL.
 
+## SC-R05: Storykeeper Castle characters (2026-11-17, `work/sc-r05` from `c81ee466`); development complete, unit-tested only, NOT merged
+
+- SC-R05-01 Keeper Quill: Django `quill_content.py` now carries the SC-R04 premise
+  (`the-damaged-book`) and restored (`storybook-restored`) lines word for word with the client;
+  `test_castle_npc_mirror.py` keeps them in step. Owner TODO: the commissioned `npc-quill` GLB swap.
+- SC-R05-02 Ember visits the castle: one `ember-dragon` character, one gated Place-level placement
+  `castle-ember` beside the Story Hall hearth (`ember_content.py`, `seed_npc_ember`), visible only
+  after the Ember Mountain story, a restored Great Storybook and a first meeting; castle-only band
+  lines; the sanctuary's `npc-pip` stand-in. No client or sanctuary change.
+- SC-R05-03 Professor Orion (owner approved): manifest NPC in the Setting Tower at (9.5, 5.8) with a
+  0.24 m half collider, `talk-to-professor-orion`, client catalog entry, castle handover, Django
+  `orion_content.py` + `seed_npc_orion` with age-band lines. The second Observatory star stone moved
+  0.25 m west to make room, and the orrery's thin ring was merged into its base to stay at the 300
+  draw-call estimate (both decisions to confirm). Owner TODO: the commissioned `npc-professor-orion`.
+- Evidence and deviations from `docs/regions/prep/npc_prep.md`: `tasks/TASK_TRACKER.md` SC-R05-01 to 03.
+- Not run: browser, WebGL, device, e2e, lint, format, full suites. Seeds not run against any deployed
+  database; publishing is global (a release carries every READY character).
+
 ## SC-JMP: jumping integrated into every primary Storykeeper Castle adventure (2026-11-17, worktree of `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged
 
 Owner rule: jumping is not a separate adventure category. Every primary castle adventure has
