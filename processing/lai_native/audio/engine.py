@@ -44,7 +44,9 @@ _EXTENSIONS: Final = {"ogg": "ogg", "mp3": "mp3"}
 AUDIO_TRANSCODE_LIMITS: Final = ResourceLimits(
     max_input_bytes=20 * MIB,
     max_output_bytes=48 * MIB,
-    max_execution_seconds=300,
+    # Inside the 300 s Lambda timeout, leaving time for the result, queue and cleanup; the runner
+    # also honours the invocation's remaining time (`set_time_source`).
+    max_execution_seconds=240,
     max_temp_bytes=160 * MIB,
     max_artifact_count=4,  # up to three outputs and the report
     max_metadata_bytes=48 * 1024,
@@ -115,6 +117,7 @@ class AudioTranscodeProcessor(Processor):
         runner: Callable | None = None,
         tool_version: str | None = None,
     ):
+        self._remaining_ms: Callable[[], float] | None = None
         kwargs = {"runner": runner} if runner is not None else {}
         self._transcoder = AudioTranscoder(
             tool,
@@ -124,6 +127,11 @@ class AudioTranscodeProcessor(Processor):
             **kwargs,
         )
         self._by_ref = {(p.profile_id, p.version): p for p in DEFAULT_PROFILES.values()}
+
+    def set_time_source(self, remaining_ms: Callable[[], float] | None) -> None:
+        """The invocation's remaining time (Lambda `get_remaining_time_in_millis`) for the next
+        run, or None. The runner deadline is the earlier of this and the engine's budget."""
+        self._remaining_ms = remaining_ms
 
     def profiles(self) -> tuple[ProcessingProfile, ...]:
         return tuple(profile_for(p) for p in DEFAULT_PROFILES.values())
@@ -138,10 +146,12 @@ class AudioTranscodeProcessor(Processor):
         if profile is None:
             raise ProcessingError(ErrorCode.INVALID_PROCESSING_PROFILE, {"field": "profile"})
         data = context.input_path.read_bytes()
-        deadline = Deadline(
-            lambda: max(0.0, context.deadline - context.clock.monotonic()) * 1000.0 + 0.0,
-            reserve_seconds=2.0,
-        )
+        def remaining_ms() -> float:
+            left = max(0.0, context.deadline - context.clock.monotonic()) * 1000.0
+            outer = self._remaining_ms
+            return min(left, float(outer())) if outer is not None else left
+
+        deadline = Deadline(remaining_ms, reserve_seconds=2.0)
         try:
             outcome = self._transcoder.transcode(
                 data,

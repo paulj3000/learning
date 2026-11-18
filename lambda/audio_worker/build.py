@@ -18,7 +18,6 @@ import hashlib
 import importlib.util
 import io
 import json
-import re
 import sys
 import zipfile
 from pathlib import Path
@@ -29,9 +28,6 @@ NATIVE = ROOT / "processing" / "lai_native"
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
 #: lai_native subpackages shipped with this function (not image, optimize or others).
 NATIVE_SHIPPED = ("runtime", "audio")
-_FORBIDDEN_IMPORT = re.compile(
-    r"^\s*(?:from|import)\s+(?:django|apps|rest_framework|boto3|botocore)\b", re.M
-)
 LAYER_REQUIRED = (
     "bin/ffmpeg",
     "share/lai-ffmpeg/NOTICE.txt",
@@ -66,11 +62,13 @@ def entries() -> dict[str, bytes]:
             if "__pycache__" in relative:
                 continue
             files[relative] = path.read_bytes()
-    for name, data in files.items():
-        if name.startswith(("audio_worker/", "lai_native/")) and _FORBIDDEN_IMPORT.search(
-            data.decode("utf-8")
-        ):
-            raise BuildError(f"{name} would ship a Django or AWS SDK import")
+    # The import policies of lambda/build.py (the same audit native/pillow/build.py runs): the
+    # shipped lai_native and audio_worker sources only import what their package family allows.
+    shipped = [NATIVE.parent / n for n in files if n.startswith("lai_native/")]
+    shipped += [WORKER.parent / n for n in files if n.startswith("audio_worker/")]
+    violations = _jobs_build().audit_imports(shipped)
+    if violations:
+        raise BuildError(f"import policy: {violations[0]}")
     return files
 
 

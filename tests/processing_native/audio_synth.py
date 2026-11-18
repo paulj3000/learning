@@ -55,3 +55,35 @@ def make_wav(
         sample = int(round(v * amp))
         out.extend([sample] * channels)
     return _wav(out, rate, channels)
+
+
+def opus_tags(vendor: bytes = b"ffmpeg", comments: tuple[bytes, ...] = (b"encoder=Lavc libopus",)) -> bytes:
+    import struct
+
+    body = b"OpusTags" + struct.pack("<I", len(vendor)) + vendor + struct.pack("<I", len(comments))
+    for comment in comments:
+        body += struct.pack("<I", len(comment)) + comment
+    return body
+
+
+def ogg_opus_tagged(seconds: float = 2.0, channels: int = 2, *, tags: bytes | None = None) -> bytes:
+    """A structurally valid Ogg Opus file (silent data) with a real `OpusTags` page."""
+    import audio_builder as ab
+
+    granule = int(seconds * 48000) + 312
+    pages = [
+        ab.ogg_page(ab.opus_head(channels, 312), flags=0x02, serial=1, sequence=0),
+        ab.ogg_page(tags if tags is not None else opus_tags(), serial=1, sequence=1),
+    ]
+    for index in range(3):
+        last = index == 2
+        pages.append(
+            ab.ogg_page(
+                b"\x00" * 64,
+                flags=0x04 if last else 0,
+                granule=granule * (index + 1) // 3,
+                serial=1,
+                sequence=2 + index,
+            )
+        )
+    return b"".join(pages)

@@ -265,3 +265,40 @@ def test_layer_check_accepts_a_valid_layer_and_refuses_gpl_or_tampering(tmp_path
         build.check_layer(make({"ffmpeg_configuration": "--enable-gpl"}))
     with pytest.raises(build.BuildError):
         build.check_layer(make(binary=b"tampered"))
+
+
+def test_worker_ports_carry_the_invocation_remaining_time_into_the_engine(worker, fakes, audio, context):
+    handler, registry, fake = audio
+    runtime = make_runtime(worker, handler, fakes)
+    ports = runtime.ports(KIND, context)
+    assert ports.time_left_ms() == 290_000
+    assert runtime.ports(KIND, object()).time_left_ms is None
+    seen = []
+    processor = registry.processors()[0]
+    original = processor.set_time_source
+    processor.set_time_source = lambda fn: (seen.append(fn), original(fn))[1]
+    _job, body = submit(worker, fakes, registry, ab.wav(seconds=6.0, rate=44_100, channels=2))
+    assert worker.handler.process(body, context, runtime) == "succeeded"
+    assert seen[0] is not None and seen[0]() == 290_000 and seen[-1] is None  # set, then cleared
+
+
+def test_the_cold_start_sweeps_leftover_workspaces(worker, fakes, audio, monkeypatch, tmp_path):
+    handler, *_ = audio
+    import lai_native.runtime as native
+
+    swept = []
+    monkeypatch.setattr(native, "sweep_stale", lambda base="/tmp": swept.append(base) or 2)
+    runtime = handler.AudioRuntime(
+        worker.aws.Settings(audio_env()), clients={"s3": fakes.s3, "sqs": fakes.sqs}
+    )
+    assert swept == ["/tmp"] and runtime.swept == 2
+
+
+def test_the_worker_build_runs_the_import_policy_audit(monkeypatch):
+    build = importlib.import_module("audio_worker.build")
+    assert build.entries()
+    jobs_build = build._jobs_build()
+    monkeypatch.setattr(jobs_build, "audit_imports", lambda files=None: ["x.py: boto3 not allowed"])
+    monkeypatch.setattr(build, "_jobs_build", lambda: jobs_build)
+    with pytest.raises(build.BuildError):
+        build.entries()

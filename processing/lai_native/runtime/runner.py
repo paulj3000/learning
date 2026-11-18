@@ -3,6 +3,11 @@
 The adapter is shared by every native workload (FFmpeg now; gltfpack and toktx later). It is the
 only module under `lai_native` that starts a process (a guard test enforces it). Rules:
 
+* Memory: `RLIMIT_AS` bounds the tool's *virtual* size. On Lambda the real ceiling is the
+  function's cgroup memory: a tool that exhausts it is killed by the kernel OOM killer with
+  SIGKILL, which is reported as `tool_crashed` (retryable), not as a limit. Keep `RLIMIT_AS`
+  above the function memory so it is a runaway guard only, and size the function from
+  measured peak RSS (`ToolResult.peak_rss_kb`).
 * The executable is a fixed absolute path from configuration (for example `/opt/bin/ffmpeg`),
   never resolved from `PATH`, never taken from a job. Its SHA-256 can be pinned.
 * `argv` is a list; `shell=False`; the child gets a scrubbed environment (no AWS credentials,
@@ -11,8 +16,9 @@ only module under `lai_native` that starts a process (a guard test enforces it).
   child is its own session so a timeout kills the whole group.
 * stdout and stderr are read incrementally into bounded buffers (excess is dropped and counted),
   and the workspace size is watched while the tool runs.
-* A wall-clock timeout, a deadline (Lambda remaining time minus a reserve) and a cancellation
-  callback are checked every poll.
+* A wall-clock timeout, a deadline (`Deadline`: the Lambda context's
+  `get_remaining_time_in_millis` minus a reserve; the native workers build it from the invocation
+  context) and a cancellation callback are checked every poll.
 * Errors are stable codes (`NativeToolError`); stderr is returned to the caller for numeric
   parsing and is never put into an error or a log by this module.
 """
@@ -126,8 +132,11 @@ def check_argv(argv: Sequence[str]) -> list[str]:
 def _limiter(limits: ToolLimits) -> Callable[[], None]:
     def apply() -> None:  # runs in the child between fork and exec
         os.umask(0o077)
+        # Soft limit one second under the hard one: the soft limit raises SIGXCPU (mapped to
+        # `resource_limit`); the hard limit would kill with an uncatchable SIGKILL (`tool_crashed`).
+        cpu = limits.cpu_seconds
+        resource.setrlimit(resource.RLIMIT_CPU, (max(1, cpu - 1), cpu))
         pairs = [
-            (resource.RLIMIT_CPU, limits.cpu_seconds),
             (resource.RLIMIT_AS, limits.address_space_bytes),
             (resource.RLIMIT_FSIZE, limits.max_file_bytes),
             (resource.RLIMIT_NOFILE, limits.max_open_files),
@@ -141,14 +150,34 @@ def _limiter(limits: ToolLimits) -> Callable[[], None]:
     return apply
 
 
-def _kill(pid: int) -> None:
+def _take(buffers, dropped, caps, name: str, chunk: bytes) -> None:
+    """Bounded capture. stdout keeps the head (an overflow fails the run). stderr keeps the TAIL
+    (a ring): FFmpeg prints its summaries and errors last, and a hostile input tag printed at the
+    start must not crowd them out. Dropped bytes are counted either way."""
+    buf = buffers[name]
+    if name == "err":
+        buf.extend(chunk)
+        extra = len(buf) - caps[name]
+        if extra > 0:
+            del buf[:extra]
+            dropped[name] += extra
+        return
+    room = caps[name] - len(buf)
+    if room > 0:
+        buf.extend(chunk[:room])
+    dropped[name] += max(0, len(chunk) - max(room, 0))
+
+
+def _kill(pgid: int) -> None:
+    """SIGKILL the tool's process group. The tool is its own session and group leader
+    (`start_new_session`), so its pid is the group id. Only `killpg` is ever used: after the
+    leader is reaped the group may still hold grandchildren (this kills them) and, while any member
+    lives, the kernel does not reuse the id; signalling a bare pid after it was reaped could hit an
+    unrelated reused process and is never used."""
     try:
-        os.killpg(pid, signal.SIGKILL)
+        os.killpg(pgid, signal.SIGKILL)
     except (ProcessLookupError, PermissionError):
-        try:
-            os.kill(pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
+        pass
 
 
 def run_tool(
@@ -226,10 +255,7 @@ def run_tool(
                 if not chunk:
                     selector.unregister(key.fileobj)
                     continue
-                room = caps[name] - len(buffers[name])
-                if room > 0:
-                    buffers[name].extend(chunk[:room])
-                dropped[name] += max(0, len(chunk) - max(room, 0))
+                _take(buffers, dropped, caps, name, chunk)
             if failure is None:
                 now = clock()
                 if cancelled is not None and cancelled():
@@ -260,10 +286,7 @@ def run_tool(
                     break
                 if not chunk:
                     break
-                room = caps[name] - len(buffers[name])
-                if room > 0:
-                    buffers[name].extend(chunk[:room])
-                dropped[name] += max(0, len(chunk) - max(room, 0))
+                _take(buffers, dropped, caps, name, chunk)
     finally:
         _kill(proc.pid)
         selector.close()
