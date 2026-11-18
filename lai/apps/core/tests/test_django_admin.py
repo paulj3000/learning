@@ -192,6 +192,7 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
         "regions",
         "speech",
         "question_studio",
+        "seasons",  # Seasonal events (NP-023, ADR-081): content only; completions unregistered
         "users",
     }
     education = {m.__name__ for m in registered if m._meta.app_label == "education"}

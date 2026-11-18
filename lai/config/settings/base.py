@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.quests",
     "apps.ai",
     "apps.question_studio",
+    "apps.seasons",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.
