@@ -108,7 +108,6 @@ export function CastleGuide({
     childId,
     ageBand,
     roomId,
-    worldChangeKeys: worldState.worldChangeKeys,
     api: childId ? directorApi : null,
   });
   const lastAnnounced = useRef<CastleRoomId | undefined>(undefined);

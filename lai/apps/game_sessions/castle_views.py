@@ -61,7 +61,8 @@ class CastleDirectorView(ChildScopedAPIView):
     events from this child's own rows, asks the model to pick one id from them (never the other
     way round), and answers with the authored lines of the event that was chosen. A failure of
     any kind is the deterministic default event with `source: "FALLBACK"`, never an error. The
-    only write is the display counter. See `apps/regions/castle_events.py` and
+    only write is the display counter. The events are Django's revisioned catalog (ADR-065). See
+    `apps/regions/castle_events.py` and
     `apps/ai/services/castle_director.py`.
     """
 
@@ -77,10 +78,12 @@ class CastleDirectorView(ChildScopedAPIView):
         band = self.child.age_band
         visit = castle_events.register_visit(self.child, body.validated_data["visitId"])
         state = castle_events.build_state(self.child, room_id, visit)
-        eligible = castle_events.eligible_events(castle_events.CATALOG, state)
-        default = castle_events.default_event(castle_events.CATALOG, state)
+        events = castle_events.catalog()  # approved, published, active events only (ADR-065)
+        eligible = castle_events.eligible_events(events, state)
+        default = castle_events.default_event(events, state)
         if default is None:
-            raise NotFound  # the catalog has no event for this room and band
+            # No approved event for this room and band: the client shows its own quiet line.
+            raise NotFound
         source, chosen = "FALLBACK", default
         if eligible:
             result = request_castle_choice(

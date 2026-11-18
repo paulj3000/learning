@@ -622,3 +622,44 @@ class CastleEventShown(ChildOwnedModel):
         constraints = [
             models.UniqueConstraint(fields=["child", "event_id"], name="castle_event_one_per_child"),
         ]
+
+
+class CastleEvent(Authorable, models.Model):
+    """One approved, authored ambient event of Storykeeper Castle (ADR-065, ADR-047).
+
+    The Castle Director may only pick among these rows' authored lines; it never writes words.
+    The row holds the *published* content in `source` (the revision body's shape, see
+    `castle_events.body_problems`); every edit is a `ContentRevision` of kind `castle-event`
+    that goes draft, submitted, published, and an old one is superseded, never changed. A row
+    with no published revision is not shown to anyone. Retiring sets `active` off (an
+    administrator's switch, never touched by an import); a retired event is never eligible.
+
+    `castle_events.json` is only the first-import seed. Once a row exists, Django is the
+    authority. No child data lives here.
+    """
+
+    event_id = models.SlugField(
+        max_length=100, unique=True, help_text="Stable id. Never renamed; the display counter uses it."
+    )
+    room = models.SlugField(
+        max_length=64, help_text="A castle room id, or ANY. Copied from the published content."
+    )
+    active = models.BooleanField(
+        default=True, help_text="Untick to retire the event. A retired event is never eligible."
+    )
+    source = models.JSONField(
+        default=dict,
+        blank=True,
+        editable=False,
+        help_text="The published content. Change it through a new version, never directly.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["event_id"]
+        verbose_name = "Castle Director event"
+        verbose_name_plural = "Castle Director events"
+
+    def __str__(self) -> str:
+        return self.event_id

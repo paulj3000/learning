@@ -1,5 +1,12 @@
 # SC-R08 event catalog and SC-R09 Castle Director: implementation contract (prep)
 
+> **Amended 2026-11-18 (ADR-065 Accepted, owner).** The catalog is Django's revisioned `CastleEvent` model
+> (kind `castle-event`, ADR-047), managed in Django Admin; `castle_events.json` is an import-only seed
+> (`manage.py import_castle_events`). Eligibility is Python-only; the TypeScript catalog, TS port and the
+> `castle-events` golden suite are removed. The client keeps one quiet line per room
+> (`react/src/features/great-storybook/castleDefaultLines.ts`) for when the API fails. Where sections 1 and 2
+> below mention `castleEvents.ts`, a TS port or golden vectors, they describe the original proposal.
+
 Finding: `react/src/features/director` is an adventure ranker (`rankAdventures`, `DirectorContext`, `SelectionRecord`; Django port `lai/apps/education/director.py`). It is not an event selector. Reuse its style (pure, closed-union reasons, no free text, penalties not exclusions) but build a separate castle module. Do not extend the ranker or its golden file (`tests/golden/director-content.json`, which covers `reachableAdventures`).
 
 ## 1. Event catalog (SC-R08-01)

@@ -18,7 +18,7 @@ from .helpers import make_character, make_dialogue, make_placement, make_staff
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
-EVENT = next(e for e in castle_events.CATALOG if e["id"] == "quill-hums-in-hall")
+EVENT = next(e for e in castle_events.SEED_CATALOG if e["id"] == "quill-hums-in-hall")
 AUTHORED = authored_line(EVENT, "PATHFINDER")
 PROMPT = "You are Keeper Quill, a kind keeper of stories who speaks softly."
 GOOD = "Keeper Quill hums while the shelves settle."
@@ -129,7 +129,7 @@ def test_no_model_is_called_unless_a_published_persona_allows_it(families, fake,
         publish_quill(DialogueMode.AUTHORED)
     elif off == "other-npc":
         publish_quill()
-        event = next(e for e in castle_events.CATALOG if e["npcId"] == "ember-dragon")
+        event = next(e for e in castle_events.SEED_CATALOG if e["npcId"] == "ember-dragon")
     else:
         publish_quill()
         families.a1.ai_enabled = False

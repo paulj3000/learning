@@ -27,7 +27,7 @@ ROOM = "story-hall"
 # id earlier) then Quill humming (weight 2), then the quiet fallback (weight 1).
 DEFAULT = "lanterns-glow-brighter"
 ALL_ELIGIBLE = ["lanterns-glow-brighter", "quill-hums-in-hall", "quiet-story-hall"]
-EVENTS = {event["id"]: event for event in castle_events.CATALOG}
+EVENTS = {event["id"]: event for event in castle_events.SEED_CATALOG}
 
 
 def url(child):
