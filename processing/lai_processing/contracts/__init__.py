@@ -30,7 +30,15 @@ from .events import (
     result_digest,
 )
 from .identifiers import StoreName, artifact_key, artifact_prefix, check_object_key
-from .job_types import JOB_TYPES, JobTypeSpec, job_type_spec
+from .job_types import (
+    ARTIFACT_ROLES,
+    JOB_TYPES,
+    STAFF_CAPTURE_ROLES,
+    ArtifactRoleSpec,
+    JobTypeSpec,
+    job_type_spec,
+    role_spec,
+)
 from .jobs import ProcessingJobRequest
 from .profiles import OptionSpec, ProcessingProfile
 from .results import (
@@ -45,13 +53,16 @@ from .results import (
 )
 
 __all__ = [
+    "ARTIFACT_ROLES",
     "DEFAULT_MAX_MESSAGE_BYTES",
     "JOB_TYPES",
     "RESULT_ARTIFACT_TYPE",
     "RESULT_LOGICAL_ID",
     "SCHEMA_VERSION",
+    "STAFF_CAPTURE_ROLES",
     "SUPPORTED_SCHEMA_VERSIONS",
     "ArtifactReference",
+    "ArtifactRoleSpec",
     "AssetContext",
     "CompletionEvent",
     "Finding",
@@ -86,4 +97,5 @@ __all__ = [
     "job_type_spec",
     "load_json",
     "result_digest",
+    "role_spec",
 ]

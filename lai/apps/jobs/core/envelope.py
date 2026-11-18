@@ -31,6 +31,11 @@ REFERENCE_CHECKSUM = "reference.checksum"
 ASSET_ANALYZE_ANIMATION = "asset.analyze_animation"
 #: LAI-LAMBDA-008 phase 1: audio header inspection (staff-triggered; never on upload).
 ASSET_PROCESS_AUDIO = "asset.process_audio"
+#: Derived-artifact workloads (ADR-066, docs/processing/DERIVED_ARTIFACTS.md). Each runs on its own
+#: native queue and is submitted only while its feature control is on (apps.jobs.workloads).
+ASSET_TRANSCODE_AUDIO = "asset.transcode_audio"
+ASSET_CONVERT_IMAGE = "asset.convert_image"
+ASSET_OPTIMIZE = "asset.optimize"
 
 #: Which work queue (and so which worker function) runs each kind.
 KIND_QUEUE = {
@@ -41,6 +46,9 @@ KIND_QUEUE = {
     REFERENCE_CHECKSUM: "media",
     ASSET_ANALYZE_ANIMATION: "media",
     ASSET_PROCESS_AUDIO: "media",
+    ASSET_TRANSCODE_AUDIO: "audio",
+    ASSET_CONVERT_IMAGE: "image",
+    ASSET_OPTIMIZE: "optimize",
 }
 KINDS = frozenset(KIND_QUEUE)
 QUEUES = frozenset(KIND_QUEUE.values())

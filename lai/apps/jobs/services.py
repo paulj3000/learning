@@ -34,6 +34,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils.timezone import now
 
+from . import workloads
 from .core import envelope, tasks
 from .models import JobStatus, ProcessingJob
 
@@ -50,6 +51,12 @@ HANDLER_MODULES = {
     envelope.REFERENCE_CHECKSUM: "apps.jobs.reference",
     envelope.ASSET_ANALYZE_ANIMATION: "apps.npcs.animation_inspection",
     envelope.ASSET_PROCESS_AUDIO: "apps.audio.inspection",
+    # Derived-artifact workloads (ADR-066): the shared handler records and verifies artifacts.
+    # A workload's own module may replace its entry to add subject-specific behaviour, and
+    # should call `apps.assets.artifact_results.apply_artifact_result` for the artifacts.
+    envelope.ASSET_TRANSCODE_AUDIO: "apps.assets.artifact_results",
+    envelope.ASSET_CONVERT_IMAGE: "apps.assets.artifact_results",
+    envelope.ASSET_OPTIMIZE: "apps.assets.artifact_results",
 }
 #: The largest work message accepted (SQS allows 256 KiB).
 MAX_WORK_BYTES = 240 * 1024
@@ -77,6 +84,19 @@ class JobsError(Exception):
 
 class JobsDisabled(JobsError):
     code = "jobs_disabled"
+
+
+class WorkloadUnavailable(JobsError):
+    """A derived-artifact workload is switched off or has no queue (apps.jobs.workloads). Nothing
+    was recorded or queued. `message` is safe to show staff."""
+
+    code = workloads.WORKLOAD_DISABLED
+
+    def __init__(self, code: str | None = None):
+        super().__init__(code)
+        self.message = workloads.MESSAGES.get(
+            self.code, workloads.MESSAGES[workloads.WORKLOAD_DISABLED]
+        )
 
 
 class ResultUnavailable(JobsError):
@@ -132,11 +152,27 @@ def _client(name: str):
 
 
 def queue_url_for(kind: str) -> str:
+    """The work queue URL of `kind`. Raises `WorkloadUnavailable` for a workload with none."""
     queue = envelope.KIND_QUEUE[kind]
-    return {
+    url = {
         "ai": settings.LAI_JOBS_AI_QUEUE_URL,
         "media": settings.LAI_JOBS_MEDIA_QUEUE_URL,
+        "audio": settings.LAI_JOBS_AUDIO_QUEUE_URL,
+        "image": settings.LAI_JOBS_IMAGE_QUEUE_URL,
+        "optimize": settings.LAI_JOBS_OPTIMIZE_QUEUE_URL,
     }[queue]
+    if not url:
+        raise WorkloadUnavailable(workloads.WORKLOAD_QUEUE_MISSING)
+    return url
+
+
+def require_workload(kind: str, *, variant: str | None = None) -> None:
+    """Raise `WorkloadUnavailable` unless `kind` may be submitted now (see `apps.jobs.workloads`).
+    Kinds that are not derived-artifact workloads always pass."""
+    code = workloads.refusal_code(kind, variant=variant)
+    if code is not None:
+        logger.info("jobs.workload refused kind=%s code=%s", kind, code)
+        raise WorkloadUnavailable(code)
 
 
 # --- submit -----------------------------------------------------------------------------------
@@ -170,6 +206,7 @@ def submit(
     mode = backend()
     if mode == "disabled":
         raise JobsDisabled
+    require_workload(kind)  # a switched-off or unqueued workload leaves no row and no message
     try:
         size = len(json.dumps(payload, separators=(",", ":")).encode())
     except (TypeError, ValueError):
@@ -216,6 +253,12 @@ def _send(job_id) -> str:
         )
         if job is None:
             return "skipped"  # already sent, finished, or being sent by another process
+        refusal = workloads.refusal_code(job.kind, backend="sqs")
+        if refusal is not None:
+            # The control was switched off (or the queue unset) after this job was committed:
+            # emit nothing (the RELEASE invariant) and finish the job so it is not stranded.
+            _finalize(job, JobStatus.FAILED, error_code=refusal)
+            return "failed"
         try:
             body = envelope.encode(envelope.build_work(str(job.pk), job.kind, job.payload))
             _client("sqs").send_message(QueueUrl=queue_url_for(job.kind), MessageBody=body)
