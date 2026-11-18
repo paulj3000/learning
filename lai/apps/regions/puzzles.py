@@ -251,6 +251,158 @@ def _no_answer(params: dict, submission: object) -> bool:
     return True
 
 
+# --- CHOOSE_ANSWER and ORDER_SEQUENCE: pick one answer, or put items in order (FPV, design 5) -----
+
+PRESENTATIONS = {
+    PuzzleKind.CHOOSE_ANSWER: {"PLATFORMS", "SAMPLES", "SHAPES", "PATHS", "CRYSTALS", "CARDS"},
+    PuzzleKind.ORDER_SEQUENCE: {"SWITCHES", "CRYSTALS", "STORY", "PATH"},
+}
+SUBJECTS = {"MATHEMATICS", "EARTH_SCIENCE", "LITERACY", "LOGIC"}
+SYMBOLS = {"circle", "square", "triangle", "star", "diamond", "hexagon", "heart", "moon"}
+MAX_VARIANTS = 8
+MAX_PROMPT, MAX_EXPLANATION, MAX_LABEL = 200, 240, 60
+
+
+def _bounded(item: dict, key: str, limit: int, problems: list[str], where: str) -> None:
+    value = item.get(key)
+    if not isinstance(value, str) or not value.strip():
+        problems.append(f"{where}.{key}: must be non-empty text")
+    elif len(value) > limit:
+        problems.append(f"{where}.{key}: must be at most {limit} characters")
+
+
+def _symbols(entries: list[dict], problems: list[str], where: str) -> None:
+    for index, entry in enumerate(entries):
+        symbol = entry.get("symbol")
+        if symbol is not None and symbol not in SYMBOLS:
+            problems.append(f"{where}[{index}].symbol: must be one of {', '.join(sorted(SYMBOLS))}")
+        label = entry.get("label")
+        if isinstance(label, str) and len(label) > MAX_LABEL:
+            problems.append(f"{where}[{index}].label: must be at most {MAX_LABEL} characters")
+
+
+def _entity_map(params: dict, key: str, problems: list[str], where: str) -> dict:
+    mapping = params.get(key)
+    if mapping is None:
+        return {}
+    if not isinstance(mapping, dict) or not mapping:
+        problems.append(f"{where}.{key}: must be an object of ids to placement ids")
+        return {}
+    for ref, entity in mapping.items():
+        if not isinstance(ref, str) or not SLUG.match(ref):
+            problems.append(f"{where}.{key}: key {ref!r} must be a lowercase slug")
+        if not isinstance(entity, str) or not SLUG.match(entity):
+            problems.append(f"{where}.{key}.{ref}: must be a placement id (a lowercase slug)")
+    values = [v for v in mapping.values() if isinstance(v, str)]
+    if len(set(values)) != len(values):
+        problems.append(f"{where}.{key}: each id needs its own placement")
+    return mapping
+
+
+def _quiz_common(kind: str, params: dict, problems: list[str], where: str, allowed: set) -> list:
+    _common(params, problems, where, {"presentation", "subject", "skill", "variants"} | allowed)
+    if params.get("presentation") not in PRESENTATIONS[kind]:
+        problems.append(
+            f"{where}.presentation: must be one of {', '.join(sorted(PRESENTATIONS[kind]))}"
+        )
+    if params.get("subject") not in SUBJECTS:
+        problems.append(f"{where}.subject: must be one of {', '.join(sorted(SUBJECTS))}")
+    skill = params.get("skill")
+    if not isinstance(skill, str) or not SLUG.match(skill):
+        problems.append(f"{where}.skill: must be a lowercase slug")
+    variants = params.get("variants")
+    if not isinstance(variants, list) or not 1 <= len(variants) <= MAX_VARIANTS:
+        problems.append(f"{where}.variants: must be a list of 1 to {MAX_VARIANTS} variants")
+        return []
+    if not all(isinstance(v, dict) for v in variants):
+        problems.append(f"{where}.variants: every entry must be an object")
+        return []
+    ids = [v.get("id") for v in variants]
+    for index, variant_id in enumerate(ids):
+        if not isinstance(variant_id, str) or not SLUG.match(variant_id):
+            problems.append(f"{where}.variants[{index}].id: must be a lowercase slug")
+    if len(set(map(str, ids))) != len(ids):
+        problems.append(f"{where}.variants: ids must be unique")
+    return variants
+
+
+def _check_entities(mapping: dict, entries: list[dict], problems: list[str], where: str) -> None:
+    if mapping and {e.get("id") for e in entries if isinstance(e, dict)} != set(mapping):
+        problems.append(f"{where}: ids must equal the keys of the entity map")
+
+
+def _choose_problems(params: dict, where: str) -> list[str]:
+    problems: list[str] = []
+    variants = _quiz_common(PuzzleKind.CHOOSE_ANSWER, params, problems, where, {"optionEntities"})
+    mapping = _entity_map(params, "optionEntities", problems, where)
+    for index, variant in enumerate(variants):
+        at = f"{where}.variants[{index}]"
+        _bounded(variant, "prompt", MAX_PROMPT, problems, at)
+        _bounded(variant, "explanation", MAX_EXPLANATION, problems, at)
+        options = _items(variant, "options", problems, at, 2, 4)
+        _symbols(options, problems, f"{at}.options")
+        _check_entities(mapping, options, problems, f"{at}.options")
+        if variant.get("answer") not in {o.get("id") for o in options}:
+            problems.append(f"{at}.answer: must be one of the options")
+        extra = set(variant) - {"id", "prompt", "options", "answer", "explanation"}
+        if extra:
+            problems.append(f"{at}: unknown settings {', '.join(sorted(extra))}")
+    return problems
+
+
+def _order_problems(params: dict, where: str) -> list[str]:
+    problems: list[str] = []
+    variants = _quiz_common(PuzzleKind.ORDER_SEQUENCE, params, problems, where, {"itemEntities"})
+    mapping = _entity_map(params, "itemEntities", problems, where)
+    for index, variant in enumerate(variants):
+        at = f"{where}.variants[{index}]"
+        _bounded(variant, "prompt", MAX_PROMPT, problems, at)
+        _bounded(variant, "explanation", MAX_EXPLANATION, problems, at)
+        items = _items(variant, "items", problems, at, 2, 6)
+        _symbols(items, problems, f"{at}.items")
+        _check_entities(mapping, items, problems, f"{at}.items")
+        answer = variant.get("answer")
+        item_ids = [i.get("id") for i in items]
+        if (
+            not isinstance(answer, list)
+            or not all(isinstance(a, str) for a in answer)
+            or sorted(answer) != sorted(map(str, item_ids))
+        ):
+            problems.append(f"{at}.answer: must list every item exactly once")
+        extra = set(variant) - {"id", "prompt", "items", "answer", "explanation"}
+        if extra:
+            problems.append(f"{at}: unknown settings {', '.join(sorted(extra))}")
+    return problems
+
+
+def _variant(params: dict, submission: dict) -> dict:
+    variant_id = submission.get("variantId")
+    if not isinstance(variant_id, str):
+        raise InvalidSubmission
+    found = next((v for v in params["variants"] if v["id"] == variant_id), None)
+    if found is None:
+        raise InvalidSubmission
+    return found
+
+
+def _choose_grade(params: dict, submission: object) -> bool:
+    data = _closed(submission, {"variantId", "choice"})
+    variant = _variant(params, data)
+    choice = data.get("choice")
+    if not isinstance(choice, str) or choice not in {o["id"] for o in variant["options"]}:
+        raise InvalidSubmission
+    return choice == variant["answer"]
+
+
+def _order_grade(params: dict, submission: object) -> bool:
+    data = _closed(submission, {"variantId", "order"})
+    variant = _variant(params, data)
+    order = _list_of_ids(data, "order")
+    if sorted(order) != sorted(item["id"] for item in variant["items"]):
+        raise InvalidSubmission
+    return order == variant["answer"]
+
+
 @dataclass(frozen=True)
 class PuzzleRules:
     band_problems: Callable[[dict, str], list[str]]
@@ -263,6 +415,8 @@ RULES: dict[str, PuzzleRules] = {
     PuzzleKind.VALVE_SEQUENCE: PuzzleRules(_valve_problems, _valve_grade),
     PuzzleKind.COLLECT_OBJECT: PuzzleRules(_collect_problems, _no_answer),
     PuzzleKind.RETURN_TO_NPC: PuzzleRules(_return_problems, _no_answer),
+    PuzzleKind.CHOOSE_ANSWER: PuzzleRules(_choose_problems, _choose_grade),
+    PuzzleKind.ORDER_SEQUENCE: PuzzleRules(_order_problems, _order_grade),
 }
 BODY_KEYS = {
     "puzzleId",
