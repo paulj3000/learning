@@ -76,9 +76,28 @@ manifest accepts it; the queue URL setting is configured; Django's namespace is 
 }
 ```
 
-It exits 0 even when something is off (the tool decides), never prints URLs, ids or secrets
-(booleans only), and runs in the release container
-(`docker compose run --rm --no-deps -T django python manage.py processing_release_check --json`).
+As implemented (`lai/apps/jobs/release_check.py`), the report also carries
+`artifact_storage_configured`, `manifest_configured`, `manifest_kinds` and `failures`. It exits 1,
+with safe reasons on stderr, only when a control that is `on` fails a check (no result handler,
+kind not submittable, queue URL missing, kind absent from the configured release manifest,
+pending migrations, artifact storage not configured, jobs backend not `sqs`); with every control
+off it always exits 0. Pass `--exit-zero` when the caller (for example `processing_release.py
+check-enable`) wants the JSON regardless and decides itself. It never prints URLs, ids or secrets
+(booleans and names only) and runs in the release container
+(`docker compose run --rm --no-deps -T django python manage.py processing_release_check --json --exit-zero`).
+
+Runtime invariant: when `LAI_PROCESSING_RELEASE_MANIFEST` (path to the manifest from
+`processing_release.py manifest create`) is set, Django refuses to submit any workload kind that
+no released worker artifact lists in `supported_kinds` (`workload_not_released`; nothing is
+recorded or queued). An unreadable or invalid manifest, or a `git_sha` that differs from
+`LAI_RELEASE_SHA`, refuses every workload (fails closed). Unset keeps local development unchanged.
+
+Kind-specific ordering: GLB validator 1.2.0 (ADR-070) adds the `allow_meshopt` and `allow_ktx2`
+request options. Django sends each one only while its control is on, so with `LAI_GLB_MESHOPT`
+and `LAI_GLB_KTX2` off a request stays acceptable to a media worker released before 1.2.0. Its
+verdicts are then recorded as `processor_outdated` (the gate wants the current processor), which
+blocks publishing but loses nothing; release the 1.2.0 media worker (phase 4) before switching
+either control on (phase 6).
 Control-to-kind mapping: `CONTROLS` in `processing_release.py` (from COMPLETION_INTEGRATION
 section 3); the tests pin it.
 

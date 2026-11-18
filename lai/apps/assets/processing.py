@@ -100,6 +100,10 @@ def current_processor() -> tuple[str, str]:
 # --- submission --------------------------------------------------------------------------------
 
 
+#: Request options that carry the compression controls (ADR-070); omitted from a request when off.
+COMPRESSION_OPTIONS = frozenset({"allow_meshopt", "allow_ktx2"})
+
+
 def compression_options() -> dict[str, bool]:
     """The request options that carry the enabled compression controls to the processor
     (ADR-070): `allow_meshopt` / `allow_ktx2`, from `validation.compression_controls()`. The
@@ -137,7 +141,15 @@ def model_validation_request(version, *, job_id: str) -> dict:
     subject = SubjectRef(subject_type=SUBJECT_TYPE, subject_id=str(version.version_id))
     profile_ref = ProfileRef(*MODEL_VALIDATION_PROFILE)
     processor, profile = _registry().resolve(MODEL_VALIDATION_JOB_TYPE, profile_ref)
-    options = profile.resolve_options(compression_options())
+    # Send only the compression flags that are on (ADR-070, RELEASE invariant): with both
+    # controls off the request carries no `allow_*` option, so a media worker released before
+    # GLB validator 1.2.0 still accepts it instead of refusing an unknown option; the worker
+    # fills in the `false` defaults itself. The idempotency key covers exactly what is sent.
+    options = {
+        name: value
+        for name, value in profile.resolve_options(compression_options()).items()
+        if not (name in COMPRESSION_OPTIONS and value is False)
+    }
     source = InputObject(
         ref=ObjectRef("assets", version.storage_key, None, space),
         content_type=version.content_type,

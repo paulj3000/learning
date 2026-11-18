@@ -101,10 +101,13 @@ def test_the_async_request_carries_the_enabled_controls(settings):
     version = upload(meshopt_glb())
     request = model_validation_request(version, job_id=str(uuid.uuid4()))
     assert request["options"]["allow_meshopt"] is True
-    assert request["options"]["allow_ktx2"] is False
+    # Off flags are not sent, so a worker released before validator 1.2.0 still accepts the
+    # request (RELEASE invariant: no message an existing consumer would refuse).
+    assert "allow_ktx2" not in request["options"]
     settings.LAI_GLB_MESHOPT = "off"
     other = model_validation_request(version, job_id=str(uuid.uuid4()))
-    assert other["options"]["allow_meshopt"] is False
+    assert "allow_meshopt" not in other["options"]
+    assert "allow_ktx2" not in other["options"]
     assert other["idempotency_key"] != request["idempotency_key"]  # a new logical validation
 
 
