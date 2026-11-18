@@ -1,7 +1,7 @@
 # The Heart of Firepeak: architecture, content contract and workstreams
 
-Status: **in development on `feature/firepeak-volcano-adventure` (2026-11-18).** Nothing is merged,
-deployed or browser-verified. This document is the shared contract for the parallel workstreams.
+Status: **development complete on `feature/firepeak-volcano-adventure` (2026-11-18), unit-tested only.**
+Nothing is merged, deployed or browser-verified. This document is the shared contract for the parallel workstreams.
 Identifiers in it are fixed; a workstream that needs to change one updates this file in the same
 commit and says so in its report.
 
@@ -265,7 +265,7 @@ existing collectible-set path.
 | NPC id | Name | Role | Placement entity | Zone |
 |---|---|---|---|---|
 | `flint` | Flint | Explorer and guide; movement teacher; quest giver | `fh-flint` | 1 |
-| `kindle` | Kindle | Friendly fire spirit companion; hints; crystals | `fh-kindle`, `fh-kindle-heart` | 2, 7 |
+| `kindle` | Kindle | Friendly fire spirit companion; hints; crystals; voices the Lava Crossing puzzles (zone 3 has no NPC of its own) | `fh-kindle`, `fh-kindle-heart` | 2, 7 |
 | `professor-basalt` | Professor Basalt | Volcano scientist; real Earth science | `fh-basalt`, `fh-basalt-summit` | 4, 6 |
 | `cinder` | Cinder | Ancient forge keeper; sequences and logic | `fh-cinder` | 5 |
 | `ignis` | Ignis | Gentle guardian of the Heart; final challenge | `fh-ignis` | 7 |
@@ -291,7 +291,9 @@ Cue ids (ADR-050 regex): `music.firepeak.realm`, `music.firepeak.finale`,
 ## 10. Assets (`docs/firepeak/FIREPEAK_ASSET_INVENTORY.md`)
 
 Flat slugs prefixed `firepeak-`; declared as `ContentAsset` rows (origin DJANGO, no version,
-tag `firepeak-heart`) by the seed, each with a stand-in. New stand-in shapes added to the closed
+tag `firepeak-heart`) by the seed, each with a stand-in. Characters use `firepeak-flint`,
+`firepeak-kindle`, `firepeak-professor-basalt`, `firepeak-cinder`, `firepeak-ignis` in both the
+Area placements and the NPC Manager variants. New stand-in shapes added to the closed
 list: `TREE`, `LOG`, `GEAR`, `SWITCH`, `ROCK`, `ARCH`. No binary is committed.
 
 ## 11. Extension points (not playable)
@@ -334,3 +336,18 @@ list: `TREE`, `LOG`, `GEAR`, `SWITCH`, `ROCK`, `ARCH`. No binary is committed.
 Wave 2 (after merge): seed and layout (`lai/apps/regions/firepeak_heart_seed.py`, commands, scene
 snapshot), engine walkthrough tests, Realm/Storybook contracts, docs. The coordinator owns
 `docs/IMPLEMENTATION_STATUS.md`, `docs/DECISIONS.md`, this file, and merges.
+
+## 15. As built (2026-11-18)
+
+- Layout: `lai/apps/regions/firepeak_heart_layout.py` (geometry), `firepeak_heart_content.py`
+  (14 puzzle bodies, 3 to 5 variants per band), `firepeak_heart_seed.py` (seed, version gate,
+  snapshot `firepeak_heart_scene.json`), commands `seed_firepeak_heart`, `publish_firepeak_heart`.
+- 33 platforms, 18 gate colliders, 4 jumpable logs, 166 placements; zone table in section 4 holds.
+- Collectible-set completion items are now granted by the server (`inventory.services`), which
+  Crystal Collector and Firepeak Master Explorer need (previously only the retired client did it).
+- Realm Explorer: the islands API adds `questCount`, `questsCompleted`, `questsInProgress`,
+  `completed` per Place (additive).
+- A managed NPC (NPC Manager release) whose entity is an unsolved, unlocked `RETURN_TO_NPC` target
+  keeps the legacy dialogue panel so the return step is always reachable.
+- Known limitation: `entity_ids` is the union of both bands, so Pathfinder switch and story
+  puzzles leave one or two extra answer objects that carry no label and do nothing.
