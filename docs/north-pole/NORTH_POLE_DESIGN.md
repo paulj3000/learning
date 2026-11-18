@@ -119,7 +119,7 @@ snowdrift collider in a gap of the wall, removed by `effects.openings` when the 
 | `np-gate-mountain` | x -46, z -67 (gingerbread north) | `NORTH_POLE_GINGER_REPAIRED` |
 | `np-gate-observatory` | x 0, z -84 (mountain east) | `NORTH_POLE_MOUNTAIN_SUMMIT` |
 | `np-gate-north-road` | x 0, z -67 (north road north end) | `NORTH_POLE_MOUNTAIN_SUMMIT` (a shortcut home) |
-| `np-gate-ice-cave` | x 20, z 97 (landing, post-story secret cave) | `NORTH_POLE_CHRISTMAS_EVE` |
+| `np-gate-ice-cave` | x 20, z 91 (landing south-east, post-story secret cave; moved from z 97 so the cave has room behind it) | `NORTH_POLE_CHRISTMAS_EVE` |
 
 Effects checkpoints (resume to the furthest zone reached): `np-cp-landing` (default, no key),
 `np-cp-workshop` (`NORTH_POLE_WELCOME_LOOKED`), `np-cp-forest` (`NORTH_POLE_WORKSHOP_RESTORED`),
