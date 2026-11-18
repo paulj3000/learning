@@ -81,14 +81,19 @@ describe.each(FIND_IDS)('the chamber find %s', (id) => {
     expect(MANIFEST.noReticleBands).toEqual(['SPROUT']);
   });
 
-  it('grants nothing: no reward rule, quest start or item, only the discovery record and its world change', () => {
+  it('grants nothing but the record, except the mouse door\'s one optional keepsake (Final F)', () => {
     const definition = findIslandDiscovery(id)!;
     expect(definition.startsQuestId).toBeUndefined();
     expect(definition.requirements).toEqual([
       { type: 'DISCOVERY_PRESENT', discoveryId: SECRET_PASSAGE_DISCOVERY_ID },
     ]);
-    for (const rule of ALL_REWARD_RULES) {
-      expect(JSON.stringify(rule.trigger), rule.id).not.toContain(id);
+    const paying = ALL_REWARD_RULES.filter((rule) => JSON.stringify(rule.trigger).includes(id));
+    if (id === 'castle-chamber-mouse-door') {
+      expect(paying.map((rule) => [rule.id, rule.itemIds])).toEqual([
+        ['reward-castle-chamber-mouse-door', ['tiny-brass-knob']],
+      ]);
+    } else {
+      expect(paying).toEqual([]);
     }
     for (const quest of ISLAND_QUESTS) {
       expect(JSON.stringify(quest), quest.id).not.toContain(id);

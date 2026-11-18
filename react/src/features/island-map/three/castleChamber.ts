@@ -33,7 +33,7 @@ const note = (n: number, id: string, title: string, message: string): WorldInter
 /**
  * SC-R08-02: a quiet find. Same shape as the tapestry nook's `DISCOVER`: the discovery id is the
  * interaction and zone id, the server records it (ADR-051), and finding it grants nothing but the
- * record. Gated on the nook like every chamber line, and never listed.
+ * record (Final F: the mouse door also pays one optional keepsake through the existing DISCOVERY reward rule). Gated on the nook like every chamber line, and never listed.
  */
 const find = (id: string, title: string, targetId: string): WorldInteraction => ({
   id,

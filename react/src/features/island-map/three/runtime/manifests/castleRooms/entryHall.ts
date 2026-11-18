@@ -1,3 +1,4 @@
+import { WALL_HEIGHT } from '../../../sceneKit';
 import { box, solid, type RoomVisuals } from './castleVisualKit';
 
 /**
@@ -53,10 +54,30 @@ const BANNER_X = [
 const BANNER_NEAR = 2.6;
 const BANNER_FAR = 2.66;
 
-const pillar = (id: string, x: number, z: number) => [
+/** The cap is 0.22 m deep and always meets the ceiling; only the shaft grows with `wallHeight` (SC-R11). */
+const PILLAR_CAP_DEPTH = 0.22;
+const pillar = (id: string, x: number, z: number, wallHeight: number) => [
   box(`${id}-base`, STONE_SHADE, x - 0.35, x + 0.35, z - 0.35, z + 0.35, 0, 0.22),
-  box(`${id}-shaft`, STONE, x - 0.25, x + 0.25, z - 0.25, z + 0.25, 0.22, 2.78),
-  box(`${id}-cap`, STONE_SHADE, x - 0.35, x + 0.35, z - 0.35, z + 0.35, 2.78, 3),
+  box(
+    `${id}-shaft`,
+    STONE,
+    x - 0.25,
+    x + 0.25,
+    z - 0.25,
+    z + 0.25,
+    0.22,
+    wallHeight - PILLAR_CAP_DEPTH,
+  ),
+  box(
+    `${id}-cap`,
+    STONE_SHADE,
+    x - 0.35,
+    x + 0.35,
+    z - 0.35,
+    z + 0.35,
+    wallHeight - PILLAR_CAP_DEPTH,
+    wallHeight,
+  ),
 ];
 
 const banner = (id: string, side: 'n' | 's', minX: number, maxX: number) => {
@@ -80,7 +101,9 @@ export const ENTRY_MURAL_PARCHMENT = {
   whole: 0xf2d680,
 } as const;
 
-export const ENTRY_HALL_VISUALS: RoomVisuals = {
+/** The Entry Hall's visuals under a ceiling at `wallHeight`: the pillars reach it (SC-R11). */
+export function entryHallVisuals(wallHeight: number = WALL_HEIGHT): RoomVisuals {
+  return {
   look: {
     roomId: 'entry-hall',
     floor: 'flagstone-entry',
@@ -138,7 +161,7 @@ export const ENTRY_HALL_VISUALS: RoomVisuals = {
     },
   ],
   decor: [
-    ...PILLARS.flatMap((p) => pillar(p.id, p.x, p.z)),
+    ...PILLARS.flatMap((p) => pillar(p.id, p.x, p.z, wallHeight)),
     ...BANNER_X.flatMap((b) => [
       ...banner(`castle-entry-banner-n${b.id}`, 'n', b.minX, b.maxX),
       ...banner(`castle-entry-banner-s${b.id}`, 's', b.minX, b.maxX),
@@ -168,4 +191,7 @@ export const ENTRY_HALL_VISUALS: RoomVisuals = {
   colliders: PILLARS.map((p) =>
     solid(p.id.replace('castle-', ''), p.x - 0.35, p.x + 0.35, p.z - 0.35, p.z + 0.35, 3),
   ),
-};
+  };
+}
+
+export const ENTRY_HALL_VISUALS: RoomVisuals = entryHallVisuals();
