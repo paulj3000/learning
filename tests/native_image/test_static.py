@@ -38,7 +38,7 @@ def imports(path: Path) -> set[str]:
 
 
 def test_image_package_imports_only_stdlib_pillow_and_itself():
-    allowed = set(sys.stdlib_module_names) | {"PIL", "__future__"}
+    allowed = set(sys.stdlib_module_names) | {"PIL", "lai_processing", "__future__"}
     for path in sorted(IMAGE.glob("*.py")):
         extra = imports(path) - allowed
         assert not extra, (path.name, extra)
@@ -61,7 +61,7 @@ def test_worker_never_imports_django_or_forks_the_jobs_plumbing():
     for path in sorted(WORKER.glob("*.py")):
         assert not imports(path) & {"django", "rest_framework", "apps"}, path.name
     handler = (WORKER / "handler.py").read_text()
-    assert "from jobs_worker import handler as base" in handler
+    assert "from jobs_worker import handler as jobs_handler" in handler
     assert "def process(" not in handler  # reused, not re-implemented
     assert not (WORKER / "envelope.py").exists()
 
@@ -90,3 +90,23 @@ def test_native_directory_files_exist():
         "sbom-aarch64.cdx.json",
     ):
         assert (PILLOW / name).is_file(), name
+
+
+def test_contract_and_profiles_import_without_pillow():
+    """Django imports `lai_native.image.contract` (processor version, limits, profile table)."""
+    import subprocess
+
+    script = (
+        "import sys\nsys.modules['PIL'] = None\n"
+        f"sys.path.insert(0, {str(ROOT / 'processing')!r})\n"
+        "from lai_native.image import contract, profiles\n"
+        "assert contract.current_processor('image-convert', 1) == "
+        "(contract.PROCESSOR_ID, contract.PROCESSOR_VERSION)\n"
+        "assert contract.plan(contract.PROFILE_THUMBNAILS, {}, 'png')\n"
+        "try:\n    from lai_native.image import decode_image\nexcept Exception as e:\n"
+        "    print(type(e).__name__)\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", script], capture_output=True, text=True, check=True
+    )
+    assert result.stdout.strip() == "ImageError"

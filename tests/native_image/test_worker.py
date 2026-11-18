@@ -1,37 +1,92 @@
-"""The image worker, through the canonical `jobs_worker` handler, with fake AWS clients.
+"""The image worker end to end with fakes: the canonical `jobs_worker` handler, the ADR-061
+engine, the real Pillow processor and A's create-only artifact store over a fake S3 bucket.
+No network, no AWS."""
 
-The `asset.convert_image` kind and the `image` queue are registered in the envelope by
-Workstream A; these tests simulate that registration (and check that without it nothing runs)."""
+import hashlib
+import importlib
+import importlib.util
+import io
+import json
+import sys
+import uuid
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 pytest.importorskip("PIL")
 
-import hashlib  # noqa: E402
-import importlib  # noqa: E402
-import importlib.util  # noqa: E402
-import io  # noqa: E402
-import json  # noqa: E402
-import sys  # noqa: E402
-import uuid  # noqa: E402
-from pathlib import Path  # noqa: E402
-from types import SimpleNamespace  # noqa: E402
-
-from builders import jpeg_with_gps  # noqa: E402
+from builders import encode, gradient, jpeg_with_gps, png_with_text  # noqa: E402
 from PIL import Image  # noqa: E402
 
+from lai_native.image import contract  # noqa: E402
+from lai_processing.contracts.common import (  # noqa: E402
+    AssetContext,
+    InputObject,
+    ObjectRef,
+    ProfileRef,
+    SubjectRef,
+)
+from lai_processing.contracts.jobs import ProcessingJobRequest  # noqa: E402
+from lai_processing.core.idempotency import idempotency_key  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
+NS = "dev"
+BUCKET = "lai-assets"
+RESULTS = "lai-results"
 KEY = f"assets/images/hero/{uuid.UUID(int=5)}/image.jpeg"
-JOB = str(uuid.UUID(int=9))
+ENV = {
+    "LAI_WORKER_QUEUE": "image",
+    "LAI_RESULTS_QUEUE_URL": "https://sqs.us-west-1.amazonaws.com/123456789012/results",
+    "LAI_RESULTS_BUCKET": RESULTS,
+    "LAI_ASSET_BUCKET": BUCKET,
+}
+CONTEXT = SimpleNamespace(function_name="lai-dev-jobs-image", aws_request_id="r1")
 
 
-def _fakes():
-    spec = importlib.util.spec_from_file_location(
-        "native_image_fakes", ROOT / "tests" / "lambda" / "jobs_worker_fakes.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+class ClientError(Exception):
+    def __init__(self, code, status):
+        super().__init__(code)
+        self.response = {"Error": {"Code": code}, "ResponseMetadata": {"HTTPStatusCode": status}}
+
+
+class FakeS3:
+    """Both buckets, with S3's create-only `IfNoneMatch` semantics."""
+
+    def __init__(self):
+        self.objects: dict[tuple[str, str], bytes] = {}
+        self.puts: list[dict] = []
+
+    def get_object(self, Bucket, Key, Range=None, VersionId=None):
+        if (Bucket, Key) not in self.objects:
+            raise ClientError("NoSuchKey", 404)
+        data = self.objects[(Bucket, Key)]
+        if Range:
+            start, end = (int(x) for x in Range.removeprefix("bytes=").split("-"))
+            data = data[start : end + 1]
+        return {"Body": io.BytesIO(data), "ContentLength": len(data)}
+
+    def head_object(self, Bucket, Key, **kwargs):
+        if (Bucket, Key) not in self.objects:
+            raise ClientError("404", 404)
+        return {"ContentLength": len(self.objects[(Bucket, Key)]), "VersionId": "v1"}
+
+    def put_object(self, Bucket, Key, Body, **kwargs):
+        self.puts.append({"Bucket": Bucket, "Key": Key, **kwargs})
+        if kwargs.get("IfNoneMatch") == "*" and (Bucket, Key) in self.objects:
+            raise ClientError("PreconditionFailed", 412)
+        self.objects[(Bucket, Key)] = Body if isinstance(Body, bytes) else Body.encode()
+        return {"VersionId": "v1"}
+
+
+class FakeSQS:
+    def __init__(self):
+        self.sent: list[dict] = []
+
+    def send_message(self, QueueUrl, MessageBody):
+        self.sent.append(json.loads(MessageBody))
+        return {"MessageId": "m"}
 
 
 @pytest.fixture(scope="module")
@@ -44,165 +99,269 @@ def stack(tmp_path_factory):
     staged = build.stage(tmp_path_factory.mktemp("image_worker"))
     sys.path.insert(0, str(staged))
     sys.path.append(str(ROOT / "lambda"))
-    handler = importlib.import_module("image_worker.handler")
-    task = importlib.import_module("image_worker.task")
-    envelope = importlib.import_module("jobs_worker.vendor.jobs_core.envelope")
-    yield SimpleNamespace(handler=handler, task=task, envelope=envelope, fakes=_fakes())
+    yield SimpleNamespace(
+        handler=importlib.import_module("image_worker.handler"),
+        jobs=importlib.import_module("jobs_worker.handler"),
+        aws=importlib.import_module("jobs_worker.aws"),
+        envelope=importlib.import_module("jobs_worker.vendor.jobs_core.envelope"),
+    )
     sys.path.remove(str(staged))
 
 
 @pytest.fixture
-def registered(stack, monkeypatch):
-    kind = stack.handler.KIND
-    monkeypatch.setattr(stack.envelope, "KINDS", stack.envelope.KINDS | {kind})
-    monkeypatch.setattr(stack.envelope, "KIND_QUEUE", {**stack.envelope.KIND_QUEUE, kind: "image"})
-    stack.handler.register()
-    yield
-    stack.handler.tasks.RUNNERS.pop(kind, None)
+def world(stack):
+    s3, sqs = FakeS3(), FakeSQS()
+    runtime = stack.handler.ImageRuntime(stack.aws.Settings(ENV), clients={"s3": s3, "sqs": sqs})
+    stack.jobs.set_runtime(runtime)
+    stack.handler.set_registry(None)
+    yield SimpleNamespace(s3=s3, sqs=sqs, stack=stack)
+    stack.jobs.set_runtime(None)
 
 
-def make(stack, data=None, sink=None, **env):
-    fakes = stack.fakes
-    s3, sqs = fakes.FakeS3(), fakes.FakeSQS()
-    data = data if data is not None else jpeg_with_gps(6, 400, 300)
-    s3.objects[(fakes.ASSET_BUCKET, KEY)] = data
-    environment = {**fakes.environ("image"), **env}
-    runtime = stack.handler.ImageRuntime(
-        stack.handler.ImageSettings(environment), clients={"s3": s3, "sqs": sqs}, sink=sink
+def make_request(data, profile=contract.PROFILE_THUMBNAILS, options=None, *, attempt=None):
+    declared = contract.PROFILE_DECLARATIONS[profile]
+    resolved = dict(declared.resolve_options(options or {}))
+    version_id = str(uuid.UUID(int=77))
+    subject = SubjectRef("asset_version", version_id)
+    ref = ProfileRef(*profile)
+    source = InputObject(
+        ObjectRef("assets", KEY, None, NS),
+        "image/jpeg",
+        len(data),
+        hashlib.sha256(data).hexdigest(),
     )
-    stack.handler.set_runtime(runtime)
-    return s3, sqs, data
+    stamp = datetime.now(UTC).replace(microsecond=0)
+    return ProcessingJobRequest(
+        job_id=str(uuid.uuid4()),
+        job_type=contract.JOB_TYPE,
+        namespace=NS,
+        subject=subject,
+        profile=ref,
+        idempotency_key=idempotency_key(
+            namespace=NS,
+            job_type=contract.JOB_TYPE,
+            subject=subject,
+            profile=ref,
+            input=source,
+            options=resolved,
+            processor_version=contract.PROCESSOR_VERSION,
+        ),
+        correlation_id=uuid.uuid4().hex,
+        attempt_id=attempt or str(uuid.uuid4()),
+        attempt_number=1,
+        submitted_at=stamp - timedelta(minutes=1),
+        input=source,
+        asset=AssetContext("hero", version_id, 1),
+        expires_at=stamp + timedelta(hours=72),
+        options=resolved,
+        limits=contract.IMAGE_LIMITS,
+    )
 
 
-def message(stack, data, **payload):
-    body = {
-        "storage_key": KEY,
-        "format": "jpeg",
-        "size_bytes": len(data),
-        "sha256": hashlib.sha256(data).hexdigest(),
-        "profiles": ["thumbnail-128", "convert-png"],
-        **payload,
-    }
-    # built by hand: build_work binds the default `allowed_kinds` when it is defined
+def event(request):
     work = {
         "schema": 1,
-        "job_id": JOB,
-        "kind": stack.handler.KIND,
+        "job_id": request.job_id,
+        "kind": contract.JOB_TYPE,
         "attempt": 1,
         "submitted_at": "2026-11-18T00:00:00Z",
-        "payload": body,
+        "payload": request.to_dict(),
     }
     return {"Records": [{"messageId": "m1", "body": json.dumps(work)}]}
 
 
-CONTEXT = SimpleNamespace(function_name="lai-dev-jobs-image", aws_request_id="r1")
+def run(world, data, **kwargs):
+    world.s3.objects[(BUCKET, KEY)] = data
+    request = make_request(data, **kwargs)
+    out = world.stack.handler.handle(event(request), CONTEXT)
+    final = [m for m in world.sqs.sent if m["status"] != "running"]
+    return request, out, final[-1] if final else None
 
 
-def test_converts_and_reports_value_free_results(stack, registered):
-    sink = stack.task.MemorySink()
-    s3, sqs, data = make(stack, sink=sink)
-    out = stack.handler.handle(message(stack, data), CONTEXT)
+def artifact_objects(world):
+    return {
+        key: data
+        for (bucket, key), data in world.s3.objects.items()
+        if "processing/artifacts/" in key
+    }
+
+
+def test_thumbnails_are_written_create_only_and_referenced(world):
+    data = jpeg_with_gps(6, 400, 300)
+    request, out, final = run(world, data)
     assert out == {"batchItemFailures": []}
-    final = sqs.sent[-1]["Body"]
-    assert final["status"] == "succeeded" and final["error"] is None
+    assert final["status"] == "succeeded"
     result = final["result"]
-    assert result["verdict"] == "pass"
-    assert [o["logicalId"] for o in result["outputs"]] == ["thumbnail-128", "convert-png"]
-    assert result["source"]["gpsPresent"] is True and result["source"]["orientation"] == 6
-    assert set(sink.objects) == {"thumbnail-128", "convert-png"}
-    wire = json.dumps(sqs.sent)
-    for secret in ("SecretMaker", "SecretComment", "37.0"):
-        assert secret not in wire
-    for _content_type, blob in sink.objects.values():
-        assert Image.open(io.BytesIO(blob)).format in ("WEBP", "PNG")
-    # the original object is untouched and nothing else was written to the asset bucket
-    assert s3.objects[(stack.fakes.ASSET_BUCKET, KEY)] == data
-    assert all(put["Bucket"] == stack.fakes.RESULTS_BUCKET for put in s3.puts)
+    assert result["status"] == "succeeded" and result["verdict"] == "pass"
+    refs = {a["logical_id"]: a for a in result["artifacts"]}
+    assert set(refs) == {"thumb-128", "thumb-256", "thumb-512"}
+    prefix = f"processing/artifacts/{NS}/{request.job_id}/{request.attempt_id}/"
+    for logical, ref in refs.items():
+        assert ref["artifact_type"] == "image.thumbnail"
+        assert ref["ref"]["key"] == f"{prefix}{logical}.webp"
+        assert ref["content_type"] == "image/webp"
+        blob = world.s3.objects[(BUCKET, ref["ref"]["key"])]
+        assert hashlib.sha256(blob).hexdigest() == ref["sha256"] and len(blob) == ref["size_bytes"]
+        assert Image.open(io.BytesIO(blob)).size[0] <= 512
+    puts = [p for p in world.s3.puts if p["Bucket"] == BUCKET]
+    assert len(puts) == 3
+    assert all(p["IfNoneMatch"] == "*" and "ChecksumSHA256" in p for p in puts)
+    assert all(p["Key"].startswith(prefix) for p in puts)
+    facts = result["metadata"]["artifact_facts"]["thumb-256"]
+    # the original as stored, and the output with the orientation applied
+    assert (facts["source_width"], facts["source_height"]) == (400, 300)
+    assert (facts["width"], facts["height"]) == (192, 256) and facts["orientation"] == 6
+    assert facts["sanitized"] is True and facts["format"] == "webp"
+    assert result["metadata"]["source_flags"]["gpsPresent"] is True
+    assert result["metadata"]["tool_versions"]["pillow"]
 
 
-def test_without_an_artifact_store_the_job_fails_safely(stack, registered):
-    s3, sqs, data = make(stack)
-    stack.handler.handle(message(stack, data), CONTEXT)
-    final = sqs.sent[-1]["Body"]
-    assert final["status"] == "failed"
-    assert final["error"]["code"] == "artifact_store_unconfigured"
+def test_the_original_and_other_keys_are_never_written(world):
+    data = jpeg_with_gps(6, 400, 300)
+    run(world, data)
+    assert world.s3.objects[(BUCKET, KEY)] == data
+    written = {p["Key"] for p in world.s3.puts if p["Bucket"] == BUCKET}
+    assert written and all(k.startswith(f"processing/artifacts/{NS}/") for k in written)
+    # the results bucket receives only the stored job result, through the shared handler
+    assert {p["Key"] for p in world.s3.puts if p["Bucket"] == RESULTS} == {
+        f"jobs/results/{k[1].split('/')[-1]}" for k in world.s3.objects if k[0] == RESULTS
+    }
 
 
-@pytest.mark.parametrize(
-    ("change", "code"),
-    [
-        ({"sha256": "0" * 64}, "checksum_mismatch"),
-        ({"size_bytes": 5}, "size_mismatch"),
-        ({"format": "png"}, "invalid_payload"),
-        ({"profiles": ["no-such"]}, "invalid_profile"),
-        ({"profiles": []}, "invalid_payload"),
-        ({"options": {"colour": "x"}}, "invalid_payload"),
-        ({"options": {"max_side": 99999}}, "invalid_profile"),
-    ],
-)
-def test_bad_requests_fail_without_converting(stack, registered, change, code):
-    sink = stack.task.MemorySink()
-    s3, sqs, data = make(stack, sink=sink)
-    stack.handler.handle(message(stack, data, **change), CONTEXT)
-    final = sqs.sent[-1]["Body"]
-    assert (final["status"], final["error"]["code"]) == ("failed", code)
-    assert sink.objects == {}
+def test_no_metadata_in_stored_outputs_or_in_the_result(world):
+    for data in (jpeg_with_gps(6, 200, 100), png_with_text()):
+        world.s3.objects.clear()
+        world.sqs.sent.clear()
+        request, _out, final = run(
+            world, data, profile=contract.PROFILE_CONVERT, options={"target_format": "png"}
+        )
+        assert final["status"] == "succeeded", final
+        for blob in artifact_objects(world).values():
+            for secret in (b"SecretMaker", b"SecretComment", b"SecretAuthor", b"SecretXMP", b"GPS"):
+                assert secret not in blob
+            image = Image.open(io.BytesIO(blob))
+            assert len(image.getexif()) == 0
+        wire = json.dumps(world.sqs.sent)
+        for secret in ("SecretMaker", "SecretComment", "SecretAuthor", "37.0", "122.0"):
+            assert secret not in wire
 
 
-def test_malformed_and_missing_inputs(stack, registered):
-    sink = stack.task.MemorySink()
-    s3, sqs, data = make(stack, data=b"\xff\xd8\xff" + bytes(200), sink=sink)
-    stack.handler.handle(message(stack, s3.objects[(stack.fakes.ASSET_BUCKET, KEY)]), CONTEXT)
-    assert sqs.sent[-1]["Body"]["error"]["code"] == "malformed_image"
-    del s3.objects[(stack.fakes.ASSET_BUCKET, KEY)]
-    s3.objects.pop(
-        (stack.fakes.RESULTS_BUCKET, f"jobs/results/{JOB}.json")
-    )  # a new job, not a redelivery
-    sqs.sent.clear()
-    stack.handler.handle(message(stack, data), CONTEXT)
-    assert sqs.sent[-1]["Body"]["error"]["code"] == "object_missing"
+def test_convert_resize_and_data_options(world):
+    data = encode(gradient(300, 200, "RGBA"), "PNG")
+    key = f"assets/images/hero/{uuid.UUID(int=5)}/image.png"
+    world.s3.objects[(BUCKET, key)] = data
+    for profile, options, role, logical, size in (
+        (
+            contract.PROFILE_CONVERT,
+            {"target_format": "jpeg"},
+            "image.converted",
+            "converted",
+            (300, 200),
+        ),
+        (contract.PROFILE_RESIZE, {"max_side": 100}, "image.resized", "resized", (100, 67)),
+        (
+            contract.PROFILE_RESIZE,
+            {"max_side": 64, "purpose": "data", "target_format": "png"},
+            "image.resized",
+            "resized",
+            (64, 43),
+        ),
+    ):
+        request = make_request(data, profile, options)
+        request = ProcessingJobRequest.from_dict(
+            {
+                **request.to_dict(),
+                "input": {
+                    **request.to_dict()["input"],
+                    "ref": {**request.to_dict()["input"]["ref"], "key": key},
+                    "content_type": "image/png",
+                },
+            }
+        )
+        # the idempotency key covers the input ref: rebuild it for the PNG key
+        import dataclasses
+
+        request = dataclasses.replace(
+            request,
+            idempotency_key=idempotency_key(
+                namespace=NS,
+                job_type=contract.JOB_TYPE,
+                subject=request.subject,
+                profile=request.profile,
+                input=request.input,
+                options=dict(request.options),
+                processor_version=contract.PROCESSOR_VERSION,
+            ),
+        )
+        world.sqs.sent.clear()
+        world.stack.handler.handle(event(request), CONTEXT)
+        final = [m for m in world.sqs.sent if m["status"] != "running"][-1]
+        assert final["status"] == "succeeded", final
+        (ref,) = final["result"]["artifacts"]
+        assert (ref["artifact_type"], ref["logical_id"]) == (role, logical)
+        blob = world.s3.objects[(BUCKET, ref["ref"]["key"])]
+        assert Image.open(io.BytesIO(blob)).size == size
 
 
-def test_redelivery_resends_the_stored_result_without_converting_again(stack, registered):
-    sink = stack.task.MemorySink()
-    s3, sqs, data = make(stack, sink=sink)
-    event = message(stack, data)
-    stack.handler.handle(event, CONTEXT)
-    sink.objects.clear()
-    stack.handler.handle(event, CONTEXT)
-    assert sink.objects == {}  # no second conversion
-    assert sqs.sent[-1]["Body"]["status"] == "succeeded"
+def test_failures_are_classified_and_write_nothing(world):
+    cases = [
+        (b"\xff\xd8\xff" + bytes(300), "invalid_input"),
+        (encode(Image.new("L", (4097, 4), 0), "PNG"), "resource_limit_exceeded"),
+        (encode(gradient(), "GIF"), "unsupported_input"),
+    ]
+    for data, code in cases:
+        world.s3.objects.clear()
+        world.sqs.sent.clear()
+        request, out, final = run(world, data)
+        assert out == {"batchItemFailures": []}
+        assert (final["status"], final["error"]["code"]) == ("failed", code), final
+        assert artifact_objects(world) == {}
 
 
-def test_without_envelope_registration_nothing_runs(stack):
-    s3, sqs, data = make(stack)
-    stack.handler.tasks.RUNNERS.pop(stack.handler.KIND, None)
-    out = stack.handler.handle(
-        {"Records": [{"messageId": "m1", "body": json.dumps({"kind": "asset.convert_image"})}]},
-        CONTEXT,
-    )
-    assert out == {"batchItemFailures": [{"itemIdentifier": "m1"}]}
-    assert sqs.sent == []
+def test_a_changed_input_is_refused_by_the_engine(world):
+    data = jpeg_with_gps(1, 200, 100)
+    world.s3.objects[(BUCKET, KEY)] = data
+    request = make_request(data)
+    world.s3.objects[(BUCKET, KEY)] = data + b"x"  # replaced after the request was made
+    world.stack.handler.handle(event(request), CONTEXT)
+    final = [m for m in world.sqs.sent if m["status"] != "running"][-1]
+    assert final["status"] == "failed" and final["error"]["code"] == "checksum_mismatch"
+    assert artifact_objects(world) == {}
 
 
-def test_settings_require_the_image_queue_and_buckets(stack):
-    environ = stack.fakes.environ("image")
-    stack.handler.ImageSettings(environ)
-    with pytest.raises(RuntimeError):
-        stack.handler.ImageSettings({**environ, "LAI_WORKER_QUEUE": "media"})
-    with pytest.raises(RuntimeError):
-        stack.handler.ImageSettings({**environ, "LAI_ASSET_BUCKET": ""})
+def test_redelivery_resends_the_stored_result_and_writes_nothing_more(world):
+    data = jpeg_with_gps(1, 200, 100)
+    world.s3.objects[(BUCKET, KEY)] = data
+    request = make_request(data)
+    world.stack.handler.handle(event(request), CONTEXT)
+    puts = len(world.s3.puts)
+    world.stack.handler.handle(event(request), CONTEXT)
+    assert len(world.s3.puts) == puts
+    assert world.sqs.sent[-1]["status"] == "succeeded"
 
 
-def test_runtime_refuses_other_kinds(stack):
-    s3, sqs, data = make(stack)
+def test_a_retry_attempt_rewrites_identical_bytes_idempotently(world):
+    """The store accepts a 412 only when the existing bytes equal the new ones."""
+    data = jpeg_with_gps(1, 200, 100)
+    world.s3.objects[(BUCKET, KEY)] = data
+    request = make_request(data)
+    world.stack.handler.handle(event(request), CONTEXT)
+    results = [k for k in world.s3.objects if k[1].startswith("jobs/results/")]
+    for k in results:
+        del world.s3.objects[k]  # the job result was lost, the artifacts remain
+    world.sqs.sent.clear()
+    world.stack.handler.handle(event(request), CONTEXT)
+    final = [m for m in world.sqs.sent if m["status"] != "running"][-1]
+    assert final["status"] == "succeeded"
+
+
+def test_other_queues_and_kinds_are_refused(world, stack):
     with pytest.raises(stack.handler.TaskError):
-        stack.handler.runtime().ports("asset.inspect", CONTEXT)
+        world.stack.jobs._runtime.ports("asset.inspect", CONTEXT)
+    with pytest.raises(RuntimeError):
+        stack.aws.Settings({**ENV, "LAI_WORKER_QUEUE": "nope"})
 
 
-def test_a_function_that_reads_only_never_needs_write_access_to_assets(stack, registered):
-    # the asset ports expose reads only; there is no put on the asset bucket
-    s3, sqs, data = make(stack)
-    ports = stack.handler.runtime().ports(stack.handler.KIND, CONTEXT)
-    assert not hasattr(ports, "put_asset")
-    assert hasattr(ports, "artifacts")
+def test_payload_must_be_a_request_for_this_kind(world, stack):
+    with pytest.raises(stack.handler.TaskError):
+        stack.handler.run_convert({"x": 1}, None)

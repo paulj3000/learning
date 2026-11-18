@@ -92,11 +92,12 @@ IMPORT_POLICIES = {
         "forbidden": {"lai_native", *APPROVED_NATIVE_LIBRARIES, *_SERVICES}
         | (EXECUTION_MODULES - {"importlib"}),
     },
-    # Future `lambda/<name>_worker` packages: they call `lai_native` and AWS, never a native
-    # library or subprocess directly.
+    # `lambda/<name>_worker` packages (audio, image, optimize): they reuse the canonical
+    # `jobs_worker` envelope, result and artifact-store plumbing (never a fork of it) and call
+    # `lai_native`; never a native library or subprocess directly.
     "native_worker": {
         "stdlib": True,
-        "allowed": {"lai_processing", "lai_native", *_AWS},  # plus their own package name
+        "allowed": {"lai_processing", "lai_native", "jobs_worker", *_AWS},  # plus their own name
         "forbidden": {*APPROVED_NATIVE_LIBRARIES, *_SERVICES} | (EXECUTION_MODULES - {"importlib"}),
     },
     # The native package: its own tools and approved libraries, the pure library; no AWS.
