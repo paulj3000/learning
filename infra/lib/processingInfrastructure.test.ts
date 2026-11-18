@@ -144,8 +144,11 @@ function expectWorkerRoleIsNarrow(st: Statement[], envName: 'dev' | 'prod', labe
       expect(actions(s), label).toEqual(['s3:GetObject', 's3:GetObjectVersion']); // F1
     }
     if (actions(s).includes('s3:ListBucket')) {
-      // F10: a listing must name an allowed prefix (no StringLikeIfExists, no bare listing).
-      expect(Object.keys(s.Condition ?? {}), label).toEqual(['StringLike']);
+      // Asset bucket: StringLikeIfExists so a missing input is a 404 (owner decision, ADR-071
+      // O15); every other listing must name its prefix.
+      expect(Object.keys(s.Condition ?? {}), label).toEqual([
+        s.Sid === 'ListAssetBucket' ? 'StringLikeIfExists' : 'StringLike',
+      ]);
     }
     if (actions(s).includes('s3:PutObject')) {
       expect(s.Sid, label).toBe('CreateArtifacts');
@@ -300,7 +303,7 @@ describe('dev native workers (LaiDevPlatform-dev)', () => {
       expect(text(write.Resource)).toContain('"/processing/artifacts/dev/*"');
       const list = st.find((s) => s.Sid === 'ListAssetBucket')!;
       expect(list.Condition).toEqual({
-        StringLike: { 's3:prefix': ['assets/*', 'processing/artifacts/dev/*'] },
+        StringLikeIfExists: { 's3:prefix': ['assets/*', 'processing/artifacts/dev/*'] },
       });
     }
   });

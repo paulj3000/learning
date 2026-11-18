@@ -225,20 +225,21 @@ export function assetInputReadStatement(assetBucket: string): iam.PolicyStatemen
 }
 
 /**
- * ListBucket on the asset bucket, only for a listing that names one of the given prefixes (plain
- * `StringLike` on `s3:prefix`: a request without the key, a listing of the whole bucket, is not
- * allowed). Review F10 / sec-7 (2026-11-18) replaced the earlier `StringLikeIfExists`, which also
- * allowed a no-prefix listing. Trade-off, recorded in ADR-071 O15: a HEAD or GET carries no
- * `s3:prefix`, so S3 now answers 403 instead of 404 for a missing input; the worker reports
- * permission_denied, not input_missing, for a deleted input (the 2026-11-17 owner decision asked
- * for 404, so the owner must confirm the change).
+ * ListBucket on the asset bucket for the given prefixes, `StringLikeIfExists` on `s3:prefix`. The
+ * `IfExists` is deliberate (owner decision 2026-11-17, ADR-071 O15): S3 evaluates ListBucket for a
+ * HEAD or GET of a missing key, and that request carries no `s3:prefix`, so only `IfExists` lets a
+ * missing input answer 404 (`input_missing`) instead of 403. The accepted cost (review F10 /
+ * sec-7, 2026-11-18): a listing that sends no prefix is also allowed, so a worker could enumerate
+ * key names (never contents) of this one environment's asset bucket. A plain `StringLike` would
+ * close that but turn every missing input into `permission_denied`; that reversal is the owner's
+ * call, not this code's.
  */
 export function assetListStatement(assetBucket: string, prefixes: string[]): iam.PolicyStatement {
   return new iam.PolicyStatement({
     sid: 'ListAssetBucket',
     actions: ['s3:ListBucket'],
     resources: [assetBucket],
-    conditions: { StringLike: { 's3:prefix': prefixes.map((p) => `${p}*`) } },
+    conditions: { StringLikeIfExists: { 's3:prefix': prefixes.map((p) => `${p}*`) } },
   });
 }
 

@@ -790,9 +790,9 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     expect(list).toBeDefined();
     expect(actions(list)).toEqual(['s3:ListBucket']);
     expect(resourcesOf(list)).toEqual([assetBucket]);
-    // Review F10: a listing must name one of the prefixes (no bare listing of the bucket).
+    // IfExists keeps a missing input a 404 (owner decision 2026-11-17, ADR-071 O15).
     expect(list.Condition).toEqual({
-      StringLike: { 's3:prefix': ['assets/*', 'processing/artifacts/dev/*'] },
+      StringLikeIfExists: { 's3:prefix': ['assets/*', 'processing/artifacts/dev/*'] },
     });
     // The other ListBucket statements are unchanged and none of them names the asset bucket.
     expect(listing.map((statement) => statement.Sid).sort()).toEqual([

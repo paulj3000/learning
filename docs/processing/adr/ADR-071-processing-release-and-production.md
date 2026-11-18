@@ -43,8 +43,8 @@ does not understand. The AWS account is shared by dev, prod and other projects.
 4. **Scoped IAM**, asserted by CDK tests: asset-touching workers (media, audio, image, optimize)
    read (`GetObject`, `GetObjectVersion`: reads are by version id) `assets/*` and
    `processing/artifacts/<env>/*` (every artifact writer reads its write prefix for the 412
-   verification), list the bucket only with an `s3:prefix` naming those prefixes (plain
-   `StringLike`, review F10; see O15), create artifacts only with `PutObject` on
+   verification), list the bucket with `StringLikeIfExists` on `s3:prefix` for those prefixes (so a missing
+   input is a 404; the no-prefix listing this also allows is accepted risk O15), create artifacts only with `PutObject` on
    `processing/artifacts/<env>/*` under the `s3:if-none-match` condition, and are explicitly denied
    every action on `processing/artifacts/<env>/capture/*` (staff captures). Large results under
    `jobs/results/` are written create-only as well. No worker can delete. Django alone deletes
@@ -91,7 +91,7 @@ does not understand. The AWS account is shared by dev, prod and other projects.
 | O12 | Live verification that IAM enforces `s3:if-none-match` on the asset bucket (D8) | Statement written; must be proven live before enablement |
 | O13 | Whether prod media worker handles speech | Not granted (prod has no speech bucket) |
 | O14 | Studio `jobs` mode in production (P12), Multi-AZ RDS (P11) | Unchanged |
-| O15 | Missing input reported as 403 instead of 404 (review F10) | The worker `ListBucket` grant now requires an `s3:prefix` naming `assets/` or `processing/artifacts/<env>/`, so a bucket-wide listing is impossible. A HEAD or GET carries no `s3:prefix`, so S3 answers 403 for a missing key and the worker reports `permission_denied` instead of `input_missing`. This reverses the 2026-11-17 owner decision (404 via `StringLikeIfExists`); the owner confirms or chooses the old trade-off |
+| O15 | Worker `ListBucket` on the asset bucket allows a no-prefix listing (review F10 / sec-7) | Kept as `StringLikeIfExists` per the 2026-11-17 owner decision, so a missing input answers 404 (`input_missing`), not 403. Accepted risk: a worker can enumerate key names (not contents) of its own environment's asset bucket. Closing it with a plain `StringLike` would make every missing input `permission_denied`; the owner decides whether to change the trade-off |
 | O16 | GitHub OIDC subject shared by two prod roles | `lai-github-deploy-prod` and `lai-github-workers-prod` both trust `repo:<owner>/<repo>:environment:django-prod`, so any job in that environment (either workflow) can assume either role. **Recommendation:** customise the repository's OIDC subject claim to include `job_workflow_ref` (GitHub `PUT /repos/{owner}/{repo}/actions/oidc/customization/sub`, owner action) and pin each role to its own workflow file; until then the two workflows' job conditions and required reviewers are the only separation |
 | O17 | Redrive role trust (P9) | Account root with MFA: any account principal allowed `sts:AssumeRole` on it. Narrow to named role or user ARNs once the owner names the operators |
 
@@ -108,7 +108,7 @@ does not understand. The AWS account is shared by dev, prod and other projects.
 | F7 | `provision.sh` sends templates over 51,200 bytes through a bucket; tested offline |
 | F8, F13 | Overstated wording fixed: the AI worker's foundation-model grant is any Region (cross-Region profile), the redrive trust is any MFA account principal allowed to assume it (O17), the release role also reads artifacts and stack outputs |
 | F9 | Deterministic manifest (`created_at` = commit time, sorted keys, `--previous` from the dispatch input); an identical existing manifest or artifact is accepted |
-| F10 | `ListBucket` with plain `StringLike` on `s3:prefix` (O15) |
+| F10 | Not changed: `StringLikeIfExists` kept per the owner's 2026-11-17 decision; risk recorded as O15 |
 | F11 | `jobs/results/*` writes are create-only; `store_result` sends `If-None-Match: *` and a concurrent delivery sends the result stored first |
 | F12 | `LAI_FFMPEG_SHA256`, `LAI_GLTFPACK_SHA256`, `LAI_TOKTX_SHA256` are stack parameters filled from the manifest (`stack-parameters`, from the layer's build record). Shared libraries under `/opt/lib` are covered by the layer zip's SHA-256 in the manifest, not by the executable pin |
 | F14 | Django and the proxy start and pass health first; the consumer and sweep start in a separate, non-fatal step |
