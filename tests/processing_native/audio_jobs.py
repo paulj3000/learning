@@ -42,12 +42,20 @@ def declare_job_type(monkeypatch) -> None:
 
 
 def make_request(
-    key: str, data: bytes, content_type: str, profile_id: str, processor, profile, *, job_id=None
+    key: str,
+    data: bytes,
+    content_type: str,
+    profile_id: str,
+    processor,
+    profile,
+    *,
+    job_id=None,
+    options=None,
 ) -> ProcessingJobRequest:
     version_id = str(uuid.uuid4())
     subject = SubjectRef(subject_type="asset_version", subject_id=version_id)
     ref = ProfileRef(profile_id, 1)
-    options = profile.resolve_options({})
+    options = profile.resolve_options(options or {})
     source = InputObject(
         ref=ObjectRef("assets", key, None, NAMESPACE),
         content_type=content_type,

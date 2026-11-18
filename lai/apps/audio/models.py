@@ -575,4 +575,11 @@ class AudioFile(AssetVersion):
         proxy = True
         verbose_name = "audio file"
         verbose_name_plural = "audio files (inspection)"
-        permissions = [("inspect_audiofile", "Can inspect audio files in the background")]
+        permissions = [
+            ("inspect_audiofile", "Can inspect audio files in the background"),
+            (
+                "transcode_audiofile",
+                "Can transcode and normalise audio files in the background (outputs are "
+                "previews for review; nothing is published)",
+            ),
+        ]

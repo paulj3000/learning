@@ -34,6 +34,10 @@ EDITOR_PERMISSIONS = (
     # Background audio inspection (LAI-LAMBDA-008 phase 1): read-only, never publishes.
     "audio.view_audiofile",
     "audio.inspect_audiofile",
+    # Background transcoding and normalising (ADR-067): outputs are private artifacts that staff
+    # review; promoting one is a separate Asset Library permission, publishing another.
+    "audio.transcode_audiofile",
+    "assets.view_derivedartifact",
 )
 PUBLISHER_PERMISSIONS = (
     *EDITOR_PERMISSIONS,
