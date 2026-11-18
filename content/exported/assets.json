@@ -726,7 +726,9 @@
         "bookshelf",
         "secret-door-ajar",
         "round-window",
-        "writing-desk"
+        "npc-quill",
+        "writing-desk",
+        "clue-diary"
       ],
       "regionSlug": "castle-writing-room"
     },

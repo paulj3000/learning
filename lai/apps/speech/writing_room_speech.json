@@ -1,0 +1,49 @@
+{
+  "$comment": "The Writing Room's narration lines (SC-final-B): Keeper Quill's welcome and each step's prompt, one SpeechLine per entry (id <adventure slug>-<step id>). This mirrors react/src/features/writing-room/writingRoomSpeech.ts; a Vitest test fails if they differ. Never change one without the other. Authored text only: nothing a child writes is ever spoken.",
+  "lines": [
+    {
+      "id": "writing-room-picture-story-quill-welcome",
+      "text": "Let us fill an empty book. Pick a picture, a friend and a word."
+    },
+    {
+      "id": "writing-room-picture-story-pick-the-picture",
+      "text": "Pick a picture for your story."
+    },
+    {
+      "id": "writing-room-picture-story-pick-the-character",
+      "text": "Who is in your story?"
+    },
+    {
+      "id": "writing-room-picture-story-pick-the-word",
+      "text": "Pick a word for your story."
+    },
+    {
+      "id": "writing-room-sentence-story-quill-welcome",
+      "text": "Let us write a short story in two or three sentences. Tap the word tiles to build each one."
+    },
+    {
+      "id": "writing-room-sentence-story-sentence-1",
+      "text": "Build the first sentence. Who is in your story, and where are they?"
+    },
+    {
+      "id": "writing-room-sentence-story-sentence-2",
+      "text": "Build the second sentence. What happened next?"
+    },
+    {
+      "id": "writing-room-sentence-story-sentence-3",
+      "text": "You can build a third sentence, or finish now. How does the story end?"
+    },
+    {
+      "id": "writing-room-own-story-quill-welcome",
+      "text": "The first empty book is yours. Pick a story starter, then write what happens next."
+    },
+    {
+      "id": "writing-room-own-story-pick-a-starter",
+      "text": "Pick a story starter."
+    },
+    {
+      "id": "writing-room-own-story-write-the-story",
+      "text": "Write what happens next. A few sentences is plenty. Tell us who is there, what they do, and how it ends."
+    }
+  ]
+}

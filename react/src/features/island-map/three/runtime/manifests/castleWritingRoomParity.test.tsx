@@ -64,7 +64,8 @@ import { getInventory } from '../../../../rewards/api';
 import { listQuestStates } from '../../../../quests/api';
 import { getCompanionProfile } from '../../../../island/api';
 
-const UNLOCKED = [{ changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' }] as never;
+/** A child who finished the Secret Door arc: they keep everything it gave them. */
+const HOLDER = [{ changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' }] as never;
 
 function renderRoom(ageBand: AgeBandValue = 'EXPLORER') {
   return render(
@@ -93,9 +94,9 @@ async function emit(run: (bus: WorldEngineEventBus) => void) {
   });
 }
 
-async function renderUnlocked() {
-  vi.mocked(listAllWorldChanges).mockResolvedValue(UNLOCKED);
-  const utils = renderRoom();
+async function renderUnlocked(ageBand: AgeBandValue = 'EXPLORER', changes: never[] = []) {
+  vi.mocked(listAllWorldChanges).mockResolvedValue(changes);
+  const utils = renderRoom(ageBand);
   await screen.findByText(/move: wasd or the arrow keys/i);
   await waitFor(() => expect(engine.bus).not.toBeNull());
   return utils;
@@ -123,29 +124,32 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
     expect(vi.mocked(createLocationEngine)).not.toHaveBeenCalled();
   });
 
-  it('shows a calm not-discovered-yet message and builds no engine when the story is not complete', async () => {
+  it('is open to a child with no progress at all: no locked message, and the engine is built', async () => {
     renderRoom();
-    expect(await screen.findByText(/has not been discovered yet/i)).toBeInTheDocument();
-    expect(vi.mocked(createLocationEngine)).not.toHaveBeenCalled();
-    expect(screen.queryByText(/move: wasd/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/move: wasd or the arrow keys/i)).toBeInTheDocument();
+    expect(screen.queryByText(/has not been discovered yet/i)).not.toBeInTheDocument();
+    expect(vi.mocked(createLocationEngine)).toHaveBeenCalledTimes(1);
   });
 
-  it('fails closed: a failed progress read keeps the room closed', async () => {
+  it.each(['SPROUT', 'PATHFINDER', 'EXPLORER'] as const)(
+    'lets a %s in, with no arithmetic and no earlier story required',
+    async (band) => {
+      await renderUnlocked(band);
+      expect(vi.mocked(createLocationEngine)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(createLocationEngine).mock.calls[0]?.[2]).toMatchObject({
+        regionId: 'castle-writing-room',
+      });
+    },
+  );
+
+  it('does not fail closed on a failed progress read: the room has no requirement to fail', async () => {
     vi.mocked(listAllWorldChanges).mockRejectedValue(new Error('offline'));
     renderRoom();
-    expect(await screen.findByText(/has not been discovered yet/i)).toBeInTheDocument();
-    expect(vi.mocked(createLocationEngine)).not.toHaveBeenCalled();
+    expect(await screen.findByText(/move: wasd or the arrow keys/i)).toBeInTheDocument();
   });
 
-  it('lets a not-yet-unlocked child navigate back to the map', async () => {
-    const user = userEvent.setup();
-    renderRoom();
-    await user.click(await screen.findByText(/back to the map/i));
-    expect(await screen.findByText('Map route')).toBeInTheDocument();
-  });
-
-  it('builds the engine, with the child world state, once the story is complete', async () => {
-    await renderUnlocked();
+  it('gives a child who finished the Secret Door arc the same room, builds the engine with their state', async () => {
+    await renderUnlocked('EXPLORER', HOLDER);
     expect(vi.mocked(createLocationEngine)).toHaveBeenCalledTimes(1);
     expect(engine.options?.worldState?.worldChangeKeys).toContain('THE_CASTLES_SECRET_DOOR_COMPLETE');
   });
@@ -155,6 +159,36 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
     expect(screen.getByRole('button', { name: 'The writing desk' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Shelves of empty books' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'The path back into the castle' })).toBeInTheDocument();
+  });
+
+  it('also lists the open book and Keeper Quill, which the Phaser room does not have', async () => {
+    await renderUnlocked();
+    expect(screen.getByRole('button', { name: 'Write a story in the open book' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keeper Quill' })).toBeInTheDocument();
+  });
+
+  it('opens the write-your-story page from the open book, for every band, and never requires it', async () => {
+    const user = userEvent.setup();
+    await renderUnlocked('SPROUT');
+    await user.click(screen.getByRole('button', { name: 'Write a story in the open book' }));
+    const link = await screen.findByRole('link', { name: 'Go there' });
+    expect(link).toHaveAttribute('href', '/island/child-1/locations/castle-writing-room/write');
+    // Leaving is one click, and nothing was recorded.
+    await user.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(recordWorldChangeOnce).not.toHaveBeenCalled();
+  });
+
+  it('opens the existing NPC conversation when the child talks to Keeper Quill', async () => {
+    const user = userEvent.setup();
+    await renderUnlocked();
+    await user.click(screen.getByRole('button', { name: 'Keeper Quill' }));
+    expect(await screen.findByText('conversation with keeper-quill')).toBeInTheDocument();
+  });
+
+  it('marks Quill met when the child walks up to him, through the same write the castle uses', async () => {
+    await renderUnlocked();
+    await emit((bus) => bus.emit('NpcApproached', { entityId: 'keeper-quill' } as never));
+    await waitFor(() => expect(recordCharacterMet).toHaveBeenCalledWith('child-1', 'keeper-quill'));
   });
 
   it('shows the desk message, plain, when the desk is tapped in the list', async () => {
@@ -173,9 +207,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
       }),
     );
     expect(
-      await screen.findByText(
-        'You solved it, so it is yours to use. The first empty book is waiting.',
-      ),
+      await screen.findByText('This desk is yours to use. The first empty book is waiting.'),
     ).toBeInTheDocument();
     await emit((bus) =>
       bus.emit('ObjectInteracted', {
@@ -222,6 +254,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
     await renderUnlocked();
     await user.click(screen.getByRole('button', { name: 'The writing desk' }));
     await user.click(screen.getByRole('button', { name: 'Shelves of empty books' }));
+    await user.click(screen.getByRole('button', { name: 'Write a story in the open book' }));
     await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'writing-room-castle-exit' }));
     await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-writing-room:entry' }));
     expect(recordWorldChangeOnce).not.toHaveBeenCalled();
@@ -249,10 +282,15 @@ describe('The Writing Room: one progress contract for both renderers', () => {
     expect(read('../../castleWritingRoomRegion.ts')).not.toContain('recordWorldChangeOnce');
   });
 
-  it('keeps the Phaser view gated on the same key as the manifest', () => {
-    expect(read('../../../CastleWritingRoomWorldView.tsx')).toContain(
-      "{ changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' }",
-    );
+  it('has the Phaser view read the location data for its door, so no view can disagree about it', () => {
+    const view = read('../../../CastleWritingRoomWorldView.tsx');
+    expect(view).toContain("getIslandLocation('castle-writing-room')");
+    expect(view).not.toContain('THE_CASTLES_SECRET_DOOR_COMPLETE');
+  });
+
+  it('gives the Phaser room nothing new (ADR-020): no book, no Quill, no write path', () => {
+    expect(read('../../../scenes/CastleWritingRoomScene.ts')).not.toMatch(/write|quill/i);
+    expect(read('../../../CastleWritingRoomWorldView.tsx')).not.toContain('writing-room-write-story');
   });
 
   it('leaves the Phaser route the default (SC-R10-03 stays gated)', () => {

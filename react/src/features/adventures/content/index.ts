@@ -14,6 +14,7 @@ import { BUTTERFLY_GARDEN_ADVENTURES } from './butterflyGardenAdventures';
 import { CASTLES_SECRET_DOOR_ADVENTURES } from './castlesSecretDoorAdventures';
 import { CREATURE_CARE_COVE_ADVENTURES } from './creatureCareCoveAdventures';
 import { DARK_LIGHTHOUSE_ADVENTURES } from './darkLighthouseAdventures';
+import { WRITING_ROOM_STORIES } from './writingRoomStories';
 
 /**
  * Every arc challenge below the first four entries carries a story-only
@@ -42,6 +43,8 @@ export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   // notion of difficulty either: `resolveAdventureForSkillLevel` picks among
   // these, and `resolveAdventureForAgeBand` still works on them unchanged.
   ...DARK_LIGHTHOUSE_ADVENTURES,
+  // SC-final-B: the Writing Room's write-your-story activity, one template per band.
+  ...WRITING_ROOM_STORIES,
 ];
 
 export function getAdventureTemplate(slug: string): AdventureDefinition | undefined {
@@ -130,6 +133,7 @@ export * from './butterflyGardenAdventures';
 export * from './castlesSecretDoorAdventures';
 export * from './creatureCareCoveAdventures';
 export * from './darkLighthouseAdventures';
+export * from './writingRoomStories';
 export {
   REPAIR_THE_MOONLIGHT_BRIDGE,
   THREE_PLANKS_FOR_THE_BRIDGE,

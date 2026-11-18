@@ -1,5 +1,5 @@
 {
-  "contentDigest": "abae219e1f6815a81eb87e1b4c2feb32a0800ce33c19ff424bae9ccfe9b3f895",
+  "contentDigest": "988d1e38ea2d58e6cd3cd65d7a9d16ebe0be6e9377bd3a981f08c6c98fe066a8",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -17,16 +17,16 @@
         "locations": 11
       },
       "path": "locations.json",
-      "sha256": "3a502fe34b8a525878ebb6a89c7e4b478a35d19f09988832d588d0506c6b090d"
+      "sha256": "dfec8d32c3d3da702ec8641d45970af391d203337d4c200af2a5f6b088c65f55"
     },
     {
       "counts": {
-        "adventures": 26,
+        "adventures": 29,
         "learningObjectives": 20,
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "0b8d721d8f5aa64c2e595f58f7e4339bdedb3b9d8c53b2f67c5187ad81aac777"
+      "sha256": "d5ae5eb17b8acfdb5611b16b73b45620b929f9a8344e3d73a47eca8d6bcb1813"
     },
     {
       "counts": {
@@ -56,7 +56,7 @@
         "npcs": 8
       },
       "path": "npcs.json",
-      "sha256": "be09f4c03ede5c824d98b275a278f8405b566d12794fbc9fe615087dc6dcf5d5"
+      "sha256": "0b42633d143d41b6173fcc20eb07320cf4c1f641f833c1f4a00d11e14319f32c"
     },
     {
       "counts": {
@@ -71,7 +71,7 @@
         "interactions": 8
       },
       "path": "interactions.json",
-      "sha256": "b9d6b1768550433f35db5e9bf41b115da2d01add8672c8a6a048298fcb421e2c"
+      "sha256": "edfee7d89c17ca5d3a20956904a70e744cbf9bf2b0be7d659c6bd2b953a8a6ba"
     },
     {
       "counts": {
@@ -89,7 +89,7 @@
         "locationAssets": 7
       },
       "path": "assets.json",
-      "sha256": "6ddc31fb9fe576dcd45b65ab9e76b9722153475158c6404d3f69527d9b9888d7"
+      "sha256": "48470848b47e89dcec4f959a984e611694782a57f769c32f284374282c41e6c8"
     }
   ],
   "knownAmbiguities": [

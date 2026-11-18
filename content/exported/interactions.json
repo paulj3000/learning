@@ -881,7 +881,7 @@
         {
           "action": {
             "kind": "SHOW_MESSAGE",
-            "message": "You solved it, so it is yours to use. The first empty book is waiting."
+            "message": "This desk is yours to use. The first empty book is waiting."
           },
           "id": "writing-room-desk",
           "requirements": [

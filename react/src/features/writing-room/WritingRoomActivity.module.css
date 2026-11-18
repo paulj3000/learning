@@ -1,0 +1,219 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 40rem;
+  padding: var(--space-6);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-xlarge, 1.75rem);
+  color: var(--color-text);
+}
+
+.prompt {
+  margin: 0;
+  font-size: var(--font-size-large);
+  color: var(--color-text);
+}
+
+.progress,
+.counter {
+  margin: 0;
+  color: var(--color-text-muted, var(--color-text));
+}
+
+.encouragement {
+  margin: 0;
+  font-size: var(--font-size-large);
+  color: var(--color-primary);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.primary,
+.secondary,
+.listen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  min-width: 3.5rem;
+  padding: var(--space-3) var(--space-5);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.primary {
+  color: var(--color-on-primary, #fff);
+  background-color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+}
+
+.secondary,
+.listen {
+  color: var(--color-text);
+  background-color: var(--color-background);
+  border: 2px solid var(--color-border);
+}
+
+.listen {
+  align-self: flex-start;
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sprouts: one big target per option, picture first. */
+.bigChoices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-4);
+}
+
+.bigChoice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 9rem;
+  padding: var(--space-4);
+  font: inherit;
+  font-size: var(--font-size-large);
+  font-weight: 600;
+  color: var(--color-text);
+  background-color: var(--color-background);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.bigChoice:hover:not(:disabled),
+.bigChoice:focus-visible {
+  border-color: var(--color-primary);
+}
+
+.mark {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+/* Pathfinders: word tiles and the sentence they make. */
+.sentence {
+  min-height: 3.5rem;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-large);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.tile {
+  min-height: 3.5rem;
+  padding: var(--space-3) var(--space-4);
+  font: inherit;
+  font-size: var(--font-size-large);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.tile:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Explorers: starters and the paragraph. */
+.starters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.starter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.paragraph {
+  width: 100%;
+  padding: var(--space-3);
+  font: inherit;
+  font-size: var(--font-size-large);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+}
+
+.hints {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.book {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background-color: var(--color-background);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.sceneText {
+  margin: 0;
+  font-size: var(--font-size-large);
+  color: var(--color-text);
+}

@@ -79,6 +79,8 @@ _CODED = {
     "account_deletion_incomplete": "The account could not be fully deleted yet. Please try again.",
     "staff_account_not_deletable": "This account is managed in the administration site.",
     "story_scene_rejected": "That story could not be saved.",
+    # Writing Room (SC-final-B): authored and kind; never names a category or echoes the text.
+    "written_story_refused": "Let us try that again with different words.",
     "chapter_not_finished": "This chapter is not finished yet.",
     "chapter_not_current": "That chapter is not the current one.",
     "unknown_chapter": "That chapter is not part of this story.",

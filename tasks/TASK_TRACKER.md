@@ -1236,6 +1236,22 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       evidence: Vitest manifests, Phaser Writing Room view, discovery, content-export, IslandLocationPage
       35 files, 581 passed; `tsc` clean; content:check and golden:check exit 0. Not run: browser, WebGL,
       e2e, lint, format, full suites. Visual validation stays an owner step.
+- [x] **SC-final-B** Writing Room as a working educational destination (branch `work/final-b`; contract
+      `docs/regions/prep/writing_room_prep.md`, "Implementation note (SC-final-B)"). DONE (development), not
+      owner accepted. (1) Write-your-story by band (the age-correct mapping: Sprouts tap a picture, a character
+      and a word; Pathfinders build 2 or 3 sentences from word tiles; Explorers pick a starter and type a short
+      paragraph), saved as an ordinary `StoryArtifact` through three per-band adventure templates at
+      `castle-writing-room` and `POST children/{id}/story-artifacts/written/`; Sprout and Pathfinder text is composed
+      by the server from authored options, an Explorer paragraph is screened by the existing deterministic input
+      checks and refused kindly (nothing stored or logged), no AI feedback, authored encouragement only, no reward.
+      (2) Keeper Quill placed in the 3D room, talking through the existing `NpcConversation`, one authored line.
+      (3) Sprouts: flat markers, large targets, narrated prompts. (4) The room no longer waits on
+      `THE_CASTLES_SECRET_DOOR_COMPLETE` (arithmetic): `locations.ts`, the export, Django `place_unlocked`, the
+      Phaser view and the 3D manifest agree; holders keep the library bookshelf door, key and keepsake.
+      (5) `castleExitsNoArithmetic` extended. (6) `entryRequirements` documented in
+      `docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md` with validation and view tests. Deferred: an in-castle
+      always-open door (castle manifest baseline and the 300 draw-call budget, owner decision), mounting the NPC
+      Manager host in the room.
 - [ ] **SC-R10-03** Retire the Phaser castle and Writing Room. GATED on ADR-020's conditions, LAI-2303 and
       owner approval. The route switch (`AppRoutes.tsx` `world/castle-writing-room`) is untouched.
 - [x] **SC-R08-01** Ambient return-visit events (contract `docs/regions/prep/ai_director_prep.md`; branch

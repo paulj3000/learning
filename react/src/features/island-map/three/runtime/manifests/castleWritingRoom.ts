@@ -3,7 +3,10 @@ import {
   CASTLE_WRITING_ROOM_CHECKPOINTS,
   CASTLE_WRITING_ROOM_REGION_ID,
 } from '../../../../discovery/checkpoints';
-import { CASTLE_WRITING_ROOM_INTERACTIONS } from '../../../worldObjects';
+import {
+  CASTLE_WRITING_ROOM_3D_INTERACTIONS,
+  CASTLE_WRITING_ROOM_INTERACTIONS,
+} from '../../../worldObjects';
 import {
   INTERACTIVE_BOOKSHELF_SPOT,
   WRITING_DESK_SPOT,
@@ -17,7 +20,9 @@ import {
   WRITING_ROOM_STEP_HEIGHT,
   WRITING_ROOM_STEP_SIZE,
   WRITING_ROOM_STEP_SPOTS,
-  WRITING_ROOM_UNLOCK_CHANGE_KEY,
+  WRITING_ROOM_OPEN_BOOK_SPOT,
+  WRITING_ROOM_QUILL_COLLIDER_HALF,
+  WRITING_ROOM_QUILL_SPOT,
   WRITING_ROOM_WALL_HEIGHT,
   WRITING_ROOM_WINDOW,
   WRITING_ROOM_WINDOW_LIGHT,
@@ -38,13 +43,13 @@ import { box, rect, solid } from './castleRooms/castleVisualKit';
  * The Writing Room as a manifest (SC-R10-01), the Three.js twin of the Phaser
  * `CastleWritingRoomWorldView`, served at `explore/castle-writing-room`.
  *
- * Parity is by construction: the interactions are the very array the Phaser
- * view reads (`CASTLE_WRITING_ROOM_INTERACTIONS`), never a copy, so ids,
- * titles, messages and requirements cannot drift. The unlock is the same key
- * (`entryRequirements`, fail closed: a failed progress read has no keys, so
- * the room stays closed). The room has no NPC (the Phaser scene places none,
- * though `islandNpcs.ts` schedules one: an owner decision), no write action,
- * no progress event and no world change. Chapter 3 stays where it is.
+ * Parity is by construction: the original interactions are the very array the Phaser
+ * view reads (`CASTLE_WRITING_ROOM_INTERACTIONS`), never a copy, so ids, titles, messages and
+ * requirements cannot drift. SC-final-B adds, for this renderer only (ADR-020: Phaser gains
+ * nothing), `CASTLE_WRITING_ROOM_3D_INTERACTIONS`: the open book on the desk (the optional
+ * write-your-story activity, which runs in React) and Keeper Quill, who is placed here always,
+ * as he is in the castle. The room has no entry requirement: it is open to every child (the old
+ * Secret Door gate had an arithmetic step). It has no progress event and no world change.
  *
  * Reuses the castle's own models (`writing-desk`, `bookshelf`, `round-window`,
  * `secret-door-ajar`); a missing model falls back to the engine placeholder.
@@ -150,6 +155,15 @@ const COLLIDERS: readonly ColliderSpec[] = [
     WRITING_DESK_SPOT.z + WRITING_DESK_SPOT.halfZ,
     WRITING_DESK_SPOT.height,
   ),
+  // Keeper Quill stands solid, like the castle's: walking through the person you are about to talk to undoes the point.
+  solid(
+    'collider:keeper-quill',
+    WRITING_ROOM_QUILL_SPOT.x - WRITING_ROOM_QUILL_COLLIDER_HALF,
+    WRITING_ROOM_QUILL_SPOT.x + WRITING_ROOM_QUILL_COLLIDER_HALF,
+    WRITING_ROOM_QUILL_SPOT.z - WRITING_ROOM_QUILL_COLLIDER_HALF,
+    WRITING_ROOM_QUILL_SPOT.z + WRITING_ROOM_QUILL_COLLIDER_HALF,
+    2,
+  ),
   ...WRITING_ROOM_SHELF_COLLIDERS.map((shelf) => ({
     rect: { ...shelf },
     minY: 0,
@@ -212,6 +226,21 @@ const PROPS: readonly PropSpec[] = [
     interactionId: 'writing-room-desk',
     placeholderSize: { width: 1.4, height: 0.9, depth: 0.9 },
   },
+  /*
+    The open book on the desk: tapping it opens the write-your-story activity. Optional and
+    never required. It reuses the castle's existing `clue-diary` model (no new asset); a
+    dedicated open-book model can replace it later by changing this one id.
+  */
+  {
+    entityId: 'writing-room-open-book',
+    assetId: 'clue-diary',
+    position: { x: WRITING_ROOM_OPEN_BOOK_SPOT.x, z: WRITING_ROOM_OPEN_BOOK_SPOT.z },
+    elevation: WRITING_ROOM_OPEN_BOOK_SPOT.elevation,
+    label: 'An open book',
+    action: 'Write',
+    interactionId: 'writing-room-write-story',
+    placeholderSize: { width: 0.45, height: 0.06, depth: 0.32 },
+  },
   {
     entityId: 'writing-room-bookshelf',
     assetId: 'bookshelf',
@@ -266,7 +295,19 @@ export const CASTLE_WRITING_ROOM_MANIFEST: ThreeLocationManifest = {
   colliders: COLLIDERS,
   buildings: [],
   scenery: SCENERY,
-  npcs: [],
+  npcs: [
+    {
+      entityId: 'keeper-quill',
+      npcId: 'keeper-quill',
+      assetId: 'npc-quill',
+      position: { x: WRITING_ROOM_QUILL_SPOT.x, z: WRITING_ROOM_QUILL_SPOT.z },
+      yaw: WRITING_ROOM_QUILL_SPOT.yaw,
+      label: 'Keeper Quill',
+      idleClip: 'Idle',
+      placeholderColor: 0x4a5b8c,
+      interactionId: 'writing-room-talk-to-quill',
+    },
+  ],
   props: PROPS,
   collectibles: [],
 
@@ -309,20 +350,17 @@ export const CASTLE_WRITING_ROOM_MANIFEST: ThreeLocationManifest = {
   ],
   ambient: [],
 
-  // The very array the Phaser view reads: ids, messages and requirements cannot drift.
-  interactions: CASTLE_WRITING_ROOM_INTERACTIONS,
-  // The same door the Phaser view and the location page keep: the castle's secret door story.
-  entryRequirements: [{ type: 'WORLD_CHANGE_PRESENT', changeKey: WRITING_ROOM_UNLOCK_CHANGE_KEY }],
+  // The very array the Phaser view reads, plus this renderer's own two (the open book, Quill).
+  interactions: [...CASTLE_WRITING_ROOM_INTERACTIONS, ...CASTLE_WRITING_ROOM_3D_INTERACTIONS],
+  // No `entryRequirements`: open to every child (SC-final-B).
   adventureBindings: [],
   extensions: [],
 
   copy: {
     loading: 'Loading the Writing Room...',
     instructions:
-      'Move: WASD or the arrow keys. Look: click the screen, then move your mouse (or drag with two fingers on a touch screen: left side to move, right side to look). Tap the desk or the shelves, or use the buttons below.',
-    statusLines: [{ text: 'The Writing Room is quiet. The first empty book is waiting.' }],
-    locked:
-      'This part of the island has not been discovered yet. Maybe a new story will lead you here.',
+      'Move: WASD or the arrow keys. Look: click the screen, then move your mouse (or drag with two fingers on a touch screen: left side to move, right side to look). Tap the open book to write a story, tap Keeper Quill to talk, or use the buttons below.',
+    statusLines: [{ text: 'The Writing Room is quiet. The open book on the desk is waiting for your story.' }],
     checkpointToasts: {
       found: 'You found {checkpoint}.',
       returning: 'You are back at {checkpoint}.',
@@ -334,5 +372,20 @@ export const CASTLE_WRITING_ROOM_MANIFEST: ThreeLocationManifest = {
   },
 
   platforming: PLATFORMING,
-  platformingByBand: { SPROUT: { platforms: [] } },
+  /*
+    Sprouts get flat markers where the steps are (SC-final-B), like the castle's: nothing to jump on
+    and no collider, so a three-year-old meets no obstacle, but the same spots still read as a place
+    to stand and look at the window.
+  */
+  platformingByBand: {
+    SPROUT: {
+      platforms: [],
+      pressurePlates: WRITING_ROOM_STEP_SPOTS.map((spot) => ({
+        id: spot.id.replace('writing-room-step:', 'writing-room-marker:'),
+        position: { x: spot.x, z: spot.z },
+        halfSize: WRITING_ROOM_STEP_SIZE / 2,
+        color: WRITING_ROOM_STEP_COLOR,
+      })),
+    },
+  },
 };

@@ -14429,3 +14429,38 @@ already used 5432. Older entries above that mention 5442 record what ran at the 
   Not merged to `main`, not deployed.
 
 - WS-C (castle rendering optimisation, 2026-11-18): static decor `BOX` scenery is merged per colour per 12 m cell with shared materials (`runtime/staticBoxBatches.ts`, opt-in `static` flag; the 7 boxes the castle-tale extension recolours or hides stay separate). Estimated draw calls 300 to 238, then 241 with the optional Secret Chamber ledge (two stones and a ledge, observation toast only, Sprout markers; nothing granted). These are estimator values, not measurements; the real-device table in `docs/PILOT_READINESS.md` 5b is still blank. The 300 budget is unchanged. Colliders, zones and ids are proven unchanged by `castleOptimisation.test.ts`.
+
+## Writing Room as a working educational destination, SC-final-B (2026-11-18, branch `work/final-b`)
+
+- **Done (development), not owner accepted.** Contract and decisions: `docs/regions/prep/writing_room_prep.md`
+  ("Implementation note (SC-final-B)"); acceptance rows O-15 to O-15e in
+  `docs/regions/storykeeper_castle_acceptance.md`.
+- **Write-your-story, by age band** (the age-correct mapping from `CLAUDE.md` section 3; the first brief had
+  the two older bands the wrong way round). Sprouts tap a picture, a character and a word; Pathfinders build 2
+  or 3 sentences from word tiles; Explorers pick a story starter and type a short paragraph (30 to 500
+  characters). React only (ADR-020): `features/writing-room/`, `routes/WritingRoomWritePage.tsx`, reached from the
+  open book on the desk in the 3D room and "Write a story" on the location card. Never required; no reward,
+  world change or currency; nothing graded; encouragement authored; no model reads the writing.
+- **Persistence reuses `StoryArtifact`.** Three adventure templates (one per band, location
+  `castle-writing-room`) give the story its `AdventureSession`; `POST children/{id}/story-artifacts/written/`
+  (`lai/apps/education/written_story.py`) composes Sprout and Pathfinder text server-side from authored options
+  and screens an Explorer's paragraph with the existing input checks (`screen_untrusted_text`) plus a short
+  list of unkind words. A refused paragraph is `written_story_refused`, stored and logged nowhere. One story per
+  session; another parent's child or session, a wrong band or place is a 404; the server completes the session.
+  No migration (`StoryArtifact` is unchanged; scene `source` gained the value `CHILD`, a JSON field).
+- **Narration.** Prompts are staff-written speech lines (`lai/apps/speech/writing_room_speech.json`, created by
+  `seed_castle_speech_lines`, held equal to the client by a Vitest test). Run that command (and
+  `seed_speech_voices`) in an environment before expecting voice; text captions always show.
+- **Keeper Quill** is placed in the 3D room unconditionally (as the castle does) and talks through the existing
+  `NpcConversation`; one authored line in `islandNpcs.ts` ("Afternoons are for writing...", once, afternoon).
+- **Unlock.** The Writing Room no longer waits on `THE_CASTLES_SECRET_DOOR_COMPLETE` (its arc has an
+  arithmetic step). `unlockRequirement` is gone from `locations.ts`, so the client, the content export, Django's
+  `place_unlocked`, the Phaser view and the 3D manifest agree; holders keep the library bookshelf door, key and
+  keepsake. `entryRequirements` stays in the manifest schema, documented in
+  `docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md` ("Entry requirements"), with validation and view tests.
+- **Sprouts** can enter, with flat markers (no jump steps), large targets and narrated prompts.
+- **Not done / owner:** an always-open door inside the 3D castle (any new castle zone, prop or interaction
+  changes WS-C's `castleOptimisationBaseline.json` and uses the 300 draw-call budget), mounting the NPC Manager
+  host in the Writing Room, a dedicated open-book model (it reuses `clue-diary`), mastery evidence for the
+  writing objectives, and a browser or tablet visual check.
+- **Deferred to merge readiness:** Prettier, Ruff, oxlint, builds, full suites, Playwright and WebGL.

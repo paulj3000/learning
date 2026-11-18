@@ -19,9 +19,14 @@ import { useExplorableWorld } from './useExplorableWorld';
 import { DiscoveryAction } from './DiscoveryAction';
 import { NpcConversation } from './NpcConversation';
 import type { AgeBandValue } from '../child-profile/constants';
-import { isLocationUnlocked } from '../island/locations';
+import { getIslandLocation, isLocationUnlocked } from '../island/locations';
 
-const UNLOCK_REQUIREMENT = { changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' };
+/**
+ * The room's own door, read from the location data so this view, the location page and Django
+ * cannot disagree (SC-final-B: the Writing Room no longer waits on the Secret Door arc, so
+ * there is no requirement and every child may enter).
+ */
+const WRITING_ROOM_LOCATION = getIslandLocation('castle-writing-room');
 
 interface CastleWritingRoomWorldViewProps {
   childId: string;
@@ -90,7 +95,7 @@ export function CastleWritingRoomWorldView({
     );
   }
 
-  if (!isLocationUnlocked({ unlockRequirement: UNLOCK_REQUIREMENT }, context.worldChangeKeys)) {
+  if (!WRITING_ROOM_LOCATION || !isLocationUnlocked(WRITING_ROOM_LOCATION, context.worldChangeKeys)) {
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>

@@ -12,12 +12,16 @@ import type { RectZone } from './runtime/locationManifest';
  * `CASTLE_WRITING_ROOM_INTERACTIONS` in `worldObjects.ts`, which the Phaser
  * room also reads, so the two renderers cannot drift apart.
  *
- * This room records nothing. The only durable fact that reaches it is
- * `THE_CASTLES_SECRET_DOOR_COMPLETE`, written by chapter 3 of the castle
- * story, which is also its unlock key.
+ * Written stories are not recorded here. The activity (`features/writing-room`) saves through
+ * the existing adventure session and `StoryArtifact` routes, and this room writes no world change.
+ * Since SC-final-B the room has no entry requirement: it is open to every child.
  */
 
-/** The world change that opens this room (same key as `locations.ts` and `CASTLE_EXITS`). */
+/**
+ * The world change the Secret Door arc writes. It no longer opens this room (that needed an
+ * arithmetic step), but a child who holds it still sees the library's last bookshelf swing open
+ * onto the room, and keeps the key and keepsake it gave them. Kept so the two doors are named once.
+ */
 export const WRITING_ROOM_UNLOCK_CHANGE_KEY = 'THE_CASTLES_SECRET_DOOR_COMPLETE';
 
 export const WRITING_ROOM_HALF_EXTENT = 5;
@@ -37,6 +41,11 @@ export const WRITING_ROOM_DOOR_SPOT = { x: -4.8, z: 0, rotationY: -Math.PI / 2 }
 
 /** Half the footprint of `writing-desk`, used for its solid collider. */
 export const WRITING_DESK_SPOT = { x: 2.5, z: -1, halfX: 0.7, halfZ: 0.45, height: 0.9 } as const;
+/** Keeper Quill, standing where the desk can be seen from the door. Faces west, toward the child's arrival. */
+export const WRITING_ROOM_QUILL_SPOT = { x: 0.8, z: 1.8, yaw: -Math.PI / 2 } as const;
+export const WRITING_ROOM_QUILL_COLLIDER_HALF = 0.45;
+/** The open book on the desk: the tap target that starts the write-your-story activity. */
+export const WRITING_ROOM_OPEN_BOOK_SPOT = { x: 3.0, z: -0.7, elevation: 0.9 } as const;
 export const INTERACTIVE_BOOKSHELF_SPOT = { x: 0, z: 4.8, rotationY: 0 } as const;
 
 /** Decorative shelves, a bay of blank books each. Backed 0.2 m off the wall like the Great Library's. */

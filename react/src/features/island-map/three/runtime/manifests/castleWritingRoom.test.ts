@@ -11,10 +11,16 @@ import {
   WRITING_ROOM_SHELVES,
   WRITING_ROOM_SPAWN,
   WRITING_ROOM_STEP_SIZE,
+  WRITING_ROOM_OPEN_BOOK_SPOT,
+  WRITING_ROOM_QUILL_SPOT,
   WRITING_ROOM_STEP_SPOTS,
   WRITING_ROOM_UNLOCK_CHANGE_KEY,
 } from '../../castleWritingRoomRegion';
-import { CASTLE_WRITING_ROOM_INTERACTIONS } from '../../../worldObjects';
+import {
+  CASTLE_WRITING_ROOM_3D_INTERACTIONS,
+  CASTLE_WRITING_ROOM_INTERACTIONS,
+} from '../../../worldObjects';
+import { findNpc } from '../../../../npc/content';
 import { SOURCE_MANIFEST_REGISTRIES } from '../sourceManifestRegistries';
 import { validateLocationManifest } from '../validateLocationManifest';
 import type { RectZone, ThreeLocationManifest } from '../locationManifest';
@@ -52,12 +58,29 @@ describe('Writing Room manifest (SC-R10-01)', () => {
     expect(getIslandLocation('castle-writing-room')?.slug).toBe(MANIFEST.locationSlug);
   });
 
-  it('reuses the shared interactions by identity, so ids, messages and requirements cannot drift', () => {
-    expect(MANIFEST.interactions).toBe(CASTLE_WRITING_ROOM_INTERACTIONS);
+  it('reuses the shared interactions by identity and adds only the 3D room\'s own two', () => {
+    // The Phaser room reads the first array, so it gains nothing (ADR-020) and its ids stay in parity.
+    expect(MANIFEST.interactions.slice(0, CASTLE_WRITING_ROOM_INTERACTIONS.length)).toEqual(
+      CASTLE_WRITING_ROOM_INTERACTIONS,
+    );
+    MANIFEST.interactions.slice(0, 3).forEach((interaction, index) => {
+      expect(interaction).toBe(CASTLE_WRITING_ROOM_INTERACTIONS[index]);
+    });
     expect(MANIFEST.interactions.map((i) => i.id)).toEqual([
       'writing-room-desk',
       'writing-room-bookshelf',
       'writing-room-castle-exit',
+      'writing-room-write-story',
+      'writing-room-talk-to-quill',
+    ]);
+    expect(CASTLE_WRITING_ROOM_INTERACTIONS.map((i) => i.id)).toEqual([
+      'writing-room-desk',
+      'writing-room-bookshelf',
+      'writing-room-castle-exit',
+    ]);
+    expect(CASTLE_WRITING_ROOM_3D_INTERACTIONS.map((i) => i.id)).toEqual([
+      'writing-room-write-story',
+      'writing-room-talk-to-quill',
     ]);
   });
 
@@ -66,7 +89,10 @@ describe('Writing Room manifest (SC-R10-01)', () => {
       if (interaction.trigger === 'APPROACH') {
         expect(MANIFEST.zones.map((zone) => zone.rect.id)).toContain(interaction.id);
       } else {
-        expect(MANIFEST.props.filter((prop) => prop.interactionId === interaction.id)).toHaveLength(1);
+        const owners = [...MANIFEST.props, ...MANIFEST.npcs].filter(
+          (entity) => entity.interactionId === interaction.id,
+        );
+        expect(owners, interaction.id).toHaveLength(1);
       }
     }
   });
@@ -76,29 +102,41 @@ describe('Writing Room manifest (SC-R10-01)', () => {
     expect(exit?.action).toEqual({ kind: 'NAVIGATE', to: 'world/storykeeper-castle' });
   });
 
-  it('places no NPC, no collectible and no adventure binding, and records nothing', () => {
-    expect(MANIFEST.npcs).toEqual([]);
+  it('places Keeper Quill (as the castle does, unconditionally) and the open book, and nothing that records', () => {
     expect(MANIFEST.collectibles).toEqual([]);
     expect(MANIFEST.adventureBindings).toEqual([]);
     expect(MANIFEST.extensions).toEqual([]);
-    expect(MANIFEST.interactions.map((i) => i.action.kind).sort()).toEqual([
-      'NAVIGATE',
-      'SHOW_MESSAGE',
-      'SHOW_MESSAGE',
-    ]);
+    expect(MANIFEST.npcs).toHaveLength(1);
+    const quill = MANIFEST.npcs[0]!;
+    expect(quill.npcId).toBe('keeper-quill');
+    expect(findNpc(quill.npcId)).toBeDefined();
+    expect({ x: quill.position.x, z: quill.position.z }).toEqual({
+      x: WRITING_ROOM_QUILL_SPOT.x,
+      z: WRITING_ROOM_QUILL_SPOT.z,
+    });
+    const talk = MANIFEST.interactions.find((i) => i.id === quill.interactionId)!;
+    // The same conversation the castle's Quill opens: his lines, memory and narration.
+    expect(talk.action).toEqual({ kind: 'TALK_TO', npcId: 'keeper-quill' });
+    const book = MANIFEST.props.find((prop) => prop.entityId === 'writing-room-open-book')!;
+    expect(book.interactionId).toBe('writing-room-write-story');
+    expect(book.position).toEqual({ x: WRITING_ROOM_OPEN_BOOK_SPOT.x, z: WRITING_ROOM_OPEN_BOOK_SPOT.z });
+    // The only world-facing actions are navigation, a message and talking: no adventure, no story.
+    expect(new Set(MANIFEST.interactions.map((i) => i.action.kind))).toEqual(
+      new Set(['NAVIGATE', 'SHOW_MESSAGE', 'TALK_TO']),
+    );
   });
 
-  it('is gated on the castle secret door story, the same key everything else uses', () => {
-    expect(MANIFEST.entryRequirements).toEqual([
-      { type: 'WORLD_CHANGE_PRESENT', changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' },
-    ]);
+  it('is open to every child with no arithmetic gate, and earned progress keeps its own door (SC-final-B)', () => {
+    expect(MANIFEST.entryRequirements).toBeUndefined();
+    expect(MANIFEST.copy.locked).toBeUndefined();
+    expect(getIslandLocation('castle-writing-room')?.unlockRequirement).toBeUndefined();
+    // The Secret Door key is still named once, and the library bookshelf still opens for its holders.
     expect(WRITING_ROOM_UNLOCK_CHANGE_KEY).toBe('THE_CASTLES_SECRET_DOOR_COMPLETE');
-    expect(getIslandLocation('castle-writing-room')?.unlockRequirement).toEqual({
-      changeKey: WRITING_ROOM_UNLOCK_CHANGE_KEY,
-    });
-    const writingExit = CASTLE_EXITS.find((exit) => exit.id === 'writing-room');
-    expect(writingExit?.requirements).toEqual(MANIFEST.entryRequirements);
-    expect(writingExit?.to).toBe('locations/castle-writing-room');
+    const bookshelf = CASTLE_EXITS.find((exit) => exit.id === 'writing-room');
+    expect(bookshelf?.requirements).toEqual([
+      { type: 'WORLD_CHANGE_PRESENT', changeKey: WRITING_ROOM_UNLOCK_CHANGE_KEY },
+    ]);
+    expect(bookshelf?.to).toBe('locations/castle-writing-room');
   });
 
   it('appends exactly one checkpoint, after every existing one, with a clear spawn', () => {
@@ -134,7 +172,8 @@ describe('Writing Room manifest (SC-R10-01)', () => {
         solid.maxZ > WRITING_ROOM_EXIT_ZONE.minZ;
       expect(overlapsExit).toBe(false);
     }
-    expect(WRITING_ROOM_SHELF_COLLIDERS.length + WRITING_ROOM_CORNERS.length + 1).toBe(
+    // Shelves, corners, the desk and Keeper Quill.
+    expect(WRITING_ROOM_SHELF_COLLIDERS.length + WRITING_ROOM_CORNERS.length + 2).toBe(
       MANIFEST.colliders.length,
     );
     expect(WRITING_DESK_SPOT.x - WRITING_DESK_SPOT.halfX).toBeGreaterThan(WRITING_ROOM_SPAWN.x);
@@ -173,7 +212,12 @@ describe('Writing Room manifest (SC-R10-01)', () => {
     // Nothing in the manifest is gated on a step.
     expect(MANIFEST.platforming?.zones ?? []).toEqual([]);
     expect(MANIFEST.platforming?.pressurePlates ?? []).toEqual([]);
+    // Sprouts: flat markers at the same spots, no solid step and no collider.
     expect(MANIFEST.platformingByBand?.SPROUT?.platforms).toEqual([]);
+    const markers = MANIFEST.platformingByBand?.SPROUT?.pressurePlates ?? [];
+    expect(markers.map((marker) => marker.position)).toEqual(
+      WRITING_ROOM_STEP_SPOTS.map((spot) => ({ x: spot.x, z: spot.z })),
+    );
     expect(MANIFEST.movement?.jump?.enabled).not.toBe(false);
   });
 });

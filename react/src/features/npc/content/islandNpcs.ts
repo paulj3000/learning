@@ -114,6 +114,28 @@ export const ISLAND_NPCS: NpcDefinition[] = [
     ],
     dialogue: [
       {
+        /*
+          SC-final-B: Quill spends his afternoons at the Writing Room desk (his schedule above), and
+          the room is open to every child. Said once, in an afternoon after he has met the child, and
+          before his other lines (which cover everyone who has met him) so it can be heard at all.
+          Authored only; no choice here asks a child to write (the open book on the desk is the
+          optional way in) and nothing is graded or rewarded.
+        */
+        id: 'quill-writing-room-afternoon',
+        conditions: [
+          { type: 'TIME_OF_DAY', timeOfDay: 'AFTERNOON' },
+          { type: 'MEMORY_FLAG', flag: 'metQuill', equals: true },
+          { type: 'MEMORY_FLAG', flag: 'heardAboutWritingRoom', equals: false },
+        ],
+        text: 'Afternoons are for writing. If you would like to fill an empty book, the desk in the Writing Room is waiting.',
+        choices: [
+          { id: 'quill-writing-room-yes', label: 'I would like that!' },
+          { id: 'quill-writing-room-later', label: 'Maybe later.' },
+        ],
+        setsMemoryFlags: ['heardAboutWritingRoom'],
+        awardsRelationshipPoints: 1,
+      },
+      {
         // SC-R04-01: the Great Storybook is whole. Said once its quest is finished, before anything else.
         id: 'quill-storybook-restored',
         conditions: [{ type: 'MEMORY_FLAG', flag: 'restoredTheStorybook', equals: true }],

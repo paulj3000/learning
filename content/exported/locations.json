@@ -72,17 +72,14 @@
     },
     {
       "decoration": "Shelves of empty books wait for their first stories.",
-      "description": "A small round room behind the last bookshelf: a desk, a window, and shelves of empty books, left ready for whoever solved the door.",
+      "description": "A small round room in the castle: a desk, a window, and shelves of empty books, ready for anyone who would like to write a story.",
       "skills": [
         "Curiosity",
         "Creative writing"
       ],
       "slug": "castle-writing-room",
-      "tagline": "A secret spot, discovered by solving the castle mystery.",
+      "tagline": "A quiet room in the castle, with empty books waiting for your stories.",
       "title": "The Writing Room",
-      "unlockRequirement": {
-        "changeKey": "THE_CASTLES_SECRET_DOOR_COMPLETE"
-      },
       "worldSlug": "learning-adventure-island"
     },
     {
