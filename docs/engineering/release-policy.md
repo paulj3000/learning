@@ -1,6 +1,6 @@
 # Release Policy
 
-- **Status:** Mandatory policy
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-017, ADR-019, ADR-037, ADR-047, ADR-055, ADR-064, ADR-072 (proposed engineering governance)
@@ -37,7 +37,7 @@ is not approval to deploy it.
 
 | Environment | State | Definition |
 |---|---|---|
-| Local development | Implemented (main) | Django on port 8010, PostgreSQL on 5442, Vite on 5183, fake AI and speech providers (`make up`, `make runserver`, `make web`) |
+| Local development | Implemented (main) | Django on port 8010, PostgreSQL on 5442, Vite on 5183 (`make up`, `make runserver`, `make web`). The AI provider defaults to `fake` and speech to `disabled`; selecting `bedrock` or `polly` in `.env` makes live AWS calls (`make runserver` sets `AWS_PROFILE`) and needs owner approval |
 | `dev` (AWS) | Implemented in the repository (main); deployment is owner-run | Native ARM64 EC2, private RDS, Lambda and SQS workers, nightly shutdown (ADR-055, ADR-064). See [dev-native-environment.md](../infrastructure/dev-native-environment.md) |
 | Staging | Not established | No staging environment, stack or workflow exists on `main`. Creating one is an owner decision (ADR-017) |
 | `prod` (AWS) | Designed in the repository (ADR-037); provisioning and every release are owner-approved | Django on EC2 through ECR and SSM, site on S3 and CloudFront, GitHub Environment reviewers. See [DJANGO_EC2_DEPLOYMENT.md](../platform/DJANGO_EC2_DEPLOYMENT.md) |
@@ -47,21 +47,31 @@ is known only from owner-provided evidence, not from the code.
 
 ## How merges relate to deployments
 
-The deploy workflows run on a push to `main` for their paths, and also by manual dispatch:
+This is the canonical deploy-trigger table; other policies link here. The four `deploy-*`
+workflows start on a push to `main` that changes their paths, and also by manual dispatch;
+`manage-dev-infrastructure.yml` is dispatch only. Verified against `.github/workflows/` on
+2026-11-18:
 
-| Workflow | Releases | Gate variable |
-|---|---|---|
-| `deploy-dev-native.yml` | Django to native `dev` | `LAI_DEV_NATIVE_ENABLED` |
-| `deploy-dev-lambda.yml` | `dev` Lambda workers | `LAI_DEV_NATIVE_ENABLED` |
-| `deploy-django-ec2.yml` | Django to the ADR-037 instances (prod by dispatch or `LAI_PROD_AUTO_DEPLOY`) | `LAI_DEPLOY_ENABLED` |
-| `deploy-site.yml` | React site to S3 and CloudFront | `LAI_SITE_DEPLOY_ENABLED` |
-| `manage-dev-infrastructure.yml` | Power and schedule of `dev` (dispatch only) | owner dispatch |
+| Workflow | Starts on pushes to `main` that change | Releases | Gate variable and behaviour |
+|---|---|---|---|
+| `deploy-site.yml` | `react/**`, `package.json`, `package-lock.json`, `scripts/aws/publish-site.sh`, `.github/actions/site-release/**`, the workflow | React site to S3 and CloudFront (`dev`; `prod` below) | `LAI_SITE_DEPLOY_ENABLED` `'true'` |
+| `deploy-dev-native.yml` | `lai/**`, `content/**`, `react/public/models/**`, `requirements*.txt`, `pyproject.toml`, `scripts/aws/native/**`, `scripts/aws/dev-release.sh`, `scripts/aws/lib-dev.sh`, `deploy/native/**`, the workflow | Django to native `dev` | `LAI_DEV_NATIVE_ENABLED` `'true'` |
+| `deploy-django-ec2.yml` | `lai/**`, `content/**`, `react/public/models/**`, `requirements*.txt`, `pyproject.toml`, `scripts/aws/**`, `deploy/ec2/**`, `tests/deploy/**`, `.dockerignore`, the workflow (its test job runs even when the gate is off) | Django to the ADR-037 instances (`dev`; `prod` below) | `LAI_DEPLOY_ENABLED` `'true'`. With `LAI_DEV_NATIVE_ENABLED` `'true'` this workflow skips `dev` (native `dev` is released by `deploy-dev-native.yml`), and because its push path to `prod` needs its own `dev` job, a push then does not reach `prod` |
+| `deploy-dev-lambda.yml` | `lambda/**`, `lai/apps/ai/providers/**`, `lai/apps/jobs/core/**`, `scripts/aws/package-lambda.sh`, `tests/lambda/**`, the workflow | `dev` Lambda workers | `LAI_DEV_NATIVE_ENABLED` `'true'` |
+| `manage-dev-infrastructure.yml` | Never (dispatch only) | Power and schedule of `dev` | Owner dispatch |
+
+With `LAI_PROD_AUTO_DEPLOY` `'true'`, a push to `main` also queues the `prod` job of
+`deploy-site.yml` and `deploy-django-ec2.yml` after their `dev` job succeeds, held for the
+required reviewers of the `site-prod` and `django-prod` GitHub Environments.
 
 Whether these variables are on is a GitHub setting not visible in the repository. Therefore:
 
-- treat every merge to `main` as a possible `dev` deployment, and say so in the pull request;
-- the owner's merge approval covers the automatic `dev` release that the merge triggers, but no
-  other release;
+- treat every merge to `main` as a possible `dev` (and, with `LAI_PROD_AUTO_DEPLOY`, `prod`)
+  deployment, and say which workflows it can trigger in the pull request's deployment-impact
+  section ([templates/pull-request.md](templates/pull-request.md));
+- a merge approval is not a deployment approval. When a merge can trigger a deploy workflow, the
+  owner approves that `dev` (or `prod`) release explicitly as well, named in the pull request's
+  deployment-impact section;
 - production is released only by the owner or with the owner's approval through the
   `*-prod` GitHub Environments.
 

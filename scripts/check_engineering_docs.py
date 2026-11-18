@@ -231,9 +231,7 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print(
-        f"Engineering docs check passed: {governed} governed documents, {links} relative links."
-    )
+    print(f"Engineering docs check passed: {governed} governed documents, {links} relative links.")
     return 0
 
 

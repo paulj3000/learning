@@ -1,6 +1,7 @@
 # Scoring Standard
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed). The "Proposed future enhancements" section is Proposed only.
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Scope note:** The "Proposed future enhancements" section is Proposed only.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-005, ADR-011, ADR-013, ADR-016, ADR-033, ADR-051, ADR-053

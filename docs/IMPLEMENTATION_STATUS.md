@@ -48,7 +48,7 @@ Documentation only; no application, schema or infrastructure change. Baseline `m
 
 - New root `AGENTS.md` (tool-neutral agent rules) and a "Start here" section 0 in `CLAUDE.md`; sections 14
   and 15 now point to the detailed workflow and the staged Definition of Done. Product rules unchanged.
-- `docs/engineering/` (13 policies and 10 templates) and `docs/adventures/` (12 standards and 4 templates).
+- `docs/engineering/` (12 policies, an index and 10 templates) and `docs/adventures/` (12 standards and 4 templates).
   Existing canonical documents stay canonical; `docs/DECISIONS.md` stays the single ADR log (no `docs/adr/`).
 - ADR-072 (Proposed). Registry: ADR-065 to 071, 080 and 081 reserved for decisions already numbered on open
   branches. **ADR-070 is used by two different branches** (`feature/firepeak-volcano-adventure` and

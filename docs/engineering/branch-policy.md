@@ -1,6 +1,6 @@
 # Branch Policy
 
-- **Status:** Mandatory policy
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-037, ADR-055, ADR-064, ADR-072 (proposed engineering governance)
@@ -17,9 +17,9 @@ and how branches are cleaned up and rolled back. Merge ordering and conflict han
 
 `main` is the integrated, releasable line. A push to `main` runs CI
 ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) and can also start the deploy
-workflows (`deploy-dev-native.yml`, `deploy-dev-lambda.yml`, `deploy-django-ec2.yml`,
-`deploy-site.yml`) when their repository variables are switched on. A merge to `main` must
-therefore be treated as a possible deployment (see [release-policy.md](release-policy.md)).
+workflows when their repository variables are switched on. A merge to `main` must therefore be
+treated as a possible deployment, and a merge approval is not a deployment approval (triggers,
+gates and approvals: [release-policy.md](release-policy.md#how-merges-relate-to-deployments)).
 
 Rules:
 
@@ -46,12 +46,12 @@ exactly as written on the card (for example `LAI-0805`, `SC-R04-05`, `SEA-04`); 
 | Pattern | Use |
 |---|---|
 | `feature/<ticket>-<slug>` | New behaviour or a change to existing behaviour |
-| `adventure/<realm>-<slug>` | Work scoped to one adventure or realm's content and gameplay (for example `adventure/north-pole-sleigh-route`) |
+| `adventure/<ticket>-<realm>-<slug>` | Work scoped to one adventure or realm's content and gameplay (for example `adventure/NP-001-north-pole-sleigh-route`) |
 | `fix/<ticket>-<slug>` | Defect fixes (the ticket is the defect card) |
 | `infra/<ticket>-<slug>` | CDK, workflows, scripts under `scripts/aws/`, deploy configuration |
 | `integration/<yyyymmdd>-<topic>` | Combining completed branches for compatibility testing ([integration-policy.md](integration-policy.md)) |
 | `docs/<ticket>-<slug>` | Documentation-only changes |
-| `qa/<topic>-<yyyymmdd>` | QA evidence, test plans and QA fixtures, no product behaviour change |
+| `qa/<yyyymmdd>-<topic>` | QA evidence, test plans and QA fixtures, no product behaviour change |
 
 Names are lowercase except the ticket id, which keeps its card spelling. No spaces, no
 trailing slash, no personal names.
@@ -64,7 +64,9 @@ These names exist in the repository and are tolerated. They are not used for new
 - `wip/*`;
 - `dev2026MMDD` dated branches;
 - `ccr-*`;
-- older prefixes such as `features/*`, `adventures/*` and `quest/*`.
+- older prefixes such as `features/*`, `adventures/*` and `quest/*`;
+- `feature/engineering-standards` (worktree `wt-engineering-standards`), the governance branch
+  that introduced this policy: it predates the convention and has no ticket id in its name.
 
 Exception: when the session harness mandates a session branch (for example a `claude/<random>`
 name assigned by the environment), use it, and record the mapping on the Trello card:
@@ -95,7 +97,7 @@ Record the worktree path and the baseline commit (`baseline_sha`) in the ticket 
 anything deferred to merge verification.>
 
 Ticket: <ticket id>
-Agent: Claude-0N
+Agent: <agent id>
 <harness-required trailers, verbatim>
 ```
 
@@ -106,7 +108,8 @@ Rules:
 - The body explains intent and limits. It never contains secrets, child data, emails or
   fabricated test results.
 - `Ticket:` names the ticket id. A commit that serves several tickets lists them comma-separated.
-- `Agent: Claude-0N` names the agent (Claude-01 to Claude-05). The owner's own commits omit it.
+- `Agent: <agent id>` names the agent: Claude-01 to Claude-05, or another tool's owner-assigned
+  id `<Tool>-NN` (for example `Codex-01`). The owner's own commits omit it.
 - Trailers the session harness requires (for example `Co-Authored-By:` or `Claude-Session:`
   lines) are added exactly as the harness specifies.
 - Do not add model identifiers (such as a model's API id) to commit messages yourself. A
@@ -123,7 +126,7 @@ Every change to `main` goes through a pull request that:
 - lists tests run with their real results and the checks deferred to merge verification;
 - states whether the merge can trigger a deployment workflow, and which;
 - reserves any new ADR number in the registry of [docs/DECISIONS.md](../DECISIONS.md) before
-  it is opened ([integration-policy.md](integration-policy.md)).
+  it is opened ([multi-agent-workflow.md](multi-agent-workflow.md#adr-number-reservation)).
 
 A pull request is opened by the agent that owns the branch. It is merged only as described in
 "Protected branch: main".

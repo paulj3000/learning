@@ -1,6 +1,6 @@
 # NPC Standard
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-020, ADR-033, ADR-035, ADR-041, ADR-044, ADR-045, ADR-048 (Proposed), ADR-049 (Proposed), ADR-050 (Proposed), ADR-053, ADR-054, ADR-072 (Proposed)
@@ -86,7 +86,9 @@ AI requirements (ADR-044, ADR-054 item 9, [`AI_AND_CHILD_SAFETY.md`](../AI_AND_C
 - Context is built by the server: a versioned, staff-approved `NpcPersona`, the node's
   `allowedTopic`, the age band and a maximum length. Personas and dialogue trees are never sent to
   clients.
-- Model output is untrusted, validated, and never changes gameplay state.
+- Model output is untrusted, validated, and never changes gameplay state, a rule or an answer.
+- AI never generates a question or other gradable content at runtime; that reaches a child only
+  after validation, staff review and publication (ADR-046; educational content standard rule E5).
 - Any failure (AI off, rate-limited, invalid output, Guardrail block) returns the persona's
   authored fallback line with `source: "FALLBACK"`, never an error screen.
 - If AI is off (the parent's setting or the service kill switch), the authored fallback is used and

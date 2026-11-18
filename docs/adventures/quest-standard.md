@@ -1,6 +1,6 @@
 # Quest Standard
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-005, ADR-033, ADR-041, ADR-047, ADR-053, ADR-054
@@ -20,7 +20,7 @@ not grade answers, hold layout or grant rewards by itself.
   and quest.
 - Ownership: a quest belongs to a **Realm** (`Quest.world`) and may span Places (ADR-041 D). An
   adventure "has" a quest when the quest's objectives target that adventure's Place, 3D Area,
-  NPCs or step adventures. North Pole's design (pending merge) models one adventure as a Place's
+  NPCs or step adventures. North Pole's design (pending merge; ADR-080, Reserved on `main`, branch only) models one adventure as a Place's
   nine quests; Firepeak uses one five-stage quest; Storykeeper Castle uses one Realm-level quest,
   `restore-the-great-storybook`.
 
@@ -63,7 +63,7 @@ tests, not a content field.
 1. **World progress gates the world; quests narrate it.** Gates, doors and puzzles key off world
    change keys, so a child who has not accepted a quest is never stuck. Accepting later credits
    what is already done (Treasure Rush walks a quest forward on accept; North Pole NP-D3 on its
-   branch).
+   branch; ADR-080, Reserved on `main`, branch only).
 2. **Short stages.** Sprouts: one-step decisions. Pathfinders: two or three steps. Explorers:
    multi-stage missions (CLAUDE.md section 3).
 3. **Optional objectives never gate.** Use `optional: true` for side errands, collectibles and

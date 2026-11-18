@@ -18,7 +18,7 @@ Implemented (main), Pending merge (branch), Approved future, Proposed or Retired
 
 - Ticket: `<ticket id>`
 - Parent card: `<parent ticket id or none>`
-- Author: `<owner | PM | Claude-0N>`
+- Author: `<owner | PM | agent id>`
 - Date: `<yyyy-mm-dd>`
 - Status: `<Specification | Ready for Development>`
 

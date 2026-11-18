@@ -13,6 +13,16 @@ closes at). It reports facts only: no test result, commit or approval that was n
 
 # Completion report: <ticket id> <title>
 
+## Agent ID
+
+`<agent id>` ([multi-agent-workflow.md](../multi-agent-workflow.md#agent-identity))
+
+## Branch and Worktree
+
+- Branch: `<branch>`
+- Worktree: `<worktree-dir>`
+- Baseline: `<full origin/main SHA the branch started from>`
+
 ## Original Scope
 
 <Scope as authorized on the card, with the date of the authorization.>

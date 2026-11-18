@@ -139,6 +139,9 @@ privacy-safe logging, AI output validation and safety, and the content export ch
 (`npm run content:check`) when exported content sources change. Never weaken or skip these
 to save time.
 
+`make docs-check` (standard library, a second or two) may run whenever documentation changes;
+it checks the engineering and adventure standards' links, headers and templates (ADR-072).
+
 Not run routinely: Playwright and other browser automation, WebGL rendering checks, Ruff,
 Prettier, oxlint, `npm run build`, full test suites, and deployment verification.
 
@@ -168,8 +171,8 @@ exceptions applies.
 ### Merge or release readiness (only when explicitly requested)
 
 Run the comprehensive gates for the changed code: `make check` (Ruff, Ruff format, Django
-check, migration check, pytest against PostgreSQL, ADR check, typecheck, oxlint, Prettier,
-the full Vitest suite, production build), `npm run test:e2e`, `npm run test:acceptance` and any
+check, migration check, pytest, ADR check, engineering docs check, typecheck, oxlint, Prettier,
+the full Vitest suite, production build), `make py-test-db` (pytest against PostgreSQL), `npm run test:e2e`, `npm run test:acceptance` and any
 other browser or WebGL checks relevant to the change, `npm run content:check`, architecture and ADR validation (governance
 rule 4 in `docs/DECISIONS.md`), the deferred checks recorded by each task being merged, and
 regression testing. Report failures and fix the relevant ones before recommending the merge.
@@ -180,7 +183,7 @@ branch runs no CI, so the merge readiness review is the gate for branch work.
 ## Continuous integration (`.github/workflows/ci.yml`)
 
 Three jobs, all with read-only repository permissions, no secrets, and no AWS access:
-`checks` (typecheck, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
+`checks` (ADR registry, engineering docs check, typecheck, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
 smoke, after `checks`), and `python` (Python 3.12, pinned `requirements-dev.txt`, a throwaway
 PostgreSQL 16 service container; `make py-lint`, `py-format-check`, `django-check`,
 `migrate-check`, `py-test-db`). `py-test-db` fails instead of skipping when the database is

@@ -1,6 +1,6 @@
 # AGENTS.md: Operating Rules for AI Coding Agents
 
-Status: Mandatory policy (proposed under ADR-072; owner acceptance pending)
+Status: Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 Applies to: every AI coding agent (Claude Code, Codex and others) working on Learning Adventure Island
 Last reviewed: 2026-11-18
 
@@ -17,13 +17,15 @@ Report the conflict in your handoff; do not resolve it silently.
 
 ## 1. Roles
 
-| Role                    | Who                                 | Decides                                                                         |
-| ----------------------- | ----------------------------------- | ------------------------------------------------------------------------------- |
-| Project owner           | The human owner                     | Architecture, product, acceptance, merge and deployment. Final say on all.      |
-| Project manager         | ChatGPT                             | Specifications, Trello tickets, priorities and agent assignment (owner-bounded) |
-| Software engineer agent | Claude-01 to Claude-05 (and others) | How to implement an assigned, approved ticket inside its scope                  |
+| Role                    | Who                                 | Decides                                                                                                                 |
+| ----------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Project owner           | The human owner                     | Architecture, product, acceptance, merge and deployment. Final say on all.                                              |
+| Project manager         | ChatGPT                             | Drafts specifications, Trello tickets and priorities for owner approval; directs assignment only as the owner delegates |
+| Software engineer agent | Claude-01 to Claude-05 (and others) | How to implement an assigned, approved ticket inside its scope                                                          |
 
-Agent IDs are dynamic: an ID names a working slot, not a feature. See
+Agent IDs are dynamic: an ID names a working slot, not a feature. Agents from other tools get an
+owner-assigned ID in the same format (for example `Codex-01`). An agent may self-claim only an
+unclaimed card in **Ready for Development**. See
 [multi-agent-workflow.md](docs/engineering/multi-agent-workflow.md).
 
 ## 2. Ten non-negotiable rules
@@ -36,7 +38,8 @@ Agent IDs are dynamic: an ID names a working slot, not a feature. See
 4. Never deploy to AWS or make live AWS calls without explicit owner authorization for that
    action. Infrastructure code work does not authorize deployment.
 5. Never introduce a new architectural framework, runtime dependency or engine without owner
-   approval (and an ADR when it is architectural). Never reintroduce Amplify or Phaser.
+   approval (and an ADR when it is architectural). Never reintroduce Amplify; add no features to
+   Phaser worlds (bug fixes only until each is converted, CLAUDE.md section 19).
 6. Identify every change to a shared component before implementing it, and record it in the
    ticket and handoff.
 7. Document unresolved dependencies and integration risks.
@@ -57,10 +60,12 @@ Agent IDs are dynamic: an ID names a working slot, not a feature. See
 4. Audit the code you will touch. Write an implementation plan
    ([template](docs/engineering/templates/implementation-plan.md)) that lists owned and shared
    components, dependencies and the acceptance criteria you will implement.
-5. If the plan touches a coordination hotspot (migrations, auth, shared API contracts, the shared
-   game engine, movement, jumping, collision, camera, asset resolution, NPC, sound, content
-   publication, scoring, infrastructure, the ADR registry), announce it on the ticket before
-   editing.
+5. If the plan touches a coordination hotspot (the single list is "Coordination required" in
+   [integration-policy.md](docs/engineering/integration-policy.md): migrations, auth, shared API
+   contracts, the shared game engine, movement, jumping, collision, camera, asset resolution, NPC,
+   sound, content publication, scoring, infrastructure, the ADR registry), record the planned
+   change on the ticket before editing and get the owner's or coordinator's acknowledgement
+   before merging.
 
 ## 4. Ownership and shared components
 
@@ -71,8 +76,8 @@ Agent IDs are dynamic: an ID names a working slot, not a feature. See
   callers.
 - New adventures reuse the shared services (Asset Manager, NPC Manager, Sound Manager, Question
   Studio, adventure and quest engines, scoring, progress, AI pipeline). Do not build replacements.
-- Reserve an ADR number in the `main` registry before using it
-  ([documentation-policy.md](docs/engineering/documentation-policy.md)).
+- Reserve an ADR number in the `main` registry before using it, using the one procedure in
+  [multi-agent-workflow.md](docs/engineering/multi-agent-workflow.md).
 
 ## 5. Dependencies
 
@@ -86,7 +91,8 @@ Follow [testing-policy.md](docs/engineering/testing-policy.md), which restates t
 cadence in [docs/TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md):
 
 - Run unit tests only, by path: pytest and Vitest (`--maxWorkers=2`), `npm run typecheck` when
-  TypeScript changed, and the security and privacy tests your change touches.
+  TypeScript changed, the security and privacy tests your change touches, `npm run content:check`
+  when exported content sources change, and `make docs-check` when documentation changes.
 - Do not run Playwright, browser automation, end-to-end or acceptance suites, live AWS checks,
   deployment tests or the full lint and format gates unless explicitly authorized.
 - Report infrastructure failures separately from test failures.

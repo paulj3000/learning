@@ -1,13 +1,15 @@
 # Multi-Agent Workflow
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-072 (Proposed); ADR-063 and ADR-055 (the collision that motivates ADR reservation)
 - **Canonical sources:** [`docs/DECISIONS.md`](../DECISIONS.md) "ADR registry and governance"; [`branch-policy.md`](branch-policy.md); [`trello-workflow.md`](trello-workflow.md)
 
-Up to five Claude Code agents, Claude-01 to Claude-05, work at the same time in isolated worktrees.
-Agents are not tied to features: each takes the highest-priority ready ticket it can safely own.
+Up to five Claude Code agents, Claude-01 to Claude-05, work at the same time in isolated worktrees,
+alongside agents from other tools under owner-assigned ids. Agents are not tied to features: the
+owner approves priorities and assignment, and an agent may self-claim only an unclaimed card in
+Ready for Development.
 This document defines how they identify themselves, claim and lock work, avoid shared-file
 conflicts, hand off, recover and report.
 
@@ -15,32 +17,38 @@ conflicts, hand off, recover and report.
 
 | Where | Form |
 |---|---|
-| Agent id | `Claude-01` to `Claude-05`, assigned by the owner when the session starts. An agent without an assigned id asks before claiming |
-| Commit messages | Trailer line `Agent: Claude-0N`, alongside any attribution trailers the session requires |
-| Trello comments | First line `[Claude-0N]` |
-| Handoffs and reports | `agent_id: Claude-0N` in the ownership block and in [`templates/agent-handoff.md`](templates/agent-handoff.md) or [`templates/completion-report.md`](templates/completion-report.md) |
+| Agent id | `Claude-01` to `Claude-05`, assigned by the owner when the session starts. Agents from other tools get an owner-assigned id `<Tool>-NN` in the same format (for example `Codex-01`). An agent without an assigned id asks before claiming |
+| Commit messages | Trailer line `Agent: <agent id>` (for example `Agent: Claude-01`), alongside any attribution trailers the session requires |
+| Trello comments | First line `[<agent id>]` (for example `[Claude-01]`) |
+| Handoffs and reports | `agent_id: <agent id>` in the ownership block and in [`templates/agent-handoff.md`](templates/agent-handoff.md) or [`templates/completion-report.md`](templates/completion-report.md) |
 | Pull requests | Agent id in the PR description ([`templates/pull-request.md`](templates/pull-request.md)) |
 
 An agent never uses another agent's id, and never writes as the owner.
 
 ## Assignment and claiming
 
+The owner approves priorities and assignment. ChatGPT drafts specifications, tickets and
+priorities for owner approval, and directs assignment only as far as the owner delegates it. An
+agent may self-claim only a card in Ready for Development that is unclaimed:
+
 1. Read the Ready for Development list in priority order (top first, unless the owner has said otherwise).
-2. Skip a card that is already claimed, whose dependencies are not Complete or merged, or whose
-   owned files overlap an active claim (see shared-file conflicts below).
+2. Skip a card that is already claimed or assigned to someone else; a card whose dependencies are
+   not merged, Complete, or (for a contract dependency) pushed and frozen as recorded on the
+   provider card; and a card whose owned files overlap an active claim (see shared-file conflicts
+   below).
 3. Claim the first eligible card: post the claim comment, fill the card's ticket block
    ([`trello-workflow.md`](trello-workflow.md#ticket-block)), then move the card to In Development.
 
-Claim comment:
+Claim comment (field names match the ticket block):
 
 ```text
-[Claude-0N] CLAIM
-ticket: <ticket-id>
+[<agent id>] CLAIM
+ticket_id: <ticket-id>
 branch: <branch>
 worktree: <worktree-dir>
-baseline: <origin/main short SHA>
+baseline_sha: <full origin/main SHA>
 scope: <one line>
-owned: <paths or components>
+owned_components: <paths or components>
 ```
 
 If two agents claim the same card, the earlier claim comment wins; the later agent withdraws with a
@@ -59,19 +67,10 @@ comment and picks another card.
 
 ## Branches and worktrees
 
-Branch names follow [`branch-policy.md`](branch-policy.md):
+Branch names and the worktree naming rule are defined in [`branch-policy.md`](branch-policy.md)
+("Branch naming", "Worktrees"); this page does not repeat the table.
 
-| Kind | Branch |
-|---|---|
-| Feature | `feature/<ticket>-<slug>` |
-| Adventure content or gameplay | `adventure/<realm>-<slug>` |
-| Fix | `fix/<ticket>-<slug>` |
-| Infrastructure code (never a deploy) | `infra/<ticket>-<slug>` |
-| Integration | `integration/<yyyymmdd>-<topic>` |
-| Documentation | `docs/<ticket>-<slug>` |
-
-The worktree directory is `wt-` plus the branch name with every `/` replaced by `-`, created as a
-sibling of the main checkout:
+Create the worktree as a sibling of the main checkout:
 
 ```bash
 git fetch origin
@@ -79,45 +78,42 @@ git worktree add -b feature/<ticket>-<slug> ../wt-feature-<ticket>-<slug> origin
 ```
 
 One ticket, one branch, one worktree. An agent never edits files in another agent's worktree.
-Session branches created by tooling (`claude/<random>`) and older names (`features/*`, `wip/*`,
-`adventures/*`, `quest/*`) are legacy: leave existing ones alone and use the conventions above for
-new work.
+Legacy and harness session branches are listed in [`branch-policy.md`](branch-policy.md): leave
+existing ones alone and use the conventions there for new work.
 
 ## Shared-file conflicts
 
-These files are edited by many tickets. Treat a change to them as a shared change: keep it minimal,
-list it under `shared_components` in the ownership block, and say so in the claim comment.
-
-| Hotspot | Rule |
-|---|---|
-| [`docs/DECISIONS.md`](../DECISIONS.md) registry and headings | Reserve numbers on `main` first (below). Add only your own row and section; never renumber others |
-| [`docs/IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md) | Append your own entry; do not rewrite other entries |
-| [`tasks/TASK_TRACKER.md`](../../tasks/TASK_TRACKER.md) | Change only your ticket's line |
-| Django migrations (`lai/apps/*/migrations/`) | One ticket per app at a time. Announce on the card; the second ticket rebases and renumbers its migration at integration, never edits a merged migration |
-| `package.json`, `package-lock.json` | New dependency is a stop-and-ask trigger. Regenerate the lockfile with npm, never hand-edit it |
-| `requirements*.txt` | Same as above; pinned versions only |
-| `lai/config/settings` | Additive settings only, with defaults safe for development and tests |
-| Shared engine and movement code (shared controllers, camera, collision) | Owned by one ticket at a time; others consume it through its interface |
-| [`CLAUDE.md`](../../CLAUDE.md), [`AGENTS.md`](../../AGENTS.md) | Owner-approved policy changes only |
-
-If a ticket needs a hotspot that an active claim owns, either sequence behind it (dependency) or
-agree the exact change in Trello comments before editing. Conflicts that remain at merge time are
-resolved per [`integration-policy.md`](integration-policy.md), by reading both changes, never by
-taking one side wholesale.
+The single list of coordination hotspots and the required action is in
+[`integration-policy.md`](integration-policy.md#coordination-required): record the planned change
+on the ticket before editing, list it under `shared_components` in the ownership block, and get
+the owner's or coordinator's acknowledgement before merging. If a ticket needs a hotspot that an
+active claim owns, sequence behind it (dependency) or agree the exact change in Trello comments
+first. Conflicts that remain at merge time are resolved per
+[`integration-policy.md`](integration-policy.md), by reading both changes, never by taking one
+side wholesale.
 
 ## ADR number reservation
 
-Parallel branches have collided on ADR numbers: two decisions both used ADR-055, and the owner's
-reconciliation reserved ADR-063 for the movement branch. Today, open branches use ADR-065 to
-ADR-071, ADR-080 and ADR-081, while the registry on `main` still says the next free number is 065.
-To prevent another collision:
+This is the one procedure for choosing an ADR number. [`integration-policy.md`](integration-policy.md),
+[`documentation-policy.md`](documentation-policy.md) and [`templates/adr.md`](templates/adr.md)
+link here instead of restating it.
 
-1. While drafting, write the identifier as the placeholder `ADR-NNN` (ignored by `npm run adr:check`).
-2. Request a number on the Trello card. The coordinator reads the registry on `main`
-   (`git show origin/main:docs/DECISIONS.md`) and every open branch's `## ADR-` headings, and takes
-   the next free number after all of them.
-3. The number is reserved by a `Reserved` registry row on `main` (governance rule 7), through a small
-   registry-only change merged with owner authorization. Record the number on the card.
+Parallel branches have collided on ADR numbers: two decisions both used ADR-055, and the owner's
+reconciliation reserved ADR-063 for the movement branch. As of 2026-11-18 open branches used
+ADR-065 to ADR-071, ADR-080 and ADR-081; the governance change registered them as Reserved;
+ADR-070 is used by two branches and awaits an owner decision.
+
+While drafting, write the identifier as the placeholder `ADR-NNN` (ignored by `npm run adr:check`).
+Then:
+
+1. Read the registry on `origin/main` (`git fetch origin`, then
+   `git show origin/main:docs/DECISIONS.md`) and `git grep` the open branches for `## ADR-`
+   headings (for example `git grep "^## ADR-" $(git branch -r --format="%(refname:short)") -- docs/`).
+2. Take the next number after every registry row (including `Reserved` rows) and every number a
+   branch already uses.
+3. Before the branch uses the number, add a `Reserved` row for it on `main` (governance rule 7)
+   through a registry-only change the owner merges, or the coordinator records the number on the
+   ticket for the owner to register. Record the number on the card.
 4. Only then replace the placeholder in the branch. When the branch merges, its heading and full
    registry row replace the `Reserved` row (governance rule 4: `npm run adr:check` must pass).
 
@@ -158,7 +154,7 @@ filled at completion.
 
 ```yaml
 ticket_id: <ticket-id>
-agent_id: Claude-0N
+agent_id: <agent id>
 branch: <branch>
 worktree: <worktree-dir>
 baseline_sha: <origin/main SHA at branch creation>
@@ -171,7 +167,7 @@ dependencies:
   - <tickets, PRs, ADRs or gates this ticket waits on>
 acceptance_criteria:
   - <criterion from the card>
-status: <claimed | in_development | blocked | development_complete | rework | handed_off>
+status: <logical state from trello-workflow.md: In Development | Blocked | Development Complete | Rework>
 last_pushed_commit: <SHA or none>
 blockers:
   - <blocker and the decision needed, or none>
@@ -210,7 +206,7 @@ After a container restart or a new session on an existing ticket:
    pushed and why before doing anything else.
 4. Never reset, force-push, or discard someone else's commits or uncommitted work. If the state is
    unclear, stop and ask on the card.
-5. Post a `[Claude-0N] RESUMED` comment with the verified HEAD.
+5. Post a `[<agent id>] RESUMED` comment with the verified HEAD.
 
 ## Stale task detection
 

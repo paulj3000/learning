@@ -1,6 +1,6 @@
 # Engineering Standards
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-072 (engineering governance, Proposed), ADR-019, ADR-020, ADR-033
@@ -62,7 +62,7 @@ change ([`documentation-policy.md`](documentation-policy.md)).
 | [`security-policy.md`](security-policy.md) | Child privacy, authorization, secrets, AI safety and AWS rules for engineering work |
 | [`definition-of-done.md`](definition-of-done.md) | When a ticket may be called development complete, accepted, merged or deployed |
 | [`coding-standards.md`](coding-standards.md) | TypeScript, Python, React, Three.js engine and Django coding conventions |
-| [`multi-agent-workflow.md`](multi-agent-workflow.md) | Coordination of agents Claude-01 to Claude-05: claiming, locking, worktrees, shared files, handoff, recovery |
+| [`multi-agent-workflow.md`](multi-agent-workflow.md) | Coordination of agents (Claude-01 to Claude-05, and owner-assigned `<Tool>-NN` ids): claiming, locking, worktrees, shared files, handoff, recovery |
 | [`trello-workflow.md`](trello-workflow.md) | Trello lists, card fields, comments and evidence |
 | [`integration-policy.md`](integration-policy.md) | Integration branches, merge order, conflict resolution and merge readiness |
 | [`release-policy.md`](release-policy.md) | Release notes, environment promotion and the owner-approved deployment gate |
@@ -76,11 +76,11 @@ change ([`documentation-policy.md`](documentation-policy.md)).
 | [`templates/task-specification.md`](templates/task-specification.md) | One ticket's scope, dependencies and acceptance criteria (steps 3 and 4) |
 | [`templates/implementation-plan.md`](templates/implementation-plan.md) | Agent's audit findings and plan before coding (steps 8 and 9) |
 | [`templates/agent-handoff.md`](templates/agent-handoff.md) | Handing a ticket to another agent or recovering a session |
-| [`templates/pull-request.md`](templates/pull-request.md) | Pull request description (step 15) |
+| [`templates/pull-request.md`](templates/pull-request.md) | Pull request description (step 14) |
 | [`templates/qa-checklist.md`](templates/qa-checklist.md) | Owner QA checklist (step 18) |
 | [`templates/defect-report.md`](templates/defect-report.md) | Defect found in QA or later (step 19) |
 | [`templates/release-notes.md`](templates/release-notes.md) | Release notes for an approved release |
-| [`templates/completion-report.md`](templates/completion-report.md) | Agent's completion report and Trello evidence (step 14) |
+| [`templates/completion-report.md`](templates/completion-report.md) | Agent's completion report and Trello evidence (step 15) |
 | [`templates/adr.md`](templates/adr.md) | Draft text for a new section in `docs/DECISIONS.md` |
 
 ## Adventure standards index

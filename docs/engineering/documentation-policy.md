@@ -1,6 +1,6 @@
 # Documentation Policy
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-072 (Proposed), ADR-027 (working note distinct from the ADR log)
@@ -15,7 +15,7 @@ when they must be updated, and how they are retired.
 |---|---|---|
 | [`CLAUDE.md`](../../CLAUDE.md), [`AGENTS.md`](../../AGENTS.md) | Project owner | Agents only with an owner-approved ticket |
 | `docs/engineering/`, `docs/adventures/` (Mandatory policy) | Project owner | Agents propose changes through a PR; the owner approves |
-| [`docs/DECISIONS.md`](../DECISIONS.md) | Project owner | Agents add their own reserved ADR and registry row; status changes need the owner |
+| [`docs/DECISIONS.md`](../DECISIONS.md) | Project owner | Agents number and register their own ADR only through the [ADR number procedure](multi-agent-workflow.md#adr-number-reservation) (the `Reserved` row lands on `main` in a registry-only change the owner merges); status changes need the owner |
 | [`docs/IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md), [`tasks/TASK_TRACKER.md`](../../tasks/TASK_TRACKER.md) | Project owner | The agent of each ticket updates its own entry |
 | Feature, subsystem and adventure docs (for example `docs/regions/`, `docs/audio/`, `docs/platform/`) | Project owner | The ticket that changes the behavior |
 | Generated files (`content/exported`, golden vectors) | Their generator | Regenerate; never hand-edit |
@@ -81,9 +81,9 @@ Every new policy, standard or template starts with a title and this header block
 
 | Status | Meaning |
 |---|---|
-| Mandatory policy | Must be followed. Deviations need an owner decision, recorded on the ticket |
+| Mandatory policy | In effect and must be followed. It stays in effect while the ADR that records it awaits formal acceptance (for example "formal acceptance of ADR-072 pending"); that acceptance is a recorded owner step, not a condition for following the policy. Deviations need an owner decision, recorded on the ticket |
 | Guidance | Recommended practice. Deviate with a reason recorded in the PR or completion report |
-| Proposed | Not in effect. Describes a plan or draft awaiting owner approval; must not be cited as a rule |
+| Proposed | Not in effect. A draft not yet merged at the owner's direction; must not be cited as a rule |
 | Deprecated | Still present for reference, no longer to be followed; names its replacement |
 | Superseded | Replaced by a named document or ADR; kept for history |
 
@@ -157,3 +157,7 @@ canonical; do not merge or delete them without owner approval.
 - **Guidance** describes good practice; a reasoned deviation is allowed and recorded.
 - **Proposed** content is a draft. It may be discussed and planned against, but no agent treats it
   as permission or as a rule until the owner approves it and its status changes.
+- A document marked Mandatory policy whose governing ADR is still `Proposed` in the registry (the
+  engineering policies and ADR-072) is in effect. The ADR's formal acceptance is a separate owner
+  step recorded in [`docs/DECISIONS.md`](../DECISIONS.md); rules the document restates from
+  `CLAUDE.md` or accepted ADRs bind through those sources either way.

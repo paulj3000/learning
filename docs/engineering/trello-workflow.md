@@ -1,6 +1,6 @@
 # Trello Workflow
 
-- **Status:** Mandatory policy
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-072 (proposed engineering governance)
@@ -64,7 +64,7 @@ project: Learning Adventure Island
 type: <feature | adventure | defect | infra | docs | qa | integration | spike>
 priority: <P0 | P1 | P2 | P3>
 status: <logical state from the table above>
-assigned_agent: <Claude-0N | owner>
+assigned_agent: <agent id | owner>
 branch: <branch name>
 worktree: <worktree directory>
 baseline_sha: <full SHA the branch started from>
@@ -110,17 +110,17 @@ Rules:
 |---|---|---|---|
 | Backlog | Specification | owner, PM | Card states the problem; feature spec started ([templates/feature-specification.md](templates/feature-specification.md)) |
 | Specification | Ready for Development | owner | Task spec with acceptance criteria and test requirements ([templates/task-specification.md](templates/task-specification.md)); dependencies and owner decisions listed |
-| Ready for Development | In Development | assigned agent | Ticket block filled: `assigned_agent`, `branch`, `worktree`, `baseline_sha`; ADR numbers reserved if needed |
+| Ready for Development | In Development | assigned agent | Ticket block filled: `assigned_agent`, `branch`, `worktree`, `baseline_sha`; ADR numbers reserved if needed ([procedure](multi-agent-workflow.md#adr-number-reservation)) |
 | any | Blocked | assigned agent | `blockers` filled with what is blocked, by whom or what, and what unblocks it |
 | Blocked | previous state | assigned agent or owner | Blocker resolution recorded |
-| In Development | Development Complete | assigned agent | All Development Complete criteria in [definition-of-done.md](definition-of-done.md); commit SHA pushed; PR link where applicable; handoff ([templates/agent-handoff.md](templates/agent-handoff.md)) or completion report ([templates/completion-report.md](templates/completion-report.md)) |
+| In Development | Development Complete | assigned agent | All Development Complete criteria in [definition-of-done.md](definition-of-done.md); commit SHA pushed; PR link where applicable; completion report ([templates/completion-report.md](templates/completion-report.md)). A handoff ([templates/agent-handoff.md](templates/agent-handoff.md)) is used only if work stops before completion |
 | Development Complete | Integration | owner or integrating agent | Integration branch name; list of branches combined |
 | Integration | Ready for QA | integrating agent | Integration Complete criteria met; check results attached |
 | Development Complete or Ready for QA | Owner QA | owner | QA checklist prepared ([templates/qa-checklist.md](templates/qa-checklist.md)) |
 | Owner QA | Rework Required | owner | Defect cards linked ([templates/defect-report.md](templates/defect-report.md)) |
 | Rework Required | Development Complete | assigned agent | Fix commits and test results per defect |
 | Owner QA | Ready to Merge (Accepted) | owner only | Owner acceptance recorded on the card with date |
-| Ready to Merge | Complete | owner only | Merge commit on `main` (PR link); deployment evidence only if deployment was in scope and authorized |
+| Ready to Merge | Complete | owner only | Integration Complete recorded (integration branch or up-to-date feature branch with check results); merge commit on `main` (PR link); deployment evidence only if deployment was in scope and authorized |
 
 Agents never move a card to ✅ Complete, never move a card to 🔀 Ready to Merge on their own
 judgment, and never write owner acceptance or owner approval on a card. They may quote an
@@ -128,26 +128,10 @@ approval the owner gave, with its date and where it was given.
 
 ## Separate completion gates
 
-These are different events and are recorded separately on the card:
-
-| Gate | Meaning | Evidence |
-|---|---|---|
-| Development completion | Authorized scope built and unit-checked on a branch | Commit SHA, test results |
-| Integration completion | Works together with its dependencies | Integration branch, check results |
-| Owner acceptance | Owner verified it in QA | Owner's dated note |
-| Merge completion | On `main` | Merge commit, PR link |
-| Deployment completion | Released to a named environment | Workflow run, deployed SHA, health result |
-
-Use these lines on the card, filled only as each event happens:
-
-```text
-Development complete: <date>, <commit SHA>
-Unit tests passed: <date>, <command summary>
-Owner QA required: <yes | no>
-Accepted: <date, owner>
-Merged: <date>, <merge commit SHA>, PR #<n>
-Deployed: <environment>, <date>, <deployed SHA>  (or "No live AWS deployment authorized")
-```
+Development completion, integration completion, owner acceptance, merge completion and
+deployment completion are different events, recorded separately on the card. Their criteria,
+evidence and the card lines to use are defined once in
+[definition-of-done.md](definition-of-done.md#recording-the-gates-on-the-card).
 
 An implementation-only ticket (for example one work package of a feature) may close at
 Development Complete or Merged while its parent feature card stays open until owner acceptance

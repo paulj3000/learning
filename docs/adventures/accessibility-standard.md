@@ -1,6 +1,6 @@
 # Accessibility Standard
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-008, ADR-020, ADR-052, ADR-053; pending merge: ADR-056, ADR-058, ADR-059, ADR-063
@@ -23,8 +23,8 @@ right half to look; on-screen buttons for actions. Targets are large and spaced 
 On-screen controls never cover each other, the exits or the action prompt, in portrait or
 landscape, at phone and tablet widths.
 
-**Gamepad.** Supported on the pending movement branches (standard mapping). Not a requirement for
-an adventure to be playable.
+**Gamepad.** Keyboard and touch required; gamepad checked where the shared input supports it
+(standard mapping, pending merge on the movement branches).
 
 **Equivalent routes.** Every 3D interaction has a non-spatial equivalent: the "Things to do here"
 list, panel buttons for answers chosen by touching objects (Treasure Rush's rune stones), and the

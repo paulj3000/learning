@@ -15,7 +15,7 @@ Written by the assigned agent before coding, from the task specification. Copy b
 ## Ticket
 
 - Ticket: `<ticket id>`
-- Agent: `<Claude-0N>`
+- Agent: `<agent id>`
 - Branch: `<branch>`
 - Worktree: `<worktree>`
 - Baseline SHA: `<full SHA>`

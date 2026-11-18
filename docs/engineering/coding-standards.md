@@ -1,10 +1,10 @@
 # Coding Standards
 
-Status: Mandatory policy
-Owner: project owner
-Last reviewed: 2026-11-18
-Related ADRs: ADR-020, ADR-021, ADR-023, ADR-025, ADR-033, ADR-047, ADR-052, ADR-072
-Canonical sources: [CLAUDE.md](../../CLAUDE.md) section 13, `pyproject.toml`, `react/tsconfig.app.json`, `.oxlintrc.json`, `.prettierrc.json`, `Makefile`, [ARCHITECTURE.md](../ARCHITECTURE.md) "Django API conventions"
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Owner:** Project owner
+- **Last reviewed:** 2026-11-18
+- **Related ADRs:** ADR-020, ADR-021, ADR-023, ADR-025, ADR-033, ADR-047, ADR-052, ADR-072
+- **Canonical sources:** [CLAUDE.md](../../CLAUDE.md) section 13, `pyproject.toml`, `react/tsconfig.app.json`, `.oxlintrc.json`, `.prettierrc.json`, `Makefile`, [ARCHITECTURE.md](../ARCHITECTURE.md) "Django API conventions"
 
 These rules restate and ground [CLAUDE.md](../../CLAUDE.md) section 13 in the repository's actual
 configuration. Follow the conventions already in the code. Do not introduce a new framework,
@@ -41,7 +41,8 @@ Write code that would pass them anyway.
   structural test fails otherwise (`lai/apps/users/tests/test_tenant_isolation.py`).
 - Settings: `lai/config/settings/{base,local,production,test}.py`. Read configuration with
   `os.environ` in `base.py` and validate it at import (`ImproperlyConfigured` on bad values, as
-  `LAI_GAME_TICKET_TTL_SECONDS` does). No feature reads `os.environ` directly.
+  `LAI_GAME_TICKET_TTL_SECONDS` does). Django application code reads configuration only through
+  settings; exceptions: management-command secret inputs and Lambda workers (no Django settings).
 - No `print(` in application code (a privacy test enforces it). Use module loggers.
 - Pin every Python dependency with `==` in `requirements.txt` or `requirements-dev.txt`,
   including transitive ones.
@@ -52,7 +53,7 @@ Write code that would pass them anyway.
 |---|---|
 | Namespace | All routes under `/api/v1/`, one `include` per app in `lai/config/urls.py`. A test fails otherwise. |
 | Versioning | Additive change stays in v1. Breaking change: new `/api/v2/` beside v1, with an ADR. |
-| Validation | Serializers with `is_valid(raise_exception=True)`. Never hand-build a 400. Closed request bodies: ignore or reject unknown parent or child ids in bodies and query strings. |
+| Validation | Serializers with `is_valid(raise_exception=True)`. Never hand-build a 400. Closed request bodies: parent or child ids in bodies and query strings are ignored (LAI-0403 checklist in [TESTING_STRATEGY.md](../TESTING_STRATEGY.md), [security-policy.md](security-policy.md) section 3). |
 | Errors | The fixed envelope `{"error": {"code", "message", "details"}, "request_id"}` from `api_exception_handler` (`lai/apps/core/exceptions.py`). `message` is a fixed string, never exception text. |
 | Permissions | Default `IsAuthenticated`. Child routes use `ChildScopedMixin` with `<uuid:child_id>`. Another family's child and an unknown id return the identical 404. |
 | Success bodies | Plain JSON, not wrapped. Field names match the existing app's convention; keep the React parser (`react/src/api/parse.ts`) in step. |
@@ -79,7 +80,8 @@ Write code that would pass them anyway.
 ## 5. Three.js
 
 - Engine code (`.ts` under `react/src/features/island-map/three/` and `scenes/`) imports only
-  `three` and local engine modules. No React, no `api/`, no AWS SDK. `.tsx` files there are hosts.
+  `three` (or `phaser` in the transitional `scenes/` worlds) and local engine modules. No React,
+  no `api/`, no AWS SDK (`react/src/test/engineBoundary.test.ts`). `.tsx` files there are hosts.
 - The engine emits typed events (`worldEngineEvents.ts`); it never validates answers, awards
   progress or calls AI (ADR-020).
 - New places are manifests and extensions on the location runtime (`runtime/`), not new
@@ -115,7 +117,7 @@ Write code that would pass them anyway.
 - Least-privilege IAM written per resource; no wildcards on actions or resources unless the
   service requires them, with a comment saying why.
 - No secrets in stack code or context; reference SSM parameters and Secrets Manager.
-- Synthesize locally (`npm run infra:synth:dev`); never deploy from an agent session.
+- Synthesize locally (`npm run infra:synth:dev`); never deploy or make a live AWS call without explicit per-action owner authorization ([release-policy.md](release-policy.md)).
 
 ## 8. Error handling
 
@@ -158,7 +160,8 @@ Write code that would pass them anyway.
   [DJANGO_EC2_DEPLOYMENT.md](../platform/DJANGO_EC2_DEPLOYMENT.md) if deployed environments need it.
 - Deployed environments read SSM Parameter Store (`/lai/<env>/...`) and Secrets Manager, never
   `.env`. Tests set their own values in `config.settings.test` and fixtures.
-- Feature flags default to off (`LAI_ASSET_ASYNC_VALIDATION` pattern).
+- New feature flags default to off (for example `LAI_SPEECH_PROVIDER` defaults to `disabled`);
+  `LAI_AI_ALLOW_CLIENT_AUTHORED` (default on) is a transitional exception (ADR-044).
 
 ## 12. Dependencies
 

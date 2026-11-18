@@ -17,6 +17,11 @@
 |---|---|
 | Realm display name (child-facing) | `<name>` |
 | Island slug (`catalog.World`) | `<slug>` |
+| Tagline (child-facing) | `<one short line, readable aloud>` |
+| Description (child-facing) | `<two or three sentences, readable aloud>` |
+| `sort_order` | `<integer>` |
+| `is_home` | `<yes / no>` |
+| Picture assets | `<asset ids for the Realm card and preview, or TBD>` |
 | Trello card(s) | `<card id and title>` |
 | Branch | `<branch name>` |
 | Related ADRs | `<ADR-NNN, ...>` |

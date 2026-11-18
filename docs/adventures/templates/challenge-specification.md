@@ -20,6 +20,10 @@
 | Challenge id or slug | `<id>` |
 | Adventure and quest | `<adventure slug> / <quest slug or none>` |
 | Trello card | `<card id and title>` |
+| Form and kind | `<one row of the challenge standard's forms table: step type, chest challenge, AreaPuzzle kind, touch-the-answer chest, exploration, collectible or movement>` |
+| Required or optional | `<required (gates progress) / optional (never gates)>` |
+| Prerequisites (change keys) | `<world change keys that must exist first (requires, required_world_change_key), or none>` |
+| Consequence | `<world change key recorded; reward rule, or none>` |
 
 ## 2. Learning objective
 
@@ -34,6 +38,10 @@
 | `ChallengeSpec` (seeded generator) | `<spec slugs per band, or none>` |
 | Question Studio pool | `<pool for region and chest, or none>` |
 | Authored adventure step | `<step id, or none>` |
+| `AreaPuzzle` (closed `PuzzleKind`) | `<puzzle_id, kind and per-band parameters, or none>` |
+| Exploration (discovery, room discovery, `EXPLORE` objective) | `<discovery or object id, change key, or none; no correctness>` |
+| Collectible (`COLLECTIBLE` placement) | `<placement id, pickup_change_key, pickup_reward_rule, or none>` |
+| Movement (platforming course, pending merge) | `<course, goal and checkpoints in scene.platforming; the engine reports the goal, Django records it; or none>` |
 | Other (requires owner approval) | `<describe, or none>` |
 
 ## 4. Correctness rule (owned by application code)
@@ -79,7 +87,10 @@
 
 ## 10. Accessibility
 
-`<input methods, targets, screen reader labels, sound-off path, no timers>`
+| Field | Value |
+|---|---|
+| Accessible alternative | `<how it is completed without precise pointing, without jumping, with audio off>` |
+| Input methods, targets, labels | `<input methods, targets, screen reader labels, no timers>` |
 
 ## 11. Progress written
 
@@ -106,4 +117,5 @@
 - [ ] Fallback defined for every failure.
 - [ ] Gradable content snapshotted on the attempt.
 - [ ] No timers or countdowns; retry always possible.
+- [ ] Accessible alternative: completed without precise pointing, without jumping, with audio off.
 - [ ] AI-generated questions only from published Question Studio revisions.

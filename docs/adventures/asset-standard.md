@@ -1,6 +1,6 @@
 # Asset Standard
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-020, ADR-028, ADR-030, ADR-033, ADR-035, ADR-045, ADR-047, ADR-054, ADR-061, ADR-062, ADR-064, ADR-072 (Proposed); branch-only Reserved: ADR-066, ADR-070
@@ -108,6 +108,8 @@ Authoring conventions (canonical: [`THREE_WORLD_ASSET_CONVENTIONS.md`](../THREE_
   `react/src/features/island-map/three/assets/animationVocabulary.ts`
   (`Idle, Walk, Talk, Wave, Point, Celebrate, ReactHappy, ReactConcerned, Open, Close, Activate`).
   Validation refuses unknown and duplicate names.
+- Pending merge: Run, Jump, Fall, Land added for the player avatar (LAI-JMP-01a); until merged,
+  validation on main refuses a Jump clip.
 - A new version of an asset must keep every clip the asset already declares.
 - Strip clips a children's product does not need (combat, weapons) before upload.
 - NPCs map their own runtime states (`idle`, `talk`, `wave`...) to clip names through the

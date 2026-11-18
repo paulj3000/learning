@@ -15,7 +15,7 @@ owner can continue. Post it on the Trello card. Record only what was observed.
 
 ## Agent ID
 
-`<Claude-0N>`
+`<agent id>`
 
 ## Ticket ID
 

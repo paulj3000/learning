@@ -22,7 +22,7 @@ free text, audio, emails or secrets.
 - Parent ticket: `<ticket id>`
 - Commit or branch: `<full SHA or branch>`
 - Environment: `<local | dev | prod>`
-- Found by and date: `<owner | Claude-0N>`, `<yyyy-mm-dd>`
+- Found by and date: `<owner | agent id>`, `<yyyy-mm-dd>`
 
 ## Severity
 

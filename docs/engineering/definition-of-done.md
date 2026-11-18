@@ -1,6 +1,6 @@
 # Definition of Done
 
-- **Status:** Mandatory policy
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-020, ADR-033, ADR-053, ADR-072 (proposed engineering governance)
@@ -88,6 +88,30 @@ Recorded only by the owner. All of these hold:
 
 An implementation-only ticket may close at an earlier gate than its parent feature, as recorded
 on the parent card ([trello-workflow.md](trello-workflow.md), "Separate completion gates").
+
+## Recording the gates on the card
+
+Each event is recorded separately on the Trello card, with this evidence:
+
+| Gate | Meaning | Evidence |
+|---|---|---|
+| Development completion | Authorized scope built and unit-checked on a branch | Commit SHA, test results, completion report |
+| Integration completion | Works together with its dependencies | Integration branch (or up-to-date feature branch), check results |
+| Owner acceptance | Owner verified it in QA | Owner's dated note |
+| Merge completion | On `main` | Merge commit, PR link |
+| Deployment completion | Released to a named environment ([release-policy.md](release-policy.md)) | Workflow run, deployed SHA, health result |
+
+Use these lines on the card, filled only as each event happens:
+
+```text
+Development complete: <date>, <commit SHA>
+Unit tests passed: <date>, <command summary>
+Integration complete: <date>, <branch>, <check results>
+Owner QA required: <yes | no>
+Accepted: <date, owner>
+Merged: <date>, <merge commit SHA>, PR #<n>
+Deployed: <environment>, <date>, <deployed SHA>  (or "No live AWS deployment authorized")
+```
 
 ## What does not count as done
 

@@ -20,7 +20,7 @@ at the end of the description.
 
 - Ticket: `<ticket id>` (<Trello card link>)
 - Parent: `<parent ticket id or none>`
-- Agent: `<Claude-0N | owner>`
+- Agent: `<agent id | owner>`
 
 ## Branch
 

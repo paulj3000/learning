@@ -1,10 +1,10 @@
 # Testing Policy
 
-Status: Mandatory policy
-Owner: project owner
-Last reviewed: 2026-11-18
-Related ADRs: ADR-020, ADR-072
-Canonical sources: [TESTING_STRATEGY.md](../TESTING_STRATEGY.md) section "When to run which checks" (adopted 2026-10-24), `Makefile`, `package.json`, `.github/workflows/ci.yml`
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Owner:** Project owner
+- **Last reviewed:** 2026-11-18
+- **Related ADRs:** ADR-020, ADR-072
+- **Canonical sources:** [TESTING_STRATEGY.md](../TESTING_STRATEGY.md) section "When to run which checks" (adopted 2026-10-24), `Makefile`, `package.json`, `.github/workflows/ci.yml`
 
 [TESTING_STRATEGY.md](../TESTING_STRATEGY.md) "When to run which checks" is the canonical
 testing cadence. This page restates it for agents as rules and commands. If the two ever differ,
@@ -30,7 +30,7 @@ or weaken them to save time):
 | Area | Tests |
 |---|---|
 | Authorization and tenant isolation | The LAI-0403 checklist; `lai/apps/users/tests/test_tenant_isolation.py` |
-| Authentication | `lai/apps/users/tests/test_authentication.py`, `test_jwks.py` (need PostgreSQL) |
+| Authentication | `lai/apps/users/tests/test_authentication.py` (needs PostgreSQL), `test_jwks.py` (does not) |
 | Privacy-safe logging | `lai/apps/core/tests/test_privacy_logging.py` |
 | AI output validation and safety | `lai/apps/ai/tests/` and the affected React validators |
 | Exported content | `npm run content:check` when content sources change |
@@ -70,8 +70,15 @@ See [definition-of-done.md](definition-of-done.md).
 
 ## 4. Merge readiness (only when explicitly requested)
 
+Merge readiness includes the canonical gates in
+[TESTING_STRATEGY.md](../TESTING_STRATEGY.md) "Merge or release readiness", including
+`npm run test:e2e` and `npm run test:acceptance`. Those two are browser suites and run only on
+explicit owner authorization or in an approved acceptance phase (section 5). It also includes
+`make docs-check`. This page does not narrow that list. Note that `make check` runs plain
+`py-test`; run `make py-test-db` for PostgreSQL.
+
 Run for the changed code, record the results, and fix relevant failures before recommending the
-merge ([integration-policy.md](integration-policy.md)).
+merge ([integration-policy.md](integration-policy.md)). The commands behind the gates:
 
 | Gate | Command | What it runs |
 |---|---|---|
@@ -100,18 +107,9 @@ Ruff format, Django check, migration check, `py-test-db` on PostgreSQL 16). A pu
 branch runs no CI, so the merge readiness review is the gate for branch work.
 
 **A merge to `main` may deploy.** Besides CI, pushes to `main` start the deploy workflows by path,
-each gated by a repository variable:
-
-| Workflow | Starts on pushes to `main` that change | Gate variable |
-|---|---|---|
-| `deploy-site.yml` | `react/**`, `package.json`, `package-lock.json`, `scripts/aws/publish-site.sh`, its action and workflow | `LAI_SITE_DEPLOY_ENABLED` |
-| `deploy-dev-native.yml` | `lai/**`, `content/**`, `react/public/models/**`, `requirements*.txt`, `pyproject.toml`, `scripts/aws/native/**`, `deploy/native/**` and related scripts | `LAI_DEV_NATIVE_ENABLED` |
-| `deploy-django-ec2.yml` | `lai/**`, `content/**`, `react/public/models/**`, `requirements*.txt`, `pyproject.toml`, `scripts/aws/**`, `deploy/ec2/**`, `tests/deploy/**`, `.dockerignore` (its test job runs even when the gate is off) | `LAI_DEPLOY_ENABLED` (dev also follows `LAI_DEV_NATIVE_ENABLED`) |
-| `deploy-dev-lambda.yml` | `lambda/**`, `lai/apps/ai/providers/**`, `lai/apps/jobs/core/**`, `scripts/aws/package-lambda.sh`, `tests/lambda/**` | `LAI_DEV_NATIVE_ENABLED` |
-
-When a gate variable is `'true'`, merging a change under those paths releases it. Merging to
-`main` is therefore an owner decision ([release-policy.md](release-policy.md)); agents never
-merge, change the gate variables or dispatch these workflows.
+each gated by repository variables. The trigger paths, gate variables and approval rule (a merge
+approval is not a deployment approval) are in
+[release-policy.md](release-policy.md#how-merges-relate-to-deployments).
 
 ## 5. Browser and acceptance testing (separately gated)
 

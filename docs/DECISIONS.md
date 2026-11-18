@@ -15,6 +15,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 5. When two branches have independently used a number, determine from content which decision each reference means. Never search and replace across files.
 6. Superseding a decision leaves its section in place. Change its `Status:` line and add the superseding ADR; the registry row keeps the number.
 7. Do not delete a decision. Reserve a number for a decision known to exist elsewhere but not yet merged (`Reserved` status).
+8. Reserve a new number with a `Reserved` row on `main` before a branch uses it, and check open branches for `## ADR-` headings first (ADR-072; procedure in `docs/engineering/multi-agent-workflow.md`).
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
@@ -4377,7 +4378,8 @@ do not block the first deployment.
 
 ## ADR-072: Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated
 
-Status: Proposed (2026-11-18, `feature/engineering-standards`). Owner acceptance not yet recorded.
+Status: Proposed (2026-11-18, `feature/engineering-standards`). Merged to `main` at the owner's
+direction on 2026-11-18; formal acceptance of this ADR is not yet recorded.
 This ADR changes no runtime architecture, no data model and no deployed resource.
 
 **Context.** Up to five Claude Code agents (Claude-01 to Claude-05) work at the same time in
@@ -4390,8 +4392,9 @@ Definition of Done and no adventure standards (jumping, scoring, accessibility, 
 
 **Decision.**
 1. `CLAUDE.md` stays the mandatory entry point for Claude sessions and keeps the product rules;
-   `AGENTS.md` holds the tool-neutral agent operating rules. `CLAUDE.md` defers to `AGENTS.md` for
-   agent operations; neither repeats the other.
+   `AGENTS.md` holds the tool-neutral agent operating rules. `CLAUDE.md` summarizes, and
+   `AGENTS.md` details, agent operations; on conflict the precedence is owner decision, accepted
+   ADR, `CLAUDE.md`, `AGENTS.md`, `docs/engineering/`.
 2. Detailed policy lives in `docs/engineering/` and adventure standards in `docs/adventures/`, each
    with copy-ready templates. Existing canonical documents stay canonical and are linked, not
    copied: this log for ADRs (no `docs/adr/` directory), `docs/TESTING_STRATEGY.md` for check
@@ -4401,7 +4404,8 @@ Definition of Done and no adventure standards (jumping, scoring, accessibility, 
    authorizes deployment.
 4. Trello owns task ownership, priority and workflow state; GitHub owns code evidence. Existing
    Trello lists are mapped, not renamed.
-5. ADR numbers are reserved in this registry on `main` before a branch uses them.
+5. ADR numbers are reserved in this registry on `main` before a branch uses them (governance
+   rule 8; procedure in `docs/engineering/multi-agent-workflow.md`).
 6. `make docs-check` (`scripts/check_engineering_docs.py`, standard library only) checks required
    documents, status lines, relative links, template sections and merge-conflict markers. It runs
    in `make js-check` and in CI next to `npm run adr:check`.

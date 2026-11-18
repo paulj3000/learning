@@ -1,6 +1,6 @@
 # Educational Content Standard
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-019, ADR-033, ADR-044, ADR-046, ADR-047, ADR-053, ADR-054, ADR-064, ADR-072 (Proposed)
@@ -19,7 +19,7 @@ It complements [`challenge-standard.md`](challenge-standard.md) (challenge mecha
 | E2 | Correctness is decided by Django application code (for example `education.challenges.grade_answer`). Never by a model, never by the engine, never by the browser alone | CLAUDE.md section 7, ADR-019, ADR-046 item 3 |
 | E3 | Difficulty, reading volume, response mode and interaction length derive from the child's age band and demonstrated ability, set by the server | CLAUDE.md section 3 |
 | E4 | Django Admin is the authoring system. Content is versioned (ADR-047 `ContentRevision`; Question Studio `QuestionRevision`); published versions are never edited | ADR-047, ADR-046 |
-| E5 | AI-generated content reaches a child only after the approved validation, staff review and publication workflow | ADR-046 |
+| E5 | AI-generated questions and other gradable content reach a child only after validation, staff review and publication (ADR-046). Runtime AI phrasing of dialogue and hints goes only through the ADR-044 pipeline (Guardrail, schema, output policy, authored fallback) and never changes a rule or an answer. | ADR-046, ADR-044 |
 | E6 | Every learning interaction has an authored fallback written in code or content, so play continues when AI, a pool or a service is unavailable | CLAUDE.md section 7 |
 | E7 | Use the canonical progress models (`SkillEvidence`, `SkillProgress`, `ChallengeAttempt`, `WorldChange`, `QuestProgress`). No per-adventure progress, mastery or question store | ADR-033 |
 | E8 | No time pressure: no countdowns, nudges to stop or cut-offs | ADR-053 |
@@ -114,7 +114,10 @@ or a write API for content.
 
 - Bedrock is used only to author drafts and, at runtime, to phrase companion and tutor turns or
   NPC hints through the ADR-044 pipeline (Guardrail mandatory, structured output, Django output
-  policy, rate limits, server-written audit).
+  policy, rate limits, server-written audit, authored fallback).
+- AI-generated questions and other gradable content reach a child only after validation, staff
+  review and publication (ADR-046, rule E5). Runtime phrasing never creates a question, and never
+  changes a rule or an answer.
 - No runtime model grades, scores, awards, or decides mastery. Tutor turns may not claim mastery,
   levels, grades or comparisons, and may not use vocabulary outside the skill's authored list.
 - No child free text, profile id, nickname, exact age or history in model context; age band and
@@ -129,7 +132,7 @@ or a write API for content.
 | Answer correctness | `grade_answer` (Django) |
 | Evidence and mastery | `education.SkillEvidence`, `SkillProgress` (mastery engine) |
 | Quest and world consequence | `quests.QuestProgress`, `progression.WorldChange` |
-| Parent view | Activity summarized by skill, never raw transcripts; summaries come from verified session evidence (`ParentAdventureSummary`, [`PROMPT_AND_SCHEMA_GUIDE.md`](../PROMPT_AND_SCHEMA_GUIDE.md)) |
+| Parent view | Activity summarized by skill, never raw transcripts; summaries come from verified session evidence. `ParentAdventureSummary` is the documented schema in [`PROMPT_AND_SCHEMA_GUIDE.md`](../PROMPT_AND_SCHEMA_GUIDE.md); the parent dashboard on `main` uses [`weeklySummary.ts`](../../react/src/features/parent-dashboard/weeklySummary.ts) and [`educatorReport.ts`](../../react/src/features/parent-dashboard/educatorReport.ts) |
 
 A wrong answer never removes earned progress. Retrying is always possible and encouraged.
 
@@ -157,7 +160,7 @@ A wrong answer never removes earned progress. Retrying is always possible and en
 - [ ] Correctness rule implemented and tested in Django; engine and browser only display.
 - [ ] Band variants defined for every supported age band.
 - [ ] All content authored and published through Django Admin revisions or the Question Studio.
-- [ ] AI-generated content validated, reviewed and published before any child sees it.
+- [ ] AI-generated questions and gradable content validated, reviewed and published before any child sees it; runtime AI phrasing only through the ADR-044 pipeline with an authored fallback.
 - [ ] Authored fallback for every AI and pool path; AI-off path tested.
 - [ ] Session pinning respected; no regrading on publish.
 - [ ] Progress written only through canonical models; parent summary by skill.

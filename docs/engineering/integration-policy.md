@@ -1,6 +1,6 @@
 # Integration Policy
 
-- **Status:** Mandatory policy
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-020, ADR-033, ADR-047, ADR-063 (reserved), ADR-064, ADR-072 (proposed engineering governance)
@@ -10,7 +10,8 @@
   [tasks/TASK_TRACKER.md](../../tasks/TASK_TRACKER.md),
   [docs/IMPLEMENTATION_STATUS.md](../IMPLEMENTATION_STATUS.md)
 
-Several agents (Claude-01 to Claude-05) work in parallel branches. This policy decides the order
+Several agents (Claude-01 to Claude-05, and other tools' agents with owner-assigned `<Tool>-NN`
+ids) work in parallel branches. This policy decides the order
 in which their work is combined, who resolves conflicts, how integration branches work, and which
 areas need coordination before anyone edits them. Branch naming and commit rules are in
 [branch-policy.md](branch-policy.md).
@@ -66,10 +67,13 @@ to test that they work together before any of them reach `main`.
 
 ## Coordination required
 
-Before editing any area below, the agent checks Trello and open pull requests for other work
-on the same area, lists the area under `shared_components` in the ticket block, and tells the
-owner if another active ticket touches it. Two agents never change the same shared area in
-parallel without an agreed owner for the change.
+This is the single list of coordination hotspots; other policies link here.
+
+**Required action:** record the planned change on the ticket before editing, and get the owner's
+or coordinator's acknowledgement before merging. Recording it means checking Trello and open pull
+requests for other work on the same area and listing the area under `shared_components` in the
+ticket block. Two agents never change the same shared area in parallel without an agreed owner
+for the change.
 
 | Area | Why it needs coordination | Where it lives (main) |
 |---|---|---|
@@ -86,6 +90,13 @@ parallel without an agreed owner for the change.
 | Content publication | Django is authoritative after import (ADR-047) | `lai/apps/catalog`, `manage.py load_content` |
 | Scoring and progress | One canonical progress model (ADR-033) | `lai/apps/progression`, `lai/apps/quests` |
 | Deployment infrastructure | Live AWS impact | `infra/`, `scripts/aws/`, `.github/workflows/deploy-*.yml` |
+| Region play and 3D place host | Treasure Rush, every region-play adventure and every 3D place | `react/src/features/region-play/`, `react/src/routes/LocationWorldPage.tsx` |
+| Game sessions | Sessions, play API, launch, runtime auth | `lai/apps/game_sessions/` |
+| Background processing | The one background path (ADR-064) | `lai/apps/jobs/`, `lambda/jobs_worker/` |
+| Django settings and URL configuration | Every app adds settings and routes; additive settings only, with defaults safe for development and tests | `lai/config/settings/`, `lai/config/urls.py` |
+| Dependencies and lockfiles | A new dependency is a stop-and-ask trigger; regenerate lockfiles with npm, never hand-edit; pinned Python versions only | `package.json`, `react/package.json`, `package-lock.json`, `requirements*.txt` |
+| Generated files | Byte-exact; regenerate, never hand-edit | `content/exported/`, `tests/golden/*.json` |
+| Global rules and theme | Owner-approved policy changes only; `tokens.css` owns `--color-*` | [CLAUDE.md](../../CLAUDE.md), [AGENTS.md](../../AGENTS.md), `react/src/styles/tokens.css` |
 | ADR numbers | Collisions across branches | [docs/DECISIONS.md](../DECISIONS.md) |
 | Status and tracker files | Every agent appends to them | [docs/IMPLEMENTATION_STATUS.md](../IMPLEMENTATION_STATUS.md), [tasks/TASK_TRACKER.md](../../tasks/TASK_TRACKER.md) |
 
@@ -104,14 +115,12 @@ parallel without an agreed owner for the change.
 
 ### ADR numbers
 
-- Reserve the number first: add a `Reserved` row to the registry in
-  [docs/DECISIONS.md](../DECISIONS.md) on `main` (through a small pull request the owner
-  merges), then use it on the feature branch. Take the next free number after every row,
-  including `Reserved` rows, after checking `git show origin/main:docs/DECISIONS.md`.
-- Collisions have already happened. Parallel branches used ADR-055 for both the native dev
-  environment and the jump controller; the jump decision was moved to ADR-063 (Reserved).
-  Other open branches use ADR-065 to ADR-071, ADR-080 and ADR-081, which must be registered as
-  Reserved before any new number is chosen.
+- Choose and reserve the number only through the procedure in
+  [multi-agent-workflow.md](multi-agent-workflow.md#adr-number-reservation).
+- As of 2026-11-18 open branches used ADR-065 to ADR-071, ADR-080 and ADR-081; the governance
+  change registered them as Reserved; ADR-070 is used by two branches and awaits an owner
+  decision. Earlier, parallel branches used ADR-055 for both the native dev environment and the
+  jump controller; the jump decision was moved to ADR-063 (Reserved).
 - Renumber only to remove a real collision, by reading content, never by search and replace
   (governance rules 3 and 5).
 - `npm run adr:check` must pass before a merge is complete.

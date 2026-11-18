@@ -2,7 +2,7 @@
 
 ## 0. Start here (mandatory for every agent session)
 
-Status: Mandatory policy. Engineering governance proposed under ADR-072 (owner acceptance pending).
+Status: Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 
 This file is the entry point. It keeps the product rules (sections 1 to 20). How agents work is in
 [AGENTS.md](AGENTS.md); detailed policy is in [docs/engineering/](docs/engineering/README.md) and

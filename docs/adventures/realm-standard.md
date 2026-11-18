@@ -1,6 +1,6 @@
 # Realm Standard
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-009, ADR-031, ADR-032, ADR-033, ADR-041, ADR-047, ADR-054
@@ -38,6 +38,9 @@ Known terminology conflicts, recorded rather than resolved here:
 - Some branch documents call a 3D Area a "Realm" (for example "the existing Treasure Cove Realm" in
   the Pirate's Leap document). Treasure Cove is a 3D Area in the Place Pirate Builder Bay, not a
   Realm. Use the mapping above.
+- The child's exit button still says **"Leave island"** (AP-04; `portal/exit/copy.ts`,
+  `IslandLayout.tsx`). It is legacy child-facing copy and is not renamed to "Realm" without an
+  approved copy change.
 - "Adventure" means two things: the owner's primary adventure and the catalog's step adventure.
   Specifications must say which one they mean.
 - [docs/DATA_MODEL.md](../DATA_MODEL.md) "Exported game content" records an approved hierarchy
@@ -141,6 +144,6 @@ shows Places explored, never points or a score.
 - [ ] Every required field is authored; age bands are declared.
 - [ ] Each Place has zero or one 3D Area; layout is seed or manifest authored (LAI-0805).
 - [ ] Visibility, age-band filtering and travel requirements are decided by the server.
-- [ ] Child-facing copy uses Realm and Place, not "user", "region" or "world".
+- [ ] Child-facing copy uses Realm and Place, not "user", "region" or "world" (the legacy "Leave island" exit copy stays until an approved copy change).
 - [ ] Content export and import checks pass for the new rows.
 - [ ] Owner approved the Realm specification before build.

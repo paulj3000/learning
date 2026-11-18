@@ -20,7 +20,7 @@ they are observed.
 - Commit: `<full SHA of main>`
 - Previous release: `<full SHA>`
 - Owner approval: `<date and where recorded>`
-- Run by: `<owner | Claude-0N with owner authorization>`
+- Run by: `<owner | agent id with owner authorization>`
 
 ## Included Tickets
 

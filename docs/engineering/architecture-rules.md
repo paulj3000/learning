@@ -1,10 +1,10 @@
 # Architecture Rules
 
-Status: Mandatory policy
-Owner: project owner
-Last reviewed: 2026-11-18
-Related ADRs: ADR-019, ADR-020, ADR-029, ADR-033, ADR-036, ADR-037, ADR-040, ADR-041, ADR-044, ADR-045, ADR-046, ADR-047, ADR-048, ADR-049, ADR-050, ADR-052, ADR-053, ADR-054, ADR-055, ADR-061, ADR-062, ADR-064, ADR-072
-Canonical sources: [DECISIONS.md](../DECISIONS.md) (decisions), [ARCHITECTURE.md](../ARCHITECTURE.md) ("Consolidated Django backbone" and later sections), [CLAUDE.md](../../CLAUDE.md) sections 8 and 18 to 20
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
+- **Owner:** Project owner
+- **Last reviewed:** 2026-11-18
+- **Related ADRs:** ADR-019, ADR-020, ADR-029, ADR-033, ADR-036, ADR-037, ADR-040, ADR-041, ADR-044, ADR-045, ADR-046, ADR-047, ADR-048, ADR-049, ADR-050, ADR-052, ADR-053, ADR-054, ADR-055, ADR-061, ADR-062, ADR-064, ADR-072
+- **Canonical sources:** [DECISIONS.md](../DECISIONS.md) (decisions), [ARCHITECTURE.md](../ARCHITECTURE.md) ("Consolidated Django backbone" and later sections), [CLAUDE.md](../../CLAUDE.md) sections 8 and 18 to 20
 
 This page states the approved architecture as rules, with the status of every element on `main`
 at `466a4972` (2026-11-18). It does not replace the ADRs. When this page and an ADR disagree, the
@@ -43,7 +43,7 @@ the Amplify removal and must be re-verified before they are relied on.
 | Phaser worlds (`phaser` in `package.json`; `react/src/features/island-map/scenes/` and the `*WorldView.tsx` hosts that import it) | Transitional | Bug fixes only. Delete a world only after its Three.js replacement passes parity tests and visual validation and the Sprouts gate (LAI-2303) allows it. | ADR-020, [THREEJS_ENGINE_CONVERSION.md](../THREEJS_ENGINE_CONVERSION.md) |
 | Retained Amplify data, buckets and tables in AWS | Transitional | Never delete, change or import them without explicit owner approval. Import code (`lai/apps/users/amplify_import.py`, `lai/apps/assets/amplify_object_migration.py`) exists; running it against real data is an approval step. | CLAUDE.md section 18, ADR-039, ADR-042 |
 | Existing Cognito user pool and web app client | Transitional (kept; pool ownership and detach plan open) | Use the existing pool directly. Never modify or recreate it without approval. | ADR-019 gate G2, ADR-024, ADR-040 |
-| ADR-019 gates G1, G2, G3, G5, G6, G7, G8, G9, G10 | Open | A task that touches a gate stops until the gate is resolved. G4 is resolved (Python rules, Django content authority). | ADR-019 |
+| ADR-019 gates G1, G2, G3, G5, G6, G7, G8, G9, G10 | Open | A task that touches a gate stops until the gate is resolved. G4 is resolved (Python rules, Django content authority). G8: application part done (LAI-0208, ADR-025); deployed part tracked as G10. | ADR-019 |
 | `CLIENT_AUTHORED` AI context path | Transitional | Kept behind `LAI_AI_ALLOW_CLIENT_AUTHORED` until adventures run on Django sessions. Do not extend it. | ADR-044 items 7 and 11 |
 | `@aws-sdk/client-dynamodb` and `@aws-sdk/lib-dynamodb` dev dependencies | Transitional (legacy; owner to confirm removal) | Do not use them in new code. | `package.json` |
 
@@ -58,7 +58,7 @@ the Amplify removal and must be re-verified before they are relied on.
 | Engine never validates answers, awards progress or calls AI; it emits typed events | Implemented (main) | `worldEngineEvents.ts` is the event vocabulary. Django grades. | ADR-020 item 6, ADR-012 |
 | Styling: `react/src/styles/tokens.css` theme, CSS Modules, Tailwind CSS 4 for shells, portal pages and the admin section | Implemented (main) | `tokens.css` is the only owner of `--color-*`. Tailwind only where ADR-052 and ADR-023 allow it. | ADR-023, ADR-052 |
 | Responsive layout: tablet first, also desktop and phone | Implemented (main) for shells; per-feature quality varies | Every new screen must work at tablet, desktop and phone widths, with touch and keyboard. | CLAUDE.md section 11, [UX_AND_ACCESSIBILITY.md](../UX_AND_ACCESSIBILITY.md) |
-| Player naming "Realm" (code keeps World, Location, WorldRegion) | Implemented (main) in `react/src/features/realms/` | Do not rename code, tables or routes. Hierarchy: [CANONICAL_CONTENT_MODEL.md](../platform/CANONICAL_CONTENT_MODEL.md), [02_CONTENT_MODEL_STRATEGY.md](../engine/02_CONTENT_MODEL_STRATEGY.md), ADR-041. | ADR-041 |
+| Player naming "Realm" (code keeps World, Location, WorldRegion) | Implemented (main) in `react/src/features/realms/` | Do not rename code, tables or routes. Hierarchy: [CANONICAL_CONTENT_MODEL.md](../platform/CANONICAL_CONTENT_MODEL.md), [02_CONTENT_MODEL_STRATEGY.md](../engine/02_CONTENT_MODEL_STRATEGY.md), ADR-041. | AP-03 (Adventure Portal; header of `react/src/features/realms/realmCatalog.ts`), ADR-052 (portal theme); hierarchy ADR-041 |
 
 ### 4.1 Shared engine systems
 
@@ -150,22 +150,23 @@ owning app or module. A second implementation needs an ADR.
 
 | Element | Status | Rule | Source |
 |---|---|---|---|
-| AWS CDK in `infra/` (TypeScript), bootstrapless | Implemented (main) as code | Synthesize with `npm run infra:synth:dev` or `:prod`. Never deploy from an agent session. | ADR-037, ADR-055 |
+| AWS CDK in `infra/` (TypeScript), bootstrapless | Implemented (main) as code | Synthesize with `npm run infra:synth:dev` or `:prod`. Never deploy or make a live AWS call without explicit per-action owner authorization ([release-policy.md](release-policy.md)). | ADR-037, ADR-055 |
 | Production: Django on one EC2 instance per environment behind ALB and WAF, RDS PostgreSQL, released through ECR and SSM with GitHub OIDC | Approved future (code on main, not provisioned) | No stored AWS keys. ECS Fargate stays the production candidate (LAI-1007). | ADR-037, [DJANGO_EC2_DEPLOYMENT.md](../platform/DJANGO_EC2_DEPLOYMENT.md) |
 | Dev: native Django on one ARM64 EC2 instance, private RDS, Lambda and SQS, nightly shutdown | Approved future (code on main, nothing deployed) | `infra/lib/devPlatformStack.ts`, `devArtifactsStack.ts`. | ADR-055, [dev-native-environment.md](../infrastructure/dev-native-environment.md) |
 | React site on S3 and CloudFront | Approved future (gated by `LAI_SITE_DEPLOY_ENABLED`) | `infra/lib/frontendStack.ts`, `.github/workflows/deploy-site.yml`. | [deployment-design.md](../infrastructure/deployment-design.md) |
 | Private S3 buckets: asset storage and child photos | Approved future (code on main) | Separate buckets, Django is the control plane. | ADR-042 |
-| Bedrock Guardrail stack | Deployed for dev per the 2026-11-07 QA record (re-verify) | `infra/lib/aiGuardrailStack.ts`. | [inventory.md](../infrastructure/inventory.md) |
+| Bedrock Guardrail stack | Code on main; the repository stack `LaiAiGuardrail-<env>` is not deployed. A hand-trimmed out-of-band `LaiAiGuardrailOnly-dev` stack was deployed on 2026-11-07 for QA ([inventory.md](../infrastructure/inventory.md); re-verify before relying on it) | `infra/lib/aiGuardrailStack.ts`. | [inventory.md](../infrastructure/inventory.md) |
 | SQS + zip Lambda workers | Approved future (code on main) | Canonical path only; no ECR in dev. | ADR-064 |
 | CloudWatch logs and alarms | Approved future with the stacks above | Log content rules: [security-policy.md](security-policy.md). | ADR-025, ADR-019 gate G10 |
-| Deploy workflows (`deploy-django-ec2.yml`, `deploy-site.yml`, `deploy-dev-native.yml`, `deploy-dev-lambda.yml`, `manage-dev-infrastructure.yml`) | Present, gated | Pushes to `main` start them by path (`react/**` and the npm manifests for the site; `lai/**`, `content/**`, `requirements*.txt`, `pyproject.toml` and more for Django; `lambda/**` for workers), and they release when `LAI_SITE_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED` or `LAI_DEPLOY_ENABLED` is `'true'`. A merge to `main` may therefore deploy. Agents never merge, change the gates or dispatch them. Paths: [testing-policy.md](testing-policy.md) section 4. | CLAUDE.md section 18 |
+| Deploy workflows (`deploy-django-ec2.yml`, `deploy-site.yml`, `deploy-dev-native.yml`, `deploy-dev-lambda.yml`, `manage-dev-infrastructure.yml`) | Present, gated | The four `deploy-*` workflows start on pushes to `main` by path; `manage-dev-infrastructure.yml` is dispatch only. They release when their gate variables (`LAI_SITE_DEPLOY_ENABLED`, `LAI_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED`, `LAI_PROD_AUTO_DEPLOY`) allow it, so a merge to `main` may deploy. A merge approval is not a deployment approval. Agents never change the gates or dispatch the workflows without explicit per-action owner authorization. Paths and gates: [release-policy.md](release-policy.md#how-merges-relate-to-deployments). | CLAUDE.md section 18 |
 
 No Amplify, and no Phaser reintroduction, in any infrastructure or build change.
 
 ## 10. Changes that require an ADR
 
-Reserve the number in the registry in [DECISIONS.md](../DECISIONS.md) on `main` first (registry
-rule 2), then write the decision with the template in
+Choose and reserve the number through the procedure in
+[multi-agent-workflow.md](multi-agent-workflow.md#adr-number-reservation), then write the decision
+with the template in
 [templates/adr.md](templates/adr.md). Any of these needs one:
 
 1. A new runtime dependency (npm `dependencies`, `requirements.txt`) or a new framework.
@@ -182,22 +183,6 @@ rule 2), then write the decision with the template in
 
 ## 11. Coordination hotspots
 
-Files and areas that several agents touch. Change them only in the task that owns them, keep the
-change small, and say so in the handoff. Merge order and conflict rules:
-[integration-policy.md](integration-policy.md), [multi-agent-workflow.md](multi-agent-workflow.md).
-
-| Hotspot | Why |
-|---|---|
-| `docs/DECISIONS.md` registry | Number collisions across branches (ADR-055 and ADR-063 history). Reserve on `main`. |
-| `docs/IMPLEMENTATION_STATUS.md`, `tasks/TASK_TRACKER.md` | Every task updates them. Append; do not rewrite other entries. |
-| `react/src/features/island-map/three/firstPersonController.ts`, `runtime/createLocationEngine.ts`, `runtime/locationManifest.ts`, `runtime/validateLocationManifest.ts`, `worldEngineEvents.ts` | Shared movement and runtime; five open movement branches change them. |
-| `react/src/features/region-play/` (`regionManifest.ts`, `regionLayout.ts`, audio) | Treasure Rush and every region-play adventure. |
-| `react/src/routes/LocationWorldPage.tsx` | Host for all 3D places. |
-| `lai/config/settings/base.py`, `lai/config/urls.py` | Every app adds settings and routes. |
-| `lai/apps/catalog/models.py`, `lai/apps/regions/models.py` and their migrations | Migration numbering conflicts. |
-| `lai/apps/game_sessions/` | Sessions, play API, launch, runtime auth. |
-| `lai/apps/jobs/` and `lambda/jobs_worker/` | The one background path (ADR-064); PR #40 and #41 re-land here. |
-| `infra/lib/*.ts`, `.github/workflows/*` | Deploy-affecting; owner approval. |
-| `package.json`, `react/package.json`, `requirements*.txt`, `package-lock.json` | Dependency policy; lockfile conflicts. |
-| `content/exported/`, `tests/golden/*.json` | Generated, byte-exact; regenerate, never hand-edit. |
-| `CLAUDE.md`, `AGENTS.md`, `react/src/styles/tokens.css` | Global rules and theme. |
+Files and areas that several agents touch are listed once, with the required action, in
+[integration-policy.md](integration-policy.md#coordination-required): record the planned change on
+the ticket before editing, and get the owner's or coordinator's acknowledgement before merging.

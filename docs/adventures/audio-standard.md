@@ -1,6 +1,6 @@
 # Audio Standard
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-020, ADR-033, ADR-035, ADR-044, ADR-045, ADR-048 (Proposed), ADR-049 (Proposed), ADR-050 (Proposed), ADR-053, ADR-054, ADR-064, ADR-072 (Proposed)

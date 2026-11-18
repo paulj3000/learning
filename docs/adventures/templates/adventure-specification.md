@@ -17,7 +17,9 @@
 | Field | Value |
 |---|---|
 | Adventure title (child-facing) | `<title>` |
-| Adventure slug (`catalog.Adventure`) | `<slug>` |
+| Adventure kind | `<primary / step adventure>` |
+| Ticket prefix | `<e.g. TR-, FP-, SC-R, NP->` |
+| Step adventure slugs (`catalog.Adventure`), if any | `<slugs, or none>` |
 | Adventure template id (sent with every AI request) | `<template id>` |
 | Trello card(s) | `<card id and title>` |
 | Branch | `<branch name>` |
@@ -98,6 +100,18 @@ pending merge on open branches; use it, never a local one.
 | Element | Jump required? | Accessible non-jump alternative | Fall or miss recovery | Learning progress kept? |
 |---|---|---|---|---|
 | `<platform / obstacle>` | `<optional / never required>` | `<ramp, path, button, assisted move>` | `<safe respawn point>` | `<yes>` |
+
+| Field | Value |
+|---|---|
+| Meaningful jump route(s) | `<named route(s): what jumping reaches (shortcut, optional collectible, elevated view, secret)>` |
+| Controls and camera checks | `<keyboard and touch (required), gamepad where the shared input supports it; Jump and camera buttons cover no other control; first- and third-person checked>` |
+| Branch dependency (shared movement stack) | `<branches this stacks on, e.g. feature/interactive-platforms; or merged to main>` |
+
+| Age band | Jump difficulty (gap sizes, heights, platform speed, jumps in a row) | Within controller limits? |
+|---|---|---|
+| Sprouts (3 to 4) | `<single low hops onto wide surfaces, optional only; or not supported>` | `<yes>` |
+| Pathfinders (5 to 6) | `<difficulty>` | `<yes>` |
+| Explorers (7 to 8) | `<difficulty>` | `<yes>` |
 
 - Forced timers on movement: none.
 - Collision source: `<authored zones / collision profiles (pending merge)>`
@@ -234,7 +248,7 @@ No project-wide budget is approved; state this adventure's targets and how they 
 - [ ] Every section filled or marked `Not applicable: <reason>`.
 - [ ] Objectives exist in the catalog; correctness owned by Django code.
 - [ ] Every age band supported has its own variant.
-- [ ] Jumping never required; accessible alternative and safe recovery for every jump.
+- [ ] At least one meaningful jump route named; jumping never required to finish learning content; per-band jump difficulty within controller limits; accessible alternative and safe recovery for every jump.
 - [ ] No timers, countdowns or forced stops; no loss of learning progress.
 - [ ] Shared managers consumed; no replacement built.
 - [ ] Authored fallback for every AI path, asset and service failure.

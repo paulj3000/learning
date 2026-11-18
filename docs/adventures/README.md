@@ -1,6 +1,6 @@
 # Adventure Development Standards
 
-- **Status:** Mandatory policy (in effect once merged to `main` with owner approval; governance decision ADR-072, Proposed)
+- **Status:** Mandatory policy (merged to `main` at the owner's direction on 2026-11-18; formal acceptance of ADR-072 pending). Rules restated from CLAUDE.md and accepted ADRs bind through those sources.
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-005, ADR-011, ADR-020, ADR-027, ADR-033, ADR-041, ADR-047, ADR-051, ADR-053, ADR-072 (proposed engineering governance); pending merge: ADR-056 to ADR-060, ADR-063
@@ -70,7 +70,8 @@ Consequence           progression.WorldChange (append-only, child-scoped)
 
 "Realm" is the player-facing word (Realm Explorer, AP-03). "Island", "IslandLocation", "world",
 "region" and "location" remain in code, older documents and API names; the realm standard says
-how to read each.
+how to read each. The "Leave island" exit button is legacy child-facing copy; it is not renamed
+without an approved copy change.
 
 ## Lifecycle
 
@@ -102,9 +103,9 @@ deployment need explicit owner approval (CLAUDE.md sections 14, 15 and 18).
 
 | Adventure | Realm, Place, 3D Area | Status |
 |---|---|---|
-| Treasure Rush: Pip's Missing Treasure | Learning Adventure Island, Pirate Builder Bay, `treasure-rush-cove` | Implemented (main), development complete and unit tested; browser playtest TR-9 not done ([roadmap](../TREASURE_RUSH_ROADMAP.md)) |
+| Treasure Rush: Pip's Missing Treasure | Learning Adventure Island, Pirate Builder Bay, `treasure-rush-cove` | Implemented (main), development complete and unit tested; browser playtest TR-9 not done ([roadmap](../TREASURE_RUSH_ROADMAP.md)). Jumping: not yet compliant on `main`; retrofit card needed |
 | Treasure Rush: Pirate's Leap | Same 3D Area | Pending merge (`feature/pirates-leap`) |
-| Firepeak Volcano: The Volcano Awakens | Learning Adventure Island, `firepeak-volcano` | Implemented (main) for Pathfinders and Explorers; owner played it locally 2026-11-01; automated browser scenarios not run ([roadmap](../FIREPEAK_VOLCANO_ROADMAP.md)). Further Firepeak work pending merge (`feature/firepeak-volcano-adventure`) |
+| Firepeak Volcano: The Volcano Awakens | Learning Adventure Island, `firepeak-volcano` | Implemented (main) for Pathfinders and Explorers; owner played it locally 2026-11-01; automated browser scenarios not run ([roadmap](../FIREPEAK_VOLCANO_ROADMAP.md)). Jumping: not yet compliant on `main`; retrofit card needed. Further Firepeak work pending merge (`feature/firepeak-volcano-adventure`) |
 | Storykeeper Castle: the Great Storybook | Learning Adventure Island, Storykeeper Castle | Implemented (main) in part per the SC-R tracker; later SC-R tasks open ([roadmap](../regions/STORYKEEPER_CASTLE_REBOOT_ROADMAP.md)); castle jumping is work in progress (`wip/sc-jmp-castle-jumping`) |
 | North Pole: The Missing Christmas Star | Realm `north-pole`, Place and 3D Area `north-pole-village` | Pending merge (`feature/north-pole-adventure`), in development |
 | Wonderwild Forest, Clockwork Harbor, Dragon's Sanctuary | Learning Adventure Island | Shared-engine locations on main; see their own documents under [docs/regions/](../regions/clockwork.md) |

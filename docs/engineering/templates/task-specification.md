@@ -22,7 +22,7 @@ project: Learning Adventure Island
 type: <feature | adventure | defect | infra | docs | qa | integration | spike>
 priority: <P0 | P1 | P2 | P3>
 status: <logical state>
-assigned_agent: <Claude-0N>
+assigned_agent: <agent id>
 branch: <branch name>
 worktree: <worktree directory>
 baseline_sha: <full SHA>
