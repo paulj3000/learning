@@ -25,7 +25,12 @@ export type SoundCue =
   | 'npcGreet'
   | 'npcInteract'
   | 'npcTalk'
-  | 'npcLeave';
+  | 'npcLeave'
+  // The Heart of Firepeak moments (`audio/regionAudio.ts`). Silent in regions that map none.
+  | 'crystalCollect'
+  | 'puzzleComplete'
+  | 'restoration'
+  | 'switchFlip';
 
 /** Where a moment happened, when it happened somewhere in the scene (SM-P7). */
 export interface SoundPlace {

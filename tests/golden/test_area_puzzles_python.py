@@ -35,11 +35,21 @@ def solve_valves(valves, start, goal):
     return puzzles.solve_valves({"valves": valves, "start": start, "goal": goal})
 
 
+def choose_answer_correct(variants, submission):
+    return puzzles.grade(PuzzleKind.CHOOSE_ANSWER, {"variants": variants}, submission)
+
+
+def order_sequence_correct(variants, submission):
+    return puzzles.grade(PuzzleKind.ORDER_SEQUENCE, {"variants": variants}, submission)
+
+
 PORTS = {
     "observeSolved": observe_solved,
     "platformsSolved": platforms_solved,
     "simulateValves": simulate_valves,
     "solveValves": solve_valves,
+    "chooseAnswerCorrect": choose_answer_correct,
+    "orderSequenceCorrect": order_sequence_correct,
 }
 
 

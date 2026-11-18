@@ -603,6 +603,7 @@ class PuzzleOutcomeSerializer(serializers.Serializer):
             "feedback": "CORRECT" if outcome.correct else "TRY_AGAIN",
             "solvedNow": outcome.solved_now,
             "alreadySolved": outcome.already_solved,
+            "practice": outcome.practice,
             "failedAttempts": outcome.failed_attempts,
             "newItems": [
                 item for item in self.context.get("items", []) if item["itemId"] in new_items

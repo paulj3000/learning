@@ -44,6 +44,7 @@ export const regionsWithoutInteractionTable: readonly string[] = [
   // Firepeak Volcano's 3D Area is served by Django (ADR-047): its NPC interactions are built
   // from the area's placements (`regionManifest.ts`), not from a source interaction table.
   'firepeak-volcano',
+  'firepeak-heart',
 ];
 
 export const ADVENTURE_PASSAGE_REGION_SLUGS: readonly string[] = [WONDERWILD_HIVE_REGION_ID];

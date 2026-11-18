@@ -96,8 +96,74 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* A still cue, not a fade: held for 1.2 s, then gone in one step. It must clear itself,
+     because the layer keeps the element mounted once the child has respawned. */
   .respawnFlash {
-    animation: none;
-    opacity: 0.6;
+    animation: flashStill 1.2s step-end forwards;
+  }
+
+  @keyframes flashStill {
+    from {
+      opacity: 0.6;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+/* CHOOSE_ANSWER and ORDER_SEQUENCE */
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.optionGrid button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 3.5rem;
+}
+
+.glyph {
+  font-size: 1.6em;
+  line-height: 1;
+}
+
+.orderList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.25rem 0;
+  padding-left: 1.5rem;
+}
+
+.orderItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-weight: 700;
+}
+
+.practiceBadge {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 2px dashed #8a7c70;
+  border-radius: var(--radius-md, 12px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .orderItem {
+    animation: orderIn 160ms ease-out;
+  }
+}
+
+@keyframes orderIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
 }

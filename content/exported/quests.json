@@ -936,6 +936,166 @@
       ],
       "summary": "Help Professor Ember find out why Firepeak is waking up.",
       "title": "The Volcano Awakens"
+    },
+    {
+      "ageBands": [
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You crossed Firepeak, learned real volcano science from Professor Basalt, and lit the Heart of Firepeak again.",
+        "worldChanges": [
+          {
+            "changeKey": "FIREPEAK_HEART_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "firepeak-heart"
+          }
+        ]
+      },
+      "entryStageId": "fh-stage-landing",
+      "giverNpcId": "flint",
+      "id": "the-heart-of-firepeak",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "fh-stage-landing",
+          "nextStageId": "fh-stage-emberwood",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_HEART_MAP_READ",
+              "id": "fh-stage-landing-map",
+              "kind": "BUILD",
+              "label": "Find places on Flint’s map"
+            }
+          ],
+          "title": "Read the map at Explorer’s Landing"
+        },
+        {
+          "id": "fh-stage-emberwood",
+          "nextStageId": "fh-stage-lava",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_HEART_PATTERN_SOLVED",
+              "id": "fh-stage-emberwood-pattern",
+              "kind": "BUILD",
+              "label": "Continue the crystal pattern"
+            },
+            {
+              "changeKey": "FIREPEAK_HEART_EMBERWOOD_DONE",
+              "id": "fh-stage-emberwood-count",
+              "kind": "BUILD",
+              "label": "Count the embers"
+            }
+          ],
+          "title": "Cross Emberwood Forest"
+        },
+        {
+          "id": "fh-stage-lava",
+          "nextStageId": "fh-stage-caverns",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_HEART_LAVA_BRIDGE",
+              "id": "fh-stage-lava-bridge",
+              "kind": "BUILD",
+              "label": "Solve the numbers to raise the bridge"
+            },
+            {
+              "changeKey": "FIREPEAK_HEART_LAVA_CROSSED",
+              "id": "fh-stage-lava-crossed",
+              "kind": "BUILD",
+              "label": "Choose the right path to the far bank"
+            }
+          ],
+          "title": "Cross the lava river"
+        },
+        {
+          "id": "fh-stage-caverns",
+          "nextStageId": "fh-stage-forge",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_HEART_SHAPES_MATCHED",
+              "id": "fh-stage-caverns-shapes",
+              "kind": "BUILD",
+              "label": "Match the crystals to their shapes"
+            },
+            {
+              "changeKey": "FIREPEAK_HEART_CAVERN_LIT",
+              "id": "fh-stage-caverns-lit",
+              "kind": "BUILD",
+              "label": "Arrange the crystals to light the cavern"
+            }
+          ],
+          "title": "Light the Crystal Caverns"
+        },
+        {
+          "id": "fh-stage-forge",
+          "nextStageId": "fh-stage-summit",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_HEART_FORGE_POWERED",
+              "id": "fh-stage-forge-powered",
+              "kind": "BUILD",
+              "label": "Press the switches in the right order"
+            },
+            {
+              "changeKey": "FIREPEAK_HEART_FORGE_RESTORED",
+              "id": "fh-stage-forge-restored",
+              "kind": "BUILD",
+              "label": "Complete the circuit"
+            }
+          ],
+          "title": "Restore the Ancient Forge"
+        },
+        {
+          "id": "fh-stage-summit",
+          "nextStageId": "fh-stage-heart",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_HEART_ROCKS_NAMED",
+              "id": "fh-stage-summit-rocks",
+              "kind": "BUILD",
+              "label": "Learn about the rock samples"
+            },
+            {
+              "changeKey": "FIREPEAK_HEART_SUMMIT_REACHED",
+              "id": "fh-stage-summit-reached",
+              "kind": "BUILD",
+              "label": "Tell how a volcano island forms"
+            }
+          ],
+          "title": "Climb Firepeak Summit"
+        },
+        {
+          "id": "fh-stage-heart",
+          "objectives": [
+            {
+              "changeKey": "FIREPEAK_HEART_CRYSTALS_SET",
+              "id": "fh-stage-heart-crystals",
+              "kind": "BUILD",
+              "label": "Set the crystals in order"
+            },
+            {
+              "changeKey": "FIREPEAK_HEART_RESTORED",
+              "id": "fh-stage-heart-restored",
+              "kind": "BUILD",
+              "label": "Restore the Heart"
+            },
+            {
+              "changeKey": "FIREPEAK_HEART_CELEBRATED",
+              "id": "fh-stage-heart-celebrated",
+              "kind": "BUILD",
+              "label": "Tell Ignis the Heart is glowing"
+            }
+          ],
+          "title": "Light the Heart"
+        }
+      ],
+      "summary": "Help Flint light the Heart of Firepeak again.",
+      "title": "The Heart of Firepeak"
     }
   ],
   "schemaVersion": 3
