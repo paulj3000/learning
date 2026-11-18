@@ -1,10 +1,11 @@
 """Contract kinds on the canonical jobs path (ADR-064, docs/processing/CANONICAL_PATH.md).
 
-`asset.validate_model` and `reference.checksum` are ordinary `apps.jobs` kinds on the media
-queue. Their schema-1 work `payload` is an ADR-061 `ProcessingJobRequest` (as a dict) and a
-successful schema-1 `result` is the `ProcessingJobResult` (as a dict). The work itself runs in
-the standard-library `lai_processing` execution engine, vendored into the jobs worker zip by
-`lambda/build.py` and imported by Django from `processing/` beside `lai/`.
+`asset.validate_model`, `reference.checksum` and `asset.process_audio` (LAI-LAMBDA-008 phase 1,
+audio header inspection) are ordinary `apps.jobs` kinds on the media queue. Their schema-1 work
+`payload` is an ADR-061 `ProcessingJobRequest` (as a dict) and a successful schema-1 `result`
+is the `ProcessingJobResult` (as a dict). The work itself runs in the standard-library
+`lai_processing` execution engine, vendored into the jobs worker zip by `lambda/build.py` and
+imported by Django from `processing/` beside `lai/`.
 
 `run(kind, payload, ports)` decodes the request, executes it against the task ports (the same
 `asset_object_size` and `read_asset` ports `asset.inspect` uses, read only) and returns the result
@@ -21,7 +22,14 @@ import io
 from . import envelope
 
 #: The contract kinds and the media-queue kinds they are (envelope.KIND_QUEUE).
-CONTRACT_KINDS = frozenset({envelope.ASSET_VALIDATE_MODEL, envelope.REFERENCE_CHECKSUM})
+CONTRACT_KINDS = frozenset(
+    {
+        envelope.ASSET_VALIDATE_MODEL,
+        envelope.REFERENCE_CHECKSUM,
+        envelope.ASSET_ANALYZE_ANIMATION,
+        envelope.ASSET_PROCESS_AUDIO,
+    }
+)
 #: Reads for one window of an asset object (the engine copies the input into its workspace).
 READ_CHUNK = 1024 * 1024
 

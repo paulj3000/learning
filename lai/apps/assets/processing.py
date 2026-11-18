@@ -298,13 +298,23 @@ def result_mismatch(job) -> str | None:
     return None
 
 
-def identity_mismatch(job, version, *, require_current_processor: bool = False) -> str | None:
+def identity_mismatch(
+    job,
+    version,
+    *,
+    require_current_processor: bool = False,
+    kind: str = MODEL_VALIDATION_JOB_TYPE,
+    profile_ref: tuple[str, int] = MODEL_VALIDATION_PROFILE,
+) -> str | None:
     """None when `job` is a model validation of exactly `version`'s stored bytes, else a safe
     reason code: kind, subject, namespace, asset context (asset id, version uuid and number), input
     (store `assets`, key, no object version, SHA-256, size), profile and, with
-    `require_current_processor` (the publication gate), the processor version of the result."""
+    `require_current_processor` (the publication gate), the processor version of the result.
+
+    `kind` and `profile_ref` let another asset-version contract kind (`asset.analyze_animation`,
+    apps.npcs.animation_inspection) use the same checks; the defaults are model validation's."""
     payload = job.payload if isinstance(job.payload, dict) else {}
-    if job.kind != MODEL_VALIDATION_JOB_TYPE:
+    if job.kind != kind:
         return "kind_mismatch"
     if job.subject_type != JOB_SUBJECT or job.subject_id != str(version.pk):
         return "subject_mismatch"
@@ -336,7 +346,7 @@ def identity_mismatch(job, version, *, require_current_processor: bool = False) 
     if source.get("size_bytes") != version.size_bytes:
         return "size_mismatch"
     profile = payload.get("profile") or {}
-    if (profile.get("profile_id"), profile.get("version")) != MODEL_VALIDATION_PROFILE:
+    if (profile.get("profile_id"), profile.get("version")) != tuple(profile_ref):
         return "profile_mismatch"
     if require_current_processor:
         processor = (job.result or {}).get("processor") or {}

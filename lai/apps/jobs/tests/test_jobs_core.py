@@ -68,6 +68,8 @@ def test_work_envelopes_are_checked_against_the_queue():
         "asset.inspect",
         "asset.validate_model",
         "reference.checksum",
+        "asset.analyze_animation",
+        "asset.process_audio",
     }
 
 

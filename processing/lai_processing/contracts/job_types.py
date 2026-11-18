@@ -62,7 +62,8 @@ _SPECS: Final = (
         requires_input=True,
         subject_type=ASSET_VERSION_SUBJECT,
         owner_task="LAI-LAMBDA-008",
-        description="Validate and analyse an audio version (reserved).",
+        description="Inspect an audio version's container and codec headers (phase 1; no "
+        "transcoding).",
     ),
     JobTypeSpec(
         job_type="asset.analyze_animation",
@@ -71,7 +72,7 @@ _SPECS: Final = (
         requires_input=True,
         subject_type=ASSET_VERSION_SUBJECT,
         owner_task="LAI-LAMBDA-009",
-        description="Analyse NPC animation clips in a model version (reserved).",
+        description="Inspect the animation clips, skins and joints of a GLB model version.",
     ),
     JobTypeSpec(
         job_type="asset.optimize",

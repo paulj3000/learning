@@ -4,7 +4,10 @@
 # `asset.validate_model` job (media queue, transactional outbox); the jobs worker, exactly as
 # packaged in its zip, runs the real GLB validator; Django applies the result
 # (`services.apply_result`, as `jobs_consume_results` does) and moves the draft to VALIDATED or
-# REJECTED; the publication gate and an explicit staff publish follow. See canonical_demo.py.
+# REJECTED; the publication gate and an explicit staff publish follow. Wave 4 adds NPC animation
+# inspection (`asset.analyze_animation`), audio inspection (`asset.process_audio`) and their
+# failure paths (invalid media, duplicate result, stale version, unauthorized action, a
+# transient S3 503). See canonical_demo.py.
 #
 # Simulated: the SQS and S3 clients (in memory; the queue URLs below are placeholders and are
 # never contacted) and the synthetic GLBs. Needs the compose PostgreSQL (`make up`,
@@ -38,6 +41,7 @@ export LAI_ASSET_DELIVERY=django
 export LAI_ASSET_LOCAL_ROOT="$WORK/assets"
 export LAI_ASSET_ASYNC_VALIDATION=on
 export LAI_DEMO_ROOT="$ROOT"
+export PYTHONUNBUFFERED=1  # keep worker JSON lines, Django logs and demo output in order
 
 printf '== 0. recreate the demo-only database %s and migrate\n' "$DEMO_DB"
 PGPASSWORD="$PGPASSWORD_VALUE" "$PY" - "$DEMO_DB" "$PGUSER" "$PGPORT" <<'PYEOF'

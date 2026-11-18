@@ -61,9 +61,19 @@ processing bucket, `jobs_dispatch` and `jobs_consume_completions` as separate se
 
 | Workload | Card | Packaging |
 |---|---|---|
-| GLB optimization (meshopt, Draco, KTX2) | LAI-LAMBDA-010 | Native tools; a container image only after its own ADR |
-| Audio transcoding and loudness | LAI-LAMBDA-008 | FFmpeg; a container image only after its own ADR |
-| Thumbnails and image conversion | LAI-LAMBDA-013 | Pillow or libvips wheels may fit the zip; decided with the card |
+| NPC animation inspection, kind `asset.analyze_animation` (media queue) | LAI-LAMBDA-009 | Zip, standard library; developer-complete on `feature/serverless-processing-wave4` (`NPC_ANIMATION_INSPECTION.md`), not merged, not deployed |
+| Audio header inspection, kind `asset.process_audio` phase 1 (media queue) | LAI-LAMBDA-008 | Zip, standard library; developer-complete on `feature/serverless-processing-wave4` (`AUDIO_INSPECTION.md`), not merged, not deployed |
+| GLB optimization (meshopt, Draco, KTX2) | LAI-LAMBDA-010 | Native tools; a container image only after its own ADR (feasibility and measurements on `feature/lambda-glb-optimization-design`; heavy fallback proposal `ADR-PROPOSED-heavy-workload-runtime.md`) |
+| Audio transcoding and loudness (008 phase 2) | LAI-LAMBDA-008b | FFmpeg; proposed as a separate zip function with an LGPL FFmpeg layer, own queue (`feature/lambda-audio-transcoding-design`; proposal only, not authorized) |
+| Image conversion | LAI-LAMBDA-013a | Pillow in a separate image function zip (about 24 MiB budget), proposed on `feature/lambda-image-processing-design`; not authorized |
+| GLB thumbnails | LAI-LAMBDA-013b | Staff browser capture first; a headless Chromium container only after its own ADR (`feature/lambda-thumbnail-rendering-design`) |
+
+Every workload that writes files uses the one derived-artifact design once accepted
+(`proposals/ADR-PROPOSED-derived-artifacts.md` on `feature/lambda-derived-artifacts-design`).
+The worker stays read-only on assets until then.
+
+Both Wave 4 kinds share one jobs migration, `jobs.0004_wave4_inspection_kinds`, and ship consumer
+first (`WAVE4_HANDOFF.md` section 3).
 
 ## Re-land status (branch `feature/serverless-processing-canonical`, 2026-11-17)
 

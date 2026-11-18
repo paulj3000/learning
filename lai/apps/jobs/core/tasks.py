@@ -12,7 +12,8 @@ Ports (duck-typed; only what a kind uses):
 - speech: `speech_object_size(key) -> int | None`, `synthesize(text=, text_type=, voice_id=,
   engine=, language=) -> bytes`, `put_speech(key, data)`.
 - asset: `asset_object_size(key) -> int | None`, `read_asset(key, start, length) -> bytes`.
-- asset.validate_model, reference.checksum: the asset ports (core/contract.py).
+- asset.validate_model, reference.checksum, asset.analyze_animation: the asset ports
+  (core/contract.py).
 """
 
 import re
@@ -327,6 +328,12 @@ RUNNERS = {
     ),
     envelope.REFERENCE_CHECKSUM: lambda payload, ports: contract.run(
         envelope.REFERENCE_CHECKSUM, payload, ports
+    ),
+    envelope.ASSET_ANALYZE_ANIMATION: lambda payload, ports: contract.run(
+        envelope.ASSET_ANALYZE_ANIMATION, payload, ports
+    ),
+    envelope.ASSET_PROCESS_AUDIO: lambda payload, ports: contract.run(
+        envelope.ASSET_PROCESS_AUDIO, payload, ports
     ),
 }
 

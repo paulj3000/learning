@@ -35,6 +35,7 @@ NAMESPACE = "dev"
 PROFILES = {
     "asset.validate_model": ("glb-default", 1),
     "reference.checksum": ("reference-default", 1),
+    "asset.analyze_animation": ("animation-default", 1),
 }
 
 
@@ -271,6 +272,49 @@ def test_reference_checksum_through_the_worker(worker, fakes, make_runtime, cont
     assert result.metadata["sha256"] == hashlib.sha256(data).hexdigest()
     assert result.metadata["byte_count"] == len(data)
     assert result.metadata["checksum_verified"] is True
+
+
+# --- asset.analyze_animation (LAI-LAMBDA-009) -------------------------------------------------
+
+
+def test_animation_inspection_runs_in_the_packaged_worker(worker, fakes, make_runtime, context):
+    clips = (glb_builder.MIXAMO_CLIP, "Idle")
+    job_id, body, key = submit(
+        worker, fakes, "asset.analyze_animation", glb_builder.skinned_glb(clips)
+    )
+    assert worker.handler.process(body, context, make_runtime("media")) == "succeeded"
+    assert statuses(fakes) == ["running", "succeeded"]
+    message = fakes.sqs.sent[-1]["Body"]
+    assert message["kind"] == "asset.analyze_animation" and message["job_id"] == job_id
+    result = decode(message["result"])
+    assert result.processor.processor_id == "asset.animation_inspector"
+    assert result.verdict.value == "pass" and result.input.verified
+    assert [c["name"] for c in result.metadata["clips"]] == list(clips)
+    assert [c["generic_name"] for c in result.metadata["clips"]] == [True, False]
+    assert result.metadata["skins"][0]["joint_count"] == 2
+    # Read only: nothing but the worker's own result was written.
+    assert {(p["Bucket"], p["Key"].split("/")[0]) for p in fakes.s3.puts} == {
+        (RESULTS_BUCKET, "jobs")
+    }
+
+
+def test_animation_inspection_of_broken_data_is_a_fail_verdict(
+    worker, fakes, make_runtime, context
+):
+    document, binary = glb_builder.skinned_model(("Idle",))
+    document["animations"][0]["samplers"][0]["interpolation"] = "BEZIER"
+    data = glb_builder.glb(document, binary)
+    _job_id, body, _key = submit(worker, fakes, "asset.analyze_animation", data)
+    assert worker.handler.process(body, context, make_runtime("media")) == "succeeded"
+    result = decode(fakes.sqs.sent[-1]["Body"]["result"])
+    assert result.verdict.value == "fail"
+    assert "unsupported_interpolation" in {finding.code for finding in result.findings}
+
+
+def test_animation_inspection_is_refused_on_the_ai_queue(worker, fakes, make_runtime, context):
+    _job_id, body, _key = submit(worker, fakes, "asset.analyze_animation")
+    assert worker.handler.process(body, context, make_runtime("ai")) == "rejected"
+    assert fakes.sqs.sent[-1]["Body"]["error"]["code"] == "wrong_queue"
 
 
 # --- result size ----------------------------------------------------------------------------------
