@@ -117,6 +117,7 @@ AWS) unless a line says otherwise.
 | O-12 | Ranks (off by default, `CASTLE_RANKS.enabled`): decide keep or drop, four titles or five, and the "Castle Pathfinder" name | Owner decision | Turn on locally to look | |
 | O-13 | Ambient return-visit line in the guide; it changes across visits, never says "come back tomorrow", never counts down | All | Open the castle several times | |
 | O-14 | Castle Director with AI off (parent toggle) and with the kill switch: the castle still shows the authored default | All | Toggle each | |
+| O-19 | Secret Chamber finds: a brighter star in the north-wall mural and a mouse-sized door low on the east wall, each found by walking up, never listed, only after the tapestry nook; chamber return-visit lines mention them afterwards | All | Find the nook, enter the chamber, then revisit | |
 | O-15 | Three.js Writing Room at `explore/castle-writing-room`: locked before the Secret Door arc, same two messages and exit as Phaser after; two optional low steps; none for Sprouts | Explorer | "Try the 3D room (preview)" link on the location page | |
 | O-16 | Harbor exit is always reachable and never behind arithmetic, in every room | All | Try to leave from each room | |
 | O-17 | Keyboard-only visit (Tab order exit, prompt, backpack; no focus trap) and an iPad Safari touch visit | All | | |
@@ -140,9 +141,12 @@ AWS) unless a line says otherwise.
 5. `assetLoader.trim`, live reduced-motion handling, kit-piece scaling before any 4 m room.
 6. The optional Writing Room is unlocked by the Explorer secret-door arc, whose chapter 1 has a
    `number-input` step. Acceptable?
-7. SC-R07 deviations: the six gold plates removed for the draw budget; Hall of Heroes 3D plates
-   deferred (scenery 159 of 160, draws 298 of 300): raise the budget or merge decor.
-8. Earlier Secret Door finishers get no `secret-door-key` without an approved backfill.
-9. Retirement (SC-R10-03): Phaser castle and Writing Room stay until parity is visually confirmed
+7. Draw-call estimate is now 300 of 300 (SC-R08-02): raise the budget or merge decor before any more
+   castle scenery, including optional chamber platforms. Chamber proposals not built: a graded puzzle
+   at the sealed round door, a second hidden Storybook page, a reward for a find.
+8. SC-R07 deviations: the six gold plates removed for the draw budget; Hall of Heroes 3D plates
+   deferred (scenery 159 of 160, draws then 298 of 300, now 300): raise the budget or merge decor.
+9. Earlier Secret Door finishers get no `secret-door-key` without an approved backfill.
+10. Retirement (SC-R10-03): Phaser castle and Writing Room stay until parity is visually confirmed
    and LAI-2303 (Sprouts gate) allows it.
-10. Formatting: `prettier --write` and Ruff on the touched files at merge readiness.
+11. Formatting: `prettier --write` and Ruff on the touched files at merge readiness.

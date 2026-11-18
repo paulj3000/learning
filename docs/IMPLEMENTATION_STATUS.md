@@ -14404,3 +14404,26 @@ The compose database, the Django `compose_database()` default and the pytest rea
 overrides all three. The probe and settings had disagreed on one machine, so every `postgres`
 test was skipped silently; use `LAI_REQUIRE_POSTGRES=1` to turn that gap into a failure. CI
 already used 5432. Older entries above that mention 5442 record what ran at the time.
+
+## Storykeeper's Castle completion, SC-R04-05 to SC-R11 engineering (2026-11-18, branch `feature/storykeeper-castle-completion`)
+
+- **Development complete, not owner accepted** (unit-test evidence per task in `tasks/TASK_TRACKER.md`):
+  SC-R04-05 to 08 (The Painted Words, page states, completion UI, versioned completion), SC-SEC-01
+  (protected world-change keys), SC-JMP (jumping in every primary castle adventure), SC-R05 (Quill,
+  Ember, Professor Orion), SC-R06 (castle sound and Django speech narration), SC-R07 (keepsakes,
+  pedestals, Hall of Heroes, ranks off), SC-R08-01 to 03 (ambient return-visit catalog, two hidden
+  chamber finds, Secret Chamber observation content), SC-R09-01/02 (Castle Director route
+  `generateCastleDirector`, ADR-065 Proposed; Quill flavour service), SC-R10-01/02 (Three.js Writing
+  Room and parity; Phaser stays default), SC-R11 engineering part (local diagnostics, disposal,
+  configurable wall height, accessibility and exit tests).
+- **Schema:** migrations `ai/0006_castle_director`, `regions/0007_castle_director` (`CastleVisitState`,
+  `CastleEventShown`, child-owned). Location manifests gained optional `entryRequirements`,
+  `copy.locked` and `wallHeight`.
+- **Privacy:** the Director route sends the model only ids, one-word tags, band and room; audit rows
+  hold no event text or child data; diagnostics record only a region id and send nothing.
+- **Owner gates open:** browser acceptance (`docs/regions/storykeeper_castle_acceptance.md` section
+  4), SC-R11-01 real-tablet profiling, SC-R11-02 Sprouts playtest, SC-R10-03 Phaser retirement
+  (ADR-020, LAI-2303), ADR-065, the decisions listed in acceptance section 4.3. Draft release notes:
+  `docs/regions/storykeeper_castle_release_notes.md`.
+- **Deferred to merge readiness:** Prettier, Ruff, oxlint, builds, full suites, Playwright and WebGL.
+  Not merged to `main`, not deployed.

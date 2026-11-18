@@ -1301,7 +1301,39 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       343 passed.
 - [ ] **SC-R11-01, SC-R11-02** Owner gates: real-tablet profiling of a release build with `?lai-diag=1`
       (fill PILOT_READINESS 5b) and the Sprouts playtest. **SC-R11-03** fixes from both: waits on them.
-- [ ] **SC-R08-02, SC-R08-03** In development on `work/sc-r08-secrets`.
-- [ ] **SC-R12** Not started. Gated items: new supporting NPC model, narration voice consent, Phaser
+- [x] **SC-R08-02** Two more hidden discoveries (depends: SC-R03-05, SC-R03-06, SC-R08-01; branch
+      `work/sc-r08-secrets`, commit `e1c4733d`). DONE (development), not owner accepted.
+      `castle-chamber-star` (a brighter star in the mural, north wall) and `castle-chamber-mouse-door` (a
+      mouse-sized door low on the east wall), both inside the Secret Chamber and gated on the tapestry nook
+      (`DISCOVERY_PRESENT castle-tapestry-stair`); walk-up `DISCOVER` interactions in `castleChamber.ts`,
+      zones and wall spots in `storykeeperCastleRegion.ts`, never listed (`hiddenInteractionIds`). Added to
+      `islandDiscoveries.ts` and the `homeIsland` registry and exported; Django accepts, persists and replays
+      them idempotently (ADR-051) with no code change; an unknown id is still 404. They grant only the
+      discovery record and a world change (`CASTLE_CHAMBER_STAR_FOUND`, `CASTLE_CHAMBER_MOUSE_DOOR_FOUND`,
+      protected as discovery keys): no item, reward or quest. All bands by approach, no aim. No new
+      Storybook page; no page set or completion changed. Two decor boxes: draw-call estimate 298 to **300 of
+      300** (no budget number raised); chamber scenery well under its 24. **Owner:** raise the draw budget or
+      merge decor before any more castle scenery (chamber platforms were skipped for this reason).
+- [x] **SC-R08-03** Secret Chamber content (depends: SC-R08-01, -02). DONE (development), not owner
+      accepted. Observation only: five `secret-chamber` ambient events (`chamber-crystals-hum`,
+      `chamber-mural-listens`, `chamber-star-twinkles`, `chamber-mouse-door-glows`,
+      `chamber-finds-remembered`), the last three conditioned on the finds through `WORLD_CHANGE` only; no
+      NPC, no question, existing cues; the chamber stays secret as SC-R03-05 made it. JSON mirror and golden
+      vectors regenerated. No learning objective, answer validation, reward or curriculum. **Owner
+      proposals, not built:** a graded puzzle at the sealed round door, a second hidden Storybook page, a
+      reward for a find. Evidence (SC-R08-02/03) on the branch: Vitest 198 files, 2531 passed after three
+      in-scope assertion updates; Django 220 + 162 passed; typecheck, content and golden checks clean.
+      **Merged** at `ad5a482e`. Merged-tree evidence: Vitest `island-map/three`, great-storybook, discovery,
+      worlds, rewards, content-export, golden, api/play, worldObjects 198 files, 2529 passed; `tsc` clean;
+      content:check, golden:check, adr:check exit 0; Django chamber finds, discoveries, castle rooms,
+      adventure launch, `apps/progression apps/regions`, castle director, castle flavour, `tests/golden`:
+      715 passed, 0 failed (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`). Not run: browser, WebGL, e2e, lint,
+      format, full suites. Owner browser check: the star glint and mouse door visuals.
+- [ ] **SC-R12-01** Browser acceptance pass (owner): checklist in `docs/regions/storykeeper_castle_acceptance.md`
+      section 4 (O-1 to O-19, D-1, D-2, decisions 4.3). Not started; owner only.
+- [ ] **SC-R12-02** Release notes, implementation status, retirement decisions. PREP DONE (draft):
+      `docs/regions/storykeeper_castle_release_notes.md` (draft, not released), `docs/IMPLEMENTATION_STATUS.md`
+      section of 2026-11-18. Final once SC-R12-01 and the owner decisions close.
+- [ ] **SC-R12 gates** Previously listed: Gated items: new supporting NPC model, narration voice consent, Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11
       gate).

@@ -25,6 +25,9 @@ evidence (`tasks/TASK_TRACKER.md`); browser, device and playtest acceptance is t
   never asks a child to come back at a time, never counts down, and never says anything was missed.
   When AI is on, the AI only chooses which authored line to show; it writes no words. With AI off the
   castle shows the same kind of line.
+- **More secrets in the Secret Chamber.** Children who find the hidden chamber can notice two more
+  hidden things there by walking up to them. Finding them grants nothing but the joy of finding, and
+  the castle remembers them on later visits.
 - **The Writing Room in 3D (preview).** The hidden Writing Room can be explored in the new 3D view
   once the Secret Door story is finished. The previous version stays available.
 
@@ -39,6 +42,7 @@ evidence (`tasks/TASK_TRACKER.md`); browser, device and playtest acceptance is t
 | SC-R06 | Castle cues on the Sound Manager; narration via Django speech | Tracker |
 | SC-R07 | Keepsake items and reward rules; pedestals; Hall of Heroes; ranks (off) | Tracker |
 | SC-R08-01, SC-R09 | Ambient event catalog; Castle Director route `generateCastleDirector`; Quill flavour service | ADR-065 (Proposed); `docs/PLAY_API.md`; `docs/AI_AND_CHILD_SAFETY.md` |
+| SC-R08-02/03 | Two hidden chamber finds (`castle-chamber-star`, `castle-chamber-mouse-door`); five chamber ambient events, observation only | Tracker |
 | SC-R10-01/02 | Three.js Writing Room and parity tests; optional `entryRequirements` in the location manifest | `docs/regions/prep/writing_room_prep.md` |
 | SC-R11 (engineering) | Local diagnostics (`?lai-diag=1`), disposal fixes, configurable wall height, accessibility tests | `docs/PILOT_READINESS.md` 5b |
 
@@ -58,6 +62,7 @@ migration. No production data touched.
 ## Known limits
 
 - No measurements exist: tablet frame time and load time are blank until SC-R11-01.
+- Castle draw-call estimate is at its limit (300 of 300); more scenery needs an owner budget decision.
 - No keepsake GLBs exist; pedestals show primitive placeholders (ADR-028 art follow-up).
 - Quill flavour has no client surface; the ambient line has no 3D cue.
 - Residual integrity risks listed in `docs/security/WORLD_CHANGE_INTEGRITY.md` (non-page adventure keys,
