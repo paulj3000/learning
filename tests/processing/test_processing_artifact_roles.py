@@ -40,10 +40,12 @@ def test_each_workload_declares_exactly_its_roles(job_type):
     assert declared == EXPECTED[job_type]
 
 
-def test_other_job_types_declare_no_artifact_roles():
+def test_inspection_job_types_declare_only_report_roles():
     for name, spec in JOB_TYPES.items():
         if name not in EXPECTED:
-            assert spec.artifact_roles == ()
+            assert all(
+                r.role.startswith("report.") and not r.promotable for r in spec.artifact_roles
+            )
 
 
 def test_staff_capture_role_is_not_a_job_role():
@@ -55,7 +57,11 @@ def test_staff_capture_role_is_not_a_job_role():
     )
     assert capture.content_types == ("image/webp", "image/png")
     assert all(capture.role != r.role for s in JOB_TYPES.values() for r in s.artifact_roles)
-    assert set(ARTIFACT_ROLES) == {r for e in EXPECTED.values() for r in e} | {"model.thumbnail"}
+    assert set(ARTIFACT_ROLES) == {r for e in EXPECTED.values() for r in e} | {
+        "model.thumbnail",
+        "report.reference",
+        "report.glb_validation",
+    }
 
 
 def test_unknown_roles_are_undeclared_and_every_content_type_has_an_extension_rule():

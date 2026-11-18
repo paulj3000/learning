@@ -29,11 +29,13 @@ from .core import envelope
 #: Stable codes (a `JobsError` code, and the failed job's `error_code` at dispatch).
 WORKLOAD_DISABLED = "workload_disabled"
 WORKLOAD_QUEUE_MISSING = "workload_queue_not_configured"
+WORKLOAD_NOT_RELEASED = "workload_not_released"
 
 #: Safe, user-facing refusal text (no em dashes; shown by Django Admin).
 MESSAGES = {
     WORKLOAD_DISABLED: "This kind of background processing is switched off.",
     WORKLOAD_QUEUE_MISSING: "This kind of background processing is not set up yet.",
+    WORKLOAD_NOT_RELEASED: "This kind of background processing is not part of this release yet.",
 }
 
 
@@ -76,6 +78,43 @@ def _on(name: str) -> bool:
     return getattr(settings, name, "off") == "on"
 
 
+_manifest_cache: dict = {}
+
+
+def released_kinds() -> frozenset[str] | None:
+    """The job kinds the deployed workers accept, from `LAI_PROCESSING_RELEASE_MANIFEST`; None
+    when no manifest is configured (no check). A file that cannot be read, is not a valid
+    manifest, or whose `git_sha` differs from `LAI_RELEASE_SHA` (both set) gives the empty set:
+    fail closed. Re-read when the file changes."""
+    import json
+    import os
+
+    path = getattr(settings, "LAI_PROCESSING_RELEASE_MANIFEST", "")
+    if not path:
+        return None
+    sha = getattr(settings, "LAI_RELEASE_SHA", "")
+    try:
+        stamp = os.stat(path).st_mtime_ns
+        cached = _manifest_cache.get(path)
+        if cached and cached[0] == stamp and cached[1] == sha:
+            return cached[2]
+        with open(path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        kinds = frozenset(
+            kind
+            for artifact in manifest["artifacts"]
+            for kind in artifact["supported_kinds"]
+            if isinstance(kind, str)
+        )
+        if sha and manifest.get("git_sha") != sha:
+            kinds = frozenset()
+    except (OSError, ValueError, KeyError, TypeError):
+        kinds = frozenset()
+        stamp = None
+    _manifest_cache[path] = (stamp, sha, kinds)
+    return kinds
+
+
 def refusal_code(
     kind: str, *, variant: str | None = None, backend: str | None = None
 ) -> str | None:
@@ -99,6 +138,9 @@ def refusal_code(
     mode = backend if backend is not None else settings.LAI_JOBS_BACKEND
     if mode == "sqs" and not getattr(settings, workload.queue_setting, ""):
         return WORKLOAD_QUEUE_MISSING
+    released = released_kinds()
+    if released is not None and kind not in released:
+        return WORKLOAD_NOT_RELEASED
     return None
 
 

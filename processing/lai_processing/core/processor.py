@@ -26,6 +26,7 @@ from ..contracts.artifacts import ArtifactReference
 from ..contracts.common import ObjectRef, ProcessorIdentity
 from ..contracts.events import RESULT_LOGICAL_ID
 from ..contracts.identifiers import StoreName, artifact_key
+from ..contracts.job_types import job_type_spec
 from ..contracts.jobs import ProcessingJobRequest
 from ..contracts.profiles import ProcessingProfile
 from ..contracts.results import Finding, ProcessingWarning, Verdict
@@ -134,6 +135,26 @@ class ProcessingContext:
         if self.clock.monotonic() >= self.deadline:
             raise ProcessingError(ErrorCode.PROCESSING_TIMEOUT, {"limit": "max_execution_seconds"})
 
+    def _check_role(self, role: str, content_type: str, extension: str, size: int) -> None:
+        """The worker-side half of the artifact declaration (ADR-066): the role must be declared
+        for this job type, the content type and extension allowed for it, the size within its
+        bound and the count within its maximum. Django applies the same rules on the result."""
+        declared = job_type_spec(self.request.job_type).role(role)
+        if declared is None or declared.producer != "job":
+            raise ProcessingError(
+                ErrorCode.ARTIFACT_CONFLICT, {"field": "artifact_type", "reason": "role"}
+            )
+        if content_type not in declared.content_types or extension not in declared.extensions_for(
+            content_type
+        ):
+            raise ProcessingError(
+                ErrorCode.ARTIFACT_CONFLICT, {"field": "content_type", "reason": "role"}
+            )
+        if size > declared.max_size_bytes:
+            raise ProcessingError(ErrorCode.RESOURCE_LIMIT_EXCEEDED, {"limit": "role_size"})
+        if sum(1 for a in self.artifacts if a.artifact_type == role) >= declared.max_count:
+            raise ProcessingError(ErrorCode.RESOURCE_LIMIT_EXCEEDED, {"limit": "role_count"})
+
     def write_artifact(
         self,
         *,
@@ -161,6 +182,7 @@ class ProcessingContext:
             raise ProcessingError(
                 ErrorCode.ARTIFACT_CONFLICT, {"field": "logical_id", "reason": "duplicate"}
             )
+        self._check_role(artifact_type, content_type, extension, len(data))
         if len(self.artifacts) >= self.limits.max_artifact_count:
             raise ProcessingError(
                 ErrorCode.RESOURCE_LIMIT_EXCEEDED, {"limit": "max_artifact_count"}

@@ -632,6 +632,15 @@ if LAI_JOBS_BACKEND == "disabled" and "on" in (
 ):
     raise ImproperlyConfigured("A workload control set to on needs LAI_JOBS_BACKEND inline or sqs.")
 
+# Optional release manifest (ADR-071, docs/processing/PROCESSING_RELEASE.md section 4): the path of
+# the JSON written by `scripts/release/processing_release.py manifest create` for the workers
+# deployed with this release. When set, a derived-artifact kind is submitted only if some manifest
+# artifact lists it in `supported_kinds` (an unreadable or invalid file refuses every workload),
+# and when LAI_RELEASE_SHA is also set the manifest's `git_sha` must equal it. Unset (the default,
+# and local development) adds no check.
+LAI_PROCESSING_RELEASE_MANIFEST = os.environ.get("LAI_PROCESSING_RELEASE_MANIFEST", "").strip()
+LAI_RELEASE_SHA = os.environ.get("LAI_RELEASE_SHA", "").strip()
+
 # Derived artifact retention (ADR-066, owner-approved 2026-11-18): an artifact nobody reviewed
 # expires this many days after it was created; a superseded or rejected one this many days after.
 # Accepted and promoted artifacts, held artifacts and artifacts of active jobs never expire.
