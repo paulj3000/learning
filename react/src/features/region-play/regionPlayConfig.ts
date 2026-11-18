@@ -65,6 +65,12 @@ export const STAND_IN_SHAPES = [
   'VALVE',
   'MARKER',
   'FIGURE',
+  'TREE',
+  'LOG',
+  'GEAR',
+  'SWITCH',
+  'ROCK',
+  'ARCH',
 ] as const;
 export type StandInShape = (typeof STAND_IN_SHAPES)[number];
 

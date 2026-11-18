@@ -2,6 +2,7 @@ import {
   BoxGeometry,
   ConeGeometry,
   CylinderGeometry,
+  DodecahedronGeometry,
   Group,
   Mesh,
   MeshStandardMaterial,
@@ -154,6 +155,92 @@ export function buildStandIn(
         height * 0.35,
       );
       add(ownedMesh(owned, new SphereGeometry(height * 0.15, 12, 8), color), height * 0.85);
+      break;
+    }
+    case 'TREE': {
+      // A charred trunk under a squat cone of ash-green leaves: cheap and readable from afar.
+      const trunk = Math.min(width, depth) * 0.12;
+      add(
+        ownedMesh(owned, new CylinderGeometry(trunk * 0.8, trunk, height * 0.45, 6), 0x4a2f22),
+        height * 0.225,
+      );
+      add(
+        ownedMesh(owned, new ConeGeometry(width / 2, height * 0.65, 7), color),
+        height * 0.45 + height * 0.325,
+      );
+      break;
+    }
+    case 'LOG': {
+      // Lies along x; the cut ends are a lighter ring-wood disc.
+      const radius = Math.min(height, depth) / 2;
+      const log = add(
+        ownedMesh(owned, new CylinderGeometry(radius, radius, width, 8), color),
+        radius,
+      );
+      log.rotation.z = Math.PI / 2;
+      break;
+    }
+    case 'GEAR': {
+      // A flat toothed wheel on its side, in a child `gear-spin` the scene turns slowly.
+      const spin = new Group();
+      spin.name = 'gear-spin';
+      spin.position.y = height / 2;
+      const radius = Math.max(width, depth) / 2;
+      const body = ownedMesh(
+        owned,
+        new CylinderGeometry(radius * 0.8, radius * 0.8, 0.12, 16),
+        color,
+      );
+      body.rotation.x = Math.PI / 2;
+      spin.add(body);
+      for (let tooth = 0; tooth < 8; tooth += 1) {
+        const angle = (tooth / 8) * Math.PI * 2;
+        const cog = ownedMesh(owned, new BoxGeometry(radius * 0.3, radius * 0.3, 0.12), color);
+        cog.position.set(Math.cos(angle) * radius * 0.9, Math.sin(angle) * radius * 0.9, 0);
+        cog.rotation.z = angle;
+        spin.add(cog);
+      }
+      group.add(spin);
+      break;
+    }
+    case 'SWITCH': {
+      add(ownedMesh(owned, new BoxGeometry(width, height * 0.4, depth), 0x4f4b59), height * 0.2);
+      const lever = add(
+        ownedMesh(owned, new CylinderGeometry(0.04, 0.04, height * 0.7, 6), 0x6b6b6b),
+        height * 0.4 + height * 0.3,
+      );
+      lever.rotation.z = -0.4;
+      add(
+        ownedMesh(owned, new SphereGeometry(0.09, 8, 6), color, {
+          emissive: color,
+          emissiveIntensity: 0.4,
+        }),
+        height * 0.4 + height * 0.62,
+      ).position.x = 0.16;
+      break;
+    }
+    case 'ROCK': {
+      const rock = add(
+        ownedMesh(owned, new DodecahedronGeometry(Math.max(width, depth) / 2, 0), color),
+        height / 2,
+      );
+      rock.scale.set(1, height / Math.max(width, depth), depth / Math.max(width, depth));
+      rock.rotation.y = 0.4;
+      break;
+    }
+    case 'ARCH': {
+      // Two posts and a half-torus lintel; the opening is real space to walk through.
+      const post = Math.max(0.12, width * 0.1);
+      const rise = Math.max(0, height - width / 2);
+      for (const side of [-1, 1]) {
+        add(ownedMesh(owned, new BoxGeometry(post, rise, depth), color), rise / 2).position.x =
+          (side * (width - post)) / 2;
+      }
+      const top = add(
+        ownedMesh(owned, new TorusGeometry((width - post) / 2, post / 2, 6, 14, Math.PI), color),
+        rise,
+      );
+      top.scale.z = depth / post / 2;
       break;
     }
     case 'BOX':
