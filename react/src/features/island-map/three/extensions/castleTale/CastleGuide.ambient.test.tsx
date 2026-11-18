@@ -34,7 +34,7 @@ describe('the castle guide ambient line (SC-R09-01)', () => {
     expect(screen.queryByRole('button', { name: /come back|tomorrow|claim/i })).toBeNull();
   });
 
-  it('shows the local default line when the Director fails', async () => {
+  it('shows the room quiet line (castleDefaultLines) when the Director fails', async () => {
     const choose = vi.fn().mockRejectedValue(new ApiError('network', {}));
     render(
       <CastleGuide
@@ -48,7 +48,7 @@ describe('the castle guide ambient line (SC-R09-01)', () => {
       />,
     );
     await waitFor(() =>
-      expect(screen.getByTestId('castle-ambient-line')).toHaveTextContent('The lanterns twinkle.'),
+      expect(screen.getByTestId('castle-ambient-line')).toHaveTextContent('The books rest on the shelves.'),
     );
   });
 
