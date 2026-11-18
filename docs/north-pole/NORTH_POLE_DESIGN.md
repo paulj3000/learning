@@ -281,7 +281,7 @@ Grants are idempotent (`GrantedRule`). Repeatable: REPLAY chests and practice of
   hosts, per band.
 - NPC Manager records come from `seed_npc_north_pole` (create-only, not published by default):
   character, persona (permitted topics, fallback lines), behaviour, model variant
-  (`north-pole-<npc>` character assets), placements derived from the Area's NPC placements,
+  (character assets from `north_pole_assets.NPC_MODEL_ASSETS`, e.g. `north-pole-santa`, `north-pole-elf-jingle`, `north-pole-reindeer-calf`), placements derived from the Area's NPC placements,
   OFFER_QUEST choices for each quest giver, voice profile ids equal to the npc id.
 - **Snowball escort** (data only): three NPC Manager placements for `snowball`, with spawn
   conditions on world changes: lost in Pine Hollow (no `NORTH_POLE_SNOWBALL_FOUND`), following the
