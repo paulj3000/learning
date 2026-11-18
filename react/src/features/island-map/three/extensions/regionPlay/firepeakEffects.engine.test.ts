@@ -13,6 +13,7 @@ import {
   firepeakBootstrapJson,
 } from '../../../../../test/firepeakFixtures';
 import { FACE_SOUTH, mount, walk, type Drive } from '../../runtime/testing/engineHarness';
+import { isInDangerousLava } from './areaEffectsScene';
 import { regionPlaySceneExtension, type RegionPlaySceneApi } from './regionPlayScene';
 
 /**
@@ -126,5 +127,12 @@ describe('Firepeak effects', () => {
     expect(harness.scene().getObjectByName('stand-in:firepeak-telescope')).toBeDefined();
     expect(harness.scene().getObjectByName('lava:firepeak-lava-river')).toBeDefined();
     expect(harness.scene().getObjectByName('backdrop')).toBeDefined();
+  });
+
+  it('draws visualOnly lava but never treats it as dangerous', () => {
+    const band = { id: 'l', minX: 0, maxX: 2, minZ: 0, maxZ: 2, safe: [] };
+    const keys = new Set<string>();
+    expect(isInDangerousLava([{ ...band, visualOnly: false }], keys, 1, 1)).toBe(true);
+    expect(isInDangerousLava([{ ...band, visualOnly: true }], keys, 1, 1)).toBe(false);
   });
 });

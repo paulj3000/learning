@@ -93,6 +93,8 @@ export interface LavaConfig extends Rect {
   id: string;
   /** Parts that are safe to stand on once their change key exists (a repaired crossing). */
   safe: (Rect & { whenChangeKey: string })[];
+  /** True: the lava is drawn for atmosphere only and never returns the child. Default false. */
+  visualOnly: boolean;
 }
 
 export interface SteamConfig {
@@ -410,7 +412,7 @@ export function parseEffects(value: JsonValue | undefined): RegionPlayEffects {
         const when = part ? text(part.whenChangeKey) : undefined;
         return zone && when ? [{ ...zone, whenChangeKey: when }] : [];
       });
-      return [{ id, ...area, safe }];
+      return [{ id, ...area, safe, visualOnly: entry.visualOnly === true }];
     }),
     steam: items('steam').flatMap((entry) => {
       const id = text(entry.id);
