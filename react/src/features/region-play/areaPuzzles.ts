@@ -80,8 +80,72 @@ export interface ReturnParams extends BandCommon {
   npcEntityId: string;
 }
 
+/** Symbols that tell options apart without colour (FPV, UX_AND_ACCESSIBILITY). */
+export const PUZZLE_SYMBOLS = [
+  'circle',
+  'square',
+  'triangle',
+  'star',
+  'diamond',
+  'hexagon',
+  'heart',
+  'moon',
+] as const;
+export type PuzzleSymbol = (typeof PUZZLE_SYMBOLS)[number];
+
+export interface ChoiceOption {
+  id: string;
+  label: string;
+  symbol: PuzzleSymbol | null;
+}
+
+export interface ChoiceVariant {
+  id: string;
+  prompt: string;
+  options: ChoiceOption[];
+  answer: string;
+  explanation: string;
+}
+
+export interface ChooseAnswerParams extends BandCommon {
+  kind: 'CHOOSE_ANSWER';
+  presentation: string;
+  subject: string;
+  skill: string;
+  /** Option id -> scene entity id, when the options are objects in the world. */
+  optionEntities: Record<string, string>;
+  variants: ChoiceVariant[];
+}
+
+export interface OrderVariant {
+  id: string;
+  prompt: string;
+  items: ChoiceOption[];
+  answer: string[];
+  explanation: string;
+}
+
+export interface OrderSequenceParams extends BandCommon {
+  kind: 'ORDER_SEQUENCE';
+  presentation: string;
+  subject: string;
+  skill: string;
+  /** Item id -> scene entity id. */
+  itemEntities: Record<string, string>;
+  variants: OrderVariant[];
+}
+
+/** The two kinds that hold many questions and can be practised after they are solved. */
+export type ChoiceKindParams = ChooseAnswerParams | OrderSequenceParams;
+
 export type PuzzleParams =
-  ObserveParams | PlatformParams | ValveParams | CollectParams | ReturnParams;
+  | ObserveParams
+  | PlatformParams
+  | ValveParams
+  | CollectParams
+  | ReturnParams
+  | ChooseAnswerParams
+  | OrderSequenceParams;
 
 const DEFAULT_HINT_AFTER = 2;
 
@@ -131,8 +195,104 @@ function common(params: Rec): BandCommon | null {
   };
 }
 
+const MAX_VARIANTS = 8;
+
+function option(item: Rec): ChoiceOption | null {
+  const head = labelled(item);
+  if (!head) return null;
+  if (item.symbol === undefined || item.symbol === null) return { ...head, symbol: null };
+  const symbol = PUZZLE_SYMBOLS.find((candidate) => candidate === item.symbol);
+  return symbol ? { ...head, symbol } : null;
+}
+
+function uniqueIds(items: readonly { id: string }[]): boolean {
+  return new Set(items.map((item) => item.id)).size === items.length;
+}
+
+function entityMap(value: JsonValue | undefined, ids: readonly string[][]): Record<string, string> | null {
+  if (value === undefined || value === null) return {};
+  const map = rec(value);
+  if (!map) return null;
+  const out: Record<string, string> = {};
+  for (const [key, entity] of Object.entries(map)) {
+    const id = str(entity);
+    if (!id) return null;
+    out[key] = id;
+  }
+  const keys = new Set(Object.keys(out));
+  // When entities are given, every variant's ids are exactly the mapped keys.
+  for (const variantIds of ids) {
+    if (variantIds.length !== keys.size || !variantIds.every((id) => keys.has(id))) return null;
+  }
+  return out;
+}
+
+function choiceBase(parameters: Rec): (BandCommon & { presentation: string; subject: string; skill: string }) | null {
+  // The prompt lives in each variant, so a band `intro` is optional for these kinds.
+  const rawHints = parameters.hints ?? [];
+  if (!Array.isArray(rawHints) || !rawHints.every((hint) => str(hint) !== null)) return null;
+  return {
+    intro: str(parameters.intro) ?? '',
+    hints: rawHints as string[],
+    hintAfterAttempts: int(parameters.hintAfterAttempts) ?? DEFAULT_HINT_AFTER,
+    completeMessage: str(parameters.completeMessage),
+    scienceNote: str(parameters.scienceNote),
+    presentation: str(parameters.presentation) ?? '',
+    subject: str(parameters.subject) ?? '',
+    skill: str(parameters.skill) ?? '',
+  };
+}
+
+function parseChoose(parameters: Rec): ChooseAnswerParams | null {
+  const base = choiceBase(parameters);
+  const variants = list(parameters.variants, (item) => {
+    const id = str(item.id);
+    const prompt = str(item.prompt);
+    const answer = str(item.answer);
+    const explanation = str(item.explanation);
+    const options = list(item.options, option);
+    if (!id || !prompt || !answer || !explanation || !options) return null;
+    if (options.length < 2 || options.length > 4 || !uniqueIds(options)) return null;
+    if (!options.some((o) => o.id === answer)) return null;
+    return { id, prompt, options, answer, explanation };
+  });
+  if (!base || !variants || variants.length < 1 || variants.length > MAX_VARIANTS) return null;
+  if (!uniqueIds(variants)) return null;
+  const optionEntities = entityMap(
+    parameters.optionEntities,
+    variants.map((v) => v.options.map((o) => o.id)),
+  );
+  return optionEntities ? { kind: 'CHOOSE_ANSWER', ...base, optionEntities, variants } : null;
+}
+
+function parseOrder(parameters: Rec): OrderSequenceParams | null {
+  const base = choiceBase(parameters);
+  const variants = list(parameters.variants, (item) => {
+    const id = str(item.id);
+    const prompt = str(item.prompt);
+    const explanation = str(item.explanation);
+    const items = list(item.items, option);
+    const rawAnswer = item.answer;
+    if (!id || !prompt || !explanation || !items || !Array.isArray(rawAnswer)) return null;
+    if (items.length < 2 || items.length > 6 || !uniqueIds(items)) return null;
+    const answer = rawAnswer.map((entry) => str(entry));
+    if (answer.some((entry) => entry === null)) return null;
+    if (!isPermutation(answer as string[], items.map((i) => i.id))) return null;
+    return { id, prompt, items, answer: answer as string[], explanation };
+  });
+  if (!base || !variants || variants.length < 1 || variants.length > MAX_VARIANTS) return null;
+  if (!uniqueIds(variants)) return null;
+  const itemEntities = entityMap(
+    parameters.itemEntities,
+    variants.map((v) => v.items.map((i) => i.id)),
+  );
+  return itemEntities ? { kind: 'ORDER_SEQUENCE', ...base, itemEntities, variants } : null;
+}
+
 /** One age band's parameters, typed for `kind`, or `null` if they are not usable. */
 export function parsePuzzleParams(kind: PuzzleKind, parameters: JsonObject): PuzzleParams | null {
+  if (kind === 'CHOOSE_ANSWER') return parseChoose(parameters);
+  if (kind === 'ORDER_SEQUENCE') return parseOrder(parameters);
   const base = common(parameters);
   if (!base) return null;
   switch (kind) {
@@ -187,6 +347,8 @@ export function parsePuzzleParams(kind: PuzzleKind, parameters: JsonObject): Puz
       const npcEntityId = str(parameters.npcEntityId);
       return npcEntityId ? { kind, ...base, npcEntityId } : null;
     }
+    default:
+      return null;
   }
 }
 
@@ -270,4 +432,54 @@ export function solveValves(
     }
   }
   return null;
+}
+
+// --- CHOOSE_ANSWER and ORDER_SEQUENCE -----------------------------------------------------------
+
+function isPermutation(order: readonly string[], ids: readonly string[]): boolean {
+  return (
+    order.length === ids.length &&
+    new Set(order).size === order.length &&
+    order.every((id) => ids.includes(id))
+  );
+}
+
+/**
+ * CHOOSE_ANSWER: whether `choice` is the variant's answer. An unknown choice is an invalid
+ * submission (the server answers 400), so it throws here too.
+ */
+export function chooseAnswerCorrect(variant: ChoiceVariant, choice: string): boolean {
+  if (!variant.options.some((o) => o.id === choice)) throw new Error('invalid submission');
+  return choice === variant.answer;
+}
+
+/**
+ * ORDER_SEQUENCE: whether `order` is the variant's answer. Anything that is not a permutation of
+ * the variant's items is an invalid submission and throws.
+ */
+export function orderSequenceCorrect(variant: OrderVariant, order: readonly string[]): boolean {
+  if (!isPermutation(order, variant.items.map((item) => item.id))) {
+    throw new Error('invalid submission');
+  }
+  return order.every((id, index) => id === variant.answer[index]);
+}
+
+/** 32-bit FNV-1a: a small, stable hash so every client picks the same first variant. */
+export function hashText(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/** The first variant of a visit: `hash(sessionId + puzzleId) % count`. */
+export function firstVariantIndex(sessionId: string, puzzleId: string, count: number): number {
+  return count <= 0 ? 0 : hashText(`${sessionId}${puzzleId}`) % count;
+}
+
+/** "Try a different one" and practice: the next variant, wrapping round. */
+export function nextVariantIndex(current: number, count: number): number {
+  return count <= 0 ? 0 : (current + 1) % count;
 }

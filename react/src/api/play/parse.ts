@@ -86,6 +86,8 @@ const PUZZLE_KINDS = [
   'VALVE_SEQUENCE',
   'COLLECT_OBJECT',
   'RETURN_TO_NPC',
+  'CHOOSE_ANSWER',
+  'ORDER_SEQUENCE',
 ] as const;
 
 export function puzzleState(r: Reader): PuzzleState {
@@ -272,6 +274,7 @@ export function puzzleOutcome(r: Reader): PuzzleOutcome {
     feedback: r.field('feedback').oneOf(['CORRECT', 'TRY_AGAIN'] as const),
     solvedNow: r.field('solvedNow').boolean(),
     alreadySolved: r.field('alreadySolved').boolean(),
+    practice: optional(r, 'practice', (v) => v.boolean(), false),
     failedAttempts: r.field('failedAttempts').integer(),
     newItems: r.field('newItems').array(item),
     rewardMessage: r.field('rewardMessage').nullable((v) => v.string()),

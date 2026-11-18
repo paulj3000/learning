@@ -5,7 +5,15 @@ import type {
   PuzzleOutcome,
   PuzzleState,
 } from '../../api/play/types';
-import type { PlatformParams, Stone } from './areaPuzzles';
+import {
+  firstVariantIndex,
+  nextVariantIndex,
+  type ChoiceKindParams,
+  type ChoiceOption,
+  type PlatformParams,
+  type PuzzleSymbol,
+  type Stone,
+} from './areaPuzzles';
 
 /**
  * The rules behind the 3D Area puzzle UI (ADR-047 F, Firepeak FP-5 to FP-10), apart from React.
@@ -50,7 +58,146 @@ export const AREA_COPY = {
   journalEmpty: 'No discoveries yet. Explore to fill your journal!',
   discoveredOn: 'Discovered',
   lavaTooHot: 'Whoa, the lava is too hot! Back to safety.',
+  // Choose an answer and put in order
+  checkAnswer: 'Check my answer',
+  checkOrder: 'Check my order',
+  tryDifferent: 'Try a different one',
+  chooseOne: 'Choose one',
+  chosen: 'Chosen',
+  notQuiteAgain: 'Not quite. Let us look again!',
+  orderNotQuite: 'Not quite. Let us look again and try the order once more.',
+  gotIt: 'You got it!',
+  practiceBadge: 'Practice',
+  practiceNote: 'This is practice. Nothing changes, so try as many as you like.',
+  practiceRight: 'Yes! That is right.',
+  practiceAgain: 'Practice another one',
+  practiceOpen: 'Practice this again',
+  yourOrder: 'Your order',
+  emptyOrder: 'Tap the items below, one at a time, in the order you choose.',
+  addToOrder: 'Add',
+  undoLast: 'Undo',
+  clearOrder: 'Start over',
+  position: 'Step',
+  unavailable: 'This puzzle is not ready yet.',
 } as const;
+
+const SYMBOL_GLYPHS: Record<PuzzleSymbol, string> = {
+  circle: '\u25CF',
+  square: '\u25A0',
+  triangle: '\u25B2',
+  star: '\u2605',
+  diamond: '\u25C6',
+  hexagon: '\u2B22',
+  heart: '\u2665',
+  moon: '\u263E',
+};
+
+/** The shape drawn next to an option, so it never depends on colour alone. */
+export function symbolGlyph(symbol: PuzzleSymbol | null): string {
+  return symbol ? SYMBOL_GLYPHS[symbol] : '';
+}
+
+/** An option as one line to read aloud: its symbol's name, then its label. */
+export function optionSpoken(option: ChoiceOption): string {
+  return option.symbol ? `${option.symbol}, ${option.label}` : option.label;
+}
+
+// --- CHOOSE_ANSWER and ORDER_SEQUENCE: one state per puzzle id -----------------------------------
+
+export interface ChoiceState {
+  variantIndex: number;
+  /** CHOOSE_ANSWER: the option picked, not yet checked. */
+  selected: string | null;
+  /** ORDER_SEQUENCE: the items tapped so far, in order. */
+  order: string[];
+  /** Wrong tries on this variant (the hint is offered from this). */
+  wrongCount: number;
+  hintAsked: boolean;
+  result: 'none' | 'wrong' | 'correct';
+  /** The puzzle was already solved when this question was opened: grading only. */
+  practice: boolean;
+}
+
+function blank(variantIndex: number, practice: boolean): ChoiceState {
+  return {
+    variantIndex,
+    selected: null,
+    order: [],
+    wrongCount: 0,
+    hintAsked: false,
+    result: 'none',
+    practice,
+  };
+}
+
+/**
+ * The state when a puzzle is first opened this visit: the deterministic first variant, or, for a
+ * puzzle already solved, the next one (practice).
+ */
+export function openChoiceState(
+  sessionId: string,
+  puzzleId: string,
+  params: ChoiceKindParams,
+  solved: boolean,
+): ChoiceState {
+  const count = params.variants.length;
+  const first = firstVariantIndex(sessionId, puzzleId, count);
+  return blank(solved ? nextVariantIndex(first, count) : first, solved);
+}
+
+/** Opening a puzzle again: a finished question gives way to the next variant. */
+export function reopenChoiceState(
+  state: ChoiceState,
+  params: ChoiceKindParams,
+  solved: boolean,
+): ChoiceState {
+  if (state.result === 'correct' || (solved && !state.practice)) {
+    return blank(nextVariantIndex(state.variantIndex, params.variants.length), solved);
+  }
+  return state;
+}
+
+/** "Try a different one": the next variant, a fresh question. */
+export function differentChoiceState(
+  state: ChoiceState,
+  params: ChoiceKindParams,
+): ChoiceState {
+  return blank(nextVariantIndex(state.variantIndex, params.variants.length), state.practice);
+}
+
+export function selectOption(state: ChoiceState, optionId: string): ChoiceState {
+  return { ...state, selected: optionId, result: state.result === 'correct' ? 'correct' : 'none' };
+}
+
+/** Adds an item to the end of the order unless it is already there. */
+export function addToOrder(state: ChoiceState, itemId: string): ChoiceState {
+  if (state.order.includes(itemId)) return state;
+  return { ...state, order: [...state.order, itemId], result: 'none' };
+}
+
+export function undoOrder(state: ChoiceState): ChoiceState {
+  return { ...state, order: state.order.slice(0, -1), result: 'none' };
+}
+
+export function clearOrder(state: ChoiceState): ChoiceState {
+  return { ...state, order: [], result: 'none' };
+}
+
+export function recordChoiceResult(state: ChoiceState, correct: boolean): ChoiceState {
+  return correct
+    ? { ...state, result: 'correct' }
+    : { ...state, result: 'wrong', wrongCount: state.wrongCount + 1 };
+}
+
+/** The lines shown after a right answer: why, then the band's closing lines. */
+export function successLines(
+  explanation: string,
+  params: Pick<ChoiceKindParams, 'completeMessage' | 'scienceNote'>,
+): string[] {
+  return [explanation, params.completeMessage, params.scienceNote].filter(
+    (line): line is string => Boolean(line),
+  );
+}
 
 const SUBJECT_LABELS: Record<JournalSubject, string> = {
   EARTH_SCIENCE: 'Earth science',

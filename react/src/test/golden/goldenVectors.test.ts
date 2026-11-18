@@ -91,6 +91,8 @@ describe('golden vectors', () => {
         'decideSubmission',
         'platformsSolved',
         'simulateValves',
+        'chooseAnswerCorrect',
+        'orderSequenceCorrect',
       ]),
     );
   });
