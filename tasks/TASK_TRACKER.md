@@ -1046,6 +1046,13 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       storybookApi, castleTale, content-export, quests) all pass after correcting two export counts; tsc clean;
       Django 22 passed (test_great_storybook, _concurrency, _editions) and 18 passed (test_castle_storybook);
       content:export, golden:generate, content:check, golden:check clean.
+- [x] **SC-POSTMERGE** Django verification after merging `origin/feature/interactive-platforms`
+      (`99c5d90f`). Run on `50aaba30` plus `a0fb835c` (default local PostgreSQL port 5432; the pytest
+      probe had kept 5442, so an earlier run skipped every `postgres` test). With
+      `POSTGRES_PORT=5432 LAI_REQUIRE_POSTGRES=1`: `apps/regions apps/avatars apps/assets` plus the
+      four `quests/tests/test_great_storybook*.py`, `npcs/tests/test_castle_quill_seed.py`,
+      `game_sessions/tests/test_castle_storybook.py` and `test_castle_rooms.py`: **518 passed, 0
+      skipped** (16 min 49 s). Nothing to fix.
 - [ ] **SC-R05 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
