@@ -101,9 +101,7 @@ def facts(width, height, **extra):
 
 def write_webp(job, logical, data=None, role="image.thumbnail"):
     data = data or webp_bytes(16, 16)
-    return helpers.write(
-        job, logical, data, ext="webp", role=role, content_type="image/webp"
-    )
+    return helpers.write(job, logical, data, ext="webp", role=role, content_type="image/webp")
 
 
 # --- control, submission, validation ------------------------------------------------------------
@@ -364,7 +362,7 @@ def test_a_promoted_output_is_a_new_unpublished_version_without_metadata(sqs):
     stored = get_storage().get(new.storage_key) if hasattr(get_storage(), "get") else None
     blob = stored.read() if hasattr(stored, "read") else (stored or data)
     assert SECRET not in blob and b"Exif" not in blob and b"GPS" not in blob
-    assert new.metadata["derivedFrom"]["processor_id"] == contract.PROCESSOR_ID
+    assert new.metadata["derivedFrom"]["processor"]["id"] == contract.PROCESSOR_ID
     version.refresh_from_db()
     assert version.status == VersionStatus.PUBLISHED
     artifact.refresh_from_db()
@@ -426,10 +424,12 @@ def test_a_newer_conversion_supersedes_the_older_outputs(sqs):
     delivered(version)
     first = set(DerivedArtifact.objects.values_list("pk", flat=True))
     newer = job_for(version)
-    deliver(newer, [write_webp(newer, "thumb-128")], metadata={"artifact_facts": {"thumb-128": facts(128, 96)}})
-    states = {
-        a.logical_id + str(a.pk in first): a.state for a in DerivedArtifact.objects.all()
-    }
+    deliver(
+        newer,
+        [write_webp(newer, "thumb-128")],
+        metadata={"artifact_facts": {"thumb-128": facts(128, 96)}},
+    )
+    states = {a.logical_id + str(a.pk in first): a.state for a in DerivedArtifact.objects.all()}
     assert states["thumb-128True"] == ArtifactState.SUPERSEDED
     assert states["thumb-128False"] == ArtifactState.PENDING_REVIEW
     assert states["thumb-256True"] == ArtifactState.PENDING_REVIEW

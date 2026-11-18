@@ -90,3 +90,23 @@ def test_native_directory_files_exist():
         "sbom-aarch64.cdx.json",
     ):
         assert (PILLOW / name).is_file(), name
+
+
+def test_contract_and_profiles_import_without_pillow():
+    """Django imports `lai_native.image.contract` (processor version, limits, profile table)."""
+    import subprocess
+
+    script = (
+        "import sys\nsys.modules['PIL'] = None\n"
+        f"sys.path.insert(0, {str(ROOT / 'processing')!r})\n"
+        "from lai_native.image import contract, profiles\n"
+        "assert contract.current_processor('image-convert', 1) == "
+        "(contract.PROCESSOR_ID, contract.PROCESSOR_VERSION)\n"
+        "assert contract.plan(contract.PROFILE_THUMBNAILS, {}, 'png')\n"
+        "try:\n    from lai_native.image import decode_image\nexcept Exception as e:\n"
+        "    print(type(e).__name__)\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", script], capture_output=True, text=True, check=True
+    )
+    assert result.stdout.strip() == "ImageError"

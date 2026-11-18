@@ -16,6 +16,7 @@ Nothing here changes the version, publishes or promotes.
 
 from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin.options import ActionLocation
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -26,6 +27,7 @@ from django.utils.safestring import mark_safe
 from . import image_conversion as images
 from .models import AssetVersion
 
+IMAGE_FIELDS = ("image_conversions",)
 ACTION_NAMES = ("convert_image", "resize_image", "generate_thumbnail")
 _FORMATS = [("webp", "WebP"), ("png", "PNG"), ("jpeg", "JPEG")]
 
@@ -74,12 +76,13 @@ class ImageConversionAdminMixin:
             and self.has_view_permission(request)
         )
 
-    def get_actions(self, request):
-        actions = super().get_actions(request)
+    def get_actions(self, request, action_location=ActionLocation.CHANGE_LIST):
+        actions = super().get_actions(request, action_location)
         if self.has_convert_image_permission(request):
             for name in ACTION_NAMES:
-                function = getattr(self, name)
-                actions[name] = (function, name, function.short_description)
+                action = self.get_action(name, action_location)
+                if action is not None:
+                    actions[action.name] = action
         return actions
 
     def _single_image(self, request, queryset):
@@ -178,9 +181,6 @@ class ImageConversionAdminMixin:
         return TemplateResponse(request, "admin/assets/assetversion/image_job.html", context)
 
     # --- the read-only section ---
-
-    def get_readonly_fields(self, request, obj=None):
-        return [*super().get_readonly_fields(request, obj), "image_conversions"]
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = list(super().get_fieldsets(request, obj))

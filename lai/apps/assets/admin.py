@@ -47,7 +47,7 @@ from apps.catalog.models import AssetStatus, ContentAsset
 from apps.core.exceptions import error_body
 
 from . import preview, services
-from .admin_image import ImageConversionAdminMixin
+from .admin_image import IMAGE_FIELDS, ImageConversionAdminMixin
 from .models import AssetVersion, VersionStatus
 from .processing import (
     APPLIED_OUTCOMES,
@@ -180,9 +180,10 @@ class AssetVersionAdmin(ImageConversionAdminMixin, admin.ModelAdmin):
         )
 
     def get_readonly_fields(self, request, obj=None):
-        return [name for name in self.fields if name not in EDITABLE_FIELDS] + list(
-            BACKGROUND_FIELDS
-        )
+        return [name for name in self.fields if name not in EDITABLE_FIELDS] + [
+            *BACKGROUND_FIELDS,
+            *IMAGE_FIELDS,
+        ]
 
     def save_model(self, request, obj, form, change):
         """Write only the editable fields of an existing version. The object was loaded when the
