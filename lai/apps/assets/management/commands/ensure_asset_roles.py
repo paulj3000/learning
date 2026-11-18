@@ -8,7 +8,8 @@ accounts page (superusers only). Superusers need no group.
 
 - Asset editors: create definitions, edit their display details, upload versions, delete
   never-published versions, and see everything.
-- Asset publishers: everything editors can, plus publish, choose the default, and retire.
+- Asset publishers: everything editors can, plus publish, choose the default, retire, and promote
+  a derived artifact into a new unpublished version (`assets.promote_derivedartifact`).
 """
 
 from django.contrib.auth.models import Group, Permission
@@ -26,11 +27,16 @@ EDITOR_PERMISSIONS = (
     "assets.add_assetversion",
     "assets.change_assetversion",
     "assets.delete_assetversion",
+    # Derived artifacts (ADR-066): editors see, review and capture; promotion is a publisher act.
+    "assets.view_derivedartifact",
+    "assets.review_derivedartifact",
+    "assets.capture_derivedartifact",
 )
 PUBLISHER_PERMISSIONS = (
     *EDITOR_PERMISSIONS,
     "assets.publish_assetversion",
     "assets.retire_assetversion",
+    "assets.promote_derivedartifact",
 )
 ROLES = {EDITORS: EDITOR_PERMISSIONS, PUBLISHERS: PUBLISHER_PERMISSIONS}
 

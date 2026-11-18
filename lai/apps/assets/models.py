@@ -518,7 +518,10 @@ class DerivedArtifact(models.Model):
     @classmethod
     def from_db(cls, db, field_names, values, **kwargs):
         instance = super().from_db(db, field_names, values, **kwargs)
-        instance._loaded = instance._snapshot()
+        # A partial load (Django's delete collector defers fields) takes no snapshot: reading a
+        # deferred field here would itself reload the row.
+        if not instance.get_deferred_fields():
+            instance._loaded = instance._snapshot()
         return instance
 
     def _snapshot(self) -> dict:

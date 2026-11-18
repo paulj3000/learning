@@ -27,8 +27,8 @@ def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def source_version(asset_id="npc-pip", **fields) -> AssetVersion:
-    asset = make_definition(asset_id)
+def source_version(asset_id=None, **fields) -> AssetVersion:
+    asset = make_definition(asset_id or f"npc-{uuid.uuid4().hex[:8]}")
     return make_version(asset, **fields)
 
 
@@ -151,3 +151,47 @@ def recorded(version=None, *, logical="opus", data=OGG, **kwargs):
 
 
 __all__ = ["JobStatus", "ModelFormat", "VersionStatus"]
+
+
+# --- users and real files ------------------------------------------------------------------------
+
+
+def user_with(*codenames, name=None):
+    """An active staff account holding exactly the given `assets.*` permissions."""
+    from django.contrib.auth.models import Permission
+
+    from apps.users.models import ADMIN_ONLY_SUB_PREFIX, ParentAccount
+
+    username = name or f"staff-{uuid.uuid4().hex[:8]}"
+    account = ParentAccount.objects.create(
+        cognito_sub=f"{ADMIN_ONLY_SUB_PREFIX}{username}",
+        admin_username=username,
+        is_staff=True,
+    )
+    account.user_permissions.set(Permission.objects.filter(codename__in=codenames))
+    return ParentAccount.objects.get(pk=account.pk)  # a fresh object: no cached permissions
+
+
+def real_audio_source(asset_id=None):
+    """An audio asset with one real, validated Ogg version (uploaded through the service)."""
+    from apps.assets import services
+    from apps.assets.tests.media_files import ogg_bytes
+
+    asset = make_definition(
+        asset_id or f"splash-{uuid.uuid4().hex[:8]}", kind="audio", category="sound"
+    )
+    return services.upload_version(
+        asset, io.BytesIO(ogg_bytes(seconds=1)), original_filename="a.ogg"
+    )
+
+
+def real_artifact(version=None, *, seconds=2, logical="opus", role="audio.transcoded", **kwargs):
+    """A recorded artifact whose bytes are a different, valid Ogg (promotable)."""
+    from apps.assets.models import DerivedArtifact
+    from apps.assets.tests.media_files import ogg_bytes
+
+    version = version or real_audio_source()
+    job = make_job(version)
+    data = ogg_bytes(seconds=seconds)
+    deliver(job, [write(job, logical, data, role=role)], **kwargs)
+    return version, DerivedArtifact.objects.get(job_id_text=job.pk, logical_id=logical)
