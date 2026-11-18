@@ -19,11 +19,13 @@ delivered by NP-023 and are cross-referenced, not closed.
   - `fp/engine` (Django colliders keep `minY/maxY/jumpable`; stand-in shapes TREE, LOG, GEAR,
     SWITCH, ROCK, ARCH; reduced-motion respawn flash),
   - `fp/audio` (region-keyed audio registry `regionAudio.ts`).
-- **Open dependency:** the React panels for CHOOSE_ANSWER / ORDER_SEQUENCE are Firepeak's
-  `fp/puzzle-ui` workstream, not committed when this was written. North Pole consumes them; it
-  never builds a second puzzle UI. Until they land, North Pole's choice puzzles are server-complete
-  but not answerable in the browser.
-- Merge order: Treasure Rush branch, then Firepeak shared work, then North Pole.
+- **Stacked on Firepeak (2026-11-18):** the React panels for CHOOSE_ANSWER / ORDER_SEQUENCE
+  (`fp/puzzle-ui`) conflicted with `fp/puzzle-kinds` in `tests/golden/area-puzzles.json`, and the
+  Firepeak coordinator resolved it by regenerating the vectors against their integrated export.
+  North Pole therefore merges `feature/firepeak-volcano-adventure` itself instead of resolving the
+  conflict a second way. North Pole consumes those panels; it never builds a second puzzle UI.
+- Merge order: Treasure Rush branch, then Firepeak, then North Pole. Until Firepeak merges, this
+  branch's diff against `main` also shows Firepeak.
 
 ## 1. Audit summary (NP-001)
 
@@ -117,7 +119,7 @@ snowdrift collider in a gap of the wall, removed by `effects.openings` when the 
 | `np-gate-mountain` | x -46, z -67 (gingerbread north) | `NORTH_POLE_GINGER_REPAIRED` |
 | `np-gate-observatory` | x 0, z -84 (mountain east) | `NORTH_POLE_MOUNTAIN_SUMMIT` |
 | `np-gate-north-road` | x 0, z -67 (north road north end) | `NORTH_POLE_MOUNTAIN_SUMMIT` (a shortcut home) |
-| `np-gate-ice-cave` | x 20, z 97 (landing, post-story secret cave) | `NORTH_POLE_CHRISTMAS_EVE` |
+| `np-gate-ice-cave` | x 20, z 91 (landing south-east, post-story secret cave; moved from z 97 so the cave has room behind it) | `NORTH_POLE_CHRISTMAS_EVE` |
 
 Effects checkpoints (resume to the furthest zone reached): `np-cp-landing` (default, no key),
 `np-cp-workshop` (`NORTH_POLE_WELCOME_LOOKED`), `np-cp-forest` (`NORTH_POLE_WORKSHOP_RESTORED`),
@@ -284,7 +286,7 @@ Grants are idempotent (`GrantedRule`). Repeatable: REPLAY chests and practice of
   hosts, per band.
 - NPC Manager records come from `seed_npc_north_pole` (create-only, not published by default):
   character, persona (permitted topics, fallback lines), behaviour, model variant
-  (`north-pole-<npc>` character assets), placements derived from the Area's NPC placements,
+  (character assets from `north_pole_assets.NPC_MODEL_ASSETS`, e.g. `north-pole-santa`, `north-pole-elf-jingle`, `north-pole-reindeer-calf`), placements derived from the Area's NPC placements,
   OFFER_QUEST choices for each quest giver, voice profile ids equal to the npc id.
 - **Snowball escort** (data only): three NPC Manager placements for `snowball`, with spawn
   conditions on world changes: lost in Pine Hollow (no `NORTH_POLE_SNOWBALL_FOUND`), following the

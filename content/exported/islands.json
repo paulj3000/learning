@@ -29,7 +29,9 @@
         ],
         "collectibleSetIds": [
           "harbor-shells",
-          "firepeak-discovery-journal"
+          "firepeak-discovery-journal",
+          "fh-set-elemental-crystals",
+          "fh-set-ember-shards"
         ],
         "discoveryIds": [
           "harbor-tide-pool",
@@ -63,7 +65,31 @@
           "journal-lava",
           "journal-steam-vents",
           "journal-volcanic-minerals",
-          "journal-heart-crystal"
+          "journal-heart-crystal",
+          "fh-crystal-forest",
+          "fh-crystal-magma",
+          "fh-crystal-cavern",
+          "fh-crystal-forge",
+          "fh-shard-item-landing",
+          "fh-shard-item-emberwood",
+          "fh-shard-item-lava",
+          "fh-shard-item-caverns",
+          "fh-shard-item-forge",
+          "fh-shard-item-summit",
+          "fh-shard-item-heart",
+          "fh-badge-first-steps",
+          "fh-badge-emberwood-explorer",
+          "fh-badge-lava-jumper",
+          "fh-badge-crystal-collector",
+          "fh-badge-forge-master",
+          "fh-badge-volcano-scientist",
+          "fh-badge-summit-explorer",
+          "fh-badge-heart-of-firepeak",
+          "fh-badge-master-explorer",
+          "fh-journal-magma",
+          "fh-journal-rocks",
+          "fh-journal-volcano-layers",
+          "fh-journal-island"
         ],
         "locationSlugs": [
           "pirate-builder-bay",
@@ -74,7 +100,8 @@
           "castle-writing-room",
           "bolts-workshop",
           "clockwork-harbor",
-          "firepeak-volcano"
+          "firepeak-volcano",
+          "firepeak-heart"
         ],
         "npcIds": [
           "pirate-pip",
@@ -83,7 +110,12 @@
           "ember-dragon",
           "harbor-master",
           "professor-ticktock",
-          "professor-ember"
+          "professor-ember",
+          "flint",
+          "kindle",
+          "professor-basalt",
+          "cinder",
+          "ignis"
         ],
         "questIds": [
           "repair-the-bridge",
@@ -94,7 +126,8 @@
           "restore-the-great-storybook-sprouts",
           "restore-the-great-storybook-pathfinders",
           "restore-the-great-storybook-explorers",
-          "the-volcano-awakens"
+          "the-volcano-awakens",
+          "the-heart-of-firepeak"
         ],
         "storySlugs": [
           "dragon-of-ember-mountain",
@@ -160,6 +193,111 @@
         ],
         "lockedHint": "The little boat at the end of the dock is not ready yet. Help Pip at Pirate Builder Bay, and he will get it sailing."
       }
+    },
+    {
+      "description": "A winter village of elves, reindeer, and gingerbread houses. A storm has scattered the Christmas Star, and friends along the way need help to find its seven pieces.",
+      "pack": {
+        "adventureSlugs": [],
+        "collectibleSetIds": [
+          "np-set-star-fragments",
+          "np-set-snowflakes",
+          "np-set-candy-canes",
+          "np-set-ornaments",
+          "np-set-cookies",
+          "np-set-golden-bells"
+        ],
+        "discoveryIds": [],
+        "itemIds": [
+          "np-star-fragment-village",
+          "np-star-fragment-workshop",
+          "np-star-fragment-forest",
+          "np-star-fragment-lake",
+          "np-star-fragment-stables",
+          "np-star-fragment-gingerbread",
+          "np-star-fragment-mountain",
+          "np-snowflake-01",
+          "np-snowflake-02",
+          "np-snowflake-03",
+          "np-snowflake-04",
+          "np-snowflake-05",
+          "np-snowflake-06",
+          "np-snowflake-07",
+          "np-snowflake-08",
+          "np-snowflake-09",
+          "np-snowflake-10",
+          "np-candy-cane-1",
+          "np-candy-cane-2",
+          "np-candy-cane-3",
+          "np-candy-cane-4",
+          "np-candy-cane-5",
+          "np-ornament-1",
+          "np-ornament-2",
+          "np-ornament-3",
+          "np-ornament-4",
+          "np-ornament-5",
+          "np-cookie-1",
+          "np-cookie-2",
+          "np-cookie-3",
+          "np-golden-bell-1",
+          "np-golden-bell-2",
+          "np-golden-bell-3",
+          "np-snowball-collar",
+          "np-reindeer-token",
+          "np-gift-wrapped-present",
+          "np-badge-north-pole-explorer",
+          "np-badge-master-toymaker",
+          "np-badge-candy-cane-trailblazer",
+          "np-badge-ice-hopper",
+          "np-badge-reindeer-rescuer",
+          "np-badge-gingerbread-builder",
+          "np-badge-snowflake-mountain-champion",
+          "np-badge-santas-helper",
+          "np-trophy-christmas-star",
+          "np-cosmetic-santa-hat",
+          "np-cosmetic-elf-backpack",
+          "np-cosmetic-snowflake-scarf",
+          "np-journal-snow-and-ice",
+          "np-journal-water-states",
+          "np-journal-stars",
+          "np-journal-patterns"
+        ],
+        "locationSlugs": [
+          "north-pole-village"
+        ],
+        "npcIds": [
+          "santa-claus",
+          "mrs-claus",
+          "jingle",
+          "tinker",
+          "peppermint",
+          "frosty",
+          "noel",
+          "ginger",
+          "polaris",
+          "snowball"
+        ],
+        "questIds": [
+          "np-q01-welcome",
+          "np-q02-toy-workshop",
+          "np-q03-candy-cane-forest",
+          "np-q04-frozen-lake",
+          "np-q05-missing-reindeer",
+          "np-q06-gingerbread-mystery",
+          "np-q07-snowflake-mountain",
+          "np-q08-restore-the-star",
+          "np-q09-christmas-eve"
+        ],
+        "storySlugs": [],
+        "version": 1
+      },
+      "slug": "north-pole",
+      "supportedAgeBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "tagline": "A snowy village where a missing star needs your help.",
+      "title": "North Pole"
     }
   ],
   "schemaVersion": 3
