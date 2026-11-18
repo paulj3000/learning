@@ -53,7 +53,7 @@ remains: `docs/processing/WAVE4_HANDOFF.md`.
 | Card | Status |
 |---|---|
 | LAI-LAMBDA-009 NPC animation inspection | Developer-complete on the branch |
-| LAI-LAMBDA-008 audio | Phase 1 (header inspection) developer-complete; transcoding and loudness (phase 2) not authorized, proposal only |
+| LAI-LAMBDA-008 audio | Phase 1 (header inspection) developer-complete; transcoding and loudness (phase 2, LAI-LAMBDA-008b) not authorized: ADR proposal updated, design in `docs/processing/AUDIO_TRANSCODING.md`, pure-Python profile model and offline benchmark added on `feature/lambda-audio-transcoding-design`; no FFmpeg run, nothing measured, no worker kind |
 | LAI-LAMBDA-010 GLB and texture optimization | Feasibility only |
 | LAI-LAMBDA-013 image conversion and thumbnails | Feasibility only |
 | LAI-LAMBDA-011 DEV live acceptance | Documentation only (checklist, not executed) |
