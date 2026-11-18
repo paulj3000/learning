@@ -1,4 +1,5 @@
-"""`lai_native` may import only the standard library, itself and `lai_processing`; and
+"""`lai_native` may import only the standard library, itself, `lai_processing` and the approved
+native libraries (`lambda/build.py` APPROVED_NATIVE_LIBRARIES: Pillow); and
 `lai_processing` stays free of process execution and native imports."""
 
 from __future__ import annotations
@@ -8,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2] / "processing"
-ALLOWED_TOP = set(sys.stdlib_module_names) | {"lai_native", "lai_processing"}
+ALLOWED_TOP = set(sys.stdlib_module_names) | {"lai_native", "lai_processing", "PIL"}
 BANNED_IN_PROCESSING = {"subprocess", "ctypes", "cffi", "multiprocessing"}
 
 
