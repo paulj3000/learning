@@ -42,6 +42,30 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Lambda processing closure and design wave (2026-11-17, late); NOT merged, NOT deployed
+
+- **PR #42 (001 to 007):** head `4ca7363a`, CI run 44195758040 green, mergeable, still draft, not
+  merged. Deployment gates verified closed from the `main` runs at `466a4972` (every deploy, build
+  and prod job skipped); PR #42 changes only push path filters. Focused final review: no blocking
+  defect. Merge needs an owner action (this session had no GitHub write credentials).
+- **Wave 4:** `feature/serverless-processing-wave4` adds the Ogg upload checksum fix (`04bd4df4`:
+  `validation_media._check_ogg` read the page CRC and never compared it; now the first 16 pages and
+  the last page are verified, code `ogg_crc`) and the rewritten 011/012 docs. Local demo passed with
+  zero AWS client attempts; worker zip 467,111 bytes (budget 2 MiB). No Wave 4 PR exists yet.
+- **Design branches (owner review, not for merge to `main` until approved):**
+
+| Branch (stacked on Wave 4 `48c98a18`) | Card | Content |
+|---|---|---|
+| `feature/lambda-derived-artifacts-design` | shared | `proposals/ADR-PROPOSED-derived-artifacts.md` (Option C recommended), `DERIVED_ARTIFACTS_INTEGRATION.md` |
+| `feature/lambda-audio-transcoding-design` | 008b | updated `proposals/ADR-PROPOSED-native-audio-transcoding.md`, `AUDIO_TRANSCODING.md`, unwired profile model `contracts/audio_profiles.py`, offline `bench/audio_transcode_bench.py` |
+| `feature/lambda-image-processing-design` | 013a | image-only `proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`, `feasibility/LAI-LAMBDA-013-image-conversion-contract.md`, standard-library EXIF/GPS scanner and upload warnings `image_location_present` / `image_metadata_present` (warnings only) |
+| `feature/lambda-thumbnail-rendering-design` | 013b | `proposals/ADR-PROPOSED-glb-thumbnail-rendering.md`, `GLB_THUMBNAIL_SPEC.md`, `bench/thumbnail_framing.py` |
+| `feature/lambda-glb-optimization-design` | 010 | updated 010 feasibility and proposal (Three.js loader change list, measurements), `proposals/ADR-PROPOSED-heavy-workload-runtime.md`, tests pinning that compressed extensions stay unpublishable |
+| `feature/lambda-release-readiness-design` | 011, 012 | merged into Wave 4 (`0eaf75c1`) |
+
+Every native runtime, artifact write and new queue in these branches is a proposal. The decisions
+are collected in `docs/processing/WAVE4_HANDOFF.md` section 7.
+
 ## Wave 4 processing (LAI-LAMBDA-008 to 013): integrated on `feature/serverless-processing-wave4` (2026-11-17); NOT merged, NOT deployed
 
 Repository only; no AWS resource was created or changed. The branch is the reviewed canonical

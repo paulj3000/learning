@@ -490,6 +490,13 @@ a zip-packaged arm64 Lambda does the work, writes the result to S3 and sends it 
 - **Turning it off:** `LAI_ENABLE_LAMBDA=false` then `deploy-debug.sh --execute` (the stack then
   sets `LAI_JOBS_BACKEND=disabled` and the Studio to `manual`).
 
+#### Asset processing status (2026-11-17)
+
+PR #42 (001 to 007) is green and unmerged; Wave 4 (`feature/serverless-processing-wave4`) adds NPC
+animation and audio header inspection; native workloads (audio transcoding, image conversion, GLB
+thumbnails, GLB optimization) and derived files are proposals on `feature/lambda-*-design`
+branches, not approved. Nothing is deployed. See `docs/processing/WAVE4_HANDOFF.md`.
+
 #### Asynchronous model validation (LAI-LAMBDA-001 to 007, ADR-064)
 
 On `feature/serverless-processing-canonical` (PR #42; not deployed). The standard-library processing

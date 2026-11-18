@@ -7,6 +7,14 @@ transcoding), LAI-LAMBDA-009 (NPC Manager animation inspection and mapping assis
 LAI-LAMBDA-010 (texture compression and GLB optimization benchmarking) and LAI-LAMBDA-013 (asset
 thumbnail generation and image conversion, split out of 010 on 2026-11-16).
 
+## Status update (2026-11-17, late)
+
+- Ogg upload checksum defect fixed on this branch (`04bd4df4`, see `AUDIO_INSPECTION.md`).
+- 011 and 012 rewritten (three-tier dev acceptance, gate verification, production reconciliation).
+- Design work for 008b, 010, 013a, 013b and derived artifacts is on separate stacked branches
+  (section 7). None is merged here; none is approved.
+- PR #42 still unmerged (owner action). No Wave 4 PR yet: owner to open it (section 7).
+
 ## Status (2026-11-17, integration branch `feature/serverless-processing-wave4`)
 
 Integrated on `feature/serverless-processing-wave4`: the reviewed canonical PR #42 head plus every
@@ -151,3 +159,26 @@ Documentation only; nothing has been executed or deployed.
   queues, workers, consumer or maintenance schedule in CDK today, so turning processing on in
   production needs the owner decisions listed there (P1 to P15; P14 is whether the Wave 4 kinds
   ship in the first production release, P15 the processing budget).
+
+
+## 7. Design branches and the owner review (2026-11-17)
+
+| Branch (stacked on Wave 4 `48c98a18`) | Card | Content |
+|---|---|---|
+| `feature/lambda-derived-artifacts-design` | shared | `proposals/ADR-PROPOSED-derived-artifacts.md` (Option C recommended), `DERIVED_ARTIFACTS_INTEGRATION.md` |
+| `feature/lambda-audio-transcoding-design` | 008b | updated `proposals/ADR-PROPOSED-native-audio-transcoding.md`, `AUDIO_TRANSCODING.md`, unwired profile model `contracts/audio_profiles.py`, offline `bench/audio_transcode_bench.py` |
+| `feature/lambda-image-processing-design` | 013a | image-only `proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`, `feasibility/LAI-LAMBDA-013-image-conversion-contract.md`, standard-library EXIF/GPS scanner and upload warnings `image_location_present` / `image_metadata_present` (warnings only) |
+| `feature/lambda-thumbnail-rendering-design` | 013b | `proposals/ADR-PROPOSED-glb-thumbnail-rendering.md`, `GLB_THUMBNAIL_SPEC.md`, `bench/thumbnail_framing.py` |
+| `feature/lambda-glb-optimization-design` | 010 | updated 010 feasibility and proposal (Three.js loader change list, measurements), `proposals/ADR-PROPOSED-heavy-workload-runtime.md`, tests pinning that compressed extensions stay unpublishable |
+| `feature/lambda-release-readiness-design` | 011, 012 | merged into Wave 4 (`0eaf75c1`) |
+
+Card split proposed: LAI-LAMBDA-013a (image conversion, Pillow, zip-able) and 013b (GLB
+thumbnails, browser renderer); they differ in runtime, packaging and acceptance criteria. 008b
+tracks audio transcoding. All four native workloads use the one derived-artifact design once it is
+accepted. Consolidated decisions: the APPROVALS_NEEDED list in the session report and in each
+proposal's decision table.
+
+Note on release order: `ASYNC_MODEL_VALIDATION.md` section 13 asks for the worker before or with
+Django (a GLB `asset.inspect` now carries `max_bytes` that an old worker refuses), while section 3
+of this page says consumer first. `LAI-LAMBDA-011-dev-acceptance.md` keeps consumer first and
+forbids any GLB inspect or background action between the two deploys; the owner confirms this.
