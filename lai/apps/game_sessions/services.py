@@ -38,7 +38,11 @@ from apps.game_sessions.models import (
     Correctness,
     SessionStatus,
 )
-from apps.inventory.services import RewardGrant, grant_reward_rule
+from apps.inventory.services import (
+    RewardGrant,
+    grant_reward_rule,
+    grant_world_change_rewards,
+)
 from apps.progression.services import record_world_change
 
 
@@ -406,11 +410,12 @@ def submit_answer(
         support_level=decision["supportLevel"],
         at=at,
     )
+    change_rewards: tuple = ()
     if decision["action"] == "ADVANCE":
-        outcome.world_change_keys = _apply_world_change_step(session, step)
+        outcome.world_change_keys, change_rewards = _apply_world_change_step(session, step)
     if next_step is not None and _ends_adventure(session, next_step):
         _complete(session, at)
-        outcome.completion = _on_completion(session)
+        outcome.completion = _on_completion(session, change_rewards)
     return outcome
 
 
@@ -421,12 +426,16 @@ def submit_answer(
 # world changes and reward rules are idempotent under their unique constraints.
 
 
-def _apply_world_change_step(session, step: dict) -> tuple[str, ...]:
-    """Continuing past a WORLD_CHANGE step records its consequence on the island, once."""
+def _apply_world_change_step(session, step: dict) -> tuple[tuple[str, ...], tuple]:
+    """Continuing past a WORLD_CHANGE step records its consequence on the island, once.
+
+    It also fires the `WORLD_CHANGE` reward rules of a protected key recorded at its own place
+    (SC-R07-01, `grant_world_change_rewards`), once per child. Returns the keys and those grants.
+    """
     presentation = step.get("presentation", {})
     payload = presentation.get("payload") if presentation.get("kind") == "world-change" else None
     if not isinstance(payload, dict):
-        return ()
+        return (), ()
     record_world_change(
         session.child,
         location_slug=payload["locationSlug"],
@@ -434,11 +443,21 @@ def _apply_world_change_step(session, step: dict) -> tuple[str, ...]:
         change_key=payload["changeKey"],
         source_session=session,
     )
-    return (payload["changeKey"],)
+    rewards = grant_world_change_rewards(
+        session.child,
+        location_slug=payload["locationSlug"],
+        change_key=payload["changeKey"],
+        source_session=session,
+    )
+    return (payload["changeKey"],), rewards
 
 
-def _on_completion(session) -> Completion:
-    """Grant the configured reward once and move the child's quests forward."""
+def _on_completion(session, change_rewards: tuple = ()) -> Completion:
+    """Grant the configured reward once and move the child's quests forward.
+
+    `change_rewards` are the grants of a WORLD_CHANGE step answered in this same request, so the
+    child hears their message with the adventure's own (SC-R07-01).
+    """
     # Imported here: `apps.quests.services` imports this module's errors.
     from apps.quests.services import grant_quest_completion_rewards, refresh_active_quests
 
@@ -452,7 +471,7 @@ def _on_completion(session) -> Completion:
     updates = refresh_active_quests(child, source_session=session)
     quest_rewards = grant_quest_completion_rewards(child, updates, source_session=session)
     return Completion(
-        rewards=(*rewards, *((r.rule, r.grant) for r in quest_rewards)),
+        rewards=(*change_rewards, *rewards, *((r.rule, r.grant) for r in quest_rewards)),
         quests_completed=tuple(u.progress.quest.slug for u in updates if u.result.just_completed),
     )
 

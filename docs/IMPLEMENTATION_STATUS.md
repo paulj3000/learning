@@ -143,6 +143,21 @@ root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; 
   leases and heartbeats, worker check-ins and the status renames. The branch is kept, unmerged.
   Tests: question_studio, jobs and settings, 297 passed on PostgreSQL.
 
+## SC-R07: Storykeeper Castle persistent progression (2026-11-17, `work/sc-r07` from `0429055f`); development complete, unit-tested only, NOT merged
+
+- SC-R07-01: six castle keepsakes as ordinary items and reward rules (`castle-keepsakes` set; three new
+  items and rules). WORLD_CHANGE rules are paid by Django only for a protected key at its own place,
+  from the graded adventure step and story completion (`grant_world_change_rewards`); no migration.
+- SC-R07-02: all six Trophy Room pedestals bound; primitive keepsake meshes; reusable
+  `artifactPedestal.ts` (pure state machine, scale fit, reduced motion, fallback), not yet wired
+  (no art). The gold plates were folded away to stay under the 300 draw-call estimate (298).
+- SC-R07-03: Hall of Heroes as a client-composed, read-only text list in the castle guide; 3D gallery
+  plates deferred on the scenery and draw budgets.
+- SC-R07-04: rank titles, pure and content-configured, flag OFF; owner decision open (keep or drop,
+  four or five titles).
+- Evidence and deviations: `tasks/TASK_TRACKER.md` SC-R07-01 to 04. Not run: browser, WebGL, device,
+  e2e, lint, format, full suites. No backfill run for children who earned keepsake keys earlier.
+
 ## SC-R05: Storykeeper Castle characters (2026-11-17, `work/sc-r05` from `c81ee466`); development complete, unit-tested only, NOT merged
 
 - SC-R05-01 Keeper Quill: Django `quill_content.py` now carries the SC-R04 premise

@@ -2,6 +2,7 @@ import { useId } from 'react';
 import type { GreatStorybook } from '../../../../great-storybook/useGreatStorybook';
 import { pageState, type PageState, type PageStateContext } from '../../../../great-storybook/pageStates';
 import { getCastleRoom, type CastleRoomId } from '../../castleLayout';
+import { CASTLE_RANKS, shownRank, type CastleRanksConfig } from '../../../../great-storybook/castleRanks';
 import styles from './CastleGuide.module.css';
 
 /**
@@ -21,6 +22,8 @@ export interface StorybookSectionProps {
   onGo: (roomId: CastleRoomId) => void;
   /** What the child has visited and started, so each missing page can say where they are with it. */
   context?: PageStateContext;
+  /** Rank titles (SC-R07-04): a derived title on the page tracker, only while switched on. */
+  ranks?: CastleRanksConfig;
 }
 
 const STATE_WORDS: Record<PageState, string> = {
@@ -30,8 +33,15 @@ const STATE_WORDS: Record<PageState, string> = {
   RESTORED: 'Back in the book.',
 };
 
-export function StorybookSection({ storybook, access, onGo, context }: StorybookSectionProps) {
+export function StorybookSection({
+  storybook,
+  access,
+  onGo,
+  context,
+  ranks = CASTLE_RANKS,
+}: StorybookSectionProps) {
   const { progress, entries, status, retry } = storybook;
+  const rank = shownRank(progress.restoredRequired, progress.totalRequired, ranks);
   const headingId = useId();
   // A child who restored the book in an earlier edition is never told it is incomplete: the book
   // is restored, and a newly found page is an invitation, not a loss.
@@ -48,6 +58,7 @@ export function StorybookSection({ storybook, access, onGo, context }: Storybook
             ? 'The Great Storybook is restored. A new page was found!'
             : `${progress.restoredRequired} of ${progress.totalRequired} missing pages are back.`}
       </p>
+      {rank ? <p className={styles.where}>Your castle title: {rank.title}.</p> : null}
       {progress.complete ? (
         <p role="status" className={styles.celebrate}>
           Every missing page is back. Well done, storykeeper!

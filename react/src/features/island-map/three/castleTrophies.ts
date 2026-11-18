@@ -1,4 +1,4 @@
-import { ISLAND_ITEMS } from '../../rewards/content/islandItems';
+import { CASTLE_KEEPSAKE_IDS, ISLAND_ITEMS } from '../../rewards/content/islandItems';
 import type { WorldInteraction } from '../worldObjects';
 import { TROPHY_PEDESTAL_SPOTS, ZONES } from './storykeeperCastleRegion';
 
@@ -12,12 +12,14 @@ import { TROPHY_PEDESTAL_SPOTS, ZONES } from './storykeeperCastleRegion';
  * (`ISLAND_ITEMS`). This module only decides *where* an owned item stands. It
  * stores nothing and grants nothing.
  *
- * Persistent artifacts (new items earned by castle play, with their own
- * reward rules) are SC-R07. Until then two pedestals are reserved for the
- * castle items that already exist, the Storykeeper's Quill and the Book with
- * a Blank Page, and four are **open**: empty, labelled as waiting for a
- * treasure, ready for SC-R07 to bind an item id to each. The empty state is
- * the honest state for most children today.
+ * SC-R07-02 binds all six pedestals to the castle keepsakes
+ * (`CASTLE_KEEPSAKE_IDS`, the `castle-keepsakes` set): the Quill, the Book
+ * with a Blank Page, the Great Storybook's Seal, the Painted Words Brush, the
+ * Clue Finder's Lens and the Silver Keeper's Key. Each is granted by its own
+ * server-side reward rule (SC-R07-01). Each age band earns the keepsakes its
+ * own adventures give, so a pedestal waiting for an item is the normal state,
+ * said gently and never as something the child is missing out on. An open
+ * (unbound) pedestal is still supported for content that adds a seventh.
  */
 
 export interface TrophySlot {
@@ -31,18 +33,12 @@ export interface TrophySlot {
 }
 
 /**
- * Pedestal order is the region's. Two are bound to existing castle items,
- * in the order a child usually earns them: finish the Tale, then find the
- * book behind the tapestry (either order is fine; it is only the layout).
+ * Pedestal order is the region's, and the keepsakes stand in the set's order:
+ * the three every band can reach first (the Quill or the Seal through the
+ * Storybook, the Book behind the tapestry), then the Pathfinder brush and the
+ * two Explorer keepsakes. It is only the layout; any order of earning works.
  */
-const BOUND_ITEMS: readonly (string | undefined)[] = [
-  'storykeepers-quill',
-  'blank-page-storybook',
-  undefined,
-  undefined,
-  undefined,
-  undefined,
-];
+const BOUND_ITEMS: readonly (string | undefined)[] = CASTLE_KEEPSAKE_IDS;
 
 export const TROPHY_SLOTS: readonly TrophySlot[] = TROPHY_PEDESTAL_SPOTS.map((spot, index) => ({
   id: `trophy-slot-${index + 1}`,
