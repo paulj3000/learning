@@ -78,18 +78,30 @@ def test_top_level_property_that_is_not_an_array() -> None:
 
 
 @pytest.mark.parametrize(
-    "name", ["KHR_draco_mesh_compression", "EXT_meshopt_compression", "KHR_texture_basisu"]
+    "name",
+    [
+        "KHR_draco_mesh_compression",
+        "EXT_meshopt_compression",
+        "KHR_meshopt_compression",
+        "KHR_texture_basisu",
+    ],
 )
 @pytest.mark.parametrize("where", ["extensionsUsed", "extensionsRequired"])
 def test_compression_extensions_need_a_decoder(name: str, where: str) -> None:
     assert change(setter(where, [name])) == {"needs_decoder"}
 
 
-def test_unknown_required_extension_is_an_error_and_used_one_a_warning() -> None:
-    assert change(setter("extensionsRequired", ["VENDOR_x"])) == {"unsupported_extension"}
-    data = mutated(setter("extensionsUsed", ["VENDOR_x"]))
-    assert error_codes(data) == set()
-    assert "unknown_extension" in warning_codes(data)
+@pytest.mark.parametrize(
+    "name", ["EXT_texture_webp", "EXT_texture_avif", "EXT_mesh_gpu_instancing"]
+)
+@pytest.mark.parametrize("where", ["extensionsUsed", "extensionsRequired"])
+def test_known_unsupported_extensions_are_errors_when_only_used(name: str, where: str) -> None:
+    assert change(setter(where, [name])) == {"unsupported_extension"}
+
+
+@pytest.mark.parametrize("where", ["extensionsUsed", "extensionsRequired"])
+def test_unknown_extension_is_an_error_even_when_only_used(where: str) -> None:
+    assert change(setter(where, ["VENDOR_x"])) == {"unsupported_extension"}
 
 
 def test_supported_extension_is_accepted() -> None:

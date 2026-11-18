@@ -26,6 +26,12 @@ from typing import IO, Any
 
 from django.conf import settings
 
+from lai_processing.processors.gltf.extension_policy import (  # noqa: F401  (re-exported)
+    NEEDS_DECODER,
+    SUPPORTED_EXTENSIONS,
+)
+from lai_processing.processors.gltf.extension_policy import error_code as extension_error_code
+
 from . import formats
 from .models import ModelFormat
 
@@ -43,28 +49,6 @@ CLIP_VOCABULARY = frozenset(
 # own unnamed actions (`ArmatureAction`, `Action.001`). NPC QA, docs/NPC_MANAGER_QA_REPORT.md.
 GENERIC_TAKE_NAME = re.compile(
     r"mixamo\.com|\|Layer\d+(\.\d+)?$|^(Armature)?Action(\.\d+)?$|^Take \d+$", re.IGNORECASE
-)
-
-# Extensions three.js's GLTFLoader handles with no extra decoder (the app configures none).
-SUPPORTED_EXTENSIONS = frozenset(
-    {
-        "KHR_lights_punctual",
-        "KHR_materials_clearcoat",
-        "KHR_materials_emissive_strength",
-        "KHR_materials_ior",
-        "KHR_materials_iridescence",
-        "KHR_materials_sheen",
-        "KHR_materials_specular",
-        "KHR_materials_transmission",
-        "KHR_materials_unlit",
-        "KHR_materials_variants",
-        "KHR_materials_volume",
-        "KHR_mesh_quantization",
-        "KHR_texture_transform",
-    }
-)
-NEEDS_DECODER = frozenset(
-    {"KHR_draco_mesh_compression", "EXT_meshopt_compression", "KHR_texture_basisu"}
 )
 
 IMAGE_TYPES = {"image/png": b"\x89PNG\r\n\x1a\n", "image/jpeg": b"\xff\xd8\xff"}
@@ -440,20 +424,19 @@ def _check_extensions(result, document):
     used = {str(e) for e in _list(document, "extensionsUsed")}
     required = {str(e) for e in _list(document, "extensionsRequired")}
     for name in sorted(used | required):
-        if name in NEEDS_DECODER:
+        code = extension_error_code(name)
+        if code == "needs_decoder":
             result.error(
-                "needs_decoder",
+                code,
                 f"{name} needs a decoder the game does not load. Export without compression.",
-                "extensionsUsed",
+                "extensionsRequired" if name in required else "extensionsUsed",
             )
-        elif name not in SUPPORTED_EXTENSIONS:
-            if name in required:
-                result.error(
-                    "unsupported_extension",
-                    f"The model requires {name}, which the game does not support.",
-                )
-            else:
-                result.warn("unknown_extension", f"{name} will be ignored by the game.")
+        elif code is not None:
+            result.error(
+                code,
+                f"The model uses {name}, which the game does not support.",
+                "extensionsRequired" if name in required else "extensionsUsed",
+            )
 
 
 def _data_uri_payload_length(uri: str) -> int | None:

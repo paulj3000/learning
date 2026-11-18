@@ -452,7 +452,7 @@ def test_registered_with_its_profile_and_the_validator_is_unchanged() -> None:
     assert profile.options == {} and profile.limits.max_input_bytes == 50 * 1024 * 1024
     # LAI-LAMBDA-009 must not bump the GLB validator (the publication gate keys on its version).
     validator, _ = registry.resolve("asset.validate_model", ProfileRef("glb-default", 1))
-    assert isinstance(validator, GlbValidatorProcessor) and validator.version == "1.0.0"
+    assert isinstance(validator, GlbValidatorProcessor) and validator.version == "1.1.0"
 
 
 def test_the_engine_runs_the_inspection_read_only(tmp_path: Path) -> None:

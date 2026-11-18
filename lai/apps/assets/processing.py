@@ -220,6 +220,9 @@ def submit_model_validation(version, *, user):
         # Lock order: asset row first, as `upload_version` and `publish_version` do. A second
         # submission waits here and then sees the first one's committed job.
         ContentAsset.objects.select_for_update().filter(pk=version.asset_id).first()
+        # The version row too, the same lock `publish_version` holds while it checks the gate: a
+        # submission and a publication of one version never interleave.
+        type(version).objects.select_for_update().filter(pk=version.pk).first()
         same_work = validation_jobs(version).filter(idempotency_key=payload["idempotency_key"])
         latest = same_work.first()
         current = type(version).objects.filter(pk=version.pk).values_list("status", flat=True)

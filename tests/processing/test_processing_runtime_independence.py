@@ -29,6 +29,10 @@ FORBIDDEN_TOP_LEVEL = frozenset(
         "urllib3",
         "httpx",
         "aiohttp",
+        # Native code lives only in `processing/lai_native`, never in the pure library.
+        "lai_native",
+        "PIL",
+        "jobs_worker",
     }
 )
 # Modules that load code dynamically, execute processes, deserialise code or open the network.
@@ -188,3 +192,23 @@ def test_package_has_no_non_python_code_or_native_extensions() -> None:
         p.suffix for p in PACKAGE.rglob("*") if p.is_file() and "__pycache__" not in p.parts
     }
     assert suffixes <= {".py", ".json", ".txt"}
+
+
+def test_every_import_is_standard_library_or_the_package_itself() -> None:
+    """An allowlist, not only a denylist: a new third-party import fails here even if nobody
+    thought to forbid it by name."""
+    allowed = set(sys.stdlib_module_names) | {"lai_processing"}
+    stray: list[str] = []
+    for path in _package_files():
+        for node in ast.walk(ast.parse(path.read_text())):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module]
+            stray += [
+                f"{path.relative_to(PROCESSING)}: {n}"
+                for n in names
+                if n.split(".")[0] not in allowed
+            ]
+    assert stray == []

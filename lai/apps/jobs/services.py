@@ -29,9 +29,11 @@ import uuid
 from datetime import timedelta
 from importlib import import_module
 
+from django.apps import apps as django_apps
 from django.conf import settings
-from django.db import transaction
-from django.db.models import Q
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+from django.db.models import ProtectedError, Q
 from django.utils.timezone import now
 
 from .core import envelope, tasks
@@ -413,8 +415,13 @@ def retention_days(kind: str) -> int:
 
 def prunable(stamp):
     """Completed jobs `sweep` deletes at `stamp`: finished strictly more than their kind's
-    retention period before it (a job finished exactly that long ago is kept). Pending, running
-    and failed jobs are never pruned, whatever their age."""
+    retention period before it (a job finished exactly that long ago is kept). Pending and
+    running jobs are never pruned, whatever their age. Failed jobs: see `prunable_failed`."""
+    return ProcessingJob.objects.filter(_expired(stamp), status=JobStatus.COMPLETED)
+
+
+def _expired(stamp) -> Q:
+    """Rows finished strictly more than their kind's retention period before `stamp`."""
     special = list(RETENTION_SETTINGS)
     expired = Q(
         ~Q(kind__in=special),
@@ -422,11 +429,79 @@ def prunable(stamp):
     )
     for kind in special:
         expired |= Q(kind=kind, finished_at__lt=stamp - timedelta(days=retention_days(kind)))
-    return ProcessingJob.objects.filter(expired, status=JobStatus.COMPLETED)
+    return expired
+
+
+def _protected_references() -> list[Q]:
+    """Filters that match a job another table still points at through a PROTECT foreign key
+    (for example a derived artifact's `job`). Generic on purpose: any model that protects its
+    job is honoured with no code here, so a new reference can never be silently severed."""
+    from django.db.models import Exists, OuterRef
+
+    out = []
+    for rel in ProcessingJob._meta.related_objects:
+        if not rel.one_to_many or rel.on_delete is not models.PROTECT:
+            continue
+        child = rel.related_model._default_manager.filter(**{rel.field.name: OuterRef("pk")})
+        out.append(Exists(child))
+    return out
+
+
+def _subject_exists(job: ProcessingJob) -> bool:
+    """True when the record a job worked for still exists, or cannot be resolved (unknown means
+    keep): a retry of that work counts this job's attempt (`attempts_exhausted` in
+    apps.assets.processing counts the logical work's jobs)."""
+    try:
+        model = django_apps.get_model(job.subject_type)
+        return model._default_manager.filter(pk=job.subject_id).exists()
+    except (LookupError, ValueError, TypeError, ValidationError):
+        return True
+
+
+def prunable_failed_ids(stamp) -> list:
+    """Ids of FAILED jobs `sweep` deletes at `stamp`: finished strictly more than their kind's
+    retention period before it (`retention_days`: 30 days, 90 for model validation), and none of
+    - a job a PROTECT foreign key references (derived artifacts),
+    - a keyed (contract-kind) job whose subject record still exists: submitting the same logical
+      work again counts its jobs (a bounded number of attempts), so deleting one would hand back
+      an attempt. Once the subject is deleted the work cannot be retried, and the job goes,
+    - any job while the results queue holds (or may hold) messages: a late result for a failed
+      job must still find it.
+    Pending and running jobs are never candidates. The sweep re-checks each row under its lock."""
+    if results_backlog() != 0:
+        return []
+    candidates = ProcessingJob.objects.filter(_expired(stamp), status=JobStatus.FAILED)
+    for reference in _protected_references():
+        candidates = candidates.exclude(reference)
+    return [job.pk for job in candidates.iterator() if not _keeps_attempt(job)]
+
+
+def _keeps_attempt(job: ProcessingJob) -> bool:
+    return bool(job.idempotency_key) and _subject_exists(job)
+
+
+def _delete_failed(job_id, stamp) -> bool:
+    """Delete one failed job if it is still prunable, under its row lock (a concurrent result or
+    resubmission wins). A PROTECT reference that appeared meanwhile keeps the row."""
+    try:
+        with transaction.atomic():
+            job = ProcessingJob.objects.select_for_update().filter(pk=job_id).first()
+            if (
+                job is None
+                or job.status != JobStatus.FAILED
+                or not ProcessingJob.objects.filter(_expired(stamp), pk=job.pk).exists()
+                or _keeps_attempt(job)
+            ):
+                return False
+            job.delete()
+        return True
+    except ProtectedError:
+        return False
 
 
 def sweep(*, dry_run: bool = False) -> dict[str, int]:
-    """Fail stale unfinished jobs (`timeout`) and delete old completed ones (`prunable`).
+    """Fail stale unfinished jobs (`timeout`), delete old completed ones (`prunable`) and old
+    terminal failed ones (`prunable_failed_ids`).
 
     Timeouts wait while the results queue holds messages (or its depth cannot be read): after the
     overnight stop or a database outage, completions for "stale" jobs may still be queued, and
@@ -439,8 +514,15 @@ def sweep(*, dry_run: bool = False) -> dict[str, int]:
         ).values_list("pk", flat=True)
     )
     old = prunable(stamp)
-    report = {"stale": len(stale_ids), "timed_out": 0, "deferred": 0, "pruned": old.count()}
+    report = {
+        "stale": len(stale_ids),
+        "timed_out": 0,
+        "deferred": 0,
+        "pruned": old.count(),
+        "pruned_failed": 0,
+    }
     if dry_run:
+        report["pruned_failed"] = len(prunable_failed_ids(stamp))
         return report
     if stale_ids:
         backlog = results_backlog()
@@ -450,8 +532,22 @@ def sweep(*, dry_run: bool = False) -> dict[str, int]:
     for job_id in stale_ids:
         if fail_job(job_id, "timeout"):
             report["timed_out"] += 1
-    old.delete()
+    # Failed jobs are chosen before the timeouts above fail more jobs, and at the same `stamp`:
+    # a job failed in this run is brand new and is never old enough to be deleted by it.
+    failed_ids = prunable_failed_ids(stamp)
+    _delete_completed(old)
+    report["pruned_failed"] = sum(1 for job_id in failed_ids if _delete_failed(job_id, stamp))
     return report
+
+
+def _delete_completed(old) -> None:
+    """Delete the completed jobs one by one, skipping any a PROTECT reference still holds."""
+    try:
+        old.delete()
+    except ProtectedError:
+        for reference in _protected_references():
+            old = old.exclude(reference)
+        old.delete()
 
 
 def latest_for(subject) -> ProcessingJob | None:

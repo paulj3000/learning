@@ -22,8 +22,6 @@ from lai_processing.processors.gltf.document import (
     CLIP_VOCABULARY,
     COMPLEXITY_DEFAULTS,
     GENERIC_TAKE_NAME,
-    NEEDS_DECODER,
-    SUPPORTED_EXTENSIONS,
 )
 
 DJANGO_VALIDATION = Path(__file__).resolve().parents[2] / "lai/apps/assets/validation.py"
@@ -73,9 +71,16 @@ def test_generic_take_name_pattern_matches_django() -> None:
     assert flag == "IGNORECASE"
 
 
-def test_extension_policy_matches_django() -> None:
-    assert _literal_set(CONSTANTS["SUPPORTED_EXTENSIONS"]) == SUPPORTED_EXTENSIONS
-    assert _literal_set(CONSTANTS["NEEDS_DECODER"]) == NEEDS_DECODER
+def test_extension_policy_is_one_shared_table() -> None:
+    """Django imports the policy from `lai_processing` (no second copy to drift)."""
+    source = DJANGO_VALIDATION.read_text()
+    assert "lai_processing.processors.gltf.extension_policy" in source
+    assert "SUPPORTED_EXTENSIONS: " not in source and "NEEDS_DECODER: " not in source
+    assert "SUPPORTED_EXTENSIONS =" not in source and "NEEDS_DECODER =" not in source
+    from lai_processing.processors.gltf import document, extension_policy
+
+    assert document.SUPPORTED_EXTENSIONS is extension_policy.SUPPORTED_EXTENSIONS
+    assert document.NEEDS_DECODER is extension_policy.NEEDS_DECODER
 
 
 def test_count_limits_match_django() -> None:

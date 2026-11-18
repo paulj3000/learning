@@ -145,7 +145,7 @@ def test_validate_job_accepts_the_asset_fixture_with_the_glb_processor():
     report = json.loads(out)
     assert report["processor"] == {
         "processor_id": "asset.glb_validator",
-        "processor_version": "1.0.0",
+        "processor_version": "1.1.0",
     }
     assert report["profile"] == {"profile_id": "glb-default", "version": 1}
 

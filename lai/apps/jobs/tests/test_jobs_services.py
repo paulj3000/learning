@@ -275,7 +275,7 @@ def test_sweep_fails_stale_jobs_and_prunes_old_completed(recorder, settings):
     fresh.refresh_from_db()
     assert fresh.status == JobStatus.PENDING
     assert not ProcessingJob.objects.filter(pk=old_done.pk).exists()
-    assert ProcessingJob.objects.filter(pk=old_failed.pk).exists()
+    assert not ProcessingJob.objects.filter(pk=old_failed.pk).exists()  # unkeyed, 90 days old
     assert {status for _id, status, _r in recorder.applied} == {"failed"}
     assert len(recorder.applied) == 2
 
@@ -324,11 +324,8 @@ def test_validation_jobs_have_their_own_retention_and_the_boundary_is_kept(
         failed_old.pk,
     }
     services.sweep()
-    assert kept(young, boundary, older, ancient, failed_old) == {
-        young.pk,
-        boundary.pk,
-        failed_old.pk,
-    }
+    # The failed job (no key, no subject) goes with the same 90 day retention.
+    assert kept(young, boundary, older, ancient, failed_old) == {young.pk, boundary.pk}
 
 
 @pytest.mark.parametrize(
@@ -348,7 +345,7 @@ def test_other_kinds_keep_the_general_retention(recorder, settings, monkeypatch,
     older = finished(kind, 30, extra=timedelta(microseconds=1))
     failed_old = finished(kind, 400, status=JobStatus.FAILED)
     services.sweep()
-    assert kept(boundary, older, failed_old) == {boundary.pk, failed_old.pk}
+    assert kept(boundary, older, failed_old) == {boundary.pk}
     assert services.retention_days(kind) == 30
     assert services.retention_days(envelope.ASSET_VALIDATE_MODEL) == 90
 
@@ -358,7 +355,7 @@ def test_active_validation_jobs_are_never_pruned_whatever_their_age(
     recorder, settings, monkeypatch, status
 ):
     """A pending or running job older than every retention period is not prunable; the sweep
-    times it out (FAILED, kept for review) instead of deleting it."""
+    times it out (FAILED, kept until its own retention) instead of deleting it."""
     settings.LAI_JOBS_STALE_MINUTES = 60
     monkeypatch.setattr(services, "now", lambda: STAMP)
     job = ProcessingJob.objects.create(
