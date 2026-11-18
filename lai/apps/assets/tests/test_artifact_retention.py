@@ -241,7 +241,7 @@ def test_s3_listing_failure_is_a_storage_error_not_a_deletion():
 
     from apps.assets.storage import S3AssetStorage
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError):  # not a botocore error: a bug, not a storage fault
         list(S3AssetStorage("b", "us-west-1", client=Failing()).list("processing/"))
     assert isinstance(StorageError("x"), Exception)
 
@@ -260,3 +260,145 @@ def test_command_is_a_dry_run_unless_applied(capsys):
     call_command("asset_artifact_retention", "--apply")
     artifact.refresh_from_db()
     assert artifact.state == ArtifactState.DELETED
+
+
+# --- review fixes (SEC-9, SEC-10, DB-F7) ----------------------------------------------------------
+
+
+def _client_error(code="AccessDenied", status=403, operation="ListObjectsV2"):
+    from botocore.exceptions import ClientError
+
+    return ClientError(
+        {"Error": {"Code": code}, "ResponseMetadata": {"HTTPStatusCode": status}}, operation
+    )
+
+
+def test_s3_list_converts_botocore_errors_to_storage_error():
+    from botocore.exceptions import EndpointConnectionError
+
+    from apps.assets.storage import S3AssetStorage
+
+    class Denied:
+        def list_objects_v2(self, **kwargs):
+            raise _client_error()
+
+    class Down:
+        def list_objects_v2(self, **kwargs):
+            raise EndpointConnectionError(endpoint_url="https://s3")
+
+    for client in (Denied(), Down()):
+        with pytest.raises(StorageError):
+            list(S3AssetStorage("b", "us-west-1", client=client).list("processing/"))
+
+
+def test_s3_open_converts_a_streaming_failure_to_storage_error():
+    from botocore.exceptions import ReadTimeoutError
+
+    from apps.assets.storage import S3AssetStorage
+
+    class Body:
+        def read(self, size):
+            raise ReadTimeoutError(endpoint_url="https://s3")
+
+    class Client:
+        def get_object(self, **kwargs):
+            return {"Body": Body()}
+
+    with pytest.raises(StorageError):
+        S3AssetStorage("b", "us-west-1", client=Client()).open("assets/audio/x/y/audio.ogg")
+
+
+def test_a_retention_run_over_a_failing_s3_listing_reports_storage_unavailable(monkeypatch):
+    from apps.assets.storage import S3AssetStorage
+
+    class Denied:
+        def list_objects_v2(self, **kwargs):
+            raise _client_error()
+
+    failing = S3AssetStorage("b", "us-west-1", client=Denied())
+    monkeypatch.setattr(store, "get_storage", lambda: failing)
+    report = artifact_retention.run_retention(apply=True)
+    assert report["storage_unavailable"] is True
+    assert report["orphans_deleted"] == []
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "processing/artifacts/prod/22222222-2222-4222-8222-222222222222/x/y.ogg",  # other env
+        "assets/audio/npc-pip/zzz/audio.ogg",
+        "speech/shared/ab/clip.mp3",
+        "processing/artifacts/",
+        "processing/artifacts/{ns}/../../assets/audio/x.ogg",
+        "processing/artifacts/{ns}//x.ogg",
+        "",
+    ],
+)
+def test_delete_object_refuses_a_key_outside_this_environment(key):
+    key = key.replace("{ns}", namespace())
+    put_orphan_key = key if key and not key.endswith("/") and ".." not in key else None
+    if put_orphan_key:
+        get_storage().objects[put_orphan_key] = (b"x", "audio/ogg", now())
+    with pytest.raises(store.ArtifactKeyOutsideNamespace):
+        store.delete_object(key)
+    if put_orphan_key:
+        assert exists(put_orphan_key)
+
+
+def test_held_rows_cannot_starve_the_expiry_batch(monkeypatch):
+    monkeypatch.setattr(artifact_retention, "BATCH", 2)
+    held = []
+    for _ in range(3):
+        _v, _j, row = recorded()
+        DerivedArtifact.objects.filter(pk=row.pk).update(
+            retention_hold=True, expires_at=now() - timedelta(days=10)
+        )
+        held.append(row)
+    _v, _j, free = recorded()
+    DerivedArtifact.objects.filter(pk=free.pk).update(expires_at=now() - timedelta(days=1))
+    report = artifact_retention.run_retention(apply=True)
+    assert str(free.pk) in report["expired"]  # older held rows did not fill the batch
+    free.refresh_from_db()
+    assert free.state == ArtifactState.DELETED
+    assert len(report["protected_hold"]) == 2  # reported, bounded by the same batch
+
+
+def test_a_failing_delete_does_not_starve_later_rows(monkeypatch):
+    rows = []
+    for _ in range(3):
+        _v, _j, row = recorded()
+        rows.append(row)
+    DerivedArtifact.objects.filter(pk__in=[r.pk for r in rows]).update(
+        state=ArtifactState.EXPIRED
+    )
+    bad = rows[0]
+    real = store.delete_object
+
+    def selective(key):
+        if key == bad.storage_key:
+            raise store.ArtifactStorageUnavailable
+        return real(key)
+
+    monkeypatch.setattr(artifact_retention, "BATCH", 3)
+    monkeypatch.setattr(artifact_retention, "_PAGE", 1)
+    monkeypatch.setattr(store, "delete_object", selective)
+    report = artifact_retention.run_retention(apply=True)
+    assert report["delete_failed"] == [str(bad.pk)]
+    assert sorted(report["deleted"]) == sorted(str(r.pk) for r in rows[1:])
+
+
+def test_a_dead_store_stops_the_run_after_consecutive_failures(monkeypatch):
+    for _ in range(4):
+        recorded()
+    DerivedArtifact.objects.update(state=ArtifactState.EXPIRED)
+    calls = []
+
+    def down(key):
+        calls.append(key)
+        raise store.ArtifactStorageUnavailable
+
+    monkeypatch.setattr(artifact_retention, "MAX_CONSECUTIVE_FAILURES", 2)
+    monkeypatch.setattr(artifact_retention, "_PAGE", 1)
+    monkeypatch.setattr(store, "delete_object", down)
+    report = artifact_retention.run_retention(apply=True)
+    assert len(calls) == 2 and len(report["delete_failed"]) == 2

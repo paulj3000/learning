@@ -256,7 +256,8 @@ class S3AssetStorage:
         self.client = client
 
     def _error(self, error, key: str) -> StorageError:
-        code = getattr(error, "response", {}).get("Error", {}).get("Code", "")
+        response = getattr(error, "response", None) or {}
+        code = response.get("Error", {}).get("Code", "")
         if code in ("PreconditionFailed", "ConditionalRequestConflict"):
             return ObjectExists(key)
         if code in ("NoSuchKey", "404", "NotFound"):
@@ -292,8 +293,14 @@ class S3AssetStorage:
         except (ClientError, BotoCoreError) as error:
             raise self._error(error, key) from None
         spool = tempfile.SpooledTemporaryFile(max_size=8 * CHUNK)
-        while chunk := body.read(CHUNK):
-            spool.write(chunk)
+        try:
+            while chunk := body.read(CHUNK):
+                spool.write(chunk)
+        except (BotoCoreError, ClientError, OSError) as error:
+            # A fault while streaming (read timeout, reset, short read) is a storage fault, never
+            # a bare botocore exception a caller might mistake for "missing" or not catch.
+            spool.close()
+            raise self._error(error, key) from None
         spool.seek(0)
         return spool
 
@@ -307,12 +314,12 @@ class S3AssetStorage:
             raise self._error(error, key) from None
 
     def exists(self, key):
-        from botocore.exceptions import ClientError
+        from botocore.exceptions import BotoCoreError, ClientError
 
         _check_key(key)
         try:
             self.client.head_object(Bucket=self.bucket, Key=key)
-        except ClientError as error:
+        except (ClientError, BotoCoreError) as error:
             if isinstance(self._error(error, key), ObjectMissing):
                 return False
             raise self._error(error, key) from None
@@ -331,12 +338,17 @@ class S3AssetStorage:
         return StoredObject(key, int(head["ContentLength"]), head["LastModified"])
 
     def list(self, prefix=KEY_PREFIX):
+        from botocore.exceptions import BotoCoreError, ClientError
+
         token = None
         while True:
             params = {"Bucket": self.bucket, "Prefix": prefix}
             if token:
                 params["ContinuationToken"] = token
-            page = self.client.list_objects_v2(**params)
+            try:
+                page = self.client.list_objects_v2(**params)
+            except (ClientError, BotoCoreError) as error:
+                raise self._error(error, prefix) from None  # a StorageError, never botocore's
             for item in page.get("Contents", []):
                 yield StoredObject(item["Key"], item["Size"], item["LastModified"])
             if not page.get("IsTruncated"):
