@@ -104,3 +104,72 @@ Built to this contract, with these differences from it, all following the code:
 Files: `three/castleWritingRoomRegion.ts`, `three/runtime/manifests/castleWritingRoom.ts` and its `.test.ts`, `.engine.test.ts`, `Parity.test.tsx`.
 
 Owner decisions, taken on the safe reading until answered: no "write the first story" action; no NPC placed (the `islandNpcs.ts` afternoon entry is still unplaced in both renderers); no new band gate (Sprouts are not blocked by the room itself; whether they should reach it at all is a LAI-2303 question).
+
+## Implementation note (SC-final-B, owner decisions answered)
+
+The three open questions above are answered, and the safe reading used by SC-R10-01/02 is replaced.
+
+**Band mapping used.** The first brief listed the two older bands the wrong way round. The
+age-correct mapping from `CLAUDE.md` section 3 is what ships:
+
+| Band | Activity |
+|---|---|
+| Sprouts (3 to 4) | Tap a picture, a character and a word. One step at a time, narrated ("Hear it"), large targets, no reading or typing. |
+| Pathfinders (5 to 6) | Build two or three sentences from authored word tiles (any order the child likes). Narrated prompts. |
+| Explorers (7 to 8) | Pick an authored story starter, then type a short paragraph (30 to 500 characters). |
+
+**Where the activity lives.** One adventure template per band at `castle-writing-room`
+(`adventures/content/writingRoomStories.ts`: `writing-room-picture-story`, `writing-room-sentence-story`,
+`writing-room-own-story`), so the saved story belongs to an `AdventureSession` and is an ordinary
+`StoryArtifact`: parent-viewable and parent-deletable (Story Keepsakes), and the completed session
+shows in the adventure log. The page is `routes/WritingRoomWritePage.tsx` and the component is
+`features/writing-room/WritingRoomActivity.tsx` (React, ADR-020: Phaser gets nothing). It is reached from
+the open book on the desk in the 3D room (a `NAVIGATE` interaction, `WorldActionPanel`'s "Go there") and
+from "Write a story" on the location card. It is never required and grants no reward, world change or
+currency. There is no wrong story and nothing is graded.
+
+**Saving and safety.** `POST children/{id}/story-artifacts/written/`
+(`lai/apps/education/written_story.py`, `WrittenStoryView`).
+- Sprouts and Pathfinders send option ids only. The server composes the text from the authored option
+  labels, so those stories can contain nothing but authored words.
+- An Explorer's paragraph is the only child free text. It is length-bounded, then screened by the
+  existing deterministic input checks (`screen_untrusted_text`: prompt injection, private and contact
+  details, links, secrecy, reward manipulation) plus a short list of rude or hurtful words. A refusal is
+  `written_story_refused` with an authored kind message; it names no category, never repeats the text,
+  stores nothing, completes no session and logs nothing.
+- No model reads, rewrites or comments on a child's writing. Encouragement is authored in the client.
+- One story per session (the existing `story_artifact_once_per_session` constraint); another parent's
+  child, another child's session, a wrong band or a wrong place is a 404. The older `story-artifacts/`
+  route still refuses a `CHILD` scene, so only this route can store child-authored text.
+- The server completes the session itself, with no reward and no world change.
+
+**Narration.** Prompts are staff-written `SpeechLine`s (`<adventure slug>-<step id>`) in
+`lai/apps/speech/writing_room_speech.json`, created by the existing `seed_castle_speech_lines`, and held equal
+to the client's copy by a Vitest test. A voice that fails or is off leaves the same words on screen as the caption.
+Nothing a child wrote is ever spoken.
+
+**Keeper Quill.** Placed in the Three.js room unconditionally, as the castle places him (the manifest runtime
+has no schedule concept; `islandNpcs.ts` still schedules him here in the afternoon). Tapping him opens the same
+`NpcConversation` the castle's Quill opens (`TALK_TO` keeper-quill): his authored lines, memory and optional
+narration. One authored Writing Room line was added ("Afternoons are for writing..."), said once in an
+afternoon after he has met the child. The NPC Manager host (`useNpcSceneHost`) is not mounted in this room
+(see the report for the follow-up); later Quill AI flavour belongs in `NpcConversation`.
+
+**Unlock.** The Writing Room no longer waits on `THE_CASTLES_SECRET_DOOR_COMPLETE` (whose chapter 1 has a
+`number-input` step). It has no unlock requirement anywhere: `locations.ts` (so the client card, the Phaser
+view and the content export agree, and Django's `place_unlocked` shows the card to everyone), and the Three.js
+manifest has no `entryRequirements`. A child who already holds the key keeps everything: the library's last
+bookshelf (`castle-last-bookshelf`) still opens for them, and their key and keepsake are untouched. The
+Secret Door arc and its arithmetic stay unchanged inside their own adventure. A child who never did the arc
+reaches the room from the island map card and the location page (Django's `place_unlocked` now shows the
+card to everyone). **No in-castle walk-in door was added for them:** the library's last bookshelf shares its
+zone with the Secret Door story (the first available interaction wins), and any new castle zone, prop or
+interaction changes the WS-C optimisation baseline (`castleOptimisationBaseline.json`) and uses the 300
+draw-call budget (a prototype entry-hall door failed those tests). This is an owner decision, see the report.
+
+**Sprouts** can enter and use the room: flat markers (no jump steps, `platformingByBand`), a tap-only
+activity with large targets and a narrated prompt each step.
+
+Phaser parity holds for the original ids: `CASTLE_WRITING_ROOM_INTERACTIONS` is unchanged (the desk message
+now reads "This desk is yours to use", since nobody has to have "solved" anything). The 3D room's two extra
+interactions live in `CASTLE_WRITING_ROOM_3D_INTERACTIONS`.

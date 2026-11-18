@@ -25,6 +25,7 @@ import {
   WONDERWILD_FOREST_REGION_ID,
 } from '../features/discovery/checkpoints';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
+import { WritingRoomWritePage } from '../routes/WritingRoomWritePage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
 import { QuestJournal } from '../routes/QuestJournal';
@@ -349,6 +350,15 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <WorldHubPage />
+          </RequireParent>
+        }
+      />
+      {/* SC-final-B: the Writing Room's write-your-story activity (open to every child, never required). */}
+      <Route
+        path="/island/:childId/locations/castle-writing-room/write"
+        element={
+          <RequireParent>
+            <WritingRoomWritePage />
           </RequireParent>
         }
       />

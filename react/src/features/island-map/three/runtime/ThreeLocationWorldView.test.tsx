@@ -580,3 +580,85 @@ describe('ThreeLocationWorldView sprint setting (running & sprinting)', () => {
     window.localStorage.clear();
   });
 });
+
+/**
+ * `entryRequirements` (SC-R10-01, documented in `docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md`,
+ * "Entry requirements"): optional, a list read as an AND, evaluated against the same world snapshot
+ * as everything else, and closed whenever the snapshot could not be read. Absent means open.
+ */
+describe('entryRequirements', () => {
+  const GATED_BY = (...requirements: NonNullable<ThreeLocationManifest['entryRequirements']>) =>
+    ({
+      ...TEST_COVE,
+      regionId: 'gated-cove',
+      entryRequirements: requirements,
+      copy: { ...TEST_COVE.copy, locked: 'Not discovered yet.' },
+    }) satisfies ThreeLocationManifest;
+
+  const renderGated = (manifest: ThreeLocationManifest) =>
+    renderView(manifest.regionId, repositoryOf(manifest));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    engine.bus = null;
+    getWorldStateMock.mockResolvedValue({ discoveredIds: [], metCharacterIds: [] });
+    listAllWorldChangesMock.mockResolvedValue([]);
+    vi.mocked(getInventory).mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    vi.mocked(listQuestStates).mockResolvedValue([]);
+    vi.mocked(getCompanionProfile).mockResolvedValue(null);
+  });
+
+  it('is open when the manifest has none (absent means open, every existing region)', async () => {
+    renderView('test-cove', repositoryOf(TEST_COVE));
+    expect(await screen.findByText('Explore the cove.')).toBeInTheDocument();
+    expect(screen.queryByText('Not discovered yet.')).not.toBeInTheDocument();
+  });
+
+  it('shows the authored locked copy and builds no engine while a requirement is unmet', async () => {
+    renderGated(GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }));
+    expect(await screen.findByText('Not discovered yet.')).toBeInTheDocument();
+    expect(engine.bus).toBeNull();
+    expect(screen.getByRole('link', { name: 'Back to the map' })).toHaveAttribute('href', '/island/child-1');
+  });
+
+  it('opens once the requirement holds', async () => {
+    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'A_KEY' }] as never);
+    renderGated(GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }));
+    expect(await screen.findByText('Explore the cove.')).toBeInTheDocument();
+  });
+
+  it('is an AND: every requirement must hold, not just one', async () => {
+    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'A_KEY' }] as never);
+    renderGated(
+      GATED_BY(
+        { type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' },
+        { type: 'WORLD_CHANGE_PRESENT', changeKey: 'B_KEY' },
+      ),
+    );
+    expect(await screen.findByText('Not discovered yet.')).toBeInTheDocument();
+    cleanup();
+    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'A_KEY' }, { changeKey: 'B_KEY' }] as never);
+    renderGated(
+      GATED_BY(
+        { type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' },
+        { type: 'WORLD_CHANGE_PRESENT', changeKey: 'B_KEY' },
+      ),
+    );
+    expect(await screen.findByText('Explore the cove.')).toBeInTheDocument();
+  });
+
+  it('fails closed: a failed progress read has no keys, so a gated place stays shut', async () => {
+    listAllWorldChangesMock.mockRejectedValue(new Error('offline'));
+    renderGated(GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }));
+    expect(await screen.findByText('Not discovered yet.')).toBeInTheDocument();
+    expect(engine.bus).toBeNull();
+  });
+
+  it('falls back to a calm default when a gated manifest authors no locked copy', async () => {
+    renderGated({
+      ...GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }),
+      copy: TEST_COVE.copy,
+    });
+    expect(await screen.findByText(/has not been discovered yet/i)).toBeInTheDocument();
+  });
+});

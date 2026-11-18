@@ -129,6 +129,40 @@
     {
       "dialogue": [
         {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "quill-writing-room-yes",
+              "label": "I would like that!"
+            },
+            {
+              "id": "quill-writing-room-later",
+              "label": "Maybe later."
+            }
+          ],
+          "conditions": [
+            {
+              "timeOfDay": "AFTERNOON",
+              "type": "TIME_OF_DAY"
+            },
+            {
+              "equals": true,
+              "flag": "metQuill",
+              "type": "MEMORY_FLAG"
+            },
+            {
+              "equals": false,
+              "flag": "heardAboutWritingRoom",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "quill-writing-room-afternoon",
+          "setsMemoryFlags": [
+            "heardAboutWritingRoom"
+          ],
+          "text": "Afternoons are for writing. If you would like to fill an empty book, the desk in the Writing Room is waiting."
+        },
+        {
           "awardsRelationshipPoints": 2,
           "choices": [
             {

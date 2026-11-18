@@ -12,6 +12,8 @@ import { getChildProfile } from '../features/child-profile/api';
 import type { WorldChange } from '../features/adventures/api';
 import type { ChildProfile } from '../features/child-profile/api';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
+import { WRITING_ROOM_WRITE_PATH } from '../features/island-map/worldObjects';
+import { WRITING_ROOM_LOCATION_SLUG } from '../features/adventures/content/writingRoomStories';
 import { usePlaceArea } from '../features/region-play/usePlaceArea';
 import {
   CASTLE_WRITING_ROOM_REGION_ID,
@@ -182,9 +184,18 @@ export function IslandLocationPage() {
         {template && isAgeSupported ? (
           <Link
             className={styles.startLink}
-            to={`/island/${childId}/locations/${location.slug}/adventures/${template.slug}`}
+            to={
+              location.slug === WRITING_ROOM_LOCATION_SLUG
+                ? // SC-final-B: the Writing Room's stories have their own tap and typing page.
+                  `/island/${childId}/${WRITING_ROOM_WRITE_PATH}`
+                : `/island/${childId}/locations/${location.slug}/adventures/${template.slug}`
+            }
           >
-            {isWorldChanged ? `Play "${template.title}" again` : `Start: ${template.title}`}
+            {location.slug === WRITING_ROOM_LOCATION_SLUG
+              ? 'Write a story'
+              : isWorldChanged
+                ? `Play "${template.title}" again`
+                : `Start: ${template.title}`}
           </Link>
         ) : null}
         {template && !isAgeSupported ? (

@@ -106,12 +106,17 @@ export const ISLAND_LOCATIONS: IslandLocation[] = [
     slug: 'castle-writing-room',
     worldSlug: HOME_WORLD_SLUG,
     title: 'The Writing Room',
-    tagline: 'A secret spot, discovered by solving the castle mystery.',
+    tagline: 'A quiet room in the castle, with empty books waiting for your stories.',
     description:
-      'A small round room behind the last bookshelf: a desk, a window, and shelves of empty books, left ready for whoever solved the door.',
+      'A small round room in the castle: a desk, a window, and shelves of empty books, ready for anyone who would like to write a story.',
     skills: ['Curiosity', 'Creative writing'],
     decoration: 'Shelves of empty books wait for their first stories.',
-    unlockRequirement: { changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' },
+    /*
+      SC-final-B: open to every child. The room used to wait for
+      `THE_CASTLES_SECRET_DOOR_COMPLETE`, whose arc has an arithmetic step, so a child who
+      never did that sum could never write here. A child who already holds that world change
+      keeps everything it gave them (the key and the keepsake); only the gate is gone.
+    */
   },
   {
     slug: 'bolts-workshop',

@@ -66,13 +66,38 @@ describe('The Writing Room on the generic runtime', () => {
   it('focuses the desk, and a tap on it raises ObjectInteracted for the shared interaction', async () => {
     const harness = room();
     await harness.engine.ready;
-    harness.setDrive(standAt(0.9, -1, Math.PI / 2));
+    harness.setDrive(standAt(0.9, -1.2, Math.PI / 2));
     harness.runFrames(1);
     expect(named(harness.events, 'InteractableFocused')).toContainEqual({
       entityId: 'writing-room-desk',
     });
     harness.engine.interact();
     expect(named(harness.events, 'ObjectInteracted')).toHaveLength(1);
+  });
+
+  it('puts the open book on the desk top, as a named entity with the write-your-story interaction', async () => {
+    const harness = room();
+    await harness.engine.ready;
+    harness.runFrames(1);
+    const book = harness.scene().getObjectByName('An open book');
+    expect(book).toBeDefined();
+    // It lies on the desk (0.9 m), inside the desk's footprint, so it never blocks a way.
+    expect(book!.position.x).toBeCloseTo(3.0, 1);
+    expect(book!.position.y).toBeCloseTo(0.9, 1);
+    expect(MANIFEST.props.find((prop) => prop.entityId === 'writing-room-open-book')?.interactionId).toBe(
+      'writing-room-write-story',
+    );
+  });
+
+  it('focuses Keeper Quill, who stands solid, and a tap raises the talk interaction', async () => {
+    const harness = room();
+    await harness.engine.ready;
+    // Quill is at (0.8, 1.8), facing west; stand west of him, looking east.
+    harness.setDrive(standAt(-1.2, 1.8, Math.PI / 2));
+    harness.runFrames(1);
+    expect(named(harness.events, 'InteractableFocused')).toContainEqual({ entityId: 'keeper-quill' });
+    harness.engine.interact();
+    expect(named(harness.events, 'NpcApproached').length + named(harness.events, 'ObjectInteracted').length).toBeGreaterThan(0);
   });
 
   it('puts the optional low steps in the scene without gating anything on them', async () => {

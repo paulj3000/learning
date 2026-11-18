@@ -120,7 +120,7 @@ describe('preservation of the existing content', () => {
     ).toEqual({
       islands: 2,
       locations: 11,
-      adventures: 26,
+      adventures: 29, // + the Writing Room's three per-band stories (SC-final-B)
       learningObjectives: 20,
       wonderWallQuestions: 4,
       stories: 5,

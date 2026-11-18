@@ -118,7 +118,12 @@ AWS) unless a line says otherwise.
 | O-13 | Ambient return-visit line in the guide; it changes across visits, never says "come back tomorrow", never counts down | All | Open the castle several times | |
 | O-14 | Castle Director with AI off (parent toggle) and with the kill switch: the castle still shows the authored default | All | Toggle each | |
 | O-19 | Secret Chamber finds: a brighter star in the north-wall mural and a mouse-sized door low on the east wall, each found by walking up, never listed, only after the tapestry nook; chamber return-visit lines mention them afterwards | All | Find the nook, enter the chamber, then revisit | |
-| O-15 | Three.js Writing Room at `explore/castle-writing-room`: locked before the Secret Door arc, same two messages and exit as Phaser after; two optional low steps; none for Sprouts | Explorer | "Try the 3D room (preview)" link on the location page | |
+| O-15 | Three.js Writing Room at `explore/castle-writing-room`: open to every child with no prior story (the old Secret Door gate and its arithmetic are gone), same two messages (the desk now reads "This desk is yours to use") and exit as Phaser; two optional low steps; none for Sprouts; Keeper Quill stands near the desk | All | "Try the 3D room (preview)" and "Write a story" on the location page (also listed on the island map for every child) | |
+| O-15a | Writing Room write-your-story: tap the open book on the desk (or "Write a story" on the location page). Sprouts tap a picture, a character and a word; Pathfinders build 2 or 3 sentences from word tiles; Explorers pick a starter and type a short paragraph. Story is saved once, shows in the adventure log and the parent's Story Keepsakes, and Keeper Quill's "Hear it" reads each prompt | One child per band | Walk to the desk, then also use the location page | |
+| O-15b | Writing Room safety: an Explorer paragraph with a phone number, an email, a link or a rude word is refused with a kind line, nothing is saved, and the text is not repeated | Explorer | Type each | |
+| O-15c | A child who already finished the Secret Door arc keeps the library bookshelf door, their key and keepsake, exactly as before | Explorer | Existing profile | |
+| O-15d | Sprouts can walk in, use large targets, flat markers (no jump steps), and finish the tap story by themselves | Sprout | Playtest | |
+| O-15e | Keeper Quill's afternoon line ("Afternoons are for writing...") is heard once, in an afternoon, after he has met the child; his other lines are unchanged | Any | Talk to him twice in an afternoon | |
 | O-16 | Harbor exit is always reachable and never behind arithmetic, in every room | All | Try to leave from each room | |
 | O-17 | Keyboard-only visit (Tab order exit, prompt, backpack; no focus trap) and an iPad Safari touch visit | All | | |
 | O-18 | Reduced motion at the OS level (read at mount; reload after changing it) | All | | |
@@ -135,12 +140,13 @@ AWS) unless a line says otherwise.
 1. ADR-065 (Castle Director), Proposed: accept, amend or reject. Promote the event catalog to an
    ADR-047 revisioned admin model, or keep the JSON mirror.
 2. Where Quill flavour (SC-R09-02, service only) surfaces, if at all.
-3. Writing Room: a write-your-story action (new scope), the NPC `islandNpcs.ts` schedules there,
-   Sprouts access, and `entryRequirements` in the shared manifest schema.
+3. RESOLVED (SC-final-B, owner approved): the Writing Room has a write-your-story action, Keeper Quill
+   is placed there, Sprouts can enter, and `entryRequirements` stays in the shared manifest schema
+   (documented in `docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md`).
 4. Ranks (O-12).
 5. `assetLoader.trim`, live reduced-motion handling, kit-piece scaling before any 4 m room.
-6. The optional Writing Room is unlocked by the Explorer secret-door arc, whose chapter 1 has a
-   `number-input` step. Acceptable?
+6. RESOLVED (SC-final-B): the Writing Room no longer waits on the Explorer secret-door arc (chapter 1
+   has a `number-input` step); it is open to every child, and earned progress keeps its own door.
 7. Draw-call estimate is now 300 of 300 (SC-R08-02): raise the budget or merge decor before any more
    castle scenery, including optional chamber platforms. Chamber proposals not built: a graded puzzle
    at the sealed round door and a second hidden Storybook page (deferred, needs owner curriculum

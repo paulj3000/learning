@@ -924,8 +924,9 @@ export const FOSSIL_RIDGE_CAMP_INTERACTIONS: WorldInteraction[] = [
  * (`STORYKEEPER_CASTLE_INTERACTIONS`'s `castle-last-bookshelf`, matching the
  * story's own "behind the last bookshelf" framing) rather than from Welcome
  * Harbor, so its own exit leads back into the castle, not to Welcome
- * Harbor. Every entry here is unconditionally available, since reaching the
- * location at all already requires `THE_CASTLES_SECRET_DOOR_COMPLETE`.
+ * Harbor. Every entry here is unconditionally available. SC-final-B: reaching
+ * the location no longer requires `THE_CASTLES_SECRET_DOOR_COMPLETE` (its arc has an
+ * arithmetic step), so the room is open to every child.
  */
 export const CASTLE_WRITING_ROOM_INTERACTIONS: WorldInteraction[] = [
   {
@@ -937,7 +938,7 @@ export const CASTLE_WRITING_ROOM_INTERACTIONS: WorldInteraction[] = [
     requirements: [{ type: 'ALWAYS' }],
     action: {
       kind: 'SHOW_MESSAGE',
-      message: 'You solved it, so it is yours to use. The first empty book is waiting.',
+      message: 'This desk is yours to use. The first empty book is waiting.',
     },
   },
   {
@@ -960,6 +961,40 @@ export const CASTLE_WRITING_ROOM_INTERACTIONS: WorldInteraction[] = [
     targetId: 'storykeeper-castle',
     requirements: [{ type: 'ALWAYS' }],
     action: { kind: 'NAVIGATE', to: 'world/storykeeper-castle' },
+  },
+];
+
+/** Where the write-your-story activity lives, relative to `/island/:childId/`. */
+export const WRITING_ROOM_WRITE_PATH = 'locations/castle-writing-room/write';
+
+/**
+ * SC-final-B: the Three.js Writing Room's additions to the shared interactions above. They are
+ * kept out of `CASTLE_WRITING_ROOM_INTERACTIONS` on purpose, so the Phaser room (which reads that
+ * array) gains nothing (ADR-020) and the original ids and messages stay in parity.
+ *
+ * - `writing-room-write-story`: the open book on the desk. Opens the write-your-story page, which
+ *   picks the child's own band's activity. Optional: nothing else needs it, and it grants nothing.
+ * - `writing-room-talk-to-quill`: Keeper Quill, through the same NPC conversation the castle's
+ *   Quill uses (`TALK_TO` keeper-quill), so his lines, memory and narration are the ones he already has.
+ */
+export const CASTLE_WRITING_ROOM_3D_INTERACTIONS: WorldInteraction[] = [
+  {
+    id: 'writing-room-write-story',
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: 'Write a story in the open book',
+    targetId: 'writing-room-open-book',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: WRITING_ROOM_WRITE_PATH },
+  },
+  {
+    id: 'writing-room-talk-to-quill',
+    type: 'NPC',
+    trigger: 'TAP',
+    title: 'Keeper Quill',
+    targetId: 'keeper-quill',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'TALK_TO', npcId: 'keeper-quill' },
   },
 ];
 
