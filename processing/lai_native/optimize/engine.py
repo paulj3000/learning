@@ -38,7 +38,7 @@ from lai_processing.processors.gltf.compression.optimize_contract import (
     variant_for_profile,
 )
 
-from ..runtime import Deadline, Workspace
+from ..runtime import Deadline, NativeToolError, Workspace
 from .ktx2 import optimize_ktx2
 from .meshopt import OptimizeError, ToolPaths, optimize_meshopt
 from .profiles import KTX2_BASISU, MESHOPT_CONSERVATIVE, OptimizeProfile
@@ -71,6 +71,7 @@ _VERDICT_CODES: Final = frozenset(
         "texture_type",
         "texture_unreadable",
         "tool_failed",
+        "shared_image_view",
     }
 )
 
@@ -96,6 +97,7 @@ _FINDING_TEXT: Final = {
     "texture_type": "A texture is not PNG or JPEG.",
     "texture_unreadable": "A texture could not be read.",
     "tool_failed": "The optimization tool did not produce a model.",
+    "shared_image_view": "Two textures share one image buffer, so they cannot be converted.",
 }
 
 #: Native runtime codes -> (contract code, reason). Mirrors the audio processor's map.
@@ -189,11 +191,13 @@ class GlbOptimizeProcessor(Processor):
         *,
         workspace_base: str | None = None,
         prepare: PrepareTexture | None = None,
+        preparer: str = "pillow",
         run=None,  # type: ignore[no-untyped-def]  - test seam for the native runner
     ) -> None:
         self._tools = tools
         self._workspace_base = workspace_base
         self._prepare = prepare
+        self._preparer = preparer
         self._run = run
 
     def profiles(self) -> tuple[ProcessingProfile, ...]:
@@ -222,11 +226,17 @@ class GlbOptimizeProcessor(Processor):
         }
         if self._run is not None:
             kwargs["run"] = self._run
-        if variant.name == "ktx2" and self._prepare is not None:
-            kwargs["prepare"] = self._prepare
+        if variant.name == "ktx2":
+            kwargs["preparer"] = self._preparer
+            if self._prepare is not None:
+                kwargs["prepare"] = self._prepare
         step = optimize_meshopt if variant.name == "meshopt" else optimize_ktx2
         try:
-            with Workspace(base=self._workspace_base) as workspace:
+            try:
+                workspace = Workspace(base=self._workspace_base)
+            except NativeToolError as error:
+                raise OptimizeError.from_native(error) from None
+            with workspace:
                 result = step(source, workspace=workspace, **kwargs)
         except OptimizeError as error:
             return self._refused(error)

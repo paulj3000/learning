@@ -50,7 +50,7 @@ from .meshopt import (
 )
 from .profiles import KTX2_BASISU, OptimizeProfile, toktx_argv
 from .signature import compare_signatures
-from .texture_prep import PrepareTexture, TextureError, default_preparer
+from .texture_prep import PrepareTexture, TextureError, resolve_preparer
 from .textures import texture_memory
 
 __all__ = ["optimize_ktx2", "texture_classes"]
@@ -125,6 +125,10 @@ def _image_bytes(document: dict[str, Any], binary: bytes, index: int) -> tuple[i
     return view_index, binary[start : start + view["byteLength"]]
 
 
+#: The preparer used when the caller names none (explicit configuration; never a fallback).
+DEFAULT_PREPARER = "pillow"
+
+
 def optimize_ktx2(
     source: bytes,
     *,
@@ -132,10 +136,46 @@ def optimize_ktx2(
     workspace: Workspace,
     profile: OptimizeProfile = KTX2_BASISU,
     prepare: PrepareTexture | None = None,
+    preparer: str | None = None,
     run: Callable[..., Any] = run_tool,
     deadline: Deadline | None = None,
     cancelled: Callable[[], bool] | None = None,
     clock: Callable[[], float] = time.monotonic,
+) -> OptimizeResult:
+    """See the module docstring. `preparer` names the texture preparer (`pillow`, the default, or
+    `passthrough`); `prepare` injects one directly (tests). A malformed document (a missing key or
+    index the source checks did not catch) is a verdict (`unsupported_layout`), not a crash."""
+    try:
+        return _optimize_ktx2(
+            source,
+            tools=tools,
+            workspace=workspace,
+            profile=profile,
+            prepare=prepare,
+            preparer=preparer,
+            run=run,
+            deadline=deadline,
+            cancelled=cancelled,
+            clock=clock,
+        )
+    except (KeyError, IndexError, TypeError, AttributeError):
+        raise OptimizeError(
+            "unsupported_layout", "The model's structure cannot be rewritten safely."
+        ) from None
+
+
+def _optimize_ktx2(
+    source: bytes,
+    *,
+    tools: ToolPaths,
+    workspace: Workspace,
+    profile: OptimizeProfile,
+    prepare: PrepareTexture | None,
+    preparer: str | None,
+    run: Callable[..., Any],
+    deadline: Deadline | None,
+    cancelled: Callable[[], bool] | None,
+    clock: Callable[[], float],
 ) -> OptimizeResult:
     started = clock()
     if profile.kind != "ktx2":
@@ -149,7 +189,14 @@ def optimize_ktx2(
             [{"code": "extension", "path": name} for name in refused],
         )
     spec = tools.toktx_spec()
-    prepare = prepare or default_preparer()
+    if prepare is None:
+        preparer_name = preparer or DEFAULT_PREPARER
+        try:
+            prepare = resolve_preparer(preparer_name)
+        except TextureError as error:
+            raise OptimizeError(error.code, "The texture preparer is not available.") from None
+    else:
+        preparer_name = preparer or "custom"
     try:
         document, binary = read_glb(source)
     except (GlbLayoutError, ValueError):
@@ -157,6 +204,13 @@ def optimize_ktx2(
     classes = texture_classes(document)
     if not classes:
         raise OptimizeError("no_textures", "The model has no textures to convert.")
+    views = [document["images"][index].get("bufferView") for index in classes]
+    views = [view for view in views if view is not None]
+    if len(views) != len(set(views)):
+        # Two images on one buffer view would overwrite each other's replacement.
+        raise OptimizeError(
+            "shared_image_view", "Two textures share one image buffer; it cannot be converted."
+        )
     replacements: dict[int, bytes] = {}
     encoded: list[dict[str, Any]] = []
     tool_seconds = 0.0
@@ -276,6 +330,7 @@ def optimize_ktx2(
             "gpu_bytes_estimate_after": after_gpu,
             "gpu_bytes_rgba8_fallback_after": facts.as_metadata()["gpu_bytes_rgba8_fallback"],
             "basis": "calculated",
+            "preparer": preparer_name,
         },
         "animation": {
             "clips": [

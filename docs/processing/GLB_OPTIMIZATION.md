@@ -254,7 +254,7 @@ The repository has 6 GLBs; the 116 `.gltf` files are not Asset Library inputs.
 
 Every output passed `validate_meshopt` with no error and the preservation check with no
 difference (also asserted by `test_real_gltfpack_preserves_repository_models` when
-`LAI_GLTFPACK` is set). Single runs. Not measured: arm64, Lambda, decode time in any browser or
+`LAI_GLTFPACK_PATH` is set). Single runs. Not measured: arm64, Lambda, decode time in any browser or
 tablet.
 
 ## 8. Lambda fit (extrapolated, not measured)

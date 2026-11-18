@@ -1,9 +1,9 @@
 """KTX2 optimization step (`lai_native.optimize.ktx2`, ADR-070).
 
 Unit tests use a fake toktx that writes a synthetic KTX2 file (`ktx2_builder`). The real-tool
-tests run the pinned toktx only when `LAI_TOKTX` is set (`native/gltf/fetch-tools.sh`), on the
+tests run the pinned toktx only when `LAI_TOKTX_PATH` is set (`native/gltf/fetch-tools.sh`), on the
 repository's own models, and cross-check every produced texture with KTX-Software's own
-`ktx validate` when `LAI_KTX` is set.
+`ktx validate` when `LAI_KTX_PATH` is set.
 """
 
 from __future__ import annotations
@@ -31,9 +31,9 @@ from lai_native.runtime import ToolResult
 from lai_processing.processors.gltf.compression.ktx2 import validate_basisu
 from lai_processing.processors.gltf.report import Report
 
-TOKTX = Path(os.environ.get("LAI_TOKTX", "/nonexistent/toktx"))
-KTX = Path(os.environ.get("LAI_KTX", "/nonexistent/ktx"))
-GLTFPACK = Path(os.environ.get("LAI_GLTFPACK", "/nonexistent/gltfpack"))
+TOKTX = Path(os.environ.get("LAI_TOKTX_PATH", "/nonexistent/toktx"))
+KTX = Path(os.environ.get("LAI_KTX_PATH", "/nonexistent/ktx"))
+GLTFPACK = Path(os.environ.get("LAI_GLTFPACK_PATH", "/nonexistent/gltfpack"))
 LOOSE = dataclasses.replace(KTX2_BASISU, max_size_ratio=1000.0)
 TOOLS = ToolPaths(toktx=Path("/opt/toktx"))
 
@@ -46,7 +46,7 @@ def _stand_in_preparer(request, monkeypatch):  # type: ignore[no-untyped-def]
         return
     import lai_native.optimize.ktx2 as step
 
-    monkeypatch.setattr(step, "default_preparer", lambda: passthrough_texture)
+    monkeypatch.setattr(step, "DEFAULT_PREPARER", "passthrough")
 
 
 class FakeToktx:
@@ -332,7 +332,7 @@ def _tools() -> ToolPaths:
 
 
 @pytest.mark.real_preparer
-@pytest.mark.skipif(not TOKTX.is_file(), reason="LAI_TOKTX is not set")
+@pytest.mark.skipif(not TOKTX.is_file(), reason="LAI_TOKTX_PATH is not set")
 @pytest.mark.parametrize("path", [p for p in TEXTURED if "npc" not in p.name], ids=lambda p: p.name)
 def test_real_toktx_on_repository_kit_models(tmp_path: Path, path: Path) -> None:
     source = path.read_bytes()
@@ -361,7 +361,8 @@ def test_real_toktx_on_repository_kit_models(tmp_path: Path, path: Path) -> None
 
 @pytest.mark.real_preparer
 @pytest.mark.skipif(
-    not (TOKTX.is_file() and GLTFPACK.is_file()), reason="LAI_TOKTX and LAI_GLTFPACK not set"
+    not (TOKTX.is_file() and GLTFPACK.is_file()),
+    reason="LAI_TOKTX_PATH and LAI_GLTFPACK_PATH not set",
 )
 def test_real_meshopt_then_ktx2_chain(tmp_path: Path) -> None:
     path = next(p for p in REAL_MODELS if p.name == "kenney-tree-large.glb")
@@ -398,9 +399,9 @@ def _png(width: int, height: int, mode: str = "RGB") -> bytes:
 @pytest.mark.real_preparer
 @pytest.mark.skipif(not HAS_PIL, reason="Pillow is not installed")
 def test_pillow_preparer_keeps_multiple_of_four_sizes() -> None:
-    from lai_native.optimize.texture_prep import default_preparer, pillow_texture
+    from lai_native.optimize.texture_prep import pillow_texture, resolve_preparer
 
-    assert default_preparer() is pillow_texture
+    assert resolve_preparer("pillow") is pillow_texture
     prepared = pillow_texture(_png(64, 32), "ktx2-color")
     assert (prepared.width, prepared.height, prepared.mime_type) == (64, 32, "image/png")
     data = pillow_texture(_png(64, 32), "ktx2-data")
@@ -428,9 +429,131 @@ def test_pillow_preparer_refuses_non_images() -> None:
 
 
 @pytest.mark.real_preparer
-@pytest.mark.skipif(not (HAS_PIL and TOKTX.is_file()), reason="Pillow and LAI_TOKTX needed")
+@pytest.mark.skipif(not (HAS_PIL and TOKTX.is_file()), reason="Pillow and LAI_TOKTX_PATH needed")
 def test_real_toktx_with_d_preparer_resizes_an_odd_texture(tmp_path: Path) -> None:
     document, binary = static_model(texture=_png(100, 50))
     result = optimize_ktx2(glb(document, binary), tools=_tools(), workspace=workspace_in(tmp_path))
     encoded = result.report["textures"]["encoded"][0]
     assert (encoded["width"], encoded["height"]) == (64, 32)
+
+
+# --- review fixes: explicit preparer, layout errors, shared views, F5 profiles -----------------
+
+
+def test_the_report_records_which_preparer_ran(tmp_path: Path) -> None:
+    document, binary = textured({"baseColorTexture": 0})
+    result = optimize_ktx2(
+        glb(document, binary),
+        tools=TOOLS,
+        workspace=workspace_in(tmp_path),
+        profile=LOOSE,
+        run=FakeToktx(),
+        preparer="passthrough",
+    )
+    assert result.report["textures"]["preparer"] == "passthrough"
+
+
+def test_pillow_preparer_is_required_never_silently_replaced(tmp_path: Path, monkeypatch) -> None:
+    import builtins
+
+    real_import = builtins.__import__
+
+    def no_pil(name, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if name == "PIL" or name.startswith("PIL."):
+            raise ImportError(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", no_pil)
+    document, binary = textured({"baseColorTexture": 0})
+    fake = FakeToktx()
+    with pytest.raises(OptimizeError) as caught:
+        optimize_ktx2(
+            glb(document, binary),
+            tools=TOOLS,
+            workspace=workspace_in(tmp_path),
+            profile=LOOSE,
+            run=fake,
+            preparer="pillow",
+        )
+    assert caught.value.code == "preparer_unavailable"
+    assert fake.calls == []
+
+
+def test_unknown_preparer_is_refused() -> None:
+    from lai_native.optimize.texture_prep import resolve_preparer
+
+    with pytest.raises(TextureError) as caught:
+        resolve_preparer("magic")
+    assert caught.value.code == "preparer_unknown"
+
+
+def test_two_images_on_one_buffer_view_are_refused(tmp_path: Path) -> None:
+    document, binary = textured({"baseColorTexture": 0, "normalTexture": 1})
+    document["images"].append(dict(document["images"][0]))
+    document["textures"].append({"source": 1})
+    with pytest.raises(OptimizeError) as caught:
+        optimize_ktx2(
+            glb(document, binary),
+            tools=TOOLS,
+            workspace=workspace_in(tmp_path),
+            profile=LOOSE,
+            run=FakeToktx(),
+        )
+    assert caught.value.code == "shared_image_view"
+
+
+def test_a_malformed_view_is_a_verdict_not_a_crash(tmp_path: Path) -> None:
+    document, binary = textured({"baseColorTexture": 0})
+    del document["bufferViews"][document["images"][0]["bufferView"]]["byteLength"]
+    with pytest.raises(OptimizeError) as caught:
+        optimize_ktx2(
+            glb(document, binary),
+            tools=TOOLS,
+            workspace=workspace_in(tmp_path),
+            profile=LOOSE,
+            run=FakeToktx(),
+        )
+    assert caught.value.code in {"unsupported_layout", "source_unreadable"}
+
+
+def test_repack_turns_a_missing_key_into_a_layout_error() -> None:
+    document, binary = static_model()
+    del document["bufferViews"][0]["byteLength"]
+    with pytest.raises(GlbLayoutError) as caught:
+        repack(document, binary, {})
+    assert caught.value.code == "unsupported_layout"
+
+
+@pytest.mark.real_preparer
+@pytest.mark.skipif(not HAS_PIL, reason="Pillow is not installed")
+@pytest.mark.parametrize("kind", ["ktx2-color", "ktx2-data"])
+def test_icc_and_exif_orientation_do_not_change_prepared_pixels(kind: str) -> None:
+    """F5: glTF textures ignore embedded colour profiles and EXIF orientation (D's glTF
+    profiles), so the same pixels with or without them prepare to the same output."""
+    import io
+    import sys
+
+    from PIL import Image
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "native_image"))
+    from builders import wide_gamut_icc
+
+    from lai_native.optimize.texture_prep import pillow_texture
+
+    source = Image.new("RGB", (8, 4), (10, 120, 200))
+    source.putpixel((0, 0), (255, 0, 0))
+
+    def png(**kwargs) -> bytes:  # type: ignore[no-untyped-def]
+        out = io.BytesIO()
+        source.save(out, "PNG", **kwargs)
+        return out.getvalue()
+
+    exif = Image.Exif()
+    exif[0x0112] = 6  # rotate 90 if it were applied
+    plain = pillow_texture(png(), kind)
+    for variant in (png(icc_profile=wide_gamut_icc()), png(exif=exif)):
+        prepared = pillow_texture(variant, kind)
+        a = Image.open(io.BytesIO(plain.data)).convert("RGB")
+        b = Image.open(io.BytesIO(prepared.data)).convert("RGB")
+        assert a.size == b.size == (8, 4)
+        assert list(a.getdata()) == list(b.getdata())

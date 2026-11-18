@@ -1,7 +1,7 @@
 """Meshopt optimization step (`lai_native.optimize`, ADR-070).
 
 Unit tests use a fake tool runner that writes a prepared output, so they need no native binary.
-The real-tool tests at the end run the pinned gltfpack only when `LAI_GLTFPACK` points at it
+The real-tool tests at the end run the pinned gltfpack only when `LAI_GLTFPACK_PATH` points at it
 (`native/gltf/fetch-tools.sh`), and read the repository's own models; nothing is written to the
 repository.
 """
@@ -31,7 +31,7 @@ from lai_native.optimize.signature import compare_signatures, model_signature
 from lai_native.runtime import NativeToolError, ToolResult
 
 REPO = Path(__file__).resolve().parents[2]
-GLTFPACK = Path(os.environ.get("LAI_GLTFPACK", "/nonexistent/gltfpack"))
+GLTFPACK = Path(os.environ.get("LAI_GLTFPACK_PATH", "/nonexistent/gltfpack"))
 
 
 # --- fixtures ---------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ def test_conservative_profile_command() -> None:
 
 
 def test_tool_paths_from_environment() -> None:
-    tools = ToolPaths.from_environment({"LAI_GLTFPACK": "/x/gltfpack", "LAI_TOKTX": " "})
+    tools = ToolPaths.from_environment({"LAI_GLTFPACK_PATH": "/x/gltfpack", "LAI_TOKTX_PATH": " "})
     assert tools.gltfpack == Path("/x/gltfpack")
     assert tools.toktx is None
 
@@ -338,14 +338,14 @@ def test_check_meshopt_output_on_a_valid_and_a_plain_glb() -> None:
     assert errors
 
 
-# --- real gltfpack (skipped unless LAI_GLTFPACK is set) ---------------------------------------
+# --- real gltfpack (skipped unless LAI_GLTFPACK_PATH is set) -----------------------------------
 
 REAL_MODELS = sorted(
     [REPO / "content/models/npc-pip-pirate.glb", *(REPO / "react/public/models").glob("*.glb")]
 )
 
 
-@pytest.mark.skipif(not GLTFPACK.is_file(), reason="LAI_GLTFPACK is not set")
+@pytest.mark.skipif(not GLTFPACK.is_file(), reason="LAI_GLTFPACK_PATH is not set")
 @pytest.mark.parametrize("path", REAL_MODELS, ids=lambda p: p.name)
 def test_real_gltfpack_preserves_repository_models(tmp_path: Path, path: Path) -> None:
     source = path.read_bytes()

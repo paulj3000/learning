@@ -7,7 +7,7 @@ never committed.
 
 ```sh
 native/gltf/fetch-tools.sh > /tmp/lai-gltf-tools.env   # x86_64 by default; --arch arm64
-source /tmp/lai-gltf-tools.env    # LAI_GLTFPACK, LAI_TOKTX, LAI_KTX, LAI_KTX_LIBRARY_PATH
+source /tmp/lai-gltf-tools.env    # LAI_GLTFPACK_PATH, LAI_TOKTX_PATH, LAI_KTX_PATH, LAI_KTX_LIBRARY_PATH
 python3 native/gltf/bench.py --profile meshopt-conservative content/models/npc-pip-pirate.glb
 python3 native/gltf/bench.py --profile ktx2-basisu react/public/models/kenney-tree-large.glb
 ```

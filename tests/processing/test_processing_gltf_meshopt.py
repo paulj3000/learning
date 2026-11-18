@@ -355,7 +355,8 @@ def _loop_minimum(count: int, stride: int) -> int:
     total, remaining = 1 + max(stride, 32), count
     while remaining > 0:
         block = min(remaining, max_block)
-        total += stride * (-(-(-(-block // 16)) // 4))
+        groups = (block + 15) // 16
+        total += stride * ((groups + 3) // 4)
         remaining -= block
     return total
 
