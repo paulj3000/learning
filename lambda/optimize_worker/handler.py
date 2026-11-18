@@ -69,6 +69,16 @@ def _worker(context: Any) -> dict[str, str]:
     }
 
 
+def _deadline(context: Any) -> Any:
+    """Lambda's remaining time, minus a reserve, bounds every tool run (lai_native.runtime)."""
+    remaining = getattr(context, "get_remaining_time_in_millis", None)
+    if remaining is None:
+        return None
+    from lai_native.runtime import Deadline
+
+    return Deadline(remaining, reserve_seconds=15.0)
+
+
 def process(body: str, context: Any) -> str:
     envelope, rt, log = _bound["envelope"], _bound["runtime"], _bound["log"]
     worker = _worker(context)
@@ -81,7 +91,9 @@ def process(body: str, context: Any) -> str:
         return "resent"
     rt.send_result(envelope.build_result(job_id, kind, envelope.RUNNING, **worker))
     try:
-        result = task.run_optimize(work["payload"], rt.ports(kind, context))
+        result = task.run_optimize(
+            work["payload"], rt.ports(kind, context), deadline=_deadline(context)
+        )
         final = envelope.build_result(job_id, kind, envelope.SUCCEEDED, result=result, **worker)
     except task.OptimizeTaskError as error:
         if error.retryable:

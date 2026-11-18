@@ -202,3 +202,10 @@ def test_handler_reports_unreadable_envelopes_as_batch_failures(fake_optimizer) 
     handler.bind(envelope=FakeEnvelope, runtime=runtime)
     result = handler.handle({"Records": [{"messageId": "bad", "body": "{"}]}, None)
     assert result == {"batchItemFailures": [{"itemIdentifier": "bad"}]}
+
+
+def test_ktx2_profile_needs_its_own_control(fake_optimizer) -> None:  # type: ignore[no-untyped-def]
+    payload = {**PAYLOAD, "profile": "ktx2-basisu"}
+    with pytest.raises(task.OptimizeTaskError) as caught:
+        task.run_optimize(payload, Ports(fake_optimizer.source), environ=ON, tools=_tools())
+    assert caught.value.code == "optimization_disabled"

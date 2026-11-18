@@ -44,7 +44,7 @@ const MESSAGES: Record<PreviewErrorCode, string> = {
   unsupported_format: 'Only .glb and self-contained .gltf models can be previewed.',
   invalid_model: 'The file could not be read as a glTF 2.0 model.',
   compression_unsupported:
-    'This model is compressed, and this browser cannot decode it (WebAssembly is unavailable).',
+    'This model uses compression the preview cannot show here (Meshopt needs WebAssembly; KTX2 textures are not previewed yet).',
   empty_model: 'The model has no visible geometry to show.',
   webgl_unavailable: 'This browser cannot show 3D graphics (WebGL is unavailable or disabled).',
 };

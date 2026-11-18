@@ -19,33 +19,47 @@ import argparse
 import gzip
 import os
 import platform
-import subprocess  # noqa: S404 - local benchmark, argv lists only
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "processing"))
 
 from lai_native.optimize import ToolPaths  # noqa: E402
+from lai_native.optimize.ktx2 import optimize_ktx2  # noqa: E402
 from lai_native.optimize.meshopt import OptimizeError, optimize_meshopt  # noqa: E402
-from lai_native.optimize.profiles import PROFILES, gltfpack_argv  # noqa: E402
+from lai_native.optimize.profiles import PROFILES  # noqa: E402
+from lai_native.runtime import ToolResult, ToolSpec, Workspace, run_tool  # noqa: E402
 
 TIME = "/usr/bin/time"
 
 
-def timed(argv: list[str], cwd: Path, env: dict[str, str]) -> tuple[float, int | None]:
-    """Wall seconds and peak RSS (KiB) of the tool process alone, from GNU time."""
-    report = cwd / "time.txt"
-    started = time.monotonic()
-    subprocess.run(  # noqa: S603
-        [TIME, "-f", "%M", "-o", str(report), *argv], cwd=cwd, env=env, check=True,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
-    wall = time.monotonic() - started
-    text = report.read_text().strip().splitlines()
-    return wall, int(text[-1]) if text and text[-1].isdigit() else None
+def timed_run():  # type: ignore[no-untyped-def]
+    """A `run=` for the optimizer that measures the tool process alone with GNU time, through
+    the same `lai_native.runtime.run_tool` (limits, scrubbed environment) the job uses."""
+    samples: list[tuple[float, int | None]] = []
+
+    def run(spec, argv, workspace, limits, **kwargs):  # type: ignore[no-untyped-def]
+        report = workspace.safe_path("time.txt")
+        wrapper = ToolSpec("time", TIME, None, dict(spec.extra_env))
+        result = run_tool(
+            wrapper, ["-f", "%M", "-o", str(report), spec.path, *argv], workspace, limits, **kwargs
+        )
+        lines = report.read_text().strip().splitlines() if report.exists() else []
+        rss = int(lines[-1]) if lines and lines[-1].isdigit() else None
+        report.unlink(missing_ok=True)
+        samples.append((result.elapsed_seconds, rss))
+        return ToolResult(
+            result.returncode,
+            result.stdout,
+            result.stderr,
+            result.stderr_truncated,
+            result.elapsed_seconds,
+            rss if rss is not None else result.peak_rss_kb,
+        )
+
+    return run, samples
 
 
 def main() -> int:
@@ -58,44 +72,49 @@ def main() -> int:
     args = parser.parse_args()
     profile = PROFILES[args.profile]
     tools = ToolPaths.from_environment()
-    if tools.gltfpack is None:
-        print("LAI_GLTFPACK is not set (native/gltf/fetch-tools.sh)", file=sys.stderr)
+    tool = tools.gltfpack if profile.kind == "meshopt" else tools.toktx
+    if tool is None:
+        print("tool path not set (native/gltf/fetch-tools.sh)", file=sys.stderr)
         return 2
-    env = {"PATH": "/usr/bin:/bin", "LC_ALL": "C"}
+    step = optimize_meshopt if profile.kind == "meshopt" else optimize_ktx2
     print(
-        f"Workstation: {platform.machine()} {platform.processor() or ''} "
-        f"{os.cpu_count()} CPUs, Python {platform.python_version()}, profile {profile.label}"
+        f"Workstation: {platform.machine()}, {os.cpu_count()} CPUs visible, "
+        f"Python {platform.python_version()}, profile {profile.label}, {tool.name}"
     )
     print()
     print(
         "| Model | Source bytes (gzip -9) | Output bytes (gzip -9) | Output / source "
-        "| gltfpack s | gltfpack peak RSS MiB | Step s | Preserved | GPU texture MiB (calc.) |"
+        "| Tool s (sum) | Tool peak RSS MiB (max) | Step s | Result "
+        "| GPU texture MiB before (calc.) | after (calc.) |"
     )
-    print("|---|---:|---:|---:|---:|---:|---:|---|---:|")
+    print("|---|---:|---:|---:|---:|---:|---:|---|---:|---:|")
     for model in args.models:
         source = model.read_bytes()
-        with tempfile.TemporaryDirectory() as work:
-            workdir = Path(work)
-            (workdir / "source.glb").write_bytes(source)
-            wall, rss = timed([str(tools.gltfpack), *gltfpack_argv(profile)], workdir, env)
+        run, samples = timed_run()
+        with tempfile.TemporaryDirectory() as work, Workspace(base=work) as workspace:
             try:
-                result = optimize_meshopt(source, tools=tools, workdir=workdir / "step")
+                result = step(source, tools=tools, workspace=workspace, profile=profile, run=run)
                 output = result.output
                 report = result.report
-                preserved = "yes"
-                step = report["processing_seconds"]
-                gpu = report["textures"]["gpu_bytes_estimate"] / 2**20
+                outcome = "preserved"
+                step_s = f"{report['processing_seconds']:.3f}"
+                textures = report["textures"]
+                before = textures.get(
+                    "gpu_bytes_estimate_before", textures.get("gpu_bytes_estimate")
+                )
+                after = textures.get("gpu_bytes_estimate_after", textures.get("gpu_bytes_estimate"))
+                gpu = f"{before / 2**20:.2f} | {after / 2**20:.2f}"
+                packed = len(gzip.compress(output, 9))
+                out = f"{len(output):,} ({packed:,}) | {len(output) / len(source):.1%}"
             except OptimizeError as error:
-                output = (workdir / "output.glb").read_bytes()
-                preserved = f"no ({error.code})"
-                step = float("nan")
-                gpu = float("nan")
-        name = model.relative_to(ROOT) if model.is_absolute() else model
+                outcome = f"failed: {error.code}"
+                step_s, gpu, out = "n/a", "n/a | n/a", "n/a | n/a"
+        wall = sum(s[0] for s in samples)
+        rss = max((s[1] or 0 for s in samples), default=0)
+        name = model.resolve().relative_to(ROOT)
         print(
-            f"| `{name}` | {len(source):,} ({len(gzip.compress(source, 9)):,}) "
-            f"| {len(output):,} ({len(gzip.compress(output, 9)):,}) "
-            f"| {len(output) / len(source):.1%} | {wall:.3f} | "
-            f"{(rss or 0) / 1024:.1f} | {step:.3f} | {preserved} | {gpu:.2f} |"
+            f"| `{name}` | {len(source):,} ({len(gzip.compress(source, 9)):,}) | {out} "
+            f"| {wall:.3f} | {rss / 1024:.1f} | {step_s} | {outcome} | {gpu} |"
         )
     return 0
 

@@ -56,7 +56,9 @@ only), ADR-055, ADR-061, ADR-064 (one canonical processing path, zip Lambda work
    models are unaffected. Loader support ships before any validator row is enabled (the
    compatibility-gated release, ADR-071).
 5. **Optimizer.** `processing/lai_native/optimize` runs pinned native tools (gltfpack 1.3,
-   KTX-Software 4.4.2 `toktx`) under versioned profiles. The Meshopt profile is conservative:
+   KTX-Software 4.4.2 `toktx`) under versioned profiles, always through the shared native runtime
+   adapter (`lai_native.runtime`: fixed path, scrubbed environment, rlimits, bounded output,
+   Lambda deadline). The Meshopt profile is conservative:
    `EXT_` only, no simplification, no animation resampling, names kept, float positions and UVs
    so no node or material changes, no texture changes. A job fails (and produces nothing) when
    the output is not smaller, is structurally invalid, or changes anything the game relies on

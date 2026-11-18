@@ -11,13 +11,13 @@ from __future__ import annotations
 import copy
 import os
 import struct
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 from glb_builder import Builder, glb, skinned_model
 from meshopt_builder import EXT, compress_views
+from native_helpers import workspace_in
 
 from lai_native.optimize import (
     MESHOPT_CONSERVATIVE,
@@ -27,8 +27,8 @@ from lai_native.optimize import (
     optimize_meshopt,
 )
 from lai_native.optimize.meshopt import check_meshopt_output
-from lai_native.optimize.runner import ToolError, ToolResult, run_tool
 from lai_native.optimize.signature import compare_signatures, model_signature
+from lai_native.runtime import NativeToolError, ToolResult
 
 REPO = Path(__file__).resolve().parents[2]
 GLTFPACK = Path(os.environ.get("LAI_GLTFPACK", "/nonexistent/gltfpack"))
@@ -92,11 +92,13 @@ class FakeRun:
         self.stderr = stderr
         self.calls: list[dict[str, Any]] = []
 
-    def __call__(self, executable, argv, **kwargs):  # type: ignore[no-untyped-def]
-        self.calls.append({"executable": executable, "argv": argv, **kwargs})
+    def __call__(self, spec, argv, workspace, limits, **kwargs):  # type: ignore[no-untyped-def]
+        self.calls.append(
+            {"spec": spec, "argv": argv, "workspace": workspace, "limits": limits, **kwargs}
+        )
         if self.output is not None:
-            (Path(kwargs["workdir"]) / "output.glb").write_bytes(self.output)
-        return ToolResult(self.returncode, b"", self.stderr, 0.01, 1234, False)
+            (workspace.root / "output.glb").write_bytes(self.output)
+        return ToolResult(self.returncode, b"", self.stderr, False, 0.01, 1234)
 
 
 TOOLS = ToolPaths(gltfpack=Path("/opt/gltfpack"))
@@ -134,7 +136,7 @@ def test_tool_paths_from_environment() -> None:
 def test_success_report(tmp_path: Path) -> None:
     source, output = compressed_grid()
     run = FakeRun(output)
-    result = optimize_meshopt(source, tools=TOOLS, workdir=tmp_path, run=run)
+    result = optimize_meshopt(source, tools=TOOLS, workspace=workspace_in(tmp_path), run=run)
     assert result.output == output
     report = result.report
     assert report["schema"] == "lai.optimize_report/1"
@@ -152,15 +154,19 @@ def test_success_report(tmp_path: Path) -> None:
     assert report["tool"]["executable"] == "gltfpack"
     assert report["geometry"]["output"]["triangle_count"] == 200
     call = run.calls[0]
-    assert call["timeout_s"] == MESHOPT_CONSERVATIVE.timeout_s
-    assert call["workdir"] == tmp_path
-    assert (tmp_path / "source.glb").read_bytes() == source
+    assert call["limits"] == MESHOPT_CONSERVATIVE.limits()
+    assert call["limits"].timeout_seconds == MESHOPT_CONSERVATIVE.timeout_s
+    assert call["spec"].name == "gltfpack" and call["spec"].path == "/opt/gltfpack"
+    assert call["deadline"] is None
+    assert (call["workspace"].root / "source.glb").read_bytes() == source
 
 
 def test_no_size_gain(tmp_path: Path) -> None:
     source, _output = compressed_grid()
     with pytest.raises(OptimizeError) as caught:
-        optimize_meshopt(source, tools=TOOLS, workdir=tmp_path, run=FakeRun(source + b""))
+        optimize_meshopt(
+            source, tools=TOOLS, workspace=workspace_in(tmp_path), run=FakeRun(source + b"")
+        )
     assert caught.value.code == "no_size_gain"
 
 
@@ -168,7 +174,10 @@ def test_tool_failure(tmp_path: Path) -> None:
     source, _output = compressed_grid()
     with pytest.raises(OptimizeError) as caught:
         optimize_meshopt(
-            source, tools=TOOLS, workdir=tmp_path, run=FakeRun(None, 1, b"Error: bad input")
+            source,
+            tools=TOOLS,
+            workspace=workspace_in(tmp_path),
+            run=FakeRun(None, 1, b"Error: bad input"),
         )
     assert caught.value.code == "tool_failed"
     assert caught.value.details[0]["path"].endswith("bad input")
@@ -177,31 +186,36 @@ def test_tool_failure(tmp_path: Path) -> None:
 def test_tool_not_configured(tmp_path: Path) -> None:
     source, _output = compressed_grid()
     with pytest.raises(OptimizeError) as caught:
-        optimize_meshopt(source, tools=ToolPaths(), workdir=tmp_path, run=FakeRun(None))
-    assert caught.value.code == "tool_not_found"
+        optimize_meshopt(
+            source, tools=ToolPaths(), workspace=workspace_in(tmp_path), run=FakeRun(None)
+        )
+    assert caught.value.code == "tool_not_configured"
 
 
 def test_runner_errors_become_optimize_errors(tmp_path: Path) -> None:
     source, _output = compressed_grid()
 
     def timeout(*_args, **_kwargs):  # type: ignore[no-untyped-def]
-        raise ToolError("tool_timeout", "slow")
+        raise NativeToolError("timeout")
 
     with pytest.raises(OptimizeError) as caught:
-        optimize_meshopt(source, tools=TOOLS, workdir=tmp_path, run=timeout)
-    assert caught.value.code == "tool_timeout"
+        optimize_meshopt(source, tools=TOOLS, workspace=workspace_in(tmp_path), run=timeout)
+    assert caught.value.code == "timeout"
+    assert caught.value.retryable
 
 
 def test_already_compressed_source_is_refused(tmp_path: Path) -> None:
     _source, output = compressed_grid()
     with pytest.raises(OptimizeError) as caught:
-        optimize_meshopt(output, tools=TOOLS, workdir=tmp_path, run=FakeRun(None))
+        optimize_meshopt(output, tools=TOOLS, workspace=workspace_in(tmp_path), run=FakeRun(None))
     assert caught.value.code == "source_already_compressed"
 
 
 def test_unreadable_source(tmp_path: Path) -> None:
     with pytest.raises(OptimizeError) as caught:
-        optimize_meshopt(b"not a glb", tools=TOOLS, workdir=tmp_path, run=FakeRun(None))
+        optimize_meshopt(
+            b"not a glb", tools=TOOLS, workspace=workspace_in(tmp_path), run=FakeRun(None)
+        )
     assert caught.value.code == "source_unreadable"
 
 
@@ -214,7 +228,7 @@ def test_invalid_meshopt_output_fails(tmp_path: Path) -> None:
 
     source, output = compressed_grid(break_stride)
     with pytest.raises(OptimizeError) as caught:
-        optimize_meshopt(source, tools=TOOLS, workdir=tmp_path, run=FakeRun(output))
+        optimize_meshopt(source, tools=TOOLS, workspace=workspace_in(tmp_path), run=FakeRun(output))
     assert caught.value.code == "output_invalid"
     assert "meshopt_stride" in {d["code"] for d in caught.value.details}
 
@@ -238,7 +252,7 @@ def test_invalid_meshopt_output_fails(tmp_path: Path) -> None:
 def test_preservation_failures(tmp_path: Path, change, code: str) -> None:  # type: ignore[no-untyped-def]
     source, output = compressed_grid(change)
     with pytest.raises(OptimizeError) as caught:
-        optimize_meshopt(source, tools=TOOLS, workdir=tmp_path, run=FakeRun(output))
+        optimize_meshopt(source, tools=TOOLS, workspace=workspace_in(tmp_path), run=FakeRun(output))
     assert caught.value.code == "preservation_failed"
     assert code in {d["code"] for d in caught.value.details}
 
@@ -324,54 +338,6 @@ def test_check_meshopt_output_on_a_valid_and_a_plain_glb() -> None:
     assert errors
 
 
-# --- the temporary tool runner shim -----------------------------------------------------------
-
-
-def test_run_tool_captures_output_and_exit_code(tmp_path: Path) -> None:
-    result = run_tool(
-        sys.executable,
-        ["-c", "import sys; print('x' * 5000); sys.exit(3)"],
-        timeout_s=30,
-        max_output_bytes=100,
-        workdir=tmp_path,
-    )
-    assert result.returncode == 3
-    assert len(result.stdout) == 100
-    assert result.truncated
-    assert result.peak_rss_kib and result.peak_rss_kib > 0
-
-
-def test_run_tool_timeout(tmp_path: Path) -> None:
-    with pytest.raises(ToolError) as caught:
-        run_tool(
-            sys.executable,
-            ["-c", "import time; time.sleep(30)"],
-            timeout_s=0.3,
-            max_output_bytes=100,
-            workdir=tmp_path,
-        )
-    assert caught.value.code == "tool_timeout"
-
-
-def test_run_tool_not_found(tmp_path: Path) -> None:
-    with pytest.raises(ToolError) as caught:
-        run_tool(tmp_path / "missing", [], timeout_s=1, max_output_bytes=10, workdir=tmp_path)
-    assert caught.value.code == "tool_not_found"
-
-
-def test_run_tool_minimal_environment(tmp_path: Path) -> None:
-    result = run_tool(
-        sys.executable,
-        ["-c", "import os; print(sorted(os.environ))"],
-        timeout_s=30,
-        max_output_bytes=10_000,
-        workdir=tmp_path,
-        env={"EXTRA": "1"},
-    )
-    names = eval(result.stdout)  # noqa: S307 - our own child's repr of a list of names
-    assert set(names) <= {"PATH", "LC_ALL", "EXTRA", "LC_CTYPE"}
-
-
 # --- real gltfpack (skipped unless LAI_GLTFPACK is set) ---------------------------------------
 
 REAL_MODELS = sorted(
@@ -383,7 +349,9 @@ REAL_MODELS = sorted(
 @pytest.mark.parametrize("path", REAL_MODELS, ids=lambda p: p.name)
 def test_real_gltfpack_preserves_repository_models(tmp_path: Path, path: Path) -> None:
     source = path.read_bytes()
-    result = optimize_meshopt(source, tools=ToolPaths(gltfpack=GLTFPACK), workdir=tmp_path)
+    result = optimize_meshopt(
+        source, tools=ToolPaths(gltfpack=GLTFPACK), workspace=workspace_in(tmp_path)
+    )
     report = result.report
     assert report["output"]["bytes"] < report["source"]["bytes"]
     assert report["preservation"]["differences"] == []

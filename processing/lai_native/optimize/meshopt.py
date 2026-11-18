@@ -1,6 +1,6 @@
 """The Meshopt optimization step: gltfpack, then structural validation and preservation checks.
 
-`optimize_meshopt(source, tools=..., workdir=...)` runs the pinned `meshopt-conservative`
+`optimize_meshopt(source, tools=..., workspace=...)` runs the pinned `meshopt-conservative`
 profile on a GLB and returns the optimized bytes with a `model.optimize_report` dictionary, or
 raises `OptimizeError` with a stable code. It fails the job, rather than returning a degraded
 output, when:
@@ -13,8 +13,9 @@ output, when:
 - anything the game relies on changed (`preservation_failed`: hierarchy, names, materials,
   skins, animation names and durations, image bytes; `signature.compare_signatures`).
 
-It never writes outside `workdir` and never touches the original object: storage and artifact
-recording belong to the worker (`lambda/optimize_worker`) and the derived-artifact port.
+It never writes outside its `lai_native.runtime.Workspace` and never touches the original
+object: storage and artifact recording belong to the worker (`lambda/optimize_worker`) and the
+derived-artifact port.
 """
 
 from __future__ import annotations
@@ -33,8 +34,8 @@ from lai_processing.processors.gltf.container import read_layout
 from lai_processing.processors.gltf.jsonparse import parse_document
 from lai_processing.processors.gltf.report import Report, Stop
 
+from ..runtime import CODES, Deadline, NativeToolError, ToolResult, ToolSpec, Workspace, run_tool
 from .profiles import MESHOPT_CONSERVATIVE, OUTPUT_NAME, SOURCE_NAME, OptimizeProfile, gltfpack_argv
-from .runner import ToolError, ToolResult, run_tool
 from .signature import ModelSignature, SignatureError, compare_signatures, model_signature
 from .textures import texture_memory
 
@@ -64,10 +65,26 @@ RunTool = Callable[..., ToolResult]
 class OptimizeError(RuntimeError):
     """A failed optimization. `code` is stable; `details` is bounded and code-authored."""
 
-    def __init__(self, code: str, message: str, details: list[dict[str, str]] | None = None):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        details: list[dict[str, str]] | None = None,
+        *,
+        retryable: bool = False,
+    ):
         super().__init__(message)
         self.code = code
         self.details = details or []
+        #: Only native runtime failures that may pass on another attempt (timeout, crash,
+        #: workspace) are retryable; input and preservation failures never are.
+        self.retryable = retryable
+
+    @classmethod
+    def from_native(cls, error: NativeToolError) -> OptimizeError:
+        return cls(
+            error.code, "The optimization tool failed.", retryable=CODES.get(error.code, False)
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +94,20 @@ class ToolPaths:
     ktx: Path | None = None
     #: Extra `LD_LIBRARY_PATH` for the KTX-Software tools (its `lib/` directory).
     library_path: str | None = None
+    #: Optional SHA-256 pins of the executables, checked by the runtime before each run.
+    gltfpack_sha256: str | None = None
+    toktx_sha256: str | None = None
+
+    def gltfpack_spec(self) -> ToolSpec:
+        if self.gltfpack is None:
+            raise OptimizeError("tool_not_configured", "gltfpack is not configured.")
+        return ToolSpec("gltfpack", str(self.gltfpack), self.gltfpack_sha256)
+
+    def toktx_spec(self) -> ToolSpec:
+        if self.toktx is None:
+            raise OptimizeError("tool_not_configured", "toktx is not configured.")
+        env = {"LD_LIBRARY_PATH": self.library_path} if self.library_path else {}
+        return ToolSpec("toktx", str(self.toktx), self.toktx_sha256, env)
 
     @classmethod
     def from_environment(cls, environ: dict[str, str] | None = None) -> ToolPaths:
@@ -91,6 +122,8 @@ class ToolPaths:
             toktx=path("LAI_TOKTX"),
             ktx=path("LAI_KTX"),
             library_path=env.get("LAI_KTX_LIBRARY_PATH") or None,
+            gltfpack_sha256=env.get("LAI_GLTFPACK_SHA256") or None,
+            toktx_sha256=env.get("LAI_TOKTX_SHA256") or None,
         )
 
 
@@ -115,14 +148,45 @@ def _signature(data: bytes, code: str) -> ModelSignature:
         ) from None
 
 
-def _tool_report(result: ToolResult, executable: str, argv: list[str]) -> dict[str, Any]:
+def _tool_report(result: ToolResult, spec: ToolSpec, argv: list[str]) -> dict[str, Any]:
     return {
-        "executable": Path(executable).name,
+        "executable": Path(spec.path).name,
         "argv": argv,
         "returncode": result.returncode,
-        "wall_seconds": round(result.wall_seconds, 4),
-        "peak_rss_kib": result.peak_rss_kib,
+        "wall_seconds": round(result.elapsed_seconds, 4),
+        "peak_rss_kib": result.peak_rss_kb,
     }
+
+
+def run_step_tool(
+    run: RunTool,
+    spec: ToolSpec,
+    argv: list[str],
+    workspace: Workspace,
+    profile: OptimizeProfile,
+    output_name: str,
+    deadline: Deadline | None,
+    cancelled: Callable[[], bool] | None,
+) -> tuple[ToolResult, bytes]:
+    """Run one tool through `lai_native.runtime` and read its output file (bounded)."""
+    try:
+        result = run(
+            spec, argv, workspace, profile.limits(), deadline=deadline, cancelled=cancelled
+        )
+    except NativeToolError as error:
+        raise OptimizeError.from_native(error) from None
+    produced = workspace.safe_path(output_name)
+    if result.returncode != 0 or not produced.is_file():
+        tail = result.stderr.decode("utf-8", "replace")[-_MAX_STDERR_CHARS:]
+        raise OptimizeError(
+            "tool_failed",
+            f"{spec.name} did not produce an output.",
+            [{"code": "stderr_tail", "path": tail}],
+        )
+    try:
+        return result, workspace.read(output_name, profile.limits().max_file_bytes)
+    except NativeToolError as error:
+        raise OptimizeError.from_native(error) from None
 
 
 def check_meshopt_output(data: bytes) -> tuple[dict[str, Any], list[dict[str, str]]]:
@@ -160,11 +224,15 @@ def optimize_meshopt(
     source: bytes,
     *,
     tools: ToolPaths,
-    workdir: Path,
+    workspace: Workspace,
     profile: OptimizeProfile = MESHOPT_CONSERVATIVE,
     run: RunTool = run_tool,
+    deadline: Deadline | None = None,
+    cancelled: Callable[[], bool] | None = None,
     clock: Callable[[], float] = time.monotonic,
 ) -> OptimizeResult:
+    """Optimize `source` in `workspace` (a fresh `lai_native.runtime.Workspace`; the caller
+    closes it)."""
     started = clock()
     if profile.kind != "meshopt":
         raise OptimizeError("profile_mismatch", "This step runs Meshopt profiles only.")
@@ -176,31 +244,15 @@ def optimize_meshopt(
             "The source model already uses a compression extension.",
             [{"code": "extension", "path": name} for name in already],
         )
-    if tools.gltfpack is None:
-        raise OptimizeError("tool_not_found", "gltfpack is not configured.")
-    workdir.mkdir(parents=True, exist_ok=True)
-    (workdir / SOURCE_NAME).write_bytes(source)
-    output_path = workdir / OUTPUT_NAME
-    output_path.unlink(missing_ok=True)
-    argv = gltfpack_argv(profile)
+    spec = tools.gltfpack_spec()
     try:
-        result = run(
-            tools.gltfpack,
-            argv,
-            timeout_s=profile.timeout_s,
-            max_output_bytes=profile.max_output_bytes,
-            workdir=workdir,
-        )
-    except ToolError as error:
-        raise OptimizeError(error.code, str(error)) from None
-    if result.returncode != 0 or not output_path.is_file():
-        tail = result.stderr.decode("utf-8", "replace")[-_MAX_STDERR_CHARS:]
-        raise OptimizeError(
-            "tool_failed",
-            "gltfpack did not produce an output.",
-            [{"code": "stderr_tail", "path": tail}],
-        )
-    output = output_path.read_bytes()
+        workspace.write(SOURCE_NAME, source)
+    except NativeToolError as error:
+        raise OptimizeError.from_native(error) from None
+    argv = gltfpack_argv(profile)
+    result, output = run_step_tool(
+        run, spec, argv, workspace, profile, OUTPUT_NAME, deadline, cancelled
+    )
     if len(output) >= len(source):
         raise OptimizeError(
             "no_size_gain",
@@ -221,7 +273,7 @@ def optimize_meshopt(
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,
         "profile": profile.label,
-        "tool": {"name": "gltfpack", **_tool_report(result, str(tools.gltfpack), argv)},
+        "tool": {"name": "gltfpack", **_tool_report(result, spec, argv)},
         "source": {"bytes": len(source), "sha256": _sha256(source)},
         "output": {"bytes": len(output), "sha256": _sha256(output)},
         "size_ratio": round(len(output) / len(source), 4),

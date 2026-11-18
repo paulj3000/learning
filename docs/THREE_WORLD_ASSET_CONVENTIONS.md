@@ -403,7 +403,12 @@ three's bundled `MeshoptDecoder` (WASM inline in the module; no CDN, no
 extra request). Uncompressed models never touch it, and the cache, cloning
 and animation maps above are unchanged. A model that requires
 `EXT_meshopt_compression` in a browser without WebAssembly fails with a
-typed `CompressedModelError` (`meshopt_unsupported`). Whether a compressed
+typed `CompressedModelError` (`meshopt_unsupported`). KTX2 textures
+(`KHR_texture_basisu`) need the live renderer: the location engine calls
+`enableKtx2Textures(renderer)` once its `WebGLRenderer` exists (it picks the
+GPU format with `detectSupport` and bundles the Basis transcoder through Vite,
+same origin) and detaches it on dispose; without it a KTX2 model fails with
+`ktx2_unavailable`. Whether a compressed
 model can be uploaded and published is decided server side (`LAI_GLB_MESHOPT`
 and `LAI_GLB_KTX2`, default off); see `docs/processing/GLB_OPTIMIZATION.md`.
 

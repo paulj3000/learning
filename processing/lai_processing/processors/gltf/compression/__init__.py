@@ -7,8 +7,11 @@ these functions into B's table at integration (`docs/processing/GLB_OPTIMIZATION
 - `policy`: `compression_support(extension) -> SupportStatus` and the gating controls
   `LAI_GLB_MESHOPT` and `LAI_GLB_KTX2` (default off).
 - `meshopt`: `validate_meshopt(document, sink, ...)` for `EXT_meshopt_compression`.
+- `ktx2`: `validate_basisu(document, sink, read_image=...)` and `parse_ktx2(data, sink)` for
+  `KHR_texture_basisu`.
 """
 
+from .ktx2 import BASISU_EXTENSION, Ktx2Facts, ktx2_image_indices, parse_ktx2, validate_basisu
 from .meshopt import MESHOPT_EXTENSION, MeshoptFacts, fallback_buffer_indices, validate_meshopt
 from .policy import (
     KTX2_CONTROL,
@@ -22,6 +25,11 @@ from .policy import (
 )
 
 __all__ = [
+    "BASISU_EXTENSION",
+    "Ktx2Facts",
+    "ktx2_image_indices",
+    "parse_ktx2",
+    "validate_basisu",
     "KTX2_CONTROL",
     "MESHOPT_CONTROL",
     "MESHOPT_EXTENSION",

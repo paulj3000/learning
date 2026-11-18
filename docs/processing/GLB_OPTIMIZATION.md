@@ -16,9 +16,9 @@ workstation numbers, not a measurement). There is no ARM64, Lambda, device or br
 |---|---|
 | Compression support policy (`compression_support`, controls) | `processing/lai_processing/processors/gltf/compression/policy.py` |
 | `EXT_meshopt_compression` validation (stdlib) | `processing/lai_processing/processors/gltf/compression/meshopt.py` |
-| `KHR_texture_basisu` / KTX2 validation (stdlib) | `processing/lai_processing/processors/gltf/compression/ktx2.py` (KTX2 phase) |
+| `KHR_texture_basisu` / KTX2 validation (stdlib) | `processing/lai_processing/processors/gltf/compression/ktx2.py` |
 | Loader decoders | `react/src/features/island-map/three/assets/gltfDecoders.ts`, used by `assetLoader.ts` and `features/assets/preview/previewModelSource.ts` |
-| Optimizer (native tools) | `processing/lai_native/optimize/` (`profiles`, `signature`, `meshopt`, `textures`, `runner` + temporary `_tool` shim) |
+| Optimizer (native tools) | `processing/lai_native/optimize/` (`profiles`, `signature`, `meshopt`, `ktx2`, `glbwrite`, `texture_prep`, `textures`); tools run through Workstream C's `processing/lai_native/runtime/` (copied verbatim from `feature/lambda-native-audio` 0705f583, deduplicated at integration) |
 | Worker skeleton | `lambda/optimize_worker/` (`task.run_optimize`, `handler.handle`) |
 | Pinned tools, fetch script, benchmark | `native/gltf/` (`tools.lock`, `fetch-tools.sh`, `bench.py`, `README.md`) |
 | Tests | `tests/processing/test_processing_gltf_meshopt.py`, `tests/processing/meshopt_builder.py`, `tests/native/`, `react/src/features/island-map/three/assets/gltfDecoders.test.ts`, `react/src/test/compressedGltfFixtures.ts` |
@@ -66,8 +66,10 @@ import. Today it lists `EXT_meshopt_compression`, `KHR_meshopt_compression`,
    validators, and let the buffer check accept the buffers in `fallback_buffer_indices(document)`
    without data (today they fail as `missing_buffer`). Accessor range checks are unchanged: they
    use the parent view's decoded `byteLength`.
-4. When `KHR_texture_basisu` is allowed, call the KTX2 module (KTX2 phase) and accept
-   `image/ktx2` only for images it validated.
+4. When `KHR_texture_basisu` is allowed, call
+   `validate_basisu(document, report, read_image=..., max_side=..., check=...)` and accept
+   `image/ktx2` only for the images in `ktx2_image_indices(document)` that it validated; the
+   texture-size limit then applies to KTX2 dimensions through `parse_ktx2`.
 5. The publication gate re-checks the control at publish time (a compressed version is
    publishable only while its control is on).
 
@@ -115,9 +117,24 @@ decide what can be published. A browser without WebAssembly gets `CompressedMode
 readable. Animation maps and the asset cache are untouched. The preview's URL refusal still holds:
 the decoder fetches nothing (a test asserts no `fetch`).
 
+KTX2: `createKtx2Loader(renderer)` builds a `KTX2Loader` with the Basis transcoder
+(`basis_transcoder.js` and `.wasm` from the installed three 0.185.1) imported with Vite `?url`,
+so the build emits them as hashed files under `assets/` on the site origin (immutable caching by
+the existing publish script; no CDN, no copy step). A `LoadingManager` URL modifier maps the two
+fixed file names `KTX2Loader` requests to those URLs, passes `blob:`/`data:` texture data, and
+refuses every other URL. Two workers at most (`setWorkerLimit(2)`), GPU format from
+`detectSupport(renderer)` (never the deprecated `detectSupportAsync`). The transcoder downloads
+only when a KTX2 texture is first decoded. `assetLoader.enableKtx2Textures(renderer)` attaches it
+to the bundled `GLTFLoader` and returns the detach (dispose); the location engine calls it through
+an optional `LocationEngineAssets.attachRenderer` right after creating its renderer and detaches
+before `renderer.dispose()`, so the engine itself still imports no decoder. Missing KTX2 support
+gives `CompressedModelError` (`ktx2_unavailable`). **Gap:** the Django Admin preview parses the
+model before it creates its renderer, so it refuses KTX2 models with `compression_unsupported`
+until the preview is reordered (small follow-up in `mountAssetPreview.ts`).
+
 ## 5. Optimizer (`lai_native.optimize`)
 
-`optimize_meshopt(source, tools=ToolPaths(...), workdir=...)` with profile
+`optimize_meshopt(source, tools=ToolPaths(...), workspace=Workspace(...))` with profile
 `meshopt-conservative/v1`:
 
 ```
@@ -146,23 +163,29 @@ parser and the LAI-LAMBDA-009 animation inspector; nothing is decoded):
   collapses constant two-key tracks: NPC 16,963 to 16,079 keyframes, same 780 channels);
 - textures: Meshopt profile requires identical image bytes (SHA-256).
 
-Failure codes: `source_unreadable`, `source_already_compressed`, `tool_not_found`,
-`tool_timeout`, `tool_failed`, `no_size_gain`, `output_invalid`, `output_unreadable`,
+Failure codes: `source_unreadable`, `source_already_compressed`, `tool_not_configured`, the
+runtime's codes (`timeout`, `deadline_exceeded`, `tool_crashed`, `resource_limit`,
+`output_too_large`, ...; retryable exactly as `lai_native.runtime.CODES` says), `tool_failed`, `no_size_gain`, `output_invalid`, `output_unreadable`,
 `preservation_failed`, `profile_mismatch`. The report (`lai.optimize_report/1`) records profile,
 tool argv, sizes and SHA-256 of both files, geometry summaries, Meshopt facts, calculated texture
 GPU memory, clip durations, processing time and the tool's wall time and peak RSS.
 
-The tool runner is a temporary shim (`_tool.py`, replaced by Workstream C's
-`lai_native.runtime` at integration; `runner.py` is the only importer). Its peak RSS comes from
-`os.wait4` and can include the forked Python image before `exec`, so it is an upper bound; the
-benchmark uses GNU `time` instead.
+Tools run through `lai_native.runtime.run_tool(ToolSpec, args, Workspace, ToolLimits,
+deadline=..., cancelled=...)`: absolute executable path (optional SHA-256 pin from
+`LAI_GLTFPACK_SHA256` / `LAI_TOKTX_SHA256`), scrubbed environment (`LD_LIBRARY_PATH` for toktx
+via `ToolSpec.extra_env`), rlimits sized per profile (`OptimizeProfile.limits()`: 2 GiB address
+space, 200 MiB per file, 600 MiB workspace, CPU seconds = timeout). The runtime's peak RSS comes
+from `os.wait4` and can include the forked Python image before `exec`, so it is an upper bound;
+the benchmark wraps the tool in GNU `time` instead.
 
 ## 6. Worker skeleton (`lambda/optimize_worker`)
 
 `task.run_optimize(payload, ports)` (payload `storage_key`, `format: "glb"`, `profile`,
 optional `max_bytes`): refuses with `optimization_disabled` while the profile's control is off,
 reads through the existing read-only asset ports (50 MiB ceiling), runs the optimizer in a
-private `/tmp` directory (removed afterwards), and writes `model.optimized` and
+private `lai_native.runtime.Workspace` (removed afterwards) bounded by the Lambda deadline
+(`Deadline(context.get_remaining_time_in_millis, reserve_seconds=15)`); a failure is retryable
+only when the runtime says so (timeout, crash, workspace), and writes `model.optimized` and
 `model.optimize_report` through a create-only `put_artifact` port. `handler.handle` mirrors
 `jobs_worker.handler.process` (stored-result redelivery, `running`, final result, batch item
 failures); the envelope module and runtime are injected because `asset.optimize` and its queue
@@ -171,32 +194,39 @@ packaging and no infrastructure (Workstream G, and open decision O1).
 
 ## 7. Benchmarks, Meshopt (workstation, 2026-11-18)
 
-`python3 native/gltf/bench.py content/models/npc-pip-pirate.glb react/public/models/*.glb`,
-gltfpack 1.3 native x86_64, profile `meshopt-conservative/v1`. Times and peak RSS are GNU `time`
-for the gltfpack process alone; "Step" is the whole `optimize_meshopt` call (tool, validation,
-inspection twice). GPU texture memory is **calculated** (RGBA8 with mips; Meshopt does not change
-textures). The repository has 6 GLBs; the 116 `.gltf` files are not Asset Library inputs.
+`python3 native/gltf/bench.py --profile meshopt-conservative content/models/npc-pip-pirate.glb
+react/public/models/*.glb`, gltfpack 1.3 native x86_64, run through `lai_native.runtime`. "Tool
+s" and peak RSS are GNU `time` for the gltfpack process alone; "Step s" is the whole
+`optimize_meshopt` call (tool, validation, inspection twice). GPU texture memory is
+**calculated** (RGBA8 with mips; Meshopt does not change textures). **The host was heavily shared
+during these runs (load average 25 to 40 on 4 vCPUs)**, so times are pessimistic and noisy; an
+earlier, quieter run of the same profile measured 0.096 s and 18.3 MiB for gltfpack on the NPC.
+The repository has 6 GLBs; the 116 `.gltf` files are not Asset Library inputs.
 
-| Model | Source bytes (gzip -9) | Output bytes (gzip -9) | Output / source | gltfpack s | gltfpack peak RSS MiB | Step s | Preserved | GPU texture MiB (calc.) |
-|---|---:|---:|---:|---:|---:|---:|---|---:|
-| `content/models/npc-pip-pirate.glb` (skinned, 65 joints, 4 clips) | 3,307,456 (2,086,790) | 941,508 (692,772) | 28.5% | 0.096 | 18.3 | 0.500 | yes | 21.33 |
-| `react/public/models/kaykit-floor-tile-large.glb` | 28,100 (14,254) | 20,740 (13,621) | 73.8% | 0.004 | 4.9 | 0.036 | yes | 5.33 |
-| `react/public/models/kaykit-floor-wood-large-dark.glb` | 35,616 (15,192) | 22,744 (14,280) | 63.9% | 0.008 | 4.9 | 0.015 | yes | 5.33 |
-| `react/public/models/kenney-rock-small.glb` | 23,796 (12,091) | 16,016 (11,402) | 67.3% | 0.006 | 5.0 | 0.016 | yes | 1.33 |
-| `react/public/models/kenney-tree-large.glb` | 28,784 (13,316) | 13,952 (11,159) | 48.5% | 0.009 | 4.9 | 0.088 | yes | 1.33 |
-| `react/public/models/kenney-tree-small.glb` | 23,352 (11,619) | 12,960 (10,344) | 55.5% | 0.077 | 4.9 | 0.030 | yes | 1.33 |
+| Model | Source bytes (gzip -9) | Output bytes (gzip -9) | Output / source | Tool s (sum) | Tool peak RSS MiB (max) | Step s | Result | GPU texture MiB before (calc.) | after (calc.) |
+|---|---:|---:|---:|---:|---:|---:|---|---:|---:|
+| `content/models/npc-pip-pirate.glb` | 3,307,456 (2,086,790) | 941,508 (692,772) | 28.5% | 0.376 | 18.1 | 0.616 | preserved | 21.33 | 21.33 |
+| `react/public/models/kaykit-floor-tile-large.glb` | 28,100 (14,254) | 20,740 (13,621) | 73.8% | 0.063 | 5.0 | 0.080 | preserved | 5.33 | 5.33 |
+| `react/public/models/kaykit-floor-wood-large-dark.glb` | 35,616 (15,192) | 22,744 (14,280) | 63.9% | 0.067 | 4.9 | 0.120 | preserved | 5.33 | 5.33 |
+| `react/public/models/kenney-rock-small.glb` | 23,796 (12,091) | 16,016 (11,402) | 67.3% | 0.067 | 4.8 | 0.100 | preserved | 1.33 | 1.33 |
+| `react/public/models/kenney-tree-large.glb` | 28,784 (13,316) | 13,952 (11,159) | 48.5% | 0.086 | 4.9 | 0.111 | preserved | 1.33 | 1.33 |
+| `react/public/models/kenney-tree-small.glb` | 23,352 (11,619) | 12,960 (10,344) | 55.5% | 0.018 | 4.9 | 0.038 | preserved | 1.33 | 1.33 |
 
 Every output passed `validate_meshopt` with no error and the preservation check with no
 difference (also asserted by `test_real_gltfpack_preserves_repository_models` when
-`LAI_GLTFPACK` is set). Single runs; sub-0.1 s timings are noisy. Not measured: arm64, Lambda,
-decode time in any browser or tablet.
+`LAI_GLTFPACK` is set). Single runs. Not measured: arm64, Lambda, decode time in any browser or
+tablet.
 
 ## 8. Lambda fit (extrapolated, not measured)
 
 Lambda limits: 900 s, 10,240 MB memory, 10,240 MB `/tmp`, 250 MB unzipped zip. Linear
-extrapolation from the NPC (3.3 MB, 0.096 s, 18.3 MiB) to the 50 MiB GLB ceiling (about 16x):
-about 1.5 s and about 300 MiB for gltfpack, plus about 3 copies of the file in `/tmp` (well under
-512 MB). The gltfpack binary is 4.1 MB and KTX-Software's `toktx` plus `libktx` are a few MB more
+extrapolation from the NPC (3.3 MB, 0.1 to 0.4 s, 18 MiB) to the 50 MiB GLB ceiling (about 16x):
+under 10 s and about 300 MiB for gltfpack, plus about 3 copies of the file in `/tmp` (well under
+512 MB). KTX2 scales with texture pixels, not file size: the worst measured texture (2048x2048
+ETC1S, 27 s and 234 MiB on the loaded host; 12 s unloaded in an earlier probe) times a plausible
+worst case of 8 such textures per model is about 100 to 220 s single-threaded and about 250 MiB
+(textures are encoded one at a time) on x86; a 4096 px texture is 4x the pixels. Lambda arm64
+vCPU speed is not known here. The gltfpack binary is 4.1 MB and KTX-Software's `toktx` plus `libktx` are a few MB more
 (sizes of the x86_64 files on disk). On these numbers the workload fits the zip-Lambda pattern by
 a wide margin; this is **extrapolation**, the arm64 binary does not exist yet, and the runtime
 choice stays open (ADR-070 O1).
@@ -216,3 +246,90 @@ choice stays open (ADR-070 O1).
 | 9 | Browser acceptance (desktop Chrome, Safari, Firefox): a Meshopt model renders and animates identically | **Pending, not done** |
 | 10 | Device acceptance on the owner's tablets (Sprouts gate, LAI-2303): load time, frame rate, visual parity | **Pending, not done** |
 | 11 | Production runtime decision (O1) for server-side jobs | **Open** |
+
+## 10. `KHR_texture_basisu` / KTX2 validation (`compression/ktx2.py`)
+
+Sources (read 2026-11-18): KTX 2.0 specification, Khronos Data Format specification, the
+`KHR_texture_basisu` extension. Nothing is transcoded; each KTX2 file is read once, bounded by
+the caller's image size limit. Error codes:
+
+| Code | Rule |
+|---|---|
+| `ktx2_invalid` | not a KTX 2.0 file (identifier) |
+| `ktx2_format` | `vkFormat` is not 0 (Basis Universal requires `VK_FORMAT_UNDEFINED`) |
+| `ktx2_dimensions`, `texture_too_large` | width or height not a positive multiple of 4; a side above the limit (default 4096) |
+| `ktx2_shape` | `pixelDepth` not 0, `layerCount` not 0 or `faceCount` not 1 |
+| `ktx2_supercompression` | scheme not none, BasisLZ or Zstandard; global data on a non-BasisLZ file |
+| `ktx2_color_model` | BasisLZ without the ETC1S model (163), or none/Zstandard without UASTC (166) |
+| `ktx2_transfer` | DFD transfer function neither linear (1) nor sRGB (2) |
+| `ktx2_levels` | `levelCount` 0 or above the full pyramid; BasisLZ level with an uncompressed length; UASTC level whose (uncompressed) length is not 16 bytes per 4x4 block |
+| `ktx2_truncated` | level index, a level, key/value data or BasisLZ global data outside the file or inside the header |
+| `ktx2_dfd` | missing or out-of-range data format descriptor |
+| `ktx2_orientation` | `KTXorientation` present and not `rd` (glTF is top-left first) |
+| `ktx2_invalid_source`, `ktx2_image_type` | the extension's `source` is not a valid image, or not `image/ktx2` |
+| `ktx2_requires_extension` | no PNG/JPEG fallback `source` while the extension is not required |
+| `ktx2_without_extension` | an `image/ktx2` image used through a plain `source` |
+| `ktx2_not_declared`, `extension_required_not_used` | declaration consistency |
+| `ktx2_mixed_color_usage`, `ktx2_color_space` | one image used as colour and data; transfer function not sRGB for base colour or emissive, or not linear for normal, occlusion or metallic-roughness |
+
+Warnings: `ktx2_payload_not_decoded`, `ktx2_partial_mips`, `ktx2_fallback_present`. Facts:
+`Ktx2Facts.as_metadata()` with per-image width, height, levels, codec, supercompression, colour
+space and **calculated** GPU bytes (8 bpp transcoded, and the 32 bpp RGBA8 fallback a device
+without compressed formats gets). The parser was checked against real toktx 4.4.2 ETC1S and
+UASTC/Zstandard files and against KTX-Software's own `ktx validate`, which passes on every
+texture the optimizer produced from the repository models.
+
+## 11. KTX2 optimizer (`lai_native.optimize.ktx2`)
+
+`optimize_ktx2(source, tools=..., workspace=..., prepare=...)` with profile `ktx2-basisu/v1`
+(`profiles.py`): colour textures (base colour, emissive) as ETC1S, `--assign_oetf srgb`; data
+textures (normal, occlusion, metallic-roughness) as UASTC level 2 with Zstandard 18,
+`--assign_oetf linear`; full mip chains; BT.709 primaries; no flip (`KTXorientation rd`);
+`--threads 1`. A texture no core slot uses, or an image used both ways, fails the job instead of
+guessing a colour space. Images go through Workstream D's `prepare_texture(data, profile)`
+(`texture_prep.py` is the seam; until D lands, `passthrough_texture` never resizes and refuses
+sides that are not multiples of 4 with `texture_needs_resize`). The GLB is rewritten with
+`glbwrite.repack` (Meshopt ranges are relocated intact, so Meshopt then KTX2 works and is
+tested); images become `image/ktx2`, textures move `source` into
+`extensions.KHR_texture_basisu.source` with no fallback, and the extension is required. The job
+fails on any `validate_basisu` error, any preservation difference (textures rule `ktx2`), output
+above 1.5x the source (`size_limit`), or no calculated GPU memory reduction (`no_gpu_gain`).
+The worker accepts `profile: "ktx2-basisu"` only while `LAI_GLB_KTX2` is on.
+
+## 12. Benchmarks, KTX2 (workstation, 2026-11-18)
+
+`python3 native/gltf/bench.py --profile ktx2-basisu ...`, toktx 4.4.2 x86_64, same loaded host
+as section 7 (times pessimistic). GPU memory columns are **calculated**: before, RGBA8 with mips
+for PNG/JPEG; after, 8 bpp with mips for the transcoded format (ETC1S without alpha may use
+4 bpp on ETC1/BC1 targets, so "after" is an upper bound unless the device has no compressed
+format, in which case it is the 32 bpp fallback, equal to "before").
+
+| Model | Source bytes (gzip -9) | Output bytes (gzip -9) | Output / source | Tool s (sum) | Tool peak RSS MiB (max) | Step s | Result | GPU texture MiB before (calc.) | after (calc.) |
+|---|---:|---:|---:|---:|---:|---:|---|---:|---:|
+| `content/models/npc-pip-pirate.glb` | 3,307,456 (2,086,790) | 3,445,632 (2,234,001) | 104.2% | 27.146 | 233.7 | 28.161 | preserved | 21.33 | 5.33 |
+| `react/public/models/kaykit-floor-tile-large.glb` | 28,100 (14,254) | 32,964 (23,047) | 117.3% | 8.891 | 68.3 | 8.893 | preserved | 5.33 | 1.33 |
+| `react/public/models/kaykit-floor-wood-large-dark.glb` | 35,616 (15,192) | 40,484 (24,037) | 113.7% | 4.670 | 68.2 | 4.672 | preserved | 5.33 | 1.33 |
+| `react/public/models/kenney-rock-small.glb` | 23,796 (12,091) | 23,420 (13,374) | 98.4% | 0.607 | 21.4 | 0.617 | preserved | 1.33 | 0.33 |
+| `react/public/models/kenney-tree-large.glb` | 28,784 (13,316) | 32,364 (16,834) | 112.4% | 0.845 | 21.0 | 0.858 | preserved | 1.33 | 0.33 |
+| `react/public/models/kenney-tree-small.glb` | 23,352 (11,619) | 26,932 (15,125) | 115.3% | 1.396 | 21.2 | 1.406 | preserved | 1.33 | 0.33 |
+
+Findings: KTX2 does not shrink these files (98% to 117% of the source) and makes gzip less
+effective; the gain is calculated GPU texture memory, 4x lower on every model (NPC 21.33 to
+5.33 MiB). Every output kept geometry, animation, materials and samplers (preservation check)
+and every texture passed `ktx validate`. Visual quality of ETC1S at `--qlevel 128` was **not**
+inspected on any screen.
+
+## 13. KTX2 acceptance gate (before `LAI_GLB_KTX2=on` anywhere)
+
+| # | Gate | State |
+|---|---|---|
+| 1 | Structural validity: `parse_ktx2` / `validate_basisu` unit tests (synthetic containers, every header, level, DFD, orientation and glTF rule) | Done (45 tests) |
+| 2 | Both validators call `validate_basisu` behind the policy row; `image/ktx2` accepted only for validated basisu images; parity corpus extended | **Pending integration** (principal, after B) |
+| 3 | Policy version and GLB processor version bump | **Pending integration** |
+| 4 | Loader: `KTX2Loader` with bundled transcoder, `detectSupport(renderer)`, worker limit, disposal with the engine, refused external URLs, typed error | Done (Vitest, configuration level; jsdom cannot run the transcoder workers) |
+| 5 | Admin preview shows KTX2 models | **Pending** (renderer must exist before parsing) |
+| 6 | Real transcode in a browser (desktop Chrome, Safari, Firefox): textures render with correct colour space and orientation | **Pending, not done** |
+| 7 | Device acceptance on the owner's tablets: transcode target (ASTC/ETC2), load time, memory, visual parity of ETC1S colour textures | **Pending, not done** |
+| 8 | Image preparation through Workstream D's module (resize to multiples of 4, size cap, metadata) | **Pending integration** |
+| 9 | Benchmarks recorded with labels | Done (section 12) |
+| 10 | Production runtime decision (ADR-070 O1) | **Open** |

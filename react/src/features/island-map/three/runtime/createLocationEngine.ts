@@ -30,6 +30,7 @@ import {
 } from 'three';
 import {
   createInstancedMeshFromAsset,
+  enableKtx2Textures,
   instantiateWithLod,
   loadAsset,
   type InstancePlacement,
@@ -134,6 +135,11 @@ export interface LocationEngineAssets {
   instanced(assetId: string, placements: readonly InstancePlacement[]): Promise<Object3D>;
   /** A fresh, LOD-aware copy of `assetId`. */
   withLod(assetId: string): Promise<Object3D>;
+  /**
+   * Optional: gives the asset loader the live renderer (KTX2 textures pick
+   * their GPU format from it, ADR-070). Returns the detach, called on dispose.
+   */
+  attachRenderer?(renderer: unknown): () => void;
 }
 
 export interface LocationEngineDeps<R extends RendererLike> {
@@ -159,6 +165,7 @@ export const DEFAULT_LOCATION_ENGINE_DEPS: LocationEngineDeps<WebGLRenderer> = {
     loadModel: (assetId) => loadAsset(assetId),
     instanced: (assetId, placements) => createInstancedMeshFromAsset(assetId, placements),
     withLod: (assetId) => instantiateWithLod(assetId),
+    attachRenderer: (renderer) => enableKtx2Textures(renderer as WebGLRenderer),
   },
   attachControls: (renderer, controller, options) =>
     attachPointerControls(renderer, controller, options),
@@ -348,6 +355,7 @@ export function createLocationEngine<R extends RendererLike>(
     ),
   );
   renderer.setSize(parent.clientWidth, parent.clientHeight);
+  const detachAssetRenderer = deps.assets.attachRenderer?.(renderer);
   parent.appendChild(renderer.domElement);
 
   // Movement: colliders (gated ones only while their requirements hold),
@@ -1108,6 +1116,7 @@ export function createLocationEngine<R extends RendererLike>(
     materialLibrary.dispose();
     for (const field of moteFields) field.dispose();
     scene.clear();
+    detachAssetRenderer?.();
     renderer.dispose();
     if (renderer.domElement.parentElement === parent) {
       parent.removeChild(renderer.domElement);

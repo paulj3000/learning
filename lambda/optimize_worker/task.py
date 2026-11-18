@@ -3,16 +3,19 @@
     run_optimize(payload, ports, *, environ=None, tools=None, workdir_root=None) -> dict
 
 Payload (schema 1, strict keys): `storage_key` (the asset version's object key), `format`
-(`glb`), `profile` (`meshopt-conservative`; KTX2 profiles join after the KTX2 phase), and
+(`glb`), `profile` (`meshopt-conservative` or `ktx2-basisu`), and
 optional `max_bytes`. The task:
 
 1. refuses when the profile's control is off (`LAI_GLB_MESHOPT` / `LAI_GLB_KTX2`, default off):
    defence in depth, submission is refused upstream first (COMPLETION_INTEGRATION.md section 3);
 2. reads the object through the existing read-only asset ports (`asset_object_size`,
    `read_asset`), bounded by `max_bytes` and the 50 MiB GLB ceiling;
-3. runs `lai_native.optimize` in a private directory under `/tmp`, removed afterwards;
+3. runs `lai_native.optimize` in a private `lai_native.runtime.Workspace` under `/tmp`,
+   removed afterwards, within the Lambda deadline when one is passed;
 4. writes two derived artifacts through the create-only artifact port: `model.optimized`
-   (`model/gltf-binary`) and `model.optimize_report` (`application/json`). It never writes the
+   (`model/gltf-binary`; for KTX2 the textures are embedded in it, so no separate
+   `texture.compressed` artifact is needed for the game) and `model.optimize_report`
+   (`application/json`). It never writes the
    original key or a published key; the port builds keys under `processing/artifacts/`.
 
 Errors: `OptimizeTaskError(code, retryable)`, shaped like `jobs_core.tasks.TaskError`, so the
@@ -23,14 +26,13 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
-import tempfile
 from collections.abc import Mapping
-from pathlib import Path
 from typing import Any, Protocol
 
 from lai_native.optimize import MESHOPT_CONSERVATIVE, OptimizeError, ToolPaths, optimize_meshopt
-from lai_native.optimize.profiles import OptimizeProfile
+from lai_native.optimize.ktx2 import optimize_ktx2
+from lai_native.optimize.profiles import KTX2_BASISU, OptimizeProfile
+from lai_native.runtime import Deadline, NativeToolError, Workspace
 from lai_processing.processors.gltf.compression.policy import (
     KTX2_CONTROL,
     MESHOPT_CONTROL,
@@ -41,10 +43,11 @@ __all__ = ["MAX_GLB_BYTES", "OptimizeTaskError", "run_optimize"]
 
 MAX_GLB_BYTES = 50 * 1024 * 1024
 _KEYS = frozenset({"storage_key", "format", "profile"})
-_PROFILES: dict[str, OptimizeProfile] = {MESHOPT_CONSERVATIVE.name: MESHOPT_CONSERVATIVE}
+_PROFILES: dict[str, OptimizeProfile] = {
+    MESHOPT_CONSERVATIVE.name: MESHOPT_CONSERVATIVE,
+    KTX2_BASISU.name: KTX2_BASISU,
+}
 _CONTROL_FOR_KIND = {"meshopt": MESHOPT_CONTROL, "ktx2": KTX2_CONTROL}
-#: Failures caused by the input or the tool are deterministic: retrying cannot help.
-_RETRYABLE = frozenset()
 
 
 class OptimizeTaskError(Exception):
@@ -90,6 +93,7 @@ def run_optimize(
     environ: Mapping[str, str] | None = None,
     tools: ToolPaths | None = None,
     workdir_root: str | None = None,
+    deadline: Deadline | None = None,
 ) -> dict[str, Any]:
     env = os.environ if environ is None else environ
     key, profile, limit = _payload(payload)
@@ -104,15 +108,19 @@ def run_optimize(
     if len(source) != size:
         raise OptimizeTaskError("object_changed", retryable=True)
     tools = tools or ToolPaths.from_environment(dict(env))
-    workdir = Path(tempfile.mkdtemp(prefix="lai-optimize-", dir=workdir_root))
     try:
-        if profile.kind != "meshopt":
-            raise OptimizeTaskError("unknown_profile")
-        result = optimize_meshopt(source, tools=tools, workdir=workdir, profile=profile)
+        workspace = Workspace(base=workdir_root)
+    except NativeToolError as error:
+        raise OptimizeTaskError(error.code, retryable=True) from None
+    try:
+        step = optimize_meshopt if profile.kind == "meshopt" else optimize_ktx2
+        result = step(source, tools=tools, workspace=workspace, profile=profile, deadline=deadline)
     except OptimizeError as error:
-        raise OptimizeTaskError(error.code, error.code in _RETRYABLE) from None
+        # Input, tool-exit and preservation failures are deterministic; only native runtime
+        # failures such as a timeout or a crash may pass on another attempt.
+        raise OptimizeTaskError(error.code, error.retryable) from None
     finally:
-        shutil.rmtree(workdir, ignore_errors=True)
+        workspace.close()
     report = dict(result.report)
     model_key = ports.put_artifact(
         role="model.optimized",

@@ -8,7 +8,7 @@
 #     SHA-256 per architecture), verifies each SHA-256 before extracting anything, and extracts
 #     into <out>/<arch>/;
 #   - prints the tool paths to export for the optional real-tool tests and the benchmark
-#     (LAI_GLTFPACK, LAI_TOKTX, LAI_KTX).
+#     (LAI_GLTFPACK, LAI_TOKTX, LAI_KTX, LAI_KTX_LIBRARY_PATH).
 # It never commits, installs system packages, runs sudo, or touches the repository tree outside
 # <out>. Binaries are build outputs and are never committed (`/build/` is gitignored).
 #
@@ -80,5 +80,6 @@ cat <<EOF
 export LAI_GLTFPACK="${GLTFPACK}"
 export LAI_TOKTX="$KTX_DIR/bin/toktx"
 export LAI_KTX="$KTX_DIR/bin/ktx"
-export LD_LIBRARY_PATH="$KTX_DIR/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+export LAI_KTX_LIBRARY_PATH="$KTX_DIR/lib"   # passed to toktx by lai_native.runtime (extra_env)
+export LD_LIBRARY_PATH="$KTX_DIR/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"   # for running ktx by hand
 EOF
