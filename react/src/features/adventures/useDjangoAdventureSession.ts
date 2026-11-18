@@ -49,8 +49,16 @@ function newRequestId(): string {
 export function useDjangoAdventureSession(
   childId: string,
   adventureSlug: string,
-  api: StepRunnerApi = stepRunnerApiFor(childId),
+  injectedApi?: StepRunnerApi,
 ): DjangoAdventureSessionState {
+  // One client per child, kept across renders. Built inline as a default parameter it was a new
+  // object every render, which re-ran the start effect below, whose state updates rendered
+  // again: an endless loop of start requests (owner QA 2026-11-15, the bridge signpost).
+  const defaultApi = useMemo(
+    () => (injectedApi ? null : stepRunnerApiFor(childId)),
+    [injectedApi, childId],
+  );
+  const api = injectedApi ?? (defaultApi as StepRunnerApi);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [view, setView] = useState<StepRunnerView | null>(null);
   const [hintLevel, setHintLevel] = useState(0);

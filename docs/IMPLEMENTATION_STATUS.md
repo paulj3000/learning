@@ -50,6 +50,20 @@ Owner guide: `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`. Decision: ADR-060 (Proposed
   horizontally (`withoutRootMotionFor`); gait, movement state and walk playback follow the
   distance really covered (`locomotionSpeed`); blocked steps come up flush (no flicker); the
   third-person boom lifts gently over a wall behind the child.
+- **P0 camera stops, child walks off screen (fixed, owner QA 2026-11-15):** backing into a tall
+  wall (Treasure Cove's north boundary) the boom lift found no room down to -1.1 rad once the
+  footprint let the child stand 0.37 m from the wall, gave up, and left the camera at the wall
+  while the child walked off the bottom of the screen. The lift now starts at 3 m of room, may go
+  to -1.45 rad, falls back to the boom with the most room, and is speed-capped
+  (`playerCamera.ts`). Regression tests: `avatarSync.test.ts` (flush wall, early lift, short boom)
+  and `treasureCoveThirdPerson.engine.test.ts` (walk straight back to the boundary). Owner
+  follow-up: no lift at the world's edge; the camera ignores the invisible boundary walls, so the
+  child just stops there with the view unchanged.
+- **Critical: signpost launch looped forever (fixed, owner QA 2026-11-15):** "Help Pip carry planks
+  to the bridge" opened the Adventure page, whose `useDjangoAdventureSession` built its default
+  API client as a default parameter, a new object every render, re-running its start effect on
+  every render it caused (endless `start` requests). The client is now memoized per child.
+  Regression test: `DjangoAdventureRunner.defaultApi.test.tsx`.
 - **P0 wall penetration (fixed):** the child is a 0.35 m (+0.02 m skin) cylinder in both
   perspectives (`playerCollision.ts`, `movement.collision`); costume racks moved back so the
   Trophy Room door's landing is clear; a development-only collision view (`?collisionDebug=1`).

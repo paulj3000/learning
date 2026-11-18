@@ -124,10 +124,22 @@ any rig:** `withoutRootMotionFor` drops position tracks on the model's top-level
 only the vertical motion of the skeleton's root bones (a Mixamo walk's hips travel forward 1 to
 1.5 m per cycle otherwise, which once walked the avatar away from a stopped camera).
 
-**Camera boom lift.** When a wall behind the child pulls the third-person camera closer than
-1.2 m, the boom eases up (a steeper look down, up to the third-person limit) wherever that gives
-room to show the child, never through a wall, slower under reduced motion, and settles back once
-clear. It never moves the player.
+**Camera boom lift.** When a wall behind the child leaves the third-person boom less than 3 m of
+room (75% of a shorter configured boom), the boom eases up: a steeper look down, as far as
+-1.45 rad (about 83°, steeper than the child's own -1.1 look limit), using the least lift with
+that much room, or else the one with the most room. A child flush against a 3 m wall (0.37 m away
+with the footprint) is seen from above, over the wall's top. The lift turns at most 2.8 rad/s
+(1.4 with reduced motion) and hurries only while the boom is too short to show the child. It is
+never through a wall, settles back once clear, and never moves the player or changes their pitch.
+(Owner QA 2026-11-15: the lift used to search only to -1.1 and with at least 1.0 m of room, so
+against a tall wall it found nothing, dropped back to no lift, and the child walked off the
+bottom of the screen while the camera stood at the wall.)
+
+**The world's edge stops the child, not the camera.** The four invisible boundary walls
+(`boundaryWallRects`, `SolidCollider.boundary`) are skipped by the camera's obstruction probe, so
+at the edge the child just stops and the view stays exactly as it was: no pull-in, no lift (the
+owner did not want the camera zooming up there). Nothing is drawn at the edge, so nothing can hide
+the child. Every other wall still blocks the camera.
 
 The controller only changes the animator's state when the state changes (no restarting a clip
 every frame), and crossfades take 0.2 s. `Run` is in the vocabulary and mapped, ready for a

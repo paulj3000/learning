@@ -121,6 +121,11 @@ Movement and camera (third-person, then first-person):
 - [ ] Walk diagonally along a wall: the avatar slides and keeps walking.
 - [ ] Back into a wall in third-person: the camera rises gently over your shoulder and you can
       still see your character; with reduced motion on, it rises more slowly.
+- [ ] Treasure Cove: from the landing, hold "back" all the way to the north edge. Your character
+      just stops at the edge; the camera keeps the same view the whole way (no zoom up), and they
+      never walk off screen.
+- [ ] At the bridge signpost, choose "Help Pip carry planks to the bridge": the adventure opens
+      once and shows its first step (it used to loop).
 - [ ] Jump, land and jump onto a low crate and over a log: animations as before.
 - [ ] Stand still on a moving platform in Pirate's Leap: the avatar does not walk.
 - [ ] With your own published (Mixamo) avatar: it never slides ahead of or behind the camera.

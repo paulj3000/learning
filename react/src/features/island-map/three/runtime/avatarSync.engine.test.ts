@@ -96,7 +96,10 @@ describe('the avatar stays with the player when walking backwards into a wall', 
     expect(c!.position.z).toBeGreaterThanOrEqual(WALL_FACE);
     expect(c!.movementState).toBe('IDLE');
     expect(c!.locomotionSpeed).toBeLessThan(0.2);
-    // The camera stays on the same side of the wall as the child.
-    expect(h.camera().position.z).toBeGreaterThan(WALL_FACE);
+    // The camera is never inside the 3 m wall: on the child's side of it, or lifted over its top
+    // (looking down on the child) once they are flush against it.
+    const camera = h.camera().position;
+    expect(camera.z > WALL_FACE || camera.y > 3).toBe(true);
+    expect(h.scene().getObjectByName(AVATAR_ROOT_NAME)!.visible).toBe(true);
   });
 });

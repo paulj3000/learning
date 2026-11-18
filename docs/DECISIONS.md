@@ -4198,7 +4198,10 @@ position tracks, leaving a Mixamo walk's travel on its hips bone.
 4. **No root motion from any rig**: position tracks on the model's top-level nodes are dropped
    and the skeleton root bones keep only their vertical motion (`withoutRootMotionFor`).
 5. **The third-person boom may lift**, eased and slower under reduced motion, over a wall behind
-   the child when pulling in would hide them; it never moves the player or enters a wall.
+   the child when pulling in would hide them; it never moves the player or enters a wall. The
+   lift may go steeper (to -1.45 rad) than the child's own look limit, and falls back to the boom
+   with the most room rather than to none (owner QA 2026-11-15, tall walls). The invisible walls
+   at the world's edge never obstruct the camera: there the child just stops, the view unchanged.
 
 **Why 0.35 m.** The placeholder explorer's body is 0.27 m in radius; a typical published
 character is about 0.23 to 0.28 m at the shoulders. 0.35 m keeps the visible body out of a wall

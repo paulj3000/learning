@@ -94,18 +94,40 @@ const REDUCED_MOTION_VERTICAL_FOLLOW_FRACTION = 0.3;
 /** Per second: how fast the sprint field-of-view widening eases in and out. */
 const FOV_EASE_RATE = 5;
 /**
- * Boom lift (Defect: backing into a wall hid the child). When a wall behind the child pulls the
- * camera closer than this, metres, it looks for a higher boom (a steeper look down over the
- * child, up to `THIRD_PERSON_MIN_PITCH`) with room to show them, and eases up to it.
+ * Boom lift (Defect: backing into a wall hid the child). When a wall behind the child leaves the
+ * boom less room than this, metres, the camera looks for a higher boom (a steeper look down over
+ * the child) with at least this much room, and eases up to it. Started early enough that the
+ * child is still on screen when it begins: below about 1.8 m of boom at the entry pitch, the
+ * child's body has already slid off the bottom of a 70° view. A short configured boom scales it
+ * down (`liftTrigger`), so a close camera is not lifted all the time.
  */
-export const BOOM_LIFT_TRIGGER = 1.2;
-/** A higher boom is used only if it has at least this much room: enough to show the child. */
+export const BOOM_LIFT_TRIGGER = 3;
+/** The lift trigger as a fraction of the configured boom, when that is shorter. */
+const BOOM_LIFT_TRIGGER_FRACTION = 0.75;
+/**
+ * How steep a lifted boom may go, radians (about 83° down): steeper than the child's own look
+ * limit (`THIRD_PERSON_MIN_PITCH`, unchanged), because a child flush against a 3 m wall (0.37 m
+ * away with the footprint) has no room for a boom at -1.1, but one this steep clears the wall's
+ * top. The view looks down over the child from above; their own pitch and walking are untouched.
+ */
+export const BOOM_LIFT_LOWEST_PITCH = -1.45;
+/** Lowest room a lift is worth: below this the child is hidden anyway (kept for callers). */
 export const BOOM_LIFT_MIN_ROOM = AVATAR_HIDE_DISTANCE + 0.2;
 /** Pitch steps tried when looking for a higher boom, radians. */
 const BOOM_LIFT_STEP = 0.15;
 /** Per second: how fast the boom rises and settles back (gentle; slower with reduced motion). */
 const BOOM_LIFT_RATE = 3;
 const REDUCED_MOTION_BOOM_LIFT_RATE = 1.5;
+/**
+ * While the boom is too short to show the child (they are hidden), the lift hurries: against a
+ * tall wall every pitch between the child's own and one over the wall's top is cramped, and
+ * the gentle rate left the child hidden for about half a second on the way through.
+ */
+const HIDDEN_BOOM_LIFT_RATE = 9;
+const REDUCED_MOTION_HIDDEN_BOOM_LIFT_RATE = 4.5;
+/** Fastest the boom may turn while lifting or settling, radians per second: never a swing. */
+const MAX_BOOM_LIFT_SPEED = 2.8;
+const REDUCED_MOTION_MAX_BOOM_LIFT_SPEED = 1.4;
 /** A jump of the follow point bigger than this (a teleport) snaps rather than eases. */
 const SNAP_DISTANCE = 3;
 
@@ -269,23 +291,47 @@ export class PlayerCameraController {
     // A wall right behind the child would put the camera at their shoulder and hide them: lift
     // the boom over it where a higher one has room, eased so it is never a jolt. The child's
     // own pitch is untouched (walking and aiming do not change); only the view looks down more.
+    // The first (least) lift with enough room wins; if none has it, the one with the most room,
+    // so a child against a tall wall still gets the best view there is, never an unlifted
+    // camera at their shoulder (the defect: the search used to give up and drop the lift).
     let liftTarget = 0;
-    if (config.collisionEnabled && this.obstruction && room(ownPitch).allowed < BOOM_LIFT_TRIGGER) {
-      // Steps down from the child's pitch, always ending exactly at the lowest look allowed.
+    const trigger = Math.min(BOOM_LIFT_TRIGGER, config.distance * BOOM_LIFT_TRIGGER_FRACTION);
+    const unlifted = config.collisionEnabled && this.obstruction ? room(ownPitch).allowed : 0;
+    if (config.collisionEnabled && this.obstruction && unlifted < trigger) {
+      let bestRoom = unlifted;
+      // Steps down from the child's pitch, always ending exactly at the steepest lift allowed.
       for (let step = 1; ; step += 1) {
-        const pitch = Math.max(THIRD_PERSON_MIN_PITCH, ownPitch - step * BOOM_LIFT_STEP);
-        if (room(pitch).allowed >= BOOM_LIFT_MIN_ROOM) {
+        const pitch = Math.max(BOOM_LIFT_LOWEST_PITCH, ownPitch - step * BOOM_LIFT_STEP);
+        const allowed = room(pitch).allowed;
+        if (allowed >= trigger) {
           liftTarget = pitch - ownPitch;
           break;
         }
-        if (pitch <= THIRD_PERSON_MIN_PITCH) break;
+        if (allowed > bestRoom + 1e-6) {
+          bestRoom = allowed;
+          liftTarget = pitch - ownPitch;
+        }
+        if (pitch <= BOOM_LIFT_LOWEST_PITCH) break;
       }
     }
     // Always eased (a fresh start begins unlifted), so the view never swings at once.
-    const liftRate = this.reducedMotion ? REDUCED_MOTION_BOOM_LIFT_RATE : BOOM_LIFT_RATE;
-    this.liftOffset = ease(this.liftOffset, liftTarget, liftRate, dt);
+    const hidden = this.currentDistance <= AVATAR_HIDE_DISTANCE && liftTarget < this.liftOffset;
+    const liftRate = hidden
+      ? this.reducedMotion
+        ? REDUCED_MOTION_HIDDEN_BOOM_LIFT_RATE
+        : HIDDEN_BOOM_LIFT_RATE
+      : this.reducedMotion
+        ? REDUCED_MOTION_BOOM_LIFT_RATE
+        : BOOM_LIFT_RATE;
+    const maxTurn =
+      (this.reducedMotion ? REDUCED_MOTION_MAX_BOOM_LIFT_SPEED : MAX_BOOM_LIFT_SPEED) * dt;
+    this.liftOffset += clamp(
+      ease(this.liftOffset, liftTarget, liftRate, dt) - this.liftOffset,
+      -maxTurn,
+      maxTurn,
+    );
     if (Math.abs(this.liftOffset - liftTarget) < 1e-3) this.liftOffset = liftTarget;
-    const pitch = thirdPersonPitch(ownPitch + this.liftOffset);
+    const pitch = clamp(ownPitch + this.liftOffset, BOOM_LIFT_LOWEST_PITCH, THIRD_PERSON_MAX_PITCH);
 
     // The boom actually used this frame, tested again: whatever the lift, never through a wall.
     const used = room(pitch);
@@ -337,13 +383,17 @@ const probeHit = new Vector3();
  * already inside is ignored, so a jumpable crate the child stands in front of
  * does not pin the camera to their head.
  */
-export function colliderObstruction(colliders: readonly Box3[]): ObstructionProbe {
+export function colliderObstruction(
+  colliders: readonly Box3[],
+  /** Boxes the camera passes through: the invisible walls at the world's edge. */
+  ignored: ReadonlySet<Box3> = new Set(),
+): ObstructionProbe {
   return (origin, direction, maxDistance) => {
     probeRay.origin.copy(origin);
     probeRay.direction.copy(direction);
     let nearest: number | null = null;
     for (const box of colliders) {
-      if (box.containsPoint(origin)) continue;
+      if (ignored.has(box) || box.containsPoint(origin)) continue;
       if (!probeRay.intersectBox(box, probeHit)) continue;
       const distance = probeHit.distanceTo(origin);
       if (distance <= maxDistance && (nearest === null || distance < nearest)) nearest = distance;

@@ -14,9 +14,11 @@ import { rootBonesOf, withoutRootMotionFor } from './playerAnimation';
 import { mixamoRig, rootMotionWalk } from './runtime/testing/rootMotionRig';
 import {
   AVATAR_HIDE_DISTANCE,
+  BOOM_LIFT_LOWEST_PITCH,
   BOOM_LIFT_TRIGGER,
   colliderObstruction,
   PlayerCameraController,
+  THIRD_PERSON_MIN_PITCH,
   type PlayerCameraInput,
 } from './playerCamera';
 import { DEFAULT_PLAYER_CAMERA } from './playerPresentation';
@@ -250,9 +252,69 @@ describe('third-person camera when the child backs into a wall', () => {
     expect(frame.avatarVisible).toBe(true);
     expect(frame.distance).toBeGreaterThan(AVATAR_HIDE_DISTANCE);
     expect(frame.pitch).toBeLessThan(-0.25); // looking down over the child
-    // Raised up the wall's face, on the child's side of it.
+    // Raised up the wall's face, and over its top where that has room: never inside it, and
+    // the view down to the child is clear of it.
     expect(frame.position.y).toBeGreaterThan(firstHeight + 0.5);
-    expect(frame.position.z).toBeGreaterThan(-0.6);
+    const pivot = new Vector3(0, DEFAULT_PLAYER_CAMERA.heightOffset, 0);
+    const toPivot = pivot.clone().sub(frame.position);
+    const sight = colliderObstruction(boxes)(
+      frame.position,
+      toPivot.clone().normalize(),
+      toPivot.length(),
+    );
+    expect(sight).toBeNull();
+  });
+
+  it('still lifts when the child is flush against a tall wall (0.37 m, the footprint)', () => {
+    // The lift used to search only down to THIRD_PERSON_MIN_PITCH (-1.1); against a 3 m wall
+    // 0.37 m behind, no such boom has room, so it gave up and left the camera at the child's
+    // shoulder with the avatar hidden.
+    const flush = new Box3(new Vector3(-5, 0, -1), new Vector3(5, 3, -0.37));
+    const cam = camera([flush]);
+    let frame = cam.update(FRAME, input());
+    for (let i = 0; i < 180; i += 1) {
+      frame = cam.update(FRAME, input());
+      expect(flush.containsPoint(frame.position)).toBe(false);
+    }
+    expect(frame.avatarVisible).toBe(true);
+    expect(frame.distance).toBeGreaterThan(AVATAR_HIDE_DISTANCE);
+    expect(frame.pitch).toBeLessThan(THIRD_PERSON_MIN_PITCH);
+    expect(frame.pitch).toBeGreaterThanOrEqual(BOOM_LIFT_LOWEST_PITCH);
+  });
+
+  it('starts lifting before the child slides off the screen', () => {
+    // A wall 2.5 m behind leaves a 4 m boom about 2.2 m: the child would already be low on
+    // screen, so the camera begins to rise.
+    const cam = camera([new Box3(new Vector3(-5, 0, -3), new Vector3(5, 3, -2.5))]);
+    let frame = cam.update(FRAME, input());
+    for (let i = 0; i < 120; i += 1) frame = cam.update(FRAME, input());
+    expect(frame.pitch).toBeLessThan(-0.3);
+  });
+
+  it('passes through the world-edge walls it is told to ignore, and only those', () => {
+    const edge = wall();
+    const rock = new Box3(new Vector3(-5, 0, -2.5), new Vector3(5, 3, -2));
+    const probe = colliderObstruction([edge, rock], new Set([edge]));
+    const hit = probe(new Vector3(0, 1.5, 0), new Vector3(0, 0, -1), 10);
+    expect(hit).toBeCloseTo(2, 6); // the rock, not the edge wall at 0.6 m
+    expect(
+      colliderObstruction([edge], new Set([edge]))(
+        new Vector3(0, 1.5, 0),
+        new Vector3(0, 0, -1),
+        10,
+      ),
+    ).toBeNull();
+  });
+
+  it('does not lift a short configured boom in the open', () => {
+    const cam = new PlayerCameraController(
+      { ...DEFAULT_PLAYER_CAMERA, distance: 2 },
+      'third-person',
+      { eyeHeight: 1.6, obstruction: colliderObstruction([]) },
+    );
+    let frame = cam.update(FRAME, input());
+    for (let i = 0; i < 60; i += 1) frame = cam.update(FRAME, input());
+    expect(frame.pitch).toBeCloseTo(-0.25, 6);
   });
 
   it('eases rather than swings: the first lifted frame moves only a little', () => {

@@ -470,8 +470,13 @@ export function createLocationEngine<R extends RendererLike>(
     id: solid.id,
     box: toBox3(solid.box),
     jumpable: solid.jumpable === true,
+    boundary: solid.boundary === true,
   }));
   const colliders = solids.map((solid) => solid.box);
+  // The world's edge stops the child, not the camera (owner QA 2026-11-15: no zoom up at the edge).
+  const boundaryBoxes: ReadonlySet<Box3> = new Set(
+    solids.filter((solid) => solid.boundary).map((solid) => solid.box),
+  );
   // LAI-JMP-01: only authored low obstacles are jumpable; walls, gates, the
   // world's edge and anything an extension adds stay solid at every height.
   const jumpableColliders = new Set(
@@ -522,7 +527,7 @@ export function createLocationEngine<R extends RendererLike>(
     {
       eyeHeight: EYE_HEIGHT,
       reducedMotion: options.reducedMotion,
-      obstruction: colliderObstruction(colliders),
+      obstruction: colliderObstruction(colliders, boundaryBoxes),
     },
   );
   if (playerCamera.mode === 'third-person') {
@@ -684,7 +689,7 @@ export function createLocationEngine<R extends RendererLike>(
         continue;
       }
       const jumpable = solid.jumpable === true;
-      solids.push({ id: solid.id, box, jumpable });
+      solids.push({ id: solid.id, box, jumpable, boundary: false });
       colliders.push(box);
       if (jumpable) jumpableColliders.add(box);
     }

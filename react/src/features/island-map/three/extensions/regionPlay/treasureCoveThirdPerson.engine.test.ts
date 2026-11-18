@@ -88,6 +88,43 @@ describe('Treasure Cove in third-person (LAI-JMP-01a)', () => {
     expect(named(harness.events, 'ObjectInteracted').length).toBeGreaterThan(0);
   });
 
+  it('just stops at the edge of the world: no camera lift, the child always in view', async () => {
+    // Owner QA 2026-11-15: from the landing (facing south), holding "back" to the north edge, the
+    // camera stopped at the invisible boundary wall and the child walked on, off the bottom of
+    // the screen. Then, with a boom lift, the camera zoomed up over the wall, which the owner
+    // did not want. The edge now stops only the child: the camera keeps its normal view.
+    const { harness } = await cove();
+    let placed = false;
+    let feetZ = 0;
+    harness.setDrive((controller, delta) => {
+      if (!placed) controller.position.set(0, 0, 36);
+      placed = true;
+      controller.yaw = FACE_SOUTH;
+      controller.update(delta, { forward: -1, strafe: 0 });
+      feetZ = controller.position.z;
+    });
+    const body = new Vector3();
+    const pitches = new Set<string>();
+    for (let i = 0; i < 360; i += 1) {
+      harness.runFrames(1);
+      const camera = harness.camera();
+      const avatar = harness.scene().getObjectByName(AVATAR_ROOT_NAME)!;
+      expect(avatar.visible, `frame ${i}`).toBe(true);
+      // The middle of the child's body stays where it always is on screen.
+      body
+        .copy(avatar.position)
+        .setY(avatar.position.y + 0.7)
+        .project(camera);
+      expect(Math.abs(body.y), `frame ${i}`).toBeLessThan(0.45);
+      pitches.add(camera.rotation.x.toFixed(3));
+    }
+    // At the edge (bounds 44, footprint 0.37 m), not through it.
+    expect(feetZ).toBeGreaterThan(43);
+    expect(feetZ).toBeLessThan(44);
+    // The view never tilted: the child's own pitch, every frame.
+    expect([...pitches]).toEqual(['-0.250']);
+  });
+
   it('cannot jump past the closed ruins gate in third-person', async () => {
     const { harness } = await cove();
     let z = 0;
