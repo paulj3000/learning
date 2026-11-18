@@ -436,7 +436,7 @@ def compose_database() -> dict:
     user = os.environ.get("POSTGRES_USER", "lai")
     password = os.environ.get("POSTGRES_PASSWORD", "local-dev-only-password")
     name = os.environ.get("POSTGRES_DB", "lai")
-    port = os.environ.get("POSTGRES_PORT", "5442")
+    port = os.environ.get("POSTGRES_PORT", "5432")
     return database_from_url(f"postgresql://{user}:{password}@127.0.0.1:{port}/{name}")
 
 

@@ -14314,3 +14314,11 @@ it: no bubble, and a child never saw Pip's welcome. Reproduced 7 times in 20 wit
 - Treasure Rush "timing" failures (Trello CeKICNoP): after the speech fix (PR #31) the
   previously failing scenarios passed 10/10 on desktop and tablet with no test changes; their
   cause was speech 503s firing at a random moment during a test, not timing.
+
+## Local PostgreSQL default port back to 5432 (owner, 2026-11-17)
+
+The compose database, the Django `compose_database()` default and the pytest reachability probe
+(`lai/conftest.py`) now default to 5432, replacing 5442 (2026-11-05). `POSTGRES_PORT` still
+overrides all three. The probe and settings had disagreed on one machine, so every `postgres`
+test was skipped silently; use `LAI_REQUIRE_POSTGRES=1` to turn that gap into a failure. CI
+already used 5432. Older entries above that mention 5442 record what ran at the time.

@@ -70,12 +70,12 @@ Mark each step `[x]` pass or write `FAIL:` with what you saw. Use synthetic test
 
 ### B1. Environment setup
 
-Ports: PostgreSQL 5442, Django 8010, Vite 5183 (Makefile, `react/vite.config.ts`). Full detail:
+Ports: PostgreSQL 5432, Django 8010, Vite 5183 (Makefile, `react/vite.config.ts`). Full detail:
 `docs/TREASURE_RUSH_LOCAL_DEV.md`.
 
 ```bash
 make py-install                      # once
-make up                              # PostgreSQL 16 on 127.0.0.1:5442
+make up                              # PostgreSQL 16 on 127.0.0.1:5432
 make migrate
 cd lai
 /Coding/ENV/bin/python manage.py load_content

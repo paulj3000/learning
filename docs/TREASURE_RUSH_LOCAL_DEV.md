@@ -27,7 +27,7 @@ From the repository root:
 
 ```bash
 make py-install     # creates .venv and installs requirements-dev.txt
-make up             # PostgreSQL 16 on 127.0.0.1:5442 (set POSTGRES_PORT to change it)
+make up             # PostgreSQL 16 on 127.0.0.1:5432 (set POSTGRES_PORT to change it)
 make migrate
 ```
 
