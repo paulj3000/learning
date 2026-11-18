@@ -751,6 +751,10 @@ rejected with a finding, never published half-working. Package it as `.glb` or e
 - Structures are walked with bounds and must end where the file ends. Extra bytes after a PNG
   `IEND`, a JPEG end marker, a WebP/WAV RIFF size, the last MP3 frame or the Ogg end page are
   refused (`trailing_data`), so a polyglot file cannot be stored. PNG chunk CRCs are verified.
+- Images that carry EXIF, GPS, XMP, IPTC or text metadata pass with the warnings
+  `image_location_present` (a GPS tag, XMP GPS or unreadable EXIF) and `image_metadata_present`.
+  The scan is bounded, reads no pixels, stores no value and never refuses a file; published bytes
+  are still delivered unchanged (LAI-LAMBDA-013, proposed conversion strips them).
 - Dimensions, channels, sample rate and duration are limited; non-power-of-two textures get a
   warning, not a refusal.
 - A file that fails is never stored and makes no row. SHA-256 is recorded, sent to S3 as the

@@ -4,6 +4,8 @@ Card: LAI-LAMBDA-013 (asset thumbnail generation and image conversion; split out
 LAI-LAMBDA-010 on 2026-11-16). Branch `feature/w4-image-feasibility`, based on the canonical
 processing branch (`2333d9e`). Date: 2026-11-17.
 
+**Update 2026-11-17 (image workstream):** the image half now has its own proposal and contract page (`LAI-LAMBDA-013-image-conversion-contract.md`); GLB thumbnails move to `ADR-PROPOSED-glb-thumbnail-rendering.md`; a metadata scanner and upload warnings for EXIF and GPS exist (advisory). Decisions in the image ADR are renumbered D-1 to D-12.
+
 **State: feasibility complete; nothing implemented, nothing deployed, no dependency added.**
 The product still has no imaging library, no thumbnail and no conversion. Everything here waits
 for owner decisions (section 7) and, for code, for W0 and W1 of `../WAVE4_HANDOFF.md`.
@@ -14,6 +16,7 @@ for owner decisions (section 7) and, for code, for W0 and W1 of `../WAVE4_HANDOF
 |---|---|
 | `LAI-LAMBDA-013-image-support-audit.md` | What exists: validation, limits, metadata, previews, probe, storage, packaging |
 | `LAI-LAMBDA-013-packaging.md` | Measured Pillow and libvips wheel sizes, budgets, Lambda limits, packaging options P1 to P5, pure versus native split |
+| `LAI-LAMBDA-013-image-conversion-contract.md` | Image job type, request and result shape, profiles, security, packaging evaluation, metadata scanner, measurements, Admin design (supersedes the image parts of the conversion design where they differ) |
 | `LAI-LAMBDA-013-image-conversion-design.md` | Conversion pipeline: bomb protection, orientation, colour, transparency, metadata removal, output limits, local measurements |
 | `LAI-LAMBDA-013-glb-thumbnails.md` | Renderer options T1 to T8, local SwiftShader measurement, benchmark harness design |
 | `LAI-LAMBDA-013-derived-artifacts.md` | Options A, B and C on the real `apps.assets` models; storage, IAM and retention |

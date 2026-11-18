@@ -42,7 +42,7 @@ on branch `feature/w4-image-feasibility` (base `2333d9e`, the canonical processi
 - **Result.** `metadata = {"width", "height"}` only. No colour type, bit depth, alpha flag,
   colour profile, orientation or metadata presence is recorded on the version.
 
-**Finding A1 (privacy, staff content).** A JPEG photographed on a phone and uploaded as a texture
+**Finding A1 (privacy, staff content). Verified against the code 2026-11-17; since then the synchronous validator warns (`image_location_present`, `image_metadata_present`), nothing is stripped or rejected.** A JPEG photographed on a phone and uploaded as a texture
 keeps its EXIF block (GPS position, device, time) in the stored object, and once published those
 bytes are delivered unchanged to the child app through `/api/v1/asset-files/...`. The content is
 staff-authored, not child data, so this is not a child-data leak, but it is avoidable location

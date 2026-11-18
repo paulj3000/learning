@@ -55,7 +55,7 @@ remains: `docs/processing/WAVE4_HANDOFF.md`.
 | LAI-LAMBDA-009 NPC animation inspection | Developer-complete on the branch |
 | LAI-LAMBDA-008 audio | Phase 1 (header inspection) developer-complete; transcoding and loudness (phase 2) not authorized, proposal only |
 | LAI-LAMBDA-010 GLB and texture optimization | Feasibility only |
-| LAI-LAMBDA-013 image conversion and thumbnails | Feasibility only |
+| LAI-LAMBDA-013 image conversion and thumbnails | Feasibility and contract design only; advisory EXIF and GPS scanner and upload warnings implemented (no conversion, no dependency) |
 | LAI-LAMBDA-011 DEV live acceptance | Documentation only (checklist, not executed) |
 | LAI-LAMBDA-012 production rollout | Documentation only (plan) |
 
@@ -90,7 +90,7 @@ remains: `docs/processing/WAVE4_HANDOFF.md`.
   `image_bench.py`, `thumbnail_bench.py`). Measured: worker zip about 351 KB (budget 2 MiB), Pillow
   arm64 wheel 6.5 MB (21.6 MB unpacked), pyvips with libvips 8.5 MB, Chrome headless shell 273 MB
   unpacked; x86 workstation timings only, no arm64 or Lambda measurement. Finding: uploaded images
-  keep EXIF and GPS data. Blocked on owner decisions D-1 to D-12.
+  keep EXIF and GPS data (verified; now warned about, not blocked). Image half re-scoped in `LAI-LAMBDA-013-image-conversion-contract.md`; GLB thumbnails split to their own proposal. Blocked on owner decisions D-1 to D-12 of the image proposal.
 - **011 and 012:** `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (section 5: optional Wave 4
   acceptance) and `docs/processing/LAI-LAMBDA-012-production-rollout.md` (owner decisions P1 to
   P13). Nothing executed.
