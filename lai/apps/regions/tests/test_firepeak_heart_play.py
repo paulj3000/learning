@@ -134,6 +134,8 @@ def test_all_fourteen_puzzles_in_order_complete_the_quest(heart, api, band):
         "fh-crystal-magma",
         "fh-crystal-cavern",
         "fh-crystal-forge",
+        # Set completion (server grant, FPV-18): all four elemental crystals.
+        "fh-badge-crystal-collector",
     } <= owned(child)
 
 
@@ -148,6 +150,9 @@ def test_each_pickup_is_granted_once_and_grants_are_idempotent(heart, api):
     assert {i for i in owned(child) if i.startswith("fh-shard-item-")} != set()
     after_pickups = GrantedRule.objects.filter(child=child).count()
     assert after_pickups == grants + len(shards)
+    # Every shard owned completes the ember-shard set exactly once (FPV-18).
+    assert "fh-badge-master-explorer" in owned(child)
+    assert InventoryItem.objects.filter(child=child, item__item_id="fh-badge-master-explorer").count() == 1
     for entity in shards:
         pickup(client, child, session, entity)
     for puzzle_id, kind, _e, body in content.puzzle_rows():
