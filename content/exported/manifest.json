@@ -1,5 +1,5 @@
 {
-  "contentDigest": "188effdaf232c486b67d6bc8f32ae5b42a31bce5216fa0e82a5d989ff0373a6a",
+  "contentDigest": "0ef4a913e7ce54b10e86ec2345714f84c4ae496dd48589140933b15076ecac70",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -10,7 +10,7 @@
         "islands": 2
       },
       "path": "islands.json",
-      "sha256": "1c68cd59097a12fe87eba00416f0c0772cf56a2b5aa3d27dec27e3debbbd4ca5"
+      "sha256": "380ecc2d143da5717c994a1318688cd9420eb02f21159bafe99cef7b682f22da"
     },
     {
       "counts": {
@@ -44,12 +44,12 @@
     },
     {
       "counts": {
-        "collectibleSets": 2,
-        "items": 33,
-        "rewardRules": 26
+        "collectibleSets": 3,
+        "items": 36,
+        "rewardRules": 29
       },
       "path": "rewards.json",
-      "sha256": "8dac6d52b1e427b537fd4c2cbe04f10f81146e678fa2389e97ca01c70972f0de"
+      "sha256": "7f754f91ed51d36eddccb2b7940f79bd4b8c7c67e76a7dc89b9000d3c60f581e"
     },
     {
       "counts": {

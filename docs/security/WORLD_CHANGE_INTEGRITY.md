@@ -55,6 +55,22 @@ labels) and existing legacy rows are untouched and keep working. Unprotected key
 The payload for legitimate play is unchanged: adventures, stories, quests and discoveries never
 called the generic POST, so no client change was needed.
 
+## Reward rules on world changes (SC-R07-01)
+
+`WORLD_CHANGE` reward rules are paid on the server only by `inventory.services.grant_world_change_rewards`,
+which two Django paths call after they record the change themselves: the graded adventure runner's
+WORLD_CHANGE step (`game_sessions.services._apply_world_change_step`) and a story's completion
+(`progression.stories.complete_chapter`). The helper pays only a **protected** key recorded at its
+registered location, so a key the client could write, or a protected key at another place, pays
+nothing. The generic `POST world-changes/` never calls it. Each rule fires once per child
+(`GrantedRule`). The castle keepsake rules (`reward-three-clues-lens` on
+`SECRET_DOOR_CLUES_COLLECTED`, `reward-secret-door-key` on `THE_CASTLES_SECRET_DOOR_COMPLETE`) are
+the first such rules; `reward-bridge-world-change` (`BRIDGE_REPAIRED`, unprotected) is still not paid
+by the server, as before. A child who recorded a keepsake key before this change receives the item the
+next time the server path runs for them (a replayed adventure step); a finished story is not
+replayed, so a backfill for earlier Secret Door finishers would need an approved one-off command.
+Tests: `lai/apps/inventory/tests/test_castle_keepsakes.py`.
+
 ## Residual risks (not fixed here)
 
 - **Adventure keys that are not page keys** (for example `BRIDGE_REPAIRED`,

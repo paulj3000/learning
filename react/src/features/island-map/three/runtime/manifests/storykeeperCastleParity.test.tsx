@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -873,7 +873,9 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       } as never);
       await renderAndWait('PATHFINDER');
       await openGuide();
-      expect(await screen.findByText('The Hidden Page')).toBeInTheDocument();
+      // Scoped to the book: the Hall of Heroes (SC-R07-03) lists the found page too.
+      const book = await screen.findByRole('region', { name: 'The Great Storybook' });
+      expect(await within(book).findByText('The Hidden Page')).toBeInTheDocument();
       expect(screen.getByText('0 of 2 missing pages are back.')).toBeInTheDocument();
     });
   });

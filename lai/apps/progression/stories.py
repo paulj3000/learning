@@ -26,6 +26,7 @@ from django.utils import timezone
 from apps.catalog.importer import read_export
 from apps.catalog.models import LearningObjective
 from apps.game_sessions.models import AdventureSession, Correctness, SessionKind, SessionStatus
+from apps.inventory.services import grant_world_change_rewards
 
 from .models import StoryProgress
 from .services import record_world_change
@@ -177,6 +178,10 @@ def complete_chapter(child, slug: str, chapter_id: str, *, now=None) -> StoryPro
                 change_key=change["changeKey"],
                 source_session_id=f"{SOURCE_PREFIX}{progress.pk}",
                 now=at,
+            )
+            # SC-R07-01: a protected completion key (the Secret Door's) pays its reward rule once.
+            grant_world_change_rewards(
+                child, location_slug=change["locationSlug"], change_key=change["changeKey"]
             )
     progress.save()
     return progress

@@ -13,6 +13,19 @@
       ]
     },
     {
+      "completionMessage": "Every pedestal in the Trophy Room has a keepsake on it.",
+      "displayName": "Castle Keepsakes",
+      "id": "castle-keepsakes",
+      "itemIds": [
+        "storykeepers-quill",
+        "blank-page-storybook",
+        "great-storybook-seal",
+        "painted-words-brush",
+        "three-clues-lens",
+        "secret-door-key"
+      ]
+    },
+    {
       "completionMessage": "Your Firepeak journal page is full of discoveries!",
       "displayName": "Discovery Journal: Firepeak Volcano",
       "id": "firepeak-discovery-journal",
@@ -86,7 +99,8 @@
       "description": "A feather pen from Keeper Quill, for the tale you helped tell.",
       "displayName": "Storykeeper's Quill",
       "id": "storykeepers-quill",
-      "rarity": "UNCOMMON"
+      "rarity": "UNCOMMON",
+      "setId": "castle-keepsakes"
     },
     {
       "category": "KEEPSAKE",
@@ -129,7 +143,8 @@
       "description": "An old storybook from the reading nook. The last page is still empty.",
       "displayName": "The Book with a Blank Page",
       "id": "blank-page-storybook",
-      "rarity": "UNCOMMON"
+      "rarity": "UNCOMMON",
+      "setId": "castle-keepsakes"
     },
     {
       "category": "COSMETIC",
@@ -152,7 +167,32 @@
       "description": "A golden seal pressed into the Great Storybook the day you helped bring its pages home.",
       "displayName": "The Great Storybook's Seal",
       "id": "great-storybook-seal",
-      "rarity": "RARE"
+      "rarity": "RARE",
+      "setId": "castle-keepsakes"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A little brush with a speck of every color. It helped the words find their way home.",
+      "displayName": "Painted Words Brush",
+      "id": "painted-words-brush",
+      "rarity": "UNCOMMON",
+      "setId": "castle-keepsakes"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A round glass lens for spotting clues. You found all three of them.",
+      "displayName": "Clue Finder's Lens",
+      "id": "three-clues-lens",
+      "rarity": "UNCOMMON",
+      "setId": "castle-keepsakes"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A small silver key from behind the secret door, to remember what was waiting there.",
+      "displayName": "Silver Keeper's Key",
+      "id": "secret-door-key",
+      "rarity": "RARE",
+      "setId": "castle-keepsakes"
     },
     {
       "category": "COLLECTIBLE",
@@ -471,6 +511,39 @@
       "trigger": {
         "questId": "restore-the-great-storybook-explorers",
         "type": "QUEST_COMPLETED"
+      }
+    },
+    {
+      "id": "reward-painted-words-brush",
+      "itemIds": [
+        "painted-words-brush"
+      ],
+      "message": "Keeper Quill gives you a little paintbrush for bringing the words home.",
+      "trigger": {
+        "templateSlug": "the-painted-words",
+        "type": "ADVENTURE_COMPLETED"
+      }
+    },
+    {
+      "id": "reward-three-clues-lens",
+      "itemIds": [
+        "three-clues-lens"
+      ],
+      "message": "You found all three clues. Keeper Quill gives you a lens to keep.",
+      "trigger": {
+        "changeKey": "SECRET_DOOR_CLUES_COLLECTED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-secret-door-key",
+      "itemIds": [
+        "secret-door-key"
+      ],
+      "message": "A silver key was waiting behind the door. It is yours to keep.",
+      "trigger": {
+        "changeKey": "THE_CASTLES_SECRET_DOOR_COMPLETE",
+        "type": "WORLD_CHANGE"
       }
     },
     {

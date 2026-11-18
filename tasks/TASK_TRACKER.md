@@ -1120,6 +1120,50 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       castleTale, content-export, new `castleSupportingNpcs.test.ts`); `tsc` app and node clean;
       content:export, golden:generate, content:check, golden:check clean; Django `apps/npcs`
       358 passed, 0 skipped (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`). Not run: browser, WebGL, e2e, lint, format, full suites.
+- [x] **SC-R07-01** Castle artifacts as catalog items and reward rules. DONE (development), not owner
+      accepted. Three new `KEEPSAKE` items in `islandItems.ts` (`painted-words-brush`,
+      `three-clues-lens`, `secret-door-key`), the `castle-keepsakes` set (6 items, no completion prize),
+      rules `reward-painted-words-brush` (ADVENTURE_COMPLETED `the-painted-words`),
+      `reward-three-clues-lens` (WORLD_CHANGE `SECRET_DOOR_CLUES_COLLECTED`, `castle-secret-passage`),
+      `reward-secret-door-key` (WORLD_CHANGE `THE_CASTLES_SECRET_DOOR_COMPLETE`, `castle-secret-passage`),
+      keys confirmed in `great_storybook_pages.json`. Exported through `content:export`, loaded by
+      `load_content`; no migration. Django had no server path paying WORLD_CHANGE rules, so a new
+      `inventory.services.grant_world_change_rewards` pays them only for a protected key at its
+      registered place, called by the graded adventure WORLD_CHANGE step (grants folded into the
+      completion rewards of the same request) and by story completion; never by the generic POST
+      (`docs/security/WORLD_CHANGE_INTEGRITY.md`). Residual: earlier Secret Door finishers get no
+      key without an approved backfill.
+- [x] **SC-R07-02** Trophy Room pedestals display owned artifacts. DONE (development), not owner
+      accepted. `BOUND_ITEMS` = `CASTLE_KEEPSAKE_IDS` (all six bound; the Seal was unbound before).
+      Trophy room manifest: one primitive mesh per keepsake gated `ITEM_OWNED`. **Deviation to
+      confirm:** the six gold plates were removed (a bare pedestal is the empty state), because four
+      more treasures would have taken the draw-call estimate from 300 to 304; now 298, budget number
+      untouched. New `artifactPedestal.ts` (imports `three` only): pure `nextPedestalState`,
+      `fitToPedestal` scale normalisation, `pedestalPose` (reduced motion is static), primitive
+      fallback on asset error or timeout, dispose, grants nothing. It is not wired into the runtime yet:
+      no keepsake GLB exists (ADR-028); wiring is the art follow-up.
+- [x] **SC-R07-03** Hall of Heroes. DONE (development), not owner accepted. Client composition, no
+      endpoint (justified: every input is already read by the castle): pure `hallOfHeroes()` from the
+      Storybook progress, owned keepsakes and story-ending world changes; `HallOfHeroesSection` in the
+      castle guide is the accessible text list (no buttons, no chat text, "ready" wording when empty).
+      Gallery story plates in 3D are **deferred**: the original rooms' scenery pool is at 159 of 160 and
+      the draw estimate at 298 of 300 (owner: raise the budget or merge decor).
+- [x] **SC-R07-04** Rank titles. DONE (development), not owner accepted. Pure `rankFor()` and
+      `shownRank()` in `great-storybook/castleRanks.ts`, four titles (Story Explorer, Page Keeper, Castle
+      Pathfinder, Master Storykeeper; thresholds 0, 0.34, 0.67, 1), validated, never stored, timed or
+      compared; `CASTLE_RANKS.enabled = false`. Shown on the page tracker and in the Hall only when on.
+      Config lives in TypeScript content, not `rewards.json` (deviation: no export schema change for
+      something never stored). **OWNER ACCEPTANCE ITEM:** keep or drop ranks; four titles (prep) or the
+      roadmap's five; whether "Castle Pathfinder" is confusing next to the Pathfinders age band.
+      Evidence (SC-R07-01 to 04): vitest 50 files, 749 tests passed (castleTrophies, artifactPedestal,
+      storykeeperCastle* incl. budgets (estimate 298 of 300) and parity, castleRoomsContract,
+      castlePlatforms*, castleSupportingNpcs, castleRebootContracts, castleTale, great-storybook,
+      rewards, content-export, worlds, clientWorldChangeKeys); `tsc` app and node clean; root
+      content:export, golden:generate, content:check (exit 0), golden:check (exit 0); Django 179
+      passed, 0 skipped (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`: apps/inventory incl. the new
+      `test_castle_keepsakes.py` 12 with `makemigrations --check`, catalog importer and export,
+      protected world changes, answers API, castle storybook, Great Storybook quests), plus
+      `test_child_state_api.py` 20 passed. Not run: browser, WebGL, e2e, lint, format, full suites.
 - [ ] **SC-R06 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)

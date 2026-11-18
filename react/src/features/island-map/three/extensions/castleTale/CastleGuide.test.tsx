@@ -13,6 +13,12 @@ import {
 } from '../../castleLayout';
 import { OPEN_PEDESTAL_TEXT, trophyDisplay } from '../../castleTrophies';
 import { CastleGuide } from './CastleGuide';
+import { CASTLE_RANKS } from '../../../../great-storybook/castleRanks';
+import {
+  storybookProgress,
+  visibleEntries,
+  type StorybookState,
+} from '../../../../great-storybook/pages';
 import type { CastleTaleSceneApi } from './castleTaleScene';
 
 /**
@@ -239,13 +245,11 @@ describe('CastleGuide', () => {
       expect(owned.text).toContain("Storykeeper's Quill");
     });
 
-    it('says how many pedestals are still open, once, not as four identical lines', () => {
+    it('lists no open-pedestal line once every pedestal has a keepsake bound (SC-R07-02)', () => {
       render(<CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} />);
       open();
-      const open4 = trophyDisplay([]).filter((e) => e.state === 'open').length;
-      expect(
-        screen.getByText(new RegExp(`${open4} more pedestals in the Trophy Room are waiting`)),
-      ).toBeInTheDocument();
+      expect(trophyDisplay([]).filter((e) => e.state === 'open')).toHaveLength(0);
+      expect(screen.queryByText(/more pedestals in the Trophy Room are waiting/)).toBeNull();
       expect(screen.queryAllByText(OPEN_PEDESTAL_TEXT)).toHaveLength(0);
     });
 
@@ -266,7 +270,8 @@ describe('CastleGuide', () => {
       open();
       expect(screen.queryByText(/a feather pen from keeper quill/i)).toBeNull();
       rerender(<CastleGuide scene={scene.api} worldState={owning('storykeepers-quill')} />);
-      expect(screen.getByText(/a feather pen from keeper quill/i)).toBeInTheDocument();
+      const list = screen.getByRole('region', { name: /your treasures/i });
+      expect(within(list).getByText(/a feather pen from keeper quill/i)).toBeInTheDocument();
     });
   });
 
@@ -405,5 +410,61 @@ describe('CastleGuide', () => {
       ).toBeEnabled();
       expect(screen.getByRole('button', { name: /back to the story hall/i })).toBeEnabled();
     });
+  });
+});
+
+describe('CastleGuide: the Hall of Heroes (SC-R07-03) and rank titles (SC-R07-04)', () => {
+  const withBook = (state: StorybookState, band: 'SPROUT' | 'PATHFINDER' | 'EXPLORER') => {
+    const progress = storybookProgress(state, band);
+    return { progress, entries: visibleEntries(progress), status: 'local' as const, retry: vi.fn() };
+  };
+
+  it('says the hall is ready, never empty or behind, for a child with no records', () => {
+    render(<CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} />);
+    open();
+    const hall = screen.getByRole('region', { name: /the hall of heroes/i });
+    expect(within(hall).getByText(/ready for your first story/i)).toBeInTheDocument();
+    expect(within(hall).queryByRole('button')).toBeNull();
+    expect(hall.textContent).not.toMatch(/missing|\d/i);
+  });
+
+  it('lists finished stories, restored pages and owned keepsakes as text, with no actions', () => {
+    const world = {
+      worldChangeKeys: ['FIRST_STORY_TOLD'],
+      ownedItemIds: ['storykeepers-quill'],
+      discoveryIds: [],
+    };
+    render(
+      <CastleGuide
+        scene={fakeScene('story-hall').api}
+        worldState={world}
+        storybook={withBook(world, 'PATHFINDER')}
+      />,
+    );
+    open();
+    const hall = screen.getByRole('region', { name: /the hall of heroes/i });
+    expect(within(hall).getByText('A story told with Keeper Quill')).toBeInTheDocument();
+    expect(within(hall).getByText('The First Story')).toBeInTheDocument();
+    expect(within(hall).getByText("Storykeeper's Quill")).toBeInTheDocument();
+    expect(within(hall).queryByRole('button')).toBeNull();
+    expect(within(hall).queryByText(/castle title/i)).toBeNull(); // ranks are off by default
+  });
+
+  it('shows the derived title on the page tracker and in the hall only when ranks are on', () => {
+    const world = {
+      worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'],
+      ownedItemIds: [],
+      discoveryIds: [],
+    };
+    render(
+      <CastleGuide
+        scene={fakeScene('story-hall').api}
+        worldState={world}
+        storybook={withBook(world, 'PATHFINDER')}
+        ranks={{ ...CASTLE_RANKS, enabled: true }}
+      />,
+    );
+    open();
+    expect(screen.getAllByText('Your castle title: Master Storykeeper.')).toHaveLength(2);
   });
 });

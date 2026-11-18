@@ -79,8 +79,11 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'explorer-backpack',
     'star-lantern',
     'great-storybook-seal',
+    'painted-words-brush',
+    'three-clues-lens',
+    'secret-door-key',
   ],
-  collectibleSetIds: ['harbor-shells'],
+  collectibleSetIds: ['harbor-shells', 'castle-keepsakes'],
   npcIds: [
     'pirate-pip',
     'keeper-quill',

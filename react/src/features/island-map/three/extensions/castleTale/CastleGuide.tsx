@@ -16,6 +16,9 @@ import type { CastleRoomsApi } from '../../../../../api/play/castleRoomsApi';
 import type { GreatStorybook } from '../../../../great-storybook/useGreatStorybook';
 import { CastleMap } from './CastleMap';
 import { StorybookSection } from './StorybookSection';
+import { HallOfHeroesSection } from './HallOfHeroesSection';
+import { hallOfHeroes } from '../../../../great-storybook/hallOfHeroes';
+import { CASTLE_RANKS, type CastleRanksConfig } from '../../../../great-storybook/castleRanks';
 import { useCastleDiscovery } from './useCastleDiscovery';
 import type { CastleTaleSceneApi } from './castleTaleScene';
 import styles from './CastleGuide.module.css';
@@ -49,6 +52,8 @@ export interface CastleGuideProps {
   roomsApi?: CastleRoomsApi | null;
   /** The child's Great Storybook (SC-R04-02), if the castle has computed it. */
   storybook?: GreatStorybook;
+  /** Rank titles (SC-R07-04). Defaults to the content config, which is switched off. */
+  ranks?: CastleRanksConfig;
 }
 
 /** "To the story hall, then To the east corridor": the doors a walking child would pass, in order. */
@@ -70,6 +75,7 @@ export function CastleGuide({
   childId = '',
   roomsApi,
   storybook,
+  ranks = CASTLE_RANKS,
 }: CastleGuideProps) {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState<CastleRoomId | undefined>(undefined);
@@ -129,6 +135,17 @@ export function CastleGuide({
     () => trophyDisplay(worldState.ownedItemIds ?? []),
     [worldState.ownedItemIds],
   );
+  // The Hall of Heroes (SC-R07-03): derived from the same records, read-only.
+  const hall = useMemo(
+    () =>
+      hallOfHeroes({
+        progress: storybook?.progress,
+        ownedItemIds: worldState.ownedItemIds ?? [],
+        worldChangeKeys: worldState.worldChangeKeys,
+        ranks,
+      }),
+    [storybook?.progress, worldState.ownedItemIds, worldState.worldChangeKeys, ranks],
+  );
   const shownTreasures = treasures.filter((entry) => entry.state !== 'open');
   const openPedestals = treasures.length - shownTreasures.length;
 
@@ -176,6 +193,7 @@ export function CastleGuide({
                 return !plan?.ok && plan?.reason === 'already-there' ? 'here' : 'no';
               }}
               onGo={go}
+              ranks={ranks}
             />
           ) : null}
           {showBackToHub ? (
@@ -256,6 +274,7 @@ export function CastleGuide({
               </p>
             ) : null}
           </section>
+          <HallOfHeroesSection hall={hall} />
         </div>
       ) : null}
     </section>
