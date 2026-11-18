@@ -92,10 +92,7 @@ def test_one_bad_reference_records_nothing(mutate):
     good = write(job, "opus", OGG)
     bad = write(job, "second", OGG + b"1")
     mutate(bad)
-    try:
-        deliver(job, [good, bad])
-    except Exception:  # a contract refusal is also acceptable: still no rows
-        pass
+    deliver(job, [good, bad])
     job.refresh_from_db()
     assert DerivedArtifact.objects.count() == 0
     assert job.subject_outcome in ("artifact_invalid", "result_invalid", "")

@@ -99,13 +99,12 @@ def inline_ports(job):
 def apply_artifact_result(job) -> str:
     """Verify `job`'s result and record its artifacts. Returns a safe outcome code. Call inside
     the job-locked transaction. Raises `ArtifactStorageUnavailable` to roll back and retry."""
+    from apps.catalog.models import ContentAsset
+    from apps.jobs.models import JobStatus
     from lai_processing.contracts.job_types import job_type_spec
     from lai_processing.contracts.jobs import ProcessingJobRequest
     from lai_processing.contracts.results import ProcessingJobResult
     from lai_processing.core.errors import ProcessingError
-
-    from apps.catalog.models import ContentAsset
-    from apps.jobs.models import JobStatus
 
     from .models import AssetVersion, VersionStatus
     from .processing import identity_mismatch, result_mismatch

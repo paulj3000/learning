@@ -1,4 +1,4 @@
-"""Submit a derived-artifact workload for an asset version (ADR-066, DERIVED_ARTIFACTS.md section 6).
+"""Submit a derived-artifact workload for an asset version (ADR-066, DERIVED_ARTIFACTS.md 6).
 
 `submit_derived_job` is the one request builder the audio, image and optimize workloads share, so
 none reinvents namespace, subject, input identity, idempotency key, expiry or the resubmission
