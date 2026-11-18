@@ -2452,9 +2452,9 @@
  "scene": {
   "atmosphere": {
    "fog": {
-    "color": 14543093,
-    "far": 170,
-    "near": 40
+    "color": 2770032,
+    "far": 190,
+    "near": 50
    },
    "precipitation": {
     "density": 0.6,

@@ -230,7 +230,7 @@ def test_the_scene_has_the_contract_shell():
         "lighting": {"ambientColor": 13623551, "ambientIntensity": 0.9, "sunColor": 16773856, "sunIntensity": 0.9},
     }
     assert SCENE["atmosphere"] == {
-        "fog": {"color": 14543093, "near": 40, "far": 170},
+        "fog": {"color": 0x2A4470, "near": 50, "far": 190},
         "precipitation": {"kind": "SNOW", "density": 0.6},
         "skyRibbons": [
             {"id": "np-aurora-1", "colors": [6222512, 9075954], "x": 0, "y": 60, "z": -140, "width": 220, "height": 30}
