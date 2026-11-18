@@ -19,7 +19,7 @@ Development Infrastructure".
 |---|---|---|---|
 | **1. Core required acceptance** | LAI-LAMBDA-001 to 007 (contract library, GLB validator, `asset.validate_model` and `reference.checksum` kinds, `LAI_ASSET_ASYNC_VALIDATION`, Admin) | 0 to 4, 6 to 11, 13, 14 | **Yes** |
 | **2. Wave 4 inspection acceptance** | LAI-LAMBDA-008 phase 1 (`asset.process_audio`, header inspection), LAI-LAMBDA-009 (`asset.analyze_animation`) | 5 | Only when the release commit contains the Wave 4 kinds (it does at `48c98a1`); a failure here does not undo a Tier 1 pass, it blocks only the Wave 4 kinds |
-| **3. Future native-worker acceptance** | LAI-LAMBDA-008b (transcoding and loudness), 010 (GLB optimization), 013a and 013b (image conversion, GLB thumbnails; the split named in the task brief, the feasibility studies are in `feasibility/`) | 12 | **No.** Blocked on owner approvals (ADRs W4-1 to W4-8); listed so it is never confused with this release and never blocks Tier 1 or 2 |
+| **3. Derived artifact and native workload acceptance** | LAI-LAMBDA-014 (derived artifacts), 008b (FFmpeg audio), 013a (Pillow images), 010 (Meshopt, KTX2), 013b (staff capture); owner-approved 2026-11-18 (ADR-066 to ADR-070), code on `feature/serverless-processing-completion` | 12 | **No.** Each workload is accepted separately after its own deployment approval; none blocks Tier 1 or 2. Every control stays `off` until its subsection passes |
 
 Step markers: **[OWNER, READ-ONLY]** reads state only; **[OWNER, MUTATING]** changes AWS, GitHub
 or data and needs the approval named in section 0; **[OWNER, MANUAL]** has no repository script
@@ -1177,26 +1177,48 @@ shows the columns added with `DEFAULT ''`.
 
 ---
 
-## 12. Future native-worker acceptance (Tier 3: not in scope, not approved, never blocks Tier 1 or 2)
+## 12. Derived artifact and native workload acceptance (Tier 3; separate, never blocks Tier 1 or 2)
 
-Listed only to keep it apart from this release. Workloads that need native tools or artifact
-writes have their own cards and need their own ADR first (`WAVE4_HANDOFF.md` decisions W4-1 to
-W4-8; proposals in `proposals/`, feasibility in `feasibility/`):
+Code: `feature/serverless-processing-completion` (ADR-066 to ADR-071). Each subsection needs its
+own deployment approval (worker and layer upload, stack parameters, enabling one control). The
+release order and the pre-enable check are in `PROCESSING_RELEASE.md` (phases 1 to 7;
+`manage.py processing_release_check --json` must report no failure for the control before it is
+switched on). Record every number measured here: none exists yet on arm64 or Lambda.
 
-| Card | Workload | Blocked on |
-|---|---|---|
-| LAI-LAMBDA-008b | Audio transcoding and loudness (FFmpeg) | W4-1 (container ADR), W4-4 (durable derived files), W4-5 (loudness target, `ASYNC_FORMATS`) |
-| LAI-LAMBDA-010 | GLB and texture optimization (`gltfpack`, `toktx`) | W4-1, W4-4, W4-6 (loader and validator support for meshopt, Draco, KTX2; ADR-020 engine decision) |
-| LAI-LAMBDA-013a, 013b | Image conversion, GLB thumbnails (the split named in the task brief) | W4-1 or a zip-fit measurement, W4-2 (renderer), W4-4, W4-7 |
+### 12.1 Derived artifacts (LAI-LAMBDA-014) [OWNER, MUTATING]
+- IAM: worker roles create artifacts only under `processing/artifacts/dev/` with
+  `If-None-Match: *`; a second PUT of the same key answers 412 (this is the live proof of D8);
+  a worker PUT under `assets/`, `capture/` or another environment is denied; no worker can delete.
+- Private access: the artifact prefix is not reachable through CloudFront; the Admin media view
+  needs staff and `view_derivedartifact`.
+- Integrity: a recorded artifact's SHA-256 equals the object bytes; a forged or stale result
+  records no row (`artifact_invalid`, `stale_source`).
+- Review and promotion: accept, reject, hold; promotion creates a new unpublished version that
+  still needs the normal publish; the source is unchanged.
+- Retention: `manage.py asset_artifact_retention` dry run, then `--apply`, on a copy of real
+  rows; promoted, accepted and held rows survive.
 
-Dev has no ECR (ADR-064). When such an ADR exists, its acceptance adds: the image source,
-registry and immutable digest; scanning; cold start and size; arm64 build; tool licences; no
-network in the processing sandbox; time, memory and `/tmp` bounds below the job limits; a
-decision for durable derived files (W4-4); and the same consumer-first, DLQ, outage and rollback
-checks as sections 3, 6, 7 and 11. Nothing in this checklist covers that, and **no step in
-sections 0 to 11 depends on it**.
+### 12.2 FFmpeg audio (LAI-LAMBDA-008b)
+- arm64 layer built by `release-prod-workers.yml` job `ffmpeg-layer-arm64` (or the documented
+  dev path), its SHA-256 and `build-record.json` recorded; the function's `LAI_FFMPEG_SHA256` pin set.
+- One file per profile (sfx, ui, ambient, music, voice): Opus and MP3 outputs, loudness and
+  true peak within the profile, tags limited to the encoder string, a 15-minute voice file
+  within the timeout; record duration, peak memory (REPORT line) and cost per minute.
 
----
+### 12.3 Pillow images (LAI-LAMBDA-013a)
+- arm64 zip from `native/pillow/build.py`; convert, resize, thumbnail on JPEG, PNG and WebP;
+  outputs carry no EXIF, GPS, XMP or comments; a 16 MP input's peak memory and duration
+  recorded against the 1024 MB / 120 s proposal (ADR-068 O-1).
+
+### 12.4 Meshopt and KTX2 (LAI-LAMBDA-010) [blocked]
+- Blocked until an arm64 gltfpack and an optimize zip exist (ADR-070 O1). Then: optimize a
+  repository NPC and a textured model, validate with the control on, load in the game on a
+  desktop browser and the target tablets (Meshopt first, KTX2 second), record GPU memory.
+
+### 12.5 Staff thumbnail capture (LAI-LAMBDA-013b)
+- Manual browser checklist `GLB_THUMBNAIL_CAPTURE.md` (Chrome, Safari, Firefox; WebP and PNG
+  fallback), with `LAI_THUMBNAIL_CAPTURE=on` in dev only during the test; the capture is
+  private, bound to the version and SHA-256, and supersedes the previous one.
 
 ## 13. Close out [OWNER, MUTATING]
 

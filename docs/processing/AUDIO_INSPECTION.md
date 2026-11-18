@@ -14,6 +14,11 @@ normalise, write files, publish or change any version. It runs only when a staff
 it; nothing submits it on upload, and `LAI_ASSET_ASYNC_VALIDATION` does not apply to audio.
 Child speech and recordings never use it, and Polly speech (`speech.synthesize`) is untouched.
 
+Phase 2 (transcoding and loudness, `asset.transcode_audio`, LAI-LAMBDA-008b) is a separate kind
+on its own `audio` queue with an LGPL FFmpeg layer (ADR-067, `AUDIO_TRANSCODING.md`); it reuses
+this inspector's sniffing for its input check. Header inspection stays standard-library and does
+not decode audio.
+
 ## 1. Where it fits
 
 | Piece | Where |

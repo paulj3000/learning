@@ -490,12 +490,21 @@ a zip-packaged arm64 Lambda does the work, writes the result to S3 and sends it 
 - **Turning it off:** `LAI_ENABLE_LAMBDA=false` then `deploy-debug.sh --execute` (the stack then
   sets `LAI_JOBS_BACKEND=disabled` and the Studio to `manual`).
 
-#### Asset processing status (2026-11-17)
+#### Asset processing status (2026-11-18)
 
-PR #42 (001 to 007) is green and unmerged; Wave 4 (`feature/serverless-processing-wave4`) adds NPC
-animation and audio header inspection; native workloads (audio transcoding, image conversion, GLB
-thumbnails, GLB optimization) and derived files are proposals on `feature/lambda-*-design`
-branches, not approved. Nothing is deployed. See `docs/processing/WAVE4_HANDOFF.md`.
+PR #42 (001 to 007) and PR #43 (Wave 4: NPC animation and audio header inspection) are green and
+unmerged. The owner-approved completion work is developer-complete on
+`feature/serverless-processing-completion` (stacked on Wave 4, not merged, not deployed):
+staff-only derived artifacts with explicit promotion (ADR-066), LGPL FFmpeg audio transcoding
+(ADR-067), a separate Pillow image function with metadata stripping (ADR-068), staff browser GLB
+thumbnail capture (ADR-069), Meshopt then KTX2 behind controls (ADR-070), and production
+processing infrastructure as code with a compatibility-gated release (ADR-071). Every new
+capability is off by default; no AWS resource was changed. See
+`docs/processing/COMPLETION_INTEGRATION.md` and `docs/IMPLEMENTATION_STATUS.md`.
+
+Local demonstration, no AWS: `scripts/processing/local-demo.sh` (set `LAI_FFMPEG_BIN`,
+`LAI_DEMO_PILLOW_SITE`, `LAI_GLTFPACK_PATH`, `LAI_TOKTX_PATH` to run the native steps for real;
+otherwise they print SKIPPED).
 
 #### Asynchronous model validation (LAI-LAMBDA-001 to 007, ADR-064)
 

@@ -7,6 +7,19 @@ transcoding), LAI-LAMBDA-009 (NPC Manager animation inspection and mapping assis
 LAI-LAMBDA-010 (texture compression and GLB optimization benchmarking) and LAI-LAMBDA-013 (asset
 thumbnail generation and image conversion, split out of 010 on 2026-11-16).
 
+## Status update (2026-11-18)
+
+- PR #43 (this branch) is the Wave 4 PR, a draft on the canonical branch; it stays limited to the
+  inspection kinds (008 phase 1, 009) and the Ogg fix. The owner has authorized merging it after
+  PR #42, reconciliation with `main`, review, checks and deployment-safety verification.
+- The owner approved the remaining workloads on 2026-11-18. They are implemented on
+  `feature/serverless-processing-completion` (stacked on this branch), not here: ADR-066 to
+  ADR-071, `COMPLETION_INTEGRATION.md`. The design branches of section 7 are superseded by that
+  branch and kept as history. The W4-n decisions in section 6 are settled by those ADRs where the
+  owner approved them; the open remainder is listed in each ADR.
+- Release order: per kind, in `PROCESSING_RELEASE.md`; for the Wave 4 kinds the consumer-first
+  order of section 3 stands.
+
 ## Status update (2026-11-17, late)
 
 - Ogg upload checksum defect fixed on this branch (`04bd4df4`, see `AUDIO_INSPECTION.md`).

@@ -209,7 +209,17 @@ values; the Lambda function's own timeout is the binding limit.
 | `asset.validate_model` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-002 | GLB validator; `apps.jobs` kind on the media queue |
 | `asset.process_audio` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-008 | Phase 1 audio header inspector (`asset.audio_inspector`, profile `audio-inspect` v1); `apps.jobs` kind on the media queue, staff-triggered only |
 | `asset.analyze_animation` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-009 | Animation inspector; `apps.jobs` kind on the media queue (`NPC_ANIMATION_INSPECTION.md`) |
-| `asset.optimize` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-010 | Reserved |
+| `asset.optimize` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-010 | `asset.glb_optimizer` (variants `meshopt`, `ktx2`) on the `optimize` queue, behind `LAI_GLB_MESHOPT` / `LAI_GLB_KTX2` (ADR-070); roles `model.optimized`, `texture.compressed`, `model.optimize_report` |
+| `asset.transcode_audio` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-008b | `asset.audio_transcoder` (profiles `audio-sfx`, `-ui`, `-ambient`, `-music`, `-voice` v1) on the `audio` queue, behind `LAI_AUDIO_TRANSCODING` (ADR-067); roles `audio.transcoded`, `audio.report` |
+| `asset.convert_image` | asset | Yes | Yes | `asset_version` | LAI-LAMBDA-013a | `asset.image_converter` (profiles `image-convert`, `image-resize`, `image-thumbnails`) on the `image` queue, behind `LAI_IMAGE_CONVERSION` (ADR-068); roles `image.converted`, `image.resized`, `image.thumbnail` |
+
+Artifact roles (ADR-066): each `JobTypeSpec` declares its `artifact_roles`
+(`ArtifactRoleSpec`: role, content types, maximum size, maximum count, promotable). The worker
+refuses an undeclared role, content type, extension or size before writing
+(`ProcessingContext.write_artifact`), and Django verifies every reference again before recording
+it (`DERIVED_ARTIFACTS.md`). Staff captures use the job-less role `model.thumbnail`
+(`STAFF_CAPTURE_ROLES`). `reference.checksum` and `asset.validate_model` declare their optional
+report roles `report.reference` and `report.glb_validation`.
 
 A job type is declared in code before any message may name it. A job type becomes runnable on
 the canonical path only when it is also an `apps.jobs` kind (`envelope.KIND_QUEUE`, `JobKind`, a

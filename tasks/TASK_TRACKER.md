@@ -1065,12 +1065,11 @@ not merged, not deployed). Trello cards LAI-LAMBDA-001 to 013.
       `scripts/processing/local-demo.sh`. Not merged, not deployed. Transcoding moved to 008b.
       2026-11-17: upload Ogg checksum gap fixed (`ogg_crc`)
 - [ ] **LAI-LAMBDA-008b** Audio transcoding and loudness normalisation (008 phase 2; FFmpeg).
-      **Not authorized:** proposal only
-      (`docs/processing/proposals/ADR-PROPOSED-native-audio-transcoding.md`, no ADR number);
-      needs owner decisions W4-1, W4-4 and W4-5 (`docs/processing/WAVE4_HANDOFF.md`). Design
-      (2026-11-17) on `feature/lambda-audio-transcoding-design`: runtime comparison, per-category
-      profiles, security design, unwired profile validator, offline bench (no ffmpeg measured);
-      decisions A-1 to A-9
+      Owner-approved 2026-11-18 (ADR-067). **Developer-complete on `feature/serverless-processing-completion`, not merged, not
+      deployed:** LGPL FFmpeg layer build, `lai_native` runner and audio processor, `audio_worker`,
+      Sound Manager actions, derived artifacts. Evidence: `tests/processing_native`,
+      `tests/lambda/test_audio_worker.py`, `lai/apps/audio/tests/test_audio_transcoding.py`, real
+      x86 FFmpeg tests and local demo. Open: arm64 layer, sizing, live acceptance (011)
 - [x] **LAI-LAMBDA-009** NPC animation inspection and mapping assistance
       (`asset.analyze_animation`, zip). Developer-complete on `feature/serverless-processing-wave4`:
       processor `asset.animation_inspector`, handler `apps.npcs.animation_inspection`, "Inspect
@@ -1078,27 +1077,26 @@ not merged, not deployed). Trello cards LAI-LAMBDA-001 to 013.
       never writes `animation_map`, never changes a published version. Evidence:
       `test_processing_animation_inspection.py`, `test_animation_inspection.py`,
       `scripts/processing/local-demo.sh`. Not merged, not deployed
-- [ ] **LAI-LAMBDA-010** Texture compression and GLB optimisation benchmarking (`asset.optimize`;
-      reuses 013's image tooling). **Feasibility only:**
-      `docs/processing/feasibility/LAI-LAMBDA-010-glb-optimization.md`, proposed (not accepted)
-      `docs/processing/proposals/ADR-PROPOSED-glb-optimization.md`, `scripts/processing/bench/`.
-      Nothing implemented; native tools need their own ADR. 2026-11-17 on
-      `feature/lambda-glb-optimization-design`: Three.js loader change list, measured bench on 8
-      repository models (workstation only), heavy-workload fallback proposal, gap G1 (used-only
-      `KHR_meshopt_compression`, `EXT_texture_webp`, `EXT_mesh_gpu_instancing` pass with a warning)
+- [ ] **LAI-LAMBDA-010** GLB optimisation, Meshopt then KTX2 (`asset.optimize`). Owner-approved
+      2026-11-18 (ADR-070). **Developer-complete on `feature/serverless-processing-completion`, not merged, not deployed, controls off:**
+      validators (1.2.0) and publication gate, optimize processor, worker and Admin actions,
+      shared KTX2 loader for every game loader, measured x86 benchmarks. Open: arm64 gltfpack and
+      optimize zip (blocks enabling), browser and tablet acceptance, production runtime (O1)
 - [ ] **LAI-LAMBDA-011** Live AWS end-to-end, failure, performance and cost acceptance (depends:
-      006, 007 merged; owner deployment approval). **Documentation only:** the checklist
-      `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` exists (rewritten 2026-11-17: three
-      tiers, gate verification), not executed. Open
-- [ ] **LAI-LAMBDA-012** Production rollout, observability and rollback (depends: 011, owner
-      approval). **Documentation only:** the plan `docs/processing/LAI-LAMBDA-012-production-rollout.md`
-      (owner decisions P1 to P15, reconciled 2026-11-17). Open
-- [ ] **LAI-LAMBDA-013** Asset thumbnail generation and image conversion (owns thumbnails; split
-      from 010 on 2026-11-16). **Feasibility only:** `docs/processing/feasibility/LAI-LAMBDA-013-*.md`,
-      proposed (not accepted) `docs/processing/proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`.
-      Nothing implemented, no dependency added. Split proposed 2026-11-17:
-  - [ ] **LAI-LAMBDA-013a** Image conversion (`asset.convert_image`, Pillow image function):
-        design on `feature/lambda-image-processing-design`, plus the standard-library EXIF/GPS
-        scanner and upload warnings (developer-complete on that branch, warnings only)
-  - [ ] **LAI-LAMBDA-013b** GLB thumbnails: `GLB_THUMBNAIL_SPEC.md` and renderer proposal on
-        `feature/lambda-thumbnail-rendering-design`; staff browser capture first
+      006, 007 merged; owner deployment approval). Runbook
+      `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (core, derived artifacts, native
+      workloads, staff preview tiers). Not executed. Open
+- [ ] **LAI-LAMBDA-012** Production rollout, observability and rollback. Infrastructure code
+      owner-approved 2026-11-18 (ADR-071) and developer-complete on `feature/serverless-processing-completion` (committed prod config
+      off, release workflow gated off, manifest, rollback plan, alarms). Production deployment
+      NOT authorized and NOT done. Open
+- [ ] **LAI-LAMBDA-013** Asset thumbnail generation and image conversion (parent; open until both
+      children close; server-side GLB rendering is deferred and does not block it):
+  - [ ] **LAI-LAMBDA-013a** Image conversion (`asset.convert_image`, separate Pillow function,
+        ADR-068). Developer-complete on `feature/serverless-processing-completion`: convert, resize, thumbnails, privacy stripping,
+        Asset Library actions, derived artifacts. Not merged, not deployed
+  - [ ] **LAI-LAMBDA-013b** Staff browser GLB thumbnail capture (ADR-069). Developer-complete on
+        `feature/serverless-processing-completion`; browser acceptance NOT run (manual checklist `GLB_THUMBNAIL_CAPTURE.md`)
+  - [ ] **LAI-LAMBDA-014** Shared derived artifacts (Option C, ADR-066). Developer-complete on
+        `feature/serverless-processing-completion`: model, verified recording, create-only writes, review, promotion, retention, release
+        check. Not merged, not deployed

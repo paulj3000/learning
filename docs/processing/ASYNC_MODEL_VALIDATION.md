@@ -475,3 +475,10 @@ the resolver; a broken model `REJECTED`; and a count showing no AWS calls.
   "Remaining work and owner decisions". Decided (owner, 2026-11-17) and implemented, not
   deployed: the media role's scoped `s3:ListBucket` (`ListAssetBucket`) and the input ceiling,
   `LAI_ASSET_MAX_GLB_BYTES`, 50 MiB.
+
+- 2026-11-18 (`feature/serverless-processing-completion`): GLB validator 1.2.0 with the shared
+  extension policy (ADR-070, `GLB_VALIDATION.md`); the latest applicable validation decides
+  publication; `allow_meshopt` / `allow_ktx2` request options are sent only while their control
+  is on, so a worker older than 1.2.0 still accepts every request; worker IAM adds
+  `s3:GetObjectVersion` with every `GetObject` and keeps `StringLikeIfExists` on `ListAssetBucket`
+  (ADR-071 O15). Per-kind release order: `PROCESSING_RELEASE.md`.

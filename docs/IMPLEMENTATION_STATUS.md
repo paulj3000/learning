@@ -42,6 +42,40 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Lambda processing completion (owner approvals 2026-11-18): developer-complete on `feature/serverless-processing-completion`; NOT merged, NOT deployed, live acceptance NOT run
+
+Provisional base: Wave 4 `486d2acc`. PR #42 and PR #43 could not be merged from the development
+session (no GitHub write credentials, and the effective repository deployment variables could
+not be read), so this branch is stacked on Wave 4 and must be reconciled with `main` after both
+merge. Integration conventions and file ownership: `docs/processing/COMPLETION_INTEGRATION.md`.
+Every new server-side capability is behind a control that defaults to `off`; no flag is enabled
+anywhere; no AWS call, deploy, layer publish or workflow run was made.
+
+| Area | Card | ADR | What exists (code, tests, docs) |
+|---|---|---|---|
+| Derived artifacts (Option C) | 014 | ADR-066 | `DerivedArtifact` (`assets.0003`), kinds and queues (`jobs.0005`), verified result recording in the one consumer, create-only worker store (`lambda/jobs_worker/artifact_store.py`, `IfNoneMatch="*"`, SHA-256 re-check after 412), staff-only Admin review, streamed private preview, explicit promotion to a new unpublished `AssetVersion`, retention 90/30 days with holds, orphan reconciliation (`asset_artifact_retention`, dry run by default), release check (`processing_release_check`) and release-manifest gate (`LAI_PROCESSING_RELEASE_MANIFEST`) |
+| Security and operations | defects | (ADR-064 corrections) | latest applicable validation decides publication (newer pending/failed/outdated blocks, asset then version locks), shared GLB extension policy with sync/async parity (compression rejected unless verified and enabled; unlisted extensions rejected; publish refuses rather than rejects on policy-only changes; rollback tolerates policy-only changes), failed and non-applied completed jobs pruned without returning attempts, worker import guards per package family, image metadata audit (`image_metadata_audit`, read-only; historical images NOT sanitized), artifact media route staff-only |
+| Audio transcoding | 008b | ADR-067 | LGPL FFmpeg 7.1.5 + libopus 1.6.1 + LAME 3.100 layer build (`native/ffmpeg`, pinned SHA-256, SBOM, licence refusal of gpl/nonfree), shared native runner (`processing/lai_native/runtime`), Opus primary and MP3 alternative, per-category loudness profiles, tag verification, Lambda-deadline wiring, `audio_worker`, Sound Manager actions (`audio.0006` permission) |
+| Image conversion | 013a | ADR-068 | separate Pillow 13.0.0 function (`native/pillow`, hash-pinned, aarch64 zip 13.3 MB of a 24 MiB budget), PNG/JPEG/WebP convert, resize, thumbnails, sRGB for artwork, exact values for data textures, glTF texture profiles, metadata stripped and audited on every output, scan-bomb and ICC limits, Asset Library actions |
+| Staff GLB thumbnails | 013b | ADR-069 | Django Admin capture page (Three.js, same-origin model only), WebP with PNG fallback, CSRF-protected upload bound to version id and SHA-256, server-side format and dimension checks, private derived artifact; browser acceptance NOT run (manual checklist `GLB_THUMBNAIL_CAPTURE.md`) |
+| Meshopt then KTX2 | 010 | ADR-070 | stdlib Meshopt and KTX2 validators wired into both validators behind `LAI_GLB_MESHOPT` / `LAI_GLB_KTX2` (validator 1.2.0: unpublished drafts revalidate), publish-time compression gate, gltfpack 1.3 and KTX-Software 4.4.2 tooling (x86 only; no arm64 gltfpack, no optimize zip, so both controls stay off), optimize jobs and Admin actions, one shared renderer-bound KTX2 loader for every game loader, Meshopt decoder bundled |
+| Production infrastructure | 012 | ADR-071 | prod processing construct inside `LaiDjangoEc2-prod`, enabled only by the committed `infra/config/prod-processing.json` (currently off; default prod synth byte-identical), dev native queues and workers (off), create-only and version-read IAM, capture Deny, alarms, budget only with an owner amount, `release-prod-workers.yml` (dispatch only, gated by `LAI_PROD_PROCESSING_DEPLOY_ENABLED`), deterministic release manifest with kind versions and SHA pins, rollback plan, consumer started after Django health |
+
+Independent reviews (security and privacy, database and concurrency, native execution, game
+compatibility, infrastructure) ran on the integrated branch; every blocking or high finding was
+fixed with tests, except review F10, where the owner's 2026-11-17 `StringLikeIfExists` decision
+was kept and the residual risk recorded as ADR-071 O15.
+
+Measurements (x86 workstation only; no arm64, Lambda, device or browser evidence exists):
+FFmpeg layer 1,510,244 bytes zipped; 900 s voice in 102 s wall, 87 MB peak; Pillow 16 MP peak RSS
+224 to 366 MiB; NPC GLB 3,307,456 to 941,508 bytes with Meshopt (28.5%), KTX2 no size win but
+calculated GPU texture memory 21.33 to 5.33 MiB. Local demo (`scripts/processing/local-demo.sh`):
+zero AWS client attempts; with the native tools present all audio, image, capture and
+optimization scenarios ran for real.
+
+Remaining live work: LAI-LAMBDA-011 (dev acceptance, every tier), LAI-LAMBDA-012 deployment,
+arm64 builds, browser and tablet acceptance of capture and compressed models.
+
 ## Lambda processing closure and design wave (2026-11-17, late); NOT merged, NOT deployed
 
 - **PR #42 (001 to 007):** head `4ca7363a`, CI run 44195758040 green, mergeable, still draft, not

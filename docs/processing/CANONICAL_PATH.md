@@ -63,14 +63,17 @@ processing bucket, `jobs_dispatch` and `jobs_consume_completions` as separate se
 |---|---|---|
 | NPC animation inspection, kind `asset.analyze_animation` (media queue) | LAI-LAMBDA-009 | Zip, standard library; developer-complete on `feature/serverless-processing-wave4` (`NPC_ANIMATION_INSPECTION.md`), not merged, not deployed |
 | Audio header inspection, kind `asset.process_audio` phase 1 (media queue) | LAI-LAMBDA-008 | Zip, standard library; developer-complete on `feature/serverless-processing-wave4` (`AUDIO_INSPECTION.md`), not merged, not deployed |
-| GLB optimization (meshopt, Draco, KTX2) | LAI-LAMBDA-010 | Native tools; a container image only after its own ADR (feasibility and measurements on `feature/lambda-glb-optimization-design`; heavy fallback proposal `ADR-PROPOSED-heavy-workload-runtime.md`) |
-| Audio transcoding and loudness (008 phase 2) | LAI-LAMBDA-008b | FFmpeg; proposed as a separate zip function with an LGPL FFmpeg layer, own queue (`feature/lambda-audio-transcoding-design`; proposal only, not authorized) |
-| Image conversion | LAI-LAMBDA-013a | Pillow in a separate image function zip (about 24 MiB budget), proposed on `feature/lambda-image-processing-design`; not authorized |
-| GLB thumbnails | LAI-LAMBDA-013b | Staff browser capture first; a headless Chromium container only after its own ADR (`feature/lambda-thumbnail-rendering-design`) |
+| GLB optimization, Meshopt then KTX2, kind `asset.optimize` (`optimize` queue) | LAI-LAMBDA-010 | ADR-070: gltfpack and KTX-Software through `lai_native`, zip function; developer-complete on `feature/serverless-processing-completion`, controls `LAI_GLB_MESHOPT` / `LAI_GLB_KTX2` off; no arm64 gltfpack yet, so not deployable. Draco, Batch, Fargate and server rendering are not approved |
+| Audio transcoding and loudness, kind `asset.transcode_audio` (`audio` queue) | LAI-LAMBDA-008b | ADR-067: zip function plus LGPL FFmpeg layer; developer-complete on `feature/serverless-processing-completion`, `LAI_AUDIO_TRANSCODING` off |
+| Image conversion, resize and thumbnails, kind `asset.convert_image` (`image` queue) | LAI-LAMBDA-013a | ADR-068: separate Pillow zip function (shared worker stays under 2 MiB); developer-complete on `feature/serverless-processing-completion`, `LAI_IMAGE_CONVERSION` off |
+| GLB thumbnails | LAI-LAMBDA-013b | ADR-069: staff browser capture in Django Admin (no job, no server renderer); developer-complete on `feature/serverless-processing-completion`, `LAI_THUMBNAIL_CAPTURE` off, browser acceptance pending |
 
-Every workload that writes files uses the one derived-artifact design once accepted
-(`proposals/ADR-PROPOSED-derived-artifacts.md` on `feature/lambda-derived-artifacts-design`).
-The worker stays read-only on assets until then.
+Every workload that writes files uses the one derived-artifact model (ADR-066,
+`DERIVED_ARTIFACTS.md`): private objects under `processing/artifacts/<env>/` in the existing asset
+bucket, create-only worker writes, verification in the one results consumer, explicit staff
+promotion. Every result returns on the one results queue to `jobs_consume_results`; the native
+workloads add only their own work queue and function (ADR-064 extended by ADR-066 to ADR-071).
+Release order per kind: `PROCESSING_RELEASE.md`.
 
 Both Wave 4 kinds share one jobs migration, `jobs.0004_wave4_inspection_kinds`, and ship consumer
 first (`WAVE4_HANDOFF.md` section 3).
