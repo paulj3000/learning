@@ -140,10 +140,14 @@ Documentation only; nothing has been executed or deployed.
 - `LAI-LAMBDA-011-dev-acceptance.md`: the owner-run DEV live-acceptance checklist for the
   canonical release (deployment gates and the variable values that make a merge deploy nothing,
   infrastructure checks, consumer-first release order, the GLB cases, DLQ redrive, the RDS outage
-  drill, overnight stop and start, monitoring, cost and rollback). Its section 5 is the optional
-  acceptance for the Wave 4 kinds `asset.analyze_animation` and `asset.process_audio`, kept apart
-  from the core release; section 12 lists what a future native-runtime (container) acceptance
-  would add.
+  drill, overnight stop and start, monitoring, cost and rollback). Rewritten 2026-11-17 in three
+  tiers: core acceptance (001 to 007), Wave 4 inspection acceptance (its section 5: the kinds
+  `asset.analyze_animation` and `asset.process_audio`, kept apart from the core release), and
+  future native-worker acceptance (its section 12: 008b, 010, 013a and 013b, blocked on W4-1 to
+  W4-8, never blocking the other tiers). Its section 1, "Deployment gate verification", records
+  that every deploy job on `main` was skipped because the repository gate variables were not
+  `true`.
 - `LAI-LAMBDA-012-production-rollout.md`: the production rollout plan. Production has no jobs
   queues, workers, consumer or maintenance schedule in CDK today, so turning processing on in
-  production needs the owner decisions listed there (P1 to P13).
+  production needs the owner decisions listed there (P1 to P15; P14 is whether the Wave 4 kinds
+  ship in the first production release, P15 the processing budget).

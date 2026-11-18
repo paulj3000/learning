@@ -38,7 +38,7 @@ audio readers:
 
 | Existing code | Why it is not the processor |
 |---|---|
-| `lai/apps/assets/validation_media.validate_audio` (upload gate) | Imports Django settings and the asset validator; it is an accept-or-refuse gate that stops at the first error; it does not read Xing/VBRI, Opus pre-skip, chained or multiplexed Ogg, extensible WAV, or Ogg checksums. Its limits (mono or stereo, 8 to 96 kHz, 15 minutes, 20 MiB) are kept as the inspector's `UPLOAD_POLICY` warnings and as the profile's input ceiling |
+| `lai/apps/assets/validation_media.validate_audio` (upload gate) | Imports Django settings and the asset validator; it is an accept-or-refuse gate that stops at the first error; it does not read Xing/VBRI, Opus pre-skip, chained or multiplexed Ogg, extensible WAV, or Ogg checksums past the first 16 pages and the last. Its limits (mono or stereo, 8 to 96 kHz, 15 minutes, 20 MiB) are kept as the inspector's `UPLOAD_POLICY` warnings and as the profile's input ceiling |
 | `lai/apps/jobs/core/probe.py` (`asset.inspect`) | Reads only the first 256 KiB, never walks the stream, and its CBR duration is a byte-count estimate even for VBR files. It stays as is for `asset.inspect` |
 
 `lai_processing` must not import Django or `apps.*` (the worker zip refuses it), so porting the
@@ -191,9 +191,15 @@ valid-looking headers (the second-header confirmation reduces this); free-format
 measured; truncated MP3 streams lose at most the last frame silently from the duration; Ogg
 checksums of middle pages are not verified; a capped Ogg walk does not check the pages it skipped.
 
-The inspector also flags Ogg files the upload check accepts: `validation_media._check_ogg` checks
-neither page checksums nor the full Vorbis identification header (the Asset Library's own minimal
-test Ogg fails inspection for both reasons; see `lai/apps/audio/tests/test_audio_inspection.py`).
+The inspector also flags Ogg files the upload check accepts: `validation_media._check_ogg` does
+not read the full Vorbis identification header (the Asset Library's own minimal test Ogg fails
+inspection for that reason; see `lai/apps/audio/tests/test_audio_inspection.py`).
+
+Ogg checksums at upload (fixed 2026-11-17): the upload check used to read each page's CRC field
+without verifying it, so a damaged Ogg passed upload and only this inspection caught it. It now
+verifies the same sample as the inspector (the first 16 pages and the last page, error
+`ogg_crc`), using the shared `lai_processing.processors.audio.ogg.ogg_crc`. Ogg files uploaded
+before the fix are not re-validated; run this inspection on them to find damaged ones.
 
 ## 8. Bounds
 

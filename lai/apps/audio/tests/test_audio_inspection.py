@@ -435,9 +435,9 @@ def test_an_inspection_never_publishes_or_changes_a_release():
 
 
 def test_header_problems_the_upload_check_accepts_are_reported():
-    """The upload check (validation_media) does not verify Ogg checksums or the full Vorbis
-    identification header; the inspector does. The Asset Library's own minimal test Ogg has a
-    zero checksum and a 26-byte identification packet, so the inspection fails it."""
+    """The upload check (validation_media) does not read the full Vorbis identification header;
+    the inspector does. The Asset Library's minimal test Ogg has a 26-byte identification packet,
+    so it passes upload and the inspection fails it."""
     from apps.assets.tests.media_files import ogg_bytes
 
     version = published(ogg_bytes(), asset_id="lenient-ogg", name="a.ogg")
@@ -445,8 +445,25 @@ def test_header_problems_the_upload_check_accepts_are_reported():
     job.refresh_from_db()
     assert job.result["verdict"] == "fail"
     codes = {f["code"] for f in job.result["findings"]}
-    assert {"ogg_crc_mismatch", "ogg_vorbis_header_invalid"} <= codes
+    assert "ogg_vorbis_header_invalid" in codes and "ogg_crc_mismatch" not in codes
     assert version.status == VersionStatus.PUBLISHED  # nothing was changed
+
+
+def test_a_damaged_ogg_stored_before_the_upload_crc_check_is_reported():
+    """Ogg files uploaded before the upload check verified page checksums may be damaged; the
+    upload now refuses them, and the inspection still reports a stored one."""
+    from apps.assets.tests.media_files import ogg_bytes
+
+    with pytest.raises(asset_services.AssetActionRefused) as refused:
+        published(ogg_bytes(crc=False), asset_id="damaged-ogg-upload", name="a.ogg")
+    assert "ogg_crc" in {f.code for f in refused.value.findings}
+    version = stored(
+        ogg_bytes(crc=False), asset_id="damaged-ogg", content_type="audio/ogg", fmt="ogg"
+    )
+    job = inspection.submit_audio_inspection(version, user=None)
+    job.refresh_from_db()
+    assert job.result["verdict"] == "fail"
+    assert "ogg_crc_mismatch" in {f["code"] for f in job.result["findings"]}
 
 
 def test_the_wav_fixture_helper_is_valid_riff():
