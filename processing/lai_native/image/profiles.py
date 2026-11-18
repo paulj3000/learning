@@ -50,6 +50,11 @@ class ImageProfile:
     #: Round each side down to a power of two after fitting (texture compression).
     power_of_two: bool = False
     resample: str = "lanczos"
+    #: glTF 2.0: colour-space information in PNG and JPEG is ignored (textures are sRGB for
+    #: colour maps and linear for data maps), so an embedded ICC profile is dropped, not applied.
+    ignore_icc: bool = False
+    #: glTF textures are UV mapped: an EXIF orientation must not rotate the pixels.
+    ignore_orientation: bool = False
 
     def __post_init__(self) -> None:
         bad = False
@@ -113,6 +118,25 @@ _PROFILES = [
     ImageProfile("texture-data-png", DATA, "png", resample="box"),
     ImageProfile("texture-data-webp", DATA, "webp", lossless=True, resample="box"),
     ImageProfile("texture-colour-webp", ARTWORK, "webp", quality=90, tag_srgb=True),
+    # glTF 2.0 texture preparation (KTX2 input): ICC and EXIF orientation are ignored. Lossless
+    # PNG so the next step (a texture compressor) sees the exact 8-bit pixels. Colour maps are
+    # read as sRGB, data maps (normal, roughness, metallic, ORM, occlusion) as linear values.
+    ImageProfile(
+        "texture-colour-gltf",
+        ARTWORK,
+        "png",
+        resample="lanczos",
+        ignore_icc=True,
+        ignore_orientation=True,
+    ),
+    ImageProfile(
+        "texture-data-gltf",
+        DATA,
+        "png",
+        resample="box",
+        ignore_icc=True,
+        ignore_orientation=True,
+    ),
 ]
 PROFILES: dict[str, ImageProfile] = {profile.name: profile for profile in _PROFILES}
 THUMBNAIL_PROFILES = ("thumbnail-128", "thumbnail-256", "thumbnail-512")
