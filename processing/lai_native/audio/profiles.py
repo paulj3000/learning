@@ -254,7 +254,7 @@ DEFAULT_PROFILES: Final[Mapping[str, AudioTranscodeProfile]] = MappingProxyType(
         p.profile_id: p
         for p in (
             AudioTranscodeProfile(
-                "audio-sfx-v1",
+                "audio-sfx",
                 1,
                 "sfx",
                 "Short effects: peak normalised, quiet ceiling.",
@@ -268,7 +268,7 @@ DEFAULT_PROFILES: Final[Mapping[str, AudioTranscodeProfile]] = MappingProxyType(
                 max_input_seconds=30,
             ),
             AudioTranscodeProfile(
-                "audio-ui-v1",
+                "audio-ui",
                 1,
                 "ui",
                 "Interface sounds: peak normalised lower than effects.",
@@ -280,7 +280,7 @@ DEFAULT_PROFILES: Final[Mapping[str, AudioTranscodeProfile]] = MappingProxyType(
                 max_input_seconds=10,
             ),
             AudioTranscodeProfile(
-                "audio-ambient-v1",
+                "audio-ambient",
                 1,
                 "ambient",
                 "Loops and beds: integrated loudness, low.",
@@ -292,7 +292,7 @@ DEFAULT_PROFILES: Final[Mapping[str, AudioTranscodeProfile]] = MappingProxyType(
                 loop=True,
             ),
             AudioTranscodeProfile(
-                "audio-music-v1",
+                "audio-music",
                 1,
                 "music",
                 "Music: integrated loudness under narration.",
@@ -303,7 +303,7 @@ DEFAULT_PROFILES: Final[Mapping[str, AudioTranscodeProfile]] = MappingProxyType(
                 LoudnessSpec("integrated", -18.0, -1.0, lra_max=20.0),
             ),
             AudioTranscodeProfile(
-                "audio-voice-v1",
+                "audio-voice",
                 1,
                 "voice",
                 "Authored dialogue: speech target, mono.",

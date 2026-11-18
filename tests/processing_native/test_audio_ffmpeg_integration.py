@@ -75,11 +75,11 @@ def test_runs_with_an_empty_environment_from_a_relocated_layer(tool):
 
 
 CASES = [
-    ("audio-voice-v1", "speechlike", 6.0, 2, -20.0),
-    ("audio-music-v1", "chord", 8.0, 2, -28.0),
-    ("audio-ambient-v1", "noise", 8.0, 2, -30.0),
-    ("audio-sfx-v1", "noise", 0.8, 1, -10.0),
-    ("audio-ui-v1", "sine", 0.3, 1, -15.0),
+    ("audio-voice", "speechlike", 6.0, 2, -20.0),
+    ("audio-music", "chord", 8.0, 2, -28.0),
+    ("audio-ambient", "noise", 8.0, 2, -30.0),
+    ("audio-sfx", "noise", 0.8, 1, -10.0),
+    ("audio-ui", "sine", 0.3, 1, -15.0),
 ]
 
 
@@ -106,7 +106,7 @@ def test_outputs_are_reinspected_valid_and_metadata_free(tc):
     secret = b"SECRETTITLE-should-not-appear"
     info = b"LIST" + (len(secret) + 12).to_bytes(4, "little") + b"INFOINAM" + len(secret).to_bytes(4, "little") + secret
     wav = wav[:4] + (len(wav) - 8 + len(info)).to_bytes(4, "little") + wav[8:] + info
-    out = tc.transcode(wav, DEFAULT_PROFILES["audio-voice-v1"])
+    out = tc.transcode(wav, DEFAULT_PROFILES["audio-voice"])
     for o in out.outputs:
         assert secret not in o.data
         # Only constant, source-independent encoder identifiers remain (Opus comment header,
@@ -122,30 +122,30 @@ def test_outputs_are_reinspected_valid_and_metadata_free(tc):
 
 def test_same_input_gives_the_same_bytes(tc):
     wav = make_wav("chord", 3.5, 44_100, 2, -24.0)
-    a = tc.transcode(wav, DEFAULT_PROFILES["audio-music-v1"])
-    b = tc.transcode(wav, DEFAULT_PROFILES["audio-music-v1"])
+    a = tc.transcode(wav, DEFAULT_PROFILES["audio-music"])
+    b = tc.transcode(wav, DEFAULT_PROFILES["audio-music"])
     assert [o.facts["sha256"] for o in a.outputs] == [o.facts["sha256"] for o in b.outputs]
 
 
 def test_channel_policy_on_real_audio(tc):
     stereo = make_wav("speechlike", 4.0, 44_100, 2, -20.0)
-    voice = tc.transcode(stereo, DEFAULT_PROFILES["audio-voice-v1"])
+    voice = tc.transcode(stereo, DEFAULT_PROFILES["audio-voice"])
     assert all(o.facts["channels"] == 1 for o in voice.outputs)  # dialogue stays mono
     after = voice.outputs[0].facts["measured_after"]["integrated_lufs"]
     assert abs(after - (-16.0)) <= 1.0  # downmix is measured, not assumed
-    mono_music = tc.transcode(make_wav("chord", 4.0, 44_100, 1, -24.0), DEFAULT_PROFILES["audio-music-v1"])
+    mono_music = tc.transcode(make_wav("chord", 4.0, 44_100, 1, -24.0), DEFAULT_PROFILES["audio-music"])
     assert all(o.facts["channels"] == 1 for o in mono_music.outputs)  # never upmixed
 
 
 def test_mp3_and_opus_outputs_decode_back_as_inputs(tc):
-    first = tc.transcode(make_wav("noise", 5.0, 44_100, 2, -26.0), DEFAULT_PROFILES["audio-ambient-v1"])
+    first = tc.transcode(make_wav("noise", 5.0, 44_100, 2, -26.0), DEFAULT_PROFILES["audio-ambient"])
     for o in first.outputs:  # Ogg Opus in, MP3 in
-        again = tc.transcode(o.data, replace(DEFAULT_PROFILES["audio-music-v1"], max_input_seconds=30))
+        again = tc.transcode(o.data, replace(DEFAULT_PROFILES["audio-music"], max_input_seconds=30))
         assert again.outputs and again.facts["source"]["format"] in {"ogg", "mp3"}
 
 
 def test_loop_length_is_preserved_within_the_pre_skip_tolerance(tc):
-    out = tc.transcode(make_wav("noise", 10.0, 48_000, 2, -30.0), DEFAULT_PROFILES["audio-ambient-v1"])
+    out = tc.transcode(make_wav("noise", 10.0, 48_000, 2, -30.0), DEFAULT_PROFILES["audio-ambient"])
     for o in out.outputs:
         assert abs(o.facts["duration_seconds"] - 10.0) <= 0.06
     assert not [f for f in out.facts["findings"] if f["code"] == "loop_length_drift"]
@@ -153,10 +153,10 @@ def test_loop_length_is_preserved_within_the_pre_skip_tolerance(tc):
 
 def test_silence_and_garbage_are_refused(tc):
     with pytest.raises(proc.TranscodeError) as caught:
-        tc.transcode(make_wav("silence", 3.0, 44_100, 1), DEFAULT_PROFILES["audio-voice-v1"])
+        tc.transcode(make_wav("silence", 3.0, 44_100, 1), DEFAULT_PROFILES["audio-voice"])
     assert caught.value.code == "silent_source"
     with pytest.raises(proc.TranscodeError):
-        tc.transcode(make_wav("sine", 3.0, 44_100, 1)[:60] + b"\xff" * 500, DEFAULT_PROFILES["audio-voice-v1"])
+        tc.transcode(make_wav("sine", 3.0, 44_100, 1)[:60] + b"\xff" * 500, DEFAULT_PROFILES["audio-voice"])
 
 
 def test_real_timeout_kills_the_tool(tool):

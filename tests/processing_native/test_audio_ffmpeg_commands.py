@@ -45,34 +45,34 @@ def test_every_profile_output_builds_a_safe_argv():
 
 
 def test_opus_flags_voice_vs_music():
-    voice = _encode("audio-voice-v1", 0)
+    voice = _encode("audio-voice", 0)
     assert voice[voice.index("-c:a") + 1] == "libopus"
     assert voice[voice.index("-b:a") + 1] == "48k" and voice[voice.index("-application") + 1] == "voip"
     assert voice[voice.index("-ac") + 1] == "1" and voice[voice.index("-ar") + 1] == "48000"
     assert voice[-3:-1] == ["-f", "ogg"]
-    music = _encode("audio-music-v1", 0, channels=2)
+    music = _encode("audio-music", 0, channels=2)
     assert music[music.index("-b:a") + 1] == "96k" and music[music.index("-application") + 1] == "audio"
 
 
 def test_mp3_flags_cbr_vbr_and_no_tags():
-    voice_mp3 = _encode("audio-voice-v1", 1)
+    voice_mp3 = _encode("audio-voice", 1)
     assert voice_mp3[voice_mp3.index("-b:a") + 1] == "64k" and "libmp3lame" in voice_mp3
     assert voice_mp3[voice_mp3.index("-id3v2_version") + 1] == "0"
     assert "-abr" not in voice_mp3
     assert voice_mp3[voice_mp3.index("-write_id3v1") + 1] == "0"
-    music_mp3 = _encode("audio-music-v1", 1, channels=2)
+    music_mp3 = _encode("audio-music", 1, channels=2)
     assert music_mp3[music_mp3.index("-q:a") + 1] == "4" and "-b:a" not in music_mp3
 
 
 def test_gain_chain_is_optional():
-    without = _encode("audio-voice-v1", 0, gain="")
+    without = _encode("audio-voice", 0, gain="")
     assert not without[without.index("-af") + 1].endswith("dB")
-    with_gain = _encode("audio-voice-v1", 0, gain="volume=1.5dB")
+    with_gain = _encode("audio-voice", 0, gain="volume=1.5dB")
     assert with_gain[with_gain.index("-af") + 1].endswith(",volume=1.5dB")
 
 
 def test_measure_commands():
-    spec = DEFAULT_PROFILES["audio-voice-v1"].outputs[0]
+    spec = DEFAULT_PROFILES["audio-voice"].outputs[0]
     prefix = ff.prefix_filter(spec, 1)
     assert prefix == "aresample=48000,aformat=sample_rates=48000:channel_layouts=mono"
     assert ff.prefix_filter(spec, 1, 2) == "aresample=48000,pan=mono|c0=0.5*c0+0.5*c1,aformat=sample_rates=48000:channel_layouts=mono"
@@ -86,7 +86,7 @@ def test_measure_commands():
 
 @pytest.mark.parametrize("bad", [Path("relative.wav"), Path("-evil.wav")])
 def test_paths_must_be_absolute(bad):
-    spec = DEFAULT_PROFILES["audio-sfx-v1"].outputs[0]
+    spec = DEFAULT_PROFILES["audio-sfx"].outputs[0]
     with pytest.raises(ValueError):
         ff.build_measure_ebur128_args(bad, "wav", 5, ff.prefix_filter(spec, 1))
     with pytest.raises(ValueError):
@@ -94,7 +94,7 @@ def test_paths_must_be_absolute(bad):
 
 
 def test_input_format_is_a_closed_set():
-    spec = DEFAULT_PROFILES["audio-sfx-v1"].outputs[0]
+    spec = DEFAULT_PROFILES["audio-sfx"].outputs[0]
     with pytest.raises(ValueError):
         ff.build_measure_ebur128_args(IN, "flac", 5, ff.prefix_filter(spec, 1))
 

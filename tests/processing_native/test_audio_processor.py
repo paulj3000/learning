@@ -107,7 +107,7 @@ def only(profile_id, label="opus"):
 
 def test_integrated_profile_runs_measure_encode_measure_for_each_output():
     fake = FakeFfmpeg(after=[(-18.1, 3.0, -12.0, -11.9)])
-    out = transcoder(fake).transcode(stereo_wav(), DEFAULT_PROFILES["audio-music-v1"])
+    out = transcoder(fake).transcode(stereo_wav(), DEFAULT_PROFILES["audio-music"])
     kinds = [FakeFfmpeg._kind(c) for c in fake.calls]
     assert kinds == ["loudnorm", "encode", "after", "loudnorm", "encode", "after"]
     assert [o.label for o in out.outputs] == ["opus", "mp3"]
@@ -126,7 +126,7 @@ def test_integrated_profile_runs_measure_encode_measure_for_each_output():
 
 def test_every_command_is_restricted_and_create_only():
     fake = FakeFfmpeg()
-    transcoder(fake).transcode(stereo_wav(), DEFAULT_PROFILES["audio-music-v1"])
+    transcoder(fake).transcode(stereo_wav(), DEFAULT_PROFILES["audio-music"])
     for call in fake.calls:
         if call[-1] == "-" or "-c:a" in call:
             assert call[call.index("-protocol_whitelist") + 1] == "file"
@@ -137,14 +137,14 @@ def test_every_command_is_restricted_and_create_only():
 
 def test_true_peak_headroom_shortfall_uses_the_limiter():
     fake = FakeFfmpeg(before=(-30.0, -3.0, 2.0), after=[(-18.0, 2.0, -3.0, -2.0)])
-    out = transcoder(fake).transcode(stereo_wav(), only("audio-music-v1"))
+    out = transcoder(fake).transcode(stereo_wav(), only("audio-music"))
     assert "alimiter=limit=" in fake.af()
     assert {"code": "true_peak_limited", "severity": "info", "label": "opus"} in out.facts["findings"]
 
 
 def test_short_clip_is_peak_normalised_not_loudness_normalised():
     fake = FakeFfmpeg(before=(-70.0, -12.0, 0.0), after=[(-30.0, 0.0, -3.0, -2.6)])
-    out = transcoder(fake).transcode(ab.wav(seconds=1.0, rate=44_100, channels=1), only("audio-voice-v1"))
+    out = transcoder(fake).transcode(ab.wav(seconds=1.0, rate=44_100, channels=1), only("audio-voice"))
     kinds = [FakeFfmpeg._kind(c) for c in fake.calls]
     assert kinds[0] == "before"  # ebur128 pass, no loudnorm
     # Voice ceiling -1 dBTP minus 2 dB margin: peak target -3 dBFS from a sample peak of -13.
@@ -155,7 +155,7 @@ def test_short_clip_is_peak_normalised_not_loudness_normalised():
 
 def test_peak_profile_gain():
     fake = FakeFfmpeg(before=(-20.0, -10.0, 0.0), after=[(-15.0, 0.0, -3.0, -2.5)])
-    out = transcoder(fake).transcode(ab.wav(seconds=1.0, rate=44_100, channels=1), only("audio-sfx-v1"))
+    out = transcoder(fake).transcode(ab.wav(seconds=1.0, rate=44_100, channels=1), only("audio-sfx"))
     assert out.facts["gain_db"]["opus"] == 8.0  # sample peak -11 to -3
     assert fake.af().endswith("volume=8dB")
 
@@ -164,17 +164,17 @@ def test_silent_source_is_refused_permanently():
     for before in ((float("-inf"), float("-inf"), 0.0), (-80.0, -70.0, 0.0)):
         fake = FakeFfmpeg(before=before)
         with pytest.raises(proc.TranscodeError) as caught:
-            transcoder(fake).transcode(stereo_wav(), only("audio-music-v1"))
+            transcoder(fake).transcode(stereo_wav(), only("audio-music"))
         assert caught.value.code == "silent_source" and not caught.value.retryable
     fake = FakeFfmpeg(before=(-60.0, -50.0, 0.0))  # would need more than +20 dB
     with pytest.raises(proc.TranscodeError) as caught:
-        transcoder(fake).transcode(stereo_wav(), only("audio-music-v1"))
+        transcoder(fake).transcode(stereo_wav(), only("audio-music"))
     assert caught.value.code == "silent_source"
 
 
 def test_true_peak_overshoot_retries_with_less_gain_then_succeeds():
     fake = FakeFfmpeg(after_seq=[(-17.0, 2.0, -0.2, 0.4), (-17.9, 2.0, -1.5, -1.2)])
-    out = transcoder(fake).transcode(stereo_wav(), only("audio-music-v1"))
+    out = transcoder(fake).transcode(stereo_wav(), only("audio-music"))
     encodes = [c for c in fake.calls if "-c:a" in c]
     assert len(encodes) == 2
     assert fake.af(1).endswith("alimiter=limit=0.7943:level=disabled") or "volume=" in fake.af(1)
@@ -185,7 +185,7 @@ def test_true_peak_overshoot_retries_with_less_gain_then_succeeds():
 
 def test_persistent_overshoot_is_flagged_after_two_retries():
     fake = FakeFfmpeg(after=[(-17.0, 2.0, 0.0, 0.5)])
-    out = transcoder(fake).transcode(stereo_wav(), only("audio-music-v1"))
+    out = transcoder(fake).transcode(stereo_wav(), only("audio-music"))
     assert len([c for c in fake.calls if "-c:a" in c]) == 3
     codes = [f["code"] for f in out.facts["findings"]]
     assert codes.count("true_peak_retry") == 2 and "true_peak_over_ceiling" in codes
@@ -193,7 +193,7 @@ def test_persistent_overshoot_is_flagged_after_two_retries():
 
 def test_loudness_miss_is_a_finding_not_a_failure():
     fake = FakeFfmpeg(after=[(-21.0, 2.0, -12.0, -11.0)])
-    out = transcoder(fake).transcode(stereo_wav(), only("audio-music-v1"))
+    out = transcoder(fake).transcode(stereo_wav(), only("audio-music"))
     assert {"code": "loudness_target_missed", "severity": "warning", "label": "opus"} in out.facts["findings"]
 
 
@@ -208,11 +208,11 @@ def test_optional_output_failure_does_not_fail_the_job_but_required_does():
             return ToolResult(1, b"", b"x", False, 0, 1)
         return original(tool, args, ws, limits, **kw)
 
-    out = transcoder(flaky).transcode(stereo_wav(), DEFAULT_PROFILES["audio-music-v1"])
+    out = transcoder(flaky).transcode(stereo_wav(), DEFAULT_PROFILES["audio-music"])
     assert [o.label for o in out.outputs] == ["opus"]
     assert any(f["code"] == "optional_output_failed" for f in out.facts["findings"])
     with pytest.raises(proc.TranscodeError) as caught:
-        transcoder(FakeFfmpeg(fail={"encode": 1})).transcode(stereo_wav(), only("audio-music-v1"))
+        transcoder(FakeFfmpeg(fail={"encode": 1})).transcode(stereo_wav(), only("audio-music"))
     assert caught.value.code == "encode_failed"
     del calls
 
@@ -223,7 +223,7 @@ def test_optional_output_failure_does_not_fail_the_job_but_required_does():
 )
 def test_tool_exit_codes_map_to_stable_error_codes(kind, exit_code, code):
     with pytest.raises(proc.TranscodeError) as caught:
-        transcoder(FakeFfmpeg(fail={kind: exit_code})).transcode(stereo_wav(), only("audio-music-v1"))
+        transcoder(FakeFfmpeg(fail={kind: exit_code})).transcode(stereo_wav(), only("audio-music"))
     assert caught.value.code == code and not caught.value.retryable
     assert "secret" not in str(caught.value)
 
@@ -231,30 +231,30 @@ def test_tool_exit_codes_map_to_stable_error_codes(kind, exit_code, code):
 def test_runtime_errors_keep_their_retry_class():
     err = NativeToolError("timeout")
     with pytest.raises(proc.TranscodeError) as caught:
-        transcoder(FakeFfmpeg(fail={"loudnorm": err})).transcode(stereo_wav(), only("audio-music-v1"))
+        transcoder(FakeFfmpeg(fail={"loudnorm": err})).transcode(stereo_wav(), only("audio-music"))
     assert (caught.value.code, caught.value.retryable) == ("timeout", True)
     err = NativeToolError("tool_missing")
     with pytest.raises(proc.TranscodeError) as caught:
-        transcoder(FakeFfmpeg(fail={"loudnorm": err})).transcode(stereo_wav(), only("audio-music-v1"))
+        transcoder(FakeFfmpeg(fail={"loudnorm": err})).transcode(stereo_wav(), only("audio-music"))
     assert (caught.value.code, caught.value.retryable) == ("tool_missing", False)
 
 
 def test_garbage_output_fails_reinspection():
     fake = FakeFfmpeg(out_bytes=b"not audio at all" * 10)
     with pytest.raises(proc.TranscodeError) as caught:
-        transcoder(fake).transcode(stereo_wav(), only("audio-music-v1"))
+        transcoder(fake).transcode(stereo_wav(), only("audio-music"))
     assert caught.value.code == "output_reinspection_failed"
 
 
 def test_duration_drift_is_a_warning():
     fake = FakeFfmpeg(out_bytes=ab.ogg_opus(seconds=9.0, channels=2))
-    out = transcoder(fake).transcode(stereo_wav(6.0), only("audio-music-v1"))
+    out = transcoder(fake).transcode(stereo_wav(6.0), only("audio-music"))
     assert {"code": "duration_drift", "severity": "warning", "label": "opus"} in out.facts["findings"]
 
 
 def test_loop_profiles_use_a_tighter_drift_tolerance():
     fake = FakeFfmpeg(out_bytes=ab.ogg_opus(seconds=6.2, channels=2))
-    out = transcoder(fake).transcode(stereo_wav(6.0), only("audio-ambient-v1"))
+    out = transcoder(fake).transcode(stereo_wav(6.0), only("audio-ambient"))
     assert any(f["code"] == "loop_length_drift" for f in out.facts["findings"])
 
 
@@ -272,7 +272,7 @@ def test_loop_profiles_use_a_tighter_drift_tolerance():
 def test_input_refusals_happen_before_any_tool_runs(data, code):
     fake = FakeFfmpeg()
     with pytest.raises(proc.TranscodeError) as caught:
-        transcoder(fake).transcode(data, DEFAULT_PROFILES["audio-sfx-v1"])
+        transcoder(fake).transcode(data, DEFAULT_PROFILES["audio-sfx"])
     assert caught.value.code == code and not caught.value.retryable
     assert fake.calls == []
 
@@ -280,7 +280,7 @@ def test_input_refusals_happen_before_any_tool_runs(data, code):
 def test_oversize_input_is_refused(monkeypatch):
     monkeypatch.setattr(proc, "MAX_INPUT_BYTES", 100)
     with pytest.raises(proc.TranscodeError) as caught:
-        transcoder(FakeFfmpeg()).transcode(ab.wav(seconds=1.0), DEFAULT_PROFILES["audio-sfx-v1"])
+        transcoder(FakeFfmpeg()).transcode(ab.wav(seconds=1.0), DEFAULT_PROFILES["audio-sfx"])
     assert caught.value.code == "input_too_large"
 
 
@@ -290,13 +290,13 @@ def test_non_pcm_wav_and_non_vorbis_ogg_codecs_are_refused():
     for data in (adpcm, flac_ogg):
         fake = FakeFfmpeg()
         with pytest.raises(proc.TranscodeError) as caught:
-            transcoder(fake).transcode(data, DEFAULT_PROFILES["audio-sfx-v1"])
+            transcoder(fake).transcode(data, DEFAULT_PROFILES["audio-sfx"])
         assert caught.value.code in {"input_refused", "unsupported_input"}
         assert fake.calls == []
 
 
 def test_invalid_profile_is_refused():
-    bad = replace(DEFAULT_PROFILES["audio-sfx-v1"], loudness=LoudnessSpec("integrated"))
+    bad = replace(DEFAULT_PROFILES["audio-sfx"], loudness=LoudnessSpec("integrated"))
     with pytest.raises(proc.TranscodeError) as caught:
         transcoder(FakeFfmpeg()).transcode(ab.wav(seconds=1.0), bad)
     assert caught.value.code == "profile_invalid"
@@ -305,11 +305,11 @@ def test_invalid_profile_is_refused():
 def test_workspace_is_removed_after_success_and_failure(tmp_path):
     fake = FakeFfmpeg()
     tc = transcoder(fake, workspace_base=str(tmp_path))
-    tc.transcode(stereo_wav(), only("audio-music-v1"))
+    tc.transcode(stereo_wav(), only("audio-music"))
     assert list(tmp_path.iterdir()) == []
     with pytest.raises(proc.TranscodeError):
         transcoder(FakeFfmpeg(fail={"encode": 1}), workspace_base=str(tmp_path)).transcode(
-            stereo_wav(), only("audio-music-v1")
+            stereo_wav(), only("audio-music")
         )
     assert list(tmp_path.iterdir()) == []
 
@@ -329,15 +329,15 @@ def test_version_is_read_once_from_the_tool():
     [(1, 1, 1), (1, 2, 1), (2, 2, 2), (2, 1, 1), (None, 2, 2), (None, 1, 1)],
 )
 def test_channel_policy_never_upmixes_and_keeps_dialogue_mono(wanted, source, result):
-    spec = replace(DEFAULT_PROFILES["audio-music-v1"].outputs[0], channels=wanted)
+    spec = replace(DEFAULT_PROFILES["audio-music"].outputs[0], channels=wanted)
     assert proc.output_channels(spec, source) == result
 
 
 def test_choose_gain_cases():
-    voice = DEFAULT_PROFILES["audio-voice-v1"]
+    voice = DEFAULT_PROFILES["audio-voice"]
     assert proc.choose_gain(voice, duration_seconds=10, integrated_lufs=-26, true_peak_dbtp=-12, sample_peak_dbfs=None) == ("integrated", 10.0, False)
     assert proc.choose_gain(voice, duration_seconds=10, integrated_lufs=-26, true_peak_dbtp=-5, sample_peak_dbfs=None) == ("integrated", 10.0, True)
     assert proc.choose_gain(voice, duration_seconds=2.9, integrated_lufs=-40, true_peak_dbtp=-9, sample_peak_dbfs=-10.0) == ("peak", 7.0, False)
-    assert proc.choose_gain(DEFAULT_PROFILES["audio-ui-v1"], duration_seconds=1, integrated_lufs=None, true_peak_dbtp=None, sample_peak_dbfs=-20.0) == ("peak", 14.0, False)
+    assert proc.choose_gain(DEFAULT_PROFILES["audio-ui"], duration_seconds=1, integrated_lufs=None, true_peak_dbtp=None, sample_peak_dbfs=-20.0) == ("peak", 14.0, False)
     # Loudening beyond the source is allowed; cutting is too (a loud source comes down).
     assert proc.choose_gain(voice, duration_seconds=10, integrated_lufs=-10, true_peak_dbtp=-1, sample_peak_dbfs=None)[1] == -6.0

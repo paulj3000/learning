@@ -25,16 +25,16 @@ def test_job_type_name_matches_the_frozen_convention():
 
 def test_design_targets_differ_by_category():
     d = ap.DEFAULT_PROFILES
-    assert d["audio-voice-v1"].loudness.integrated_lufs == -16.0
-    assert d["audio-music-v1"].loudness.integrated_lufs == -18.0
-    assert d["audio-ambient-v1"].loudness.integrated_lufs == -20.0
-    assert d["audio-sfx-v1"].loudness.peak_dbfs == -3.0
-    assert d["audio-ui-v1"].loudness.peak_dbfs == -6.0
-    assert d["audio-ambient-v1"].loop and not d["audio-music-v1"].loop
+    assert d["audio-voice"].loudness.integrated_lufs == -16.0
+    assert d["audio-music"].loudness.integrated_lufs == -18.0
+    assert d["audio-ambient"].loudness.integrated_lufs == -20.0
+    assert d["audio-sfx"].loudness.peak_dbfs == -3.0
+    assert d["audio-ui"].loudness.peak_dbfs == -6.0
+    assert d["audio-ambient"].loop and not d["audio-music"].loop
 
 
 def test_dialogue_stays_mono_and_content_types_are_the_artifact_types():
-    voice = ap.DEFAULT_PROFILES["audio-voice-v1"]
+    voice = ap.DEFAULT_PROFILES["audio-voice"]
     assert all(o.channels == 1 for o in voice.outputs)
     assert set(ap.CONTENT_TYPES.values()) == {"audio/ogg", "audio/mpeg"}
 
@@ -57,14 +57,14 @@ def test_dialogue_stays_mono_and_content_types_are_the_artifact_types():
     ],
 )
 def test_validator_refuses(change, field):
-    p = replace(ap.DEFAULT_PROFILES["audio-voice-v1"], **change)
+    p = replace(ap.DEFAULT_PROFILES["audio-voice"], **change)
     assert field in {x.field for x in ap.validate_profile(p)}
     with pytest.raises(ValueError):
         ap.check_profile(p)
 
 
 def test_output_rules():
-    base = ap.DEFAULT_PROFILES["audio-music-v1"]
+    base = ap.DEFAULT_PROFILES["audio-music"]
     opus, mp3 = base.outputs
     for bad in (
         replace(opus, sample_rate=44_100),  # opus must be 48/24/16 kHz
@@ -102,10 +102,10 @@ def test_from_mapping_strict():
 
 
 def test_gain_respects_true_peak_ceiling():
-    spec = ap.DEFAULT_PROFILES["audio-voice-v1"].loudness
+    spec = ap.DEFAULT_PROFILES["audio-voice"].loudness
     assert ap.linear_gain_db(-26.0, spec, -12.0) == pytest.approx(10.0)
     assert ap.linear_gain_db(-26.0, spec, -5.0) == pytest.approx(4.0)
     assert ap.loudness_within_tolerance(-16.5, spec)
     assert not ap.loudness_within_tolerance(-18.0, spec)
     with pytest.raises(ValueError):
-        ap.linear_gain_db(-20.0, ap.DEFAULT_PROFILES["audio-sfx-v1"].loudness, -3.0)
+        ap.linear_gain_db(-20.0, ap.DEFAULT_PROFILES["audio-sfx"].loudness, -3.0)
