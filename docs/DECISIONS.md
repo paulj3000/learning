@@ -18,7 +18,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 065.**
+**Next free identifier number: 073.** (065 to 071 are reserved for branch decisions; 080 and 081 are also reserved.)
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -86,6 +86,16 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-062 | Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest | Accepted; superseded in part by ADR-064 | `feature/serverless-processing-wave2` (LAI-LAMBDA-002 to 005, PR #41, not merged) | Accepted by the owner 2026-11-17 with B4 to B7, the `LAI_ASSET_ASYNC_VALIDATION` flag (default off) and prod reserved concurrency 5. Decision 1 (one backbone in `apps.jobs`) stands; decisions 2 and 3 (own queues, bucket and stack; ECR worker) and the second consumer are superseded by the owner's 2026-11-17 blocker-resolution decisions (ADR-064) |
 | ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable (open PR branch, not merged) | Reserved | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) and the branches stacked on it | Reserved 2026-11-17 by the owner's ADR reconciliation: those branches number this decision ADR-055, which `main` already uses for the native dev environment. When PR #26 merges, its ADR-055 heading, registry row and references become ADR-063; the decision text is unchanged |
 | ADR-064 | Background processing has one canonical path: apps.jobs on the ADR-055 queues and results consumer, zip-packaged Lambda workers, a transactional outbox and a database-outage-safe consumer; Bedrock runs in a configurable Region | Accepted | `main` (owner's DEV blocker resolution, 2026-11-17) | Owner decisions 1 to 8 of 2026-11-17: zip for dev Lambda workers, no ECR in dev, containers only by a later decision, `apps.jobs` + SQS + Lambda + ADR-055 canonical, PR #40 extends it, Studio roles automated, Bedrock Region independent, low-cost dev and its schedule kept. Amends ADR-055, ADR-061 and ADR-062 |
+| ADR-065 | The Castle Director picks only server-recomputed authored ambient events (open branch, not merged) | Reserved | `feature/storykeeper-castle-completion` | Reserved 2026-11-18 by the engineering-governance audit (ADR-072): the branch already uses this number. The branch adds the heading when it merges. Not merged here |
+| ADR-066 | Derived artifacts, create-only worker writes and retention (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-014), `docs/processing/adr/` on that branch | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-067 | Native audio transcoding with LGPL FFmpeg (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-008b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-068 | Separate Pillow image function and image privacy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013a) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-069 | Staff browser GLB thumbnail capture (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-070 | COLLISION: Heart of Firepeak Place and Area, and GLB optimization policy (two open branches, not merged) | Reserved | `feature/firepeak-volcano-adventure` and `feature/lambda-derived-artifacts` | Reserved 2026-11-18 by the engineering-governance audit, which found two different decisions numbered ADR-070 on two branches. Owner decision needed: one keeps 070 and the other takes the next free number before either merges (governance rule 5). Not merged here |
+| ADR-071 | Compatibility-gated processing release and production processing infrastructure (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-012, 014) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-072 | Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated | Proposed | `feature/engineering-standards` | Proposed 2026-11-18. Owner acceptance not yet recorded |
+| ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Numbers 073 to 079 are not used by that branch. Not merged here |
+| ADR-081 | Seasonal events are Django content in their own app (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4364,3 +4374,59 @@ partial index to `ProcessingJob` (`jobs.0002`), and the consumer also relays. Co
 the GLB validator are not on `main` yet (LAI-LAMBDA-002 stays open until they re-land). GLB
 optimization, audio transcoding, thumbnails and image conversion remain separately tracked and
 do not block the first deployment.
+
+## ADR-072: Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated
+
+Status: Proposed (2026-11-18, `feature/engineering-standards`). Owner acceptance not yet recorded.
+This ADR changes no runtime architecture, no data model and no deployed resource.
+
+**Context.** Up to five Claude Code agents (Claude-01 to Claude-05) work at the same time in
+separate Git worktrees, coordinated by ChatGPT as project manager and gated by the project owner.
+Rules lived in a 380-line `CLAUDE.md`, `docs/TESTING_STRATEGY.md`, this log and Trello card text.
+Branches collided on shared state: ADR-055 was used twice (resolved by reserving ADR-063), and the
+2026-11-18 audit found ADR-070 used for two different decisions on two open branches. There was no
+tool-neutral agent file, no written branch, integration, release or Trello workflow, no staged
+Definition of Done and no adventure standards (jumping, scoring, accessibility, shared managers).
+
+**Decision.**
+1. `CLAUDE.md` stays the mandatory entry point for Claude sessions and keeps the product rules;
+   `AGENTS.md` holds the tool-neutral agent operating rules. `CLAUDE.md` defers to `AGENTS.md` for
+   agent operations; neither repeats the other.
+2. Detailed policy lives in `docs/engineering/` and adventure standards in `docs/adventures/`, each
+   with copy-ready templates. Existing canonical documents stay canonical and are linked, not
+   copied: this log for ADRs (no `docs/adr/` directory), `docs/TESTING_STRATEGY.md` for check
+   cadence, `docs/ARCHITECTURE.md` and the subsystem documents for design.
+3. Completion has separate gates: Development Complete, Integration Complete, Owner Accepted and
+   Complete. Agents can reach Development Complete; only the owner records acceptance, merges or
+   authorizes deployment.
+4. Trello owns task ownership, priority and workflow state; GitHub owns code evidence. Existing
+   Trello lists are mapped, not renamed.
+5. ADR numbers are reserved in this registry on `main` before a branch uses them.
+6. `make docs-check` (`scripts/check_engineering_docs.py`, standard library only) checks required
+   documents, status lines, relative links, template sections and merge-conflict markers. It runs
+   in `make js-check` and in CI next to `npm run adr:check`.
+
+**Alternatives considered.** One larger `CLAUDE.md` (rejected: loads into every session and
+cannot serve other agent tools); one file per ADR under `docs/adr/` (rejected: this log's
+governance already rejects the move); a documentation framework (rejected: new dependency for a
+check that a 250-line script does); an automated orchestrator now (deferred: interface documented
+in `docs/engineering/multi-agent-workflow.md`, not implemented).
+
+**Consequences.** Agents read a short entry point and the policy for the task at hand. More files
+need upkeep; `make docs-check` catches missing files and broken links. Open branches must re-read the
+new rules before their next push; nothing in them is invalidated.
+
+**Security implications.** None at runtime. The security policy restates existing safeguards
+(child privacy, deny-by-default authorization, no secrets in source or Trello) and makes no
+regulatory compliance claim.
+
+**Implementation impact.** Documentation, one Python script with unit tests in `tests/repo`, one
+`Makefile` target and one CI step. No application, schema or infrastructure change, and no file
+under a path that triggers a deploy workflow.
+
+**Related tickets.** Trello: Learning Adventure Island Engineering Standards and Multi-Agent
+Development Governance.
+
+**Related ADRs.** ADR-019, ADR-020, ADR-033, ADR-045, ADR-047, ADR-053, ADR-063, ADR-064.
+
+**Owner approval.** Pending.

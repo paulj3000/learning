@@ -28,6 +28,9 @@ jobs:
       - name: ADR registry
         run: npm run adr:check
 
+      - name: Engineering documentation
+        run: python3 scripts/check_engineering_docs.py
+
       - name: Admin preview bundle is built from its source
         run: npm run admin-preview:check
 

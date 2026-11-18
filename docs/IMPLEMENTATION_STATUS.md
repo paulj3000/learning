@@ -42,6 +42,23 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Engineering standards and multi-agent governance (ADR-072, Proposed) — documentation and `make docs-check` added (2026-11-18); owner acceptance of the standards NOT recorded
+
+Documentation only; no application, schema or infrastructure change. Baseline `main` @ 466a4972.
+
+- New root `AGENTS.md` (tool-neutral agent rules) and a "Start here" section 0 in `CLAUDE.md`; sections 14
+  and 15 now point to the detailed workflow and the staged Definition of Done. Product rules unchanged.
+- `docs/engineering/` (13 policies and 10 templates) and `docs/adventures/` (12 standards and 4 templates).
+  Existing canonical documents stay canonical; `docs/DECISIONS.md` stays the single ADR log (no `docs/adr/`).
+- ADR-072 (Proposed). Registry: ADR-065 to 071, 080 and 081 reserved for decisions already numbered on open
+  branches. **ADR-070 is used by two different branches** (`feature/firepeak-volcano-adventure` and
+  `feature/lambda-derived-artifacts`): owner decision needed before either merges.
+- `scripts/check_engineering_docs.py` (`make docs-check`, standard library only) with unit tests
+  (`tests/repo/test_check_engineering_docs.py`); added to `make js-check` and the CI checks job. Deliberately
+  kept out of `react/` and `package.json`, which trigger `deploy-site.yml` on a push to `main`.
+- Deferred to owner: acceptance of ADR-072 and the standards; optional new Trello lists or labels for the
+  Specification, Integration, Ready for QA and Accepted states (lists were mapped, not renamed).
+
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 
 Owner decisions 1 to 8 of 2026-11-17. Repository only; no AWS resource was created or changed.
