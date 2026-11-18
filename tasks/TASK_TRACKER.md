@@ -1197,6 +1197,10 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       `test_castle_keepsakes.py` 12 with `makemigrations --check`, catalog importer and export,
       protected world changes, answers API, castle storybook, Great Storybook quests), plus
       `test_child_state_api.py` 20 passed. Not run: browser, WebGL, e2e, lint, format, full suites.
+      **SC-R07 merged** at `57b0725d` (SC-R07 commit `1083148f`). Merged-tree evidence: Vitest island-map/three,
+      great-storybook, rewards, content-export, audio, npc, worlds 229 files, 3021 passed; `tsc` app clean;
+      content:check and golden:check clean; Django `apps/inventory apps/progression apps/quests apps/catalog`
+      + `game_sessions/test_answers_api.py`, `test_castle_storybook.py`: 432 passed, 0 skipped.
 - [ ] **SC-R08 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
