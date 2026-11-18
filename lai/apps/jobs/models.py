@@ -35,11 +35,17 @@ class JobKind(models.TextChoices):
     REFERENCE_CHECKSUM = envelope.REFERENCE_CHECKSUM, "Reference checksum"
     ASSET_ANALYZE_ANIMATION = envelope.ASSET_ANALYZE_ANIMATION, "Animation inspection"
     ASSET_PROCESS_AUDIO = envelope.ASSET_PROCESS_AUDIO, "Audio inspection"
+    ASSET_TRANSCODE_AUDIO = envelope.ASSET_TRANSCODE_AUDIO, "Audio transcoding"
+    ASSET_CONVERT_IMAGE = envelope.ASSET_CONVERT_IMAGE, "Image conversion"
+    ASSET_OPTIMIZE = envelope.ASSET_OPTIMIZE, "Model optimization"
 
 
 class JobQueue(models.TextChoices):
     AI = "ai", "AI"
     MEDIA = "media", "Media"
+    AUDIO = "audio", "Audio"
+    IMAGE = "image", "Image"
+    OPTIMIZE = "optimize", "Optimize"
 
 
 class ProcessingJob(models.Model):

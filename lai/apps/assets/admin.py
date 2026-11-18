@@ -1005,3 +1005,6 @@ def _preview_unavailable(version) -> JsonResponse:
 def done_message(done: str, version) -> str:
     """The text recorded in the admin history for a lifecycle action."""
     return f"{done} {version.label} ({version.get_status_display()})."
+
+
+from . import admin_artifacts  # noqa: E402,F401 - registers the derived artifact admin

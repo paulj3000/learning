@@ -32,6 +32,9 @@ from django.core.exceptions import ImproperlyConfigured
 from . import formats
 
 KEY_PREFIX = "assets/"  # everything the library stores; one key directory per family (formats.py)
+#: Derived artifacts (ADR-066) live beside the library, never under `assets/`, so they can never be
+#: resolved, published or served; see `apps.assets.artifact_storage`.
+ARTIFACT_PREFIX = "processing/artifacts/"
 ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 CHUNK = 1024 * 1024
 
@@ -90,6 +93,11 @@ class AssetStorage(Protocol):
 
     def exists(self, key: str) -> bool: ...
 
+    def head(self, key: str) -> StoredObject:
+        """Size and time of an object without reading it. `ObjectMissing` only for a genuinely
+        absent key; every other failure (a 403 included) is a `StorageError`."""
+        ...
+
     def list(self, prefix: str = KEY_PREFIX) -> Iterator[StoredObject]: ...
 
     def presigned_url(self, key: str, *, expires_in: int, content_type: str) -> str: ...
@@ -97,7 +105,7 @@ class AssetStorage(Protocol):
 
 def _check_key(key: str) -> None:
     if (
-        not key.startswith(formats.KEY_PREFIXES)
+        not key.startswith((*formats.KEY_PREFIXES, ARTIFACT_PREFIX))
         or ".." in key
         or key.startswith("/")
         or "\\" in key
@@ -148,6 +156,15 @@ class MemoryAssetStorage:
 
     def exists(self, key):
         return key in self.objects
+
+    def head(self, key):
+        _check_key(key)
+        self._maybe_fail("head")
+        try:
+            data, _type, modified = self.objects[key]
+        except KeyError:
+            raise ObjectMissing(key) from None
+        return StoredObject(key, len(data), modified)
 
     def list(self, prefix=KEY_PREFIX):
         for key, (data, _type, modified) in sorted(self.objects.items()):
@@ -203,6 +220,13 @@ class LocalAssetStorage:
 
     def exists(self, key):
         return self._path(key).is_file()
+
+    def head(self, key):
+        try:
+            stat = self._path(key).stat()
+        except FileNotFoundError:
+            raise ObjectMissing(key) from None
+        return StoredObject(key, stat.st_size, datetime.fromtimestamp(stat.st_mtime, UTC))
 
     def list(self, prefix=KEY_PREFIX):
         base = self.root / prefix
@@ -293,6 +317,18 @@ class S3AssetStorage:
                 return False
             raise self._error(error, key) from None
         return True
+
+    def head(self, key):
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        _check_key(key)
+        try:
+            head = self.client.head_object(Bucket=self.bucket, Key=key)
+        except (ClientError, BotoCoreError) as error:
+            # A 403 stays a StorageError: S3 answers 403 for a missing key without ListBucket, so
+            # "forbidden" can never be read as "absent" (nor as "present").
+            raise self._error(error, key) from None
+        return StoredObject(key, int(head["ContentLength"]), head["LastModified"])
 
     def list(self, prefix=KEY_PREFIX):
         token = None

@@ -153,7 +153,7 @@ class Settings:
         self.asset_bucket = env.get("LAI_ASSET_BUCKET", "").strip()
         self.ssm_prefix = env.get("LAI_SSM_PREFIX", "").strip().rstrip("/")
         if self.queue not in envelope.QUEUES:
-            raise RuntimeError("LAI_WORKER_QUEUE must be ai or media")
+            raise RuntimeError("LAI_WORKER_QUEUE must be ai, media, audio, image or optimize")
         if not self.results_queue_url or not self.results_bucket:
             raise RuntimeError("LAI_RESULTS_QUEUE_URL and LAI_RESULTS_BUCKET are required")
         if self.queue == "ai" and not self.ssm_prefix.startswith("/"):
@@ -346,9 +346,31 @@ class Runtime:
             envelope.REFERENCE_CHECKSUM,
             envelope.ASSET_ANALYZE_ANIMATION,
             envelope.ASSET_PROCESS_AUDIO,
+            # Derived-artifact workloads (ADR-066): the native workers read the input through the
+            # same ports and write artifacts only through `artifact_storage`.
+            envelope.ASSET_TRANSCODE_AUDIO,
+            envelope.ASSET_CONVERT_IMAGE,
+            envelope.ASSET_OPTIMIZE,
         ):
             return AssetPorts(self)
         raise TaskError("unknown_kind")
+
+    def artifact_storage(self, namespace: str, job_id: str, attempt_id: str):
+        """The create-only artifact store for one attempt (`artifact_store.S3ObjectStore`): reads
+        the asset bucket, writes only `processing/artifacts/<namespace>/<job>/<attempt>/`.
+        Native workers pass it as the engine's `storage`."""
+        from lai_processing.contracts.identifiers import artifact_prefix
+
+        from .artifact_store import S3ObjectStore
+
+        if not self.settings.asset_bucket:
+            raise TaskError("configuration")
+        return S3ObjectStore(
+            self.client("s3"),
+            self.settings.asset_bucket,
+            namespace,
+            attempt_prefix=artifact_prefix(namespace, job_id, attempt_id),
+        )
 
 
 class StudioPorts:

@@ -536,6 +536,10 @@ if LAI_STUDIO_RUN_MODE not in {"thread", "manual", "inline", "jobs"}:
 LAI_JOBS_BACKEND = os.environ.get("LAI_JOBS_BACKEND", "inline").strip()
 LAI_JOBS_AI_QUEUE_URL = os.environ.get("LAI_JOBS_AI_QUEUE_URL", "").strip()
 LAI_JOBS_MEDIA_QUEUE_URL = os.environ.get("LAI_JOBS_MEDIA_QUEUE_URL", "").strip()
+# Native workload queues (ADR-066): optional, empty unless the matching feature control is on.
+LAI_JOBS_AUDIO_QUEUE_URL = os.environ.get("LAI_JOBS_AUDIO_QUEUE_URL", "").strip()
+LAI_JOBS_IMAGE_QUEUE_URL = os.environ.get("LAI_JOBS_IMAGE_QUEUE_URL", "").strip()
+LAI_JOBS_OPTIMIZE_QUEUE_URL = os.environ.get("LAI_JOBS_OPTIMIZE_QUEUE_URL", "").strip()
 LAI_JOBS_RESULTS_QUEUE_URL = os.environ.get("LAI_JOBS_RESULTS_QUEUE_URL", "").strip()
 LAI_JOBS_RESULTS_BUCKET = os.environ.get("LAI_JOBS_RESULTS_BUCKET", "").strip()
 # Pending or running jobs older than this are failed by `jobs_sweep` (error code `timeout`).
@@ -568,6 +572,14 @@ if LAI_JOBS_BACKEND == "sqs":
             raise ImproperlyConfigured(f"{_name} must be an https SQS queue URL.")
     if not _queue_url.fullmatch(LAI_JOBS_RESULTS_QUEUE_URL):
         raise ImproperlyConfigured("LAI_JOBS_RESULTS_QUEUE_URL must be an https SQS queue URL.")
+    # The native workload queues may be empty (the workload is then refused), but never malformed.
+    for _name in (
+        "LAI_JOBS_AUDIO_QUEUE_URL",
+        "LAI_JOBS_IMAGE_QUEUE_URL",
+        "LAI_JOBS_OPTIMIZE_QUEUE_URL",
+    ):
+        if globals()[_name] and not _queue_url.fullmatch(globals()[_name]):
+            raise ImproperlyConfigured(f"{_name} must be an https SQS queue URL.")
 if not 5 <= LAI_JOBS_STALE_MINUTES <= 1440:
     raise ImproperlyConfigured("LAI_JOBS_STALE_MINUTES must be between 5 and 1440.")
 if not 1 <= LAI_JOBS_RETENTION_DAYS <= 365:
@@ -592,3 +604,49 @@ if LAI_ASSET_ASYNC_VALIDATION == "on" and LAI_JOBS_BACKEND == "disabled":
     raise ImproperlyConfigured(
         "LAI_ASSET_ASYNC_VALIDATION=on needs LAI_JOBS_BACKEND inline or sqs."
     )
+
+# Derived-artifact workload controls (ADR-066, COMPLETION_INTEGRATION.md section 3). Each is `off`
+# in every environment until the owner turns it on after the compatibility-gated release. A kind
+# is submitted only while its control is `on` and (with the sqs backend) its queue URL is set;
+# `apps.jobs.workloads` is the one place that decides. LAI_THUMBNAIL_CAPTURE gates the staff
+# browser capture view (no job, no queue).
+LAI_AUDIO_TRANSCODING = os.environ.get("LAI_AUDIO_TRANSCODING", "off").strip().lower()
+LAI_IMAGE_CONVERSION = os.environ.get("LAI_IMAGE_CONVERSION", "off").strip().lower()
+LAI_GLB_MESHOPT = os.environ.get("LAI_GLB_MESHOPT", "off").strip().lower()
+LAI_GLB_KTX2 = os.environ.get("LAI_GLB_KTX2", "off").strip().lower()
+LAI_THUMBNAIL_CAPTURE = os.environ.get("LAI_THUMBNAIL_CAPTURE", "off").strip().lower()
+for _name in (
+    "LAI_AUDIO_TRANSCODING",
+    "LAI_IMAGE_CONVERSION",
+    "LAI_GLB_MESHOPT",
+    "LAI_GLB_KTX2",
+    "LAI_THUMBNAIL_CAPTURE",
+):
+    if globals()[_name] not in {"off", "on"}:
+        raise ImproperlyConfigured(f"{_name} must be off or on.")
+if LAI_JOBS_BACKEND == "disabled" and "on" in (
+    LAI_AUDIO_TRANSCODING,
+    LAI_IMAGE_CONVERSION,
+    LAI_GLB_MESHOPT,
+    LAI_GLB_KTX2,
+):
+    raise ImproperlyConfigured("A workload control set to on needs LAI_JOBS_BACKEND inline or sqs.")
+
+# Derived artifact retention (ADR-066, owner-approved 2026-11-18): an artifact nobody reviewed
+# expires this many days after it was created; a superseded or rejected one this many days after.
+# Accepted and promoted artifacts, held artifacts and artifacts of active jobs never expire.
+LAI_ARTIFACT_RETENTION_UNREVIEWED_DAYS = int(
+    os.environ.get("LAI_ARTIFACT_RETENTION_UNREVIEWED_DAYS", "90")
+)
+LAI_ARTIFACT_RETENTION_SUPERSEDED_DAYS = int(
+    os.environ.get("LAI_ARTIFACT_RETENTION_SUPERSEDED_DAYS", "30")
+)
+# Objects under processing/artifacts/ with no row are orphans (a failed attempt, a lost result);
+# the reconciliation leaves any younger than this many hours alone (an attempt may be committing).
+LAI_ARTIFACT_ORPHAN_GRACE_HOURS = int(os.environ.get("LAI_ARTIFACT_ORPHAN_GRACE_HOURS", "48"))
+if not 1 <= LAI_ARTIFACT_RETENTION_UNREVIEWED_DAYS <= 730:
+    raise ImproperlyConfigured("LAI_ARTIFACT_RETENTION_UNREVIEWED_DAYS must be 1 to 730.")
+if not 1 <= LAI_ARTIFACT_RETENTION_SUPERSEDED_DAYS <= 365:
+    raise ImproperlyConfigured("LAI_ARTIFACT_RETENTION_SUPERSEDED_DAYS must be 1 to 365.")
+if not 1 <= LAI_ARTIFACT_ORPHAN_GRACE_HOURS <= 720:
+    raise ImproperlyConfigured("LAI_ARTIFACT_ORPHAN_GRACE_HOURS must be 1 to 720.")
