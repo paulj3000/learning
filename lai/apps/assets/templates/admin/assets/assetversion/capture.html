@@ -1,0 +1,113 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'assets/admin/asset-preview.css' %}">
+<style>
+  .lai-capture-stage { aspect-ratio: 1 / 1; max-width: 36rem; min-height: 16rem; }
+  .lai-capture-controls { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: center; margin: 0.5rem 0; }
+  .lai-capture-controls label { margin-right: 0.25rem; }
+  .lai-capture-result { display: block; max-width: 12rem; margin-top: 0.5rem; background: #eef1f4; border: 1px solid var(--hairline-color, #ccc); }
+  .lai-capture-history { width: 100%; }
+  .lai-capture-history td { vertical-align: middle; }
+</style>{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{{ change_url }}">{{ version.label }}</a>
+  &rsaquo; {% translate 'Capture thumbnail' %}
+</div>
+{% endblock %}
+{% block content %}
+<div id="content-main" class="lai-asset-preview-page">
+  <p>Frame the model, then capture a still image. A capture is private to staff, is never
+    published automatically, and does not change the model file.
+    <a href="{{ change_url }}">Back to the version</a> &middot; <a href="{{ preview_url }}">Plain preview</a></p>
+  <div class="lai-asset-preview-layout">
+    <section class="lai-asset-preview-viewer" aria-label="{% translate 'Thumbnail capture' %}">
+      {% if refusal %}
+      <div class="errornote" role="alert">{{ refusal }}</div>
+      {% else %}
+      <div class="lai-asset-preview"
+           data-asset-capture
+           data-model-url="{{ preview_file_url }}"
+           data-format="{{ version.format }}"
+           data-max-bytes="{{ max_bytes }}"
+           data-token-header="{{ preview_token_header }}"
+           data-token="{{ preview_token }}"
+           data-capture-url="{{ capture_url }}"
+           data-version-id="{{ version.pk }}"
+           data-source-sha256="{{ version.sha256 }}">
+        {% csrf_token %}
+        <div class="lai-asset-preview-toolbar" role="toolbar" aria-label="{% translate 'Camera' %}">
+          <button type="button" class="button" data-capture-action="reset" disabled>{% translate 'Reset view' %}</button>
+          <button type="button" class="button" data-capture-action="zoom-in" disabled aria-label="{% translate 'Zoom in' %}">+</button>
+          <button type="button" class="button" data-capture-action="zoom-out" disabled aria-label="{% translate 'Zoom out' %}">&minus;</button>
+        </div>
+        <div class="lai-asset-preview-stage lai-capture-stage" data-capture-stage></div>
+        <p class="lai-asset-preview-status" data-capture-status role="status" aria-live="polite">{% translate 'Loading the model...' %}</p>
+        <div class="lai-capture-controls">
+          <span><label for="lai-capture-size">{% translate 'Size' %}</label>
+            <select id="lai-capture-size" data-capture-size>
+              <option value="256">256 x 256</option>
+              <option value="512" selected>512 x 512</option>
+              <option value="1024">1024 x 1024</option>
+            </select></span>
+          <span><input type="checkbox" id="lai-capture-transparent" data-capture-transparent>
+            <label for="lai-capture-transparent">{% translate 'Transparent background (PNG)' %}</label></span>
+        </div>
+        <div class="lai-capture-controls">
+          <button type="button" class="button default" data-capture-action="capture" disabled>{% translate 'Capture' %}</button>
+          <button type="button" class="button" data-capture-action="save" disabled>{% translate 'Save for review' %}</button>
+          <button type="button" class="button" data-capture-action="discard" disabled>{% translate 'Discard' %}</button>
+        </div>
+        <img class="lai-capture-result" data-capture-result alt="{% translate 'The capture, not saved yet' %}" hidden>
+        <p class="help">{% translate 'Drag to rotate. Scroll or pinch to zoom. The square view is what is captured.' %}</p>
+      </div>
+      <noscript><div class="errornote">{% translate 'Capture needs JavaScript.' %}</div></noscript>
+      {% endif %}
+    </section>
+    <section class="module lai-asset-preview-facts" aria-labelledby="lai-asset-preview-facts">
+      <h2 id="lai-asset-preview-facts">{% translate 'Version details' %}</h2>
+      <dl>
+        {% for label, value in summary %}
+        <dt>{{ label }}</dt><dd>{{ value }}</dd>
+        {% endfor %}
+      </dl>
+    </section>
+  </div>
+  <section class="module" aria-labelledby="lai-capture-history">
+    <h2 id="lai-capture-history">{% translate 'Captures of this version' %}</h2>
+    {% if captures %}
+    <table class="lai-capture-history">
+      <thead><tr><th>{% translate 'Image' %}</th><th>{% translate 'State' %}</th><th>{% translate 'Taken' %}</th><th>{% translate 'Size' %}</th><th></th></tr></thead>
+      <tbody>
+      {% for row in captures %}
+      <tr>
+        <td><img src="{{ row.media_url }}" alt="{% translate 'Captured thumbnail' %} {{ row.short_id }}" width="96" height="96" loading="lazy" style="background:#eef1f4;object-fit:contain"></td>
+        <td>{{ row.state }}</td>
+        <td>{{ row.when|date:"Y-m-d H:i" }}</td>
+        <td>{{ row.size }} bytes</td>
+        <td>
+          <a href="{{ row.detail_url }}">{% translate 'Details' %}</a>
+          {% if can_review %}
+          <form method="post" action="{{ review_url }}" style="display:inline">
+            {% csrf_token %}
+            <input type="hidden" name="artifact" value="{{ row.id }}">
+            {% if row.raw_state != "accepted" %}<button type="submit" name="action" value="accept" class="button">{% translate 'Accept' %}</button>{% endif %}
+            {% if row.raw_state != "rejected" %}<button type="submit" name="action" value="reject" class="button">{% translate 'Reject' %}</button>{% endif %}
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="help">{% translate 'A newer capture supersedes an older pending or accepted one. Accepting does not publish anything.' %}</p>
+    {% else %}
+    <p>{% translate 'No captures yet.' %}</p>
+    {% endif %}
+  </section>
+</div>
+{% if not refusal %}<script type="module" src="{% static 'assets/admin/asset-capture.js' %}"></script>{% endif %}
+{% endblock %}

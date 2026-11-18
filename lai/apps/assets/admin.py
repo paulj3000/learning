@@ -47,6 +47,7 @@ from apps.catalog.models import AssetStatus, ContentAsset
 from apps.core.exceptions import error_body
 
 from . import preview, services
+from .admin_capture import CAPTURE_FIELDS, CaptureAdminMixin
 from .models import AssetVersion, VersionStatus
 from .processing import (
     APPLIED_OUTCOMES,
@@ -93,7 +94,7 @@ class UploadForm(forms.Form):
 
 
 @admin.register(AssetVersion)
-class AssetVersionAdmin(admin.ModelAdmin):
+class AssetVersionAdmin(CaptureAdminMixin, admin.ModelAdmin):
     list_display = (
         "version_label",
         "status",
@@ -179,8 +180,10 @@ class AssetVersionAdmin(admin.ModelAdmin):
         )
 
     def get_readonly_fields(self, request, obj=None):
-        return [name for name in self.fields if name not in EDITABLE_FIELDS] + list(
-            BACKGROUND_FIELDS
+        return (
+            [name for name in self.fields if name not in EDITABLE_FIELDS]
+            + list(BACKGROUND_FIELDS)
+            + list(CAPTURE_FIELDS)
         )
 
     def save_model(self, request, obj, form, change):
@@ -200,7 +203,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
         fieldsets = list(super().get_fieldsets(request, obj))
         if obj is not None and (async_validation_enabled() or _latest_job(obj) is not None):
             fieldsets.append(("Background validation", {"fields": BACKGROUND_FIELDS}))
-        return fieldsets
+        return self.capture_fieldset(request, obj, fieldsets) if obj is not None else fieldsets
 
     # --- upload: the add page ---
 
@@ -219,8 +222,12 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 name="assets_assetversion_preview_file",
             ),
             path("<int:object_id>/media/", media_file, name="assets_assetversion_media"),
+            *self.capture_urls(),
             *super().get_urls(),
         ]
+
+    def get_list_display(self, request):
+        return self.capture_list_display(request, super().get_list_display(request))
 
     def add_view(self, request, form_url="", extra_context=None):
         query = request.META.get("QUERY_STRING")
