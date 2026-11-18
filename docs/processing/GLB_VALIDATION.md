@@ -45,6 +45,14 @@ Options (unknown options are refused):
 | `max_texture_dimension` | int, 1 to 16384 | 8192 | Largest embedded texture width or height (from the image header) |
 | `require_animations` | bool | false | Fail a model with no animation clip (`animations_required`) |
 | `write_report` | bool | false | Also write the `glb-report` artifact (findings, warnings, metadata, verdict). Django never sets it; on the canonical path a write is refused (`permission_denied`) |
+| `allow_meshopt` | bool | false | ADR-070: accept `EXT_meshopt_compression` (and its fallback buffers), checked by `validate_meshopt`. Django sets it from `LAI_GLB_MESHOPT` |
+| `allow_ktx2` | bool | false | ADR-070: accept `KHR_texture_basisu` and `image/ktx2` images, checked by `validate_basisu`. Django sets it from `LAI_GLB_KTX2` |
+
+The two `allow_*` options are how the asynchronous validator learns the controls: Django reads
+`LAI_GLB_MESHOPT` / `LAI_GLB_KTX2` (`validation.compression_controls()`) and writes them into the
+request (`processing.compression_options()`); the worker never reads Django settings. They are
+resolved options, so they are part of the idempotency key: switching a control produces a new
+logical validation instead of reusing a verdict reached under the other setting.
 
 Limits: the profile carries `DEFAULT_LIMITS` plus these complexity defaults. A request's
 `limits.complexity` overrides a default, and the processor clamps every value to its own ceiling
@@ -121,15 +129,24 @@ first. Vertex data is never decoded.
    the game lacks (`EXT_texture_webp`, `EXT_texture_avif`, `EXT_mesh_gpu_instancing`) and every
    unlisted name are `unsupported_extension`. `KHR_meshopt_compression` is a different string
    from `EXT_meshopt_compression` (the one three.js and gltfpack use) and is NOT verified: it is
-   its own rejected row. Entries must be non-empty strings. Workstream F enables Meshopt and then
-   KTX2 by changing a row of `TABLE` to `Support.SUPPORTED`, bumping `POLICY_VERSION` and the
-   processor version in the same change. Since 2026-11-18 the processor is `1.1.0`: a `pass`
-   recorded by `1.0.0` no longer satisfies the publication gate (`processor_outdated`), so
-   unpublished `VALIDATED` models need Validate in background again, while published versions,
-   rollback and delivery are untouched. (Conservative choice: old evidence was produced under a
-   weaker policy.)
+   its own rejected row (Khronos status: Release Candidate, read 2026-11-18; gltfpack 1.3 can emit
+   it with `-ce khr` or `-cz`). Entries must be non-empty strings. Since ADR-070 (policy version
+   3) `EXT_meshopt_compression` and `KHR_texture_basisu` are `Support.WHEN_ENABLED`: accepted only
+   while their control is on (the `allow_*` options above; `error_code(name, enabled)`),
+   otherwise `needs_decoder` exactly as before. When accepted, `validate_meshopt` and
+   `validate_basisu` (`processors/gltf/compression/`, the same functions in both validators) check
+   them; their codes are listed in `GLB_OPTIMIZATION.md` sections 3 and 10.
+
+   Processor versions: `1.1.0` (2026-11-18, Workstream B's stricter policy) and `1.2.0` (ADR-070:
+   policy version 3 and the two options). Each bump means a `pass` recorded by an older version no
+   longer satisfies the publication gate (`processor_outdated`): an unpublished `VALIDATED` or
+   `DRAFT` model's background-validation evidence must be produced again (Validate in background
+   submits a new job automatically, because the processor version and the resolved options are in
+   the idempotency key). Published versions, rollback and delivery are untouched. With both
+   controls off, `1.2.0` gives the same verdict as `1.1.0` on every file.
 7. **Buffers**: `byteLength` a positive integer; a buffer without `uri` must be buffer 0 of a
-   GLB with a BIN chunk at least as long (a BIN chunk more than 3 bytes longer warns); a `uri`
+   GLB with a BIN chunk at least as long (or, with Meshopt enabled, a buffer marked
+   `EXT_meshopt_compression.fallback`, which `validate_meshopt` checks) (a BIN chunk more than 3 bytes longer warns); a `uri`
    must be a `data:` URI of type `application/octet-stream` or `application/gltf-buffer`,
    valid base64, at least `byteLength` long. Its length is computed from the base64 text; the
    buffer is never decoded. Every other `uri` (`http(s)`, `file:`, `s3:`, relative or traversal
@@ -239,7 +256,8 @@ file content (clip and extension names), so the processor's messages differ in w
 | `gltf_version` | error | yes | `asset.version` is not "2.0" or `minVersion` is newer |
 | `invalid_structure` | error | new | A top-level property that must be an array is not |
 | `too_complex` | error | yes | A complexity limit is exceeded (including more than `max_json_elements` JSON elements, path `json`), or too many mesh instances to measure bounds |
-| `needs_decoder` | error | yes | Draco, Meshopt (EXT or KHR) or BasisU, used or required |
+| `needs_decoder` | error | yes | Draco, `KHR_meshopt_compression`, or `EXT_meshopt_compression` / `KHR_texture_basisu` while their control is off; used or required |
+| `meshopt_*`, `ktx2_*` | error / warning | yes | Only with a control on: the Meshopt and KTX2 structure checks (`GLB_OPTIMIZATION.md` 3 and 10), the same in both validators |
 | `unsupported_extension` | error | yes | Any extension the game does not support or that is not in the policy table, used or required (WebP, AVIF, GPU instancing, vendor extensions) |
 | `invalid_buffer` | error | yes | Malformed buffer, bad media type or base64 |
 | `missing_buffer` | error | yes | A buffer with no data |
@@ -366,6 +384,12 @@ the shared parser is possible; it remains a separate follow-up. The policy const
 (`CLIP_VOCABULARY`, `GENERIC_TAKE_NAME`, `SUPPORTED_EXTENSIONS`, `NEEDS_DECODER`, the count
 limits) are copied and a test (`test_processing_glb_parity.py`, no Django needed) reads them from
 `validation.py` with `ast` and requires equality, so they cannot drift silently.
+
+Compression: each corpus case carries the enabled controls (`ParityCase.enabled`); the
+compressed cases (Meshopt and KTX2, each with its control off and on, a bad stride, a linear base
+colour, bad KTX2 dimensions, both together, `KHR_meshopt_compression` with every control on) give
+identical codes on both sides. Django's `validate_model(..., compression=None)` reads the settings;
+tests pass the set explicitly.
 
 The shared corpus `glb_builder.PARITY_CORPUS` runs through both validators
 (`lai/apps/assets/tests/test_glb_processing_parity.py`). Every case gives the same verdict and

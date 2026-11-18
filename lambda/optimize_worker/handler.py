@@ -1,126 +1,162 @@
-"""SQS entry point skeleton for `asset.optimize`: `optimize_worker.handler.handle`.
+"""SQS entry point for the optimize function: `optimize_worker.handler.handle`.
 
-It follows `jobs_worker.handler.process` step for step (the same envelope, the same stored-result
-redelivery check, `running` then a final result on the one results queue, ReportBatchItemFailures)
-and differs only in the task it runs (`task.run_optimize`) and the ports it needs (the existing
-read-only asset ports plus the create-only artifact port).
+All envelope handling, redelivery, result storage and the batch-failure contract are the jobs
+worker's (`jobs_worker.handler.process`, imported, not copied). This module only:
 
-Skeleton status, by design:
-- `asset.optimize` and the `optimize` queue are registered by Workstream A
-  (`lai/apps/jobs/core/envelope.py`), so the envelope module and the runtime are injected
-  (`bind(...)`): in the packaged function they are `jobs_worker.vendor.jobs_core.envelope` and a
-  `jobs_worker.aws.Runtime` whose `ports(kind, context)` adds `put_artifact`;
-- `StubArtifactPort` stands in for A's create-only artifact writer and is used only by tests and
-  local runs. It never touches S3.
-- No packaging: which runtime runs gltfpack and toktx in production is an open decision
-  (ADR-070, "Open decisions").
+* registers the optimize runner for `asset.optimize` in the jobs core `RUNNERS` table,
+* supplies a `Runtime` whose settings name the `optimize` queue,
+* runs the ADR-061 engine with a closed registry (one processor: `asset.glb_optimizer`) whose
+  storage is Workstream A's create-only artifact store for this attempt
+  (`aws.Runtime.artifact_storage`): inputs are read from the asset bucket, artifacts are written
+  only under `processing/artifacts/<env>/<job>/<attempt>/` through
+  `ProcessingContext.write_artifact`,
+* builds the trusted tools from configuration: `LAI_GLTFPACK_PATH` (default `/opt/bin/gltfpack`),
+  `LAI_TOKTX_PATH` (default `/opt/bin/toktx`), `LAI_KTX_LIBRARY_PATH` (default `/opt/lib`) and
+  optional SHA-256 pins `LAI_GLTFPACK_SHA256` / `LAI_TOKTX_SHA256`.
+
+The worker never reads Django settings. Whether a variant may run is decided at submission
+(`LAI_GLB_MESHOPT`, `LAI_GLB_KTX2`); dispatch re-checks and fails a job whose control was switched
+off after it was committed.
 """
 
 from __future__ import annotations
 
-import hashlib
-from dataclasses import dataclass, field
-from typing import Any
+import os
 
-from . import task
+from jobs_worker import aws
+from jobs_worker import handler as jobs_handler
+from jobs_worker.vendor.jobs_core import envelope
+from jobs_worker.vendor.jobs_core.tasks import RUNNERS, TaskError
 
-__all__ = ["StubArtifactPort", "bind", "handle", "process"]
-
-_bound: dict[str, Any] = {}
-
-
-def bind(*, envelope: Any, runtime: Any, log: Any = None) -> None:
-    """Install the envelope module, the runtime and the log function (test seam and the place
-    the packaged function wires `jobs_worker`'s)."""
-    _bound.update(envelope=envelope, runtime=runtime, log=log or (lambda *_a, **_k: None))
+KIND = "asset.optimize"
+QUEUE = "optimize"
+DEFAULT_GLTFPACK_PATH = "/opt/bin/gltfpack"
+DEFAULT_TOKTX_PATH = "/opt/bin/toktx"
+DEFAULT_KTX_LIBRARY_PATH = "/opt/lib"
 
 
-@dataclass
-class StubArtifactPort:
-    """In-memory create-only artifact port. Mirrors the agreed key layout
-    `processing/artifacts/<env>/<job id>/<attempt id>/<logical id>.<ext>`; refuses overwrites."""
+def _pin(env, name: str) -> str | None:
+    value = env.get(name, "").strip().lower() or None
+    if value is not None and len(value) != 64:
+        raise RuntimeError(f"{name} must be 64 hex characters")
+    return value
 
-    env: str = "dev"
-    job_id: str = "job"
-    attempt_id: str = "attempt"
-    objects: dict[str, tuple[str, str, bytes]] = field(default_factory=dict)
 
-    def put_artifact(self, *, role: str, content_type: str, data: bytes, logical_id: str) -> str:
-        extension = {"model/gltf-binary": "glb", "application/json": "json", "image/ktx2": "ktx2"}[
-            content_type
-        ]
-        key = (
-            f"processing/artifacts/{self.env}/{self.job_id}/{self.attempt_id}/"
-            f"{logical_id}.{extension}"
+class OptimizeSettings:
+    """The function's environment (a subset of `jobs_worker.aws.Settings`; same field names)."""
+
+    def __init__(self, environ=None):
+        env = os.environ if environ is None else environ
+        self.queue = env.get("LAI_WORKER_QUEUE", "").strip()
+        self.results_queue_url = env.get("LAI_RESULTS_QUEUE_URL", "").strip()
+        self.results_bucket = env.get("LAI_RESULTS_BUCKET", "").strip()
+        self.asset_bucket = env.get("LAI_ASSET_BUCKET", "").strip()
+        self.speech_bucket = ""
+        self.ssm_prefix = ""
+        self.gltfpack_path = env.get("LAI_GLTFPACK_PATH", DEFAULT_GLTFPACK_PATH).strip()
+        self.toktx_path = env.get("LAI_TOKTX_PATH", DEFAULT_TOKTX_PATH).strip()
+        self.ktx_library_path = env.get("LAI_KTX_LIBRARY_PATH", DEFAULT_KTX_LIBRARY_PATH).strip()
+        self.gltfpack_sha256 = _pin(env, "LAI_GLTFPACK_SHA256")
+        self.toktx_sha256 = _pin(env, "LAI_TOKTX_SHA256")
+        if self.queue != QUEUE:
+            raise RuntimeError("LAI_WORKER_QUEUE must be optimize")
+        if not (self.results_queue_url and self.results_bucket and self.asset_bucket):
+            raise RuntimeError("results queue, results bucket and asset bucket are required")
+
+    @property
+    def allowed_kinds(self) -> frozenset[str]:
+        return frozenset({KIND})
+
+    def tools(self):
+        from pathlib import Path
+
+        from lai_native.optimize import ToolPaths
+
+        return ToolPaths(
+            gltfpack=Path(self.gltfpack_path) if self.gltfpack_path else None,
+            toktx=Path(self.toktx_path) if self.toktx_path else None,
+            library_path=self.ktx_library_path or None,
+            gltfpack_sha256=self.gltfpack_sha256,
+            toktx_sha256=self.toktx_sha256,
         )
-        if key in self.objects:
-            raise task.OptimizeTaskError("artifact_exists")
-        self.objects[key] = (role, content_type, bytes(data))
-        return key
-
-    def sha256(self, key: str) -> str:
-        return hashlib.sha256(self.objects[key][2]).hexdigest()
 
 
-def _worker(context: Any) -> dict[str, str]:
-    return {
-        "function": str(getattr(context, "function_name", "") or "")[:140],
-        "request_id": str(getattr(context, "aws_request_id", "") or "")[:100],
-    }
+class OptimizePorts(aws.AssetPorts):
+    """Read-only asset ports plus the runtime, for the attempt's artifact store."""
+
+    @property
+    def runtime(self) -> aws.Runtime:
+        return self._runtime
 
 
-def _deadline(context: Any) -> Any:
-    """Lambda's remaining time, minus a reserve, bounds every tool run (lai_native.runtime)."""
-    remaining = getattr(context, "get_remaining_time_in_millis", None)
-    if remaining is None:
-        return None
-    from lai_native.runtime import Deadline
-
-    return Deadline(remaining, reserve_seconds=15.0)
+class OptimizeRuntime(aws.Runtime):
+    def ports(self, kind: str, context):
+        if kind != KIND:
+            raise TaskError("unknown_kind")
+        return OptimizePorts(self)
 
 
-def process(body: str, context: Any) -> str:
-    envelope, rt, log = _bound["envelope"], _bound["runtime"], _bound["log"]
-    worker = _worker(context)
-    work = envelope.parse_work(body, allowed_kinds=rt.settings.allowed_kinds)
-    job_id, kind = work["job_id"], work["kind"]
-    stored = rt.load_result(job_id)
-    if stored is not None:
-        rt.send_result(envelope.for_message(stored))
-        log("job.redelivered", job=job_id, kind=kind, status=stored["status"])
-        return "resent"
-    rt.send_result(envelope.build_result(job_id, kind, envelope.RUNNING, **worker))
+_registry = None
+
+
+def engine_registry(settings: OptimizeSettings):
+    """The closed registry for this function: one processor, built once per environment."""
+    global _registry
+    if _registry is None:
+        from lai_native.optimize.engine import GlbOptimizeProcessor
+        from lai_processing.core.registry import ProcessorRegistry
+
+        registry = ProcessorRegistry()
+        registry.register(
+            GlbOptimizeProcessor(settings.tools(), workspace_base="/tmp")  # noqa: S108 - Lambda /tmp
+        )
+        registry.freeze()
+        _registry = registry
+    return _registry
+
+
+def set_registry(value) -> None:
+    """Test seam."""
+    global _registry
+    _registry = value
+
+
+def run_optimize(payload: dict, ports) -> dict:
+    """Decode the ADR-061 request, run the engine against the attempt's create-only artifact
+    store, return the result dict or raise `TaskError`."""
+    from lai_processing.contracts.jobs import ProcessingJobRequest
+    from lai_processing.contracts.results import ResultStatus
+    from lai_processing.core.errors import ProcessingError, RetryClass
+    from lai_processing.core.execution import ExecutionEngine
+
     try:
-        result = task.run_optimize(
-            work["payload"], rt.ports(kind, context), deadline=_deadline(context)
-        )
-        final = envelope.build_result(job_id, kind, envelope.SUCCEEDED, result=result, **worker)
-    except task.OptimizeTaskError as error:
-        if error.retryable:
-            log("job.retry", job=job_id, kind=kind, code=error.code)
-            raise
-        final = envelope.build_result(
-            job_id, kind, envelope.FAILED, error_code=error.code, **worker
-        )
-    rt.store_result(final)
-    rt.send_result(envelope.for_message(final))
-    code = final["error"]["code"] if final.get("error") else None
-    log("job.finished", job=job_id, kind=kind, status=final["status"], code=code)
-    return final["status"]
+        request = ProcessingJobRequest.from_dict(payload)
+    except (ProcessingError, KeyError, TypeError, ValueError):
+        raise TaskError("invalid_payload") from None
+    if request.job_type != KIND:
+        raise TaskError("invalid_payload")
+    storage = ports.runtime.artifact_storage(request.namespace, request.job_id, request.attempt_id)
+    engine = ExecutionEngine(
+        registry=_registry if _registry is not None else engine_registry(OptimizeSettings()),
+        storage=storage,
+        namespace=request.namespace,
+    )
+    result = engine.execute(request)
+    if result.status is ResultStatus.SUCCEEDED:
+        return result.to_dict()
+    error = result.primary_error
+    code = error.code.value if error is not None else "processing_failed"
+    raise TaskError(code, retryable=result.retry_class is RetryClass.RETRYABLE)
 
 
-def handle(event: dict | None, context: Any) -> dict[str, list[dict[str, str]]]:
-    failures = []
-    for record in (event or {}).get("Records", []):
-        message_id = record.get("messageId", "")
-        try:
-            process(record.get("body", ""), context)
-        except Exception as error:  # noqa: BLE001 - retried by SQS; never logs the message
-            _bound.get("log", lambda *_a, **_k: None)(
-                "message.failed",
-                message=str(message_id)[:100],
-                type=type(error).__name__,
-                code=getattr(error, "code", None),
-            )
-            failures.append({"itemIdentifier": message_id})
-    return {"batchItemFailures": failures}
+RUNNERS[KIND] = run_optimize  # picked up by jobs_worker.handler.process via tasks.run
+
+
+def handle(event, context):
+    if jobs_handler._runtime is None:  # noqa: SLF001 - one runtime per warm container
+        jobs_handler.set_runtime(OptimizeRuntime(OptimizeSettings()))
+    return jobs_handler.handle(event, context)
+
+
+# Referenced so a packaging mistake (a renamed envelope helper) fails at import, not at runtime.
+_ = envelope.kinds_for_queue

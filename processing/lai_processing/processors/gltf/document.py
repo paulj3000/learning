@@ -26,8 +26,15 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Final
 
+from .compression.ktx2 import KTX2_IDENTIFIER, KTX2_MIME, ktx2_image_indices, validate_basisu
+from .compression.meshopt import fallback_buffer_indices, validate_meshopt
 from .container import GlbLayout, read_at, read_layout
-from .extension_policy import NEEDS_DECODER, SUPPORTED_EXTENSIONS
+from .extension_policy import (
+    KTX2_CONTROL,
+    MESHOPT_CONTROL,
+    NEEDS_DECODER,
+    SUPPORTED_EXTENSIONS,
+)
 from .extension_policy import error_code as extension_error_code
 from .images import JPEG, PNG, WEBP, image_dimensions, sniff_image
 from .jsonparse import parse_document
@@ -98,6 +105,8 @@ MAX_FLOAT_INT: Final = int(sys.float_info.max)
 MAX_BOUNDS_PAIRS: Final = 200_000
 # Bytes of an embedded image decoded to read its header (any PNG/JPEG/WebP header we read).
 IMAGE_PREFIX_BYTES: Final = 65_535
+# A KTX2 texture in a data URI is decoded whole for validate_basisu; bounded by this many chars.
+IMAGE_DATA_URI_MAX_CHARS: Final = 64 * 1024 * 1024
 MAX_LISTED_EXTENSIONS: Final = 50
 MATERIAL_TEXTURES: Final = (
     ("pbrMetallicRoughness", "baseColorTexture"),
@@ -171,6 +180,10 @@ class GlbSettings:
     limits: Mapping[str, int] = field(default_factory=lambda: dict(COMPLEXITY_DEFAULTS))
     max_texture_dimension: int = 8192
     require_animations: bool = False
+    #: The compression controls that are on (`LAI_GLB_MESHOPT`, `LAI_GLB_KTX2`; ADR-070). Empty
+    #: by default: every compression extension is refused. Django passes them in the request
+    #: options (`allow_meshopt`, `allow_ktx2`); the processor never reads the environment.
+    compression: frozenset[str] = frozenset()
 
     @classmethod
     def resolve(
@@ -179,13 +192,14 @@ class GlbSettings:
         *,
         max_texture_dimension: int = 8192,
         require_animations: bool = False,
+        compression: frozenset[str] = frozenset(),
     ) -> GlbSettings:
         """Requested complexity limits over the defaults, clamped to the ceilings."""
         limits = {
             name: min(requested.get(name, default), COMPLEXITY_CEILINGS[name])
             for name, default in COMPLEXITY_DEFAULTS.items()
         }
-        return cls(limits, max_texture_dimension, require_animations)
+        return cls(limits, max_texture_dimension, require_animations, frozenset(compression))
 
     def limit(self, name: str) -> int:
         return self.limits[name]
@@ -401,6 +415,13 @@ class _Validator:
         self.accessors: list[AccessorInfo | None] = []
         self.parents: list[int | None] = []
         self.quantized = False
+        # ADR-070: compressed forms accepted only while their control is on.
+        self.meshopt_on = MESHOPT_CONTROL in settings.compression
+        self.ktx2_on = KTX2_CONTROL in settings.compression
+        self.fallback_buffers = (
+            fallback_buffer_indices(document) if self.meshopt_on else frozenset()
+        )
+        self.ktx2_images = ktx2_image_indices(document) if self.ktx2_on else frozenset()
 
     # helpers
 
@@ -423,10 +444,12 @@ class _Validator:
         self._extensions()
         self._buffers()
         self._buffer_views()
+        self._meshopt()
         self._accessors()
         self._samplers()
         self._images()
         self._textures()
+        self._ktx2()
         self._materials()
         self._meshes()
         self._nodes()
@@ -500,7 +523,7 @@ class _Validator:
         unsupported: list[str] = []
         for name in sorted(used | required):
             self.check()
-            code = extension_error_code(name)
+            code = extension_error_code(name, self.settings.compression)
             if code is None:
                 continue
             unsupported.append(name)
@@ -538,7 +561,9 @@ class _Validator:
             uri = buffer.get("uri")
             data_uri: str | None = None
             if uri is None:
-                if index != 0 or bin_length is None:
+                if index in self.fallback_buffers:
+                    pass  # a meshopt fallback buffer holds no data; validate_meshopt checks it
+                elif index != 0 or bin_length is None:
                     self.error("missing_buffer", "A buffer has no data.", path)
                 elif declared > bin_length:
                     self.error(
@@ -613,6 +638,89 @@ class _Validator:
                 self.error("invalid_buffer_view", "A buffer view has an unknown target.", path)
                 ok = False
             self.views_ok.append(ok)
+
+    def _bin_read(self, buffer: int, offset: int, length: int) -> bytes | None:
+        """Bytes of the GLB binary chunk (buffer 0 only), never past the chunk."""
+        bin_offset, bin_length = self.layout.bin_offset, self.layout.bin_length
+        if buffer != 0 or bin_offset is None or bin_length is None:
+            return None
+        if not self.buffer_embedded or not self.buffer_embedded[0]:
+            return None
+        if offset < 0 or length <= 0 or offset >= bin_length:
+            return None
+        return read_at(
+            self.handle,
+            bin_offset + offset,
+            min(length, bin_length - offset),
+            self.layout.file_size,
+        )
+
+    def _meshopt(self) -> None:
+        """`EXT_meshopt_compression` structure (only when the control is on and the extension is
+        accepted; with the control off `_extensions` already refused it)."""
+        if not self.meshopt_on:
+            return
+        known = [
+            (self.layout.bin_length if self.buffer_embedded[i] else None)
+            for i in range(len(self.buffer_lengths))
+        ]
+        lengths = [
+            known[i] if known[i] is not None else self.buffer_lengths[i] for i in range(len(known))
+        ]
+        validate_meshopt(
+            self.doc,
+            self.report,
+            buffer_lengths=lengths,
+            read=self._bin_read,
+            check=self.check,
+        )
+
+    def _ktx2_image_bytes(self, index: int) -> bytes | None:
+        image = _dict(self.items("images")[index]) or {}
+        uri = image.get("uri")
+        if isinstance(uri, str):
+            match = DATA_URI.match(uri)
+            if match is None or len(uri) > IMAGE_DATA_URI_MAX_CHARS:
+                return None
+            try:
+                return base64.b64decode(uri[match.end() :], validate=True)
+            except (binascii.Error, ValueError):
+                self.error(
+                    "image_type",
+                    "An embedded KTX2 texture is not valid base64.",
+                    f"images[{index}]",
+                )
+                return None
+        view_index = image.get("bufferView")
+        views = self.items("bufferViews")
+        if not _index(view_index, views) or not self.views_ok[view_index]:  # type: ignore[index]
+            return None
+        view = _dict(views[view_index]) or {}  # type: ignore[index]
+        if view.get("buffer") != 0:
+            return None
+        data = self._bin_read(0, view.get("byteOffset", 0), view["byteLength"])
+        if data is not None and not data.startswith(KTX2_IDENTIFIER):
+            self.error(
+                "image_type", "A texture is not the image type it claims.", f"images[{index}]"
+            )
+            return None
+        return data
+
+    def _ktx2(self) -> None:
+        """`KHR_texture_basisu` and every KTX2 container it names (only when the control is on)."""
+        if not self.ktx2_on:
+            return
+        facts = validate_basisu(
+            self.doc,
+            self.report,
+            read_image=self._ktx2_image_bytes,
+            max_side=self.settings.max_texture_dimension,
+            check=self.check,
+        )
+        for index, info in sorted(facts.images.items()):
+            self.facts.images.append(
+                {"index": index, "mime_type": KTX2_MIME, "width": info.width, "height": info.height}
+            )
 
     def _accessors(self) -> None:
         views = self.items("bufferViews")
@@ -790,6 +898,10 @@ class _Validator:
             declared = image.get("mimeType")
             media = declared.lower() if isinstance(declared, str) else ""
             view_index = image.get("bufferView")
+            if media == KTX2_MIME and index in self.ktx2_images:
+                if not _index(view_index, views):
+                    self.error("invalid_image", "A texture points at a missing buffer view.", path)
+                continue  # checked by validate_basisu in `_ktx2`
             entry = {"index": index, "mime_type": media if media in KNOWN_IMAGE_TYPES else None}
             if media not in ALLOWED_IMAGE_TYPES:
                 self.error("image_type", "Textures must be PNG or JPEG.", path)
@@ -855,6 +967,8 @@ class _Validator:
         if "bufferView" in image:
             self.error("invalid_image", "An image has both a uri and a buffer view.", path)
         media = _media_type(uri)
+        if media == KTX2_MIME and index in self.ktx2_images:
+            return  # checked by validate_basisu in `_ktx2`
         entry = {"index": index, "mime_type": media if media in KNOWN_IMAGE_TYPES else None}
         if media not in ALLOWED_IMAGE_TYPES:
             self.error("image_type", "Textures must be PNG or JPEG.", path)

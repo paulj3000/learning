@@ -17,17 +17,22 @@ assets`), so today only extensions GLTFLoader handles by itself are `SUPPORTED`.
 
 Names are exact and case sensitive; similar names are distinct extensions:
 - `EXT_meshopt_compression` is the extension three.js `MeshoptDecoder` and `gltfpack` use.
-- `KHR_meshopt_compression` is the Khronos-ratified successor name. It is a different extension
-  string, and this repository has NOT verified that gltfpack emits it or that the game's loader
-  decodes it, so it is rejected as its own entry. Do not alias one to the other.
+- `KHR_meshopt_compression` is the Khronos successor name. Its specification is a **Release
+  Candidate**, not ratified (read 2026-11-18); gltfpack 1.3 emits it with `-ce khr` or `-cz`,
+  and three 0.185.1 would decode it, but its v1 bitstream and `COLOR` filter are not covered by
+  the validators, so it is rejected as its own entry. Do not alias one to the other.
 
-Workstream F flips a row to `Support.SUPPORTED` here (and only here) when its decoder is wired
-into the game loader and verified. Doing so changes the validators' verdicts, so bump
-`POLICY_VERSION` in the same change and the processor version in `processor.py`.
+Compression the game can decode (ADR-070) is `Support.WHEN_ENABLED`: accepted only while its
+feature control is `on` (`CONTROLS`), otherwise refused exactly like `DECODER` (`needs_decoder`).
+The controls are Django settings (`LAI_GLB_MESHOPT`, `LAI_GLB_KTX2`, default off). Django passes
+the enabled set to its own validator and, in the `asset.validate_model` request options
+(`allow_meshopt`, `allow_ktx2`), to the processor, which never reads the environment. When a
+row changes verdict, bump `POLICY_VERSION` and the processor version in `processor.py` together.
 """
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from enum import StrEnum
 from typing import Final
 
@@ -36,10 +41,21 @@ class Support(StrEnum):
     SUPPORTED = "supported"  # GLTFLoader handles it with no extra decoder
     DECODER = "decoder"  # compression: needs a decoder the game does not load
     REJECTED = "rejected"  # known, but the game cannot render it safely
+    WHEN_ENABLED = (
+        "supported_when_enabled"  # decoder shipped; accepted only while its control is on
+    )
 
 
 #: Bumped whenever a row changes verdict. The GLB processor version moves with it.
-POLICY_VERSION: Final = 2
+POLICY_VERSION: Final = 3
+
+#: The feature control (a Django setting, `on`/`off`) of each `WHEN_ENABLED` extension.
+MESHOPT_CONTROL: Final = "LAI_GLB_MESHOPT"
+KTX2_CONTROL: Final = "LAI_GLB_KTX2"
+CONTROLS: Final[dict[str, str]] = {
+    "EXT_meshopt_compression": MESHOPT_CONTROL,
+    "KHR_texture_basisu": KTX2_CONTROL,
+}
 
 _SUPPORTED: Final = (
     "KHR_lights_punctual",
@@ -57,13 +73,16 @@ _SUPPORTED: Final = (
     "KHR_texture_transform",
 )
 
-#: Compression extensions (error code `needs_decoder`). Flip a row to SUPPORTED in `TABLE` only
-#: after the loader has the matching decoder (Meshopt first, then KTX2: ADR-070).
+#: Compression extensions the game cannot decode (error code `needs_decoder`, always).
 _DECODER: Final = (
     "KHR_draco_mesh_compression",  # Draco is out of scope (no Draco decoder, ever, by decision)
-    "EXT_meshopt_compression",  # three.js / gltfpack name; Workstream F enables this first
-    "KHR_meshopt_compression",  # distinct Khronos name; unverified (see module docstring)
-    "KHR_texture_basisu",  # KTX2 / Basis; Workstream F enables this second
+    "KHR_meshopt_compression",  # Release Candidate; not validated (see module docstring)
+)
+
+#: Compression the loader decodes (ADR-070): accepted only while its control is on.
+_WHEN_ENABLED: Final = (
+    "EXT_meshopt_compression",  # three.js MeshoptDecoder, bundled; LAI_GLB_MESHOPT
+    "KHR_texture_basisu",  # KTX2Loader with the bundled Basis transcoder; LAI_GLB_KTX2
 )
 
 #: Known extensions the game cannot render (error code `unsupported_extension`).
@@ -76,11 +95,15 @@ _REJECTED: Final = (
 TABLE: Final[dict[str, Support]] = {
     **dict.fromkeys(_SUPPORTED, Support.SUPPORTED),
     **dict.fromkeys(_DECODER, Support.DECODER),
+    **dict.fromkeys(_WHEN_ENABLED, Support.WHEN_ENABLED),
     **dict.fromkeys(_REJECTED, Support.REJECTED),
 }
 
 SUPPORTED_EXTENSIONS: Final = frozenset(n for n, s in TABLE.items() if s is Support.SUPPORTED)
-NEEDS_DECODER: Final = frozenset(n for n, s in TABLE.items() if s is Support.DECODER)
+#: Every compression extension that needs a decoder (refused unless enabled, or always).
+NEEDS_DECODER: Final = frozenset(
+    n for n, s in TABLE.items() if s in (Support.DECODER, Support.WHEN_ENABLED)
+)
 
 
 def classify(name: str) -> Support | None:
@@ -88,12 +111,21 @@ def classify(name: str) -> Support | None:
     return TABLE.get(name)
 
 
-def error_code(name: str) -> str | None:
+def enabled_extensions(enabled: Collection[str]) -> frozenset[str]:
+    """The `WHEN_ENABLED` extensions whose control is in `enabled` (control names)."""
+    return frozenset(name for name, control in CONTROLS.items() if control in enabled)
+
+
+def error_code(name: str, enabled: Collection[str] = frozenset()) -> str | None:
     """The validation error code for `name`, or None when it is supported.
 
-    `needs_decoder` for compression, `unsupported_extension` for everything else, listed or not,
-    whether the model requires the extension or only uses it."""
+    `enabled` holds the feature controls that are on (`LAI_GLB_MESHOPT`, `LAI_GLB_KTX2`). A
+    `WHEN_ENABLED` extension is supported only while its control is in it. Otherwise
+    `needs_decoder` for compression and `unsupported_extension` for everything else, listed or
+    not, whether the model requires the extension or only uses it."""
     status = TABLE.get(name)
     if status is Support.SUPPORTED:
         return None
+    if status is Support.WHEN_ENABLED:
+        return None if CONTROLS[name] in enabled else "needs_decoder"
     return "needs_decoder" if status is Support.DECODER else "unsupported_extension"

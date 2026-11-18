@@ -8,3 +8,9 @@ from pathlib import Path
 _PROCESSING_TESTS = Path(__file__).resolve().parents[1] / "processing"
 if str(_PROCESSING_TESTS) not in sys.path:
     sys.path.insert(0, str(_PROCESSING_TESTS))
+
+
+def pytest_configure(config):  # type: ignore[no-untyped-def]
+    config.addinivalue_line(
+        "markers", "real_preparer: keep the production texture preparer (Pillow when installed)"
+    )

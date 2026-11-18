@@ -43,6 +43,14 @@ only), ADR-055, ADR-061, ADR-064 (one canonical processing path, zip Lambda work
    With a control `off` its extension is rejected exactly as today. Rejection applies whether
    the extension is used or required. Enabling a row changes validator verdicts, so it bumps the
    policy version and the GLB processor version in the same change.
+
+   Implemented as `Support.WHEN_ENABLED` rows in the one validator table
+   (`extension_policy.py`, policy version 3; GLB processor `asset.glb_validator` 1.2.0). Django
+   reads the controls; the asynchronous validator receives them as the `glb-default` options
+   `allow_meshopt` / `allow_ktx2`, so the worker never reads Django settings. Consequence of the
+   processor bump: background-validation evidence recorded by an older processor no longer
+   satisfies the publication gate, so unpublished drafts and validated versions are validated
+   again before publication; published versions are untouched.
 3. **Validation of enabled formats is structural and explicit.** `EXT_meshopt_compression`:
    extension fields, per-mode and per-filter rules, parent view consistency, fallback buffer
    rules, `extensionsRequired` semantics, a decoded-size budget, and header-level stream checks
@@ -80,7 +88,19 @@ only), ADR-055, ADR-061, ADR-064 (one canonical processing path, zip Lambda work
 | O4 | Lossy profiles (simplification, aggressive quantization, ETC1S at low quality) | Each needs per-asset visual sign-off; none is defined |
 | O5 | `KHR_meshopt_compression` | Rejected while the Khronos status is Release Candidate; revisit when ratified and the validators cover the v1 bitstream and the `COLOR` filter |
 | O6 | Heavy-workload runtime (Batch on Fargate) | Deferred; nothing measured needs it |
-| O7 | Decoder delivery headers and any future CSP (`wasm-unsafe-eval`, `worker-src blob:`) | No CSP exists today |
+| O7 | Decoder delivery headers and any future CSP (`wasm-unsafe-eval`, `worker-src blob:`); serving the Basis transcoder to the Django Admin preview | No CSP exists today. The committed Admin preview bundle ships no transcoder (a binary build output), so it has KTX2 off until Django serves the transcoder; the game bundle emits it as hashed same-origin files |
+
+## Implementation notes (2026-11-18, phase 2; within the accepted decision)
+
+- Publication: a version using a gated extension is refused (`compression_disabled`, not
+  rejected) while its control is off, at publish and republish; the latest-validation gate still
+  applies. Promotion of a `model.optimized` artifact is refused while its control is off.
+- Optimize jobs: staff Admin actions "Optimize (Meshopt)" / "Optimize (KTX2)" submit
+  `asset.optimize` through `submit_derived_job`; the worker (`asset.glb_optimizer` 1.0.0) writes
+  through the create-only artifact store; Django registers the processor version so older
+  results are `processor_outdated`. KTX2 textures are prepared by Workstream D's
+  `prepare_texture` (ADR-068).
+- No runtime was chosen (O1 stays open); nothing was deployed.
 
 ## Consequences
 

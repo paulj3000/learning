@@ -7,4 +7,6 @@ class AssetsConfig(AppConfig):
     verbose_name = "Asset library"
 
     def ready(self):
-        from . import signals  # noqa: F401  (delete guards)
+        from . import optimize, signals  # noqa: F401  (delete guards)
+
+        optimize.register()  # the optimizer's processor version for artifact results (ADR-070)

@@ -38,6 +38,17 @@ LOOSE = dataclasses.replace(KTX2_BASISU, max_size_ratio=1000.0)
 TOOLS = ToolPaths(toktx=Path("/opt/toktx"))
 
 
+@pytest.fixture(autouse=True)
+def _stand_in_preparer(request, monkeypatch):  # type: ignore[no-untyped-def]
+    """Fake-tool tests use synthetic PNG headers, which Pillow cannot decode: use the stand-in.
+    Real-tool and Pillow tests (marked `real_preparer`) keep the production preparer."""
+    if "real_preparer" in request.keywords:
+        return
+    import lai_native.optimize.ktx2 as step
+
+    monkeypatch.setattr(step, "default_preparer", lambda: passthrough_texture)
+
+
 class FakeToktx:
     """Writes a synthetic KTX2 sized like the input image, sRGB ETC1S or linear UASTC."""
 
@@ -278,7 +289,7 @@ def test_injected_preparer_is_used(tmp_path: Path) -> None:
         run=FakeToktx(),
         prepare=prepare,
     )
-    assert seen == ["ktx2-source"]
+    assert seen == ["ktx2-color"]
 
 
 def test_refuses_sources_with_ktx2_or_no_textures(tmp_path: Path) -> None:
@@ -320,6 +331,7 @@ def _tools() -> ToolPaths:
     return ToolPaths.from_environment()
 
 
+@pytest.mark.real_preparer
 @pytest.mark.skipif(not TOKTX.is_file(), reason="LAI_TOKTX is not set")
 @pytest.mark.parametrize("path", [p for p in TEXTURED if "npc" not in p.name], ids=lambda p: p.name)
 def test_real_toktx_on_repository_kit_models(tmp_path: Path, path: Path) -> None:
@@ -347,6 +359,7 @@ def test_real_toktx_on_repository_kit_models(tmp_path: Path, path: Path) -> None
     assert path.read_bytes() == source
 
 
+@pytest.mark.real_preparer
 @pytest.mark.skipif(
     not (TOKTX.is_file() and GLTFPACK.is_file()), reason="LAI_TOKTX and LAI_GLTFPACK not set"
 )
@@ -360,3 +373,64 @@ def test_real_meshopt_then_ktx2_chain(tmp_path: Path) -> None:
     assert errors == []
     assert "KHR_texture_basisu" in chained.report["geometry"]["output"]["extensions_required"]
     assert "EXT_meshopt_compression" in chained.report["geometry"]["output"]["extensions_required"]
+
+
+# --- Workstream D preparer (skipped without Pillow) -------------------------------------------
+
+try:
+    import PIL  # noqa: F401
+
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
+
+def _png(width: int, height: int, mode: str = "RGB") -> bytes:
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new(mode, (width, height), (10, 200, 30, 255)[: len(mode)]).save(out, "PNG")
+    return out.getvalue()
+
+
+@pytest.mark.real_preparer
+@pytest.mark.skipif(not HAS_PIL, reason="Pillow is not installed")
+def test_pillow_preparer_keeps_multiple_of_four_sizes() -> None:
+    from lai_native.optimize.texture_prep import default_preparer, pillow_texture
+
+    assert default_preparer() is pillow_texture
+    prepared = pillow_texture(_png(64, 32), "ktx2-color")
+    assert (prepared.width, prepared.height, prepared.mime_type) == (64, 32, "image/png")
+    data = pillow_texture(_png(64, 32), "ktx2-data")
+    assert (data.width, data.height) == (64, 32)
+
+
+@pytest.mark.real_preparer
+@pytest.mark.skipif(not HAS_PIL, reason="Pillow is not installed")
+def test_pillow_preparer_resizes_only_when_needed_down_to_powers_of_two() -> None:
+    from lai_native.optimize.texture_prep import pillow_texture
+
+    prepared = pillow_texture(_png(100, 50), "ktx2-color")
+    assert (prepared.width, prepared.height) == (64, 32)
+    capped = pillow_texture(_png(256, 128), "ktx2-data", max_side=128)
+    assert (capped.width, capped.height) == (128, 64)
+
+
+@pytest.mark.real_preparer
+@pytest.mark.skipif(not HAS_PIL, reason="Pillow is not installed")
+def test_pillow_preparer_refuses_non_images() -> None:
+    from lai_native.optimize.texture_prep import pillow_texture
+
+    with pytest.raises(TextureError):
+        pillow_texture(b"GIF89a" + bytes(40), "ktx2-color")
+
+
+@pytest.mark.real_preparer
+@pytest.mark.skipif(not (HAS_PIL and TOKTX.is_file()), reason="Pillow and LAI_TOKTX needed")
+def test_real_toktx_with_d_preparer_resizes_an_odd_texture(tmp_path: Path) -> None:
+    document, binary = static_model(texture=_png(100, 50))
+    result = optimize_ktx2(glb(document, binary), tools=_tools(), workspace=workspace_in(tmp_path))
+    encoded = result.report["textures"]["encoded"][0]
+    assert (encoded["width"], encoded["height"]) == (64, 32)

@@ -1,10 +1,12 @@
 # GLB optimization: Meshopt, then KTX2 (LAI-LAMBDA-010, ADR-070)
 
-Status (2026-11-18, branch `feature/lambda-meshopt-ktx2`): loader support, validation modules,
-native optimizer, worker skeleton, pinned tooling and workstation benchmarks are implemented.
-**Nothing is enabled**: `LAI_GLB_MESHOPT` and `LAI_GLB_KTX2` default to `off`, the validators'
-policy rows are wired by the principal at integration, and device and browser acceptance is
-pending. No AWS call, deployment, layer or image was made.
+Status (2026-11-18, phase 2 wiring on `feature/lambda-meshopt-ktx2`): the loader decodes
+Meshopt and KTX2; both validators accept each format only while its control is on (policy version
+3, processor `asset.glb_validator` 1.2.0); the publication gate and promotion check the controls;
+staff can submit `asset.optimize` jobs from Django Admin; the optimize worker writes through the
+create-only artifact store. **Nothing is enabled**: `LAI_GLB_MESHOPT` and `LAI_GLB_KTX2` default
+to `off`, and device and browser acceptance is pending. No AWS call, deployment, layer or image
+was made.
 
 Labels used for every number: **workstation** (x86_64, Intel Core i7-12700K, 4 vCPUs visible,
 7.9 GB RAM, Python 3.12.3, measured), **calculated** (formula), **extrapolated** (arithmetic on
@@ -23,59 +25,50 @@ workstation numbers, not a measurement). There is no ARM64, Lambda, device or br
 | Pinned tools, fetch script, benchmark | `native/gltf/` (`tools.lock`, `fetch-tools.sh`, `bench.py`, `README.md`) |
 | Tests | `tests/processing/test_processing_gltf_meshopt.py`, `tests/processing/meshopt_builder.py`, `tests/native/`, `react/src/features/island-map/three/assets/gltfDecoders.test.ts`, `react/src/test/compressedGltfFixtures.ts` |
 
-## 2. Integration with the validators (principal, after Workstream B)
+## 2. Validators, controls and the publication gate (wired)
 
-Workstream B's `processing/lai_processing/processors/gltf/extension_policy.py` (branch
-`feature/lambda-security-hardening`, `POLICY_VERSION = 2`) is the one table both validators
-import. Today it lists `EXT_meshopt_compression`, `KHR_meshopt_compression`,
-`KHR_draco_mesh_compression` and `KHR_texture_basisu` as `Support.DECODER` (error
-`needs_decoder`). The enablement is a row change there, not a second table:
+**One policy table** (`processing/lai_processing/processors/gltf/extension_policy.py`, policy
+version 3): `EXT_meshopt_compression` and `KHR_texture_basisu` are `Support.WHEN_ENABLED`, keyed
+to their controls in `CONTROLS`; `error_code(name, enabled)` returns `needs_decoder` unless the
+control is in `enabled`. `KHR_meshopt_compression` (Release Candidate) and Draco stay `DECODER`
+(always refused). `compression/policy.py` describes the same rows with `compression_support()` and
+a test keeps the two in agreement.
 
-1. Add a status and a control map, and make classification depend on the enabled controls
-   (which Django reads from settings and passes in the validation profile; the processor never
-   reads the environment):
+**Where the enabled set comes from.** Django reads the settings in one place,
+`apps.assets.validation.compression_controls()`. The synchronous validator
+(`validate_model(..., compression=None)`) uses it directly. The asynchronous `asset.validate_model`
+request carries it as two profile options of `glb-default` v1, `allow_meshopt` and `allow_ktx2`
+(`processing.compression_options()`), resolved like every option and therefore part of the
+idempotency key. The worker never reads Django settings. This is the smallest contract-consistent
+change: no new field, no new profile version, and an older worker refuses the unknown options
+(`invalid_processing_profile`) instead of guessing, which is why the worker must ship first (the
+compatibility-gated release, ADR-071).
 
-   ```python
-   class Support(StrEnum):
-       SUPPORTED = "supported"
-       WHEN_ENABLED = "supported_when_enabled"   # new: gated by a control, default off
-       DECODER = "decoder"
-       REJECTED = "rejected"
+**When a control is on**, both validators (the same functions):
 
-   POLICY_VERSION: Final = 3                      # verdicts change when a control is on
-   CONTROLS: Final = {"EXT_meshopt_compression": "LAI_GLB_MESHOPT",
-                      "KHR_texture_basisu": "LAI_GLB_KTX2"}
-   # rows: EXT_meshopt_compression and KHR_texture_basisu move from _DECODER to WHEN_ENABLED;
-   # KHR_meshopt_compression and KHR_draco_mesh_compression stay DECODER (rejected).
+1. accept the extension in `extensionsUsed` / `extensionsRequired`;
+2. Meshopt: accept a buffer without data when it is a marked fallback buffer
+   (`fallback_buffer_indices`), then run `validate_meshopt` with the real container lengths and
+   bounded reads of the GLB binary chunk (header-level stream checks);
+3. KTX2: accept `image/ktx2` only for images reached through `KHR_texture_basisu`
+   (`ktx2_image_indices`), then run `validate_basisu`, reading each KTX2 file whole (bounded,
+   64 MiB) with the texture side limit of the processor default (8192).
 
-   def error_code(name: str, enabled: frozenset[str] = frozenset()) -> str | None:
-       status = TABLE.get(name)
-       if status is Support.SUPPORTED:
-           return None
-       if status is Support.WHEN_ENABLED:
-           return None if CONTROLS[name] in enabled else "needs_decoder"
-       return "needs_decoder" if status is Support.DECODER else "unsupported_extension"
-   ```
+The parity corpus has compressed cases with each control off and on; both validators agree.
 
-   `compression.policy.compression_support(name)` returns the same statuses and can be used to
-   generate or test those rows (`tests/processing/test_processing_gltf_meshopt.py` pins them).
-2. Bump the GLB processor version (B set `1.1.0`; this makes it `1.2.0`), so earlier
-   validations become `processor_outdated` at the publication gate.
-3. When `EXT_meshopt_compression` is allowed and present, call
-   `validate_meshopt(document, report, buffer_lengths=..., read=..., check=...)` from both
-   validators, and let the buffer check accept the buffers in `fallback_buffer_indices(document)`
-   without data (today they fail as `missing_buffer`). Accessor range checks are unchanged: they
-   use the parent view's decoded `byteLength`.
-4. When `KHR_texture_basisu` is allowed, call
-   `validate_basisu(document, report, read_image=..., max_side=..., check=...)` and accept
-   `image/ktx2` only for the images in `ktx2_image_indices(document)` that it validated; the
-   texture-size limit then applies to KTX2 dimensions through `parse_ktx2`.
-5. The publication gate re-checks the control at publish time (a compressed version is
-   publishable only while its control is on).
+**Processor version 1.2.0 and draft evidence.** The bump makes every earlier `pass` (`1.1.0`,
+`1.0.0`) `processor_outdated` at the publication gate. An unpublished `VALIDATED` or `DRAFT` GLB
+whose background validation ran before this release needs Validate in background again before it
+can be published (the action submits a new job by itself, since the processor version and options
+are in the idempotency key). Published versions, rollback and delivery are not touched. With both
+controls off the verdicts equal `1.1.0`'s.
 
-`gltfpack` **can** emit `KHR_meshopt_compression` (`-ce khr`, and `-cz`; verified in the 1.3
-source, `gltf/gltfpack.cpp`). The Khronos specification is a **Release Candidate**, not ratified
-(read 2026-11-18), so it stays rejected; the optimizer pins `-ce ext`.
+**Publication gate** (`apps.assets.services`): `compression_refusal(version)` runs inside
+`publish_refusal` (before the stored bytes are re-read) and in `republish_version`: a version
+whose recorded `extensionsUsed` contains a gated extension is refused with
+`compression_disabled` while that control is off, and left unchanged (not rejected). B's
+latest-validation gate (`_has_passing_validation`) still applies on top when asynchronous
+validation is on; it was not rewritten. Published content is never changed.
 
 ## 3. `EXT_meshopt_compression` validation (`compression/meshopt.py`)
 
@@ -128,9 +121,15 @@ only when a KTX2 texture is first decoded. `assetLoader.enableKtx2Textures(rende
 to the bundled `GLTFLoader` and returns the detach (dispose); the location engine calls it through
 an optional `LocationEngineAssets.attachRenderer` right after creating its renderer and detaches
 before `renderer.dispose()`, so the engine itself still imports no decoder. Missing KTX2 support
-gives `CompressedModelError` (`ktx2_unavailable`). **Gap:** the Django Admin preview parses the
-model before it creates its renderer, so it refuses KTX2 models with `compression_unsupported`
-until the preview is reordered (small follow-up in `mountAssetPreview.ts`).
+gives `CompressedModelError` (`ktx2_unavailable`). The Django Admin preview now creates its viewer (and
+renderer) first, builds a `KTX2Loader` for that renderer, parses, then disposes the loader's
+workers (`mountAssetPreview.ts`); without a usable renderer it refuses KTX2 models with
+`compression_unsupported`. **The committed Django static bundle does not ship the Basis
+transcoder** (its `.wasm` is a 527 kB binary build output, which is not committed):
+`vite.admin-preview.config.ts` drops the emitted transcoder files and builds with
+`VITE_LAI_ADMIN_KTX2=off`, so the deployed Admin preview shows `compression_unsupported` for a
+KTX2 model until the transcoder is served from Django (ADR-070 O7). Meshopt previews work (the
+decoder is inline). The thumbnail capture bundle (ADR-069) likewise drops the transcoder.
 
 ## 5. Optimizer (`lai_native.optimize`)
 
@@ -178,19 +177,60 @@ space, 200 MiB per file, 600 MiB workspace, CPU seconds = timeout). The runtime'
 from `os.wait4` and can include the forked Python image before `exec`, so it is an upper bound;
 the benchmark wraps the tool in GNU `time` instead.
 
-## 6. Worker skeleton (`lambda/optimize_worker`)
+## 6. Optimize jobs: worker, Django, Admin, promotion
 
-`task.run_optimize(payload, ports)` (payload `storage_key`, `format: "glb"`, `profile`,
-optional `max_bytes`): refuses with `optimization_disabled` while the profile's control is off,
-reads through the existing read-only asset ports (50 MiB ceiling), runs the optimizer in a
-private `lai_native.runtime.Workspace` (removed afterwards) bounded by the Lambda deadline
-(`Deadline(context.get_remaining_time_in_millis, reserve_seconds=15)`); a failure is retryable
-only when the runtime says so (timeout, crash, workspace), and writes `model.optimized` and
-`model.optimize_report` through a create-only `put_artifact` port. `handler.handle` mirrors
-`jobs_worker.handler.process` (stored-result redelivery, `running`, final result, batch item
-failures); the envelope module and runtime are injected because `asset.optimize` and its queue
-are registered by Workstream A. `StubArtifactPort` is an in-memory stand-in for A's writer. No
-packaging and no infrastructure (Workstream G, and open decision O1).
+**Worker** (`lambda/optimize_worker/handler.py`): reuses `jobs_worker.handler.process` (envelope,
+redelivery, stored results, batch failures) and registers `run_optimize` for `asset.optimize` on
+the `optimize` queue (Workstream A's registrations). `run_optimize` decodes the ADR-061 request and
+runs the engine with one processor, `asset.glb_optimizer` 1.0.0
+(`lai_native/optimize/engine.py`), whose storage is A's create-only store for the attempt
+(`aws.Runtime.artifact_storage(namespace, job, attempt)`): inputs are read from the asset bucket,
+artifacts are written only through `ProcessingContext.write_artifact` under
+`processing/artifacts/<env>/<job>/<attempt>/` (`model.glb` as `model.optimized`, `report.json`
+as `model.optimize_report`). Tools: `LAI_GLTFPACK_PATH` (default `/opt/bin/gltfpack`),
+`LAI_TOKTX_PATH` (`/opt/bin/toktx`), `LAI_KTX_LIBRARY_PATH` (`/opt/lib`), optional SHA-256 pins.
+An optimization that is not safe or useful (no gain, preservation difference, invalid output) is
+a `fail` verdict with a finding and no artifacts; runtime timeouts and crashes are retryable
+contract errors. The result metadata carries `tool_versions` and up to 12 scalar
+`artifact_facts` for the model (variant, sizes, ratio, GPU memory before and after, texture
+formats, triangles, clips, preserved, required extensions), which Django keeps on the artifact
+row. No packaging and no infrastructure (Workstream G; runtime decision ADR-070 O1).
+
+**Shared constants** (`compression/optimize_contract.py`, standard library): job type, processor
+id and version, the two variants (`meshopt` -> `meshopt-conservative` v1 / `LAI_GLB_MESHOPT`,
+`ktx2` -> `ktx2-basisu` v1 / `LAI_GLB_KTX2`) and one `ResourceLimits` budget (50 MiB input,
+840 s, 600 MiB temporary). Django imports these, never native code.
+
+**Django** (`lai/apps/assets/optimize.py`):
+
+- `submit_optimization(version, variant, user)` refuses unless the variant's control is on
+  (`optimization_disabled`), the asset is active, the version is a `VALIDATED` or `PUBLISHED`
+  GLB and does not already use compression or quantization; then submits through
+  `artifact_jobs.submit_derived_job(variant=...)` with the contract profile, processor version and
+  limits. The source version is never changed.
+- `register()` (from `AssetsConfig.ready`) sets
+  `artifact_results.PROCESSOR_VERSION_RESOLVERS["asset.optimize"]`, so a result from an older
+  optimizer build is `processor_outdated` and records nothing.
+- Admin actions on asset versions: "Optimize (Meshopt)" and "Optimize (KTX2)"
+  (`admin_optimize.OptimizeAdminMixin`, mixed into `AssetVersionAdmin` cooperatively like the
+  image and capture mixins; staff who may upload and view versions), each refused with a clear
+  message while its control is off.
+- The derived-artifact page shows an "Optimization report" table for `model.optimized` rows:
+  original and optimized size, ratio, texture formats, calculated GPU memory before and after,
+  triangles, clips, preservation, required extensions. The full JSON report is the
+  `model.optimize_report` artifact (download).
+- Promotion stays A's `promote_artifact`; `promotion_refusal(artifact)` refuses a
+  `model.optimized` artifact with `compression_disabled` while its variant's control is off,
+  because the new version is uploaded through the normal path and must pass the validators,
+  which accept the compression only then. A promoted version is unpublished (`VALIDATED`, or
+  `DRAFT` with asynchronous validation) and is published only by the explicit action and its
+  gates.
+
+**Texture preparation for KTX2** uses Workstream D's `lai_native.image.prepare_texture` through
+`texture_prep.pillow_texture` (artwork profile for colour, data profile for normal/ORM; resized
+with D's power-of-two fit only when a side is not a multiple of 4 or exceeds 4096; encoded with
+D's lossless PNG encoder). `passthrough_texture` remains only as the stand-in where Pillow is not
+installed (unit tests); `default_preparer()` chooses.
 
 ## 7. Benchmarks, Meshopt (workstation, 2026-11-18)
 
@@ -236,13 +276,13 @@ choice stays open (ADR-070 O1).
 | # | Gate | State |
 |---|---|---|
 | 1 | Structural validity: `validate_meshopt` unit tests (synthetic GLBs: every field, mode, filter, fallback and header rule) | Done (62 tests) |
-| 2 | Both validators call `validate_meshopt` behind the policy row; parity corpus extended with Meshopt cases; fallback buffers accepted only when enabled and required | **Pending integration** (principal, after B) |
-| 3 | Policy version 3 and GLB processor version bump; earlier validations `processor_outdated` | **Pending integration** |
+| 2 | Both validators call `validate_meshopt` behind the policy row; parity corpus extended with Meshopt cases; fallback buffers accepted only when enabled | Done (phase 2) |
+| 3 | Policy version 3 and GLB processor version bump; earlier validations `processor_outdated` | Done (processor 1.2.0) |
 | 4 | Loader: decoder registered on every `GLTFLoader`; real decode of a Meshopt GLB in Vitest; typed error without WebAssembly; preview fetches nothing | Done |
 | 5 | Regressions: existing loader, cache, preview tests unchanged and passing | Done (targeted Vitest runs) |
 | 6 | Animation and skin preservation on real models (hierarchy, joints, clip names and durations) | Done for the 6 repository GLBs (workstation) |
 | 7 | Benchmarks recorded with labels | Done (section 7) |
-| 8 | Publication gate re-checks the control at publish | **Pending** (B's gate, at integration) |
+| 8 | Publication gate re-checks the control at publish; promotion refuses while it is off | Done (phase 2) |
 | 9 | Browser acceptance (desktop Chrome, Safari, Firefox): a Meshopt model renders and animates identically | **Pending, not done** |
 | 10 | Device acceptance on the owner's tablets (Sprouts gate, LAI-2303): load time, frame rate, visual parity | **Pending, not done** |
 | 11 | Production runtime decision (O1) for server-side jobs | **Open** |
@@ -324,12 +364,12 @@ inspected on any screen.
 | # | Gate | State |
 |---|---|---|
 | 1 | Structural validity: `parse_ktx2` / `validate_basisu` unit tests (synthetic containers, every header, level, DFD, orientation and glTF rule) | Done (45 tests) |
-| 2 | Both validators call `validate_basisu` behind the policy row; `image/ktx2` accepted only for validated basisu images; parity corpus extended | **Pending integration** (principal, after B) |
-| 3 | Policy version and GLB processor version bump | **Pending integration** |
+| 2 | Both validators call `validate_basisu` behind the policy row; `image/ktx2` accepted only for basisu images; parity corpus extended | Done (phase 2) |
+| 3 | Policy version and GLB processor version bump | Done (processor 1.2.0) |
 | 4 | Loader: `KTX2Loader` with bundled transcoder, `detectSupport(renderer)`, worker limit, disposal with the engine, refused external URLs, typed error | Done (Vitest, configuration level; jsdom cannot run the transcoder workers) |
-| 5 | Admin preview shows KTX2 models | **Pending** (renderer must exist before parsing) |
+| 5 | Admin preview shows KTX2 models | Code done (renderer before parsing); **the deployed bundle has KTX2 off** until the transcoder is served from Django (O7) |
 | 6 | Real transcode in a browser (desktop Chrome, Safari, Firefox): textures render with correct colour space and orientation | **Pending, not done** |
 | 7 | Device acceptance on the owner's tablets: transcode target (ASTC/ETC2), load time, memory, visual parity of ETC1S colour textures | **Pending, not done** |
-| 8 | Image preparation through Workstream D's module (resize to multiples of 4, size cap, metadata) | **Pending integration** |
+| 8 | Image preparation through Workstream D's module (resize to multiples of 4, size cap, metadata) | Done (`pillow_texture`; tested with Pillow 13.0.0 and real toktx on the workstation) |
 | 9 | Benchmarks recorded with labels | Done (section 12) |
 | 10 | Production runtime decision (ADR-070 O1) | **Open** |

@@ -4,6 +4,7 @@ import {
   CompressedModelError,
   configureGltfLoader,
   describeGltfLoadError,
+  type GltfLoaderDecoders,
 } from '../../island-map/three/assets/gltfDecoders';
 
 /**
@@ -44,7 +45,7 @@ const MESSAGES: Record<PreviewErrorCode, string> = {
   unsupported_format: 'Only .glb and self-contained .gltf models can be previewed.',
   invalid_model: 'The file could not be read as a glTF 2.0 model.',
   compression_unsupported:
-    'This model uses compression the preview cannot show here (Meshopt needs WebAssembly; KTX2 textures are not previewed yet).',
+    'This model uses compression this browser cannot show (it needs WebAssembly, and KTX2 textures need WebGL).',
   empty_model: 'The model has no visible geometry to show.',
   webgl_unavailable: 'This browser cannot show 3D graphics (WebGL is unavailable or disabled).',
 };
@@ -164,6 +165,7 @@ function isEmbedded(url: string): boolean {
 export async function parsePreviewModel(
   data: ArrayBuffer,
   format: PreviewFormat,
+  decoders: GltfLoaderDecoders = {},
 ): Promise<{ scene: Object3D; clipNames: string[] }> {
   if (sniffFormat(data) !== format) throw new PreviewError('invalid_model');
   let external = false;
@@ -174,8 +176,10 @@ export async function parsePreviewModel(
     return 'data:application/octet-stream;base64,';
   });
   // Decoders fetch nothing through `manager`: the Meshopt decoder is bundled
-  // with its WASM inline, so the URL refusal above still covers everything.
-  const loader = configureGltfLoader(new GLTFLoader(manager));
+  // with its WASM inline, and a KTX2 loader (`decoders.ktx2`) uses its own
+  // manager, which loads only the bundled transcoder and embedded texture
+  // data, so the URL refusal above still covers everything else.
+  const loader = configureGltfLoader(new GLTFLoader(manager), decoders);
   let gltf;
   try {
     gltf = await loader.parseAsync(data, '');

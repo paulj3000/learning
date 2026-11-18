@@ -49,6 +49,7 @@ from apps.core.exceptions import error_body
 from . import preview, services
 from .admin_capture import CAPTURE_FIELDS, CaptureAdminMixin
 from .admin_image import IMAGE_FIELDS, ImageConversionAdminMixin
+from .admin_optimize import OptimizeAdminMixin
 from .models import AssetVersion, VersionStatus
 from .processing import (
     APPLIED_OUTCOMES,
@@ -95,7 +96,9 @@ class UploadForm(forms.Form):
 
 
 @admin.register(AssetVersion)
-class AssetVersionAdmin(ImageConversionAdminMixin, CaptureAdminMixin, admin.ModelAdmin):
+class AssetVersionAdmin(
+    OptimizeAdminMixin, ImageConversionAdminMixin, CaptureAdminMixin, admin.ModelAdmin
+):
     list_display = (
         "version_label",
         "status",

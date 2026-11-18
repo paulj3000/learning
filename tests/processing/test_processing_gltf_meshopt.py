@@ -515,3 +515,19 @@ def test_stream_helper_layout() -> None:
     assert stream[0] == 0xA0
     assert stream[-12:] == struct.pack("<3f", 1, 2, 3)
     assert len(stream) == 1 + 12 + 32
+
+
+def test_compression_rows_agree_with_the_validator_table() -> None:
+    """`compression.policy` describes the compression rows of `extension_policy.TABLE`."""
+    from lai_processing.processors.gltf import extension_policy as table
+
+    for name, policy in __import__(
+        "lai_processing.processors.gltf.compression.policy", fromlist=["x"]
+    ).COMPRESSION_POLICY.items():
+        for enabled in (frozenset(), frozenset({"LAI_GLB_MESHOPT", "LAI_GLB_KTX2"})):
+            allowed = compression_allowed(name, enabled)
+            assert allowed is (table.error_code(name, enabled) is None), (name, enabled)
+        if policy.status is SupportStatus.SUPPORTED_WHEN_ENABLED:
+            assert table.classify(name) is table.Support.WHEN_ENABLED
+            assert table.CONTROLS[name] == policy.control
+    assert table.POLICY_VERSION == 3
