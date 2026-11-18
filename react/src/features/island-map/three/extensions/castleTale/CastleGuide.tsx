@@ -13,6 +13,9 @@ import {
 } from '../../castleLayout';
 import { trophyDisplay } from '../../castleTrophies';
 import type { CastleRoomsApi } from '../../../../../api/play/castleRoomsApi';
+import type { CastleDirectorApi } from '../../../../../api/play/castleDirectorApi';
+import type { AgeBandValue } from '../../../../child-profile/constants';
+import { useCastleDirector } from '../../../../great-storybook/useCastleDirector';
 import type { GreatStorybook } from '../../../../great-storybook/useGreatStorybook';
 import { ManagerAudioControls } from '../../../../../audio/ui';
 import { CastleMap } from './CastleMap';
@@ -60,6 +63,13 @@ export interface CastleGuideProps {
   onOpenChange?: (open: boolean) => void;
   /** Rank titles (SC-R07-04). Defaults to the content config, which is switched off. */
   ranks?: CastleRanksConfig;
+  /**
+   * The child's age band (SC-R09-01). With it, the guide shows one authored ambient line for the
+   * room the child is in; without it, nothing ambient is shown.
+   */
+  ageBand?: AgeBandValue;
+  /** Where the ambient line is chosen. Omit for the configured Django API; `null` for none. */
+  directorApi?: CastleDirectorApi | null;
 }
 
 /** "To the story hall, then To the east corridor": the doors a walking child would pass, in order. */
@@ -83,6 +93,8 @@ export function CastleGuide({
   storybook,
   onOpenChange,
   ranks = CASTLE_RANKS,
+  ageBand,
+  directorApi,
 }: CastleGuideProps) {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState<CastleRoomId | undefined>(undefined);
@@ -91,6 +103,14 @@ export function CastleGuide({
   // Explored rooms: saved by the server, merged with this visit. Django is the record.
   const { discovered } = useCastleDiscovery({ childId, roomId, api: childId ? roomsApi : null });
   const discovery = useMemo(() => discoveryState(discovered), [discovered]);
+  // One authored ambient line for this room (SC-R09-01): atmosphere, never progress or a prompt.
+  const ambient = useCastleDirector({
+    childId,
+    ageBand,
+    roomId,
+    worldChangeKeys: worldState.worldChangeKeys,
+    api: childId ? directorApi : null,
+  });
   const lastAnnounced = useRef<CastleRoomId | undefined>(undefined);
 
   // Report a change of open (not the first render), for the Storybook's open and close sounds.
@@ -195,6 +215,11 @@ export function CastleGuide({
       <output className={styles.status} aria-live="polite">
         {message}
       </output>
+      {ambient ? (
+        <p className={styles.ambient} data-testid="castle-ambient-line">
+          {ambient.lines.join(' ')}
+        </p>
+      ) : null}
       {open ? (
         <div className={styles.panel} id={panelId}>
           <h2 className={styles.title}>Where would you like to go?</h2>

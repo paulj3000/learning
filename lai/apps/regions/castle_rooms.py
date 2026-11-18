@@ -56,6 +56,11 @@ def _may_record(child, room_id: str) -> bool:
     return needed is None or needed in _found(child)
 
 
+def may_record(child, room_id: str) -> bool:
+    """Whether this child may be in `room_id`: it exists and, if secret, has been found."""
+    return _may_record(child, room_id)
+
+
 def discovered_rooms(child) -> list[str]:
     """The room ids this child has discovered, in the castle's own order.
 

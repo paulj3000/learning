@@ -25,6 +25,8 @@ class RouteName(models.TextChoices):
     TUTOR = "generateTutorTurn"
     # Django only (LAI-NPC-030/032): a hybrid hint voiced by a published NPC persona.
     NPC_HINT = "generateNpcHint"
+    # Django only (SC-R09-01): a choice of one id from the castle's authored ambient events.
+    CASTLE_DIRECTOR = "generateCastleDirector"
 
 
 class ValidationStatus(models.TextChoices):

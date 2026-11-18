@@ -86,6 +86,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-062 | Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest | Accepted; superseded in part by ADR-064 | `feature/serverless-processing-wave2` (LAI-LAMBDA-002 to 005, PR #41, not merged) | Accepted by the owner 2026-11-17 with B4 to B7, the `LAI_ASSET_ASYNC_VALIDATION` flag (default off) and prod reserved concurrency 5. Decision 1 (one backbone in `apps.jobs`) stands; decisions 2 and 3 (own queues, bucket and stack; ECR worker) and the second consumer are superseded by the owner's 2026-11-17 blocker-resolution decisions (ADR-064) |
 | ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed (numbered ADR-063 on integration; the branch authored it as ADR-055, which main uses for the dev environment) | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending |
 | ADR-064 | Background processing has one canonical path: apps.jobs on the ADR-055 queues and results consumer, zip-packaged Lambda workers, a transactional outbox and a database-outage-safe consumer; Bedrock runs in a configurable Region | Accepted | `main` (owner's DEV blocker resolution, 2026-11-17) | Owner decisions 1 to 8 of 2026-11-17: zip for dev Lambda workers, no ECR in dev, containers only by a later decision, `apps.jobs` + SQS + Lambda + ADR-055 canonical, PR #40 extends it, Studio roles automated, Bedrock Region independent, low-cost dev and its schedule kept. Amends ADR-055, ADR-061 and ADR-062 |
+| ADR-065 | The Castle Director may only pick an id from a server-recomputed set of authored ambient events; events grant nothing and repeat by visit count, never by time | Proposed | `work/sc-r08-09` (SC-R08-01, SC-R09-01, SC-R09-02) | Adds route `generateCastleDirector`, `CastleVisitState`, `CastleEventShown`. Owner review needed for the content-authority and visit-count choices. Reuses ADR-044 (pipeline, Guardrail) and ADR-054 (`npc_hint`) |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4558,3 +4559,42 @@ jumping already behave.
 **Consequences.** Any manifest-driven location can add a course with no engine change.
 Turntable collision is the platform's square (round models approximate). Staff cannot move
 platforms in Django Admin until LAI-0805 is decided. Details: `docs/PLATFORMING.md`.
+
+## ADR-065: The Castle Director may only pick an id from a server-recomputed set of authored ambient events; events grant nothing and repeat by visit count, never by time
+
+Status: Proposed (SC-R08-01, SC-R09-01, SC-R09-02, 2026-11-17). Development only; awaiting owner review.
+
+**Context.** Storykeeper Castle should feel alive on a return visit without a lesson, a reward or
+a clock. The reboot roadmap (SC-R08, SC-R09) asks for ambient events, a Castle Director that
+chooses among them, and Quill flavour lines, all inside the rules of ADR-044 (AI proposes, code
+validates, every response has an authored fallback). `react/src/features/director` ranks
+adventures and is not an event selector, so it is not extended.
+
+**Decision.**
+
+1. **Events are authored atmosphere.** A `CastleEvent` is words, an ambient cue and a few
+   eligibility conditions. It grants no reward, quest step, world change or progress. The catalog
+   is `castleEvents.ts` mirrored by `lai/apps/regions/castle_events.json` (the pattern of
+   `great_storybook_pages.json`, with a Vitest drift test), not a catalog model: the castle's
+   layout and copy stay source-controlled (ADR-033) and no Django Admin screen is added.
+2. **Eligibility is pure and ported.** `eligibleEvents` and `defaultEvent` exist in TypeScript and
+   Python with shared golden vectors (`tests/golden/castle-events.json`). Conditions reuse the NPC
+   Manager's (`apps.npcs.conditions.holds`), limited to ALWAYS, WORLD_CHANGE, QUEST_STATUS and
+   RELATIONSHIP_AT_LEAST; an unknown type never holds.
+3. **Repetition is counted in visits.** `CastleVisitState` counts a visit when a client sends a
+   new opaque `visitId`; `CastleEventShown` is a display counter per event. No clock, streak,
+   countdown or "come back" language exists, and time away changes nothing.
+4. **The model only picks an id.** `POST /api/v1/children/<id>/castle/director/` takes a room id
+   and a visit id. The server recomputes the eligible set; the model (route
+   `generateCastleDirector`, through `run_turn`) sees only the age band, room id and
+   `{id, tag}` candidates; `validate_castle_choice` requires an exact member of the set; the child
+   sees the authored lines. Every failure is the deterministic default event with
+   `source: FALLBACK`. The only writes are the audit row, safety event, usage counters and the
+   display counter.
+5. **Quill flavour reuses `npc_hint`.** No new route: `apps.npcs.castle_flavour` builds an
+   `NpcHintContext` from the ACTIVE release's Quill persona with the authored event line as base
+   text and fallback. It sets no flag and writes no state.
+
+**Consequences.** The castle is fully playable without AI: the client runs the same rules locally
+on any error. Promoting events to an admin-authored, revisioned model (ADR-047) is a later,
+separate decision. Details: `docs/regions/prep/ai_director_prep.md`, `docs/AI_AND_CHILD_SAFETY.md`.

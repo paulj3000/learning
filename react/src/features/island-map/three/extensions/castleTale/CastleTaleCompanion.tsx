@@ -445,6 +445,7 @@ export function CastleTaleCompanion({
         worldState={worldState}
         childId={childId}
         storybook={storybook}
+        ageBand={ageBand}
         onOpenChange={handleGuideOpenChange}
       />
       {npcStage ? (hudSlot ? createPortal(npcStage, hudSlot) : npcStage) : null}
