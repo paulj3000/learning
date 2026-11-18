@@ -15,6 +15,9 @@ dashes, and explanations say why an answer works. Nothing here is religious. NPC
 dialogue, not here (puzzles.MOVED_TO_DIALOGUE).
 """
 
+import json
+from pathlib import Path
+
 from apps.regions.models import PuzzleKind
 
 from . import north_pole_layout as layout
@@ -998,3 +1001,19 @@ for _pid, _kind, _title, _requires, _key, _reward, _factory in _TABLE:
             "ageBands": {band: _factory(band) for band in BANDS},
         }
     )
+
+
+SNAPSHOT_PATH = Path(__file__).with_name("north_pole_puzzles.json")
+
+
+def snapshot() -> list[dict]:
+    """The puzzle bodies as JSON, so the React tests parse the real content (no Python import)."""
+    return json.loads(json.dumps(PUZZLES))
+
+
+def write_snapshot() -> None:
+    SNAPSHOT_PATH.write_text(json.dumps(snapshot(), indent=1, sort_keys=True) + "\n")
+
+
+if __name__ == "__main__":
+    write_snapshot()  # silent: application code does not print (test_privacy_logging)

@@ -1,6 +1,8 @@
 """North Pole puzzle content (NP-024): every body passes the real validators, matches the
 contract table, and every answer is graded correct by the real grader. No database needed."""
 
+import json
+
 import pytest
 
 from apps.regions import north_pole_layout as layout
@@ -267,3 +269,9 @@ def test_every_entity_reference_exists_in_the_layout():
     assert len(layout.PUZZLE_ENTITIES["np-obs-fragments"]) == 7
     for band in ("PATHFINDER", "EXPLORER"):
         assert set(np_puzzles.ENTITY_MAPS["np-obs-fragments"][band]["itemEntities"]) == set(layout.FRAGMENT_ZONES) - {"village"}
+
+
+def test_the_json_snapshot_equals_the_module():
+    assert json.loads(np_puzzles.SNAPSHOT_PATH.read_text()) == np_puzzles.snapshot()
+    expected = json.dumps(np_puzzles.snapshot(), indent=1, sort_keys=True) + "\n"
+    assert np_puzzles.SNAPSHOT_PATH.read_text() == expected
