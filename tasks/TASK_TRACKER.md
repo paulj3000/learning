@@ -1201,6 +1201,36 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       great-storybook, rewards, content-export, audio, npc, worlds 229 files, 3021 passed; `tsc` app clean;
       content:check and golden:check clean; Django `apps/inventory apps/progression apps/quests apps/catalog`
       + `game_sessions/test_answers_api.py`, `test_castle_storybook.py`: 432 passed, 0 skipped.
-- [ ] **SC-R08 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
-      Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
-      ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
+- [x] **SC-R10-01** Three.js Writing Room with chapter 3 parity (contract `docs/regions/prep/writing_room_prep.md`;
+      branch `work/sc-r10`, commit `7c18219f`). DONE (development), not owner accepted.
+      `CASTLE_WRITING_ROOM_MANIFEST` (`three/runtime/manifests/castleWritingRoom.ts`, constants in
+      `three/castleWritingRoomRegion.ts`) is registered in `SOURCE_LOCATION_MANIFESTS` and served at the generic
+      `explore/castle-writing-room` route, with a "Try the 3D room (preview)" link on the location page. It
+      imports the shared `CASTLE_WRITING_ROOM_INTERACTIONS` by identity, so ids, messages and requirements
+      cannot drift. Same unlock key `THE_CASTLES_SECRET_DOOR_COMPLETE`, enforced by new optional
+      `entryRequirements` and `copy.locked` manifest fields (fail closed; a manifest without them behaves as
+      before). One appended checkpoint `castle-writing-room:entry`. Two optional 0.3 m reading steps on the
+      shared platforms runtime, never required, nothing gated on them, none for Sprouts. Records nothing,
+      places no NPC, adds no write action. Phaser route and files unchanged and still the default. Content
+      export and golden digest regenerated for the new checkpoint. **Deviations to confirm:** (1) the generic
+      view had no unlock gate, so `entryRequirements` was added to the shared runtime; (2) checkpoint id
+      `castle-writing-room:entry` (the repo's `region:name` pattern); (3) wall height 3 m, not 3.2 m;
+      (4) link text "Try the 3D room (preview)" (the page already uses "(new!)" for the Phaser link).
+      **Owner decisions (safe readings taken):** no write-your-story action; no NPC placed (`islandNpcs.ts`
+      schedules one in the afternoon; neither renderer places it); no new band gate (Sprouts via LAI-2303).
+- [x] **SC-R10-02** Parity tests against the Phaser Writing Room. DONE (development), not owner accepted.
+      `castleWritingRoomParity.test.tsx` (17) ports every `CastleWritingRoomWorldView.test.tsx` assertion to
+      `ThreeLocationWorldView` with the real manifest and adds fail-closed, no-world-change, shared unlock key
+      (`CASTLE_EXITS`, `locations.ts`, Phaser view, manifest), Phaser files present and Phaser route still
+      default. Evidence on the branch: typecheck clean; manifest 12, engine 7, parity 17; manifests plus the
+      Phaser view 27 files, 443 passed; discovery, content-export (checkpoint count 30 to 31), golden,
+      validator, view, location and castle contract runs pass. **Merged** at `8408737b`. Merged-tree
+      evidence: Vitest manifests, Phaser Writing Room view, discovery, content-export, IslandLocationPage
+      35 files, 581 passed; `tsc` clean; content:check and golden:check exit 0. Not run: browser, WebGL,
+      e2e, lint, format, full suites. Visual validation stays an owner step.
+- [ ] **SC-R10-03** Retire the Phaser castle and Writing Room. GATED on ADR-020's conditions, LAI-2303 and
+      owner approval. The route switch (`AppRoutes.tsx` `world/castle-writing-room`) is untouched.
+- [ ] **SC-R08, SC-R09, SC-R11 engineering part** In development on `work/sc-r08-09` and `work/sc-r11`.
+- [ ] **SC-R12** Not started. Gated items: new supporting NPC model, narration voice consent, Phaser
+      retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11
+      gate).
