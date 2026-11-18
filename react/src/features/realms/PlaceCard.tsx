@@ -13,6 +13,7 @@ import { themeFor } from './realmThemes';
  */
 export function PlaceCard({ place, realmTitle }: { place: RealmPlace; realmTitle: string }) {
   const theme = themeFor(place.slug);
+  const adventureTotal = place.adventureCount + place.questCount;
   const titleId = `place-card-${place.slug}`;
   return (
     <article
@@ -30,7 +31,11 @@ export function PlaceCard({ place, realmTitle }: { place: RealmPlace; realmTitle
           label={place.area ? `${place.title}: ${place.area.title}` : place.title}
           className={cn('aspect-[16/10] w-full', theme.wash)}
         />
-        {place.area?.inProgress ? (
+        {place.completed ? (
+          <p className="absolute top-3 left-3 m-0 rounded-full bg-paper px-3 py-1 text-sm font-semibold text-ink shadow-sm">
+            <span aria-hidden="true">🏅 </span>Completed
+          </p>
+        ) : place.area?.inProgress ? (
           <p className="absolute top-3 left-3 m-0 rounded-full bg-paper px-3 py-1 text-sm font-semibold text-ink shadow-sm">
             <span aria-hidden="true">⭐ </span>Adventure in progress
           </p>
@@ -46,9 +51,12 @@ export function PlaceCard({ place, realmTitle }: { place: RealmPlace; realmTitle
         </h3>
         {place.tagline ? <p className="m-0">{place.tagline}</p> : null}
         <SubjectBadges subjects={place.subjectAreas} />
-        {place.adventureCount > 0 ? (
+        {adventureTotal > 0 ? (
           <p className="m-0 text-sm font-semibold text-ink-muted">
-            {place.adventureCount === 1 ? '1 adventure' : `${place.adventureCount} adventures`}
+            {adventureTotal === 1 ? '1 adventure' : `${adventureTotal} adventures`}
+            {place.questCount > 0 && place.questsCompleted > 0
+              ? `, ${place.questsCompleted} done`
+              : ''}
           </p>
         ) : null}
         <div className="mt-auto flex flex-col gap-2 pt-1">
@@ -63,7 +71,9 @@ export function PlaceCard({ place, realmTitle }: { place: RealmPlace; realmTitle
                 <span aria-hidden="true">{place.area.inProgress ? '▶️' : '🧭'}</span>
                 {place.area.inProgress
                   ? `Continue in ${place.area.title}`
-                  : `Explore ${place.area.title} in 3D`}
+                  : place.completed
+                    ? `Visit ${place.area.title} again`
+                    : `Explore ${place.area.title} in 3D`}
               </Link>
             </PortalButton>
           ) : null}

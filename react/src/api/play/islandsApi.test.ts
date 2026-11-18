@@ -4,6 +4,17 @@ import { islandsView } from './islandsApi';
 
 const place = { placeId: 'p', title: 'P', tagline: '', adventureCount: 0, area: null };
 
+describe('islandsView quest fields', () => {
+  const read = (p: object) =>
+    islandsView(new Reader({ islands: [{ islandId: 'i', title: 'I', tagline: '', isHome: true, description: '', places: [p] }], autoSelectIslandId: null })).islands[0]!.places[0]!;
+  it('tolerates their absence', () => {
+    expect(read(place)).toMatchObject({ questCount: 0, questsCompleted: 0, questsInProgress: 0, completed: false });
+  });
+  it('reads them when present', () => {
+    expect(read({ ...place, questCount: 1, questsCompleted: 1, questsInProgress: 0, completed: true })).toMatchObject({ questCount: 1, completed: true });
+  });
+});
+
 describe('islandsView (ADR-041, AP-03)', () => {
   it('reads the AP-03 discovery details', () => {
     const view = islandsView(

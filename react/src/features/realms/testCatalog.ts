@@ -16,6 +16,10 @@ export function testPlace(placeId: string, overrides: Partial<PlaceSummary> = {}
     thumbnailAssetId: null,
     adventureCount: 1,
     explored: false,
+    questCount: 0,
+    questsCompleted: 0,
+    questsInProgress: 0,
+    completed: false,
     area: null,
     ...overrides,
   };
