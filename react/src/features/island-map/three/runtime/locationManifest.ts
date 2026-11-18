@@ -621,6 +621,8 @@ export interface LocationCopy {
    * convention: a path relative to `/island/:childId/`, `''` for the hub.
    */
   altNav: { label: string; to: string };
+  /** Shown instead of the scene while `entryRequirements` do not hold. Readable aloud, never a refusal. */
+  locked?: string;
 }
 
 export interface ThreeLocationManifest {
@@ -660,6 +662,15 @@ export interface ThreeLocationManifest {
   ambient: readonly AmbientSpec[];
   /** Reuses the existing interaction vocabulary verbatim; see `worldObjects.ts`. */
   interactions: readonly WorldInteraction[];
+  /**
+   * A secret place's door (SC-R10-01). While these do not hold, the view
+   * shows `copy.locked` (or a calm default) and never builds the engine.
+   * They are read from the same world state as everything else, so a failed
+   * read leaves them unmet and the place closed (fail closed, like the
+   * per-region Phaser views' `isLocationUnlocked`). Absent means open to
+   * every child, which is every other region's behaviour today.
+   */
+  entryRequirements?: readonly WorldRequirement[];
   /**
    * Interactions kept out of "Things to do here" - the one case being a
    * secret. The castle's swaying tapestry is an id and a zone and nothing
