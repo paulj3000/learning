@@ -3,6 +3,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { getAssetManifestEntry } from './manifest';
 import { BUNDLED_ASSET_RESOLVER, type AssetResolver } from './assetResolver';
 import { cloneAssetScene } from './cloneAsset';
+import { configureGltfLoader, describeGltfLoadError } from './gltfDecoders';
 
 /**
  * The runtime half of `docs/ROADMAP.md` Phase 34: loads assets through the
@@ -76,8 +77,13 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-function createGltfFetcher(): GltfFetcher {
-  const loader = new GLTFLoader();
+/**
+ * One `GLTFLoader` per fetcher, configured with the decoders this build ships
+ * (`gltfDecoders.ts`, ADR-070). Uncompressed models never touch a decoder.
+ */
+export function createGltfFetcher(
+  loader: GLTFLoader = configureGltfLoader(new GLTFLoader()),
+): GltfFetcher {
   return (url, onBytes) =>
     new Promise<GLTF>((resolve, reject) => {
       loader.load(
@@ -87,7 +93,7 @@ function createGltfFetcher(): GltfFetcher {
           ? (event: ProgressEvent) =>
               onBytes(event.loaded, event.lengthComputable ? event.total : null)
           : undefined,
-        (error: unknown) => reject(toError(error)),
+        (error: unknown) => reject(describeGltfLoadError(toError(error))),
       );
     });
 }
