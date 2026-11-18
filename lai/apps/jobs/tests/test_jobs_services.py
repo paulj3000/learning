@@ -469,3 +469,26 @@ def test_a_database_error_mid_batch_hands_the_rest_back(settings, recorder, aws,
     monkeypatch.setattr(services, "apply_result", broken)
     call_command("jobs_consume_results", "--once", "--wait-seconds", "0")
     assert aws.sqs.deleted == [] and aws.sqs.released == handles
+
+
+def test_consumer_leaves_an_artifact_storage_fault_for_retry_not_as_a_handler_bug(
+    settings, aws, monkeypatch, caplog, capsys
+):
+    """ArtifactStorageUnavailable is retryable like ResultUnavailable: the message is left on the
+    queue (it reappears), nothing is logged as `handler_error`, and nothing is deleted."""
+    from apps.assets.artifact_storage import ArtifactStorageUnavailable
+
+    use_sqs(settings)
+    job = pending()
+    aws.sqs.queue(result(job, "succeeded", result={"n": 1}))
+
+    def unavailable(body):
+        raise ArtifactStorageUnavailable("storage")
+
+    monkeypatch.setattr(services, "apply_result", unavailable)
+    call_command("jobs_consume_results", "--once", "--max-messages", "1", "--wait-seconds", "0")
+    report = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert (report["left"], report["deleted"]) == (1, 0)
+    assert aws.sqs.deleted == []
+    assert "outcome=artifact_storage_unavailable" in caplog.text
+    assert "handler_error" not in caplog.text

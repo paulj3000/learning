@@ -458,15 +458,34 @@ def retention_days(kind: str) -> int:
     return int(getattr(settings, RETENTION_SETTINGS.get(kind, "LAI_JOBS_RETENTION_DAYS")))
 
 
+#: Outcomes after which a `pass` result counts as applied for its kind: the work is done and is
+#: reused, never resubmitted, so such a completed job holds no retry attempt.
+APPLIED_PASS_OUTCOMES = ("version_validated", "result_recorded", "artifacts_recorded")
+
+
 def prunable(stamp):
     """Completed jobs `sweep` deletes at `stamp`: finished strictly more than their kind's
     retention period before it (a job finished exactly that long ago is kept). Pending and
-    running jobs are never pruned, whatever their age. Failed jobs: see `prunable_failed`."""
+    running jobs are never pruned, whatever their age. Failed jobs: see `prunable_failed_ids`.
+
+    Also kept: a keyed (contract-kind) job that did NOT end as an applied pass (a `fail` verdict,
+    `artifact_invalid`, `stale_source`, `processor_outdated`, `result_invalid`, a mismatch, or any
+    outcome not listed in `APPLIED_PASS_OUTCOMES`) while its subject record exists. Resubmission
+    counts the logical work's jobs against `LAI_ASSET_VALIDATION_MAX_ATTEMPTS`, so deleting such a
+    job would hand an attempt back (`attempts_exhausted` must survive a sweep). An applied pass is
+    reused instead of resubmitted and carries no attempt."""
     # A job that still has a derived artifact row is that artifact's evidence (ADR-066): it is kept
     # until retention expires the artifact and clears the link (DerivedArtifact.job is PROTECT).
-    return ProcessingJob.objects.filter(_expired(stamp), status=JobStatus.COMPLETED).exclude(
+    base = ProcessingJob.objects.filter(_expired(stamp), status=JobStatus.COMPLETED).exclude(
         derived_artifacts__isnull=False
     )
+    holding = (
+        base.exclude(idempotency_key="")
+        .exclude(subject_outcome__in=APPLIED_PASS_OUTCOMES, result__verdict="pass")
+        .iterator()
+    )
+    keep = [job.pk for job in holding if _subject_exists(job)]
+    return base.exclude(pk__in=keep) if keep else base
 
 
 def _expired(stamp) -> Q:
@@ -500,6 +519,8 @@ def _subject_exists(job: ProcessingJob) -> bool:
     """True when the record a job worked for still exists, or cannot be resolved (unknown means
     keep): a retry of that work counts this job's attempt (`attempts_exhausted` in
     apps.assets.processing counts the logical work's jobs)."""
+    if not job.subject_type:
+        return False  # no subject record: nothing can be retried
     try:
         model = django_apps.get_model(job.subject_type)
         return model._default_manager.filter(pk=job.subject_id).exists()
