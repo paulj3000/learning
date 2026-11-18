@@ -43,6 +43,7 @@ import {
 import { GITHUB_OIDC_HOST, githubOidcProviderArn, githubPrincipal } from './githubOidc';
 import { processingArtifactsPolicyName } from './assetStorageStack';
 import {
+  CREATE_ONLY_CONDITION,
   LAYER_KEY_PATTERN,
   ProcessingWorker,
   WORKER_CODE_KEY_PATTERN,
@@ -51,6 +52,7 @@ import {
   ffmpegLayer,
   makeWorkQueue,
   numberIf,
+  pinEnvironments,
   type NativeWorkload,
   type QueuePair,
   type WorkloadSizing,
@@ -1230,11 +1232,19 @@ export class DevPlatformStack extends Stack {
         [work.queueArn],
       );
       allow(workerRoleResource, 'SendResults', ['sqs:SendMessage'], [resultsQueue.main.queueArn]);
+      // Large results: read any, create only (store_result sends If-None-Match: *, ADR-071 F11).
       allow(
         workerRoleResource,
-        'ResultObjects',
-        ['s3:GetObject', 's3:PutObject'],
+        'ReadResults',
+        ['s3:GetObject'],
         [`${artifactBucketArn}/jobs/results/*`],
+      );
+      allow(
+        workerRoleResource,
+        'CreateResults',
+        ['s3:PutObject'],
+        [`${artifactBucketArn}/jobs/results/*`],
+        CREATE_ONLY_CONDITION,
       );
       allow(workerRoleResource, 'ListResults', ['s3:ListBucket'], [artifactBucketArn], {
         StringLike: { 's3:prefix': ['jobs/results/*'] },
@@ -1350,6 +1360,7 @@ export class DevPlatformStack extends Stack {
       audioLayerKey.valueAsString,
       nativeOn.audio,
     );
+    const pins = pinEnvironments(this, Boolean(props.optimizeWorker));
     const nativeWorkers: Partial<Record<NativeWorkload, ProcessingWorker>> = {};
     for (const [workload, enabled] of Object.entries(nativeOn) as [
       NativeWorkload,
@@ -1369,6 +1380,7 @@ export class DevPlatformStack extends Stack {
         reservedConcurrency: numberIf(reserveNativeOn, lambdaConcurrency.valueAsNumber),
         logRetentionDays: logRetention.valueAsNumber,
         condition: enabled,
+        environment: pins[workload],
         description: `Learning Adventure Island dev ${workload} jobs worker`,
       });
     }

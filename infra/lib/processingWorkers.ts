@@ -1,4 +1,13 @@
-import { Aws, CfnCondition, Duration, Fn, RemovalPolicy, Token } from 'aws-cdk-lib';
+import {
+  Aws,
+  CfnCondition,
+  CfnParameter,
+  Duration,
+  Fn,
+  RemovalPolicy,
+  Stack,
+  Token,
+} from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -105,7 +114,7 @@ export const WORKLOADS: Record<Workload, WorkloadSpec> = {
     memoryMb: 1024,
     ephemeralMb: 512,
     readsAssets: true,
-    readsArtifacts: false,
+    readsArtifacts: true,
     writesArtifacts: true,
     prodConcurrency: 2,
     queueUrlSetting: 'LAI_JOBS_IMAGE_QUEUE_URL',
@@ -202,26 +211,34 @@ export const bucketArn = (bucketName: string) => `arn:${Aws.PARTITION}:s3:::${bu
 export const assetBucketName = (env: ProcessingEnv) =>
   `lai-assets-${env}-${Aws.ACCOUNT_ID}-${Aws.REGION}`;
 
-/** GetObject on the asset library inputs only (`assets/*`), never the whole bucket. */
+/** Object reads. The asset bucket is versioned and the workers read by `VersionId`
+ * (S3ObjectStore.read, the create-only 412 verification), which needs s3:GetObjectVersion. */
+export const READ_ACTIONS = ['s3:GetObject', 's3:GetObjectVersion'];
+
+/** Reads of the asset library inputs only (`assets/*`), never the whole bucket. */
 export function assetInputReadStatement(assetBucket: string): iam.PolicyStatement {
   return new iam.PolicyStatement({
     sid: 'ReadAssets',
-    actions: ['s3:GetObject'],
+    actions: READ_ACTIONS,
     resources: [`${assetBucket}/${ASSET_INPUT_PREFIX}*`],
   });
 }
 
 /**
- * ListBucket on the asset bucket so a missing key answers 404 instead of 403 (owner decision
- * 2026-11-17; see devPlatformStack.ts). `StringLikeIfExists` is true for a HEAD or GET (no
- * `s3:prefix` in the request) and limits an explicit listing to the given prefixes.
+ * ListBucket on the asset bucket, only for a listing that names one of the given prefixes (plain
+ * `StringLike` on `s3:prefix`: a request without the key, a listing of the whole bucket, is not
+ * allowed). Review F10 / sec-7 (2026-11-18) replaced the earlier `StringLikeIfExists`, which also
+ * allowed a no-prefix listing. Trade-off, recorded in ADR-071 O15: a HEAD or GET carries no
+ * `s3:prefix`, so S3 now answers 403 instead of 404 for a missing input; the worker reports
+ * permission_denied, not input_missing, for a deleted input (the 2026-11-17 owner decision asked
+ * for 404, so the owner must confirm the change).
  */
 export function assetListStatement(assetBucket: string, prefixes: string[]): iam.PolicyStatement {
   return new iam.PolicyStatement({
     sid: 'ListAssetBucket',
     actions: ['s3:ListBucket'],
     resources: [assetBucket],
-    conditions: { StringLikeIfExists: { 's3:prefix': prefixes.map((p) => `${p}*`) } },
+    conditions: { StringLike: { 's3:prefix': prefixes.map((p) => `${p}*`) } },
   });
 }
 
@@ -232,7 +249,7 @@ export function artifactReadStatement(
 ): iam.PolicyStatement {
   return new iam.PolicyStatement({
     sid: 'ReadArtifacts',
-    actions: ['s3:GetObject'],
+    actions: READ_ACTIONS,
     resources: [`${assetBucket}/${artifactPrefix(env)}*`],
   });
 }
@@ -266,7 +283,7 @@ export function djangoArtifactStatements(
   return [
     new iam.PolicyStatement({
       sid: 'ReadArtifacts',
-      actions: ['s3:GetObject'],
+      actions: READ_ACTIONS,
       resources: [`${prefix}*`],
     }),
     new iam.PolicyStatement({
@@ -282,6 +299,28 @@ export function djangoArtifactStatements(
     }),
   ];
 }
+
+/** sec-6: staff browser captures (`capture/`) are Django's alone. An explicit Deny, so no later
+ * Allow on the artifact prefix can let a worker read, write or delete them. */
+export function captureDenyStatement(assetBucket: string, env: ProcessingEnv): iam.PolicyStatement {
+  return new iam.PolicyStatement({
+    sid: 'DenyStaffCaptures',
+    effect: iam.Effect.DENY,
+    actions: ['s3:*'],
+    resources: [`${assetBucket}/${artifactPrefix(env)}capture/*`],
+  });
+}
+
+/** F6: a workload that creates artifacts must read its write prefix (the 412 verification reads
+ * the existing object), and every artifact workload reads assets. Throws when violated. */
+export function checkWorkloadRules(specs: Record<Workload, WorkloadSpec> = WORKLOADS): void {
+  for (const [workload, spec] of Object.entries(specs)) {
+    if (spec.writesArtifacts && !spec.readsArtifacts) {
+      throw new Error(`${workload} writes artifacts but cannot read its write prefix`);
+    }
+  }
+}
+checkWorkloadRules();
 
 /** Statements of one worker role that depend on what the workload does with the asset bucket. */
 export function workloadStorageStatements(
@@ -299,6 +338,9 @@ export function workloadStorageStatements(
     statements.push(assetListStatement(assetBucket, prefixes));
   }
   if (spec.writesArtifacts) statements.push(artifactCreateOnlyWriteStatement(assetBucket, env));
+  if (spec.readsAssets || spec.readsArtifacts || spec.writesArtifacts) {
+    statements.push(captureDenyStatement(assetBucket, env));
+  }
   return statements;
 }
 
@@ -436,7 +478,14 @@ export class ProcessingWorker extends Construct {
       [props.queue.queueArn],
     );
     allow('SendResults', ['sqs:SendMessage'], [props.resultsQueue.queueArn]);
-    allow('ResultObjects', ['s3:GetObject', 's3:PutObject'], [`${resultsBucket}/jobs/results/*`]);
+    // Large results: read any, create only (jobs_worker store_result sends If-None-Match: *).
+    allow('ReadResults', ['s3:GetObject'], [`${resultsBucket}/jobs/results/*`]);
+    allow(
+      'CreateResults',
+      ['s3:PutObject'],
+      [`${resultsBucket}/jobs/results/*`],
+      CREATE_ONLY_CONDITION,
+    );
     allow('ListResults', ['s3:ListBucket'], [resultsBucket], {
       StringLike: { 's3:prefix': ['jobs/results/*'] },
     });
@@ -528,3 +577,36 @@ export function ffmpegLayer(
 /** Worker zips and layer zips: keys the stacks and the release tooling accept. */
 export const WORKER_CODE_KEY_PATTERN = '^$|^lambda/[A-Za-z0-9._-]+\\.zip$';
 export const LAYER_KEY_PATTERN = '^$|^lambda/layers/[A-Za-z0-9._-]+\\.zip$';
+
+/**
+ * Executable SHA-256 pins (review F12): the worker refuses a tool whose hash differs. Each is a
+ * stack parameter (default empty: no pin), filled from the release manifest
+ * (`processing_release.py stack-parameters`, from the layer's build-record.json). Shared libraries
+ * under /opt/lib are covered by the layer zip's SHA-256 in the manifest, not by these pins.
+ */
+export const PIN_PARAMETERS = {
+  LAI_FFMPEG_SHA256: { parameter: 'AudioFfmpegSha256', workload: 'audio' },
+  LAI_GLTFPACK_SHA256: { parameter: 'OptimizeGltfpackSha256', workload: 'optimize' },
+  LAI_TOKTX_SHA256: { parameter: 'OptimizeToktxSha256', workload: 'optimize' },
+} as const;
+export const SHA256_PATTERN = '^$|^[a-f0-9]{64}$';
+
+/** Create the pin parameters on the stack and return the environment of each native workload. */
+export function pinEnvironments(
+  scope: Construct,
+  optimize: boolean,
+): Partial<Record<NativeWorkload, Record<string, string>>> {
+  const stack = Stack.of(scope);
+  const environments: Partial<Record<NativeWorkload, Record<string, string>>> = {};
+  for (const [variable, { parameter, workload }] of Object.entries(PIN_PARAMETERS)) {
+    if (workload === 'optimize' && !optimize) continue;
+    const value = new CfnParameter(stack, parameter, {
+      type: 'String',
+      default: '',
+      allowedPattern: SHA256_PATTERN,
+      description: `${variable} for the ${workload} worker ('' = no pin); from the release manifest`,
+    }).valueAsString;
+    environments[workload] = { ...environments[workload], [variable]: value };
+  }
+  return environments;
+}

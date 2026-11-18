@@ -31,24 +31,34 @@ does not understand. The AWS account is shared by dev, prod and other projects.
    `scripts/release/processing_release.py check-enable` over the release manifest and a Django
    report (`manage.py processing_release_check`, specified in `../PROCESSING_RELEASE.md` section 4).
 2. **Production processing infrastructure as code** (P1-a): a construct of `LaiDjangoEc2-prod`
-   (`infra/lib/productionProcessing.ts`), present only with the synth flag `prodProcessing=true`.
-   With the flag off the production templates are byte-identical to before. No separate
+   (`infra/lib/productionProcessing.ts`), present only when the committed
+   `infra/config/prod-processing.json` says `"prodProcessing": true` (review F3: a shell flag could
+   be forgotten on a routine `provision.sh prod` run and the change set would delete the estate).
+   With it off the production templates are byte-identical to before. No separate
    processing stack, no ECR, no container, no Lambda VPC or database access.
 3. **Environment isolation in the shared account**: `lai-prod-*` names, roles and parameters
    (`/lai/prod/`), `processing/artifacts/prod/`, the prod artifacts bucket
    `lai-prod-artifacts-<account>-<region>`, and the cost allocation tag
    `CostScope=lai-prod-processing` (plus `Project`, `Environment`, `Component=processing`).
-4. **Scoped IAM**, asserted by CDK tests: workers read inputs under `assets/*` (media, audio and
-   optimize also `processing/artifacts/<env>/*`; image `assets/*` only), list the bucket only for
-   those prefixes (`StringLikeIfExists`, so a missing key is 404), and create artifacts only with
-   `PutObject` on `processing/artifacts/<env>/*` under the `s3:if-none-match` condition. No worker
-   can delete. Django alone deletes there (retention) through `lai-django-processing-artifacts-<env>`.
-   DLQ redrive is a separate MFA role; the GitHub worker release role trusts only `django-prod` and
-   can upload create-only and update function code, nothing else.
+4. **Scoped IAM**, asserted by CDK tests: asset-touching workers (media, audio, image, optimize)
+   read (`GetObject`, `GetObjectVersion`: reads are by version id) `assets/*` and
+   `processing/artifacts/<env>/*` (every artifact writer reads its write prefix for the 412
+   verification), list the bucket only with an `s3:prefix` naming those prefixes (plain
+   `StringLike`, review F10; see O15), create artifacts only with `PutObject` on
+   `processing/artifacts/<env>/*` under the `s3:if-none-match` condition, and are explicitly denied
+   every action on `processing/artifacts/<env>/capture/*` (staff captures). Large results under
+   `jobs/results/` are written create-only as well. No worker can delete. Django alone deletes
+   artifacts (retention) through `lai-django-processing-artifacts-<env>`. DLQ redrive is a separate
+   role trusted by account principals with MFA (the owner limits who may assume it). The GitHub
+   worker release role trusts the `django-prod` environment; it can upload and read release
+   artifacts (uploads create-only), update and read the prod workers' code, and read the stack's
+   outputs. It shares the environment subject with `lai-github-deploy-prod` (O16).
 5. **Release pipeline**: `.github/workflows/release-prod-workers.yml`, `workflow_dispatch` only,
    every job gated by the repository variable `LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true'`, a
-   typed confirmation, the existing `django-prod` environment (required reviewers), an immutable
-   manifest with SHA-256 per artifact, and a rollback job by manifest.
+   typed confirmation, the existing `django-prod` environment (required reviewers), a
+   deterministic manifest with SHA-256, kinds, processor versions and executable pins per
+   artifact, an upload-only first release, absent (disabled) functions skipped, and a rollback job
+   by manifest that requires the typed statement that every processing control is off.
 6. **Rollback** (`../PROCESSING_RELEASE.md` section 6): feature controls off first, previous
    worker artifact by manifest, previous compatible Django release, never reverse a migration that
    destroys new data.
@@ -59,8 +69,9 @@ does not understand. The AWS account is shared by dev, prod and other projects.
   deployed by the repository.
 - The first production provisioning creates about 100 resources in `LaiDjangoEc2-prod`; the change
   set must show no replacement of the instance, database or load balancer (`provision.sh prod`).
-- The production template is larger than 51,200 bytes (it already was), so it is deployed from S3
-  or with `aws cloudformation deploy`, as today.
+- The production template is larger than 51,200 bytes (it already was). `provision.sh` now sends
+  any template over that size through a bucket (`--s3-bucket`, default
+  `lai-<env>-artifacts-<account>-<region>`, or `LAI_CFN_TEMPLATE_BUCKET` for the first run).
 
 ## Open decisions (not accepted by this ADR)
 
@@ -80,3 +91,25 @@ does not understand. The AWS account is shared by dev, prod and other projects.
 | O12 | Live verification that IAM enforces `s3:if-none-match` on the asset bucket (D8) | Statement written; must be proven live before enablement |
 | O13 | Whether prod media worker handles speech | Not granted (prod has no speech bucket) |
 | O14 | Studio `jobs` mode in production (P12), Multi-AZ RDS (P11) | Unchanged |
+| O15 | Missing input reported as 403 instead of 404 (review F10) | The worker `ListBucket` grant now requires an `s3:prefix` naming `assets/` or `processing/artifacts/<env>/`, so a bucket-wide listing is impossible. A HEAD or GET carries no `s3:prefix`, so S3 answers 403 for a missing key and the worker reports `permission_denied` instead of `input_missing`. This reverses the 2026-11-17 owner decision (404 via `StringLikeIfExists`); the owner confirms or chooses the old trade-off |
+| O16 | GitHub OIDC subject shared by two prod roles | `lai-github-deploy-prod` and `lai-github-workers-prod` both trust `repo:<owner>/<repo>:environment:django-prod`, so any job in that environment (either workflow) can assume either role. **Recommendation:** customise the repository's OIDC subject claim to include `job_workflow_ref` (GitHub `PUT /repos/{owner}/{repo}/actions/oidc/customization/sub`, owner action) and pin each role to its own workflow file; until then the two workflows' job conditions and required reviewers are the only separation |
+| O17 | Redrive role trust (P9) | Account root with MFA: any account principal allowed `sts:AssumeRole` on it. Narrow to named role or user ARNs once the owner names the operators |
+
+## Review findings addressed (2026-11-18)
+
+| Finding | Resolution |
+|---|---|
+| F1 | `s3:GetObjectVersion` with every `GetObject` on `assets/*` and `processing/artifacts/<env>/*` (workers and Django) |
+| F2 | `publish-workers.sh` skips functions that do not exist (notice) and updates the rest; `--upload-only` / workflow input `upload_only` for the first release |
+| F3 | Production processing settings live in the committed `infra/config/prod-processing.json`; a disagreeing context or environment value fails synthesis |
+| F4 | Manifest records `kind_versions`; `check-enable` and `rollback-plan` compare them (Meshopt/KTX2 need validator 1.2.0; a report's `required_processor_versions` is honoured); the rollback job requires the typed "all processing controls are off" and runs `rollback-plan --controls-off` |
+| F5 | Per-kind ordering in `PROCESSING_RELEASE.md` section 2 and the workflow header; test that the 1.2.0 validator accepts requests without the options |
+| F6 | Image worker reads its write prefix; CDK test and a synth-time rule enforce writer implies reader |
+| F7 | `provision.sh` sends templates over 51,200 bytes through a bucket; tested offline |
+| F8, F13 | Overstated wording fixed: the AI worker's foundation-model grant is any Region (cross-Region profile), the redrive trust is any MFA account principal allowed to assume it (O17), the release role also reads artifacts and stack outputs |
+| F9 | Deterministic manifest (`created_at` = commit time, sorted keys, `--previous` from the dispatch input); an identical existing manifest or artifact is accepted |
+| F10 | `ListBucket` with plain `StringLike` on `s3:prefix` (O15) |
+| F11 | `jobs/results/*` writes are create-only; `store_result` sends `If-None-Match: *` and a concurrent delivery sends the result stored first |
+| F12 | `LAI_FFMPEG_SHA256`, `LAI_GLTFPACK_SHA256`, `LAI_TOKTX_SHA256` are stack parameters filled from the manifest (`stack-parameters`, from the layer's build record). Shared libraries under `/opt/lib` are covered by the layer zip's SHA-256 in the manifest, not by the executable pin |
+| F14 | Django and the proxy start and pass health first; the consumer and sweep start in a separate, non-fatal step |
+| sec-6 | Explicit Deny for worker roles on `processing/artifacts/<env>/capture/*` |

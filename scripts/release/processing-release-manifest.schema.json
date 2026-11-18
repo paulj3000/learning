@@ -15,15 +15,34 @@
     "artifacts"
   ],
   "properties": {
-    "schema_version": { "const": 1 },
-    "environment": { "enum": ["dev", "prod"] },
-    "git_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
-    "created_at": { "type": "string", "format": "date-time" },
-    "manifest_key": { "type": "string", "pattern": "^releases/processing/[a-f0-9]{40}\\.json$" },
+    "schema_version": {
+      "const": 1
+    },
+    "environment": {
+      "enum": ["dev", "prod"]
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "The release commit's time (deterministic: a re-dispatch writes the same bytes)"
+    },
+    "manifest_key": {
+      "type": "string",
+      "pattern": "^releases/processing/[a-f0-9]{40}\\.json$"
+    },
     "previous_manifest_key": {
       "oneOf": [
-        { "type": "null" },
-        { "type": "string", "pattern": "^releases/processing/[a-f0-9]{40}\\.json$" }
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^releases/processing/[a-f0-9]{40}\\.json$"
+        }
       ]
     },
     "artifacts": {
@@ -40,7 +59,9 @@
           "sha256",
           "size_bytes",
           "functions",
-          "supported_kinds"
+          "supported_kinds",
+          "kind_versions",
+          "pins"
         ],
         "properties": {
           "name": {
@@ -52,21 +73,57 @@
               "optimize-worker"
             ]
           },
-          "type": { "enum": ["function-zip", "layer-zip"] },
-          "file": { "type": "string", "pattern": "^[a-z-]+/[A-Za-z0-9._-]+\\.zip$" },
+          "type": {
+            "enum": ["function-zip", "layer-zip"]
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^[a-z-]+/[A-Za-z0-9._-]+\\.zip$"
+          },
           "key": {
             "type": "string",
             "pattern": "^lambda/(layers/)?[A-Za-z0-9._-]+-[a-f0-9]{16}\\.zip$"
           },
-          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-          "size_bytes": { "type": "integer", "minimum": 1 },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
           "functions": {
             "type": "array",
-            "items": { "type": "string", "pattern": "^lai-(dev|prod)-jobs-[a-z]+$" }
+            "items": {
+              "type": "string",
+              "pattern": "^lai-(dev|prod)-jobs-[a-z]+$"
+            }
           },
           "supported_kinds": {
             "type": "array",
-            "items": { "type": "string", "pattern": "^[a-z]+(\\.[a-z_]+)+$" }
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z]+(\\.[a-z_]+)+$"
+            }
+          },
+          "kind_versions": {
+            "type": "object",
+            "description": "Processor or contract version of each supported kind (check-enable and rollback-plan compare them).",
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^[0-9]+(\\.[0-9]+){0,2}$"
+            }
+          },
+          "pins": {
+            "type": "object",
+            "description": "Executable SHA-256 pins from the build record (LAI_FFMPEG_SHA256, LAI_GLTFPACK_SHA256, LAI_TOKTX_SHA256). Shared libraries under /opt/lib are covered by the zip's sha256, not by a pin.",
+            "propertyNames": {
+              "enum": ["LAI_FFMPEG_SHA256", "LAI_GLTFPACK_SHA256", "LAI_TOKTX_SHA256"]
+            },
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
           }
         }
       }

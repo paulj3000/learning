@@ -198,15 +198,34 @@ verify_health() {
 # and check it. Returns 0 when healthy.
 activate_release() {
     local release_dir=$1 image=$2
-    if ! compose_for "$release_dir" up -d --wait --wait-timeout "${LAI_START_TIMEOUT:-180}" --remove-orphans; then
+    # Django and the proxy only (with the container database's dependency). The jobs consumer and
+    # sweep start afterwards (start_jobs, review F14): a crash-looping consumer can never fail the
+    # start timeout or the health check, so it can never roll back a healthy Django release.
+    if ! compose_for "$release_dir" up -d --wait --wait-timeout "${LAI_START_TIMEOUT:-180}" \
+        --remove-orphans django proxy; then
         log "the containers did not become healthy within the start timeout"
         return 1
     fi
-    if ! jobs_enabled; then
-        # The backend was switched off: stop a consumer and sweep left by an earlier release.
+    verify_health "$image" "$release_dir" || return 1
+    start_jobs "$release_dir"
+    return 0
+}
+
+# Start (backend sqs) or remove (otherwise) the jobs consumer and sweep of a healthy release. A
+# failure is logged, never fatal: unapplied results wait in the queue (14 days) and the consumer
+# alarm (lai-<env>-consumer-backoff) or `status` shows it.
+start_jobs() {
+    local release_dir=$1
+    if jobs_enabled; then
+        if compose_for "$release_dir" up -d --no-deps jobs-consumer jobs-sweep; then
+            log "jobs consumer and sweep started"
+        else
+            log "WARNING: the jobs consumer or sweep did not start; Django stays released"
+        fi
+    else
+        # The backend is off: stop a consumer and sweep left by an earlier release.
         compose_for "$release_dir" --profile jobs rm --stop --force jobs-consumer jobs-sweep >/dev/null 2>&1 || true
     fi
-    verify_health "$image" "$release_dir"
 }
 
 # Migrations recorded as applied by healthy or failed releases after the given digest. They are

@@ -39,6 +39,7 @@ import {
   makeWorkQueue,
   numberIf,
   pascal,
+  pinEnvironments,
   resultsQueueName,
   sized,
   type QueuePair,
@@ -172,6 +173,7 @@ export class ProductionProcessing extends Construct {
       allowedPattern: LAYER_KEY_PATTERN,
       description: 'LGPL FFmpeg layer zip (lambda/layers/<name>.zip), from the release manifest',
     });
+    const pins = pinEnvironments(this, Boolean(props.optimizeWorker));
     const concurrency: Partial<Record<Workload, CfnParameter>> = {};
     for (const workload of workloads) {
       concurrency[workload] = param(`${pascal(workload)}WorkerConcurrency`, {
@@ -305,13 +307,18 @@ export class ProductionProcessing extends Construct {
         reservedConcurrency: numberIf(reserveOn, limit),
         logRetentionDays: logRetention.valueAsNumber,
         condition: on[group],
-        environment: workload === 'ai' ? { LAI_SSM_PREFIX: `/lai/${PROD}/django` } : undefined,
+        environment:
+          workload === 'ai'
+            ? { LAI_SSM_PREFIX: `/lai/${PROD}/django` }
+            : pins[workload as keyof typeof pins],
         description: `Learning Adventure Island prod ${workload} jobs worker`,
       });
       this.workers[workload] = worker;
     }
-    // The AI worker: Bedrock in this Region only (ADR-064: one Bedrock Region in production),
-    // the prod Guardrail, and the AI settings it reads.
+    // The AI worker: inference profiles and Guardrails of this Region (ADR-064: one Bedrock
+    // Region in production). Foundation models are allowed in any Region (`bedrock:*::`) because a
+    // cross-Region `us.` inference profile invokes the model in whichever US Region serves it; so
+    // this is not a single-Region restriction on model invocation (review F8/F13 wording fix).
     const aiRole = this.workers.ai!.role;
     aiRole.addToPolicy(
       new iam.PolicyStatement({
@@ -410,12 +417,16 @@ export class ProductionProcessing extends Construct {
     setting('LAI_JOBS_RESULTS_QUEUE_URL', this.resultsQueue.main.queueUrl, on.jobs!);
     setting('LAI_JOBS_RESULTS_BUCKET', artifactBucketName, on.jobs!);
 
-    // --- DLQ redrive (P9): named operators with MFA only ----------------------------------------
+    // --- DLQ redrive (P9) -------------------------------------------------------------------------
+    // Trust is the account (root principal) with MFA: ANY principal of this shared account whose
+    // own IAM policy allows sts:AssumeRole on this role, and who signed in with MFA, can assume
+    // it. It does not by itself name operators; the owner restricts who holds that permission
+    // (P9, ADR-071 O8). Narrowing the trust to named role ARNs is the recommended follow-up.
     const allQueues = [this.resultsQueue, ...workloads.map((w) => this.queues[w]!)];
     this.redriveRole = new iam.Role(this, 'DlqRedriveRole', {
       roleName: PROD_REDRIVE_ROLE,
       description:
-        'Authorized operations administrators: inspect and redrive the lai-prod jobs DLQs (P9). MFA required.',
+        'Redrive the lai-prod jobs DLQs. Trusts account principals with MFA that are allowed to assume it (P9).',
       assumedBy: new iam.AccountRootPrincipal().withConditions({
         Bool: { 'aws:MultiFactorAuthPresent': 'true' },
       }),
@@ -446,7 +457,9 @@ export class ProductionProcessing extends Construct {
     // --- GitHub worker release role (OIDC, django-prod environment, required reviewers) ----------
     this.releaseRole = new iam.Role(this, 'WorkerReleaseRole', {
       roleName: PROD_WORKER_RELEASE_ROLE,
-      description: `GitHub Actions environment ${PROD_GITHUB_ENVIRONMENT}: upload worker artifacts create-only and update the lai-prod worker functions' code`,
+      // Also reads release artifacts and the stack's outputs. It trusts the environment subject
+      // that lai-github-deploy-prod trusts as well (ADR-071 O16).
+      description: `GitHub Actions environment ${PROD_GITHUB_ENVIRONMENT}: create-only uploads and reads of worker artifacts, update and read the lai-prod worker functions' code, read stack outputs`,
       assumedBy: githubPrincipal(
         githubOidcProviderArn(),
         `repo:${props.githubRepository}:environment:${PROD_GITHUB_ENVIRONMENT}`,

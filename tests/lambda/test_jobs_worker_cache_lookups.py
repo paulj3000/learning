@@ -85,3 +85,44 @@ def test_an_asset_input_403_is_still_access_denied(worker):
 
     error = worker.aws._asset_error(FakeClientError("AccessDenied", 403))
     assert (error.code, error.retryable) == ("access_denied", False)
+
+
+def test_results_are_stored_create_only(worker, make_runtime, stubbed_s3):
+    """ADR-071 F11: the role may write jobs/results/* only with If-None-Match: *."""
+    client, stubber = stubbed_s3
+    rt = make_runtime("media")
+    rt._clients["s3"] = client
+    final = worker.envelope.build_result(
+        str(uuid.uuid4()), "asset.inspect", "failed", error_code="object_missing"
+    )
+    stubber.add_response(
+        "put_object",
+        {},
+        {
+            "Bucket": rt.settings.results_bucket,
+            "Key": worker.envelope.result_key(final["job_id"]),
+            "Body": worker.envelope.encode(final).encode(),
+            "ContentType": "application/json",
+            "ServerSideEncryption": "AES256",
+            "IfNoneMatch": "*",
+        },
+    )
+    assert rt.store_result(final) is final
+
+
+def test_a_concurrent_delivery_sends_the_result_stored_first(worker, make_runtime, stubbed_s3):
+    import io
+
+    client, stubber = stubbed_s3
+    rt = make_runtime("media")
+    rt._clients["s3"] = client
+    job = str(uuid.uuid4())
+    first = worker.envelope.build_result(
+        job, "asset.inspect", "failed", error_code="object_missing"
+    )
+    second = worker.envelope.build_result(job, "asset.inspect", "failed", error_code="other")
+    stubber.add_client_error(
+        "put_object", service_error_code="PreconditionFailed", http_status_code=412
+    )
+    stubber.add_response("get_object", {"Body": io.BytesIO(worker.envelope.encode(first).encode())})
+    assert rt.store_result(second) == first

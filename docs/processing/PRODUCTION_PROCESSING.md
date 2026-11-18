@@ -36,9 +36,13 @@ of `LaiAssetStorage-prod`. The only new bucket is the prod counterpart of the de
 
 ## 2. What `prodProcessing=true` adds to `LaiDjangoEc2-prod`
 
-Synth: `LAI_ENV=prod LAI_PROD_PROCESSING=true [LAI_OPTIMIZE_WORKER=true]
-[LAI_PROCESSING_BUDGET_USD=<n>] [LAI_PROCESSING_SIZING='{"image":{"memoryMb":1024}}'] npm run
-infra:synth:prod`. Without the flag the templates are unchanged (compared byte for byte).
+Production synth reads `prodProcessing`, `optimizeWorker`, `processingBudgetUsd` and
+`processingSizing` from the committed `infra/config/prod-processing.json` only (review F3); a
+context value or environment variable that disagrees with the file fails synthesis, so a routine
+`provision.sh prod` without any flag can never drop the processing estate. Committed today with
+`"prodProcessing": false`: the templates are unchanged (compared byte for byte). Templates over
+51,200 bytes go through a bucket in `provision.sh` (`LAI_CFN_TEMPLATE_BUCKET`, default
+`lai-<env>-artifacts-<account>-<region>`).
 
 | Resource | Names | Notes |
 |---|---|---|
@@ -46,6 +50,8 @@ infra:synth:prod`. Without the flag the templates are unchanged (compared byte f
 | Queues + DLQs | `lai-prod-job-results`, `lai-prod-jobs-{ai,media,audio,image}` (+ `optimize` with the flag), each `-dlq` | SSE, TLS-only; work: visibility 6 x timeout, 4 days, DLQ after 3 receives; results: 300 s, 14 days, DLQ after 5; DLQs 14 days |
 | Workers | `lai-prod-jobs-*`, roles `lai-prod-jobs-*-worker`, log groups `/aws/lambda/lai-prod-jobs-*` | arm64 Python 3.12 zips from the artifacts bucket, no VPC; batch 1, `ReportBatchItemFailures`; created only with `EnableJobsWorkers`, `EnableAudioWorker`, `EnableImageWorker`, `EnableOptimizeWorker` (all default `false`) and their code keys (rules refuse an empty key) |
 | FFmpeg layer | `lai-prod-ffmpeg` | From `AudioLayerKey`; retained on replacement and deletion |
+| IAM details (review 2026-11-18) | Reads `GetObject` + `GetObjectVersion`; `ListBucket` only with an `s3:prefix` naming `assets/` or `processing/artifacts/prod/` (missing input is then 403, ADR-071 O15); artifact and `jobs/results/` writes create-only; explicit Deny on `processing/artifacts/prod/capture/*` | Asserted in `processingInfrastructure.test.ts` |
+| Executable pins | Parameters `AudioFfmpegSha256`, `OptimizeGltfpackSha256`, `OptimizeToktxSha256` (default empty) -> `LAI_FFMPEG_SHA256`, `LAI_GLTFPACK_SHA256`, `LAI_TOKTX_SHA256` | Filled from the manifest (`stack-parameters`); `/opt/lib` shared libraries are covered by the layer zip's SHA-256, not the pin |
 | Settings | `LAI_JOBS_{AI,MEDIA,AUDIO,IMAGE,OPTIMIZE}_QUEUE_URL`, `LAI_JOBS_RESULTS_QUEUE_URL`, `LAI_JOBS_RESULTS_BUCKET` | Each only when its worker is enabled. `LAI_JOBS_BACKEND`, `LAI_ENVIRONMENT` and every feature control stay operator-set |
 | Django permissions | Instance role: `SubmitJobs`, `ConsumeJobResults`, `ReadJobResults`, `ListJobResults`; `lai-django-processing-artifacts-prod` attached | Never sends to the results queue, never redrives |
 | Redrive role | `lai-prod-jobs-dlq-redrive` | Account principals with MFA; message move from DLQs back to their source queues only |
@@ -79,7 +85,10 @@ Production runs Compose, so the dev units become Compose services of the same im
 | `lai-maintenance.timer` (daily `jobs_sweep`) | `jobs-sweep`: `jobs_sweep` at start and every 24 h (`init: true`, so SIGTERM stops the loop) | Idempotent and transactional; a failure logs `jobs-sweep failed`, an alarm metric |
 
 `scripts/aws/lib.sh` adds `--profile jobs` only when the rendered `django.env` has
-`LAI_JOBS_BACKEND=sqs`, and removes both services after a release with the backend switched off.
+`LAI_JOBS_BACKEND=sqs`. A release starts `django` and `proxy`, waits for them and runs the health
+check first; only then does a separate, non-fatal step start `jobs-consumer` and `jobs-sweep`
+(review F14), so a crash-looping consumer cannot fail or roll back a healthy Django release. With
+the backend switched off that step removes both services instead.
 With the backend `disabled` (today) nothing changes. Both wait for `django` to be healthy
 (migrations applied, database reachable). The ADR-064 guard
 (`tests/repo/test_canonical_processing_guard.py`) still passes: no new systemd unit, no second

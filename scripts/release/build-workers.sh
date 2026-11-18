@@ -22,6 +22,9 @@ out=$1
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 python_bin="${PYTHON:-python3}"
 mkdir -p "$out/jobs-worker"
+# Processor version of every kind (the manifest records them; check-enable compares them).
+"$python_bin" -I "$repo_root/scripts/release/processing_release.py" versions --repo "$repo_root" \
+    >"$out/versions.json"
 "$repo_root/scripts/aws/package-lambda.sh" --out "$out/jobs-worker" >/dev/null
 # The kinds the jobs worker zip accepts on its two queues (ai, media), from the vendored envelope
 # (lai/apps/jobs/core is standard library only); the release manifest records them.
