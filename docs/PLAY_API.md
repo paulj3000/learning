@@ -518,7 +518,8 @@ if they differ.
 
 One ambient, authored line for the room a child is in. Implemented in
 `lai/apps/game_sessions/castle_views.py` over `lai/apps/regions/castle_events.py` and
-`lai/apps/ai/services/castle_director.py` (ADR-065).
+`lai/apps/ai/services/castle_director.py` (ADR-065). The events are the Django-owned, revisioned
+`CastleEvent` catalog edited in Django Admin; only published, active events are ever offered.
 
 ### `POST castle/director/`
 
@@ -541,6 +542,11 @@ deterministic default), records one display counter, and answers:
 pick, Guardrail, REDIRECT or STOP) is a `200` with the deterministic default and `FALLBACK`. There
 is no reward, quest, world change or progress in the response or behind it. Events repeat by visit
 count only: no clock, streak or countdown.
+
+`404 not_found` also answers a room with no approved event for the child's age band (for example
+every event for it was retired). The client then shows its own quiet default line for that room
+(`castleDefaultLines.ts`); it is never an error to the child. The response shape is unchanged by
+the catalog move.
 
 ## Discoveries (SC-R04-00)
 

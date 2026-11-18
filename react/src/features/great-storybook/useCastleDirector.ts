@@ -5,13 +5,7 @@ import {
   type CastleDirectorEvent,
 } from '../../api/play/castleDirectorApi';
 import type { AgeBandValue } from '../child-profile/constants';
-import {
-  CASTLE_EVENTS,
-  defaultEvent,
-  linesFor,
-  type CastleEvent,
-  type CastleEventState,
-} from './castleEvents';
+import { castleDefaultLine } from './castleDefaultLines';
 
 /**
  * The castle's ambient line for the room the child is in (SC-R09-01).
@@ -21,9 +15,9 @@ import {
  * records nothing but a display counter, and is never counted down or announced as missed.
  *
  * **The castle never waits for the server.** On any failure, or with no Django API in this
- * build, the same `eligibleEvents` rules run locally and `defaultEvent` is used, so the castle is
- * fully playable without AI. The local answer is a little more cautious than the server's
- * (progress it cannot see is treated as absent) and counts repeats only within this visit.
+ * build, the room's one quiet default line is shown (`castleDefaultLines.ts`), so the castle is
+ * fully playable without AI. The client keeps no event catalog and no eligibility rules: Django
+ * owns the approved events and decides which are eligible (ADR-065).
  *
  * `api` is injected for tests: omit it for the configured API, or pass `null` for none.
  */
@@ -34,27 +28,20 @@ export interface CastleAmbientLine {
   source: 'AI' | 'FALLBACK' | 'LOCAL';
 }
 
-/** The castle's place slug; the client sees world change keys without their place. */
-const CASTLE_PLACE = 'storykeeper-castle';
-
 function newVisitId(): string {
   return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : '00000000-0000-4000-8000-000000000000';
 }
 
+/** The quiet default for a room, shown when the server cannot answer. */
 export function localAmbientLine(
-  catalog: readonly CastleEvent[],
-  state: CastleEventState,
+  roomId: string,
+  ageBand: AgeBandValue,
 ): CastleAmbientLine | undefined {
-  const event = defaultEvent(catalog, state);
-  if (!event) return undefined;
-  return {
-    eventId: event.id,
-    lines: linesFor(event, state.ageBand),
-    npcId: event.npcId,
-    source: 'LOCAL',
-  };
+  const line = castleDefaultLine(roomId, ageBand);
+  if (!line) return undefined;
+  return { eventId: `quiet-${roomId}`, lines: [line], npcId: null, source: 'LOCAL' };
 }
 
 export function useCastleDirector(options: {
@@ -62,11 +49,9 @@ export function useCastleDirector(options: {
   ageBand: AgeBandValue | undefined;
   /** The room the child is in now. A new room asks again; the first read of nothing does not. */
   roomId: string | undefined;
-  worldChangeKeys: readonly string[];
   api?: CastleDirectorApi | null;
-  catalog?: readonly CastleEvent[];
 }): CastleAmbientLine | undefined {
-  const { childId, ageBand, roomId, worldChangeKeys, catalog = CASTLE_EVENTS } = options;
+  const { childId, ageBand, roomId } = options;
   const api = useMemo(
     () =>
       options.api === undefined ? (childId ? castleDirectorApiFor(childId) : null) : options.api,
@@ -75,31 +60,11 @@ export function useCastleDirector(options: {
   const [shown, setShown] = useState<{ roomId: string; line: CastleAmbientLine } | undefined>();
   const visitId = useRef<string>('');
   if (!visitId.current) visitId.current = newVisitId();
-  // Repeats counted for this visit only, for the local rules.
-  const localCounts = useRef<Record<string, number>>({});
-  const keysRef = useRef(worldChangeKeys);
-  keysRef.current = worldChangeKeys;
 
   useEffect(() => {
     if (!roomId || !ageBand) return;
     let cancelled = false;
-    const local = (): CastleAmbientLine | undefined => {
-      const counts = localCounts.current;
-      const line = localAmbientLine(catalog, {
-        ageBand,
-        roomId,
-        conditions: {
-          worldChanges: keysRef.current.map((key) => ({ place: CASTLE_PLACE, key })),
-          questStatuses: {},
-          relationshipLevels: {},
-        },
-        shownCounts: counts,
-        lastShownVisit: Object.fromEntries(Object.keys(counts).map((id) => [id, 1])),
-        currentVisitIndex: 1,
-      });
-      if (line) counts[line.eventId] = (counts[line.eventId] ?? 0) + 1;
-      return line;
-    };
+    const local = () => localAmbientLine(roomId, ageBand);
     const show = (line: CastleAmbientLine | undefined) => {
       if (!cancelled && line) setShown({ roomId, line });
     };
@@ -123,7 +88,7 @@ export function useCastleDirector(options: {
     return () => {
       cancelled = true;
     };
-  }, [roomId, ageBand, api, catalog]);
+  }, [roomId, ageBand, api]);
 
   // A line belongs to the room it was chosen for: never show a stale room's line.
   return shown && shown.roomId === roomId ? shown.line : undefined;

@@ -14427,3 +14427,24 @@ already used 5432. Older entries above that mention 5442 record what ran at the 
   `docs/regions/storykeeper_castle_release_notes.md`.
 - **Deferred to merge readiness:** Prettier, Ruff, oxlint, builds, full suites, Playwright and WebGL.
   Not merged to `main`, not deployed.
+
+## Castle Director event catalog in Django Admin (2026-11-18, branch `work/final-a`)
+
+- **ADR-065 Accepted (owner, 2026-11-18)** with the requirement that the Director only selects among
+  approved, authored, server-supplied lines. Development complete for the catalog; the Django and
+  Admin deployment, `manage.py import_castle_events` on a real database and the browser acceptance
+  remain owner approvals.
+- **What changed:** `CastleEvent` (migration `regions/0008_castle_director_catalog`) is an `Authorable`
+  kind `castle-event` in the ADR-047 revision workflow (draft, submitted, published, superseded;
+  retire and restore need the publish permission; who and when recorded). `castle_events.json` is an
+  import-only seed (`import_castle_events`: idempotent, never overwrites an edited or retired event;
+  a changed seed for an edited event becomes a draft). `castle_events.catalog()` serves published,
+  active events, or the seed only while nothing has ever been published. Django Admin:
+  `CastleEventAdmin`, same access as the catalog admin and content groups.
+- **Client:** `castleEvents.ts` (full mirror and local eligibility), its TypeScript tests and the
+  `castle-events` golden suite are removed. The client keeps `castleDefaultLines.ts`, one quiet line
+  per room and age band for when the API fails, with a drift test against the seed.
+  `useCastleDirector` lost its `worldChangeKeys` and `catalog` options.
+- **Tests:** `apps/regions/tests/test_castle_catalog.py`, `test_castle_eligibility.py`,
+  `apps/ai/tests/test_castle_director_catalog.py`, `castleDefaultLines.test.ts`. No Playwright, no
+  live AWS, fake providers only.

@@ -1,5 +1,5 @@
 {
-  "$comment": "Storykeeper Castle's ambient return-visit events (SC-R08-01), as the server needs them. An event is atmosphere: it grants nothing and records only a display counter. This file mirrors react/src/features/great-storybook/castleEvents.ts (CASTLE_EVENTS), which is authored there; a Vitest test fails if they differ. Rooms are castle_rooms.json ids; no event uses an NPC memory flag.",
+  "$comment": "IMPORT-ONLY SEED (ADR-065, ADR-047). Storykeeper Castle's ambient return-visit events as first authored. Django is the canonical catalog: `manage.py import_castle_events` creates the CastleEvent rows that do not exist and never overwrites an event edited, retired or published in Django Admin. Editing this file does not change what children see once an event exists. An event is atmosphere: it grants nothing and records only a display counter. Rooms are castle_rooms.json ids; no event uses an NPC memory flag. The client keeps only react/src/features/great-storybook/castleDefaultLines.ts (one quiet line per room), checked against the quiet events here.",
   "events": [
     {
       "id": "quiet-entry-hall",

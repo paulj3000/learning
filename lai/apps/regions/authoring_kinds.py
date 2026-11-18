@@ -7,8 +7,8 @@ they stay seed-authored (ADR-047 H, LAI-0805).
 from apps.catalog.authoring import Kind, register
 from apps.catalog.models import RewardRule
 
-from . import platforming, puzzles
-from .models import AreaPuzzle, TreasureChest, WorldRegion
+from . import castle_events, platforming, puzzles
+from .models import AreaPuzzle, CastleEvent, TreasureChest, WorldRegion
 
 COPY_KEYS = {"loading", "instructions", "calmStop", "altNavLabel"}
 
@@ -120,6 +120,21 @@ def _apply_puzzle(puzzle: AreaPuzzle, body: dict, problems: list[str]):
     return finish
 
 
+def _castle_event_body(event: CastleEvent) -> dict:
+    return dict(event.source)
+
+
+def _apply_castle_event(event: CastleEvent, body: dict, problems: list[str]):
+    problems.extend(castle_events.body_problems(body))
+
+    def finish() -> None:
+        event.room = body["room"]
+        event.source = body
+        event.save(update_fields=["room", "source", "updated_at"])
+
+    return finish
+
+
 def register_kinds() -> None:
     register(
         Kind(
@@ -143,6 +158,18 @@ def register_kinds() -> None:
             _puzzle_body,
             _apply_puzzle,
             child_facing_paths=("title", "ageBands"),
+        )
+    )
+    register(
+        Kind(
+            "castle-event",
+            CastleEvent,
+            "event_id",
+            "id",
+            None,
+            _castle_event_body,
+            _apply_castle_event,
+            child_facing_paths=("lines",),
         )
     )
 
