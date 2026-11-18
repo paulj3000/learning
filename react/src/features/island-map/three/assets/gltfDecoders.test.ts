@@ -17,6 +17,7 @@ import {
   type MeshoptDecoderLike,
 } from './gltfDecoders';
 import { createGltfFetcher, enableKtx2Textures } from './assetLoader';
+import { currentKtx2Loader, resetKtx2ForTests } from './ktx2Support';
 import { meshoptTriangleGlb } from '../../../../test/compressedGltfFixtures';
 
 describe('Meshopt decoder registration', () => {
@@ -194,29 +195,20 @@ describe('KTX2 loader configuration', () => {
 });
 
 describe('enableKtx2Textures', () => {
-  it('attaches a KTX2 loader to the GLTF loader and detaches and disposes it', () => {
-    const gltf = new GLTFLoader();
-    const set = vi.spyOn(gltf, 'setKTX2Loader');
+  it('attaches the app-wide KTX2 loader for the renderer and disposes it on the last detach', () => {
+    resetKtx2ForTests();
     const dispose = vi.spyOn(KTX2Loader.prototype, 'dispose');
-    const detach = enableKtx2Textures(fakeAstcRenderer() as unknown as WebGLRenderer, {}, gltf);
-    const attached = set.mock.calls[0]?.[0];
-    expect(attached).toBeInstanceOf(KTX2Loader);
+    const detach = enableKtx2Textures(fakeAstcRenderer() as unknown as WebGLRenderer);
+    const shared = currentKtx2Loader();
+    expect(shared).toBeInstanceOf(KTX2Loader);
+    const again = enableKtx2Textures(fakeAstcRenderer() as unknown as WebGLRenderer);
+    expect(currentKtx2Loader()).toBe(shared); // one loader, counted
     detach();
-    expect(set).toHaveBeenLastCalledWith(null);
-    expect(dispose).toHaveBeenCalledOnce();
-    detach();
+    expect(dispose).not.toHaveBeenCalled();
+    again();
+    expect(currentKtx2Loader()).toBeNull();
     expect(dispose).toHaveBeenCalledOnce();
     dispose.mockRestore();
-  });
-
-  it('detaching an older attachment leaves the newer one active', () => {
-    const gltf = new GLTFLoader();
-    const first = enableKtx2Textures(fakeAstcRenderer() as unknown as WebGLRenderer, {}, gltf);
-    const second = enableKtx2Textures(fakeAstcRenderer() as unknown as WebGLRenderer, {}, gltf);
-    const active = (gltf as unknown as { ktx2Loader: unknown }).ktx2Loader;
-    first();
-    expect((gltf as unknown as { ktx2Loader: unknown }).ktx2Loader).toBe(active);
-    second();
-    expect((gltf as unknown as { ktx2Loader: unknown }).ktx2Loader).toBeNull();
+    resetKtx2ForTests();
   });
 });

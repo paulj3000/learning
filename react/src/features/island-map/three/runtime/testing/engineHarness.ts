@@ -70,6 +70,8 @@ export function mount(
     loadModel?: (assetId: string) => Promise<LoadedModel>;
     /** Overrides the instanced-mesh loader (tiled ground, clusters, building pieces). */
     instanced?: LocationEngineDeps<FakeRenderer>['assets']['instanced'];
+    /** The assets' renderer hook (KTX2 support, ADR-070). */
+    attachRenderer?: LocationEngineDeps<FakeRenderer>['assets']['attachRenderer'];
     extensions?: readonly WorldExtension[];
     parent?: HTMLDivElement;
     worldState?: WorldInteractionContext;
@@ -106,6 +108,7 @@ export function mount(
         options.instanced ??
         vi.fn(async () => new Mesh(new BoxGeometry(), new MeshBasicMaterial())),
       withLod: vi.fn(async () => new Group()),
+      ...(options.attachRenderer ? { attachRenderer: options.attachRenderer } : {}),
     },
     attachControls: (_renderer, attached, attachOptions) => {
       controller = attached;

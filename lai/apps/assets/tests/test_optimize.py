@@ -341,9 +341,8 @@ def test_material_extensions_three_renders_are_accepted(name):
 
 def _tighten_policy(monkeypatch, name="KHR_materials_anisotropy"):
     """Simulate a later, stricter extension table (both validators read the same function)."""
-    from lai_processing.processors.gltf import extension_policy
-
     from apps.assets import validation
+    from lai_processing.processors.gltf import extension_policy
 
     original = extension_policy.error_code
 
