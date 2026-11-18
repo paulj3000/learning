@@ -91,3 +91,58 @@ Open only, never marked passed here:
 - That textured imports decode (jsdom stubs image decoding).
 - Frame time, memory, thermal behaviour and load time on a tablet.
 - Touch ergonomics, and whether a three-year-old can complete a mission.
+
+## 4. Owner acceptance checklist for SC-R04-05 to SC-R11 (SC-R12-01, open)
+
+Branch `feature/storykeeper-castle-completion`. Every item below has unit-test evidence in
+`tasks/TASK_TRACKER.md` and **none has been run in a browser, on a device or with a child**. Tick
+an item only after you have played it yourself. Run the local stack with fake providers (no live
+AWS) unless a line says otherwise.
+
+### 4.1 Play checks (browser, one child profile per band)
+
+| # | Check | Band | How | Result |
+| --- | --- | --- | --- | --- |
+| O-1 | The Painted Words plays in the Studio room: rhyme gallery, beginning-sound hunt, syllable workshop, restoration; page `page-painted-words` appears | Pathfinder | Play once, then replay and see the second word set (`the-painted-words-again`) | |
+| O-2 | Wrong answers loop calmly; no timers, no shame wording | Pathfinder | Answer wrong on purpose at each station | |
+| O-3 | Storybook page states (undiscovered, discovered, in progress, restored), celebration, offline and retry | All | Watch the guide's Storybook section before and after O-1; stop Django and reopen | |
+| O-4 | A child who finished the book before `page-painted-words` keeps the seal and sees "more pages", not "missing" | Pathfinder | Seed an edition-1 completion, then open the castle | |
+| O-5 | A forged world-change POST for a page key is refused | Any | `POST world-changes/` with `STUDIO_PAGE_MENDED` and no session (curl, parent token) | |
+| O-6 | Jumping: each primary adventure once by jumping and once without; Sprouts see flat markers only; every pad answer is on the HUD card | All | Tale, Picture Story, Painted Words A and B, Secret Door chapters 1 and 2, Storybook pathway, Observatory stones | |
+| O-7 | Keeper Quill lines reflect progress; Ember visits; Professor Orion in the Observatory (confirm the spot moved off the star stone) | All | Walk up before and after restoring pages | |
+| O-8 | Room ambience crossfades; cues; ducking under narration; mute and volume persist; Sprouts get no retry sound | All | Walk through every room with sound on, then muted | |
+| O-9 | Narration through Django speech (fake Polly locally; live Polly only with explicit approval) and captions always on screen | All | Turn speech off mid-line: the caption stays | |
+| O-10 | Keepsakes appear on Trophy Room pedestals once earned (brush, lens, key, existing three); bare pedestal when not | Explorer, Pathfinder | Finish Painted Words and the Secret Door arc | |
+| O-11 | Hall of Heroes text list in the guide | All | Before and after completing stories | |
+| O-12 | Ranks (off by default, `CASTLE_RANKS.enabled`): decide keep or drop, four titles or five, and the "Castle Pathfinder" name | Owner decision | Turn on locally to look | |
+| O-13 | Ambient return-visit line in the guide; it changes across visits, never says "come back tomorrow", never counts down | All | Open the castle several times | |
+| O-14 | Castle Director with AI off (parent toggle) and with the kill switch: the castle still shows the authored default | All | Toggle each | |
+| O-15 | Three.js Writing Room at `explore/castle-writing-room`: locked before the Secret Door arc, same two messages and exit as Phaser after; two optional low steps; none for Sprouts | Explorer | "Try the 3D room (preview)" link on the location page | |
+| O-16 | Harbor exit is always reachable and never behind arithmetic, in every room | All | Try to leave from each room | |
+| O-17 | Keyboard-only visit (Tab order exit, prompt, backpack; no focus trap) and an iPad Safari touch visit | All | | |
+| O-18 | Reduced motion at the OS level (read at mount; reload after changing it) | All | | |
+
+### 4.2 Device and playtest gates (SC-R11)
+
+| # | Check | How | Result |
+| --- | --- | --- | --- |
+| D-1 | Real-tablet profiling of a release build with `?lai-diag=1` | `docs/PILOT_READINESS.md` 5b; fill the blank tables | |
+| D-2 | Sprouts playtest, one SPROUT per session, adult observer, `quills-picture-story` | `docs/PILOT_READINESS.md` 5b | |
+
+### 4.3 Owner decisions this branch carries
+
+1. ADR-065 (Castle Director), Proposed: accept, amend or reject. Promote the event catalog to an
+   ADR-047 revisioned admin model, or keep the JSON mirror.
+2. Where Quill flavour (SC-R09-02, service only) surfaces, if at all.
+3. Writing Room: a write-your-story action (new scope), the NPC `islandNpcs.ts` schedules there,
+   Sprouts access, and `entryRequirements` in the shared manifest schema.
+4. Ranks (O-12).
+5. `assetLoader.trim`, live reduced-motion handling, kit-piece scaling before any 4 m room.
+6. The optional Writing Room is unlocked by the Explorer secret-door arc, whose chapter 1 has a
+   `number-input` step. Acceptable?
+7. SC-R07 deviations: the six gold plates removed for the draw budget; Hall of Heroes 3D plates
+   deferred (scenery 159 of 160, draws 298 of 300): raise the budget or merge decor.
+8. Earlier Secret Door finishers get no `secret-door-key` without an approved backfill.
+9. Retirement (SC-R10-03): Phaser castle and Writing Room stay until parity is visually confirmed
+   and LAI-2303 (Sprouts gate) allows it.
+10. Formatting: `prettier --write` and Ruff on the touched files at merge readiness.
