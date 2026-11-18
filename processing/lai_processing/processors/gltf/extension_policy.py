@@ -46,8 +46,15 @@ class Support(StrEnum):
     )
 
 
-#: Bumped whenever a row changes verdict. The GLB processor version moves with it.
+#: Bumped whenever a row changes verdict. The GLB processor version moves with it. Version 3
+#: (unreleased until this branch ships, so it carries all ADR-070 changes together): the
+#: compression rows below and the three material extensions three 0.185.1 renders.
 POLICY_VERSION: Final = 3
+
+#: Error codes that come only from this table (a policy decision, not the file's integrity).
+#: A version whose stored bytes are unchanged but which fails only with these is REFUSED for
+#: publication, never rejected (`apps.assets.services`).
+POLICY_ERROR_CODES: Final = frozenset({"needs_decoder", "unsupported_extension"})
 
 #: The feature control (a Django setting, `on`/`off`) of each `WHEN_ENABLED` extension.
 MESHOPT_CONTROL: Final = "LAI_GLB_MESHOPT"
@@ -57,9 +64,15 @@ CONTROLS: Final[dict[str, str]] = {
     "KHR_texture_basisu": KTX2_CONTROL,
 }
 
+#: Every row here is implemented by three 0.185.1 `GLTFLoader` (its `EXTENSIONS` table and
+#: registered plugins) and needs no decoder; `KHR_materials_variants` is accepted and ignored by
+#: the loader (the default material renders).
 _SUPPORTED: Final = (
+    "EXT_materials_bump",
     "KHR_lights_punctual",
+    "KHR_materials_anisotropy",
     "KHR_materials_clearcoat",
+    "KHR_materials_dispersion",
     "KHR_materials_emissive_strength",
     "KHR_materials_ior",
     "KHR_materials_iridescence",

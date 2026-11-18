@@ -159,8 +159,9 @@ def _key_values(data: bytes, offset: int, length: int) -> dict[bytes, bytes]:
     """Key/value pairs (bounded walk; malformed entries end the walk)."""
     out: dict[bytes, bytes] = {}
     position, end = offset, offset + length
+    end = min(end, len(data))
     for _ in range(256):
-        if position + 4 > end:
+        if position < 0 or position + 4 > end:
             break
         (size,) = struct.unpack_from("<I", data, position)
         start = position + 4
@@ -176,7 +177,18 @@ def _key_values(data: bytes, offset: int, length: int) -> dict[bytes, bytes]:
 def parse_ktx2(
     data: bytes, sink: Sink, path: str = "", *, max_side: int = DEFAULT_MAX_SIDE
 ) -> Ktx2Info | None:
-    """Check one KTX2 file for `KHR_texture_basisu` use. None when it is unusable."""
+    """Check one KTX2 file for `KHR_texture_basisu` use. None when it is unusable.
+
+    Never raises for a bad file: any read past the data (a `struct.error` or an index error
+    from a range the checks above missed) becomes a `ktx2_truncated` finding."""
+    try:
+        return _parse_ktx2(data, sink, path, max_side=max_side)
+    except (struct.error, IndexError):
+        sink.error("ktx2_truncated", "A KTX2 texture's structure runs past its end.", path)
+        return None
+
+
+def _parse_ktx2(data: bytes, sink: Sink, path: str, *, max_side: int) -> Ktx2Info | None:
 
     def error(code: str, message: str) -> None:
         sink.error(code, message, path)
@@ -280,7 +292,9 @@ def parse_ktx2(
             error("ktx2_levels", "A UASTC mip level has the wrong length.")
             ok = False
         level_width, level_height = max(1, level_width // 2), max(1, level_height // 2)
-    orientation_raw = _key_values(data, kvd_offset, kvd_length).get(b"KTXorientation")
+    orientation_raw = None
+    if kvd_length and in_file(kvd_offset, kvd_length):  # an out-of-range KVD was reported above
+        orientation_raw = _key_values(data, kvd_offset, kvd_length).get(b"KTXorientation")
     orientation = orientation_raw.decode("ascii", "replace") if orientation_raw else None
     if orientation is not None and not orientation.startswith("rd"):
         error("ktx2_orientation", "A KTX2 texture is not stored top-left first as glTF expects.")

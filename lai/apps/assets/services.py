@@ -270,7 +270,24 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
                 result.error("checksum_mismatch", "The stored file no longer matches its checksum.")
             else:
                 result = validate_upload(stored, size=size, definition=asset)
-        if not result.passed:
+        if policy_only(result):
+            # The bytes are intact; only the extension policy (or a compression control) has
+            # changed since the version was validated. Refuse and leave the version unchanged:
+            # a later policy or control change can make it publishable again.
+            logger.info(
+                "asset publish refused: %s v%s policy %s",
+                asset.asset_id,
+                version.number,
+                _codes(result),
+            )
+            policy_refusal = AssetActionRefused(
+                "policy_refused",
+                "The file is unchanged, but the game's current model policy does not accept it "
+                "(an extension or compression setting). It was not rejected; publish it again "
+                "once the policy allows it.",
+                result.findings,
+            )
+        elif not result.passed:
             version.status = VersionStatus.REJECTED
             version.validation_report = result.report()
             version.save(update_fields=["status", "validation_report"])
@@ -286,6 +303,8 @@ def publish_version(version: AssetVersion, *, user=None) -> AssetVersion:
                 asset.default_version = version
                 asset.save(update_fields=["default_version", "updated_at"])
             logger.info("asset version published: %s v%s", asset.asset_id, version.number)
+    if policy_only(result):
+        raise policy_refusal
     if not result.passed:
         raise AssetActionRefused(
             "invalid_file", "The stored file failed validation; it was rejected.", result.findings
@@ -461,7 +480,7 @@ def republish_version(version: AssetVersion, *, user=None) -> AssetVersion:
         compression = compression_refusal(version)
         if compression is not None:
             raise compression
-        problem = _verify_bytes(version, asset)
+        problem = _verify_bytes(version, asset, previously_published=True)
         if problem is not None:
             raise AssetActionRefused("verification_failed", problem)
         version.status = VersionStatus.PUBLISHED
@@ -507,7 +526,27 @@ def verify_version(version: AssetVersion) -> str | None:
     return _verify_bytes(version, version.asset)
 
 
-def _verify_bytes(version: AssetVersion, asset: ContentAsset) -> str | None:
+def policy_only(result: ValidationResult) -> bool:
+    """True when `result` failed only on the extension policy (`POLICY_ERROR_CODES`), never on
+    the file's bytes or structure."""
+    from lai_processing.processors.gltf.extension_policy import POLICY_ERROR_CODES
+
+    codes = {f.code for f in result.errors}
+    return bool(codes) and codes <= POLICY_ERROR_CODES
+
+
+def _verify_bytes(
+    version: AssetVersion, asset: ContentAsset, *, previously_published: bool = False
+) -> str | None:
+    """None when the stored object is present, unchanged and valid, else why not.
+
+    `previously_published` (republish and rollback of a retired version): the bytes must be
+    intact and every structural check must still pass, but errors that come only from the
+    extension policy (`policy_only`) are tolerated, because the same bytes were valid and live
+    under the policy recorded when they were published. Gated compression is still refused by
+    `compression_refusal` before this runs. This is the conservative choice: integrity and
+    structure are re-proven; only a later tightening of the extension table is not applied
+    retroactively to a rollback target."""
     try:
         stored = get_storage().open(version.storage_key)
     except StorageError:
@@ -517,7 +556,7 @@ def _verify_bytes(version: AssetVersion, asset: ContentAsset) -> str | None:
         if sha256 != version.sha256 or size != version.size_bytes:
             return "The stored file no longer matches its recorded checksum."
         result = validate_upload(stored, size=size, definition=asset)
-    if not result.passed:
+    if not result.passed and not (previously_published and policy_only(result)):
         return "The stored file no longer passes validation: " + _codes(result)
     return None
 
