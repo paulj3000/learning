@@ -1,16 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PuzzleOutcome, PuzzleState, RegionBootstrap } from '../../../../../api/play/types';
 import {
+  addToOrder,
   AREA_COPY,
   asRevealOutcome,
+  clearOrder,
+  differentChoiceState,
   fittingSlots,
+  openChoiceState,
   placeStone,
+  recordChoiceResult,
   removeStone,
+  reopenChoiceState,
+  selectOption,
   solvedPlacements,
+  successLines,
+  symbolGlyph,
+  undoOrder,
+  type ChoiceState,
 } from '../../../../region-play/areaPuzzleUi';
 import {
+  chooseAnswerCorrect,
+  orderSequenceCorrect,
   parsePuzzleParams,
   simulateValves,
+  type ChoiceKindParams,
   type PlatformParams,
   type PuzzleParams,
   type ValveParams,
@@ -18,7 +32,15 @@ import {
 import type { RegionPlayInteractionEvent } from '../../../../region-play/regionPlayInteractions';
 import { completedQuests } from '../../../../region-play/regionPlayUi';
 import type { RegionPlaySceneApi } from './regionPlayScene';
-import { CrossingPanel, DiscoveryPanel, TelescopePanel, ValvePanel } from './ui/AreaPuzzlePanels';
+import {
+  ChooseAnswerPanel,
+  CrossingPanel,
+  DiscoveryPanel,
+  OrderSequencePanel,
+  TelescopePanel,
+  ValvePanel,
+} from './ui/AreaPuzzlePanels';
+import type { ChoiceSceneView } from './areaPuzzleScene';
 import { RewardReveal } from './ui/RewardReveal';
 import area from './ui/AreaPuzzlePanels.module.css';
 
@@ -54,6 +76,42 @@ interface Typed {
   params: PuzzleParams;
 }
 
+function isChoiceKind(params: PuzzleParams): params is ChoiceKindParams {
+  return params.kind === 'CHOOSE_ANSWER' || params.kind === 'ORDER_SEQUENCE';
+}
+
+/**
+ * What the scene shows for one CHOOSE_ANSWER or ORDER_SEQUENCE puzzle: a label on every mapped
+ * entity, a glow on what the child picked, and a stronger glow on the right ones once the server
+ * agreed. `null` when the puzzle has no scene objects.
+ */
+export function choiceSceneView(
+  params: ChoiceKindParams,
+  state: ChoiceState,
+): ChoiceSceneView | null {
+  const entities = params.kind === 'CHOOSE_ANSWER' ? params.optionEntities : params.itemEntities;
+  if (Object.keys(entities).length === 0) return null;
+  const faces =
+    params.kind === 'CHOOSE_ANSWER'
+      ? (params.variants[state.variantIndex] ?? params.variants[0]).options
+      : (params.variants[state.variantIndex] ?? params.variants[0]).items;
+  const labels: Record<string, string> = {};
+  for (const face of faces) {
+    const entity = entities[face.id];
+    if (entity) labels[entity] = `${symbolGlyph(face.symbol)} ${face.label}`.trim();
+  }
+  const picked = params.kind === 'CHOOSE_ANSWER' ? (state.selected ? [state.selected] : []) : state.order;
+  const right =
+    state.result !== 'correct'
+      ? []
+      : params.kind === 'CHOOSE_ANSWER'
+        ? [(params.variants[state.variantIndex] ?? params.variants[0]).answer]
+        : (params.variants[state.variantIndex] ?? params.variants[0]).answer;
+  const entityOf = (ids: readonly string[]) =>
+    ids.map((id) => entities[id]).filter((id): id is string => Boolean(id));
+  return { labels, highlighted: entityOf(picked), correct: entityOf(right) };
+}
+
 export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
   const { bootstrap, sceneApi, event } = props;
   const typed = useMemo(() => {
@@ -82,6 +140,9 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     message: string | null;
   } | null>(null);
   const [flash, setFlash] = useState(0);
+  // Multi-instance kinds: one state per puzzle id (FPV), never one per kind.
+  const [choice, setChoice] = useState<Record<string, ChoiceState>>({});
+  const sessionId = bootstrap.session?.sessionId ?? '';
 
   const crossing = byKind('PLACE_PLATFORMS');
   const valves = byKind('VALVE_SEQUENCE');
@@ -126,6 +187,25 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
       valves.puzzle.solved ? valves.params.valves.map((v) => v.id) : sequence,
     );
   }, [sceneApi, sequence, valves]);
+
+  // Labels and glow on the scene objects of every choice puzzle, each keyed by its own id.
+  useEffect(() => {
+    const puzzles = sceneApi?.puzzles;
+    if (!puzzles?.showChoices) return;
+    const shown: string[] = [];
+    for (const [puzzleId, { puzzle, params }] of typed) {
+      if (!isChoiceKind(params) || puzzle.locked) continue;
+      const state =
+        choice[puzzleId] ?? openChoiceState(sessionId, puzzleId, params, puzzle.solved);
+      const view = choiceSceneView(params, state);
+      if (!view) continue;
+      puzzles.showChoices(puzzleId, view);
+      shown.push(puzzleId);
+    }
+    return () => {
+      for (const puzzleId of shown) puzzles.clearChoices?.(puzzleId);
+    };
+  }, [choice, sceneApi, sessionId, typed]);
 
   useEffect(() => {
     if (!sceneApi?.effects) return;
@@ -175,6 +255,11 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     }
     const entry = typed.get(puzzle.puzzleId);
     if (!entry) return;
+    if (isChoiceKind(entry.params)) {
+      openChoice(entry.puzzle, entry.params, active !== puzzle.puzzleId, event.entityId);
+      setActive(puzzle.puzzleId);
+      return;
+    }
     setActive(puzzle.puzzleId);
     if (entry.params.kind === 'PLACE_PLATFORMS' && !puzzle.solved) {
       const isStone = entry.params.stones.some((s) => s.id === event.entityId);
@@ -189,6 +274,68 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     // Only a new interaction counts as a move.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event]);
+
+  /** Opens a choice puzzle: its state for this visit, with the touched scene object applied. */
+  function openChoice(
+    puzzle: PuzzleState,
+    params: ChoiceKindParams,
+    fresh: boolean,
+    entityId: string | null,
+  ) {
+    setChoice((all) => {
+      const known = all[puzzle.puzzleId];
+      let state = known
+        ? fresh
+          ? reopenChoiceState(known, params, puzzle.solved)
+          : known
+        : openChoiceState(sessionId, puzzle.puzzleId, params, puzzle.solved);
+      if (entityId && state.result !== 'correct') {
+        const entities =
+          params.kind === 'CHOOSE_ANSWER' ? params.optionEntities : params.itemEntities;
+        const id = Object.keys(entities).find((key) => entities[key] === entityId);
+        if (id) state = params.kind === 'CHOOSE_ANSWER' ? selectOption(state, id) : addToOrder(state, id);
+      }
+      return { ...all, [puzzle.puzzleId]: state };
+    });
+  }
+
+  function patchChoice(puzzleId: string, change: (state: ChoiceState) => ChoiceState) {
+    setChoice((all) => (all[puzzleId] ? { ...all, [puzzleId]: change(all[puzzleId]) } : all));
+  }
+
+  async function submitChoice(puzzle: PuzzleState, params: ChoiceKindParams, state: ChoiceState) {
+    const variant = params.variants[state.variantIndex] ?? params.variants[0];
+    let submission: Record<string, unknown>;
+    try {
+      // The same rules as the server, to refuse a malformed answer before sending it.
+      if (params.kind === 'CHOOSE_ANSWER') {
+        const picked = state.selected ?? '';
+        chooseAnswerCorrect(params.variants[state.variantIndex] ?? params.variants[0], picked);
+        submission = { variantId: variant.id, choice: picked };
+      } else {
+        orderSequenceCorrect(params.variants[state.variantIndex] ?? params.variants[0], state.order);
+        submission = { variantId: variant.id, order: state.order };
+      }
+    } catch {
+      return;
+    }
+    const outcome = await props.solvePuzzle(puzzle.puzzleId, submission);
+    if (!outcome) return;
+    // Practice: the puzzle was solved already, so the server graded and recorded nothing.
+    const practice = state.practice || outcome.practice || puzzle.solved;
+    patchChoice(puzzle.puzzleId, (current) => ({
+      ...recordChoiceResult(current, outcome.correct),
+      practice,
+    }));
+    if (outcome.correct && !practice) {
+      setActive(null);
+      setReveal({
+        outcome,
+        title: puzzle.title,
+        message: successLines(variant.explanation, params).join(' '),
+      });
+    }
+  }
 
   function turnValve(puzzle: PuzzleState, params: ValveParams, valveId: string) {
     const before = simulateValves(params.valves, params.start, sequence);
@@ -286,6 +433,34 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
           onClose={close}
         />
       );
+    } else if (params.kind === 'CHOOSE_ANSWER' || params.kind === 'ORDER_SEQUENCE') {
+      const state = choice[puzzle.puzzleId];
+      if (state) {
+        const common = {
+          title: puzzle.title,
+          state,
+          busy: props.busy,
+          onDifferent: () => patchChoice(puzzle.puzzleId, (c) => differentChoiceState(c, params)),
+          onSubmit: () => void submitChoice(puzzle, params, state),
+          onClose: close,
+        };
+        panel =
+          params.kind === 'CHOOSE_ANSWER' ? (
+            <ChooseAnswerPanel
+              {...common}
+              params={params}
+              onSelect={(id) => patchChoice(puzzle.puzzleId, (c) => selectOption(c, id))}
+            />
+          ) : (
+            <OrderSequencePanel
+              {...common}
+              params={params}
+              onAdd={(id) => patchChoice(puzzle.puzzleId, (c) => addToOrder(c, id))}
+              onUndo={() => patchChoice(puzzle.puzzleId, undoOrder)}
+              onClear={() => patchChoice(puzzle.puzzleId, clearOrder)}
+            />
+          );
+      }
     } else if (params.kind === 'COLLECT_OBJECT') {
       panel = (
         <DiscoveryPanel
