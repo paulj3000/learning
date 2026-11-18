@@ -192,6 +192,7 @@ export function validateLocationManifest(
   requirePositive(manifest.bounds.halfExtentX, 'bounds.halfExtentX', report);
   requirePositive(manifest.bounds.halfExtentZ, 'bounds.halfExtentZ', report);
   requirePositive(manifest.bounds.wallThickness, 'bounds.wallThickness', report);
+  if (manifest.wallHeight !== undefined) requirePositive(manifest.wallHeight, 'wallHeight', report);
   const inBounds = (point: GroundPoint) =>
     Math.abs(point.x) <= manifest.bounds.halfExtentX &&
     Math.abs(point.z) <= manifest.bounds.halfExtentZ;

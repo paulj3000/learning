@@ -416,15 +416,16 @@ export function solidColliders(
   /** Staff-configured collision profiles by asset id (Asset Manager); absent: built-in defaults. */
   profiles?: CollisionProfiles,
 ): SolidCollider[] {
+  const wallHeight = manifest.wallHeight ?? WALL_HEIGHT;
   const authored: SolidCollider[] = [
     ...boundaryWallRects(manifest.bounds).map((rect) => ({
-      box: rectToBox(rect, RECT_MIN_Y, WALL_HEIGHT),
+      box: rectToBox(rect, RECT_MIN_Y, wallHeight),
     })),
     ...manifest.colliders
       .filter((collider) => areRequirementsMet(collider.requirements, context))
       .map((collider) => ({
         id: collider.rect.id,
-        box: rectToBox(collider.rect, collider.minY ?? RECT_MIN_Y, collider.maxY ?? WALL_HEIGHT),
+        box: rectToBox(collider.rect, collider.minY ?? RECT_MIN_Y, collider.maxY ?? wallHeight),
         // A gated collider is a progression gate: never jumpable, whatever was authored.
         ...(collider.jumpable === true && !collider.requirements?.length ? { jumpable: true } : {}),
       })),
@@ -433,7 +434,7 @@ export function solidColliders(
   // Gated colliders count as covering, whatever their state, so a gate's own piece never
   // gets a second, ungated box that would outlive the gate opening.
   const covering = manifest.colliders.map((collider) =>
-    rectToBox(collider.rect, RECT_MIN_Y, WALL_HEIGHT),
+    rectToBox(collider.rect, RECT_MIN_Y, wallHeight),
   );
   const derived = derivedColliders(manifest, context, {
     assetKinds: ASSET_KINDS,
@@ -536,7 +537,7 @@ export function triggerVolumes(
     ...manifest.zones.map((zone): TriggerVolume => ({
       id: zone.rect.id,
       kind: 'ZONE',
-      box: rectToBox(zone.rect, RECT_MIN_Y, WALL_HEIGHT),
+      box: rectToBox(zone.rect, RECT_MIN_Y, manifest.wallHeight ?? WALL_HEIGHT),
     })),
   ];
 }

@@ -642,6 +642,12 @@ export interface ThreeLocationManifest {
   version: number;
 
   bounds: BoundsSpec;
+  /**
+   * Ceiling height in metres for an indoor region, default `WALL_HEIGHT` (3). It is the default
+   * `maxY` of boundary walls, colliders and zones that author none. Kit wall and ceiling pieces
+   * are authored 3 m tall, so a region raising it also owns scaling or replacing them.
+   */
+  wallHeight?: number;
   environment: EnvironmentSpec;
   checkpoints: CheckpointSpec;
   colliders: readonly ColliderSpec[];

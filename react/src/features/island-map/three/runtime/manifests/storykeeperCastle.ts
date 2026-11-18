@@ -56,12 +56,13 @@ import {
   CASTLE_PLATFORMING_SPROUT,
 } from './castleRooms/castlePlatforms';
 import {
-  CASTLE_DECOR,
+  castleDecor,
+  castleSurfaces,
+  CASTLE_SURFACES,
   CASTLE_DECOR_COLLIDERS,
   CASTLE_EFFECTS,
   CASTLE_EXTRA_LIGHTS,
   CASTLE_MATERIALS,
-  CASTLE_SURFACES,
   DOORWAY_LIGHT_PRIORITY,
   HEARTH_LIGHT_PRIORITY,
   castleRoomMood,
@@ -273,8 +274,9 @@ const propCollider = (
   };
 };
 
-const COLLIDERS: readonly ColliderSpec[] = [
-  ...WALL_SEGMENTS.map((wall) => ({ rect: { ...wall }, minY: 0, maxY: WALL_HEIGHT })),
+function buildColliders(wallHeight: number): readonly ColliderSpec[] {
+  return [
+  ...WALL_SEGMENTS.map((wall) => ({ rect: { ...wall }, minY: 0, maxY: wallHeight })),
   // Quill and his lectern stand up as solid objects: walking through the
   // person you are about to talk to undoes the point of him being a place.
   standingCollider('collider:keeper-quill', KEEPER_QUILL_SPOT, QUILL_COLLIDER_HALF_METERS, 2),
@@ -306,9 +308,11 @@ const COLLIDERS: readonly ColliderSpec[] = [
   ),
   // Solid decor the visual pass added (the Storybook dais); see `storykeeperCastleVisuals.ts`.
   ...CASTLE_DECOR_COLLIDERS,
-];
+  ];
+}
 
-const LIGHTS: readonly LightSpec[] = [
+function buildLights(wallHeight: number): readonly LightSpec[] {
+  return [
   // One lamp per room at ceiling height. The map is authored rather than
   // derived: "the library is the darkest room and the hearth corner the
   // warmest" is a statement about story, not about geometry.
@@ -317,7 +321,7 @@ const LIGHTS: readonly LightSpec[] = [
     kind: 'POINT',
     position: {
       x: (room.floor.minX + room.floor.maxX) / 2,
-      y: WALL_HEIGHT - 0.4,
+      y: wallHeight - ROOM_LAMP_DROP,
       z: (room.floor.minZ + room.floor.maxZ) / 2,
     },
     // Colour and priority are the room's mood (`castleRoomMood`, art direction section 5).
@@ -346,9 +350,11 @@ const LIGHTS: readonly LightSpec[] = [
   },
   // Lights a room's look adds (the Storybook dais glow).
   ...CASTLE_EXTRA_LIGHTS,
-];
+  ];
+}
 
-const SCENERY: readonly ScenerySpec[] = [
+function buildScenery(wallHeight: number): readonly ScenerySpec[] {
+  return [
   {
     kind: 'CLUSTER',
     id: 'room-floors',
@@ -359,7 +365,7 @@ const SCENERY: readonly ScenerySpec[] = [
     kind: 'CLUSTER',
     id: 'room-ceilings',
     assetId: 'ceiling-tile',
-    positions: slabPositions(WALL_HEIGHT + CEILING_SLAB_BOTTOM_OFFSET),
+    positions: slabPositions(wallHeight + CEILING_SLAB_BOTTOM_OFFSET),
   },
   { kind: 'CLUSTER', id: 'room-walls', assetId: 'wall-stone', positions: WALL_PANEL_POSITIONS },
   /*
@@ -404,7 +410,7 @@ const SCENERY: readonly ScenerySpec[] = [
     positions: carpetPositions({ x: -14.5, z: 0 }, { x: -5, z: 0 }),
   },
   // Procedural decor from the visual pass (SC-R02): dais, beams, candles. Never interactive.
-  ...CASTLE_DECOR,
+  ...castleDecor(wallHeight),
   // The doors themselves, so the way out is a thing you can see from inside.
   {
     kind: 'LOD_PLACEMENTS',
@@ -539,7 +545,8 @@ const SCENERY: readonly ScenerySpec[] = [
       rotation: { x: -Math.PI / 2, y: facingIntoRoom(spot, LIBRARY), z: 0 },
     }),
   ),
-];
+  ];
+}
 
 /**
  * Everything a child can aim at. Each of these is a prop with no
@@ -613,6 +620,30 @@ const PROPS: readonly PropSpec[] = [
   },
 ];
 
+/** How far below the ceiling each room's lamp hangs. */
+const ROOM_LAMP_DROP = 0.4;
+
+/**
+ * The castle manifest for ceilings at `wallHeight` metres (SC-R11). Only what hangs from or
+ * reaches the ceiling follows the value: wall colliders, room lamps, ceiling slabs, ceiling and
+ * wall surfaces, cornices, the library beam. With the default it is the shipped manifest. No
+ * room is built taller until the kit-piece scaling decision (wall and ceiling pieces are
+ * authored 3 m tall) is made.
+ */
+export function buildStorykeeperCastleManifest(
+  wallHeight: number = WALL_HEIGHT,
+): ThreeLocationManifest {
+  if (wallHeight === WALL_HEIGHT) return STORYKEEPER_CASTLE_MANIFEST;
+  return {
+    ...STORYKEEPER_CASTLE_MANIFEST,
+    wallHeight,
+    colliders: buildColliders(wallHeight),
+    lights: buildLights(wallHeight),
+    scenery: buildScenery(wallHeight),
+    surfaces: castleSurfaces(wallHeight),
+  };
+}
+
 export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
   schemaVersion: LOCATION_MANIFEST_SCHEMA_VERSION,
   regionId: STORYKEEPER_CASTLE_REGION_ID,
@@ -635,10 +666,10 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     triggerHalfSize: 1.2,
   },
 
-  colliders: COLLIDERS,
+  colliders: buildColliders(WALL_HEIGHT),
   buildings: [],
-  scenery: SCENERY,
-  lights: LIGHTS,
+  scenery: buildScenery(WALL_HEIGHT),
+  lights: buildLights(WALL_HEIGHT),
   // The visual pass (SC-R02): presets, the surfaces that wear them, and atmosphere.
   materials: CASTLE_MATERIALS,
   surfaces: CASTLE_SURFACES,
