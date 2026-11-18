@@ -112,7 +112,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         # A guide needs authored waypoints, which belong to the area layout; until staff add them
         # Flint waits at the landing and turns to the child.
         behaviors=_stationary("flint-landing", "Flint at Explorer's Landing"),
-        spots=(Spot("fh-flint", "flint-landing", 3.0, 84.0, 0.0),),
+        spots=(Spot("fh-flint", "flint-landing", -4.0, 86.0, 0.4),),
         personality={
             "traits": ["friendly", "brave", "encouraging"],
             "tone": "warm",
@@ -161,8 +161,8 @@ NPCS: tuple[FirepeakNpc, ...] = (
             **_stationary("kindle-heart", "Kindle at the Heart"),
         },
         spots=(
-            Spot("fh-kindle", "kindle-follow", -3.0, 58.0, 0.0),
-            Spot("fh-kindle-heart", "kindle-heart", -4.0, -84.0, 0.0),
+            Spot("fh-kindle", "kindle-follow", 3.0, 58.0, -0.4),
+            Spot("fh-kindle-heart", "kindle-heart", 4.0, -86.0, -0.3),
         ),
         personality={
             "traits": ["playful", "curious", "kind"],
@@ -198,8 +198,8 @@ NPCS: tuple[FirepeakNpc, ...] = (
         asset_id="firepeak-npc-basalt",
         behaviors=_stationary("basalt-stands", "Professor Basalt at work"),
         spots=(
-            Spot("fh-basalt", "basalt-stands", 4.0, -8.0, 0.0),
-            Spot("fh-basalt-summit", "basalt-stands", 4.0, -62.0, 0.0),
+            Spot("fh-basalt", "basalt-stands", -6.0, 1.5, 0.6),
+            Spot("fh-basalt-summit", "basalt-stands", -6.0, -64.6, 1.0),
         ),
         personality={
             "traits": ["thoughtful", "patient", "curious"],
@@ -237,7 +237,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         zone="Ancient Forge",
         asset_id="firepeak-npc-cinder",
         behaviors=_stationary("cinder-forge", "Cinder at the Ancient Forge"),
-        spots=(Spot("fh-cinder", "cinder-forge", -4.0, -34.0, 0.0),),
+        spots=(Spot("fh-cinder", "cinder-forge", -5.0, -31.0, 0.5),),
         personality={
             "traits": ["wise", "patient", "hardworking"],
             "tone": "warm",
@@ -269,7 +269,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         zone="Heart Chamber",
         asset_id="firepeak-npc-ignis",
         behaviors=_stationary("ignis-heart", "Ignis at the Heart"),
-        spots=(Spot("fh-ignis", "ignis-heart", 0.0, -90.0, 0.0),),
+        spots=(Spot("fh-ignis", "ignis-heart", -4.0, -87.0, 0.3),),
         personality={
             "traits": ["gentle", "calm", "grateful"],
             "tone": "soft",

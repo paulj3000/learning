@@ -401,3 +401,16 @@ class TestPublishCommand:
         assert region.status == ContentStatus.PUBLISHED
         assert set(region.puzzles.values_list("status", flat=True)) == {ContentStatus.PUBLISHED}
         call_command("publish_firepeak_heart", stdout=None)  # idempotent
+
+
+class TestNpcManagerPlacements:
+    """The NPC Manager's spots (`apps/npcs/firepeak_content.py`) are where the seed places the NPCs."""
+
+    def test_every_spot_equals_the_seeded_placement(self):
+        from apps.npcs.firepeak_content import NPCS
+
+        placements = {p["entity_id"]: p for p in layout.placements() if p["kind"] == "NPC"}
+        spots = {spot.key: spot for npc in NPCS for spot in npc.spots}
+        assert set(spots) == set(placements)
+        for key, spot in spots.items():
+            assert (spot.x, spot.z) == (placements[key]["x"], placements[key]["z"]), key
