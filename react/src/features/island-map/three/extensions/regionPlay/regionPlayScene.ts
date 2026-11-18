@@ -663,6 +663,7 @@ export const regionPlaySceneExtension: WorldExtension = {
       config.changeKeys,
       owned,
       () => disposed,
+      config.drawn,
     );
     const puzzles = mountAreaPuzzles(context, owned);
 
