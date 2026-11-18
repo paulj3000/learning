@@ -42,6 +42,31 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## Engineering standards and multi-agent governance (LAI-ENG-001, ADR-072) — Development Complete on `feature/engineering-standards` (2026-11-18); owner review pending, NOT merged
+
+Documentation and a documentation check only. No runtime behaviour, model, migration, dependency,
+workflow or infrastructure change; nothing deployed; no accepted ADR changed. ADR-072 is Proposed.
+
+- **Entry points.** `CLAUDE.md` restructured into a concise index with stable section numbers
+  (the former sections 1 to 13 are kept verbatim in `docs/engineering/product-baseline.md`; 18 to
+  20 unchanged; new section 21). New tool-neutral `AGENTS.md`.
+- **Standards.** `docs/engineering/` (workflow, multi-agent, architecture, coding, testing,
+  security, branch, integration, release, Trello, definition of done, documentation policy, nine
+  templates, the initial audit) and `docs/adventures/` (Realm, adventure, quest, challenge,
+  jumping, scoring, accessibility, asset, NPC, audio, educational content, four templates).
+  `docs/adr/` is an index and template only; `docs/DECISIONS.md` stays the single ADR log.
+- **ADR registry.** `Reserved` rows added for ADR-065 (Castle Director) and ADR-066 to ADR-071
+  (processing workstreams), which open branches use without rows on `main`. **ADR-070 is claimed
+  by two branches** (processing GLB optimization and the Heart of Firepeak); the owner decides.
+- **Check.** `npm run docs:check` (`scripts/check-docs.ts`): required documents, relative links in
+  governed documents, status lines, template sections, merge-conflict markers. Added to
+  `make js-check`; not added to CI (owner decision). Unit test `react/src/test/docsCheck.test.ts`.
+- **Deferred to merge verification:** `make check`, Prettier on the new Markdown and TypeScript,
+  oxlint, the full Vitest suite. Not run: browser, Playwright, AWS.
+- **Merge note.** This branch changes `package.json` and `react/src/test/`, which are in
+  `deploy-site.yml`'s path filter: if `LAI_SITE_DEPLOY_ENABLED` is on, merging it to `main` starts a
+  site release.
+
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 
 Owner decisions 1 to 8 of 2026-11-17. Repository only; no AWS resource was created or changed.

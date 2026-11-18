@@ -41,7 +41,7 @@ $(foreach v,$(DJANGO_ENV_VARS),\
 
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
-	@echo "js-check (typecheck, lint, format:check, test, build) | check (py-check + js-check)"
+	@echo "js-check (ADR and docs checks, typecheck, lint, format:check, test, build) | check (py-check + js-check)"
 	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5442; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
 	@echo "web (Vite dev server on 5183, proxying /api to runserver on DJANGO_DEV_PORT)"
@@ -104,6 +104,7 @@ py-check: py-lint py-format-check django-check migrate-check py-test
 
 js-check:
 	npm run adr:check
+	npm run docs:check
 	npm run admin-preview:check
 	npm run typecheck
 	npm run lint

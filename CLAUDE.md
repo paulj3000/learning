@@ -1,338 +1,168 @@
 # Learning Adventure Island — Claude Project Instructions
 
+This is the mandatory entry point for every Claude Code agent. It states the binding rules in
+short form and points to the detailed standards. Section numbers are stable: ADRs and documents
+cite "CLAUDE.md section N", so a section is condensed, never renumbered. The full former text of
+sections 1 to 13 is kept verbatim in
+[docs/engineering/product-baseline.md](docs/engineering/product-baseline.md) and binds exactly as
+before. Tool-neutral agent rules are in [AGENTS.md](AGENTS.md); it defers to this file for
+project and product rules, and a conflict between them is a defect to report (the stricter rule
+applies until the owner resolves it). Governance: ADR-072 (Proposed).
+
+## Start here (every task)
+
+1. Read this file, [AGENTS.md](AGENTS.md) and [docs/engineering/README.md](docs/engineering/README.md).
+2. Read the standards that apply to your task (index in section 21) and the source documents in
+   section 17.
+3. Confirm your Trello ticket, branch, worktree and baseline SHA
+   ([multi-agent-workflow.md](docs/engineering/multi-agent-workflow.md)).
+4. Audit the code you will touch before planning; name any shared component you will change.
+5. Implement, run the development checks (section 14), update docs and
+   `docs/IMPLEMENTATION_STATUS.md`, commit, push, report.
+
 ## 1. Mission
-Build **Learning Adventure Island**, an AI-powered learning adventure world for children ages **3–8** on **React + Three.js, Django REST and PostgreSQL, Amazon Cognito, and Amazon Bedrock** (section 8; Amplify is retired, section 18).
 
-The product is not a collection of worksheets or a generic chatbot. It is a living island where children learn by solving meaningful problems, helping characters, creating things, and changing the world.
+Build **Learning Adventure Island**, an AI-powered learning adventure world for children aged
+**3 to 8**, on React + Three.js, Django REST and PostgreSQL, Amazon Cognito and Amazon Bedrock.
+Core promise: **learning makes the island grow.** Every experience combines a child-facing
+adventure goal, age-appropriate learning objectives, a visible consequence in the world, safe and
+constrained AI personalization, and encouragement without manipulation or shame.
 
-Core promise:
+## 2. Primary users
 
-> Learning makes the island grow.
+Parent or guardian (owns the account and child profiles, controls voice, microphone, AI and data
+retention; no play-time limit, ADR-053). Child profile (no email, parent-managed, never an
+unrestricted chat box). Administrator or content designer (Django Admin; reviews flagged AI
+interactions without unnecessary child data).
 
-Every experience must combine:
-- a clear child-facing adventure goal;
-- one or more age-appropriate learning objectives;
-- a visible consequence in the island world;
-- safe, constrained AI personalization;
-- encouragement without manipulation or shame.
+## 3. Target age bands
 
-## 2. Primary Users
+Sprouts 3 to 4 (voice and picture first, one-step), Pathfinders 5 to 6 (narrated text, two or
+three steps), Explorers 7 to 8 (more reading, multi-stage). Difficulty, reading volume, response
+mode and length derive from the profile's age band and demonstrated ability, never from mere
+availability.
 
-### Parent or guardian
-- Creates and owns the account.
-- Creates child profiles.
-- Selects age band and optional interests.
-- Reviews progress and learning summaries.
-- Controls voice, microphone, AI features, and data retention (no play-time limit, ADR-053).
+## 4. Product pillars
 
-### Child profile
-- Does not require an email address.
-- Uses a parent-managed profile and avatar.
-- Explores the island through large visual controls, narration, and short interactions.
-- Never receives an unrestricted general-purpose chat box.
+Adventure first; learning has consequences; AI adds variation, not rules; children remain the
+creators; safe by architecture; parent trust; calm engagement (no dark patterns, infinite
+scrolling, loot boxes, public leaderboards or anxiety-driven streaks).
 
-### Administrator/content designer
-- Manages curriculum skills, adventure templates, safety rules, featured events, and content status.
-- Reviews flagged AI interactions and generation failures without exposing unnecessary child data.
+## 5. Initial world
 
-## 3. Target Age Bands
+Welcome Harbor, Pirate Builder Bay, Wonderwild Forest, Storykeeper Castle. Player-facing text now
+says **Realm** for an Island (catalog `World`, ADR-041); see
+[realm-standard.md](docs/adventures/realm-standard.md). Future locations are not in scope unless
+approved.
 
-### Sprouts: ages 3–4
-- Voice-first and picture-first.
-- One-step decisions.
-- Sessions of roughly 5–8 minutes.
-- Skills: vocabulary, classification, cause/effect, emotions, counting, observation.
+## 6. AI companion
 
-### Pathfinders: ages 5–6
-- Narrated text with optional word highlighting.
-- Two- or three-step quests.
-- Sessions of roughly 8–12 minutes.
-- Skills: phonemic awareness, early reading, number sense, sequencing, patterns, explanation.
+Chatty the Parrot: warm, curious, concise, never sarcastic; explains, hints, asks, narrates and
+celebrates effort. Never requests private information, encourages secrecy, creates dependency,
+diagnoses, disciplines, discusses inappropriate topics, or claims to be human, conscious, lonely
+or dependent on the child.
 
-### Explorers: ages 7–8
-- More reading and independent choices.
-- Multi-stage missions.
-- Sessions of roughly 10–18 minutes.
-- Skills: reading comprehension, arithmetic, measurement, science reasoning, creative writing, planning.
+## 7. AI interaction model
 
-Never show content merely because it is available. Difficulty, reading volume, response mode, and interaction length must derive from the child profile's age band and demonstrated ability.
+Structured generation, curated templates, deterministic game logic, server-side validation.
+Never call a model from the browser or expose model credentials. Every AI call goes through
+Django's AI pipeline (`lai/apps/ai`, Bedrock; deterministic fake provider locally and in tests),
+carries template ID, age band, allowed topic, learning objective and maximum length, returns a
+validated schema, and has an authored fallback. Application code, not the model, decides
+correctness. Send no full profiles or unnecessary history; no persistent free-form memory.
 
-## 4. Product Pillars
+## 8. Technology baseline
 
-1. **Adventure first** — The child experiences a mission, not a lesson menu.
-2. **Learning has consequences** — Solving a problem repairs, unlocks, creates, or changes something on the island.
-3. **AI adds variation and responsiveness** — AI personalizes dialogue, hints, stories, and structured challenges; it does not invent the product rules.
-4. **Children remain the creators** — AI prompts, supports, and reacts rather than replacing imagination.
-5. **Safe by architecture** — Safety cannot depend on a single prompt or model response.
-6. **Parent trust** — Explain what was learned, why an AI response appeared, and what data is stored.
-7. **Calm engagement** — No dark patterns, infinite scrolling, loot-box mechanics, public leaderboards, or anxiety-driven streaks.
+React 19, Vite, TypeScript strict, React Router, CSS Modules plus Tailwind CSS 4 where ADR-023 and
+ADR-052 allow, Vitest, React Testing Library, Playwright (gated). Three.js is the only gameplay
+renderer (section 19). Django + DRF on PostgreSQL 16 in `lai/` (ADR-021). Cognito is the sole
+application identity provider, verified by Django (ADR-024, ADR-040); Django Admin staff sign-in
+is separate (ADR-034). S3 through Django; Bedrock and Polly only from Django; background work on
+`apps.jobs` with SQS and Lambda (ADR-064); AWS CDK in `infra/`. No Amplify. Detail and status of
+every element: [architecture-rules.md](docs/engineering/architecture-rules.md).
 
-## 5. Initial World
+## 9. Required domain concepts
 
-The MVP island contains four connected locations:
+Use `ParentAccount`, `ChildProfile`, `AgeBand`, `IslandLocation` (catalog `Location`, a Place),
+`AdventureTemplate`, `AdventureSession`, `AdventureStep`, `LearningObjective`, `SkillProgress`,
+`WorldChange`, `CompanionProfile`, `AIInteractionAudit`, `ParentConsent`, `SafetyEvent`. Never call
+child profiles "users" in child-facing copy. Content hierarchy (Realm, Place, 3D Area, Adventure,
+Quest, Challenge): [docs/adventures/README.md](docs/adventures/README.md).
 
-### Welcome Harbor
-- Child onboarding and companion selection.
-- Daily island event introduction.
-- Visual map and adventure log.
+## 10. Authorization principles
 
-### Pirate Builder Bay
-- Role-play missions involving counting, measurement, sorting, planning, and reading instructions.
-- Example: repair a bridge or provision a ship.
+Parents authenticate through Cognito and reach only their own children and records. Children
+never query admin records or raw AI audit data. Admin access is group-based. Data access is
+deny-by-default. Detail: [security-policy.md](docs/engineering/security-policy.md).
 
-### Wonderwild Forest
-- Curiosity adventures triggered by safe child questions or curated prompts.
-- Example: shrink into a beehive to discover why bees dance.
+## 11. MVP scope
 
-### Storykeeper Castle
-- Collaborative storytelling, prediction, sequencing, vocabulary, and reading comprehension.
-- The child makes choices and supplies ideas; AI assembles them into a bounded adventure.
+The fourteen MVP items are in [product-baseline.md](docs/engineering/product-baseline.md),
+section 11. Item 11: no play-time limits; children are never counted down, nudged to stop or cut
+off for time (ADR-053).
 
-Future locations are documented in `docs/PRODUCT_VISION.md` and are not MVP scope unless explicitly approved.
+## 12. Out of scope for MVP
 
-## 6. AI Companion
+Not without separate approval: social networking, child-to-child messaging, public profiles or
+leaderboards, open-ended AI chat, public user-generated content, live classrooms, real-money
+purchases by children, advertising, facial recognition, emotion inference, voice cloning,
+unrestricted web search, autonomous agents taking external actions, native mobile apps.
 
-The initial companion is **Chatty the Parrot**.
+## 13. Coding rules
 
-Chatty is:
-- warm, curious, playful, concise, and never sarcastic toward young children;
-- a guide and co-adventurer, not an authority figure or replacement parent/teacher;
-- allowed to explain, hint, ask learning questions, narrate consequences, and celebrate effort;
-- prohibited from requesting private information, encouraging secrecy, creating dependency, diagnosing, disciplining, or discussing inappropriate topics.
+TypeScript strict, no `any`. Domain logic outside React components; pure functions for adventure
+transitions. Validate all external and AI data at runtime. Typed errors with safe messages. Never
+log child free text, audio, names or identifiers unless documented as required. Tests with every
+feature. No new dependency without approval. Accessible buttons, not clickable divs. Child-facing
+text readable aloud and localizable, without em dashes. Detail:
+[coding-standards.md](docs/engineering/coding-standards.md).
 
-Chatty must not say that it is human, conscious, lonely, or emotionally dependent on the child. It may be framed as island magic or an AI-powered character, according to parent-facing explanations.
+## 14. Work process and required report
 
-## 7. AI Interaction Model
+Follow [development-workflow.md](docs/engineering/development-workflow.md). In short: read, audit,
+state the acceptance criteria, make the smallest coherent change, add tests, run the development
+checks, update docs and `docs/IMPLEMENTATION_STATUS.md`.
 
-Use **structured generation**, curated templates, deterministic game logic, and server-side validation.
+Development checks (canonical: `docs/TESTING_STRATEGY.md`, "When to run which checks";
+summary: [testing-policy.md](docs/engineering/testing-policy.md)):
+- targeted unit tests for changed code only: `npx vitest run --maxWorkers=2 <paths>` (from
+  `react/`) and `.venv/bin/python -m pytest -q <paths>`;
+- `npm run typecheck` when TypeScript changed;
+- security, authorization, privacy-logging and AI-validation tests whenever the change touches
+  them, and `npm run content:check` when exported content changes.
 
-Preferred flow:
+Not during development: Playwright, browser or WebGL automation, end-to-end and acceptance
+suites, live AWS calls, deployment checks, Ruff, Prettier, oxlint, full suites and builds. They run
+at merge or release readiness, only when explicitly requested.
 
-```text
-Child action
-  -> Adventure state machine
-  -> Learning objective selector
-  -> Safe context builder
-  -> AI generation route
-  -> Structured schema validation
-  -> Input/output safety checks
-  -> Approved UI component
-  -> Progress event and world consequence
-```
+Every task ends with a report: files created; files changed; tests run with exact results;
+checks deferred to merge verification; shared components changed; remaining risks, blockers and
+TODOs; commit SHA and branch. Use
+[completion-report.md](docs/engineering/templates/completion-report.md) for tickets and
+[agent-handoff.md](docs/engineering/templates/agent-handoff.md) when stopping mid-task. Never
+fabricate results.
 
-Rules:
-- Never call a foundation model directly from the browser.
-- Never expose model credentials to the client.
-- Route every AI call through Django's AI pipeline (`lai/apps/ai`), backed by Amazon Bedrock, with the deterministic fake provider for local development and tests.
-- AI output must use explicit schemas for dialogue, choices, hints, challenge metadata, and safety disposition.
-- Gameplay correctness must be evaluated by application code whenever possible, not by the model.
-- Do not send full child profiles or unnecessary history to the model.
-- Avoid persistent free-form conversation memory in the MVP.
-- Every AI request must include an adventure template ID, age band, allowed topic, learning objective, and maximum output length.
-- Every response must have a safe fallback authored in code.
+## 15. Definition of done
 
-## 8. Technology Baseline
+Completion is gated: Development Complete, Integration Complete, Owner Accepted, Complete
+(merged; deployed only when in scope and authorized). Code written is not done, and a completed
+implementation is never a production release. Criteria:
+[definition-of-done.md](docs/engineering/definition-of-done.md). The product bar still applies:
+flows work, authorization is explicit and tested, loading, empty, error and AI-fallback states
+exist, age bands are respected, accessibility basics hold, analytics avoid sensitive content.
 
-Unless an architectural decision record changes it, use:
+## 16. First build sequence (retired)
 
-### Frontend
-- React
-- Vite
-- TypeScript with strict mode
-- React Router
-- CSS Modules or a small token-based styling system
-- Accessible semantic HTML
-- Vitest and React Testing Library
-- Playwright for critical user journeys
+Historical only; kept in [product-baseline.md](docs/engineering/product-baseline.md). The
+lasting rule: make an experience playable deterministically before adding AI (ADR-002).
 
-### Backend and AWS (ADR-019; Amplify retired, AMP-01 to AMP-08)
-- Django + Django REST Framework in `lai/` on PostgreSQL 16 for application data and rules
-- Amazon Cognito for parent accounts: the existing user pool and web app client, used directly
-  from the browser (`react/src/lib/cognito`) and verified by Django; no Amplify SDK
-- Amazon S3 through Django for approved media, assets and child photos
-- Amazon Bedrock (and Polly for speech) called only by Django, with fake providers for local work
-- Django Admin for administrators and content designers
-- AWS CDK in `infra/` for the Django EC2 platform and the S3/CloudFront site; deploys only with
-  explicit owner approval
-- CloudWatch for logs and operational metrics
+## 17. Source documents
 
-### Repository expectations
-
-```text
-learning-adventure-island/
-├── CLAUDE.md
-├── README.md
-├── lai/            # Django project (config/, apps/)
-├── infra/          # AWS CDK stacks
-├── react/src/
-│   ├── app/
-│   ├── components/
-│   ├── features/
-│   │   ├── auth/
-│   │   ├── parent-dashboard/
-│   │   ├── child-profile/
-│   │   ├── island-map/
-│   │   ├── adventures/
-│   │   ├── companion/
-│   │   └── safety/
-│   ├── lib/
-│   ├── routes/
-│   ├── styles/
-│   └── test/
-├── docs/
-└── public/
-```
-
-## 9. Required Domain Concepts
-
-Use these terms consistently:
-- `ParentAccount`
-- `ChildProfile`
-- `AgeBand`
-- `IslandLocation`
-- `AdventureTemplate`
-- `AdventureSession`
-- `AdventureStep`
-- `LearningObjective`
-- `SkillProgress`
-- `WorldChange`
-- `CompanionProfile`
-- `AIInteractionAudit`
-- `ParentConsent`
-- `SafetyEvent`
-
-Do not call child profiles “users” in child-facing copy.
-
-## 10. Authorization Principles
-
-- Parent accounts authenticate through Cognito.
-- A parent may access only their own child profiles and associated records.
-- Children do not directly query administrative records or raw AI audit data.
-- Admin access must be group-based and explicitly authorized.
-- AI routes must operate using the authenticated parent/account context or a narrowly authorized backend function.
-- Data access is deny-by-default.
-- Never use public model access for private child progress or session data.
-
-## 11. MVP Scope
-
-The first usable product must include:
-
-1. Parent sign-up, sign-in, sign-out, confirmation, and password recovery.
-2. Parent creates up to three child profiles.
-3. Child selects a profile using a parent-configurable simple gate.
-4. Child chooses Chatty the Parrot.
-5. Visual island map with Welcome Harbor, Pirate Builder Bay, Wonderwild Forest, and Storykeeper Castle.
-6. One complete adventure template per location, excluding Welcome Harbor.
-7. At least one adaptive hint path per adventure.
-8. At least one persistent world change after an adventure.
-9. Adventure log showing completed missions and creations.
-10. Parent dashboard summarizing activity by skill, not raw chat transcripts.
-11. No play-time limits: children are never counted down, nudged to stop, or cut off for time
-    (ADR-053 retired the session-time control and calm stop).
-12. Safety logging, AI fallback behavior, and admin review scaffolding.
-13. Responsive tablet-first layout.
-14. Automated tests for authorization, adventure state transitions, age adaptation, and AI validation.
-
-## 12. Out of Scope for MVP
-
-Do not implement until separately approved:
-- social networking;
-- child-to-child messaging;
-- public profiles or leaderboards;
-- open-ended AI chat;
-- user-generated public content;
-- live classrooms;
-- real-money purchases by children;
-- advertising;
-- facial recognition;
-- emotion inference from camera or voice;
-- cloning a child's or family member's voice;
-- unrestricted web search;
-- autonomous AI agents taking external actions;
-- native mobile applications.
-
-## 13. Coding Rules
-
-- TypeScript strict mode; avoid `any`.
-- Keep domain logic independent from React components.
-- Use small composable services and pure functions for adventure transitions.
-- Validate all external and AI-generated data at runtime.
-- Return typed errors with safe user-facing messages.
-- Do not log child free-text, audio, names, or identifiers unless specifically required and documented.
-- Add tests with each feature.
-- Add or update documentation when architecture, schema, privacy behavior, or scope changes.
-- Do not silently introduce a new dependency.
-- Prefer accessible buttons over clickable divs.
-- All child-facing text must be readable aloud and localizable.
-- Avoid em dashes in user-facing copy.
-
-## 14. Work Process for Claude
-
-For each implementation request:
-
-1. Read this file and relevant documents in `docs/`.
-2. Inspect the current repository before proposing files.
-3. State the acceptance criteria being implemented.
-4. Make the smallest coherent change that completes the feature.
-5. Update or add tests.
-6. Run the development checks in `docs/TESTING_STRATEGY.md` ("When to run which checks"):
-   relevant unit tests, typechecking when TypeScript changed, and focused regression tests.
-   Linting, formatting, full suites, builds, browser/WebGL and deployment checks run at merge
-   or release readiness, when explicitly requested.
-7. Report:
-   - files created;
-   - files changed;
-   - tests run and results;
-   - remaining risks or TODOs.
-8. Update `docs/IMPLEMENTATION_STATUS.md`.
-
-Do not mark a task complete merely because files were generated. Completion requires passing acceptance criteria and the development checks, with anything deferred to merge verification listed, or a precise explanation of what remains blocked.
-
-## 15. Definition of Done
-
-A feature is done only when:
-- child and parent flows work as specified;
-- authorization is explicit and tested;
-- loading, empty, error, and AI-fallback states exist;
-- age bands are respected;
-- accessibility basics are satisfied;
-- analytics avoid sensitive content;
-- relevant tests pass (the full merge-readiness gates run before a merge; see `docs/TESTING_STRATEGY.md`);
-- documentation and implementation status are updated.
-
-## 16. First Build Sequence
-
-When starting from an empty repository, implement in this order:
-
-1. Scaffold React + Vite + TypeScript and the backend (originally Amplify Gen 2; now Django, section 18).
-2. Establish linting, formatting, unit testing, and CI.
-3. Add design tokens and application shell.
-4. Define Auth and parent authentication flows.
-5. Define the initial data schema and authorization rules.
-6. Build parent-managed child profile creation.
-7. Build the static island map and route structure.
-8. Implement the deterministic adventure state engine.
-9. Implement Pirate Builder Bay without AI first.
-10. Add structured AI generation for companion dialogue and hints.
-11. Add Storykeeper Castle and Wonderwild Forest.
-12. Add progress, world changes, parent summaries, and safety audit scaffolding.
-13. Add end-to-end tests and deployment documentation.
-
-Do not begin with AI generation. First make the core adventure playable deterministically, then add AI as a safe enhancement.
-
-## 17. Source Documents
-
-Read these before major work:
-- `docs/PRODUCT_VISION.md`
-- `docs/ARCHITECTURE.md`
-- `docs/DATA_MODEL.md`
-- `docs/AI_AND_CHILD_SAFETY.md`
-- `docs/ADVENTURE_ENGINE.md`
-- `docs/UX_AND_ACCESSIBILITY.md`
-- `docs/ROADMAP.md`
-- `docs/TESTING_STRATEGY.md`
-- `docs/IMPLEMENTATION_STATUS.md`
-
+Product and domain: `docs/PRODUCT_VISION.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`,
+`docs/AI_AND_CHILD_SAFETY.md`, `docs/ADVENTURE_ENGINE.md`, `docs/UX_AND_ACCESSIBILITY.md`,
+`docs/ROADMAP.md`. Process: `docs/TESTING_STRATEGY.md`, `docs/IMPLEMENTATION_STATUS.md`,
+`docs/DJANGO_MIGRATION_ROADMAP.md`. Decisions: `docs/DECISIONS.md` (the only ADR log; see
+[docs/adr/README.md](docs/adr/README.md)).
 
 ## 18. Backend migration (Django in effect; Amplify retired)
 
@@ -380,3 +210,67 @@ never silently overwrites. Spatial layouts are not
 Django-administered until LAI-0805's ADR: shipped regions keep their TypeScript manifests and
 Treasure Cove's layout stays in `lai/apps/regions/treasure_rush_seed.py`.
 
+
+## 21. Engineering governance (ADR-072, Proposed)
+
+Rules marked as binding elsewhere bind now; the rest of these standards bind once the owner
+accepts ADR-072. Until then, follow them as the documented way of working unless the owner or
+your ticket says otherwise.
+
+**Operating model.** The owner makes final architecture, product, acceptance, merge and deployment
+decisions. ChatGPT is project manager, architect, specification writer and coordinator. Up to
+five Claude agents (Claude-01 to Claude-05) implement tickets. Trello is authoritative for task
+ownership, priority and state; GitHub for code, branches, pull requests and history.
+
+**Git and worktrees.** One ticket, one branch, one worktree under
+`/Coding/learning-worktrees/<short-name>`, created from a fetched baseline whose SHA you record.
+Never commit to `main`, merge into `main`, force-push a shared branch, or touch another agent's
+worktree, branch or stash. Push your branch; the owner opens or authorizes the pull request and
+every merge. [branch-policy.md](docs/engineering/branch-policy.md),
+[integration-policy.md](docs/engineering/integration-policy.md).
+
+**Development restrictions.** Stay inside the ticket's scope; record and seek approval for any
+significant expansion. No new framework, runtime dependency or architecture without approval.
+Identify shared-component changes (models and migrations, auth, API contracts, engine, movement,
+jumping, collision, camera, asset resolution, NPC, sound, content publication, scoring,
+infrastructure) before making them. No AWS deployment, live AWS call or production data change
+without explicit owner approval (section 18).
+
+**Trello.** Claim the card before work, keep its ticket block current (branch, worktree, baseline,
+pull request, commit, blockers), add dated evidence at each transition, and never move a card to
+Complete because code exists. [trello-workflow.md](docs/engineering/trello-workflow.md).
+
+**Documentation.** Update the documents your change makes stale, in the same branch; no
+duplicate copies of canonical text. Run `npm run docs:check` when you edit governed documents and
+`npm run adr:check` when you touch ADRs. [documentation-policy.md](docs/engineering/documentation-policy.md).
+
+**Security.** Child privacy first, deny-by-default authorization tested per endpoint, server-side
+validation, no secrets anywhere in the repository, fixtures or Trello, no compliance claims.
+[security-policy.md](docs/engineering/security-policy.md).
+
+**Adventures.** Every new adventure follows [adventure-standard.md](docs/adventures/adventure-standard.md)
+and its templates, reuses the shared engine, movement, jumping, asset, NPC, sound, content,
+scoring and progress systems, integrates jumping meaningfully with accessible alternatives
+([jumping-standard.md](docs/adventures/jumping-standard.md)), never gates exits behind a
+challenge, and never adds time limits.
+
+### Standards index
+
+| Topic | Document |
+|---|---|
+| Engineering index and owner checklist | [docs/engineering/README.md](docs/engineering/README.md) |
+| Lifecycle | [development-workflow.md](docs/engineering/development-workflow.md) |
+| Multi-agent work | [multi-agent-workflow.md](docs/engineering/multi-agent-workflow.md) |
+| Architecture | [architecture-rules.md](docs/engineering/architecture-rules.md) |
+| Coding | [coding-standards.md](docs/engineering/coding-standards.md) |
+| Testing | [testing-policy.md](docs/engineering/testing-policy.md) |
+| Security and privacy | [security-policy.md](docs/engineering/security-policy.md) |
+| Branches | [branch-policy.md](docs/engineering/branch-policy.md) |
+| Integration | [integration-policy.md](docs/engineering/integration-policy.md) |
+| Releases | [release-policy.md](docs/engineering/release-policy.md) |
+| Trello | [trello-workflow.md](docs/engineering/trello-workflow.md) |
+| Definition of done | [definition-of-done.md](docs/engineering/definition-of-done.md) |
+| Documentation | [documentation-policy.md](docs/engineering/documentation-policy.md) |
+| Engineering templates | [docs/engineering/templates/](docs/engineering/templates/) |
+| Adventure standards and templates | [docs/adventures/README.md](docs/adventures/README.md) |
+| ADRs | [docs/adr/README.md](docs/adr/README.md) and `docs/DECISIONS.md` |
