@@ -1096,6 +1096,562 @@
       ],
       "summary": "Help Flint light the Heart of Firepeak again.",
       "title": "The Heart of Firepeak"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You met Jingle, looked around the village, and found the first star piece.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q01_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q01-welcome-stage",
+      "giverNpcId": "jingle",
+      "id": "np-q01-welcome",
+      "prerequisites": [
+        {
+          "type": "ALWAYS"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q01-welcome-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_WELCOME_LOOKED",
+              "id": "np-q01-welcome-obj-1",
+              "kind": "BUILD",
+              "label": "Look around the village"
+            },
+            {
+              "changeKey": "NORTH_POLE_FRAGMENT_VILLAGE",
+              "id": "np-q01-welcome-obj-2",
+              "kind": "BUILD",
+              "label": "Find the star piece by the steps"
+            }
+          ],
+          "title": "Welcome to the North Pole"
+        }
+      ],
+      "summary": "Look around Santa’s Landing with Jingle and find the first star piece.",
+      "title": "Welcome to the North Pole"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You helped Tinker fix the toy machine and found a star piece.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q02_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q02-toy-workshop-stage",
+      "giverNpcId": "tinker",
+      "id": "np-q02-toy-workshop",
+      "prerequisites": [
+        {
+          "changeKey": "NORTH_POLE_WELCOME_LOOKED",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q02-toy-workshop-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_WORKSHOP_TOYS_COUNTED",
+              "id": "np-q02-toy-workshop-obj-1",
+              "kind": "BUILD",
+              "label": "Count the toys"
+            },
+            {
+              "changeKey": "NORTH_POLE_WORKSHOP_PRESENTS_SORTED",
+              "id": "np-q02-toy-workshop-obj-2",
+              "kind": "BUILD",
+              "label": "Sort the presents"
+            },
+            {
+              "changeKey": "NORTH_POLE_WORKSHOP_PATTERN_FIXED",
+              "id": "np-q02-toy-workshop-obj-3",
+              "kind": "BUILD",
+              "label": "Fix the pattern on the belt"
+            },
+            {
+              "changeKey": "NORTH_POLE_WORKSHOP_GIFTS_CHECKED",
+              "id": "np-q02-toy-workshop-obj-4",
+              "kind": "BUILD",
+              "label": "Open the gift chest"
+            },
+            {
+              "changeKey": "NORTH_POLE_WORKSHOP_RESTORED",
+              "id": "np-q02-toy-workshop-obj-5",
+              "kind": "BUILD",
+              "label": "Build the toy to wake the machine"
+            },
+            {
+              "changeKey": "NORTH_POLE_FRAGMENT_WORKSHOP",
+              "id": "np-q02-toy-workshop-obj-6",
+              "kind": "BUILD",
+              "label": "Find the star piece on the high shelf"
+            }
+          ],
+          "title": "Trouble in the Toy Workshop"
+        }
+      ],
+      "summary": "Help Tinker fix the toy machine.",
+      "title": "Trouble in the Toy Workshop"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You helped Peppermint clear the forest path and found a star piece.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q03_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q03-candy-cane-forest-stage",
+      "giverNpcId": "peppermint",
+      "id": "np-q03-candy-cane-forest",
+      "prerequisites": [
+        {
+          "changeKey": "NORTH_POLE_WORKSHOP_RESTORED",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q03-candy-cane-forest-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_FOREST_SEQUENCE_DONE",
+              "id": "np-q03-candy-cane-forest-obj-1",
+              "kind": "BUILD",
+              "label": "Follow the number path"
+            },
+            {
+              "changeKey": "NORTH_POLE_FOREST_SIGNS_READ",
+              "id": "np-q03-candy-cane-forest-obj-2",
+              "kind": "BUILD",
+              "label": "Read the signs"
+            },
+            {
+              "changeKey": "NORTH_POLE_FOREST_DONE",
+              "id": "np-q03-candy-cane-forest-obj-3",
+              "kind": "BUILD",
+              "label": "Put the candy stripes in order"
+            },
+            {
+              "changeKey": "NORTH_POLE_FRAGMENT_FOREST",
+              "id": "np-q03-candy-cane-forest-obj-4",
+              "kind": "BUILD",
+              "label": "Find the star piece at the end of the stones"
+            }
+          ],
+          "title": "Candy Cane Forest"
+        }
+      ],
+      "summary": "Help Peppermint find the path through the candy cane forest.",
+      "title": "Candy Cane Forest"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You helped Frosty with the frozen lake and found a star piece.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q04_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q04-frozen-lake-stage",
+      "giverNpcId": "frosty",
+      "id": "np-q04-frozen-lake",
+      "prerequisites": [
+        {
+          "changeKey": "NORTH_POLE_FOREST_DONE",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q04-frozen-lake-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_LAKE_BRIDGE",
+              "id": "np-q04-frozen-lake-obj-1",
+              "kind": "BUILD",
+              "label": "Raise the ice bridge"
+            },
+            {
+              "changeKey": "NORTH_POLE_LAKE_ORDERED",
+              "id": "np-q04-frozen-lake-obj-2",
+              "kind": "BUILD",
+              "label": "Put the ice floes in order"
+            },
+            {
+              "changeKey": "NORTH_POLE_LAKE_DONE",
+              "id": "np-q04-frozen-lake-obj-3",
+              "kind": "BUILD",
+              "label": "Match the shapes on the ice"
+            },
+            {
+              "changeKey": "NORTH_POLE_FRAGMENT_LAKE",
+              "id": "np-q04-frozen-lake-obj-4",
+              "kind": "BUILD",
+              "label": "Find the star piece on the far island"
+            }
+          ],
+          "title": "The Frozen Lake"
+        }
+      ],
+      "summary": "Help Frosty raise the ice bridge across the lake.",
+      "title": "The Frozen Lake"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You helped Noel bring Snowball home and found a star piece.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q05_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q05-missing-reindeer-stage",
+      "giverNpcId": "noel",
+      "id": "np-q05-missing-reindeer",
+      "prerequisites": [
+        {
+          "changeKey": "NORTH_POLE_LAKE_DONE",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q05-missing-reindeer-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_STABLES_FACTS_LEARNED",
+              "id": "np-q05-missing-reindeer-obj-1",
+              "kind": "BUILD",
+              "label": "Learn about reindeer"
+            },
+            {
+              "changeKey": "NORTH_POLE_STABLES_TRACKS_FOLLOWED",
+              "id": "np-q05-missing-reindeer-obj-2",
+              "kind": "BUILD",
+              "label": "Follow the footprints"
+            },
+            {
+              "changeKey": "NORTH_POLE_STABLES_SUPPLIES_FOUND",
+              "id": "np-q05-missing-reindeer-obj-3",
+              "kind": "BUILD",
+              "label": "Find what Snowball needs"
+            },
+            {
+              "changeKey": "NORTH_POLE_SNOWBALL_FOUND",
+              "id": "np-q05-missing-reindeer-obj-4",
+              "kind": "BUILD",
+              "label": "Find Snowball in Pine Hollow"
+            },
+            {
+              "changeKey": "NORTH_POLE_SNOWBALL_HOME",
+              "id": "np-q05-missing-reindeer-obj-5",
+              "kind": "BUILD",
+              "label": "Bring the collar back to Noel"
+            },
+            {
+              "changeKey": "NORTH_POLE_FRAGMENT_STABLES",
+              "id": "np-q05-missing-reindeer-obj-6",
+              "kind": "BUILD",
+              "label": "Find the star piece beside Snowball"
+            }
+          ],
+          "title": "The Missing Reindeer"
+        }
+      ],
+      "summary": "Help Noel find Snowball the reindeer calf.",
+      "title": "The Missing Reindeer"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You helped Ginger and Mrs. Claus mend the village and found a star piece.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q06_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q06-gingerbread-mystery-stage",
+      "giverNpcId": "ginger",
+      "id": "np-q06-gingerbread-mystery",
+      "prerequisites": [
+        {
+          "changeKey": "NORTH_POLE_SNOWBALL_HOME",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q06-gingerbread-mystery-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_GINGER_SHAPES_MATCHED",
+              "id": "np-q06-gingerbread-mystery-obj-1",
+              "kind": "BUILD",
+              "label": "Match the shapes"
+            },
+            {
+              "changeKey": "NORTH_POLE_GINGER_SYMMETRY_DONE",
+              "id": "np-q06-gingerbread-mystery-obj-2",
+              "kind": "BUILD",
+              "label": "Finish the matching window"
+            },
+            {
+              "changeKey": "NORTH_POLE_GINGER_RECIPE_READ",
+              "id": "np-q06-gingerbread-mystery-obj-3",
+              "kind": "BUILD",
+              "label": "Read Mrs. Claus’s recipe"
+            },
+            {
+              "changeKey": "NORTH_POLE_GINGER_MEASURED",
+              "id": "np-q06-gingerbread-mystery-obj-4",
+              "kind": "BUILD",
+              "label": "Measure the cookie beams"
+            },
+            {
+              "changeKey": "NORTH_POLE_GINGER_REPAIRED",
+              "id": "np-q06-gingerbread-mystery-obj-5",
+              "kind": "BUILD",
+              "label": "Mend the gingerbread wall"
+            },
+            {
+              "changeKey": "NORTH_POLE_FRAGMENT_GINGERBREAD",
+              "id": "np-q06-gingerbread-mystery-obj-6",
+              "kind": "BUILD",
+              "label": "Find the star piece on the rooftop"
+            }
+          ],
+          "title": "The Gingerbread Mystery"
+        }
+      ],
+      "summary": "Help Ginger mend the gingerbread village wall.",
+      "title": "The Gingerbread Mystery"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You climbed Snowflake Mountain and found the last star piece.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q07_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q07-snowflake-mountain-stage",
+      "giverNpcId": "jingle",
+      "id": "np-q07-snowflake-mountain",
+      "prerequisites": [
+        {
+          "changeKey": "NORTH_POLE_GINGER_REPAIRED",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q07-snowflake-mountain-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_MOUNTAIN_BRIDGE_ONE",
+              "id": "np-q07-snowflake-mountain-obj-1",
+              "kind": "BUILD",
+              "label": "Raise the first bridge"
+            },
+            {
+              "changeKey": "NORTH_POLE_MOUNTAIN_BRIDGE_TWO",
+              "id": "np-q07-snowflake-mountain-obj-2",
+              "kind": "BUILD",
+              "label": "Raise the second bridge"
+            },
+            {
+              "changeKey": "NORTH_POLE_MOUNTAIN_SUMMIT",
+              "id": "np-q07-snowflake-mountain-obj-3",
+              "kind": "BUILD",
+              "label": "Reach the top of the mountain"
+            },
+            {
+              "changeKey": "NORTH_POLE_FRAGMENT_MOUNTAIN",
+              "id": "np-q07-snowflake-mountain-obj-4",
+              "kind": "BUILD",
+              "label": "Find the star piece at the top"
+            }
+          ],
+          "title": "Snowflake Mountain"
+        }
+      ],
+      "summary": "Climb Snowflake Mountain with Jingle.",
+      "title": "Snowflake Mountain"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You helped Polaris put the Christmas Star back together.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q08_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q08-restore-the-star-stage",
+      "giverNpcId": "polaris",
+      "id": "np-q08-restore-the-star",
+      "prerequisites": [
+        {
+          "changeKey": "NORTH_POLE_MOUNTAIN_SUMMIT",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q08-restore-the-star-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_OBS_STARS_LEARNED",
+              "id": "np-q08-restore-the-star-obj-1",
+              "kind": "BUILD",
+              "label": "Learn about stars"
+            },
+            {
+              "changeKey": "NORTH_POLE_OBS_CONSTELLATION_FOUND",
+              "id": "np-q08-restore-the-star-obj-2",
+              "kind": "BUILD",
+              "label": "Find the constellation"
+            },
+            {
+              "changeKey": "NORTH_POLE_OBS_SEQUENCE_DONE",
+              "id": "np-q08-restore-the-star-obj-3",
+              "kind": "BUILD",
+              "label": "Put the night sky in order"
+            },
+            {
+              "changeKey": "NORTH_POLE_FRAGMENTS_PLACED",
+              "id": "np-q08-restore-the-star-obj-4",
+              "kind": "BUILD",
+              "label": "Place the seven star pieces"
+            },
+            {
+              "changeKey": "NORTH_POLE_STAR_RESTORED",
+              "id": "np-q08-restore-the-star-obj-5",
+              "kind": "BUILD",
+              "label": "Make the star shine"
+            }
+          ],
+          "title": "Restore the Christmas Star"
+        }
+      ],
+      "summary": "Help Polaris put the seven star pieces back together.",
+      "title": "Restore the Christmas Star"
+    },
+    {
+      "ageBands": [
+        "SPROUT",
+        "PATHFINDER",
+        "EXPLORER"
+      ],
+      "completion": {
+        "journalNote": "You rang the sleigh bell, and the whole North Pole celebrated with you.",
+        "worldChanges": [
+          {
+            "changeKey": "NORTH_POLE_Q09_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          },
+          {
+            "changeKey": "NORTH_POLE_ADVENTURE_COMPLETE",
+            "changeType": "UNLOCK",
+            "locationSlug": "north-pole-village"
+          }
+        ]
+      },
+      "entryStageId": "np-q09-christmas-eve-stage",
+      "giverNpcId": "santa-claus",
+      "id": "np-q09-christmas-eve",
+      "prerequisites": [
+        {
+          "changeKey": "NORTH_POLE_STAR_RESTORED",
+          "type": "WORLD_CHANGE"
+        }
+      ],
+      "stages": [
+        {
+          "id": "np-q09-christmas-eve-stage",
+          "objectives": [
+            {
+              "changeKey": "NORTH_POLE_CHRISTMAS_EVE",
+              "id": "np-q09-christmas-eve-obj-1",
+              "kind": "BUILD",
+              "label": "Ring Santa’s sleigh bell"
+            }
+          ],
+          "title": "Christmas Eve Celebration"
+        }
+      ],
+      "summary": "Ring the sleigh bell with Santa.",
+      "title": "Christmas Eve Celebration"
     }
   ],
   "schemaVersion": 3
