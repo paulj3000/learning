@@ -116,6 +116,15 @@ repository and records leave one candidate; **Proposed** means a choice this aud
 | `scripts/aws/provision.sh` | Infrastructure stacks 1 to 4, plus `LaiFrontend-<env>` in us-east-1 when `LAI_SITE_DOMAIN` is set (change sets by default) | Operator, with owner approval | `LaiAiGuardrail-<env>` is still not in it (deployed by hand per `docs/AI_SERVICE.md`) | Evidence |
 | `lai-dev-complete.yaml` | Unknown | None until supplied (section 5) | A second, unreviewed path to EC2/RDS/VPC | Owner (D1) |
 
+### 3.7 Background processing (ADR-064, ADR-071; added 2026-11-18, code only)
+
+| Resource | Owner | Notes |
+|---|---|---|
+| Dev queues `lai-dev-jobs-{ai,media,audio,image,optimize}`, `lai-dev-job-results` (+ DLQs), dev workers, `lai-dev-ffmpeg` layer | `LaiDevPlatform-dev` | Native workers off by default (`EnableAudioWorker`, `EnableImageWorker`); optimize only with the `optimizeWorker` flag |
+| Prod queues `lai-prod-*` (+ DLQs), workers `lai-prod-jobs-*`, worker roles, `lai-prod-ffmpeg`, `lai-prod-artifacts-<account>-<region>`, `lai-prod-jobs-dlq-redrive`, `lai-github-workers-prod`, `lai-prod-*` alarms, `lai-prod-processing-monthly` budget | `LaiDjangoEc2-prod` (construct `Processing`, synth flag `prodProcessing`) | One stack per environment; no separate processing stack (ADR-064 guard). Not deployed |
+| `lai-django-processing-artifacts-<env>` (Django read, staff captures, retention deletes under `processing/artifacts/<env>/`) | `LaiAssetStorage-<env>` | Dev always; prod with `prodProcessing`. Attached by name by the platform stack |
+| Derived artifacts `processing/artifacts/<env>/` | Asset bucket of `LaiAssetStorage-<env>` | No CDN origin serves the asset bucket; workers create-only, Django deletes |
+
 ## 4. Duplicate creation and replacement risks
 
 **Fixed physical names.** These `infra/` resources carry explicit names, so a second stack (the
