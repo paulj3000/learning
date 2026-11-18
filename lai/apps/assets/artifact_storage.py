@@ -164,8 +164,25 @@ def put_create_only(key: str, data: bytes, *, content_type: str, sha256: str) ->
         raise ArtifactStorageUnavailable from None
 
 
+class ArtifactKeyOutsideNamespace(ValueError):
+    """A delete was asked for a key that is not under this environment's artifact prefix."""
+
+
 def delete_object(key: str) -> None:
-    """Remove an object (the retention cleanup path only). Missing is not an error."""
+    """Remove an object (the retention cleanup path only). Missing is not an error.
+
+    The key must be under THIS environment's `processing/artifacts/<env>/` prefix (and contain no
+    `..` or empty segment): a row or listing holding any other key, another environment's, an
+    `assets/` key or a speech key, is refused with `ArtifactKeyOutsideNamespace` and nothing is
+    sent to the store."""
+    if (
+        not isinstance(key, str)
+        or not key.startswith(namespace_prefix())
+        or len(key) <= len(namespace_prefix())
+        or ".." in key.split("/")
+        or "" in key.split("/")
+    ):
+        raise ArtifactKeyOutsideNamespace("The key is outside this environment's artifacts.")
     try:
         get_storage().delete(key)
     except ObjectMissing:

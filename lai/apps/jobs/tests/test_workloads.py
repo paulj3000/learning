@@ -72,7 +72,11 @@ def test_control_on_but_queue_missing_is_refused(sqs, settings, kind, queue, con
 def test_dispatch_routes_to_the_kinds_queue(sqs, settings, kind, queue, control, setting):
     setattr(settings, control, "on")
     setattr(settings, setting, URLS[setting])
-    job = workloads.submit_workload(kind, {"hello": "world"})
+    payload = {"hello": "world"}
+    if kind == "asset.optimize":  # the dispatch variant comes from the request's profile
+        ids = {"LAI_GLB_MESHOPT": "meshopt-conservative", "LAI_GLB_KTX2": "ktx2-basisu"}
+        payload["profile"] = {"profile_id": ids[control], "version": 1}
+    job = workloads.submit_workload(kind, payload)
     assert job.queue == queue
     assert [m["QueueUrl"] for m in sqs.sent] == [URLS[setting]]
     job.refresh_from_db()
@@ -123,3 +127,52 @@ def test_controls_default_off_and_parse(settings):
     assert workloads.thumbnail_capture_enabled() is False
     settings.LAI_THUMBNAIL_CAPTURE = "on"
     assert workloads.thumbnail_capture_enabled() is True
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    ("profile", "off", "on"),
+    [
+        (("ktx2-basisu", 1), "LAI_GLB_KTX2", "LAI_GLB_MESHOPT"),
+        (("meshopt-conservative", 1), "LAI_GLB_MESHOPT", "LAI_GLB_KTX2"),
+    ],
+    ids=["ktx2", "meshopt"],
+)
+def test_dispatch_checks_the_variant_the_job_was_submitted_under(sqs, settings, profile, off, on):
+    """Only the OTHER variant's control stays on: the queued job must fail, not be sent."""
+    settings.LAI_GLB_MESHOPT = settings.LAI_GLB_KTX2 = "on"
+    settings.LAI_JOBS_OPTIMIZE_QUEUE_URL = OPTIMIZE_URL
+    payload = {"profile": {"profile_id": profile[0], "version": profile[1]}}
+    sqs.fail_send = True  # the on-commit send fails; the relay path sends later
+    job = workloads.submit_workload("asset.optimize", payload)
+    sqs.fail_send = False
+    settings.LAI_GLB_MESHOPT = settings.LAI_GLB_KTX2 = "off"
+    setattr(settings, on, "on")
+    assert services._send(job.pk) == "failed"
+    job.refresh_from_db()
+    assert (job.status, job.error_code) == ("failed", "workload_disabled")
+    assert sqs.sent == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dispatch_sends_when_the_jobs_own_variant_is_on(sqs, settings):
+    settings.LAI_GLB_KTX2 = "on"
+    settings.LAI_JOBS_OPTIMIZE_QUEUE_URL = OPTIMIZE_URL
+    payload = {"profile": {"profile_id": "ktx2-basisu", "version": 1}}
+    sqs.fail_send = True
+    job = workloads.submit_workload("asset.optimize", payload, variant="ktx2")
+    sqs.fail_send = False
+    assert services._send(job.pk) == "sent"
+    assert len(sqs.sent) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_unrecognised_optimize_profile_is_never_sent(sqs, settings):
+    settings.LAI_GLB_MESHOPT = settings.LAI_GLB_KTX2 = "on"
+    settings.LAI_JOBS_OPTIMIZE_QUEUE_URL = OPTIMIZE_URL
+    job = workloads.submit_workload(
+        "asset.optimize", {"profile": {"profile_id": "other", "version": 1}}
+    )
+    job.refresh_from_db()
+    assert (job.status, job.error_code) == ("failed", "workload_disabled")
+    assert sqs.sent == []

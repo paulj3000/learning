@@ -26,6 +26,7 @@ from .artifact_storage import ArtifactMismatch, ArtifactObjectMissing, ArtifactS
 from .artifacts import ArtifactRefused, require_permission
 from .models import ArtifactState, AssetVersion, DerivedArtifact, VersionStatus
 from .services import AssetActionRefused
+from .storage import get_storage
 
 logger = logging.getLogger("lai.assets")
 
@@ -79,21 +80,37 @@ def promote_artifact(artifact: DerivedArtifact, user) -> AssetVersion:
             original_filename=f"{artifact.role}-{artifact.logical_id}.{_extension(artifact)}"[:255],
             user=user,
         )
-        version = AssetVersion.objects.select_for_update().get(pk=version.pk)
-        copied = {k: source.metadata[k] for k in PROVENANCE_KEYS if k in (source.metadata or {})}
-        version.metadata = {
-            **(version.metadata or {}),
-            **copied,
-            "derivedFrom": derived_from(artifact, source),
-        }
-        version.save(update_fields=["metadata"])
-        artifact.state = ArtifactState.PROMOTED
-        artifact.promoted_version = version
-        artifact.promoted_by, artifact.promoted_at = user, now()
-        artifact.expires_at = None
-        artifact.save(
-            update_fields=["state", "promoted_version", "promoted_by", "promoted_at", "expires_at"]
-        )
+        stored_key = version.storage_key
+        try:
+            version = AssetVersion.objects.select_for_update().get(pk=version.pk)
+            copied = {
+                k: source.metadata[k] for k in PROVENANCE_KEYS if k in (source.metadata or {})
+            }
+            version.metadata = {
+                **(version.metadata or {}),
+                **copied,
+                "derivedFrom": derived_from(artifact, source),
+            }
+            version.save(update_fields=["metadata"])
+            artifact.state = ArtifactState.PROMOTED
+            artifact.promoted_version = version
+            artifact.promoted_by, artifact.promoted_at = user, now()
+            artifact.expires_at = None
+            artifact.save(
+                update_fields=[
+                    "state",
+                    "promoted_version",
+                    "promoted_by",
+                    "promoted_at",
+                    "expires_at",
+                ]
+            )
+        except BaseException:
+            # `upload_version` already stored the object; the transaction will roll the version
+            # row back, so the object would be an orphan. Remove it now (best effort: the storage
+            # audit finds it otherwise).
+            services._delete_quietly(get_storage(), stored_key)
+            raise
     logger.info(
         "derived artifact promoted id=%s asset=%s version=%s",
         artifact.pk,

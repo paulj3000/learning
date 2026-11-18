@@ -274,3 +274,33 @@ def test_artifact_keys_are_outside_every_delivery_prefix():
     _v, _j, artifact = recorded()
     assert not artifact.storage_key.startswith(formats.KEY_PREFIXES)
     assert artifact.storage_key.startswith("processing/artifacts/")
+
+
+@pytest.mark.parametrize("flags", [{"is_staff": False}, {"is_active": False}])
+def test_the_media_route_needs_an_active_staff_user_even_with_the_permission(flags):
+    """SEC-4: the permission alone is not enough; the account must be active staff."""
+    from apps.users.models import ParentAccount
+
+    _v, _j, artifact = recorded()
+    user = user_with("view_derivedartifact")
+    client = login(user)
+    assert client.get(f"{LIST}{artifact.pk}/media/").status_code == 200  # sanity
+    ParentAccount.objects.filter(pk=user.pk).update(**flags)
+    response = client.get(f"{LIST}{artifact.pk}/media/")
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "forbidden"
+
+
+def test_a_non_staff_account_holding_the_permission_gets_no_bytes():
+    from django.contrib.auth.models import Permission
+
+    from apps.users.models import ParentAccount
+
+    _v, _j, artifact = recorded()
+    outsider = ParentAccount.objects.create(cognito_sub="parent-with-perm", is_staff=False)
+    outsider.user_permissions.set(Permission.objects.filter(codename="view_derivedartifact"))
+    outsider = ParentAccount.objects.get(pk=outsider.pk)
+    client = Client()
+    client.force_login(outsider, backend="django.contrib.auth.backends.ModelBackend")
+    response = client.get(f"{LIST}{artifact.pk}/media/")
+    assert response.status_code == 403 and response["Content-Type"].startswith("application/json")

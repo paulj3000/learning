@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from apps.catalog.models import AssetStatus, ContentAsset
 
-from .models import CONTENT_TYPES, AssetVersion, VersionStatus
+from .models import CONTENT_TYPES, AssetVersion, DerivedArtifact, VersionStatus
 from .processing import (
     async_validation_applies,
     identity_mismatch,
@@ -576,19 +576,37 @@ def retire_asset(asset: ContentAsset) -> ContentAsset:
 
 
 def delete_unpublished_version(version: AssetVersion) -> None:
-    """Delete a never-published version and, once that commits, its stored file."""
+    """Delete a never-published version and, once that commits, its stored file.
+
+    Lock order, as everywhere: the asset row first, then the version row. A version that was
+    created by promoting a derived artifact is refused with its own code and message: the artifact
+    row protects it (`promoted_version` is PROTECT), and removing a promoted version, which would
+    have to return the artifact to a reviewable state and keep an audit record, is an OPEN
+    DECISION (docs/processing/DERIVED_ARTIFACTS.md, section 13). Until the owner decides, a
+    promoted version that should not ship simply stays unpublished."""
+    asset_pk = AssetVersion.objects.filter(pk=version.pk).values_list("asset_id", flat=True).first()
+    if asset_pk is None:
+        return  # already gone
     with transaction.atomic():
+        ContentAsset.objects.select_for_update().filter(pk=asset_pk).first()
         version = AssetVersion.objects.select_for_update().get(pk=version.pk)
         if version.was_published:
             raise AssetActionRefused("published", "Published versions are never deleted.")
+        if DerivedArtifact.objects.filter(promoted_version=version).exists():
+            raise AssetActionRefused(
+                "promoted_version",
+                "This version was created from a derived artifact, so it cannot be deleted "
+                "here. Leave it unpublished or reject it. Deleting promoted versions needs an "
+                "owner decision.",
+            )
         key = version.storage_key
         # Tombstones of expired or deleted artifacts (no live object to protect) go with it.
         version.derived_artifacts.filter(state__in=["expired", "deleted"]).delete()
         try:
             version.delete()
         except ProtectedError:
-            # Derived artifacts (ADR-066) or a promoted-from link keep the source alive: they must
-            # expire (retention) before the version can be deleted.
+            # Live derived artifacts (ADR-066) made FROM this version keep it alive: they must
+            # expire (retention) or be rejected before the version can be deleted.
             raise AssetActionRefused(
                 "has_derived_artifacts",
                 "This version has derived artifacts. Let them expire or reject them first.",

@@ -397,10 +397,12 @@ def test_partial_database_failure_rolls_the_whole_promotion_back(monkeypatch):
             raise RuntimeError("simulated database failure")
         return original(self, *args, **kwargs)
 
+    before = set(get_storage().objects)
     monkeypatch.setattr(DerivedArtifact, "save", fail_on_promotion)
     with pytest.raises(RuntimeError):
         artifact_promotion.promote_artifact(artifact, user_with(*PROMOTE))
     monkeypatch.undo()
+    assert set(get_storage().objects) == before  # the object `upload_version` stored is removed
     artifact.refresh_from_db()
     assert artifact.state == ArtifactState.PENDING_REVIEW and artifact.promoted_version is None
     assert AssetVersion.objects.filter(asset=artifact.asset).count() == 1
@@ -446,3 +448,73 @@ def test_preview_stream_is_verified_and_permissioned():
     with pytest.raises(ArtifactRefused) as refused:
         artifacts.open_for_view(artifact, viewer)
     assert refused.value.code == "artifact_changed"
+
+
+# --- review fixes (DB-F5, DB-F11) ------------------------------------------------------------
+
+
+def test_a_promoted_version_cannot_be_deleted_and_says_why():
+    _source, artifact = real_artifact(seconds=2)
+    version = artifact_promotion.promote_artifact(artifact, user_with(*PROMOTE))
+    with pytest.raises(AssetActionRefused) as refused:
+        services.delete_unpublished_version(version)
+    assert refused.value.code == "promoted_version"
+    assert "created from a derived artifact" in refused.value.message
+    assert "expire" not in refused.value.message and "\u2014" not in refused.value.message
+    assert AssetVersion.objects.filter(pk=version.pk).exists()
+    assert version.storage_key in get_storage().objects
+    artifact.refresh_from_db()
+    assert artifact.state == ArtifactState.PROMOTED
+
+
+@pytest.mark.django_db(transaction=True)
+def test_deleting_a_version_takes_the_asset_lock_first():
+    """Another transaction holds the asset row, then wants the version row (the publish order).
+    Delete must queue behind the asset lock instead of holding the version row first."""
+    from django.db import transaction
+
+    from apps.catalog.models import ContentAsset
+
+    asset = make_definition("npc-lock-order")
+    version = real_audio_source_version(asset)
+    holding, errors, order = threading.Event(), [], []
+
+    def other():
+        try:
+            with transaction.atomic():
+                ContentAsset.objects.select_for_update().get(pk=asset.pk)
+                holding.set()
+                import time
+
+                time.sleep(0.6)
+                AssetVersion.objects.select_for_update(nowait=True).get(pk=version.pk)
+                order.append("other_got_version")
+        except Exception as error:  # noqa: BLE001
+            errors.append(error)
+        finally:
+            connection.close()
+
+    def delete():
+        try:
+            assert holding.wait(5)
+            services.delete_unpublished_version(version)
+            order.append("deleted")
+        except Exception as error:  # noqa: BLE001
+            errors.append(error)
+        finally:
+            connection.close()
+
+    threads = [threading.Thread(target=other), threading.Thread(target=delete)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(30)
+    assert not errors, errors
+    assert order == ["other_got_version", "deleted"]
+    assert not AssetVersion.objects.filter(pk=version.pk).exists()
+
+
+def real_audio_source_version(asset):
+    from apps.assets.tests.helpers import make_version
+
+    return make_version(asset)

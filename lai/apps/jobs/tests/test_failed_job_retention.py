@@ -182,3 +182,70 @@ def test_a_result_that_arrives_during_the_sweep_wins():
     assert services._delete_failed(ids[0], STAMP) is False
     thread.join(5)
     assert kept(job) == {job.pk}
+
+
+# --- completed jobs that hold a retry attempt (DB-F2) ------------------------------------------
+
+
+def _keyed(kind, days, *, outcome="", verdict="pass", subject_id=None, status=JobStatus.COMPLETED):
+    job = finished(kind, days, status=status)
+    ProcessingJob.objects.filter(pk=job.pk).update(
+        idempotency_key="k" * 64,
+        subject_outcome=outcome,
+        result={"verdict": verdict},
+        subject_type=processing.JOB_SUBJECT,
+        subject_id=str(subject_id),
+    )
+    job.refresh_from_db()
+    return job
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        "artifact_invalid",
+        "stale_source",
+        "processor_outdated",
+        "result_invalid",
+        "key_mismatch",
+        "",
+    ],
+)
+def test_a_completed_job_that_was_not_applied_keeps_its_attempt(outcome):
+    version = upload(make_definition("npc-keep"), glb_bytes())
+    held = _keyed(VALIDATE, 400, outcome=outcome, subject_id=version.pk)
+    assert services.sweep()["pruned"] == 0
+    assert kept(held) == {held.pk}
+
+
+def test_a_fail_verdict_keeps_its_attempt_but_an_applied_pass_is_pruned():
+    version = upload(make_definition("npc-pass"), glb_bytes())
+    failed_verdict = _keyed(
+        VALIDATE, 400, outcome="version_rejected", verdict="fail", subject_id=version.pk
+    )
+    applied = _keyed(VALIDATE, 400, outcome="version_validated", subject_id=version.pk)
+    services.sweep()
+    assert kept(failed_verdict, applied) == {failed_verdict.pk}
+
+
+def test_attempts_exhausted_survives_a_sweep_with_completed_unapplied_jobs(settings):
+    settings.LAI_ASSET_VALIDATION_MAX_ATTEMPTS = 2
+    settings.LAI_JOBS_BACKEND = "inline"
+    version = upload(make_definition("npc-exhaust"), glb_bytes())
+    key = processing.model_validation_request(version, job_id=str(uuid.uuid4()))["idempotency_key"]
+    for _ in range(2):
+        job = _keyed(VALIDATE, 400, outcome="artifact_invalid", subject_id=version.pk)
+        ProcessingJob.objects.filter(pk=job.pk).update(idempotency_key=key)
+    services.sweep()
+    assert ProcessingJob.objects.filter(idempotency_key=key).count() == 2
+    with pytest.raises(services.JobsError) as error:
+        processing.submit_model_validation(version, user=None)
+    assert error.value.code == "attempts_exhausted"
+
+
+def test_when_the_subject_is_gone_unapplied_completed_jobs_are_pruned():
+    version = upload(make_definition("npc-gone"), glb_bytes())
+    held = _keyed(VALIDATE, 400, outcome="artifact_invalid", subject_id=version.pk)
+    type(version).objects.filter(pk=version.pk).delete()
+    services.sweep()
+    assert kept(held) == set()
