@@ -90,3 +90,18 @@ Publish an NPC release:
    NPC releases, Preview, then Publish. Both validate clips, voices, dialogue and placements.
 2. A rerun with nothing changed prints `unchanged`. Roll back or retire from Admin if needed.
 3. Deploying and migrating production data still need explicit owner approval.
+
+## When an NPC is managed (parity with the legacy panel)
+
+A manifest NPC the NPC Manager serves answers with the published dialogue, not `PipDialog`. What
+that changes for Firepeak:
+
+- Quest offer: Flint's greetings carry an `OFFER_QUEST` choice (`the-heart-of-firepeak`). Accepting
+  is the child's own tap through the quests API, the same flow Pip uses; the client ignores an
+  offer for a quest that is no longer available.
+- Return to the NPC: `RegionPlayCompanion` keeps the legacy panel for an NPC while a RETURN_TO_NPC
+  puzzle bound to it is unlocked and unsolved (`usesLegacyNpcDialogue`). Ignis therefore shows the
+  "show the Professor" action and the puzzle stage line until `fh-heart-return` is solved, then the
+  managed dialogue runs. While the puzzle is locked he is fully managed.
+- Per-puzzle stage lines for other managed NPCs are not shown; those NPCs speak their published
+  lines (Kindle's hints are the Manager's). Launch points on a managed NPC remain a follow-up.

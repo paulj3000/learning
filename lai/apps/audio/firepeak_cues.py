@@ -4,8 +4,8 @@ Same contract as `treasure_rush_cues.py`: this lists WHAT the game asks for and 
 url or storage key. The React side is `react/src/features/region-play/audio/regionAudio.ts`.
 `seed_firepeak_sound` creates the cues whose audio already exists in the Asset Library.
 
-`wired` is True only for a cue the client plays today. The rest are flipped to True by whoever
-raises the matching `playCue(...)` moment (see `docs/firepeak/FIREPEAK_AUDIO_INVENTORY.md`).
+`wired` is True only for a cue the client plays today. The unwired ones (machinery, npc greeting)
+are flipped to True by whoever raises a matching moment (see `docs/firepeak/FIREPEAK_AUDIO_INVENTORY.md`).
 """
 
 from apps.audio.treasure_rush_cues import CueSpec
@@ -81,14 +81,14 @@ FIREPEAK_CUES: tuple[CueSpec, ...] = (
         "crystal_collect",
         "Crystal collected",
         "A bright shimmer when an ember shard is picked up.",
-        wired=False,
+        wired=True,
     ),
-    _sfx("switch", "Switch flipped", "Optional. A solid click and hum.", wired=False, cooldown_ms=100),
+    _sfx("switch", "Switch flipped", "Optional. A solid click and hum.", wired=True, cooldown_ms=100),
     _sfx(
         "puzzle_complete",
         "Puzzle complete",
         "Warm and short. Only after the server confirms a puzzle.",
-        wired=False,
+        wired=True,
     ),
     _sfx(
         "checkpoint",
@@ -108,7 +108,7 @@ FIREPEAK_CUES: tuple[CueSpec, ...] = (
         "restore",
         "Heart restored",
         "The Heart relights: a swelling glow.",
-        wired=False,
+        wired=True,
         max_concurrent=1,
     ),
     _sfx(

@@ -29,6 +29,7 @@ import {
   type PuzzleParams,
   type ValveParams,
 } from '../../../../region-play/areaPuzzles';
+import { playCue } from '../../../../region-play/soundCues';
 import type { RegionPlayInteractionEvent } from '../../../../region-play/regionPlayInteractions';
 import { completedQuests } from '../../../../region-play/regionPlayUi';
 import type { RegionPlaySceneApi } from './regionPlayScene';
@@ -293,6 +294,8 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
         const entities =
           params.kind === 'CHOOSE_ANSWER' ? params.optionEntities : params.itemEntities;
         const id = Object.keys(entities).find((key) => entities[key] === entityId);
+        if (id && params.kind === 'ORDER_SEQUENCE' && params.presentation === 'SWITCHES')
+          playCue('switchFlip', { entityId });
         if (id) state = params.kind === 'CHOOSE_ANSWER' ? selectOption(state, id) : addToOrder(state, id);
       }
       return { ...all, [puzzle.puzzleId]: state };
@@ -455,7 +458,10 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
             <OrderSequencePanel
               {...common}
               params={params}
-              onAdd={(id) => patchChoice(puzzle.puzzleId, (c) => addToOrder(c, id))}
+              onAdd={(id) => {
+                if (params.presentation === 'SWITCHES') playCue('switchFlip');
+                patchChoice(puzzle.puzzleId, (c) => addToOrder(c, id));
+              }}
               onUndo={() => patchChoice(puzzle.puzzleId, undoOrder)}
               onClear={() => patchChoice(puzzle.puzzleId, clearOrder)}
             />
