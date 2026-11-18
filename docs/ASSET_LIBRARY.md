@@ -919,7 +919,9 @@ flow, outcome codes, retries and deployment order: `docs/processing/ASYNC_MODEL_
   rollback are not gated. Completed validation jobs are pruned after
   `LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90); a `VALIDATED` GLB whose passing job was pruned
   needs Validate in background again before it can be published, and a published one is
-  unaffected. The newest accepted result decides, and staff resubmission is bounded
+  unaffected. The LATEST applicable validation decides (any newer pending, running, failed,
+  rejected, invalid or superseded job blocks publication; submission and publication share the
+  asset and version row locks), and staff resubmission is bounded
   (`LAI_ASSET_VALIDATION_MAX_ATTEMPTS`, 5): `docs/processing/ASYNC_MODEL_VALIDATION.md` sections 9
   and 10.
 - **`asset.inspect` versus `asset.validate_model`.** "Inspect in background" (`asset.inspect`) is
