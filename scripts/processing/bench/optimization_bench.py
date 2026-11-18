@@ -119,6 +119,25 @@ VARIANTS: tuple[Variant, ...] = (
         lambda t, s, d: [t, "meshopt", s, d],
         "EXT_meshopt_compression via glTF-Transform (global install only, never npx)",
     ),
+    Variant(
+        "gltf-transform-resize-1024",
+        "gltf-transform",
+        lambda t, s, d: [t, "resize", s, d, "--width", "1024", "--height", "1024"],
+        "texture downscale to at most 1024 px, no extension (loadable today); 013 owns resize "
+        "in product code, this only measures the effect",
+    ),
+    Variant(
+        "gltf-transform-etc1s",
+        "gltf-transform",
+        lambda t, s, d: [t, "etc1s", s, d],
+        "KHR_texture_basisu ETC1S; needs KTX2Loader; requires toktx on PATH",
+    ),
+    Variant(
+        "gltf-transform-uastc",
+        "gltf-transform",
+        lambda t, s, d: [t, "uastc", s, d],
+        "KHR_texture_basisu UASTC; needs KTX2Loader; requires toktx on PATH",
+    ),
 )
 
 # Texture-only tools (toktx, basisu) operate on images, not GLBs. Image extraction, resizing and
@@ -168,6 +187,11 @@ class Result:
     extensions_required: str | None = None
     vertex_count: int | None = None
     triangle_count: int | None = None
+    animation_count: int | None = None
+    clip_names: str | None = None
+    texture_count: int | None = None
+    texture_gpu_mib: float | None = None
+    texture_gpu_basis: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -186,6 +210,10 @@ def minimal_env(tmp: Path) -> dict[str, str]:
 
 def run_tool(argv: list[str], cwd: Path, timeout: int) -> tuple[int, float, int | None, str]:
     """Run argv with no shell; return (exit code, wall seconds, child max RSS KiB, stderr tail)."""
+    timer = shutil.which("time") or ("/usr/bin/time" if Path("/usr/bin/time").exists() else None)
+    if timer:
+        # GNU time reports this one command's peak RSS (KiB), children included.
+        argv = [timer, "-f", "PEAKKIB=%M", *argv]
     start = time.perf_counter()
     process = subprocess.Popen(  # noqa: S603 - argv list from a fixed table, no shell
         argv,
@@ -203,7 +231,13 @@ def run_tool(argv: list[str], cwd: Path, timeout: int) -> tuple[int, float, int 
         return -1, time.perf_counter() - start, None, "timeout"
     wall = time.perf_counter() - start
     rss = None
+    lines = err.decode("utf-8", "replace").strip().splitlines() if err else []
+    if timer and lines and lines[-1].startswith("PEAKKIB="):
+        rss = int(lines[-1].split("=", 1)[1])
+        err = "\n".join(lines[:-1]).encode()
     try:
+        if rss is not None:
+            raise ImportError  # exact per-command figure already known
         import resource
 
         # RUSAGE_CHILDREN is the max over all waited-for children so far; runs are sequential,
@@ -228,6 +262,95 @@ def validate(path: Path) -> dict[str, Any]:
         "vertex_count": metadata.get("vertex_count"),
         "triangle_count": metadata.get("triangle_count"),
     }
+
+
+def _glb_parts(data: bytes) -> tuple[dict[str, Any], bytes]:
+    """JSON document and BIN chunk of a GLB (b"" when absent)."""
+    import struct
+
+    if data[:4] != b"glTF":
+        return json.loads(data.decode("utf-8")), b""
+    offset, document, binary = 12, {}, b""
+    while offset + 8 <= len(data):
+        length, kind = struct.unpack_from("<I4s", data, offset)
+        chunk = data[offset + 8 : offset + 8 + length]
+        if kind == b"JSON":
+            document = json.loads(chunk.decode("utf-8").rstrip("\x00 "))
+        elif kind == b"BIN\x00":
+            binary = chunk
+        offset += 8 + length + (-length % 4)
+    return document, binary
+
+
+def _image_size(blob: bytes) -> tuple[int, int, str] | None:
+    """Pixel size and kind (png, jpeg, ktx2) from the header bytes; None when unknown."""
+    import struct
+
+    if blob[:8] == b"\x89PNG\r\n\x1a\n":
+        w, h = struct.unpack(">II", blob[16:24])
+        return w, h, "png"
+    if blob[:2] == b"\xff\xd8":
+        i = 2
+        while i + 9 < len(blob):
+            if blob[i] != 0xFF:
+                i += 1
+                continue
+            marker = blob[i + 1]
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                h, w = struct.unpack(">HH", blob[i + 5 : i + 9])
+                return w, h, "jpeg"
+            i += 2 + struct.unpack(">H", blob[i + 2 : i + 4])[0]
+    if blob[:12] == b"\xabKTX 20\xbb\r\n\x1a\n":
+        w, h = struct.unpack("<II", blob[20:28])
+        return w, h, "ktx2"
+    return None
+
+
+def scene_metrics(path: Path) -> dict[str, Any]:
+    """Animations and estimated GPU texture memory, from the file itself (stdlib only).
+
+    GPU memory is a formula, not a measurement: RGBA8 with a full mip chain is w*h*4*4/3 bytes;
+    a KTX2 image is assumed to be transcoded to an 8 bits per pixel block format (ASTC 4x4, BC7
+    or ETC2 RGBA), w*h*1*4/3, which is what a tablet GPU gets when `detectSupport` finds ASTC
+    or ETC2. Devices without a block format get RGBA8 and the larger figure."""
+    import base64
+
+    document, binary = _glb_parts(path.read_bytes())
+    views = document.get("bufferViews", [])
+    total, kinds = 0.0, set()
+    for image in document.get("images", []):
+        blob = b""
+        if "bufferView" in image:
+            view = views[image["bufferView"]]
+            blob = binary[view.get("byteOffset", 0) :][: view["byteLength"]]
+        elif str(image.get("uri", "")).startswith("data:"):
+            blob = base64.b64decode(image["uri"].split(",", 1)[1])
+        info = _image_size(blob[:65536]) if blob else None
+        if info is None:
+            continue
+        w, h, kind = info
+        kinds.add(kind)
+        total += w * h * (1 if kind == "ktx2" else 4) * 4 / 3
+    clips = [a.get("name", "") for a in document.get("animations", [])]
+    return {
+        "animation_count": len(clips),
+        "clip_names": " ".join(clips),
+        "texture_count": len(document.get("images", [])),
+        "texture_gpu_mib": round(total / (1 << 20), 2) if kinds else None,
+        "texture_gpu_basis": "+".join(sorted(kinds)) or None,
+    }
+
+
+def baseline_row(source: Path) -> Result:
+    """The unmodified input, measured the same way (a .gltf is read, not converted)."""
+    data = source.read_bytes()
+    result = Result(str(source), "original", "-", "ok", "input as found", input_bytes=len(data))
+    result.output_bytes = len(data)
+    result.output_gzip9_bytes = len(gzip.compress(data, compresslevel=9, mtime=0))
+    result.ratio = 1.0
+    for key, value in scene_metrics(source).items():
+        setattr(result, key, value)
+    return result
 
 
 def bench_one(source: Path, variant: Variant, timeout: int) -> Result:
@@ -261,6 +384,8 @@ def bench_one(source: Path, variant: Variant, timeout: int) -> Result:
             if variant.output_suffix == ".glb":
                 for key, value in validate(dst).items():
                     setattr(result, key, value)
+                for key, value in scene_metrics(dst).items():
+                    setattr(result, key, value)
         return result
 
 
@@ -290,6 +415,7 @@ def main(argv: list[str] | None = None) -> int:
 
     results: list[Result] = []
     for source in args.glbs:
+        results.append(baseline_row(source))
         for variant in VARIANTS:
             results.append(bench_one(source, variant, args.timeout))
     for source in args.image:

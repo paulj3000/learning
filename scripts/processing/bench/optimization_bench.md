@@ -89,8 +89,14 @@ considered acceptable.
 
 ## State on 2026-11-17
 
-`optimization_bench.py --list-tools` on the authoring machine: `gltfpack`, `gltf-transform`,
-`toktx`, `basisu` and `draco_encoder` are **not installed**. Every variant was reported as
-skipped; no optimization result exists yet. The `meshoptimizer` npm package present in the
-shared `node_modules` is extraneous (not declared in any `package.json`), contains the JavaScript
-encoder and decoder, not `gltfpack`, and is not used.
+On the authoring machine no tool was on `PATH` by default (`--list-tools`). For the measured run
+in feasibility section 6.2 a developer installed `gltfpack` 1.3 (npm, WASM build: no texture
+compression), `gltf-transform` 4.5.1 and `toktx` 4.4.2 into a throwaway directory outside the
+repository and put them on `PATH` for that one command. Nothing was added to the repository.
+
+Additions in LAI-LAMBDA-010 Workstream D: the variants `gltf-transform-resize-1024`,
+`gltf-transform-etc1s` and `gltf-transform-uastc`; an `original` row per input; per-command peak
+RSS from GNU `time -f %M` (falls back to `RUSAGE_CHILDREN` when `time` is absent); and the
+columns `animation_count`, `clip_names`, `texture_count`, `texture_gpu_mib` and
+`texture_gpu_basis`. `texture_gpu_mib` is a formula (RGBA8 with a full mip chain for PNG and
+JPEG; 8 bits per pixel with mips for KTX2), not a measurement.

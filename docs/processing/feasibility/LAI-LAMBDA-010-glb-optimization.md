@@ -1,7 +1,9 @@
 # LAI-LAMBDA-010: GLB and texture optimization feasibility
 
-Status: **feasibility study, documentation and benchmark scaffolding only** (2026-11-17, branch
-`feature/w4-optimization-feasibility`). Nothing here is approved scope. No tool was added to any
+Status: **feasibility study, documentation, benchmark harness and policy-pinning tests only**
+(2026-11-17, branch `feature/w4-optimization-feasibility`; updated by Workstream D on
+`feature/lambda-glb-optimization-design` with measurements, the exact Three.js change list
+(4.7), the backend plan (4.8) and the heavy-workload fallback (7.1)). Nothing here is approved scope. No tool was added to any
 requirements file, `processing/lai_processing`, the Lambda worker zip or `package.json`; no
 compressed format is enabled in a loader or a validator; nothing was deployed or sent to AWS.
 
@@ -24,7 +26,7 @@ derived-artifact design.
 | Are decoder assets shipped? | **No.** They exist only in `node_modules/three/examples/jsm/libs/` (three 0.185.1); nothing imports them, and `react/public/` has no decoder files (section 4.2) |
 | What do the repository's models weigh? | 6 GLBs, 23 KB to 3.3 MB; one skinned NPC (3.3 MB) is 66% vertex data. 116 self-contained `.gltf` files total 2.73 MB (section 2) |
 | Are models compressed in transit today? | **Probably not, for either delivery path.** CloudFront's compressible list does not include `model/gltf-binary` or `model/gltf+json`, and the `/api/*` behavior does not enable compression; no gzip setting was found in the nginx template or Django (section 4.4). Measured gzip estimates: GLBs 37% to 57% smaller, `.gltf` files 76% smaller |
-| Is any optimization tool installed here? | **No.** `gltfpack`, `gltf-transform`, `toktx`, `basisu` and `draco_encoder` are absent, so **no optimization saving has been measured** (section 6) |
+| Is any optimization tool installed here? | Not in the repository or on the PATH. Workstream D installed `gltfpack` 1.3 (npm, WASM build), `gltf-transform` 4.5.1 and `toktx` 4.4.2 into a throwaway directory outside the repository and **measured 8 repository models** (section 6.2). Native `gltfpack` (the one that can emit KTX2), `basisu`, `draco_encoder` and Blender were not measured |
 | Recommended runtime | None yet. First measure on a workstation; then optimize **at authoring time** (staff tool, output uploaded as a new version) before any server-side `asset.optimize` kind. If server-side is approved later: a separate arm64 Lambda function with a native `gltfpack` built from source, packaging decided by the native-tool ADR (section 7) |
 
 ## 2. Baseline (measured)
@@ -280,6 +282,137 @@ None of these is made by this study. Each is gated by owner decision W4-6.
   the owner wants it (the extension allows a fallback `source`).
 - Texture resizing before compression is 013's module.
 
+### 4.7 Exact Three.js compatibility change list (Workstream D, requirements only)
+
+Nothing below is implemented. Every item is gated by owner decision W4-6 and by the native-tool
+ADR for any server-side tool. "Today" cites the code as of Wave 4 head `48c98a1`; three is
+0.185.1. Findings that close earlier "unverified" items are marked **verified**.
+
+**A. Loader construction sites (all of them)**
+
+| # | File and line today | Change when a format is approved |
+|---|---|---|
+| L1 | `react/src/features/island-map/three/assets/assetLoader.ts:79-80` (`createGltfFetcher()`, `new GLTFLoader()`; the default argument at `:156` is the only caller) | Build the loader from one shared factory (new `createConfiguredGltfLoader(options)` in the same folder). It calls `setMeshoptDecoder(MeshoptDecoder)` (meshopt), `setDRACOLoader(draco)` (Draco) and `setKTX2Loader(ktx2)` (KTX2), each only when its flag is on. The fetcher gets the loader through a parameter, so `loadAsset(..., fetchGltf)` tests keep injecting a fake |
+| L2 | `react/src/features/assets/preview/previewModelSource.ts:168` (`parsePreviewModel`, `new GLTFLoader(manager)`) and its URL modifier `:162-167` | Same factory. The preview must still refuse every external resource: the decoders fetch through their own `FileLoader`, not through `manager` (**to prove with a test**, 4.6 item 3). The preview has no renderer (`modelPreviewViewer.ts:148` creates one later), so for KTX2 it needs `detectSupport` on that renderer, or the preview may show a compressed texture as unsupported |
+| L3 | Renderer creation, where `detectSupport(renderer)` must run: `react/src/features/island-map/three/runtime/createLocationEngine.ts:157` (`createRenderer`, used at `:342`), `sceneKit.ts:88`, `sandboxScene.ts:77`, `modelPreviewViewer.ts:148` | `KTX2Loader.detectSupport(renderer)` needs the live `WebGLRenderer` (reads `renderer.extensions`, `KTX2Loader.js:230-262`). The engine must not import the asset code (ADR-020, "the engine ... emits typed events"), so the host passes the renderer or a ready `KTX2Loader` into the asset loader once, before the first model load. Do not call `detectSupportAsync` (deprecated since r181, `KTX2Loader.js:213-219`) |
+
+**B. Loader setup, per format (three 0.185.1, imports from `three/examples/jsm/...`)**
+
+| Format | Import and setup | Notes |
+|---|---|---|
+| `EXT_meshopt_compression` and `KHR_meshopt_compression` | `import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'; loader.setMeshoptDecoder(MeshoptDecoder);` | **Verified:** `GLTFLoader.js:237` and `:243` handle both names, so the "is `KHR_` loadable" question is closed. The decoder is one 29 KB module with embedded WASM: no hosting, no path, no CSP beyond `wasm-unsafe-eval`. `setMeshoptDecoder` must be called before load (`:1621`) |
+| `KHR_draco_mesh_compression` | `const draco = new DRACOLoader(); draco.setDecoderPath('/vendor/three-0.185.1/draco/gltf/'); draco.setDecoderConfig({ type: 'wasm' }); draco.preload(); loader.setDRACOLoader(draco);` and `draco.dispose()` on engine teardown | Needs `draco_decoder.wasm`, `draco_wasm_wrapper.js` (glTF build, 192 KB + 58 KB). Blob workers (`DRACOLoader.js:426,440`). Lowest priority |
+| `KHR_texture_basisu` | `const ktx2 = new KTX2Loader(); ktx2.setTranscoderPath('/vendor/three-0.185.1/basis/'); ktx2.setWorkerLimit(2); ktx2.detectSupport(renderer); loader.setKTX2Loader(ktx2);` and `ktx2.dispose()` on teardown | Needs `basis_transcoder.js` + `.wasm` (57 KB + 527 KB). `setWorkerLimit(1 or 2)` bounds worker memory on tablets (`KTX2Loader.js:196`). `ktx-parse` and `zstddec` are imported as modules and bundled by Vite (no hosting) |
+| `EXT_texture_webp`, `EXT_mesh_gpu_instancing` | none (handled by the stock loader, `GLTFLoader.js:647,651`) | **Not compression, not required by this study.** Listed because the validators do not refuse them (see 4.8, gap G1) |
+
+**C. Hosting the decoder and transcoder files**
+
+- Both defaults resolve with `import.meta.url` (`DRACOLoader.js:17-19`, `KTX2Loader.js:106-107`),
+  but each loader loads fixed file names from one directory, so Vite's hashed output names do
+  not work. Serve a **versioned directory** from the site origin instead:
+  `/vendor/three-0.185.1/{draco/gltf,basis}/`. Never a CDN (CSP, privacy, availability).
+- Do **not** commit the binaries. A build step copies them from `node_modules/three/examples/jsm/libs/`
+  into `react/dist/vendor/three-<version>/` (a small `scripts/` node script or a Vite
+  `closeBundle` hook; the exact mechanism is a decision for the frontend owner). A unit test
+  reads `three`'s installed version and fails if the directory name and the version differ.
+- `scripts/aws/publish-site.sh:52-53` syncs `assets/` with the immutable cache header and
+  `:58-59` syncs everything else with `public, max-age=3600`. A versioned vendor directory
+  should be excluded from the stable sync and synced with the immutable header (one more
+  `--exclude 'vendor/*'` plus a second `s3 sync`), because its path changes whenever three does.
+- Content types: `.wasm` must be `application/wasm` and `.js` a JavaScript type. `aws s3 sync`
+  guesses from the extension (Python `mimetypes` agrees; the AWS CLI's own table was not
+  verified). Both loaders fall back to `ArrayBuffer` instantiation when streaming fails, so a
+  wrong type degrades rather than breaks, but test with `curl -I` after any deploy.
+- CloudFront compresses `application/wasm` and JavaScript (4.4), so the measured gzip sizes in
+  4.2 are what travels.
+- The Django Admin preview is a separate bundle (`react/vite.admin-preview.config.ts`) served by Django. It needs the same decoder directory
+  reachable from its origin: same site origin through the `/` CloudFront behavior if the preview
+  page is on the site, or Django static files if not. Decide with the Asset Library owner.
+- `deploy-site.yml` builds with `npm run build` (`react/package.json`: `tsc -b && vite build`);
+  the copy step belongs in that build so the published `dist/` is complete and the rollback
+  releases (`_releases/<sha>/`) stay consistent.
+
+**D. CSP and security headers**
+
+There is no Content-Security-Policy today: the CloudFront `SecurityHeaders` policy
+(`infra/lib/frontendStack.ts:124-139`) sets HSTS, nosniff, frame options and referrer policy
+only, and `infra/lib/frontendStack.test.ts:153` pins that shape. Nothing changes until a CSP is
+introduced. When one is, the decoders need: `script-src 'self' 'wasm-unsafe-eval'` (WASM
+compile), `worker-src 'self' blob:` (Draco and KTX2 workers are created from Blob URLs),
+`connect-src 'self'` (main-thread fetch of the decoder files and `/api/v1/asset-files/...`).
+Meshopt needs only `wasm-unsafe-eval`. A CSP must be tested against a real tablet browser, not
+jsdom.
+
+**E. Mobile and tablet GPU compressed formats (KTX2 only)**
+
+`KTX2Loader.detectSupport` selects the transcode target from what the WebGL context exposes
+(`WEBGL_compressed_texture_astc`, `_etc`, `_s3tc`, `EXT_texture_compression_bptc`;
+`KTX2Loader.js:245-262`). Expected, from the format definitions and **not measured on any
+device here**:
+
+| Target | Typical hardware | Bits per pixel (RGBA) |
+|---|---|---|
+| ASTC 4x4 | Apple GPUs (iPad), most current Android tablets | 8 |
+| ETC2 RGBA | OpenGL ES 3.0 Android devices without ASTC | 8 |
+| BC7 (BPTC) / BC3 | Desktop browsers | 8 |
+| RGBA8 fallback (no block format exposed) | Old or emulated GPUs, some WebViews | 32 |
+
+If no block format is exposed, the transcoder produces uncompressed RGBA and the memory saving
+disappears, with a transcode cost on top. Required before enablement: a device matrix test on
+the tablets the owner names (Sprouts gate, LAI-2303), and a rule that a KTX2 asset ships with a
+PNG/JPEG fallback image only if the owner accepts the extra bytes.
+
+**F. Memory implications (computed, formula-based)**
+
+- Meshopt and Draco reduce **download** size; decoded geometry in memory is the same as for an
+  uncompressed model (quantized attributes can stay quantized on the GPU, which does reduce
+  vertex memory).
+- GPU texture memory is what matters on tablets. Measured sources, computed formula: the NPC's
+  one 2048x2048 JPEG is 21.33 MiB as RGBA8 with mips; as an 8 bpp block format 5.33 MiB; after a
+  resize to 1024 and RGBA8, 5.33 MiB; both together 1.33 MiB (section 6.2). The cheapest win
+  needs no loader change: a texture resize.
+- Workers add memory: each Draco or Basis worker holds its own WASM instance (one to a few MB
+  each, unmeasured). Cap with `setWorkerLimit` and `dispose()` loaders with the engine.
+- Decode and transcode time on a mid-range tablet is unmeasured and must be measured before the
+  flag is turned on (Sprouts: 30+ FPS planning target in ADR-020).
+
+### 4.8 Backend change plan (compressed formats stay refused until approval)
+
+Today (unchanged by this study, pinned by new tests): both validators refuse
+`KHR_draco_mesh_compression`, `EXT_meshopt_compression` and `KHR_texture_basisu` with
+`needs_decoder`, in `extensionsUsed` or `extensionsRequired`
+(`tests/processing/test_processing_glb_compression_policy.py`,
+`lai/apps/assets/tests/test_compression_policy.py`). A rejected version is `REJECTED`
+(`lai/apps/assets/models.py:72-75`) and cannot be published (`publish_refusal`,
+`lai/apps/assets/services.py:296`).
+
+**Gap G1 (found by Workstream D, pinned, not fixed).** `KHR_meshopt_compression`,
+`EXT_texture_webp` and `EXT_mesh_gpu_instancing` are not in `NEEDS_DECODER`
+(`validation.py:65-67`, `document.py:76-78`). Declared in `extensionsUsed` only, they pass with
+the warning `unknown_extension`; in `extensionsRequired` they fail as `unsupported_extension`.
+`gltfpack -ce khr` writes the first; gltfpack's `-tw` and `-mi` write the others. Because three
+0.185.1 supports all three, a published file might even load once a decoder exists, but today
+no decoder is configured, so a used-only file would pass the gate and fail in the browser.
+Recommendation (owner decision D9): add all three to `NEEDS_DECODER` in both validators in one
+commit (the parity test requires both), which is a stricter policy and bumps the processor
+version (D4). Until then, staff must not upload gltfpack output made with `-ce khr`, `-tw` or
+`-mi`.
+
+**Plan, in the order it would land (all behind W4-6; none is done):**
+
+| Step | Change | Files | Notes |
+|---|---|---|---|
+| B1 | Close gap G1 (above) | `lai/apps/assets/validation.py`, `processing/lai_processing/processors/gltf/document.py`, the two new test files, `docs/processing/GLB_VALIDATION.md`, `docs/ASSET_LIBRARY.md:89-90` (also add `KHR_texture_basisu`, found missing) | Processor version bump; earlier validations become `processor_outdated` at the gate (`processing.py:353-356`) |
+| B2 | Per-format enablement setting `LAI_ASSET_COMPRESSION_FORMATS` (empty default, subset of `meshopt`, `draco`, `ktx2`), read by Django and passed in the job payload's validation profile (`glb-default` profile settings), never read by the processor from the environment | `lai/config/settings/base.py`, `lai/apps/assets/validation.py`, `processing/.../document.py` (`GlbSettings`), `processing/lai_processing/contracts` profile | Parity test extended to compare the setting's effect. Empty default keeps today's behaviour exactly |
+| B3 | When a format is enabled the extension moves from "refused" to "allowed with warning `compressed_payload`" (the validator cannot see inside compressed views): accessors whose data is in the extension are accepted without `bufferView`; Draco primitives checked for the extension's `attributes` map; KTX2 header parsed (`pixelWidth`, `pixelHeight`, `levelCount`, `supercompressionScheme`) so `texture_too_large` still applies and `image/ktx2` is an allowed texture type | same files; `IMAGE_TYPES` at `validation.py:70` and `ALLOWED_IMAGE_TYPES` at `document.py:81` | Decoded vertex data is still unchecked; the report says so. A KTX2 fixture builder is needed in `tests/processing/glb_builder.py` and `lai/apps/assets/tests/helpers.py` |
+| B4 | Model metadata fields (new keys inside the existing `AssetVersion.metadata` JSON, so **no schema migration**; `models.py:105`): `compression` (list of `meshopt`, `draco`, `ktx2`), `quantized` (bool, already computed at `document.py:540`), `texture_gpu_estimate_bytes` (RGBA8 with mips, or 8 bpp for KTX2), `decoder_required` (bool), `optimizer` (tool, version, options, source version id and sha256: placement per the derived-artifact design, `ADR-PROPOSED-derived-artifacts.md`, not designed here) | `processing/lai_processing/processors/gltf/metadata.py`, `lai/apps/assets/validation.py` metadata builder | `metadata_version` bump (currently 1). Django Admin shows them read-only. Coordinate with the lead before any model-field promotion, which would be a migration |
+| B5 | Publication gate: a version whose metadata says `decoder_required` is publishable only while its format is in `LAI_ASSET_COMPRESSION_FORMATS`, checked in `publish_refusal` (`services.py:296`) and re-checked in `publish_version` (`services.py:235`); a new refusal code `format_not_enabled` | `lai/apps/assets/services.py`, `lai/apps/assets/admin.py:773` notice text | Keeps the flag, the validator and the game in step: disabling the setting makes new compressed versions unpublishable, it does not unpublish existing ones (rollback is "make the original default", section 5) |
+| B6 | Delivery: asset file responses stay `model/gltf-binary`; nothing in `views.py:93` changes. `Content-Encoding` is not used for compressed formats (already compressed) | none | Transfer compression for uncompressed GLBs is card R1 |
+| B7 | Frontend flag: `VITE_LAI_COMPRESSED_ASSETS` (default off, a comma list), read in the loader factory L1 and nowhere else; mismatch with Django's setting is an operator error caught by a startup check that the decoders for each enabled format are in the build | `react/src/...assetLoader.ts`, build copy step (4.7 C) | Both flags must be on for a compressed model to be published and played |
+
+Out of scope and not proposed: any change to the published-asset path, any new storage, any
+worker change. Derived output storage is the derived-artifact design.
+
 ## 5. Derived artifact requirements
 
 Consistent with 013's derived-artifact design; **depends on owner decision W4-4 and 013's
@@ -307,14 +440,124 @@ only tools found with `shutil.which`, on copies in a temporary directory, never 
 when `CI` or `GITHUB_ACTIONS` is set), never downloads, and records size, gzip size, wall time,
 child peak RSS and the validator verdict of each output.
 
-**Measured optimization results: none.** On 2026-11-17 at commit `2333d9e`,
-`optimization_bench.py --list-tools` reported `gltfpack`, `gltf-transform`, `toktx`, `basisu`
-and `draco_encoder` as not installed. A run on `react/public/models/kenney-tree-large.glb`
-reported every variant as `skipped: tool not installed`. Nothing was installed for this study.
+**Earlier state (2026-11-17, commit `2333d9e`):** no tool was installed and no result existed.
+Workstream D then measured the tools and corpus listed below; the harness still never downloads,
+and the tools were installed by hand outside the repository.
 
-To produce results: a developer installs the tools on a workstation (outside the repository),
-runs the commands in `optimization_bench.md` on the six GLBs, records tool versions, and adds the
-CSV here with the commit and date.
+### 6.2 Measured optimization results (Workstream D, 2026-11-17)
+
+**Conditions.** Commit base `48c98a1` plus the harness changes in this branch. Machine: Intel
+Core i7-12700K, 4 vCPUs visible, 7.9 GB RAM, Linux x86_64, Node 22.21.0, Python 3.12.3. Tools,
+installed **only into a throwaway directory outside the repository** (`/tmp/claude-1001/wsd-tools`,
+nothing committed, nothing added to any `package.json` or requirements file):
+
+| Tool | Version | Source | Caveat |
+|---|---|---|---|
+| `gltfpack` | 1.3 | npm package `gltfpack` (WASM build, run by Node) | The npm build **has no texture compression**: `-tc` exits 1 on every GLB with textures (rows marked failed in the CSV). Native `gltfpack` was not installed, so its KTX2 output, speed and memory are **not measured** |
+| `gltf-transform` | 4.5.1 | npm `@gltf-transform/cli` | Draco, meshopt (with default quantization), `resize` (sharp), `etc1s` and `uastc` (call `toktx`) |
+| `toktx` | 4.4.2 | KTX-Software release `Linux-x86_64` tarball | x86_64 only; the arm64 build was **not measured** |
+
+Command (harness `scripts/processing/bench/optimization_bench.py`, extended in this branch with
+resize, ETC1S and UASTC variants, a per-command peak RSS from GNU `time -f %M`, clip names, and
+estimated GPU texture memory):
+
+```sh
+PATH=<throwaway>/node_modules/.bin:<throwaway>/ktx/KTX-Software-4.4.2-Linux-x86_64/bin:$PATH \
+  /Coding/learning-worktrees/storybook/.venv/bin/python scripts/processing/bench/optimization_bench.py \
+  --format csv content/models/npc-pip-pirate.glb react/public/models/{kaykit-floor-tile-large.glb,kenney-tree-large.glb,kenney-rock-small.glb,npc-professor-ticktock.gltf,npc-harbor-master.gltf,treasure-chest.gltf,hearth-lit.gltf}
+```
+
+Corpus: the repository has no Treasure Rush or Storykeeper Castle GLB. The nearest real
+content was used and labelled as such: the one skinned NPC GLB, three textured kit GLBs, the two
+large NPC `.gltf` files (no textures), one Storykeeper Castle prop and the one animated
+Treasure Rush prop (`treasure-chest.gltf`). Self-contained `.gltf` inputs are converted to GLB
+by the tools; the baseline row is the file as found. Two kit GLBs from the baseline corpus
+(`kaykit-floor-wood-large-dark`, `kenney-tree-small`) were not re-run; they are the same kits.
+
+**Size.** Percentage is output / original file bytes. `*` means the existing validator rejects the
+output (`needs_decoder`); all other outputs **pass the existing validator and load in today's
+loader** (loading in a browser was not tested; validator pass is the evidence).
+
+| File | Original bytes (gzip -9) | `gltfpack` default (loads today) | `gltfpack -si 0.5` (loads today) | `gltfpack -cc` meshopt | glTF-Transform draco | glTF-Transform meshopt |
+|---|---:|---:|---:|---:|---:|---:|
+| `npc-pip-pirate.glb (skinned, 4 clips)` | 3,307,456 (2,086,790) | 1,864,136 (56%) | 1,175,048 (36%) | 822,380 (25%) * | 1,073,096 (32%) * | 1,016,852 (31%) * |
+| `npc-professor-ticktock.gltf (NPC, 3 clips)` | 1,190,838 (284,600) | 420,692 (35%) | 410,644 (34%) | 177,928 (15%) * | 197,876 (17%) * | 271,004 (23%) * |
+| `npc-harbor-master.gltf (NPC, 3 clips)` | 872,935 (236,469) | 314,128 (36%) | 313,220 (36%) | 152,344 (17%) * | 189,680 (22%) * | 232,248 (27%) * |
+| `kaykit-floor-tile-large.glb (textured kit)` | 28,100 (14,254) | 22,900 (81%) | 22,900 (81%) | 20,832 (74%) * | 18,536 (66%) * | 21,448 (76%) * |
+| `kenney-tree-large.glb (textured kit)` | 28,784 (13,316) | 14,692 (51%) | 14,140 (49%) | 12,212 (42%) * | 11,628 (40%) * | 14,804 (51%) * |
+| `kenney-rock-small.glb (textured kit)` | 23,796 (12,091) | 16,424 (69%) | 16,424 (69%) | 15,076 (63%) * | 14,068 (59%) * | 16,380 (69%) * |
+| `hearth-lit.gltf (Storykeeper Castle prop)` | 20,893 (1,947) | 6,144 (29%) | 6,144 (29%) | 5,688 (27%) * | 9,936 (48%) * | 8,880 (42%) * |
+| `treasure-chest.gltf (animated, 1 clip)` | 4,936 (1,071) | 3,416 (69%) | 3,416 (69%) | 3,764 (76%) * | 2,584 (52%) * | 3,924 (80%) * |
+
+Animation preservation: every output of every variant kept the same animation count and clip
+names as its source (`Idle Walk Wave Point`, `Idle Walk Wave`, `Open`); triangle counts were
+unchanged except `-si 0.5` on the NPC (73,642 to 36,820, which is the point of the option) and
+`hearth-lit` (see the findings). **Playback correctness and visual parity were not checked** (no
+browser or tablet).
+
+**Textures.** GPU memory is a formula (4.7 F), not a measurement: RGBA8 with a full mip chain
+for PNG and JPEG; 8 bits per pixel with mips for KTX2 (what ASTC 4x4, ETC2 RGBA and BC7 would
+use). The `.gltf` inputs have no textures and are omitted.
+
+| File | Original: file bytes, GPU MiB | resize 1024 (loads today) | ETC1S KTX2 | UASTC KTX2 |
+|---|---|---|---|---|
+| `npc-pip-pirate.glb (skinned, 4 clips)` | 3,307,456 B, 21.33 MiB | 3,178,856 B, 5.33 MiB | 3,446,488 B, 5.33 MiB | 5,658,160 B, 5.33 MiB |
+| `kaykit-floor-tile-large.glb (textured kit)` | 28,100 B, 5.33 MiB | 57,576 B, 5.33 MiB | 33,932 B, 1.33 MiB | 106,740 B, 1.33 MiB |
+| `kenney-tree-large.glb (textured kit)` | 28,784 B, 1.33 MiB | 32,112 B, 1.33 MiB | 32,600 B, 0.33 MiB | 59,352 B, 0.33 MiB |
+| `kenney-rock-small.glb (textured kit)` | 23,796 B, 1.33 MiB | 28,364 B, 1.33 MiB | 23,412 B, 0.33 MiB | 59,524 B, 0.33 MiB |
+
+Findings from the numbers (arithmetic on the table, not extrapolation):
+
+1. **Geometry compression is where the bytes are**: the NPC GLB goes 3.31 MB to 0.82 MB (25%)
+   with `gltfpack -cc` and 1.86 MB (56%) with the default quantization that the loader and both
+   validators already accept; the two NPC `.gltf` files go to 15% to 17% (meshopt) or 35% to 36%
+   (default). The small kit pieces save little in absolute terms (a few KB).
+2. **The default `gltfpack` output passes the existing validator and needs no decoder** in all 8
+   cases, so authoring-time quantization (R4) needs no loader change. Its effect after gzip is
+   smaller than it looks in raw bytes (NPC: 1,136,908 gzip -9 bytes against 2,086,790 for the
+   original).
+3. **After gzip, meshopt's advantage narrows** (NPC `-cc`: 666,799 gzip -9 bytes against 1,136,908
+   for the default). Transfer compression (R1) plus quantization captures a large share of the
+   gain with no decoder.
+4. **Texture compression does not shrink the files here**: ETC1S output is 104% of the NPC and
+   98% to 121% of the kit originals; UASTC is 171% to 380% of them. The gain is **GPU
+   memory** (computed: 21.33 to 5.33 MiB for the NPC), and the cheaper route to the same number
+   for the NPC is a resize to 1024 (also 5.33 MiB, no loader change).
+5. **A resize that does nothing still re-encodes**: `resize` on a texture already at or under
+   1024 grew the files (kit pieces +12% to +105%). A policy must skip images already within the
+   cap. 013 owns the module; the point is recorded for its design.
+6. **`gltfpack` by default merges meshes and drops node names** (`hearth-lit.gltf`: the nodes
+   `Surround`, `Opening`, `Mantel` and `Flame` lose their names; `-kn` keeps all names). The
+   game finds objects by name (`getObjectByName`, for example `'Pip'` at `sandboxScene.ts:158` and `'valve-wheel'` at `areaPuzzleScene.ts:180`),
+   so any server or authoring pipeline must pass `-kn` (and be checked against animation target
+   names). It also deduplicates identical meshes, which is why the validator's per-mesh
+   triangle count for `hearth-lit` is 60 for `gltfpack` and 120 for the original and the
+   `gltf-transform` outputs: instances, not geometry, were lost.
+7. **Lossy variants need visual sign-off** (D8). Nothing in this table was looked at on a device.
+
+**Processing time and peak memory (this workstation, not Lambda).** Seconds / peak RSS in MiB
+from GNU `time`, for the command including its Node runtime. The npm `gltfpack` is a WASM build,
+so its figures are not those of native `gltfpack`; `toktx` runs inside `gltf-transform`.
+
+| File | gltfpack default s / peak RSS MiB | gltfpack -cc | gt draco | gt etc1s | gt uastc |
+|---|---|---|---|---|---|
+| `npc-pip-pirate.glb` | 0.152 s / 83 | 0.173 s / 82 | 0.749 s / 161 | 3.173 s / 246 | 6.703 s / 145 |
+| `npc-professor-ticktock.gltf` | 0.155 s / 69 | 0.261 s / 70 | n/a (no textures) | n/a (no textures) | 0.673 s / 125 |
+| `npc-harbor-master.gltf` | 0.136 s / 65 | 0.133 s / 69 | n/a (no textures) | n/a (no textures) | 0.494 s / 118 |
+| `kaykit-floor-tile-large.glb` | 0.082 s / 50 | 0.066 s / 50 | 0.45 s / 114 | 1.256 s / 100 | 1.307 s / 108 |
+| `kenney-tree-large.glb` | 0.06 s / 50 | 0.094 s / 50 | 0.455 s / 112 | 0.574 s / 108 | 0.841 s / 103 |
+| `kenney-rock-small.glb` | 0.055 s / 50 | 0.048 s / 50 | 0.467 s / 107 | 0.638 s / 111 | 0.682 s / 114 |
+| `hearth-lit.gltf` | 0.099 s / 59 | 0.107 s / 58 | n/a (no textures) | n/a (no textures) | 0.769 s / 112 |
+| `treasure-chest.gltf` | 0.05 s / 53 | 0.051 s / 53 | n/a (no textures) | n/a (no textures) | 0.491 s / 106 |
+
+Reading: for this corpus every geometry job finishes in under 1 s and under 170 MiB; the
+slowest was ETC1S then UASTC on the 2048x2048 NPC texture (3.2 s and 6.7 s on a 12700K, 246 MiB
+for ETC1S). Lambda arm64 timings are not derivable from these; they need a measured run after
+the native-tool ADR. Nothing here approaches the 900 s or the 10 GB limits.
+
+Not measured: native `gltfpack` (texture compression, speed, memory), `basisu`,
+`draco_encoder` (only the glTF-Transform wrapper), Blender, arm64 anything, Lambda cold start,
+any browser decode or transcode time, any GPU. `brotli` is still not installed.
 
 ## 7. Runtime recommendation and cost assumptions
 
@@ -351,6 +594,20 @@ The real cost driver is not compute but the operational surface: a second functi
 its packaging pipeline and, for a container, a registry in dev. That is why authoring-time
 optimization comes first.
 
+### 7.1 When Lambda is the wrong runtime for processing (heavy-workload fallback)
+
+Lambda stays the default (ADR-064). It is unsuitable when a job needs more than 15 minutes
+(900 s), more than 10,240 MB of memory or 10,240 MB of `/tmp`, a GPU, a licensed or very large
+toolchain that does not fit the 250 MB zip or the 10 GB image, or sustained multi-core CPU for a
+long time. In this product that means: large FBX or multi-gigabyte model conversion, Blender
+based retargeting or baking, large texture sets (hundreds of images, UASTC with high effort), and
+any batch that must run as one unit past 15 minutes. **No measurement in section 6.2 approaches
+those limits** (largest job 6.7 s); this is a contingency, not a current need. The proposal is
+in `docs/processing/proposals/ADR-PROPOSED-heavy-workload-runtime.md`: AWS Batch on Fargate (or
+ECS RunTask on Fargate) as the single overflow runtime, behind the same `apps.jobs` kind and
+result queue, never a second job system, and only after the native-tool ADR and an owner
+approval for an image registry. Not implemented, not approved.
+
 ## 8. Recommended rollout sequence
 
 | Step | What | Depends on | Approval |
@@ -377,13 +634,16 @@ optimization comes first.
 | D6 | Texture size policy for tablets (for example a 1024 px cap for NPC textures), implemented by 013 | R4 |
 | D7 | W4-4 derived artifacts: new unpublished versions, as 013 designs | R4, R8 |
 | D8 | Lossy variants (simplification, ETC1S) need visual sign-off per asset | R4 onward |
+| D9 | Close gap G1: add `KHR_meshopt_compression`, `EXT_texture_webp` and `EXT_mesh_gpu_instancing` to `NEEDS_DECODER` in both validators (stricter; processor version bump) | R5, and any upload of `gltfpack -ce khr`, `-tw`, `-mi` output |
+| D10 | Heavy-workload overflow runtime (`ADR-PROPOSED-heavy-workload-runtime.md`): AWS Batch on Fargate, a contingency only | Jobs over 15 min or 10 GB; none measured |
+| D11 | Decoder hosting: build-time copy into a versioned `/vendor/three-<version>/` directory, immutable cache, plus the Admin preview origin | R5 to R7 |
 
 ## 10. Risks and open items
 
-- No tool result exists; every saving in this field is unknown until R2.
+- Savings are measured only for the tools and builds named in 6.2 (npm WASM `gltfpack`, glTF-Transform, `toktx` x86_64). Native `gltfpack`, arm64 and Lambda timings are unmeasured.
 - The Linux aarch64 availability of prebuilt `gltfpack`, Draco and `basisu` binaries is
   unverified; building from source is assumed.
-- Whether three 0.185.1 loads `KHR_meshopt_compression` (as opposed to `EXT_`) is unverified.
+- **Resolved:** three 0.185.1 `GLTFLoader` handles `KHR_meshopt_compression` (`GLTFLoader.js:243`). The validators do not refuse it when only used (gap G1, 4.8).
 - Whether Vite emits the `import.meta.url` decoder files correctly in this build is unverified.
 - Live response headers for model delivery were not checked (no AWS calls).
 - The validators do not decode vertex data today; compressed payloads widen what is not

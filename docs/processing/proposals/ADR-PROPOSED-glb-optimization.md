@@ -66,6 +66,22 @@ resize").
 8. **CI.** The benchmark harness never runs in CI and never downloads; CI tests of the future
    kind use fakes or a recorded tool fixture, never a downloaded binary.
 
+## Update from Workstream D (2026-11-17, measured)
+
+- Measured with throwaway tools outside the repository (feasibility 6.2): quantization-only
+  `gltfpack` output passes both validators and needs no decoder (8 of 8 files), so authoring-time
+  optimization (step b) needs no loader change; meshopt adds a further 2.3x on the NPC before gzip
+  but only about 1.7x after gzip on the NPC. Texture compression did not shrink files; its value
+  is GPU memory (computed, not measured on a device). The npm WASM `gltfpack` cannot compress
+  textures: a native build is needed for `-tc`, which is the case for the native-tool ADR.
+- Every pipeline step must pass `-kn` (keep node names): the game finds nodes by name and
+  `gltfpack` otherwise merges and renames them.
+- Found gap G1: the validators do not refuse used-only `KHR_meshopt_compression`,
+  `EXT_texture_webp` or `EXT_mesh_gpu_instancing`; pinned by tests, owner decision D9 closes it.
+- The exact loader, hosting, CSP and backend change lists are in feasibility 4.7 and 4.8. The
+  fallback for jobs Lambda cannot run is `ADR-PROPOSED-heavy-workload-runtime.md`.
+- The derived output write path is `ADR-PROPOSED-derived-artifacts.md` (not designed here).
+
 ## Alternatives considered
 
 | Alternative | Why not proposed |
