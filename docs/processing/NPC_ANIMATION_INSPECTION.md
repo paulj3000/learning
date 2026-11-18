@@ -31,8 +31,11 @@ published default) and returns facts. Nothing is decided from them:
 
 ## 2. The processor
 
-`inspect_glb` reuses the GLB validator's modules without changing them (the validator's version
-stays 1.0.0, so no version becomes `processor_outdated` at the publication gate):
+`inspect_glb` reuses the GLB validator's modules without changing them (the inspector never
+changes the validator's version). Note: the validator itself is now `asset.glb_validator` 1.2.0
+(1.1.0 Workstream B's policy, 1.2.0 ADR-070's compression rows and options), so background
+validation evidence from an older validator is `processor_outdated` at the publication gate and
+must be produced again; animation inspection results are unaffected:
 `gltf.container.read_layout` and `read_at`, `gltf.jsonparse.parse_document`, `gltf.report.Report`
 and `clean_text`, and the glTF tables and predicates in `gltf.document`. Container and JSON
 problems therefore carry the validator's codes (`not_a_model`, `invalid_json`, `glb_length`, ...).

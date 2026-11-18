@@ -67,11 +67,23 @@ def fakes(fakes):
     return fakes
 
 
-def make_runtime(handler, fakes):
+def make_runtime(handler, fakes, sweep_base=None):
+    import tempfile
+
     return handler.OptimizeRuntime(
         handler.OptimizeSettings(environ("optimize")),
         clients={"s3": fakes.s3, "sqs": fakes.sqs},
+        sweep_base=sweep_base or tempfile.mkdtemp(),  # never sweep the real /tmp in tests
     )
+
+
+def test_init_sweeps_stale_workspaces(optimize, fakes, tmp_path):
+    handler = optimize[0]
+    (tmp_path / "lai-native-old").mkdir()
+    (tmp_path / "keep-me").mkdir()
+    runtime = make_runtime(handler, fakes, sweep_base=str(tmp_path))
+    assert runtime.swept == 1
+    assert not (tmp_path / "lai-native-old").exists() and (tmp_path / "keep-me").exists()
 
 
 def request_for(registry, key, data, profile_id="meshopt-conservative"):

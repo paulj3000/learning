@@ -63,6 +63,25 @@ can be published (the action submits a new job by itself, since the processor ve
 are in the idempotency key). Published versions, rollback and delivery are not touched. With both
 controls off the verdicts equal `1.1.0`'s.
 
+**Extensions three renders natively** (review fix): `KHR_materials_anisotropy`,
+`KHR_materials_dispersion` and `EXT_materials_bump` are `SUPPORTED` (three 0.185.1 `GLTFLoader`
+implements all three; checked against its `EXTENSIONS` table). Every other name three lists is
+either already supported, a gated compression row, or deliberately rejected (`EXT_texture_webp`,
+`EXT_texture_avif`, `EXT_mesh_gpu_instancing`, `KHR_draco_mesh_compression`,
+`KHR_meshopt_compression`). These additions ship inside policy version 3 / processor 1.2.0, which
+are not released yet, so they need no further bump.
+
+**Policy changes never reject a file.** `publish_version` re-validates the stored bytes; when the
+only errors are policy codes (`needs_decoder`, `unsupported_extension`:
+`extension_policy.POLICY_ERROR_CODES`) the publication is refused with `policy_refused` and the
+version stays `VALIDATED`; changed bytes or structural errors still reject it. Republishing or
+rolling back to a retired, previously published version (`republish_version`) requires intact
+bytes and every structural check, but tolerates policy-only errors, because those same bytes were
+valid and live under the policy recorded when they were published. This is the conservative
+choice: integrity and structure are re-proven; only a later tightening of the extension table is
+not applied retroactively to a rollback target, and gated compression is still refused while its
+control is off (below).
+
 **Publication gate** (`apps.assets.services`): `compression_refusal(version)` runs inside
 `publish_refusal` (before the stored bytes are re-read) and in `republish_version`: a version
 whose recorded `extensionsUsed` contains a gated extension is refused with
@@ -117,10 +136,24 @@ the existing publish script; no CDN, no copy step). A `LoadingManager` URL modif
 fixed file names `KTX2Loader` requests to those URLs, passes `blob:`/`data:` texture data, and
 refuses every other URL. Two workers at most (`setWorkerLimit(2)`), GPU format from
 `detectSupport(renderer)` (never the deprecated `detectSupportAsync`). The transcoder downloads
-only when a KTX2 texture is first decoded. `assetLoader.enableKtx2Textures(renderer)` attaches it
-to the bundled `GLTFLoader` and returns the detach (dispose); the location engine calls it through
-an optional `LocationEngineAssets.attachRenderer` right after creating its renderer and detaches
-before `renderer.dispose()`, so the engine itself still imports no decoder. Missing KTX2 support
+only when a KTX2 texture is first decoded.
+
+**One app-wide KTX2 loader** (`assets/ktx2Support.ts`, review fix). There is exactly one shared
+`KTX2Loader`, bound to the first attached renderer and reference counted. Every game fetcher
+(`createGltfFetcher`: the bundled loader, every `createAssetLoader`, so region play's Django
+published models and the NPC loader's single-use loaders too) sets the shared loader on its
+`GLTFLoader` immediately before each load, so any game load decodes KTX2 while a renderer is
+attached, and none does when no renderer is attached (`ktx2_unavailable`). The location engine
+attaches through `LocationEngineAssets.attachRenderer` right after creating its renderer, before
+any model loads (default deps and region play's `engineAssetsFrom` both provide it), and detaches
+before `renderer.dispose()`; an attach failure is logged and the place runs without KTX2. The
+shared loader is disposed only when the last renderer detaches **and** no parse is in flight
+(each load is counted from start to settle), so a detach during a parse never strands it. A load
+that never settles is failed after `DEFAULT_LOAD_TIMEOUT_MS` (120 s), which evicts it from the
+cache; its parse stays counted until it really settles. Known limit: `GLTFLoader` reads its KTX2
+loader when the download finishes, so a load that starts while attached and finishes after the
+last detach decodes without KTX2 (it fails with the typed error, it does not hang). Tested at
+configuration level (fake renderer and loader); no real transcode in jsdom. Missing KTX2 support
 gives `CompressedModelError` (`ktx2_unavailable`). The Django Admin preview now creates its viewer (and
 renderer) first, builds a `KTX2Loader` for that renderer, parses, then disposes the loader's
 workers (`mountAssetPreview.ts`); without a usable renderer it refuses KTX2 models with
@@ -188,13 +221,26 @@ runs the engine with one processor, `asset.glb_optimizer` 1.0.0
 artifacts are written only through `ProcessingContext.write_artifact` under
 `processing/artifacts/<env>/<job>/<attempt>/` (`model.glb` as `model.optimized`, `report.json`
 as `model.optimize_report`). Tools: `LAI_GLTFPACK_PATH` (default `/opt/bin/gltfpack`),
-`LAI_TOKTX_PATH` (`/opt/bin/toktx`), `LAI_KTX_LIBRARY_PATH` (`/opt/lib`), optional SHA-256 pins.
+`LAI_TOKTX_PATH` (`/opt/bin/toktx`), `LAI_KTX_LIBRARY_PATH` (`/opt/lib`), optional SHA-256 pins
+(`LAI_GLTFPACK_SHA256`, `LAI_TOKTX_SHA256`, 64 hex characters), all read by the one
+`ToolPaths.from_environment` that the worker, the benchmark and the real-tool tests share. At
+start-up the worker removes stale `lai-native-*` workspaces left in `/tmp` by killed invocations
+(`lai_native.runtime.sweep_stale`). The runtime keeps the tail of stderr; the optimizer uses it
+only as a bounded diagnostic (`tool_failed`), never parses it.
 An optimization that is not safe or useful (no gain, preservation difference, invalid output) is
 a `fail` verdict with a finding and no artifacts; runtime timeouts and crashes are retryable
 contract errors. The result metadata carries `tool_versions` and up to 12 scalar
 `artifact_facts` for the model (variant, sizes, ratio, GPU memory before and after, texture
 formats, triangles, clips, preserved, required extensions), which Django keeps on the artifact
 row. No packaging and no infrastructure (Workstream G; runtime decision ADR-070 O1).
+
+**Not deployable yet, by design.** There is **no Linux arm64 gltfpack** (meshoptimizer publishes
+none; the from-source build needs CMake and was not done) and **no optimize zip builder**
+(`native/gltf/build.py`, which `build-workers.sh` would call with `python3 -I <builder> --out
+DIR`, does not exist). A zip without arm64 tools would not run on the arm64 function, so the
+builder is deferred to the runtime decision (O1). Until both exist, `LAI_GLB_MESHOPT` and
+`LAI_GLB_KTX2` stay `off` in every environment; with them off nothing is submitted to the
+optimize queue.
 
 **Shared constants** (`compression/optimize_contract.py`, standard library): job type, processor
 id and version, the two variants (`meshopt` -> `meshopt-conservative` v1 / `LAI_GLB_MESHOPT`,
@@ -226,11 +272,18 @@ id and version, the two variants (`meshopt` -> `meshopt-conservative` v1 / `LAI_
   `DRAFT` with asynchronous validation) and is published only by the explicit action and its
   gates.
 
-**Texture preparation for KTX2** uses Workstream D's `lai_native.image.prepare_texture` through
-`texture_prep.pillow_texture` (artwork profile for colour, data profile for normal/ORM; resized
-with D's power-of-two fit only when a side is not a multiple of 4 or exceeds 4096; encoded with
-D's lossless PNG encoder). `passthrough_texture` remains only as the stand-in where Pillow is not
-installed (unit tests); `default_preparer()` chooses.
+**Texture preparation for KTX2** is explicit configuration (review fix F13). The preparer is
+named (`pillow` or `passthrough`, `texture_prep.resolve_preparer`), never chosen by a silent
+fallback, and the KTX2 report records it (`textures.preparer`). `pillow` uses Workstream D's
+`prepare_texture` with its glTF profiles `texture-colour-gltf` (base colour, emissive) and
+`texture-data-gltf` (normal, occlusion, metallic-roughness), which ignore embedded ICC profiles
+and EXIF orientation (glTF defines texture colour and orientation itself; a test shows the same
+pixels with and without them), keep data channels exact and write lossless PNG; a side that is
+not a multiple of 4 or exceeds 4096 is resized with D's power-of-two fit. When Pillow is missing,
+`pillow` fails with `preparer_unavailable` (the KTX2 step stops; nothing is skipped).
+`passthrough` (never resizes, never re-encodes) exists for tests and tooling only. The worker
+accepts only `pillow` (`LAI_KTX2_TEXTURE_PREPARER`, default `pillow`; anything else stops the
+function at start-up).
 
 ## 7. Benchmarks, Meshopt (workstation, 2026-11-18)
 
@@ -327,7 +380,7 @@ textures (normal, occlusion, metallic-roughness) as UASTC level 2 with Zstandard
 `--assign_oetf linear`; full mip chains; BT.709 primaries; no flip (`KTXorientation rd`);
 `--threads 1`. A texture no core slot uses, or an image used both ways, fails the job instead of
 guessing a colour space. Images go through Workstream D's `prepare_texture(data, profile)`
-(`texture_prep.py` is the seam; until D lands, `passthrough_texture` never resizes and refuses
+(`texture_prep.py` is the seam; the `passthrough` preparer, tests only, resizes nothing and refuses
 sides that are not multiples of 4 with `texture_needs_resize`). The GLB is rewritten with
 `glbwrite.repack` (Meshopt ranges are relocated intact, so Meshopt then KTX2 works and is
 tested); images become `image/ktx2`, textures move `source` into

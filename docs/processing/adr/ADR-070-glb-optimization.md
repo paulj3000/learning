@@ -100,6 +100,15 @@ only), ADR-055, ADR-061, ADR-064 (one canonical processing path, zip Lambda work
   through the create-only artifact store; Django registers the processor version so older
   results are `processor_outdated`. KTX2 textures are prepared by Workstream D's
   `prepare_texture` (ADR-068).
+- Review fixes: one app-wide, renderer-bound, reference-counted KTX2 loader used by every game
+  loader (bundled, region play's published models, NPCs), never disposed during a parse, with a
+  load timeout; bounded Meshopt stream checks and safe KTX2 key/value parsing; three material
+  extensions three renders (`KHR_materials_anisotropy`, `KHR_materials_dispersion`,
+  `EXT_materials_bump`) added to policy version 3; a policy-only failure refuses publication
+  (`policy_refused`) instead of rejecting, and rollback of a previously published version
+  tolerates policy-only errors with intact bytes and structure; the KTX2 texture preparer is
+  explicit configuration (the worker accepts only Pillow, Workstream D's glTF profiles).
+- Not deployable yet: no Linux arm64 gltfpack and no optimize zip builder; the controls stay off.
 - No runtime was chosen (O1 stays open); nothing was deployed.
 
 ## Consequences

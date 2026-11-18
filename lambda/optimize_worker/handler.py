@@ -87,6 +87,14 @@ class OptimizePorts(aws.AssetPorts):
 
 
 class OptimizeRuntime(aws.Runtime):
+    def __init__(self, *args, sweep_base: str = "/tmp", **kwargs):  # noqa: S108 - Lambda /tmp
+        super().__init__(*args, **kwargs)
+        # A warm container's /tmp survives killed invocations: clear their leftover workspaces
+        # (lai-native-*) once per container, as the audio worker does.
+        from lai_native.runtime import sweep_stale
+
+        self.swept = sweep_stale(sweep_base)
+
     def ports(self, kind: str, context):
         if kind != KIND:
             raise TaskError("unknown_kind")
