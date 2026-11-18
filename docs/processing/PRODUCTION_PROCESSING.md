@@ -59,7 +59,7 @@ infra:synth:prod`. Without the flag the templates are unchanged (compared byte f
 |---|---|---|---|---|---|
 | ai | 512 MB | 300 s | 512 MB | 5 | ADR-064 dev values, ADR-062 "5" |
 | media | 512 MB | 120 s | 512 MB | 5 | ADR-064 dev values |
-| audio | 2048 MB | 300 s | 1024 MB | 2 | Audio proposal estimate (calculated) |
+| audio | 1024 MB | 300 s | 512 MB | 2 | Workstream C start; 900 s of voice took 102 s wall, ffmpeg peak RSS 87 MB (x86 workstation); arm64 not measured |
 | image | 1024 MB | 120 s | 512 MB | 2 | Workstream D proposal; peak RSS up to 366 MiB at 16 MP (x86 workstation) |
 | optimize | 3008 MB | 900 s | 4096 MB | 2 | Placeholder; runtime undecided (ADR-070), flag off |
 
@@ -115,7 +115,7 @@ at 80% actual and 100% forecast. The tag must be activated as a cost allocation 
 ## 6. Dev changes (LaiDevPlatform-dev)
 
 Native queues `lai-dev-jobs-{audio,image,optimize}` (+ DLQs and DLQ alarms) always; workers
-`lai-dev-jobs-audio` (with `lai-dev-ffmpeg` from `AudioLayerKey`) and `lai-dev-jobs-image` behind
+`lai-dev-jobs-audio` (with `lai-dev-ffmpeg` from `AudioLayerKey`, `LAI_FFMPEG_PATH=/opt/bin/ffmpeg`) and `lai-dev-jobs-image` behind
 `EnableAudioWorker` / `EnableImageWorker` (default `false`, also need `EnableLambdaProcessing`);
 `lai-dev-jobs-optimize` only with the `optimizeWorker` flag. `ReserveNativeWorkerConcurrency`
 (default `false`). The media worker's `ReadAssets` is narrowed from the whole bucket to `assets/*`

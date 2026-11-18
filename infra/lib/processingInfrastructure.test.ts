@@ -670,7 +670,9 @@ describe('production processing (LaiDjangoEc2-prod)', () => {
     ).toEqual(expected.sort());
     expect(alarms['lai-prod-ai-queue-age'].Threshold).toEqual({ Ref: 'QueueAgeAlarmSeconds' });
     expect(alarms['lai-prod-ai-queue-depth'].Threshold).toEqual({ Ref: 'QueueDepthAlarmMessages' });
-    expect(alarms['lai-prod-audio-worker-memory'].Threshold).toBe(Math.floor(2048 * 0.85));
+    expect(alarms['lai-prod-audio-worker-memory'].Threshold).toBe(
+      Math.floor(WORKLOADS.audio.memoryMb * 0.85),
+    );
     expect(text(alarms['lai-prod-ai-worker-errors'].AlarmActions)).toContain('AlarmTopic');
     // Without notifications the alarms still exist, with no action.
     const quiet = synth(prodStack({ notify: false }));

@@ -5,8 +5,10 @@
 #
 #   DIR/jobs-worker/jobs-worker-<hash16>.zip   scripts/aws/package-lambda.sh (always)
 #   DIR/<name>/<one>.zip                       a native builder, when this commit has it:
-#       audio-worker   lambda/audio_worker/build.py   (Workstream C)
-#       ffmpeg-layer   native/ffmpeg/build.py         (Workstream C, LGPL build)
+#       audio-worker   lambda/audio_worker/build.py --layer $LAI_FFMPEG_LAYER_ZIP (Workstream C);
+#                      built only when the layer zip is supplied, so audio never ships without it
+#       ffmpeg-layer   copied from $LAI_FFMPEG_LAYER_ZIP: the arm64 LGPL layer that the workflow's
+#                      ffmpeg-layer-arm64 job builds (native/ffmpeg/README.md)
 #       image-worker   native/pillow/build.py         (Workstream D)
 #       optimize-worker native/gltf/build.py          (Workstream F; released only with its flag)
 #
@@ -30,13 +32,20 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 print(json.dumps(sorted(k for k, q in module.KIND_QUEUE.items() if q in ("ai", "media"))))
 PY
+if [ -n "${LAI_FFMPEG_LAYER_ZIP:-}" ] && [ -f "$repo_root/lambda/audio_worker/build.py" ]; then
+    mkdir -p "$out/ffmpeg-layer" "$out/audio-worker"
+    cp "$LAI_FFMPEG_LAYER_ZIP" "$out/ffmpeg-layer/"
+    "$python_bin" -I "$repo_root/lambda/audio_worker/build.py" --out "$out/audio-worker" \
+        --layer "$LAI_FFMPEG_LAYER_ZIP"
+    echo "built audio-worker with $(basename "$LAI_FFMPEG_LAYER_ZIP")"
+else
+    echo "skip audio-worker and ffmpeg-layer (no LAI_FFMPEG_LAYER_ZIP or no builder)"
+fi
 declare -A builders=(
-    [audio-worker]=lambda/audio_worker/build.py
-    [ffmpeg-layer]=native/ffmpeg/build.py
     [image-worker]=native/pillow/build.py
     [optimize-worker]=native/gltf/build.py
 )
-for name in audio-worker ffmpeg-layer image-worker optimize-worker; do
+for name in image-worker optimize-worker; do
     builder="$repo_root/${builders[$name]}"
     if [ "$name" = optimize-worker ] && [ "${LAI_OPTIMIZE_WORKER:-false}" != true ]; then
         echo "skip $name (optimize worker flag off)"

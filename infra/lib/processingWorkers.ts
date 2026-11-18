@@ -89,15 +89,15 @@ export const WORKLOADS: Record<Workload, WorkloadSpec> = {
   audio: {
     handler: 'audio_worker.handler.handle',
     timeoutSeconds: 300,
-    memoryMb: 2048,
-    ephemeralMb: 1024,
+    memoryMb: 1024,
+    ephemeralMb: 512,
     readsAssets: true,
     readsArtifacts: true,
     writesArtifacts: true,
     prodConcurrency: 2,
     queueUrlSetting: 'LAI_JOBS_AUDIO_QUEUE_URL',
     basis:
-      'Audio transcoding proposal estimates (calculated, not measured): 2048 MB, 1024 MB /tmp, 300 s with a 240 s engine budget',
+      'Workstream C (open decision): start 1024 MB, 300 s, 512 MB /tmp, configurable; worst case 900 s of voice took 102 s wall, ffmpeg peak RSS 87 MB (x86 workstation)',
   },
   image: {
     handler: 'image_worker.handler.handle',
@@ -130,7 +130,7 @@ export const WORKLOADS: Record<Workload, WorkloadSpec> = {
 /** Memory and timeout overrides per workload (synth context `processingSizing`, JSON), for the
  * open sizing decisions (image: Workstream D proposes 1024 MB and 120 s, the defaults). */
 export type WorkloadSizing = Partial<
-  Record<Workload, { memoryMb?: number; timeoutSeconds?: number }>
+  Record<Workload, { memoryMb?: number; timeoutSeconds?: number; ephemeralMb?: number }>
 >;
 
 /** The spec of a workload with its sizing overrides applied and checked against Lambda limits. */
@@ -146,6 +146,9 @@ export function sized(workload: Workload, sizing?: WorkloadSizing): WorkloadSpec
     spec.timeoutSeconds > 900
   ) {
     throw new Error(`${workload} timeoutSeconds must be an integer from 1 to 900`);
+  }
+  if (!Number.isInteger(spec.ephemeralMb) || spec.ephemeralMb < 512 || spec.ephemeralMb > 10240) {
+    throw new Error(`${workload} ephemeralMb must be an integer from 512 to 10240`);
   }
   return spec;
 }
@@ -467,6 +470,8 @@ export class ProcessingWorker extends Construct {
           ...(spec.writesArtifacts || spec.readsArtifacts
             ? { LAI_ARTIFACT_PREFIX: artifactPrefix(env) }
             : {}),
+          // The LGPL FFmpeg layer extracts to /opt (native/ffmpeg/README.md, Workstream C).
+          ...(workload === 'audio' ? { LAI_FFMPEG_PATH: '/opt/bin/ffmpeg' } : {}),
           ...props.environment,
         },
       },

@@ -3,6 +3,7 @@
 #   workflow_dispatch only (never a push, schedule or pull request)
 #     gate     -> the repository variable LAI_PROD_PROCESSING_DEPLOY_ENABLED is 'true', the run is on
 #                 main, and the typed confirmation matches the action
+#     ffmpeg-layer-arm64 -> build and test the LGPL FFmpeg layer on a hosted arm64 runner (no AWS)
 #     package  -> build every worker artifact of this commit (scripts/release/build-workers.sh),
 #                 write the release manifest (SHA-256 of every zip and the layer), keep it as the
 #                 immutable run artifact
@@ -66,9 +67,62 @@ jobs:
             [[ "$TARGET" =~ ^releases/processing/[a-f0-9]{40}\.json$ ]] || { echo "::error::rollback_manifest must be releases/processing/<sha>.json"; exit 1; }
           fi
 
+  # The LGPL FFmpeg layer for arm64 (native/ffmpeg/README.md, ARM64 and CI): built natively on a
+  # hosted arm64 runner inside Amazon Linux 2023, tested with the native integration test, kept as
+  # a run artifact only. This job has no AWS access and publishes nothing.
+  ffmpeg-layer-arm64:
+    name: Build the arm64 FFmpeg layer (no AWS)
+    needs: gate
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'release'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    outputs:
+      built: ${{ steps.build.outputs.built }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build the layer in Amazon Linux 2023 (native arm64)
+        id: build
+        run: |
+          if [ ! -f native/ffmpeg/build.py ]; then
+            echo "built=false" >>"$GITHUB_OUTPUT"
+            echo "no native/ffmpeg in this commit; the release carries no audio worker"
+            exit 0
+          fi
+          mkdir -p build/ffmpeg-dl build/ffmpeg
+          docker build --platform linux/arm64 -t lai-ffmpeg-build native/ffmpeg
+          docker run --rm --platform linux/arm64 --user "$(id -u):$(id -g)" \
+            -v "$PWD:/src:ro" -v "$PWD/build/ffmpeg-dl:/dl" -v "$PWD/build/ffmpeg:/out" \
+            lai-ffmpeg-build --downloads /dl --jobs 2
+          ls build/ffmpeg/lai-ffmpeg-layer-aarch64.zip
+          echo "built=true" >>"$GITHUB_OUTPUT"
+
+      - name: Test the layer before it goes anywhere
+        if: steps.build.outputs.built == 'true'
+        run: |
+          mkdir -p build/ffmpeg-layer && (cd build/ffmpeg-layer && unzip -q ../ffmpeg/lai-ffmpeg-layer-aarch64.zip)
+          python -m pip install --quiet pytest==9.1.1
+          LAI_FFMPEG_BIN="$PWD/build/ffmpeg-layer/bin/ffmpeg" python -m pytest -q tests/processing_native/test_audio_ffmpeg_integration.py
+
+      - uses: actions/upload-artifact@v4
+        if: steps.build.outputs.built == 'true'
+        with:
+          name: ffmpeg-layer-arm64-${{ github.sha }}
+          path: build/ffmpeg/lai-ffmpeg-layer-aarch64.zip
+          if-no-files-found: error
+          retention-days: 90
+
   package:
     name: Build artifacts and manifest
-    needs: gate
+    needs: [gate, ffmpeg-layer-arm64]
     if: >-
       vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
       github.event_name == 'workflow_dispatch' && inputs.action == 'release'
@@ -82,10 +136,19 @@ jobs:
         with:
           python-version: '3.12'
 
+      - uses: actions/download-artifact@v4
+        if: needs.ffmpeg-layer-arm64.outputs.built == 'true'
+        with:
+          name: ffmpeg-layer-arm64-${{ github.sha }}
+          path: build/ffmpeg
+
       - name: Build every worker artifact of this commit
         env:
           LAI_OPTIMIZE_WORKER: ${{ vars.LAI_PROD_OPTIMIZE_WORKER || 'false' }}
-        run: scripts/release/build-workers.sh dist/workers
+        run: |
+          layer=build/ffmpeg/lai-ffmpeg-layer-aarch64.zip
+          if [ -f "$layer" ]; then export LAI_FFMPEG_LAYER_ZIP="$PWD/$layer"; fi
+          scripts/release/build-workers.sh dist/workers
 
       - name: Write the release manifest (SHA-256 of every artifact)
         run: |

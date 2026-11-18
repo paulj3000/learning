@@ -44,9 +44,12 @@ bucket, never expired.
 - `previous_manifest_key` links releases for rollback.
 - An audio worker without the FFmpeg layer in the same manifest is refused.
 - Builders (`build-workers.sh` contract): `python3 -I <builder> --out <dir>/<name>` writes one zip:
-  `lambda/audio_worker/build.py` and `native/ffmpeg/build.py` (C), `native/pillow/build.py` (D),
-  `native/gltf/build.py` (F, only with the optimize flag). A missing builder means the artifact is
-  not in the release, and the check refuses its control.
+  `native/pillow/build.py` (D), `native/gltf/build.py` (F, only with the optimize flag). The audio
+  worker is `lambda/audio_worker/build.py --out <dir> --layer <zip>` (C), built only with the arm64
+  FFmpeg layer that the workflow's `ffmpeg-layer-arm64` job builds natively on `ubuntu-24.04-arm`
+  in Amazon Linux 2023 and tests with `tests/processing_native/test_audio_ffmpeg_integration.py`
+  (no AWS access, nothing published). A missing builder means the artifact is not in the release,
+  and the check refuses its control.
 
 ## 4. Pre-enable check
 

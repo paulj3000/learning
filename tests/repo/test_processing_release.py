@@ -48,8 +48,12 @@ def test_every_job_requires_the_repository_gate_and_a_dispatch():
         assert GATE in condition, name
         assert "github.event_name == 'workflow_dispatch'" in condition, name
     assert "github.ref == 'refs/heads/main'" in RELEASE["jobs"]["gate"]["if"]
-    for name in ("package", "rollback"):
+    for name in ("ffmpeg-layer-arm64", "rollback"):
         assert RELEASE["jobs"][name]["needs"] == "gate"
+    assert RELEASE["jobs"]["package"]["needs"] == ["gate", "ffmpeg-layer-arm64"]
+    layer = RELEASE["jobs"]["ffmpeg-layer-arm64"]
+    assert layer["runs-on"] == "ubuntu-24.04-arm"
+    assert "test_audio_ffmpeg_integration" in str(layer["steps"])
     assert RELEASE["jobs"]["publish"]["needs"] == "package"
     confirm = str(RELEASE["jobs"]["gate"]["steps"])
     assert "lai-prod workers" in confirm
@@ -66,8 +70,9 @@ def test_aws_access_only_in_the_protected_environment_with_the_worker_release_ro
             if str(s.get("uses", "")).startswith("aws-actions/configure-aws-credentials")
         }
         assert roles == {"${{ vars.LAI_PROD_WORKER_RELEASE_ROLE_ARN }}"}, name
-    for name in ("gate", "package"):
+    for name in ("gate", "ffmpeg-layer-arm64", "package"):
         assert "permissions" not in RELEASE["jobs"][name]
+        assert "aws-actions" not in str(RELEASE["jobs"][name]["steps"])
     publish = str(RELEASE["jobs"]["publish"]["steps"])
     assert publish.index("manifest verify") < publish.index("configure-aws-credentials")
 

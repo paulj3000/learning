@@ -72,7 +72,7 @@ does not understand. The AWS account is shared by dev, prod and other projects.
 | O4 | Lambda Insights (paid extension) | Not used: max memory from a log metric filter on the REPORT line |
 | O5 | Concurrency per workload (P5) | ai 5, media 5, audio 2, image 2, optimize 2; reserved equal to the mapping maximum (`ReserveWorkerConcurrency=true`) |
 | O6 | Optimize worker runtime and sizing (ADR-070) | Behind `optimizeWorker` flag, off; 3008 MB, 900 s, 4096 MB `/tmp` placeholders |
-| O7 | Audio and image sizing (spikes pending) | audio 2048 MB / 300 s / 1024 MB `/tmp`; image 1024 MB / 120 s (Workstream D proposal); configurable via `processingSizing` |
+| O7 | Audio and image sizing (spikes pending) | audio 1024 MB / 300 s / 512 MB `/tmp` (Workstream C start); image 1024 MB / 120 s (Workstream D proposal); memory, timeout and `/tmp` configurable via `processingSizing` |
 | O8 | Who may redrive DLQs (P9) | `lai-prod-jobs-dlq-redrive`, account principals with MFA; the owner names the people |
 | O9 | Log retention for worker groups (P10) | 90 days (`ProcessingLogRetentionDays`) |
 | O10 | Prod results and artifacts bucket lifecycle (P2) | `jobs/results/` 30 days, `tmp/` 1 day, worker zips and manifests never expire |
