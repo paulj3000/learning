@@ -261,6 +261,122 @@ export const CASTLE_EVENTS: readonly CastleEvent[] = [
     PATHFINDER: 'The little lantern glows in the quiet room.',
     EXPLORER: 'The little lantern glows in the quiet room, and the mural seems to listen.',
   }),
+  /*
+    SC-R08-03: the Secret Chamber's return-visit lines. Observation only: the crystals and the
+    mural are noticed, and the two quiet finds (SC-R08-02) are remembered by the world changes they
+    record. Nothing here asks a question, grades or grants; the chamber itself is only reachable once
+    the tapestry nook is found, so no event needs to say so.
+  */
+  {
+    id: 'chamber-crystals-hum',
+    status: 'PUBLISHED',
+    version: 1,
+    room: 'secret-chamber',
+    bands: ALL_BANDS,
+    requires: [],
+    repeat: { maxShows: 3, minVisitGap: 2 },
+    weight: 2,
+    npcId: null,
+    lines: {
+      SPROUT: ['The crystals hum softly.'],
+      PATHFINDER: ['The three crystals hum together, one low, one higher, and one softest of all.'],
+      EXPLORER: [
+        'The three crystals hum together, one low, one higher, and one softest of all, and the sound settles like a lullaby.',
+      ],
+    },
+    visual: { kind: 'lantern-glow' },
+    fallback: false,
+    secret: true,
+  },
+  {
+    id: 'chamber-mural-listens',
+    status: 'PUBLISHED',
+    version: 1,
+    room: 'secret-chamber',
+    bands: ALL_BANDS,
+    requires: [],
+    repeat: { maxShows: 2, minVisitGap: 3 },
+    weight: 2,
+    npcId: null,
+    lines: {
+      SPROUT: ['The mural is quiet.'],
+      PATHFINDER: ['The old mural is quiet, and its painted colors glow a little in the lantern light.'],
+      EXPLORER: [
+        'The old mural is quiet, and its painted colors glow a little in the lantern light, as if every picture is listening.',
+      ],
+    },
+    visual: { kind: 'dust-motes' },
+    fallback: false,
+    secret: true,
+  },
+  {
+    id: 'chamber-star-twinkles',
+    status: 'PUBLISHED',
+    version: 1,
+    room: 'secret-chamber',
+    bands: ALL_BANDS,
+    requires: [{ type: 'WORLD_CHANGE', key: 'CASTLE_CHAMBER_STAR_FOUND', place: 'storykeeper-castle' }],
+    repeat: { maxShows: 3, minVisitGap: 2 },
+    weight: 3,
+    npcId: null,
+    lines: {
+      SPROUT: ['The little star twinkles.'],
+      PATHFINDER: ['The little painted star twinkles, as if it remembers you.'],
+      EXPLORER: [
+        'The little painted star twinkles on the mural, as if it remembers the day you noticed it.',
+      ],
+    },
+    visual: { kind: 'lantern-glow' },
+    fallback: false,
+    secret: true,
+  },
+  {
+    id: 'chamber-mouse-door-glows',
+    status: 'PUBLISHED',
+    version: 1,
+    room: 'secret-chamber',
+    bands: ALL_BANDS,
+    requires: [
+      { type: 'WORLD_CHANGE', key: 'CASTLE_CHAMBER_MOUSE_DOOR_FOUND', place: 'storykeeper-castle' },
+    ],
+    repeat: { maxShows: 3, minVisitGap: 2 },
+    weight: 3,
+    npcId: null,
+    lines: {
+      SPROUT: ['The tiny door glows.'],
+      PATHFINDER: ['The tiny door glows warmly, and somebody small is humming inside.'],
+      EXPLORER: [
+        'The tiny door glows warmly, and somebody small is humming a cheerful tune inside, just out of sight.',
+      ],
+    },
+    visual: { kind: 'candle-flicker' },
+    fallback: false,
+    secret: true,
+  },
+  {
+    id: 'chamber-finds-remembered',
+    status: 'PUBLISHED',
+    version: 1,
+    room: 'secret-chamber',
+    bands: ALL_BANDS,
+    requires: [
+      { type: 'WORLD_CHANGE', key: 'CASTLE_CHAMBER_STAR_FOUND', place: 'storykeeper-castle' },
+      { type: 'WORLD_CHANGE', key: 'CASTLE_CHAMBER_MOUSE_DOOR_FOUND', place: 'storykeeper-castle' },
+    ],
+    repeat: { maxShows: 2, minVisitGap: 3 },
+    weight: 4,
+    npcId: null,
+    lines: {
+      SPROUT: ['The star and the tiny door say hello.'],
+      PATHFINDER: ['The little star and the tiny door seem glad you found them both.'],
+      EXPLORER: [
+        'The little star and the tiny door seem glad you found them both, and the whole chamber feels warm and friendly.',
+      ],
+    },
+    visual: { kind: 'lantern-glow' },
+    fallback: false,
+    secret: true,
+  },
   {
     id: 'quill-hums-in-hall',
     status: 'PUBLISHED',

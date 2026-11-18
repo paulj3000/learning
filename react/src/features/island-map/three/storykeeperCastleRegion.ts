@@ -830,6 +830,16 @@ export const CHAMBER_CRYSTAL_SPOTS: readonly EntitySpot[] = [
   { entityId: 'chamber-crystal-3', x: -15.2, z: -5.6 },
 ];
 
+/**
+ * The chamber's two quiet finds (SC-R08-02), each a wall-mounted detail and a walk-up zone: a
+ * brighter star in the mural on the north wall, and a mouse-sized door low on the shared east wall.
+ * Both discovery ids are the zones' ids. Neither leads anywhere, and neither grants anything.
+ */
+export const CHAMBER_FIND_SPOTS: readonly WallMountedSpot[] = [
+  { entityId: 'chamber-star', x: -14.7, y: 1.5, z: -4.3 },
+  { entityId: 'chamber-mouse-door', x: -9.3, y: 0.2, z: -8.6 },
+];
+
 // --- Trigger zones ---------------------------------------------------------
 
 /**
@@ -923,6 +933,9 @@ export const ZONES: readonly RectZone[] = [
   { id: 'chamber-glow-2', minX: -14.7, maxX: -14, minZ: -7.85, maxZ: -6.75 },
   { id: 'chamber-glow-3', minX: -14.7, maxX: -14, minZ: -6.15, maxZ: -5.05 },
   { id: 'chamber-door', minX: -13.2, maxX: -11.8, minZ: -9.6, maxZ: -8.9 },
+  // SC-R08-02: the star in the mural (north wall, clear of the gold arrow and the third crystal) and the mouse door (east wall).
+  { id: 'castle-chamber-star', minX: -15.4, maxX: -14, minZ: -4.9, maxZ: -4.3 },
+  { id: 'castle-chamber-mouse-door', minX: -10.7, maxX: -9.35, minZ: -9.2, maxZ: -8 },
 ];
 
 export function findZone(zoneId: string): RectZone | undefined {
@@ -966,6 +979,7 @@ export const WALL_MOUNTED_SPOTS: readonly WallMountedSpot[] = [
   ...COUNTING_STAR_SPOTS,
   ...LOCK_CARVING_SPOTS,
   CASTLE_DOORS_SPOT,
+  ...CHAMBER_FIND_SPOTS,
 ];
 
 /**

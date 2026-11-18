@@ -251,7 +251,13 @@ describe('ISLAND_REWARD_TABLE', () => {
         (rule) => (rule.trigger as { type: 'DISCOVERY'; discoveryKey: string }).discoveryKey,
       ),
     );
+    // SC-R08-02: the Secret Chamber's two quiet finds are observation only, and grant nothing by design.
+    const QUIET_FINDS = new Set(['castle-chamber-star', 'castle-chamber-mouse-door']);
     for (const discovery of ISLAND_DISCOVERIES) {
+      if (QUIET_FINDS.has(discovery.id)) {
+        expect(rewardedKeys.has(discovery.id), `${discovery.id} must grant nothing`).toBe(false);
+        continue;
+      }
       expect(rewardedKeys.has(discovery.id), `${discovery.id} grants nothing`).toBe(true);
     }
   });

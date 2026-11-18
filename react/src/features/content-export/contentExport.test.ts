@@ -129,7 +129,7 @@ describe('preservation of the existing content', () => {
       collectibleSets: 3, // + castle-keepsakes (SC-R07-01)
       rewardRules: 29, // + one seal rule per band's Great Storybook quest, + three keepsake rules
       npcs: 8, // + Professor Orion (SC-R05-03)
-      discoveries: 6,
+      discoveries: 8, // + the Secret Chamber's two quiet finds (SC-R08-02)
       checkpoints: 31,
       interactions: 8,
       subjects: 2,

@@ -26,6 +26,8 @@ const CRYSTAL_COLOURS = [0xb99cff, 0x6fd6c9, 0xff9ec4] as const;
 const DOOR_FRAME = 0x3d3a45;
 const DOOR_GLOW = 0x8f7bd9;
 const LANTERN = 0xffc45a;
+const STAR_GLINT = 0xfff0a8;
+const MOUSE_DOOR = 0xb97a45;
 
 /** The sealed round door on the south wall (its room-facing plane is z = -9.75). */
 export const CHAMBER_DOOR = { minX: -13.2, maxX: -11.8, nearZ: -9.68, farZ: -9.6 } as const;
@@ -129,6 +131,9 @@ export const SECRET_CHAMBER_VISUALS: RoomVisuals = {
       1.6,
     ),
     box('castle-chamber-lantern', LANTERN, -9.5, -9.36, -6.5, -6.3, 1.5, 1.8),
+    // SC-R08-02: the two quiet finds, flat on the wall faces (each a single box; the castle is at its draw-call limit).
+    box('castle-chamber-star-glint', STAR_GLINT, -14.85, -14.55, -4.31, -4.26, 1.35, 1.65),
+    box('castle-chamber-mouse-door-small', MOUSE_DOOR, -9.34, -9.26, -8.75, -8.45, 0, 0.32),
   ],
   lights: [LANTERN_LIGHT],
   colliders: [

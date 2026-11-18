@@ -251,6 +251,64 @@ describe('the shipped catalog', () => {
   });
 });
 
+describe('the Secret Chamber events (SC-R08-03)', () => {
+  const chamber = CASTLE_EVENTS.filter((e) => e.room === 'secret-chamber' && !e.fallback);
+  const FOUND_KEYS = ['CASTLE_CHAMBER_STAR_FOUND', 'CASTLE_CHAMBER_MOUSE_DOOR_FOUND'];
+  const conditions = (keys: string[]) => ({
+    worldChanges: keys.map((key) => ({ place: 'storykeeper-castle', key })),
+    questStatuses: {},
+    relationshipLevels: {},
+  });
+  const here = (keys: string[], band: AgeBandValue = 'PATHFINDER') =>
+    state({ roomId: 'secret-chamber', ageBand: band, conditions: conditions(keys) });
+
+  it('are observation only: no NPC, no question, nothing asked or granted', () => {
+    expect(chamber.length).toBeGreaterThanOrEqual(4);
+    for (const e of chamber) {
+      expect(e.npcId, e.id).toBeNull();
+      for (const line of allLines(e)) expect(line, e.id).not.toMatch(/\?|!/);
+    }
+  });
+
+  it('only ever read the two finds the chamber records, and only as world changes', () => {
+    for (const e of chamber) {
+      for (const c of e.requires) {
+        expect(c.type, e.id).toBe('WORLD_CHANGE');
+        if (c.type === 'WORLD_CHANGE') {
+          expect(FOUND_KEYS, e.id).toContain(c.key);
+          expect(c.place, e.id).toBe('storykeeper-castle');
+        }
+      }
+    }
+  });
+
+  it('shows the finds-aware lines only after the finds, for every band', () => {
+    for (const band of BANDS) {
+      const none = ids(eligibleEvents(CASTLE_EVENTS, here([], band)));
+      expect(none).toContain('chamber-crystals-hum');
+      expect(none).not.toContain('chamber-star-twinkles');
+      expect(none).not.toContain('chamber-mouse-door-glows');
+      expect(none).not.toContain('chamber-finds-remembered');
+      const star = ids(eligibleEvents(CASTLE_EVENTS, here([FOUND_KEYS[0]], band)));
+      expect(star).toContain('chamber-star-twinkles');
+      expect(star).not.toContain('chamber-finds-remembered');
+      const both = ids(eligibleEvents(CASTLE_EVENTS, here(FOUND_KEYS, band)));
+      expect(both).toContain('chamber-finds-remembered');
+      expect(defaultEvent(CASTLE_EVENTS, here(FOUND_KEYS, band))?.id).toBe('chamber-finds-remembered');
+    }
+  });
+
+  it('still falls back to the quiet room line when everything has been shown', () => {
+    const shown = Object.fromEntries(chamber.map((e) => [e.id, 99]));
+    const spent = { ...here(FOUND_KEYS), shownCounts: shown, lastShownVisit: { 'lanterns-glow-brighter': 5 } };
+    expect(defaultEvent(CASTLE_EVENTS, spent)?.id).toBe('quiet-secret-chamber');
+  });
+});
+
+function allLines(e: CastleEvent): string[] {
+  return BANDS.flatMap((band) => [...e.lines[band]]);
+}
+
 describe('the server mirror', () => {
   const server = JSON.parse(
     readFileSync(resolve(process.cwd(), '../lai/apps/regions/castle_events.json'), 'utf8'),
