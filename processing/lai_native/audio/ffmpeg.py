@@ -119,6 +119,8 @@ def _input_args(input_path: Path, input_format: str, max_seconds: float) -> list
         "-1",
         "-map_chapters",
         "-1",
+        "-map_metadata:s:a",
+        "-1",
     ]
 
 
@@ -249,7 +251,12 @@ def _to_float(text: str) -> float | None:
 def parse_loudnorm_json(stderr: bytes) -> LoudnormMeasure:
     """The JSON block loudnorm prints (the last one). Values are strings; `-inf` is legal."""
     text = stderr.decode("utf-8", "replace")
-    start = text.rfind("{")
+    # Anchor on the LAST loudnorm log block: input tags are printed at the start of a run, so a
+    # tag that imitates a marker or a JSON object cannot come after the real block.
+    anchor = text.rfind("[Parsed_loudnorm")
+    if anchor < 0:
+        raise ValueError("no loudnorm json")
+    start = text.find("{", anchor)
     end = text.find("}", start) if start >= 0 else -1
     if start < 0 or end < 0 or end - start > MAX_JSON_BYTES:
         raise ValueError("no loudnorm json")
@@ -278,7 +285,14 @@ _PEAK = re.compile(r"^\s*Peak:\s+(\S+)\s+dB(?:FS|TP)\s*$")
 def parse_ebur128(stderr: bytes) -> Measurement:
     """The ebur128 summary block (the last one printed)."""
     lines = stderr.decode("utf-8", "replace").splitlines()
-    start = max((i for i, line in enumerate(lines) if line.strip().endswith("Summary:")), default=-1)
+    start = max(
+        (
+            i
+            for i, line in enumerate(lines)
+            if line.startswith("[Parsed_ebur128") and line.strip().endswith("Summary:")
+        ),
+        default=-1,
+    )
     if start < 0:
         raise ValueError("no ebur128 summary")
     integrated = lra = sample = true = None

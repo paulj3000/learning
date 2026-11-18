@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 
@@ -56,13 +57,17 @@ class Workspace:
             raise NativeToolError("workspace_error") from None
 
     def used_bytes(self) -> int:
+        """Bytes of every regular file below the workspace, subdirectories included (a tool
+        could otherwise hide output in a directory). Symlinks are never followed or counted."""
         total = 0
-        try:
-            for entry in os.scandir(self.root):
-                if entry.is_file(follow_symlinks=False):
-                    total += entry.stat(follow_symlinks=False).st_size
-        except OSError:
-            return total
+        for directory, _names, files in os.walk(self.root, followlinks=False):
+            for name in files:
+                try:
+                    info = os.lstat(os.path.join(directory, name))
+                except OSError:
+                    continue
+                if stat.S_ISREG(info.st_mode):
+                    total += info.st_size
         return total
 
     def close(self) -> None:
@@ -73,3 +78,27 @@ class Workspace:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+
+#: Directory name prefixes this repository's workspaces use (`Workspace` here, and the
+#: engine's `lai_processing.core.workspace`).
+WORKSPACE_PREFIXES = ("lai-native-", "lai-proc-")
+
+
+def sweep_stale(
+    base: str | os.PathLike[str] = "/tmp", prefixes: tuple[str, ...] = WORKSPACE_PREFIXES
+) -> int:
+    """Remove leftover workspaces under `base`; returns how many. Call once at worker init: a
+    Lambda container runs one invocation at a time, so any such directory found then belongs to an
+    earlier invocation that was killed before its cleanup (the 512 MB `/tmp` is reused across
+    invocations of a warm container). Symlinks and non-directories are left alone."""
+    removed = 0
+    try:
+        entries = list(os.scandir(base))
+    except OSError:
+        return 0
+    for entry in entries:
+        if entry.name.startswith(prefixes) and entry.is_dir(follow_symlinks=False):
+            shutil.rmtree(entry.path, ignore_errors=True)
+            removed += 1
+    return removed

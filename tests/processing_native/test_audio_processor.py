@@ -8,6 +8,7 @@ from dataclasses import replace
 import pytest
 
 import audio_builder as ab
+from audio_synth import ogg_opus_tagged
 from lai_native.audio import processor as proc
 from lai_native.audio.profiles import DEFAULT_PROFILES, LoudnessSpec
 from lai_native.runtime import NativeToolError, ToolResult, ToolSpec
@@ -63,9 +64,9 @@ class FakeFfmpeg:
         if kind == "encode":
             out = args[-1]
             if "libopus" in args:
-                data = self.out_bytes or ab.ogg_opus(seconds=self.seconds, channels=self._channels(args))
+                data = self.out_bytes or ogg_opus_tagged(seconds=self.seconds, channels=self._channels(args))
             else:
-                data = self.out_bytes or ab.mp3_cbr(frames=int(self.seconds / 0.026122), kbps=128)
+                data = self.out_bytes or ab.mp3_cbr(frames=int(self.seconds / 0.026122), kbps=128, tag=False)
             with open(out, "wb") as handle:
                 handle.write(data)
             return ToolResult(0, b"", b"", False, 0.2, 9)
@@ -247,13 +248,13 @@ def test_garbage_output_fails_reinspection():
 
 
 def test_duration_drift_is_a_warning():
-    fake = FakeFfmpeg(out_bytes=ab.ogg_opus(seconds=9.0, channels=2))
+    fake = FakeFfmpeg(out_bytes=ogg_opus_tagged(seconds=9.0, channels=2))
     out = transcoder(fake).transcode(stereo_wav(6.0), only("audio-music"))
     assert {"code": "duration_drift", "severity": "warning", "label": "opus"} in out.facts["findings"]
 
 
 def test_loop_profiles_use_a_tighter_drift_tolerance():
-    fake = FakeFfmpeg(out_bytes=ab.ogg_opus(seconds=6.2, channels=2))
+    fake = FakeFfmpeg(out_bytes=ogg_opus_tagged(seconds=6.2, channels=2))
     out = transcoder(fake).transcode(stereo_wav(6.0), only("audio-ambient"))
     assert any(f["code"] == "loop_length_drift" for f in out.facts["findings"])
 

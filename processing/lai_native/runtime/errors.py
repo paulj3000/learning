@@ -24,7 +24,7 @@ CODES: Final = {
     "cancelled": True,
     "output_too_large": False,
     "stdout_too_large": False,
-    "resource_limit": True,
+    "resource_limit": False,  # CPU exhaustion repeats on the same input
     "tool_crashed": True,
     "tool_failed": False,
 }
