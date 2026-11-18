@@ -36,6 +36,11 @@ export interface RealmPlace {
   thumbnailAssetId: string | null;
   adventureCount: number;
   explored: boolean;
+  /** Quests its 3D Area offers this child, and how far along (quest-based Places). */
+  questCount: number;
+  questsCompleted: number;
+  /** Every offered quest is completed; the Area stays open for replay. */
+  completed: boolean;
   /** The Place's own page (its Adventures), when this app has one. */
   href: string | null;
   /** Its published 3D Area, such as Treasure Cove, when there is one for this child. */
@@ -104,6 +109,9 @@ function toPlace(childId: string, place: PlaceSummary, linkable: boolean): Realm
     thumbnailAssetId: place.thumbnailAssetId,
     adventureCount: place.adventureCount,
     explored: place.explored,
+    questCount: place.questCount,
+    questsCompleted: place.questsCompleted,
+    completed: place.completed,
     href,
     area,
   };
