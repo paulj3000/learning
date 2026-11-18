@@ -32,6 +32,9 @@ export interface MountDependencies {
 
 /** A KTX2 loader matched to a real WebGL renderer, or null (no renderer, or a test double). */
 export function defaultKtx2(renderer: PreviewRenderer | undefined): KTX2Loader | null {
+  // Off in the committed Django static bundle, which ships no Basis transcoder
+  // (vite.admin-preview.config.ts); on wherever the transcoder is served.
+  if (import.meta.env.VITE_LAI_ADMIN_KTX2 === 'off') return null;
   if (!renderer || !('extensions' in renderer)) return null;
   try {
     return createKtx2Loader(renderer as unknown as Parameters<typeof createKtx2Loader>[0]);

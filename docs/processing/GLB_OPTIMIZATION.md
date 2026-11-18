@@ -124,7 +124,12 @@ before `renderer.dispose()`, so the engine itself still imports no decoder. Miss
 gives `CompressedModelError` (`ktx2_unavailable`). The Django Admin preview now creates its viewer (and
 renderer) first, builds a `KTX2Loader` for that renderer, parses, then disposes the loader's
 workers (`mountAssetPreview.ts`); without a usable renderer it refuses KTX2 models with
-`compression_unsupported`.
+`compression_unsupported`. **The committed Django static bundle does not ship the Basis
+transcoder** (its `.wasm` is a 527 kB binary build output, which is not committed):
+`vite.admin-preview.config.ts` drops the emitted transcoder files and builds with
+`VITE_LAI_ADMIN_KTX2=off`, so the deployed Admin preview shows `compression_unsupported` for a
+KTX2 model until the transcoder is served from Django (ADR-070 O7). Meshopt previews work (the
+decoder is inline). The thumbnail capture bundle (ADR-069) likewise drops the transcoder.
 
 ## 5. Optimizer (`lai_native.optimize`)
 
@@ -206,8 +211,10 @@ id and version, the two variants (`meshopt` -> `meshopt-conservative` v1 / `LAI_
 - `register()` (from `AssetsConfig.ready`) sets
   `artifact_results.PROCESSOR_VERSION_RESOLVERS["asset.optimize"]`, so a result from an older
   optimizer build is `processor_outdated` and records nothing.
-- Admin actions on asset versions: "Optimize (Meshopt)" and "Optimize (KTX2)" (permission: the
-  existing validate permission), each refused with a clear message while its control is off.
+- Admin actions on asset versions: "Optimize (Meshopt)" and "Optimize (KTX2)"
+  (`admin_optimize.OptimizeAdminMixin`, mixed into `AssetVersionAdmin` cooperatively like the
+  image and capture mixins; staff who may upload and view versions), each refused with a clear
+  message while its control is off.
 - The derived-artifact page shows an "Optimization report" table for `model.optimized` rows:
   original and optimized size, ratio, texture formats, calculated GPU memory before and after,
   triangles, clips, preservation, required extensions. The full JSON report is the
@@ -360,7 +367,7 @@ inspected on any screen.
 | 2 | Both validators call `validate_basisu` behind the policy row; `image/ktx2` accepted only for basisu images; parity corpus extended | Done (phase 2) |
 | 3 | Policy version and GLB processor version bump | Done (processor 1.2.0) |
 | 4 | Loader: `KTX2Loader` with bundled transcoder, `detectSupport(renderer)`, worker limit, disposal with the engine, refused external URLs, typed error | Done (Vitest, configuration level; jsdom cannot run the transcoder workers) |
-| 5 | Admin preview shows KTX2 models | Done (viewer and renderer created before parsing; configuration-level test only) |
+| 5 | Admin preview shows KTX2 models | Code done (renderer before parsing); **the deployed bundle has KTX2 off** until the transcoder is served from Django (O7) |
 | 6 | Real transcode in a browser (desktop Chrome, Safari, Firefox): textures render with correct colour space and orientation | **Pending, not done** |
 | 7 | Device acceptance on the owner's tablets: transcode target (ASTC/ETC2), load time, memory, visual parity of ETC1S colour textures | **Pending, not done** |
 | 8 | Image preparation through Workstream D's module (resize to multiples of 4, size cap, metadata) | Done (`pillow_texture`; tested with Pillow 13.0.0 and real toktx on the workstation) |
