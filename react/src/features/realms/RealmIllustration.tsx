@@ -53,6 +53,7 @@ const SKIES: Record<RealmScene, Palette> = {
   volcano: { skyTop: C.coral500, skyBottom: C.treasure100, sea: C.ocean700, seaDeep: C.ocean900 },
   forest: { skyTop: C.tropical100, skyBottom: C.paper, sea: C.ocean300, seaDeep: C.ocean500 },
   harbor: { skyTop: C.ocean100, skyBottom: C.treasure100, sea: C.ocean500, seaDeep: C.ocean900 },
+  winter: { skyTop: C.ocean700, skyBottom: C.ocean100, sea: C.ocean300, seaDeep: C.ocean500 },
 };
 
 function Palm({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
@@ -193,6 +194,27 @@ const SCENES: Record<RealmScene, () => ReactElement> = {
         ))}
       </g>
       <path d="M170 150 l 60 0 l -8 12 l -44 0 z" fill={C.treasure800} />
+    </>
+  ),
+  // NP-023: snowy hills, a fir tree with a star, snowflakes and a small cabin.
+  winter: () => (
+    <>
+      <path d="M0 150 C 60 108, 150 112, 210 140 C 250 120, 300 124, 320 138 L 320 150 Z" fill={C.paper} />
+      <Tree x={92} y={140} scale={1.3} fill={C.tropical700} />
+      <path d="M92 52 l 4 9 l 10 1 l -8 6 l 3 10 l -9 -6 l -9 6 l 3 -10 l -8 -6 l 10 -1 z" fill={C.treasure300} />
+      <rect x="196" y="112" width="44" height="30" fill={C.coral700} />
+      <path d="M190 114 l 28 -22 l 28 22 z" fill={C.paper} />
+      <rect x="212" y="124" width="12" height="18" fill={C.treasure800} />
+      {[
+        [40, 40],
+        [150, 30],
+        [250, 50],
+        [290, 90],
+        [30, 100],
+        [180, 74],
+      ].map(([x, y]) => (
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="3" fill={C.paper} />
+      ))}
     </>
   ),
 };

@@ -13,6 +13,7 @@ import type {
   IslandSummary,
   IslandsView,
   PlaceSummary,
+  SeasonalInfo,
   SubjectArea,
 } from '../../api/play/islandsApi';
 import { ISLAND_LOCATIONS } from '../island/locations';
@@ -54,6 +55,8 @@ export interface Realm {
   ageBands: string[];
   subjectAreas: SubjectArea[];
   thumbnailAssetId: string | null;
+  /** NP-023: the seasonal event this Realm belongs to, or null. */
+  seasonal: SeasonalInfo | null;
   /** Places explored, never points or a score (pillar 7). */
   progress: { explored: number; total: number };
   places: RealmPlace[];
@@ -139,6 +142,7 @@ function toRealm(childId: string, island: IslandSummary): Realm {
     ageBands: island.ageBands,
     subjectAreas: island.subjectAreas,
     thumbnailAssetId: island.thumbnailAssetId,
+    seasonal: island.seasonal,
     progress: {
       explored: island.progress?.placesExplored ?? places.filter((p) => p.explored).length,
       total: island.progress?.placesTotal ?? places.length,

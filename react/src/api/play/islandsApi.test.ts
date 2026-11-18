@@ -143,4 +143,40 @@ describe('islandsView (ADR-041, AP-03)', () => {
       area: { status: 'NOT_STARTED', resumeSessionId: null },
     });
   });
+
+  it('reads the NP-023 seasonal info, defaulting to null for an older server or null', () => {
+    const info = { slug: 'christmas', theme: 'CHRISTMAS', featured: true, inWindow: true };
+    const view = islandsView(
+      new Reader({
+        islands: [
+          {
+            islandId: 'north-pole',
+            title: 'N',
+            tagline: '',
+            isHome: false,
+            seasonal: info,
+            places: [{ ...place, seasonal: info }, { ...place, seasonal: null }, place],
+          },
+          { islandId: 'i', title: 'I', tagline: '', isHome: true, places: [place] },
+        ],
+        autoSelectIslandId: null,
+      }),
+    );
+    expect(view.islands[0].seasonal).toEqual(info);
+    expect(view.islands[0].places.map((p) => p.seasonal)).toEqual([info, null, null]);
+    expect(view.islands[1].seasonal).toBeNull();
+  });
+
+  it('rejects a malformed seasonal field', () => {
+    expect(() =>
+      islandsView(
+        new Reader({
+          islands: [
+            { islandId: 'i', title: 'I', tagline: '', isHome: true, seasonal: { slug: 1 }, places: [] },
+          ],
+          autoSelectIslandId: null,
+        }),
+      ),
+    ).toThrow();
+  });
 });

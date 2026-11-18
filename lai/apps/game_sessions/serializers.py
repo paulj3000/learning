@@ -568,6 +568,8 @@ def island_entry(entry) -> dict:
         "thumbnailAssetId": entry.art_asset_id,
         "unlocked": entry.unlocked,
         "lockedHint": entry.locked_hint,
+        # NP-023: the active seasonal event this Island belongs to, or null.
+        "seasonal": entry.seasonal,
         "progress": {
             "placesExplored": sum(place.explored for place in entry.places),
             "placesTotal": len(entry.places),
@@ -583,6 +585,7 @@ def island_entry(entry) -> dict:
                 "thumbnailAssetId": place.art_asset_id,
                 "adventureCount": place.adventure_count,
                 "explored": place.explored,
+                "seasonal": place.seasonal,
                 # null: no published 3D Area yet; the Place's adventures are still available.
                 "area": region_entry(place.area) if place.area else None,
             }
