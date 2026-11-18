@@ -1,6 +1,6 @@
 import type { SoundPlayer } from '../../../audio';
 import { createMusicStates } from '../../../audio/music';
-import { MUSIC_CUES } from './treasureRushSounds';
+import { MUSIC_CUES, type MusicState } from './treasureRushSounds';
 
 /**
  * Treasure Rush's music: calm exploration, a gentler puzzle theme while a rune puzzle is out, and
@@ -23,19 +23,23 @@ export interface TreasureRushMusic {
 
 export const MUSIC_FADE_MS = 1200;
 
-export function createTreasureRushMusic(player: SoundPlayer): TreasureRushMusic {
+export function createTreasureRushMusic(
+  player: SoundPlayer,
+  cues: Readonly<Record<MusicState, string>> = MUSIC_CUES,
+): TreasureRushMusic {
   let puzzle = false;
   let victory = false;
   let activated = false;
 
-  const base = () => (puzzle ? 'puzzle' : 'exploration');
+  // A region with one theme for both (Firepeak) never restarts it when a puzzle opens.
+  const base = () => (puzzle && cues.puzzle !== cues.explore ? 'puzzle' : 'exploration');
   const states = createMusicStates({
     player,
     crossfadeMs: MUSIC_FADE_MS,
     states: {
-      exploration: { sound: MUSIC_CUES.explore },
-      puzzle: { sound: MUSIC_CUES.puzzle },
-      victory: { sound: MUSIC_CUES.victory },
+      exploration: { sound: cues.explore },
+      puzzle: { sound: cues.puzzle },
+      victory: { sound: cues.victory },
     },
     // The victory theme ending, or having no audio to play, hands the room back to its music.
     returnTo(finished) {
