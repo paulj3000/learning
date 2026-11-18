@@ -91,9 +91,12 @@ remains: `docs/processing/WAVE4_HANDOFF.md`.
   arm64 wheel 6.5 MB (21.6 MB unpacked), pyvips with libvips 8.5 MB, Chrome headless shell 273 MB
   unpacked; x86 workstation timings only, no arm64 or Lambda measurement. Finding: uploaded images
   keep EXIF and GPS data. Blocked on owner decisions D-1 to D-12.
-- **011 and 012:** `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (section 5: optional Wave 4
-  acceptance) and `docs/processing/LAI-LAMBDA-012-production-rollout.md` (owner decisions P1 to
-  P13). Nothing executed.
+- **011 and 012:** `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (rewritten in three tiers:
+  core 001 to 007, Wave 4 inspection in section 5, future native workers in section 12; section 1
+  "Deployment gate verification" records that all deploy jobs on `main` were skipped because the
+  gate variables were not `true`) and `docs/processing/LAI-LAMBDA-012-production-rollout.md`
+  (reconciled with the production CDK and workflows; owner decisions P1 to P15, P14 and P15 new).
+  Nothing executed.
 - **Integration fix (2026-11-17):** the canonical review fix made `gltf.jsonparse.parse_document`
   take a `max_elements` bound (string-aware structural pre-scan before `json.loads`); the
   animation inspector still called the old signature, so every inspection raised `TypeError`
