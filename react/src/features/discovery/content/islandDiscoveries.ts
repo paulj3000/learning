@@ -136,6 +136,41 @@ export const ISLAND_DISCOVERIES: DiscoveryDefinition[] = [
       changeKey: 'CASTLE_READING_NOOK_FOUND',
     },
   },
+
+  // --- Storykeeper Castle, the Secret Chamber (SC-R08-02) ---
+  // Two quiet finds inside the room the nook opens. Gated on the nook, so a child cannot reach them
+  // before the chamber exists for them. They grant nothing: the only record is the discovery itself
+  // and its world change (which the castle's ambient events read, like the nook's).
+  {
+    id: 'castle-chamber-star',
+    locationSlug: 'storykeeper-castle',
+    kind: 'HIDDEN_OBJECT',
+    title: 'A star in the mural',
+    requirements: [{ type: 'DISCOVERY_PRESENT', discoveryId: 'castle-tapestry-stair' }],
+    lockedMessage: 'One star on the old mural looks a little brighter than the rest.',
+    revealMessage:
+      'You stand close and the painted star winks at you. It glows the same soft color as the crystals.',
+    worldChange: {
+      locationSlug: 'storykeeper-castle',
+      changeType: 'CREATE',
+      changeKey: 'CASTLE_CHAMBER_STAR_FOUND',
+    },
+  },
+  {
+    id: 'castle-chamber-mouse-door',
+    locationSlug: 'storykeeper-castle',
+    kind: 'HIDDEN_OBJECT',
+    title: 'A very small door',
+    requirements: [{ type: 'DISCOVERY_PRESENT', discoveryId: 'castle-tapestry-stair' }],
+    lockedMessage: 'Low on the wall there is a thin crack of warm light.',
+    revealMessage:
+      'A tiny round door hides low in the wall. It has a brass knob as small as a pea. It is just right for a mouse.',
+    worldChange: {
+      locationSlug: 'storykeeper-castle',
+      changeType: 'CREATE',
+      changeKey: 'CASTLE_CHAMBER_MOUSE_DOOR_FOUND',
+    },
+  },
 ];
 
 export function findIslandDiscovery(discoveryId: string): DiscoveryDefinition | null {

@@ -40,7 +40,9 @@
           "bay-tide-tunnel",
           "wonderwild-glow-moss",
           "wonderwild-glowworm-cave",
-          "castle-tapestry-stair"
+          "castle-tapestry-stair",
+          "castle-chamber-star",
+          "castle-chamber-mouse-door"
         ],
         "itemIds": [
           "spiral-shell",

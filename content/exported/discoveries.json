@@ -351,6 +351,44 @@
         "changeType": "CREATE",
         "locationSlug": "storykeeper-castle"
       }
+    },
+    {
+      "id": "castle-chamber-star",
+      "kind": "HIDDEN_OBJECT",
+      "locationSlug": "storykeeper-castle",
+      "lockedMessage": "One star on the old mural looks a little brighter than the rest.",
+      "requirements": [
+        {
+          "discoveryId": "castle-tapestry-stair",
+          "type": "DISCOVERY_PRESENT"
+        }
+      ],
+      "revealMessage": "You stand close and the painted star winks at you. It glows the same soft color as the crystals.",
+      "title": "A star in the mural",
+      "worldChange": {
+        "changeKey": "CASTLE_CHAMBER_STAR_FOUND",
+        "changeType": "CREATE",
+        "locationSlug": "storykeeper-castle"
+      }
+    },
+    {
+      "id": "castle-chamber-mouse-door",
+      "kind": "HIDDEN_OBJECT",
+      "locationSlug": "storykeeper-castle",
+      "lockedMessage": "Low on the wall there is a thin crack of warm light.",
+      "requirements": [
+        {
+          "discoveryId": "castle-tapestry-stair",
+          "type": "DISCOVERY_PRESENT"
+        }
+      ],
+      "revealMessage": "A tiny round door hides low in the wall. It has a brass knob as small as a pea. It is just right for a mouse.",
+      "title": "A very small door",
+      "worldChange": {
+        "changeKey": "CASTLE_CHAMBER_MOUSE_DOOR_FOUND",
+        "changeType": "CREATE",
+        "locationSlug": "storykeeper-castle"
+      }
     }
   ],
   "schemaVersion": 3

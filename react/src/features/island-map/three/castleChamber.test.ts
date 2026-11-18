@@ -21,12 +21,14 @@ const FOUND: WorldInteractionContext = { ...NOTHING, discoveryIds: [SECRET_PASSA
 const zone = (id: string) => ZONES.find((candidate) => candidate.id === id)!;
 
 describe('the Secret Chamber interactions', () => {
-  it('are four: three crystals that hum and a sealed round door', () => {
+  it('are six: three crystals that hum, a sealed round door, and two quiet finds (SC-R08-02)', () => {
     expect(CASTLE_CHAMBER_INTERACTIONS.map((i) => i.id)).toEqual([
       'chamber-glow-1',
       'chamber-glow-2',
       'chamber-glow-3',
       'chamber-door',
+      'castle-chamber-star',
+      'castle-chamber-mouse-door',
     ]);
   });
 
@@ -43,9 +45,10 @@ describe('the Secret Chamber interactions', () => {
     }
   });
 
-  it('only describe: nothing grades, grants, records, starts or opens', () => {
+  it('only describe or discover: nothing grades, starts, opens or asks; the two finds only record the find', () => {
     for (const interaction of CASTLE_CHAMBER_INTERACTIONS) {
-      expect(interaction.action.kind, interaction.id).toBe('SHOW_MESSAGE');
+      const finds = interaction.id.startsWith('castle-chamber-');
+      expect(interaction.action.kind, interaction.id).toBe(finds ? 'DISCOVER' : 'SHOW_MESSAGE');
       expect(interaction.trigger).toBe('APPROACH');
     }
   });

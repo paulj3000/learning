@@ -100,6 +100,8 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'wonderwild-glow-moss',
     'wonderwild-glowworm-cave',
     'castle-tapestry-stair',
+    'castle-chamber-star',
+    'castle-chamber-mouse-door',
   ],
   storySlugs: [
     'dragon-of-ember-mountain',
