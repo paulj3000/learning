@@ -15,6 +15,7 @@ from django.db import models
 from apps.catalog.asset_refs import AssetKind, AssetRefValidator, validate_asset_ref
 from apps.catalog.models import Authorable
 from apps.core.content_status import ContentStatus
+from apps.core.models import ChildOwnedModel
 from apps.users.models import AgeBand
 
 
@@ -589,3 +590,35 @@ class AreaPuzzle(Authorable, models.Model):
                 raise ValidationError(
                     {"entity_ids": f"No placement in this 3D Area has id {', '.join(unknown)}."}
                 )
+
+
+class CastleVisitState(ChildOwnedModel):
+    """How many separate visits to Storykeeper Castle a child has made (SC-R08-01).
+
+    The castle is a Place with no 3D Area or region session in Django, so the visit count is
+    owned here. A client sends an opaque `visitId` (a fresh random id for each time the castle
+    opens); the first request carrying a new id counts one visit. It is a counter, not a clock:
+    time away never changes it, and nothing is ever counted down or missed. No child text.
+    """
+
+    visit_count = models.PositiveIntegerField(default=0)
+    last_visit_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["child"], name="castle_visit_one_per_child"),
+        ]
+
+
+class CastleEventShown(ChildOwnedModel):
+    """A display counter for one ambient castle event (SC-R08-01): how often it was shown and in
+    which visit last. It is not progress: nothing reads it for a reward, quest or world change."""
+
+    event_id = models.SlugField(max_length=100)
+    shown_count = models.PositiveIntegerField(default=0)
+    last_shown_visit = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["child", "event_id"], name="castle_event_one_per_child"),
+        ]

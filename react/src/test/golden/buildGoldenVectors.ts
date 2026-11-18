@@ -63,6 +63,13 @@ import { strategyForHintLevel } from '../../features/tutor/strategy';
 import type { TutorContext } from '../../features/tutor/types';
 import { SKILLS } from '../../features/curriculum/content/index';
 import { WORLD_DEFINITIONS } from '../../features/worlds/worlds';
+import {
+  CASTLE_EVENTS,
+  defaultEvent,
+  eligibleEvents,
+  type CastleEvent,
+  type CastleEventState,
+} from '../../features/great-storybook/castleEvents';
 
 /**
  * Golden vectors (LAI-0303, ADR-019 sub-decision 8): representative and edge inputs for the
@@ -2325,6 +2332,204 @@ function aiSafetySuite(): GoldenSuite {
   };
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// Castle events: eligibleEvents, defaultEvent (SC-R08-01)
+
+function castleEvent(id: string, overrides: Partial<CastleEvent> = {}): CastleEvent {
+  return {
+    id,
+    status: 'PUBLISHED',
+    version: 1,
+    room: 'story-hall',
+    bands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
+    requires: [],
+    repeat: { maxShows: null, minVisitGap: 0 },
+    weight: 2,
+    npcId: null,
+    lines: { SPROUT: ['a'], PATHFINDER: ['b'], EXPLORER: ['c'] },
+    visual: { kind: 'dust-motes' },
+    fallback: false,
+    secret: true,
+    ...overrides,
+  };
+}
+
+function castleState(overrides: Partial<CastleEventState> = {}): CastleEventState {
+  return {
+    ageBand: 'PATHFINDER',
+    roomId: 'story-hall',
+    conditions: { worldChanges: [], questStatuses: {}, relationshipLevels: {} },
+    shownCounts: {},
+    lastShownVisit: {},
+    currentVisitIndex: 5,
+    ...overrides,
+  };
+}
+
+function castleEventsSuite(): GoldenSuite {
+  const quiet = castleEvent('quiet', { weight: 1, fallback: true });
+  const fixture: CastleEvent[] = [
+    quiet,
+    castleEvent('draft', { status: 'DRAFT', weight: 5 }),
+    castleEvent('retired', { status: 'RETIRED', weight: 5 }),
+    castleEvent('sprouts-only', { bands: ['SPROUT'], weight: 4 }),
+    castleEvent('library', { room: 'great-library', weight: 5 }),
+    castleEvent('anywhere', { room: 'ANY', weight: 3 }),
+    castleEvent('story-told', {
+      weight: 4,
+      requires: [{ type: 'WORLD_CHANGE', key: 'FIRST_STORY_TOLD', place: 'storykeeper-castle' }],
+    }),
+    castleEvent('quest-done', {
+      weight: 4,
+      requires: [{ type: 'QUEST_STATUS', quest: 'q1', status: 'COMPLETED' }],
+    }),
+    castleEvent('quill-friend', {
+      weight: 4,
+      npcId: 'keeper-quill',
+      requires: [{ type: 'RELATIONSHIP_AT_LEAST', level: 'FRIEND' }],
+    }),
+    castleEvent('twice', { weight: 4, repeat: { maxShows: 2, minVisitGap: 0 } }),
+    castleEvent('gap-two', { weight: 4, repeat: { maxShows: null, minVisitGap: 2 } }),
+    castleEvent('unknown-condition', {
+      weight: 5,
+      requires: [{ type: 'LOCAL_FLAG', flag: 'x' } as unknown as CastleEvent['requires'][number]],
+    }),
+  ];
+  const cases = (extra: { name: string; input: { catalog: CastleEvent[]; state: CastleEventState } }[]) => [
+    { name: 'a plain visit', input: { catalog: fixture, state: castleState() } },
+    {
+      name: 'a Sprout also sees the Sprout event',
+      input: { catalog: fixture, state: castleState({ ageBand: 'SPROUT' }) },
+    },
+    {
+      name: 'the library room',
+      input: { catalog: fixture, state: castleState({ roomId: 'great-library' }) },
+    },
+    {
+      name: 'conditions met',
+      input: {
+        catalog: fixture,
+        state: castleState({
+          conditions: {
+            worldChanges: [{ place: 'storykeeper-castle', key: 'FIRST_STORY_TOLD' }],
+            questStatuses: { q1: 'COMPLETED' },
+            relationshipLevels: { 'keeper-quill': 'TRUSTED_FRIEND' },
+          },
+        }),
+      },
+    },
+    {
+      name: 'world change at another place does not count',
+      input: {
+        catalog: fixture,
+        state: castleState({
+          conditions: {
+            worldChanges: [{ place: 'elsewhere', key: 'FIRST_STORY_TOLD' }],
+            questStatuses: {},
+            relationshipLevels: { 'keeper-quill': 'ACQUAINTANCE' },
+          },
+        }),
+      },
+    },
+    {
+      name: 'maxShows exhausted',
+      input: { catalog: fixture, state: castleState({ shownCounts: { twice: 2 } }) },
+    },
+    {
+      name: 'maxShows one short',
+      input: { catalog: fixture, state: castleState({ shownCounts: { twice: 1 } }) },
+    },
+    {
+      name: 'gap not yet reached',
+      input: {
+        catalog: fixture,
+        state: castleState({ lastShownVisit: { 'gap-two': 4 }, currentVisitIndex: 5 }),
+      },
+    },
+    {
+      name: 'gap exactly reached',
+      input: {
+        catalog: fixture,
+        state: castleState({ lastShownVisit: { 'gap-two': 3 }, currentVisitIndex: 5 }),
+      },
+    },
+    {
+      name: 'catalog order does not matter',
+      input: { catalog: [...fixture].reverse(), state: castleState() },
+    },
+    {
+      name: 'nothing but the fallback',
+      input: { catalog: [quiet], state: castleState({ shownCounts: { quiet: 50 } }) },
+    },
+    {
+      name: 'fallback used up falls back to the room fallback',
+      input: {
+        catalog: [castleEvent('quiet', { weight: 1, fallback: true, repeat: { maxShows: 1, minVisitGap: 0 } })],
+        state: castleState({ shownCounts: { quiet: 1 } }),
+      },
+    },
+    { name: 'an empty catalog', input: { catalog: [], state: castleState() } },
+    {
+      name: 'the shipped catalog, story hall',
+      input: { catalog: [...CASTLE_EVENTS], state: castleState() },
+    },
+    {
+      name: 'the shipped catalog, tower after Ember',
+      input: {
+        catalog: [...CASTLE_EVENTS],
+        state: castleState({
+          roomId: 'setting-tower',
+          ageBand: 'EXPLORER',
+          conditions: {
+            worldChanges: [
+              { place: 'dragons-sanctuary', key: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE' },
+              { place: 'storykeeper-castle', key: 'GREAT_STORYBOOK_RESTORED' },
+            ],
+            questStatuses: {},
+            relationshipLevels: {},
+          },
+        }),
+      },
+    },
+    {
+      name: 'the shipped catalog, secret chamber',
+      input: { catalog: [...CASTLE_EVENTS], state: castleState({ roomId: 'secret-chamber' }) },
+    },
+    ...extra,
+  ];
+  return {
+    schemaVersion: GOLDEN_SCHEMA_VERSION,
+    suite: 'castle-events',
+    description:
+      'Which ambient Storykeeper Castle events may be shown now, and the deterministic default. Visit based: no clock, no randomness.',
+    sources: [
+      'react/src/features/great-storybook/castleEvents.ts',
+      'lai/apps/regions/castle_events.py',
+    ],
+    notes: [
+      'Results are event ids, best first: weight descending, then id ascending.',
+      'An unknown condition type never holds.',
+      'defaultEvent returns the first eligible id, else the room fallback event id (ignoring repeat rules), else null.',
+      'Relationship conditions read the level of the event\'s own npcId; an event with no npcId never meets one.',
+    ],
+    functions: {
+      eligibleEvents: vectors(
+        'eligible_events',
+        ['catalog', 'state'],
+        cases([]),
+        ({ catalog, state }) => eligibleEvents(catalog, state).map((e) => e.id),
+      ),
+      defaultEvent: vectors(
+        'default_event',
+        ['catalog', 'state'],
+        cases([]),
+        ({ catalog, state }) => defaultEvent(catalog, state)?.id ?? null,
+      ),
+    },
+  };
+}
+
 export function buildGoldenSuites(): GoldenSuite[] {
   return [
     adventureEngineSuite(),
@@ -2335,6 +2540,7 @@ export function buildGoldenSuites(): GoldenSuite[] {
     directorContentSuite(),
     areaPuzzlesSuite(),
     aiSafetySuite(),
+    castleEventsSuite(),
   ];
 }
 

@@ -184,3 +184,10 @@
     transform: none;
   }
 }
+
+/* An authored ambient castle line (SC-R09-01): quiet atmosphere, never a prompt or a count. */
+.ambient {
+  margin: 0;
+  font-style: italic;
+  max-inline-size: 36rem;
+}

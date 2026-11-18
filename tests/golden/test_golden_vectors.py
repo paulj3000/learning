@@ -13,6 +13,7 @@ EXPECTED_SUITES = [
     "adventure-engine",
     "ai-safety",
     "area-puzzles",
+    "castle-events",
     "director",
     "director-content",
     "mastery",
