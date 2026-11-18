@@ -2,7 +2,7 @@
 
 from .errors import CODES, NativeToolError
 from .runner import Deadline, ToolLimits, ToolResult, ToolSpec, check_argv, run_tool, sha256_file
-from .workspace import Workspace
+from .workspace import WORKSPACE_PREFIXES, Workspace, sweep_stale
 
 __all__ = [
     "CODES",
@@ -11,8 +11,10 @@ __all__ = [
     "ToolLimits",
     "ToolResult",
     "ToolSpec",
+    "WORKSPACE_PREFIXES",
     "Workspace",
     "check_argv",
     "run_tool",
+    "sweep_stale",
     "sha256_file",
 ]

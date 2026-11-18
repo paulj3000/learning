@@ -259,7 +259,9 @@ def main(argv=None) -> int:
         f"--extra-ldflags=-L{libdir} -Wl,-z,relro -Wl,-z,now",
         "--disable-stripping",
     ]
-    if shutil.which("nasm") is None and arch in ("x86_64", "AMD64"):
+    if arch in ("x86_64", "AMD64") and shutil.which("nasm") is None:
+        if os.environ.get("LAI_FFMPEG_ALLOW_NO_NASM") != "1":
+            raise BuildError("nasm is required for x86_64 (set LAI_FFMPEG_ALLOW_NO_NASM=1 to build slow, assembly-free code)")
         configure.append("--disable-x86asm")
         log("nasm not found: building without x86 assembly (slower, x86 only)")
     run(configure, trees["ffmpeg"], pc_env, log)

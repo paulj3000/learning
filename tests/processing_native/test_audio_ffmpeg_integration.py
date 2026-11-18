@@ -177,3 +177,108 @@ def test_memory_limit_stops_the_real_tool(tool):
         args = ["-nostdin", "-hide_banner", "-n", "-f", "wav", "-i", str(path), "-f", "null", "-"]
         result = run_tool(tool, args, ws, ToolLimits(address_space_bytes=24 * 1024 * 1024))
         assert result.returncode != 0
+
+
+# --- review fixes: limiter alignment (F7), tags (SEC-5), stderr tail (F6) ----------------------------
+
+
+def _click_wav(rate=48_000, seconds=2.0, at=24_000, level=0.9) -> bytes:
+    import array
+    import io
+    import wave
+
+    frames = int(rate * seconds)
+    samples = array.array("h", [0] * frames)
+    samples[at] = int(32767 * level)
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(samples.tobytes())
+    return buffer.getvalue()
+
+
+def test_the_limiter_keeps_sample_alignment_for_loop_material(tool):
+    import array
+    import io
+    import wave
+
+    from lai_native.audio.processor import _gain_chain
+
+    data = _click_wav(at=24_000, level=0.9)
+    with Workspace() as ws:
+        source = ws.write("input.wav", data)
+        out = ws.safe_path("aligned.wav")
+        args = [
+            "-nostdin", "-hide_banner", "-nostats", "-n", "-f", "wav", "-i", str(source),
+            "-af", _gain_chain(3.0, -1.0), "-c:a", "pcm_s16le", "-f", "wav", str(out),
+        ]
+        assert run_tool(tool, args, ws, ToolLimits(timeout_seconds=30)).returncode == 0
+        with wave.open(io.BytesIO(out.read_bytes())) as handle:
+            frames = handle.getnframes()
+            samples = array.array("h", handle.readframes(frames))
+    assert frames == 96_000  # length unchanged: the look-ahead is flushed at the end
+    peak_at = max(range(frames), key=lambda i: abs(samples[i]))
+    assert peak_at == 24_000  # the click did not move (it would be about 240 samples late without latency=1)
+    assert abs(samples[peak_at]) <= 32767 * 10 ** (-1.0 / 20) + 40  # and the ceiling holds
+
+
+def _make_tagged(tool, name: str, codec_args: list[str], fmt: str, tag_args: list[str]) -> bytes:
+    with Workspace() as ws:
+        source = ws.write("tone.wav", make_wav("sine", 4.0, 48_000, 1, -20.0))
+        out = ws.safe_path(name)
+        args = ["-nostdin", "-hide_banner", "-nostats", "-n", "-f", "wav", "-i", str(source),
+                *tag_args, *codec_args, "-f", fmt, str(out)]
+        assert run_tool(tool, args, ws, ToolLimits(timeout_seconds=30)).returncode == 0
+        return out.read_bytes()
+
+
+def test_tags_in_mp3_and_opus_inputs_never_reach_the_outputs(tc, tool):
+    secrets = [b"SECRETTITLE", b"SECRETARTIST", b"SECRETCOMMENT"]
+    tag = ["-metadata", "title=SECRETTITLE", "-metadata", "artist=SECRETARTIST",
+           "-metadata", "comment=SECRETCOMMENT", "-metadata:s:a:0", "title=SECRETTITLE"]
+    mp3 = _make_tagged(tool, "tagged.mp3", ["-c:a", "libmp3lame", "-b:a", "96k", "-id3v2_version", "3"], "mp3", tag)
+    opus = _make_tagged(tool, "tagged.ogg", ["-c:a", "libopus", "-b:a", "64k"], "ogg", tag)
+    assert all(s in mp3 for s in secrets[:2]) and secrets[0] in opus  # the fixtures really are tagged
+    from lai_native.audio import tags
+
+    for source in (mp3, opus):
+        out = tc.transcode(source, DEFAULT_PROFILES["audio-sfx"])
+        for output in out.outputs:
+            assert not any(s in output.data for s in secrets)
+            assert tags.verify(output.data, output.container) == []  # verified on the bytes
+            assert output.facts["metadata_free"] is True
+
+
+def test_real_outputs_pass_the_tag_verifier_for_every_profile(tc):
+    from lai_native.audio import tags
+
+    for pid in ("audio-voice", "audio-music", "audio-ambient"):
+        out = tc.transcode(make_wav("speechlike", 4.0, 44_100, 2, -20.0), DEFAULT_PROFILES[pid])
+        for output in out.outputs:
+            assert tags.verify(output.data, output.container) == [], (pid, output.label)
+
+
+def test_a_log_flooding_tag_cannot_hide_or_forge_the_measurement(tc, tool):
+    flood = "A" * 100_000  # one argument may not exceed 128 KiB; several tags add up
+    wav = make_wav("speechlike", 4.0, 48_000, 1, -20.0)
+    with Workspace() as ws:
+        src = ws.write("in.wav", wav)
+        out = ws.safe_path("flood.ogg")
+        args = ["-nostdin", "-hide_banner", "-nostats", "-n", "-f", "wav", "-i", str(src),
+                "-metadata", "title=" + flood, "-metadata", "artist=" + flood, "-metadata", "album=" + flood,
+                "-metadata", "genre=" + flood, "-metadata", 'comment={"input_i":"-1","input_tp":"-1"}',
+                "-c:a", "libopus", "-b:a", "64k", "-f", "ogg", str(out)]
+        # FFmpeg refuses an oversized value on some builds; skip then (the unit tests cover parsing).
+        result = run_tool(tool, args, ws, ToolLimits(timeout_seconds=30))
+        if result.returncode != 0:
+            pytest.skip("this FFmpeg build refuses the oversized tag")
+        data = out.read_bytes()
+    try:
+        outcome = tc.transcode(data, DEFAULT_PROFILES["audio-voice"])
+    except proc.TranscodeError as error:
+        assert error.code in {"measure_failed", "input_refused"}  # refused or failed closed
+    else:
+        after = outcome.outputs[0].facts["measured_after"]["integrated_lufs"]
+        assert abs(after + 16.0) <= 1.0  # never taken from the forged numbers

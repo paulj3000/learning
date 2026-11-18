@@ -17,6 +17,7 @@ every worker. The kind and queue are registered in the core tables and Django by
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from jobs_worker import aws
 from jobs_worker import handler as jobs_handler
@@ -30,21 +31,35 @@ _registry = None
 
 
 class AudioPorts(aws.AssetPorts):
-    """The read-only asset ports plus this attempt's create-only artifact store."""
+    """The read-only asset ports plus this attempt's create-only artifact store, and the
+    invocation's remaining time (`time_left_ms`) for the runner deadline."""
+
+    def __init__(self, runtime, context=None):
+        super().__init__(runtime)
+        remaining = getattr(context, "get_remaining_time_in_millis", None)
+        self.time_left_ms = remaining if callable(remaining) else None
 
     def artifact_storage(self, namespace: str, job_id: str, attempt_id: str):
         return self._runtime.artifact_storage(namespace, job_id, attempt_id)
 
 
 class AudioRuntime(aws.Runtime):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A warm container's /tmp survives killed invocations: clear their leftovers once.
+        from lai_native.runtime import sweep_stale
+
+        self.swept = sweep_stale("/tmp")
+
     def ports(self, kind: str, context):
         if kind != KIND:
             raise TaskError("unknown_kind")
-        return AudioPorts(self)
+        return AudioPorts(self, context)
 
 
 def ffmpeg_config(environ=None) -> tuple[str, str | None]:
-    """(path, optional SHA-256 pin) from the function's environment."""
+    """(path, optional SHA-256 pin) from the function's environment. `LAI_FFMPEG_VERSION`
+    (optional, from the layer's build record) saves a `ffmpeg -version` call per container."""
     env = os.environ if environ is None else environ
     path = env.get("LAI_FFMPEG_PATH", DEFAULT_FFMPEG_PATH).strip() or DEFAULT_FFMPEG_PATH
     pin = env.get("LAI_FFMPEG_SHA256", "").strip().lower() or None
@@ -62,9 +77,14 @@ def engine_registry(environ=None):
         from lai_processing.core.registry import ProcessorRegistry
 
         path, pin = ffmpeg_config(environ)
+        env = os.environ if environ is None else environ
         registry = ProcessorRegistry()
         registry.register(
-            AudioTranscodeProcessor(ToolSpec("ffmpeg", path, sha256=pin), workspace_base="/tmp")
+            AudioTranscodeProcessor(
+                ToolSpec("ffmpeg", path, sha256=pin),
+                workspace_base="/tmp",
+                tool_version=env.get("LAI_FFMPEG_VERSION", "").strip() or None,
+            )
         )
         registry.freeze()
         _registry = registry
@@ -92,10 +112,21 @@ def run_transcode(payload: dict, ports) -> dict:
     if request.job_type != KIND:
         raise TaskError("invalid_payload")
     storage = ports.artifact_storage(request.namespace, request.job_id, request.attempt_id)
+    registry = engine_registry()
     engine = ExecutionEngine(
-        registry=engine_registry(), storage=storage, namespace=request.namespace
+        registry=registry,
+        storage=storage,
+        namespace=request.namespace,
+        workspace_root=Path("/tmp"),
     )
-    result = engine.execute(request)
+    processors = registry.processors()
+    for processor in processors:  # the Lambda deadline reaches the runner (one job at a time)
+        processor.set_time_source(getattr(ports, "time_left_ms", None))
+    try:
+        result = engine.execute(request)
+    finally:
+        for processor in processors:
+            processor.set_time_source(None)
     if result.status is ResultStatus.SUCCEEDED:
         return result.to_dict()
     error = result.primary_error

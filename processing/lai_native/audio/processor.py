@@ -45,7 +45,7 @@ from lai_native.runtime import (
 from lai_processing.processors.audio.facts import AudioSettings
 from lai_processing.processors.audio.inspector import inspect_audio
 
-from . import ffmpeg
+from . import ffmpeg, tags
 from .profiles import (
     CONTENT_TYPES,
     SHORT_AUDIO_SECONDS,
@@ -58,6 +58,7 @@ from .profiles import (
 __all__ = [
     "AudioOutput",
     "AudioTranscoder",
+    "DEGRADABLE",
     "ERROR_CODES",
     "Finding",
     "MAX_INPUT_BYTES",
@@ -78,6 +79,8 @@ SHORT_CLIP_MARGIN_DB: Final = 2.0
 PEAK_TOLERANCE_DB: Final = 1.0
 #: A peak-profile output this far over its sample-peak target is re-encoded with less gain.
 PEAK_RETRY_DB: Final = 0.5
+#: An output within this many bytes of the `-fs` limit is treated as truncated.
+TRUNCATION_MARGIN: Final = 4096
 _FORMAT_TYPES: Final = {"wav": "audio/wav", "mp3": "audio/mpeg", "ogg": "audio/ogg"}
 _EXT: Final = {"wav": "wav", "mp3": "mp3", "ogg": "ogg"}
 _SOURCE_CODECS: Final = {"wav": {"pcm", "float"}, "mp3": {"mp3"}, "ogg": {"vorbis", "opus"}}
@@ -95,6 +98,13 @@ ERROR_CODES: Final = {
     "output_reinspection_failed": False,
     "profile_invalid": False,
 }
+
+
+#: Optional-output failures that become findings (the input or the encode is at fault). Every
+#: other code (deadline, timeout, crash, spawn, workspace, configuration) fails the job.
+DEGRADABLE: Final = frozenset(
+    {"encode_failed", "output_reinspection_failed", "measure_failed", "output_too_large"}
+)
 
 
 class TranscodeError(Exception):
@@ -192,7 +202,7 @@ def _gain_chain(gain_db: float, limit_dbtp: float | None) -> str:
         # alimiter limits sample peaks with look-ahead; one dB under the true-peak ceiling leaves
         # room for inter-sample peaks. The output is re-measured and retried regardless.
         limit_linear = 10 ** ((limit_dbtp - 1.0) / 20.0)
-        chain += f",alimiter=limit={ffmpeg.num(max(0.0625, min(1.0, limit_linear)))}:level=disabled"
+        chain += f",alimiter=limit={ffmpeg.num(max(0.0625, min(1.0, limit_linear)))}:level=disabled:latency=1"
     return chain
 
 
@@ -214,8 +224,8 @@ class AudioTranscoder:
     ):
         self.tool = tool
         self.limits = limits or ToolLimits(
-            timeout_seconds=240.0,
-            cpu_seconds=240,
+            timeout_seconds=200.0,
+            cpu_seconds=230,
             address_space_bytes=2 * 1024 * 1024 * 1024,
             max_file_bytes=24 * 1024 * 1024,
             max_workspace_bytes=96 * 1024 * 1024,
@@ -242,8 +252,11 @@ class AudioTranscoder:
 
     def version(self, deadline: Deadline | None = None) -> str | None:
         if self.tool_version is None:
-            with Workspace(self.workspace_base) as ws:
-                result = self._run(ws, ["-hide_banner", "-version"], deadline, None)
+            try:
+                with Workspace(self.workspace_base) as ws:
+                    result = self._run(ws, ["-hide_banner", "-version"], deadline, None)
+            except NativeToolError as error:
+                raise TranscodeError(error.code, error.retryable) from None
             self.tool_version = ffmpeg.parse_version(result.stdout) or "unknown"
         return self.tool_version
 
@@ -268,6 +281,8 @@ class AudioTranscoder:
         except ValueError:
             raise TranscodeError("profile_invalid") from None
         source = self._inspect_source(data, profile)
+        # Read the tool version first: a finished job must never fail on it afterwards.
+        tool_version = self.version(deadline)
         fmt = source["format"]
         findings: list[Finding] = []
         outputs: list[AudioOutput] = []
@@ -278,23 +293,36 @@ class AudioTranscoder:
             raise TranscodeError("profile_invalid")
         duration = source["duration_seconds"]
         max_seconds = float(min(profile.max_input_seconds, 900)) + 1.0
-        with Workspace(self.workspace_base) as ws:
-            input_path = ws.write(f"input.{_EXT[fmt]}", data)
-            for spec in specs:
-                try:
-                    out, before, gain, extra = self._one_output(
-                        ws, input_path, fmt, source, profile, spec, max_seconds, deadline, cancelled
-                    )
-                except TranscodeError as error:
-                    if spec.required:
-                        raise
-                    findings.append(Finding("optional_output_failed", "warning", spec.label))
-                    findings.append(Finding(error.code, "info", spec.label))
-                    continue
-                outputs.append(out)
-                measured_before[spec.label] = before
-                gains[spec.label] = round(gain, 2)
-                findings.extend(extra)
+        try:
+            with Workspace(self.workspace_base) as ws:
+                input_path = ws.write(f"input.{_EXT[fmt]}", data)
+                for spec in specs:
+                    try:
+                        out, before, gain, extra = self._one_output(
+                            ws, input_path, fmt, source, profile, spec, max_seconds, deadline, cancelled
+                        )
+                    except NativeToolError as error:
+                        error = TranscodeError(error.code, error.retryable)  # noqa: PLW2901
+                        if spec.required or error.code not in DEGRADABLE:
+                            raise error from None
+                        findings.append(Finding("optional_output_failed", "warning", spec.label))
+                        findings.append(Finding(error.code, "info", spec.label))
+                        continue
+                    except TranscodeError as error:
+                        # An optional output degrades to a finding only for an input or encode
+                        # problem. A deadline, timeout, crash, spawn or workspace failure is
+                        # about this run, not the output: it fails the job and can be retried.
+                        if spec.required or error.code not in DEGRADABLE:
+                            raise
+                        findings.append(Finding("optional_output_failed", "warning", spec.label))
+                        findings.append(Finding(error.code, "info", spec.label))
+                        continue
+                    outputs.append(out)
+                    measured_before[spec.label] = before
+                    gains[spec.label] = round(gain, 2)
+                    findings.extend(extra)
+        except NativeToolError as error:  # workspace create, write, read or cleanup failures
+            raise TranscodeError(error.code, error.retryable) from None
         if not outputs:
             raise TranscodeError("encode_failed")
         facts = {
@@ -307,7 +335,7 @@ class AudioTranscoder:
             "gain_db": gains,
             "tool": {
                 "name": "ffmpeg",
-                "version": self.version(deadline),
+                "version": tool_version,
                 "license_class": "lgpl",
                 "binary_sha256": self.tool.sha256,
             },
@@ -376,6 +404,8 @@ class AudioTranscoder:
             )
             result = self._run(ws, args, deadline, cancelled)
             self._exit_ok(result)
+            if result.stderr_truncated:
+                raise TranscodeError("measure_failed")  # a hostile tag flooded the log
             try:
                 ln = ffmpeg.parse_loudnorm_json(result.stderr)
             except ValueError:
@@ -384,6 +414,8 @@ class AudioTranscoder:
         args = ffmpeg.build_measure_ebur128_args(input_path, fmt, max_seconds, prefix)
         result = self._run(ws, args, deadline, cancelled)
         self._exit_ok(result)
+        if result.stderr_truncated:
+            raise TranscodeError("measure_failed")
         try:
             return ffmpeg.parse_ebur128(result.stderr)
         except ValueError:
@@ -417,7 +449,8 @@ class AudioTranscoder:
         ld = profile.loudness
         if ld.mode == "integrated" and duration < SHORT_AUDIO_SECONDS:
             findings.append(Finding("short_clip_peak_normalised", "info", label))
-        if before.sample_peak_dbfs is not None and before.sample_peak_dbfs >= -0.1:
+        peaks = [p for p in (before.sample_peak_dbfs, before.true_peak_dbtp) if p is not None]
+        if any(p >= -0.1 for p in peaks):  # integrated profiles only measure the true peak
             findings.append(Finding("clipping_in_source", "warning", label))
         if ld.mode == "integrated" and ld.lra_max and before.lra_lu and before.lra_lu > ld.lra_max:
             findings.append(Finding("loudness_range_above_target", "info", label))
@@ -466,6 +499,9 @@ class AudioTranscoder:
             data = ws.read(output_name, profile.max_output_bytes)
             if not data:
                 raise TranscodeError("encode_failed")
+            if len(data) >= profile.max_output_bytes - TRUNCATION_MARGIN:
+                # `-fs` stops FFmpeg at the limit and still exits 0: a file this big was cut off.
+                raise TranscodeError("output_too_large")
             after = self._measure_output(
                 ws, output_name, spec, channels, max_seconds, deadline, cancelled
             )
@@ -540,7 +576,7 @@ class AudioTranscoder:
         prefix = f"aformat=sample_rates={spec.sample_rate}:channel_layouts={layout}"
         args = ffmpeg.build_measure_ebur128_args(ws.safe_path(name), fmt, max_seconds, prefix)
         result = self._run(ws, args, deadline, cancelled)
-        if result.returncode != 0:
+        if result.returncode != 0 or result.stderr_truncated:
             raise TranscodeError("output_reinspection_failed")
         try:
             return ffmpeg.parse_ebur128(result.stderr)
@@ -585,6 +621,8 @@ class AudioTranscoder:
                 )
         else:
             findings.append(Finding("duration_unavailable", "warning", label))
+        if tags.verify(data, spec.container):
+            raise TranscodeError("output_reinspection_failed")  # metadata that is not ours
         bitrate = None
         if isinstance(seconds, (int, float)) and seconds > 0:
             bitrate = int(round(len(data) * 8 / seconds / 1000))
