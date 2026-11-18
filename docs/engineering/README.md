@@ -124,3 +124,56 @@ wins; nothing is duplicated.
 | Migration plan and APPROVAL tasks | [`docs/DJANGO_MIGRATION_ROADMAP.md`](../DJANGO_MIGRATION_ROADMAP.md) | APPROVAL markers are stop points |
 | Deployment procedures | [`docs/platform/DJANGO_EC2_DEPLOYMENT.md`](../platform/DJANGO_EC2_DEPLOYMENT.md), [`docs/infrastructure/deployment-design.md`](../infrastructure/deployment-design.md) | [`release-policy.md`](release-policy.md) adds the approval gate |
 | Pull request template | [`templates/pull-request.md`](templates/pull-request.md) | No `.github` pull request template exists today |
+
+## Initial audit and known conflicts
+
+[`initial-audit.md`](initial-audit.md) records the repository as it stood at baseline `466a4972`
+(2026-11-18): structure, the content hierarchy as implemented, existing policies, work in flight on
+open branches, the discovered check commands, and 16 conflicts found while writing these
+standards (section 9). The standards follow the accepted ADR or the code in each case; none of the
+conflicting documents was edited by ADR-072's branch.
+
+## Owner approval checklist
+
+Decisions ADR-072's branch cannot make. Each shows its default if the owner does nothing.
+
+| # | Decision | Default until decided |
+|---|---|---|
+| 1 | Accept, amend or reject ADR-072 and the standards in `docs/engineering/` and `docs/adventures/` | Proposed |
+| 2 | Approve the `Reserved` registry rows for ADR-065 to 071, 080 and 081 (numbers already used on open branches) | Rows stay; each branch replaces its row on merge |
+| 3 | **Resolve the ADR-070 collision** (Heart of Firepeak and processing GLB optimization) under `docs/DECISIONS.md` rules 3 and 5 | Neither branch merges until decided |
+| 4 | Require the processing branches (`feature/lambda-*`, `feature/serverless-processing-completion`) to move their ADR bodies from `docs/processing/adr/` into `docs/DECISIONS.md` when they merge | The single-log rule applies |
+| 5 | **Rotate the test parent account password** that appears in two allow rules in the tracked `.claude/settings.json` (committed 2026-11-11), and decide whether to remove those rules; out of this ticket's scope, not edited | Credential stays exposed in history |
+| 6 | Before any merge to `main`, confirm the deploy gate variables (`LAI_DEPLOY_ENABLED`, `LAI_DEV_NATIVE_ENABLED`, `LAI_SITE_DEPLOY_ENABLED`); four deploy workflows run on push to `main` ([release-policy.md](release-policy.md)) | A merge may start a release when a variable is on |
+| 7 | Keep or drop the new CI step (`python3 scripts/check_engineering_docs.py`) in `.github/workflows/ci.yml` | Added on this branch; effective on merge |
+| 8 | Trello: optional new lists or named labels for the Specification, Integration, Ready for QA and Accepted states ([trello-workflow.md](trello-workflow.md)) | Existing nine lists, mapped, not renamed |
+| 9 | The 48-hour stale-ticket threshold ([multi-agent-workflow.md](multi-agent-workflow.md)) | As written; flagged, never auto-reassigned |
+| 10 | Branch protection on `main` ([branch-policy.md](branch-policy.md)); needs GitHub admin access | Unchanged |
+| 11 | Whether a staging environment is planned ([release-policy.md](release-policy.md), ADR-017) | Dev and prod only |
+| 12 | Decisions on the Proposed ADRs whose code is already on `main` (ADR-036, ADR-043, ADR-048, ADR-049, ADR-050) | Proposed |
+| 13 | A naming decision for Realm (child-facing) versus Island (ADR-041 copy and Admin labels) | Code and API keep Island names |
+| 14 | Which stale documents to correct ([initial-audit.md](initial-audit.md), section 9) and whether to deprecate `docs/decisions_adr.md` | Unchanged |
+| 15 | Legal review of the items listed in [security-policy.md](security-policy.md) | No compliance claim is made |
+
+## Rolling these standards out to the existing worktrees
+
+The standards reach other branches only through `main`. Nothing here touches another agent's
+worktree, and no file is copied into another branch by hand (that would create competing copies).
+After the owner merges this branch:
+
+1. **Tell each active agent** (Claude-01 to Claude-05) at its next task boundary, not mid-change:
+   "Engineering standards merged to `main` at `<sha>`. Read `CLAUDE.md` section 0, `AGENTS.md` and
+   `docs/engineering/README.md`."
+2. **Each agent updates its own branch** when it next syncs with `main`, by its branch's usual
+   method ([branch-policy.md](branch-policy.md)): `git fetch origin`, then merge or rebase onto
+   `origin/main` in its own worktree. No open branch edited `CLAUDE.md`, `docs/engineering/` or
+   `docs/adventures/` on 2026-11-18, so the expected conflict is the `docs/DECISIONS.md` registry:
+   keep both sides' rows; a branch that defines a reserved number replaces the `Reserved` row with
+   its own (registry rule 3).
+3. **Each agent fills in its ticket block** on its Trello card ([trello-workflow.md](trello-workflow.md))
+   with a dated entry; existing card history stays.
+4. **Work in progress is not redone.** Finished work is not re-specified to the new templates; the
+   pull request, completion report and QA templates apply from the next gate each ticket reaches.
+5. **New tickets** use [the task specification](templates/task-specification.md) from the start.
+6. **Before the merge,** an agent can read the standards without changing its worktree:
+   `git show origin/feature/engineering-standards:AGENTS.md`.

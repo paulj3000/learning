@@ -58,6 +58,10 @@ Documentation only; no application, schema or infrastructure change. Baseline `m
   kept out of `react/` and `package.json`, which trigger `deploy-site.yml` on a push to `main`.
 - Deferred to owner: acceptance of ADR-072 and the standards; optional new Trello lists or labels for the
   Specification, Integration, Ready for QA and Accepted states (lists were mapped, not renamed).
+- Follow-up (LAI-ENG-001, Trello card 202): `docs/engineering/initial-audit.md` (baseline audit and 16
+  conflicts found in existing documents, none edited), an owner approval checklist and worktree rollout
+  steps in `docs/engineering/README.md`. **A test parent account password is in tracked
+  `.claude/settings.json`**: rotate it (owner); the file was not edited.
 
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 
