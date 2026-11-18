@@ -26,7 +26,12 @@ from apps.users.scoping import ChildScopedAPIView
 
 from . import engine
 from .models import QuestProgress, QuestStatus
-from .services import QuestUpdate, grant_quest_completion_rewards, save_quest_state
+from .services import (
+    QuestUpdate,
+    claim_is_proven,
+    grant_quest_completion_rewards,
+    save_quest_state,
+)
 
 
 class QuestStateRejected(APIException):
@@ -110,6 +115,15 @@ class QuestStateView(ChildScopedAPIView):
                 or data["currentStageId"] not in data["completedStageIds"]
             ):
                 raise QuestStateRejected
+        # The client's lists are claims, never proof: what they newly claim must hold on the server.
+        if not claim_is_proven(
+            self.child,
+            progress.quest,
+            progress,
+            data["completedStageIds"],
+            data["completedObjectiveIds"],
+        ):
+            raise QuestStateRejected
         before_stages = set(progress.completed_stage_ids)
         was_active = progress.status == QuestStatus.ACTIVE
         with transaction.atomic():

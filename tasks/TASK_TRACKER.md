@@ -1046,6 +1046,23 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       storybookApi, castleTale, content-export, quests) all pass after correcting two export counts; tsc clean;
       Django 22 passed (test_great_storybook, _concurrency, _editions) and 18 passed (test_castle_storybook);
       content:export, golden:generate, content:check, golden:check clean.
+- [x] **SC-SEC-01** World-change integrity (section B of `docs/regions/prep/storybook_integrity_prep.md`;
+      audit and fixes in `docs/security/WORLD_CHANGE_INTEGRITY.md`). DONE (development), not owner
+      accepted. From `origin/wip/world-change-security` (`4e253ace`), reviewed and finished. The generic
+      `POST world-changes/` refuses a protected key (page keys, quest/discovery/story keys, castle rooms,
+      `GREAT_STORYBOOK_RESTORED*`) without a completed producing session that reached the producing
+      step; the quest `PUT` refuses a claim the server cannot prove (it paid `QUEST_COMPLETED` rewards
+      and the seal on client lists alone); pages match `(location, key)`; `world_change_keys` drops a
+      misplaced protected key; the client write locks the child row. Audit of other adventures: step
+      runner, region play, castle rooms, discoveries and story chapters are server-graded (no change).
+      Fixed while merging: the edition-1 seal check compared a key with `(location, key)` pairs (2
+      edition tests fail without the fix); one stale quest test assertion. Added
+      `clientWorldChangeKeys.test.ts`. Tests: Django `apps/progression apps/quests` +
+      `education/test_director.py`, `game_sessions/test_discoveries*.py`, `test_castle_storybook.py`,
+      `test_castle_rooms.py`: 206 passed + the corrected file 13 passed, 0 skipped
+      (`POSTGRES_PORT=5432 LAI_REQUIRE_POSTGRES=1`); Vitest `clientWorldChangeKeys.test.ts` 2 passed.
+      Residual risks (in the doc): non-page adventure keys stay client-postable; EXPLORE/HELP_NPC/DELIVER
+      quest objectives still trust the client; the client's offline page fallback matches key only.
 - [ ] **SC-R05 to SC-R12** Not started. Preparation contracts are in `docs/regions/prep/` (`bdf35d0b`).
       Gated items: new supporting NPC model, narration voice consent, Phaser retirement (SC-R10-03,
       ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11 gate)
