@@ -14,7 +14,7 @@ from datetime import timedelta
 from typing import IO
 
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, ProtectedError
 from django.utils import timezone
 
 from apps.catalog.models import AssetStatus, ContentAsset
@@ -490,7 +490,17 @@ def delete_unpublished_version(version: AssetVersion) -> None:
         if version.was_published:
             raise AssetActionRefused("published", "Published versions are never deleted.")
         key = version.storage_key
-        version.delete()
+        # Tombstones of expired or deleted artifacts (no live object to protect) go with it.
+        version.derived_artifacts.filter(state__in=["expired", "deleted"]).delete()
+        try:
+            version.delete()
+        except ProtectedError:
+            # Derived artifacts (ADR-066) or a promoted-from link keep the source alive: they must
+            # expire (retention) before the version can be deleted.
+            raise AssetActionRefused(
+                "has_derived_artifacts",
+                "This version has derived artifacts. Let them expire or reject them first.",
+            ) from None
         storage = get_storage()
         transaction.on_commit(lambda: _delete_quietly(storage, key))
 
