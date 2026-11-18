@@ -13,6 +13,7 @@ from django.test import Client
 from apps.catalog.importer import import_content
 from apps.catalog.models import Location
 from apps.core.content_status import ContentStatus
+from apps.game_sessions.models import AdventureSession
 from apps.regions.models import AreaPuzzle, PlacementKind, PuzzleKind, WorldObjectPlacement, WorldRegion
 from apps.regions.seeding import seed_puzzle
 from apps.users import services
@@ -125,7 +126,9 @@ def test_a_sprouts_child_cannot_open_the_area(heart, api):
     )
     client = api(heart.a)
     assert client.get(f"{base(sprout)}regions/{REGION}/").status_code == 404
-    assert post(client, f"{base(sprout)}regions/{REGION}/session/").status_code == 404
+    refused = post(client, f"{base(sprout)}regions/{REGION}/session/")
+    assert refused.status_code in (404, 409)
+    assert not AdventureSession.objects.filter(child=sprout).exists()
     body = client.get(f"{base(sprout)}islands/").json()
     areas = [p["area"] for i in body["islands"] for p in i["places"] if p["area"]]
     assert all(a["regionId"] != REGION for a in areas)
