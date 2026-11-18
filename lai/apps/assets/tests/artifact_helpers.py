@@ -89,7 +89,9 @@ def reference(job, logical_id, data, *, key=None, ext="ogg", role="audio.transco
     return ref
 
 
-def result_dict(job, artifacts, *, metadata=None, input_override=None) -> dict:
+def result_dict(
+    job, artifacts, *, metadata=None, input_override=None, verdict="pass", processor=None
+) -> dict:
     payload = job.payload
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     source = payload["input"]
@@ -103,10 +105,11 @@ def result_dict(job, artifacts, *, metadata=None, input_override=None) -> dict:
         "correlation_id": payload["correlation_id"],
         "attempt_id": payload["attempt_id"],
         "attempt_number": payload["attempt_number"],
-        "processor": {"processor_id": PROCESSOR[0], "processor_version": PROCESSOR[1]},
+        "processor": processor
+        or {"processor_id": PROCESSOR[0], "processor_version": PROCESSOR[1]},
         "profile": payload["profile"],
         "status": "succeeded",
-        "verdict": "pass",
+        "verdict": verdict,
         "retry_class": None,
         "input": input_override
         or {

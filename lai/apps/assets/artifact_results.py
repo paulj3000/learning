@@ -12,10 +12,14 @@ id and the code, never a key or file name):
 1. the job completed and its result is a valid ADR-061 result of exactly its request;
 2. the source version exists, is not rejected, and is the version the request describes (same
    stored object, SHA-256 and size): otherwise `stale_source` (decision D7: no rows are kept);
-3. the processor is not older than this build's (when Django knows the processor);
+3. the processor is not older than this build's (same id, version compare; a NEWER version is
+   accepted; when Django knows the processor);
+   a `fail` or `not_applicable` verdict records no row (`result_not_applied`);
 4. every reference sits under this attempt's prefix, uses a declared role with an allowed content
    type, extension and size, within the role's and the request's counts and byte bounds;
 5. every object exists, has the claimed size by HEAD and the claimed SHA-256 by a bounded read.
+   This is done BEFORE the asset and version row locks are taken; the locks are then taken, the
+   source identity is re-checked, and the rows are inserted.
 
 A storage fault or a 403 during step 5 is not an outcome: `ArtifactStorageUnavailable` propagates,
 the whole application rolls back and the message is retried. The all-or-none rule holds per
@@ -48,6 +52,8 @@ STALE_SOURCE = "stale_source"
 PROCESSOR_OUTDATED = "processor_outdated"
 RESULT_RECORDED = "result_recorded"
 PROCESSING_FAILED = "processing_failed"
+#: A `fail` or `not_applicable` verdict: nothing recorded, and not an applied outcome.
+NOT_APPLIED = "result_not_applied"
 #: Outcomes after which the job's result counts as applied (the gate and resubmission read this).
 APPLIED_OUTCOMES = frozenset({RECORDED, RESULT_RECORDED})
 
@@ -96,18 +102,76 @@ def inline_ports(job):
     return None
 
 
+def _version_tuple(value: str) -> tuple[int, ...] | None:
+    """`"1.2.0"` -> (1, 2, 0); None when it is not dotted integers (so it cannot be compared)."""
+    try:
+        return tuple(int(part) for part in str(value).split("."))
+    except ValueError:
+        return None
+
+
+def processor_outdated(current: tuple[str, str] | None, observed: tuple[str, str]) -> bool:
+    """True when a result's processor is older than (or not comparable with) this build's.
+
+    Results from the SAME processor id at an equal or NEWER version are accepted (a worker
+    deployed ahead of Django, or a rollback of Django, must not strand valid work). A different
+    processor id, or a version that cannot be compared, is outdated. This is the recording rule;
+    the publication gate keeps its exact-current rule (`processing.identity_mismatch`)."""
+    if current is None:
+        return False
+    if current[0] != observed[0]:
+        return True
+    have, want = _version_tuple(observed[1]), _version_tuple(current[1])
+    if have is None or want is None:
+        return observed[1] != current[1]
+    width = max(len(have), len(want))
+    pad = lambda parts: parts + (0,) * (width - len(parts))  # noqa: E731
+    return pad(have) < pad(want)
+
+
+def _source_ids(job):
+    from .models import AssetVersion
+
+    if not str(job.subject_id).isdigit():
+        return None
+    return AssetVersion.objects.filter(pk=job.subject_id).values_list("pk", "asset_id").first()
+
+
+def _source_refusal(job, request, version) -> str | None:
+    """The outcome code when `version` is no longer the source `job` read, else None."""
+    from .models import VersionStatus
+    from .processing import identity_mismatch
+
+    if version is None or version.status == VersionStatus.REJECTED:
+        return STALE_SOURCE
+    reason = identity_mismatch(
+        job,
+        version,
+        kind=job.kind,
+        profile_ref=(request.profile.profile_id, request.profile.version),
+    )
+    if reason in ("storage_mismatch", "checksum_mismatch", "size_mismatch"):
+        return STALE_SOURCE  # the source is no longer the object the job read
+    return reason
+
+
 def apply_artifact_result(job) -> str:
     """Verify `job`'s result and record its artifacts. Returns a safe outcome code. Call inside
-    the job-locked transaction. Raises `ArtifactStorageUnavailable` to roll back and retry."""
+    the job-locked transaction. Raises `ArtifactStorageUnavailable` to roll back and retry.
+
+    Locking: the job row (held by the caller) serializes redeliveries. Every storage read (HEAD
+    and a bounded checksum read per object) happens BEFORE the asset and version row locks are
+    taken, so a slow or failing S3 call never holds them. Only then are the locks taken, the
+    source identity re-checked, and the rows inserted (all or none)."""
     from apps.catalog.models import ContentAsset
     from apps.jobs.models import JobStatus
     from lai_processing.contracts.job_types import job_type_spec
     from lai_processing.contracts.jobs import ProcessingJobRequest
-    from lai_processing.contracts.results import ProcessingJobResult
+    from lai_processing.contracts.results import ProcessingJobResult, Verdict
     from lai_processing.core.errors import ProcessingError
 
-    from .models import AssetVersion, VersionStatus
-    from .processing import identity_mismatch, result_mismatch
+    from .models import AssetVersion
+    from .processing import result_mismatch
 
     if job.status != JobStatus.COMPLETED:
         return PROCESSING_FAILED
@@ -123,40 +187,25 @@ def apply_artifact_result(job) -> str:
     except (ProcessingError, KeyError, TypeError, ValueError):
         return "result_invalid"
 
-    found = (
-        AssetVersion.objects.filter(pk=job.subject_id).values_list("pk", "asset_id").first()
-        if str(job.subject_id).isdigit()
-        else None
-    )
+    if result.verdict is not Verdict.PASS:
+        # A `fail` or `not_applicable` result produced nothing to keep: record no artifact row
+        # and a NON-applied outcome, so staff may resubmit (bounded) and nothing counts as done.
+        return NOT_APPLIED
+
+    # Phase 1, no asset or version lock: a cheap early stale check, then everything that reads.
+    found = _source_ids(job)
     if found is None:
         return STALE_SOURCE  # the source version was deleted meanwhile
     version_pk, asset_pk = found
-    ContentAsset.objects.select_for_update().filter(pk=asset_pk).first()  # lock order: asset
-    version = (
-        AssetVersion.objects.select_for_update()
-        .select_related("asset")
-        .filter(pk=version_pk, asset_id=asset_pk)
-        .first()
-    )
-    if version is None or version.status == VersionStatus.REJECTED:
-        return STALE_SOURCE
-    reason = identity_mismatch(
-        job,
-        version,
-        kind=job.kind,
-        profile_ref=(request.profile.profile_id, request.profile.version),
-    )
-    if reason in ("storage_mismatch", "checksum_mismatch", "size_mismatch"):
-        return STALE_SOURCE  # the source is no longer the object the job read
-    if reason is not None:
-        return reason
+    version = AssetVersion.objects.select_related("asset").filter(pk=version_pk).first()
+    refusal = _source_refusal(job, request, version)
+    if refusal is not None:
+        return refusal
     if result.processor is None:
         return "result_invalid"
     current = _current_processor(job.kind, request.profile.profile_id, request.profile.version)
-    if current is not None and current != (
-        result.processor.processor_id,
-        result.processor.processor_version,
-    ):
+    observed = (result.processor.processor_id, result.processor.processor_version)
+    if processor_outdated(current, observed):
         return PROCESSOR_OUTDATED
     if not result.artifacts:
         return RESULT_RECORDED
@@ -166,7 +215,22 @@ def apply_artifact_result(job) -> str:
     if problem is not None:
         logger.warning("derived artifacts refused job=%s reason=%s", job.pk, problem)
         return INVALID
-    return _verify_and_record(job, request, result, version)
+    outcome = _verify_objects(job, request, result)
+    if outcome is not None:
+        return outcome
+
+    # Phase 2: lock (asset, then version: the order everywhere), re-check, insert.
+    ContentAsset.objects.select_for_update().filter(pk=asset_pk).first()
+    version = (
+        AssetVersion.objects.select_for_update()
+        .select_related("asset")
+        .filter(pk=version_pk, asset_id=asset_pk)
+        .first()
+    )
+    refusal = _source_refusal(job, request, version)
+    if refusal is not None:
+        return refusal
+    return _record(job, request, result, version)
 
 
 # --- reference checks (no I/O) -------------------------------------------------------------------
@@ -246,15 +310,17 @@ def safe_metadata(result, logical_id: str) -> dict:
 # --- verify the objects, then record ------------------------------------------------------------
 
 
-def _verify_and_record(job, request, result, version) -> str:
-    from .models import ArtifactProducer, ArtifactState, DerivedArtifact
+def _verify_objects(job, request, result) -> str | None:
+    """HEAD and checksum every object not already recorded. None when all verify, `INVALID` when
+    one is missing or differs. `ArtifactStorageUnavailable` propagates (retry). No row lock held."""
+    from .models import DerivedArtifact
 
-    existing = {
-        a.logical_id: a
-        for a in DerivedArtifact.objects.filter(job_id_text=job.pk, attempt_id=request.attempt_id)
-    }
-    refs = list(result.artifacts)
-    for ref in refs:
+    existing = set(
+        DerivedArtifact.objects.filter(job_id_text=job.pk, attempt_id=request.attempt_id).values_list(
+            "logical_id", flat=True
+        )
+    )
+    for ref in result.artifacts:
         if ref.logical_id in existing:
             continue  # recorded by an earlier delivery: nothing to verify or create
         role = job_role(job.kind, ref.artifact_type)
@@ -268,7 +334,18 @@ def _verify_and_record(job, request, result, version) -> str:
         except (ArtifactObjectMissing, ArtifactMismatch):
             return INVALID
         # ArtifactStorageUnavailable propagates on purpose: retry, never "missing".
+    return None
 
+
+def _record(job, request, result, version) -> str:
+    """Insert the rows (all or none), with the asset and version locks held and no storage I/O."""
+    from .models import ArtifactProducer, ArtifactState, DerivedArtifact
+
+    existing = {
+        a.logical_id: a
+        for a in DerivedArtifact.objects.filter(job_id_text=job.pk, attempt_id=request.attempt_id)
+    }
+    refs = list(result.artifacts)
     stamp = now()
     created = []
     try:

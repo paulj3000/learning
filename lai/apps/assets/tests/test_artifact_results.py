@@ -307,3 +307,130 @@ def test_image_kind_roles_and_png_bytes():
     job.refresh_from_db()
     assert job.subject_outcome == "artifacts_recorded"
     assert DerivedArtifact.objects.get().role == "image.thumbnail"
+
+
+# --- review fixes (DB-F3, DB-F6, DB-F8) ---------------------------------------------------------
+
+
+def _resolver(monkeypatch, version):
+    from apps.assets import artifact_results
+
+    monkeypatch.setitem(
+        artifact_results.PROCESSOR_VERSION_RESOLVERS,
+        "asset.transcode_audio",
+        lambda profile_id, v: ("lai.test_transcoder", version),
+    )
+
+
+def _deliver_with_processor(version_text, processor_version):
+    version = source_version()
+    job = make_job(version)
+    artifact = write(job, "opus", OGG)
+    artifact["processor"] = {
+        "processor_id": "lai.test_transcoder",
+        "processor_version": processor_version,
+    }
+    deliver(
+        job,
+        [artifact],
+        processor={"processor_id": "lai.test_transcoder", "processor_version": processor_version},
+    )
+    job.refresh_from_db()
+    return job
+
+
+def test_a_newer_processor_version_is_accepted(monkeypatch):
+    _resolver(monkeypatch, "1.0.0")
+    job = _deliver_with_processor("1.0.0", "1.1.0")
+    assert job.subject_outcome == "artifacts_recorded"
+    assert DerivedArtifact.objects.count() == 1
+
+
+def test_processor_versions_compare_as_numbers_not_text(monkeypatch):
+    _resolver(monkeypatch, "1.10.0")
+    job = _deliver_with_processor("1.10.0", "1.9.0")  # "1.9.0" > "1.10.0" as text
+    assert job.subject_outcome == "processor_outdated"
+    assert DerivedArtifact.objects.count() == 0
+    _resolver(monkeypatch, "1.9.0")
+    assert _deliver_with_processor("1.9.0", "1.10.0").subject_outcome == "artifacts_recorded"
+
+
+def test_a_different_processor_id_is_outdated(monkeypatch):
+    from apps.assets import artifact_results
+
+    assert artifact_results.processor_outdated(("a", "1.0.0"), ("b", "2.0.0")) is True
+    assert artifact_results.processor_outdated(("a", "1.0"), ("a", "1.0.0")) is False
+    assert artifact_results.processor_outdated(("a", "1.0.0"), ("a", "1.0.0rc1")) is True
+    assert artifact_results.processor_outdated(None, ("a", "0")) is False
+
+
+@pytest.mark.parametrize("verdict", ["fail", "not_applicable"])
+def test_a_non_pass_verdict_records_no_artifact_and_is_not_applied(verdict):
+    from apps.assets import artifact_results
+
+    version = source_version()
+    job = make_job(version)
+    deliver(job, [write(job, "opus", OGG)], verdict=verdict)
+    job.refresh_from_db()
+    assert DerivedArtifact.objects.count() == 0
+    assert job.subject_outcome == "result_not_applied"
+    assert job.subject_outcome not in artifact_results.APPLIED_OUTCOMES
+
+
+@pytest.mark.django_db(transaction=True)
+def test_objects_are_verified_before_the_asset_and_version_locks(monkeypatch):
+    """While storage is read, a second connection can still lock the asset and version rows."""
+    import threading
+
+    from django.db import connection, transaction
+
+    from apps.assets import artifact_storage as store
+    from apps.catalog.models import ContentAsset
+
+    version = source_version()
+    job = make_job(version)
+    ref = write(job, "opus", OGG)
+    seen = []
+    real = store.verify
+
+    def probing(*args, **kwargs):
+        def probe():
+            try:
+                with transaction.atomic():
+                    ContentAsset.objects.select_for_update(nowait=True).get(pk=version.asset_id)
+                    AssetVersion.objects.select_for_update(nowait=True).get(pk=version.pk)
+                seen.append("free")
+            except Exception as error:  # noqa: BLE001 - a lock error means it was held
+                seen.append(type(error).__name__)
+            finally:
+                connection.close()
+
+        thread = threading.Thread(target=probe)
+        thread.start()
+        thread.join(10)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(store, "verify", probing)
+    assert deliver(job, [ref]) == services.APPLIED
+    assert seen == ["free"]
+    assert DerivedArtifact.objects.count() == 1
+
+
+def test_the_source_is_rechecked_after_the_locks(monkeypatch):
+    """A source that changes between verification and the locks records nothing."""
+    from apps.assets import artifact_storage as store
+
+    version = source_version()
+    job = make_job(version)
+    ref = write(job, "opus", OGG)
+    real = store.verify
+
+    def verify_then_change(*args, **kwargs):
+        real(*args, **kwargs)
+        AssetVersion.objects.filter(pk=version.pk).update(sha256="c" * 64)
+
+    monkeypatch.setattr(store, "verify", verify_then_change)
+    deliver(job, [ref])
+    job.refresh_from_db()
+    assert job.subject_outcome == "stale_source"
+    assert DerivedArtifact.objects.count() == 0
