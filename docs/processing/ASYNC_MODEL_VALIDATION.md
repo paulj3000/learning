@@ -357,8 +357,9 @@ Owner decision 2026-11-17: `jobs_sweep` keeps completed `asset.validate_model` j
 `LAI_JOBS_RETENTION_DAYS` (30, unchanged for `asset.inspect`, Studio, speech and
 `reference.checksum`, which no gate reads). `apps.jobs.services.prunable(stamp)` selects:
 
-- `COMPLETED` jobs, and since 2026-11-18 terminal `FAILED` jobs after the same period (see
-  "Failed jobs" below): pending and running jobs are never pruned whatever their age (the sweep
+- `COMPLETED` jobs (except a keyed job that did not end as an applied pass while its subject
+  exists: it holds a retry attempt and stays, `prunable` docstring), and since 2026-11-18 terminal
+  `FAILED` jobs after the same period (see "Failed jobs" below): pending and running jobs are never pruned whatever their age (the sweep
   times them out instead);
 - whose `finished_at` is strictly more than the period before the sweep (`finished_at < now -
   period`): a job that finished exactly 90 days ago is kept, one a microsecond older is pruned.

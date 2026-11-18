@@ -173,12 +173,32 @@ logs):
 | Check | Outcome on failure |
 |---|---|
 | job completed; result is a valid ADR-061 result of exactly this request (job, attempt, key, type, namespace, profile, verified input) | `processing_failed`, `result_invalid`, `job_mismatch`, `attempt_mismatch`, `key_mismatch`, `identity_mismatch`, `profile_mismatch`, `input_mismatch` |
+| the verdict is `pass` | `result_not_applied` for `fail` and `not_applicable`: no artifact row is recorded and the outcome is not an applied one, so staff may resubmit (bounded) |
 | source version exists and is not rejected | `stale_source` (deleted or rejected source) |
 | source identity equals the request (asset, version, storage key, SHA-256, size), namespace | `stale_source` for a changed key, checksum or size; `asset_mismatch`, `namespace_mismatch`, `subject_mismatch` |
-| processor and profile equal the result's; processor not older than this build's (when Django knows the processor) | `processor_outdated` |
+| processor and profile equal the result's; the result's processor id is the one this build expects and its version is NOT OLDER (numeric dotted compare; a newer version is accepted so a worker deployed ahead of Django, or a Django rollback, does not strand valid work). The publication gate keeps its exact-current rule | `processor_outdated` |
 | every reference: attempt prefix, store, extension agrees with content type, declared role, content type allowed, size within the role bound, count within the role bound, unique logical id, processor and profile equal the result's | `artifact_invalid` |
 | every object: exists, size equals by HEAD, SHA-256 equals by streamed read (bounded by the role bound) | `artifact_invalid` (missing or mismatch); a storage fault or a 403 is **not** an outcome: the application raises `ArtifactStorageUnavailable`, the transaction rolls back and the message is retried |
 | otherwise | `artifacts_recorded` (or `result_recorded` when the result carries no artifacts) |
+
+**Locking and storage I/O.** The job row (held by the consumer) serializes redelivery. Every object
+is verified (HEAD, bounded read) BEFORE the asset and version row locks are taken, so a slow or
+failing S3 call never holds them. Then the locks are taken in the usual order (job, asset,
+version), the source identity is re-checked (a source changed meanwhile gives `stale_source`
+and records nothing) and all rows are inserted or none.
+
+**Consumer behaviour and DLQ redrive.** `ArtifactStorageUnavailable` (a 403, 5xx or timeout while
+verifying) rolls the application back. `jobs_consume_results` classifies it like
+`ResultUnavailable`: outcome `artifact_storage_unavailable`, the message is left on the queue
+(not deleted, not logged as a handler bug) and reappears after its visibility timeout. A message
+that keeps failing reaches the results DLQ after the queue's receive limit. Redrive procedure:
+(1) fix the cause (usually IAM read on `processing/artifacts/<env>/*`, or an S3 outage);
+(2) confirm the worker's object exists under the attempt prefix; (3) start a DLQ redrive to the
+source results queue (SQS console "Start DLQ redrive", or `aws sqs start-message-move-task`),
+which is safe because `apply_result` is idempotent (duplicate deliveries record nothing more);
+(4) if the job has already been timed out by `jobs_sweep` (`FAILED`, `timeout`), its late result
+is ignored: resubmit the work from Django Admin instead. A message whose job no longer exists is
+deleted by the consumer as unknown.
 
 Rows are created with `get_or_create` on `(job id, attempt id, logical id)`; a duplicate delivery
 creates nothing. Older `pending_review` and `accepted` rows of the same source version, role,
@@ -264,8 +284,9 @@ from apps.assets.artifact_promotion import promote_artifact
 promote_artifact(artifact, user) -> AssetVersion
 ```
 
-Under `select_for_update` (artifact, then asset, then versions, the lock order the asset services
-use) it re-verifies the object's SHA-256 and size, refuses a non-promotable role, a state other
+Under `select_for_update` (asset row first, then the artifact row, then version rows: the asset
+services' order; result recording takes job, asset, version, then artifact rows, so the two cannot
+deadlock) it re-verifies the object's SHA-256 and size, refuses a non-promotable role, a state other
 than `pending_review` or `accepted`, an artifact whose source is deleted, an asset that is retired,
 a duplicate of an existing version, and a content type with no library format; then calls the
 existing `services.upload_version(source.asset, stream, ...)` (the existing synchronous validation
@@ -303,6 +324,44 @@ Bucket lifecycle (note for Workstream G): **no** expiry rule on `processing/arti
 abort-incomplete-multipart-upload rule is acceptable, because an unconditional expiry would delete
 accepted and promoted-lineage artifacts the database still protects.
 
+Retention details: expiry candidates exclude held rows and rows of a running job in SQL (they are
+reported separately and bounded), so a pile of protected rows cannot starve the batch. Object
+deletion pages through `expired` rows oldest first, skips a row that failed for the rest of the run
+and stops after `MAX_CONSECUTIVE_FAILURES` consecutive storage failures. `delete_object` refuses any
+key outside `processing/artifacts/<this env>/` (and any `..` or empty segment) before the store is
+called. The `_active_job` check is live: it is the re-check under the row lock (a job may have
+started since the candidate was chosen).
+
 ## 13. Open decisions (not decided by the owner; implemented the conservative way)
 
-See ADR-066, "Open decisions".
+See ADR-066, "Open decisions". Added by the review:
+
+- **Deleting an unpublished promoted version.** `delete_unpublished_version` refuses a version
+  created by promotion (`promoted_version` is a PROTECT link) with the code `promoted_version` and
+  the message "created from a derived artifact ... needs an owner decision". A safe path would have
+  to return the artifact to a reviewable state (for example `accepted`), write an audit record of
+  who removed which version and why, and delete the library object. That changes artifact state
+  rules and is NOT implemented. Until decided, a promoted version that should not ship stays
+  unpublished.
+
+## 14. Rollback of the schema (read before reversing a migration)
+
+`jobs.0005_native_workload_kinds` widens the `jobs_kind_valid` and queue check constraints for the
+new kinds, and `assets.0003_derived_artifact` creates the artifact table. Reversing them fails or
+destroys evidence while data exists. Procedure, in order, with the feature controls `off` and the
+queues drained (PROCESSING_RELEASE.md section 6):
+
+1. Export what you need (`DerivedArtifact` rows and objects are the only record of unreviewed
+   output). Objects under `processing/artifacts/<env>/` are never deleted by a migration.
+2. Delete (or mark failed and then delete) every `ProcessingJob` whose `kind` is
+   `asset.transcode_audio`, `asset.convert_image` or `asset.optimize`, and whose `queue` is
+   `audio`, `image` or `optimize`. Without this, `migrate jobs 0004` fails on the old check
+   constraints.
+3. Delete all `DerivedArtifact` rows (they hold PROTECT links to those jobs and to versions;
+   promoted versions would block deleting a version, so unlink or keep them).
+4. Only then `manage.py migrate jobs 0004` and `migrate assets 0002`. The audio and catalog
+   permission migrations are additive and may stay.
+
+Rolling code back past these migrations with the data kept is supported and needs no migration
+change: leave the migrations applied and the controls off. `deploy-django.sh` never reverses
+migrations.

@@ -142,5 +142,10 @@ Order: first stop new work, then return code, never data.
 5. **Migrations**: never reverse a migration that drops or rewrites data created by the new
    release (artifact rows, job rows of new kinds). `deploy-django.sh` never reverses migrations;
    rolling back code past an additive migration is fine while the controls are off.
+   If a reversal is unavoidable it is a data operation, not a code rollback: new-kind jobs
+   (`asset.transcode_audio`, `asset.convert_image`, `asset.optimize`) and all `DerivedArtifact`
+   rows must be deleted first, or `migrate jobs 0004` fails on the old check constraints and
+   `migrate assets 0002` drops the artifact table with its rows. The exact steps are in
+   `DERIVED_ARTIFACTS.md` section 14.
 6. **Infrastructure** stays deployed with the workers disabled (`Enable*=false`); remove only by an
    approved change set after the queues are empty.

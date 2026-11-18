@@ -233,7 +233,15 @@ class DerivedArtifactAdmin(admin.ModelAdmin):
     def media_view(self, request, object_id):
         if request.method != "GET":
             return _error("method_not_allowed", "Use GET.", 405)
-        if not request.user.is_authenticated or not self.has_view_permission(request):
+        user = request.user
+        # Explicit, not implied by the permission check: an inactive or non-staff account that
+        # holds the permission (or a superuser flag) is still refused.
+        if not (
+            user.is_authenticated
+            and user.is_active
+            and user.is_staff
+            and self.has_view_permission(request)
+        ):
             return _error("forbidden", "You do not have access to this file.", 403)
         artifact = DerivedArtifact.objects.filter(pk=object_id).first()
         if artifact is None:
