@@ -319,8 +319,10 @@ Data-driven, no holiday names in engine code:
 }
 ```
 
-- `environment.lighting` passes through to the engine's existing manifest lighting (exact field
-  mapping documented by the engine workstream); absent means today's lighting.
+- `environment.lighting` passes through to the engine's manifest lighting: `ambientColor`,
+  `ambientIntensity`, `sunColor`, `sunIntensity` (intensities clamped 0..4); absent means today's
+  lighting. Fog does not change the background: pick a fog colour near the horizon colour.
+  Details: `docs/engine/AREA_ATMOSPHERE.md`.
 - `atmosphere.fog`: linear fog; absent means none.
 - `atmosphere.precipitation`: falling particles; `kind` SNOW (others later); density 0..1 scaled by
   render tier (LOW: none); reduced motion: slower and sparser.

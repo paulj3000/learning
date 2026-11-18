@@ -24,6 +24,8 @@ export interface RenderQualityPreset {
    * placement of each model. Never applies to anything solid or interactive.
    */
   decorDensity: number;
+  /** Falling particles at full density (`atmosphere.precipitation`). 0 means none. */
+  maxPrecipitation: number;
 }
 
 export const RENDER_QUALITY_PRESETS: Readonly<Record<RenderQuality, RenderQualityPreset>> = {
@@ -33,6 +35,7 @@ export const RENDER_QUALITY_PRESETS: Readonly<Record<RenderQuality, RenderQualit
     pixelRatioCap: 1,
     maxMotesPerEffect: 0,
     decorDensity: 0.5,
+    maxPrecipitation: 0,
   },
   MEDIUM: {
     textureSize: 128,
@@ -40,6 +43,7 @@ export const RENDER_QUALITY_PRESETS: Readonly<Record<RenderQuality, RenderQualit
     pixelRatioCap: 1.5,
     maxMotesPerEffect: 40,
     decorDensity: 1,
+    maxPrecipitation: 600,
   },
   HIGH: {
     textureSize: 256,
@@ -47,6 +51,7 @@ export const RENDER_QUALITY_PRESETS: Readonly<Record<RenderQuality, RenderQualit
     pixelRatioCap: 2,
     maxMotesPerEffect: 80,
     decorDensity: 1,
+    maxPrecipitation: 1200,
   },
 };
 

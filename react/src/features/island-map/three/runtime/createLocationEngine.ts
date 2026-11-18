@@ -88,6 +88,7 @@ import type {
   WorldExtensionRegistry,
 } from './extensionRegistry';
 import type {
+  LightingSpec,
   ModelAnchor,
   PlaceholderSize,
   ScaleSpec,
@@ -110,6 +111,14 @@ import {
 import { WorldTriggerTracker } from './worldTriggerTracker';
 import { installE2EProbe } from './e2eProbe';
 import { createMaterialLibrary } from './visual/materialLibrary';
+import {
+  applyFog,
+  createPrecipitation,
+  createSkyRibbon,
+  RIBBON_CAMERA_FAR,
+  type Precipitation,
+  type SkyRibbon,
+} from './visual/atmosphere';
 import { createMoteField, type MoteField } from './visual/motes';
 import {
   DEFAULT_RENDER_QUALITY,
@@ -310,7 +319,10 @@ export interface LocationEngineOptions {
 }
 
 /** The outdoor rig `sceneKit.createSceneBootstrap` defaults to; manifest lighting overrides per field. */
-const DEFAULT_LIGHTING = {
+const DEFAULT_LIGHTING: Required<
+  Pick<LightingSpec, 'ambientIntensity' | 'sunIntensity' | 'sunPosition'>
+> &
+  LightingSpec = {
   ambientIntensity: 0.65,
   sunIntensity: 0.8,
   sunPosition: { x: 8, y: 14, z: 6 },
@@ -423,8 +435,8 @@ export function createLocationEngine<R extends RendererLike>(
   );
   camera.rotation.order = 'YXZ';
   const lighting = { ...DEFAULT_LIGHTING, ...environment.lighting };
-  scene.add(new AmbientLight(0xffffff, lighting.ambientIntensity));
-  const sun = new DirectionalLight(0xffffff, lighting.sunIntensity);
+  scene.add(new AmbientLight(lighting.ambientColor ?? 0xffffff, lighting.ambientIntensity));
+  const sun = new DirectionalLight(lighting.sunColor ?? 0xffffff, lighting.sunIntensity);
   sun.position.set(lighting.sunPosition.x, lighting.sunPosition.y, lighting.sunPosition.z);
   scene.add(sun);
 
@@ -1119,6 +1131,43 @@ export function createLocationEngine<R extends RendererLike>(
     }
   }
 
+  // Weather and sky (`atmosphere`): fog, falling particles around the camera, far-off ribbons.
+  const atmosphere = manifest.atmosphere;
+  let precipitation: Precipitation | null = null;
+  const skyRibbons: SkyRibbon[] = [];
+  if (atmosphere) {
+    applyFog(scene, atmosphere.fog);
+    if (atmosphere.precipitation) {
+      precipitation = createPrecipitation(
+        atmosphere.precipitation,
+        quality,
+        options.reducedMotion === true,
+      );
+      if (precipitation) {
+        const falling = precipitation;
+        scene.add(falling.points);
+        frameCallbacks.add((deltaSeconds) => falling.update(deltaSeconds, camera.position));
+      }
+    }
+    for (const spec of atmosphere.skyRibbons ?? []) {
+      const ribbon = createSkyRibbon(spec, quality);
+      if (!ribbon) continue;
+      scene.add(ribbon.mesh);
+      skyRibbons.push(ribbon);
+      if (!options.reducedMotion) {
+        let seconds = 0;
+        frameCallbacks.add((deltaSeconds) => {
+          seconds += deltaSeconds;
+          ribbon.setTime(seconds);
+        });
+      }
+    }
+    if (skyRibbons.length > 0 && camera.far < RIBBON_CAMERA_FAR) {
+      camera.far = RIBBON_CAMERA_FAR;
+      camera.updateProjectionMatrix();
+    }
+  }
+
   // Ambient movers: decorative, never raycast-interactive, never emit events.
   for (const ambient of manifest.ambient) {
     const path = new CatmullRomCurve3(
@@ -1620,6 +1669,9 @@ export function createLocationEngine<R extends RendererLike>(
     for (const material of ownedMaterials) material.dispose();
     materialLibrary.dispose();
     for (const field of moteFields) field.dispose();
+    precipitation?.dispose();
+    for (const ribbon of skyRibbons) ribbon.dispose();
+    scene.fog = null;
     scene.clear();
     renderer.dispose();
     if (renderer.domElement.parentElement === parent) {
