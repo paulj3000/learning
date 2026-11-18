@@ -346,8 +346,30 @@ def _corpus() -> list[ParityCase]:
             E({"unsupported_extension"}),
         ),
         ParityCase(
-            "unknown_used_extension_warns",
+            "unknown_used_extension_is_rejected",
             mutated(_set("extensionsUsed", ["VENDOR_magic"])),
+            E({"unsupported_extension"}),
+        ),
+        *[
+            ParityCase(
+                f"{name}_{where}".lower(),
+                mutated(_set(where, [name])),
+                E({code}),
+            )
+            for name, code in (
+                ("KHR_draco_mesh_compression", "needs_decoder"),
+                ("EXT_meshopt_compression", "needs_decoder"),
+                ("KHR_meshopt_compression", "needs_decoder"),
+                ("KHR_texture_basisu", "needs_decoder"),
+                ("EXT_texture_webp", "unsupported_extension"),
+                ("EXT_texture_avif", "unsupported_extension"),
+                ("EXT_mesh_gpu_instancing", "unsupported_extension"),
+            )
+            for where in ("extensionsUsed", "extensionsRequired")
+        ],
+        ParityCase(
+            "supported_extension_used",
+            mutated(_set("extensionsUsed", ["KHR_texture_transform"])),
             E(),
         ),
         ParityCase(

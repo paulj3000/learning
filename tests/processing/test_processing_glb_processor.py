@@ -120,7 +120,7 @@ def test_registered_in_the_default_registry() -> None:
     assert isinstance(processor, GlbValidatorProcessor)
     assert profile is GLB_PROFILE
     assert processor.identity.processor_id == "asset.glb_validator"
-    assert processor.version == "1.0.0"
+    assert processor.version == "1.1.0"
     described = {p["processor_id"]: p for p in registry.describe()}["asset.glb_validator"]
     assert described["job_types"] == ["asset.validate_model"]
     assert described["profiles"][0]["options"] == {

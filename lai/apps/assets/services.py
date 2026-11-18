@@ -326,19 +326,31 @@ _UNUSABLE_OUTCOMES = frozenset(
 
 
 def _has_passing_validation(version: AssetVersion) -> bool:
-    """The publication gate (read only). The newest completed `asset.validate_model` job of this
-    version whose result was accepted when it was applied (no mismatch, not invalid, not
-    superseded) and whose request matches this version's stored bytes decides: it must be a pass
-    by the current processor version. An older pass never outvotes a newer accepted `fail`, and
-    a pruned job is no evidence (`jobs_sweep` retention): the version needs a new validation."""
+    """The publication gate (read only; `publish_version` calls it with the asset and version rows
+    locked, and `submit_model_validation` takes the same locks, so a validation cannot be submitted
+    between this check and the publication).
+
+    The LATEST `asset.validate_model` job for this exact source decides: the same version, stored
+    key and SHA-256 and the validation profile. Anything newer than a pass blocks publication:
+    a pending, running, failed (cancelled, timed out, refused), rejected, invalid, mismatched or
+    superseded job. The deciding job must be completed, accepted when it was applied (no mismatch,
+    not invalid, not superseded), a `pass` verdict, and by the processor version this build runs
+    (an older processor's pass is not evidence under a newer policy). A job that names other bytes
+    or another profile is not applicable and is skipped; any other identity problem on a newer
+    job blocks. A pruned job is no evidence (`jobs_sweep` retention): validate again.
+
+    Published versions are never touched: this gates new publications and republication only."""
     from apps.jobs.models import JobStatus
 
-    for job in validation_jobs(version).filter(status=JobStatus.COMPLETED):
+    for job in validation_jobs(version):
+        problem = identity_mismatch(job, version)
+        if problem in _OTHER_SOURCE_MISMATCHES:
+            continue  # validates other bytes or another profile: not applicable
+        if problem is not None or job.status != JobStatus.COMPLETED:
+            return False  # the latest applicable job is unfinished, failed or not for this file
         outcome = job.subject_outcome or ""
         if outcome.endswith("_mismatch") or outcome in _UNUSABLE_OUTCOMES:
-            continue
-        if identity_mismatch(job, version) is not None:
-            continue
+            return False
         summary = model_validation_summary(job)
         return (
             summary is not None
@@ -346,6 +358,10 @@ def _has_passing_validation(version: AssetVersion) -> bool:
             and identity_mismatch(job, version, require_current_processor=True) is None
         )
     return False
+
+
+#: `identity_mismatch` codes meaning the job is about different bytes or a different profile.
+_OTHER_SOURCE_MISMATCHES = frozenset({"checksum_mismatch", "size_mismatch", "profile_mismatch"})
 
 
 def set_default_version(version: AssetVersion) -> ContentAsset:

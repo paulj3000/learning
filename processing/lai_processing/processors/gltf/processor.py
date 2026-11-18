@@ -58,7 +58,7 @@ GLB_PROFILE: Final = ProcessingProfile(
 
 class GlbValidatorProcessor(Processor):
     processor_id = "asset.glb_validator"
-    version = "1.0.0"
+    version = "1.1.0"
     job_types = frozenset({"asset.validate_model"})
 
     def profiles(self) -> tuple[ProcessingProfile, ...]:

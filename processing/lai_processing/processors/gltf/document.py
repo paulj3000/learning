@@ -27,6 +27,8 @@ from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Final
 
 from .container import GlbLayout, read_at, read_layout
+from .extension_policy import NEEDS_DECODER, SUPPORTED_EXTENSIONS
+from .extension_policy import error_code as extension_error_code
 from .images import JPEG, PNG, WEBP, image_dimensions, sniff_image
 from .jsonparse import parse_document
 from .report import Report, Stop
@@ -55,26 +57,6 @@ CLIP_VOCABULARY: Final = frozenset(
 # Exporter default take names (Mixamo, Blender): flagged with a warning, never interpreted.
 GENERIC_TAKE_NAME: Final = re.compile(
     r"mixamo\.com|\|Layer\d+(\.\d+)?$|^(Armature)?Action(\.\d+)?$|^Take \d+$", re.IGNORECASE
-)
-SUPPORTED_EXTENSIONS: Final = frozenset(
-    {
-        "KHR_lights_punctual",
-        "KHR_materials_clearcoat",
-        "KHR_materials_emissive_strength",
-        "KHR_materials_ior",
-        "KHR_materials_iridescence",
-        "KHR_materials_sheen",
-        "KHR_materials_specular",
-        "KHR_materials_transmission",
-        "KHR_materials_unlit",
-        "KHR_materials_variants",
-        "KHR_materials_volume",
-        "KHR_mesh_quantization",
-        "KHR_texture_transform",
-    }
-)
-NEEDS_DECODER: Final = frozenset(
-    {"KHR_draco_mesh_compression", "EXT_meshopt_compression", "KHR_texture_basisu"}
 )
 # The game's loader accepts PNG and JPEG textures (Django's IMAGE_TYPES). WebP headers are read
 # for dimensions, but a WebP texture is refused like any other non-PNG/JPEG type.
@@ -518,28 +500,19 @@ class _Validator:
         unsupported: list[str] = []
         for name in sorted(used | required):
             self.check()
-            if name in NEEDS_DECODER:
-                unsupported.append(name)
-                self.error(
-                    "needs_decoder",
+            code = extension_error_code(name)
+            if code is None:
+                continue
+            unsupported.append(name)
+            where = "extensionsRequired" if name in required else "extensionsUsed"
+            if code == "needs_decoder":
+                message = (
                     "The model uses a compression extension that needs a decoder the game "
-                    "does not load. Export without compression.",
-                    "extensionsUsed",
+                    "does not load. Export without compression."
                 )
-            elif name not in SUPPORTED_EXTENSIONS:
-                unsupported.append(name)
-                if name in required:
-                    self.error(
-                        "unsupported_extension",
-                        "The model requires an extension the game does not support.",
-                        "extensionsRequired",
-                    )
-                else:
-                    self.report.warn(
-                        "unknown_extension",
-                        "The model uses an extension the game will ignore.",
-                        "extensionsUsed",
-                    )
+            else:
+                message = "The model uses an extension the game does not support."
+            self.error(code, message, where)
         self.quantized = "KHR_mesh_quantization" in used | required
         self.facts.extensions_used = sorted(used)[:MAX_LISTED_EXTENSIONS]
         self.facts.extensions_required = sorted(required)[:MAX_LISTED_EXTENSIONS]
