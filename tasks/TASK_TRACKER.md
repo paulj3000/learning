@@ -1238,7 +1238,70 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       e2e, lint, format, full suites. Visual validation stays an owner step.
 - [ ] **SC-R10-03** Retire the Phaser castle and Writing Room. GATED on ADR-020's conditions, LAI-2303 and
       owner approval. The route switch (`AppRoutes.tsx` `world/castle-writing-room`) is untouched.
-- [ ] **SC-R08, SC-R09, SC-R11 engineering part** In development on `work/sc-r08-09` and `work/sc-r11`.
+- [x] **SC-R08-01** Ambient return-visit events (contract `docs/regions/prep/ai_director_prep.md`; branch
+      `work/sc-r08-09`, commit `56e73a20`). DONE (development), not owner accepted. Deterministic catalog
+      `great-storybook/castleEvents.ts` mirrored by `lai/apps/regions/castle_events.json` (drift test, the
+      `great_storybook_pages.json` pattern), pure `eligibleEvents`/`defaultEvent` in TS with the Python port
+      `castle_events.py`, golden vectors `tests/golden/castle-events.json` (16 cases each, both languages).
+      Repetition is by visit count, never by time; events grant nothing; every room and band has a fallback;
+      lines within `MAX_SPOKEN_LENGTH_BY_AGE_BAND`. **Deviations to confirm (ADR-065, Proposed):** (1) JSON
+      mirror instead of content export, `load_content` and admin (`castle_rooms.py` has no revision model);
+      promoting it to an ADR-047 revisioned model is an owner decision; (2) conditions are the real
+      `apps.npcs.conditions` vocabulary (`ALWAYS`, `WORLD_CHANGE`, `QUEST_STATUS`, `RELATIONSHIP_AT_LEAST`),
+      not the contract's `QUEST_COMPLETED`/`MEMORY_FLAG`; (3) the castle is a Place with no Django region
+      session, so the client sends an opaque `visitId` per castle opening and `CastleVisitState` counts a
+      visit when it changes (a client can advance its own counter; it only changes which authored line is
+      shown); (4) display counter in new child-owned `CastleEventShown` (deletion cascades).
+- [x] **SC-R09-01** Castle Director route. DONE (development), not owner accepted.
+      `POST /api/v1/children/<id>/castle/director/` (`RouteName.CASTLE_DIRECTOR` = `generateCastleDirector`,
+      migrations `ai/0006`, `regions/0007`). Closed request body (`roomId`, `visitId`); the server recomputes
+      the eligible set from the child's rows; the model sees only ids, one-word tags, band and room;
+      `validate_castle_choice` requires an exact id from that set and closed shape; the child always sees the
+      authored line; every `run_turn` failure path, REDIRECT/STOP (plus SafetyEvent), `ai_enabled=False` (no
+      model call) and an empty set return the deterministic default as `FALLBACK`; another parent's child is
+      404; the only write is the display counter; audit rows hold no event text or child data. Client
+      `api/play/castleDirectorApi.ts` and `useCastleDirector.ts` (any error computes the same default
+      locally), and one quiet ambient line in `CastleGuide` (judgement call on minimal wiring; no 3D cue).
+      Tests: `test_castle_director.py` 71 with the fake provider.
+- [x] **SC-R09-02** Quill flavour through `npc_hint`. DONE (development, service layer only), not owner
+      accepted. `apps/npcs/castle_flavour.py` builds an `NpcHintContext` from the active Quill release; the
+      authored event line is base text and fallback. `test_castle_flavour.py` 14 (over-length, URL,
+      personal information, reward claim, em dash, secrecy, no-model-call cases, no state writes). **Open:**
+      not surfaced to any client (owner: a second model call from the Director response, or a client
+      surface). Evidence on the branch: `apps/ai` 494 plus fix, `test_prompts.py` + director 76; regions,
+      npcs, castle game_sessions, core, child deletion, golden 1110; Vitest 19, 168 and 199; typecheck,
+      golden:check, content:check, adr:check clean. **Merged** at `4228e898`. Merged-tree evidence: Django
+      `apps/ai apps/regions apps/npcs` + castle rooms, castle storybook, adventure launch, child deletion,
+      `tests/golden`: 1435 passed, 0 failed (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`), `makemigrations --check`
+      no changes; Vitest great-storybook, castleTale, api/play, golden, castleHudEquivalence 37 files, 393
+      passed; `tsc` clean; content:check, golden:check, adr:check exit 0.
+- [x] **SC-R11 engineering part** (contract `docs/regions/prep/quality_prep.md`; branch `work/sc-r11`, commits
+      `d896e1aa`, `3c1abcb4`, `1b810ec5`, `8983d888`). DONE (development), not owner accepted. Local-only
+      engine diagnostics `three/runtime/diagnostics/` (frame stats ring buffer, `renderer.info` snapshot,
+      load timeline `mount`/`assetsSettled`/`firstWalkableFrame`, lifecycle counts), on only under
+      `vite dev` or `?lai-diag=1`, a console table on dispose and `window.__laiDiag`; records only the region
+      id and sends nothing (tested). Dispose now calls `forceContextLoss?.()` and empties `mixers`; tests for
+      created equals released and a late `loadModel` after dispose. Configurable
+      `ThreeLocationManifest.wallHeight` (default `WALL_HEIGHT` 3) threaded through wall colliders, lamps,
+      ceiling slabs and surfaces, wall faces, cornices, secret seal and the library beam; shipped castle output
+      unchanged at 3 (JSON hash identical before and after); 4 m tests; **no room switched to 4 m**. Tests for
+      HUD tab order and names, Tab/Escape never trapped, touch clamp, Sprouts need no aim in
+      `quills-picture-story`, every narrated page and word has visible text, and exits never behind
+      arithmetic (Writing Room included). `docs/PILOT_READINESS.md` 5b and acceptance A-14/A-20 have blank
+      result tables; no measurements invented. **Deviations:** `?lai-diag=1` also works in a release build
+      (profiling needs one; inert without the flag); the factory-wrapped bodies in `storykeeperCastle.ts`,
+      `storykeeperCastleVisuals.ts`, `greatLibrary.ts` and the new tests are unformatted (`prettier --write`
+      at merge readiness). **Owner decisions:** `assetLoader.trim` (not built); live reduced-motion change
+      (read at mount; A-10 stays manual); the optional Writing Room is unlocked by the Explorer secret-door
+      arc, whose chapter 1 has a `number-input` step (exits and routes are never gated); kit-piece scaling
+      still gates any 4 m room. **Merged** at `f846389a`, plus `2bafcae6` (the scene asset index snapshot,
+      export `locationAssets` 6 to 7 and golden digest the SC-R10 merge had missed). Merged-tree evidence:
+      Vitest `island-map/three` 156 files, 1999 passed; content-export, golden, discovery 8 files, 134
+      passed; `tsc` clean; content:check, golden:check exit 0; Django `apps/assets` + catalog import/export
+      343 passed.
+- [ ] **SC-R11-01, SC-R11-02** Owner gates: real-tablet profiling of a release build with `?lai-diag=1`
+      (fill PILOT_READINESS 5b) and the Sprouts playtest. **SC-R11-03** fixes from both: waits on them.
+- [ ] **SC-R08-02, SC-R08-03** In development on `work/sc-r08-secrets`.
 - [ ] **SC-R12** Not started. Gated items: new supporting NPC model, narration voice consent, Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11
       gate).
