@@ -142,7 +142,7 @@ function toRealm(childId: string, island: IslandSummary): Realm {
     ageBands: island.ageBands,
     subjectAreas: island.subjectAreas,
     thumbnailAssetId: island.thumbnailAssetId,
-    seasonal: island.seasonal,
+    seasonal: island.seasonal ?? null,
     progress: {
       explored: island.progress?.placesExplored ?? places.filter((p) => p.explored).length,
       total: island.progress?.placesTotal ?? places.length,

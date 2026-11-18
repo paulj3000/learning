@@ -245,6 +245,18 @@ class TestBootstrap:
         listed = api(north_pole.a).get(f"/api/v1/children/{child.pk}/regions/").json()["regions"]
         assert REGION_ID in [r["regionId"] for r in listed]
 
+    @pytest.mark.parametrize("band", ["SPROUT", "PATHFINDER", "EXPLORER"])
+    def test_every_puzzle_is_introduced_and_closed_by_its_npc(self, north_pole, api, band):
+        # The client refuses a non-choice puzzle without an intro; the server falls back to the
+        # title, but every North Pole puzzle has its host NPC's own lines for every band.
+        child = north_pole.a1
+        child.age_band = band
+        child.save()
+        for puzzle in Play(api(north_pole.a), child).region()["puzzles"]:
+            params = puzzle["parameters"]
+            assert params["intro"] != BODIES[puzzle["puzzleId"]]["title"], puzzle["puzzleId"]
+            assert params.get("completeMessage"), puzzle["puzzleId"]
+
     def test_another_family_cannot_see_or_play_this_child(self, north_pole, api):
         other = api(north_pole.b)
         child = north_pole.a1

@@ -49,7 +49,7 @@ export interface PlaceSummary {
   /** AP-03: the child has started an adventure here or entered its 3D Area. */
   explored: boolean;
   /** NP-023: null for content with no seasonal event (and from an older server). */
-  seasonal: SeasonalInfo | null;
+  seasonal?: SeasonalInfo | null;
   area: PlaceArea | null;
 }
 
@@ -74,7 +74,7 @@ export interface IslandSummary {
   lockedHint: string | null;
   progress: IslandProgress | null;
   /** NP-023: null for content with no seasonal event (and from an older server). */
-  seasonal: SeasonalInfo | null;
+  seasonal?: SeasonalInfo | null;
   places: PlaceSummary[];
 }
 

@@ -111,7 +111,7 @@ ZONES = {
 ZONE_MESSAGES = {
     "santas-landing": (
         "Welcome to Santa's Landing! Jingle the elf is here to help you. "
-        "Walk up to Jingle to say hello. Jump is just for fun."
+        "Walk up to Jingle to say hello. Press Jump to hop. Jumping is just for fun."
     ),
     "christmas-village": (
         "Christmas Village! Look at the big tree, Jingle says. The snow stairs are a nice walking "
@@ -941,7 +941,10 @@ def scene() -> dict:
         },
         "copy": {
             "loading": "Packing up the sleigh for the North Pole.",
-            "instructions": "Say hello to Jingle the elf at Santa's Landing.",
+            "instructions": (
+                "Walk with the arrow keys or the stick. Press Jump or the space bar to hop. "
+                "Say hello to Jingle the elf at Santa's Landing."
+            ),
             "calmStop": "The elves are resting now, and so can you. The North Pole will be here.",
             "altNavLabel": "Go back to the harbor",
         },

@@ -2548,7 +2548,7 @@
   "copy": {
    "altNavLabel": "Go back to the harbor",
    "calmStop": "The elves are resting now, and so can you. The North Pole will be here.",
-   "instructions": "Say hello to Jingle the elf at Santa's Landing.",
+   "instructions": "Walk with the arrow keys or the stick. Press Jump or the space bar to hop. Say hello to Jingle the elf at Santa's Landing.",
    "loading": "Packing up the sleigh for the North Pole."
   },
   "effects": {
@@ -11267,7 +11267,7 @@
    "pressurePlates": [],
    "zones": [
     {
-     "enterMessage": "Welcome to Santa's Landing! Jingle the elf is here to help you. Walk up to Jingle to say hello. Jump is just for fun.",
+     "enterMessage": "Welcome to Santa's Landing! Jingle the elf is here to help you. Walk up to Jingle to say hello. Press Jump to hop. Jumping is just for fun.",
      "rect": {
       "id": "santas-landing",
       "maxX": 24.0,
