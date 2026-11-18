@@ -143,6 +143,16 @@ root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; 
   leases and heartbeats, worker check-ins and the status renames. The branch is kept, unmerged.
   Tests: question_studio, jobs and settings, 297 passed on PostgreSQL.
 
+## WS-E: castle keepsake backfill and world-change security audit (2026-11-18, `work/final-e` from `68a3ed7c`); development complete, unit-tested only, NOT merged, NOT run on real data
+
+- `manage.py backfill_castle_keepsakes` (dry run by default, `--apply` to grant): grants the three castle
+  keepsakes to children with server-authoritative historical completion, through the existing
+  reward-rule path; idempotent, per child, non-destructive, counts-only output. Evidence rule and
+  guarantees: `docs/security/WORLD_CHANGE_INTEGRITY.md`. The owner decides when to run it.
+- Endpoint audit of every child write route recorded in the integrity doc, with a drift test. No hole found.
+- New tests: `inventory/tests/test_castle_keepsake_backfill.py`, `progression/tests/test_world_change_audit.py`,
+  `progression/tests/test_castle_keepsake_backfill_concurrency.py`. Not run: browser, WebGL, deployment.
+
 ## SC-R07: Storykeeper Castle persistent progression (2026-11-17, `work/sc-r07` from `0429055f`); development complete, unit-tested only, NOT merged
 
 - SC-R07-01: six castle keepsakes as ordinary items and reward rules (`castle-keepsakes` set; three new

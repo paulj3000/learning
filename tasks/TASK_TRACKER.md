@@ -1165,7 +1165,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       registered place, called by the graded adventure WORLD_CHANGE step (grants folded into the
       completion rewards of the same request) and by story completion; never by the generic POST
       (`docs/security/WORLD_CHANGE_INTEGRITY.md`). Residual: earlier Secret Door finishers get no
-      key without an approved backfill.
+      key without an approved backfill. (WS-E: `manage.py backfill_castle_keepsakes` now exists, dry run by default; owner runs it).
 - [x] **SC-R07-02** Trophy Room pedestals display owned artifacts. DONE (development), not owner
       accepted. `BOUND_ITEMS` = `CASTLE_KEEPSAKE_IDS` (all six bound; the Seal was unbound before).
       Trophy room manifest: one primitive mesh per keepsake gated `ITEM_OWNED`. **Deviation to
