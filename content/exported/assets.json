@@ -723,6 +723,15 @@
   "locationAssets": [
     {
       "assetIds": [
+        "bookshelf",
+        "secret-door-ajar",
+        "round-window",
+        "writing-desk"
+      ],
+      "regionSlug": "castle-writing-room"
+    },
+    {
+      "assetIds": [
         "wall-stone",
         "roof",
         "door",

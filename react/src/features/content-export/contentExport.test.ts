@@ -137,7 +137,7 @@ describe('preservation of the existing content', () => {
       domains: 7,
       skills: 11,
       assets: 114,
-      locationAssets: 6,
+      locationAssets: 7,
     });
   });
 

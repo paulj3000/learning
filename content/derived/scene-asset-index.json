@@ -2,6 +2,15 @@
   "generatedBy": "react/src/features/island-map/three/runtime/sceneAssetIndex.test.ts",
   "regions": [
     {
+      "regionSlug": "castle-writing-room",
+      "assetIds": [
+        "bookshelf",
+        "secret-door-ajar",
+        "round-window",
+        "writing-desk"
+      ]
+    },
+    {
       "regionSlug": "clockwork-harbor",
       "assetIds": [
         "wall-stone",
