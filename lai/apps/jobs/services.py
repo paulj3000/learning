@@ -465,7 +465,11 @@ def prunable(stamp):
     )
     for kind in special:
         expired |= Q(kind=kind, finished_at__lt=stamp - timedelta(days=retention_days(kind)))
-    return ProcessingJob.objects.filter(expired, status=JobStatus.COMPLETED)
+    # A job that still has a derived artifact row is that artifact's evidence (ADR-066): it is kept
+    # until retention expires the artifact and clears the link (DerivedArtifact.job is PROTECT).
+    return ProcessingJob.objects.filter(expired, status=JobStatus.COMPLETED).exclude(
+        derived_artifacts__isnull=False
+    )
 
 
 def sweep(*, dry_run: bool = False) -> dict[str, int]:
