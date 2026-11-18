@@ -8,8 +8,8 @@ row locks. Published versions and rollback are never touched. No AWS.
 """
 
 import threading
-import uuid
 import time
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -203,7 +203,9 @@ def _run(*targets, timeout=30):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_submission_waits_for_a_publication_that_already_holds_the_lock(pip, flag_on, monkeypatch):
+def test_a_submission_waits_for_a_publication_that_already_holds_the_lock(
+    pip, flag_on, monkeypatch
+):
     version = upload(pip, glb_bytes())
     complete(version)
     holding = threading.Event()
@@ -235,7 +237,9 @@ def test_a_submission_waits_for_a_publication_that_already_holds_the_lock(pip, f
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_publication_waits_for_a_submission_that_already_holds_the_lock(pip, flag_on, monkeypatch):
+def test_a_publication_waits_for_a_submission_that_already_holds_the_lock(
+    pip, flag_on, monkeypatch
+):
     version = upload(pip, glb_bytes())
     complete(version)
     use_sqs(flag_on)
@@ -263,9 +267,7 @@ def test_a_publication_waits_for_a_submission_that_already_holds_the_lock(pip, f
             outcome["code"] = refusal.code
 
     # A failed job is never reused, so the submission creates a new pending job.
-    ProcessingJob.objects.filter(pk=validation_newest(version).pk).update(
-        status=JobStatus.FAILED
-    )
+    ProcessingJob.objects.filter(pk=validation_newest(version).pk).update(status=JobStatus.FAILED)
     errors = _run(submit, publish)
     assert not errors, errors
     assert outcome == {"code": "processing_required"}

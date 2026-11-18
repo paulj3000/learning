@@ -28,11 +28,11 @@ into the game loader and verified. Doing so changes the validators' verdicts, so
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 
-class Support(str, Enum):
+class Support(StrEnum):
     SUPPORTED = "supported"  # GLTFLoader handles it with no extra decoder
     DECODER = "decoder"  # compression: needs a decoder the game does not load
     REJECTED = "rejected"  # known, but the game cannot render it safely

@@ -22,8 +22,6 @@ from lai_processing.processors.gltf.document import (
     CLIP_VOCABULARY,
     COMPLEXITY_DEFAULTS,
     GENERIC_TAKE_NAME,
-    NEEDS_DECODER,
-    SUPPORTED_EXTENSIONS,
 )
 
 DJANGO_VALIDATION = Path(__file__).resolve().parents[2] / "lai/apps/assets/validation.py"

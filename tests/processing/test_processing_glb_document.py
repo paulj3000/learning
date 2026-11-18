@@ -91,9 +91,11 @@ def test_compression_extensions_need_a_decoder(name: str, where: str) -> None:
     assert change(setter(where, [name])) == {"needs_decoder"}
 
 
-@pytest.mark.parametrize("name", ["EXT_texture_webp", "EXT_texture_avif", "EXT_mesh_gpu_instancing"])
+@pytest.mark.parametrize(
+    "name", ["EXT_texture_webp", "EXT_texture_avif", "EXT_mesh_gpu_instancing"]
+)
 @pytest.mark.parametrize("where", ["extensionsUsed", "extensionsRequired"])
-def test_known_unsupported_extensions_are_errors_even_when_only_used(name: str, where: str) -> None:
+def test_known_unsupported_extensions_are_errors_when_only_used(name: str, where: str) -> None:
     assert change(setter(where, [name])) == {"unsupported_extension"}
 
 
