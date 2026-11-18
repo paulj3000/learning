@@ -47,6 +47,11 @@ import {
 } from '../../storykeeperCastleRegion';
 import { facingIntoRoom, wallPanelPlacements } from '../sceneLayout';
 import {
+  CASTLE_PAD_ZONES,
+  CASTLE_PLATFORMING,
+  CASTLE_PLATFORMING_SPROUT,
+} from './castleRooms/castlePlatforms';
+import {
   CASTLE_DECOR,
   CASTLE_DECOR_COLLIDERS,
   CASTLE_EFFECTS,
@@ -657,12 +662,17 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     runtime. Zone ids are never persisted (ADR-032 part G), and `castle-tale`
     strips the suffix before resolving a binding.
   */
-  zones: ZONES.map((zone) => ({
-    rect: {
-      ...zone,
-      id: GALLERY_PORTRAIT_ZONE_IDS.has(zone.id) ? `${zone.id}:approach` : zone.id,
-    },
-  })),
+  zones: [
+    ...ZONES.map((zone) => ({
+      rect: {
+        ...zone,
+        id: GALLERY_PORTRAIT_ZONE_IDS.has(zone.id) ? `${zone.id}:approach` : zone.id,
+      },
+    })),
+    // SC-JMP: one answer zone per pad that answers a step. Standing on the pad is standing in the
+    // zone (ground plane), so a jump over it still counts, and the HUD card is the equivalent.
+    ...CASTLE_PAD_ZONES,
+  ],
   ambient: [],
 
   // The castle's authored interactions, unchanged: their own requirements
@@ -694,6 +704,15 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     small rooms past what the story wants them to notice.
   */
   movement: { jump: { jumpHeight: 0.9 }, locomotion: { runSpeed: 4.8, sprintSpeed: 5.6 } },
+  /*
+    SC-JMP: every primary castle adventure has meaningful jumping through the shared platforms
+    runtime (`castleRooms/castlePlatforms.ts`). Low, static pads (tops at most 0.5 m, so a jump from
+    one keeps the eye under the 3.1 m ceiling), each a second way to give an answer the HUD card
+    and the walk-in route already accept; a missed jump lands on the flat floor and loses nothing.
+    Sprouts get flat floor markers with no colliders instead. Platforms never grade or reward.
+  */
+  platforming: CASTLE_PLATFORMING,
+  platformingByBand: { SPROUT: CASTLE_PLATFORMING_SPROUT },
   /*
     LAI-JMP-01a: an indoor third-person camera. Closer than outdoors so the
     child stays in view through archways and in the narrow passages, and held

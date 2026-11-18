@@ -13,6 +13,7 @@ import {
 import { BINDING_LECTERN_ENTITY_ID } from '../../castleBindingLectern';
 import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { CastleTaleSceneApi } from './castleTaleScene';
+import { usePadAnswers } from './usePadAnswers';
 
 /**
  * One in-world play-through of "The Storykeeper's Tale" (engine Phase 9,
@@ -252,6 +253,18 @@ export function CastleTaleSession({
       });
     });
   }, [bus, orderingStepId, definition, activePlates, scene]);
+
+  /*
+    SC-JMP: the Story Hall's story stones are a second way to seat the same three beats (or the
+    Sprouts' two). They go through the very same `submitAnswerAndReflect`; the engine grades.
+  */
+  usePadAnswers({
+    bus,
+    definition,
+    stepId,
+    submit: submitAnswerAndReflect,
+    onWrongOrder: () => scene.current?.playQuillClip('ReactConcerned'),
+  });
 
   useEffect(() => {
     if (!isSpatialChoiceStep(definition, stepId)) return;

@@ -171,6 +171,14 @@ flags, blink warnings before vanishing (a steady dim under reduced motion), redu
 non-punitive retries, adjustable speeds per Area through tuning, and running/sprinting settings
 from ADR-058. Adventures must give an alternative route for required progress (Pirate's Leap does).
 
+## Per-age-band platforming (SC-JMP)
+
+`manifest.platformingByBand` replaces `platforming` whole for a child in that band
+(`runtime/manifestForBand.ts`, applied when the engine is created, validated like the default).
+Storykeeper Castle uses it to give Sprouts flat pressure-plate markers with no colliders where
+Pathfinders and Explorers get solid pads. The castle's pads, rules and per-adventure design:
+`docs/regions/storykeeper_castle_jumping_inventory.md`.
+
 ## Testing
 
 ```bash
