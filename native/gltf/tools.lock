@@ -1,0 +1,13 @@
+# Pinned GLB optimization tool sources (LAI-LAMBDA-010, ADR-070). Read by fetch-tools.sh.
+# Columns: name arch url sha256
+# SHA-256 values are GitHub's release-asset digests, re-computed locally after download
+# (2026-11-18). Never edit a digest without downloading and verifying the file.
+#
+# meshoptimizer v1.3 (MIT). Native gltfpack, x86_64 Linux ("ubuntu") build; this build has
+# texture compression (-tc/-tu), unlike the npm WASM build. No Linux arm64 binary is published.
+gltfpack x86_64 https://github.com/zeux/meshoptimizer/releases/download/v1.3/gltfpack-ubuntu.zip 0666d9dc40d60fe5b9a45f3fc24f8e6ca87112974bd5de9ca57152aa13d06017
+# meshoptimizer v1.3 source (for the arm64 from-source build; not fetched by the script).
+meshoptimizer-src any https://github.com/zeux/meshoptimizer/releases/download/v1.3/meshoptimizer-1.3.tar.gz d50a0b5e1323ba4379cdb32f89436c20652b7393445f8e18c88ae64445b67b77
+# KTX-Software v4.4.2 (Apache-2.0; bundles the Basis Universal encoder, Apache-2.0).
+ktx-software x86_64 https://github.com/KhronosGroup/KTX-Software/releases/download/v4.4.2/KTX-Software-4.4.2-Linux-x86_64.tar.bz2 a8781bad05f9624edbf910b7f258cd0a4ba7d3e63b49ecc0a0ab440bf6a0a245
+ktx-software arm64 https://github.com/KhronosGroup/KTX-Software/releases/download/v4.4.2/KTX-Software-4.4.2-Linux-arm64.tar.bz2 60382e7b842177b8048bd58ccdc770383f8ef65b94452a25d3afdb55f2405c5a

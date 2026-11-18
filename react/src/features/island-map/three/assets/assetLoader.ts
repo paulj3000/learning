@@ -1,8 +1,14 @@
-import { InstancedMesh, LOD, Mesh, Object3D, type Material } from 'three';
+import { InstancedMesh, LOD, Mesh, Object3D, type Material, type WebGLRenderer } from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { getAssetManifestEntry } from './manifest';
 import { BUNDLED_ASSET_RESOLVER, type AssetResolver } from './assetResolver';
 import { cloneAssetScene } from './cloneAsset';
+import {
+  configureGltfLoader,
+  createKtx2Loader,
+  describeGltfLoadError,
+  type Ktx2LoaderOptions,
+} from './gltfDecoders';
 
 /**
  * The runtime half of `docs/ROADMAP.md` Phase 34: loads assets through the
@@ -76,8 +82,13 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-function createGltfFetcher(): GltfFetcher {
-  const loader = new GLTFLoader();
+/**
+ * One `GLTFLoader` per fetcher, configured with the decoders this build ships
+ * (`gltfDecoders.ts`, ADR-070). Uncompressed models never touch a decoder.
+ */
+export function createGltfFetcher(
+  loader: GLTFLoader = configureGltfLoader(new GLTFLoader()),
+): GltfFetcher {
   return (url, onBytes) =>
     new Promise<GLTF>((resolve, reject) => {
       loader.load(
@@ -87,7 +98,7 @@ function createGltfFetcher(): GltfFetcher {
           ? (event: ProgressEvent) =>
               onBytes(event.loaded, event.lengthComputable ? event.total : null)
           : undefined,
-        (error: unknown) => reject(toError(error)),
+        (error: unknown) => reject(describeGltfLoadError(toError(error))),
       );
     });
 }
@@ -294,7 +305,39 @@ export function createAssetLoader(
   return { loadAsset, instantiateAsset, createInstancedMeshFromAsset, instantiateWithLod };
 }
 
-const bundledLoader = createAssetLoader(BUNDLED_ASSET_RESOLVER);
+/** The one `GLTFLoader` behind the bundled asset loader (shared cache below). */
+const bundledGltfLoader = configureGltfLoader(new GLTFLoader());
+const bundledLoader = createAssetLoader(
+  BUNDLED_ASSET_RESOLVER,
+  createGltfFetcher(bundledGltfLoader),
+);
+
+/**
+ * Lets the bundled loader decode KTX2 textures (ADR-070), using `renderer`
+ * to pick the GPU format. Call once a renderer exists, before loading a model
+ * with KTX2 textures; the returned function detaches and disposes the
+ * transcoder workers (call it before disposing the renderer). Only the most
+ * recent attachment is active; detaching an older one changes nothing.
+ * Models without KTX2 textures never use it, and already cached models keep
+ * the textures they decoded.
+ */
+export function enableKtx2Textures(
+  renderer: WebGLRenderer,
+  options: Ktx2LoaderOptions = {},
+  loader: GLTFLoader = bundledGltfLoader,
+): () => void {
+  const ktx2 = createKtx2Loader(renderer, options);
+  loader.setKTX2Loader(ktx2);
+  let attached = true;
+  return () => {
+    if (!attached) return;
+    attached = false;
+    if ((loader as unknown as { ktx2Loader: unknown }).ktx2Loader === ktx2) {
+      loader.setKTX2Loader(null);
+    }
+    ktx2.dispose();
+  };
+}
 
 export const loadAsset = bundledLoader.loadAsset;
 export const instantiateAsset = bundledLoader.instantiateAsset;

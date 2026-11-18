@@ -1,5 +1,10 @@
 import { LoadingManager, type Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+  CompressedModelError,
+  configureGltfLoader,
+  describeGltfLoadError,
+} from '../../island-map/three/assets/gltfDecoders';
 
 /**
  * Fetching and parsing a model for the Django Admin preview (LAI-2200 AM-10,
@@ -23,6 +28,7 @@ export type PreviewErrorCode =
   | 'network'
   | 'unsupported_format'
   | 'invalid_model'
+  | 'compression_unsupported'
   | 'empty_model'
   | 'webgl_unavailable';
 
@@ -37,6 +43,8 @@ const MESSAGES: Record<PreviewErrorCode, string> = {
   network: 'The model could not be downloaded. Check your connection and reload the page.',
   unsupported_format: 'Only .glb and self-contained .gltf models can be previewed.',
   invalid_model: 'The file could not be read as a glTF 2.0 model.',
+  compression_unsupported:
+    'This model uses compression the preview cannot show here (Meshopt needs WebAssembly; KTX2 textures are not previewed yet).',
   empty_model: 'The model has no visible geometry to show.',
   webgl_unavailable: 'This browser cannot show 3D graphics (WebGL is unavailable or disabled).',
 };
@@ -165,11 +173,17 @@ export async function parsePreviewModel(
     external = true;
     return 'data:application/octet-stream;base64,';
   });
-  const loader = new GLTFLoader(manager);
+  // Decoders fetch nothing through `manager`: the Meshopt decoder is bundled
+  // with its WASM inline, so the URL refusal above still covers everything.
+  const loader = configureGltfLoader(new GLTFLoader(manager));
   let gltf;
   try {
     gltf = await loader.parseAsync(data, '');
-  } catch {
+  } catch (error) {
+    const described = error instanceof Error ? describeGltfLoadError(error) : null;
+    if (described instanceof CompressedModelError) {
+      throw new PreviewError('compression_unsupported');
+    }
     throw new PreviewError('invalid_model');
   }
   if (external) throw new PreviewError('invalid_model');
