@@ -68,10 +68,121 @@ nothing. The generic `POST world-changes/` never calls it. Each rule fires once 
 the first such rules; `reward-bridge-world-change` (`BRIDGE_REPAIRED`, unprotected) is still not paid
 by the server, as before. A child who recorded a keepsake key before this change receives the item the
 next time the server path runs for them (a replayed adventure step); a finished story is not
-replayed, so a backfill for earlier Secret Door finishers would need an approved one-off command.
+replayed, so earlier finishers are covered by the owner-run backfill below.
 Tests: `lai/apps/inventory/tests/test_castle_keepsakes.py`.
 
+## Castle keepsake backfill (WS-E, owner-approved, NOT yet run on real data)
+
+`python manage.py backfill_castle_keepsakes` (dry run, the default) and `... --apply` (code:
+`lai/apps/inventory/backfill.py`). It grants through the existing `grant_reward_rule`, so
+`GrantedRule` and the inventory unique constraints keep it idempotent. Output is counts only per
+rule (eligible, granted, already had); no names or ids.
+
+Evidence (read only from rows Django writes; a world-change row alone is never evidence):
+
+| Rule | Evidence |
+|------|----------|
+| `reward-secret-door-key` | A completed `StoryProgress` of a producing story (`the-castles-secret-door`). A `THE_CASTLES_SECRET_DOOR_COMPLETE` row at any location, blank or right, does not qualify without it, so a forged or misplaced copy earns nothing. A story label naming another child's progress earns nothing. |
+| `reward-three-clues-lens` | The child's COMPLETED adventure session of the producer template whose action trail reached the producing step (the proof the client POST demands). That session is recorded as the grant source. |
+| `reward-painted-words-brush` | The child's COMPLETED adventure session of `the-painted-words`. |
+
+Guarantees: one transaction per child under the child row lock; a child with a `GrantedRule` for the
+rule, or who already owns every item it gives (from any path), is skipped; strictly per child
+(`for_child` queries); never deletes or edits any record. Tests:
+`inventory/tests/test_castle_keepsake_backfill.py`, `progression/tests/test_world_change_audit.py`,
+`progression/tests/test_castle_keepsake_backfill_concurrency.py`.
+
+## Endpoint audit: child-scoped writes (`api/v1/children/<id>/...`, WS-E)
+
+Every route sits behind `ChildScopedAPIView` (the parent's own child, otherwise 404 identical to an
+unknown id). `test_world_change_audit.py::test_every_child_write_route_has_been_audited` freezes the
+list of write routes, so a new one fails until it is reviewed and added here. None lets a child
+write an arbitrary protected key, award a rule, or complete a session.
+
+| Group | Routes (method) | Protection |
+|-------|-----------------|------------|
+| Profile and settings | `/` PATCH DELETE, `photo/`, `companion/`, `audio/settings/`, `audio/speech/`, `ai/*`, `rewards/` DELETE, `quests/` DELETE, `npc-memory/` DELETE, `story-artifacts/` | No progression grant. Deletes only remove the child's own rows. Story artifacts store narration only. |
+| Generic world change | `world-changes/` POST | `client_changes.record_client_world_change`: protected keys need proof of play, registered location and type; never pays rewards. |
+| World state | `world-state/` PATCH DELETE | Only a known NPC id and a checkpoint id; no world change. |
+| Adventure runner | `adventures/<slug>/session/`, `content/adventures/<slug>/start/`, `sessions/<id>/answers/`, `hints/` POST | Server-graded; completion, WORLD_CHANGE steps and rewards run only in the answer transaction. |
+| Region play | `regions/<id>/session/`, `sessions/<id>/<action>/`, `chests/.../challenge/`, `attempts/<id>/answer/`, `puzzles/.../solve/`, `pickups/...`, `npcs/.../talk/`, launch points, `game-launches/` | Region sessions only (the `complete` action refuses an adventure session). Chests, puzzles and pickups are server-graded, locked and idempotent. |
+| Castle | `castle/rooms/` POST, `castle/director/` POST | A room needs its recorded discovery; the Director writes only a display counter. |
+| Discoveries | `discoveries/` POST | Requirements recomputed from the child's own rows (misplaced keys excluded). |
+| Stories | `stories/<slug>/start`, `flags`, `chapters/<id>/complete`, `reflections` | Choices must be offered; a chapter needs its embedded adventures completed; story completion records the key and pays its rule on the server. |
+| Quests | `quests/<slug>/accept`, `quests/<slug>/` PUT | PUT proves every claimed stage (`claim_is_proven`); otherwise 409. |
+| Co-op | `coop-sessions/*` POST | Own children only; `complete` only changes the co-op session status, no world change or reward. |
+| NPC dialogue | `npc-memory/<id>/dialogue/`, region and place `interactions/*` | Authored nodes; flags set by the server. |
+
+Audit result: no new hole was found. Replay, wrong producer, wrong location, another family's child
+and concurrent writes are each covered by a test.
+
+Frozen write-route list (method and path after `children/<id>`):
+
+- `DELETE /`
+- `DELETE /ai/history/`
+- `DELETE /npc-memory/`
+- `DELETE /photo/`
+- `DELETE /quests/`
+- `DELETE /rewards/`
+- `DELETE /story-artifacts/<uuid:artifact_id>/`
+- `DELETE /world-state/`
+- `PATCH /`
+- `PATCH /audio/settings/`
+- `PATCH /world-state/`
+- `POST /adventures/<slug:adventure_slug>/session/`
+- `POST /ai/companion-turns/`
+- `POST /ai/tutor-turns/`
+- `POST /attempts/<uuid:attempt_id>/answer/`
+- `POST /audio/speech/`
+- `POST /castle/director/`
+- `POST /castle/rooms/`
+- `POST /content/adventures/<slug:slug>/start/`
+- `POST /coop-sessions/`
+- `POST /coop-sessions/<uuid:coop_id>/complete/`
+- `POST /coop-sessions/<uuid:coop_id>/presence/`
+- `POST /coop-sessions/<uuid:coop_id>/slots/`
+- `POST /discoveries/`
+- `POST /game-launches/`
+- `POST /npc-memory/<slug:npc_id>/dialogue/`
+- `POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/`
+- `POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/advance/`
+- `POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/choose/`
+- `POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/end/`
+- `POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/hint/`
+- `POST /quests/<slug:quest_id>/accept/`
+- `POST /regions/<slug:region_id>/launch-points/<slug:launch_id>/start/`
+- `POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/`
+- `POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/advance/`
+- `POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/choose/`
+- `POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/end/`
+- `POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/hint/`
+- `POST /regions/<slug:region_id>/session/`
+- `POST /sessions/<uuid:session_id>/<slug:action>/`
+- `POST /sessions/<uuid:session_id>/answers/`
+- `POST /sessions/<uuid:session_id>/chests/<slug:entity_id>/challenge/`
+- `POST /sessions/<uuid:session_id>/hints/`
+- `POST /sessions/<uuid:session_id>/npcs/<slug:entity_id>/talk/`
+- `POST /sessions/<uuid:session_id>/pickups/<slug:entity_id>/`
+- `POST /sessions/<uuid:session_id>/puzzles/<slug:puzzle_id>/solve/`
+- `POST /stories/<slug:story_slug>/chapters/<slug:chapter_id>/complete/`
+- `POST /stories/<slug:story_slug>/flags/`
+- `POST /stories/<slug:story_slug>/reflections/`
+- `POST /stories/<slug:story_slug>/start/`
+- `POST /story-artifacts/`
+- `POST /world-changes/`
+- `PUT /companion/`
+- `PUT /photo/`
+- `PUT /quests/<slug:quest_slug>/`
+
+
 ## Residual risks (not fixed here)
+
+- **Backfill is code only.** It has not been run on any real database; the owner runs the dry run first,
+  reads the counts, then `--apply`. A key row written by a legacy import without a completed
+  `StoryProgress` earns no key; list such children with the dry run (eligible vs already had) and decide
+  separately.
+- **A forged `StoryProgress` is not possible through the API** (no route sets `completed_at` without the
+  chapter gate), but a database import could write one. The backfill trusts imported `StoryProgress`.
 
 - **Adventure keys that are not page keys** (for example `BRIDGE_REPAIRED`,
   `CLOCKWORK_LIGHTHOUSE_FIXED`) stay forgeable by the generic POST because the island's Three.js
