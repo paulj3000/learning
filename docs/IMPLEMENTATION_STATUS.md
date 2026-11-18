@@ -39,7 +39,7 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
 ## Engineering standards and multi-agent governance (ADR-072, Accepted) — documentation and `make docs-check` added; ADR-072 Accepted by the owner (2026-11-18)
 
-Documentation only (plus the 2026-11-18 dead-code deletion below); no application behaviour,
+Documentation only; no application behaviour,
 schema or infrastructure change. Baseline `main` @ 466a4972.
 
 - New root `AGENTS.md` (tool-neutral agent rules) and a "Start here" section 0 in `CLAUDE.md`; sections 14
@@ -60,8 +60,9 @@ schema or infrastructure change. Baseline `main` @ 466a4972.
   owner decision.
 - Owner directions (2026-11-18): every reference to the retired backend framework removed from
   documentation (the one standing rule never to reintroduce it lives in `CLAUDE.md`, `AGENTS.md`
-  and `docs/engineering/architecture-rules.md`), and its dead legacy-data import and inventory code
-  deleted. Jumping is a shared game-engine capability (shared controller
+  and `docs/engineering/architecture-rules.md`). Its legacy-data import and inventory code stays in
+  the repository for now (owner, 2026-11-18); a deletion is parked on `feature/engineering-standards`
+  (commit `b22cd6c8`), not merged. Jumping is a shared game-engine capability (shared controller
   work on open branches, reserved ADR-063 and ADR-056 to ADR-060) that an adventure may use but is
   not required to; Storykeeper Castle and the Storybook adventures do not need it. Where an
   adventure uses jumping, the accessibility rules (a non-jump route, safe recovery, no lost

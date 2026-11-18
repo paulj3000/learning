@@ -522,7 +522,9 @@ and synthesized, **not deployed**.
 ### Phase 11 - Retained legacy data import
 
 Importing the retained legacy DynamoDB tables and S3 buckets from the retired backend into
-Django is an owner approval (CLAUDE.md section 18). No import tool is in the repository.
+Django is an owner approval (CLAUDE.md section 18). The legacy profile, child-photo and asset
+import commands are in `lai/apps/users/management/commands/` and
+`lai/apps/assets/management/commands/`; running them against real data needs that approval.
 
 **LAI-1101 Legacy table export (read-only).** Depends: 0103, 0305. Risk M. **APPROVAL:
 read access to the retained legacy DynamoDB tables.** Acceptance: exports the tables to local
