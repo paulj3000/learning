@@ -193,13 +193,26 @@ version is still a draft (recovery, section 9).
 ## 8. Publication gate
 
 `services.publish_version` refuses a GLB with `processing_required` when the flag is on and
-`_has_passing_validation` is false. That reads the version's completed jobs newest first, skips
-those whose outcome is a mismatch, `result_invalid`, `version_missing`, `processing_failed` or
-`result_superseded` and those whose request does not match the version's stored file
-(`identity_mismatch`), and lets the first remaining one decide: it must have verdict `pass` and
-the processor version this build runs (`processor_outdated` otherwise). An older pass never
-outvotes a newer accepted `fail`. A draft is still refused first with `not_validated`. The gate does not apply to
-rollback, `set_default_version` or republishing, and the flag off leaves publishing unchanged.
+`_has_passing_validation` is false. Since 2026-11-18 (Workstream B, "latest-validation gate") the
+LATEST applicable job decides. The gate reads the version's jobs newest first and skips only jobs
+that validate other bytes or another profile (`checksum_mismatch`, `size_mismatch`,
+`profile_mismatch` from `identity_mismatch`). The first remaining job decides, and it must be
+completed, accepted when applied (no mismatch outcome, not `result_invalid`, `version_missing`,
+`processing_failed` or `result_superseded`), verdict `pass`, and by the processor version this
+build runs (`processor_outdated` otherwise). Anything newer than a pass blocks publication: a
+pending, running, failed, cancelled, timed-out, refused, rejected (`fail`), invalid, mismatched or
+superseded job, and a newer job whose request names a different key, asset or namespace. A newer
+pending resubmission therefore blocks publication until it passes.
+
+Locking: `publish_version` holds the asset row then the version row (`select_for_update`) while it
+runs the gate, and `submit_model_validation` takes the same two locks before it reads or creates a
+job, so a submission can never slip in between the gate check and the publication. Whichever
+arrives first wins: a submission queued behind a publication leaves the published version as it
+is, and a publication queued behind a submission sees the new pending job and is refused. The
+gate never unpublishes anything: published versions are immutable, and rollback, Make default and
+republishing stay ungated. The synchronous validator still re-reads and re-validates the stored
+bytes inside `publish_version` after the gate, so the two checks agree on the extension policy
+(`extension_policy.py`, `GLB_VALIDATION.md`). A draft is still refused first with `not_validated`.
 
 The job rows are the gate's only evidence: a `VALIDATED` GLB whose passing job was pruned
 (section 10) is refused until staff run Validate in background again.
@@ -344,10 +357,30 @@ Owner decision 2026-11-17: `jobs_sweep` keeps completed `asset.validate_model` j
 `LAI_JOBS_RETENTION_DAYS` (30, unchanged for `asset.inspect`, Studio, speech and
 `reference.checksum`, which no gate reads). `apps.jobs.services.prunable(stamp)` selects:
 
-- only `COMPLETED` jobs: pending and running jobs are never pruned whatever their age (the sweep
-  times them out instead), and failed jobs are kept for review, as for every kind;
+- `COMPLETED` jobs, and since 2026-11-18 terminal `FAILED` jobs after the same period (see
+  "Failed jobs" below): pending and running jobs are never pruned whatever their age (the sweep
+  times them out instead);
 - whose `finished_at` is strictly more than the period before the sweep (`finished_at < now -
   period`): a job that finished exactly 90 days ago is kept, one a microsecond older is pruned.
+
+Failed jobs (`prunable_failed_ids`, `jobs_sweep` report `pruned_failed`). A failed job is deleted
+only when it finished strictly more than its kind's retention before the sweep (90 days for
+`asset.validate_model`, 30 otherwise) and none of these holds:
+
+- a foreign key with `on_delete=PROTECT` references it (derived artifacts, Workstream A: found
+  generically through `ProcessingJob._meta.related_objects`, and a `ProtectedError` at delete time
+  keeps the row);
+- it is a contract-kind job (non-empty `idempotency_key`) whose subject record still exists. The
+  bounded retry (`LAI_ASSET_VALIDATION_MAX_ATTEMPTS`) counts the logical work's jobs, so deleting
+  one would hand an attempt back. Failed jobs of a deleted version, and unkeyed failed jobs
+  (Studio, speech, inspection), go on schedule. This is deliberately conservative: failed
+  validation jobs of a live version are kept as retry accounting and audit evidence, and no
+  migration is needed;
+- the results queue holds, or may hold, messages (the same rule as timeouts): a late result for
+  a failed job must still find it.
+
+Each row is re-checked under its row lock at deletion, so a result or resubmission that arrives
+during the sweep wins. Pruning never lowers a retry count of a live version.
 
 Publication integrity:
 

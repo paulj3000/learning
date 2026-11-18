@@ -752,6 +752,10 @@ rejected with a finding, never published half-working. Package it as `.glb` or e
   `IEND`, a JPEG end marker, a WebP/WAV RIFF size, the last MP3 frame or the Ogg end page are
   refused (`trailing_data`), so a polyglot file cannot be stored. PNG chunk CRCs are verified. Ogg page checksums are verified on the first 16 pages and the last
   page (`ogg_crc`), the same sample as the background audio inspection.
+- Images that carry EXIF, GPS, XMP, IPTC or text metadata pass with the warnings
+  `image_location_present` (a GPS tag, XMP GPS or unreadable EXIF) and `image_metadata_present`.
+  The scan is bounded, reads no pixels, stores no value and never refuses a file; published bytes
+  are still delivered unchanged (section 24).
 - Dimensions, channels, sample rate and duration are limited; non-power-of-two textures get a
   warning, not a refusal.
 - A file that fails is never stored and makes no row. SHA-256 is recorded, sent to S3 as the
@@ -922,3 +926,57 @@ flow, outcome codes, retries and deployment order: `docs/processing/ASYNC_MODEL_
   informational: it reads structure and dimensions of a model, image or sound, keeps the result on
   the job and never changes a version. `asset.validate_model` is the full GLB validator; its
   applied result decides a draft's status and is what the publication gate reads.
+
+## 24. Image privacy baseline (Workstream B, 2026-11-18)
+
+**What is true today (audited, not changed).**
+
+- Asset images (PNG, JPEG, WebP; Asset Library upload, Django Admin) are stored and delivered
+  byte for byte (`delivery.py`: signed Django URL or presigned S3 GET of the stored object). Nothing
+  strips metadata. A phone photo uploaded as an asset delivers its GPS position, device, owner,
+  comment and embedded thumbnail to every player that receives the published version.
+- Since this work, upload validation WARNS (never refuses) with `image_location_present` and
+  `image_metadata_present` (`validation_media.py`, using the standard-library scanner
+  `processing/lai_processing/processors/image/metadata.py`). The scanner records presence only,
+  never a value: GPS location, EXIF device (make, model, software, lens), owner (artist,
+  copyright, camera owner), comment (description, user comment), an embedded thumbnail, XMP, IPTC
+  and text chunks.
+- Child profile photos are a different path (`apps/users/photo_validation.py`, `photos.py`): the
+  JPEG is re-assembled with every metadata segment removed before it is stored in the private
+  child photo bucket. That behaviour is unchanged by this work and is not part of this audit's
+  findings.
+- Historical images are NOT sanitized. Nothing here rewrites, removes or replaces an existing
+  object. Do not describe previously uploaded or published images as clean.
+
+**Finding existing images.** `python manage.py image_metadata_audit` (read only, staff operation;
+`--status PUBLISHED`, `--only-sensitive`, `--json`) scans every stored image version and prints, per
+version, which categories are present (location, device, owner, comment, thumbnail, xmp, iptc, text)
+and counts. It writes no row and no object, prints no metadata value, and marks a version whose
+structure could not be fully read (`structure not fully read`). Run it against dev first, then
+production when the owner asks; it reads each object once, bounded.
+
+**Remediating a published image (never a silent rewrite).** Published versions are immutable and
+their checksum is part of their identity, so the fix is a new version, not an edit:
+
+1. Produce a sanitized copy. After Workstream D's Pillow function ships, an `asset.convert_image`
+   derivative (metadata stripped by construction, `docs/processing/adr/ADR-068`) is promoted by
+   staff; until then re-export from the source with metadata removed.
+2. Upload (or promote) it as a new version of the same asset, check the audit shows it clean,
+   publish it, and make it the default. The previous version stays available for rollback and
+   is retired when staff decide.
+3. Record the replacement in the change note. The original object is kept until the owner approves
+   its removal.
+
+**IAM read prefixes (requirements for the infrastructure workstream; no CDK was changed here).**
+
+| Principal | Read | Write | Never |
+|---|---|---|---|
+| Media jobs worker role (`lai-<env>-jobs-media`) | `s3:GetObject` on `assets/*` only (the stored asset versions); `s3:GetObject` on `processing/artifacts/<env>/*` once derived artifacts are read back; `s3:ListBucket` scoped to those two prefixes | `s3:PutObject` create-only on `processing/artifacts/<env>/*` (a condition such as `s3:if-none-match: *` or no `s3:PutObjectAcl`/overwrite; never `DeleteObject`) | any other prefix of the asset bucket, `speech/*`, the child photo bucket, `children/*`, results bucket other than its own prefixes |
+
+Known defect to fix: `infra/lib/devPlatformStack.ts` (statement `ReadAssets`, near line 1125) grants
+`s3:GetObject` on `bucket/*`; it must be narrowed to `bucket/assets/*` plus
+`bucket/processing/artifacts/<env>/*`. The Python side already treats 403 and `AccessDenied` on an
+input as `access_denied` and never as a missing object (`tests/lambda/test_jobs_worker_denied_is_an_error.py`),
+so a wrong policy fails jobs visibly. The only places a 403 may mean "not stored yet" are the
+worker's own results and shared speech cache lookups, pinned by a source test.
+

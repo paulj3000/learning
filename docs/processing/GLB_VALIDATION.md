@@ -112,9 +112,22 @@ first. Vertex data is never decoded.
    reaches Python's recursion limit (a `RecursionError` is still caught and refused).
 4. **Asset**: `asset.version == "2.0"`; `asset.minVersion`, when present, `"2.0"`.
 5. **Top-level arrays**: each present one is an array, within its count limit.
-6. **Extensions**: Draco, meshopt and BasisU (`NEEDS_DECODER`) are refused; a required extension
-   outside `SUPPORTED_EXTENSIONS` is refused; an unknown used extension is a warning; entries
-   must be non-empty strings.
+6. **Extensions** (one policy table, `processors/gltf/extension_policy.py`, imported by this
+   validator AND by Django's synchronous validator): every extension named in `extensionsUsed`
+   or `extensionsRequired` must be `SUPPORTED`; anything else is an ERROR, whether the model
+   requires it or only lists it as used, because an optional compressed extension can still carry
+   data the game cannot decode. Compression is `needs_decoder` (`KHR_draco_mesh_compression`,
+   `EXT_meshopt_compression`, `KHR_meshopt_compression`, `KHR_texture_basisu`); known renderers
+   the game lacks (`EXT_texture_webp`, `EXT_texture_avif`, `EXT_mesh_gpu_instancing`) and every
+   unlisted name are `unsupported_extension`. `KHR_meshopt_compression` is a different string
+   from `EXT_meshopt_compression` (the one three.js and gltfpack use) and is NOT verified: it is
+   its own rejected row. Entries must be non-empty strings. Workstream F enables Meshopt and then
+   KTX2 by changing a row of `TABLE` to `Support.SUPPORTED`, bumping `POLICY_VERSION` and the
+   processor version in the same change. Since 2026-11-18 the processor is `1.1.0`: a `pass`
+   recorded by `1.0.0` no longer satisfies the publication gate (`processor_outdated`), so
+   unpublished `VALIDATED` models need Validate in background again, while published versions,
+   rollback and delivery are untouched. (Conservative choice: old evidence was produced under a
+   weaker policy.)
 7. **Buffers**: `byteLength` a positive integer; a buffer without `uri` must be buffer 0 of a
    GLB with a BIN chunk at least as long (a BIN chunk more than 3 bytes longer warns); a `uri`
    must be a `data:` URI of type `application/octet-stream` or `application/gltf-buffer`,
@@ -226,9 +239,8 @@ file content (clip and extension names), so the processor's messages differ in w
 | `gltf_version` | error | yes | `asset.version` is not "2.0" or `minVersion` is newer |
 | `invalid_structure` | error | new | A top-level property that must be an array is not |
 | `too_complex` | error | yes | A complexity limit is exceeded (including more than `max_json_elements` JSON elements, path `json`), or too many mesh instances to measure bounds |
-| `needs_decoder` | error | yes | Draco, meshopt or BasisU |
-| `unsupported_extension` | error | yes | A required extension the game does not support |
-| `unknown_extension` | warning | yes | A used extension the game ignores |
+| `needs_decoder` | error | yes | Draco, Meshopt (EXT or KHR) or BasisU, used or required |
+| `unsupported_extension` | error | yes | Any extension the game does not support or that is not in the policy table, used or required (WebP, AVIF, GPU instancing, vendor extensions) |
 | `invalid_buffer` | error | yes | Malformed buffer, bad media type or base64 |
 | `missing_buffer` | error | yes | A buffer with no data |
 | `buffer_bounds` | error | yes | A buffer, view, accessor or sparse range runs past its container |

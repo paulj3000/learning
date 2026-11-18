@@ -90,12 +90,40 @@ def validate_image(stream: IO[bytes], *, size: int, file_format: str) -> Validat
         width, height = checker(result, stream, size)
         _check_dimensions(result, width, height)
         result.metadata = {"width": width, "height": height}
+        _warn_embedded_metadata(result, stream, size)
     except _Stop:
         if not result.errors:  # pragma: no cover - every stop records why
             result.error("unreadable", "The file could not be read as an image.")
     finally:
         stream.seek(0)
     return result
+
+
+def _warn_embedded_metadata(result: ValidationResult, stream: IO[bytes], size: int) -> None:
+    """Warn, never block, when an image carries EXIF, GPS or XMP data (LAI-LAMBDA-013, A1).
+
+    Published bytes reach the game unchanged, so a phone photo would deliver its location. The
+    scan is bounded, reads no pixels and records presence only, never a value. A failure of the
+    scan itself must not affect validation.
+    """
+    try:
+        from lai_processing.processors.image.metadata import scan_image_metadata
+
+        facts = scan_image_metadata(lambda offset, length: _read(stream, offset, length), size)
+    except Exception:  # noqa: BLE001 - advisory only
+        return
+    if facts.location_possible:
+        result.warn(
+            "image_location_present",
+            "The image may contain location (GPS) data. It is delivered to the game unchanged. "
+            "Remove the metadata and export again.",
+        )
+    if facts.exif_present or facts.xmp_present or facts.iptc_present or facts.text_present:
+        result.warn(
+            "image_metadata_present",
+            "The image contains embedded metadata (EXIF, XMP, IPTC or text). It is delivered "
+            "unchanged.",
+        )
 
 
 def _check_dimensions(result: ValidationResult, width: int, height: int) -> None:
