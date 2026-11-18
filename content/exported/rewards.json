@@ -23,6 +23,33 @@
         "journal-volcanic-minerals",
         "journal-heart-crystal"
       ]
+    },
+    {
+      "completionItemId": "fh-badge-crystal-collector",
+      "completionMessage": "All four elemental crystals are yours!",
+      "displayName": "Elemental Crystals",
+      "id": "fh-set-elemental-crystals",
+      "itemIds": [
+        "fh-crystal-forest",
+        "fh-crystal-magma",
+        "fh-crystal-cavern",
+        "fh-crystal-forge"
+      ]
+    },
+    {
+      "completionItemId": "fh-badge-master-explorer",
+      "completionMessage": "You found every ember shard on Firepeak!",
+      "displayName": "Ember Shards",
+      "id": "fh-set-ember-shards",
+      "itemIds": [
+        "fh-shard-item-landing",
+        "fh-shard-item-emberwood",
+        "fh-shard-item-lava",
+        "fh-shard-item-caverns",
+        "fh-shard-item-forge",
+        "fh-shard-item-summit",
+        "fh-shard-item-heart"
+      ]
     }
   ],
   "items": [
@@ -319,6 +346,204 @@
       },
       "rarity": "COMMON",
       "setId": "firepeak-discovery-journal"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A green crystal from Emberwood Forest. It glows softly with island magic.",
+      "displayName": "Forest Crystal",
+      "id": "fh-crystal-forest",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-elemental-crystals"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A red crystal from the Lava Crossing. It stays warm, thanks to island magic.",
+      "displayName": "Magma Crystal",
+      "id": "fh-crystal-magma",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-elemental-crystals"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A blue crystal from the Crystal Caverns. It twinkles in the dark.",
+      "displayName": "Cavern Crystal",
+      "id": "fh-crystal-cavern",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-elemental-crystals"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A golden crystal from the Ancient Forge. It hums like a tiny machine.",
+      "displayName": "Forge Crystal",
+      "id": "fh-crystal-forge",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-elemental-crystals"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little glowing shard you found at Explorer’s Landing.",
+      "displayName": "Ember Shard: Landing",
+      "id": "fh-shard-item-landing",
+      "rarity": "COMMON",
+      "setId": "fh-set-ember-shards"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little glowing shard you found at Emberwood Forest.",
+      "displayName": "Ember Shard: Emberwood",
+      "hidden": true,
+      "id": "fh-shard-item-emberwood",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-ember-shards"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little glowing shard you found at the Lava Crossing.",
+      "displayName": "Ember Shard: Lava Jumper",
+      "hidden": true,
+      "id": "fh-shard-item-lava",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-ember-shards"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little glowing shard you found at the Crystal Caverns.",
+      "displayName": "Ember Shard: Caverns",
+      "hidden": true,
+      "id": "fh-shard-item-caverns",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-ember-shards"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little glowing shard you found at the Ancient Forge.",
+      "displayName": "Ember Shard: Forge",
+      "id": "fh-shard-item-forge",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-ember-shards"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little glowing shard you found at Firepeak Summit.",
+      "displayName": "Ember Shard: Summit",
+      "id": "fh-shard-item-summit",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-ember-shards"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little glowing shard you found at the Heart Chamber.",
+      "displayName": "Ember Shard: Heart",
+      "id": "fh-shard-item-heart",
+      "rarity": "UNCOMMON",
+      "setId": "fh-set-ember-shards"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For reading the map and starting the journey.",
+      "displayName": "First Steps into Firepeak",
+      "id": "fh-badge-first-steps",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For finding the way through Emberwood Forest.",
+      "displayName": "Emberwood Explorer",
+      "id": "fh-badge-emberwood-explorer",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For finding the shard at the end of the stepping stones.",
+      "displayName": "Lava Jumper",
+      "id": "fh-badge-lava-jumper",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For gathering all four elemental crystals.",
+      "displayName": "Crystal Collector",
+      "id": "fh-badge-crystal-collector",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For waking the old machines of the Ancient Forge.",
+      "displayName": "Master of the Forge",
+      "id": "fh-badge-forge-master",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For learning how real volcanoes, rocks and islands work.",
+      "displayName": "Volcano Scientist",
+      "id": "fh-badge-volcano-scientist",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For reaching the top of Firepeak.",
+      "displayName": "Summit Explorer",
+      "id": "fh-badge-summit-explorer",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For lighting the Heart of Firepeak again.",
+      "displayName": "Heart of Firepeak",
+      "id": "fh-badge-heart-of-firepeak",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For finding every ember shard on the mountain.",
+      "displayName": "Firepeak Master Explorer",
+      "id": "fh-badge-master-explorer",
+      "rarity": "RARE"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "Magma is hot melted rock underground. When it comes out of a volcano, it is called lava.",
+      "displayName": "Magma and lava",
+      "id": "fh-journal-magma",
+      "journal": {
+        "questId": "the-heart-of-firepeak",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "Basalt, pumice and obsidian are igneous rocks. They form when lava cools.",
+      "displayName": "Volcanic rocks",
+      "id": "fh-journal-rocks",
+      "journal": {
+        "questId": "the-heart-of-firepeak",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A volcano grows when lava and ash from eruptions pile up in layers and harden.",
+      "displayName": "Volcano layers",
+      "id": "fh-journal-volcano-layers",
+      "journal": {
+        "questId": "the-heart-of-firepeak",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "Some islands, like Hawaii, grew as eruptions built up layers of rock until the volcano rose above the sea.",
+      "displayName": "How volcano islands form",
+      "id": "fh-journal-island",
+      "journal": {
+        "questId": "the-heart-of-firepeak",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON"
     }
   ],
   "rewardRules": [
@@ -658,6 +883,168 @@
       "message": "You earned the Volcano Explorer Badge!",
       "trigger": {
         "changeKey": "FIREPEAK_REPORTED_TO_EMBER",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-first-steps",
+      "itemIds": [
+        "fh-badge-first-steps"
+      ],
+      "message": "You earned First Steps into Firepeak!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_MAP_READ",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-emberwood",
+      "itemIds": [
+        "fh-crystal-forest",
+        "fh-badge-emberwood-explorer"
+      ],
+      "message": "You earned the Forest Crystal and the Emberwood Explorer badge!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_EMBERWOOD_DONE",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-lava",
+      "itemIds": [
+        "fh-crystal-magma"
+      ],
+      "message": "You earned the Magma Crystal!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_LAVA_CROSSED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-caverns",
+      "itemIds": [
+        "fh-crystal-cavern",
+        "fh-journal-rocks"
+      ],
+      "message": "You earned the Cavern Crystal and a new page for your journal about volcanic rocks!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_CAVERN_LIT",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-forge",
+      "itemIds": [
+        "fh-crystal-forge",
+        "fh-badge-forge-master"
+      ],
+      "message": "You earned the Forge Crystal and the Master of the Forge badge!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_FORGE_RESTORED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-scientist",
+      "itemIds": [
+        "fh-badge-volcano-scientist",
+        "fh-journal-magma",
+        "fh-journal-volcano-layers",
+        "fh-journal-island"
+      ],
+      "message": "You earned the Volcano Scientist badge and three new journal pages!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_SUMMIT_REACHED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-heart",
+      "itemIds": [
+        "fh-badge-heart-of-firepeak"
+      ],
+      "message": "You earned the Heart of Firepeak badge!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_CELEBRATED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-shard-landing",
+      "itemIds": [
+        "fh-shard-item-landing"
+      ],
+      "message": "You found the Landing ember shard!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_SHARD_LANDING",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-shard-emberwood",
+      "itemIds": [
+        "fh-shard-item-emberwood"
+      ],
+      "message": "You found the Emberwood ember shard!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_SHARD_EMBERWOOD",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-shard-lava",
+      "itemIds": [
+        "fh-shard-item-lava",
+        "fh-badge-lava-jumper"
+      ],
+      "message": "You found the Lava Jumper shard and earned the Lava Jumper badge!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_SHARD_LAVA",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-shard-caverns",
+      "itemIds": [
+        "fh-shard-item-caverns"
+      ],
+      "message": "You found the Caverns ember shard!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_SHARD_CAVERNS",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-shard-forge",
+      "itemIds": [
+        "fh-shard-item-forge"
+      ],
+      "message": "You found the Forge ember shard!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_SHARD_FORGE",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-shard-summit",
+      "itemIds": [
+        "fh-shard-item-summit",
+        "fh-badge-summit-explorer"
+      ],
+      "message": "You found the Summit shard and earned the Summit Explorer badge!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_SHARD_SUMMIT",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "fh-rule-shard-heart",
+      "itemIds": [
+        "fh-shard-item-heart"
+      ],
+      "message": "You found the Heart ember shard!",
+      "trigger": {
+        "changeKey": "FIREPEAK_HEART_SHARD_HEART",
         "type": "WORLD_CHANGE"
       }
     }

@@ -155,6 +155,25 @@
       "tagline": "Explore a waking volcano with Professor Ember.",
       "title": "Firepeak Volcano",
       "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "Warm light flickers inside the mountain. Flint waits at Explorer’s Landing with a map.",
+      "description": "The Heart of Firepeak is a crystal of island magic that keeps the mountain calm, and it has gone dim. Cross seven places with Flint and Kindle, solve number, pattern and logic puzzles, learn real volcano science from Professor Basalt, and light the Heart again.",
+      "skills": [
+        "Earth science",
+        "Number sense",
+        "Patterns and sequences",
+        "Shapes",
+        "Logic and problem solving"
+      ],
+      "slug": "firepeak-heart",
+      "subjectAreas": [
+        "SCIENCE",
+        "MATH"
+      ],
+      "tagline": "Bring the glow back to the heart of the mountain.",
+      "title": "Heart of Firepeak",
+      "worldSlug": "learning-adventure-island"
     }
   ],
   "schemaVersion": 3

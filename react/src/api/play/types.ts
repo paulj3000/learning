@@ -82,7 +82,13 @@ export interface DialogueNodeView {
 }
 
 export type PuzzleKind =
-  'OBSERVE_FEATURES' | 'PLACE_PLATFORMS' | 'VALVE_SEQUENCE' | 'COLLECT_OBJECT' | 'RETURN_TO_NPC';
+  | 'OBSERVE_FEATURES'
+  | 'PLACE_PLATFORMS'
+  | 'VALVE_SEQUENCE'
+  | 'COLLECT_OBJECT'
+  | 'RETURN_TO_NPC'
+  | 'CHOOSE_ANSWER'
+  | 'ORDER_SEQUENCE';
 
 /**
  * A 3D Area puzzle for this child's age band (ADR-047 F, LAI-0812). `parameters` is the kind's
@@ -344,6 +350,11 @@ export interface PuzzleOutcome {
   solvedNow: boolean;
   /** It was already solved; nothing new was recorded or granted. */
   alreadySolved: boolean;
+  /**
+   * An already solved CHOOSE_ANSWER or ORDER_SEQUENCE puzzle was graded for practice: nothing was
+   * recorded or granted (FPV-D6). Absent from older servers, so it reads as false.
+   */
+  practice: boolean;
   failedAttempts: number;
   newItems: ItemView[];
   rewardMessage: string | null;

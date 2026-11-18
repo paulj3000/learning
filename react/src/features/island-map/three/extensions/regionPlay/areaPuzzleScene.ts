@@ -2,10 +2,13 @@ import {
   AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
+  CanvasTexture,
   Mesh,
   MeshStandardMaterial,
   Points,
   PointsMaterial,
+  Sprite,
+  SpriteMaterial,
   Vector3,
   type Object3D,
 } from 'three';
@@ -39,12 +42,32 @@ export interface ArrangementView {
   outlines: boolean;
 }
 
+/**
+ * What CHOOSE_ANSWER and ORDER_SEQUENCE show on their scene objects (FPV). Keyed by puzzle id, so
+ * many such puzzles can stand in one area. The engine only draws: the answer is never judged here.
+ */
+export interface ChoiceSceneView {
+  /** Scene entity id -> the floating label above it (option label with its symbol). */
+  labels: Readonly<Record<string, string>>;
+  /** Entities the child chose, or has added to the sequence (glow). */
+  highlighted: readonly string[];
+  /** Entities shown as right once the server agreed (stronger glow). */
+  correct: readonly string[];
+}
+
 export interface AreaPuzzleApi {
   showArrangement(view: ArrangementView): void;
   showValveTurns(valveEntityIds: readonly string[]): void;
   /** Plays the discovery animation, then hides the entity. Resolves when it ends. */
   discover(entityId: string): Promise<void>;
   setVisible(entityId: string, visible: boolean): void;
+  /**
+   * Glows the chosen and right entities of one multi-instance puzzle and floats a label above
+   * each mapped entity. Optional so scenes and test doubles built before it keep working.
+   */
+  showChoices?(puzzleId: string, view: ChoiceSceneView): void;
+  /** Removes the labels and glow `showChoices` drew for this puzzle. */
+  clearChoices?(puzzleId: string): void;
 }
 
 const UNIT = 0.8; // metres per size unit, along the crossing
@@ -82,6 +105,50 @@ export function mountAreaPuzzles(
       const material = (child as Mesh).material;
       if (material instanceof MeshStandardMaterial) material.emissiveIntensity = intensity;
     });
+  };
+
+  // Floating labels, per puzzle id then entity id, so puzzles never disturb each other.
+  const labels = new Map<string, Map<string, Sprite | null>>();
+  const labelSprite = (text: string): Sprite | null => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const g = canvas.getContext('2d');
+    if (!g) return null;
+    g.fillStyle = 'rgba(30, 20, 30, 0.82)';
+    g.fillRect(0, 0, 512, 128);
+    g.strokeStyle = '#ffd36b';
+    g.lineWidth = 6;
+    g.strokeRect(3, 3, 506, 122);
+    g.fillStyle = '#ffffff';
+    g.font = 'bold 56px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, 256, 66, 488);
+    const material = new SpriteMaterial({
+      map: new CanvasTexture(canvas),
+      transparent: true,
+      depthTest: false,
+    });
+    owned.materials.push(material);
+    const sprite = new Sprite(material);
+    sprite.scale.set(1.6, 0.4, 1);
+    sprite.position.y = 1.8;
+    sprite.renderOrder = 10;
+    return sprite;
+  };
+  const dropLabels = (puzzleId: string) => {
+    for (const [entityId, sprite] of labels.get(puzzleId) ?? []) {
+      if (sprite) {
+        sprite.parent?.remove(sprite);
+        sprite.material.map?.dispose();
+        sprite.material.dispose();
+      }
+      const root = rootOf(entityId);
+      if (root) glow(root, 0);
+    }
+    labels.delete(puzzleId);
   };
 
   const forward = new Vector3();
@@ -228,12 +295,30 @@ export function mountAreaPuzzles(
       root.visible = visible;
       context.setFocusable(entityId, visible);
     },
+    showChoices(puzzleId, view) {
+      dropLabels(puzzleId);
+      const sprites = new Map<string, Sprite | null>();
+      for (const [entityId, text] of Object.entries(view.labels)) {
+        const root = rootOf(entityId);
+        if (!root) continue;
+        const sprite = labelSprite(text);
+        if (sprite) root.add(sprite);
+        sprites.set(entityId, sprite);
+        const right = view.correct.includes(entityId);
+        glow(root, right ? 2 : view.highlighted.includes(entityId) ? 1.3 : 0.15);
+      }
+      labels.set(puzzleId, sprites);
+    },
+    clearChoices(puzzleId) {
+      dropLabels(puzzleId);
+    },
   };
 
   return {
     api,
     dispose() {
       stopFrames();
+      for (const puzzleId of [...labels.keys()]) dropLabels(puzzleId);
       for (const animation of animations) {
         if (animation.sparkles) context.scene.remove(animation.sparkles);
         animation.resolve();

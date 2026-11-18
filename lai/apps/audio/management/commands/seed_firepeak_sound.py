@@ -33,8 +33,8 @@ from apps.regions.models import WorldRegion
 #: (yet) a real row.
 FIREPEAK_ASSIGNMENTS: tuple[tuple[str, str, str, str, str], ...] = (
     ("scope", "", "on_enter", "music.firepeak.realm", "Firepeak music state"),
-    ("quest", "heart-of-firepeak", "on_complete", "sfx.firepeak.complete", "Adventure complete"),
-    ("quest", "heart-of-firepeak", "on_complete", "music.firepeak.finale", "Finale music"),
+    ("quest", "the-heart-of-firepeak", "on_complete", "sfx.firepeak.complete", "Adventure complete"),
+    ("quest", "the-heart-of-firepeak", "on_complete", "music.firepeak.finale", "Finale music"),
 )
 
 

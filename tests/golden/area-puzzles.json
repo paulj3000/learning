@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "suite": "area-puzzles",
-  "description": "Puzzle rules the client simulates and the server grades: observe every feature, match each gap to a stone of its size, and move steam along valves to the goal. Also: pick the right option, and put items in the right order.",
+  "description": "Puzzle rules the client simulates and the server grades: observe every feature, match each gap to a stone of its size, and move steam along valves to the goal.",
   "sources": [
     "react/src/features/region-play/areaPuzzles.ts",
     "lai/apps/regions/puzzles.py"
@@ -9,7 +9,7 @@
   "notes": [
     "simulateValves: a valve whose channel has no steam does nothing, so extra turns are harmless.",
     "platformsSolved: an unknown slot or stone id is an invalid submission (throws).",
-    "chooseAnswerSolved / orderSequenceSolved: an unknown variant, an unknown choice, or an order that is not a permutation of the variant's items is an invalid submission (throws)."
+    "chooseAnswerCorrect and orderSequenceCorrect take the variants and a submission {variantId, choice} or {variantId, order}; an unknown variant, option or item, or an order that is not a permutation of the variant items, is an invalid submission (throws)."
   ],
   "functions": {
     "observeSolved": {
@@ -590,271 +590,294 @@
         }
       ]
     },
-    "chooseAnswerSolved": {
-      "python": "choose_answer_solved",
+    "chooseAnswerCorrect": {
+      "python": "choose_answer_correct",
       "args": [
         "variants",
-        "variantId",
-        "choice"
+        "submission"
       ],
       "cases": [
         {
-          "name": "right choice",
+          "name": "the answer",
           "input": {
             "variants": [
               {
                 "id": "v1",
-                "prompt": "2 + 3 = ?",
+                "prompt": "Which stone is the biggest?",
                 "options": [
                   {
                     "id": "a",
-                    "label": "4",
+                    "label": "Small",
                     "symbol": "circle"
                   },
                   {
                     "id": "b",
-                    "label": "5",
+                    "label": "Big",
                     "symbol": "square"
                   },
                   {
                     "id": "c",
-                    "label": "6"
+                    "label": "Middle",
+                    "symbol": null
                   }
                 ],
                 "answer": "b",
-                "explanation": "2 and 3 make 5."
+                "explanation": "The big stone is the biggest one."
               },
               {
                 "id": "v2",
-                "prompt": "Which is hot?",
+                "prompt": "What is 3 + 4?",
                 "options": [
                   {
                     "id": "a",
-                    "label": "Lava"
+                    "label": "6",
+                    "symbol": "star"
                   },
                   {
                     "id": "b",
-                    "label": "Ice"
+                    "label": "7",
+                    "symbol": "moon"
                   }
                 ],
-                "answer": "a",
-                "explanation": "Lava is very hot."
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
               }
             ],
-            "variantId": "v1",
-            "choice": "b"
+            "submission": {
+              "variantId": "v1",
+              "choice": "b"
+            }
           },
           "expected": true
         },
         {
-          "name": "right choice, other variant",
+          "name": "a wrong option",
           "input": {
             "variants": [
               {
                 "id": "v1",
-                "prompt": "2 + 3 = ?",
+                "prompt": "Which stone is the biggest?",
                 "options": [
                   {
                     "id": "a",
-                    "label": "4",
+                    "label": "Small",
                     "symbol": "circle"
                   },
                   {
                     "id": "b",
-                    "label": "5",
+                    "label": "Big",
                     "symbol": "square"
                   },
                   {
                     "id": "c",
-                    "label": "6"
+                    "label": "Middle",
+                    "symbol": null
                   }
                 ],
                 "answer": "b",
-                "explanation": "2 and 3 make 5."
+                "explanation": "The big stone is the biggest one."
               },
               {
                 "id": "v2",
-                "prompt": "Which is hot?",
+                "prompt": "What is 3 + 4?",
                 "options": [
                   {
                     "id": "a",
-                    "label": "Lava"
+                    "label": "6",
+                    "symbol": "star"
                   },
                   {
                     "id": "b",
-                    "label": "Ice"
-                  }
-                ],
-                "answer": "a",
-                "explanation": "Lava is very hot."
-              }
-            ],
-            "variantId": "v2",
-            "choice": "a"
-          },
-          "expected": true
-        },
-        {
-          "name": "wrong choice",
-          "input": {
-            "variants": [
-              {
-                "id": "v1",
-                "prompt": "2 + 3 = ?",
-                "options": [
-                  {
-                    "id": "a",
-                    "label": "4",
-                    "symbol": "circle"
-                  },
-                  {
-                    "id": "b",
-                    "label": "5",
-                    "symbol": "square"
-                  },
-                  {
-                    "id": "c",
-                    "label": "6"
+                    "label": "7",
+                    "symbol": "moon"
                   }
                 ],
                 "answer": "b",
-                "explanation": "2 and 3 make 5."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which is hot?",
-                "options": [
-                  {
-                    "id": "a",
-                    "label": "Lava"
-                  },
-                  {
-                    "id": "b",
-                    "label": "Ice"
-                  }
-                ],
-                "answer": "a",
-                "explanation": "Lava is very hot."
+                "explanation": "3 and 4 make 7."
               }
             ],
-            "variantId": "v1",
-            "choice": "a"
+            "submission": {
+              "variantId": "v1",
+              "choice": "a"
+            }
           },
           "expected": false
         },
         {
-          "name": "unknown variant",
+          "name": "the second variant",
           "input": {
             "variants": [
               {
                 "id": "v1",
-                "prompt": "2 + 3 = ?",
+                "prompt": "Which stone is the biggest?",
                 "options": [
                   {
                     "id": "a",
-                    "label": "4",
+                    "label": "Small",
                     "symbol": "circle"
                   },
                   {
                     "id": "b",
-                    "label": "5",
+                    "label": "Big",
                     "symbol": "square"
                   },
                   {
                     "id": "c",
-                    "label": "6"
+                    "label": "Middle",
+                    "symbol": null
                   }
                 ],
                 "answer": "b",
-                "explanation": "2 and 3 make 5."
+                "explanation": "The big stone is the biggest one."
               },
               {
                 "id": "v2",
-                "prompt": "Which is hot?",
+                "prompt": "What is 3 + 4?",
                 "options": [
                   {
                     "id": "a",
-                    "label": "Lava"
+                    "label": "6",
+                    "symbol": "star"
                   },
                   {
                     "id": "b",
-                    "label": "Ice"
+                    "label": "7",
+                    "symbol": "moon"
                   }
                 ],
-                "answer": "a",
-                "explanation": "Lava is very hot."
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
               }
             ],
-            "variantId": "nope",
-            "choice": "a"
+            "submission": {
+              "variantId": "v2",
+              "choice": "b"
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "an option of another variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Which stone is the biggest?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Small",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Big",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Middle",
+                    "symbol": null
+                  }
+                ],
+                "answer": "b",
+                "explanation": "The big stone is the biggest one."
+              },
+              {
+                "id": "v2",
+                "prompt": "What is 3 + 4?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "6",
+                    "symbol": "star"
+                  },
+                  {
+                    "id": "b",
+                    "label": "7",
+                    "symbol": "moon"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
+              }
+            ],
+            "submission": {
+              "variantId": "v2",
+              "choice": "c"
+            }
           },
           "throws": true
         },
         {
-          "name": "unknown choice",
+          "name": "an unknown variant",
           "input": {
             "variants": [
               {
                 "id": "v1",
-                "prompt": "2 + 3 = ?",
+                "prompt": "Which stone is the biggest?",
                 "options": [
                   {
                     "id": "a",
-                    "label": "4",
+                    "label": "Small",
                     "symbol": "circle"
                   },
                   {
                     "id": "b",
-                    "label": "5",
+                    "label": "Big",
                     "symbol": "square"
                   },
                   {
                     "id": "c",
-                    "label": "6"
+                    "label": "Middle",
+                    "symbol": null
                   }
                 ],
                 "answer": "b",
-                "explanation": "2 and 3 make 5."
+                "explanation": "The big stone is the biggest one."
               },
               {
                 "id": "v2",
-                "prompt": "Which is hot?",
+                "prompt": "What is 3 + 4?",
                 "options": [
                   {
                     "id": "a",
-                    "label": "Lava"
+                    "label": "6",
+                    "symbol": "star"
                   },
                   {
                     "id": "b",
-                    "label": "Ice"
+                    "label": "7",
+                    "symbol": "moon"
                   }
                 ],
-                "answer": "a",
-                "explanation": "Lava is very hot."
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
               }
             ],
-            "variantId": "v2",
-            "choice": "c"
+            "submission": {
+              "variantId": "v9",
+              "choice": "a"
+            }
           },
           "throws": true
         }
       ]
     },
-    "orderSequenceSolved": {
-      "python": "order_sequence_solved",
+    "orderSequenceCorrect": {
+      "python": "order_sequence_correct",
       "args": [
         "variants",
-        "variantId",
-        "order"
+        "submission"
       ],
       "cases": [
         {
-          "name": "right order",
+          "name": "the answer",
           "input": {
             "variants": [
               {
                 "id": "v1",
-                "prompt": "Light the switches in order.",
+                "prompt": "Press the switches from coolest to hottest.",
                 "items": [
                   {
                     "id": "red",
@@ -863,56 +886,41 @@
                   },
                   {
                     "id": "blue",
-                    "label": "Water switch"
+                    "label": "Water switch",
+                    "symbol": "circle"
                   },
                   {
                     "id": "gold",
-                    "label": "Sun switch"
+                    "label": "Sun switch",
+                    "symbol": "star"
                   }
                 ],
                 "answer": [
-                  "red",
                   "blue",
-                  "gold"
+                  "gold",
+                  "red"
                 ],
-                "explanation": "Fire, then water, then sun."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which comes first?",
-                "items": [
-                  {
-                    "id": "seed",
-                    "label": "Seed"
-                  },
-                  {
-                    "id": "tree",
-                    "label": "Tree"
-                  }
-                ],
-                "answer": [
-                  "seed",
-                  "tree"
-                ],
-                "explanation": "A seed grows into a tree."
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
               }
             ],
-            "variantId": "v1",
-            "order": [
-              "red",
-              "blue",
-              "gold"
-            ]
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "blue",
+                "gold",
+                "red"
+              ]
+            }
           },
           "expected": true
         },
         {
-          "name": "right order, other variant",
+          "name": "a different order",
           "input": {
             "variants": [
               {
                 "id": "v1",
-                "prompt": "Light the switches in order.",
+                "prompt": "Press the switches from coolest to hottest.",
                 "items": [
                   {
                     "id": "red",
@@ -921,219 +929,33 @@
                   },
                   {
                     "id": "blue",
-                    "label": "Water switch"
+                    "label": "Water switch",
+                    "symbol": "circle"
                   },
                   {
                     "id": "gold",
-                    "label": "Sun switch"
+                    "label": "Sun switch",
+                    "symbol": "star"
                   }
                 ],
                 "answer": [
-                  "red",
                   "blue",
-                  "gold"
+                  "gold",
+                  "red"
                 ],
-                "explanation": "Fire, then water, then sun."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which comes first?",
-                "items": [
-                  {
-                    "id": "seed",
-                    "label": "Seed"
-                  },
-                  {
-                    "id": "tree",
-                    "label": "Tree"
-                  }
-                ],
-                "answer": [
-                  "seed",
-                  "tree"
-                ],
-                "explanation": "A seed grows into a tree."
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
               }
             ],
-            "variantId": "v2",
-            "order": [
-              "seed",
-              "tree"
-            ]
-          },
-          "expected": true
-        },
-        {
-          "name": "wrong order",
-          "input": {
-            "variants": [
-              {
-                "id": "v1",
-                "prompt": "Light the switches in order.",
-                "items": [
-                  {
-                    "id": "red",
-                    "label": "Fire switch",
-                    "symbol": "triangle"
-                  },
-                  {
-                    "id": "blue",
-                    "label": "Water switch"
-                  },
-                  {
-                    "id": "gold",
-                    "label": "Sun switch"
-                  }
-                ],
-                "answer": [
-                  "red",
-                  "blue",
-                  "gold"
-                ],
-                "explanation": "Fire, then water, then sun."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which comes first?",
-                "items": [
-                  {
-                    "id": "seed",
-                    "label": "Seed"
-                  },
-                  {
-                    "id": "tree",
-                    "label": "Tree"
-                  }
-                ],
-                "answer": [
-                  "seed",
-                  "tree"
-                ],
-                "explanation": "A seed grows into a tree."
-              }
-            ],
-            "variantId": "v1",
-            "order": [
-              "blue",
-              "red",
-              "gold"
-            ]
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "red",
+                "gold",
+                "blue"
+              ]
+            }
           },
           "expected": false
-        },
-        {
-          "name": "reversed",
-          "input": {
-            "variants": [
-              {
-                "id": "v1",
-                "prompt": "Light the switches in order.",
-                "items": [
-                  {
-                    "id": "red",
-                    "label": "Fire switch",
-                    "symbol": "triangle"
-                  },
-                  {
-                    "id": "blue",
-                    "label": "Water switch"
-                  },
-                  {
-                    "id": "gold",
-                    "label": "Sun switch"
-                  }
-                ],
-                "answer": [
-                  "red",
-                  "blue",
-                  "gold"
-                ],
-                "explanation": "Fire, then water, then sun."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which comes first?",
-                "items": [
-                  {
-                    "id": "seed",
-                    "label": "Seed"
-                  },
-                  {
-                    "id": "tree",
-                    "label": "Tree"
-                  }
-                ],
-                "answer": [
-                  "seed",
-                  "tree"
-                ],
-                "explanation": "A seed grows into a tree."
-              }
-            ],
-            "variantId": "v2",
-            "order": [
-              "tree",
-              "seed"
-            ]
-          },
-          "expected": false
-        },
-        {
-          "name": "unknown variant",
-          "input": {
-            "variants": [
-              {
-                "id": "v1",
-                "prompt": "Light the switches in order.",
-                "items": [
-                  {
-                    "id": "red",
-                    "label": "Fire switch",
-                    "symbol": "triangle"
-                  },
-                  {
-                    "id": "blue",
-                    "label": "Water switch"
-                  },
-                  {
-                    "id": "gold",
-                    "label": "Sun switch"
-                  }
-                ],
-                "answer": [
-                  "red",
-                  "blue",
-                  "gold"
-                ],
-                "explanation": "Fire, then water, then sun."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which comes first?",
-                "items": [
-                  {
-                    "id": "seed",
-                    "label": "Seed"
-                  },
-                  {
-                    "id": "tree",
-                    "label": "Tree"
-                  }
-                ],
-                "answer": [
-                  "seed",
-                  "tree"
-                ],
-                "explanation": "A seed grows into a tree."
-              }
-            ],
-            "variantId": "nope",
-            "order": [
-              "seed",
-              "tree"
-            ]
-          },
-          "throws": true
         },
         {
           "name": "an item missing",
@@ -1141,7 +963,7 @@
             "variants": [
               {
                 "id": "v1",
-                "prompt": "Light the switches in order.",
+                "prompt": "Press the switches from coolest to hottest.",
                 "items": [
                   {
                     "id": "red",
@@ -1150,55 +972,40 @@
                   },
                   {
                     "id": "blue",
-                    "label": "Water switch"
+                    "label": "Water switch",
+                    "symbol": "circle"
                   },
                   {
                     "id": "gold",
-                    "label": "Sun switch"
+                    "label": "Sun switch",
+                    "symbol": "star"
                   }
                 ],
                 "answer": [
-                  "red",
                   "blue",
-                  "gold"
+                  "gold",
+                  "red"
                 ],
-                "explanation": "Fire, then water, then sun."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which comes first?",
-                "items": [
-                  {
-                    "id": "seed",
-                    "label": "Seed"
-                  },
-                  {
-                    "id": "tree",
-                    "label": "Tree"
-                  }
-                ],
-                "answer": [
-                  "seed",
-                  "tree"
-                ],
-                "explanation": "A seed grows into a tree."
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
               }
             ],
-            "variantId": "v1",
-            "order": [
-              "red",
-              "blue"
-            ]
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "blue",
+                "gold"
+              ]
+            }
           },
           "throws": true
         },
         {
-          "name": "an item repeated",
+          "name": "an item twice",
           "input": {
             "variants": [
               {
                 "id": "v1",
-                "prompt": "Light the switches in order.",
+                "prompt": "Press the switches from coolest to hottest.",
                 "items": [
                   {
                     "id": "red",
@@ -1207,46 +1014,31 @@
                   },
                   {
                     "id": "blue",
-                    "label": "Water switch"
+                    "label": "Water switch",
+                    "symbol": "circle"
                   },
                   {
                     "id": "gold",
-                    "label": "Sun switch"
+                    "label": "Sun switch",
+                    "symbol": "star"
                   }
                 ],
                 "answer": [
-                  "red",
                   "blue",
-                  "gold"
+                  "gold",
+                  "red"
                 ],
-                "explanation": "Fire, then water, then sun."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which comes first?",
-                "items": [
-                  {
-                    "id": "seed",
-                    "label": "Seed"
-                  },
-                  {
-                    "id": "tree",
-                    "label": "Tree"
-                  }
-                ],
-                "answer": [
-                  "seed",
-                  "tree"
-                ],
-                "explanation": "A seed grows into a tree."
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
               }
             ],
-            "variantId": "v1",
-            "order": [
-              "red",
-              "red",
-              "gold"
-            ]
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "blue",
+                "blue",
+                "red"
+              ]
+            }
           },
           "throws": true
         },
@@ -1256,7 +1048,7 @@
             "variants": [
               {
                 "id": "v1",
-                "prompt": "Light the switches in order.",
+                "prompt": "Press the switches from coolest to hottest.",
                 "items": [
                   {
                     "id": "red",
@@ -1265,46 +1057,74 @@
                   },
                   {
                     "id": "blue",
-                    "label": "Water switch"
+                    "label": "Water switch",
+                    "symbol": "circle"
                   },
                   {
                     "id": "gold",
-                    "label": "Sun switch"
+                    "label": "Sun switch",
+                    "symbol": "star"
                   }
                 ],
                 "answer": [
-                  "red",
                   "blue",
-                  "gold"
+                  "gold",
+                  "red"
                 ],
-                "explanation": "Fire, then water, then sun."
-              },
-              {
-                "id": "v2",
-                "prompt": "Which comes first?",
-                "items": [
-                  {
-                    "id": "seed",
-                    "label": "Seed"
-                  },
-                  {
-                    "id": "tree",
-                    "label": "Tree"
-                  }
-                ],
-                "answer": [
-                  "seed",
-                  "tree"
-                ],
-                "explanation": "A seed grows into a tree."
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
               }
             ],
-            "variantId": "v1",
-            "order": [
-              "red",
-              "blue",
-              "pink"
-            ]
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "blue",
+                "gold",
+                "purple"
+              ]
+            }
+          },
+          "throws": true
+        },
+        {
+          "name": "an unknown variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Press the switches from coolest to hottest.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch",
+                    "symbol": "star"
+                  }
+                ],
+                "answer": [
+                  "blue",
+                  "gold",
+                  "red"
+                ],
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
+              }
+            ],
+            "submission": {
+              "variantId": "v9",
+              "order": [
+                "blue",
+                "gold",
+                "red"
+              ]
+            }
           },
           "throws": true
         }

@@ -19,11 +19,13 @@ delivered by NP-023 and are cross-referenced, not closed.
   - `fp/engine` (Django colliders keep `minY/maxY/jumpable`; stand-in shapes TREE, LOG, GEAR,
     SWITCH, ROCK, ARCH; reduced-motion respawn flash),
   - `fp/audio` (region-keyed audio registry `regionAudio.ts`).
-- **Open dependency:** the React panels for CHOOSE_ANSWER / ORDER_SEQUENCE are Firepeak's
-  `fp/puzzle-ui` workstream, not committed when this was written. North Pole consumes them; it
-  never builds a second puzzle UI. Until they land, North Pole's choice puzzles are server-complete
-  but not answerable in the browser.
-- Merge order: Treasure Rush branch, then Firepeak shared work, then North Pole.
+- **Stacked on Firepeak (2026-11-18):** the React panels for CHOOSE_ANSWER / ORDER_SEQUENCE
+  (`fp/puzzle-ui`) conflicted with `fp/puzzle-kinds` in `tests/golden/area-puzzles.json`, and the
+  Firepeak coordinator resolved it by regenerating the vectors against their integrated export.
+  North Pole therefore merges `feature/firepeak-volcano-adventure` itself instead of resolving the
+  conflict a second way. North Pole consumes those panels; it never builds a second puzzle UI.
+- Merge order: Treasure Rush branch, then Firepeak, then North Pole. Until Firepeak merges, this
+  branch's diff against `main` also shows Firepeak.
 
 ## 1. Audit summary (NP-001)
 

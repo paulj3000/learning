@@ -1,5 +1,5 @@
 {
-  "contentDigest": "c0a839bd4138bec35999844ad8997ec71cbb291e8bd65ddbaf8c4c35e30784f3",
+  "contentDigest": "fcf2bded2e7c34a215ff94a8dd9a9f64bfcc55099872fb2ce06d398a2286f051",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -10,14 +10,14 @@
         "islands": 2
       },
       "path": "islands.json",
-      "sha256": "e713618bdec5b875c50ee572390b26fd2579dee0a71c55e4cfb3e086aca5695a"
+      "sha256": "8e08f45d8d2d020c94cd799bda0fa8a1dc377efe0801aa1af027cecc73c9cdd7"
     },
     {
       "counts": {
-        "locations": 11
+        "locations": 12
       },
       "path": "locations.json",
-      "sha256": "3a502fe34b8a525878ebb6a89c7e4b478a35d19f09988832d588d0506c6b090d"
+      "sha256": "02f9a9645936a497c7b06d383306e0c7f07fb4a58dd5a329d9da25b275c2f6cc"
     },
     {
       "counts": {
@@ -37,26 +37,26 @@
     },
     {
       "counts": {
-        "quests": 13
+        "quests": 14
       },
       "path": "quests.json",
-      "sha256": "31c92306e6390421747ca34eb5c0a79513010df2bb52a1885327ea21a94e86ae"
+      "sha256": "a05e6528d55411494af8ab8b1b08590d9359ffab7c698a153b72696d2418f15d"
     },
     {
       "counts": {
-        "collectibleSets": 2,
-        "items": 37,
-        "rewardRules": 30
+        "collectibleSets": 4,
+        "items": 61,
+        "rewardRules": 44
       },
       "path": "rewards.json",
-      "sha256": "243608f85c05e94ec206aa21b75fc75b1763c563f06f8a89475d0fe8a3791d3f"
+      "sha256": "bd320ccdf774b193b1c643833faa0d2e63c751f6271ef51c8e62e7151a91026e"
     },
     {
       "counts": {
-        "npcs": 7
+        "npcs": 12
       },
       "path": "npcs.json",
-      "sha256": "1fb2b05269ee575fecfb631ff3bd3de4f27d76b94b83ffbebf0fb049dcaa25a9"
+      "sha256": "2de2e43f06f7479c27983af79b3bd48806a93d6244c37dbdcb80c8d00a1b6600"
     },
     {
       "counts": {
@@ -114,7 +114,12 @@
     {
       "detail": "These NPCs name an interactionId but their home region has no WorldInteraction table (Clockwork Harbor is a 3D-only region that opens conversations by NPC id). The ids are exported as written; no interaction was invented.",
       "ids": [
+        "cinder",
+        "flint",
         "harbor-master",
+        "ignis",
+        "kindle",
+        "professor-basalt",
         "professor-ember",
         "professor-ticktock"
       ],
