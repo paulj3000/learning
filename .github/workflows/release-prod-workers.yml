@@ -2,22 +2,33 @@
 #
 #   workflow_dispatch only (never a push, schedule or pull request)
 #     gate     -> the repository variable LAI_PROD_PROCESSING_DEPLOY_ENABLED is 'true', the run is on
-#                 main, and the typed confirmation matches the action
+#                 main, the typed confirmation matches the action; a rollback also needs the typed
+#                 statement that every processing control is off
 #     ffmpeg-layer-arm64 -> build and test the LGPL FFmpeg layer on a hosted arm64 runner (no AWS)
 #     package  -> build every worker artifact of this commit (scripts/release/build-workers.sh),
-#                 write the release manifest (SHA-256 of every zip and the layer), keep it as the
-#                 immutable run artifact
+#                 write the deterministic release manifest (SHA-256, kinds and processor versions of
+#                 every zip and the layer; created_at is the commit time; --previous from the input)
 #     publish  -> environment django-prod (required reviewers): verify every SHA-256 against the
-#                 manifest, upload create-only (If-None-Match), store the manifest, point each
-#                 function at its zip and check the deployed CodeSha256
+#                 manifest, upload create-only (an identical existing object is accepted, so a
+#                 re-dispatch of the same commit is idempotent), store the manifest, point each
+#                 existing function at its zip (absent, disabled functions are skipped) and check
+#                 the deployed CodeSha256; `upload_only` stops before any function (first release)
 #     rollback -> environment django-prod: read an earlier manifest from S3, verify each artifact,
 #                 point each function back at it
 #
-# The FFmpeg layer is uploaded but never published by this workflow: the function's layer is the
-# stack parameter AudioLayerKey (change set through scripts/aws/provision.sh prod, owner). Django
-# goes first (migrations and consumer support), then this workflow, with every feature control off
-# until `processing_release.py check-enable` passes (the RELEASE sequence). No stored AWS key:
-# OIDC to lai-github-workers-prod, which trusts only the django-prod environment.
+# Ordering is per kind (PROCESSING_RELEASE.md section 2): Django (migrations, result handlers,
+# consumer) normally ships first with the kind's control off; this workflow then ships the worker;
+# the control is switched on only after `processing_release.py check-enable` passes. GLB validator
+# 1.2.0 is the exception that runs the other way round for its options: with LAI_GLB_MESHOPT and
+# LAI_GLB_KTX2 off Django omits allow_meshopt/allow_ktx2, so Django may ship first and an older
+# media worker still accepts every request (verdicts become processor_outdated until it updates),
+# and the 1.2.0 media worker MUST ship (this workflow) before either control is switched on; a
+# newer worker accepts older requests that lack the options. check-enable enforces the minimum.
+#
+# The FFmpeg layer and the executable SHA-256 pins are stack parameters, never published by this
+# workflow: the job prints them for the owner's scripts/aws/provision.sh prod change set. No stored
+# AWS key: OIDC to lai-github-workers-prod (environment django-prod; see ADR-071 O16 on the shared
+# environment subject).
 name: Release PROD processing workers
 
 on:
@@ -36,6 +47,18 @@ on:
         description: 'rollback only: releases/processing/<40-hex sha>.json'
         type: string
         default: ''
+      controls_off:
+        description: 'rollback only. Type exactly: all processing controls are off'
+        type: string
+        default: ''
+      previous_manifest:
+        description: 'release only: the manifest this release follows (releases/processing/<sha>.json), empty for the first'
+        type: string
+        default: ''
+      upload_only:
+        description: 'release only: upload and store, update no function (first release, before the stack creates them)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -61,10 +84,16 @@ jobs:
           ACTION: ${{ inputs.action }}
           CONFIRM: ${{ inputs.confirm }}
           TARGET: ${{ inputs.rollback_manifest }}
+          CONTROLS_OFF: ${{ inputs.controls_off }}
+          PREVIOUS: ${{ inputs.previous_manifest }}
         run: |
           [ "$CONFIRM" = "$ACTION lai-prod workers" ] || { echo "::error::confirmation does not match '$ACTION lai-prod workers'"; exit 1; }
           if [ "$ACTION" = rollback ]; then
             [[ "$TARGET" =~ ^releases/processing/[a-f0-9]{40}\.json$ ]] || { echo "::error::rollback_manifest must be releases/processing/<sha>.json"; exit 1; }
+            [ "$CONTROLS_OFF" = "all processing controls are off" ] || { echo "::error::a rollback needs every processing control off first; type: all processing controls are off"; exit 1; }
+          fi
+          if [ -n "$PREVIOUS" ]; then
+            [[ "$PREVIOUS" =~ ^releases/processing/[a-f0-9]{40}\.json$ ]] || { echo "::error::previous_manifest must be releases/processing/<sha>.json"; exit 1; }
           fi
 
   # The LGPL FFmpeg layer for arm64 (native/ffmpeg/README.md, ARM64 and CI): built natively on a
@@ -151,9 +180,15 @@ jobs:
           scripts/release/build-workers.sh dist/workers
 
       - name: Write the release manifest (SHA-256 of every artifact)
+        env:
+          PREVIOUS: ${{ inputs.previous_manifest }}
         run: |
+          created_at=$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd "$GITHUB_SHA")
+          previous=()
+          [ -z "$PREVIOUS" ] || previous=(--previous "$PREVIOUS")
           python3 -I scripts/release/processing_release.py manifest create --env prod \
-            --git-sha "$GITHUB_SHA" --dist dist/workers --out dist/workers/manifest.json
+            --git-sha "$GITHUB_SHA" --dist dist/workers --out dist/workers/manifest.json \
+            --created-at "$created_at" "${previous[@]}"
           python3 -I scripts/release/processing_release.py manifest verify dist/workers/manifest.json --dist dist/workers
           cat dist/workers/manifest.json
 
@@ -199,7 +234,11 @@ jobs:
       - name: Upload create-only, store the manifest, update the functions
         env:
           BUCKET: ${{ vars.LAI_PROD_ARTIFACT_BUCKET }}
-        run: scripts/release/publish-workers.sh publish dist/workers/manifest.json dist/workers
+          UPLOAD_ONLY: ${{ inputs.upload_only }}
+        run: |
+          flags=()
+          [ "$UPLOAD_ONLY" != true ] || flags=(--upload-only)
+          scripts/release/publish-workers.sh publish dist/workers/manifest.json dist/workers "${flags[@]}"
 
   rollback:
     name: Roll PROD workers back to a manifest

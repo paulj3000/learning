@@ -53,6 +53,11 @@ bootstrapless synthesizer: they have no file assets or custom resources, so no `
 | Processing budget, USD per month       | `processingBudgetUsd` | `LAI_PROCESSING_BUDGET_USD`                 | **none**: no budget (owner decision P15)        |
 | Worker memory/timeout overrides (JSON) | `processingSizing`    | `LAI_PROCESSING_SIZING`                     | the `WORKLOADS` table in `processingWorkers.ts` |
 
+Production reads `prodProcessing`, `optimizeWorker`, `processingBudgetUsd` and `processingSizing`
+from the committed `infra/config/prod-processing.json` only (review F3); a context value or
+environment variable that disagrees with the file stops the synth. Dev takes them from context or
+the environment.
+
 ## Deploy (approval required)
 
 Every deployment is an owner-approved step (Phase 10). Review the synthesized template first.

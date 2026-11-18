@@ -4,8 +4,10 @@ verification, pre-enable compatibility check, rollback plan) refuses what it mus
 No AWS call, no workflow is triggered."""
 
 import json
+import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -136,21 +138,49 @@ def test_the_release_tooling_lives_outside_every_push_deploy_path():
             assert pattern not in ("scripts/**", "**"), path.name
 
 
+def test_rollback_needs_controls_off_and_releases_are_idempotent_and_first_run_capable():
+    inputs = RELEASE["on"]["workflow_dispatch"]["inputs"]
+    assert inputs["upload_only"]["type"] == "boolean" and inputs["upload_only"]["default"] is False
+    gate = str(RELEASE["jobs"]["gate"]["steps"])
+    assert "all processing controls are off" in gate
+    package = str(RELEASE["jobs"]["package"]["steps"])
+    assert "--created-at" in package and "--previous" in package  # deterministic manifest (F9)
+    publish = str(RELEASE["jobs"]["publish"]["steps"])
+    assert "--upload-only" in publish
+    script = (TOOL.parent / "publish-workers.sh").read_text()
+    assert "rollback-plan --target" in script and "--controls-off" in script
+    assert "ResourceNotFoundException" in script  # absent functions are skipped (F2)
+    header = (WORKFLOWS / "release-prod-workers.yml").read_text().split("name:")[0]
+    assert "1.2.0" in header and "MUST ship" in header  # per-kind ordering (F5)
+
+
 # --- manifest ------------------------------------------------------------------------------------
+FFMPEG_PIN = "f" * 64
+
+
+def write_zip(path: Path, member: str, data: bytes, extra: dict | None = None) -> None:
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(member, data)
+        for name, content in (extra or {}).items():
+            archive.writestr(name, content)
+
+
 @pytest.fixture
 def dist(tmp_path):
     root = tmp_path / "dist"
-    for name, data in (
-        ("jobs-worker", b"jobs"),
-        ("audio-worker", b"audio"),
-        ("ffmpeg-layer", b"ffmpeg"),
-        ("image-worker", b"image"),
+    record = json.dumps({"files_sha256": {"bin/ffmpeg": FFMPEG_PIN}})
+    for name, extra in (
+        ("jobs-worker", None),
+        ("audio-worker", None),
+        ("ffmpeg-layer", {"share/lai-ffmpeg/build-record.json": record}),
+        ("image-worker", None),
     ):
         (root / name).mkdir(parents=True)
-        (root / name / f"{name}.zip").write_bytes(data)
+        write_zip(root / name / f"{name}.zip", "x", name.encode(), extra)
     (root / "jobs-worker" / "kinds.json").write_text(
         json.dumps(["asset.inspect", "asset.validate_model", "studio.generate_chunk"])
     )
+    (root / "versions.json").write_text(json.dumps(release.processor_versions(ROOT)))
     return root
 
 
@@ -175,6 +205,7 @@ def report(**overrides):
             "LAI_JOBS_AUDIO_QUEUE_URL": True,
             "LAI_JOBS_IMAGE_QUEUE_URL": True,
             "LAI_JOBS_MEDIA_QUEUE_URL": True,
+            "LAI_JOBS_OPTIMIZE_QUEUE_URL": True,
         },
         "pending_migrations": [],
     }
@@ -182,7 +213,21 @@ def report(**overrides):
     return data
 
 
-def test_manifest_records_content_addressed_keys_hashes_functions_and_kinds(dist):
+def with_versions(manifest, name, versions):
+    out = json.loads(json.dumps(manifest))
+    for artifact in out["artifacts"]:
+        if artifact["name"] == name:
+            artifact["kind_versions"].update(versions)
+    return out
+
+
+def test_processor_versions_are_read_from_the_sources():
+    versions = release.processor_versions(ROOT)
+    assert set(versions) == set(release.PROCESSOR_VERSIONS)
+    assert release.version_tuple(versions["asset.validate_model"]) >= (1, 2, 0)
+
+
+def test_manifest_records_keys_hashes_functions_kinds_versions_and_pins(dist):
     manifest = manifest_for(dist)
     by_name = {a["name"]: a for a in manifest["artifacts"]}
     assert set(by_name) == {"jobs-worker", "audio-worker", "ffmpeg-layer", "image-worker"}
@@ -191,10 +236,45 @@ def test_manifest_records_content_addressed_keys_hashes_functions_and_kinds(dist
     assert audio["supported_kinds"] == ["asset.transcode_audio"]
     assert audio["key"].startswith("lambda/audio-worker-") and audio["key"].endswith(".zip")
     assert by_name["ffmpeg-layer"]["key"].startswith("lambda/layers/ffmpeg-layer-")
-    assert by_name["jobs-worker"]["functions"] == ["lai-prod-jobs-ai", "lai-prod-jobs-media"]
-    assert "asset.validate_model" in by_name["jobs-worker"]["supported_kinds"]
+    assert by_name["ffmpeg-layer"]["pins"] == {"LAI_FFMPEG_SHA256": FFMPEG_PIN}
+    jobs = by_name["jobs-worker"]
+    assert jobs["functions"] == ["lai-prod-jobs-ai", "lai-prod-jobs-media"]
+    assert (
+        jobs["kind_versions"]["asset.validate_model"]
+        == release.processor_versions(ROOT)["asset.validate_model"]
+    )
+    assert jobs["kind_versions"]["asset.inspect"] == "1"
     assert manifest["manifest_key"] == f"releases/processing/{SHA}.json"
     release.verify_manifest(manifest, dist)
+
+
+def test_the_manifest_is_deterministic(dist):
+    previous = f"releases/processing/{OLD}.json"
+    one = release.dumps(manifest_for(dist, previous=previous))
+    two = release.dumps(manifest_for(dist, previous=previous))
+    assert one == two
+    assert json.loads(one)["previous_manifest_key"] == previous
+    unpinned = release.create_manifest("prod", SHA, dist, None, None)
+    assert unpinned["created_at"] == release.FIXED_TIME
+
+
+def test_stack_parameters_carry_code_keys_layer_and_pins(dist):
+    params = release.stack_parameters(manifest_for(dist))
+    names = {p.split("=")[0] for p in params}
+    assert names == {
+        "WorkerCodeKey",
+        "AudioWorkerCodeKey",
+        "AudioLayerKey",
+        "ImageWorkerCodeKey",
+        "AudioFfmpegSha256",
+    }
+    assert f"AudioFfmpegSha256={FFMPEG_PIN}" in params
+
+
+def test_pin_and_parameter_names_match_the_stacks():
+    text = (ROOT / "infra/lib/processingWorkers.ts").read_text()
+    for variable, (parameter, _file) in release.PINS.items():
+        assert f"{variable}: {{ parameter: '{parameter}'" in text
 
 
 def test_manifest_matches_its_json_schema_fields(dist):
@@ -208,8 +288,8 @@ def test_manifest_matches_its_json_schema_fields(dist):
 
 def test_verification_refuses_a_changed_or_missing_artifact(dist):
     manifest = manifest_for(dist)
-    (dist / "image-worker" / "image-worker.zip").write_bytes(b"imagf")
-    with pytest.raises(release.Refused, match="SHA-256"):
+    write_zip(dist / "image-worker" / "image-worker.zip", "x", b"changed")
+    with pytest.raises(release.Refused, match="(SHA-256|size)"):
         release.verify_manifest(manifest, dist)
     (dist / "image-worker" / "image-worker.zip").unlink()
     with pytest.raises(release.Refused, match="missing"):
@@ -224,6 +304,9 @@ def test_verification_refuses_a_changed_or_missing_artifact(dist):
         (lambda m: m["artifacts"][0].update(functions=["lai-dev-jobs-ai"]), "functions"),
         (lambda m: m.update(extra=1), "unexpected"),
         (lambda m: m.update(previous_manifest_key="releases/x.json"), "previous_manifest_key"),
+        (lambda m: m.update(created_at="yesterday"), "created_at"),
+        (lambda m: m["artifacts"][0].update(kind_versions={}), "kind_versions"),
+        (lambda m: m["artifacts"][0].update(pins={"LAI_TOKTX_SHA256": "a" * 64}), "pins"),
     ],
 )
 def test_manifest_validation_refuses_tampering(dist, mutate, message):
@@ -234,9 +317,7 @@ def test_manifest_validation_refuses_tampering(dist, mutate, message):
 
 
 def test_audio_needs_its_layer_in_the_same_release(dist):
-    for path in (dist / "ffmpeg-layer").iterdir():
-        path.unlink()
-    (dist / "ffmpeg-layer").rmdir()
+    shutil.rmtree(dist / "ffmpeg-layer")
     with pytest.raises(release.Refused, match="ffmpeg-layer"):
         manifest_for(dist)
 
@@ -258,6 +339,7 @@ def test_a_control_may_turn_on_only_when_django_and_the_workers_support_it(dist)
         ({"pending_migrations": ["assets.0003_x"]}, "unapplied migrations"),
         ({"git_sha": OLD}, "same commit"),
         ({"queue_urls_configured": {}}, "not configured"),
+        ({"required_processor_versions": {"asset.transcode_audio": "2"}}, "needs processor 2"),
     ],
 )
 def test_the_check_refuses_every_incompatibility(dist, overrides, reason):
@@ -268,13 +350,24 @@ def test_the_check_refuses_every_incompatibility(dist, overrides, reason):
 
 
 def test_the_check_refuses_a_kind_no_released_worker_accepts(dist):
-    for path in (dist / "image-worker").iterdir():
-        path.unlink()
-    (dist / "image-worker").rmdir()
+    shutil.rmtree(dist / "image-worker")
     reasons = release.check_enable(manifest_for(dist), report(), "LAI_IMAGE_CONVERSION", "prod")
     assert any("does not accept asset.convert_image" in r for r in reasons)
     reasons = release.check_enable(manifest_for(dist), report(), "LAI_GLB_MESHOPT", "prod")
     assert any("lai-prod-jobs-optimize" in r for r in reasons)
+
+
+def test_meshopt_and_ktx2_need_the_1_2_0_media_worker_first(dist):
+    """Review F5: Django may ship first with both controls off (it omits the options); the
+    validator 1.2.0 media worker must be released before either control is switched on."""
+    old = with_versions(manifest_for(dist), "jobs-worker", {"asset.validate_model": "1.1.0"})
+    for control in ("LAI_GLB_MESHOPT", "LAI_GLB_KTX2"):
+        reasons = release.check_enable(old, report(), control, "prod")
+        assert any("asset.validate_model needs processor 1.2.0" in r for r in reasons), control
+    current = manifest_for(dist)
+    for control in ("LAI_GLB_MESHOPT", "LAI_GLB_KTX2"):
+        reasons = release.check_enable(current, report(), control, "prod")
+        assert not any("needs processor" in r for r in reasons), reasons
 
 
 def test_the_check_requires_the_prod_namespace(dist):
@@ -285,33 +378,62 @@ def test_the_check_requires_the_prod_namespace(dist):
 
 
 # --- rollback ------------------------------------------------------------------------------------
-def test_rollback_plan_points_functions_at_the_earlier_artifacts(dist, tmp_path):
+def older(manifest, *, keep=None, versions=None):
+    out = json.loads(json.dumps(manifest))
+    out["git_sha"] = OLD
+    out["manifest_key"] = f"releases/processing/{OLD}.json"
+    if keep is not None:
+        out["artifacts"] = [a for a in out["artifacts"] if a["name"] in keep]
+    for artifact in out["artifacts"]:
+        for kind in artifact["kind_versions"]:
+            if versions and kind in versions:
+                artifact["kind_versions"][kind] = versions[kind]
+    return out
+
+
+def test_rollback_plan_points_functions_at_the_earlier_artifacts(dist):
     current = manifest_for(dist)
-    steps = release.rollback_plan(current, current, report())
+    steps = release.rollback_plan(current, report=report())
     functions = {s.get("function") for s in steps}
     assert {"lai-prod-jobs-ai", "lai-prod-jobs-media", "lai-prod-jobs-audio"} <= functions
-    assert {"stack_parameter": "AudioLayerKey"}.items() <= next(
-        s for s in steps if "stack_parameter" in s
-    ).items()
+    layer = next(s for s in steps if "stack_parameter" in s)
+    assert layer["stack_parameter"] == "AudioLayerKey"
+
+
+def test_rollback_needs_a_report_or_the_controls_off_confirmation(dist):
+    target = manifest_for(dist)
+    with pytest.raises(release.Refused, match="controls are off"):
+        release.rollback_plan(target)
+    assert release.rollback_plan(target, controls_off=True)
 
 
 def test_rollback_is_refused_while_a_control_routes_to_a_worker_the_target_lacks(dist):
     current = manifest_for(dist)
-    old = json.loads(json.dumps(current))
-    old["git_sha"] = OLD
-    old["manifest_key"] = f"releases/processing/{OLD}.json"
-    old["artifacts"] = [a for a in old["artifacts"] if a["name"] == "jobs-worker"]
+    old = older(current, keep={"jobs-worker"})
     on = report(controls={"LAI_AUDIO_TRANSCODING": "on"})
     with pytest.raises(release.Refused, match="turn it off first"):
-        release.rollback_plan(current, old, on)
-    assert release.rollback_plan(current, old, report())
+        release.rollback_plan(old, current=current, report=on)
+    assert release.rollback_plan(old, current=current, report=report())
+
+
+def test_rollback_compares_processor_versions(dist):
+    current = manifest_for(dist)
+    old = older(current, versions={"asset.validate_model": "1.1.0"})
+    on = report(controls={"LAI_GLB_MESHOPT": "on"})
+    with pytest.raises(release.Refused, match="needs processor 1.2.0"):
+        release.rollback_plan(old, current=current, report=on)
+    steps = release.rollback_plan(old, current=current, controls_off=True)
+    assert any("goes back from" in s.get("notice", "") for s in steps)
 
 
 def test_the_cli_exit_codes(dist, tmp_path):
     out = tmp_path / "manifest.json"
-    run = lambda *args: subprocess.run(  # noqa: E731
-        [sys.executable, "-I", str(TOOL), *args], capture_output=True, text=True
-    )
+
+    def run(*args):
+        return subprocess.run(
+            [sys.executable, "-I", str(TOOL), *args], capture_output=True, text=True
+        )
+
     created = run(
         "manifest",
         "create",
@@ -323,6 +445,8 @@ def test_the_cli_exit_codes(dist, tmp_path):
         str(dist),
         "--out",
         str(out),
+        "--created-at",
+        "2026-11-18T00:00:00Z",
     )
     assert created.returncode == 0, created.stderr
     assert run("manifest", "verify", str(out), "--dist", str(dist)).returncode == 0
@@ -341,6 +465,12 @@ def test_the_cli_exit_codes(dist, tmp_path):
     )
     assert refused.returncode == 1 and "must stay off" in refused.stderr
     assert run("manifest", "validate", str(tmp_path / "nope.json")).returncode == 1
+    assert run("rollback-plan", "--target", str(out)).returncode == 2  # needs a source
+    assert run("rollback-plan", "--target", str(out), "--controls-off").returncode == 0
+    params = run("stack-parameters", str(out))
+    assert params.returncode == 0 and "AudioFfmpegSha256=" in params.stdout
+    versions = run("versions", "--repo", str(ROOT))
+    assert "asset.validate_model" in json.loads(versions.stdout)
 
 
 def test_release_scripts_parse():

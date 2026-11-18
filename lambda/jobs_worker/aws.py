@@ -118,6 +118,10 @@ def _is_missing(error: BaseException) -> bool:
     return error_code(error) in _MISSING_CODES or status == 404
 
 
+#: A create-only results write found an object already there (a concurrent delivery won).
+_RESULT_EXISTS = frozenset({"PreconditionFailed", "412", "ConditionalRequestConflict", "409"})
+
+
 #: A 403 on a lookup in the worker's OWN cache prefixes (stored results, shared speech clips).
 _DENIED_CODES = frozenset({"AccessDenied", "403", "Forbidden"})
 
@@ -272,7 +276,11 @@ class Runtime:
         except envelope.EnvelopeError:
             raise TaskError("stored_result_invalid", retryable=True) from None
 
-    def store_result(self, final: dict) -> None:
+    def store_result(self, final: dict) -> dict:
+        """Store the final result create-only (`If-None-Match: *`; the worker role may write
+        `jobs/results/*` only with that header, ADR-071). Returns the result that is stored:
+        `final`, or, when a concurrent delivery stored one first (412/409), that earlier one, so
+        every delivery sends the same final result."""
         try:
             self.client("s3").put_object(
                 Bucket=self.settings.results_bucket,
@@ -280,9 +288,15 @@ class Runtime:
                 Body=envelope.encode(final).encode(),
                 ContentType="application/json",
                 ServerSideEncryption="AES256",
+                IfNoneMatch="*",
             )
-        except Exception:  # noqa: BLE001
+        except Exception as error:  # noqa: BLE001
+            if error_code(error) in _RESULT_EXISTS:
+                stored = self.load_result(final["job_id"])
+                if stored is not None:
+                    return stored
             raise TaskError("results_unavailable", retryable=True) from None
+        return final
 
     def send_result(self, message: dict) -> None:
         try:

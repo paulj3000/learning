@@ -1,0 +1,7 @@
+{
+  "$comment": "Production processing synth settings (ADR-071, review F3). Committed so that every prod synth, including a routine scripts/aws/provision.sh prod run, gets the same answer: an unset environment variable can never drop the processing resources. Change only in a reviewed commit. processingBudgetUsd has no default (owner decision P15): null means no budget.",
+  "prodProcessing": false,
+  "optimizeWorker": false,
+  "processingBudgetUsd": null,
+  "processingSizing": {}
+}

@@ -37,6 +37,8 @@ class FakeS3:
     def put_object(self, Bucket, Key, Body, **kwargs):
         if self.fail_put:
             raise FakeClientError("InternalError", 500)
+        if kwargs.get("IfNoneMatch") == "*" and (Bucket, Key) in self.objects:
+            raise FakeClientError("PreconditionFailed", 412)
         self.puts.append({"Bucket": Bucket, "Key": Key, **kwargs})
         self.objects[(Bucket, Key)] = Body if isinstance(Body, bytes) else Body.encode()
 

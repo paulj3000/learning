@@ -769,7 +769,7 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     );
   });
 
-  it('lets only the media worker list the asset bucket, so a missing asset reads as 404', () => {
+  it('lets only the media worker list the asset bucket, and only under its two prefixes', () => {
     // The bucket ARN itself (no `/key` part), as CloudFormation renders it.
     const assetBucket = {
       'Fn::Join': [
@@ -790,8 +790,9 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     expect(list).toBeDefined();
     expect(actions(list)).toEqual(['s3:ListBucket']);
     expect(resourcesOf(list)).toEqual([assetBucket]);
+    // Review F10: a listing must name one of the prefixes (no bare listing of the bucket).
     expect(list.Condition).toEqual({
-      StringLikeIfExists: { 's3:prefix': ['assets/*', 'processing/artifacts/dev/*'] },
+      StringLike: { 's3:prefix': ['assets/*', 'processing/artifacts/dev/*'] },
     });
     // The other ListBucket statements are unchanged and none of them names the asset bucket.
     expect(listing.map((statement) => statement.Sid).sort()).toEqual([
@@ -805,7 +806,7 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     // Object reads stay GetObject only, on the asset library inputs (assets/*, narrowed from
     // the whole bucket by ADR-066); the only write is the create-only artifact statement.
     const [read] = media.filter((statement) => statement.Sid === 'ReadAssets');
-    expect(actions(read)).toEqual(['s3:GetObject']);
+    expect(actions(read)).toEqual(['s3:GetObject', 's3:GetObjectVersion']);
     const join = assetBucket['Fn::Join'];
     expect(resourcesOf(read)).toEqual([{ 'Fn::Join': [join[0], [...join[1], '/assets/*']] }]);
     const assetText = (s: Statement) => JSON.stringify(s.Resource).includes('lai-assets-');
@@ -814,10 +815,17 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
         .filter(assetText)
         .map((s) => s.Sid)
         .sort(),
-    ).toEqual(['CreateArtifacts', 'ListAssetBucket', 'ReadArtifacts', 'ReadAssets']);
+    ).toEqual([
+      'CreateArtifacts',
+      'DenyStaffCaptures',
+      'ListAssetBucket',
+      'ReadArtifacts',
+      'ReadAssets',
+    ]);
     // No wildcard S3 action, and no S3 action on every resource, for either worker.
     for (const prefix of ['MediaWorkerRole', 'AiWorkerRole']) {
       for (const statement of roleStatements(prefix)) {
+        if ((statement as { Effect?: string }).Effect === 'Deny') continue; // sec-6 capture deny
         for (const action of actions(statement)) {
           expect(action, prefix).not.toMatch(/^s3:[^:]*\*|^\*$/);
           if (action.startsWith('s3:')) expect(resourcesOf(statement), prefix).not.toContain('*');

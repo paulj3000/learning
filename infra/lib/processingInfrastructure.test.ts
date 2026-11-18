@@ -7,9 +7,15 @@ import { DevPlatformStack } from './devPlatformStack';
 import { DjangoEc2Stack } from './djangoEc2Stack';
 import { FrontendStack } from './frontendStack';
 import type { ProductionProcessingOptions } from './productionProcessing';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseProdProcessingConfig, resolveProdProcessing } from './processingConfig';
 import {
+  PIN_PARAMETERS,
   VISIBILITY_FACTOR,
   WORKLOADS,
+  checkWorkloadRules,
   parseSizing,
   type Workload,
   type WorkloadSizing,
@@ -110,8 +116,14 @@ function assetStatements(st: Statement[]) {
 
 /** Negative checks shared by every worker role in both environments. */
 function expectWorkerRoleIsNarrow(st: Statement[], envName: 'dev' | 'prod', label: string) {
-  for (const s of st) {
-    expect(s.Effect ?? 'Allow', label).toBe('Allow');
+  // The only Deny is sec-6's: every s3 action on staff captures.
+  const denies = st.filter((s) => s.Effect === 'Deny');
+  for (const deny of denies) {
+    expect(deny.Sid, label).toBe('DenyStaffCaptures');
+    expect(actions(deny), label).toEqual(['s3:*']);
+    expect(text(deny.Resource), label).toContain(`/processing/artifacts/${envName}/capture/*`);
+  }
+  for (const s of st.filter((s) => s.Effect !== 'Deny')) {
     for (const action of actions(s)) {
       expect(action, label).not.toMatch(/^s3:\*$|^\*$|^s3:[A-Za-z]*\*/);
       expect(action, label).not.toBe('s3:DeleteObject');
@@ -127,6 +139,14 @@ function expectWorkerRoleIsNarrow(st: Statement[], envName: 'dev' | 'prod', labe
     const resourceText = text(s.Resource);
     expect(resourceText, label).not.toMatch(/-\{"Ref":"AWS::Region"\},"\/\*"\]/);
     expect(resourceText, label).not.toMatch(/speech|child/);
+    if (s.Effect === 'Deny') continue;
+    if (actions(s).includes('s3:GetObject')) {
+      expect(actions(s), label).toEqual(['s3:GetObject', 's3:GetObjectVersion']); // F1
+    }
+    if (actions(s).includes('s3:ListBucket')) {
+      // F10: a listing must name an allowed prefix (no StringLikeIfExists, no bare listing).
+      expect(Object.keys(s.Condition ?? {}), label).toEqual(['StringLike']);
+    }
     if (actions(s).includes('s3:PutObject')) {
       expect(s.Sid, label).toBe('CreateArtifacts');
       expect(actions(s), label).toEqual(['s3:PutObject']);
@@ -134,6 +154,20 @@ function expectWorkerRoleIsNarrow(st: Statement[], envName: 'dev' | 'prod', labe
       expect(s.Condition, label).toEqual(CREATE_ONLY);
     }
   }
+  // Results: read any, create only (F11).
+  const results = st.filter((s) => text(s.Resource).includes('/jobs/results/*'));
+  for (const s of results) {
+    if (actions(s).includes('s3:PutObject')) {
+      expect(s.Sid, label).toBe('CreateResults');
+      expect(s.Condition, label).toEqual(CREATE_ONLY);
+    }
+  }
+  expect(
+    results.some((s) => s.Sid === 'CreateResults'),
+    label,
+  ).toBe(true);
+  // sec-6: every role that touches the asset bucket denies staff captures explicitly.
+  if (assets.some((s) => s.Effect !== 'Deny')) expect(denies, label).toHaveLength(1);
   const other = envName === 'dev' ? 'prod' : 'dev';
   expect(text(st), label).not.toContain(`processing/artifacts/${other}/`);
   expect(text(st), label).not.toMatch(/lai-child-photos|lai-speech-/);
@@ -250,24 +284,23 @@ describe('dev native workers (LaiDevPlatform-dev)', () => {
       const sids = assetStatements(st)
         .map((s) => s.Sid)
         .sort();
-      // Workstream B: audio reads both prefixes; Workstream D: image reads assets/* only.
-      expect(sids, workload).toEqual(
-        workload === 'audio'
-          ? ['CreateArtifacts', 'ListAssetBucket', 'ReadArtifacts', 'ReadAssets']
-          : ['CreateArtifacts', 'ListAssetBucket', 'ReadAssets'],
-      );
+      // Every artifact writer reads its write prefix (F6: the 412 verification reads it).
+      expect(sids, workload).toEqual([
+        'CreateArtifacts',
+        'DenyStaffCaptures',
+        'ListAssetBucket',
+        'ReadArtifacts',
+        'ReadAssets',
+      ]);
       const read = st.find((s) => s.Sid === 'ReadAssets')!;
-      expect(actions(read)).toEqual(['s3:GetObject']);
+      expect(actions(read)).toEqual(['s3:GetObject', 's3:GetObjectVersion']);
       expect(text(read.Resource)).toContain('"/assets/*"');
       const write = st.find((s) => s.Sid === 'CreateArtifacts')!;
       expect(write.Condition).toEqual(CREATE_ONLY);
       expect(text(write.Resource)).toContain('"/processing/artifacts/dev/*"');
       const list = st.find((s) => s.Sid === 'ListAssetBucket')!;
       expect(list.Condition).toEqual({
-        StringLikeIfExists: {
-          's3:prefix':
-            workload === 'audio' ? ['assets/*', 'processing/artifacts/dev/*'] : ['assets/*'],
-        },
+        StringLike: { 's3:prefix': ['assets/*', 'processing/artifacts/dev/*'] },
       });
     }
   });
@@ -335,13 +368,14 @@ describe('derived-artifact storage (LaiAssetStorage-<env>)', () => {
       ) as Resource[];
       expect(policies).toHaveLength(1);
       const st = (policies[0].Properties.PolicyDocument as { Statement: Statement[] }).Statement;
+      expect(actions(st[0])).toEqual(['s3:GetObject', 's3:GetObjectVersion']);
       expect(st.map((s) => s.Sid)).toEqual([
         'ReadArtifacts',
         'CreateStaffCaptures',
         'RetentionCleanup',
       ]);
       const bySid = Object.fromEntries(st.map((s) => [s.Sid, s]));
-      expect(actions(bySid.ReadArtifacts)).toEqual(['s3:GetObject']);
+      expect(actions(bySid.ReadArtifacts)).toEqual(['s3:GetObject', 's3:GetObjectVersion']);
       expect(actions(bySid.CreateStaffCaptures)).toEqual(['s3:PutObject']);
       expect(bySid.CreateStaffCaptures.Condition).toEqual(CREATE_ONLY);
       expect(text(bySid.CreateStaffCaptures.Resource)).toContain(
@@ -352,6 +386,7 @@ describe('derived-artifact storage (LaiAssetStorage-<env>)', () => {
         expect(resourcesOf(s)).toHaveLength(1);
         expect(text(s.Resource)).toContain(`/processing/artifacts/${envName}/`);
         expect(actions(s).join()).not.toMatch(/\*/);
+        expect(s.Effect ?? 'Allow').toBe('Allow');
       }
     }
     expect(Object.keys(assetStack('prod').findResources('AWS::IAM::ManagedPolicy'))).toHaveLength(
@@ -514,7 +549,7 @@ describe('production processing (LaiDjangoEc2-prod)', () => {
       const sids = assets.map((s) => s.Sid).sort();
       const spec = WORKLOADS[w];
       const expected = [
-        ...(spec.readsAssets ? ['ReadAssets', 'ListAssetBucket'] : []),
+        ...(spec.readsAssets ? ['ReadAssets', 'ListAssetBucket', 'DenyStaffCaptures'] : []),
         ...(spec.readsArtifacts ? ['ReadArtifacts'] : []),
         ...(spec.writesArtifacts ? ['CreateArtifacts'] : []),
       ].sort();
@@ -551,7 +586,7 @@ describe('production processing (LaiDjangoEc2-prod)', () => {
     );
   });
 
-  it('restricts DLQ redrive to an MFA operator role and nothing else', () => {
+  it('lets only the MFA redrive role move DLQ messages (trust: any MFA account principal allowed to assume it)', () => {
     const id = roleId(prod, 'lai-prod-jobs-dlq-redrive');
     const trust = text(prod.json.Resources[id].Properties.AssumeRolePolicyDocument);
     expect(trust).toContain('"aws:MultiFactorAuthPresent":"true"');
@@ -736,5 +771,90 @@ describe('production processing (LaiDjangoEc2-prod)', () => {
           processing: {},
         }),
     ).toThrow(/prod only/);
+  });
+});
+
+// =================================================================================================
+describe('workload rules, pins and committed production settings', () => {
+  it('requires every artifact writer to read its write prefix (F6)', () => {
+    expect(() => checkWorkloadRules()).not.toThrow();
+    for (const [workload, spec] of Object.entries(WORKLOADS)) {
+      if (spec.writesArtifacts) expect(spec.readsArtifacts, workload).toBe(true);
+    }
+    const broken = { ...WORKLOADS, image: { ...WORKLOADS.image, readsArtifacts: false } };
+    expect(() => checkWorkloadRules(broken)).toThrow(/image writes artifacts/);
+  });
+
+  it('wires the executable SHA-256 pins as empty-default parameters (F12)', () => {
+    expect(dev.json.Parameters!.AudioFfmpegSha256).toMatchObject({
+      Default: '',
+      AllowedPattern: '^$|^[a-f0-9]{64}$',
+    });
+    expect(dev.json.Parameters!.OptimizeGltfpackSha256).toBeUndefined();
+    const audioEnv = (
+      fn(prodAll, 'lai-prod-jobs-audio').Properties.Environment as {
+        Variables: Json;
+      }
+    ).Variables;
+    expect(audioEnv).toMatchObject({
+      LAI_FFMPEG_PATH: '/opt/bin/ffmpeg',
+      LAI_FFMPEG_SHA256: { Ref: 'AudioFfmpegSha256' },
+    });
+    const optimizeEnv = (
+      fn(prodAll, 'lai-prod-jobs-optimize').Properties.Environment as {
+        Variables: Json;
+      }
+    ).Variables;
+    expect(optimizeEnv).toMatchObject({
+      LAI_GLTFPACK_SHA256: { Ref: 'OptimizeGltfpackSha256' },
+      LAI_TOKTX_SHA256: { Ref: 'OptimizeToktxSha256' },
+    });
+    expect(Object.keys(PIN_PARAMETERS).sort()).toEqual([
+      'LAI_FFMPEG_SHA256',
+      'LAI_GLTFPACK_SHA256',
+      'LAI_TOKTX_SHA256',
+    ]);
+  });
+
+  it('reads production processing from the committed file and refuses disagreeing flags (F3)', () => {
+    const text = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../config/prod-processing.json'),
+      'utf8',
+    );
+    const none = {
+      prodProcessing: '',
+      optimizeWorker: '',
+      processingBudgetUsd: '',
+      processingSizing: '',
+    };
+    const committed = resolveProdProcessing(text, none);
+    expect(committed.prodProcessing).toBe(false); // not enabled by this branch (owner decision)
+    expect(committed.processingBudgetUsd).toBeUndefined(); // no default amount (P15)
+    expect(() => resolveProdProcessing(text, { ...none, prodProcessing: 'true' })).toThrow(
+      /committed file/,
+    );
+    expect(resolveProdProcessing(text, { ...none, prodProcessing: 'false' }).prodProcessing).toBe(
+      false,
+    );
+    const on = JSON.stringify({
+      prodProcessing: true,
+      optimizeWorker: false,
+      processingBudgetUsd: 25,
+      processingSizing: { image: { memoryMb: 1536 } },
+    });
+    // A run with no flag at all keeps the committed estate: nothing can drop it by omission.
+    expect(resolveProdProcessing(on, none)).toMatchObject({
+      prodProcessing: true,
+      processingBudgetUsd: 25,
+      processingSizing: { image: { memoryMb: 1536 } },
+    });
+    expect(() => resolveProdProcessing(on, { ...none, processingBudgetUsd: '30' })).toThrow();
+    expect(() => resolveProdProcessing(on, { ...none, prodProcessing: 'false' })).toThrow();
+    expect(() =>
+      parseProdProcessingConfig('{"prodProcessing": "yes", "optimizeWorker": false}'),
+    ).toThrow();
+    expect(() =>
+      parseProdProcessingConfig('{"prodProcessing": true, "optimizeWorker": false, "x": 1}'),
+    ).toThrow(/unknown keys/);
   });
 });

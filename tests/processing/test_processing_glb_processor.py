@@ -394,3 +394,21 @@ def test_hostile_inputs_always_give_a_contract_valid_success(tmp_path: Path, dat
     result, _ = run(tmp_path, data)
     assert result.status is ResultStatus.SUCCEEDED
     assert result.verdict is Verdict.FAIL
+
+
+def test_the_1_2_0_validator_accepts_older_requests_without_the_compression_options(
+    tmp_path: Path,
+) -> None:
+    """Release ordering (ADR-071 review F5, ADR-070): Django omits allow_meshopt/allow_ktx2 while
+    LAI_GLB_MESHOPT and LAI_GLB_KTX2 are off, exactly as a release before 1.2.0 sent them. The
+    newer worker accepts such a request (both default False), so either side may ship first while
+    the controls are off. An unknown option is refused, so a worker older than 1.2.0 would refuse
+    the options: the 1.2.0 worker ships before either control is switched on."""
+    older_request = {"max_texture_dimension": 8192, "require_animations": False}
+    result, _ = run(tmp_path / "a", static_glb(), older_request)
+    assert result.status is ResultStatus.SUCCEEDED
+    assert result.verdict is Verdict.PASS
+    newer, _ = run(tmp_path / "b", static_glb(), {**older_request, "allow_meshopt": True})
+    assert newer.status is ResultStatus.SUCCEEDED
+    unknown, _ = run(tmp_path / "c", static_glb(), {"allow_future_codec": True})
+    assert unknown.errors[0].code is ErrorCode.INVALID_PROCESSING_PROFILE
