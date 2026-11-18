@@ -23,13 +23,14 @@ import { regionPlaySceneExtension, type RegionPlaySceneApi } from './regionPlayS
  * lift brings them back. Only the renderer and asset loading are stand-ins.
  */
 
-function volcano(solved: string[] = []) {
+function volcano(solved: string[] = [], reducedMotion = false) {
   const model = toRegionSceneModel(read(firepeakBootstrapJson({ solved }), parse.regionBootstrap));
   const built = buildRegionManifest(model, { worldSlug: 'learning-adventure-island' });
   publishRegionCheckpoints(FIREPEAK, built.checkpoints);
   const harness = mount({
     manifest: built.manifest,
     extensions: [regionPlaySceneExtension],
+    reducedMotion,
     loadModel: async () => {
       throw new Error('no model published');
     },
@@ -127,6 +128,19 @@ describe('Firepeak effects', () => {
     expect(harness.scene().getObjectByName('stand-in:firepeak-telescope')).toBeDefined();
     expect(harness.scene().getObjectByName('lava:firepeak-lava-river')).toBeDefined();
     expect(harness.scene().getObjectByName('backdrop')).toBeDefined();
+  });
+
+  it('holds the lava still when the engine says reduced motion', () => {
+    const lavaTime = (reduced: boolean) => {
+      const { harness } = volcano([], reduced);
+      harness.runFrames(30);
+      const plane = harness.scene().getObjectByName('lava:firepeak-lava-river') as unknown as {
+        material: { uniforms: { uTime: { value: number } } };
+      };
+      return plane.material.uniforms.uTime.value;
+    };
+    expect(lavaTime(false)).toBeGreaterThan(0);
+    expect(lavaTime(true)).toBe(0);
   });
 
   it('draws visualOnly lava but never treats it as dangerous', () => {

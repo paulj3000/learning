@@ -133,7 +133,8 @@ export function mountAreaEffects(
   owned: Owned,
   isDisposed: () => boolean,
 ): { api: AreaEffectsApi; dispose(): void } {
-  const reducedMotion = prefersReducedMotion();
+  // The engine's setting first; the media query still counts when the host did not pass one.
+  const reducedMotion = context.reducedMotion || prefersReducedMotion();
   let keys = new Set(initialKeys);
   const listeners = new Set<Partial<AreaEffectsEvents>>();
   const group = new Group();

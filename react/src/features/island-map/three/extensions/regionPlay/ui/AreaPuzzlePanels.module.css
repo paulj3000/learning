@@ -96,8 +96,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* A still cue, not a fade: held for 1.2 s, then gone in one step. It must clear itself,
+     because the layer keeps the element mounted once the child has respawned. */
   .respawnFlash {
-    animation: none;
-    opacity: 0.6;
+    animation: flashStill 1.2s step-end forwards;
+  }
+
+  @keyframes flashStill {
+    from {
+      opacity: 0.6;
+    }
+    to {
+      opacity: 0;
+    }
   }
 }
