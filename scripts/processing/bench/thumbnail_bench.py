@@ -6,13 +6,19 @@ Nothing here is product code, nothing is deployed, and nothing calls AWS. The de
     python3 scripts/processing/bench/thumbnail_bench.py
         Plan only: the candidate renderers, what each needs, and the metrics. Runs nothing.
 
-    python3 scripts/processing/bench/thumbnail_bench.py --run --chromium <chrome-headless-shell>
+    python3 scripts/processing/bench/thumbnail_bench.py --run [--chromium <chrome-headless-shell>]
+        Skips cleanly (prints {"skipped": ...}, exit 0) when no renderer is installed.
         Measures headless Chromium with SwiftShader (software WebGL, no GPU), the renderer a
         Lambda or a Fargate task would have to use. A synthetic, self-contained page draws a
         procedural mesh with raw WebGL at 512 x 512 for several triangle counts; per case it
         records wall-clock time of the whole browser run (launch, context, draw, read back),
         the in-page context and draw times, whether the canvas has non-background pixels, and
         the peak RSS of the largest child process.
+
+Each case first generates a synthetic sphere GLB in a temporary directory (standard library, no
+committed binary), takes its bounds through the repository's GLB parser when importable, frames it
+with the GLB_THUMBNAIL_SPEC camera (`thumbnail_framing.py`) and feeds that view-projection to the
+page. It never writes to S3 or any network.
 
 The synthetic page is a proxy for "three.js plus GLTFLoader": it measures browser launch, software
 rasterisation and read-back, which dominate, without needing `react/node_modules`. The three.js
@@ -32,15 +38,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import platform
 import re
 import resource
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import thumbnail_framing as framing  # noqa: E402  (sibling module, pure standard library)
 
 SIDE = 512
 TRIANGLE_CASES = (10_000, 100_000, 500_000)
@@ -102,10 +113,8 @@ const out = document.getElementById('out');
 if (!gl) {{ out.textContent = JSON.stringify({{error: 'no_webgl2'}}); }} else {{
 const t1 = performance.now();
 const vs = `#version 300 es
-in vec3 p; in vec3 n; out vec3 vn; uniform float a;
-void main() {{ float c = cos(a), s = sin(a);
-  vec3 q = vec3(c*p.x + s*p.z, p.y, -s*p.x + c*p.z); vn = vec3(c*n.x + s*n.z, n.y, -s*n.x + c*n.z);
-  gl_Position = vec4(q.xy * 0.8, q.z * 0.5, 1.0); }}`;
+in vec3 p; in vec3 n; out vec3 vn; uniform mat4 vp;
+void main() {{ vn = n; gl_Position = vp * vec4(p, 1.0); }}`;
 const fs = `#version 300 es
 precision highp float; in vec3 vn; out vec4 o;
 void main() {{ float l = max(dot(normalize(vn), normalize(vec3(0.4,0.7,0.6))), 0.0);
@@ -128,7 +137,7 @@ function buf(name, data) {{ const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_
   const loc = gl.getAttribLocation(prog, name); gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0); }}
 buf('p', pos); buf('n', nor);
-gl.uniform1f(gl.getUniformLocation(prog, 'a'), 0.6);
+gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'vp'), false, new Float32Array({vp}));
 gl.enable(gl.DEPTH_TEST); gl.clearColor(1, 1, 1, 1);
 const t2 = performance.now();
 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -168,11 +177,84 @@ def chromium_args(binary: Path, profile: Path, page: Path, *, no_sandbox: bool) 
     ]
 
 
+def synthetic_glb(triangles: int) -> bytes:
+    """A UV sphere GLB (radius 1, POSITION and NORMAL, indices) with about `triangles` triangles.
+
+    Built in memory at run time with the standard library; nothing is committed or downloaded.
+    """
+    rings = max(4, round(math.sqrt(triangles / 2)))
+    segs = rings
+    positions: list[float] = []
+    for i in range(rings + 1):
+        theta = math.pi * i / rings
+        for j in range(segs + 1):
+            phi = 2 * math.pi * j / segs
+            positions += [
+                math.sin(theta) * math.cos(phi),
+                math.cos(theta),
+                math.sin(theta) * math.sin(phi),
+            ]
+    indices: list[int] = []
+    stride = segs + 1
+    for i in range(rings):
+        for j in range(segs):
+            a, b = i * stride + j, (i + 1) * stride + j
+            indices += [a, b, b + 1, a, b + 1, a + 1]
+    pos_bytes = struct.pack(f"<{len(positions)}f", *positions)
+    idx_bytes = struct.pack(f"<{len(indices)}I", *indices)
+    document = {
+        "asset": {"version": "2.0", "generator": "thumbnail-bench"},
+        "scene": 0,
+        "scenes": [{"nodes": [0]}],
+        "nodes": [{"mesh": 0}],
+        "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 0}, "indices": 1}]}],
+        "accessors": [
+            {"bufferView": 0, "componentType": 5126, "count": len(positions) // 3, "type": "VEC3",
+             "min": [-1.0, -1.0, -1.0], "max": [1.0, 1.0, 1.0]},
+            {"bufferView": 1, "componentType": 5125, "count": len(indices), "type": "SCALAR"},
+        ],
+        "bufferViews": [
+            {"buffer": 0, "byteOffset": 0, "byteLength": len(pos_bytes)},
+            {"buffer": 0, "byteOffset": len(pos_bytes), "byteLength": len(idx_bytes)},
+        ],
+        "buffers": [{"byteLength": len(pos_bytes) + len(idx_bytes)}],
+    }  # fmt: skip
+    raw = json.dumps(document).encode()
+    raw += b" " * (-len(raw) % 4)
+    binary = pos_bytes + idx_bytes
+    binary += b"\0" * (-len(binary) % 4)
+    total = 12 + 8 + len(raw) + 8 + len(binary)
+    return (
+        struct.pack("<III", 0x46546C67, 2, total)
+        + struct.pack("<II", len(raw), 0x4E4F534A) + raw
+        + struct.pack("<II", len(binary), 0x004E4942) + binary
+    )  # fmt: skip
+
+
+def camera_for(glb_path: Path) -> framing.Camera:
+    """Spec camera for the synthetic GLB, bounds read through the GLB parser when importable."""
+    try:
+        low, high = framing.bounds_from_glb(glb_path)
+    except (ImportError, framing.FramingError):
+        low, high = (-1.0, -1.0, -1.0), (1.0, 1.0, 1.0)  # known bounds of the synthetic sphere
+    return framing.frame(low, high)
+
+
 def run_chromium_case(binary: Path, triangles: int, *, no_sandbox: bool) -> dict:
     work = Path(tempfile.mkdtemp(prefix="lai-thumb-bench-"))
     try:
+        model = work / "sphere.glb"
+        model.write_bytes(synthetic_glb(triangles))
+        camera = camera_for(model)
         page = work / "page.html"
-        page.write_text(PAGE.format(side=SIDE, triangles=triangles), encoding="utf-8")
+        page.write_text(
+            PAGE.format(
+                side=SIDE,
+                triangles=triangles,
+                vp=json.dumps(framing.view_projection(camera)),
+            ),
+            encoding="utf-8",
+        )
         before = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
         start = time.perf_counter()
         completed = subprocess.run(  # noqa: S603 - fixed argv, no shell, local file only
@@ -188,6 +270,7 @@ def run_chromium_case(binary: Path, triangles: int, *, no_sandbox: bool) -> dict
         measured = json.loads(match.group(1)) if match and match.group(1) != "pending" else {}
         return {
             "triangles_requested": triangles,
+            "camera_distance": round(camera.distance, 4),
             "exit_code": completed.returncode,
             "wall_ms": round(wall, 1),
             # ru_maxrss of children is the largest single descendant; it only grows, so a later
@@ -215,7 +298,16 @@ def main(argv: list[str] | None = None) -> int:
         help="pass --no-sandbox (only where the host has no usable sandbox; synthetic page only)",
     )
     args = parser.parse_args(argv)
-    if not (args.run and args.chromium):
+    if args.run and not args.chromium:
+        found = shutil.which("chrome-headless-shell") or shutil.which("chromium")
+        if found is None:
+            print(json.dumps({"skipped": "no renderer installed; pass --chromium <binary>"}))
+            return 0
+        args.chromium = Path(found)
+    if args.run and not args.chromium.expanduser().is_file():
+        print(json.dumps({"skipped": f"renderer not found: {args.chromium}"}))
+        return 0
+    if not args.run:
         print(
             json.dumps(
                 {
@@ -227,8 +319,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     binary = args.chromium.expanduser().resolve()
-    if not binary.is_file():
-        parser.error(f"{binary} is not a file")
     results = []
     for triangles in TRIANGLE_CASES:
         for attempt in range(args.repeat):
