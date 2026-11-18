@@ -25,10 +25,7 @@ def _imports(path: Path):
 
 def test_lai_native_imports_are_allowlisted():
     bad = {}
-    # The audio and runtime packages are standard library only; other native packages (image,
-    # optimize) have their own approved libraries (policy: lambda/build.py import_violations).
-    paths = [*(ROOT / "lai_native" / "audio").rglob("*.py"), *(ROOT / "lai_native" / "runtime").rglob("*.py")]
-    for path in paths:
+    for path in (ROOT / "lai_native").rglob("*.py"):
         extra = set(_imports(path)) - ALLOWED_TOP
         if extra:
             bad[path.name] = extra
