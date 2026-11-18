@@ -35,11 +35,27 @@ def solve_valves(valves, start, goal):
     return puzzles.solve_valves({"valves": valves, "start": start, "goal": goal})
 
 
+def choose_answer_solved(variants, variant_id, choice):
+    params = {"variants": variants}
+    return puzzles.grade(
+        PuzzleKind.CHOOSE_ANSWER, params, {"variantId": variant_id, "choice": choice}
+    )
+
+
+def order_sequence_solved(variants, variant_id, order):
+    params = {"variants": variants}
+    return puzzles.grade(
+        PuzzleKind.ORDER_SEQUENCE, params, {"variantId": variant_id, "order": order}
+    )
+
+
 PORTS = {
     "observeSolved": observe_solved,
     "platformsSolved": platforms_solved,
     "simulateValves": simulate_valves,
     "solveValves": solve_valves,
+    "chooseAnswerSolved": choose_answer_solved,
+    "orderSequenceSolved": order_sequence_solved,
 }
 
 

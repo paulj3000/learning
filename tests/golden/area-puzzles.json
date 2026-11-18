@@ -1,14 +1,15 @@
 {
   "schemaVersion": 1,
   "suite": "area-puzzles",
-  "description": "Puzzle rules the client simulates and the server grades: observe every feature, match each gap to a stone of its size, and move steam along valves to the goal.",
+  "description": "Puzzle rules the client simulates and the server grades: observe every feature, match each gap to a stone of its size, and move steam along valves to the goal. Also: pick the right option, and put items in the right order.",
   "sources": [
     "react/src/features/region-play/areaPuzzles.ts",
     "lai/apps/regions/puzzles.py"
   ],
   "notes": [
     "simulateValves: a valve whose channel has no steam does nothing, so extra turns are harmless.",
-    "platformsSolved: an unknown slot or stone id is an invalid submission (throws)."
+    "platformsSolved: an unknown slot or stone id is an invalid submission (throws).",
+    "chooseAnswerSolved / orderSequenceSolved: an unknown variant, an unknown choice, or an order that is not a permutation of the variant's items is an invalid submission (throws)."
   ],
   "functions": {
     "observeSolved": {
@@ -586,6 +587,726 @@
             "goal": "drain"
           },
           "expected": null
+        }
+      ]
+    },
+    "chooseAnswerSolved": {
+      "python": "choose_answer_solved",
+      "args": [
+        "variants",
+        "variantId",
+        "choice"
+      ],
+      "cases": [
+        {
+          "name": "right choice",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "2 + 3 = ?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "4",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "5",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "6"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "2 and 3 make 5."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which is hot?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Lava"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Ice"
+                  }
+                ],
+                "answer": "a",
+                "explanation": "Lava is very hot."
+              }
+            ],
+            "variantId": "v1",
+            "choice": "b"
+          },
+          "expected": true
+        },
+        {
+          "name": "right choice, other variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "2 + 3 = ?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "4",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "5",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "6"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "2 and 3 make 5."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which is hot?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Lava"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Ice"
+                  }
+                ],
+                "answer": "a",
+                "explanation": "Lava is very hot."
+              }
+            ],
+            "variantId": "v2",
+            "choice": "a"
+          },
+          "expected": true
+        },
+        {
+          "name": "wrong choice",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "2 + 3 = ?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "4",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "5",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "6"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "2 and 3 make 5."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which is hot?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Lava"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Ice"
+                  }
+                ],
+                "answer": "a",
+                "explanation": "Lava is very hot."
+              }
+            ],
+            "variantId": "v1",
+            "choice": "a"
+          },
+          "expected": false
+        },
+        {
+          "name": "unknown variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "2 + 3 = ?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "4",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "5",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "6"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "2 and 3 make 5."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which is hot?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Lava"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Ice"
+                  }
+                ],
+                "answer": "a",
+                "explanation": "Lava is very hot."
+              }
+            ],
+            "variantId": "nope",
+            "choice": "a"
+          },
+          "throws": true
+        },
+        {
+          "name": "unknown choice",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "2 + 3 = ?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "4",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "5",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "6"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "2 and 3 make 5."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which is hot?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Lava"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Ice"
+                  }
+                ],
+                "answer": "a",
+                "explanation": "Lava is very hot."
+              }
+            ],
+            "variantId": "v2",
+            "choice": "c"
+          },
+          "throws": true
+        }
+      ]
+    },
+    "orderSequenceSolved": {
+      "python": "order_sequence_solved",
+      "args": [
+        "variants",
+        "variantId",
+        "order"
+      ],
+      "cases": [
+        {
+          "name": "right order",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Light the switches in order.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch"
+                  }
+                ],
+                "answer": [
+                  "red",
+                  "blue",
+                  "gold"
+                ],
+                "explanation": "Fire, then water, then sun."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which comes first?",
+                "items": [
+                  {
+                    "id": "seed",
+                    "label": "Seed"
+                  },
+                  {
+                    "id": "tree",
+                    "label": "Tree"
+                  }
+                ],
+                "answer": [
+                  "seed",
+                  "tree"
+                ],
+                "explanation": "A seed grows into a tree."
+              }
+            ],
+            "variantId": "v1",
+            "order": [
+              "red",
+              "blue",
+              "gold"
+            ]
+          },
+          "expected": true
+        },
+        {
+          "name": "right order, other variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Light the switches in order.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch"
+                  }
+                ],
+                "answer": [
+                  "red",
+                  "blue",
+                  "gold"
+                ],
+                "explanation": "Fire, then water, then sun."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which comes first?",
+                "items": [
+                  {
+                    "id": "seed",
+                    "label": "Seed"
+                  },
+                  {
+                    "id": "tree",
+                    "label": "Tree"
+                  }
+                ],
+                "answer": [
+                  "seed",
+                  "tree"
+                ],
+                "explanation": "A seed grows into a tree."
+              }
+            ],
+            "variantId": "v2",
+            "order": [
+              "seed",
+              "tree"
+            ]
+          },
+          "expected": true
+        },
+        {
+          "name": "wrong order",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Light the switches in order.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch"
+                  }
+                ],
+                "answer": [
+                  "red",
+                  "blue",
+                  "gold"
+                ],
+                "explanation": "Fire, then water, then sun."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which comes first?",
+                "items": [
+                  {
+                    "id": "seed",
+                    "label": "Seed"
+                  },
+                  {
+                    "id": "tree",
+                    "label": "Tree"
+                  }
+                ],
+                "answer": [
+                  "seed",
+                  "tree"
+                ],
+                "explanation": "A seed grows into a tree."
+              }
+            ],
+            "variantId": "v1",
+            "order": [
+              "blue",
+              "red",
+              "gold"
+            ]
+          },
+          "expected": false
+        },
+        {
+          "name": "reversed",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Light the switches in order.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch"
+                  }
+                ],
+                "answer": [
+                  "red",
+                  "blue",
+                  "gold"
+                ],
+                "explanation": "Fire, then water, then sun."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which comes first?",
+                "items": [
+                  {
+                    "id": "seed",
+                    "label": "Seed"
+                  },
+                  {
+                    "id": "tree",
+                    "label": "Tree"
+                  }
+                ],
+                "answer": [
+                  "seed",
+                  "tree"
+                ],
+                "explanation": "A seed grows into a tree."
+              }
+            ],
+            "variantId": "v2",
+            "order": [
+              "tree",
+              "seed"
+            ]
+          },
+          "expected": false
+        },
+        {
+          "name": "unknown variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Light the switches in order.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch"
+                  }
+                ],
+                "answer": [
+                  "red",
+                  "blue",
+                  "gold"
+                ],
+                "explanation": "Fire, then water, then sun."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which comes first?",
+                "items": [
+                  {
+                    "id": "seed",
+                    "label": "Seed"
+                  },
+                  {
+                    "id": "tree",
+                    "label": "Tree"
+                  }
+                ],
+                "answer": [
+                  "seed",
+                  "tree"
+                ],
+                "explanation": "A seed grows into a tree."
+              }
+            ],
+            "variantId": "nope",
+            "order": [
+              "seed",
+              "tree"
+            ]
+          },
+          "throws": true
+        },
+        {
+          "name": "an item missing",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Light the switches in order.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch"
+                  }
+                ],
+                "answer": [
+                  "red",
+                  "blue",
+                  "gold"
+                ],
+                "explanation": "Fire, then water, then sun."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which comes first?",
+                "items": [
+                  {
+                    "id": "seed",
+                    "label": "Seed"
+                  },
+                  {
+                    "id": "tree",
+                    "label": "Tree"
+                  }
+                ],
+                "answer": [
+                  "seed",
+                  "tree"
+                ],
+                "explanation": "A seed grows into a tree."
+              }
+            ],
+            "variantId": "v1",
+            "order": [
+              "red",
+              "blue"
+            ]
+          },
+          "throws": true
+        },
+        {
+          "name": "an item repeated",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Light the switches in order.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch"
+                  }
+                ],
+                "answer": [
+                  "red",
+                  "blue",
+                  "gold"
+                ],
+                "explanation": "Fire, then water, then sun."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which comes first?",
+                "items": [
+                  {
+                    "id": "seed",
+                    "label": "Seed"
+                  },
+                  {
+                    "id": "tree",
+                    "label": "Tree"
+                  }
+                ],
+                "answer": [
+                  "seed",
+                  "tree"
+                ],
+                "explanation": "A seed grows into a tree."
+              }
+            ],
+            "variantId": "v1",
+            "order": [
+              "red",
+              "red",
+              "gold"
+            ]
+          },
+          "throws": true
+        },
+        {
+          "name": "an unknown item",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Light the switches in order.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch"
+                  }
+                ],
+                "answer": [
+                  "red",
+                  "blue",
+                  "gold"
+                ],
+                "explanation": "Fire, then water, then sun."
+              },
+              {
+                "id": "v2",
+                "prompt": "Which comes first?",
+                "items": [
+                  {
+                    "id": "seed",
+                    "label": "Seed"
+                  },
+                  {
+                    "id": "tree",
+                    "label": "Tree"
+                  }
+                ],
+                "answer": [
+                  "seed",
+                  "tree"
+                ],
+                "explanation": "A seed grows into a tree."
+              }
+            ],
+            "variantId": "v1",
+            "order": [
+              "red",
+              "blue",
+              "pink"
+            ]
+          },
+          "throws": true
         }
       ]
     }
