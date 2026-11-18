@@ -61,6 +61,7 @@ shared worker inside 2 MiB of standard-library Python.
 | # | Decision | Recommendation |
 |---|---|---|
 | O-1 | Memory and timeout of the function (1024 MB, 120 s proposed). Measured peak RSS on an x86 workstation is in `IMAGE_CONVERSION.md`; there is no arm64 or Lambda measurement | Confirm after an arm64 spike on deployment (ADR-071) |
+| O-10 | JPEG scan limit of 32 (conservative; ordinary progressive files have about 10) and, instead of a child process, a pre-decode refusal; glTF texture profiles ignore ICC and EXIF orientation for KTX2 preparation | As implemented |
 | O-2 | 16-bit grayscale PNG and 16-bit RGB: reduced to 8 bit for artwork with a finding, refused for data textures. Is exact 16-bit preservation needed (height maps)? | Keep refusing until a real asset needs it |
 | O-3 | Normal map handling when resized: filtered band by band, not renormalised | Accept; renormalisation is a later profile version |
 | O-4 | Exposure of `quality`, `max_side` and `flatten_background` in the Admin form (ADR-066 owns the action) | Staff-only, bounded options as implemented |

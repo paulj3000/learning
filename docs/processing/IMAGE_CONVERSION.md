@@ -27,10 +27,15 @@ create-only artifact store); it does not fork them.
    sees it. Pillow then parses the header only (`Image.open(..., formats=[sniffed])`), with
    `Image.MAX_IMAGE_PIXELS` set to the upload limit and `DecompressionBombWarning` raised as an
    error, and the same limits are checked again on the parsed size, before `load()`.
-3. Animated input: refused (`animated_not_supported`), except for profiles marked
+3. JPEG scans: before Pillow opens a JPEG, the marker structure is walked and a file with more
+   than `MAX_JPEG_SCANS` (32) scans is refused as `too_many_scans` (`resource_limit_exceeded`).
+   Pillow decodes in process and cannot be interrupted, so a progressive file of thousands of
+   tiny scans, inside 10 MiB and 16 MP, would otherwise run to the Lambda timeout. Ordinary
+   progressive files have about 10 scans; the walk costs milliseconds.
+4. Animated input: refused (`animated_not_supported`), except for profiles marked
    `first_frame_only` (thumbnails). Truncated or corrupt data is `malformed_image`; Pillow's
    truncated-image tolerance is never enabled. Decoded size must equal the header size.
-4. EXIF orientation is applied (`ImageOps.exif_transpose`); sides swap for orientations 5 to 8.
+5. EXIF orientation is applied (except for the glTF profiles) (`ImageOps.exif_transpose`); sides swap for orientations 5 to 8.
 5. Mode normalisation: palette and colour-key transparency become RGBA, 1-bit becomes L, 16-bit
    grayscale is reduced for artwork (`bit_depth_reduced`) and refused for data
    (`bit_depth_not_supported`), CMYK is converted for artwork and refused for data.
@@ -40,7 +45,9 @@ create-only artifact store); it does not fork them.
 7. Colour (artwork only): embedded ICC to sRGB with lcms (perceptual), alpha untouched; sRGB or
    missing profile keeps values; gray profiles are ignored with a finding; invalid or over
    1 MiB profiles are refused (`colour_profile_invalid`). A fully opaque alpha channel is dropped.
-   PNG's own parser refuses an `iCCP` that inflates past 64 KiB (reported as malformed).
+   Pillow's PNG chunk limit is set to `MAX_ICC_BYTES` (1 MiB), so a PNG profile up to that size
+   converts; the total of all text chunks is bounded separately at 256 KiB. A larger `iCCP` is
+   malformed.
 8. Encode with explicit arguments and an `info`-free image (no EXIF, XMP, comments, text, ICC
    except the optional sRGB tag), then walk the output bytes (`audit.py`). A dirty output is
    `output_check_failed` and nothing is stored. Outputs over 10 MiB (or 16 MiB in total) are
@@ -61,6 +68,8 @@ an sRGB profile with its date and id cleared); a Pillow upgrade is a new `PROCES
 | `texture-data-png` | data | PNG | no transform, exact channels |
 | `texture-data-webp` | data | WebP lossless, `exact=True` | no transform, exact channels |
 | `texture-colour-webp` | artwork | WebP lossy q90 | sRGB tagged |
+| `texture-colour-gltf` | artwork | PNG lossless | glTF: ICC and EXIF orientation ignored, untagged |
+| `texture-data-gltf` | data | PNG lossless | glTF: ICC and EXIF orientation ignored, exact channels |
 
 Options (`ImageProfile.with_options`, all validated): `max_side` (16 to 4096), `quality`,
 `power_of_two`, `flatten_background` (`#rrggbb`), `output_format`. A data profile can never be
@@ -226,3 +235,33 @@ inputs, ICC conversion and tagging, CMYK, data-texture byte equality through los
 WebP, band-wise resize, determinism, worker handling with fake AWS clients, zip determinism, hash
 pinning, size budget, licence and pruning contents, ELF dependency closure, SBOM equality, and a
 subprocess run of the unpacked x86 zip.
+
+## 10. glTF texture preparation and the deadline
+
+**glTF profiles (for Workstream F, KTX2 input).** glTF 2.0 ignores colour-space information in
+PNG and JPEG and maps textures by UV, so neither an embedded ICC profile nor an EXIF
+orientation may change the pixels. API (`lai_native.image`):
+
+```python
+from lai_native.image import get_profile, prepare_texture
+colour = prepare_texture(data, get_profile("texture-colour-gltf"))   # base colour, emissive
+data_map = prepare_texture(data, get_profile("texture-data-gltf"))   # normal, ORM, occlusion
+# optional: .with_options(max_side=1024, power_of_two=True)
+```
+
+Both profiles set `ignore_icc` and `ignore_orientation`: the embedded profile is dropped (never
+applied, no tag), the pixels are not rotated, `plan["orientationApplied"]` is 0, and the result
+is the lossless 8-bit pixels (`prepared.image`, `prepared.pixel_bytes()`). The colour profile
+reads the pixels as sRGB, the data profile as linear values with no colour change and band-wise
+resizing. Metadata is still removed from anything encoded. A `DecodedImage` can only be reused
+with a profile that has the same orientation rule (`decode_image(data, apply_orientation=False)`
+for the glTF profiles); a mismatch is `invalid_profile`.
+
+**Deadline.** The per-job budget is the request's `max_execution_seconds` (60 s,
+`IMAGE_LIMITS`), which the engine turns into a cooperative deadline checked between steps; the
+function timeout proposed in ADR-068 O-1 is 120 s. No remaining-time hook has landed in the
+shared handler (the audio worker has none either), so the image function does not derive its
+deadline from the Lambda context: the 60 s cap inside the 120 s timeout is the recorded contract.
+A single Pillow call cannot be interrupted, which is why the input is bounded before decoding
+(bytes, pixels, side, JPEG scans) rather than by time. When a remaining-time hook lands, the
+engine's deadline should be `min(max_execution_seconds, remaining - reserve)`.

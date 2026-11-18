@@ -18,6 +18,7 @@ CODES = frozenset(
         "unsupported_format",
         "malformed_image",
         "image_too_large",
+        "too_many_scans",
         "animated_not_supported",
         "bit_depth_not_supported",
         "colour_profile_invalid",

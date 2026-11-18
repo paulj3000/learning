@@ -27,6 +27,7 @@ _EXTENSIONS: Final = {"png": "png", "jpeg": "jpg", "webp": "webp"}
 _MAP: Final = {
     "input_too_large": (ErrorCode.RESOURCE_LIMIT_EXCEEDED, "input_too_large"),
     "image_too_large": (ErrorCode.RESOURCE_LIMIT_EXCEEDED, "image_too_large"),
+    "too_many_scans": (ErrorCode.RESOURCE_LIMIT_EXCEEDED, "too_many_scans"),
     "output_too_large": (ErrorCode.RESOURCE_LIMIT_EXCEEDED, "output_too_large"),
     "unsupported_format": (ErrorCode.UNSUPPORTED_INPUT, "unsupported_format"),
     "animated_not_supported": (ErrorCode.UNSUPPORTED_INPUT, "animated_not_supported"),
