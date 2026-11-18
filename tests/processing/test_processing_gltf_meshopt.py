@@ -327,8 +327,56 @@ def test_a_huge_claimed_count_is_refused_without_allocation() -> None:
     report, _facts = _run(document, binary)
     errors = _errors(report)
     assert "meshopt_decoded_too_large" in errors
-    assert "meshopt_stream_truncated" in errors
+    assert "meshopt_stream_truncated" not in errors  # a refused view's stream is never inspected
     assert DEFAULT_MAX_DECODED_BYTES < 12 * 10**9
+
+
+def test_a_huge_count_costs_constant_time() -> None:
+    """Security: `count` comes from the file; the minimum-length bound is closed form."""
+    import time
+
+    started = time.monotonic()
+    value = minimum_stream_length("ATTRIBUTES", 10**18, 12)
+    assert time.monotonic() - started < 0.05
+    assert value > 10**16
+    document, binary = _model()
+    index = _compressed_view(document)
+    _ext(document, index)["count"] = 10**18
+    document["bufferViews"][index]["byteLength"] = 12 * 10**18
+    started = time.monotonic()
+    report, _facts = _run(document, binary, max_decoded_bytes=2**62)
+    assert time.monotonic() - started < 1.0
+    assert "meshopt_decoded_too_large" in _errors(report)
+
+
+def _loop_minimum(count: int, stride: int) -> int:
+    """The straightforward loop the closed form replaces (small counts only)."""
+    max_block = min((8192 // stride) & ~15, 256)
+    total, remaining = 1 + max(stride, 32), count
+    while remaining > 0:
+        block = min(remaining, max_block)
+        groups = (block + 15) // 16
+        total += stride * ((groups + 3) // 4)
+        remaining -= block
+    return total
+
+
+@pytest.mark.parametrize("stride", [4, 8, 12, 16, 64, 128, 256])
+@pytest.mark.parametrize("count", [1, 15, 16, 17, 255, 256, 257, 1000, 4096, 10_001])
+def test_closed_form_matches_the_block_loop(stride: int, count: int) -> None:
+    assert minimum_stream_length("ATTRIBUTES", count, stride) == _loop_minimum(count, stride)
+
+
+def test_streams_of_views_with_rule_errors_are_not_inspected() -> None:
+    document, binary = _model()
+    ext = _ext(document, _compressed_view(document))
+    ext["byteStride"] = 6
+    patched = bytearray(binary)
+    patched[ext["byteOffset"]] = 0x00  # would be a header error if inspected
+    report, facts = _run(document, bytes(patched))
+    assert "meshopt_stride" in _errors(report)
+    assert "meshopt_stream_header" not in _errors(report)
+    assert facts.headers_checked == 0
 
 
 # --- stream headers ---------------------------------------------------------------------------

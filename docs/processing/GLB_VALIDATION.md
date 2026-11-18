@@ -137,6 +137,12 @@ first. Vertex data is never decoded.
    `validate_basisu` (`processors/gltf/compression/`, the same functions in both validators) check
    them; their codes are listed in `GLB_OPTIMIZATION.md` sections 3 and 10.
 
+   Policy version 3 also accepts `KHR_materials_anisotropy`, `KHR_materials_dispersion` and
+   `EXT_materials_bump`, which three 0.185.1 renders without a decoder. A file that fails only
+   on policy codes (`POLICY_ERROR_CODES`) at publication is refused (`policy_refused`), never
+   rejected; rollback of a previously published version tolerates them
+   (`GLB_OPTIMIZATION.md` section 2).
+
    Processor versions: `1.1.0` (2026-11-18, Workstream B's stricter policy) and `1.2.0` (ADR-070:
    policy version 3 and the two options). Each bump means a `pass` recorded by an older version no
    longer satisfies the publication gate (`processor_outdated`): an unpublished `VALIDATED` or

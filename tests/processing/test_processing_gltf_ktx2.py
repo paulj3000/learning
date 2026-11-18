@@ -308,3 +308,23 @@ def test_data_uri_ktx2_image_is_recognised() -> None:
 
 def test_policy_row_for_ktx2() -> None:
     assert compression_support("KHR_texture_basisu").value == "supported_when_enabled"
+
+
+def test_out_of_range_key_value_data_is_a_finding_not_a_crash() -> None:
+    """Security: a KVD offset past the file must never raise `struct.error`."""
+    data = bytearray(ktx2(64, 64))
+    struct.pack_into("<II", data, 56, len(data) + 1000, 64)  # kvdByteOffset, kvdByteLength
+    report, info = _parse(bytes(data))
+    assert info is None
+    assert "ktx2_truncated" in _errors(report)
+
+
+def test_any_struct_error_becomes_ktx2_truncated(monkeypatch) -> None:
+    from lai_processing.processors.gltf.compression import ktx2 as module
+
+    def boom(*_args, **_kwargs):
+        raise struct.error("unpack requires a buffer")
+
+    monkeypatch.setattr(module, "_key_values", boom)
+    report, info = _parse(ktx2(64, 64))
+    assert info is None and "ktx2_truncated" in _errors(report)

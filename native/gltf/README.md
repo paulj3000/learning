@@ -7,7 +7,7 @@ never committed.
 
 ```sh
 native/gltf/fetch-tools.sh > /tmp/lai-gltf-tools.env   # x86_64 by default; --arch arm64
-source /tmp/lai-gltf-tools.env    # LAI_GLTFPACK, LAI_TOKTX, LAI_KTX, LAI_KTX_LIBRARY_PATH
+source /tmp/lai-gltf-tools.env    # LAI_GLTFPACK_PATH, LAI_TOKTX_PATH, LAI_KTX_PATH, LAI_KTX_LIBRARY_PATH
 python3 native/gltf/bench.py --profile meshopt-conservative content/models/npc-pip-pirate.glb
 python3 native/gltf/bench.py --profile ktx2-basisu react/public/models/kenney-tree-large.glb
 ```
@@ -46,3 +46,11 @@ decision on packaging).
 - `-kn` keeps named nodes, but with the default integer position quantization a skinned mesh is
   moved under a new unnamed child node carrying the dequantization transform (observed on the
   repository NPC). `-vpf` avoids that; `-vtf` avoids adding `KHR_texture_transform`.
+
+## Not deployable yet
+
+There is no Linux arm64 gltfpack binary and no optimize zip builder (`native/gltf/build.py`, the
+`build-workers.sh` contract `python3 -I <builder> --out DIR`). Building one waits for the runtime
+decision (ADR-070 O1) and an arm64 gltfpack built from source. Until then `LAI_GLB_MESHOPT` and
+`LAI_GLB_KTX2` stay `off`. `fetch-tools.sh` exits 3 on a SHA-256 mismatch and 4 on a download
+failure; it never extracts an unverified archive.

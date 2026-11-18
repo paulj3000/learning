@@ -355,7 +355,14 @@ export function createLocationEngine<R extends RendererLike>(
     ),
   );
   renderer.setSize(parent.clientWidth, parent.clientHeight);
-  const detachAssetRenderer = deps.assets.attachRenderer?.(renderer);
+  // Before any model loads, so KTX2 textures decode for this GPU (ADR-070). A failure here
+  // (for example a browser without workers) must not stop the place: it runs without KTX2.
+  let detachAssetRenderer: (() => void) | undefined;
+  try {
+    detachAssetRenderer = deps.assets.attachRenderer?.(renderer);
+  } catch (error) {
+    console.warn('KTX2 texture support is unavailable; continuing without it', error);
+  }
   parent.appendChild(renderer.domElement);
 
   // Movement: colliders (gated ones only while their requirements hold),
@@ -1116,7 +1123,11 @@ export function createLocationEngine<R extends RendererLike>(
     materialLibrary.dispose();
     for (const field of moteFields) field.dispose();
     scene.clear();
-    detachAssetRenderer?.();
+    try {
+      detachAssetRenderer?.(); // before the renderer goes
+    } catch (error) {
+      console.warn('KTX2 texture support did not detach cleanly', error);
+    }
     renderer.dispose();
     if (renderer.domElement.parentElement === parent) {
       parent.removeChild(renderer.domElement);

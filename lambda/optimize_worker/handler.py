@@ -12,7 +12,8 @@ worker's (`jobs_worker.handler.process`, imported, not copied). This module only
   `ProcessingContext.write_artifact`,
 * builds the trusted tools from configuration: `LAI_GLTFPACK_PATH` (default `/opt/bin/gltfpack`),
   `LAI_TOKTX_PATH` (default `/opt/bin/toktx`), `LAI_KTX_LIBRARY_PATH` (default `/opt/lib`) and
-  optional SHA-256 pins `LAI_GLTFPACK_SHA256` / `LAI_TOKTX_SHA256`.
+  optional SHA-256 pins `LAI_GLTFPACK_SHA256` / `LAI_TOKTX_SHA256` (read by the shared
+  `ToolPaths.from_environment`), and `LAI_KTX2_TEXTURE_PREPARER` (only `pillow` is accepted).
 
 The worker never reads Django settings. Whether a variant may run is decided at submission
 (`LAI_GLB_MESHOPT`, `LAI_GLB_KTX2`); dispatch re-checks and fails a job whose control was switched
@@ -33,13 +34,11 @@ QUEUE = "optimize"
 DEFAULT_GLTFPACK_PATH = "/opt/bin/gltfpack"
 DEFAULT_TOKTX_PATH = "/opt/bin/toktx"
 DEFAULT_KTX_LIBRARY_PATH = "/opt/lib"
-
-
-def _pin(env, name: str) -> str | None:
-    value = env.get(name, "").strip().lower() or None
-    if value is not None and len(value) != 64:
-        raise RuntimeError(f"{name} must be 64 hex characters")
-    return value
+TOOL_DEFAULTS = {
+    "LAI_GLTFPACK_PATH": DEFAULT_GLTFPACK_PATH,
+    "LAI_TOKTX_PATH": DEFAULT_TOKTX_PATH,
+    "LAI_KTX_LIBRARY_PATH": DEFAULT_KTX_LIBRARY_PATH,
+}
 
 
 class OptimizeSettings:
@@ -53,11 +52,19 @@ class OptimizeSettings:
         self.asset_bucket = env.get("LAI_ASSET_BUCKET", "").strip()
         self.speech_bucket = ""
         self.ssm_prefix = ""
-        self.gltfpack_path = env.get("LAI_GLTFPACK_PATH", DEFAULT_GLTFPACK_PATH).strip()
-        self.toktx_path = env.get("LAI_TOKTX_PATH", DEFAULT_TOKTX_PATH).strip()
-        self.ktx_library_path = env.get("LAI_KTX_LIBRARY_PATH", DEFAULT_KTX_LIBRARY_PATH).strip()
-        self.gltfpack_sha256 = _pin(env, "LAI_GLTFPACK_SHA256")
-        self.toktx_sha256 = _pin(env, "LAI_TOKTX_SHA256")
+        from lai_native.optimize import ToolPaths
+
+        try:
+            self._tools = ToolPaths.from_environment(env, defaults=TOOL_DEFAULTS)
+        except ValueError as error:
+            raise RuntimeError(str(error)) from None
+        self.gltfpack_sha256 = self._tools.gltfpack_sha256
+        self.toktx_sha256 = self._tools.toktx_sha256
+        # The worker accepts only the Pillow preparer (Workstream D): KTX2 without colour and
+        # orientation handling must fail, never run (F13).
+        self.texture_preparer = env.get("LAI_KTX2_TEXTURE_PREPARER", "pillow").strip()
+        if self.texture_preparer != "pillow":
+            raise RuntimeError("LAI_KTX2_TEXTURE_PREPARER must be pillow")
         if self.queue != QUEUE:
             raise RuntimeError("LAI_WORKER_QUEUE must be optimize")
         if not (self.results_queue_url and self.results_bucket and self.asset_bucket):
@@ -68,17 +75,7 @@ class OptimizeSettings:
         return frozenset({KIND})
 
     def tools(self):
-        from pathlib import Path
-
-        from lai_native.optimize import ToolPaths
-
-        return ToolPaths(
-            gltfpack=Path(self.gltfpack_path) if self.gltfpack_path else None,
-            toktx=Path(self.toktx_path) if self.toktx_path else None,
-            library_path=self.ktx_library_path or None,
-            gltfpack_sha256=self.gltfpack_sha256,
-            toktx_sha256=self.toktx_sha256,
-        )
+        return self._tools
 
 
 class OptimizePorts(aws.AssetPorts):
@@ -90,6 +87,14 @@ class OptimizePorts(aws.AssetPorts):
 
 
 class OptimizeRuntime(aws.Runtime):
+    def __init__(self, *args, sweep_base: str = "/tmp", **kwargs):  # noqa: S108 - Lambda /tmp
+        super().__init__(*args, **kwargs)
+        # A warm container's /tmp survives killed invocations: clear their leftover workspaces
+        # (lai-native-*) once per container, as the audio worker does.
+        from lai_native.runtime import sweep_stale
+
+        self.swept = sweep_stale(sweep_base)
+
     def ports(self, kind: str, context):
         if kind != KIND:
             raise TaskError("unknown_kind")
@@ -108,7 +113,11 @@ def engine_registry(settings: OptimizeSettings):
 
         registry = ProcessorRegistry()
         registry.register(
-            GlbOptimizeProcessor(settings.tools(), workspace_base="/tmp")  # noqa: S108 - Lambda /tmp
+            GlbOptimizeProcessor(
+                settings.tools(),
+                workspace_base="/tmp",  # noqa: S108 - Lambda's writable directory
+                preparer=settings.texture_preparer,
+            )
         )
         registry.freeze()
         _registry = registry

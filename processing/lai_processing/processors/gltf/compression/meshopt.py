@@ -200,17 +200,15 @@ def minimum_stream_length(mode: str, count: int, stride: int) -> int:
     INDICES: header, at least one varint byte per index, 4-byte tail. (Appendix A of the spec.)
     """
     if mode == "ATTRIBUTES":
-        max_block = min((8192 // stride) & ~15, 256) if stride else 0
-        if max_block <= 0:
-            return 1 + max(stride, _ATTRIBUTE_TAIL_MIN)
-        total = 1 + max(stride, _ATTRIBUTE_TAIL_MIN)
-        remaining = count
-        while remaining > 0:
-            block = min(remaining, max_block)
-            groups = _ceil_div(block, 16)
-            total += stride * _ceil_div(groups, 4)
-            remaining -= block
-        return total
+        tail = 1 + max(stride, _ATTRIBUTE_TAIL_MIN)
+        max_block = min((8192 // stride) & ~15, 256) if stride > 0 else 0
+        if max_block <= 0 or count <= 0:
+            return tail
+        # Closed form (a hostile `count` must never drive a loop): full blocks, then the rest.
+        full, rest = divmod(count, max_block)
+        per_full = stride * _ceil_div(_ceil_div(max_block, 16), 4)
+        per_rest = stride * _ceil_div(_ceil_div(rest, 16), 4) if rest else 0
+        return tail + full * per_full + per_rest
     if mode == "TRIANGLES":
         return 1 + count // 3 + _TRIANGLE_TAIL
     if mode == "INDICES":
@@ -435,7 +433,7 @@ class _Checker:
             or not isinstance(filter_name, str)
         ):
             return
-        self._rules(mode, filter_name, stride, count, path)
+        rules_ok = self._rules(mode, filter_name, stride, count, path)
         limit = self.lengths[buffer]
         if limit is None or offset + length > limit:
             self.sink.error(
@@ -458,20 +456,27 @@ class _Checker:
                 "The buffer view's byteLength is not count times byteStride.",
                 f"bufferViews[{index}]",
             )
+        view = MeshoptView(index, buffer, offset, length, stride, count, mode, filter_name)
+        self.facts.views.append(view)
+        self.facts.compressed_bytes += length
+        self.facts.decoded_bytes += decoded
         if decoded > self.max_decoded:
             self.sink.error(
                 "meshopt_decoded_too_large",
                 "A compressed buffer view decodes to more than the allowed size.",
                 path,
             )
-        view = MeshoptView(index, buffer, offset, length, stride, count, mode, filter_name)
-        self.facts.views.append(view)
-        self.facts.compressed_bytes += length
-        self.facts.decoded_bytes += decoded
+            return  # never inspect the stream of a view that is already refused
+        if not rules_ok:
+            return
         self._stream(view, path)
 
-    def _rules(self, mode: str, filter_name: str, stride: int, count: int, path: str) -> None:
+    def _rules(self, mode: str, filter_name: str, stride: int, count: int, path: str) -> bool:
+        failures = 0
+
         def stride_error(message: str) -> None:
+            nonlocal failures
+            failures += 1
             self.sink.error("meshopt_stride", message, path)
 
         if mode == "ATTRIBUTES":
@@ -481,8 +486,10 @@ class _Checker:
             if stride not in (2, 4):
                 stride_error("An index stream needs a byteStride of 2 or 4.")
             if filter_name != "NONE":
+                failures += 1
                 self.sink.error("meshopt_filter", "Index streams cannot use a filter.", path)
             if mode == "TRIANGLES" and count % 3:
+                failures += 1
                 self.sink.error(
                     "meshopt_count", "A TRIANGLES stream needs a count divisible by 3.", path
                 )
@@ -492,6 +499,7 @@ class _Checker:
             stride_error("The QUATERNION filter needs a byteStride of 8.")
         elif filter_name == "EXPONENTIAL" and stride % 4:
             stride_error("The EXPONENTIAL filter needs a byteStride divisible by 4.")
+        return failures == 0
 
     def _stream(self, view: MeshoptView, path: str) -> None:
         minimum = minimum_stream_length(view.mode, view.count, view.byte_stride)

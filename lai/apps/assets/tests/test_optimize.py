@@ -315,3 +315,102 @@ def test_admin_actions_submit_or_refuse(roles, sqs, settings):
     assert ProcessingJob.objects.filter(kind="asset.optimize").count() == 1
     version.refresh_from_db()
     assert version.status == VersionStatus.VALIDATED
+
+
+# --- policy changes never reject (review fix) --------------------------------------------------
+
+
+def anisotropy_glb() -> bytes:
+    document, binary = static_model()
+    document["extensionsUsed"] = ["KHR_materials_anisotropy"]
+    document["materials"][0]["extensions"] = {
+        "KHR_materials_anisotropy": {"anisotropyStrength": 0.5}
+    }
+    return glb(document, binary)
+
+
+@pytest.mark.parametrize(
+    "name", ["KHR_materials_anisotropy", "KHR_materials_dispersion", "EXT_materials_bump"]
+)
+def test_material_extensions_three_renders_are_accepted(name):
+    document, binary = static_model()
+    document["extensionsUsed"] = [name]
+    body = glb(document, binary)
+    assert validate_model(io.BytesIO(body), size=len(body)).passed
+
+
+def _tighten_policy(monkeypatch, name="KHR_materials_anisotropy"):
+    """Simulate a later, stricter extension table (both validators read the same function)."""
+    from apps.assets import validation
+    from lai_processing.processors.gltf import extension_policy
+
+    original = extension_policy.error_code
+
+    def stricter(extension, enabled=frozenset()):
+        return "unsupported_extension" if extension == name else original(extension, enabled)
+
+    monkeypatch.setattr(validation, "extension_error_code", stricter)
+
+
+def test_publish_refuses_without_rejecting_when_only_the_policy_changed(monkeypatch):
+    version = upload(anisotropy_glb())
+    assert version.status == VersionStatus.VALIDATED
+    _tighten_policy(monkeypatch)
+    with pytest.raises(AssetActionRefused) as refused:
+        services.publish_version(version)
+    assert refused.value.code == "policy_refused"
+    version.refresh_from_db()
+    assert version.status == VersionStatus.VALIDATED
+
+
+def _tamper(storage, key):
+    data, content_type, when = storage.objects[key]
+    storage.objects[key] = (data[:-4] + b"\x00\x00\x00\x01", content_type, when)
+
+
+def test_publish_still_rejects_changed_bytes():
+    from apps.assets.storage import get_storage
+
+    version = upload(plain_glb())
+    _tamper(get_storage(), version.storage_key)
+    with pytest.raises(AssetActionRefused) as refused:
+        services.publish_version(version)
+    assert refused.value.code == "invalid_file"
+    version.refresh_from_db()
+    assert version.status == VersionStatus.REJECTED
+
+
+def test_rollback_of_a_retired_version_is_not_blocked_by_a_policy_change(monkeypatch):
+    first = services.publish_version(upload(anisotropy_glb()))
+    second = services.publish_version(
+        AssetVersion.objects.get(
+            pk=services.upload_version(
+                first.asset, io.BytesIO(plain_glb()), original_filename="plain.glb"
+            ).pk
+        )
+    )
+    services.set_default_version(second)
+    services.retire_version(AssetVersion.objects.get(pk=first.pk))
+    _tighten_policy(monkeypatch)
+    asset = services.rollback_to_version(AssetVersion.objects.get(pk=first.pk))
+    assert asset.default_version_id == first.pk
+    assert AssetVersion.objects.get(pk=first.pk).status == VersionStatus.PUBLISHED
+
+
+def test_rollback_still_needs_intact_bytes(monkeypatch):
+    from apps.assets.storage import get_storage
+
+    first = services.publish_version(upload(anisotropy_glb()))
+    second = services.publish_version(
+        AssetVersion.objects.get(
+            pk=services.upload_version(
+                first.asset, io.BytesIO(plain_glb()), original_filename="plain.glb"
+            ).pk
+        )
+    )
+    services.set_default_version(second)
+    services.retire_version(AssetVersion.objects.get(pk=first.pk))
+    _tamper(get_storage(), first.storage_key)
+    with pytest.raises(AssetActionRefused) as refused:
+        services.rollback_to_version(AssetVersion.objects.get(pk=first.pk))
+    assert refused.value.code == "verification_failed"

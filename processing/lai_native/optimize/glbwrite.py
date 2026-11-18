@@ -57,7 +57,17 @@ def repack(
 ) -> tuple[dict[str, Any], bytes]:
     """Return (document, binary) with buffer view `i`'s bytes replaced by `replacements[i]`.
 
-    The document is modified in place and returned."""
+    The document is modified in place and returned. A malformed view (a missing key, a wrong
+    type) raises `GlbLayoutError("unsupported_layout")`, never a `KeyError`."""
+    try:
+        return _repack(document, binary, replacements)
+    except (KeyError, IndexError, TypeError, AttributeError):
+        raise GlbLayoutError("unsupported_layout") from None
+
+
+def _repack(
+    document: dict[str, Any], binary: bytes, replacements: dict[int, bytes]
+) -> tuple[dict[str, Any], bytes]:
     regions: list[tuple[int, int, str, int]] = []  # (offset, length, kind, view index)
     for index, view in enumerate(document.get("bufferViews", [])):
         extension = (view.get("extensions") or {}).get(_MESHOPT)

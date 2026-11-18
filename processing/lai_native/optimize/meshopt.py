@@ -23,8 +23,9 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
@@ -110,21 +111,46 @@ class ToolPaths:
         return ToolSpec("toktx", str(self.toktx), self.toktx_sha256, env)
 
     @classmethod
-    def from_environment(cls, environ: dict[str, str] | None = None) -> ToolPaths:
-        env = os.environ if environ is None else environ
+    def from_environment(
+        cls,
+        environ: Mapping[str, str] | None = None,
+        *,
+        defaults: Mapping[str, str] | None = None,
+    ) -> ToolPaths:
+        """The one reader of the tool settings, shared by the worker, the benchmark and the
+        real-tool tests: `LAI_GLTFPACK_PATH`, `LAI_TOKTX_PATH`, `LAI_KTX_PATH`,
+        `LAI_KTX_LIBRARY_PATH`, and the optional pins `LAI_GLTFPACK_SHA256` /
+        `LAI_TOKTX_SHA256` (64 hex characters, else `ValueError`). `defaults` fills unset
+        names (the worker's `/opt/...` layout)."""
+        env = dict(defaults or {})
+        source = os.environ if environ is None else environ
+        env.update({k: v for k, v in source.items() if isinstance(v, str) and v.strip()})
 
         def path(name: str) -> Path | None:
             value = env.get(name, "").strip()
             return Path(value) if value else None
 
         return cls(
-            gltfpack=path("LAI_GLTFPACK"),
-            toktx=path("LAI_TOKTX"),
-            ktx=path("LAI_KTX"),
-            library_path=env.get("LAI_KTX_LIBRARY_PATH") or None,
-            gltfpack_sha256=env.get("LAI_GLTFPACK_SHA256") or None,
-            toktx_sha256=env.get("LAI_TOKTX_SHA256") or None,
+            gltfpack=path("LAI_GLTFPACK_PATH"),
+            toktx=path("LAI_TOKTX_PATH"),
+            ktx=path("LAI_KTX_PATH"),
+            library_path=env.get("LAI_KTX_LIBRARY_PATH", "").strip() or None,
+            gltfpack_sha256=sha256_pin(env, "LAI_GLTFPACK_SHA256"),
+            toktx_sha256=sha256_pin(env, "LAI_TOKTX_SHA256"),
         )
+
+
+_HEX64 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def sha256_pin(env: Mapping[str, str], name: str) -> str | None:
+    """An optional SHA-256 pin: unset is None; anything but 64 hex characters is refused."""
+    value = env.get(name, "").strip().lower()
+    if not value:
+        return None
+    if not _HEX64.fullmatch(value):
+        raise ValueError(f"{name} must be 64 hex characters")
+    return value
 
 
 @dataclass
