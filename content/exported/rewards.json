@@ -50,6 +50,82 @@
         "fh-shard-item-summit",
         "fh-shard-item-heart"
       ]
+    },
+    {
+      "completionMessage": "You found all seven pieces of the Christmas Star!",
+      "displayName": "Christmas Star pieces",
+      "id": "np-set-star-fragments",
+      "itemIds": [
+        "np-star-fragment-village",
+        "np-star-fragment-workshop",
+        "np-star-fragment-forest",
+        "np-star-fragment-lake",
+        "np-star-fragment-stables",
+        "np-star-fragment-gingerbread",
+        "np-star-fragment-mountain"
+      ]
+    },
+    {
+      "completionItemId": "np-cosmetic-snowflake-scarf",
+      "completionMessage": "Ten sparkling snowflakes! Here is a snowflake scarf.",
+      "displayName": "Snowflakes",
+      "id": "np-set-snowflakes",
+      "itemIds": [
+        "np-snowflake-01",
+        "np-snowflake-02",
+        "np-snowflake-03",
+        "np-snowflake-04",
+        "np-snowflake-05",
+        "np-snowflake-06",
+        "np-snowflake-07",
+        "np-snowflake-08",
+        "np-snowflake-09",
+        "np-snowflake-10"
+      ]
+    },
+    {
+      "completionMessage": "You found every candy cane in the forest!",
+      "displayName": "Candy canes",
+      "id": "np-set-candy-canes",
+      "itemIds": [
+        "np-candy-cane-1",
+        "np-candy-cane-2",
+        "np-candy-cane-3",
+        "np-candy-cane-4",
+        "np-candy-cane-5"
+      ]
+    },
+    {
+      "completionMessage": "Every hidden ornament is found!",
+      "displayName": "Shiny ornaments",
+      "id": "np-set-ornaments",
+      "itemIds": [
+        "np-ornament-1",
+        "np-ornament-2",
+        "np-ornament-3",
+        "np-ornament-4",
+        "np-ornament-5"
+      ]
+    },
+    {
+      "completionMessage": "All three cookies are yours!",
+      "displayName": "Gingerbread cookies",
+      "id": "np-set-cookies",
+      "itemIds": [
+        "np-cookie-1",
+        "np-cookie-2",
+        "np-cookie-3"
+      ]
+    },
+    {
+      "completionMessage": "All three golden bells are jingling together!",
+      "displayName": "Golden bells",
+      "id": "np-set-golden-bells",
+      "itemIds": [
+        "np-golden-bell-1",
+        "np-golden-bell-2",
+        "np-golden-bell-3"
+      ]
     }
   ],
   "items": [
@@ -542,6 +618,430 @@
       "journal": {
         "questId": "the-heart-of-firepeak",
         "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A glowing piece of the Christmas Star, found in the village.",
+      "displayName": "Star piece 1: village",
+      "id": "np-star-fragment-village",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-star-fragments"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A glowing piece of the Christmas Star, found in the workshop.",
+      "displayName": "Star piece 2: workshop",
+      "id": "np-star-fragment-workshop",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-star-fragments"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A glowing piece of the Christmas Star, found in the forest.",
+      "displayName": "Star piece 3: forest",
+      "id": "np-star-fragment-forest",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-star-fragments"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A glowing piece of the Christmas Star, found in the lake.",
+      "displayName": "Star piece 4: lake",
+      "id": "np-star-fragment-lake",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-star-fragments"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A glowing piece of the Christmas Star, found in the stables.",
+      "displayName": "Star piece 5: stables",
+      "id": "np-star-fragment-stables",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-star-fragments"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A glowing piece of the Christmas Star, found in the gingerbread village.",
+      "displayName": "Star piece 6: gingerbread village",
+      "id": "np-star-fragment-gingerbread",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-star-fragments"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A glowing piece of the Christmas Star, found in the mountain.",
+      "displayName": "Star piece 7: mountain",
+      "id": "np-star-fragment-mountain",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-star-fragments"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 1",
+      "id": "np-snowflake-01",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 2",
+      "id": "np-snowflake-02",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 3",
+      "id": "np-snowflake-03",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 4",
+      "id": "np-snowflake-04",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 5",
+      "id": "np-snowflake-05",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 6",
+      "id": "np-snowflake-06",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 7",
+      "id": "np-snowflake-07",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 8",
+      "id": "np-snowflake-08",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 9",
+      "id": "np-snowflake-09",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A tiny, sparkling snowflake. Real snowflakes have six sides.",
+      "displayName": "Snowflake 10",
+      "id": "np-snowflake-10",
+      "rarity": "COMMON",
+      "setId": "np-set-snowflakes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A red and white striped candy cane from the forest.",
+      "displayName": "Candy cane 1",
+      "id": "np-candy-cane-1",
+      "rarity": "COMMON",
+      "setId": "np-set-candy-canes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A red and white striped candy cane from the forest.",
+      "displayName": "Candy cane 2",
+      "id": "np-candy-cane-2",
+      "rarity": "COMMON",
+      "setId": "np-set-candy-canes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A red and white striped candy cane from the forest.",
+      "displayName": "Candy cane 3",
+      "id": "np-candy-cane-3",
+      "rarity": "COMMON",
+      "setId": "np-set-candy-canes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A red and white striped candy cane from the forest.",
+      "displayName": "Candy cane 4",
+      "id": "np-candy-cane-4",
+      "rarity": "COMMON",
+      "setId": "np-set-candy-canes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A red and white striped candy cane from the forest.",
+      "displayName": "Candy cane 5",
+      "id": "np-candy-cane-5",
+      "rarity": "COMMON",
+      "setId": "np-set-candy-canes"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A shiny ornament that was tucked away in a hiding place.",
+      "displayName": "Shiny ornament 1",
+      "hidden": true,
+      "id": "np-ornament-1",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-ornaments"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A shiny ornament that was tucked away in a hiding place.",
+      "displayName": "Shiny ornament 2",
+      "hidden": true,
+      "id": "np-ornament-2",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-ornaments"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A shiny ornament that was tucked away in a hiding place.",
+      "displayName": "Shiny ornament 3",
+      "hidden": true,
+      "id": "np-ornament-3",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-ornaments"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A shiny ornament that was tucked away in a hiding place.",
+      "displayName": "Shiny ornament 4",
+      "hidden": true,
+      "id": "np-ornament-4",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-ornaments"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A shiny ornament that was tucked away in a hiding place.",
+      "displayName": "Shiny ornament 5",
+      "hidden": true,
+      "id": "np-ornament-5",
+      "rarity": "UNCOMMON",
+      "setId": "np-set-ornaments"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A warm, spicy gingerbread cookie.",
+      "displayName": "Gingerbread cookie 1",
+      "id": "np-cookie-1",
+      "rarity": "COMMON",
+      "setId": "np-set-cookies"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A warm, spicy gingerbread cookie.",
+      "displayName": "Gingerbread cookie 2",
+      "id": "np-cookie-2",
+      "rarity": "COMMON",
+      "setId": "np-set-cookies"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A warm, spicy gingerbread cookie.",
+      "displayName": "Gingerbread cookie 3",
+      "id": "np-cookie-3",
+      "rarity": "COMMON",
+      "setId": "np-set-cookies"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little golden bell from the hidden ice cave. It jingles softly.",
+      "displayName": "Golden bell 1",
+      "hidden": true,
+      "id": "np-golden-bell-1",
+      "rarity": "RARE",
+      "setId": "np-set-golden-bells"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little golden bell from the hidden ice cave. It jingles softly.",
+      "displayName": "Golden bell 2",
+      "hidden": true,
+      "id": "np-golden-bell-2",
+      "rarity": "RARE",
+      "setId": "np-set-golden-bells"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A little golden bell from the hidden ice cave. It jingles softly.",
+      "displayName": "Golden bell 3",
+      "hidden": true,
+      "id": "np-golden-bell-3",
+      "rarity": "RARE",
+      "setId": "np-set-golden-bells"
+    },
+    {
+      "category": "QUEST_ITEM",
+      "description": "A little collar with a bell, found in Pine Hollow. Noel will want to see it.",
+      "displayName": "Snowball’s collar",
+      "id": "np-snowball-collar",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A wooden token from Noel, for bringing Snowball safely home.",
+      "displayName": "Reindeer token",
+      "id": "np-reindeer-token",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A present wrapped in shiny paper and tied with a bow.",
+      "displayName": "Gift wrapped present",
+      "id": "np-gift-wrapped-present",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For looking all around the North Pole village.",
+      "displayName": "North Pole Explorer Badge",
+      "id": "np-badge-north-pole-explorer",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For helping Tinker fix the toy workshop machine.",
+      "displayName": "Master Toymaker Badge",
+      "id": "np-badge-master-toymaker",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For finding the way through the candy cane forest.",
+      "displayName": "Candy Cane Trailblazer Badge",
+      "id": "np-badge-candy-cane-trailblazer",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For raising the ice bridge across the frozen lake.",
+      "displayName": "Ice Hopper Badge",
+      "id": "np-badge-ice-hopper",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For helping Snowball the reindeer calf get home.",
+      "displayName": "Reindeer Rescuer Badge",
+      "id": "np-badge-reindeer-rescuer",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For mending the gingerbread village wall.",
+      "displayName": "Gingerbread Builder Badge",
+      "id": "np-badge-gingerbread-builder",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For reaching the top of Snowflake Mountain.",
+      "displayName": "Snowflake Mountain Champion Badge",
+      "id": "np-badge-snowflake-mountain-champion",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "For helping the whole North Pole get ready for Christmas Eve.",
+      "displayName": "Santa’s Helper Badge",
+      "id": "np-badge-santas-helper",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A tiny shining star, for putting the Christmas Star back together.",
+      "displayName": "Christmas Star Trophy",
+      "id": "np-trophy-christmas-star",
+      "rarity": "RARE"
+    },
+    {
+      "category": "COSMETIC",
+      "cosmeticSlot": "HAT",
+      "description": "A soft red hat with a white fluffy edge.",
+      "displayName": "Santa hat",
+      "id": "np-cosmetic-santa-hat",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "COSMETIC",
+      "cosmeticSlot": "BACKPACK",
+      "description": "A small green backpack, just right for an elf helper.",
+      "displayName": "Elf backpack",
+      "id": "np-cosmetic-elf-backpack",
+      "rarity": "UNCOMMON"
+    },
+    {
+      "category": "COSMETIC",
+      "cosmeticSlot": "ACCESSORY",
+      "description": "A cosy blue scarf covered in snowflakes.",
+      "displayName": "Snowflake scarf",
+      "id": "np-cosmetic-snowflake-scarf",
+      "rarity": "RARE"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "Snow is made of tiny ice crystals. Water freezes into ice when it gets cold enough.",
+      "displayName": "Snow and ice",
+      "id": "np-journal-snow-and-ice",
+      "journal": {
+        "questId": "np-q04-frozen-lake",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "Water can be ice, liquid water, or a gas called water vapour.",
+      "displayName": "Three states of water",
+      "id": "np-journal-water-states",
+      "journal": {
+        "questId": "np-q07-snowflake-mountain",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "Real stars are huge balls of hot gas, very far away. Our Sun is a star, and the Christmas Star is island magic.",
+      "displayName": "Stars",
+      "id": "np-journal-stars",
+      "journal": {
+        "questId": "np-q08-restore-the-star",
+        "subject": "EARTH_SCIENCE"
+      },
+      "rarity": "COMMON"
+    },
+    {
+      "category": "COLLECTIBLE",
+      "description": "A pattern repeats. If you find the rule, you can tell what comes next.",
+      "displayName": "Patterns",
+      "id": "np-journal-patterns",
+      "journal": {
+        "questId": "np-q02-toy-workshop",
+        "subject": "MATHEMATICS"
       },
       "rarity": "COMMON"
     }
@@ -1045,6 +1545,497 @@
       "message": "You found the Heart ember shard!",
       "trigger": {
         "changeKey": "FIREPEAK_HEART_SHARD_HEART",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-welcome",
+      "itemIds": [
+        "np-badge-north-pole-explorer"
+      ],
+      "message": "You earned the North Pole Explorer Badge!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_WELCOME_LOOKED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-workshop-gifts",
+      "itemIds": [
+        "np-gift-wrapped-present"
+      ],
+      "message": "A gift wrapped present for you!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_WORKSHOP_GIFTS_CHECKED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-workshop",
+      "itemIds": [
+        "np-badge-master-toymaker",
+        "np-journal-patterns"
+      ],
+      "message": "You earned the Master Toymaker Badge and a new journal page about patterns!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_WORKSHOP_RESTORED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-forest",
+      "itemIds": [
+        "np-badge-candy-cane-trailblazer"
+      ],
+      "message": "You earned the Candy Cane Trailblazer Badge!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_FOREST_DONE",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-lake",
+      "itemIds": [
+        "np-badge-ice-hopper",
+        "np-journal-snow-and-ice"
+      ],
+      "message": "You earned the Ice Hopper Badge and a journal page about snow and ice!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_LAKE_DONE",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-reindeer",
+      "itemIds": [
+        "np-badge-reindeer-rescuer",
+        "np-reindeer-token"
+      ],
+      "message": "Snowball is home! You earned the Reindeer Rescuer Badge and a reindeer token.",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWBALL_HOME",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-gingerbread",
+      "itemIds": [
+        "np-badge-gingerbread-builder"
+      ],
+      "message": "You earned the Gingerbread Builder Badge!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_GINGER_REPAIRED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-mountain",
+      "itemIds": [
+        "np-badge-snowflake-mountain-champion",
+        "np-journal-water-states"
+      ],
+      "message": "You reached the top! You earned the Snowflake Mountain Champion Badge and a journal page about water.",
+      "trigger": {
+        "changeKey": "NORTH_POLE_MOUNTAIN_SUMMIT",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-star",
+      "itemIds": [
+        "np-trophy-christmas-star",
+        "np-journal-stars"
+      ],
+      "message": "The Christmas Star shines again! You earned the Christmas Star Trophy and a journal page about stars.",
+      "trigger": {
+        "changeKey": "NORTH_POLE_STAR_RESTORED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-christmas-eve",
+      "itemIds": [
+        "np-badge-santas-helper",
+        "np-cosmetic-santa-hat",
+        "np-cosmetic-elf-backpack"
+      ],
+      "message": "You earned the Santa’s Helper Badge, a Santa hat, and an elf backpack!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_CHRISTMAS_EVE",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-fragment-village",
+      "itemIds": [
+        "np-star-fragment-village"
+      ],
+      "message": "You found a piece of the Christmas Star!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_FRAGMENT_VILLAGE",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-fragment-workshop",
+      "itemIds": [
+        "np-star-fragment-workshop"
+      ],
+      "message": "You found a piece of the Christmas Star!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_FRAGMENT_WORKSHOP",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-fragment-forest",
+      "itemIds": [
+        "np-star-fragment-forest"
+      ],
+      "message": "You found a piece of the Christmas Star!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_FRAGMENT_FOREST",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-fragment-lake",
+      "itemIds": [
+        "np-star-fragment-lake"
+      ],
+      "message": "You found a piece of the Christmas Star!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_FRAGMENT_LAKE",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-fragment-stables",
+      "itemIds": [
+        "np-star-fragment-stables"
+      ],
+      "message": "You found a piece of the Christmas Star!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_FRAGMENT_STABLES",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-fragment-gingerbread",
+      "itemIds": [
+        "np-star-fragment-gingerbread"
+      ],
+      "message": "You found a piece of the Christmas Star!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_FRAGMENT_GINGERBREAD",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-fragment-mountain",
+      "itemIds": [
+        "np-star-fragment-mountain"
+      ],
+      "message": "You found a piece of the Christmas Star!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_FRAGMENT_MOUNTAIN",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-01",
+      "itemIds": [
+        "np-snowflake-01"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_01",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-02",
+      "itemIds": [
+        "np-snowflake-02"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_02",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-03",
+      "itemIds": [
+        "np-snowflake-03"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_03",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-04",
+      "itemIds": [
+        "np-snowflake-04"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_04",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-05",
+      "itemIds": [
+        "np-snowflake-05"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_05",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-06",
+      "itemIds": [
+        "np-snowflake-06"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_06",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-07",
+      "itemIds": [
+        "np-snowflake-07"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_07",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-08",
+      "itemIds": [
+        "np-snowflake-08"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_08",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-09",
+      "itemIds": [
+        "np-snowflake-09"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_09",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowflake-10",
+      "itemIds": [
+        "np-snowflake-10"
+      ],
+      "message": "A sparkling snowflake for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWFLAKE_10",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-candy-cane-1",
+      "itemIds": [
+        "np-candy-cane-1"
+      ],
+      "message": "A candy cane for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_CANDY_CANE_1",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-candy-cane-2",
+      "itemIds": [
+        "np-candy-cane-2"
+      ],
+      "message": "A candy cane for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_CANDY_CANE_2",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-candy-cane-3",
+      "itemIds": [
+        "np-candy-cane-3"
+      ],
+      "message": "A candy cane for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_CANDY_CANE_3",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-candy-cane-4",
+      "itemIds": [
+        "np-candy-cane-4"
+      ],
+      "message": "A candy cane for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_CANDY_CANE_4",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-candy-cane-5",
+      "itemIds": [
+        "np-candy-cane-5"
+      ],
+      "message": "A candy cane for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_CANDY_CANE_5",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-ornament-1",
+      "itemIds": [
+        "np-ornament-1"
+      ],
+      "message": "You found a hidden ornament!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_ORNAMENT_1",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-ornament-2",
+      "itemIds": [
+        "np-ornament-2"
+      ],
+      "message": "You found a hidden ornament!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_ORNAMENT_2",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-ornament-3",
+      "itemIds": [
+        "np-ornament-3"
+      ],
+      "message": "You found a hidden ornament!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_ORNAMENT_3",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-ornament-4",
+      "itemIds": [
+        "np-ornament-4"
+      ],
+      "message": "You found a hidden ornament!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_ORNAMENT_4",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-ornament-5",
+      "itemIds": [
+        "np-ornament-5"
+      ],
+      "message": "You found a hidden ornament!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_ORNAMENT_5",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-cookie-1",
+      "itemIds": [
+        "np-cookie-1"
+      ],
+      "message": "A gingerbread cookie for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_COOKIE_1",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-cookie-2",
+      "itemIds": [
+        "np-cookie-2"
+      ],
+      "message": "A gingerbread cookie for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_COOKIE_2",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-cookie-3",
+      "itemIds": [
+        "np-cookie-3"
+      ],
+      "message": "A gingerbread cookie for your collection!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_COOKIE_3",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-golden-bell-1",
+      "itemIds": [
+        "np-golden-bell-1"
+      ],
+      "message": "You found a golden bell!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_GOLDEN_BELL_1",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-golden-bell-2",
+      "itemIds": [
+        "np-golden-bell-2"
+      ],
+      "message": "You found a golden bell!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_GOLDEN_BELL_2",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-golden-bell-3",
+      "itemIds": [
+        "np-golden-bell-3"
+      ],
+      "message": "You found a golden bell!",
+      "trigger": {
+        "changeKey": "NORTH_POLE_GOLDEN_BELL_3",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "np-rule-snowball-found",
+      "itemIds": [
+        "np-snowball-collar"
+      ],
+      "message": "You found Snowball’s collar. Take it to Noel.",
+      "trigger": {
+        "changeKey": "NORTH_POLE_SNOWBALL_FOUND",
         "type": "WORLD_CHANGE"
       }
     }

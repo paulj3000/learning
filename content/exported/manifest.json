@@ -1,5 +1,5 @@
 {
-  "contentDigest": "fcf2bded2e7c34a215ff94a8dd9a9f64bfcc55099872fb2ce06d398a2286f051",
+  "contentDigest": "94f72f07c6d20adcb559110c819fe3b4fb37983b13ab2e5545fab74cf66213af",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -7,17 +7,17 @@
   "files": [
     {
       "counts": {
-        "islands": 2
+        "islands": 3
       },
       "path": "islands.json",
-      "sha256": "8e08f45d8d2d020c94cd799bda0fa8a1dc377efe0801aa1af027cecc73c9cdd7"
+      "sha256": "2ba4b637ba016303b06069397bb8e77dde5a1b37d40b858cca3b2a22fd64e2dc"
     },
     {
       "counts": {
-        "locations": 12
+        "locations": 13
       },
       "path": "locations.json",
-      "sha256": "02f9a9645936a497c7b06d383306e0c7f07fb4a58dd5a329d9da25b275c2f6cc"
+      "sha256": "6b81d811a4af160985437057f94853a21a12bfc5d5a5bb506caf8d4c45bd1cb1"
     },
     {
       "counts": {
@@ -37,26 +37,26 @@
     },
     {
       "counts": {
-        "quests": 14
+        "quests": 23
       },
       "path": "quests.json",
-      "sha256": "a05e6528d55411494af8ab8b1b08590d9359ffab7c698a153b72696d2418f15d"
+      "sha256": "a0cbab9006fd4eaf6043cf4bab6de7b62e70508d8a97c2b5f4d2d9d9bd10e37c"
     },
     {
       "counts": {
-        "collectibleSets": 4,
-        "items": 61,
-        "rewardRules": 44
+        "collectibleSets": 10,
+        "items": 113,
+        "rewardRules": 88
       },
       "path": "rewards.json",
-      "sha256": "bd320ccdf774b193b1c643833faa0d2e63c751f6271ef51c8e62e7151a91026e"
+      "sha256": "65c9c6a7fa34879689052eef4fac56315bcd82874e121619da604487988dd66e"
     },
     {
       "counts": {
-        "npcs": 12
+        "npcs": 22
       },
       "path": "npcs.json",
-      "sha256": "2de2e43f06f7479c27983af79b3bd48806a93d6244c37dbdcb80c8d00a1b6600"
+      "sha256": "8ead85d5c384f87b0c03770d00d532e30b0c32ebfbfbdd8c8417e62eca3dc065"
     },
     {
       "counts": {
@@ -116,12 +116,22 @@
       "ids": [
         "cinder",
         "flint",
+        "frosty",
+        "ginger",
         "harbor-master",
         "ignis",
+        "jingle",
         "kindle",
+        "mrs-claus",
+        "noel",
+        "peppermint",
+        "polaris",
         "professor-basalt",
         "professor-ember",
-        "professor-ticktock"
+        "professor-ticktock",
+        "santa-claus",
+        "snowball",
+        "tinker"
       ],
       "kind": "npc-interaction-without-record"
     },
