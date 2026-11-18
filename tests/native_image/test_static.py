@@ -38,7 +38,7 @@ def imports(path: Path) -> set[str]:
 
 
 def test_image_package_imports_only_stdlib_pillow_and_itself():
-    allowed = set(sys.stdlib_module_names) | {"PIL", "__future__"}
+    allowed = set(sys.stdlib_module_names) | {"PIL", "lai_processing", "__future__"}
     for path in sorted(IMAGE.glob("*.py")):
         extra = imports(path) - allowed
         assert not extra, (path.name, extra)
@@ -61,7 +61,7 @@ def test_worker_never_imports_django_or_forks_the_jobs_plumbing():
     for path in sorted(WORKER.glob("*.py")):
         assert not imports(path) & {"django", "rest_framework", "apps"}, path.name
     handler = (WORKER / "handler.py").read_text()
-    assert "from jobs_worker import handler as base" in handler
+    assert "from jobs_worker import handler as jobs_handler" in handler
     assert "def process(" not in handler  # reused, not re-implemented
     assert not (WORKER / "envelope.py").exists()
 

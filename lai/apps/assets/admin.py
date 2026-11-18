@@ -47,6 +47,7 @@ from apps.catalog.models import AssetStatus, ContentAsset
 from apps.core.exceptions import error_body
 
 from . import preview, services
+from .admin_image import ImageConversionAdminMixin
 from .models import AssetVersion, VersionStatus
 from .processing import (
     APPLIED_OUTCOMES,
@@ -93,7 +94,7 @@ class UploadForm(forms.Form):
 
 
 @admin.register(AssetVersion)
-class AssetVersionAdmin(admin.ModelAdmin):
+class AssetVersionAdmin(ImageConversionAdminMixin, admin.ModelAdmin):
     list_display = (
         "version_label",
         "status",
