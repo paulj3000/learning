@@ -231,7 +231,13 @@ def snapshot() -> dict:
         },
         "placements": layout.placements(),
         "puzzles": [
-            {"puzzleId": pid, "kind": kind, "title": b["title"], "entityIds": entities}
+            {
+                "puzzleId": pid,
+                "kind": kind,
+                "title": b["title"],
+                "entityIds": entities,
+                "ageBands": b["ageBands"],
+            }
             for pid, kind, entities, b in content.puzzle_rows()
         ],
         "assets": [

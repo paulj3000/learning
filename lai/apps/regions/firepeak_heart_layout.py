@@ -642,6 +642,9 @@ def placements() -> list[dict]:
     for entity, x, z, width, height, depth, solid in _scatter_placements():
         asset = "firepeak-tree" if "tree" in entity else "firepeak-rock"
         out.append(_obj(entity, asset, "", x, z, (width, height, depth), kind="SCENERY"))
+    for spec in out:
+        # Scenery is not interactive, but a drawn stand-in still needs readable copy.
+        spec["label"] = spec["label"] or ASSET_DEFS[spec["asset"]][2]
     return out
 
 
