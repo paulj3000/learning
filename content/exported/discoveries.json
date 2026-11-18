@@ -239,6 +239,14 @@
       "x": 0,
       "yaw": 3.141592653589793,
       "z": -24
+    },
+    {
+      "id": "castle-writing-room:entry",
+      "label": "the Writing Room door",
+      "regionId": "castle-writing-room",
+      "x": -2.5,
+      "yaw": 1.5707963267948966,
+      "z": 0
     }
   ],
   "discoveries": [

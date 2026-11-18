@@ -14,6 +14,7 @@ import type { ChildProfile } from '../features/child-profile/api';
 import { locationWorldPath } from '../features/island-map/three/runtime/locationWorldPath';
 import { usePlaceArea } from '../features/region-play/usePlaceArea';
 import {
+  CASTLE_WRITING_ROOM_REGION_ID,
   DRAGONS_SANCTUARY_REGION_ID,
   PIRATE_BUILDER_BAY_REGION_ID,
   STORYKEEPER_CASTLE_REGION_ID,
@@ -260,6 +261,14 @@ export function IslandLocationPage() {
         {location.slug === 'castle-writing-room' ? (
           <Link className={styles.walkLink} to={`/island/${childId}/world/castle-writing-room`}>
             Try exploring the room (new!)
+          </Link>
+        ) : null}
+        {location.slug === 'castle-writing-room' ? (
+          <Link
+            className={styles.walkLink}
+            to={locationWorldPath(childId, CASTLE_WRITING_ROOM_REGION_ID)}
+          >
+            Try the 3D room (preview)
           </Link>
         ) : null}
         {location.slug === 'bolts-workshop' ? (

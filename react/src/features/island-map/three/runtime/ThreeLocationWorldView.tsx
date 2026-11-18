@@ -8,7 +8,11 @@ import { ThreeGameContainer } from '../ThreeGameContainer';
 import { WorldStage } from '../WorldStage';
 import { WorldHud, type WorldHudBackpackItem } from '../WorldHud';
 import { WorldEngineEventBus } from '../worldEngineEvents';
-import type { WorldInteraction, WorldInteractionContext } from '../../worldObjects';
+import {
+  areRequirementsMet,
+  type WorldInteraction,
+  type WorldInteractionContext,
+} from '../../worldObjects';
 import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../discovery/api';
 import { listAllWorldChanges, recordWorldChangeOnce } from '../../../adventures/api';
 import { getInventory } from '../../../rewards/api';
@@ -442,6 +446,28 @@ export function ThreeLocationWorldView({
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>{manifest?.copy.loading ?? 'Loading...'}</p>
+      </div>
+    );
+  }
+
+  /*
+    SC-R10-01: a secret place stays closed until its story is finished. The
+    snapshot's context fails closed (a failed read has no keys), so this
+    shows the calm message rather than the scene whenever progress is unknown.
+  */
+  if (
+    manifest.entryRequirements &&
+    !areRequirementsMet(manifest.entryRequirements, snapshot.context)
+  ) {
+    return (
+      <div className={styles.wrapper}>
+        <p className={styles.status}>
+          {manifest.copy.locked ??
+            'This part of the island has not been discovered yet. Maybe a new story will lead you here.'}
+        </p>
+        <Link className={styles.altNavLink} to={`/island/${childId}`}>
+          Back to the map
+        </Link>
       </div>
     );
   }

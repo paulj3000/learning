@@ -560,6 +560,7 @@ export function validateLocationManifest(
     ...manifest.buildings.map((building) => building.interiorZone.id),
   ]);
   const seenInteractionIds = new Set<string>();
+  checkRequirements(manifest.entryRequirements, 'entryRequirements');
   manifest.interactions.forEach((interaction, index) => {
     const path = `interactions[${index}]`;
     if (seenInteractionIds.has(interaction.id)) {

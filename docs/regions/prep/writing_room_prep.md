@@ -91,3 +91,16 @@ Neither room records anything today, so the contract is "neither writes a world 
 1. Should the Three.js room add a "write the first story" action? It is new scope and would need its own world-change key.
 2. Should it place the NPC that `islandNpcs.ts` schedules here?
 3. Should Sprouts reach this room at all, given that chapter 3 is EXPLORER only?
+
+## Implementation note (SC-R10-01/02, development)
+
+Built to this contract, with these differences from it, all following the code:
+- The generic view had no unlock gate (the Dragon's Sanctuary 3D room has none), so the manifest gained two optional, additive fields: `entryRequirements` and `copy.locked` (`locationManifest.ts`, checked by `validateLocationManifest.ts`, enforced in `ThreeLocationWorldView.tsx`). A room without them behaves as before. A failed progress read has no keys, so the room stays closed.
+- The checkpoint id is `castle-writing-room:entry` (region-prefixed, like every other region), not `castle-writing-room-entry`. Adding it changed the content export, so `content/exported/` and `tests/golden/director-content.json` were regenerated.
+- The engine wall height is 3 m (`WALL_HEIGHT`), not 3.2. The exit stays `world/storykeeper-castle`, which the legacy route still serves.
+- Two optional 0.3 m reading steps under the window use the shared platforms runtime. Nothing is gated on them and Sprouts get none.
+- The 3D room is a link on the location page ("Try the 3D room (preview)") and the generic route `explore/castle-writing-room`. The Phaser route stays the default; the switch is SC-R10-03.
+
+Files: `three/castleWritingRoomRegion.ts`, `three/runtime/manifests/castleWritingRoom.ts` and its `.test.ts`, `.engine.test.ts`, `Parity.test.tsx`.
+
+Owner decisions, taken on the safe reading until answered: no "write the first story" action; no NPC placed (the `islandNpcs.ts` afternoon entry is still unplaced in both renderers); no new band gate (Sprouts are not blocked by the room itself; whether they should reach it at all is a LAI-2303 question).
