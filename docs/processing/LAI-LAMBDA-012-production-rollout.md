@@ -1,6 +1,7 @@
 # LAI-LAMBDA-012: production rollout plan for background processing
 
-**Status: plan only. Documentation; nothing is built, deployed or approved by this page.**
+**Status: plan; infrastructure code implemented (ADR-071, 2026-11-18, section 3a), nothing
+deployed.** Owner approvals RELEASE and PRODUCTION (code only) of 2026-11-18 are in force.
 Reconciled 2026-11-17 against the Wave 4 integration head `48c98a1`
 (`feature/serverless-processing-wave4`: canonical PR #42 plus the Wave 4 kinds), the production
 CDK in `infra/`, the workflows in `.github/workflows/` and the scripts in `scripts/aws/`. Depends
@@ -96,6 +97,37 @@ checks: `LAI-LAMBDA-011-dev-acceptance.md` section 1, "Deployment gate verificat
 | D16 | Dev runs on a schedule (stopped 00:00 to 08:00 Pacific); results wait in the queue | Always on | No overnight recovery to test; the consumer must survive a Django deploy and an RDS failover instead (section 11) |
 | D17 | Dev RDS stop drill (A7) | Prod RDS has deletion protection, Single-AZ default, 14-day backups | No drill in production without an approved window (P11) |
 | D18 | Dev log groups follow the `LogRetentionDays` parameter | Prod has retention per group (3 months app) and none for the worker log groups yet | P10 |
+
+## 3a. Implementation status (ADR-071, 2026-11-18)
+
+Code on `feature/lambda-production-infrastructure`; details in `PRODUCTION_PROCESSING.md` and
+`PROCESSING_RELEASE.md`. "Implemented" means written and covered by CDK assertion or repository
+tests; nothing is deployed or verified live.
+
+| # | Status | Where |
+|---|---|---|
+| D1 | Implemented (code): prod queues, DLQs, five workers, roles, alarms in `LaiDjangoEc2-prod` behind `prodProcessing` (P1-a) | `infra/lib/productionProcessing.ts` |
+| D2 | Implemented (code): `lai-prod-artifacts-<account>-<region>`, results 30 days (>= 14), zips and manifests never expire; amounts remain P2 (O10) | same |
+| D3 | Implemented (code): Compose service `jobs-consumer` (profile `jobs`) | `deploy/ec2/docker-compose.yml`, `scripts/aws/lib.sh` |
+| D4 | Implemented (code): Compose service `jobs-sweep` (daily); `speech_cleanup`/`ai_retention` not scheduled in prod (no speech bucket; G9) | same |
+| D5 | Implemented (code): per-workload `MaximumConcurrency` and equal reserved concurrency, configurable; values open (O5) | `productionProcessing.ts` |
+| D6 | Implemented (code): `release-prod-workers.yml` (dispatch only, gated, `django-prod`), role `lai-github-workers-prod` (P6-a variant: own workflow, not a job in `deploy-django-ec2.yml`) | `.github/workflows/`, `scripts/release/` |
+| D7 | Implemented (code): instance role dispatch/consume/results statements | `productionProcessing.ts` |
+| D8 | Pending owner: `LAI_ENVIRONMENT=prod` is operator-set; the pre-enable check refuses another namespace. Separately, live proof that IAM enforces `s3:if-none-match` (O12) | `processing_release.py` |
+| D9 | Implemented (code): the consumer is a read-only, `cap_drop` Compose service with awslogs; production acceptance still owner-run | compose file |
+| D10 | Pending (principal): `dev-native-environment.md` section 2 wording | |
+| D11 | Implemented for prod (30 days); the dev 7-day rule is unchanged (dev file not touched) | |
+| D12 | Pending: merges (principal) | |
+| D13 | Pending: `bootstrap-django.sh` roles task (P14) | |
+| D14 | Implemented (code): new gate `LAI_PROD_PROCESSING_DEPLOY_ENABLED`, typed confirmation; owner sets variables | workflow, tests |
+| D15 | Implemented (code): budget only with `processingBudgetUsd` (no default), `CostScope` tag; amount and tag activation are owner decisions (O2, O3) | `productionProcessing.ts` |
+| D16 | Implemented (design): consumer restart on deploy and crash; verification owner-run (section 11) | |
+| D17 | Unchanged: no prod drill without a window | |
+| D18 | Implemented (code): `ProcessingLogRetentionDays` (90); value open (O9) | |
+
+P1 (P1-a), P2 (defaults), P3, P4, P5 (mechanism), P6, P9 (role), P10 (parameter) and P15
+(mechanism) have code; their values and every deployment remain owner decisions (ADR-071 "Open
+decisions").
 
 ## 4. Read-only facts to collect first (owner)
 
