@@ -137,7 +137,7 @@ economy". The engine is therefore built but dormant:
 
 **Open (owner and integration gates)**
 
-- The owner's ADR decision (number not reserved; not ADR-073) and an approved policy.
+- The owner's ADR decision (number not reserved; 073 is Firepeak's) and an approved policy.
 - Retiring or keeping the legacy `treasure-rush-cove` quest (suppressed in the dev policy).
 - A decision on authoritative jumps (options documented; deferred).
 - The Firepeak Heart and North Pole drift tests run once their content integrates.
