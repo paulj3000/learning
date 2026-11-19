@@ -373,3 +373,21 @@ def test_failed_run_reports_paging(tmp_path, capsys, monkeypatch):
     assert "not a waiver" in err
     record = json.loads((tmp_path / "test-runs.jsonl").read_text().splitlines()[-1])
     assert record["swapped_in_mb"] == 250.0
+
+
+def test_major_faults_reads_vmstat(tmp_path):
+    vmstat = tmp_path / "vmstat"
+    vmstat.write_text("pswpin 1\npgmajfault 296934\n")
+    assert gate.major_faults(vmstat) == 296934
+    assert gate.major_faults(tmp_path / "missing") is None
+
+
+def test_run_records_major_fault_delta(tmp_path, monkeypatch):
+    faults = iter([100, 1600])
+    monkeypatch.setattr(gate, "major_faults", lambda: next(faults))
+    assert (
+        gate.main([*NO_PRESSURE, "--state-dir", str(tmp_path), "--", sys.executable, "-c", "pass"])
+        == 0
+    )
+    record = json.loads((tmp_path / "test-runs.jsonl").read_text().splitlines()[-1])
+    assert record["major_faults"] == 1500

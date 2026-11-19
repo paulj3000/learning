@@ -138,6 +138,19 @@ def swapped_in_pages(vmstat: Path = Path("/proc/vmstat")) -> int | None:
     return None
 
 
+def major_faults(vmstat: Path = Path("/proc/vmstat")) -> int | None:
+    """Cumulative major page faults since boot (`pgmajfault`): reads from disk, including files
+    evicted from the page cache, which swap counters do not show. A per-run delta shows a cold run
+    reading node_modules or sources from disk (lead from the Treasure Rush lead, ijhrYTi4)."""
+    try:
+        for line in vmstat.read_text().splitlines():
+            if line.startswith("pgmajfault "):
+                return int(line.split()[1])
+    except (OSError, ValueError):
+        return None
+    return None
+
+
 def workers_for_memory(workers: int, available_mb: int | None, per_worker_mb: int) -> int:
     """Cap Vitest workers so each has about `per_worker_mb` of available memory (at least 1)."""
     if available_mb is None or per_worker_mb <= 0:
@@ -259,6 +272,7 @@ class RunRecord:
     peak_memory_pressure: float | None = None
     peak_io_pressure: float | None = None
     swapped_in_mb: float | None = None
+    major_faults: int | None = None
     min_mem_available_mb: int | None = None
     exit_code: int | None = None
     signal: str | None = None
@@ -369,6 +383,7 @@ def run(args: argparse.Namespace) -> int:
 
     started = time.monotonic()
     swap_before = swapped_in_pages()
+    faults_before = major_faults()
     child = subprocess.Popen(command)  # noqa: S603 - the developer's own command line
     stop = threading.Event()
 
@@ -411,6 +426,9 @@ def run(args: argparse.Namespace) -> int:
         slots.release()
     record.duration_s = round(time.monotonic() - started, 1)
     swap_after = swapped_in_pages()
+    faults_after = major_faults()
+    if faults_before is not None and faults_after is not None:
+        record.major_faults = faults_after - faults_before
     if swap_before is not None and swap_after is not None:
         page_kb = os.sysconf("SC_PAGE_SIZE") // 1024 if hasattr(os, "sysconf") else 4
         record.swapped_in_mb = round((swap_after - swap_before) * page_kb / 1024, 1)
@@ -423,6 +441,7 @@ def run(args: argparse.Namespace) -> int:
         f"peak load {record.peak_load}, peak CPU pressure {record.peak_cpu_pressure}%, "
         f"peak memory pressure {record.peak_memory_pressure}%, "
         f"peak I/O pressure {record.peak_io_pressure}%, swapped in {record.swapped_in_mb} MB, "
+        f"major page faults {record.major_faults}, "
         f"min available memory {record.min_mem_available_mb} MB"
     )
     if code != 0 and paging_observed(record):
