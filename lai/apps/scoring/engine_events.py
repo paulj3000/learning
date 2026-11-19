@@ -57,6 +57,11 @@ PAYLOAD_RULES: dict[str, dict[str, str]] = {
     "adventure.completed": {},
     "realm.milestone.reached": {"milestoneId": ID},
 }
+#: Optional payload fields (additive v1 changes): may be absent; when present, checked as listed.
+OPTIONAL_PAYLOAD_RULES: dict[str, dict[str, str]] = {
+    # The placement's pickup change key, so a pending pickup matches its server record exactly.
+    "collectible.collected": {"pickupKey": ID_OR_NULL},
+}
 LEARNING_REF_FIELDS = {
     "ADVENTURE_STEP": ("stepId",),
     "CHEST_CHALLENGE": ("chestEntityId", "challengeAttemptId"),
@@ -160,7 +165,11 @@ def validate(event) -> list[Issue]:
         issues.append(Issue("payload", "must be an object"))
     else:
         rules = PAYLOAD_RULES[kind]
-        _check_strict(payload, rules, "payload", issues)
+        optional = OPTIONAL_PAYLOAD_RULES.get(kind, {})
+        _check_strict(payload, {**rules, **optional}, "payload", issues)
+        for name, rule in optional.items():
+            if name in payload:
+                _check_id(payload[name], f"payload.{name}", issues, nullable=rule == ID_OR_NULL)
         for name, rule in rules.items():
             path = f"payload.{name}"
             if name not in payload:
@@ -192,7 +201,7 @@ _SERVER_RECORD = {
     "exploration.discovery.found": (SourceKind.SECRET_DISCOVERED, lambda e, p: p["discoveryId"]),
     "collectible.collected": (
         SourceKind.PICKUP_COLLECTED,
-        lambda e, p: f"{e.get('areaId') or ''}/{p['collectibleId']}",
+        lambda e, p: f"{e.get('areaId') or ''}/{p.get('pickupKey') or p['collectibleId']}",
     ),
     "puzzle.completed": (
         SourceKind.PUZZLE_SOLVED,

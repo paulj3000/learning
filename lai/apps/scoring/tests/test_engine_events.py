@@ -10,7 +10,17 @@ from apps.scoring import engine_events
 from apps.scoring.contracts import SourceKind
 from apps.scoring.engine_events import Disposition, classify, validate
 
-GOLDEN = Path(__file__).resolve().parents[4] / "tests" / "golden" / "gameplay-events-v1.json"
+_ROOT = Path(__file__).resolve().parents[4]
+# The engine moved the vectors to tests/contracts/ (core/gameengine b383ad04): tests/golden/ is
+# the LAI-0303 rule-suite directory.
+GOLDEN = next(
+    path
+    for path in (
+        _ROOT / "tests" / "contracts" / "gameplay-events-v1.json",
+        _ROOT / "tests" / "golden" / "gameplay-events-v1.json",
+    )
+    if path.exists()
+)
 VECTORS = json.loads(GOLDEN.read_text())
 
 
@@ -100,3 +110,24 @@ def test_the_alternative_route_completes_the_same_challenge_as_the_jump():
 def test_a_learning_answer_claim_never_carries_correctness():
     result = classify(_valid("learning.answer.submitted"))
     assert result.disposition is Disposition.SERVER_RECORD and result.source_kind is None
+
+
+def test_an_optional_pickup_key_is_accepted_and_used_for_matching():
+    event = _valid("collectible.collected")
+    event["payload"]["pickupKey"] = "PIRATES_LEAP_SHELL_FOUND"
+    assert validate(event) == []
+    assert classify(event).source_ref_hint.endswith("/PIRATES_LEAP_SHELL_FOUND")
+    event["payload"]["pickupKey"] = None
+    assert validate(event) == []
+
+
+def test_an_optional_pickup_key_must_still_be_a_semantic_id():
+    event = _valid("collectible.collected")
+    event["payload"]["pickupKey"] = "has spaces"
+    assert "payload.pickupKey" in {i.path for i in validate(event)}
+
+
+def test_optional_fields_belong_only_to_their_type():
+    event = _valid("quest.completed")
+    event["payload"]["pickupKey"] = "X_FOUND"
+    assert "payload.pickupKey" in {i.path for i in validate(event)}
