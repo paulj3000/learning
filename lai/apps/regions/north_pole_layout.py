@@ -42,7 +42,8 @@ from pathlib import Path
 
 REGION_ID = "north-pole-village"
 BOUNDS = {"halfExtentX": 66, "halfExtentZ": 100, "wallThickness": 1}
-LAYOUT_VERSION = 1
+# 2: scene.engineBridge, the Frozen Lake ice surface (GE-074).
+LAYOUT_VERSION = 2
 SNAPSHOT_PATH = Path(__file__).with_name("north_pole_scene.json")
 
 SPAWN = {"checkpoint_id": "np-cp-landing", "x": 0, "z": 92, "yaw": math.pi, "label": "Santa's Landing"}
@@ -920,6 +921,44 @@ def _platforming(b: _Build) -> dict:
     }
 
 
+# --- engine bridge (GE-074): engine capabilities the live region-play runtime lacks -------------
+
+# The lake's open water (`np-hazard-lake-water`), from the platforming course.
+LAKE_WATER = {"minX": -50.0, "maxX": -44.5, "minZ": -18.0, "maxZ": 34.0}
+# The east bank where Frosty skates and the floe puzzles sit. Its west edge keeps 2 m from the
+# open water: at the lowest friction a child still stops within about a metre (engine limit), so a
+# slide on the ice can never carry them into the water.
+ICE_RINK = {"minX": -42.5, "maxX": -28.0, "minZ": -16.0, "maxZ": 32.0}
+# Gentler than the engine's ice preset (0.15) for ages 3 to 8; top speed is unchanged.
+ICE_FRICTION = 0.3
+
+
+def _engine_bridge() -> dict:
+    rink = ICE_RINK
+    return {
+        "capabilities": [
+            {
+                "id": "environment.volumes",
+                "config": {
+                    "surfaces": [
+                        {
+                            "id": "np-lake-ice",
+                            "surfaceId": "ice",
+                            "box": {
+                                "min": {"x": rink["minX"], "y": -1.0, "z": rink["minZ"]},
+                                "max": {"x": rink["maxX"], "y": 1.0, "z": rink["maxZ"]},
+                            },
+                            "friction": ICE_FRICTION,
+                            "speedMultiplier": 1.0,
+                        }
+                    ],
+                    "hazardRects": [dict(LAKE_WATER)],
+                },
+            }
+        ]
+    }
+
+
 def scene() -> dict:
     """The complete `WorldRegion.scene` for the North Pole (version `LAYOUT_VERSION`)."""
     b = _B
@@ -952,6 +991,7 @@ def scene() -> dict:
         "layout": {"scenery": scenery, "colliders": b.colliders, "zones": [], "lights": [], "procedural": []},
         "platforming": _platforming(b),
         "effects": _effects(b),
+        "engineBridge": _engine_bridge(),
         "northPoleVersion": LAYOUT_VERSION,
     }
 

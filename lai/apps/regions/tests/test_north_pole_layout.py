@@ -13,6 +13,7 @@ import pytest
 
 from apps.regions import north_pole_layout as L
 from apps.regions import platforming
+from apps.regions.engine_bridge import engine_bridge_problems
 
 SCENE = L.scene()
 LAYOUT = SCENE["layout"]
@@ -224,7 +225,7 @@ def test_the_scene_has_the_contract_shell():
     assert L.REGION_ID == "north-pole-village"
     assert BOUNDS == {"halfExtentX": 66, "halfExtentZ": 100, "wallThickness": 1}
     assert SCENE["bounds"] == BOUNDS
-    assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 1
+    assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 2  # 2: engineBridge (GE-074)
     assert SCENE["environment"] == {
         "backgroundColor": 1979224,
         "lighting": {"ambientColor": 13623551, "ambientIntensity": 0.9, "sunColor": 16773856, "sunIntensity": 0.9},
@@ -569,3 +570,35 @@ def test_the_island_needs_the_lake_bridge():
 def test_the_json_snapshot_equals_the_builders():
     assert json.loads(L.SNAPSHOT_PATH.read_text()) == json.loads(json.dumps(L.snapshot()))
     assert L.SNAPSHOT_PATH.read_text() == json.dumps(L.snapshot(), indent=1, sort_keys=True) + "\n"
+
+
+# --- engine bridge (GE-074) --------------------------------------------------------------------
+
+
+def test_the_engine_bridge_block_passes_the_publish_check_and_never_runs_movement():
+    block = L.scene()["engineBridge"]
+    assert engine_bridge_problems(block) == []
+    ids = [c["id"] for c in block["capabilities"]]
+    assert ids == ["environment.volumes"]
+    assert "allowEnginePlatforms" not in block  # the live platform system keeps the lake platforms
+
+
+def test_the_lake_ice_is_on_the_frozen_lake_and_never_slides_into_the_water():
+    rink, water = L.ICE_RINK, L.LAKE_WATER
+    zone = dict(zip(("minX", "maxX", "minZ", "maxZ"), L.ZONES["frozen-lake"]))
+    course_water = next(h for h in L.scene()["platforming"]["hazards"] if h["id"] == "np-hazard-lake-water")["rect"]
+    assert {k: course_water[k] for k in water} == water  # the bridge names the real hazard
+    # The engine stops a child within about a metre at the lowest friction; keep twice that.
+    gap_x = max(water["minX"] - rink["maxX"], rink["minX"] - water["maxX"])
+    assert gap_x >= 2.0
+    surface = L.scene()["engineBridge"]["capabilities"][0]["config"]["surfaces"][0]
+    assert surface["surfaceId"] == "ice"
+    assert 0.15 < surface["friction"] < 1 and surface["speedMultiplier"] == 1.0
+    assert zone["minX"] <= rink["minX"] and rink["maxX"] <= zone["maxX"]
+    assert zone["minZ"] <= rink["minZ"] and rink["maxZ"] <= zone["maxZ"]
+
+
+def test_the_snapshot_carries_the_engine_bridge_block():
+    snap = json.loads(L.SNAPSHOT_PATH.read_text())
+    assert snap["scene"]["engineBridge"] == L.scene()["engineBridge"]
+    assert snap["scene"]["northPoleVersion"] == L.LAYOUT_VERSION == 2

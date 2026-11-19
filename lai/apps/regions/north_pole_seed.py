@@ -32,6 +32,7 @@ from .models import (
     WorldObjectPlacement,
     WorldRegion,
 )
+from .engine_bridge import engine_bridge_problems
 from .north_pole_assets import ASSETS, content_asset_defaults
 from .north_pole_puzzles import ENTITY_IDS, PUZZLES
 from .platforming import layout_problems
@@ -191,6 +192,9 @@ def seed_north_pole() -> list[str]:
     problems = layout_problems(course, bounds=layout.BOUNDS)
     if problems:
         raise ValueError(f"North Pole course is invalid: {problems}")
+    bridge_problems = engine_bridge_problems(layout.scene()["engineBridge"])
+    if bridge_problems:
+        raise ValueError(f"North Pole engine bridge block is invalid: {bridge_problems}")
 
     for asset in ASSETS:
         get_or_create(ContentAsset, {"asset_id": asset.asset_id}, content_asset_defaults(asset))

@@ -3500,6 +3500,43 @@
     }
    ]
   },
+  "engineBridge": {
+   "capabilities": [
+    {
+     "config": {
+      "hazardRects": [
+       {
+        "maxX": -44.5,
+        "maxZ": 34.0,
+        "minX": -50.0,
+        "minZ": -18.0
+       }
+      ],
+      "surfaces": [
+       {
+        "box": {
+         "max": {
+          "x": -28.0,
+          "y": 1.0,
+          "z": 32.0
+         },
+         "min": {
+          "x": -42.5,
+          "y": -1.0,
+          "z": -16.0
+         }
+        },
+        "friction": 0.3,
+        "id": "np-lake-ice",
+        "speedMultiplier": 1.0,
+        "surfaceId": "ice"
+       }
+      ]
+     },
+     "id": "environment.volumes"
+    }
+   ]
+  },
   "environment": {
    "backgroundColor": 1979224,
    "lighting": {
@@ -10932,7 +10969,7 @@
    ],
    "zones": []
   },
-  "northPoleVersion": 1,
+  "northPoleVersion": 2,
   "platforming": {
    "checkpoints": [
     {

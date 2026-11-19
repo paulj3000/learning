@@ -119,7 +119,12 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
   `defineAdventure` data in `react/src/features/region-play/northPole/northPoleEngineDefinition.ts`,
   validated with the standard capability registry; the scene snapshot passes the engine content
   compatibility checks and `npm run engine:validate`. No North Pole file imports an island-map shim.
-- Waiting: ice traction, snow and ice footsteps, engine weather (after atmosphere parity) and the one
-  checkpoint list need the location engine bridge (GE-065) and the Treasure Rush host additions
-  (GE-070). Nothing in play has changed.
+- Ice traction (layout version 2): the east bank of the Frozen Lake, where Frosty skates and the floe
+  puzzles sit, is ice through the engine bridge (`scene.engineBridge`, `environment.volumes`):
+  friction 0.3 (gentler than the engine's 0.15 preset), top speed unchanged, and 2 m clear of the
+  open water so a slide never reaches it. The North Pole seed is create-only: a local database
+  seeded before this needs a fresh seed to get it. Owner check: the bank feels slippery but fair,
+  and a child still stops quickly.
+- Waiting: snow and ice footsteps (the Sound Manager port is not wired), engine weather after
+  atmosphere parity, and the one checkpoint list.
 
