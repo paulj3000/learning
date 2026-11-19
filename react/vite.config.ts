@@ -83,6 +83,12 @@ export default defineConfig(({ mode, command }) => {
       setupFiles: ['./src/test/setup.ts'],
       css: true,
       include: ['src/**/*.{test,spec}.{ts,tsx}', '../server/**/*.test.ts', '../infra/**/*.test.ts'],
+      // Several agents share one 4-core host (LAI-ENG-002). Vitest's own default forks a worker
+      // per core, so three concurrent suites ran ~12 jsdom workers on 4 cores and timing-bound
+      // tests timed out. Default to 2; `--maxWorkers` on the command line (and
+      // scripts/dev/test_gate.py, which sets it from the host's free slots) still wins. The
+      // per-test timeout stays at Vitest's default: overload is fixed here, not hidden.
+      maxWorkers: Number(process.env.LAI_TEST_MAX_WORKERS) || 2,
       exclude: ['node_modules', 'dist', 'e2e'],
     },
   };
