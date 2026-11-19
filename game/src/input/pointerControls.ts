@@ -1,6 +1,6 @@
 import { Vector2, type WebGLRenderer } from 'three';
-import type { FirstPersonController } from './firstPersonController';
-import { RUN_INPUT_THRESHOLD } from './locomotionConfiguration';
+import type { FirstPersonController } from '../movement/firstPersonController';
+import { RUN_INPUT_THRESHOLD } from '../movement/locomotionConfiguration';
 import {
   GamepadReader,
   NO_GAMEPAD_INPUT,
