@@ -6,9 +6,13 @@
  * run or grade the challenge. The host calls `unlock(id)` after Django confirms the
  * challenge, and the chest then opens exactly as an ungated one does.
  *
- * REPLAY chests (scoring standard: "replay grants nothing permanent") open with the same
- * animation but never emit the discovery claim; the presentation event says `replay: true`
- * so the host shows no reward. The engine itself grants nothing in either case.
+ * Claims (agreed with the GE-100 scoring lead): opening a chest is not a claim. A chest is a
+ * graded learning challenge on the server, not a discovery, so the only chest claim is
+ * `learning.answer.submitted` with `learningRef { kind: 'CHEST_CHALLENGE', chestEntityId,
+ * challengeAttemptId }`, emitted when the host reports the child's answer (`submitAnswer`).
+ * REPLAY chests (scoring standard: "replay grants nothing permanent") emit it too; the server
+ * records practice and awards nothing permanent. The presentation event says `replay: true` so
+ * the host shows no reward. The engine itself grants nothing in either case.
  */
 
 import { defineComponent } from '../core/entities';
@@ -47,6 +51,12 @@ export interface ChestsApi {
   requestOpen(chestId: string): ChestRequestResult;
   /** The host confirmed the gating challenge (Django said so). */
   unlock(chestId: string): boolean;
+  /**
+   * The child answered this chest's challenge in the host UI. Emits `learning.answer.submitted`
+   * for Django to grade (the engine never grades). `challengeAttemptId` is the Django attempt id;
+   * `choiceId` is the authored option id. Returns false for an unknown chest.
+   */
+  submitAnswer(chestId: string, challengeAttemptId: string, choiceId: string | null): boolean;
   phaseOf(chestId: string): ChestPhase | undefined;
 }
 export const ChestsService = defineService<ChestsApi>('gameplay.chests');
@@ -94,6 +104,17 @@ export const chestsCapability: CapabilityDefinition<ChestsConfig, GameplayRuntim
     };
     const api: ChestsApi = {
       phaseOf: (id) => find(id)?.phase,
+      submitAnswer(id, challengeAttemptId, choiceId) {
+        const state = find(id);
+        if (!state) {
+          return false;
+        }
+        emitClaim(runtime, 'learning.answer.submitted', {
+          learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: state.spec.id, challengeAttemptId },
+          choiceId,
+        });
+        return true;
+      },
       unlock(id) {
         const state = find(id);
         if (!state) {
@@ -138,10 +159,7 @@ export const chestsCapability: CapabilityDefinition<ChestsConfig, GameplayRuntim
           if (state.progress >= 1) {
             state.phase = 'OPEN';
             emitPresentation(runtime, 'ChestStateChanged', { chestId: state.spec.id, state: 'OPEN', replay: state.spec.replay });
-            if (!state.spec.replay) {
-              // The closest v1 claim: the child found something. Django decides what, if anything, it means.
-              emitClaim(runtime, 'exploration.discovery.found', { discoveryId: state.spec.id });
-            }
+            // Opening is not a claim; the answer is (`submitAnswer`).
           }
         }
       },

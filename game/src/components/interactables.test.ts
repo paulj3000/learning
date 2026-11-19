@@ -60,7 +60,7 @@ describe('chests', () => {
     { id: 'chest.replay', position: { x: 0, y: 0, z: 10 }, replay: true },
   ];
 
-  it('opens closed to opening to open and claims a discovery for a normal chest', async () => {
+  it('opens closed to opening to open; opening is not a claim', async () => {
     const h = harness();
     await h.start([{ id: 'gameplay.chests', config: { chests } }]);
     const api = h.runtime.services.require(ChestsService);
@@ -71,7 +71,22 @@ describe('chests', () => {
     expect(api.phaseOf('chest.free')).toBe('OPENING');
     h.advance(1);
     expect(api.phaseOf('chest.free')).toBe('OPEN');
-    expect(h.claimsOfType('exploration.discovery.found')).toHaveLength(1);
+    expect(h.claimsOfType('exploration.discovery.found')).toHaveLength(0);
+    h.dispose();
+  });
+
+  it('reports the answer as a CHEST_CHALLENGE learning claim, for replay chests too (Django grades)', async () => {
+    const h = harness();
+    await h.start([{ id: 'gameplay.chests', config: { chests } }]);
+    const api = h.runtime.services.require(ChestsService);
+    expect(api.submitAnswer('chest.free', 'a1b2c3d4-0000-4000-8000-000000000009', 'shells-4')).toBe(true);
+    expect(api.submitAnswer('chest.replay', 'a1b2c3d4-0000-4000-8000-000000000010', null)).toBe(true);
+    expect(api.submitAnswer('nope', 'a1b2c3d4-0000-4000-8000-000000000011', null)).toBe(false);
+    const claims = h.claimsOfType('learning.answer.submitted');
+    expect(claims.map((c) => c.payload)).toEqual([
+      { learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'chest.free', challengeAttemptId: 'a1b2c3d4-0000-4000-8000-000000000009' }, choiceId: 'shells-4' },
+      { learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'chest.replay', challengeAttemptId: 'a1b2c3d4-0000-4000-8000-000000000010' }, choiceId: null },
+    ]);
     h.dispose();
   });
 

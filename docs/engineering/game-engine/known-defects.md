@@ -42,7 +42,7 @@
 | GE-L3 | The content validator assumes scene field names (`platforming.platforms[]`, `platforming.checkpoints[].platformId`, `jumpChallenges[]`, `colliders[]`, `gates[]`) | Confirm against `platformSpec.ts` in GE-070 |
 | GE-L4 | SDK walk speed bounds (0.5 to 6 m/s) and per-band difficulty ceilings are engineering choices, not from a standard | Owner or pedagogy review (decision O7 area) |
 | GE-L5 | Difficulty profile fields (gap, height, consecutive jumps, moving speed) are authoring values; nothing checks scene geometry against them yet | Planned validator rule |
-| GE-L6 | A non-replay chest emits `exploration.discovery.found` (no chest claim type in v1) | Additive claim type if scoring needs it |
+| GE-L6 | Resolved: chests emit no discovery claim. The chest claim is `learning.answer.submitted` with a `CHEST_CHALLENGE` learning ref, through `ChestsApi.submitAnswer` (agreed with the scoring lead; replay chests too, server records practice) | Closed |
 | GE-L7 | Platforms default to `route: REQUIRED`, so moving and falling platforms must be marked OPTIONAL explicitly or validation fails | Intended (jumping standard); documented for authors |
 | GE-L8 | GameHost pauses on window blur, including clicks into devtools or an iframe | As specified |
 | GE-L9 | `renderer.info` gauges, the WebGL path and production-build route stripping are untested in unit tests | Merge readiness (GE-090) |
