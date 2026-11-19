@@ -290,3 +290,54 @@ describe('bridge weather area (GE-L14, North Pole snow parity)', () => {
     mount.dispose();
   });
 });
+
+describe('bridge weather and particles follow the device render quality (GE-L14)', () => {
+  const caps = (particleTier?: string): JsonValue[] => [
+    { id: 'environment.weather', config: { initial: 'SNOW' } },
+    {
+      id: 'environment.particles',
+      config: {
+        ...(particleTier ? { tier: particleTier } : {}),
+        emitters: [{ id: 'embers', motion: 'RISE', maxParticles: 400, ratePerSecond: 200, lifetime: 2, speed: 1, size: 0.1, color: 0xff6600, origin: { x: 0, y: 0, z: 0 }, halfX: 1, halfZ: 1, height: 2, stillWhenReduced: false }],
+      },
+    },
+  ];
+  const drawn = (scene: Scene, prefix: string) =>
+    named(scene, prefix).reduce((sum, o) => sum + (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count, 0);
+
+  it('LOW quality draws no snow and no particles, as the Area atmosphere draws none', () => {
+    const scene = new Scene();
+    const fake = fakeHost({ capabilities: caps('HIGH') }, { scene, quality: 'LOW' });
+    const mount = mountEngineBridge(fake.host);
+    expect(mount.api.issues).toEqual([]);
+    fake.advance(1);
+    expect(drawn(scene, 'engine.weather.')).toBe(0);
+    expect(drawn(scene, 'engine.particles.')).toBe(0);
+    mount.dispose();
+  });
+
+  it('MEDIUM and HIGH draw snow; the device caps a higher seed tier but never raises a lower one', () => {
+    const counts: Record<string, number> = {};
+    for (const quality of ['MEDIUM', 'HIGH'] as const) {
+      const scene = new Scene();
+      const fake = fakeHost({ capabilities: caps('HIGH') }, { scene, quality });
+      const mount = mountEngineBridge(fake.host);
+      fake.advance(2);
+      counts[quality] = drawn(scene, 'engine.weather.');
+      mount.dispose();
+    }
+    expect(counts.MEDIUM).toBeGreaterThan(0);
+    expect(counts.HIGH).toBeGreaterThan(counts.MEDIUM!);
+  });
+
+  it('caps the particle tier in the capability request, and leaves it alone without a device quality', async () => {
+    const { bridgeCapabilityRequests } = await import('./engineBridge');
+    const tierOf = (deviceTier?: 'OFF' | 'MEDIUM' | 'HIGH', seed?: string) =>
+      (bridgeCapabilityRequests({ capabilities: caps(seed) }, false, deviceTier).requests.find((r) => r.id === 'environment.particles')!.config as { tier?: string }).tier;
+    expect(tierOf('OFF', 'HIGH')).toBe('OFF');
+    expect(tierOf('MEDIUM', 'HIGH')).toBe('MEDIUM');
+    expect(tierOf('HIGH', 'LOW')).toBe('LOW');
+    expect(tierOf('HIGH')).toBe('MEDIUM');
+    expect(tierOf(undefined, 'HIGH')).toBe('HIGH');
+  });
+});
