@@ -29,12 +29,18 @@ const DIP_RECOVERY_RATE = 9;
 const SNAP_DISTANCE = 3;
 
 export class CameraHeightFollower {
-  private readonly reducedMotion: boolean;
+  private reducedMotion: boolean;
   private height: number | null = null;
   private dip = 0;
 
   constructor(options: CameraHeightFollowerOptions = {}) {
     this.reducedMotion = options.reducedMotion === true;
+  }
+
+  /** Applies a change of the child's motion preference from the next frame on. */
+  setReducedMotion(reduced: boolean): void {
+    this.reducedMotion = reduced;
+    if (reduced) this.dip = 0;
   }
 
   /** Call once on each landing with its downward speed (m/s). */

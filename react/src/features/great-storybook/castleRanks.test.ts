@@ -11,9 +11,9 @@ import source from './castleRanks.ts?raw';
 const id = (rank: RankTitle | null) => rank?.id ?? null;
 
 describe('rank titles config (SC-R07-04)', () => {
-  it('is switched off by default: the owner has not decided to keep ranks', () => {
-    expect(CASTLE_RANKS.enabled).toBe(false);
-    expect(shownRank(4, 4)).toBeNull();
+  it('is switched on: the owner kept ranks (O-12)', () => {
+    expect(CASTLE_RANKS.enabled).toBe(true);
+    expect(id(shownRank(4, 4))).toBe('master-storykeeper');
   });
 
   it('authors the four prep titles, ascending from 0 to 1, readable aloud', () => {
@@ -86,9 +86,13 @@ describe('rankFor', () => {
     expect(code).not.toMatch(/Date|now\(|localStorage|fetch\(|import /);
   });
 
-  it('shows a title only when switched on', () => {
-    const on = { ...CASTLE_RANKS, enabled: true };
-    expect(id(shownRank(2, 2, on))).toBe('master-storykeeper');
-    expect(shownRank(2, 2, CASTLE_RANKS)).toBeNull();
+  it('shows a title only while switched on', () => {
+    expect(id(shownRank(2, 2, CASTLE_RANKS))).toBe('master-storykeeper');
+    expect(shownRank(2, 2, { ...CASTLE_RANKS, enabled: false })).toBeNull();
+  });
+
+  it('is private: no leaderboard, comparison or sharing in the rank code', () => {
+    const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    expect(code).not.toMatch(/leaderboard|compare|friend|other child|public|percentile/i);
   });
 });

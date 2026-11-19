@@ -119,7 +119,7 @@ export class PlayerCameraController {
   private currentMode: CameraMode;
   private config: PlayerCameraConfiguration;
   private readonly eyeHeight: number;
-  private readonly reducedMotion: boolean;
+  private reducedMotion: boolean;
   private readonly obstruction?: ObstructionProbe;
   private readonly heightFollower: CameraHeightFollower;
 
@@ -132,6 +132,13 @@ export class PlayerCameraController {
   private readonly aim = new Vector3();
   private readonly direction = new Vector3();
   private readonly back = new Vector3();
+
+  /** Live change of the motion preference: eased follow, landing dip and sprint FOV boost. */
+  setReducedMotion(reduced: boolean): void {
+    this.reducedMotion = reduced;
+    this.heightFollower.setReducedMotion(reduced);
+    if (reduced) this.fovOffset = 0;
+  }
 
   constructor(config: PlayerCameraConfiguration, mode: CameraMode, options: PlayerCameraOptions) {
     this.config = config;

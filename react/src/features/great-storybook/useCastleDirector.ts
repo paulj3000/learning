@@ -28,6 +28,9 @@ export interface CastleAmbientLine {
   source: 'AI' | 'FALLBACK' | 'LOCAL';
 }
 
+/** The one character whose ambient lines the server may re-voice (ADR-065 decision 5). */
+const FLAVOUR_NPC_ID = 'keeper-quill';
+
 function newVisitId(): string {
   return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -76,14 +79,29 @@ export function useCastleDirector(options: {
     }
     api
       .choose(roomId, visitId.current)
-      .then((event: CastleDirectorEvent) =>
-        show({
+      .then((event: CastleDirectorEvent) => {
+        // The authored lines are on screen at once; Quill's flavour, if the server approves one,
+        // replaces them when it arrives. A failure of any kind leaves the authored lines.
+        const authored: CastleAmbientLine = {
           eventId: event.eventId,
           lines: event.lines,
           npcId: event.npcId,
           source: event.source,
-        }),
-      )
+        };
+        show(authored);
+        if (event.npcId === FLAVOUR_NPC_ID && api.flavour) {
+          api
+            .flavour(event.eventId)
+            .then((flavour) => {
+              // Only a server-validated AI line replaces the authored copy; FALLBACK is the
+              // authored first line, which is already (fully) on screen.
+              if (flavour.source === 'AI' && flavour.eventId === event.eventId && flavour.line) {
+                show({ ...authored, lines: [flavour.line], source: 'AI' });
+              }
+            })
+            .catch(() => undefined);
+        }
+      })
       .catch(() => show(local()));
     return () => {
       cancelled = true;

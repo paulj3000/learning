@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from '../client';
 import { ApiError } from '../errors';
-import { chooseCastleEvent } from './castleDirectorApi';
+import { chooseCastleEvent, requestCastleFlavour } from './castleDirectorApi';
 
 const GOOD = {
   eventId: 'quill-hums-in-hall',
@@ -51,6 +51,29 @@ describe('chooseCastleEvent', () => {
     await expect(chooseCastleEvent(client, 'c', 'r', '')).rejects.toMatchObject({
       kind: 'invalid_request',
     });
+    expect(request).not.toHaveBeenCalled();
+  });
+});
+
+describe('requestCastleFlavour', () => {
+  const FLAVOUR = { eventId: 'quill-hums-in-hall', line: 'Quill hums.', source: 'AI' };
+
+  it('sends only the event id and reads the line', async () => {
+    const { client, request } = clientReturning(FLAVOUR);
+    expect(await requestCastleFlavour(client, 'child-1', 'quill-hums-in-hall')).toEqual(FLAVOUR);
+    expect(request).toHaveBeenCalledWith('POST', 'children/child-1/castle/flavour/', {
+      body: { eventId: 'quill-hums-in-hall' },
+    });
+  });
+
+  it('refuses a malformed answer and empty ids', async () => {
+    for (const bad of [{}, null, { ...FLAVOUR, source: 'MAYBE' }, { ...FLAVOUR, line: 3 }]) {
+      const { client } = clientReturning(bad);
+      await expect(requestCastleFlavour(client, 'c', 'e')).rejects.toBeInstanceOf(ApiError);
+    }
+    const { client, request } = clientReturning(FLAVOUR);
+    await expect(requestCastleFlavour(client, '', 'e')).rejects.toMatchObject({ kind: 'invalid_request' });
+    await expect(requestCastleFlavour(client, 'c', '')).rejects.toMatchObject({ kind: 'invalid_request' });
     expect(request).not.toHaveBeenCalled();
   });
 });

@@ -25,6 +25,8 @@ export interface PlatformPresentation {
   readonly root: Group;
   /** Follows the runtime: positions, turntables, vanishing, plates pressed. */
   update(seconds: number): void;
+  /** Live change of the motion preference (the vanishing warning stops pulsing). */
+  setReducedMotion(reduced: boolean): void;
   dispose(): void;
 }
 
@@ -163,8 +165,12 @@ export function createPlatformPresentation(
   }
 
   let clock = 0;
+  let reduced = options.reducedMotion === true;
   return {
     root,
+    setReducedMotion(next) {
+      reduced = next;
+    },
     update(seconds) {
       clock += Math.max(0, seconds);
       for (const view of views) {
@@ -173,7 +179,7 @@ export function createPlatformPresentation(
         node.position.copy(state.position);
         node.rotation.y = state.spinAngle;
         if (view.fading) {
-          const dim = options.reducedMotion ? 0.55 : 0.35 + 0.65 * Math.abs(Math.cos(clock * 6));
+          const dim = reduced ? 0.55 : 0.35 + 0.65 * Math.abs(Math.cos(clock * 6));
           view.fading.opacity = state.warning ? dim : 1;
         }
       }

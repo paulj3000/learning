@@ -50,7 +50,7 @@ import { WorldActionPanel } from './WorldActionPanel';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
-import { prefersReducedMotion } from '../../../../lib/motionPreference';
+import { prefersReducedMotion, subscribeReducedMotion } from '../../../../lib/motionPreference';
 import { createPendingWrites, useExitParticipant } from '../../../portal/exit';
 import {
   loadCameraPreference,
@@ -249,6 +249,12 @@ export function ThreeLocationWorldView({
     },
     [childId],
   );
+  // A change of `prefers-reduced-motion` during the visit reaches the running engine: no remount.
+  // Re-applied when the engine is (re)created, in case it changed while the scene was loading.
+  useEffect(() => {
+    engine?.setReducedMotion?.(prefersReducedMotion());
+    return subscribeReducedMotion((reduced) => engineRef.current?.setReducedMotion?.(reduced));
+  }, [engine]);
   // Read by bus listeners, so a refreshed context never forces re-subscribing.
   const contextRef = useRef<WorldInteractionContext>(EMPTY_CONTEXT);
   useEffect(() => {

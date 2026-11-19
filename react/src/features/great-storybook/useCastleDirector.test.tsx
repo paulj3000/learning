@@ -92,4 +92,69 @@ describe('useCastleDirector', () => {
     expect(result.current).toBeUndefined();
     expect(choose).not.toHaveBeenCalled();
   });
+
+  describe("Keeper Quill's flavour line (Final D)", () => {
+    const aiLine = 'Keeper Quill hums while the shelves settle.';
+
+    it("replaces Quill's authored line with the server's AI flavour and shows it as the caption", async () => {
+      const choose = vi.fn().mockResolvedValue({ ...serverEvent, source: 'FALLBACK' });
+      const flavour = vi
+        .fn()
+        .mockResolvedValue({ eventId: 'quill-hums-in-hall', line: aiLine, source: 'AI' });
+      const { result } = setup({ choose, flavour });
+      await waitFor(() => expect(result.current?.lines).toEqual([aiLine]));
+      expect(result.current?.source).toBe('AI');
+      // The closed request: the event id and nothing else.
+      expect(flavour).toHaveBeenCalledWith('quill-hums-in-hall');
+    });
+
+    it('keeps the authored lines when the server answers FALLBACK', async () => {
+      const choose = vi.fn().mockResolvedValue(serverEvent);
+      const flavour = vi.fn().mockResolvedValue({
+        eventId: 'quill-hums-in-hall',
+        line: 'The authored first line.',
+        source: 'FALLBACK',
+      });
+      const { result } = setup({ choose, flavour });
+      await waitFor(() => expect(flavour).toHaveBeenCalled());
+      await Promise.resolve();
+      expect(result.current?.lines).toEqual(serverEvent.lines);
+    });
+
+    it('keeps the authored lines on a network failure of the flavour call', async () => {
+      const choose = vi.fn().mockResolvedValue(serverEvent);
+      const flavour = vi.fn().mockRejectedValue(new ApiError('network', {}));
+      const { result } = setup({ choose, flavour });
+      await waitFor(() => expect(flavour).toHaveBeenCalled());
+      await Promise.resolve();
+      expect(result.current?.lines).toEqual(serverEvent.lines);
+    });
+
+    it('asks only for Quill events, and only when the API offers flavour', async () => {
+      const flavour = vi.fn();
+      const other = { ...serverEvent, npcId: 'ember-dragon' };
+      setup({ choose: vi.fn().mockResolvedValue(other), flavour });
+      const none = setup({ choose: vi.fn().mockResolvedValue(serverEvent) });
+      await waitFor(() => expect(none.result.current?.eventId).toBe('quill-hums-in-hall'));
+      expect(flavour).not.toHaveBeenCalled();
+    });
+
+    it('ignores an answer for another event or one that arrives after the room changed', async () => {
+      let release: (value: unknown) => void = () => undefined;
+      const flavour = vi.fn().mockReturnValue(new Promise((resolve) => (release = resolve)));
+      const choose = vi.fn().mockResolvedValue(serverEvent);
+      const { result, rerender } = setup({ choose, flavour });
+      await waitFor(() => expect(flavour).toHaveBeenCalled());
+      rerender({
+        childId: 'child-1',
+        ageBand: 'PATHFINDER',
+        roomId: 'great-library',
+        api: { choose: vi.fn().mockRejectedValue(new ApiError('network', {})), flavour },
+      });
+      release({ eventId: 'quill-hums-in-hall', line: aiLine, source: 'AI' });
+      await Promise.resolve();
+      await waitFor(() => expect(result.current?.source).toBe('LOCAL'));
+      expect(result.current?.lines).not.toContain(aiLine);
+    });
+  });
 });

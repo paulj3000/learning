@@ -578,11 +578,13 @@ export const castleTaleExtension: WorldExtension = {
     unsubscribes.push(
       context.onFrame((deltaSeconds) => {
         elapsedSeconds += deltaSeconds;
-        if (swayingTapestry && !context.reducedMotion) {
-          swayingTapestry.rotation.y =
-            swayRest +
-            Math.sin((elapsedSeconds / TAPESTRY_SWAY_PERIOD_SECONDS) * Math.PI * 2) *
-              TAPESTRY_SWAY_RADIANS;
+        // `context.reducedMotion` is live: a change mid-visit swaps sway and still lean at once.
+        if (swayingTapestry) {
+          swayingTapestry.rotation.y = context.reducedMotion
+            ? swayRest + TAPESTRY_STILL_LEAN_RADIANS
+            : swayRest +
+              Math.sin((elapsedSeconds / TAPESTRY_SWAY_PERIOD_SECONDS) * Math.PI * 2) *
+                TAPESTRY_SWAY_RADIANS;
         }
         for (const puzzle of puzzles) puzzle.frame();
       }),

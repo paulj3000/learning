@@ -456,6 +456,7 @@ describe('CastleGuide: the Hall of Heroes (SC-R07-03) and rank titles (SC-R07-04
         scene={fakeScene('story-hall').api}
         worldState={world}
         storybook={withBook(world, 'PATHFINDER')}
+        ranks={{ ...CASTLE_RANKS, enabled: false }}
       />,
     );
     open();
@@ -464,10 +465,10 @@ describe('CastleGuide: the Hall of Heroes (SC-R07-03) and rank titles (SC-R07-04
     expect(within(hall).getByText('The First Story')).toBeInTheDocument();
     expect(within(hall).getByText("Storykeeper's Quill")).toBeInTheDocument();
     expect(within(hall).queryByRole('button')).toBeNull();
-    expect(within(hall).queryByText(/castle title/i)).toBeNull(); // ranks are off by default
+    expect(within(hall).queryByText(/castle title/i)).toBeNull(); // ranks switched off for this check
   });
 
-  it('shows the derived title on the page tracker and in the hall only when ranks are on', () => {
+  it('shows the derived title on the page tracker and in the hall by default (O-12)', () => {
     const world = {
       worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'],
       ownedItemIds: [],
@@ -478,7 +479,6 @@ describe('CastleGuide: the Hall of Heroes (SC-R07-03) and rank titles (SC-R07-04
         scene={fakeScene('story-hall').api}
         worldState={world}
         storybook={withBook(world, 'PATHFINDER')}
-        ranks={{ ...CASTLE_RANKS, enabled: true }}
       />,
     );
     open();

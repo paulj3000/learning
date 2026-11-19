@@ -25,8 +25,22 @@ export interface CastleDirectorEvent {
   visual: { kind: string };
 }
 
+/**
+ * Keeper Quill's flavour line for an event the Director just showed (Final D, ADR-065 decision 5):
+ * `POST /api/v1/children/<id>/castle/flavour/` with the closed body `{ eventId }`. The server
+ * decides everything: `source: "AI"` is the `npc_hint` route's validated, band-limited re-voicing;
+ * `FALLBACK` is the authored line (AI off, kill switch, any failure). Grants nothing.
+ */
+export interface CastleFlavourLine {
+  eventId: string;
+  line: string;
+  source: 'AI' | 'FALLBACK';
+}
+
 export interface CastleDirectorApi {
   choose(roomId: string, visitId: string): Promise<CastleDirectorEvent>;
+  /** Quill's flavour for a shown event. Optional: an API without it simply has no flavour. */
+  flavour?(eventId: string): Promise<CastleFlavourLine>;
 }
 
 const path = (childId: string) => `children/${encodeURIComponent(childId)}/castle/director/`;
@@ -51,6 +65,25 @@ export async function chooseCastleEvent(
   }));
 }
 
+export async function requestCastleFlavour(
+  client: ApiClient,
+  childId: string,
+  eventId: string,
+): Promise<CastleFlavourLine> {
+  if (!childId) throw new ApiError('invalid_request', { code: 'empty_id' });
+  if (!eventId) throw new ApiError('invalid_request', { code: 'empty_event' });
+  const response = await client.request(
+    'POST',
+    `children/${encodeURIComponent(childId)}/castle/flavour/`,
+    { body: { eventId } },
+  );
+  return read(response.data, (r) => ({
+    eventId: r.field('eventId').string(),
+    line: r.field('line').string(),
+    source: r.field('source').oneOf(['AI', 'FALLBACK'] as const),
+  }));
+}
+
 /** The Castle Director API for one child (Django, the only backend). */
 export function castleDirectorApiFor(
   childId: string,
@@ -61,5 +94,8 @@ export function castleDirectorApiFor(
     getAccessToken,
     provisionAccount: true,
   });
-  return { choose: (roomId, visitId) => chooseCastleEvent(client, childId, roomId, visitId) };
+  return {
+    choose: (roomId, visitId) => chooseCastleEvent(client, childId, roomId, visitId),
+    flavour: (eventId) => requestCastleFlavour(client, childId, eventId),
+  };
 }

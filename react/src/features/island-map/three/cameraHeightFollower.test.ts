@@ -52,3 +52,18 @@ describe('CameraHeightFollower (LAI-JMP-01)', () => {
     expect(follower.update(FRAME, 2, true)).toBe(2);
   });
 });
+
+describe('CameraHeightFollower.setReducedMotion (live)', () => {
+  it('stops the landing dip when switched on, and allows it again when switched off', () => {
+    const follower = new CameraHeightFollower();
+    follower.update(FRAME, 0, true);
+    follower.landed(7);
+    follower.setReducedMotion(true);
+    expect(follower.update(FRAME, 0, true)).toBe(0);
+    follower.landed(7);
+    expect(follower.update(FRAME, 0, true)).toBe(0);
+    follower.setReducedMotion(false);
+    follower.landed(7);
+    expect(follower.update(FRAME, 0, true)).toBeLessThan(0);
+  });
+});

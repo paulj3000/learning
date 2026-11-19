@@ -123,7 +123,7 @@ export class PlatformSystem {
   private readonly runtimes: Runtime[];
   private readonly byBox = new Map<Box3, Runtime>();
   private readonly spec: PlatformingSpec;
-  private readonly options: PlatformSystemOptions;
+  private options: PlatformSystemOptions;
   private readonly body: number;
   private readonly step: number;
   private readonly signals = new Set<string>();
@@ -424,6 +424,15 @@ export class PlatformSystem {
     runtime.box.copy(this.candidate);
     this.events.push({ type: 'APPEARED', platformId: runtime.spec.id });
     return true;
+  }
+
+  /** Live change of the motion preference: slows or restores moving platforms and turntables. */
+  setReducedMotion(reduced: boolean): void {
+    this.options = { ...this.options, reducedMotion: reduced };
+    const factor = reduced ? REDUCED_MOTION_FACTOR : 1;
+    for (const runtime of this.runtimes) {
+      runtime.speed = (runtime.spec.motion?.speed ?? 0) * factor;
+    }
   }
 
   private updateSpin(runtime: Runtime, dt: number, riding: boolean): number {

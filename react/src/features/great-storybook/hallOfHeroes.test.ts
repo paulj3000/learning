@@ -18,6 +18,7 @@ describe('hallOfHeroes (SC-R07-03)', () => {
       progress: storybookProgress({ worldChangeKeys: [], discoveryIds: [] }, 'SPROUT'),
       ownedItemIds: [],
       worldChangeKeys: [],
+      ranks: { ...CASTLE_RANKS, enabled: false },
     });
     expect(hall).toEqual({ stories: [], pages: [], artifacts: [], rank: null, isEmpty: true });
   });
@@ -25,7 +26,7 @@ describe('hallOfHeroes (SC-R07-03)', () => {
   it('copes with nothing loaded yet: no progress, an empty inventory', () => {
     const hall = hallOfHeroes({ ownedItemIds: [], worldChangeKeys: [] });
     expect(hall.isEmpty).toBe(true);
-    expect(hall.rank).toBeNull();
+    expect(hall.rank).toBeNull(); // no book loaded, so no title yet
   });
 
   it("lists an Explorer's finished story, restored pages and owned keepsakes, in authored order", () => {
@@ -59,16 +60,14 @@ describe('hallOfHeroes (SC-R07-03)', () => {
     expect(hall.stories).toEqual([]);
   });
 
-  it('shows the derived rank only when ranks are switched on', () => {
+  it('shows the derived rank while ranks are on (the default) and none when off', () => {
     const progress = storybookProgress(
       { worldChangeKeys: ['FIRST_STORY_TOLD'], discoveryIds: [] },
       'PATHFINDER',
     );
     const inputs = { progress, ownedItemIds: [], worldChangeKeys: ['FIRST_STORY_TOLD'] };
-    expect(hallOfHeroes(inputs).rank).toBeNull();
-    expect(hallOfHeroes({ ...inputs, ranks: { ...CASTLE_RANKS, enabled: true } }).rank?.id).toBe(
-      'page-keeper',
-    );
+    expect(hallOfHeroes(inputs).rank?.id).toBe('page-keeper');
+    expect(hallOfHeroes({ ...inputs, ranks: { ...CASTLE_RANKS, enabled: false } }).rank).toBeNull();
   });
 
   it('names stories by keys their own endings write, with readable titles', () => {

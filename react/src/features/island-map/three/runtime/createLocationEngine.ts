@@ -265,6 +265,13 @@ export interface LocationEngine extends ThreeEngineHandle {
   readonly locomotion: Readonly<LocomotionConfiguration>;
   /** Running & sprinting: switches how Shift sprints (a child's setting). */
   setSprintMode(mode: SprintMode): void;
+  /**
+   * Applies a change of the child's motion preference to the running scene, no remount: motes,
+   * ambient movers and idle animations hold still, camera easing, landing dip and sprint FOV boost
+   * stop, platforms slow down. Movement, jumping, colliders and interactions are untouched.
+   * Reversible; ignored once disposed.
+   */
+  setReducedMotion(reduced: boolean): void;
   /** Settles once every asynchronously loaded piece has been placed or has failed. Never rejects. */
   readonly ready: Promise<void>;
 }
@@ -392,6 +399,9 @@ export function createLocationEngine<R extends RendererLike>(
   deps: LocationEngineDeps<R>,
 ): LocationEngine {
   let disposed = false;
+  // Live motion preference (`setReducedMotion`): every decorative motion below reads this, not the option.
+  let reducedMotion = options.reducedMotion === true;
+  const idleMixers = new Set<AnimationMixer>();
   const worldState = options.worldState ?? NO_WORLD_STATE;
   const ownedGeometries: BufferGeometry[] = [];
   const ownedMaterials: Material[] = [];
@@ -549,7 +559,7 @@ export function createLocationEngine<R extends RendererLike>(
         config: avatarConfig,
         loadModel: options.loadAvatarModel ?? ((ref) => deps.assets.loadModel(ref)),
         published: options.publishedAvatar,
-        reducedMotion: () => options.reducedMotion === true,
+        reducedMotion: () => reducedMotion,
       })
     : null;
   const avatarFacing = new AvatarFacing(controller.yaw);
@@ -740,6 +750,7 @@ export function createLocationEngine<R extends RendererLike>(
     const mixer = new AnimationMixer(model);
     if (idle) mixer.clipAction(idle).play();
     trackMixer(mixer);
+    idleMixers.add(mixer); // decorative: holds its pose under reduced motion
     return { mixer, idle };
   }
 
@@ -1116,6 +1127,7 @@ export function createLocationEngine<R extends RendererLike>(
 
   // Atmosphere: motes, capped by the tier and still under reduced motion.
   const moteFields: MoteField[] = [];
+  const motes: { field: MoteField; rest(): void; resume(): void }[] = [];
   for (const effect of manifest.effects ?? []) {
     if (!areRequirementsMet(effect.requirements, worldState)) continue;
     const field = createMoteField(effect, quality);
@@ -1123,13 +1135,13 @@ export function createLocationEngine<R extends RendererLike>(
     field.setTime(0);
     scene.add(field.points);
     moteFields.push(field);
-    if (!options.reducedMotion) {
-      let seconds = 0;
-      frameCallbacks.add((deltaSeconds) => {
-        seconds += deltaSeconds;
-        field.setTime(seconds);
-      });
-    }
+    let seconds = 0;
+    motes.push({ field, rest: () => field.setTime(0), resume: () => field.setTime(seconds) });
+    frameCallbacks.add((deltaSeconds) => {
+      if (reducedMotion) return;
+      seconds += deltaSeconds;
+      field.setTime(seconds);
+    });
   }
 
   // Ambient movers: decorative, never raycast-interactive, never emit events.
@@ -1159,7 +1171,7 @@ export function createLocationEngine<R extends RendererLike>(
     }
     let t = 0;
     frameCallbacks.add((deltaSeconds) => {
-      t = (t + deltaSeconds * ambient.loopsPerSecond) % 1;
+      if (!reducedMotion) t = (t + deltaSeconds * ambient.loopsPerSecond) % 1;
       mover.position.copy(path.getPointAt(t));
       mover.lookAt(path.getPointAt((t + 0.01) % 1));
     });
@@ -1386,7 +1398,10 @@ export function createLocationEngine<R extends RendererLike>(
         now: () => deps.now(),
         placeChild,
         childPlacement,
-        reducedMotion: options.reducedMotion === true,
+        // Live: an extension that reads this in a frame sees a change without a remount.
+        get reducedMotion() {
+          return reducedMotion;
+        },
       });
       extensionMounts.set(binding.extensionId, mounted ?? {});
     } catch (error) {
@@ -1550,7 +1565,10 @@ export function createLocationEngine<R extends RendererLike>(
       );
     }
 
-    for (const mixer of mixers) mixer.update(delta);
+    for (const mixer of mixers) {
+      if (reducedMotion && idleMixers.has(mixer)) continue;
+      mixer.update(delta);
+    }
     for (const callback of frameCallbacks) callback(delta);
 
     const focused = raycastFocus();
@@ -1587,6 +1605,8 @@ export function createLocationEngine<R extends RendererLike>(
       diagnostics?.count('mixersStopped');
     }
     mixers.length = 0;
+    idleMixers.clear();
+    motes.length = 0;
     diagnostics?.setActiveMixers(0);
     platformSystem?.dispose();
     platformPresentation?.dispose();
@@ -1627,8 +1647,18 @@ export function createLocationEngine<R extends RendererLike>(
     diagnostics?.mark('assetsSettled', deps.now());
   });
 
+  function setReducedMotion(reduced: boolean): void {
+    if (disposed || reduced === reducedMotion) return;
+    reducedMotion = reduced;
+    playerCamera.setReducedMotion(reduced);
+    platformSystem?.setReducedMotion(reduced);
+    platformPresentation?.setReducedMotion(reduced);
+    for (const mote of motes) (reduced ? mote.rest : mote.resume)();
+  }
+
   return {
     dispose,
+    setReducedMotion,
     interact,
     placeChild,
     childPlacement,

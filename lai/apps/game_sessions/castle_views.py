@@ -11,7 +11,9 @@ from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 
 from apps.ai.services.castle_director import request_castle_choice
+from apps.npcs import castle_flavour
 from apps.regions import castle_events, castle_rooms, great_storybook
+from apps.regions.models import CastleEventShown
 from apps.users.scoping import ChildScopedAPIView
 
 from .serializers import ClosedSerializer
@@ -98,3 +100,39 @@ class CastleDirectorView(ChildScopedAPIView):
             chosen = by_id.get(result.turn["eventId"], default)
         castle_events.record_shown(self.child, chosen["id"], visit)
         return Response({**castle_events.public_event(chosen, band), "source": source})
+
+
+class FlavourRequest(ClosedSerializer):
+    eventId = serializers.SlugField(max_length=100)
+
+
+class CastleFlavourView(ChildScopedAPIView):
+    """POST Keeper Quill's flavour line for an ambient event this child was just shown.
+
+    The body is closed and carries only an event id. The server decides everything: the event must
+    be an approved, active catalog event that suits this child's band, Quill's, and one the
+    Director already showed this child (a display counter row exists). The answer is the line the
+    shared `npc_hint` route re-voiced through Quill's published persona (`source: "AI"`) or the
+    authored line (`source: "FALLBACK"`) on AI off, kill switch, no persona, rate limit, provider
+    failure or any failed safety check. The only writes are the pipeline's own audit, safety and
+    usage rows: no flag, relationship, world change or progress. See
+    `apps/npcs/castle_flavour.py`.
+    """
+
+    def post(self, request, child_id):
+        body = FlavourRequest(data=request.data)
+        body.is_valid(raise_exception=True)
+        event_id = body.validated_data["eventId"]
+        event = next((e for e in castle_events.catalog() if e["id"] == event_id), None)
+        shown = CastleEventShown.objects.for_child(self.child).filter(
+            event_id=event_id
+        )
+        if (
+            event is None
+            or event.get("npcId") != castle_flavour.QUILL
+            or self.child.age_band not in event["bands"]
+            or not shown.exists()
+        ):
+            raise NotFound  # one 404 for unknown, other NPC, wrong band, never shown
+        hint = castle_flavour.quill_flavour(self.child, event)
+        return Response({"eventId": event_id, "line": hint.text, "source": hint.source})

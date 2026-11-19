@@ -28,6 +28,7 @@ const engine = vi.hoisted(() => ({
   /** LAI-JMP-01a: the perspective the fake engine is in. */
   mode: 'third-person' as 'first-person' | 'third-person',
   setSprintMode: vi.fn(),
+  setReducedMotion: vi.fn(),
 }));
 
 vi.mock('./createLocationEngine', () => ({
@@ -54,6 +55,7 @@ vi.mock('./createLocationEngine', () => ({
         camera: { allowModeSwitch: true },
         locomotion: { sprintEnabled: true },
         setSprintMode: engine.setSprintMode,
+        setReducedMotion: engine.setReducedMotion,
         setCameraMode: (mode: 'first-person' | 'third-person') => {
           engine.mode = mode;
           options.onCameraModeChange?.(mode);
@@ -660,5 +662,78 @@ describe('entryRequirements', () => {
       copy: TEST_COVE.copy,
     });
     expect(await screen.findByText(/has not been discovered yet/i)).toBeInTheDocument();
+  });
+});
+
+describe('live reduced motion (Final D)', () => {
+  type Listener = (event: { matches: boolean }) => void;
+  const original = window.matchMedia;
+
+  function fakeMatchMedia() {
+    const listeners = new Set<Listener>();
+    const query = {
+      matches: false,
+      addEventListener: vi.fn((_: string, listener: Listener) => listeners.add(listener)),
+      removeEventListener: vi.fn((_: string, listener: Listener) => listeners.delete(listener)),
+    };
+    window.matchMedia = vi.fn(() => query) as unknown as typeof window.matchMedia;
+    return {
+      listeners,
+      query,
+      change(matches: boolean) {
+        query.matches = matches;
+        for (const listener of [...listeners]) listener({ matches });
+      },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    engine.bus = null;
+    getWorldStateMock.mockResolvedValue({
+      discoveredIds: [],
+      metCharacterIds: [],
+      lastCheckpointId: 'welcome-harbor:shed',
+    });
+    vi.mocked(recordCharacterMet).mockResolvedValue(undefined);
+    vi.mocked(saveCheckpoint).mockResolvedValue(undefined);
+    listAllWorldChangesMock.mockResolvedValue([]);
+    vi.mocked(recordWorldChangeOnce).mockResolvedValue(undefined as never);
+    vi.mocked(getInventory).mockResolvedValue([]);
+    vi.mocked(listQuestStates).mockResolvedValue([]);
+    vi.mocked(getCompanionProfile).mockResolvedValue(null);
+  });
+
+  it('pushes a media-query change into the running engine, both ways, without remounting', async () => {
+    const media = fakeMatchMedia();
+    try {
+      renderView();
+      await waitFor(() => expect(media.listeners.size).toBe(1));
+      const mounts = vi.mocked((await import('./createLocationEngine')).createLocationEngine).mock
+        .calls.length;
+      act(() => media.change(true));
+      expect(engine.setReducedMotion).toHaveBeenLastCalledWith(true);
+      act(() => media.change(false));
+      expect(engine.setReducedMotion).toHaveBeenLastCalledWith(false);
+      expect(
+        vi.mocked((await import('./createLocationEngine')).createLocationEngine).mock.calls.length,
+      ).toBe(mounts);
+      expect(engine.dispose).not.toHaveBeenCalled();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it('stops listening when the view unmounts', async () => {
+    const media = fakeMatchMedia();
+    try {
+      const view = renderView();
+      await waitFor(() => expect(media.listeners.size).toBe(1));
+      view.unmount();
+      expect(media.listeners.size).toBe(0);
+      expect(media.query.removeEventListener).toHaveBeenCalled();
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });

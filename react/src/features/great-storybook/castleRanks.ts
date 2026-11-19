@@ -9,12 +9,12 @@
  * - never stored, never time-based, never compared between children, never lost: the same
  *   inputs always give the same title, and pages are never un-restored;
  * - content-configured here (names and thresholds), behind `CASTLE_RANKS.enabled`, which is
- *   **off** until the owner decides to keep ranks (roadmap section 7, decision 6). With the flag
- *   off nothing shows a title, and nothing else depends on them.
+ *   **on** since the owner kept ranks (Final D, acceptance O-12). Setting it off again hides
+ *   every title, and nothing else depends on them. Private to the child: shown only on their own
+ *   Storybook tracker and Hall of Heroes, never compared, listed or sent anywhere.
  *
- * OWNER DECISION (open): the roadmap lists five titles (Story Explorer, Page Finder, Tale Keeper,
- * Story Guardian, Master Storykeeper); the SC-R07 brief and `rewards_prep.md` use the four below.
- * Either list fits this config; only the content changes.
+ * OWNER DECISION (Final D): ranks are kept, with the four titles below (the roadmap's five-title
+ * list is not used). The config can change names and thresholds without touching anything else.
  */
 
 export interface RankTitle {
@@ -31,7 +31,7 @@ export interface CastleRanksConfig {
 }
 
 export const CASTLE_RANKS: CastleRanksConfig = {
-  enabled: false,
+  enabled: true,
   ranks: [
     { id: 'story-explorer', title: 'Story Explorer', min: 0 },
     { id: 'page-keeper', title: 'Page Keeper', min: 0.34 },

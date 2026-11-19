@@ -55,6 +55,7 @@ urlpatterns = [
     path(
         f"{CHILD}castle/storybook/", castle_views.StorybookView.as_view(), name="castle-storybook"
     ),
+    path(f"{CHILD}castle/flavour/", castle_views.CastleFlavourView.as_view(), name="castle-flavour"),
     path(
         f"{CHILD}castle/director/", castle_views.CastleDirectorView.as_view(), name="castle-director"
     ),
