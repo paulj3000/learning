@@ -20,6 +20,7 @@ standard wins and this set is corrected.
 
 | Document | What it holds |
 |---|---|
+| [integration-baseline.md](integration-baseline.md) | The current engine baseline SHA realm branches and scoring merge, with its verification and open gaps |
 | [audit.md](audit.md) | Phase 1 audit: existing engine code, duplication, what is extracted and what is rewritten |
 | [architecture.md](architecture.md) | Layers, module map, canonical player transform, lifecycle, capabilities, boundaries |
 | [public-contracts.md](public-contracts.md) | Versioned public interfaces: gameplay events v1, presentation events, player, physics, environment, capabilities, SDK |
@@ -29,6 +30,8 @@ standard wins and this set is corrected.
 | [agent-ownership.md](agent-ownership.md) | Who owns which files and the merge sequence |
 | [implementation-status.md](implementation-status.md) | What is built, tested and pushed, with commits |
 | [known-defects.md](known-defects.md) | Known defects, risks and flaky tests |
+| [legacy-retirement-plan.md](legacy-retirement-plan.md) | GE-076: shims, duplicated live code, leaked content, and the gates for removing each |
+| [engine-1.0-acceptance.md](engine-1.0-acceptance.md) | GE-090: entry criteria, merge-readiness gates and the owner QA checklist for Engine 1.0 |
 | [acceptance-requirements.md](acceptance-requirements.md) | Acceptance criteria per work package and the merge gates |
 
 ## Quick start

@@ -19,7 +19,7 @@
 
 Once GE-070 is merged and the contracts are stable, GE-071 to GE-075 may run in parallel on
 their own realm branches. A realm migrates by merging `core/gameengine` into its branch at a
-"migration-ready" SHA the engine lead publishes (currently `e4148949`), then switching imports and adopting SDK
+"migration-ready" SHA the engine lead publishes (see [integration-baseline.md](integration-baseline.md); currently `fc5c71cf`), then switching imports and adopting SDK
 definitions. **Nothing legacy is removed before its consumers migrate and regression evidence
 exists.**
 
@@ -27,11 +27,11 @@ exists.**
 
 | Realm / location | Branch | Owner session | Engine pieces adopted | Legacy kept until | Evidence required | State |
 |---|---|---|---|---|---|---|
-| Treasure Rush (Treasure Cove) | `feature/treasure-rush-palm-trees` | treasure-rush-c8 | Movement, jump, camera, avatar follow, collectibles, chests, platforms, claims | GE-076 | Existing TR unit tests unchanged; drift and penetration regressions; validator on the seed | In development (owner approved 2026-11-19) on `feature/GE-070-treasure-rush-engine-migration` @ `4044d37b`: imports switched, host contract and bridge wiring done; AdventureDefinition and companion claims next |
+| Treasure Rush (Treasure Cove) | `feature/treasure-rush-palm-trees` | treasure-rush-c8 | Movement, jump, camera, avatar follow, collectibles, chests, platforms, claims | GE-076 | Existing TR unit tests unchanged; drift and penetration regressions; validator on the seed | Development Complete (`cd0cbf01`, not merged, owner QA pending): imports on `@lai/game-engine`, host contract, bridge wiring, Treasure Cove `AdventureDefinition` validated against the seed, v1 claims through one per-visit sink. Evidence and handoff on that branch (section 5 of this file there) |
 | Pirate's Leap | `feature/pirates-leap` (inside Treasure Rush) | treasure-rush-c8 | Jump challenges (equal routes), course checkpoints and goals, platforms | GE-076 | Course tests; validator: every required step has a non-jump route | Backlog |
 | Storykeeper's Castle | `feature/storykeeper-castle-completion` | storybook-dc | Runtime, camera, movement (jump optional), discovery claims, SDK hooks | GE-076 | Castle tests unchanged; page ids, objectives and progress unchanged | Backlog; `createLocationEngine` edits reconciled first |
-| Firepeak (Heart of Firepeak) | `feature/firepeak-volcano-adventure` | firepeak-86 | Hazards (lava, telegraphed rocks), steam forces, crumble-then-fall, one checkpoint system, traction, footsteps | GE-076 | Firepeak tests unchanged; one checkpoint list | In development (owner approved 2026-11-19); ADR collision settled (Firepeak takes 073) |
-| North Pole | `feature/north-pole-adventure` | firepeak-86 | Ice traction, snow and ice footsteps, weather as data, optional jump routes | Atmosphere parity | NP tests unchanged; atmosphere parity | In development (owner approved 2026-11-19) |
+| Firepeak (Heart of Firepeak) | `feature/firepeak-volcano-adventure` | firepeak-86 | Hazards (lava, telegraphed rocks), steam forces, crumble-then-fall, one checkpoint system, traction, footsteps | GE-076 | Firepeak tests unchanged; one checkpoint list | In development (owner approved 2026-11-19). One checkpoint list done (`d97f20c4`): 8 Heart checkpoints gated by `world:<key>` signals and the lava static hazard run on the bridge; the platforming and region-play lists and the platforming hazard were deleted in the same commit. Telegraphed rocks, steam and crumble-then-fall wait on an owner design call |
+| North Pole | `feature/north-pole-adventure` | firepeak-86 | Ice traction, snow and ice footsteps, weather as data, optional jump routes | Atmosphere parity | NP tests unchanged; atmosphere parity | In development (owner approved 2026-11-19). Carries the Firepeak bridge wiring (`4b9c3a4d`); next: one checkpoint list (9 zone and 2 lake-course checkpoints) and the lake water hazard on the bridge |
 | Welcome Harbor, Pirate Builder Bay, Clockwork Harbor, Dragon's Sanctuary, Wonderwild Forest and Hive, Explorer Cove, sandbox | `main` regions | engine lead | Location definitions with capability requests | GE-076 | One location per commit; parity tests unchanged | Backlog |
 | Phaser worlds | `main` | (conversion tasks LAI-2201+) | None. No new Phaser features (ADR-020) | Their conversion | Out of scope | n/a |
 

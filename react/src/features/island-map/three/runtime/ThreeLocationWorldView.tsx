@@ -677,7 +677,7 @@ export function ThreeLocationWorldView({
 }
 
 /**
- * GE-073: checkpoint labels from the engine bridge's `gameplay.checkpoints` config (an Area whose
+ * GE-065: checkpoint labels from the engine bridge's `gameplay.checkpoints` config (an Area whose
  * one checkpoint list lives in `scene.engineBridge`), so a recovery still says where it went.
  */
 export function bridgeCheckpointLabels(manifest: ThreeLocationManifest): ReadonlyMap<string, string> {

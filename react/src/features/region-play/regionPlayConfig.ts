@@ -132,7 +132,7 @@ export interface RegionPlayEffects {
     toCheckpoint: string;
     whenChangeKey: string;
     label: string;
-    /** Where the way back lands when `toCheckpoint` is not an effects checkpoint (GE-073). */
+    /** Where the way back lands when `toCheckpoint` is not an effects checkpoint (GE-065). */
     to: { x: number; z: number; yaw: number } | null;
   }[];
   backdrop: { assetId: string | null; x: number; z: number; radius: number; height: number } | null;

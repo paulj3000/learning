@@ -7,7 +7,7 @@
 
 import type { Camera, Scene } from 'three';
 import { defineService } from '../core/services';
-import type { RendererInfoLike } from '../debug/rendererStats';
+import type { RendererInfoLike } from './rendererStats';
 
 /** The renderer surface the host needs. `WebGLRenderer` satisfies it; tests pass a fake. */
 export interface HostRenderer extends RendererInfoLike {

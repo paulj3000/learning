@@ -306,7 +306,7 @@ export function mountAreaEffects(
         safe = target;
         return true;
       }
-      // GE-073: the checkpoint list moved to the engine bridge; the route says where it lands.
+      // GE-065: the checkpoint list moved to the engine bridge; the route says where it lands.
       if (!route.to) return false;
       context.teleportPlayer(route.to.x, route.to.z, route.to.yaw);
       return true;

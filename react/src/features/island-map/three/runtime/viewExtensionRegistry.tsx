@@ -47,7 +47,7 @@ export interface LocationCompanionProps {
   sceneApi: unknown;
   /**
    * Another mounted extension's `api` by id, or `null` (absent, or the engine is not up). Region
-   * play uses it to feed the engine bridge world-change signals and resume (GE-073).
+   * play uses it to feed the engine bridge world-change signals and resume (GE-065).
    */
   extensionApi?(extensionId: string): unknown;
   /** The child's world state as the view last read it. */

@@ -504,7 +504,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     void refreshWorld().catch(() => undefined);
   }, [worldChanges, notifyPlay, refreshWorld]);
 
-  // GE-073: an Area whose checkpoints live in `scene.engineBridge` learns the child's progress
+  // GE-065: an Area whose checkpoints live in `scene.engineBridge` learns the child's progress
   // here. World changes become `world:<key>` signals (gated checkpoints open), and once per visit
   // the child is resumed at the furthest checkpoint they earned (signals first, then resume).
   const bridgeBlock = bootstrap?.region.scene.engineBridge;
