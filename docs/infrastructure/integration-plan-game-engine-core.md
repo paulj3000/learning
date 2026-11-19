@@ -121,7 +121,7 @@ Created 2026-11-19 by LAI-ENG-002 at the owner's instruction, in coordination wi
 
 | Item | Value |
 |---|---|
-| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 16 merged, head `21e13f81`, section 5.1) |
+| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 17 merged, head `67294f60`, section 5.1) |
 | Worktree | `/Coding/learning-worktrees/wt-integration-20261119-game-engine-core` |
 | Slot | 8 (PostgreSQL 5458, Django 8090, Vite 5263; pytest database `test_lai_integration_20261119_game_engine_core`) |
 | Owner | LAI-ENG-002 (integrating agent). The engine lead supplies SHAs and fixes engine-side conflicts on `core/gameengine` |
@@ -165,6 +165,7 @@ who resolves on their own branch; the integration branch then re-merges.
 | 14 | `core/ge-scoring` `6bf69b1d` (GE-109: the realm drift test seeds the Heart of Firepeak and North Pole realms it checks; test file only) into `568dd278` | Fixes D1. pytest on PostgreSQL (slot 8) for regions, ai, scoring, seasons, assets, avatars: **1,918 passed, 0 failed** | None from this step |
 | 15 | `feature/GE-070-treasure-rush-engine-migration` `e632f09b` (GE-071 parity audit: on phones the hint bubble clears the touch Jump button; riddle-bridge and camera guard tests) into `6c836ea3` | Region play, bridge, runtime: 1,813 passed, 1 expected fail; typecheck clean | Treasure Rush finale cue on returning to Pip (11.5), asked of the Firepeak lead |
 | 16 | `core/gameengine` `a4415c62` (engine 1.0 stabilization `96245e94`: GE-L10 same-step carry, GE-L15 turntables, GE-L14 terrain telegraph; GE-076 audit) into `21e13f81` | Engine 670 passed, 0 expected fails; React affected set 4,105 passed, 1 expected fail (GE-S1), 0 failed; typecheck, vectors, ADR, docs, workspace clean | None |
+| 17 | `feature/firepeak-volcano-adventure` `928453c0` (guard test: each realm's finale stays in its own realm) into `67294f60` | One test-file conflict with North Pole's `e69b47c9`, both appended at the end of one `describe`: union, both kept verbatim. region-play/audio 76 passed; typecheck clean | None; X1 closed as intended |
 
 Forecast update after step 1: `feature/storykeeper-castle-completion` @ `4df618b2` has merged the
 engine and is now **clean** on top of step 1 (it was 9 conflicts). The `regions 0007` collision
@@ -410,9 +411,9 @@ owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` an
 8. Deployment approval per environment, separate from the merge; RDS snapshot before migrating.
 9. Host memory (six agents on 8 GB) and whether the Storykeeper worktree may run its own PostgreSQL.
 
-## 11. Final reconciliation report (GE-090, 2026-11-19; updated at step 16)
+## 11. Final reconciliation report (GE-090, 2026-11-19; updated at step 17)
 
-**Final integration SHA: `21e13f81`** (step 16; first issued at `568dd278`, step 14) (`integration/20261119-game-engine-core`, pushed, clean
+**Final integration SHA: `67294f60`** (step 17; first issued at `568dd278`, step 14) (`integration/20261119-game-engine-core`, pushed, clean
 working tree; `main` still `8bd19fb7`). Not merged into `main`; nothing deployed.
 
 ### 11.1 Branch reconciliation matrix
@@ -425,7 +426,7 @@ equivalents), and each agent worktree's local HEAD and tracked files (read-only)
 | Engine core | `core/gameengine` | `a4415c62` | 0 | 0 / 0 | GE-001 children; GE-066 to GE-069; stabilization on GE-001 (96245e94, a4415c62) |
 | Scoring | `core/ge-scoring` | `6bf69b1d` | 0 | 0 / 0 | GE-100, GE-109 |
 | Treasure Rush, Pirate's Leap | `feature/GE-070-treasure-rush-engine-migration` | `e632f09b` | 0 (all 15 previously missing commits present) | 0 / 0 | GE-070, GE-071 (97c69672 at 9e680012; parity audit e632f09b at step 15) |
-| Firepeak | `feature/firepeak-volcano-adventure` | `e5561b66` | 0 | 0 / 0 | GE-073, GE-073F |
+| Firepeak | `feature/firepeak-volcano-adventure` | `928453c0` | 0 | 0 / 0 | GE-073, GE-073F |
 | North Pole | `feature/north-pole-adventure` | `496e3659` | 0 | 0 / 0 | GE-074, SEA-04 |
 | Storykeeper's Castle | `feature/storykeeper-castle-completion` | `da36b5a0` | 0 | 0 / 0 | GE-072 |
 | Movement stack (8 branches, PR #26 to #37) | see 10.2 | unchanged | 0 | n/a | LAI-JMP cards |
@@ -433,7 +434,7 @@ equivalents), and each agent worktree's local HEAD and tracked files (read-only)
 
 **Missing commits: none** in the six development streams or the movement stack.
 
-### 11.2 Targeted unit tests on `21e13f81`
+### 11.2 Targeted unit tests on `21e13f81` (step 17 adds one test: region-play/audio 76 passed on `67294f60`)
 
 | Suite | Result |
 |---|---|
@@ -471,7 +472,7 @@ No conflict markers or duplicate ADR headings exist on the integration branch.
 | GE-L10, GE-L15 | Platform carry one step late; turntable mesh did not rotate | Engine lead | **Fixed** (step 16) |
 | GE-L14 (remaining) | Engine drapes the telegraph over terrain through an optional host `groundHeightAt`; the live host does not implement it yet (flat fallback) | Engine lead | Low |
 | GE-S1 | game-engine React expected failure (unchanged) | Engine lead | Low |
-| X1 | Integrated build: returning to Pip in Treasure Rush also plays the finale sound and music, from a Firepeak region-play change (Treasure Rush QA item 18). Intent asked of the Firepeak lead | Firepeak lead | To confirm |
+| X1 | Integrated build: returning to Pip in Treasure Rush also plays the finale sound and music, from a Firepeak region-play change (Treasure Rush QA item 18). Firepeak lead confirmed it is intended: completing Pip's quest plays Treasure Rush's own finale (TR-14, on `main` since 2026-11-01); no Firepeak cue; guard test added (step 17) | Firepeak lead | **Closed, intended** |
 | W1 | Worktree `sc-final-d` (`work/final-d`, already merged into the castle branch) holds 21 uncommitted tracked files, including `lai/apps/game_sessions/castle_views.py`, `urls.py`, `createLocationEngine.ts` and island-map camera files. Unrecorded work, or abandoned edits; it blocks shim removal (GE-076) | Castle lead | Commit through a branch and Development Complete, or discard |
 | D1, D2 | Integration defects found by the first PostgreSQL run | Scoring lead, Firepeak lead | **Fixed** (steps 13, 14) |
 
