@@ -121,7 +121,7 @@ Created 2026-11-19 by LAI-ENG-002 at the owner's instruction, in coordination wi
 
 | Item | Value |
 |---|---|
-| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 14 merged, head `568dd278`, section 5.1) |
+| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 16 merged, head `21e13f81`, section 5.1) |
 | Worktree | `/Coding/learning-worktrees/wt-integration-20261119-game-engine-core` |
 | Slot | 8 (PostgreSQL 5458, Django 8090, Vite 5263; pytest database `test_lai_integration_20261119_game_engine_core`) |
 | Owner | LAI-ENG-002 (integrating agent). The engine lead supplies SHAs and fixes engine-side conflicts on `core/gameengine` |
@@ -163,6 +163,8 @@ who resolves on their own branch; the integration branch then re-merges.
 | 12 | 12a core `ebaec30b` (tests only: the adopted pointerControls tests, byte-identical) into `bd80f587`; 12b Treasure Rush branch `97c69672` (GE-071 Pirate's Leap on the engine: checkpoints, pools, goal, jump challenges; course v3 stone stairs, a no-jump route to the treasure; course v4 all 30 platforms and the gold plate on engine platforms; decision E16 in the cove definition) into `9e680012` | Clean merges. Migration graph applied from scratch on PostgreSQL 16 (slot 8). Content, golden, vectors, ADR, docs, workspace checks pass; typecheck passes; engine 659 plus 1 expected fail; React region-play, scoring, game-engine, runtime and regionPlay **1,854 passed, 0 failed**; pytest on PostgreSQL for regions, ai, scoring, seasons, assets, avatars **1,915 passed, 3 failed**. The 3 failures predate step 12 (identical at `19645943`) | D1 scoring realm drift; D2 puzzle-kind migration test assumes its leaf (section 10) |
 | 13 | 13a Firepeak `e5561b66`, 13b North Pole `496e3659` (test file only: `test_puzzle_kinds` targets `0007_puzzle_kinds_choose_order` by name and restores the leaves) into `d78f858f` | Fixes D2. On PostgreSQL (slot 8): `test_puzzle_kinds` and `test_platforming` 81 passed; `regions` leaves 0006, 0007, 0008, 0009 applied; `makemigrations --check` no changes. GE-073 and GE-074 record the SHAs | D1 remains (scoring fixture, GE-109) |
 | 14 | `core/ge-scoring` `6bf69b1d` (GE-109: the realm drift test seeds the Heart of Firepeak and North Pole realms it checks; test file only) into `568dd278` | Fixes D1. pytest on PostgreSQL (slot 8) for regions, ai, scoring, seasons, assets, avatars: **1,918 passed, 0 failed** | None from this step |
+| 15 | `feature/GE-070-treasure-rush-engine-migration` `e632f09b` (GE-071 parity audit: on phones the hint bubble clears the touch Jump button; riddle-bridge and camera guard tests) into `6c836ea3` | Region play, bridge, runtime: 1,813 passed, 1 expected fail; typecheck clean | Treasure Rush finale cue on returning to Pip (11.5), asked of the Firepeak lead |
+| 16 | `core/gameengine` `a4415c62` (engine 1.0 stabilization `96245e94`: GE-L10 same-step carry, GE-L15 turntables, GE-L14 terrain telegraph; GE-076 audit) into `21e13f81` | Engine 670 passed, 0 expected fails; React affected set 4,105 passed, 1 expected fail (GE-S1), 0 failed; typecheck, vectors, ADR, docs, workspace clean | None |
 
 Forecast update after step 1: `feature/storykeeper-castle-completion` @ `4df618b2` has merged the
 engine and is now **clean** on top of step 1 (it was 9 conflicts). The `regions 0007` collision
@@ -408,9 +410,9 @@ owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` an
 8. Deployment approval per environment, separate from the merge; RDS snapshot before migrating.
 9. Host memory (six agents on 8 GB) and whether the Storykeeper worktree may run its own PostgreSQL.
 
-## 11. Final reconciliation report (GE-090, 2026-11-19)
+## 11. Final reconciliation report (GE-090, 2026-11-19; updated at step 16)
 
-**Final integration SHA: `568dd278`** (`integration/20261119-game-engine-core`, pushed, clean
+**Final integration SHA: `21e13f81`** (step 16; first issued at `568dd278`, step 14) (`integration/20261119-game-engine-core`, pushed, clean
 working tree; `main` still `8bd19fb7`). Not merged into `main`; nothing deployed.
 
 ### 11.1 Branch reconciliation matrix
@@ -420,9 +422,9 @@ equivalents), and each agent worktree's local HEAD and tracked files (read-only)
 
 | Stream | Branch | Head | Not in integration | Unpushed / uncommitted | Trello (Development Complete at head) |
 |---|---|---|---|---|---|
-| Engine core | `core/gameengine` | `ebaec30b` | 0 | 0 / 0 | GE-001 children; GE-066, GE-067, GE-068, GE-069, GE-L14 |
+| Engine core | `core/gameengine` | `a4415c62` | 0 | 0 / 0 | GE-001 children; GE-066 to GE-069; stabilization on GE-001 (96245e94, a4415c62) |
 | Scoring | `core/ge-scoring` | `6bf69b1d` | 0 | 0 / 0 | GE-100, GE-109 |
-| Treasure Rush, Pirate's Leap | `feature/GE-070-treasure-rush-engine-migration` | `97c69672` | 0 (all 15 previously missing commits present) | 0 / 0 | GE-070, GE-071 (block: implementation 97c69672, integration 9e680012) |
+| Treasure Rush, Pirate's Leap | `feature/GE-070-treasure-rush-engine-migration` | `e632f09b` | 0 (all 15 previously missing commits present) | 0 / 0 | GE-070, GE-071 (97c69672 at 9e680012; parity audit e632f09b at step 15) |
 | Firepeak | `feature/firepeak-volcano-adventure` | `e5561b66` | 0 | 0 / 0 | GE-073, GE-073F |
 | North Pole | `feature/north-pole-adventure` | `496e3659` | 0 | 0 / 0 | GE-074, SEA-04 |
 | Storykeeper's Castle | `feature/storykeeper-castle-completion` | `da36b5a0` | 0 | 0 / 0 | GE-072 |
@@ -431,14 +433,14 @@ equivalents), and each agent worktree's local HEAD and tracked files (read-only)
 
 **Missing commits: none** in the six development streams or the movement stack.
 
-### 11.2 Targeted unit tests on `568dd278`
+### 11.2 Targeted unit tests on `21e13f81`
 
 | Suite | Result |
 |---|---|
 | Typecheck (root) | Clean |
-| Engine (`npm run test:engine`) | 659 passed, 1 expected fail (GE-L10, pinned with `it.fails`; unchanged) |
-| React affected set (region-play, island-map, game-engine, npc-manager, scoring, great-storybook, audio, routes, src/test), gated | **4,094 passed, 0 failed** (349 files) |
-| Django on isolated PostgreSQL 16 (regions, ai, scoring, seasons, assets, avatars) | **1,918 passed, 0 failed** |
+| Engine (`npm run test:engine`) | **670 passed, 0 expected fails** (GE-L10 fixed in step 16) |
+| React affected set (region-play, island-map, game-engine, npc-manager, scoring, great-storybook, audio, routes, src/test), gated | **4,105 passed, 0 failed**, 1 expected fail (GE-S1) (350 files) |
+| Django on isolated PostgreSQL 16 (regions, ai, scoring, seasons, assets, avatars) | **1,918 passed, 0 failed** at `568dd278`; steps 15 and 16 change no Python |
 | Migration graph from an empty database | Applies cleanly; one leaf per app; `makemigrations --check` no changes |
 | Content, golden vectors, engine contract vectors, ADR, docs, workspace checks | Pass |
 
@@ -465,10 +467,12 @@ No conflict markers or duplicate ADR headings exist on the integration branch.
 | Id | Defect | Owner | Severity |
 |---|---|---|---|
 | B15 | Host timer stalls (VirtualBox guest): timing evidence on this host is weak | Owner | Blocks trustworthy merge-readiness runs |
-| GE-T2 | GameHost retry test about 1 s per test (host timers) | Engine lead | Re-check after B15 |
-| GE-L10 | Platform carry one simulation step late (expected failure) | Engine lead | Low |
-| GE-L14 (remaining) | Hazard telegraph assumes flat ground | Engine lead | Low |
-| GE-L15 | Turntable mesh does not rotate | Engine lead | Low |
+| GE-T2 | GameHost retry test slow | Engine lead | Classified environmental (B15): 10/10 three times in isolation with stalls recorded |
+| GE-L10, GE-L15 | Platform carry one step late; turntable mesh did not rotate | Engine lead | **Fixed** (step 16) |
+| GE-L14 (remaining) | Engine drapes the telegraph over terrain through an optional host `groundHeightAt`; the live host does not implement it yet (flat fallback) | Engine lead | Low |
+| GE-S1 | game-engine React expected failure (unchanged) | Engine lead | Low |
+| X1 | Integrated build: returning to Pip in Treasure Rush also plays the finale sound and music, from a Firepeak region-play change (Treasure Rush QA item 18). Intent asked of the Firepeak lead | Firepeak lead | To confirm |
+| W1 | Worktree `sc-final-d` (`work/final-d`, already merged into the castle branch) holds 21 uncommitted tracked files, including `lai/apps/game_sessions/castle_views.py`, `urls.py`, `createLocationEngine.ts` and island-map camera files. Unrecorded work, or abandoned edits; it blocks shim removal (GE-076) | Castle lead | Commit through a branch and Development Complete, or discard |
 | D1, D2 | Integration defects found by the first PostgreSQL run | Scoring lead, Firepeak lead | **Fixed** (steps 13, 14) |
 
 ### 11.6 Database migrations at the main merge
@@ -524,7 +528,7 @@ access, no deploy steps changed.
 - [x] All six streams and the movement stack integrated; no missing or unpushed commits
 - [x] Every integrated SHA recorded Development Complete on its card
 - [x] Migration graph verified on PostgreSQL; one leaf per app; no change to `main`'s migrations
-- [x] Targeted unit tests clean on `568dd278` (Django, engine, React)
+- [x] Targeted unit tests clean on `21e13f81` (engine, React; Django at `568dd278`, no Python changed since)
 - [x] Integration defects D1, D2 fixed by their owners
 - [ ] Owner decisions in 11.12
 - [ ] Merge-readiness gates on an authorized host: lint and format, full suites, build (no
