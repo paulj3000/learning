@@ -12,7 +12,12 @@ run `npm install` for the `game/` workspace.
 
 ## Current baseline
 
-**`fc5c71cf690a2b6b5bf40f8cdad4c475cbe796d5`** (Wave 2, 2026-11-19).
+**`cbe43a8e`** (Wave 2, 2026-11-19): `fc5c71cf` plus GE-075's six location definitions, the GE-065
+companion bridge hooks (merged from the Firepeak split branch at `70cd5781`) and renderer stats
+moved out of `debug/`. Development Complete for its contents; GE-066 (bridge Wave 2) is not in it yet.
+
+Previous Wave 2 baseline: `fc5c71cf690a2b6b5bf40f8cdad4c475cbe796d5` (verification below was run at
+it; `cbe43a8e` re-ran engine 582 and the affected React suites).
 
 | Contains | Card |
 |---|---|
