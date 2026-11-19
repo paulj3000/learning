@@ -37,11 +37,15 @@ describe('adventure definition', () => {
     expect(paths(validAdventure({ engineApi: '^0.2.0' }), { engineApiVersion: '0.2.4' })).not.toContain('engineApi');
   });
 
-  it('requires an accessible route on every jump challenge', () => {
+  it('requires an accessible route on a required jump challenge, but not on an optional jump-only one', () => {
     const missing = validAdventure({
-      jumpChallenges: [{ id: 'j', areaId: 'demo-cove', jumpRouteId: 'r1', accessibleRouteId: '', optional: true }],
+      jumpChallenges: [{ id: 'j', areaId: 'demo-cove', jumpRouteId: 'r1', accessibleRouteId: '', optional: false }],
     });
     expect(paths(missing)).toContain('jumpChallenges[0].accessibleRouteId');
+    const optionalJumpOnly = validAdventure({
+      jumpChallenges: [{ id: 'j', areaId: 'demo-cove', jumpRouteId: 'r1', accessibleRouteId: null, optional: true }],
+    });
+    expect(paths(optionalJumpOnly)).not.toContain('jumpChallenges[0].accessibleRouteId');
     const same = validAdventure({
       jumpChallenges: [{ id: 'j', areaId: 'demo-cove', jumpRouteId: 'r1', accessibleRouteId: 'r1', optional: true }],
     });

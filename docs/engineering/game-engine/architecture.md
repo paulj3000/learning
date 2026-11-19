@@ -139,4 +139,11 @@ File ownership and merge sequencing are in [agent-ownership.md](agent-ownership.
 4. Remove shims and duplicated legacy logic only after every consumer has migrated and
    regression evidence exists (GE-076).
 
+Realms still on the live `createLocationEngine` get engine components through the **location
+engine bridge** (GE-065, `react/src/features/game-engine/bridge/`). It is a `WorldExtension` that
+runs an engine runtime inside the live runtime. It reads the player state, adds colliders with
+`engine:` ids, gives the live controller the engine's `EnvironmentQuery`, recovers hazards
+through the host's teleport, and sends claims to the decision-E15 sink. Movement, camera,
+character and platforms stay with the live runtime until GE-076, so nothing runs twice.
+
 Per-realm detail: [migration-matrix.md](migration-matrix.md).

@@ -250,7 +250,7 @@ export class FirstPersonController {
   private readonly isSafeGround: (x: number, y: number, z: number) => boolean;
   private readonly recoveryPoint: () => { x: number; z: number; yaw?: number } | null;
   private jumpConfig: JumpConfiguration;
-  private readonly environment: EnvironmentQuery | null;
+  private environment: EnvironmentQuery | null;
   private readonly maxWalkableSlope: number;
   private climb: ClimbableInfo | null = null;
   private climbCooldown = 0;
@@ -424,6 +424,25 @@ export class FirstPersonController {
   }
 
   /** On a ladder or other climbable. */
+  /**
+   * Replaces the environment (surfaces, forces, water, climbables) from the next update
+   * (GE-065: a bridge extension mounts after the controller exists). `null` returns to plain
+   * ground: any climb or swim ends at once and the child falls or stands normally, and friction
+   * is 1 again. Setting the same environment again changes nothing.
+   */
+  setEnvironment(query: EnvironmentQuery | null): void {
+    if (query === this.environment) {
+      return;
+    }
+    this.environment = query;
+    if (query === null) {
+      this.climb = null;
+      this.swimmingNow = false;
+      this.slidingNow = false;
+      this.surfaceFriction = 1;
+    }
+  }
+
   get climbing(): boolean {
     return this.climb !== null;
   }

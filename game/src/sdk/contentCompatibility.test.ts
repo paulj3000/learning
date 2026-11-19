@@ -48,6 +48,11 @@ describe('content compatibility', () => {
     ]);
   });
 
+  it('accepts an optional jump-only challenge without an accessible route', () => {
+    expect(codes({ jumpChallenges: [{ id: 'j', jumpRouteId: 'hop', optional: true }] })).toEqual([]);
+    expect(codes({ jumpChallenges: [{ id: 'j', jumpRouteId: 'hop', optional: false }] })).toEqual(['JUMP_WITHOUT_ACCESSIBLE_ROUTE']);
+  });
+
   it('flags checkpoints on moving platforms', () => {
     const scene = {
       platforming: {
