@@ -237,3 +237,33 @@ describe('AiGuardrailStack', { timeout: 30_000 }, () => {
     }
   });
 });
+
+describe('AiGuardrailStack in a separate Bedrock Region (ADR-064)', { timeout: 30_000 }, () => {
+  const app = new App();
+  const stack = new AiGuardrailStack(app, 'Oregon', {
+    envName: 'dev',
+    env: { account: '123456789012', region: 'us-west-2' },
+    platformRegion: 'us-west-1',
+  });
+  const template = Template.fromStack(stack);
+
+  it('keeps the same Guardrail and policy, scoped to the Bedrock Region', () => {
+    template.resourceCountIs('AWS::Bedrock::Guardrail', 1);
+    template.resourceCountIs('AWS::Bedrock::GuardrailVersion', 1);
+    const [invoke] = statements(template).filter((s) => s.Sid === 'InvokeUsInferenceProfile');
+    expect(JSON.stringify(invoke.Resource)).toContain(
+      `:bedrock:us-west-2:123456789012:inference-profile/${AI_INFERENCE_PROFILE_ID}`,
+    );
+    expect(statements(template).map((s) => s.Sid)).toContain('ApplyChildSafetyGuardrail');
+  });
+
+  it('leaves the log alarms to the platform Region and budgets to its topic', () => {
+    expect(stack.monitorsLogs).toBe(false);
+    template.resourceCountIs('AWS::Logs::MetricFilter', 0);
+    template.resourceCountIs('AWS::CloudWatch::Alarm', 0);
+    const budget = JSON.stringify(template.findResources('AWS::Budgets::Budget'));
+    expect(budget).toContain(':sns:us-west-1:');
+    expect(budget).toContain(':lai-django-alarms-dev');
+    expect(budget).not.toContain(':sns:us-west-2:');
+  });
+});

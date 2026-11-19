@@ -77,7 +77,7 @@ All paths are under `src/features/island-map/three/` unless stated otherwise.
 - **Behaviour switches:** `extensions`, `hiddenInteractionIds` (secrets),
   `noReticleBands`.
 - **Copy:** loading text, instructions, status lines, "Things to do here"
-  notes, calm-stop text, checkpoint toasts, and the non-graphical way out
+  notes, checkpoint toasts, and the non-graphical way out
   (`altNav`). All child-facing and readable aloud.
 
 ### Validation: `runtime/validateLocationManifest.ts`
@@ -192,8 +192,8 @@ until the asset library adds a published read path for parents.
 |---|---|
 | The runtime never names a location slug or region id (A2) | `runtime/noLocationBranching.test.ts` |
 | Every shipped manifest validates and survives a JSON round trip (A3) | `runtime/manifests/*.test.ts` |
-| No asset url outside the catalogue, no S3/CloudFront/Amplify host in `src/` | `assets/noHardCodedAssetUrls.test.ts` |
-| Engine `.ts` modules reach no React, Amplify, AWS SDK, API/Django client, AI, routing, auth, session or UI module, directly or transitively (LAI-0203) | `src/test/engineBoundary.test.ts` |
+| No asset url outside the catalogue, no S3/CloudFront host in `src/` | `assets/noHardCodedAssetUrls.test.ts` |
+| Engine `.ts` modules reach no React, AWS SDK, API/Django client, AI, routing, auth, session or UI module, directly or transitively (LAI-0203) | `src/test/engineBoundary.test.ts` |
 | An extension cannot load an asset it did not declare | `runtime/createLocationEngine.test.ts` |
 | Each migrated region behaves as its old view did | `runtime/manifests/*Parity.test.tsx` |
 | Each region runs on the real runtime | `runtime/manifests/*.engine.test.ts` |
@@ -237,7 +237,7 @@ saved collectible and a travel exit.
    This is fine for locations authored in code. For a location published from
    Django (TR-7), `publishRegionCheckpoints` adds its checkpoints to the same
    catalogue at runtime, so spawn, triggers, validation and toasts all read
-   them; it refuses to touch a source region. They are not saved to Amplify,
+   them; it refuses to touch a source region. They are not saved to world state,
    so a child re-enters such a region at its spawn
    (`docs/TREASURE_RUSH_ROADMAP.md` section 13, TR-D16).
 3. **The Phaser 2D views are still live.** ADR-029 retires each one only after

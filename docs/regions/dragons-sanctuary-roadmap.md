@@ -3,7 +3,7 @@
 ## Learning Adventure Island
 
 **Region:** The Dragon's Sanctuary  
-**Platform:** AWS Amplify Gen 2 + Three.js  
+**Platform:** Django + DRF backend + Three.js  
 **Design principle:** Skill-level progression rather than age-based progression  
 **Core fantasy:** The player becomes a Dragon Keeper and restores a forgotten dragon sanctuary through exploration, learning challenges, quests, and persistent world changes.
 
@@ -743,7 +743,7 @@ Design for:
 - desktop browsers
 - tablets
 - mobile browsers
-- future Android client using shared Amplify backend/API
+- future Android client using the shared Django API
 
 The authoritative sanctuary state should live behind shared APIs rather than browser-local state.
 
@@ -908,9 +908,8 @@ src/
       state/
       assets/
 
-amplify/
-  data/
-    # sanctuary-related schema integrated into existing data definitions
+lai/apps/
+  # sanctuary-related models integrated into the canonical Django apps (ADR-033)
 
 services/
   sanctuary/

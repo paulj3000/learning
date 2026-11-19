@@ -319,3 +319,39 @@ def test_postgres_16_connection_and_framework_migrations():
 @pytest.mark.django_db
 def test_no_pending_model_changes():
     call_command("makemigrations", "--check", "--dry-run", verbosity=0)
+
+
+def test_production_allows_the_seed_publish_bootstrap_only_in_dev(monkeypatch):
+    _prod_env(monkeypatch)
+    assert _load("config.settings.production").LAI_DEV_BOOTSTRAP_PUBLISH is False
+    monkeypatch.setenv("LAI_DEV_BOOTSTRAP_PUBLISH", "true")
+    with pytest.raises(ImproperlyConfigured, match="LAI_ENVIRONMENT=dev"):
+        _load("config.settings.production")
+    monkeypatch.setenv("LAI_ENVIRONMENT", "prod")
+    with pytest.raises(ImproperlyConfigured, match="LAI_ENVIRONMENT=dev"):
+        _load("config.settings.production")
+    monkeypatch.setenv("LAI_ENVIRONMENT", "dev")
+    assert _load("config.settings.production").LAI_DEV_BOOTSTRAP_PUBLISH is True
+
+
+# --- AI Question Studio run mode (docs/AI_QUESTION_STUDIO.md, "Background processing") --------
+
+
+def test_production_leaves_studio_batches_for_an_operator_by_default(monkeypatch):
+    _prod_env(monkeypatch, LAI_STUDIO_RUN_MODE=None)
+    assert _load("config.settings.production").LAI_STUDIO_RUN_MODE == "manual"
+
+
+@pytest.mark.parametrize("mode", ["thread", "inline"])
+def test_production_never_runs_studio_batches_in_the_web_process(monkeypatch, mode):
+    _prod_env(monkeypatch, LAI_STUDIO_RUN_MODE=mode)
+    with pytest.raises(ImproperlyConfigured, match="LAI_STUDIO_RUN_MODE"):
+        _load("config.settings.production")
+
+
+def test_local_settings_keep_the_in_process_studio_modes(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    for mode in ("thread", "inline", "manual"):
+        monkeypatch.setenv("LAI_STUDIO_RUN_MODE", mode)
+        _load("config.settings.base")
+        assert _load("config.settings.local").LAI_STUDIO_RUN_MODE == mode

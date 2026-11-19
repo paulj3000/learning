@@ -15,7 +15,7 @@ Date: 2026-11-07. QA branch: `qa/ai-bedrock-chatty-acceptance-20261107` (from
 | Real AWS Bedrock | **PASS (local Django)**: `ai_live_check` companion, tutor, NPC, Guardrail probe and timeout probe pass on real Bedrock with the deployed Guardrail, after fix D-3. Django red team 29/29 on live Bedrock after fix D-4. Not yet run on a deployed Django host |
 | Guardrail validation | **PARTIAL**: Guardrail `lai-child-safety-dev` v1 deployed (Guardrail-only stack); live probe blocked; it also blocked benign turns until D-3. No red-team or false-positive measurement yet |
 | Application safety regression | PASS after fixes; one reproducible child-safety defect class found and fixed (D-1) |
-| Chatty browser acceptance | PARTIAL PASS: Django AI path in a real browser passes; Chatty's own screens need Amplify Data (Gate B) |
+| Chatty browser acceptance | PARTIAL PASS: Django AI path in a real browser passes; Chatty's own screens needed the earlier backend's data at the time (Gate B) |
 | Merge gates | PASS (counts below) |
 
 Not READY TO MERGE as a finished subproject: no live Bedrock or Guardrail evidence exists, and
@@ -100,7 +100,7 @@ deployed. Until it is, Django's validators are the only enforced output check on
 ### Django red team on live Bedrock (2026-11-07)
 
 `scripts/ai-red-team.ts --target django` against the same local Django, now trusting the real
-Amplify user pool (`us-west-1_FuPf8rRor`, app client from `amplify_outputs.json`). The pool had
+Cognito user pool (`us-west-1_FuPf8rRor`, its web app client). The pool had
 no users, so a throwaway test parent (`redteam-parent-20261107@example.com`, random password,
 no email sent) was created with `AdminCreateUser`, given one Django child, and deleted after
 each run. Real SRP sign-in; Django verified the access token against the pool's JWKS.
@@ -207,18 +207,13 @@ or account ids are recorded beyond that mask.
 | Runtime access | **One probe**: `Converse` on the profile, 5 max tokens, prompt "Reply with the single word: ok", no child data, no Guardrail → `AccessDeniedException`, request id `5f3a5175-ab0c-4320-a4d2-22d33185e69b`, 579 ms. No tokens billed |
 | IAM | The IAM user cannot list its own policies (`AccessDenied`). The designed policy `lai-django-ai-<env>` is not deployed |
 | Guardrail | `ListGuardrails` denied; no `LaiAiGuardrail-*` CloudFormation stack in us-west-1, us-east-1, us-east-2 or us-west-2 |
-| Django deployment | No `LaiDjangoEc2-*` stack and no `/lai/*` SSM parameters in any of those Regions. The account holds the Amplify stacks only |
+| Django deployment | No `LaiDjangoEc2-*` stack and no `/lai/*` SSM parameters in any of those Regions. The account held only the retired backend's stacks |
 | `ai_live_check --dry-run` (free, local, Bedrock settings) | `ready: false`, blocking: `guardrail id`, `guardrail version`, `client builds` |
-| Logging and cost | `ai.turn v1` metric filters and 7 alarms are synthesized in `LaiAiGuardrail-<env>`, not deployed. Price settings unset, so cost is reported as unknown. The Amplify $50 budget filters `Amazon Bedrock` and may not see Marketplace-billed Claude spend (unverified) |
+| Logging and cost | `ai.turn v1` metric filters and 7 alarms are synthesized in `LaiAiGuardrail-<env>`, not deployed. Price settings unset, so cost is reported as unknown. A budget that filters `Amazon Bedrock` may not see Marketplace-billed Claude spend (unverified) |
 
 None of the six scenarios (greeting, educational question, multi-turn, confusing question,
 malicious input, provider failure) has been run against real Bedrock. Their fake-provider
 equivalents pass (section 5). **No fake-model result here is claimed as Bedrock acceptance.**
-
-Earlier evidence for a different path: `docs/IMPLEMENTATION_STATUS.md` records the Amplify
-`generateCompanionTurn` route working against live Bedrock in an earlier phase. That is the
-Amplify AI Kit route under the Amplify role, not the Django service, and proves nothing about
-ADR-044's client, Guardrail or IAM.
 
 ### Minimum steps to unblock (owner approval required: ADR-019 G7, LAI-0705 Gate A)
 
@@ -284,8 +279,8 @@ that Django trusts. **This is not a real Cognito sign-in** (no hosted UI, no rea
 | 10 | Desktop, tablet, mobile | PASS for the parent home at 1280x800, 1024x768 and 390x844: no horizontal overflow, Enter island in view, target at least 24x24 (WCAG 2.5.8, the project's measure) |
 
 **Not covered, and why:** the screens that draw Chatty's bubble (adventure runner, story chapters,
-castle tales, NPC conversation, the child dashboard's safety section) load Amplify Data sessions
-first, which the offline harness does not provide. Chatty rendering is covered by Vitest
+castle tales, NPC conversation, the child dashboard's safety section) loaded sessions from the
+earlier backend first, which the offline harness did not provide. Chatty rendering is covered by Vitest
 (`CompanionBubble`, `ChattyAvatar`). The full UI pass needs a Django-enabled dev deploy
 (LAI-0706 Gate B).
 
@@ -307,7 +302,7 @@ Run on the QA branch at `d3ea039` (before this report), local machine, PostgreSQ
 |---|---|---|
 | Django unit and integration | `make py-test-db` (PostgreSQL required) | PASS: 2,422 passed (2,373 before QA plus 49 new), 0 failed, 0 skipped |
 | React/Vitest | `npm test` | PASS: 4,313 tests in 382 files |
-| TypeScript | `npm run typecheck` (react, amplify, scripts, server, infra) | PASS |
+| TypeScript | `npm run typecheck` (react, scripts, server, infra) | PASS |
 | Ruff lint and format | `make py-lint py-format-check` | PASS (534 files) |
 | Prettier | `npx prettier --check .` | PASS |
 | oxlint | `npm run lint` | PASS (0 errors, 47 pre-existing warnings) |
@@ -328,7 +323,7 @@ because the pinned Playwright expects a different browser build.
 
 1. No live Bedrock call, Guardrail block, latency, token or cost evidence (section 3).
 2. No real Cognito sign-in; tokens come from the local e2e issuer.
-3. Chatty's own screens are not browser-tested on Django (Amplify Data dependency, Gate B).
+3. Chatty's own screens are not browser-tested on Django (earlier-backend data dependency at the time, Gate B).
 4. `CLIENT_AUTHORED` context must stay on until adventures and stories run on Django (LAI-0709).
 5. No approved retention period for audit rows (LAI-0707/0711).
 6. The application safety patterns are English-only regular expressions; paraphrases and other
@@ -340,8 +335,7 @@ because the pinned Playwright expects a different browser build.
 
 See section 3 for the current account state and the unblock steps. Configuration is in SSM
 `/lai/<env>/django/LAI_AI_*` (`docs/AI_SERVICE.md` section 5). Rollback: `LAI_AI_PROVIDER=disabled`
-or the Django Admin kill switch. Gameplay never depends on a model turn, and Amplify's AI routes
-are untouched.
+or the Django Admin kill switch. Gameplay never depends on a model turn.
 
 ## 9. PR and commits
 

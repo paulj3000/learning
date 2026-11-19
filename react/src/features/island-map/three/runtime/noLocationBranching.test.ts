@@ -46,3 +46,31 @@ describe('generic location runtime', () => {
     expect(leaks).toEqual([]);
   });
 });
+
+/**
+ * GE-075 / Firepeak requirement 11: the Game Engine Core (`game/src`, `@lai/game-engine`) is
+ * held to the same rule. Realm and location specifics belong in SDK definitions and content,
+ * never in engine code. Contract vector fixtures are data, not engine behaviour, so they are
+ * the one exclusion.
+ */
+const ENGINE_DIR = resolve(process.cwd(), '../game/src');
+const ENGINE_FIXTURES = new Set(['contracts/gameplayEventVectors.ts']);
+
+describe('Game Engine Core (game/src)', () => {
+  const engineFiles = () =>
+    sourceFiles(ENGINE_DIR).filter((path) => !ENGINE_FIXTURES.has(relative(ENGINE_DIR, path).split('\\').join('/')));
+
+  it('scans a non-empty set of engine files', () => {
+    expect(engineFiles().length).toBeGreaterThan(3);
+  });
+
+  it('names no location slug or region id', () => {
+    const leaks = engineFiles().flatMap((path) => {
+      const source = readFileSync(path, 'utf8');
+      return KNOWN_IDS.filter((id) => new RegExp(`['"\`]${id}['"\`:]`).test(source)).map(
+        (id) => `${relative(ENGINE_DIR, path)}: "${id}"`,
+      );
+    });
+    expect(leaks).toEqual([]);
+  });
+});

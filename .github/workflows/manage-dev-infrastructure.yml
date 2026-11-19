@@ -1,0 +1,119 @@
+# Operate the native DEV environment from GitHub: power, schedule, hold, URLs, pending releases.
+# Runs scripts/aws/manage-dev.sh with the infrastructure role (vars.LAI_DEV_INFRA_ROLE_ARN, OIDC,
+# trusted only from the dev-infrastructure environment). That role can start the lai-dev-power
+# state machine, read state, write /lai/dev/power/* and send the status and deploy documents; it
+# cannot start, stop, terminate or delete EC2 or RDS directly, and cannot touch prod.
+#
+# Works while EC2 and RDS are stopped: the summary table comes from stack outputs and live reads.
+# One operation at a time (concurrency group manage-dev-infrastructure, never cancelled).
+name: Manage DEV Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: What to do
+        type: choice
+        options:
+          - start
+          - stop
+          - restart
+          - status
+          - pause-schedule
+          - resume-schedule
+          - hold
+          - release-hold
+          - urls
+          - deploy-pending
+          - start-and-deploy
+        default: status
+      hold_hours:
+        description: 'hold only: keep the environment up (skip scheduled stops) for this many hours (1 to 168)'
+        type: number
+        default: 4
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manage-dev-infrastructure
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.LAI_AWS_REGION || 'us-west-1' }}
+
+jobs:
+  manage:
+    name: ${{ inputs.operation }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    environment:
+      name: dev-infrastructure
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Infrastructure role configured
+        env:
+          ROLE: ${{ vars.LAI_DEV_INFRA_ROLE_ARN }}
+        run: |
+          [ -n "$ROLE" ] || { echo "::error::set LAI_DEV_INFRA_ROLE_ARN on the dev-infrastructure environment (scripts/aws/install-debug.sh does)"; exit 1; }
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_DEV_INFRA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-dev-manage-${{ github.run_id }}
+
+      - name: manage-dev.sh ${{ inputs.operation }}
+        env:
+          OPERATION: ${{ inputs.operation }}
+          HOLD_HOURS: ${{ inputs.hold_hours }}
+        run: |
+          args=("$OPERATION" --json)
+          if [ "$OPERATION" = hold ]; then
+            [[ $HOLD_HOURS =~ ^[0-9]+$ ]] || { echo "::error::hold_hours must be a whole number"; exit 2; }
+            args+=(--hours "$HOLD_HOURS")
+          fi
+          rc=0
+          scripts/aws/manage-dev.sh "${args[@]}" >result.json || rc=$?
+          cat result.json
+          exit "$rc"
+
+      - name: Summary
+        if: always()
+        env:
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          scripts/aws/manage-dev.sh status --json >status.json 2>/dev/null || true
+          s=$(jq -c '.status // empty' status.json 2>/dev/null || true)
+          r=$(jq -c . result.json 2>/dev/null || echo '{}')
+          if [ -z "$s" ]; then
+            echo "### DEV: $OPERATION ($(jq -r '.result // "failed"' <<<"$r"))" >>"$GITHUB_STEP_SUMMARY"
+            echo "Status unavailable (see the log)." >>"$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "### DEV: $OPERATION: $(jq -r '.result // "failed"' <<<"$r")"
+            echo ""
+            echo "$(jq -r '.message // ""' <<<"$r")"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            jq -r '
+              "| EC2 | \(.ec2.state) (`\(.ec2.instance_id)`, \(.ec2.instance_type)) |",
+              "| RDS | \(.rds.state) (`\(.rds.identifier)`) |",
+              "| Power state | \(.power.state) |",
+              "| Scheduler | nightly stop \(.schedule.shutdown.state) \(.schedule.shutdown.time), morning start \(.schedule.startup.state) \(.schedule.startup.time) \(.schedule.timezone)\(if .schedule.paused == "true" then ", PAUSED" else "" end) |",
+              "| Hold until | \(.schedule.hold_until) |",
+              "| Readiness | \(.readiness.status) \(.readiness.http_code) |",
+              "| Pending release | `\(.deploy.pending)` |",
+              "| CloudFront | \(.urls.cloudfront) |",
+              "| Game | \(.urls.game) |",
+              "| API | \(.urls.api) |",
+              "| Admin | \(.urls.admin) |"' <<<"$s"
+          } >>"$GITHUB_STEP_SUMMARY"

@@ -688,6 +688,10 @@ Exit criteria:
 
 ### The calm stop is not a deliverable here, and that is deliberate
 
+> **Retired (ADR-053, 2026-11-11).** There are no play-time limits: the session clock, the calm
+> stop and `ChildProfile.sessionMinutes` were removed. This beat is kept as history only; do not
+> build it.
+
 The storyboard's beat 13 has no phase. SC-7 went looking for the
 session-time implementation it was told to build on and found that
 `ChildProfile.sessionMinutes` is validated, stored, editable and displayed,

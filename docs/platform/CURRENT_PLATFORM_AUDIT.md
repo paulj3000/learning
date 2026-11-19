@@ -3,11 +3,15 @@
 Covers `docs/android/android.md` Phase 0 (Platform Audit) and Phase 1
 (Establish the Platform Boundary), grouped in `docs/ROADMAP.md` as "Phase 35
 — Platform Audit and Boundary". See ADR-010 in `docs/DECISIONS.md` for the
-architectural rule this audit exists to check the codebase against: *Amplify
-Gen 2 is the source of truth; the web client and any future Android client
-are both clients of the same platform.*
+architectural rule this audit exists to check the codebase against: *the
+backend platform is the source of truth; the web client and any future
+Android client are both clients of the same platform.*
 
-This is a source-level review, written by reading `amplify/` and every
+**Historical record.** This audit describes the retired backend as it stood in Phase 35. The
+current platform is Django + DRF in `lai/` (`docs/ARCHITECTURE.md`); file paths and data-layer
+details below refer to code that no longer exists.
+
+This is a source-level review, written by reading the backend definition and every
 `src/features/*/api.ts` call site, not by exercising a live deployment —
 this sandbox has no AWS credentials (the same constraint noted throughout
 `docs/IMPLEMENTATION_STATUS.md` and `docs/AUTHORIZATION_REVIEW.md`). No
@@ -22,7 +26,7 @@ Every item below is classified as one of:
 
 | Label | Meaning |
 |---|---|
-| `SHARED_DATA` | An Amplify Data model or piece of state already readable/writable by any authenticated client through the generated Data client — no web-specific transport or shape. |
+| `SHARED_DATA` | A backend data model or piece of state already readable/writable by any authenticated client through the generated Data client — no web-specific transport or shape. |
 | `SERVER_LOGIC` | Business logic that runs only on the backend (a Lambda, a custom resolver) and cannot be bypassed by a client. |
 | `CLIENT_ONLY` | Code that only ever needs to run in a rendering client (UI state, input handling, presentation) and is correctly *not* backend concern. |
 | `STATIC_ASSET` | Content authored in source control (TypeScript modules or files under `public/`) rather than a database row. |
@@ -30,8 +34,8 @@ Every item below is classified as one of:
 
 ## 2. Backend resources — `SHARED_DATA` / `SERVER_LOGIC`
 
-Every model in `amplify/data/resource.ts` is already `SHARED_DATA`: reachable
-by any authenticated client through the generated Amplify Data client with
+Every model in the backend data schema is already `SHARED_DATA`: reachable
+by any authenticated client through the generated data client with
 no web-specific shape, using `allow.owner()` (optionally plus
 `allow.group('Admins').to(['read'])`) or, for `CoopSession`,
 `allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')`
@@ -44,16 +48,16 @@ audit does not re-derive that). Full model list: `ParentProfile`,
 
 `SERVER_LOGIC` — the two things a client cannot bypass:
 
-- **`generateCompanionTurn` / `generateTutorTurn`** (`amplify/data/resource.ts`)
-  — Amplify AI Kit generation routes; the system prompt, model, and
+- **`generateCompanionTurn` / `generateTutorTurn`** (backend data schema)
+  — server-side AI generation routes; the system prompt, model, and
   inference config are fixed server-side and cannot be supplied or
   overridden by a client argument.
-- **`claimCoopSlot`** (`amplify/functions/claim-coop-slot/handler.ts`) — the
+- **`claimCoopSlot`** (`claim-coop-slot` function) — the
   one custom mutation backed by a Lambda that re-derives its own
   host/participant/status checks and uses a DynamoDB `ConditionExpression`
   for atomic slot claiming. This is the *only* gameplay write in the entire
   schema that is genuinely server-authoritative today.
-- **`operational-metrics`** (`amplify/functions/operational-metrics/handler.ts`)
+- **`operational-metrics`** (`operational-metrics` function)
   — a DynamoDB Streams consumer that turns `SafetyEvent`/`AIInteractionAudit`
   writes into CloudWatch metrics. Not itself an authorization boundary (it
   observes writes after the fact), but it is genuinely server-only logic
@@ -75,12 +79,12 @@ Phase 1 boundary-cleanliness problem.
 `POST /api/web/completeLesson` in favor of `completeActivity(activityId,
 childId)`. A full-tree search of `src/` found **no REST-style `fetch()`,
 `axios`, or `/api/...` calls anywhere** — every backend interaction goes
-through the generated Amplify Data client (`client.models.*`,
+through the generated data client (`client.models.*`,
 `client.mutations.*`, `client.generations.*`, and one
 `CoopSession.onUpdate` subscription). The three custom operations are
 already named platform-neutrally: `claimCoopSlot`, `generateCompanionTurn`,
 `generateTutorTurn`. **No renaming or restructuring was needed to satisfy
-this criterion** — the existing GraphQL/Amplify-Data architecture was
+this criterion** — the existing GraphQL data architecture was
 client-neutral from the start, which is favorable for an Android client
 using the same generated client libraries.
 
@@ -96,7 +100,7 @@ the client's own computation alone.
 This was always an acceptable risk for a single web client running code the
 product itself shipped. It becomes a real risk once a second client type
 exists — particularly Android, where a modified or rooted client can call
-the same Amplify Data operations directly with arbitrary arguments. This is
+the same data operations directly with arbitrary arguments. This is
 the "Android blockers" this audit exists to surface (`docs/android/android.md`
 Phase 0's acceptance criteria); fixing it is Phase 37's job
 ("Server-Authoritative Actions" in `docs/ROADMAP.md`), not this phase's.
@@ -157,7 +161,7 @@ problem is real and lists every location it would need to migrate from.
 
 A full-tree search of `src/` found **no `localStorage`, `sessionStorage`,
 or `indexedDB` usage anywhere** — every piece of persistent state already
-goes through Amplify Data (section 2). Nothing needs migrating off browser
+goes through the backend data layer (section 2). Nothing needs migrating off browser
 storage, which is a favorable starting point for a second client.
 
 `window`/`document` usage that does exist, all legitimately `CLIENT_ONLY`
@@ -193,8 +197,8 @@ Per `docs/android/android.md` Phase 0 and Phase 1:
 - [x] Every major feature has an identified owner — sections 2-5 above.
 - [x] Web-only business logic has been identified — section 5 (input
       handling, avatar photo processing, motion-preference reads).
-- [x] Shared data requirements are documented — section 2 (every Amplify
-      Data model is already `SHARED_DATA`).
+- [x] Shared data requirements are documented — section 2 (every backend
+      data model is already `SHARED_DATA`).
 - [x] Android blockers are identified before implementation begins —
       section 3 (client-authoritative gameplay writes) and section 4
       (content that exists only as bundled TypeScript).
@@ -206,7 +210,7 @@ Per `docs/android/android.md` Phase 0 and Phase 1:
 - [x] Shared APIs have platform-neutral naming — confirmed, no changes
       needed (section 2).
 - [x] Android can call backend APIs without browser dependencies — true
-      for the Data/AI/Lambda surface itself (generic Amplify Data client,
+      for the Data/AI/Lambda surface itself (generic data client,
       no REST/web-shaped endpoints); **not** yet true in the sense that an
       Android client would need to reimplement the client-side decision
       logic in section 3 itself (and could compute different, exploitable

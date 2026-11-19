@@ -5,7 +5,9 @@
 
 Uses the configured speech provider (`LAI_SPEECH_PROVIDER`; `disabled` does nothing, `fake`
 makes placeholder audio, `polly` calls Amazon Polly and costs money). Already-cached lines are
-skipped. Prints counts and keys only, never dialogue text or child data.
+skipped. With `LAI_JOBS_BACKEND=sqs` each line is queued for the media worker instead ("queued"),
+and the clip is recorded when `jobs_consume_results` applies the worker's result. Prints counts
+and keys only, never dialogue text or child data.
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -33,7 +35,8 @@ class Command(BaseCommand):
         report = pregenerate_release_speech(row)
         self.stdout.write(
             f"NPC release {report.release}: synthesized {report.synthesized}, "
-            f"cached {report.cached}, recorded {report.recorded}, skipped {report.skipped}, "
+            f"cached {report.cached}, queued {report.queued}, recorded {report.recorded}, "
+            f"skipped {report.skipped}, "
             f"failed {report.failed}, characters {report.characters_synthesized}"
             + (f", stopped: {report.stopped}" if report.stopped else "")
         )

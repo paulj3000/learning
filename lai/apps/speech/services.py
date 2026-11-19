@@ -386,23 +386,45 @@ def _store_clip(key: str, resolved: Resolved, audio: bytes, *, owner_child_id=No
         raise SpeechError(
             "speech_unavailable", "Speech could not be saved.", reason="storage"
         ) from None
+    return _record_clip(
+        key,
+        path,
+        scope=resolved.scope,
+        profile=resolved.profile,
+        characters=len(resolved.text),
+        byte_size=len(audio),
+        owner_child_id=owner_child_id,
+    )
+
+
+def _record_clip(
+    key: str,
+    path: str,
+    *,
+    scope: str,
+    profile: VoiceProfile,
+    characters: int,
+    byte_size: int,
+    owner_child_id=None,
+) -> SpeechClip:
+    """The cache row for a stored object (the object is already in the speech store)."""
     expires = (
         None
-        if resolved.scope == ClipScope.AUTHORED
+        if scope == ClipScope.AUTHORED
         else now() + timedelta(hours=settings.LAI_SPEECH_CLIP_TTL_HOURS)
     )
     SpeechClip.objects.filter(cache_key=key).delete()
     return SpeechClip.objects.create(
         cache_key=key,
         storage_key=path,
-        scope=resolved.scope,
+        scope=scope,
         owner_child_id=owner_child_id,
-        voice_profile_id=resolved.profile.profile_id,
-        voice=resolved.profile.polly_voice_id,
-        engine=resolved.profile.engine,
-        language=resolved.profile.language_code,
-        characters=len(resolved.text),
-        byte_size=len(audio),
+        voice_profile_id=profile.profile_id,
+        voice=profile.polly_voice_id,
+        engine=profile.engine,
+        language=profile.language_code,
+        characters=characters,
+        byte_size=byte_size,
         expires_at=expires,
     )
 
@@ -434,6 +456,120 @@ def prepare_shared_clip(resolved: Resolved, *, client: PollyClient | None = None
         _store_clip(key, resolved, _synthesize(resolved, client))
         _bump_total(cache_misses=1, characters_synthesized=characters)
     return True
+
+
+# --- background jobs (apps.jobs, kind speech.synthesize) ---------------------------------------
+#
+# With LAI_JOBS_BACKEND=sqs a shared (authored) clip can be made by the media worker instead of
+# in this process: Django runs every check `prepare_shared_clip` runs and computes the object key;
+# the worker calls Polly and writes the MP3 at that key; `apps.speech.jobs.apply` then records the
+# clip and the daily counters exactly as the synchronous path would, once. A child's clip never
+# goes to a job: `speak` always synthesizes in process.
+
+JOB_SUBJECT = "speech.clip"
+
+
+def speech_via_jobs() -> bool:
+    return settings.LAI_JOBS_BACKEND == "sqs"
+
+
+def shared_clip_payload(resolved: Resolved, key: str) -> dict:
+    profile = resolved.profile
+    text, text_type = voices.build_request_text(
+        resolved.text, profile.engine, profile.speaking_rate_percent
+    )
+    return {
+        "storage_key": storage_key(key, ClipScope.AUTHORED),
+        "text": text,
+        "text_type": text_type,
+        "voice_id": profile.polly_voice_id,
+        "engine": profile.engine,
+        "language": profile.language_code,
+        "voice_profile_id": profile.profile_id,
+        "characters": len(resolved.text),
+        # The worker calls Polly where Django is configured to (voices differ by region).
+        "polly_region": settings.LAI_SPEECH_AWS_REGION,
+    }
+
+
+def queue_shared_clip(resolved: Resolved) -> str:
+    """Hand a shared clip to the media worker. Returns "cached", "in_flight" or "queued".
+
+    The same kill switch, output rules, voice table, global daily cap and cache key as
+    `prepare_shared_clip`. Raises `SpeechError` like it does.
+    """
+    from apps.jobs import services as jobs
+    from apps.jobs.core.envelope import SPEECH_SYNTHESIZE
+
+    if not speech_enabled():
+        raise SpeechError("speech_disabled", "Spoken dialogue is turned off.")
+    if resolved.scope != ClipScope.AUTHORED:
+        raise SpeechError("invalid_reference", "Only shared lines can be prepared.", status=400)
+    if text_problem(resolved.text):
+        raise SpeechError("speech_rejected", "That line cannot be spoken.", status=422)
+    profile = resolved.profile
+    if voices.voice_problem(profile.polly_voice_id, profile.language_code, profile.engine):
+        raise SpeechError(
+            "speech_unavailable", "This voice is not available.", reason="invalid_voice"
+        )
+    key = cache_key(resolved, None)
+    with transaction.atomic():
+        _lock(key)
+        if _live_clip(key) is not None:
+            return "cached"
+        if jobs.unfinished_for((JOB_SUBJECT, key)):
+            return "in_flight"
+        today = SpeechDailyTotal.objects.filter(day=now().date()).first()
+        already = today.characters_synthesized if today else 0
+        if already + len(resolved.text) > settings.LAI_SPEECH_GLOBAL_DAILY_CHARS:
+            raise SpeechError("daily_cap", "Speech is resting. Please read along.")
+        try:
+            jobs.submit(
+                SPEECH_SYNTHESIZE, shared_clip_payload(resolved, key), subject=(JOB_SUBJECT, key)
+            )
+        except jobs.JobsError as error:
+            raise SpeechError(
+                "speech_unavailable", "Speech could not be queued.", reason=error.code
+            ) from None
+    return "queued"
+
+
+def record_shared_clip_job(payload: dict, result: dict) -> bool:
+    """Record a clip the media worker stored. Idempotent: False when it was already recorded."""
+    path = result.get("storage_key")
+    if path != payload.get("storage_key") or path is None:
+        raise SpeechStorageError("job result names another object")
+    key = path.rsplit("/", 1)[-1].removesuffix(".mp3")
+    profile = VoiceProfile.objects.filter(profile_id=payload.get("voice_profile_id")).first()
+    if profile is None:
+        logger.warning("speech job result for an unknown voice profile; not recorded")
+        return False
+    byte_size = result.get("byte_size")
+    if type(byte_size) is not int or byte_size <= 0:
+        raise SpeechStorageError("job result has no size")
+    characters = payload.get("characters")
+    characters = characters if type(characters) is int and characters > 0 else 0
+    with transaction.atomic():
+        _lock(key)
+        if _live_clip(key) is not None:
+            return False
+        _record_clip(
+            key,
+            path,
+            scope=ClipScope.AUTHORED,
+            profile=profile,
+            characters=characters,
+            byte_size=byte_size,
+        )
+        if result.get("reused"):
+            _bump_total(cache_misses=1)
+        else:
+            _bump_total(cache_misses=1, characters_synthesized=characters)
+    return True
+
+
+def count_shared_clip_failure() -> None:
+    _bump_total(failures=1)
 
 
 def _serve(child, resolved: Resolved, characters: int) -> SpeechResult:

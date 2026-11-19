@@ -111,8 +111,8 @@ In force (all tested with fakes, none verified live):
 
 Known limits, not claims:
 
-- **Marketplace billing.** Claude on Bedrock is billed through AWS Marketplace. The Amplify $50
-  budget filters on the service `Amazon Bedrock`, so it may not see Claude spend at all. Check
+- **Marketplace billing.** Claude on Bedrock is billed through AWS Marketplace. A budget that
+  filters on the service `Amazon Bedrock` may not see Claude spend at all. Check
   where the charge appears in Cost Explorer (it lags about a day) before relying on any budget
   alarm. Until then the only hard cost guards are the application limits above.
 - **Guardrail charges** are billed separately from model tokens (text units per assessment) and
@@ -146,4 +146,4 @@ Guardrail validated, or billing covered from anything but these results.**
 Set `LAI_AI_PROVIDER=disabled` (SSM) and release, or switch model calls off in Django Admin
 (takes effect within the control cache window, no deploy). Gameplay never depends on a model
 turn. Detach `lai-django-ai-<env>` or delete `LaiAiGuardrail-<env>` to remove access. Restore any
-limit you lowered for a drill. The Amplify AI path is untouched throughout.
+limit you lowered for a drill.

@@ -259,6 +259,7 @@ class TestChildIsolation:
             "avatars",  # Player Avatars (LAI-JMP-01c, ADR-057): staff content, no child data
             "catalog",
             "education",
+            "jobs",  # background job status, read-only; payloads never carry child data
             "npcs",  # NPC Manager content and releases; conversation state unregistered (ADR-054)
             "question_studio",
             "regions",

@@ -61,7 +61,7 @@ wrong answer (worst case: a child sees a less well-ordered list of
 adventures they could already play).
 
 **What shipped**: `getNextLearningActivity`, a Lambda-backed custom query
-(`amplify/functions/get-next-learning-activity/handler.ts`) that imports
+(`get-next-learning-activity`, in the retired backend) that imports
 the Director's exact same pure modules (`select.ts`, `needs.ts`, and a new
 `reachability.ts` extracted from the old client-only `listReachableAdventures`
 — see below) unchanged, assembles their input from DynamoDB, and returns
@@ -87,8 +87,8 @@ reused rather than re-invented.
 
 **Data access is `Scan` + `FilterExpression`, not `Query` against a GSI**,
 for `AdventureSession`/`WorldChange`/`SkillProgress` — documented in the
-handler's own comment as a known, deliberate simplification: Amplify
-Data's relationship fields likely generate a `childProfileId`-keyed index
+handler's own comment as a known, deliberate simplification: the data
+layer's relationship fields likely generate a `childProfileId`-keyed index
 on each table, but this sandbox cannot confirm the generated index name
 without a live deploy, and a `Scan` needs no such knowledge. Acceptable at
 this product's actual data volume (tens of rows per child); revisit once a
@@ -98,8 +98,8 @@ real deploy can confirm the index name.
 `src/features/mastery/summary.ts`'s `indexProgressBySkill` used to take
 `Schema['SkillProgress']['type']` (imported, even if only as a type, from
 the *impure* `src/features/mastery/api.ts`, which pulls in the browser
-Amplify Data client and `import.meta.glob`). A Lambda program that reaches
-that type transitively fails to typecheck (`amplify/tsconfig.json` has no
+data client and `import.meta.glob`). A Lambda program that reaches
+that type transitively fails to typecheck (the Lambda project's tsconfig has no
 Vite types). Rather than adding Vite types to the Lambda project's
 tsconfig — a broader, less targeted fix — `summary.ts` now declares its
 own minimal structural `SkillProgressLike` type, decoupling this pure
@@ -125,7 +125,7 @@ parent authorization enforced server-side. Checking this product's actual
 parent-dashboard code
 (`src/features/parent-dashboard/weeklySummary.ts`, `masteryOverview.ts`,
 `adventureSupport.ts`, `educatorReport.ts`): every one is already a pure,
-framework-free function that takes already-fetched Amplify Data rows as
+framework-free function that takes already-fetched data rows as
 input and returns plain data/strings — the same shape the Director was in
 before this phase, just not yet promoted to a shared Lambda query.
 

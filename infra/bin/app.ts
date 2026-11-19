@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { AiGuardrailStack } from '../lib/aiGuardrailStack';
 import { AssetStorageStack, type AssetEnvironment } from '../lib/assetStorageStack';
 import { ChildPhotoStorageStack } from '../lib/childPhotoStorageStack';
+import { DevArtifactsStack } from '../lib/devArtifactsStack';
+import { DEV_PLATFORM_STACK, DevPlatformStack } from '../lib/devPlatformStack';
 import { DjangoEc2Stack, type DatabaseMode } from '../lib/djangoEc2Stack';
 import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
 import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
@@ -11,14 +13,21 @@ import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
  * The CDK app (LAI-1001). See infra/README.md for synth and deploy commands
  * and docs/platform/DJANGO_EC2_DEPLOYMENT.md for the release pipeline.
  *
- * | Stack                   | Scope       | What                                              |
- * | ----------------------- | ----------- | ------------------------------------------------- |
- * | `LaiAssetStorage-<env>` | environment | asset library bucket and Django policy (ADR-035)  |
- * | `LaiChildPhotos-<env>`  | environment | private child photo bucket and policy (ADR-042)   |
- * | `LaiDjangoRelease`      | account     | ECR repository, GitHub OIDC, image publisher role |
- * | `LaiDjangoEc2-<env>`    | environment | VPC, ALB, EC2, RDS, SSM documents, deploy role    |
- * | `LaiAiGuardrail-<env>`  | environment | child-safety Guardrail, Django AI policy (LAI-0704) |
- * | `LaiFrontend-<env>`     | environment | React site: S3, CloudFront, `/api/*` to Django (us-east-1) |
+ * | Stack                   | Env   | What                                                         |
+ * | ----------------------- | ----- | ------------------------------------------------------------ |
+ * | `LaiDevArtifacts-dev`   | dev   | artifacts bucket: releases, Lambda zip, job results          |
+ * | `LaiAssetStorage-<env>` | both  | asset library bucket and Django policy (ADR-035)             |
+ * | `LaiChildPhotos-<env>`  | both  | private child photo bucket and policy (ADR-042)              |
+ * | `LaiDevPlatform-dev`    | dev   | native EC2 (no Docker, no ALB), RDS, SQS + Lambda, power     |
+ * |                         |       | schedule (Step Functions, Scheduler), SSM documents, roles   |
+ * | `LaiDjangoRelease`      | prod  | ECR repository, GitHub OIDC, image publisher role            |
+ * | `LaiDjangoEc2-prod`     | prod  | VPC, ALB, EC2 (Docker), RDS, SSM documents, deploy role      |
+ * | `LaiAiGuardrail-<env>`  | both  | child-safety Guardrail, Django AI policy (LAI-0704)          |
+ * | `LaiFrontend-<env>`     | both  | React site: S3, CloudFront, `/api/*` to Django (us-east-1)   |
+ *
+ * Dev deploy order: LaiDevArtifacts-dev, LaiAssetStorage-dev, LaiChildPhotos-dev,
+ * LaiDevPlatform-dev, LaiAiGuardrail-dev (attaches its policy to the platform's instance role and
+ * filters its logs), LaiFrontend-dev.
  *
  * Settings come from CDK context (`-c name=value`) or, for a plain
  * `npx tsx infra/bin/app.ts` synth without the CDK CLI, the environment:
@@ -37,8 +46,9 @@ import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
  * | `hostedZoneName`     | `LAI_HOSTED_ZONE_NAME`      | that zone's name, e.g. `example.com`          |
  *
  * Deploy-time values (API and admin host names, AMI, instance type, Cognito ids, alarm
- * e-mail) are CloudFormation parameters of `LaiDjangoEc2-<env>`, passed by
- * scripts/aws/provision.sh.
+ * e-mail) are CloudFormation parameters of `LaiDjangoEc2-prod` (scripts/aws/provision.sh) and
+ * `LaiDevPlatform-dev` (scripts/aws/deploy-debug.sh). `databaseMode`, `multiAz` and
+ * `createOidcProvider` apply to prod only; dev takes them as parameters.
  */
 
 const app = new App({
@@ -68,6 +78,19 @@ if (Boolean(hostedZoneId) !== Boolean(hostedZoneName)) {
 }
 
 const env = { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION };
+/**
+ * The Bedrock runtime Region (ADR-064): where LaiAiGuardrail-<env> is deployed and Django calls
+ * Bedrock. Defaults to the platform Region. Dev only may differ (e.g. us-west-2 when us-west-1
+ * cannot invoke the US Haiku 4.5 profile); EC2, RDS, SQS, Lambda and logs never move.
+ */
+const bedrockRegion = setting('bedrockRegion', 'LAI_BEDROCK_REGION') || env.region;
+if (bedrockRegion && !/^us-(east|west)-[12]$/.test(bedrockRegion)) {
+  throw new Error(`bedrockRegion ${bedrockRegion} is not a US source Region of the us. profile`);
+}
+const bedrockElsewhere = Boolean(bedrockRegion && env.region && bedrockRegion !== env.region);
+if (bedrockElsewhere && envName !== 'dev') {
+  throw new Error('A separate Bedrock Region is supported for dev only (ADR-064)');
+}
 // No file assets anywhere, so no `cdk bootstrap` stack (and its IAM roles, LAI-0104) is needed:
 // every synthesized template deploys with `aws cloudformation deploy` or `cdk deploy` alike.
 const synthesizer = () => new BootstraplessSynthesizer();
@@ -96,29 +119,48 @@ new ChildPhotoStorageStack(app, `LaiChildPhotos-${envName}`, {
   description: `Learning Adventure Island private child photo storage (${envName})`,
 });
 
-new DjangoReleaseStack(app, 'LaiDjangoRelease', {
-  githubRepository,
-  createOidcProvider: setting('createOidcProvider', 'LAI_CREATE_OIDC_PROVIDER') !== 'false',
-  env,
-  synthesizer: synthesizer(),
-  description: 'Learning Adventure Island Django releases: ECR repository and GitHub OIDC',
-});
+if (envName === 'dev') {
+  // The native dev environment (no Docker, no load balancer): see infra/lib/devPlatformStack.ts.
+  new DevArtifactsStack(app, `LaiDevArtifacts-${envName}`, {
+    env,
+    synthesizer: synthesizer(),
+    description:
+      'Learning Adventure Island dev artifacts: Django releases, Lambda code, job results',
+  });
+  new DevPlatformStack(app, DEV_PLATFORM_STACK, {
+    githubRepository,
+    bedrockRegion: bedrockElsewhere ? bedrockRegion : undefined,
+    env,
+    synthesizer: synthesizer(),
+    description:
+      'Learning Adventure Island native dev platform: EC2, RDS, SQS, Lambda, power schedule',
+  });
+} else {
+  new DjangoReleaseStack(app, 'LaiDjangoRelease', {
+    githubRepository,
+    createOidcProvider: setting('createOidcProvider', 'LAI_CREATE_OIDC_PROVIDER') !== 'false',
+    env,
+    synthesizer: synthesizer(),
+    description: 'Learning Adventure Island Django releases: ECR repository and GitHub OIDC',
+  });
 
-new DjangoEc2Stack(app, `LaiDjangoEc2-${envName}`, {
-  envName: envName as AssetEnvironment,
-  githubRepository,
-  databaseMode: databaseMode as DatabaseMode,
-  multiAz: setting('multiAz', 'LAI_DB_MULTI_AZ') === 'true',
-  hostedZone: hostedZoneId ? { id: hostedZoneId, name: hostedZoneName } : undefined,
-  env,
-  synthesizer: synthesizer(),
-  description: `Learning Adventure Island Django on EC2 (${envName})`,
-});
+  new DjangoEc2Stack(app, `LaiDjangoEc2-${envName}`, {
+    envName: envName as AssetEnvironment,
+    githubRepository,
+    databaseMode: databaseMode as DatabaseMode,
+    multiAz: setting('multiAz', 'LAI_DB_MULTI_AZ') === 'true',
+    hostedZone: hostedZoneId ? { id: hostedZoneId, name: hostedZoneName } : undefined,
+    env,
+    synthesizer: synthesizer(),
+    description: `Learning Adventure Island Django on EC2 (${envName})`,
+  });
+}
 
 new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, {
   envName: envName as AssetEnvironment,
   djangoRoleArn: setting('djangoRoleArn', 'LAI_DJANGO_ROLE_ARN') || undefined,
-  env,
+  platformRegion: bedrockElsewhere ? env.region : undefined,
+  env: { account: env.account, region: bedrockRegion },
   synthesizer: synthesizer(),
   description: `Learning Adventure Island child-safety Guardrail and Django AI policy (${envName})`,
 });

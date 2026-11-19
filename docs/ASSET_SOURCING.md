@@ -52,12 +52,13 @@ paid for**, including the Quaternius `[Pro]` tier, which is still CC0.
 | Kenney RPG Audio | 52 `.ogg` |
 | Kenney UI Audio | 52 `.ogg` |
 
-Section 1's point stands and has not been acted on: this project still has
-**no audio code at all**. These files cannot be "imported" the way a model
-can - they need a sound manifest, a loader, `AudioListener` /
-`PositionalAudio` wiring, and a parent-facing mute and volume control before
-one of them plays. That is a subsystem, and it is the largest single item
-still outstanding on this page.
+When this was written the project had **no audio code at all**. These files
+cannot be "imported" the way a model can - they need a sound manifest, a
+loader, and a parent-facing mute and volume control before one of them
+plays. **Update (2026-11-18):** that subsystem now exists: the Sound Manager
+(`react/src/audio/`), Django-owned sound cues and releases (ADR-050), audio
+assets in the Django asset library, and Polly speech through Django
+(ADR-049). Sounds reach the game as Django-published audio assets.
 
 ### Two broken downloads
 
@@ -72,7 +73,7 @@ still outstanding on this page.
 
 ### What actually ships
 
-Seven files, about 2.1 MB, checked in under `public/models/`:
+Seven files, about 2.1 MB, checked in under `react/public/models/`:
 
 | File | Serves | Note |
 | --- | --- | --- |
@@ -106,10 +107,11 @@ Clockwork Harbor's Harbor Master and Professor Ticktock were both
 
 ## 1. Buy audio first, not art
 
-This project currently has **no audio of any kind**: no music, no footsteps,
-no page turn, no chime when the book slides onto the shelf, no voice. A
-grep for `AudioListener`, `PositionalAudio`, `.mp3`, `speechSynthesis` and
-Polly across `src/`, `amplify/` and `scripts/` returns nothing.
+When this was written the project had **no audio of any kind**: no music,
+no footsteps, no page turn, no chime when the book slides onto the shelf, no
+voice (the Sound Manager and Polly speech have since landed; ADR-049,
+ADR-050). A grep for `AudioListener`, `PositionalAudio`, `.mp3`, `speechSynthesis` and
+Polly across `react/src/`, the then-current backend directory and `scripts/` returned nothing.
 
 Silence is doing more damage to "showable to a child" than the untextured
 geometry is, and it is the cheapest thing on this list to fix.
@@ -130,7 +132,7 @@ The upgrade roadmap's sections 17 to 22 assume Polly with S3 MP3 caching.
 That is the right shape, and the reason is arithmetic:
 
 **The island's entire authored prose is about 103,000 characters** across 39
-content files (`src/features/npc/content`, `adventures/content`, `story`,
+content files (`react/src/features/npc/content`, `adventures/content`, `story`,
 `quests/content`, `discovery/content`, `rewards/content`; measured by
 summing quoted string literals of 25+ characters, so it is a generous
 over-estimate that includes some non-spoken text).

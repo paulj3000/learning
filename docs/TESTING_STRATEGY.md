@@ -60,8 +60,8 @@ stays the backend-free smoke check.
   `DEBUG` off.
 - Cognito is simulated, not bypassed: a fresh RSA key per run stands in for the pool's signing
   key (the server swaps its JWKS cache in-process; no production code reads anything new), the
-  tests sign access and ID tokens with it, and the app's Cognito client (`react/src/lib/cognito`,
-  AMP-02) reads them from the same storage keys Amplify used.
+  tests sign access and ID tokens with it, and the app's Cognito client (`react/src/lib/cognito`)
+  reads them from the storage keys the client uses today.
   `react/e2e/acceptance/support/start-vite.mjs` passes the e2e pool as `VITE_COGNITO_*`.
 - `vite --mode e2e` installs `window.__laiE2E` (`createLocationEngine` via `e2eProbe.ts`; other
   builds compile it out): where the player stands, what has focus, and "stand in front of this
@@ -72,8 +72,7 @@ stays the backend-free smoke check.
 
 Needs Docker PostgreSQL (`POSTGRES_PORT` if not the 5442 default), `.venv`, and Playwright's Chromium. One
 worker; about six minutes. Not covered here, and recorded as pending wherever it applies: live
-Cognito, live Bedrock, S3 storage and S3 signed delivery, and the Amplify Data screens (harbor
-map, adventure log, Amplify-session places), which need an Amplify sandbox.
+Cognito, live Bedrock, S3 storage and S3 signed delivery.
 
 ## AI evaluation suite
 
@@ -139,6 +138,9 @@ privacy-safe logging, AI output validation and safety, and the content export ch
 (`npm run content:check`) when exported content sources change. Never weaken or skip these
 to save time.
 
+`make docs-check` (standard library, a second or two) may run whenever documentation changes;
+it checks the engineering and adventure standards' links, headers and templates (ADR-072).
+
 Not run routinely: Playwright and other browser automation, WebGL rendering checks, Ruff,
 Prettier, oxlint, `npm run build`, full test suites, and deployment verification.
 
@@ -168,8 +170,8 @@ exceptions applies.
 ### Merge or release readiness (only when explicitly requested)
 
 Run the comprehensive gates for the changed code: `make check` (Ruff, Ruff format, Django
-check, migration check, pytest against PostgreSQL, ADR check, typecheck, oxlint, Prettier,
-the full Vitest suite, production build), `npm run test:e2e`, `npm run test:acceptance` and any
+check, migration check, pytest, ADR check, engineering docs check, typecheck, oxlint, Prettier,
+the full Vitest suite, production build), `make py-test-db` (pytest against PostgreSQL), `npm run test:e2e`, `npm run test:acceptance` and any
 other browser or WebGL checks relevant to the change, `npm run content:check`, architecture and ADR validation (governance
 rule 4 in `docs/DECISIONS.md`), the deferred checks recorded by each task being merged, and
 regression testing. Report failures and fix the relevant ones before recommending the merge.
@@ -180,7 +182,7 @@ branch runs no CI, so the merge readiness review is the gate for branch work.
 ## Continuous integration (`.github/workflows/ci.yml`)
 
 Three jobs, all with read-only repository permissions, no secrets, and no AWS access:
-`checks` (typecheck, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
+`checks` (ADR registry, engineering docs check, typecheck, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
 smoke, after `checks`), and `python` (Python 3.12, pinned `requirements-dev.txt`, a throwaway
 PostgreSQL 16 service container; `make py-lint`, `py-format-check`, `django-check`,
 `migrate-check`, `py-test-db`). `py-test-db` fails instead of skipping when the database is
@@ -246,8 +248,7 @@ steps, objectives, items, NPCs, islands, skills, and navigation targets; unsuppo
 Map, NaN, undefined in arrays, symbol, class instance) fail with their path; the validator rejects unknown
 fields, missing fields, wrong types, bad enums, and unmatched variants; the manifest has digests and no
 timestamps; and the export runs in a child Node process with a scrubbed environment (no AWS variables).
-Hand-mutation check: editing an item without re-exporting, and making a content module import the Amplify
-data client, each turned the suite red. The built-in validator only supports the schema keywords the
+Hand-mutation check: editing an item without re-exporting turned the suite red. The built-in validator only supports the schema keywords the
 schema uses; the Python side must use a full JSON Schema validator.
 
 ## Golden vectors (LAI-0303)

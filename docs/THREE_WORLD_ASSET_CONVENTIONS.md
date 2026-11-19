@@ -2,7 +2,7 @@
 
 `docs/ROADMAP.md` Phase 34 ("3D Art and Asset Pipeline"). This is the
 conventions document that phase calls for: how every glTF asset under
-`public/models/` is authored, loaded, and placed, so a future asset (hand
+`react/public/models/` is authored, loaded, and placed, so a future asset (hand
 authored by a real artist, or generated the way the first pack is) fits the
 existing pipeline without guesswork.
 
@@ -225,7 +225,7 @@ recorded per asset rather than assumed:
 
 - **It may be binary `.glb`.** `assetLoader.ts` resolves by manifest id, so
   the container is invisible to callers; the fetch polyfill in
-  `src/test/setup.ts` serves both, reading a `.glb` as bytes and never
+  `react/src/test/setup.ts` serves both, reading a `.glb` as bytes and never
   decoding it as utf-8.
 - **It may carry a texture**, embedded as a `bufferView` image. Prefer a
   self-contained file: an external texture URI needs a second file placed
@@ -323,7 +323,7 @@ never fires and `GLTFLoader.load()` **hangs rather than failing** - a
 20-second test timeout with no error, which is a genuinely confusing way to
 discover the problem.
 
-`stubImageDecoding()` in `src/test/setup.ts` resolves the image half so the
+`stubImageDecoding()` in `react/src/test/setup.ts` resolves the image half so the
 rest of the round trip stays under test. What it proves: the file is
 fetched, its container parsed, its `bufferView` image found, and its
 material and texture wired onto the mesh. What it does not prove: that the
@@ -333,8 +333,8 @@ of effort, so that check belongs to a browser (Playwright) run.
 ## Runtime-built surfaces, material presets and quality tiers (SC-R02-01)
 
 Generic location-runtime support added by the Storykeeper Castle Reboot
-(`docs/regions/storykeeper_castle_art_direction.md`; ADR-028's recommended
-decision, still Proposed). Code: `src/features/island-map/three/runtime/visual/`.
+(`docs/regions/storykeeper_castle_art_direction.md`; ADR-028, accepted by the
+owner 2026-11-03). Code: `react/src/features/island-map/three/runtime/visual/`.
 
 - **Material presets** (`ThreeLocationManifest.materials`): id, procedural
   pattern (`PLAIN`, `FLAGSTONE`, `ASHLAR`, `PLANKS`, `PLASTER`, `CARPET`,
@@ -397,48 +397,28 @@ emitted after it joined. Callers that pass no observer behave exactly as
 before. The location engine does not pass an observer yet, so no scene shows
 per-asset progress today; a loading screen is a later task.
 
-## Uploaded models (Model Asset Library)
-
-> **Django asset library (LAI-2200).** The server-side successor is described in
-> `docs/ASSET_LIBRARY.md`: Django Admin upload, server-side validation (the same GLB rules below,
-> plus self-contained `.gltf`, embedded-only resources, no Draco or meshopt, bounds and clip
-> checks), immutable published versions, and a resolver the loader can use
-> (`react/src/api/assets/djangoAssetResolver.ts`). Clip names must still come from the vocabulary
-> above, and a new version must keep every clip its asset already declares. Until a scene is wired
-> to it (TR-10), the Amplify flow below is what the admin app uses.
+## Uploaded models (Django asset library)
 
 Models that do not come from `scripts/generate-world-assets.ts` or the
-import scripts can be uploaded by an administrator at
-`/admin/assets/models/new` (ADR-030). They go to S3, not to
-`public/models/`, and land as drafts that children never see.
+import scripts are uploaded by staff in Django Admin (ADR-035, ADR-045;
+`docs/ASSET_LIBRARY.md` section 21). They go to the private asset bucket,
+not to `react/public/models/`, and stay unpublished until staff publish a
+version, so children never see a draft. There is no React upload page.
 
-Requirements checked before upload (`src/features/assets/modelFileChecks.ts`):
-
-- **Format:** `.glb` (glTF 2.0 binary) only. The file's 12-byte header must
-  say glTF version 2 and match the file's real length, which catches
-  renamed files and truncated exports.
-- **Size:** hard limit `MODEL_MAX_UPLOAD_MB`, default 50 MB; warning above
-  `MODEL_WARN_UPLOAD_MB`, default 10 MB. Override either with the Vite env
-  vars `VITE_MODEL_MAX_UPLOAD_MB` / `VITE_MODEL_WARN_UPLOAD_MB`. The whole
-  bundled world is about 3 MB, so a single model over 10 MB deserves a
-  second look before a child's tablet downloads it.
-- **Naming:** the display name becomes the asset's slug (`Pirate Captain`
-  -> `pirate-captain`), which must be unique. Use the same id a bundled
-  manifest entry uses only when the upload is meant to replace that model
-  once published.
-- **Duplicates:** re-uploading a file name already on record is a warning,
-  because a newer version belongs on the existing asset (Phase 6's
-  "Replace model"), not in a second one.
-
-The same scale, pivot, and animation-name rules above apply to uploaded
-models. Phase 3's GLTFLoader validation will check them automatically;
-until then they are the uploader's responsibility.
+Django validates every upload server-side (`lai/apps/assets/validation.py`):
+`.glb` or self-contained `.gltf` (glTF 2.0), embedded-only resources, no
+Draco or meshopt, a size limit, bounds and clip checks. Versions are
+immutable once published, and the loader resolves them through
+`react/src/api/assets/djangoAssetResolver.ts`, falling back to the bundled
+file when nothing is published. Clip names must come from the vocabulary
+above, and a new version must keep every clip its asset already declares.
+The same scale and pivot rules above apply to uploaded models.
 
 ## File layout and format
 
 Every *generated* asset is a single, self-contained `.gltf` **JSON** file
 (not binary `.glb`) with its buffer embedded as a base64 data URI, under
-`public/models/*.gltf` - no separate `.bin`, no `assetsInclude` change
+`react/public/models/*.gltf` - no separate `.bin`, no `assetsInclude` change
 needed in `vite.config.ts` (Vite serves `public/` as static files as-is).
 This trades a slightly larger JSON file (base64 is ~33% bigger than raw
 binary) for zero extra file management; at this pack's size (1-12 KB per
@@ -453,7 +433,7 @@ npm run assets:generate
 ```
 
 Runs `scripts/generate-world-assets.ts` (via `tsx`) and rewrites every
-*generated* `.gltf` in `public/models/`. The output is checked in, not built
+*generated* `.gltf` in `react/public/models/`. The output is checked in, not built
 at deploy time - regenerate and commit after changing any asset's authoring
 in that script.
 
@@ -496,7 +476,7 @@ clone never needs to run them.
   representative set (one static kit piece, one animated character, one
   instanced kit piece, one LOD pair) through the **real**
   `GLTFLoader.load()` (fetch-based) path, not just `.parse()` - see the
-  narrow `fetch` polyfill in `src/test/setup.ts` for how a real file on
+  narrow `fetch` polyfill in `react/src/test/setup.ts` for how a real file on
   disk gets served to a real `fetch()` call inside Vitest's jsdom
   environment. This is not the primary test strategy for every asset (the
   manifest + assembler tests already cover the rest); it exists to prove

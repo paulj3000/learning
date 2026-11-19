@@ -3,7 +3,7 @@
 Covers `docs/android/android.md` Phase 3 ("Canonical Learning Content
 Model"), scoped down per ADR-011 in `docs/DECISIONS.md`. **This is a design
 document, not a migration.** No content moves out of TypeScript this phase,
-and no new Amplify Data model is added to `amplify/data/resource.ts`. The
+and no new data model is added to the backend schema. The
 goal is to record a concrete target schema so a future migration (Phase 37
 or later, once there is a real reason to pay the runtime and content-
 authoring cost — see ADR-011) has something to build against, without
@@ -83,8 +83,8 @@ document needs to fix today, but one worth resolving in the same migration
 that would create these models, rather than migrating both lists as-is and
 inheriting the duplication permanently.
 
-Proposed models (illustrative Amplify Data shape, not yet added to
-`amplify/data/resource.ts`):
+Proposed models (illustrative schema shape, not yet added to the backend
+schema):
 
 ```ts
 Subject: a.model({
@@ -120,7 +120,7 @@ Skill: a.model({
 
 Design notes:
 
-- **`slug`, not the Amplify-generated `id`, is the stable identifier.**
+- **`slug`, not the generated row `id`, is the stable identifier.**
   Every existing reference (`learningObjectiveCode` on `SkillEvidence`/
   `SkillProgress`/adventure step `objectiveIds`/quest `LEARN` objectives)
   is a human-authored string like `'counting-sets'`, not a UUID. Those
@@ -151,7 +151,7 @@ Design notes:
 
 ## 4. What this document does not do
 
-- It does not add these models to `amplify/data/resource.ts`.
+- It does not add these models to the backend schema.
 - It does not change `src/features/curriculum/` or
   `src/features/adventures/content/learningObjectives.ts` — both remain the
   live source of truth today.

@@ -23,7 +23,6 @@ proposed in section 9 and are not added to the tracker until the ADR is accepted
 | APIs | Published-content reads (LAI-0503); region bootstrap extended with puzzles and band copy; one puzzle-solve route | M |
 | React | Django builds read dialogue, quest text and puzzle parameters from the API; no TypeScript content is read at runtime in those builds | M |
 | Workflows | `content:export` + `load_content` continue; seeds keep layout only | S |
-| Amplify builds | No change until LAI-1301 | none |
 
 ## 2. What exists today (verified)
 
@@ -202,11 +201,9 @@ the authorization matrix (LAI-0403).
    describe production. Mitigation: the `--dry-run` difference report, and `export_content`
    (decision L). Long term, Django becomes the only source and the TypeScript modules are
    frozen.
-3. **Amplify builds** still read TypeScript content and will not show Django edits. This is
-   accepted until LAI-1301.
-4. **Admin editor complexity** (dialogue graphs, quest branches) is the largest cost. It is
+3. **Admin editor complexity** (dialogue graphs, quest branches) is the largest cost. It is
    staged so that plain fields ship first.
-5. **Safety of authored copy.** Child-facing text is no longer reviewed in a pull request.
+4. **Safety of authored copy.** Child-facing text is no longer reviewed in a pull request.
    Mitigation: publish-time validation (decision D), the publisher permission, and the admin log.
 
 ## 10. Tasks (in the tracker since acceptance)
@@ -270,7 +267,6 @@ happened unless it is listed.
 - Administrator edits do not move between environments yet (LAI-0814).
 - NPC dialogue has no age-band field in the export schema, so band-specific lines live in
   puzzle parameters (FP-D9). (Resolved by LAI-0817 on 2026-11-03; see section 14.3.)
-- The Amplify build still reads TypeScript content.
 
 ## 13. Remaining work plan (audit 2026-11-02)
 
@@ -300,7 +296,7 @@ Related findings:
 - **Step adventures.** Django has answer and hint endpoints (`session-answers`, `session-hints`)
   and an engine with golden parity, but completing a session records no skill evidence, world
   change or reward, and no React code calls those endpoints: React still runs step adventures
-  on Amplify. LAI-0816 closes this.
+  in the classic client runner. LAI-0816 closes this.
 - **NPC dialogue.** Dialogue nodes are served from the pinned NPC revision with server-checked
   conditions, but have no age-band field; Firepeak keeps band-specific lines in puzzle
   parameters (FP-D9). LAI-0817 closes this.
@@ -467,7 +463,7 @@ step's consequence when the child continues past it, and on completion grants th
 `ADVENTURE_COMPLETED` reward rule (once per child) and moves active quests forward. The answer
 response gains `worldChangeKeys` and `completion`. In a Django build `AdventurePage` plays the
 adventure through `DjangoAdventureRunner`, which reuses `AdventureStepCard`. It shows authored
-text only: Chatty's AI bubble, coop and the tutor scaffold stay with the Amplify runner. Skill
+text only: Chatty's AI bubble, coop and the tutor scaffold stay with the classic `AdventureRunner`. Skill
 mastery counters (`SkillProgress`) remain LAI-0603's.
 
 ### 14.7 Export and promotion (LAI-0814)
