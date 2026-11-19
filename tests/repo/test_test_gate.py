@@ -391,3 +391,40 @@ def test_run_records_major_fault_delta(tmp_path, monkeypatch):
     )
     record = json.loads((tmp_path / "test-runs.jsonl").read_text().splitlines()[-1])
     assert record["major_faults"] == 1500
+
+
+def test_timer_overshoot_measures_lateness():
+    clock = iter([0.0, 1.21])  # a 10 ms sleep that woke 1.2 s late
+    late = gate.timer_overshoot_ms(sleep=lambda s: None, clock=lambda: next(clock))
+    assert late == pytest.approx(1200.0)
+    clock = iter([0.0, 0.005])  # early wake-ups count as zero
+    assert gate.timer_overshoot_ms(sleep=lambda s: None, clock=lambda: next(clock)) == 0.0
+
+
+def test_failed_run_reports_timer_stalls(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(gate, "timer_overshoot_ms", lambda: 900.0)
+    code = gate.main(
+        [
+            *NO_PRESSURE,
+            "--state-dir",
+            str(tmp_path),
+            "--",
+            sys.executable,
+            "-c",
+            "import time; time.sleep(0.2); raise SystemExit(1)",
+        ]
+    )
+    assert code == 1
+    assert "TIMER STALLS during this run" in capsys.readouterr().err
+    record = json.loads((tmp_path / "test-runs.jsonl").read_text().splitlines()[-1])
+    assert record["timer_stalls"] >= 1
+    assert record["max_timer_overshoot_ms"] == 900.0
+
+
+def test_passing_run_prints_no_stall_notice(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(gate, "timer_overshoot_ms", lambda: 900.0)
+    assert (
+        gate.main([*NO_PRESSURE, "--state-dir", str(tmp_path), "--", sys.executable, "-c", "pass"])
+        == 0
+    )
+    assert "TIMER STALLS" not in capsys.readouterr().err

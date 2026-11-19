@@ -198,6 +198,8 @@ Run in the integration worktree, one full suite at a time:
 | Build | `npm run build`, then verify: no `GameEnginePlayground` chunk in `react/dist/assets`, and exactly one Three.js copy |
 | Browser (authorized only) | `npm run test:e2e`, `npm run test:acceptance`, one at a time on the host |
 
+**Host prerequisite (blocker B15):** this host's timers stall (VirtualBox guest; about half of 10 ms timers wake 0.4 to 2 s late). Before the authorized merge-readiness run, the owner either fixes the VM timer setup or chooses a non-VM host; otherwise timeouts in the full suites cannot be told apart from test defects. A timeout counts as host latency only when the run's timer probe recorded stalls and a matched comparison passes.
+
 A test that fails in a gated run is a failure. Only a run that `test_gate.py` reports as
 INFRASTRUCTURE (killed by a signal, usually out of memory) may be rerun, and only for the affected
 files. Known load flakes (GE-D9, defect 9OdaKlbs) are fixed in their test files, not waived.

@@ -25,6 +25,10 @@ timeouts would hide that; this gate prevents the overload instead:
   two seconds; prints a summary and appends one JSON line per run to the shared log
   (``$LAI_TEST_STATE_DIR/test-runs.jsonl``): worktree, command, slots, workers, wait, duration,
   peaks, exit status. No environment values, no test output, no child data.
+- **Timer stalls.** Each sample also times a 10 ms sleep. On this VirtualBox guest about half of
+  short timers wake 0.4 to 2 s late while the thread is idle, invisible to load and pressure; a
+  failed run with stalls prints a TIMER STALLS notice (a prompt for a matched comparison, never a
+  waiver). Admission does not wait on it: the stalls are near-constant on this host.
 - **Infrastructure versus test failure.** A run killed by a signal (out of memory: SIGKILL) is
   reported as INFRASTRUCTURE, separately from a test failure (TESTING_STRATEGY).
 
@@ -151,6 +155,23 @@ def major_faults(vmstat: Path = Path("/proc/vmstat")) -> int | None:
     return None
 
 
+TIMER_PROBE_SECONDS = 0.01
+TIMER_STALL_MS = 50.0
+
+
+def timer_overshoot_ms(sleep=time.sleep, clock=time.perf_counter) -> float:
+    """How late a 10 ms sleep wakes, in ms.
+
+    On this VirtualBox guest (tickless kernel, tsc clock source) about half of all short timers
+    wake 0.4 to 2 s late, in Node and Python alike (found by the engine lead, GE-T2). The stalled
+    thread is idle, so load, CPU pressure and swap counters cannot see it; only a timer probe can.
+    Each Testing Library waitFor poll pays such a stall, which explains 5 s timeouts at low load.
+    """
+    start = clock()
+    sleep(TIMER_PROBE_SECONDS)
+    return max(0.0, (clock() - start - TIMER_PROBE_SECONDS) * 1000)
+
+
 def workers_for_memory(workers: int, available_mb: int | None, per_worker_mb: int) -> int:
     """Cap Vitest workers so each has about `per_worker_mb` of available memory (at least 1)."""
     if available_mb is None or per_worker_mb <= 0:
@@ -273,6 +294,9 @@ class RunRecord:
     peak_io_pressure: float | None = None
     swapped_in_mb: float | None = None
     major_faults: int | None = None
+    timer_probes: int = 0
+    timer_stalls: int = 0
+    max_timer_overshoot_ms: float | None = None
     min_mem_available_mb: int | None = None
     exit_code: int | None = None
     signal: str | None = None
@@ -400,6 +424,13 @@ def run(args: argparse.Namespace) -> int:
             stalled = cpu_pressure()
             if stalled is not None:
                 record.peak_cpu_pressure = max(record.peak_cpu_pressure or 0.0, stalled)
+            late = timer_overshoot_ms()
+            record.timer_probes += 1
+            if late > TIMER_STALL_MS:
+                record.timer_stalls += 1
+            record.max_timer_overshoot_ms = round(
+                max(record.max_timer_overshoot_ms or 0.0, late), 1
+            )
             paging = memory_pressure()
             if paging is not None:
                 record.peak_memory_pressure = max(record.peak_memory_pressure or 0.0, paging)
@@ -442,6 +473,8 @@ def run(args: argparse.Namespace) -> int:
         f"peak memory pressure {record.peak_memory_pressure}%, "
         f"peak I/O pressure {record.peak_io_pressure}%, swapped in {record.swapped_in_mb} MB, "
         f"major page faults {record.major_faults}, "
+        f"timer stalls {record.timer_stalls}/{record.timer_probes} "
+        f"(max {record.max_timer_overshoot_ms} ms late), "
         f"min available memory {record.min_mem_available_mb} MB"
     )
     if code != 0 and paging_observed(record):
@@ -450,6 +483,15 @@ def run(args: argparse.Namespace) -> int:
             f"memory pressure {record.peak_memory_pressure}%). A timeout here may be "
             "infrastructure; confirm with a matched comparison before calling it a test bug or "
             "a pass. This is not a waiver.",
+            file=sys.stderr,
+        )
+    if code != 0 and timer_stalls_observed(record):
+        print(
+            f"test_gate: TIMER STALLS during this run ({record.timer_stalls} of "
+            f"{record.timer_probes} 10 ms probes woke over {TIMER_STALL_MS:.0f} ms late, max "
+            f"{record.max_timer_overshoot_ms} ms). This host's timers stall (VirtualBox guest), "
+            "so a waitFor or timeout failure here may be host latency; confirm with a matched "
+            "comparison. This is not a waiver.",
             file=sys.stderr,
         )
     if record.signal:
@@ -465,6 +507,11 @@ def run(args: argparse.Namespace) -> int:
 def paging_observed(record: RunRecord, min_swap_mb: float = 50.0) -> bool:
     """True when the run swapped in a meaningful amount or stalled on memory."""
     return (record.swapped_in_mb or 0.0) >= min_swap_mb or (record.peak_memory_pressure or 0.0) > 0
+
+
+def timer_stalls_observed(record: RunRecord) -> bool:
+    """True when any timer probe in the run woke more than TIMER_STALL_MS late."""
+    return record.timer_stalls > 0
 
 
 def write_record(state: Path, record: RunRecord) -> None:
