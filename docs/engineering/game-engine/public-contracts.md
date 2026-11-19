@@ -180,3 +180,8 @@ the seed:
 Wiring (GE-070): `regionManifest.ts` passes `scene.engineBridge` through as the config of an
 `engineBridge` extension entry, the extension is registered beside region play, and Django checks
 the block's structure at publish. The engine validates fully on the client.
+
+Claims from the bridge: `EngineBridgeOptions.claims` is a `ClaimsBinding` or a function returning
+one (or null) at emit time. A bridge registered once at module load uses the function form, since
+the visit's `sessionRef` exists only after mount. While unbound it emits no claim
+(`api.unboundClaims()` counts them).
