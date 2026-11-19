@@ -275,17 +275,23 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       expect(await screen.findByText('You found the Character Gallery.')).toBeInTheDocument();
     });
 
+    // GE-D9: this shell test renders the whole castle view, and `getByRole` computes accessible
+    // names across that DOM. On a loaded machine each query took 1 to 2 s, so the run passed the
+    // 5 s default. The button is now found inside the dialog (a small subtree), the dismissal is
+    // awaited, and the test has a 15 s budget. The behaviour asserted is unchanged.
     it('offers the way back to Welcome Harbor on reaching the exit, and dismisses it', async () => {
       const user = userEvent.setup();
       await renderAndWait();
       await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-harbor-exit' }));
-      const dialog = await screen.findByRole('dialog', {
-        name: 'The path back to Welcome Harbor',
-      });
+      const dialog = await screen.findByRole(
+        'dialog',
+        { name: 'The path back to Welcome Harbor' },
+        { timeout: 5000 },
+      );
       expect(dialog).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Not now' }));
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
+      await user.click(within(dialog).getByRole('button', { name: 'Not now' }));
+      await waitFor(() => expect(dialog).not.toBeInTheDocument(), { timeout: 5000 });
+    }, 15_000);
 
     it('still lets the child explore when the progress reads fail', async () => {
       vi.mocked(getWorldState).mockRejectedValue(new Error('offline'));
@@ -829,7 +835,9 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
         await screen.findByRole('heading', { name: 'The Great Storybook' }),
       ).toBeInTheDocument();
       expect(screen.getByText('0 of 2 missing pages are back.')).toBeInTheDocument();
-      expect(screen.getByText(/Missing\. Not found yet\. Tell a story with Keeper Quill/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Missing\. Not found yet\. Tell a story with Keeper Quill/),
+      ).toBeInTheDocument();
     });
 
     it('shows a child who finished the Tale long ago a whole book, and announces nothing', async () => {
