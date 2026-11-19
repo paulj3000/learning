@@ -197,6 +197,8 @@ Bridge API for the host (`api` on the mounted bridge):
 | `isSafeGround(x, y, z)` | False on top of a present moving, rotating, falling or bounce engine platform; the live controller combines it with the live platform system (GE-068) |
 | `platforms()` | `{ id, phase, position, size, kind }[]` in config order, for realm parity tests (GE-068) |
 | Forwarded platform sound events | `PlatformActivated`, `PlatformMoving`, `PlatformStopped` `{ platformId, cue? }` from engine moving platforms, same semantics as the live platform system; cues from the platform's `sounds` (`activated`, `moving`, `stopped`). No vanish or appear events: engine falling platforms use `PlatformPhaseChanged` (GE-069) |
+| Weather area | `environment.weather` config `area: { mode: 'AT_START' \| 'FOLLOW_PLAYER', halfX, halfZ, height }` (5 to 60 m halves, 4 to 40 m height). Default `AT_START`, 25 x 25 x 15 m round the start. `FOLLOW_PLAYER`: the bridge moves the precipitation box with the child each frame (GE-L14) |
+| Mixed platforms | An Area may run live platforms (`scene.platforming`) and engine platforms (`gameplay.platforms`, `allowEnginePlatforms`) together; each platform id in one system only (Django refuses an id in both). Safe ground and staff tuning cover both |
 
 The bridge forwards `CourseCheckpointReached { checkpointId, label }` to the host bus, so the
 host's "Safe spot" toast works for engine checkpoints.
