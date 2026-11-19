@@ -82,7 +82,9 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     const fake = host(bridgeBlock());
     const mount = mountEngineBridge(fake.value);
     expect(mount.api.issues).toEqual([]);
-    expect(mount.api.support).toEqual({ playerState: true, setEnvironment: true });
+    // The support report grows by addition (GE-066 part 2 added scene and carryLaunch): compare
+    // only the members this Area relies on.
+    expect(mount.api.support).toMatchObject({ playerState: true, setEnvironment: true });
     mount.dispose();
   });
 
