@@ -141,6 +141,15 @@ to save time.
 `make docs-check` (standard library, a second or two) may run whenever documentation changes;
 it checks the engineering and adventure standards' links, headers and templates (ADR-072).
 
+`make workspace-check` (standard library, under a second) may run whenever a `package.json`,
+`package-lock.json` or, once it exists, `game/` changes. It checks workspace names, shared
+dependency ranges, lockfile entries, build order and the engine package's import boundary
+(LAI-ENG-002, `docs/infrastructure/game-engine-package.md`). `make agent-check` is a worktree
+preflight for concurrent agents: not on `main`, development slot set, ports free
+(`docs/infrastructure/multi-agent-local-environment.md`). With a slot, a direct `pytest <path>`
+uses the worktree's own PostgreSQL port and `test_<POSTGRES_DB>` database, so concurrent agents
+never drop each other's test database.
+
 Not run routinely: Playwright and other browser automation, WebGL rendering checks, Ruff,
 Prettier, oxlint, `npm run build`, full test suites, and deployment verification.
 
@@ -182,7 +191,7 @@ branch runs no CI, so the merge readiness review is the gate for branch work.
 ## Continuous integration (`.github/workflows/ci.yml`)
 
 Three jobs, all with read-only repository permissions, no secrets, and no AWS access:
-`checks` (ADR registry, engineering docs check, typecheck, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
+`checks` (ADR registry, engineering docs check, workspace package check, typecheck, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
 smoke, after `checks`), and `python` (Python 3.12, pinned `requirements-dev.txt`, a throwaway
 PostgreSQL 16 service container; `make py-lint`, `py-format-check`, `django-check`,
 `migrate-check`, `py-test-db`). `py-test-db` fails instead of skipping when the database is

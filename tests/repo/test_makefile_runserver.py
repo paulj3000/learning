@@ -88,3 +88,30 @@ def test_web_target_proxies_to_the_same_port(tmp_path):
         check=True,
     )
     assert "DJANGO_DEV_PORT=8000 npm run dev" in result.stdout
+
+
+def _run_web(tmp_path: Path, env_lines: str) -> str:
+    """`make -n web` with a temporary .env: the npm command it would run, nothing started."""
+    env_file = tmp_path / "web.env"
+    env_file.write_text(env_lines)
+    env = {k: v for k, v in os.environ.items() if k not in {"VITE_DEV_PORT", "DJANGO_DEV_PORT"}}
+    result = subprocess.run(
+        ["make", "-s", "-n", "-C", str(ROOT), "web", f"ENV_FILE={env_file}"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout
+
+
+def test_web_passes_the_worktree_vite_port(tmp_path):
+    # LAI-ENG-002: a development slot moves `make web` off the shared Vite port.
+    out = _run_web(tmp_path, "DJANGO_DEV_PORT=8040\nVITE_DEV_PORT=5213\n")
+    assert "DJANGO_DEV_PORT=8040 VITE_DEV_PORT=5213 npm run dev" in out
+
+
+def test_web_without_vite_port_keeps_vite_default(tmp_path):
+    out = _run_web(tmp_path, "")
+    assert "DJANGO_DEV_PORT=8010 npm run dev" in out
+    assert "VITE_DEV_PORT" not in out

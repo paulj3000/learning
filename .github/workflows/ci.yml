@@ -31,6 +31,9 @@ jobs:
       - name: Engineering documentation
         run: python3 scripts/check_engineering_docs.py
 
+      - name: Workspace packages (names, versions, lockfile, engine boundary)
+        run: python3 scripts/check_workspace_packages.py
+
       - name: Admin preview bundle is built from its source
         run: npm run admin-preview:check
 

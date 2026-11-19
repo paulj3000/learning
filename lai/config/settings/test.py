@@ -6,9 +6,38 @@ database, so the developer's own database is never written to.
 """
 
 import os
+from pathlib import Path
 
 from .base import *  # noqa: F403
 from .base import LOOPBACK_HOSTS, compose_database
+
+# Concurrent agents (LAI-ENG-002, docs/infrastructure/multi-agent-local-environment.md): a
+# worktree whose .env carries LAI_AGENT_SLOT (written by scripts/dev/agent_slot.py) gets its own
+# PostgreSQL port and database name, so its pytest database (`test_<POSTGRES_DB>`) is never the
+# one another worktree's run is dropping and recreating. Only these two values are read, only
+# from an .env that opted in with a slot, and a value already in the shell wins. `make` already
+# exports them from .env; this covers `pytest <path>` run directly, as the testing policy asks.
+SLOT_DATABASE_KEYS = ("POSTGRES_PORT", "POSTGRES_DB")
+
+
+def slot_database_env(env_path: Path) -> dict[str, str]:
+    """POSTGRES_PORT and POSTGRES_DB from a slotted .env; empty when the .env has no slot."""
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+    values = {}
+    for line in lines:
+        key, sep, value = line.partition("=")
+        if sep:
+            values[key.strip()] = value.strip()
+    if not values.get("LAI_AGENT_SLOT", "").isdigit():
+        return {}
+    return {key: values[key] for key in SLOT_DATABASE_KEYS if values.get(key)}
+
+
+for _key, _value in slot_database_env(Path(__file__).resolve().parents[3] / ".env").items():
+    os.environ.setdefault(_key, _value)
 
 DEBUG = False
 LOG_RAW_EXCEPTIONS = False

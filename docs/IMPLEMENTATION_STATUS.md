@@ -37,6 +37,39 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## Multi-agent development and Game Engine Core engineering infrastructure (LAI-ENG-002) — Development Complete on `integration/multi-agent-dev` (2026-11-18); NOT merged, nothing deployed
+
+Branch `integration/multi-agent-dev` (worktree `integration`; legacy name kept at the owner's
+instruction), fast-forwarded to `origin/main` `8bd19fb7` before any change. Trello:
+[LAI-ENG-002](https://trello.com/c/3ChFDL2E). Agent: provisional `Claude-06` (policy defines
+`Claude-01` to `Claude-05`; owner to confirm).
+
+- **Audit and plan:** `docs/infrastructure/engineering-infrastructure.md` (audit, diagrams, agent
+  ownership matrix, dependency matrix, blockers B1 to B10, policy conflicts),
+  `multi-agent-local-environment.md`, `game-engine-package.md` (Proposed),
+  `asset-pipeline-engine-compatibility.md`, `integration-plan-game-engine-core.md` (Proposed:
+  merge sequence, migration and ADR collisions, integration, release and rollback checklists).
+- **Found:** concurrent agents shared `test_lai` on port 5442, which pytest-django drops at each
+  run; two different `assets 0003` migrations (game branches vs Lambda completion) and two
+  different `regions 0007` (Firepeak/North Pole vs Storykeeper); the Treasure Rush lineage still
+  heads the jump decision as ADR-055 (registry reserves ADR-063); the engine package location is
+  already fixed as `game/` by LAI-2101 (no `packages/`), which waits on the LAI-2003 approval.
+- **Built:** `scripts/dev/agent_slot.py` (per-worktree slot: ports and database names in `.env`,
+  preflight); `lai/config/settings/test.py` reads `POSTGRES_PORT` and `POSTGRES_DB` from a slotted
+  `.env` (loopback only, shell wins); `make web` passes `VITE_DEV_PORT`; `make agent-check`,
+  `make workspace-check`; `scripts/check_workspace_packages.py` (workspace names, shared ranges,
+  lockfile, build order, `@lai/game-engine` boundary, ready before `game/` exists) as a read-only
+  CI step and in `make js-check`.
+- **Tests:** `tests/repo/test_agent_slot.py`, `tests/repo/test_check_workspace_packages.py`, two
+  new `make web` cases in `tests/repo/test_makefile_runserver.py`; results in the completion report
+  on the card.
+- **Deferred to merge verification:** full `make check`, Ruff and Prettier, CI run, owner review.
+  Merging touches `lai/**`, so `deploy-dev-native.yml` and `deploy-django-ec2.yml` can start if
+  their gate variables are on (release-policy deploy-trigger table).
+- **Not done (not authorized or blocked):** creating `game/` (LAI-2003, B1); renumbering other
+  branches' migrations or ADRs (owners of those branches); slot `.env` files in other worktrees
+  (each agent runs `agent_slot.py write` itself); browser, Playwright and acceptance runs.
+
 ## Engineering standards and multi-agent governance (ADR-072, Accepted) — documentation and `make docs-check` added; ADR-072 Accepted by the owner (2026-11-18)
 
 Documentation only; no application behaviour,

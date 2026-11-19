@@ -16,6 +16,9 @@ dotenv = $(subst #,\#,$(subst $$,$$$$,$(shell sed -n 's/^$(1)=//p' $(ENV_FILE) 2
 # can never disagree (P0). Example: DJANGO_DEV_PORT=8000 in .env runs both sides on 8000.
 $(if $(call dotenv,DJANGO_DEV_PORT),$(eval DJANGO_DEV_PORT ?= $(call dotenv,DJANGO_DEV_PORT)))
 DJANGO_DEV_PORT ?= 8010
+# VITE_DEV_PORT the same way (shell, then .env, then Vite's own 5183 default), so a worktree's
+# development slot (scripts/dev/agent_slot.py, LAI-ENG-002) moves `make web` off the shared port.
+$(if $(call dotenv,VITE_DEV_PORT),$(eval VITE_DEV_PORT ?= $(call dotenv,VITE_DEV_PORT)))
 
 # The compose database settings reach every target (e.g. POSTGRES_PORT to move off the 5442 default).
 $(foreach v,POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD POSTGRES_PORT,\
@@ -36,11 +39,12 @@ DJANGO_ENV_VARS := DATABASE_URL DJANGO_SECRET_KEY DJANGO_DEBUG DJANGO_ALLOWED_HO
 $(foreach v,$(DJANGO_ENV_VARS),\
   $(if $(call dotenv,$(v)),$(eval $(DJANGO_ENV_TARGETS): export $(v) ?= $(call dotenv,$(v)))))
 
-.PHONY: help docs-check py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
+.PHONY: help docs-check workspace-check agent-check py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
 .PHONY: django-check migrate-check migrate runserver createsuper web
 
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
+	@echo "agent-check (worktree preflight) | workspace-check (npm workspace packages)"
 	@echo "docs-check | js-check (ADR and docs checks, typecheck, lint, format:check, test, build) | check (py-check + js-check)"
 	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5442; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
@@ -96,7 +100,7 @@ runserver:
 # The React dev server (Vite, 5183), proxying /api to the runserver above on the same
 # DJANGO_DEV_PORT. Prints the proxy target, whether Django answers, and Cognito status.
 web:
-	DJANGO_DEV_PORT=$(DJANGO_DEV_PORT) npm run dev
+	DJANGO_DEV_PORT=$(DJANGO_DEV_PORT) $(if $(VITE_DEV_PORT),VITE_DEV_PORT=$(VITE_DEV_PORT) )npm run dev
 
 # No Python type checker yet. Decision deferred to LAI-0204, when Django exists and a checker
 # with Django stubs can be chosen (see docs/IMPLEMENTATION_STATUS.md, LAI-0202).
@@ -107,9 +111,19 @@ py-check: py-lint py-format-check django-check migrate-check py-test
 docs-check:
 	$(PY) scripts/check_engineering_docs.py
 
+# npm workspace packages (LAI-ENG-002): names, shared versions, lockfile entries, build order,
+# and the engine package's import boundary once game/ (@lai/game-engine) exists. Standard library.
+workspace-check:
+	$(PY) scripts/check_workspace_packages.py
+
+# Preflight for a concurrent agent's worktree: not on main, development slot set, ports free.
+agent-check:
+	$(PY) scripts/dev/agent_slot.py check
+
 js-check:
 	npm run adr:check
 	$(MAKE) docs-check
+	$(MAKE) workspace-check
 	npm run admin-preview:check
 	npm run typecheck
 	npm run lint
