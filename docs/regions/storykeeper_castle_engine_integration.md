@@ -290,3 +290,11 @@ No realm milestone claim is wanted from the client. The engine lead opens **GE-0
 A castle-only listener could do both, but it would be a second save path for one location. The request to the engine lead: when a bridge checkpoint id is also a saved region checkpoint (`ALL_CHECKPOINTS` for the manifest's region), the host saves it and uses the manifest's checkpoint toasts, so `manifest.checkpoints` can move onto the bridge for any location. Then the castle moves in one commit with section 8.1's config and `resume([lastCheckpointId])`.
 
 Regression on the merged tree: Vitest 246 files, 3103 passed. Two failures were 5 s timeouts in different tests on different runs (GE-D9 class), and both files then passed twice. Typecheck, content, golden, adr checks pass; `makemigrations --check` no changes (the scoring app adds its own `0001_initial`).
+
+### 9.3 After `2dafd285` (2026-11-19)
+
+Merged at `6ba15afc` (clean). The host now saves and toasts a bridge checkpoint that is a saved region checkpoint (GE-066), and claims discoveries and NPC talks for every location (GE-067). The castle has no emitter of its own for either. One host gap remains before the castle's checkpoints can move: the live runtime still builds trigger zones from `manifest.checkpoints.ids` (`sceneLayout.ts`), the validator requires that list to equal the region's authored checkpoints, and `checkpointToast` only answers for ids in it. A castle that added the bridge config would reach each checkpoint twice (two saves, two toasts). Requested from the engine lead: the live runtime skips the trigger zone for an id that the manifest's `engineBridge` `gameplay.checkpoints` config serves, so the list stays declared (validator, toasts) and the bridge alone triggers it.
+
+Merge order set by the owner (via the integration lead): core, Firepeak, North Pole, then the castle. The castle renumbers `regions` `0007_castle_director` to `0008` and `0008_castle_director_catalog` to `0009` (depending on Firepeak's `0007_puzzle_kinds_choose_order`) once Firepeak is in the integration branch; the integration lead will say when.
+
+Regression on the merged tree: Vitest 272 files, 3461 passed; three failures in Wonderwild parity and the shared view test were load timeouts (both files 53 of 53, twice, alone). Typecheck clean.
