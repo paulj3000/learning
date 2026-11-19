@@ -43,12 +43,33 @@ def _within(value, low: float, high: float) -> bool:
     return _number(value) and low <= value <= high
 
 
+def engine_platform_ids(scene: dict) -> list[str]:
+    """Ids of the platforms `scene.engineBridge` runs through `gameplay.platforms` (GE-068)."""
+    bridge = scene.get("engineBridge") if isinstance(scene, dict) else None
+    capabilities = bridge.get("capabilities") if isinstance(bridge, dict) else None
+    if not isinstance(capabilities, list):
+        return []
+    ids: list[str] = []
+    for entry in capabilities:
+        if not isinstance(entry, dict) or entry.get("id") != "gameplay.platforms":
+            continue
+        config = entry.get("config")
+        platforms = config.get("platforms") if isinstance(config, dict) else None
+        if isinstance(platforms, list):
+            ids.extend(p["id"] for p in platforms if isinstance(p, dict) and isinstance(p.get("id"), str))
+    return ids
+
+
 def platform_ids(scene: dict) -> list[str]:
+    """Every platform id staff tuning may name: the live `platforming` ones, then the engine ones."""
     platforming = scene.get("platforming") if isinstance(scene, dict) else None
     platforms = platforming.get("platforms") if isinstance(platforming, dict) else None
-    if not isinstance(platforms, list):
-        return []
-    return [p["id"] for p in platforms if isinstance(p, dict) and isinstance(p.get("id"), str)]
+    live = (
+        [p["id"] for p in platforms if isinstance(p, dict) and isinstance(p.get("id"), str)]
+        if isinstance(platforms, list)
+        else []
+    )
+    return list(dict.fromkeys([*live, *engine_platform_ids(scene)]))
 
 
 def tuning_problems(scene: dict, tuning) -> list[str]:

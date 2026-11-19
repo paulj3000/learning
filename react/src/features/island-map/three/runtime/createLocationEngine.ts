@@ -503,9 +503,17 @@ export function createLocationEngine<R extends RendererLike>(
     (extensionMounts.get('engineBridge')?.api as
       | { latestCheckpoint?: () => { id: string; x: number; z: number; yaw: number } | null }
       | undefined)?.latestCheckpoint?.() ?? null;
+  const bridgeSafeGround = () =>
+    (extensionMounts.get('engineBridge')?.api as { isSafeGround?: (x: number, y: number, z: number) => boolean } | undefined)?.isSafeGround;
   const controller = new FirstPersonController({
-    ...(platformSystem
-      ? { isSafeGround: (x: number, y: number, z: number) => platformSystem.isSafeGround(x, y, z) }
+    // GE-068: last-safe-ground is never an engine moving, falling or bounce platform either.
+    // Read per call (the bridge mounts after this controller), so with no bridge and no live
+    // platforms the controller keeps its own default.
+    ...(platformSystem || manifest.extensions?.some((binding) => binding.extensionId === 'engineBridge')
+      ? {
+          isSafeGround: (x: number, y: number, z: number) =>
+            (platformSystem?.isSafeGround(x, y, z) ?? true) && (bridgeSafeGround()?.(x, y, z) ?? true),
+        }
       : {}),
     recoveryPoint: () => {
       const live = platformSystem?.recoveryPoint() ?? null;

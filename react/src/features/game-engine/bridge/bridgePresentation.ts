@@ -1,4 +1,4 @@
-import { BoxGeometry, DoubleSide, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SphereGeometry, type Scene } from 'three';
+import { Box3, BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SphereGeometry, Vector3, type Material, type Object3D, type Scene } from 'three';
 import {
   LightingService,
   ParticlesService,
@@ -43,6 +43,8 @@ export interface BridgePresentationOptions {
   reducedMotion: () => boolean;
   /** Where weather falls: defaults to a box around `center`. */
   center: { x: number; z: number };
+  /** GE-068: loads an asset model for a platform with `assetId`. Absent: platforms stay coloured boxes. */
+  loadModel?: (assetId: string) => Promise<{ scene: Object3D }>;
 }
 
 export interface BridgePresentation {
@@ -54,7 +56,11 @@ interface PlatformView {
   spec: PlatformSpec;
   mesh: Mesh;
   material: MeshStandardMaterial;
+  /** GE-068: the loaded model's own materials (cloned), which follow the crumble blink. */
+  modelMaterials: Material[];
 }
+
+const DEFAULT_PLATFORM_COLOR = 0xc9a46a;
 
 interface HazardView {
   spec: TelegraphedHazardSpec;
@@ -64,6 +70,44 @@ interface HazardView {
   phase: 'WARN' | 'ACTIVE' | 'REST';
   /** Seconds left in the warning, or elapsed in ACTIVE. */
   clock: number;
+}
+
+/**
+ * Clones a loaded model, scales it to fill `size` (the platform box) and centres it on the box.
+ * Materials are cloned so the crumble blink never touches the shared, cached asset; geometry is
+ * the cache's and is not disposed here. Null when the model has no measurable size.
+ */
+function fitModel(source: Object3D, size: { x: number; y: number; z: number }, scope: EngineRuntime<EventMap>['resources'], materials: Material[]): Group | null {
+  const clone = source.clone(true);
+  const box = new Box3().setFromObject(clone);
+  const extent = box.getSize(new Vector3());
+  if (!(extent.x > 1e-6 && extent.y > 1e-6 && extent.z > 1e-6)) {
+    return null;
+  }
+  const centre = box.getCenter(new Vector3());
+  clone.position.sub(centre);
+  const group = new Group();
+  group.name = 'engine.platform.model';
+  group.add(clone);
+  group.scale.set(size.x / extent.x, size.y / extent.y, size.z / extent.z);
+  clone.traverse((object) => {
+    const mesh = object as Mesh;
+    if (!mesh.isMesh) {
+      return;
+    }
+    mesh.material = Array.isArray(mesh.material)
+      ? mesh.material.map((m) => {
+          const copy = scope.track(m.clone());
+          materials.push(copy);
+          return copy;
+        })
+      : (() => {
+          const copy = scope.track(mesh.material.clone());
+          materials.push(copy);
+          return copy;
+        })();
+  });
+  return group;
 }
 
 export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene: Scene, options: BridgePresentationOptions): BridgePresentation {
@@ -85,11 +129,35 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
   if (platformsApi) {
     for (const spec of platformSpecs) {
       const geometry = scope.track(new BoxGeometry(spec.size.x, spec.size.y, spec.size.z));
-      const material = scope.track(new MeshStandardMaterial({ color: 0xc9a46a, transparent: true, opacity: 1 }));
+      const material = scope.track(new MeshStandardMaterial({ color: spec.color ?? DEFAULT_PLATFORM_COLOR, transparent: true, opacity: 1 }));
       const mesh = addMesh(new Mesh(geometry, material));
       mesh.name = `engine.platform.${spec.id}`;
       mesh.visible = false;
-      platforms.push({ spec, mesh, material });
+      const view: PlatformView = { spec, mesh, material, modelMaterials: [] };
+      platforms.push(view);
+      if (spec.assetId !== undefined && options.loadModel) {
+        // The coloured box shows while the model loads and stays if it fails (or the bridge is gone).
+        let alive = true;
+        scope.track(() => {
+          alive = false;
+        });
+        const assetId = spec.assetId;
+        void options.loadModel(assetId).then(
+          (loaded) => {
+            if (!alive) {
+              return;
+            }
+            const model = fitModel(loaded.scene, spec.size, scope, view.modelMaterials);
+            if (model) {
+              mesh.add(model);
+              material.visible = false;
+            }
+          },
+          () => {
+            runtime.diagnostics.warn('PLATFORM_ASSET_FAILED', { id: spec.id, assetId });
+          },
+        );
+      }
     }
   }
 
@@ -161,7 +229,7 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
       elapsed += dt;
       const reduced = options.reducedMotion();
       if (platformsApi) {
-        for (const { spec, mesh, material } of platforms) {
+        for (const { spec, mesh, material, modelMaterials } of platforms) {
           const phase = platformsApi.phaseOf(spec.id);
           const top = platformsApi.positionOf(spec.id);
           const shown = top !== undefined && phase !== 'GONE' && platformsApi.isPresent(spec.id);
@@ -174,6 +242,10 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
             material.opacity = reduced ? DIM_OPACITY : Math.sin(elapsed * Math.PI * 2 * BLINK_HERTZ) > 0 ? 1 : DIM_OPACITY;
           } else {
             material.opacity = 1;
+          }
+          for (const m of modelMaterials) {
+            m.transparent = material.opacity < 1;
+            m.opacity = material.opacity;
           }
         }
       }

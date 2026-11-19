@@ -103,10 +103,136 @@ export interface PlatformSpec {
   appearSignalId?: string;
   /** GE-066: the platform is off (no collider, hidden) while this signal is on. */
   inactiveWhenSignalId?: string;
+  /** GE-068 look: body colour, 0xRRGGBB (presentation only). */
+  color?: number;
+  /** GE-068 look: an asset model fitted to the platform box (presentation only; `color` is the fallback). */
+  assetId?: string;
 }
 
 export interface PlatformsConfig {
   platforms: PlatformSpec[];
+}
+
+/**
+ * GE-068: staff tuning for one platform, the same fields and limits as the live platform system's
+ * `PlatformTuning` (react/.../platforms/platformSpec.ts), so one `scene.platformTuning` body
+ * tunes either runtime.
+ */
+export interface PlatformTuning {
+  enabled?: boolean;
+  /** moving.speed, m/s. */
+  speed?: number;
+  /** moving.pauseSeconds. */
+  pauseSeconds?: number;
+  /** bounceHeight, metres. */
+  bounceHeight?: number;
+  /** falling.visibleSeconds. */
+  visibleSeconds?: number;
+  /** falling.hiddenSeconds. */
+  hiddenSeconds?: number;
+}
+export type PlatformTuningMap = Readonly<Record<string, PlatformTuning>>;
+
+const TUNING_KEYS = ['enabled', 'speed', 'pauseSeconds', 'bounceHeight', 'visibleSeconds', 'hiddenSeconds'] as const;
+const inRange = (value: unknown, min: number, max: number): boolean => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+
+/** Problems with one platform's tuning (same limits as the live `validateTuning`). Empty when valid. */
+export function platformTuningProblems(tuning: unknown): string[] {
+  if (!isRecord(tuning)) {
+    return ['must be an object'];
+  }
+  const out: string[] = [];
+  for (const key of Object.keys(tuning)) {
+    if (!(TUNING_KEYS as readonly string[]).includes(key)) {
+      out.push(`${key}: unknown setting`);
+    }
+  }
+  if (tuning.enabled !== undefined && typeof tuning.enabled !== 'boolean') {
+    out.push('enabled: must be true or false');
+  }
+  const ranges: [string, number, number][] = [
+    ['speed', PLATFORM_LIMITS.minSpeed, PLATFORM_LIMITS.maxSpeed],
+    ['pauseSeconds', 0, PLATFORM_LIMITS.maxPause],
+    ['bounceHeight', PLATFORM_LIMITS.minBounce, PLATFORM_LIMITS.maxBounce],
+    ['visibleSeconds', PLATFORM_LIMITS.minVisible, PLATFORM_LIMITS.maxCycle],
+    ['hiddenSeconds', 0.5, PLATFORM_LIMITS.maxCycle],
+  ];
+  for (const [key, min, max] of ranges) {
+    if (tuning[key] !== undefined && !inRange(tuning[key], min, max)) {
+      out.push(`${key}: must be ${min} to ${max}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Applies staff tuning to validated specs, mirroring the live `applyTuning`: a platform whose
+ * tuning is invalid is left as authored (never half applied), `enabled: false` leaves it out, and
+ * a setting only changes a platform that has that behaviour (speed and pause need `moving`, bounce
+ * height needs `bounceHeight`, visible and hidden need `falling`). A falling tuning that would
+ * leave under 0.5 s whole before the crumble warning is also refused (the validator's rule).
+ * Pure; the input is not changed.
+ */
+export function applyPlatformTuning(specs: readonly PlatformSpec[], tuning: PlatformTuningMap | undefined): PlatformSpec[] {
+  const out: PlatformSpec[] = [];
+  for (const spec of specs) {
+    const tune = tuning !== undefined && Object.prototype.hasOwnProperty.call(tuning, spec.id) ? tuning[spec.id] : undefined;
+    if (!tune || platformTuningProblems(tune).length > 0) {
+      out.push(spec);
+      continue;
+    }
+    if (tune.enabled === false) {
+      continue;
+    }
+    if (spec.falling && (tune.visibleSeconds ?? spec.falling.visibleSeconds) < spec.falling.warningSeconds + 0.5) {
+      out.push(spec);
+      continue;
+    }
+    out.push({
+      ...spec,
+      ...(spec.moving
+        ? {
+            moving: {
+              ...spec.moving,
+              ...(tune.speed !== undefined ? { speed: tune.speed } : {}),
+              ...(tune.pauseSeconds !== undefined ? { pauseSeconds: tune.pauseSeconds } : {}),
+            },
+          }
+        : {}),
+      ...(spec.bounceHeight !== undefined && tune.bounceHeight !== undefined ? { bounceHeight: tune.bounceHeight } : {}),
+      ...(spec.falling
+        ? {
+            falling: {
+              ...spec.falling,
+              ...(tune.visibleSeconds !== undefined ? { visibleSeconds: tune.visibleSeconds } : {}),
+              ...(tune.hiddenSeconds !== undefined ? { hiddenSeconds: tune.hiddenSeconds } : {}),
+            },
+          }
+        : {}),
+    });
+  }
+  return out;
+}
+
+export type PlatformKind = 'moving' | 'rotating' | 'falling' | 'bounce' | 'static';
+
+/** One platform's inspectable state (GE-068), for the bridge's `api.platforms()` and realm tests. */
+export interface PlatformSnapshot {
+  id: string;
+  /** The falling phase, `STABLE` for a platform that does not fall. */
+  phase: FallingPhase;
+  /** Current top-surface centre, metres. */
+  position: Vec3Like;
+  size: Vec3Like;
+  kind: PlatformKind;
+}
+
+export function platformKind(spec: PlatformSpec): PlatformKind {
+  if (spec.moving) return 'moving';
+  if (spec.spinDegreesPerSecond) return 'rotating';
+  if (spec.falling) return 'falling';
+  if (spec.bounceHeight !== undefined) return 'bounce';
+  return 'static';
 }
 
 // --- pure falling model ------------------------------------------------------------------
@@ -219,6 +345,13 @@ export interface PlatformsApi {
   phaseOf(platformId: string): FallingPhase | undefined;
   /** False while the platform is switched off (`inactiveWhenSignalId`) or not yet appeared. */
   isPresent(platformId: string): boolean;
+  /** GE-068: every platform's state (including switched off or gone ones), in config order. */
+  snapshot(): PlatformSnapshot[];
+  /**
+   * GE-068: false when (x, y, z) is on the top of a present platform that moves, rotates,
+   * falls or bounces (never a place to come back to). True anywhere else.
+   */
+  isSafeGround(x: number, y: number, z: number): boolean;
 }
 export const PlatformsService = defineService<PlatformsApi>('gameplay.platforms');
 
@@ -227,7 +360,7 @@ export const PlatformsService = defineService<PlatformsApi>('gameplay.platforms'
 export function validatePlatformsConfig(input: unknown) {
   const issues = new Issues();
   const root = configRoot(input, issues);
-  const platforms = issues.records(
+  const authored = issues.records(
     root.platforms,
     'platforms',
     (item, path): PlatformSpec => {
@@ -247,6 +380,15 @@ export function validatePlatformsConfig(input: unknown) {
         appearSignalId: issues.optionalId(item.appearSignalId, `${path}.appearSignalId`),
         inactiveWhenSignalId: issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`),
       };
+      if (item.color !== undefined) {
+        spec.color = issues.num(item.color, `${path}.color`, 0, 0xffffff);
+        if (!Number.isInteger(spec.color)) {
+          issues.add(`${path}.color`, 'must be a whole number 0xRRGGBB');
+        }
+      }
+      if (item.assetId !== undefined) {
+        spec.assetId = issues.id(item.assetId, `${path}.assetId`);
+      }
       if (spec.inactiveWhenSignalId !== undefined) {
         const activating = [spec.appearSignalId, item.moving !== undefined && isRecord(item.moving) ? item.moving.activeSignalId : undefined];
         if (activating.includes(spec.inactiveWhenSignalId)) {
@@ -280,6 +422,18 @@ export function validatePlatformsConfig(input: unknown) {
     (p) => p.id,
     PLATFORM_LIMITS.maxPlatforms,
   );
+  // GE-068: optional `platformTuning` (staff tuning, keyed by platform id) is validated and applied
+  // here, so the installed config and the presentation both see tuned platforms.
+  let platforms = authored;
+  if (root.platformTuning !== undefined) {
+    if (!isRecord(root.platformTuning)) {
+      issues.add('platformTuning', 'must be an object keyed by platform id');
+    } else {
+      // An invalid entry is left as authored (the live system's rule), not an error: staff tuning
+      // is validated in Django, and a stale entry must never stop a child's Area.
+      platforms = applyPlatformTuning(authored, root.platformTuning as PlatformTuningMap);
+    }
+  }
   return issues.result<PlatformsConfig>({ platforms });
 }
 
@@ -452,6 +606,34 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
       isPresent(id) {
         const state = find(id);
         return state !== undefined && state.appeared && !state.switchedOff;
+      },
+      snapshot() {
+        const out: PlatformSnapshot[] = [];
+        for (const spec of config.platforms) {
+          const state = find(spec.id);
+          if (!state) continue;
+          const box = boxFor(state);
+          out.push({
+            id: spec.id,
+            phase: state.falling?.phase ?? 'STABLE',
+            position: { x: (box.min.x + box.max.x) / 2, y: box.max.y, z: (box.min.z + box.max.z) / 2 },
+            size: { ...spec.size },
+            kind: platformKind(spec),
+          });
+        }
+        return out;
+      },
+      isSafeGround(x, y, z) {
+        for (const spec of config.platforms) {
+          if (platformKind(spec) === 'static' && spec.bounceHeight === undefined) continue;
+          const state = find(spec.id);
+          if (!state || !state.appeared || state.switchedOff || state.falling?.phase === 'GONE') continue;
+          const box = boxFor(state);
+          if (x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z && Math.abs(box.max.y - y) < 0.06) {
+            return false;
+          }
+        }
+        return true;
       },
     };
     const removeService = runtime.services.provide(PlatformsService, api);
