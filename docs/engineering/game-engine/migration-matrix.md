@@ -19,7 +19,7 @@
 
 Once GE-070 is merged and the contracts are stable, GE-071 to GE-075 may run in parallel on
 their own realm branches. A realm migrates by merging `core/gameengine` into its branch at a
-"migration-ready" SHA the engine lead publishes (currently `e4148949`), then switching imports and adopting SDK
+"migration-ready" SHA the engine lead publishes (see [integration-baseline.md](integration-baseline.md); currently `fc5c71cf`), then switching imports and adopting SDK
 definitions. **Nothing legacy is removed before its consumers migrate and regression evidence
 exists.**
 
