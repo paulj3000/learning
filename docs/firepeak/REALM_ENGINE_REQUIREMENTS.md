@@ -73,7 +73,10 @@ Each item is additive and default-off, so today's realms keep working unchanged.
 6. **Respawn presentation for every recovery.** The respawn vignette and the supportive toast must
    follow every hazard recovery, not only region-play lava. Today FP Heart's lava and NP's lake
    recover through `HazardSpec` and get the generic toast only. The client mapping of a recovery
-   to copy is realm data (Firepeak: "The lava is too hot. Let's go back to safe ground!").
+   to copy is realm data. **Done on the realm side (2026-11-18, agreed with the engine lead):**
+   `platforming.recoveryLead` carries the realm's words ("Whoa, the lava is too hot!"), and
+   `AreaPuzzleLayer` plays the fade on every `HAZARD` recovery from the existing bus event. No
+   controller change. The engine adds `hazardId` to `PlayerRecovered` in both event maps.
 7. **Bus events for hazards and weather.** Add `HazardEntered` / `PlayerRecovered{reason,
    checkpointId}` (the `Recovered` event exists; it needs the hazard id) and `AtmosphereChanged`.
    Lava respawn is a private `AreaEffectsApi.subscribe({respawned})` today.

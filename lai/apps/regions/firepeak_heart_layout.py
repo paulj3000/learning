@@ -29,7 +29,8 @@ import random
 REGION_ID = "firepeak-heart"
 PLACE_SLUG = "firepeak-heart"
 QUEST_ID = "the-heart-of-firepeak"
-HEART_VERSION = 1
+# 2: platforming.recoveryLead, the lava recovery line (was the water "Splash!").
+HEART_VERSION = 2
 FACING_NORTH_TO_SOUTH = math.pi  # forward is (sin yaw, cos yaw); the route runs toward -z
 
 BOUNDS = {"halfExtentX": 32, "halfExtentZ": 96, "wallThickness": 1}
@@ -363,6 +364,8 @@ def zones() -> list[dict]:
 def platforming() -> dict:
     return {
         "platforms": platforms(),
+        # Said first when the lava hazard puts the child back (the engine adds the checkpoint).
+        "recoveryLead": "Whoa, the lava is too hot!",
         "checkpoints": [
             {"id": cid, "x": x, "z": z, "yaw": round(FACING_NORTH_TO_SOUTH, 3), "label": label}
             for cid, label, x, z, _key in CHECKPOINTS

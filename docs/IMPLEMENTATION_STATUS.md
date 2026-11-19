@@ -71,13 +71,24 @@ Pip's treasure, chests, quests, NPC seed), 15 passed (Heart security, audio), 9 
 (inventory grants), 11 passed (NPC seed after asset-id alignment). Not run, by policy: Playwright,
 browser or device checks, Ruff, Prettier, ESLint, full suites, builds.
 
+**Follow-up fixes (2026-11-18, second session).** A managed NPC with launch points keeps the
+legacy panel and its launch buttons (e85a3c21). Choice puzzles hide the answer objects the child's
+band never maps (c4b069ba). Lava recoveries say "Whoa, the lava is too hot!" instead of "Splash!"
+(`platforming.recoveryLead`, Heart layout version 2), and every hazard recovery plays the respawn
+fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core) and
+`docs/firepeak/SCORING_INTEGRATION_AUDIT.md` (GE-100 award mapping, data only). Checks: Vitest
+41 files, 613 passed (region play, regionPlay extension, platforms); `tsc --noEmit` clean; pytest
+145 passed (platforming, Heart layout, seed, playthrough) on local PostgreSQL 16.
+
 **Not done / blocked.**
+- Migration to `@lai/game-engine`: waits for the engine lead's "migration-ready" commit (contracts
+  are at core/gameengine 8e5bcb9b; the movement modules have not moved yet).
 - Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
 - Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
 - Question Studio bank for area puzzles: extension point only.
 - Falling rocks and timed steam pushes: not built (no telegraphed moving-hazard runtime).
-- Managed NPCs lose per-puzzle stage lines and launch points (only the return step is protected).
+- Managed NPCs do not speak per-puzzle stage lines in their own panel (the puzzle panel shows them).
 - Pathfinder switch and story puzzles leave one or two inert, unlabelled answer objects.
 - ADR-070 numbering and the branch's ADR-055 to 060 collide with main's ADR-055 to 064; renumber at merge.
 

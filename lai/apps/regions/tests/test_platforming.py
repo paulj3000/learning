@@ -54,6 +54,14 @@ def test_layout_problems_accept_a_forgiving_course_and_refuse_unsafe_ones():
         assert expected in problems
 
 
+def test_layout_problems_check_the_recovery_lead():
+    bounds = {"halfExtentX": 30, "halfExtentZ": 30}
+    assert platforming.layout_problems({**COURSE, "recoveryLead": "Whoa, the lava is too hot!"}, bounds=bounds) == []
+    for lead in ("  ", "x" * 81, 7):
+        problems = platforming.layout_problems({**COURSE, "recoveryLead": lead}, bounds=bounds)
+        assert any("recoveryLead" in p for p in problems), lead
+
+
 def test_tuning_problems_name_unknown_platforms_settings_and_ranges():
     scene = {"platforming": COURSE}
     assert platforming.tuning_problems(scene, {"ferry": {"speed": 2, "pauseSeconds": 1}}) == []

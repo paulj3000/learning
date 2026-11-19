@@ -28,6 +28,7 @@ LIMITS = {
     "min_visible": 1.5,
     "max_cycle": 60.0,
     "max_platforms": 64,
+    "max_recovery_lead": 80,
 }
 
 TUNING_KEYS = {"enabled", "speed", "pauseSeconds", "bounceHeight", "visibleSeconds", "hiddenSeconds"}
@@ -87,6 +88,11 @@ def layout_problems(platforming, *, bounds: dict | None = None) -> list[str]:
     if not isinstance(platforming, dict) or not isinstance(platforming.get("platforms"), list):
         return ["platforming: must be an object with a platforms list"]
     problems: list[str] = []
+    lead = platforming.get("recoveryLead")
+    if lead is not None and (
+        not isinstance(lead, str) or not lead.strip() or len(lead) > LIMITS["max_recovery_lead"]
+    ):
+        problems.append(f"platforming.recoveryLead: words, at most {LIMITS['max_recovery_lead']} characters")
     platforms = platforming["platforms"]
     if len(platforms) > LIMITS["max_platforms"]:
         problems.append(f"platforming.platforms: at most {LIMITS['max_platforms']}")

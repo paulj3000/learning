@@ -6,6 +6,7 @@ import * as parse from '../../../../../api/play/parse';
 import type { RegionBootstrap } from '../../../../../api/play/types';
 import type { RegionPlayInteractionEvent } from '../../../../region-play/regionPlayInteractions';
 import { firepeakBootstrapJson, puzzleOutcomeJson } from '../../../../../test/firepeakFixtures';
+import { WorldEngineEventBus } from '../../worldEngineEvents';
 import { AreaPuzzleLayer } from './AreaPuzzleLayer';
 import type { AreaEffectsEvents } from './areaEffectsScene';
 import type { RegionPlaySceneApi } from './regionPlayScene';
@@ -277,6 +278,17 @@ describe('the lava', () => {
     );
     expect(showToast).toHaveBeenCalledWith('Whoa, the lava is too hot! Back to safety.');
     expect(view.container.querySelector('[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it('fades gently when a platforming hazard puts the child back, and leaves the words to the engine', () => {
+    const { props, view, showToast } = setup();
+    const bus = new WorldEngineEventBus();
+    view.rerender(<AreaPuzzleLayer {...props} event={null} bus={bus} />);
+    act(() => bus.emit('PlayerRecovered', { reason: 'FELL_OUT_OF_WORLD' }));
+    expect(view.container.querySelector('[aria-hidden="true"]')).toBeNull();
+    act(() => bus.emit('PlayerRecovered', { reason: 'HAZARD', checkpointId: 'fh-cp-lava' }));
+    expect(view.container.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it('keeps the scene in step with the server’s world changes only', () => {
