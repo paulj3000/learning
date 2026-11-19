@@ -17,7 +17,8 @@ export type EnginePresentationEventMap = {
   PlayerLanded: { impactSpeed: number };
   PlayerGaitChanged: { gait: PlayerGait };
   PlayerFootstep: { gait: Exclude<PlayerGait, 'idle'> };
-  PlayerRecovered: { reason: RecoveryReason; checkpointId?: string | null };
+  /** `hazardId` names the hazard that sent the child back (Firepeak requirement 7), when one did. */
+  PlayerRecovered: { reason: RecoveryReason; checkpointId?: string | null; hazardId?: string | null };
   PlayerEnteredZone: { zoneId: string };
   PlayerLeftZone: { zoneId: string };
   CourseCheckpointReached: { checkpointId: string; label: string };
