@@ -37,6 +37,23 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-090 integration sequence — Integration branch complete at `f35ef0dc` (2026-11-19); NOT merged to `main`, nothing deployed
+
+`integration/20261119-game-engine-core` (LAI-ENG-002, coordinated with the engine lead), owner order
+A: main `8bd19fb7` + core/gameengine `382b3225`, `ab91d191` (scoring), `2dafd285` + Firepeak
+`c2fc2854` + North Pole `13deba0b` + Storykeeper's Castle `da36b5a0`, each Development Complete on
+its card. Combined tree (unit level, through `scripts/dev/test_gate.py`):
+- migration audit clean with the full set; one leaf per app;
+- typecheck, content, golden, vectors, ADR, docs and workspace checks pass;
+- engine 614 plus 1 expected fail;
+- React 3,691/3,692 on the affected set; the one failure, the castle boundary guard, is fixed.
+
+Integration found three defects, each fixed by its owner: Firepeak test-helper type errors, North
+Pole's stale golden file, and castle React hooks crossing the engine boundary. Host-contention
+failures were separated from code with matched gated comparisons (ijhrYTi4); the gate gained PSI
+CPU-pressure admission. Not run: merge-readiness gates (full suites, lint and format, build,
+PostgreSQL pytest on the combined tree, Playwright, owner QA). Owner decisions are listed on GE-090.
+
 ## LAI-ENG-002 follow-up: integration engineering and test stabilization — Development Complete on `integration/multi-agent-dev` (2026-11-19); NOT merged, nothing deployed
 
 - **Integration plan rewritten** (`docs/infrastructure/integration-plan-game-engine-core.md`)
