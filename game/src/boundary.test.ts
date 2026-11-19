@@ -74,14 +74,17 @@ describe('game/ import boundary (ADR-020)', () => {
   });
 
   it('catches forbidden imports in every form', () => {
+    // Built from names so no import-shaped text sits in this file (the repo-level
+    // workspace check scans source text for forbidden imports).
+    const forbidden = ['react', '@/api/client', 'aws-amplify', 'phaser', '@aws-sdk/client-s3', 'cannon-es'];
     const forms = [
-      "import React from 'react';",
-      "export { x } from '@/api/client';",
-      "const m = await import('aws-amplify');",
-      "const p = require('phaser');",
-      "type T = import('@aws-sdk/client-s3').S3Client;",
-      "import 'cannon-es';",
-    ];
+      (m: string) => `import React from '${m}';`,
+      (m: string) => `export { x } from '${m}';`,
+      (m: string) => `const m = await import('${m}');`,
+      (m: string) => `const p = require('${m}');`,
+      (m: string) => `type T = import('${m}').S3Client;`,
+      (m: string) => `import '${m}';`,
+    ].map((build, i) => build(forbidden[i]!));
     for (const form of forms) {
       expect(specifiers(form)).toHaveLength(1);
       const spec = specifiers(form)[0]!;

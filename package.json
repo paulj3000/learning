@@ -9,14 +9,14 @@
     "node": ">=22.0.0"
   },
   "workspaces": [
-    "react",
-    "game"
+    "game",
+    "react"
   ],
   "scripts": {
     "dev": "npm run dev -w react",
     "build": "npm run build -w react",
     "preview": "npm run preview -w react",
-    "typecheck": "npm run typecheck -w react && npm run typecheck -w game",
+    "typecheck": "npm run typecheck -w @lai/game-engine && npm run typecheck -w react",
     "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -38,7 +38,7 @@
     "infra:synth": "tsx infra/bin/app.ts",
     "infra:synth:dev": "LAI_ENV=dev tsx infra/bin/app.ts",
     "infra:synth:prod": "LAI_ENV=prod CDK_OUTDIR=infra/cdk.out/prod tsx infra/bin/app.ts",
-    "test:engine": "npm run test -w game",
+    "test:engine": "npm run test -w @lai/game-engine",
     "engine:scaffold": "tsx scripts/game-engine/scaffold-adventure.ts",
     "engine:validate": "tsx scripts/game-engine/validate-content.ts"
   },
