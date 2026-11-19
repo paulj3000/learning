@@ -51,6 +51,12 @@ export interface MovementSystemOptions {
    * events and their claims are that system's job, never movement's.
    */
   checkpoints?: { latest(): { id: string } | null };
+  /**
+   * Names what caused the recovery the controller just made (a hazard and the checkpoint it
+   * sent the child to), read once per `RECOVERED` so exactly one `PlayerRecovered` carries
+   * them. Absent or `null`: the latest checkpoint, no hazard.
+   */
+  recoveryDetails?: () => { checkpointId?: string | null; hazardId?: string | null } | null;
 }
 
 export type MovementRuntime = Pick<EngineRuntime<EnginePresentationEventMap>, 'world' | 'events' | 'systems'>;
@@ -102,9 +108,15 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
           case 'LANDED':
             events.emit('PlayerLanded', { impactSpeed: event.impactSpeed });
             break;
-          case 'RECOVERED':
-            events.emit('PlayerRecovered', { reason: event.reason, checkpointId: checkpoints?.latest()?.id ?? null });
+          case 'RECOVERED': {
+            const details = options.recoveryDetails?.() ?? null;
+            const checkpointId = details?.checkpointId !== undefined ? details.checkpointId : (checkpoints?.latest()?.id ?? null);
+            events.emit(
+              'PlayerRecovered',
+              details?.hazardId ? { reason: event.reason, checkpointId, hazardId: details.hazardId } : { reason: event.reason, checkpointId },
+            );
             break;
+          }
           case 'LAUNCHED':
             // A bounce needs the platform id; the platform component announces PlayerBounced.
             break;

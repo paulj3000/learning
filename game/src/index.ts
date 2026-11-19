@@ -18,3 +18,5 @@ export * from './character';
 export * from './movement';
 export * from './input';
 export * from './physics';
+export * from './engine';
+export * from './debug';
