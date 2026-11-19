@@ -308,6 +308,11 @@ describe('checkpoints, hazards and recovery', () => {
     const lava = { ...course, recoveryLead: 'Whoa, the lava is too hot!' };
     expect(recoveredText(lava, 'start')).toBe('Whoa, the lava is too hot! Back to the old dock. Have another go!');
     expect(recoveredText(lava, null)).toBe('Whoa, the lava is too hot! Back on solid ground. Have another go!');
+    // GE-073F: a hazard's own lead wins; any other hazard keeps the course lead.
+    const rocks = { ...lava, recoveryLeads: { 'summit-rocks': 'Bonk! A rock got you.' } };
+    expect(recoveredText(rocks, 'start', undefined, 'summit-rocks')).toBe('Bonk! A rock got you. Back to the old dock. Have another go!');
+    expect(recoveredText(rocks, 'start', undefined, 'lava')).toBe('Whoa, the lava is too hot! Back to the old dock. Have another go!');
+    expect(recoveredText(rocks, 'start', undefined, 'toString')).toBe('Whoa, the lava is too hot! Back to the old dock. Have another go!');
   });
 });
 
@@ -336,6 +341,14 @@ describe('platforming validation and staff tuning', () => {
     for (const recoveryLead of ['  ', 'x'.repeat(81)]) {
       const issues = validatePlatforming({ platforms: [dock()], recoveryLead }, context);
       expect(issues.map((i) => i.path)).toEqual(['platforming.recoveryLead']);
+    }
+  });
+
+  it('accepts short per-hazard leads and refuses an empty or long one (GE-073F)', () => {
+    expect(validatePlatforming({ platforms: [dock()], recoveryLeads: { rocks: 'Bonk! A rock got you.' } }, context)).toEqual([]);
+    for (const words of ['  ', 'x'.repeat(81)]) {
+      const issues = validatePlatforming({ platforms: [dock()], recoveryLeads: { rocks: words } }, context);
+      expect(issues.map((i) => i.path)).toEqual(['platforming.recoveryLeads.rocks']);
     }
   });
 

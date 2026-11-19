@@ -1,4 +1,5 @@
 import type { SoundCue } from '../soundCues';
+import type { HazardWarningCue } from './hazardWarnings';
 import {
   CUE_SOUNDS,
   ENTRY_AMBIENCE,
@@ -30,6 +31,8 @@ export interface RegionAudio {
   /** Engine checkpoint (`CourseCheckpointReached`) and recovery (`PlayerRecovered`) cues. */
   readonly checkpointCue: string;
   readonly recoverCue: string;
+  /** GE-073F: telegraphed hazard id -> the warning cue and the zone it is heard in. */
+  readonly hazardWarnings?: Readonly<Record<string, HazardWarningCue>>;
 }
 
 export const TREASURE_RUSH_REGION_ID = 'treasure-rush-cove';
@@ -52,6 +55,7 @@ export const FP_SOUND = {
   puzzleComplete: 'sfx.firepeak.puzzle_complete',
   checkpoint: 'sfx.firepeak.checkpoint',
   lavaRespawn: 'sfx.firepeak.lava_respawn',
+  rockRumble: 'sfx.firepeak.rock_rumble',
   restore: 'sfx.firepeak.restore',
   complete: 'sfx.firepeak.complete',
   npcGreet: 'voice.firepeak.npc_greet',
@@ -124,6 +128,10 @@ const FIREPEAK_AUDIO: RegionAudio = {
   momentSounds: FIREPEAK_MOMENT_SOUNDS,
   checkpointCue: FP_SOUND.checkpoint,
   recoverCue: FP_SOUND.lavaRespawn,
+  // The falling rocks on the optional summit hops (lai/apps/regions/firepeak_heart_layout.py).
+  hazardWarnings: Object.fromEntries(
+    ['fh-summit-rocks-1', 'fh-summit-rocks-2'].map((id) => [id, { cue: FP_SOUND.rockRumble, zoneId: 'firepeak-summit' }]),
+  ),
 };
 
 export const REGION_AUDIO: Readonly<Record<string, RegionAudio>> = {

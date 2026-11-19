@@ -93,6 +93,19 @@ def layout_problems(platforming, *, bounds: dict | None = None) -> list[str]:
         not isinstance(lead, str) or not lead.strip() or len(lead) > LIMITS["max_recovery_lead"]
     ):
         problems.append(f"platforming.recoveryLead: words, at most {LIMITS['max_recovery_lead']} characters")
+    # GE-073F: a line per hazard id (falling rocks are not "too hot"); recoveryLead is the rest.
+    leads = platforming.get("recoveryLeads")
+    if leads is not None:
+        if not isinstance(leads, dict) or len(leads) > LIMITS["max_platforms"]:
+            problems.append("platforming.recoveryLeads: a map of hazard id to words")
+        else:
+            for hazard_id, words in leads.items():
+                if not isinstance(hazard_id, str) or not ID.match(hazard_id):
+                    problems.append("platforming.recoveryLeads: keys are hazard ids")
+                elif not isinstance(words, str) or not words.strip() or len(words) > LIMITS["max_recovery_lead"]:
+                    problems.append(
+                        f"platforming.recoveryLeads.{hazard_id}: words, at most {LIMITS['max_recovery_lead']} characters"
+                    )
     platforms = platforming["platforms"]
     if len(platforms) > LIMITS["max_platforms"]:
         problems.append(f"platforming.platforms: at most {LIMITS['max_platforms']}")

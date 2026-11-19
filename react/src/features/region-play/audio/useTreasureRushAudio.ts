@@ -19,6 +19,7 @@ import type { WorldEngineEventBus } from '../../island-map/three/worldEngineEven
 import { setSoundSink, type SoundCue, type SoundPlace } from '../soundCues';
 import { createTreasureRushMusic } from './treasureRushMusic';
 import { regionAudioFor, type RegionAudio } from './regionAudio';
+import { listenHazardWarnings } from './hazardWarnings';
 import {
   FOOTSTEP_VOLUME,
   LANDING_SOUND_MIN_SPEED,
@@ -200,6 +201,7 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
       bus.on('CourseCheckpointReached', () => play(regionAudio.checkpointCue)),
       bus.on('PlayerRecovered', () => play(regionAudio.recoverCue)),
       bus.on('PlatformGoalReached', () => play(TR_SOUND.platformGoal)),
+      listenHazardWarnings(bus, play, regionAudio.hazardWarnings ?? {}),
     ];
     return () => {
       for (const off of offs) off();

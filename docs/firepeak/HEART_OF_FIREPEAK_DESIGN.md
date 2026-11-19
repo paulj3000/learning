@@ -327,9 +327,21 @@ list: `TREE`, `LOG`, `GEAR`, `SWITCH`, `ROCK`, `ARCH`. No binary is committed.
    not restored, the strip in front of the closed summit gate (where the two plumes stand) pushes a
    child gently back toward the Forge (`environment.volumes` force, 1.5 m/s, ramps in over 0.5 s,
    half strength under reduced motion). It turns off with the plumes when
-   `FIREPEAK_HEART_FORGE_RESTORED` arrives (`inactiveWhenSignalId`). Falling rocks on the optional
-   Summit jump route and crumble-then-fall for `fh-stone-vanish` are approved and wait for the
-   engine bridge to draw them (GE-066 part 2), so nothing invisible ships.
+   `FIREPEAK_HEART_FORGE_RESTORED` arrives (`inactiveWhenSignalId`).
+9. GE-073F (layout version 5, after GE-066 part 2 let the bridge draw them):
+   - Falling rocks on the optional summit hops only (`gameplay.hazards` telegraphed,
+     `fh-summit-rocks-1` and `-2`). They fall in the two gaps between the hops, never on a hop or
+     the stairs, so waiting on a hop is always safe. Each cycle is 4 s calm, a 2 s warning and
+     0.5 s falling. The warning is seen (the bridge fills a mark on the ground and drops a rock;
+     it stays steady under reduced motion) and heard (`sfx.firepeak.rock_rumble`, only while the
+     child is on the Summit). The two rocks are staggered, so one gap is always calm. A rock sends
+     the child to `fh-cp-summit` with its own line, "Oops, a pebble tumbled down!"
+     (`platforming.recoveryLeads`); the lava keeps "Whoa, the lava is too hot!".
+   - Crumble-then-fall: `fh-stone-vanish` moved from the live `vanish` platform to the engine's
+     `gameplay.platforms` (`allowEnginePlatforms`). Its timing is unchanged: 4 s whole after the
+     step, the last 1 s crumbling (blinking, or a steady dim under reduced motion), then falling
+     and gone for 2.5 s. Falling with it lands the child in the lava, the ordinary lava recovery.
+     It is the Heart's only engine platform; every other platform stays live until GE-076.
 
 ## 13. Storykeeper and Realm Explorer contracts
 

@@ -30,6 +30,11 @@ function host(config: { [key: string]: JsonValue }) {
   const frames = new Set<(dt: number) => void>();
   const teleports: { x: number; z: number }[] = [];
   const recovered: WorldEngineEventMap['PlayerRecovered'][] = [];
+  const telegraphs: { hazardId: string; phase: string; at: number }[] = [];
+  const platformPhases: WorldEngineEventMap['PlatformPhaseChanged'][] = [];
+  let clock = 0;
+  bus.on('HazardTelegraph', ({ hazardId, phase }) => telegraphs.push({ hazardId, phase, at: clock }));
+  bus.on('PlatformPhaseChanged', (event) => platformPhases.push(event));
   const reached: string[] = [];
   const environment: (EnvironmentQuery | null)[] = [];
   bus.on('PlayerRecovered', (event) => recovered.push(event));
@@ -52,14 +57,22 @@ function host(config: { [key: string]: JsonValue }) {
     },
     playerState: () => ({ ...player, position: { ...player.position } }),
     setEnvironment: (query) => environment.push(query),
+    carryPlayer(dx, dy, dz) {
+      player.position = { x: player.position.x + dx, y: player.position.y + dy, z: player.position.z + dz };
+    },
+    launchPlayer: () => undefined,
   };
-  const at = (x: number, y: number, z: number) => {
+  const at = (x: number, y: number, z: number, supportId: string | null = null) => {
     player.position = { x, y, z };
+    player.supportId = supportId;
   };
   const advance = (seconds: number) => {
-    for (let t = 0; t < seconds - 1e-9; t += 1 / 60) for (const frame of [...frames]) frame(1 / 60);
+    for (let t = 0; t < seconds - 1e-9; t += 1 / 60) {
+      for (const frame of [...frames]) frame(1 / 60);
+      clock += 1 / 60;
+    }
   };
-  return { value, teleports, recovered, reached, at, advance, environment };
+  return { value, teleports, recovered, reached, at, advance, environment, telegraphs, platformPhases };
 }
 
 describe('engine bridge progress helpers (GE-073)', () => {
@@ -82,7 +95,9 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     const fake = host(bridgeBlock());
     const mount = mountEngineBridge(fake.value);
     expect(mount.api.issues).toEqual([]);
-    expect(mount.api.support).toEqual({ playerState: true, setEnvironment: true });
+    // The support report grows by addition (GE-066 part 2 added scene and carryLaunch): compare
+    // only the members this Area relies on.
+    expect(mount.api.support).toMatchObject({ playerState: true, setEnvironment: true, carryLaunch: true });
     mount.dispose();
   });
 
@@ -153,6 +168,62 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     expect(query.forcesAt(0, 0.5, 20)).toEqual([]); // nowhere near the lava
     mount.api.setSignals(worldSignals(['FIREPEAK_HEART_FORGE_RESTORED']));
     expect(query.forcesAt(0, 0.5, -46.5)).toEqual([]);
+    mount.dispose();
+  });
+
+  it('falling rocks warn at least 1.5 s before they fall, only in the gaps, and send the child to the summit foot', () => {
+    const fake = host(bridgeBlock());
+    const mount = mountEngineBridge(fake.value);
+    mount.api.setSignals(worldSignals([KEYS.map, KEYS.emberwood, KEYS.bridge, 'FIREPEAK_HEART_FORGE_RESTORED']));
+    fake.at(9, 1.5, -59.2, 'fh-summit-hop-2'); // waiting on the middle hop: always safe
+    fake.advance(13);
+    expect(fake.recovered).toEqual([]);
+    for (const id of ['fh-summit-rocks-1', 'fh-summit-rocks-2']) {
+      const mine = fake.telegraphs.filter((t) => t.hazardId === id);
+      const warn = mine.find((t) => t.phase === 'WARN')!;
+      const active = mine.find((t) => t.phase === 'ACTIVE' && t.at > warn.at)!;
+      expect(active.at - warn.at).toBeGreaterThanOrEqual(1.5 - 1e-6);
+    }
+    // Never both rocks at once: whenever one is falling, the other is calm.
+    const falling = new Set<string>();
+    for (const t of fake.telegraphs) {
+      if (t.phase === 'ACTIVE') falling.add(t.hazardId);
+      else falling.delete(t.hazardId);
+      expect(falling.size).toBeLessThanOrEqual(1);
+    }
+    // In the first gap while its rock falls (its cycle is 4 s calm, 2 s warning, 0.5 s falling:
+    // 13 s in is the start of a calm, so it falls 6 to 6.5 s later): back to the summit foot.
+    fake.at(9, 0.8, -57.8);
+    fake.advance(5.9);
+    expect(fake.recovered).toEqual([]);
+    fake.advance(0.3);
+    expect(fake.recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'fh-cp-summit', hazardId: 'fh-summit-rocks-1' }]);
+    expect(fake.teleports.at(-1)).toEqual({ x: 0, z: -51.5 });
+    mount.dispose();
+  });
+
+  it('the crumbling stone holds 4 s after the child steps on, crumbles for the last 1 s, falls into the lava and comes back', () => {
+    const fake = host(bridgeBlock());
+    const mount = mountEngineBridge(fake.value);
+    mount.api.setSignals(worldSignals([KEYS.map, KEYS.emberwood]));
+    fake.at(0, 0, 34.5); // the near bank: the lava's checkpoint
+    fake.advance(0.2);
+    fake.advance(10); // untouched, it never crumbles (STAND)
+    expect(fake.platformPhases.filter((e) => e.platformId === 'fh-stone-vanish')).toEqual([]);
+    fake.at(18, 0.5, 18.8, 'engine:fh-stone-vanish');
+    fake.advance(2.9);
+    expect(fake.recovered).toEqual([]);
+    expect(fake.platformPhases.filter((e) => e.platformId === 'fh-stone-vanish')).toEqual([]);
+    fake.advance(0.3); // 3.2 s: crumbling, still standing
+    expect(fake.platformPhases.map((e) => e.phase)).toContain('CRUMBLING');
+    expect(fake.recovered).toEqual([]);
+    fake.advance(1.0); // 4.2 s: it falls; the child drops into the lava
+    expect(fake.platformPhases.map((e) => e.phase)).toEqual(expect.arrayContaining(['CRUMBLING', 'FALLING']));
+    fake.at(18, 0, 18.8);
+    fake.advance(0.2);
+    expect(fake.recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'fh-cp-lava-near', hazardId: 'fh-lava-hazard' }]);
+    fake.advance(4); // gone 2.5 s, then back
+    expect(fake.platformPhases.at(-1)?.phase).toBe('STABLE');
     mount.dispose();
   });
 });

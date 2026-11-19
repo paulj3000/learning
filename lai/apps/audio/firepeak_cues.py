@@ -105,6 +105,15 @@ FIREPEAK_CUES: tuple[CueSpec, ...] = (
         cooldown_ms=400,
     ),
     _sfx(
+        "rock_rumble",
+        "Falling rocks warning",
+        "A low rumble and small pebbles at the start of the falling-rock warning on the optional"
+        " summit hops, heard only on the Summit. Soft, never alarming; the warning lasts at least 1.5 s.",
+        wired=True,
+        cooldown_ms=1000,
+        max_concurrent=1,
+    ),
+    _sfx(
         "restore",
         "Heart restored",
         "The Heart relights: a swelling glow.",

@@ -33,7 +33,9 @@ QUEST_ID = "the-heart-of-firepeak"
 # 3: one checkpoint list and the lava hazard in scene.engineBridge (GE-073); the platforming and
 #    effects checkpoint lists and the platforming hazard are gone.
 # 4: the Forge steam push (environment.volumes), off once the Forge is restored (GE-073).
-HEART_VERSION = 4
+# 5: falling rocks on the optional summit hops (telegraphed hazards) and the crumbling lava stone
+#    on the engine's gameplay.platforms (crumble then fall); platforming.recoveryLeads (GE-073F).
+HEART_VERSION = 5
 FACING_NORTH_TO_SOUTH = math.pi  # forward is (sin yaw, cos yaw); the route runs toward -z
 
 BOUNDS = {"halfExtentX": 32, "halfExtentZ": 96, "wallThickness": 1}
@@ -260,6 +262,40 @@ OPTIONAL_ROUTES = [
 ]
 
 
+def _lava_stone_boxes() -> dict[str, dict]:
+    """The advanced route's stones east of the bridge, in order (tops 0.5 m, gaps 1.2 m)."""
+    stone_x = 18.0
+    gap = 1.2
+    edge = LAVA["maxZ"]
+    out: dict[str, dict] = {}
+    for pid, depth in (
+        ("fh-stone-1", 1.6),
+        ("fh-stone-2", 1.6),
+        ("fh-stone-islet", 2.4),
+        (CRUMBLE_STONE_ID, 1.6),
+        ("fh-stone-5", 1.6),
+    ):
+        far_edge = edge - gap
+        centre = far_edge - depth / 2
+        width = 2.4 if pid == "fh-stone-islet" else 1.6
+        out[pid] = _box(pid, stone_x, round(centre, 3), width, 0.5, depth, color=ROCK)
+        edge = far_edge - depth
+    return out
+
+
+# The one stone that crumbles a while after the child steps on it, then falls into the lava and
+# comes back (GE-073F). Same timing as the live `vanish` it replaces: 4 s whole after the child
+# steps on (the last 1 s is the crumble warning), gone 2.5 s. Optional route only.
+CRUMBLE_STONE_ID = "fh-stone-vanish"
+CRUMBLE = {"mode": "STAND", "visibleSeconds": 4, "hiddenSeconds": 2.5, "warningSeconds": 1, "fallSeconds": 0.6}
+_LAVA_STONES = _lava_stone_boxes()
+
+# The optional summit hops up the east side (0.5 m rises, 1.2 m gaps): (centre z, top).
+SUMMIT_HOP_X = 9.0
+SUMMIT_HOP_SIZE = 1.6
+SUMMIT_HOPS = ((-56.4, 0.5), (-59.2, 1.0), (-62.0, 1.5))
+
+
 def platforms() -> list[dict]:
     out: list[dict] = []
     # Lava Crossing: a wide basalt bridge appears when the numbers puzzle is solved. Top 0.2 m, so
@@ -277,26 +313,9 @@ def platforms() -> list[dict]:
             activation={"trigger": "SIGNAL", "source": f"world:{K['bridge']}", "hiddenUntilActive": True},
         )
     )
-    # Optional advanced route: stones east of the bridge (tops 0.5 m, gaps 1.2 m).
-    stone_x = 18.0
-    gap = 1.2
-    edge = LAVA["maxZ"]
-    for pid, depth, extra in (
-        ("fh-stone-1", 1.6, {}),
-        ("fh-stone-2", 1.6, {}),
-        ("fh-stone-islet", 2.4, {}),
-        (
-            "fh-stone-vanish",
-            1.6,
-            {"vanish": {"mode": "STAND", "visibleSeconds": 4, "hiddenSeconds": 2.5, "warningSeconds": 1}},
-        ),
-        ("fh-stone-5", 1.6, {}),
-    ):
-        far_edge = edge - gap
-        centre = far_edge - depth / 2
-        width = 2.4 if pid == "fh-stone-islet" else 1.6
-        out.append(_box(pid, stone_x, round(centre, 3), width, 0.5, depth, color=ROCK, **extra))
-        edge = far_edge - depth
+    # Optional advanced route: stones east of the bridge (tops 0.5 m, gaps 1.2 m). The crumbling
+    # stone runs in the engine (engine_bridge, gameplay.platforms), not here.
+    out += [box for pid, box in _LAVA_STONES.items() if pid != CRUMBLE_STONE_ID]
     # Crystal Caverns: an elevated ledge with a stair alternative (0.2 m rises).
     out.append(_box("fh-cavern-ledge", -10.4, -19.0, 4.8, 1.0, 5.0, color=STONE_TOP))
     steps = _stairs("fh-cavern-step", -10.4, -16.5, +1, 4, 0.2, 0.2, 0.8, 3.8)
@@ -327,8 +346,8 @@ def platforms() -> list[dict]:
         step["size"]["height"] = top
     out += down
     # Optional jump route up the east side (0.5 m hops, 1.2 m gaps).
-    for index, (z, top) in enumerate(((-56.4, 0.5), (-59.2, 1.0), (-62.0, 1.5)), start=1):
-        out.append(_box(f"fh-summit-hop-{index}", 9.0, z, 1.6, top, 1.6, color=ROCK))
+    for index, (z, top) in enumerate(SUMMIT_HOPS, start=1):
+        out.append(_box(f"fh-summit-hop-{index}", SUMMIT_HOP_X, z, SUMMIT_HOP_SIZE, top, SUMMIT_HOP_SIZE, color=ROCK))
     # One optional moving platform: a shuttle to a lookout ledge on the west side.
     out.append(
         _box(
@@ -369,6 +388,8 @@ def platforming() -> dict:
         "platforms": platforms(),
         # Said first when the lava hazard puts the child back (the engine adds the checkpoint).
         "recoveryLead": "Whoa, the lava is too hot!",
+        # A falling rock is not hot: its own words (GE-073F).
+        "recoveryLeads": {rock["id"]: ROCK_RECOVERY_LEAD for rock in summit_rocks()},
         "zones": zones(),
     }
 
@@ -408,10 +429,73 @@ STEAM_PUSH = {
 STEAM_PUSH_STRENGTH = 1.5  # m/s added toward +z (back into the Forge); walking still wins
 
 
+ROCK_RECOVERY_LEAD = "Oops, a pebble tumbled down!"
+
+
+def summit_rocks() -> list[dict]:
+    """Falling rocks over the two gaps between the optional summit hops (GE-073F).
+
+    Optional route only: the stairs at x 0 never see a rock. Each falls on a fixed cycle of 4 s
+    calm, a 2 s warning the child sees (the engine fills a mark on the ground and drops a rock)
+    and hears (`sfx.firepeak.rock_rumble`, Summit only), then 0.5 s of falling; the two are
+    staggered so one gap is always calm. A rock sends the child to the foot of the summit; nothing
+    is lost. Waiting on a hop is always safe: the impact areas are the gaps, not the hops.
+    """
+    half = SUMMIT_HOP_SIZE / 2
+    rocks = []
+    for index, (near, far) in enumerate(zip(SUMMIT_HOPS, SUMMIT_HOPS[1:]), start=1):
+        rocks.append(
+            {
+                "id": f"fh-summit-rocks-{index}",
+                "kind": "FALLING_ROCK",
+                "rect": {
+                    "minX": SUMMIT_HOP_X - half,
+                    "maxX": SUMMIT_HOP_X + half,
+                    "minZ": round(far[0] + half, 3),
+                    "maxZ": round(near[0] - half, 3),
+                },
+                "route": "OPTIONAL",
+                "checkpointId": "fh-cp-summit",
+                "messageKey": "hazard.rock.falling",
+                "telegraphSeconds": ROCK_WARNING_SECONDS,
+                "activeSeconds": 0.5,
+                "restSeconds": 4.0,
+                "offsetSeconds": 3.0 * (index - 1),
+            }
+        )
+    return rocks
+
+
+ROCK_WARNING_SECONDS = 2.0  # at least 1.5 s (engine minimum, the jumping standard)
+
+
+def engine_platforms() -> list[dict]:
+    """The crumbling lava stone, in the engine's platform shape (bottom centre and size)."""
+    box = _LAVA_STONES[CRUMBLE_STONE_ID]
+    size = box["size"]
+    return [
+        {
+            "id": CRUMBLE_STONE_ID,
+            "position": dict(box["position"]),
+            "size": {"x": size["width"], "y": size["height"], "z": size["depth"]},
+            "route": "OPTIONAL",
+            "falling": dict(CRUMBLE),
+        }
+    ]
+
+
+def route_platform_boxes() -> dict[str, dict]:
+    """Every platform a route test walks or hops, by id: the live ones and the engine stone."""
+    return {**{p["id"]: p for p in platforms()}, CRUMBLE_STONE_ID: _LAVA_STONES[CRUMBLE_STONE_ID]}
+
+
 def engine_bridge() -> dict:
     lava = {"minX": LAVA["minX"], "maxX": LAVA["maxX"], "minZ": LAVA["minZ"], "maxZ": LAVA["maxZ"]}
     push = STEAM_PUSH
+    rocks = summit_rocks()
     return {
+        # The crumbling stone is the Heart's one engine platform; every other platform stays live.
+        "allowEnginePlatforms": True,
         "capabilities": [
             {
                 "id": "gameplay.checkpoints",
@@ -431,9 +515,10 @@ def engine_bridge() -> dict:
                             "messageKey": "hazard.lava.tooHot",
                         }
                     ],
-                    "telegraphed": [],
+                    "telegraphed": rocks,
                 },
             },
+            {"id": "gameplay.platforms", "config": {"platforms": engine_platforms()}},
             {
                 "id": "environment.volumes",
                 "config": {
@@ -453,7 +538,7 @@ def engine_bridge() -> dict:
                             "neverPushIntoHazard": True,
                         }
                     ],
-                    "hazardRects": [lava],
+                    "hazardRects": [lava, *(rock["rect"] for rock in rocks)],
                 },
             },
         ]
