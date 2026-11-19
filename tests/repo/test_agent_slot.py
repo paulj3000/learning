@@ -145,3 +145,52 @@ def test_settings_keep_loopback_host():
     assert settings.DATABASES["default"]["HOST"] == "127.0.0.1"
     # Whatever slot this worktree uses, the pytest database is test_<POSTGRES_DB>.
     assert settings.DATABASES["default"]["NAME"] == os.environ.get("POSTGRES_DB", "lai")
+
+
+# --- borrowed node_modules -------------------------------------------------------------------
+
+
+def _worktree(path: Path, lock: str) -> Path:
+    path.mkdir(parents=True)
+    (path / "package-lock.json").write_text(lock)
+    return path
+
+
+def test_own_node_modules_is_fine(tmp_path):
+    root = _worktree(tmp_path / "mine", "a")
+    (root / "node_modules" / "three").mkdir(parents=True)
+    assert slot.borrowed_node_modules(root) == []
+
+
+def test_symlinked_node_modules_dir_warns_and_compares_lockfiles(tmp_path):
+    other = _worktree(tmp_path / "storybook", "lock-v1")
+    (other / "node_modules").mkdir()
+    root = _worktree(tmp_path / "sc-final-d", "lock-v2")
+    (root / "node_modules").symlink_to(other / "node_modules")
+    warnings = slot.borrowed_node_modules(root)
+    assert any("is a symlink to" in w and "storybook" in w for w in warnings)
+    assert any("package-lock.json differs" in w for w in warnings)
+
+
+def test_symlink_farm_with_same_lockfile_warns_once(tmp_path):
+    other = _worktree(tmp_path / "storybook", "same")
+    root = _worktree(tmp_path / "firepeak", "same")
+    (root / "node_modules").mkdir()
+    for i in range(25):
+        (other / "node_modules" / f"pkg{i}").mkdir(parents=True)
+        (root / "node_modules" / f"pkg{i}").symlink_to(other / "node_modules" / f"pkg{i}")
+    # A workspace link back into this worktree (for example @lai/game-engine -> ../../game) is fine.
+    (root / "game").mkdir()
+    (root / "node_modules" / "game-engine").symlink_to(root / "game")
+    warnings = slot.borrowed_node_modules(root)
+    assert len(warnings) == 1
+    assert "links 25 packages into" in warnings[0]
+
+
+def test_a_few_links_are_not_a_farm(tmp_path):
+    other = _worktree(tmp_path / "other", "x")
+    root = _worktree(tmp_path / "mine", "x")
+    (root / "node_modules").mkdir()
+    (other / "node_modules" / "one").mkdir(parents=True)
+    (root / "node_modules" / "one").symlink_to(other / "node_modules" / "one")
+    assert slot.borrowed_node_modules(root) == []

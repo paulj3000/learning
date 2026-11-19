@@ -199,7 +199,55 @@ def preflight(root: Path, probe=port_free) -> tuple[list[str], list[str]]:
     for path, hint in ((root / "node_modules", "npm ci"), (root / ".venv", "make py-install")):
         if not path.exists():
             warnings.append(f"{path.name} missing: run `{hint}` in this worktree")
+    warnings.extend(borrowed_node_modules(root))
     return errors, warnings
+
+
+def _owning_worktree(target: Path) -> Path | None:
+    """The worktree root (directory holding package-lock.json) that a node_modules path lives in."""
+    for candidate in (target, *target.parents):
+        if candidate.name == "node_modules":
+            return candidate.parent
+    return None
+
+
+def borrowed_node_modules(root: Path, min_links: int = 20) -> list[str]:
+    """Warn when node_modules is borrowed from another worktree (LAI-ENG-002, 2026-11-19).
+
+    Seen when the disk filled: a worktree's node_modules was a symlink, or a directory of
+    symlinks, into another worktree's install. That other worktree's `npm ci` then deletes this
+    worktree's dependencies mid-run, and a different lockfile means the wrong versions are tested.
+    """
+    modules = root / "node_modules"
+    if not modules.exists():
+        return []
+    sources: dict[Path, int] = {}
+    if modules.is_symlink():
+        owner = _owning_worktree(modules.resolve())
+        if owner:
+            sources[owner] = 1
+    else:
+        for entry in modules.iterdir():
+            if entry.is_symlink():
+                owner = _owning_worktree(entry.resolve())
+                if owner and owner != root.resolve():
+                    sources[owner] = sources.get(owner, 0) + 1
+    out = []
+    for owner, count in sorted(sources.items()):
+        if not modules.is_symlink() and count < min_links:
+            continue
+        how = "is a symlink to" if modules.is_symlink() else f"links {count} packages into"
+        out.append(
+            f"node_modules {how} {owner}/node_modules: an `npm ci` there removes them here. "
+            "Run `npm ci` in this worktree when disk allows"
+        )
+        ours, theirs = root / "package-lock.json", owner / "package-lock.json"
+        if ours.exists() and theirs.exists() and ours.read_bytes() != theirs.read_bytes():
+            out.append(
+                f"package-lock.json differs from {owner.name}'s: the borrowed node_modules does "
+                "not match this branch's dependencies, so test results here are not reliable"
+            )
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

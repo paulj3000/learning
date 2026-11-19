@@ -142,7 +142,7 @@ Shared-cache review (2026-11-19). Nothing found needs a change:
 | Cache or shared state | Scope | Safe for concurrent agents? |
 |---|---|---|
 | Vitest and Vite caches (`node_modules/.vite`), TypeScript build info (`node_modules/.tmp`) | Per worktree | Yes |
-| `node_modules`, `.venv` | Per worktree (about 630 MB each) | Yes; never share or symlink them. Disk is not the bottleneck |
+| `node_modules`, `.venv` | Per worktree (about 633 MB of `node_modules` each) | Yes, when each worktree has its own. **Borrowed `node_modules` is not safe** (see below) |
 | Test temporary files | Tests use `mkdtemp` / `tmp_path`; no fixed `/tmp` paths found in `react/src`, `game/src`, `tests`, `lai`, `server`, `infra` | Yes |
 | pytest `tmp_path` base (`/tmp/pytest-of-<user>`) | Per user | Yes: pytest locks numbered directories before cleanup |
 | pytest cache | Disabled (`-p no:cacheprovider`) | Yes |
@@ -150,6 +150,21 @@ Shared-cache review (2026-11-19). Nothing found needs a change:
 | PostgreSQL | Per worktree container and volume, per-slot port and database | Yes, with a slot |
 | Docker | Compose project per worktree directory | Yes; never prune or remove another project's containers or volumes |
 | git stash | **Shared by every worktree** | No: never use bare `git stash`; use a WIP commit |
+
+**Disk.** `/Coding` is 30 GB. With about ten full worktrees (633 MB of `node_modules` each, plus
+`.venv`, PostgreSQL volumes and build output) it reached 99% on 2026-11-19, and `npm install`
+failed with ENOSPC. To keep working, some worktrees symlinked their `node_modules`, or every package
+in it, into the Storykeeper install. That has two failure modes, which `make agent-check` now reports:
+
+- an `npm ci` in the source worktree deletes the borrowed dependencies under the other worktree's
+  running tests;
+- if the lockfiles differ, the borrowing worktree tests against the wrong dependency versions. This
+  was the case for `sc-final-d` against `storybook` on 2026-11-19.
+
+Rules: run `npm ci` in your own worktree. If the disk is too full to do so, report it to the owner as
+infrastructure instead of borrowing. Only the owner removes the `node_modules` of idle worktrees, or
+deletes worktrees. A shared package store (for example pnpm) would remove the duplication, but it is
+a new tool and needs an owner decision.
 
 Other resource rules:
 
