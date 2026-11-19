@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>A correction is a new ledger entry that reverses what remains of each selected award. The
+original award stays in the ledger for audit. Corrections repair defects only; they are never a
+consequence of anything a child did.</p>
+<ul>
+  {% for entry in entries %}
+    <li>{{ entry.amount }} {{ entry.currency }} for {{ entry.source_kind }} {{ entry.source_ref }} (policy v{{ entry.policy_version }})</li>
+  {% empty %}
+    <li>No awards selected (corrections cannot themselves be corrected).</li>
+  {% endfor %}
+</ul>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  {% for entry in entries %}<input type="hidden" name="_selected_action" value="{{ entry.pk }}">{% endfor %}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="apply" value="1">
+  <input type="submit" value="Record corrections">
+</form>
+{% endblock %}
