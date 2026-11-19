@@ -1071,6 +1071,28 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       worlds 208 files, 2517 passed on the work branch; after merging with SC-SEC-01, island-map/three and
       great-storybook 149 files, 1905 passed; `tsc --noEmit` app and node clean. Owner acceptance: play
       each adventure once by jumping and once without, and check Sprouts see flat markers.
+- [x] **SC-JMP-01, SC-JMP-02** Shared movement and collisions in every castle room (2026-11-18, branch
+      `feature/storykeeper-castle-completion`). DONE (development) for the shared runtime on this branch, not
+      owner accepted. `castleEngineProfile.ts` is the castle's one statement of what it asks of the shared engine
+      (movement, indoor camera, flat floors, no jumpable walls, position-only recovery); the manifest reads it,
+      values unchanged. `castleMovementAudit.engine.test.ts` (12 tests, mutation-checked): every room in both
+      worlds, sprint and jump into walls, jump apex, every open doorway both ways with and without a jump, the
+      third-person camera, recovery, animation states. No castle movement or physics code. Re-run on the Game
+      Engine Core when it exists. Audit: `docs/regions/storykeeper_castle_engine_integration.md`.
+- [x] **SC-JMP-18** Age-band movement (same branch). DONE (development): `CASTLE_MOVEMENT_BY_BAND`, checked
+      against the band manifests (Sprouts flat markers, tops at most 0.5 m, no hazards, timers or moving
+      surfaces, card equivalence, pad dwell). No new setting. Owner: Sprouts playtest (SC-R11-02).
+- [x] **SC-JMP-09** Jumping in the existing five adventures: DONE (development) by SC-JMP above; Trello was stale.
+- [~] **SC-JMP-06** Movement tutorial. PREPARED: `castleMovementTutorial.ts`, a pure, optional, skippable,
+      timer-free reducer over engine events (7 tests). Not shown anywhere: placement (no courtyard exists; Entry
+      Hall proposed) and assisted mode (spec and ADR) need the owner.
+- [~] **SC-JMP-08** Story fragments and progression. PREPARED: `great-storybook/castleScoringSources.ts`
+      names the castle's records as typed, idempotent, points-free events for GE-100 (18 tests); fragments are
+      the existing pages. Fragment currency stays a proposal.
+- [~] **SC-JMP-20** Movement acceptance. Unit part done: the audit above, `castleEngineProfile.test.ts` (16),
+      `castleSaveContract.test.ts` (7, every persisted castle id). Browser and device acceptance stay owner
+      (SC-R12-01). SC-JMP-04, 05 wait on the engine core (Agent 4); SC-JMP-07, 10 to 17 on owner briefs;
+      SC-JMP-19 on LAI-0805.
 - [x] **SC-R05-01** Keeper Quill reconcile (branch `work/sc-r05` from `c81ee466`, commit `93067018`). DONE (development),
       not owner accepted. `quill_content.py` gains the SC-R04 lines it lacked: `storybook-restored`
       (`WORLD_CHANGE GREAT_STORYBOOK_RESTORED`, once, priority 40) and `the-damaged-book` (premise:

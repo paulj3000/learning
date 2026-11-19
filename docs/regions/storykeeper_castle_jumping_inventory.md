@@ -2,7 +2,7 @@
 
 Status: implemented. Owner rule: jumping is **not** a separate adventure category. Every primary castle adventure has meaningful jumping through the **shared platforms runtime** (`react/src/features/island-map/three/platforms/*`; ADR-055 to ADR-059, `docs/PLATFORMING.md`, `docs/PLAYER_MOVEMENT_AND_JUMPING.md`). There is no new movement engine and no castle-specific physics. Learning stays primary: a child can finish every adventure and show mastery without jumping once.
 
-Preparation audit: `docs/regions/prep/jumping_prep.md`. Contracts it extends: `docs/regions/storykeeper_castle_contracts.md` (C-2 claims, C-3 HUD equivalence).
+Preparation audit: `docs/regions/prep/jumping_prep.md`. Engine integration audit (per room, every movement criterion) and migration plan: `docs/regions/storykeeper_castle_engine_integration.md`. Contracts it extends: `docs/regions/storykeeper_castle_contracts.md` (C-2 claims, C-3 HUD equivalence).
 
 ## 1. The rules every platform keeps
 

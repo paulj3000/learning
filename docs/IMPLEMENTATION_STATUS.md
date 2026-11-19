@@ -37,6 +37,17 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## Storykeeper Castle: shared engine integration prep (SC-JMP-01, 02, 06, 08, 18, 20; 2026-11-18, `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged
+
+- `main` (ADR-072 standards) merged into the branch at `2786f2b2`; conflicts in `Makefile`, `docs/DECISIONS.md` and this file resolved (registry union; branch castle sections kept; main's retired-backend removals kept).
+- `react/src/features/island-map/three/castleEngineProfile.ts`: the castle's movement, camera, recovery and per-band movement as data. The manifest reads movement and camera from it; values are unchanged. No castle movement or physics code exists or was added.
+- `runtime/manifests/castleMovementAudit.engine.test.ts`: per-room audit on the real shared runtime (walls, apex, doorways, camera, recovery, animation states), both worlds; mutation-checked.
+- `castleMovementTutorial.ts`: optional tutorial reducer over engine events; not shown in the world (owner decision on placement).
+- `great-storybook/castleScoringSources.ts`: points-free, idempotent scoring source catalog for GE-100. `castleSaveContract.test.ts` pins every persisted castle id.
+- Audit and migration plan: `docs/regions/storykeeper_castle_engine_integration.md`. The Game Engine Core and Realm SDK do not exist yet (`core/gameengine` and `core/ge-scoring` equal `main`), so migration is blocked on Agent 4 and Agent 6.
+
+Evidence: Vitest, castle manifests, engine, castle and great-storybook suites 61 files, 919 passed after the manifest change; new suites 12 + 16 + 7 + 18 + 7 passed; `npm run typecheck` clean; content:check, golden:check, adr:check and `make docs-check` pass. Not run: browser, WebGL, Playwright, full suites, lint, full format check.
+
 ## Engineering standards and multi-agent governance (ADR-072, Accepted) — documentation and `make docs-check` added; ADR-072 Accepted by the owner (2026-11-18)
 
 Documentation only; no application behaviour,
