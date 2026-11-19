@@ -17,7 +17,16 @@ sys.modules["test_gate"] = gate  # dataclasses resolve the module by name
 _SPEC.loader.exec_module(gate)
 
 # End-to-end runs must not depend on the host's real load: the gate would rightly make them wait.
-NO_PRESSURE = ["--max-load", "1000", "--min-mem-mb", "0", "--max-wait", "0"]
+NO_PRESSURE = [
+    "--max-load",
+    "1000",
+    "--min-mem-mb",
+    "0",
+    "--max-cpu-pressure",
+    "100",
+    "--max-wait",
+    "0",
+]
 
 
 @pytest.mark.parametrize("cpus, capacity", [(1, 1), (2, 1), (4, 2), (8, 4), (16, 8)])
@@ -90,7 +99,7 @@ class FakeClock:
         self.now += seconds
 
 
-def _admit(tmp_path, *, loads, mem=4096, max_wait=60, weight=1, slots=None):
+def _admit(tmp_path, *, loads, mem=4096, psi=None, max_wait=60, weight=1, slots=None):
     clock = FakeClock()
     loads = iter(loads)
     last = [0.0]
@@ -112,6 +121,8 @@ def _admit(tmp_path, *, loads, mem=4096, max_wait=60, weight=1, slots=None):
         sleep=clock.sleep,
         load=load,
         mem=lambda: mem,
+        psi=lambda: psi,
+        max_cpu_pressure=50.0,
         say=messages.append,
     )
     return slots, waited, forced, messages
@@ -258,3 +269,27 @@ def test_worktree_root_is_the_git_top_level(tmp_path):
     (tmp_path / ".git").write_text("gitdir: elsewhere\n")  # a linked worktree has a .git file
     (tmp_path / "react" / "src").mkdir(parents=True)
     assert gate.worktree_root(tmp_path / "react" / "src") == tmp_path
+
+
+def test_waits_for_cpu_pressure(tmp_path):
+    _, _, forced, messages = _admit(tmp_path, loads=[1.0], psi=72.0, max_wait=4)
+    assert forced is True
+    assert "CPU pressure 72% > 50%" in messages[0]
+
+
+def test_low_cpu_pressure_admits(tmp_path):
+    slots, waited, forced, _ = _admit(tmp_path, loads=[1.0], psi=10.0)
+    assert (waited, forced) == (0.0, False)
+    slots.release()
+
+
+def test_cpu_pressure_parses_psi(tmp_path):
+    psi = tmp_path / "cpu"
+    psi.write_text(
+        "some avg10=30.12 avg60=21.60 avg300=20.18 total=4590284183\n"
+        "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+    )
+    assert gate.cpu_pressure(psi) == 30.12
+    assert gate.cpu_pressure(tmp_path / "missing") is None
+    (tmp_path / "bad").write_text("garbage\n")
+    assert gate.cpu_pressure(tmp_path / "bad") is None

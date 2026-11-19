@@ -15,7 +15,8 @@ timeouts would hide that; this gate prevents the overload instead:
 - **Workers.** Vitest commands get ``--maxWorkers`` = cores / capacity (at least 1) unless the
   command already sets it. The total worker count stays at or below the core count.
 - **Pressure.** Before starting, wait while the 1-minute load is above ``--max-load`` (default
-  1.5 x cores) or available memory is below ``--min-mem-mb`` (default 1024). After
+  1.5 x cores), CPU pressure (Linux PSI ``some avg10``) is above ``--max-cpu-pressure`` (default
+  50%), or available memory is below ``--min-mem-mb`` (default 1024). After
   ``--max-wait`` seconds it starts anyway with one worker and says so: never a silent hang.
 - **Monitoring.** Samples load, available memory and the run's process-tree CPU and RSS every
   two seconds; prints a summary and appends one JSON line per run to the shared log
@@ -88,6 +89,24 @@ def load_1m() -> float:
         return os.getloadavg()[0]
     except OSError:
         return 0.0
+
+
+def cpu_pressure(path: Path = Path("/proc/pressure/cpu")) -> float | None:
+    """Linux PSI: percent of the last 10 s in which some task waited for a CPU.
+
+    Reacts within seconds, where the 1-minute load average smooths a burst away. A burst that
+    hits two back-to-back runs equally (seen on 2026-11-19, defect ijhrYTi4) is visible here and
+    not in the load average. None where PSI is unavailable.
+    """
+    try:
+        for line in path.read_text().splitlines():
+            if line.startswith("some "):
+                for part in line.split()[1:]:
+                    if part.startswith("avg10="):
+                        return float(part.split("=", 1)[1])
+    except (OSError, ValueError):
+        return None
+    return None
 
 
 def mem_available_mb(meminfo: Path = Path("/proc/meminfo")) -> int | None:
@@ -200,6 +219,7 @@ class RunRecord:
     peak_rss_mb: int = 0
     cpu_s: float = 0.0
     peak_load: float = 0.0
+    peak_cpu_pressure: float | None = None
     min_mem_available_mb: int | None = None
     exit_code: int | None = None
     signal: str | None = None
@@ -216,10 +236,12 @@ def wait_for_admission(
     max_load: float,
     min_mem_mb: int,
     max_wait: float,
+    max_cpu_pressure: float = 100.0,
     clock=time.monotonic,
     sleep=time.sleep,
     load=load_1m,
     mem=mem_available_mb,
+    psi=cpu_pressure,
     say=print,
 ) -> tuple[float, bool]:
     """Block until slots are held and the host has headroom. Returns (waited, forced)."""
@@ -233,6 +255,9 @@ def wait_for_admission(
             pressure.append(f"load {current_load:.1f} > {max_load:.1f}")
         if available is not None and available < min_mem_mb:
             pressure.append(f"available memory {available} MB < {min_mem_mb} MB")
+        stalled = psi()
+        if stalled is not None and stalled > max_cpu_pressure:
+            pressure.append(f"CPU pressure {stalled:.0f}% > {max_cpu_pressure:.0f}%")
         if not pressure and slots.try_acquire(weight, label):
             return waited, False
         if waited >= max_wait:
@@ -272,6 +297,7 @@ def run(args: argparse.Namespace) -> int:
         max_load=args.max_load if args.max_load is not None else 1.5 * cpus,
         min_mem_mb=args.min_mem_mb,
         max_wait=args.max_wait,
+        max_cpu_pressure=args.max_cpu_pressure,
     )
     record.waited_s, record.forced_start = round(waited, 1), forced
     held = len(slots.held)
@@ -297,6 +323,9 @@ def run(args: argparse.Namespace) -> int:
             record.peak_rss_mb = max(record.peak_rss_mb, rss)
             record.cpu_s = max(record.cpu_s, round(cpu, 1))
             record.peak_load = max(record.peak_load, round(load_1m(), 2))
+            stalled = cpu_pressure()
+            if stalled is not None:
+                record.peak_cpu_pressure = max(record.peak_cpu_pressure or 0.0, stalled)
             available = mem_available_mb()
             if available is not None:
                 current = record.min_mem_available_mb
@@ -322,7 +351,8 @@ def run(args: argparse.Namespace) -> int:
     write_record(state, record)
     print(
         f"test_gate: exit {code} in {record.duration_s}s; peak RSS {record.peak_rss_mb} MB, "
-        f"peak load {record.peak_load}, min available memory {record.min_mem_available_mb} MB"
+        f"peak load {record.peak_load}, peak CPU pressure {record.peak_cpu_pressure}%, "
+        f"min available memory {record.min_mem_available_mb} MB"
     )
     if record.signal:
         print(
@@ -345,7 +375,10 @@ def status(args: argparse.Namespace) -> int:
     capacity = args.capacity or default_capacity(cpus)
     slots = Slots(args.state_dir / "slots", capacity)
     available = mem_available_mb()
-    print(f"host: {cpus} cores, load {load_1m():.2f}, available memory {available} MB")
+    print(
+        f"host: {cpus} cores, load {load_1m():.2f}, CPU pressure {cpu_pressure()}% (10 s), "
+        f"available memory {available} MB"
+    )
     print(f"capacity: {capacity} suite(s), {workers_for(cpus, capacity, 1)} worker(s) each")
     for line in slots.holders() or ["no slot held"]:
         print(f"  {line}")
@@ -370,6 +403,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--max-load", type=float, default=None, help="default 1.5 x cores")
     parser.add_argument("--min-mem-mb", type=int, default=1024)
+    parser.add_argument(
+        "--max-cpu-pressure",
+        type=float,
+        default=50.0,
+        help="PSI cpu some avg10 percent (default 50)",
+    )
     parser.add_argument(
         "--max-wait", type=float, default=900.0, help="seconds before a forced start"
     )
