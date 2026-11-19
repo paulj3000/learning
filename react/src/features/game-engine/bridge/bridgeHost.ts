@@ -1,4 +1,4 @@
-import type { Box3, Scene } from 'three';
+import type { Box3, Object3D, Scene } from 'three';
 import type { EnvironmentQuery, Vec3Like } from '@lai/game-engine/contracts';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
 import type { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
@@ -53,6 +53,12 @@ export interface LocationBridgeHost {
    * and draws nothing.
    */
   readonly scene?: Scene;
+  /**
+   * GE-068: resolves an asset model by id (the island-map `WorldExtensionContext.loadModel`).
+   * With it, an engine platform with `assetId` draws that model fitted to its box. Without it,
+   * or while loading or on failure, the platform is a coloured box.
+   */
+  loadModel?(assetId: string): Promise<{ scene: Object3D }>;
   /** GE-066: carries the child with an engine platform (controller `carry`). Without it, HOST_CARRY_UNSUPPORTED. */
   carryPlayer?(dx: number, dy: number, dz: number): void;
   /** GE-066: bounce launch (controller `launch`). Without it, HOST_CARRY_UNSUPPORTED. */

@@ -156,6 +156,24 @@ describe('buildRegionManifest', () => {
     }
   });
 
+  it('hands scene.platformTuning to the engine bridge config as platformTuning (GE-068)', async () => {
+    const engineBridge = { capabilities: [{ id: 'gameplay.hazards', config: { hazards: [] } }] };
+    const platformTuning = { lift: { speed: 2 } };
+    const region = (extra: object) => ({ ...bootstrapJson().region, scene: { ...extra } });
+    const base = await coveSceneJson();
+    const tuned = build({ region: region({ ...base, engineBridge, platformTuning }) });
+    expect(tuned.manifest.extensions[1]?.config).toEqual({ ...engineBridge, platformTuning });
+    // The scene's own block is not mutated, and an explicit block-level tuning wins.
+    expect(engineBridge).not.toHaveProperty('platformTuning');
+    const own = { ...engineBridge, platformTuning: { lift: { speed: 3 } } };
+    expect(build({ region: region({ ...base, engineBridge: own, platformTuning }) }).manifest.extensions[1]?.config).toEqual(own);
+    // No tuning: the block passes through exactly as before.
+    expect(build({ region: region({ ...base, engineBridge }) }).manifest.extensions[1]?.config).toEqual(engineBridge);
+    // Tuning with no bridge adds no extension (the live platform system still takes it).
+    expect(build({ region: region({ ...base, platformTuning }) }).manifest.extensions.map((b) => b.extensionId)).toEqual(['region-play']);
+    expect(issues(tuned)).toEqual([]);
+  });
+
   it('builds the five-zone cove from its layout, and the engine’s validator accepts it (TR-13)', async () => {
     const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
     const built = build({ region });
