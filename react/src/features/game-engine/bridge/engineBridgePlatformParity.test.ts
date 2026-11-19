@@ -248,3 +248,47 @@ describe('engine platform movement sounds reach the host bus (GE-069)', () => {
     mount.dispose();
   });
 });
+
+describe('GE-L15 turntable mesh rotation', () => {
+  const platformMesh = (scene: Scene, id: string) => scene.getObjectByName(`engine.platform.${id}`) as Mesh;
+
+  it('turns the turntable mesh by the simulated yaw (20 deg/s), and leaves other platforms unturned', () => {
+    const scene = new Scene();
+    const fake = fakeHost({ ...base, capabilities: [cap(turntable, dock)] }, { scene });
+    const mount = mountEngineBridge(fake.host);
+    fake.advance(1);
+    const turned = platformMesh(scene, 'turn').rotation.y;
+    expect(turned).toBeCloseTo((20 * Math.PI) / 180, 2);
+    fake.advance(1);
+    expect(platformMesh(scene, 'turn').rotation.y).toBeCloseTo(2 * turned, 2);
+    expect(platformMesh(scene, 'dock').rotation.y).toBe(0);
+    mount.dispose();
+  });
+
+  it('a loaded model turns with its turntable (it is a child of the mesh)', async () => {
+    const scene = new Scene();
+    const loadModel = () => Promise.resolve({ scene: new Group().add(new Mesh(new BoxGeometry(2, 1, 4), new MeshStandardMaterial())) as Object3D });
+    const fake = fakeHost({ ...base, capabilities: [cap({ ...turntable, assetId: 'disc' })] }, { scene, loadModel });
+    const mount = mountEngineBridge(fake.host);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fake.advance(1);
+    const mesh = platformMesh(scene, 'turn');
+    expect(mesh.children).toHaveLength(1);
+    expect(mesh.rotation.y).toBeGreaterThan(0.3);
+    mount.dispose();
+  });
+
+  it('reduced motion turns it more slowly', () => {
+    const normal = new Scene();
+    const reduced = new Scene();
+    const a = mountEngineBridge(fakeHost({ ...base, capabilities: [cap(turntable)] }, { scene: normal }).host);
+    const fakeReduced = fakeHost({ ...base, capabilities: [cap(turntable)] }, { scene: reduced, reducedMotion: true });
+    const b = mountEngineBridge(fakeReduced.host);
+    a.dispose();
+    fakeReduced.advance(1);
+    const slow = platformMesh(reduced, 'turn').rotation.y;
+    expect(slow).toBeGreaterThan(0);
+    expect(slow).toBeLessThan((20 * Math.PI) / 180 - 0.01);
+    b.dispose();
+  });
+});

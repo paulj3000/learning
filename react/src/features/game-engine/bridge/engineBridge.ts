@@ -546,7 +546,7 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   const wantsPresentation = (['gameplay.platforms', 'gameplay.hazards', 'environment.weather', 'environment.lighting', 'environment.particles'] as const).some((id) => runtime.installed.has(id));
   let presentation: BridgePresentation | null = null;
   if (host.scene) {
-    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), playerPosition: () => host.playerPosition(), ...(deviceTier ? { tier: deviceTier } : {}), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}) });
+    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), playerPosition: () => host.playerPosition(), ...(deviceTier ? { tier: deviceTier } : {}), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}), ...(host.groundHeightAt ? { groundHeightAt: (x, z) => host.groundHeightAt!(x, z) } : {}) });
   } else if (wantsPresentation) {
     runtime.diagnostics.warn('HOST_SCENE_MISSING', { fallback: 'nothing is drawn' });
   }

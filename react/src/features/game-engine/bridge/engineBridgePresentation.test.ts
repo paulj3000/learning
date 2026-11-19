@@ -343,3 +343,79 @@ describe('bridge weather and particles follow the device render quality (GE-L14)
     expect(tierOf(undefined, 'HIGH')).toBe('HIGH');
   });
 });
+
+describe('GE-L14 hazard telegraphs on sloped and uneven ground', () => {
+  const LIFT = 0.03;
+  // Vertex positions are Float32: compare to 5 decimal places.
+  const offsetRock = { ...rock, rect: { minX: 4, maxX: 8, minZ: -2, maxZ: 2 } }; // centre (6, 0)
+  const hazardsCap = { id: 'gameplay.hazards', config: { telegraphed: [offsetRock] } };
+
+  /** World-space y of every vertex of a telegraph mesh, with its world x and z. */
+  const vertices = (mesh: Object3D) => {
+    const m = mesh as unknown as { geometry: { getAttribute(n: string): { count: number; getX(i: number): number; getY(i: number): number; getZ(i: number): number } }; position: { x: number; y: number; z: number }; scale: { x: number; z: number } };
+    const p = m.geometry.getAttribute('position');
+    const out: { x: number; y: number; z: number }[] = [];
+    for (let i = 0; i < p.count; i += 1) out.push({ x: m.position.x + p.getX(i) * m.scale.x, y: m.position.y + p.getY(i), z: m.position.z + p.getZ(i) * m.scale.z });
+    return out;
+  };
+
+  function run(groundHeightAt?: (x: number, z: number) => number | null) {
+    const scene = new Scene();
+    const fake = fakeHost({ capabilities: [checkpoints, hazardsCap] }, { scene, ...(groundHeightAt ? { groundHeightAt } : {}) });
+    fake.player.position = { x: 30, y: 0, z: 30 };
+    const mount = mountEngineBridge(fake.host);
+    const outline = named(scene, 'engine.hazard.rock.outline')[0]!;
+    const fill = named(scene, 'engine.hazard.rock.fill')[0]!;
+    const object = named(scene, 'engine.hazard.rock.object')[0]!;
+    return { scene, fake, mount, outline, fill, object };
+  }
+
+  it('flat fallback without a ground query: unchanged, one quad at y 0.03', () => {
+    const { mount, outline, fill } = run();
+    expect(outline.position.y).toBeCloseTo(LIFT, 9);
+    const v = vertices(outline);
+    expect(v).toHaveLength(4);
+    for (const p of v) expect(p.y).toBeCloseTo(LIFT, 9);
+    expect(vertices(fill).every((p) => Math.abs(p.y - (LIFT + 0.005)) < 1e-9)).toBe(true);
+    mount.dispose();
+  });
+
+  it('a slope: every outline vertex sits on the ground plus the lift, and the object lands on the ground', () => {
+    const slope = (x: number, z: number) => 0.5 * x + 0.25 * z;
+    const { fake, mount, outline, object, scene } = run(slope);
+    const v = vertices(outline);
+    expect(v.length).toBeGreaterThan(4); // subdivided to follow the ground
+    for (const p of v) expect(p.y).toBeCloseTo(slope(p.x, p.z) + LIFT, 5);
+    let lowest = Infinity;
+    for (let i = 0; i < 6 * 60; i += 1) {
+      fake.advance(1 / 60);
+      if (object.visible) lowest = Math.min(lowest, object.position.y);
+    }
+    expect(lowest).toBeGreaterThanOrEqual(slope(6, 0) + 0.45 - 1e-6); // never into the ground
+    expect(lowest).toBeLessThan(slope(6, 0) + 1); // and it does come down to it
+    mount.dispose();
+    expect(count(scene)).toBe(0);
+  });
+
+  it('uneven ground: the outline follows the bumps and the shrinking fill is re-draped at its scale', () => {
+    const bumps = (x: number, z: number) => Math.sin(x) + 0.5 * Math.cos(z);
+    const { fake, mount, outline, fill, object } = run(bumps);
+    for (const p of vertices(outline)) expect(p.y).toBeCloseTo(bumps(p.x, p.z) + LIFT, 5);
+    let checked = 0;
+    for (let i = 0; i < 6 * 60; i += 1) {
+      fake.advance(1 / 60);
+      if (fill.visible && !object.visible && fill.scale.x < 0.9 && fill.scale.x > 0.1) {
+        for (const p of vertices(fill)) expect(p.y).toBeCloseTo(bumps(p.x, p.z) + LIFT + 0.005, 2);
+        checked += 1;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+    mount.dispose();
+  });
+
+  it('unknown ground (null or non-finite) falls back to y 0 under that vertex', () => {
+    const { mount, outline } = run((x) => (x < 6 ? null : Number.NaN));
+    for (const p of vertices(outline)) expect(p.y).toBeCloseTo(LIFT, 5);
+    mount.dispose();
+  });
+});

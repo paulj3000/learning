@@ -289,8 +289,10 @@ export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: 
       const api = platforms();
       if (!api) return;
       const launch = api.consumeLaunch();
+      let moved = false;
       if (launch) {
         controller.launch(launch.height);
+        moved = true;
       }
       const entity = runtime.world.bySemanticId(PLAYER_ENTITY_ID);
       const transform = entity === undefined ? undefined : runtime.world.get(entity, PlayerTransformComponent);
@@ -299,6 +301,7 @@ export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: 
         const v = api.carryVelocityAt(supportId, controller.position.x, controller.position.z);
         if (v.x !== 0 || v.y !== 0 || v.z !== 0) {
           controller.carry(v.x * dt, v.y * dt, v.z * dt);
+          moved = true;
         }
         lastCarry = v;
       } else if (lastSupport && !controller.grounded) {
@@ -306,6 +309,8 @@ export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: 
         lastCarry = { x: 0, y: 0, z: 0 };
       }
       lastSupport = supportId;
+      // GE-L10: the transform shows the carried position in this same step, not the next.
+      if (moved) movement.syncTransform();
     },
   });
   runtime.resources.track(removeCarry);

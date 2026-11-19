@@ -65,6 +65,15 @@ export interface LocationBridgeHost {
    * or while loading or on failure, the platform is a coloured box.
    */
   loadModel?(assetId: string): Promise<{ scene: Object3D }>;
+  /**
+   * GE-L14: the ground height under (x, z), metres, or null where unknown (the engine's
+   * `StandardEngineOptions.groundHeightAt` signature). With it, hazard telegraphs follow sloped
+   * and uneven ground and the falling object lands on the ground. Without it, or where it returns
+   * null or a non-finite value, the telegraph is drawn flat at y 0 as before. Presentation only:
+   * hazard hits stay the engine's footprint test. Optional and not reported in `api.support`
+   * (realm tests compare that object exactly).
+   */
+  groundHeightAt?(x: number, z: number): number | null;
   /** GE-066: carries the child with an engine platform (controller `carry`). Without it, HOST_CARRY_UNSUPPORTED. */
   carryPlayer?(dx: number, dy: number, dz: number): void;
   /** GE-066: bounce launch (controller `launch`). Without it, HOST_CARRY_UNSUPPORTED. */
