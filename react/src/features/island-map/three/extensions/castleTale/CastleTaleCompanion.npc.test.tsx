@@ -292,6 +292,11 @@ function Visit(props: { sceneApi: CastleTaleSceneApi }) {
   );
 }
 
+// GE-D9 pattern: these tests mount the castle companion with the shared NPC host. On a loaded
+// machine the first render alone can pass 5 s, and a timed-out test leaves the host mounted, so the
+// following tests fail in a cascade. A 20 s budget per test; no assertion changes.
+vi.setConfig({ testTimeout: 20_000 });
+
 const settle = () =>
   act(async () => {
     for (let i = 0; i < 8; i += 1) await new Promise((r) => setTimeout(r, 0));
