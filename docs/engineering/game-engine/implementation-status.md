@@ -16,7 +16,7 @@ worktree, not yet merged), **Planned**. No item is Owner Accepted or Complete.
 |---|---|---|---|---|
 | GE-002 | `game/` package, workspace, boundary guard | Built | `f10e3a1e`, `0b4c68c3` | Engine suite; LAI-ENG-002 workspace check passes (2 packages, engine first) |
 | GE-003 | Core runtime | Built | `f10e3a1e` | `core/*.test.ts` |
-| GE-004 | Gameplay claims v1 and contract vectors | Built | `f10e3a1e`, this branch's vector move | 22 valid and 17 invalid vectors; Django parity tests pass on `core/ge-scoring` (reported by the scoring lead) |
+| GE-004 | Gameplay claims v1 and contract vectors | Built | `f10e3a1e`, this branch's vector move | 24 valid and 19 invalid vectors (optional `pickupKey` added in v1); Django parity tests pass on `core/ge-scoring` (reported by the scoring lead) |
 | GE-005 | Player, physics, environment contracts | Built | `8e5bcb9b` | `contracts/player.test.ts` |
 | GE-006 | Owner decisions | Open | | [decisions.md](decisions.md) section 3 |
 | GE-007 | Presentation event parity | Built | `8e5bcb9b` | Type-level parity test, `react tsc` clean |

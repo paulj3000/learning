@@ -47,7 +47,7 @@ interface GameplayEvent<T> {
 | | `learning.answer.submitted` | `learningRef`, `choiceId` (authored option id or null) |
 | Exploration | `exploration.area.entered` | `areaId` |
 | | `exploration.discovery.found` | `discoveryId` |
-| Collectibles | `collectible.collected` | `collectibleId`, `setId` or null |
+| Collectibles | `collectible.collected` | `collectibleId`, `setId` or null, optional `pickupKey` (server pickup change key) or null |
 | Jump challenges | `jump.challenge.started` | `challengeId` |
 | | `jump.challenge.completed` | `challengeId`, `routeId` (jump **or** accessible route) |
 | | `jump.alternative.used` | `challengeId`, `routeId` (informational only) |

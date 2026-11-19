@@ -420,6 +420,44 @@ export const GAMEPLAY_EVENT_VECTORS_V1: GameplayEventGoldenVectors = {
           "discoveryId": "lantern-cave"
         }
       }
+    },
+    {
+      "name": "collectible.collected with pickupKey",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "collectible.collected",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000100",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "collectibleId": "golden-shell-3",
+          "setId": "golden-shells",
+          "pickupKey": "pickup:golden-shell-3"
+        }
+      }
+    },
+    {
+      "name": "collectible.collected with null pickupKey",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "collectible.collected",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000101",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "collectibleId": "golden-shell-3",
+          "setId": "golden-shells",
+          "pickupKey": null
+        }
+      }
     }
   ],
   "invalid": [
@@ -745,6 +783,45 @@ export const GAMEPLAY_EVENT_VECTORS_V1: GameplayEventGoldenVectors = {
         }
       },
       "issuePath": "eventId"
+    },
+    {
+      "name": "pickupKey not a semantic id",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "collectible.collected",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000006",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "collectibleId": "golden-shell-3",
+          "setId": "golden-shells",
+          "pickupKey": 42
+        }
+      },
+      "issuePath": "payload.pickupKey"
+    },
+    {
+      "name": "pickupKey on another event type",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "quest.completed",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000017",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "questId": "lost-map",
+          "pickupKey": "pickup:1"
+        }
+      },
+      "issuePath": "payload.pickupKey"
     }
   ]
 };
