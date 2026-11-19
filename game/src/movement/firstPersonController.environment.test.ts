@@ -333,3 +333,48 @@ describe('maxWalkableSlope', () => {
     }
   });
 });
+
+describe('setEnvironment (GE-065: an environment arriving after construction)', () => {
+  it('neutral then null leaves movement identical to never setting one', () => {
+    const wall = new Box3(new Vector3(3, 0, -2), new Vector3(4, 3, 2));
+    const a = new FirstPersonController({ colliders: [wall] });
+    const b = new FirstPersonController({ colliders: [wall] });
+    a.yaw = b.yaw = FORWARD_PLUS_X;
+    for (let i = 0; i < 200; i += 1) {
+      if (i === 30) b.setEnvironment(NEUTRAL_ENVIRONMENT);
+      if (i === 120) b.setEnvironment(null);
+      const input = i % 90 < 60 ? WALK : IDLE;
+      a.update(DT, input);
+      b.update(DT, input);
+      expect(b.position.x).toBe(a.position.x);
+      expect(b.position.z).toBe(a.position.z);
+      expect(b.horizontalSpeed).toBe(a.horizontalSpeed);
+    }
+  });
+
+  it('an ice environment set mid-run changes friction from the next update, and null restores grip', () => {
+    const c = new FirstPersonController();
+    c.yaw = FORWARD_PLUS_X;
+    run(c, 30, WALK);
+    expect(c.friction).toBe(1);
+    c.setEnvironment(ice(0.1));
+    run(c, 1, WALK);
+    expect(c.friction).toBeCloseTo(0.1);
+    c.setEnvironment(null);
+    expect(c.friction).toBe(1);
+    run(c, 1, WALK);
+    expect(c.friction).toBe(1);
+  });
+
+  it('clearing the environment ends a climb at once', () => {
+    const ladder: ClimbableInfo = { id: 'ladder', bottomY: 0, topY: 3, facingYaw: FORWARD_PLUS_X, exitTop: { x: 1, y: 3, z: 0 } };
+    const c = new FirstPersonController({ environment: env({ climbableAt: () => ladder }) });
+    c.yaw = FORWARD_PLUS_X;
+    run(c, 20, WALK);
+    expect(c.climbing).toBe(true);
+    c.setEnvironment(null);
+    expect(c.climbing).toBe(false);
+    run(c, 60, IDLE);
+    expect(c.grounded).toBe(true);
+  });
+});
