@@ -2,7 +2,7 @@
 
 - **Status:** Guidance
 - **Owner:** Project owner
-- **Last reviewed:** 2026-11-18
+- **Last reviewed:** 2026-11-19
 - **Related ADRs:** ADR-020, ADR-033, ADR-055, ADR-063, ADR-064, ADR-070, ADR-072
 - **Related tickets:** LAI-ENG-002, GE-100, LAI-2003, LAI-2101, LAI-2102
 - **Canonical sources:** [multi-agent-workflow](../engineering/multi-agent-workflow.md), [integration-policy](../engineering/integration-policy.md), [release-policy](../engineering/release-policy.md), [TESTING_STRATEGY](../TESTING_STRATEGY.md), [THREEJS_ENGINE_CONVERSION](../THREEJS_ENGINE_CONVERSION.md)
@@ -147,3 +147,25 @@ Measured with `git merge-base --is-ancestor` and three-dot diffs on 2026-11-18.
 | Number of agents | `multi-agent-workflow.md`: up to five Claude agents, ids `Claude-01` to `Claude-05` | Six concurrent agents | Conventions here support up to nine slots. This session uses the provisional id `Claude-06` on its card. A policy change is the owner's (PR to `docs/engineering/`) |
 | Branch names | `branch-policy.md` patterns | Owner kept `integration/multi-agent-dev`, `core/gameengine`, `core/ge-scoring` | Logical names recorded on the cards. No rename (renaming another agent's branch is prohibited) |
 | Engine package location | Roadmap: `game/` | `@lai/game-engine` package | Compatible: `game/` named `@lai/game-engine`. No `packages/` directory |
+
+## 7. Status update (2026-11-19)
+
+Measured against `origin/main` `8bd19fb7` and current branch heads. The rewritten
+[integration plan](integration-plan-game-engine-core.md) has the detail.
+
+| # | Blocker (section 5) | Status now |
+|---|---|---|
+| B1 | LAI-2003 approval before `game/` | `game/` (`@lai/game-engine`) now exists on `core/gameengine` and every engine-lineage branch. The formal LAI-2003 approval is still recorded as open by the engine lead (decision O1) |
+| B2 | ADR-070 used twice | Resolved on the branches (Firepeak moved to number 073). `main`'s registry still says COLLISION, and number 073 has no row: registry-only change needed |
+| B3 | Jump decision headed ADR-055 | Resolved on `core/gameengine` and downstream. Still open on the PR #26 to #37 branches: merging PR #36 alone fails `adr:check` |
+| B4 | `assets 0003` collision | Open: engine lineage (7 branches, identical file) vs Lambda (8 branches). Second to merge renumbers |
+| B5 | `regions 0007` collision | Open: Storykeeper renumbers after Firepeak (engine-first order) |
+| B6 | Extraction vs open realm branches | Superseded: realm branches merged the engine instead (Firepeak, North Pole, GE-070). Storykeeper is the only realm branch outside it (9 forecast conflicts) |
+| B7 | Uncommitted merge in the `gameengine` worktree | Resolved: no merge in progress; the branch is pushed (`219da1b2`) |
+| B8 | No GitHub write tooling | Open |
+| B9 | e2e shares `lai_e2e` and port 4173 | Open; mitigated by running browser suites one at a time through `test_gate.py --full` |
+| B10 | `deploy-site.yml` ignores `game/**` | Fixed on this branch; needs owner acknowledgement as a deploy-workflow change |
+| B11 (new) | CI ran no engine tests (`npm run test` is `react/` only) | Fixed on this branch: `test:engine` and `engine:vectors:check` CI steps (`--if-present`) |
+| B12 (new) | Host overload: load 11 to 18.6 measured, timeouts cascade | Mitigated: `scripts/dev/test_gate.py` and the Vitest worker default. The cascading file was fixed by its owner (`ecff0a9a`, defect 9OdaKlbs; not yet in `core/gameengine`) |
+| B13 (new) | Non-project CPU on the host (`unattended-upgrade` using a core for 100+ minutes; a GitHub Actions runner service installed) | Owner to review; agents do not stop system processes |
+| B14 (new) | Production code imports the engine's `debug` entry (`useEngineRuntime.ts`, renderer stats every frame) | Reported to the engine lead, who is moving `rendererStats` from `debug/` to `engine/` (work in progress, not yet pushed); `make workspace-check` warns until then |

@@ -49,6 +49,15 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      # The engine workspace (game/, @lai/game-engine) has its own Vitest run and contract
+      # vectors; the root `npm run test` covers react/ only. --if-present keeps these no-ops
+      # until game/ is on main (LAI-ENG-002, GE-090).
+      - name: Engine unit tests
+        run: npm run test:engine --if-present
+
+      - name: Engine contract vectors are up to date
+        run: npm run engine:vectors:check --if-present
+
       - name: Build
         run: npm run build
 

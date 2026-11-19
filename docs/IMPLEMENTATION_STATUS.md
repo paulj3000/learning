@@ -37,6 +37,35 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-ENG-002 follow-up: integration engineering and test stabilization — Development Complete on `integration/multi-agent-dev` (2026-11-19); NOT merged, nothing deployed
+
+- **Integration plan rewritten** (`docs/infrastructure/integration-plan-game-engine-core.md`)
+  against current heads. Engine first: `core/gameengine` (contains PR #26 to #37, Treasure Rush,
+  GE-070) is clean onto `main`; scoring adds 1 doc conflict; Firepeak and North Pole are clean;
+  Storykeeper has 9 conflicts (4 code); the Lambda stream has 15 after the engine (4 before it).
+  PR #36 merged alone would fail `adr:check` (second ADR-055 heading), so the stack goes in through
+  the engine (owner decision). GE-090 checklists: integration, merge-readiness gates,
+  owner acceptance, release, deployment triggers, rollback.
+- **Migrations:** `assets 0003` (engine lineage vs Lambda) and `regions 0007` (Firepeak vs
+  Storykeeper) collide; `scoring`, `avatars`, `seasons` and `ai` are clean; no branch rewrites a
+  migration on `main`. **ADRs:** number 073 used by Firepeak without a reservation on `main`; `main`'s ADR-070
+  row is stale; the jump ADR-055 heading remains on the movement-stack branches.
+- **Test stabilization (defect 9OdaKlbs):** `scripts/dev/test_gate.py` (host-wide flock slots,
+  `--full` exclusive, worker split, load and memory wait, per-run CPU/RSS log, INFRASTRUCTURE
+  label); `react/vite.config.ts` `maxWorkers` default 2; timeouts unchanged. The test-file root
+  cause (an `act()` scope leaking from a timed-out test) was fixed by the Treasure Rush lead in
+  `ecff0a9a`, which is not yet in `core/gameengine`.
+- **Engine integration:** workspace check extended (gated-playground rule, peer `three` range,
+  debug-entry warning) and verified on all five engine branches; `ci.yml` runs
+  `test:engine` and `engine:vectors:check` (`--if-present`); `deploy-site.yml` lists `game/**`
+  (owner acknowledgement needed). New `scripts/dev/migration_audit.py`, `merge_forecast.py`;
+  `make test-gate-status`, `migration-audit`, `merge-forecast`.
+- **Integration branch:** `integration/20261119-game-engine-core` (at `main`, empty, pushed),
+  worktree `wt-integration-20261119-game-engine-core`, slot 8; merges wait for Development
+  Complete SHAs from the engine lead.
+- **Deferred:** full gates, CI run, browser and Playwright suites, any merge into the
+  integration branch or `main`.
+
 ## Multi-agent development and Game Engine Core engineering infrastructure (LAI-ENG-002) — Development Complete on `integration/multi-agent-dev` (2026-11-18); NOT merged, nothing deployed
 
 Branch `integration/multi-agent-dev` (worktree `integration`; legacy name kept at the owner's

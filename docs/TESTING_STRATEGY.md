@@ -141,6 +141,12 @@ to save time.
 `make docs-check` (standard library, a second or two) may run whenever documentation changes;
 it checks the engineering and adventure standards' links, headers and templates (ADR-072).
 
+Integration preparation (standard library, git objects only, no checkout or merge):
+`make migration-audit` reports Django migration collisions, divergent files, rewrites of `main`'s
+migrations and stale parents across the active branches, and
+`make merge-forecast REFS="<refs in merge order>"` predicts the text conflicts of a merge sequence
+(`docs/infrastructure/integration-plan-game-engine-core.md`).
+
 `make workspace-check` (standard library, under a second) may run whenever a `package.json`,
 `package-lock.json` or, once it exists, `game/` changes. It checks workspace names, shared
 dependency ranges, lockfile entries, build order and the engine package's import boundary
@@ -153,7 +159,13 @@ never drop each other's test database.
 Not run routinely: Playwright and other browser automation, WebGL rendering checks, Ruff,
 Prettier, oxlint, `npm run build`, full test suites, and deployment verification.
 
-Resource rules: cap workers (`--maxWorkers=2`, or `1` when the machine is busy). Do not rerun
+Resource rules: run suites through the host-wide gate,
+`python3 scripts/dev/test_gate.py [--full] -- <command>` (LAI-ENG-002;
+`docs/infrastructure/multi-agent-local-environment.md` section 6). It admits at most cores / 2
+suites at once (a `--full` run is exclusive), sets Vitest's `--maxWorkers`, waits while the host
+is overloaded, and logs CPU and memory per run (`make test-gate-status`). Without the gate, cap
+workers (`--maxWorkers=2`, or `1` when the machine is busy; `react/vite.config.ts` defaults to 2).
+Never raise a test timeout to absorb host load. Do not rerun
 tests whose code has not changed. Report an infrastructure failure (a worker that never
 starts, such as Vitest's "Timeout waiting for worker to respond", out-of-memory, a missing
 database service) as infrastructure, separately from test failures, and rerun only the
@@ -191,7 +203,7 @@ branch runs no CI, so the merge readiness review is the gate for branch work.
 ## Continuous integration (`.github/workflows/ci.yml`)
 
 Three jobs, all with read-only repository permissions, no secrets, and no AWS access:
-`checks` (ADR registry, engineering docs check, workspace package check, typecheck, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
+`checks` (ADR registry, engineering docs check, workspace package check, typecheck, engine unit tests and contract vectors once `game/` exists, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
 smoke, after `checks`), and `python` (Python 3.12, pinned `requirements-dev.txt`, a throwaway
 PostgreSQL 16 service container; `make py-lint`, `py-format-check`, `django-check`,
 `migrate-check`, `py-test-db`). `py-test-db` fails instead of skipping when the database is

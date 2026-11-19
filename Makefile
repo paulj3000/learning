@@ -39,12 +39,13 @@ DJANGO_ENV_VARS := DATABASE_URL DJANGO_SECRET_KEY DJANGO_DEBUG DJANGO_ALLOWED_HO
 $(foreach v,$(DJANGO_ENV_VARS),\
   $(if $(call dotenv,$(v)),$(eval $(DJANGO_ENV_TARGETS): export $(v) ?= $(call dotenv,$(v)))))
 
-.PHONY: help docs-check workspace-check agent-check py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
+.PHONY: help docs-check workspace-check agent-check test-gate-status migration-audit merge-forecast py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
 .PHONY: django-check migrate-check migrate runserver createsuper web
 
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
 	@echo "agent-check (worktree preflight) | workspace-check (npm workspace packages)"
+	@echo "test-gate-status | migration-audit | merge-forecast REFS=\"<refs in merge order>\""
 	@echo "docs-check | js-check (ADR and docs checks, typecheck, lint, format:check, test, build) | check (py-check + js-check)"
 	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5442; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
@@ -119,6 +120,20 @@ workspace-check:
 # Preflight for a concurrent agent's worktree: not on main, development slot set, ports free.
 agent-check:
 	$(PY) scripts/dev/agent_slot.py check
+
+# Host-wide test admission (LAI-ENG-002): who holds the test slots, recent runs with CPU and RSS.
+# Run suites through it: python3 scripts/dev/test_gate.py [--full] -- <command>.
+test-gate-status:
+	$(PY) scripts/dev/test_gate.py --status
+
+# Migration collisions, divergent files, rewrites of main's migrations and stale parents across
+# the recent core/* and feature/* branches (git objects only; run `git fetch` first).
+migration-audit:
+	$(PY) scripts/dev/migration_audit.py
+
+# Forecast text conflicts for a merge order without merging: make merge-forecast REFS="a b c".
+merge-forecast:
+	$(PY) scripts/dev/merge_forecast.py $(REFS)
 
 js-check:
 	npm run adr:check

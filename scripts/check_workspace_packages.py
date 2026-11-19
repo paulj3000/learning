@@ -15,7 +15,11 @@ Fails when:
 - the engine package depends on, or its source imports, a forbidden module (React, routing,
   Phaser, Amplify, AWS SDKs, Colyseus, Django clients), contains a `.tsx` file, or imports a path
   outside its own directory;
-- the engine package does not use TypeScript `strict`.
+- the engine package does not use TypeScript `strict`;
+- a workspace's peer dependency range differs from the range installed by the root or the app;
+- application code reaches the dev-only engine playground other than through a dynamic
+  `import()` gated on `import.meta.env.DEV` (production code importing the engine's `debug`
+  entry is a warning).
 
 `--order` prints the workspace build order (dependencies first). Standard library only, no
 network, no npm. `--root <dir>` points it at another tree (used by its test).
@@ -159,6 +163,86 @@ def _engine_errors(root: Path, rel: str, pkg: dict) -> list[str]:
     return errors
 
 
+# Development-only engine tooling (LAI-ENG-002, GE-061/062): the playground must never reach a
+# production bundle. Outside its own folder it is reachable only through a dynamic import() in a
+# file that is gated on import.meta.env.DEV, which `vite build` (production mode) folds to false.
+PLAYGROUND_MARKER = "game-engine/playground"
+DEBUG_ENTRY = "@lai/game-engine/debug"
+DEV_GATE = "import.meta.env.DEV"
+APP_SOURCE_SUFFIXES = (".ts", ".tsx", ".mts", ".js", ".jsx", ".mjs")
+TYPE_ONLY_IMPORT_RE = re.compile(
+    r"""\b(?:import|export)\s+type\s[^;]*?\bfrom\s*(['"])([^'"]+)\1""", re.S
+)
+DYNAMIC_IMPORT_RE = re.compile(r"""\bimport\s*\(\s*(['"])([^'"]+)\1""")
+
+
+def _is_test_file(path: Path) -> bool:
+    name = path.name
+    return ".test." in name or ".spec." in name or "/test/" in path.as_posix()
+
+
+def _app_sources(root: Path):
+    src = root / "react" / "src"
+    if not src.exists():
+        return
+    for path in sorted(src.rglob("*")):
+        if path.is_file() and path.suffix in APP_SOURCE_SUFFIXES and not _is_test_file(path):
+            yield path
+
+
+def dev_only_findings(root: Path) -> tuple[list[str], list[str]]:
+    """Errors (playground reachable from production code) and warnings (debug on a hot path)."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    for path in _app_sources(root):
+        shown = path.relative_to(root).as_posix()
+        in_playground = PLAYGROUND_MARKER in shown
+        in_debug_ui = "features/game-engine/debug/" in shown
+        text = path.read_text(encoding="utf-8")
+        dynamic = {m.group(2) for m in DYNAMIC_IMPORT_RE.finditer(text)}
+        # A type-only import is erased by the compiler, so it ships nothing.
+        type_only = len(TYPE_ONLY_IMPORT_RE.findall(text))
+        value_text = TYPE_ONLY_IMPORT_RE.sub("", text) if type_only else text
+        for match in IMPORT_RE.finditer(value_text):
+            module = match.group(2)
+            if PLAYGROUND_MARKER in module and not in_playground:
+                if module not in dynamic:
+                    errors.append(
+                        f"{shown}: imports the dev-only playground statically ({module}); "
+                        f"use a dynamic import() behind {DEV_GATE}"
+                    )
+                elif DEV_GATE not in text:
+                    errors.append(
+                        f"{shown}: loads the dev-only playground ({module}) without an "
+                        f"{DEV_GATE} gate, so a production build would ship it"
+                    )
+            if module.startswith(DEBUG_ENTRY) and not (in_playground or in_debug_ui):
+                warnings.append(
+                    f"{shown}: production code imports {module}; gate it on {DEV_GATE} or "
+                    "move what it needs out of debug/"
+                )
+    return errors, sorted(set(warnings))
+
+
+def _peer_range_errors(root_pkg: dict, packages: dict[str, tuple[str, dict]]) -> list[str]:
+    """A workspace's peer range must equal the range the app and root install (one copy)."""
+    installed: dict[str, set[str]] = {}
+    for pkg in [root_pkg] + [pkg for _rel, pkg in packages.values()]:
+        for section in ("dependencies", "devDependencies"):
+            for dep, spec in pkg.get(section, {}).items():
+                installed.setdefault(dep, set()).add(spec)
+    errors = []
+    for rel, pkg in packages.values():
+        for dep, spec in pkg.get("peerDependencies", {}).items():
+            have = installed.get(dep)
+            if have and have != {spec}:
+                errors.append(
+                    f"{rel}: peer {dep} {spec} differs from the installed range "
+                    f"{', '.join(sorted(have))}"
+                )
+    return errors
+
+
 def build_order(graph: dict[str, set[str]]) -> tuple[list[str], list[str]]:
     """Topological order (dependencies first) and any packages left in a cycle."""
     order, remaining = [], {name: set(deps) for name, deps in graph.items()}
@@ -250,6 +334,8 @@ def check(root: Path) -> tuple[list[str], list[str]]:
             errors.extend(_engine_errors(root, rel, pkg))
             for dep in graph[name]:
                 errors.append(f"{rel}: engine package must not depend on workspace {dep}")
+    errors.extend(_peer_range_errors(root_pkg, packages))
+    errors.extend(dev_only_findings(root)[0])
     return errors, order
 
 
@@ -261,6 +347,8 @@ def main(argv: list[str] | None = None) -> int:
     errors, order = check(args.root)
     if args.order:
         print("\n".join(order))
+    for warning in dev_only_findings(args.root)[1]:
+        print(f"workspace-check: warning: {warning}", file=sys.stderr)
     for error in errors:
         print(f"workspace-check: {error}", file=sys.stderr)
     if errors:

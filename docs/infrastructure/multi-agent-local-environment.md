@@ -2,7 +2,7 @@
 
 - **Status:** Guidance
 - **Owner:** Project owner
-- **Last reviewed:** 2026-11-18
+- **Last reviewed:** 2026-11-19
 - **Related ADRs:** ADR-072
 - **Related tickets:** LAI-ENG-002
 - **Canonical sources:** [multi-agent-workflow](../engineering/multi-agent-workflow.md) (claiming, locking, handoff, recovery), [branch-policy](../engineering/branch-policy.md) (names, worktrees), [integration-policy](../engineering/integration-policy.md#coordination-required) (hotspots), [TESTING_STRATEGY](../TESTING_STRATEGY.md) (check cadence)
@@ -41,7 +41,8 @@ worktree its own values. Slot 0 is the owner's main checkout and keeps the defau
 | 5 | `scoring` | 5455 | 8060 | 5233 | 8815 | 5225 | 2572 | `lai_scoring` |
 | 6 | `integration` | 5456 | 8070 | 5243 | 8825 | 5235 | 2573 | `lai_integration` |
 | 7 | `northpole` | 5457 | 8080 | 5253 | 8835 | 5245 | 2574 | `lai_northpole` |
-| 8, 9 | next worktree to run servers or database tests | 5458, 5459 | 8090, 8100 | 5263, 5273 | 8845, 8855 | 5255, 5265 | 2575, 2576 | `lai_<worktree>` |
+| 8 | `wt-integration-20261119-game-engine-core` (GE-090 integration) | 5458 | 8090 | 5263 | 8845 | 5255 | 2575 | `lai_integration_20261119_game_engine_core` |
+| 9 | next worktree to run servers or database tests | 5459 | 8100 | 5273 | 8855 | 5265 | 2576 | `lai_<worktree>` |
 
 The pytest database is always `test_` plus the database name. Slot numbers name worktrees, not
 agents: a new agent in an existing worktree keeps that worktree's slot. When a slot is
@@ -107,17 +108,57 @@ Each worktree installs its own `node_modules` and `.venv`; never symlink or reus
 worktree's. A lockfile change is regenerated with npm on the owning branch and listed under
 `shared_components` on the ticket.
 
-## 6. Resource management
+## 6. Concurrent testing and resource management
 
-The machine is shared (TESTING_STRATEGY "Resource rules"):
+The host has 4 cores and 8 GB. On 2026-11-19 five agents' suites plus a system update drove the
+1-minute load to 11 to 13. Under that load jsdom tests passed Vitest's 5 s timeout. A different
+test failed each run, and one timeout in `treasureRushAudio.test.tsx` cascaded into about 37
+failures ([defect](https://trello.com/c/9OdaKlbs)). The fix is to stop overloading the host, not
+to raise timeouts or skip tests. Test-file isolation bugs (leaked timers and async work) are
+fixed by the file's owner; this section covers the host side.
 
-- Vitest `--maxWorkers=2` (or `1` when several agents are testing). pytest runs by path; no xdist.
-- Start PostgreSQL only when database tests or a server need it, and `make down` your own container
-  when you stop. Each idle PostgreSQL 16 container is small but not free.
-- At most one `npm run build`, Playwright or acceptance run on the machine at a time, and only when
-  authorized.
-- Report a worker timeout, out-of-memory or missing database as infrastructure, separately from test
-  failures.
+| Control | What it does | Where |
+|---|---|---|
+| Admission gate | At most 2 suites (cores / 2) run at once across all worktrees. `--full` (a whole suite) takes both slots, so full suites never overlap. Slots are `flock`s, released by the kernel when the process exits, even after a crash | `scripts/dev/test_gate.py`, state in `~/.local/state/lai/` |
+| Worker limit | The gate passes `--maxWorkers` = cores / slots (2 here; 1 when it had to start under pressure). Without the gate, `react/vite.config.ts` defaults to 2 instead of one per core (`LAI_TEST_MAX_WORKERS` overrides) | gate; `react/vite.config.ts` |
+| Pressure wait | A run waits while load is over 1.5 x cores or available memory is under 1 GB. After `--max-wait` (15 min) it starts with one worker and says so | gate |
+| Monitoring | Load, available memory, process-tree CPU and peak RSS are sampled every 2 s and logged per run as one JSON line (no output, no environment values, no child data). `make test-gate-status` shows slot holders and recent runs | gate |
+| Infrastructure reporting | A run killed by a signal (SIGKILL usually means out of memory) is labelled INFRASTRUCTURE; report it separately and rerun only the affected files | gate |
+| Timeouts | Unchanged. A test that needs more than 5 s under a gated run has a bug or a real performance problem | policy |
+
+```bash
+python3 scripts/dev/test_gate.py -- npx vitest run src/features/region-play/audio   # by path
+python3 scripts/dev/test_gate.py -- .venv/bin/python -m pytest -q lai/apps/scoring  # pytest
+python3 scripts/dev/test_gate.py --full -- npm test                                # whole suite, alone
+make test-gate-status
+```
+
+Until this branch is on `main`, a worktree can call the gate by absolute path
+(`/Coding/learning-worktrees/integration/scripts/dev/test_gate.py`). The slots are host-wide, so
+it works from any worktree.
+
+Shared-cache review (2026-11-19). Nothing found needs a change:
+
+| Cache or shared state | Scope | Safe for concurrent agents? |
+|---|---|---|
+| Vitest and Vite caches (`node_modules/.vite`), TypeScript build info (`node_modules/.tmp`) | Per worktree | Yes |
+| `node_modules`, `.venv` | Per worktree (about 630 MB each) | Yes; never share or symlink them. Disk is not the bottleneck |
+| Test temporary files | Tests use `mkdtemp` / `tmp_path`; no fixed `/tmp` paths found in `react/src`, `game/src`, `tests`, `lai`, `server`, `infra` | Yes |
+| pytest `tmp_path` base (`/tmp/pytest-of-<user>`) | Per user | Yes: pytest locks numbered directories before cleanup |
+| pytest cache | Disabled (`-p no:cacheprovider`) | Yes |
+| npm cache (`~/.npm`), pip cache, Playwright browsers (`~/.cache/ms-playwright`) | Per user | Yes (content-addressed or read-only at test time) |
+| PostgreSQL | Per worktree container and volume, per-slot port and database | Yes, with a slot |
+| Docker | Compose project per worktree directory | Yes; never prune or remove another project's containers or volumes |
+| git stash | **Shared by every worktree** | No: never use bare `git stash`; use a WIP commit |
+
+Other resource rules:
+
+- Start PostgreSQL only when needed, and `make down` your own container when you stop.
+- At most one `npm run build`, Playwright or acceptance run on the host at a time, only when
+  authorized. Run them through `test_gate.py --full`.
+- Host processes outside the project also take CPU. On 2026-11-19 `unattended-upgrade` held a
+  core for over 100 minutes, and a GitHub Actions runner service is installed on this machine.
+  Agents do not stop them; report them to the owner.
 - Do not run `docker system prune`, `docker volume rm` or anything that removes another worktree's
   containers or volumes.
 

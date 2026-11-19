@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Owner:** Project owner
-- **Last reviewed:** 2026-11-18
+- **Last reviewed:** 2026-11-19
 - **Related ADRs:** ADR-020 (Accepted), ADR-072 (Accepted)
 - **Related tickets:** LAI-ENG-002, GE-100, LAI-2003 (APPROVAL), LAI-2101, LAI-2102
 - **Canonical sources:** [DJANGO_MIGRATION_ROADMAP](../DJANGO_MIGRATION_ROADMAP.md) Phases 20 and 21, [THREEJS_ENGINE_CONVERSION](../THREEJS_ENGINE_CONVERSION.md) section 4, [architecture-rules](../engineering/architecture-rules.md), CLAUDE.md section 19
@@ -12,6 +12,24 @@ review. LAI-2003 is the APPROVAL task that fixes how `game/` is built and consum
 creates `game/`. The engine agent (Agent 4, `core/gameengine`) owns the package contents. This
 page owns only the checks and conventions around it, which already run on `main` through
 `make workspace-check` and pass for the current tree.
+
+## 0. Verified state (2026-11-19)
+
+`game/` now exists as `@lai/game-engine` on `core/gameengine` (`219da1b2`, baseline `fc5c71cf`)
+and on every branch that merged it (`core/ge-scoring`, GE-070, Firepeak, North Pole). It follows
+this proposal: private, source-first `exports`, `three` as a peer at `^0.185.1` (the same range
+as `react/` and the root), `strict`, a node-environment `vitest.config.ts`, a boundary test, and
+root workspaces `["game", "react"]`. The formal LAI-2003 approval is still open.
+
+| Check | Result on each engine branch |
+|---|---|
+| `make workspace-check` (names, versions, lockfile, build order `@lai/game-engine` then `react`, import boundary, peer range) | Pass on all five |
+| Playground only through a dynamic `import()` gated on `import.meta.env.DEV` | Pass (`react/src/app/AppRoutes.tsx`). The release build is plain `npm run build` (production mode), so the route and chunk are dropped |
+| Production code importing `@lai/game-engine/debug` | Warning: `useEngineRuntime.ts` (renderer stats). A type-only import (`hostTypes.ts` on scoring) is ignored. The engine lead is moving it to `engine/` |
+| CI runs engine tests | Not on `main`'s `ci.yml`; added on `integration/multi-agent-dev` as `npm run test:engine --if-present` and `engine:vectors:check` |
+| Site deploys on engine changes | `game/**` added to `deploy-site.yml` paths on `integration/multi-agent-dev` (owner acknowledgement needed) |
+
+The sections below are the original proposal and stay as the rationale.
 
 ## 1. Location and name
 

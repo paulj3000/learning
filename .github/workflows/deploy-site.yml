@@ -18,6 +18,8 @@ on:
     branches: [main]
     paths:
       - 'react/**'
+      # The engine package is bundled into the site (LAI-ENG-002, blocker B10).
+      - 'game/**'
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/aws/publish-site.sh'

@@ -210,3 +210,98 @@ def test_build_order_reports_cycles():
 def test_main_order_flag(capsys):
     assert ws.main(["--root", str(ROOT), "--order"]) == 0
     assert "learning-adventure-island-react" in capsys.readouterr().out
+
+
+# --- dev-only playground and debug entry (react/src) ----------------------------------------
+
+ROUTES = "react/src/app/AppRoutes.tsx"
+GATED = (
+    "const P = import.meta.env.DEV\n"
+    "  ? lazy(() => import('../features/game-engine/playground/GameEnginePlayground'))\n"
+    "  : null;\n"
+)
+
+
+def _app(root: Path, files: dict[str, str]) -> tuple[list[str], list[str]]:
+    for rel, source in files.items():
+        _text(root, rel, source)
+    return ws.dev_only_findings(root)
+
+
+def test_gated_dynamic_playground_import_is_allowed(tmp_path):
+    root = _tree(tmp_path, engine={})
+    errors, warnings = _app(root, {ROUTES: GATED})
+    assert (errors, warnings) == ([], [])
+    assert _errors(root) == []
+
+
+def test_static_playground_import_fails(tmp_path):
+    root = _tree(tmp_path, engine={})
+    src = (
+        "import { GameEnginePlayground } from "
+        "'../features/game-engine/playground/GameEnginePlayground';\n"
+    )
+    errors, _ = _app(root, {ROUTES: src})
+    assert any("statically" in e for e in errors)
+    assert any("statically" in e for e in _errors(root))
+
+
+def test_ungated_dynamic_playground_import_fails(tmp_path):
+    root = _tree(tmp_path, engine={})
+    src = (
+        "const P = lazy(() => import('../features/game-engine/playground/GameEnginePlayground'));\n"
+    )
+    errors, _ = _app(root, {ROUTES: src})
+    assert any("without an import.meta.env.DEV gate" in e for e in errors)
+
+
+def test_playground_internals_and_tests_are_exempt(tmp_path):
+    root = _tree(tmp_path, engine={})
+    files = {
+        "react/src/features/game-engine/playground/GameEnginePlayground.tsx": (
+            "import { scene } from './playgroundScene';\n"
+            "import { createCollisionDebug } from '@lai/game-engine/debug';\n"
+        ),
+        "react/src/features/game-engine/playground/GameEnginePlayground.test.tsx": (
+            "import { GameEnginePlayground } from './GameEnginePlayground';\n"
+        ),
+        "react/src/app/AppRoutes.test.tsx": (
+            "import { P } from '../features/game-engine/playground/GameEnginePlayground';\n"
+        ),
+    }
+    assert _app(root, files) == ([], [])
+
+
+def test_debug_value_import_in_production_code_warns(tmp_path):
+    root = _tree(tmp_path, engine={})
+    src = "import { createRendererStatsCollector } from '@lai/game-engine/debug';\n"
+    errors, warnings = _app(root, {"react/src/features/game-engine/useEngineRuntime.ts": src})
+    assert errors == []
+    assert "useEngineRuntime.ts: production code imports @lai/game-engine/debug" in warnings[0]
+    assert _errors(root) == []  # a warning, not a failure
+
+
+def test_debug_type_only_import_is_ignored(tmp_path):
+    root = _tree(tmp_path, engine={})
+    src = "import type { RendererInfoLike } from '@lai/game-engine/debug/index';\n"
+    assert _app(root, {"react/src/features/game-engine/hostTypes.ts": src}) == ([], [])
+
+
+def test_main_prints_warnings_but_passes(tmp_path, capsys):
+    root = _tree(tmp_path, engine={})
+    _app(root, {"react/src/x.ts": "import { a } from '@lai/game-engine/debug';\n"})
+    assert ws.main(["--root", str(root)]) == 0
+    assert "warning:" in capsys.readouterr().err
+
+
+# --- one Three.js copy -----------------------------------------------------------------------
+
+
+def test_peer_range_must_match_installed_range(tmp_path):
+    root = _tree(tmp_path, engine={"peerDependencies": {"three": "^0.180.0"}})
+    assert any("peer three ^0.180.0 differs" in e for e in _errors(root))
+
+
+def test_peer_range_matching_installed_range_passes(tmp_path):
+    root = _tree(tmp_path, engine={"peerDependencies": {"three": "^0.185.1"}})
+    assert _errors(root) == []
