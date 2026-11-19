@@ -5,12 +5,19 @@
 - **Last reviewed:** 2026-11-18
 - **Related ADRs:** ADR-020, ADR-060, ADR-070 (Reserved, collision)
 - **Related tickets:** GE-001, GE-090
-- **Canonical sources:** test runs recorded in [implementation-status.md](implementation-status.md)
+- **Canonical sources:** test runs recorded in [implementation-status.md](implementation-status.md); Treasure Rush engine handoff `docs/engine/TREASURE_RUSH_ENGINE_HANDOFF.md` on `feature/treasure-rush-palm-trees` @ `6818f74b` (sections 6.4, 7.2, 8)
 
 ## 1. Defects
 
 | Id | Defect | Severity | State |
 |---|---|---|---|
+| GE-D2 | `removeCollider` on an authored id leaves the box in the jumpable set and in solids (`runtime/createLocationEngine.ts` lines 620 to 625 on the baseline) | Medium | Open in the live runtime. Engine `PhysicsProvider.removeCollider` removes from every list (GE-021); the live copy is fixed or replaced in GE-070 |
+| GE-D3 | Colliders added by extensions have no id, so they cannot be removed | Medium | Open in the live runtime. `ColliderSpec.id` is required in the engine contract |
+| GE-D4 | Extension `isBlocked` is a point-in-box test (no footprint, no height); `teleportPlayer` skips collision | Medium | Open in the live runtime. Engine queries go through the controller footprint (GE-020, GE-021) |
+| GE-D5 | The view calls handle members optionally (`setSprintMode?.`, `signalPlatforms?.`) | Low | Engine contracts make capabilities explicit; GE-070 makes the handle members required |
+| GE-D6 | Camera occlusion uses colliders, not meshes | Low (by design today) | Kept: collision raycast through `PhysicsProvider` (GE-031); mesh occlusion would be a new decision |
+| GE-D7 | `docs/PLAYER_MOVEMENT_AND_JUMPING.md` lines 164 to 175 are stale ("no running", "point in x/z") | Low (docs) | Open; corrected when the movement stack merges (owner of that doc) |
+| GE-D8 | Content leaked into engine code: `ASSET_FOOTPRINTS` (treasure-chest, wonder-stone-*), `SANDBOX_NPC_ID` `pirate-pip`, `ADVENTURE_COMPLETE_CHANGE_KEYS` (npc-manager `triggers.ts`) | Low | Open; moved into content or SDK definitions during GE-070 and GE-075. `game/src` is guarded by the no-location-branching test |
 | GE-D1 | One island-map test that scans the asset catalogue failed once in a full `src/features/island-map/three/` run and passed on rerun (baseline `5b300e30`, before any engine change) | Low (flaky test, not product) | Open; observed, not investigated |
 
 ## 2. Risks
@@ -25,3 +32,11 @@
 | GE-R6 | Performance targets (ADR-020) are unmeasured | Diagnostics and renderer stats exist; the measurement harness is LAI-2105 |
 | GE-R7 | WebGL, visual and touch behaviour are not covered by unit tests | Owner QA and browser checks at merge readiness (GE-090) |
 | GE-R8 | `DECISIONS.md` merge resolution (E9) may differ from how the movement owner resolves PR #26 | Owner decision O3; the branch follows the owner's choice |
+
+## 3. Behaviour to keep (from the Treasure Rush handoff)
+
+- A world snapshot refresh mid-visit never rebuilds the engine (`5b9cf019`, Pirate's Leap riddle
+  bridge).
+- `signalPlatforms('world:<key>')` stays available to hosts.
+- The handoff's section 8 guard tests are the behaviour baseline for GE-070. Its recorded
+  baseline is Vitest 2,895 passed by path and pytest 1,060 passed on PostgreSQL.
