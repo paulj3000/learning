@@ -3,7 +3,7 @@ import { PhysicsProviderService, validateGameplayEvent, type AnyGameplayEvent, t
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
 import { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
 import type { BridgePlayerState, LocationBridgeHost } from './bridgeHost';
-import { bridgeCapabilityRequests, createEngineBridgeExtension, mountEngineBridge, type EngineBridgeOptions } from './engineBridge';
+import { bridgeCapabilityRequests, createEngineBridgeExtension, mountEngineBridge, type ClaimsBinding } from './engineBridge';
 
 /** A fake island-map host: today's members, plus the GE-070 ones when `full`. */
 function fakeHost(config: { [key: string]: JsonValue }, full: boolean) {
@@ -54,7 +54,7 @@ function fakeHost(config: { [key: string]: JsonValue }, full: boolean) {
   };
 }
 
-const claimsContext: EngineBridgeOptions['claims'] = {
+const claimsContext: ClaimsBinding = {
   context: { realmId: 'firepeak', adventureId: 'heart-of-firepeak', areaId: 'heart', sessionRef: null },
   options: { newEventId: () => `11111111-2222-4333-8444-${String(Date.now()).padStart(12, '0').slice(-12)}` },
 };
@@ -135,6 +135,29 @@ describe('engine bridge on a full host', () => {
     fake.advance(6);
     expect(fake.teleports).toEqual([{ x: 5, z: 0, yaw: expect.any(Number) }]);
     expect(recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'cp.ledge', hazardId: 'hz.rock' }]);
+    mount.dispose();
+  });
+
+  it('resolves a lazy claims binding at emit time: nothing before the visit context exists', () => {
+    const collectibles = [
+      { id: 'ember.1', position: { x: 3, y: 0, z: 0 }, setId: 'embers' },
+      { id: 'ember.2', position: { x: 6, y: 0, z: 0 }, setId: 'embers' },
+    ];
+    const fake = fakeHost({ capabilities: [{ id: 'gameplay.collectibles', config: { collectibles } }] }, true);
+    const claims: AnyGameplayEvent[] = [];
+    let visit: typeof claimsContext | null = null;
+    const mount = mountEngineBridge(fake.host, { claims: () => visit, onGameplayEvent: (event) => claims.push(event) });
+    fake.player.position = { x: 3, y: 0, z: 0 };
+    fake.advance(0.2);
+    expect(claims).toEqual([]); // the session has not started: no claim, nothing on the bus
+    expect(mount.api.unboundClaims()).toBe(1);
+    expect(mount.api.droppedClaims()).toBe(0);
+    visit = claimsContext;
+    fake.player.position = { x: 6, y: 0, z: 0 };
+    fake.advance(0.2);
+    expect(claims.map((c) => c.payload)).toEqual([expect.objectContaining({ collectibleId: 'ember.2' })]);
+    expect(claims[0]!.sessionRef).toBe(claimsContext.context.sessionRef);
+    expect(validateGameplayEvent(claims[0]).ok).toBe(true);
     mount.dispose();
   });
 

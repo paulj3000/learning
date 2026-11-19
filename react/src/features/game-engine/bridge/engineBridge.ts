@@ -95,8 +95,13 @@ const allForwarded: [Unforwarded] extends [never] ? true : false = true;
 void allForwarded;
 
 export interface EngineBridgeOptions {
-  /** Binds claims to the realm, adventure, area and session. Omit for no claims. */
-  claims?: { context: GameplayEventContext; options?: GameplayEventFactoryOptions };
+  /**
+   * Binds claims to the realm, adventure, area and session. Omit for no claims. May be a
+   * function read at emit time, for a bridge registered once at module load whose context
+   * (`sessionRef` above all) only exists per visit: while it returns null, the bridge emits no
+   * claims (they are counted as unbound, not as invalid).
+   */
+  claims?: ClaimsBinding | (() => ClaimsBinding | null);
   /** The claim sink (decision E15). Same signature as `GameHost`'s `onGameplayEvent`. */
   onGameplayEvent?: (event: AnyGameplayEvent) => void;
   /** Requirement check for engine doors, gates and portals (quest steps, world changes). */
@@ -114,6 +119,8 @@ export interface EngineBridgeApi {
   readonly support: BridgeHostSupport;
   /** Claims dropped because they were invalid or the sink threw. */
   droppedClaims(): number;
+  /** Claims not emitted because a lazy `claims` binding returned null (no visit context yet). */
+  unboundClaims(): number;
 }
 
 /** Reads `config.capabilities` and refuses what the live runtime owns. Pure; never throws. */
@@ -253,6 +260,51 @@ function createPlayerReader(host: LocationBridgeHost) {
   };
 }
 
+export interface ClaimsBinding {
+  context: GameplayEventContext;
+  options?: GameplayEventFactoryOptions;
+}
+
+/**
+ * A factory that resolves its binding at emit time. It rebuilds the inner factory only when the
+ * binding's context changes (a new visit), and returns null (no claim) while unbound.
+ */
+function lazyFactory(resolve: () => ClaimsBinding | null, onUnbound: () => void): GameplayEventFactory {
+  let boundContext: GameplayEventContext | null = null;
+  let inner: GameplayEventFactory | null = null;
+  const current = (): GameplayEventFactory | null => {
+    const binding = resolve();
+    if (!binding) {
+      return null;
+    }
+    if (!inner || binding.context !== boundContext) {
+      boundContext = binding.context;
+      inner = createGameplayEventFactory(binding.context, binding.options);
+    }
+    return inner;
+  };
+  return {
+    get context() {
+      return current()?.context ?? UNBOUND_CONTEXT;
+    },
+    create(type, payload, overrides) {
+      const factory = current();
+      if (!factory) {
+        onUnbound();
+        return null as never;
+      }
+      return factory.create(type, payload, overrides);
+    },
+  };
+}
+
+const UNBOUND_CONTEXT: Readonly<GameplayEventContext> = Object.freeze({
+  realmId: 'unbound',
+  adventureId: 'unbound',
+  areaId: null,
+  sessionRef: null,
+});
+
 /** Wraps a factory so a claim that fails validation is counted and dropped, never thrown. */
 function droppingFactory(inner: GameplayEventFactory, onDrop: () => void): GameplayEventFactory {
   return {
@@ -278,6 +330,7 @@ export interface EngineBridgeMount extends WorldExtensionMount {
 export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridgeOptions = {}): EngineBridgeMount {
   const support = hostSupport(host);
   let dropped = 0;
+  let unbound = 0;
   // `scene.engineBridge.allowEnginePlatforms` (seed data) or the creation option may allow it.
   const allowPlatforms = options.allowEnginePlatforms === true || host.config.allowEnginePlatforms === true;
   const { requests, issues } = bridgeCapabilityRequests(host.config, allowPlatforms);
@@ -289,7 +342,7 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   if (issues.length > 0) {
     options.onIssues?.(issues);
     return {
-      api: { runtime: null, issues, support, droppedClaims: () => dropped },
+      api: { runtime: null, issues, support, droppedClaims: () => dropped, unboundClaims: () => unbound },
       dispose() {},
     };
   }
@@ -304,7 +357,11 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
     runtime.services.provide(RequirementCheckService, options.requirements);
   }
   if (options.claims) {
-    const factory = createGameplayEventFactory(options.claims.context, options.claims.options);
+    const binding = options.claims;
+    const factory =
+      typeof binding === 'function'
+        ? lazyFactory(binding, () => (unbound += 1))
+        : createGameplayEventFactory(binding.context, binding.options);
     runtime.services.provide(GameplayEventFactoryService, droppingFactory(factory, () => (dropped += 1)));
   }
   if (!support.playerState) {
@@ -394,6 +451,7 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
       issues,
       support,
       droppedClaims: () => dropped,
+      unboundClaims: () => unbound,
     },
     dispose() {
       if (disposed) {

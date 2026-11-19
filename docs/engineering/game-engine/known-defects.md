@@ -19,6 +19,7 @@
 | GE-D7 | `docs/PLAYER_MOVEMENT_AND_JUMPING.md` lines 164 to 175 are stale ("no running", "point in x/z") | Low (docs) | Open; corrected when the movement stack merges (owner of that doc) |
 | GE-D8 | Content leaked into engine code: `ASSET_FOOTPRINTS` (treasure-chest, wonder-stone-*), `SANDBOX_NPC_ID` `pirate-pip`, `ADVENTURE_COMPLETE_CHANGE_KEYS` (npc-manager `triggers.ts`) | Low | Open; moved into content or SDK definitions during GE-070 and GE-075. `game/src` is guarded by the no-location-branching test |
 | GE-D1 | One island-map test that scans the asset catalogue failed once in a full `src/features/island-map/three/` run and passed on rerun (baseline `5b300e30`, before any engine change) | Low (flaky test, not product) | Open; observed, not investigated |
+| GE-D9 | Two more intermittent React tests, outside engine code: `RegionPlayCompanion.test.tsx` ("shows a hint only when asked, and puts it away") failed 1 in 3 runs alone at `a4d1ebf0` with no engine change, and `storykeeperCastleParity.test.tsx` failed once under a full parallel run and passed 61 of 61 twice alone | Low (flaky tests, not product) | Open; reproduced on the baseline, not caused by engine changes. Owners: Treasure Rush (region play), Storykeeper |
 
 ## 2. Risks
 

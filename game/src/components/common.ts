@@ -106,6 +106,10 @@ export function emitClaim<T extends GameplayEventType>(
     return null;
   }
   const event = factory.create(type, payload);
+  if (!event) {
+    // A factory may decline (an invalid claim it counted, or a lazy binding with no visit yet).
+    return null;
+  }
   runtime.events.emit('gameplay.event' as never, event as never);
   return event;
 }
