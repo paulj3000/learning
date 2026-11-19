@@ -356,7 +356,7 @@ Deferred: browser, WebGL, device and gamepad QA.
 - Castle as engine data: `runtime/locations/storykeeperCastle.location.ts` (`defineLocation`), parity-tested against the manifest. Jumping stays a shared, optional capability tuned for the castle (0.9 m, no double jump); no learning step needs it.
 - Castle imports come from `@lai/game-engine` (guard test). Claims: `learning.answer.submitted`, `adventure.completed`, `exploration.area.entered` through the shared per-visit sink. `castleScoringSources.ts` retired; `castleRecords.ts` keeps the record catalog.
 - The child's body (ADR-060) required castle changes: the first Observatory star stone is dropped, the rack move is a named baseline exception, the movement audit tests the body.
-- Not done: bridge checkpoints (waiting on the engine's recovery gap), host-level discovery and NPC claims (engine lead).
+- Bridge checkpoints: the five saved checkpoints run on the engine bridge (`e5f4cf41`, after core `6f07b5b0`), saved and toasted by the host as before; the castle binds its visit claim context so the host's discovery and NPC claims (GE-067) are delivered. Open: the `regions` migration renumbering after Firepeak lands (owner's merge order).
 
 Evidence: Vitest island-map/three, great-storybook, content-export, discovery, region-play, game-engine, adventures, story: 245 files, 3102 passed; `npm run typecheck` clean; engine:validate, content:check, golden:check, adr:check, docs check pass; `makemigrations --check` no changes. Not run: Django tests (PostgreSQL not running), browser, WebGL, Playwright, lint, full format.
 

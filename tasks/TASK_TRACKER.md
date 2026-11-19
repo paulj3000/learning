@@ -1102,8 +1102,8 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       footprint reconciliation: first Observatory star stone dropped, rack move named in baselines, audit tests
       the body. Evidence: Vitest 245 files, 3102 passed; typecheck clean; engine:validate, content, golden, adr,
       docs checks pass; makemigrations --check no changes (PostgreSQL down: Django tests not run). Deferred:
-      bridge checkpoints (engine gap: live recovery does not know bridge checkpoints), host-level discovery and
-      NPC claims (requested from the engine lead). Plan and evidence:
+      nothing engine-side: bridge checkpoints moved at `e5f4cf41` (core `6f07b5b0`), host discovery and NPC claims come
+      from core (GE-067) through the castle's visit binding. Open: regions migration renumbering after Firepeak. Plan and evidence:
       `docs/regions/storykeeper_castle_engine_integration.md` sections 8 and 9.
 - [x] **SC-R05-01** Keeper Quill reconcile (branch `work/sc-r05` from `c81ee466`, commit `93067018`). DONE (development),
       not owner accepted. `quill_content.py` gains the SC-R04 lines it lacked: `storybook-restored`

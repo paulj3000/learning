@@ -298,3 +298,16 @@ Merged at `6ba15afc` (clean). The host now saves and toasts a bridge checkpoint 
 Merge order set by the owner (via the integration lead): core, Firepeak, North Pole, then the castle. The castle renumbers `regions` `0007_castle_director` to `0008` and `0008_castle_director_catalog` to `0009` (depending on Firepeak's `0007_puzzle_kinds_choose_order`) once Firepeak is in the integration branch; the integration lead will say when.
 
 Regression on the merged tree: Vitest 272 files, 3461 passed; three failures in Wonderwild parity and the shared view test were load timeouts (both files 53 of 53, twice, alone). Typecheck clean.
+
+### 9.4 Bridge checkpoints moved (2026-11-19, `e5f4cf41`)
+
+With `core/gameengine` `6f07b5b0` merged (`2ab8c776`), the castle's five saved checkpoints run on the engine's one checkpoint system through the bridge, in one commit:
+
+- The manifest carries the `engineBridge` entry from section 8.1, built from `STORYKEEPER_CASTLE_CHECKPOINTS` (ids, places, facings, labels unchanged), after `castle-tale`. Engine platforms stay off.
+- `manifest.checkpoints.ids` stays declared (validator, spawn, authored toasts). The live runtime builds no trigger zone for a bridge-served id, so nothing fires twice. The host saves a reached checkpoint (`WorldState.last_checkpoint_id`) and shows "You found {checkpoint}.".
+- **No `resume()`:** measured before the move, the live zones reached the spawn checkpoint on the first frame, and the bridge does the same. A returning child sees and saves exactly what they did before; `resume` would silence that first toast, a visible change.
+- The companion binds the visit's claim context to the castle (exploring, no session), so the host's GE-067 discovery and NPC claims and the bridge's `course.checkpoint.reached` claims are delivered instead of dropped.
+
+Tests: `storykeeperCastle.engine.test.ts` (checkpoint reached through the bridge, never as a live zone), `storykeeperCastleParity.test.tsx` (a bridge checkpoint is saved with the castle's words), `CastleTaleCompanion.npc.test.tsx` (binding set and released), `castleSaveContract.test.ts` unchanged. Typecheck clean; content and golden checks pass. Broad Vitest runs under load average 7 to 10 failed different non-castle files on each run (5 s timeouts); every one passed alone.
+
+GE-072 has no remaining engine dependency. Open, all owner-side or integration-side: the `regions` migration renumbering after Firepeak lands (section 9.3), Django tests on PostgreSQL, and browser and device acceptance.
