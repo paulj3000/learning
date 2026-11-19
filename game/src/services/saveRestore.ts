@@ -15,7 +15,10 @@ import { isRecord } from '../sdk/validation';
 
 export const PRESENTATION_SNAPSHOT_VERSION = 1 as const;
 
-export type CameraMode = 'THIRD_PERSON' | 'FIRST_PERSON';
+import { isCameraMode, type CameraMode } from '../camera/playerPresentation';
+
+/** The shared camera's own mode values (`first-person`, `third-person`), never a second vocabulary. */
+export type { CameraMode };
 
 export interface PresentationSnapshot {
   version: typeof PRESENTATION_SNAPSHOT_VERSION;
@@ -76,8 +79,8 @@ export function validatePresentationSnapshot(input: unknown): ValidationResult<P
       }
     }
   }
-  if (input.cameraMode !== 'THIRD_PERSON' && input.cameraMode !== 'FIRST_PERSON') {
-    issues.push({ path: 'cameraMode', message: 'must be THIRD_PERSON or FIRST_PERSON' });
+  if (!isCameraMode(input.cameraMode)) {
+    issues.push({ path: 'cameraMode', message: 'must be first-person or third-person' });
   }
   if (!Array.isArray(input.confirmedOpenDoorIds)) {
     issues.push({ path: 'confirmedOpenDoorIds', message: 'must be an array of door ids' });

@@ -31,7 +31,7 @@ const snapshot: PresentationSnapshot = {
   adventureId: 'demo-adventure',
   areaId: 'demo-cove',
   player: { x: 1, y: 0, z: 2, yaw: 0.5 },
-  cameraMode: 'THIRD_PERSON',
+  cameraMode: 'third-person',
   confirmedOpenDoorIds: ['door-a', 'door-b'],
 };
 

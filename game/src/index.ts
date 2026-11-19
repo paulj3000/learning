@@ -12,3 +12,6 @@ export * from './sdk';
 export * from './services';
 export * from './components';
 export * from './environment';
+export * from './camera';
+export * from './animation';
+export * from './character';
