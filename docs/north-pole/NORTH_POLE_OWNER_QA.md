@@ -105,5 +105,10 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
    it looks right or add an `np-snowball-stable` placement.
 7. Several curriculum skill slugs (fractions, symmetry, sight words, earth and space) are labels,
    not curriculum rows, so they do not yet feed SkillProgress.
-8. Fragment, restoration, reindeer and sleigh-bell cues have no client call point yet.
+8. Fragment, restoration, reindeer and sleigh-bell cues have no North Pole-specific call point
+   yet. Found 2026-11-18: `RegionPlayCompanion` raises `crystalCollect` for every pickup with new
+   items, so every collectible (snowflakes, candy canes, cookies) also plays the star-fragment
+   sound. Firepeak relies on this for its shards. The fix needs a per-region rule for which
+   pickups are special (for example, item category `QUEST_ITEM`) in `regionAudio.ts`. Not changed
+   yet.
 9. The client lights only the fragment sockets it orders; the village socket is pre-set by story.
