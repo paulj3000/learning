@@ -1,6 +1,7 @@
 """Realm compatibility adapters (GE-109): proven adventure and course completions, secret
 pickups, realm milestones, and the content-drift guard. Real server flows wherever possible."""
 
+import importlib
 import json
 from pathlib import Path
 
@@ -208,6 +209,27 @@ def test_every_mapped_adventure_is_wholly_present_or_wholly_absent(adventure):
     assert present == list(adventure.quests)
 
 
+# Realms whose 3D content is written by their own seed (`<module>.<function>`). A realm's seed
+# merges with its content, so on a branch without it the import fails and the realm is skipped.
+REALM_SEEDS = {
+    "firepeak-heart": ("apps.regions.firepeak_heart_seed", "seed_firepeak_heart"),
+    "north-pole-village": ("apps.regions.north_pole_seed", "seed_north_pole"),
+}
+
+
+def _seed_realm(ref: str) -> None:
+    """Write the realm's own authored rows (chests, Area puzzles, pickups), as its seed does in
+    every environment. The export is already imported by the `treasure` fixture."""
+    if ref not in REALM_SEEDS:
+        return
+    module_name, function = REALM_SEEDS[ref]
+    try:
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        pytest.skip(f"{ref}: its seed is not on this branch")
+    getattr(module, function)()
+
+
 @pytest.mark.parametrize("adventure", realms.REALM_ADVENTURES, ids=lambda a: a.ref)
 def test_every_build_key_of_a_mapped_adventure_has_an_authored_server_source(
     adventure,
@@ -219,6 +241,7 @@ def test_every_build_key_of_a_mapped_adventure_has_an_authored_server_source(
     exported = _exported_quests()
     if not all(slug in exported for slug in adventure.quests):
         pytest.skip(f"{adventure.realm}/{adventure.ref} content is not on this branch")
+    _seed_realm(adventure.ref)
     authored = (
         set(TreasureChest.objects.values_list("world_change_key", flat=True))
         | set(AreaPuzzle.objects.values_list("world_change_key", flat=True))
