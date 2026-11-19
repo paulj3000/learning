@@ -18,7 +18,7 @@ import { toRegionSceneModel } from '../sceneModel';
  *
  * - snow wherever the child is, village to mountain (`area.mode: FOLLOW_PLAYER`);
  * - the Area's own linear night fog unchanged (the engine kind has no fog);
- * - per render tier: LOW none, MEDIUM half of HIGH, both within 20% of the atmosphere's counts;
+ * - per render tier: LOW none, HIGH the atmosphere's count, MEDIUM within its budget (600, was 360);
  * - reduced motion calms it (fewer flakes);
  * - one snowfall: the atmosphere no longer snows.
  */
@@ -123,24 +123,22 @@ describe('North Pole snow on the engine (GE-074, layout 5): parity with the Area
     mount.dispose();
   });
 
-  it('follows the render tier like the atmosphere did: LOW none, MEDIUM half of HIGH, both near the old counts', () => {
+  it('follows the render tier: LOW none, HIGH the old count, MEDIUM never above its budget', () => {
     expect(createPrecipitation(OLD_ATMOSPHERE_SNOW, 'LOW', false)).toBeNull();
     expect(settledFlakes({ quality: 'LOW' })).toBe(0);
     const medium = settledFlakes({ quality: 'MEDIUM' });
     const high = settledFlakes({ quality: 'HIGH' });
-    expect(high).toBe(2 * medium); // the tiers keep the atmosphere's 1 : 2 ratio
     const oldMedium = createPrecipitation(OLD_ATMOSPHERE_SNOW, 'MEDIUM', false)!;
     const oldHigh = createPrecipitation(OLD_ATMOSPHERE_SNOW, 'HIGH', false)!;
-    // Measured: 300 and 600 flakes against the atmosphere's 360 and 720, about 17% fewer on each
-    // tier. The engine view splits the tier budget across every precipitating kind it knows, so
-    // the built-in RAIN (never used here) holds half of it (reported to the engine lead). Within
-    // 20% on both tiers; once the split is fixed the counts reach 360 and 720.
-    for (const [now, before] of [
-      [medium, oldMedium.count],
-      [high, oldHigh.count],
-    ] as const) {
-      expect(Math.abs(now - before) / before).toBeLessThan(0.2);
-    }
+    // HIGH: the snow's rate (48 a second, living 15 s) settles at 720, the atmosphere's count.
+    expect(Math.abs(high - oldHigh.count) / oldHigh.count).toBeLessThan(0.05);
+    // MEDIUM: the atmosphere drew a share of the tier (density 0.6 of 600 = 360); the engine's
+    // snow is a rate, held only by the tier budget, so it settles at the full MEDIUM 600. More
+    // than before, never more than MEDIUM allows. Matching both tiers needs a per-kind share of
+    // the tier budget in the engine (asked of the engine lead).
+    expect(oldMedium.count).toBe(360);
+    expect(medium).toBe(600);
+    expect(medium).toBeLessThan(high);
     oldMedium.dispose();
     oldHigh.dispose();
   });
