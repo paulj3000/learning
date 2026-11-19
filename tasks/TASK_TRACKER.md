@@ -1093,6 +1093,18 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       `castleSaveContract.test.ts` (7, every persisted castle id). Browser and device acceptance stay owner
       (SC-R12-01). SC-JMP-04, 05 wait on the engine core (Agent 4); SC-JMP-07, 10 to 17 on owner briefs;
       SC-JMP-19 on LAI-0805.
+- [x] **GE-072** Storykeeper Castle on the Game Engine Core (2026-11-19, branch `feature/storykeeper-castle-completion`,
+      owner-assigned). DONE (development) for the stage the bridge contract allows; not merged, not owner accepted.
+      Merged `core/gameengine` at the baseline `fc5c71cf` (`09adcc15`) and `cbe43a8e` (`15fef5db`), no rebase.
+      Castle location definition (`runtime/locations/storykeeperCastle.location.ts`, parity-tested), castle imports
+      on `@lai/game-engine` (guard test), v1 claims for answers, adventure completion and rooms
+      (`castleGameplayClaims.ts`); `castleScoringSources.ts` retired, record catalog in `castleRecords.ts`. Body
+      footprint reconciliation: first Observatory star stone dropped, rack move named in baselines, audit tests
+      the body. Evidence: Vitest 245 files, 3102 passed; typecheck clean; engine:validate, content, golden, adr,
+      docs checks pass; makemigrations --check no changes (PostgreSQL down: Django tests not run). Deferred:
+      bridge checkpoints (engine gap: live recovery does not know bridge checkpoints), host-level discovery and
+      NPC claims (requested from the engine lead). Plan and evidence:
+      `docs/regions/storykeeper_castle_engine_integration.md` sections 8 and 9.
 - [x] **SC-R05-01** Keeper Quill reconcile (branch `work/sc-r05` from `c81ee466`, commit `93067018`). DONE (development),
       not owner accepted. `quill_content.py` gains the SC-R04 lines it lacked: `storybook-restored`
       (`WORLD_CHANGE GREAT_STORYBOOK_RESTORED`, once, priority 40) and `the-damaged-book` (premise:

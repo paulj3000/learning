@@ -265,6 +265,16 @@ Deferred: browser, WebGL, device and gamepad QA.
   exists); S3 upload in a deployed environment (owner approval); Ruff, Prettier, oxlint,
   Playwright, full suites and builds per `docs/TESTING_STRATEGY.md`.
 
+## GE-072: Storykeeper Castle on the Game Engine Core (2026-11-19, `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged, NOT owner-accepted
+
+- `core/gameengine` merged at the published baseline `fc5c71cf` and `cbe43a8e` (no rebase); conflicts reconciled keeping both sides (castle `wallHeight` and engine `boundary`; castle `assetsSettled` and the collision debug overlay); generated files regenerated.
+- Castle as engine data: `runtime/locations/storykeeperCastle.location.ts` (`defineLocation`), parity-tested against the manifest. Jumping stays a shared, optional capability tuned for the castle (0.9 m, no double jump); no learning step needs it.
+- Castle imports come from `@lai/game-engine` (guard test). Claims: `learning.answer.submitted`, `adventure.completed`, `exploration.area.entered` through the shared per-visit sink. `castleScoringSources.ts` retired; `castleRecords.ts` keeps the record catalog.
+- The child's body (ADR-060) required castle changes: the first Observatory star stone is dropped, the rack move is a named baseline exception, the movement audit tests the body.
+- Not done: bridge checkpoints (waiting on the engine's recovery gap), host-level discovery and NPC claims (engine lead).
+
+Evidence: Vitest island-map/three, great-storybook, content-export, discovery, region-play, game-engine, adventures, story: 245 files, 3102 passed; `npm run typecheck` clean; engine:validate, content:check, golden:check, adr:check, docs check pass; `makemigrations --check` no changes. Not run: Django tests (PostgreSQL not running), browser, WebGL, Playwright, lint, full format.
+
 ## Storykeeper Castle: shared engine integration prep (SC-JMP-01, 02, 06, 08, 18, 20; 2026-11-18, `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged
 
 - `main` (ADR-072 standards) merged into the branch at `2786f2b2`; conflicts in `Makefile`, `docs/DECISIONS.md` and this file resolved (registry union; branch castle sections kept; main's retired-backend removals kept).

@@ -47,7 +47,7 @@ Git is the evidence for code; Trello for ownership and state. "Branch" means `fe
 | SC-JMP-05 Reusable story-world template | Ready | none | Not started: this is engine-core scope (scene lifecycle, spawn, return contract), not a castle file | Agent 4 |
 | SC-JMP-06 Movement tutorial | Ready | `castleMovementTutorial.ts` reducer and tests (this work) | Prepared: pure, optional, skippable, timer-free; not shown in the world | Owner: where (the castle has no courtyard; Entry Hall proposed) and whether; "assisted mode" needs a spec and ADR |
 | SC-JMP-07 Lost Pages / Book Jumper | Backlog | none | Backlog: new educational brief needs owner approval | Owner |
-| SC-JMP-08 Story fragments and progression | Backlog | `castleScoringSources.ts` (this work) | Prepared: fragments are the existing Storybook pages, named for GE-100; no fragment currency | Owner (currency is a proposal); GE-100 adapter |
+| SC-JMP-08 Story fragments and progression | Backlog | v1 claims (`castleGameplayClaims.ts`, GE-072); `castleRecords.ts` | Prepared: fragments are the existing Storybook pages, named for GE-100; no fragment currency | Owner (currency is a proposal); GE-100 adapter |
 | SC-JMP-09 Jumping in the existing five adventures | Ready | inventory doc: Tale, picture story, Painted Words A and B, Secret Door 1 and 2, pathway | **Development Complete** by SC-JMP (was stale) | Owner play |
 | SC-JMP-10 to 17 New stories | Backlog | none | Backlog: proposals, owner approves curriculum | Owner |
 | SC-JMP-18 Accessibility and age-band movement | Ready | `CASTLE_MOVEMENT_BY_BAND` and its tests (this work) | Development Complete: bands stated as content, checked against the manifest; no new setting | Owner Sprouts playtest (SC-R11-02) |
@@ -114,7 +114,7 @@ The castle is ready to be consumed by the shared engine through one profile and 
 
 ## 5. What the castle offers the scoring service (Agent 6, GE-100)
 
-`react/src/features/great-storybook/castleScoringSources.ts` names the castle's existing records as typed events. It is not a points system: no values, multipliers, levels or thresholds. The GE ledger decides any award, server-side, under owner-approved policy.
+**Superseded by GE-072 (section 9):** the castle now emits the shared `lai.gameplay-event` v1 claims (`extensions/castleTale/castleGameplayClaims.ts`), and `castleScoringSources.ts` is retired, so there is no second vocabulary. The table below is kept as the record of what was mapped; the record catalog lives on in `great-storybook/castleRecords.ts`. It is not a points system: the GE ledger decides any award, server-side, under owner-approved policy.
 
 | Event kind | Source record | Authority | Idempotency key |
 |---|---|---|---|
@@ -139,7 +139,7 @@ Not events, by design: a pad answer (it is the same step answer as the card, so 
 1. Run `castleMovementAudit.engine.test.ts`, `castleEngineProfile.test.ts` and the navigation regression against the SDK's harness, unchanged. Any failure is an SDK gap reported to Agent 4, not a castle workaround.
 2. Hand the SDK the castle's `ThreeLocationManifest` and `CASTLE_ENGINE_PROFILE` through its location adapter. No room geometry, id or zone changes.
 3. Move the `castle-tale` extension onto the SDK's extension hook, keeping its claims contract (C-2) and HUD equivalence (C-3).
-4. Wire `castleScoringSources` into the GE-100 adapter, read-only first (project and compare, award nothing), then under owner-approved policy.
+4. (Done in GE-072: v1 claims.) Wire the castle's claims into the GE-100 intake, read-only first (project and compare, award nothing), then under owner-approved policy.
 5. Prove save compatibility on a seeded child with every record (the save contract plus a projection before and after).
 6. Retire the castle's use of the old runtime only when steps 1 to 5 pass and the owner accepts in a browser (SC-R12-01).
 
@@ -226,3 +226,43 @@ Castle-side work the footprint (ADR-060, `e50fd17f`, radius 0.37 m) makes necess
 4. **`CastleTaleCompanion.npc.test.tsx`** quest flow timed out at 5 s under load; look at it with the same method as GE-D9 before changing it.
 
 Trial evidence (merged tree, not committed): typecheck clean; island-map/three, great-storybook, content-export and discovery suites 182 files, 2337 passed and 11 failed, all 11 listed above.
+
+## 9. GE-072 status (2026-11-19)
+
+Development Complete for the engine-adoption stage the bridge contract allows today. Not merged, not owner accepted.
+
+| Checklist item (migration matrix section 4) | State | Evidence |
+|---|---|---|
+| Merge `core/gameengine` at the published SHA, no rebase | Done: `fc5c71cf` (baseline) at `09adcc15`, then `cbe43a8e` (companion hooks) at `15fef5db` | Conflicts as in section 8.3 |
+| Imports move from the shims to `@lai/game-engine` | Done | `castleEngineImports.test.ts` fails if a castle file imports a shim |
+| A location definition declares capability requests | Done: `runtime/locations/storykeeperCastle.location.ts` | Parity test: no adapter issue; locomotion, jump (0.9 m, optional, no double jump), camera (cap 2.95 m, collision on), avatar resolve exactly as the manifest; content compatibility check passes |
+| `engine:validate` | Passes (no exported castle scene; the castle is a TypeScript manifest, checked by the location test) | |
+| Gameplay claims | Done for answers, adventure completion and rooms | `castleGameplayClaims.test.tsx`: claims validate with the engine validator; wrong answers claimed (server grades); failed submits and absent context claim nothing; no grade, support level, band or score |
+| Existing realm tests unchanged | Yes, except four reviewed adjustments (below) | Broad focused Vitest 245 files, 3102 passed |
+| No child progress, content, page id or objective changed | Yes | `castleSaveContract.test.ts` unchanged and passing |
+
+Reviewed adjustments caused by the shared movement stack's body (ADR-060), all castle-side:
+1. The first Observatory star stone is dropped (section 8.3 item 1); pad clearance uses the body.
+2. The costume-rack move (`e50fd17f`) is a named exception to two collider baselines.
+3. The movement audit tests the body against solids (mutation-checked) and sprints on a clear corridor run.
+4. Two heavy suites get explicit time budgets (GE-D9 pattern); the pre-merge commit timed out the same way.
+
+Not done, and why:
+- **Bridge checkpoints (`engineBridge`, section 8.1).** The castle's five checkpoints, spawn and saves stay on the live runtime for now. The bridge adds nothing a child would notice yet, and the engine's open gap "the live controller's fall recovery does not know bridge checkpoints" (integration baseline) means moving them now would split recovery. The config is ready in section 8.1; the move is one commit once that gap closes.
+- **`exploration.discovery.found` and `npc.interaction.completed`.** Castle discoveries (the nook, the chamber finds) and NPC talks are recorded by the shared host (`RECORD_DISCOVERY` actions, the NPC Manager host), not by castle code, so the claim belongs in the host for every location. Requested from the engine lead.
+- **`quest.*` and `realm.milestone.reached`.** The Great Storybook quests and edition milestones are written by Django on step completion; the client learns them only from a later world-state read. Claiming them would restate a stale read; the ledger reads those rows directly.
+
+### SC-JMP-20 acceptance evidence (unit level)
+
+| Area | Tests |
+|---|---|
+| Movement in every room (walk, run, sprint, optional jump) | `castleMovementAudit.engine.test.ts` (12) |
+| Collisions with the body, wall penetration, out-of-bounds recovery | same, mutation-checked; `playerFootprint.engine.test.ts` (castle walls and doors) |
+| Room transitions and doors | same; `castleNavigationRegression.test.ts` |
+| Indoor camera | same (third-person, every room); `thirdPerson.engine.test.ts` |
+| Age-band movement and accessibility | `castleEngineProfile.test.ts` (16); `castleHudEquivalence.test.tsx`; `castleSproutNoAim.test.ts` |
+| Learning activities and pads | `castlePlatformAnswers.test.ts`, `usePadAnswers.test.tsx`, `castlePlatforms.test.ts` |
+| Save compatibility | `castleSaveContract.test.ts` (7) |
+| Engine parity | `storykeeperCastle.location.test.ts` (6), `castleEngineImports.test.ts` (2), `castleGameplayClaims.test.tsx` (7) |
+
+Owner acceptance (SC-R12-01, browser and devices) is still required and is not claimed here.
