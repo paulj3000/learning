@@ -11,6 +11,11 @@ import { CASTLE_OBSERVATORY_INTERACTIONS } from '../../castleObservatory';
 import { CASTLE_TROPHY_INTERACTIONS } from '../../castleTrophies';
 import { WALL_HEIGHT } from '../../sceneKit';
 import {
+  CASTLE_CEILING_SLAB_OFFSET,
+  CASTLE_ENGINE_PROFILE,
+  castleMovementSpec,
+} from '../../castleEngineProfile';
+import {
   ARCHWAYS,
   BINDING_LECTERN_SPOT,
   BINDING_TABLE_SPOT,
@@ -120,7 +125,7 @@ import {
 const STORY_TOLD = 'FIRST_STORY_TOLD';
 const SLAB_SIZE_METERS = 4;
 const FLOOR_SLAB_TOP_OFFSET = -0.05;
-const CEILING_SLAB_BOTTOM_OFFSET = 0.1;
+const CEILING_SLAB_BOTTOM_OFFSET = CASTLE_CEILING_SLAB_OFFSET;
 const WALL_PANEL_WIDTH_METERS = 2;
 const CARPET_LIFT_METERS = 0.02;
 const CARPET_TILE_METERS = 1.5;
@@ -814,7 +819,8 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     and sprint, so a child does not shoot through the narrow passages and
     small rooms past what the story wants them to notice.
   */
-  movement: { jump: { jumpHeight: 0.9 }, locomotion: { runSpeed: 4.8, sprintSpeed: 5.6 } },
+  // SC-JMP-01: the castle's engine profile (`castleEngineProfile.ts`) is the one source.
+  movement: castleMovementSpec(),
   /*
     SC-JMP: every primary castle adventure has meaningful jumping through the shared platforms
     runtime (`castleRooms/castlePlatforms.ts`). Low, static pads (tops at most 0.5 m, so a jump from
@@ -831,13 +837,7 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
     over a wall into a room the story has not opened yet.
   */
   player: {
-    camera: {
-      distance: 2.6,
-      minDistance: 1.2,
-      maxDistance: 3.5,
-      heightOffset: 1.45,
-      maxHeight: 2.95,
-    },
+    camera: { ...CASTLE_ENGINE_PROFILE.camera },
   },
   extensions: [
     {
