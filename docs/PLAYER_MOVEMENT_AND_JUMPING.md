@@ -71,6 +71,15 @@ the client validates it with the rest of the manifest.
 
 ## Collision and safety rules
 
+- **The child has a body, not a point (ADR-060).** Blocking treats the child as an upright
+  cylinder of `movement.collision.radius` (0.35 m) plus `skin` (0.02 m) around the feet, in both
+  perspectives (`playerCollision.ts`; a location overrides only where it must, 0.15 to 0.6 m).
+  Heights never change: standing on, landing on and riding a box go by the feet first, by the
+  body's edge only where nothing jumpable is underfoot. A child already overlapping something may
+  only move away from it. Gait and movement state follow the distance the child's walking really
+  covered (`locomotionSpeed`), so pushing into a wall is Idle and sliding along it is Walk; a
+  blocked step comes up flush to the obstacle. Development only: `?collisionDebug=1` draws the
+  footprint and nearby colliders (`docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md` section 5).
 - **Solid colliders (the default) block at every height.** They are tested at ground level
   exactly as before, so walking is unchanged and a jump never carries a child over a wall,
   boundary, locked gate, broken bridge, quest barrier or anything an extension adds at runtime.
@@ -156,11 +165,13 @@ collider is a wall, so there is nothing to hop onto. Authoring low obstacles is 
 
 - (Resolved by LAI-JMP-01a: third-person avatar, camera and jump animations,
   `docs/PLAYER_AVATAR_AND_CAMERA.md`.)
-- No running: the controller has one walking speed today. A run speed would add a `RUN` state.
+- (Resolved by PR #29: walking, running and sprinting are gaits of this controller,
+  `docs/PLAYER_RUNNING_AND_SPRINTING.md`.)
 - Ground is flat (height 0) in every location. `groundHeightAt` supports terrain and holes for
   the platforming subproject, but no location authors terrain yet.
-- Jumpable colliders are axis-aligned boxes and the player is a point in x/z, as walking always
-  was. A rotated or round obstacle needs a box that fits it.
+- Colliders are axis-aligned boxes. The player is a vertical cylinder (radius 0.35 m plus a
+  0.02 m skin, `playerCollision.ts`, ADR-060), no longer a point in x/z. A rotated or round
+  obstacle needs a box that fits it.
 - Changing Treasure Cove's layout takes effect where `seed_treasure_rush` runs and sees the layout
   version bump; nothing is deployed by this branch.
 - Not yet checked in a browser, on a device or with a gamepad.

@@ -37,6 +37,234 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## Game Engine Core (GE-001 to GE-090) — in development on `core/gameengine` (2026-11-18); NOT merged, NOT owner-accepted
+
+Package `game/` (`@lai/game-engine`, ADR-020 item 4), stacked on the movement baseline
+`feature/treasure-rush-palm-trees` @ `420f1afd` and merged with `main` (`5b300e30`). Docs:
+`docs/engineering/game-engine/` (audit, architecture, public contracts, decisions, migration and
+dependency matrices, ownership, status, defects, acceptance). Trello parent GE-001.
+
+- **Built:** core runtime; gameplay claims `lai.gameplay-event` v1 (contract vectors
+  `tests/contracts/gameplay-events-v1.json`, shared with the GE-100 scoring intake); player,
+  physics and environment contracts; movement, input and camera extracted with `git mv` and
+  shims; AABB physics provider; surfaces, ice, forces, swimming, climbing, slope limit; camera
+  rig and collision; animation state machine, blending and root-motion correction; avatar and
+  equipment; gameplay components and environment volumes, lighting, weather, particles; Realm
+  and Adventure SDK, validator, scaffold, service ports; standard engine assembly; GameHost and
+  the dev-only Playground.
+- **Checks:** engine Vitest 565 passed; React island-map/three, game-engine, boundary, golden
+  and app suites 1754 passed; engine, React and scripts typecheck clean; vector, golden, ADR
+  and workspace checks pass. Deferred to merge readiness: lint, format, build, Playwright, owner QA.
+- **Owner decisions open:** LAI-2003 approval (or waiver), ADR number for the engine core
+  decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
+  order, scoring economy against the scoring standard.
+
+## GE-070: Treasure Rush migrated onto the Game Engine Core (2026-11-19, `feature/GE-070-treasure-rush-engine-migration`); development complete, owner QA pending, NOT merged
+
+Trello GE-070 (https://trello.com/c/3M8AAV14). The owner approved the start and the bridge
+wiring scope addition on 2026-11-19. Evidence in full: `docs/engineering/game-engine/migration-matrix.md`
+section 5.
+
+- **Engine merged in, never rebased:** `core/gameengine` @ `dcc45032`, `e4148949`, `ae336f3f`,
+  `e9caa3d8` on top of `feature/treasure-rush-palm-trees` @ `ce20c90b`.
+- **Imports:** Treasure Rush code imports moved modules from `@lai/game-engine`; a guard test keeps
+  the shims out of it.
+- **Live runtime host contract** (`createLocationEngine`, `WorldExtensionContext`): collider ids and
+  removal from every list (GE-D2, GE-D3), a checked, silent teleport (GE-D4), `playerState()` and
+  `setEnvironment()` for the engine bridge (GE-065).
+- **Engine bridge wiring for every region-play Area:** registered extension, `scene.engineBridge`
+  in the region manifest, a Django publish check (`apps.regions.engine_bridge`), and one gameplay
+  claim sink per visit (`runtime/gameplayClaimSink.ts`; `ThreeLocationWorldView` `onGameplayEvent`).
+- **Treasure Cove as an `AdventureDefinition`** (`treasureCoveAdventure.json`), validated by the SDK
+  and `npm run engine:validate`, and cross-checked against the seed in pytest.
+- **Claims:** chest answers (`CHEST_CHALLENGE`), pickups, NPC talk, quest steps and completion,
+  restated from server outcomes. Facts for Django to confirm, never awards; nothing is wired to a
+  scoring intake yet (`onGameplayEvent` is unset in the app until GE-100 provides its hook).
+- **Behaviour:** no gameplay, content, progress or learning-objective change.
+- **Tests (unit, by path):** Vitest 3,058 passed (3 load timeouts, each file passing alone),
+  `game/` 578, pytest 1,094 on PostgreSQL 16, typecheck clean.
+- **Open:** GE-D5 and GE-D8 (GE-075, GE-076); Pirate's Leap course and jump claims (GE-071); browser,
+  device and owner QA.
+
+## TR-21: Treasure Rush Game Engine Core migration preparation (2026-11-18, `feature/treasure-rush-palm-trees`); development complete, NOT merged
+
+Trello TR-21 (https://trello.com/c/u1lAWeAg). The migration itself is GE-070, which waits for the
+engine lead's migration-ready SHA on `core/gameengine`.
+
+- **Audit and handoffs:** `docs/engine/TREASURE_RUSH_ENGINE_HANDOFF.md` (reusable runtime
+  locations, movement, camera, animation and collision requirements, engine versus Treasure Rush
+  content, known defects and regression tests, lifecycle, behaviour baseline, Trello
+  reconciliation) and `docs/engine/TREASURE_RUSH_SCORING_INVENTORY.md` (every reward-bearing
+  event, the progress model to preserve, and the mapping agreed with the GE-100 scoring lead).
+  Treasure Rush builds no ledger, XP or coins of its own.
+- **Fix: Pirate's Leap riddle bridge stayed hidden until the child re-entered.**
+  `RegionPlayCompanion` received `refreshWorld` but never called it, and the view raises
+  `world:<key>` platform signals only from its world snapshot. The companion now re-reads the
+  world once when the server reports new world changes during a visit. Regression tests in
+  `RegionPlayCompanion.test.tsx` (the mid-visit test fails without the fix).
+- **Authorization tests:** the play-API route matrix in `test_play_api.py` now covers the pickup,
+  talk and puzzle routes (401 anonymous, 404 another family), plus another family using a child's
+  real session id on those routes (404, nothing written).
+- **Recorded, not resolved:** GE-100's XP, coins, levels and stars conflict with ADR-011,
+  ADR-013, TR-D1 and the mandatory scoring standard (owner decision; the scoring lead drafts an
+  ADR, economy off by default). The legacy `treasure-rush-cove` quest is still `active=True`
+  (content decision). Clue and hint selection with two Pip quests needs a product decision.
+- **Not done:** browser, device, gamepad or Playwright checks (policy); owner QA.
+
+## Movement defects, campfire and feather (2026-11-15, `feature/treasure-rush-palm-trees`); development complete, owner QA pending, NOT merged
+
+Owner guide: `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`. Decision: ADR-060 (Proposed).
+
+- **P0 avatar drift (fixed):** root motion on a skeleton root bone (Mixamo hips) is now pinned
+  horizontally (`withoutRootMotionFor`); gait, movement state and walk playback follow the
+  distance really covered (`locomotionSpeed`); blocked steps come up flush (no flicker); the
+  third-person boom lifts gently over a wall behind the child.
+- **P0 camera stops, child walks off screen (fixed, owner QA 2026-11-15):** backing into a tall
+  wall (Treasure Cove's north boundary) the boom lift found no room down to -1.1 rad once the
+  footprint let the child stand 0.37 m from the wall, gave up, and left the camera at the wall
+  while the child walked off the bottom of the screen. The lift now starts at 3 m of room, may go
+  to -1.45 rad, falls back to the boom with the most room, and is speed-capped
+  (`playerCamera.ts`). Regression tests: `avatarSync.test.ts` (flush wall, early lift, short boom)
+  and `treasureCoveThirdPerson.engine.test.ts` (walk straight back to the boundary). Owner
+  follow-up: no lift at the world's edge; the camera ignores the invisible boundary walls, so the
+  child just stops there with the view unchanged.
+- **Critical: signpost launch looped forever (fixed, owner QA 2026-11-15):** "Help Pip carry planks
+  to the bridge" opened the Adventure page, whose `useDjangoAdventureSession` built its default
+  API client as a default parameter, a new object every render, re-running its start effect on
+  every render it caused (endless `start` requests). The client is now memoized per child.
+  Regression test: `DjangoAdventureRunner.defaultApi.test.tsx`.
+- **P0 wall penetration (fixed):** the child is a 0.35 m (+0.02 m skin) cylinder in both
+  perspectives (`playerCollision.ts`, `movement.collision`); costume racks moved back so the
+  Trophy Room door's landing is clear; a development-only collision view (`?collisionDebug=1`).
+- **P1 campfire:** asset `campfire` (Kenney Survival Kit, CC0) via `import_treasure_rush_environment
+  --category campfire`, with a default SOLID cylinder profile; Treasure Cove layout v9 draws it at
+  `cove-campfire` with the primitive flame on top; primitive fallback.
+- **P1 feather (fixed):** every region pickup was drawn as a key (`builtKey`); pickups now look
+  like what they are (`pickupLook.ts`) and draw their published model. Asset `feather` imports
+  with `--category feather` but is **CC-BY-4.0** (not the Pixor CC0 model named), so it is held
+  unpublished unless the owner passes `--licence-confirmed`; the seed links `cove-leap-feather`
+  to it once the asset exists. Saved progress unchanged (same ids).
+- Not done: browser, WebGL, device and gamepad checks; the owner's own import (no model was
+  uploaded to the owner's database or storage); owner QA. No migration. Nothing deployed.
+
+## Integration: gameplay and environment assets (2026-11-14, `integration/gameplay-environment-qa`); development checks pass, owner QA pending, NOT merged
+
+Combines `feature/pirates-leap` (all P1 gameplay, Cognito-direct, Django-only), `feature/treasure-rush-palm-trees`
+(PR #36: palms, barrels, logs, vegetation) and `main`. Owner guide: `docs/GAMEPLAY_ENVIRONMENT_QA.md`.
+
+- Cove layout v8: the environment branch's v7 placements plus each prop's drawn `height`, so low
+  library props are jumpable. The jump branch's separate landing-barrel colliders are removed;
+  stand-in barrels are jumpable through the shared derived colliders.
+- A drawn library model removes its stand-in's `derived:` boxes (`removeCollider('derived:<id>')`,
+  suppressed against later collision profiles); a failed model keeps the stand-in blocking.
+- Pirate's Leap unchanged in `scene.platforming` (v1); a test keeps every cove placement out of
+  the course area. Seeds rerun idempotently; v7 to v8 upgrade keeps the course and staff tuning.
+- `docs/ASSET_LIBRARY.md`: main's Sound cues stay section 22; environment packs renumbered to 23,
+  collision profiles to 24 (references updated).
+- Checks: Vitest 4,748 passed; typecheck; migrations (no changes, no new migration); `content:check`,
+  `golden:check`, `adr:check`, `admin-preview:check`; pytest (see the PR). Not done: Playwright,
+  lint and format (merge readiness), browser, WebGL, device and gamepad checks; owner QA.
+- External: the environment GLB/glTF packs are owner-supplied and not in Git. Licences: CC0-1.0,
+  owner-confirmed (merged from the assets branch's licence commits).
+- `feature/treasure-rush-palm-trees` fast-forwarded to this branch at the owner's request, so the
+  assets branch also has jumping and the rest of the P1 stack.
+
+## LAI-JMP-03: Treasure Cove: Pirate's Leap (2026-11-14, `feature/pirates-leap`); development complete, owner QA pending, NOT merged
+
+Stacked on `feature/interactive-platforms` (PR #37). Docs: `docs/PIRATES_LEAP.md`; combined owner QA
+for all three P1 workstreams: `docs/P1_PLATFORMING_QA.md`.
+
+- Course in the cove's empty south-west, six sections (Learn to Leap, Barrel Crossing, Fallen Log
+  Trail, Moving Dock, Pirate Lift, Secret Treasure), each with a walking alternative; four course
+  checkpoints, three water pools, a goal, Pip's section narration as zones.
+- Seed: `lai/apps/regions/pirates_leap_seed.py` writes `scene["platforming"]` with its own
+  `piratesLeapVersion` (never touches the cove scenery layout another workstream owns), the quest
+  offer, the secret treasure and Pip's optional riddle drum (challenge specs per band), two
+  collectibles and a signpost; snapshot `pirates_leap_course.json` for frontend tests.
+- Content export: quest `pirates-leap`, four keepsakes, four one-time reward rules (golden vectors
+  regenerated: content digest only).
+- Runtime: recorded world changes raise `world:<changeKey>` platform signals on entry and live (the
+  riddle raises the plank bridge at once); a woken platform waits one pause first; hazards draw as
+  water; course checkpoints are kept clear of derived colliders; `scene.platforming.zones` merge
+  into the manifest.
+- Realm card: the cove now counts six chests (Pip's four, the riddle drum and the secret treasure).
+
+Tests: Vitest features, routes, api, test: 420 files / 4653 tests (all passing after expected count
+and golden updates); new `piratesLeap.engine.test.ts` (9). pytest: new `test_pirates_leap.py` (10);
+existing cove tests updated where they pinned the exact chests, quests, rows or versions.
+Deferred: browser, WebGL, device and gamepad QA.
+
+## Treasure Rush environment licences confirmed and assets published (2026-11-14) — local development only; owner visual QA NOT done
+
+- **Licence.** The owner confirmed CC0-1.0 (Quaternius) for the palms, barrel, logs, wood pile
+  and the Ultimate Stylized Nature Pack. `model_packs.py` records:
+  - the licence identifier, name, deed, legal code and plain-text URLs;
+  - `licenceVerifiedOn` and the owner confirmation reference;
+  - per-model source URLs, plus the nature pack's pages.
+
+  Existing definitions got the new provenance; administrator-edited fields were kept.
+- **Publication.** All 18 environment models are published locally as v1 and are the default
+  versions.
+  - The 14 never-published ones (barrel, logs, wood pile, vegetation) were first re-prepared
+    through the normal import, so their frozen `asset.copyright` reads "Quaternius, CC0-1.0".
+  - Published palm versions are unchanged.
+  - The storage audit shows no orphans and nothing missing.
+- **Verification.**
+  - Treasure Cove (seeded locally, layout v7) lists all 18 ids in its catalog, all deliverable.
+  - The resolver resolves each one to v1.
+  - Each signed delivery URL returns bytes matching the recorded SHA-256 (18 of 18).
+  - Engine tests cover models drawn and colliders added once deliverable.
+- **Not done:** owner visual QA in a browser; no S3 or production upload (needs separate
+  approval).
+
+## Treasure Rush ENV-2: bushes, flowers and grass (TR-NAT-01 to 14) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); licence and author NOT stated, so NOT published; rocks, ferns and coconuts NOT supplied; owner visual QA NOT done
+
+- **Import.** `import_treasure_rush_environment` now reads `.gltf` + `.bin` + textures by plain
+  file name across folders and ZIPs (`gltf_prep.read_gltf`), with categories `bushes`, `flowers`,
+  `grass`, `vegetation` and `all`; `rocks`, `ferns` and `coconuts` are refused because none were
+  supplied. Ten models (3 bushes, 4 flower clumps, 3 grasses, 256² textures, 25 to 88 KB each)
+  are imported locally as validated versions, not published: the files state no author or
+  licence.
+- **Cove (layout v7).** 138 walk-through plants (`treasure_cove_vegetation.py`), deterministic and
+  clustered round palms and props, kept off paths, water, colliders, spots and scenery. Instanced
+  (12 draw calls), cut-out alpha, sway 0.04 rad (still under reduced motion), halved at LOW quality
+  (`decorDensity`; extensions now receive `quality`). Drawn only when the catalog says deliverable.
+- **Tests.** pytest: `.gltf` assembly and refusals, vegetation packs and categories, vegetation
+  layout rules, catalog. Vitest: vegetation drawn, walk-through, LOW density, reduced motion,
+  `thinDecor`, quality pass-through, layout parsing.
+- **Deferred:** author and licence from the owner, then `--publish --licence-confirmed`; rock,
+  fern and coconut models; thumbnails; owner visual QA (TR-NAT-14); merge-readiness checks.
+
+## Treasure Rush environment assets: palms, barrels and logs (TR-PALM-01 to 08, TR-ENV-01 to 09) — implemented and unit-tested on `feature/treasure-rush-palm-trees` (2026-11-14); owner visual QA NOT done, barrel and log licences NOT confirmed
+
+- **Import (TR-PALM-02/03, TR-ENV-02/03).** `manage.py import_treasure_rush_environment`
+  (`--category palms|barrels|logs`, `--dry-run`, `--publish`, `--licence-confirmed`,
+  `--allow-shared-storage`, `--json`; `import_treasure_rush_palm_trees` kept as the palms
+  category) prepares declared models from owner-supplied GLBs (`apps/assets/model_packs.py`,
+  `gltf_prep.py`, `png_tools.py`: split, Z-up to Y-up, grounded, sized, cut-out foliage, 512 px
+  textures), validates and stores them through the configured storage as versions with
+  provenance metadata. Idempotent. `services.upload_version` gained `extra_metadata` and `notes`.
+- **Assets.** Four palms (CC0, owner-stated: published locally), `prop-wooden-barrel`,
+  `nature-wood-log`, `nature-wood-log-moss`, `prop-wood-pile` (CC0 expected, **unconfirmed**:
+  imported as validated versions, not published). `Barrel.fbx` and `PalmTree_4` not imported.
+  No model binary, texture or thumbnail is in Git; `.gitignore` covers download folders.
+- **Cove (TR-PALM-05, TR-ENV-06, layout v6).** 43 palms (landing 5, beach 11, grove 19, ruins 4,
+  lookout 4; two moved off paths, one off the key spot, one off the spyglass) with 0.6 m trunk
+  colliders; 37 props (barrels/logs: landing 4/2, beach 8/4, grove 2/8, ruins 4/3, lookout
+  1/1) whose colliders follow their footprint and are added only once the model is drawn. The
+  play API catalog lists the models; the client draws one only when it can be delivered,
+  instanced per model (`instancedModels.ts`), otherwise keeps the primitive palms and bundled
+  barrels/logs. Palms sway 0.02 rad, still under reduced motion. No jumping exists in the engine,
+  so barrels and logs are simply solid.
+- **Tests.** pytest: `test_gltf_prep.py`, `test_model_packs.py` (memory, local and stubbed-S3
+  storage, licence gate, idempotency, commands), cove layout placement and collider rules,
+  `test_environment_catalog.py`. Vitest: `instancedModels.test.ts`, cove engine tests (models
+  drawn, colliders only when drawn, fallbacks, paths walkable, dispose), layout parser tests.
+- **Deferred to merge verification / owner:** owner visual QA (TR-PALM-08, TR-ENV-09) in a
+  browser; licence confirmation for the barrel and logs; thumbnails (no thumbnail workflow
+  exists); S3 upload in a deployed environment (owner approval); Ruff, Prettier, oxlint,
+  Playwright, full suites and builds per `docs/TESTING_STRATEGY.md`.
+
 ## Storykeeper Castle: shared engine integration prep (SC-JMP-01, 02, 06, 08, 18, 20; 2026-11-18, `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged
 
 - `main` (ADR-072 standards) merged into the branch at `2786f2b2`; conflicts in `Makefile`, `docs/DECISIONS.md` and this file resolved (registry union; branch castle sections kept; main's retired-backend removals kept).

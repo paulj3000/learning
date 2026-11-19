@@ -1,4 +1,8 @@
-import { PlatformSystem, type PlatformEvent, type PlatformState } from '../platforms/platformSystem';
+import {
+  PlatformSystem,
+  type PlatformEvent,
+  type PlatformState,
+} from '../platforms/platformSystem';
 import { createPlatformPresentation } from '../platforms/platformPresentation';
 import type { CollisionProfiles } from './collisionProfile';
 import { locationAssetIds } from './locationAssetUsage';
@@ -40,7 +44,7 @@ import {
 import { cloneAssetScene } from '../assets/cloneAsset';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
-import { FirstPersonController, type Gait } from '../firstPersonController';
+import { DEFAULT_BODY_HEIGHT, FirstPersonController, type Gait } from '../firstPersonController';
 import type { LocomotionConfiguration } from '../locomotionConfiguration';
 import type { SprintMode } from '../pointerControls';
 import {
@@ -52,6 +56,11 @@ import {
   type PlayerCameraFrame,
 } from '../playerCamera';
 import { AvatarFacing, createPlayerAvatar, type PlayerAvatar } from '../playerAvatar';
+import {
+  collisionDebugEnabled,
+  createCollisionDebugOverlay,
+  type CollisionDebugOverlay,
+} from './collisionDebug';
 import type { PlayerAvatarModel } from '../playerAvatarCatalog';
 import {
   initialCameraMode,
@@ -100,6 +109,7 @@ import {
 } from './sceneLayout';
 import { groupStaticBoxes, mergeStaticBoxGeometry } from './staticBoxBatches';
 import { WorldTriggerTracker } from './worldTriggerTracker';
+import { nearestStandableSpot } from './nearestStandableSpot';
 import { installE2EProbe } from './e2eProbe';
 import {
   createEngineDiagnostics,
@@ -305,6 +315,12 @@ export interface LocationEngineOptions {
   onCameraModeChange?: (mode: CameraMode) => void;
   /** Running & sprinting: hold Shift to sprint (default) or press it to toggle. */
   sprintMode?: SprintMode;
+  /**
+   * Development only: draw the collision footprint, nearby colliders and sync markers
+   * (`collisionDebug.ts`). Defaults to `?collisionDebug=1` or the `lai.collisionDebug`
+   * localStorage flag in a Vite development build; always off in a production build.
+   */
+  collisionDebug?: boolean;
 }
 
 /** The outdoor rig `sceneKit.createSceneBootstrap` defaults to; manifest lighting overrides per field. */
@@ -487,8 +503,13 @@ export function createLocationEngine<R extends RendererLike>(
     id: solid.id,
     box: toBox3(solid.box),
     jumpable: solid.jumpable === true,
+    boundary: solid.boundary === true,
   }));
   const colliders = solids.map((solid) => solid.box);
+  // The world's edge stops the child, not the camera (owner QA 2026-11-15: no zoom up at the edge).
+  const boundaryBoxes: ReadonlySet<Box3> = new Set(
+    solids.filter((solid) => solid.boundary).map((solid) => solid.box),
+  );
   // LAI-JMP-01: only authored low obstacles are jumpable; walls, gates, the
   // world's edge and anything an extension adds stay solid at every height.
   const jumpableColliders = new Set(
@@ -518,6 +539,8 @@ export function createLocationEngine<R extends RendererLike>(
     jump: manifest.movement?.jump,
     // Running & sprinting: per-location speeds (walking pace defaults to the old 4 m/s).
     locomotion: manifest.movement?.locomotion,
+    // The child's footprint (Defect 2): a 0.35 m radius by default, one for both perspectives.
+    collision: manifest.movement?.collision,
     // A safety net behind the boundary walls: anyone who ends up past them goes back.
     isInPlayableArea: (x, z) =>
       Math.abs(x) <= manifest.bounds.halfExtentX + playableMargin &&
@@ -537,7 +560,7 @@ export function createLocationEngine<R extends RendererLike>(
     {
       eyeHeight: EYE_HEIGHT,
       reducedMotion: options.reducedMotion,
-      obstruction: colliderObstruction(colliders),
+      obstruction: colliderObstruction(colliders, boundaryBoxes),
     },
   );
   if (playerCamera.mode === 'third-person') {
@@ -603,13 +626,103 @@ export function createLocationEngine<R extends RendererLike>(
   controller.position.set(spawn.x, 0, spawn.z);
   controller.yaw = spawn.yaw;
 
+  /** `derived:<scenery id>` prefixes whose derived boxes an extension removed for good. */
+  const suppressedDerived = new Set<string>();
+  const isSuppressed = (id: string | undefined) =>
+    id !== undefined &&
+    [...suppressedDerived].some(
+      (prefix) => id === prefix || id.startsWith(`${prefix}#`) || id.startsWith(`${prefix}:`),
+    );
+
   function removeCollider(id: string): boolean {
-    const solid = solids.find((candidate) => candidate.id === id);
-    if (!solid) return false;
-    const index = colliders.indexOf(solid.box);
+    if (id.startsWith('derived:')) {
+      // Every box of that scenery item (a cluster's placements, a long piece's segments).
+      suppressedDerived.add(id);
+      let removed = false;
+      for (let index = solids.length - 1; index >= 0; index -= 1) {
+        const solid = solids[index]!;
+        if (!isSuppressed(solid.id)) continue;
+        const at = colliders.indexOf(solid.box);
+        if (at >= 0) colliders.splice(at, 1);
+        jumpableColliders.delete(solid.box);
+        solids.splice(index, 1);
+        removed = true;
+      }
+      return removed;
+    }
+    // GE-D2: an authored or extension collider leaves every list, so a removed low obstacle is
+    // not still jumpable, and a second removal reports false.
+    const index = solids.findIndex((candidate) => candidate.id === id);
     if (index < 0) return false;
-    colliders.splice(index, 1);
+    const solid = solids[index]!;
+    const at = colliders.indexOf(solid.box);
+    if (at >= 0) colliders.splice(at, 1);
+    jumpableColliders.delete(solid.box);
+    solids.splice(index, 1);
     return true;
+  }
+
+  /**
+   * GE-D3 and the GE-065 bridge host contract: every collider an extension adds has an id it can
+   * be removed by (the requested one, or `extension:<extension>:<n>`). `derived:` ids are refused,
+   * because a collision-profile rebuild deletes every derived box. Re-adding an id replaces its
+   * box. The box is kept by reference, so an extension may move it in place. A gate is never
+   * jumpable, and blocks the camera like any wall.
+   */
+  let extensionColliderCount = 0;
+  function addExtensionCollider(
+    extensionId: string,
+    box: Box3,
+    colliderOptions?: { jumpable?: boolean; id?: string; gate?: boolean },
+  ): string {
+    const requested = colliderOptions?.id;
+    const id =
+      requested && !requested.startsWith('derived:')
+        ? requested
+        : `extension:${extensionId}:${(extensionColliderCount += 1)}`;
+    if (id === requested) removeCollider(id);
+    const jumpable = colliderOptions?.jumpable === true && colliderOptions.gate !== true;
+    solids.push({ id, box, jumpable, boundary: false });
+    colliders.push(box);
+    if (jumpable) jumpableColliders.add(box);
+    return id;
+  }
+
+  /** The id of the box the child stands on: an authored or extension collider, or a platform. */
+  function supportIdOf(box: Box3 | null): string | null {
+    if (!box) return null;
+    const solid = solids.find((candidate) => candidate.box === box);
+    if (solid?.id) return solid.id;
+    return platformSystem?.platformOf(box)?.spec.id ?? null;
+  }
+
+  /** GE-065 bridge host contract: the controller's state after collision (yaw 0 faces +Z). */
+  function playerState() {
+    const velocity = controller.horizontalVelocity;
+    return {
+      position: { x: controller.position.x, y: controller.position.y, z: controller.position.z },
+      yaw: controller.yaw,
+      velocity: { x: velocity.x, y: controller.verticalVelocity, z: velocity.z },
+      grounded: controller.grounded,
+      supportId: supportIdOf(controller.supportingBox()),
+    };
+  }
+
+  /**
+   * GE-D4: an extension's teleport (a hazard's safe checkpoint, a resumed section) is checked.
+   * A clear spot is used exactly, as before; a blocked one falls back to the nearest clear spot
+   * close by; only if nothing near is clear does the old unchecked placement remain, so a hazard
+   * recovery always moves the child out of the hazard. Emits nothing on the bus: the caller (the
+   * engine bridge, a Firepeak checkpoint) owns any recovery message.
+   */
+  function teleportExtensionPlayer(x: number, z: number, yaw: number): void {
+    if (!controller.teleportTo(x, z, yaw)) {
+      const spot = nearestStandableSpot(x, z, (px, pz) => controller.canStandAt(px, pz));
+      if (spot) controller.teleportTo(spot.x, spot.z, yaw);
+      else controller.teleport(x, z, yaw);
+    }
+    playerCamera.reset();
+    avatarFacing.snap(yaw);
   }
 
   function placeChild(placement: ChildPlacement): boolean {
@@ -665,12 +778,18 @@ export function createLocationEngine<R extends RendererLike>(
     }
     const here = controller.position;
     for (const solid of solidColliders(manifest, worldState, profiles).filter(isDerived)) {
+      if (isSuppressed(solid.id)) continue; // replaced by an extension-drawn model
       const box = toBox3(solid.box);
-      if (here.x >= box.min.x && here.x <= box.max.x && here.z >= box.min.z && here.z <= box.max.z) {
+      if (
+        here.x >= box.min.x &&
+        here.x <= box.max.x &&
+        here.z >= box.min.z &&
+        here.z <= box.max.z
+      ) {
         continue;
       }
       const jumpable = solid.jumpable === true;
-      solids.push({ id: solid.id, box, jumpable });
+      solids.push({ id: solid.id, box, jumpable, boundary: false });
       colliders.push(box);
       if (jumpable) jumpableColliders.add(box);
     }
@@ -691,10 +810,7 @@ export function createLocationEngine<R extends RendererLike>(
       extensionAssetIds: () => [],
       lowDetailIdOf: () => undefined,
     });
-    track(
-      deps.assets.collisionProfiles(ids).then(applyCollisionProfiles),
-      'collision profiles',
-    );
+    track(deps.assets.collisionProfiles(ids).then(applyCollisionProfiles), 'collision profiles');
   }
 
   /**
@@ -1345,9 +1461,15 @@ export function createLocationEngine<R extends RendererLike>(
         camera,
         bus,
         manifest,
+        quality,
         config: binding.config,
-        addCollider: (box) => colliders.push(box),
+        addCollider: (box, colliderOptions) =>
+          addExtensionCollider(binding.extensionId, box, colliderOptions),
         removeCollider,
+        playerState,
+        setEnvironment: (query) => controller.setEnvironment(query),
+        // GE-D4: kept a point test on purpose. Its callers are NPC Manager behaviours, and the
+        // child's footprint would change how every NPC wanders.
         isBlocked: (x, z) =>
           colliders.some(
             (box) => x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z,
@@ -1378,11 +1500,7 @@ export function createLocationEngine<R extends RendererLike>(
           return () => frameCallbacks.delete(callback);
         },
         playerPosition: () => ({ x: controller.position.x, z: controller.position.z }),
-        teleportPlayer: (x, z, yaw) => {
-          controller.teleport(x, z, yaw);
-          playerCamera.reset();
-          avatarFacing.snap(yaw);
-        },
+        teleportPlayer: teleportExtensionPlayer,
         now: () => deps.now(),
         placeChild,
         childPlacement,
@@ -1409,13 +1527,22 @@ export function createLocationEngine<R extends RendererLike>(
   function emitPlatformEvent(event: PlatformEvent): void {
     switch (event.type) {
       case 'ACTIVATED':
-        bus.emit('PlatformActivated', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        bus.emit('PlatformActivated', {
+          platformId: event.platformId,
+          ...(event.cue ? { cue: event.cue } : {}),
+        });
         return;
       case 'MOVING':
-        bus.emit('PlatformMoving', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        bus.emit('PlatformMoving', {
+          platformId: event.platformId,
+          ...(event.cue ? { cue: event.cue } : {}),
+        });
         return;
       case 'STOPPED':
-        bus.emit('PlatformStopped', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        bus.emit('PlatformStopped', {
+          platformId: event.platformId,
+          ...(event.cue ? { cue: event.cue } : {}),
+        });
         return;
       case 'VANISHED':
         bus.emit('PlatformVanished', { platformId: event.platformId });
@@ -1424,7 +1551,10 @@ export function createLocationEngine<R extends RendererLike>(
         bus.emit('PlatformAppeared', { platformId: event.platformId });
         return;
       case 'BOUNCED':
-        bus.emit('PlayerBounced', { platformId: event.platformId, ...(event.cue ? { cue: event.cue } : {}) });
+        bus.emit('PlayerBounced', {
+          platformId: event.platformId,
+          ...(event.cue ? { cue: event.cue } : {}),
+        });
         return;
       case 'PLATE_PRESSED':
         bus.emit('PressurePlatePressed', { plateId: event.plateId });
@@ -1436,7 +1566,10 @@ export function createLocationEngine<R extends RendererLike>(
         bus.emit('PlatformSwitchToggled', { entityId: event.entityId, on: event.on });
         return;
       case 'CHECKPOINT':
-        bus.emit('CourseCheckpointReached', { checkpointId: event.checkpointId, label: event.label });
+        bus.emit('CourseCheckpointReached', {
+          checkpointId: event.checkpointId,
+          label: event.label,
+        });
         return;
       case 'GOAL':
         bus.emit('PlatformGoalReached', { goalId: event.goalId });
@@ -1446,6 +1579,17 @@ export function createLocationEngine<R extends RendererLike>(
         return;
     }
   }
+
+  // Development only (`collisionDebug.ts`): `import.meta.env.DEV` is `false` in production builds.
+  const debugOn =
+    options.collisionDebug ??
+    (import.meta.env.DEV &&
+      typeof window !== 'undefined' &&
+      collisionDebugEnabled(true, window.location.search, safeLocalStorage()));
+  const collisionDebug: CollisionDebugOverlay | null = debugOn
+    ? createCollisionDebugOverlay(parent)
+    : null;
+  if (collisionDebug) scene.add(collisionDebug.root);
 
   let assetsSettled = false;
   let lastFrameAt = deps.now();
@@ -1544,11 +1688,27 @@ export function createLocationEngine<R extends RendererLike>(
       avatar.animate(
         delta,
         controller.movementState,
-        controller.horizontalSpeed,
+        // What the child's walking really covered (0 against a wall), not the speed asked for.
+        controller.locomotionSpeed,
         controller.walkSpeed,
         controller.runSpeed,
       );
     }
+
+    collisionDebug?.update(delta, {
+      feet: controller.position,
+      avatar: avatar ? avatar.root.position : null,
+      aim: view.aimOrigin,
+      radius: controller.collision.radius,
+      skin: controller.collision.skin,
+      bodyHeight: DEFAULT_BODY_HEIGHT,
+      colliders,
+      jumpable: jumpableColliders,
+      movementState: controller.movementState,
+      locomotionSpeed: controller.locomotionSpeed,
+      cameraMode: view.mode,
+      cameraDistance: view.distance,
+    });
 
     for (const mixer of mixers) mixer.update(delta);
     for (const callback of frameCallbacks) callback(delta);
@@ -1578,6 +1738,7 @@ export function createLocationEngine<R extends RendererLike>(
     controls.dispose();
     for (const stop of stopCelebrating) stop();
     avatar?.dispose();
+    collisionDebug?.dispose();
     stopFitting();
     for (const mounted of extensionMounts.values()) mounted.dispose?.();
     frameCallbacks.clear();
@@ -1653,4 +1814,13 @@ export function createLocationEngine<R extends RendererLike>(
     platforms: () => platformSystem?.platforms ?? [],
     ready,
   };
+}
+
+/** The page's localStorage, or `null` where reading it throws (private mode, blocked storage). */
+function safeLocalStorage(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
 }

@@ -39,6 +39,10 @@ import type { RegionPlayProceduralConfig } from '../../../../region-play/regionP
 
 /** The name of each placeholder's root, so tests and debugging can find it. */
 export const PROCEDURAL_NAME = 'region-play:procedural';
+/** The primitive campfire's stones and logs: hidden once the `campfire` model stands there. */
+export const CAMPFIRE_BASE_NAME = 'region-play:campfire-base';
+/** The primitive campfire's flames: kept with the model (the model has no fire of its own). */
+export const CAMPFIRE_FLAMES_NAME = 'region-play:campfire-flames';
 export const PALM_TRUNKS_NAME = 'region-play:palm-trunks';
 /** The gate's bars, which TR-17 lifts when the gate opens. */
 export const GATE_BARS_NAME = 'region-play:gate-bars';
@@ -86,6 +90,17 @@ export interface ProceduralScenery {
   liftGate(id: string, instant: boolean): boolean;
   /** The root object of a drawn figure by its layout id, or undefined (SM-P7: sound positions). */
   rootOf(id: string): Object3D | undefined;
+  /**
+   * TR-PALM-05: stops drawing these primitive palms, because their asset library model now
+   * stands in the same place (`palmModels.ts`). Unknown ids are ignored. Never undone: a model
+   * once drawn stays for the visit.
+   */
+  hidePalms(ids: Iterable<string>): void;
+  /**
+   * Stops drawing the primitive stones and logs of these campfires, because the asset library
+   * model now stands there; their flames keep flickering on top. Unknown ids are ignored.
+   */
+  hideCampfireBases(ids: Iterable<string>): void;
   dispose(): void;
 }
 
@@ -141,7 +156,8 @@ export function buildProceduralScenery(
   }));
 
   const palms = entries.filter((entry) => entry.shape === 'PALM');
-  if (palms.length > 0) animations.push(addPalms(palms, kit, root));
+  const palmBatch = palms.length > 0 ? addPalms(palms, kit, root) : undefined;
+  if (palmBatch) animations.push(palmBatch.place);
   const groups = new Map<string, Group>();
   /** Gate bars still rising, with the height they stop at. */
   const lifting = new Map<Object3D, number>();
@@ -179,6 +195,15 @@ export function buildProceduralScenery(
       if (group) group.visible = visible;
     },
     rootOf: (id) => groups.get(id),
+    hidePalms(ids) {
+      palmBatch?.hide(ids, time);
+    },
+    hideCampfireBases(ids) {
+      for (const id of ids) {
+        const base = groups.get(id)?.getObjectByName(CAMPFIRE_BASE_NAME);
+        if (base) base.visible = false;
+      }
+    },
     liftGate(id, instant) {
       const bars = groups.get(id)?.getObjectByName(GATE_BARS_NAME);
       if (!bars) return false;
@@ -247,9 +272,13 @@ const BUILDERS: Record<Exclude<RegionPlayProceduralConfig['shape'], 'PALM'>, Bui
       ),
       kit.material(COLORS.darkWood),
     );
+    const base = new Group();
+    base.name = CAMPFIRE_BASE_NAME;
+    base.add(stones, logs);
     const flames = flameGroup(kit, shared, 2.2);
+    flames.name = CAMPFIRE_FLAMES_NAME;
     flames.position.y = 0.15;
-    group.add(stones, logs, flames);
+    group.add(base, flames);
     return flicker(flames, phase);
   },
 
@@ -494,7 +523,11 @@ function flicker(flames: Group, phase: number): Animate {
  * leans its own way and sways on its own phase; the matrices are rewritten
  * per tick, which for a few dozen instances is cheaper than one draw call each.
  */
-function addPalms(palms: readonly RegionPlayProceduralConfig[], kit: Kit, root: Group): Animate {
+function addPalms(
+  palms: readonly RegionPlayProceduralConfig[],
+  kit: Kit,
+  root: Group,
+): { place: Animate; hide(ids: Iterable<string>, time: number): void } {
   const trunkGeometry = kit.geometry(new CylinderGeometry(0.11, 0.2, 1, 7).translate(0, 0.5, 0));
   const frond = new BoxGeometry(0.55, 0.05, 2).translate(0, 0, 1);
   const fronds = kit.geometry(
@@ -537,9 +570,18 @@ function addPalms(palms: readonly RegionPlayProceduralConfig[], kit: Kit, root: 
   const unit = new Vector3(1, 1, 1);
   const at = new Vector3();
   const step = new Matrix4();
+  const hidden = new Set<number>();
+  const nothing = new Matrix4().makeScale(0, 0, 0);
 
   const place = (time: number) => {
     palms.forEach((palm, index) => {
+      if (hidden.has(index)) {
+        // Replaced by its model: a zero matrix draws nothing and is never picked.
+        trunks.setMatrixAt(index, nothing);
+        crowns.setMatrixAt(index, nothing);
+        nuts.setMatrixAt(index, nothing);
+        return;
+      }
       const height = palm.height ?? DEFAULT_HEIGHT.PALM ?? 4.8;
       const sway = Math.sin(time * 0.9 + phases[index]!) * 0.025;
       euler.set(0, palm.rotationY ?? 0, 0.09 + sway);
@@ -562,11 +604,21 @@ function addPalms(palms: readonly RegionPlayProceduralConfig[], kit: Kit, root: 
   place(0);
   // Bounds for culling and raycasts, after the first placement.
   for (const mesh of [trunks, crowns, nuts]) mesh.computeBoundingSphere();
-  return place;
+  const indexById = new Map(palms.map((palm, index) => [palm.id, index]));
+  return {
+    place,
+    hide(ids, time) {
+      for (const id of ids) {
+        const index = indexById.get(id);
+        if (index !== undefined) hidden.add(index);
+      }
+      place(time); // at once, even when reduced motion means `tick` never runs
+    },
+  };
 }
 
 /** A stable phase per id, so neighbouring flames and palms never move in step. */
-function hashPhase(id: string): number {
+export function hashPhase(id: string): number {
   let hash = 0;
   for (let index = 0; index < id.length; index += 1) hash = (hash * 31 + id.charCodeAt(index)) | 0;
   return ((hash >>> 0) % 628) / 100;

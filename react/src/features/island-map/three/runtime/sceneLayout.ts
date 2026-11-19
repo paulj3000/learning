@@ -400,6 +400,11 @@ export interface SolidCollider {
   box: BoxBounds;
   /** LAI-JMP-01: the child may jump onto or over it (authored `ColliderSpec.jumpable`, or a low derived piece). */
   jumpable?: boolean;
+  /**
+   * One of the four invisible walls at the world's edge (`boundaryWallRects`). It stops the child
+   * but never the third-person camera: nothing is drawn there to hide the view.
+   */
+  boundary?: boolean;
 }
 
 const ASSET_KINDS = new Map(ASSET_MANIFEST.map((entry) => [entry.id, entry.kind] as const));
@@ -420,6 +425,7 @@ export function solidColliders(
   const authored: SolidCollider[] = [
     ...boundaryWallRects(manifest.bounds).map((rect) => ({
       box: rectToBox(rect, RECT_MIN_Y, wallHeight),
+      boundary: true,
     })),
     ...manifest.colliders
       .filter((collider) => areRequirementsMet(collider.requirements, context))

@@ -79,14 +79,14 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-053 | No platform-imposed play-time limits; the session-time control and calm stop are retired | Accepted | Branch `claude/festive-faraday-fjechb` (Trello card 123) | Owner-directed 2026-11-11 (Trello "[LAI] Remove child gameplay time limits and forced session cutoffs"); drops `ChildProfile.session_minutes` (migration `users.0007`). Amends CLAUDE.md section 11 item 11 |
 | ADR-054 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-049, ADR-050 |
 | ADR-055 | The dev environment runs Django natively on one ARM64 EC2 instance with private RDS, Lambda and SQS for asynchronous work, and a nightly Step Functions shutdown; production keeps ADR-037 | Accepted | `main` (owner-directed native dev infrastructure, 2026-11-16) | Owner-directed and authorized 2026-11-16. Dev only: amends ADR-037 for `dev`; production unchanged. Repository side only: provisioning and every deploy stay owner-approved |
-| ADR-056 | One player camera controller with first- and third-person perspectives; the avatar and its animation only mirror the movement controller | Proposed | `feature/third-person-avatar` (LAI-JMP-01a, PR #27) | Owner QA pending |
-| ADR-057 | Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference | Proposed | `feature/player-avatar-assets` (LAI-JMP-01c, PR #28) | Owner QA pending |
-| ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller | Proposed | `feature/player-running` (PR #29) | Owner QA pending |
-| ADR-059 | Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored | Proposed | `feature/interactive-platforms` (LAI-JMP-02, LAI-JMP-04) | Owner QA pending; leaves LAI-0805 open |
-| ADR-060 | The player has a configurable cylindrical footprint (open PR branch, not merged) | Reserved | `feature/treasure-rush-palm-trees` (movement QA defects, PR #36) | Reserved 2026-11-16 and kept by the owner's ADR reconciliation (2026-11-17): the number and the decision stay with the movement branch, which adds the heading when it merges. Not merged here |
+| ADR-056 | One player camera controller with first- and third-person perspectives; the avatar and its animation only mirror the movement controller | Proposed | `feature/third-person-avatar` (LAI-JMP-01a, PR #27) | Owner QA pending; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-057 | Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference | Proposed | `feature/player-avatar-assets` (LAI-JMP-01c, PR #28) | Owner QA pending; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller | Proposed | `feature/player-running` (PR #29) | Owner QA pending; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-059 | Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored | Proposed | `feature/interactive-platforms` (LAI-JMP-02, LAI-JMP-04) | Owner QA pending; leaves LAI-0805 open; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-060 | The player has a configurable cylindrical footprint, and gait follows the movement collisions allowed | Proposed | `feature/treasure-rush-palm-trees` (movement QA defects, 2026-11-15) | Owner QA pending; radius is a starting value; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
 | ADR-061 | Runtime-independent background processing: Django-authoritative jobs, SQS work and completion queues, and Lambda workers that never touch the database or publish | Accepted; amended by ADR-064 | `feature/serverless-processing` (LAI-LAMBDA-001, PR #40, not merged) | Accepted by the owner 2026-11-16, subject to a number check (done: free on main and every open PR). Its separate work and completion queues, `LaiProcessing-<env>` stack and ECR delivery (items 3, 5 and 10) are superseded by ADR-064; the `lai_processing` package re-lands on the canonical path |
 | ADR-062 | Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest | Accepted; superseded in part by ADR-064 | `feature/serverless-processing-wave2` (LAI-LAMBDA-002 to 005, PR #41, not merged) | Accepted by the owner 2026-11-17 with B4 to B7, the `LAI_ASSET_ASYNC_VALIDATION` flag (default off) and prod reserved concurrency 5. Decision 1 (one backbone in `apps.jobs`) stands; decisions 2 and 3 (own queues, bucket and stack; ECR worker) and the second consumer are superseded by the owner's 2026-11-17 blocker-resolution decisions (ADR-064) |
-| ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed (numbered ADR-063 on integration; the branch authored it as ADR-055, which main uses for the dev environment) | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending |
+| ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending. Numbered ADR-055 on the movement branches; renumbered ADR-063 by the owner's ADR reconciliation (2026-11-17), decision text unchanged. Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
 | ADR-064 | Background processing has one canonical path: apps.jobs on the ADR-055 queues and results consumer, zip-packaged Lambda workers, a transactional outbox and a database-outage-safe consumer; Bedrock runs in a configurable Region | Accepted | `main` (owner's DEV blocker resolution, 2026-11-17) | Owner decisions 1 to 8 of 2026-11-17: zip for dev Lambda workers, no ECR in dev, containers only by a later decision, `apps.jobs` + SQS + Lambda + ADR-055 canonical, PR #40 extends it, Studio roles automated, Bedrock Region independent, low-cost dev and its schedule kept. Amends ADR-055, ADR-061 and ADR-062 |
 | ADR-065 | The Castle Director may only pick an id from a server-recomputed set of authored ambient events; events grant nothing and repeat by visit count, never by time | Accepted (owner, 2026-11-18) | `work/sc-r08-09` (SC-R08-01, SC-R09-01, SC-R09-02); `work/final-a` (revisioned catalog) | Adds route `generateCastleDirector`, `CastleVisitState`, `CastleEventShown`, and the Django-owned, revisioned `CastleEvent` catalog (migration `regions.0008`). Reuses ADR-044 (pipeline, Guardrail), ADR-047 (revisions) and ADR-054 (`npc_hint`) |
 | ADR-066 | Derived artifacts, create-only worker writes and retention (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-014), `docs/processing/adr/` on that branch | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
@@ -4334,7 +4334,7 @@ do not block the first deployment.
 
 ## ADR-063: Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable
 
-Status: Proposed (LAI-JMP-01, 2026-11-13). Development only; awaiting owner QA.
+Status: Proposed (LAI-JMP-01, 2026-11-13). Numbered ADR-055 on the movement branches; ADR-063 by the owner's ADR reconciliation (2026-11-17). Development only; awaiting owner QA.
 
 **Context.** LAI-JMP-01 makes jumping standard movement in every free-roaming 3D location, not
 only in platforming adventures, and asks that a jump never bypass a locked door, quest gate,
@@ -4651,3 +4651,45 @@ Development Governance.
 **Related ADRs.** ADR-019, ADR-020, ADR-033, ADR-045, ADR-047, ADR-053, ADR-063, ADR-064.
 
 **Owner approval.** Accepted by the project owner, 2026-11-18.
+
+## ADR-060: The player has a configurable cylindrical footprint, and gait follows the movement collisions allowed
+
+Status: Proposed (2026-11-15, owner QA defects 1 and 2). Development only; awaiting owner QA.
+Amends ADR-055 (collision) and ADR-056 (the avatar mirrors the controller).
+
+**Context.** Owner play-testing found the third-person avatar walking away from a camera that had
+stopped (backing into a wall), and a child able to walk half into Storykeeper Castle's walls. The
+shared controller tested a single point against every collider, chose gait from the velocity it
+asked for rather than what collisions allowed, and `withoutRootMotion` dropped only top-level
+position tracks, leaving a Mixamo walk's travel on its hips bone.
+
+**Decision.**
+
+1. **The child is a vertical cylinder**: `movement.collision.radius` (0.35 m) plus a `skin`
+   (0.02 m), the same in both perspectives, per-location override only where needed
+   (`playerCollision.ts`, validated). Only the horizontal footprint grows; heights never change.
+2. **Blocking is circle-versus-box**; standing, landing and riding go by the feet first and by the
+   body's edge only where nothing jumpable is underfoot, so no barrel or platform gets taller.
+   A child already overlapping a box may only move away from it.
+3. **Gait, movement state and walk playback come from the distance the child's own walking
+   really covered** (`locomotionSpeed`), not from the velocity requested; platform carry is not
+   walking. A blocked step comes up flush to the obstacle, so contacts never flicker.
+4. **No root motion from any rig**: position tracks on the model's top-level nodes are dropped
+   and the skeleton root bones keep only their vertical motion (`withoutRootMotionFor`).
+5. **The third-person boom may lift**, eased and slower under reduced motion, over a wall behind
+   the child when pulling in would hide them; it never moves the player or enters a wall. The
+   lift may go steeper (to -1.45 rad) than the child's own look limit, and falls back to the boom
+   with the most room rather than to none (owner QA 2026-11-15, tall walls). The invisible walls
+   at the world's edge never obstruct the camera: there the child just stops, the view unchanged.
+
+**Why 0.35 m.** The placeholder explorer's body is 0.27 m in radius; a typical published
+character is about 0.23 to 0.28 m at the shoulders. 0.35 m keeps the visible body out of a wall
+face with a small margin and passes every authored doorway (2 m in the castle). It is a starting
+value within the 0.30 to 0.45 m band, not an objective truth; owner QA may tune it. Swinging arms,
+wings and held items are deliberately not counted, so the footprint is stable across frames.
+
+**Consequences.** Children stop about 0.37 m from walls and solid props (was 0); Pirate Builder
+Bay's broken bridge stops them 0.37 m earlier. Storykeeper Castle's costume racks moved back 0.7 m
+so the Trophy Room door's landing point stays clear. A development-only collision view
+(`?collisionDebug=1`) shows the footprint, both positions and nearby colliders.
+

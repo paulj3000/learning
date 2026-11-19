@@ -100,6 +100,8 @@ export function mount(
     loadAvatarModel?: LocationEngineOptions['loadAvatarModel'];
     /** Asset Manager collision profiles, as the asset resolver would answer them. */
     collisionProfiles?: LocationEngineDeps<FakeRenderer>['assets']['collisionProfiles'];
+    /** Development collision view (`collisionDebug.ts`). */
+    collisionDebug?: boolean;
   } = {},
 ): Harness {
   const parent = options.parent ?? document.createElement('div');
@@ -197,6 +199,7 @@ export function mount(
       onCameraModeChange: options.onCameraModeChange,
       publishedAvatar: options.publishedAvatar,
       loadAvatarModel: options.loadAvatarModel,
+      ...(options.collisionDebug !== undefined ? { collisionDebug: options.collisionDebug } : {}),
     },
     deps,
   );

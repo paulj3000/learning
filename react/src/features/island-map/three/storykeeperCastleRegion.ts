@@ -607,9 +607,9 @@ export const STUDIO_EASEL_SPOT: EntitySpot = { entityId: 'studio-easel', x: 7.5,
 // --- The Costume Room (flavour only) ---------------------------------------
 
 export const COSTUME_RACK_SPOTS: readonly EntitySpot[] = [
-  { entityId: 'costume-rack-a', x: -6.5, z: -8.5 },
-  { entityId: 'costume-rack-b', x: -4.5, z: -8.5 },
-  { entityId: 'costume-rack-c', x: -2.5, z: -8.5 },
+  { entityId: 'costume-rack-a', x: -6.5, z: -9.2 },
+  { entityId: 'costume-rack-b', x: -4.5, z: -9.2 },
+  { entityId: 'costume-rack-c', x: -2.5, z: -9.2 },
 ];
 
 // --- The Great Library (beats 8, 9, 10) ------------------------------------

@@ -72,8 +72,9 @@ describe('Pirate Builder Bay on the generic runtime', () => {
     const harness = mountBay();
     harness.setDrive(walk(FACE_EAST));
     harness.runFrames(300);
-    expect(harness.camera().position.x).toBeLessThan(-3);
-    expect(harness.camera().position.x).toBeGreaterThan(-3.3);
+    // The child's body (0.35 m radius + 0.02 m skin) stops at the gap's edge at x = -3.
+    expect(harness.camera().position.x).toBeLessThan(-3 - 0.35);
+    expect(harness.camera().position.x).toBeGreaterThan(-3 - 0.37 - 0.3);
   });
 
   it('lets a child walk across once the bridge is mended', () => {

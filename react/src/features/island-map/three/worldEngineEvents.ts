@@ -73,6 +73,8 @@ export type WorldEngineEventMap = {
   PlayerRecovered: {
     reason: 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' | 'HAZARD';
     checkpointId?: string | null;
+    /** GE-007 (Firepeak requirement 7): the hazard that sent the child back, when one did. */
+    hazardId?: string | null;
   };
   /**
    * LAI-JMP-02 / LAI-JMP-04 platforms, for sound and presentation only; nothing about progress

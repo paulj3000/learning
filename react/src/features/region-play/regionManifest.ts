@@ -1,4 +1,5 @@
 import type { PlatformingSpec } from '../island-map/three/platforms/platformSpec';
+import { pickupLook } from './pickupLook';
 import type { RegionCheckpoint } from '../discovery/checkpoints';
 import type { JsonObject, JsonValue } from '../../api/parse';
 import {
@@ -25,6 +26,7 @@ import {
   type RegionPlayInteractionConfig,
   type StandInShape,
 } from './regionPlayConfig';
+import { ENGINE_BRIDGE_EXTENSION_ID } from '../game-engine/bridge/engineBridge';
 import { readRegionLayout, RegionLayoutError, type RegionLayout } from './regionLayout';
 import type { RegionSceneModel, SceneEntity } from './sceneModel';
 
@@ -173,7 +175,29 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
           : effects.backdrop,
     },
     changeKeys: [...model.worldChangeKeys],
-    procedural: layout.procedural,
+    // TR-PALM-05: a placeholder asks for its model only when the server's catalog lists one
+    // that can be delivered now; otherwise (no catalog, nothing published) it stays the
+    // primitive, with no request, no warning, and no asset id the validator cannot know.
+    procedural: layout.procedural.map((entry) => {
+      if (
+        entry.assetId === undefined ||
+        (model.deliverableAssetIds !== null && model.deliverableAssetIds.has(entry.assetId))
+      ) {
+        return entry;
+      }
+      const { assetId: _undeliverable, ...primitive } = entry;
+      return primitive;
+    }),
+    // TR-ENV-06: a prop is drawn only when the catalog says its model can be delivered; until
+    // then the bundled barrels and logs it replaces stay, and its colliders are never added.
+    props: layout.props.filter(
+      (prop) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(prop.assetId),
+    ),
+    propReplaces: layout.propReplaces,
+    // ENV-2: the same rule for vegetation; nothing stands in for it, so undeliverable means absent.
+    vegetation: layout.vegetation.filter(
+      (plant) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(plant.assetId),
+    ),
     pickups: [],
     runes: [],
     // TR-17: what the quest's completion opens, and whether this child has already earned it.
@@ -294,7 +318,8 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       config.interactions.push({ interactionId, kind, entityId: entity.entityId, npcId: null });
     } else if (entity.pickup) {
       // TR-14: a collectible picked up through the play API. Once picked up it is not drawn
-      // again; until then the extension draws it (a key has no catalogue model yet).
+      // again; until then the extension draws it: its model when the catalog can deliver one,
+      // else a primitive that looks like what it is (a feather, a shell, a key: `pickupLook`).
       if (entity.collected) continue;
       const interactionId = `${regionId}:pickup:${entity.entityId}`;
       props.push(drawnProp(entity, interactionId, REGION_ACTIONS.pickUp));
@@ -306,7 +331,11 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         targetId: entity.entityId,
         action: { kind: 'SHOW_MESSAGE', message: entity.label },
       });
-      config.pickups?.push({ entityId: entity.entityId });
+      config.pickups?.push({
+        entityId: entity.entityId,
+        ...(entity.assetId && deliverable(entity.assetId) ? { assetId: entity.assetId } : {}),
+        look: pickupLook(entity),
+      });
       config.interactions.push({
         interactionId,
         kind: 'pickup',
@@ -424,6 +453,11 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       : {}),
     extensions: [
       { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
+      // GE-070 / GE-065: Game Engine Core capabilities for this Area, as seed-authored scene data
+      // (`scene.engineBridge`, checked on publish and validated in full by the bridge).
+      ...(isObject(model.scene.engineBridge)
+        ? [{ extensionId: ENGINE_BRIDGE_EXTENSION_ID, config: model.scene.engineBridge }]
+        : []),
     ],
     copy: readCopy(model.scene.copy),
   };

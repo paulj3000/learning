@@ -1,3 +1,4 @@
+import { solidColliders } from '../island-map/three/runtime/sceneLayout';
 import { read } from '../../api/parse';
 import * as parse from '../../api/play/parse';
 import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../discovery/checkpoints';
@@ -88,13 +89,13 @@ describe('buildRegionManifest', () => {
     const built = build({ region });
     expect(issues(built)).toEqual([]);
     expect(built.manifest.movement).toBeUndefined();
-    const jumpable = built.manifest.colliders.filter((collider) => collider.jumpable);
-    expect(jumpable.map((collider) => collider.rect.id)).toEqual([
-      'cove-landing-barrel-0:collider',
-      'cove-landing-barrel-1:collider',
-      'cove-landing-barrel-2:collider',
-      'cove-landing-barrel-3:collider',
-    ]);
+    // No authored jumpable colliders: the barrels' stand-ins are jumpable derived boxes, and the
+    // library barrels drawn over them carry their own jumpable colliders (layout v8).
+    expect(built.manifest.colliders.filter((collider) => collider.jumpable)).toEqual([]);
+    const solids = solidColliders(built.manifest);
+    const landing = solids.filter((solid) => solid.id?.startsWith('derived:cove-landing-barrels#'));
+    expect(landing).toHaveLength(4);
+    expect(landing.every((solid) => solid.jumpable)).toBe(true);
   });
 
   it('carries a Django-authored camera and avatar, which the validator checks (LAI-JMP-01a)', async () => {
@@ -129,6 +130,30 @@ describe('buildRegionManifest', () => {
     const typo = { ...scene, movement: { jump: { jumpHieght: 2 } } };
     const bad = build({ region: { ...bootstrapJson().region, scene: typo } });
     expect(issues(bad).map((issue) => issue.path)).toEqual(['movement.jump.jumpHieght']);
+  });
+
+  it('binds the engine bridge only when the scene declares engineBridge (GE-070, GE-065)', async () => {
+    const engineBridge = {
+      capabilities: [{ id: 'gameplay.hazards', config: { hazards: [] } }],
+      allowEnginePlatforms: false,
+    };
+    const scene = { ...(await coveSceneJson()), engineBridge };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.extensions.map((binding) => binding.extensionId)).toEqual([
+      'region-play',
+      'engineBridge',
+    ]);
+    expect(built.manifest.extensions[1]?.config).toEqual(engineBridge);
+    expect(issues(built)).toEqual([]);
+
+    const plain = build({ region: { ...bootstrapJson().region, scene: await coveSceneJson() } });
+    expect(plain.manifest.extensions.map((binding) => binding.extensionId)).toEqual(['region-play']);
+    for (const odd of [null, 'hazards', [{ id: 'gameplay.hazards' }]]) {
+      const ignored = build({
+        region: { ...bootstrapJson().region, scene: { ...(await coveSceneJson()), engineBridge: odd } },
+      });
+      expect(ignored.manifest.extensions.map((binding) => binding.extensionId)).toEqual(['region-play']);
+    }
   });
 
   it('builds the five-zone cove from its layout, and the engine’s validator accepts it (TR-13)', async () => {
