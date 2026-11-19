@@ -42,6 +42,8 @@ import {
   zoneEnterMessage,
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
+import type { AnyGameplayEvent } from '@lai/game-engine/contracts';
+import { setLocationClaimSink } from './gameplayClaimSink';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
@@ -102,6 +104,12 @@ export interface ThreeLocationWorldViewProps {
     published: Promise<PlayerAvatarModel | null>;
     loadModel?: (ref: string) => Promise<LoadedModel>;
   };
+  /**
+   * GE-070 (decision E15): where this visit's gameplay claims go (the companion's and the engine
+   * bridge's), with the same signature as `GameHost`'s `onGameplayEvent`. Validated claims only;
+   * an invalid one is dropped and counted. Absent: nobody is listening and claims go nowhere.
+   */
+  onGameplayEvent?: (event: AnyGameplayEvent) => void;
 }
 
 const TOAST_DURATION_MS = 4000;
@@ -181,7 +189,10 @@ export function ThreeLocationWorldView({
   assets = DEFAULT_LOCATION_ENGINE_DEPS.assets,
   avatarKey = null,
   avatarSource,
+  onGameplayEvent,
 }: ThreeLocationWorldViewProps) {
+  // GE-070: this visit's claim sink, for as long as the view is up (`gameplayClaimSink.ts`).
+  useEffect(() => setLocationClaimSink(onGameplayEvent ?? null), [onGameplayEvent]);
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);

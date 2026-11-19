@@ -26,6 +26,7 @@ import {
   type RegionPlayInteractionConfig,
   type StandInShape,
 } from './regionPlayConfig';
+import { ENGINE_BRIDGE_EXTENSION_ID } from '../game-engine/bridge/engineBridge';
 import { readRegionLayout, RegionLayoutError, type RegionLayout } from './regionLayout';
 import type { RegionSceneModel, SceneEntity } from './sceneModel';
 
@@ -452,6 +453,11 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       : {}),
     extensions: [
       { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
+      // GE-070 / GE-065: Game Engine Core capabilities for this Area, as seed-authored scene data
+      // (`scene.engineBridge`, checked on publish and validated in full by the bridge).
+      ...(isObject(model.scene.engineBridge)
+        ? [{ extensionId: ENGINE_BRIDGE_EXTENSION_ID, config: model.scene.engineBridge }]
+        : []),
     ],
     copy: readCopy(model.scene.copy),
   };

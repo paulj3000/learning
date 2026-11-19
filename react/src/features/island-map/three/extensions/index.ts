@@ -4,6 +4,8 @@ import { clockworkMachineryExtension } from './clockworkMachinery/clockworkMachi
 import { sanctuaryArtExtension } from './sanctuaryArt/sanctuaryArtScene';
 import { castleTaleExtension } from './castleTale/castleTaleScene';
 import { regionPlaySceneExtension } from './regionPlay/regionPlayScene';
+import { createEngineBridgeExtension } from '../../../game-engine/bridge/engineBridge';
+import { currentClaimsBinding, forwardClaim } from '../runtime/gameplayClaimSink';
 import { VIEW_EXTENSION_IDS } from './viewExtensionIds';
 
 /**
@@ -33,6 +35,9 @@ export const SOURCE_WORLD_EXTENSIONS = createWorldExtensionRegistry([
   sanctuaryArtExtension,
   castleTaleExtension,
   regionPlaySceneExtension,
+  // GE-070 / GE-065: Game Engine Core capabilities inside the live runtime for an Area whose
+  // scene declares `engineBridge`. Claims go to the visit's sink (E15) once its session exists.
+  createEngineBridgeExtension({ onGameplayEvent: forwardClaim, claims: currentClaimsBinding }),
 ]);
 
 /** Every extension id with a scene half, a React half, or both. */

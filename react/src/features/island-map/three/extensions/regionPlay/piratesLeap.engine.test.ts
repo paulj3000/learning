@@ -11,7 +11,7 @@ import { toRegionSceneModel } from '../../../../region-play/sceneModel';
 import { SOURCE_MANIFEST_REGISTRIES } from '../../runtime/sourceManifestRegistries';
 import { validateLocationManifest } from '../../runtime/validateLocationManifest';
 import { mount, named, standingBox, type Drive, type Harness } from '../../runtime/testing/engineHarness';
-import type { CameraMode } from '../../playerPresentation';
+import type { CameraMode } from '@lai/game-engine/camera';
 import { regionPlaySceneExtension } from './regionPlayScene';
 
 /**

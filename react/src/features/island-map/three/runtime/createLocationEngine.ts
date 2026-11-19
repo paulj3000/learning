@@ -108,6 +108,7 @@ import {
   type BoxBounds,
 } from './sceneLayout';
 import { WorldTriggerTracker } from './worldTriggerTracker';
+import { nearestStandableSpot } from './nearestStandableSpot';
 import { installE2EProbe } from './e2eProbe';
 import { createMaterialLibrary } from './visual/materialLibrary';
 import { createMoteField, type MoteField } from './visual/motes';
@@ -617,12 +618,79 @@ export function createLocationEngine<R extends RendererLike>(
       }
       return removed;
     }
-    const solid = solids.find((candidate) => candidate.id === id);
-    if (!solid) return false;
-    const index = colliders.indexOf(solid.box);
+    // GE-D2: an authored or extension collider leaves every list, so a removed low obstacle is
+    // not still jumpable, and a second removal reports false.
+    const index = solids.findIndex((candidate) => candidate.id === id);
     if (index < 0) return false;
-    colliders.splice(index, 1);
+    const solid = solids[index]!;
+    const at = colliders.indexOf(solid.box);
+    if (at >= 0) colliders.splice(at, 1);
+    jumpableColliders.delete(solid.box);
+    solids.splice(index, 1);
     return true;
+  }
+
+  /**
+   * GE-D3 and the GE-065 bridge host contract: every collider an extension adds has an id it can
+   * be removed by (the requested one, or `extension:<extension>:<n>`). `derived:` ids are refused,
+   * because a collision-profile rebuild deletes every derived box. Re-adding an id replaces its
+   * box. The box is kept by reference, so an extension may move it in place. A gate is never
+   * jumpable, and blocks the camera like any wall.
+   */
+  let extensionColliderCount = 0;
+  function addExtensionCollider(
+    extensionId: string,
+    box: Box3,
+    colliderOptions?: { jumpable?: boolean; id?: string; gate?: boolean },
+  ): string {
+    const requested = colliderOptions?.id;
+    const id =
+      requested && !requested.startsWith('derived:')
+        ? requested
+        : `extension:${extensionId}:${(extensionColliderCount += 1)}`;
+    if (id === requested) removeCollider(id);
+    const jumpable = colliderOptions?.jumpable === true && colliderOptions.gate !== true;
+    solids.push({ id, box, jumpable, boundary: false });
+    colliders.push(box);
+    if (jumpable) jumpableColliders.add(box);
+    return id;
+  }
+
+  /** The id of the box the child stands on: an authored or extension collider, or a platform. */
+  function supportIdOf(box: Box3 | null): string | null {
+    if (!box) return null;
+    const solid = solids.find((candidate) => candidate.box === box);
+    if (solid?.id) return solid.id;
+    return platformSystem?.platformOf(box)?.spec.id ?? null;
+  }
+
+  /** GE-065 bridge host contract: the controller's state after collision (yaw 0 faces +Z). */
+  function playerState() {
+    const velocity = controller.horizontalVelocity;
+    return {
+      position: { x: controller.position.x, y: controller.position.y, z: controller.position.z },
+      yaw: controller.yaw,
+      velocity: { x: velocity.x, y: controller.verticalVelocity, z: velocity.z },
+      grounded: controller.grounded,
+      supportId: supportIdOf(controller.supportingBox()),
+    };
+  }
+
+  /**
+   * GE-D4: an extension's teleport (a hazard's safe checkpoint, a resumed section) is checked.
+   * A clear spot is used exactly, as before; a blocked one falls back to the nearest clear spot
+   * close by; only if nothing near is clear does the old unchecked placement remain, so a hazard
+   * recovery always moves the child out of the hazard. Emits nothing on the bus: the caller (the
+   * engine bridge, a Firepeak checkpoint) owns any recovery message.
+   */
+  function teleportExtensionPlayer(x: number, z: number, yaw: number): void {
+    if (!controller.teleportTo(x, z, yaw)) {
+      const spot = nearestStandableSpot(x, z, (px, pz) => controller.canStandAt(px, pz));
+      if (spot) controller.teleportTo(spot.x, spot.z, yaw);
+      else controller.teleport(x, z, yaw);
+    }
+    playerCamera.reset();
+    avatarFacing.snap(yaw);
   }
 
   function placeChild(placement: ChildPlacement): boolean {
@@ -1334,11 +1402,13 @@ export function createLocationEngine<R extends RendererLike>(
         manifest,
         quality,
         config: binding.config,
-        addCollider: (box, colliderOptions) => {
-          colliders.push(box);
-          if (colliderOptions?.jumpable) jumpableColliders.add(box);
-        },
+        addCollider: (box, colliderOptions) =>
+          addExtensionCollider(binding.extensionId, box, colliderOptions),
         removeCollider,
+        playerState,
+        setEnvironment: (query) => controller.setEnvironment(query),
+        // GE-D4: kept a point test on purpose. Its callers are NPC Manager behaviours, and the
+        // child's footprint would change how every NPC wanders.
         isBlocked: (x, z) =>
           colliders.some(
             (box) => x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z,
@@ -1369,11 +1439,7 @@ export function createLocationEngine<R extends RendererLike>(
           return () => frameCallbacks.delete(callback);
         },
         playerPosition: () => ({ x: controller.position.x, z: controller.position.z }),
-        teleportPlayer: (x, z, yaw) => {
-          controller.teleport(x, z, yaw);
-          playerCamera.reset();
-          avatarFacing.snap(yaw);
-        },
+        teleportPlayer: teleportExtensionPlayer,
         now: () => deps.now(),
         placeChild,
         childPlacement,

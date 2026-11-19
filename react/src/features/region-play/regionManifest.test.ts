@@ -153,6 +153,30 @@ describe('buildRegionManifest', () => {
     expect(issues(bad).map((issue) => issue.path)).toEqual(['movement.jump.jumpHieght']);
   });
 
+  it('binds the engine bridge only when the scene declares engineBridge (GE-070, GE-065)', async () => {
+    const engineBridge = {
+      capabilities: [{ id: 'gameplay.hazards', config: { hazards: [] } }],
+      allowEnginePlatforms: false,
+    };
+    const scene = { ...(await coveSceneJson()), engineBridge };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.extensions.map((binding) => binding.extensionId)).toEqual([
+      'region-play',
+      'engineBridge',
+    ]);
+    expect(built.manifest.extensions[1]?.config).toEqual(engineBridge);
+    expect(issues(built)).toEqual([]);
+
+    const plain = build({ region: { ...bootstrapJson().region, scene: await coveSceneJson() } });
+    expect(plain.manifest.extensions.map((binding) => binding.extensionId)).toEqual(['region-play']);
+    for (const odd of [null, 'hazards', [{ id: 'gameplay.hazards' }]]) {
+      const ignored = build({
+        region: { ...bootstrapJson().region, scene: { ...(await coveSceneJson()), engineBridge: odd } },
+      });
+      expect(ignored.manifest.extensions.map((binding) => binding.extensionId)).toEqual(['region-play']);
+    }
+  });
+
   it('builds the five-zone cove from its layout, and the engine’s validator accepts it (TR-13)', async () => {
     const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
     const built = build({ region });

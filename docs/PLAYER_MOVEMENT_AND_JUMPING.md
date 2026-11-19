@@ -165,11 +165,13 @@ collider is a wall, so there is nothing to hop onto. Authoring low obstacles is 
 
 - (Resolved by LAI-JMP-01a: third-person avatar, camera and jump animations,
   `docs/PLAYER_AVATAR_AND_CAMERA.md`.)
-- No running: the controller has one walking speed today. A run speed would add a `RUN` state.
+- (Resolved by PR #29: walking, running and sprinting are gaits of this controller,
+  `docs/PLAYER_RUNNING_AND_SPRINTING.md`.)
 - Ground is flat (height 0) in every location. `groundHeightAt` supports terrain and holes for
   the platforming subproject, but no location authors terrain yet.
-- Jumpable colliders are axis-aligned boxes and the player is a point in x/z, as walking always
-  was. A rotated or round obstacle needs a box that fits it.
+- Colliders are axis-aligned boxes. The player is a vertical cylinder (radius 0.35 m plus a
+  0.02 m skin, `playerCollision.ts`, ADR-060), no longer a point in x/z. A rotated or round
+  obstacle needs a box that fits it.
 - Changing Treasure Cove's layout takes effect where `seed_treasure_rush` runs and sees the layout
   version bump; nothing is deployed by this branch.
 - Not yet checked in a browser, on a device or with a gamepad.
