@@ -211,3 +211,46 @@ def test_a_sprouts_child_cannot_open_the_area(heart, api):
     assert post(client, f"{base(child)}regions/{REGION}/session/").status_code in (404, 409)
     regions = client.get(f"{base(child)}regions/").json()["regions"]
     assert REGION not in [r["regionId"] for r in regions]
+
+
+def test_a_v2_save_mid_adventure_upgrades_to_one_checkpoint_list_and_keeps_everything(heart, api):
+    """GE-073 save compatibility: an Area seeded at layout v2 (two checkpoint lists, platforming
+    lava) upgrades to v3 on the next seed; a child part-way through keeps every row and plays on."""
+    from apps.regions.models import WorldRegion
+
+    region = WorldRegion.objects.get(region_id=REGION)
+    old = dict(region.scene)
+    old.pop("engineBridge")
+    old["firepeakHeartVersion"] = 2
+    old["copy"] = {**old["copy"], "loading": "My own words."}
+    region.scene = old
+    region.save()
+
+    child, client = heart.a1, api(heart.a)
+    session = start(client, child)
+    assert post(client, f"{base(child)}quests/{QUEST}/accept/").status_code in (200, 201)
+    first_three = content.puzzle_rows()[:3]
+    for puzzle_id, kind, _entities, body in first_three:
+        assert solve(client, child, session, puzzle_id, right_answer(kind, body["ageBands"]["PATHFINDER"])).json()["correct"]
+    changes = set(WorldChange.objects.filter(child=child).values_list("change_key", flat=True))
+    items, progress = owned(child), QuestProgress.objects.get(child=child, quest__slug=QUEST)
+
+    with override_settings(DEBUG=True):
+        call_command("seed_firepeak_heart", stdout=None)
+    region.refresh_from_db()
+    assert region.scene["firepeakHeartVersion"] == seed.HEART_VERSION == 3
+    assert region.scene["engineBridge"] == seed.layout.scene()["engineBridge"]
+    assert region.scene["copy"]["loading"] == "My own words."
+
+    assert set(WorldChange.objects.filter(child=child).values_list("change_key", flat=True)) == changes
+    assert owned(child) == items
+    after = QuestProgress.objects.get(child=child, quest__slug=QUEST)
+    assert (after.status, after.completed_objective_ids, after.completed_stage_ids) == (
+        progress.status,
+        progress.completed_objective_ids,
+        progress.completed_stage_ids,
+    )
+    # Play continues on the upgraded Area: the next puzzle solves, the solved ones are practice.
+    puzzle_id, kind, _entities, body = content.puzzle_rows()[3]
+    session = start(client, child)
+    assert solve(client, child, session, puzzle_id, right_answer(kind, body["ageBands"]["PATHFINDER"])).json()["solvedNow"]
