@@ -20,6 +20,7 @@ standard wins and this set is corrected.
 
 | Document | What it holds |
 |---|---|
+| [integration-baseline.md](integration-baseline.md) | The current engine baseline SHA realm branches and scoring merge, with its verification and open gaps |
 | [audit.md](audit.md) | Phase 1 audit: existing engine code, duplication, what is extracted and what is rewritten |
 | [architecture.md](architecture.md) | Layers, module map, canonical player transform, lifecycle, capabilities, boundaries |
 | [public-contracts.md](public-contracts.md) | Versioned public interfaces: gameplay events v1, presentation events, player, physics, environment, capabilities, SDK |
