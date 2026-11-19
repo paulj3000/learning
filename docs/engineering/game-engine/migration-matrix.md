@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-020, ADR-033, ADR-051, ADR-070 (Reserved, collision), ADR-080 (Reserved)
+- **Related ADRs:** ADR-020, ADR-033, ADR-051, ADR-080 (Reserved); Firepeak's Heart of Firepeak decision takes number 073 (owner settlement 2026-11-19; `feature/firepeak-volcano-adventure` `5caec70e`; its Reserved row on `main` is pending)
 - **Related tickets:** GE-070 to GE-076
 - **Canonical sources:** [architecture.md](architecture.md) section 9, [integration policy](../integration-policy.md)
 
@@ -19,7 +19,7 @@
 
 Once GE-070 is merged and the contracts are stable, GE-071 to GE-075 may run in parallel on
 their own realm branches. A realm migrates by merging `core/gameengine` into its branch at a
-"migration-ready" SHA the engine lead publishes, then switching imports and adopting SDK
+"migration-ready" SHA the engine lead publishes (currently `e4148949`), then switching imports and adopting SDK
 definitions. **Nothing legacy is removed before its consumers migrate and regression evidence
 exists.**
 
@@ -27,11 +27,11 @@ exists.**
 
 | Realm / location | Branch | Owner session | Engine pieces adopted | Legacy kept until | Evidence required | State |
 |---|---|---|---|---|---|---|
-| Treasure Rush (Treasure Cove) | `feature/treasure-rush-palm-trees` | treasure-rush-c8 | Movement, jump, camera, avatar follow, collectibles, chests, platforms, claims | GE-076 | Existing TR unit tests unchanged; drift and penetration regressions; validator on the seed | Backlog; waits on the migration-ready SHA |
+| Treasure Rush (Treasure Cove) | `feature/treasure-rush-palm-trees` | treasure-rush-c8 | Movement, jump, camera, avatar follow, collectibles, chests, platforms, claims | GE-076 | Existing TR unit tests unchanged; drift and penetration regressions; validator on the seed | In development (owner approved 2026-11-19) on `feature/GE-070-treasure-rush-engine-migration` |
 | Pirate's Leap | `feature/pirates-leap` (inside Treasure Rush) | treasure-rush-c8 | Jump challenges (equal routes), course checkpoints and goals, platforms | GE-076 | Course tests; validator: every required step has a non-jump route | Backlog |
 | Storykeeper's Castle | `feature/storykeeper-castle-completion` | storybook-dc | Runtime, camera, movement (jump optional), discovery claims, SDK hooks | GE-076 | Castle tests unchanged; page ids, objectives and progress unchanged | Backlog; `createLocationEngine` edits reconciled first |
-| Firepeak (Heart of Firepeak) | `feature/firepeak-volcano-adventure` | firepeak-86 | Hazards (lava, telegraphed rocks), steam forces, crumble-then-fall, one checkpoint system, traction, footsteps | GE-076 | Firepeak tests unchanged; one checkpoint list | Backlog; ADR-070 collision first |
-| North Pole | `feature/north-pole-adventure` | firepeak-86 | Ice traction, snow and ice footsteps, weather as data, optional jump routes | Atmosphere parity | NP tests unchanged; atmosphere parity | Backlog |
+| Firepeak (Heart of Firepeak) | `feature/firepeak-volcano-adventure` | firepeak-86 | Hazards (lava, telegraphed rocks), steam forces, crumble-then-fall, one checkpoint system, traction, footsteps | GE-076 | Firepeak tests unchanged; one checkpoint list | In development (owner approved 2026-11-19); ADR collision settled (Firepeak takes 073) |
+| North Pole | `feature/north-pole-adventure` | firepeak-86 | Ice traction, snow and ice footsteps, weather as data, optional jump routes | Atmosphere parity | NP tests unchanged; atmosphere parity | In development (owner approved 2026-11-19) |
 | Welcome Harbor, Pirate Builder Bay, Clockwork Harbor, Dragon's Sanctuary, Wonderwild Forest and Hive, Explorer Cove, sandbox | `main` regions | engine lead | Location definitions with capability requests | GE-076 | One location per commit; parity tests unchanged | Backlog |
 | Phaser worlds | `main` | (conversion tasks LAI-2201+) | None. No new Phaser features (ADR-020) | Their conversion | Out of scope | n/a |
 

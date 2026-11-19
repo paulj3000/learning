@@ -31,7 +31,7 @@ deployment are separate gates.
 | Movement (GE-020 to GE-028) | Extraction changes no behaviour; defaults reproduce current movement exactly; jump limits enforced; no double jump by default; gates never jumpable; ice stops within about 1 m; forces never win against walking out; recovery never touches progress |
 | Camera and character (GE-030 to GE-035) | Third-person default with first-person option; camera never inside a collider; boundary colliders ignored; no landing dip under reduced motion; avatar never moves except by the canonical transform; root motion stripped |
 | Components (GE-040 to GE-046) | No timers on required routes; no loss on failure; vanishing and moving platforms only on optional routes; each hazard has a checkpoint; telegraph at least 1.5 s; accessible route claim equals the jump route claim; claims validate |
-| SDK (GE-050 to GE-056) | Definitions validate with the same resolver the runtime uses; validator rejects missing accessible routes, jumpable gates, checkpoints on moving platforms, timer fields, over 64 platforms; profiles within limits per band; ports never grade or grant |
+| SDK (GE-050 to GE-056) | Definitions validate with the same resolver the runtime uses; validator rejects a required jump challenge without an accessible route (optional jump-only challenges are allowed), jumpable gates, checkpoints on moving platforms, timer fields, over 64 platforms; profiles within limits per band; ports never grade or grant |
 | Host and tools (GE-060 to GE-063) | Mount, start, pause on hidden, dispose on unmount, StrictMode safe; invalid claims dropped and counted; Playground absent from production builds; overlays dev-only |
 
 ## 3. Merge-readiness gates (only when the owner authorizes, GE-090)

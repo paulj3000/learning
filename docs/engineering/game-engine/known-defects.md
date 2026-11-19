@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-020, ADR-060, ADR-070 (Reserved, collision)
+- **Related ADRs:** ADR-020, ADR-060
 - **Related tickets:** GE-001, GE-090
 - **Canonical sources:** test runs recorded in [implementation-status.md](implementation-status.md); Treasure Rush engine handoff `docs/engine/TREASURE_RUSH_ENGINE_HANDOFF.md` on `feature/treasure-rush-palm-trees` @ `6818f74b` (sections 6.4, 7.2, 8)
 
@@ -12,8 +12,8 @@
 | Id | Defect | Severity | State |
 |---|---|---|---|
 | GE-D2 | `removeCollider` on an authored id leaves the box in the jumpable set and in solids (`runtime/createLocationEngine.ts` lines 620 to 625 on the baseline) | Medium | Open in the live runtime. Engine `PhysicsProvider.removeCollider` removes from every list (GE-021); the live copy is fixed or replaced in GE-070 |
-| GE-D3 | Colliders added by extensions have no id, so they cannot be removed | Medium | Open in the live runtime. `ColliderSpec.id` is required in the engine contract |
-| GE-D4 | Extension `isBlocked` is a point-in-box test (no footprint, no height); `teleportPlayer` skips collision | Medium | Open in the live runtime. Engine queries go through the controller footprint (GE-020, GE-021) |
+| GE-D3 | Colliders added by extensions have no id, so they cannot be removed | Medium | Being fixed in GE-070: `addCollider` takes and returns an id (`extension:<id>:<n>` when none given; `derived:` refused) |
+| GE-D4 | Extension `isBlocked` is a point-in-box test (no footprint, no height); `teleportPlayer` skips collision | Medium | Being fixed in GE-070: `teleportPlayer` becomes collision-checked (exact spot, else nearest clear spot, else old placement). `isBlocked` stays a point test by design: NPC Manager behaviours depend on it, and a footprint test would change NPC wandering |
 | GE-D5 | The view calls handle members optionally (`setSprintMode?.`, `signalPlatforms?.`) | Low | Engine contracts make capabilities explicit; GE-070 makes the handle members required |
 | GE-D6 | Camera occlusion uses colliders, not meshes | Low (by design today) | Kept: collision raycast through `PhysicsProvider` (GE-031); mesh occlusion would be a new decision |
 | GE-D7 | `docs/PLAYER_MOVEMENT_AND_JUMPING.md` lines 164 to 175 are stale ("no running", "point in x/z") | Low (docs) | Open; corrected when the movement stack merges (owner of that doc) |

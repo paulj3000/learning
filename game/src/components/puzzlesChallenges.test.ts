@@ -153,6 +153,13 @@ describe('jump challenges', () => {
     expect(validateJumpChallengesConfig({ challenges: [{ ...challenge, routes: [challenge.routes[1]] }] }).ok).toBe(false);
     expect(validateJumpChallengesConfig({ challenges: [challenge] }).ok).toBe(true);
   });
+
+  it('lets an optional jump-only challenge omit the accessible route (it gates nothing required)', () => {
+    const jumpOnly = { ...challenge, routes: [challenge.routes.find((r) => r.kind === 'JUMP')!], optional: true };
+    expect(validateJumpChallengesConfig({ challenges: [jumpOnly] }).ok).toBe(true);
+    expect(validateJumpChallengesConfig({ challenges: [{ ...jumpOnly, optional: false }] }).ok).toBe(false);
+    expect(validateJumpChallengesConfig({ challenges: [{ ...jumpOnly, optional: 'yes' }] }).ok).toBe(false);
+  });
 });
 
 describe('registration', () => {
