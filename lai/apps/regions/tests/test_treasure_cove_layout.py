@@ -7,8 +7,9 @@ import pytest
 
 from apps.assets.model_packs import PACKS
 from apps.catalog.importer import import_content
-from apps.regions.models import WorldRegion
 from apps.regions import treasure_cove_vegetation as VEG
+from apps.regions.models import WorldRegion
+from apps.regions.pirates_leap_seed import LEAP_VERSION
 from apps.regions.treasure_cove_layout import (
     BARREL,
     BOUNDS,
@@ -210,7 +211,7 @@ class TestSeedAppliesTheLayout:
         # (LAI-JMP-03 keeps its own version, so neither ever replaces the other).
         assert seed_treasure_rush() == [
             f"WorldRegion {REGION_ID} layout v{LAYOUT_VERSION}",
-            "Pirate's Leap course v1",
+            f"Pirate's Leap course v{LEAP_VERSION}",
         ]
         region.refresh_from_db()
         assert region.title == "Pirate Cove"

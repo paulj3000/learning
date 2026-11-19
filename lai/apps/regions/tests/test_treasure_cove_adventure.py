@@ -76,9 +76,28 @@ def test_the_learning_objectives_are_the_chests_challenge_skills(cove, definitio
     assert set(definition["learningObjectiveIds"]) == skills
 
 
-def test_checkpoints_are_seeded_spawn_points(cove, definition):
+def test_checkpoints_are_seeded_spawn_points_or_course_checkpoints(cove, definition):
     spawns = set(cove.spawn_points.values_list("checkpoint_id", flat=True))
-    assert {c["id"] for c in definition["checkpoints"]} <= spawns
+    # GE-071: Pirate's Leap's course checkpoints live in the engine bridge block.
+    course = {
+        checkpoint["id"]
+        for capability in cove.scene["engineBridge"]["capabilities"]
+        if capability["id"] == "gameplay.checkpoints"
+        for checkpoint in capability["config"]["checkpoints"]
+    }
+    declared = {c["id"] for c in definition["checkpoints"]}
+    assert declared == {c for c in declared if c in spawns} | course
+    assert course <= declared
+
+
+def test_jump_challenges_are_the_ones_the_seed_tracks(cove, definition):
+    seeded = {
+        challenge["challengeId"]
+        for capability in cove.scene["engineBridge"]["capabilities"]
+        if capability["id"] == "gameplay.jumpChallenges"
+        for challenge in capability["config"]["challenges"]
+    }
+    assert {c["id"] for c in definition["jumpChallenges"]} == seeded
 
 
 def test_the_world_consequence_is_the_change_that_opens_lookout_point(cove, definition):

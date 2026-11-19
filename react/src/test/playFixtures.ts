@@ -409,13 +409,15 @@ export function pipsBootstrapJson(
 export async function piratesLeapSceneJson(platformTuning?: Record<string, unknown>) {
   const { readFileSync } = await import('node:fs');
   const { resolve } = await import('node:path');
-  const platforming: unknown = JSON.parse(
-    readFileSync(resolve(process.cwd(), '../lai/apps/regions/pirates_leap_course.json'), 'utf8'),
-  );
+  const snapshot = (name: string): unknown =>
+    JSON.parse(readFileSync(resolve(process.cwd(), '../lai/apps/regions', name), 'utf8'));
+  // GE-071: the seed writes the live part of the course (platforms, the plate, the zones) and
+  // the engine part (checkpoints, water pools, the goal, jump challenges) into separate blocks.
   return {
     ...(await coveSceneJson()),
-    piratesLeapVersion: 1,
-    platforming,
+    piratesLeapVersion: 2,
+    platforming: snapshot('pirates_leap_course.json'),
+    engineBridge: snapshot('pirates_leap_bridge.json'),
     ...(platformTuning ? { platformTuning } : {}),
   };
 }

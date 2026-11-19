@@ -13,6 +13,12 @@ import { validateLocationManifest } from '../../runtime/validateLocationManifest
 import { mount, named, standingBox, type Drive, type Harness } from '../../runtime/testing/engineHarness';
 import type { CameraMode } from '@lai/game-engine/camera';
 import { regionPlaySceneExtension } from './regionPlayScene';
+import {
+  createEngineBridgeExtension,
+  ENGINE_BRIDGE_EXTENSION_ID,
+  type EngineBridgeApi,
+} from '../../../../game-engine/bridge/engineBridge';
+import { PlatformsService } from '@lai/game-engine/components';
 
 /**
  * Treasure Cove: Pirate's Leap (LAI-JMP-03) on the real runtime: the course the Django seed
@@ -36,7 +42,9 @@ async function cove(options: { cameraMode?: CameraMode; platformTuning?: Record<
   const built = await buildCove(options.platformTuning);
   const harness = mount({
     manifest: built.manifest,
-    extensions: [regionPlaySceneExtension],
+    // GE-071: the course's checkpoints, water pools, goal and jump challenges run in the engine
+    // bridge, which the region manifest binds from `scene.engineBridge`, as in the app.
+    extensions: [regionPlaySceneExtension, createEngineBridgeExtension()],
     loadModel: async () => standingBox(),
     ...(options.cameraMode ? { cameraMode: options.cameraMode } : {}),
   });
@@ -57,7 +65,18 @@ const go =
     controller.yaw = yaw;
     controller.update(delta, { forward: 1, strafe: 0, ...extra });
   };
-const platform = (h: Harness, id: string) => h.engine.platforms().find((p) => p.spec.id === id)!;
+// GE-071 (course v4): the course's platforms run in the engine bridge. Its snapshot gives each
+// platform's top centre (position.y is the top, not the base, as the live state was).
+const bridgeApi = (h: Harness) => h.engine.extensionApi(ENGINE_BRIDGE_EXTENSION_ID) as EngineBridgeApi;
+const platform = (h: Harness, id: string) => bridgeApi(h).platforms().find((p) => p.id === id)!;
+const isPresent = (h: Harness, id: string) =>
+  bridgeApi(h).runtime!.services.require(PlatformsService).isPresent(id);
+/** The lift is awake when it is moving: its top rises within a second. */
+const liftRises = (h: Harness) => {
+  const before = platform(h, 'leap-lift').position.y;
+  h.runFrames(60);
+  return platform(h, 'leap-lift').position.y > before + 0.1;
+};
 
 afterEach(() => {
   unpublishRegionCheckpoints(REGION);
@@ -68,9 +87,21 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
   it('builds a valid manifest with the course, its section zones and the cove intact', async () => {
     const built = await buildCove();
     expect(validateLocationManifest(built.manifest, SOURCE_MANIFEST_REGISTRIES)).toEqual([]);
-    expect(built.manifest.platforming?.platforms.length).toBeGreaterThanOrEqual(15);
+    const engineBlock = built.manifest.extensions.find((b) => b.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
+    const capabilities = engineBlock.config.capabilities as { id: string; config: { platforms?: unknown[] } }[];
+    expect(capabilities.find((c) => c.id === 'gameplay.platforms')!.config.platforms!.length).toBeGreaterThanOrEqual(15);
+    expect(built.manifest.platforming?.platforms ?? []).toEqual([]); // nothing runs in both systems
     const zones = built.manifest.zones.map((zone) => zone.rect.id);
     expect(zones).toEqual(expect.arrayContaining(['cove-zone-landing', 'leap-zone-learn', 'leap-zone-lift', 'leap-zone-nest']));
+  });
+
+  it('runs the whole course in the engine bridge, which accepts every capability (GE-071)', async () => {
+    const h = await cove();
+    expect(bridgeApi(h).issues).toEqual([]);
+    expect(bridgeApi(h).platforms().map((p) => p.id)).toEqual(
+      expect.arrayContaining(['leap-lift', 'leap-moving-dock', 'leap-stair-14', 'leap-nest']),
+    );
+    expect(bridgeApi(h).platforms().find((p) => p.id === 'leap-lift')!.kind).toBe('moving');
   });
 
   it('Pip narrates each section as the child walks in', async () => {
@@ -85,10 +116,12 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
 
   it('the Pirate Lift: a plate wakes it, the child steps on and rides up to the ledge and the nest', async () => {
     const h = await cove();
-    expect(platform(h, 'leap-lift').active).toBe(false);
+    expect(liftRises(h)).toBe(false); // asleep until the plate
     h.setDrive(place(-20.6, 0, -30));
     h.runFrames(2);
-    expect(platform(h, 'leap-lift').active).toBe(true);
+    expect(liftRises(h)).toBe(true);
+    // Back down for the child to step on (the lift waits at each end).
+    for (let i = 0; i < 900 && platform(h, 'leap-lift').position.y > 0.21; i += 1) h.runFrames(1);
     // Step onto the lift from the ground (its top is a 0.2 m step, no jump) and ride.
     h.setDrive(place(-18, 0, -30.2, NORTH));
     h.runFrames(1);
@@ -98,12 +131,24 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
     h.runFrames(20);
     expect(h.engine.childPlacement().z).toBeGreaterThan(-29.2);
     // Up at the top (the lift waits there for 3 s): walk north onto the ledge and the nest.
-    const lift = platform(h, 'leap-lift');
-    for (let i = 0; i < 600 && lift.position.y < 2.99; i += 1) h.runFrames(1);
-    expect(lift.position.y).toBeGreaterThan(2.99);
+    for (let i = 0; i < 600 && platform(h, 'leap-lift').position.y < 3.19; i += 1) h.runFrames(1);
+    expect(platform(h, 'leap-lift').position.y).toBeGreaterThan(3.19); // top level with the ledge
     h.setDrive(go(NORTH));
     h.runFrames(90);
     expect(named(h.events, 'PlatformGoalReached')).toContainEqual({ goalId: 'leap-goal-nest' });
+  });
+
+  it('the lift and the ferry still tell the sound when they start, move and stop (audio parity)', async () => {
+    const h = await cove();
+    h.setDrive(place(-20.6, 0, -30)); // the gold plate wakes the lift
+    h.runFrames(2);
+    h.setDrive(idle);
+    h.runFrames(60 * 10); // a full trip up, a pause, and back
+    const ids = (name: 'PlatformActivated' | 'PlatformMoving' | 'PlatformStopped') =>
+      named(h.events, name).map((d) => (d as { platformId: string }).platformId);
+    expect(ids('PlatformActivated')).toContain('leap-lift');
+    expect(ids('PlatformMoving')).toEqual(expect.arrayContaining(['leap-lift', 'leap-moving-dock']));
+    expect(ids('PlatformStopped')).toEqual(expect.arrayContaining(['leap-lift', 'leap-moving-dock']));
   });
 
   it('the Moving Dock carries the child across the water to the far dock', async () => {
@@ -126,7 +171,12 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
     h.runFrames(1);
     h.setDrive(idle);
     h.runFrames(2);
-    expect(named(h.events, 'PlayerRecovered')).toContainEqual({ reason: 'HAZARD', checkpointId: 'leap-cp-yard' });
+    // GE-071: the engine bridge's recovery also names the pool (PlayerRecovered.hazardId).
+    expect(named(h.events, 'PlayerRecovered')).toContainEqual({
+      reason: 'HAZARD',
+      checkpointId: 'leap-cp-yard',
+      hazardId: 'leap-pool-barrels',
+    });
     expect(h.engine.childPlacement().x).toBeCloseTo(-15.8);
   });
 
@@ -147,11 +197,11 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
 
   it("solving Pip's riddle raises the secret bridge at once (a recorded world change)", async () => {
     const h = await cove();
-    const bridge = platform(h, 'leap-secret-bridge');
-    expect(bridge.present).toBe(false);
-    h.engine.signalPlatforms('world:PIRATES_LEAP_RIDDLE_SOLVED');
+    expect(isPresent(h, 'leap-secret-bridge')).toBe(false);
+    // The companion feeds recorded world changes to the bridge as signals (GE-065 hooks).
+    bridgeApi(h).setSignals(['world:PIRATES_LEAP_RIDDLE_SOLVED']);
     h.runFrames(2);
-    expect(bridge.present).toBe(true);
+    expect(isPresent(h, 'leap-secret-bridge')).toBe(true);
     // Walkable: the child crosses the pool on it without jumping.
     h.setDrive(place(-21.4, 0, -17.9, WEST));
     h.runFrames(1);
@@ -176,7 +226,7 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
     expect(h.engine.cameraMode()).toBe('third-person');
     h.setDrive(place(-20.6, 0, -30));
     h.runFrames(3);
-    expect(platform(h, 'leap-lift').active).toBe(true);
+    expect(liftRises(h)).toBe(true);
     // The landing walk into the ruins still works (the cove's own path).
     h.setDrive(place(0, 0, 2, Math.PI));
     h.runFrames(1);

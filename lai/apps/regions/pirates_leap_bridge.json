@@ -1,0 +1,781 @@
+{
+ "allowEnginePlatforms": true,
+ "capabilities": [
+  {
+   "config": {
+    "checkpoints": [
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-cp-yard",
+      "label": "the training yard",
+      "position": {
+       "x": -15.8,
+       "y": 0.0,
+       "z": -18.0
+      },
+      "yaw": 1.57
+     },
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-cp-barrels",
+      "label": "the barrel bank",
+      "position": {
+       "x": -28.6,
+       "y": 0.0,
+       "z": -19.0
+      },
+      "yaw": 3.14
+     },
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-cp-logs",
+      "label": "the log landing",
+      "position": {
+       "x": -28.8,
+       "y": 0.0,
+       "z": -32.6
+      },
+      "yaw": -1.57
+     },
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-cp-dock",
+      "label": "the far dock",
+      "position": {
+       "x": -19.8,
+       "y": 0.0,
+       "z": -33.0
+      },
+      "yaw": 0.0
+     }
+    ],
+    "goals": [
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-goal-nest",
+      "rect": {
+       "maxX": -16.8,
+       "maxZ": -22.0,
+       "minX": -19.2,
+       "minZ": -24.0
+      }
+     }
+    ]
+   },
+   "id": "gameplay.checkpoints"
+  },
+  {
+   "config": {
+    "hazards": [
+     {
+      "checkpointId": "leap-cp-yard",
+      "id": "leap-pool-barrels",
+      "kind": "WATER",
+      "messageKey": "leap.splash",
+      "rect": {
+       "maxX": -21.6,
+       "maxZ": -17.4,
+       "minX": -27.4,
+       "minZ": -20.2
+      }
+     },
+     {
+      "checkpointId": "leap-cp-barrels",
+      "id": "leap-pool-logs",
+      "kind": "WATER",
+      "messageKey": "leap.splash",
+      "rect": {
+       "maxX": -27.2,
+       "maxZ": -21.6,
+       "minX": -31.8,
+       "minZ": -30.4
+      }
+     },
+     {
+      "checkpointId": "leap-cp-logs",
+      "id": "leap-pool-dock",
+      "kind": "WATER",
+      "messageKey": "leap.splash",
+      "rect": {
+       "maxX": -21.2,
+       "maxZ": -31.6,
+       "minX": -27.6,
+       "minZ": -34.6
+      }
+     }
+    ]
+   },
+   "id": "gameplay.hazards"
+  },
+  {
+   "config": {
+    "challenges": [
+     {
+      "challengeId": "leap-steps",
+      "optional": true,
+      "routes": [
+       {
+        "goal": {
+         "maxX": -19.5,
+         "maxZ": -18.3,
+         "minX": -20.9,
+         "minZ": -19.7
+        },
+        "kind": "JUMP",
+        "routeId": "leap-steps-hop",
+        "start": {
+         "maxX": -14.8,
+         "maxZ": -17.0,
+         "minX": -16.8,
+         "minZ": -19.0
+        }
+       }
+      ]
+     },
+     {
+      "challengeId": "leap-barrels",
+      "optional": false,
+      "routes": [
+       {
+        "goal": {
+         "maxX": -25.6,
+         "maxZ": -18.4,
+         "minX": -26.8,
+         "minZ": -19.6
+        },
+        "kind": "JUMP",
+        "routeId": "leap-barrels-jump",
+        "start": {
+         "maxX": -14.8,
+         "maxZ": -17.0,
+         "minX": -16.8,
+         "minZ": -19.0
+        }
+       },
+       {
+        "goal": {
+         "maxX": -27.6,
+         "maxZ": -18.0,
+         "minX": -29.6,
+         "minZ": -20.0
+        },
+        "kind": "ACCESSIBLE",
+        "routeId": "leap-barrels-walk",
+        "start": {
+         "maxX": -14.8,
+         "maxZ": -17.0,
+         "minX": -16.8,
+         "minZ": -19.0
+        }
+       }
+      ]
+     },
+     {
+      "challengeId": "leap-logs",
+      "optional": false,
+      "routes": [
+       {
+        "goal": {
+         "maxX": -28.5,
+         "maxZ": -28.0,
+         "minX": -29.5,
+         "minZ": -30.0
+        },
+        "kind": "JUMP",
+        "routeId": "leap-logs-jump",
+        "start": {
+         "maxX": -27.6,
+         "maxZ": -18.0,
+         "minX": -29.6,
+         "minZ": -20.0
+        }
+       },
+       {
+        "goal": {
+         "maxX": -27.8,
+         "maxZ": -31.6,
+         "minX": -29.8,
+         "minZ": -33.6
+        },
+        "kind": "ACCESSIBLE",
+        "routeId": "leap-logs-walk",
+        "start": {
+         "maxX": -27.6,
+         "maxZ": -18.0,
+         "minX": -29.6,
+         "minZ": -20.0
+        }
+       }
+      ]
+     },
+     {
+      "challengeId": "leap-ledge",
+      "optional": false,
+      "routes": [
+       {
+        "goal": {
+         "maxX": -14.8,
+         "maxZ": -24.6,
+         "minX": -16.4,
+         "minZ": -26.2
+        },
+        "kind": "JUMP",
+        "routeId": "leap-ledge-drum",
+        "start": {
+         "maxX": -18.8,
+         "maxZ": -32.0,
+         "minX": -20.8,
+         "minZ": -34.0
+        }
+       },
+       {
+        "goal": {
+         "maxX": -19.5,
+         "maxZ": -24.8,
+         "minX": -20.3,
+         "minZ": -26.0
+        },
+        "kind": "ACCESSIBLE",
+        "routeId": "leap-ledge-stairs",
+        "start": {
+         "maxX": -18.8,
+         "maxZ": -32.0,
+         "minX": -20.8,
+         "minZ": -34.0
+        }
+       },
+       {
+        "goal": {
+         "maxX": -16.8,
+         "maxZ": -26.8,
+         "minX": -19.2,
+         "minZ": -29.2
+        },
+        "kind": "ACCESSIBLE",
+        "routeId": "leap-ledge-lift",
+        "start": {
+         "maxX": -18.8,
+         "maxZ": -32.0,
+         "minX": -20.8,
+         "minZ": -34.0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "id": "gameplay.jumpChallenges"
+  },
+  {
+   "config": {
+    "plates": [
+     {
+      "halfSize": 0.6,
+      "id": "leap-lift-plate",
+      "latch": true,
+      "position": {
+       "x": -20.6,
+       "y": 0.0,
+       "z": -30.0
+      },
+      "signalId": "leap-lift-plate"
+     }
+    ]
+   },
+   "id": "gameplay.triggers"
+  },
+  {
+   "config": {
+    "platforms": [
+     {
+      "color": 12946255,
+      "id": "leap-step-1",
+      "position": {
+       "x": -17.0,
+       "y": 0.0,
+       "z": -19.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.4,
+       "y": 0.25,
+       "z": 1.4
+      }
+     },
+     {
+      "color": 12946255,
+      "id": "leap-step-2",
+      "position": {
+       "x": -18.6,
+       "y": 0.0,
+       "z": -19.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.4,
+       "y": 0.5,
+       "z": 1.4
+      }
+     },
+     {
+      "color": 12946255,
+      "id": "leap-step-3",
+      "position": {
+       "x": -20.2,
+       "y": 0.0,
+       "z": -19.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.4,
+       "y": 0.8,
+       "z": 1.4
+      }
+     },
+     {
+      "assetId": "barrel",
+      "color": 10251068,
+      "id": "leap-barrel-1",
+      "position": {
+       "x": -22.6,
+       "y": 0.0,
+       "z": -19.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.2,
+       "y": 0.9,
+       "z": 1.2
+      }
+     },
+     {
+      "assetId": "barrel",
+      "color": 10251068,
+      "id": "leap-barrel-2",
+      "position": {
+       "x": -24.4,
+       "y": 0.0,
+       "z": -19.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.2,
+       "y": 0.9,
+       "z": 1.2
+      }
+     },
+     {
+      "assetId": "barrel",
+      "color": 10251068,
+      "id": "leap-barrel-3",
+      "position": {
+       "x": -26.2,
+       "y": 0.0,
+       "z": -19.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.2,
+       "y": 0.9,
+       "z": 1.2
+      }
+     },
+     {
+      "appearSignalId": "world:PIRATES_LEAP_RIDDLE_SOLVED",
+      "color": 15911244,
+      "id": "leap-secret-bridge",
+      "position": {
+       "x": -24.4,
+       "y": 0.0,
+       "z": -17.9
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 6.4,
+       "y": 0.2,
+       "z": 1.0
+      }
+     },
+     {
+      "color": 8081973,
+      "id": "leap-log-1",
+      "position": {
+       "x": -29.0,
+       "y": 0.0,
+       "z": -22.8
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.0,
+       "y": 0.5,
+       "z": 2.0
+      }
+     },
+     {
+      "color": 8081973,
+      "id": "leap-log-2",
+      "position": {
+       "x": -29.0,
+       "y": 0.0,
+       "z": -25.8
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.0,
+       "y": 0.5,
+       "z": 2.0
+      }
+     },
+     {
+      "color": 8081973,
+      "id": "leap-log-3",
+      "position": {
+       "x": -29.0,
+       "y": 0.0,
+       "z": -29.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.0,
+       "y": 0.5,
+       "z": 2.0
+      }
+     },
+     {
+      "color": 10980346,
+      "falling": {
+       "hiddenSeconds": 2.5,
+       "mode": "STAND",
+       "visibleSeconds": 3,
+       "warningSeconds": 1
+      },
+      "id": "leap-sinking-barrel",
+      "position": {
+       "x": -31.0,
+       "y": 0.0,
+       "z": -25.8
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.2,
+       "y": 0.5,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 4171734,
+      "id": "leap-moving-dock",
+      "moving": {
+       "mode": "PING_PONG",
+       "path": [
+        {
+         "x": 4.0,
+         "y": 0.0,
+         "z": 0.0
+        }
+       ],
+       "pauseSeconds": 3,
+       "speed": 1.2
+      },
+      "position": {
+       "x": -26.4,
+       "y": -0.2,
+       "z": -33.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 2.4,
+       "y": 0.4,
+       "z": 2.4
+      }
+     },
+     {
+      "color": 4171734,
+      "id": "leap-lift",
+      "moving": {
+       "activeSignalId": "leap-lift-plate",
+       "mode": "PING_PONG",
+       "path": [
+        {
+         "x": 0.0,
+         "y": 3.0,
+         "z": 0.0
+        }
+       ],
+       "pauseSeconds": 3,
+       "speed": 0.8
+      },
+      "position": {
+       "x": -18.0,
+       "y": 0.0,
+       "z": -28.0
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 2.4,
+       "y": 0.2,
+       "z": 2.4
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-ledge",
+      "position": {
+       "x": -18.0,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 3.0,
+       "y": 3.2,
+       "z": 2.8
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-1",
+      "position": {
+       "x": -26.5,
+       "y": 0.0,
+       "z": -21.2
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 1.2,
+       "y": 0.229,
+       "z": 0.8
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-2",
+      "position": {
+       "x": -26.5,
+       "y": 0.0,
+       "z": -22.0
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 1.2,
+       "y": 0.457,
+       "z": 0.8
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-3",
+      "position": {
+       "x": -26.5,
+       "y": 0.0,
+       "z": -22.8
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 1.2,
+       "y": 0.686,
+       "z": 0.8
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-4",
+      "position": {
+       "x": -26.5,
+       "y": 0.0,
+       "z": -23.6
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 1.2,
+       "y": 0.914,
+       "z": 0.8
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-5",
+      "position": {
+       "x": -26.5,
+       "y": 0.0,
+       "z": -24.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 1.2,
+       "y": 1.143,
+       "z": 0.8
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-6",
+      "position": {
+       "x": -26.5,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 1.2,
+       "y": 1.371,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-7",
+      "position": {
+       "x": -25.5,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 0.8,
+       "y": 1.6,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-8",
+      "position": {
+       "x": -24.7,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 0.8,
+       "y": 1.829,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-9",
+      "position": {
+       "x": -23.9,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 0.8,
+       "y": 2.057,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-10",
+      "position": {
+       "x": -23.1,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 0.8,
+       "y": 2.286,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-11",
+      "position": {
+       "x": -22.3,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 0.8,
+       "y": 2.514,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-12",
+      "position": {
+       "x": -21.5,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 0.8,
+       "y": 2.743,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-13",
+      "position": {
+       "x": -20.7,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 0.8,
+       "y": 2.971,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 10987948,
+      "id": "leap-stair-14",
+      "position": {
+       "x": -19.9,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 0.8,
+       "y": 3.2,
+       "z": 1.2
+      }
+     },
+     {
+      "color": 12946255,
+      "id": "leap-nest",
+      "position": {
+       "x": -18.0,
+       "y": 3.2,
+       "z": -23.0
+      },
+      "route": "REQUIRED",
+      "size": {
+       "x": 2.4,
+       "y": 0.19999999999999973,
+       "z": 2.0
+      }
+     },
+     {
+      "bounceHeight": 3.8,
+      "color": 15887242,
+      "id": "leap-bounce-drum",
+      "position": {
+       "x": -15.6,
+       "y": 0.0,
+       "z": -25.4
+      },
+      "route": "OPTIONAL",
+      "size": {
+       "x": 1.6,
+       "y": 0.3,
+       "z": 1.6
+      }
+     }
+    ]
+   },
+   "id": "gameplay.platforms"
+  }
+ ]
+}

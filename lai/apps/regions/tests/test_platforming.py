@@ -110,7 +110,9 @@ def test_staff_tune_platforms_through_the_area_content_revision(treasure):
 
 def test_an_area_without_platforms_offers_no_tuning(treasure):
     region = treasure.region
-    scene = {k: v for k, v in region.scene.items() if k not in ("platforming", "platformTuning")}
+    # Since Pirate's Leap course v4 (GE-071) the cove's platforms are in the engine bridge block.
+    dropped = ("platforming", "platformTuning", "engineBridge")
+    scene = {k: v for k, v in region.scene.items() if k not in dropped}
     region.scene = scene
     region.save()
     body = authoring.current_body(region)

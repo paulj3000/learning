@@ -11,8 +11,14 @@
  * location runtime and region play provide every capability (movement, jumping, camera, avatar,
  * chests, pickups, the spawn checkpoint); Django owns the challenges, grading and rewards. The
  * cove authors no movement or camera overrides, so every capability takes its engine defaults,
- * exactly as the live runtime does. Pirate's Leap's course, checkpoints and jump challenges are
- * GE-071 and are added there.
+ * exactly as the live runtime does.
+ *
+ * GE-071 adds Pirate's Leap: its four course checkpoints, water pools, jump challenges, platforms
+ * and pressure plate run in the engine bridge (`scene.engineBridge`, seeded by
+ * `pirates_leap_seed.py`, course version 4). `optional` means the same here as in the bridge config (decision E16): nothing
+ * required depends on the challenge. Barrel Crossing, the log trail and the treasure ledge are
+ * required, so each has a walking route, which the engine insists on; the training steps are
+ * optional and jump-only.
  */
 
 import { defineAdventure, type AdventureDefinition } from '@lai/game-engine/sdk';

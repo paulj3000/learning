@@ -92,3 +92,85 @@ agents' suites):
 
 Deferred to merge readiness: Playwright, browser/WebGL/device/gamepad, full lint and format,
 `make docs-check`, `npm run adr:check`.
+
+## 6. Pirate's Leap (GE-071) evidence
+
+Same branch as section 5, at `527b4fbb` and later. Owner approved GE-071 on 2026-11-19 and asked
+for it to continue on the GE-070 branch. Engine bases merged in: `fc5c71cf` (contains GE-070) and
+`cbe43a8e` (the companion bridge hooks). Not merged, not deployed, owner QA not done.
+
+| Checklist item | State | Evidence |
+|---|---|---|
+| Shared movement, jumping, camera and avatar | Unchanged; already shared through GE-070 | The live runtime runs the engine's moved controller and camera modules |
+| Checkpoints, safe respawn, course completion | On the engine bridge | `scene.engineBridge`: `gameplay.checkpoints` (4 checkpoints, goal `leap-goal-nest`), `gameplay.hazards` (3 water pools, `belowY` 0.05, so standing on a barrel or log is safe). Recovery goes to the latest checkpoint reached. Claims `course.checkpoint.reached` and `course.completed` |
+| Jump-challenge tracking | On the engine bridge | `gameplay.jumpChallenges`: `leap-barrels`, `leap-logs`, `leap-ledge` (jump route and walking route, same `jump.challenge.completed` claim) and optional jump-only `leap-steps` |
+| Platform components | Not yet: stays live | The bridge cannot yet draw platforms or carry the live controller (GE-066, engine lead, delayed). Moves in a later GE-071 step |
+| Walking alternatives | Kept and enforced | The bridge refuses a required challenge without an ACCESSIBLE route; Django test `test_every_required_jump_has_a_walking_route_and_both_are_equal` |
+| Equal educational outcome for both routes | Yes | Learning and rewards stay server facts that both routes reach (riddle drum, crow's-nest chest, shell, feather). Jump and course claims never award (scoring lead). Test pins that `pirates-leap` completes only through `cove-leap-chest` |
+| Quest and reward behaviour unchanged | Yes | `test_pirates_leap.py` (16) passes, including play API, one-time rewards and isolation |
+| Existing Pirate's Leap tests unchanged | One assertion widened, setup gains the bridge | `piratesLeap.engine.test.ts` 9/9 with the bridge mounted as in the app. `PlayerRecovered` now also carries `hazardId` (the engine contract), so the recovery assertion names the pool |
+| Validator on the content | Done | `npm run engine:validate` clean on the definition and `pirates_leap_bridge.json`; `checkContentCompatibility` in `treasureCoveAdventure.test.ts` |
+
+New tests: `piratesLeap.claims.engine.test.ts` (5: equal route claims, ledge once, checkpoint and
+goal claims, valid session-bound claims, recovery copy via bridge labels); Django
+`test_pirates_leap.py` (+5); `test_treasure_cove_adventure.py` (+1).
+
+Open: platform presentation and carry (GE-066), then moving the 16 platforms and the plate;
+wiring the live controller's `recoveryPoint` to the bridge's latest checkpoint once exposed (the
+cove is flat, so a live fall below ground cannot happen there).
+
+Test runs after merging core `4b63f9ca` (unit only, by path, through the infrastructure lead's test
+gate; load average 6 to 10 from other agents):
+
+- Vitest `island-map/three`, `region-play`, `npc-manager`, `audio`, `api/play`, `game-engine`,
+  `scoring` and `LocationWorldPage`: 2,895 passed. 9 failed under load: 8 in the castle's
+  `CastleTaleCompanion.npc.test.tsx` (the GE-D9 timeout cascade, fixed on the castle branch) and 1
+  timeout in `useNpcSceneHost.test.tsx`. Each file passes alone (11/11, 33/33).
+- `game/`: 610 passed, 1 expected fail.
+- pytest on PostgreSQL 16 (Treasure Rush apps): 1,099 passed. One expected failure was fixed in
+  `43455621`: `test_treasure_cove_layout.py` hard-coded course "v1"; it now follows
+  `LEAP_VERSION` (45/45).
+- `npm run typecheck` clean; `make docs-check` passed.
+
+### 6.1 Walking routes for the platform move (owner decision, 2026-11-19)
+
+The engine refuses a moving platform on a required route (jumping standard). Pirate's Leap's
+non-jump route used two: the plate-driven lift (the only non-jump way to the treasure ledge) and
+the moving dock. The owner chose content, not a policy change: walking routes so both become
+optional extras.
+
+- **Stairs:** course version 3 adds `leap-stair-1` to `leap-stair-14`, an L-shaped stone flight
+  (rise LEDGE_TOP / 14, about 0.23 m; treads 0.8 m; static) to the ledge's west edge. The ledge
+  challenge's walking route is now `leap-ledge-stairs`; the lift stays a second walking route.
+- **Dock:** a walking path already exists between the log pool and the dock pool; the ferry was
+  never needed.
+- **Evidence:** `piratesLeap.walkingRoutes.engine.test.ts` walks a child (no jump) up the stairs to
+  the nest and round the dock pool, with no recovery. The Django test checks every rise is 0.25 m or
+  less, every tread at least 0.8 m, and each step touches the next and the ledge. A claims test
+  checks the stairs complete `leap-ledge` by `leap-ledge-stairs`.
+- **Done after GE-068 and GE-069:** see 6.2.
+
+### 6.2 Platforms and the plate on the engine (course version 4)
+
+- **What moved:** all 30 authored platforms into `gameplay.platforms` and the latched
+  `leap-lift-plate` into `gameplay.triggers`, in `scene.engineBridge` with
+  `allowEnginePlatforms: true`. `scene.platforming` keeps only Pip's zones (empty platform and
+  plate lists), so nothing runs in both systems. The authored course is still the one source and
+  is still validated whole (`course_problems()`).
+- **Mapping:** same position and size (width/height/depth to x/y/z), colour, `assetId`
+  (barrels), motion path, mode, speed and pause; the lift's plate becomes
+  `moving.activeSignalId`; the riddle bridge's world-change signal becomes `appearSignalId`;
+  vanish timing becomes `falling`; bounce height becomes `bounceHeight`.
+- **Routes:** `REQUIRED` for the stairs, ledge and nest; every other platform `OPTIONAL`
+  (the engine allows moving, falling and bounce platforms only there).
+- **Kept by the engine:** staff tuning (GE-068, Django validates engine platform ids), colours and
+  models, safe recovery ground, inspection, and the live `PlatformActivated`,
+  `PlatformMoving` and `PlatformStopped` events (GE-069), so the Treasure Rush audio hook plays
+  the lift and ferry cues unchanged.
+- **Evidence:** `piratesLeap.engine.test.ts` (11) now reads engine platforms: the plate wakes the
+  lift and it carries the child to the nest, the ferry crosses, barrel jumps, the riddle bridge
+  appears on its signal and is walkable, slower staff tuning, third person, the bridge accepts
+  every capability, and an audio-parity test (failed before GE-069, passes after).
+  `test_pirates_leap.py` checks every platform moved unchanged, only extras are optional, the
+  lift's plate and the bridge's signal are wired, and tuning still validates.
+
