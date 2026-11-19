@@ -13,6 +13,8 @@ bridge refuses them, so a seed cannot publish a block the child's game would rej
 
 import re
 
+from .platforming import engine_platform_ids
+
 SCENE_KEY = "engineBridge"
 ALLOWED_KEYS = {"capabilities", "allowEnginePlatforms"}
 CAPABILITY_KEYS = {"id", "config"}
@@ -60,8 +62,28 @@ def engine_bridge_problems(block) -> list[str]:
     return problems
 
 
+def live_platform_ids(scene) -> list[str]:
+    """The ids of the live platform system's platforms (`scene.platforming.platforms`)."""
+    platforming = scene.get("platforming") if isinstance(scene, dict) else None
+    platforms = platforming.get("platforms") if isinstance(platforming, dict) else None
+    if not isinstance(platforms, list):
+        return []
+    return [p["id"] for p in platforms if isinstance(p, dict) and isinstance(p.get("id"), str)]
+
+
 def scene_engine_bridge_problems(scene) -> list[str]:
-    """The bridge problems of a whole scene; none when it declares no bridge."""
+    """The bridge problems of a whole scene; none when it declares no bridge.
+
+    An Area may mix live and engine platforms (Firepeak's Heart, before GE-076), but one platform
+    runs in one system only: an id in both would be drawn, collided and tuned twice.
+    """
     if not isinstance(scene, dict) or SCENE_KEY not in scene:
         return []
-    return engine_bridge_problems(scene[SCENE_KEY])
+    problems = engine_bridge_problems(scene[SCENE_KEY])
+    both = sorted(set(live_platform_ids(scene)) & set(engine_platform_ids(scene)))
+    if both:
+        problems.append(
+            f"{SCENE_KEY}: platform ids {', '.join(both)} are in both scene.platforming and "
+            "gameplay.platforms; a platform runs in one system only"
+        )
+    return problems

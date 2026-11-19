@@ -29,7 +29,7 @@ import {
   type ParticlesConfig,
   type QualityTier,
 } from './particles';
-import { createWeatherState, WEATHER_KINDS, setWeather, stepWeather, validateWeatherConfig, type WeatherConfig, type WeatherKindSpec, type WeatherSnapshot, type WeatherState } from './weather';
+import { createWeatherState, WEATHER_KINDS, setWeather, stepWeather, validateWeatherConfig, DEFAULT_WEATHER_AREA, type WeatherArea, type WeatherConfig, type WeatherKindSpec, type WeatherSnapshot, type WeatherState } from './weather';
 
 // --- lighting ----------------------------------------------------------------------------
 
@@ -79,6 +79,8 @@ export interface WeatherApi {
   snapshot(): WeatherSnapshot;
   targetId(): string;
   kinds(): Readonly<Record<string, WeatherKindSpec>>;
+  /** GE-L14: where precipitation falls (presentation only). */
+  area(): WeatherArea;
   set(kindId: string, seconds?: number): boolean;
   readonly state: WeatherState;
 }
@@ -99,6 +101,7 @@ export const weatherCapability: CapabilityDefinition<WeatherConfig, GameplayRunt
       snapshot: () => state.snapshot,
       targetId: () => state.targetId,
       kinds: () => state.kinds,
+      area: () => config.area ?? DEFAULT_WEATHER_AREA,
       set(id, seconds = config.transitionSeconds) {
         const ok = setWeather(state, id, seconds);
         if (ok) {

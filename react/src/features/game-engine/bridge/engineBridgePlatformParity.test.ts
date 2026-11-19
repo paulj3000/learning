@@ -225,3 +225,26 @@ describe('bridge platform look', () => {
     expect([...steady].every((o) => o === 1 || o === 0.5)).toBe(true);
   });
 });
+
+describe('engine platform movement sounds reach the host bus (GE-069)', () => {
+  it('forwards PlatformActivated, PlatformMoving and PlatformStopped with cues, as the live system emits them', () => {
+    const ferry = {
+      ...lift,
+      moving: { path: [{ x: 2, y: 0, z: 0 }], mode: 'ONCE', speed: 2, pauseSeconds: 0 },
+      sounds: { activated: 'sfx.ferry.bell', stopped: 'sfx.ferry.bump' },
+    };
+    const fake = fakeHost({ ...base, capabilities: [cap(ferry)] });
+    const heard: [string, unknown][] = [];
+    fake.host.bus.on('PlatformActivated', (detail) => heard.push(['PlatformActivated', detail]));
+    fake.host.bus.on('PlatformMoving', (detail) => heard.push(['PlatformMoving', detail]));
+    fake.host.bus.on('PlatformStopped', (detail) => heard.push(['PlatformStopped', detail]));
+    const mount = mountEngineBridge(fake.host);
+    fake.advance(2);
+    expect(heard).toEqual([
+      ['PlatformActivated', { platformId: 'lift', cue: 'sfx.ferry.bell' }],
+      ['PlatformMoving', { platformId: 'lift' }],
+      ['PlatformStopped', { platformId: 'lift', cue: 'sfx.ferry.bump' }],
+    ]);
+    mount.dispose();
+  });
+});

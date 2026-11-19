@@ -25,6 +25,11 @@ export interface WeatherViewOptions {
   reducedMotion: () => boolean;
   /** The area precipitation covers around the camera or the centre. */
   area: { x: number; y: number; z: number; halfX: number; halfZ: number; height: number };
+  /**
+   * GE-L14: when given, the precipitation box follows this point every frame (the child or the
+   * camera), so snow never stays behind in a large Area. `area.x` and `area.z` are then ignored.
+   */
+  follow?: () => { x: number; z: number } | null;
 }
 
 export interface WeatherView {
@@ -49,7 +54,8 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
       speed: p.fallSpeed,
       size: p.size,
       color: p.color,
-      origin: { x: options.area.x, y: options.area.y, z: options.area.z },
+      // Following: simulate round the origin and move the view (the box goes with the child).
+      origin: options.follow ? { x: 0, y: options.area.y, z: 0 } : { x: options.area.x, y: options.area.y, z: options.area.z },
       halfX: options.area.halfX,
       halfZ: options.area.halfZ,
       height: options.area.height,
@@ -73,6 +79,10 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
   return {
     update(dt) {
       const snapshot = weather.snapshot();
+      const centre = options.follow?.() ?? null;
+      if (centre) {
+        for (const entry of pools.values()) entry.view.points.position.set(centre.x, 0, centre.z);
+      }
       for (const [id, spec] of specs) {
         const entry = pools.get(id)!;
         const rate = snapshot.rates[id] ?? 0;

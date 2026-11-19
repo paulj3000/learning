@@ -142,10 +142,26 @@ export function stepWeather(state: WeatherState, dt: number): boolean {
   return true;
 }
 
+/**
+ * GE-L14: where precipitation falls (presentation only). `AT_START`: a fixed box round where the
+ * child starts (the default). `FOLLOW_PLAYER`: the box moves with the child every frame, like
+ * the Area atmosphere's precipitation box, for Areas larger than the box.
+ */
+export interface WeatherArea {
+  mode: 'AT_START' | 'FOLLOW_PLAYER';
+  halfX: number;
+  halfZ: number;
+  height: number;
+}
+
+export const DEFAULT_WEATHER_AREA: WeatherArea = { mode: 'AT_START', halfX: 25, halfZ: 25, height: 15 };
+
 export interface WeatherConfig {
   initial: string;
   kinds: Record<string, WeatherKindSpec>;
   transitionSeconds: number;
+  /** GE-L14: optional; defaults to `DEFAULT_WEATHER_AREA`. */
+  area?: WeatherArea;
 }
 
 export function validateWeatherConfig(input: unknown) {
@@ -194,5 +210,23 @@ export function validateWeatherConfig(input: unknown) {
   if (!kinds[initial]) {
     issues.add('initial', `unknown weather kind "${initial}"`);
   }
-  return issues.result<WeatherConfig>({ initial, kinds, transitionSeconds: issues.num(root.transitionSeconds, 'transitionSeconds', 0.5, 60, 3) });
+  let area: WeatherArea | undefined;
+  if (root.area !== undefined) {
+    if (!isRecord(root.area)) {
+      issues.add('area', 'must be an object');
+    } else {
+      area = {
+        mode: issues.oneOf<WeatherArea['mode']>(root.area.mode, 'area.mode', ['AT_START', 'FOLLOW_PLAYER'], 'AT_START'),
+        halfX: issues.num(root.area.halfX, 'area.halfX', 5, 60, DEFAULT_WEATHER_AREA.halfX),
+        halfZ: issues.num(root.area.halfZ, 'area.halfZ', 5, 60, DEFAULT_WEATHER_AREA.halfZ),
+        height: issues.num(root.area.height, 'area.height', 4, 40, DEFAULT_WEATHER_AREA.height),
+      };
+    }
+  }
+  return issues.result<WeatherConfig>({
+    initial,
+    kinds,
+    transitionSeconds: issues.num(root.transitionSeconds, 'transitionSeconds', 0.5, 60, 3),
+    ...(area ? { area } : {}),
+  });
 }

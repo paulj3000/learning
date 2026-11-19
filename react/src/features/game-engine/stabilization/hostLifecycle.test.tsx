@@ -10,6 +10,12 @@ import { HOST_EVENTS, HostPreferencesService } from '../hostTypes';
 import { createFakeRenderer, installFakeAnimationFrames } from '../testing';
 
 /**
+ * GE-T1: enough remounts to show a per-cycle leak (one shows from the second cycle), few enough
+ * to stay inside the default 5 s budget under the test gate. Cut work, never raise a budget.
+ */
+const REMOUNT_CYCLES = 6;
+
+/**
  * Wave 2 stabilization, areas 2, 7 and 8 (React host side): scene transitions (a runtimeId
  * change or a retry restarts cleanly: old runtime disposed once, new one started once, one tick
  * per frame), accessibility of the host (labels, roles, keyboard-reachable retry, reduced motion)
@@ -197,16 +203,16 @@ describe('GameHost stabilization', () => {
       expect(resumeSpy).not.toHaveBeenCalled();
     });
 
-    it('20 mount/unmount cycles dispose every runtime and renderer exactly once and leave no frame loop or canvas', async () => {
+    it(`${REMOUNT_CYCLES} mount/unmount cycles dispose every runtime and renderer exactly once and leave no frame loop or canvas`, async () => {
       const h = harness();
-      for (let i = 0; i < 20; i += 1) {
+      for (let i = 0; i < REMOUNT_CYCLES; i += 1) {
         const view = render(<GameHost runtimeId={`cycle-${i}`} label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
         await ready();
         act(() => frames.step());
         view.unmount();
         expect(frames.pendingCount()).toBe(0);
       }
-      expect(h.runtimes).toHaveLength(20);
+      expect(h.runtimes).toHaveLength(REMOUNT_CYCLES);
       for (const runtime of h.runtimes) {
         expect(runtime.state).toBe('disposed');
         expect(runtime.dispose).toHaveBeenCalledTimes(1);
@@ -222,9 +228,9 @@ describe('GameHost stabilization', () => {
       expect(document.querySelectorAll('canvas')).toHaveLength(0);
     });
 
-    it('20 StrictMode mount/unmount cycles also leave exactly zero live runtimes', async () => {
+    it(`${REMOUNT_CYCLES} StrictMode mount/unmount cycles also leave exactly zero live runtimes`, async () => {
       const h = harness();
-      for (let i = 0; i < 20; i += 1) {
+      for (let i = 0; i < REMOUNT_CYCLES; i += 1) {
         const view = render(
           <StrictMode>
             <GameHost runtimeId="s" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />
