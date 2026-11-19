@@ -262,6 +262,10 @@ describe('Places served by Django on the harbor map', () => {
     thumbnailAssetId: null,
     adventureCount: 0,
     explored: false,
+    questCount: 0,
+    questsCompleted: 0,
+    questsInProgress: 0,
+    completed: false,
     area: area
       ? { ...area, title: placeId, status: 'NOT_STARTED' as const, resumeSessionId: null }
       : null,
