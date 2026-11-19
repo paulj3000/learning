@@ -131,3 +131,23 @@ gate; load average 6 to 10 from other agents):
   `43455621`: `test_treasure_cove_layout.py` hard-coded course "v1"; it now follows
   `LEAP_VERSION` (45/45).
 - `npm run typecheck` clean; `make docs-check` passed.
+
+### 6.1 Walking routes for the platform move (owner decision, 2026-11-19)
+
+The engine refuses a moving platform on a required route (jumping standard). Pirate's Leap's
+non-jump route used two: the plate-driven lift (the only non-jump way to the treasure ledge) and
+the moving dock. The owner chose content, not a policy change: walking routes so both become
+optional extras.
+
+- **Stairs:** course version 3 adds `leap-stair-1` to `leap-stair-14`, an L-shaped stone flight
+  (rise LEDGE_TOP / 14, about 0.23 m; treads 0.8 m; static) to the ledge's west edge. The ledge
+  challenge's walking route is now `leap-ledge-stairs`; the lift stays a second walking route.
+- **Dock:** a walking path already exists between the log pool and the dock pool; the ferry was
+  never needed.
+- **Evidence:** `piratesLeap.walkingRoutes.engine.test.ts` walks a child (no jump) up the stairs to
+  the nest and round the dock pool, with no recovery. The Django test checks every rise is 0.25 m or
+  less, every tread at least 0.8 m, and each step touches the next and the ledge. A claims test
+  checks the stairs complete `leap-ledge` by `leap-ledge-stairs`.
+- **Still to do (waits on GE-068):** move the platforms, the plate and the riddle bridge onto
+  `gameplay.platforms` / `gameplay.triggers`, with the lift and dock marked `route: OPTIONAL`.
+

@@ -151,7 +151,7 @@
       "id": "leap-ledge",
       "areaId": "treasure-rush-cove",
       "jumpRouteId": "leap-ledge-drum",
-      "accessibleRouteId": "leap-ledge-lift",
+      "accessibleRouteId": "leap-ledge-stairs",
       "optional": false
     }
   ],

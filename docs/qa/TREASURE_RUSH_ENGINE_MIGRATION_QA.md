@@ -20,7 +20,8 @@ Nothing should look or play differently. The aim of these changes was no visible
   to Pip and quest steps are reported as engine "claims" for scoring. Scoring is off by default,
   so nothing new appears.
 - **GE-071:** Pirate's Leap's checkpoints, water pools and finish line now run in the engine. The
-  platforms, the gold plate and the lift are still drawn and ridden as before. The engine also
+  platforms, the gold plate and the lift are still drawn and ridden as before. **New (owner
+  decision):** stone stairs up to the treasure ledge, so the treasure needs no jump and no ride. The engine also
   notes which way a child crossed each section (jumping or walking), and both count the same.
 - **Audio tests:** test-only isolation. No sound behaviour changed.
 
@@ -65,9 +66,10 @@ Tick each item. Use a Pathfinder or Explorer child for the full course and a Spr
 **Pirate's Leap (GE-071)**
 
 8. [ ] Pip offers Pirate's Leap. Walk into each section and hear Pip's narration as before.
-9. [ ] With a Sprout child, reach the crow's-nest treasure **without jumping**: walk round each
-   pool, ride the ferry and the lift (step on the gold plate first). Open the chest: the quest
-   completes.
+9. [ ] With a Sprout child, reach the crow's-nest treasure **without jumping and without riding
+   anything**: walk round each pool (including the path between the log pool and the dock pool),
+   then climb the new stone stairs up to the ledge. Open the chest: the quest completes. The lift
+   (gold plate first) and the ferry still work as optional extras.
 10. [ ] Fall into a pool on purpose. You come back to the last checkpoint you reached, with
     "Splash! Back to *the training yard*. Have another go!" (the place name must be there). The
     "Safe spot: ..." toast appears when you reach a checkpoint.

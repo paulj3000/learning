@@ -230,6 +230,22 @@
        },
        {
         "goal": {
+         "maxX": -19.5,
+         "maxZ": -24.8,
+         "minX": -20.3,
+         "minZ": -26.0
+        },
+        "kind": "ACCESSIBLE",
+        "routeId": "leap-ledge-stairs",
+        "start": {
+         "maxX": -18.8,
+         "maxZ": -32.0,
+         "minX": -20.8,
+         "minZ": -34.0
+        }
+       },
+       {
+        "goal": {
          "maxX": -16.8,
          "maxZ": -26.8,
          "minX": -19.2,

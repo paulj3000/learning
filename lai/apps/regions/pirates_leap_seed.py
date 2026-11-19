@@ -37,7 +37,7 @@ from .models import PlacementKind, TreasureChest, WorldObjectPlacement, WorldReg
 from .platforming import layout_problems
 from .treasure_cove_layout import BOUNDS
 
-LEAP_VERSION = 2  # GE-071: checkpoints, pools, goal and jump challenges on the engine bridge
+LEAP_VERSION = 3  # GE-071: course on the engine bridge (2); stone stairs to the treasure ledge (3)
 LEAP_COURSE_ID = "pirates-leap"
 LEAP_QUEST_ID = "pirates-leap"
 LEAP_CHEST_ID = "cove-leap-chest"
@@ -73,6 +73,56 @@ def _rect(rid, min_x, max_x, min_z, max_z):
 WOOD = 0xC58B4F
 BARREL = 0x9C6B3C
 STONE = 0xA7A9AC
+
+
+# Stone stairs to the treasure ledge (owner decision 2026-11-19, GE-071): an L-shaped flight in the
+# free block between the barrel pool, the log pool and the lift. 14 steps of LEDGE_TOP / 14
+# (about 0.23 m, under the 0.25 m a child walks up); every tread 0.8 m deep and 1.2 m wide (the
+# jumping standard's narrowest top). Steps 1 to 5 climb south from just below the barrel pool,
+# step 6 is the turn, and steps 7 to 14 climb east to the ledge's west edge.
+STAIR_COUNT = 14
+STAIR_RISE = LEDGE_TOP / STAIR_COUNT
+STAIR_TREAD = 0.8
+STAIR_WIDTH = 1.2
+STAIR_TOP_X = -19.5  # the ledge's west edge
+STAIR_ROW_Z = (-26.0, -24.8)  # the upper flight's band, beside the ledge
+STAIR_TURN_X = -25.9  # the upper flight's west end
+STAIR_COLUMN_X = (STAIR_TURN_X - STAIR_WIDTH, STAIR_TURN_X)  # the lower flight's column
+
+
+def _step(step: int, min_x: float, max_x: float, min_z: float, max_z: float) -> dict:
+    return _box(
+        f"leap-stair-{step}",
+        round((min_x + max_x) / 2, 3),
+        round((min_z + max_z) / 2, 3),
+        round(max_x - min_x, 3),
+        round(STAIR_RISE * step, 3),
+        round(max_z - min_z, 3),
+        color=STONE,
+    )
+
+
+def _stairs() -> list[dict]:
+    upper = [
+        _step(
+            STAIR_COUNT - k,
+            STAIR_TOP_X - STAIR_TREAD * (k + 1),
+            STAIR_TOP_X - STAIR_TREAD * k,
+            *STAIR_ROW_Z,
+        )
+        for k in range(8)  # steps 14 down to 7
+    ]
+    turn = [_step(6, *STAIR_COLUMN_X, *STAIR_ROW_Z)]
+    lower = [
+        _step(
+            5 - k,
+            *STAIR_COLUMN_X,
+            STAIR_ROW_Z[1] + STAIR_TREAD * k,
+            STAIR_ROW_Z[1] + STAIR_TREAD * (k + 1),
+        )
+        for k in range(5)  # steps 5 down to 1, heading north
+    ]
+    return sorted(upper + turn + lower, key=lambda p: int(p["id"].rsplit("-", 1)[1]))
 
 
 def _authored_course() -> dict:
@@ -141,6 +191,9 @@ def _authored_course() -> dict:
             activation={"trigger": "PLATE", "source": "leap-lift-plate"},
         ),
         _box("leap-ledge", -18.0, -25.4, 3.0, LEDGE_TOP, 2.8, color=STONE),
+        # Stone stairs up the ledge's west side (owner decision 2026-11-19, GE-071): the
+        # walking way to the treasure, so neither the lift nor the drum is ever needed.
+        *_stairs(),
         # 6. The Secret Treasure: a crow's nest one small step up from the ledge.
         _box("leap-nest", -18.0, -23.0, 2.4, NEST_TOP - LEDGE_TOP, 2.0, y=LEDGE_TOP, color=WOOD),
         # A bounce drum beside the ledge: an optional shortcut straight up.
@@ -291,6 +344,12 @@ def leap_jump_challenges(course: dict) -> list[dict]:
                     "kind": "JUMP",
                     "start": at("leap-cp-dock"),
                     "goal": _footprint(platforms["leap-bounce-drum"]),
+                },
+                {
+                    "routeId": "leap-ledge-stairs",
+                    "kind": "ACCESSIBLE",
+                    "start": at("leap-cp-dock"),
+                    "goal": _footprint(platforms[f"leap-stair-{STAIR_COUNT}"]),
                 },
                 {
                     "routeId": "leap-ledge-lift",

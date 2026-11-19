@@ -95,7 +95,7 @@ def _capability(bridge, capability_id):
 
 def test_the_seed_splits_the_course_between_the_live_runtime_and_the_engine_bridge(treasure):
     scene = treasure.region.scene
-    assert scene["piratesLeapVersion"] == 2
+    assert scene["piratesLeapVersion"] == leap.LEAP_VERSION
     # Live: what the engine cannot yet draw or ride (platforms, the plate), and the narration.
     assert set(scene["platforming"]) == {"platforms", "pressurePlates", "zones"}
     # Engine: the one checkpoint system, the water pools, the goal and jump tracking.
@@ -139,11 +139,38 @@ def test_every_required_jump_has_a_walking_route_and_both_are_equal():
             assert "ACCESSIBLE" in kinds, challenge["challengeId"]
     # Only the training steps are jump-only, and nothing required depends on them.
     assert [c["challengeId"] for c in challenges if c["optional"]] == ["leap-steps"]
-    # The treasure ledge is reached without a jump by the plate-driven lift.
-    ledge = {r["kind"]: r for r in by_id["leap-ledge"]["routes"]}
-    lift = next(p for p in leap._authored_course()["platforms"] if p["id"] == "leap-lift")
-    assert lift["activation"]["trigger"] == "PLATE"
-    assert ledge["ACCESSIBLE"]["routeId"] == "leap-ledge-lift"
+    # The treasure ledge is reached on foot by the stairs (owner decision 2026-11-19); the
+    # plate-driven lift is a second, optional way up.
+    walking = [r["routeId"] for r in by_id["leap-ledge"]["routes"] if r["kind"] == "ACCESSIBLE"]
+    assert walking == ["leap-ledge-stairs", "leap-ledge-lift"]
+
+
+def test_the_stairs_reach_the_ledge_one_walkable_step_at_a_time():
+    """No jump and no moving platform is ever needed for the treasure (owner decision)."""
+    platforms = {p["id"]: p for p in leap._authored_course()["platforms"]}
+    stairs = [platforms[f"leap-stair-{n}"] for n in range(1, leap.STAIR_COUNT + 1)]
+    tops = [s["position"]["y"] + s["size"]["height"] for s in stairs]
+    rises = [b - a for a, b in zip([0.0, *tops], tops, strict=False)]
+    assert all(0 < rise <= 0.25 for rise in rises)  # each step within a walked step-up
+    assert tops[-1] == pytest.approx(leap.LEDGE_TOP)
+    assert all(min(s["size"]["width"], s["size"]["depth"]) >= 0.8 for s in stairs)  # 0.8 m tops
+    # Static: no step moves, vanishes or bounces.
+    assert not any(k in s for s in stairs for k in ("motion", "vanish", "bounce", "activation"))
+
+    # Each step touches the next one, and the top step touches the ledge.
+    def box(p):
+        x, z = p["position"]["x"], p["position"]["z"]
+        w, d = p["size"]["width"] / 2, p["size"]["depth"] / 2
+        return (x - w, x + w, z - d, z + d)
+
+    def touch(a, b):
+        ax0, ax1, az0, az1 = box(a)
+        bx0, bx1, bz0, bz1 = box(b)
+        return ax0 <= bx1 + 1e-6 and bx0 <= ax1 + 1e-6 and az0 <= bz1 + 1e-6 and bz0 <= az1 + 1e-6
+
+    for lower, upper in zip(stairs, stairs[1:], strict=False):
+        assert touch(lower, upper), (lower["id"], upper["id"])
+    assert touch(stairs[-1], platforms["leap-ledge"])
 
 
 def test_an_older_course_is_upgraded_once_and_keeps_staff_tuning(treasure):

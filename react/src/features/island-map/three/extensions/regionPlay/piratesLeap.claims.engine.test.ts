@@ -90,6 +90,16 @@ describe("Pirate's Leap on the Game Engine Core (GE-071)", () => {
     expect(named(jumper.harness.events, 'PlayerRecovered')).toEqual([]);
   });
 
+  it('the treasure ledge is completed on foot by the stairs, with no lift and no jump (owner decision)', async () => {
+    const walker = await course();
+    standAt(walker.harness, -19.9, 3.2, -25.4); // on the top stair, beside the ledge
+    expect(ofType(walker.claims, 'jump.challenge.completed')).toContainEqual({
+      challengeId: 'leap-ledge',
+      routeId: 'leap-ledge-stairs',
+    });
+    expect(named(walker.harness.events, 'PlayerJumped')).toEqual([]);
+  });
+
   it('the treasure ledge: the bounce drum and the lift are the same challenge, completed once', async () => {
     const lift = await course();
     standAt(lift.harness, -18, 0.2, -28); // on the lift, no jump
