@@ -136,5 +136,11 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
   plays `sfx.north_pole.snow_step` or `sfx.north_pole.ice_step` instead of the default, one sound
   per step. Silent until those recordings are uploaded (audio inventory). Owner check: footsteps
   change when stepping onto the lake bank.
-- Waiting: engine weather after atmosphere parity (the bridge does not draw weather yet).
+- Weather parity (GE-073F, 2026-11-19): the bridge now draws engine weather (GE-066 part 2), and
+  `region-play/northPole/northPoleWeatherParity.test.ts` sets it beside the Area atmosphere on the
+  real North Pole scene. Not at parity: the engine's snow falls in a fixed 25 m box around the start
+  (GE-L14), so a child at Snowflake Mountain would see none, while the Area snow follows the camera.
+  The night fog is kept when the engine kind has no fog. So the snow stays on the Area atmosphere
+  (`scene.atmosphere.precipitation`) and the seed asks the engine for no weather. It moves once the
+  engine's weather area can follow the child (requested from the engine lead); nothing to check now.
 

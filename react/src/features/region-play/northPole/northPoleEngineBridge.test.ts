@@ -60,7 +60,8 @@ describe('North Pole engine bridge (GE-074)', () => {
     const fake = host(bridgeConfig()!);
     const mount = mountEngineBridge(fake.value);
     expect(mount.api.issues).toEqual([]);
-    expect(mount.api.support).toEqual({ playerState: true, setEnvironment: true });
+    // The support report grows by addition (GE-066 part 2): compare the members this Area uses.
+    expect(mount.api.support).toMatchObject({ playerState: true, setEnvironment: true });
     const query = fake.environment.at(-1)!;
     // Frosty's skating bank, where the floe puzzles are.
     const ice = query.surfaceAt(-35, 0, 10);
