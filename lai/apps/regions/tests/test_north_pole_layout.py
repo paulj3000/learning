@@ -675,6 +675,7 @@ def test_the_snow_falls_on_the_engine_around_the_child_with_no_engine_fog():
     (kind,) = weather["kinds"]
     assert kind["fogDensity"] == 0  # the Area's linear night fog stays the only fog
     p = kind["precipitation"]
+    assert p["budgetShare"] == 0.6  # the atmosphere's density: 360 on MEDIUM, 720 on HIGH
     settled = p["ratePerSecond"] * weather["area"]["height"] / p["fallSpeed"]
-    assert settled == 720  # the atmosphere's HIGH count at density 0.6 (1200 x 0.6)
+    assert settled > 1200 * p["budgetShare"]  # the rate never holds it below the share
 

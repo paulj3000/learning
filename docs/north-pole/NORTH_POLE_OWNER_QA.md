@@ -143,9 +143,8 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
     child, so it snows from the village to Snowflake Mountain.
   - The Area atmosphere keeps only the night fog and the aurora, so it snows once. An existing
     layout 4 database drops only the atmosphere's SNOW on upgrade; staff-authored fog stays.
-  - Render tier: LOW draws no snow, as before. HIGH draws 720 flakes, as before. MEDIUM draws
-    600, its full budget (the atmosphere drew 360): a little busier on mid-range devices, never
-    beyond what MEDIUM allows. Matching MEDIUM too needs an engine option (asked).
+  - Render tier: the same snow as before on every setting: none on LOW, 360 flakes on MEDIUM,
+    720 on HIGH (the snow takes 0.6 of the tier budget, as the atmosphere's density did).
   - Reduced motion: fewer, slower flakes, as before.
   - Owner check: snow falls everywhere you walk, including the mountain, under the same dark-blue
     fog; with a low-quality setting there is no snow.
