@@ -620,8 +620,8 @@ root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; 
 
 Full account: `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`.
 
-- SC-R06-01: castle cues on the shared Sound Manager (`castleSounds.ts`, `useCastleAudio.ts`,
-  `castleSoundCues.ts`, `useCastleAnswerCues.ts`), mounted by `CastleTaleCompanion`. Room beds for
+- SC-R06-01: castle cues on the shared Sound Manager (`castleSounds.ts`, `useCastleAudio.tsx`,
+  `castleSoundCues.ts`, `useCastleAnswerCues.tsx`), mounted by `CastleTaleCompanion`. Room beds for
   every room with crossfade, door cue, explore and story music, Storybook open and close, page
   restore, quest start and complete, NPC greet for any NPC, right, retry and hint from the server's
   answers, shared movement cues. Django `castle_cues.py` and `seed_castle_sound` (never publishes).

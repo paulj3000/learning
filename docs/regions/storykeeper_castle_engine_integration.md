@@ -42,7 +42,7 @@ Git is the evidence for code; Trello for ownership and state. "Branch" means `fe
 | SC-JMP (umbrella, jumping in primary adventures) | Ready for Development | merge `c81ee466` and `7afcc039`; inventory doc | **Development Complete** (was stale) | Owner: play each adventure jumping and not jumping |
 | SC-JMP-01 Shared movement in all rooms | Ready | `castleEngineProfile.ts`, `castleMovementAudit.engine.test.ts` (this work) | Development Complete for the current shared runtime; re-run on the Game Engine Core when it exists | GE core contract (Agent 4) for the migration half |
 | SC-JMP-02 Collisions and jumpable surfaces | Ready | same audit; `castleEngineProfile.test.ts` (no jumpable wall, gate or door) | Development Complete for the current runtime | as SC-JMP-01 |
-| SC-JMP-03 Painted Words jumping | Development Complete | `castlePlatformAnswers.ts`, `usePadAnswers.ts` | unchanged | Owner play |
+| SC-JMP-03 Painted Words jumping | Development Complete | `castlePlatformAnswers.ts`, `usePadAnswers.tsx` | unchanged | Owner play |
 | SC-JMP-04 Storybook 3D portals | Ready | none | Not started: needs a story-world scene lifecycle from the engine core | Agent 4 contract, SC-JMP-05 |
 | SC-JMP-05 Reusable story-world template | Ready | none | Not started: this is engine-core scope (scene lifecycle, spawn, return contract), not a castle file | Agent 4 |
 | SC-JMP-06 Movement tutorial | Ready | `castleMovementTutorial.ts` reducer and tests (this work) | Prepared: pure, optional, skippable, timer-free; not shown in the world | Owner: where (the castle has no courtyard; Entry Hall proposed) and whether; "assisted mode" needs a spec and ADR |

@@ -23,7 +23,7 @@ Preparation audit: `docs/regions/prep/jumping_prep.md`. Engine integration audit
 |---|---|
 | Presets, groups, one pure builder per room, registry, Sprouts variant, pad zones | `react/src/features/island-map/three/runtime/manifests/castleRooms/castlePlatforms.ts` |
 | What a pad means for a step: bindings, Painted Words slots, ordering collector, gate | `react/src/features/island-map/three/castlePlatformAnswers.ts` |
-| The hook that lets pads answer (dwell, one submit) | `react/src/features/island-map/three/extensions/castleTale/usePadAnswers.ts` |
+| The hook that lets pads answer (dwell, one submit) | `react/src/features/island-map/three/extensions/castleTale/usePadAnswers.tsx` |
 | Hosting of the Painted Words in the Studio | `.../extensions/castleTale/CastlePaintedWordsSession.tsx`, `paintedWordsAdventureFor` in `castleTaleClaims.ts` |
 | Manifest wiring | `runtime/manifests/storykeeperCastle.ts` (`platforming`, `platformingByBand`, pad zones) |
 | Per-band variant (generic, shared runtime) | `manifest.platformingByBand`, `runtime/manifestForBand.ts`, `validateLocationManifest.ts` |
