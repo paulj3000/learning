@@ -52,10 +52,10 @@ describe('Treasure Cove adventure definition (GE-070)', () => {
       const route = (kind: string) => challenge.routes.find((r) => r.kind === kind)?.routeId ?? null;
       expect(mine.jumpRouteId).toBe(route('JUMP'));
       expect(mine.accessibleRouteId).toBe(route('ACCESSIBLE'));
-      // The jump is never required (Sprouts included); where progress depends on a challenge the
-      // bridge enforces a walking route (`optional: false` there).
-      expect(mine.optional).toBe(true);
-      if (!challenge.optional) expect(mine.accessibleRouteId).not.toBeNull();
+      // One meaning in both layers (decision E16): optional = nothing required depends on it.
+      // A required challenge always has a walking route, so the jump is never required.
+      expect(mine.optional).toBe(challenge.optional);
+      if (!mine.optional) expect(mine.accessibleRouteId).not.toBeNull();
     }
   });
 

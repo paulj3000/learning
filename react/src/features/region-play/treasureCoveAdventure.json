@@ -138,21 +138,21 @@
       "areaId": "treasure-rush-cove",
       "jumpRouteId": "leap-barrels-jump",
       "accessibleRouteId": "leap-barrels-walk",
-      "optional": true
+      "optional": false
     },
     {
       "id": "leap-logs",
       "areaId": "treasure-rush-cove",
       "jumpRouteId": "leap-logs-jump",
       "accessibleRouteId": "leap-logs-walk",
-      "optional": true
+      "optional": false
     },
     {
       "id": "leap-ledge",
       "areaId": "treasure-rush-cove",
       "jumpRouteId": "leap-ledge-drum",
       "accessibleRouteId": "leap-ledge-lift",
-      "optional": true
+      "optional": false
     }
   ],
   "checkpoints": [
