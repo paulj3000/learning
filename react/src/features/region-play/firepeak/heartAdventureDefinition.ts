@@ -42,10 +42,10 @@ export const FIREPEAK_HEART_CHECKPOINT_IDS = [
 export const FIREPEAK_HEART_PUZZLE_IDS: readonly string[] = HEART_PUZZLE_IDS;
 
 /**
- * Jump challenges: an optional jump route and a walking route that reach the same place (FPV-D7).
- * Route ids name authored platforms, colliders or zones. The lava stepping stones are not listed:
- * they lead only to the optional Lava Jumper shard, which a jump-only optional collectible may do
- * (jumping standard), so no walking route reaches the same goal.
+ * Jump challenges, all optional (FPV-D7). Route ids name authored platforms, colliders or zones.
+ * Most have a walking route to the same place. The lava stepping stones are jump-only: they lead
+ * only to the optional Lava Jumper shard (jumping standard), so `accessibleRouteId` is null and
+ * nothing required lies behind them (`test_firepeak_heart_layout.py` walks every required route).
  */
 export const FIREPEAK_HEART_JUMP_ROUTES = [
   // The landing log, beside the open path to the Emberwood gate.
@@ -54,7 +54,9 @@ export const FIREPEAK_HEART_JUMP_ROUTES = [
   { id: 'fh-jump-forest-logs', jumpRouteId: 'fh-forest-log-1', accessibleRouteId: 'fh-zone-emberwood' },
   // Summit hops; the stairs (0.2 m rises) reach the same plateau.
   { id: 'fh-jump-summit-hops', jumpRouteId: 'fh-summit-hop-1', accessibleRouteId: 'fh-summit-up-1' },
-] as const;
+  // Lava stepping stones to the optional Lava Jumper shard: jump-only.
+  { id: 'fh-jump-lava-stones', jumpRouteId: 'fh-stone-1', accessibleRouteId: null },
+] as const satisfies readonly { id: string; jumpRouteId: string; accessibleRouteId: string | null }[];
 
 export const FIREPEAK_HEART_ADVENTURE: Readonly<AdventureDefinition> = defineAdventure({
   id: HEART_QUEST_ID,

@@ -56,7 +56,7 @@ describe('The Heart of Firepeak engine definition (GE-073)', () => {
     expect(new Set(FIREPEAK_HEART_ADVENTURE.learningObjectiveIds)).toEqual(skills);
   });
 
-  it('gives every jump route a walking route, both authored in the scene, and keeps them optional', () => {
+  it('names authored jump routes, a walking route wherever one reaches the same place, all optional', () => {
     const scene = snapshot().scene;
     const authored = new Set([
       ...scene.platforming.platforms.map((p) => p.id),
@@ -65,8 +65,13 @@ describe('The Heart of Firepeak engine definition (GE-073)', () => {
     ]);
     for (const route of FIREPEAK_HEART_JUMP_ROUTES) {
       expect(authored, route.jumpRouteId).toContain(route.jumpRouteId);
-      expect(authored, route.accessibleRouteId).toContain(route.accessibleRouteId);
+      if (route.accessibleRouteId !== null) {
+        expect(authored, route.accessibleRouteId).toContain(route.accessibleRouteId);
+      }
     }
+    // Only the lava stones are jump-only, and they lead to the optional Lava Jumper shard.
+    const jumpOnly = FIREPEAK_HEART_JUMP_ROUTES.filter((r) => r.accessibleRouteId === null).map((r) => r.id);
+    expect(jumpOnly).toEqual(['fh-jump-lava-stones']);
     expect(FIREPEAK_HEART_ADVENTURE.jumpChallenges.every((j) => j.optional)).toBe(true);
   });
 
