@@ -7,6 +7,7 @@ import {
   type BoundsSpec,
   type ColliderSpec,
   type EnvironmentSpec,
+  type LightingSpec,
   type LightSpec,
   type LocationCopy,
   type NpcPlacementSpec,
@@ -15,6 +16,7 @@ import {
   type ScenerySpec,
   type ThreeLocationManifest,
 } from '../island-map/three/runtime/locationManifest';
+import { readAtmosphere } from '../island-map/three/runtime/visual/atmosphere';
 import type { WorldInteraction } from '../island-map/worldObjects';
 import {
   parseEffects,
@@ -226,6 +228,8 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       assetId: entity.assetId && deliverable(entity.assetId) ? entity.assetId : null,
       scale: entity.scale,
       size: { ...entity.placeholder },
+      ...(standIn?.shownWhenChangeKey ? { shownWhenChangeKey: standIn.shownWhenChangeKey } : {}),
+      ...(standIn?.hiddenWhenChangeKey ? { hiddenWhenChangeKey: standIn.hiddenWhenChangeKey } : {}),
     });
   };
 
@@ -400,6 +404,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     }
   }
 
+  const atmosphere = readAtmosphere(model.scene.atmosphere);
   const lights = [...layout.lights, ...readLights(rawEffects?.lights)];
   const manifest: ThreeLocationManifest = {
     schemaVersion: LOCATION_MANIFEST_SCHEMA_VERSION,
@@ -425,6 +430,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         : []),
     ],
     ...(lights.length > 0 ? { lights } : {}),
+    ...(atmosphere ? { atmosphere } : {}),
     ambient: layout.ambient,
     interactions,
     adventureBindings: [],
@@ -570,7 +576,32 @@ function readEnvironment(value: JsonValue | undefined): EnvironmentSpec {
     Number.isInteger(value.backgroundColor)
       ? value.backgroundColor
       : DEFAULT_BACKGROUND;
-  return { backgroundColor: background };
+  const lighting = readLighting(isObject(value) ? value.lighting : undefined);
+  return { backgroundColor: background, ...(lighting ? { lighting } : {}) };
+}
+
+/**
+ * `environment.lighting`: colours must be 24-bit integers and intensities are clamped to 0..4;
+ * anything else is dropped field by field, so absent or unreadable means today's lighting.
+ */
+function readLighting(value: JsonValue | undefined): LightingSpec | undefined {
+  if (!isObject(value)) return undefined;
+  const colour = (raw: JsonValue | undefined) =>
+    typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= 0xffffff
+      ? raw
+      : undefined;
+  const intensity = (raw: JsonValue | undefined) =>
+    typeof raw === 'number' && Number.isFinite(raw) ? Math.min(4, Math.max(0, raw)) : undefined;
+  const lighting: LightingSpec = {};
+  const ambientColor = colour(value.ambientColor);
+  const sunColor = colour(value.sunColor);
+  const ambientIntensity = intensity(value.ambientIntensity);
+  const sunIntensity = intensity(value.sunIntensity);
+  if (ambientColor !== undefined) lighting.ambientColor = ambientColor;
+  if (sunColor !== undefined) lighting.sunColor = sunColor;
+  if (ambientIntensity !== undefined) lighting.ambientIntensity = ambientIntensity;
+  if (sunIntensity !== undefined) lighting.sunIntensity = sunIntensity;
+  return Object.keys(lighting).length > 0 ? lighting : undefined;
 }
 
 function text(value: JsonValue | undefined, fallback: string): string {
@@ -587,6 +618,10 @@ function readCopy(value: JsonValue | undefined): LocationCopy {
   };
 }
 
+function finiteOrUndefined(value: JsonValue | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 /** Seed-authored colliders (`scene.colliders`); an extension may remove one by id. */
 function readColliders(value: JsonValue | undefined): ColliderSpec[] {
   if (!Array.isArray(value)) return [];
@@ -596,6 +631,11 @@ function readColliders(value: JsonValue | undefined): ColliderSpec[] {
     if (![minX, maxX, minZ, maxZ].every((n) => typeof n === 'number' && Number.isFinite(n))) {
       return [];
     }
+    // Optional heights and the jump flag (LAI-JMP-01). A non-finite height is dropped, so a
+    // malformed value falls back to today's full-height wall; `jumpable` needs both heights
+    // (the validator insists), and Django colliders carry no `requirements`, so they are never gates.
+    const minY = finiteOrUndefined(raw.minY);
+    const maxY = finiteOrUndefined(raw.maxY);
     return [
       {
         rect: {
@@ -605,6 +645,11 @@ function readColliders(value: JsonValue | undefined): ColliderSpec[] {
           minZ: minZ as number,
           maxZ: maxZ as number,
         },
+        ...(minY !== undefined ? { minY } : {}),
+        ...(maxY !== undefined ? { maxY } : {}),
+        ...(raw.jumpable === true && minY !== undefined && maxY !== undefined
+          ? { jumpable: true }
+          : {}),
       },
     ];
   });
@@ -631,17 +676,29 @@ function readLights(value: JsonValue | undefined): LightSpec[] {
   });
 }
 
-function readStandIns(
-  effects: JsonObject | undefined,
-): Map<string, { shape: StandInShape; color: number }> {
-  const out = new Map<string, { shape: StandInShape; color: number }>();
+interface StandInEntry {
+  shape: StandInShape;
+  color: number;
+  shownWhenChangeKey?: string;
+  hiddenWhenChangeKey?: string;
+}
+
+function readStandIns(effects: JsonObject | undefined): Map<string, StandInEntry> {
+  const out = new Map<string, StandInEntry>();
   const raw = effects?.standIns;
   if (!Array.isArray(raw)) return out;
   for (const entry of raw) {
     if (!isObject(entry) || typeof entry.entityId !== 'string') continue;
     const shape = STAND_IN_SHAPES.find((candidate) => candidate === entry.shape) ?? 'BOX';
     const color = typeof entry.color === 'number' ? entry.color : BOX_PLACEHOLDER_COLOR;
-    out.set(entry.entityId, { shape, color });
+    out.set(entry.entityId, {
+      shape,
+      color,
+      shownWhenChangeKey:
+        typeof entry.shownWhenChangeKey === 'string' ? entry.shownWhenChangeKey : undefined,
+      hiddenWhenChangeKey:
+        typeof entry.hiddenWhenChangeKey === 'string' ? entry.hiddenWhenChangeKey : undefined,
+    });
   }
   return out;
 }

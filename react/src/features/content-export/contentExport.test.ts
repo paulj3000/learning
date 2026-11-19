@@ -25,6 +25,20 @@ import {
   FIREPEAK_REWARD_RULES,
 } from './firepeakContent';
 import {
+  HEART_ITEMS,
+  HEART_LOCATIONS,
+  HEART_NPCS,
+  HEART_QUESTS,
+  HEART_REWARD_RULES,
+} from './firepeakHeartContent';
+import {
+  NORTH_POLE_ITEMS,
+  NORTH_POLE_LOCATIONS,
+  NORTH_POLE_NPCS,
+  NORTH_POLE_QUESTS,
+  NORTH_POLE_REWARD_RULES,
+} from './northPoleContent';
+import {
   TREASURE_RUSH_ITEMS,
   TREASURE_RUSH_QUESTS,
   TREASURE_RUSH_REWARD_RULES,
@@ -79,16 +93,28 @@ describe('preservation of the existing content', () => {
     const pkg = await buildContentPackage();
     expect(pkg.adventures).toEqual(clone(ADVENTURE_TEMPLATES));
     expect(pkg.quests).toEqual(
-      clone([...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS, ...FIREPEAK_QUESTS]),
+      clone([
+        ...QUEST_DEFINITIONS,
+        ...TREASURE_RUSH_QUESTS,
+        ...FIREPEAK_QUESTS,
+        ...HEART_QUESTS,
+        ...NORTH_POLE_QUESTS,
+      ]),
     );
-    expect(pkg.items).toEqual(clone([...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS]));
+    expect(pkg.items).toEqual(clone([...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS, ...HEART_ITEMS, ...NORTH_POLE_ITEMS]));
     expect(pkg.rewardRules).toEqual(
-      clone([...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES, ...FIREPEAK_REWARD_RULES]),
+      clone([
+        ...ALL_REWARD_RULES,
+        ...TREASURE_RUSH_REWARD_RULES,
+        ...FIREPEAK_REWARD_RULES,
+        ...HEART_REWARD_RULES,
+        ...NORTH_POLE_REWARD_RULES,
+      ]),
     );
-    expect(pkg.npcs).toEqual(clone([...ALL_NPCS, ...FIREPEAK_NPCS]));
+    expect(pkg.npcs).toEqual(clone([...ALL_NPCS, ...FIREPEAK_NPCS, ...HEART_NPCS, ...NORTH_POLE_NPCS]));
     expect(pkg.discoveries).toEqual(clone(DISCOVERY_DEFINITIONS));
     expect(pkg.checkpoints).toEqual(clone(ALL_CHECKPOINTS));
-    expect(pkg.locations).toEqual(clone([...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS]));
+    expect(pkg.locations).toEqual(clone([...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS, ...HEART_LOCATIONS, ...NORTH_POLE_LOCATIONS]));
     expect(pkg.stories).toEqual(clone(STORY_DEFINITIONS));
     expect(pkg.skills).toEqual(clone(SKILLS));
     expect(pkg.assets).toEqual(clone(ASSET_MANIFEST));
@@ -118,17 +144,17 @@ describe('preservation of the existing content', () => {
     expect(
       Object.fromEntries(Object.keys(pkg).map((k) => [k, pkg[k as keyof ContentPackage].length])),
     ).toEqual({
-      islands: 2,
-      locations: 11,
+      islands: 3, // + North Pole
+      locations: 13, // + Heart of Firepeak
       adventures: 29, // + the Writing Room's three per-band stories (SC-final-B)
       learningObjectives: 20,
       wonderWallQuestions: 4,
       stories: 5,
-      quests: 14, // 9 + the three Great Storybook quests (SC-R04) + the Pathfinder follow-up + Pirate's Leap (LAI-JMP-03)
-      items: 41, // + the Great Storybook seal, + three castle keepsakes (SC-R07-01), + the mouse door knob (Final F), + Pirate's Leap's four keepsakes
-      collectibleSets: 3, // + castle-keepsakes (SC-R07-01)
-      rewardRules: 34, // + one seal rule per band's Great Storybook quest, + three keepsake rules, + the mouse door knob, + Pirate's Leap's four
-      npcs: 8, // + Professor Orion (SC-R05-03)
+      quests: 24, // 9 + the three Great Storybook quests (SC-R04) + the Pathfinder follow-up + Pirate's Leap (LAI-JMP-03) + Firepeak and North Pole
+      items: 117, // + the Great Storybook seal, + three castle keepsakes (SC-R07-01), + the mouse door knob (Final F), + Pirate's Leap's four keepsakes, + Firepeak and North Pole
+      collectibleSets: 11, // + castle-keepsakes (SC-R07-01), + Firepeak and North Pole
+      rewardRules: 92, // + one seal rule per band's Great Storybook quest, + three keepsake rules, + the mouse door knob, + Pirate's Leap's four, + Firepeak and North Pole
+      npcs: 23, // + Professor Orion (SC-R05-03), + Firepeak and North Pole
       discoveries: 8, // + the Secret Chamber's two quiet finds (SC-R08-02)
       checkpoints: 31,
       interactions: 8,
@@ -145,7 +171,10 @@ describe('preservation of the existing content', () => {
     const pkg = await buildContentPackage();
     expect(pkg.adventures.map((a) => a.slug)).toEqual(ADVENTURE_TEMPLATES.map((a) => a.slug));
     expect(pkg.adventures.map((a) => a.slug)).toContain('repair-the-moonlight-bridge');
-    expect(pkg.islands.map((i) => i.slug)).toEqual(WORLD_DEFINITIONS.map((w) => w.slug));
+    expect(pkg.islands.map((i) => i.slug)).toEqual([
+      ...WORLD_DEFINITIONS.map((w) => w.slug),
+      'north-pole',
+    ]);
   });
 
   it('keeps representative gameplay rules exactly', async () => {
@@ -247,9 +276,24 @@ describe('integrity checks on the real content', () => {
     expect(byKind('region-without-location-record')).toEqual(['welcome-harbor']);
     expect(byKind('adventure-passage-region')).toEqual(['wonderwild-hive']);
     expect(byKind('npc-interaction-without-record')).toEqual([
+      'cinder',
+      'flint',
+      'frosty',
+      'ginger',
       'harbor-master',
+      'ignis',
+      'jingle',
+      'kindle',
+      'mrs-claus',
+      'noel',
+      'peppermint',
+      'polaris',
+      'professor-basalt',
       'professor-ember',
       'professor-ticktock',
+      'santa-claus',
+      'snowball',
+      'tinker',
     ]);
   });
 });

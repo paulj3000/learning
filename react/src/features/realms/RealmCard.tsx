@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PortalButton, ProgressIndicator, cn } from '../portal/ui';
 import type { Realm } from './realmCatalog';
-import { AgeRange, SubjectBadges } from './RealmParts';
+import { AgeRange, SeasonalChips, SubjectBadges } from './RealmParts';
 import { RealmPicture } from './RealmPicture';
 import { themeFor } from './realmThemes';
 
@@ -57,6 +57,7 @@ export function RealmCard({ realm, search = '', eager = false }: RealmCardProps)
           {realm.title}
         </h3>
         {realm.tagline ? <p className="m-0">{realm.tagline}</p> : null}
+        <SeasonalChips seasonal={realm.seasonal} />
         <SubjectBadges subjects={realm.subjectAreas} />
         <AgeRange bands={realm.ageBands} />
         {locked ? (

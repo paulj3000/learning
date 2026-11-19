@@ -10,6 +10,10 @@ from apps.catalog.models import RewardRule
 from . import castle_events, platforming, puzzles
 from .models import AreaPuzzle, CastleEvent, TreasureChest, WorldRegion
 
+# Parameters naming this puzzle's placements: lists of {id, ...} whose ids are placements, and
+# maps of option/item id -> placement id (CHOOSE_ANSWER, ORDER_SEQUENCE).
+LIST_ENTITY_KEYS = ("stones", "slots", "valves")
+MAP_ENTITY_KEYS = ("optionEntities", "itemEntities")
 COPY_KEYS = {"loading", "instructions", "calmStop", "altNavLabel"}
 
 
@@ -96,11 +100,18 @@ def _apply_puzzle(puzzle: AreaPuzzle, body: dict, problems: list[str]):
             problems.append(f"$.worldChangeKey: {key} is already recorded by something else")
         # Objects a child moves or turns are this puzzle's own placements (seed-authored).
         for band, params in body["ageBands"].items():
-            for key in ("stones", "slots", "valves"):
+            for key in LIST_ENTITY_KEYS:
                 for item in params.get(key, []):
                     if item.get("id") not in puzzle.entity_ids:
                         problems.append(
                             f"$.ageBands.{band}.{key}: {item.get('id')!r} is not one of this "
+                            "puzzle's objects"
+                        )
+            for key in MAP_ENTITY_KEYS:
+                for entity in (params.get(key) or {}).values():
+                    if entity not in puzzle.entity_ids:
+                        problems.append(
+                            f"$.ageBands.{band}.{key}: {entity!r} is not one of this "
                             "puzzle's objects"
                         )
         npc_entity = None

@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('catalog', '0010_merge_npc_manager'),
-        ('regions', '0007_castle_director'),
+        ('regions', '0008_castle_director'),
     ]
 
     operations = [

@@ -1,9 +1,20 @@
 import { useState } from 'react';
 import type { InventoryEntry } from '../../../../../../api/play/types';
-import { AREA_COPY, journalEntries, readableDate } from '../../../../../region-play/areaPuzzleUi';
+import {
+  AREA_COPY,
+  journalEntries,
+  optionSpoken,
+  readableDate,
+  successLines,
+  symbolGlyph,
+  type ChoiceState,
+} from '../../../../../region-play/areaPuzzleUi';
 import {
   dueHint,
+  type ChooseAnswerParams,
+  type ChoiceOption,
   type CollectParams,
+  type OrderSequenceParams,
   type ObserveParams,
   type PlatformParams,
   type ValveParams,
@@ -379,6 +390,259 @@ export function DiscoveryPanel(props: DiscoveryPanelProps) {
         ) : null}
         <button type="button" className={styles.button} onClick={props.onClose}>
           {AREA_COPY.close}
+        </button>
+      </div>
+    </GameDialog>
+  );
+}
+
+// --- Choose an answer and put in order (CHOOSE_ANSWER, ORDER_SEQUENCE) -----------------------------
+
+/** A symbol glyph and its label: shape and words, never colour alone. */
+function OptionFace({ option }: { option: ChoiceOption }) {
+  return (
+    <>
+      {option.symbol ? (
+        <span className={area.glyph} aria-hidden="true">
+          {symbolGlyph(option.symbol)}
+        </span>
+      ) : null}
+      <span>{option.label}</span>
+      {option.symbol ? <span className={styles.visuallyHidden}>{`(${option.symbol})`}</span> : null}
+    </>
+  );
+}
+
+interface ChoicePanelBase {
+  title: string;
+  state: ChoiceState;
+  busy: boolean;
+  onDifferent(): void;
+  onSubmit(): void;
+  onClose(): void;
+}
+
+/** What the child sees after a check: kind words, the reason, and (when due) a hint. */
+function ChoiceResult(props: {
+  state: ChoiceState;
+  params: ChooseAnswerParams | OrderSequenceParams;
+  explanation: string;
+  wrongText: string;
+}) {
+  const { state, params, explanation } = props;
+  const hint = dueHint(params, state.wrongCount);
+  return (
+    <>
+      {state.result === 'correct' ? (
+        <div className={styles.reward} role="status">
+          <p className={styles.questDone}>
+            {state.practice ? AREA_COPY.practiceRight : AREA_COPY.gotIt}
+          </p>
+          {successLines(explanation, params).map((line) => (
+            <p key={line} className={styles.speech}>
+              {line}
+            </p>
+          ))}
+        </div>
+      ) : null}
+      {state.result === 'wrong' ? (
+        <>
+          <p className={styles.feedbackWrong} role="status">
+            {props.wrongText}
+          </p>
+          {state.practice ? <p className={styles.speech}>{explanation}</p> : null}
+        </>
+      ) : null}
+      <Feedback
+        key={state.variantIndex}
+        wrong={false}
+        wrongText=""
+        hints={state.result === 'correct' ? [] : params.hints}
+        due={state.result === 'correct' ? null : hint}
+      />
+    </>
+  );
+}
+
+function PracticeNote({ practice }: { practice: boolean }) {
+  if (!practice) return null;
+  return (
+    <p className={area.practiceBadge} role="note">
+      <strong>{AREA_COPY.practiceBadge}. </strong>
+      {AREA_COPY.practiceNote}
+    </p>
+  );
+}
+
+export interface ChooseAnswerPanelProps extends ChoicePanelBase {
+  params: ChooseAnswerParams;
+  onSelect(optionId: string): void;
+}
+
+export function ChooseAnswerPanel(props: ChooseAnswerPanelProps) {
+  const { params, state } = props;
+  const variant = params.variants[state.variantIndex] ?? params.variants[0];
+  const done = state.result === 'correct';
+  return (
+    <GameDialog titleId="area-choose-title" title={props.title} onClose={props.onClose}>
+      <PracticeNote practice={state.practice} />
+      <p className={styles.speech}>{variant.prompt}</p>
+      <div className={area.optionGrid} role="group" aria-label={AREA_COPY.chooseOne}>
+        {variant.options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={styles.choice}
+            aria-pressed={state.selected === option.id}
+            aria-label={optionSpoken(option)}
+            disabled={props.busy || done}
+            onClick={() => props.onSelect(option.id)}
+          >
+            <OptionFace option={option} />
+          </button>
+        ))}
+      </div>
+      <ChoiceResult
+        state={state}
+        params={params}
+        explanation={variant.explanation}
+        wrongText={AREA_COPY.notQuiteAgain}
+      />
+      <div className={styles.actions}>
+        {done ? (
+          state.practice ? (
+            <button type="button" className={styles.primary} onClick={props.onDifferent}>
+              {AREA_COPY.practiceAgain}
+            </button>
+          ) : null
+        ) : (
+          <>
+            <button
+              type="button"
+              className={styles.primary}
+              disabled={state.selected === null || props.busy}
+              aria-busy={props.busy}
+              onClick={props.onSubmit}
+            >
+              {props.busy ? AREA_COPY.checking : AREA_COPY.checkAnswer}
+            </button>
+            {params.variants.length > 1 ? (
+              <button type="button" className={styles.button} onClick={props.onDifferent}>
+                {AREA_COPY.tryDifferent}
+              </button>
+            ) : null}
+          </>
+        )}
+        <button type="button" className={styles.button} onClick={props.onClose}>
+          {done ? AREA_COPY.close : AREA_COPY.later}
+        </button>
+      </div>
+    </GameDialog>
+  );
+}
+
+export interface OrderSequencePanelProps extends ChoicePanelBase {
+  params: OrderSequenceParams;
+  onAdd(itemId: string): void;
+  onUndo(): void;
+  onClear(): void;
+}
+
+export function OrderSequencePanel(props: OrderSequencePanelProps) {
+  const { params, state } = props;
+  const variant = params.variants[state.variantIndex] ?? params.variants[0];
+  const done = state.result === 'correct';
+  const byId = new Map(variant.items.map((item) => [item.id, item]));
+  return (
+    <GameDialog titleId="area-order-title" title={props.title} onClose={props.onClose}>
+      <PracticeNote practice={state.practice} />
+      <p className={styles.speech}>{variant.prompt}</p>
+      <p className={styles.speech} id="area-order-label">
+        {AREA_COPY.yourOrder}
+      </p>
+      {state.order.length === 0 ? (
+        <p className={styles.speech} aria-live="polite">
+          {AREA_COPY.emptyOrder}
+        </p>
+      ) : (
+        <ol className={area.orderList} aria-labelledby="area-order-label" aria-live="polite">
+          {state.order.map((id) => {
+            const item = byId.get(id);
+            return item ? (
+              <li key={id} className={area.orderItem}>
+                <OptionFace option={item} />
+              </li>
+            ) : null;
+          })}
+        </ol>
+      )}
+      <div className={area.optionGrid} role="group" aria-label={AREA_COPY.addToOrder}>
+        {variant.items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={styles.choice}
+            aria-label={`${AREA_COPY.addToOrder}: ${optionSpoken(item)}`}
+            disabled={props.busy || done || state.order.includes(item.id)}
+            onClick={() => props.onAdd(item.id)}
+          >
+            <OptionFace option={item} />
+          </button>
+        ))}
+      </div>
+      {!done ? (
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.button}
+            disabled={state.order.length === 0 || props.busy}
+            onClick={props.onUndo}
+          >
+            {AREA_COPY.undoLast}
+          </button>
+          <button
+            type="button"
+            className={styles.button}
+            disabled={state.order.length === 0 || props.busy}
+            onClick={props.onClear}
+          >
+            {AREA_COPY.clearOrder}
+          </button>
+        </div>
+      ) : null}
+      <ChoiceResult
+        state={state}
+        params={params}
+        explanation={variant.explanation}
+        wrongText={AREA_COPY.orderNotQuite}
+      />
+      <div className={styles.actions}>
+        {done ? (
+          state.practice ? (
+            <button type="button" className={styles.primary} onClick={props.onDifferent}>
+              {AREA_COPY.practiceAgain}
+            </button>
+          ) : null
+        ) : (
+          <>
+            <button
+              type="button"
+              className={styles.primary}
+              disabled={state.order.length !== variant.items.length || props.busy}
+              aria-busy={props.busy}
+              onClick={props.onSubmit}
+            >
+              {props.busy ? AREA_COPY.checking : AREA_COPY.checkOrder}
+            </button>
+            {params.variants.length > 1 ? (
+              <button type="button" className={styles.button} onClick={props.onDifferent}>
+                {AREA_COPY.tryDifferent}
+              </button>
+            ) : null}
+          </>
+        )}
+        <button type="button" className={styles.button} onClick={props.onClose}>
+          {done ? AREA_COPY.close : AREA_COPY.later}
         </button>
       </div>
     </GameDialog>

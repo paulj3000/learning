@@ -125,6 +125,20 @@ describe('region-play config parsing', () => {
   });
 });
 
+describe('lava visualOnly', () => {
+  it('defaults to false and reads true only for a literal true', () => {
+    const rect = { minX: 0, maxX: 1, minZ: 0, maxZ: 1 };
+    const effects = parseEffects({
+      lava: [
+        { id: 'a', ...rect },
+        { id: 'b', ...rect, visualOnly: true },
+        { id: 'c', ...rect, visualOnly: 'yes' },
+      ],
+    });
+    expect(effects.lava.map((band) => band.visualOnly)).toEqual([false, true, false]);
+  });
+});
+
 describe('interactions', () => {
   it('resolves a puzzle object, the way back, and Ember with her return stage', () => {
     const data = bootstrap({
@@ -248,6 +262,10 @@ describe('Places served by Django on the harbor map', () => {
     thumbnailAssetId: null,
     adventureCount: 0,
     explored: false,
+    questCount: 0,
+    questsCompleted: 0,
+    questsInProgress: 0,
+    completed: false,
     area: area
       ? { ...area, title: placeId, status: 'NOT_STARTED' as const, resumeSessionId: null }
       : null,

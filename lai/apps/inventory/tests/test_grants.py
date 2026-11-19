@@ -79,3 +79,48 @@ def test_a_grant_cannot_cite_another_childs_session(treasure, chest_rule):
     with pytest.raises(CrossChildReference):
         grant_reward_rule(treasure.families.a1, chest_rule, source_session=other_session)
     assert not GrantedRule.objects.exists() and not InventoryItem.objects.exists()
+
+
+def _rule(rule_id, items, release):
+    rule = RewardRule.objects.create(
+        rule_id=rule_id,
+        trigger={"type": "WORLD_CHANGE", "changeKey": rule_id.upper()},
+        message="m",
+        source={},
+        last_seen_release=release,
+    )
+    rule.items.add(*items)
+    return rule
+
+
+def test_owning_every_set_member_grants_the_completion_item_once(treasure, chest_rule):
+    """FPV-18: the server form of the client's completionItemsToGrant."""
+    from apps.catalog.models import CollectibleSet
+
+    release = chest_rule.last_seen_release
+    badge = ItemDefinition.objects.create(
+        item_id="set-test-badge", display_name="Badge", category="KEEPSAKE", rarity="COMMON",
+        source={}, last_seen_release=release,
+    )
+    collectible_set = CollectibleSet.objects.create(
+        set_id="set-test", display_name="Set", completion_item=badge, source={},
+        last_seen_release=release,
+    )
+    members = [
+        ItemDefinition.objects.create(
+            item_id=f"set-test-{n}", display_name=f"Member {n}", category="COLLECTIBLE",
+            rarity="COMMON", collectible_set=collectible_set, source={}, last_seen_release=release,
+        )
+        for n in (1, 2)
+    ]
+    child = treasure.families.a1
+    first = grant_reward_rule(child, _rule("set-test-one", members[:1], release))
+    assert first.new_item_ids == ("set-test-1",)
+    assert "set-test-badge" not in owned_item_ids(child)
+    second = grant_reward_rule(child, _rule("set-test-two", members[1:], release))
+    assert second.new_item_ids == ("set-test-2", "set-test-badge")
+    # Another rule giving a member again neither re-grants nor duplicates the badge.
+    third = grant_reward_rule(child, _rule("set-test-three", members, release))
+    assert third.new_item_ids == ()
+    assert InventoryItem.objects.filter(child=child, item=badge).count() == 1
+    assert "set-test-badge" not in owned_item_ids(treasure.families.a2)

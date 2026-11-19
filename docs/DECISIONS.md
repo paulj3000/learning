@@ -93,11 +93,12 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-067 | Native audio transcoding with LGPL FFmpeg (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-008b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-068 | Separate Pillow image function and image privacy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013a) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-069 | Staff browser GLB thumbnail capture (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-070 | COLLISION: Heart of Firepeak Place and Area, and GLB optimization policy (two open branches, not merged) | Reserved | `feature/firepeak-volcano-adventure` and `feature/lambda-derived-artifacts` | Reserved 2026-11-18 by the engineering-governance audit, which found two different decisions numbered ADR-070 on two branches. Owner decision needed: one keeps 070 and the other takes the next free number before either merges (governance rule 5). Not merged here |
+| ADR-070 | GLB optimization policy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` | Reserved 2026-11-18 by the engineering-governance audit as a collision with the Heart of Firepeak decision; owner decision 2026-11-19: the GLB policy keeps 070 and the Heart of Firepeak decision is ADR-073. Not merged here |
 | ADR-071 | Compatibility-gated processing release and production processing infrastructure (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-012, 014) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-072 | Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated | Accepted | `feature/engineering-standards` | Accepted 2026-11-18 |
-| ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Numbers 073 to 079 are not used by that branch. Not merged here |
-| ADR-081 | Seasonal events are Django content in their own app (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-073 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Proposed | `feature/firepeak-volcano-adventure` (FPV-02) | Renumbered from ADR-070 by owner decision 2026-11-19 (collision with the GLB optimization policy). Development only; owner QA pending. Needs reserving in the `main` registry (governance rule) |
+| ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes | Proposed | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit; written on this branch. Development only; owner QA pending |
+| ADR-081 | Seasonal events are Django content in their own app; availability never removes progress | Proposed | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit; written on this branch. Development only; owner QA pending |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4693,3 +4694,97 @@ Bay's broken bridge stops them 0.37 m earlier. Storykeeper Castle's costume rack
 so the Trophy Room door's landing point stays clear. A development-only collision view
 (`?collisionDebug=1`) shows the footprint, both positions and nearby colliders.
 
+## ADR-073: The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds
+
+Status: Proposed (2026-11-18). Development only; owner review and browser QA pending.
+Numbering: first written as ADR-070, which collided with the GLB optimization policy on
+`feature/lambda-derived-artifacts`; renumbered to ADR-073 by owner decision (2026-11-19).
+Builds on ADR-033 (one Django backbone), ADR-041 (Island, Place, 3D Area), ADR-047 (Django
+content authoring), ADR-050 (Sound Manager), ADR-054 (NPC Manager), ADR-063 (jumping; ADR-055 on
+the movement branches) and ADR-056 to ADR-060 (camera, avatars, running, platforms, footprint). Full contract: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`.
+
+**Context.** The owner asked for a seven-zone Firepeak adventure with walking, jumping, hazards,
+NPCs and varied learning encounters. Firepeak already has an owner-playtested Place
+(`firepeak-volcano`, "The Volcano Awakens"). A Place holds at most one 3D Area
+(`regions_one_area_per_place`), and the five existing puzzle kinds are single-instance on the
+client (one puzzle per kind per Area).
+
+**Decision.**
+
+1. **New Place, one Area.** `firepeak-heart` ("Heart of Firepeak") on the home Island with one 3D
+   Area of seven zones joined by gates that open on world changes. The existing Place, quest and
+   saves are untouched. The adventure is the quest `the-heart-of-firepeak`, not gated on
+   The Volcano Awakens. No new model: Realm = Island, Adventure = quest, Zone = a section of the Area.
+2. **Two generic puzzle kinds**, `CHOOSE_ANSWER` and `ORDER_SEQUENCE`, multi-instance on the client,
+   with per-band authored variants, symbols beside every option (never colour alone), and practice
+   grading once solved (nothing recorded). They serve numbered platforms, rock samples, shapes,
+   paths, switch sequences, crystal arrangement and story sequencing without a mechanic per puzzle.
+3. **Safe movement.** Lava is drawn by `effects.lava` with `visualOnly` and respawns through the
+   height-aware `platforming.hazards`, so jumping over it works. Checkpoints sit at ground level.
+   Every required route is walkable without a jump; optional jump routes lead only to optional
+   rewards. No lives, timers or loss.
+4. **Achievements are keepsake items** granted by reward rules (ADR-033: no achievement model).
+5. **Names.** The fire-spirit companion is Kindle, because Professor Ember already exists.
+
+**Consequences.** Two Firepeak Places appear in the Realm Explorer. A migration adds two values to
+the puzzle-kind constraint. The client must ship before the server serves the new kinds (an
+unknown kind fails the bootstrap parse). Falling rocks and timed steam pushes are not built; they
+need a telegraphed moving-hazard runtime. Great Storybook and Trophy Room registration waits for
+the Storykeeper branch.
+
+
+## ADR-080: North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes
+
+**Status.** Accepted for development on `feature/north-pole-adventure` (2026-11-18). Not merged,
+not owner-accepted. Contract: `docs/north-pole/NORTH_POLE_DESIGN.md`.
+
+**Context.** North Pole: The Missing Christmas Star is the first seasonal adventure (Trello SEA-04).
+It needs nine progressive quests, nine explorable locations, jumping throughout, all three age
+bands and staff-editable content, without a second engine, catalog or progress model (ADR-020,
+ADR-033).
+
+**Decision.**
+
+1. Realm `north-pole` (catalog World), Place and 3D Area `north-pole-village` (one Area per Place,
+   ADR-041 B). The nine locations are zones of that Area joined by snowdrift gates that
+   `effects.openings` removes.
+2. The adventure is nine `Quest` rows (`np-q01` to `np-q09`) with `WORLD_CHANGE` prerequisites.
+   Gates and puzzles depend on world change keys recorded by puzzles, chests and pickups, never on
+   quest acceptance, so a child is never stuck behind an unaccepted quest.
+3. Challenges reuse the shared kinds: CHOOSE_ANSWER and ORDER_SEQUENCE (ADR-070, merged from the
+   Firepeak workstreams unchanged), single-instance kinds at most once each, and math chests with
+   authored `ChallengeSpec` plus Question Studio pools (ADR-046). `LIFE_SCIENCE` is added to the
+   shared subject list.
+4. Every jump has a walking route; arithmetic unlocks build walkable bridges; falls return to the
+   last checkpoint; nothing earned is ever removed.
+5. Snowfall, fog, aurora and per-Area lighting are generic `scene.atmosphere` / `environment` data
+   (no holiday names in engine code).
+6. The branch is based on `feature/treasure-rush-palm-trees` (shared movement) and stacked on
+   `feature/firepeak-volcano-adventure` (the integration of the shared puzzle kinds, their React
+   panels and the golden vectors regenerated with them), so it merges after both. Resolving the
+   shared golden-vector conflict a second, different way was rejected.
+
+**Consequences.** No new progress or reward model. The React panels for the shared puzzle kinds
+come from Firepeak (`fp/puzzle-ui`, merged through the Firepeak branch). Until Firepeak merges,
+the North Pole branch's diff against `main` also contains Firepeak.
+Cosmetics are owned, not equipped; collectible-set completion items are not granted server-side
+(shared gaps, documented).
+
+## ADR-081: Seasonal events are Django content in their own app; availability never removes progress
+
+**Status.** Accepted for development on `feature/north-pole-adventure` (2026-11-18).
+
+**Context.** Trello SEA-01/SEA-03 ask for seasonal scheduling and featuring. Nothing in the backend
+models seasons; `react/src/features/island/seasons.ts` is a client-only calendar note.
+
+**Decision.** A new app `lai/apps/seasons` (own migrations) holds `SeasonalEvent` (theme,
+YEAR_ROUND or WINDOW_ONLY availability, an annual window that may cross the new year, featured
+flag, active flag, linked Realms and Places, seasonal reward items, audio cue ids, decoration
+theme) and `SeasonalCompletion` (child-owned, one per child, event and season year, recorded from
+the event's completion world change). Discovery hides a WINDOW_ONLY Place only outside its window
+and adds `seasonal` metadata to served Realms and Places. Staff configure everything in Django
+Admin. Content stays year-round unless staff restrict it.
+
+**Consequences.** Holidays are data, not engine branches; Hanukkah, Thanksgiving, Halloween, Easter
+and Lunar New Year need content only. Hidden content keeps every save and reward. Parent
+preferences for cultural or religious themes (SEA-03) remain a later task.

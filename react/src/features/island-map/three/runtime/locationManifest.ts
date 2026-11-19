@@ -76,6 +76,10 @@ export interface BoundsSpec {
 
 /** Mirrors `sceneKit.ts`'s `SceneLighting`; omitted fields keep the outdoor default rig. */
 export interface LightingSpec {
+  /** 24-bit RGB tint of the ambient light. Absent is white. */
+  ambientColor?: number;
+  /** 24-bit RGB tint of the sun. Absent is white. */
+  sunColor?: number;
   ambientIntensity?: number;
   sunIntensity?: number;
   sunPosition?: Vec3;
@@ -562,6 +566,38 @@ export interface EffectSpec {
   requirements?: readonly WorldRequirement[];
 }
 
+/** Linear fog: clear nearer than `near`, solid `color` beyond `far`. 0 < near < far <= 1000. */
+export interface FogSpec {
+  color: number;
+  near: number;
+  far: number;
+}
+
+/** Falling particles around the camera. `kind` is SNOW today; density 0..1 scales the tier budget. */
+export interface PrecipitationSpec {
+  kind: 'SNOW';
+  density: number;
+}
+
+/** A far-off, gently waving translucent band (an aurora). At most four; none at LOW. */
+export interface SkyRibbonSpec {
+  id: string;
+  /** Two 24-bit colours, blended from the bottom edge to the top. */
+  colors: readonly [number, number];
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+}
+
+/** Decorative weather and sky (`visual/atmosphere.ts`). Absent means none: nothing changes. */
+export interface AtmosphereSpec {
+  fog?: FogSpec;
+  precipitation?: PrecipitationSpec;
+  skyRibbons?: readonly SkyRibbonSpec[];
+}
+
 /** Purely decorative movement. Never interactive, never emits a domain event. */
 export interface AmbientSpec {
   kind: 'SPLINE_LOOP';
@@ -673,6 +709,8 @@ export interface ThreeLocationManifest {
   surfaces?: readonly SurfaceSpec[];
   /** Decorative atmosphere (motes). */
   effects?: readonly EffectSpec[];
+  /** Fog, precipitation and sky ribbons. Absent means none. */
+  atmosphere?: AtmosphereSpec;
   ambient: readonly AmbientSpec[];
   /** Reuses the existing interaction vocabulary verbatim; see `worldObjects.ts`. */
   interactions: readonly WorldInteraction[];

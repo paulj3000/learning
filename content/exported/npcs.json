@@ -1222,6 +1222,5054 @@
       ],
       "role": "Volcano researcher at Firepeak base camp. Offers The Volcano Awakens.",
       "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "flint-thanks-bye",
+              "label": "That was amazing!",
+              "nextNodeId": "flint-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_COMPLETE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "flint-thanks",
+          "text": "You did it, explorer! The Heart of Firepeak is glowing and the mountain is calm. I could not have done it without you."
+        },
+        {
+          "choices": [
+            {
+              "id": "flint-map-help",
+              "label": "Can you help me?",
+              "nextNodeId": "flint-help"
+            },
+            {
+              "id": "flint-map-bye",
+              "label": "On my way!",
+              "nextNodeId": "flint-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_MAP_READ",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "flint-map-read",
+          "text": "You read the map very well. Follow the path north to Emberwood Forest. Kindle is waiting there."
+        },
+        {
+          "choices": [
+            {
+              "id": "flint-awakened-ask",
+              "label": "What happened to the Heart?",
+              "nextNodeId": "flint-help"
+            },
+            {
+              "id": "flint-awakened-bye",
+              "label": "Let us start!",
+              "nextNodeId": "flint-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_VOLCANO_AWAKENED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "flint-greeting-awakened",
+          "text": "Welcome, explorer! I heard you helped Professor Ember wake Firepeak safely. Now the mountain needs a hero for its Heart."
+        },
+        {
+          "choices": [
+            {
+              "id": "flint-greeting-ask",
+              "label": "What is the Heart?",
+              "nextNodeId": "flint-help"
+            },
+            {
+              "id": "flint-greeting-hint",
+              "label": "How do I move around?",
+              "nextNodeId": "flint-hint"
+            },
+            {
+              "id": "flint-greeting-bye",
+              "label": "Let us go!",
+              "nextNodeId": "flint-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "flint-greeting",
+          "text": "Welcome to Firepeak, explorer! I am Flint. The Heart of the mountain has gone dim, and I could use your help."
+        },
+        {
+          "choices": [
+            {
+              "id": "flint-help-hint",
+              "label": "Any tips?",
+              "nextNodeId": "flint-hint"
+            },
+            {
+              "id": "flint-help-bye",
+              "label": "I am ready!",
+              "nextNodeId": "flint-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "flint-help",
+          "text": "The Heart of Firepeak is a crystal of island magic. It keeps the mountain calm. Seven places lie ahead, and each one has a puzzle that brings a little of its light back. Take your time, there is no rush."
+        },
+        {
+          "choices": [
+            {
+              "id": "flint-hint-thanks",
+              "label": "Thanks, Flint!",
+              "nextNodeId": "flint-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "flint-hint",
+          "text": "Walk with the controls, and press jump to hop over small things. Every jump has a path you can walk instead, so you never have to jump. If you fall, you will start again from the last checkpoint."
+        },
+        {
+          "choices": [],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "flint-bye",
+          "text": "Good luck, explorer! I will be right here if you want to talk."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "flint-landing-map-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-landing-map"
+          },
+          "text": "This is my map of Firepeak. Tap three places on it and I will tell you about each one."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "flint-landing-map-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-landing-map"
+          },
+          "text": "This is my map of Firepeak. Find five places on it: the forest, the lava river, the caverns, the forge and the summit. Take your time."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "flint-landing-map-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-landing-map"
+          },
+          "text": "You found three places! Now we know where we are going."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "flint-landing-map-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-landing-map"
+          },
+          "text": "You found all five places. A good explorer reads the map before the journey. The forest gate is open."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "flint-landing-map-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "fh-landing-map"
+          },
+          "text": "Scientists who study volcanoes use maps to see where the mountain is high, where the lava flowed, and where it is safe to walk."
+        }
+      ],
+      "displayName": "Flint",
+      "homeLocationSlug": "firepeak-heart",
+      "id": "flint",
+      "interactionId": "meet-flint",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "questId": "the-heart-of-firepeak",
+          "summary": "Help Flint light the Heart of Firepeak again."
+        }
+      ],
+      "role": "Explorer and guide at Explorer’s Landing. Offers The Heart of Firepeak.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "kindle-thanks-bye",
+              "label": "Goodbye, Kindle!",
+              "nextNodeId": "kindle-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_COMPLETE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "kindle-thanks",
+          "text": "The Heart is glowing and the mountain is calm! I am a little spark of island magic, and I am glad I got to explore with you."
+        },
+        {
+          "choices": [
+            {
+              "id": "kindle-restored-bye",
+              "label": "I will!",
+              "nextNodeId": "kindle-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_RESTORED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "kindle-restored",
+          "text": "The Heart is shining! Go and tell Ignis. I will wait right here."
+        },
+        {
+          "choices": [
+            {
+              "id": "kindle-crystals-hint",
+              "label": "What do I do?",
+              "nextNodeId": "kindle-hint"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_CRYSTALS_SET",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "kindle-crystals-set",
+          "text": "All four crystals are in place. Now we can set the shard back into the Heart."
+        },
+        {
+          "choices": [
+            {
+              "id": "kindle-lava-bye",
+              "label": "Let us keep going!",
+              "nextNodeId": "kindle-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_LAVA_CROSSED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "kindle-lava-crossed",
+          "text": "You crossed the lava river! I like warm places, but even I stay on the bridge."
+        },
+        {
+          "choices": [
+            {
+              "id": "kindle-ember-hint",
+              "label": "Any tips?",
+              "nextNodeId": "kindle-hint"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_EMBERWOOD_DONE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "kindle-emberwood-done",
+          "text": "You counted the embers! The path ahead leads to the lava river. Stay on the bridge and the stones."
+        },
+        {
+          "choices": [
+            {
+              "id": "kindle-greeting-ask",
+              "label": "What do you do?",
+              "nextNodeId": "kindle-help"
+            },
+            {
+              "id": "kindle-greeting-hint",
+              "label": "Can I have a hint?",
+              "nextNodeId": "kindle-hint"
+            },
+            {
+              "id": "kindle-greeting-bye",
+              "label": "Let us go!",
+              "nextNodeId": "kindle-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "kindle-greeting",
+          "text": "Hello! I am Kindle, a little fire spirit made of island magic. May I come along on your adventure?"
+        },
+        {
+          "choices": [
+            {
+              "id": "kindle-help-hint",
+              "label": "Can I have a hint?",
+              "nextNodeId": "kindle-hint"
+            },
+            {
+              "id": "kindle-help-bye",
+              "label": "Let us go!",
+              "nextNodeId": "kindle-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "kindle-help",
+          "text": "I carry the crystals and I like to give hints. When a puzzle is tricky, ask me, and I will help you think about it. You always do the solving."
+        },
+        {
+          "choices": [
+            {
+              "id": "kindle-hint-thanks",
+              "label": "Thank you, Kindle!",
+              "nextNodeId": "kindle-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "kindle-hint",
+          "text": "Look closely at the puzzle and say the question out loud. Try one answer. If it is not right, you can try again as many times as you like."
+        },
+        {
+          "choices": [],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "kindle-bye",
+          "text": "See you soon! I will stay close."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-emberwood-pattern-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-emberwood-pattern"
+          },
+          "text": "These crystals make a pattern. Look closely. What comes next?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-emberwood-pattern-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-emberwood-pattern"
+          },
+          "text": "Patterns grow and change. Study the crystals and the numbers, then work out what comes next."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-emberwood-pattern-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-emberwood-pattern"
+          },
+          "text": "Yes! You spotted the pattern. Well done!"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-emberwood-pattern-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-emberwood-pattern"
+          },
+          "text": "You found the rule of the pattern. Rules help us know what comes next, even before we see it."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-emberwood-count-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-emberwood-count"
+          },
+          "text": "I collected some embers. Can you count them with me?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-emberwood-count-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-emberwood-count"
+          },
+          "text": "My embers are sitting in groups. Count in steps, or count the groups, to find how many there are."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-emberwood-count-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-emberwood-count"
+          },
+          "text": "You counted them just right. The path through the forest is open!"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-emberwood-count-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-emberwood-count"
+          },
+          "text": "Counting in groups is quicker than counting one by one. The forest path is open!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-lava-numbers-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-lava-numbers"
+          },
+          "text": "Each stone has a number. Choose the stone that makes the sum true, and a bridge will rise."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-lava-numbers-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-lava-numbers"
+          },
+          "text": "The stones across the lava river are numbered. Solve the sum or the fact, and choose the stone with the answer. A wide bridge will rise."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-lava-numbers-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-lava-numbers"
+          },
+          "text": "The bridge is rising. You can walk across!"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-lava-numbers-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-lava-numbers"
+          },
+          "text": "The bridge is ready. If you like a challenge, the stepping stones lead to a hidden shard."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-lava-compare-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-lava-compare"
+          },
+          "text": "Two paths, two numbers. Which number is bigger, or which is smaller?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-lava-compare-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-lava-compare"
+          },
+          "text": "Each path shows a number or a fraction. Compare them, and choose the path the puzzle asks for."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-lava-compare-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-lava-compare"
+          },
+          "text": "That is the right path. Off we go to the caverns!"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-lava-compare-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-lava-compare"
+          },
+          "text": "Comparing carefully, you chose well. The way to the caverns is open."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-heart-restore-intro-all",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-heart-restore"
+          },
+          "text": "The four crystals are in place. Now let us set the shard back into the Heart together."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "kindle-heart-restore-completeMessage-all",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-heart-restore"
+          },
+          "text": "Look! The Heart is glowing again. Go and tell Ignis!"
+        }
+      ],
+      "displayName": "Kindle",
+      "homeLocationSlug": "firepeak-heart",
+      "id": "kindle",
+      "interactionId": "meet-kindle",
+      "questOffers": [],
+      "role": "A small, friendly fire spirit made of island magic. Gives hints and carries crystals.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "basalt-thanks-bye",
+              "label": "Thank you, Professor!",
+              "nextNodeId": "basalt-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_COMPLETE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "basalt-thanks",
+          "text": "The Heart glows and the mountain is calm. Remember, real volcanoes are watched carefully by scientists. You made a fine scientist today."
+        },
+        {
+          "choices": [
+            {
+              "id": "basalt-summit-ask",
+              "label": "What did I learn?",
+              "nextNodeId": "basalt-help"
+            },
+            {
+              "id": "basalt-summit-bye",
+              "label": "Goodbye, Professor!",
+              "nextNodeId": "basalt-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_SUMMIT_REACHED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "basalt-summit-reached",
+          "text": "You reached the top, and you named the rocks. Ignis is waiting just beyond the summit."
+        },
+        {
+          "choices": [
+            {
+              "id": "basalt-rocks-bye",
+              "label": "I am ready!",
+              "nextNodeId": "basalt-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_ROCKS_NAMED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "basalt-rocks-named",
+          "text": "You know your rocks. Next, a story about how volcano islands grow. It is real science."
+        },
+        {
+          "choices": [
+            {
+              "id": "basalt-cavern-ask",
+              "label": "What is the difference?",
+              "nextNodeId": "basalt-help"
+            },
+            {
+              "id": "basalt-cavern-bye",
+              "label": "Goodbye, Professor!",
+              "nextNodeId": "basalt-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_CAVERN_LIT",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "basalt-cavern-lit",
+          "text": "The cavern is lit. The crystals here glow because of island magic. The rocks around them are real volcanic rock."
+        },
+        {
+          "choices": [
+            {
+              "id": "basalt-greeting-ask",
+              "label": "What is a volcano?",
+              "nextNodeId": "basalt-help"
+            },
+            {
+              "id": "basalt-greeting-hint",
+              "label": "Can you give me a hint?",
+              "nextNodeId": "basalt-hint"
+            },
+            {
+              "id": "basalt-greeting-bye",
+              "label": "Goodbye, Professor!",
+              "nextNodeId": "basalt-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "basalt-greeting",
+          "text": "Greetings, young scientist! I am Professor Basalt. I study real volcanoes. Some things on Firepeak are island magic, and I will tell you which is which."
+        },
+        {
+          "choices": [
+            {
+              "id": "basalt-help-hint",
+              "label": "Can you give me a hint?",
+              "nextNodeId": "basalt-hint"
+            },
+            {
+              "id": "basalt-help-bye",
+              "label": "Thank you!",
+              "nextNodeId": "basalt-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "basalt-help",
+          "text": "Real volcanoes have hot melted rock called magma underground. When it comes out, it is called lava, and it cools into rock. The glowing crystals and the Heart of Firepeak are island magic."
+        },
+        {
+          "choices": [
+            {
+              "id": "basalt-hint-thanks",
+              "label": "Thank you, Professor!",
+              "nextNodeId": "basalt-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "basalt-hint",
+          "text": "Scientists look carefully and compare. Look at the clues in the puzzle, think about each answer, and try the one that fits best."
+        },
+        {
+          "choices": [],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "basalt-bye",
+          "text": "Keep asking questions, scientist. That is how we learn."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-shapes-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-caverns-shapes"
+          },
+          "text": "The crystals in here are shaped like circles, squares, triangles and hexagons. Match each one to its clue."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-shapes-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-caverns-shapes"
+          },
+          "text": "Crystals can have many faces, sides and corners. Read the clue carefully, then pick the shape that fits it."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-shapes-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-caverns-shapes"
+          },
+          "text": "You know your shapes! The crystals glow brighter."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-shapes-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-caverns-shapes"
+          },
+          "text": "Well matched. Counting sides and corners is how mathematicians tell shapes apart."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-arrange-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-caverns-arrange"
+          },
+          "text": "Put the crystals in a row, from the smallest to the largest."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-arrange-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-caverns-arrange"
+          },
+          "text": "Put the crystals in order. Follow the rule on the card: it may be the number of sides, or the size of a fraction."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-arrange-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-caverns-arrange"
+          },
+          "text": "A perfect row! The cavern is lit."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-arrange-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-caverns-arrange"
+          },
+          "text": "The order is right and the cavern is lit. A secret passage has opened too."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-arrange-scienceNote-pathfinder",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "fh-caverns-arrange"
+          },
+          "text": "Real crystals grow slowly, over a very long time, inside rock. These ones also glow with island magic."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-caverns-arrange-scienceNote-explorer",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "fh-caverns-arrange"
+          },
+          "text": "In the real world, crystals grow when minerals in hot liquid cool slowly and their tiny parts line up in a pattern. The glow in this cave is island magic, not science."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-rocks-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-summit-rocks"
+          },
+          "text": "Here are rock samples from the mountain. Let us learn about them. Choose the answer you think is right."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-rocks-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-summit-rocks"
+          },
+          "text": "Here are three rocks from Firepeak: basalt, pumice and obsidian. Look at how each one looks and feels, then answer."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-rocks-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-summit-rocks"
+          },
+          "text": "Well done, young scientist!"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-rocks-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-summit-rocks"
+          },
+          "text": "Excellent! You are thinking like a volcano scientist."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-rocks-scienceNote-pathfinder",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "fh-summit-rocks"
+          },
+          "text": "Real volcanoes have hot melted rock called magma underground. When it comes out, it is called lava. Lava cools and hardens into rock."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-rocks-scienceNote-explorer",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "fh-summit-rocks"
+          },
+          "text": "Basalt, pumice and obsidian are igneous rocks: they form when lava cools. Basalt is dark and heavy. Pumice is full of tiny bubbles and so light that it can float. Obsidian is shiny volcanic glass. A volcano is active if it can erupt, dormant if it is sleeping, and extinct if it is not expected to erupt again."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-island-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-summit-island"
+          },
+          "text": "Real islands can be made by volcanoes! Put the steps in order to see how."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-island-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-summit-island"
+          },
+          "text": "Some real islands were built by volcanoes. Put the steps in order, from the magma deep below to the island above the sea."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-island-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-summit-island"
+          },
+          "text": "You told the story of a volcano island in the right order!"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-island-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-summit-island"
+          },
+          "text": "That is the true story of a volcanic island. The summit is yours to explore. Ignis is waiting beyond."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-island-scienceNote-pathfinder",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "fh-summit-island"
+          },
+          "text": "Magma rises, lava comes out and cools into rock, and over a very long time the rock piles up into an island."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "basalt-summit-island-scienceNote-explorer",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "fh-summit-island"
+          },
+          "text": "In the real world, magma rises and erupts under the sea. Lava cools into new rock, and layer upon layer builds up over a very long time, until the volcano rises above the water. The island of Hawaii grew this way."
+        }
+      ],
+      "displayName": "Professor Basalt",
+      "homeLocationSlug": "firepeak-heart",
+      "id": "professor-basalt",
+      "interactionId": "meet-professor-basalt",
+      "questOffers": [],
+      "role": "Volcano scientist. Explains how real volcanoes, rocks and islands work.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "cinder-thanks-bye",
+              "label": "Goodbye, Cinder!",
+              "nextNodeId": "cinder-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_COMPLETE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "cinder-thanks",
+          "text": "The forge hums and the Heart glows. Thank you, friend. I will keep the machines in good order."
+        },
+        {
+          "choices": [
+            {
+              "id": "cinder-restored-bye",
+              "label": "Thank you, Cinder!",
+              "nextNodeId": "cinder-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_FORGE_RESTORED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "cinder-restored",
+          "text": "The forge is working again, and the steam gates are open. Go up to the summit. The view is grand."
+        },
+        {
+          "choices": [
+            {
+              "id": "cinder-powered-hint",
+              "label": "Any tips?",
+              "nextNodeId": "cinder-hint"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_FORGE_POWERED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "cinder-powered",
+          "text": "Hear that hum? The machine is powered. One more puzzle, and the lamp will shine."
+        },
+        {
+          "choices": [
+            {
+              "id": "cinder-greeting-ask",
+              "label": "How do the machines work?",
+              "nextNodeId": "cinder-help"
+            },
+            {
+              "id": "cinder-greeting-hint",
+              "label": "Can I have a hint?",
+              "nextNodeId": "cinder-hint"
+            },
+            {
+              "id": "cinder-greeting-bye",
+              "label": "I will help!",
+              "nextNodeId": "cinder-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "cinder-greeting",
+          "text": "Ah, a visitor. I am Cinder. I keep the old forge, but the machines have been quiet for a long time. Could you help me wake them?"
+        },
+        {
+          "choices": [
+            {
+              "id": "cinder-help-hint",
+              "label": "Can I have a hint?",
+              "nextNodeId": "cinder-hint"
+            },
+            {
+              "id": "cinder-help-bye",
+              "label": "I am ready!",
+              "nextNodeId": "cinder-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "cinder-help",
+          "text": "Every machine works in steps. One thing happens, then the next. If you do the steps in the right order, the machine runs. Go slowly and think it through."
+        },
+        {
+          "choices": [
+            {
+              "id": "cinder-hint-thanks",
+              "label": "Thanks, Cinder!",
+              "nextNodeId": "cinder-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "cinder-hint",
+          "text": "Ask yourself what must happen first. Then ask what comes next. Say the steps out loud, one at a time."
+        },
+        {
+          "choices": [],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "cinder-bye",
+          "text": "Take your time. The forge will wait."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-switches-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-forge-switches"
+          },
+          "text": "The old machine needs three switches pressed in the right order. Think about what must happen first."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-switches-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-forge-switches"
+          },
+          "text": "The machine needs four steps in the right order. Remember: before the gears turn, the water must cool. Read the clues, then press the switches."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-switches-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-forge-switches"
+          },
+          "text": "It hums! You got the order just right."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-switches-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-forge-switches"
+          },
+          "text": "The forge is powered. Machines work when each step happens in the right order."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-circuit-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-forge-circuit"
+          },
+          "text": "The lamp needs power. Which path reaches the lamp?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-circuit-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-forge-circuit"
+          },
+          "text": "A circuit must make a full path for the power to flow. Find the path that completes the circuit, or share the crystals fairly if the clue asks."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-circuit-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-forge-circuit"
+          },
+          "text": "The lamp is shining! The steam is clearing."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-circuit-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-forge-circuit"
+          },
+          "text": "The circuit is complete and the forge is restored. The steam gates are open."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "cinder-forge-circuit-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "fh-forge-circuit"
+          },
+          "text": "In real life, electricity flows only when there is a complete loop, called a circuit. A gap in the loop stops it."
+        }
+      ],
+      "displayName": "Cinder",
+      "homeLocationSlug": "firepeak-heart",
+      "id": "cinder",
+      "interactionId": "meet-cinder",
+      "questOffers": [],
+      "role": "Keeper of the Ancient Forge. Needs help restarting the old machines.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "ignis-thanks-bye",
+              "label": "I loved the adventure!",
+              "nextNodeId": "ignis-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_COMPLETE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "ignis-thanks",
+          "text": "The Heart of Firepeak shines and the mountain is calm. You brought the light back. The island thanks you, explorer."
+        },
+        {
+          "choices": [
+            {
+              "id": "ignis-celebrated-bye",
+              "label": "Goodbye, Ignis!",
+              "nextNodeId": "ignis-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_CELEBRATED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "ignis-celebrated",
+          "text": "We did it. The whole mountain is warm and calm. Take the portal back to the landing whenever you like."
+        },
+        {
+          "choices": [
+            {
+              "id": "ignis-restored-bye",
+              "label": "It was wonderful!",
+              "nextNodeId": "ignis-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_RESTORED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "ignis-restored",
+          "text": "The Heart is glowing, thanks to you. Come and tell me what it was like."
+        },
+        {
+          "choices": [
+            {
+              "id": "ignis-set-bye",
+              "label": "Thank you, Ignis!",
+              "nextNodeId": "ignis-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_CRYSTALS_SET",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "ignis-crystals-set",
+          "text": "The four crystals are in their places. Kindle will help you set the shard into the Heart."
+        },
+        {
+          "choices": [
+            {
+              "id": "ignis-summit-ask",
+              "label": "How do I do that?",
+              "nextNodeId": "ignis-help"
+            },
+            {
+              "id": "ignis-summit-hint",
+              "label": "Can I have a hint?",
+              "nextNodeId": "ignis-hint"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIREPEAK_HEART_SUMMIT_REACHED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "ignis-summit-reached",
+          "text": "You came a long way to reach me. The Heart is dim, and four crystals came with you. Will you set them in order?"
+        },
+        {
+          "choices": [
+            {
+              "id": "ignis-greeting-ask",
+              "label": "What is the Heart?",
+              "nextNodeId": "ignis-help"
+            },
+            {
+              "id": "ignis-greeting-bye",
+              "label": "I will come back.",
+              "nextNodeId": "ignis-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "ignis-greeting",
+          "text": "Welcome, traveler. I am Ignis, the guardian of the Heart. The way to the Heart opens when you have crossed the whole mountain."
+        },
+        {
+          "choices": [
+            {
+              "id": "ignis-help-hint",
+              "label": "Can I have a hint?",
+              "nextNodeId": "ignis-hint"
+            },
+            {
+              "id": "ignis-help-bye",
+              "label": "I am ready.",
+              "nextNodeId": "ignis-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "ignis-help",
+          "text": "The Heart is a crystal of island magic. When we set the crystals in the order of your journey, it remembers the places you passed through, and it glows. There is no hurry."
+        },
+        {
+          "choices": [
+            {
+              "id": "ignis-hint-thanks",
+              "label": "Thank you, Ignis!",
+              "nextNodeId": "ignis-bye"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "ignis-hint",
+          "text": "Think back to your journey. Which place came first? Which came next? Say them in order, then set the crystals."
+        },
+        {
+          "choices": [],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "ignis-bye",
+          "text": "Go gently, explorer. The mountain is glad you came."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ignis-heart-crystals-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-heart-crystals"
+          },
+          "text": "Four crystals came with you on your journey. Set them in the order you found them."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ignis-heart-crystals-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-heart-crystals"
+          },
+          "text": "Read the clues about your journey. Then set the four crystals in the order you found them."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ignis-heart-crystals-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-heart-crystals"
+          },
+          "text": "You remembered the whole journey. Thank you!"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ignis-heart-crystals-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-heart-crystals"
+          },
+          "text": "You set them in the order of your journey. The Heart has begun to glow."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ignis-heart-return-intro-all",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "fh-heart-return"
+          },
+          "text": "The Heart is shining again. Come and tell me all about it."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ignis-heart-return-completeMessage-pathfinder",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-heart-return"
+          },
+          "text": "The mountain is calm again. Thank you, brave explorer!"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ignis-heart-return-completeMessage-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "fh-heart-return"
+          },
+          "text": "The mountain is calm and the Heart glows. Thank you, explorer, for your patience and your clear thinking."
+        }
+      ],
+      "displayName": "Ignis",
+      "homeLocationSlug": "firepeak-heart",
+      "id": "ignis",
+      "interactionId": "meet-ignis",
+      "questOffers": [],
+      "role": "Gentle guardian of the Heart of Firepeak. Asks the child to set the crystals in order.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "santa-claus-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_CHRISTMAS_EVE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "santa-claus-thanks",
+          "text": "Well done! You worked hard, tried again when it was tricky, and helped your friends. That makes me so happy."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "santa-claus-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "santa-claus-help"
+            },
+            {
+              "id": "santa-claus-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "santa-claus-hint"
+            },
+            {
+              "id": "santa-claus-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "santa-claus-greeting-sprout",
+          "text": "Ho ho ho! I am Santa. Hello, friend!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "santa-claus-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "santa-claus-help"
+            },
+            {
+              "id": "santa-claus-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "santa-claus-hint"
+            },
+            {
+              "id": "santa-claus-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "santa-claus-greeting-pathfinder",
+          "text": "Ho ho ho! I am Santa Claus. Thank you for coming all the way to the North Pole to help us."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "santa-claus-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "santa-claus-help"
+            },
+            {
+              "id": "santa-claus-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "santa-claus-hint"
+            },
+            {
+              "id": "santa-claus-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "santa-claus-greeting-explorer",
+          "text": "Ho ho ho! Welcome back to Santa’s Landing. I am Santa. I heard how hard everyone worked on the Christmas Star, and I am glad you came."
+        },
+        {
+          "choices": [
+            {
+              "id": "santa-claus-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "santa-claus-help",
+          "text": "Walk to the sleigh and ring the bell. Everyone will be so happy! You can walk right up to it."
+        },
+        {
+          "choices": [
+            {
+              "id": "santa-claus-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "santa-claus-hint",
+          "text": "The sleigh bell is near the sleigh. Look for something that jingles."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "santa-claus-eve-sleigh-bell-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-eve-sleigh-bell"
+          },
+          "text": "Ring the sleigh bell! Jingle jingle!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "santa-claus-eve-sleigh-bell-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-eve-sleigh-bell"
+          },
+          "text": "Ring Santa’s sleigh bell to start the celebration."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "santa-claus-eve-sleigh-bell-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-eve-sleigh-bell"
+          },
+          "text": "The Christmas Star is shining. Ring the sleigh bell and let the whole North Pole celebrate."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "santa-claus-eve-sleigh-bell-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-eve-sleigh-bell"
+          },
+          "text": "Jingle jingle! Hooray!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "santa-claus-eve-sleigh-bell-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-eve-sleigh-bell"
+          },
+          "text": "You did it! Thank you for your hard work and kindness. The sleigh is ready."
+        }
+      ],
+      "displayName": "Santa Claus",
+      "homeLocationSlug": "north-pole-village",
+      "id": "santa-claus",
+      "interactionId": "meet-santa-claus",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_STAR_RESTORED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "questId": "np-q09-christmas-eve",
+          "summary": "Ring the sleigh bell with Santa."
+        }
+      ],
+      "role": "Jolly host at Santa’s Landing. Offers Christmas Eve Celebration.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "mrs-claus-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_GINGER_REPAIRED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "mrs-claus-thanks",
+          "text": "The wall is mended and the cookies are baking. Thank you, dear explorer."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "mrs-claus-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "mrs-claus-help"
+            },
+            {
+              "id": "mrs-claus-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "mrs-claus-hint"
+            },
+            {
+              "id": "mrs-claus-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "mrs-claus-greeting-sprout",
+          "text": "Hello, little explorer! I am Mrs. Claus. I love to bake."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "mrs-claus-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "mrs-claus-help"
+            },
+            {
+              "id": "mrs-claus-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "mrs-claus-hint"
+            },
+            {
+              "id": "mrs-claus-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "mrs-claus-greeting-pathfinder",
+          "text": "Hello, explorer! I am Mrs. Claus. Come in and read my recipe card with me."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "mrs-claus-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "mrs-claus-help"
+            },
+            {
+              "id": "mrs-claus-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "mrs-claus-hint"
+            },
+            {
+              "id": "mrs-claus-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "mrs-claus-greeting-explorer",
+          "text": "Welcome, explorer! I am Mrs. Claus. I bake for the whole village, and a good recipe needs careful reading."
+        },
+        {
+          "choices": [
+            {
+              "id": "mrs-claus-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "mrs-claus-help",
+          "text": "Read the recipe card slowly. Each step comes in order. If a word is tricky, ask me to read it with you."
+        },
+        {
+          "choices": [
+            {
+              "id": "mrs-claus-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "mrs-claus-hint",
+          "text": "Look at the pictures on the card, then read the words next to them. Take your time. Try again if you like."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "mrs-claus-ginger-recipe-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-recipe"
+          },
+          "text": "I have a recipe. Which picture is the next step?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "mrs-claus-ginger-recipe-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-recipe"
+          },
+          "text": "Read my recipe card. Which step comes next?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "mrs-claus-ginger-recipe-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-recipe"
+          },
+          "text": "Read my recipe card carefully. Recipes work in order, so work out which step comes next."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "mrs-claus-ginger-recipe-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-recipe"
+          },
+          "text": "You read the recipe! Yum."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "mrs-claus-ginger-recipe-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-recipe"
+          },
+          "text": "You read the recipe well. Reading helps us make good things."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "mrs-claus-ginger-recipe-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-ginger-recipe"
+          },
+          "text": "When cookies bake, the heat makes the dough firm and turns it golden. That is a real change that cannot be undone."
+        }
+      ],
+      "displayName": "Mrs. Claus",
+      "homeLocationSlug": "north-pole-village",
+      "id": "mrs-claus",
+      "interactionId": "meet-mrs-claus",
+      "questOffers": [],
+      "role": "Kind baker and teacher in the Gingerbread Village.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "jingle-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_MOUNTAIN_SUMMIT",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "jingle-thanks",
+          "text": "You climbed Snowflake Mountain! You kept trying, and that is what matters most."
+        },
+        {
+          "choices": [
+            {
+              "id": "jingle-thanks-2-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_WELCOME_LOOKED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "jingle-thanks-2",
+          "text": "You looked all around the village. The workshop gate is open now. You can walk right in."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "jingle-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "jingle-help"
+            },
+            {
+              "id": "jingle-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "jingle-hint"
+            },
+            {
+              "id": "jingle-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "jingle-greeting-sprout",
+          "text": "Hi, friend! I am Jingle the elf. Welcome to the North Pole!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "jingle-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "jingle-help"
+            },
+            {
+              "id": "jingle-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "jingle-hint"
+            },
+            {
+              "id": "jingle-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "jingle-greeting-pathfinder",
+          "text": "Hello! I am Jingle, an elf who helps visitors. A storm has scattered the Christmas Star, and we need your help."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "jingle-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "jingle-help"
+            },
+            {
+              "id": "jingle-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "jingle-hint"
+            },
+            {
+              "id": "jingle-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "jingle-greeting-explorer",
+          "text": "Welcome to the North Pole! I am Jingle. A winter storm broke the Christmas Star into seven pieces. Will you help me find them?"
+        },
+        {
+          "choices": [
+            {
+              "id": "jingle-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "jingle-help",
+          "text": "Use the move controls to walk, and the jump button to hop over small gaps. Every jump has a walking way too, so you can always walk around."
+        },
+        {
+          "choices": [
+            {
+              "id": "jingle-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "jingle-hint",
+          "text": "Stuck? Look around for something that glows, or talk to a friend nearby. You can always take the walking way."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-welcome-look-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-welcome-look"
+          },
+          "text": "Look around the village. Can you spot three special places?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-welcome-look-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-welcome-look"
+          },
+          "text": "Look all around the village. Can you spot four special places?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-welcome-look-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-welcome-look"
+          },
+          "text": "Look carefully around Santa’s Landing and find five landmarks. Good explorers notice small things."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-welcome-look-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-welcome-look"
+          },
+          "text": "You looked all around! The workshop gate is open."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-welcome-look-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-welcome-look"
+          },
+          "text": "Great looking! The snowdrift by the workshop path has melted. You can walk right in."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-mountain-weather-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-mountain-weather"
+          },
+          "text": "What is this? Is it snow, ice, or water?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-mountain-weather-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-mountain-weather"
+          },
+          "text": "Snow, ice, and water are all the same stuff in different forms. Which one is this?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-mountain-weather-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-mountain-weather"
+          },
+          "text": "Water can be ice, liquid, or a gas called water vapour. Choose the answer that matches the winter weather."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-mountain-weather-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-mountain-weather"
+          },
+          "text": "You made it to the top! What a view."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-mountain-weather-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-mountain-weather"
+          },
+          "text": "You made it to the top of the mountain! You know a lot about winter weather."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "jingle-mountain-weather-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-mountain-weather"
+          },
+          "text": "Real snow is made of tiny ice crystals, and most snowflakes have six sides. Water freezes when it is cold and melts when it warms up."
+        }
+      ],
+      "displayName": "Jingle",
+      "homeLocationSlug": "north-pole-village",
+      "id": "jingle",
+      "interactionId": "meet-jingle",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "questId": "np-q01-welcome",
+          "summary": "Look around Santa’s Landing with Jingle and find the first star piece."
+        },
+        {
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_GINGER_REPAIRED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "questId": "np-q07-snowflake-mountain",
+          "summary": "Climb Snowflake Mountain with Jingle."
+        }
+      ],
+      "role": "Cheerful elf guide at Santa’s Landing and the base of Snowflake Mountain. Offers Welcome to the North Pole and Snowflake Mountain.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "tinker-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_WORKSHOP_RESTORED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "tinker-thanks",
+          "text": "The machine hums again! Thank you for helping me. The toys will be ready."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "tinker-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "tinker-help"
+            },
+            {
+              "id": "tinker-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "tinker-hint"
+            },
+            {
+              "id": "tinker-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "tinker-greeting-sprout",
+          "text": "Hello! I am Tinker. I make toys. My toy machine stopped!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "tinker-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "tinker-help"
+            },
+            {
+              "id": "tinker-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "tinker-hint"
+            },
+            {
+              "id": "tinker-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "tinker-greeting-pathfinder",
+          "text": "Hi! I am Tinker the toymaker. My toy machine has stopped, and the toys are piling up. Can you help me?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "tinker-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "tinker-help"
+            },
+            {
+              "id": "tinker-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "tinker-hint"
+            },
+            {
+              "id": "tinker-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "tinker-greeting-explorer",
+          "text": "Welcome to the workshop! I am Tinker. The toy machine has stopped, and I need to count, sort, and fix things to start it again. Can you help?"
+        },
+        {
+          "choices": [
+            {
+              "id": "tinker-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "tinker-help",
+          "text": "Count the toys, sort the presents, and fix the pattern on the belt. Then we can build a toy and start the machine. Take your time."
+        },
+        {
+          "choices": [
+            {
+              "id": "tinker-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "tinker-hint",
+          "text": "Look at the toys one at a time. Touch each one as you count, and take a breath. Try again as many times as you like."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-count-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-count"
+          },
+          "text": "Count the toys on the shelf. How many do you see?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-count-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-count"
+          },
+          "text": "Count the toys in each pile. Pick the number that matches."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-count-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-count"
+          },
+          "text": "The toy shelf needs a careful count. Count every toy, then pick the right total."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-count-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-workshop-count"
+          },
+          "text": "You counted them all! Well done."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-count-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-workshop-count"
+          },
+          "text": "Counting done! Every toy is ready for the next job."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-sort-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-sort"
+          },
+          "text": "Sort the presents. Which ones go together?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-sort-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-sort"
+          },
+          "text": "Sort the presents by colour, shape, or kind. Find the one that belongs."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-sort-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-sort"
+          },
+          "text": "Presents get sorted by colour, shape, or kind. Look for what the group has in common, then pick the one that fits."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-sort-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-workshop-sort"
+          },
+          "text": "All sorted! The presents look tidy."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-sort-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-workshop-sort"
+          },
+          "text": "Sorted! Putting like things together makes a big job easier."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-pattern-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-pattern"
+          },
+          "text": "The belt has a pattern. What comes next?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-pattern-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-pattern"
+          },
+          "text": "The toys on the belt repeat in a pattern. Which toy comes next?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-pattern-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-pattern"
+          },
+          "text": "A pattern runs along the belt. Work out the rule, then choose the toy that comes next."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-pattern-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-workshop-pattern"
+          },
+          "text": "The pattern is fixed! Toys can roll again."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-pattern-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-workshop-pattern"
+          },
+          "text": "Pattern fixed! Patterns repeat, so once you know the rule you can tell what comes next."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-assemble-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-assemble"
+          },
+          "text": "Build the toy. Put the parts in order."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-assemble-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-assemble"
+          },
+          "text": "Put the toy parts in order, one step at a time."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-assemble-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-workshop-assemble"
+          },
+          "text": "Every toy has an order for building it. Work out which part goes first, next, and last."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-assemble-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-workshop-assemble"
+          },
+          "text": "You built the toy! The workshop works again."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "tinker-workshop-assemble-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-workshop-assemble"
+          },
+          "text": "The toy is built, and the workshop machine hums again. Thank you for your help!"
+        }
+      ],
+      "displayName": "Tinker",
+      "homeLocationSlug": "north-pole-village",
+      "id": "tinker",
+      "interactionId": "meet-tinker",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_WELCOME_LOOKED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "questId": "np-q02-toy-workshop",
+          "summary": "Help Tinker fix the toy machine."
+        }
+      ],
+      "role": "Toymaker elf in Santa’s Workshop. Offers Trouble in the Toy Workshop.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "peppermint-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_FOREST_DONE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "peppermint-thanks",
+          "text": "The forest path is clear! Thank you. It smells even more minty now."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "peppermint-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "peppermint-help"
+            },
+            {
+              "id": "peppermint-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "peppermint-hint"
+            },
+            {
+              "id": "peppermint-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "peppermint-greeting-sprout",
+          "text": "Hello! I am Peppermint. The forest smells minty!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "peppermint-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "peppermint-help"
+            },
+            {
+              "id": "peppermint-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "peppermint-hint"
+            },
+            {
+              "id": "peppermint-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "peppermint-greeting-pathfinder",
+          "text": "Hi there! I am Peppermint. I look after the candy cane forest, and the path is all tangled. Can you help?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "peppermint-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "peppermint-help"
+            },
+            {
+              "id": "peppermint-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "peppermint-hint"
+            },
+            {
+              "id": "peppermint-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "peppermint-greeting-explorer",
+          "text": "Welcome to the Candy Cane Forest! I am Peppermint. The trail signs got mixed up in the storm, and we need to put them right."
+        },
+        {
+          "choices": [
+            {
+              "id": "peppermint-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "peppermint-help",
+          "text": "Follow the number path, read the signs, and put the candy stripes in order. The stepping stones are fun to hop, and you can walk the path around them too."
+        },
+        {
+          "choices": [
+            {
+              "id": "peppermint-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "peppermint-hint",
+          "text": "Say the numbers out loud, one by one. Look for what changes each time. You can hop the stones or walk around."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-sequence-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-sequence"
+          },
+          "text": "Follow the numbers on the candy canes. What comes next?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-sequence-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-sequence"
+          },
+          "text": "The candy cane signs count in order. Which number comes next?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-sequence-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-sequence"
+          },
+          "text": "Numbers on the signs follow a rule, like counting by twos or fives. Find the rule and choose the next number."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-sequence-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-forest-sequence"
+          },
+          "text": "You found the path! It smells minty."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-sequence-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-forest-sequence"
+          },
+          "text": "The path is clear. Number rules help us find our way."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-signs-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-signs"
+          },
+          "text": "Read the sign. Which way does the arrow point?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-signs-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-signs"
+          },
+          "text": "Read the signs. Which way should you go?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-signs-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-signs"
+          },
+          "text": "Read the signposts carefully. Each one gives a direction. Choose the way that matches the words."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-signs-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-forest-signs"
+          },
+          "text": "You read the signs! You know the way."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-signs-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-forest-signs"
+          },
+          "text": "You read the signs well. Reading helps us find our way."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-stripes-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-stripes"
+          },
+          "text": "Put the red and white stripes in order."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-stripes-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-stripes"
+          },
+          "text": "Put the candy stripes in order to match the pattern."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-stripes-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-forest-stripes"
+          },
+          "text": "Rebuild the candy cane stripes. Look at the pattern, then order each stripe so it repeats."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-stripes-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-forest-stripes"
+          },
+          "text": "The candy cane is stripy again!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "peppermint-forest-stripes-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-forest-stripes"
+          },
+          "text": "The stripes match! The forest path is open. You can walk it, or hop the stones if you like."
+        }
+      ],
+      "displayName": "Peppermint",
+      "homeLocationSlug": "north-pole-village",
+      "id": "peppermint",
+      "interactionId": "meet-peppermint",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_WORKSHOP_RESTORED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "questId": "np-q03-candy-cane-forest",
+          "summary": "Help Peppermint find the path through the candy cane forest."
+        }
+      ],
+      "role": "Guide of the Candy Cane Forest. Offers Candy Cane Forest.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "frosty-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_LAKE_DONE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "frosty-thanks",
+          "text": "The ice bridge is strong! Thank you for helping. Real ice takes a long, cold time to grow."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "frosty-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "frosty-help"
+            },
+            {
+              "id": "frosty-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "frosty-hint"
+            },
+            {
+              "id": "frosty-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "frosty-greeting-sprout",
+          "text": "Hi! I am Frosty, an elf who loves to skate. Wheee!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "frosty-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "frosty-help"
+            },
+            {
+              "id": "frosty-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "frosty-hint"
+            },
+            {
+              "id": "frosty-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "frosty-greeting-pathfinder",
+          "text": "Hello! I am Frosty, the elf who skates on the frozen lake. The ice bridge is not up yet. Can you help me raise it?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "frosty-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "frosty-help"
+            },
+            {
+              "id": "frosty-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "frosty-hint"
+            },
+            {
+              "id": "frosty-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "frosty-greeting-explorer",
+          "text": "Welcome to the Frozen Lake! I am Frosty. The far island has something shiny on it, and we need to build the ice bridge to reach it."
+        },
+        {
+          "choices": [
+            {
+              "id": "frosty-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "frosty-help",
+          "text": "Solve each number question and choose the ice floe with the answer. The ice bridge grows as you go. You can walk across it when it is ready."
+        },
+        {
+          "choices": [
+            {
+              "id": "frosty-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "frosty-hint",
+          "text": "Count on your fingers or draw the numbers in the snow. Try again if you like. Take your time on the ice."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-sums-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-sums"
+          },
+          "text": "Pick the ice floe with the right answer."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-sums-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-sums"
+          },
+          "text": "Add the numbers, then choose the ice floe with the answer. The ice bridge will grow."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-sums-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-sums"
+          },
+          "text": "Solve the sum, then choose the ice floe that shows the answer. Each answer helps the ice bridge grow."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-sums-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-lake-sums"
+          },
+          "text": "The ice bridge is up! You can walk across."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-sums-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-lake-sums"
+          },
+          "text": "The ice bridge rises! You can walk across it."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-sums-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-lake-sums"
+          },
+          "text": "Real ice forms when water gets cold enough to freeze. A frozen lake can look strong, so grown-ups always check it first."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-order-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-order"
+          },
+          "text": "Put the ice floes in number order. Start with the smallest."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-order-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-order"
+          },
+          "text": "Put the ice floes in number order, from smallest to biggest."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-order-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-order"
+          },
+          "text": "The floes are out of order. Arrange them from smallest to biggest to make a path."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-order-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-lake-order"
+          },
+          "text": "All in order! Nice work."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-order-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-lake-order"
+          },
+          "text": "In order! Putting numbers in order shows which is bigger."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-shapes-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-shapes"
+          },
+          "text": "Which shape is on the ice? Pick the same one."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-shapes-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-shapes"
+          },
+          "text": "Look at the shapes on the ice. Pick the one that matches."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-shapes-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-lake-shapes"
+          },
+          "text": "Shapes can be cut into equal parts, like halves and quarters. Pick the answer that matches the picture."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-shapes-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-lake-shapes"
+          },
+          "text": "You matched the shapes! Wheee!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "frosty-lake-shapes-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-lake-shapes"
+          },
+          "text": "Matched! Shapes and equal parts are all around us."
+        }
+      ],
+      "displayName": "Frosty",
+      "homeLocationSlug": "north-pole-village",
+      "id": "frosty",
+      "interactionId": "meet-frosty",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_FOREST_DONE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "questId": "np-q04-frozen-lake",
+          "summary": "Help Frosty raise the ice bridge across the lake."
+        }
+      ],
+      "role": "Elf ice-skating guide at the Frozen Lake. Offers The Frozen Lake.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "noel-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_SNOWBALL_HOME",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "noel-thanks",
+          "text": "Snowball is home, warm and safe! Thank you for helping. You are a true reindeer rescuer."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "noel-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "noel-help"
+            },
+            {
+              "id": "noel-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "noel-hint"
+            },
+            {
+              "id": "noel-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "noel-greeting-sprout",
+          "text": "Hello! I am Noel. I look after the reindeer. One baby reindeer is missing."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "noel-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "noel-help"
+            },
+            {
+              "id": "noel-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "noel-hint"
+            },
+            {
+              "id": "noel-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "noel-greeting-pathfinder",
+          "text": "Hi! I am Noel, the reindeer keeper. Snowball, our youngest calf, has wandered off. Will you help me find Snowball?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "noel-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "noel-help"
+            },
+            {
+              "id": "noel-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "noel-hint"
+            },
+            {
+              "id": "noel-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "noel-greeting-explorer",
+          "text": "Welcome to the stables! I am Noel. Our youngest reindeer calf, Snowball, wandered away in the storm. Real reindeer calves can walk soon after they are born, so Snowball can go far."
+        },
+        {
+          "choices": [
+            {
+              "id": "noel-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "noel-help",
+          "text": "Learn about reindeer, follow the footprints, and find what Snowball needs. Then bring the collar back to me. Pine Hollow is out in the snow, so take your time."
+        },
+        {
+          "choices": [
+            {
+              "id": "noel-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "noel-hint",
+          "text": "Look closely at the footprints. Which way do the toes point? Real reindeer have wide hooves that spread out in the snow."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-facts-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-facts"
+          },
+          "text": "Let us learn about reindeer. Pick the right picture."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-facts-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-facts"
+          },
+          "text": "Let us learn about real reindeer. Read the question, then pick the answer."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-facts-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-facts"
+          },
+          "text": "Real reindeer live in cold places. Read each fact carefully, then choose the answer that matches."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-facts-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-stables-facts"
+          },
+          "text": "You know about reindeer now!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-facts-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-stables-facts"
+          },
+          "text": "Great learning! Now you know some real reindeer facts."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-facts-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-stables-facts"
+          },
+          "text": "Real reindeer have wide hooves that spread out like snowshoes, so they can walk on snow. Both male and female reindeer can grow antlers."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-tracks-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-tracks"
+          },
+          "text": "Follow the footprints. Which way did Snowball go?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-tracks-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-tracks"
+          },
+          "text": "Look at the footprints. Which way do they lead?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-tracks-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-tracks"
+          },
+          "text": "Look at the direction, size, and spacing of the footprints. Work out which way the calf went."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-tracks-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-stables-tracks"
+          },
+          "text": "You followed the footprints!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-tracks-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-stables-tracks"
+          },
+          "text": "You followed the trail well. Footprints are clues."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-tracks-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-stables-tracks"
+          },
+          "text": "Real animals leave prints that tell us how big they are and how fast they moved. Prints that are far apart mean the animal was trotting."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-supplies-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-supplies"
+          },
+          "text": "What do reindeer eat? Pick the food."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-supplies-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-supplies"
+          },
+          "text": "Choose what Snowball needs for the trip home."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-supplies-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-supplies"
+          },
+          "text": "Choose the supplies a reindeer calf needs. Think about what reindeer really eat."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-supplies-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-stables-supplies"
+          },
+          "text": "Good food for Snowball!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-supplies-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-stables-supplies"
+          },
+          "text": "You picked just what a hungry calf needs."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-supplies-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-stables-supplies"
+          },
+          "text": "Real reindeer eat lichen, grass, and leaves, and they dig through snow with their hooves to find food."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-return-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-return"
+          },
+          "text": "Take Snowball’s collar to Noel."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-return-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-return"
+          },
+          "text": "Take the collar you found to Noel."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-return-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-stables-return"
+          },
+          "text": "Bring Snowball’s collar back to Noel and tell him what you found."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-return-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-stables-return"
+          },
+          "text": "Snowball is home! Hooray!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "noel-stables-return-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-stables-return"
+          },
+          "text": "Snowball is home! Thank you. The stables feel warm and happy again."
+        }
+      ],
+      "displayName": "Noel",
+      "homeLocationSlug": "north-pole-village",
+      "id": "noel",
+      "interactionId": "meet-noel",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_LAKE_DONE",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "questId": "np-q05-missing-reindeer",
+          "summary": "Help Noel find Snowball the reindeer calf."
+        }
+      ],
+      "role": "Reindeer keeper at the stables. Offers The Missing Reindeer.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "ginger-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_GINGER_REPAIRED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "ginger-thanks",
+          "text": "The wall is mended! Thank you. The whole village smells like warm gingerbread."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "ginger-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "ginger-help"
+            },
+            {
+              "id": "ginger-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "ginger-hint"
+            },
+            {
+              "id": "ginger-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "ginger-greeting-sprout",
+          "text": "Hi! I am Ginger. I bake and build with gingerbread!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "ginger-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "ginger-help"
+            },
+            {
+              "id": "ginger-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "ginger-hint"
+            },
+            {
+              "id": "ginger-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "ginger-greeting-pathfinder",
+          "text": "Hello! I am Ginger. A wall in the gingerbread village crumbled, and I need help to mend it. Can you?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "ginger-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "ginger-help"
+            },
+            {
+              "id": "ginger-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "ginger-hint"
+            },
+            {
+              "id": "ginger-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "ginger-greeting-explorer",
+          "text": "Welcome to the Gingerbread Village! I am Ginger. Part of our wall crumbled, and the mystery is how to rebuild it with the right shapes and sizes."
+        },
+        {
+          "choices": [
+            {
+              "id": "ginger-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "ginger-help",
+          "text": "Match the shapes, finish the window, measure the cookie beams, and build the wall. Cookie steps lead up to the roof, and there is a ramp too."
+        },
+        {
+          "choices": [
+            {
+              "id": "ginger-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "ginger-hint",
+          "text": "Look at the shapes slowly. How many sides does each one have? You can hop the cookie steps or walk up the ramp."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-shapes-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-shapes"
+          },
+          "text": "Match the shapes on the gingerbread houses."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-shapes-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-shapes"
+          },
+          "text": "Match each shape on the gingerbread houses to its name."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-shapes-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-shapes"
+          },
+          "text": "Gingerbread houses are built from shapes like triangles and rectangles. Match each shape to its name and count its sides."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-shapes-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-shapes"
+          },
+          "text": "You matched the shapes!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-shapes-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-shapes"
+          },
+          "text": "Shapes matched! Houses are built from shapes."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-symmetry-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-symmetry"
+          },
+          "text": "One side of the window is done. Pick the matching side."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-symmetry-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-symmetry"
+          },
+          "text": "Complete the window so both sides match."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-symmetry-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-symmetry"
+          },
+          "text": "A symmetric window looks the same on both sides, like a mirror. Choose the piece that completes it."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-symmetry-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-symmetry"
+          },
+          "text": "The window is done!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-symmetry-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-symmetry"
+          },
+          "text": "Both sides match! That is called symmetry."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-measure-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-measure"
+          },
+          "text": "Which cookie beam is longer?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-measure-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-measure"
+          },
+          "text": "Measure the cookie beam. Which one fits the gap?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-measure-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-measure"
+          },
+          "text": "Measure with the ruler. Choose the beam that fits the gap exactly."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-measure-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-measure"
+          },
+          "text": "You picked the longer beam!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-measure-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-measure"
+          },
+          "text": "You measured well. The right size makes a strong wall."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-build-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-build"
+          },
+          "text": "Put the cookie beams in the gaps."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-build-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-build"
+          },
+          "text": "Place each cookie beam into a gap in the wall."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-build-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-ginger-build"
+          },
+          "text": "The wall has gaps. Place cookie beams that fit them, one at a time."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-build-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-build"
+          },
+          "text": "The gingerbread wall is mended!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "ginger-ginger-build-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-ginger-build"
+          },
+          "text": "The wall is mended! The beams all fit, and the village is safe."
+        }
+      ],
+      "displayName": "Ginger",
+      "homeLocationSlug": "north-pole-village",
+      "id": "ginger",
+      "interactionId": "meet-ginger",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_SNOWBALL_HOME",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "questId": "np-q06-gingerbread-mystery",
+          "summary": "Help Ginger mend the gingerbread village wall."
+        }
+      ],
+      "role": "Baker and builder in the Gingerbread Village. Offers The Gingerbread Mystery.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "polaris-thanks-1-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_STAR_RESTORED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "polaris-thanks",
+          "text": "The Christmas Star shines again! Thank you. It is island magic, and you helped it."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [
+            {
+              "id": "polaris-greeting-sprout-help",
+              "label": "What can I do?",
+              "nextNodeId": "polaris-help"
+            },
+            {
+              "id": "polaris-greeting-sprout-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "polaris-hint"
+            },
+            {
+              "id": "polaris-greeting-sprout-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "polaris-greeting-sprout",
+          "text": "Hello! I am Polaris. I watch the stars."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [
+            {
+              "id": "polaris-greeting-pathfinder-help",
+              "label": "What can I do?",
+              "nextNodeId": "polaris-help"
+            },
+            {
+              "id": "polaris-greeting-pathfinder-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "polaris-hint"
+            },
+            {
+              "id": "polaris-greeting-pathfinder-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "polaris-greeting-pathfinder",
+          "text": "Hello! I am Polaris. I study stars in the observatory. We need to put the Christmas Star back together."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [
+            {
+              "id": "polaris-greeting-explorer-help",
+              "label": "What can I do?",
+              "nextNodeId": "polaris-help"
+            },
+            {
+              "id": "polaris-greeting-explorer-hint",
+              "label": "I need a hint.",
+              "nextNodeId": "polaris-hint"
+            },
+            {
+              "id": "polaris-greeting-explorer-bye",
+              "label": "See you soon!"
+            }
+          ],
+          "conditions": [],
+          "id": "polaris-greeting-explorer",
+          "text": "Welcome to the Observatory! I am Polaris. I study the night sky. Real stars are balls of gas, but the Christmas Star is island magic, and it needs all seven pieces."
+        },
+        {
+          "choices": [
+            {
+              "id": "polaris-help-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "polaris-help",
+          "text": "Learn about stars, find a constellation, and put the night sky in order. Then we can place the seven star pieces and make the star shine."
+        },
+        {
+          "choices": [
+            {
+              "id": "polaris-hint-bye",
+              "label": "Thank you!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "polaris-hint",
+          "text": "Look at the dots as if they were a dot to dot picture. Real stars look tiny only because they are very far away."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-stars-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-stars"
+          },
+          "text": "Let us look at the stars. Pick the right picture."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-stars-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-stars"
+          },
+          "text": "Let us learn about stars. Read the question, then pick the answer."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-stars-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-stars"
+          },
+          "text": "Let us learn some real astronomy. Read each question carefully and choose the answer."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-stars-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-stars"
+          },
+          "text": "You know about stars now!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-stars-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-stars"
+          },
+          "text": "Great learning! You know some real facts about stars."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-stars-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-obs-stars"
+          },
+          "text": "Real stars are huge balls of hot gas, very far away. Our Sun is a star too. The Christmas Star is island magic."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-constellation-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-constellation"
+          },
+          "text": "Find the shape in the stars. Which picture is it?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-constellation-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-constellation"
+          },
+          "text": "Find the constellation. Which shape do the stars make?"
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-constellation-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-constellation"
+          },
+          "text": "A constellation is a pattern of stars. Look at the dots and choose the constellation they make."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-constellation-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-constellation"
+          },
+          "text": "You found the shape in the stars!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-constellation-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-constellation"
+          },
+          "text": "You found it! Looking for shapes in stars is how people have named them."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-constellation-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-obs-constellation"
+          },
+          "text": "A constellation is a pattern of stars that people gave a name, like a dot to dot picture in the sky. Real Polaris, the North Star, stays almost in one spot in the northern sky."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-sequence-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-sequence"
+          },
+          "text": "Put the night sky in order. What comes first?"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-sequence-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-sequence"
+          },
+          "text": "Put the night sky pictures in order, from first to last."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-sequence-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-sequence"
+          },
+          "text": "The night sky changes in order through the evening. Put the pictures in the order they happen."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-sequence-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-sequence"
+          },
+          "text": "All in order!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-sequence-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-sequence"
+          },
+          "text": "In order! The sky changes in a steady pattern each day."
+        },
+        {
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-sequence-scienceNote-all",
+          "puzzleLine": {
+            "part": "scienceNote",
+            "puzzleId": "np-obs-sequence"
+          },
+          "text": "Real stars are in the sky all day too. We cannot see them because the Sun is so bright."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-fragments-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-fragments"
+          },
+          "text": "Put the seven star pieces back. Follow your journey."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-fragments-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-fragments"
+          },
+          "text": "Put the seven star pieces back in the order you found them."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-fragments-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-fragments"
+          },
+          "text": "Set the seven star pieces into their places in the order of your journey. Think back to where you found each one."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-fragments-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-fragments"
+          },
+          "text": "All seven pieces are in!"
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-fragments-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-fragments"
+          },
+          "text": "All seven pieces are in place. You remembered the whole journey."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-final-intro-sprout",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-final"
+          },
+          "text": "One last question. Let us count the stars."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-final-intro-pathfinder",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-final"
+          },
+          "text": "One last question to make the star shine. Take your time."
+        },
+        {
+          "ageBands": [
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-final-intro-explorer",
+          "puzzleLine": {
+            "part": "intro",
+            "puzzleId": "np-obs-final"
+          },
+          "text": "One last challenge to make the star shine. Use what you have learned on your journey."
+        },
+        {
+          "ageBands": [
+            "SPROUT"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-final-completeMessage-sprout",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-final"
+          },
+          "text": "The star shines! It is island magic."
+        },
+        {
+          "ageBands": [
+            "PATHFINDER",
+            "EXPLORER"
+          ],
+          "choices": [],
+          "conditions": [],
+          "followUpOnly": true,
+          "id": "polaris-obs-final-completeMessage-pathfinder-explorer",
+          "puzzleLine": {
+            "part": "completeMessage",
+            "puzzleId": "np-obs-final"
+          },
+          "text": "The Christmas Star shines again! It is island magic, and you helped make it happen."
+        }
+      ],
+      "displayName": "Polaris",
+      "homeLocationSlug": "north-pole-village",
+      "id": "polaris",
+      "interactionId": "meet-polaris",
+      "questOffers": [
+        {
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_MOUNTAIN_SUMMIT",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "questId": "np-q08-restore-the-star",
+          "summary": "Help Polaris put the seven star pieces back together."
+        }
+      ],
+      "role": "Star watcher at the Observatory. Offers Restore the Christmas Star.",
+      "schedule": []
+    },
+    {
+      "dialogue": [
+        {
+          "choices": [
+            {
+              "id": "snowball-home-bye",
+              "label": "Sleep well!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_SNOWBALL_HOME",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "snowball-home",
+          "text": "Snowball snuffles happily in the warm stable."
+        },
+        {
+          "choices": [
+            {
+              "id": "snowball-found-bye",
+              "label": "Let us go home!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "NORTH_POLE_SNOWBALL_FOUND",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "snowball-found",
+          "text": "Snowball nuzzles you and follows close."
+        },
+        {
+          "choices": [
+            {
+              "id": "snowball-greeting-pat",
+              "label": "Pat Snowball",
+              "nextNodeId": "snowball-huff"
+            },
+            {
+              "id": "snowball-greeting-listen",
+              "label": "Listen",
+              "nextNodeId": "snowball-click"
+            },
+            {
+              "id": "snowball-greeting-bye",
+              "label": "Hello, Snowball!"
+            }
+          ],
+          "conditions": [],
+          "id": "snowball-greeting",
+          "text": "Snowball nuzzles your hand."
+        },
+        {
+          "choices": [
+            {
+              "id": "snowball-huff-bye",
+              "label": "Good Snowball!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "snowball-huff",
+          "text": "Snowball makes a soft huffing sound."
+        },
+        {
+          "choices": [
+            {
+              "id": "snowball-click-bye",
+              "label": "Good Snowball!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "snowball-click",
+          "text": "Click, click, click. Snowball’s hooves click as they walk."
+        }
+      ],
+      "displayName": "Snowball",
+      "homeLocationSlug": "north-pole-village",
+      "id": "snowball",
+      "interactionId": "meet-snowball",
+      "questOffers": [],
+      "role": "Reindeer calf. Speaks only in animal sound captions.",
+      "schedule": []
     }
   ],
   "schemaVersion": 3

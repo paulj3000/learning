@@ -28,10 +28,14 @@ import type {
   QuestState,
 } from '../../features/quests/types';
 import {
+  chooseAnswerCorrect,
   observeSolved,
+  orderSequenceCorrect,
   platformsSolved,
   simulateValves,
   solveValves,
+  type ChoiceVariant,
+  type OrderVariant,
   type Slot,
   type Stone,
   type Valve,
@@ -1749,6 +1753,49 @@ const STEAM: Valve[] = [
   { id: 'blue', label: 'Blue', from: 'pipe', to: 'tank' },
   { id: 'green', label: 'Green', from: 'tank', to: 'vent' },
 ];
+const CHOICE_VARIANTS: ChoiceVariant[] = [
+  {
+    id: 'v1',
+    prompt: 'Which stone is the biggest?',
+    options: [
+      { id: 'a', label: 'Small', symbol: 'circle' },
+      { id: 'b', label: 'Big', symbol: 'square' },
+      { id: 'c', label: 'Middle', symbol: null },
+    ],
+    answer: 'b',
+    explanation: 'The big stone is the biggest one.',
+  },
+  {
+    id: 'v2',
+    prompt: 'What is 3 + 4?',
+    options: [
+      { id: 'a', label: '6', symbol: 'star' },
+      { id: 'b', label: '7', symbol: 'moon' },
+    ],
+    answer: 'b',
+    explanation: '3 and 4 make 7.',
+  },
+];
+const ORDER_VARIANTS: OrderVariant[] = [
+  {
+    id: 'v1',
+    prompt: 'Press the switches from coolest to hottest.',
+    items: [
+      { id: 'red', label: 'Fire switch', symbol: 'triangle' },
+      { id: 'blue', label: 'Water switch', symbol: 'circle' },
+      { id: 'gold', label: 'Sun switch', symbol: 'star' },
+    ],
+    answer: ['blue', 'gold', 'red'],
+    explanation: 'Water is cool, the sun is warm and fire is hottest.',
+  },
+];
+
+function variantOf<V extends { id: string }>(variants: V[], variantId: string): V {
+  const variant = variants.find((v) => v.id === variantId);
+  if (!variant) throw new Error('invalid submission');
+  return variant;
+}
+
 const DEAD_END: Valve[] = [...STEAM, { id: 'grey', label: 'Grey', from: 'passage', to: 'drain' }];
 
 function areaPuzzlesSuite(): GoldenSuite {
@@ -1761,6 +1808,7 @@ function areaPuzzlesSuite(): GoldenSuite {
     notes: [
       'simulateValves: a valve whose channel has no steam does nothing, so extra turns are harmless.',
       'platformsSolved: an unknown slot or stone id is an invalid submission (throws).',
+      'chooseAnswerCorrect and orderSequenceCorrect take the variants and a submission {variantId, choice} or {variantId, order}; an unknown variant, option or item, or an order that is not a permutation of the variant items, is an invalid submission (throws).',
     ],
     functions: {
       observeSolved: vectors(
@@ -1854,6 +1902,84 @@ function areaPuzzlesSuite(): GoldenSuite {
           { name: 'unreachable', input: { valves: STEAM, start: 'passage', goal: 'drain' } },
         ],
         ({ valves, start, goal }) => solveValves({ valves, start, goal }),
+      ),
+      chooseAnswerCorrect: vectors(
+        'choose_answer_correct',
+        ['variants', 'submission'],
+        [
+          {
+            name: 'the answer',
+            input: { variants: CHOICE_VARIANTS, submission: { variantId: 'v1', choice: 'b' } },
+          },
+          {
+            name: 'a wrong option',
+            input: { variants: CHOICE_VARIANTS, submission: { variantId: 'v1', choice: 'a' } },
+          },
+          {
+            name: 'the second variant',
+            input: { variants: CHOICE_VARIANTS, submission: { variantId: 'v2', choice: 'b' } },
+          },
+          {
+            name: 'an option of another variant',
+            input: { variants: CHOICE_VARIANTS, submission: { variantId: 'v2', choice: 'c' } },
+          },
+          {
+            name: 'an unknown variant',
+            input: { variants: CHOICE_VARIANTS, submission: { variantId: 'v9', choice: 'a' } },
+          },
+        ],
+        ({ variants, submission }) =>
+          chooseAnswerCorrect(variantOf(variants, submission.variantId), submission.choice),
+      ),
+      orderSequenceCorrect: vectors(
+        'order_sequence_correct',
+        ['variants', 'submission'],
+        [
+          {
+            name: 'the answer',
+            input: {
+              variants: ORDER_VARIANTS,
+              submission: { variantId: 'v1', order: ['blue', 'gold', 'red'] },
+            },
+          },
+          {
+            name: 'a different order',
+            input: {
+              variants: ORDER_VARIANTS,
+              submission: { variantId: 'v1', order: ['red', 'gold', 'blue'] },
+            },
+          },
+          {
+            name: 'an item missing',
+            input: {
+              variants: ORDER_VARIANTS,
+              submission: { variantId: 'v1', order: ['blue', 'gold'] },
+            },
+          },
+          {
+            name: 'an item twice',
+            input: {
+              variants: ORDER_VARIANTS,
+              submission: { variantId: 'v1', order: ['blue', 'blue', 'red'] },
+            },
+          },
+          {
+            name: 'an unknown item',
+            input: {
+              variants: ORDER_VARIANTS,
+              submission: { variantId: 'v1', order: ['blue', 'gold', 'purple'] },
+            },
+          },
+          {
+            name: 'an unknown variant',
+            input: {
+              variants: ORDER_VARIANTS,
+              submission: { variantId: 'v9', order: ['blue', 'gold', 'red'] },
+            },
+          },
+        ],
+        ({ variants, submission }) =>
+          orderSequenceCorrect(variantOf(variants, submission.variantId), submission.order),
       ),
     },
   };

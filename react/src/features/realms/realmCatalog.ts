@@ -13,6 +13,7 @@ import type {
   IslandSummary,
   IslandsView,
   PlaceSummary,
+  SeasonalInfo,
   SubjectArea,
 } from '../../api/play/islandsApi';
 import { ISLAND_LOCATIONS } from '../island/locations';
@@ -36,6 +37,11 @@ export interface RealmPlace {
   thumbnailAssetId: string | null;
   adventureCount: number;
   explored: boolean;
+  /** Quests its 3D Area offers this child, and how far along (quest-based Places). */
+  questCount: number;
+  questsCompleted: number;
+  /** Every offered quest is completed; the Area stays open for replay. */
+  completed: boolean;
   /** The Place's own page (its Adventures), when this app has one. */
   href: string | null;
   /** Its published 3D Area, such as Treasure Cove, when there is one for this child. */
@@ -54,6 +60,8 @@ export interface Realm {
   ageBands: string[];
   subjectAreas: SubjectArea[];
   thumbnailAssetId: string | null;
+  /** NP-023: the seasonal event this Realm belongs to, or null. */
+  seasonal: SeasonalInfo | null;
   /** Places explored, never points or a score (pillar 7). */
   progress: { explored: number; total: number };
   places: RealmPlace[];
@@ -104,6 +112,9 @@ function toPlace(childId: string, place: PlaceSummary, linkable: boolean): Realm
     thumbnailAssetId: place.thumbnailAssetId,
     adventureCount: place.adventureCount,
     explored: place.explored,
+    questCount: place.questCount,
+    questsCompleted: place.questsCompleted,
+    completed: place.completed,
     href,
     area,
   };
@@ -139,6 +150,7 @@ function toRealm(childId: string, island: IslandSummary): Realm {
     ageBands: island.ageBands,
     subjectAreas: island.subjectAreas,
     thumbnailAssetId: island.thumbnailAssetId,
+    seasonal: island.seasonal ?? null,
     progress: {
       explored: island.progress?.placesExplored ?? places.filter((p) => p.explored).length,
       total: island.progress?.placesTotal ?? places.length,

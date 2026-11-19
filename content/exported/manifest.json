@@ -1,5 +1,5 @@
 {
-  "contentDigest": "71a4adf87ca7e261e4bfd500a549f6db05aa35e7f79df8239e6f5a120caee6e0",
+  "contentDigest": "ea1058cadf3d1e50738e830b3baa42fa621fbf72dc49d5cfa4541bd285273e99",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -7,17 +7,17 @@
   "files": [
     {
       "counts": {
-        "islands": 2
+        "islands": 3
       },
       "path": "islands.json",
-      "sha256": "7e3e0a83270b12fa5eea73a1a16f86284a8940a8dbcbed57e6503b915772caa7"
+      "sha256": "170574bbcd9a31d21bb2c0defcd8edd1e438c47af9369e7433f7051cc0205d7c"
     },
     {
       "counts": {
-        "locations": 11
+        "locations": 13
       },
       "path": "locations.json",
-      "sha256": "dfec8d32c3d3da702ec8641d45970af391d203337d4c200af2a5f6b088c65f55"
+      "sha256": "224507ee8439cf0dcaa649e003d6e9093489a9b1d0d6515003f526777a3213c2"
     },
     {
       "counts": {
@@ -37,26 +37,26 @@
     },
     {
       "counts": {
-        "quests": 14
+        "quests": 24
       },
       "path": "quests.json",
-      "sha256": "b1b3369ef7e9d6da7c62a30e2477dd30d2e1cb08d1bea8c5fd04cb1096e607d9"
+      "sha256": "63ba545b81bbd0dfe5a91b134953768ffbfb5728f064b1bf689c2f85bcf19e7b"
     },
     {
       "counts": {
-        "collectibleSets": 3,
-        "items": 41,
-        "rewardRules": 34
+        "collectibleSets": 11,
+        "items": 117,
+        "rewardRules": 92
       },
       "path": "rewards.json",
-      "sha256": "e57599c4262259d92538a74d7e69520a1007d63e06e59337604254e92b677f55"
+      "sha256": "d02ad8e205f75bd9375d0a0ab0c330cb5ed2b18e47dc873ade406af0cb3e2ec8"
     },
     {
       "counts": {
-        "npcs": 8
+        "npcs": 23
       },
       "path": "npcs.json",
-      "sha256": "0b42633d143d41b6173fcc20eb07320cf4c1f641f833c1f4a00d11e14319f32c"
+      "sha256": "c725d91c6b2b4602e82c2ed2cda6ef4c06d667bce0b166e87661085ac364b559"
     },
     {
       "counts": {
@@ -114,9 +114,24 @@
     {
       "detail": "These NPCs name an interactionId but their home region has no WorldInteraction table (Clockwork Harbor is a 3D-only region that opens conversations by NPC id). The ids are exported as written; no interaction was invented.",
       "ids": [
+        "cinder",
+        "flint",
+        "frosty",
+        "ginger",
         "harbor-master",
+        "ignis",
+        "jingle",
+        "kindle",
+        "mrs-claus",
+        "noel",
+        "peppermint",
+        "polaris",
+        "professor-basalt",
         "professor-ember",
-        "professor-ticktock"
+        "professor-ticktock",
+        "santa-claus",
+        "snowball",
+        "tinker"
       ],
       "kind": "npc-interaction-without-record"
     },

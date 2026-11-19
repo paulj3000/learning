@@ -8,7 +8,8 @@
   ],
   "notes": [
     "simulateValves: a valve whose channel has no steam does nothing, so extra turns are harmless.",
-    "platformsSolved: an unknown slot or stone id is an invalid submission (throws)."
+    "platformsSolved: an unknown slot or stone id is an invalid submission (throws).",
+    "chooseAnswerCorrect and orderSequenceCorrect take the variants and a submission {variantId, choice} or {variantId, order}; an unknown variant, option or item, or an order that is not a permutation of the variant items, is an invalid submission (throws)."
   ],
   "functions": {
     "observeSolved": {
@@ -586,6 +587,546 @@
             "goal": "drain"
           },
           "expected": null
+        }
+      ]
+    },
+    "chooseAnswerCorrect": {
+      "python": "choose_answer_correct",
+      "args": [
+        "variants",
+        "submission"
+      ],
+      "cases": [
+        {
+          "name": "the answer",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Which stone is the biggest?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Small",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Big",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Middle",
+                    "symbol": null
+                  }
+                ],
+                "answer": "b",
+                "explanation": "The big stone is the biggest one."
+              },
+              {
+                "id": "v2",
+                "prompt": "What is 3 + 4?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "6",
+                    "symbol": "star"
+                  },
+                  {
+                    "id": "b",
+                    "label": "7",
+                    "symbol": "moon"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
+              }
+            ],
+            "submission": {
+              "variantId": "v1",
+              "choice": "b"
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "a wrong option",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Which stone is the biggest?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Small",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Big",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Middle",
+                    "symbol": null
+                  }
+                ],
+                "answer": "b",
+                "explanation": "The big stone is the biggest one."
+              },
+              {
+                "id": "v2",
+                "prompt": "What is 3 + 4?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "6",
+                    "symbol": "star"
+                  },
+                  {
+                    "id": "b",
+                    "label": "7",
+                    "symbol": "moon"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
+              }
+            ],
+            "submission": {
+              "variantId": "v1",
+              "choice": "a"
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "the second variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Which stone is the biggest?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Small",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Big",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Middle",
+                    "symbol": null
+                  }
+                ],
+                "answer": "b",
+                "explanation": "The big stone is the biggest one."
+              },
+              {
+                "id": "v2",
+                "prompt": "What is 3 + 4?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "6",
+                    "symbol": "star"
+                  },
+                  {
+                    "id": "b",
+                    "label": "7",
+                    "symbol": "moon"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
+              }
+            ],
+            "submission": {
+              "variantId": "v2",
+              "choice": "b"
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "an option of another variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Which stone is the biggest?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Small",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Big",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Middle",
+                    "symbol": null
+                  }
+                ],
+                "answer": "b",
+                "explanation": "The big stone is the biggest one."
+              },
+              {
+                "id": "v2",
+                "prompt": "What is 3 + 4?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "6",
+                    "symbol": "star"
+                  },
+                  {
+                    "id": "b",
+                    "label": "7",
+                    "symbol": "moon"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
+              }
+            ],
+            "submission": {
+              "variantId": "v2",
+              "choice": "c"
+            }
+          },
+          "throws": true
+        },
+        {
+          "name": "an unknown variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Which stone is the biggest?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "Small",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "b",
+                    "label": "Big",
+                    "symbol": "square"
+                  },
+                  {
+                    "id": "c",
+                    "label": "Middle",
+                    "symbol": null
+                  }
+                ],
+                "answer": "b",
+                "explanation": "The big stone is the biggest one."
+              },
+              {
+                "id": "v2",
+                "prompt": "What is 3 + 4?",
+                "options": [
+                  {
+                    "id": "a",
+                    "label": "6",
+                    "symbol": "star"
+                  },
+                  {
+                    "id": "b",
+                    "label": "7",
+                    "symbol": "moon"
+                  }
+                ],
+                "answer": "b",
+                "explanation": "3 and 4 make 7."
+              }
+            ],
+            "submission": {
+              "variantId": "v9",
+              "choice": "a"
+            }
+          },
+          "throws": true
+        }
+      ]
+    },
+    "orderSequenceCorrect": {
+      "python": "order_sequence_correct",
+      "args": [
+        "variants",
+        "submission"
+      ],
+      "cases": [
+        {
+          "name": "the answer",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Press the switches from coolest to hottest.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch",
+                    "symbol": "star"
+                  }
+                ],
+                "answer": [
+                  "blue",
+                  "gold",
+                  "red"
+                ],
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
+              }
+            ],
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "blue",
+                "gold",
+                "red"
+              ]
+            }
+          },
+          "expected": true
+        },
+        {
+          "name": "a different order",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Press the switches from coolest to hottest.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch",
+                    "symbol": "star"
+                  }
+                ],
+                "answer": [
+                  "blue",
+                  "gold",
+                  "red"
+                ],
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
+              }
+            ],
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "red",
+                "gold",
+                "blue"
+              ]
+            }
+          },
+          "expected": false
+        },
+        {
+          "name": "an item missing",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Press the switches from coolest to hottest.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch",
+                    "symbol": "star"
+                  }
+                ],
+                "answer": [
+                  "blue",
+                  "gold",
+                  "red"
+                ],
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
+              }
+            ],
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "blue",
+                "gold"
+              ]
+            }
+          },
+          "throws": true
+        },
+        {
+          "name": "an item twice",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Press the switches from coolest to hottest.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch",
+                    "symbol": "star"
+                  }
+                ],
+                "answer": [
+                  "blue",
+                  "gold",
+                  "red"
+                ],
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
+              }
+            ],
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "blue",
+                "blue",
+                "red"
+              ]
+            }
+          },
+          "throws": true
+        },
+        {
+          "name": "an unknown item",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Press the switches from coolest to hottest.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch",
+                    "symbol": "star"
+                  }
+                ],
+                "answer": [
+                  "blue",
+                  "gold",
+                  "red"
+                ],
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
+              }
+            ],
+            "submission": {
+              "variantId": "v1",
+              "order": [
+                "blue",
+                "gold",
+                "purple"
+              ]
+            }
+          },
+          "throws": true
+        },
+        {
+          "name": "an unknown variant",
+          "input": {
+            "variants": [
+              {
+                "id": "v1",
+                "prompt": "Press the switches from coolest to hottest.",
+                "items": [
+                  {
+                    "id": "red",
+                    "label": "Fire switch",
+                    "symbol": "triangle"
+                  },
+                  {
+                    "id": "blue",
+                    "label": "Water switch",
+                    "symbol": "circle"
+                  },
+                  {
+                    "id": "gold",
+                    "label": "Sun switch",
+                    "symbol": "star"
+                  }
+                ],
+                "answer": [
+                  "blue",
+                  "gold",
+                  "red"
+                ],
+                "explanation": "Water is cool, the sun is warm and fire is hottest."
+              }
+            ],
+            "submission": {
+              "variantId": "v9",
+              "order": [
+                "blue",
+                "gold",
+                "red"
+              ]
+            }
+          },
+          "throws": true
         }
       ]
     }

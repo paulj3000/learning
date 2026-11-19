@@ -646,9 +646,16 @@ export const regionPlaySceneExtension: WorldExtension = {
 
     // ADR-047 / Firepeak: stand-ins and puzzle objects, environment effects, puzzle visuals.
     const owned: Owned = { geometries, materials };
+    const stopGears: (() => void)[] = [];
     for (const drawn of config.drawn) {
       const root = context.entityRoot(drawn.entityId);
-      if (root) drawEntity(root, drawn, owned, context.loadModel, cloneAssetScene, () => disposed);
+      if (!root) continue;
+      drawEntity(root, drawn, owned, context.loadModel, cloneAssetScene, () => disposed);
+      // A GEAR stand-in turns slowly; held still under reduced motion.
+      const gear = root.getObjectByName('gear-spin');
+      if (gear && !still) {
+        stopGears.push(context.onFrame((delta) => void (gear.rotation.z += delta * 0.35)));
+      }
     }
     const effects = mountAreaEffects(
       context,
@@ -656,6 +663,7 @@ export const regionPlaySceneExtension: WorldExtension = {
       config.changeKeys,
       owned,
       () => disposed,
+      config.drawn,
     );
     const puzzles = mountAreaPuzzles(context, owned);
 
@@ -762,6 +770,7 @@ export const regionPlaySceneExtension: WorldExtension = {
       dispose() {
         disposed = true;
         stopFrames();
+        for (const stop of stopGears) stop();
         effects.dispose();
         puzzles.dispose();
         for (const beacon of beacons.values()) context.scene.remove(beacon.mesh);

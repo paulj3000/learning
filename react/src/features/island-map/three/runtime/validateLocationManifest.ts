@@ -6,6 +6,7 @@ import {
   type CollectibleSpec,
   type ExtensionBinding,
   type GroundPoint,
+  type LightingSpec,
   type PlaceholderSize,
   type RectZone,
   type ThreeLocationManifest,
@@ -541,6 +542,49 @@ export function validateLocationManifest(
     if (effect.driftSpeed !== undefined)
       requirePositive(effect.driftSpeed, `${path}.driftSpeed`, report);
     checkRequirements(effect.requirements, `${path}.requirements`);
+  });
+
+  const lightingPaths: [string, LightingSpec | undefined][] = [
+    ['environment.lighting', manifest.environment.lighting],
+    ...(manifest.environment.variants ?? []).map(
+      (variant, index): [string, LightingSpec | undefined] => [
+        `environment.variants[${index}].lighting`,
+        variant.lighting,
+      ],
+    ),
+  ];
+  for (const [path, lighting] of lightingPaths) {
+    if (!lighting) continue;
+    if (lighting.ambientColor !== undefined)
+      checkColor(lighting.ambientColor, `${path}.ambientColor`);
+    if (lighting.sunColor !== undefined) checkColor(lighting.sunColor, `${path}.sunColor`);
+  }
+
+  const atmosphere = manifest.atmosphere;
+  if (atmosphere?.fog) {
+    const { color, near, far } = atmosphere.fog;
+    checkColor(color, 'atmosphere.fog.color');
+    if (!(Number.isFinite(near) && Number.isFinite(far) && near > 0 && near < far && far <= 1000)) {
+      report('INVALID_VALUE', 'atmosphere.fog', 'must satisfy 0 < near < far <= 1000');
+    }
+  }
+  if (atmosphere?.precipitation) {
+    const { kind, density } = atmosphere.precipitation;
+    if (kind !== 'SNOW') report('INVALID_VALUE', 'atmosphere.precipitation.kind', 'must be SNOW');
+    if (!(Number.isFinite(density) && density >= 0 && density <= 1)) {
+      report('INVALID_VALUE', 'atmosphere.precipitation.density', 'must be between 0 and 1');
+    }
+  }
+  if ((atmosphere?.skyRibbons?.length ?? 0) > 4) {
+    report('INVALID_VALUE', 'atmosphere.skyRibbons', 'at most four ribbons');
+  }
+  atmosphere?.skyRibbons?.forEach((ribbon, index) => {
+    const path = `atmosphere.skyRibbons[${index}]`;
+    claimSceneId(ribbon.id, `${path}.id`);
+    checkColor(ribbon.colors[0], `${path}.colors[0]`);
+    checkColor(ribbon.colors[1], `${path}.colors[1]`);
+    requirePositive(ribbon.width, `${path}.width`, report);
+    requirePositive(ribbon.height, `${path}.height`, report);
   });
 
   manifest.ambient.forEach((ambient, index) => {

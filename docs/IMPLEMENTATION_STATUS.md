@@ -196,6 +196,73 @@ engine lead's migration-ready SHA on `core/gameengine`.
   (content decision). Clue and hint selection with two Pip quests needs a product decision.
 - **Not done:** browser, device, gamepad or Playwright checks (policy); owner QA.
 
+## The Heart of Firepeak (FPV-01 to FPV-24, 2026-11-18, `feature/firepeak-volcano-adventure`); development complete, unit-tested only, owner QA pending, NOT merged
+
+Contract and decisions: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`, ADR-073 (Proposed). Based on
+`feature/treasure-rush-palm-trees` (420f1afd) for the shared jump, camera and platform engine.
+
+**What exists.** A new Place `firepeak-heart` with one seven-zone 3D Area (Explorer's Landing,
+Emberwood Forest, Lava Crossing, Crystal Caverns, Ancient Forge, Firepeak Summit, Heart Chamber),
+the quest `the-heart-of-firepeak` (7 stages), 14 server-graded puzzles (two new multi-instance
+kinds `CHOOSE_ANSWER` and `ORDER_SEQUENCE`, migration `regions.0007`), practice replay, NPCs
+Flint, Kindle, Professor Basalt, Cinder and Ignis (catalog dialogue with banded puzzle lines, NPC
+Manager characters), 4 elemental crystals, 7 ember shards, 9 keepsake achievements, 4 journal
+entries, Firepeak sound cues with region-keyed ambience, 29 asset ids with stand-ins, Realm
+Explorer quest counts and completion. The Volcano Awakens (`firepeak-volcano`) is unchanged.
+
+**Shared changes (isolated commits).** Django scene colliders keep `minY`, `maxY`, `jumpable`;
+`effects.lava[].visualOnly`; the reduced-motion respawn vignette clears; stand-in shapes TREE,
+LOG, GEAR, SWITCH, ROCK, ARCH; collectible-set completion items granted by the server; islands
+API adds `questCount`, `questsCompleted`, `questsInProgress`, `completed`; a managed NPC keeps the
+legacy panel while it is the target of an open `RETURN_TO_NPC` step; puzzle solves raise the
+`questComplete` cue.
+
+**Development checks (2026-11-18, integrated branch).** Vitest 112 files, 1,459 tests passed
+(region play, regionPlay extension, realms, content export, golden, play API, platforms, runtime);
+`tsc --noEmit` clean. Targeted pytest: 457 passed (puzzle kinds, Firepeak Volcano, Heart import,
+NPC seed, golden), 297 passed (Heart layout, seed and playthrough for both bands, Pirate's Leap,
+Pip's treasure, chests, quests, NPC seed), 15 passed (Heart security, audio), 9 passed
+(inventory grants), 11 passed (NPC seed after asset-id alignment). Not run, by policy: Playwright,
+browser or device checks, Ruff, Prettier, ESLint, full suites, builds.
+
+**Follow-up fixes (2026-11-18, second session).** A managed NPC with launch points keeps the
+legacy panel and its launch buttons (e85a3c21). Choice puzzles hide the answer objects the child's
+band never maps (c4b069ba). Lava recoveries say "Whoa, the lava is too hot!" instead of "Splash!"
+(`platforming.recoveryLead`, Heart layout version 2), and every hazard recovery plays the respawn
+fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core) and
+`docs/firepeak/SCORING_INTEGRATION_AUDIT.md` (GE-100 award mapping, data only). Checks: Vitest
+41 files, 613 passed (region play, regionPlay extension, platforms); `tsc --noEmit` clean; pytest
+145 passed (platforming, Heart layout, seed, playthrough) on local PostgreSQL 16.
+
+**Not done / blocked.**
+- Migration to `@lai/game-engine` (GE-073, owner-approved 2026-11-19), in progress:
+  - Done: `core/gameengine` @ e4148949 merged (1eea7ba4; game 566 passed, frontend 2,194 passed,
+    tsc clean, pytest 123 passed, makemigrations clean). Guard: no Firepeak file imports an
+    island-map shim (`region-play/firepeak/realmEngineImports.test.ts`). `defineAdventure` data for
+    the Heart (`region-play/firepeak/heartAdventureDefinition.ts`): validated with the standard
+    capability registry, and the Heart scene snapshot passes `checkContentCompatibility` and
+    `npm run engine:validate`.
+  - Done (2026-11-19): GE-070 @ 4044d37b and core/gameengine @ 21119d5d merged. One checkpoint
+    list: the Heart's eight checkpoints and its lava hazard run in the engine bridge
+    (`scene.engineBridge`, layout version 3); region play feeds world changes as `world:<key>`
+    signals and resumes a returning child once per visit; the old lists are gone. Checks: frontend
+    region play, regionPlay extension, game engine, runtime suites pass (timing-sensitive castle and
+    audio tests flake on a cold first run and pass on rerun, also without this change); game 578;
+    tsc clean; pytest 58 layout + 124 seed, playthrough, bridge, platforming.
+  - Not adopted yet: telegraphed falling rocks, steam force volumes and crumble-then-fall are new
+    gameplay content for the Summit and Forge and wait for the owner's design call. The live
+    platform system stays the platform owner until GE-076.
+  - ADR-073 still needs its Reserved row on `main` (owner registry-only change).
+- Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
+- Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
+- Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
+- Question Studio bank for area puzzles: extension point only.
+- Falling rocks and timed steam pushes: engine components exist (GE-065 bridge); adoption in GE-073.
+- Managed NPCs do not speak per-puzzle stage lines in their own panel (the puzzle panel shows them).
+- The Heart decision was ADR-070, which collided with the GLB optimization policy on
+  `feature/lambda-derived-artifacts`. The owner decided (2026-11-19) that Firepeak renumbers: it is ADR-073.
+  The branch's ADR-055 to 060 against main's ADR-055 to 064 follow the core/gameengine reservation table.
+
 ## Movement defects, campfire and feather (2026-11-15, `feature/treasure-rush-palm-trees`); development complete, owner QA pending, NOT merged
 
 Owner guide: `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`. Decision: ADR-060 (Proposed).
@@ -14285,7 +14352,7 @@ already used 5432. Older entries above that mention 5442 record what ran at the 
   `generateCastleDirector`, ADR-065 Proposed; Quill flavour service), SC-R10-01/02 (Three.js Writing
   Room and parity; Phaser stays default), SC-R11 engineering part (local diagnostics, disposal,
   configurable wall height, accessibility and exit tests).
-- **Schema:** migrations `ai/0006_castle_director`, `regions/0007_castle_director` (`CastleVisitState`,
+- **Schema:** migrations `ai/0006_castle_director`, `regions/0008_castle_director` (was 0007, renumbered after Firepeak) (`CastleVisitState`,
   `CastleEventShown`, child-owned). Location manifests gained optional `entryRequirements`,
   `copy.locked` and `wallHeight`.
 - **Privacy:** the Director route sends the model only ids, one-word tags, band and room; audit rows
@@ -14305,7 +14372,7 @@ already used 5432. Older entries above that mention 5442 record what ran at the 
   approved, authored, server-supplied lines. Development complete for the catalog; the Django and
   Admin deployment, `manage.py import_castle_events` on a real database and the browser acceptance
   remain owner approvals.
-- **What changed:** `CastleEvent` (migration `regions/0008_castle_director_catalog`) is an `Authorable`
+- **What changed:** `CastleEvent` (migration `regions/0009_castle_director_catalog` (was 0008)) is an `Authorable`
   kind `castle-event` in the ADR-047 revision workflow (draft, submitted, published, superseded;
   retire and restore need the publish permission; who and when recorded). `castle_events.json` is an
   import-only seed (`import_castle_events`: idempotent, never overwrites an edited or retired event;

@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('regions', '0006_merge_main'),
+        ('regions', '0007_puzzle_kinds_choose_order'),
         ('users', '0008_merge_amplify_exit'),
     ]
 

@@ -46,7 +46,7 @@ evidence (`tasks/TASK_TRACKER.md`); browser, device and playtest acceptance is t
 | SC-R10-01/02 | Three.js Writing Room and parity tests; optional `entryRequirements` in the location manifest | `docs/regions/prep/writing_room_prep.md` |
 | SC-R11 (engineering) | Local diagnostics (`?lai-diag=1`), disposal fixes, configurable wall height, accessibility tests | `docs/PILOT_READINESS.md` 5b |
 
-Migrations: `ai/0006_castle_director` (route constraint), `regions/0007_castle_director`
+Migrations: `ai/0006_castle_director` (route constraint), `regions/0008_castle_director` (was 0007, renumbered after Firepeak)
 (`CastleVisitState`, `CastleEventShown`, both child-owned and deleted with the child). No data
 migration. No production data touched.
 
