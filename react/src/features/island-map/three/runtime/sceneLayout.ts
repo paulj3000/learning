@@ -2,6 +2,7 @@ import type { InstancePlacement } from '../assets/assetLoader';
 import { ASSET_MANIFEST } from '../assets/manifest';
 import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 import type { CollisionProfiles } from './collisionProfile';
+import { bridgeCheckpointIds } from './bridgeCheckpoints';
 import { buildingEntrances, derivedColliders } from './derivedColliders';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { runPlacements, WALL_HEIGHT } from '../sceneKit';
@@ -515,10 +516,12 @@ export function triggerVolumes(
 ): TriggerVolume[] {
   const half = manifest.checkpoints.triggerHalfSize;
   const byId = new Map(checkpoints.map((checkpoint) => [checkpoint.id, checkpoint]));
+  // GE-066: a checkpoint the engine bridge serves is reached through the bridge alone.
+  const servedByBridge = bridgeCheckpointIds(manifest);
   return [
     ...manifest.checkpoints.ids.flatMap((id): TriggerVolume[] => {
       const checkpoint = byId.get(id);
-      if (!checkpoint) return [];
+      if (!checkpoint || servedByBridge.has(id)) return [];
       return [
         {
           id,
