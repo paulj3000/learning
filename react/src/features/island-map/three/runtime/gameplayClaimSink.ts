@@ -34,6 +34,7 @@ export interface LocationClaimsBinding {
 
 let sink: GameplayClaimSink | null = null;
 let binding: LocationClaimsBinding | null = null;
+let defaultBinding: LocationClaimsBinding | null = null;
 let dropped = 0;
 
 /** Sets the visit's sink. Returns a release that clears it only if it is still this sink. */
@@ -56,9 +57,26 @@ export function setLocationClaimsBinding(context: GameplayEventContext | null): 
   };
 }
 
-/** The current visit's binding, or null before the session exists (the bridge then emits nothing). */
+/**
+ * GE-L11: the visit's DEFAULT binding, used only while no companion has set one. Set by
+ * `ThreeLocationWorldView` for every visit as free exploration (`adventureId: explore:<slug>`), so
+ * the shared host's claims (discoveries, NPC talks, bridge checkpoints) are not dropped in
+ * locations that have no adventure. A companion's binding (region play, the castle) always wins.
+ */
+export function setDefaultLocationClaimsBinding(context: GameplayEventContext | null): () => void {
+  const next = context ? Object.freeze({ context: Object.freeze({ ...context }) }) : null;
+  defaultBinding = next;
+  return () => {
+    if (defaultBinding === next) defaultBinding = null;
+  };
+}
+
+/** The adventure id prefix of a default (free exploration) binding. */
+export const EXPLORE_ADVENTURE_PREFIX = 'explore:';
+
+/** The visit's binding: the companion's, else the default, else null (nothing is emitted). */
 export function currentClaimsBinding(): LocationClaimsBinding | null {
-  return binding;
+  return binding ?? defaultBinding;
 }
 
 /** Forwards a claim to the visit's sink. Never throws. No sink means nobody is listening. */
@@ -87,8 +105,11 @@ export function emitLocationClaim<T extends GameplayEventType>(
   type: T,
   payload: GameplayEventPayloads[T],
 ): void {
-  const current = binding;
+  const current = binding ?? defaultBinding;
   if (!current || !sink) return;
+  // Free exploration is not an adventure: an adventure start or completion under the default
+  // binding could never match a server record (scoring lead, 2026-11-19), so it is not claimed.
+  if (current === defaultBinding && (type === 'adventure.started' || type === 'adventure.completed')) return;
   try {
     if (factoryFor?.binding !== current) {
       factoryFor = { binding: current, factory: createGameplayEventFactory(current.context) };
@@ -108,6 +129,7 @@ export function droppedLocationClaims(): number {
 export function resetLocationClaimsForTests(): void {
   sink = null;
   binding = null;
+  defaultBinding = null;
   factoryFor = null;
   dropped = 0;
 }

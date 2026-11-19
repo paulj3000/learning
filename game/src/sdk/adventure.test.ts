@@ -52,16 +52,16 @@ describe('adventure definition', () => {
     expect(paths(same)).toContain('jumpChallenges[0].accessibleRouteId');
   });
 
-  it('keeps Sprouts jump routes optional', () => {
-    const required = validAdventure({
+  it('gives optional one meaning: a required challenge with a walking route is valid for every band, Sprouts included (E16)', () => {
+    const requiredWithWalk = validAdventure({
       jumpChallenges: [{ id: 'j', areaId: 'demo-cove', jumpRouteId: 'r1', accessibleRouteId: 'r2', optional: false }],
     });
-    expect(paths(required)).toContain('jumpChallenges[0].optional');
-    const noSprouts = validAdventure({
-      ageBands: ['PATHFINDER'],
-      jumpChallenges: [{ id: 'j', areaId: 'demo-cove', jumpRouteId: 'r1', accessibleRouteId: 'r2', optional: false }],
+    expect(paths(requiredWithWalk)).not.toContain('jumpChallenges[0].optional');
+    expect(paths(requiredWithWalk)).not.toContain('jumpChallenges[0].accessibleRouteId');
+    const requiredJumpOnly = validAdventure({
+      jumpChallenges: [{ id: 'j', areaId: 'demo-cove', jumpRouteId: 'r1', accessibleRouteId: null, optional: false }],
     });
-    expect(paths(noSprouts)).not.toContain('jumpChallenges[0].optional');
+    expect(paths(requiredJumpOnly)).toContain('jumpChallenges[0].accessibleRouteId');
   });
 
   it('needs the jump capability and a checkpoint when jump challenges exist', () => {

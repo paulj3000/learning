@@ -49,7 +49,7 @@ import {
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
 import type { AnyGameplayEvent } from '@lai/game-engine/contracts';
-import { setLocationClaimSink } from './gameplayClaimSink';
+import { EXPLORE_ADVENTURE_PREFIX, setDefaultLocationClaimsBinding, setLocationClaimSink } from './gameplayClaimSink';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
@@ -200,6 +200,20 @@ export function ThreeLocationWorldView({
   // GE-070: this visit's claim sink, for as long as the view is up (`gameplayClaimSink.ts`).
   useEffect(() => setLocationClaimSink(onGameplayEvent ?? null), [onGameplayEvent]);
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
+  // GE-L11: a default claim binding for this visit (free exploration of this location), so the
+  // shared host's claims are not dropped where no companion binds an adventure. Realm id follows
+  // region play's convention (the Place slug). A companion's binding overrides it.
+  const readyManifest = manifestState.status === 'ready' ? manifestState.manifest : null;
+  useEffect(() => {
+    if (!readyManifest) return;
+    const slug = readyManifest.locationSlug ?? readyManifest.regionId;
+    return setDefaultLocationClaimsBinding({
+      realmId: slug,
+      adventureId: `${EXPLORE_ADVENTURE_PREFIX}${slug}`,
+      areaId: readyManifest.regionId,
+      sessionRef: null,
+    });
+  }, [readyManifest]);
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);
   /** A companion's quest cue, which wins over the snapshot's (`setQuestCue`). */

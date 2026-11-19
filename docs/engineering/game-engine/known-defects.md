@@ -54,6 +54,7 @@
 | GE-L8 | GameHost pauses on window blur, including clicks into devtools or an iframe | As specified |
 | GE-L9 | `renderer.info` gauges, the WebGL path and production-build route stripping are untested in unit tests | Merge readiness (GE-090) |
 | GE-L10 | In the standard assembly, platform carry is applied after the platforms system, so the canonical transform shows the carried position one simulation step (about 16 ms) later than the controller | Pinned by an expected-failure stabilization test (`game/src/stabilization/fixedTimestepMovement.test.ts`), which turns red when the lag is fixed; candidate fix: order the carry system before the transform write |
+| GE-L11 | Locations without an adventure or companion claim binding drop the GE-067 host claims (discoveries, NPC talks) and bridge checkpoint claims, because `emitLocationClaim` needs a visit binding (found by the Storykeeper lead) | Fixed: `ThreeLocationWorldView` sets a default location-visit binding (realmId and `explore:<slug>` from the Place slug, areaId the region, no session); a companion binding overrides it; no adventure start or completion is claimed under it (shape agreed with the scoring lead) |
 
 ## 4. Behaviour to keep (from the Treasure Rush handoff)
 
