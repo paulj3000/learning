@@ -20,6 +20,9 @@ export interface Vec3Like {
   z: number;
 }
 
+/** The engine's one plain 3D vector type (an alias, so every module shares the same symbol). */
+export type Vec3 = Vec3Like;
+
 /** How the player moves over the ground, for animation, sound and the HUD. */
 export type PlayerGait = 'idle' | 'walk' | 'run' | 'sprint';
 
@@ -56,7 +59,10 @@ export interface PlayerTransform {
   readonly position: Readonly<Vec3Like>;
   /** The position one simulation step ago, for render interpolation. */
   readonly previousPosition: Readonly<Vec3Like>;
-  /** Facing, radians about +Y (0 looks down -Z, as in Three.js). */
+  /**
+   * Facing, radians about +Y, in the shared controller's convention: 0 looks down **+Z**. A
+   * Three.js object facing the same way has `rotation.y = yaw + Math.PI` (camera/yaw.ts).
+   */
   readonly yaw: number;
   /** Look pitch, radians (camera only; the body never pitches). */
   readonly pitch: number;

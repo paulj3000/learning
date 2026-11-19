@@ -11,7 +11,7 @@ import {
   countCollidersByClass,
   type CollisionDebugView,
   type PlayerGizmo,
-} from '@lai/game-engine/debug/index';
+} from '@lai/game-engine/debug';
 import { GameHost } from '../GameHost';
 import type { HostView, RendererFactory } from '../hostTypes';
 import { DebugOverlay } from '../debug/DebugOverlay';
@@ -19,8 +19,12 @@ import { EventLog } from '../debug/EventLog';
 import { useEventLog } from '../debug/useEventLog';
 import {
   PLAYGROUND_CAPABILITIES,
+  createKeyboardInput,
   createPlaygroundRegistry,
+  providePlaygroundServices,
+  wirePlayground,
   type PlaygroundAgeBand,
+  type PlaygroundServices,
 } from './playgroundScene';
 import styles from './GameEnginePlayground.module.css';
 
@@ -74,10 +78,20 @@ function PlaygroundStage({ ageBand, enabled, showOverlay, showCollision, onColli
     [ageBand, enabled],
   );
 
-  const createRuntime = useCallback(
-    () => createEngineRuntime({ id: 'playground', capabilities: createPlaygroundRegistry() }),
-    [],
-  );
+  const services = useRef<PlaygroundServices | null>(null);
+  const createRuntime = useCallback(() => {
+    const created = createEngineRuntime({ id: 'playground', capabilities: createPlaygroundRegistry() });
+    services.current = providePlaygroundServices(created);
+    return created;
+  }, []);
+
+  // After the capabilities install: the shared controller, carry, hazards and camera.
+  const setup = useCallback((started: EngineRuntime, view: HostView) => {
+    if (!services.current) return;
+    const keyboard = createKeyboardInput();
+    started.resources.track(() => keyboard.dispose());
+    wirePlayground(started, services.current, keyboard, view);
+  }, []);
 
   const onReady = useCallback((started: EngineRuntime, view: HostView) => {
     const provider = started.services.get(PhysicsProviderService);
@@ -117,6 +131,7 @@ function PlaygroundStage({ ageBand, enabled, showOverlay, showCollision, onColli
         label="Game engine test scene"
         capabilities={capabilities}
         createRuntime={createRuntime}
+        setup={setup}
         rendererFactory={rendererFactory}
         onRuntimeReady={onReady}
       >
@@ -154,7 +169,10 @@ export function GameEnginePlayground({ rendererFactory }: GameEnginePlaygroundPr
   return (
     <main className={styles.page}>
       <h1>Game engine playground</h1>
-      <p className={styles.muted}>Development only. Changing capabilities or age band restarts the engine.</p>
+      <p className={styles.muted}>
+        Development only. Changing capabilities or age band restarts the engine. Click the scene, then use W A S D or
+        the arrow keys to move, Space to jump and Shift to sprint.
+      </p>
       <div className={styles.layout}>
         <form className={styles.controls} aria-label="Playground controls" onSubmit={(e) => e.preventDefault()}>
           <fieldset>

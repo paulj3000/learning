@@ -13,6 +13,18 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts/index.ts",
     "./core": "./src/core/index.ts",
+    "./debug": "./src/debug/index.ts",
+    "./sdk": "./src/sdk/index.ts",
+    "./services": "./src/services/index.ts",
+    "./components": "./src/components/index.ts",
+    "./environment": "./src/environment/index.ts",
+    "./camera": "./src/camera/index.ts",
+    "./animation": "./src/animation/index.ts",
+    "./character": "./src/character/index.ts",
+    "./movement": "./src/movement/index.ts",
+    "./input": "./src/input/index.ts",
+    "./physics": "./src/physics/index.ts",
+    "./engine": "./src/engine/index.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {

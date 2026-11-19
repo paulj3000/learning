@@ -1,6 +1,7 @@
+// @vitest-environment jsdom
 import type { WebGLRenderer } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FirstPersonController } from './firstPersonController';
+import { FirstPersonController } from '../movement/firstPersonController';
 import { attachPointerControls, touchDrag, type PointerControls } from './pointerControls';
 import { GAMEPAD_BUTTON_JUMP, GAMEPAD_BUTTON_SPRINT, type GamepadLike } from './gamepadInput';
 

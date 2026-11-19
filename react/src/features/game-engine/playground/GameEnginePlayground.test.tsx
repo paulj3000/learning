@@ -2,13 +2,15 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createEngineRuntime } from '@lai/game-engine/core';
-import { PhysicsProviderService } from '@lai/game-engine/contracts';
+import { PLAYER_ENTITY_ID, PhysicsProviderService } from '@lai/game-engine/contracts';
 import { GameEnginePlayground } from './GameEnginePlayground';
 import {
   PLAYGROUND_CAPABILITIES,
-  createInMemoryPhysicsProvider,
+  createKeyboardInput,
   createPlaygroundRegistry,
   demoSceneCapability,
+  providePlaygroundServices,
+  wirePlayground,
 } from './playgroundScene';
 import { HostPreferencesService, HostViewService } from '../hostTypes';
 import { createFakeRenderer, installFakeAnimationFrames } from '../testing';
@@ -36,7 +38,7 @@ describe('GameEnginePlayground', () => {
     expect(screen.getByRole('checkbox', { name: /Demo scene/ })).toBeChecked();
     expect(screen.getByRole('combobox', { name: 'Age band' })).toHaveValue('PATHFINDER');
     expect(screen.getByRole('complementary', { name: 'Engine diagnostics' })).toBeInTheDocument();
-    expect(await screen.findByText(/Colliders: SOLID 2, JUMPABLE 3, TRIGGER 1, gate 1/)).toBeInTheDocument();
+    expect(await screen.findByText(/Colliders: SOLID 1, JUMPABLE 5, TRIGGER 1, gate 1/)).toBeInTheDocument();
   });
 
   it('emits sample claims into the event log and shows an invalid claim as dropped', async () => {
@@ -69,28 +71,51 @@ describe('GameEnginePlayground', () => {
 });
 
 describe('playground scene', () => {
-  it('installs meshes, colliders and a player entity, and uninstalls cleanly', async () => {
+  const makeView = () => ({
+    renderer: createFakeRenderer(),
+    scene: new Scene(),
+    camera: new PerspectiveCamera(),
+    canvas: document.createElement('canvas'),
+    size: () => ({ width: 100, height: 100 }),
+  });
+
+  it('runs the real engine on the demo layout and uninstalls cleanly', async () => {
     const runtime = createEngineRuntime({ id: 'scene', capabilities: createPlaygroundRegistry() });
-    const view = {
-      renderer: createFakeRenderer(),
-      scene: new Scene(),
-      camera: new PerspectiveCamera(),
-      canvas: document.createElement('canvas'),
-      size: () => ({ width: 100, height: 100 }),
-    };
+    const services = providePlaygroundServices(runtime);
+    const view = makeView();
     runtime.services.provide(HostViewService, view);
     runtime.services.provide(HostPreferencesService, { reducedMotion: true });
-    await runtime.start([{ id: 'playground.demoScene', config: { ageBand: 'SPROUT' } }]);
+    const requests = PLAYGROUND_CAPABILITIES.map((c) => c.toRequest('SPROUT'));
+    await runtime.start(requests);
     const provider = runtime.services.require(PhysicsProviderService);
-    expect(provider.colliders().length).toBe(7);
+    expect(provider.colliders().map((c) => c.id).sort()).toEqual(
+      ['crate.jumpable.1', 'ferry', 'gate.1', 'ramp.jumpable.1', 'step.jumpable.1', 'step.jumpable.2', 'wall.solid.1', 'zone.trigger.1'].sort(),
+    );
     expect(provider.getCollider('step.jumpable.1')?.max.y).toBe(0.4);
     expect(provider.getCollider('gate.1')?.gate).toBe(true);
-    expect(runtime.world.size).toBe(1);
-    expect(view.scene.children).toHaveLength(1);
-    runtime.tick(0.1);
-    expect(runtime.world.size).toBe(1);
+    const input = { poll: () => ({ move: { forward: 1, strafe: 0 } }) };
+    const handle = wirePlayground(runtime, services, input, view);
+    expect(handle).not.toBeNull();
+    expect(handle!.camera).not.toBeNull();
+    expect(services.settings.reducedMotion).toBe(true);
+    expect(runtime.world.bySemanticId(PLAYER_ENTITY_ID)).toBeDefined();
+    const startZ = handle!.controller.position.z;
+    for (let i = 0; i < 30; i += 1) runtime.tick(1 / 60);
+    expect(handle!.controller.position.z).not.toBeCloseTo(startZ, 3);
+    expect(view.scene.children.length).toBeGreaterThan(0);
     runtime.dispose();
     expect(view.scene.children).toHaveLength(0);
+    expect(runtime.world.size).toBe(0);
+  });
+
+  it('wires no player when locomotion is off', async () => {
+    const runtime = createEngineRuntime({ id: 'scene', capabilities: createPlaygroundRegistry() });
+    const services = providePlaygroundServices(runtime);
+    const view = makeView();
+    runtime.services.provide(HostViewService, view);
+    await runtime.start([{ id: 'playground.demoScene' }]);
+    expect(wirePlayground(runtime, services, { poll: () => ({ move: { forward: 0, strafe: 0 } }) }, view)).toBeNull();
+    runtime.dispose();
   });
 
   it('rejects an unknown age band', () => {
@@ -98,19 +123,22 @@ describe('playground scene', () => {
     expect(demoSceneCapability.validate(undefined).ok).toBe(true);
   });
 
-  it('the in-memory provider answers raycasts and overlaps and notifies changes', () => {
-    const provider = createInMemoryPhysicsProvider();
-    const onChange = vi.fn();
-    provider.onChange(onChange);
-    provider.addCollider({ id: 'a', kind: 'SOLID', min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } });
-    expect(onChange).toHaveBeenCalledTimes(1);
-    const hit = provider.raycast({ x: 0.5, y: 5, z: 0.5 }, { x: 0, y: -1, z: 0 }, 10);
-    expect(hit?.colliderId).toBe('a');
-    expect(hit?.distance).toBeCloseTo(4);
-    expect(provider.raycast({ x: 5, y: 5, z: 5 }, { x: 0, y: -1, z: 0 }, 10)).toBeNull();
-    expect(provider.overlaps({ x: 0.5, y: 0.5, z: 0.5 }, { x: 2, y: 2, z: 2 })).toEqual(['a']);
-    expect(provider.removeCollider('a')).toBe(true);
-    expect(onChange).toHaveBeenCalledTimes(2);
+  it('reads the keyboard: movement, one jump per press, and reset', () => {
+    const target = new EventTarget();
+    const keyboard = createKeyboardInput(target);
+    const key = (type: string, code: string, repeat = false) =>
+      target.dispatchEvent(Object.assign(new Event(type), { code, repeat }));
+    key('keydown', 'KeyW');
+    key('keydown', 'Space');
+    key('keydown', 'Space', true);
+    expect(keyboard.poll()).toMatchObject({ move: { forward: 1, strafe: 0, sprint: false }, jumpPressed: true });
+    expect(keyboard.poll().jumpPressed).toBe(false);
+    key('keydown', 'ArrowLeft');
+    expect(keyboard.poll().move.strafe).toBe(-1);
+    keyboard.reset();
+    expect(keyboard.poll().move).toMatchObject({ forward: 0, strafe: 0 });
+    keyboard.dispose();
+    key('keydown', 'KeyW');
+    expect(keyboard.poll().move.forward).toBe(0);
   });
 });
-

@@ -76,6 +76,10 @@ Rules (agreed with the GE-100 scoring lead, 2026-11-18):
 6. `eventId` dedupes transport only. Award idempotency belongs to the consumer, keyed on the
    source record.
 
+Chests: opening a chest is not a claim. The host reports the child's answer with
+`ChestsApi.submitAnswer`, which emits `learning.answer.submitted` with a `CHEST_CHALLENGE`
+learning ref. `exploration.discovery.found` is for authored discoveries only.
+
 Golden vectors `tests/contracts/gameplay-events-v1.json` are shared by the TypeScript validator and
 the Django intake (`lai/apps/scoring/engine_events.py` on `core/ge-scoring`). Change them only
 together.
@@ -112,5 +116,83 @@ together.
 | `createDiagnostics` | `core/diagnostics.ts` |
 | `EngineError`, `ValidationResult` | `core/errors.ts` |
 
-Capability, SDK and service-port APIs are listed in [implementation-status.md](implementation-status.md)
-as each work package merges.
+## 6. Capability catalogue (v1.0.0 each)
+
+Each capability validates its config (never throws; unknown keys are issues) and is resolved by
+`resolveCapabilities`, so SDK validation and the runtime agree.
+
+| Capability | Requires | Config (summary) |
+|---|---|---|
+| `movement.locomotion` | | Walk, run and sprint speeds and accelerations (`LocomotionConfiguration` limits) |
+| `movement.jump` | `movement.locomotion` | `enabled`, `jumpHeight` 0.2 to 2.5, `gravity` 5 to 80, `airControl` 0 to 1, `maxFallSpeed` 2 to 60, `coyoteTimeMs` and `jumpBufferMs` 0 to 400, `allowDoubleJump` (default false) |
+| `movement.surfaces` | | Surface profiles (friction, speed multiplier), `maxWalkableSlope` |
+| `movement.externalForces` | | `reducedMotionScale` |
+| `movement.swimming`, `movement.climbing` | | `enabled` and tuning |
+| `camera.thirdPerson` (default), `camera.firstPerson` | | Camera limits from `CAMERA_LIMITS` |
+| `camera.collision` | `camera.thirdPerson` | `enabled`, `safetyRadius` |
+| `character.avatar` | | Avatar limits from `AVATAR_LIMITS` |
+| `character.animation` | `character.avatar` | Clip map, transitions, crossfades |
+| `gameplay.checkpoints` | | Checkpoints and course goals (the one checkpoint system) |
+| `gameplay.collectibles`, `gameplay.chests`, `gameplay.doors`, `gameplay.portals`, `gameplay.triggers` | | Placements by authored id |
+| `gameplay.platforms` | | Moving, rotating, falling, bounce, appearing; `route` REQUIRED or OPTIONAL |
+| `gameplay.hazards` | `gameplay.checkpoints` | Static and telegraphed hazards, each linked to a checkpoint |
+| `gameplay.puzzles`, `gameplay.jumpChallenges` | | World-mechanics puzzles; jump and accessible routes |
+| `environment.volumes` | | Surfaces, forces, water, ladders; provides `EnvironmentQueryService` |
+| `environment.lighting`, `environment.weather`, `environment.particles` | | Presets and kinds as data; particle budget tiers |
+
+## 7. SDK and service ports
+
+| API | File |
+|---|---|
+| `defineRealm`, `validateRealm` | `sdk/realm.ts` |
+| `defineAdventure`, `validateAdventure`, `profileFor` | `sdk/adventure.ts` |
+| `resolveProfile`, `AGE_BANDS` (`SPROUT`, `PATHFINDER`, `EXPLORER`), `JUMP_LIMIT_RANGES` | `sdk/profiles.ts` |
+| `loadAdventure` (adventure session: `enterArea`, `leaveArea`, `complete`, hooks) | `sdk/lifecycle.ts` |
+| `createComponentRegistry` | `sdk/componentRegistry.ts` |
+| `checkContentCompatibility` | `sdk/contentCompatibility.ts` |
+| `scaffoldAdventure` (and `npm run engine:scaffold`) | `sdk/scaffold.ts` |
+| Ports and fakes: `ASSET_MANAGER`, `SOUND_MANAGER`, `NPC_MANAGER`, `QUESTION_STUDIO`, `QUEST_SERVICE`, `INVENTORY`, `REWARDS`, `SAVE_RESTORE`, `PUBLISHED_CONTENT`, `MULTIPLAYER`; `provideFakeServices` | `services/*.ts` |
+
+The inventory and rewards ports have no grant method. Question Studio's `submitAnswer` returns
+a server verdict that the engine never interprets. Save and restore keeps presentation state
+only, and the server wins. Multiplayer is disabled (shared presence is deferred by ADR-020).
+
+## 8. Region-play scene key `engineBridge` (GE-065)
+
+A 3D Area that still runs on the live `createLocationEngine` turns on engine components with
+seed-authored scene data. Like `scene.platforming`, this is layout (LAI-0805), versioned with
+the seed:
+
+```json
+{
+  "engineBridge": {
+    "capabilities": [{ "id": "gameplay.hazards", "config": {} }],
+    "allowEnginePlatforms": false
+  }
+}
+```
+
+| Field | Rule |
+|---|---|
+| `capabilities` | `[{ id, config? }]`, validated by the engine's capability registry (`bridgeCapabilityRequests`, then `resolveCapabilities`). `movement.*`, `camera.*` and `character.*` are refused, because the live runtime owns them |
+| `allowEnginePlatforms` | Optional, default false. `gameplay.platforms` is refused unless true (the live platform system owns platforms until GE-076). Use it only in an Area whose engine platforms have no live counterpart |
+
+Wiring (GE-070): `regionManifest.ts` passes `scene.engineBridge` through as the config of an
+`engineBridge` extension entry, the extension is registered beside region play, and Django checks
+the block's structure at publish. The engine validates fully on the client.
+
+Claims from the bridge: `EngineBridgeOptions.claims` is a `ClaimsBinding` or a function returning
+one (or null) at emit time. A bridge registered once at module load uses the function form, since
+the visit's `sessionRef` exists only after mount. While unbound it emits no claim
+(`api.unboundClaims()` counts them).
+
+Bridge API for the host (`api` on the mounted bridge):
+
+| Member | Purpose |
+|---|---|
+| `resume(checkpointIds)` | A returning child: marks the earned checkpoints reached (authored order, no events, no claims) and places the child at the furthest through the host's checked, silent teleport. Returns `{ placedAt, unknown }` |
+| `setSignals(signalIds)` | Feeds world changes as signals (convention `world:<changeKey>`, as `signalPlatforms` uses). Gates `requiresSignalId` checkpoints, doors and platforms. Switches off only the signals it fed earlier |
+| `droppedClaims()`, `unboundClaims()` | Diagnostics counts |
+
+The bridge forwards `CourseCheckpointReached { checkpointId, label }` to the host bus, so the
+host's "Safe spot" toast works for engine checkpoints.
