@@ -394,7 +394,7 @@ owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` an
 
 1. Host for merge-readiness runs (B15): fix the VM timers, or use a non-VM host.
 2. Main-merge route for the movement stack: option A (recommended) or option B.
-3. Registry-only change on `main`: reserve ADR-073 (Heart of Firepeak) and correct the ADR-070 row
+3. Registry-only change on `main`: reserve number 073 (Heart of Firepeak; the ADR id form is used only once reserved) and correct the ADR-070 row
    (GLB optimization policy); reserve numbers for the engine-core and scoring-economy drafts
    (`ADR-NNN`).
 4. LAI-2003 approval (or waiver) of the engine package wiring.
