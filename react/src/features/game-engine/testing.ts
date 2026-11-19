@@ -1,18 +1,20 @@
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 import type { HostRenderer } from './hostTypes';
 
 /** A renderer that needs no WebGL, for jsdom tests. */
-export function createFakeRenderer(): HostRenderer & {
-  render: ReturnType<typeof vi.fn>;
-  dispose: ReturnType<typeof vi.fn>;
-  setSize: ReturnType<typeof vi.fn>;
-} {
+export type FakeRenderer = HostRenderer & {
+  render: Mock<HostRenderer['render']>;
+  dispose: Mock<HostRenderer['dispose']>;
+  setSize: Mock<HostRenderer['setSize']>;
+};
+
+export function createFakeRenderer(): FakeRenderer {
   return {
     domElement: document.createElement('canvas'),
-    setSize: vi.fn(),
-    setPixelRatio: vi.fn(),
-    render: vi.fn(),
-    dispose: vi.fn(),
+    setSize: vi.fn<HostRenderer['setSize']>(),
+    setPixelRatio: vi.fn<HostRenderer['setPixelRatio']>(),
+    render: vi.fn<HostRenderer['render']>(),
+    dispose: vi.fn<HostRenderer['dispose']>(),
     info: { render: { calls: 3, triangles: 120 }, memory: { geometries: 2, textures: 1 } },
   };
 }
