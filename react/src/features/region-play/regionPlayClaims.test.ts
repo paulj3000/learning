@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createGameplayEventFactory, validateGameplayEvent } from '@lai/game-engine/contracts';
-import type { AnswerOutcome, PickupOutcome, QuestUpdate, TalkOutcome } from '../../api/play/types';
-import { claimsForOutcome, type RegionPlayClaim, type RegionPlayClaimLookup } from './regionPlayClaims';
+import type { AnswerOutcome, PickupOutcome, PuzzleOutcome, QuestUpdate, TalkOutcome } from '../../api/play/types';
+import {
+  claimsForOutcome,
+  claimsForPuzzleOutcome,
+  type RegionPlayClaim,
+  type RegionPlayClaimLookup,
+} from './regionPlayClaims';
 
 const ATTEMPT = '6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b';
 const SESSION = '0b5f8c4e-6d0a-4c43-9b6c-2f2b1b3f9a10';
@@ -133,6 +138,70 @@ describe('region play outcomes as gameplay claims (GE-070)', () => {
     const events = built(claims);
     expect(events).toHaveLength(claims.length);
     for (const event of events) {
+      expect(validateGameplayEvent(event).ok).toBe(true);
+      expect(JSON.stringify(event)).not.toMatch(/"correct"|hintLevel|score|childId/);
+    }
+  });
+});
+
+describe('3D Area puzzle claims (GE-073)', () => {
+  function puzzle(overrides: Partial<PuzzleOutcome> = {}): PuzzleOutcome {
+    return {
+      attemptId: ATTEMPT,
+      correct: true,
+      feedback: 'CORRECT',
+      solvedNow: true,
+      alreadySolved: false,
+      practice: false,
+      failedAttempts: 0,
+      newItems: [],
+      rewardMessage: null,
+      questUpdates: [],
+      ...overrides,
+    };
+  }
+
+  it('a first solve is the answer, with the authored choice, then puzzle.completed', () => {
+    const claims = claimsForPuzzleOutcome('fh-lava-numbers', puzzle(), { variantId: 'v1', choice: 'b' });
+    expect(claims).toEqual([
+      {
+        type: 'learning.answer.submitted',
+        payload: {
+          learningRef: { kind: 'AREA_PUZZLE', puzzleId: 'fh-lava-numbers', challengeAttemptId: ATTEMPT },
+          choiceId: 'b',
+        },
+      },
+      { type: 'puzzle.completed', payload: { puzzleId: 'fh-lava-numbers' } },
+    ]);
+  });
+
+  it('a wrong answer is still claimed as an answer, never as completed', () => {
+    const claims = claimsForPuzzleOutcome('fh-forge-switches', puzzle({ correct: false, solvedNow: false }), {
+      variantId: 'v1',
+      order: ['a', 'b'],
+    });
+    expect(claims.map((c) => c.type)).toEqual(['learning.answer.submitted']);
+    expect((claims[0].payload as { choiceId: string | null }).choiceId).toBeNull();
+  });
+
+  it('practice and already-solved replays never complete again; no attempt, no answer claim', () => {
+    expect(claimsForPuzzleOutcome('p', puzzle({ practice: true, solvedNow: false }), {}).map((c) => c.type)).toEqual([
+      'learning.answer.submitted',
+    ]);
+    expect(claimsForPuzzleOutcome('p', puzzle({ attemptId: null, alreadySolved: true, solvedNow: false }), {})).toEqual([]);
+  });
+
+  it('carries quest progress, and every claim is a valid v1 event with no score or child data', () => {
+    const claims = claimsForPuzzleOutcome('fh-heart-return', puzzle({ questUpdates: [completed] }), {});
+    expect(claims.map((c) => c.type)).toEqual([
+      'learning.answer.submitted',
+      'puzzle.completed',
+      ...claimsForOutcome({ kind: 'talk', outcome: { questUpdates: [completed] } as unknown as TalkOutcome }, {
+        chestForAttempt: () => undefined,
+        lastTalkedNpc: () => null,
+      }).map((c) => c.type),
+    ]);
+    for (const event of built(claims)) {
       expect(validateGameplayEvent(event).ok).toBe(true);
       expect(JSON.stringify(event)).not.toMatch(/"correct"|hintLevel|score|childId/);
     }
