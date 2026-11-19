@@ -18,7 +18,7 @@ import { toRegionSceneModel } from '../sceneModel';
  *
  * - snow wherever the child is, village to mountain (`area.mode: FOLLOW_PLAYER`);
  * - the Area's own linear night fog unchanged (the engine kind has no fog);
- * - per render tier: LOW none, HIGH the atmosphere's count, MEDIUM within its budget (600, was 360);
+ * - per render tier: the atmosphere's counts (LOW none, MEDIUM 360, HIGH 720; `budgetShare` 0.6);
  * - reduced motion calms it (fewer flakes);
  * - one snowfall: the atmosphere no longer snows.
  */
@@ -123,22 +123,15 @@ describe('North Pole snow on the engine (GE-074, layout 5): parity with the Area
     mount.dispose();
   });
 
-  it('follows the render tier: LOW none, HIGH the old count, MEDIUM never above its budget', () => {
+  it('matches the atmosphere on every render tier: LOW none, MEDIUM 360, HIGH 720', () => {
     expect(createPrecipitation(OLD_ATMOSPHERE_SNOW, 'LOW', false)).toBeNull();
     expect(settledFlakes({ quality: 'LOW' })).toBe(0);
-    const medium = settledFlakes({ quality: 'MEDIUM' });
-    const high = settledFlakes({ quality: 'HIGH' });
     const oldMedium = createPrecipitation(OLD_ATMOSPHERE_SNOW, 'MEDIUM', false)!;
     const oldHigh = createPrecipitation(OLD_ATMOSPHERE_SNOW, 'HIGH', false)!;
-    // HIGH: the snow's rate (48 a second, living 15 s) settles at 720, the atmosphere's count.
-    expect(Math.abs(high - oldHigh.count) / oldHigh.count).toBeLessThan(0.05);
-    // MEDIUM: the atmosphere drew a share of the tier (density 0.6 of 600 = 360); the engine's
-    // snow is a rate, held only by the tier budget, so it settles at the full MEDIUM 600. More
-    // than before, never more than MEDIUM allows. Matching both tiers needs a per-kind share of
-    // the tier budget in the engine (asked of the engine lead).
-    expect(oldMedium.count).toBe(360);
-    expect(medium).toBe(600);
-    expect(medium).toBeLessThan(high);
+    // The snow takes 0.6 of the tier budget (`budgetShare`), as the atmosphere's density did.
+    expect(settledFlakes({ quality: 'MEDIUM' })).toBe(oldMedium.count);
+    expect(settledFlakes({ quality: 'HIGH' })).toBe(oldHigh.count);
+    expect([oldMedium.count, oldHigh.count]).toEqual([360, 720]);
     oldMedium.dispose();
     oldHigh.dispose();
   });

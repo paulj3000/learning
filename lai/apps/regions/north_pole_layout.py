@@ -977,11 +977,12 @@ def checkpoint_list() -> list[dict]:
 
 # The falling snow (GE-074): the Area atmosphere's look, on the engine. The box follows the child
 # (40 x 24 x 40 m, the atmosphere's PRECIPITATION_BOX). The device's render quality sets the
-# tier: LOW draws none; MEDIUM and HIGH draw at most their budget's share. 48 flakes a second
-# that live 15 s (24 m at 1.6 m/s) settle at 720 on HIGH, the atmosphere's count at density 0.6.
-# MEDIUM is held by its 600 budget (the atmosphere drew 360 there; a rate cannot be a share of the
-# tier, northPoleWeatherParity.test.ts). No engine fog: the Area's night fog stays.
-SNOW_RATE_PER_SECOND = 48
+# tier: LOW draws none. Like the atmosphere's density 0.6, the snow takes 0.6 of the tier budget
+# (`budgetShare`): 360 flakes on MEDIUM, 720 on HIGH. 60 flakes a second that live 15 s (24 m at
+# 1.6 m/s) would reach 900, so the share, not the rate, sets the count on both tiers
+# (northPoleWeatherParity.test.ts). No engine fog: the Area's night fog stays.
+SNOW_BUDGET_SHARE = 0.6
+SNOW_RATE_PER_SECOND = 60
 SNOW_FALL_SPEED = 1.6
 
 
@@ -1001,6 +1002,7 @@ def _snow_weather() -> dict:
                         "drift": 0.4,
                         "size": 0.14,
                         "color": 0xFFFFFF,
+                        "budgetShare": SNOW_BUDGET_SHARE,
                     },
                     "fogDensity": 0,
                     "windStrength": 0.2,
