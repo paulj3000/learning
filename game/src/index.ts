@@ -8,3 +8,5 @@
 export * from './version';
 export * from './core';
 export * from './contracts';
+export * from './sdk';
+export * from './services';
