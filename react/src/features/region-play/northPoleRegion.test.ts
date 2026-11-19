@@ -275,6 +275,10 @@ describe('North Pole audio, ambience and the Places list', () => {
       thumbnailAssetId: null,
       adventureCount: 0,
       explored: false,
+      questCount: 0,
+      questsCompleted: 0,
+      questsInProgress: 0,
+      completed: false,
       area: {
         regionId: NORTH_POLE,
         available,
