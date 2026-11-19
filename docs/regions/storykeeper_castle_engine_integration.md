@@ -84,7 +84,7 @@ Every row is proven by unit tests on the real shared runtime, in both worlds (be
 | Costume Room | none | Story Hall, Trophy Room | |
 | Trophy Room | none | Costume Room | Pedestals show owned keepsakes; walk-up descriptions only |
 | East Corridor | none | Story Hall, Tower, Studio, Library | Narrow passage; camera held close |
-| Setting Tower (Observatory) | two star stones (flavour) | East Corridor | Window zones answer `choose-setting`; stones kept clear of them; Orion solid |
+| Setting Tower (Observatory) | one star stone (flavour; GE-072 dropped the first) | East Corridor | Window zones answer `choose-setting`; stones kept clear of them; Orion solid |
 | Illustration Studio | three painted pads (Painted Words) | East Corridor | Pads answer only while a choice step is open |
 | Great Library | clue books, pattern stones, rod stones, Storybook page pathway | East Corridor; secret door to the Writing Room | Deepest room; pathway pads appear only when a page record exists |
 | Secret Chamber | two stones and a ledge (view toast only) | Story Hall via the sealed passage | Unlisted until found; never reached by the camera or a jump while sealed |
@@ -151,3 +151,78 @@ Not events, by design: a pad answer (it is the same step answer as the card, so 
 2. SC-JMP-08: the proposed fragment currency stays unapproved; the castle's fragments are its pages.
 3. SC-JMP-04, 05, 07, 10 to 17: story worlds and new stories need the engine core and approved educational briefs.
 4. An agent id for this session (the merge and commits carry `Agent: unassigned`).
+
+## 8. GE-072 preparation (2026-11-19)
+
+The owner assigned GE-072. The engine lead asked the castle to wait for **one** baseline commit on `core/gameengine` that will also contain GE-070's generic runtime pieces (extension host contract, `gameplayClaimSink`, `nearestStandableSpot`, the region manifest mapping, Django's `engine_bridge` check) and Firepeak's generic companion hooks. The castle copies none of them from a realm branch. A trial merge of `core/gameengine` at `3be6e8e8` was made locally to measure the work, then aborted (nothing pushed). Everything below comes from that trial.
+
+### 8.1 The castle's `engineBridge` entry (to add once the baseline lands)
+
+Movement, camera and character stay with the live runtime until GE-076, and the bridge refuses them. The castle's first bridge capability is the **one checkpoint system**. It replaces `manifest.checkpoints` in the same commit, so there is never a second checkpoint list:
+
+```ts
+// storykeeperCastle.ts, manifest.extensions (beside castle-tale)
+{
+  extensionId: 'engineBridge',
+  config: {
+    capabilities: [
+      {
+        id: 'gameplay.checkpoints',
+        config: {
+          // From STORYKEEPER_CASTLE_CHECKPOINTS, ids unchanged (castleSaveContract.test.ts):
+          // storykeeper-castle:entrance, :story-hall, :gallery, :tower, :library
+          checkpoints: [{ id, courseId: 'storykeeper-castle', position: { x, y: 0, z }, yaw, label, halfSize: 1.2 }],
+          goals: [],
+          alreadyReached: [],
+        },
+      },
+    ],
+    allowEnginePlatforms: false, // castle pads stay on the live platform system until GE-076
+  },
+}
+```
+
+| Host wiring | Source | Rule |
+|---|---|---|
+| `api.resume([WorldState.last_checkpoint_id])` | the saved checkpoint | a returning child resumes where they saved, silently; an unknown id falls back to the entrance (today's behaviour) |
+| `api.setSignals(world:<changeKey>)` | `listAllWorldChanges` | same convention as `signalPlatforms`; no castle checkpoint is gated today |
+| `CourseCheckpointReached` | forwarded by the bridge | the existing "You found {checkpoint}." toast and `saveCheckpoint` call keep working |
+
+Not bridged, and why: the archways have no locks (they stay colliders); the secret-passage seal is gated on a *discovery*, not a world change, so it has no signal and stays a gated collider; the Writing Room door and the harbor exit are interactions; the pads stay live (`allowEnginePlatforms: false`).
+
+### 8.2 Gameplay claims (v1) the castle will emit
+
+The castle's events map onto `lai.gameplay-event` v1. `castleScoringSources.ts` is replaced by this mapping, so there is no second vocabulary:
+
+| Castle fact (server record) | v1 claim |
+|---|---|
+| Room first entered (`castle-room:<id>`) | `exploration.area.entered` `{ areaId: <room id> }` |
+| Tapestry nook, chamber star, mouse door | `exploration.discovery.found` `{ discoveryId }` |
+| Castle adventure step answered (Adventure Engine) | `learning.answer.submitted` `{ learningRef: ADVENTURE_STEP {stepId}, choiceId }` (a pad answer is the same claim; wrong answers are claimed too, Django grades) |
+| Talk to Quill, Orion, Ember | `npc.interaction.completed` `{ npcId, interactionId }` |
+| Great Storybook quests | `quest.step.completed`, `quest.completed` |
+| Adventure finished | `adventure.completed` |
+| Storybook whole (edition 1 or 2) | `realm.milestone.reached` `{ milestoneId: GREAT_STORYBOOK_RESTORED(_V2) }` |
+| Chamber ledge view | none: a view is not a claim (falls, hops and views never are) |
+
+Keepsakes stay server reward rules; a pickup is not a castle mechanic. Support level, correctness and band are never in a claim (Django holds them).
+
+### 8.3 Reconciliation plan from the trial merge
+
+| File | Conflict | Resolution |
+|---|---|---|
+| `runtime/sceneLayout.ts` | the castle's configurable `wallHeight` (SC-R11) against the engine's `boundary: true` | keep both: `rectToBox(rect, RECT_MIN_Y, wallHeight)` and `boundary: true` |
+| `runtime/createLocationEngine.ts` | the castle's `assetsSettled` against the engine's collision debug overlay | keep both blocks (independent) |
+| `content-export/contentExport.test.ts` | both sides added content | base plus both: quests 14, items 41, sets 3, reward rules 34, NPCs 8, discoveries 8, checkpoints 31 (confirmed by regenerating) |
+| `content/exported/manifest.json`, `tests/golden/director-content.json` | generated | regenerate (`content:export`, `golden:generate`); checks pass |
+| `docs/DECISIONS.md` | registry rows 056 to 063; duplicate ADR bodies | engine rows; one body each (this branch's bodies, which cite ADR-063, with the engine's 063 status line); `adr:check` passes |
+| `docs/IMPLEMENTATION_STATUS.md` | misaligned hunks | this branch's file plus the engine-only sections, minus the old "ADR-055" copy of the jump-controller section |
+
+Castle-side work the footprint (ADR-060, `e50fd17f`, radius 0.37 m) makes necessary. All of it is castle content or castle tests; none is an engine defect:
+
+1. **Observatory star stone `s1`** (6.75, 7.45, 0.8 m) is 0.35 m from the tower checkpoint (7.5, 7.5) and overlaps the arrival through `arch-tower` (6.0, 7.5). The tower checkpoint, door arrival, accessible tour and guide fail. **Done before the merge:** no other spot in the tower fits, so `s1` is dropped (flavour only), and the pad clearance rule is now 0.45 m from every safe spot, checkpoint and door arrival.
+2. **Costume racks** stand at z −9.2 (was −8.5), an owner-QA fix in `e50fd17f`. Keep it, and re-baseline `castleOptimisation.test.ts` and `storykeeperCastleWallGeometry.test.ts`.
+3. **`castleMovementAudit.engine.test.ts`**: the wall sweep needs a longer per-test budget with the footprint, and the animation check must accept the gait the footprint allows (`SPRINT` was not reached in the Story Hall run). Then re-check every room against the body, which closes section 3.3 item 1.
+4. **`CastleTaleCompanion.npc.test.tsx`** quest flow timed out at 5 s under load; look at it with the same method as GE-D9 before changing it.
+
+Trial evidence (merged tree, not committed): typecheck clean; island-map/three, great-storybook, content-export and discovery suites 182 files, 2337 passed and 11 failed, all 11 listed above.

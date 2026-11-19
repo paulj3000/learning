@@ -49,8 +49,9 @@ import { STORYKEEPER_CASTLE_MANIFEST as MANIFEST } from './storykeeperCastle';
 const WALL_GAP = 0.15;
 const COLLIDER_GAP = 0.15;
 const DOOR_GAP = 0.2;
-// The controller moves the child as a point, so 0.3 m is real clearance (the tower is that tight).
-const SAFE_SPOT_RADIUS = 0.3;
+// GE-072: the shared controller gives the child a 0.37 m body (ADR-060), so a spot a child is sent
+// to (safe spot, checkpoint, door arrival) needs the body plus a margin clear of every pad.
+const SAFE_SPOT_RADIUS = 0.45;
 const PROP_RADIUS = 0.3;
 const CEILING_BOTTOM = WALL_HEIGHT + 0.1;
 const EYE = 1.6;
@@ -84,6 +85,8 @@ const LIVE_ZONE_IDS = new Set<string>([
 const SAFE_SPOTS = [
   ...CASTLE_ROOMS.map((room) => room.safeSpot),
   ...STORYKEEPER_CASTLE_CHECKPOINTS.filter((cp) => cp.regionId === MANIFEST.regionId).map((cp) => ({ x: cp.x, z: cp.z })),
+  // Where a child lands on coming through each door (GE-072): the tower's first stone stood there.
+  ...CASTLE_DOORS.flatMap((door) => Object.values(door.arrival).map((arrival) => ({ x: arrival.x, z: arrival.z }))),
 ];
 
 const box3 = (minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number): Box3 =>

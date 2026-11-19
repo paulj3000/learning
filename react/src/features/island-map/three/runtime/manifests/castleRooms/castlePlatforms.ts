@@ -226,10 +226,14 @@ export const OBSERVATORY_STAR_GROUP: CastlePlatformGroup = {
   id: 'observatory',
   roomId: 'setting-tower',
   kind: 'STAR_STONE',
-  purpose: 'Flavour: hop between the star stones while looking at the sky.',
+  purpose: 'Flavour: hop onto the star stone while looking at the sky.',
   answers: false,
   pads: [
-    { key: 's1', x: 6.75, z: 7.45, label: 'the first star stone' },
+    // GE-072: the first stone (6.75, 7.45) was dropped. With the child's 0.37 m body (ADR-060) it
+    // touched the tower checkpoint and the arrival through arch-tower, and no other spot in the
+    // tower clears the window, chart and setting zones, the checkpoint and the door (scan in
+    // docs/regions/storykeeper_castle_engine_integration.md section 8.3). Flavour only: nothing
+    // depended on it.
     // SC-R05-03: 0.25 m west of where SC-JMP put it (8.95), so Professor Orion fits in the
     // corner behind it. Still clear of the cave window zone (ends x 8.2) by 0.1 m.
     { key: 's2', x: 8.7, z: 5.85, label: 'the second star stone' },

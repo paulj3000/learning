@@ -52,7 +52,12 @@ describe('colliders, zones, interactions and ids are unchanged by the optimisati
   });
 
   it('keeps every platform, adding only the optional chamber stones', () => {
-    expect(now.platforms.filter((id) => !isChamberAddition(id as string))).toEqual(before.platforms);
+    // GE-072: the one deliberate removal since the baseline. The first Observatory star stone no
+    // longer fits beside the child's 0.37 m body (ADR-060); see castlePlatforms.ts.
+    const removed = new Set(['castle-pad:observatory:s1']);
+    expect(now.platforms.filter((id) => !isChamberAddition(id as string))).toEqual(
+      before.platforms.filter((id) => !removed.has(id as string)),
+    );
     expect(now.pressurePlates.filter((id) => !isChamberAddition(id as string))).toEqual(
       before.pressurePlates,
     );
