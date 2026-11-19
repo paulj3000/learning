@@ -551,3 +551,4 @@ access, no deploy steps changed.
 7. Acknowledgement of the `deploy-site.yml` and CI changes, and merge of LAI-ENG-002 (step 0).
 8. The main merge itself, as a PR the owner opens (agents have no GitHub write access).
 9. Separate deployment approval per environment after the merge, with an RDS snapshot first.
+10. GE-076 (legacy retirement, Backlog, owner approval required): whether shim removal may start. `core/gameengine` `ca6ada2c` (item 1: removes the unused `gamepadInput` and `cameraHeightFollower` island-map shims) is **held, not integrated**, pending that approval. Trial merge on `ccd5ae10`, aborted afterwards: clean; typecheck clean; game-engine, island-map/three (including `castleEngineImports`) and region-play (including `firepeak/realmEngineImports`) 2,802 passed, 1 expected fail, 0 failed; no importer of either shim on the integration tree. Ready to integrate on approval.
