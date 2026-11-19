@@ -18,7 +18,7 @@ import { defineComponent } from '../core/entities';
 import { defineService } from '../core/services';
 import type { CapabilityDefinition } from '../core/capabilities';
 import { CHECKPOINTS_CAPABILITY_ID, CheckpointsService } from './checkpoints';
-import { emitPresentation, entityKey, isReducedMotion, playerPosition, type GameplayRuntime } from './common';
+import { emitPresentation, entityKey, isReducedMotion, playerPosition, signalBoard, type GameplayRuntime } from './common';
 import { rectContains, rectsOverlap, type Rect } from './geometry';
 import { configRoot, Issues } from './validate';
 
@@ -34,6 +34,8 @@ export interface StaticHazardSpec {
   /** The checkpoint beside this hazard (resolved in the checkpoint system). */
   checkpointId: string;
   messageKey: string;
+  /** GE-066: the hazard is off while this signal is on (a switch that drains the lava). */
+  inactiveWhenSignalId?: string;
 }
 
 export type HazardPhase = 'REST' | 'WARN' | 'ACTIVE';
@@ -52,6 +54,8 @@ export interface TelegraphedHazardSpec {
   activeSeconds: number;
   restSeconds: number;
   offsetSeconds: number;
+  /** GE-066: the hazard is off while this signal is on. Shown as REST, never recovering. */
+  inactiveWhenSignalId?: string;
 }
 
 export interface HazardsConfig {
@@ -111,6 +115,7 @@ export function validateHazardsConfig(input: unknown) {
       belowY: issues.num(item.belowY, `${path}.belowY`, -50, 5, 0.05),
       checkpointId: issues.id(item.checkpointId, `${path}.checkpointId`),
       messageKey: message(item.messageKey, `${path}.messageKey`),
+      inactiveWhenSignalId: issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`),
     }),
     (h) => h.id,
     64,
@@ -141,6 +146,7 @@ export function validateHazardsConfig(input: unknown) {
         activeSeconds: issues.num(item.activeSeconds, `${path}.activeSeconds`, 0.1, 3, 0.5),
         restSeconds: issues.num(item.restSeconds, `${path}.restSeconds`, 1, 60, 3),
         offsetSeconds: issues.num(item.offsetSeconds, `${path}.offsetSeconds`, 0, 120, 0),
+        inactiveWhenSignalId: issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`),
       };
     },
     (h) => h.id,
@@ -188,6 +194,9 @@ export const hazardsCapability: CapabilityDefinition<HazardsConfig, GameplayRunt
       regions: () => [...config.hazards, ...config.telegraphed].map((h) => ({ id: h.id, rect: h.rect })),
     });
 
+    const signals = signalBoard(runtime);
+    const inactive = (spec: { inactiveWhenSignalId?: string }) => spec.inactiveWhenSignalId !== undefined && signals.get(spec.inactiveWhenSignalId);
+
     const request = (state: HazardState) => {
       const spec = state.spec;
       const target = checkpoints.resolveRecovery(spec.checkpointId);
@@ -218,6 +227,10 @@ export const hazardsCapability: CapabilityDefinition<HazardsConfig, GameplayRunt
           state.cooldown = Math.max(0, state.cooldown - context.dt);
           if (state.kind === 'STATIC') {
             const spec = state.spec as StaticHazardSpec;
+            if (inactive(spec)) {
+              state.inside = false;
+              continue;
+            }
             const inside = player !== undefined && rectContains(spec.rect, player.x, player.z) && player.y <= spec.belowY;
             if (inside && state.cooldown === 0) {
               request(state);
@@ -226,6 +239,15 @@ export const hazardsCapability: CapabilityDefinition<HazardsConfig, GameplayRunt
             continue;
           }
           const spec = state.spec as TelegraphedHazardSpec;
+          if (inactive(spec)) {
+            // Off: the view sees REST once, and nothing recovers the child.
+            if (state.phase !== 'REST') {
+              state.phase = 'REST';
+              emitPresentation(runtime, 'HazardTelegraph', { hazardId: spec.id, phase: 'REST', secondsToImpact: spec.telegraphSeconds, steadyWarning: steady });
+            }
+            state.inside = false;
+            continue;
+          }
           const { phase, secondsToImpact } = telegraphPhaseAt(spec, context.time);
           if (phase !== state.phase) {
             state.phase = phase;

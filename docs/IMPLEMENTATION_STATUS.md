@@ -74,6 +74,91 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
   timeout change. Verified through the infrastructure lead's test gate under load.
 - **Not done:** browser and device QA; moving the platforms (after GE-066).
 
+## GE-100 to GE-110: universal scoring and progression engine (2026-11-19, `core/ge-scoring`); development complete, integration into `core/gameengine` pending, economy OFF and NOT owner-approved, NOT merged
+
+**Conflict raised, not resolved.** ADR-011 part A and the scoring standard (ADR-072, mandatory)
+prohibit XP, coins and levels. GE-100 asks for them and also says "do not activate unapproved
+economy". The engine is therefore built but dormant:
+
+- `LAI_SCORING_ENABLED` defaults to false.
+- A policy needs the owner's economy approval before it can award outside local development
+  and tests.
+- Development fixture values can never be approved.
+- The draft ADR is [docs/scoring/ADR_DRAFT_SCORING_ECONOMY.md](scoring/ADR_DRAFT_SCORING_ECONOMY.md).
+  Its number (ADR-NNN) is not reserved on `main`.
+
+**What exists**
+
+- New Django app `apps.scoring`; no existing table or play service is changed:
+  - versioned policies (DRAFT, ACTIVE, RETIRED) with award rules, stacking groups, suppress
+    rules and a trust floor;
+  - an append-only award ledger keyed per child by source (replays, retries, backfills and new
+    policy versions pay nothing again);
+  - atomic projections that can be rebuilt from the ledger, and superuser corrections
+    (`scoring_correct`);
+  - parent erasure;
+  - a read-only child-scoped API: `GET scoring/`, `GET scoring/awards/` and `DELETE scoring/`.
+- Awards are derived only from server records. The trust boundary is in
+  [docs/scoring/TRUST_BOUNDARY.md](scoring/TRUST_BOUNDARY.md). Jump challenges and platform
+  courses are deferred because they are client-only.
+- Achievements and trophies are projections of existing KEEPSAKE and set-completion items, with
+  no new model.
+- Django Admin shows policies only. The ledger is child progress and is not registered.
+- React `features/scoring`:
+  - HUD and results components, with reduced motion, aria-live notifications, and pending vs
+    confirmed awards;
+  - an engine adapter over `@lai/game-engine/contracts` v1;
+  - a parent progression panel on the parent child page.
+- Django parity tests for `lai.gameplay-event` v1 against `tests/contracts/gameplay-events-v1.json`.
+- Shared changes:
+  - `config/settings` (the app and three flags; production refuses `LAI_SCORING_ALLOW_UNAPPROVED`);
+  - `config/urls.py`;
+  - `core/exceptions.py` (the `invalid_cursor` code);
+  - `game_sessions/tests/test_sessions.py` (the admin app list gains `scoring`, policies only);
+  - `routes/ChildDashboard.tsx` (one panel).
+
+**Docs**
+
+- [Contracts](scoring/SCORING_CONTRACTS.md)
+- [Audit](scoring/SCORING_AUDIT.md)
+- [Trust boundary](scoring/TRUST_BOUNDARY.md)
+- [Migration plan](scoring/MIGRATION_PLAN.md)
+
+**GE-109 (2026-11-19)**
+
+- Realm adapters as data (`lai/apps/scoring/realms.py`): Treasure Cove, the Pirate's Leap
+  course, Firepeak Volcano and Heart, and North Pole.
+  - A completion counts only when every BUILD key of its quests is proven by a server record
+    (graded chest, solved puzzle, authored pickup). Forged world changes prove nothing.
+  - Hidden pickup items count as secrets.
+- Backfill twice, policy changes and concurrent races never duplicate (tested).
+- The location page is wired to the GE-070 claim sink, only while scoring is on
+  (`useScoringForPlay`).
+- Jumps stay deferred, with the owner's options in
+  [TRUST_BOUNDARY.md](scoring/TRUST_BOUNDARY.md) section 7.
+
+**Checks** (unit only):
+- pytest at 1f1340c2: scoring plus `core`, `inventory`, `progression`, `quests`,
+  `game_sessions` and `education` gave 1,051 passed, 4 skipped.
+- pytest at 77d170c1 (after merging core/gameengine fc5c71cf): scoring plus the merged regions
+  and play API tests gave 341 passed, 4 skipped. The skips are the Firepeak Heart and North Pole
+  content-drift checks; that content is not on this branch.
+- Vitest: 252 passed (scoring, game-engine, rewards, routes, parent dashboard, golden); after
+  the merge, scoring and routes 115 passed.
+- `game/src/contracts`: 56 passed.
+- Typecheck, ruff and `make docs-check` pass.
+- Not run, deferred to authorized merge readiness: Playwright, browser, full suites, lint and
+  format gates, build.
+
+**Open (owner and integration gates)**
+
+- The owner's ADR decision (number not reserved; 073 is Firepeak's) and an approved policy.
+- Retiring or keeping the legacy `treasure-rush-cove` quest (suppressed in the dev policy).
+- A decision on authoritative jumps (options documented; deferred).
+- The Firepeak Heart and North Pole drift tests run once their content integrates.
+- Integration into `core/gameengine` by the engine lead.
+- Owner QA, merge and deployment.
+
 ## GE-070: Treasure Rush migrated onto the Game Engine Core (2026-11-19, `feature/GE-070-treasure-rush-engine-migration`); development complete, owner QA pending, NOT merged
 
 Trello GE-070 (https://trello.com/c/3M8AAV14). The owner approved the start and the bridge

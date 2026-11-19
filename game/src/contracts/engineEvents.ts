@@ -10,6 +10,9 @@
 
 import type { PlayerGait } from './player';
 
+/** How a platform or hazard warns the child: a blink, or a steady dim under reduced motion. */
+export type SteadyOrBlink = 'BLINK' | 'STEADY_DIM';
+
 export type RecoveryReason = 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' | 'HAZARD';
 
 export type EnginePresentationEventMap = {
@@ -26,6 +29,12 @@ export type EnginePresentationEventMap = {
   PlayerBounced: { platformId: string; cue?: string };
   PressurePlatePressed: { plateId: string };
   PressurePlateReleased: { plateId: string };
+  /** GE-066: a telegraphed hazard changed phase. `steadyWarning` is true under reduced motion. */
+  HazardTelegraph: { hazardId: string; phase: 'WARN' | 'ACTIVE' | 'REST'; secondsToImpact: number; steadyWarning: boolean };
+  /** GE-066: an engine platform changed phase (crumble, blink, gone, back). */
+  PlatformPhaseChanged: { platformId: string; phase: string; warning: SteadyOrBlink | null };
+  /** GE-066: the child stepped on a surface; `footstepCue` is the surface's own sound cue, if any. */
+  SurfaceFootstep: { surfaceId: string; footstepCue: string | null };
 };
 
 export type EnginePresentationEventName = keyof EnginePresentationEventMap;
