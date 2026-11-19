@@ -3,6 +3,9 @@
 - **Status:** Proposed. Draft for owner decision. **The number is not reserved**: per
   [multi-agent-workflow.md](../engineering/multi-agent-workflow.md#adr-number-reservation) the owner
   or coordinator reserves it on `main` before this text moves into `docs/DECISIONS.md`.
+  Not ADR-073: by owner decision it is Heart of Firepeak's (feature/firepeak-volcano-adventure
+  5caec70e). As of 2026-11-19, ADR-074 to ADR-079 are unused on every branch (reported by the
+  Firepeak lead; re-check before reserving).
 - **Ticket:** GE-100 (GE-101 to GE-110)
 - **Supersedes, if accepted:** ADR-011 part A ("No `PlayerProfile` with level/XP/coins").
 - **Amends, if accepted:** [docs/adventures/scoring-standard.md](../adventures/scoring-standard.md)
