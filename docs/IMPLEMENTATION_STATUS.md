@@ -98,8 +98,18 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
 145 passed (platforming, Heart layout, seed, playthrough) on local PostgreSQL 16.
 
 **Not done / blocked.**
-- Migration to `@lai/game-engine`: waits for the engine lead's "migration-ready" commit (contracts
-  are at core/gameengine 8e5bcb9b; the movement modules have not moved yet).
+- Migration to `@lai/game-engine` (GE-073, owner-approved 2026-11-19), in progress:
+  - Done: `core/gameengine` @ e4148949 merged (1eea7ba4; game 566 passed, frontend 2,194 passed,
+    tsc clean, pytest 123 passed, makemigrations clean). Guard: no Firepeak file imports an
+    island-map shim (`region-play/firepeak/realmEngineImports.test.ts`). `defineAdventure` data for
+    the Heart (`region-play/firepeak/heartAdventureDefinition.ts`): validated with the standard
+    capability registry, and the Heart scene snapshot passes `checkContentCompatibility` and
+    `npm run engine:validate`.
+  - Waiting: adopting telegraphed falling rocks, steam force volumes, crumble-then-fall, traction
+    and the single checkpoint list needs the engine lead's location engine bridge (GE-065) and the
+    Treasure Rush host additions (GE-070 step 3) on this branch. The live platform system stays
+    the platform owner until GE-076.
+  - ADR-073 still needs its Reserved row on `main` (owner registry-only change).
 - Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
 - Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
