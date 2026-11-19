@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useState } from 'react';
-import { act, render } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act as reactAct, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSoundManager } from '../../../audio/SoundManager';
 import { resetSharedSoundManager } from '../../../audio/sharedSoundManager';
 import { SoundProvider, type AudioManifestSource } from '../../../audio/react';
@@ -127,7 +127,48 @@ const flush = () =>
     for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-afterEach(() => {
+/*
+  Test isolation (defect https://trello.com/c/9OdaKlbs). Under heavy machine load a test can
+  time out while it is inside an async `act()`. Vitest abandons the test body but does not stop
+  it, so its `act` scope ended during the next test, overlapping that test's own `act`, and the
+  abandoned body went on calling `act` in later tests. React's act queue was left broken and
+  every later test in the file heard nothing (37 false failures behind one real timeout).
+
+  So every `act` here is tied to the test that started it: an abandoned body stops at its next
+  `act`, and each test waits for its own in-flight async `act` to finish before cleanup runs. A
+  timed-out test still fails; it can no longer take the rest of the file with it.
+*/
+let testEnded = false;
+const inFlight = new Set<Promise<unknown>>();
+
+beforeEach(() => {
+  testEnded = false;
+});
+
+/** React Testing Library's `act`, refused once its test has ended, with async scopes tracked. */
+function act(callback: () => Promise<unknown>): Promise<void>;
+function act(callback: () => unknown): void;
+function act(callback: () => unknown): unknown {
+  if (testEnded) {
+    throw new Error('act() called after its test ended (a timed-out test body is still running)');
+  }
+  const result = reactAct(callback as () => void) as unknown;
+  if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+    // React's act returns a thenable, not a Promise.
+    const pending: Promise<unknown> = Promise.resolve(result as PromiseLike<unknown>).finally(() =>
+      inFlight.delete(pending),
+    );
+    inFlight.add(pending);
+    return pending;
+  }
+  return result;
+}
+
+afterEach(async () => {
+  // The abandoned body of a timed-out test may not call act() again.
+  testEnded = true;
+  // Let this test's own async act() scopes close before the next test opens one.
+  await Promise.allSettled([...inFlight]);
   setSoundSink(null);
   resetSharedSoundManager();
 });
