@@ -407,3 +407,141 @@ owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` an
    run, Playwright) and owner QA.
 8. Deployment approval per environment, separate from the merge; RDS snapshot before migrating.
 9. Host memory (six agents on 8 GB) and whether the Storykeeper worktree may run its own PostgreSQL.
+
+## 11. Final reconciliation report (GE-090, 2026-11-19)
+
+**Final integration SHA: `568dd278`** (`integration/20261119-game-engine-core`, pushed, clean
+working tree; `main` still `8bd19fb7`). Not merged into `main`; nothing deployed.
+
+### 11.1 Branch reconciliation matrix
+
+Checked by ancestry and by patch content (`git cherry`, which also finds cherry-picked
+equivalents), and each agent worktree's local HEAD and tracked files (read-only).
+
+| Stream | Branch | Head | Not in integration | Unpushed / uncommitted | Trello (Development Complete at head) |
+|---|---|---|---|---|---|
+| Engine core | `core/gameengine` | `ebaec30b` | 0 | 0 / 0 | GE-001 children; GE-066, GE-067, GE-068, GE-069, GE-L14 |
+| Scoring | `core/ge-scoring` | `6bf69b1d` | 0 | 0 / 0 | GE-100, GE-109 |
+| Treasure Rush, Pirate's Leap | `feature/GE-070-treasure-rush-engine-migration` | `97c69672` | 0 (all 15 previously missing commits present) | 0 / 0 | GE-070, GE-071 (block: implementation 97c69672, integration 9e680012) |
+| Firepeak | `feature/firepeak-volcano-adventure` | `e5561b66` | 0 | 0 / 0 | GE-073, GE-073F |
+| North Pole | `feature/north-pole-adventure` | `496e3659` | 0 | 0 / 0 | GE-074, SEA-04 |
+| Storykeeper's Castle | `feature/storykeeper-castle-completion` | `da36b5a0` | 0 | 0 / 0 | GE-072 |
+| Movement stack (8 branches, PR #26 to #37) | see 10.2 | unchanged | 0 | n/a | LAI-JMP cards |
+| Lambda (kept separate) | `feature/serverless-processing-completion` and stacked | `7483c07a` | 140 | n/a | LAI-LAMBDA cards; PRs #42, #43 |
+
+**Missing commits: none** in the six development streams or the movement stack.
+
+### 11.2 Targeted unit tests on `568dd278`
+
+| Suite | Result |
+|---|---|
+| Typecheck (root) | Clean |
+| Engine (`npm run test:engine`) | 659 passed, 1 expected fail (GE-L10, pinned with `it.fails`; unchanged) |
+| React affected set (region-play, island-map, game-engine, npc-manager, scoring, great-storybook, audio, routes, src/test), gated | **4,094 passed, 0 failed** (349 files) |
+| Django on isolated PostgreSQL 16 (regions, ai, scoring, seasons, assets, avatars) | **1,918 passed, 0 failed** |
+| Migration graph from an empty database | Applies cleanly; one leaf per app; `makemigrations --check` no changes |
+| Content, golden vectors, engine contract vectors, ADR, docs, workspace checks | Pass |
+
+No test was skipped, suppressed, retimed or re-expected to obtain these results. Timing failures in
+earlier steps were classified only by matched comparisons with timer probes (B15).
+
+### 11.3 Adopted Storykeeper tests
+
+`game/src/input/pointerControls.test.ts` is byte-identical (blob `2f70aaa1`) on the castle branch,
+`core/gameengine` and the integration branch.
+
+### 11.4 Duplicated functionality and open notes
+
+Known and planned, not integration defects: the engine's GE-076 retirement plan
+(`docs/engineering/game-engine/legacy-retirement-plan.md`) lists 10 re-export shims and 7 areas
+where the engine copy and the live copy coexist (platform motion and system, course checkpoints and
+hazards, atmosphere, avatar and animation, event bus, location runtime). GE-076 is in Backlog. Its
+table still lists Pirate's Leap, North Pole and castle checkpoints as pending, although Pirate's Leap
+(course v4) and North Pole (layout v5) now run on the engine: an update for the engine lead.
+No conflict markers or duplicate ADR headings exist on the integration branch.
+
+### 11.5 Outstanding defects
+
+| Id | Defect | Owner | Severity |
+|---|---|---|---|
+| B15 | Host timer stalls (VirtualBox guest): timing evidence on this host is weak | Owner | Blocks trustworthy merge-readiness runs |
+| GE-T2 | GameHost retry test about 1 s per test (host timers) | Engine lead | Re-check after B15 |
+| GE-L10 | Platform carry one simulation step late (expected failure) | Engine lead | Low |
+| GE-L14 (remaining) | Hazard telegraph assumes flat ground | Engine lead | Low |
+| GE-L15 | Turntable mesh does not rotate | Engine lead | Low |
+| D1, D2 | Integration defects found by the first PostgreSQL run | Scoring lead, Firepeak lead | **Fixed** (steps 13, 14) |
+
+### 11.6 Database migrations at the main merge
+
+New apps `avatars`, `scoring`, `seasons`; `ai` 0005 to 0006; `assets` 0002 to 0003
+(`0003_collision_profiles`); `regions` 0006 to 0009 (`0007_puzzle_kinds_choose_order`, castle 0008,
+0009). Lambda's `0003_derived_artifact` collides with `assets 0003`; when Lambda lands after this
+merge, its owner renames it `0004_derived_artifact` and adds `("assets", "0003_collision_profiles")`.
+RDS snapshot before any deployed migration.
+
+### 11.7 Movement-stack PR merge plan
+
+Recommended: **one PR from `integration/20261119-game-engine-core` to `main` (forecast clean)**, then
+close PRs #26, #27, #28, #29, #37, #36 (and the branches without PR numbers,
+`asset-collision-profiles`, `pirates-leap`) as merged through it. Required order if the owner prefers
+the stack PRs instead: #26, #27, #28, #29, `asset-collision-profiles`, #37, `pirates-leap`, #36, each
+after renaming its `## ADR-055` jump heading to ADR-063 and resolving the conflicts listed in 10.2
+(11 code files in two of them).
+
+### 11.8 ADR decisions required
+
+| Number | `main` today | Integration branch | Decision |
+|---|---|---|---|
+| ADR-063 | Reserved (jump) | Full ADR, Proposed | Accept or keep Proposed at the merge |
+| ADR-070 | Reserved, marked COLLISION | GLB optimization policy (Lambda), Reserved | Correct the row on `main` (registry-only change) |
+| 073 (Heart of Firepeak) | No row | Full ADR, Proposed | Reserve on `main` first (registry-only change), then accept or keep Proposed |
+| ADR-056 to 060, 065, 080, 081 | Reserved | Full ADRs, Proposed | Accept or keep Proposed at the merge |
+| Engine core (`ADR-NNN`) | none | Draft in `decisions.md` | Reserve a number |
+| Scoring economy (`ADR-NNN`) | none | Draft in `docs/scoring/` | Reserve a number; decide (economy stays off until then) |
+
+### 11.9 LAI-2003 approval requirements
+
+LAI-2003 (APPROVAL) asks the owner to accept a design fixing: the engine's public interface to React
+(props in, typed events out); the `WorldDefinition` schema and loader; the scene lifecycle; input
+and camera profiles including the Sprouts guided profile; in-engine versus route-based world
+transitions; whether AABB collision suffices; how `game/` is built and consumed; performance budgets,
+target devices and measurement method. The engine lead's `docs/engineering/game-engine/`
+(architecture, public contracts, decisions) and `docs/infrastructure/game-engine-package.md` are the
+material to review. `game/` already exists on the integration branch, so the owner either approves
+LAI-2003 or records a waiver before the main merge.
+
+### 11.10 `deploy-site.yml` and CI change (LAI-ENG-002)
+
+`deploy-site.yml` gains one trigger path, `game/**`, so an engine-only change redeploys the site.
+Without it, engine changes on `main` would not reach the site. Changing the workflow file also
+matches its own trigger. `ci.yml` gains three read-only steps: the workspace package check, and
+`npm run test:engine --if-present` and `npm run engine:vectors:check --if-present`. Root
+`npm test` covers `react/` only, so without these steps CI ran no engine tests. No secrets, no AWS
+access, no deploy steps changed.
+
+### 11.11 GE-090 acceptance checklist
+
+- [x] All six streams and the movement stack integrated; no missing or unpushed commits
+- [x] Every integrated SHA recorded Development Complete on its card
+- [x] Migration graph verified on PostgreSQL; one leaf per app; no change to `main`'s migrations
+- [x] Targeted unit tests clean on `568dd278` (Django, engine, React)
+- [x] Integration defects D1, D2 fixed by their owners
+- [ ] Owner decisions in 11.12
+- [ ] Merge-readiness gates on an authorized host: lint and format, full suites, build (no
+      playground chunk, one `three` copy), full PostgreSQL run, Playwright and acceptance
+- [ ] Owner browser QA: `engine-1.0-acceptance.md` section 3, realm QA guides (Treasure Rush
+      migration, Pirate's Leap, Firepeak, North Pole, castle)
+- [ ] Owner acceptance recorded on GE-090 (owner only)
+
+### 11.12 Approvals required before the main merge
+
+1. B15: a host without VM timer stalls for the merge-readiness runs, or a fix to this VM's timers.
+2. Authorization to run the merge-readiness gates and owner QA.
+3. Movement-stack route (11.7).
+4. Registry-only change on `main` for 070 and 073, and numbers for the two drafts (11.8).
+5. LAI-2003 approval or waiver (11.9).
+6. Scoring: acknowledgement of its shared-file changes; the economy decision; authoritative jump and
+   course awards (deferred).
+7. Acknowledgement of the `deploy-site.yml` and CI changes, and merge of LAI-ENG-002 (step 0).
+8. The main merge itself, as a PR the owner opens (agents have no GitHub write access).
+9. Separate deployment approval per environment after the merge, with an RDS snapshot first.
