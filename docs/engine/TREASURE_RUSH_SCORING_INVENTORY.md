@@ -181,6 +181,6 @@ Covered: authentication on every play route (`test_play_api.py:84-109`), other-f
 concurrency (`test_concurrency.py`, `test_chest_play.py`, `test_pips_treasure.py`,
 `test_pirates_leap.py`, `test_lookout_replay.py`).
 
-Gaps, to add before or with the scoring migration: no cross-family test for the talk or pickup
-endpoints (only sibling and cookie-route tests), and the play-API route list in
-`test_play_api.py:84-95` omits pickups, talk and puzzles.
+Closed on this branch (38c43894, TR-21): the play-API route matrix in `test_play_api.py` now
+includes the pickup, talk and puzzle routes (401 anonymous, 404 another family). A new test has
+another family use a child's real session id on those routes: 404, and nothing is written.
