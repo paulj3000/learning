@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
+import { emitLocationClaim } from '../../island-map/three/runtime/gameplayClaimSink';
 import type { SpeechSource } from '../../../audio/speech/SpeechPlayer';
 import { isApiError } from '../../../api/errors';
 import { npcApiFor, type NpcApi } from '../api/npcApi';
@@ -109,6 +110,13 @@ export interface UseNpcSceneHostOptions {
   suspended?: boolean;
   /** Awaited before an `on_interact` conversation starts (a world's own "talked" call). */
   onInteract?(npcId: string, placementKey: string): Promise<void> | void;
+  /**
+   * GE-067: claim `npc.interaction.completed` { npcId, interactionId: placementKey } through the
+   * visit's claim router once the world's own talk call succeeded. On by default so every
+   * location claims NPC talks the same way; a world that already claims talks from the server's
+   * outcome (region play) turns it off so nothing is claimed twice.
+   */
+  claimInteractions?: boolean;
   /** The child chose an `OFFER_QUEST` choice; accept through the world's own quest flow. */
   onQuestOffer?(questId: string, npcId: string): void;
   /** NPC sound moments, for the world's Sound Manager cues. */
@@ -340,8 +348,11 @@ export function useNpcSceneHost(options: UseNpcSceneHostOptions): NpcSceneHost {
       latest.current.onSound?.('on_interact', npcId, placementKey);
       try {
         await latest.current.onInteract?.(npcId, placementKey);
+        if (latest.current.claimInteractions !== false) {
+          emitLocationClaim('npc.interaction.completed', { npcId, interactionId: placementKey });
+        }
       } catch {
-        // The world's own call failed: the conversation still happens.
+        // The world's own call failed: the conversation still happens, and nothing is claimed.
       }
       setForeground({ ...who, pending: false });
       await startConversation(who, 'on_interact');

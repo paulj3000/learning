@@ -495,13 +495,26 @@ export function createLocationEngine<R extends RendererLike>(
         reducedMotion: options.reducedMotion === true,
       })
     : null;
+  // GE-066: an Area keeps its course checkpoints in one place, the live platform system or the
+  // engine bridge's gameplay.checkpoints (scene.engineBridge). A fall below the ground (the live
+  // controller's own recovery) returns to the latest of whichever holds them, so a fall and a
+  // bridge hazard go to the same checkpoint. With neither, the controller's last safe ground.
+  const bridgeLatestCheckpoint = () =>
+    (extensionMounts.get('engineBridge')?.api as
+      | { latestCheckpoint?: () => { id: string; x: number; z: number; yaw: number } | null }
+      | undefined)?.latestCheckpoint?.() ?? null;
   const controller = new FirstPersonController({
     ...(platformSystem
-      ? {
-          isSafeGround: (x: number, y: number, z: number) => platformSystem.isSafeGround(x, y, z),
-          recoveryPoint: () => platformSystem.recoveryPoint(),
-        }
+      ? { isSafeGround: (x: number, y: number, z: number) => platformSystem.isSafeGround(x, y, z) }
       : {}),
+    recoveryPoint: () => {
+      const live = platformSystem?.recoveryPoint() ?? null;
+      if (live) {
+        return live;
+      }
+      const bridge = bridgeLatestCheckpoint();
+      return bridge ? { x: bridge.x, z: bridge.z, yaw: bridge.yaw } : null;
+    },
     colliders,
     jumpableColliders,
     jump: manifest.movement?.jump,
@@ -1564,7 +1577,9 @@ export function createLocationEngine<R extends RendererLike>(
           playerCamera.reset();
           bus.emit('PlayerRecovered', {
             reason: event.reason,
-            ...(platformSystem ? { checkpointId: platformSystem.latestCheckpointId() } : {}),
+            ...(platformSystem || bridgeLatestCheckpoint()
+              ? { checkpointId: platformSystem?.latestCheckpointId() ?? bridgeLatestCheckpoint()?.id ?? null }
+              : {}),
           });
           break;
         case 'LAUNCHED':

@@ -1,4 +1,5 @@
 import { checkpointReachedText, recoveredText } from '../platforms/platformCopy';
+import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 import { worldSignal } from '../platforms/platformSystem';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -326,6 +327,9 @@ export function ThreeLocationWorldView({
   useEffect(() => {
     if (!manifest) return;
     const checkpointIds = new Set(manifest.checkpoints.ids);
+    const savedCheckpointIds = new Set(
+      ALL_CHECKPOINTS.filter((checkpoint) => checkpoint.regionId === manifest.regionId).map((checkpoint) => checkpoint.id),
+    );
     // Unsubscribed one by one: `removeAllListeners` would also drop listeners
     // this view does not own (the hazard the duplication audit found).
     const unsubscribes = [
@@ -375,7 +379,18 @@ export function ThreeLocationWorldView({
           .catch(() => undefined);
       }),
       // LAI-JMP-02: friendly course feedback; a missed jump is never a loss.
-      bus.on('CourseCheckpointReached', ({ label }) => setToast(checkpointReachedText(label))),
+      // GE-066: a checkpoint reached on the engine bridge that is also one of this region's SAVED
+      // checkpoints is saved and toasted exactly like a manifest checkpoint (one save path for
+      // every location, so manifest.checkpoints can move onto the bridge without losing the
+      // child's place or the authored wording). Others keep the course text.
+      bus.on('CourseCheckpointReached', ({ checkpointId, label }) => {
+        if (savedCheckpointIds.has(checkpointId)) {
+          void pendingWrites.track(saveCheckpoint(childId, checkpointId)).catch(() => undefined);
+          setToast(checkpointToast(manifest, 'found', checkpointId) ?? checkpointReachedText(label));
+          return;
+        }
+        setToast(checkpointReachedText(label));
+      }),
       bus.on('PlayerRecovered', ({ reason, checkpointId }) => {
         if (reason === 'HAZARD' || checkpointId) {
           setToast(recoveredText(manifest.platforming, checkpointId, bridgeCheckpointLabels(manifest)));
