@@ -17,6 +17,12 @@ DEV_POLICY_TITLE = "Development fixture economy (provisional, not approved)"
 # Provisional thresholds: 10 levels, a top level, gentle early steps.
 DEV_LEVEL_THRESHOLDS = [0, 500, 1500, 3000, 5000, 8000, 12000, 17000, 23000, 30000]
 
+# Conditions on fact attributes, by rule key (see SCORING_CONTRACTS.md section 3).
+DEV_RULE_ATTRIBUTES = {
+    # Coins for treasure only: a quest item pickup (a key) or a keepsake earns no coins.
+    "treasure-coin": {"itemCategory": "COLLECTIBLE"},
+}
+
 # (rule_key / stacking group, source kind, currency, amount)
 DEV_RULES = [
     ("correct-answer", SourceKind.ANSWER_CORRECT, Currency.LEARNING_POINTS, 100),
@@ -61,5 +67,6 @@ def create_dev_policy(key: str = "default"):
                 currency=currency,
                 amount=amount,
                 stacking_group=rule_key,
+                attribute_equals=dict(DEV_RULE_ATTRIBUTES.get(rule_key, {})),
             )
     return policy

@@ -198,28 +198,44 @@ def discoveries(child) -> Iterator[ScoringFact]:
         )
 
 
-def _pickup_regions() -> dict[str, str]:
-    """Authored pickup keys -> region id. A key is unique to its placement in practice; the
-    first region wins if an author ever reused one."""
-    mapping: dict[str, str] = {}
+def _category(categories: set[str]) -> str:
+    """One category for a set of granted item categories: QUEST_ITEM wins (a functional item,
+    such as a key, is never treated as treasure), then KEEPSAKE, then the alphabetical first."""
+    for preferred in ("QUEST_ITEM", "KEEPSAKE"):
+        if preferred in categories:
+            return preferred
+    return min(categories) if categories else ""
+
+
+def _pickup_regions() -> dict[str, tuple[str, str]]:
+    """Authored pickup keys -> (region id, item category of what the pickup grants). A key is
+    unique to its placement in practice; the first region wins if an author ever reused one."""
+    mapping: dict[str, tuple[str, str]] = {}
     rows = (
         WorldObjectPlacement.objects.exclude(pickup_change_key="")
-        .select_related("region")
+        .select_related("region", "pickup_reward_rule")
+        .prefetch_related("pickup_reward_rule__items")
         .order_by("region__region_id", "entity_id")
     )
     for placement in rows:
-        if placement.is_pickup:
-            mapping.setdefault(placement.pickup_change_key, placement.region.region_id)
+        if not placement.is_pickup or placement.pickup_change_key in mapping:
+            continue
+        rule = placement.pickup_reward_rule
+        categories = {item.category for item in rule.items.all()} if rule else set()
+        mapping[placement.pickup_change_key] = (placement.region.region_id, _category(categories))
     return mapping
 
 
 def pickups(child) -> Iterator[ScoringFact]:
     """Authored pickups (treasure coins, shells, ember shards). The server checks that the key
-    is a real placement's and records it once; it cannot check the child walked there."""
+    is a real placement's and records it once; it cannot check the child walked there.
+
+    `itemCategory` lets a policy pay coins for treasure only: a QUEST_ITEM pickup (the brass
+    key that opens a chest) is functional, not treasure (Treasure Rush review, 2026-11-18)."""
     authored = _pickup_regions()
     rows = WorldChange.objects.for_child(child).filter(change_type=PICKUP_CHANGE_TYPE)
     for change in rows.order_by("created_at"):
-        region_id = authored.get(change.change_key)
+        region_id, category = authored.get(change.change_key, (None, ""))
         if region_id is None or is_excluded(region_id):
             continue
         yield ScoringFact(
@@ -228,6 +244,7 @@ def pickups(child) -> Iterator[ScoringFact]:
             Trust.SERVER_BOUNDED,
             change.created_at,
             scope_key=region_id,
+            attributes={"itemCategory": category},
         )
 
 
@@ -260,11 +277,13 @@ def puzzles(child) -> Iterator[ScoringFact]:
 
 
 def quests(child) -> Iterator[ScoringFact]:
-    """Completed quests. SERVER_BOUNDED: the quest state route checks stage and objective ids
-    but not every objective's proof (see TRUST_BOUNDARY.md; the castle branch adds proofs)."""
+    """Completed, *active* quests. SERVER_BOUNDED: the quest state route checks stage and
+    objective ids but not every objective's proof (see TRUST_BOUNDARY.md; the castle branch adds
+    proofs). An inactive (legacy) quest that completes alongside a live one is not counted, so
+    one accomplishment is not paid twice (Treasure Rush review, 2026-11-18)."""
     rows = (
         QuestProgress.objects.for_child(child)
-        .filter(status=QuestStatus.COMPLETED)
+        .filter(status=QuestStatus.COMPLETED, quest__active=True)
         .select_related("quest__world")
         .order_by("completed_at")
     )
