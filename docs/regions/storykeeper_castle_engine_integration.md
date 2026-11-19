@@ -311,3 +311,9 @@ With `core/gameengine` `6f07b5b0` merged (`2ab8c776`), the castle's five saved c
 Tests: `storykeeperCastle.engine.test.ts` (checkpoint reached through the bridge, never as a live zone), `storykeeperCastleParity.test.tsx` (a bridge checkpoint is saved with the castle's words), `CastleTaleCompanion.npc.test.tsx` (binding set and released), `castleSaveContract.test.ts` unchanged. Typecheck clean; content and golden checks pass. Broad Vitest runs under load average 7 to 10 failed different non-castle files on each run (5 s timeouts); every one passed alone.
 
 GE-072 has no remaining engine dependency. Open, all owner-side or integration-side: the `regions` migration renumbering after Firepeak lands (section 9.3), Django tests on PostgreSQL, and browser and device acceptance.
+
+### 9.5 Integrated on top of Firepeak and North Pole (2026-11-19, `288fe422`)
+
+Owner merge order: core, Firepeak, North Pole, castle. `integration/20261119-game-engine-core` @ `a67b55d1` merged into the castle branch (no rebase). The castle's `regions` migrations are now `0008_castle_director` (on Firepeak's `0007_puzzle_kinds_choose_order`) and `0009_castle_director_catalog`. Nothing on `main` was edited. Content export after the merge: islands 3, locations 13, adventures 29, learning objectives 20, quests 24, items 117, sets 11, reward rules 92, NPCs 23, discoveries 8, checkpoints 31.
+
+Checks: `npm run typecheck` clean; content, golden, adr and docs checks pass; one migration leaf per app; `makemigrations --check` no changes; `migration_audit.py HEAD` reports no collision, divergence, rewrite or stale parent; castle suites through `test_gate.py`: 95 files, 1298 passed. Django tests on PostgreSQL are not run: the owner declined the local database in this session, and that is the owner's call.
