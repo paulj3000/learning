@@ -12,6 +12,8 @@ run `npm install` for the `game/` workspace.
 
 ## Current baseline
 
+**Integration SHA (sent to `integration/20261119-game-engine-core`): `382b322551522543f3eba5fa044ff27fcfcd8216`.** It is `cbe43a8e` plus GE-066 part 1 (`b1478a85`: forwarded HazardTelegraph, PlatformPhaseChanged and SurfaceFootstep; `inactiveWhenSignalId`) plus GE-070 re-merged for the audio-test isolation fix (`ecff0a9a`). Later commits on `core/gameengine` (stabilization tests, the host-footstep relay) reach integration with the next SHA.
+
 **`cbe43a8e`** (Wave 2, 2026-11-19): `fc5c71cf` plus GE-075's six location definitions, the GE-065
 companion bridge hooks (merged from the Firepeak split branch at `70cd5781`) and renderer stats
 moved out of `debug/`. Development Complete for its contents; GE-066 (bridge Wave 2) is not in it yet.
