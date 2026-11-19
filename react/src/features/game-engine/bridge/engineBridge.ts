@@ -35,7 +35,7 @@ import {
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
 import type { WorldExtension, WorldExtensionContext, WorldExtensionMount } from '../../island-map/three/runtime/extensionRegistry';
 import { mountBridgePresentation, type BridgePresentation } from './bridgePresentation';
-import { hostSupport, type BridgeHostSupport, type BridgePlayerState, type LocationBridgeHost } from './bridgeHost';
+import { deviceParticleTier, hostSupport, type BridgeHostSupport, type BridgePlayerState, type LocationBridgeHost } from './bridgeHost';
 
 /**
  * GE-065: the location engine bridge.
@@ -170,9 +170,15 @@ export interface EngineBridgeApi {
 }
 
 /** Reads `config.capabilities` and refuses what the live runtime owns. Pure; never throws. */
+const ENVIRONMENT_PARTICLES = 'environment.particles';
+const TIER_ORDER = ['OFF', 'LOW', 'MEDIUM', 'HIGH'] as const;
+type Tier = (typeof TIER_ORDER)[number];
+
 export function bridgeCapabilityRequests(
   config: { readonly [key: string]: JsonValue },
   allowEnginePlatforms = false,
+  /** GE-L14: the device tier caps the seed's particle tier (never raises it). */
+  deviceTier?: Tier,
 ): { requests: CapabilityRequest[]; issues: ValidationIssue[] } {
   const issues: ValidationIssue[] = [];
   const requests: CapabilityRequest[] = [];
@@ -205,6 +211,13 @@ export function bridgeCapabilityRequests(
     if (id === ENGINE_PLATFORMS && typeof tuning === 'object' && tuning !== null && !Array.isArray(tuning)) {
       const own = typeof entryConfig === 'object' && entryConfig !== null && !Array.isArray(entryConfig) ? entryConfig : {};
       requests.push({ id, config: { platformTuning: tuning, ...own } });
+      return;
+    }
+    if (id === ENVIRONMENT_PARTICLES && deviceTier !== undefined) {
+      const own = typeof entryConfig === 'object' && entryConfig !== null && !Array.isArray(entryConfig) ? entryConfig : {};
+      const seedTier = (TIER_ORDER as readonly JsonValue[]).includes(own.tier ?? null) ? (own.tier as Tier) : 'MEDIUM';
+      const tier = TIER_ORDER[Math.min(TIER_ORDER.indexOf(seedTier), TIER_ORDER.indexOf(deviceTier))];
+      requests.push({ id, config: { ...own, tier } });
       return;
     }
     requests.push(entry.config === undefined ? { id } : { id, config: entry.config });
@@ -388,7 +401,8 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   let unbound = 0;
   // `scene.engineBridge.allowEnginePlatforms` (seed data) or the creation option may allow it.
   const allowPlatforms = options.allowEnginePlatforms === true || host.config.allowEnginePlatforms === true;
-  const { requests, issues } = bridgeCapabilityRequests(host.config, allowPlatforms);
+  const deviceTier = deviceParticleTier(host.quality);
+  const { requests, issues } = bridgeCapabilityRequests(host.config, allowPlatforms, deviceTier);
 
   const registry = createStandardCapabilityRegistry();
   if (issues.length === 0) {
@@ -532,7 +546,7 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   const wantsPresentation = (['gameplay.platforms', 'gameplay.hazards', 'environment.weather', 'environment.lighting', 'environment.particles'] as const).some((id) => runtime.installed.has(id));
   let presentation: BridgePresentation | null = null;
   if (host.scene) {
-    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), playerPosition: () => host.playerPosition(), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}) });
+    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), playerPosition: () => host.playerPosition(), ...(deviceTier ? { tier: deviceTier } : {}), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}) });
   } else if (wantsPresentation) {
     runtime.diagnostics.warn('HOST_SCENE_MISSING', { fallback: 'nothing is drawn' });
   }
