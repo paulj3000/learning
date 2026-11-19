@@ -108,6 +108,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     speechSlot,
     showToast,
     bus,
+    refreshWorld,
   } = props;
   // Sound (SM-P3): registered first so every moment below finds its player. Silent without audio.
   const audio = useTreasureRushAudio({
@@ -450,8 +451,13 @@ function RegionPlayGame(props: LocationCompanionProps) {
     }
     const added = worldChanges.filter((change) => !seenChanges.current?.has(keyOf(change)));
     for (const change of added) seenChanges.current.add(keyOf(change));
-    if (added.length > 0) notifyPlay({ kind: 'world_changes', added });
-  }, [worldChanges, notifyPlay]);
+    if (added.length === 0) return;
+    notifyPlay({ kind: 'world_changes', added });
+    // The view raises platform signals (`world:<key>`) and requirement checks from its own world
+    // snapshot, which only re-reads when asked. Without this, a bridge a solved challenge raises
+    // (Pirate's Leap's riddle drum) stayed hidden until the child left and came back.
+    void refreshWorld().catch(() => undefined);
+  }, [worldChanges, notifyPlay, refreshWorld]);
 
   // Exactly one Pip: a manifest NPC the host serves is handed over to it.
   useEffect(() => {
