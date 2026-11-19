@@ -35,6 +35,7 @@ from apps.regions.north_pole_seed import (
     QUEST_IDS,
     REGION_ID,
     seed_north_pole,
+    upgrade_north_pole,
 )
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
@@ -227,6 +228,50 @@ class TestSeed:
             assert pool.enabled is False  # staff enable it once a set is published (ADR-046)
         replay = TreasureChest.objects.get(entity_id="np-replay-workshop-sums")
         assert replay.presentation == "REPLAY" and replay.reward_rule is None
+
+
+class TestLayoutUpgrade:
+    """GE-074 save compatibility: a database seeded before layout v2/v3 is upgraded in place."""
+
+    def old_scene(self):
+        scene = layout.scene()
+        for key in ("engineBridge",):
+            scene.pop(key)
+        scene["effects"]["checkpoints"] = [{"id": "np-cp-landing", "label": "Santa's Landing", "x": 0, "z": 92, "yaw": 0}]
+        scene["northPoleVersion"] = 1
+        scene["copy"] = {**scene["copy"], "loading": "My own words."}
+        scene["platformTuning"] = {"np-plat-trampoline": {"bounceHeight": 2.0}}
+        return scene
+
+    def test_an_old_layout_is_upgraded_and_authored_copy_and_tuning_survive(self, north_pole, api):
+        seed_north_pole()
+        region = WorldRegion.objects.get(region_id=REGION_ID)
+        region.scene = self.old_scene()
+        region.save()
+        child = north_pole.a1
+        play = Play(api(north_pole.a), child)
+        assert play.solve("np-welcome-look", submission("np-welcome-look", "PATHFINDER")).json()["correct"] is True
+        before_keys, before_items = keys(child), owned(child)
+
+        created = seed_north_pole()
+        assert f"layout v{layout.LAYOUT_VERSION} for {REGION_ID}" in created
+        region.refresh_from_db()
+        assert region.scene["northPoleVersion"] == layout.LAYOUT_VERSION
+        assert region.scene["engineBridge"] == layout.scene()["engineBridge"]
+        assert "checkpoints" not in region.scene["effects"]
+        assert region.scene["copy"]["loading"] == "My own words."
+        assert region.scene["platformTuning"] == {"np-plat-trampoline": {"bounceHeight": 2.0}}
+        # The child's saves are rows, untouched by the upgrade, and play continues.
+        assert keys(child) == before_keys and owned(child) == before_items
+        assert Play(api(north_pole.a), child).region()["region"]["scene"]["northPoleVersion"] == layout.LAYOUT_VERSION
+
+    def test_a_current_layout_is_left_alone(self, north_pole):
+        seed_north_pole()
+        region = WorldRegion.objects.get(region_id=REGION_ID)
+        version = region.version
+        assert upgrade_north_pole(region) is False
+        region.refresh_from_db()
+        assert region.version == version
 
 
 class TestBootstrap:

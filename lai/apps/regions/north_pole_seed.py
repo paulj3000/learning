@@ -38,6 +38,37 @@ from .north_pole_puzzles import ENTITY_IDS, PUZZLES
 from .platforming import layout_problems
 from .seeding import record_seed_revision, seed_puzzle
 
+# Layout keys a newer layout version rewrites (GE-074). Authored copy, environment and atmosphere,
+# and staff `platformTuning`, are never touched.
+SPATIAL_KEYS = ("bounds", "colliders", "layout", "platforming", "effects", "engineBridge")
+
+
+def upgrade_north_pole(region: WorldRegion) -> bool:
+    """Write the layout into the scene when it is missing or older than `LAYOUT_VERSION`.
+
+    Save compatible: a child's world changes, quests, items and checkpoints-earned are rows, not
+    scene data, so an upgraded Area resumes them unchanged. Returns whether anything changed.
+    """
+    scene = dict(region.scene) if isinstance(region.scene, dict) else {}
+    if scene.get("northPoleVersion", 0) >= layout.LAYOUT_VERSION:
+        return False
+    fresh = layout.scene()
+    problems = layout_problems(fresh["platforming"], bounds=layout.BOUNDS)
+    if problems:
+        raise ValueError(f"North Pole course is invalid: {problems}")
+    bridge_problems = engine_bridge_problems(fresh["engineBridge"])
+    if bridge_problems:
+        raise ValueError(f"North Pole engine bridge block is invalid: {bridge_problems}")
+    for key in SPATIAL_KEYS:
+        scene[key] = fresh[key]
+    for key in ("copy", "environment", "atmosphere"):
+        scene.setdefault(key, fresh[key])
+    scene["northPoleVersion"] = layout.LAYOUT_VERSION
+    region.scene = scene
+    region.version += 1
+    region.save(update_fields=["scene", "version", "updated_at"])
+    return True
+
 REGION_ID = layout.REGION_ID
 PLACE_SLUG = "north-pole-village"
 REALM_SLUG = "north-pole"
@@ -204,6 +235,8 @@ def seed_north_pole() -> list[str]:
         {"region_id": REGION_ID},
         {"location": place, "title": "North Pole Village", "scene": layout.scene(), "age_bands": []},
     )
+    if upgrade_north_pole(region):
+        created.append(f"layout v{layout.LAYOUT_VERSION} for {REGION_ID}")
     spawn = layout.SPAWN
     get_or_create(
         SpawnPoint,

@@ -122,8 +122,9 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
 - Ice traction (layout version 2): the east bank of the Frozen Lake, where Frosty skates and the floe
   puzzles sit, is ice through the engine bridge (`scene.engineBridge`, `environment.volumes`):
   friction 0.3 (gentler than the engine's 0.15 preset), top speed unchanged, and 2 m clear of the
-  open water so a slide never reaches it. The North Pole seed is create-only: a local database
-  seeded before this needs a fresh seed to get it. Owner check: the bank feels slippery but fair,
+  open water so a slide never reaches it. Rerunning `seed_north_pole` upgrades an older
+  local database in place (`upgrade_north_pole`, version-gated like the Heart); authored copy and
+  staff platform tuning are kept, and children's saves are rows the upgrade never touches. Owner check: the bank feels slippery but fair,
   and a child still stops quickly.
 - One checkpoint list (layout version 3): the nine zone checkpoints, the two lake-bank checkpoints
   and the open-water hazard run in the engine bridge (`scene.engineBridge`), and the platforming and
