@@ -148,4 +148,16 @@ describe("Pirate's Leap on the Game Engine Core (GE-071)", () => {
       'Splash! Back to the far dock. Have another go!',
     );
   });
+
+  it('a fall below the course returns to the latest bridge checkpoint (the live fallback)', async () => {
+    const { harness } = await course();
+    standAt(harness, -15.8, 0, -18); // the training yard
+    harness.setDrive(place(-22, -11, -26)); // below the recovery depth
+    harness.runFrames(1);
+    harness.setDrive(idle);
+    harness.runFrames(3);
+    expect(harness.engine.childPlacement().x).toBeCloseTo(-15.8);
+    expect(harness.engine.childPlacement().z).toBeCloseTo(-18);
+  });
 });
+
