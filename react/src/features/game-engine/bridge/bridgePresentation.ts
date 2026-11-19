@@ -43,6 +43,8 @@ export interface BridgePresentationOptions {
   reducedMotion: () => boolean;
   /** Where weather falls: defaults to a box around `center`. */
   center: { x: number; z: number };
+  /** GE-L14: the child's position now, for weather with `area.mode` FOLLOW_PLAYER. */
+  playerPosition?: () => { x: number; z: number };
   /** GE-068: loads an asset model for a platform with `assetId`. Absent: platforms stay coloured boxes. */
   loadModel?: (assetId: string) => Promise<{ scene: Object3D }>;
 }
@@ -211,10 +213,13 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
   }
   if (weather) {
     const tier: QualityTier = particles?.tier() ?? 'MEDIUM';
+    const area = weather.area();
+    const follow = area.mode === 'FOLLOW_PLAYER' ? options.playerPosition : undefined;
     weatherView = createWeatherView(scene, scope, weather, {
       tier,
       reducedMotion: options.reducedMotion,
-      area: { x: options.center.x, y: 0, z: options.center.z, halfX: 25, halfZ: 25, height: 15 },
+      area: { x: options.center.x, y: 0, z: options.center.z, halfX: area.halfX, halfZ: area.halfZ, height: area.height },
+      ...(follow ? { follow } : {}),
     });
   }
   if (particles) {

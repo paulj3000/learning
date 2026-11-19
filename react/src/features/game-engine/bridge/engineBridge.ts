@@ -52,7 +52,8 @@ import { hostSupport, type BridgeHostSupport, type BridgePlayerState, type Locat
  *
  * The live runtime keeps owning what it already does: movement, camera, avatar (`movement.*`,
  * `camera.*`, `character.*` are refused) and platforms (`gameplay.platforms` is refused unless
- * the bridge is created with `allowEnginePlatforms`, until GE-076), so nothing runs twice.
+ * the bridge is created with `allowEnginePlatforms`, until GE-076), so nothing runs twice. An Area
+ * may mix live and engine platforms, each id in one system only (Django refuses an id in both).
  *
  * Wiring:
  * - the engine reads the child from `host.playerState()` (fallback: `playerPosition()`) and
@@ -119,7 +120,10 @@ export interface EngineBridgeOptions {
   onGameplayEvent?: (event: AnyGameplayEvent) => void;
   /** Requirement check for engine doors, gates and portals (quest steps, world changes). */
   requirements?: RequirementChecker;
-  /** Lets `gameplay.platforms` run in the engine (only for an Area with no live platforms). */
+  /**
+   * Lets `gameplay.platforms` run in the engine. Live platforms may run beside them; a platform id
+   * belongs to one system only (Django `scene_engine_bridge_problems` refuses an id in both).
+   */
   allowEnginePlatforms?: boolean;
   /** Called with refused or invalid capability requests (the bridge then installs nothing). */
   onIssues?: (issues: readonly ValidationIssue[]) => void;
@@ -191,7 +195,7 @@ export function bridgeCapabilityRequests(
       return;
     }
     if (id === ENGINE_PLATFORMS && !allowEnginePlatforms) {
-      issues.push({ path, message: `"${id}" is owned by the live platform system until GE-076; create the bridge with allowEnginePlatforms for an Area without live platforms` });
+      issues.push({ path, message: `"${id}" is owned by the live platform system until GE-076; set allowEnginePlatforms to run engine platforms (beside any live ones, each id in one system)` });
       return;
     }
     // GE-068: staff tuning (`scene.platformTuning`, handed over as `platformTuning`) reaches the
@@ -528,7 +532,7 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   const wantsPresentation = (['gameplay.platforms', 'gameplay.hazards', 'environment.weather', 'environment.lighting', 'environment.particles'] as const).some((id) => runtime.installed.has(id));
   let presentation: BridgePresentation | null = null;
   if (host.scene) {
-    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}) });
+    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), playerPosition: () => host.playerPosition(), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}) });
   } else if (wantsPresentation) {
     runtime.diagnostics.warn('HOST_SCENE_MISSING', { fallback: 'nothing is drawn' });
   }
