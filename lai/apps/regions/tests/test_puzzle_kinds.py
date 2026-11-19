@@ -363,18 +363,25 @@ class TestAuthoringCrossChecks:
 @pytest.mark.postgres
 @pytest.mark.django_db(transaction=True)
 def test_the_kind_migration_applies_and_rolls_back():
+    # Target the kind migration by name: later migrations (the castle's 0008 and 0009 on the
+    # integration branch) may sit on top, so the regions leaf is not this migration.
+    kinds = ("regions", "0007_puzzle_kinds_choose_order")
+    previous = ("regions", "0006_merge_main")
     executor = MigrationExecutor(connection)
-    latest = executor.loader.graph.leaf_nodes("regions")
-    assert latest
-    names = [name for app, name in latest]
-    assert any(name.endswith("puzzle_kinds_choose_order") for name in names), names
-    previous = [("regions", "0006_merge_main")]
-    executor.migrate(previous)
-    executor = MigrationExecutor(connection)
-    executor.migrate(latest)
-    constraint_sql = _constraint_definition()
-    assert "CHOOSE_ANSWER" in constraint_sql
-    assert "ORDER_SEQUENCE" in constraint_sql
+    leaves = executor.loader.graph.leaf_nodes("regions")
+    assert kinds in executor.loader.graph.nodes
+    try:
+        executor.migrate([previous])
+        assert "CHOOSE_ANSWER" not in _constraint_definition()
+        executor = MigrationExecutor(connection)
+        executor.migrate([kinds])
+        constraint_sql = _constraint_definition()
+        assert "CHOOSE_ANSWER" in constraint_sql
+        assert "ORDER_SEQUENCE" in constraint_sql
+    finally:
+        # Leave the schema where the rest of the suite expects it.
+        executor = MigrationExecutor(connection)
+        executor.migrate(leaves)
 
 
 def _constraint_definition() -> str:
