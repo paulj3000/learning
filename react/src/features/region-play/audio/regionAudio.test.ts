@@ -14,6 +14,7 @@ import {
   regionAudioFor,
   zoneAmbienceFor,
 } from './regionAudio';
+import { puzzleSolveCues } from '../soundCues';
 import { builtInZonesFor, mergeZones } from './useTreasureRushAudio';
 import {
   CUE_SOUNDS,
@@ -159,6 +160,27 @@ describe('region audio registry', () => {
       FIREPEAK_REGION_ID,
       NORTH_POLE_REGION_ID,
     ]);
+  });
+
+  it('keeps each realm finale to its own realm (GE-070 QA item 18)', () => {
+    // Returning to Pip with the treasure completes Pip's quest; the Treasure Rush finale is its
+    // own (TR-14, on main since 2026-11-03), never a Firepeak cue.
+    const tr = regionAudioFor(TREASURE_RUSH_REGION_ID);
+    expect(momentSoundsFor(TREASURE_RUSH_REGION_ID, 'questComplete')).toEqual([TR_SOUND.questComplete]);
+    expect(tr.music.victory).toBe(TR_SOUND.musicVictory);
+    const firepeakCues = new Set<string>(Object.values(FP_SOUND));
+    const trCues = [
+      ...Object.values(tr.momentSounds).flat(),
+      ...Object.values(tr.music),
+      ...Object.values(tr.zoneAmbience),
+      tr.entryAmbience,
+      tr.checkpointCue,
+      tr.recoverCue,
+    ];
+    expect(trCues.filter((cue) => cue && firepeakCues.has(cue))).toEqual([]);
+    // A solve that finishes no quest raises no finale anywhere.
+    expect(puzzleSolveCues('OBSERVE_FEATURES', { correct: true, solvedNow: true, questUpdates: [{ justCompleted: false }] })).not.toContain('questComplete');
+    expect(puzzleSolveCues('OBSERVE_FEATURES', { correct: true, solvedNow: true, questUpdates: [{ justCompleted: true }] })).toContain('questComplete');
   });
 
   it('falls back silently for an unknown region', () => {
