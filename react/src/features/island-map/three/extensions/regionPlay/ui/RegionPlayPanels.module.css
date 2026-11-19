@@ -446,6 +446,21 @@
   font-size: var(--font-size-large);
 }
 
+/*
+  Touch screens (jumping standard: the Jump button covers no other control). The world HUD's Jump
+  button sits on the right edge from max(42%, 9.5rem) up, 6.5rem wide at most with its margin
+  (WorldHud.module.css), which is where this bubble opens on a phone. Keep the bubble left of it.
+*/
+@media (any-pointer: coarse) {
+  .hintBubble {
+    right: calc(var(--space-4) + 6.5rem);
+    max-width: min(
+      22rem,
+      calc(100vw - 2 * var(--space-4) - 6.5rem - var(--child-nav-inset-left, 0px))
+    );
+  }
+}
+
 .hintBubble p {
   margin: 0 0 var(--space-2);
 }

@@ -76,8 +76,12 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
 - **Audio test defect:** the 37-test cascade was a timed-out test's `act()` scope overlapping the
   next test. Fixed in the test file (guarded `act`, in-flight scopes awaited); no retries, no
   timeout change. Verified through the infrastructure lead's test gate under load.
+- **Parity audit (2026-11-19):** every area matches the gameplay contracts
+  (migration-matrix section 6.3). Fixed: the region-play hint bubble overlapped the touch Jump
+  button on phones. New tests: a mid-visit riddle change reaches the engine bridge; the
+  third-person camera never ends inside an engine platform.
 - **Not done:** browser and device QA (models fitted to engine platform boxes, platform sounds,
-  riddle bridge in a real visit).
+  riddle bridge in a real visit, the hint and Jump layout on a phone).
 
 ## GE-100 to GE-110: universal scoring and progression engine (2026-11-19, `core/ge-scoring`); development complete, integration into `core/gameengine` pending, economy OFF and NOT owner-approved, NOT merged
 

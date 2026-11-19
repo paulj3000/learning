@@ -86,6 +86,14 @@ Tick each item. Use a Pathfinder or Explorer child for the full course and a Spr
 14. [ ] Ambience changes between the landing, grove, ruins, beach and Lookout Point. Chest,
     key, reward, jump and landing sounds play once. The Sound button mutes and sets volume.
 
+**Touch device and third person (parity audit)**
+
+16. [ ] On a phone (portrait and landscape), open a hint in Treasure Cove. The hint bubble and
+    the Jump button do not overlap, and Backpack and Hint stay clear of Jump.
+17. [ ] In third person, ride the lift and walk past the barrels and the stairs. The camera never
+    goes inside a platform.
+18. [ ] Integrated build only: returning to Pip with the treasure plays the finale sound once.
+
 **Scoring (off by default)**
 
 15. [ ] With scoring off, nothing new appears on screen. (Scoring's own QA belongs to GE-100.)
@@ -106,6 +114,7 @@ Each area below is guarded by these tests. The counts are the tests in each file
 | NPCs | `regionPlay/RegionPlayCompanion.npc.test.tsx` (9), `test_treasure_pip_seed.py` (13) |
 | Chests and collectibles | `regionPlay/RegionPlayCompanion.test.tsx` (67), `regionPlay/pickups.engine.test.ts` (7), `regionPlay/pipsTreasure.engine.test.ts` (6), `test_chest_play.py` (25), `test_pips_treasure.py` (22) |
 | Quest progression | `test_pips_treasure.py`, `test_pirates_leap.py` (16), `test_lookout_replay.py` (14), `quests/tests/test_progress.py` (10), `regionPlay/lookoutPoint.engine.test.ts` (13) |
+| Touch layout | `regionPlay/ui/touchJumpLayout.test.ts` (2), `portal/shell/childNavInsets.test.ts` |
 | Audio | `region-play/audio/treasureRushAudio.test.tsx` (50 test cases, 59 runs with tables), `test_treasure_rush_seed.py` (6) |
 | Scoring event delivery | `region-play/regionPlayClaims.test.ts` (8), `runtime/gameplayClaimSink.test.ts` (4), `regionPlay/piratesLeap.claims.engine.test.ts` (5), the claims tests in `RegionPlayCompanion.test.tsx` (3), `game-engine/bridge/engineBridge.test.ts` (15) |
 | Save and restore | `region-play/useRegionPlay.test.tsx` (20), `region-play/regionPlayState.test.ts` (10), `region-play/regionManifest.test.ts` (24), `test_play_api.py` (30), `regionPlay/lookoutPoint.engine.test.ts` (revisit) |
