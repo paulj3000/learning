@@ -34,6 +34,12 @@
 | GE-R7 | WebGL, visual and touch behaviour are not covered by unit tests | Owner QA and browser checks at merge readiness (GE-090) |
 | GE-R8 | `DECISIONS.md` merge resolution (E9) may differ from how the movement owner resolves PR #26 | Owner decision O3; the branch follows the owner's choice |
 
+## 2a. Investigated and closed as not an engine defect
+
+| Card | Finding |
+|---|---|
+| [ijhrYTi4](https://trello.com/c/ijhrYTi4) | Parity tests "2 to 6 times slower after the engine merge": not reproduced. Interleaved gated runs show main and core equal (median summed test time 2,421 ms main versus 2,172 ms integrated), and both fail together during CPU bursts the load average hides. Retitled as host contention, owned by infrastructure; `test_gate.py` now waits on CPU pressure |
+
 ## 3. Design limits found in the workstreams
 
 | Id | Limit | Follow-up |
@@ -48,6 +54,11 @@
 | GE-L8 | GameHost pauses on window blur, including clicks into devtools or an iframe | As specified |
 | GE-L9 | `renderer.info` gauges, the WebGL path and production-build route stripping are untested in unit tests | Merge readiness (GE-090) |
 | GE-L10 | In the standard assembly, platform carry is applied after the platforms system, so the canonical transform shows the carried position one simulation step (about 16 ms) later than the controller | Pinned by an expected-failure stabilization test (`game/src/stabilization/fixedTimestepMovement.test.ts`), which turns red when the lag is fixed; candidate fix: order the carry system before the transform write |
+| GE-L11 | Locations without an adventure or companion claim binding drop the GE-067 host claims (discoveries, NPC talks) and bridge checkpoint claims, because `emitLocationClaim` needs a visit binding (found by the Storykeeper lead) | Fixed: `ThreeLocationWorldView` sets a default location-visit binding (realmId and `explore:<slug>` from the Place slug, areaId the region, no session); a companion binding overrides it; no adventure start or completion is claimed under it (shape agreed with the scoring lead) |
+| GE-S1 | The 10 legacy island-map shims import through the package `./*` wildcard (`@lai/game-engine/movement/firstPersonController`) rather than a listed subpath (`./movement`, `./camera`, `./input`) | Low. Pinned with `it.fails` in `react/src/features/game-engine/stabilization/importBoundaries.test.ts`, and a passing test fixes the exact set so no new wildcard import can appear. Point the shims at listed subpaths, or remove them, in GE-076 |
+| GE-L12 | `createStandardEngine`: a dispose during async setup resolves with an already-disposed handle instead of rejecting (the "disposed while starting" throw is unreachable); the runtime is clean (zero resources, avatar removed) | Low. A caller should check `handle.runtime.state`. Candidate fix: reject when disposed during setup. Pinned by a stabilization test that accepts either outcome |
+| GE-L13 | `CheckpointsService.markReached` on an older checkpoint after a newer one makes the older one `latest()` again | Low. The bridge's `resume` sorts into authored order first, so it is safe today; a host calling `markReached` out of order would move fall recovery backwards. Candidate fix: `latest` by authored order, not mark order |
+| GE-T1 | Three host-lifecycle stabilization tests (20-cycle remounts, keyboard retry) carry a 30 s budget because they ran past 5 s under machine load | Low (test cost, not product). A slow-machine workaround, not a root fix; review under the GE-090 gated full run |
 
 ## 4. Behaviour to keep (from the Treasure Rush handoff)
 

@@ -57,7 +57,11 @@ export interface JumpChallengeDefinition {
    * shortcuts or secrets, as the jumping standard allows.
    */
   accessibleRouteId: string | null;
-  /** Sprouts: jump routes are optional only. Required progress is never gated on jumping. */
+  /**
+   * Nothing required depends on this challenge (decision E16; the same meaning as the
+   * gameplay.jumpChallenges component's `optional`). When false, it sits on required progress and
+   * must have an accessible route, so jumping is never needed, for any age band.
+   */
   optional: boolean;
 }
 
@@ -313,10 +317,11 @@ export function validateAdventure(
       } else if (checkId(raw.accessibleRouteId, `${path}.accessibleRouteId`, issues) && raw.accessibleRouteId === raw.jumpRouteId) {
         issues.push({ path: `${path}.accessibleRouteId`, message: 'must differ from jumpRouteId' });
       }
+      // `optional` has ONE meaning in every layer (decision E16): nothing required depends on the
+      // challenge. Required progress (optional: false) always has an accessible route (checked
+      // above), so the jump route is already optional for a Sprouts child; no band-specific rule.
       if (typeof raw.optional !== 'boolean') {
         issues.push({ path: `${path}.optional`, message: 'must be true or false' });
-      } else if (!raw.optional && ageBands.includes('SPROUT')) {
-        issues.push({ path: `${path}.optional`, message: 'must be true: Sprouts jump routes are optional only' });
       }
       jumpChallenges.push(raw as unknown as JumpChallengeDefinition);
     });

@@ -451,6 +451,8 @@ function RegionPlayGame(props: LocationCompanionProps) {
     playCue(NPC_SOUND_CUES[moment], { npcId });
   }, []);
   const npcHost: NpcSceneHost = useNpcSceneHost({
+    // Region play claims talks from the server's talk outcome (regionPlayClaims), not here.
+    claimInteractions: false,
     childId,
     scope: { kind: 'area', regionId },
     scene: npcScene,

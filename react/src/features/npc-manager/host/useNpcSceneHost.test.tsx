@@ -1,4 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
+import { validateGameplayEvent, type AnyGameplayEvent } from '@lai/game-engine/contracts';
+import { setLocationClaimSink, setLocationClaimsBinding } from '../../island-map/three/runtime/gameplayClaimSink';
 import userEvent from '@testing-library/user-event';
 import { Group } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -871,5 +873,41 @@ describe('NPC scene host: accessibility (LAI-NPC-038)', () => {
       for (let i = 0; i < 60; i += 1) world.moveTo({ x: 0, z: 6 });
       expect(root().rotation.y).not.toBeCloseTo(firstFrame, 3);
     });
+  });
+});
+
+describe('GE-067: NPC talks are claimed through the visit claim router', () => {
+  async function talkWith(props: Partial<UseNpcSceneHostOptions>) {
+    const claims: AnyGameplayEvent[] = [];
+    const stopSink = setLocationClaimSink((event) => claims.push(event));
+    const stopBinding = setLocationClaimsBinding({ realmId: 'treasure-rush', adventureId: 'treasure-cove', areaId: 'cove', sessionRef: null });
+    const { world } = setup({ props });
+    await flush();
+    world.moveTo({ x: 3, z: 7 });
+    await userEvent.click(screen.getByRole('button', { name: 'Talk to Pirate Pip' }));
+    await flush();
+    stopBinding();
+    stopSink();
+    return claims.filter((c) => c.type === 'npc.interaction.completed');
+  }
+
+  it('claims npc.interaction.completed once the world talk call succeeded', async () => {
+    const claims = await talkWith({ onInteract: async () => undefined });
+    expect(claims.map((c) => c.payload)).toEqual([{ npcId: 'pirate-pip', interactionId: 'cove-pip' }]);
+    expect(validateGameplayEvent(claims[0]).ok).toBe(true);
+  });
+
+  it('claims nothing when the world claims talks itself (region play)', async () => {
+    expect(await talkWith({ onInteract: async () => undefined, claimInteractions: false })).toEqual([]);
+  });
+
+  it('claims nothing when the world talk call failed', async () => {
+    expect(
+      await talkWith({
+        onInteract: async () => {
+          throw new Error('offline');
+        },
+      }),
+    ).toEqual([]);
   });
 });

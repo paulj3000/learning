@@ -191,6 +191,9 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
         "jobs",  # background job status, read-only; payloads never carry child data
         "npcs",  # NPC Manager (ADR-054); conversation state stays unregistered (child-owned)
         "regions",
+        # Scoring policies and rules only (GE-102): no child data; the award ledger and
+        # projections are child-owned and stay unregistered (checked above and below).
+        "scoring",
         "speech",
         "question_studio",
         "seasons",  # Seasonal events (NP-023, ADR-081): content only; completions unregistered
@@ -198,6 +201,8 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
     }
     education = {m.__name__ for m in registered if m._meta.app_label == "education"}
     assert education == {"ChallengeSpec"}
+    scoring = {m.__name__ for m in registered if m._meta.app_label == "scoring"}
+    assert scoring == {"ScoringPolicy"}
 
 
 def test_an_admin_session_never_authenticates_the_api():
