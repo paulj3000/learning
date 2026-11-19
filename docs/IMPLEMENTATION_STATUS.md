@@ -59,7 +59,34 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
   decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
   order, scoring economy against the scoring standard.
 
-## TR-21: Treasure Rush Game Engine Core migration preparation (2026-11-18, `feature/treasure-rush-palm-trees`); in development, NOT merged
+## GE-070: Treasure Rush migrated onto the Game Engine Core (2026-11-19, `feature/GE-070-treasure-rush-engine-migration`); development complete, owner QA pending, NOT merged
+
+Trello GE-070 (https://trello.com/c/3M8AAV14). The owner approved the start and the bridge
+wiring scope addition on 2026-11-19. Evidence in full: `docs/engineering/game-engine/migration-matrix.md`
+section 5.
+
+- **Engine merged in, never rebased:** `core/gameengine` @ `dcc45032`, `e4148949`, `ae336f3f`,
+  `e9caa3d8` on top of `feature/treasure-rush-palm-trees` @ `ce20c90b`.
+- **Imports:** Treasure Rush code imports moved modules from `@lai/game-engine`; a guard test keeps
+  the shims out of it.
+- **Live runtime host contract** (`createLocationEngine`, `WorldExtensionContext`): collider ids and
+  removal from every list (GE-D2, GE-D3), a checked, silent teleport (GE-D4), `playerState()` and
+  `setEnvironment()` for the engine bridge (GE-065).
+- **Engine bridge wiring for every region-play Area:** registered extension, `scene.engineBridge`
+  in the region manifest, a Django publish check (`apps.regions.engine_bridge`), and one gameplay
+  claim sink per visit (`runtime/gameplayClaimSink.ts`; `ThreeLocationWorldView` `onGameplayEvent`).
+- **Treasure Cove as an `AdventureDefinition`** (`treasureCoveAdventure.json`), validated by the SDK
+  and `npm run engine:validate`, and cross-checked against the seed in pytest.
+- **Claims:** chest answers (`CHEST_CHALLENGE`), pickups, NPC talk, quest steps and completion,
+  restated from server outcomes. Facts for Django to confirm, never awards; nothing is wired to a
+  scoring intake yet (`onGameplayEvent` is unset in the app until GE-100 provides its hook).
+- **Behaviour:** no gameplay, content, progress or learning-objective change.
+- **Tests (unit, by path):** Vitest 3,058 passed (3 load timeouts, each file passing alone),
+  `game/` 578, pytest 1,094 on PostgreSQL 16, typecheck clean.
+- **Open:** GE-D5 and GE-D8 (GE-075, GE-076); Pirate's Leap course and jump claims (GE-071); browser,
+  device and owner QA.
+
+## TR-21: Treasure Rush Game Engine Core migration preparation (2026-11-18, `feature/treasure-rush-palm-trees`); development complete, NOT merged
 
 Trello TR-21 (https://trello.com/c/u1lAWeAg). The migration itself is GE-070, which waits for the
 engine lead's migration-ready SHA on `core/gameengine`.

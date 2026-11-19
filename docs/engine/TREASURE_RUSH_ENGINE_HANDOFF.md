@@ -314,6 +314,12 @@ Every item must behave the same after migration. Test files are the guard.
 
 ## 10. Migration plan for Treasure Rush (incremental, after the SDK is stable)
 
+> **Status (2026-11-19):** steps 1, 2 and 6 are done, and the definition and claims went beyond
+> them, on `feature/GE-070-treasure-rush-engine-migration` (GE-070). Steps 3 and 5 are open for
+> GE-075 and GE-076. Step 4 is partly done: the claim mapping lives in its own module
+> (`region-play/regionPlayClaims.ts`). Evidence: `docs/engineering/game-engine/migration-matrix.md`
+> section 5.
+
 Treasure Rush migrates only once the engine lead publishes a stable SDK and compatibility
 contract. Each step is one commit with its own regression tests, and never combines a backend
 domain change with an engine change (CLAUDE.md section 19).
