@@ -59,7 +59,7 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
   decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
   order, scoring economy against the scoring standard.
 
-## GE-100 to GE-110: universal scoring and progression engine (2026-11-18, `core/ge-scoring`); development complete, economy OFF and NOT owner-approved, NOT merged
+## GE-100 to GE-110: universal scoring and progression engine (2026-11-19, `core/ge-scoring`); development complete, integration into `core/gameengine` pending, economy OFF and NOT owner-approved, NOT merged
 
 **Conflict raised, not resolved.** ADR-011 part A and the scoring standard (ADR-072, mandatory)
 prohibit XP, coins and levels. GE-100 asks for them and also says "do not activate unapproved
@@ -109,25 +109,40 @@ economy". The engine is therefore built but dormant:
 - [Trust boundary](scoring/TRUST_BOUNDARY.md)
 - [Migration plan](scoring/MIGRATION_PLAN.md)
 
-**Checks** (unit only, 2026-11-18):
-- pytest `lai/apps/scoring`: 257 tests.
-- With the `core`, `inventory`, `progression`, `quests`, `game_sessions` and `education`
-  regression suites: 1,032 passed, 1 failed. The failure was the admin app allow-list, which
-  needed `scoring` added; it was fixed and rerun, and the affected files pass (73 passed).
-- Vitest: `features/scoring` 38; with routes, parent dashboard and golden, 135 passed.
-- `npm run typecheck`, ruff and `make docs-check` pass. Not run, deferred to authorized merge
-readiness: Playwright, browser, full suites, lint and format gates, build.
+**GE-109 (2026-11-19)**
 
-**Open**
+- Realm adapters as data (`lai/apps/scoring/realms.py`): Treasure Cove, the Pirate's Leap
+  course, Firepeak Volcano and Heart, and North Pole.
+  - A completion counts only when every BUILD key of its quests is proven by a server record
+    (graded chest, solved puzzle, authored pickup). Forged world changes prove nothing.
+  - Hidden pickup items count as secrets.
+- Backfill twice, policy changes and concurrent races never duplicate (tested).
+- The location page is wired to the GE-070 claim sink, only while scoring is on
+  (`useScoringForPlay`).
+- Jumps stay deferred, with the owner's options in
+  [TRUST_BOUNDARY.md](scoring/TRUST_BOUNDARY.md) section 7.
 
-- The owner's ADR decision and an approved policy.
+**Checks** (unit only):
+- pytest at 1f1340c2: scoring plus `core`, `inventory`, `progression`, `quests`,
+  `game_sessions` and `education` gave 1,051 passed, 4 skipped.
+- pytest at 77d170c1 (after merging core/gameengine fc5c71cf): scoring plus the merged regions
+  and play API tests gave 341 passed, 4 skipped. The skips are the Firepeak Heart and North Pole
+  content-drift checks; that content is not on this branch.
+- Vitest: 252 passed (scoring, game-engine, rewards, routes, parent dashboard, golden); after
+  the merge, scoring and routes 115 passed.
+- `game/src/contracts`: 56 passed.
+- Typecheck, ruff and `make docs-check` pass.
+- Not run, deferred to authorized merge readiness: Playwright, browser, full suites, lint and
+  format gates, build.
+
+**Open (owner and integration gates)**
+
+- The owner's ADR decision (number not reserved; not ADR-073) and an approved policy.
 - Retiring or keeping the legacy `treasure-rush-cove` quest (suppressed in the dev policy).
-- Realm selectors from the Firepeak/North Pole and Treasure Rush mapping tables, at integration.
-- A content-drift test at integration.
-- Mounting the adapter: `useScoringClaims(childId)` exists. The host owner passes its
-  `onGameplayEvent` to `GameHost` and renders `ScoreNotification`.
-- A server-bounded record before jump and course awards can count.
-- Concurrency of `record_awards` under real parallel writers is not tested.
+- A decision on authoritative jumps (options documented; deferred).
+- The Firepeak Heart and North Pole drift tests run once their content integrates.
+- Integration into `core/gameengine` by the engine lead.
+- Owner QA, merge and deployment.
 
 ## GE-070: Treasure Rush migrated onto the Game Engine Core (2026-11-19, `feature/GE-070-treasure-rush-engine-migration`); development complete, owner QA pending, NOT merged
 
