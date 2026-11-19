@@ -118,3 +118,16 @@ goal claims, valid session-bound claims, recovery copy via bridge labels); Djang
 Open: platform presentation and carry (GE-066), then moving the 16 platforms and the plate;
 wiring the live controller's `recoveryPoint` to the bridge's latest checkpoint once exposed (the
 cove is flat, so a live fall below ground cannot happen there).
+
+Test runs after merging core `4b63f9ca` (unit only, by path, through the infrastructure lead's test
+gate; load average 6 to 10 from other agents):
+
+- Vitest `island-map/three`, `region-play`, `npc-manager`, `audio`, `api/play`, `game-engine`,
+  `scoring` and `LocationWorldPage`: 2,895 passed. 9 failed under load: 8 in the castle's
+  `CastleTaleCompanion.npc.test.tsx` (the GE-D9 timeout cascade, fixed on the castle branch) and 1
+  timeout in `useNpcSceneHost.test.tsx`. Each file passes alone (11/11, 33/33).
+- `game/`: 610 passed, 1 expected fail.
+- pytest on PostgreSQL 16 (Treasure Rush apps): 1,099 passed. One expected failure was fixed in
+  `43455621`: `test_treasure_cove_layout.py` hard-coded course "v1"; it now follows
+  `LEAP_VERSION` (45/45).
+- `npm run typecheck` clean; `make docs-check` passed.
