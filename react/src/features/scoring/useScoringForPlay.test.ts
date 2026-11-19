@@ -61,4 +61,16 @@ describe('useScoringForPlay', () => {
     expect(result.current.pending).toHaveLength(1);
     expect(result.current.confirmed).toEqual([]);
   });
+
+  it('keeps onGameplayEvent referentially stable across re-renders, so the sink is set once', async () => {
+    getScoringSummary.mockResolvedValue(enabledSummary());
+    getScoringAwards.mockResolvedValue({ awards: [], cursor: 'c', hasMore: false });
+    const { result, rerender } = renderHook(() => useScoringForPlay('child-1'));
+    await waitFor(() => expect(result.current.enabled).toBe(true));
+    const first = result.current.onGameplayEvent;
+    rerender();
+    act(() => result.current.onGameplayEvent(claim)); // state changes re-render the hook too
+    rerender();
+    expect(result.current.onGameplayEvent).toBe(first);
+  });
 });
