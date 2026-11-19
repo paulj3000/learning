@@ -104,6 +104,15 @@ const LocationWorldPage = lazy(() =>
   })),
 );
 
+/** Dev-only Game Engine Playground; `import.meta.env.DEV` is false in builds, so it is dropped. */
+const GameEnginePlayground = import.meta.env.DEV
+  ? lazy(() =>
+      import('../features/game-engine/playground/GameEnginePlayground').then((module) => ({
+        default: module.GameEnginePlayground,
+      })),
+    )
+  : null;
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -274,6 +283,16 @@ export function AppRoutes() {
           </RequireParent>
         }
       />
+      {GameEnginePlayground ? (
+        <Route
+          path="/dev/game-engine"
+          element={
+            <Suspense fallback={<p>Loading...</p>}>
+              <GameEnginePlayground />
+            </Suspense>
+          }
+        />
+      ) : null}
       <Route
         path={LOCATION_WORLD_ROUTE}
         element={

@@ -1,0 +1,101 @@
+.overlay {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  max-width: 14rem;
+  padding: 0.5rem 0.75rem;
+  font: 0.75rem/1.4 ui-monospace, monospace;
+  color: #e6f4ff;
+  background: rgba(8, 20, 30, 0.8);
+  border-radius: 0.5rem;
+  pointer-events: auto;
+}
+
+.overlay h4 {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.75rem;
+}
+
+.toggle {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 32px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0 0.75rem;
+  margin: 0;
+}
+
+.stats dt {
+  opacity: 0.7;
+}
+
+.stats dd {
+  margin: 0;
+  text-align: right;
+}
+
+.row {
+  display: contents;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.panel {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #c8d4dc;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.smallButton {
+  min-height: 32px;
+  padding: 0 0.75rem;
+}
+
+.muted {
+  color: #5b6b76;
+}
+
+.log {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 14rem;
+  overflow: auto;
+  font: 0.8125rem/1.5 ui-monospace, monospace;
+}
+
+.log li[data-dropped='true'] {
+  color: #b3261e;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 0.375rem;
+  border-radius: 0.25rem;
+  background: #e3edf3;
+  font-size: 0.6875rem;
+}
+
+.ids {
+  color: #45606f;
+}
