@@ -19,6 +19,7 @@ import type { WorldEngineEventBus } from '../../island-map/three/worldEngineEven
 import { setSoundSink, type SoundCue, type SoundPlace } from '../soundCues';
 import { createTreasureRushMusic } from './treasureRushMusic';
 import { regionAudioFor, type RegionAudio } from './regionAudio';
+import { listenFootsteps } from './surfaceFootsteps';
 import {
   FOOTSTEP_VOLUME,
   LANDING_SOUND_MIN_SPEED,
@@ -175,17 +176,19 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
       void player.play(TR_SOUND.playerLand).catch(() => undefined);
     });
     // Running & sprinting: optional footsteps, at the pace the engine reports, louder when faster.
-    const offStep = bus.on('PlayerFootstep', ({ gait }) => {
-      void player
-        .play(TR_SOUND.playerFootstep, { volume: FOOTSTEP_VOLUME[gait] })
-        .catch(() => undefined);
-    });
+    // GE-074: the surface underfoot may choose the cue (North Pole ice and snow).
+    const offStep = listenFootsteps(
+      bus,
+      (cue, gait) => void player.play(cue, { volume: FOOTSTEP_VOLUME[gait] }).catch(() => undefined),
+      TR_SOUND.playerFootstep,
+      regionAudio.footstepCues,
+    );
     return () => {
       offJump();
       offLand();
       offStep();
     };
-  }, [bus, player]);
+  }, [bus, player, regionAudio]);
 
   // LAI-JMP-02 / LAI-JMP-04: platforms, plates, checkpoints and recovery, by logical cue id. A
   // platform may name its own cue; with no published audio the play fails quietly.

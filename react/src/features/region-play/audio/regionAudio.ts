@@ -30,6 +30,11 @@ export interface RegionAudio {
   /** Engine checkpoint (`CourseCheckpointReached`) and recovery (`PlayerRecovered`) cues. */
   readonly checkpointCue: string;
   readonly recoverCue: string;
+  /**
+   * Engine surface footstep cue (`SurfaceFootstep.footstepCue`: `iceStep`, `snowStep`) -> cue id.
+   * Absent or unmapped: the default footstep (GE-074).
+   */
+  readonly footstepCues?: Readonly<Record<string, string>>;
 }
 
 export const TREASURE_RUSH_REGION_ID = 'treasure-rush-cove';
@@ -228,6 +233,8 @@ const NORTH_POLE_AUDIO: RegionAudio = {
   momentSounds: NORTH_POLE_MOMENT_SOUNDS,
   checkpointCue: NP_SOUND.checkpoint,
   recoverCue: NP_SOUND.respawn,
+  // Ice on the Frozen Lake bank and snow everywhere else (scene.engineBridge surfaces).
+  footstepCues: { iceStep: NP_SOUND.iceStep, snowStep: NP_SOUND.snowStep },
 };
 
 export const REGION_AUDIO: Readonly<Record<string, RegionAudio>> = {

@@ -44,7 +44,8 @@ REGION_ID = "north-pole-village"
 BOUNDS = {"halfExtentX": 66, "halfExtentZ": 100, "wallThickness": 1}
 # 2: scene.engineBridge, the Frozen Lake ice surface (GE-074).
 # 3: one checkpoint list and the lake water hazard in scene.engineBridge (GE-074).
-LAYOUT_VERSION = 3
+# 4: a village-wide snow surface for snow footsteps (grip and speed unchanged; GE-074).
+LAYOUT_VERSION = 4
 SNAPSHOT_PATH = Path(__file__).with_name("north_pole_scene.json")
 
 SPAWN = {"checkpoint_id": "np-cp-landing", "x": 0, "z": 92, "yaw": math.pi, "label": "Santa's Landing"}
@@ -998,6 +999,19 @@ def _engine_bridge() -> dict:
                 "config": {
                     "surfaces": [
                         {
+                            # Everywhere: snow underfoot for the footstep sound only. Grip and
+                            # speed stay normal (the engine's snow preset would slow children).
+                            "id": "np-village-snow",
+                            "surfaceId": "snow",
+                            "box": {
+                                "min": {"x": -BOUNDS["halfExtentX"], "y": -1.0, "z": -BOUNDS["halfExtentZ"]},
+                                "max": {"x": BOUNDS["halfExtentX"], "y": 8.0, "z": BOUNDS["halfExtentZ"]},
+                            },
+                            "friction": 1.0,
+                            "speedMultiplier": 1.0,
+                            "priority": 0,
+                        },
+                        {
                             "id": "np-lake-ice",
                             "surfaceId": "ice",
                             "box": {
@@ -1006,6 +1020,7 @@ def _engine_bridge() -> dict:
                             },
                             "friction": ICE_FRICTION,
                             "speedMultiplier": 1.0,
+                            "priority": 10,  # wins over the village snow
                         }
                     ],
                     "hazardRects": [dict(LAKE_WATER)],

@@ -131,6 +131,10 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
   effects lists are gone. A returning child still resumes at the furthest zone they reached; a fall
   in the water returns them to the bank they last touched. The sled back to Santa's Landing carries
   its destination. Owner check: resume after leaving mid-story; fall in the lake from each bank.
-- Waiting: snow and ice footsteps (the Sound Manager port is not wired) and engine weather after
-  atmosphere parity.
+- Snow and ice footsteps (layout version 4): snow underfoot everywhere (sound only; grip and speed
+  unchanged) and ice on the lake bank, through the engine bridge's surface footsteps; region audio
+  plays `sfx.north_pole.snow_step` or `sfx.north_pole.ice_step` instead of the default, one sound
+  per step. Silent until those recordings are uploaded (audio inventory). Owner check: footsteps
+  change when stepping onto the lake bank.
+- Waiting: engine weather after atmosphere parity (the bridge does not draw weather yet).
 

@@ -7,6 +7,10 @@ import { ENGINE_BRIDGE_EXTENSION_ID, mountEngineBridge } from '../../game-engine
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
 import { WorldEngineEventBus, type WorldEngineEventMap } from '../../island-map/three/worldEngineEvents';
 import { earnedBridgeCheckpoints, worldSignals } from '../engineBridgeProgress';
+import { NP_SOUND, regionAudioFor, NORTH_POLE_REGION_ID } from '../audio/regionAudio';
+import { listenFootsteps } from '../audio/surfaceFootsteps';
+
+const NORTH_POLE_AUDIO_FOOTSTEPS = regionAudioFor(NORTH_POLE_REGION_ID).footstepCues ?? {};
 import type { EnvironmentQuery } from '@lai/game-engine';
 import { buildRegionManifest } from '../regionManifest';
 import { toRegionSceneModel } from '../sceneModel';
@@ -64,9 +68,10 @@ describe('North Pole engine bridge (GE-074)', () => {
     expect(ice.friction).toBeCloseTo(0.3);
     expect(ice.speedMultiplier).toBe(1);
     // Beside the open water, the island, and the village: normal ground.
-    expect(query.surfaceAt(-43.5, 0, 10).id).toBe('ground');
-    expect(query.surfaceAt(-58, 0, 12).id).toBe('ground');
-    expect(query.surfaceAt(0, 0, 60).id).toBe('ground');
+    expect(query.surfaceAt(-43.5, 0, 10).id).toBe('snow'); // beside the water: not ice
+    expect(query.surfaceAt(-58, 0, 12).id).toBe('snow');
+    expect(query.surfaceAt(0, 0, 60).id).toBe('snow'); // the village: snow, normal grip
+    expect(query.surfaceAt(0, 0, 60).friction).toBe(1);
     mount.dispose();
     expect(fake.environment.at(-1)).toBeNull();
   });
@@ -135,6 +140,26 @@ describe('North Pole checkpoints and the lake water on the bridge (GE-074)', () 
     fake.advance(0.2);
     expect(fake.recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'np-course-cp-lake-east', hazardId: 'np-hazard-lake-water' }]);
     expect(fake.teleports.at(-1)).toEqual({ x: -42, z: 8 });
+    mount.dispose();
+  });
+});
+
+describe('North Pole footsteps through the bridge (GE-074)', () => {
+  it('a step on the lake bank sounds like ice, a step in the village like snow', async () => {
+    const fake = liveHost(bridgeConfig()!);
+    const mount = mountEngineBridge(fake.value);
+    const played: string[] = [];
+    const off = listenFootsteps(fake.value.bus, (cue) => played.push(cue), 'default', NORTH_POLE_AUDIO_FOOTSTEPS);
+    fake.at(-35, 0, 10);
+    fake.advance(1 / 60); // the bridge reads where the child stands once per frame
+    fake.value.bus.emit('PlayerFootstep', { gait: 'walk' });
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    fake.at(0, 0, 60);
+    fake.advance(1 / 60);
+    fake.value.bus.emit('PlayerFootstep', { gait: 'walk' });
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(played).toEqual([NP_SOUND.iceStep, NP_SOUND.snowStep]);
+    off();
     mount.dispose();
   });
 });

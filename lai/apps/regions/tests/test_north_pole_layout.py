@@ -240,7 +240,7 @@ def test_the_scene_has_the_contract_shell():
     assert L.REGION_ID == "north-pole-village"
     assert BOUNDS == {"halfExtentX": 66, "halfExtentZ": 100, "wallThickness": 1}
     assert SCENE["bounds"] == BOUNDS
-    assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 3  # 3: one checkpoint list in engineBridge (GE-074)
+    assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 4  # 4: village snow surface (GE-074)
     assert SCENE["environment"] == {
         "backgroundColor": 1979224,
         "lighting": {"ambientColor": 13623551, "ambientIntensity": 0.9, "sunColor": 16773856, "sunIntensity": 0.9},
@@ -607,7 +607,7 @@ def test_the_lake_ice_is_on_the_frozen_lake_and_never_slides_into_the_water():
     # The engine stops a child within about a metre at the lowest friction; keep twice that.
     gap_x = max(water["minX"] - rink["maxX"], rink["minX"] - water["maxX"])
     assert gap_x >= 2.0
-    surface = BRIDGE_CONFIG["environment.volumes"]["surfaces"][0]
+    surface = next(v for v in BRIDGE_CONFIG["environment.volumes"]["surfaces"] if v["id"] == "np-lake-ice")
     assert surface["surfaceId"] == "ice"
     assert 0.15 < surface["friction"] < 1 and surface["speedMultiplier"] == 1.0
     assert zone["minX"] <= rink["minX"] and rink["maxX"] <= zone["maxX"]
@@ -617,7 +617,7 @@ def test_the_lake_ice_is_on_the_frozen_lake_and_never_slides_into_the_water():
 def test_the_snapshot_carries_the_engine_bridge_block():
     snap = json.loads(L.SNAPSHOT_PATH.read_text())
     assert snap["scene"]["engineBridge"] == L.scene()["engineBridge"]
-    assert snap["scene"]["northPoleVersion"] == L.LAYOUT_VERSION == 3
+    assert snap["scene"]["northPoleVersion"] == L.LAYOUT_VERSION == 4
 
 
 def test_one_checkpoint_list_resumes_at_the_zone_checkpoint_at_every_stage():
@@ -653,3 +653,13 @@ def test_the_water_sends_the_child_back_to_a_bank():
     for platform in ("np-lake-bridge", "np-plat-lake-stone", "np-plat-lake-thin-ice", "np-plat-lake-floe-ride"):
         p = next(x for x in PLATFORMING["platforms"] if x["id"] == platform)
         assert p["size"]["height"] > water["belowY"], platform  # standing on it is never "in the water"
+
+
+def test_snow_underfoot_everywhere_changes_only_the_footstep_sound():
+    surfaces = {v["id"]: v for v in BRIDGE_CONFIG["environment.volumes"]["surfaces"]}
+    snow, ice = surfaces["np-village-snow"], surfaces["np-lake-ice"]
+    assert snow["surfaceId"] == "snow" and snow["friction"] == 1.0 and snow["speedMultiplier"] == 1.0
+    assert snow["box"]["min"]["x"] <= -66 and snow["box"]["max"]["x"] >= 66
+    assert snow["box"]["min"]["z"] <= -100 and snow["box"]["max"]["z"] >= 100
+    assert snow["box"]["max"]["y"] >= 3.2 + 1.0  # the top mountain terrace, plus headroom
+    assert ice["priority"] > snow["priority"]  # the lake bank stays ice

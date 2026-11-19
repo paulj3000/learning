@@ -3619,6 +3619,25 @@
        {
         "box": {
          "max": {
+          "x": 66,
+          "y": 8.0,
+          "z": 100
+         },
+         "min": {
+          "x": -66,
+          "y": -1.0,
+          "z": -100
+         }
+        },
+        "friction": 1.0,
+        "id": "np-village-snow",
+        "priority": 0,
+        "speedMultiplier": 1.0,
+        "surfaceId": "snow"
+       },
+       {
+        "box": {
+         "max": {
           "x": -28.0,
           "y": 1.0,
           "z": 32.0
@@ -3631,6 +3650,7 @@
         },
         "friction": 0.3,
         "id": "np-lake-ice",
+        "priority": 10,
         "speedMultiplier": 1.0,
         "surfaceId": "ice"
        }
@@ -11072,7 +11092,7 @@
    ],
    "zones": []
   },
-  "northPoleVersion": 3,
+  "northPoleVersion": 4,
   "platforming": {
    "goals": [],
    "platforms": [
