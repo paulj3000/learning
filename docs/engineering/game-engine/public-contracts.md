@@ -97,7 +97,7 @@ together.
 
 | Contract | File | Summary |
 |---|---|---|
-| `PlayerTransform`, `PlayerTransformComponent` | `contracts/player.ts` | Canonical transform; movement writes, everything else reads |
+| `PlayerTransform`, `PlayerTransformComponent` | `contracts/player.ts` | Canonical transform; movement writes, everything else reads. Platform carry is in it the same simulation step (GE-L10: the carry system calls the movement system's `syncTransform()`); `velocity` stays the child's own, so being carried is not walking |
 | `PhysicsProvider`, `ColliderSpec`, `PhysicsProviderService` | `contracts/physics.ts` | AABB collider list; `SOLID`, `JUMPABLE`, `TRIGGER`; gates never jumpable; raycast for camera; `cameraIgnores` for boundaries |
 | `EnvironmentQuery`, `SurfaceProfile`, `ExternalForce`, `ClimbableInfo`, `EnvironmentQueryService` | `contracts/physics.ts` | Surface friction and speed, forces, water, climbables |
 
@@ -195,7 +195,9 @@ Bridge API for the host (`api` on the mounted bridge):
 | `droppedClaims()`, `unboundClaims()` | Diagnostics counts |
 | `support` | Which optional host members the bridge found (`playerState`, `setEnvironment`, `scene`, `carryLaunch` and more over time). **Additive:** new fields appear as the bridge gains capabilities, so consumers compare it by subset (`toMatchObject`), never by deep equality; "nothing refused" is `issues` being empty |
 | `isSafeGround(x, y, z)` | False on top of a present moving, rotating, falling or bounce engine platform; the live controller combines it with the live platform system (GE-068) |
-| `platforms()` | `{ id, phase, position, size, kind }[]` in config order, for realm parity tests (GE-068) |
+| `platforms()` | `{ id, phase, position, size, kind }[]` in config order, for realm parity tests (GE-068). Unchanged by GE-L15 (realm tests compare it exactly); a turntable's angle is `PlatformsApi.yawOf(id)` |
+| Turntable rotation | `PlatformsApi.yawOf(id)`: radians about +Y, 0 for a platform that does not spin. The bridge turns the platform mesh (and its loaded model) by it. The carry is an exact rotation about the centre at the same angle, so the child keeps their distance from the centre. The collider stays the unrotated box (GE-L15) |
+| Terrain telegraphs | Optional host `groundHeightAt(x, z): number \| null` (the engine's own `StandardEngineOptions.groundHeightAt` signature). With it, a hazard telegraph's outline and fill are draped over the ground (about 1 m cells, at most 16 by 16), and the falling object lands on the ground. Absent, null or non-finite: flat at y 0.03, as before. Presentation only. Not in `support` (GE-L14) |
 | Forwarded platform sound events | `PlatformActivated`, `PlatformMoving`, `PlatformStopped` `{ platformId, cue? }` from engine moving platforms, same semantics as the live platform system; cues from the platform's `sounds` (`activated`, `moving`, `stopped`). No vanish or appear events: engine falling platforms use `PlatformPhaseChanged` (GE-069) |
 | Weather area | `environment.weather` config `area: { mode: 'AT_START' \| 'FOLLOW_PLAYER', halfX, halfZ, height }` (5 to 60 m halves, 4 to 40 m height). Default `AT_START`, 25 x 25 x 15 m round the start. `FOLLOW_PLAYER`: the bridge moves the precipitation box with the child each frame (GE-L14) |
 | Precipitation budget share | `precipitation.budgetShare` (0.05 to 1, default 1): the share of the quality tier's particle budget a weather kind may use, as the Area atmosphere's density did (0.6 is 360 on MEDIUM, 720 on HIGH). The budget is shared only across the kinds falling now (GE-L14) |

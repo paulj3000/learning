@@ -55,6 +55,11 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
 - **Checks:** engine Vitest 565 passed; React island-map/three, game-engine, boundary, golden
   and app suites 1754 passed; engine, React and scripts typecheck clean; vector, golden, ADR
   and workspace checks pass. Deferred to merge readiness: lint, format, build, Playwright, owner QA.
+- **Engine 1.0 stabilization (2026-11-19):** GE-L10 (platform carry in the transform the same
+  step), GE-L15 (turntable mesh turns; carry keeps the rider's radius) and GE-L14 telegraph
+  (terrain draping through an optional host `groundHeightAt`, flat fallback) are closed. GE-T2
+  is classified as environmental (VirtualBox timer stalls). GE-076 dependency audit: nothing is
+  removable yet; checklist in `docs/engineering/game-engine/legacy-retirement-plan.md` section 5.
 - **Owner decisions open:** LAI-2003 approval (or waiver), ADR number for the engine core
   decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
   order, scoring economy against the scoring standard.
