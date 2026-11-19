@@ -9,13 +9,14 @@
     "node": ">=22.0.0"
   },
   "workspaces": [
-    "react"
+    "react",
+    "game"
   ],
   "scripts": {
     "dev": "npm run dev -w react",
     "build": "npm run build -w react",
     "preview": "npm run preview -w react",
-    "typecheck": "npm run typecheck -w react",
+    "typecheck": "npm run typecheck -w react && npm run typecheck -w game",
     "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -36,7 +37,10 @@
     "grant-admin": "tsx scripts/grant-admin.ts",
     "infra:synth": "tsx infra/bin/app.ts",
     "infra:synth:dev": "LAI_ENV=dev tsx infra/bin/app.ts",
-    "infra:synth:prod": "LAI_ENV=prod CDK_OUTDIR=infra/cdk.out/prod tsx infra/bin/app.ts"
+    "infra:synth:prod": "LAI_ENV=prod CDK_OUTDIR=infra/cdk.out/prod tsx infra/bin/app.ts",
+    "test:engine": "npm run test -w game",
+    "engine:scaffold": "tsx scripts/game-engine/scaffold-adventure.ts",
+    "engine:validate": "tsx scripts/game-engine/validate-content.ts"
   },
   "keywords": [
     "education",
