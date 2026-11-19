@@ -12,7 +12,7 @@ export function checkpointReachedText(label: string): string {
 export function recoveredText(
   spec: PlatformingSpec | undefined,
   checkpointId: string | null | undefined,
-  /** Labels of checkpoints kept elsewhere (the engine bridge's list, GE-073), by id. */
+  /** Labels of checkpoints kept elsewhere (the engine bridge's list, GE-065), by id. */
   labels?: ReadonlyMap<string, string>,
 ): string {
   const label = checkpointId

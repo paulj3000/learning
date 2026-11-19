@@ -6,3 +6,4 @@ export * from './profiles';
 export * from './realm';
 export * from './scaffold';
 export * from './semver';
+export * from './location';

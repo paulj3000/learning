@@ -1,3 +1,4 @@
 export * from './collisionDebug';
 export * from './playerGizmo';
-export * from './rendererStats';
+// Moved to engine/ (production diagnostics, not dev-only debug); re-exported for compatibility.
+export * from '../engine/rendererStats';

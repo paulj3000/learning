@@ -7,7 +7,7 @@ import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 /**
  * Acceptance A2 (`docs/engine/11_ACCEPTANCE_TESTS.md`): the generic runtime
  * must never branch on a location. Every non-test source file in this
- * directory, except the manifests themselves, is scanned for any known
+ * directory, except the manifests and the location definitions (`locations/`), is scanned for any known
  * location slug or region id as a string literal. A hit means
  * region-specific behaviour leaked into the engine and belongs in a
  * manifest or a registered extension instead.
@@ -18,7 +18,8 @@ function sourceFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
     const path = join(directory, name);
     if (statSync(path).isDirectory()) {
-      return name === 'manifests' ? [] : sourceFiles(path);
+      // Per-location data may name its location: the manifests and the GE-075 location definitions.
+      return name === 'manifests' || name === 'locations' ? [] : sourceFiles(path);
     }
     return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [path] : [];
   });
