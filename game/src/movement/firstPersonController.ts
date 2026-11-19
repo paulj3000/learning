@@ -1,5 +1,11 @@
 import { Box3, Vector3 } from 'three';
 import {
+  DEFAULT_SURFACE,
+  type ClimbableInfo,
+  type EnvironmentQuery,
+} from '../contracts/physics';
+import type { PlayerMovementState } from '../contracts/player';
+import {
   resolveLocomotion,
   targetSpeed,
   type LocomotionConfiguration,
@@ -152,6 +158,17 @@ export interface FirstPersonControllerOptions {
    * checkpoint). `null` or absent: the last safe ground, as always.
    */
   recoveryPoint?: () => { x: number; z: number; yaw?: number } | null;
+  /**
+   * Optional world queries (GE-020, additive and off by default): surface friction and ice,
+   * external forces, water, climbables. Absent, the controller behaves exactly as before.
+   */
+  environment?: EnvironmentQuery;
+  /**
+   * Steepest ground, as rise over run (1 is 45 degrees), the child may walk up. Ground rising
+   * faster over one footprint step blocks like a wall; descending is never blocked. Default
+   * unlimited: today's behaviour.
+   */
+  maxWalkableSlope?: number;
 }
 
 const DEFAULT_MAX_PITCH = Math.PI / 2 - 0.05; // just short of straight up/down
@@ -177,6 +194,36 @@ export const MAX_COLLISION_STEP = 0.1;
 const SUPPORT_TOLERANCE = 0.05;
 /** In the air with no input, the fraction of ground deceleration (times `airControl`) that applies. */
 const AIR_DRAG_FACTOR = 0.2;
+/** Friction is clamped to this range so a surface can never be a rink with no grip at all. */
+export const MIN_SURFACE_FRICTION = 0.05;
+/** A child on the slipperiest surface stops within this distance of letting go, metres. */
+export const ICE_STOP_DISTANCE = 0.9;
+/** Slowest ground acceleration on ice, 1/s: a child can always get going and steer. */
+export const ICE_MIN_ACCELERATION = 3;
+/** Surfaces below this friction make a coasting child `SLIDING`. */
+export const SLIDING_FRICTION = 0.3;
+/** Horizontal external force is capped at this, m/s squared. */
+export const MAX_EXTERNAL_FORCE = 12;
+/**
+ * Forces are further capped so the drift they cause stays under this fraction of walking
+ * speed: walking against any force always wins, and a child can walk out of it.
+ */
+export const FORCE_WALK_FRACTION = 0.4;
+/** Swimming. Reduced gravity as a fraction, spring toward the float height, strokes, speed. */
+export const SWIM_GRAVITY_FACTOR = 0.15;
+export const SWIM_FLOAT_DEPTH = 0.9;
+export const SWIM_BUOYANCY = 10;
+export const SWIM_DAMPING = 3;
+export const SWIM_STROKE_SPEED = 4.5;
+export const SWIM_SPEED_FACTOR = 0.6;
+const SWIM_ENTER_PROBE = 0.9;
+const SWIM_STAY_PROBE = 0.1;
+/** Climbing, m/s, and the pause before a ladder can be grabbed again after letting go, seconds. */
+export const CLIMB_SPEED = 1.5;
+const CLIMB_PROBE = 0.5;
+const CLIMB_REGRAB_SECONDS = 0.5;
+const CLIMB_ENTER_YAW = 1.2;
+const CLIMB_JUMP_OFF_SPEED = 1.5;
 /** Tolerance for floating-point contact, metres. */
 const CONTACT_EPSILON = 1e-4;
 /** How much closer an overlapping box may get in one step (rounding only): never a creep in. */
@@ -203,6 +250,13 @@ export class FirstPersonController {
   private readonly isSafeGround: (x: number, y: number, z: number) => boolean;
   private readonly recoveryPoint: () => { x: number; z: number; yaw?: number } | null;
   private jumpConfig: JumpConfiguration;
+  private readonly environment: EnvironmentQuery | null;
+  private readonly maxWalkableSlope: number;
+  private climb: ClimbableInfo | null = null;
+  private climbCooldown = 0;
+  private swimmingNow = false;
+  private slidingNow = false;
+  private surfaceFriction = 1;
 
   private verticalSpeed = 0;
   private onGround = true;
@@ -242,6 +296,10 @@ export class FirstPersonController {
     this.isSafeGround = options.isSafeGround ?? (() => true);
     this.recoveryPoint = options.recoveryPoint ?? (() => null);
     this.jumpConfig = resolveJumpConfiguration(options.jump);
+    this.environment = options.environment ?? null;
+    const slope = options.maxWalkableSlope;
+    this.maxWalkableSlope =
+      typeof slope === 'number' && Number.isFinite(slope) && slope > 0 ? slope : Infinity;
     this.position = options.startPosition?.clone() ?? new Vector3();
     this.lastSafe.copy(this.position);
   }
@@ -353,6 +411,44 @@ export class FirstPersonController {
   }
 
   /**
+   * The full body state including `CLIMBING`, `SWIMMING` and `SLIDING` (the engine's
+   * `PlayerMovementState`). `movementState` keeps its original eight values so existing
+   * exhaustive consumers (animation tables) compile and behave unchanged; the engine's
+   * movement system reads this one.
+   */
+  get playerState(): PlayerMovementState {
+    if (this.climb !== null) return 'CLIMBING';
+    if (this.swimmingNow) return 'SWIMMING';
+    if (this.slidingNow) return 'SLIDING';
+    return this.movementState;
+  }
+
+  /** On a ladder or other climbable. */
+  get climbing(): boolean {
+    return this.climb !== null;
+  }
+
+  /** In water deep enough to swim. */
+  get swimming(): boolean {
+    return this.swimmingNow;
+  }
+
+  /** Coasting on a low-friction surface with no input. */
+  get sliding(): boolean {
+    return this.slidingNow;
+  }
+
+  /** The friction of the surface underfoot at the last update (1 without an environment). */
+  get friction(): number {
+    return this.surfaceFriction;
+  }
+
+  /** The id of the climbable being climbed, if any. */
+  get climbableId(): string | null {
+    return this.climb?.id ?? null;
+  }
+
+  /**
    * One jump press (key down, button down, tap). Edge-triggered: the input
    * layer calls it once per press, so holding never repeats. Ignored where
    * jumping is off.
@@ -404,6 +500,18 @@ export class FirstPersonController {
     const rightX = -Math.cos(this.yaw);
     const rightZ = Math.sin(this.yaw);
 
+    const env = this.environment;
+    if (env !== null) {
+      this.climbCooldown = Math.max(0, this.climbCooldown - dt);
+      if (this.climb === null) this.tryStartClimb(moveInput);
+      if (this.climb !== null) {
+        this.updateClimb(dt, moveInput);
+        this.recoverIfLost();
+        return;
+      }
+      this.updateSwimState();
+    }
+
     const targetVelocity = new Vector3(
       forwardX * moveInput.forward + rightX * moveInput.strafe,
       0,
@@ -426,10 +534,23 @@ export class FirstPersonController {
     const speedBefore = this.horizontalSpeed;
     const baseRate = hasInput ? this.locomotion.acceleration : this.locomotion.deceleration;
     const airRate = baseRate * this.jumpConfig.airControl * (hasInput ? 1 : AIR_DRAG_FACTOR);
-    const rate = this.onGround ? baseRate : airRate;
+    let rate = this.onGround ? baseRate : airRate;
+    let forceCap = 0;
+    if (env !== null) {
+      const shaped = this.shapeRates(env, hasInput, targetVelocity, rate);
+      rate = shaped.rate;
+      forceCap = shaped.forceCap;
+    }
     const t = Math.min(1, rate * dt);
     this.velocity.lerp(targetVelocity, t);
     if (hasInput) this.easeGaitChange(speedBefore, dt);
+    if (env !== null) this.applyExternalForces(env, dt, forceCap);
+
+    if (env !== null && this.swimmingNow && this.pressPending) {
+      // Jump is a swim stroke in water: one push up, never a leap.
+      this.pressPending = false;
+      this.verticalSpeed = SWIM_STROKE_SPEED;
+    }
 
     // A fresh press opens the buffer window; a jump this frame consumes it.
     if (this.pressPending) {
@@ -449,7 +570,7 @@ export class FirstPersonController {
     let remaining = dt;
     while (remaining > 1e-9) {
       const step = Math.min(PHYSICS_STEP_SECONDS, remaining);
-      const landed = this.stepVertical(step);
+      const landed = this.swimmingNow ? this.stepSwim(step) : this.stepVertical(step);
       remaining -= step;
       // A press remembered from just before landing jumps now.
       if (landed) this.tryJump(true);
@@ -460,7 +581,227 @@ export class FirstPersonController {
     this.jumpStartRemaining = Math.max(0, this.jumpStartRemaining - dt);
     this.landingRemaining = Math.max(0, this.landingRemaining - dt);
 
+    if (env !== null) {
+      this.slidingNow =
+        this.onGround &&
+        !hasInput &&
+        this.surfaceFriction < SLIDING_FRICTION &&
+        this.horizontalSpeed > WALK_SPEED_THRESHOLD;
+    }
     this.recoverIfLost();
+  }
+
+  /**
+   * Environment shaping of this frame's rate and top speed (only with an `environment`).
+   * Returns the lerp rate and the cap for external forces. On the ground, friction scales
+   * acceleration and deceleration, never top speed (ice does not make the child faster);
+   * `speedMultiplier` scales top speed. Floors keep a child able to start, steer and stop
+   * within `ICE_STOP_DISTANCE` of letting go at walking speed on any surface.
+   */
+  private shapeRates(
+    env: EnvironmentQuery,
+    hasInput: boolean,
+    target: Vector3,
+    plainRate: number,
+  ): { rate: number; forceCap: number } {
+    const walk = this.locomotion.walkSpeed;
+    let rate = plainRate;
+    let withInput: number;
+    let withoutInput: number;
+    if (this.swimmingNow) {
+      target.multiplyScalar(SWIM_SPEED_FACTOR);
+      this.surfaceFriction = 1;
+      withInput = this.locomotion.acceleration * 0.5;
+      withoutInput = this.locomotion.deceleration * 0.5;
+      rate = hasInput ? withInput : withoutInput;
+    } else if (this.onGround) {
+      const { x, y, z } = this.position;
+      const surface = env.surfaceAt(x, y, z) ?? DEFAULT_SURFACE;
+      const friction = clamp(Number.isFinite(surface.friction) ? surface.friction : 1, MIN_SURFACE_FRICTION, 1);
+      const speedMultiplier = clamp(Number.isFinite(surface.speedMultiplier) ? surface.speedMultiplier : 1, 0.5, 1.5);
+      this.surfaceFriction = friction;
+      target.multiplyScalar(speedMultiplier);
+      if (friction >= 1) {
+        // Normal ground: exactly the plain rates.
+        withInput = this.locomotion.acceleration;
+        withoutInput = this.locomotion.deceleration;
+      } else {
+        const stopRate = (walk - WALK_SPEED_THRESHOLD) / ICE_STOP_DISTANCE;
+        withInput = Math.max(this.locomotion.acceleration * friction, ICE_MIN_ACCELERATION);
+        withoutInput = Math.max(this.locomotion.deceleration * friction, stopRate);
+        // Pushing against the way they slide is braking, which uses the stopping rate.
+        const braking = hasInput && this.velocity.dot(target) < 0;
+        rate = !hasInput || braking ? withoutInput : withInput;
+      }
+    } else {
+      this.surfaceFriction = 1;
+      const air = this.locomotion.acceleration * this.jumpConfig.airControl;
+      withInput = air;
+      withoutInput = air * AIR_DRAG_FACTOR;
+    }
+    const forceCap = Math.min(
+      MAX_EXTERNAL_FORCE,
+      FORCE_WALK_FRACTION * walk * Math.min(withInput, withoutInput),
+    );
+    return { rate, forceCap };
+  }
+
+  /**
+   * Sums the forces at the body into velocity (wind, currents, conveyors, updrafts). The
+   * horizontal push is capped (`MAX_EXTERNAL_FORCE`, and so that walking against it always
+   * wins). Movement still goes through the collision sweep, so a force never pushes the child
+   * through a collider.
+   */
+  private applyExternalForces(env: EnvironmentQuery, dt: number, forceCap: number): void {
+    const { x, y, z } = this.position;
+    let ax = 0;
+    let ay = 0;
+    let az = 0;
+    for (const force of env.forcesAt(x, y, z)) {
+      if (this.onGround && force.affectsGrounded === false) continue;
+      const a = force.acceleration;
+      if (Number.isFinite(a.x) && Number.isFinite(a.y) && Number.isFinite(a.z)) {
+        ax += a.x;
+        ay += a.y;
+        az += a.z;
+      }
+    }
+    const horizontal = Math.hypot(ax, az);
+    if (horizontal > 0) {
+      const scale = Math.min(1, forceCap / horizontal);
+      this.velocity.x += ax * scale * dt;
+      this.velocity.z += az * scale * dt;
+    }
+    if (ay !== 0 && !this.swimmingNow) {
+      const limit = this.jumpConfig.gravity * 1.5;
+      const lift = clamp(ay, -limit, limit);
+      if (this.onGround) {
+        // An updraft stronger than gravity lifts the child off the ground.
+        if (lift > this.jumpConfig.gravity) {
+          this.onGround = false;
+          this.coyoteRemaining = 0;
+          this.verticalSpeed += lift * dt;
+        }
+      } else {
+        this.verticalSpeed += lift * dt;
+      }
+    }
+  }
+
+  /** Enters or leaves swimming from the water around the body. */
+  private updateSwimState(): void {
+    const env = this.environment!;
+    const { x, y, z } = this.position;
+    const probe = this.swimmingNow ? SWIM_STAY_PROBE : SWIM_ENTER_PROBE;
+    const inWater = env.mediumAt(x, y + probe, z) === 'WATER' && env.waterSurfaceAt(x, z) !== null;
+    if (inWater && !this.swimmingNow) {
+      this.swimmingNow = true;
+      this.onGround = false;
+      this.coyoteRemaining = 0;
+      this.airJumpsUsed = 0;
+      this.jumpStartRemaining = 0;
+      this.landingRemaining = 0;
+      this.bufferRemaining = 0;
+      this.verticalSpeed = Math.max(this.verticalSpeed, -2);
+    } else if (!inWater && this.swimmingNow) {
+      this.swimmingNow = false;
+    }
+  }
+
+  /**
+   * One swimming substep: reduced gravity, a spring toward the float height under the water
+   * surface, damping, and the bed underfoot as a floor. No drowning and no timers.
+   */
+  private stepSwim(step: number): boolean {
+    const { x, y, z } = this.position;
+    const surface = this.environment!.waterSurfaceAt(x, z);
+    const target = (surface ?? y + SWIM_FLOAT_DEPTH) - SWIM_FLOAT_DEPTH;
+    const accel = SWIM_BUOYANCY * (target - y) - this.jumpConfig.gravity * SWIM_GRAVITY_FACTOR;
+    this.verticalSpeed = (this.verticalSpeed + accel * step) * Math.max(0, 1 - SWIM_DAMPING * step);
+    let next = y + this.verticalSpeed * step;
+    const floor = this.supportHeight(x, z, y, this.stepHeight);
+    if (floor !== null && next < floor) {
+      next = floor;
+      this.verticalSpeed = Math.max(0, this.verticalSpeed);
+    }
+    this.position.y = next;
+    return false;
+  }
+
+  /** Starts climbing when the child pushes forward into a climbable they face. */
+  private tryStartClimb(input: MoveInput): void {
+    if (this.climbCooldown > 0 || input.forward < 0.5 || this.swimmingNow) return;
+    const env = this.environment!;
+    const { x, y, z } = this.position;
+    const info = env.climbableAt(x, y + CLIMB_PROBE, z);
+    if (!info) return;
+    if (y > info.topY || y < info.bottomY - this.stepHeight) return;
+    if (Math.abs(wrapAngle(this.yaw - info.facingYaw)) > CLIMB_ENTER_YAW) return;
+    this.climb = info;
+    this.yaw = info.facingYaw;
+    this.position.y = Math.max(y, info.bottomY);
+    this.velocity.set(0, 0, 0);
+    this.verticalSpeed = 0;
+    this.onGround = false;
+    this.coyoteRemaining = 0;
+    this.airJumpsUsed = 0;
+    this.walkedSpeed = 0;
+    this.slidingNow = false;
+    this.clearJumpInput();
+  }
+
+  /**
+   * Climbing: forward and back move the feet along the climbable, with no gravity. Jump, or
+   * back at the bottom, lets go; the top puts the feet at `exitTop`.
+   */
+  private updateClimb(dt: number, input: MoveInput): void {
+    const info = this.climb!;
+    this.walkedSpeed = 0;
+    this.velocity.set(0, 0, 0);
+    this.verticalSpeed = 0;
+    if (this.pressPending) {
+      // Jump lets go and steps back off the ladder.
+      this.pressPending = false;
+      this.letGo(false);
+      this.velocity.x = -Math.sin(info.facingYaw) * CLIMB_JUMP_OFF_SPEED;
+      this.velocity.z = -Math.cos(info.facingYaw) * CLIMB_JUMP_OFF_SPEED;
+      return;
+    }
+    const direction = clamp(input.forward, -1, 1);
+    const y = this.position.y + direction * CLIMB_SPEED * dt;
+    if (y >= info.topY) {
+      this.position.set(info.exitTop.x, info.exitTop.y, info.exitTop.z);
+      this.letGo(true);
+      this.lastSafe.copy(this.position);
+      return;
+    }
+    if (y <= info.bottomY && direction < 0) {
+      this.position.y = info.bottomY;
+      this.letGo(true);
+      return;
+    }
+    this.position.y = Math.max(y, info.bottomY);
+    const probeY = clamp(this.position.y + CLIMB_PROBE, info.bottomY + 0.01, info.topY - 0.01);
+    const still = this.environment!.climbableAt(this.position.x, probeY, this.position.z);
+    if (still === null || still.id !== info.id) this.letGo(false);
+  }
+
+  private letGo(grounded: boolean): void {
+    this.climb = null;
+    this.climbCooldown = CLIMB_REGRAB_SECONDS;
+    this.onGround = grounded;
+    this.verticalSpeed = 0;
+    this.coyoteRemaining = 0;
+  }
+
+  /** Whether ground rising from one point to the next is steeper than the child may walk. */
+  private tooSteep(fromX: number, fromZ: number, toX: number, toZ: number): boolean {
+    if (this.maxWalkableSlope === Infinity || !this.onGround) return false;
+    const from = this.groundHeightAt(fromX, fromZ);
+    const to = this.groundHeightAt(toX, toZ);
+    if (from === null || to === null) return false;
+    const run = Math.hypot(toX - fromX, toZ - fromZ);
+    return run > 0 && (to - from) / run > this.maxWalkableSlope + 1e-9;
   }
 
   /**
@@ -580,6 +921,9 @@ export class FirstPersonController {
     this.jumpStartRemaining = 0;
     this.landingRemaining = 0;
     this.walkedSpeed = 0;
+    this.climb = null;
+    this.swimmingNow = false;
+    this.slidingNow = false;
     this.clearJumpInput();
     this.lastSafe.copy(this.position);
   }
@@ -748,7 +1092,8 @@ export class FirstPersonController {
     const allowance = this.stepHeight;
     if (dx !== 0) {
       const { x, z, y } = this.position;
-      const free = (t: number) => !this.blockedAt(x + dx * t, z, y, allowance, x, z);
+      const free = (t: number) =>
+        !this.blockedAt(x + dx * t, z, y, allowance, x, z) && !this.tooSteep(x, z, x + dx * t, z);
       if (free(1)) {
         this.position.x = x + dx;
       } else {
@@ -759,7 +1104,8 @@ export class FirstPersonController {
     }
     if (dz !== 0) {
       const { x, z, y } = this.position;
-      const free = (t: number) => !this.blockedAt(x, z + dz * t, y, allowance, x, z);
+      const free = (t: number) =>
+        !this.blockedAt(x, z + dz * t, y, allowance, x, z) && !this.tooSteep(x, z, x, z + dz * t);
       if (free(1)) {
         this.position.z = z + dz;
       } else {
@@ -856,4 +1202,14 @@ function contactFraction(free: (t: number) => boolean): number {
 
 function insideFootprint(box: Box3, x: number, z: number): boolean {
   return x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/** An angle wrapped into -PI..PI. */
+function wrapAngle(angle: number): number {
+  const turn = Math.PI * 2;
+  return angle - Math.round(angle / turn) * turn;
 }
