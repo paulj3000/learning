@@ -7,6 +7,7 @@ on; nothing is published while any problem remains.
 
 from django.core.exceptions import ValidationError
 
+from .engine_bridge import scene_engine_bridge_problems
 from .models import AdventureLaunchPoint, WorldRegion
 
 
@@ -38,6 +39,8 @@ def area_problems(region: WorldRegion) -> list[str]:
     for quest in region.offered_quests.all():
         if not quest.active:
             problems.append(f"quest {quest.slug} is inactive")
+    # GE-070 / GE-065: a declared engine bridge must be the shape the child's game accepts.
+    problems.extend(scene_engine_bridge_problems(region.scene))
     return problems
 
 
