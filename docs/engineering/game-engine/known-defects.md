@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-18
-- **Related ADRs:** ADR-020, ADR-060, ADR-070 (Reserved, collision)
+- **Related ADRs:** ADR-020, ADR-060
 - **Related tickets:** GE-001, GE-090
 - **Canonical sources:** test runs recorded in [implementation-status.md](implementation-status.md); Treasure Rush engine handoff `docs/engine/TREASURE_RUSH_ENGINE_HANDOFF.md` on `feature/treasure-rush-palm-trees` @ `6818f74b` (sections 6.4, 7.2, 8)
 
