@@ -30,6 +30,8 @@ import {
 import { CastlePaintedWordsSession } from './CastlePaintedWordsSession';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
 import { useCastleNpcs, type CastleNpcHandover } from './useCastleNpcs';
+import { castleClaimContext } from './castleGameplayClaims';
+import { setLocationClaimsBinding } from '../../runtime/gameplayClaimSink';
 
 /**
  * Storykeeper Castle's React half: the companion the generic view mounts for
@@ -129,6 +131,14 @@ export function CastleTaleCompanion({
     sceneRef,
   );
   // Sound (SC-R06-01, SC-R06-02): room beds, music, and the moments raised below.
+  /*
+    GE-072: this visit's claim context (the castle, exploring, no session). The shared host's own
+    claims (GE-067: discoveries found, NPC talks) and the engine bridge's checkpoint claims are
+    bound to it; without it they would be dropped. Adventure answers and completions carry their
+    own session context (`castleGameplayClaims.ts`). Released on leaving.
+  */
+  useEffect(() => setLocationClaimsBinding(castleClaimContext(null, null)), []);
+
   const castleAudio = useCastleAudio({
     childId,
     ageBand,

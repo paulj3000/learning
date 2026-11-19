@@ -34,6 +34,7 @@ import { QUILL_CLIP_STATES } from './useCastleNpcs';
  * host, the dialogue controller and the NPC runtime are the real ones.
  */
 
+import { currentClaimsBinding } from '../../runtime/gameplayClaimSink';
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useNavigate: () => vi.fn(),
@@ -344,6 +345,20 @@ describe('the castle mounts the shared NPC host for its Place', () => {
     expect(triggers()).toContain('on_interact');
     expect(screen.getByText(GREETING)).toBeInTheDocument();
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
+  it('binds the visit’s claim context to the castle and releases it on leaving (GE-072)', async () => {
+    const { scene } = fakeScene();
+    const visit = render(<Visit sceneApi={scene} />);
+    await settle();
+    expect(currentClaimsBinding()?.context).toEqual({
+      realmId: 'storykeeper-castle',
+      adventureId: 'storykeeper-castle',
+      areaId: 'storykeeper-castle',
+      sessionRef: null,
+    });
+    visit.unmount();
+    expect(currentClaimsBinding()).toBeNull();
   });
 
   it('accepts the offered quest through the castle quest flow, once', async () => {

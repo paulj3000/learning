@@ -123,6 +123,42 @@ import {
  */
 
 const STORY_TOLD = 'FIRST_STORY_TOLD';
+
+/** Half the side of the square that counts as reaching a castle checkpoint, metres. */
+const CHECKPOINT_HALF_SIZE = 1.2;
+
+/*
+  GE-072: the castle's five saved checkpoints run on the Game Engine Core's one checkpoint system
+  (`gameplay.checkpoints` through the engine bridge). The ids, places, facings and labels are the
+  authored ones (`STORYKEEPER_CASTLE_CHECKPOINTS`, pinned by `castleSaveContract.test.ts`), so a
+  saved place still resumes. The live runtime builds no trigger zone for an id the bridge serves
+  (`bridgeCheckpointIds`), and the host saves a reached one and shows the castle's own
+  "You found {checkpoint}." toast, so nothing fires twice and nothing a child sees changes.
+  Engine platforms stay off: the castle's pads stay on the live platform system until GE-076.
+*/
+const CASTLE_ENGINE_BRIDGE = {
+  extensionId: 'engineBridge',
+  config: {
+    capabilities: [
+      {
+        id: 'gameplay.checkpoints',
+        config: {
+          checkpoints: STORYKEEPER_CASTLE_CHECKPOINTS.map((checkpoint) => ({
+            id: checkpoint.id,
+            courseId: STORYKEEPER_CASTLE_REGION_ID,
+            position: { x: checkpoint.x, y: 0, z: checkpoint.z },
+            yaw: checkpoint.yaw,
+            label: checkpoint.label,
+            halfSize: CHECKPOINT_HALF_SIZE,
+          })),
+          goals: [],
+          alreadyReached: [],
+        },
+      },
+    ],
+    allowEnginePlatforms: false,
+  },
+} as const;
 const SLAB_SIZE_METERS = 4;
 const FLOOR_SLAB_TOP_OFFSET = -0.05;
 const CEILING_SLAB_BOTTOM_OFFSET = CASTLE_CEILING_SLAB_OFFSET;
@@ -283,80 +319,95 @@ const propCollider = (
 
 function buildColliders(wallHeight: number): readonly ColliderSpec[] {
   return [
-  ...WALL_SEGMENTS.map((wall) => ({ rect: { ...wall }, minY: 0, maxY: wallHeight })),
-  // Quill and his lectern stand up as solid objects: walking through the
-  // person you are about to talk to undoes the point of him being a place.
-  standingCollider('collider:keeper-quill', KEEPER_QUILL_SPOT, QUILL_COLLIDER_HALF_METERS, 2),
-  standingCollider('collider:quill-lectern', QUILL_LECTERN_SPOT, LECTERN_COLLIDER_HALF_METERS, 1.2),
-  // SC-R05-03: Professor Orion in the Setting Tower, solid like Quill (a slim corner footprint).
-  standingCollider('collider:professor-orion', PROFESSOR_ORION_SPOT, ORION_COLLIDER_HALF_METERS, 2),
-  propCollider(
-    'collider:binding-lectern',
-    BINDING_LECTERN_SPOT,
-    BINDING_LECTERN_HALF,
-    BINDING_LECTERN_YAW,
-  ),
-  propCollider('collider:binding-table', BINDING_TABLE_SPOT, BINDING_TABLE_HALF, BINDING_TABLE_YAW),
-  propCollider('collider:studio-easel', STUDIO_EASEL_SPOT, EASEL_HALF, EASEL_YAW),
-  ...LIBRARY_BOOKSHELF_SPOTS.map((shelf) =>
-    propCollider(
-      `collider:${shelf.entityId}`,
-      shelf,
-      {
-        width: shelf.width / 2,
-        depth: BOOKSHELF_DEPTH_METERS / 2,
-        height: BOOKSHELF_HEIGHT_METERS,
-      },
-      shelf.axis === 'x' ? 0 : Math.PI / 2,
+    ...WALL_SEGMENTS.map((wall) => ({ rect: { ...wall }, minY: 0, maxY: wallHeight })),
+    // Quill and his lectern stand up as solid objects: walking through the
+    // person you are about to talk to undoes the point of him being a place.
+    standingCollider('collider:keeper-quill', KEEPER_QUILL_SPOT, QUILL_COLLIDER_HALF_METERS, 2),
+    standingCollider(
+      'collider:quill-lectern',
+      QUILL_LECTERN_SPOT,
+      LECTERN_COLLIDER_HALF_METERS,
+      1.2,
     ),
-  ),
-  ...LIBRARY_READING_TABLE_SPOTS.map((spot) =>
-    propCollider(`collider:${spot.entityId}`, spot, READING_TABLE_HALF, 0),
-  ),
-  // Solid decor the visual pass added (the Storybook dais); see `storykeeperCastleVisuals.ts`.
-  ...CASTLE_DECOR_COLLIDERS,
+    // SC-R05-03: Professor Orion in the Setting Tower, solid like Quill (a slim corner footprint).
+    standingCollider(
+      'collider:professor-orion',
+      PROFESSOR_ORION_SPOT,
+      ORION_COLLIDER_HALF_METERS,
+      2,
+    ),
+    propCollider(
+      'collider:binding-lectern',
+      BINDING_LECTERN_SPOT,
+      BINDING_LECTERN_HALF,
+      BINDING_LECTERN_YAW,
+    ),
+    propCollider(
+      'collider:binding-table',
+      BINDING_TABLE_SPOT,
+      BINDING_TABLE_HALF,
+      BINDING_TABLE_YAW,
+    ),
+    propCollider('collider:studio-easel', STUDIO_EASEL_SPOT, EASEL_HALF, EASEL_YAW),
+    ...LIBRARY_BOOKSHELF_SPOTS.map((shelf) =>
+      propCollider(
+        `collider:${shelf.entityId}`,
+        shelf,
+        {
+          width: shelf.width / 2,
+          depth: BOOKSHELF_DEPTH_METERS / 2,
+          height: BOOKSHELF_HEIGHT_METERS,
+        },
+        shelf.axis === 'x' ? 0 : Math.PI / 2,
+      ),
+    ),
+    ...LIBRARY_READING_TABLE_SPOTS.map((spot) =>
+      propCollider(`collider:${spot.entityId}`, spot, READING_TABLE_HALF, 0),
+    ),
+    // Solid decor the visual pass added (the Storybook dais); see `storykeeperCastleVisuals.ts`.
+    ...CASTLE_DECOR_COLLIDERS,
   ];
 }
 
 function buildLights(wallHeight: number): readonly LightSpec[] {
   return [
-  // One lamp per room at ceiling height. The map is authored rather than
-  // derived: "the library is the darkest room and the hearth corner the
-  // warmest" is a statement about story, not about geometry.
-  ...ROOMS.map((room): LightSpec => ({
-    id: `light:${room.id}`,
-    kind: 'POINT',
-    position: {
-      x: (room.floor.minX + room.floor.maxX) / 2,
-      y: wallHeight - ROOM_LAMP_DROP,
-      z: (room.floor.minZ + room.floor.maxZ) / 2,
+    // One lamp per room at ceiling height. The map is authored rather than
+    // derived: "the library is the darkest room and the hearth corner the
+    // warmest" is a statement about story, not about geometry.
+    ...ROOMS.map((room): LightSpec => ({
+      id: `light:${room.id}`,
+      kind: 'POINT',
+      position: {
+        x: (room.floor.minX + room.floor.maxX) / 2,
+        y: wallHeight - ROOM_LAMP_DROP,
+        z: (room.floor.minZ + room.floor.maxZ) / 2,
+      },
+      // Colour and priority are the room's mood (`castleRoomMood`, art direction section 5).
+      color: castleRoomMood(room.id).color,
+      intensity: ROOM_LIGHT_INTENSITY[room.id] ?? 3,
+      decay: 1.6,
+      priority: castleRoomMood(room.id).priority,
+    })),
+    {
+      id: 'light:doorway',
+      kind: 'POINT',
+      position: { x: CASTLE_DOORS_SPOT.x + 1.2, y: 2, z: CASTLE_DOORS_SPOT.z },
+      color: 0xdfeaff,
+      intensity: 6,
+      decay: 1.8,
+      priority: DOORWAY_LIGHT_PRIORITY,
     },
-    // Colour and priority are the room's mood (`castleRoomMood`, art direction section 5).
-    color: castleRoomMood(room.id).color,
-    intensity: ROOM_LIGHT_INTENSITY[room.id] ?? 3,
-    decay: 1.6,
-    priority: castleRoomMood(room.id).priority,
-  })),
-  {
-    id: 'light:doorway',
-    kind: 'POINT',
-    position: { x: CASTLE_DOORS_SPOT.x + 1.2, y: 2, z: CASTLE_DOORS_SPOT.z },
-    color: 0xdfeaff,
-    intensity: 6,
-    decay: 1.8,
-    priority: DOORWAY_LIGHT_PRIORITY,
-  },
-  {
-    id: 'light:hearth',
-    kind: 'POINT',
-    position: { x: 0, y: 1.2, z: -5.2 },
-    color: 0xff9c3a,
-    intensity: 9,
-    decay: 1.7,
-    priority: HEARTH_LIGHT_PRIORITY,
-  },
-  // Lights a room's look adds (the Storybook dais glow).
-  ...CASTLE_EXTRA_LIGHTS,
+    {
+      id: 'light:hearth',
+      kind: 'POINT',
+      position: { x: 0, y: 1.2, z: -5.2 },
+      color: 0xff9c3a,
+      intensity: 9,
+      decay: 1.7,
+      priority: HEARTH_LIGHT_PRIORITY,
+    },
+    // Lights a room's look adds (the Storybook dais glow).
+    ...CASTLE_EXTRA_LIGHTS,
   ];
 }
 
@@ -410,202 +461,206 @@ function archwayHeaders(wallHeight: number): ScenerySpec[] {
 
 function buildScenery(wallHeight: number): readonly ScenerySpec[] {
   return [
-  {
-    kind: 'CLUSTER',
-    id: 'room-floors',
-    assetId: 'ground-tile-stone',
-    positions: slabPositions(FLOOR_SLAB_TOP_OFFSET),
-  },
-  {
-    kind: 'CLUSTER',
-    id: 'room-ceilings',
-    assetId: 'ceiling-tile',
-    positions: slabPositions(wallHeight + CEILING_SLAB_BOTTOM_OFFSET),
-  },
-  {
-    kind: 'CLUSTER',
-    id: 'room-walls',
-    assetId: 'wall-stone',
-    positions: wallPanelPositionsFor(wallHeight),
-  },
-  /*
+    {
+      kind: 'CLUSTER',
+      id: 'room-floors',
+      assetId: 'ground-tile-stone',
+      positions: slabPositions(FLOOR_SLAB_TOP_OFFSET),
+    },
+    {
+      kind: 'CLUSTER',
+      id: 'room-ceilings',
+      assetId: 'ceiling-tile',
+      positions: slabPositions(wallHeight + CEILING_SLAB_BOTTOM_OFFSET),
+    },
+    {
+      kind: 'CLUSTER',
+      id: 'room-walls',
+      assetId: 'wall-stone',
+      positions: wallPanelPositionsFor(wallHeight),
+    },
+    /*
     Seven archways, placed individually rather than instanced: `archway` is
     multi-part (a one-mesh archway cannot have a hole in it) and an instanced
     run would silently keep only its first jamb.
   */
-  {
-    kind: 'LOD_PLACEMENTS',
-    id: 'archways',
-    assetId: 'archway',
-    // Every archway but the secret one, which is built only once the nook is found (below).
-    positions: ARCHWAYS.filter((archway) => archway.id !== SECRET_ARCHWAY_ID).map(archwayPlacement),
-  },
-  /*
+    {
+      kind: 'LOD_PLACEMENTS',
+      id: 'archways',
+      assetId: 'archway',
+      // Every archway but the secret one, which is built only once the nook is found (below).
+      positions: ARCHWAYS.filter((archway) => archway.id !== SECRET_ARCHWAY_ID).map(
+        archwayPlacement,
+      ),
+    },
+    /*
     The secret passage's archway, behind the swaying tapestry. Built only once
     the nook has been found, so a child who has not found it sees a plain
     wall, and narrowed to the passage's 1.5 m (the standard archway is sized for
     the castle's 2 m gaps). The wall fill that hides the gap until then is in
     `storykeeperCastleVisuals.ts`.
   */
-  {
-    kind: 'LOD_PLACEMENTS',
-    id: 'archway-secret',
-    assetId: 'archway',
-    requirements: [{ type: 'DISCOVERY_PRESENT', discoveryId: SECRET_PASSAGE_DISCOVERY_ID }],
-    positions: ARCHWAYS.filter((archway) => archway.id === SECRET_ARCHWAY_ID).map((archway) => ({
-      ...archwayPlacement(archway),
-      scale: { x: SECRET_ARCHWAY_WIDTH_SCALE },
-    })),
-  },
-  /*
+    {
+      kind: 'LOD_PLACEMENTS',
+      id: 'archway-secret',
+      assetId: 'archway',
+      requirements: [{ type: 'DISCOVERY_PRESENT', discoveryId: SECRET_PASSAGE_DISCOVERY_ID }],
+      positions: ARCHWAYS.filter((archway) => archway.id === SECRET_ARCHWAY_ID).map((archway) => ({
+        ...archwayPlacement(archway),
+        scale: { x: SECRET_ARCHWAY_WIDTH_SCALE },
+      })),
+    },
+    /*
     A carpet from the doors to Keeper Quill: the only wayfinding in the
     castle, and deliberately the kind that cannot be wrong, since it points
     at the hub every route passes through anyway. Beat 8's extension through
     the hub is the extension's, because it appears mid-visit.
   */
-  {
-    kind: 'CLUSTER',
-    id: 'carpet-to-quill',
-    assetId: 'carpet',
-    positions: carpetPositions({ x: -14.5, z: 0 }, { x: -5, z: 0 }),
-  },
-  // Procedural decor from the visual pass (SC-R02): dais, beams, candles. Never interactive.
-  ...castleDecor(wallHeight),
-  ...archwayHeaders(wallHeight),
-  // The doors themselves, so the way out is a thing you can see from inside.
-  {
-    kind: 'LOD_PLACEMENTS',
-    id: 'castle-doors',
-    assetId: 'door',
-    positions: [{ x: CASTLE_DOORS_SPOT.x, z: CASTLE_DOORS_SPOT.z, rotationY: -Math.PI / 2 }],
-  },
-  // Beat 2: Quill's lectern, with the blank page the story fills.
-  {
-    kind: 'LOD_PLACEMENTS',
-    id: 'quill-lectern',
-    assetId: 'lectern',
-    positions: [
-      { x: QUILL_LECTERN_SPOT.x, z: QUILL_LECTERN_SPOT.z, rotationY: QUILL_FACING_ENTRY_YAW },
-    ],
-  },
-  {
-    kind: 'LOD_PLACEMENTS',
-    id: 'binding-table',
-    assetId: 'binding-table',
-    positions: [{ x: BINDING_TABLE_SPOT.x, z: BINDING_TABLE_SPOT.z, rotationY: BINDING_TABLE_YAW }],
-  },
-  {
-    kind: 'LOD_PLACEMENTS',
-    id: 'studio-easel',
-    assetId: 'easel',
-    positions: [{ x: STUDIO_EASEL_SPOT.x, z: STUDIO_EASEL_SPOT.z, rotationY: EASEL_YAW }],
-  },
-  /*
+    {
+      kind: 'CLUSTER',
+      id: 'carpet-to-quill',
+      assetId: 'carpet',
+      positions: carpetPositions({ x: -14.5, z: 0 }, { x: -5, z: 0 }),
+    },
+    // Procedural decor from the visual pass (SC-R02): dais, beams, candles. Never interactive.
+    ...castleDecor(wallHeight),
+    ...archwayHeaders(wallHeight),
+    // The doors themselves, so the way out is a thing you can see from inside.
+    {
+      kind: 'LOD_PLACEMENTS',
+      id: 'castle-doors',
+      assetId: 'door',
+      positions: [{ x: CASTLE_DOORS_SPOT.x, z: CASTLE_DOORS_SPOT.z, rotationY: -Math.PI / 2 }],
+    },
+    // Beat 2: Quill's lectern, with the blank page the story fills.
+    {
+      kind: 'LOD_PLACEMENTS',
+      id: 'quill-lectern',
+      assetId: 'lectern',
+      positions: [
+        { x: QUILL_LECTERN_SPOT.x, z: QUILL_LECTERN_SPOT.z, rotationY: QUILL_FACING_ENTRY_YAW },
+      ],
+    },
+    {
+      kind: 'LOD_PLACEMENTS',
+      id: 'binding-table',
+      assetId: 'binding-table',
+      positions: [
+        { x: BINDING_TABLE_SPOT.x, z: BINDING_TABLE_SPOT.z, rotationY: BINDING_TABLE_YAW },
+      ],
+    },
+    {
+      kind: 'LOD_PLACEMENTS',
+      id: 'studio-easel',
+      assetId: 'easel',
+      positions: [{ x: STUDIO_EASEL_SPOT.x, z: STUDIO_EASEL_SPOT.z, rotationY: EASEL_YAW }],
+    },
+    /*
     The Great Library's shelves, one draw call: `bookshelf` is single-mesh
     precisely so a wall of them can be instanced, and each run's authored
     width rides in as an x scale.
   */
-  {
-    kind: 'CLUSTER',
-    id: 'library-bookshelves',
-    assetId: 'bookshelf',
-    positions: LIBRARY_BOOKSHELF_SPOTS.map((shelf) => ({
-      x: shelf.x,
-      z: shelf.z,
-      rotationY: shelf.axis === 'x' ? 0 : -Math.PI / 2,
-      scale: { x: shelf.width / BOOKSHELF_WIDTH_METERS },
+    {
+      kind: 'CLUSTER',
+      id: 'library-bookshelves',
+      assetId: 'bookshelf',
+      positions: LIBRARY_BOOKSHELF_SPOTS.map((shelf) => ({
+        x: shelf.x,
+        z: shelf.z,
+        rotationY: shelf.axis === 'x' ? 0 : -Math.PI / 2,
+        scale: { x: shelf.width / BOOKSHELF_WIDTH_METERS },
+      })),
+    },
+    ...LIBRARY_READING_TABLE_SPOTS.map((spot): ScenerySpec => ({
+      kind: 'LOD_PLACEMENTS',
+      id: spot.entityId,
+      assetId: 'reading-table',
+      positions: [{ x: spot.x, z: spot.z }],
     })),
-  },
-  ...LIBRARY_READING_TABLE_SPOTS.map((spot): ScenerySpec => ({
-    kind: 'LOD_PLACEMENTS',
-    id: spot.entityId,
-    assetId: 'reading-table',
-    positions: [{ x: spot.x, z: spot.z }],
-  })),
-  /*
+    /*
     Beat 12's nook: three cushions on the floor of the hub's south-west
     corner, each at its own rest angle so three identical cushions read as
     dropped there rather than as a placed set.
   */
-  {
-    kind: 'CLUSTER',
-    id: 'nook-cushions',
-    assetId: 'cushion',
-    positions: TAPESTRY_NOOK_CUSHION_SPOTS.map((spot, index) => ({
-      x: spot.x,
-      z: spot.z,
-      rotationY: (index * 2 * Math.PI) / 5,
-    })),
-  },
-  /*
+    {
+      kind: 'CLUSTER',
+      id: 'nook-cushions',
+      assetId: 'cushion',
+      positions: TAPESTRY_NOOK_CUSHION_SPOTS.map((spot, index) => ({
+        x: spot.x,
+        z: spot.z,
+        rotationY: (index * 2 * Math.PI) / 5,
+      })),
+    },
+    /*
     Three tapestries, and it must stay at least three: the one in the
     south-west corner hides the castle's unmarked secret, and if it were the
     only tapestry it would be a signpost pointing at itself. The swaying one
     keeps its own scenery id, which is how `castle-tale` finds it to stir it.
   */
-  ...TAPESTRY_SPOTS.map((spot): ScenerySpec => ({
-    kind: 'MODEL',
-    // `castle-tapestry-stair` is the discovery zone's id, so the tapestry
-    // hanging in it takes a scenery id of its own.
-    id: `tapestry:${spot.entityId}`,
-    assetId: 'tapestry',
-    position: { x: spot.x, y: spot.y, z: spot.z },
-    rotation: { x: 0, y: facingIntoRoom(spot, STORY_HALL), z: 0 },
-    anchor: 'CENTRE',
-  })),
-  /*
+    ...TAPESTRY_SPOTS.map((spot): ScenerySpec => ({
+      kind: 'MODEL',
+      // `castle-tapestry-stair` is the discovery zone's id, so the tapestry
+      // hanging in it takes a scenery id of its own.
+      id: `tapestry:${spot.entityId}`,
+      assetId: 'tapestry',
+      position: { x: spot.x, y: spot.y, z: spot.z },
+      rotation: { x: 0, y: facingIntoRoom(spot, STORY_HALL), z: 0 },
+      anchor: 'CENTRE',
+    })),
+    /*
     The gallery's filler frames. Decorative and never interactive, but not
     optional: without them the three portraits that *are* the choice would be
     the only pictures in a room the content has called a wall of portraits
     since Phase 14.
   */
-  ...GALLERY_FILLER_FRAME_SPOTS.map((spot): ScenerySpec => ({
-    kind: 'MODEL',
-    id: spot.entityId,
-    assetId: 'portrait-frame',
-    position: { x: spot.x, y: spot.y, z: spot.z },
-    rotation: { x: 0, y: facingIntoRoom(spot, GALLERY), z: 0 },
-    anchor: 'CENTRE',
-  })),
-  /*
+    ...GALLERY_FILLER_FRAME_SPOTS.map((spot): ScenerySpec => ({
+      kind: 'MODEL',
+      id: spot.entityId,
+      assetId: 'portrait-frame',
+      position: { x: spot.x, y: spot.y, z: spot.z },
+      rotation: { x: 0, y: facingIntoRoom(spot, GALLERY), z: 0 },
+      anchor: 'CENTRE',
+    })),
+    /*
     The three tower windows' frames. Floor-to-ceiling by design, so they
     stand on the floor rather than centring on the authored mounting height;
     their two backdrops are state variants and belong to `castle-tale`.
   */
-  ...TOWER_WINDOW_SPOTS.map((spot): ScenerySpec => {
-    const yaw = facingIntoRoom(spot, TOWER);
-    return {
-      kind: 'MODEL',
-      id: `${spot.entityId}:frame`,
-      assetId: 'window-frame',
-      position: { x: spot.x, y: 0, z: spot.z },
-      rotation: { x: 0, y: yaw, z: 0 },
-    };
-  }),
-  /*
+    ...TOWER_WINDOW_SPOTS.map((spot): ScenerySpec => {
+      const yaw = facingIntoRoom(spot, TOWER);
+      return {
+        kind: 'MODEL',
+        id: `${spot.entityId}:frame`,
+        assetId: 'window-frame',
+        position: { x: spot.x, y: 0, z: spot.z },
+        rotation: { x: 0, y: yaw, z: 0 },
+      };
+    }),
+    /*
     Beat 9's nine carved stars, above the secret door. The point of the whole
     beat: `count-the-stars` asks "5 in the top row and 4 in the bottom row,
     how many altogether?", and here a child can look up and count them. A
     quarter turn about x aims a cone standing on its base out of the wall.
   */
-  ...COUNTING_STAR_SPOTS.map((spot): ScenerySpec => ({
-    kind: 'MODEL',
-    id: spot.entityId,
-    assetId: 'star-carving',
-    position: { x: spot.x, y: spot.y, z: spot.z },
-    rotation: { x: -Math.PI / 2, y: facingIntoRoom(spot, LIBRARY), z: 0 },
-  })),
-  // Beat 10's pattern: star, moon, star, moon, star. The sixth carving is
-  // worn too smooth to read, and is `castle-tale`'s (it is revealed live).
-  ...LOCK_CARVING_SPOTS.filter((spot) => spot.entityId !== 'lock-carving-worn').map(
-    (spot): ScenerySpec => ({
+    ...COUNTING_STAR_SPOTS.map((spot): ScenerySpec => ({
       kind: 'MODEL',
       id: spot.entityId,
-      assetId: spot.entityId.includes('moon') ? 'moon-carving' : 'star-carving',
+      assetId: 'star-carving',
       position: { x: spot.x, y: spot.y, z: spot.z },
       rotation: { x: -Math.PI / 2, y: facingIntoRoom(spot, LIBRARY), z: 0 },
-    }),
-  ),
+    })),
+    // Beat 10's pattern: star, moon, star, moon, star. The sixth carving is
+    // worn too smooth to read, and is `castle-tale`'s (it is revealed live).
+    ...LOCK_CARVING_SPOTS.filter((spot) => spot.entityId !== 'lock-carving-worn').map(
+      (spot): ScenerySpec => ({
+        kind: 'MODEL',
+        id: spot.entityId,
+        assetId: spot.entityId.includes('moon') ? 'moon-carving' : 'star-carving',
+        position: { x: spot.x, y: spot.y, z: spot.z },
+        rotation: { x: -Math.PI / 2, y: facingIntoRoom(spot, LIBRARY), z: 0 },
+      }),
+    ),
   ];
 }
 
@@ -724,7 +779,7 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
 
   checkpoints: {
     ids: STORYKEEPER_CASTLE_CHECKPOINTS.map((checkpoint) => checkpoint.id),
-    triggerHalfSize: 1.2,
+    triggerHalfSize: CHECKPOINT_HALF_SIZE,
   },
 
   colliders: buildColliders(WALL_HEIGHT),
@@ -892,6 +947,8 @@ export const STORYKEEPER_CASTLE_MANIFEST: ThreeLocationManifest = {
         easel: { x: STUDIO_EASEL_SPOT.x, z: STUDIO_EASEL_SPOT.z, yaw: EASEL_YAW },
       },
     },
+    // GE-072: after castle-tale, which tests and tools read as the castle's own extension.
+    CASTLE_ENGINE_BRIDGE,
   ],
 
   /*

@@ -275,6 +275,20 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       expect(await screen.findByText('You found the Character Gallery.')).toBeInTheDocument();
     });
 
+    it('saves a checkpoint the engine bridge reaches and says it in the castle’s words (GE-072)', async () => {
+      await renderAndWait();
+      await emit((bus) =>
+        bus.emit('CourseCheckpointReached', {
+          checkpointId: 'storykeeper-castle:gallery',
+          label: 'the Character Gallery',
+        }),
+      );
+      await waitFor(() =>
+        expect(saveCheckpoint).toHaveBeenCalledWith('child-1', 'storykeeper-castle:gallery'),
+      );
+      expect(await screen.findByText('You found the Character Gallery.')).toBeInTheDocument();
+    });
+
     // GE-D9: this shell test renders the whole castle view, and `getByRole` computes accessible
     // names across that DOM. On a loaded machine each query took 1 to 2 s, so the run passed the
     // 5 s default. The button is now found inside the dialog (a small subtree), the dismissal is
