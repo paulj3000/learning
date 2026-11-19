@@ -41,6 +41,7 @@ import { playCue, puzzleSolveCues, type SoundCue } from '../../../../region-play
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
 import {
   claimsForOutcome,
+  claimsForPuzzleOutcome,
   type RegionPlayClaimLookup,
 } from '../../../../region-play/regionPlayClaims';
 import { emitLocationClaim, setLocationClaimsBinding } from '../../runtime/gameplayClaimSink';
@@ -648,6 +649,12 @@ function RegionPlayGame(props: LocationCompanionProps) {
     const outcome = await solvePuzzle(puzzleId, submission);
     const kind = state.bootstrap?.puzzles.find((p) => p.puzzleId === puzzleId)?.kind;
     for (const cue of puzzleSolveCues(kind, outcome)) playCue(cue);
+    // GE-073: the server's grading, restated as claims for the visit's sink.
+    if (outcome) {
+      for (const claim of claimsForPuzzleOutcome(puzzleId, outcome, submission)) {
+        emitLocationClaim(claim.type, claim.payload);
+      }
+    }
     return outcome;
   }
 
