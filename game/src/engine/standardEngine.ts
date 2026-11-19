@@ -13,7 +13,11 @@
  * - platform carry, leaving a moving platform with its speed, and bounce pads;
  * - hazard recovery: a `HazardRecoveryRequested` puts the child back at the checkpoint, and
  *   exactly one `PlayerRecovered { reason: 'HAZARD', hazardId, checkpointId }` follows;
- * - optionally the camera rig, when the host provides a view and a camera capability is on.
+ * - optionally the camera rig, when the host provides a view and a camera capability is on;
+ * - optionally the avatar (`character.avatar`) and its animation (`character.animation`): the
+ *   avatar root sits exactly at the interpolated canonical transform, is attached to the host
+ *   scene when there is a view, and loads its model only through an injected loader (no loader:
+ *   the capsule placeholder, never a network fetch). Root motion is stripped from every clip.
  *
  * Defaults keep the extracted controller's behaviour: nothing here changes how the child moves
  * unless a capability asks for it. Everything is disposed through `runtime.resources`.
@@ -31,6 +35,15 @@ import {
   type ThirdPersonCameraConfig,
 } from '../camera/capabilities';
 import { createCameraSystem } from '../camera/cameraSystem';
+import { createAvatarController, type AvatarController, type AvatarDefinition, type AvatarLoaderPort } from '../character/avatar';
+import { createAvatarFollowSystem } from '../character/avatarSystem';
+import {
+  animationDefinitionFromConfig,
+  CHARACTER_ANIMATION,
+  CHARACTER_AVATAR,
+  type AnimationCapabilityConfig,
+  type AvatarCapabilityConfig,
+} from '../character/capabilities';
 import { CheckpointsService } from '../components/checkpoints';
 import {
   GameplayEventFactoryService,
@@ -53,7 +66,7 @@ import { createEngineRuntime, type EngineRuntime } from '../core/runtime';
 import { MOVEMENT_JUMP, MOVEMENT_LOCOMOTION } from '../movement/capabilities';
 import { FirstPersonController } from '../movement/firstPersonController';
 import { JUMP_DISABLED, type JumpConfiguration } from '../movement/jumpConfiguration';
-import type { LocomotionConfiguration } from '../movement/locomotionConfiguration';
+import { DEFAULT_LOCOMOTION, type LocomotionConfiguration } from '../movement/locomotionConfiguration';
 import {
   gateEnvironment,
   installedMovementFeatures,
@@ -105,7 +118,25 @@ export interface StandardEngineOptions {
   setup?: (handle: StandardEngineHandle) => void | Promise<void>;
   /** Provide extra host services before capabilities install (view, sound, published content). */
   provide?: (runtime: EngineRuntime<EventMap>) => void;
+  /**
+   * The child's avatar, used when the adventure requests `character.avatar`. `definition`
+   * overrides the defaults (an asset id, an animation map, sockets); `loader` is the host's asset
+   * port. Without a loader the avatar is the capsule placeholder.
+   */
+  avatar?: { definition?: Partial<AvatarDefinition>; loader?: AvatarLoaderPort };
 }
+
+/** The avatar used when the adventure names none: a placeholder-sized child with standard clip names. */
+export const DEFAULT_AVATAR_DEFINITION: AvatarDefinition = Object.freeze({
+  id: 'avatar.default',
+  assetId: 'avatar.default',
+  scale: 1,
+  rotationOffset: 0,
+  eyeHeight: 1.1,
+  footprintOffset: Object.freeze({ x: 0, z: 0 }),
+  animationMap: Object.freeze({ idle: 'Idle', walk: 'Walk', run: 'Run', jump: 'Jump', fall: 'Fall', land: 'Land' }),
+  sockets: Object.freeze({}),
+});
 
 export interface StandardEngineHandle {
   readonly runtime: EngineRuntime<EventMap>;
@@ -115,6 +146,8 @@ export interface StandardEngineHandle {
   readonly settings: GameplaySettings;
   /** The camera rig, when a host view and a camera capability are present. */
   readonly camera: CameraRig | null;
+  /** The avatar, when the adventure requests `character.avatar` (and it is enabled). */
+  readonly avatar: AvatarController | null;
   dispose(): void;
 }
 
@@ -314,12 +347,52 @@ export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: 
     );
   }
 
+  // Avatar and animation: only when requested. The avatar reads the canonical transform and
+  // nothing else; the follow system (order 10) runs before the camera system (order 20).
+  let avatar: AvatarController | null = null;
+  const avatarConfig = runtime.capabilityConfig<AvatarCapabilityConfig>(CHARACTER_AVATAR);
+  if (avatarConfig && avatarConfig.enabled) {
+    const animationConfig = runtime.capabilityConfig<AnimationCapabilityConfig>(CHARACTER_ANIMATION);
+    const base = { ...DEFAULT_AVATAR_DEFINITION, ...options.avatar?.definition };
+    const definition: AvatarDefinition = {
+      ...base,
+      // A location costume (`assetKey`) wins over the child's own avatar asset.
+      assetId: avatarConfig.assetKey ?? base.assetId,
+      scale: avatarConfig.scale,
+      rotationOffset: avatarConfig.rotationOffset,
+    };
+    const created = createAvatarController({
+      definition,
+      ...(options.avatar?.loader ? { loader: options.avatar.loader } : {}),
+      yawConvention: 'controller',
+      facing: avatarConfig.facing,
+      animate: animationConfig !== undefined,
+      ...(animationConfig ? { animationDefinition: animationDefinitionFromConfig(animationConfig) } : {}),
+    });
+    avatar = created;
+    if (view) {
+      view.scene.add(created.root);
+    }
+    const tuning = locomotion ?? DEFAULT_LOCOMOTION;
+    // Removing the system disposes the avatar, which detaches its root from the scene.
+    runtime.resources.track(
+      runtime.systems.add(
+        createAvatarFollowSystem({
+          world: runtime.world,
+          avatar: created,
+          speeds: () => ({ walkSpeed: tuning.walkSpeed, runSpeed: tuning.runSpeed }),
+        }),
+      ),
+    );
+  }
+
   return {
     runtime,
     controller,
     physics,
     settings,
     camera,
+    avatar,
     dispose: () => runtime.dispose(),
   };
 }

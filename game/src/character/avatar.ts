@@ -23,7 +23,7 @@ import {
   type Object3D,
 } from 'three';
 import { interpolatePlayerPosition, type PlayerTransform, type Vec3Like } from '../contracts/player';
-import { AnimationStateMachine, type AnimationMachineDefinition, type AnimationMap } from '../animation/animationStateMachine';
+import { AnimationStateMachine, type AnimationFrame, type AnimationMachineDefinition, type AnimationMap } from '../animation/animationStateMachine';
 import { withoutRootMotionFor, type RootMotionOptions } from '../animation/rootMotion';
 import { createThreeAnimationDriver, type ThreeAnimationDriver } from '../animation/threeAnimationDriver';
 import { AVATAR_LIMITS } from '../camera/playerPresentation';
@@ -322,6 +322,11 @@ export interface AvatarControllerOptions {
   facing?: 'transform' | 'velocity';
   animationDefinition?: AnimationMachineDefinition;
   rootMotion?: RootMotionOptions;
+  /**
+   * Whether the loaded model animates (the `character.animation` capability). Default true.
+   * False: the model is shown in its rest pose and `animate` does nothing.
+   */
+  animate?: boolean;
 }
 
 export interface AvatarAnimationSpeeds {
@@ -340,6 +345,8 @@ export interface AvatarController {
   follow(transform: PlayerTransform, alpha: number, deltaSeconds?: number): void;
   /** Drives the animation from the transform's movement state and achieved speed. */
   animate(deltaSeconds: number, transform: PlayerTransform, speeds: AvatarAnimationSpeeds): void;
+  /** The last animation frame applied (clip weights), or null before any (diagnostics, tests). */
+  animationFrame(): AnimationFrame | null;
   /** A one-shot gesture (`interact`, `celebrate`) if the model has the clip. */
   gesture(role: string): boolean;
   setVisible(visible: boolean): void;
@@ -371,6 +378,8 @@ export function createAvatarController(options: AvatarControllerOptions): Avatar
   let disposed = false;
   let source: 'placeholder' | 'model' = 'placeholder';
   let facing: AvatarFacing | null = null;
+  let lastFrame: AnimationFrame | null = null;
+  const animates = options.animate !== false;
 
   const placeholder = (() => {
     const height = Math.max(0.5, definition.eyeHeight * 0.9);
@@ -411,9 +420,11 @@ export function createAvatarController(options: AvatarControllerOptions): Avatar
       clipByName = new Map(clips.map((clip) => [clip.name, clip]));
       inner.remove(placeholder);
       inner.add(model);
-      mixer = new AnimationMixer(model);
-      driver = createThreeAnimationDriver(mixer, clips);
-      machine = new AnimationStateMachine(definition.animationMap, options.animationDefinition);
+      if (animates) {
+        mixer = new AnimationMixer(model);
+        driver = createThreeAnimationDriver(mixer, clips);
+        machine = new AnimationStateMachine(definition.animationMap, options.animationDefinition);
+      }
       source = 'model';
       equipment.rebind(socketNode);
     } catch {
@@ -449,7 +460,9 @@ export function createAvatarController(options: AvatarControllerOptions): Avatar
       );
       driver.apply(frame);
       driver.update(deltaSeconds);
+      lastFrame = frame;
     },
+    animationFrame: () => lastFrame,
     gesture(role) {
       if (disposed || !machine) {
         return false;
