@@ -59,3 +59,4 @@ canonical player transform; the engine emits versioned gameplay claims and never
 | O5 | Scoring economy (XP, coins) against the mandatory scoring standard, which prohibits them as the centre of play | Not an engine decision, but the engine's claims feed it | GE-100 |
 | O6 | Sprouts guided tap-to-move control profile (ADR-020 item 7) | Not built; LAI-2104 scope | GE-035 |
 | O7 | A per-child jump assist setting (jumping standard "Proposed") | Not built; needs a spec and an ADR | GE-051 |
+| O8 | Firepeak's telegraphed falling rocks, steam vents and crumble-then-fall platforms: design call reported as pending with the owner by the Firepeak lead (the engine components exist: GE-041, GE-042, GE-043) | Firepeak adoption of those three waits on it | GE-073 |
