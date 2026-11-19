@@ -305,6 +305,9 @@ describe('checkpoints, hazards and recovery', () => {
     expect(checkpointReachedText('the old dock')).toBe('Safe spot: the old dock. If you slip, you will come back here.');
     expect(recoveredText(course, 'start')).toBe('Splash! Back to the old dock. Have another go!');
     expect(recoveredText(course, null)).toContain('Have another go!');
+    const lava = { ...course, recoveryLead: 'Whoa, the lava is too hot!' };
+    expect(recoveredText(lava, 'start')).toBe('Whoa, the lava is too hot! Back to the old dock. Have another go!');
+    expect(recoveredText(lava, null)).toBe('Whoa, the lava is too hot! Back on solid ground. Have another go!');
   });
 });
 
@@ -325,6 +328,15 @@ describe('platforming validation and staff tuning', () => {
         context,
       ),
     ).toEqual([]);
+  });
+
+  it('accepts a short recovery lead and refuses an empty or long one', () => {
+    const ok = validatePlatforming({ platforms: [dock()], recoveryLead: 'Whoa, the lava is too hot!' }, context);
+    expect(ok).toEqual([]);
+    for (const recoveryLead of ['  ', 'x'.repeat(81)]) {
+      const issues = validatePlatforming({ platforms: [dock()], recoveryLead }, context);
+      expect(issues.map((i) => i.path)).toEqual(['platforming.recoveryLead']);
+    }
   });
 
   it('refuses narrow tops, fast or long paths, unknown sources and unsafe checkpoints', () => {

@@ -41,6 +41,7 @@ import {
   TelescopePanel,
   ValvePanel,
 } from './ui/AreaPuzzlePanels';
+import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { ChoiceSceneView } from './areaPuzzleScene';
 import { RewardReveal } from './ui/RewardReveal';
 import area from './ui/AreaPuzzlePanels.module.css';
@@ -70,6 +71,12 @@ export interface AreaPuzzleLayerProps {
   ): Promise<PuzzleOutcome | undefined>;
   onClose(): void;
   showToast(message: string): void;
+  /**
+   * The region's event bus: a platforming hazard (Firepeak lava, a lake) puts the child back
+   * through `PlayerRecovered`, and the same gentle fade as the effects lava plays. The engine's
+   * own recovery toast already says why (`platforming.recoveryLead`).
+   */
+  bus?: Pick<WorldEngineEventBus, 'on'>;
 }
 
 interface Typed {
@@ -235,6 +242,14 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
       for (const puzzleId of shown) puzzles.clearChoices?.(puzzleId);
     };
   }, [choice, sceneApi, sessionId, typed]);
+
+  const bus = props.bus;
+  useEffect(() => {
+    if (!bus) return;
+    return bus.on('PlayerRecovered', ({ reason }) => {
+      if (reason === 'HAZARD') setFlash((n) => n + 1);
+    });
+  }, [bus]);
 
   useEffect(() => {
     if (!sceneApi?.effects) return;

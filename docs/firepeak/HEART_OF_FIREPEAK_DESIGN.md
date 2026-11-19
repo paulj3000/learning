@@ -310,6 +310,11 @@ list: `TREE`, `LOG`, `GEAR`, `SWITCH`, `ROCK`, `ARCH`. No binary is committed.
 2. `effects.lava[].visualOnly`: draw the lava, never respawn from it (hazards do).
 3. Reduced-motion respawn vignette no longer stays on screen (`.respawnFlash`).
 4. New stand-in shapes (section 10).
+5. `platforming.recoveryLead` (optional, at most 80 characters, validated on client and server):
+   the words said first when a hazard puts the child back. The Heart says "Whoa, the lava is too
+   hot!" instead of the water "Splash!" (layout version 2).
+6. Every platforming-hazard recovery (`PlayerRecovered` with reason `HAZARD`) plays the same
+   gentle respawn fade as the effects lava (`AreaPuzzleLayer` reads the region bus).
 
 ## 13. Storykeeper and Realm Explorer contracts
 

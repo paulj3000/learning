@@ -11,5 +11,7 @@ export function checkpointReachedText(label: string): string {
 
 export function recoveredText(spec: PlatformingSpec | undefined, checkpointId: string | null | undefined): string {
   const label = checkpointId ? spec?.checkpoints?.find((point) => point.id === checkpointId)?.label : undefined;
-  return label ? `Splash! Back to ${label}. Have another go!` : 'Whoops! Back on solid ground. Have another go!';
+  const lead = spec?.recoveryLead?.trim();
+  if (label) return `${lead || 'Splash!'} Back to ${label}. Have another go!`;
+  return lead ? `${lead} Back on solid ground. Have another go!` : 'Whoops! Back on solid ground. Have another go!';
 }

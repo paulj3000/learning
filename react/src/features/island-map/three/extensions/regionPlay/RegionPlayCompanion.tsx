@@ -797,6 +797,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
           }}
           onClose={closeInteraction}
           showToast={props.showToast}
+          bus={bus}
         />
       ) : null}
       {areaEvent ? null : panel}

@@ -7482,7 +7482,7 @@
   "environment": {
    "backgroundColor": 3877427
   },
-  "firepeakHeartVersion": 1,
+  "firepeakHeartVersion": 2,
   "groundAssetId": "ground-tile-stone",
   "platforming": {
    "checkpoints": [
@@ -8056,6 +8056,7 @@
      }
     }
    ],
+   "recoveryLead": "Whoa, the lava is too hot!",
    "zones": [
     {
      "enterMessage": "Flint: Welcome to Firepeak! Use the stick or the arrow keys to walk. Say hello to me, then read the map.",
