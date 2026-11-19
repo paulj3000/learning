@@ -1,8 +1,8 @@
 # 02 — Content Model Strategy
 
-## Do Not Immediately Move Everything Into Amplify Data
+## Do Not Immediately Move Everything Into Django-Authored Content
 
-The current application intentionally keeps canonical playable definitions in source control while using Amplify `Island` and `Adventure` as admin catalog overlays.
+The current application intentionally keeps canonical playable definitions in source control while Django's catalog (`lai/apps/catalog`, loaded by `manage.py load_content`) adds administrable fields on top (ADR-031, ADR-033); after import Django is authoritative and edits are versioned revisions (ADR-047).
 
 That design provides:
 
@@ -116,6 +116,6 @@ interface AdventureDefinitionRepository {
 
 Initial repository may read source-controlled registries.
 
-Future repository may read Amplify Data.
+Future repository may read the Django API.
 
 The runtime should not care.

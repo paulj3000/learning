@@ -2,7 +2,7 @@
 
 > **Updated for `dev` (2026-11-16, ADR-055).** In dev the API and admin hosts resolve to the
 > instance's Elastic IP and TLS is Let's Encrypt on nginx, not an ALB with ACM; the site stack is
-> unchanged. Amplify is retired (AMP-01 to AMP-08), so Amplify references below are historical.
+> unchanged.
 > Current dev runbook: root `README.md`, "AWS Development Infrastructure".
 
 Date: 2026-11-09. Trello: [LAI-INFRA-003](https://trello.com/c/gdwR5KXG). Base: `main` at
@@ -67,7 +67,7 @@ certificates and create:
 | ACM validation for `lai.<domain>` | CNAME | Shown in ACM, **us-east-1** | While `LaiFrontend` waits |
 | `api.<domain>` | CNAME | Output `LoadBalancerDnsName` | After `LaiDjangoEc2` completes |
 | `ladm.<domain>` | CNAME | Output `LoadBalancerDnsName` | Same |
-| `lai.<domain>` | CNAME | Output `DistributionDomainName` (`dxxxx.cloudfront.net`) | After `LaiFrontend` completes; this is the cutover step (7.4) |
+| `lai.<domain>` | CNAME | Output `DistributionDomainName` (`dxxxx.cloudfront.net`) | After `LaiFrontend` completes; this is the go-live step (7.4) |
 
 Keep the validation CNAMEs: ACM renews through them.
 
@@ -75,7 +75,7 @@ Keep the validation CNAMEs: ACM renews through them.
 
 | Card item | How it is met | Where |
 |---|---|---|
-| Cognito preserved | Unchanged. The Amplify `main` pool stays the owner (INFRA-002 D5), and Django validates its tokens. `defineAuth` uses email sign-in with no hosted UI, so no callback URLs need the new host | `amplify/auth/resource.ts`; `CognitoUserPoolId` parameter |
+| Cognito preserved | Unchanged. The existing pool stays the parent identity (INFRA-002 D5), and Django validates its tokens. The web client uses email sign-in through `react/src/lib/cognito` with no hosted UI, so no callback URLs need the new host | `react/src/lib/cognito`; `CognitoUserPoolId` parameter |
 | Private child assets | The child photo bucket is never behind CloudFront (ADR-042). CloudFront fronts only the web bucket and `/api/*`. Asset files are signed `/api/v1/asset-files/...` URLs, or S3 presigned URLs. API responses are never cached at the edge (`CachingDisabled`) | `frontendStack.ts`; `childPhotoStorageStack.ts` |
 | DB private | RDS sits in isolated subnets with no NAT. Its security group admits 5432 only from the instance, and it is not publicly accessible. `rds.force_ssl=1`; storage is encrypted | `djangoEc2Stack.ts` (unchanged) |
 | Secrets secured | The DB password is in Secrets Manager. `DJANGO_SECRET_KEY` and AI settings are operator-written SSM values. No secret is in a template, the React build or CloudFront | Unchanged |
@@ -91,7 +91,7 @@ Keep the validation CNAMEs: ACM renews through them.
 | File | Change |
 |---|---|
 | `infra/lib/djangoEc2Stack.ts` | New `AdminDomainName` parameter, used as the certificate's second name. The listener's default action becomes a fixed 404, with a rule forwarding only the API and admin hosts. SSM `DJANGO_ALLOWED_HOSTS` gets both hosts and `DJANGO_CSRF_TRUSTED_ORIGINS` the admin host. `LAI_ADMIN_HOST` is passed to the instance. Adds an `AdminAlias` record (with a zone) and an `AdminBaseUrl` output |
-| `infra/lib/frontendStack.ts` (new) | `LaiFrontend-<env>`: private versioned bucket with OAC, a us-east-1 certificate, the distribution with the `/api/*` behaviour and the SPA rewrite function, Amplify's security headers, and optional A/AAAA aliases. No Lambda, role or asset |
+| `infra/lib/frontendStack.ts` (new) | `LaiFrontend-<env>`: private versioned bucket with OAC, a us-east-1 certificate, the distribution with the `/api/*` behaviour and the SPA rewrite function, the site's security headers, and optional A/AAAA aliases. No Lambda, role or asset |
 | `infra/bin/app.ts` | Registers `LaiFrontend-<env>` in us-east-1 |
 | `deploy/ec2/nginx/default.conf.template` | One server per host plus a health-only default server. Relative redirects (`absolute_redirect off`): without it nginx would redirect to `http://<host>:8080/...` |
 | `deploy/ec2/docker-compose.yml`, `scripts/aws/{setup-ec2,lib,status}.sh` | `LAI_ADMIN_HOST` from the stack to `deploy.conf`, `release.env` and the nginx container (required, like `LAI_API_HOST`) |
@@ -107,7 +107,7 @@ without downtime, once the new certificate validates.
 ## 6. Not covered here
 
 - **The release pipeline for the site** (upload, `Cache-Control`, invalidation, and the build's
-  `amplify_outputs.json` from the `main` backend) is designed and built, switched off, in
+  Cognito and API variables) is designed and built, switched off, in
   LAI-INFRA-004: `docs/infrastructure/deployment-design.md`.
 - **CloudFront WAF.** Optional: a `CLOUDFRONT`-scope Web ACL must live in us-east-1. The admin is
   not behind CloudFront, and the ALB rate rule covers the admin login.
@@ -132,9 +132,6 @@ without downtime, once the new certificate validates.
    - `https://ladm.<domain>/` redirects to `/admin/`.
    - `https://ladm.<domain>/api/v1/health/` returns 404.
    - `https://<ALB DNS name>/` returns 404.
-4. **Cutover.** Upload a build (`VITE_BACKEND=django`, empty `VITE_DJANGO_API_BASE`) to the
-   web bucket, then add the `lai.` record. Amplify Hosting keeps serving its own domain the whole
-   time, so nothing switches by accident. Test sign-in, play, `/api/` calls and 3D asset loading
+4. **Go live.** Upload a build (empty `VITE_DJANGO_API_BASE`) to the web bucket, then add the
+   `lai.` record. Test sign-in, play, `/api/` calls and 3D asset loading
    on desktop and mobile.
-5. Retiring Amplify Hosting's frontend is a separate, later approval (INFRA-004 decides the
-   pipeline).

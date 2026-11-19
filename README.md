@@ -4,11 +4,10 @@ AI-powered learning adventures for children ages 3–8: a React, TypeScript and 
 Django REST backend with PostgreSQL, parent sign-in through Amazon Cognito, and constrained AI
 generation through Amazon Bedrock on the server.
 
-The Amplify Gen 2 backend and Amplify Hosting are retired (ADR-019, AMP-01 to AMP-08; the owner
-deleted the Amplify app on 2026-11-14). Nothing in this repository needs Amplify, an Amplify
-sandbox or `amplify_outputs.json`. The parent Cognito user pool and its web app client, created
-by the old Amplify backend, are kept and used directly. History and the remaining deployment and
-legacy-data tasks: `docs/platform/AMPLIFY_FINAL_REMOVAL.md`.
+The browser uses the existing parent Cognito user pool and its web app client directly, and
+Django verifies the tokens (ADR-019, ADR-040). Media goes through Django to S3, Bedrock and Polly
+are called only by Django, background work runs on SQS and Lambda (ADR-064), the AWS resources
+are defined with the CDK in `infra/`, and the site is published to S3 and CloudFront.
 
 ## Start here
 
@@ -54,8 +53,7 @@ there, and whether Cognito is configured (never the ids or any token). If a line
 says what to change. Django is the only backend; there is no backend selector.
 
 Django Admin (staff only) is at `http://127.0.0.1:8000/admin/`, with its own staff sign-in.
-Parents and children use the React app only. Do not commit `.env` files; an old checkout's
-`amplify_outputs.json` is ignored and unused.
+Parents and children use the React app only. Do not commit `.env` files.
 
 ### Python tooling (the Django backend in `lai/`)
 
@@ -146,7 +144,7 @@ code today and nothing has been removed yet.
 Django + DRF on PostgreSQL is the only application backend (ADR-019, ADR-033). The React build
 calls it on same-origin `/api/` (`VITE_DJANGO_API_BASE` may name another `https://` origin);
 deployed, CloudFront routes `/api/` to Django and serves the React build from S3
-(`docs/platform/AMPLIFY_FINAL_REMOVAL.md`, section "Hosting"). Deploying that stack is an owner
+(`infra/lib/frontendStack.ts`, published by `deploy-site.yml`). Deploying that stack is an owner
 step and has not happened yet.
 
 ## AWS Development Infrastructure - Deployment and Operations

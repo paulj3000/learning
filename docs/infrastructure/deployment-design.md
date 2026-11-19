@@ -3,17 +3,15 @@
 > **Superseded for `dev` (2026-11-16, ADR-055).** The dev environment now uses the native EC2
 > design and its workflows (`deploy-dev-native.yml`, `deploy-dev-lambda.yml`,
 > `manage-dev-infrastructure.yml`); see the root `README.md`, "AWS Development Infrastructure",
-> and `docs/infrastructure/dev-native-environment.md`. Amplify Hosting and the Amplify backend are
-> retired (AMP-01 to AMP-08), so the Amplify steps below are historical. The production design
-> here still applies.
+> and `docs/infrastructure/dev-native-environment.md`. The production design here still applies.
 
 Date: 2026-11-09. Trello: [LAI-INFRA-004](https://trello.com/c/ehsOJaqJ). Base: `main` at
 `3b78951` (LAI-INFRA-003 merged). Inputs: `docs/infrastructure/resource-ownership.md` (section 3.6),
 `docs/infrastructure/domains-and-hosting.md`, ADR-037.
 
 **Status: design plus gated code, nothing switched on.** The new site workflow does nothing until
-the repository variable `LAI_SITE_DEPLOY_ENABLED` is `'true'`. Until then Amplify Hosting stays the
-only frontend publisher, and no second deploy system is active (as the card requires). No AWS
+the repository variable `LAI_SITE_DEPLOY_ENABLED` is `'true'`. Until then no frontend is published,
+and no second deploy system is active (as the card requires). No AWS
 resource was created or changed.
 
 ## 1. Decisions
@@ -30,8 +28,6 @@ resource was created or changed.
 |---|---|---|---|---|
 | Django on EC2 (`LaiDjangoEc2-<env>`) | `.github/workflows/deploy-django-ec2.yml`: test, image to ECR, SSM release | Push to `main` on backend paths; dispatch for prod and rollback | `LAI_DEPLOY_ENABLED` | Exists (ADR-037) |
 | React site on CloudFront (`LaiFrontend-<env>`) | **`.github/workflows/deploy-site.yml`** (new): build, S3, invalidate | Push to `main` on frontend paths; dispatch for prod and rollback | **`LAI_SITE_DEPLOY_ENABLED`** (new, off) | This PR |
-| Amplify Gen 2 backend (Cognito, AppSync, DynamoDB) | Amplify Hosting, `amplify.yml` (`ampx pipeline-deploy`) | Every build of the connected `main` branch | Amplify console | Unchanged until cutover (section 7) |
-| React site on Amplify Hosting | Amplify Hosting, `amplify.yml` frontend phase | Same build | Amplify console | Transitional (section 7) |
 | AWS infrastructure (6 CDK stacks) | Operator, `scripts/aws/provision.sh` | Manual | Owner approval of each change set | Unchanged |
 | Tests only | `.github/workflows/ci.yml` | Every push and PR | n/a | Unchanged; no AWS role |
 
@@ -91,7 +87,6 @@ task. The bucket grows by about one build per release.
 | Other `react/public` files (`models/`, `fonts/`, icons) | `public, max-age=3600` | 2nd (sync, no delete) |
 | `index.html`, `game/index.html` | `no-cache` | **Last**, so no shell names a file not yet uploaded |
 
-- These match the headers Amplify Hosting sends today (`customHttp.yml`).
 - CloudFront's `CachingOptimized` policy honours `Cache-Control`.
 - Only the shells are invalidated (`/index.html`, plus `/game/index.html` when present). The SPA
   rewrite maps every route to those keys before the cache lookup, so one invalidation covers every
@@ -104,20 +99,6 @@ task. The bucket grows by about one build per release.
 - **The site workflow is off** until the owner sets `LAI_SITE_DEPLOY_ENABLED=true`. Its two entry
   jobs check the variable, and the release jobs run only after the gated wait job succeeds
   (tested).
-- **Transition (intended, temporary).** Once the site workflow is on, `main` reaches two frontend
-  hosts:
-  - Amplify Hosting on its own domain;
-  - CloudFront on `lai.<domain>`.
-
-  They are different hosts, so neither overwrites the other. DNS for `lai.` decides what users
-  get, and nothing switches by accident.
-- **After acceptance** (owner decision, later card), one of:
-  - (a) keep the Amplify Hosting app only for `ampx pipeline-deploy` of the Gen 2 backend, and
-    ignore its frontend artifact;
-  - (b) move `ampx pipeline-deploy` into GitHub Actions and disconnect Amplify Hosting.
-
-  (b) puts every release in one system but needs an Amplify deploy role. Until the Django cutover
-  retires Amplify Data, the Gen 2 backend still needs one of the two.
 - The Django and site workflows never deploy infrastructure. `provision.sh` never deploys code.
 
 ## 8. Environment separation
@@ -131,15 +112,16 @@ task. The bucket grows by about one build per release.
 | Database | RDS Single-AZ, 7-day backups | RDS, 14-day backups, pre-migration snapshots |
 | Auto release | Every qualifying push | Only with `LAI_PROD_AUTO_DEPLOY='true'`, otherwise manual |
 
-All environments share the Amplify `main` backend's Cognito pool (inventory U3). That is today's
-state, not a new coupling.
+All environments share the existing Cognito user pool (inventory U3). That is today's state, not
+a new coupling.
 
 ### GitHub configuration the site workflow needs (none of it secret)
 
 | Scope | Variable | From |
 |---|---|---|
 | Repository | `LAI_SITE_DEPLOY_ENABLED` | `'true'` to switch on (owner) |
-| Repository | `LAI_AMPLIFY_APP_ID` | `aws amplify list-apps` (inventory U9) |
+| Repository or `site-<env>` | `LAI_COGNITO_USER_POOL_ID` | The existing parent user pool id |
+| Repository or `site-<env>` | `LAI_COGNITO_CLIENT_ID` | The pool's public web app client id |
 | `site-<env>` | `LAI_SITE_DEPLOY_ROLE_ARN` | `LaiFrontend-<env>` output `SiteDeployRoleArn` |
 | `site-<env>` | `LAI_SITE_BUCKET` | output `WebBucketName` |
 | `site-<env>` | `LAI_SITE_DISTRIBUTION_ID` | output `DistributionId` |
@@ -147,14 +129,11 @@ state, not a new coupling.
 
 ## 9. Switching it on (owner, in order)
 
-1. Deploy `LaiFrontend-dev` with `provision.sh` (`LAI_SITE_DOMAIN`, `LAI_AMPLIFY_APP_ID`).
+1. Deploy `LaiFrontend-dev` with `provision.sh` (`LAI_SITE_DOMAIN`).
    Change sets first, then `--execute`.
 2. Create the `site-dev` GitHub Environment and the variables in section 8. Leave
    `LAI_SITE_DEPLOY_ENABLED` unset.
 3. Set `LAI_SITE_DEPLOY_ENABLED=true` and run `deploy-site.yml` by hand for dev.
-   - **Unverified:** the exact IAM actions `ampx generate outputs` needs are not confirmed
-     (`ReadAmplify*` statements in `infra/lib/frontendStack.ts`). If the run fails with
-     AccessDenied, add only the action it names, then re-run.
 4. Check the smoke test, then sign-in, play and asset loading on `lai.<domain>` in a browser
    (`domains-and-hosting.md` section 7).
 5. Repeat for prod with `site-prod` (required reviewers).
@@ -164,18 +143,15 @@ state, not a new coupling.
 | File | Change |
 |---|---|
 | `.github/workflows/deploy-site.yml` (new) | Gated jobs: wait for the same commit's Django release, release to dev, release to prod with approval, roll back |
-| `.github/actions/site-release/action.yml` (new) | `npm ci`, `ampx generate outputs` for the `main` backend (read-only), build with `VITE_BACKEND=django` and same-origin `/api/`, publish, smoke test |
+| `.github/actions/site-release/action.yml` (new) | `npm ci`, build with `VITE_COGNITO_USER_POOL_ID` and `VITE_COGNITO_CLIENT_ID` from the workflow inputs (refused if malformed) and same-origin `/api/`, publish, smoke test |
 | `scripts/aws/publish-site.sh` (new) | Publish (ordered, no delete, per-release shells, invalidate) and rollback |
-| `infra/lib/frontendStack.ts` | `AmplifyAppId` parameter. Role `lai-github-site-deploy-<env>`: trusts `environment:site-<env>` only; S3 list/get/put on the site bucket (**no delete**); invalidation on its distribution; read-only Amplify `main` backend access. New output `SiteDeployRoleArn` |
-| `infra/bin/app.ts`, `scripts/aws/provision.sh` | Pass `githubRepository` and `LAI_AMPLIFY_APP_ID` |
+| `infra/lib/frontendStack.ts` | Role `lai-github-site-deploy-<env>`: trusts `environment:site-<env>` only; S3 list/get/put on the site bucket (**no delete**); invalidation on its distribution. New output `SiteDeployRoleArn` |
+| `infra/bin/app.ts`, `scripts/aws/provision.sh` | Pass `githubRepository` |
 | Tests | `tests/deploy/test_publish_site.py` (8), `tests/deploy/test_site_workflow.py` (4), and a new role test in `infra/lib/frontendStack.test.ts` |
 | Docs | This file, `docs/infrastructure/domains-and-hosting.md` section 6, `docs/IMPLEMENTATION_STATUS.md` |
 
 ## 11. Open items
 
-- The exact `ampx generate outputs` permissions (section 9, step 3).
-- Choosing between options (a) and (b) for the Amplify Gen 2 backend pipeline after acceptance
-  (section 7).
 - A later pruning task for old site assets.
 - Release-SHA visibility. Neither the site nor `/api/v1/health/` reports which commit it runs, so
   the site job cannot check that the backend serving it is the same commit. Section 3's ordering

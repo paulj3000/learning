@@ -120,7 +120,7 @@ cannot hold for per-room work that does not exist.
 | Pattern lock | parity "answers order-the-keys by seating three rods" |
 | Secret bookshelf door | parity "offers the arc at the door", "shows the way through once the arc is already finished" |
 | Sprouts picture story | parity "answers a Sprouts choice with their own adventure's option id" |
-| Session-time calm stop | parity "has Quill look toward the nook once the time has passed" |
+| Session-time calm stop | retired by ADR-053 (no play-time limits) |
 | Equivalent card choices | `castleHudEquivalence.test.tsx` |
 | Single authoritative chapter progress record (ADR-027) | `StoryChapterRunner.test.tsx`; parity "creates no story progress for a child who only walks through" |
 

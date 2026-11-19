@@ -81,7 +81,7 @@ No shipped manifest binds `multiplayer-presence` yet. Without
 | `MP_DJANGO_API_BASE` | **required** | Origin of the Django API, e.g. `https://api.example.org` (no `/api/v1`). `https://` in production; `http://` is accepted only outside production |
 | `NODE_ENV` | | `production` enables the strict origin and API URL rules |
 
-The server reads no files: there is no `amplify_outputs.json` fallback. A
+The server reads no files: there is no configuration-file fallback. A
 missing variable stops start-up with an error that names every missing one.
 
 The server needs **no AWS credentials and no database access**. It
@@ -185,7 +185,7 @@ must therefore not log query strings. Recorded as a deployment requirement.
   step and carries an always-on cost (ADR-026).
 - **Not yet verified with a real signed-in parent.** The automated tests
   cover real WebSockets and the real SDK with a fake Cognito verifier and a
-  fake Django lookup. The access-token and Django path (AMP-03) has not yet
+  fake Django lookup. The access-token and Django path has not yet
   run against a live pool and a live Django API. The two-browser check above
   needs a person with a parent account whose children are in Django.
 - **The lookup returns more than it needs.** `GET children/<id>/` carries

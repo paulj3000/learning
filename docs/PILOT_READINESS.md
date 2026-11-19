@@ -3,10 +3,8 @@
 Four of `docs/ROADMAP.md`'s Phase 8 deliverables - load and cost tests,
 the AI red-team test suite, operational dashboards and alarms, and the
 closed parent pilot itself - cannot be *verified against live AWS* in this
-environment: there are no AWS credentials available here (confirmed again
-this session - `npx ampx sandbox --once` failed immediately on an expired
-SSO token), no deployed `ampx sandbox`, and (for the pilot) no real
-families. This is the same constraint every prior phase's
+environment: there are no AWS credentials available here, no deployed
+Django environment, and (for the pilot) no real families. This is the same constraint every prior phase's
 `docs/IMPLEMENTATION_STATUS.md` verification notes have already recorded
 for anything requiring a live backend. Rather than skip these items
 silently, this document is the concrete runbook for each one, ready to
@@ -25,36 +23,35 @@ lives here rather than starting a second "blocked on real testers" file.
 
 ## 1. Load and cost tests
 
-**Why blocked here**: needs a deployed AppSync API, real DynamoDB tables,
-and a real Bedrock model subscription to generate meaningful load and cost
-numbers against - synthetic numbers produced without a live backend would
-not reflect real AppSync resolver latency, DynamoDB on-demand billing, or
-actual Bedrock per-token cost, and could give a false sense of readiness.
+**Why blocked here**: needs a deployed Django environment (EC2 and RDS
+PostgreSQL) and a real Bedrock model subscription to generate meaningful
+load and cost numbers against - synthetic numbers produced without a live
+backend would not reflect real request latency, database load, or actual
+Bedrock per-token cost, and could give a false sense of readiness.
 
-**Runbook, once a sandbox is deployed**:
+**Runbook, once an environment is deployed** (an owner-approved step):
 
-1. **Establish a cost baseline per interaction.** From
-   `amplify/data/resource.ts`, the only metered AI call is
-   `generateCompanionTurn` (Bedrock, `Claude Haiku 4.5`,
-   `maxTokens: 300`). Using AWS's published Bedrock pricing for the
-   resolved model/region, compute cost per call from
-   `AIInteractionAudit.latencyMs` and a rough input/output token estimate
+1. **Establish a cost baseline per interaction.** The metered AI calls are
+   the Django companion and tutor turns (`docs/AI_SERVICE.md`; Bedrock,
+   `Claude Haiku 4.5`, 300 output tokens). Using AWS's published Bedrock pricing for the
+   resolved model/region, compute cost per call from the
+   `AIInteractionAudit` token counts (or a rough input/output token estimate
    (the system prompt + arguments for input; `maxLength` as an output
-   ceiling). Multiply by expected calls-per-session (roughly one HINT
+   ceiling)). Multiply by expected calls-per-session (roughly one HINT
    escalation per stuck step, one CELEBRATE per correct answer, one
    NARRATE per Storykeeper Castle scene / Wonderwild Forest shrink) to get
    a per-session AI cost estimate.
-2. **Load-test AppSync/DynamoDB**, not Bedrock, for the deterministic
+2. **Load-test Django and PostgreSQL**, not Bedrock, for the deterministic
    paths (adventure start/action/complete, world-change writes) - these
    are the higher-volume, non-AI-gated operations. A simple concurrent-
    session script (N simulated children playing "Repair the Moonlight
-   Bridge" end to end in parallel) exercising `src/features/adventures/api.ts`
-   against a real deployed backend would surface DynamoDB throttling or
-   AppSync request-rate issues before any real pilot traffic does.
+   Bridge" end to end in parallel) exercising the Django play and adventure routes
+   against a real deployed backend would surface database or request-rate
+   issues before any real pilot traffic does.
 3. **Load-test the Bedrock path separately and conservatively** - Bedrock
-   quotas are typically tighter than AppSync/DynamoDB's, and this app's
-   own `docs/THREAT_MODEL.md` section 4 flags "no rate limiting beyond
-   AWS account-level Bedrock quotas" as an open risk. Confirm the
+   quotas are typically tighter than the application's own capacity. Django
+   applies its own per-child and global AI limits and a kill switch
+   (`docs/AI_SERVICE.md` section 5). Confirm the
    account's actual Bedrock TPS/TPM quota for the resolved model and size
    a closed pilot's expected concurrent AI-call volume against it before
    inviting more than a handful of families at once.
@@ -69,8 +66,8 @@ and a confirmed test parent account became available). Previously this
 section was a runbook only, blocked on both a live sandbox and, before
 that, `docs/PRIVACY_AND_SAFETY_REVIEW.md` section 2's related "no free-text
 child input path exists yet" note. The script is `scripts/ai-red-team.ts`
-(`npm run ai:red-team`, requires `TEST_PARENT_EMAIL`/`TEST_PARENT_PASSWORD`
-for a confirmed parent account and a deployed `amplify_outputs.json`); see
+(`npm run ai:red-team`, today with `--target django`, requires a confirmed
+parent account in the Cognito pool and a running Django); see
 `docs/IMPLEMENTATION_STATUS.md`'s Phase 8 entry for the full writeup. What
 follows is preserved as the original runbook plus what this run found.
 
@@ -148,71 +145,45 @@ than a further prompt-tuning pass this session.
 
 ## 3. Operational dashboards and alarms
 
-**Status: implemented as infrastructure-as-code this session, not yet
-deployed or verified against live AWS.** The earlier version of this
-section assumed dashboards/alarms need a deployed backend to be *built*
-against, since there was "nothing to point a dashboard at without a live
-environment." That turned out to be only half true: CloudWatch
-alarms/dashboards and an AWS Budget can be defined as CDK constructs that
-reference Amplify's generated AppSync API and DynamoDB table constructs by
-reference (not by needing them to already exist), so they can be written
-and typechecked without a deployed sandbox - only *seeing them fire on
-real data* needs one. `npx ampx sandbox` was attempted this session and
-failed immediately on expired SSO credentials
-(`[InvalidCredentialError] Failed to load default AWS credentials`)
-before reaching any CDK synth step, so nothing below has been exercised
-end-to-end; treat it as typechecked, carefully-reviewed code, not
-verified infrastructure.
+**Status: implemented as infrastructure-as-code, not yet deployed or
+verified against live AWS.** CloudWatch metric filters, alarms and an AWS
+Budget are CDK constructs in `infra/lib/aiGuardrailStack.ts`
+(`LaiAiGuardrail-<env>`, `docs/AI_SERVICE.md` section 6). They can be
+written, synthesized and unit-tested without a deployed environment; only
+*seeing them fire on real data* needs one.
 
-**What shipped** (`amplify/backend.ts`, `amplify/functions/operational-metrics/`):
+**What is defined:**
 
-- **A DynamoDB Streams consumer** (`operationalMetrics`, this backend's
-  first Lambda function) on the `SafetyEvent` and `AIInteractionAudit`
-  tables. Both models are written directly by the browser
-  (`src/features/companion/api.ts`) with no server-side hook in the write
-  path, so a stream consumer turning each write into a CloudWatch
-  embedded-metric-format (EMF) log line is the only way to get a real
-  alarm on either one - there is no Lambda/resolver log to build a metric
-  filter over otherwise. See `handler.ts`'s doc comment for the exact
-  metrics (`SafetyEventCount` by `Severity`, `AIInteractionCount`,
-  `AIValidationFailureCount`, `AIFallbackUsedCount`,
-  `AISafetyDispositionCount` by `Disposition`, `AILatencyMs`), all under
-  the `LearningAdventureIsland/Safety` and `LearningAdventureIsland/AI`
-  namespaces. `summarizeRecords`/`emitSafetyMetrics`/`emitAiMetrics` are
-  pure and unit-tested (`handler.test.ts`); only the DynamoDB Streams
-  wiring and the EMF-to-real-metric behavior are unverified.
-- **All four alarms** from the original runbook below, each notifying a
-  new `OperationalAlertsTopic` SNS topic: the Bedrock cost/budget alarm
-  (`AWS::Budgets::Budget`, monthly, filtered to the Bedrock service, at
-  80% actual / 100% forecasted), the AppSync 4xx/5xx error-rate alarms
-  (on AppSync's built-in `AWS/AppSync` metrics), the
-  `generateCompanionTurn` validation-failure-rate alarm, and the
-  `SafetyEvent severity: HIGH` volume alarm - the last two fed by the new
-  stream consumer above.
-- **A CloudWatch dashboard** (named `<root stack name>-operations`, for
-  example `amplify-learningadventureisland-<user>-sandbox-<hash>-operations`;
-  the name is scoped per deployment because CloudWatch dashboard names are
-  unique per account and Region)
-  covering the metrics `docs/ARCHITECTURE.md`'s "Observability" section
-  already commits to tracking: AppSync errors, AI interaction
-  volume/validation-failure/fallback rate, AI response latency (p90), and
-  SafetyEvent volume by severity.
+- **Metric filters** on the Django log group `/lai/<env>/django`, parsing
+  the positional `ai.turn v1` and `ai.safety v1` lines that
+  `lai/apps/ai/services/auditing.py` writes for every turn and every
+  `SafetyEvent` (namespace `LearningAdventureIsland/DjangoAI`: turns,
+  fallbacks, provider errors, Guardrail blocks, rate-limited turns,
+  latency, tokens, estimated cost, validation failures, safety events by
+  severity).
+- **Alarms** on the `lai-django-alarms-<env>` SNS topic: provider errors,
+  fallback rate, Guardrail blocks, request spike, latency, output tokens,
+  rate-limited turns, validation failures, and any HIGH-severity
+  `SafetyEvent`.
+- **A Bedrock budget** (`lai-bedrock-monthly-<env>`). Claude on Bedrock is
+  billed through AWS Marketplace, so a budget filtered to the Bedrock
+  service may not see that spend; check in Cost Explorer before relying on
+  it (`docs/AI_SERVICE.md` section 6, "Budget finding").
+- **No CloudWatch dashboard** is defined yet; the metrics above are
+  readable in the CloudWatch console.
 
 **Before a pilot, whoever deploys this must**:
 
-1. Set `PILOT_ALERT_EMAIL` (the pilot operator's email) before running
-   `ampx sandbox`/`ampx pipeline-deploy` - with it unset, the topic and
-   every alarm still deploy, they just have no subscriber, which is safe
-   but not useful. This is deliberately just an email subscription, not a
-   full admin role/UI - `docs/AUTHORIZATION_REVIEW.md` section 4.3 already
-   defers that appropriately.
-2. Optionally set `PILOT_MONTHLY_BEDROCK_BUDGET_USD` (default `50`) to a
-   number that matches expected pilot size and section 1's cost-per-session
-   estimate once that's been run against real usage.
-3. Confirm the dashboard renders real data and every alarm actually fires
-   end-to-end the first time this deploys to a real sandbox - typechecking
-   this code is not the same as watching a HIGH-severity `SafetyEvent`
-   alarm actually page someone.
+1. Subscribe the pilot operator to the `lai-django-alarms-<env>` topic.
+   This is deliberately just a notification, not a full admin role/UI -
+   `docs/AUTHORIZATION_REVIEW.md` section 4.3 already defers that
+   appropriately.
+2. Set the budget amount (the stack's `monthlyBedrockBudgetUsd`, default
+   50 USD) to match expected pilot size and section 1's
+   cost-per-session estimate.
+3. Confirm every alarm actually fires end-to-end the first time this
+   deploys - synthesizing this code is not the same as watching a
+   HIGH-severity `SafetyEvent` alarm actually page someone.
 4. Still missing, and explicitly out of scope for this pass: the
    human-review half of `docs/AI_AND_CHILD_SAFETY.md`'s "Metadata audit
    and human review workflow" (layer 10,
@@ -256,7 +227,7 @@ Phase 8's other documents already established:
       `docs/IMPLEMENTATION_STATUS.md`'s "Decisions pending: Legal/privacy
       review and retention schedule" remains open - a closed, time-boxed
       pilot with informed participants and the new full-deletion flow
-      (`src/features/child-profile/deletion.ts`) available to them on
+      (`react/src/features/child-profile/deletion.ts`, `DELETE /api/v1/children/<id>/`) available to them on
       request is a reasonable interim position; a public launch is not,
       until that decision is actually made.
 - [ ] A qualified privacy/child-safety review obtained per

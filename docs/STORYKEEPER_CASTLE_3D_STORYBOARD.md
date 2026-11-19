@@ -370,6 +370,10 @@ migration untouched.
 
 ### Beat 13 — A calm stop
 
+> **Retired (ADR-053, 2026-11-11).** There are no play-time limits: the session clock, the calm
+> stop and `ChildProfile.sessionMinutes` were removed. This beat is kept as history only; do not
+> build it.
+
 **Sees.** When the parent-configured session limit approaches, Quill
 closes the book and gestures at the reading nook. No countdown, no
 "streak", no "come back or lose" framing.

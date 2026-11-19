@@ -553,8 +553,8 @@ the catalog move.
 The server's record of which secrets a child has found, and the authority for whether one opens.
 Implemented in `lai/apps/game_sessions/discovery_views.py` over `lai/apps/progression/discoveries.py`.
 
-Before this, Django had a `WorldState.discovered_objects` column and nothing that wrote it, so in
-Django mode a discovery lived only in the Amplify client's row and the server could prove nothing
+Before this, Django had a `WorldState.discovered_objects` column and nothing that wrote it, so a
+discovery lived only in a client-written row and the server could prove nothing
 (the quest engine's own docstring: discoveries "evaluate as not yet complete, so the server never
 credits progress it cannot prove"). The Secret Chamber's access and the Great Storybook's page
 recovery both rest on this record.
@@ -586,11 +586,11 @@ the server never opens a secret it cannot prove. The child's `WorldState` row is
 of two simultaneous finds exactly one is `FOUND_NOW`, and the world change and reward are written
 once (tested with four parallel transactions).
 
-Child-scoped and bearer-only like every route here. The client treats the server as the authority in
-Django mode and falls back to the Amplify path when the API is off or fails, so a child is never
-blocked by it (`react/src/features/discovery/api.ts`).
+Child-scoped and bearer-only like every route here. The client treats the server as the authority
+(`react/src/features/discovery/api.ts`); `discovery.ts` resolves the outcome locally first only so
+a secret that is plainly found or plainly locked costs no write.
 
-## Next learning activity (AMP-05)
+## Next learning activity
 
 ### `GET next-learning-activity/`: the Director's suggestions
 
@@ -602,7 +602,7 @@ Read-only. Up to three adventures, best first, with adult-facing reasons:
 island the child can reach (or a story-only place), are candidates. Rules:
 `lai/apps/education/director.py`. A child surface shows the order, never a reason.
 
-## Household co-op (AMP-05, ADR-006)
+## Household co-op (ADR-006)
 
 The child in the path is the one acting. A session another family hosts, or one this child is
 not in, is `404 not_found`. Session shape: `{"id", "templateSlug", "templateVersion",
@@ -617,9 +617,9 @@ not in, is `404 not_found`. Session shape: `{"id", "templateSlug", "templateVers
 | `POST coop-sessions/{coopId}/presence/` | `{"present": bool}` | session |
 | `POST coop-sessions/{coopId}/complete/` | | session (idempotent); `409 coop_session_not_active` if abandoned |
 
-## Per-child state outside region play (AMP-03)
+## Per-child state outside region play
 
-The routes that replaced Amplify Data for the classic adventures and the per-child state writers
+The routes for the classic adventures and the per-child state writers
 (`react/src/features/{adventures,story,quests,rewards,npc,discovery,mastery,island,catalog}/api.ts`).
 All are under `children/{childId}/`, child-scoped and bearer-only (`ChildScopedAPIView`): another
 family's child, or a nested record of another child, is `404 not_found`, and nothing is written.
@@ -684,7 +684,7 @@ In React, use `useRegionPlay(childId, regionId, { onUnauthenticated })` rather t
 directly: it owns loading, the in-flight action, stale-reply protection, and re-reading after an
 answer or conflict. `toRegionSceneModel(state.bootstrap)` gives the scene plain entities by id.
 
-**Configuration.** Django is the only backend (AMP-03): the client is always on, and there is no
+**Configuration.** Django is the only backend: the client is always on, and there is no
 `VITE_BACKEND` selector or `disabled` error kind any more. `VITE_DJANGO_API_BASE` is empty for
 same-origin (deployed, and `vite dev` through its proxy), an `https://` origin, or an `http://`
 origin in `vite dev` only.

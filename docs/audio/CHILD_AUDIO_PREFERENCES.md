@@ -11,11 +11,11 @@ changed by the child in Treasure Rush or by a parent on the child's edit page.
 
 | Question | Finding |
 |---|---|
-| Where do child settings live? | `users.ChildProfile` (nickname, age band, reading mode, session minutes, AI switch). Django is the authority; `GET|PATCH /api/v1/children/<id>/`. |
+| Where do child settings live? | `users.ChildProfile` (nickname, age band, reading mode, AI switch; no play-time setting, ADR-053). Django is the authority; `GET|PATCH /api/v1/children/<id>/`. |
 | Existing audio state | Only the Sound Manager's in-memory `SoundSettings`. Nothing persisted. |
 | Tenancy | `ChildScopedAPIView`: the parent from the token, the child from the URL resolved through that parent, another family's child is a 404. `ChildOwnedModel` rows cascade with the child. |
 | Reuse | Reused the child scoping, the child-owned base, the Cognito API client and the Sound Manager's `applySettings`/`subscribe`. No new settings database or audio state manager. |
-| Decision | A small child-owned table in `apps.audio` rather than eight columns on `ChildProfile`, so the profile model, its serializer and the Amplify mirror stay untouched. |
+| Decision | A small child-owned table in `apps.audio` rather than eight columns on `ChildProfile`, so the profile model and its serializer stay untouched. |
 
 ## 2. Server (SM-P5-02)
 

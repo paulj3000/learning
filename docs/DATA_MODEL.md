@@ -1,6 +1,7 @@
 # Initial Data Model
 
-This is a conceptual schema. Claude should translate it into Amplify Gen 2 TypeScript and verify relationship/index syntax against the installed Amplify packages.
+This is a conceptual schema. It is implemented as Django models in `lai/apps/` on PostgreSQL 16; the
+"Django ..." sections below map each concept to its Django app, model and constraints.
 
 ## Engine ownership (Phase 18)
 
@@ -45,23 +46,13 @@ Authorization: owner only; admin read only when explicitly required.
 - `ageBand`: `SPROUT | PATHFINDER | EXPLORER`
 - `birthYearMonth` optional and discouraged unless needed
 - `avatarKey`
-- `avatarPhotoKey` optional: path in Amplify Storage of a parent-uploaded
-  photo used as this child's profile icon, or null when the child uses
-  their `avatarKey` character (the default)
+- `avatarPhotoKey` optional: a parent-uploaded photo used as this child's
+  profile icon, or none when the child uses their `avatarKey` character
+  (the default). In Django this is a `users.ChildPhoto` row (below)
 - `interests`: string array from curated values
 - `readingMode`: `VOICE_FIRST | READ_ALONG | INDEPENDENT`
-- `sessionMinutes`: retired (ADR-053). Still required by the deployed Amplify schema, written
-  with the band's lowest value on create, never read or shown.
+- `sessionMinutes`: retired (ADR-053); removed from Django by migration `users.0007`.
 - `active`
-- `ownerSub` optional: the parent's raw Cognito `sub`, mirrored here so
-  `submitAdventureAnswer` (Phase 37, docs/DECISIONS.md ADR-012) can
-  re-verify session ownership from inside a Lambda that bypasses AppSync's
-  own owner-authorization resolvers. Not a second authorization rule on
-  this model — a plain field, trustworthy only because the model's
-  existing `allow.owner()` rule already means only the legitimate owner
-  can write to this row at all. See `amplify/data/resource.ts`'s field
-  comment for the full reasoning and how it differs from `CoopSession`'s
-  `hostParentProfileId`.
 - timestamps
 
 Authorization: owning parent. Child-facing client access occurs within the authenticated parent session and must be constrained by application routes.
@@ -71,20 +62,13 @@ Authorization: owning parent. Child-facing client access occurs within the authe
 **Django (LAI-0904, ADR-042).** On the Django platform the pointer is a `users.ChildPhoto` row
 (id, opaque storage key, status, size, SHA-256, dimensions). The bytes live in the separate private
 bucket `LaiChildPhotos-<env>` under `children/<child uuid>/<photo uuid>`, and the deprecated
-`ChildProfile.avatar_photo_key` column is unused. See `docs/platform/CHILD_PHOTO_STORAGE.md`. The
-rest of this section describes the Amplify implementation, which stays in use until cutover.
-
-`avatarPhotoKey` is only a pointer. The image itself lives in the Storage
-bucket defined in `amplify/storage/resource.ts` under
-`child-photos/{entity_id}/<uuid>.jpg`, where `{entity_id}` is the Cognito
-identity pool ID of the parent who uploaded it, and the only access rule
-on that prefix is `allow.entity('identity').to(['read', 'write',
-'delete'])`. No guest rule, no blanket authenticated rule, and - unlike
-this model's row-level rules - no `Admins` group rule: an administrator
-can read the `ChildProfile` row but resolves no image from it.
+`ChildProfile.avatar_photo_key` column is unused. See `docs/platform/CHILD_PHOTO_STORAGE.md`.
+The browser never holds bucket credentials; it uploads and reads the photo only through the
+child-scoped Django route `children/<id>/photo/` (`react/src/features/child-profile/djangoPhotos.ts`).
 
 Handling rules that the code enforces
-(`src/features/child-profile/avatarPhoto.ts`):
+(`react/src/features/child-profile/avatarPhoto.ts`, and Django's `photo_validation.py`, which strips
+metadata again on the server):
 
 - A photo is always optional, parent-uploaded, and removable at any time.
 - The browser centre-crops and re-encodes the picture to a 256px JPEG
@@ -256,32 +240,27 @@ Prefer content definitions checked into source control for MVP. If persisted:
 
 See `docs/DECISIONS.md` ADR-006. Household-only for v1: all
 `participantChildProfileIds` must belong to `hostParentProfileId`, so this
-model needs no authorization primitive beyond an owner rule — but it is a
-*different* owner rule than every other model uses. Implemented in
-`amplify/data/resource.ts` as `allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')`
-rather than the default `allow.owner()`, since the field two children's
-clients both need to read/write is an explicit business field, not each
-model's usual implicit `owner`. See `docs/AUTHORIZATION_REVIEW.md` section
-1a for the full authorization writeup, including why the atomic slot-claim
-mutation below bypasses this rule entirely and re-implements its own check.
+model needs no authorization primitive beyond the host parent's ownership.
+Implemented in Django (`lai/apps/game_sessions/models.py` `CoopSession` and
+`CoopParticipant`, rules in `lai/apps/game_sessions/coop.py`): the host
+parent owns both children, and nobody else can see the session. See
+`docs/AUTHORIZATION_REVIEW.md` section 1a for the authorization writeup.
 
 - `id`
-- `hostParentProfileId` — owner (`.identityClaim('sub')`); the one
-  `ParentProfile` shared by every participant. Not `.required()` — the
-  client never supplies it; AppSync's owner-authorization resolver
-  auto-populates it from the caller's identity on create, same as every
-  other model's implicit `owner` field.
+- `hostParentProfileId` — the one `ParentProfile` shared by every
+  participant. The client never supplies it; Django sets it from the
+  authenticated parent on create.
 - `templateSlug` (named to match `AdventureSession.templateSlug` and every
   adventure-content module, not `templateId`)
 - `templateVersion`
 - `participantChildProfileIds`: array, 2 for v1
 - `status`: `ACTIVE`, `COMPLETED`, `ABANDONED`
 - `sharedState`: JSON, shaped `{ slots: Record<slotKey, childProfileId>,
-  presence: string[] }`. `slots` is written only by the `claimCoopSlot`
-  function-backed mutation (`amplify/functions/claim-coop-slot/`), which
-  does an atomic, conditional DynamoDB write keyed on the specific slot
-  path — never a plain client update, and never overwritten by a second
-  claim once a slot is filled. `presence` (see below) is a plain,
+  presence: string[] }`. `slots` is written only by the slot-claim service
+  in `coop.py`, which locks the session row (`select_for_update`) so two
+  near-simultaneous claims are serialised and exactly one wins — never a
+  plain client update, and never overwritten by a second claim once a slot
+  is filled. `presence` (see below) is a plain,
   last-write-wins client update instead, since it carries no conflict risk
   worth the same guarantee.
 - `startedAt`
@@ -415,9 +394,9 @@ Deliberately avoids numeric experience points as the emotional center of
 the product (roadmap section 27) — the world state itself, not a score, is
 the record of achievement.
 
-**Scoping note (Phase 26, extended Phase 32):** this model now exists in
-`amplify/data/resource.ts`, scoped to exactly two of the fields listed
-above plus one added at Phase 32:
+**Scoping note (Phase 26, extended Phase 32):** this model exists as
+Django `progression.WorldState` (`lai/apps/progression/models.py`), scoped
+to exactly two of the fields listed above plus one added at Phase 32:
 
 ```ts
 ChildWorldState: {
@@ -606,25 +585,19 @@ Sensitive content should be redacted or stored separately with strict retention 
 
 ### Django (LAI-0306, `lai/apps/ai/models.py`)
 
-Both models keep the Amplify fields and add server-known metadata: `provider`, `context_source`
+Both models carry the fields above and add server-known metadata: `provider`, `context_source`
 (`CLIENT_AUTHORED` or `DJANGO_SESSION`), Guardrail id, version and action, `failure_category`,
 token counts and `request_id`. `validation_status` adds `BLOCKED_INPUT`, `BLOCKED_GUARDRAIL` and
 `RATE_LIMITED`; `SafetyEvent.action_taken` is a fixed code instead of free text and links its
 audit row. No column holds prompt text, model text or child input. Retention: LAI-0707.
 
 
-## Proposed relational mapping (not in effect)
-
-`docs/DJANGO_MIGRATION_ASSESSMENT.md` section 6 maps each model above to a proposed Django app
-and PostgreSQL table, with difficulty and data-loss risk. This document remains authoritative
-for the current Amplify schema.
-
 ## Django mapping: parent and child identity (LAI-0301, ADR-022)
 
-Implemented in `lai/apps/users/` (schema only; no data has been imported). This document remains
-authoritative for the Amplify schema until cutover.
+Implemented in `lai/apps/users/`. No data from the retained legacy DynamoDB tables of the retired
+backend has been imported.
 
-| Amplify | Django | Notes |
+| Conceptual | Django | Notes |
 |---|---|---|
 | `ParentProfile` (owner = Cognito) | `users.ParentAccount` (the user model) | Adds `cognito_sub` (unique, immutable). `displayName`, `timezone` kept; no email. Parents have no password or admin flags; Django Admin staff rows add `admin_username` (unique, nullable), `is_staff`, `is_superuser` (requires `is_staff`) and a local password (ADR-034). `AdminAccount` is a proxy for the admin-accounts page |
 | `ChildProfile.parentProfileId` | `ChildProfile.parent` (FK, `PROTECT`) | Not editable after creation |
@@ -637,7 +610,7 @@ authoritative for the Amplify schema until cutover.
 | `active`, `aiEnabled` | `active`, `ai_enabled` | |
 | `CompanionProfile`, `ParentConsent` | not yet | LAI-0307, LAI-0308 |
 
-Admin read access (`allow.group('Admins').to(['read'])`) has no Django equivalent yet: Django Admin
+Cross-family admin read access has no Django equivalent yet: Django Admin
 (LAI-0404, ADR-034) deliberately registers no child profile until an audited cross-family read path
 exists. Deletion and ownership rules are in ADR-022.
 
@@ -764,15 +737,14 @@ order: `npx vitest run src/features/island-map/three/runtime/sceneAssetIndex.tes
   tiles on a 30x20 grid, 960x640), and the three first-person region modules (meters). Interactions keep
   their `zoneId` strings so they can be re-bound. Checkpoints (meters and radians) are exported unchanged.
   Converting any of it to a Three.js `WorldDefinition` belongs to LAI-2103 and LAI-2201 to 2208.
-- *Inventoried, not exported:* tutor vocabulary and representation aids, the AI personas (in `amplify/data`),
+- *Inventoried, not exported:* tutor vocabulary and representation aids, the AI personas (in `lai/apps/ai/prompts/`),
   the adventure library's themes and interests, and island events and seasons (not inspected in depth).
   They are not in the roadmap's export list; add them when a Django model needs them.
 
 **Django mapping (LAI-0304 built the catalog part; see "Django content catalog" below).** Keep four things apart: *content definition* (a row per
 island, location, adventure, quest, item, ... from these files), *published content version* (the
 manifest's `contentDigest` plus per-record `version`, so a published set is immutable and importable),
-*session* (an `AdventureSession` that records the adventure version it started on; Amplify already stores
-`templateVersion`), and *player progress and inventory* (per child, referencing content by stable string
+*session* (an `AdventureSession` that records the adventure version it started on, `template_version`), and *player progress and inventory* (per child, referencing content by stable string
 id). Completion is never stored inside a definition. Compatibility rule for progress: an id that
 disappears or changes meaning needs an explicit migration entry; an adventure's `version` only increases;
 a session keeps the version it began with. The importer must be idempotent, validate with a full JSON
@@ -781,13 +753,13 @@ Schema validator, and fail on any unknown reference.
 ## Django content catalog (LAI-0304)
 
 `lai/apps/catalog`. Hierarchy as the export shapes it (owner decision, 2026-10-24): **World** (the
-export's `islands`, a themed world) -> **Location** (a region; the Amplify `Island` record of ADR-031 is a
+export's `islands`, a themed world) -> **Location** (a region; the `Island` overlay record of ADR-031 is a
 Location) -> **Adventure** -> **AdventureStep**; **Quest** belongs to a World through its content pack
 and links many-to-many to the adventures its `SOLVE` objectives name (a quest can span two adventures or
 none). Stable ids are the export's: slugs, `asset_id`, and (adventure, `step_id`) for steps, whose ids
 repeat across adventures. An adventure at a story-only pseudo-location keeps `location_slug` with no
 `location`. `ContentAsset` is the asset definition: the identity of a shared asset (bundled manifest id,
-which is also the Amplify `Asset.slug` namespace, ADR-030). Since LAI-2200 (ADR-035) it also has
+ADR-030). Since LAI-2200 (ADR-035) it also has
 Django-owned fields (`display_name`, `description`, `category`, `tags`, `status` ACTIVE or RETIRED,
 `origin` EXPORT or DJANGO, `default_version`, `created_by`, timestamps), and a `DJANGO` row needs no
 export release. Bytes and versions are `assets.AssetVersion` (below); licences are not modelled.
@@ -841,8 +813,7 @@ file is also validated against it with the dependency-free validator in `apps/co
 
 ## Django child progress (LAI-0305)
 
-Five apps, as the target architecture names them, mirroring the Amplify models so Phase 11 can
-migrate them: `game_sessions` (AdventureSession, AdventureAction, CoopSession, CoopParticipant),
+Five apps, as the target architecture names them, mirroring the conceptual models above: `game_sessions` (AdventureSession, AdventureAction, CoopSession, CoopParticipant),
 `education` (SkillEvidence, SkillProgress, StoryArtifact), `progression` (WorldChange, WorldState,
 StoryProgress, NpcRelationship), `inventory` (InventoryItem, GrantedRule), `quests` (QuestProgress).
 
@@ -875,8 +846,8 @@ and characters, seen dialogue nodes.
   step, and moves it to an authored step of the same adventure or to the reserved `complete`;
   completion is ACTIVE to COMPLETED with `completed_at`, and is final. Attempts are numbered per
   step under a row lock, so concurrent attempts cannot collide. Step completion is derived: a step is
-  completed once an attempt moved the session past it (`AdventureAction.next_step_id`, a field Amplify
-  lacks; migrated rows leave it blank).
+  completed once an attempt moved the session past it (`AdventureAction.next_step_id`; rows imported
+  from the retained legacy tables leave it blank).
 - QuestProgress: one per child and quest; stage and objective ids must be the quest's own; completed
   lists only grow; a COMPLETED quest never changes.
 - WorldChange: unique per (child, location, change key); recording it again is a no-op.
@@ -888,13 +859,13 @@ and characters, seen dialogue nodes.
 **Added by LAI-0601:** `AdventureSession.hint_levels` (step id to the hint level the server has
 given; the answer endpoint escalates from it, never from a client value) and
 `AdventureAction.request_id` (the client's request UUID, unique per session, so a retried submission
-returns its stored outcome instead of recording a second attempt). Both are empty on migrated
-Amplify rows.
+returns its stored outcome instead of recording a second attempt). Both are empty on imported
+legacy rows.
 
 **Not defined, so not implemented:** transitions into PAUSED, ABANDONED and SAFETY_STOPPED (the enum
 has them; no code moves a session there); whether `World.active` gates play; the counter, reward,
 quest-advance and director rules themselves (ported against the golden vectors in LAI-0601, 0603 to
-0606). Phase 11 must report Amplify rows that violate the new constraints (inconsistent counters, two
+0606). An import of the retained legacy rows must report rows that violate the new constraints (inconsistent counters, two
 ACTIVE sessions for one adventure, slugs missing from the catalog) rather than load them silently.
 
 ## Asset

@@ -298,8 +298,8 @@ container. Runbooks are in `docs/PILOT_READINESS.md` section 5b.
 
 - Asset audit: parsed all 108 files in `public/models/`, counting
   `images`/`textures`/`animations`/`meshes` per document.
-- Absence claims: case-insensitive recursive grep over `src/`, `amplify/`
-  and `scripts/` for each system's identifiers. "Absent" means no match,
+- Absence claims: case-insensitive recursive grep over `src/`, the
+  then-current backend directory and `scripts/` for each system's identifiers. "Absent" means no match,
   not "no match in the obvious place."
 - Room list: `storykeeperCastleRegion.ts` room ids.
 - Phase statuses: read against

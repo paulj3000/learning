@@ -2,26 +2,24 @@
 
 Status (2026-11-01, branch `features/ai`, unmerged, not pushed): **implemented and verified
 locally with the fake model; not live-accepted.** No Bedrock call has been made, nothing is
-deployed. Since AMP-05 every React build calls Django's AI routes (there is no `VITE_BACKEND`
-selector and no Amplify AI route; `docs/platform/AMPLIFY_FINAL_REMOVAL.md`). Section 10 has the
-per-task status matrix.
+deployed. Every React build calls Django's AI routes; there is no other AI path. Section 10 has
+the per-task status matrix.
 
 Decision: ADR-044 (builds on ADR-019 sub-decision 9). Safety principles:
 `docs/AI_AND_CHILD_SAFETY.md`. Code: `lai/apps/ai/`. Infrastructure:
 `infra/lib/aiGuardrailStack.ts`.
 
-## 1. What it replaces
+## 1. What it owns
 
-| Amplify (still deployed, unchanged) | Django (this phase) |
+| Concern | Django |
 |---|---|
-| `generateCompanionTurn` AppSync generation route | `POST /api/v1/children/{child_id}/ai/companion-turns/` |
-| `generateTutorTurn` AppSync generation route | `POST /api/v1/children/{child_id}/ai/tutor-turns/` |
-| Browser validates, falls back, writes `AIInteractionAudit` / `SafetyEvent` | Django validates, falls back, writes both, server-side |
-| `amplify/data/chattyPersona.ts`, `tutorPersona.ts` | `lai/apps/ai/prompts/` (verbatim copies, same versions, drift-tested) |
-| `react/src/features/{companion,tutor}/schema.ts` | `lai/apps/ai/contracts.py` (golden-vector parity) |
+| Companion turns | `POST /api/v1/children/{child_id}/ai/companion-turns/` |
+| Tutor turns | `POST /api/v1/children/{child_id}/ai/tutor-turns/` |
+| Validation, fallback, `AIInteractionAudit` / `SafetyEvent` writes | Django, server-side |
+| Prompts (Chatty and tutor personas) | `lai/apps/ai/prompts/` (versioned, drift-tested) |
+| Turn contracts | `lai/apps/ai/contracts.py` (golden-vector parity with `react/src/features/{companion,tutor}/schema.ts`) |
 
-Nothing under `amplify/` or `react/` changed behaviour. The Amplify routes keep their IAM grant
-and AppSync authorization until LAI-0710.
+The browser never calls a model and never writes an audit row.
 
 ## 2. Endpoints
 
@@ -95,7 +93,7 @@ Three sources, recorded on every audit row (`context_source`):
   with the step's own option ids. The step's answer (`correctValue`, `correctOptionId`) is never
   read into a prompt.
 - **CLIENT_AUTHORED**: the compatibility path for sessions that do not run on Django yet
-  (Amplify-era adventures, NPC dialogue, story scenes). The free-text fields are bounded,
+  (adventure turns that do not send a Django session yet, NPC dialogue, story scenes). The free-text fields are bounded,
   screened (section 3, step 2) and sent to the model as untrusted `guardContent`.
   `sessionId`/`stepId` are opaque correlation strings, never looked up.
 
@@ -107,7 +105,7 @@ quest's authored title and stage heading. `recent_level` is not yet computed ser
 ## 3. Pipeline order (`lai/apps/ai/services/pipeline.py`)
 
 1. Parent switch (`ChildProfile.ai_enabled`) or `LAI_AI_PROVIDER=disabled`: authored content,
-   no model call, no audit row (Amplify behaviour). Untutorable skill: the same.
+   no model call, no audit row. Untutorable skill: the same.
 2. Input screen on client text (`services/safety.py`): prompt injection, personal or contact
    information, links, secrecy, gameplay manipulation (award coins, mark mastered, unlock). A hit
    is `BLOCKED_INPUT`, a SafetyEvent (INPUT, `BLOCKED_BEFORE_MODEL`), and a generic line that
@@ -123,7 +121,7 @@ quest's authored title and stage heading. `recent_level` is not yet computed ser
    humanity or loneliness, impersonation, diagnosis or discipline, contact details, and learning
    judgments (now on the companion too): `INVALID_CONTENT` plus a SafetyEvent (OUTPUT).
 9. Model disposition REDIRECT/STOP: the redirect line, a SafetyEvent (OUTPUT, HIGH for STOP),
-   category as in Amplify (`companion-turn-hint`, `tutor-turn-give_hint`).
+   with categories such as `companion-turn-hint` and `tutor-turn-give_hint`.
 10. Otherwise the validated turn, `source: "AI"`.
 
 Steps 2 to 10 always write one `AIInteractionAudit` row and one `ai.turn` log line. Validated
@@ -138,8 +136,7 @@ SQL write).
 - **Model**: `us.anthropic.claude-haiku-4-5-20251001-v1:0` (US geographic inference profile).
   Claude Haiku 4.5 has no in-Region on-demand model id on `bedrock-runtime`. From source Region
   `us-west-1` the profile routes to us-east-1, us-east-2, us-west-1 and us-west-2 (Bedrock model
-  card, read 2026-11-01). The Amplify routes use the `global.` profile; Django uses the US one.
-  Same limits as Amplify: temperature 0.4, 300 output tokens.
+  card, read 2026-11-01). Temperature 0.4, 300 output tokens.
 - **Structured output as text, never tool use.** Guardrails do not evaluate `toolUse.input` on
   Converse, so a tool-returned turn would bypass the output Guardrail. Django uses
   `outputConfig.textFormat` (JSON schema, every object `additionalProperties: false`), which
@@ -223,15 +220,14 @@ EstimatedCostMicroUsd). Seven alarms on the existing `lai-django-alarms-<env>` t
 data not breaching: provider errors (10 per 15 min), fallback rate (50% over 30 min once 20
 turns ran), Guardrail blocks (25 per hour), request spike (3000 per hour), average latency
 (6 s over 15 min), output tokens (2M per day), rate-limited turns (100 per 15 min).
-AMP-05 adds the `ValidationFailures` filter (`ai.turn` status `INVALID*`), an `ai.safety v1
+Also: the `ValidationFailures` filter (`ai.turn` status `INVALID*`), an `ai.safety v1
 <route> <severity> <source> <ok|failed>` line per SafetyEvent with `SafetyEvents` and
 `HighSeveritySafetyEvents` filters, two alarms (validation failures 5 per 15 min, any HIGH
-severity SafetyEvent in 5 min) and a `lai-bedrock-monthly-<env>` budget, replacing the Amplify
-`operational-metrics` alarms (`docs/platform/AMPLIFY_FUNCTIONS_EXIT.md`).
+severity SafetyEvent in 5 min) and a `lai-bedrock-monthly-<env>` budget.
 
-**Budget finding.** The Amplify stack's $50 budget filters `Service: Amazon Bedrock`. The Haiku
-4.5 model card says Claude usage is billed through AWS Marketplace "under the model provider
-(not under Amazon Bedrock)", so that budget may not see Claude spend at all. Unverified (no
+**Budget finding.** The Haiku 4.5 model card says Claude usage is billed through AWS Marketplace
+"under the model provider (not under Amazon Bedrock)", so a budget that filters
+`Service: Amazon Bedrock` may not see Claude spend at all. Unverified (no
 account access); check it in Cost Explorer during LAI-0705 before relying on it. The
 application-level ceilings above and the token alarms are the primary controls.
 
@@ -241,8 +237,8 @@ Not deployed. Deploying is an APPROVAL step (ADR-019 G7, LAI-0705).
 
 ## 7. Audit, safety events and metrics
 
-`AIInteractionAudit` and `SafetyEvent` (`lai/apps/ai/models.py`, LAI-0306) carry the Amplify
-fields plus: provider, context source, Guardrail id, version and action, failure category, token
+`AIInteractionAudit` and `SafetyEvent` (`lai/apps/ai/models.py`, LAI-0306) carry the turn
+metadata described in `docs/DATA_MODEL.md` plus: provider, context source, Guardrail id, version and action, failure category, token
 counts, latency, request correlation id. No column holds prompt text, model text or anything a
 child typed. Rows are written only by `services/auditing.py` (best effort: a failed write never
 changes a turn). Child deletion cascades them (`ChildOwnedModel`).
@@ -304,7 +300,7 @@ Cognito, the client) is covered by `scripts/ai-red-team.ts --target django`.
    stack.
 3. *IAM:* new managed policy `lai-django-ai-dev` attached to `lai-django-ec2-dev`
    (InvokeModel on the US profile and its four destination models through it; ApplyGuardrail
-   on the new Guardrail). The Amplify roles are not touched.
+   on the new Guardrail).
 4. *Guardrail:* `lai-child-safety-dev`, published version 1 (section 6).
 5. *SSM:* `/lai/dev/django/LAI_AI_PROVIDER=bedrock`, `LAI_AI_BEDROCK_REGION=us-west-1`,
    `LAI_AI_MODEL_ID`, `LAI_AI_GUARDRAIL_ID`, `LAI_AI_GUARDRAIL_VERSION` (from the stack outputs);
@@ -317,7 +313,7 @@ Cognito, the client) is covered by `scripts/ai-red-team.ts --target django`.
    (cents). Conservative upper bound for the whole gate: **$2**.
 8. *Rollback:* set `LAI_AI_PROVIDER=disabled` (SSM) and re-release, or flip the kill switch in
    Django Admin; detach the policy or delete `LaiAiGuardrail-dev`. Gameplay is unaffected
-   either way; Amplify keeps serving the deployed React build throughout.
+   either way.
 9. *Manual prerequisites:* Claude Haiku 4.5 model access in the account (Anthropic use-case
    form and Marketplace subscription), no SCP blocking the destination Regions, a dev parent
    account and a Django child for it, and the allow rule for read-only AWS CLI calls in this
@@ -344,9 +340,8 @@ Levels: (1) not started, (2) in progress, (3) implemented, (4) fake-model/local 
 | LAI-0706 React cutover | 4 | a Django-enabled dev deploy and a browser pass (Gate B) |
 | LAI-0707 audit, admin, retention | 4 | an approved retention period (LAI-0308 / G9) |
 | LAI-0708 limits, cost, monitoring | 4 (synthesized) | Gate A/D deploy; live alarm check |
-| LAI-0603 mastery writes (tutor context) | 4 (Python rules at golden-vector parity; tutor reads Django records) | merge; an authenticated browser pass; adventures still on Amplify sessions write no Django evidence |
+| LAI-0603 mastery writes (tutor context) | 4 (Python rules at golden-vector parity; tutor reads Django records) | merge; an authenticated browser pass; adventures not on Django sessions write no Django evidence |
 | LAI-0709 server-owned context | 3 partial (NPC identity, place and child state done, session pinning enforced) | adventures on Django sessions; a Django story catalog (LAI-0309); NPC state in Django (LAI-0605) |
-| LAI-0710 Amplify AI retirement | 2 (audit only) | 0705, 0706, 0709 acceptance and explicit retirement approval |
 
 ## 11. Context ownership, retirement plan and rollback
 
@@ -355,10 +350,10 @@ Levels: (1) not started, (2) in progress, (3) implemented, (4) fake-model/local 
 | Caller | Route | Context today (Django build) | Fields from the browser | Server-owned path |
 |---|---|---|---|---|
 | NPC re-voicing (`NpcConversation.tsx`) | companion NARRATE | **DJANGO_CATALOG**: authored node, NPC name and role, Island, Place and published 3D Area, this child's relationship level and active quest | `npcId`, `nodeId` (identifiers) | done |
-| Adventure celebrate / narrate / hint (`useAdventureSession.ts`) | companion | CLIENT_AUTHORED | step summary, authored step text or hint (published content, assembled by the browser) | DJANGO_SESSION exists, but React's adventure sessions still run on Amplify (`submitAdventureAnswer`) |
+| Adventure celebrate / narrate / hint (`useAdventureSession.ts`) | companion | CLIENT_AUTHORED | step summary, authored step text or hint (published content, assembled by the browser) | DJANGO_SESSION exists, but React's adventure AI turns still send CLIENT_AUTHORED context |
 | Story choice narration (`useAdventureSession.ts`, creative choice) | companion NARRATE | CLIENT_AUTHORED | the chosen authored option label inside the summary | same as above |
 | Story chapter scenes (`useStoryChapterRunner.ts`) | companion NARRATE | CLIENT_AUTHORED | scene id, resolved authored scene text | blocked: no Django story catalog (`stories.json` is not imported; LAI-0309) |
-| Tutor hint ladder (`useAdventureSession.ts`) | tutor | CLIENT_AUTHORED, with skill, mastery titles and quest copy from Django | skill id, hint level (0 to 5), authored hint text | DJANGO_SESSION exists; same Amplify-session blocker |
+| Tutor hint ladder (`useAdventureSession.ts`) | tutor | CLIENT_AUTHORED, with skill, mastery titles and quest copy from Django | skill id, hint level (0 to 5), authored hint text | DJANGO_SESSION exists; same blocker |
 
 Always server-side, whatever the source: the child, its age band and length limit, the AI
 switch, prompts, strategy (from the hint level), vocabulary and curriculum copy, the tutor's
@@ -368,42 +363,19 @@ browser: grades, mastery, rewards, choice ids beyond the step's own (DJANGO_SESS
 `LAI_AI_ALLOW_CLIENT_AUTHORED=false` turns the compatibility path off; it must stay on until
 the two blockers above are cleared and accepted.
 
-### Amplify AI dependency audit (LAI-0710; nothing removed)
+### Rollback
 
-| Reference | Kind | Retire when |
-|---|---|---|
-| `amplify/data/resource.ts` `generateCompanionTurn`, `generateTutorTurn`, `CompanionTurn`, `TutorTurn`, `TutorStrategy` | live AppSync routes | after LAI-0706 acceptance and approval |
-| `amplify/backend.ts` `grantBedrockInvoke` (two IAM role patches), the validation-failure alarm, the Bedrock budget | live IAM and monitoring | with the routes; replace the budget first (section 6 finding) |
-| `amplify/data/chattyPersona.ts`, `tutorPersona.ts` | prompts; read by `lai/apps/ai/tests/test_prompts.py` (React no longer imports them since AMP-05) | move the prompt source of truth to Django, then delete |
-| `react/src/features/companion/api.ts`, `tutor/api.ts` Amplify branch, browser audit writes | client code for builds without `VITE_BACKEND=django` (today's deployed build) | **Removed in AMP-05**: such a build now gets the authored fallback |
-| `amplify/data/resource.ts` `AIInteractionAudit`, `SafetyEvent` models, `parent-dashboard/api.ts` and `child-profile/deletion.ts` Amplify paths | live data and parent controls | after the Phase 11 data migration (rows exist in Amplify) |
-| `scripts/live-smoke.ts`, `scripts/ai-red-team.ts --target amplify` | operator scripts | with the routes |
-| `lai/apps/ai` route names `generateCompanionTurn`/`generateTutorTurn` | audit vocabulary kept for continuity | keep |
-
-Amplify Hosting, Cognito, Storage and the non-AI AppSync models stay. Note: `amplify.yml` runs
-`ampx pipeline-deploy` on every Amplify Hosting build of a connected branch, so any push of an
-Amplify-connected branch deploys the Amplify backend.
-
-### Rollback (keep until LAI-0710 is accepted)
-
-- *Frontend AI routing:* no longer available. The Amplify routes are deleted (owner,
-  2026-11-14) and every build calls Django; use the two Django switches below.
 - *Django AI:* `LAI_AI_PROVIDER=disabled` (SSM, re-release) or the Admin kill switch (no
   deploy): authored content everywhere, gameplay unaffected.
 - *Failing invocations:* the `ai.turn` metrics and alarms, the audit rows (`failure_category`,
   `validation_status`, `request_id`), and `ai_live_check`.
-- *Audit continuity:* both backends write the same route names; Amplify rows stay in Amplify
-  until the Phase 11 import.
-- *If the Amplify routes were already removed:* revert the LAI-0710 commit and redeploy the
-  Amplify backend from it (the routes are code; the IAM patch is reapplied by `backend.ts`).
 
 ### Remaining blockers
 
 AWS CLI access (denied in this session), Bedrock model access, a dev parent and Django child,
 Gate A approval (deploy, IAM, SSM, paid calls), a Django-enabled dev frontend deploy and browser
 pass (Gate B), adventures running on Django sessions, a Django story catalog (LAI-0309), server
-mastery (LAI-0603), an approved retention period (LAI-0308 / G9), and explicit retirement
-approval for LAI-0710.
+mastery (LAI-0603), and an approved retention period (LAI-0308 / G9).
 
 
 ## 12. Bedrock readiness additions (branch `feature/ai-bedrock-readiness`, 2026-11-04)
@@ -438,14 +410,13 @@ and whether they have met, and the child's active quest title and stage. `NpcRel
 `WorldState` and `QuestProgress` are read through `for_child`, so another child's state cannot
 appear. `LAI_AI_NPC_ENFORCE_ELIGIBILITY` (off) additionally refuses a dialogue node whose
 conditions the child's Django records do not meet; `TIME_OF_DAY` and unknown condition types
-count as not met. It stays off because React's NPC state is still in Amplify, so enforcing
-would refuse narration a child has unlocked.
+count as not met. It is off by default; turning it on is an owner decision.
 
 `DJANGO_SESSION` turns now use the same pinning rule as grading (`step_is_pinned`): if the
 adventure was republished after the session started, the turn is a 404 and the client keeps its
 authored copy, so the model never narrates different content than the session is graded on.
 
-Still `CLIENT_AUTHORED` and still blocked: adventure turns from Amplify sessions and Storykeeper
+Still `CLIENT_AUTHORED` and still blocked: adventure turns that do not send a Django session and Storykeeper
 Castle story scenes (no Django story catalog; LAI-0309, LAI-0607), Firepeak and the other
 ADR-043 content (branch `feature/adr-043-django-content-authoring` is not in `dev20261103`).
 
@@ -476,32 +447,6 @@ G9): audit metadata 90 days; reviewed safety events 12 months; open events kept 
 parent-initiated clearing unchanged and immediate; a scheduled run only after the first manual
 `--apply` has been checked in a non-production environment. Today one setting covers both kinds
 of row; separate periods and a scheduled job are the follow-up task LAI-0711.
-
-### Amplify routing and retirement prerequisites (LAI-0710; historical, retired by AMP-05 and AMP-07)
-
-The table and list below describe the state before the Amplify removal. Today every caller is on
-Django; the persona files live only in `lai/apps/ai/prompts/` and `scripts/ai-red-team.ts` has
-only the Django target.
-
-| Caller | Django build (`VITE_BACKEND=django`) | Other builds |
-|---|---|---|
-| Companion and tutor turns, NPC narration | Django `/ai/*` | Amplify `generateCompanionTurn`, `generateTutorTurn` |
-| Parent AI history, safety events, clearing | Django | Amplify models |
-| Adventure sessions, hints, answers | Amplify (Django sessions exist but React does not use them) | Amplify |
-| Story scenes, creative choices | Django route with CLIENT_AUTHORED context | Amplify |
-
-Legacy callers still on Amplify AI: the build without `VITE_BACKEND=django` (today's deployed
-build), `scripts/live-smoke.ts`, `scripts/ai-red-team.ts --target amplify`, the persona files
-`amplify/data/{chattyPersona,tutorPersona}.ts`, and the Amplify `AIInteractionAudit` and
-`SafetyEvent` models (rows exist there until the Phase 11 import).
-
-Prerequisites before any route is removed: live Bedrock acceptance of the Django routes
-(LAI-0705, owner-run, recorded); a Django-enabled deploy with a browser pass (Gate B); adventures
-on Django sessions and a Django story catalog so `CLIENT_AUTHORED` can be switched off (LAI-0709);
-the Amplify audit rows imported or retired by an approved decision; a replacement for the Amplify
-Bedrock budget that sees Marketplace-billed Claude spend; and explicit retirement approval. The
-Amplify path stays until all of these hold.
-
 
 ## Speech (SM-P8)
 

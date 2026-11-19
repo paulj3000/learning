@@ -45,7 +45,7 @@ dais, the page display, and later NPC lines.
 | --- | --- | --- |
 | Engine and adventure content untouched by 3D work | SC roadmap preamble | Kept |
 | Every 3D route has a HUD equivalent | SC preamble, explorable-world roadmap section 42 | Kept, executable test |
-| No vertical traversal | SC preamble | Kept: every new space is ground floor |
+| No vertical traversal | SC preamble | Kept: every new space is ground floor. Consistent with the jumping standard (`docs/adventures/jumping-standard.md`): jumping is an optional shared engine capability an adventure may enable, and the owner decided on 2026-11-18 that Storykeeper Castle and the Storybook adventures do not need it |
 | ADR-008 Sprouts gate; card route not retired before the playtest | SC-11 | Kept as SC-R11 |
 | Gameplay-bearing geometry stays generated | ADR-028 (Accepted 2026-11-03) | Kept |
 | AI proposes, engine validates; no AI-invented actions | Upgrade roadmap section 11-12 | Kept for SC-R09 |
@@ -178,12 +178,10 @@ on them.
 
 ### 4.5 Persistence target
 
-Today all of the above lives in Amplify (`ChildStoryProgress`, world changes,
-discoveries, `ChildInventory`). The Django models already exist
-(`progression.WorldChange`, `StoryProgress`, `WorldState`,
-`inventory.InventoryItem`, `quests.QuestProgress`). The castle moves with the
-platform's cutover tasks (LAI-0309, LAI-0603, LAI-0709) and does not get its
-own migration. Because pages are derived, the cutover carries no page data.
+All of the above lives in the Django models (`progression.WorldChange`,
+`StoryProgress`, `WorldState`, `inventory.InventoryItem`,
+`quests.QuestProgress`), written through the Django API (`docs/PLAY_API.md`).
+The castle does not get its own store or migration. Because pages are derived, the cutover carries no page data.
 
 ## 5. Age-band compatibility
 

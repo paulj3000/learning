@@ -17,7 +17,7 @@ stack's fake AI provider, speech disabled and in-memory asset storage. **No live
 | Frontend tests (Vitest, full suite) | PASS: 4242 passed in 377 files |
 | Django Admin browser QA | PASS (12 browser tests, desktop and 390 px mobile width) |
 | Treasure Rush integration | PASS: the NPC Manager's own 8 browser tests and the pre-existing Treasure Rush suite with the managed Pip (F-B fixed, section 8a) |
-| Storykeeper's Castle integration | PASS with documented limits (7 browser tests); tale, quest log and backpack need Amplify, not available locally |
+| Storykeeper's Castle integration | PASS with documented limits (7 browser tests); tale, quest log and backpack needed the earlier backend at the time, not available locally |
 | Animation QA | PASS (browser, Admin, asset validation and AnimationMixer tests); the owner's Mixamo pirate file was not available to inspect (section 4) |
 | Polly live QA | BLOCKED (no approved test environment or spending limit; fake-client regression PASS) |
 | Bedrock live QA | BLOCKED (same; fake-model regression PASS) |
@@ -200,7 +200,7 @@ as a test-only dev dependency of the React workspace (lockfile change is additiv
 | # | Limitation | Classification | Evidence and reasoning |
 |---|---|---|---|
 | 1 | Pip has no voice profile | ACCEPTED LIMITATION (for this merge); owner decision before a Sprout-facing launch | Section 5. Captions always show; talk lines animate (QA-D2) |
-| 2 | Quill's conditions cannot read the castle's Amplify quest state | ACCEPTED LIMITATION; FUTURE ENHANCEMENT when the castle's adventures move to Django (LAI-AQS-028) | Verified: the offer is once per child, a second talk gives the rules line, Sprouts get no offer, and accepting hands over to the castle's own quest flow without breaking the page. Quest state is never written by the NPC Manager |
+| 2 | Quill's conditions cannot read the castle's quest state (it was outside Django at the time) | ACCEPTED LIMITATION; FUTURE ENHANCEMENT when the castle's adventures move to Django (LAI-AQS-028) | Verified: the offer is once per child, a second talk gives the rules line, Sprouts get no offer, and accepting hands over to the castle's own quest flow without breaking the page. Quest state is never written by the NPC Manager |
 | 3 | Castle wrong answers do not raise `on_incorrect_answer` | FUTURE ENHANCEMENT | The castle's answers are Adventure Engine results, not play API outcomes; Quill still shows concern through the forwarded gesture. Needs the castle on the play API |
 | 4 | Variant accessories are validated but not rendered | ACCEPTED LIMITATION, now labelled in Admin | No published character uses accessories. Rendering them is new runtime work (attach points, disposal) not needed for acceptance |
 
@@ -219,9 +219,9 @@ Also found, not fixed (owner or other owners to decide):
   request (`503 speech_unavailable`, a browser console "Failed to load resource" line). Captions
   are correct. A client that remembers "speech is resting" for the session would remove the noise;
   this belongs to the Sound Manager owner.
-- **O5.** In the castle, `on_return_visit` is raised only when the tale itself resumes (an Amplify
-  session), so re-entering the castle without resuming the tale plays no welcome-back line
-  (checklist B13.9 needs the owner's Amplify-backed run).
+- **O5.** In the castle, `on_return_visit` is raised only when the tale itself resumes (a
+  session on the earlier backend at the time), so re-entering the castle without resuming the
+  tale plays no welcome-back line (checklist B13.9 needs the owner's run).
 - **O6, pre-existing legacy.** The legacy Quill is shorter than the eye-height reticle, so a child
   must look down to focus him; the castle text says "use the button below" but no button appears.
   The managed Quill's proximity prompt avoids both.
@@ -242,7 +242,7 @@ Gate results on the QA branch head (all run in this container on 2026-11-07):
 | Migration consistency | `manage.py makemigrations --check --dry-run`; `manage.py check` | PASS, no changes; no issues |
 | Fresh-database migrate | every e2e run drops and migrates `lai_e2e` from zero | PASS |
 | Vitest | `vitest run` (react) | PASS, 4242 passed in 377 files (4235 before; +7 QA tests) |
-| TypeScript | `npm run typecheck` (react, amplify, scripts, server, infra) | PASS |
+| TypeScript | `npm run typecheck` (react, scripts, server, infra) | PASS |
 | Ruff | `ruff check .`; `ruff format --check .` | PASS |
 | Prettier | `prettier --check .` | PASS |
 | oxlint | `npm run lint` | PASS (exit 0; existing warnings only) |
@@ -348,7 +348,7 @@ only), 0 failed** (desktop and tablet projects, fresh `lai_e2e` database).
 3. Physical-device checks: VoiceOver (iPad) and TalkBack (Android tablet) reading the dialog and
    lines once; switch access; touch targets for ages 3 to 4; frame rate and memory on the
    reference tablet (Part B sections 9 and 10).
-4. Amplify-backed castle checks not possible locally: tale start/resume, mid-tale tap, gestures,
+4. Castle checks that needed the earlier backend, not possible locally at the time: tale start/resume, mid-tale tap, gestures,
    completion line, quest log after accepting (B13.4, B13.6 to B13.9).
 5. Approve (or not) a live test environment with a spending limit, then live Polly (B7.3) and live
    Bedrock with Guardrail (B8.5).

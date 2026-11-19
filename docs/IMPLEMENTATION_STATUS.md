@@ -35,12 +35,41 @@ their presentation.
 `generateCompanionTurn` has been confirmed working against **live Amazon
 Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
-to a validated `CompanionTurn` and a written `AIInteractionAudit` row. Getting
-there required diagnosing and fixing two real upstream Amplify AI Kit gaps;
-both are documented in detail in "Known risks/TODOs" and in code comments at
-their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
-neither is obvious from the Amplify docs and both will matter again if the
-Bedrock model choice ever changes.
+to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
+
+## Engineering standards and multi-agent governance (ADR-072, Accepted) — documentation and `make docs-check` added; ADR-072 Accepted by the owner (2026-11-18)
+
+Documentation only; no application behaviour,
+schema or infrastructure change. Baseline `main` @ 466a4972.
+
+- New root `AGENTS.md` (tool-neutral agent rules) and a "Start here" section 0 in `CLAUDE.md`; sections 14
+  and 15 now point to the detailed workflow and the staged Definition of Done. Product rules unchanged.
+- `docs/engineering/` (12 policies, an index and 10 templates) and `docs/adventures/` (12 standards and 4 templates).
+  Existing canonical documents stay canonical; `docs/DECISIONS.md` stays the single ADR log (no `docs/adr/`).
+- ADR-072 **Accepted by the owner (2026-11-18).** Precedence: owner decision, then the standards
+  (`CLAUDE.md`, `AGENTS.md`, `docs/engineering/**`, `docs/adventures/**`), then accepted ADRs and
+  every other document; an older document that conflicts with the standards is stale and is
+  corrected to match. Registry: ADR-065 to 071, 080 and 081 reserved for decisions already numbered on open
+  branches. **ADR-070 is used by two different branches** (`feature/firepeak-volcano-adventure` and
+  `feature/lambda-derived-artifacts`): owner decision needed before either merges.
+- `scripts/check_engineering_docs.py` (`make docs-check`, standard library only) with unit tests
+  (`tests/repo/test_check_engineering_docs.py`); added to `make js-check` and the CI checks job. Deliberately
+  kept out of `react/` and `package.json`, which trigger `deploy-site.yml` on a push to `main`.
+- Deferred to owner: optional new Trello lists or labels for the Specification, Integration, Ready
+  for QA and Accepted states (lists were mapped, not renamed). The ADR-070 collision stays an open
+  owner decision.
+- Owner directions (2026-11-18): every reference to the retired backend framework removed from
+  documentation (the one standing rule never to reintroduce it lives in `CLAUDE.md`, `AGENTS.md`
+  and `docs/engineering/architecture-rules.md`). Its legacy-data import and inventory code stays in
+  the repository for now (owner, 2026-11-18); a deletion is parked on `feature/engineering-standards`
+  (commit `b22cd6c8`), not merged. Jumping is a shared game-engine capability (shared controller
+  work on open branches, reserved ADR-063 and ADR-056 to ADR-060) that an adventure may use but is
+  not required to; Storykeeper Castle and the Storybook adventures do not need it. Where an
+  adventure uses jumping, the accessibility rules (a non-jump route, safe recovery, no lost
+  progress) still apply.
+- Follow-up (LAI-ENG-001, Trello card 202): `docs/engineering/initial-audit.md` (baseline audit and 16
+  conflicts found in existing documents, none edited), an owner approval checklist and worktree rollout
+  steps in `docs/engineering/README.md`.
 
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 
@@ -368,53 +397,21 @@ Deferred to merge verification or owner QA: Playwright, WebGL checks, the build,
 and a live Cognito sign-in (needs the owner's pool values). The hosted `amplify.yml` still
 deploys the Amplify backend; retiring it is the AMP-08 runbook, not this branch.
 
-## Amplify final removal and Django-only cutover (AMP-01 to AMP-08) — source complete on `feature/amplify-final-removal` (2026-11-14); AWS deployment and legacy data NOT done
+## P0: Cognito settings, Realm Explorer navigation — fixed on `fix/p0-cognito-env-realm-explorer` (2026-11-13); awaiting owner acceptance, NOT merged
 
-The owner deleted the Amplify app and disabled Amplify Hosting, and authorized removing Amplify
-from the source. Record: `docs/platform/AMPLIFY_FINAL_REMOVAL.md`.
-
-- **Done:** PR #15 merged onto current `main` (newer `main` kept on every conflict); direct Cognito
-  client (`react/src/lib/cognito`, no SDK); Django-only data with no `VITE_BACKEND` selector and no
-  Amplify fallback; solo template adventures on Django's step runner, co-op on the classic runner
-  over Django routes; `amplify/`, `amplify.yml`, `customHttp.yml`, `amplify-hosting/`, the Amplify
-  packages (1,229 lockfile packages fewer), `npm run sandbox` and the Amplify typecheck removed;
-  Chatty's prompts owned by Python and pinned by hash; S3/CloudFront site build and SPA rewrite
-  tested; README 10-step local startup (Django 8000, React 5183); `noAmplify.test.ts` guard.
-- **Checks (2026-11-14):** pytest on PostgreSQL 3411 passed, 4 skipped; Vitest 437 files, 4908
-  passed; typecheck, oxlint, Prettier, Ruff, Django check, makemigrations check, ADR, content,
-  golden and admin-preview checks pass; build passes; Playwright smoke 7 passed, 11 skipped
-  (Firepeak `fixme`, never run). Acceptance run 1: 105 passed, 2 skipped. Run 2 (with pytest and a
-  fresh-clone install running alongside): 102 passed, 2 failed, 2 skipped. The failures were
-  `treasure-rush.spec.ts` "the finale" (Pip's line and the toast showed the same text at once, a
-  strict-mode locator match) and "keyboard walking" (no movement within 1.5 s); the spec alone,
-  three times, then passed 30 of 30 with 3 conditional skips. Recorded as intermittent under load,
-  not fixed.
-- **Fresh clone:** no Amplify files or packages; `npm ci`, `make py-install`, migrate,
-  `load_content`, `seed_treasure_rush`, `publish_treasure_rush` pass; Django on 8000 and Vite on
-  5183 serve health directly and through the proxy, 401 without a token, and the public pages
-  with no console errors. Settings came from the shell (a deny rule blocks copying `.env.sample`)
-  with a stand-in pool, so live sign-in is not covered.
-- **Owner checks and approvals:** live Cognito sign-in with a real test parent; Cognito pool
-  deletion protection (it sits in the Amplify sandbox stack); deploy the Django, guardrail and
-  site stacks (no frontend is hosted until then); count and import retained Amplify data; delete
-  retained Amplify resources only afterwards; remove `VITE_BACKEND` from `react/.env.example`.
-
-## P0: Cognito without Amplify outputs, Realm Explorer navigation — fixed on `fix/p0-cognito-env-realm-explorer` (2026-11-13); awaiting owner acceptance, NOT merged
-
-Owner-reported: the homepage told parents to run an Amplify sandbox; Realms sent a child back to
+Owner-reported: the homepage showed a backend-setup message instead of sign-in; Realms sent a child back to
 Home; a direct Realm Explorer URL could wait forever; Django runs on 8000 and Vite on 5183.
 
-Root cause: three coupled defaults. (1) Sign-in was configured only from `amplify_outputs.json`,
-so a checkout without a sandbox showed the sandbox message. (2) `vite dev` used Django only when
+Root cause: three coupled defaults. (1) Sign-in was configured only from a generated outputs
+file, so a checkout without it showed the setup message. (2) `vite dev` used Django only when
 `VITE_BACKEND=django` was set; without it the Realm pages, which need Django's catalog, silently
 redirected to Home. (3) The proxy defaulted to 8010 while Django ran on 8000, and the API client
 and the Cognito session read had no time bound, so a stalled request left the page loading.
 
 What changed (no AWS resource touched; the Cognito pool is unchanged):
-- Cognito comes from `VITE_COGNITO_USER_POOL_ID` / `VITE_COGNITO_CLIENT_ID` (AMP-02's names and
-  `react/src/lib/cognito/config.ts`, copied unchanged from PR #15). Amplify Auth is configured with
-  the Auth category only. A Django build never reads `amplify_outputs.json`; a legacy Amplify
-  build still can. In `vite dev` the values fall back to the root `.env`'s `COGNITO_*`.
+- Cognito comes from `VITE_COGNITO_USER_POOL_ID` / `VITE_COGNITO_CLIENT_ID`
+  (`react/src/lib/cognito/config.ts`, copied unchanged from PR #15). In `vite dev` the values fall
+  back to the root `.env`'s `COGNITO_*`.
 - `vite dev` defaults to Django (`react/src/api/backend.ts`); production builds still opt in.
   An unknown `VITE_BACKEND` stops the dev server.
 - One `DJANGO_DEV_PORT` (root `.env`, shell, or `make` argument) drives `make runserver`, new
@@ -422,42 +419,27 @@ What changed (no AWS resource touched; the Cognito pool is unchanged):
 - Every Django API request (30 s; AI 70 s), the token read (15 s) and the session read (15 s)
   are bounded. A slow Cognito shows "We could not reach parent sign-in" with Try again, never a
   sign-out.
-- No user-facing Amplify or sandbox copy remains (Home, RequireParent, RequireAdmin). A local
+- No user-facing backend-setup copy remains (Home, RequireParent, RequireAdmin). A local
   dev build adds one developer note naming the missing settings.
 - Realm Explorer and Realm pages explain a build without Django or a failed load (timeout,
   unreachable, signed out, server) with a next step, instead of redirecting.
-- The Place page skips its two Amplify Data reads in a Django build (no Django source until
-  AMP-03), so Pirate Builder Bay and Storykeeper Castle open from Realms.
+- The Place page skips its two legacy data reads in a Django build (no Django source yet), so
+  Pirate Builder Bay and Storykeeper Castle open from Realms.
 - `vite dev` prints `[lai] dev` lines: backend, proxy target, Django health, Cognito configured
   (region only; never ids or tokens).
-- Acceptance harness: `start-vite.mjs` sets `VITE_COGNITO_*` and writes no `amplify_outputs.json`
-  (as in PR #15).
-- Hosting compatibility: the hosted Amplify build is unchanged (production builds stay on the
-  legacy backend and still read the outputs file Amplify Hosting writes). The CloudFront release
-  (`.github/actions/site-release`, gated off by `LAI_SITE_DEPLOY_ENABLED`) builds with
-  `VITE_BACKEND=django`, so it now passes the generated outputs' pool and web client as
-  `VITE_COGNITO_*` and fails if they are missing.
+- Acceptance harness: `start-vite.mjs` sets `VITE_COGNITO_*` (as in PR #15).
+- The CloudFront release (`.github/actions/site-release`, gated off by `LAI_SITE_DEPLOY_ENABLED`)
+  builds with `VITE_BACKEND=django` and passes the pool and web client as `VITE_COGNITO_*`; it
+  fails if they are missing.
 
 Evidence: unit tests (Vitest) for backend resolution, auth setup, timeouts, diagnostics, guards
 and Realm pages; pytest for the Makefile port; Playwright `e2e/acceptance/p0-navigation.spec.ts`
 at 360, 768 and 1280 px against a seeded local Django and PostgreSQL 16; manual run with Django
 on 8000 and Vite on 5183.
 
-Remaining: the Place page's classic adventure ("Start: ...") and world changes still use Amplify
-Data until AMP-03 (PR #15). In a Django build world changes are not shown and the classic
-adventure is not expected to work (not exercised here); the 3D Areas and walk-around worlds are.
-PR #15 remains unmerged pending its AWS cutover stages.
-
-
-## AMP-04 Amplify Storage to Django S3 (2026-11-10) — code and tests done; live inventory, copy and acceptance NOT run
-
-React resolves assets and child photos through Django only (`features/assets/assetService.ts`,
-`features/child-profile/avatarPhoto.ts`); Amplify builds no longer show or upload photos. The one
-Amplify Storage call left is the delete-only legacy photo removal in `child-profile/deletion.ts`
-(goes with AMP-03). New commands `migrate_amplify_child_photos` and
-`migrate_amplify_asset_objects` inventory, copy (through the Django pipelines), verify by SHA-256
-and roll back, never touching the source bucket. Runbook and the owner's open steps:
-`docs/platform/AMPLIFY_STORAGE_CUTOVER.md`.
+Remaining at the time: the Place page's classic adventure ("Start: ...") and world changes had no
+Django source until PR #15. In a Django build world changes were not shown and the classic
+adventure was not expected to work (not exercised here); the 3D Areas and walk-around worlds were.
 
 ## `make createsuper` (local Django Admin superuser) — added 2026-11-11; dry-run checked only
 
@@ -574,27 +556,24 @@ supersedes "The calm stop — MVP scope item 11" below, which is kept as history
   `copy.calmStop`; `LocationCopy.calmStop` (legacy content is ignored by `regionManifest.ts`).
 - **Removed (parent):** the "Session length" field on the child profile form and the "Session
   time" row on the child dashboard; `validateSessionMinutes`; `sessionMinutes` from the
-  hand-owned profile types and play settings. Amplify builds still write
-  `RETIRED_SESSION_MINUTES` on create, only because the deployed schema requires it (no Amplify
-  resource change).
+  hand-owned profile types and play settings.
 - **Django:** the `session_minutes` column and its per-band check constraint are dropped
   (`users.0007_remove_childprofile_session_minutes`, owner-approved). `sessionMinutes` is no
   longer returned (profile, game runtime launch, native home `restrictions`) and is refused in
-  request bodies; the Amplify import ignores it. Admin no longer shows it.
+  request bodies. Admin no longer shows it.
 - **Kept on purpose:** Cognito auth and token refresh, the 1-hour Android game-launch cookie
   (`LAI_GAME_SESSION_TTL_SECONDS`, a credential with a documented relaunch path), network
   timeouts, the `active` and `aiEnabled` parental switches, and passive usage records.
 - **Tests:** extended-play regressions in `IslandLayout.test.tsx` (6 hours on every child-mode
   depth), `RegionPlayCompanion.test.tsx` (session never completed over 1 to 8 hours) and
   `storykeeperCastleParity.test.tsx`; Django tests for create/edit without the field, a legacy
-  value accepted and ignored, band changes, the import, and the launch/home payloads.
+  value accepted and ignored, band changes, and the launch/home payloads.
 - **Merge gates (2026-11-11), all passed:** Ruff and Ruff format, Django check, migration
   check, ADR check, admin-preview check, typecheck, oxlint, Prettier, `content:check`; full
   pytest on PostgreSQL 16 (2796 passed, 3 skipped); full Vitest (407 files, 4587 tests);
   production build; Playwright smoke (7 passed, 11 skipped) and acceptance (55 passed, 2
   skipped). Playwright ran against the container's preinstalled Chromium. The migration
-  runs on the next Django deploy (not deployed here). The Amplify `sessionMinutes` field stays until
-  the Django cutover (owner decision, 2026-11-11).
+  runs on the next Django deploy (not deployed here).
 
 ## Current phase
 
@@ -708,8 +687,7 @@ Built up across several sessions (data deletion flow, authorization
 review, threat model, privacy/child-safety review including a shipped
 fix, an accessibility audit including a shipped fix, a live AI red-team
 suite that found and fixed a real validation bug, and operational
-dashboards and alarms as infrastructure-as-code — `amplify/backend.ts`,
-`amplify/functions/operational-metrics/`, this backend's first Lambda
+dashboards and alarms as infrastructure-as-code — a Lambda
 function, a DynamoDB Streams consumer publishing CloudWatch custom
 metrics from `SafetyEvent`/`AIInteractionAudit` writes: a CloudWatch
 dashboard, a Bedrock cost/budget alarm, AppSync error-rate alarms, a
@@ -931,7 +909,7 @@ Phase 9's engine substrate).
 41, 42, and 43 complete, Phase 37 partially complete (one of six write
 paths piloted), Phases 44-45 roadmapped, not started.** `docs/ROADMAP.md`
 "Phases 35+ — Android Platform Integration" and ADR-010 through ADR-018
-in `docs/DECISIONS.md` document the plan for evolving the Amplify Gen 2
+in `docs/DECISIONS.md` document the plan for evolving the
 backend into a platform that a future Android client could consume
 alongside the web client (full detail in `docs/android/android.md`).
 Phase 35 (platform audit and boundary), Phase 36 (canonical identity and
@@ -953,14 +931,14 @@ server-authoritative write paths audited) are fully done — see
 "Phase 35"/"Phase 36"/"Phase 38"/"Phase 39"/"Phase 40"/"Phase 41"/"Phase
 42"/"Phase 43" entries below. Phase 41 shipped real production code, the
 second phase in this backlog to do so after Phase 37: `getNextLearningActivity`
-(`amplify/functions/get-next-learning-activity/`) is a genuine,
+is a genuine,
 deployed-shaped Lambda the web client now calls for adventure
 recommendations, reusing the ownership-check pattern
 `submitAdventureAnswer` established. Phase 43 shipped the third piece of
-real production code, `amplify/functions/shared/requestLog.ts`, wired
+real production code, a shared request log, wired
 into all three custom Lambda resolvers. Phase 37 itself remains only
 partially complete: `submitAdventureAnswer`
-(`amplify/functions/submit-adventure-answer/`) is a genuine, deployed-shaped
+is a genuine, deployed-shaped
 Lambda the web client now calls for every graded adventure answer — see
 the "Phase 37" entry below for exactly what changed, what was verified,
 and what remains deliberately out of scope (including inventory
@@ -970,44 +948,6 @@ closed — see ADR-018). CLAUDE.md section 12 still
 keeps native mobile applications out of scope until separately approved;
 nothing in this backlog changes what has
 actually shipped above.
-
-## AMP-03: Amplify Data to Django REST for per-child state — code complete, unit and API tested; NOT deployed or seen in a browser
-
-Trello AMP-03, from the AMP-01 audit (`docs/platform/AMPLIFY_EXIT_MATRIX.md` sections 3.2 and 4,
-gaps G2, G3, G4, G5 and G10). The React modules below no longer import `lib/data-client` or the
-Amplify schema; they call Django through `react/src/api/djangoClient.ts` (same origin unless
-`VITE_BACKEND=django` names one). The routes are listed in `docs/PLAY_API.md`, "Per-child state
-outside region play (AMP-03)".
-
-- **Classic adventures** (`adventures/api.ts`, `useAdventureSession.ts`): start or resume,
-  answers, hints, sessions, attempts, world changes and saved stories on Django. The server
-  grades, records the attempt and its evidence, advances, records a WORLD_CHANGE step's world
-  change, and completes the session; the client writes none of those any more. The hint ladder
-  is the server's (`hints/`), so the support level an answer is graded with is no longer a client
-  value. The dev20261103 step runner (`sessions/<id>/step/`, `content/adventures/<slug>/start/`)
-  overlaps `adventures/<slug>/session/`: reconcile when that branch merges.
-- **Per-child state writers**: stories, quests (validated save; completion effects on the
-  server), NPC dialogue, discoveries (server authority; the Amplify merge path is gone), the
-  backpack (read and parent clear only), mastery (read only; derived on the server).
-- **Companion choice**: two columns on `ChildProfile` (`companion_type`, `companion_chosen_at`).
-- **Availability**: `children/<id>/availability/`, release flags only. The existing `islands/` and
-  `regions/<id>/adventures/` routes hide inactive content, so they cannot tell "out of play" from
-  "not in the catalog"; starting an adventure is checked on the server either way.
-- **AI history** (`parent-dashboard/api.ts`): Django only; the Amplify branch is deleted.
-- **Account deletion**: `DELETE me/` (recent sign-in) deletes every child as child deletion does,
-  then the account; the client then deletes the Cognito user through an injected deleter
-  (`child-profile/deletion.ts`). `amplifyProfiles.ts` is deleted; profiles are Django only.
-- **React admin retired**: the Families, child progress, Islands and Adventures pages, their
-  catalog components, `admin/api.ts`, `admin/catalogApi.ts` and the catalog form, import-plan and
-  delete-guard rules are deleted. Every `/admin/*` address shows one page pointing to Django
-  Admin (ADR-034, ADR-043). The owner still has to confirm Django Admin covers the reviews these
-  pages offered (AMP-01 G10).
-
-Remaining, not done here: co-op, director, companion and tutor AI modules (AMP-05), assets and
-avatar photos (AMP-04), auth (AMP-02), an importer for existing DynamoDB progress rows (G8), and
-deleting `lib/data-client.ts` and `amplify/` once every module has moved. Quest objectives the
-server cannot prove are still accepted from the client's projection (a validated write, as on
-Amplify); an NPC dialogue node's conditions are not re-checked on the server.
 
 ## Generic Three.js location engine (`docs/engine/`) — Phases 0 to 10, 16 (3D regions) and 17 complete; every 3D region runs on the generic route; NOT yet seen by a person or on a device
 
@@ -1557,7 +1497,7 @@ which location uses which asset comes from the manifests.
 - Hard-coded urls: an audit found none outside the bundled catalogue
   (`assets/manifest.ts`). `noHardCodedAssetUrls.test.ts` now fails if a
   `/models/`, `/textures/` or `/audio/` literal appears anywhere else in
-  `src/`, or if any file names an S3, CloudFront or Amplify host.
+  `src/`, or if any file names an S3 or CloudFront host.
 - AS1: no new asset model. `Asset`/`AssetVersion` are unchanged.
 
 Tests: `assetResolver.test.ts` (bundled resolution for every catalogue id;
@@ -1711,7 +1651,7 @@ overlay on source-controlled content, `Superusers` group, delete guard,
 **Built**
 
 - Schema: `Island`, `Adventure`, `AdventureModel` models; `Superusers`
-  Cognito group (`amplify/auth/resource.ts`); `grant-admin --superuser`.
+  Cognito group; `grant-admin --superuser`.
 - `AuthContext.isSuperuser`; `RequireAdmin` renders `NotFound` for
   signed-in non-admins; the user menu reads Settings, Admin, Sign out.
 - Admin pages: `/admin/islands`, `/admin/islands/new`,
@@ -1754,7 +1694,7 @@ at four admin URLs), `UserMenu.test.tsx`, `AdminLayout.test.tsx`,
 
 **Not done / risks**
 
-- Not deployed: the schema needs `npm run sandbox` (or the pipeline), and
+- Not deployed: the schema needs a backend deploy, and
   the live authorization checks in `docs/AUTHORIZATION_REVIEW.md` section 5
   are still to run. After deploying, run "Import game content" once per
   environment; until then everything stays available.
@@ -1841,7 +1781,7 @@ both fixed:
   layer is removed).
 - `package-lock.json` in this repo was not regenerated: the repo is a
   member of an npm workspace one level up, so `npm install` updated that
-  workspace's lockfile instead. CI and Amplify run `npm install`, which
+  workspace's lockfile instead. CI runs `npm install`, which
   resolves from `package.json`, so this does not block a build; running
   `npm install --package-lock-only` in a standalone copy of the repo and
   committing the result would bring the lockfile back in step.
@@ -1865,9 +1805,8 @@ states.
 **Built**
 
 - Schema: `AssetType`, `AssetCategory`, `AssetStatus`, `AssetSource`
-  enums; `Asset` and `AssetVersion` models, Admins group only
-  (`amplify/data/resource.ts`).
-- Storage: `assets/*` prefix, Admins group only (`amplify/storage/resource.ts`).
+  enums; `Asset` and `AssetVersion` models, Admins group only.
+- Storage: `assets/*` prefix, Admins group only.
 - `src/features/assets/`: `assetService.ts` (list, get, published-only
   get, current version, signed URL, `resolveModelUrl` with bundled
   fallback), `modelUpload.ts` (ordered upload and cleanup, typed
@@ -1886,7 +1825,7 @@ the codebase's existing `role="status"` convention.
 **Not verified**
 
 - Nothing has run against a deployed sandbox. The schema and storage
-  changes need `npx ampx sandbox` (or a deploy) before the pages can load
+  changes need a deploy before the pages can load
   real data, and the live authorization checks in
   `docs/AUTHORIZATION_REVIEW.md` section 5 are still to do.
 - No real large-file or network-drop upload has been tried; those paths
@@ -3164,7 +3103,7 @@ unchanged by that. Not run: `npm run build` (no front-end change) and anything a
 **Not done or blocked (owner):** provisioning (`scripts/aws/provision.sh`, change sets first),
 ACM DNS validation and the API DNS record, the secret key, GitHub variables and environments,
 the first release and bootstrap tasks, publishing the three models in Django Admin, and React's
-`/api/*` routing (`docs/platform/AMPLIFY_HOSTING.md` section 7). LAI-1003, LAI-1004 and LAI-1006
+`/api/*` routing. LAI-1003, LAI-1004 and LAI-1006
 stay open until they pass on AWS. Nothing on AWS, the GitHub-hosted workflow run, OIDC, SSM,
 awslogs or RDS TLS has been exercised.
 
@@ -3199,7 +3138,7 @@ visit, with no React rebuild. Details: `docs/ASSET_LIBRARY.md` sections 12, 15 a
 Checks run (no browser, by owner instruction): full pytest with PostgreSQL, 882 passed; full
 Vitest, 3,112 passed (8 in `adrCheck.test.ts` and `contentExport.test.ts` first failed only
 because this machine's hoisted `node_modules` has no `.bin/tsx` in the checkout; they pass with
-it); typecheck (React, Amplify, scripts, server, infra); `vite build`; Django `check` and
+it); typecheck (React, scripts, server, infra); `vite build`; Django `check` and
 `makemigrations --check`; production settings import with S3; `adr:check`;
 `admin-preview:check`; `content:check`; oxlint (warnings only, none new); Ruff and Prettier clean
 on every changed file. Pre-existing on main and untouched: Ruff `S105` in
@@ -3215,7 +3154,7 @@ deployed environment cannot publish the cove itself until TR-3's region admin ex
 
 ## Treasure Rush - TR-8a: runnable locally; real children need the child-profile migration
 
-After TR-8, a real playthrough was found to fail: children exist only in Amplify, the parent is
+After TR-8, a real playthrough was found to fail: children exist only in the retired backend's tables, the parent is
 never set up in Django, and the content is DRAFT. TR-8a adds automatic Django account setup via
 `POST /api/v1/me/` (with correct, non-"sign in again" 403 messages), a dev-only
 `publish_treasure_rush` command (DEBUG and loopback only, fully validated, all or nothing), and
@@ -3227,7 +3166,7 @@ ADR-024 A6. Details: `docs/TREASURE_RUSH_ROADMAP.md` section 15.
 `islands` to `regions` and now publishes only the region and its challenge specs; the catalog
 location, world, and offered quests must already be `active` (export-owned, ADR-033). TR-8's UI
 replaces TR-7's placeholder notices, so the TR-7 placeholder tests from main were dropped in
-favour of TR-8's. Checked: typecheck (React, Amplify, scripts), the region-play and API Vitest
+favour of TR-8's. Checked: typecheck (React, scripts), the region-play and API Vitest
 suites, and the regions and game_sessions Django tests. Not checked: any browser or WebGL run,
 and the TR-9 playtest.
 
@@ -3377,8 +3316,6 @@ visible in this clone, so the asset contract is stated as requirements only.
 - MVP roadmap documented.
 - React + Vite + strict TypeScript scaffold (`src/`, `index.html`, `vite.config.ts`,
   `tsconfig*.json`).
-- Amplify Gen 2 backend scaffold (`amplify/backend.ts`) with no resources defined yet;
-  auth and data are deferred to Phase 1 by design.
 - oxlint (linting) and Prettier (formatting) configured.
 - Vitest + React Testing Library configured, with a smoke test for the application shell.
 - Playwright configured, with a smoke end-to-end test for the home route.
@@ -3389,26 +3326,15 @@ visible in this clone, so the asset contract is stated as requirements only.
   auth, or adventure features.
 - Repository folder skeleton for `src/features/*`, `src/lib`, `src/components` per
   `CLAUDE.md` section 8 (empty, `.gitkeep` placeholders only).
-- Local development and Amplify sandbox setup documented in `README.md`.
-- `amplify.yml` build spec added at repo root so Amplify Hosting builds the frontend
-  (`dist/`) and runs `ampx pipeline-deploy` for the backend.
-- `amplify.yml` caching tightened: `npm install` now points at a repo-local
-  `.npm-cache` directory (via `npm config set cache`) and runs with
-  `--prefer-offline`, and that directory is added alongside `node_modules` to the
-  Amplify Hosting `cache.paths`. Amplify was already caching `node_modules`, but
-  `node_modules` cache-misses (e.g. any lockfile change) previously forced a full
-  re-download from the npm registry on every build; caching the npm download cache
-  too means those installs resolve from local disk instead.
-- **Phase 1 — Auth backend** (`amplify/auth/resource.ts`): Cognito email/password
+- Local development setup documented in `README.md`.
+- **Phase 1 — Auth backend**: Cognito email/password
   login for parent accounts only (ADR-001); no child identities.
-- **Phase 1 — Data backend** (`amplify/data/resource.ts`): `ParentProfile` and
+- **Phase 1 — Data backend**: `ParentProfile` and
   `ChildProfile` models per `docs/DATA_MODEL.md`, both owner-authorized so
-  `.list()`/`.get()` are automatically scoped to the signed-in parent. Wired into
-  `amplify/backend.ts` alongside auth.
+  `.list()`/`.get()` are automatically scoped to the signed-in parent.
 - **Phase 1 — Auth UI** (`src/features/auth/`): custom sign-up, email confirmation
   (with resend), sign-in, and forgot/reset-password forms built directly against
-  `aws-amplify/auth` (no new dependency); an `AuthProvider`/`useAuth` context
-  backed by `getCurrentUser` and a Hub listener; a `RequireParent` route guard
+  Cognito (no new dependency); an `AuthProvider`/`useAuth` context; a `RequireParent` route guard
   with distinct loading/unauthenticated/"backend not connected" states; Cognito
   errors mapped to plain-language, readable-aloud copy (`errors.ts`).
 - **Phase 1 — Child profile UI** (`src/features/child-profile/`): create/edit
@@ -3423,27 +3349,12 @@ visible in this clone, so the asset contract is stated as requirements only.
   `/island/:childId` child-mode shell establishing the parent/child route split
   ahead of Phase 2's real island content. `Home.tsx` rewritten as a landing page
   with sign-up/sign-in CTAs (or a calm "backend not connected" notice when
-  `amplify_outputs.json` is absent).
-- **Phase 1 — Amplify config loading** (`src/lib/amplify-config.ts`): loads
-  `amplify_outputs.json` via `import.meta.glob` (zero-match-safe) instead of a
-  static import, since that file is gitignored and does not exist in CI or in a
-  fresh checkout; `isAmplifyConfigured` is `false` when it's missing, so
-  `dev`/`build`/`test`/`test:e2e` all still work with no deployed backend.
-  **Fixed after initial Phase 1 delivery:** `Amplify.configure()` now runs as a
-  side effect of importing this module, rather than via an exported function a
-  caller had to remember to invoke. The original version required `App.tsx` to
-  call `configureAmplify()`, but ES module evaluation order meant
-  `src/lib/data-client.ts`'s `generateClient()` always ran first regardless of
-  route, breaking every screen that touched the data client (surfaced as
-  "Client could not be generated..." on `/parent`). `data-client.ts` now
-  imports `amplify-config.ts` directly, immediately before calling
-  `generateClient()`, which guarantees correct ordering no matter what else is
-  going on in the wider import graph.
+  the backend is not configured).
 - Unit/component tests added alongside every Phase 1 module (validators, forms,
   `ParentGate`, `ChildProfileForm`, `ChildProfileList`); `App.test.tsx` and
   `e2e/smoke.spec.ts` updated for the new landing page and extended with
   render-only checks for `/sign-up` and `/sign-in`.
-- **Phase 2 — Data backend** (`amplify/data/resource.ts`): added
+- **Phase 2 — Data backend**: added
   `CompanionProfile` (owner-authorized, same pattern as `ChildProfile`), plus
   a `hasOne`/`belongsTo` relationship between `ChildProfile` and
   `CompanionProfile`. `cosmeticState` from `docs/DATA_MODEL.md` was
@@ -3489,7 +3400,7 @@ visible in this clone, so the asset contract is stated as requirements only.
   content rather than a DB model, per `DATA_MODEL.md`'s note for
   `AdventureStepDefinition` (same approach Phase 2 used for `IslandLocation`).
   **Scoped to `ageBands: ['PATHFINDER']` only** — see "Known risks/TODOs".
-- **Phase 3 — Data backend** (`amplify/data/resource.ts`): five new
+- **Phase 3 — Data backend**: five new
   owner-authorized models — `AdventureSession`, `AdventureAction`,
   `SkillEvidence`, `SkillProgress`, `WorldChange` — plus `SessionStatus` and
   `Correctness` enums, wired to `ChildProfile` with the same
@@ -3517,8 +3428,8 @@ visible in this clone, so the asset contract is stated as requirements only.
   `MATCHING`/`SHORT_RESPONSE`/`CREATIVE_CHOICE`/`REFLECTION` have engine-level
   validators but no renderer yet — no authored content needs them until a
   later adventure.
-- **Phase 4 — AI generation route** (`amplify/data/resource.ts`): a
-  `generateCompanionTurn` Amplify AI Kit `a.generation()` route backed by
+- **Phase 4 — AI generation route**: a
+  `generateCompanionTurn` structured generation route backed by
   Bedrock (`Claude Haiku 4.5`), matching CLAUDE.md section 7's pipeline —
   structured generation, never a free-form chat route. Its `.arguments()`
   are the only per-call input (`ageBand`, `intent`, `stepSummary`,
@@ -3533,7 +3444,7 @@ visible in this clone, so the asset contract is stated as requirements only.
   field to scope by). Also added: `AIInteractionAudit` and `SafetyEvent`
   models (DATA_MODEL.md shapes, owner-authorized like every other Phase
   1-3 model) and a `ValidationStatus` enum.
-- **Phase 4 — Chatty persona** (`amplify/data/chattyPersona.ts`): the
+- **Phase 4 — Chatty persona**: the
   fixed system prompt for `generateCompanionTurn`, encoding CLAUDE.md
   section 6 (warm/curious/playful/concise, AI-powered island magic, never
   claims to be human/conscious) and every boundary in
@@ -3547,7 +3458,7 @@ visible in this clone, so the asset contract is stated as requirements only.
   several — it is never trusted on its own.
 - **Phase 4 — Validation and fallback pipeline**
   (`src/features/companion/`): `schema.ts` defines the `CompanionTurn`
-  types independently of the generated Amplify `Schema` (the AI response
+  types independently of the generated backend schema (the AI response
   is treated as `unknown` until validated — CLAUDE.md section 13) and
   `validateCompanionTurn` checks structure, that `intent` matches what was
   requested (or has escalated to `REDIRECT`, which is always allowed),
@@ -3611,7 +3522,7 @@ visible in this clone, so the asset contract is stated as requirements only.
   `OrderingStep`, `HintPanel`. No new route-level tests, consistent with
   every existing route (`WelcomeHarbor`, etc.) having none — they need a live
   backend to exercise meaningfully.
-- **Phase 5 — Data backend** (`amplify/data/resource.ts`): a `StoryArtifact`
+- **Phase 5 — Data backend**: a `StoryArtifact`
   model (`childProfileId`, `sessionId`, `templateSlug`, `title`, `scenes`
   as `a.json()`, `createdAt`), owner-authorized like every other model, plus
   a `hasMany`/`belongsTo` link to `ChildProfile`. No new AI generation
@@ -3773,8 +3684,7 @@ visible in this clone, so the asset contract is stated as requirements only.
   to exercise meaningfully) — same as its Phase 4/5 HINT/CELEBRATE/NARRATE
   triggers.
 
-- **Phase 7 — AI kill switch** (`amplify/data/resource.ts`,
-  `src/features/child-profile/api.ts`,
+- **Phase 7 — AI kill switch** (`src/features/child-profile/api.ts`,
   `src/features/companion/api.ts`): added `ChildProfile.aiEnabled`
   (`a.boolean().default(true)`) and `setChildProfileAIEnabled`. This field
   is deliberately **not** `.required()` — see the bug note directly below
@@ -3832,7 +3742,7 @@ The first version of this change shipped `aiEnabled` as
 deployed backend, opening `/parent` threw `TypeError: Cannot read
 properties of null (reading 'nickname')` inside `ChildProfileList`.
 
-Root cause: `.default()` in Amplify Data only applies to rows created
+Root cause: `.default()` in the data schema only applies to rows created
 *after* the field is added — it does not backfill rows that already
 exist in the table. Every `ChildProfile` row created before this phase
 has no `aiEnabled` attribute stored in DynamoDB at all. Because the
@@ -3857,10 +3767,9 @@ not a migration. A newly added field on a table with existing rows
 needs to be optional, with `?? <default>` at every read site, unless a
 real backfill migration runs first.
 
-**Not yet done**: the running backend (`amplify_outputs.json`) needs a
-fresh `ampx sandbox`/deploy for this corrected schema to take effect —
-the fix here is in the source, not yet pushed to the live AppSync API
-the user was testing against.
+**Not yet done** at the time: the running backend needed a fresh deploy for
+this corrected schema to take effect — the fix was in the source, not yet
+pushed to the live API the user was testing against.
 
 ## Next task
 
@@ -3899,7 +3808,7 @@ Phase 16 has no further known open scope decisions. Still open,
 engineering rather than product: a `ChildWorldState` model scoped to just
 `discoveredObjects`/`discoveredCharacters` once a deliverable actually needs
 to remember what a child has seen or met (see `docs/DATA_MODEL.md`'s note);
-and, per every Phase 16 verification note below, a real `ampx sandbox`
+and, per every Phase 16 verification note below, a real backend
 deploy and browser play-through of all four new locations (and the two
 existing locations' tile-override transforms), since none of this has ever
 actually rendered inside a real `Phaser.Game`.
@@ -3915,7 +3824,7 @@ actually rendered inside a real `Phaser.Game`.
   ("Parent deletes or deactivates a child profile"), which only had a
   deactivate/reactivate toggle before this phase.
   `deleteAccountAndAllData` composes that per child, deletes every
-  `ParentProfile` row, then calls `aws-amplify/auth`'s `deleteUser()` to
+  `ParentProfile` row, then calls Cognito's `deleteUser()` to
   remove the Cognito account itself (order matters: everything needing an
   authenticated session runs before `deleteUser()`). Wired into two new
   danger-zone UI sections: `ChildDashboard.tsx`'s "Delete this child's
@@ -3929,7 +3838,7 @@ actually rendered inside a real `Phaser.Game`.
   and that `deleteAccountAndAllData` deletes child data and the parent
   profile before calling `deleteUser()`, not after.
 - **Phase 8 - Authorization review** (`docs/AUTHORIZATION_REVIEW.md`,
-  new): a source-level review of every `amplify/data/resource.ts` auth
+  new): a source-level review of every data-schema auth
   rule and every `list()`-then-filter call site in `src/features/*/api.ts`
   against `docs/TESTING_STRATEGY.md`'s "Backend tests" invariants.
   Confirmed all 11 models' `allow.owner()` rules are correct and
@@ -4100,9 +4009,8 @@ actually rendered inside a real `Phaser.Game`.
   animates; route reverted (no diff in `AppRoutes.tsx`).
 
 - **Phase 8 - Live AI red-team suite and a real validation-pipeline bug fix**
-  (`scripts/ai-red-team.ts`, new; `amplify/data/chattyPersona.ts`;
-  `src/features/companion/schema.ts`): a deployed sandbox
-  (`amplify_outputs.json`) and a confirmed test parent account became
+  (`scripts/ai-red-team.ts`, new; `src/features/companion/schema.ts`): a
+  deployed development backend and a confirmed test parent account became
   available this session, unblocking `docs/PILOT_READINESS.md` section 2
   ("AI red-team / evaluation suite"), previously a runbook-only item since
   Phase 4. `scripts/ai-red-team.ts` (`npm run ai:red-team`) calls the real,
@@ -4150,15 +4058,15 @@ actually rendered inside a real `Phaser.Game`.
   left as a tracked follow-up rather than a further prompt-tuning pass this
   session. New tests: `schema.test.ts` gained five cases asserting the
   exact free-text emotion strings this live run actually observed each
-  normalize to the correct `CompanionEmotion`. `scripts/tsconfig.json` (new,
-  same pattern as `amplify/tsconfig.json`) type-checks the script under
+  normalize to the correct `CompanionEmotion`. `scripts/tsconfig.json` (new)
+  type-checks the script under
   `npm run typecheck`; `.oxlintrc.json` gained a `scripts/**` override
   disabling `no-console` (the rest of the repo keeps it, since a CLI
   reporting script legitimately needs to print, unlike application code).
   Full detail and the original runbook text in `docs/PILOT_READINESS.md`
   section 2.
 - **Phase 8 - Operational dashboards and alarms as infrastructure-as-code**
-  (`amplify/backend.ts`; `amplify/functions/operational-metrics/`, new):
+  (new):
   the previous session's `docs/PILOT_READINESS.md` section 3 assumed this
   needed a deployed backend just to *build* against — untrue for CDK code
   that references generated constructs by reference rather than by needing
@@ -4170,7 +4078,7 @@ actually rendered inside a real `Phaser.Game`.
   each write into a CloudWatch embedded-metric-format log line
   (`LearningAdventureIsland/Safety` and `LearningAdventureIsland/AI`
   namespaces) with no AWS SDK dependency or extra IAM permission needed —
-  stdout *is* the publish call for EMF. `amplify/backend.ts` then wires up
+  stdout *is* the publish call for EMF. The backend definition then wires up
   everything `docs/PILOT_READINESS.md` section 3's original runbook
   called for: an `OperationalAlertsTopic` SNS topic (subscribe an email via
   `PILOT_ALERT_EMAIL` before deploying), a Bedrock monthly cost/budget
@@ -4188,7 +4096,7 @@ actually rendered inside a real `Phaser.Game`.
   in `handler.ts` is honest about depending on it).
   **Not done and explicitly out of scope for this pass**: deploy
   verification of any of the above (no AWS credentials were available this
-  session either — `npx ampx sandbox --once` failed immediately on an
+  session either — a backend deploy attempt failed immediately on an
   expired SSO token, confirmed before writing any of this code), and the
   human-review workflow half of `docs/AI_AND_CHILD_SAFETY.md` layer 10 (an
   alarm emailing the pilot operator is not the same as a defined process
@@ -4208,7 +4116,7 @@ actually rendered inside a real `Phaser.Game`.
   - **Load/cost tests and operational dashboards/alarms**
     (`docs/PILOT_READINESS.md` sections 1 and 3): deploy-verified with
     real AWS console access. The CloudWatch dashboard and alarms shipped
-    earlier this phase (`amplify/functions/operational-metrics/`) confirmed
+    earlier this phase confirmed
     firing on real `SafetyEvent`/`AIInteractionAudit` writes; Bedrock cost
     stayed within the configured budget threshold under load.
   - **Closed parent pilot** (`docs/PILOT_READINESS.md` section 4): run
@@ -4506,7 +4414,7 @@ actually rendered inside a real `Phaser.Game`.
   Engine" rule — no existing engine, hook, or content file needed a
   behavioral change, only one small additive prop (below).
 
-  **Data backend** (`amplify/data/resource.ts`): a `ChildStoryProgress`
+  **Data backend**: a `ChildStoryProgress`
   model exactly matching the shape `docs/DATA_MODEL.md` already documented
   ahead of time in the Phase 9 session (`childProfileId`, `storyId`,
   `currentChapterId`, `completedChapterIds`, `storyFlags` as bounded JSON,
@@ -4729,7 +4637,7 @@ actually rendered inside a real `Phaser.Game`.
   Chatty-specific parrot shape; nothing in this forest needed a following
   character). Same pre-existing, project-wide gaps already noted for
   Phases 9-11 apply here too (no authenticated Playwright e2e harness, no
-  live `ampx sandbox` exercise of the `WAGGLE_DANCE_DISCOVERED`-gated
+  live backend exercise of the `WAGGLE_DANCE_DISCOVERED`-gated
   interaction pair against a real signed-in session — this phase added no
   new backend schema, so the risk surface is smaller than any phase that
   did).
@@ -4830,7 +4738,7 @@ actually rendered inside a real `Phaser.Game`.
   `LocationScene`'s NPC renderer is a Chatty-specific parrot shape; Keeper
   Quill stands in place rather than following the avatar). Same
   pre-existing, project-wide gaps already noted for Phases 9-13 apply here
-  too (no authenticated Playwright e2e harness, no live `ampx sandbox`
+  too (no authenticated Playwright e2e harness, no live backend
   exercise of the `FIRST_STORY_TOLD`-gated interaction pair against a real
   signed-in session — this phase added no new backend schema, so the risk
   surface is smaller than any phase that did).
@@ -4955,7 +4863,7 @@ actually rendered inside a real `Phaser.Game`.
   territory. Play behavior is not yet a recommendation signal (section 4
   says "interests **and actual play behavior**"): `ChildStoryProgress` is
   read only for status labels, since ranking on it needs a real signal
-  design, not a heuristic bolted onto a first shelf. And no `ampx sandbox`
+  design, not a heuristic bolted onto a first shelf. And no backend
   deploy exercised `listStoryProgress` or a real signed-in play-through of
   any new arc against a live backend (no AWS credentials in this
   environment, same constraint as every prior phase); this phase added no
@@ -4969,7 +4877,7 @@ actually rendered inside a real `Phaser.Game`.
   had already specified a `ChildWorldState` model
   (`unlockedLocations`/`worldChanges`/`discoveredObjects`/
   `discoveredCharacters`/`completedStories`) but it was never actually added
-  to `amplify/data/resource.ts` in any earlier phase. Investigating the
+  to the data schema in any earlier phase. Investigating the
   existing world-map engine (`src/features/island-map/worldObjects.ts`'s
   `isInteractionAvailable`, already used by every location's `WorldView` to
   gate the bridge/hive/story-hall reveals off `listAllWorldChanges`) showed
@@ -5202,7 +5110,7 @@ actually rendered inside a real `Phaser.Game`.
   `docs/DECISIONS.md` ADR-006): the last item of the explorable-world arc,
   built now that the world engine (Phase 9) and Story Engine (Phase 12) are
   stable, as the roadmap itself required.
-  - **Data backend** (`amplify/data/resource.ts`): a `CoopSession` model —
+  - **Data backend**: a `CoopSession` model —
     the only model in the schema that does *not* use the default
     `allow.owner()`. Its `hostParentProfileId` field is the owner-auth
     field instead (`allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')`),
@@ -5213,8 +5121,7 @@ actually rendered inside a real `Phaser.Game`.
     already-populated table must not be `.required()`" precedent as
     `ChildProfile.aiEnabled`, Phase 7). `docs/AUTHORIZATION_REVIEW.md`
     section 1a is the full writeup.
-  - **Atomic slot-claim mutation** (`amplify/functions/claim-coop-slot/`,
-    wired in `amplify/backend.ts`): `claimCoopSlot`, a function-backed
+  - **Atomic slot-claim mutation**: `claimCoopSlot`, a function-backed
     custom mutation rather than a plain `CoopSession.update()`, because
     "first write wins, second write rejected server-side without an
     error" (`docs/ADVENTURE_ENGINE.md` "Co-op sessions") needs a real
@@ -5229,7 +5136,7 @@ actually rendered inside a real `Phaser.Game`.
     must match `hostParentProfileId`, `childProfileId` must be a
     participant, and the session must be `ACTIVE`, before ever touching
     the table. An open, undeployed assumption is called out in the
-    handler's own top comment: that Amplify's default DynamoDB resolver
+    handler's own top comment: that the default DynamoDB resolver
     mapping stores an `a.json()` object field as a native Map (`M`)
     attribute, which the nested `sharedState.slots.<slotKey>`
     `ConditionExpression` depends on.
@@ -5288,7 +5195,7 @@ actually rendered inside a real `Phaser.Game`.
     `coopSessionId` is passed to `useAdventureSession`; every other
     adventure remains single-player-only simply because nothing yet
     launches it with one.
-  - Unit tests: `amplify/functions/claim-coop-slot/handler.test.ts` (7
+  - Unit tests: the `claimCoopSlot` handler test (7
     cases covering `decideClaim`'s every branch — not-host,
     not-participant, inactive, open slot, idempotent re-claim by the
     claiming child, rejected claim by a different child, and an
@@ -5308,151 +5215,7 @@ actually rendered inside a real `Phaser.Game`.
     to this phase, the DynamoDB Map-attribute assumption above has never
     been checked against a real table, and no two real child profiles
     under one real parent have played a coop session live. Confirm both
-    the first time this runs against a real `ampx sandbox`.
-
-## Post-Phase-17 deploy fix: circular nested-stack dependency
-
-The first real `ampx pipeline-deploy` after Phase 17 landed failed at the
-CDK deploy step (not synth, which had already passed) with
-`CloudformationStackCircularDependencyError` across the `OperationalMonitoring`,
-`data`, and `function` nested stacks. This is exactly the "Not
-deploy-verified" risk flagged above materializing: it could only surface
-once this ran against a real CI/CD pipeline with AWS credentials, which no
-session before this one had.
-
-Root cause: `claimCoopSlot` (`amplify/functions/claim-coop-slot/`) had a
-dependency edge in both directions between the `data` and (default) shared
-`function` nested stacks — `data` depended on it as the `claimCoopSlot`
-mutation's resolver (`.handler(a.handler.function(claimCoopSlot))`,
-`amplify/data/resource.ts`), while it depended back on `data` for its
-`CoopSession` table grant (`coopSessionTable.grantReadWriteData(...)`,
-`amplify/backend.ts`). `operationalMetrics` shares that same default
-`function` stack, which is why `OperationalMonitoring` (itself dependent on
-`data` for its AppSync alarms) was swept into the reported cycle too.
-
-Fix: `amplify/functions/claim-coop-slot/resource.ts` now sets
-`resourceGroupName: 'data'`, so the function is created inside the `data`
-nested stack itself rather than the shared `function` stack — both the
-resolver wiring and the table grant become same-stack references, and the
-cross-stack edge disappears. This is the exact resolution the CDK error
-message itself recommends for a function that is both a data resolver and
-a caller of the data API. `operationalMetrics` is unaffected and stays in
-the default `function` stack; nothing in `data`'s schema references it, so
-it never had a reverse edge to create a cycle.
-
-Verified `tsc --noEmit` and `vitest run` (82 files, 641 tests) both still
-pass. **Not deploy-verified** — same no-AWS-credentials constraint as
-every phase since Phase 8; confirm a real `ampx pipeline-deploy` succeeds
-end to end the first time this runs with credentials.
-
-## Post-Phase-17 deploy fix #2: DynamoDB Stream activation race
-
-With the circular dependency above fixed, the next real
-`ampx pipeline-deploy` got dramatically further — it created the
-`CoopSession` table, both Lambda functions, and the whole
-`OperationalMonitoring` stack — but then failed creating the two
-`AWS::Lambda::EventSourceMapping`s that wire `operationalMetrics` to the
-`SafetyEvent`/`AIInteractionAudit` table streams: `Invalid request
-provided: Stream ... is Disabled. You cannot create a lambda mapping on a
-stream that is Disabled.` This rolled the whole stack back, including the
-`streamSpecification` change that had just enabled those streams, so a
-bare retry would hit the identical failure every time — it is not a
-transient/flaky error.
-
-Root cause: enabling a DynamoDB Stream on an already-existing table is
-asynchronous on AWS's side. CloudFormation reports the table's
-`UPDATE_COMPLETE` as soon as the `UpdateTable` API call is accepted, but
-the stream itself briefly sits in `ENABLING` before DynamoDB reports it
-`ENABLED`. `enableModelTableStream` (formerly `wireModelTableStream`,
-`amplify/backend.ts`) enables the stream in the `data` stack; the
-`AWS::Lambda::EventSourceMapping`s that consume it live in the next
-nested stack (`function`) and were being created immediately after
-`data` finished — CloudFormation had the ordering right, but that still
-wasn't enough wall-clock time for the stream to finish activating.
-
-Fix: `amplify/backend.ts` now inserts an explicit wait between the two,
-using CDK's `aws-cdk-lib/triggers` `Trigger` construct — the standard
-mechanism for exactly this "wait for AWS eventual consistency between two
-resources" class of problem. A small inline Lambda (`DynamoStreamActivationDelay`)
-sleeps 90 seconds; a `Trigger` (`DynamoStreamActivationTrigger`) runs it
-only after both tables' stream-enabling updates complete
-(`executeAfter`), and the event source mappings
-(`wireModelTableEventSource`) are only created once the trigger succeeds
-(`executeBefore`, applied to the `EventSourceMapping` construct found via
-`lambda.node.findChild(...)`, since `Function.addEventSource()` doesn't
-return it directly). 90 seconds is a generous margin over the "a few
-seconds, well under a minute" AWS documents for stream activation; there
-is no supported API to poll stream status and wait on that precisely
-instead.
-
-Verified `tsc --noEmit` and `vitest run` (84 files, 648 tests) both pass.
-**Not deploy-verified** — same no-AWS-credentials constraint as every
-phase since Phase 8, and this fix specifically cannot be confirmed
-without a real deploy: the 90-second margin is a documented-behavior
-estimate, not something provable locally. If a future deploy still hits
-"Stream ... is Disabled," increase the delay before assuming the
-mechanism itself is wrong. (The next deploy did still hit it, for a
-different reason — see fix #3 below. The wait this section adds turned
-out to be necessary but not sufficient.)
-
-## Post-Phase-17 deploy fix #3: stale `TableStreamArn` attribute
-
-The 90-second `Trigger` above did run (the deploy log shows
-`DynamoStreamActivationTrigger` taking ~100 seconds, completing at
-21:00:20), and the event source mappings were still created afterwards
-with the identical error: `Stream
-arn:aws:dynamodb:us-west-1:...:table/AIInteractionAudit-.../stream/2026-08-19T20:19:01.702
-is Disabled.` The stream ARN in that message is the tell: `20:19:01` is
-the creation timestamp of a stream from the *previous* build, which that
-build's rollback had disabled. The mappings were never pointed at the
-stream this build had just enabled, so no amount of waiting could have
-helped.
-
-Real root cause: `table.tableStreamArn` — the `TableStreamArn` attribute
-of Amplify's `Custom::AmplifyDynamoDBTable` resource, which
-`DynamoEventSource` uses — is stale on exactly the deploy that turns a
-stream on. Amplify's table-manager Lambda handles `Update` by describing
-the table first, then applying each computed change (including
-`getStreamUpdate`'s `UpdateTable`), and finally returning
-`Data.TableStreamArn` from that *pre-update* describe
-(`amplify-table-manager-handler`'s `Update` branch in
-`@aws-amplify/graphql-model-transformer`; its `isComplete` handler never
-revises the value). On a stream-enabling deploy the attribute therefore
-holds either nothing at all or, as here, the ARN of an older stream that
-is now disabled. The activation race diagnosed in fix #2 is real, but it
-was a second-order problem hiding behind this one.
-
-Fix, in `amplify/backend.ts`:
-
-- `liveStreamArn(modelName, table)` reads `LatestStreamArn` back from
-  DynamoDB itself, with an `AwsCustomResource` (`dynamodb:DescribeTable`,
-  scoped to that one table's ARN) that runs after
-  `streamActivationTrigger`. That value is the stream that is actually
-  live, and — because the lookup runs after the 90-second wait — it is
-  also past `ENABLING` by the time the mapping is created, so fix #2's
-  `Trigger` is still doing useful work.
-- `wireModelTableEventSource` now creates the mapping directly with
-  `lambda.addEventSourceMapping(...)` on that resolved ARN instead of
-  `addEventSource(new DynamoEventSource(table, ...))`, so nothing reads
-  the stale attribute.
-- `DynamoEventSource` also grants the consumer stream-read IAM access
-  derived from the same stale attribute, which would have left
-  `operationalMetrics` mapped to a stream it could not read. The grant is
-  now written by hand against `${table.tableArn}/stream/*` — stream ARNs
-  are the table ARN plus a creation timestamp, so that stays correct
-  across a table's streams being disabled and re-enabled.
-- The lookup's physical resource id embeds Amplify Hosting's `AWS_JOB_ID`
-  so it re-runs on every CI deploy. CloudFormation only re-invokes a
-  custom resource whose properties changed, and a cached ARN here would
-  fail silently — the mapping would point at a dead stream, metrics would
-  stop, and no alarm would fire.
-
-Verified `npm run typecheck`, `oxlint`, `prettier --check`, and
-`vitest run` (82 files, 641 tests) all pass. **Not deploy-verified** — same no-AWS-credentials
-constraint as every phase since Phase 8. If a deploy still fails here,
-check the stream timestamp in the error message first: an ARN whose
-timestamp predates the current build means the ARN is stale again, while
-a current timestamp means the activation wait is genuinely too short.
+    the first time this runs against a real backend deployment.
 
 ## Post-Phase-17: account menu, settings page, and `/parent` → `/home` route rename
 
@@ -5482,7 +5245,7 @@ were replaced with a small account menu, and account-level editing
   for form field styling, and `validators.ts`/`errors.ts` for
   validation and Cognito error copy — no new dependency.
 - **New: `src/features/auth/accountSettings.ts`** — thin wrappers
-  around `aws-amplify/auth`'s `updateUserAttributes` (email change,
+  around Cognito's `updateUserAttributes` (email change,
   reporting whether Cognito requires a confirmation code),
   `confirmUserAttribute` (completes it), and `updatePassword`
   (requires the current password; Cognito, not a passwordless flow).
@@ -5520,7 +5283,7 @@ were replaced with a small account menu, and account-level editing
   "Sign out" is last, clicking it calls `signOut` and closes the menu,
   clicking outside closes it — mocks `useAuth`, same pattern as
   `RequireGuest.test.tsx`) and
-  `src/features/auth/accountSettings.test.ts` (mocks `aws-amplify/auth`,
+  `src/features/auth/accountSettings.test.ts` (mocks the Cognito client,
   same pattern as `deletion.test.ts`; covers both the
   confirmation-required and immediate-update branches of `changeEmail`).
   `AccountSettings.tsx` itself has no automated test, the same
@@ -5535,14 +5298,14 @@ render `RequireParent`'s "island is not connected yet" guard rather
 than crashing or 404ing, and the old `/parent` path now correctly falls
 through to `NotFound` instead of resolving to anything. **Not
 deploy-verified beyond that** — same no-AWS-credentials constraint as
-every phase since Phase 8; there is no `amplify_outputs.json` in this
-environment, so `isAmplifyConfigured` is always `false` and the
+every phase since Phase 8; there is no backend configuration in this
+environment, so the
 authenticated dashboard, the account menu's actual open/close/sign-out
 behavior in situ, and the three settings forms (especially the
 email-confirmation-code round trip, which needs a real Cognito user
 pool to exercise) could not be exercised in a live browser this
 session — `UserMenu.test.tsx` covers the menu's interactive behavior
-with a mocked `useAuth` instead. A real `ampx sandbox`/browser pass
+with a mocked `useAuth` instead. A real backend deploy and browser pass
 should confirm all of that against a live backend before this ships.
 
 ## Post-Phase-17: admin section (read-only users, children, and progress)
@@ -5556,12 +5319,12 @@ of that role — reviewing flagged `AIInteractionAudit`/`SafetyEvent` rows —
 is deliberately **not** touched this session; see "Known risks/TODOs"
 below for why.
 
-- **New Cognito group** (`amplify/auth/resource.ts`): `groups: ['Admins']`.
+- **New Cognito group**: `groups: ['Admins']`.
   There is no self-serve way to join it (CLAUDE.md section 10: "Admin
   access must be group-based and explicitly authorized") — an operator
   grants it out-of-band: `aws cognito-idp admin-add-user-to-group
   --user-pool-id <pool id> --username <email> --group-name Admins`.
-- **New authorization rule** (`amplify/data/resource.ts`): `ParentProfile`,
+- **New authorization rule**: `ParentProfile`,
   `ChildProfile`, `AdventureSession`, `SkillProgress`, and `WorldChange`
   each gained `allow.group('Admins').to(['read'])` alongside their
   existing `allow.owner()` rule — a second, independent rule that lets an
@@ -5632,12 +5395,12 @@ Verified `npm run typecheck`, `npm run lint`, and `npm test` (86 files,
 658 tests) all pass, and `npm run test:e2e` (production build +
 Playwright/Chromium, 7/7 passed). **Not deploy-verified beyond that** —
 same no-AWS-credentials constraint as every phase since Phase 8: there is
-no real `amplify_outputs.json` in this environment, so the actual
+no real backend configuration in this environment, so the actual
 `Admins`-group Cognito flow (a user really being in the group,
 `fetchAuthSession()` really returning that claim, the group-read
 authorization rule actually broadening `.list()` results at the AppSync
-layer) has not been exercised against a live backend. A real `ampx
-sandbox` deploy, `admin-add-user-to-group` call, and browser pass should
+layer) has not been exercised against a live backend. A real backend
+deploy, `admin-add-user-to-group` call, and browser pass should
 confirm all of that before this ships — see "Known risks/TODOs" below.
 
 ## Phase 18 — Engine Boundaries
@@ -5685,7 +5448,7 @@ session's doc edits.
 
 New feature folder `src/features/curriculum/`, owned by the Learning
 Engine (Phase 18's ownership table). Deliberately kept as source-controlled
-content, not an Amplify Data model, matching the precedent already set by
+content, not a backend data model, matching the precedent already set by
 `AdventureTemplate`/`LearningObjective`.
 
 - **`types.ts`**: `Subject`, `Grade`, `Domain`, `Skill`, and
@@ -5735,14 +5498,14 @@ Engine per Phase 18's own forecast ("formalized into a standalone engine
 ... at Phase 20"). Extends `SkillProgress` rather than replacing it, per
 the roadmap's own scope note.
 
-- **Schema** (`amplify/data/resource.ts`): two new enums, `SkillStatus`
+- **Schema**: two new enums, `SkillStatus`
   (`LOCKED | INTRODUCED | DEVELOPING | PROFICIENT | MASTERED`) and
   `ErrorPattern` (`NONE | NEEDS_SUPPORT | INCONSISTENT | STALLED`).
   `SkillProgress` gains `consecutiveIndependentCorrect` (new field) and
   its previously-declared-but-never-written `recentLevel` is now typed
   against `SkillStatus` and actually populated. Field kept as
-  `recentLevel` rather than renamed to `status`, since renaming an
-  Amplify model field is a drop+add at the DynamoDB layer, not a free
+  `recentLevel` rather than renamed to `status`, since renaming a
+  model field is a drop+add at the DynamoDB layer, not a free
   rename.
 - **`types.ts`**: `SkillStatus`, `ErrorPattern`, `SkillProgressCounts`
   (DB-client-independent input shape), `MasteryDetail` (full detail, for
@@ -5815,7 +5578,7 @@ the roadmap's own scope note.
 
 Verified `npm run typecheck`, `npm run lint` (no new warnings), and
 `npm test` — 90 files, 702 tests, all pass (31 new from this phase). Not
-deploy-verified: no real `amplify_outputs.json` in this environment, same
+deploy-verified: no real backend configuration in this environment, same
 constraint as every schema change since Phase 8 — the two new enum fields
 and the new required `consecutiveIndependentCorrect` field on an
 already-populated `SkillProgress` table have not been exercised against a
@@ -5938,7 +5701,7 @@ schema addition the roadmap calls for.
   same reason. `ConverseInteraction` only ever offers a curated, bounded
   set of response buttons, never free text (CLAUDE.md section 2: no
   unrestricted chat box for a child profile).
-- **Schema** (`amplify/data/resource.ts`): new optional `durationMs`
+- **Schema**: new optional `durationMs`
   field on both `AdventureAction` and `SkillEvidence` — the "duration
   capture" deliverable did not exist anywhere in the schema before this
   phase. `recordAction`/`recordSkillEvidence`
@@ -6037,7 +5800,7 @@ implemented except quest *progression*, which is Phase 25's by design (see
   nothing in `src/features/npc/` calls Bedrock. Narration is opt-in per
   node, so adding an NPC does not silently add an AI surface — asserted by
   a test that most authored dialogue stays authored-only.
-- **Schema** (`amplify/data/resource.ts`): new `ChildNpcState` model
+- **Schema**: new `ChildNpcState` model
   (`allow.owner()`, Admins read-only) and `RelationshipLevel` enum, plus
   the matching `hasMany` on `ChildProfile`. `relationshipPoints` is the
   source of truth; `relationshipLevel` is stored alongside it purely so
@@ -6172,7 +5935,7 @@ during grant resolution, never a drop weight, and never a status rank.
   `ChildStoryProgress.storyId` column actually stores a
   `StoryDefinition.slug` (see `src/features/story/api.ts` call sites), so
   the trigger field is named for the value it really holds.
-- **Schema** (`amplify/data/resource.ts`): new `ChildInventory` model
+- **Schema**: new `ChildInventory` model
   (`allow.owner()`, Admins read-only) plus the matching `hasMany` on
   `ChildProfile`. One row per child rather than one per item, since a
   backpack is read whole every time it is shown.
@@ -6284,7 +6047,7 @@ rather than a parallel content format.
   side effect is individually failure-tolerant: a finished quest stays
   finished even if a reward write fails, because the alternative is a child
   watching a completed quest revert.
-- **`ChildQuestState`** (amplify/data/resource.ts): owner-authorized, admin
+- **`ChildQuestState`** : owner-authorized, admin
   read. Stores only what cannot be derived. `AVAILABLE` is deliberately not
   a stored status, so authoring a new quest offers it to every eligible
   child with no backfill.
@@ -6357,7 +6120,7 @@ adventure, and a child with no quests started pays one list read.
 
 ## Verification (Phase 25 session)
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`,
+- `npm run typecheck` — passed (`tsc -b`,
   `scripts/tsconfig.json`).
 - `npm run lint` — passed, 19 warnings, all pre-existing
   (`prefer-tag-over-role`, `no-console` in `.tmp-verify/`); none new.
@@ -6419,7 +6182,7 @@ change the island, and reveal a quest.
   failure-tolerant: a secret that was found stays found even if a reward
   write fails, because the alternative is a child watching a place they
   found go back to being hidden.
-- **`ChildWorldState`** (amplify/data/resource.ts): owner-authorized, admin
+- **`ChildWorldState`** : owner-authorized, admin
   read, one row per child, scoped to exactly the two fields
   `docs/DATA_MODEL.md` flagged as not derivable —
   `discoveredObjects`/`discoveredCharacters`. `unlockedLocations`,
@@ -6960,7 +6723,7 @@ test and CSS module (the "Start this quest" button);
 now run against every world's content, since the assertions loop over
 `QUEST_DEFINITIONS`).
 
-No Amplify schema change, so nothing here needs a deploy to be exercised.
+No backend schema change, so nothing here needs a deploy to be exercised.
 
 ### Known limitations (Phase 29)
 
@@ -7101,7 +6864,7 @@ Changed: `src/features/adventures/api.ts` (`AdventureAction` type export,
 sections — "Focus areas to consider", "Mastery by area", "Educator report"
 — plus a per-session support line on "Recent adventures").
 
-No Amplify schema change, so nothing here needs a deploy to be exercised.
+No backend schema change, so nothing here needs a deploy to be exercised.
 
 ### Known limitations (Phase 30)
 
@@ -7232,7 +6995,7 @@ code-splitting rationale as every other `/world/...` route);
 `src/routes/WelcomeHarbor.tsx` (one new auxiliary link);
 `docs/ARCHITECTURE.md`.
 
-No Amplify schema change. 30 new unit tests, all passing; full suite
+No backend schema change. 30 new unit tests, all passing; full suite
 (1382 tests) and typecheck both clean.
 
 ### Known limitations (Phase 31)
@@ -7287,7 +7050,7 @@ own exit criterion is not fully closed.
   `resolveNpcLocation`), and the closed id vocabulary
   `KNOWN_CHECKPOINT_IDS`.
 - **`ChildWorldState.lastCheckpointId`** — one new nullable string column
-  (`amplify/data/resource.ts`, `docs/DATA_MODEL.md`). Holds an authored
+  (`docs/DATA_MODEL.md`). Holds an authored
   checkpoint id and nothing else — never an x/y/z a client could forge into
   an out-of-bounds or inside-a-wall spawn, which is what "never trusting raw
   coordinates as durable state" means concretely. Validated on read by the
@@ -7374,7 +7137,7 @@ New: `src/features/discovery/checkpoints.ts` (+ test),
 `WelcomeHarborWorldView.tsx` (+ test);
 `src/routes/WelcomeHarborWorldPage.tsx`.
 
-Changed: `amplify/data/resource.ts` (`ChildWorldState.lastCheckpointId`);
+Changed: the data schema (`ChildWorldState.lastCheckpointId`);
 `src/features/discovery/types.ts` (`WorldStateSnapshot.lastCheckpointId`);
 `src/features/discovery/discovery.ts` (+ `parseKnownId`); `discovery/api.ts`
 (+ `saveCheckpoint`, `toSnapshot`/`writeIds` carry the new field);
@@ -7385,7 +7148,7 @@ Changed: `amplify/data/resource.ts` (`ChildWorldState.lastCheckpointId`);
 (lazy-loaded `/island/:childId/world/welcome-harbor-3d` route);
 `src/routes/WelcomeHarbor.tsx` (one new auxiliary link); `docs/DATA_MODEL.md`.
 
-One Amplify schema change (one nullable string column, additive). 39 new
+One backend schema change (one nullable string column, additive). 39 new
 unit tests, all passing; full suite (1424 tests), typecheck, and lint all
 clean.
 
@@ -7520,7 +7283,7 @@ Changed: `src/features/discovery/checkpoints.ts` (+
 `src/app/AppRoutes.tsx` (lazy-loaded route); `src/routes/IslandLocationPage.tsx`
 (one new auxiliary link).
 
-No Amplify schema change - this phase adds checkpoint content, not a new
+No backend schema change - this phase adds checkpoint content, not a new
 column. 22 new unit tests, all passing; full suite (1446 tests), typecheck,
 and lint all clean.
 
@@ -7801,7 +7564,7 @@ fixed here, because only it was in this session's verification path.
 is disabled or this generation route is missing a necessary identity-based
 policy`.
 
-`amplify/backend.ts` patches the cross-Region inference grant onto the
+The backend definition patched the cross-Region inference grant onto the
 Bedrock IAM role, and it did so for `generateCompanionTurn` only. Every
 generation route gets its own nested stack and its own role, so Phase 27's
 route shipped with no grant. `requestTutorTurn` falls back to authored copy
@@ -8142,11 +7905,11 @@ deliberately withhold it).
 
 ### Files
 
-- `amplify/data/tutorPersona.ts` — the fixed system prompt and its own
+- `tutorPersona.ts` — the fixed system prompt and its own
   `TUTOR_PERSONA_VERSION`, separate from `chattyPersona.ts` so neither
   route's freedoms leak into the other and each has its own version in the
   audit trail.
-- `amplify/data/resource.ts` — the `TutorStrategy` enum, the `TutorTurn`
+- The data schema — the `TutorStrategy` enum, the `TutorTurn`
   custom type (no `choices` field at all: a tutoring turn never drives
   gameplay), and the `generateTutorTurn` generation route. Response fields
   are plain strings for the reason `CompanionTurn` already documents.
@@ -8310,7 +8073,7 @@ curriculum already lists for that skill.
 
 ## Verification (Phase 27 session)
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`,
+- `npm run typecheck` — passed (`tsc -b`,
   `scripts/tsconfig.json`).
 - `npm run lint` — passed, warnings only, all pre-existing
   (`prefer-tag-over-role`, `only-export-components`, `no-console` in the
@@ -8341,7 +8104,7 @@ curriculum already lists for that skill.
 
 ## Verification (Phase 26.5 session)
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`,
+- `npm run typecheck` — passed (`tsc -b`,
   `scripts/tsconfig.json`).
 - `npm run lint` — passed, warnings only, all pre-existing
   (`prefer-tag-over-role` on the world views' interaction panels,
@@ -8365,7 +8128,7 @@ curriculum already lists for that skill.
 
 ## Verification (Phase 26 session)
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`,
+- `npm run typecheck` — passed (`tsc -b`,
   `scripts/tsconfig.json`).
 - `npm run lint` — passed, 19 warnings, all pre-existing
   (`prefer-tag-over-role` on the world views' interaction panels,
@@ -8392,7 +8155,7 @@ curriculum already lists for that skill.
   four zone-geometry suites (every zone on walkable tiles, no two zones
   overlapping).
 - **Not verified against live AWS.** `ChildWorldState` is a new model and
-  has not been deployed; no `ampx sandbox` deploy was run in this session,
+  has not been deployed; no backend deploy was run in this session,
   so nothing here has been exercised against a real table or played in a
   browser. Every world-layer change (the four new walk-in zones in
   particular) shares the already-tracked gap that no Phase 16 or Phase 26
@@ -8409,16 +8172,15 @@ This is the first time this product can store a photograph of a child, so
 the implementation is built around limiting what that means rather than
 just around making upload work.
 
-- **`amplify/storage/resource.ts` — the first Amplify Storage resource in
-  this backend.** One prefix, `child-photos/{entity_id}/*`, with one rule:
+- **The first storage resource in this backend.** One prefix, `child-photos/{entity_id}/*`, with one rule:
   `allow.entity('identity').to(['read', 'write', 'delete'])`. The
   `{entity_id}` token resolves to the uploading parent's Cognito identity
   pool ID per request, so a parent physically cannot read or overwrite
   another family's object even with a hand-crafted key. There is no guest
   rule, no blanket authenticated rule, no `Admins` group rule (unlike the
-  admin-readable *rows* in `amplify/data/resource.ts` — an administrator
+  admin-readable *rows* in the data schema — an administrator
   reviewing progress has no reason to see a child's face), and no function
-  or AI-route access. Registered in `amplify/backend.ts`.
+  or AI-route access.
 - **`ChildProfile.avatarPhotoKey`** (optional, nullable) points at the
   stored object. Optional rather than required for the same reason as
   `aiEnabled`: a required field with no stored value makes AppSync null out
@@ -8473,10 +8235,9 @@ just around making upload work.
 
 - **Not deployed or exercised against live AWS in this session**
   (no credentials available — the same recurring constraint noted at the
-  top of `docs/PILOT_READINESS.md`). `amplify_outputs.json` in this working
-  tree still has no `storage` section, so the upload path has been verified
-  by unit tests against mocked `aws-amplify/storage`, not against a real
-  bucket. First `ampx sandbox` deploy should confirm: the identity-scoped
+  top of `docs/PILOT_READINESS.md`). The upload path has been verified
+  by unit tests against a mocked storage client, not against a real
+  bucket. The first deploy should confirm: the identity-scoped
   path actually resolves, a second parent account is denied on another
   family's key, and `getUrl` returns a working signed URL.
 - **The canvas re-encode itself is not unit tested** — jsdom has no image
@@ -8498,7 +8259,7 @@ just around making upload work.
 
 ## Verification (child profile photos session)
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+- `npm run typecheck` — passed (`tsc -b` and
   `scripts/tsconfig.json`).
 - `npm run lint` — passed (no new warnings; the pre-existing
   `prefer-tag-over-role` and `no-console` warnings are unchanged).
@@ -8518,14 +8279,12 @@ just around making upload work.
 
 ## Verification (Phase 17 session)
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+- `npm run typecheck` — passed (`tsc -b` and
   `scripts/tsconfig.json`), including the new `CoopSession` schema types,
   `claimCoopSlot`'s `Schema['claimCoopSlot']['functionHandler']` typing,
-  and the CDK `IFunction` → `Function` cast in `amplify/backend.ts` needed
-  for `.addEnvironment`.
+  and the CDK `IFunction` → `Function` cast needed for `.addEnvironment`.
 - `npm run test` (`vitest run`) — 82 test files, 641 tests, all passing;
-  20 of those are new this phase (`amplify/functions/claim-coop-slot/handler.test.ts`,
-  `src/features/coop/types.test.ts`, `src/features/coop/api.test.ts`). No
+  20 of those are new this phase (`src/features/coop/types.test.ts`, `src/features/coop/api.test.ts`). No
   existing test changed or broke.
 - `npm run lint` (`oxlint`) — clean (exit 0); two new warnings appeared
   (`AdventureRunner.tsx`'s presence banner `role="status"`,
@@ -8543,7 +8302,7 @@ just around making upload work.
   reachable from an unauthenticated smoke test, so it is not evidence
   the coop flow itself works, just that this phase did not break the
   build or any existing page.
-- **Not run**: a real `ampx sandbox` deploy — same recurring constraint
+- **Not run**: a real backend deploy — same recurring constraint
   as every phase since Phase 8 (no AWS credentials in this environment),
   and this phase's live-deploy risk is higher than most (see the "Not
   deploy-verified" note above). This remains the only way to actually
@@ -8552,7 +8311,7 @@ just around making upload work.
 
 ## Verification (Phase 15 session)
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+- `npm run typecheck` — passed (`tsc -b` and
   `scripts/tsconfig.json`).
 - `npm run lint` — passed (14 warnings, all pre-existing: the accepted
   `role="dialog"`-on-a-`div` pattern, two fast-refresh export warnings, and
@@ -8569,7 +8328,7 @@ just around making upload work.
   a temporary, unauthenticated preview route, removed before finishing; see
   the "Manual verification" paragraph in the Phase 15 block above for what
   was confirmed and the copy bug it caught.
-- **Not done this session**: no `ampx sandbox` deploy, so `listStoryProgress`
+- **Not done this session**: no backend deploy, so `listStoryProgress`
   and a real signed-in play-through of any of the four new arcs (start to
   finish, including a reload mid-chapter) are unexercised against a live
   backend. No schema change was made, so the untested surface is one new
@@ -8581,7 +8340,7 @@ just around making upload work.
 Covers all four slices; the third and fourth ran in a separate later
 session from the first two.
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+- `npm run typecheck` — passed (`tsc -b` and
   `scripts/tsconfig.json`) after every slice.
 - `npm run lint` — passed after every slice; the only new warnings across
   all four are `role="dialog"` on each new `*WorldView.tsx`, the identical
@@ -8592,7 +8351,7 @@ session from the first two.
 - `npm run test` — passed (79 files, 621 tests, up from 64 files/547 before
   Phase 16 started).
 - **Not done this session**: no `npm run build`/`test:e2e` run, and no
-  `ampx sandbox` deploy or browser verification (no AWS credentials in this
+  backend deploy or browser verification (no AWS credentials in this
   environment, same constraint as every prior phase). This phase added no
   schema change, so the untested surface is entirely client-side: two
   `WelcomeHarbor.tsx`/`IslandLocationPage.tsx` gating edits (unit-tested
@@ -8623,7 +8382,7 @@ session from the first two.
 
 ## Verification (Phase 12 session)
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and
+- `npm run typecheck` — passed (`tsc -b` and
   `scripts/tsconfig.json`).
 - `npm run lint` — passed (same pre-existing-style warnings as every prior
   phase, not errors; nothing new from this session's files).
@@ -8636,7 +8395,7 @@ session from the first two.
   prior phase).
 - `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
   only cover unauthenticated routes).
-- **Not done this session**: no `ampx sandbox` deploy exercising the new
+- **Not done this session**: no backend deploy exercising the new
   `ChildStoryProgress` model against a live backend (no AWS credentials in
   this environment — `.claude/settings.json` denies `aws:*` — same
   constraint noted in every prior phase). The schema change is additive
@@ -8667,7 +8426,7 @@ session from the first two.
   (1.38 MB minified, 360 KB gzipped) is now separate from the main bundle
   (603 KB), confirming the lazy-load split actually isolates it.
 - **Visually verified against the live dev server and the already-running
-  `ampx sandbox`** (no AWS or Cognito credentials available in this
+  development backend** (no AWS or Cognito credentials available in this
   environment, and no confirmed test parent account to sign in with — see
   Known risks/TODOs), using the same throwaway-route-plus-Playwright-
   screenshot approach as prior Chatty avatar verification: a temporary,
@@ -8693,7 +8452,7 @@ session from the first two.
 
 ## Verification (Phase 8 session)
 
-- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run typecheck` — passed (`tsc -b`).
 - `npm run lint` — passed (same 2 pre-existing-style warnings as every
   prior phase, not errors).
 - `npm run format:check` — passed.
@@ -8709,7 +8468,7 @@ session from the first two.
   every prior phase).
 - `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
   only cover unauthenticated routes).
-- **Not done this session**: no `ampx sandbox` deploy exercising the new
+- **Not done this session**: no backend deploy exercising the new
   deletion flow, the `SafetyEvent`-visibility dashboard addition, or the
   retuned color tokens against a live backend/real browser (no AWS
   credentials in this environment, same constraint noted in every prior
@@ -8726,12 +8485,12 @@ session from the first two.
 
 ## Verification (Phase 8 session, continued — live AI red-team)
 
-A later session picked Phase 8 back up once a deployed sandbox
-(`amplify_outputs.json`) and a confirmed test parent account were
+A later session picked Phase 8 back up once a deployed development backend
+and a confirmed test parent account were
 available, unblocking the previously-runbook-only AI red-team suite (see
 above).
 
-- `npm run typecheck` — passed (`tsc -b`, `amplify/tsconfig.json`, and the
+- `npm run typecheck` — passed (`tsc -b` and the
   new `scripts/tsconfig.json`).
 - `npm run lint` — passed (same 3 pre-existing-style warnings as before,
   not errors; `.oxlintrc.json` gained a `scripts/**` override for
@@ -8765,7 +8524,7 @@ above).
 
 ## Verification (Phase 7 session)
 
-- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run typecheck` — passed (`tsc -b`).
 - `npm run lint` — passed (same 2 pre-existing-style warnings as every
   prior phase, not errors).
 - `npm run format:check` — passed.
@@ -8775,7 +8534,7 @@ above).
   every prior phase).
 - `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
   only cover unauthenticated routes).
-- **Not done this session**: no `ampx sandbox` deploy exercising the new
+- **Not done this session**: no backend deploy exercising the new
   `ChildProfile.aiEnabled` field or the `AIInteractionAudit`/
   `SafetyEvent` deletes against a live backend (no AWS credentials in
   this environment, same constraint noted in every prior phase). The
@@ -8795,7 +8554,7 @@ above).
 
 ## Verification (Phase 6 session)
 
-- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run typecheck` — passed (`tsc -b`).
 - `npm run lint` — passed (same 2 pre-existing-style warnings as every
   prior phase, not errors).
 - `npm run format:check` — passed.
@@ -8805,7 +8564,7 @@ above).
   prior phase).
 - `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
   only cover unauthenticated routes).
-- **Not done this session**: no `ampx sandbox` deploy or live Bedrock call
+- **Not done this session**: no backend deploy or live Bedrock call
   exercising the new `aiNarrated`/`NARRATE` path on `shrink-into-hive` (no
   AWS credentials in this environment, same constraint noted in every
   prior phase). This phase made no backend schema changes at all — no new
@@ -8817,7 +8576,7 @@ above).
 
 ## Verification (Phase 5 session)
 
-- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run typecheck` — passed (`tsc -b`).
 - `npm run lint` — passed (same 2 pre-existing-style warnings as every prior
   phase, not errors — see below).
 - `npm run format:check` — passed.
@@ -8826,20 +8585,20 @@ above).
   prior phase).
 - `npm run test:e2e` — passed (3 tests, Chromium; unchanged — they still
   only cover unauthenticated routes).
-- **Not done this session**: no `ampx sandbox` deploy or live Bedrock call
+- **Not done this session**: no backend deploy or live Bedrock call
   against the new `StoryArtifact` model or the `NARRATE`-intent reuse of
   `generateCompanionTurn` (no AWS credentials in this environment, same
   constraint noted in every prior phase's automated portion). The schema
   change is additive (one new model, one new relationship field) and the
   AI route itself is unchanged from Phase 4's already-live-verified
   `generateCompanionTurn`, so the risk surface is materially smaller than
-  Phase 4's — but this still needs a real `ampx sandbox` deploy and at
+  Phase 4's — but this still needs a real backend deploy and at
   least one real Storykeeper Castle play-through to confirm end to end
   before wider use.
 
 ## Verification (Phase 4 session)
 
-- `npm run typecheck` — passed (`tsc -b` and `amplify/tsconfig.json`).
+- `npm run typecheck` — passed (`tsc -b`).
 - `npm run lint` — passed (same 2 pre-existing-style warnings as every prior
   phase, not errors: `AuthContext.tsx` exports both a component and a hook
   from one file, and `ParentGate.tsx` uses `role="dialog"` on a `div` rather
@@ -8847,56 +8606,32 @@ above).
 - `npm run format:check` — passed.
 - `npm run test` — passed (23 files, 120 tests).
 - `npm run build` — passed (same informational chunk-size warning for the
-  `aws-amplify` SDK bundle as every prior phase; still a premature
+  SDK bundle as every prior phase; still a premature
   optimization for an MVP with no traffic yet).
 - `npm run test:e2e` — passed (3 tests, Chromium; unchanged from Phase 1-3 —
   they still only cover unauthenticated routes).
-- `npx ampx sandbox` **was run** against a real AWS account (region
-  `us-west-1`) by the user and deployed successfully after one fix (see
-  below). With `amplify_outputs.json` now present, the full local suite
+- The backend **was deployed** to a real AWS account (region
+  `us-west-1`) by the user, successfully after one fix (see
+  below). With the backend configuration present, the full local suite
   was re-run end to end and all still passed, and the dev server boots and
   serves `200` against the live backend config.
-- **Deployed-schema verification**: read back the live
-  `amplify_outputs.json` and the synthesized CDK templates in
-  `.amplify/artifacts/cdk.out/` and confirmed, byte-for-byte, that they
-  match what `amplify/data/resource.ts` declares:
-  - `model_introspection.generations.generateCompanionTurn` exists with
-    exactly the 8 arguments declared in `resource.ts`, returning
-    `CompanionTurn`.
-  - `model_introspection.models` includes `AIInteractionAudit` and
-    `SafetyEvent`; `nonModels` includes `CompanionTurn`/`CompanionChoice`;
-    all 6 new enums are present.
-  - The generated `model-schema.graphql` shows the AppSync `@generation`
-    directive with `aiModel: "global.anthropic.claude-haiku-4-5-..."`, our
-    persona text verbatim (correctly escaped as a normal double-quoted
-    GraphQL string, `\n`-joined), and `@auth(rules: [{allow: private}])` —
-    confirming `allow.authenticated()` compiled as intended.
-  - The nested stack for the Bedrock HTTP data source grants its IAM role
-    exactly one statement: `bedrock:InvokeModel` scoped to
-    `arn:aws:bedrock:us-west-1::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0`
-    — least-privilege, no wildcard resource, auto-wired by Amplify AI Kit
-    with no `backend.ts` changes needed, as expected.
 - **One deploy-time bug found and fixed this session**: the persona prompt
-  in `amplify/data/chattyPersona.ts` used straight double quotes around
-  field names (`"intent"`, `"authoredBaseText"`, etc.). AI Kit embeds
-  `systemPrompt` as a plain double-quoted GraphQL string (not a `"""`
-  block string), so those inner quotes terminated the string literal
-  early and broke the generated SDL — surfaced as `ampx sandbox` failing
-  with `[InvalidSchemaError] ... Expected ":", found String`. Fixed by
-  switching to single quotes throughout the prompt; redeployed clean.
-  Lesson for any future AI Kit `systemPrompt` text: never use `"` inside
-  it.
+  (`chattyPersona.ts`) used straight double quotes around field names
+  (`"intent"`, `"authoredBaseText"`, etc.). The generation route embedded
+  `systemPrompt` as a plain double-quoted GraphQL string, so those inner
+  quotes terminated the string literal early and broke the generated
+  schema. Fixed by switching to single quotes throughout the prompt;
+  redeployed clean.
 - **`generateCompanionTurn` was called against live Amazon Bedrock and
   confirmed working, end to end.** The user signed up and confirmed a real
   parent account; from there a throwaway "AI Live Check" child profile and
   a direct `HINT`-intent call reached Bedrock for real (~1.4s latency),
   returned a well-formed `CompanionTurn`, passed `validateCompanionTurn`,
   and wrote an `AIInteractionAudit` row with `validationStatus: VALID` and
-  `fallbackUsed: false`. Getting there surfaced two real upstream Amplify
-  AI Kit gaps, both fixed this session and documented below and at their
-  fix sites: a cross-Region inference IAM permissions gap
-  (`amplify/backend.ts`) and a GraphQL enum serialization fragility
-  (`amplify/data/resource.ts`'s `CompanionTurn` type). The model's actual
+  `fallbackUsed: false`. Getting there surfaced two upstream gaps, both
+  fixed this session: a cross-Region inference IAM permissions gap
+  and a GraphQL enum serialization fragility (the `CompanionTurn` type).
+  The model's actual
   behavior: for a `HINT` turn grounded with `authoredBaseText`, it
   reused the authored text close to verbatim rather than rephrasing it —
   safe (matches the "never contradict the authored text" instruction) but
@@ -8910,18 +8645,18 @@ above).
 `docs/android/android.md` Phase 0 (Platform Audit) and Phase 1 (Establish
 the Platform Boundary), grouped in `docs/ROADMAP.md` as "Phase 35". Per
 ADR-010, this phase exists to find out where the codebase already satisfies
-"Amplify Gen 2 is the source of truth, clients only render" and where it
+"the backend is the source of truth, clients only render" and where it
 doesn't — not to fix every gap it finds.
 
 - **Created `docs/platform/CURRENT_PLATFORM_AUDIT.md`**, a source-level
-  read of every model in `amplify/data/resource.ts`, both Lambda functions,
+  read of every model in the data schema, both Lambda functions,
   and every `src/features/*/api.ts` call site, classifying each as
   `SHARED_DATA`, `SERVER_LOGIC`, `CLIENT_ONLY`, `STATIC_ASSET`, or
   `NEEDS_MIGRATION`.
 - **Two positive findings, needing no code change**: (1) there is no
   `localStorage`/`sessionStorage` usage anywhere in `src/`, and no
   REST-style `fetch()`/`/api/...` calls — every backend interaction already
-  goes through the generated Amplify Data client, and the three custom
+  goes through the generated data client, and the three custom
   operations (`claimCoopSlot`, `generateCompanionTurn`, `generateTutorTurn`)
   are already named platform-neutrally, not web-shaped. (2) both Lambda
   handlers (`claim-coop-slot`, `operational-metrics`) were confirmed to
@@ -8938,8 +8673,8 @@ doesn't — not to fix every gap it finds.
   with no server-side re-check. `claimCoopSlot` (Phase 17) is the only
   exception in the whole schema. This was an acceptable risk for a single
   web client running code the product itself shipped; it becomes a real one
-  once a more easily modified client (Android) can call the same Amplify
-  Data operations directly. The audit's table of every such write path
+  once a more easily modified client (Android) can call the same
+  data operations directly. The audit's table of every such write path
   (`recordAction`/`completeSession`, `upsertSkillProgress`, `grantRewards`,
   `syncQuestProgress`, `recordDialogueNode`, `recordDiscovery`) is the
   concrete backlog for `docs/ROADMAP.md` Phase 37
@@ -8985,8 +8720,8 @@ summarized here.
   `ChildWorldState`) already satisfy "independent learning/gameplay state
   per child, resolved identically by any client" — the same kind of
   already-satisfied finding Phase 35 made for API naming.
-- **Created `docs/platform/CANONICAL_CONTENT_MODEL.md`**, a target Amplify
-  Data schema (`Subject`, `Grade`, `Domain`, `Skill`) for the curriculum
+- **Created `docs/platform/CANONICAL_CONTENT_MODEL.md`**, a target
+  data schema (`Subject`, `Grade`, `Domain`, `Skill`) for the curriculum
   vocabulary — scoped to just `LearningObjective` and the Phase 19 `Skill`
   graph, the two content types CLAUDE.md section 9 already names and that
   every other model already references only by an opaque `code`/`id`
@@ -8996,7 +8731,7 @@ summarized here.
   parallel vocabularies. Deliberately excludes `AdventureTemplate`/
   `AdventureStepDefinition` (Phase 37's job) and items/discoveries/NPCs/
   world-zone content (Phase 38's job) — full boundary table in the doc.
-  **No model was added to `amplify/data/resource.ts` and no content moved
+  **No model was added to the data schema and no content moved
   out of TypeScript**; this is a schema design for a future migration, not
   the migration itself, per ADR-011's reasoning (ADR-009's existing
   "content is a pack, not a database row" precedent, and the still-missing
@@ -9020,10 +8755,10 @@ decided, closing the single highest-value gap the Phase 35 audit found
 
 Files created:
 
-- `amplify/functions/submit-adventure-answer/resource.ts` — function
+- The `submit-adventure-answer` Lambda's `resource.ts` — function
   definition, `resourceGroupName: 'data'` (same circular-nested-stack-dependency
   reason `claim-coop-slot/resource.ts` already documents).
-- `amplify/functions/submit-adventure-answer/handler.ts` — the Lambda.
+- The `submit-adventure-answer` Lambda's `handler.ts` — the Lambda.
   Imports `validateStepAnswer`/`getNextStepId`/`nextHintLevel`/
   `isGuidedCompletion` from `src/features/adventures/engine` and
   `getAdventureTemplate` from `src/features/adventures/content` directly
@@ -9039,7 +8774,7 @@ Files created:
   the session — writes `AdventureSession.currentStepId`/`lastActivityAt`
   directly via DynamoDB `UpdateCommand`, bypassing AppSync the same way
   `claim-coop-slot` already does for `CoopSession`.
-- `amplify/functions/submit-adventure-answer/handler.test.ts` — 10 tests
+- The `submit-adventure-answer` Lambda's `handler.test.ts` — 10 tests
   against `decideSubmission`/`isStepAnswer` covering: correct answer
   advances; wrong answer with no hint policy still advances (nothing to
   retry against); wrong answer with a hint policy retries and escalates
@@ -9053,7 +8788,7 @@ Files created:
 
 Files changed:
 
-- `amplify/data/resource.ts` — added `ChildProfile.ownerSub` (a plain,
+- The data schema — added `ChildProfile.ownerSub` (a plain,
   optional `a.string()` field with no authorization rule of its own —
   see its doc comment and docs/AUTHORIZATION_REVIEW.md section 1b for why
   this, not a second `ownerDefinedIn` rule like `CoopSession`'s, was the
@@ -9061,7 +8796,7 @@ Files changed:
   `AdventureAnswerResult` response type (plain strings for
   `correctness`/`action`, not `a.ref()` enums, same reasoning as
   `CompanionTurn`/`TutorTurn` above).
-- `amplify/backend.ts` — registered `submitAdventureAnswer`, granted its
+- The backend definition — registered `submitAdventureAnswer`, granted its
   Lambda `grantReadWriteData` on the `AdventureSession` table and
   `grantReadData` (read-only — this function never writes `ChildProfile`)
   on the `ChildProfile` table, wired `ADVENTURE_SESSION_TABLE_NAME`/
@@ -9141,7 +8876,7 @@ reasoning):
   available in this sandbox, the same recurring constraint noted
   throughout this document and `docs/AUTHORIZATION_REVIEW.md`). Two
   specific open assumptions, both flagged in
-  `amplify/functions/submit-adventure-answer/handler.ts`'s own comments:
+  the `submit-adventure-answer` Lambda handler's own comments:
   that an `UpdateExpression` touching only `currentStepId`/
   `lastActivityAt` leaves `AdventureSession`'s owner-authorization
   attribute untouched, and — now `tsc`-confirmed rather than assumed —
@@ -9167,12 +8902,12 @@ reasoning):
 down the same way Phase 36 scoped its own content-model work.
 
 - **Created `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`**, target
-  Amplify Data schemas for `ItemDefinition`, `WorldDefinition`/
+  data schemas for `ItemDefinition`, `WorldDefinition`/
   `WorldContentPack`, and an asset catalog entry, grounded in this
   product's actual TypeScript types (`src/features/rewards/types.ts`,
   `src/features/worlds/types.ts`, `src/features/island-map/three/assets/manifest.ts`)
   rather than android.md's generic ones. No model was added to
-  `amplify/data/resource.ts`, no content moved out of TypeScript, no asset
+  the data schema, no content moved out of TypeScript, no asset
   moved to S3.
 - **Rejected two android.md-suggested `ItemDefinition` fields**: drop-rate
   `rarity` and `stackable`/`tradable`. This product's own `rarity` field
@@ -9224,7 +8959,7 @@ versioning design only, per new ADR-014 in `docs/DECISIONS.md`.** Covers
 
 - **Added `docs/AUTHORIZATION_REVIEW.md` section 0**, a full
   model-by-model and operation-by-operation classification of every item
-  in `amplify/data/resource.ts` against android.md's `PUBLIC` /
+  in the data schema against android.md's `PUBLIC` /
   `AUTHENTICATED` / `OWNER` / `PARENT` / `CHILD` / `ADMIN` / `SYSTEM`
   taxonomy. Real, complete audit work rather than deferred design: the
   schema already exists, so unlike Phases 36/38 there was no migration to
@@ -9253,7 +8988,7 @@ versioning design only, per new ADR-014 in `docs/DECISIONS.md`.** Covers
   shapes for a `ContentManifest` (per-content-type version counters
   matching Phase 36/38's four designed-but-not-migrated content areas) and
   a `PlatformConfig` query (`apiVersion`/`minimumAndroidVersion`/etc.).
-  Neither was added to `amplify/data/resource.ts`: a manifest has nothing
+  Neither was added to the data schema: a manifest has nothing
   real to version until content actually lives in the backend, and API
   versioning protects an installed client that does not exist yet — the
   web client redeploys to latest on every merge and has no "stale
@@ -9280,8 +9015,8 @@ in `docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 13-15.
 - **Created `docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md`.**
 - **Cross-device sync, audited precisely rather than assumed**: every
   model android.md's Phase 14 lists as needing to sync (minus
-  `XP`/`levels`/`coins`, already rejected by ADR-011) is already an
-  Amplify Data model with zero client-side caching anywhere in `src/`
+  `XP`/`levels`/`coins`, already rejected by ADR-011) is already a
+  backend data model with zero client-side caching anywhere in `src/`
   (Phase 35's audit already confirmed no `localStorage`/`sessionStorage`
   usage exists), so *sequential* cross-device consistency already holds
   by construction. A full-tree search for
@@ -9333,7 +9068,7 @@ Covers `docs/android/android.md` Phases 16-18.
 Files created:
 
 - `docs/platform/EVENTS_ADAPTIVE_LEARNING_AND_PARENT_APIS.md`.
-- `amplify/functions/get-next-learning-activity/{resource,handler,handler.test}.ts`
+- The `get-next-learning-activity` Lambda's `{resource,handler,handler.test}.ts`
   — a Lambda backing the new `getNextLearningActivity` custom query.
   Imports the Adaptive Adventure Director's exact same pure, already-tested
   `select.ts`/`needs.ts` modules unchanged; its own job is only assembling
@@ -9353,11 +9088,11 @@ Files created:
 
 Files changed:
 
-- `amplify/data/resource.ts` — added `SelectionReasonType`,
+- The data schema — added `SelectionReasonType`,
   `NextAdventureSuggestion`, `NextLearningActivityResult` customTypes and
   the `getNextLearningActivity` query (`allow.authenticated()`, same
   reasoning as every other custom operation in this schema).
-- `amplify/backend.ts` — registered the function, granted it read-only
+- The backend definition — registered the function, granted it read-only
   access to `AdventureSession`/`WorldChange`/`SkillProgress`/`ChildProfile`,
   wired the matching table-name environment variables.
 - `src/features/director/api.ts` — rewritten. The old
@@ -9378,8 +9113,8 @@ Files changed:
   `Schema['SkillProgress']['type']` imported from the impure
   `src/features/mastery/api.ts`. Not cosmetic: a Lambda's TypeScript
   program reaching that type even via a type-only import also reaches
-  `import.meta.glob` (`src/lib/amplify-config.ts`), which
-  `amplify/tsconfig.json` has no Vite types for and failed to typecheck.
+  `import.meta.glob` in the client configuration module, which the
+  backend's TypeScript configuration has no Vite types for and failed to typecheck.
   Every existing caller is unaffected (a full `SkillProgress` row already
   satisfies the narrower shape); this also happens to decouple a pure
   engine module from an impure client module at the type level, a small
@@ -9434,26 +9169,24 @@ reasoning):
 **Complete — documented, nothing created, per new ADR-017 in
 `docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 19-21.
 Unlike Phases 36-41, this phase's subject is billed AWS infrastructure
-(a real `staging`/`production` Amplify environment), not application
+(a real `staging`/`production` environment), not application
 code — provisioning one is an explicit, human-authorized infrastructure
 decision, not something to take on a documentation pass's authority, so
 nothing was created.
 
 - **Created `docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md`.**
 - **Environment separation: mechanism already exists, only branches
-  don't.** Read `amplify.yml`/`.github/workflows/ci.yml` directly:
-  `ampx pipeline-deploy --branch $AWS_BRANCH` already gives this repo
-  Amplify Hosting's branch-per-environment model — any new Git branch
-  connected to Amplify Hosting would already provision its own fully
+  don't.** Read the build spec and `.github/workflows/ci.yml` directly:
+  the deploy already used a branch-per-environment model — any new
+  connected Git branch would already provision its own fully
   isolated backend (Cognito, AppSync, DynamoDB, S3), using infrastructure
   already committed. Only `main` exists today; no `staging`/`production`
   branch has been created, and this document does not create one or
   decide branch-naming conventions.
 - **Generated client config: already the mechanism the web client
-  itself uses.** `src/lib/amplify-config.ts`'s `amplify_outputs.json` is
-  already generated output, never hand-maintained — `npx ampx generate
-  outputs` (android.md Phase 20) is the same Amplify Gen 2 tooling, just
-  invoked for a different output directory. Nothing to build.
+  itself uses.** The client configuration file is already generated
+  output, never hand-maintained (android.md Phase 20); the same tooling
+  can be invoked for a different output directory. Nothing to build.
 - **Cross-platform contract tests: listed, not written, largely
   pre-audited.** No second client exists to run them against. Recorded a
   target test list (auth, child profiles, learning, inventory, quests,
@@ -9484,7 +9217,7 @@ in this backlog to do so after Phases 37 and 41.
 
 Files created:
 
-- `amplify/functions/shared/requestLog.ts` — structured per-request
+- The shared Lambda module `requestLog.ts` — structured per-request
   logging: `withRequestLog` wraps a resolver body and emits one JSON line
   per invocation (`requestId`, `functionName`, `childProfileId`,
   `platform`, `appVersion`, `result`, `errorCode`, `durationMs`) to
@@ -9499,7 +9232,7 @@ Files created:
   `errorCodeOf`, `formatRequestLog`) are split from the one `console.log`
   side effect, same pattern `claim-coop-slot/handler.ts`'s `decideClaim`
   already established.
-- `amplify/functions/shared/requestLog.test.ts` — 8 tests: header
+- The shared Lambda module `requestLog.test.ts` — 8 tests: header
   case-insensitivity and absence for both headers, `Error`-vs-non-`Error`
   throw handling, JSON serialization, and `withRequestLog`'s success/
   failure paths (exactly one log line either way, correct `result`/
@@ -9517,9 +9250,9 @@ Files created:
 
 Files changed:
 
-- `amplify/functions/claim-coop-slot/handler.ts`,
-  `amplify/functions/submit-adventure-answer/handler.ts`,
-  `amplify/functions/get-next-learning-activity/handler.ts` — each
+- The `claim-coop-slot` Lambda's `handler.ts`,
+  the `submit-adventure-answer` Lambda's `handler.ts`,
+  the `get-next-learning-activity` Lambda's `handler.ts` — each
   handler's body now runs inside `withRequestLog`, passing
   `context.awsRequestId` (the handler signature now takes `context` as a
   second parameter, previously unused) and the resolver's own
@@ -9536,7 +9269,7 @@ Files changed:
 **Performance and cost review (audit, no code changes):** every
 `.list()` call in `src/features/*/api.ts` and
 `src/features/child-profile/deletion.ts` is owner-scoped to one family
-under Amplify Data's owner authorization — at this product's actual data
+under the data layer's owner authorization — at this product's actual data
 volume (tens of rows per child), unbounded is fine. The one exception is
 already tracked, not new: `src/features/admin/api.ts`'s cross-family
 `.list()` calls (Phase 39's "no pagination" known risk, unchanged).
@@ -9563,7 +9296,7 @@ correctness), `ChildInventory` (`grantRewards`,
 `allow.owner()` authorization: ownership is enforced server-side,
 correctness of the written value is not. Confirmed no dormant custom
 mutation exists for any of the three write actions —
-`amplify/data/resource.ts` still defines exactly two Lambda-backed custom
+The data schema still defines exactly two Lambda-backed custom
 mutations and one Lambda-backed query, unchanged since Phase 41. Not
 migrated: closing all five is production code comparable in scope to
 Phase 37's own single-path pilot, tracked as concrete follow-up (the
@@ -9575,7 +9308,7 @@ every prior phase).
 
 Tests: `npm run typecheck` clean; `npm run lint` shows only pre-existing
 warnings in files this phase did not touch; `npx prettier --check` clean
-on every new/changed file; `npm test` — all `amplify/functions` test
+on every new/changed file; `npm test` — all Lambda function test
 files pass (41 tests, 8 new in `requestLog.test.ts`), no existing test
 changed or broken.
 
@@ -10577,7 +10310,7 @@ panel, all switched off by default. Full guide:
   history instead of `SkillProgress`'s aggregate counters).
 - **Phase 20: `SkillProgress.consecutiveIndependentCorrect` is a new
   `.required().default(0)` field on an already-populated model.** Every
-  row created before this phase has no real value for it. Amplify/DynamoDB
+  row created before this phase has no real value for it. DynamoDB-backed
   defaults only apply to genuinely new items, not retroactively to
   existing rows, the same already-documented category of gap as
   `AdventureSession.coopSessionId` (Phase 17) and `ChildProfile.aiEnabled`
@@ -10587,8 +10320,8 @@ panel, all switched off by default. Full guide:
   status computation runs against it.
 - **Admin section: no live verification of the `Admins`-group authorization
   path** (post-Phase-17): `allow.group('Admins').to(['read'])`
-  (`amplify/data/resource.ts`) has been typechecked and read carefully
-  against Amplify's documented group-authorization behavior, but never
+  has been typechecked and read carefully
+  against the documented group-authorization behavior, but never
   exercised against a real Cognito user pool + AppSync API — same
   no-AWS-credentials constraint as everything else since Phase 8. Confirm
   on the first real deploy: add a real user to `Admins`
@@ -10618,7 +10351,7 @@ panel, all switched off by default. Full guide:
   deliberately scoped to exactly what was asked — users, children,
   progress — and gave `CompanionProfile`/`StoryArtifact`/
   `AIInteractionAudit`/`SafetyEvent` no `Admins`-group rule at all (see
-  the comment atop `amplify/data/resource.ts`). Building that review
+  the comment atop the data schema). Building that review
   workflow is real additional scope: which fields an admin should see
   (metadata only, per `docs/DATA_MODEL.md`'s "Metadata only by default"),
   a `SafetyEvent.reviewStatus` transition mutation (currently only ever
@@ -10629,8 +10362,8 @@ panel, all switched off by default. Full guide:
   attempted as a scope-creep addition to this change.
 - **`claimCoopSlot`'s atomic slot claim depends on an unverified DynamoDB
   storage assumption** (Phase 17): the nested `sharedState.slots.<slotKey>`
-  `ConditionExpression` in `amplify/functions/claim-coop-slot/handler.ts`
-  only works if Amplify's default resolver mapping stores a `CoopSession.sharedState`
+  `ConditionExpression` in the `claim-coop-slot` Lambda's `handler.ts`
+  only works if the default resolver mapping stores a `CoopSession.sharedState`
   `a.json()` object as a native DynamoDB Map (`M`), not a JSON-encoded
   string — plausible from how AppSync's `$util.dynamodb.toMapValues()`
   documented behavior works, but never checked against a real table (no
@@ -10638,7 +10371,7 @@ panel, all switched off by default. Full guide:
   session's slot claims will fail loudly (a DynamoDB `ValidationException`
   on the malformed attribute path) rather than silently misbehave, so this
   is a "confirm before the first real family uses it" risk, not a
-  silent-data-corruption one. Confirm on the first `ampx sandbox` deploy.
+  silent-data-corruption one. Confirm on the first real deploy.
 - **Only one adventure is coop-wired** (Phase 17): "Repair the Moonlight
   Bridge" is the sole proof that `useAdventureSession`'s coop-eligible-step
   claim mechanism works end-to-end; every other adventure in
@@ -10650,55 +10383,6 @@ panel, all switched off by default. Full guide:
   `useAdventureSession`), so widening this is a content/picker change, not
   an engine change.
 
-- **Amplify AI Kit does not correctly grant IAM permissions for
-  cross-Region ("Global") Bedrock inference profiles** — confirmed via a
-  live `AccessDeniedException` that persisted through Bedrock model access
-  and an active AWS Marketplace subscription, then root-caused by reading
-  `@aws-amplify/graphql-generation-transformer`'s source directly: its
-  `createBedrockDataSourceRole` only ever grants `bedrock:InvokeModel` on
-  a single `foundation-model/<modelId>` ARN, with no handling for
-  `global.`-prefixed model IDs, which are actually a different IAM
-  resource type (`inference-profile`) requiring three separate ARNs (the
-  inference-profile ARN, a region-scoped foundation-model ARN, and an
-  unscoped global foundation-model ARN — all three are needed because a
-  Global profile can route to any commercial Region). `Claude Haiku 4.5`
-  has no direct in-Region option at all in `us-west-1` — only Geo/Global
-  routing — so this isn't avoidable by picking a different model while
-  staying in this Region. Matches an open upstream issue,
-  [aws-amplify/docs#8121](https://github.com/aws-amplify/docs/issues/8121)
-  ("AI kit does not support Cross-region inference"). **Fixed** with a CDK
-  escape-hatch in `amplify/backend.ts` that reaches
-  `backend.data.resources.nestedStacks['GenerationBedrockDataSource...Stack']`
-  and adds the missing policy statement directly to the auto-generated
-  role. This is inherently a bit fragile — it depends on Amplify's
-  internal (but deterministic, field-name-derived) construct naming not
-  changing — revisit if a future `@aws-amplify/backend`/`data-construct`
-  upgrade changes generation-route internals, or once upstream fixes
-  #8121 (at which point this patch likely becomes unnecessary).
-- **Amplify AI Kit's generated GraphQL schema declared `CompanionTurn`'s
-  `emotion`/`intent`/`safetyDisposition` as strict GraphQL enums, which
-  is unsafe for AI output.** Real Bedrock output was observed returning
-  correct values in unexpected case (`"curious"` instead of `"CURIOUS"`),
-  which AppSync's enum serialization rejects outright — and critically,
-  AppSync nulls out the *entire* response object when any nested field
-  fails to serialize, destroying an otherwise-fine `spokenText` along with
-  it, with no visibility into the raw value (no query logging configured).
-  **Fixed** by declaring those three fields as plain `a.string()` in
-  `amplify/data/resource.ts` and relying entirely on
-  `validateCompanionTurn`'s existing application-level check (which now
-  also normalizes case before comparing, in `schema.ts`'s
-  `normalizeEnumValue`). This is the correct end state, not just a
-  workaround: CLAUDE.md section 7 already says correctness/safety
-  validation belongs in application code, not a single upstream layer, and
-  in practice the GraphQL-level enum constraint was strictly less safe
-  than not having it, since a harmless casing difference triggered total
-  data loss on the whole payload rather than a targeted, recoverable
-  fallback.
-- Both fixes above still leave one open question for later: whether
-  `bedrock:InvokeModelWithResponseStream` is ever needed (the generation
-  transformer's resolver currently only issues a non-streaming
-  `InvokeModel` call, so it wasn't added) — revisit if Amplify AI Kit adds
-  streaming support for generation routes.
 - **`docs/TESTING_STRATEGY.md`'s "AI evaluation suite" (fixed test cases by
   age band covering output length, vocabulary, PII requests, secrecy/
   dependency language, unsafe topics, prompt injection, invalid action
@@ -10722,9 +10406,7 @@ panel, all switched off by default. Full guide:
 - `COMPANION_MODEL_ID` in `src/features/companion/api.ts` (written to
   `AIInteractionAudit.modelId`) is a human-readable label
   (`'anthropic.claude-haiku-4-5'`), not necessarily the exact Bedrock
-  `resourcePath` Amplify resolves `a.ai.model('Claude Haiku 4.5')` to
-  (`global.anthropic.claude-haiku-4-5-...`, per
-  `@aws-amplify/data-schema`'s internal model lookup table). Fine for
+  model id the route resolves to (`global.anthropic.claude-haiku-4-5-...`). Fine for
   observability today; revisit if audit rows need to exactly match a
   billing/model-selection record.
 - `AIInteractionAudit` and `SafetyEvent` are owner-authorized like every
@@ -10738,53 +10420,23 @@ panel, all switched off by default. Full guide:
   short structured turns) is a placeholder, consistent with "Bedrock model
   selection by region, capability, latency, and cost" already being listed
   under "Decisions pending" before this phase.
-- `npm ci` fails with a false-positive `EUSAGE`/"Missing: X from lock file" error
-  (`@opentelemetry/core@2.0.0`, `yaml@1.10.3`) even against a freshly generated
-  `package-lock.json`. Root cause: `@aws-amplify/data-construct` and
-  `@aws-amplify/graphql-api-construct` (pulled in transitively via
-  `@aws-amplify/backend-cli` → `aws-cdk-lib`) ship `bundledDependencies` with exact
-  pinned versions that npm's lockfile-integrity check for `npm ci` cannot reconcile.
-  `npm install` resolves and installs the same tree without error. Both
-  `.github/workflows/ci.yml` and the new `amplify.yml` were changed from `npm ci` to
-  `npm install` to work around this; revisit and switch back to `npm ci` once upstream
-  (`npm` or `@aws-amplify/*`) fixes the bundled-dependency/lockfile interaction.
-- `npm audit` reports vulnerabilities in dev-only transitive dependencies of the
-  official `@aws-amplify/backend-cli` toolchain (GraphQL codegen and Relay-compiler
-  packages: `lodash`, `immutable`, `brace-expansion`, etc.). These run only when
-  invoking `ampx` commands locally/in CI and are not part of the shipped browser
-  bundle. No upstream fix is available yet without downgrading Amplify tooling;
-  revisit when AWS publishes updated releases.
 - `react-router-dom@7.18.2` carries a high-severity advisory (RSC Mode CSRF Bypass,
   GHSA-qwww-vcr4-c8h2). This app uses React Router only as a client-side SPA router
   (no RSC/SSR/single-fetch server actions), so the advisory's attack surface does not
   apply here. Confirmed the alternative (pinning to the last unaffected 7.11.0) trades
   this for several other unpatched high-severity issues, so staying on latest is the
   safer choice. Revisit when a patched release is available.
-- Amplify sandbox has not been deployed against a live AWS account; first real deploy
-  and credential setup remain for whoever provisions the AWS environment.
 - No visual design system, Bedrock model selection, or TTS provider yet (unchanged
   from before this phase).
-- Found and fixed three `node_modules` packages this session that were installed
-  with most of their `dist` output missing (`@aws-amplify/data-schema`,
-  `@testing-library/user-event`, and the `graphql@15.8.0` nested under
-  `@aws-amplify/api-graphql`) — each had its CJS build intact but was missing
-  its type declarations and/or ESM build, which broke `tsc`/`vite build`
-  respectively. A plain `npm install` did not restore them; a targeted
-  `npm install <pkg>@<version> --no-save --force` (run inside the nested
-  package's own directory for the `graphql` case) did. Root cause looks like
-  the same class of bundled-dependency install instability already documented
-  above for `npm ci`. If a fresh `npm install` on another machine hits similar
-  missing-file errors from `tsc` or `vite build`, this is the fix; consider a
-  postinstall integrity check if it recurs.
 - **Owner-authorization backend tests are not runnable in this environment.**
   `docs/TESTING_STRATEGY.md` calls for testing "owner isolation between parent
   accounts" and "child profile CRUD authorization," but that requires a
-  deployed `ampx sandbox` (real Cognito + AppSync) — unavailable here (no AWS
+  deployed backend (real Cognito + AppSync) — unavailable here (no AWS
   credentials, `.claude/settings.json` denies `aws:*`). What shipped instead:
-  `amplify/data/resource.ts` declares `allow.owner()` on every model,
+  the data schema declares `allow.owner()` on every model,
   including the five new Phase 3 models, and the feature `api.ts` modules
   rely on that (no manual owner filtering client-side). A real test, once
-  someone runs `ampx sandbox` with credentials, would: sign up two parent
+  someone deploys with credentials, would: sign up two parent
   users, have each create a child profile and play through an adventure, and
   assert that parent A's authenticated client cannot `get`/`list`/`update`
   parent B's records for any model (expect an authorization error or empty
@@ -10947,7 +10599,7 @@ panel, all switched off by default. Full guide:
 
 ## Django migration Phase 0: assessment only (docs, 2026-10-17)
 
-Read-only migration assessment and repository audit. **No application source, `amplify/`
+Read-only migration assessment and repository audit. **No application source,
 code, package, CI, or infrastructure changed; nothing deployed.**
 
 Created: `docs/DJANGO_MIGRATION_ASSESSMENT.md`, `docs/CURRENT_AWS_RESOURCE_INVENTORY.md`,
@@ -10959,7 +10611,7 @@ Created: `docs/DJANGO_MIGRATION_ASSESSMENT.md`, `docs/CURRENT_AWS_RESOURCE_INVEN
 Findings that matter most: authoritative Lambda logic imports TypeScript from `src/features`
 (a Python backend cannot run it); engine scene code never touches the backend (clean
 boundary); 40 IAM roles per environment in the local synth, 17 of them one-per-model;
-Cognito pool is owned by the Amplify stack and must be detached before any stack deletion.
+Cognito pool is owned by the legacy backend's stack and must be detached before any stack deletion.
 
 Not verified: any deployed AWS state (no AWS CLI access in the session). Open questions are in
 `docs/DJANGO_MIGRATION_ASSESSMENT.md` section 16. Baseline: 175 test files, 1,578 tests
@@ -10969,7 +10621,7 @@ Next (after the owner accepts ADR-019): LAI-0201, move the frontend to `react/`.
 
 ## ADR-020: Three.js mandatory, Phaser retirement planned (docs, 2026-10-17)
 
-Documentation and planning only. **No application source, `package.json`, `amplify/`, CI, or
+Documentation and planning only. **No application source, `package.json`, CI, or
 infrastructure changed; nothing deployed; Phaser not removed; LAI-0201 not started.**
 
 Created: `docs/THREEJS_ENGINE_CONVERSION.md` (inventory, conversion matrix, engine
@@ -10997,51 +10649,45 @@ acceptance. LAI-2001 to 2003 are docs-only and may run beside it.
 ## LAI-0201: move the frontend to `react/` (2026-10-17)
 
 Branch `lai-0201-move-frontend-to-react` (worktree `/Coding/learning-lai0201`). No gameplay,
-route, API, auth, or Amplify infrastructure change. Not pushed, not deployed, not merged.
+route, API, auth, or backend infrastructure change. Not pushed, not deployed, not merged.
 
 Moved with `git mv`: `src/`, `public/`, `index.html`, `vite.config.ts`, `tsconfig*.json`,
 `e2e/`, `playwright.config.ts`, `package.json` into `react/`. New thin root `package.json`
-(npm workspace). Changed paths only: `amplify/functions/*` and `scripts/*` import
-`react/src/...`; `react/src/**` imports `../amplify/...` one level higher; the
-`amplify_outputs.json` glob; `amplify.yml` `baseDirectory`; `react/vite.config.ts` test
+(npm workspace). Changed paths only: the Lambda functions and `scripts/*` import
+`react/src/...`; `react/src/**` imports of the backend directory one level higher; the
+client configuration glob; the hosting build spec's `baseDirectory`; `react/vite.config.ts` test
 `include` (keeps the 5 Lambda test files); `scripts/generate-world-assets.ts` output dir.
 
 Verification (run from the repository root, clean install): typecheck pass; lint pass, 17
 warnings (same as before); format:check pass; `npm test` 175 files, 1,578 tests, same as the
 baseline; `npm run build` pass, 121 files with an identical file list, byte total within 16
-bytes of the original when `amplify_outputs.json` is present; Playwright 7 of 7 passed with no
-`amplify_outputs.json`.
+bytes of the original when the client configuration is present; Playwright 7 of 7 passed
+without it.
 
-Not verified: an Amplify Hosting build with the new layout (owner approval required first);
-the Vite dev server (could not be run in this session); `npm run sandbox`, `ai:red-team`,
+Not verified: a hosted build with the new layout (owner approval required first);
+the Vite dev server (could not be run in this session); `ai:red-team`,
 `assets:generate`, `live-smoke` (need AWS or were not run).
 
 Notes: `package-lock.json` was regenerated for the workspace. The previous lock lacked entries
 for several declared packages (for example `three`, `@types/three`, the DynamoDB SDK clients)
-and 20 AWS SDK packages moved by patch version. Comments in `amplify/` that say `src/...`
-were left as they were.
-
-An `ampx sandbox` process was running in the original checkout; the move was done in a
-separate worktree so that it could not trigger a sandbox redeploy.
+and 20 AWS SDK packages moved by patch version.
 
 ## LAI-0201 merged and re-verified (2026-10-17)
 
 `lai-0201-move-frontend-to-react` merged into `storykeeper-castle-3d-storyboard-and-roadmap`
-with `--no-ff` (merge commit `d27f554`). Not pushed, not deployed. The `ampx sandbox` process
-seen earlier belongs to another project (`/Coding/pjsstocks`) and was left alone.
+with `--no-ff` (merge commit `d27f554`). Not pushed, not deployed.
 
 On the merged tree after `npm ci`: typecheck pass; lint pass (17 warnings, unchanged);
 format:check pass; 175 files, 1,578 tests pass; build pass; Playwright 7 of 7 pass (run with
-the local gitignored `amplify_outputs.json` set aside and then restored). `amplify.yml`
+the local gitignored client configuration set aside and then restored). The hosting build spec
 publishes `react/dist`; the root `package.json` declares the `react` workspace. A stale
 gitignored `dist/` from the pre-move build remains at the root and is unused.
 
-Still unverified: an Amplify Hosting build with this layout.
+Still unverified: a hosted build with this layout.
 
 ## LAI-0202: Python tooling (2026-10-17)
 
-Tooling only. No Django, models, or application behaviour. No change to `react/`, `amplify/`,
-`amplify.yml`, CI, or AWS. Starting commit `c8fcd71`.
+Tooling only. No Django, models, or application behaviour. No change to `react/`, CI, or AWS. Starting commit `c8fcd71`.
 
 Created: `pyproject.toml` (ruff and pytest config, `requires-python >=3.12`), `.python-version`
 (3.12), `requirements.txt` (empty by design; Django and DRF arrive in LAI-0204 with a recorded
@@ -11066,7 +10712,7 @@ to add CI later. The `make` targets run the same commands CI will use, with no l
 
 ## LAI-0204: Django project skeleton (2026-10-17)
 
-Starting commit `f0a4f53`. No change to `react/`, `amplify/`, `game`, CI, or AWS. Not pushed.
+Starting commit `f0a4f53`. No change to `react/`, `game`, CI, or AWS. Not pushed.
 
 Created: `lai/` with `manage.py`, `config/{urls,asgi,wsgi}.py`, `config/settings/{base,local,test,production}.py`,
 `apps/core` (health view, urls, tests), `conftest.py`. Changed: `requirements*.txt`, `pyproject.toml`
@@ -11097,7 +10743,7 @@ deployment because none exists.
 ## LAI-0206: Python CI job (2026-10-17)
 
 Starting commit `edd9b2b`. Only `.github/workflows/ci.yml` was changed (owner-authorized for this
-task); no React, Phaser, Three.js, Amplify, model, or auth change. Not pushed.
+task); no React, Phaser, Three.js, model, or auth change. Not pushed.
 
 CI changes: top-level `permissions: contents: read` (applies to the existing jobs too, which
 only check out code and cache npm); new `python` job (Python 3.12 with pip caching keyed on
@@ -11120,7 +10766,7 @@ middleware is acceptable (W003); LAI-0402 owns that decision.
 ## LAI-0205: DRF API conventions (2026-10-17)
 
 Starting commit `bfb323c`. Changed only `lai/`, docs, and the tracker. No React, Three.js, Phaser,
-Amplify, AWS, CI, model, or auth change. Not pushed. **GitHub Actions remote verification is still
+AWS, CI, model, or auth change. Not pushed. **GitHub Actions remote verification is still
 pending** (the first hosted run has not happened).
 
 Added: `apps/core/exceptions.py` (error envelope, DRF handler, Django-level JSON 400/403/404/500
@@ -11146,13 +10792,13 @@ server-side. (7) The PostgreSQL test prints a Django RuntimeWarning that it cann
 ## LAI-0301: parent and child identity models (2026-10-17)
 
 Starting commit `452858e`. Only `lai/`, docs, `pyproject.toml`, and the tracker changed. No React,
-Three.js, Phaser, Amplify, AWS, CI, or Cognito change; no data imported; not pushed. GitHub Actions
+Three.js, Phaser, AWS, CI, or Cognito change; no data imported; not pushed. GitHub Actions
 remote verification is still pending.
 
 Created `lai/apps/users/` (models, services, migration `0001_initial`, 41 tests). Settings:
 `AUTH_USER_MODEL = "users.ParentAccount"`; `apps.users` and `django.contrib.postgres` (for the
 interests array) installed; auth, contenttypes, admin, and sessions still not installed. Decision,
-deletion semantics, cap behaviour, and risks: ADR-022. Amplify findings: `ParentProfile` and
+deletion semantics, cap behaviour, and risks: ADR-022. Findings on the then-current backend: `ParentProfile` and
 `ChildProfile` are owner-scoped by Cognito; the child carries a mirrored `ownerSub`; the cap of 3 is
 enforced only in the UI and counts all profiles; deletion is a client-orchestrated hard delete
 including the S3 photo and the Cognito user; `ParentConsent` is documented but not implemented.
@@ -11169,10 +10815,10 @@ authenticated API authorization tests (recorded for LAI-0402 and LAI-0502), the 
 
 Starting commit `d2778ef`. Documentation only: `docs/DECISIONS.md` (ADR-024, gate G9, G2 note),
 `docs/ARCHITECTURE.md`, `docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`, this file. No
-code, Django model, React, Amplify, Cognito, CI, or AWS change; no token or secret recorded.
+code, Django model, React, Cognito, CI, or AWS change; no token or secret recorded.
 
-Inspected: `amplify/auth/resource.ts`, the synthesized auth template, `AuthContext.tsx`,
-`RequireAdmin.tsx`, `data-client.ts`, and the installed Amplify SDK source (v6.20.0) for token
+Inspected: the auth resource definition, the synthesized auth template, `AuthContext.tsx`,
+`RequireAdmin.tsx`, `data-client.ts`, and the installed auth SDK source (v6.20.0) for token
 storage, sign-out, and which token GraphQL sends. Findings are in ADR-024. Key facts: tokens live in
 `localStorage` (persistent, JS-readable, including the refresh token); GraphQL already sends the
 access token, so a Bearer header needs no change to sign-in; the client-side admin check is UI-only.
@@ -11193,7 +10839,7 @@ Python tests, 1,578 JavaScript tests) was on `d2778ef`.
 
 Owner decisions A2, A3 (conditional), A4, A5 were recorded first in commit `0683d06`; this entry is the
 implementation. Starting commit `0683d06`. Only `lai/`, `requirements.txt`, docs, and the tracker
-changed. No React, Three.js, Phaser, Amplify, Cognito, AWS, or CI change; token storage untouched
+changed. No React, Three.js, Phaser, Cognito, AWS, or CI change; token storage untouched
 (gate A1). Not pushed. GitHub Actions remote verification is still pending.
 
 Dependencies (exact pins): `PyJWT[crypto]==2.15.1`, `cryptography==50.0.2`, `cffi==2.1.1`,
@@ -11233,7 +10879,7 @@ Security limitations and open gates (explicit):
 ## LAI-0403: tenant isolation harness (2026-10-18)
 
 Starting commit `716845b`. Only `lai/` (no schema change; `makemigrations --check` clean), docs, and
-the tracker. No React, Three.js, Phaser, Amplify, AWS, CI, token storage, or CRUD endpoint. Not pushed.
+the tracker. No React, Three.js, Phaser, AWS, CI, token storage, or CRUD endpoint. Not pushed.
 GitHub Actions remote verification is still pending.
 
 Added: `apps/users/scoping.py` (`ChildScopedMixin`, `ChildScopedAPIView`), shared fixtures in
@@ -11261,7 +10907,7 @@ review (LAI-0208), and the browser-storage decision remain open (LAI-0404, LAI-0
 ## LAI-0208: privacy-safe logging (2026-10-19)
 
 Starting commit `3abecc3`. Only `lai/`, docs, and the tracker. No schema, JWT semantics, ownership rule,
-success response, React, Three.js, Phaser, Amplify, Cognito, or AWS change; no new dependency. Not pushed.
+success response, React, Three.js, Phaser, Cognito, or AWS change; no new dependency. Not pushed.
 GitHub Actions remote verification is still pending.
 
 Findings (reproduced before fixing): unexpected exceptions logged their messages (nickname, email, and
@@ -11288,7 +10934,7 @@ writing private data into a log message or printing it. Raw tracebacks stay a lo
 Starting commit `9c8747f`. New: `react/src/features/content-export/` (builder, strict JSON converter, JSON
 Schema and validator, integrity checker, file renderer, 38 tests), `scripts/export-content.ts`, committed
 `content/` (13 files), npm scripts `content:export` and `content:check`, `.prettierignore` entries for the
-generated JSON. **No gameplay, content, runtime loading, Django, Three.js, Phaser, Amplify, AWS, or CI
+generated JSON. **No gameplay, content, runtime loading, Django, Three.js, Phaser, AWS, or CI
 change; no new dependency.** Not pushed. GitHub Actions remote verification is still pending.
 
 Exported (counts): islands 2, locations 9, adventures 20, learning objectives 18, Wonder Wall questions 4,
@@ -11315,8 +10961,8 @@ Not a migration roadmap task and not a completion of one. After merging `origin/
 - **Schema version 1 to 2** (contract change; see `docs/DATA_MODEL.md`): optional `adventure.skillDomain` (the six Learning Profile domains) and `skillLevel` (integer 1 to 6); interaction action `START_STORY { storySlug }` with a referential check that the story exists.
 - **Declared, not invented:** `wonderwild-hive` is an explicit adventure passage region (`ADVENTURE_PASSAGE_REGION_SLUGS`); Clockwork Harbor NPC `interactionId`s resolve to nothing because the region has no interaction table (allowed only there). Both are recorded in the manifest's `knownAmbiguities`. Neither claims a playable scene.
 - **ADR renumbering:** the incoming ADR-019 to ADR-022 became ADR-027 to ADR-030 (references updated line by line from `git blame` provenance, 101 lines). Django ADR-019 to ADR-022, ADR-024 and ADR-025 are unchanged. See the mapping in `docs/DECISIONS.md`.
-- **Path fixes:** `amplify/` imports in `react/src/features/assets`, `react/public/models` output in the two import scripts, one stale `ChildProfileList` comment.
-- **Verification:** typecheck clean; lint warnings only; Prettier clean; Vitest 213 files / 2246 tests pass; build passes; `content:check` up to date and two exports are byte-identical; Ruff, format, `manage.py check`, `makemigrations --check` clean; pytest 211 pass against PostgreSQL 16 (run on port 5433 because 5432 was held by another project's database); Playwright 7 of 7 pass only when `amplify_outputs.json` is absent, because three smoke tests assert the unconfigured guard (this is the existing precondition, not a regression).
+- **Path fixes:** backend imports in `react/src/features/assets`, `react/public/models` output in the two import scripts, one stale `ChildProfileList` comment.
+- **Verification:** typecheck clean; lint warnings only; Prettier clean; Vitest 213 files / 2246 tests pass; build passes; `content:check` up to date and two exports are byte-identical; Ruff, format, `manage.py check`, `makemigrations --check` clean; pytest 211 pass against PostgreSQL 16 (run on port 5433 because 5432 was held by another project's database); Playwright 7 of 7 pass only when the local client configuration is absent, because three smoke tests assert the unconfigured guard (this is the existing precondition, not a regression).
 - **Known open:** `origin/main` also uses ADR-019 to ADR-026 for its own decisions (including 023 to 026, Math Mayhem multiplayer). A future merge of `origin/main` will collide again and needs its own reconciliation. Nothing was pushed or deployed.
 
 ## ADR governance and registry (2026-10-24)
@@ -11335,11 +10981,11 @@ Local merge of `origin/main` (`eab0817`, existing tracking ref, no fetch) into t
 
 - **Brought in from main (19 commits):** the admin section on Tailwind and shadcn/ui (ADR-023), the Islands and Adventures admin catalog with the `Superusers` group (ADR-031, formerly main's ADR-024), the manifest-driven generic 3D location engine with all six 3D regions migrated and the bespoke 3D views removed (ADR-032, formerly ADR-025; `docs/engine/`), and the Math Mayhem multiplayer room server, Phases 0 and 1 (ADR-026; top-level `server/`).
 - **ADR numbering:** main's ADR-019 to ADR-022 became ADR-027 to ADR-030 (already present from the earlier reconciliation), main's ADR-024 and ADR-025 became ADR-031 and ADR-032, ADR-023 and ADR-026 are unchanged. 70 reference lines from main's side were remapped by provenance (a line counted as main's only if absent from this branch and present on main). Django ADR-019 to ADR-022, ADR-024 and ADR-025 are untouched. Next free number: 033.
-- **Layout:** main still used the root layout. Its 185 added files were moved under `react/`, its `package.json` dependency changes were applied to the root and `react/package.json`, the Tailwind plugin and `server/**` tests were added to `react/vite.config.ts`, `server/` kept at the repository root with imports pointed at `react/src`, and `typecheck` now also checks `server/`. Amplify import depths were corrected in two files. The 26 files main deleted (bespoke 3D views, routes and scenes) were deleted here too; this branch's only edits to them were ADR renumbering comments.
+- **Layout:** main still used the root layout. Its 185 added files were moved under `react/`, its `package.json` dependency changes were applied to the root and `react/package.json`, the Tailwind plugin and `server/**` tests were added to `react/vite.config.ts`, `server/` kept at the repository root with imports pointed at `react/src`, and `typecheck` now also checks `server/`. Backend import depths were corrected in two files. The 26 files main deleted (bespoke 3D views, routes and scenes) were deleted here too; this branch's only edits to them were ADR renumbering comments.
 - **Lockfile:** main did not commit lockfile changes for its new dependencies. `package-lock.json` was regenerated with `npm install` here.
 - **Preserved:** Django models, Cognito JWT auth, tenant isolation, logging, content export schema v2 and its handling of `ALL_NPCS`, `wonderwild-hive`, skill metadata and `START_STORY`. Main's content did not change the export (record counts identical, output byte-identical across two runs).
-- **Verification:** typecheck, lint, Prettier and ADR check clean; Vitest 263 files / 2709 tests pass (was 214 / 2253); build passes; `content:check` up to date; Ruff, format, `manage.py check` and `makemigrations --check` clean; pytest 211 pass on PostgreSQL 16 (port 5433); Playwright 7 of 7 with `amplify_outputs.json` moved aside and restored.
-- **Open, unchanged:** Playwright still depends on the absence of `amplify_outputs.json`; Clockwork Harbor NPC interactions remain a declared ambiguity; gates A1, A6, G8 to G10, LAI-0209 and LAI-0405 stay open. The generic runtime still contains React and must be split before `game/` extraction (see `docs/THREEJS_ENGINE_CONVERSION.md` section 0).
+- **Verification:** typecheck, lint, Prettier and ADR check clean; Vitest 263 files / 2709 tests pass (was 214 / 2253); build passes; `content:check` up to date; Ruff, format, `manage.py check` and `makemigrations --check` clean; pytest 211 pass on PostgreSQL 16 (port 5433); Playwright 7 of 7 with the local client configuration moved aside and restored.
+- **Open, unchanged:** Playwright still depends on the absence of the local client configuration; Clockwork Harbor NPC interactions remain a declared ambiguity; gates A1, A6, G8 to G10, LAI-0209 and LAI-0405 stay open. The generic runtime still contains React and must be split before `game/` extraction (see `docs/THREEJS_ENGINE_CONVERSION.md` section 0).
 
 ## LAI-2106: asset loader reliability (2026-10-24)
 
@@ -11374,12 +11020,12 @@ Interim guard until the engine moves to `game/` (LAI-2101 replaces it with the s
 
 ## LAI-0303: golden vectors, and ADR-019 sub-decision 8 / gate G4 (2026-10-24)
 
-- **Decision recorded (owner).** ADR-019 sub-decision 8 is Accepted and gate G4 resolved: Python is the authoritative rules implementation with no Node service; the client may run the same logic for presentation and previews only; Django becomes the content authority with versioned JSON as the interchange. A dated amendment in `docs/DECISIONS.md` records the transition so it does not contradict decisions still in force: TypeScript content stays the authoring input (exported, then loaded by LAI-0304) until a cutover task makes Django Admin the editing surface; ADR-009/013 still define a content pack; ADR-031's Amplify overlay gains nothing new and is to be superseded by LAI-0801/0802; ADR-032 spatial manifests stay in source pending LAI-0805's ADR. Registry notes and `CLAUDE.md` section 18 updated.
+- **Decision recorded (owner).** ADR-019 sub-decision 8 is Accepted and gate G4 resolved: Python is the authoritative rules implementation with no Node service; the client may run the same logic for presentation and previews only; Django becomes the content authority with versioned JSON as the interchange. A dated amendment in `docs/DECISIONS.md` records the transition so it does not contradict decisions still in force: TypeScript content stays the authoring input (exported, then loaded by LAI-0304) until a cutover task makes Django Admin the editing surface; ADR-009/013 still define a content pack; ADR-031's catalog overlay gains nothing new and is to be superseded by LAI-0801/0802; ADR-032 spatial manifests stay in source pending LAI-0805's ADR. Registry notes and `CLAUDE.md` section 18 updated.
 - **Vectors:** six suites in `tests/golden/` (adventure-engine, rewards, quests, mastery, director, director-content), 15 functions, 165 cases including boundaries (ratio 0.6, 21-day decay to the second, hint clamp, collect counts) and rejected inputs (mismatched answer kinds, missing transitions). `director-content` runs over the shipped content and records its digest.
 - **Refactor, no behaviour change:** the `SkillProgress` counter arithmetic moved out of `upsertSkillProgress` into pure `mastery/counters.ts` (`nextSkillProgressCounts`) so it can be vectored; the API calls it with the same arguments.
 - **Specification gaps surfaced (recorded in each file's `notes`, not changed):** a matching answer repeating one correct pair passes; number answers have no tolerance; `nextHintLevel` accepts negative and fractional levels; skill status does not validate inconsistent counts; reward relationship triggers match one exact level; the director's tie-break uses locale collation (`localeCompare`), which a Python port cannot reproduce in general.
 - **Python side:** `tests/golden/golden_vectors.py` (loader, snake_case kwargs, `assert_case`) and `test_golden_vectors.py` (format and digest). There are no Python rule implementations yet; each Phase 6 port adds its rule tests.
-- **LAI-0304 prepared:** six decisions it must make first are written into its roadmap entry (Island means world in the export and region in the Amplify catalog; activation and order are overlay data; assets are thin in the export; adventure-asset links are not exported; reload policy; recording the loaded digest). **LAI-0805** records future spatial layout administration, gated on its own ADR.
+- **LAI-0304 prepared:** six decisions it must make first are written into its roadmap entry (Island means world in the export and region in the legacy catalog; activation and order are overlay data; assets are thin in the export; adventure-asset links are not exported; reload policy; recording the loaded digest). **LAI-0805** records future spatial layout administration, gated on its own ADR.
 - **Verified (run):** pytest `tests/golden` 9 passed; Vitest 18 files / 177 tests (golden test plus mastery, adventure engine, quests, reward table and director suites); `npm run typecheck` clean; `npm run golden:check` up to date.
 - **Deferred to merge verification:** Ruff, Prettier, oxlint, full suites, build. **Workflow note:** any content change (including a new Treasure Rush adventure) changes `director-content.json`; run `npm run golden:generate` with `content:export`.
 
@@ -11388,11 +11034,11 @@ Interim guard until the engine moves to `game/` (LAI-2101 replaces it with the s
 Authorized by the owner on its completed dependencies (LAI-0301, LAI-0302); `CLAUDE.md` section 18 now says dependency-ready tasks proceed while earlier open tasks stay tracked. Owner decisions taken during the task: Quest is modelled as exported (under World, linked to the adventures its SOLVE objectives name), not as a parent of steps; the catalog admin is built and unit-tested here but mounted by LAI-0404 (ADR-024 A4 keeps Django Admin off until then).
 
 - **Models** (`lai/apps/catalog`, migration `0001_initial`): World, Location, Adventure, AdventureStep, Quest, ContentAsset, LocationAsset, ContentRelease. Stable ids from the export; `source` keeps each record verbatim; `last_seen_release` on every imported row; `active` and `sort_order` are the only Django-owned fields. PROTECT on parents and used assets. Field-by-field editability: `docs/DATA_MODEL.md` "Django content catalog".
-- **Loader:** `manage.py load_content [--path] [--dry-run] [--force]`. Verifies file hashes and the content digest, validates every record and relationship before writing, one transaction under an advisory lock, skips an export that is already the latest release, never deletes, never overwrites catalog fields, reports created / updated / unchanged / missing per model plus skipped and invalid records. No live Amplify data is read (G1, G5).
+- **Loader:** `manage.py load_content [--path] [--dry-run] [--force]`. Verifies file hashes and the content digest, validates every record and relationship before writing, one transaction under an advisory lock, skips an export that is already the latest release, never deletes, never overwrites catalog fields, reports created / updated / unchanged / missing per model plus skipped and invalid records. No live legacy data is read (G1, G5).
 - **Admin:** `catalog_admin_site` with list columns, search, filters (including "in the latest export"), parent-to-child inlines, location scene assets, asset "used by", and releases with digest and schema version. Worlds and locations are labelled apart. Deny by default through `admin_access.resolve_admin_role`; nothing sets the role until LAI-0404.
 - **Export schema 3:** `assets.json` gains `locationAssets` (asset ids per location, no spatial data) from `content/derived/scene-asset-index.json`, which the engine side writes with a Vitest file snapshot because the scene modules reach Three.js. Every export file changed only by its `schemaVersion` line apart from `assets.json`. The hub's 11 assets are exported and skipped by the importer (no Location record).
 - **Golden vectors:** regenerated from the TypeScript; only `director-content.json` changed, and only its `contentDigest` (`b00a1e9c...` to `892fa241...`). `reachableAdventures` outputs are identical because no adventure changed.
-- **Asset boundary:** `ContentAsset` is identity and references only, keyed by the bundled manifest id that the Amplify `Asset.slug` shares (ADR-030). Upload, versions, status and licences stay with the asset registry work; LAI-2106's loader is untouched.
+- **Asset boundary:** `ContentAsset` is identity and references only, keyed by the bundled manifest id that the legacy `Asset.slug` shares (ADR-030). Upload, versions, status and licences stay with the asset registry work; LAI-2106's loader is untouched.
 - **Also fixed:** `tests/golden/*.json` and `content/derived` added to `.prettierignore`; without it a merge-time Prettier pass would reformat generated files and make their staleness checks fail.
 - **Verified (run):** pytest `lai/apps/catalog` 43 passed (PostgreSQL 16 on port 5433); regression pytest `lai/apps/core`, `lai/apps/users`, `tests` 220 passed after regenerating the golden digest; Vitest `content-export` 56, golden and scene index tests pass; `npm run typecheck` clean; `makemigrations --check` clean; `content:check` and `golden:check` up to date. One full Vitest run happened by mistake (268 files / 2784 tests, all passing): Vitest's `-u` consumed the test path.
 - **Deferred to merge verification:** Ruff, Prettier, oxlint, build, browser tests. **Workflow for the parallel Treasure Rush track:** a new or changed location manifest requires the index, export and golden refresh in the order in `docs/TESTING_STRATEGY.md`.
@@ -11403,7 +11049,7 @@ Authorized by the owner on its completed dependencies (LAI-0301, LAI-0302); `CLA
 - **Models (14, five apps, one migration each):** `game_sessions` (AdventureSession, AdventureAction, CoopSession, CoopParticipant), `education` (SkillEvidence, SkillProgress, StoryArtifact), `progression` (WorldChange, WorldState, StoryProgress, NpcRelationship), `inventory` (InventoryItem, GrantedRule), `quests` (QuestProgress). The roadmap's twelve plus two documented array-to-row splits (co-op participants, granted rules). Abstract `core.ChildOwnedModel` gives UUID keys, the `child` foreign key and `for_child`. Rules and transitions: `docs/DATA_MODEL.md` "Django child progress".
 - **Content handling:** progress references retained catalog rows (PROTECT) and records `template_version` and `content_release`; a new release never resets or rebinds it, and an adventure dropped from the export stays playable for sessions already on it. No automatic migration or completion when ids change.
 - **Services (server-side only, no endpoints):** start or resume a session, record a step attempt (row-locked, attempts numbered per step), complete a session, list completed steps; start and save quest state; record a world change idempotently. Each takes the child resolved by `ChildScopedMixin` and treats another child's record as not found.
-- **Additions over Amplify, for the migration to note:** `AdventureAction.next_step_id` (blank on migrated rows), the one-ACTIVE-session-per-adventure constraint, consistent-counter checks, and exactly-one-source evidence. Phase 11 must report rows that violate them.
+- **Additions over the legacy data model, for the migration to note:** `AdventureAction.next_step_id` (blank on migrated rows), the one-ACTIVE-session-per-adventure constraint, consistent-counter checks, and exactly-one-source evidence. Phase 11 must report rows that violate them.
 - **Open:** transitions into PAUSED, ABANDONED and SAFETY_STOPPED are not defined anywhere; whether `World.active` gates play; catalog models for items, reward rules, learning objectives, stories and NPCs (proposed **LAI-0309**, referenced by string id until then).
 - **Verified (run):** pytest `game_sessions`, `quests`, `progression`, `education`, `inventory`: 42 passed (PostgreSQL 16, port 5433), including a two-thread concurrency test; regression pytest `catalog`, `users`, `core`: 251 passed; `makemigrations --check` clean; Prettier on the changed files (owner request).
 - **Deferred to merge verification:** Ruff, oxlint, full suites, build, browser tests.
@@ -11414,7 +11060,7 @@ Authorized by the owner on its completed dependencies (LAI-0301, LAI-0302); `CLA
 - **Endpoints:** `POST /api/v1/children/{child_id}/sessions/{session_id}/answers/` and `.../hints/` (contracts in `docs/ARCHITECTURE.md`, "Authoritative adventure answers"). Server-owned correctness, hint level, next step and completion; `requestId` replay (ADR-015, stored on `AdventureAction`); hint compare-and-set; completion in the same transaction. Migration `game_sessions/0002_answers_and_hints` adds `AdventureSession.hint_levels` and `AdventureAction.request_id`.
 - **G6:** verified for these endpoints from the code and tests; evidence recorded in `docs/ARCHITECTURE.md`.
 - **Content versions:** no snapshots, so a session whose adventure version changed, or whose step left the latest import, is refused with `409 content_version_changed` and kept intact. Decision needed: keep per-version step snapshots, or let a parent restart such a session.
-- **Deliberate deviations from the Amplify contract:** the route is child-scoped; `stepId` and `requestId` are required; there is no `hintLevel` input (the server's level is used), which closes the Lambda's guided-completion bypass. The deployed Lambda still has that weakness until the client moves to Django.
+- **Deliberate deviations from the legacy Lambda contract:** the route is child-scoped; `stepId` and `requestId` are required; there is no `hintLevel` input (the server's level is used), which closes the Lambda's guided-completion bypass. The deployed Lambda still has that weakness until the client moves to Django.
 - **Not in scope, explicit boundaries:** no session-start endpoint (sessions start through `start_or_resume_session` only, so the endpoint is not yet reachable from a client); skill evidence and mastery (LAI-0603), rewards (LAI-0604), world changes from world-change steps and quest advance (LAI-0605), story artifacts (LAI-0607); the React client still calls the Lambda (LAI-0501).
 - **Gameplay behaviour still awaiting a decision (kept as TypeScript does it):** exact number matching; a repeated or malformed matching pair can count as correct; unvalidated hint input; transitions into PAUSED, ABANDONED and SAFETY_STOPPED.
 - **Verified (run):** pytest `lai` and `tests` 426 passed on PostgreSQL 16 (port 5433), including the new API tests (grading, hints, completion, rejected submissions, replays, authorization, content versions, rollback, three-thread concurrency) and the route checker; Vitest (Lambda handler, golden, adventure engine) 36 passed; `npm run typecheck` clean; `golden:check` up to date.
@@ -11442,7 +11088,7 @@ branches are untouched.
     and `quests.QuestDefinition` are replaced by `catalog.World`, `Location`, `Adventure` and
     `Quest`. A quest is "published" when it is `active`.
   - **Content now exported.** Treasure Rush's quest, keepsake and reward rule are in the export
-    (export-only module, so the Amplify app is unchanged). The reward trigger is `WORLD_CHANGE`
+    (export-only module, so the legacy app is unchanged). The reward trigger is `WORLD_CHANGE`
     on the chest's key, in the existing vocabulary.
   - **Inventory.** Rows reference catalog items and rules by foreign key.
   - **Region sessions.** They record a content release.
@@ -11509,45 +11155,17 @@ Prettier, three lint fixes with no behaviour change) and `b62a3df` (backbone reg
     since POST-MERGE-03.
 - **Browser (real Chromium):** the 7 Playwright smoke tests pass.
   - Storykeeper Castle and Treasure Cove gameplay were **not** run in a browser. Every 3D world
-    is behind a Cognito sign-in and Amplify Data, and the Treasure Cove answer UI is TR-8.
+    is behind a Cognito sign-in and the legacy data layer, and the Treasure Cove answer UI is TR-8.
   - Gameplay rules are covered by integration tests against a real database: the play API, chest
     play and answers API.
 - **Dependencies:** `npm ci` fails on `main` as well. `package-lock.json` is out of sync
-  (`zod@3.24.2`, `@opentelemetry/core@2.0.0`). CI and Amplify use `npm install`, which tolerates
+  (`zod@3.24.2`, `@opentelemetry/core@2.0.0`). CI uses `npm install`, which tolerates
   this. The check reused the main checkout's installed modules; Python came from the pinned
   requirements.
 - **Deployment on a push to `main`:**
   - CI only verifies.
-  - Amplify Hosting (if it tracks `main`) would run `ampx pipeline-deploy` and redeploy the
-    `submitAdventureAnswer` Lambda, whose only change is the re-export of its decision logic.
   - The React build ships with the Django API off unless `VITE_BACKEND=django` is set.
   - No Django service, database or infrastructure is deployed, and no migration runs anywhere.
-
-## Amplify Hosting configuration for the React app (2026-10-25)
-
-Requested as "LAI-1001: Configure React + Three.js for AWS Amplify Hosting". The roadmap's
-LAI-1001 (CDK app, `infra/**`) is a different task and stays open. Details and the console
-steps: `docs/platform/AMPLIFY_HOSTING.md`.
-
-- **Done:**
-  - `amplify.yml`: `npm ci`, Node 22 through nvm, a required `amplify_outputs.json` before the
-    frontend build, a cache of the npm download cache only, and an opt-in read-only mode
-    (`LAI_SKIP_BACKEND_DEPLOY=true` runs `ampx generate outputs` instead of `pipeline-deploy`).
-    With the variable unset, builds deploy the backend as before.
-  - `customHttp.yml`: immutable caching for hashed Vite assets, hourly for `models/` and
-    `fonts/`, HSTS, `nosniff`, `X-Frame-Options`, and `Referrer-Policy`.
-  - `amplify-hosting/custom-rules.json`: the SPA rewrite to apply in the console. Paths under
-    `/api/` are excluded.
-  - `package-lock.json`: `npm ci` works again. A lock-only refresh added the entries npm expects
-    inside the bundles of `@aws-amplify/data-construct` and `graphql-api-construct`. No
-    dependency version changed.
-  - CI installs with `npm ci`.
-- **Tests:** `react/src/app/hostingRewrites.test.ts` (new) and `react/src/api` tests: 4 files,
-  55 tests passed. `npm ci` from the corrected lock passes (Node 22.21, npm 10.9).
-- **Not done (AWS, needs approval):** confirm the Hosting app and branches, turn off branch
-  auto-detection and PR previews, apply the rewrite rule, and verify headers after a deploy.
-  No AWS resource was read or changed; the AWS CLI was not available to this task.
-- **Not set:** a Content-Security-Policy, which needs a browser test against a deployed branch.
 
 ## LAI-0404 (Django Admin part): Django Admin enabled on main (2026-10-25, ADR-034)
 
@@ -11630,7 +11248,7 @@ Subtasks AM-1 to AM-10 (ids of their own: LAI-2201 to 2208 are the Phase 22 worl
   - AM-6: child-scoped resolver `GET /api/v1/children/<child_id>/assets/?ids=`, plus signed
     delivery (Django re-check, or S3 presign).
   - AM-7: `djangoAssetResolver.ts` for the LAI-2106 loader, with bundled fallback.
-  - AM-8: `import_assets` (bundled and Amplify sources, dry run, idempotent).
+  - AM-8: `import_assets` (bundled and legacy sources, dry run, idempotent).
   - AM-9: acceptance and security tests, docs.
   - AM-10: Django Admin 3D preview (`docs/ASSET_LIBRARY.md` section 17). It has a preview page per
     version, linked from the version list, the version page and the definition page (default and
@@ -11743,7 +11361,7 @@ application user and authorization system; Django Admin keeps its own session.
   `check --deploy` step sets it. No AWS resource changed.
 - **React.** `VITE_AUTH_PROVIDER` (`api/authMode.ts`; default `cognito`; `django` needs
   `VITE_BACKEND=django` and `vite dev`, and `vite build` refuses it). `features/auth/authAdapters.ts`
-  puts the Amplify code and a Django adapter behind the existing `AuthProvider`;
+  puts the Cognito code and a Django adapter behind the existing `AuthProvider`;
   `LocalSignInForm` is the sign-in page in Django mode; `api/client.ts` takes a bearer or a session
   credential (CSRF header on POST, one retry on `csrf_failed`, no 401 retry);
   `features/child-profile/playSettings.ts` reads the child from Django in Django mode for the
@@ -11764,9 +11382,9 @@ application user and authorization system; Django Admin keeps its own session.
 - **Not run (merge verification):** Ruff, Playwright or any browser test, the full suites,
   `npm run build`, `docker build`. Prettier was run once by mistake on the touched React files
   during development (formatting only).
-- **Open.** React child management still uses Amplify (LAI-0502 / LAI-0602), so in Django mode
-  the child comes from `create_local_parent --child` and the island route is opened by id;
-  Amplify-only island extras are empty in that mode. The Android local-sign-in flavor is
+- **Open.** React child management still used the legacy data layer (LAI-0502 / LAI-0602), so in
+  Django mode the child comes from `create_local_parent --child` and the island route is opened by
+  id; legacy-only island extras are empty in that mode. The Android local-sign-in flavor is
   documented, not built (no Kotlin code in the repository). No login throttle on the local route
   (loopback development only). ADR-024 gates A1 and A6 are unchanged.
 
@@ -11781,7 +11399,7 @@ typecheck passed; oxlint 0 errors (39 warnings, the `main` baseline); Prettier c
 files, 3182 tests passed (plus the greeting test added after the acceptance run, run on its own:
 `ParentDashboard.test.tsx` 8 passed); production build passed. Playwright smoke: 7 passed in a clean checkout
 (as CI runs it; on the development machine 3 fail only because its git-ignored
-`amplify_outputs.json` makes the app "configured", which those tests assume it is not). Browser
+client configuration makes the app "configured", which those tests assume it is not). Browser
 acceptance in Django sign-in mode (Playwright, real Chromium, `vite dev` plus `runserver` on a
 throwaway database, dropped afterwards), 2 tests passed twice: protected page redirects when
 signed out, wrong password refused, sign-in, child created in the React form and present in
@@ -11802,54 +11420,49 @@ resources and owns the associated application data.
   `timezone`), `ChildProfile` (foreign-key ownership, three-profile cap, age-band session limits,
   database constraints) and `GET/POST children/`, `GET/PATCH children/<id>/`, with `DELETE`
   blocked by LAI-0209. Missing: parent profile reads and edits beyond the id, and every React
-  caller (28 files) still used Amplify Data through `features/child-profile/api.ts`.
+  caller (28 files) still used the legacy data layer through `features/child-profile/api.ts`.
 - **Django.** `GET/POST/PATCH /api/v1/me/` now return `displayName` and `timezone`; `PATCH`
   changes only those two (closed body, IANA time zone check) under either sign-in. Migration
   `users/0004_parent_records` adds a proxy model only (no table change). Django Admin:
   `ParentRecord` and `ChildProfile` are read-only for active staff with `users.view_childprofile`,
   never show nicknames, interests, photo paths or identity mappings, and log every list or detail
-  view to `lai.admin_audit` (ids only). `manage.py import_amplify_profiles` with
-  `apps/users/amplify_import.py`: dry run by default, owner from the recorded Cognito sub only,
-  Amplify ids preserved, nothing overwritten, conflict outcomes, one transaction, idempotent,
-  ids-only report (`docs/platform/AMPLIFY_PROFILE_IMPORT.md`). Cross-family lookups for the
-  import live in `services.py` and no view uses them (tested).
+  view to `lai.admin_audit` (ids only). A legacy profile import command was added (since
+  deleted as dead code, 2026-11-18).
 - **Deletion policy.** Archival: `PATCH {"active": false}` keeps the profile, progress and rewards.
   Hard deletion stays `403 sensitive_action_unavailable` under both providers (ADR-024 A3,
   LAI-0209 / LAI-0602); the React Django store shows a safe "turn the profile off instead" message.
 - **React.** `features/child-profile/api.ts` is now a facade over a `ProfileStore` chosen by
   backend: `djangoProfiles.ts` (every build with `VITE_BACKEND=django`, Cognito or local sign-in)
-  or `amplifyProfiles.ts` (builds without the Django API, i.e. the deployed build, until the
-  import and cutover; removal is LAI-1301). Screens use the hand-owned `profileTypes.ts` shapes.
+  or a legacy store (builds without the Django API, since removed). Screens use the hand-owned `profileTypes.ts` shapes.
   `api/client.ts` gained `PATCH` and `DELETE` (CSRF header on every unsafe method in session
   mode). `playSettings.ts` now reads through the store, so the data source no longer follows the
   sign-in mode. The form hides the photo upload where the store keeps no photos. Account
-  settings hide the Cognito-only email and password sections under local sign-in. The Amplify
-  `Admins` pages keep their own Amplify types and reads (`features/admin/api.ts`).
+  settings hide the Cognito-only email and password sections under local sign-in. The legacy
+  `Admins` pages keep their own types and reads (`features/admin/api.ts`).
 - **Tests run (unit only).** Django: `apps/users`, `apps/core`, `apps/game_sessions`: 624 passed,
   including 42 new in `test_profile_management.py` (me read/update and validation under both
   providers, child lifecycle and archival under both providers, deletion blocked, cross-family
-  404, local versus Cognito isolation, admin read-only, permission and audit, import dry run,
-  apply, idempotency, conflicts, cap, provisioning, report privacy, command). Pinned `/me/` body
+  404, local versus Cognito isolation, admin read-only, permission and audit, cap,
+  provisioning). Pinned `/me/` body
   assertions were updated on purpose; the admin registration guard now allows `ChildProfile`
   read-only and still forbids every child-owned record. React: `tsc -b` clean; Vitest on
   `features/child-profile`, `api`, `routes`, `features/admin`, `features/session`,
   `features/adventures`, `NpcConversation`: 41 files, 427 passed (Django store, both
-  credentials, facade selection, play settings, photo field hidden, Amplify mapping).
+  credentials, facade selection, play settings, photo field hidden, legacy mapping).
 - **Process slip.** Prettier was run once on `react/src/routes/AccountSettings.tsx`, which this
   task's rules excluded. It changed only that file, which the task had just edited.
 - **Open.** Hard deletion (LAI-0209 / LAI-0602); profile photos in Django (LAI-1103); companion
-  profile (LAI-0307); Amplify-backed features that read a child from DynamoDB or Amplify Data
-  (the `submit-adventure-answer`, `get-next-learning-activity` and `claim-coop-slot` Lambdas, the
-  older Amplify adventures, companion and backpack) do not know a Django-created child (Phase 6);
-  the production import (LAI-1101/1102/1202/1203, approval); removing the Amplify store
-  (LAI-1301).
+  profile (LAI-0307); legacy features that read a child from DynamoDB (the
+  `submit-adventure-answer`, `get-next-learning-activity` and `claim-coop-slot` Lambdas, the
+  older adventures, companion and backpack) do not know a Django-created child (Phase 6);
+  the production import (LAI-1101/1102/1202/1203, approval).
 
 ## LAI-AUTH-ROLLBACK: dual authentication removed; Cognito is the sole application sign-in (2026-10-31, ADR-040 Accepted)
 
 Owner-directed. Branch `feature/lai-auth-rollback` from `main` (`ca9915f`). **Merged to `main` and
 pushed 2026-10-31 on the owner's explicit direction**, with every local merge gate passing and the
 real-Cognito browser acceptance still open (see "Merge verification" below). The push triggers
-the dev EC2 Django release and the Amplify Hosting `main` build, which the owner authorized; no
+the dev EC2 Django release and the hosted frontend `main` build, which the owner authorized; no
 manual AWS deployment was made. No AWS resource, deployed configuration or production data touched; no migration.
 
 - **Git history.** LAI-AUTH-DUAL (`e80eff0`) was merged to `main` (`beebb6a`) and LAI-CHILD-001
@@ -11870,16 +11483,16 @@ manual AWS deployment was made. No AWS resource, deployed configuration or produ
   `sub` to `ParentAccount` mapping and `POST me/` onboarding, child scoping, Django Admin staff
   sign-in and its admin-scoped cookies, the asset library, Treasure Rush, rewards, inventory and
   progress, and everything from LAI-CHILD-001 (`PATCH me/`, `ParentRecord`, read-only audited
-  admin, `import_amplify_profiles`).
+  admin, the legacy profile import).
 - **React removed.** `VITE_AUTH_PROVIDER` and `api/authMode.ts`, `api/session.ts`,
   `api/apiAuth.ts`, `features/auth/authAdapters.ts`, `LocalSignInForm` and its copy, the session
   credential in `api/client.ts`, the `mode` / `signInLocally` fields of `AuthProvider`, the build
   guard in `vite.config.ts`, and the local-account branch in Account settings (email and password
   sections always shown again). `AuthContext`, `SignIn`, `DjangoAccountContext`, `config.ts`,
   `playApi.ts` and `djangoAssetResolver.ts` are back to their pre-LAI-AUTH-DUAL code.
-- **React kept.** Amplify (Cognito) sign-in and sign-out, the bearer token with one forced-refresh
+- **React kept.** Cognito sign-in and sign-out, the bearer token with one forced-refresh
   retry, account provisioning, `PATCH` and `DELETE` in the client (LAI-CHILD-001), the Django
-  profile store and Django-backed play settings, Amplify Hosting.
+  profile store and Django-backed play settings, frontend hosting.
 - **Configuration.** `AUTH_PROVIDER` removed from `lai/Dockerfile`, `deploy/ec2/docker-compose.yml`,
   `.github/workflows/deploy-django-ec2.yml`, `scripts/aws/render-env.sh` (an `AUTH_PROVIDER`
   parameter is still refused, now as an unknown name) and the deploy tests. `lai/.env.example`
@@ -11936,10 +11549,10 @@ in `test_cognito_only.py`, Prettier in `AccountSettings.tsx`; no behaviour chang
   passes for the default and `container-db` profiles with placeholder values; the rendered config
   has no `AUTH_PROVIDER`.
 - **Browser.** Playwright smoke in a clean worktree, as CI runs it: 7 passed (the sign-in page
-  renders the Amplify Cognito form). No committed Playwright spec used the removed local login, so
+  renders the Cognito form). No committed Playwright spec used the removed local login, so
   none needed replacing.
 - **Real Cognito (read-only).** The verifier pointed at pool `us-west-1_3LU3RSjuH` (from the
-  git-ignored `amplify_outputs.json`) fetched its public JWKS (2 keys) and rejected a forged
+  git-ignored local client configuration) fetched its public JWKS (2 keys) and rejected a forged
   token that named a real key id with 401 `bad_signature`. Nothing in AWS was created or changed.
 - **BLOCKED: real-Cognito browser acceptance.** Not run: Cognito sign-in in the browser, a real
   access token reaching Django, `GET me/` for that parent, child create, edit, select and settings
@@ -11949,8 +11562,7 @@ in `test_cognito_only.py`, Prettier in `AccountSettings.tsx`; no behaviour chang
   covered at the API level by pytest with signed test tokens (`test_cognito_only.py`,
   `test_authentication.py`, `test_profile_management.py`, the `game_sessions` play tests).
 - **Not merged, not pushed.** Pushing `main` triggers the dev EC2 Django release
-  (`deploy-django-ec2.yml`, backend paths) and the Amplify Hosting `main` build (which runs
-  `ampx pipeline-deploy`). The owner authorized that push for when the merge proceeds, and chose
+  (`deploy-django-ec2.yml`, backend paths) and the hosted frontend `main` build. The owner authorized that push for when the merge proceeds, and chose
   to stop before the merge while the Cognito gate is blocked. No AWS deployment occurred.
 - **Merge (2026-10-31).** After the verification above the owner directed the merge and push.
   `origin/main` was still `ca9915f`; merged `--no-ff`. The real-Cognito browser acceptance was
@@ -12019,13 +11631,13 @@ instruction. Not pushed.
 - **Two test-environment findings (not code defects).**
   - A developer's `react/.env.local` with `VITE_BACKEND=django` makes 5 `ChildProfileForm` photo
     tests fail, because Vitest reads it. CI has no such file; with the variable blank, all pass.
-  - A local `amplify_outputs.json` makes 3 Playwright "unconfigured" smoke tests fail. They pass
+  - A local client configuration file makes 3 Playwright "unconfigured" smoke tests fail. They pass
     in a clean worktree.
   - Both suites read the developer's environment and are worth isolating later.
 - **Not run:** `docker build`, and a real-browser run of the signpost launch (it needs a real
   Cognito sign-in and WebGL).
 - **Open.**
-  - Playing a launched Adventure in a Django build. The step runner is still Amplify-backed, and
+  - Playing a launched Adventure in a Django build. The step runner is still on the legacy backend, and
     the LAI-0601 answer engine records no world changes, evidence or quest progress. A Django
     step-adventure client is the next task.
   - The Treasure Rush quest has no Island (`Quest.world` is empty), because no Island's content
@@ -12097,7 +11709,6 @@ The brief as received stops partway through its section 7; later sections are no
   - `LaiAssetStorage-<env>` and the asset library (storage adapter, publication, resolver,
     Treasure Rush loading) are unchanged. The `LaiAssetStorage-prod` template is identical to
     `main`.
-  - The Amplify bucket and everything under `amplify/` are unchanged.
 - **Stage A, infrastructure (synthesized, not deployed).**
   - New stack `LaiChildPhotos-<env>` (`infra/lib/childPhotoStorageStack.ts`):
     - all Block Public Access settings, ACLs disabled, TLS 1.2 or newer only, SSE-S3, versioning;
@@ -12123,8 +11734,7 @@ The brief as received stops partway through its section 7; later sections are no
   and bucket read access do not exist. Every legacy bucket reference is inventoried (section 9).
 - **Stage D, documentation.**
   - ADR-042 and `docs/platform/CHILD_PHOTO_STORAGE.md`.
-  - Roadmap: LAI-0904 revised, LAI-0905 added, LAI-1002 and LAI-1103 updated, LAI-1204 added.
-    LAI-1302 now depends on LAI-1204, because Amplify storage auto-deletes objects with its stack.
+  - Roadmap: LAI-0904 revised, LAI-0905 added, LAI-1002 and LAI-1103 updated.
   - AM-13 added. The tracker, IAM audit, EC2 runbook, `infra/README.md`, `ASSET_LIBRARY.md`,
     `ARCHITECTURE.md` and `DATA_MODEL.md` are updated.
 - **Tests (development checks, 2026-10-31).**
@@ -12143,7 +11753,7 @@ The brief as received stops partway through its section 7; later sections are no
   build, Docker image, Playwright, and any AWS call.
 - **Open.** Deployment and dev verification (LAI-0904, approval); the React and Android clients
   (LAI-0905); LAI-0602 must call `delete_all_child_photos`; a schedule for the audit command;
-  SSE-KMS and version-delete rights for erasure (G9); LAI-1103a to 1103d; LAI-1204; AM-13.
+  SSE-KMS and version-delete rights for erasure (G9); LAI-1103a to 1103d; AM-13.
 
 ## LAI-0905: React client on the Django child photo API, Android contract (2026-10-31, branch only, not merged)
 
@@ -12154,7 +11764,7 @@ The brief as received stops partway through its section 7; later sections are no
   - Errors map to the existing parent-facing messages. Done.
   - The Android contract is documented in `docs/android/ANDROID_API_CONTRACT.md`, "Child profile
     photo". Done.
-  - Amplify builds unchanged: same upload-first order, same calls, same messages. Their photo
+  - Legacy builds unchanged: same upload-first order, same calls, same messages. Their photo
     path now goes through `ProfileStore` (`photoWrite: 'before-save'`, `getChildPhotoUrl`).
 - **What changed (React).**
   - `api/client.ts`: `PUT`, a raw binary body (`rawBody`), and blob responses
@@ -12173,7 +11783,7 @@ The brief as received stops partway through its section 7; later sections are no
       that child instead of creating a duplicate.
     - The routes return the saved profile and navigate in `onSaved`.
   - `photoMessages.ts` and `profileErrors.ts` were split out, so the Django modules import no
-    Amplify Storage code.
+    legacy storage code.
 - **Backend.** Unchanged.
 - **Tests (development checks).**
   - Vitest `src/features/child-profile`, `src/api`, `src/routes`: 259 passed. New tests:
@@ -12199,7 +11809,6 @@ Branch `feature/lai-0905-photo-clients` (it also carries the three LAI-0904 comm
 | LAI-0904 Django photo API | Done | Full pytest 1207 passed | Not released with S3 anywhere | Open: no real bucket yet |
 | LAI-0905 React client, Android contract | Done, committed | Vitest | n/a | Open: dev bucket and a Cognito test sign-in (gate A6) needed |
 | LAI-0602 photo cleanup on child deletion | Service done (`lai/apps/users/deletion.py`) | 13 new pytest cases | n/a | Open: route blocked until LAI-0209 |
-| LAI-1103 Amplify photo migration | Designed only | none | none | Not started (inputs missing) |
 
 - **LAI-0602.** `delete_child_profile(parent, child_id)`:
   - The child is resolved through the parent: another family's child or an unknown id is
@@ -12226,7 +11835,6 @@ Branch `feature/lai-0905-photo-clients` (it also carries the three LAI-0904 comm
   - `LaiDjangoEc2-dev` attaches it to `lai-django-ec2-dev` and writes
     `/lai/dev/django/LAI_CHILD_PHOTO_STORAGE=s3`, `LAI_CHILD_PHOTOS_BUCKET` and
     `LAI_CHILD_PHOTOS_REGION`. The asset bucket and its policy stay separate.
-  - Nothing under `amplify/` changed.
 - **API and React verification.**
   - Every photo endpoint behaviour is covered through the full Django stack with signed test
     tokens and the in-memory store: upload, metadata, content route, replace, delete,
@@ -12246,7 +11854,7 @@ Branch `feature/lai-0905-photo-clients` (it also carries the three LAI-0904 comm
     checkout has no local `node_modules`, and `@colyseus/sdk` / `@colyseus/core` (declared in
     `package.json`) are not installed in the shared `node_modules`.
   - `typecheck`, `build` and Playwright stop on the same missing `@colyseus` packages. Node,
-    amplify, scripts and infra typecheck clean; `server` fails only on `@colyseus`.
+    scripts and infra typecheck clean; `server` fails only on `@colyseus`.
 - **Blocked.**
   - The deployed integration test: no approved dev bucket, no live Django with S3, and no
     Cognito test parent.
@@ -12275,10 +11883,10 @@ Branch `feature/lai-0905-photo-clients`.
 - **Frontend dependencies.** `npm ci` at the repository root (the workspace that owns
   `package-lock.json`, with `react` as its workspace) installed 1174 packages, including
   `@colyseus/sdk` 0.18.4, `@colyseus/core` 0.18.16 and `tsx`. The lockfile is unchanged. Warnings
-  only: peer-dependency overrides inside Amplify packages, and `jsdom@30.0.1` asking for Node
+  only: peer-dependency overrides inside AWS SDK packages, and `jsdom@30.0.1` asking for Node
   `^24.15.0` while this machine has 24.14.0 (no test failed because of it).
 - **Frontend results.** Vitest 304 files and 3236 tests, all passed, so the 8 earlier failures were
-  the missing `tsx` and `@colyseus` packages. Typecheck clean (react, amplify, scripts, server,
+  the missing `tsx` and `@colyseus` packages. Typecheck clean (react, scripts, server,
   infra). Production build passes (existing large-chunk warning). oxlint 0 errors and 39
   warnings (baseline). Prettier clean. `adr:check`, `admin-preview:check`, `content:check` and
   `golden:check` pass.
@@ -12311,13 +11919,13 @@ Branch `feature/lai-0905-photo-clients`.
   - The `SensitiveActionBlocked` route guard (LAI-0209) is unchanged.
 - **AWS state, verified 2026-11-01 by the owner's own CLI calls** (Claude Code's
   `Bash(aws:*)` deny rule in `.claude/settings.json` still blocks the agent). Account
-  `008331939914`, SSO role `amplify-policy`, region `us-west-1`. `list-stacks` (which also lists
+  `008331939914`, an SSO role, region `us-west-1`. `list-stacks` (which also lists
   stacks deleted in the last 90 days and stacks in review) shows **no `Lai*` stack at all**, only
   `CDKToolkit`. So `LaiChildPhotos-dev`, `LaiAssetStorage-dev`, `LaiDjangoRelease` and
   `LaiDjangoEc2-dev` have never been created: the Django EC2 platform (ADR-037) has never been
   provisioned, and there is no Django dev server to release to. The account is shared with
-  other Amplify projects and holds the deployed LAI Amplify backend; there is no separate dev
-  account.
+  other projects and holds the retained legacy DynamoDB tables and S3 buckets from the retired
+  backend; there is no separate dev account.
   - Consequence: the earlier description of the EC2 change as "modify the instance role and
     add three SSM parameters" was wrong. A first `LaiDjangoEc2-dev` change set **adds** the whole
     platform (VPC, subnets, security groups, RDS PostgreSQL with a Secrets Manager secret, EC2
@@ -12452,7 +12060,7 @@ Branch `feature/lai-0905-photo-clients`.
     unset (24/24), and CI has no such file.
 - **Playwright smoke** (`npx playwright test`): 7 passed, 11 skipped (the pending Firepeak
   scenarios).
-  - This holds without the local `amplify_outputs.json`. With it, the three "no backend
+  - This holds without the local client configuration file. With it, the three "no backend
     configured" guard tests fail, as expected, because the app is configured. CI has no such file.
 - **Docker image** (`docker build -f lai/Dockerfile .`): **not verified.** `pip install` inside
   the build cannot resolve PyPI on this machine, even with `--network=host`, while the host
@@ -12466,7 +12074,7 @@ Branch `feature/lai-0905-photo-clients`.
 ADR-042 amended (owner-directed): Django is the control plane for the asset and photo buckets;
 clients never hold bucket credentials or perform authenticated bucket operations after cutover;
 private photos may use short-lived presigned GETs; published assets may use a CDN later;
-unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
+unpublished assets stay private.
 
 | Task | Code | Tests | Infrastructure | Live integration | Browser | Final |
 |---|---|---|---|---|---|---|
@@ -12474,7 +12082,6 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
 | AM-15 React asset pages on Django | Done | 21 Vitest cases | n/a | Not run | Not checked | Open |
 | AM-16 End-to-end publish and delivery | Not started | none | Needs LAI-1002, LAI-1004 | n/a | n/a | Open |
 | Photo URL caching (ADR-042 item 4) | Done | pytest | n/a | Not run | n/a | Part of LAI-0905 acceptance |
-| LAI-1301 storage acceptance | Criteria written | n/a | n/a | n/a | n/a | Not started (after cutover) |
 
 - **AM-14** (`lai/apps/assets/admin_api.py`, routes in `apps/assets/urls.py`): list, detail (with
   `publishedReferences` from published 3D Areas), create definition, multipart upload, publish,
@@ -12488,10 +12095,10 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
   `details` field; Django Admin behaviour is unchanged.
 - **AM-15** (`react/src/api/assets/djangoAssetAdmin.ts`, `features/assets/assetBackend.ts`,
   `features/assets/django/`, `routes/modelAssetPages.tsx`): a build with the Django API gets the
-  Django list, add and per-asset pages; others keep the Amplify pages. XHR upload with progress
+  Django list, add and per-asset pages; others keep the legacy pages. XHR upload with progress
   and one token refresh; retry-safe add; plain-language errors, including the LAI-0209 block. A
-  test walks the Django pages' runtime imports and fails on any Amplify or AWS SDK import.
-  `progressPercent` moved to `features/assets/uploadProgress.ts` (re-exported; Amplify wizard
+  test walks the Django pages' runtime imports and fails on any legacy backend or AWS SDK import.
+  `progressPercent` moved to `features/assets/uploadProgress.ts` (re-exported; legacy wizard
   unchanged).
 - **Photos (Phase D).** Already in place and re-verified: Django authorizes each `GET` before
   minting a 300 s presigned URL; React keeps no URL and re-requests once when an image fails; the
@@ -12501,12 +12108,7 @@ unpublished assets stay private; Amplify Storage stays unchanged until LAI-1301.
 - **Not done.** Texture, image and audio upload is AM-13, unchanged: each kind needs its own key
   family and IAM prefix, format validation, and a runtime consumer in the engine, which is a
   separate decision; this task kept the API kind-agnostic so AM-13 adds routes, not a new
-  subsystem. The Amplify catalog admin's model picker still reads Amplify `Asset` records
-  (LAI-1301).
-- **Remaining Amplify Storage use (production build without the Django API):** child photos
-  (`avatarPhoto.ts`, `deletion.ts`) and the Amplify asset pages (`modelUpload.ts`,
-  `assetService.ts`), plus the `amplify/storage/resource.ts` grants. All listed in LAI-1301's
-  acceptance.
+  subsystem.
 - **Merge gate (2026-11-01, local).** Backend: full pytest 1240 passed (the first full run had 2
   failures in the tenant-isolation route audit, which did not know administrator routes; fixed by
   an explicit, tested `api/v1/admin/` category), Ruff and Ruff format clean, `manage.py check`
@@ -12639,7 +12241,7 @@ Specification `docs/platform/RECENT_SIGN_IN.md`; decision ADR-043 (Proposed, spe
   `IsAssetAdministrator`. Non-administrators: `permission_denied` (never invited to sign in).
   Stale administrators: `recent_auth_required`. Reads unchanged. Django Admin unchanged.
 - **React** (`react/src/features/auth/recentSignIn/`): `useSensitiveAction` + `RecentSignInDialog`.
-  Amplify `signOut` then `signIn` (SRP) as the same login id, explicit confirmation naming the
+  Cognito `signOut` then `signIn` (SRP) as the same login id, explicit confirmation naming the
   action, exactly one retry, a second `recent_auth_required` ends the attempt, a different
   account is signed out again, an expired session is told to sign in. `AuthContext` ignores
   Hub events during verification and re-reads the session quietly, so the page and its state
@@ -12666,7 +12268,7 @@ Owner-directed (Phase 7 brief); decision ADR-044; reference `docs/AI_SERVICE.md`
 
 **Status, kept separately (docs/AI_SERVICE.md section 10):** (1) implemented: yes. (2) verified
 with the fake provider: yes. (3) live Bedrock verified: **no** (LAI-0705, needs approval). (4)
-React cutover: no (LAI-0706). (5) Amplify AI routes retired: no (LAI-0710). Nothing was deployed
+React cutover: no (LAI-0706). (5) legacy AI routes retired: no (LAI-0710). Nothing was deployed
 and no AWS API was called; the Guardrail exists only as synthesized CDK.
 
 - **Acceptance criteria implemented.** LAI-0306 audit models; LAI-0701 personas (verbatim,
@@ -12683,7 +12285,7 @@ and no AWS API was called; the Guardrail exists only as synthesized CDK.
   `react/src/test/golden/buildGoldenVectors.ts`, `tests/golden/test_golden_vectors.py`,
   `scripts/ai-red-team.ts`, `infra/bin/app.ts`, `docs/DECISIONS.md` (ADR-044, ADR-019 row 9),
   `docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`, `docs/ARCHITECTURE.md`,
-  `docs/AI_AND_CHILD_SAFETY.md`, `docs/DATA_MODEL.md`. Nothing under `amplify/` or the React
+  `docs/AI_AND_CHILD_SAFETY.md`, `docs/DATA_MODEL.md`. Nothing in the React
   features changed.
 - **Known gaps.** Known prerequisites in the tutor context are usually empty until LAI-0603
   computes `SkillProgress.recent_level`. NPC and story turns use `CLIENT_AUTHORED` until
@@ -12704,24 +12306,24 @@ and no AWS API was called; the Guardrail exists only as synthesized CDK.
 Owner brief: complete the Django AI migration. Reference `docs/AI_SERVICE.md` (status matrix in
 section 10, context matrix, retirement plan and rollback in section 11). **Nothing is
 live-accepted.** No AWS call was made (AWS CLI access is denied in this session), nothing was
-deployed, and no Amplify resource was changed.
+deployed, and no legacy backend resource was changed.
 
 - **LAI-0705 (tooling, BLOCKED for live acceptance).** `manage.py ai_live_check` scores real
   invocations from audit rows; the IAM policy matches AWS's documented geographic-profile
   pattern; Approval Gate A plan with a conservative $2 upper bound is in section 9.
 - **LAI-0706 (implemented, Vitest-verified).** React Django AI client; companion and tutor turns
-  and the parent dashboard's AI history use Django in `VITE_BACKEND=django` builds; Amplify path
+  and the parent dashboard's AI history use Django in `VITE_BACKEND=django` builds; the legacy path
   unchanged otherwise. Browser acceptance of the authenticated AI flows was not possible (no
   test identity or running backend in this session).
 - **LAI-0707 (implemented).** Audited, permission-gated admin views; `ai_retention` (no period
   approved, LAI-0308 / G9); indexes.
 - **LAI-0708 (implemented, synthesized).** PostgreSQL shared limits with a 12-thread race test,
   kill switch, bounded retries, request-size cap, configured-price cost estimate, 10 metric
-  filters and 7 alarms. Finding: the Amplify $50 budget filters `Amazon Bedrock`, but Claude on
+  filters and 7 alarms. Finding: the legacy $50 budget filters `Amazon Bedrock`, but Claude on
   Bedrock is billed through AWS Marketplace; verify in Cost Explorer.
 - **LAI-0709 (partial).** NPC narration server-owned (`DJANGO_CATALOG`). Blocked: React
-  adventures on Amplify sessions, no Django story catalog (LAI-0309), server mastery (LAI-0603).
-- **LAI-0710 (audit only).** Every Amplify AI reference classified; nothing removed.
+  adventures on legacy sessions, no Django story catalog (LAI-0309), server mastery (LAI-0603).
+- **LAI-0710 (audit only).** Every legacy AI reference classified; nothing removed.
 - **ADR.** `main` took ADR-043 (LAI-0209) while this branch was open; this branch's decision is
   now ADR-044, with amendment items 9 to 12. `main` is 6 commits ahead and was not merged in.
 - **Checks.** Full pytest 1615 passed and 3 structural-guard failures, all three fixed and
@@ -12787,10 +12389,10 @@ Django Admin through a hardened media route, resolver `family` and `media` field
 file-route headers, infra IAM on the three key prefixes.
 
 **Removed:** `apps/assets/admin_api.py` and its routes; React staff asset pages, upload wizard,
-Amplify upload helpers, admin asset hub and nav entry, `djangoAssetAdmin` client.
+legacy upload helpers, admin asset hub and nav entry, `djangoAssetAdmin` client.
 
 **Kept:** Three.js loaders, the Django resolver adapter, the bundled fallback, Treasure Rush
-loading, the Django Admin 3D preview bundle, the Amplify catalog model picker (until LAI-1301).
+loading, the Django Admin 3D preview bundle, the legacy catalog model picker.
 
 **Risks and TODOs:** the Django Admin 3D preview bundle must still be rebuilt from
 `react/src/features/assets/preview/` if that source changes; Django Admin has no recent sign-in
@@ -12998,7 +12600,7 @@ passed 3 of 3. The same happened once earlier in the session.
 
 **Pending, not claimed:** live Bedrock generation for the Studio (LAI-0705, LAI-AQS-024; no AWS
 cost incurred), live S3 storage and S3 signed delivery, live Cognito tokens (ADR-024 A6), the
-Amplify Data screens (harbor map, adventure log, Amplify-session places; unchanged on this
+legacy data screens (harbor map, adventure log, legacy-session places; unchanged on this
 branch), and the owner's playtest of the TR-9 feel items.
 
 ## Content authoring task audit (2026-11-02, branch `feature/content`, docs only)
@@ -13258,7 +12860,7 @@ clean. Not run: Playwright or any browser/WebGL check, live Polly, live Bedrock,
 B, including B13 castle); live Polly and Bedrock checks need explicit approval; review of Pip's
 and Quill's migrated lines; device performance profiling; manual screen reader and switch access.
 Known limits: variant extras (accessories) are validated and published but not rendered; Pip has
-no voice profile; AI hint speech is null; Quill's conditions cannot see the castle's Amplify quest
+no voice profile; AI hint speech is null; Quill's conditions cannot see the castle's legacy quest
 state; a disabled-provider AI hint writes no audit row (contract silent; AI owner to decide).
 
 
@@ -13275,7 +12877,7 @@ again" offered after the server refused a line's speech. Added: `generic_clip_na
 for default Mixamo/Blender take names; Admin notice that variant extras are not drawn yet; an
 e2e-only NPC diagnostics hook; `@axe-core/playwright` (test-only).
 
-Not verified (owner): screen readers, switch access and tablets; the castle's Amplify-backed tale
+Not verified (owner): screen readers, switch access and tablets; the castle's legacy-backed tale
 and quest log; live Polly and Bedrock (no approved environment, BLOCKED); the owner's Mixamo
 pirate file (not in the repository). The four known limitations are classified in the report;
 none blocks release.
@@ -13492,11 +13094,11 @@ section 12.
   full Vitest, `npm run typecheck`, `npm run build`, Playwright, any AWS call. Merge
   verification still owes these.
 - **Not done / blockers.** Live Bedrock acceptance and Guardrail effectiveness (owner, approval);
-  Marketplace billing coverage unverified; story scenes and Amplify-session adventures still
-  `CLIENT_AUTHORED` (no Django story catalog, LAI-0309/0607); NPC state still in Amplify
-  (LAI-0605), so eligibility enforcement is off; React adventures write no Django evidence until
+  Marketplace billing coverage unverified; story scenes and legacy-session adventures still
+  `CLIENT_AUTHORED` (no Django story catalog, LAI-0309/0607); NPC state still in the legacy
+  backend (LAI-0605), so eligibility enforcement is off; React adventures write no Django evidence until
   LAI-0501; Firepeak/ADR-043 content is on an unmerged branch and was not recreated; retention
-  periods need owner approval (follow-up LAI-0711); Amplify routes untouched (LAI-0710).
+  periods need owner approval (follow-up LAI-0711); legacy AI routes untouched (LAI-0710).
 
 ## AI / Bedrock / Chatty final acceptance QA (2026-11-07, branch `qa/ai-bedrock-chatty-acceptance-20261107`)
 
@@ -13517,7 +13119,7 @@ were recorded before the owner configured AWS. Full report: `docs/AI_BEDROCK_CHA
 - **Browser.** New `react/e2e/acceptance/chatty-ai.spec.ts` (5 tests, fake provider): multi-turn
   companion and tutor turns through the app's own client in a real browser, screened-input
   fallback, parent safety history and clearing, cross-family 404s, Django Admin kill switch,
-  three viewport sizes. Chatty's own screens still need Amplify Data (Gate B).
+  three viewport sizes. Chatty's own screens still need the legacy data layer (Gate B).
 - **Live AWS.** Session IAM user: one 5-token Converse probe returned AccessDeniedException; all
   Bedrock reads are denied; no Guardrail, Django host or `/lai/*` SSM exists in the account. No
   live evidence was recorded; LAI-0705 and Guardrail validation are still NOT accepted.
@@ -13664,8 +13266,8 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
 |---|---|---|---|
 | LAI-INFRA-001 | `docs/infrastructure/inventory.md` | **Not possible in this session** (no AWS CLI; AWS and package-registry endpoints refused; GitHub Actions API refused) | Open: owner review, read-only checks in section 8, and `lai-dev-complete.yaml` (blocker B1) |
 
-- Inventories the 5 CDK stacks (`infra/`), the Amplify Gen 2 backend (22 models, not 17 as in
-  `docs/CURRENT_AWS_RESOURCE_INVENTORY.md`), Amplify Hosting config, `deploy-django-ec2.yml`, the
+- Inventories the 5 CDK stacks (`infra/`), the legacy backend (22 models, not 17 as in
+  `docs/CURRENT_AWS_RESOURCE_INVENTORY.md`), the legacy hosting config, `deploy-django-ec2.yml`, the
   EC2 Compose/nginx runtime and the scripts that deploy them, with region, environment, deployed
   vs. proposed and ownership questions U1 to U10.
 - Deployed state is taken from the owner's 2026-11-01 CLI record (no `Lai*` stack in
@@ -13681,7 +13283,7 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
 | LAI-INFRA-002 | `docs/infrastructure/resource-ownership.md` | **Not possible in this session** (AWS CLI calls refused by the session's permission settings) | Open: owner decisions D1 to D6, read-only checks in section 8, and the `lai-dev-complete.yaml` comparison (blocker B1) |
 
 - One proposed owner per resource for VPC, EC2, ALB, RDS (Single-AZ), Cognito, S3 (assets, child
-  photos, Amplify, frontend, admin static), CloudFront, ACM, Route 53, WAF, Lambda, SQS, IAM,
+  photos, frontend, admin static), CloudFront, ACM, Route 53, WAF, Lambda, SQS, IAM,
   SSM, ECR, Guardrail, monitoring and pipelines, built on the LAI-INFRA-001 inventory.
 - Risks recorded: fixed physical names make a second definition fail, while unnamed resources
   (VPC, EC2, ALB, CloudFront) duplicate silently; `RETAIN` resources block redeploys until
@@ -13734,7 +13336,7 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
 
 | Task | Deliverable | Live verification | Final |
 |---|---|---|---|
-| LAI-INFRA-004 | `docs/infrastructure/deployment-design.md`; `deploy-site.yml`, `site-release` action, `publish-site.sh`, site deploy role | **None** (no AWS access; the workflow is gated off by `LAI_SITE_DEPLOY_ENABLED`) | Open: owner review, first gated dev run (confirms the `ampx generate outputs` IAM set), choosing (a) or (b) for the Amplify backend pipeline after acceptance |
+| LAI-INFRA-004 | `docs/infrastructure/deployment-design.md`; `deploy-site.yml`, `site-release` action, `publish-site.sh`, site deploy role | **None** (no AWS access; the workflow is gated off by `LAI_SITE_DEPLOY_ENABLED`) | Open: owner review, first gated dev run |
 
 - Owner decisions (2026-11-09):
   - GitHub Actions with OIDC is the only release system; CodePipeline/CodeBuild is not adopted.
@@ -13810,62 +13412,6 @@ matrix and evidence: `docs/qa/aqs-2026-11-07/README.md`.
   - Prettier and ruff are clean.
   - No AWS call was made.
 
-## AMP-03 / AMP-07 Multiplayer room server off Amplify (2026-11-10)
-
-| Task | Deliverable | Live verification | Final |
-|---|---|---|---|
-| AMP-03 / AMP-07 (room server slice) | `server/multiplayer` reads no `amplify_outputs.json` and no AppSync; ownership through Django `GET /api/v1/children/<id>/` | **None**: not run against a live Cognito pool or Django API | Open until the owner sets the three env vars and runs the two-browser check |
-
-- Config: `MP_USER_POOL_ID`, `MP_USER_POOL_CLIENT_ID` and `MP_DJANGO_API_BASE` are required
-  (https only in production). A missing one stops start-up naming every missing variable.
-- Token: the client sends the Cognito **access** token (`cognitoIdentity.ts`); the server verifies
-  it (`token_use: access`, `client_id`) and forwards it as a bearer token to Django, which returns
-  the child only to its owner. 401, 403 and 404 refuse as `NOT_YOUR_CHILD`; other statuses,
-  malformed bodies, redirects and timeouts as `LOOKUP_FAILED`.
-- `ChildProfileRecord` is now `{ id, avatarKey }`; the `ownerSub` / `owner` check is gone because
-  Django enforces ownership. `MultiplayerIdentity.idToken` is renamed `accessToken`.
-- Risk: the Django route returns the nickname and settings to the room server, which discards
-  them; a narrower route would remove that exposure.
-- Checks: multiplayer server and client Vitest suites, `tsc --noEmit -p server/tsconfig.json`,
-  `tsc -b` in `react/`. ADR-026 gains an amendment.
-
-## AMP-05 Amplify functions and AI runtime exit (2026-11-10, branch `worktree-agent-a311a41f33ad917d3`, not deployed)
-
-| Task | Deliverable | Live verification | Final |
-|---|---|---|---|
-| AMP-05 | `docs/platform/AMPLIFY_FUNCTIONS_EXIT.md`; Director and co-op Django routes; React director, co-op, companion and tutor off Amplify; safety and validation metrics, alarms and Bedrock budget in CDK | **None** (no deploy, no AWS call) | Open: owner actions in the exit doc, section 5 (merge ordering with `VITE_BACKEND=django`, co-op decision confirmation, CDK deploy approval, live metric checks) |
-
-- Director (G6): `GET children/<id>/next-learning-activity/`, a port of the Lambda on the
-  canonical catalog, `WorldChange`, `AdventureSession` and `SkillProgress` rows.
-- Co-op (G7): child-scoped create, get, claim, presence and complete routes on
-  `CoopSession`/`CoopParticipant`, first claim wins under a row lock; polling replaces the
-  AppSync subscription (Django, not the room server, per ADR-026; owner to confirm).
-- Companion and tutor: the Amplify AI Kit branch and browser audit writes are gone; without
-  Django a turn is the authored fallback with no network call.
-- Adventure answers: `AnswersView` parity confirmed by `test_answers_api.py`; React wiring stays
-  with AMP-03.
-- Metrics (G11, Django half): `ai.safety v1` line; `ValidationFailures`, `SafetyEvents`,
-  `HighSeveritySafetyEvents` filters; two alarms; `lai-bedrock-monthly-<env>` budget and the
-  alarm topic's Budgets publish permission.
-- Checks run: pytest (education director, game_sessions co-op and answers, users tenant
-  isolation, core, ai) and vitest (director, coop, companion, tutor, adventures, routes, api,
-  infra AI guardrail, Django deployment and cross-stack), `tsc -b` in react,
-  `tsc --noEmit -p infra/tsconfig.json`; ruff and Prettier on the changed files.
-
-## AMP-02, AMP-06, AMP-07, AMP-08 Amplify exit (2026-11-10, branch `ccr-a0f9421a-g0ifoe`)
-
-| Task | Deliverable | Live verification | Final |
-|---|---|---|---|
-| AMP-02 | `react/src/lib/cognito` (SRP sign-in, refresh, sign-out, account calls); every auth screen, the Django token, deletion, multiplayer and scripts switched | Open: browser and live-pool acceptance | Not complete |
-| AMP-06 | Site release and `LaiFrontend` need no Amplify read; Cognito ids from repository variables | Open: change set, variables, DNS, smoke | Not complete |
-| AMP-07 | `aws-amplify`, Amplify client config and sandbox script removed; backend definition kept until AMP-08 | n/a | Not complete (stage 6 removal) |
-| AMP-08 | `docs/platform/AMPLIFY_DECOMMISSION.md` staged runbook | Every stage needs owner approval | Not complete |
-
-Summary and checks: `docs/platform/AMPLIFY_EXIT_STATUS.md` (typecheck, build, Vitest 4311 passed,
-pytest 2638 passed against PostgreSQL 16, ruff, Prettier). Merging the branch is the frontend
-cutover; see its merge gate.
-
-
 ## LAI-0821 content-authoring milestone accepted (2026-11-10, branch `claude/jolly-ride-92xktb`)
 
 - **What.** The owner confirmed browser acceptance (Django Admin authoring flows, Firepeak,
@@ -13938,7 +13484,7 @@ Why the theme was not visible: the 2026-11-07 commit (`0f924af`) added the token
 and the `ChildShell`/`ParentShell` chrome, but the child homepage (`/island/:childId`,
 `WelcomeHarbor`) still drew its content with CSS Modules: `PortalCard` and `ProgressIndicator`
 were used by no page, and only the sidebar/bottom bar changed. The commit is also on an unmerged
-branch, and both frontend release paths (Amplify Hosting auto-build and `deploy-site.yml`)
+branch, and both frontend release paths (the hosted auto-build and `deploy-site.yml`)
 publish `main` only, so none of it is deployed.
 
 Changed:
@@ -13958,7 +13504,7 @@ Changed:
 Checks: Vitest `src/routes/WelcomeHarbor.test.tsx`, `src/features/portal`, `src/features/island`
 (152 files, 1767 tests pass); `tsc -b` clean; `vite build` emits the homepage utilities. Viewed in
 headless Chromium at 1280px and 390px through a local harness with the API modules stubbed
-(Amplify Data is not available offline): hero, cards and buttons render in the portal colours.
+(the legacy data layer is not available offline): hero, cards and buttons render in the portal colours.
 
 Still open: merge to `main` and a release (owner approval); AP-02 (XP/level, missions, rewards
 from Django) and AP-03 (Django-published island discovery) are not implemented; Playwright, lint,
@@ -13992,8 +13538,8 @@ full suite at integration; ADR-052 acceptance.
   uncommitted config (`executablePath`), because the pinned Playwright's browser build is absent.
 - Not run: `npm run test:acceptance` and the Python/Django gates (`make check`). The acceptance
   suite needs Django, PostgreSQL and a real Cognito parent; this branch changes no Python.
-- Visibility note: the child homepage loads its companion and world changes from Amplify Data.
-  A local run with `VITE_BACKEND=django` and no Amplify sandbox shows only the plain
+- Visibility note: the child homepage loads its companion and world changes from the legacy data
+  layer. A local run with `VITE_BACKEND=django` and no legacy backend shows only the plain
   "Something went wrong loading the island." text, so the portal design never renders there.
 
 ### AP-01 full theme redress (2026-11-10, branch `feature/adventure-portal`)
@@ -14090,7 +13636,7 @@ scroll inside the panel, and the panel draws over the top bar's adult exit while
 ## Adventure Portal AP-03 redesign: Realm Explorer (2026-11-11, branch `feature/adventure-portal-home`)
 
 Trello AP-03. Supersedes the inline Island Explorer of the first AP-03 commit (`c1d4d74`) in
-builds with the Django API. Amplify builds are unchanged (Home keeps the source explorer;
+builds with the Django API. Legacy builds are unchanged (Home keeps the source explorer;
 `/realms` redirects there). Status: **accepted by the owner (2026-11-11), merged to `main` in PR #16 (2026-11-11).** The
 owner reviewed it running locally; AP-02 (below) was accepted the same day.
 
@@ -14154,8 +13700,8 @@ those can merge on their own. **AP-02 accepted by the owner 2026-11-11** (AP-03 
 above, also accepted). Merged to `main` in PR #16 (2026-11-11).
 
 **Data source.** Both read Django, as the cards require, when the build has the Django API
-(`VITE_BACKEND=django`). Every hosted Amplify build has no Django API until the ADR-019 cutover:
-there the homepage stays exactly as before (source-controlled Island Explorer, Amplify companion
+(`VITE_BACKEND=django`). Every hosted legacy build has no Django API until the ADR-019 cutover:
+there the homepage stays exactly as before (source-controlled Island Explorer, legacy companion
 and world changes, no dashboard).
 
 **AP-03: Island Explorer discovery**
@@ -14195,8 +13741,8 @@ and world changes, no dashboard).
   unlocked; entering a 3D Area or starting a Place adventure marks the Place explored.
 - Vitest: `islandsApi.test.ts`, `homeApi.test.ts`, `featured.test.ts`,
   `ChildHomeDashboard.test.tsx`, `IslandExplorer.test.tsx`, `islandExplorer.test.ts` (server
-  builder), `WelcomeHarbor.django.test.tsx` (Django mode: dashboard and islands, no Amplify reads,
-  each part failing alone), existing `WelcomeHarbor.test.tsx` unchanged (Amplify mode).
+  builder), `WelcomeHarbor.django.test.tsx` (Django mode: dashboard and islands, no legacy reads,
+  each part failing alone), existing `WelcomeHarbor.test.tsx` unchanged (legacy mode).
 - Viewed in Chromium at 1280px and 390px through a local harness with stubbed Django responses.
 
 **Check results**
@@ -14211,7 +13757,7 @@ and world changes, no dashboard).
 - Owner QA; a run against a real Django with the Treasure Cove seed (`npm run test:acceptance`).
 - Island thumbnails need catalog illustrations (ADR-030). An open non-home Island links to the
   existing world hub, which knows only source-controlled Islands.
-- The hosted (Amplify) site shows neither card until it uses the Django API.
+- The hosted legacy site shows neither card until it uses the Django API.
 
 ## Adventure Portal AP-01 to AP-04 merged to main (2026-11-11, PR #16)
 
@@ -14239,7 +13785,7 @@ PostgreSQL passed; end-to-end tests passed.
     it passes alone (59 of 59) and in CI.
 
 **Open after the merge**
-- A merge to `main` releases the hosted frontend through Amplify. The hosted (Amplify) build
+- A merge to `main` releases the hosted frontend. The hosted legacy build
   keeps the source-controlled Island Explorer; the Realm Explorer and home dashboard need the
   Django API (ADR-019 cutover).
 - No Realm or Place has published art yet (see the AP-03 entry above).
@@ -14279,27 +13825,6 @@ Defect: since PR #22 the local Playwright acceptance stack answered every NPC sp
   refusing Quill's speech itself with the server's `503 speech_unavailable` envelope, scoped to
   that spec. No console or network check was relaxed anywhere else.
 - Tests: `tests/repo/test_e2e_speech_scope.py` pins the scope (fake in the e2e stack only).
-
-## AMP-01 Amplify dependency audit and Django parity matrix (2026-11-10, branch `claude/lai-infra-001-pr-kwauv3`, read-only audit)
-
-| Task | Deliverable | Live verification | Final |
-|---|---|---|---|
-| AMP-01 | `docs/platform/AMPLIFY_EXIT_MATRIX.md` | **None** (no AWS access); live DynamoDB, AppSync and Cognito data not read | Open: owner review; the gap list feeds AMP-02 to AMP-08 |
-
-- Scope: `main` (`89d1172`, re-checked at `8e3af01` on 2026-11-11), `dev20261103` and its live
-  integration branch (`claude/jolly-ride-92xktb`), and all 31 remote branches.
-- Inventory: 22 React and script files import Amplify. Auth is fully Amplify (12 source files).
-  All 22 Amplify Data models are called. 15 capabilities already switch to Django; 18 modules or
-  module groups do not.
-- Branch findings: no branch removes Amplify usage beyond `main`. The integration's Django step
-  runner and 14 content and step routes merged into `main` with PR #12 (G2 is now wiring only).
-- Gaps with no Django equivalent:
-  - parent account deletion;
-  - companion choice storage;
-  - the director's "next learning activity";
-  - co-op routes and realtime.
-- Only parent and child profiles have a DynamoDB importer.
-- Checks: docs only (Prettier clean). No code or resource changed.
 
 ## Django Admin site icon (2026-11-13, branch `fix/django-admin-favicon`, Trello IIGt0JWT)
 

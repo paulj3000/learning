@@ -14,79 +14,15 @@ The system should initially concentrate on `.glb` models used by Three.js, but t
 
 ---
 
-# Implementation Status and Next Steps
+# Status: superseded
 
-_Last updated 2026-09-27. The numbered spec sections below are unchanged; this section tracks progress against them. Architecture decisions are in `docs/DECISIONS.md` ADR-030; detailed status is in `docs/IMPLEMENTATION_STATUS.md`._
-
-## Progress by phase
-
-| Phase | Scope (spec section) | Status |
-|---|---|---|
-| 1 | Foundation (32) | **Built** (commit `c583603`), not yet verified against a deployed backend |
-| 2 | Upload (33) | **Built** (commit `c583603`), not yet verified against a deployed backend |
-| 3 | Validation (34) | Next to build |
-| 4 | Three.js viewer (35) | Not started; best built straight after Phase 3 |
-| 5 | Publishing (36) | Not started; needs the open decision below |
-| 6 | Versioning (37) | Not started |
-| 7 | Character integration (38) | Not started |
-| 8 | Usage tracking (39) | Not started |
-| 9 | Performance and polish (40) | Not started |
-
-## What Phases 1-2 delivered
-
-- `Asset` and `AssetVersion` models with `AssetType`, `AssetCategory`, `AssetStatus`, and `AssetSource` enums (`amplify/data/resource.ts`). Admins group only, for every operation.
-- An `assets/*` storage prefix, Admins group only (`amplify/storage/resource.ts`). Keys are versioned: `assets/models/<category folder>/<assetId>/v<n>/model.glb`.
-- `src/features/assets/assetService.ts`: list, get, published-only get, current version, signed URL, and `resolveModelUrl(id)`, which prefers a published S3 model and falls back to the bundled `public/models/` file.
-- `/admin/assets`, `/admin/assets/models`, and the three-step upload wizard at `/admin/assets/models/new`, all behind `RequireAdmin`.
-- Pre-upload checks: `.glb` only, glTF 2.0 header, header length matches file, 50 MB limit (`MODEL_MAX_UPLOAD_MB`), 10 MB warning (`MODEL_WARN_UPLOAD_MB`), duplicate file name warning, unique name/slug.
-- Upload order: S3 first, then the `DRAFT` records; any record failure removes what was already written. Nothing can publish.
-- 82 automated tests. Full suite, typecheck, and lint pass.
-
-## How this implementation differs from the spec
-
-- **Children still load bundled models.** `assetLoader.ts` is not wired to `resolveModelUrl` yet. Asset records are Admins-only, so from a parent's session every lookup would fail. This waits for Phase 5 (ADR-030).
-- **Existing GLBs stay in Git.** "Do not place GLBs in Git" applies to admin-uploaded models. The generated and imported models in `public/models/` (about 3 MB) stay committed and keep the world playable offline. Moving them is a separate migration decision.
-- **No toast system exists**, so messages are inline `role="alert"` / `role="status"` text, like the other admin pages.
-- **No Character or World database models exist.** NPCs, worlds, and regions are defined in TypeScript. World/region fields hold slugs from `WORLD_DEFINITIONS` / `ISLAND_LOCATIONS`, and Phases 7-8 must work against code-defined content.
-- **`Asset.slug` shares a namespace with bundled `ASSET_MANIFEST` ids**, so a published upload can later replace a bundled model without editing scene code.
-
-## Next steps, in order
-
-### Step 1: Deploy and verify Phases 1-2 (blocking)
-
-Everything so far is tested against mocks only.
-
-1. Deploy the backend: `npx ampx sandbox`, or let the Amplify pipeline deploy `main`.
-2. Make sure your account is in the `Admins` group: `npm run grant-admin`.
-3. Upload a real GLB from one of the packs in `assets/`. Confirm the progress bar moves, the object appears in S3 under `assets/models/...`, and the model appears in the list as Draft.
-4. Cancel an upload partway through, and cut the network mid-upload. Neither should leave a record or an S3 object behind.
-5. Sign in as a non-admin parent. `/admin/assets/models` and any upload to `assets/` must be refused with an authorization error, not empty data (`docs/AUTHORIZATION_REVIEW.md` section 5).
-6. Fix anything found before starting Phase 3. Amplify storage group-rule behaviour is the most likely source of surprises.
-
-### Step 2: Phase 3, validation
-
-- Load the uploaded GLB with `GLTFLoader` in the browser.
-- Extract meshes, triangles, vertices, materials, textures, skeleton and bone count, animation names and durations, bounding box, and dimensions into `Asset.metadata` and `AssetVersion.metadata`.
-- Produce PASS / WARNING / ERROR results (spec sections 8-9). No animations or skeleton is not an error.
-- Move status `DRAFT -> PROCESSING -> READY`, or `ERROR` when any result is an error.
-- Add `/admin/assets/models/:id` to show file facts, statistics, and validation results.
-- Reuse what exists: the GLB inspection in the import-script tests, the real-GLB test loading in `src/test/setup.ts`, and the budgets in `docs/THREE_WORLD_ASSET_CONVENTIONS.md`.
-
-### Step 3: Phase 4, the `<ModelPreview />` viewer
-
-- OrbitControls (from `three/examples`, no new dependency), lighting, grid, camera fitted to the bounding box, reset camera.
-- Bounding box and skeleton toggles; animation list with play/pause via `AnimationMixer`.
-- Use it on the details page and in the upload flow after validation.
-
-### Step 4: Phase 5, publishing (needs a decision first)
-
-- Explicit Publish and Archive actions; ERROR blocks publishing, WARNING needs review.
-- **Open decision:** how parents' sessions read published assets. A model-level rule cannot filter by status, so the choice is between a narrow custom query that returns only published assets, and a published manifest file generated on publish. Record the choice as an ADR.
-- Once decided, wire `assetLoader.ts` to `resolveModelUrl`, keeping the bundled fallback.
-
-### Later: Phases 6-9
-
-Replace model and version history (6), `modelAssetId` on code-defined NPC content (7), "Used by" before archive/delete (8), then thumbnails, search, filters, sorting, and performance budgets (9).
+This is the original product specification (2026-09, ADR-030). The implemented asset library is
+Django's: `docs/ASSET_LIBRARY.md`, ADR-035 (versioned binaries on the canonical content identity,
+private storage, signed delivery) and ADR-045 (Django Admin owns staff asset authoring and
+lifecycle; React only consumes published assets; there is no React staff asset manager or
+administrator asset API). Where this specification describes React admin routes, an upload wizard
+in React, or a client-side data or storage layer, the Django design replaces it. The numbered
+sections below are kept for their requirements (validation, metadata, versioning, safety).
 
 ---
 
@@ -106,7 +42,7 @@ Artist / Blender / AI Model Generator
            Amazon S3
                 │
                 ▼
-       Amplify Data Record
+       Django database record
                 │
                 ▼
         Published Asset
@@ -192,9 +128,9 @@ Never duplicate a GLB simply because multiple characters use it.
 
 ---
 
-# 4. Amplify Data Model
+# 4. Data Model
 
-Inspect the existing Amplify Gen 2 schema before modifying it.
+Inspect the existing Django models before modifying them.
 
 Reuse existing models/enums where appropriate.
 
@@ -279,7 +215,7 @@ ARCHIVED
 ERROR
 ```
 
-Use the conventions already established by the project's Amplify schema rather than blindly implementing these exact names.
+Use the conventions already established by the project's Django models rather than blindly implementing these exact names.
 
 ---
 
@@ -345,7 +281,7 @@ Extract metadata automatically wherever practical.
 
 # 6. S3 Storage
 
-Use Amplify Gen 2 Storage/S3.
+Use S3 through Django.
 
 Do not store GLB files in the repository.
 
@@ -435,7 +371,7 @@ World/region should be optional because some assets will be globally reusable.
 
 ## Step 3 — Upload
 
-Upload directly to S3 using Amplify Storage.
+Upload to S3 through Django.
 
 Display:
 
@@ -977,7 +913,7 @@ Modify metadata
 
 Do not rely solely on hiding admin routes in React.
 
-Enforce authorization through Amplify backend/storage/data rules.
+Enforce authorization in Django (server-side permissions on every model, storage and API path).
 
 Children must never receive administrative mutation permissions.
 
@@ -1163,7 +1099,7 @@ Implement:
 - Asset schema
 - AssetVersion schema
 - enums
-- Amplify authorization
+- Django authorization
 - S3 storage configuration
 - AssetService
 - `/admin/assets`
@@ -1398,7 +1334,7 @@ Add an ADR if this constitutes a significant architectural change.
 Before coding:
 
 1. Inspect the existing project.
-2. Inspect the Amplify Gen 2 schema.
+2. Inspect the Django models.
 3. Inspect existing S3/Storage configuration.
 4. Inspect existing admin routes.
 5. Inspect existing Three.js loaders.
@@ -1461,7 +1397,7 @@ After each phase:
 1. Run the appropriate build.
 2. Run tests.
 3. Resolve TypeScript errors.
-4. Verify Amplify schema compatibility.
+4. Verify Django model and migration compatibility.
 5. Verify authorization.
 6. Update `IMPLEMENTATION_STATUS.md`.
 7. Commit the completed phase separately when the repository workflow permits it.
