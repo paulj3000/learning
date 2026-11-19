@@ -188,7 +188,7 @@ describe('the Heart of Firepeak manifest', () => {
     expect(data.scene.effects.checkpoints ?? []).toEqual([]);
     const bridge = manifest.extensions.find((e) => e.extensionId === 'engineBridge');
     const capabilities = (bridge?.config as { capabilities: { id: string; config: Record<string, unknown[]> }[] }).capabilities;
-    expect(capabilities.map((c) => c.id)).toEqual(['gameplay.checkpoints', 'gameplay.hazards']);
+    expect(capabilities.map((c) => c.id)).toEqual(['gameplay.checkpoints', 'gameplay.hazards', 'environment.volumes']);
     expect(capabilities[0].config.checkpoints).toHaveLength(8);
     expect(capabilities[1].config.hazards.map((h) => (h as { id: string }).id)).toEqual(['fh-lava-hazard']);
     expect(data.spawn.checkpointId).toBe('fh-cp-landing');

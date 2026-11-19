@@ -32,7 +32,8 @@ QUEST_ID = "the-heart-of-firepeak"
 # 2: platforming.recoveryLead, the lava recovery line (was the water "Splash!").
 # 3: one checkpoint list and the lava hazard in scene.engineBridge (GE-073); the platforming and
 #    effects checkpoint lists and the platforming hazard are gone.
-HEART_VERSION = 3
+# 4: the Forge steam push (environment.volumes), off once the Forge is restored (GE-073).
+HEART_VERSION = 4
 FACING_NORTH_TO_SOUTH = math.pi  # forward is (sin yaw, cos yaw); the route runs toward -z
 
 BOUNDS = {"halfExtentX": 32, "halfExtentZ": 96, "wallThickness": 1}
@@ -394,8 +395,22 @@ def _checkpoint(cid, label, x, z, key) -> dict:
     return out
 
 
+SUMMIT_GATE_Z = next(z for gate_id, z, _key in GATES if gate_id == "fh-gate-summit")
+# The two steam plumes stand in front of the summit gate until the Forge is restored. Walking into
+# them, a child is gently pushed back toward the Forge: a gust they can see, never a trap. Half
+# strength under reduced motion (engine). It never points at a hazard (the lava is far behind).
+STEAM_PUSH = {
+    "minX": -GATE_HALF_WIDTH,
+    "maxX": GATE_HALF_WIDTH,
+    "minZ": SUMMIT_GATE_Z + GATE_HALF_DEPTH + 0.05,
+    "maxZ": SUMMIT_GATE_Z + 4.0,
+}
+STEAM_PUSH_STRENGTH = 1.5  # m/s added toward +z (back into the Forge); walking still wins
+
+
 def engine_bridge() -> dict:
     lava = {"minX": LAVA["minX"], "maxX": LAVA["maxX"], "minZ": LAVA["minZ"], "maxZ": LAVA["maxZ"]}
+    push = STEAM_PUSH
     return {
         "capabilities": [
             {
@@ -417,6 +432,28 @@ def engine_bridge() -> dict:
                         }
                     ],
                     "telegraphed": [],
+                },
+            },
+            {
+                "id": "environment.volumes",
+                "config": {
+                    "surfaces": [],
+                    "forces": [
+                        {
+                            "id": "fh-forge-steam-push",
+                            "kind": "WIND",
+                            "box": {
+                                "min": {"x": push["minX"], "y": -1.0, "z": push["minZ"]},
+                                "max": {"x": push["maxX"], "y": 3.0, "z": push["maxZ"]},
+                            },
+                            "direction": {"x": 0.0, "y": 0.0, "z": 1.0},
+                            "strength": STEAM_PUSH_STRENGTH,
+                            "rampInSeconds": 0.5,
+                            "inactiveWhenSignalId": f"world:{K['restored_forge']}",
+                            "neverPushIntoHazard": True,
+                        }
+                    ],
+                    "hazardRects": [lava],
                 },
             },
         ]

@@ -323,6 +323,13 @@ list: `TREE`, `LOG`, `GEAR`, `SWITCH`, `ROCK`, `ARCH`. No binary is committed.
    `region-play/engineBridgeProgress.ts`). The platforming and effects checkpoint lists and the
    platforming hazard are gone. The portal back to the landing carries its own destination
    (`effects.returns[].to`), and the recovery toast takes its label from the bridge's list.
+8. GE-073 (layout version 4, owner decision 2026-11-19): the Forge steam push. While the Forge is
+   not restored, the strip in front of the closed summit gate (where the two plumes stand) pushes a
+   child gently back toward the Forge (`environment.volumes` force, 1.5 m/s, ramps in over 0.5 s,
+   half strength under reduced motion). It turns off with the plumes when
+   `FIREPEAK_HEART_FORGE_RESTORED` arrives (`inactiveWhenSignalId`). Falling rocks on the optional
+   Summit jump route and crumble-then-fall for `fh-stone-vanish` are approved and wait for the
+   engine bridge to draw them (GE-066 part 2), so nothing invisible ships.
 
 ## 13. Storykeeper and Realm Explorer contracts
 

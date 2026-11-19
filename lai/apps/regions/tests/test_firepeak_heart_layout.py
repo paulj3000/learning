@@ -532,3 +532,29 @@ class TestOptionalJumpRoutes:
         for p in PLACEMENTS:
             if p["kind"] == "COLLECTIBLE" and p["entity_id"] not in jump_only:
                 assert p["pickup_key"]  # reachable on foot, proven in the walk tests above
+
+
+class TestSteamPush:
+    """GE-073: the Forge steam pushes a child gently back from the closed summit gate until the
+    Forge is restored; it is drawn by the existing plumes and never points at a hazard."""
+
+    def test_the_push_stands_where_the_plumes_are_in_front_of_the_closed_gate(self):
+        (force,) = BRIDGE_CONFIG["environment.volumes"]["forces"]
+        box = force["box"]
+        for plume in SCENE["effects"]["steam"]:
+            assert box["min"]["x"] <= plume["x"] <= box["max"]["x"]
+            assert box["min"]["z"] <= plume["z"] <= box["max"]["z"]
+        gate_z = layout.SUMMIT_GATE_Z
+        assert box["min"]["z"] > gate_z  # on the Forge side of the gate
+        forge = next(z for z in layout.ZONES if z[0] == "ancient-forge")
+        assert forge[3] - 1.0 <= box["min"]["z"] and box["max"]["z"] <= forge[2]  # zone edges, as zone_of
+
+    def test_it_pushes_back_into_the_forge_gently_and_stops_once_restored(self):
+        (force,) = BRIDGE_CONFIG["environment.volumes"]["forces"]
+        assert force["direction"] == {"x": 0.0, "y": 0.0, "z": 1.0}
+        assert 0 < force["strength"] <= 2.0  # walking still wins
+        assert force["inactiveWhenSignalId"] == "world:FIREPEAK_HEART_FORGE_RESTORED"
+        steam_hidden = {p["hiddenWhenChangeKey"] for p in SCENE["effects"]["steam"]}
+        assert steam_hidden == {"FIREPEAK_HEART_FORGE_RESTORED"}  # the push ends with the plumes
+        assert force["neverPushIntoHazard"] is True
+        assert BRIDGE_CONFIG["environment.volumes"]["hazardRects"] == [layout.LAVA]

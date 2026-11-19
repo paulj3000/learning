@@ -7552,13 +7552,54 @@
       "telegraphed": []
      },
      "id": "gameplay.hazards"
+    },
+    {
+     "config": {
+      "forces": [
+       {
+        "box": {
+         "max": {
+          "x": 4.0,
+          "y": 3.0,
+          "z": -45.0
+         },
+         "min": {
+          "x": -4.0,
+          "y": -1.0,
+          "z": -48.2
+         }
+        },
+        "direction": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 1.0
+        },
+        "id": "fh-forge-steam-push",
+        "inactiveWhenSignalId": "world:FIREPEAK_HEART_FORGE_RESTORED",
+        "kind": "WIND",
+        "neverPushIntoHazard": true,
+        "rampInSeconds": 0.5,
+        "strength": 1.5
+       }
+      ],
+      "hazardRects": [
+       {
+        "maxX": 32.0,
+        "maxZ": 30.0,
+        "minX": -32.0,
+        "minZ": 14.0
+       }
+      ],
+      "surfaces": []
+     },
+     "id": "environment.volumes"
     }
    ]
   },
   "environment": {
    "backgroundColor": 3877427
   },
-  "firepeakHeartVersion": 3,
+  "firepeakHeartVersion": 4,
   "groundAssetId": "ground-tile-stone",
   "platforming": {
    "platforms": [

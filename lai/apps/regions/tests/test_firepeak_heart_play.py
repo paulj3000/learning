@@ -238,7 +238,7 @@ def test_a_v2_save_mid_adventure_upgrades_to_one_checkpoint_list_and_keeps_every
     with override_settings(DEBUG=True):
         call_command("seed_firepeak_heart", stdout=None)
     region.refresh_from_db()
-    assert region.scene["firepeakHeartVersion"] == seed.HEART_VERSION == 3
+    assert region.scene["firepeakHeartVersion"] == seed.HEART_VERSION >= 3
     assert region.scene["engineBridge"] == seed.layout.scene()["engineBridge"]
     assert region.scene["copy"]["loading"] == "My own words."
 
