@@ -59,6 +59,31 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
   decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
   order, scoring economy against the scoring standard.
 
+## TR-21: Treasure Rush Game Engine Core migration preparation (2026-11-18, `feature/treasure-rush-palm-trees`); in development, NOT merged
+
+Trello TR-21 (https://trello.com/c/u1lAWeAg). The migration itself is GE-070, which waits for the
+engine lead's migration-ready SHA on `core/gameengine`.
+
+- **Audit and handoffs:** `docs/engine/TREASURE_RUSH_ENGINE_HANDOFF.md` (reusable runtime
+  locations, movement, camera, animation and collision requirements, engine versus Treasure Rush
+  content, known defects and regression tests, lifecycle, behaviour baseline, Trello
+  reconciliation) and `docs/engine/TREASURE_RUSH_SCORING_INVENTORY.md` (every reward-bearing
+  event, the progress model to preserve, and the mapping agreed with the GE-100 scoring lead).
+  Treasure Rush builds no ledger, XP or coins of its own.
+- **Fix: Pirate's Leap riddle bridge stayed hidden until the child re-entered.**
+  `RegionPlayCompanion` received `refreshWorld` but never called it, and the view raises
+  `world:<key>` platform signals only from its world snapshot. The companion now re-reads the
+  world once when the server reports new world changes during a visit. Regression tests in
+  `RegionPlayCompanion.test.tsx` (the mid-visit test fails without the fix).
+- **Authorization tests:** the play-API route matrix in `test_play_api.py` now covers the pickup,
+  talk and puzzle routes (401 anonymous, 404 another family), plus another family using a child's
+  real session id on those routes (404, nothing written).
+- **Recorded, not resolved:** GE-100's XP, coins, levels and stars conflict with ADR-011,
+  ADR-013, TR-D1 and the mandatory scoring standard (owner decision; the scoring lead drafts an
+  ADR, economy off by default). The legacy `treasure-rush-cove` quest is still `active=True`
+  (content decision). Clue and hint selection with two Pip quests needs a product decision.
+- **Not done:** browser, device, gamepad or Playwright checks (policy); owner QA.
+
 ## The Heart of Firepeak (FPV-01 to FPV-24, 2026-11-18, `feature/firepeak-volcano-adventure`); development complete, unit-tested only, owner QA pending, NOT merged
 
 Contract and decisions: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`, ADR-073 (Proposed). Based on
@@ -114,9 +139,8 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
 - Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
 - Question Studio bank for area puzzles: extension point only.
-- Falling rocks and timed steam pushes: not built (no telegraphed moving-hazard runtime).
+- Falling rocks and timed steam pushes: engine components exist (GE-065 bridge); adoption in GE-073.
 - Managed NPCs do not speak per-puzzle stage lines in their own panel (the puzzle panel shows them).
-- Pathfinder switch and story puzzles leave one or two inert, unlabelled answer objects.
 - The Heart decision was ADR-070, which collided with the GLB optimization policy on
   `feature/lambda-derived-artifacts`. The owner decided (2026-11-19) that Firepeak renumbers: it is ADR-073.
   The branch's ADR-055 to 060 against main's ADR-055 to 064 follow the core/gameengine reservation table.

@@ -1,4 +1,5 @@
 import type { AnimationClip, AnimationMixer, Box3, Camera, Object3D, Scene } from 'three';
+import type { EnvironmentQuery } from '@lai/game-engine/contracts';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import type { WorldInteractionContext } from '../../worldObjects';
 import type { JsonValue, ThreeLocationManifest } from './locationManifest';
@@ -49,18 +50,41 @@ export interface WorldExtensionContext {
    * Adds a collider the player cannot walk through. `jumpable`: a low obstacle the child may hop
    * onto or over (it blocks only at its own height, ADR-055); default solid at every height.
    */
-  addCollider(box: Box3, options?: { jumpable?: boolean }): void;
   /**
-   * Removes a manifest collider by its `rect.id` (a bridge once it is mended). True if one was
-   * removed. `derived:<scenery id>` removes every derived box of that scenery item (its stand-in
-   * was replaced by a model the extension draws with its own colliders), now and for good.
+   * GE-070: returns the collider's id, the requested `id` or one the runtime generates
+   * (`extension:<extension>:<n>`), so `removeCollider` can take it out again. `derived:` ids are
+   * refused and replaced. Re-adding an id replaces its box. The box is kept by reference, so
+   * moving it in place is live. `gate`: never jumpable, and blocks the camera like a wall.
+   * Fakes in tests may return nothing.
+   */
+  addCollider(box: Box3, options?: { jumpable?: boolean; id?: string; gate?: boolean }): string | void;
+  /**
+   * Removes a collider by id from every collider list: a manifest collider by its `rect.id` (a
+   * bridge once it is mended), or one an extension added. True if one was removed.
+   * `derived:<scenery id>` removes every derived box of that scenery item (its stand-in was
+   * replaced by a model the extension draws with its own colliders), now and for good.
    */
   removeCollider(id: string): boolean;
   /**
    * Whether a point on the ground (x, z) is inside a live collider, for things that move by
-   * themselves and must keep out of walls (NPC Manager behaviours, LAI-NPC-010).
+   * themselves and must keep out of walls (NPC Manager behaviours, LAI-NPC-010). A point test by
+   * design (GE-D4): the child's footprint would change how NPCs wander.
    */
   isBlocked(x: number, z: number): boolean;
+  /**
+   * GE-070 (engine bridge host contract): the movement controller's state after collision.
+   * `velocity` is (horizontal x, vertical, horizontal z) actually achieved; `yaw` 0 faces +Z;
+   * `supportId` is the id of the authored or extension collider, or the platform, underfoot.
+   */
+  playerState?(): {
+    position: { x: number; y: number; z: number };
+    yaw: number;
+    velocity: { x: number; y: number; z: number };
+    grounded: boolean;
+    supportId: string | null;
+  };
+  /** GE-070: hands surfaces, forces, water and ladders to the live movement controller. */
+  setEnvironment?(query: EnvironmentQuery | null): void;
   /** The root object of a scenery item by its manifest id, or `undefined` if its requirements left it out. */
   sceneryRoot(id: string): Object3D | undefined;
   /**
@@ -110,6 +134,7 @@ export interface WorldExtensionContext {
   /**
    * Returns the player to an authored safe point at once (Firepeak FP-D10: falling into lava
    * returns the child to the last safe checkpoint). Changes no progress and emits nothing.
+   * GE-D4: collision-checked. A blocked spot falls back to the nearest clear spot close by.
    */
   teleportPlayer(x: number, z: number, yaw: number): void;
   /** Runs `callback` once per frame with the frame's delta in seconds. Returns an unsubscribe. */

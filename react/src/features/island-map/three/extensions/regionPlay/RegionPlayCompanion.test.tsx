@@ -1247,6 +1247,49 @@ describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
     expect(scene.reactNpc).toHaveBeenCalledWith('cove-pip', 'cheer');
   });
 
+  it('re-reads the shared world once when the server records a change mid-visit (riddle bridge)', async () => {
+    // The view raises `world:<key>` platform signals from its world snapshot, so a bridge a
+    // solved challenge raises (Pirate's Leap) needs that snapshot re-read during the visit.
+    const refreshWorld = vi.fn(async () => undefined);
+    let done = false;
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(done)),
+      talkToNpc: vi.fn(async () => {
+        done = true;
+        return {
+          flagsSet: ['cove-treasure-returned'],
+          questUpdates: [
+            {
+              questId: 'pips-missing-treasure',
+              status: 'COMPLETED' as const,
+              currentStageId: 'return-to-pip',
+              justCompleted: true,
+              newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+            },
+          ],
+          completionRewards: [],
+        };
+      }),
+    });
+    render(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(PIP), sceneApi: fakeScene(), refreshWorld })}
+      />,
+    );
+    await waitFor(() => expect(refreshWorld).toHaveBeenCalledTimes(1));
+    await act(async () => undefined);
+    expect(refreshWorld).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-read the world for changes the child already had on arrival', async () => {
+    const refreshWorld = vi.fn(async () => undefined);
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(true)) });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: fakeScene(), refreshWorld })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(refreshWorld).not.toHaveBeenCalled();
+  });
+
   it('leaves the way shut for a child who has not earned it', async () => {
     const scene = fakeScene();
     const api = fakeApi({ getRegion: vi.fn(async () => lookout(false)) });

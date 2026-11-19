@@ -187,7 +187,8 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
         // The avatar mirrors the canonical transform; it never moves on its own.
         const entity = runtime.world.bySemanticId(PLAYER_ENTITY_ID);
         const transform = entity === undefined ? undefined : runtime.world.get(entity, PlayerTransformComponent);
-        avatar.visible = transform !== undefined;
+        // The stand-in box only when the engine avatar (character.avatar) is off.
+        avatar.visible = transform !== undefined && !runtime.installed.has('character.avatar');
         if (transform) {
           const p = interpolatePlayerPosition(transform, alpha);
           avatar.position.set(p.x, p.y + 0.6, p.z);
@@ -315,6 +316,20 @@ export const PLAYGROUND_CAPABILITIES: readonly PlaygroundCapabilityOption[] = Ob
     description: 'Keeps the camera out of walls.',
     defaultEnabled: true,
     toRequest: () => ({ id: 'camera.collision' }),
+  },
+  {
+    id: 'character.avatar',
+    label: 'Avatar',
+    description: 'The child avatar (placeholder capsule here), placed only from the canonical transform.',
+    defaultEnabled: true,
+    toRequest: () => ({ id: 'character.avatar' }),
+  },
+  {
+    id: 'character.animation',
+    label: 'Avatar animation',
+    description: 'Clips from movement state and achieved speed (needs a loaded model; the placeholder has none).',
+    defaultEnabled: true,
+    toRequest: () => ({ id: 'character.animation' }),
   },
   {
     id: 'gameplay.checkpoints',
