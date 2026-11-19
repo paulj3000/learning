@@ -21,7 +21,7 @@
 
 import type { GameplayEventPayloads, GameplayEventType } from '@lai/game-engine/contracts';
 import type { PlayOutcome } from '../npc-manager/dialogue/triggers';
-import type { QuestUpdate } from '../../api/play/types';
+import type { PuzzleOutcome, QuestUpdate } from '../../api/play/types';
 
 export type RegionPlayClaim = {
   [T in GameplayEventType]: { type: T; payload: GameplayEventPayloads[T] };
@@ -89,4 +89,35 @@ export function claimsForOutcome(outcome: PlayOutcome, lookup: RegionPlayClaimLo
     default:
       return [];
   }
+}
+
+/**
+ * GE-073: a 3D Area puzzle solve (Firepeak, North Pole), restated as claims after the server
+ * graded it. Every graded submission with an attempt is `learning.answer.submitted` with an
+ * `AREA_PUZZLE` reference (wrong answers too; `choiceId` is the authored option id of a
+ * CHOOSE_ANSWER, null otherwise). Only the submission that solved it, never practice, is
+ * `puzzle.completed`. Quest progress follows as for every other outcome.
+ */
+export function claimsForPuzzleOutcome(
+  puzzleId: string,
+  outcome: PuzzleOutcome,
+  submission: { readonly [key: string]: unknown },
+): RegionPlayClaim[] {
+  const choice = typeof submission.choice === 'string' ? submission.choice : null;
+  const answer: RegionPlayClaim[] = outcome.attemptId
+    ? [
+        {
+          type: 'learning.answer.submitted',
+          payload: {
+            learningRef: { kind: 'AREA_PUZZLE', puzzleId, challengeAttemptId: outcome.attemptId },
+            choiceId: choice,
+          },
+        },
+      ]
+    : [];
+  const completed: RegionPlayClaim[] =
+    outcome.correct && outcome.solvedNow && !outcome.practice && !outcome.alreadySolved
+      ? [{ type: 'puzzle.completed', payload: { puzzleId } }]
+      : [];
+  return [...answer, ...completed, ...questClaims(outcome.questUpdates)];
 }

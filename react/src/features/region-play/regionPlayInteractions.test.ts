@@ -7,7 +7,9 @@ import {
   chestStateChanges,
   claimsRegionPlayInteraction,
   resolveRegionPlayInteraction,
+  usesLegacyNpcDialogue,
 } from './regionPlayInteractions';
+import type { LaunchPoint, PuzzleState } from '../../api/play/types';
 import { toRegionSceneModel } from './sceneModel';
 
 function setup(overrides: Record<string, unknown> = {}, chest: Record<string, unknown> = {}) {
@@ -88,5 +90,45 @@ describe('chestStateChanges', () => {
       { entityId: 'cove-chest', isOpen: true },
     ]);
     expect(chestStateChanges(new Map([['cove-chest', true]]), chests)).toEqual([]);
+  });
+});
+
+describe('usesLegacyNpcDialogue (a managed NPC with a return puzzle)', () => {
+  const base = {
+    kind: 'npc' as const,
+    entityId: 'fh-ignis',
+    npcId: 'ignis',
+    label: 'Ignis',
+    quests: [],
+    launches: [],
+    dialogue: [],
+  };
+  const puzzle = (over: Partial<PuzzleState>) =>
+    ({ puzzleId: 'fh-heart-return', kind: 'RETURN_TO_NPC', locked: false, solved: false, ...over }) as PuzzleState;
+  const managed = new Set(['ignis']);
+
+  it('keeps an unmanaged NPC on the legacy panel, as before', () => {
+    expect(usesLegacyNpcDialogue({ ...base, returnPuzzle: null }, new Set())).toBe(true);
+  });
+  it('leaves a managed NPC with no return puzzle to the NPC Manager (Pip, Flint)', () => {
+    expect(usesLegacyNpcDialogue({ ...base, returnPuzzle: null }, managed)).toBe(false);
+  });
+  it('falls back to the legacy panel while the return puzzle is open', () => {
+    expect(usesLegacyNpcDialogue({ ...base, returnPuzzle: puzzle({}) }, managed)).toBe(true);
+  });
+  it('falls back to the legacy panel while the server offers launch points on the NPC', () => {
+    const launch: LaunchPoint = {
+      launchId: 'fh-launch',
+      entityId: 'fh-ignis',
+      objectKind: 'NPC',
+      label: 'Ignis',
+      prompt: 'Shall we go?',
+      adventure: { adventureId: 'a-1', title: 'A new adventure', placeSlug: 'firepeak-heart' },
+    };
+    expect(usesLegacyNpcDialogue({ ...base, launches: [launch], returnPuzzle: null }, managed)).toBe(true);
+  });
+  it('hands back to the NPC Manager while the puzzle is locked or once it is solved', () => {
+    expect(usesLegacyNpcDialogue({ ...base, returnPuzzle: puzzle({ locked: true }) }, managed)).toBe(false);
+    expect(usesLegacyNpcDialogue({ ...base, returnPuzzle: puzzle({ solved: true }) }, managed)).toBe(false);
   });
 });

@@ -165,6 +165,11 @@ export interface PlatformingSpec {
    * upgrade never drops them); merged into `manifest.zones` when a Django scene is built.
    */
   zones?: readonly ZoneSpec[];
+  /**
+   * Child-facing words said first when a hazard puts the child back, read aloud ("Whoa, the lava
+   * is too hot!"). Absent: "Splash!" (water). The checkpoint part of the line stays the engine's.
+   */
+  recoveryLead?: string;
 }
 
 // --- limits (forgiving by design, ages 3 to 8) -------------------------------------------------
@@ -186,6 +191,7 @@ export const PLATFORM_LIMITS = {
   maxSpin: 45,
   maxDelay: 30,
   maxPlatforms: 64,
+  maxRecoveryLead: 80,
 } as const;
 
 export interface PlatformIssue {
@@ -225,6 +231,14 @@ export function validatePlatforming(
   const report = (path: string, message: string) => issues.push({ path, message });
   if (typeof spec !== 'object' || spec === null || !Array.isArray(spec.platforms)) {
     return [{ path: 'platforming', message: 'must be an object with a platforms list' }];
+  }
+  if (
+    spec.recoveryLead !== undefined &&
+    (typeof spec.recoveryLead !== 'string' ||
+      spec.recoveryLead.trim() === '' ||
+      spec.recoveryLead.length > PLATFORM_LIMITS.maxRecoveryLead)
+  ) {
+    report('platforming.recoveryLead', `must be words, at most ${PLATFORM_LIMITS.maxRecoveryLead} characters`);
   }
   if (spec.platforms.length > PLATFORM_LIMITS.maxPlatforms) {
     report('platforming.platforms', `at most ${PLATFORM_LIMITS.maxPlatforms} platforms`);

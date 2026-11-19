@@ -587,6 +587,10 @@ function readCopy(value: JsonValue | undefined): LocationCopy {
   };
 }
 
+function finiteOrUndefined(value: JsonValue | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 /** Seed-authored colliders (`scene.colliders`); an extension may remove one by id. */
 function readColliders(value: JsonValue | undefined): ColliderSpec[] {
   if (!Array.isArray(value)) return [];
@@ -596,6 +600,11 @@ function readColliders(value: JsonValue | undefined): ColliderSpec[] {
     if (![minX, maxX, minZ, maxZ].every((n) => typeof n === 'number' && Number.isFinite(n))) {
       return [];
     }
+    // Optional heights and the jump flag (LAI-JMP-01). A non-finite height is dropped, so a
+    // malformed value falls back to today's full-height wall; `jumpable` needs both heights
+    // (the validator insists), and Django colliders carry no `requirements`, so they are never gates.
+    const minY = finiteOrUndefined(raw.minY);
+    const maxY = finiteOrUndefined(raw.maxY);
     return [
       {
         rect: {
@@ -605,6 +614,11 @@ function readColliders(value: JsonValue | undefined): ColliderSpec[] {
           minZ: minZ as number,
           maxZ: maxZ as number,
         },
+        ...(minY !== undefined ? { minY } : {}),
+        ...(maxY !== undefined ? { maxY } : {}),
+        ...(raw.jumpable === true && minY !== undefined && maxY !== undefined
+          ? { jumpable: true }
+          : {}),
       },
     ];
   });

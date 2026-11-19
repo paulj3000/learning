@@ -583,6 +583,12 @@ def island_entry(entry) -> dict:
                 "thumbnailAssetId": place.art_asset_id,
                 "adventureCount": place.adventure_count,
                 "explored": place.explored,
+                # Quest-based Places: the quests its published 3D Area offers this child's band
+                # and this child's own progress. `completed` means all of them are completed.
+                "questCount": place.quest_count,
+                "questsCompleted": place.quests_completed,
+                "questsInProgress": place.quests_in_progress,
+                "completed": place.completed,
                 # null: no published 3D Area yet; the Place's adventures are still available.
                 "area": region_entry(place.area) if place.area else None,
             }
@@ -603,6 +609,7 @@ class PuzzleOutcomeSerializer(serializers.Serializer):
             "feedback": "CORRECT" if outcome.correct else "TRY_AGAIN",
             "solvedNow": outcome.solved_now,
             "alreadySolved": outcome.already_solved,
+            "practice": outcome.practice,
             "failedAttempts": outcome.failed_attempts,
             "newItems": [
                 item for item in self.context.get("items", []) if item["itemId"] in new_items

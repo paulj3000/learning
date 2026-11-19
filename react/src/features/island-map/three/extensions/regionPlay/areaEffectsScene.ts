@@ -87,7 +87,10 @@ export function inRect(rect: Rect, x: number, z: number): boolean {
   return x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ;
 }
 
-/** Whether standing at (x, z) is in lava that is not made safe by a key the child has. */
+/**
+ * Whether standing at (x, z) is in lava that is not made safe by a key the child has. A
+ * `visualOnly` band is drawn but never dangerous.
+ */
 export function isInDangerousLava(
   lava: readonly LavaConfig[],
   keys: ReadonlySet<string>,
@@ -96,6 +99,7 @@ export function isInDangerousLava(
 ): boolean {
   return lava.some(
     (band) =>
+      !band.visualOnly &&
       inRect(band, x, z) &&
       !band.safe.some((part) => keys.has(part.whenChangeKey) && inRect(part, x, z)),
   );
@@ -129,7 +133,8 @@ export function mountAreaEffects(
   owned: Owned,
   isDisposed: () => boolean,
 ): { api: AreaEffectsApi; dispose(): void } {
-  const reducedMotion = prefersReducedMotion();
+  // The engine's setting first; the media query still counts when the host did not pass one.
+  const reducedMotion = context.reducedMotion || prefersReducedMotion();
   let keys = new Set(initialKeys);
   const listeners = new Set<Partial<AreaEffectsEvents>>();
   const group = new Group();

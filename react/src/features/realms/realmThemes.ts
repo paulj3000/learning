@@ -77,6 +77,7 @@ const SCENE_BY_SLUG: Record<string, RealmScene> = {
   'storykeeper-castle': 'castle',
   'castle-writing-room': 'castle',
   'firepeak-volcano': 'volcano',
+  'firepeak-heart': 'volcano',
   'wonderwild-forest': 'forest',
   'dragons-sanctuary': 'volcano',
   'fossil-ridge-camp': 'forest',

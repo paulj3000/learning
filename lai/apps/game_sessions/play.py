@@ -53,6 +53,7 @@ from apps.regions import puzzles
 from apps.regions.models import (
     AreaPuzzle,
     ChestPresentation,
+    PuzzleKind,
     TreasureChest,
     WorldObjectPlacement,
     WorldRegion,
@@ -676,9 +677,14 @@ class PuzzleOutcome:
     solved_now: bool = False
     """True only on the submission that solved it; a repeat of a solved puzzle is not."""
     already_solved: bool = False
+    practice: bool = False
+    """FPV-D6: a graded replay of a solved choose/order puzzle; nothing was recorded."""
     failed_attempts: int = 0
     reward: RewardGrant | None = None
     quest_updates: tuple[QuestUpdate, ...] = ()
+
+
+PRACTICE_KINDS = frozenset({PuzzleKind.CHOOSE_ANSWER, PuzzleKind.ORDER_SEQUENCE})
 
 
 def solve_puzzle(child, session_id, puzzle_id: str, submission: object) -> PuzzleOutcome:
@@ -709,6 +715,15 @@ def solve_puzzle(child, session_id, puzzle_id: str, submission: object) -> Puzzl
         if params is None:
             raise ContentUnavailable
         if puzzle_is_solved(child, puzzle, body):
+            if puzzle.kind in PRACTICE_KINDS:
+                # FPV-D6: grade for feedback only; no attempt, world change or grant.
+                try:
+                    correct = puzzles.grade(puzzle.kind, params, submission)
+                except puzzles.InvalidSubmission:
+                    raise InvalidSubmission from None
+                return PuzzleOutcome(
+                    attempt=None, correct=correct, already_solved=True, practice=True
+                )
             return PuzzleOutcome(attempt=None, correct=True, already_solved=True)
         if puzzle_is_locked(child, puzzle, body):
             raise PuzzleLocked

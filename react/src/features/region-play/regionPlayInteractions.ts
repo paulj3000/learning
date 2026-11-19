@@ -167,6 +167,23 @@ export function resolveRegionPlayInteraction(
   };
 }
 
+/**
+ * Whether talking to this NPC runs the legacy `PipDialog` even though the NPC Manager serves it.
+ * The managed panel has no "return to the NPC" action and no Adventure launch buttons, so the
+ * legacy panel answers while a RETURN_TO_NPC puzzle bound to the NPC is open (unlocked, not yet
+ * solved) or while the server offers launch points on this NPC: it carries those actions, the
+ * stage line and the quest offer. Everything else about a managed NPC is the Manager's.
+ */
+export function usesLegacyNpcDialogue(
+  event: Extract<RegionPlayInteractionEvent, { kind: 'npc' }>,
+  managedNpcIds: ReadonlySet<string>,
+): boolean {
+  if (!managedNpcIds.has(event.npcId)) return true;
+  if (event.launches.length > 0) return true;
+  const puzzle = event.returnPuzzle;
+  return Boolean(puzzle && !puzzle.locked && !puzzle.solved);
+}
+
 /** The launch points on one entity, in the server's order. */
 export function launchesFor(bootstrap: RegionBootstrap, entityId: string): LaunchPoint[] {
   return bootstrap.launchPoints.filter((point) => point.entityId === entityId);

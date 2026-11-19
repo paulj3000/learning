@@ -25,6 +25,13 @@ import {
   FIREPEAK_REWARD_RULES,
 } from './firepeakContent';
 import {
+  HEART_ITEMS,
+  HEART_LOCATIONS,
+  HEART_NPCS,
+  HEART_QUESTS,
+  HEART_REWARD_RULES,
+} from './firepeakHeartContent';
+import {
   TREASURE_RUSH_ITEMS,
   TREASURE_RUSH_QUESTS,
   TREASURE_RUSH_REWARD_RULES,
@@ -79,16 +86,26 @@ describe('preservation of the existing content', () => {
     const pkg = await buildContentPackage();
     expect(pkg.adventures).toEqual(clone(ADVENTURE_TEMPLATES));
     expect(pkg.quests).toEqual(
-      clone([...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS, ...FIREPEAK_QUESTS]),
+      clone([
+        ...QUEST_DEFINITIONS,
+        ...TREASURE_RUSH_QUESTS,
+        ...FIREPEAK_QUESTS,
+        ...HEART_QUESTS,
+      ]),
     );
-    expect(pkg.items).toEqual(clone([...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS]));
+    expect(pkg.items).toEqual(clone([...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS, ...HEART_ITEMS]));
     expect(pkg.rewardRules).toEqual(
-      clone([...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES, ...FIREPEAK_REWARD_RULES]),
+      clone([
+        ...ALL_REWARD_RULES,
+        ...TREASURE_RUSH_REWARD_RULES,
+        ...FIREPEAK_REWARD_RULES,
+        ...HEART_REWARD_RULES,
+      ]),
     );
-    expect(pkg.npcs).toEqual(clone([...ALL_NPCS, ...FIREPEAK_NPCS]));
+    expect(pkg.npcs).toEqual(clone([...ALL_NPCS, ...FIREPEAK_NPCS, ...HEART_NPCS]));
     expect(pkg.discoveries).toEqual(clone(DISCOVERY_DEFINITIONS));
     expect(pkg.checkpoints).toEqual(clone(ALL_CHECKPOINTS));
-    expect(pkg.locations).toEqual(clone([...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS]));
+    expect(pkg.locations).toEqual(clone([...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS, ...HEART_LOCATIONS]));
     expect(pkg.stories).toEqual(clone(STORY_DEFINITIONS));
     expect(pkg.skills).toEqual(clone(SKILLS));
     expect(pkg.assets).toEqual(clone(ASSET_MANIFEST));
@@ -119,16 +136,16 @@ describe('preservation of the existing content', () => {
       Object.fromEntries(Object.keys(pkg).map((k) => [k, pkg[k as keyof ContentPackage].length])),
     ).toEqual({
       islands: 2,
-      locations: 11,
+      locations: 12, // + Heart of Firepeak
       adventures: 24,
       learningObjectives: 19,
       wonderWallQuestions: 4,
       stories: 5,
-      quests: 13, // 9 + the three Great Storybook quests (SC-R04) + Pirate's Leap (LAI-JMP-03)
-      items: 37, // + the Great Storybook seal + Pirate's Leap's four keepsakes
-      collectibleSets: 2,
-      rewardRules: 30, // + one seal rule per band's Great Storybook quest + Pirate's Leap's four
-      npcs: 7,
+      quests: 14, // 9 + the three Great Storybook quests (SC-R04) + Pirate's Leap (LAI-JMP-03)
+      items: 61, // + the Great Storybook seal + Pirate's Leap's four keepsakes
+      collectibleSets: 4,
+      rewardRules: 44, // + one seal rule per band's Great Storybook quest + Pirate's Leap's four
+      npcs: 12,
       discoveries: 6,
       checkpoints: 30,
       interactions: 8,
@@ -247,7 +264,12 @@ describe('integrity checks on the real content', () => {
     expect(byKind('region-without-location-record')).toEqual(['welcome-harbor']);
     expect(byKind('adventure-passage-region')).toEqual(['wonderwild-hive']);
     expect(byKind('npc-interaction-without-record')).toEqual([
+      'cinder',
+      'flint',
       'harbor-master',
+      'ignis',
+      'kindle',
+      'professor-basalt',
       'professor-ember',
       'professor-ticktock',
     ]);

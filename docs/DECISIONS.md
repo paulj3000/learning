@@ -93,9 +93,10 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-067 | Native audio transcoding with LGPL FFmpeg (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-008b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-068 | Separate Pillow image function and image privacy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013a) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-069 | Staff browser GLB thumbnail capture (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-070 | COLLISION: Heart of Firepeak Place and Area, and GLB optimization policy (two open branches, not merged) | Reserved | `feature/firepeak-volcano-adventure` and `feature/lambda-derived-artifacts` | Reserved 2026-11-18 by the engineering-governance audit, which found two different decisions numbered ADR-070 on two branches. Owner decision needed: one keeps 070 and the other takes the next free number before either merges (governance rule 5). Not merged here |
+| ADR-070 | GLB optimization policy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` | Reserved 2026-11-18 by the engineering-governance audit as a collision with the Heart of Firepeak decision; owner decision 2026-11-19: the GLB policy keeps 070 and the Heart of Firepeak decision is ADR-073. Not merged here |
 | ADR-071 | Compatibility-gated processing release and production processing infrastructure (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-012, 014) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-072 | Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated | Accepted | `feature/engineering-standards` | Accepted 2026-11-18 |
+| ADR-073 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Proposed | `feature/firepeak-volcano-adventure` (FPV-02) | Renumbered from ADR-070 by owner decision 2026-11-19 (collision with the GLB optimization policy). Development only; owner QA pending. Needs reserving in the `main` registry (governance rule) |
 | ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Numbers 073 to 079 are not used by that branch. Not merged here |
 | ADR-081 | Seasonal events are Django content in their own app (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 
@@ -4630,4 +4631,42 @@ wings and held items are deliberately not counted, so the footprint is stable ac
 Bay's broken bridge stops them 0.37 m earlier. Storykeeper Castle's costume racks moved back 0.7 m
 so the Trophy Room door's landing point stays clear. A development-only collision view
 (`?collisionDebug=1`) shows the footprint, both positions and nearby colliders.
+
+## ADR-073: The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds
+
+Status: Proposed (2026-11-18). Development only; owner review and browser QA pending.
+Numbering: first written as ADR-070, which collided with the GLB optimization policy on
+`feature/lambda-derived-artifacts`; renumbered to ADR-073 by owner decision (2026-11-19).
+Builds on ADR-033 (one Django backbone), ADR-041 (Island, Place, 3D Area), ADR-047 (Django
+content authoring), ADR-050 (Sound Manager), ADR-054 (NPC Manager), ADR-063 (jumping; ADR-055 on
+the movement branches) and ADR-056 to ADR-060 (camera, avatars, running, platforms, footprint). Full contract: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`.
+
+**Context.** The owner asked for a seven-zone Firepeak adventure with walking, jumping, hazards,
+NPCs and varied learning encounters. Firepeak already has an owner-playtested Place
+(`firepeak-volcano`, "The Volcano Awakens"). A Place holds at most one 3D Area
+(`regions_one_area_per_place`), and the five existing puzzle kinds are single-instance on the
+client (one puzzle per kind per Area).
+
+**Decision.**
+
+1. **New Place, one Area.** `firepeak-heart` ("Heart of Firepeak") on the home Island with one 3D
+   Area of seven zones joined by gates that open on world changes. The existing Place, quest and
+   saves are untouched. The adventure is the quest `the-heart-of-firepeak`, not gated on
+   The Volcano Awakens. No new model: Realm = Island, Adventure = quest, Zone = a section of the Area.
+2. **Two generic puzzle kinds**, `CHOOSE_ANSWER` and `ORDER_SEQUENCE`, multi-instance on the client,
+   with per-band authored variants, symbols beside every option (never colour alone), and practice
+   grading once solved (nothing recorded). They serve numbered platforms, rock samples, shapes,
+   paths, switch sequences, crystal arrangement and story sequencing without a mechanic per puzzle.
+3. **Safe movement.** Lava is drawn by `effects.lava` with `visualOnly` and respawns through the
+   height-aware `platforming.hazards`, so jumping over it works. Checkpoints sit at ground level.
+   Every required route is walkable without a jump; optional jump routes lead only to optional
+   rewards. No lives, timers or loss.
+4. **Achievements are keepsake items** granted by reward rules (ADR-033: no achievement model).
+5. **Names.** The fire-spirit companion is Kindle, because Professor Ember already exists.
+
+**Consequences.** Two Firepeak Places appear in the Realm Explorer. A migration adds two values to
+the puzzle-kind constraint. The client must ship before the server serves the new kinds (an
+unknown kind fails the bootstrap parse). Falling rocks and timed steam pushes are not built; they
+need a telegraphed moving-hazard runtime. Great Storybook and Trophy Room registration waits for
+the Storykeeper branch.
 

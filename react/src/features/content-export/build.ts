@@ -35,6 +35,15 @@ import {
   FIREPEAK_REWARD_RULES,
 } from './firepeakContent';
 import {
+  HEART_COLLECTIBLE_SETS,
+  HEART_ITEMS,
+  HEART_LOCATIONS,
+  HEART_NPCS,
+  HEART_PACK_ADDITIONS,
+  HEART_QUESTS,
+  HEART_REWARD_RULES,
+} from './firepeakHeartContent';
+import {
   TREASURE_RUSH_ITEMS,
   TREASURE_RUSH_QUESTS,
   TREASURE_RUSH_REWARD_RULES,
@@ -78,11 +87,19 @@ function withExportOnly(worldSlug: string, pack: PackBody): PackBody {
   if (worldSlug !== FIREPEAK_PACK_ADDITIONS.worldSlug) return pack;
   return {
     ...pack,
-    locationSlugs: [...pack.locationSlugs, ...FIREPEAK_PACK_ADDITIONS.locationSlugs],
-    questIds: [...pack.questIds, ...FIREPEAK_PACK_ADDITIONS.questIds],
-    npcIds: [...pack.npcIds, ...FIREPEAK_PACK_ADDITIONS.npcIds],
-    itemIds: [...pack.itemIds, ...FIREPEAK_PACK_ADDITIONS.itemIds],
-    collectibleSetIds: [...pack.collectibleSetIds, ...FIREPEAK_PACK_ADDITIONS.collectibleSetIds],
+    locationSlugs: [
+      ...pack.locationSlugs,
+      ...FIREPEAK_PACK_ADDITIONS.locationSlugs,
+      ...HEART_PACK_ADDITIONS.locationSlugs,
+    ],
+    questIds: [...pack.questIds, ...FIREPEAK_PACK_ADDITIONS.questIds, ...HEART_PACK_ADDITIONS.questIds],
+    npcIds: [...pack.npcIds, ...FIREPEAK_PACK_ADDITIONS.npcIds, ...HEART_PACK_ADDITIONS.npcIds],
+    itemIds: [...pack.itemIds, ...FIREPEAK_PACK_ADDITIONS.itemIds, ...HEART_PACK_ADDITIONS.itemIds],
+    collectibleSetIds: [
+      ...pack.collectibleSetIds,
+      ...FIREPEAK_PACK_ADDITIONS.collectibleSetIds,
+      ...HEART_PACK_ADDITIONS.collectibleSetIds,
+    ],
   };
 }
 
@@ -103,16 +120,16 @@ export async function buildContentPackage(): Promise<ContentPackage> {
 
   const pkg: ContentPackage = {
     islands,
-    locations: [...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS],
+    locations: [...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS, ...HEART_LOCATIONS],
     adventures: [...ADVENTURE_TEMPLATES],
     learningObjectives: [...LEARNING_OBJECTIVES],
     wonderWallQuestions: [...WONDER_WALL_QUESTIONS],
     stories: [...STORY_DEFINITIONS],
-    quests: [...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS, ...FIREPEAK_QUESTS],
-    items: [...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS],
-    collectibleSets: [...ALL_COLLECTIBLE_SETS, ...FIREPEAK_COLLECTIBLE_SETS],
-    rewardRules: [...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES, ...FIREPEAK_REWARD_RULES],
-    npcs: [...ALL_NPCS, ...FIREPEAK_NPCS],
+    quests: [...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS, ...FIREPEAK_QUESTS, ...HEART_QUESTS],
+    items: [...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS, ...HEART_ITEMS],
+    collectibleSets: [...ALL_COLLECTIBLE_SETS, ...FIREPEAK_COLLECTIBLE_SETS, ...HEART_COLLECTIBLE_SETS],
+    rewardRules: [...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES, ...FIREPEAK_REWARD_RULES, ...HEART_REWARD_RULES],
+    npcs: [...ALL_NPCS, ...FIREPEAK_NPCS, ...HEART_NPCS],
     discoveries: [...DISCOVERY_DEFINITIONS],
     checkpoints: [...ALL_CHECKPOINTS],
     interactions,

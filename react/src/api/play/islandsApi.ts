@@ -39,6 +39,12 @@ export interface PlaceSummary {
   adventureCount: number;
   /** AP-03: the child has started an adventure here or entered its 3D Area. */
   explored: boolean;
+  /** Quest-based Places: quests its published 3D Area offers this child; 0 when absent. */
+  questCount: number;
+  questsCompleted: number;
+  questsInProgress: number;
+  /** All offered quests completed by this child (false when there are none). */
+  completed: boolean;
   area: PlaceArea | null;
 }
 
@@ -145,6 +151,10 @@ export function islandsView(r: Reader): IslandsView {
         ),
         adventureCount: place.field('adventureCount').integer(),
         explored: added(place, 'explored', (f) => f.boolean(), false),
+        questCount: added(place, 'questCount', (f) => f.integer(), 0),
+        questsCompleted: added(place, 'questsCompleted', (f) => f.integer(), 0),
+        questsInProgress: added(place, 'questsInProgress', (f) => f.integer(), 0),
+        completed: added(place, 'completed', (f) => f.boolean(), false),
         area: place.field('area').nullable(area),
       })),
     })),

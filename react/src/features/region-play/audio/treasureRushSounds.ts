@@ -119,6 +119,11 @@ export const CUE_SOUNDS: Readonly<Record<SoundCue, readonly string[]>> = {
   npcInteract: [],
   npcTalk: [],
   npcLeave: [],
+  // Firepeak moments: Treasure Rush has none, so they are silent here.
+  crystalCollect: [],
+  puzzleComplete: [],
+  restoration: [],
+  switchFlip: [],
 };
 
 /**
