@@ -4,6 +4,9 @@
   "description": "Learning Adventure Island Game Engine Core: the shared Three.js runtime, movement, camera, gameplay components and Realm/Adventure SDK (ADR-020). Imports no React, Django client or AWS SDK.",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "license": "MIT",
   "sideEffects": false,
   "exports": {

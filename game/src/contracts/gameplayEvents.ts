@@ -6,7 +6,7 @@
  * against its own records (ADR-020 item 6; scoring standard: "the 3D engine never grants
  * anything"). Scoring (GE-100 to GE-110, `core/ge-scoring`) consumes these through its Django
  * intake validator, which tests against the same golden vectors as this module
- * (`tests/golden/gameplay-events-v1.json`).
+ * (`tests/contracts/gameplay-events-v1.json`).
  *
  * Contract rules (stable for every v1 type):
  * 1. **Semantic ids only.** Every id is an authored, published content id or a Django record
@@ -64,7 +64,12 @@ export type GameplayEventPayloads = {
   'exploration.area.entered': { areaId: string };
   'exploration.discovery.found': { discoveryId: string };
   // Collectibles
-  'collectible.collected': { collectibleId: string; setId: string | null };
+  /**
+   * `collectibleId` is the placement's entity id. `pickupKey` (optional, added in v1 for the
+   * GE-100 intake) is the placement's server pickup change key, when the host knows it, so a
+   * pending notification can be matched to the server pickup record exactly.
+   */
+  'collectible.collected': { collectibleId: string; setId: string | null; pickupKey?: string | null };
   // Jump challenges
   'jump.challenge.started': { challengeId: string };
   'jump.challenge.completed': { challengeId: string; routeId: string };
@@ -133,14 +138,14 @@ export type AnyGameplayEvent = { [T in GameplayEventType]: GameplayEvent<T> }[Ga
 
 // --- validation --------------------------------------------------------------------------
 
-type FieldRule = 'id' | 'idOrNull' | 'learningRef';
+type FieldRule = 'id' | 'idOrNull' | 'optionalIdOrNull' | 'learningRef';
 
 const PAYLOAD_RULES: { [T in GameplayEventType]: Readonly<Record<keyof GameplayEventPayloads[T] & string, FieldRule>> } = {
   'learning.question.presented': { learningRef: 'learningRef' },
   'learning.answer.submitted': { learningRef: 'learningRef', choiceId: 'idOrNull' },
   'exploration.area.entered': { areaId: 'id' },
   'exploration.discovery.found': { discoveryId: 'id' },
-  'collectible.collected': { collectibleId: 'id', setId: 'idOrNull' },
+  'collectible.collected': { collectibleId: 'id', setId: 'idOrNull', pickupKey: 'optionalIdOrNull' },
   'jump.challenge.started': { challengeId: 'id' },
   'jump.challenge.completed': { challengeId: 'id', routeId: 'id' },
   'jump.alternative.used': { challengeId: 'id', routeId: 'id' },
@@ -251,14 +256,16 @@ export function validateGameplayEvent(input: unknown): ValidationResult<AnyGamep
     for (const [field, rule] of Object.entries(rules)) {
       const path = `payload.${field}`;
       if (!(field in input.payload)) {
-        issues.push({ path, message: 'is required' });
+        if (rule !== 'optionalIdOrNull') {
+          issues.push({ path, message: 'is required' });
+        }
         continue;
       }
       const value = input.payload[field];
       if (rule === 'learningRef') {
         checkLearningRef(value, path, issues);
       } else {
-        checkId(value, path, issues, rule === 'idOrNull');
+        checkId(value, path, issues, rule === 'idOrNull' || rule === 'optionalIdOrNull');
       }
     }
   }

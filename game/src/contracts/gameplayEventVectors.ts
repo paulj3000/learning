@@ -1,4 +1,26 @@
-{
+/**
+ * Golden vectors for `lai.gameplay-event` v1, the single source of
+ * `tests/contracts/gameplay-events-v1.json`.
+ *
+ * `npm run engine:vectors` writes the JSON file from this module
+ * (`scripts/game-engine/generate-contract-vectors.ts`), and `npm run engine:vectors:check` fails if they
+ * differ. The TypeScript validator (`gameplayEvents.test.ts`) and the Django intake on
+ * `core/ge-scoring` (`lai/apps/scoring/engine_events.py`) both test against the file. Edit
+ * vectors here, regenerate, and tell the scoring lead (GE-004): a new invalid vector or a new
+ * field changes their tests too.
+ */
+
+export interface GameplayEventGoldenVectors {
+  description: string;
+  schema: string;
+  version: number;
+  valid: { name: string; event: unknown }[];
+  invalid: { name: string; event: unknown; issuePath: string }[];
+}
+
+export const GAMEPLAY_EVENT_GOLDEN_FILE = 'gameplay-events-v1.json';
+
+export const GAMEPLAY_EVENT_VECTORS_V1: GameplayEventGoldenVectors = {
   "description": "Golden vectors for lai.gameplay-event v1. Shared by game/src/contracts (TypeScript) and the Django intake validator on core/ge-scoring (lai/apps/scoring/engine_events.py). Change only together, with a version note in docs/engineering/game-engine/public-contracts.md.",
   "schema": "lai.gameplay-event",
   "version": 1,
@@ -398,6 +420,44 @@
           "discoveryId": "lantern-cave"
         }
       }
+    },
+    {
+      "name": "collectible.collected with pickupKey",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "collectible.collected",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000100",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "collectibleId": "golden-shell-3",
+          "setId": "golden-shells",
+          "pickupKey": "pickup:golden-shell-3"
+        }
+      }
+    },
+    {
+      "name": "collectible.collected with null pickupKey",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "collectible.collected",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000101",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "collectibleId": "golden-shell-3",
+          "setId": "golden-shells",
+          "pickupKey": null
+        }
+      }
     }
   ],
   "invalid": [
@@ -723,6 +783,50 @@
         }
       },
       "issuePath": "eventId"
+    },
+    {
+      "name": "pickupKey not a semantic id",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "collectible.collected",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000006",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "collectibleId": "golden-shell-3",
+          "setId": "golden-shells",
+          "pickupKey": 42
+        }
+      },
+      "issuePath": "payload.pickupKey"
+    },
+    {
+      "name": "pickupKey on another event type",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "quest.completed",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000017",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "questId": "lost-map",
+          "pickupKey": "pickup:1"
+        }
+      },
+      "issuePath": "payload.pickupKey"
     }
   ]
+};
+
+/** The exact text of the committed golden file. */
+export function renderGameplayEventVectors(vectors: GameplayEventGoldenVectors = GAMEPLAY_EVENT_VECTORS_V1): string {
+  return `${JSON.stringify(vectors, null, 2)}\n`;
 }

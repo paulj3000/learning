@@ -7,6 +7,7 @@ import {
   validateGameplayEvent,
   type GameplayEventContext,
 } from './gameplayEvents';
+import { renderGameplayEventVectors } from './gameplayEventVectors';
 
 interface Golden {
   schema: string;
@@ -15,9 +16,8 @@ interface Golden {
   invalid: { name: string; event: unknown; issuePath: string }[];
 }
 
-const golden = JSON.parse(
-  readFileSync(fileURLToPath(new URL('../../../tests/golden/gameplay-events-v1.json', import.meta.url)), 'utf8'),
-) as Golden;
+const goldenText = readFileSync(fileURLToPath(new URL('../../../tests/contracts/gameplay-events-v1.json', import.meta.url)), 'utf8');
+const golden = JSON.parse(goldenText) as Golden;
 
 const context: GameplayEventContext = {
   realmId: 'treasure-rush',
@@ -42,6 +42,10 @@ describe('gameplay event contract v1: golden vectors', () => {
   it('covers every v1 event type with at least one valid vector', () => {
     const covered = new Set(golden.valid.map((v) => (v.event as { type: string }).type));
     expect([...GAMEPLAY_EVENT_TYPES].filter((t) => !covered.has(t))).toEqual([]);
+  });
+
+  it('is exactly what the vector module renders (npm run engine:vectors)', () => {
+    expect(goldenText).toBe(renderGameplayEventVectors());
   });
 
   it('declares the schema and version it was written for', () => {
