@@ -377,7 +377,9 @@ export function ThreeLocationWorldView({
       // LAI-JMP-02: friendly course feedback; a missed jump is never a loss.
       bus.on('CourseCheckpointReached', ({ label }) => setToast(checkpointReachedText(label))),
       bus.on('PlayerRecovered', ({ reason, checkpointId }) => {
-        if (reason === 'HAZARD' || checkpointId) setToast(recoveredText(manifest.platforming, checkpointId));
+        if (reason === 'HAZARD' || checkpointId) {
+          setToast(recoveredText(manifest.platforming, checkpointId, bridgeCheckpointLabels(manifest)));
+        }
       }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
@@ -570,6 +572,7 @@ export function ThreeLocationWorldView({
           config={config}
           bus={bus}
           sceneApi={engine?.extensionApi(id) ?? null}
+          extensionApi={(extensionId: string) => engine?.extensionApi(extensionId) ?? null}
           worldState={snapshot.context}
           claimedInteraction={claimed?.extensionId === id ? claimed.interaction : null}
           openInteraction={openInteraction ?? claimed?.interaction ?? null}
@@ -671,4 +674,25 @@ export function ThreeLocationWorldView({
       </Link>
     </div>
   );
+}
+
+/**
+ * GE-073: checkpoint labels from the engine bridge's `gameplay.checkpoints` config (an Area whose
+ * one checkpoint list lives in `scene.engineBridge`), so a recovery still says where it went.
+ */
+export function bridgeCheckpointLabels(manifest: ThreeLocationManifest): ReadonlyMap<string, string> {
+  const labels = new Map<string, string>();
+  for (const binding of manifest.extensions ?? []) {
+    if (binding.extensionId !== 'engineBridge') continue;
+    const capabilities = (binding.config as { capabilities?: unknown }).capabilities;
+    if (!Array.isArray(capabilities)) continue;
+    for (const entry of capabilities) {
+      const request = entry as { id?: unknown; config?: { checkpoints?: unknown } };
+      if (request.id !== 'gameplay.checkpoints' || !Array.isArray(request.config?.checkpoints)) continue;
+      for (const point of request.config.checkpoints as { id?: unknown; label?: unknown }[]) {
+        if (typeof point.id === 'string' && typeof point.label === 'string') labels.set(point.id, point.label);
+      }
+    }
+  }
+  return labels;
 }

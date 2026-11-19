@@ -315,6 +315,14 @@ list: `TREE`, `LOG`, `GEAR`, `SWITCH`, `ROCK`, `ARCH`. No binary is committed.
    hot!" instead of the water "Splash!" (layout version 2).
 6. Every platforming-hazard recovery (`PlayerRecovered` with reason `HAZARD`) plays the same
    gentle respawn fade as the effects lava (`AreaPuzzleLayer` reads the region bus).
+7. GE-073 (layout version 3): one checkpoint list. The eight checkpoints and the lava hazard live in
+   `scene.engineBridge` (`gameplay.checkpoints`, `gameplay.hazards`) and run in the Game Engine Core
+   through the location engine bridge. Each gated checkpoint has `requiresSignalId:
+   "world:<zone key>"`; region play feeds the child's world changes as signals and resumes a
+   returning child at the furthest earned checkpoint once per visit (`RegionPlayCompanion`,
+   `region-play/engineBridgeProgress.ts`). The platforming and effects checkpoint lists and the
+   platforming hazard are gone. The portal back to the landing carries its own destination
+   (`effects.returns[].to`), and the recovery toast takes its label from the bridge's list.
 
 ## 13. Storykeeper and Realm Explorer contracts
 

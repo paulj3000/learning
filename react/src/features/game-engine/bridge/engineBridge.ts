@@ -1,5 +1,6 @@
 import type { Box3 } from 'three';
 import {
+  CheckpointsService,
   createAabbPhysicsProvider,
   createEngineRuntime,
   createGameplayEventFactory,
@@ -13,6 +14,7 @@ import {
   PLAYER_ENTITY_ID,
   PlayerTransformComponent,
   RequirementCheckService,
+  signalBoard,
   validateGameplayEvent,
   type AnyGameplayEvent,
   type CapabilityRequest,
@@ -121,6 +123,22 @@ export interface EngineBridgeApi {
   droppedClaims(): number;
   /** Claims not emitted because a lazy `claims` binding returned null (no visit context yet). */
   unboundClaims(): number;
+  /**
+   * Resumes a returning child's checkpoints (Firepeak acceptance scenario 10): marks each known
+   * id reached, in authored order and without events or claims, then places the child at the
+   * furthest one through the host's (checked, silent) teleport. Unknown ids are reported, not
+   * thrown. Call once after the host's bootstrap with the checkpoints the server says were
+   * earned. Returns the checkpoint the child was placed at, or null when none was known.
+   */
+  resume(checkpointIds: readonly string[]): { placedAt: string | null; unknown: string[] };
+  /**
+   * Sets exactly these signals on (and turns off the ones a previous call set that are absent),
+   * leaving every other signal alone (plates, switches, puzzles). A checkpoint, door or platform
+   * gated by `requiresSignalId` opens when its signal is on. Region play feeds world-change keys
+   * here (convention: `world:<changeKey>`, as `signalPlatforms` uses) from its bootstrap and
+   * whenever the server reports new world changes.
+   */
+  setSignals(signalIds: readonly string[]): void;
 }
 
 /** Reads `config.capabilities` and refuses what the live runtime owns. Pure; never throws. */
@@ -342,7 +360,15 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   if (issues.length > 0) {
     options.onIssues?.(issues);
     return {
-      api: { runtime: null, issues, support, droppedClaims: () => dropped, unboundClaims: () => unbound },
+      api: {
+        runtime: null,
+        issues,
+        support,
+        droppedClaims: () => dropped,
+        unboundClaims: () => unbound,
+        resume: (ids) => ({ placedAt: null, unknown: [...ids] }),
+        setSignals: () => {},
+      },
       dispose() {},
     };
   }
@@ -444,6 +470,48 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
 
   const stopFrames = host.onFrame((seconds) => runtime.tick(seconds));
 
+  // Resume: authored order decides "furthest" (the order of gameplay.checkpoints' list).
+  const authoredOrder = (): string[] => {
+    const config = runtime.capabilityConfig<{ checkpoints?: { id: string }[] }>('gameplay.checkpoints');
+    return (config?.checkpoints ?? []).map((checkpoint) => checkpoint.id);
+  };
+  const resume = (checkpointIds: readonly string[]): { placedAt: string | null; unknown: string[] } => {
+    const checkpoints = runtime.services.get(CheckpointsService);
+    if (!checkpoints) {
+      return { placedAt: null, unknown: [...checkpointIds] };
+    }
+    const order = authoredOrder();
+    const unknown = checkpointIds.filter((id) => !checkpoints.has(id));
+    const known = checkpointIds.filter((id) => checkpoints.has(id)).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    for (const id of known) {
+      checkpoints.markReached(id); // no event, no claim: the server already holds these
+    }
+    const furthest = known.length > 0 ? checkpoints.latest() : null;
+    if (furthest) {
+      host.teleportPlayer(furthest.position.x, furthest.position.z, furthest.yaw);
+    }
+    return { placedAt: furthest?.id ?? null, unknown };
+  };
+
+  // Signals the host feeds (world changes); only these are ever switched off by setSignals.
+  const fed = new Set<string>();
+  const setSignals = (signalIds: readonly string[]): void => {
+    const board = signalBoard(runtime);
+    const next = new Set(signalIds);
+    for (const id of fed) {
+      if (!next.has(id)) {
+        board.set(id, false);
+      }
+    }
+    for (const id of next) {
+      board.set(id, true);
+    }
+    fed.clear();
+    for (const id of next) {
+      fed.add(id);
+    }
+  };
+
   let disposed = false;
   return {
     api: {
@@ -452,6 +520,8 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
       support,
       droppedClaims: () => dropped,
       unboundClaims: () => unbound,
+      resume,
+      setSignals,
     },
     dispose() {
       if (disposed) {

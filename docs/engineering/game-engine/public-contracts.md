@@ -185,3 +185,14 @@ Claims from the bridge: `EngineBridgeOptions.claims` is a `ClaimsBinding` or a f
 one (or null) at emit time. A bridge registered once at module load uses the function form, since
 the visit's `sessionRef` exists only after mount. While unbound it emits no claim
 (`api.unboundClaims()` counts them).
+
+Bridge API for the host (`api` on the mounted bridge):
+
+| Member | Purpose |
+|---|---|
+| `resume(checkpointIds)` | A returning child: marks the earned checkpoints reached (authored order, no events, no claims) and places the child at the furthest through the host's checked, silent teleport. Returns `{ placedAt, unknown }` |
+| `setSignals(signalIds)` | Feeds world changes as signals (convention `world:<changeKey>`, as `signalPlatforms` uses). Gates `requiresSignalId` checkpoints, doors and platforms. Switches off only the signals it fed earlier |
+| `droppedClaims()`, `unboundClaims()` | Diagnostics counts |
+
+The bridge forwards `CourseCheckpointReached { checkpointId, label }` to the host bus, so the
+host's "Safe spot" toast works for engine checkpoints.

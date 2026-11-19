@@ -47,6 +47,7 @@ from apps.catalog.models import (
 from . import firepeak_heart_content as content
 from . import firepeak_heart_layout as layout
 from .models import PlacementKind, SpawnPoint, WorldObjectPlacement, WorldRegion
+from .engine_bridge import engine_bridge_problems
 from .platforming import layout_problems
 from .seeding import record_seed_revision, seed_puzzle
 
@@ -71,7 +72,7 @@ def reward_rule_ids() -> set[str]:
 
 # --- the version gate (like Pirate's Leap) -----------------------------------------------------
 
-SPATIAL_KEYS = ("bounds", "groundAssetId", "colliders", "effects", "platforming")
+SPATIAL_KEYS = ("bounds", "groundAssetId", "colliders", "effects", "platforming", "engineBridge")
 
 
 def upgrade_firepeak_heart(region: WorldRegion) -> bool:
@@ -87,6 +88,9 @@ def upgrade_firepeak_heart(region: WorldRegion) -> bool:
     problems = layout_problems(fresh["platforming"], bounds=fresh["bounds"])
     if problems:
         raise ValueError(f"Heart of Firepeak layout is invalid: {problems}")
+    bridge_problems = engine_bridge_problems(fresh["engineBridge"])
+    if bridge_problems:
+        raise ValueError(f"Heart of Firepeak engine bridge block is invalid: {bridge_problems}")
     for key in SPATIAL_KEYS:
         scene[key] = fresh[key]
     for key in ("copy", "environment"):

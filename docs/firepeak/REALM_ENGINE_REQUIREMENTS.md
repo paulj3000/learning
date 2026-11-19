@@ -70,6 +70,8 @@ Each item is additive and default-off, so today's realms keep working unchanged.
    checkpoints (change-key gating plus resume at the furthest earned) into one engine component,
    and make region-play lava a visual layered on a standard `HazardSpec`. Firepeak Heart authors
    both today; the merge must keep the layout data readable (a reader for both shapes).
+   **Done for the Heart (2026-11-19):** one list in `gameplay.checkpoints` through the bridge, with
+   bridge `resume` and `setSignals` (core/gameengine 21119d5d).
 6. **Respawn presentation for every recovery.** The respawn vignette and the supportive toast must
    follow every hazard recovery, not only region-play lava. Today FP Heart's lava and NP's lake
    recover through `HazardSpec` and get the generic toast only. The client mapping of a recovery
