@@ -423,3 +423,32 @@ describe('weather view budget (GE-L14, North Pole parity)', () => {
     h.dispose();
   });
 });
+
+describe('weather budget share (GE-L14, atmosphere density parity)', () => {
+  const settle = async (tier: 'LOW' | 'MEDIUM' | 'HIGH', budgetShare?: number) => {
+    const scene = new Scene();
+    const scope = createResourceScope('share');
+    const h = createHarness(registerGameplayComponents);
+    const precipitation = { motion: 'DRIFT', ratePerSecond: 48, fallSpeed: 1.6, size: 0.08, ...(budgetShare !== undefined ? { budgetShare } : {}) };
+    await h.start([{ id: 'environment.weather', config: { initial: 'SNOW', kinds: [{ id: 'SNOW', precipitation }] } }]);
+    const weather = createWeatherView(scene, scope, h.runtime.services.require(WeatherService), { tier, reducedMotion: () => false, area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 24 } });
+    for (let i = 0; i < 60 * 30; i += 1) weather.update(1 / 60);
+    const count = scene.children.filter((o) => o.name === 'engine.weather.SNOW').reduce((n, o) => n + (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count, 0);
+    scope.dispose();
+    h.dispose();
+    return count;
+  };
+
+  it('0.6 of the budget gives the atmosphere density 0.6 counts on every tier', async () => {
+    expect(await settle('LOW', 0.6)).toBe(180);
+    expect(await settle('MEDIUM', 0.6)).toBe(360);
+    expect(await settle('HIGH', 0.6)).toBeGreaterThanOrEqual(700); // 48/s x 15 s lifetime: about 720, under the 720 cap
+    expect(await settle('HIGH', 0.6)).toBeLessThanOrEqual(720);
+  });
+
+  it('defaults to the whole budget, and is bounded', async () => {
+    expect(await settle('MEDIUM')).toBe(600);
+    expect(validateWeatherConfig({ kinds: [{ id: 'SNOW', precipitation: { ratePerSecond: 10, fallSpeed: 1, budgetShare: 0 } }] }).ok).toBe(false);
+    expect(validateWeatherConfig({ kinds: [{ id: 'SNOW', precipitation: { ratePerSecond: 10, fallSpeed: 1, budgetShare: 1.5 } }] }).ok).toBe(false);
+  });
+});
