@@ -12,6 +12,7 @@ import {
   onPresentation,
   PhysicsProviderService,
   PLAYER_ENTITY_ID,
+  PlatformsService,
   PlayerTransformComponent,
   RequirementCheckService,
   signalBoard,
@@ -33,6 +34,7 @@ import {
 } from '@lai/game-engine';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
 import type { WorldExtension, WorldExtensionContext, WorldExtensionMount } from '../../island-map/three/runtime/extensionRegistry';
+import { mountBridgePresentation, type BridgePresentation } from './bridgePresentation';
 import { hostSupport, type BridgeHostSupport, type BridgePlayerState, type LocationBridgeHost } from './bridgeHost';
 
 /**
@@ -151,6 +153,13 @@ export interface EngineBridgeApi {
    * whenever the server reports new world changes.
    */
   setSignals(signalIds: readonly string[]): void;
+  /**
+   * GE-068: false when (x, y, z) is on the top of an engine platform that moves, rotates, falls or
+   * bounces, so the host's last-safe-ground never records one. True with no engine platforms.
+   */
+  isSafeGround(x: number, y: number, z: number): boolean;
+  /** GE-068: every engine platform's state, for realm parity tests. Empty with no engine platforms. */
+  platforms(): readonly { id: string; phase: string; position: Vec3Like; size: Vec3Like; kind: string }[];
 }
 
 /** Reads `config.capabilities` and refuses what the live runtime owns. Pure; never throws. */
@@ -180,6 +189,15 @@ export function bridgeCapabilityRequests(
     }
     if (id === ENGINE_PLATFORMS && !allowEnginePlatforms) {
       issues.push({ path, message: `"${id}" is owned by the live platform system until GE-076; create the bridge with allowEnginePlatforms for an Area without live platforms` });
+      return;
+    }
+    // GE-068: staff tuning (`scene.platformTuning`, handed over as `platformTuning`) reaches the
+    // platforms capability, which validates and applies it. The platforms' own config wins.
+    const tuning = config.platformTuning;
+    const entryConfig = entry.config;
+    if (id === ENGINE_PLATFORMS && typeof tuning === 'object' && tuning !== null && !Array.isArray(tuning)) {
+      const own = typeof entryConfig === 'object' && entryConfig !== null && !Array.isArray(entryConfig) ? entryConfig : {};
+      requests.push({ id, config: { platformTuning: tuning, ...own } });
       return;
     }
     requests.push(entry.config === undefined ? { id } : { id, config: entry.config });
@@ -381,6 +399,8 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
         resume: (ids) => ({ placedAt: null, unknown: [...ids] }),
         latestCheckpoint: () => null,
         setSignals: () => {},
+        isSafeGround: () => true,
+        platforms: () => [],
       },
       dispose() {},
     };
@@ -501,7 +521,46 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
     }
   }
 
-  const stopFrames = host.onFrame((seconds) => runtime.tick(seconds));
+  // Presentation: only with a scene; otherwise one warning and nothing is drawn.
+  const wantsPresentation = (['gameplay.platforms', 'gameplay.hazards', 'environment.weather', 'environment.lighting', 'environment.particles'] as const).some((id) => runtime.installed.has(id));
+  let presentation: BridgePresentation | null = null;
+  if (host.scene) {
+    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}) });
+  } else if (wantsPresentation) {
+    runtime.diagnostics.warn('HOST_SCENE_MISSING', { fallback: 'nothing is drawn' });
+  }
+
+  // Engine platforms: carry and bounce go through the host's live controller.
+  const platforms = runtime.services.get(PlatformsService);
+  if (platforms && !support.carryLaunch) {
+    runtime.diagnostics.warn('HOST_CARRY_UNSUPPORTED', { carryPlayer: typeof host.carryPlayer === 'function', launchPlayer: typeof host.launchPlayer === 'function' });
+  }
+  const applyPlatformMotion = (seconds: number): void => {
+    if (!platforms) {
+      return;
+    }
+    const transform = runtime.world.require(player, PlayerTransformComponent);
+    const supportId = transform.supportId;
+    if (supportId !== null && supportId.startsWith('engine:') && host.carryPlayer && seconds > 0) {
+      const live = host.playerState?.();
+      const at = live?.position ?? transform.position;
+      const v = platforms.carryVelocityAt(supportId, at.x, at.z);
+      if (v.x !== 0 || v.y !== 0 || v.z !== 0) {
+        host.carryPlayer(v.x * seconds, v.y * seconds, v.z * seconds);
+      }
+    }
+    // Always consumed, so an unsupported host never replays a stale bounce.
+    const launch = platforms.consumeLaunch();
+    if (launch && host.launchPlayer) {
+      host.launchPlayer(launch.height);
+    }
+  };
+
+  const stopFrames = host.onFrame((seconds) => {
+    runtime.tick(seconds);
+    applyPlatformMotion(seconds);
+    presentation?.update(seconds);
+  });
 
   // Resume: authored order decides "furthest" (the order of gameplay.checkpoints' list).
   const authoredOrder = (): string[] => {
@@ -559,6 +618,8 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
         return latest ? { id: latest.id, x: latest.position.x, z: latest.position.z, yaw: latest.yaw } : null;
       },
       setSignals,
+      isSafeGround: (x, y, z) => platforms?.isSafeGround(x, y, z) ?? true,
+      platforms: () => platforms?.snapshot() ?? [],
     },
     dispose() {
       if (disposed) {

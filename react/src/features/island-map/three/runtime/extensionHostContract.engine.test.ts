@@ -234,6 +234,45 @@ describe('extension host contract (GE-070): player state and environment', () =>
   });
 });
 
+describe('extension host contract (GE-066): live carry and launch', () => {
+  it('carryPlayer and launchPlayer reach the live controller', async () => {
+    const { context, controller } = await withProbe();
+    const live = controller();
+    const carries: number[][] = [];
+    const launches: number[] = [];
+    const carry = live.carry.bind(live);
+    const launch = live.launch.bind(live);
+    live.carry = (dx, dy, dz) => {
+      carries.push([dx, dy, dz]);
+      carry(dx, dy, dz);
+    };
+    live.launch = (height) => {
+      launches.push(height);
+      launch(height);
+    };
+    const y = live.position.y;
+    context.carryPlayer!(0, 0.5, 0);
+    expect(carries).toEqual([[0, 0.5, 0]]);
+    expect(live.position.y).toBeCloseTo(y + 0.5, 5);
+    context.launchPlayer!(2);
+    expect(launches).toEqual([2]);
+    expect(live.grounded).toBe(false);
+  });
+
+  it('reports an engine: collider id as the support id', async () => {
+    const { harness, context, controller } = await withProbe();
+    const start = clearLane(controller());
+    context.addCollider(new Box3(new Vector3(start.x + 1, 0, start.z - 1), new Vector3(start.x + 3, 0.2, start.z + 1)), { id: 'engine:pad', jumpable: true });
+    harness.setDrive(standAt(start.x, start.z, FACE_EAST));
+    harness.runFrames(1);
+    harness.setDrive(walk(FACE_EAST));
+    harness.runFrames(30);
+    harness.setDrive(idle);
+    harness.runFrames(5);
+    expect(context.playerState!().supportId).toBe('engine:pad');
+  });
+});
+
 describe('extension host contract (GE-070): teleport (GE-D4)', () => {
   it('places the child exactly on a clear spot and emits nothing', async () => {
     const { harness, context, controller } = await withProbe();
@@ -269,5 +308,61 @@ describe('nearestStandableSpot', () => {
     expect(Math.hypot(spot!.x, spot!.z)).toBeLessThanOrEqual(0.75 + 1e-9);
     expect(nearestStandableSpot(0, 0, () => false)).toBeNull();
     expect(nearestStandableSpot(Number.NaN, 0, () => true)).toBeNull();
+  });
+});
+
+describe('extension host contract (GE-068): bridge safe ground', () => {
+  async function withBridge(api: { isSafeGround?: (x: number, y: number, z: number) => boolean } | null) {
+    const asked: [number, number, number][] = [];
+    const extension: WorldExtension = {
+      id: 'engineBridge',
+      mount: () => (api ? { api: { isSafeGround: (x: number, y: number, z: number) => (asked.push([x, y, z]), api.isSafeGround?.(x, y, z) ?? true) } } : {}),
+    };
+    const manifest: ThreeLocationManifest = { ...WELCOME_HARBOR_MANIFEST, extensions: [{ extensionId: 'engineBridge', config: {} }] };
+    const harness = mount({ manifest, extensions: [extension] });
+    await harness.engine.ready;
+    let controller: FirstPersonController | null = null;
+    harness.setDrive((c) => {
+      controller = c;
+    });
+    harness.runFrames(1);
+    return { harness, asked, controller: controller! as FirstPersonController };
+  }
+
+  /** Stands the child at `spot` with physics running, then recovers; returns where they end up. */
+  function recoverFrom(harness: Harness, controller: FirstPersonController, spot: { x: number; z: number }) {
+    harness.setDrive((c, delta) => {
+      c.position.set(spot.x, 0, spot.z);
+      c.update(delta, { forward: 0, strafe: 0 });
+    });
+    harness.runFrames(3);
+    harness.setDrive(() => {});
+    controller.recover('HAZARD');
+    return { x: controller.position.x, z: controller.position.z };
+  }
+
+  it('records last safe ground where the bridge says it is safe', async () => {
+    const { harness, controller, asked } = await withBridge({ isSafeGround: () => true });
+    const start = clearLane(controller);
+    const back = recoverFrom(harness, controller, start);
+    expect(asked.length).toBeGreaterThan(0);
+    expect(back.x).toBeCloseTo(start.x, 1);
+    expect(back.z).toBeCloseTo(start.z, 1);
+  });
+
+  it('never records ground the bridge refuses (an engine moving platform)', async () => {
+    const { harness, controller } = await withBridge({ isSafeGround: () => false });
+    const start = clearLane(controller);
+    const back = recoverFrom(harness, controller, start);
+    expect(Math.hypot(back.x - start.x, back.z - start.z)).toBeGreaterThan(0.5);
+  });
+
+  it('behaves as before when the bridge has no isSafeGround or is not mounted', async () => {
+    for (const api of [{}, null]) {
+      const { harness, controller } = await withBridge(api);
+      const start = clearLane(controller);
+      const back = recoverFrom(harness, controller, start);
+      expect(back.x).toBeCloseTo(start.x, 1);
+    }
   });
 });

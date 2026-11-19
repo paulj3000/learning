@@ -1,4 +1,4 @@
-import type { Box3 } from 'three';
+import type { Box3, Object3D, Scene } from 'three';
 import type { EnvironmentQuery, Vec3Like } from '@lai/game-engine/contracts';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
 import type { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
@@ -47,6 +47,22 @@ export interface LocationBridgeHost {
   playerState?(): BridgePlayerState;
   /** GE-070 contract: hands surfaces, forces, water and ladders to the live controller. */
   setEnvironment?(query: EnvironmentQuery | null): void;
+  /**
+   * GE-066: the Three.js scene. With it the bridge draws engine platforms, the default hazard
+   * telegraph and weather, lighting and particles. Without it the bridge warns HOST_SCENE_MISSING
+   * and draws nothing.
+   */
+  readonly scene?: Scene;
+  /**
+   * GE-068: resolves an asset model by id (the island-map `WorldExtensionContext.loadModel`).
+   * With it, an engine platform with `assetId` draws that model fitted to its box. Without it,
+   * or while loading or on failure, the platform is a coloured box.
+   */
+  loadModel?(assetId: string): Promise<{ scene: Object3D }>;
+  /** GE-066: carries the child with an engine platform (controller `carry`). Without it, HOST_CARRY_UNSUPPORTED. */
+  carryPlayer?(dx: number, dy: number, dz: number): void;
+  /** GE-066: bounce launch (controller `launch`). Without it, HOST_CARRY_UNSUPPORTED. */
+  launchPlayer?(height: number): void;
 }
 
 export interface BridgePlayerState {
@@ -61,11 +77,15 @@ export interface BridgePlayerState {
 export interface BridgeHostSupport {
   playerState: boolean;
   setEnvironment: boolean;
+  scene: boolean;
+  carryLaunch: boolean;
 }
 
 export function hostSupport(host: LocationBridgeHost): BridgeHostSupport {
   return {
     playerState: typeof host.playerState === 'function',
     setEnvironment: typeof host.setEnvironment === 'function',
+    scene: host.scene !== undefined,
+    carryLaunch: typeof host.carryPlayer === 'function' && typeof host.launchPlayer === 'function',
   };
 }
