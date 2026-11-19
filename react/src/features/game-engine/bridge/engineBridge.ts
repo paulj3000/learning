@@ -89,6 +89,9 @@ const FORWARDED_EVENTS = [
   'PlayerBounced',
   'PressurePlatePressed',
   'PressurePlateReleased',
+  'HazardTelegraph',
+  'PlatformPhaseChanged',
+  'SurfaceFootstep',
 ] as const satisfies readonly Exclude<keyof EnginePresentationEventMap, 'PlayerRecovered'>[];
 
 // Every presentation event except PlayerRecovered is forwarded (a type error lists any missed).
