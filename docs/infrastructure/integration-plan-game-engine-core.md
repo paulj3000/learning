@@ -121,7 +121,7 @@ Created 2026-11-19 by LAI-ENG-002 at the owner's instruction, in coordination wi
 
 | Item | Value |
 |---|---|
-| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 12 merged, head `9e680012`, section 5.1) |
+| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 13 merged, head `d78f858f`, section 5.1) |
 | Worktree | `/Coding/learning-worktrees/wt-integration-20261119-game-engine-core` |
 | Slot | 8 (PostgreSQL 5458, Django 8090, Vite 5263; pytest database `test_lai_integration_20261119_game_engine_core`) |
 | Owner | LAI-ENG-002 (integrating agent). The engine lead supplies SHAs and fixes engine-side conflicts on `core/gameengine` |
@@ -161,6 +161,7 @@ who resolves on their own branch; the integration branch then re-merges.
 | 10 | 10 core `e5d957be` (GE-L14 follow-up: weather budget shared only across falling kinds) into `e3d559e9`; 10b North Pole `bbc4051b` (GE-074: parity test updated to the new budget, comments only in the layout) into `6a7afefd`, landed together | Core alone broke North Pole's previous parity expectation deterministically (MEDIUM half of HIGH), which `bbc4051b` updates, so the two land as one step. Migration audit clean, one leaf per app; content, golden, vectors, ADR, docs, workspace checks pass; typecheck passes; engine 657 plus 1 expected fail. React affected set on step 10: 2,835 passed, 6 failed with timer stalls recorded (30 of 114). Matched comparison of step 9 and step 10b on the five timing files plus the parity test: **158/158 on both commits in every round, with 0 of 45 timer probes stalled**. Timing failures track timer stalls (B15) | North Pole MEDIUM now draws 600 flakes (was 360); a per-kind budget share is asked of the engine lead |
 | 11 | 11a core `83658a8a` (GE-L14: optional `precipitation.budgetShare`, default unchanged) into `64bea323`; 11b North Pole `ae448a10` (GE-074: snow at budgetShare 0.6, exact parity LOW 0, MEDIUM 360, HIGH 720) into `19645943` | Migration audit clean, one leaf per app; content, golden, vectors, ADR, docs, workspace checks pass; typecheck passes; engine 659 plus 1 expected fail (core 655 plus 4 Storykeeper-carried pointer-control tests). React: 2,822 passed, 19 failed, all in `useCastleAudio.test.tsx` (untouched by step 11), with timer stalls recorded (11 of 77). Matched comparison: 31/31 on both commits every round with 0 timer stalls | The North Pole MEDIUM 600-vs-360 difference is resolved |
 | 12 | 12a core `ebaec30b` (tests only: the adopted pointerControls tests, byte-identical) into `bd80f587`; 12b Treasure Rush branch `97c69672` (GE-071 Pirate's Leap on the engine: checkpoints, pools, goal, jump challenges; course v3 stone stairs, a no-jump route to the treasure; course v4 all 30 platforms and the gold plate on engine platforms; decision E16 in the cove definition) into `9e680012` | Clean merges. Migration graph applied from scratch on PostgreSQL 16 (slot 8). Content, golden, vectors, ADR, docs, workspace checks pass; typecheck passes; engine 659 plus 1 expected fail; React region-play, scoring, game-engine, runtime and regionPlay **1,854 passed, 0 failed**; pytest on PostgreSQL for regions, ai, scoring, seasons, assets, avatars **1,915 passed, 3 failed**. The 3 failures predate step 12 (identical at `19645943`) | D1 scoring realm drift; D2 puzzle-kind migration test assumes its leaf (section 10) |
+| 13 | 13a Firepeak `e5561b66`, 13b North Pole `496e3659` (test file only: `test_puzzle_kinds` targets `0007_puzzle_kinds_choose_order` by name and restores the leaves) into `d78f858f` | Fixes D2. On PostgreSQL (slot 8): `test_puzzle_kinds` and `test_platforming` 81 passed; `regions` leaves 0006, 0007, 0008, 0009 applied; `makemigrations --check` no changes. GE-073 and GE-074 record the SHAs | D1 remains (scoring fixture, GE-109) |
 
 Forecast update after step 1: `feature/storykeeper-castle-completion` @ `4df618b2` has merged the
 engine and is now **clean** on top of step 1 (it was 9 conflicts). The `regions 0007` collision
@@ -277,7 +278,7 @@ make migration-audit
 python3 scripts/check_workspace_packages.py --root <exported tree>   # see game-engine-package.md
 ```
 
-## 10. Main-merge preparation (status at step 12, `9e680012`)
+## 10. Main-merge preparation (status at step 13, `d78f858f`)
 
 Prepared, not executed. No merge into `main` happens without the owner.
 
@@ -372,7 +373,7 @@ owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` an
 | Types | `npm run typecheck` | Passes |
 | Engine unit | `npm run test:engine` | 659 passed, 1 expected fail (GE-L10) |
 | Targeted React | gated affected sets per step | Pass; timing failures classified B15 by matched comparison |
-| Targeted Django on PostgreSQL | regions, ai, scoring, seasons, assets, avatars | **3 failures: D1, D2** |
+| Targeted Django on PostgreSQL | regions, ai, scoring, seasons, assets, avatars | **D1 open** (2 scoring drift tests); D2 fixed in step 13 |
 | Lint and format | `npm run lint`, `npm run format:check`, `make py-lint py-format-check` | Not run (merge readiness) |
 | Full suites | `test_gate.py --full -- npm test`; `make py-test-db` | Not run (merge readiness; B15 host) |
 | Build | `npm run build`; no `GameEnginePlayground` chunk; one `three` copy | Not run |
@@ -383,8 +384,8 @@ owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` an
 
 | Id | Defect | Owner | Blocks the main PR? |
 |---|---|---|---|
-| D1 | Scoring realm drift: `test_realms` finds 14 Heart of Firepeak and 2 North Pole quest build keys with no authored server source | Scoring lead with the Firepeak/North Pole lead | Yes (failing test) |
-| D2 | `test_puzzle_kinds` assumes `0007_puzzle_kinds_choose_order` is the `regions` leaf; the castle's 0008/0009 now follow it | Firepeak lead | Yes (failing test) |
+| D1 | Scoring realm drift test: `test_realms` reports 14 Heart of Firepeak and 2 North Pole build keys without a server source. Diagnosed by the Firepeak lead: the content is complete (each key is a seeded AreaPuzzle or pickup), but the test seeds only Treasure Cove and the volcano, so it is a test-fixture gap (GE-109) | Scoring lead | Yes (failing test) |
+| D2 | `test_puzzle_kinds` assumed `0007_puzzle_kinds_choose_order` was the `regions` leaf | Firepeak lead | **Fixed** (step 13) |
 | B15 | Host timer stalls (VirtualBox guest): timing evidence on this host is weak | Owner | Yes, for trustworthy merge-readiness runs |
 | GE-T2 | GameHost retry test about 1 s per test (host timers) | Engine lead | Re-check after B15 |
 | GE-L10 | Platform carry one step late (pinned expected failure) | Engine lead | No (Low) |
