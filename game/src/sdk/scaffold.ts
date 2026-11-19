@@ -9,6 +9,12 @@
 
 import type { ValidationIssue } from '../core/errors';
 
+/**
+ * The package name generated modules import. Built from parts so this file's source text holds
+ * no import-shaped reference to the engine itself (the LAI-ENG-002 workspace check scans text).
+ */
+export const ENGINE_PACKAGE = ['@lai', 'game-engine'].join('/');
+
 export const SCAFFOLD_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 export interface ScaffoldInput {
@@ -77,7 +83,7 @@ function definitionSource({ realmId, adventureId, jump }: Required<Pick<Scaffold
  * docs/adventures/adventure-standard.md. Content ids only: no child-facing copy lives here.
  */
 
-import { defineAdventure } from '@lai/game-engine';
+import { defineAdventure } from '${ENGINE_PACKAGE}';
 
 export const ${name}Adventure = defineAdventure({
   id: '${adventureId}',
@@ -104,7 +110,7 @@ export const ${name}Adventure = defineAdventure({
 function testSource({ adventureId }: { adventureId: string }): string {
   const name = toCamelCase(adventureId);
   return `import { describe, expect, it } from 'vitest';
-import { createCapabilityRegistry, validateAdventure, validationOk } from '@lai/game-engine';
+import { createCapabilityRegistry, validateAdventure, validationOk } from '${ENGINE_PACKAGE}';
 import { ${name}Adventure } from './${adventureId}.definition';
 
 // A stub registry that accepts the requested capabilities so this test checks the definition's

@@ -33,7 +33,21 @@
 | GE-R7 | WebGL, visual and touch behaviour are not covered by unit tests | Owner QA and browser checks at merge readiness (GE-090) |
 | GE-R8 | `DECISIONS.md` merge resolution (E9) may differ from how the movement owner resolves PR #26 | Owner decision O3; the branch follows the owner's choice |
 
-## 3. Behaviour to keep (from the Treasure Rush handoff)
+## 3. Design limits found in the workstreams
+
+| Id | Limit | Follow-up |
+|---|---|---|
+| GE-L1 | Against an external force the child makes net progress at 60% of walk speed or better, not at exactly walk speed (force cap `0.4 x walkSpeed x rate`) | Confirm with owner QA in Firepeak steam and North Pole wind |
+| GE-L2 | The content validator flags any key matching `timer`, `countdown`, `deadline`, `time_limit` and similar; a legitimate field named like that is a false positive | Rename the field; the rule exists for ADR-053 |
+| GE-L3 | The content validator assumes scene field names (`platforming.platforms[]`, `platforming.checkpoints[].platformId`, `jumpChallenges[]`, `colliders[]`, `gates[]`) | Confirm against `platformSpec.ts` in GE-070 |
+| GE-L4 | SDK walk speed bounds (0.5 to 6 m/s) and per-band difficulty ceilings are engineering choices, not from a standard | Owner or pedagogy review (decision O7 area) |
+| GE-L5 | Difficulty profile fields (gap, height, consecutive jumps, moving speed) are authoring values; nothing checks scene geometry against them yet | Planned validator rule |
+| GE-L6 | A non-replay chest emits `exploration.discovery.found` (no chest claim type in v1) | Additive claim type if scoring needs it |
+| GE-L7 | Platforms default to `route: REQUIRED`, so moving and falling platforms must be marked OPTIONAL explicitly or validation fails | Intended (jumping standard); documented for authors |
+| GE-L8 | GameHost pauses on window blur, including clicks into devtools or an iframe | As specified |
+| GE-L9 | `renderer.info` gauges, the WebGL path and production-build route stripping are untested in unit tests | Merge readiness (GE-090) |
+
+## 4. Behaviour to keep (from the Treasure Rush handoff)
 
 - A world snapshot refresh mid-visit never rebuilds the engine (`5b9cf019`, Pirate's Leap riddle
   bridge).

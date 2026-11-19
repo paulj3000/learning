@@ -44,15 +44,17 @@ Package `game/` (`@lai/game-engine`, ADR-020 item 4), stacked on the movement ba
 `docs/engineering/game-engine/` (audit, architecture, public contracts, decisions, migration and
 dependency matrices, ownership, status, defects, acceptance). Trello parent GE-001.
 
-- **Built:** core runtime (lifecycle, fixed timestep, entities and systems, typed bus, scoped
-  disposal, service ports, capability registry, diagnostics); gameplay claims
-  `lai.gameplay-event` v1 with contract vectors `tests/contracts/gameplay-events-v1.json`
-  (shared with the GE-100 scoring intake); canonical player transform, physics provider and
-  environment contracts; presentation-event parity with `WorldEngineEventMap`.
-- **In progress (parallel worktrees):** movement and physics extraction and features, camera
-  and animation, gameplay components, Realm SDK and service ports, GameHost and Playground.
-- **Checks:** engine Vitest 86 passed; engine and React typecheck clean; golden and contract
-  vector checks up to date; `adr:check` passes.
+- **Built:** core runtime; gameplay claims `lai.gameplay-event` v1 (contract vectors
+  `tests/contracts/gameplay-events-v1.json`, shared with the GE-100 scoring intake); player,
+  physics and environment contracts; movement, input and camera extracted with `git mv` and
+  shims; AABB physics provider; surfaces, ice, forces, swimming, climbing, slope limit; camera
+  rig and collision; animation state machine, blending and root-motion correction; avatar and
+  equipment; gameplay components and environment volumes, lighting, weather, particles; Realm
+  and Adventure SDK, validator, scaffold, service ports; standard engine assembly; GameHost and
+  the dev-only Playground.
+- **Checks:** engine Vitest 565 passed; React island-map/three, game-engine, boundary, golden
+  and app suites 1754 passed; engine, React and scripts typecheck clean; vector, golden, ADR
+  and workspace checks pass. Deferred to merge readiness: lint, format, build, Playwright, owner QA.
 - **Owner decisions open:** LAI-2003 approval (or waiver), ADR number for the engine core
   decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
   order, scoring economy against the scoring standard.

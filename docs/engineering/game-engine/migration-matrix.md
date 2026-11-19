@@ -35,7 +35,15 @@ exists.**
 | Welcome Harbor, Pirate Builder Bay, Clockwork Harbor, Dragon's Sanctuary, Wonderwild Forest and Hive, Explorer Cove, sandbox | `main` regions | engine lead | Location definitions with capability requests | GE-076 | One location per commit; parity tests unchanged | Backlog |
 | Phaser worlds | `main` | (conversion tasks LAI-2201+) | None. No new Phaser features (ADR-020) | Their conversion | Out of scope | n/a |
 
-## 3. Per-migration checklist
+## 3. Realm inputs recorded
+
+| Realm | Input | Parity evidence the migration must keep |
+|---|---|---|
+| Treasure Rush, Pirate's Leap | `docs/engine/TREASURE_RUSH_ENGINE_HANDOFF.md` on `feature/treasure-rush-palm-trees` @ `6818f74b` (sections 6.4, 7.2, 8) | Section 8 guard tests; mid-visit world refresh never rebuilds the engine; `signalPlatforms('world:<key>')` |
+| Storykeeper's Castle | `docs/regions/storykeeper_castle_engine_integration.md` sections 4 and 6 on `feature/storykeeper-castle-completion` @ `25d5f7d6`; `castleEngineProfile.ts` (movement and camera settings, types only from the shimmed modules) | `runtime/manifests/castleMovementAudit.engine.test.ts` runs unchanged against the SDK harness; `castleSaveContract.test.ts` pins every saved castle id |
+| Firepeak, North Pole | `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` on `feature/firepeak-volcano-adventure` @ `3e2b513c`; `platforming.recoveryLead` (`645b7373`, `821c8085`) | Existing realm tests; one checkpoint list; `recoveryLead` carried by hazard recovery copy |
+
+## 4. Per-migration checklist
 
 - [ ] Merge `core/gameengine` at the published migration-ready SHA (no rebase).
 - [ ] Imports move from the island-map shims to `@lai/game-engine`.

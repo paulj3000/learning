@@ -112,5 +112,43 @@ together.
 | `createDiagnostics` | `core/diagnostics.ts` |
 | `EngineError`, `ValidationResult` | `core/errors.ts` |
 
-Capability, SDK and service-port APIs are listed in [implementation-status.md](implementation-status.md)
-as each work package merges.
+## 6. Capability catalogue (v1.0.0 each)
+
+Each capability validates its config (never throws; unknown keys are issues) and is resolved by
+`resolveCapabilities`, so SDK validation and the runtime agree.
+
+| Capability | Requires | Config (summary) |
+|---|---|---|
+| `movement.locomotion` | | Walk, run and sprint speeds and accelerations (`LocomotionConfiguration` limits) |
+| `movement.jump` | `movement.locomotion` | `enabled`, `jumpHeight` 0.2 to 2.5, `gravity` 5 to 80, `airControl` 0 to 1, `maxFallSpeed` 2 to 60, `coyoteTimeMs` and `jumpBufferMs` 0 to 400, `allowDoubleJump` (default false) |
+| `movement.surfaces` | | Surface profiles (friction, speed multiplier), `maxWalkableSlope` |
+| `movement.externalForces` | | `reducedMotionScale` |
+| `movement.swimming`, `movement.climbing` | | `enabled` and tuning |
+| `camera.thirdPerson` (default), `camera.firstPerson` | | Camera limits from `CAMERA_LIMITS` |
+| `camera.collision` | `camera.thirdPerson` | `enabled`, `safetyRadius` |
+| `character.avatar` | | Avatar limits from `AVATAR_LIMITS` |
+| `character.animation` | `character.avatar` | Clip map, transitions, crossfades |
+| `gameplay.checkpoints` | | Checkpoints and course goals (the one checkpoint system) |
+| `gameplay.collectibles`, `gameplay.chests`, `gameplay.doors`, `gameplay.portals`, `gameplay.triggers` | | Placements by authored id |
+| `gameplay.platforms` | | Moving, rotating, falling, bounce, appearing; `route` REQUIRED or OPTIONAL |
+| `gameplay.hazards` | `gameplay.checkpoints` | Static and telegraphed hazards, each linked to a checkpoint |
+| `gameplay.puzzles`, `gameplay.jumpChallenges` | | World-mechanics puzzles; jump and accessible routes |
+| `environment.volumes` | | Surfaces, forces, water, ladders; provides `EnvironmentQueryService` |
+| `environment.lighting`, `environment.weather`, `environment.particles` | | Presets and kinds as data; particle budget tiers |
+
+## 7. SDK and service ports
+
+| API | File |
+|---|---|
+| `defineRealm`, `validateRealm` | `sdk/realm.ts` |
+| `defineAdventure`, `validateAdventure`, `profileFor` | `sdk/adventure.ts` |
+| `resolveProfile`, `AGE_BANDS` (`SPROUT`, `PATHFINDER`, `EXPLORER`), `JUMP_LIMIT_RANGES` | `sdk/profiles.ts` |
+| `loadAdventure` (adventure session: `enterArea`, `leaveArea`, `complete`, hooks) | `sdk/lifecycle.ts` |
+| `createComponentRegistry` | `sdk/componentRegistry.ts` |
+| `checkContentCompatibility` | `sdk/contentCompatibility.ts` |
+| `scaffoldAdventure` (and `npm run engine:scaffold`) | `sdk/scaffold.ts` |
+| Ports and fakes: `ASSET_MANAGER`, `SOUND_MANAGER`, `NPC_MANAGER`, `QUESTION_STUDIO`, `QUEST_SERVICE`, `INVENTORY`, `REWARDS`, `SAVE_RESTORE`, `PUBLISHED_CONTENT`, `MULTIPLAYER`; `provideFakeServices` | `services/*.ts` |
+
+The inventory and rewards ports have no grant method. Question Studio's `submitAnswer` returns
+a server verdict that the engine never interprets. Save and restore keeps presentation state
+only, and the server wins. Multiplayer is disabled (shared presence is deferred by ADR-020).
