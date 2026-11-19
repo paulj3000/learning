@@ -124,7 +124,7 @@ function readSurface(item: Json, path: string, issues: Issues): SurfaceVolumeSpe
 }
 
 function readForce(item: Json, path: string, issues: Issues): ForceVolumeSpec {
-  const direction = issues.vec3(item.direction, `${path}.direction`, 1);
+  const direction = issues.vec3(item.direction, `${path}.direction`, 100);
   if (Math.hypot(direction.x, direction.y, direction.z) < 1e-6) {
     issues.add(`${path}.direction`, 'must not be the zero vector');
   }
