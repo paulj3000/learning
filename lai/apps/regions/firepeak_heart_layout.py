@@ -30,7 +30,9 @@ REGION_ID = "firepeak-heart"
 PLACE_SLUG = "firepeak-heart"
 QUEST_ID = "the-heart-of-firepeak"
 # 2: platforming.recoveryLead, the lava recovery line (was the water "Splash!").
-HEART_VERSION = 2
+# 3: one checkpoint list and the lava hazard in scene.engineBridge (GE-073); the platforming and
+#    effects checkpoint lists and the platforming hazard are gone.
+HEART_VERSION = 3
 FACING_NORTH_TO_SOUTH = math.pi  # forward is (sin yaw, cos yaw); the route runs toward -z
 
 BOUNDS = {"halfExtentX": 32, "halfExtentZ": 96, "wallThickness": 1}
@@ -366,17 +368,58 @@ def platforming() -> dict:
         "platforms": platforms(),
         # Said first when the lava hazard puts the child back (the engine adds the checkpoint).
         "recoveryLead": "Whoa, the lava is too hot!",
-        "checkpoints": [
-            {"id": cid, "x": x, "z": z, "yaw": round(FACING_NORTH_TO_SOUTH, 3), "label": label}
-            for cid, label, x, z, _key in CHECKPOINTS
-        ],
-        "hazards": [
-            {
-                "id": "fh-lava-hazard",
-                "rect": _rect("fh-lava-hazard", LAVA["minX"], LAVA["maxX"], LAVA["minZ"], LAVA["maxZ"]),
-            }
-        ],
         "zones": zones(),
+    }
+
+
+# --- engine bridge (GE-073): the one checkpoint list and the lava hazard ------------------------
+
+COURSE_ID = "fh-heart"
+CHECKPOINT_REACH = 3.0  # half side of the square that counts as reaching a checkpoint, metres
+LAVA_BELOW_Y = 0.05  # feet at or below this inside the lava rect: back to the last checkpoint
+
+
+def _checkpoint(cid, label, x, z, key) -> dict:
+    out = {
+        "id": cid,
+        "courseId": COURSE_ID,
+        "position": {"x": x, "y": 0.0, "z": z},
+        "yaw": round(FACING_NORTH_TO_SOUTH, 3),
+        "label": label,
+        "halfSize": CHECKPOINT_REACH,
+    }
+    # Opens with its zone's key; region play feeds world changes as `world:<key>` signals.
+    if key:
+        out["requiresSignalId"] = f"world:{key}"
+    return out
+
+
+def engine_bridge() -> dict:
+    lava = {"minX": LAVA["minX"], "maxX": LAVA["maxX"], "minZ": LAVA["minZ"], "maxZ": LAVA["maxZ"]}
+    return {
+        "capabilities": [
+            {
+                "id": "gameplay.checkpoints",
+                "config": {"checkpoints": [_checkpoint(*row) for row in CHECKPOINTS], "goals": []},
+            },
+            {
+                "id": "gameplay.hazards",
+                "config": {
+                    "hazards": [
+                        {
+                            "id": "fh-lava-hazard",
+                            "kind": "LAVA",
+                            "rect": lava,
+                            "belowY": LAVA_BELOW_Y,
+                            # Before any checkpoint is reached on this visit: the near bank.
+                            "checkpointId": "fh-cp-lava-near",
+                            "messageKey": "hazard.lava.tooHot",
+                        }
+                    ],
+                    "telegraphed": [],
+                },
+            },
+        ]
     }
 
 
@@ -448,17 +491,6 @@ def effects(stand_in_entities: list[tuple[str, str]]) -> dict:
         ],
         "lights": lights(),
         "backdrop": {"assetId": "firepeak-volcano-main", "x": 0, "z": -128, "radius": 38, "height": 54},
-        "checkpoints": [
-            {
-                "id": cid,
-                "label": label,
-                "x": x,
-                "z": z,
-                "yaw": round(FACING_NORTH_TO_SOUTH, 3),
-                **({"whenChangeKey": key} if key else {}),
-            }
-            for cid, label, x, z, key in CHECKPOINTS
-        ],
         "openings": [
             *[{"colliderId": gate_id, "whenChangeKey": key} for gate_id, _z, key in GATES],
             {"colliderId": "fh-cavern-secret", "whenChangeKey": K["lit"]},
@@ -467,6 +499,8 @@ def effects(stand_in_entities: list[tuple[str, str]]) -> dict:
             {
                 "entityId": "fh-return-portal",
                 "toCheckpoint": "fh-cp-landing",
+                # The checkpoint list lives in scene.engineBridge now, so the way back says where.
+                "to": {"x": CHECKPOINTS[0][2], "z": CHECKPOINTS[0][3], "yaw": round(FACING_NORTH_TO_SOUTH, 3)},
                 "whenChangeKey": K["restored"],
                 "label": "Step through the portal back to Explorer's Landing",
             }
@@ -670,4 +704,5 @@ def scene() -> dict:
         "colliders": colliders(),
         "effects": effects(entity_asset_pairs()),
         "platforming": platforming(),
+        "engineBridge": engine_bridge(),
     }

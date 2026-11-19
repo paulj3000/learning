@@ -12,11 +12,18 @@ from collections import deque
 import pytest
 
 from apps.regions import firepeak_heart_layout as layout
+from apps.regions.engine_bridge import engine_bridge_problems
 from apps.regions.platforming import LIMITS, layout_problems
 
 SCENE = layout.scene()
 PLATFORMING = SCENE["platforming"]
 PLATFORMS = {p["id"]: p for p in PLATFORMING["platforms"]}
+BRIDGE = SCENE["engineBridge"]
+BRIDGE_CONFIG = {c["id"]: c["config"] for c in BRIDGE["capabilities"]}
+# GE-073: the one checkpoint list, from the engine bridge, as {id, x, z, label, requiresSignalId}.
+CHECKPOINT_LIST = [
+    {**c, "x": c["position"]["x"], "z": c["position"]["z"]} for c in BRIDGE_CONFIG["gameplay.checkpoints"]["checkpoints"]
+]
 PLACEMENTS = layout.placements()
 
 STEP_UP = 0.25  # the controller steps up this much without jumping
@@ -115,9 +122,9 @@ class TestStructure:
     def test_lava_is_drawn_without_respawning_and_enforced_by_a_height_aware_hazard(self):
         (lava,) = SCENE["effects"]["lava"]
         assert lava["visualOnly"] is True
-        (hazard,) = PLATFORMING["hazards"]
+        (hazard,) = BRIDGE_CONFIG["gameplay.hazards"]["hazards"]  # GE-073: the engine bridge enforces it
         assert hazard["rect"]["minZ"] == lava["minZ"] and hazard["rect"]["maxZ"] == lava["maxZ"]
-        assert "belowY" not in hazard or hazard["belowY"] < PLATFORMS["fh-lava-bridge"]["size"]["height"]
+        assert hazard["belowY"] < PLATFORMS["fh-lava-bridge"]["size"]["height"]
         assert top(PLATFORMS["fh-lava-bridge"]) > HAZARD_LINE
 
     def test_steam_vents_close_the_forge_gate_until_it_is_restored(self):
@@ -138,30 +145,36 @@ class TestStructure:
 
 
 class TestCheckpoints:
-    def test_a_course_checkpoint_and_an_effects_checkpoint_for_every_zone(self):
-        course = {c["id"] for c in PLATFORMING["checkpoints"]}
-        effects = [c["id"] for c in SCENE["effects"]["checkpoints"]]
-        assert course == set(effects)
-        assert effects[0] == "fh-cp-landing"
+    def test_one_checkpoint_list_in_the_engine_bridge(self):
+        assert engine_bridge_problems(BRIDGE) == []
+        assert "checkpoints" not in PLATFORMING and "hazards" not in PLATFORMING
+        assert "checkpoints" not in SCENE["effects"]
+        ids = [c["id"] for c in CHECKPOINT_LIST]
+        assert ids[0] == "fh-cp-landing" and len(ids) == len(set(ids)) == 8
         for needed in ("fh-cp-lava-near", "fh-cp-lava-far", "fh-cp-heart", "fh-cp-forge"):
-            assert needed in course
+            assert needed in ids
+        assert {c["courseId"] for c in CHECKPOINT_LIST} == {"fh-heart"}
 
-    def test_effects_checkpoints_open_in_progress_order(self):
-        keys = [c.get("whenChangeKey") for c in SCENE["effects"]["checkpoints"]]
-        assert keys[0] is None
-        assert keys[1:] == [
-            "FIREPEAK_HEART_MAP_READ",
-            "FIREPEAK_HEART_EMBERWOOD_DONE",
-            "FIREPEAK_HEART_LAVA_BRIDGE",
-            "FIREPEAK_HEART_LAVA_CROSSED",
-            "FIREPEAK_HEART_CAVERN_LIT",
-            "FIREPEAK_HEART_FORGE_RESTORED",
-            "FIREPEAK_HEART_SUMMIT_REACHED",
+    def test_checkpoints_open_in_progress_order(self):
+        signals = [c.get("requiresSignalId") for c in CHECKPOINT_LIST]
+        assert signals[0] is None
+        assert signals[1:] == [
+            f"world:{key}"
+            for key in (
+                "FIREPEAK_HEART_MAP_READ",
+                "FIREPEAK_HEART_EMBERWOOD_DONE",
+                "FIREPEAK_HEART_LAVA_BRIDGE",
+                "FIREPEAK_HEART_LAVA_CROSSED",
+                "FIREPEAK_HEART_CAVERN_LIT",
+                "FIREPEAK_HEART_FORGE_RESTORED",
+                "FIREPEAK_HEART_SUMMIT_REACHED",
+            )
         ]
 
-    @pytest.mark.parametrize("checkpoint", PLATFORMING["checkpoints"], ids=lambda c: c["id"])
+    @pytest.mark.parametrize("checkpoint", CHECKPOINT_LIST, ids=lambda c: c["id"])
     def test_checkpoints_stand_on_open_ground(self, checkpoint):
         x, z = checkpoint["x"], checkpoint["z"]
+        assert checkpoint["position"]["y"] == 0.0
         assert abs(x) <= 32 and abs(z) <= 96
         for collider in SCENE["colliders"]:
             assert not inside(rect(collider), x, z, margin=PLAYER_RADIUS), collider["id"]
@@ -171,12 +184,19 @@ class TestCheckpoints:
         assert not (lava["minX"] <= x <= lava["maxX"] and lava["minZ"] <= z <= lava["maxZ"])
 
     def test_the_spawn_is_the_landing_checkpoint(self):
-        landing = next(c for c in SCENE["effects"]["checkpoints"] if c["id"] == "fh-cp-landing")
+        landing = next(c for c in CHECKPOINT_LIST if c["id"] == "fh-cp-landing")
         assert (landing["x"], landing["z"]) == (0.0, 90.0)
+        portal = SCENE["effects"]["returns"][0]
+        assert portal["toCheckpoint"] == "fh-cp-landing"
+        assert (portal["to"]["x"], portal["to"]["z"]) == (0.0, 90.0)
 
-    def test_every_hazard_has_a_checkpoint_before_it(self):
-        near = next(c for c in PLATFORMING["checkpoints"] if c["id"] == "fh-cp-lava-near")
-        far = next(c for c in PLATFORMING["checkpoints"] if c["id"] == "fh-cp-lava-far")
+    def test_the_lava_hazard_has_a_checkpoint_on_each_bank(self):
+        (lava,) = BRIDGE_CONFIG["gameplay.hazards"]["hazards"]
+        assert lava["id"] == "fh-lava-hazard" and lava["kind"] == "LAVA"
+        assert lava["rect"] == layout.LAVA and lava["belowY"] == HAZARD_LINE
+        near = next(c for c in CHECKPOINT_LIST if c["id"] == "fh-cp-lava-near")
+        far = next(c for c in CHECKPOINT_LIST if c["id"] == "fh-cp-lava-far")
+        assert lava["checkpointId"] == "fh-cp-lava-near"
         assert near["z"] > layout.LAVA["maxZ"] and far["z"] < layout.LAVA["minZ"]
 
 
@@ -343,7 +363,7 @@ def can_reach(seen, height, x, z, elevation=0.0, reach=REACH):
 
 
 SPAWN = idx(0.0, 90.0)
-CHECKPOINT = {c["id"]: c for c in PLATFORMING["checkpoints"]}
+CHECKPOINT = {c["id"]: c for c in CHECKPOINT_LIST}
 ZONE_CHECKPOINT = ["fh-cp-landing", "fh-cp-emberwood", "fh-cp-lava-near", "fh-cp-caverns", "fh-cp-forge", "fh-cp-summit", "fh-cp-heart"]
 
 

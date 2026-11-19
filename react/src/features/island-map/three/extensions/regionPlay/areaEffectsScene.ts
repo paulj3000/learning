@@ -301,9 +301,14 @@ export function mountAreaEffects(
       const route = effects.returns.find((entry) => entry.entityId === entityId);
       if (!route || !keys.has(route.whenChangeKey)) return false;
       const target = effects.checkpoints.find((c) => c.id === route.toCheckpoint);
-      if (!target) return false;
-      context.teleportPlayer(target.x, target.z, target.yaw);
-      safe = target;
+      if (target) {
+        context.teleportPlayer(target.x, target.z, target.yaw);
+        safe = target;
+        return true;
+      }
+      // GE-073: the checkpoint list moved to the engine bridge; the route says where it lands.
+      if (!route.to) return false;
+      context.teleportPlayer(route.to.x, route.to.z, route.to.yaw);
       return true;
     },
     previewSteamCleared(cleared) {

@@ -127,7 +127,14 @@ export interface RegionPlayEffects {
   steam: SteamConfig[];
   checkpoints: CheckpointConfig[];
   openings: { colliderId: string; whenChangeKey: string }[];
-  returns: { entityId: string; toCheckpoint: string; whenChangeKey: string; label: string }[];
+  returns: {
+    entityId: string;
+    toCheckpoint: string;
+    whenChangeKey: string;
+    label: string;
+    /** Where the way back lands when `toCheckpoint` is not an effects checkpoint (GE-073). */
+    to: { x: number; z: number; yaw: number } | null;
+  }[];
   backdrop: { assetId: string | null; x: number; z: number; radius: number; height: number } | null;
 }
 
@@ -457,8 +464,12 @@ export function parseEffects(value: JsonValue | undefined): RegionPlayEffects {
       const toCheckpoint = text(entry.toCheckpoint);
       const whenChangeKey = text(entry.whenChangeKey);
       const label = text(entry.label);
+      const target = record(entry.to);
+      const tx = target ? num(target.x) : undefined;
+      const tz = target ? num(target.z) : undefined;
+      const to = tx !== undefined && tz !== undefined ? { x: tx, z: tz, yaw: num(target?.yaw) ?? 0 } : null;
       return entityId && toCheckpoint && whenChangeKey && label
-        ? [{ entityId, toCheckpoint, whenChangeKey, label }]
+        ? [{ entityId, toCheckpoint, whenChangeKey, label, to }]
         : [];
     }),
     backdrop: (() => {

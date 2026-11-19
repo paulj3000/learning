@@ -38,7 +38,7 @@ interface Placement {
 interface Snapshot {
   scene: Record<string, unknown> & {
     platforming: { platforms: { id: string }[]; zones: { enterMessage: string }[] };
-    effects: { checkpoints: { id: string }[]; standIns: { entityId: string; shape: string }[] };
+    effects: { checkpoints?: { id: string }[]; standIns: { entityId: string; shape: string }[] };
     colliders: { id: string; jumpable?: boolean; minY?: number; maxY?: number }[];
   };
   spawn: { checkpointId: string; label: string; x: number; z: number; yaw: number };
@@ -182,7 +182,15 @@ describe('the Heart of Firepeak manifest', () => {
     expect(manifest.bounds).toEqual({ halfExtentX: 32, halfExtentZ: 96, wallThickness: 1 });
     expect(manifest.zones.filter((z) => z.rect.id.startsWith('fh-zone-'))).toHaveLength(8);
     expect(manifest.zones.every((z) => !!z.enterMessage)).toBe(true);
-    expect(manifest.platforming!.checkpoints!.length).toBe(data.scene.effects.checkpoints.length);
+    // GE-073: one checkpoint list, in the engine bridge; none in platforming or effects.
+    expect(manifest.platforming!.checkpoints ?? []).toEqual([]);
+    expect(manifest.platforming!.hazards ?? []).toEqual([]);
+    expect(data.scene.effects.checkpoints ?? []).toEqual([]);
+    const bridge = manifest.extensions.find((e) => e.extensionId === 'engineBridge');
+    const capabilities = (bridge?.config as { capabilities: { id: string; config: Record<string, unknown[]> }[] }).capabilities;
+    expect(capabilities.map((c) => c.id)).toEqual(['gameplay.checkpoints', 'gameplay.hazards']);
+    expect(capabilities[0].config.checkpoints).toHaveLength(8);
+    expect(capabilities[1].config.hazards.map((h) => (h as { id: string }).id)).toEqual(['fh-lava-hazard']);
     expect(data.spawn.checkpointId).toBe('fh-cp-landing');
   });
 
@@ -196,6 +204,8 @@ describe('the Heart of Firepeak manifest', () => {
     expect(config.effects.lava).toHaveLength(1);
     expect(config.effects.openings.map((o) => o.colliderId)).toContain('fh-gate-heart');
     expect(config.effects.returns.map((r) => r.entityId)).toEqual(['fh-return-portal']);
+    // The way back lands at Explorer's Landing without an effects checkpoint (GE-073).
+    expect(config.effects.returns[0].to).toEqual({ x: 0, z: 90, yaw: expect.any(Number) });
   });
 
   it('binds the five NPC characters and the puzzle objects to the extension', () => {

@@ -130,10 +130,16 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
     the Heart (`region-play/firepeak/heartAdventureDefinition.ts`): validated with the standard
     capability registry, and the Heart scene snapshot passes `checkContentCompatibility` and
     `npm run engine:validate`.
-  - Waiting: adopting telegraphed falling rocks, steam force volumes, crumble-then-fall, traction
-    and the single checkpoint list needs the engine lead's location engine bridge (GE-065) and the
-    Treasure Rush host additions (GE-070 step 3) on this branch. The live platform system stays
-    the platform owner until GE-076.
+  - Done (2026-11-19): GE-070 @ 4044d37b and core/gameengine @ 21119d5d merged. One checkpoint
+    list: the Heart's eight checkpoints and its lava hazard run in the engine bridge
+    (`scene.engineBridge`, layout version 3); region play feeds world changes as `world:<key>`
+    signals and resumes a returning child once per visit; the old lists are gone. Checks: frontend
+    region play, regionPlay extension, game engine, runtime suites pass (timing-sensitive castle and
+    audio tests flake on a cold first run and pass on rerun, also without this change); game 578;
+    tsc clean; pytest 58 layout + 124 seed, playthrough, bridge, platforming.
+  - Not adopted yet: telegraphed falling rocks, steam force volumes and crumble-then-fall are new
+    gameplay content for the Summit and Forge and wait for the owner's design call. The live
+    platform system stays the platform owner until GE-076.
   - ADR-073 still needs its Reserved row on `main` (owner registry-only change).
 - Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).

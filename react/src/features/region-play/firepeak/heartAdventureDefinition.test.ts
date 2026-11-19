@@ -4,6 +4,7 @@ import { createStandardCapabilityRegistry } from '@lai/game-engine/engine';
 import { assertValidAdventure, checkContentCompatibility, validateAdventure } from '@lai/game-engine/sdk';
 import { describe, expect, it } from 'vitest';
 import { HEART_QUESTS } from '../../content-export/firepeakHeartContent';
+import { bridgeCheckpoints } from '../engineBridgeProgress';
 import {
   FIREPEAK_HEART_ADVENTURE,
   FIREPEAK_HEART_AREA,
@@ -21,7 +22,8 @@ interface Snapshot {
   puzzles: { puzzleId: string; ageBands: Record<string, { skill?: string } | null> }[];
   scene: {
     colliders: IdRow[];
-    platforming: { platforms: IdRow[]; checkpoints: IdRow[]; zones?: { rect: IdRow }[] };
+    platforming: { platforms: IdRow[]; zones?: { rect: IdRow }[] };
+    engineBridge: unknown;
   };
 }
 
@@ -42,7 +44,7 @@ describe('The Heart of Firepeak engine definition (GE-073)', () => {
   });
 
   it('lists the seed checkpoints, in route order: one checkpoint list', () => {
-    const seeded = snapshot().scene.platforming.checkpoints.map((c) => c.id);
+    const seeded = bridgeCheckpoints(snapshot().scene.engineBridge).map((c) => c.id);
     expect([...FIREPEAK_HEART_CHECKPOINT_IDS]).toEqual(seeded);
     expect(FIREPEAK_HEART_ADVENTURE.checkpoints.every((c) => c.areaId === FIREPEAK_HEART_AREA)).toBe(true);
   });

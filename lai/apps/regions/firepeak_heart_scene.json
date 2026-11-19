@@ -6451,71 +6451,6 @@
     "x": 0,
     "z": -128
    },
-   "checkpoints": [
-    {
-     "id": "fh-cp-landing",
-     "label": "Explorer's Landing",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 90.0
-    },
-    {
-     "id": "fh-cp-emberwood",
-     "label": "Emberwood Forest",
-     "whenChangeKey": "FIREPEAK_HEART_MAP_READ",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 61.5
-    },
-    {
-     "id": "fh-cp-lava-near",
-     "label": "the near bank",
-     "whenChangeKey": "FIREPEAK_HEART_EMBERWOOD_DONE",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 34.5
-    },
-    {
-     "id": "fh-cp-lava-far",
-     "label": "the far bank",
-     "whenChangeKey": "FIREPEAK_HEART_LAVA_BRIDGE",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 12.4
-    },
-    {
-     "id": "fh-cp-caverns",
-     "label": "the Crystal Caverns",
-     "whenChangeKey": "FIREPEAK_HEART_LAVA_CROSSED",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 3.5
-    },
-    {
-     "id": "fh-cp-forge",
-     "label": "the Ancient Forge",
-     "whenChangeKey": "FIREPEAK_HEART_CAVERN_LIT",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": -26.0
-    },
-    {
-     "id": "fh-cp-summit",
-     "label": "the foot of the summit",
-     "whenChangeKey": "FIREPEAK_HEART_FORGE_RESTORED",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": -51.5
-    },
-    {
-     "id": "fh-cp-heart",
-     "label": "the Heart Chamber",
-     "whenChangeKey": "FIREPEAK_HEART_SUMMIT_REACHED",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": -79.5
-    }
-   ],
    "lava": [
     {
      "id": "fh-lava-river",
@@ -6626,6 +6561,11 @@
     {
      "entityId": "fh-return-portal",
      "label": "Step through the portal back to Explorer's Landing",
+     "to": {
+      "x": 0.0,
+      "yaw": 3.142,
+      "z": 90.0
+     },
      "toCheckpoint": "fh-cp-landing",
      "whenChangeKey": "FIREPEAK_HEART_RESTORED"
     }
@@ -7479,82 +7419,148 @@
     }
    ]
   },
+  "engineBridge": {
+   "capabilities": [
+    {
+     "config": {
+      "checkpoints": [
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-landing",
+        "label": "Explorer's Landing",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 90.0
+        },
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-emberwood",
+        "label": "Emberwood Forest",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 61.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_MAP_READ",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-lava-near",
+        "label": "the near bank",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 34.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_EMBERWOOD_DONE",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-lava-far",
+        "label": "the far bank",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 12.4
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_LAVA_BRIDGE",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-caverns",
+        "label": "the Crystal Caverns",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 3.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_LAVA_CROSSED",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-forge",
+        "label": "the Ancient Forge",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": -26.0
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_CAVERN_LIT",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-summit",
+        "label": "the foot of the summit",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": -51.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_FORGE_RESTORED",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-heart",
+        "label": "the Heart Chamber",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": -79.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_SUMMIT_REACHED",
+        "yaw": 3.142
+       }
+      ],
+      "goals": []
+     },
+     "id": "gameplay.checkpoints"
+    },
+    {
+     "config": {
+      "hazards": [
+       {
+        "belowY": 0.05,
+        "checkpointId": "fh-cp-lava-near",
+        "id": "fh-lava-hazard",
+        "kind": "LAVA",
+        "messageKey": "hazard.lava.tooHot",
+        "rect": {
+         "maxX": 32.0,
+         "maxZ": 30.0,
+         "minX": -32.0,
+         "minZ": 14.0
+        }
+       }
+      ],
+      "telegraphed": []
+     },
+     "id": "gameplay.hazards"
+    }
+   ]
+  },
   "environment": {
    "backgroundColor": 3877427
   },
-  "firepeakHeartVersion": 2,
+  "firepeakHeartVersion": 3,
   "groundAssetId": "ground-tile-stone",
   "platforming": {
-   "checkpoints": [
-    {
-     "id": "fh-cp-landing",
-     "label": "Explorer's Landing",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 90.0
-    },
-    {
-     "id": "fh-cp-emberwood",
-     "label": "Emberwood Forest",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 61.5
-    },
-    {
-     "id": "fh-cp-lava-near",
-     "label": "the near bank",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 34.5
-    },
-    {
-     "id": "fh-cp-lava-far",
-     "label": "the far bank",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 12.4
-    },
-    {
-     "id": "fh-cp-caverns",
-     "label": "the Crystal Caverns",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": 3.5
-    },
-    {
-     "id": "fh-cp-forge",
-     "label": "the Ancient Forge",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": -26.0
-    },
-    {
-     "id": "fh-cp-summit",
-     "label": "the foot of the summit",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": -51.5
-    },
-    {
-     "id": "fh-cp-heart",
-     "label": "the Heart Chamber",
-     "x": 0.0,
-     "yaw": 3.142,
-     "z": -79.5
-    }
-   ],
-   "hazards": [
-    {
-     "id": "fh-lava-hazard",
-     "rect": {
-      "id": "fh-lava-hazard",
-      "maxX": 32.0,
-      "maxZ": 30.0,
-      "minX": -32.0,
-      "minZ": 14.0
-     }
-    }
-   ],
    "platforms": [
     {
      "activation": {
