@@ -92,3 +92,29 @@ agents' suites):
 
 Deferred to merge readiness: Playwright, browser/WebGL/device/gamepad, full lint and format,
 `make docs-check`, `npm run adr:check`.
+
+## 6. Pirate's Leap (GE-071) evidence
+
+Same branch as section 5, at `527b4fbb` and later. Owner approved GE-071 on 2026-11-19 and asked
+for it to continue on the GE-070 branch. Engine bases merged in: `fc5c71cf` (contains GE-070) and
+`cbe43a8e` (the companion bridge hooks). Not merged, not deployed, owner QA not done.
+
+| Checklist item | State | Evidence |
+|---|---|---|
+| Shared movement, jumping, camera and avatar | Unchanged; already shared through GE-070 | The live runtime runs the engine's moved controller and camera modules |
+| Checkpoints, safe respawn, course completion | On the engine bridge | `scene.engineBridge`: `gameplay.checkpoints` (4 checkpoints, goal `leap-goal-nest`), `gameplay.hazards` (3 water pools, `belowY` 0.05, so standing on a barrel or log is safe). Recovery goes to the latest checkpoint reached. Claims `course.checkpoint.reached` and `course.completed` |
+| Jump-challenge tracking | On the engine bridge | `gameplay.jumpChallenges`: `leap-barrels`, `leap-logs`, `leap-ledge` (jump route and walking route, same `jump.challenge.completed` claim) and optional jump-only `leap-steps` |
+| Platform components | Not yet: stays live | The bridge cannot yet draw platforms or carry the live controller (GE-066, engine lead, delayed). Moves in a later GE-071 step |
+| Walking alternatives | Kept and enforced | The bridge refuses a required challenge without an ACCESSIBLE route; Django test `test_every_required_jump_has_a_walking_route_and_both_are_equal` |
+| Equal educational outcome for both routes | Yes | Learning and rewards stay server facts that both routes reach (riddle drum, crow's-nest chest, shell, feather). Jump and course claims never award (scoring lead). Test pins that `pirates-leap` completes only through `cove-leap-chest` |
+| Quest and reward behaviour unchanged | Yes | `test_pirates_leap.py` (16) passes, including play API, one-time rewards and isolation |
+| Existing Pirate's Leap tests unchanged | One assertion widened, setup gains the bridge | `piratesLeap.engine.test.ts` 9/9 with the bridge mounted as in the app. `PlayerRecovered` now also carries `hazardId` (the engine contract), so the recovery assertion names the pool |
+| Validator on the content | Done | `npm run engine:validate` clean on the definition and `pirates_leap_bridge.json`; `checkContentCompatibility` in `treasureCoveAdventure.test.ts` |
+
+New tests: `piratesLeap.claims.engine.test.ts` (5: equal route claims, ledge once, checkpoint and
+goal claims, valid session-bound claims, recovery copy via bridge labels); Django
+`test_pirates_leap.py` (+5); `test_treasure_cove_adventure.py` (+1).
+
+Open: platform presentation and carry (GE-066), then moving the 16 platforms and the plate;
+wiring the live controller's `recoveryPoint` to the bridge's latest checkpoint once exposed (the
+cove is flat, so a live fall below ground cannot happen there).

@@ -59,6 +59,21 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
   decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
   order, scoring economy against the scoring standard.
 
+## GE-071: Pirate's Leap on the Game Engine Core, and the audio test defect (2026-11-19, `feature/GE-070-treasure-rush-engine-migration`); development complete, owner QA pending, NOT merged
+
+Trello GE-071 (https://trello.com/c/MgQhAE0M) and defect https://trello.com/c/9OdaKlbs. The owner
+asked to continue on the GE-070 branch. Evidence: `docs/engineering/game-engine/migration-matrix.md`
+section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
+
+- **Pirate's Leap:** checkpoints, water pools, the finish and jump-challenge tracking run in the
+  engine bridge (course version 2); platforms, the plate and the lift stay live until the engine
+  can draw and carry them (GE-066). Each required jump keeps a walking route that ends in the same
+  claim. Quests, rewards and recovery copy are unchanged.
+- **Audio test defect:** the 37-test cascade was a timed-out test's `act()` scope overlapping the
+  next test. Fixed in the test file (guarded `act`, in-flight scopes awaited); no retries, no
+  timeout change. Verified through the infrastructure lead's test gate under load.
+- **Not done:** browser and device QA; moving the platforms (after GE-066).
+
 ## GE-070: Treasure Rush migrated onto the Game Engine Core (2026-11-19, `feature/GE-070-treasure-rush-engine-migration`); development complete, owner QA pending, NOT merged
 
 Trello GE-070 (https://trello.com/c/3M8AAV14). The owner approved the start and the bridge
