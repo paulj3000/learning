@@ -58,7 +58,8 @@ export function createEnvironmentQuery(config: EnvironmentVolumesConfig, options
 
   const hazards = (): readonly Rect[] => (options.hazardRects ? [...config.hazardRects, ...options.hazardRects()] : config.hazardRects);
 
-  const forceActive = (force: ForceVolumeSpec) => force.signalId === undefined || signalOn(force.signalId);
+  const forceActive = (force: ForceVolumeSpec) =>
+    (force.signalId === undefined || signalOn(force.signalId)) && !(force.inactiveWhenSignalId !== undefined && options.isSignalOn !== undefined && options.isSignalOn(force.inactiveWhenSignalId));
 
   const pushesIntoHazard = (force: ForceVolumeSpec, x: number, z: number): boolean => {
     if (!force.neverPushIntoHazard) {

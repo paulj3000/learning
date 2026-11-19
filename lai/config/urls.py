@@ -30,6 +30,7 @@ urlpatterns = [
     path("api/v1/", include("apps.progression.urls")),
     path("api/v1/", include("apps.education.urls")),
     path("api/v1/", include("apps.inventory.urls")),
+    path("api/v1/", include("apps.scoring.urls")),
     path("api/v1/", include("apps.quests.urls")),
     path("api/v1/", include("apps.assets.urls")),
     path("api/v1/", include("apps.audio.urls")),

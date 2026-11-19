@@ -89,9 +89,15 @@ const FORWARDED_EVENTS = [
   'PlayerBounced',
   'PressurePlatePressed',
   'PressurePlateReleased',
+  'HazardTelegraph',
+  'PlatformPhaseChanged',
+  'SurfaceFootstep',
 ] as const satisfies readonly Exclude<keyof EnginePresentationEventMap, 'PlayerRecovered'>[];
 
 // Every presentation event except PlayerRecovered is forwarded (a type error lists any missed).
+/** Host (live movement) events relayed into the engine runtime for components that consume them. */
+const RELAYED_HOST_EVENTS = ['PlayerFootstep'] as const satisfies readonly (keyof EnginePresentationEventMap)[];
+
 type Unforwarded = Exclude<keyof EnginePresentationEventMap, (typeof FORWARDED_EVENTS)[number] | 'PlayerRecovered'>;
 const allForwarded: [Unforwarded] extends [never] ? true : false = true;
 void allForwarded;
@@ -131,6 +137,12 @@ export interface EngineBridgeApi {
    * earned. Returns the checkpoint the child was placed at, or null when none was known.
    */
   resume(checkpointIds: readonly string[]): { placedAt: string | null; unknown: string[] };
+  /**
+   * The latest checkpoint the child reached on the bridge, for the host's live fall recovery:
+   * a fall below the ground (the live controller's own recovery) then returns the child to the
+   * same place a bridge hazard would. Null before any checkpoint, or with no gameplay.checkpoints.
+   */
+  latestCheckpoint(): { id: string; x: number; z: number; yaw: number } | null;
   /**
    * Sets exactly these signals on (and turns off the ones a previous call set that are absent),
    * leaving every other signal alone (plates, switches, puzzles). A checkpoint, door or platform
@@ -367,6 +379,7 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
         droppedClaims: () => dropped,
         unboundClaims: () => unbound,
         resume: (ids) => ({ placedAt: null, unknown: [...ids] }),
+        latestCheckpoint: () => null,
         setSignals: () => {},
       },
       dispose() {},
@@ -437,9 +450,29 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
     }
   }) as never);
 
-  // Presentation events both buses share go to the host bus.
+  // Events the HOST's live movement emits that engine components consume (the host owns movement
+  // under the bridge). Relayed host -> engine, and never forwarded back, so the buses cannot loop.
+  // PlayerFootstep drives environment volumes' SurfaceFootstep (per-surface footstep cues).
+  let relaying: string | null = null;
+  for (const name of RELAYED_HOST_EVENTS) {
+    runtime.resources.track(
+      host.bus.on(name, (payload) => {
+        relaying = name;
+        try {
+          runtime.events.emit(name as never, payload as never);
+        } finally {
+          relaying = null;
+        }
+      }),
+    );
+  }
+
+  // Presentation events both buses share go to the host bus (never one the host just sent us).
   for (const name of FORWARDED_EVENTS) {
     runtime.events.on(name as never, ((payload: unknown) => {
+      if (relaying === name) {
+        return;
+      }
       host.bus.emit(name, payload as never);
     }) as never);
   }
@@ -521,6 +554,10 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
       droppedClaims: () => dropped,
       unboundClaims: () => unbound,
       resume,
+      latestCheckpoint: () => {
+        const latest = runtime.services.get(CheckpointsService)?.latest() ?? null;
+        return latest ? { id: latest.id, x: latest.position.x, z: latest.position.z, yaw: latest.yaw } : null;
+      },
       setSignals,
     },
     dispose() {

@@ -13,7 +13,7 @@ engine, and the owner has accepted it. The owner alone records acceptance.
 
 ## 1. Entry criteria (all required before the owner starts QA)
 
-- [ ] PR #26 to #36 (movement stack) merged to `main`; `core/gameengine` brought up to date by merging `main`.
+- [ ] Movement stack PR #26 to #36: merged to `main` first, or merged through `core/gameengine` (owner decision O9). Merged alone, PR #36 adds a second `## ADR-055` heading and fails `npm run adr:check`; `core/gameengine` already resolves it (decision E9).
 - [ ] GE-070 owner QA passed (it is part of `core/gameengine`).
 - [ ] GE-066, GE-071, GE-072, GE-073, GE-074 and GE-075 at Development Complete with evidence.
 - [ ] Owner decisions O1 to O8 in [decisions.md](decisions.md) recorded (at least O1 LAI-2003, O2 the ADR number, O3 the ADR-063 resolution, O4 merge order).
@@ -25,14 +25,28 @@ engine, and the owner has accepted it. The owner alone records acceptance.
 | Gate | Command | Pass condition |
 |---|---|---|
 | Engine unit tests | `npm run test:engine` | All pass |
-| Full frontend unit tests | `npm test` | All pass; known load flakes (GE-D9) rerun alone and pass |
+| Full frontend unit tests | `python3 scripts/dev/test_gate.py --full -- npm test` (host-wide slots, LAI-ENG-002) | All pass. A failure under the gated run is a failure; only a run the gate reports as INFRASTRUCTURE may be rerun (GE-D9-class flakes are not waived) |
 | Backend tests | `make py-test`, `make py-test-db` | All pass, including on PostgreSQL 16 |
+| Migrations | `make migrate-check` on PostgreSQL 16; `python3 scripts/dev/migration_audit.py` | Clean; no DIVERGENT, REWRITE or STALE PARENT |
+| Content | `npm run content:check` | Exported content up to date |
+| Python lint and format | `make py-lint py-format-check` | Clean |
 | Typecheck | `npm run typecheck` | Clean |
 | Lint and format | `npm run lint`, `npm run format:check` | Clean |
 | Build | `npm run build` | Succeeds; no Playground chunk; exactly one `three` copy |
 | Contracts | `npm run engine:vectors:check`, `npm run golden:check` | Up to date |
 | Governance | `npm run adr:check`, `make docs-check`, `make workspace-check` | Pass |
 | Browser smoke | `npm run test:e2e` (Playwright smoke) | Pass |
+
+## 2a. Deployment impact (merging is not deploying)
+
+Merging `core/gameengine` to `main` matches the paths of `deploy-site` (`react/**`, `package*.json`,
+and `game/**` once LAI-ENG-002's B10 change is accepted) and of `deploy-dev-native` and
+`deploy-django-ec2` (`lai/**`, `content/**`). Each needs its own owner deploy approval, and an RDS
+snapshot before migrating any deployed database ([release policy](../release-policy.md)).
+
+CI after merge: LAI-ENG-002 adds "Engine unit tests" (`npm run test:engine`) and "Engine contract
+vectors" (`npm run engine:vectors:check`) steps to `ci.yml`. These script names are stable
+contracts; do not rename them.
 
 ## 3. Owner QA checklist (browser, desktop and a touch device, per age band)
 

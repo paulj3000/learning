@@ -78,6 +78,8 @@ _CODED = {
     # Amplify Data exit (AMP-03): account deletion and per-child state outside region play
     "account_deletion_incomplete": "The account could not be fully deleted yet. Please try again.",
     "staff_account_not_deletable": "This account is managed in the administration site.",
+    # Scoring awards feed (GE-104)
+    "invalid_cursor": "That cursor is not accepted.",
     "story_scene_rejected": "That story could not be saved.",
     # Writing Room (SC-final-B): authored and kind; never names a category or echoes the text.
     "written_story_refused": "Let us try that again with different words.",

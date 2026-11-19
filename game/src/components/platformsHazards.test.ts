@@ -244,19 +244,21 @@ describe('static hazards', () => {
   });
 });
 
+/** A telegraphed falling rock (module scope: the GE-066 tests reuse it). */
+const rock = {
+  id: 'hz.rock',
+  kind: 'FALLING_ROCK',
+  rect: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
+  route: 'OPTIONAL',
+  checkpointId: 'cp.dock',
+  messageKey: 'hazard.rock.kind',
+  telegraphSeconds: 2,
+  activeSeconds: 0.5,
+  restSeconds: 3,
+  offsetSeconds: 0,
+};
+
 describe('telegraphed hazards', () => {
-  const rock = {
-    id: 'hz.rock',
-    kind: 'FALLING_ROCK',
-    rect: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
-    route: 'OPTIONAL',
-    checkpointId: 'cp.dock',
-    messageKey: 'hazard.rock.kind',
-    telegraphSeconds: 2,
-    activeSeconds: 0.5,
-    restSeconds: 3,
-    offsetSeconds: 0,
-  };
 
   it('has a deterministic REST, WARN, ACTIVE schedule', () => {
     expect(telegraphPhaseAt(rock, 0).phase).toBe('REST');
@@ -313,5 +315,75 @@ describe('layout cross-checks', () => {
     }
     const issues = validateGameplayLayout({ checkpoints: checkpoints.value, hazards: hazards.value, platforms: platforms.value });
     expect(issues.map((i) => i.path).sort()).toEqual(['checkpoints.cp.on.lift', 'hazards.hz.water.checkpointId']);
+  });
+});
+
+describe('inactiveWhenSignalId (GE-066)', () => {
+  it('validates as a semantic id and refuses the same id as an activating signal', () => {
+    expect(validateHazardsConfig({ telegraphed: [{ ...rock, inactiveWhenSignalId: 'not valid!' }] }).ok).toBe(false);
+    expect(validateHazardsConfig({ telegraphed: [{ ...rock, inactiveWhenSignalId: 'valve.off' }] }).ok).toBe(true);
+    const base = { id: 'p', position: { x: 0, y: 0, z: 0 }, size };
+    expect(validatePlatformsConfig({ platforms: [{ ...base, inactiveWhenSignalId: 'bad id' }] }).ok).toBe(false);
+    expect(validatePlatformsConfig({ platforms: [{ ...base, appearSignalId: 's', inactiveWhenSignalId: 's' }] }).ok).toBe(false);
+    expect(validatePlatformsConfig({ platforms: [{ ...moving, moving: { ...moving.moving, activeSignalId: 's' }, inactiveWhenSignalId: 's' }] }).ok).toBe(false);
+    expect(validatePlatformsConfig({ platforms: [{ ...base, appearSignalId: 's', inactiveWhenSignalId: 't' }] }).ok).toBe(true);
+  });
+
+  it('a static hazard stops asking for recovery while its signal is on', async () => {
+    const h = harness();
+    await h.start([
+      { id: 'gameplay.checkpoints', config: checkpointConfig },
+      { id: 'gameplay.hazards', config: { hazards: [{ ...waterHazard, inactiveWhenSignalId: 'drained' }] } },
+    ]);
+    signalBoard(h.runtime).set('drained', true);
+    h.setPlayer({ x: 6, y: -1, z: 0 });
+    h.advance(1);
+    expect(h.eventsNamed('HazardRecoveryRequested')).toHaveLength(0);
+    signalBoard(h.runtime).set('drained', false);
+    h.advance(0.2);
+    expect(h.eventsNamed('HazardRecoveryRequested')).toHaveLength(1);
+    h.dispose();
+  });
+
+  it('a telegraphed hazard shows REST and never hits while off', async () => {
+    const h = harness();
+    await h.start([
+      { id: 'gameplay.checkpoints', config: checkpointConfig },
+      { id: 'gameplay.hazards', config: { telegraphed: [{ ...rock, inactiveWhenSignalId: 'off' }] } },
+    ]);
+    h.setPlayer({ x: 0, y: 0, z: 0 });
+    h.advance(3.5);
+    expect(h.eventsNamed('HazardTelegraph').at(-1)).toMatchObject({ phase: 'WARN' });
+    signalBoard(h.runtime).set('off', true);
+    h.advance(0.1);
+    expect(h.eventsNamed('HazardTelegraph').at(-1)).toMatchObject({ phase: 'REST' });
+    h.advance(10);
+    expect(h.eventsNamed('HazardRecoveryRequested')).toHaveLength(0);
+    h.dispose();
+  });
+
+  it('a platform loses its collider and presence while its signal is on', async () => {
+    const h = harness();
+    await h.start([{ id: 'gameplay.platforms', config: { platforms: [{ id: 'bridge', position: { x: 0, y: 1, z: 0 }, size, inactiveWhenSignalId: 'retract' }] } }]);
+    const api = h.runtime.services.require(PlatformsService);
+    expect(h.physics.hasCollider('bridge')).toBe(true);
+    signalBoard(h.runtime).set('retract', true);
+    h.advance(0.1);
+    expect(h.physics.hasCollider('bridge')).toBe(false);
+    expect(api.isPresent('bridge')).toBe(false);
+    signalBoard(h.runtime).set('retract', false);
+    h.advance(0.1);
+    expect(h.physics.hasCollider('bridge')).toBe(true);
+    expect(api.isPresent('bridge')).toBe(true);
+    h.dispose();
+  });
+
+  it('accepts an engine: support id for carry', async () => {
+    const h = harness();
+    await h.start([{ id: 'gameplay.platforms', config: { platforms: [moving] } }]);
+    h.advance(1);
+    const api = h.runtime.services.require(PlatformsService);
+    expect(api.carryVelocityAt('engine:plat.move', 0, 0).x).toBeCloseTo(2, 1);
+    h.dispose();
   });
 });

@@ -75,6 +75,25 @@ const rock = {
 };
 const iceVolume = { id: 'environment.volumes', config: { surfaces: [{ id: 'lake.ice', surfaceId: 'ice', box: { min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 0.2, z: 10 } } }] } };
 
+describe('host movement relayed into the engine (per-surface footsteps)', () => {
+  it('turns a host PlayerFootstep on ice into SurfaceFootstep, without echoing the footstep back', () => {
+    const fake = fakeHost({ capabilities: [iceVolume] }, true);
+    const mount = mountEngineBridge(fake.host);
+    const footsteps: unknown[] = [];
+    const surfaces: { surfaceId: string; footstepCue: string | null }[] = [];
+    fake.bus.on('PlayerFootstep', (e) => footsteps.push(e));
+    fake.bus.on('SurfaceFootstep', (e) => surfaces.push(e));
+    fake.player.position = { x: 5, y: 0.2, z: 5 };
+    fake.advance(0.1); // the bridge reads the player onto the ice
+    fake.bus.emit('PlayerFootstep', { gait: 'walk' });
+    expect(footsteps).toHaveLength(1); // the host's own emit only: no loop back from the engine
+    expect(surfaces).toEqual([expect.objectContaining({ surfaceId: 'ice' })]);
+    mount.dispose();
+    fake.bus.emit('PlayerFootstep', { gait: 'walk' });
+    expect(surfaces).toHaveLength(1); // nothing relayed after dispose
+  });
+});
+
 describe('engine bridge capability requests', () => {
   it('refuses what the live runtime owns, with a clear issue, and installs nothing', () => {
     const fake = fakeHost({ capabilities: [{ id: 'movement.locomotion' }, { id: 'gameplay.platforms', config: { platforms: [] } }, { id: 'camera.thirdPerson' }] }, true);

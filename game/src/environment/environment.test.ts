@@ -93,6 +93,18 @@ describe('force volumes', () => {
     expect(query.rampOf('wind.a')).toBe(0);
   });
 
+  it('inactiveWhenSignalId switches a force off, and is validated (GE-066)', () => {
+    let off = false;
+    const config = volumes({ forces: [{ ...wind, rampInSeconds: 0, inactiveWhenSignalId: 'wind.off' }] });
+    const query = createEnvironmentQuery(config, { isSignalOn: (id) => id === 'wind.off' && off });
+    expect(query.forcesAt(5, 1, 5)).toHaveLength(1);
+    off = true;
+    expect(query.forcesAt(5, 1, 5)).toEqual([]);
+    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, inactiveWhenSignalId: 'bad id' }] }).ok).toBe(false);
+    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, signalId: 'x', inactiveWhenSignalId: 'x' }] }).ok).toBe(false);
+    expect(createEnvironmentQuery(config).forcesAt(5, 1, 5)).toHaveLength(1);
+  });
+
   it('orders forces by priority then id and normalises direction', () => {
     const config = volumes({
       forces: [

@@ -263,6 +263,10 @@ class TestChildIsolation:
             "npcs",  # NPC Manager content and releases; conversation state unregistered (ADR-054)
             "question_studio",
             "regions",
+            # Scoring policies and their rules only (GE-102): economy configuration, no child
+            # data. The award ledger and progression projections are child progress and are
+            # deliberately not registered (corrections: `manage.py scoring_correct`).
+            "scoring",
             "speech",  # voice profiles and speech lines: staff content, no child data (ADR-049)
             "users",
         }

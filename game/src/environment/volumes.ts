@@ -53,6 +53,8 @@ export interface ForceVolumeSpec {
   rampInSeconds: number;
   /** Gate: the volume is active only while this signal is true (always when absent). */
   signalId?: string;
+  /** GE-066: the volume is off while this signal is on (may not equal `signalId`). */
+  inactiveWhenSignalId?: string;
   affectsGrounded: boolean;
   /** Never push toward a hazard: validated at definition and checked per query. Default true. */
   neverPushIntoHazard: boolean;
@@ -131,6 +133,11 @@ function readForce(item: Json, path: string, issues: Issues): ForceVolumeSpec {
     issues.add(`${path}.direction`, 'must not be the zero vector');
   }
   const kind = issues.oneOf<ExternalForceKind>(item.kind, `${path}.kind`, FORCE_KINDS);
+  const signalId = issues.optionalId(item.signalId, `${path}.signalId`);
+  const inactiveWhenSignalId = issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`);
+  if (signalId !== undefined && signalId === inactiveWhenSignalId) {
+    issues.add(`${path}.inactiveWhenSignalId`, 'must differ from signalId (a volume cannot be both on and off for one signal)');
+  }
   const strength = issues.num(item.strength, `${path}.strength`, 0, FORCE_LIMITS.maxStrength);
   return {
     id: issues.id(item.id, `${path}.id`),
@@ -140,7 +147,8 @@ function readForce(item: Json, path: string, issues: Issues): ForceVolumeSpec {
     strength,
     maxAcceleration: issues.num(item.maxAcceleration, `${path}.maxAcceleration`, 0.1, FORCE_LIMITS.maxAcceleration, Math.min(strength || 0.1, 6)),
     rampInSeconds: issues.num(item.rampInSeconds, `${path}.rampInSeconds`, 0, FORCE_LIMITS.maxRamp, 0.5),
-    signalId: issues.optionalId(item.signalId, `${path}.signalId`),
+    signalId,
+    inactiveWhenSignalId,
     affectsGrounded: issues.bool(item.affectsGrounded, `${path}.affectsGrounded`, true),
     neverPushIntoHazard: issues.bool(item.neverPushIntoHazard, `${path}.neverPushIntoHazard`, true),
     runOut: issues.num(item.runOut, `${path}.runOut`, 0, FORCE_LIMITS.maxRunOut, 1.5),
