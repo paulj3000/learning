@@ -121,7 +121,7 @@ Created 2026-11-19 by LAI-ENG-002 at the owner's instruction, in coordination wi
 
 | Item | Value |
 |---|---|
-| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 11 merged, head `19645943`, section 5.1) |
+| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 12 merged, head `9e680012`, section 5.1) |
 | Worktree | `/Coding/learning-worktrees/wt-integration-20261119-game-engine-core` |
 | Slot | 8 (PostgreSQL 5458, Django 8090, Vite 5263; pytest database `test_lai_integration_20261119_game_engine_core`) |
 | Owner | LAI-ENG-002 (integrating agent). The engine lead supplies SHAs and fixes engine-side conflicts on `core/gameengine` |
@@ -160,6 +160,7 @@ who resolves on their own branch; the integration branch then re-merges.
 | 9 | 9a core `9da4a025` (GE-L14 `5f24a7ce`: bridge weather follows the device render quality) into `a350ad1a`; 9b North Pole `a78e4bbd` (GE-074: snow on engine weather, layout v5, after the parity test) into `e1a999a6` | Clean merges; migration audit clean, one leaf per app; content, golden, vectors, ADR, docs, workspace checks pass; typecheck passes; engine 655 plus 1 expected fail; regions and seasons pytest 505 passed, 215 skipped (no PostgreSQL). React: 3,993 passed, 19 failed in 2 files that step 9 does not touch; the run recorded timer stalls (28 of 119 probes, max 1,215 ms). Matched comparison: step 9 passed 48/48 every round; step 8's already-clean commit failed 28 in round 2 (mid-session, CPU pressure 9%, no paging, stalls recorded): host timer latency (B15) | North Pole weather draws about 17% fewer flakes than the old atmosphere (engine budget split with RAIN; engine lead) |
 | 10 | 10 core `e5d957be` (GE-L14 follow-up: weather budget shared only across falling kinds) into `e3d559e9`; 10b North Pole `bbc4051b` (GE-074: parity test updated to the new budget, comments only in the layout) into `6a7afefd`, landed together | Core alone broke North Pole's previous parity expectation deterministically (MEDIUM half of HIGH), which `bbc4051b` updates, so the two land as one step. Migration audit clean, one leaf per app; content, golden, vectors, ADR, docs, workspace checks pass; typecheck passes; engine 657 plus 1 expected fail. React affected set on step 10: 2,835 passed, 6 failed with timer stalls recorded (30 of 114). Matched comparison of step 9 and step 10b on the five timing files plus the parity test: **158/158 on both commits in every round, with 0 of 45 timer probes stalled**. Timing failures track timer stalls (B15) | North Pole MEDIUM now draws 600 flakes (was 360); a per-kind budget share is asked of the engine lead |
 | 11 | 11a core `83658a8a` (GE-L14: optional `precipitation.budgetShare`, default unchanged) into `64bea323`; 11b North Pole `ae448a10` (GE-074: snow at budgetShare 0.6, exact parity LOW 0, MEDIUM 360, HIGH 720) into `19645943` | Migration audit clean, one leaf per app; content, golden, vectors, ADR, docs, workspace checks pass; typecheck passes; engine 659 plus 1 expected fail (core 655 plus 4 Storykeeper-carried pointer-control tests). React: 2,822 passed, 19 failed, all in `useCastleAudio.test.tsx` (untouched by step 11), with timer stalls recorded (11 of 77). Matched comparison: 31/31 on both commits every round with 0 timer stalls | The North Pole MEDIUM 600-vs-360 difference is resolved |
+| 12 | 12a core `ebaec30b` (tests only: the adopted pointerControls tests, byte-identical) into `bd80f587`; 12b Treasure Rush branch `97c69672` (GE-071 Pirate's Leap on the engine: checkpoints, pools, goal, jump challenges; course v3 stone stairs, a no-jump route to the treasure; course v4 all 30 platforms and the gold plate on engine platforms; decision E16 in the cove definition) into `9e680012` | Clean merges. Migration graph applied from scratch on PostgreSQL 16 (slot 8). Content, golden, vectors, ADR, docs, workspace checks pass; typecheck passes; engine 659 plus 1 expected fail; React region-play, scoring, game-engine, runtime and regionPlay **1,854 passed, 0 failed**; pytest on PostgreSQL for regions, ai, scoring, seasons, assets, avatars **1,915 passed, 3 failed**. The 3 failures predate step 12 (identical at `19645943`) | D1 scoring realm drift; D2 puzzle-kind migration test assumes its leaf (section 10) |
 
 Forecast update after step 1: `feature/storykeeper-castle-completion` @ `4df618b2` has merged the
 engine and is now **clean** on top of step 1 (it was 9 conflicts). The `regions 0007` collision
@@ -275,3 +276,132 @@ make merge-forecast REFS="origin/core/gameengine origin/core/ge-scoring \
 make migration-audit
 python3 scripts/check_workspace_packages.py --root <exported tree>   # see game-engine-package.md
 ```
+
+## 10. Main-merge preparation (status at step 12, `9e680012`)
+
+Prepared, not executed. No merge into `main` happens without the owner.
+
+### 10.1 Outstanding commits
+
+| Stream | Branch head | Not yet in the integration branch |
+|---|---|---|
+| Engine core | `core/gameengine` | none |
+| Scoring | `core/ge-scoring` | none |
+| Treasure Rush and Pirate's Leap | `feature/GE-070-treasure-rush-engine-migration` | none |
+| Firepeak | `feature/firepeak-volcano-adventure` | none |
+| North Pole | `feature/north-pole-adventure` | none |
+| Storykeeper's Castle | `feature/storykeeper-castle-completion` | none |
+| Lambda (kept separate) | `feature/serverless-processing-completion` and 3 stacked branches (PRs #42, #43) | 140 commits; separate until its `assets` migration is renumbered |
+| LAI-ENG-002 infrastructure | `integration/multi-agent-dev` | its own PR (step 0) |
+
+### 10.2 Movement stack (PR #26 to #37): merge route
+
+Every movement-stack branch is already contained in the integration branch, and every one still
+heads the jump decision as `## ADR-055` (the integration lineage renamed it ADR-063).
+
+| PR | Branch | Stacked on |
+|---|---|---|
+| #26 | `feature/shared-jump-controller` | `main` (87 behind) |
+| #27 | `feature/third-person-avatar` | #26 |
+| #28 | `feature/player-avatar-assets` | #27 |
+| #29 | `feature/player-running` | #28 |
+| (no PR number found) | `feature/asset-collision-profiles` | #28 |
+| #37 | `feature/interactive-platforms` | #29 and asset-collision-profiles |
+| (no PR number found) | `feature/pirates-leap` | #37 |
+| #36 | `feature/treasure-rush-palm-trees` | pirates-leap |
+
+Forecast onto `main` `8bd19fb7`:
+
+- **Option A (recommended):** one PR from `integration/20261119-game-engine-core` to `main`.
+  **Clean.** Afterwards PRs #26 to #37 are closed as merged through it.
+- **Option B:** merge the stack PRs one by one. Every step conflicts. `docs/DECISIONS.md` conflicts
+  in #26 to #29 (the ADR-055 heading), and `asset-collision-profiles` and #37 each conflict in 11
+  code files (`react/src/api/*`, `features/auth/AuthContext*`, `regionAssets.ts`, the site-release
+  action), because those branches predate `main`'s Amplify removal. Each PR would first need the
+  ADR-055 to ADR-063 rename.
+
+Before the main PR: (1) LAI-ENG-002 (step 0) merges first or is merged into the integration branch;
+(2) the integration branch merges current `main` again if `main` moved; (3) the merge-readiness
+gates in 10.5 pass on the final SHA.
+
+### 10.3 Django migrations at the main merge
+
+| App | `main` leaf | After the merge | Note |
+|---|---|---|---|
+| `ai` | `0005_npc_hint_route` | `0006_castle_director` | Castle Director |
+| `assets` | `0002_asset_library_media_families` | `0003_collision_profiles` | Collision profiles |
+| `avatars` | new | `0002_seed_identities` | Seeds avatar identities |
+| `regions` | `0006_merge_main` | `0009_castle_director_catalog` | `0007_puzzle_kinds_choose_order` (Firepeak), `0008`, `0009` (castle) |
+| `scoring` | new | `0001_initial` | Economy off by default |
+| `seasons` | new | `0001_initial` | North Pole seasonal events |
+
+Verified: the full graph applies from an empty PostgreSQL 16 database (slot 8, 2026-11-19); one
+leaf per app; no migration on `main` is changed. **Lambda stream:** its `0003_derived_artifact`
+collides with `0003_collision_profiles`. When Lambda lands after this merge, its owner renames it
+`0004_derived_artifact` and adds `("assets", "0003_collision_profiles")` to its dependencies (it
+already depends on `assets 0002`, `catalog 0010`, `jobs 0005`). No deployed database has any of
+these migrations; an RDS snapshot comes before any deployed migration (release-policy).
+
+### 10.4 Isolated PostgreSQL environment (Storykeeper and the combined tree)
+
+Prepared in the integration worktree, not in the Storykeeper worktree (the owner declined a local
+database in the Storykeeper session, and no agent works around that):
+
+| Item | Value |
+|---|---|
+| Worktree | `/Coding/learning-worktrees/wt-integration-20261119-game-engine-core` (slot 8) |
+| Container | compose project `wt-integration-20261119-game-engine-core`, `127.0.0.1:5458`, own volume |
+| Database | `lai_integration_20261119_game_engine_core`; pytest uses `test_lai_integration_20261119_game_engine_core` |
+| Start, stop | `make up`, `make down` in that worktree |
+| Run | `set -a; . ./.env; set +a; LAI_REQUIRE_POSTGRES=1 .venv/bin/python -m pytest -q <paths>` |
+
+It already ran the castle's Django tests on the integrated tree (`regions`, `ai`: castle director,
+catalog and seeds), all passing apart from D2 below. For the Storykeeper worktree itself, the
+owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` and `make up` there
+(PostgreSQL 5452, `test_lai_storybook`).
+
+### 10.5 GE-090 merge-readiness checklist (current status)
+
+| Gate | Command | Status |
+|---|---|---|
+| ADR registry | `npm run adr:check` | Passes on `9e680012` |
+| Documentation | `make docs-check` | Passes |
+| Workspace and engine boundary | `make workspace-check` | Passes |
+| Migrations | `make migrate-check`; `migration_audit.py HEAD`; migrate from empty on PostgreSQL | Pass |
+| Content | `npm run content:check`, `npm run golden:check`, `npm run engine:vectors:check` | Pass |
+| Types | `npm run typecheck` | Passes |
+| Engine unit | `npm run test:engine` | 659 passed, 1 expected fail (GE-L10) |
+| Targeted React | gated affected sets per step | Pass; timing failures classified B15 by matched comparison |
+| Targeted Django on PostgreSQL | regions, ai, scoring, seasons, assets, avatars | **3 failures: D1, D2** |
+| Lint and format | `npm run lint`, `npm run format:check`, `make py-lint py-format-check` | Not run (merge readiness) |
+| Full suites | `test_gate.py --full -- npm test`; `make py-test-db` | Not run (merge readiness; B15 host) |
+| Build | `npm run build`; no `GameEnginePlayground` chunk; one `three` copy | Not run |
+| Browser | `npm run test:e2e`, `npm run test:acceptance` | Not run (owner authorization) |
+| Owner QA | `engine-1.0-acceptance.md` section 3; realm QA guides | Not started |
+
+### 10.6 Unresolved defects
+
+| Id | Defect | Owner | Blocks the main PR? |
+|---|---|---|---|
+| D1 | Scoring realm drift: `test_realms` finds 14 Heart of Firepeak and 2 North Pole quest build keys with no authored server source | Scoring lead with the Firepeak/North Pole lead | Yes (failing test) |
+| D2 | `test_puzzle_kinds` assumes `0007_puzzle_kinds_choose_order` is the `regions` leaf; the castle's 0008/0009 now follow it | Firepeak lead | Yes (failing test) |
+| B15 | Host timer stalls (VirtualBox guest): timing evidence on this host is weak | Owner | Yes, for trustworthy merge-readiness runs |
+| GE-T2 | GameHost retry test about 1 s per test (host timers) | Engine lead | Re-check after B15 |
+| GE-L10 | Platform carry one step late (pinned expected failure) | Engine lead | No (Low) |
+| GE-L14, GE-L15 | Telegraph assumes flat ground; turntable mesh does not rotate | Engine lead | No (Low) |
+
+### 10.7 Owner decisions required before the main PR
+
+1. Host for merge-readiness runs (B15): fix the VM timers, or use a non-VM host.
+2. Main-merge route for the movement stack: option A (recommended) or option B.
+3. Registry-only change on `main`: reserve ADR-073 (Heart of Firepeak) and correct the ADR-070 row
+   (GLB optimization policy); reserve numbers for the engine-core and scoring-economy drafts
+   (`ADR-NNN`).
+4. LAI-2003 approval (or waiver) of the engine package wiring.
+5. Scoring: acknowledge its shared-file changes; decide the economy ADR (economy stays off until
+   then); decide authoritative jump and course awards (deferred).
+6. Acknowledge the `deploy-site.yml` (`game/**`) change in LAI-ENG-002.
+7. Authorize the merge-readiness gates in 10.5 (lint, format, full suites, build, PostgreSQL full
+   run, Playwright) and owner QA.
+8. Deployment approval per environment, separate from the merge; RDS snapshot before migrating.
+9. Host memory (six agents on 8 GB) and whether the Storykeeper worktree may run its own PostgreSQL.
