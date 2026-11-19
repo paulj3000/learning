@@ -4,20 +4,18 @@
   previous active version), clone any version to a new draft, and retire. Frozen versions are
   read-only. Recording the owner's economy approval is superuser-only and never possible for a
   development fixture (a database constraint as well).
-- Ledger: read-only for staff. Nothing is added, changed or deleted here. A superuser can post
-  a compensating correction (with a reason) that reverses selected awards; the original stays.
-- No child data is shown beyond the opaque child id.
+- The ledger and projections are child progress, so they are NOT registered: no child
+  progress model is exposed on the admin (`game_sessions` isolation test). Staff inspect
+  aggregates with the management commands, and a superuser records a compensating correction
+  with `manage.py scoring_correct`, which needs a named superuser and a reason.
 """
 
-from django import forms
 from django.contrib import admin, messages
-from django.template.response import TemplateResponse
 
 from apps.catalog.admin_access import AdminRole, can_view, resolve_admin_role
 
-from . import ledger, policies
-from .contracts import EntryKind
-from .models import AwardLedgerEntry, AwardRule, PolicyStatus, ProgressionProjection, ScoringPolicy
+from . import policies
+from .models import AwardRule, PolicyStatus, ScoringPolicy
 
 
 def _is_superuser(request) -> bool:
@@ -140,99 +138,3 @@ class ScoringPolicyAdmin(StaffOnlyAdmin):
             lambda p: policies.record_economy_approval(p, request.user),
             "economy approval recorded",
         )
-
-
-class CorrectionForm(forms.Form):
-    reason = forms.CharField(
-        max_length=300,
-        help_text="Why (a defect, a mis-set value). Staff text only: no child names or details.",
-    )
-
-
-@admin.register(AwardLedgerEntry)
-class AwardLedgerEntryAdmin(StaffOnlyAdmin):
-    list_display = (
-        "recorded_at",
-        "entry_kind",
-        "currency",
-        "amount",
-        "source_kind",
-        "source_ref",
-        "scope_key",
-        "policy_version",
-        "trust",
-    )
-    list_filter = ("entry_kind", "currency", "source_kind", "policy_version")
-    search_fields = ("source_ref", "scope_key", "=child__id")
-    actions = ["reverse_selected"]
-
-    def get_readonly_fields(self, request, obj=None):
-        return [f.name for f in self.model._meta.fields]
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        if not _is_superuser(request):
-            actions.pop("reverse_selected", None)
-        return actions
-
-    @admin.action(description="Reverse the selected awards with a correction (superuser)")
-    def reverse_selected(self, request, queryset):
-        if not _is_superuser(request):
-            self.message_user(request, "Only a superuser can do that.", messages.ERROR)
-            return None
-        awards = queryset.filter(entry_kind=EntryKind.AWARD)
-        form = CorrectionForm(request.POST if "apply" in request.POST else None)
-        if form.is_valid():
-            done = 0
-            for entry in awards:
-                remaining = entry.amount + sum(c.amount for c in entry.corrections.all())
-                if remaining <= 0:
-                    continue
-                try:
-                    ledger.record_correction(
-                        entry, -remaining, form.cleaned_data["reason"], request.user
-                    )
-                except ledger.CorrectionRefused as error:
-                    self.message_user(request, f"{entry.pk}: {error}", messages.ERROR)
-                else:
-                    done += 1
-            self.message_user(request, f"{done} correction(s) recorded.", messages.SUCCESS)
-            return None
-        return TemplateResponse(
-            request,
-            "admin/scoring/awardledgerentry/reverse.html",
-            {
-                **self.admin_site.each_context(request),
-                "title": "Reverse awards with a correction",
-                "entries": awards,
-                "form": form,
-                "action": "reverse_selected",
-                "opts": self.model._meta,
-            },
-        )
-
-
-@admin.register(ProgressionProjection)
-class ProgressionProjectionAdmin(StaffOnlyAdmin):
-    list_display = ("id", "xp", "learning_points", "coins", "stars", "entry_count", "last_entry_at")
-
-    def get_readonly_fields(self, request, obj=None):
-        return [f.name for f in self.model._meta.fields]
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False

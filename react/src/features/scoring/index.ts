@@ -14,3 +14,4 @@ export * from './PersonalBest';
 export * from './AdventureResults';
 export * from './ProgressionSummary';
 export * from './ParentProgressionPanel';
+export { useScoringClaims, CLAIM_POLL_MS, type ScoringClaims } from './useScoringClaims';

@@ -30,6 +30,7 @@ child's existing progress counts once, through the same path as live play.
 | 7. Enable | `LAI_SCORING_ENABLED=true` | owner | set it back to false |
 | 8. Backfill | `manage.py scoring_reconcile` (idempotent; safe to rerun) | operator, with owner approval | erase per child, or `migrate scoring zero` |
 | 9. Verify | `manage.py scoring_verify_projections` (`--rebuild` to repair) | operator | read-only, or rebuild |
+| Repair a defect | `manage.py scoring_correct` (superuser, reason required; the original stays) | operator, with owner approval | a later correction can restore up to the original |
 
 In local development: `manage.py scoring_load_dev_policy --activate` with
 `LAI_SCORING_ENABLED=true` and `LAI_SCORING_ALLOW_UNAPPROVED=true`. Production settings refuse
@@ -39,8 +40,9 @@ the second.
 
 A value change is a new policy version: clone, edit the draft, approve, then activate. Award keys
 leave out the version, so nothing already earned is paid again. Keep stacking group names
-across versions. A wrong amount already paid is repaired with a correction (Admin, superuser,
-with a reason), never by editing or deleting entries.
+across versions. A wrong amount already paid is repaired with a correction
+(`manage.py scoring_correct <entry> --staff <superuser> --reason ...`), never by editing or
+deleting entries. The ledger is child progress, so it is not on the Django admin.
 
 ## 5. Realm compatibility adapters
 

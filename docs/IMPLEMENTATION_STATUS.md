@@ -57,6 +57,76 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
   decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
   order, scoring economy against the scoring standard.
 
+## GE-100 to GE-110: universal scoring and progression engine (2026-11-18, `core/ge-scoring`); development complete, economy OFF and NOT owner-approved, NOT merged
+
+**Conflict raised, not resolved.** ADR-011 part A and the scoring standard (ADR-072, mandatory)
+prohibit XP, coins and levels. GE-100 asks for them and also says "do not activate unapproved
+economy". The engine is therefore built but dormant:
+
+- `LAI_SCORING_ENABLED` defaults to false.
+- A policy needs the owner's economy approval before it can award outside local development
+  and tests.
+- Development fixture values can never be approved.
+- The draft ADR is [docs/scoring/ADR_DRAFT_SCORING_ECONOMY.md](scoring/ADR_DRAFT_SCORING_ECONOMY.md).
+  Its number (ADR-NNN) is not reserved on `main`.
+
+**What exists**
+
+- New Django app `apps.scoring`; no existing table or play service is changed:
+  - versioned policies (DRAFT, ACTIVE, RETIRED) with award rules, stacking groups, suppress
+    rules and a trust floor;
+  - an append-only award ledger keyed per child by source (replays, retries, backfills and new
+    policy versions pay nothing again);
+  - atomic projections that can be rebuilt from the ledger, and superuser corrections
+    (`scoring_correct`);
+  - parent erasure;
+  - a read-only child-scoped API: `GET scoring/`, `GET scoring/awards/` and `DELETE scoring/`.
+- Awards are derived only from server records. The trust boundary is in
+  [docs/scoring/TRUST_BOUNDARY.md](scoring/TRUST_BOUNDARY.md). Jump challenges and platform
+  courses are deferred because they are client-only.
+- Achievements and trophies are projections of existing KEEPSAKE and set-completion items, with
+  no new model.
+- Django Admin shows policies only. The ledger is child progress and is not registered.
+- React `features/scoring`:
+  - HUD and results components, with reduced motion, aria-live notifications, and pending vs
+    confirmed awards;
+  - an engine adapter over `@lai/game-engine/contracts` v1;
+  - a parent progression panel on the parent child page.
+- Django parity tests for `lai.gameplay-event` v1 against `tests/contracts/gameplay-events-v1.json`.
+- Shared changes:
+  - `config/settings` (the app and three flags; production refuses `LAI_SCORING_ALLOW_UNAPPROVED`);
+  - `config/urls.py`;
+  - `core/exceptions.py` (the `invalid_cursor` code);
+  - `game_sessions/tests/test_sessions.py` (the admin app list gains `scoring`, policies only);
+  - `routes/ChildDashboard.tsx` (one panel).
+
+**Docs**
+
+- [Contracts](scoring/SCORING_CONTRACTS.md)
+- [Audit](scoring/SCORING_AUDIT.md)
+- [Trust boundary](scoring/TRUST_BOUNDARY.md)
+- [Migration plan](scoring/MIGRATION_PLAN.md)
+
+**Checks** (unit only, 2026-11-18):
+- pytest `lai/apps/scoring`: 257 tests.
+- With the `core`, `inventory`, `progression`, `quests`, `game_sessions` and `education`
+  regression suites: 1,032 passed, 1 failed. The failure was the admin app allow-list, which
+  needed `scoring` added; it was fixed and rerun, and the affected files pass (73 passed).
+- Vitest: `features/scoring` 38; with routes, parent dashboard and golden, 135 passed.
+- `npm run typecheck`, ruff and `make docs-check` pass. Not run, deferred to authorized merge
+readiness: Playwright, browser, full suites, lint and format gates, build.
+
+**Open**
+
+- The owner's ADR decision and an approved policy.
+- Retiring or keeping the legacy `treasure-rush-cove` quest (suppressed in the dev policy).
+- Realm selectors from the Firepeak/North Pole and Treasure Rush mapping tables, at integration.
+- A content-drift test at integration.
+- Mounting the adapter: `useScoringClaims(childId)` exists. The host owner passes its
+  `onGameplayEvent` to `GameHost` and renders `ScoreNotification`.
+- A server-bounded record before jump and course awards can count.
+- Concurrency of `record_awards` under real parallel writers is not tested.
+
 ## Movement defects, campfire and feather (2026-11-15, `feature/treasure-rush-palm-trees`); development complete, owner QA pending, NOT merged
 
 Owner guide: `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`. Decision: ADR-060 (Proposed).
