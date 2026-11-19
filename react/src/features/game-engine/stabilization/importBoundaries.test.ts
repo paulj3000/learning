@@ -83,11 +83,10 @@ describe('import boundaries', () => {
     expect(offenders).toEqual([]);
   });
 
+  // GE-076 (2026-11-19): gamepadInput and cameraHeightFollower shims removed (no importers left).
   const LEGACY_WILDCARD_SHIMS = [
-    'cameraHeightFollower',
     'cameraPreference',
     'firstPersonController',
-    'gamepadInput',
     'jumpConfiguration',
     'locomotionConfiguration',
     'playerCamera',
@@ -104,7 +103,7 @@ describe('import boundaries', () => {
         .map((spec) => ({ file: relative(REACT_SRC, file), spec })),
     );
 
-  it('the only react/ imports of an unlisted engine subpath are the 10 legacy island-map re-export shims (no new ones)', () => {
+  it('the only react/ imports of an unlisted engine subpath are the 8 legacy island-map re-export shims (no new ones)', () => {
     const files = [...new Set(wildcardImports().map((o) => o.file))].sort();
     expect(files).toEqual([...LEGACY_WILDCARD_SHIMS].sort());
     for (const { file } of wildcardImports()) {
