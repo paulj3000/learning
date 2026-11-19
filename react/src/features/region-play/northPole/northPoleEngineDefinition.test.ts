@@ -73,12 +73,14 @@ describe('North Pole engine definitions (GE-074)', () => {
     expect(new Set(NORTH_POLE_ADVENTURE.learningObjectiveIds)).toEqual(skills);
   });
 
-  it('pairs every jump challenge with an authored stair or ramp, all optional', () => {
+  it('names authored jump routes, a stair or ramp wherever one reaches the same place, all optional', () => {
     const ids = sceneIds(read<Snapshot>('north_pole_scene.json').scene);
     for (const route of NORTH_POLE_JUMP_ROUTES) {
       expect(ids, route.jumpRouteId).toContain(route.jumpRouteId);
-      expect(ids, route.accessibleRouteId).toContain(route.accessibleRouteId);
+      if (route.accessibleRouteId !== null) expect(ids, route.accessibleRouteId).toContain(route.accessibleRouteId);
     }
+    const jumpOnly = NORTH_POLE_JUMP_ROUTES.filter((r) => r.accessibleRouteId === null).map((r) => r.id);
+    expect(jumpOnly).toEqual(['np-jump-village-trampoline', 'np-jump-stables-logs', 'np-jump-lake-thin-ice']);
     expect(NORTH_POLE_ADVENTURE.jumpChallenges.every((j) => j.optional)).toBe(true);
   });
 

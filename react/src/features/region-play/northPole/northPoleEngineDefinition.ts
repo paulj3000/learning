@@ -42,16 +42,21 @@ export const NORTH_POLE_CHECKPOINT_IDS = [
 ] as const;
 
 /**
- * Jump challenges: an optional jump route and a stair or ramp reaching the same place (NP-D5).
- * The trampoline, the stable log hops and the lake's thin ice lead only to optional collectibles,
- * which the jumping standard allows, so they are optional routes, not challenges.
+ * Jump challenges, all optional (NP-D5). Four have a stair or ramp reaching the same place. The
+ * trampoline, the stable log hops and the lake's thin ice are jump-only: they lead only to optional
+ * collectibles (the jumping standard allows it), so `accessibleRouteId` is null and nothing
+ * required lies behind them (`test_north_pole_layout.py`: everything but `JUMP_ONLY_OPTIONAL` is
+ * reachable on foot).
  */
 export const NORTH_POLE_JUMP_ROUTES = [
   { id: 'np-jump-village-steps', jumpRouteId: 'np-ledge-step-a', accessibleRouteId: 'np-stair-village-1' },
   { id: 'np-jump-workshop-crates', jumpRouteId: 'np-ledge-crate-1', accessibleRouteId: 'np-stair-shelf-1' },
   { id: 'np-jump-forest-stones', jumpRouteId: 'np-plat-pepper-1', accessibleRouteId: 'np-stair-candy-1' },
   { id: 'np-jump-gingerbread-cookies', jumpRouteId: 'np-plat-cookie-1', accessibleRouteId: 'np-ramp-ginger-1' },
-] as const;
+  { id: 'np-jump-village-trampoline', jumpRouteId: 'np-plat-trampoline', accessibleRouteId: null },
+  { id: 'np-jump-stables-logs', jumpRouteId: 'np-ledge-log-1', accessibleRouteId: null },
+  { id: 'np-jump-lake-thin-ice', jumpRouteId: 'np-plat-lake-stone', accessibleRouteId: null },
+] as const satisfies readonly { id: string; jumpRouteId: string; accessibleRouteId: string | null }[];
 
 /** Zone restorations: the world changes a child sees on the island (scoring REALM_MILESTONE). */
 export const NORTH_POLE_MILESTONE_IDS = [
