@@ -349,5 +349,6 @@ snapshot), engine walkthrough tests, Realm/Storybook contracts, docs. The coordi
   `completed` per Place (additive).
 - A managed NPC (NPC Manager release) whose entity is an unsolved, unlocked `RETURN_TO_NPC` target
   keeps the legacy dialogue panel so the return step is always reachable.
-- Known limitation: `entity_ids` is the union of both bands, so Pathfinder switch and story
-  puzzles leave one or two extra answer objects that carry no label and do nothing.
+- `entity_ids` is the union of both bands. The client hides and unfocuses the answer objects the
+  child's band never maps (`unusedChoiceEntities` in `AreaPuzzleLayer.tsx`), so a Pathfinder
+  switch or story puzzle no longer leaves unlabelled objects that do nothing.
