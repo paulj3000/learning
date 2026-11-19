@@ -28,12 +28,14 @@ function sceneData() {
 }
 
 /** The real North Pole bridge block plus an engine snow kind matched to the Area (no engine fog). */
-function withEngineSnow(config: { [key: string]: JsonValue }): { [key: string]: JsonValue } {
+function withEngineSnow(config: { [key: string]: JsonValue }, follow = false): { [key: string]: JsonValue } {
   const capabilities = (config.capabilities as JsonValue[]).concat([
     {
       id: 'environment.weather',
       config: {
         initial: 'NP_SNOW',
+        // The Area atmosphere's 40 x 24 x 40 box around the camera (core 574a9c4b).
+        ...(follow ? { area: { mode: 'FOLLOW_PLAYER', halfX: 20, halfZ: 20, height: 24 } } : {}),
         kinds: [
           {
             id: 'NP_SNOW',
@@ -129,6 +131,35 @@ describe('North Pole snow: Area atmosphere versus engine weather (parity)', () =
     expect(atMountain).toEqual([]);
     // With no engine fog the Area fog is left as it was (null here: the view never adds one).
     expect(scene.fog).toBeNull();
+    mount.dispose();
+  });
+
+  it('with FOLLOW_PLAYER the engine snow goes with the child to the mountain (core 574a9c4b): coverage at parity', () => {
+    const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
+    const scene = new Scene();
+    const fake = liveHost(withEngineSnow(binding.config as { [key: string]: JsonValue }, true), scene, start);
+    const mount = mountEngineBridge(fake.value);
+    expect(mount.api.issues).toEqual([]);
+    fake.walkTo(MOUNTAIN.x, MOUNTAIN.z);
+    fake.advance(4);
+    const zs = engineSnowZ(scene);
+    expect(zs.length).toBeGreaterThan(0);
+    expect(zs.filter((z) => Math.abs(z - MOUNTAIN.z) <= 20 + 1e-6).length).toBeGreaterThan(0);
+    expect(scene.fog).toBeNull(); // no engine fog: the Area's night fog is left alone
+    mount.dispose();
+  });
+
+  it('but the engine snow ignores the device render tier: the LOW tier has no Area snow, the engine still snows', () => {
+    // Parity criterion (GE-073F card): density per render tier, LOW tier off. The atmosphere reads
+    // the region's render quality; the bridge picks its weather tier from the seed (MEDIUM when
+    // no environment.particles), so a LOW device would draw engine snow it never drew before.
+    expect(createPrecipitation(manifest.atmosphere!.precipitation!, 'LOW', false)).toBeNull();
+    const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
+    const scene = new Scene();
+    const fake = liveHost(withEngineSnow(binding.config as { [key: string]: JsonValue }, true), scene, start);
+    const mount = mountEngineBridge(fake.value);
+    fake.advance(3);
+    expect(engineSnowZ(scene).length).toBeGreaterThan(0);
     mount.dispose();
   });
 
