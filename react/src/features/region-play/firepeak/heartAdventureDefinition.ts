@@ -42,16 +42,16 @@ export const FIREPEAK_HEART_CHECKPOINT_IDS = [
 export const FIREPEAK_HEART_PUZZLE_IDS: readonly string[] = HEART_PUZZLE_IDS;
 
 /**
- * Optional jump routes and the walking route beside each (FPV-D7). Route ids name authored
- * platforms or colliders: the jump route's first platform or log, and the walking alternative.
+ * Jump challenges: an optional jump route and a walking route that reach the same place (FPV-D7).
+ * Route ids name authored platforms, colliders or zones. The lava stepping stones are not listed:
+ * they lead only to the optional Lava Jumper shard, which a jump-only optional collectible may do
+ * (jumping standard), so no walking route reaches the same goal.
  */
 export const FIREPEAK_HEART_JUMP_ROUTES = [
   // The landing log, beside the open path to the Emberwood gate.
   { id: 'fh-jump-landing-log', jumpRouteId: 'fh-jump-log', accessibleRouteId: 'fh-zone-landing' },
   // Emberwood logs, beside the forest path.
   { id: 'fh-jump-forest-logs', jumpRouteId: 'fh-forest-log-1', accessibleRouteId: 'fh-zone-emberwood' },
-  // Lava stepping stones to the Lava Jumper shard; everyone crosses on the basalt bridge.
-  { id: 'fh-jump-lava-stones', jumpRouteId: 'fh-stone-1', accessibleRouteId: 'fh-lava-bridge' },
   // Summit hops; the stairs (0.2 m rises) reach the same plateau.
   { id: 'fh-jump-summit-hops', jumpRouteId: 'fh-summit-hop-1', accessibleRouteId: 'fh-summit-up-1' },
 ] as const;
