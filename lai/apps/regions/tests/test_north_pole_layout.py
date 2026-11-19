@@ -634,8 +634,12 @@ def test_one_checkpoint_list_resumes_at_the_zone_checkpoint_at_every_stage():
             keys.append(key)
         if key == CH_LAKE_OPEN:
             keys.append(L.CH["lake_bridge"])  # the island bridge built too: still the zone checkpoint
-        earned = [c["id"] for c in CHECKPOINT_LIST if c.get("whenChangeKey") in (None, *keys)]
-        zone_earned = [c["id"] for c in ZONE_CHECKPOINTS if c.get("whenChangeKey") in (None, *keys)]
+        # Only checkpoints a world change opened are earned (an ungated one has no evidence).
+        earned = [c["id"] for c in CHECKPOINT_LIST if c.get("whenChangeKey") in keys]
+        zone_earned = [c["id"] for c in ZONE_CHECKPOINTS if c.get("whenChangeKey") in keys]
+        if key is None:
+            assert earned == []  # a first visit starts at the spawn, Santa's Landing
+            continue
         assert earned[-1] == zone_earned[-1], (key, earned)
 
 

@@ -143,7 +143,7 @@ describe('the North Pole manifest', () => {
     expect(config.effects.checkpoints).toEqual([]);
     const block = SCENE.engineBridge;
     const furthest = (...keys: string[]) => earnedBridgeCheckpoints(block, keys).at(-1);
-    expect(furthest()).toBe('np-cp-landing');
+    expect(furthest()).toBeUndefined(); // a first visit starts at the spawn (Santa's Landing)
     expect(furthest(K.welcomeLooked)).toBe('np-cp-workshop');
     // The lake open and its bridge built: the zone checkpoint, not a bank.
     expect(furthest(K.welcomeLooked, K.workshopRestored, K.forestDone, K.lakeBridge)).toBe('np-cp-lake');
