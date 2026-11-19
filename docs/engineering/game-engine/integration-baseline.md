@@ -12,7 +12,9 @@ run `npm install` for the `game/` workspace.
 
 ## Current baseline
 
-**Integration SHA (sent to `integration/20261119-game-engine-core`): `382b322551522543f3eba5fa044ff27fcfcd8216`.** It is `cbe43a8e` plus GE-066 part 1 (`b1478a85`: forwarded HazardTelegraph, PlatformPhaseChanged and SurfaceFootstep; `inactiveWhenSignalId`) plus GE-070 re-merged for the audio-test isolation fix (`ecff0a9a`). Later commits on `core/gameengine` (stabilization tests, the host-footstep relay) reach integration with the next SHA.
+**Offered for integration step 7 (2026-11-19): `16ed7e4e`.** It is the held step-7 commit `26f14c88` plus the additive support-report rule (`fe8960d5`), GE-068 engine platform parity (merge `21c57363`), GE-T1 test budgets back to the default (`bbe8ad6c`) and GE-069 platform sound events (`16ed7e4e`). Treasure Rush built Pirate's Leap's platform move on it (`97c69672`). Integration waits on the Firepeak and North Pole subset-assertion fixes.
+
+Earlier integration SHA, kept for reference: **Integration SHA (sent to `integration/20261119-game-engine-core`): `382b322551522543f3eba5fa044ff27fcfcd8216`.** It is `cbe43a8e` plus GE-066 part 1 (`b1478a85`: forwarded HazardTelegraph, PlatformPhaseChanged and SurfaceFootstep; `inactiveWhenSignalId`) plus GE-070 re-merged for the audio-test isolation fix (`ecff0a9a`). Later commits on `core/gameengine` (stabilization tests, the host-footstep relay) reach integration with the next SHA.
 
 **`cbe43a8e`** (Wave 2, 2026-11-19): `fc5c71cf` plus GE-075's six location definitions, the GE-065
 companion bridge hooks (merged from the Firepeak split branch at `70cd5781`) and renderer stats
@@ -50,11 +52,11 @@ Deferred to merge readiness (GE-090): lint, format, build, Playwright, owner QA.
 
 | Gap | Asked by | Plan |
 |---|---|---|
-| The bridge does not forward `HazardTelegraph`, `PlatformPhaseChanged`, `SurfaceFootstep` | Firepeak | Wave 2: add to both presentation maps (parity test) and forward |
-| The bridge draws nothing (engine platforms, telegraph warnings, weather, lighting, particles) | Firepeak, Pirate's Leap, North Pole | Wave 2: bridge presentation layer |
-| Engine platforms do not carry or launch the live controller | Pirate's Leap | Wave 2: optional host members for carry and launch |
-| No inverse signal gate ("active until restored") | Firepeak | Wave 2: `inactiveWhenSignalId` on forces, hazards and platforms |
-| The live controller's fall recovery does not know bridge checkpoints | Pirate's Leap | Wave 2: expose the latest bridge checkpoint for the host's `recoveryPoint` |
+| The bridge does not forward `HazardTelegraph`, `PlatformPhaseChanged`, `SurfaceFootstep` | Firepeak | Closed: GE-066 part 1 (`b1478a85`) |
+| The bridge draws nothing (engine platforms, telegraph warnings, weather, lighting, particles) | Firepeak, Pirate's Leap, North Pole | Closed: GE-066 part 2 (`96e87446`); platform look GE-068 |
+| Engine platforms do not carry or launch the live controller | Pirate's Leap | Closed: GE-066 part 2 carry and launch; GE-068 tuning, safe ground, inspection; GE-069 platform sounds. Pirate's Leap moved (`97c69672`) |
+| No inverse signal gate ("active until restored") | Firepeak | Closed: GE-066 part 1 |
+| The live controller's fall recovery does not know bridge checkpoints | Pirate's Leap | Closed: `4b63f9ca` |
 | Companion bridge hooks (`extensionApi`, checkpoint labels, resume and gating effect) live on the Firepeak branch | Castle, Pirate's Leap | Firepeak pushes a generic branch off this baseline; the engine lead merges it into core |
 | Sound Manager port not wired (positional loops, per-surface footsteps) | Firepeak, North Pole | Forwarded events first; port wiring after |
 | Remaining locations not yet declared as engine locations | GE-075 | Wave 2: one location per commit |
