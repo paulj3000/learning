@@ -2,8 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../../../IslandWorldView.module.css';
 import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
-import { adventureCompletedClaim, castleClaimContext, emitCastleClaim } from './castleGameplayClaims';
+import {
+  adventureCompletedClaim,
+  castleClaimContext,
+  emitCastleClaim,
+} from './castleGameplayClaims';
 import { useCastleAnswerCues } from './useCastleAnswerCues';
+import { CastleSessionLoading, CastleSessionUnavailable } from './CastleSessionStatus';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import type { StepAnswer } from '../../../../adventures/engine/validators';
 import type { AgeBandValue } from '../../../../child-profile/constants';
@@ -160,6 +165,13 @@ export function CastleTaleSession({
    */
   const submitAnswerAndReflect = useCallback(
     async (answer: StepAnswer) => {
+      /*
+        The room shows a choice only once the server has accepted it (Django is the record): an
+        offline or failed submit (`null`) lights no portrait and paints no easel, so a resume
+        never takes back something the child saw happen.
+      */
+      const correctness = await cuedSubmit(answer);
+      if (correctness === null) return correctness;
       if (answer.kind === 'creative-choice' && stepId) {
         onChoice(stepId, answer.optionId);
         if (stepId === CHOOSE_HERO_STEP_ID) {
@@ -177,7 +189,7 @@ export function CastleTaleSession({
       if (answer.kind === 'reflection' && stepId === STORY_REFLECTION_STEP_ID) {
         scene.current?.showEaselPainting(choices.hero, choices.setting);
       }
-      return cuedSubmit(answer);
+      return correctness;
     },
     [cuedSubmit, stepId, onChoice, scene, choices],
   );
@@ -256,7 +268,8 @@ export function CastleTaleSession({
           hint ladder has already advanced a rung, because this went through
           the same `submitAnswer` the HUD list goes through.
         */
-        if (correctness === 'correct') return;
+        // `null`: nothing was graded (offline, or an answer already in flight), so no reaction.
+        if (correctness === 'correct' || correctness === null) return;
         scene.current?.resetBindingPlates(activePlates);
         scene.current?.playQuillClip('ReactConcerned');
       });
@@ -302,13 +315,14 @@ export function CastleTaleSession({
   }, [bus, stepId, definition]);
 
   if (loadState === 'loading') {
-    return <p className={styles.status}>Opening your story...</p>;
+    return <CastleSessionLoading message="Opening your story..." />;
   }
   if (loadState === 'error' || !currentStep) {
     return (
-      <p className={styles.status} role="alert">
-        Something went wrong opening your story.
-      </p>
+      <CastleSessionUnavailable
+        message="Something went wrong opening your story."
+        backToMapHref={backToMapHref}
+      />
     );
   }
 

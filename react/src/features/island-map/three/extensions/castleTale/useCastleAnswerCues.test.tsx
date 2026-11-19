@@ -45,4 +45,46 @@ describe('useCastleAnswerCues (SC-R06-01)', () => {
     hook.rerender({ stepId: 'step-2', hintLevel: 0 });
     expect(moments).toEqual(['hint']);
   });
+
+  it('sends one answer at a time: a second while the first is graded resolves to null unsent', async () => {
+    const moments: string[] = [];
+    setCastleSoundSink((moment) => moments.push(moment));
+    let settle: (grade: Correctness | null) => void = () => undefined;
+    const submit = vi.fn(
+      (_answer: string) => new Promise<Correctness | null>((resolve) => (settle = resolve)),
+    );
+    const hook = renderHook(() => useCastleAnswerCues(submit, 'step-1', 0));
+    let first: Promise<Correctness | null> = Promise.resolve(null);
+    let second: Correctness | null | undefined;
+    await act(async () => {
+      first = hook.result.current('a');
+      second = await hook.result.current('a');
+    });
+    expect(second).toBeNull();
+    expect(submit).toHaveBeenCalledTimes(1);
+    await act(async () => settle('incorrect'));
+    await expect(first).resolves.toBe('incorrect');
+    expect(moments).toEqual(['answerRetry']);
+
+    submit.mockResolvedValueOnce('correct');
+    await act(async () => {
+      await expect(hook.result.current('b')).resolves.toBe('correct');
+    });
+    expect(submit).toHaveBeenCalledTimes(2);
+  });
+
+  it('frees the gate after a submit that throws', async () => {
+    const submit = vi
+      .fn<(answer: string) => Promise<Correctness | null>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce('correct');
+    setCastleSoundSink(() => undefined);
+    const hook = renderHook(() => useCastleAnswerCues(submit, 'step-1', 0));
+    await act(async () => {
+      await expect(hook.result.current('a')).rejects.toThrow('offline');
+    });
+    await act(async () => {
+      await expect(hook.result.current('a')).resolves.toBe('correct');
+    });
+  });
 });
