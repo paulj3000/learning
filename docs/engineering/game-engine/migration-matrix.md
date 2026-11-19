@@ -174,3 +174,26 @@ optional extras.
   `test_pirates_leap.py` checks every platform moved unchanged, only extras are optional, the
   lift's plate and the bridge's signal are wired, and tuning still validates.
 
+### 6.3 Parity audit against the gameplay contracts (2026-11-19, after course v4)
+
+Contracts: `acceptance-requirements.md` section 2, `docs/adventures/jumping-standard.md`,
+`engine-1.0-acceptance.md` section 3. Unit-level evidence only; browser items are in the owner QA
+checklist.
+
+| Area | Owner | Status | Evidence |
+|---|---|---|---|
+| Character movement | Engine | Parity | `firstPersonController*.test.ts`, `runningIntegration.engine.test.ts`; the cove sets no movement overrides |
+| Jumping and landing | Engine | Parity | `firstPersonController.jump.test.ts`, `jumpIntegration.engine.test.ts`, `piratesLeap.engine.test.ts` (running barrel jump, no recovery) |
+| Camera collision | Engine; Realm evidence | Parity, **new test** | Engine platforms are host colliders, which the camera's obstruction uses. `piratesLeap.engine.test.ts`: in third person, riding the lift and facing barrels and stairs, the camera is never inside an engine platform |
+| Platform collision and carry | Engine (GE-066/068/069) | Parity | `piratesLeap.engine.test.ts`: lift carry to the nest, ferry crossing, staff tuning, platform sounds |
+| Checkpoint activation | Engine | Parity | 4 ground checkpoints, none on a platform; `piratesLeap.engine.test.ts` (training yard), `piratesLeap.claims.engine.test.ts` |
+| Goal completion | Engine | Parity | `PlatformGoalReached leap-goal-nest` by lift and by stairs |
+| Stairs and non-jump route | Realm | Parity | `piratesLeap.walkingRoutes.engine.test.ts` (no jump, no recovery); Django stairs geometry test |
+| Story progression | Realm | Parity | `pipsTreasure.engine.test.ts`, `RegionPlayCompanion.test.tsx`, `test_pips_treasure.py`. **Fixed gap:** a world change recorded mid-visit (the riddle) now has a test that it reaches the engine bridge as `world:PIRATES_LEAP_RIDDLE_SOLVED`; since v4 that is the only way the riddle bridge appears |
+| Exit and recovery | Engine and Realm | Parity | Hazard recovery to the linked checkpoint with no loss; a fall below returns to the latest checkpoint; bridge safe ground excludes moving platforms; a returning child resumes at earned checkpoints only |
+| Touch input | Shared HUD; Realm layout | **Defect fixed** | The touch Jump button (right edge, from max(42%, 9.5rem)) overlapped the region-play hint bubble on phones. On a coarse pointer the bubble now opens left of the Jump column. `ui/touchJumpLayout.test.ts` checks the geometry; the Hint and Backpack buttons stay below the Jump button |
+
+Integrated build only (`integration/20261119-game-engine-core`, Firepeak's region-play changes):
+returning to Pip, a quest-completing puzzle solve, now also plays the finale sound and victory
+music, as chest and talk completions do. The new Firepeak cues map to nothing in Treasure Rush.
+

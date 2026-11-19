@@ -29,6 +29,7 @@ import { PlatformsService } from '@lai/game-engine/components';
 const REGION = 'treasure-rush-cove';
 const WEST = -Math.PI / 2; // forward is (sin yaw, cos yaw): -X
 const NORTH = 0;
+const SOUTH = Math.PI;
 
 async function buildCove(platformTuning?: Record<string, unknown>) {
   const region = { ...bootstrapJson().region, scene: await piratesLeapSceneJson(platformTuning) };
@@ -219,6 +220,53 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
     expect(platform(slow, 'leap-moving-dock').position.x).toBeLessThan(platform(fast, 'leap-moving-dock').position.x);
     fast.engine.dispose();
     slow.engine.dispose();
+  });
+
+  it('in third person the camera never ends inside an engine platform, riding the lift or not', async () => {
+    // Camera contract: never inside a collider. Engine platforms are host colliders (GE-066), so
+    // the camera's boom must stop at them as it does at the cove's own props.
+    const h = await cove({ cameraMode: 'third-person' });
+    const insideAny = () => {
+      const eye = h.camera().position;
+      return bridgeApi(h)
+        .platforms()
+        .filter(
+          (p) =>
+            Math.abs(eye.x - p.position.x) < p.size.x / 2 &&
+            Math.abs(eye.z - p.position.z) < p.size.z / 2 &&
+            eye.y < p.position.y &&
+            eye.y > p.position.y - p.size.y,
+        )
+        .map((p) => p.id);
+    };
+    const seen = new Set<string>();
+    let longestBoom = 0; // proves the camera really was behind the child, not at the eye
+    const watch = (frames: number) => {
+      for (let i = 0; i < frames; i += 1) {
+        h.runFrames(1);
+        for (const id of insideAny()) seen.add(id);
+        const eye = h.camera().position;
+        const feet = h.engine.childPlacement();
+        longestBoom = Math.max(longestBoom, Math.hypot(eye.x - feet.x, eye.z - feet.z));
+      }
+    };
+    h.setDrive(place(-20.6, 0, -30)); // the plate wakes the lift
+    watch(2);
+    for (let i = 0; i < 900 && platform(h, 'leap-lift').position.y > 0.21; i += 1) h.runFrames(1);
+    h.setDrive(place(-18, 0, -30.2, NORTH)); // onto the lift, the camera behind (south of) the child
+    watch(1);
+    h.setDrive(go(NORTH));
+    watch(40);
+    h.setDrive(idle);
+    watch(300); // up to the ledge and the wait at the top
+    // Facing the barrels from the yard, then down the stairs' lower flight: static platforms too.
+    h.setDrive(place(-21.2, 0, -19, WEST));
+    watch(30);
+    h.setDrive(place(-26.5, 0, -21.2, SOUTH));
+    watch(30);
+    expect(h.engine.cameraMode()).toBe('third-person');
+    expect(longestBoom).toBeGreaterThan(1.5);
+    expect([...seen]).toEqual([]);
   });
 
   it('plays in third-person too, and leaves the rest of the cove as it was', async () => {

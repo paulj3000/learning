@@ -1542,6 +1542,52 @@ describe('the engine bridge learns the child\'s progress (GE-065)', () => {
     expect(bridge.resume).toHaveBeenCalledTimes(1);
   });
 
+  it('passes a change recorded mid-visit to the bridge (the riddle bridge), without resuming again', async () => {
+    // GE-071 course v4: the riddle bridge is an engine platform, so this signal is the only way
+    // it appears during the visit (the live platform system no longer draws it).
+    const fed: string[][] = [];
+    const bridge = {
+      setSignals: vi.fn((ids: readonly string[]) => void fed.push([...ids])),
+      resume: vi.fn((ids: readonly string[]) => ({ placedAt: ids.at(-1) ?? null, unknown: [] })),
+    };
+    let solved = false;
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(
+          bootstrapJson({
+            region: bridgeRegion,
+            session: sessionJson(),
+            quests: [questJson()],
+            worldChanges: solved ? [change('PIRATES_LEAP_RIDDLE_SOLVED')] : [],
+          }),
+          parse.regionBootstrap,
+        ),
+      ),
+      talkToNpc: vi.fn(async () => {
+        solved = true;
+        return {
+          flagsSet: [],
+          questUpdates: [
+            {
+              questId: 'pips-missing-treasure',
+              status: 'COMPLETED' as const,
+              currentStageId: 'return-to-pip',
+              justCompleted: true,
+              newlyCompletedObjectiveIds: [],
+            },
+          ],
+          completionRewards: [],
+        };
+      }),
+    });
+    apis.set(CHILD_A, api);
+    const extensionApi = (id: string) => (id === 'engineBridge' ? bridge : null);
+    render(<RegionPlayCompanion {...props({ extensionApi, claimedInteraction: interaction(PIP) })} />);
+    await waitFor(() => expect(fed.at(-1)).toEqual(['world:PIRATES_LEAP_RIDDLE_SOLVED']));
+    expect(fed[0]).toEqual([]); // arrival: nothing solved yet
+    expect(bridge.resume).toHaveBeenCalledTimes(1);
+  });
+
   it('a first visit with no world changes resumes nowhere: no teleport past the course', async () => {
     const bridge = {
       setSignals: vi.fn(),
