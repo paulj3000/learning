@@ -266,3 +266,16 @@ Not done, and why:
 | Engine parity | `storykeeperCastle.location.test.ts` (6), `castleEngineImports.test.ts` (2), `castleGameplayClaims.test.tsx` (7) |
 
 Owner acceptance (SC-R12-01, browser and devices) is still required and is not claimed here.
+
+### 9.1 How the castle's claims land (scoring lead scoring-cb, 2026-11-19)
+
+| Castle claim or record | GE-100 source | Note |
+|---|---|---|
+| `learning.answer.submitted` (`ADVENTURE_STEP`) | matches `ANSWER_CORRECT` ref `<adventure slug>/<step id>` | a wrong answer's pending entry expires quietly; pad and ground route are the same claim |
+| `adventure.completed` | `ADVENTURE_COMPLETED` (ref = slug), server-graded | |
+| `exploration.area.entered` (rooms) | informational | rooms are not a scoring source; counting them would need castle-room keys that cannot be client-posted (the protected-key work) |
+| Great Storybook quests | `QUEST_COMPLETED` from `QuestProgress` | server-bounded |
+| Edition milestones `GREAT_STORYBOOK_RESTORED`, `_V2` | not read today | a bare world change can be client-posted on the base; a scoring follow-up |
+| Keepsakes | projected from inventory | server reward rules unchanged |
+
+No realm milestone claim is wanted from the client. The engine lead opens **GE-067** for host-level `exploration.discovery.found` and `npc.interaction.completed` claims in every location, and will publish the SHA in which bridge checkpoints feed live fall recovery (`api.latestCheckpoint()`). The castle's `gameplay.checkpoints` config (section 8.1) is held until then.
