@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { emitLocationClaim } from './three/runtime/gameplayClaimSink';
 import { getDiscoveryDefinition, recordDiscovery } from '../discovery/api';
 import type { DiscoveryOutcome } from '../discovery/discovery';
 
@@ -55,6 +56,8 @@ export function DiscoveryAction({ childId, discoveryId, onDiscovered }: Discover
         setOutcome(result.outcome);
         setRewardMessages(result.rewardMessages);
         if (result.outcome.status === 'FOUND_NOW') {
+          // GE-067: the server recorded it as new, so claim it (a no-op without a visit's sink).
+          emitLocationClaim('exploration.discovery.found', { discoveryId });
           onDiscoveredRef.current();
         }
       })
