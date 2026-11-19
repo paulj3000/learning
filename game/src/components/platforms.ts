@@ -101,6 +101,8 @@ export interface PlatformSpec {
   bounceCue?: string;
   /** Not there until `activeSignalId` first goes true (an appearing bridge). */
   appearSignalId?: string;
+  /** GE-066: the platform is off (no collider, hidden) while this signal is on. */
+  inactiveWhenSignalId?: string;
 }
 
 export interface PlatformsConfig {
@@ -198,6 +200,8 @@ export interface PlatformState {
   motion?: { path: PathMotion; state: PathMotionState };
   falling?: FallingModel;
   hasCollider: boolean;
+  /** Switched off by `inactiveWhenSignalId` this step. */
+  switchedOff: boolean;
   /** Appearing platform: has been activated at least once. */
   appeared: boolean;
   /** Bounce platform: the child was on it last step. */
@@ -213,6 +217,8 @@ export interface PlatformsApi {
   /** Current top-surface centre of a platform, for presentation. */
   positionOf(platformId: string): Vec3Like | undefined;
   phaseOf(platformId: string): FallingPhase | undefined;
+  /** False while the platform is switched off (`inactiveWhenSignalId`) or not yet appeared. */
+  isPresent(platformId: string): boolean;
 }
 export const PlatformsService = defineService<PlatformsApi>('gameplay.platforms');
 
@@ -239,7 +245,14 @@ export function validatePlatformsConfig(input: unknown) {
         size,
         route: issues.oneOf<PlatformRoute>(item.route, `${path}.route`, ['REQUIRED', 'OPTIONAL'], 'REQUIRED'),
         appearSignalId: issues.optionalId(item.appearSignalId, `${path}.appearSignalId`),
+        inactiveWhenSignalId: issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`),
       };
+      if (spec.inactiveWhenSignalId !== undefined) {
+        const activating = [spec.appearSignalId, item.moving !== undefined && isRecord(item.moving) ? item.moving.activeSignalId : undefined];
+        if (activating.includes(spec.inactiveWhenSignalId)) {
+          issues.add(`${path}.inactiveWhenSignalId`, 'must differ from the platform activating signals (appearSignalId, moving.activeSignalId)');
+        }
+      }
       if (item.moving !== undefined) {
         spec.moving = readMoving(item.moving, `${path}.moving`, issues);
         if (spec.route !== 'OPTIONAL') {
@@ -324,7 +337,7 @@ function boxFor(state: PlatformState) {
 }
 
 function isStandingOn(state: PlatformState, player: Vec3Like, supportId: string | null): boolean {
-  if (supportId === state.spec.id) {
+  if (supportId === state.spec.id || supportId === `engine:${state.spec.id}`) {
     return true;
   }
   const box = boxFor(state);
@@ -381,6 +394,7 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
         yaw: 0,
         carry: { x: 0, y: 0, z: 0 },
         hasCollider: false,
+        switchedOff: false,
         appeared: spec.appearSignalId === undefined,
         wasOn: false,
       };
@@ -406,8 +420,8 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
     };
     const api: PlatformsApi = {
       carryVelocityAt(supportId, x, z) {
-        const state = supportId ? find(supportId) : undefined;
-        if (!state) {
+        const state = supportId ? find(supportId.startsWith('engine:') ? supportId.slice('engine:'.length) : supportId) : undefined;
+        if (!state || state.switchedOff) {
           return { x: 0, y: 0, z: 0 };
         }
         const carry = { ...state.carry };
@@ -435,6 +449,10 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
         return { x: (box.min.x + box.max.x) / 2, y: box.max.y, z: (box.min.z + box.max.z) / 2 };
       },
       phaseOf: (id) => find(id)?.falling?.phase,
+      isPresent(id) {
+        const state = find(id);
+        return state !== undefined && state.appeared && !state.switchedOff;
+      },
     };
     const removeService = runtime.services.provide(PlatformsService, api);
 
@@ -450,10 +468,20 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
           const state = world.get(entity, PlatformComponent)!;
           const { spec } = state;
           const before = { ...state.offset };
+          const off = spec.inactiveWhenSignalId !== undefined && signals.get(spec.inactiveWhenSignalId);
+          if (off !== state.switchedOff) {
+            state.switchedOff = off;
+            if (off) {
+              removeCollider(state);
+            } else if (state.appeared && state.falling?.phase !== 'FALLING' && state.falling?.phase !== 'GONE') {
+              addCollider(state);
+            }
+            phaseEvent(state, off ? 'SWITCHED_OFF' : 'SWITCHED_ON');
+          }
 
           if (!state.appeared && spec.appearSignalId && signals.get(spec.appearSignalId)) {
             state.appeared = true;
-            if (!state.hasCollider) {
+            if (!state.hasCollider && !state.switchedOff) {
               addCollider(state);
             }
             phaseEvent(state, 'APPEARED');
@@ -480,7 +508,7 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
               phaseEvent(state, changed);
               if (changed === 'FALLING') {
                 removeCollider(state);
-              } else if (changed === 'STABLE') {
+              } else if (changed === 'STABLE' && !state.switchedOff) {
                 addCollider(state);
               }
             }
@@ -495,7 +523,7 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
           }
 
           if (spec.bounceHeight !== undefined) {
-            const on = state.appeared && player !== undefined && isStandingOn(state, player, support);
+            const on = state.appeared && !state.switchedOff && player !== undefined && isStandingOn(state, player, support);
             if (on && !state.wasOn) {
               launch = { platformId: spec.id, height: spec.bounceHeight };
               emitPresentation(runtime, 'PlayerBounced', { platformId: spec.id, cue: spec.bounceCue });

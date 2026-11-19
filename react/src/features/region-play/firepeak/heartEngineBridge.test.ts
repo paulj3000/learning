@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { EnvironmentQuery } from '@lai/game-engine';
 import { describe, expect, it } from 'vitest';
 import type { BridgePlayerState, LocationBridgeHost } from '../../game-engine/bridge/bridgeHost';
 import { mountEngineBridge } from '../../game-engine/bridge/engineBridge';
@@ -30,6 +31,7 @@ function host(config: { [key: string]: JsonValue }) {
   const teleports: { x: number; z: number }[] = [];
   const recovered: WorldEngineEventMap['PlayerRecovered'][] = [];
   const reached: string[] = [];
+  const environment: (EnvironmentQuery | null)[] = [];
   bus.on('PlayerRecovered', (event) => recovered.push(event));
   bus.on('CourseCheckpointReached', ({ checkpointId }) => reached.push(checkpointId));
   const player: BridgePlayerState = { position: { x: 0, y: 0, z: 90 }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
@@ -49,7 +51,7 @@ function host(config: { [key: string]: JsonValue }) {
       return () => frames.delete(callback);
     },
     playerState: () => ({ ...player, position: { ...player.position } }),
-    setEnvironment: () => undefined,
+    setEnvironment: (query) => environment.push(query),
   };
   const at = (x: number, y: number, z: number) => {
     player.position = { x, y, z };
@@ -57,7 +59,7 @@ function host(config: { [key: string]: JsonValue }) {
   const advance = (seconds: number) => {
     for (let t = 0; t < seconds - 1e-9; t += 1 / 60) for (const frame of [...frames]) frame(1 / 60);
   };
-  return { value, teleports, recovered, reached, at, advance };
+  return { value, teleports, recovered, reached, at, advance, environment };
 }
 
 describe('engine bridge progress helpers (GE-073)', () => {
@@ -136,6 +138,21 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     expect(recoveredText({ platforms: [], recoveryLead: 'Whoa, the lava is too hot!' }, 'fh-cp-lava-near', labels)).toBe(
       'Whoa, the lava is too hot! Back to the near bank. Have another go!',
     );
+    mount.dispose();
+  });
+
+  it('the Forge steam pushes back toward the Forge until it is restored, and nowhere else', () => {
+    const fake = host(bridgeBlock());
+    const mount = mountEngineBridge(fake.value);
+    const query = fake.environment.at(-1)!;
+    fake.at(0, 0, -46.5); // walking into the steam: the gust ramps in over half a second
+    fake.advance(1);
+    expect(query.forcesAt(0, 0.5, -46.5).length).toBe(1);
+    expect(query.forcesAt(0, 0.5, -46.5)[0]!.acceleration.z).toBeGreaterThan(0); // back into the Forge
+    expect(query.forcesAt(0, 0.5, -30)).toEqual([]); // the Forge floor
+    expect(query.forcesAt(0, 0.5, 20)).toEqual([]); // nowhere near the lava
+    mount.api.setSignals(worldSignals(['FIREPEAK_HEART_FORGE_RESTORED']));
+    expect(query.forcesAt(0, 0.5, -46.5)).toEqual([]);
     mount.dispose();
   });
 });

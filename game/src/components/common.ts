@@ -12,7 +12,7 @@
  */
 
 import type { GameplayEvent, GameplayEventFactory, GameplayEventPayloads, GameplayEventType } from '../contracts/gameplayEvents';
-import type { EnginePresentationEventMap } from '../contracts/engineEvents';
+import type { EnginePresentationEventMap, SteadyOrBlink } from '../contracts/engineEvents';
 import { PLAYER_ENTITY_ID, PlayerTransformComponent, type Vec3Like } from '../contracts/player';
 import type { EngineRuntime } from '../core/runtime';
 import type { EventMap } from '../core/eventBus';
@@ -43,7 +43,7 @@ export const REDUCED_MOTION_SPEED_SCALE = 0.6;
 
 // --- presentation events this package adds ----------------------------------------------
 
-export type SteadyOrBlink = 'BLINK' | 'STEADY_DIM';
+export type { SteadyOrBlink };
 
 export interface HazardRecoveryRequest {
   hazardId: string;
@@ -67,15 +67,12 @@ export type GameplayPresentationEventMap = {
   PortalRequested: { portalId: string; targetAreaId: string };
   PortalBlocked: { portalId: string };
   SwitchToggled: { switchId: string; on: boolean };
-  PlatformPhaseChanged: { platformId: string; phase: string; warning: SteadyOrBlink | null };
   PlatformLaunch: { platformId: string; height: number };
   HazardRecoveryRequested: HazardRecoveryRequest;
-  HazardTelegraph: { hazardId: string; phase: 'WARN' | 'ACTIVE' | 'REST'; secondsToImpact: number; steadyWarning: boolean };
   PuzzleProgress: { puzzleId: string; progress: number; total: number };
   PuzzleReset: { puzzleId: string };
   PuzzleCompleted: { puzzleId: string; viaAlternative: boolean };
   JumpRouteChosen: { challengeId: string; routeId: string; accessible: boolean };
-  SurfaceFootstep: { surfaceId: string; footstepCue: string | null };
   AtmosphereChanged: { kind: 'LIGHTING' | 'WEATHER'; id: string };
 };
 
