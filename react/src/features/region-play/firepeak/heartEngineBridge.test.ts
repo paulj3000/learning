@@ -97,7 +97,7 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     expect(mount.api.issues).toEqual([]);
     // The support report grows by addition (GE-066 part 2 added scene and carryLaunch): compare
     // only the members this Area relies on.
-    expect(mount.api.support).toMatchObject({ playerState: true, setEnvironment: true, carryLaunch: true });
+    expect(mount.api.support).toMatchObject({ playerState: true, setEnvironment: true });
     mount.dispose();
   });
 
@@ -205,6 +205,7 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
   it('the crumbling stone holds 4 s after the child steps on, crumbles for the last 1 s, falls into the lava and comes back', () => {
     const fake = host(bridgeBlock());
     const mount = mountEngineBridge(fake.value);
+    expect(mount.api.support.carryLaunch).toBe(true); // the stone carries the child (GE-066)
     mount.api.setSignals(worldSignals([KEYS.map, KEYS.emberwood]));
     fake.at(0, 0, 34.5); // the near bank: the lava's checkpoint
     fake.advance(0.2);
