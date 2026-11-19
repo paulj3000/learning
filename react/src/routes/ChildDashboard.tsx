@@ -31,6 +31,7 @@ import { LEARNING_OBJECTIVES, getAdventureTemplate } from '../features/adventure
 import { getIslandLocation } from '../features/island/locations';
 import { getSkill, listSkillsByAgeBand } from '../features/curriculum/queries';
 import { AGE_BAND_LABELS, READING_MODE_OPTIONS } from '../features/child-profile/constants';
+import { ParentProgressionPanel } from '../features/scoring';
 import { buildWeeklySummary } from '../features/parent-dashboard/weeklySummary';
 import { CHILD_DASHBOARD_SECTION_IDS } from '../features/parent-dashboard/dashboardSections';
 import { clearAIHistory, listSafetyEvents } from '../features/parent-dashboard/api';
@@ -437,6 +438,8 @@ export function ChildDashboard() {
                 </p>
               ))}
             </section>
+
+            <ParentProgressionPanel childId={childProfile.id} />
 
             {explorationLines.length > 0 ? (
               <section

@@ -119,6 +119,30 @@ describe('triggerVolumes', () => {
     });
   });
 
+  it('builds no live trigger for a checkpoint the engine bridge serves (GE-066); the rest stay', () => {
+    const manifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      extensions: [
+        ...WELCOME_HARBOR_MANIFEST.extensions,
+        {
+          extensionId: 'engineBridge',
+          config: {
+            capabilities: [
+              {
+                id: 'gameplay.checkpoints',
+                config: { checkpoints: [{ id: 'welcome-harbor:lookout', courseId: 'harbour', position: { x: 0, y: 0, z: 0 }, label: 'the lookout' }] },
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const checkpoints = triggerVolumes(manifest, WELCOME_HARBOR_CHECKPOINTS).filter((volume) => volume.kind === 'CHECKPOINT');
+    expect(checkpoints.map((volume) => volume.id)).toEqual(['welcome-harbor:dock', 'welcome-harbor:shed']);
+    // Still declared: the list the validator, spawn and toasts use is unchanged.
+    expect(manifest.checkpoints.ids).toContain('welcome-harbor:lookout');
+  });
+
   it('skips a listed checkpoint whose position is not authored', () => {
     expect(triggerVolumes(WELCOME_HARBOR_MANIFEST, []).map((volume) => volume.kind)).toEqual([
       'INTERIOR',

@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createGameplayEventFactory, type AnyGameplayEvent } from '@lai/game-engine/contracts';
+import { createGameplayEventFactory, validateGameplayEvent, type AnyGameplayEvent } from '@lai/game-engine/contracts';
 import {
   currentClaimsBinding,
   droppedLocationClaims,
+  emitLocationClaim,
   forwardClaim,
   resetLocationClaimsForTests,
+  setDefaultLocationClaimsBinding,
   setLocationClaimSink,
   setLocationClaimsBinding,
 } from './gameplayClaimSink';
@@ -68,6 +70,53 @@ describe('location claim sink (GE-070, decision E15)', () => {
     expect(binding?.context).toEqual(CONTEXT);
     expect(currentClaimsBinding()).toBe(binding); // same object: one factory per visit
     release();
+    expect(currentClaimsBinding()).toBeNull();
+  });
+});
+
+describe('default location-visit binding (GE-L11)', () => {
+  const explore = { realmId: 'pirate-builder-bay', adventureId: 'explore:pirate-builder-bay', areaId: 'pirate-builder-bay', sessionRef: null };
+  const adventure = { realmId: 'treasure-rush', adventureId: 'treasure-cove', areaId: 'cove', sessionRef: null };
+
+  it('claims under the default when no companion binds, and the companion binding wins when it does', () => {
+    const claims: AnyGameplayEvent[] = [];
+    const stopSink = setLocationClaimSink((event) => claims.push(event));
+    const stopDefault = setDefaultLocationClaimsBinding(explore);
+    emitLocationClaim('exploration.discovery.found', { discoveryId: 'harbor-tide-pool' });
+    const stopCompanion = setLocationClaimsBinding(adventure);
+    emitLocationClaim('exploration.discovery.found', { discoveryId: 'hidden-cave' });
+    stopCompanion();
+    emitLocationClaim('exploration.discovery.found', { discoveryId: 'lookout' });
+    stopDefault();
+    emitLocationClaim('exploration.discovery.found', { discoveryId: 'nobody-listening' });
+    stopSink();
+    expect(claims.map((c) => [c.adventureId, (c.payload as { discoveryId: string }).discoveryId])).toEqual([
+      ['explore:pirate-builder-bay', 'harbor-tide-pool'],
+      ['treasure-cove', 'hidden-cave'],
+      ['explore:pirate-builder-bay', 'lookout'],
+    ]);
+    expect(claims.every((c) => validateGameplayEvent(c).ok)).toBe(true);
+  });
+
+  it('never claims an adventure start or completion under the free-exploration default', () => {
+    const claims: AnyGameplayEvent[] = [];
+    const stopSink = setLocationClaimSink((event) => claims.push(event));
+    const stopDefault = setDefaultLocationClaimsBinding(explore);
+    emitLocationClaim('adventure.started', {});
+    emitLocationClaim('adventure.completed', {});
+    expect(claims).toEqual([]);
+    const stopCompanion = setLocationClaimsBinding(adventure);
+    emitLocationClaim('adventure.completed', {});
+    expect(claims.map((c) => c.type)).toEqual(['adventure.completed']);
+    stopCompanion();
+    stopDefault();
+    stopSink();
+  });
+
+  it('the bridge reads the default through currentClaimsBinding', () => {
+    const stopDefault = setDefaultLocationClaimsBinding(explore);
+    expect(currentClaimsBinding()?.context.adventureId).toBe('explore:pirate-builder-bay');
+    stopDefault();
     expect(currentClaimsBinding()).toBeNull();
   });
 });

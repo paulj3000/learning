@@ -234,6 +234,45 @@ describe('extension host contract (GE-070): player state and environment', () =>
   });
 });
 
+describe('extension host contract (GE-066): live carry and launch', () => {
+  it('carryPlayer and launchPlayer reach the live controller', async () => {
+    const { context, controller } = await withProbe();
+    const live = controller();
+    const carries: number[][] = [];
+    const launches: number[] = [];
+    const carry = live.carry.bind(live);
+    const launch = live.launch.bind(live);
+    live.carry = (dx, dy, dz) => {
+      carries.push([dx, dy, dz]);
+      carry(dx, dy, dz);
+    };
+    live.launch = (height) => {
+      launches.push(height);
+      launch(height);
+    };
+    const y = live.position.y;
+    context.carryPlayer!(0, 0.5, 0);
+    expect(carries).toEqual([[0, 0.5, 0]]);
+    expect(live.position.y).toBeCloseTo(y + 0.5, 5);
+    context.launchPlayer!(2);
+    expect(launches).toEqual([2]);
+    expect(live.grounded).toBe(false);
+  });
+
+  it('reports an engine: collider id as the support id', async () => {
+    const { harness, context, controller } = await withProbe();
+    const start = clearLane(controller());
+    context.addCollider(new Box3(new Vector3(start.x + 1, 0, start.z - 1), new Vector3(start.x + 3, 0.2, start.z + 1)), { id: 'engine:pad', jumpable: true });
+    harness.setDrive(standAt(start.x, start.z, FACE_EAST));
+    harness.runFrames(1);
+    harness.setDrive(walk(FACE_EAST));
+    harness.runFrames(30);
+    harness.setDrive(idle);
+    harness.runFrames(5);
+    expect(context.playerState!().supportId).toBe('engine:pad');
+  });
+});
+
 describe('extension host contract (GE-070): teleport (GE-D4)', () => {
   it('places the child exactly on a clear spot and emits nothing', async () => {
     const { harness, context, controller } = await withProbe();

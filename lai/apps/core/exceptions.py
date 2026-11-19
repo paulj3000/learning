@@ -78,6 +78,8 @@ _CODED = {
     # Amplify Data exit (AMP-03): account deletion and per-child state outside region play
     "account_deletion_incomplete": "The account could not be fully deleted yet. Please try again.",
     "staff_account_not_deletable": "This account is managed in the administration site.",
+    # Scoring awards feed (GE-104)
+    "invalid_cursor": "That cursor is not accepted.",
     "story_scene_rejected": "That story could not be saved.",
     "chapter_not_finished": "This chapter is not finished yet.",
     "chapter_not_current": "That chapter is not the current one.",
