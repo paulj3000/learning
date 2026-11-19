@@ -14,6 +14,8 @@ import {
   type NpcSoundMoment,
 } from '../../../../npc-manager/host';
 import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
+import { earnedBridgeCheckpoints, worldSignals } from '../../../../region-play/engineBridgeProgress';
+import { ENGINE_BRIDGE_EXTENSION_ID, type EngineBridgeApi } from '../../../../game-engine/bridge/engineBridge';
 import {
   chestStateChanges,
   resolveRegionPlayInteraction,
@@ -498,6 +500,24 @@ function RegionPlayGame(props: LocationCompanionProps) {
     // (Pirate's Leap's riddle drum) stayed hidden until the child left and came back.
     void refreshWorld().catch(() => undefined);
   }, [worldChanges, notifyPlay, refreshWorld]);
+
+  // GE-065: an Area whose checkpoints live in `scene.engineBridge` learns the child's progress
+  // here. World changes become `world:<key>` signals (gated checkpoints open), and once per visit
+  // the child is resumed at the furthest checkpoint they earned (signals first, then resume).
+  const bridgeBlock = bootstrap?.region.scene.engineBridge;
+  const areaLocation = bootstrap?.region.locationSlug;
+  const extensionApi = props.extensionApi;
+  const resumedBridge = useRef(false);
+  useEffect(() => {
+    if (!worldChanges || !bridgeBlock || !sceneApi || !extensionApi) return;
+    const bridge = extensionApi(ENGINE_BRIDGE_EXTENSION_ID) as Pick<EngineBridgeApi, 'resume' | 'setSignals'> | null;
+    if (!bridge) return;
+    const keys = worldChanges.filter((c) => c.locationSlug === areaLocation).map((c) => c.changeKey);
+    bridge.setSignals(worldSignals(keys));
+    if (resumedBridge.current) return;
+    resumedBridge.current = true;
+    bridge.resume(earnedBridgeCheckpoints(bridgeBlock, keys));
+  }, [worldChanges, bridgeBlock, areaLocation, sceneApi, extensionApi]);
 
   // Exactly one Pip: a manifest NPC the host serves is handed over to it.
   useEffect(() => {

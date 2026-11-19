@@ -9,7 +9,14 @@ export function checkpointReachedText(label: string): string {
   return `Safe spot: ${label}. If you slip, you will come back here.`;
 }
 
-export function recoveredText(spec: PlatformingSpec | undefined, checkpointId: string | null | undefined): string {
-  const label = checkpointId ? spec?.checkpoints?.find((point) => point.id === checkpointId)?.label : undefined;
+export function recoveredText(
+  spec: PlatformingSpec | undefined,
+  checkpointId: string | null | undefined,
+  /** Labels of checkpoints kept elsewhere (the engine bridge's list, GE-065), by id. */
+  labels?: ReadonlyMap<string, string>,
+): string {
+  const label = checkpointId
+    ? (spec?.checkpoints?.find((point) => point.id === checkpointId)?.label ?? labels?.get(checkpointId))
+    : undefined;
   return label ? `Splash! Back to ${label}. Have another go!` : 'Whoops! Back on solid ground. Have another go!';
 }
