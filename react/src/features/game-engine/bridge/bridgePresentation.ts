@@ -36,6 +36,36 @@ import {
 const GROUND_LIFT = 0.03;
 const ROCK_START_HEIGHT = 6;
 const ROCK_RADIUS = 0.45;
+/** GE-L14: a terrain telegraph has a vertex about every metre, at most 16 by 16 cells. */
+const TELEGRAPH_SEGMENT_METRES = 1;
+const MAX_TELEGRAPH_SEGMENTS = 16;
+
+type GroundSampler = (x: number, z: number) => number | null;
+
+/** The host's ground query, with non-finite answers treated as unknown; null without one. */
+function groundSampler(source: ((x: number, z: number) => number | null) | undefined): GroundSampler | null {
+  if (!source) return null;
+  return (x, z) => {
+    const y = source(x, z);
+    return typeof y === 'number' && Number.isFinite(y) ? y : null;
+  };
+}
+
+/**
+ * GE-L14: sets each vertex of a horizontal plane (centred on cx, cz, drawn at x/z `scale`) to the
+ * ground under where it will be drawn, plus `lift`. Unknown ground is y 0, the flat fallback.
+ */
+function drape(plane: PlaneGeometry, cx: number, cz: number, scale: number, ground: GroundSampler, lift: number): void {
+  const positions = plane.getAttribute('position');
+  for (let i = 0; i < positions.count; i += 1) {
+    const x = cx + positions.getX(i) * scale;
+    const z = cz + positions.getZ(i) * scale;
+    positions.setY(i, (ground(x, z) ?? 0) + lift);
+  }
+  positions.needsUpdate = true;
+  plane.computeBoundingBox();
+  plane.computeBoundingSphere();
+}
 const BLINK_HERTZ = 3;
 const DIM_OPACITY = 0.5;
 
@@ -49,6 +79,8 @@ export interface BridgePresentationOptions {
   playerPosition?: () => { x: number; z: number };
   /** GE-068: loads an asset model for a platform with `assetId`. Absent: platforms stay coloured boxes. */
   loadModel?: (assetId: string) => Promise<{ scene: Object3D }>;
+  /** GE-L14: ground height for terrain-following hazard telegraphs. Absent or null: flat at y 0. */
+  groundHeightAt?: (x: number, z: number) => number | null;
 }
 
 export interface BridgePresentation {
@@ -74,6 +106,10 @@ interface HazardView {
   phase: 'WARN' | 'ACTIVE' | 'REST';
   /** Seconds left in the warning, or elapsed in ACTIVE. */
   clock: number;
+  /** GE-L14: ground height at the centre (0 when flat), where the object lands. */
+  groundY: number;
+  /** GE-L14: re-drapes the shrinking fill over the ground at its scale; null when flat. */
+  drapeFill: ((scale: number) => void) | null;
 }
 
 /**
@@ -173,22 +209,42 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
     const depth = spec.rect.maxZ - spec.rect.minZ;
     const cx = (spec.rect.minX + spec.rect.maxX) / 2;
     const cz = (spec.rect.minZ + spec.rect.maxZ) / 2;
-    const plane = scope.track(new PlaneGeometry(width, depth));
+    const terrain = groundSampler(options.groundHeightAt);
+    const segX = terrain ? Math.min(MAX_TELEGRAPH_SEGMENTS, Math.max(1, Math.ceil(width / TELEGRAPH_SEGMENT_METRES))) : 1;
+    const segZ = terrain ? Math.min(MAX_TELEGRAPH_SEGMENTS, Math.max(1, Math.ceil(depth / TELEGRAPH_SEGMENT_METRES))) : 1;
+    const plane = scope.track(new PlaneGeometry(width, depth, segX, segZ));
     plane.rotateX(-Math.PI / 2);
+    // The fill shrinks in x and z during the warning, so it needs its own vertices to re-drape.
+    const fillPlane = terrain ? scope.track(plane.clone()) : plane;
+    if (terrain) {
+      drape(plane, cx, cz, 1, terrain, GROUND_LIFT);
+      drape(fillPlane, cx, cz, 1, terrain, GROUND_LIFT + 0.005);
+    }
     const outlineMaterial = scope.track(new MeshBasicMaterial({ color: 0xffb703, transparent: true, opacity: 0.25, side: DoubleSide, depthWrite: false }));
     const fillMaterial = scope.track(new MeshBasicMaterial({ color: 0xe76f51, transparent: true, opacity: 0.55, side: DoubleSide, depthWrite: false }));
     const rockMaterial = scope.track(new MeshStandardMaterial({ color: 0x7a6a5a }));
     const outline = addMesh(new Mesh(plane, outlineMaterial));
-    const fill = addMesh(new Mesh(plane, fillMaterial));
+    const fill = addMesh(new Mesh(fillPlane, fillMaterial));
     const rock = addMesh(new Mesh(scope.track(new SphereGeometry(ROCK_RADIUS, 12, 8)), rockMaterial));
     outline.name = `engine.hazard.${spec.id}.outline`;
     fill.name = `engine.hazard.${spec.id}.fill`;
     rock.name = `engine.hazard.${spec.id}.object`;
-    outline.position.set(cx, GROUND_LIFT, cz);
-    fill.position.set(cx, GROUND_LIFT + 0.005, cz);
-    rock.position.set(cx, ROCK_START_HEIGHT, cz);
+    // Flat fallback (no ground query): the planes sit at the lift, exactly as before GE-L14.
+    // On terrain the lift is in each vertex, so the meshes sit at y 0.
+    outline.position.set(cx, terrain ? 0 : GROUND_LIFT, cz);
+    fill.position.set(cx, terrain ? 0 : GROUND_LIFT + 0.005, cz);
+    const groundY = terrain ? (terrain(cx, cz) ?? 0) : 0;
+    rock.position.set(cx, groundY + ROCK_START_HEIGHT, cz);
     outline.visible = fill.visible = rock.visible = false;
-    hazards.set(spec.id, { spec, outline, fill, rock, phase: 'REST', clock: 0 });
+    let drapedAt = 1;
+    const drapeFill = terrain
+      ? (scale: number) => {
+          if (Math.abs(scale - drapedAt) < 1e-3) return;
+          drapedAt = scale;
+          drape(fillPlane, cx, cz, scale, terrain, GROUND_LIFT + 0.005);
+        }
+      : null;
+    hazards.set(spec.id, { spec, outline, fill, rock, phase: 'REST', clock: 0, groundY, drapeFill });
   }
   if (hazards.size > 0) {
     scope.track(
@@ -245,6 +301,8 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
             continue;
           }
           mesh.position.set(top.x, top.y - spec.size.y / 2, top.z);
+          // GE-L15: a turntable's mesh (and its model) turns with the simulated yaw.
+          mesh.rotation.y = platformsApi.yawOf(spec.id) ?? 0;
           if (phase === 'CRUMBLING') {
             material.opacity = reduced ? DIM_OPACITY : Math.sin(elapsed * Math.PI * 2 * BLINK_HERTZ) > 0 ? 1 : DIM_OPACITY;
           } else {
@@ -266,11 +324,13 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
           view.clock = Math.max(0, view.clock - dt);
           const progress = reduced ? 1 : 1 - view.clock / view.spec.telegraphSeconds;
           view.fill.scale.set(Math.max(0.05, progress), 1, Math.max(0.05, progress));
+          view.drapeFill?.(Math.max(0.05, progress));
         } else if (active) {
           view.clock += dt;
           view.fill.scale.set(1, 1, 1);
+          view.drapeFill?.(1);
           const fall = Math.min(1, view.clock / Math.max(0.1, view.spec.activeSeconds));
-          view.rock.position.y = ROCK_START_HEIGHT * (1 - fall * fall) + ROCK_RADIUS * fall * fall;
+          view.rock.position.y = view.groundY + ROCK_START_HEIGHT * (1 - fall * fall) + ROCK_RADIUS * fall * fall;
         }
       }
       lightingView?.update();

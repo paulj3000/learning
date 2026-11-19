@@ -264,11 +264,9 @@ describe('movement and collision consistency', () => {
     handle.dispose();
   });
 
-  // KNOWN LIMIT GE-L10 (docs/engineering/game-engine/known-defects.md): the standard assembly
-  // applies platform carry after the platforms system, so the canonical transform shows the
-  // carried position one simulation step (about 16 ms) later. it.fails keeps the suite green and
-  // turns red the day the lag is fixed, so the limit is re-checked then.
-  it.fails('a platform carrying the child keeps the canonical transform equal to the controller after every step', async () => {
+  // GE-L10 (fixed 2026-11-19): the carry system re-publishes the transform after carrying, so
+  // the canonical transform equals the controller in the same step. Was an expected failure.
+  it('a platform carrying the child keeps the canonical transform equal to the controller after every step', async () => {
     const requests: CapabilityRequest[] = [
       ...MOVE,
       {

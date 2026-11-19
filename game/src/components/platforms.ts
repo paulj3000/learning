@@ -345,6 +345,11 @@ export interface PlatformState {
   active: boolean;
   /** GE-069 moving platform: it moved last step. */
   moving: boolean;
+  /**
+   * GE-L15 turntable: the turn made this step (radians) and the step length, so the carry is
+   * an exact rotation about the centre (a tangent times dt drifts the rider outwards).
+   */
+  spinStep?: { angle: number; dt: number };
 }
 export const PlatformComponent = defineComponent<PlatformState>('gameplay.platform');
 
@@ -356,6 +361,12 @@ export interface PlatformsApi {
   /** Current top-surface centre of a platform, for presentation. */
   positionOf(platformId: string): Vec3Like | undefined;
   phaseOf(platformId: string): FallingPhase | undefined;
+  /**
+   * GE-L15: a turntable's current turn about +Y, radians (0 for any other platform), for
+   * presentation. The same angle and direction as `carryVelocityAt`'s tangential carry, so the
+   * mesh turns the way the child is carried. Undefined for an unknown platform.
+   */
+  yawOf(platformId: string): number | undefined;
   /** False while the platform is switched off (`inactiveWhenSignalId`) or not yet appeared. */
   isPresent(platformId: string): boolean;
   /** GE-068: every platform's state (including switched off or gone ones), in config order. */
@@ -609,7 +620,19 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
           return { x: 0, y: 0, z: 0 };
         }
         const carry = { ...state.carry };
-        if (state.spec.spinDegreesPerSecond) {
+        const step = state.spinStep;
+        if (state.spec.spinDegreesPerSecond && step && step.dt > 0) {
+          // GE-L15: the chord of this step's turn about the centre, as a velocity, so carry times
+          // dt rotates the rider exactly (same radius) by the angle the mesh turned.
+          const cx = state.spec.position.x + state.offset.x;
+          const cz = state.spec.position.z + state.offset.z;
+          const dx = x - cx;
+          const dz = z - cz;
+          const cos = Math.cos(step.angle);
+          const sin = Math.sin(step.angle);
+          carry.x += (dx * cos + dz * sin - dx) / step.dt;
+          carry.z += (-dx * sin + dz * cos - dz) / step.dt;
+        } else if (state.spec.spinDegreesPerSecond) {
           const rate = (state.spec.spinDegreesPerSecond * Math.PI) / 180 * (isReducedMotion(runtime) ? REDUCED_MOTION_SPEED_SCALE : 1);
           const cx = state.spec.position.x + state.offset.x;
           const cz = state.spec.position.z + state.offset.z;
@@ -633,6 +656,7 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
         return { x: (box.min.x + box.max.x) / 2, y: box.max.y, z: (box.min.z + box.max.z) / 2 };
       },
       phaseOf: (id) => find(id)?.falling?.phase,
+      yawOf: (id) => find(id)?.yaw,
       isPresent(id) {
         const state = find(id);
         return state !== undefined && state.appeared && !state.switchedOff;
@@ -719,7 +743,9 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
             }
           }
           if (spec.spinDegreesPerSecond) {
-            state.yaw += ((spec.spinDegreesPerSecond * Math.PI) / 180) * scale * context.dt;
+            const angle = ((spec.spinDegreesPerSecond * Math.PI) / 180) * scale * context.dt;
+            state.yaw += angle;
+            state.spinStep = { angle, dt: context.dt };
           }
 
           if (state.falling) {

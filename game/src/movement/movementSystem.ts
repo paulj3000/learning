@@ -63,6 +63,15 @@ export type MovementRuntime = Pick<EngineRuntime<EnginePresentationEventMap>, 'w
 
 export interface MovementSystemHandle {
   readonly system: EngineSystem;
+  /**
+   * GE-L10: re-publishes the canonical transform after something else moved the controller
+   * inside the same simulation step (platform carry, a bounce launch), so the transform never
+   * shows the carried position a step late. Position, grounded, state and support follow the
+   * controller; `previousPosition` stays the start of the step (interpolation then includes the
+   * carry) and `velocity` stays the child's own (being carried is not walking: the avatar keeps
+   * facing and gait). The movement system stays the single writer.
+   */
+  syncTransform(): void;
   dispose(): void;
 }
 
@@ -83,6 +92,25 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
   const player = entity;
   let lastGait: PlayerGait = controller.gait;
   let stride = 0;
+  let stepStart: Readonly<{ x: number; y: number; z: number }> = initial.previousPosition;
+  let stepVelocity: Readonly<{ x: number; y: number; z: number }> = initial.velocity;
+
+  /** The one write of the canonical transform, from the controller and this step's start. */
+  const publish = () => {
+    const at = controller.position;
+    const box = controller.supportingBox();
+    world.set(player, PlayerTransformComponent, {
+      position: Object.freeze({ x: at.x, y: at.y, z: at.z }),
+      previousPosition: stepStart,
+      yaw: controller.yaw,
+      pitch: controller.pitch,
+      velocity: stepVelocity,
+      grounded: controller.grounded,
+      state: controller.playerState,
+      gait: controller.gait,
+      supportId: box && physics ? physics.idOfBox(box) : null,
+    });
+  };
 
   const system: EngineSystem = {
     id: MOVEMENT_SYSTEM_ID,
@@ -126,23 +154,14 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
       const after = controller.position;
       const safeDt = dt > 0 ? dt : PHYSICS_STEP_SECONDS;
       const gait = controller.gait;
-      const box = controller.supportingBox();
-      world.set(player, PlayerTransformComponent, {
-        position: Object.freeze({ x: after.x, y: after.y, z: after.z }),
-        previousPosition: Object.freeze(before),
-        yaw: controller.yaw,
-        pitch: controller.pitch,
-        // Velocity actually achieved: zero into a wall, no drift.
-        velocity: Object.freeze({
-          x: (after.x - before.x) / safeDt,
-          y: (after.y - before.y) / safeDt,
-          z: (after.z - before.z) / safeDt,
-        }),
-        grounded: controller.grounded,
-        state: controller.playerState,
-        gait,
-        supportId: box && physics ? physics.idOfBox(box) : null,
+      stepStart = Object.freeze(before);
+      // Velocity actually achieved: zero into a wall, no drift.
+      stepVelocity = Object.freeze({
+        x: (after.x - before.x) / safeDt,
+        y: (after.y - before.y) / safeDt,
+        z: (after.z - before.z) / safeDt,
       });
+      publish();
 
       if (gait !== lastGait) {
         lastGait = gait;
@@ -164,6 +183,9 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
   const remove = runtime.systems.add(system);
   return {
     system,
+    syncTransform() {
+      if (world.exists(player)) publish();
+    },
     dispose() {
       remove();
       if (world.exists(player)) {

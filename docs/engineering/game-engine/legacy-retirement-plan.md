@@ -1,6 +1,6 @@
 # Game Engine Core: legacy retirement plan (GE-076)
 
-- **Status:** Proposed (inventory and plan only; nothing is removed by this document)
+- **Status:** Proposed. Dependency audit 2026-11-19 (section 5): nothing is removable yet; nothing has been removed
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-19
 - **Related ADRs:** ADR-020, ADR-059, ADR-063 (Reserved on `main`)
@@ -12,21 +12,29 @@ consumers have migrated and regression evidence exists.** Each removal below nam
 
 ## 1. Re-export shims (island-map → `@lai/game-engine`)
 
-Measured at the Wave 2 baseline `fc5c71cf`. Importers are files under `react/src` that import the
-shim's old path (excluding the shim).
+Re-measured 2026-11-19 on `core/gameengine` and on the integration tree `568dd278` (every realm
+stream integrated); the counts are the same on both. Importers are `react/src` files that import the
+shim through a relative path (package imports excluded). The first count was at `fc5c71cf`.
 
-| Shim (`react/src/features/island-map/three/`) | Engine module | Importers | Removal gate |
+| Shim (`react/src/features/island-map/three/`) | Engine module | Importers (`fc5c71cf` → `568dd278`) | Removal gate |
 |---|---|---|---|
-| `firstPersonController.ts` | `movement/firstPersonController` | 14 | Every importer uses the package path, including the realm branches after GE-071 to GE-074 merge |
-| `playerPresentation.ts` | `camera/playerPresentation` | 13 | Same |
-| `jumpConfiguration.ts` | `movement/jumpConfiguration` | 6 | Same |
-| `locomotionConfiguration.ts` | `movement/locomotionConfiguration` | 4 | Same |
-| `playerCamera.ts` | `camera/playerCamera` | 4 | Same |
-| `pointerControls.ts` | `input/pointerControls` | 4 | Same |
-| `cameraPreference.ts` | `camera/cameraPreference` | 3 | Same |
-| `playerCollision.ts` | `movement/playerCollision` | 3 | Same |
-| `gamepadInput.ts` | `input/gamepadInput` | 2 | Same |
-| `cameraHeightFollower.ts` | `camera/cameraHeightFollower` | 2 | Same |
+| `firstPersonController.ts` | `movement/firstPersonController` | 14 → 12 | Every importer uses the package path, including the realm branches after GE-071 to GE-074 merge |
+| `playerPresentation.ts` | `camera/playerPresentation` | 13 → 11 | Same |
+| `jumpConfiguration.ts` | `movement/jumpConfiguration` | 6 → 4 | Same |
+| `locomotionConfiguration.ts` | `movement/locomotionConfiguration` | 4 → 2 | Same |
+| `playerCamera.ts` | `camera/playerCamera` | 4 → 2 | Same |
+| `pointerControls.ts` | `input/pointerControls` | 4 → 2 | Same |
+| `cameraPreference.ts` | `camera/cameraPreference` | 3 → 1 | Same |
+| `playerCollision.ts` | `movement/playerCollision` | 3 → 2 | Same |
+| `gamepadInput.ts` | `input/gamepadInput` | 2 → **0** | Same, plus the uncommitted `sc-final-d` worktree (section 5) |
+| `cameraHeightFollower.ts` | `camera/cameraHeightFollower` | 2 → **0** | Same, plus the uncommitted `sc-final-d` worktree (section 5) |
+
+Every remaining importer is the live location runtime itself (`createLocationEngine.ts`,
+`ThreeLocationWorldView.tsx`, `playerAvatar.ts`, `playerAnimation.ts`, `locationManifest.ts`,
+`validateLocationManifest.ts`, `sandboxScene.ts`, `WorldHud.tsx`, `testing/engineHarness.ts` and
+their tests). No realm file imports a shim: the castle (`castleEngineImports.test.ts`), Firepeak
+and North Pole (`firepeak/realmEngineImports.test.ts`) and Treasure Rush
+(`treasureRushEngineImports.test.ts`) guards are all on the integration tree.
 
 Treasure Rush already imports from the package and guards it with a test
 (`region-play/treasureRushEngineImports.test.ts`, GE-070). The same guard per realm is the evidence
@@ -36,10 +44,10 @@ each realm has left the shims.
 
 | Concern | Live implementation | Engine implementation | Why both exist now | Retirement gate |
 |---|---|---|---|---|
-| Platform motion maths | `platforms/platformMotion.ts` | `components/pathMotion.ts` (faithful port, source noted) | Live `platformSystem` runs Pirate's Leap, Firepeak and North Pole platforms | All platforms authored as `gameplay.platforms` (needs GE-066 presentation and carry), parity tests per course |
-| Platform system (static, moving, plates, switches, appearing, vanishing, bounce) | `platforms/platformSystem.ts`, `platformSpec.ts`, `platformPresentation.ts` | `components/platforms.ts`, `components/triggers.ts` | Same | Same; GE-071 later step, GE-073 crumble |
-| Course checkpoints and hazards | `platforming.checkpoints`, platform hazards, region-play `effects.checkpoints` | `gameplay.checkpoints`, `gameplay.hazards` (via the bridge) | Migrating realm by realm | Firepeak done (`d97f20c4`); North Pole, Pirate's Leap, castle pending |
-| Atmosphere (fog, snow, sky) | `runtime/visual/atmosphere.ts` (North Pole branch) | `environment/weather`, `lighting`, `particles` | Bridge did not draw them (GE-066) | North Pole parity test (density per tier, reduced motion, LOW tier off) |
+| Platform motion maths | `platforms/platformMotion.ts` | `components/pathMotion.ts` (faithful port, source noted) | The live `platformSystem` still runs North Pole's platforms, the Heart's live platforms (mixed with engine ones) and the castle rooms' platforms | All platforms authored as `gameplay.platforms`, parity tests per course. Pirate's Leap is done (course v4: all 30 platforms on `gameplay.platforms`; `scene.platforming` keeps only Pip's section zones) |
+| Platform system (static, moving, plates, switches, appearing, vanishing, bounce) | `platforms/platformSystem.ts`, `platformSpec.ts`, `platformPresentation.ts` | `components/platforms.ts`, `components/triggers.ts` | Same. `platformSpec.ts` is also the manifest type for `locationManifest.ts`, `validateLocationManifest.ts`, `regionManifest.ts` and the castle manifests | Same, then the manifest types move to the engine contracts. Remaining live courses: North Pole (`north_pole_layout._platforming`), the Heart (`firepeak_heart_layout.platforming`), castle (`castleRooms/castlePlatforms.ts`, `castleWritingRoom.ts`) |
+| Course checkpoints and hazards | `platforming.checkpoints`, platform hazards, region-play `effects.checkpoints` | `gameplay.checkpoints`, `gameplay.hazards` (via the bridge) | Castle not yet migrated | Firepeak done (`d97f20c4`); North Pole done (layout v5: checkpoints on the bridge); Pirate's Leap done (course v4); castle pending |
+| Atmosphere (fog, snow, sky) | `runtime/visual/atmosphere.ts` (still imported by `createLocationEngine.ts` and `regionManifest.ts`) | `environment/weather`, `lighting`, `particles` | Other Areas still use the live atmosphere | North Pole snow done (layout v5: snow on the bridge, parity 0/360/720 per tier); retire when no Area uses `scene.atmosphere` |
 | Avatar and animation | `playerAvatar.ts`, `playerAnimation.ts` (import child-profile and NPC Manager) | `character/avatar.ts`, `animation/*` | Live views still mount the island avatar | Runtime swap of each location (GE-076 step 3) |
 | Event bus and presentation events | `worldEngineEvents.ts` (`WorldEngineEventBus`) | `core/eventBus.ts`, `contracts/engineEvents.ts` | Parity test keeps the payloads equal | All hosts on the engine runtime |
 | Location runtime | `runtime/createLocationEngine.ts` (about 1,770 lines) | `createEngineRuntime` + capabilities + the bridge | Hot file on realm branches | Every location declared (GE-075) and runtime-swapped |
@@ -67,3 +75,51 @@ Moved by the engine lead after GE-066 merges, using the GE-075 batch 2 relocatio
 Integration planning for these steps is coordinated with the infrastructure and integration lead
 (LAI-ENG-002, `docs/infrastructure/integration-plan-game-engine-core.md` on
 `integration/multi-agent-dev`).
+
+## 5. Dependency audit and remaining work (2026-11-19, Wave 2 stabilization)
+
+Method: static import analysis (`git grep` of every relative and package import) on
+`core/gameengine` and on the integration tree `568dd278`, every branch in the repository, and the
+working copies of every worktree on disk (read only). Then a non-test-importer scan of every
+module under `island-map/three`.
+
+**Result: nothing is removed.** No legacy engine module is proven unused and safe to remove:
+
+- The 8 shims with importers are imported by the live location runtime itself (section 1).
+- `gamepadInput.ts` and `cameraHeightFollower.ts` have 0 importers on `core` and on the
+  integration tree. Every branch that still imports them is already an ancestor of `568dd278`.
+  But the `sc-final-d` worktree (branch `work/final-d`, already merged) has **uncommitted edits to
+  the pre-extraction `cameraHeightFollower.ts` and `playerCamera.ts`**, and its copy of
+  `pointerControls.ts` imports `./gamepadInput`. Removing either shim would turn that unmerged work
+  into a modify/delete conflict or a broken import. That work belongs to its owner (Storykeeper
+  final D); this audit does not touch it.
+- Modules with no non-test importer (`assets/gltfAssembler.ts`, `assets/mediaAssets.ts`, the
+  `runtime/locations/*.location.ts` definitions, `runtime/testing/*`, `sourceLocationAssetUsage.ts`,
+  `wonderWallBindings.ts`, `wonderwildHiveRegion.ts`) are not legacy engine paths:
+  `gltfAssembler` is used by `scripts/generate-world-assets.ts`; the location definitions are the
+  GE-075 target of the runtime swap; the rest are test helpers or realm content.
+
+Remaining-work checklist, in order (each item: one commit, regression evidence from every consumer):
+
+1. [ ] The `sc-final-d` owner commits or discards the uncommitted pre-extraction edits to
+   `cameraHeightFollower.ts`, `playerCamera.ts` and `pointerControls.ts`. Then remove
+   `gamepadInput.ts` and `cameraHeightFollower.ts` and drop both from `LEGACY_WILDCARD_SHIMS` in
+   `game-engine/stabilization/importBoundaries.test.ts`. Gate: root `npm run typecheck`, the
+   island-map and region-play unit tests, and the four realm import guards.
+2. [ ] GE-S1: point the remaining shims at the listed subpaths (`@lai/game-engine/movement`,
+   `/camera`, `/input`) or repoint their importers to the package. Check that each listed entry
+   exports every name the importers use, then remove the `it.fails` pin.
+3. [ ] Migrate the remaining live courses to `gameplay.platforms` with per-course parity tests:
+   North Pole platforms, the Heart's live platforms, and the castle rooms. Owners: the realm leads;
+   the engine lead provides capabilities on request.
+4. [ ] Castle checkpoints onto `gameplay.checkpoints` (the castle lead).
+5. [ ] Move the manifest platform types (`platformSpec.ts`) into the engine contracts. Then
+   retire `platformSystem.ts`, `platformMotion.ts` and `platformPresentation.ts` and their
+   `createLocationEngine` wiring.
+6. [ ] Retire `runtime/visual/atmosphere.ts` when no Area uses `scene.atmosphere`.
+7. [ ] Runtime swap per location (section 4, step 3). Then retire `playerAvatar.ts` and
+   `playerAnimation.ts` (child-profile and NPC Manager importers first), the remaining shims and
+   `createLocationEngine.ts`.
+8. [ ] GE-D8: move the leaked content ids (section 3).
+9. [ ] Live host `groundHeightAt` for terrain Areas (GE-L14 remainder; not a retirement step,
+   listed so the live host change is done once).
