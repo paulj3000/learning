@@ -108,3 +108,76 @@ def test_an_area_without_platforms_offers_no_tuning(treasure):
     assert "platformTuning" not in body
     body["platformTuning"] = {}
     assert any("unknown keys platformTuning" in p for p in authoring.validate(region, body))
+
+
+ENGINE_BRIDGE = {
+    "capabilities": [
+        {"id": "gameplay.hazards", "config": {}},
+        {
+            "id": "gameplay.platforms",
+            "config": {
+                "platforms": [
+                    {"id": "plank-lift", "position": {"x": 0, "y": 1, "z": 0}, "size": {"x": 3, "y": 0.4, "z": 3}},
+                    {"id": "crumble.one", "position": {"x": 9, "y": 1, "z": 0}, "size": {"x": 3, "y": 0.4, "z": 3}},
+                    {"x": "not a platform"},
+                ]
+            },
+        },
+    ],
+    "allowEnginePlatforms": True,
+}
+
+
+def test_engine_platform_ids_come_from_the_bridge_platforms_capability():
+    assert platforming.engine_platform_ids({"engineBridge": ENGINE_BRIDGE}) == ["plank-lift", "crumble.one"]
+    for odd in (
+        {},
+        {"engineBridge": "x"},
+        {"engineBridge": {"capabilities": "x"}},
+        {"engineBridge": {"capabilities": [{"id": "gameplay.platforms", "config": []}, 3]}},
+    ):
+        assert platforming.engine_platform_ids(odd) == []
+
+
+def test_tuning_accepts_engine_platform_ids_and_live_ids_together_without_duplicates():
+    scene = {"platforming": COURSE, "engineBridge": ENGINE_BRIDGE}
+    assert platforming.platform_ids(scene) == ["ferry", "pad", "plank-lift", "crumble.one"]
+    assert platforming.platform_ids({"platforming": COURSE}) == ["ferry", "pad"]  # existing data unchanged
+    body = {
+        "ferry": {"speed": 2},
+        "plank-lift": {"speed": 3, "pauseSeconds": 1},
+        "crumble.one": {"visibleSeconds": 5, "enabled": False},
+    }
+    assert platforming.tuning_problems(scene, body) == []
+    assert platforming.tuning_problems({"engineBridge": ENGINE_BRIDGE}, {"plank-lift": {"speed": 2}}) == []
+
+
+def test_tuning_for_engine_platforms_is_still_checked_for_ids_and_ranges():
+    scene = {"engineBridge": ENGINE_BRIDGE}
+    problems = platforming.tuning_problems(
+        scene, {"ghost": {}, "plank-lift": {"speed": 99}, "crumble.one": {"hiddenSeconds": 0.1}}
+    )
+    assert any("ghost: no platform" in p for p in problems)
+    assert any("plank-lift.speed" in p for p in problems)
+    assert any("crumble.one.hiddenSeconds" in p for p in problems)
+
+
+def test_staff_tune_an_area_whose_platforms_run_in_the_engine(treasure):
+    region = treasure.region
+    scene = {k: v for k, v in region.scene.items() if k not in ("platforming", "platformTuning")}
+    region.scene = {**scene, "engineBridge": ENGINE_BRIDGE}
+    region.save()
+    kind = authoring.kind_for(region)
+    body = authoring.current_body(region)
+    assert body["platformTuning"] == {}
+    body["platformTuning"] = {"plank-lift": {"speed": 2.5}}
+    assert authoring.validate(region, body) == []
+    problems: list[str] = []
+    finish = kind.apply(region, body, problems)
+    assert problems == []
+    finish()
+    region.refresh_from_db()
+    assert region.scene["platformTuning"] == {"plank-lift": {"speed": 2.5}}
+    assert region.scene["engineBridge"] == ENGINE_BRIDGE
+    body["platformTuning"] = {"ghost": {"speed": 2}}
+    assert any("ghost: no platform" in p for p in authoring.validate(region, body))
