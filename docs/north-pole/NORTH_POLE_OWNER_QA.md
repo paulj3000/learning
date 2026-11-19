@@ -112,3 +112,14 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
    pickups are special (for example, item category `QUEST_ITEM`) in `regionAudio.ts`. Not changed
    yet.
 9. The client lights only the fragment sockets it orders; the village socket is pre-set by story.
+
+## 5. Game Engine Core migration (GE-074, owner-approved 2026-11-19)
+
+- Done: `core/gameengine` @ e4148949 merged (via Firepeak, 0f8f6d1e). `defineRealm` and
+  `defineAdventure` data in `react/src/features/region-play/northPole/northPoleEngineDefinition.ts`,
+  validated with the standard capability registry; the scene snapshot passes the engine content
+  compatibility checks and `npm run engine:validate`. No North Pole file imports an island-map shim.
+- Waiting: ice traction, snow and ice footsteps, engine weather (after atmosphere parity) and the one
+  checkpoint list need the location engine bridge (GE-065) and the Treasure Rush host additions
+  (GE-070). Nothing in play has changed.
+
