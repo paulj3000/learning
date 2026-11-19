@@ -16,7 +16,7 @@ timeouts would hide that; this gate prevents the overload instead:
   command already sets it. The total worker count stays at or below the core count.
 - **Pressure.** Before starting, wait while the 1-minute load is above ``--max-load`` (default
   1.5 x cores), CPU pressure (Linux PSI ``some avg10``) is above ``--max-cpu-pressure`` (default
-  50%), or available memory is below ``--min-mem-mb`` (default 1024). After
+  25%), or available memory is below ``--min-mem-mb`` (default 1024). After
   ``--max-wait`` seconds it starts anyway with one worker and says so: never a silent hang.
 - **Monitoring.** Samples load, available memory and the run's process-tree CPU and RSS every
   two seconds; prints a summary and appends one JSON line per run to the shared log
@@ -406,8 +406,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max-cpu-pressure",
         type=float,
-        default=50.0,
-        help="PSI cpu some avg10 percent (default 50)",
+        default=25.0,
+        help="PSI cpu some avg10 percent (default 25; failures seen at 40 on 2026-11-19)",
     )
     parser.add_argument(
         "--max-wait", type=float, default=900.0, help="seconds before a forced start"
