@@ -292,8 +292,10 @@ describe('bridge weather area (GE-L14, North Pole snow parity)', () => {
 });
 
 describe('bridge weather and particles follow the device render quality (GE-L14)', () => {
+  // Heavy snow, so the tier budget (not the spawn rate) limits the flake count.
+  const heavySnow = { id: 'SNOW', precipitation: { motion: 'FALL', ratePerSecond: 2000, fallSpeed: 0.5, size: 0.08 } };
   const caps = (particleTier?: string): JsonValue[] => [
-    { id: 'environment.weather', config: { initial: 'SNOW' } },
+    { id: 'environment.weather', config: { initial: 'SNOW', kinds: [heavySnow] } },
     {
       id: 'environment.particles',
       config: {
@@ -326,8 +328,8 @@ describe('bridge weather and particles follow the device render quality (GE-L14)
       counts[quality] = drawn(scene, 'engine.weather.');
       mount.dispose();
     }
-    expect(counts.MEDIUM).toBeGreaterThan(0);
-    expect(counts.HIGH).toBeGreaterThan(counts.MEDIUM!);
+    expect(counts.MEDIUM).toBe(600); // the whole MEDIUM budget (GE-L14: unused kinds take none)
+    expect(counts.HIGH).toBe(1200);
   });
 
   it('caps the particle tier in the capability request, and leaves it alone without a device quality', async () => {
