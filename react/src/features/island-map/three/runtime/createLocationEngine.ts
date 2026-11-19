@@ -1420,6 +1420,8 @@ export function createLocationEngine<R extends RendererLike>(
         removeCollider,
         playerState,
         setEnvironment: (query) => controller.setEnvironment(query),
+        carryPlayer: (dx, dy, dz) => controller.carry(dx, dy, dz),
+        launchPlayer: (height) => controller.launch(height),
         // GE-D4: kept a point test on purpose. Its callers are NPC Manager behaviours, and the
         // child's footprint would change how every NPC wanders.
         isBlocked: (x, z) =>

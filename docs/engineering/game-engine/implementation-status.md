@@ -36,6 +36,7 @@ worktree, not yet merged), **Planned**. No item is Owner Accepted or Complete.
 | GE-067 | The shared host claims discoveries (FOUND_NOW) and NPC talks for every location; region play opts out | Built | `dc8c3903` | 5 tests; NPC Manager 357, region play and castle 318 single-worker |
 | GE-100 to GE-110 | Scoring and progression integrated into core (economy off by default; nothing activated) | Integrated | merge `ab91d191` (core/ge-scoring @ `49790ce6`) | pytest 1132 passed, 4 skipped on PostgreSQL 16; engine 610; scoring and affected Vitest 297 + 45 |
 | Phase 5 (part 1) | Stabilization: disposal, fixed timestep | Built | `ce4974b5` | 22 passed, 1 expected fail (GE-L10) |
+| Phase 5 (part 2) | Stabilization: scene transitions, camera/avatar sync, checkpoint restoration, accessibility, event delivery, duplicate claims, import boundaries | Built (tests only) | merge of `4ead4dd2` | Engine 644 (+1 expected fail); game-engine React 98 (+1 expected fail, GE-S1) through the gate; typecheck clean. No new correctness defect; GE-S1, GE-L12, GE-L13, GE-T1 recorded |
 | GE-070 to GE-076 | Realm migrations, legacy retirement | GE-073, GE-074 in development on realm branches (owner approved 2026-11-19, as reported by the realm leads); others planned | | Realm branches |
 | GE-090 | Integration and merge readiness | Planned | | Owner-authorized gates only |
 

@@ -129,7 +129,7 @@ describe('engine bridge on a host without the GE-070 members (degraded, never si
     const mount = mountEngineBridge(fake.host);
     const runtime = mount.api.runtime!;
     expect(runtime.state).toBe('running');
-    expect(mount.api.support).toEqual({ playerState: false, setEnvironment: false });
+    expect(mount.api.support).toMatchObject({ playerState: false, setEnvironment: false, scene: false, carryLaunch: false });
     const codes = runtime.diagnostics.snapshot().warnings.map((w) => w.code);
     expect(codes).toEqual(expect.arrayContaining(['HOST_PLAYER_STATE_MISSING', 'HOST_ENVIRONMENT_UNSUPPORTED']));
     fake.player.position = { x: 2, y: 0, z: 0 };
