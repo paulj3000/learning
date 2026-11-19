@@ -65,14 +65,19 @@ Trello GE-071 (https://trello.com/c/MgQhAE0M) and defect https://trello.com/c/9O
 asked to continue on the GE-070 branch. Evidence: `docs/engineering/game-engine/migration-matrix.md`
 section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
 
-- **Pirate's Leap:** checkpoints, water pools, the finish and jump-challenge tracking run in the
-  engine bridge (course version 2); platforms, the plate and the lift stay live until the engine
-  can draw and carry them (GE-066). Each required jump keeps a walking route that ends in the same
-  claim. Quests, rewards and recovery copy are unchanged.
+- **Pirate's Leap:** the whole course runs in the engine bridge (course version 4): checkpoints,
+  water pools, the finish, jump-challenge tracking, all 30 platforms and the gold plate (GE-066,
+  GE-068 and GE-069 merged from `core/gameengine`). The live platform system keeps only Pip's
+  section zones. Owner decision (2026-11-19): stone stairs to the treasure ledge (version 3), so
+  the lift, ferry, sinking barrel, drum and riddle bridge are optional extras; stairs, ledge and
+  nest are required. Each required jump keeps a walking route that ends in the same claim. Staff
+  tuning, colours, barrel models, safe recovery ground and the lift and ferry sounds are kept.
+  Quests, rewards and recovery copy are unchanged.
 - **Audio test defect:** the 37-test cascade was a timed-out test's `act()` scope overlapping the
   next test. Fixed in the test file (guarded `act`, in-flight scopes awaited); no retries, no
   timeout change. Verified through the infrastructure lead's test gate under load.
-- **Not done:** browser and device QA; moving the platforms (after GE-066).
+- **Not done:** browser and device QA (models fitted to engine platform boxes, platform sounds,
+  riddle bridge in a real visit).
 
 ## GE-100 to GE-110: universal scoring and progression engine (2026-11-19, `core/ge-scoring`); development complete, integration into `core/gameengine` pending, economy OFF and NOT owner-approved, NOT merged
 

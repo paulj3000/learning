@@ -148,6 +148,29 @@ optional extras.
   the nest and round the dock pool, with no recovery. The Django test checks every rise is 0.25 m or
   less, every tread at least 0.8 m, and each step touches the next and the ledge. A claims test
   checks the stairs complete `leap-ledge` by `leap-ledge-stairs`.
-- **Still to do (waits on GE-068):** move the platforms, the plate and the riddle bridge onto
-  `gameplay.platforms` / `gameplay.triggers`, with the lift and dock marked `route: OPTIONAL`.
+- **Done after GE-068 and GE-069:** see 6.2.
+
+### 6.2 Platforms and the plate on the engine (course version 4)
+
+- **What moved:** all 30 authored platforms into `gameplay.platforms` and the latched
+  `leap-lift-plate` into `gameplay.triggers`, in `scene.engineBridge` with
+  `allowEnginePlatforms: true`. `scene.platforming` keeps only Pip's zones (empty platform and
+  plate lists), so nothing runs in both systems. The authored course is still the one source and
+  is still validated whole (`course_problems()`).
+- **Mapping:** same position and size (width/height/depth to x/y/z), colour, `assetId`
+  (barrels), motion path, mode, speed and pause; the lift's plate becomes
+  `moving.activeSignalId`; the riddle bridge's world-change signal becomes `appearSignalId`;
+  vanish timing becomes `falling`; bounce height becomes `bounceHeight`.
+- **Routes:** `REQUIRED` for the stairs, ledge and nest; every other platform `OPTIONAL`
+  (the engine allows moving, falling and bounce platforms only there).
+- **Kept by the engine:** staff tuning (GE-068, Django validates engine platform ids), colours and
+  models, safe recovery ground, inspection, and the live `PlatformActivated`,
+  `PlatformMoving` and `PlatformStopped` events (GE-069), so the Treasure Rush audio hook plays
+  the lift and ferry cues unchanged.
+- **Evidence:** `piratesLeap.engine.test.ts` (11) now reads engine platforms: the plate wakes the
+  lift and it carries the child to the nest, the ferry crosses, barrel jumps, the riddle bridge
+  appears on its signal and is walkable, slower staff tuning, third person, the bridge accepts
+  every capability, and an audio-parity test (failed before GE-069, passes after).
+  `test_pirates_leap.py` checks every platform moved unchanged, only extras are optional, the
+  lift's plate and the bridge's signal are wired, and tuning still validates.
 

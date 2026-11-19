@@ -19,16 +19,17 @@ Nothing should look or play differently. The aim of these changes was no visible
 - **GE-070:** Treasure Cove runs on the shared engine package. Chest answers, pickups, talking
   to Pip and quest steps are reported as engine "claims" for scoring. Scoring is off by default,
   so nothing new appears.
-- **GE-071:** Pirate's Leap's checkpoints, water pools and finish line now run in the engine. The
-  platforms, the gold plate and the lift are still drawn and ridden as before. **New (owner
-  decision):** stone stairs up to the treasure ledge, so the treasure needs no jump and no ride. The engine also
-  notes which way a child crossed each section (jumping or walking), and both count the same.
+- **GE-071:** all of Pirate's Leap now runs in the engine: checkpoints, water pools, the finish
+  line, every platform, the gold plate and the lift. They should look, move and sound as before.
+  **New (owner decision):** stone stairs up to the treasure ledge, so the treasure needs no jump
+  and no ride. The engine also notes which way a child crossed each section (jumping or walking),
+  and both count the same.
 - **Audio tests:** test-only isolation. No sound behaviour changed.
 
 ## 2. Local setup
 
 Follow [TREASURE_RUSH_LOCAL_DEV.md](../TREASURE_RUSH_LOCAL_DEV.md), then refresh the cove, which
-upgrades Pirate's Leap from course version 1 to 2 (it keeps staff tuning):
+upgrades Pirate's Leap to course version 4 (it keeps staff tuning):
 
 ```bash
 cd lai
@@ -74,7 +75,8 @@ Tick each item. Use a Pathfinder or Explorer child for the full course and a Spr
     "Splash! Back to *the training yard*. Have another go!" (the place name must be there). The
     "Safe spot: ..." toast appears when you reach a checkpoint.
 11. [ ] Standing on a barrel or log over the water never counts as falling in.
-12. [ ] Bounce on the drum up to the ledge. Answer Pip's riddle at the drum: the plank bridge
+12. [ ] The barrels look like barrels and every platform keeps its colour. The lift and the ferry
+    make their start, move and stop sounds. Bounce on the drum up to the ledge. Answer Pip's riddle at the drum: the plank bridge
     over the barrel pool rises straight away, without leaving the cove.
 13. [ ] Leave the cove and come back. Opened chests stay open, collected items stay collected,
     the quest stays complete, and nothing is celebrated a second time.
@@ -97,7 +99,7 @@ Each area below is guarded by these tests. The counts are the tests in each file
 | Area | Guard tests |
 |---|---|
 | Player movement | `game/src/movement/firstPersonController.test.ts` (12), `.running.test.ts` (14), `runtime/runningIntegration.engine.test.ts` (5) |
-| Jumping | `game/src/movement/firstPersonController.jump.test.ts` (32), `runtime/jumpIntegration.engine.test.ts` (8), `regionPlay/piratesLeap.engine.test.ts` (9) |
+| Jumping | `game/src/movement/firstPersonController.jump.test.ts` (32), `runtime/jumpIntegration.engine.test.ts` (8), `regionPlay/piratesLeap.engine.test.ts` (11, engine platforms and platform sounds), `regionPlay/piratesLeap.walkingRoutes.engine.test.ts` (2, no-jump routes) |
 | Avatar synchronization | `avatarSync.test.ts` (21), `runtime/avatarSync.engine.test.ts` (1), `regionPlay/treasureCoveThirdPerson.engine.test.ts` (5) |
 | Wall penetration | `game/src/movement/playerFootprint.test.ts` (16), `runtime/playerFootprint.engine.test.ts` (5) |
 | Asset collisions | `runtime/derivedColliders.test.ts` (16), `runtime/collisionProfiles.engine.test.ts` (2), `runtime/extensionHostContract.engine.test.ts` (12), `regionPlay/campfire.engine.test.ts` (6), `test_gameplay_prop_packs.py` (13) |
@@ -113,9 +115,9 @@ All Python tests need PostgreSQL. Without a database they are skipped, which is 
 
 ## 5. Known limits
 
-- **Platforms stay in the live system.** Pirate's Leap's platforms, plate and lift are still drawn
-  and carried by the live runtime. The engine's platform drawing and carrying (GE-066) are
-  delayed. Once they land, the platforms move in a later GE-071 step.
+- **Platform models are fitted to engine boxes.** The barrel model is scaled to its platform box
+  by the engine (GE-068); check it looks right in the browser (item 12). A failed model load shows
+  a coloured box.
 - **Recovery after a fall below the ground** uses the live controller's last safe ground, not a
   checkpoint. The cove is flat, so this never happens there.
 - **Course checkpoints are per visit.** They are not saved, exactly as before. A returning child

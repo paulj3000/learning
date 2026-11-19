@@ -37,7 +37,7 @@ from .models import PlacementKind, TreasureChest, WorldObjectPlacement, WorldReg
 from .platforming import layout_problems
 from .treasure_cove_layout import BOUNDS
 
-LEAP_VERSION = 3  # GE-071: course on the engine bridge (2); stone stairs to the treasure ledge (3)
+LEAP_VERSION = 4  # GE-071: bridge (2), stairs to the ledge (3), platforms and plate on the engine (4)
 LEAP_COURSE_ID = "pirates-leap"
 LEAP_QUEST_ID = "pirates-leap"
 LEAP_CHEST_ID = "cove-leap-chest"
@@ -228,18 +228,75 @@ def _authored_course() -> dict:
 
 # --- GE-071: the course on the Game Engine Core ----------------------------------------------
 #
-# Checkpoints, water pools and the goal now run in the engine bridge (`scene["engineBridge"]`,
-# the one checkpoint system, GE-073), with jump-challenge tracking. Platforms and the pressure
-# plate stay in the live platform system (`scene["platforming"]`) until the engine can draw them
-# and carry the child in the live runtime (engine lead, Wave 2). Nothing runs twice.
-
-LIVE_KEYS = ("platforms", "pressurePlates", "zones")
+# The whole course runs in the engine bridge (`scene["engineBridge"]`): checkpoints, water
+# pools and the goal (the one checkpoint system, GE-073), jump-challenge tracking, and since
+# course version 4 the platforms and the pressure plate too (GE-066 presentation and carry,
+# GE-068 tuning, look and safe ground). The live block keeps only Pip's section zones, so nothing
+# runs twice. The authored course below stays the one source and is still validated whole.
 
 
 def leap_platforming() -> dict:
-    """The live part of the course, as `scene["platforming"]`: platforms, the plate, the zones."""
-    course = _authored_course()
-    return {key: course[key] for key in LIVE_KEYS}
+    """The live part of the course, as `scene["platforming"]`: Pip's section zones only."""
+    return {"platforms": [], "pressurePlates": [], "zones": _authored_course()["zones"]}
+
+
+# Platforms progress depends on (owner decision 2026-11-19: stairs, so no jump or ride is ever
+# needed). Every other platform is an optional extra, including the lift and the moving dock,
+# which the engine allows only on optional routes.
+REQUIRED_PLATFORMS = {"leap-ledge", "leap-nest", *(f"leap-stair-{n}" for n in range(1, 15))}
+LIVE_PLATE_HALF_SIZE = 0.6  # the live platform system's default plate size
+
+
+def _engine_platform(p: dict, plates: set[str]) -> dict:
+    """One authored platform as an engine `gameplay.platforms` spec (same place, size and timing)."""
+    spec = {
+        "id": p["id"],
+        "position": dict(p["position"]),
+        "size": {"x": p["size"]["width"], "y": p["size"]["height"], "z": p["size"]["depth"]},
+        "route": "REQUIRED" if p["id"] in REQUIRED_PLATFORMS else "OPTIONAL",
+    }
+    if "color" in p:
+        spec["color"] = p["color"]
+    if "assetId" in p:
+        spec["assetId"] = p["assetId"]
+    activation = p.get("activation") or {}
+    if "motion" in p:
+        motion = p["motion"]
+        spec["moving"] = {
+            "path": [dict(point) for point in motion["path"]],
+            "mode": motion.get("mode", "PING_PONG"),
+            "speed": motion["speed"],
+            "pauseSeconds": motion.get("pauseSeconds", 1),
+        }
+        if activation.get("trigger") == "PLATE":
+            assert activation["source"] in plates, activation
+            spec["moving"]["activeSignalId"] = activation["source"]
+    if activation.get("trigger") == "SIGNAL":
+        spec["appearSignalId"] = activation["source"]
+    if "vanish" in p:
+        vanish = p["vanish"]
+        spec["falling"] = {
+            "mode": vanish["mode"],
+            "visibleSeconds": vanish["visibleSeconds"],
+            "hiddenSeconds": vanish["hiddenSeconds"],
+            "warningSeconds": vanish.get("warningSeconds", 1),
+        }
+    if "bounce" in p:
+        spec["bounceHeight"] = p["bounce"]["height"]
+    return spec
+
+
+def _engine_plates(course: dict) -> list[dict]:
+    return [
+        {
+            "id": plate["id"],
+            "position": {"x": plate["position"]["x"], "y": 0.0, "z": plate["position"]["z"]},
+            "halfSize": plate.get("halfSize", LIVE_PLATE_HALF_SIZE),
+            "latch": plate.get("latch", False),
+            "signalId": plate["id"],
+        }
+        for plate in course["pressurePlates"]
+    ]
 
 
 def _area(rect: dict) -> dict:
@@ -379,6 +436,7 @@ def leap_engine_bridge() -> dict:
         {"id": g["id"], "courseId": LEAP_COURSE_ID, "rect": _area(g["rect"])}
         for g in course["goals"]
     ]
+    plates = _engine_plates(course)
     hazards = [
         {
             "id": h["id"],
@@ -397,8 +455,18 @@ def leap_engine_bridge() -> dict:
                 "id": "gameplay.jumpChallenges",
                 "config": {"challenges": leap_jump_challenges(course)},
             },
+            {"id": "gameplay.triggers", "config": {"plates": plates}},
+            {
+                "id": "gameplay.platforms",
+                "config": {
+                    "platforms": [
+                        _engine_platform(p, {plate["id"] for plate in plates})
+                        for p in course["platforms"]
+                    ]
+                },
+            },
         ],
-        "allowEnginePlatforms": False,
+        "allowEnginePlatforms": True,
     }
 
 

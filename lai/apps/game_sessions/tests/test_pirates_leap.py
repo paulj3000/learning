@@ -58,7 +58,8 @@ def test_the_seed_writes_a_valid_course_into_its_own_scene_block(treasure):
     scene = region.scene
     assert scene["piratesLeapVersion"] == leap.LEAP_VERSION
     assert layout_problems(scene["platforming"], bounds=scene["bounds"]) == []
-    ids = {p["id"] for p in scene["platforming"]["platforms"]}
+    # Since course v4 the platforms run in the engine bridge (GE-071).
+    ids = {p["id"] for p in _capability(scene["engineBridge"], "gameplay.platforms")["platforms"]}
     assert {"leap-moving-dock", "leap-lift", "leap-ledge", "leap-nest", "leap-bounce-drum"} <= ids
     # The cove's own layout is untouched (another workstream owns its scenery).
     assert "platforming" not in scene["layout"]
@@ -96,8 +97,10 @@ def _capability(bridge, capability_id):
 def test_the_seed_splits_the_course_between_the_live_runtime_and_the_engine_bridge(treasure):
     scene = treasure.region.scene
     assert scene["piratesLeapVersion"] == leap.LEAP_VERSION
-    # Live: what the engine cannot yet draw or ride (platforms, the plate), and the narration.
-    assert set(scene["platforming"]) == {"platforms", "pressurePlates", "zones"}
+    # Live: only Pip's section zones; every platform and the plate run in the engine (v4).
+    assert scene["platforming"]["platforms"] == []
+    assert scene["platforming"]["pressurePlates"] == []
+    assert scene["platforming"]["zones"]
     # Engine: the one checkpoint system, the water pools, the goal and jump tracking.
     bridge = scene["engineBridge"]
     assert bridge == leap.leap_engine_bridge()
@@ -106,8 +109,10 @@ def test_the_seed_splits_the_course_between_the_live_runtime_and_the_engine_brid
         "gameplay.checkpoints",
         "gameplay.hazards",
         "gameplay.jumpChallenges",
+        "gameplay.triggers",
+        "gameplay.platforms",
     ]
-    assert bridge["allowEnginePlatforms"] is False
+    assert bridge["allowEnginePlatforms"] is True
     # The whole course, as authored, still passes the full live safety checks.
     assert leap.course_problems() == []
 
@@ -186,7 +191,7 @@ def test_an_older_course_is_upgraded_once_and_keeps_staff_tuning(treasure):
     region.save()
     assert leap.upgrade_pirates_leap(region) is True
     region.refresh_from_db()
-    assert set(region.scene["platforming"]) == {"platforms", "pressurePlates", "zones"}
+    assert region.scene["platforming"] == leap.leap_platforming()
     assert region.scene["engineBridge"] == leap.leap_engine_bridge()
     assert region.scene["platformTuning"] == {"leap-moving-dock": {"speed": 0.8}}
     assert leap.upgrade_pirates_leap(region) is False
@@ -213,7 +218,7 @@ def test_the_quest_completes_only_through_the_crows_nest_chest(treasure):
 
 
 def test_the_course_never_needs_a_jump_to_finish():
-    course = leap.leap_platforming()
+    course = leap._authored_course()
     by_id = {p["id"]: p for p in course["platforms"]}
     # The lift is stepped onto (top within a 0.25 m step) and carries the child to the ledge top.
     lift = by_id["leap-lift"]
@@ -332,3 +337,44 @@ def test_the_feather_names_its_model_once_imported_and_keeps_a_childs_find(play)
     # The play API still serves the feather by its id, now naming its model.
     served = {o["entityId"]: o for o in play.region()["objects"]}
     assert served[leap.LEAP_FEATHER_ID]["collected"] is True
+
+
+def test_every_platform_moves_to_the_engine_unchanged_and_only_extras_are_optional():
+    """Course v4: same places, sizes and timings; the lift and the dock are optional extras."""
+    authored = {p["id"]: p for p in leap._authored_course()["platforms"]}
+    engine = {
+        p["id"]: p
+        for p in _capability(leap.leap_engine_bridge(), "gameplay.platforms")["platforms"]
+    }
+    assert set(engine) == set(authored)
+    for pid, spec in engine.items():
+        live = authored[pid]
+        assert spec["position"] == live["position"]
+        assert spec["size"] == {
+            "x": live["size"]["width"],
+            "y": live["size"]["height"],
+            "z": live["size"]["depth"],
+        }
+        assert spec.get("color") == live.get("color")
+        assert spec.get("assetId") == live.get("assetId")
+        if "motion" in live:
+            assert spec["moving"]["speed"] == live["motion"]["speed"]
+            assert spec["moving"]["path"] == live["motion"]["path"]
+    required = {pid for pid, spec in engine.items() if spec["route"] == "REQUIRED"}
+    assert required == leap.REQUIRED_PLATFORMS
+    # The engine allows moving, falling and bounce platforms only as optional extras.
+    for spec in engine.values():
+        if any(k in spec for k in ("moving", "falling", "bounceHeight")):
+            assert spec["route"] == "OPTIONAL", spec["id"]
+    assert engine["leap-lift"]["moving"]["activeSignalId"] == "leap-lift-plate"
+    assert engine["leap-secret-bridge"]["appearSignalId"] == f"world:{leap.LEAP_RIDDLE_KEY}"
+    plates = _capability(leap.leap_engine_bridge(), "gameplay.triggers")["plates"]
+    assert [(p["id"], p["latch"]) for p in plates] == [("leap-lift-plate", True)]
+
+
+def test_staff_tuning_still_validates_for_the_engine_platforms(treasure):
+    from apps.regions.platforming import tuning_problems
+
+    scene = treasure.region.scene
+    assert tuning_problems(scene, {"leap-moving-dock": {"speed": 0.8}}) == []
+    assert tuning_problems(scene, {"no-such-platform": {"speed": 0.8}}) != []
