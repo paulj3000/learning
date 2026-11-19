@@ -21,6 +21,12 @@ export interface PrecipitationSpec {
   drift: number;
   size: number;
   color: number;
+  /**
+   * GE-L14: the share of the quality tier's particle budget this kind may use, 0.05 to 1
+   * (default 1). Reproduces an atmosphere drawn at a density: 0.6 is 360 flakes on MEDIUM and
+   * 720 on HIGH, with a rate high enough to fill it.
+   */
+  budgetShare?: number;
 }
 
 export interface WeatherKindSpec {
@@ -189,6 +195,7 @@ export function validateWeatherConfig(input: unknown) {
             drift: issues.num(p.drift, `${path}.precipitation.drift`, -10, 10, 0),
             size: issues.num(p.size, `${path}.precipitation.size`, 0.01, 0.5, 0.06),
             color: issues.num(p.color, `${path}.precipitation.color`, 0, 0xffffff, 0xffffff),
+            ...(p.budgetShare !== undefined ? { budgetShare: issues.num(p.budgetShare, `${path}.precipitation.budgetShare`, 0.05, 1) } : {}),
           };
         }
       }

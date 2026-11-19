@@ -43,8 +43,10 @@ export const FOG_DENSITY_SCALE = 0.04;
 export function createWeatherView(scene: Scene, scope: ResourceScope, weather: WeatherApi, options: WeatherViewOptions): WeatherView {
   const kinds = Object.values(weather.kinds()).filter((k) => k.precipitation !== null);
   const specs = new Map<string, ParticleEmitterSpec>();
+  const budgetShares = new Map<string, number>();
   for (const kind of kinds) {
     const p = kind.precipitation!;
+    budgetShares.set(kind.id, p.budgetShare ?? 1);
     specs.set(kind.id, {
       id: kind.id,
       motion: p.motion === 'FALL' ? 'FALL' : 'DRIFT',
@@ -67,7 +69,8 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
   // never takes half of it.
   const pools = new Map<string, { pool: ParticlePool; view: ParticleView; cap: number }>();
   for (const [id, spec] of specs) {
-    const cap = allocateParticleBudget([spec], options.tier).get(id) ?? 0;
+    // GE-L14: a kind's `budgetShare` limits it to that share of the tier budget.
+    const cap = Math.floor((allocateParticleBudget([spec], options.tier).get(id) ?? 0) * (budgetShares.get(id) ?? 1));
     pools.set(id, {
       pool: createParticlePool(cap, hashSeed(id)),
       view: createParticleView(scene, scope, cap, { name: `engine.weather.${id}`, color: spec.color, size: spec.size }),
