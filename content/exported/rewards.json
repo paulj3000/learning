@@ -220,6 +220,34 @@
     },
     {
       "category": "KEEPSAKE",
+      "description": "Pip's secret treasure, for crossing the whole pirate training course.",
+      "displayName": "Pirate's Leap Medal",
+      "id": "pirates-leap-medal",
+      "rarity": "RARE"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A little star from the sea, for answering Pip's counting riddle.",
+      "displayName": "Sea Star",
+      "id": "pirates-leap-sea-star",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A shiny shell found on top of a barrel at Barrel Crossing.",
+      "displayName": "Sparkly Shell",
+      "id": "pirates-leap-shell",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
+      "description": "A bright feather found on the Fallen Log Trail.",
+      "displayName": "Parrot Feather",
+      "id": "pirates-leap-feather",
+      "rarity": "COMMON"
+    },
+    {
+      "category": "KEEPSAKE",
       "description": "A warm, glowing crystal piece that shines with island magic.",
       "displayName": "First Heart Crystal Fragment",
       "id": "heart-crystal-fragment-1",
@@ -550,6 +578,50 @@
       "trigger": {
         "questId": "pips-missing-treasure",
         "type": "QUEST_COMPLETED"
+      }
+    },
+    {
+      "id": "reward-pirates-leap-chest",
+      "itemIds": [
+        "pirates-leap-medal"
+      ],
+      "message": "You found Pip's secret treasure! Here is your Pirate's Leap Medal!",
+      "trigger": {
+        "changeKey": "PIRATES_LEAP_CHEST_OPENED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-pirates-leap-riddle",
+      "itemIds": [
+        "pirates-leap-sea-star"
+      ],
+      "message": "You solved the riddle! A secret bridge rose over the water.",
+      "trigger": {
+        "changeKey": "PIRATES_LEAP_RIDDLE_SOLVED",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-pirates-leap-shell",
+      "itemIds": [
+        "pirates-leap-shell"
+      ],
+      "message": "You found a Sparkly Shell!",
+      "trigger": {
+        "changeKey": "PIRATES_LEAP_SHELL_FOUND",
+        "type": "WORLD_CHANGE"
+      }
+    },
+    {
+      "id": "reward-pirates-leap-feather",
+      "itemIds": [
+        "pirates-leap-feather"
+      ],
+      "message": "You found a Parrot Feather!",
+      "trigger": {
+        "changeKey": "PIRATES_LEAP_FEATHER_FOUND",
+        "type": "WORLD_CHANGE"
       }
     },
     {

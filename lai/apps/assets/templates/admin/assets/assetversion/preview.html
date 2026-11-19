@@ -33,16 +33,20 @@
            data-size-bytes="{{ version.size_bytes }}"
            data-max-bytes="{{ max_bytes }}"
            data-token-header="{{ preview_token_header }}"
-           data-token="{{ preview_token }}">
+           data-token="{{ preview_token }}"
+           data-asset-id="{{ version.asset.asset_id }}"
+           data-collision="{{ collision_json }}">
         <div class="lai-asset-preview-toolbar" role="toolbar" aria-label="{% translate 'Camera' %}">
           <button type="button" class="button" data-preview-action="reset" disabled>{% translate 'Reset camera' %}</button>
           <button type="button" class="button" data-preview-action="fit" disabled>{% translate 'Fit model' %}</button>
           <button type="button" class="button" data-preview-action="zoom-in" disabled aria-label="{% translate 'Zoom in' %}">+</button>
           <button type="button" class="button" data-preview-action="zoom-out" disabled aria-label="{% translate 'Zoom out' %}">&minus;</button>
+          <button type="button" class="button" data-preview-action="collision" disabled aria-pressed="false">{% translate 'Show collision' %}</button>
         </div>
         <div class="lai-asset-preview-stage" data-preview-stage></div>
         <p class="lai-asset-preview-status" data-preview-status role="status" aria-live="polite">{% translate 'Loading the model...' %}</p>
         <p class="help">{% translate 'Drag to rotate. Right-drag or Shift-drag to pan. Scroll or pinch to zoom.' %}</p>
+        <p class="help" data-preview-collision-status>{% translate 'Collision: the game draws the boxes shown with "Show collision".' %} <a href="{{ collision_url }}">{% translate 'Collision profiles for this asset' %}</a></p>
       </div>
       {% if version.family == "model" %}<noscript><div class="errornote">{% translate 'The preview needs JavaScript.' %}</div></noscript>{% endif %}
       {% endif %}

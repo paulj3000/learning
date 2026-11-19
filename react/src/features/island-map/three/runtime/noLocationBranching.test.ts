@@ -7,7 +7,7 @@ import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 /**
  * Acceptance A2 (`docs/engine/11_ACCEPTANCE_TESTS.md`): the generic runtime
  * must never branch on a location. Every non-test source file in this
- * directory, except the manifests themselves, is scanned for any known
+ * directory, except the manifests and the location definitions (`locations/`), is scanned for any known
  * location slug or region id as a string literal. A hit means
  * region-specific behaviour leaked into the engine and belongs in a
  * manifest or a registered extension instead.
@@ -18,7 +18,8 @@ function sourceFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
     const path = join(directory, name);
     if (statSync(path).isDirectory()) {
-      return name === 'manifests' ? [] : sourceFiles(path);
+      // Per-location data may name its location: the manifests and the GE-075 location definitions.
+      return name === 'manifests' || name === 'locations' ? [] : sourceFiles(path);
     }
     return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [path] : [];
   });
@@ -41,6 +42,34 @@ describe('generic location runtime', () => {
       const source = readFileSync(path, 'utf8');
       return KNOWN_IDS.filter((id) => new RegExp(`['"\`]${id}['"\`:]`).test(source)).map(
         (id) => `${relative(RUNTIME_DIR, path)}: "${id}"`,
+      );
+    });
+    expect(leaks).toEqual([]);
+  });
+});
+
+/**
+ * GE-075 / Firepeak requirement 11: the Game Engine Core (`game/src`, `@lai/game-engine`) is
+ * held to the same rule. Realm and location specifics belong in SDK definitions and content,
+ * never in engine code. Contract vector fixtures are data, not engine behaviour, so they are
+ * the one exclusion.
+ */
+const ENGINE_DIR = resolve(process.cwd(), '../game/src');
+const ENGINE_FIXTURES = new Set(['contracts/gameplayEventVectors.ts']);
+
+describe('Game Engine Core (game/src)', () => {
+  const engineFiles = () =>
+    sourceFiles(ENGINE_DIR).filter((path) => !ENGINE_FIXTURES.has(relative(ENGINE_DIR, path).split('\\').join('/')));
+
+  it('scans a non-empty set of engine files', () => {
+    expect(engineFiles().length).toBeGreaterThan(3);
+  });
+
+  it('names no location slug or region id', () => {
+    const leaks = engineFiles().flatMap((path) => {
+      const source = readFileSync(path, 'utf8');
+      return KNOWN_IDS.filter((id) => new RegExp(`['"\`]${id}['"\`:]`).test(source)).map(
+        (id) => `${relative(ENGINE_DIR, path)}: "${id}"`,
       );
     });
     expect(leaks).toEqual([]);

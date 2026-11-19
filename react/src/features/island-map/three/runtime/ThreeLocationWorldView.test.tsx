@@ -25,6 +25,9 @@ const engine = vi.hoisted(() => ({
   deps: null as { assets?: unknown } | null,
   dispose: vi.fn(),
   interact: vi.fn(),
+  /** LAI-JMP-01a: the perspective the fake engine is in. */
+  mode: 'third-person' as 'first-person' | 'third-person',
+  setSprintMode: vi.fn(),
 }));
 
 vi.mock('./createLocationEngine', () => ({
@@ -34,13 +37,29 @@ vi.mock('./createLocationEngine', () => ({
       _parent: HTMLElement,
       bus: WorldEngineEventBus,
       _manifest: ThreeLocationManifest,
-      options: { startCheckpointId?: string },
+      options: {
+        startCheckpointId?: string;
+        onCameraModeChange?: (mode: 'first-person' | 'third-person') => void;
+      },
       deps: { assets?: unknown },
     ) => {
       engine.bus = bus;
       engine.options = options;
       engine.deps = deps;
-      return { dispose: engine.dispose, interact: engine.interact, ready: Promise.resolve() };
+      return {
+        dispose: engine.dispose,
+        interact: engine.interact,
+        ready: Promise.resolve(),
+        cameraMode: () => engine.mode,
+        camera: { allowModeSwitch: true },
+        locomotion: { sprintEnabled: true },
+        setSprintMode: engine.setSprintMode,
+        setCameraMode: (mode: 'first-person' | 'third-person') => {
+          engine.mode = mode;
+          options.onCameraModeChange?.(mode);
+          return true;
+        },
+      };
     },
   ),
 }));
@@ -487,5 +506,77 @@ describe('ThreeLocationWorldView', () => {
       bus?.emit('PlayerEnteredZone', { zoneId: 'welcome-harbor:dock' });
     });
     expect(saveCheckpoint).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThreeLocationWorldView camera view (LAI-JMP-01a)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    engine.mode = 'third-person';
+    engine.options = null;
+    getWorldStateMock.mockResolvedValue({
+      discoveredIds: [],
+      metCharacterIds: [],
+      lastCheckpointId: undefined,
+    });
+    listAllWorldChangesMock.mockResolvedValue([]);
+    vi.mocked(getInventory).mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    vi.mocked(listQuestStates).mockResolvedValue([]);
+    vi.mocked(getCompanionProfile).mockResolvedValue(null);
+  });
+
+  it('starts the scene in the child’s saved view', async () => {
+    window.localStorage.setItem('lai:camera-mode:child-1', 'first-person');
+    renderView();
+    await waitFor(() =>
+      expect((engine.options as { cameraMode?: string } | null)?.cameraMode).toBe('first-person'),
+    );
+  });
+
+  it('offers a Camera view setting, and remembers a change for next time', async () => {
+    renderView();
+    const eyes = await screen.findByRole('radio', { name: 'Through my eyes' });
+    expect(screen.getByRole('radio', { name: 'Behind my explorer' })).toBeChecked();
+    await userEvent.click(eyes);
+    await waitFor(() => expect(eyes).toBeChecked());
+    expect(window.localStorage.getItem('lai:camera-mode:child-1')).toBe('first-person');
+    window.localStorage.clear();
+  });
+});
+
+describe('ThreeLocationWorldView sprint setting (running & sprinting)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    engine.options = null;
+    getWorldStateMock.mockResolvedValue({
+      discoveredIds: [],
+      metCharacterIds: [],
+      lastCheckpointId: undefined,
+    });
+    listAllWorldChangesMock.mockResolvedValue([]);
+    vi.mocked(getInventory).mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    vi.mocked(listQuestStates).mockResolvedValue([]);
+    vi.mocked(getCompanionProfile).mockResolvedValue(null);
+  });
+
+  it('starts the scene with the child’s saved sprint mode', async () => {
+    window.localStorage.setItem('lai:sprint-mode:child-1', 'toggle');
+    renderView();
+    await waitFor(() =>
+      expect((engine.options as { sprintMode?: string } | null)?.sprintMode).toBe('toggle'),
+    );
+  });
+
+  it('offers hold or tap Shift, applies a change at once and remembers it', async () => {
+    renderView();
+    const tap = await screen.findByRole('radio', { name: 'Tap Shift to switch' });
+    expect(screen.getByRole('radio', { name: 'Hold Shift' })).toBeChecked();
+    await userEvent.click(tap);
+    expect(tap).toBeChecked();
+    expect(engine.setSprintMode).toHaveBeenCalledWith('toggle');
+    expect(window.localStorage.getItem('lai:sprint-mode:child-1')).toBe('toggle');
+    window.localStorage.clear();
   });
 });

@@ -1,4 +1,5 @@
 import type { JsonValue } from '../island-map/three/runtime/locationManifest';
+import { isPickupLook, type PickupLook } from './pickupLook';
 
 /** The region-play extension's id (TR-7). Here, not in `regionManifest.ts`, so the engine-side
  * scene can import it without reaching the API types that module parses (LAI-0203). */
@@ -23,6 +24,13 @@ export interface RegionPlayChestConfig {
 /** A collectible the child picks up through the play API (TR-14), drawn by the extension. */
 export interface RegionPlayPickupConfig {
   entityId: string;
+  /** Its asset library model, only when the catalog can deliver it (the feather). */
+  assetId?: string;
+  /**
+   * What to draw until (or unless) the model is drawn: a feather, a shell, a key or a gem
+   * (`pickupLook.ts`). Absent in configs built before it: a gem, never a key by default.
+   */
+  look?: PickupLook;
 }
 
 /** An object that answers a puzzle by being touched (TR-14): choice `index` of `puzzleEntityId`. */
@@ -111,7 +119,14 @@ export interface RegionPlayEffects {
   steam: SteamConfig[];
   checkpoints: CheckpointConfig[];
   openings: { colliderId: string; whenChangeKey: string }[];
-  returns: { entityId: string; toCheckpoint: string; whenChangeKey: string; label: string }[];
+  returns: {
+    entityId: string;
+    toCheckpoint: string;
+    whenChangeKey: string;
+    label: string;
+    /** Where the way back lands when `toCheckpoint` is not an effects checkpoint (GE-065). */
+    to: { x: number; z: number; yaw: number } | null;
+  }[];
   backdrop: { assetId: string | null; x: number; z: number; radius: number; height: number } | null;
 }
 
@@ -167,6 +182,35 @@ export interface RegionPlayProceduralConfig {
   height?: number;
   /** 24-bit tint for the main surface (a flag's cloth, a tent's canvas), where it has one. */
   color?: number;
+  /**
+   * TR-PALM-05: an asset library model that replaces the primitive, drawn at `height` (a palm's
+   * overall height) and `rotationY`. The primitive stays the fallback while nothing is
+   * published or the model fails to load. Only palms use it today.
+   */
+  assetId?: string;
+}
+
+/**
+ * A static environment prop drawn from an asset library model (TR-ENV-06): a barrel, a log, a wood
+ * pile. Instanced per model like the palms. Its `colliders` are added only once its model is
+ * drawn, so a prop that never loads leaves no invisible wall.
+ */
+export interface RegionPlayPropConfig {
+  id: string;
+  assetId: string;
+  x: number;
+  z: number;
+  rotationY?: number;
+  /** A turn about the model's own Z before `rotationY`: a barrel lying on its side. */
+  rotationZ?: number;
+  scale?: number;
+  /**
+   * How tall the drawn prop stands, metres (layout v8). At or below the jumpable height its
+   * colliders are jumpable (a barrel to hop onto, a log to hop over); absent: solid, as before.
+   */
+  height?: number;
+  /** Ground rectangles, axis-aligned, that make it solid (layout authored, footprint sized). */
+  colliders: { id: string; minX: number; maxX: number; minZ: number; maxZ: number }[];
 }
 
 /**
@@ -218,6 +262,12 @@ export interface RegionPlayConfig {
   changeKeys: string[];
   /** Scenery drawn from primitives (TR-13). Absent in configs built before it. */
   procedural?: RegionPlayProceduralConfig[];
+  /** TR-ENV-06: barrels and logs from the asset library. */
+  props?: RegionPlayPropConfig[];
+  /** TR-ENV-06: the scenery ids each prop model hides once it is drawn (the bundled stand-ins). */
+  propReplaces?: { [assetId: string]: string[] };
+  /** ENV-2: bushes, flowers and grass. Walk-through (no colliders), decorative, swaying. */
+  vegetation?: RegionPlayPropConfig[];
   /** TR-14. Absent in configs built before it. */
   pickups?: RegionPlayPickupConfig[];
   runes?: RegionPlayRuneConfig[];
@@ -406,8 +456,12 @@ export function parseEffects(value: JsonValue | undefined): RegionPlayEffects {
       const toCheckpoint = text(entry.toCheckpoint);
       const whenChangeKey = text(entry.whenChangeKey);
       const label = text(entry.label);
+      const target = record(entry.to);
+      const tx = target ? num(target.x) : undefined;
+      const tz = target ? num(target.z) : undefined;
+      const to = tx !== undefined && tz !== undefined ? { x: tx, z: tz, yaw: num(target?.yaw) ?? 0 } : null;
       return entityId && toCheckpoint && whenChangeKey && label
-        ? [{ entityId, toCheckpoint, whenChangeKey, label }]
+        ? [{ entityId, toCheckpoint, whenChangeKey, label, to }]
         : [];
     }),
     backdrop: (() => {
@@ -436,6 +490,7 @@ function proceduralEntry(item: JsonRecord): RegionPlayProceduralConfig | undefin
   const rotationY = num(item.rotationY);
   const height = num(item.height);
   const color = num(item.color);
+  const assetId = text(item.assetId);
   return {
     id,
     shape: shape as ProceduralShape,
@@ -446,7 +501,58 @@ function proceduralEntry(item: JsonRecord): RegionPlayProceduralConfig | undefin
     ...(color !== undefined && Number.isInteger(color) && color >= 0 && color <= 0xffffff
       ? { color }
       : {}),
+    ...(assetId !== undefined ? { assetId } : {}),
   };
+}
+
+function propEntry(item: JsonRecord): RegionPlayPropConfig | undefined {
+  const id = text(item.id);
+  const assetId = text(item.assetId);
+  const x = num(item.x);
+  const z = num(item.z);
+  if (!id || !assetId || x === undefined || z === undefined) return undefined;
+  const colliders = list(item.colliders, (rect) => {
+    const rectId = text(rect.id);
+    const minX = num(rect.minX);
+    const maxX = num(rect.maxX);
+    const minZ = num(rect.minZ);
+    const maxZ = num(rect.maxZ);
+    if (!rectId || minX === undefined || maxX === undefined) return undefined;
+    if (minZ === undefined || maxZ === undefined || !(minX < maxX && minZ < maxZ)) return undefined;
+    return { id: rectId, minX, maxX, minZ, maxZ };
+  });
+  if (!colliders) return undefined;
+  const rotationY = num(item.rotationY);
+  const rotationZ = num(item.rotationZ);
+  const scale = num(item.scale);
+  if (scale !== undefined && !(scale > 0)) return undefined;
+  const height = num(item.height);
+  return {
+    id,
+    assetId,
+    x,
+    z,
+    ...(rotationY !== undefined ? { rotationY } : {}),
+    ...(rotationZ !== undefined ? { rotationZ } : {}),
+    ...(scale !== undefined ? { scale } : {}),
+    ...(height !== undefined && height > 0 && height <= 20 ? { height } : {}),
+    colliders,
+  };
+}
+
+function propReplacesConfig(
+  value: JsonValue | undefined,
+): { [assetId: string]: string[] } | undefined | null {
+  if (value === undefined) return undefined;
+  const fields = record(value);
+  if (!fields) return null;
+  const out: { [assetId: string]: string[] } = {};
+  for (const [assetId, ids] of Object.entries(fields)) {
+    const parsed = textList(ids);
+    if (!parsed) return null;
+    out[assetId] = parsed;
+  }
+  return out;
 }
 
 function textList(value: JsonValue | undefined): string[] | undefined {
@@ -554,7 +660,13 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
       ? []
       : list(config.pickups, (item) => {
           const entityId = text(item.entityId);
-          return entityId ? { entityId } : undefined;
+          if (!entityId) return undefined;
+          const assetId = text(item.assetId);
+          return {
+            entityId,
+            ...(assetId ? { assetId } : {}),
+            ...(isPickupLook(item.look) ? { look: item.look } : {}),
+          };
         });
   const runes =
     config.runes === undefined
@@ -569,8 +681,12 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
         });
   const unlock = unlockConfig(config.unlock);
   const ambience = ambienceConfig(config.ambience);
-  if (!procedural || !pickups || !runes || !drawnEntities || !puzzles) return null;
-  if (unlock === null || ambience === null) return null;
+  const props = config.props === undefined ? [] : list(config.props, propEntry);
+  const vegetation = config.vegetation === undefined ? [] : list(config.vegetation, propEntry);
+  const propReplaces = propReplacesConfig(config.propReplaces);
+  if (!procedural || !pickups || !runes || !drawnEntities || !puzzles || !props) return null;
+  if (!vegetation) return null;
+  if (unlock === null || ambience === null || propReplaces === null) return null;
   return {
     chests,
     figures,
@@ -582,6 +698,9 @@ export function tryParseRegionPlayConfig(config: JsonRecord): RegionPlayConfig |
     procedural,
     pickups,
     runes,
+    ...(props.length > 0 ? { props } : {}),
+    ...(propReplaces ? { propReplaces } : {}),
+    ...(vegetation.length > 0 ? { vegetation } : {}),
     ...(unlock ? { unlock } : {}),
     ...(ambience ? { ambience } : {}),
   };

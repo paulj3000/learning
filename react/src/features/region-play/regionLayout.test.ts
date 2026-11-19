@@ -22,6 +22,30 @@ function failure(layout: JsonValue): RegionLayoutError {
 }
 
 describe('readRegionLayout (TR-13)', () => {
+  it('reads Treasure Cove’s library barrels and logs with their drawn height (LAI-JMP-01, layout v8)', async () => {
+    const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
+    // The landing barrels are library props now; their stand-ins get derived jumpable boxes.
+    expect(layout.colliders.filter((c) => c.rect.id.startsWith('cove-landing-barrel-'))).toEqual([]);
+    const barrels = layout.props.filter((p) => p.id.startsWith('cove-landing-barrel-'));
+    expect(barrels).toHaveLength(4);
+    for (const barrel of barrels) expect(barrel.height).toBeCloseTo(1.0);
+    for (const prop of layout.props) expect(prop.height).toBeLessThanOrEqual(1.2);
+    // The gate and the channel stay solid walls.
+    const gate = layout.colliders.find((c) => c.rect.id === 'cove-ruins-gate:collider');
+    expect(gate?.jumpable).toBeUndefined();
+  });
+
+  it('reads collider heights and refuses a jumpable flag that is not a boolean (LAI-JMP-01)', () => {
+    const rect = { id: 'r', minX: 0, maxX: 1, minZ: 0, maxZ: 1 };
+    expect(
+      readRegionLayout({ colliders: [{ rect, minY: 0, maxY: 0.5, jumpable: true }] }).colliders,
+    ).toEqual([{ rect, minY: 0, maxY: 0.5, jumpable: true }]);
+    expect(readRegionLayout({ colliders: [{ rect }] }).colliders).toEqual([{ rect }]);
+    expect(failure({ colliders: [{ rect, jumpable: 'yes' }] }).path).toBe(
+      'scene.layout.colliders[0].jumpable',
+    );
+  });
+
   it('reads Treasure Cove’s real layout: scenery, colliders, five zones, movers, lights, placeholders', async () => {
     const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
     expect(layout.zones.map((zone) => zone.rect.id)).toEqual([
@@ -98,6 +122,28 @@ describe('readRegionLayout (TR-13)', () => {
       'scene.layout.ambient[0].path',
     ],
     ['a list that is not a list', { zones: { rect: {} } }, 'scene.layout.zones'],
+    [
+      'a prop without a model',
+      { props: [{ id: 'b', x: 0, z: 0, colliders: [] }] },
+      'scene.layout.props[0].assetId',
+    ],
+    [
+      'a prop collider inside out',
+      {
+        props: [
+          {
+            id: 'b',
+            assetId: 'prop-wooden-barrel',
+            x: 0,
+            z: 0,
+            colliders: [{ id: 'b:c', minX: 1, maxX: 0, minZ: 0, maxZ: 1 }],
+          },
+        ],
+      },
+      'scene.layout.props[0].colliders[0]',
+    ],
+    ['a prop scale of zero', { props: [{ id: 'b', assetId: 'x', x: 0, z: 0, scale: 0, colliders: [] }] }, 'scene.layout.props[0].scale'],
+    ['replacements that are not ids', { propReplaces: { barrel: [1] } }, 'scene.layout.propReplaces.barrel[0]'],
   ])('refuses %s, naming where', (_name, layout, path) => {
     expect(failure(layout as JsonValue).path).toBe(path);
   });
@@ -171,5 +217,43 @@ describe('the unlock and ambience blocks (TR-17, TR-18)', () => {
     expect(failure({ ambience: { water: [], fireflies: [{ ...cloud, count: 5000 }] } }).path).toBe(
       'scene.layout.ambience.fireflies[0].count',
     );
+  });
+});
+
+describe('library palms, barrels and logs (TR-PALM-05, TR-ENV-06)', () => {
+  it('reads every palm with its model, and the props with their colliders and replacements', async () => {
+    const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
+    const palms = layout.procedural.filter((item) => item.shape === 'PALM');
+    expect(palms.length).toBeGreaterThanOrEqual(33);
+    expect(new Set(palms.map((palm) => palm.assetId))).toEqual(
+      new Set([
+        'nature-palm-tree-small',
+        'nature-palm-tree-standard',
+        'nature-palm-tree-tall',
+        'nature-palm-tree-curved',
+      ]),
+    );
+    expect(layout.props.length).toBe(37);
+    const lying = layout.props.find((prop) => prop.id === 'cove-beach-barrel-5');
+    expect(lying?.rotationZ).toBeCloseTo(Math.PI / 2);
+    expect(lying?.colliders.length).toBe(2); // a 1 m barrel on its side, 0.77 m wide
+    expect(layout.propReplaces['prop-wooden-barrel']).toContain('cove-beach-barrels');
+  });
+
+  it('reads the vegetation: walk-through library models with no colliders (ENV-2)', async () => {
+    const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
+    expect(layout.vegetation.length).toBe(138);
+    expect(layout.vegetation.every((plant) => plant.colliders.length === 0)).toBe(true);
+    expect(new Set(layout.vegetation.map((plant) => plant.assetId.split('-')[1]))).toEqual(
+      new Set(['bush', 'flower', 'grass']),
+    );
+    expect(readRegionLayout({ scenery: [plane] } as JsonValue).vegetation).toEqual([]);
+  });
+
+  it('defaults to no props for a layout written before them', () => {
+    const layout = readRegionLayout({ scenery: [plane] } as JsonValue);
+    expect(layout.props).toEqual([]);
+    expect(layout.propReplaces).toEqual({});
+    expect(EMPTY_LAYOUT.props).toEqual([]);
   });
 });

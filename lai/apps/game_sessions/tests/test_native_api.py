@@ -55,8 +55,9 @@ def test_regions_lists_published_regions_with_their_hierarchy(a):
     assert region["location"]["slug"] == "pirate-builder-bay"
     assert region["world"]["slug"] == "learning-adventure-island"
     assert region["available"] is True and region["status"] == "NOT_STARTED"
-    # Pip's four chests (TR-14); the ruins puzzle and the Lookout replay (TR-20) are not chests.
-    assert region["chestsTotal"] == 4 and region["chestsOpened"] == 0
+    # Pip's four chests (TR-14) and Pirate's Leap's riddle drum and treasure (LAI-JMP-03); the
+    # ruins puzzle and the Lookout replay (TR-20) are not chests.
+    assert region["chestsTotal"] == 6 and region["chestsOpened"] == 0
     assert region["resume"] is None and region["thumbnailAssetId"] is None
 
 
@@ -118,7 +119,7 @@ def test_region_adventures_are_the_locations_adventures_for_the_age_band(a):
     assert "the-tide-gate-calculation" not in slugs  # Explorer only
     entry = body["adventures"][slugs.index("repair-the-moonlight-bridge")]
     assert entry["status"] == "AVAILABLE" and entry["resume"] is None
-    [quest] = body["quests"]
+    [quest] = [q for q in body["quests"] if q["questId"] != "pirates-leap"]
     assert quest["questId"] == "pips-missing-treasure" and quest["status"] == "AVAILABLE"
     assert quest["available"] is True and quest["prerequisites"] == []
 
@@ -155,7 +156,11 @@ def test_a_quest_whose_prerequisites_fail_is_locked(a, treasure):
     quest = treasure.quest
     quest.source = {**quest.source, "prerequisites": [{"type": "WORLD_CHANGE", "changeKey": "X"}]}
     quest.save()
-    [entry] = client.get(f"{base(child)}regions/{REGION}/adventures/").json()["quests"]
+    [entry] = [
+        q
+        for q in client.get(f"{base(child)}regions/{REGION}/adventures/").json()["quests"]
+        if q["questId"] != "pirates-leap"
+    ]
     assert entry["status"] == "LOCKED" and entry["lockedReason"] == "PREREQUISITES_NOT_MET"
     assert entry["prerequisites"] == [{"type": "WORLD_CHANGE", "changeKey": "X"}]
 

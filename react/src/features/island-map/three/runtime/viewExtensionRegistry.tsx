@@ -45,6 +45,11 @@ export interface LocationCompanionProps {
   bus: WorldEngineEventBus;
   /** Whatever the scene half returned as `api`, or `null` before the engine is up. */
   sceneApi: unknown;
+  /**
+   * Another mounted extension's `api` by id, or `null` (absent, or the engine is not up). Region
+   * play uses it to feed the engine bridge world-change signals and resume (GE-065).
+   */
+  extensionApi?(extensionId: string): unknown;
   /** The child's world state as the view last read it. */
   worldState: WorldInteractionContext;
   /**

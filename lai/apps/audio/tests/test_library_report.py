@@ -206,6 +206,14 @@ def test_the_real_treasure_rush_requirements_are_the_sixteen_wired_cues():
     assert "sfx.coin.collect" in {s.cue_id for s in reporting.GAMES["treasure-rush"].optional}
 
 
+def test_player_movement_sounds_are_optional_and_never_hold_up_readiness():
+    """LAI-JMP-01: jumping works without audio, so its cues are reported but not required."""
+    game = reporting.GAMES["treasure-rush"]
+    optional = {s.cue_id for s in game.optional}
+    assert {"sfx.player.jump", "sfx.player.land"} <= optional
+    assert not {"sfx.player.jump", "sfx.player.land"} & {s.cue_id for s in game.required}
+
+
 # --- the command --------------------------------------------------------------------------------
 
 

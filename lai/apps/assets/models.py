@@ -233,3 +233,118 @@ class AssetVersion(models.Model):
 
     def __str__(self) -> str:
         return f"{self.asset_id}:v{self.number}"
+
+
+# --- collision profiles (Asset Manager, 2026-11-14; `docs/ASSET_COLLISION_PROFILES.md`) ---------
+
+
+class CollisionShape(models.TextChoices):
+    NONE = "NONE", "None (never blocks)"
+    BOX = "BOX", "Box"
+    CYLINDER = "CYLINDER", "Cylinder"
+    CAPSULE = "CAPSULE", "Capsule"
+    COMPOUND = "COMPOUND", "Compound boxes"
+
+
+class CollisionBehavior(models.TextChoices):
+    AUTO = "AUTO", "Automatic (jumpable up to 1.2 m tall, solid above)"
+    SOLID = "SOLID", "Solid (blocks at every height)"
+    JUMPABLE = "JUMPABLE", "Jumpable (hop onto or over it)"
+    WALKABLE = "WALKABLE", "Walkable (walk over it; kept clear of other colliders)"
+    DECORATIVE = "DECORATIVE", "Decorative (visual only, never blocks)"
+
+
+class CollisionAxis(models.TextChoices):
+    Y = "Y", "Upright (model Y)"
+    X = "X", "Lying along model X"
+    Z = "Z", "Lying along model Z"
+
+
+class CollisionProfile(models.Model):
+    """How a 3D asset blocks movement wherever it is placed (staff-authored, Django Admin).
+
+    One row per asset is its default (`version` empty); a row naming a version overrides it for
+    that version only. Every size is in model space, metres, before a placement's position,
+    rotation and scale. Empty sizes and offsets come from the version's measured bounds
+    (`AssetVersion.metadata["bounds"]`, else `dimensions`), so `BOX` with nothing filled in is
+    the automatic bounding box. The runtime only has axis-aligned boxes; `collision.py` turns
+    every shape into model-space boxes and the client turns those into world boxes.
+    """
+
+    asset = models.ForeignKey(
+        "catalog.ContentAsset", on_delete=models.CASCADE, related_name="collision_profiles"
+    )
+    version = models.ForeignKey(
+        AssetVersion,
+        on_delete=models.CASCADE,
+        related_name="collision_profiles",
+        null=True,
+        blank=True,
+        help_text="Empty: the asset's default for every version. Set: this version only.",
+    )
+    shape = models.CharField(
+        max_length=8, choices=CollisionShape.choices, default=CollisionShape.BOX
+    )
+    behavior = models.CharField(
+        max_length=10, choices=CollisionBehavior.choices, default=CollisionBehavior.AUTO
+    )
+    axis = models.CharField(
+        max_length=1,
+        choices=CollisionAxis.choices,
+        default=CollisionAxis.Y,
+        help_text="Cylinder and capsule only: upright, or lying along a model axis (a log).",
+    )
+    width = models.FloatField(null=True, blank=True, help_text="Size along model X, metres.")
+    height = models.FloatField(null=True, blank=True, help_text="Size along model Y, metres.")
+    depth = models.FloatField(null=True, blank=True, help_text="Size along model Z, metres.")
+    radius = models.FloatField(
+        null=True, blank=True, help_text="Cylinder and capsule radius, metres (a tree's trunk)."
+    )
+    offset_x = models.FloatField(null=True, blank=True, help_text="Centre on model X, metres.")
+    offset_y = models.FloatField(null=True, blank=True, help_text="Bottom on model Y, metres.")
+    offset_z = models.FloatField(null=True, blank=True, help_text="Centre on model Z, metres.")
+    boxes = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            'Compound only: a list of {"x", "z", "y", "width", "height", "depth"} boxes, where x and'
+            " z are the centre and y the bottom, in model space (walls of a building)."
+        ),
+    )
+    notes = models.CharField(max_length=500, blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["asset__asset_id", "version__number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asset"],
+                condition=models.Q(version__isnull=True),
+                name="assets_collisionprofile_one_default_per_asset",
+            ),
+            models.UniqueConstraint(
+                fields=["version"],
+                condition=models.Q(version__isnull=False),
+                name="assets_collisionprofile_one_per_version",
+            ),
+            *[
+                models.CheckConstraint(
+                    condition=models.Q(**{f"{name}__isnull": True})
+                    | models.Q(**{f"{name}__gt": 0}),
+                    name=f"assets_collisionprofile_{name}_positive",
+                )
+                for name in ("width", "height", "depth", "radius")
+            ],
+        ]
+
+    def __str__(self) -> str:
+        scope = f"v{self.version.number}" if self.version_id else "default"
+        return f"{self.asset.asset_id} collision ({scope})"

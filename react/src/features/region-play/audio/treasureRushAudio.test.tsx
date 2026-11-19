@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useState } from 'react';
-import { act, render } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act as reactAct, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSoundManager } from '../../../audio/SoundManager';
 import { resetSharedSoundManager } from '../../../audio/sharedSoundManager';
 import { SoundProvider, type AudioManifestSource } from '../../../audio/react';
@@ -16,7 +16,7 @@ import {
   type TreasureRushAudio,
   type TreasureRushSceneAudio,
 } from './useTreasureRushAudio';
-import { CUE_SOUNDS, TR_SOUND, ZONE_AMBIENCE } from './treasureRushSounds';
+import { CUE_SOUNDS, LANDING_SOUND_MIN_SPEED, TR_SOUND, ZONE_AMBIENCE } from './treasureRushSounds';
 
 const REGION = 'treasure-rush-cove';
 /** Asset ids are slugs: the cue id with dashes, as `seed_treasure_rush_sound` expects. */
@@ -127,7 +127,48 @@ const flush = () =>
     for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-afterEach(() => {
+/*
+  Test isolation (defect https://trello.com/c/9OdaKlbs). Under heavy machine load a test can
+  time out while it is inside an async `act()`. Vitest abandons the test body but does not stop
+  it, so its `act` scope ended during the next test, overlapping that test's own `act`, and the
+  abandoned body went on calling `act` in later tests. React's act queue was left broken and
+  every later test in the file heard nothing (37 false failures behind one real timeout).
+
+  So every `act` here is tied to the test that started it: an abandoned body stops at its next
+  `act`, and each test waits for its own in-flight async `act` to finish before cleanup runs. A
+  timed-out test still fails; it can no longer take the rest of the file with it.
+*/
+let testEnded = false;
+const inFlight = new Set<Promise<unknown>>();
+
+beforeEach(() => {
+  testEnded = false;
+});
+
+/** React Testing Library's `act`, refused once its test has ended, with async scopes tracked. */
+function act(callback: () => Promise<unknown>): Promise<void>;
+function act(callback: () => unknown): void;
+function act(callback: () => unknown): unknown {
+  if (testEnded) {
+    throw new Error('act() called after its test ended (a timed-out test body is still running)');
+  }
+  const result = reactAct(callback as () => void) as unknown;
+  if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+    // React's act returns a thenable, not a Promise.
+    const pending: Promise<unknown> = Promise.resolve(result as PromiseLike<unknown>).finally(() =>
+      inFlight.delete(pending),
+    );
+    inFlight.add(pending);
+    return pending;
+  }
+  return result;
+}
+
+afterEach(async () => {
+  // The abandoned body of a timed-out test may not call act() again.
+  testEnded = true;
+  // Let this test's own async act() scopes close before the next test opens one.
+  await Promise.allSettled([...inFlight]);
   setSoundSink(null);
   resetSharedSoundManager();
 });
@@ -713,6 +754,70 @@ describe('NPC moments (LAI-NPC-015)', () => {
     playCue('npcGreet', { npcId: 'keeper-quill' });
     playCue('npcTalk', { npcId: 'pirate-pip' });
     playCue('npcGreet');
+    await flush();
+    expect(engine.heard().slice(before)).toEqual([]);
+  });
+});
+
+describe('player movement sounds (LAI-JMP-01)', () => {
+  const heardAfter = (engine: RecordingEngine, before: number) => engine.heard().slice(before);
+
+  it('plays the jump cue when the child jumps', async () => {
+    const { engine, bus } = await mount();
+    const before = engine.heard().length;
+    act(() => bus.emit('PlayerJumped', { airJump: false }));
+    await flush();
+    expect(heardAfter(engine, before)).toEqual([TR_SOUND.playerJump]);
+  });
+
+  it('plays the landing cue on a firm landing only, not on a little hop down', async () => {
+    const { engine, bus } = await mount();
+    const before = engine.heard().length;
+    act(() => bus.emit('PlayerLanded', { impactSpeed: LANDING_SOUND_MIN_SPEED - 1 }));
+    await flush();
+    expect(heardAfter(engine, before)).toEqual([]);
+    act(() => bus.emit('PlayerLanded', { impactSpeed: 7 }));
+    await flush();
+    expect(heardAfter(engine, before)).toEqual([TR_SOUND.playerLand]);
+  });
+
+  it('jumping still works, silently, when the region has no jump or landing audio', async () => {
+    const world = build(
+      ALL_CUES.filter((cue) => cue !== TR_SOUND.playerJump && cue !== TR_SOUND.playerLand),
+    );
+    const { engine, bus } = await mount(world);
+    const before = engine.heard().length;
+    expect(() =>
+      act(() => {
+        bus.emit('PlayerJumped', { airJump: false });
+        bus.emit('PlayerLanded', { impactSpeed: 7 });
+      }),
+    ).not.toThrow();
+    await flush();
+    expect(heardAfter(engine, before)).toEqual([]);
+  });
+});
+
+describe('footsteps (running & sprinting)', () => {
+  it('plays the optional footstep cue for each step the engine reports', async () => {
+    const { engine, bus } = await mount();
+    const before = engine.heard().length;
+    act(() => {
+      bus.emit('PlayerFootstep', { gait: 'walk' });
+      bus.emit('PlayerFootstep', { gait: 'sprint' });
+    });
+    await flush();
+    expect(engine.heard().slice(before)).toEqual([
+      TR_SOUND.playerFootstep,
+      TR_SOUND.playerFootstep,
+    ]);
+  });
+
+  it('keeps silent, and keeps going, with no footstep audio published', async () => {
+    const world = build(ALL_CUES.filter((cue) => cue !== TR_SOUND.playerFootstep));
+    const { engine, bus } = await mount(world);
+    const before = engine.heard().length;
+    expect(() => act(() => bus.emit('PlayerFootstep', { gait: 'run' }))).not.toThrow();
     await flush();
     expect(engine.heard().slice(before)).toEqual([]);
   });

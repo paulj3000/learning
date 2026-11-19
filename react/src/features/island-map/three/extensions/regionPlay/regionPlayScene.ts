@@ -1,5 +1,7 @@
+import { JUMPABLE_MAX_HEIGHT } from '../../runtime/derivedColliders';
 import {
   AnimationMixer,
+  Box3,
   BoxGeometry,
   CylinderGeometry,
   Group,
@@ -9,6 +11,7 @@ import {
   OctahedronGeometry,
   SphereGeometry,
   Sprite,
+  Vector3,
   SpriteMaterial,
   TorusGeometry,
   CanvasTexture,
@@ -18,6 +21,7 @@ import {
   type Object3D,
 } from 'three';
 import { prefersReducedMotion } from '../../../../../lib/motionPreference';
+import { DEFAULT_RENDER_QUALITY, RENDER_QUALITY_PRESETS } from '../../runtime/visual/renderQuality';
 import { cloneAssetScene } from '../../assets/cloneAsset';
 import { mountAreaEffects, type AreaEffectsApi } from './areaEffectsScene';
 import { mountAreaPuzzles, type AreaPuzzleApi } from './areaPuzzleScene';
@@ -29,7 +33,9 @@ import {
   type RegionPlayChestConfig,
 } from '../../../../region-play/regionPlayConfig';
 import type { NpcHostScene } from '../../../../npc-manager/host/types';
+import type { PickupLook } from '../../../../region-play/pickupLook';
 import { buildFireflies, shimmerWater } from './livingCove';
+import { mountInstancedModels, type ModelPlacement } from './instancedModels';
 import { buildProceduralScenery } from './proceduralScenery';
 
 /**
@@ -51,6 +57,14 @@ import { buildProceduralScenery } from './proceduralScenery';
  *   flags, the rowboat, pillars, the pedestal and the gate, drawn from
  *   primitives until finished models exist (`proceduralScenery.ts`), and
  *   held still when the device asks for reduced motion.
+ * - **Palm models (TR-PALM-05).** A palm that names a published asset library model is drawn
+ *   from it, instanced per model, and its primitive is hidden once the model has loaded; a model
+ *   that fails leaves the primitive (`instancedModels.ts`).
+ * - **Barrels and logs (TR-ENV-06).** Props drawn from published models, instanced the same way.
+ *   Their colliders are added, and the bundled barrels and logs they replace hidden, only once
+ *   the model is drawn: until then the cove is exactly as it was.
+ * - **Vegetation (ENV-2).** Bushes, flowers and grass, instanced the same way, walk-through (no
+ *   colliders), swaying gently unless reduced motion is asked for, and thinned at LOW quality.
  * - **Figures.** A placeholder character for an NPC published without a
  *   model, so the region still renders and the NPC still talks.
  * - **The way to Lookout Point (TR-17).** When the quest's completion world change is
@@ -140,8 +154,44 @@ function worldPositionReader(object: Object3D): (out: [number, number, number]) 
   };
 }
 
+/** TR-PALM-05, TR-ENV-06: names of the instanced model sets, and the palms' sway. */
+export const PALM_MODEL_NAME = 'region-play:palm-model';
+/** The campfire's asset library model (2026-11-15). */
+export const CAMPFIRE_MODEL_NAME = 'region-play:campfire-model';
+export const PROP_MODEL_NAME = 'region-play:prop-model';
+export const PALM_SWAY = 0.02;
+/** ENV-2: vegetation, and how far it leans in the wind (a little more than a palm: it is small). */
+export const VEGETATION_MODEL_NAME = 'region-play:vegetation-model';
+export const VEGETATION_SWAY = 0.04;
+
+/**
+ * Keeps `density` of the placements of each model (ENV-2): 1 keeps them all, 0.5 every other one
+ * in layout order, so the thinning is spread across the cove and is the same on every visit.
+ */
+export function thinDecor<T extends { assetId: string }>(
+  placements: readonly T[],
+  density: number,
+): T[] {
+  if (density >= 1) return [...placements];
+  const seen = new Map<string, number>();
+  return placements.filter((placement) => {
+    const index = seen.get(placement.assetId) ?? 0;
+    seen.set(placement.assetId, index + 1);
+    return Math.floor((index + 1) * density) > Math.floor(index * density);
+  });
+}
+/** A prop collider's height range: the same as a manifest rectangle's (sceneLayout.ts). */
+const PROP_COLLIDER_MIN_Y = -1;
+const PROP_COLLIDER_MAX_Y = 3;
+
 /** Names, so tests and debugging can find them (TR-14). */
 export const KEY_NAME = 'region-play:key';
+/** A pickup's holder (`${PICKUP_NAME}:${entityId}`), its primitive looks, and a drawn model. */
+export const PICKUP_NAME = 'region-play:pickup';
+export const FEATHER_NAME = 'region-play:feather';
+export const SHELL_NAME = 'region-play:shell';
+export const GEM_NAME = 'region-play:gem';
+export const PICKUP_MODEL_NAME = 'region-play:pickup-model';
 export const RUNE_STONE_NAME = 'region-play:rune-stone';
 export const RUNE_LABEL_NAME = 'region-play:rune-label';
 const STONE = 0x8f8a80;
@@ -159,6 +209,12 @@ export const BOUNCE_SECONDS = 0.8;
 const WOOD = 0x8a5a2b;
 const TRIM = 0xd4a937;
 const GOLD = 0xf2c94c;
+const FEATHER_QUILL = 0xf3ead2;
+const FEATHER_RED = 0xe0453a;
+const FEATHER_BLUE = 0x2f7fd8;
+const SHELL_PINK = 0xf6b8b0;
+const SHELL_RIB = 0xe89488;
+const GEM_TEAL = 0x5fd6c6;
 const FIGURE = 0x2f8f4e;
 /** How far a built lid swings back when open, in radians. */
 export const OPEN_LID_ANGLE = -1.9;
@@ -192,6 +248,13 @@ export const regionPlaySceneExtension: WorldExtension = {
         // Models for stand-ins, declared only when one can be delivered (FP-3).
         ...parsed.drawn.flatMap((drawn) => (drawn.assetId ? [drawn.assetId] : [])),
         ...(parsed.effects.backdrop?.assetId ? [parsed.effects.backdrop.assetId] : []),
+        // TR-PALM-05, TR-ENV-06: palm, barrel and log models, only those the server says can be
+        // delivered (the manifest builder drops the rest).
+        ...(parsed.procedural ?? []).flatMap((entry) => (entry.assetId ? [entry.assetId] : [])),
+        ...(parsed.props ?? []).map((prop) => prop.assetId),
+        // The feather (and any pickup with a deliverable model).
+        ...(parsed.pickups ?? []).flatMap((pickup) => (pickup.assetId ? [pickup.assetId] : [])),
+        ...(parsed.vegetation ?? []).map((plant) => plant.assetId),
       ]),
     ];
   },
@@ -316,16 +379,40 @@ export const regionPlaySceneExtension: WorldExtension = {
       );
     }
 
-    // TR-14: pickups (the key), drawn here until a catalogue model exists, and gone once taken.
+    // TR-14: pickups, gone once taken. Each is drawn as what it is (Feather defect: every pickup
+    // used to be the gold key): its asset library model when deliverable, else a primitive
+    // feather, shell, key or gem (`pickupLook.ts`). The holder hovers and turns either way.
     const pickups = new Map<string, Object3D>();
     const collected = new Set<string>();
     for (const pickup of config.pickups ?? []) {
       const root = context.entityRoot(pickup.entityId);
       if (!root) continue;
-      const key = builtKey(own);
-      root.add(key);
-      pickups.set(pickup.entityId, key);
+      const holder = new Group();
+      holder.name = `${PICKUP_NAME}:${pickup.entityId}`;
+      const look = pickup.look ?? 'GEM';
+      const primitive = PICKUP_BUILDERS[look](own);
+      holder.add(primitive);
+      root.add(holder);
+      pickups.set(pickup.entityId, holder);
       addBeacon(pickup.entityId, 0.3, () => !collected.has(pickup.entityId));
+      if (!pickup.assetId) continue;
+      const assetId = pickup.assetId;
+      context
+        .loadModel(assetId)
+        .then((asset) => {
+          if (disposed || collected.has(pickup.entityId)) return;
+          const model = cloneAssetScene(asset.scene);
+          model.name = `${PICKUP_MODEL_NAME}:${assetId}`;
+          primitive.removeFromParent();
+          holder.add(model);
+        })
+        .catch((error: unknown) => {
+          // A model that fails to load keeps the primitive (never a key unless it is a key).
+          console.warn(
+            `[region-play] pickup ${pickup.entityId}: could not load "${assetId}"; drawing the ${look.toLowerCase()} stand-in`,
+            error,
+          );
+        });
     }
 
     // TR-14: rune stones a puzzle is answered with, each with a number while its challenge is out.
@@ -371,6 +458,90 @@ export const regionPlaySceneExtension: WorldExtension = {
 
     const procedural = buildProceduralScenery(config.procedural ?? []);
     context.scene.add(procedural.root);
+    // TR-PALM-05: published palm models take the primitives' places as they load.
+    const palmPlacements: ModelPlacement[] = (config.procedural ?? []).flatMap((entry) =>
+      entry.shape === 'PALM' && entry.assetId
+        ? [
+            {
+              id: entry.id,
+              assetId: entry.assetId,
+              x: entry.x,
+              z: entry.z,
+              ...(entry.rotationY !== undefined ? { rotationY: entry.rotationY } : {}),
+              ...(entry.height !== undefined ? { height: entry.height } : {}),
+            },
+          ]
+        : [],
+    );
+    const palmModels = mountInstancedModels(palmPlacements, context.loadModel, {
+      name: PALM_MODEL_NAME,
+      sway: PALM_SWAY,
+      onDrawn: (_assetId, ids) => procedural.hidePalms(ids),
+    });
+    context.scene.add(palmModels.root);
+
+    // The campfire (2026-11-15): the published model takes the primitive stones' and logs' place;
+    // the primitive's flame keeps flickering on top. Its collider is the layout's, as before, so
+    // the campfire is solid whether or not the model ever loads.
+    const campfirePlacements: ModelPlacement[] = (config.procedural ?? []).flatMap((entry) =>
+      entry.shape === 'CAMPFIRE' && entry.assetId
+        ? [
+            {
+              id: entry.id,
+              assetId: entry.assetId,
+              x: entry.x,
+              z: entry.z,
+              ...(entry.rotationY !== undefined ? { rotationY: entry.rotationY } : {}),
+            },
+          ]
+        : [],
+    );
+    const campfireModels = mountInstancedModels(campfirePlacements, context.loadModel, {
+      name: CAMPFIRE_MODEL_NAME,
+      onDrawn: (_assetId, ids) => procedural.hideCampfireBases(ids),
+    });
+    context.scene.add(campfireModels.root);
+
+    // TR-ENV-06: barrels and logs. A model, once drawn, makes its props solid and hides the
+    // bundled scenery it replaces; one that never loads leaves both as they were.
+    const props = config.props ?? [];
+    const propModels = mountInstancedModels(props, context.loadModel, {
+      name: PROP_MODEL_NAME,
+      onDrawn: (assetId) => {
+        for (const prop of props) {
+          if (prop.assetId !== assetId) continue;
+          // Integration: a low prop (a barrel, a log) is jumpable from its drawn height, like the
+          // stand-in's derived collider it replaces; anything taller, or of unknown height, is solid.
+          const low = prop.height !== undefined && prop.height <= JUMPABLE_MAX_HEIGHT;
+          for (const rect of prop.colliders) {
+            context.addCollider(
+              new Box3(
+                new Vector3(rect.minX, low ? 0 : PROP_COLLIDER_MIN_Y, rect.minZ),
+                new Vector3(rect.maxX, low ? prop.height! : PROP_COLLIDER_MAX_Y, rect.maxZ),
+              ),
+              low ? { jumpable: true } : undefined,
+            );
+          }
+        }
+        for (const id of config.propReplaces?.[assetId] ?? []) {
+          const stale = context.sceneryRoot(id);
+          if (stale) stale.visible = false;
+          // The hidden stand-in's derived colliders go too: no invisible box left behind.
+          context.removeCollider(`derived:${id}`);
+        }
+      },
+    });
+    context.scene.add(propModels.root);
+
+    // ENV-2: bushes, flowers and grass. Walk-through (no colliders), swaying gently with the
+    // palms' clock, thinned at LOW quality (every other placement of each model).
+    const density = RENDER_QUALITY_PRESETS[context.quality ?? DEFAULT_RENDER_QUALITY].decorDensity;
+    const vegetationModels = mountInstancedModels(
+      thinDecor(config.vegetation ?? [], density),
+      context.loadModel,
+      { name: VEGETATION_MODEL_NAME, sway: VEGETATION_SWAY },
+    );
+    context.scene.add(vegetationModels.root);
     const still = prefersReducedMotion();
 
     // TR-18: the water and the fireflies. Held where they were first drawn when `still`.
@@ -452,6 +623,8 @@ export const regionPlaySceneExtension: WorldExtension = {
       for (const chest of chests.values()) chest.tick(delta);
       if (!still) {
         procedural.tick(delta);
+        palmModels.tick(delta);
+        vegetationModels.tick(delta);
         water.tick(delta);
         fireflies.tick(delta);
       }
@@ -594,6 +767,10 @@ export const regionPlaySceneExtension: WorldExtension = {
         for (const beacon of beacons.values()) context.scene.remove(beacon.mesh);
         for (const rune of runes.values()) rune.label.material.map?.dispose();
         procedural.dispose();
+        palmModels.dispose();
+        campfireModels.dispose();
+        propModels.dispose();
+        vegetationModels.dispose();
         water.dispose();
         fireflies.dispose();
         for (const chest of chests.values()) chest.dispose();
@@ -618,8 +795,66 @@ function puzzleState(solved: boolean): DrawnChest {
   return drawn;
 }
 
+type Own = (geometry: BufferGeometry, color: number) => Mesh;
+
+/** The primitive for each pickup look. */
+const PICKUP_BUILDERS: Readonly<Record<PickupLook, (own: Own) => Group>> = {
+  FEATHER: builtFeather,
+  SHELL: builtShell,
+  KEY: builtKey,
+  GEM: builtGem,
+};
+
+/**
+ * A feather from primitives, about 0.5 m tall and standing up, so it reads as a feather from
+ * across the trail: a flattened leaf-shaped vane in bright parrot colours on a pale quill.
+ */
+function builtFeather(own: Own): Group {
+  const feather = new Group();
+  feather.name = FEATHER_NAME;
+  const quill = own(new CylinderGeometry(0.012, 0.02, 0.5, 6).translate(0, 0.25, 0), FEATHER_QUILL);
+  const vane = own(
+    new SphereGeometry(0.1, 10, 8).scale(0.9, 2.1, 0.18).translate(0, 0.28, 0),
+    FEATHER_RED,
+  );
+  const tip = own(
+    new SphereGeometry(0.07, 8, 6).scale(0.8, 1.4, 0.2).translate(0, 0.43, 0.004),
+    FEATHER_BLUE,
+  );
+  feather.add(quill, vane, tip);
+  // A little lean, as a feather lands, without hiding which way is up.
+  feather.rotation.z = 0.18;
+  return feather;
+}
+
+/** A pink scallop shell from primitives: a fan of ribs over a half dome. */
+function builtShell(own: Own): Group {
+  const shell = new Group();
+  shell.name = SHELL_NAME;
+  const dome = own(
+    new SphereGeometry(0.16, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.55, 1),
+    SHELL_PINK,
+  );
+  shell.add(dome);
+  for (let i = 0; i < 5; i += 1) {
+    const rib = own(new BoxGeometry(0.02, 0.03, 0.17).translate(0, 0.07, 0.07), SHELL_RIB);
+    rib.rotation.y = (i - 2) * 0.4;
+    shell.add(rib);
+  }
+  shell.rotation.x = -0.6; // tipped toward the child, ribs showing
+  return shell;
+}
+
+/** A neutral sparkling gem: what an unknown pickup looks like (never a key). */
+function builtGem(own: Own): Group {
+  const gem = new Group();
+  gem.name = GEM_NAME;
+  gem.add(own(new OctahedronGeometry(0.14), GEM_TEAL));
+  return gem;
+}
+
 /** A gold key from primitives (TR-14), until `treasure-key` exists as a model. */
-function builtKey(own: (geometry: BufferGeometry, color: number) => Mesh): Group {
+function builtKey(own: Own): Group {
   const key = new Group();
   key.name = KEY_NAME;
   const bow = own(new TorusGeometry(0.1, 0.03, 6, 12), GOLD);

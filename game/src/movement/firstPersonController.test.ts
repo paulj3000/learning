@@ -1,4 +1,4 @@
-import { Box3, Vector3 } from 'three';
+import { Box3, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { FirstPersonController } from './firstPersonController';
 
@@ -131,5 +131,36 @@ describe('FirstPersonController', () => {
 
       expect(controller.canStandAt(0, 0)).toBe(false);
     });
+  });
+});
+
+describe('FirstPersonController strafe direction (ArrowLeft walked right)', () => {
+  /** Screen-right of the camera the runtimes build: `rotation.y = yaw + PI`. */
+  function cameraRight(yaw: number): Vector3 {
+    const camera = new PerspectiveCamera();
+    camera.rotation.y = yaw + Math.PI;
+    camera.updateMatrixWorld();
+    return new Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  }
+
+  for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2, 0.7]) {
+    it(`moves toward the camera's right on strafe +1 and left on -1 (yaw ${yaw.toFixed(2)})`, () => {
+      const right = cameraRight(yaw);
+      for (const strafe of [1, -1]) {
+        const controller = new FirstPersonController({ acceleration: 1000 });
+        controller.yaw = yaw;
+        controller.update(0.1, { forward: 0, strafe });
+        const moved = new Vector3(controller.position.x, 0, controller.position.z).normalize();
+        expect(moved.dot(right)).toBeCloseTo(strafe, 5);
+      }
+    });
+  }
+
+  it('strafes at right angles to forward', () => {
+    const controller = new FirstPersonController({ acceleration: 1000 });
+    controller.yaw = 0.7;
+    controller.update(0.1, { forward: 0, strafe: 1 });
+    const forward = new Vector3(Math.sin(0.7), 0, Math.cos(0.7));
+    expect(new Vector3(controller.position.x, 0, controller.position.z).dot(forward)).toBeCloseTo(0, 5);
   });
 });

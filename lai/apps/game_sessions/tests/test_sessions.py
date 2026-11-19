@@ -256,6 +256,7 @@ class TestChildIsolation:
             "assets",
             "audio",
             "auth",
+            "avatars",  # Player Avatars (LAI-JMP-01c, ADR-057): staff content, no child data
             "catalog",
             "education",
             "jobs",  # background job status, read-only; payloads never carry child data

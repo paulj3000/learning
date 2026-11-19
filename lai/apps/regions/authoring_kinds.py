@@ -7,7 +7,7 @@ they stay seed-authored (ADR-047 H, LAI-0805).
 from apps.catalog.authoring import Kind, register
 from apps.catalog.models import RewardRule
 
-from . import puzzles
+from . import platforming, puzzles
 from .models import AreaPuzzle, TreasureChest, WorldRegion
 
 COPY_KEYS = {"loading", "instructions", "calmStop", "altNavLabel"}
@@ -15,16 +15,24 @@ COPY_KEYS = {"loading", "instructions", "calmStop", "altNavLabel"}
 
 def _region_body(region: WorldRegion) -> dict:
     scene = region.scene if isinstance(region.scene, dict) else {}
-    return {
+    body = {
         "regionId": region.region_id,
         "title": region.title,
         "copy": dict(scene.get("copy", {})),
         "environment": dict(scene.get("environment", {})),
     }
+    # LAI-JMP-02/04: an Area with platforms also offers their tuning (speeds, pauses, on/off).
+    if platforming.platform_ids(scene):
+        body["platformTuning"] = dict(scene.get("platformTuning", {}))
+    return body
 
 
 def _apply_region(region: WorldRegion, body: dict, problems: list[str]):
-    unknown = set(body) - {"regionId", "title", "copy", "environment"}
+    scene_now = region.scene if isinstance(region.scene, dict) else {}
+    allowed = {"regionId", "title", "copy", "environment"}
+    if platforming.platform_ids(scene_now):
+        allowed.add("platformTuning")
+    unknown = set(body) - allowed
     if unknown:
         problems.append(f"$: unknown keys {', '.join(sorted(unknown))}")
     title = body.get("title")
@@ -44,10 +52,15 @@ def _apply_region(region: WorldRegion, body: dict, problems: list[str]):
     ):
         problems.append("$.environment.backgroundColor: must be a colour from 0 to 16777215")
 
+    if "platformTuning" in body:
+        problems.extend(platforming.tuning_problems(scene_now, body["platformTuning"]))
+
     def finish() -> None:
         scene = dict(region.scene) if isinstance(region.scene, dict) else {}
         scene["copy"] = body["copy"]
         scene["environment"] = body["environment"]
+        if "platformTuning" in body:
+            scene["platformTuning"] = body["platformTuning"]
         region.title = body["title"]
         region.scene = scene
         region.save(update_fields=["title", "scene", "updated_at"])
