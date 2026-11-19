@@ -11,6 +11,7 @@ Stacking (GE-107), explicitly:
 - Rules are grouped by `(stacking_group, currency)`. A rule with no group is its own group.
 - Within a group exactly one rule applies: the most specific selector (exact ref, then the
   longest prefix, then match-anything), then the highest priority, then the lowest rule key.
+- A winning `suppress` rule awards nothing for its group (no amount, no ledger row).
 - Different groups stack: a quest can earn XP from "quest-completion" and coins from
   "quest-coins", and a special quest's exact-ref rule replaces the general rule in the same
   group instead of adding to it.
@@ -46,6 +47,10 @@ class RuleSpec:
     minimum_trust: Trust = Trust.SERVER_BOUNDED
     attribute_equals: dict = field(default_factory=dict, hash=False, compare=False)
     """Every listed fact attribute must equal the given value (e.g. itemCategory KEEPSAKE)."""
+    suppress: bool = False
+    """Competes like any rule but awards nothing when it wins its group: an exact suppress
+    rule stops the group paying for one source (e.g. a legacy quest that completes together
+    with its replacement, so one accomplishment is not paid twice)."""
 
     @property
     def group(self) -> str:
@@ -68,7 +73,7 @@ class InvalidRule(ValueError):
 def rule_problems(rule: RuleSpec) -> list[str]:
     """Every reason a rule cannot be part of a policy. Admin refuses a policy with any."""
     problems = []
-    if not 1 <= rule.amount <= MAX_AMOUNT:
+    if not rule.suppress and not 1 <= rule.amount <= MAX_AMOUNT:
         problems.append(f"{rule.rule_key}: amount must be between 1 and {MAX_AMOUNT}")
     if rule.minimum_trust < MINIMUM_AUTHORITATIVE_TRUST:
         problems.append(f"{rule.rule_key}: client-reported events can never award")
@@ -123,6 +128,7 @@ def decide(rules: Iterable[RuleSpec], fact: ScoringFact) -> list[AwardDecision]:
             ),
         )
         for (group, _), (_, rule) in best.items()
+        if not rule.suppress
     ]
     return sorted(decisions, key=lambda d: (d.currency, d.stacking_group))
 

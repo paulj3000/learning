@@ -163,12 +163,19 @@ class AwardRule(models.Model):
         choices=TRUST_CHOICES, default=int(Trust.SERVER_BOUNDED)
     )
     enabled = models.BooleanField(default=True)
+    suppress = models.BooleanField(
+        default=False,
+        help_text="Matches like a rule but pays nothing when it wins its group. With an exact "
+        "selector, stops one source paying (e.g. a legacy quest completing with its successor).",
+    )
 
     class Meta:
         ordering = ["policy", "rule_key"]
         constraints = [
             models.UniqueConstraint(fields=["policy", "rule_key"], name="award_rule_key_once"),
-            models.CheckConstraint(condition=Q(amount__gte=1), name="award_rule_amount_positive"),
+            models.CheckConstraint(
+                condition=Q(amount__gte=1) | Q(suppress=True), name="award_rule_amount_positive"
+            ),
             models.CheckConstraint(
                 condition=Q(minimum_trust__gte=int(Trust.SERVER_BOUNDED)),
                 name="award_rule_never_client_reported",
@@ -189,6 +196,7 @@ class AwardRule(models.Model):
             priority=self.priority,
             minimum_trust=Trust(self.minimum_trust),
             attribute_equals=dict(self.attribute_equals or {}),
+            suppress=self.suppress,
         )
 
     def clean(self):

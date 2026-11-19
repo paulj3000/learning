@@ -41,6 +41,21 @@ DEV_RULES = [
 ]
 
 
+# Suppress rules: (rule_key, source kind, exact selector, the group it suppresses).
+# `treasure-rush-cove` is the legacy Treasure Cove quest, still active so children who started
+# it keep their progress; it completes on the same chest as Pip's quest, so without this one
+# accomplishment would pay quest XP twice. Retiring the quest (active=False) is the owner's
+# content decision (docs/engine/TREASURE_RUSH_SCORING_INVENTORY.md section 3.1).
+DEV_SUPPRESSIONS = [
+    (
+        "legacy-treasure-rush-cove",
+        SourceKind.QUEST_COMPLETED,
+        "treasure-rush-cove",
+        "quest-completion",
+    ),
+]
+
+
 def create_dev_policy(key: str = "default"):
     """A new DRAFT version holding the development fixture rules. Returns it."""
     from django.db import transaction
@@ -68,5 +83,16 @@ def create_dev_policy(key: str = "default"):
                 amount=amount,
                 stacking_group=rule_key,
                 attribute_equals=dict(DEV_RULE_ATTRIBUTES.get(rule_key, {})),
+            )
+        for rule_key, kind, selector, group in DEV_SUPPRESSIONS:
+            AwardRule.objects.create(
+                policy=policy,
+                rule_key=rule_key,
+                source_kind=kind,
+                selector=selector,
+                currency=Currency.XP,
+                amount=0,
+                stacking_group=group,
+                suppress=True,
             )
     return policy

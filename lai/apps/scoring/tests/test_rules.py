@@ -207,3 +207,37 @@ def test_the_decision_has_no_time_hint_or_attempt_inputs():
         "session_id",
         "attributes",
     }
+
+
+# --- Suppression ----------------------------------------------------------------------------------
+
+
+def test_an_exact_suppress_rule_stops_its_group_paying_for_that_source_only():
+    rules_ = [
+        rule("quest", 250, stacking_group="quest-completion"),
+        rule(
+            "legacy",
+            0,
+            selector="treasure-rush-cove",
+            stacking_group="quest-completion",
+            suppress=True,
+        ),
+    ]
+    assert decide(rules_, fact(ref="treasure-rush-cove")) == []
+    assert [a.amount for a in decide(rules_, fact(ref="pips-treasure"))] == [250]
+
+
+def test_suppression_leaves_other_groups_paying():
+    rules_ = [
+        rule("quest", 250, stacking_group="quest-completion"),
+        rule("coins", 5, currency=Currency.COINS, stacking_group="quest-coins"),
+        rule("legacy", 0, selector="old", stacking_group="quest-completion", suppress=True),
+    ]
+    assert [(a.currency, a.amount) for a in decide(rules_, fact(ref="old"))] == [
+        (Currency.COINS, 5)
+    ]
+
+
+def test_a_suppress_rule_needs_no_amount_but_a_paying_rule_does():
+    assert rules.rule_problems(rule("legacy", 0, suppress=True)) == []
+    assert rules.rule_problems(rule("zero", 0))

@@ -90,6 +90,11 @@ Rules are grouped by `(stacking_group, currency)`; a rule without a group is its
 In a group exactly one rule applies: exact selector, then longest prefix (`abc*`), then
 match-all; then higher `priority`; then lower `rule_key`. Different groups add up.
 
+A `suppress` rule competes like any other but pays nothing when it wins. With an exact selector
+it stops one source paying in that group: for example the legacy `treasure-rush-cove` quest,
+still active so children keep their progress, which completes on the same chest as Pip's
+quest. Retiring the quest is an owner content decision.
+
 ## 6. HTTP API (child-scoped, parent bearer auth, `ChildScopedAPIView`)
 
 All under `/api/v1/children/{childId}/`. Another family's child is `404`. No route accepts an

@@ -133,5 +133,6 @@ def clone_to_draft(policy: ScoringPolicy, *, title: str | None = None) -> Scorin
             priority=rule.priority,
             minimum_trust=rule.minimum_trust,
             enabled=rule.enabled,
+            suppress=rule.suppress,
         )
     return draft

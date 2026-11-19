@@ -46,6 +46,7 @@ class AwardRuleInline(admin.TabularInline):
         "priority",
         "minimum_trust",
         "enabled",
+        "suppress",
     )
 
     def _editable(self, obj):
