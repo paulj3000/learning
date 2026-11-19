@@ -279,3 +279,14 @@ Owner acceptance (SC-R12-01, browser and devices) is still required and is not c
 | Keepsakes | projected from inventory | server reward rules unchanged |
 
 No realm milestone claim is wanted from the client. The engine lead opens **GE-067** for host-level `exploration.discovery.found` and `npc.interaction.completed` claims in every location, and will publish the SHA in which bridge checkpoints feed live fall recovery (`api.latestCheckpoint()`). The castle's `gameplay.checkpoints` config (section 8.1) is held until then.
+
+### 9.2 Bridge checkpoints: still held (2026-11-19, after `4b63f9ca`)
+
+`core/gameengine` `4b63f9ca` (merged at `09fa01c6`) closes the engine's recovery gap: live fall recovery now falls back to the bridge's latest checkpoint. The castle still keeps its five checkpoints on the live runtime, because the shared host does not yet do two things the castle relies on:
+
+1. **Saving.** `ThreeLocationWorldView` writes `WorldState.last_checkpoint_id` (`saveCheckpoint`) only when the child enters a `manifest.checkpoints` zone. A bridge `CourseCheckpointReached` only shows a toast. Region play keeps bridge progress as world changes; the castle's save is the single saved checkpoint id (`castleSaveContract.test.ts`). Moving the list would stop saving the child's place.
+2. **Wording.** The castle's authored toast ("You found the Character Gallery.", `copy.checkpointToasts`) would become the generic course text; `storykeeperCastleParity.test.tsx` pins it.
+
+A castle-only listener could do both, but it would be a second save path for one location. The request to the engine lead: when a bridge checkpoint id is also a saved region checkpoint (`ALL_CHECKPOINTS` for the manifest's region), the host saves it and uses the manifest's checkpoint toasts, so `manifest.checkpoints` can move onto the bridge for any location. Then the castle moves in one commit with section 8.1's config and `resume([lastCheckpointId])`.
+
+Regression on the merged tree: Vitest 246 files, 3103 passed. Two failures were 5 s timeouts in different tests on different runs (GE-D9 class), and both files then passed twice. Typecheck, content, golden, adr checks pass; `makemigrations --check` no changes (the scoring app adds its own `0001_initial`).
