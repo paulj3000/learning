@@ -29,6 +29,7 @@ import {
   type PuzzleParams,
   type ValveParams,
 } from '../../../../region-play/areaPuzzles';
+import { playCue } from '../../../../region-play/soundCues';
 import type { RegionPlayInteractionEvent } from '../../../../region-play/regionPlayInteractions';
 import { completedQuests } from '../../../../region-play/regionPlayUi';
 import type { RegionPlaySceneApi } from './regionPlayScene';
@@ -112,6 +113,22 @@ export function choiceSceneView(
   return { labels, highlighted: entityOf(picked), correct: entityOf(right) };
 }
 
+/**
+ * A choice puzzle's scene objects this child's age band never uses. The seed places the union of
+ * every band's answer objects (`entityIds`), but a band's parameters map only its own options, so a
+ * Pathfinder switch or story puzzle would otherwise leave one or two unlabelled objects that do
+ * nothing. They are hidden and taken out of focus instead.
+ */
+export function unusedChoiceEntities(
+  entityIds: readonly string[],
+  params: ChoiceKindParams,
+): string[] {
+  const entities = params.kind === 'CHOOSE_ANSWER' ? params.optionEntities : params.itemEntities;
+  const used = new Set(Object.values(entities));
+  if (used.size === 0) return [];
+  return entityIds.filter((entityId) => !used.has(entityId));
+}
+
 export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
   const { bootstrap, sceneApi, event } = props;
   const typed = useMemo(() => {
@@ -187,6 +204,18 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
       valves.puzzle.solved ? valves.params.valves.map((v) => v.id) : sequence,
     );
   }, [sceneApi, sequence, valves]);
+
+  // A band's unused answer objects are never shown (`unusedChoiceEntities`).
+  useEffect(() => {
+    const puzzles = sceneApi?.puzzles;
+    if (!puzzles) return;
+    for (const { puzzle, params } of typed.values()) {
+      if (!isChoiceKind(params)) continue;
+      for (const entityId of unusedChoiceEntities(puzzle.entityIds, params)) {
+        puzzles.setVisible(entityId, false);
+      }
+    }
+  }, [sceneApi, typed]);
 
   // Labels and glow on the scene objects of every choice puzzle, each keyed by its own id.
   useEffect(() => {
@@ -293,6 +322,8 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
         const entities =
           params.kind === 'CHOOSE_ANSWER' ? params.optionEntities : params.itemEntities;
         const id = Object.keys(entities).find((key) => entities[key] === entityId);
+        if (id && params.kind === 'ORDER_SEQUENCE' && params.presentation === 'SWITCHES')
+          playCue('switchFlip', { entityId });
         if (id) state = params.kind === 'CHOOSE_ANSWER' ? selectOption(state, id) : addToOrder(state, id);
       }
       return { ...all, [puzzle.puzzleId]: state };
@@ -455,7 +486,10 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
             <OrderSequencePanel
               {...common}
               params={params}
-              onAdd={(id) => patchChoice(puzzle.puzzleId, (c) => addToOrder(c, id))}
+              onAdd={(id) => {
+                if (params.presentation === 'SWITCHES') playCue('switchFlip');
+                patchChoice(puzzle.puzzleId, (c) => addToOrder(c, id));
+              }}
               onUndo={() => patchChoice(puzzle.puzzleId, undoOrder)}
               onClear={() => patchChoice(puzzle.puzzleId, clearOrder)}
             />

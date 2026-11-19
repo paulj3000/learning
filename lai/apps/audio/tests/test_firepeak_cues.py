@@ -151,3 +151,18 @@ def test_a_zone_the_layout_does_not_declare_is_skipped_not_fatal(treasure):
     assert "ASSIGNMENT SKIPPED" in report
     assert not SoundAssignment.objects.filter(target_type="zone").exists()
     assert SoundCue.objects.count() == len(DESIGN_IDS)
+
+
+def test_only_cues_the_client_plays_are_marked_wired():
+    wired = {spec.cue_id for spec in FIREPEAK_CUES if spec.wired}
+    assert wired >= {
+        "sfx.firepeak.crystal_collect",
+        "sfx.firepeak.puzzle_complete",
+        "sfx.firepeak.restore",
+        "sfx.firepeak.switch",
+        "sfx.firepeak.checkpoint",
+        "sfx.firepeak.lava_respawn",
+        "sfx.firepeak.complete",
+    }
+    assert "sfx.firepeak.machinery" not in wired
+    assert "voice.firepeak.npc_greet" not in wired

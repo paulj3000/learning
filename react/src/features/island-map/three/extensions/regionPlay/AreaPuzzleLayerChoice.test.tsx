@@ -4,11 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { read } from '../../../../../api/parse';
 import * as parse from '../../../../../api/play/parse';
 import type { RegionBootstrap } from '../../../../../api/play/types';
-import { firstVariantIndex } from '../../../../region-play/areaPuzzles';
+import { firstVariantIndex, parsePuzzleParams } from '../../../../region-play/areaPuzzles';
 import type { RegionPlayInteractionEvent } from '../../../../region-play/regionPlayInteractions';
 import { choiceBootstrap } from '../../../../../test/choicePuzzleFixtures';
 import { FIREPEAK_SESSION, puzzleOutcomeJson } from '../../../../../test/firepeakFixtures';
-import { AreaPuzzleLayer } from './AreaPuzzleLayer';
+import { setSoundSink, type SoundCue } from '../../../../region-play/soundCues';
+import { AreaPuzzleLayer, unusedChoiceEntities } from './AreaPuzzleLayer';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 
 /** CHOOSE_ANSWER and ORDER_SEQUENCE are multi-instance: every state is keyed by puzzle id (FPV). */
@@ -60,6 +61,28 @@ function firstPrompt(puzzleId: string) {
   const index = firstVariantIndex(FIREPEAK_SESSION, puzzleId, 2);
   return ['What is 3 + 4?', 'What is 2 + 5?'][index];
 }
+
+describe('switch sounds', () => {
+  afterEach(() => setSoundSink(null));
+
+  it('plays switchFlip when a switch is added to the order, from the scene or the panel', async () => {
+    const heard: SoundCue[] = [];
+    setSoundSink((cue) => heard.push(cue));
+    const { open } = setup();
+    open('fh-order-1', 'fh-switch-blue');
+    expect(heard).toEqual(['switchFlip']);
+    await userEvent.click(screen.getByRole('button', { name: /Add: star, Sun switch/ }));
+    expect(heard).toEqual(['switchFlip', 'switchFlip']);
+  });
+
+  it('is silent for a choose-answer touch', () => {
+    const heard: SoundCue[] = [];
+    setSoundSink((cue) => heard.push(cue));
+    const { open } = setup();
+    open('fh-choose-1', 'fh-stone-b');
+    expect(heard).toEqual([]);
+  });
+});
 
 describe('choice puzzles in the layer', () => {
   it('opens the deterministic first variant and sends {variantId, choice} to the server', async () => {
@@ -178,5 +201,37 @@ describe('practice', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Check my answer' }));
     expect(await screen.findByText('Not quite. Let us look again!')).toBeInTheDocument();
     expect(screen.getByText(/together make 7/)).toBeInTheDocument();
+  });
+});
+
+describe('answer objects another age band uses (FPV known limitation)', () => {
+  it('lists the entities this band never maps, and nothing when every one is mapped', () => {
+    const data = choiceBootstrap();
+    const order = data.puzzles.find((p) => p.puzzleId === 'fh-order-1')!;
+    const parsed = parsePuzzleParams(order.kind, order.parameters);
+    if (!parsed || parsed.kind !== 'ORDER_SEQUENCE') throw new Error('fixture');
+    expect(unusedChoiceEntities(order.entityIds, parsed)).toEqual([]);
+    expect(unusedChoiceEntities([...order.entityIds, 'fh-switch-green'], parsed)).toEqual(['fh-switch-green']);
+  });
+
+  it('hides and unfocuses the extra object in the scene, and leaves the band\'s own objects', () => {
+    const data = choiceBootstrap();
+    const order = data.puzzles.find((p) => p.puzzleId === 'fh-order-1')!;
+    order.entityIds = [...order.entityIds, 'fh-switch-green'];
+    const scene = fakeScene();
+    render(
+      <AreaPuzzleLayer
+        bootstrap={data}
+        sceneApi={scene}
+        busy={false}
+        solvePuzzle={vi.fn()}
+        showToast={vi.fn()}
+        onClose={vi.fn()}
+        event={null}
+      />,
+    );
+    const setVisible = scene.puzzles.setVisible as ReturnType<typeof vi.fn>;
+    expect(setVisible).toHaveBeenCalledWith('fh-switch-green', false);
+    expect(setVisible).not.toHaveBeenCalledWith('fh-switch-red', false);
   });
 });

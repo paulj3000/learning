@@ -50,6 +50,12 @@ export interface PlaceSummary {
   explored: boolean;
   /** NP-023: null for content with no seasonal event (and from an older server). */
   seasonal?: SeasonalInfo | null;
+  /** Quest-based Places: quests its published 3D Area offers this child; 0 when absent. */
+  questCount: number;
+  questsCompleted: number;
+  questsInProgress: number;
+  /** All offered quests completed by this child (false when there are none). */
+  completed: boolean;
   area: PlaceArea | null;
 }
 
@@ -175,6 +181,10 @@ export function islandsView(r: Reader): IslandsView {
         adventureCount: place.field('adventureCount').integer(),
         explored: added(place, 'explored', (f) => f.boolean(), false),
         seasonal: seasonal(place),
+        questCount: added(place, 'questCount', (f) => f.integer(), 0),
+        questsCompleted: added(place, 'questsCompleted', (f) => f.integer(), 0),
+        questsInProgress: added(place, 'questsInProgress', (f) => f.integer(), 0),
+        completed: added(place, 'completed', (f) => f.boolean(), false),
         area: place.field('area').nullable(area),
       })),
     })),

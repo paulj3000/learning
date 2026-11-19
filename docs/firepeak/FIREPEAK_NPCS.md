@@ -13,7 +13,7 @@ persona, behaviour, model variant, placement and authored fallback dialogue.
    `professor-basalt`, `cinder`, `ignis`). Without them the command fails and tells you to run it.
 2. The area seed for `firepeak-heart` (the 3D Area). Without it the placements are skipped with a
    note; run `seed_npc_firepeak` again after the area exists (second run creates only the placements).
-3. `seed_npc_firepeak`. Creates, per NPC: a stand-in model asset (`firepeak-npc-*`, origin Django,
+3. `seed_npc_firepeak`. Creates, per NPC: a stand-in model asset (`firepeak-<npc>, the same ids as the 3D Area placements`, origin Django,
    tag `firepeak-heart`, no file), a Polly voice profile (reused if present), the character, the
    `classic` variant, behaviour profile(s), placements, an approved persona and the dialogues.
 4. Upload the GLBs (below), then `seed_npc_firepeak --promote`, then `--publish`.
@@ -29,11 +29,11 @@ All: age bands PATHFINDER and EXPLORER, variant `classic`, Polly neural voices (
 
 | NPC | Role | Mode | Zone | Placements (x, z) | Behaviour | Model asset | Voice |
 |---|---|---|---|---|---|---|---|
-| Flint (`flint`) | GUIDE; welcome, map, movement | AUTHORED | 1 Explorer's Landing | `fh-flint` (3, 84) | stationary, faces child | `firepeak-npc-flint` | Matthew 100% |
-| Kindle (`kindle`) | COMPANION; hints | HYBRID | 2 Emberwood, 7 Heart | `fh-kindle` (-3, 58), `fh-kindle-heart` (-4, -84) | follow (stop 2.5 m, bounded 14 m); stationary at the Heart | `firepeak-npc-kindle` | Ivy 108% |
-| Professor Basalt (`professor-basalt`) | TEACHER; real volcano science | AUTHORED | 4 Caverns, 6 Summit | `fh-basalt` (4, -8), `fh-basalt-summit` (4, -62) | stationary | `firepeak-npc-basalt` | Kevin 96% |
-| Cinder (`cinder`) | QUEST_GIVER; forge, sequences | AUTHORED | 5 Ancient Forge | `fh-cinder` (-4, -34) | stationary | `firepeak-npc-cinder` | Stephen 92% |
-| Ignis (`ignis`) | GUIDE; final challenge | AUTHORED | 7 Heart Chamber | `fh-ignis` (0, -90) | stationary | `firepeak-npc-ignis` | Ruth 92% |
+| Flint (`flint`) | GUIDE; welcome, map, movement | AUTHORED | 1 Explorer's Landing | `fh-flint` (-4, 86) | stationary, faces child | `firepeak-flint` | Matthew 100% |
+| Kindle (`kindle`) | COMPANION; hints | HYBRID | 2 Emberwood, 7 Heart | `fh-kindle` (3, 58), `fh-kindle-heart` (4, -86) | follow (stop 2.5 m, bounded 14 m); stationary at the Heart | `firepeak-kindle` | Ivy 108% |
+| Professor Basalt (`professor-basalt`) | TEACHER; real volcano science | AUTHORED | 4 Caverns, 6 Summit | `fh-basalt` (-6, 1.5), `fh-basalt-summit` (-6, -64.6) | stationary | `firepeak-professor-basalt` | Kevin 96% |
+| Cinder (`cinder`) | QUEST_GIVER; forge, sequences | AUTHORED | 5 Ancient Forge | `fh-cinder` (-5, -31) | stationary | `firepeak-cinder` | Stephen 92% |
+| Ignis (`ignis`) | GUIDE; final challenge | AUTHORED | 7 Heart Chamber | `fh-ignis` (-4, -87) | stationary | `firepeak-ignis` | Ruth 92% |
 
 Flint is stationary, not `guide`: a guide needs authored waypoints, which belong to the area
 layout. Staff can switch his profile to `guide` in Django Admin once the path exists.
@@ -79,7 +79,7 @@ Professor Basalt starts facts with "Real volcanoes ..."; anything magical is isl
 
 Upload the character models (Django Admin, Asset Library):
 
-1. Open `firepeak-npc-flint` (and the other four) under Content assets, kind `character`.
+1. Open `firepeak-flint` (and the other four) under Content assets, kind `character`.
 2. Upload a GLB version with the clips Idle, Walk, Talk, Wave, Point, Celebrate, ReactHappy,
    ReactConcerned (missing ones fall back). Publish the version and set it as the default.
 3. Run `seed_npc_firepeak --promote` (or set each character READY in Admin).
@@ -90,3 +90,20 @@ Publish an NPC release:
    NPC releases, Preview, then Publish. Both validate clips, voices, dialogue and placements.
 2. A rerun with nothing changed prints `unchanged`. Roll back or retire from Admin if needed.
 3. Deploying and migrating production data still need explicit owner approval.
+
+## When an NPC is managed (parity with the legacy panel)
+
+A manifest NPC the NPC Manager serves answers with the published dialogue, not `PipDialog`. What
+that changes for Firepeak:
+
+- Quest offer: Flint's greetings carry an `OFFER_QUEST` choice (`the-heart-of-firepeak`). Accepting
+  is the child's own tap through the quests API, the same flow Pip uses; the client ignores an
+  offer for a quest that is no longer available.
+- Return to the NPC: `RegionPlayCompanion` keeps the legacy panel for an NPC while a RETURN_TO_NPC
+  puzzle bound to it is unlocked and unsolved (`usesLegacyNpcDialogue`). Ignis therefore shows the
+  "show the Professor" action and the puzzle stage line until `fh-heart-return` is solved, then the
+  managed dialogue runs. While the puzzle is locked he is fully managed.
+- Per-puzzle stage lines for other managed NPCs are not shown; those NPCs speak their published
+  lines (Kindle's hints are the Manager's); the current puzzle's stage line still shows in its puzzle
+  panel. A managed NPC with launch points also keeps the legacy panel, which carries the launch
+  buttons the managed panel lacks.

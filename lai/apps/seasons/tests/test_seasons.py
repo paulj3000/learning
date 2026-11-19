@@ -246,6 +246,9 @@ def test_admin_registration_and_actions():
 
 
 def test_seed_command_is_idempotent_and_skips_without_realm(treasure):
+    # The real content export now carries the north-pole Realm; move it aside so the first run
+    # sees a database without it, as on a branch that has not imported North Pole yet.
+    World.objects.filter(slug="north-pole").update(slug="north-pole-not-imported")
     out = io.StringIO()
     call_command("seed_seasonal_events", stdout=out)
     assert "skipped" in out.getvalue()

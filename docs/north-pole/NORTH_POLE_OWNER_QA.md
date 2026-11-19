@@ -77,7 +77,7 @@ Story and learning (NP-025 to NP-033)
 
 Rewards and persistence (NP-034, NP-035, NP-038)
 - [ ] Badges, the Christmas Star trophy, cosmetics (owned, not equippable yet) and journal pages
-      appear in the backpack once each, never twice.
+      appear in the backpack once each, never twice; all ten snowflakes add the snowflake scarf.
 - [ ] Leaving mid-way and returning resumes at the furthest zone reached with everything kept.
 - [ ] Quests appear in the in-world backpack (see the known gap about the `/quests` page).
 
@@ -98,8 +98,9 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
    the in-world backpack only (also true for Firepeak).
 3. The backpack shows quest titles and status, not objectives.
 4. Pickups draw the generic gem, not their stand-in shape (fragments, bells).
-5. Cosmetics can be owned but not equipped; collectible-set completion items (the snowflake
-   scarf) are not granted server-side. Both are shared gaps.
+5. Cosmetics can be owned but not equipped (a shared gap). Collectible-set completion items are
+   now granted by the server (merged from Firepeak, FPV-18): the tenth snowflake gives the
+   snowflake scarf once (`test_the_tenth_snowflake_completes_the_set_and_gives_the_scarf_once`).
 6. Snowball's resting spot in the stable uses the NPC seed's fallback position (46, 20); confirm
    it looks right or add an `np-snowball-stable` placement.
 7. Several curriculum skill slugs (fractions, symmetry, sight words, earth and space) are labels,

@@ -42,6 +42,45 @@ their fix sites (`amplify/backend.ts`, `amplify/data/resource.ts`), since
 neither is obvious from the Amplify docs and both will matter again if the
 Bedrock model choice ever changes.
 
+## The Heart of Firepeak (FPV-01 to FPV-24, 2026-11-18, `feature/firepeak-volcano-adventure`); development complete, unit-tested only, owner QA pending, NOT merged
+
+Contract and decisions: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`, ADR-070 (Proposed). Based on
+`feature/treasure-rush-palm-trees` (420f1afd) for the shared jump, camera and platform engine.
+
+**What exists.** A new Place `firepeak-heart` with one seven-zone 3D Area (Explorer's Landing,
+Emberwood Forest, Lava Crossing, Crystal Caverns, Ancient Forge, Firepeak Summit, Heart Chamber),
+the quest `the-heart-of-firepeak` (7 stages), 14 server-graded puzzles (two new multi-instance
+kinds `CHOOSE_ANSWER` and `ORDER_SEQUENCE`, migration `regions.0007`), practice replay, NPCs
+Flint, Kindle, Professor Basalt, Cinder and Ignis (catalog dialogue with banded puzzle lines, NPC
+Manager characters), 4 elemental crystals, 7 ember shards, 9 keepsake achievements, 4 journal
+entries, Firepeak sound cues with region-keyed ambience, 29 asset ids with stand-ins, Realm
+Explorer quest counts and completion. The Volcano Awakens (`firepeak-volcano`) is unchanged.
+
+**Shared changes (isolated commits).** Django scene colliders keep `minY`, `maxY`, `jumpable`;
+`effects.lava[].visualOnly`; the reduced-motion respawn vignette clears; stand-in shapes TREE,
+LOG, GEAR, SWITCH, ROCK, ARCH; collectible-set completion items granted by the server; islands
+API adds `questCount`, `questsCompleted`, `questsInProgress`, `completed`; a managed NPC keeps the
+legacy panel while it is the target of an open `RETURN_TO_NPC` step; puzzle solves raise the
+`questComplete` cue.
+
+**Development checks (2026-11-18, integrated branch).** Vitest 112 files, 1,459 tests passed
+(region play, regionPlay extension, realms, content export, golden, play API, platforms, runtime);
+`tsc --noEmit` clean. Targeted pytest: 457 passed (puzzle kinds, Firepeak Volcano, Heart import,
+NPC seed, golden), 297 passed (Heart layout, seed and playthrough for both bands, Pirate's Leap,
+Pip's treasure, chests, quests, NPC seed), 15 passed (Heart security, audio), 9 passed
+(inventory grants), 11 passed (NPC seed after asset-id alignment). Not run, by policy: Playwright,
+browser or device checks, Ruff, Prettier, ESLint, full suites, builds.
+
+**Not done / blocked.**
+- Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
+- Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
+- Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
+- Question Studio bank for area puzzles: extension point only.
+- Falling rocks and timed steam pushes: not built (no telegraphed moving-hazard runtime).
+- Managed NPCs lose per-puzzle stage lines and launch points (only the return step is protected).
+- Pathfinder switch and story puzzles leave one or two inert, unlabelled answer objects.
+- ADR-070 numbering and the branch's ADR-055 to 060 collide with main's ADR-055 to 064; renumber at merge.
+
 ## Movement defects, campfire and feather (2026-11-15, `feature/treasure-rush-palm-trees`); development complete, owner QA pending, NOT merged
 
 Owner guide: `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`. Decision: ADR-060 (Proposed).

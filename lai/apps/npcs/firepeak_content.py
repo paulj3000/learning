@@ -5,8 +5,9 @@ canonical `catalog.NpcDefinition` (ADR-033, ADR-054 item 1) that the content exp
 this module never creates or edits it. `seed_npc_firepeak` applies the rows below create-only,
 so staff edits in Django Admin survive a rerun.
 
-Nothing here grants, unlocks or completes anything. Choice actions used are `NONE`, `END` and
-`REQUEST_HINT` (Kindle only, hybrid mode). Puzzle intros, answers and rewards stay with the
+Nothing here grants, unlocks or completes anything. Choice actions used are `NONE`, `END`,
+`REQUEST_HINT` (Kindle only, hybrid mode) and `OFFER_QUEST` (Flint only: accepting is the child's
+own tap through the quests API, the same flow Pip uses). Puzzle intros, answers and rewards stay with the
 puzzle engine; these lines are the friendly baseline around them.
 
 Copy rules: readable aloud, no em dash, no question about the child's name, address, school or
@@ -51,6 +52,7 @@ _REACTIONS = {
     "adventure.completed": "celebrate",
 }
 
+HEART_QUEST_ID = "the-heart-of-firepeak"
 KINDLE_TOPIC = "patterns and counting in Emberwood Forest"
 
 
@@ -108,11 +110,11 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Flint",
         role=NpcRole.GUIDE,
         zone="Explorer's Landing",
-        asset_id="firepeak-npc-flint",
+        asset_id="firepeak-flint",
         # A guide needs authored waypoints, which belong to the area layout; until staff add them
         # Flint waits at the landing and turns to the child.
         behaviors=_stationary("flint-landing", "Flint at Explorer's Landing"),
-        spots=(Spot("fh-flint", "flint-landing", 3.0, 84.0, 0.0),),
+        spots=(Spot("fh-flint", "flint-landing", -4.0, 86.0, 0.4),),
         personality={
             "traits": ["friendly", "brave", "encouraging"],
             "tone": "warm",
@@ -143,7 +145,7 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Kindle",
         role=NpcRole.COMPANION,
         zone="Emberwood Forest and the Heart Chamber",
-        asset_id="firepeak-npc-kindle",
+        asset_id="firepeak-kindle",
         behaviors={
             **{
                 "kindle-follow": {
@@ -161,8 +163,8 @@ NPCS: tuple[FirepeakNpc, ...] = (
             **_stationary("kindle-heart", "Kindle at the Heart"),
         },
         spots=(
-            Spot("fh-kindle", "kindle-follow", -3.0, 58.0, 0.0),
-            Spot("fh-kindle-heart", "kindle-heart", -4.0, -84.0, 0.0),
+            Spot("fh-kindle", "kindle-follow", 3.0, 58.0, -0.4),
+            Spot("fh-kindle-heart", "kindle-heart", 4.0, -86.0, -0.3),
         ),
         personality={
             "traits": ["playful", "curious", "kind"],
@@ -195,11 +197,11 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Professor Basalt",
         role=NpcRole.TEACHER,
         zone="Crystal Caverns and Firepeak Summit",
-        asset_id="firepeak-npc-basalt",
+        asset_id="firepeak-professor-basalt",
         behaviors=_stationary("basalt-stands", "Professor Basalt at work"),
         spots=(
-            Spot("fh-basalt", "basalt-stands", 4.0, -8.0, 0.0),
-            Spot("fh-basalt-summit", "basalt-stands", 4.0, -62.0, 0.0),
+            Spot("fh-basalt", "basalt-stands", -6.0, 1.5, 0.6),
+            Spot("fh-basalt-summit", "basalt-stands", -6.0, -64.6, 1.0),
         ),
         personality={
             "traits": ["thoughtful", "patient", "curious"],
@@ -235,9 +237,9 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Cinder",
         role=NpcRole.QUEST_GIVER,
         zone="Ancient Forge",
-        asset_id="firepeak-npc-cinder",
+        asset_id="firepeak-cinder",
         behaviors=_stationary("cinder-forge", "Cinder at the Ancient Forge"),
-        spots=(Spot("fh-cinder", "cinder-forge", -4.0, -34.0, 0.0),),
+        spots=(Spot("fh-cinder", "cinder-forge", -5.0, -31.0, 0.5),),
         personality={
             "traits": ["wise", "patient", "hardworking"],
             "tone": "warm",
@@ -267,9 +269,9 @@ NPCS: tuple[FirepeakNpc, ...] = (
         name="Ignis",
         role=NpcRole.GUIDE,
         zone="Heart Chamber",
-        asset_id="firepeak-npc-ignis",
+        asset_id="firepeak-ignis",
         behaviors=_stationary("ignis-heart", "Ignis at the Heart"),
-        spots=(Spot("fh-ignis", "ignis-heart", 0.0, -90.0, 0.0),),
+        spots=(Spot("fh-ignis", "ignis-heart", -4.0, -87.0, 0.3),),
         personality={
             "traits": ["gentle", "calm", "grateful"],
             "tone": "soft",
@@ -331,13 +333,29 @@ def dialogues(npc: FirepeakNpc) -> tuple[Dialogue, ...]:
                 _kindle_hint_node(),
             )
         else:
+            # Flint is the quest giver. A managed NPC does not use the legacy panel's quest list,
+            # so the offer is a choice here. A repeat offer is ignored by the client unless the
+            # quest is still available.
+            offer = (
+                (
+                    Choice(
+                        "help",
+                        "Yes, I will help!",
+                        next="bye",
+                        action="OFFER_QUEST",
+                        value=HEART_QUEST_ID,
+                    ),
+                )
+                if npc.npc_id == "flint"
+                else ()
+            )
             nodes = (
                 Node(
                     "welcome",
                     text,
                     emotion="happy",
                     animation="wave",
-                    choices=(Choice("ok", "Okay!", next="bye"),),
+                    choices=(*offer, Choice("ok", "Okay!", next="bye")),
                 ),
                 Node("bye", npc.farewell, emotion="happy", animation="point"),
             )

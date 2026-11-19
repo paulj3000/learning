@@ -262,6 +262,15 @@ class PlaceEntry:
     subject_areas: tuple[str, ...] = ()  # AP-03, in `SUBJECT_AREAS` order
     art_asset_id: str | None = None  # AP-03: a published image, or None (draw the fallback)
     seasonal: dict | None = None  # NP-023: {slug, theme, featured, inWindow} or None
+    # Quest-based Places (Firepeak): quests its published 3D Area offers this child's band, and
+    # this child's own progress on them. All zero when there is no visible Area (additive).
+    quest_count: int = 0
+    quests_completed: int = 0
+    quests_in_progress: int = 0
+
+    @property
+    def completed(self) -> bool:
+        return self.quest_count > 0 and self.quests_completed == self.quest_count
 
 
 @dataclass(frozen=True)
@@ -409,6 +418,7 @@ def child_islands(child) -> list[IslandEntry]:
                 subject_areas = ordered_subject_areas(
                     DOMAIN_SUBJECT_AREA.get(domains.get(code, "")) for code in codes[place.pk]
                 )
+            quests = region_quests(child, area.region) if area is not None else []
             places.append(
                 PlaceEntry(
                     place,
@@ -418,6 +428,9 @@ def child_islands(child) -> list[IslandEntry]:
                     subject_areas,
                     art_of(place),
                     seasons.info(place),
+                    quest_count=len(quests),
+                    quests_completed=sum(q.status == QuestStatus.COMPLETED for q in quests),
+                    quests_in_progress=sum(q.status == QuestStatus.ACTIVE for q in quests),
                 )
             )
         unlocked, hint = island_unlock(island, change_keys)

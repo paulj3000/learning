@@ -332,6 +332,21 @@ class TestPlaythrough:
         assert GrantedRule.objects.filter(child=child).count() == granted
         assert owned(child) == items
 
+    def test_the_tenth_snowflake_completes_the_set_and_gives_the_scarf_once(self, north_pole, api):
+        # Set completion is granted by the server (inventory.services, FPV-18 a2a96ca5).
+        child = north_pole.a1
+        play = Play(api(north_pole.a), child)
+        play_everything(play, "PATHFINDER")
+        flakes = [f"np-snowflake-{n:02d}" for n in range(1, 11)]
+        for entity_id in flakes[:-1]:
+            assert play.pickup(entity_id).status_code in (200, 201), entity_id
+        assert "np-cosmetic-snowflake-scarf" not in owned(child)
+        assert play.pickup(flakes[-1]).status_code in (200, 201)
+        assert "np-cosmetic-snowflake-scarf" in owned(child)
+        assert play.pickup(flakes[-1]).status_code == 200  # already in the backpack
+        scarves = InventoryItem.objects.filter(child=child, item__item_id="np-cosmetic-snowflake-scarf")
+        assert scarves.count() == 1
+
     def test_leaving_and_coming_back_keeps_everything(self, north_pole, api):
         child = north_pole.a1
         play = Play(api(north_pole.a), child)
