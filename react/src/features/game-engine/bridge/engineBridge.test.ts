@@ -1,3 +1,4 @@
+import { CheckpointsService, SignalBoardService } from '@lai/game-engine';
 import { Box3 } from 'three';
 import { PhysicsProviderService, validateGameplayEvent, type AnyGameplayEvent, type EnvironmentQuery } from '@lai/game-engine';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
@@ -121,6 +122,67 @@ describe('engine bridge on a host without the GE-070 members (degraded, never si
 });
 
 describe('engine bridge on a full host', () => {
+  describe('resume and world-change signals (Firepeak acceptance scenario 10)', () => {
+    const course: JsonValue = {
+      id: 'gameplay.checkpoints',
+      config: {
+        checkpoints: [
+          { id: 'cp.gate', courseId: 'course.heart', position: { x: 5, y: 0, z: 0 }, label: 'the gate' },
+          { id: 'cp.bridge', courseId: 'course.heart', position: { x: 20, y: 0, z: 0 }, label: 'the bridge', requiresSignalId: 'world:HEART_BRIDGE_OPEN' },
+          { id: 'cp.summit', courseId: 'course.heart', position: { x: 40, y: 0, z: 0 }, label: 'the summit' },
+        ],
+      },
+    };
+
+    it('marks earned checkpoints silently and places the child at the furthest in authored order', () => {
+      const fake = fakeHost({ capabilities: [course] }, true);
+      const reached: string[] = [];
+      fake.bus.on('CourseCheckpointReached', (e) => reached.push(e.checkpointId));
+      const claims: AnyGameplayEvent[] = [];
+      const mount = mountEngineBridge(fake.host, { claims: claimsContext, onGameplayEvent: (e) => claims.push(e) });
+      // Passed in any order; "furthest" is the authored order, not the call order.
+      expect(mount.api.resume(['cp.summit', 'cp.gate', 'cp.nowhere'])).toEqual({ placedAt: 'cp.summit', unknown: ['cp.nowhere'] });
+      expect(fake.teleports.at(-1)).toMatchObject({ x: 40, z: 0 });
+      fake.advance(0.1);
+      expect(reached).toEqual([]); // resuming announces nothing
+      expect(claims).toEqual([]); // and claims nothing: the server already holds these
+      expect(mount.api.runtime!.services.require(CheckpointsService).reachedIds()).toEqual(['cp.gate', 'cp.summit']);
+      mount.dispose();
+    });
+
+    it('opens a signal-gated checkpoint only while its world-change signal is fed, and forwards the toast event with its label', () => {
+      const fake = fakeHost({ capabilities: [course] }, true);
+      const toasts: { checkpointId: string; label: string }[] = [];
+      fake.bus.on('CourseCheckpointReached', (e) => toasts.push(e));
+      const mount = mountEngineBridge(fake.host);
+      fake.player.position = { x: 20, y: 0, z: 0 };
+      fake.advance(0.2);
+      expect(toasts).toEqual([]); // the bridge is still closed
+      mount.api.setSignals(['world:HEART_BRIDGE_OPEN']);
+      fake.advance(0.2);
+      expect(toasts).toEqual([{ checkpointId: 'cp.bridge', label: 'the bridge' }]);
+      mount.dispose();
+    });
+
+    it('turns off only the signals it fed', () => {
+      const fake = fakeHost({ capabilities: [course] }, true);
+      const mount = mountEngineBridge(fake.host);
+      const board = mount.api.runtime!.services.require(SignalBoardService);
+      board.set('plate.1', true); // owned by a plate, not by the host feed
+      mount.api.setSignals(['world:A', 'world:B']);
+      mount.api.setSignals(['world:B']);
+      expect([board.get('world:A'), board.get('world:B'), board.get('plate.1')]).toEqual([false, true, true]);
+      mount.dispose();
+    });
+
+    it('resumes nothing on a bridge that installed nothing', () => {
+      const fake = fakeHost({ capabilities: [{ id: 'movement.locomotion' }] }, true);
+      const mount = mountEngineBridge(fake.host);
+      expect(mount.api.resume(['cp.gate'])).toEqual({ placedAt: null, unknown: ['cp.gate'] });
+      expect(fake.teleports).toEqual([]);
+    });
+  });
+
   it('sends a telegraphed-rock hit back to the latest checkpoint with exactly one PlayerRecovered naming the hazard', () => {
     const fake = fakeHost({ capabilities: [checkpoints, { id: 'gameplay.hazards', config: { telegraphed: [rock] } }] }, true);
     const recovered: unknown[] = [];
