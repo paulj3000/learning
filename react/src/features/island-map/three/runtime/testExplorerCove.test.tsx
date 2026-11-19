@@ -189,6 +189,23 @@ describe('Test Explorer Cove: played through the generic view (engine Phase 17)'
     expect(await screen.findByText('You found the landing.')).toBeInTheDocument();
   });
 
+  it('saves a bridge checkpoint that is one of its saved checkpoints, in its own words (GE-066)', async () => {
+    renderCove();
+    await screen.findByText(/Explore the cove/);
+    // The engine bridge reports reaching a checkpoint (gameplay.checkpoints on scene.engineBridge).
+    await emit('CourseCheckpointReached', { checkpointId: 'test-explorer-cove:landing', label: 'the landing' });
+    expect(saveCheckpoint).toHaveBeenCalledWith('child-1', 'test-explorer-cove:landing');
+    expect(await screen.findByText('You found the landing.')).toBeInTheDocument();
+  });
+
+  it('keeps the course wording and saves nothing for a bridge checkpoint that is not a saved one', async () => {
+    renderCove();
+    await screen.findByText(/Explore the cove/);
+    await emit('CourseCheckpointReached', { checkpointId: 'course.ledge', label: 'the ledge' });
+    expect(saveCheckpoint).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Safe spot: the ledge\./)).toBeInTheDocument();
+  });
+
   it('records meeting Pip and opens his existing conversation', async () => {
     renderCove();
     await screen.findByText(/Explore the cove/);
