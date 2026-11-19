@@ -5,3 +5,4 @@ export * from './capabilities';
 export * from './playerCamera';
 export * from './playerPresentation';
 export * from './yaw';
+export * from './cameraSystem';
