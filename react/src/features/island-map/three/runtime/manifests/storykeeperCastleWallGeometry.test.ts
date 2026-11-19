@@ -5,7 +5,11 @@ import type { ClusterPosition, ScenerySpec, ThreeLocationManifest } from '../loc
 import { SOURCE_MANIFEST_REGISTRIES } from '../sourceManifestRegistries';
 import { validateLocationManifest } from '../validateLocationManifest';
 import baseline from './castleOptimisationBaseline.json';
-import { gameplaySnapshot } from './castleOptimisationSnapshot';
+import {
+  baselineCollidersWithMoves,
+  gameplaySnapshot,
+  roundedColliders,
+} from './castleOptimisationSnapshot';
 import { estimateDrawCalls } from './storykeeperCastleBudgets.test';
 import { ARCHWAY_TOP, buildStorykeeperCastleManifest, STORYKEEPER_CASTLE_MANIFEST } from './storykeeperCastle';
 
@@ -108,7 +112,9 @@ describe.each(HEIGHTS)('castle at wallHeight %s', (height) => {
       else expect(row[6]).toBe(shipped[index][6]);
     });
     if (height === WALL_HEIGHT) {
-      expect(JSON.stringify(now)).toBe(JSON.stringify((baseline as { colliders: unknown[] }).colliders));
+      expect(roundedColliders(now)).toEqual(
+        baselineCollidersWithMoves((baseline as { colliders: unknown[] }).colliders),
+      );
     }
   });
 

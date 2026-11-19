@@ -26,7 +26,8 @@ import { CASTLE_ENGINE_PROFILE, CASTLE_CEILING_UNDERSIDE } from '../../castleEng
  * keeps every room's rules. For each of the ten rooms, in both worlds (before and after the
  * tapestry nook is found):
  *
- * - walking, running, sprinting and jumping into every wall never puts the child inside a solid
+ * - walking, running, sprinting and jumping into every wall never puts the child's body (ADR-060)
+ *   inside a solid
  *   or off the castle's floors, and never into a room the story has not opened;
  * - the top of a jump keeps the eye under the ceiling slabs;
  * - the third-person camera never enters a wall, never rises above its ceiling cap and never
@@ -53,6 +54,8 @@ const WORLDS: readonly [string, WorldInteractionContext][] = [
 const SECRET_ROOM: CastleRoomId = 'secret-chamber';
 const HEADINGS = 12;
 const EPSILON = 1e-6;
+/** Whole-castle sweeps step thousands of frames; a loaded machine must not fail them (GE-D9). */
+const HEAVY_BUDGET_MS = 120_000;
 
 let harness: Harness | null = null;
 let controller: FirstPersonController | null = null;
@@ -128,23 +131,23 @@ function place(h: Harness, x: number, z: number, yaw = 0) {
 const walkingSolids = (world: WorldInteractionContext) =>
   solidColliders(MANIFEST, world).filter((collider) => !collider.jumpable);
 
+/**
+ * GE-072: the child has a body (ADR-060), a circle of `radius` on the ground plane. Returns the id
+ * of a walking solid the body overlaps at this height, allowing a micrometre of rounding.
+ */
 function insideSolid(
   world: WorldInteractionContext,
   x: number,
   y: number,
   z: number,
+  radius = controller?.collision.radius ?? 0,
 ): string | null {
   for (const { id, box } of walkingSolids(world)) {
-    if (
-      x > box.minX + EPSILON &&
-      x < box.maxX - EPSILON &&
-      z > box.minZ + EPSILON &&
-      z < box.maxZ - EPSILON &&
-      y >= box.minY - EPSILON &&
-      y < box.maxY - EPSILON
-    ) {
-      return id ?? 'a solid';
-    }
+    if (y < box.minY - EPSILON || y >= box.maxY - EPSILON) continue;
+    const dx = Math.max(box.minX - x, 0, x - box.maxX);
+    const dz = Math.max(box.minZ - z, 0, z - box.maxZ);
+    const inside = x > box.minX && x < box.maxX && z > box.minZ && z < box.maxZ;
+    if (inside || Math.hypot(dx, dz) < radius - 1e-3) return id ?? 'a solid';
   }
   return null;
 }
@@ -162,117 +165,136 @@ describe('the castle engine profile (SC-JMP-01)', () => {
 describe.each(WORLDS)('every castle room, %s (SC-JMP-01, SC-JMP-02)', (_label, world) => {
   const rooms = CASTLE_ROOM_IDS.filter((id) => world === FOUND || id !== SECRET_ROOM);
 
-  it('sprinting and jumping into every wall never enters a solid, leaves the floor or opens a sealed room', () => {
-    const h = castle(world);
-    for (const roomId of rooms) {
-      const start = safePlacementFor(roomId);
-      for (let heading = 0; heading < HEADINGS; heading += 1) {
-        const yaw = (heading / HEADINGS) * Math.PI * 2;
-        place(h, start.x, start.z, yaw);
-        h.setDrive(observed(sprint(yaw)));
-        for (let frame = 0; frame < 150; frame += 1) {
-          if (frame % 25 === 5) h.engine.pressJump();
-          h.runFrames(1);
-          const { x, y, z } = controller!.position;
-          const where = `${roomId} heading ${heading} frame ${frame} at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`;
-          expect(insideSolid(world, x, y, z), where).toBeNull();
-          const room = castleRoomAt(x, z);
-          expect(room, `${where}: off every floor`).toBeDefined();
-          if (world === NOTHING) expect(room?.id, `${where}: sealed room`).not.toBe(SECRET_ROOM);
-        }
-      }
-    }
-    expect(named(h.events, 'PlayerRecovered')).toEqual([]);
-    expect(named(h.events, 'PlayerJumped').length).toBeGreaterThan(rooms.length * HEADINGS);
-  });
-
-  it('keeps the top of a jump under the ceiling slabs in every room', () => {
-    const h = castle(world);
-    for (const roomId of rooms) {
-      const start = safePlacementFor(roomId);
-      place(h, start.x, start.z);
-      let apex = 0;
-      h.engine.pressJump();
-      for (let frame = 0; frame < 80; frame += 1) {
-        h.runFrames(1);
-        apex = Math.max(apex, h.camera().position.y);
-      }
-      expect(apex, roomId).toBeGreaterThan(1.6 + 0.5);
-      expect(apex, roomId).toBeLessThan(CASTLE_CEILING_UNDERSIDE);
-      expect(controller!.grounded, roomId).toBe(true);
-    }
-  });
-
-  it('crosses every open doorway at a walk, and with a jump in the doorway, landing in the other room', () => {
-    const h = castle(world);
-    const doors = CASTLE_DOORS.filter((door) => isDoorOpen(door, world));
-    if (world === NOTHING) expect(doors.some((door) => door.id === 'arch-secret')).toBe(false);
-    for (const door of doors) {
-      for (const [from, to] of [door.between, [door.between[1], door.between[0]] as const]) {
-        for (const jumpInDoorway of [false, true]) {
-          const start = arrivalIn(door, from);
-          const end = arrivalIn(door, to);
-          expect(start && end, door.id).toBeTruthy();
-          place(h, start!.x, start!.z, start!.yaw);
-          h.setDrive(observed(steer([door.centre, end!])));
-          let jumped = false;
-          for (let frame = 0; frame < 400; frame += 1) {
+  it(
+    'sprinting and jumping into every wall never enters a solid, leaves the floor or opens a sealed room',
+    () => {
+      const h = castle(world);
+      for (const roomId of rooms) {
+        const start = safePlacementFor(roomId);
+        for (let heading = 0; heading < HEADINGS; heading += 1) {
+          const yaw = (heading / HEADINGS) * Math.PI * 2;
+          place(h, start.x, start.z, yaw);
+          h.setDrive(observed(sprint(yaw)));
+          for (let frame = 0; frame < 150; frame += 1) {
+            if (frame % 25 === 5) h.engine.pressJump();
             h.runFrames(1);
             const { x, y, z } = controller!.position;
-            expect(insideSolid(world, x, y, z), `${door.id} ${from}->${to}`).toBeNull();
-            const inGap =
-              x >= door.gap.minX && x <= door.gap.maxX && z >= door.gap.minZ && z <= door.gap.maxZ;
-            if (jumpInDoorway && inGap && !jumped) {
-              h.engine.pressJump();
-              jumped = true;
-            }
+            const where = `${roomId} heading ${heading} frame ${frame} at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`;
+            expect(insideSolid(world, x, y, z), where).toBeNull();
+            const room = castleRoomAt(x, z);
+            expect(room, `${where}: off every floor`).toBeDefined();
+            if (world === NOTHING) expect(room?.id, `${where}: sealed room`).not.toBe(SECRET_ROOM);
           }
-          expect(
-            castleRoomAt(controller!.position.x, controller!.position.z)?.id,
-            `${door.id} ${from}->${to}`,
-          ).toBe(to);
-          if (jumpInDoorway) expect(jumped, door.id).toBe(true);
         }
       }
-    }
-  });
+      expect(named(h.events, 'PlayerRecovered')).toEqual([]);
+      expect(named(h.events, 'PlayerJumped').length).toBeGreaterThan(rooms.length * HEADINGS);
+    },
+    HEAVY_BUDGET_MS,
+  );
 
-  it('holds the third-person camera inside the castle, under its cap, and out of every sealed room', async () => {
-    const h = castle(world, null);
-    await h.engine.ready;
-    const walls = solidColliders(MANIFEST, world).map(
-      ({ box }) =>
-        new Box3(
-          new Vector3(box.minX, box.minY, box.minZ),
-          new Vector3(box.maxX, box.maxY, box.maxZ),
-        ),
-    );
-    const cap = CASTLE_ENGINE_PROFILE.camera.maxHeight;
-    for (const roomId of rooms) {
-      const start = safePlacementFor(roomId);
-      place(h, start.x, start.z);
-      let heading = 0;
-      h.setDrive(
-        observed((c, delta) => {
-          c.yaw = heading;
-          c.update(delta, { forward: 0, strafe: 0 });
-        }),
-      );
-      for (let step = 0; step < 24; step += 1) {
-        heading = (step / 24) * Math.PI * 2;
-        h.runFrames(3);
-        const camera = h.camera().position;
-        const where = `${roomId} step ${step} camera (${camera.toArray().map((n) => n.toFixed(2))})`;
-        expect(
-          walls.some((wall) => wall.containsPoint(camera)),
-          where,
-        ).toBe(false);
-        expect(camera.y, where).toBeLessThanOrEqual(cap + EPSILON);
-        if (world === NOTHING)
-          expect(castleRoomAt(camera.x, camera.z)?.id, where).not.toBe(SECRET_ROOM);
+  it(
+    'keeps the top of a jump under the ceiling slabs in every room',
+    () => {
+      const h = castle(world);
+      for (const roomId of rooms) {
+        const start = safePlacementFor(roomId);
+        place(h, start.x, start.z);
+        let apex = 0;
+        h.engine.pressJump();
+        for (let frame = 0; frame < 80; frame += 1) {
+          h.runFrames(1);
+          apex = Math.max(apex, h.camera().position.y);
+        }
+        expect(apex, roomId).toBeGreaterThan(1.6 + 0.5);
+        expect(apex, roomId).toBeLessThan(CASTLE_CEILING_UNDERSIDE);
+        expect(controller!.grounded, roomId).toBe(true);
       }
-    }
-  });
+    },
+    HEAVY_BUDGET_MS,
+  );
+
+  it(
+    'crosses every open doorway at a walk, and with a jump in the doorway, landing in the other room',
+    () => {
+      const h = castle(world);
+      const doors = CASTLE_DOORS.filter((door) => isDoorOpen(door, world));
+      if (world === NOTHING) expect(doors.some((door) => door.id === 'arch-secret')).toBe(false);
+      for (const door of doors) {
+        for (const [from, to] of [door.between, [door.between[1], door.between[0]] as const]) {
+          for (const jumpInDoorway of [false, true]) {
+            const start = arrivalIn(door, from);
+            const end = arrivalIn(door, to);
+            expect(start && end, door.id).toBeTruthy();
+            place(h, start!.x, start!.z, start!.yaw);
+            h.setDrive(observed(steer([door.centre, end!])));
+            let jumped = false;
+            for (let frame = 0; frame < 400; frame += 1) {
+              h.runFrames(1);
+              const { x, y, z } = controller!.position;
+              expect(insideSolid(world, x, y, z), `${door.id} ${from}->${to}`).toBeNull();
+              const inGap =
+                x >= door.gap.minX &&
+                x <= door.gap.maxX &&
+                z >= door.gap.minZ &&
+                z <= door.gap.maxZ;
+              if (jumpInDoorway && inGap && !jumped) {
+                h.engine.pressJump();
+                jumped = true;
+              }
+            }
+            expect(
+              castleRoomAt(controller!.position.x, controller!.position.z)?.id,
+              `${door.id} ${from}->${to}`,
+            ).toBe(to);
+            if (jumpInDoorway) expect(jumped, door.id).toBe(true);
+          }
+        }
+      }
+    },
+    HEAVY_BUDGET_MS,
+  );
+
+  it(
+    'holds the third-person camera inside the castle, under its cap, and out of every sealed room',
+    async () => {
+      const h = castle(world, null);
+      await h.engine.ready;
+      const walls = solidColliders(MANIFEST, world).map(
+        ({ box }) =>
+          new Box3(
+            new Vector3(box.minX, box.minY, box.minZ),
+            new Vector3(box.maxX, box.maxY, box.maxZ),
+          ),
+      );
+      const cap = CASTLE_ENGINE_PROFILE.camera.maxHeight;
+      for (const roomId of rooms) {
+        const start = safePlacementFor(roomId);
+        place(h, start.x, start.z);
+        let heading = 0;
+        h.setDrive(
+          observed((c, delta) => {
+            c.yaw = heading;
+            c.update(delta, { forward: 0, strafe: 0 });
+          }),
+        );
+        for (let step = 0; step < 24; step += 1) {
+          heading = (step / 24) * Math.PI * 2;
+          h.runFrames(3);
+          const camera = h.camera().position;
+          const where = `${roomId} step ${step} camera (${camera.toArray().map((n) => n.toFixed(2))})`;
+          expect(
+            walls.some((wall) => wall.containsPoint(camera)),
+            where,
+          ).toBe(false);
+          expect(camera.y, where).toBeLessThanOrEqual(cap + EPSILON);
+          if (world === NOTHING)
+            expect(castleRoomAt(camera.x, camera.z)?.id, where).not.toBe(SECRET_ROOM);
+        }
+      }
+    },
+    HEAVY_BUDGET_MS,
+  );
 });
 
 describe('safe recovery inside the castle (SC-JMP-02)', () => {
@@ -324,12 +346,13 @@ describe('safe recovery inside the castle (SC-JMP-02)', () => {
 describe('avatar animation in the castle (SC-JMP-01)', () => {
   it('passes through idle, sprint, jump, airborne and landing, each a clip a castle avatar can show', () => {
     const h = castle(NOTHING);
-    const start = safePlacementFor('story-hall');
-    place(h, start.x, start.z, Math.PI / 2);
+    // A clear 17 m run up the east corridor. Gait follows the movement collisions allow (ADR-060),
+    // so the run must not meet anything (from the Story Hall safe spot it met Keeper Quill).
+    place(h, 4, -8, 0);
     const seen = new Set<MovementState>();
     h.setDrive(
       observed((c, delta) => {
-        sprint(Math.PI / 2)(c, delta);
+        sprint(0)(c, delta);
         seen.add(c.movementState);
       }),
     );

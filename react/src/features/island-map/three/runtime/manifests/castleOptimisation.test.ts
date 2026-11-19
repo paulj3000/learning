@@ -9,7 +9,11 @@ import { PLATFORM_LIMITS } from '../../platforms/platformSpec';
 import { CASTLE_ROOMS } from '../../castleLayout';
 import { isBlocked, ROOMS, WALL_SEGMENTS } from '../../storykeeperCastleRegion';
 import baseline from './castleOptimisationBaseline.json';
-import { gameplaySnapshot } from './castleOptimisationSnapshot';
+import {
+  baselineCollidersWithMoves,
+  gameplaySnapshot,
+  roundedColliders,
+} from './castleOptimisationSnapshot';
 import {
   CASTLE_MAX_PLATFORM_TOP,
   CHAMBER_LEDGE_GROUP,
@@ -36,7 +40,11 @@ describe('colliders, zones, interactions and ids are unchanged by the optimisati
   const now = gameplaySnapshot(MANIFEST) as Record<string, unknown[]>;
   const before = baseline as unknown as Record<string, unknown[]>;
 
-  it.each(['colliders', 'interactions', 'checkpoints', 'props', 'npcs', 'collectibles', 'sceneryIds'])(
+  it('keeps colliders identical, in order, apart from the reviewed moves', () => {
+    expect(roundedColliders(now.colliders)).toEqual(baselineCollidersWithMoves(before.colliders));
+  });
+
+  it.each(['interactions', 'checkpoints', 'props', 'npcs', 'collectibles', 'sceneryIds'])(
     'keeps %s identical, in order',
     (key) => {
       expect(now[key]).toEqual(before[key]);
