@@ -121,7 +121,7 @@ Created 2026-11-19 by LAI-ENG-002 at the owner's instruction, in coordination wi
 
 | Item | Value |
 |---|---|
-| Branch | `integration/20261119-game-engine-core` (pushed, at `main` `8bd19fb7`, nothing merged) |
+| Branch | `integration/20261119-game-engine-core` (pushed; step 1 merged at `673afc0c`, section 5.1) |
 | Worktree | `/Coding/learning-worktrees/wt-integration-20261119-game-engine-core` |
 | Slot | 8 (PostgreSQL 5458, Django 8090, Vite 5263; pytest database `test_lai_integration_20261119_game_engine_core`) |
 | Owner | LAI-ENG-002 (integrating agent). The engine lead supplies SHAs and fixes engine-side conflicts on `core/gameengine` |
@@ -143,6 +143,16 @@ A step that conflicts in someone else's files stops. The conflict list goes to t
 who resolves on their own branch; the integration branch then re-merges.
 
 ## 6. GE-090 checklists
+
+### 5.1 Step log
+
+| Step | Merged | Result | Open |
+|---|---|---|---|
+| 1 | `core/gameengine` @ `382b3225` (GE-070 with `ecff0a9a`, GE-075 definitions, GE-066 part 1; each Development Complete on its card) into `673afc0c`, 2026-11-19 | Clean merge (434 files). Migration audit clean, `makemigrations --check` no changes, ADR, docs and workspace checks pass, typecheck clean, engine 588/588. React affected suites through the gate: 2,099 passed, **4 failed** (5 s timeouts) | [Defect ijhrYTi4](https://trello.com/c/ijhrYTi4): `pirateBuilderBayParity` and `wonderwildForestParity` take 2 to 6 times longer than on `main` (8.0 s on main against 15.7 s integrated, at lower load). A regression, not waived |
+
+Forecast update after step 1: `feature/storykeeper-castle-completion` @ `4df618b2` has merged the
+engine and is now **clean** on top of step 1 (it was 9 conflicts). The `regions 0007` collision
+with Firepeak remains and is resolved by the order in section 3.
 
 ### 6.1 Integration checklist (per step)
 
