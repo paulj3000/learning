@@ -10,6 +10,8 @@ test-results/
 .env.*
 !.env.example
 !.env.sample
+# Local settings for the native DEV scripts (scripts/aws/dev.env.example)
+.lai-dev.env
 # Legacy: an old checkout may still hold an Amplify outputs file; never commit it.
 amplify_outputs.json
 .DS_Store
@@ -52,3 +54,4 @@ lai/.child-photo-storage/
 
 # CDK synth output (infra/)
 infra/cdk.out/
+/build/

@@ -36,6 +36,9 @@ import { githubOidcProviderArn, githubPrincipal, isGithubRepository } from './gi
  */
 
 export const FRONTEND_REGION = 'us-east-1';
+/** Origin errors cached only briefly and passed through unchanged (no error page). */
+export const ORIGIN_ERROR_STATUSES = [502, 503, 504];
+export const ORIGIN_ERROR_CACHE_SECONDS = 10;
 
 /**
  * Rewrites extensionless paths (SPA routes) to an app shell. Runs on viewer request. `/game/` is
@@ -151,6 +154,12 @@ export class FrontendStack extends Stack {
       defaultRootObject: 'index.html',
       // No access logs: request paths carry child ids (ADR-025, gate G10).
       enableLogging: false,
+      // A stopped or restarting Django origin (the dev environment stops at night) must not stay
+      // cached once it is back: these errors are cached for 10 seconds only, with no error page.
+      errorResponses: ORIGIN_ERROR_STATUSES.map((httpStatus) => ({
+        httpStatus,
+        ttl: Duration.seconds(ORIGIN_ERROR_CACHE_SECONDS),
+      })),
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(this.bucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -243,6 +252,16 @@ export class FrontendStack extends Stack {
       'SiteDeployRoleArn',
       deployRole.roleArn,
       'site-<env> environment: LAI_SITE_DEPLOY_ROLE_ARN',
+    );
+    output(
+      'FrontendDeploymentRoleArn',
+      deployRole.roleArn,
+      'The same role as SiteDeployRoleArn (name used by the native dev scripts)',
+    );
+    output(
+      'CloudFrontUrl',
+      `https://${this.distribution.distributionDomainName}`,
+      'The distribution on its CloudFront domain (works before DNS)',
     );
   }
 }

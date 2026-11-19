@@ -58,7 +58,7 @@ tracker entry for that id is what gets ticked.
   (`createLocationEngine`), and a plain-JSON `ThreeLocationManifest` with props, NPCs,
   collectibles, zones, interactions, and `adventureBindings`. A `treasure-chest` model with an
   `Open` clip already exists and is used as a prop in Pirate Builder Bay.
-- **Reusable domain code** (TypeScript, Amplify-backed today): the adventure engine
+- **Reusable domain code** (TypeScript, persisted by the earlier backend at the time): the adventure engine
   (`validateStepAnswer`, `number-input` and `choice` steps, hints), `ItemDefinition` and
   `RewardRule` with `resolveRewards`, quests (`QuestDefinition`, `advanceQuest`), NPC dialogue
   (`NpcDefinition`, `NpcConversation.tsx`), `recordWorldChangeOnce`, `WorldActionPanel`
@@ -85,12 +85,12 @@ frontend files) was done first instead.
 | 3 | One chest in the world | `treasure-chest` model, `PropSpec` | Chest placement as admin data (TR-2, TR-7) |
 | 4 | Interaction with the chest | `ObjectInteracted` event, interactions, `WorldActionPanel` | A challenge hand-off action from the chest (TR-8) |
 | 5 | Skill-appropriate math challenge | Authored `number-input`/`choice` steps, curriculum skills | **TR-1 done:** parameterised, seeded challenges with age-band and skill limits |
-| 6 | Backend answer validation | Amplify `submitAdventureAnswer`; **TR-1** `grade_answer` | Django endpoint that stores the challenge and grades it (TR-5) |
+| 6 | Backend answer validation | server answer grading (ADR-012); **TR-1** `grade_answer` | Django endpoint that stores the challenge and grades it (TR-5) |
 | 7 | Chest unlocks | `recordWorldChangeOnce`, prop `requirements`, `interactClip` | Server-side WorldChange write in Django (TR-4, TR-5) |
 | 8 | Coin or collectible reward | `ItemDefinition`, `RewardRule`, inventory | Decision TR-D1 (no coins); Django inventory write (TR-4, TR-5) |
-| 9 | Persistent progression | Amplify progress models | Django progress models, LAI-0305 (TR-4) |
+| 9 | Persistent progression | the conceptual progress models (docs/DATA_MODEL.md) | Django progress models, LAI-0305 (TR-4) |
 | 10 | Quest-complete screen | Adventure `complete` step, quests journal | A completion screen fed by the server result (TR-8) |
-| A | Admin: adventure name, description, availability | Amplify catalog overlay (ADR-031) | Django catalog models (LAI-0304) and admin (LAI-0404, LAI-0801) |
+| A | Admin: adventure name, description, availability | the catalog overlay (ADR-031) | Django catalog models (LAI-0304) and admin (LAI-0404, LAI-0801) |
 | B | Admin: quests and prerequisites | TS `QuestDefinition` | Same as A |
 | C | Admin: math skills, difficulty, parameters | **TR-1** `ChallengeParameters` | A model row per challenge slot, validated by TR-1 (TR-2) |
 | D | Admin: chests and locations | None as data | TR-2 |
@@ -330,8 +330,8 @@ modelled (bounds, environment, copy).
 ## 10. TR-4 as built
 
 TR-4 is the Treasure Rush subset of LAI-0305. No Django progress models existed on any branch,
-so the generic models were ported from the Amplify data model (docs/DATA_MODEL.md, "Django
-mapping: progress subset") rather than written for Treasure Rush alone: Treasure Rush is their
+so the generic models were ported from the conceptual data model (docs/DATA_MODEL.md, "Django
+child progress") rather than written for Treasure Rush alone: Treasure Rush is their
 first user, not their owner.
 
 | Model or service | Purpose | Key constraints |
@@ -437,7 +437,7 @@ client" section of `docs/PLAY_API.md`.
 | Module | Purpose |
 |---|---|
 | `react/src/api/config.ts` | `VITE_BACKEND=django` turns the Django API on; `VITE_DJANGO_API_BASE` (empty = same-origin; https only outside `vite dev`) |
-| `react/src/api/auth.ts` | The Cognito **access** token from Amplify, asked for per request, never stored (ADR-024 A1) |
+| `react/src/api/auth.ts` | The Cognito **access** token from the browser Cognito client (`react/src/lib/cognito`), asked for per request, never stored by the API layer (ADR-024 A1) |
 | `react/src/api/client.ts` | JSON transport: bearer header, one forced-refresh retry on 401, error envelope to `ApiError` |
 | `react/src/api/errors.ts` | `ApiError` with `kind` (invalid_request, unauthenticated, forbidden, not_found, conflict, unavailable, server, network, invalid_response, aborted, disabled) and the server `code` |
 | `react/src/api/parse.ts` | Runtime response checking (CLAUDE.md section 13), no dependency |
@@ -519,7 +519,7 @@ gives Pip's placement `npc-pip`.
   spawn and checkpoint triggers from `discovery/checkpoints.ts` and `createLocationEngine`
   is LAI-2106's, so the Django spawn is published into that catalogue (namespaced
   `{regionId}:{checkpointId}`). It can never move a source region. Published checkpoints are not
-  saved to Amplify (`KNOWN_CHECKPOINT_IDS` stays source-only), so a child re-enters at the
+  saved to world state (`KNOWN_CHECKPOINT_IDS` stays source-only), so a child re-enters at the
   spawn; saving a position server-side is later work.
 - **TR-D17 Published objects are scenery in TR-7.** Django has no interaction vocabulary for
   them yet; only NPCs and chests are interactive.
@@ -528,8 +528,8 @@ gives Pip's placement `npc-pip`.
   optimisation for later.
 
 **Not done here:** the conversation, quest acceptance UI, and challenge card (TR-8); a person
-playing it (TR-9); the shared asset library (TR-10). The Amplify reads the generic view makes
-(world state, inventory, companion) still run and are harmless here; they show nothing for a
+playing it (TR-9); the shared asset library (TR-10). The generic view's other reads
+(world state, inventory, companion) still ran and were harmless here; they showed nothing for a
 Django region.
 
 **Tests:** 65 new Vitest unit tests (published checkpoints 7, builder 11, repository 10,
@@ -586,7 +586,7 @@ completion is the server's `questUpdates` and quest status; switching child remo
 ## 15. TR-8a: making it runnable (after "TR-9 is not ready")
 
 TR-6 to TR-8 were tested against a faked API, which hid that a real playthrough fails: the
-child in `/island/:childId` is an Amplify id with no Django `ChildProfile`, the parent is never
+child in `/island/:childId` was a profile id from the earlier backend with no Django `ChildProfile`, the parent is never
 set up in Django, the content is DRAFT, and there was no run recipe. The owner chose the real
 child-profile migration (LAI-0501, LAI-0502, LAI-0602, on a separate branch) for the first gap
 and these fixes for the rest:
@@ -707,7 +707,7 @@ device asks for reduced motion (TR-12's beacons now do too).
 **Full-screen controls.** TR-12's note that Backpack and Hint vanish in full screen was wrong on
 inspection: the element that goes full screen is the view's wrapper, and those fixed buttons
 were its children. The real gaps were that the region's exit link is hidden in full screen and
-the cove showed two backpacks (the HUD's Amplify one, always empty there, and region-play's).
+the cove showed two backpacks (the HUD's generic one, always empty there, and region-play's).
 Fixed: companions get a control slot inside the stage (`hudSlot`), where region-play now puts
 Backpack, Hint and the hint bubble; the HUD draws the exit on the stage under
 `interactionAssist`; and the HUD leaves its backpack out when a companion owns one

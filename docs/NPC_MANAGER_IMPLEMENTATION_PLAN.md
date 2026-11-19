@@ -16,7 +16,7 @@ explicit approval, and no claim that any of those were verified.
 | Relationship state | `progression.NpcRelationship` (points, level, quest memory flags, seen nodes) written by `game_sessions.play.talk_to_npc` | Reused read-only; NPC-local flags kept separately so dialogue can never set a quest flag |
 | Treasure Rush | Play API (`docs/PLAY_API.md`): region bootstrap, session start/resume, chest challenge, answer, pickup, talk, quest accept; rewards via `inventory`, world changes via `progression`, quests via `quests` | NPC triggers map onto these; no second reward or quest engine |
 | Pirate Pip (React) | Rendered by `createLocationEngine.ts` as a manifest NPC (`npc-pip` glTF, clips Idle/Talk/Wave), reactions in `regionPlayScene.ts`, lines hard-coded in `regionPlayUi.ts` `PLAY_COPY` and `PipDialog.tsx`; clues on chest rows | Pip's lines move into authored NPC dialogue; chest clues stay chest content |
-| Storykeeper's Castle | Three.js castle via generic `LocationWorldPage` and `manifests/storykeeperCastle.ts`; Keeper Quill (`keeper-quill`, asset `npc-quill`) talks through client-side `NpcConversation.tsx` (`features/npc`, Amplify state). The Great Storybook is only on unmerged `origin/adventures/storybook` | Integrate Quill on main's castle; the Great Storybook is out of scope (not on this branch) |
+| Storykeeper's Castle | Three.js castle via generic `LocationWorldPage` and `manifests/storykeeperCastle.ts`; Keeper Quill (`keeper-quill`, asset `npc-quill`) talks through client-side `NpcConversation.tsx` (`features/npc`, state outside Django at the time). The Great Storybook is only on unmerged `origin/adventures/storybook` | Integrate Quill on main's castle; the Great Storybook is out of scope (not on this branch) |
 | Asset Library | `ContentAsset` + immutable `AssetVersion` (DRAFT to PUBLISHED to RETIRED), resolver `GET children/<id>/assets/?ids=`, signed delivery, admin GLB preview bundle; `validate_asset_ref` checks existence and kind only; retirement does not check usage | NPC releases freeze published versions and record dependencies; retirement gains a dependency guard |
 | Sound and speech | `main` has only a silent `playCue` stub. `origin/feature/sound-manager` (23 commits) has the Sound Manager (channels, captions, scopes), Django `audio` (cues, releases) and `speech` (Polly behind a fake, `VoiceProfile`, `npcNode` references) | Merged into this branch first (owner decision C, commit `c2393ad`); reused, not duplicated |
 | AI | `apps.ai` pipeline: `run_turn(child, TurnSpec)`, fake/Bedrock/disabled providers, input screening, schema and boundary validation, Guardrail handling, usage limits, `AIInteractionAudit` without text; NPC narration context `load_npc_narration` | NPC hints add one route through `run_turn`; no second client or safety path |
@@ -123,8 +123,7 @@ load failure), the legacy Pip and `PipDialog` keep working unchanged. A managed 
 fails to load stands as the runtime placeholder.
 
 **Play outcomes.** `useRegionPlay` reports every outcome (`onOutcome`, observation only);
-the companion forwards them, plus new world changes, to `notifyPlay`. The calm stop's session
-completion is not treated as the adventure's completion. Ambient lines wait while any other panel
+the companion forwards them, plus new world changes, to `notifyPlay`. Ambient lines wait while any other panel
 is open and only the most important trigger of an outcome is asked for (`host/triggerQueue.ts`).
 Talking to the managed Pip still makes the play API's `talk` call first (it may finish the quest),
 and `OFFER_QUEST` accepts through the existing `POST quests/<id>/accept/` flow.
@@ -182,12 +181,12 @@ or resuming and completing are passed to `notifyPlay` as play outcomes; Quill's 
 the tale or story card (or another panel) is open, and a tap on Quill mid-tale is let go.
 
 **Deferred.** The castle's own gestures (`playQuillClip`: Talk/Point after a chat, pointing at the
-mantel on hint rung 3, the calm-stop look at the nook, concern after a wrong plate order) still
+mantel on hint rung 3, concern after a wrong plate order) still
 target the manifest Quill, which is hidden while handed over; the managed Quill only reacts
 through behaviour reactions. Forwarding them needs a host API (for example
 `animate(npcId, state, facing?)`), owned by the host workstream. Wrong-answer reactions are not
 forwarded (the castle's answers are Adventure Engine results, not play API outcomes). Quill's
-dialogue conditions cannot read the castle's Amplify quest or world-change state, so the quest
+dialogue conditions could not read the castle's quest or world-change state (outside Django at the time), so the quest
 offer is once per child rather than "until started".
 
 The castle host hook and progress module are `.tsx` files: under `island-map/three/`, `.ts` files are

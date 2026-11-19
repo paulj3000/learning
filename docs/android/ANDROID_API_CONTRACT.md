@@ -20,7 +20,7 @@ WebView).
 | Inventory | **Added** (the same rows as `progress.inventory`) |
 | Game launch, ticket redemption, revoke, runtime context, runtime end | **Added** |
 | Standalone `/game/` runtime bundle | **Not built.** Frontend dependency, see `ANDROID_GAME_LAUNCH.md` |
-| Shared children with the deployed website | **Not yet in production.** A React build with the Django API keeps every profile in Django (LAI-CHILD-001, ADR-039); the deployed build (no Django API) still uses Amplify until the controlled import and cutover (docs/platform/AMPLIFY_PROFILE_IMPORT.md, Phase 11/12) |
+| Shared children with the deployed website | **Not yet in production.** The React app keeps every profile in Django (LAI-CHILD-001, ADR-039); the Django API and the S3/CloudFront site are not deployed yet (owner approval) |
 
 ## Conventions
 
@@ -397,7 +397,7 @@ answered correctly (Treasure Rush's reward rule fires once per child).
 
 ## Native integration sequence
 
-1. **Sign in** with Cognito (the Amplify Android library or the hosted UI with PKCE), using an
+1. **Sign in** with Cognito (a native Cognito SRP client or the hosted UI with PKCE), using an
    app client listed in `COGNITO_ALLOWED_CLIENT_IDS`. Keep tokens in the Android Keystore or
    EncryptedSharedPreferences.
 2. **`POST /api/v1/me/`** after every sign-in. 201 or 200 means the Django account exists.

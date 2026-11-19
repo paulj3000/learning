@@ -188,6 +188,7 @@ def test_no_child_owned_record_is_registered_and_child_profiles_are_read_only():
         "avatars",  # Player Avatars (LAI-JMP-01c, ADR-057): staff-managed models, no child data
         "catalog",
         "education",
+        "jobs",  # background job status, read-only; payloads never carry child data
         "npcs",  # NPC Manager (ADR-054); conversation state stays unregistered (child-owned)
         "regions",
         "speech",

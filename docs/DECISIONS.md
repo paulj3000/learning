@@ -15,10 +15,12 @@ This file is the single authoritative ADR log. The registry below lists every id
 5. When two branches have independently used a number, determine from content which decision each reference means. Never search and replace across files.
 6. Superseding a decision leaves its section in place. Change its `Status:` line and add the superseding ADR; the registry row keeps the number.
 7. Do not delete a decision. Reserve a number for a decision known to exist elsewhere but not yet merged (`Reserved` status).
+8. Reserve a new number with a `Reserved` row on `main` before a branch uses it, and check open branches for `## ADR-` headings first (ADR-072; procedure in `docs/engineering/multi-agent-workflow.md`).
+9. The governance standards (ADR-072) take precedence over this log's older text; an ADR that conflicts with them is amended to match.
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 055.**
+**Next free identifier number: 073.** (065 to 071 are reserved for branch decisions; 080 and 081 are also reserved.)
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -31,7 +33,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-007 | Phaser as the world-engine rendering library | Accepted | Base (shared by all branches) | Retirement mandated by ADR-020 |
 | ADR-008 | Three.js first-person world supersedes Phaser as the next-generation renderer | Accepted | Base (shared by all branches) |  |
 | ADR-009 | A world is a content pack, not a code path or a second identity | Accepted | Base (shared by all branches) |  |
-| ADR-010 | Android is a second client of one Amplify Gen 2 platform, not a second backend | Accepted | Base (shared by all branches) |  |
+| ADR-010 | Android is a second client of one backend platform, not a second backend | Accepted | Base (shared by all branches) |  |
 | ADR-011 | No XP/coins/level economy; canonical content model is designed, not migrated, in Phase 36 | Accepted | Base (shared by all branches) |  |
 | ADR-012 | `submitAdventureAnswer` is the first server-authoritative gameplay mutation; the pilot's scope is explicit, not exhaustive | Accepted | Base (shared by all branches) |  |
 | ADR-013 | Item/world/NPC/asset canonical models are designed, not migrated, in Phase 38; drop-rate and currency item fields are rejected | Accepted | Base (shared by all branches) |  |
@@ -40,7 +42,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-016 | Adaptive learning becomes a real shared query; events stay typed models, not a new generic log; parent APIs are audited, not yet promoted | Accepted | Base (shared by all branches) |  |
 | ADR-017 | Environment/config/contract-test infrastructure is documented, not created; provisioning a real environment is an explicit human decision | Accepted | Base (shared by all branches) |  |
 | ADR-018 | Structured request logging ships for real; performance and the remaining server-authoritative write paths are audited, not built | Accepted | Base (shared by all branches) |  |
-| ADR-019 | Migrate the backend from Amplify Gen 2 to Django + DRF incrementally | Accepted in part | Django migration line | Sub-decision 8 accepted and gate G4 resolved 2026-10-24 (Python rules, Django content authority, versioned JSON) |
+| ADR-019 | The backend is Django + DRF on PostgreSQL, with Cognito for authentication | Accepted in part | Django migration line | Sub-decision 8 accepted and gate G4 resolved 2026-10-24 (Python rules, Django content authority, versioned JSON) |
 | ADR-020 | Three.js is the exclusive gameplay renderer; Phaser is retired; `game/` is a first-class package | Accepted | Django migration line |  |
 | ADR-021 | Django 6.1, DRF 3.18, and psycopg 3 for the backend skeleton | Accepted | Django migration line |  |
 | ADR-022 | `ParentAccount` is the Django user model; `ChildProfile` is a managed profile, not a login | Accepted | Django migration line |  |
@@ -60,12 +62,12 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-036 | Native Android uses the Django API with Cognito bearer tokens; the game-only WebView uses a ticket-redeemed, child- and region-scoped game session cookie | Proposed | Feature branch (LAI-ANDROID-API-001) | Implemented 2026-10-25 at the Django API boundary; owner acceptance pending. Builds on ADR-024 and ADR-033; does not change ADR-034 |
 | ADR-037 | The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys | Accepted | Feature branch (feature/aws-ec2-auto-deployment) | Owner-directed 2026-10-30 (LAI-1003, LAI-1004, LAI-1006). Repository side only: provisioning and every deploy stay owner-approved (ADR-019 G1, G7). Prod on EC2 is the initial step; ECS Fargate (LAI-1007) stays the production candidate |
 | ADR-038 | Environment-selectable API authentication: Cognito in AWS, local Django sign-in for development, one Django user and authorization model | Superseded by ADR-040 | Main line (merged 2026-10-31, `beebb6a`) | Superseded 2026-10-31 by ADR-040 (LAI-AUTH-ROLLBACK, owner-directed). Owner-directed 2026-10-30 (LAI-AUTH-DUAL). Amends ADR-024 Accepted items 1 and 2 for `AUTH_PROVIDER=django` only; builds on ADR-034 (the admin session stays separate). AWS environments are unchanged |
-| ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
+| ADR-039 | Django is the authority for parent and child profiles in every build with the Django API; read-only audited Django Admin inspection | Accepted | Main line (merged 2026-10-31) | Owner-directed 2026-10-31 (LAI-CHILD-001). Amends ADR-034 and ADR-024 A4 for read-only, permission-gated, audited profile inspection in Django Admin only. Hard deletion stays blocked by LAI-0209. No production data is moved |
 | ADR-040 | Cognito is the sole authentication provider for application users in every environment; Django authorizes, and native Django authentication serves Django Admin staff only | Accepted | Main line (LAI-AUTH-ROLLBACK) | Owner-directed 2026-10-31. Supersedes ADR-038; restores ADR-024 items 1 and 2 everywhere; keeps ADR-034 (Django Admin) and ADR-039 (Django profile authority) |
 | ADR-041 | Islands, Places and 3D Areas: one optional 3D Area per Place, and Adventures launched from objects in it | Accepted | Feature branch (LAI-0806) | Owner-approved decisions A to E, 2026-10-31. Builds on ADR-032 and ADR-033; leaves LAI-0805 (spatial layout administration) open |
-| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset library owns the asset bucket, and the Amplify bucket stays untouched until retirement | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
+| ADR-042 | Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket and the asset library owns the asset bucket | Accepted | Feature branch (LAI-0904) | Owner-accepted 2026-10-31 for code and infrastructure definitions only; no deployment, migration or deletion approved. Amended 2026-11-01: Django is the control plane for both buckets; asset mutations through Django APIs, blocked until LAI-0209 (AM-14 to AM-16). Builds on ADR-035 (asset storage) and ADR-039 (Django profile authority) |
 | ADR-043 | Sensitive actions require a recent interactive Cognito sign-in, proven by the verified token's `auth_time`, a per-session anchor and a Cognito `GetUser` revocation check | Proposed | Feature branch (LAI-0209) | Asset-mutation scope retired 2026-11-02 by ADR-045 (child deletion remains). Implemented and unit-tested 2026-11-01 on `feature/lai-0209-recent-auth`; owner acceptance and the live Cognito gate pending. Specifies ADR-024 A3; lifts the `SensitiveActionBlocked` block on child deletion (LAI-0602) and asset mutations (ADR-042 item 2) |
-| ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
+| ADR-044 | Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail | Accepted | Feature branch (features/ai) | Owner-directed 2026-11-01 (Phase 7 brief: LAI-0306, LAI-0701 to LAI-0704). Accepts ADR-019 sub-decision 9 for code and infrastructure definitions only; live Bedrock, Guardrail deployment and the React cutover stay gated (LAI-0705, LAI-0706, G7) |
 | ADR-045 | Django Admin owns staff asset authoring and lifecycle; React owns gameplay and parent screens and only consumes published assets; no React staff asset manager or administrator asset API | Accepted | Feature branch `feature/asset-manager` (AM-13, AM-17) | Owner-directed 2026-11-02 (development only; no deployment, AWS or browser acceptance). Supersedes ADR-042 amendment items 2 and 3 for assets and AM-14, AM-15; narrows ADR-043 scope; builds on ADR-035 and ADR-040 |
 | ADR-046 | AI Question Studio is a staff-only Django app that drafts questions through the ADR-044 model client and serves published questions through the existing challenge and grading path | Accepted | Feature branch (features/studio) | Owner brief 2026-11-02 (Phase 28); accepted the same day ("proceed as proposed"). Builds on ADR-019, ADR-033, ADR-034, ADR-044. Not deployed |
 | ADR-047 | Django Admin is the authoritative content authoring system; the TypeScript export stays the initial import and migration path and never silently overwrites administrator edits | Accepted | Feature branch (feature/adr-043-django-content-authoring) | Owner-accepted 2026-11-01 with answers Q1 to Q4 and eight acceptance requirements (session pinning mandatory; LAI-0815 deferred). Carries out ADR-019 sub-decision 8's cutover and amends ADR-033 items 3 and 4 and ADR-041 E. Impact: `docs/platform/DJANGO_CONTENT_AUTHORING.md` |
@@ -74,14 +76,28 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-049 | Django owns speech synthesis through Amazon Polly behind a fake-able client; games speak only server-approved references; React plays through the Sound Manager's voice channel | Proposed | Feature branch `feature/sound-manager` (SM-P8) | Development only, 2026-11-03; owner acceptance and live verification pending. Builds on ADR-044, ADR-045, ADR-050, ADR-048 |
 | ADR-050 | Django owns sound cue definitions, assignments and published sound releases; games read a read-only manifest and resolve audio through the existing asset resolver | Proposed | Feature branch `feature/sound-manager` (SM-P2) | Development only, 2026-11-02; owner acceptance pending. Builds on ADR-035, ADR-041, ADR-045; records Sound Manager decisions SM-D1 to SM-D6 |
 | ADR-052 | The Adventure Portal palette is the whole app's theme through tokens.css; the shells, homepage and landing page use Tailwind CSS 4 with a reference-only portal theme | Accepted | Feature branch `feature/adventure-portal` (AP-01, AP-04) | Owner-directed 2026-11-07 (Trello AP-01 names Tailwind 4); scope widened to the whole app 2026-11-10; owner-accepted 2026-11-10 with AP-01. Amends ADR-023's route boundary. Not merged or deployed |
-| ADR-053 | No platform-imposed play-time limits; the session-time control and calm stop are retired | Accepted | Branch `claude/festive-faraday-fjechb` (Trello card 123) | Owner-directed 2026-11-11 (Trello "[LAI] Remove child gameplay time limits and forced session cutoffs"); drops `ChildProfile.session_minutes` (migration `users.0007`). Amends CLAUDE.md section 11 item 11. Amplify field kept until the Django cutover |
+| ADR-053 | No platform-imposed play-time limits; the session-time control and calm stop are retired | Accepted | Branch `claude/festive-faraday-fjechb` (Trello card 123) | Owner-directed 2026-11-11 (Trello "[LAI] Remove child gameplay time limits and forced session cutoffs"); drops `ChildProfile.session_minutes` (migration `users.0007`). Amends CLAUDE.md section 11 item 11 |
 | ADR-054 | The NPC Manager extends the canonical NPC identity with Django-authored, versioned NPC releases; NPC placement is an owner-approved exception to LAI-0805 | Accepted | `feature/npc-manager` (LAI-NPC-001) | Owner decisions 2026-11-05: extend NpcDefinition, NPC-only placement exception, build on the sound-manager merge. Amends ADR-033 items 1 and 4 and CLAUDE.md section 20 for NPC content only; builds on ADR-035, ADR-044, ADR-049, ADR-050 |
-| ADR-055 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending |
-| ADR-056 | One player camera controller with first- and third-person perspectives; the avatar and its animation only mirror the movement controller | Proposed | `feature/third-person-avatar` (LAI-JMP-01a, PR #27) | Owner QA pending |
-| ADR-057 | Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference | Proposed | `feature/player-avatar-assets` (LAI-JMP-01c, PR #28) | Owner QA pending |
-| ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller | Proposed | `feature/player-running` (PR #29) | Owner QA pending |
-| ADR-059 | Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored | Proposed | `feature/interactive-platforms` (LAI-JMP-02, LAI-JMP-04) | Owner QA pending; leaves LAI-0805 open |
-| ADR-060 | The player has a configurable cylindrical footprint, and gait follows the movement collisions allowed | Proposed | `feature/treasure-rush-palm-trees` (movement QA defects, 2026-11-15) | Owner QA pending; radius is a starting value |
+| ADR-055 | The dev environment runs Django natively on one ARM64 EC2 instance with private RDS, Lambda and SQS for asynchronous work, and a nightly Step Functions shutdown; production keeps ADR-037 | Accepted | `main` (owner-directed native dev infrastructure, 2026-11-16) | Owner-directed and authorized 2026-11-16. Dev only: amends ADR-037 for `dev`; production unchanged. Repository side only: provisioning and every deploy stay owner-approved |
+| ADR-056 | One player camera controller with first- and third-person perspectives; the avatar and its animation only mirror the movement controller | Proposed | `feature/third-person-avatar` (LAI-JMP-01a, PR #27) | Owner QA pending; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-057 | Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference | Proposed | `feature/player-avatar-assets` (LAI-JMP-01c, PR #28) | Owner QA pending; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller | Proposed | `feature/player-running` (PR #29) | Owner QA pending; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-059 | Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored | Proposed | `feature/interactive-platforms` (LAI-JMP-02, LAI-JMP-04) | Owner QA pending; leaves LAI-0805 open; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-060 | The player has a configurable cylindrical footprint, and gait follows the movement collisions allowed | Proposed | `feature/treasure-rush-palm-trees` (movement QA defects, 2026-11-15) | Owner QA pending; radius is a starting value; number kept by the owner's ADR reconciliation (2026-11-17). Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-061 | Runtime-independent background processing: Django-authoritative jobs, SQS work and completion queues, and Lambda workers that never touch the database or publish | Accepted; amended by ADR-064 | `feature/serverless-processing` (LAI-LAMBDA-001, PR #40, not merged) | Accepted by the owner 2026-11-16, subject to a number check (done: free on main and every open PR). Its separate work and completion queues, `LaiProcessing-<env>` stack and ECR delivery (items 3, 5 and 10) are superseded by ADR-064; the `lai_processing` package re-lands on the canonical path |
+| ADR-062 | Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest | Accepted; superseded in part by ADR-064 | `feature/serverless-processing-wave2` (LAI-LAMBDA-002 to 005, PR #41, not merged) | Accepted by the owner 2026-11-17 with B4 to B7, the `LAI_ASSET_ASYNC_VALIDATION` flag (default off) and prod reserved concurrency 5. Decision 1 (one backbone in `apps.jobs`) stands; decisions 2 and 3 (own queues, bucket and stack; ECR worker) and the second consumer are superseded by the owner's 2026-11-17 blocker-resolution decisions (ADR-064) |
+| ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending. Numbered ADR-055 on the movement branches; renumbered ADR-063 by the owner's ADR reconciliation (2026-11-17), decision text unchanged. Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
+| ADR-064 | Background processing has one canonical path: apps.jobs on the ADR-055 queues and results consumer, zip-packaged Lambda workers, a transactional outbox and a database-outage-safe consumer; Bedrock runs in a configurable Region | Accepted | `main` (owner's DEV blocker resolution, 2026-11-17) | Owner decisions 1 to 8 of 2026-11-17: zip for dev Lambda workers, no ECR in dev, containers only by a later decision, `apps.jobs` + SQS + Lambda + ADR-055 canonical, PR #40 extends it, Studio roles automated, Bedrock Region independent, low-cost dev and its schedule kept. Amends ADR-055, ADR-061 and ADR-062 |
+| ADR-065 | The Castle Director picks only server-recomputed authored ambient events (open branch, not merged) | Reserved | `feature/storykeeper-castle-completion` | Reserved 2026-11-18 by the engineering-governance audit (ADR-072): the branch already uses this number. The branch adds the heading when it merges. Not merged here |
+| ADR-066 | Derived artifacts, create-only worker writes and retention (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-014), `docs/processing/adr/` on that branch | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-067 | Native audio transcoding with LGPL FFmpeg (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-008b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-068 | Separate Pillow image function and image privacy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013a) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-069 | Staff browser GLB thumbnail capture (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-070 | COLLISION: Heart of Firepeak Place and Area, and GLB optimization policy (two open branches, not merged) | Reserved | `feature/firepeak-volcano-adventure` and `feature/lambda-derived-artifacts` | Reserved 2026-11-18 by the engineering-governance audit, which found two different decisions numbered ADR-070 on two branches. Owner decision needed: one keeps 070 and the other takes the next free number before either merges (governance rule 5). Not merged here |
+| ADR-071 | Compatibility-gated processing release and production processing infrastructure (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-012, 014) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-072 | Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated | Accepted | `feature/engineering-standards` | Accepted 2026-11-18 |
+| ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Numbers 073 to 079 are not used by that branch. Not merged here |
+| ADR-081 | Seasonal events are Django content in their own app (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 
 ## ADR-001: Parent-owned accounts
 
@@ -136,8 +152,8 @@ carry.
 (siblings/household). Cross-family pairing is deliberately excluded.
 
 **Why household-only is an architectural constraint, not just a safety
-preference:** every model in the current schema (`amplify/data/resource.ts`)
-uses `allow.owner()` authorization scoped to a single Cognito identity. Two
+preference:** every model in the data schema of the time used owner
+authorization scoped to a single Cognito identity. Two
 `ChildProfile`s under one `ParentProfile` already share that identity, so a
 shared session record stays readable and writable under the existing owner
 rule with no new authorization primitive. Cross-family pairing would require
@@ -314,7 +330,7 @@ across worlds, and content packaging. Two designs were available for the
 persistence question, and this ADR records the one taken.
 
 **Decision.** A world is authored content plus a manifest. Phase 29 adds no
-Amplify model, no per-world profile, no per-world inventory, and no
+data model, no per-world profile, no per-world inventory, and no
 cross-world synchronisation step.
 
 - **Identity** is `ChildProfile`, unchanged. One child, one profile, every
@@ -365,7 +381,7 @@ would have quietly opted out of every rule a world imposes, starting with
 which children can reach it; that is now a failing test rather than a silent
 gap.
 
-## ADR-010: Android is a second client of one Amplify Gen 2 platform, not a second backend
+## ADR-010: Android is a second client of one backend platform, not a second backend
 
 Status: Accepted (platform-preparation scope only; native Android app
 development stays out of scope per CLAUDE.md section 12 until separately
@@ -376,7 +392,7 @@ A detailed platform roadmap for Android integration was authored at
 records the architectural rule that roadmap section runs on, so it does not
 have to be re-derived from a 28-phase document each time it is cited.
 
-**Decision.** Amplify Gen 2 remains the single source of truth for
+**Decision.** One shared backend platform is the single source of truth for
 authentication, application data, learning content, gameplay state, and
 business logic. A future Android client is a renderer and input surface on
 top of that platform, exactly as the existing React web client is, per
@@ -401,7 +417,7 @@ top of that platform, exactly as the existing React web client is, per
 **Why this doesn't reopen CLAUDE.md section 12.** Section 12 lists "native
 mobile applications" as out of scope until separately approved. That
 restriction is about shipping a child-facing Android app, not about whether
-the Amplify backend is written in a client-neutral way. The phases this ADR
+the backend is written in a client-neutral way. The phases this ADR
 covers (`docs/ROADMAP.md` "Phases 35+ — Android Platform Integration") are
 backend audit, boundary-drawing, and API work that also benefits the
 existing web client (Phase 44 in particular refactors the web client onto
@@ -452,10 +468,10 @@ product decision for the sole benefit of matching a generic template
 literally.
 
 No `PlayerProfile` model was added. Cognito already stores zero gameplay
-attributes (`amplify/auth/resource.ts` declares only `loginWith`/`groups`),
+attributes (its configuration declares only sign-in and groups),
 and `ParentProfile -> ChildProfile` is already the canonical identity
 chain, with every per-child gameplay fact already living in its own
-owner-scoped Amplify Data model (`SkillProgress`, `WorldChange`,
+owner-scoped data model (`SkillProgress`, `WorldChange`,
 `ChildInventory`, `ChildQuestState`, `ChildNpcState`, `ChildStoryProgress`,
 `ChildWorldState` — the last of which already carries
 `lastCheckpointId`, Phase 32's answer to "current world/zone position").
@@ -487,10 +503,10 @@ duplicate that work rather than prepare for it.
 two content types CLAUDE.md section 9's "Required Domain Concepts" already
 names and that every other model already references only by an opaque
 `code`/`id` string: `LearningObjective` and the Phase 19 curriculum `Skill`
-graph. It records a target Amplify Data schema (`Subject`, `Grade`,
+graph. It records a target data schema (`Subject`, `Grade`,
 `Domain`, `Skill`, with `LearningObjective` absorbed into `Skill` rather
 than kept as a second, driftable vocabulary) but adds no model to
-`amplify/data/resource.ts` and moves no content out of TypeScript this
+the data schema and moves no content out of TypeScript this
 phase.
 
 **Why design now but migrate later, rather than either extreme.**
@@ -499,7 +515,7 @@ second identity" and `docs/DATA_MODEL.md` already states a general
 preference for source-controlled content over database rows for MVP —
 content-in-code is a repeated, deliberate choice in this codebase, not an
 oversight Phase 36 exists to correct. Migrating the curriculum graph into
-live Amplify Data models today would add runtime read latency where there
+live data models today would add runtime read latency where there
 is none, and would need a real write path for content designers to use
 safely — but no admin/content-designer role exists yet
 (`docs/AUTHORIZATION_REVIEW.md` section 4.3, and every phase's "Known
@@ -526,15 +542,14 @@ Server-Authoritative Actions" is the single largest item in the Android
 backlog: docs/platform/CURRENT_PLATFORM_AUDIT.md's Phase 35 audit found
 that six gameplay engines (adventure correctness/completion, skill
 mastery, rewards, quests, NPC relationships, discovery) each decide an
-outcome client-side and write it straight to an owner-authorized Amplify
-Data model, with no server re-check anywhere except `claimCoopSlot`
+outcome client-side and write it straight to an owner-authorized
+data model, with no server re-check anywhere except `claimCoopSlot`
 (Phase 17). Attempting all six at once was judged too large and too risky
 to the existing 1,400+-test suite for one pass. This ADR records what was
 built instead: a real, deployed-shaped pilot of exactly one path, chosen
 because every other engine's grading ultimately depends on it.
 
-**Decision.** `submitAdventureAnswer` (`amplify/data/resource.ts`,
-`amplify/functions/submit-adventure-answer/handler.ts`) is now the sole
+**Decision.** `submitAdventureAnswer` (a server-side Lambda resolver) is now the sole
 path by which a graded adventure step's correctness is decided and its
 session transition is written, for every legitimate client. The Lambda
 imports the exact same `validateStepAnswer`/`getNextStepId`/hint-ladder
@@ -640,10 +655,10 @@ know about, not a gap Phase 38 exists to fill.
 
 **Decision, part B — item/world/asset canonical models are designed, not
 migrated.** `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md` records target
-Amplify Data schemas for `ItemDefinition`, `WorldDefinition`/
+data schemas for `ItemDefinition`, `WorldDefinition`/
 `WorldContentPack`, and an asset catalog entry, grounded in this product's
 actual existing TypeScript types rather than android.md's generic ones.
-No model is added to `amplify/data/resource.ts`, no content moves out of
+No model is added to the data schema, no content moves out of
 TypeScript, and no asset moves to S3 this phase — same reasoning as
 ADR-011: ADR-009 already decided content is a pack, not a database row,
 and there is still no admin/content-designer write path for whoever would
@@ -686,7 +701,7 @@ Status: Accepted
 `docs/ROADMAP.md` "Phase 39 — Manifest, Versioning, and Authorization"
 covers `docs/android/android.md` Phases 10-12. The three sub-phases split
 cleanly on one question: does the work have a real subject to act on
-today? Authorization does — every model in `amplify/data/resource.ts`
+today? Authorization does — every model in the data schema
 already exists and already has a rule. Content manifests and API
 versioning do not — they exist to protect content and clients that do not
 exist in this backend yet.
@@ -761,7 +776,7 @@ target shape.
 today.** Unlike device registration, this product already has real,
 inspectable sync behavior: every model android.md's Phase 14 lists as
 needing to synchronize (minus `XP`/`levels`/`coins`, already rejected by
-ADR-011) is already an Amplify Data model read fresh on every load, with
+ADR-011) is already a data model read fresh on every load, with
 no client-side cache anywhere in `src/` (confirmed by the Phase 35 audit).
 The finding is precise rather than a blanket "yes" or "no": *sequential*
 cross-device consistency (open on device B after finishing on device A)
@@ -846,7 +861,7 @@ manifest, `docs/android/android.md` Phase 17's
 `getNextLearningActivity(childProfileId)` already had a complete answer in
 this codebase: the Director (`src/features/director/`, Phase 28) — pure,
 deterministic, already tested, just running only in the browser bundle.
-`getNextLearningActivity` (`amplify/functions/get-next-learning-activity/`)
+`getNextLearningActivity` (a Lambda query)
 now runs that same unchanged logic server-side, reusing ADR-012's
 `ChildProfile.ownerSub` ownership check. This is meaningfully lower-risk
 than `submitAdventureAnswer`: read-only, no session-state write to guard,
@@ -861,9 +876,9 @@ filter they used is extracted to a new, independently useful pure module,
 **One real architectural fix fell out of this work, not just a Lambda.**
 `src/features/mastery/summary.ts`'s `indexProgressBySkill` took its input
 type from the impure `src/features/mastery/api.ts` (which imports the
-browser Amplify Data client and, transitively, `import.meta.glob`). A
+browser data client and, transitively, `import.meta.glob`). A
 Lambda's TypeScript program reaching that type — even only through a
-type-only import — fails to typecheck, since `amplify/tsconfig.json` has
+type-only import — fails to typecheck, since the Lambda tsconfig has
 no Vite ambient types. Rather than widen that tsconfig for every future
 Lambda, `summary.ts` now declares its own minimal `SkillProgressLike`
 structural type, fully decoupling this pure engine module from the impure
@@ -899,34 +914,24 @@ Status: Accepted
 Testing" covers `docs/android/android.md` Phases 19-21. Unlike every prior
 phase in this backlog, this one is not a code-vs-design split — it is a
 "do not take this action unilaterally" boundary. Creating a real
-`staging`/`production` Amplify branch environment provisions real AWS
+`staging`/`production` backend environment provisions real AWS
 infrastructure (a second Cognito pool, AppSync API, set of DynamoDB
 tables, S3 bucket) with real cost and access-control consequences. That is
 an infrastructure action reserved for an explicit, human-authorized
 decision under this project's own operating rules, not something a
 documentation pass should do on a roadmap phase's authority alone.
 
-**Decision, part A — the environment-separation mechanism already
-exists; recorded, not built.** `amplify.yml`'s existing
-`ampx pipeline-deploy --branch $AWS_BRANCH` already gives this repo
-Amplify Hosting's standard branch-per-environment model: any new Git
-branch connected to Amplify Hosting already provisions its own fully
-isolated backend, using infrastructure already committed. What is
-missing is not a mechanism but branches — only `main` exists today.
-`docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md` records this
-finding and maps android.md's development/staging/production vocabulary
-onto it, without creating any branch or deciding branch-naming
-conventions, which are deployment-topology decisions for whoever operates
-the real AWS account.
+**Decision, part A — environment separation is recorded, not built.**
+`docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md` maps android.md's
+development/staging/production vocabulary onto the backend's environments,
+without creating any environment or deciding naming conventions, which are
+deployment-topology decisions for whoever operates the real AWS account.
 
 **Decision, part B — generated client configuration needs nothing new.**
-`docs/android/android.md` Phase 20's `npx ampx generate outputs` is
-already how the web client obtains its own configuration
-(`src/lib/amplify-config.ts`'s `amplify_outputs.json`, generated and
-gitignored, never hand-maintained) — an Android project would run the
-same Amplify Gen 2 tooling against the same backend. Nothing in this
-repository needs to change for this acceptance criterion to hold once an
-Android project exists.
+The web client's configuration is generated, never hand-maintained, and an
+Android project would obtain its own the same way against the same backend.
+Nothing in this repository needs to change for this acceptance criterion to
+hold once an Android project exists.
 
 **Decision, part C — cross-platform contract tests are listed, not
 written, and their underlying claim is largely already audited.** No
@@ -934,7 +939,7 @@ contract test can run without a second client to run it against. The
 target test list recorded in
 `docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md` section 3 is the
 concrete backlog for whenever one exists. Its underlying structural claim
-— a write through Amplify Data is visible to any other authenticated
+— a write through the shared data API is visible to any other authenticated
 caller reading the same owner-scoped data — is not a new question:
 `docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md` (Phase 40, ADR-015)
 already audited exactly this for cross-device sync and found it already
@@ -973,7 +978,7 @@ different treatments rather than one blanket decision.
 three synchronous custom Lambda resolvers (`claimCoopSlot`,
 `submitAdventureAnswer`, `getNextLearningActivity`) logged anything about
 their own invocations before this phase — a slow or failed call left no
-trace. `amplify/functions/shared/requestLog.ts` is new, small,
+trace. The shared `requestLog.ts` module is new, small,
 unit-tested, framework-free application code, the same size and risk
 class as `claim-coop-slot`'s own `decideClaim` — a genuinely buildable
 piece with no billed-infrastructure or second-client dependency, unlike
@@ -1033,21 +1038,17 @@ change any query, does not build a CloudWatch dashboard over the new
 request-log lines, and does not add rate limiting anywhere in this
 backend.
 
-## ADR-019: Migrate the backend from Amplify Gen 2 to Django + DRF incrementally
+## ADR-019: The backend is Django + DRF on PostgreSQL, with Cognito for authentication
 
 Status: **Accepted in part** (project owner, 2026-10-17). The architectural direction below
 is approved. Operational, data, and security decisions are **not** accepted and stay gated
 (see "Open gates"). Approval authorizes planning and the non-deploying implementation tasks
 in `docs/DJANGO_MIGRATION_ROADMAP.md`. It does **not** authorize deleting or changing
-deployed Amplify resources, migrating production data, deploying, or retiring Phaser.
-
-The "one Amplify Gen 2 platform" rule in ADR-010 and the Amplify baseline in `CLAUDE.md`
-section 8 remain the **deployed and operating baseline until cutover** (Phases 12 and 13).
-ADR-010 is superseded only when LAI-1303 completes.
+deployed AWS resources, migrating production data, deploying, or retiring Phaser.
 
 **Amended by ADR-020 (Accepted).** Sub-decisions 6 and 7 below are superseded; the target
 shape in `docs/DJANGO_TARGET_ARCHITECTURE.md` now includes a first-class `game/` package.
-Sub-decisions 1 to 5 and 8 to 12 are unchanged and remain Proposed. Accepting ADR-020 does not
+Sub-decisions 1 to 5 and 8 to 11 are unchanged and remain Proposed. Accepting ADR-020 does not
 accept any of them. (Status as of 2026-10-24: the table below is current; sub-decisions 1 to 5
 are accepted as direction, and sub-decision 8 is accepted by the amendment that follows the
 open gates.)
@@ -1057,27 +1058,23 @@ Evidence and analysis: `docs/DJANGO_MIGRATION_ASSESSMENT.md`,
 `docs/DJANGO_TARGET_ARCHITECTURE.md`. Sequence: `docs/DJANGO_MIGRATION_ROADMAP.md`.
 
 **Context.** The product is growing into a platform (islands, quests, rewards, inventory,
-progression, co-op, admin). Five of six gameplay write paths are client-authoritative
-(`docs/platform/CURRENT_PLATFORM_AUDIT.md`). Each persisted model adds a DynamoDB table and an
-IAM role (40 roles per environment in the local synth, 17 of them one-per-model). The IAM
-quota is raisable, so it is not the reason. The reason is that a relational, service-layer
-backend fits the platform direction better than adding more AppSync resolvers, and that new
-content should be data rows, not infrastructure.
+progression, co-op, admin). Five of six gameplay write paths were client-authoritative
+(`docs/platform/CURRENT_PLATFORM_AUDIT.md`). A relational, service-layer backend fits the
+platform direction, and new content should be data rows, not infrastructure.
 
 | # | Sub-decision | Status | Note |
 |---|---|---|---|
-| 1 | Django + Django REST Framework backend (`lai/`) | **Accepted** (direction) | Incremental strangler; Amplify untouched until cutover |
-| 2 | PostgreSQL as the relational store | **Accepted** (direction) | Replaces 17 DynamoDB tables. Schema and data migration remain gated |
-| 3 | Retain Cognito for authentication | **Accepted** (initially) | Django validates JWTs. Pool ownership and detach plan remain gated (gate G2) |
-| 4 | Retain S3 for binaries; metadata in PostgreSQL | **Accepted** (direction) | Child photos via presigned URLs; object migration remains gated |
+| 1 | Django + Django REST Framework backend (`lai/`) | **Accepted** (direction) | Built incrementally |
+| 2 | PostgreSQL as the relational store | **Accepted** (direction) | Schema and data migration remain gated |
+| 3 | Cognito for authentication | **Accepted** (initially) | Django validates JWTs. Pool ownership and detach plan remain gated (gate G2) |
+| 4 | S3 for binaries; metadata in PostgreSQL | **Accepted** (direction) | Child photos via presigned URLs; object migration remains gated |
 | 5 | Retain React (React 19 + TypeScript) | **Accepted** | Moves to `react/` (LAI-0201) |
 | 6 | ~~Retain Three.js and Phaser engines unchanged~~ | **Superseded by ADR-020** (Accepted) | Three.js is the only gameplay renderer; Phaser is retired after conversion |
 | 7 | ~~Separate engine from platform concerns; `game/` extraction deferred~~ | **Superseded by ADR-020** (Accepted) | `game/` is a first-class package; the engine boundary is a requirement, not a deferral |
 | 8 | Authoritative rules reimplemented in Python with shared golden vectors; content exported to versioned JSON | **Accepted** (owner, 2026-10-24) | Gate G4 resolved: Python is authoritative, no Node rules service; Django becomes the content authority with versioned JSON as the interchange. See "Amendment: sub-decision 8 and gate G4" below |
-| 9 | Bedrock called from Django (boto3), replacing Amplify AI Kit routes | **Accepted** (owner, 2026-11-01; ADR-044) | Personas, limits, validation, fallbacks, audit preserved. Code only: live Bedrock (LAI-0705), cutover (LAI-0706) and Amplify retirement (LAI-0710) stay gated |
+| 9 | Bedrock called from Django (boto3) | **Accepted** (owner, 2026-11-01; ADR-044) | Personas, limits, validation, fallbacks, audit preserved. Code only: live Bedrock (LAI-0705) and the client cutover (LAI-0706) stay gated |
 | 10 | EC2 + Docker for development; ECS Fargate as production candidate | Proposed | No Kubernetes, microservices, queues |
 | 11 | Django Channels + Redis only if a measured need appears | Proposed | Co-op needs only slot claims and low-rate state |
-| 12 | Incremental Amplify retirement, with Cognito detached first | Proposed | Phases 12-13 in the roadmap |
 
 **Repository conventions.** FinWin-style layout (approved): `react/`, `lai/`, `game/`,
 `infra/`, `ci/`, `deploy/`, `docs/`, `tasks/`, `tests/`. Directories are created only when a
@@ -1095,7 +1092,7 @@ not new AWS infrastructure.
 
 | Gate | Unresolved item | Blocks |
 |---|---|---|
-| G1 | Does a production Amplify app with real family data exist, and in which account and region? (assessment Q1, Q2) | Phase 10 deploys, Phase 11 data migration, Phase 12 cutover |
+| G1 | Does real family data exist in AWS, and in which account and region? (assessment Q1, Q2) | Phase 10 deploys, Phase 11 data migration, Phase 12 cutover |
 | G2 | Cognito ownership and detach plan (LAI-0401 recorded in ADR-024; LAI-0405 remains) | LAI-0402 onward for production, LAI-1302 |
 | G3 | Android direction (assessment Q3) | API shape decisions that serve Android |
 | G4 | ~~Rules in Python with golden vectors versus a Node rules service (assessment Q4, sub-decision 8)~~ **Resolved 2026-10-24: Python, with golden vectors** (see the amendment below) | Nothing; formerly LAI-0302 and Phase 6 |
@@ -1126,7 +1123,7 @@ not new AWS infrastructure.
   content modules remain the authoring input: `npm run content:export` produces the JSON,
   and LAI-0304's `load_content` loads it. After that cutover the direction reverses
   (Django data is the source, JSON is exported from it). ADR-009 and ADR-013 still hold for
-  what a content pack is; only where it lives moves. ADR-031's Amplify catalog overlay is the
+  what a content pack is; only where it lives moves. ADR-031's catalog overlay is the
   existing React-editable overlay; it gains no new content fields and is superseded when
   LAI-0801/LAI-0802 move catalog editing to Django. ADR-032's spatial manifests stay in
   source until a separate decision covers spatial content (recorded as LAI-0805).
@@ -1134,14 +1131,9 @@ not new AWS infrastructure.
   the client keeps a bundled content copy for offline play, are left to LAI-0304 and
   LAI-0503.
 
-**Alternatives considered.** Stay on Amplify and raise the IAM quota (lowest effort; leaves
-the client-authoritative write paths to be fixed with more Lambdas). Amplify Gen 2 with a
-single generic content table (fewer roles, loses relational integrity).
-
 **Consequences if accepted.** Python enters the stack; a second implementation of the game
 rules must be kept in lockstep by tests; fixed monthly infrastructure cost rises; Android
-plans (ADR-010, `docs/android/android.md`) change from "Amplify client libraries" to "REST
-API".
+plans (ADR-010, `docs/android/android.md`) use the REST API.
 
 **Open questions.** See `docs/DJANGO_MIGRATION_ASSESSMENT.md` section 16.
 
@@ -1174,7 +1166,7 @@ platform.
    the card-based hub, the Canvas 2D companion portrait, and admin pages stay conventional
    2D UI.
 4. The engine is extracted to a top-level `game/` package (reverses the Phase 0 deferral). It
-   imports nothing from React, Django clients, Amplify, or AWS SDKs. React consumes it through
+   imports nothing from React, Django clients, or AWS SDKs. React consumes it through
    a defined interface and receives typed, semantic-ID events from it.
 5. Islands and adventures are data (`WorldDefinition` plus catalog content). A new one needs no
    new renderer, route, or AWS infrastructure.
@@ -1275,7 +1267,7 @@ sub-decisions 1 to 3 for identity. Settled before any migration was applied, bec
 
 **Option chosen: A, one model.** `ParentAccount` (an `AbstractBaseUser`) is the user model. Option B
 (a user model plus a separate `ParentAccount` one-to-one) was rejected: it adds a table and a join
-for no current benefit, and the Amplify side is also a single `ParentProfile`. Trade-off: an
+for no current benefit. Trade-off: an
 administrator who is not a parent is still a `ParentAccount` row (with `is_staff`), so the name
 reflects the main role. If administrators later need a separate model, that is a data migration,
 not a user-model swap.
@@ -1314,15 +1306,15 @@ will `CASCADE` from the child. The `active` flag is a deactivation, not deletion
 every profile, active or not, as the current app does. The roadmap text said "active"; the code
 counts all, and the code was preserved. No database constraint can express the cap.
 
-**Not in this task (deviation from the roadmap text).** `CompanionProfile` (exists in Amplify) and
-`ParentConsent` (documented in `docs/DATA_MODEL.md` but never implemented in Amplify) were left out:
+**Not in this task (deviation from the roadmap text).** `CompanionProfile` and
+`ParentConsent` (documented in `docs/DATA_MODEL.md` but never implemented) were left out:
 neither is identity, and consent needs a privacy design rather than a copy. Tracked as LAI-0307
 and LAI-0308.
 
-**Known risks.** Existing Amplify rows may violate constraints that the new database enforces
+**Known risks.** Rows in the retained legacy DynamoDB tables from the retired backend may violate constraints that the new database enforces
 (session minutes outside the band's range, nicknames over 30 characters, a `displayName` over 80
 characters, which is often the parent's email, i.e. personal data). The import (LAI-1102) must
-report and resolve these, not silently truncate. The assumption that Amplify ids are UUID strings
+report and resolve these, not silently truncate. The assumption that legacy ids are UUID strings
 is unverified until LAI-1101.
 
 ## ADR-024: Cognito remains the authentication authority; Django validates bearer access tokens
@@ -1337,17 +1329,17 @@ on 2026-10-31, so every environment, local development included, runs exactly th
 
 | Question | Finding | Source |
 |---|---|---|
-| Provider and sign-in | Cognito user pool, email as username, SRP password flow, public SPA app client (no client secret), OAuth code flow enabled | `amplify/auth/resource.ts`; synthesized template (a local sandbox, not a deployed pool) |
-| Where tokens live | `localStorage` (access, ID, and refresh tokens plus clock drift), with an in-memory fallback if storage is unavailable. The app never calls `setKeyValueStorage`, so the library default applies. No cookies, no `sessionStorage` | `@aws-amplify/core` `DefaultStorage`, `@aws-amplify/auth` token provider, v6.20.0; no override in `react/src` |
+| Provider and sign-in | Cognito user pool, email as username, SRP password flow, public SPA app client (no client secret), OAuth code flow enabled | the user pool definition in source at the time; synthesized template (a local sandbox, not a deployed pool) |
+| Where tokens live | `localStorage` (access, ID, and refresh tokens plus clock drift), with an in-memory fallback if storage is unavailable. The app never calls `setKeyValueStorage`, so the library default applies. No cookies, no `sessionStorage` | the browser auth library's default storage and token provider at the time (v6.20.0); no override in `react/src` |
 | JavaScript-readable | Yes, all three tokens, persistently | same |
 | Reload / browser restart | Session survives both. Tokens are refreshed by the SDK automatically | library behaviour |
 | Refresh token lifetime | Not set in repo configuration, so the Cognito default applies (30 days). Access and ID tokens default to 60 minutes. **Deployed values unverified** (gate G1) | synthesized template has no validity settings |
 | Sign-out | `signOut()` without `global`: revokes this device's refresh token at Cognito when revocable, then clears local tokens. Other devices keep working. No global sign-out is used | `signOut.ts` in the SDK; `AuthContext.tsx` |
-| Which token reaches AppSync | The **access token** (not the ID token) | `@aws-amplify/api-graphql` `graphqlAuth.ts` |
-| Admin check | Server side: AppSync `allow.group('Admins')` on read-only rules. Client side: `AuthContext` reads `cognito:groups` from the **ID token** and `RequireAdmin` hides routes. That client check is a UI convenience only | `amplify/data/resource.ts`, `AuthContext.tsx`, `RequireAdmin.tsx` |
+| Which token reaches the API | The **access token** (not the ID token) | the browser API client's request authorization at the time |
+| Admin check | Server side: `Admins` group rules on read-only data. Client side: `AuthContext` reads `cognito:groups` from the **ID token** and `RequireAdmin` hides routes. That client check is a UI convenience only | the data schema at the time, `AuthContext.tsx`, `RequireAdmin.tsx` |
 | Who can sign up | Open email sign-up (there is a sign-up form) | `SignUpForm.tsx` |
 
-Compatibility: Django can use exactly what Amplify already sends. `fetchAuthSession()` returns the
+Compatibility: Django can use exactly what the browser already sends. The browser session holds the
 access token; React attaches it as `Authorization: Bearer`. Nothing in the current login or refresh
 flow has to change for the header transport.
 
@@ -1388,7 +1380,7 @@ flow has to change for the header transport.
   most once per 60 s, and otherwise reject (so a forged `kid` cannot trigger a fetch per request);
   allow-list of client ids in a setting (initially the existing web client). **No new
   "Django-facing" app client**: the browser client already issues the tokens, and creating a client
-  changes the Amplify-managed pool (needs approval and belongs to a deployment task).
+  changes the deployed pool (needs approval and belongs to a deployment task).
 - **Scopes:** tokens from SRP sign-in carry only `aws.cognito.signin.user.admin`; no custom
   resource server or scopes exist. Do not require OAuth scopes until a resource server is
   designed.
@@ -1397,7 +1389,7 @@ flow has to change for the header transport.
 
 | Gate | Question | Recommendation | Blocks |
 |---|---|---|---|
-| A1 | **Browser token persistence.** The current store is persistent and JS-readable, including a 30-day refresh token. Options: (a) keep as is; (b) keep, plus strict CSP, no inline script, dependency review, and a shorter refresh-token lifetime (an Amplify-managed pool change); (c) memory-only tokens (loses the session on every reload, which breaks tablet use); (d) backend-for-frontend with the refresh token in an HttpOnly cookie held by Django (needs the cookie decision in item 2) | (a) until cutover so nothing breaks, with (b) as the minimum hardening before real family data reaches Django, and (d) evaluated against the children's-data risk before LAI-1203. Do not copy tokens into app state or any other storage of our own | Production cutover (LAI-1203), not LAI-0402 |
+| A1 | **Browser token persistence.** The current store is persistent and JS-readable, including a 30-day refresh token. Options: (a) keep as is; (b) keep, plus strict CSP, no inline script, dependency review, and a shorter refresh-token lifetime (a pool change); (c) memory-only tokens (loses the session on every reload, which breaks tablet use); (d) backend-for-frontend with the refresh token in an HttpOnly cookie held by Django (needs the cookie decision in item 2) | (a) until cutover so nothing breaks, with (b) as the minimum hardening before real family data reaches Django, and (d) evaluated against the children's-data risk before LAI-1203. Do not copy tokens into app state or any other storage of our own | Production cutover (LAI-1203), not LAI-0402 |
 | A2 | **Onboarding.** A valid Cognito user with no `ParentAccount`: auto-provision, or require explicit onboarding? | Explicit but cheap: reads never write. An idempotent `POST /api/v1/me/` provisions (the unique `cognito_sub` plus `get_or_create` handle retries and races); until then protected endpoints return 403 `account_not_provisioned`. Display name is not in the access token, so it starts blank | LAI-0402 |
 | A3 | **Revocation latency.** A verified JWT stays valid until `exp` even after sign-out or refresh-token revocation, because local verification cannot see revocation | Accept up to the access-token lifetime (default 60 min, unverified) for ordinary reads. For high-risk actions (child or account deletion, consent changes, any admin action) re-check with Cognito `GetUser` on the presented token and require recent `auth_time`. Consider a shorter access-token lifetime (pool change, needs approval) | LAI-0402 design, LAI-0602 |
 | A4 | **Admin design** | Admin is derived per request from the `cognito:groups` claim of the verified access token (contains `Admins`); no stored flag, so removing the group takes effect at the next token (at most the token lifetime). Read-only first. A separate admin code path (not the parent-scoped one) with an audit record for every access to a child's data: admin sub, action, target id, request id, never child content. `ParentAccount.is_staff` stays unused; Django admin stays off until LAI-0404 | LAI-0404 |
@@ -1422,7 +1414,7 @@ is not logged today.
 
 ### Cognito resource ownership
 
-The pool belongs to the Amplify-managed stack. Before any Amplify stack is deleted, the pool, its
+Before any stack that holds the pool is deleted, the pool, its
 app client, the `Admins` group, and all users must be detached or retained so that user ids (`sub`
 values, which are what `ParentAccount` is keyed on), the pool id, and client ids stay unchanged;
 otherwise every parent mapping breaks. No stack deletion is authorized by this ADR. The procedure
@@ -1985,11 +1977,11 @@ Git repository.
 **The decision.**
 
 - A generic `Asset` model plus an immutable `AssetVersion` per uploaded
-  file (`amplify/data/resource.ts`). Game content will refer to an asset by
+  file. Game content will refer to an asset by
   id or slug, never by file name. `Asset.slug` shares a namespace with the
   bundled `ASSET_MANIFEST` ids, as the `AssetCatalogEntry` design in
   `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md` already proposed.
-- Files go to the existing Amplify Storage bucket under a new
+- Files go to the existing S3 storage bucket under a new
   `assets/*` prefix, one object per version
   (`assets/models/<folder>/<assetId>/v<n>/model.glb`), so a replacement
   never overwrites bytes that may be cached.
@@ -2139,8 +2131,8 @@ are TypeScript content packs, not database rows (ADR-009, ADR-011,
 ADR-013).
 
 **Decision, part A: a catalog overlay, not a content migration.** Three
-new models, `Island`, `Adventure`, and `AdventureModel`
-(amplify/data/resource.ts), hold what an administrator manages: name,
+new models, `Island`, `Adventure`, and `AdventureModel`,
+hold what an administrator manages: name,
 descriptions, `active`, `sortOrder`, and which existing `Asset` records an
 adventure uses. `slug` is the join to the content: an `Island.slug` is an
 `ISLAND_LOCATIONS` slug, an `Adventure.slug` is an `ADVENTURE_TEMPLATES`
@@ -2484,8 +2476,8 @@ library.
 Hosting: local Node process for development (`ws://localhost`, dev origin
 only). Production, later and only once Phase 1 passes locally: one ECS
 Fargate task behind an Application Load Balancer with an ACM certificate
-(TLS terminates there), declared as custom CDK in `amplify/backend.ts`
-beside the existing custom resources, with a cost budget alarm like the
+(TLS terminates there), declared in the AWS CDK app in `infra/`, with a
+cost budget alarm like the
 Bedrock one. One task means no cross-node presence store is needed; scaling
 past one task is out of scope for the first playable milestone.
 
@@ -2572,12 +2564,12 @@ existing region stays single-player.
 - *Part D.* Confirmed by the product owner: same-family rooms only for the
   MVP.
 
-**Amendment (AMP-03 / AMP-07, Amplify exit, 2026-11-10).** *Part C* now uses
+**Amendment (2026-11-10).** *Part C* now uses
 the Cognito **access** token instead of the ID token, and the child lookup
-moves from AppSync to the Django API: the server calls
+moves to the Django API: the server calls
 `GET /api/v1/children/<id>/` with the caller's token, and Django's child
 scoping (404 for another family's child) is the ownership check, so the
-`ownerSub` comparison is gone. The server reads no `amplify_outputs.json`;
+`ownerSub` comparison is gone.
 `MP_USER_POOL_ID`, `MP_USER_POOL_CLIENT_ID` and `MP_DJANGO_API_BASE` are
 required (docs/multiplayer/MULTIPLAYER_SERVER.md). It still needs no AWS
 credentials or database access.
@@ -2604,8 +2596,7 @@ two could not both merge.
    (`apps/game_sessions/play.py`); sessions gain a `kind` (ADVENTURE or REGION) and
    `ChallengeAttempt` joins `game_sessions`.
 3. Treasure Rush's non-spatial content (its quest, keepsake item and reward rule) is exported
-   like all content (`react/src/features/content-export/treasureRushContent.ts`, export-only,
-   so the Amplify app is unchanged) and imported into the catalog.
+   like all content (`react/src/features/content-export/treasureRushContent.ts`, export-only) and imported into the catalog.
 4. Spatial layout is **not** authoritative Django administration. The Treasure Cove region,
    spawn point, chest placement and challenge slots are rows in `apps/regions` and
    `education.ChallengeSpec`, applied by `manage.py seed_treasure_rush` from the source file
@@ -2671,7 +2662,7 @@ role nothing set. Django has no deployment yet (no `infra/`; Phase 10 needs appr
    which creates the Django account the first time (option a, owner 2026-10-25) and returns
    `django_admin` (active staff). The account menu
    shows "Admin" to Django Admin only when that is true and the build sets
-   `VITE_DJANGO_ADMIN_URL`; otherwise the existing `/admin` link for the Amplify `Admins`
+   `VITE_DJANGO_ADMIN_URL`; otherwise the existing `/admin` link for the Cognito `Admins`
    group is unchanged.
 8. **Serving.** New pinned dependencies: `gunicorn` 26.2.0 (WSGI server) and `whitenoise`
    6.12.0 (admin static files, hashed and compressed, from `STATIC_ROOT`). The image is
@@ -2697,7 +2688,7 @@ Detail: `docs/ASSET_LIBRARY.md`.
 **Context.** LAI-2200 asks for a reusable asset library: definitions, immutable versions,
 publication, S3 storage, Django Admin upload, a child-facing resolver and an import path.
 `catalog.ContentAsset` already is the platform's asset identity, keyed by the bundled manifest id
-and the Amplify `Asset.slug` (ADR-030), and CLAUDE.md section 20 (ADR-033) forbids a second
+and the `Asset.slug` (ADR-030), and CLAUDE.md section 20 (ADR-033) forbids a second
 catalog. ADR-034 left `PermissionsMixin` out, but publishing needs a permission beyond read
 access. S3 is not provisioned (LAI-1002 is open). `GLTFLoader` fetches URLs without an
 `Authorization` header.
@@ -2815,9 +2806,7 @@ script can read it, and URLs and JavaScript bridges leak it.
 **Consequences.** This adds the first cookie credential the API accepts, limited by the rules
 above. Django serves no game bundle. The standalone `/game/` entry point is a frontend
 deliverable that does not exist yet, so `LAI_GAME_ENTRY_URL` names where it will be. Children
-created through these routes live in Django's PostgreSQL. The deployed React app still keeps
-children in Amplify until the Phase 11 data migration, so the web and Android apps do not share
-child records yet (ADR-019 gates). Launch routes are throttled (`LAI_GAME_LAUNCH_RATE`, default
+created through these routes live in Django's PostgreSQL. Launch routes are throttled (`LAI_GAME_LAUNCH_RATE`, default
 30 a minute per account).
 
 ## ADR-037: The Django backend is released to one EC2 instance per environment from GitHub Actions through ECR and SSM, with GitHub OIDC and no stored AWS keys
@@ -2832,8 +2821,8 @@ Runbook: `docs/platform/DJANGO_EC2_DEPLOYMENT.md`.
 release path. LAI-1003 (ECR and image build), LAI-1004 (dev EC2 and Docker deploy, with a migrate
 step and a tested rollback) and LAI-1006 (monitoring) were open. The owner asked for a merge to
 `main` to release Django automatically: test, build, push to ECR, deploy to EC2 through SSM,
-migrate safely, verify health, and fail with logs and a reliable rollback. The React app stays on
-Amplify Hosting; the asset library keeps its S3 storage (ADR-035).
+migrate safely, verify health, and fail with logs and a reliable rollback. The React app is served by the
+S3/CloudFront site; the asset library keeps its S3 storage (ADR-035).
 
 **Decision.**
 1. **One image, promoted by digest.** GitHub Actions builds `lai/Dockerfile` once per commit of
@@ -2876,8 +2865,8 @@ Amplify Hosting; the asset library keeps its S3 storage (ADR-035).
    successful only when both pass through nginx with the expected image running; otherwise the
    instance rolls back to the previous healthy release. Every attempt is appended to a release
    history on the instance and mirrored to a versioned SSM parameter.
-9. **No CORS.** Django keeps its same-origin design: until LAI-1005 the browser reaches it through
-   the Amplify Hosting proxy rewrite of `docs/platform/AMPLIFY_HOSTING.md` section 7; the admin is
+9. **No CORS.** Django keeps its same-origin design: the browser reaches it through
+   the S3/CloudFront site, which routes `/api/` to Django (LAI-1005); the admin is
    used directly on `api.<domain>`.
 
 **Consequences.** LAI-1003 and the repository side of LAI-1004 and LAI-1006 are done; their
@@ -2897,7 +2886,7 @@ the system. Originally: Accepted 2026-10-30, directed by the owner (LAI-AUTH-DUA
 it. Every AWS environment keeps ADR-024 unchanged.
 
 **Context.** Running the React app or Treasure Rush against a local Django needed a Cognito user
-pool, AWS credentials and an Amplify sandbox (docs/TREASURE_RUSH_LOCAL_DEV.md), only to obtain a
+pool and AWS credentials (docs/TREASURE_RUSH_LOCAL_DEV.md), only to obtain a
 bearer token Django then verified. ADR-024 item 1 ruled out Django sessions and passwords, and
 item 2 required a new security decision for any cookie API credential covering CSRF, cookie scope,
 SameSite, HttpOnly, Secure, session lifecycle and deployment topology. This is that decision, for
@@ -2940,23 +2929,23 @@ retains Django session authentication independently.
    is plain HTTP on loopback. Topology: the browser talks to the Vite dev server, which proxies
    `/api` to a loopback Django (TR-D14), so it is same-origin and needs no CORS.
 6. **React.** `VITE_AUTH_PROVIDER` (default `cognito`) selects an auth adapter behind the existing
-   `AuthProvider`: the Amplify adapter (unchanged behaviour) or the Django adapter (local username
+   `AuthProvider`: the Cognito adapter (unchanged behaviour) or the Django adapter (local username
    form, `credentials: 'same-origin'`, CSRF header). `django` needs `VITE_BACKEND=django` and
    `vite dev`; a build with it fails in `vite.config.ts`, so a deployed bundle cannot select it.
    Route guards and permission checks are not duplicated: Django decides every request.
-7. **Out of scope.** Child-profile management in React stays on Amplify (LAI-0502 / LAI-0602); in
+7. **Out of scope.** Child-profile management in React is unchanged (LAI-0502 / LAI-0602); in
    Django sign-in mode a developer creates the child with `create_local_parent --child` and opens
    the island route by id. The Android app keeps Cognito (ADR-036); a local-backend variant is
    documented, not built.
 
-**Consequences.** Local development needs no AWS account, Cognito pool or Amplify sandbox.
+**Consequences.** Local development needs no AWS account or Cognito pool.
 Production is unchanged: a session cannot authenticate the API there, the local routes do not
 exist, and a missing or wrong provider stops the process. The risk is a misconfigured deployment
 selecting `django`; it is refused at four points (production settings, image default, compose
 file, parameter store). Tests: `apps/users/tests/test_local_auth.py`,
 `apps/core/tests/test_settings.py`, `tests/deploy/`, and the React adapter and form tests.
 
-## ADR-039: Django is the authority for parent and child profiles in every build with the Django API; Amplify profiles only until the controlled import and cutover; read-only audited Django Admin inspection
+## ADR-039: Django is the authority for parent and child profiles in every build with the Django API; read-only audited Django Admin inspection
 
 Status: Accepted 2026-10-31, directed by the owner (LAI-CHILD-001). Merged to `main`
 on 2026-10-31; no production data moved. Amends ADR-034
@@ -2970,7 +2959,7 @@ ADR-038 is withdrawn).
 
 **Context.** Django already held `ParentAccount` and `ChildProfile` with ownership enforced by the
 foreign key and the LAI-0403 harness, and served list, create, read and update (LAI-ANDROID-API-001).
-The React app still read and wrote profiles through Amplify Data, so a Django build had two
+The React app did not yet read and write profiles through Django, so a Django build had two
 sources for the same child, and local sign-in could not manage children at all.
 
 **Decision.**
@@ -2978,14 +2967,11 @@ sources for the same child, and local sign-in could not manage children at all.
    reads and writes go to Django: `GET/PATCH /api/v1/me/` and `/api/v1/children/`. Screens use
    hand-owned shapes (`react/src/features/child-profile/profileTypes.ts`), never a backend record
    type.
-2. A build without the Django API (the deployed build today) keeps using Amplify Data for
-   profiles, because that is where its families' records are. Removing that branch now would
-   leave production parents with no children. The branch is selected by backend, never by
-   sign-in, and is removed by LAI-1301 after the import and cutover (Phase 11/12, approval tasks).
-3. Existing Amplify profiles move only through `manage.py import_amplify_profiles`: dry run by
-   default, owner resolved from the Cognito `sub` Amplify recorded (never an email), Amplify ids
-   preserved, nothing overwritten, conflicts reported, idempotent, ids-only report
-   (docs/platform/AMPLIFY_PROFILE_IMPORT.md).
+2. The profile source is selected by backend, never by sign-in.
+3. Existing profiles in the retained legacy DynamoDB tables from the retired backend move only
+   through a controlled import command: dry run by default, owner resolved from the recorded
+   Cognito `sub` (never an email), legacy ids preserved, nothing overwritten, conflicts reported,
+   idempotent, ids-only report.
 4. Archival, not deletion: a parent deactivates a child (`active: false`), which keeps the
    profile, progress and rewards. Hard deletion of a child or account stays
    `403 sensitive_action_unavailable` until LAI-0209 (ADR-024 A3) and LAI-0602.
@@ -2996,14 +2982,11 @@ sources for the same child, and local sign-in could not manage children at all.
    path, the Cognito sub or local username, password hashes. Every list and detail view logs one
    `lai.admin_audit` line with the staff and record ids. Child-owned gameplay records stay off the
    admin.
-6. Profile photos stay in Amplify Storage. A Django build neither uploads nor shows them until
-   LAI-1103 moves the objects.
+6. Legacy profile photos stay in the retained legacy S3 bucket from the retired backend. A Django
+   build neither uploads nor shows them until LAI-1103 moves the objects.
 
 **Consequences.** One source of truth per build. Treasure Rush and the other Django routes see the
-same child ids the parent dashboard shows. Amplify-backed features that still read a child from
-DynamoDB (the `submit-adventure-answer`, `get-next-learning-activity` and `claim-coop-slot`
-Lambdas, and Amplify Data reads keyed by `childProfileId`) do not know a child created in Django;
-those features are Phase 6 work and are not usable for such a child in a Django build. The admin
+same child ids the parent dashboard shows. The admin
 change widens who can see child metadata, so the permission is granted to named staff only and
 every read is logged.
 
@@ -3032,9 +3015,9 @@ authorization and uses native authentication only for Django Admin staff access.
    password through `AdminPasswordBackend`, the only Django authentication backend. Its session and
    CSRF cookies stay scoped to the admin path, and an admin session does not authenticate the API,
    even for a staff account that is also a parent.
-4. **React.** Amplify Auth (Cognito) is the only sign-in; the API client sends only the bearer
+4. **React.** Cognito (`react/src/lib/cognito`) is the only sign-in; the API client sends only the bearer
    token. `PATCH` and `DELETE` (added for ADR-039) are kept.
-5. **Local development.** Needs a Cognito user pool (an Amplify sandbox) and the three
+5. **Local development.** Needs a Cognito user pool and the three
    `COGNITO_*` settings for Django (docs/TREASURE_RUSH_LOCAL_DEV.md). Without them every API
    request is rejected (fail closed, as in ADR-024).
 
@@ -3059,7 +3042,7 @@ implemented (LAI-0806, `feature/lai-island-place-3d-hierarchy`).
 
 **Context.** The catalog already had the shape World > Location > Adventure, and the regions app
 had `WorldRegion`, a seed-authored Three.js region inside a Location (ADR-033). People read these
-inconsistently: the Amplify admin called Locations "islands" (ADR-031), and nothing stopped a
+inconsistently: the earlier admin catalog called Locations "islands" (ADR-031), and nothing stopped a
 Location having several WorldRegions. Adventures could be started only from a Place page, or from
 source-authored `START_ADVENTURE` objects in TypeScript manifests (ADR-032). A Django-served 3D
 region could not start one.
@@ -3125,20 +3108,20 @@ settings, as versioned revisions. Positions, spawn points and placements stay se
 - The region bootstrap gains `launchPoints`, an additive change. `/regions/` is unchanged.
 - Treasure Cove gains one placement, the bridge signpost (bundled `signpost` prop), with one
   launch point per age band for Pirate Builder Bay's bridge adventure.
-- **Known gap.** In a build with `VITE_BACKEND=django`, the step-adventure runner is still the
-  Amplify one. The Django answer engine (LAI-0601) records no world changes, skill evidence or
+- **Known gap.** In a build with `VITE_BACKEND=django`, the step-adventure runner is not yet
+  Django-backed. The Django answer engine (LAI-0601) records no world changes, skill evidence or
   quest progress yet, and React has no Django-backed runner. So a launch creates the Django
   session and opens the Adventure page, but steps played there are not recorded in Django. A
   Django step-adventure client is follow-up work (LAI-0806 notes).
 
-## ADR-042: Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket, the asset library owns the asset bucket, and the Amplify bucket stays untouched until retirement
+## ADR-042: Game assets and child photos use separate private S3 buckets; Django's child profile subsystem owns the photo bucket and the asset library owns the asset bucket
 
 Status: Accepted 2026-10-31 by the owner for implementation in code and infrastructure
 definitions (LAI-0904, `feature/lai-0904-child-photo-storage`). Deployment, data migration,
 bucket deletion, merging and pushing were not approved.
 
-**Context.** Amplify keeps child profile photos and admin-uploaded models in one bucket
-(`amplify/storage/resource.ts`), separated only by path rules. The Django asset library already
+**Context.** The retired backend kept child profile photos and admin-uploaded models in one
+bucket, separated only by path rules. The Django asset library already
 has its own private bucket, `LaiAssetStorage-<env>` (ADR-035). LAI-0904 needed a home for photos
 on Django. A child's photograph is personal data with different access, caching and retention
 needs from published game content.
@@ -3162,9 +3145,9 @@ needs from published game content.
 - **Retention.** Replaced and removed photos are deleted at once; versioning keeps them at most 7
   days (plus S3 lifecycle lag). No backup, replication or Object Lock. Django has no version
   rights; faster erasure is an operator action.
-- **Legacy bucket.** The Amplify bucket stays operational and unchanged until LAI-1204 retires it
-  with explicit approval. LAI-1103 copies photos from it without modifying it. Because Amplify
-  storage auto-deletes objects with its stack, LAI-1302 depends on LAI-1204.
+- **Legacy bucket.** The retained legacy S3 bucket from the retired backend stays unchanged until
+  LAI-1204 retires it with explicit approval. LAI-1103 copies photos from it without modifying it.
+  Because its objects are deleted with its stack, LAI-1302 depends on LAI-1204.
 
 **Consequences.**
 
@@ -3206,9 +3189,8 @@ buckets.*
    Today they use `django` delivery (ADR-035, docs/ASSET_LIBRARY.md section 8).
 6. **Unpublished assets stay private:** never resolved, never given a delivery URL, never on a
    CDN. Photos are never published at all.
-7. **Amplify Storage stays as it is until cutover.** The production build without the Django API
-   keeps its Amplify photo and asset paths. LAI-1301 removes them after the migration (LAI-1103 for
-   photos) and production cutover, together with the browser-side storage IAM grants.
+7. **Legacy storage stays as it is until cutover.** The retained legacy S3 bucket is not modified;
+   LAI-1301 handles it after the migration (LAI-1103 for photos) and production cutover.
 
 **Django-controlled access and direct S3 downloads are different things.** Control is Django
 deciding, per request and with its own credentials, whether an operation may happen: every
@@ -3260,7 +3242,7 @@ live acceptance gate.
    mutation (create, upload, publish, default, retire, delete). `SensitiveActionBlocked` stays
    for sensitive actions not yet specified (account deletion, consent changes).
 6. **Re-authentication is a real Cognito sign-in,** not a second authentication system and not
-   a Django-held password: React signs the current session out and signs in again with Amplify
+   a Django-held password: React signs the current session out and signs in again with Cognito
    (SRP) as the same account, asks for explicit confirmation, then retries the request once. No
    step-up token is minted: the fresh access token is itself the evidence.
 7. **Django Admin is unchanged** (ADR-034, ADR-040): its staff session neither uses nor bypasses
@@ -3273,20 +3255,20 @@ re-authenticate. Open: the live Cognito gate (L1 to L6 in the specification), ga
 revocation setting), browser verification of the dialog, and a recent-sign-in step for Django
 Admin's own asset actions.
 
-## ADR-044: Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail; Amplify AI routes stay until client cutover
+## ADR-044: Django serves Chatty's companion and tutor turns through Bedrock Converse with a child-safety Guardrail
 
 Status: Accepted (owner-directed 2026-11-01, Phase 7 brief; code and infrastructure definitions
 only). Builds on ADR-019 sub-decision 9, ADR-024 (Cognito tokens), ADR-033 (one backbone) and
 ADR-025 (privacy-safe logging). Details: `docs/AI_SERVICE.md`.
 
-**Context.** Chatty's companion and tutor turns run as Amplify AI Kit generation routes, with
-validation, fallback and audit writes in the browser. Django is to become the authoritative AI
-backend for the web client and a future Android client, without breaking the working routes.
+**Context.** Validation, fallback and audit writes for Chatty's companion and tutor turns ran in
+the browser. Django is to become the authoritative AI backend for the web client and a future
+Android client.
 
 **Decision.**
 
 1. A new canonical app, `lai/apps/ai`, owns the AI domain: versioned personas copied verbatim from
-   Amplify, the response contracts and validators (proved equal to the TypeScript by the
+   the TypeScript personas, the response contracts and validators (proved equal to the TypeScript by the
    `ai-safety` golden vectors), authored fallbacks, a provider interface with a deterministic fake
    and a Bedrock client, one shared pipeline, and the `AIInteractionAudit` / `SafetyEvent` models
    (LAI-0306).
@@ -3308,12 +3290,10 @@ backend for the web client and a future Android client, without breaking the wor
 7. Context comes from Django when the session runs on Django (`DJANGO_SESSION`); otherwise the
    client's authored fields are accepted as bounded, screened, untrusted input
    (`CLIENT_AUTHORED`), recorded on every audit row, until LAI-0709 removes that path.
-8. Amplify `generateCompanionTurn` and `generateTutorTurn`, their IAM grants and the React
-   integrations stay unchanged until LAI-0706 is accepted and LAI-0710 is approved.
+8. The existing client-side companion and tutor integrations stay unchanged until LAI-0706 is
+   accepted and LAI-0710 is approved.
 
-**Consequences.** Two backends can serve AI turns during the transition; audit rows from both
-share field names and route names. The Django model id differs from Amplify's (`us.` versus
-`global.`). The rate limit is per process until a shared cache exists (LAI-0708). Known
+**Consequences.** The rate limit is per process until a shared cache exists (LAI-0708). Known
 prerequisites stay sparse until server mastery (LAI-0603).
 
 **Amendment (owner-directed Phase 7 completion brief, 2026-11-01; code only).**
@@ -3364,7 +3344,7 @@ and group-based roles (AM-5, AM-10).
 | React parent interface | Parent and child management, progress |
 
 1. There is **no React staff asset manager** and **no administrator asset REST API**. They were
-   removed (AM-14, AM-15): the routes, nav entries, Amplify upload wizard, "Game assets" hub, the
+   removed (AM-14, AM-15): the routes, nav entries, upload wizard, "Game assets" hub, the
    `djangoAssetAdmin` client and their tests. A test asserts no `api/v1/admin/` route exists and
    that no source imports the removed modules.
 2. Staff authorization is Django's: `is_staff` plus model permissions via the groups from
@@ -3380,8 +3360,6 @@ and group-based roles (AM-5, AM-10).
 6. Reusable non-administrative code is kept: the Three.js loaders and cache, the Django resolver
    adapter, texture and audio helpers, the bundled-manifest fallback, Treasure Rush loading, and the
    Django Admin 3D preview bundle (built from `react/src/features/assets/preview/`).
-7. The Amplify `Asset`/`AssetVersion` records and the Amplify-backed catalog model picker are
-   untouched until LAI-1301.
 
 **Consequences.** One staff surface, one permission model, one audit trail (admin history).
 Administration needs Django hosted (LAI-1004); until then assets are managed by running Django
@@ -3470,8 +3448,6 @@ approved.
     every build with the Django API, React and the engine read published content only through
     Django APIs.
   - The TypeScript modules become import input only. React gains no editable content source.
-  - Amplify builds are unchanged until LAI-1301. ADR-031's Amplify overlay keeps serving them
-    and gains nothing.
 - **B. What is authorable in Django Admin.** These record kinds become authorable:
   - Islands, Places, Adventures and Adventure steps.
   - Quests, including stages, objectives, branches, prerequisites and completion. The existing
@@ -3581,7 +3557,6 @@ approved.
   - Item 4: `ChallengeSpec` and region copy become admin-authorable; layout stays seed-authored.
 - Amends ADR-041 E: puzzle parameters and region copy join the configurable list; positions do not.
 - Adopts TR-D3 for content only, never for layout.
-- ADR-031 stays in force for Amplify builds until LAI-1301.
 
 **Alternatives considered.**
 - Editing `source` in place: an import would overwrite it, and it has no history or rollback.
@@ -3642,8 +3617,7 @@ Castle room discovery".
 **Context.** The castle map (SC-R03-06) needs to show which rooms a child has explored, across
 sessions and devices. The castle's layout is still a TypeScript manifest (ADR-033, LAI-0805), but the
 fact that a child has been somewhere is the child's own durable progress, and it must not live only in
-the browser. The rest of the app still reads world state through Amplify (the deployed baseline until
-cutover).
+the browser.
 
 **Decision.**
 
@@ -3663,17 +3637,17 @@ cutover).
    secret exists.
 4. React only displays and caches. It reads the saved list once, marks each room entered for the visit,
    and records each new room once. **Any refusal, a missing Django API in the build, or a network
-   failure means "not saved", never an error a child sees.** In a build without the Django API (the
-   Amplify-only baseline) the map still works for the visit and nothing is saved.
+   failure means "not saved", never an error a child sees.** In a build without the Django API the map
+   still works for the visit and nothing is saved.
 
 **Consequence, resolved by SC-R04-00 (2026-11-03).** The nook discovery used to be written only
-through the Amplify client, so in Django mode the server could not see it and a secret-room
+through the browser client, so in Django mode the server could not see it and a secret-room
 discovery was never persisted. Django now has the authoritative discovery record (`POST` and `GET
 children/{id}/discoveries/`, `docs/PLAY_API.md`) on the existing `WorldState.discovered_objects`, with
 no new model. In Django mode the client asks the server first and treats its answer as the
 authority; it merges the server's list into what it reads; and it tells the server about secrets
 found before Django mode. A build without the Django API, or a server failure, falls back to the
-Amplify path unchanged.
+client-side path unchanged.
 
 **Not decided here.** Granting anything for exploring (nothing does), a Django-administered castle
 layout (LAI-0805), and moving the discovery write path to Django (the ADR-019 cutover).
@@ -3897,10 +3871,7 @@ stop, count down, or nudge a child off the island for elapsed play time.
 - Django drops `ChildProfile.session_minutes` and its per-band check constraint (migration
   `users.0007_remove_childprofile_session_minutes`, owner-approved 2026-11-11). The API no longer
   returns `sessionMinutes` (profile, game runtime launch, native home `restrictions`), and the
-  closed request bodies refuse it like any unknown field. The Amplify import ignores it. Amplify
-  builds still write the band's lowest value on create, only because the deployed Amplify schema
-  requires the field. Owner decision (2026-11-11): the Amplify field stays until the Django
-  cutover retires the Amplify profile store; it is not changed separately.
+  closed request bodies refuse it like any unknown field. The legacy profile import ignores it.
 - Legacy region content may still carry `scene.copy.calmStop`; the authoring kinds still accept
   it and the client ignores it.
 - Unchanged: Cognito authentication, token expiry and refresh, game-session cookie expiry
@@ -3918,7 +3889,7 @@ no live Bedrock or Polly call has been made, and browser acceptance is the owner
 
 **Context.** Characters (Pirate Pip, Keeper Quill) are spread across the content export
 (`npcs.json` into `catalog.NpcDefinition`), the Treasure Rush seed (`WorldObjectPlacement`),
-hard-coded React copy (`PLAY_COPY`, `PipDialog`), client-side dialogue (`features/npc`, Amplify
+hard-coded React copy (`PLAY_COPY`, `PipDialog`), client-side dialogue (`features/npc`, client
 state) and per-world rendering code. Staff cannot author a character's look, dialogue or
 behaviour, and every new world re-implements NPC loading, animation and talk. ADR-033 forbids a
 second catalog and defers spatial layout administration to LAI-0805; CLAUDE.md section 20 says
@@ -3979,9 +3950,455 @@ character without a deploy. Two more places hold NPC truth until the content aut
 it publishes. The `feature/sound-manager` work (ADR-048 to ADR-050, still Proposed) becomes a
 dependency of this branch. Contract details: `docs/NPC_MANAGER_CONTRACTS.md`.
 
-## ADR-055: Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable
+## ADR-055: The dev environment runs Django natively on one ARM64 EC2 instance with private RDS, Lambda and SQS for asynchronous work, and a nightly Step Functions shutdown; production keeps ADR-037
 
-Status: Proposed (LAI-JMP-01, 2026-11-13). Development only; awaiting owner QA.
+Status: Accepted (project owner, 2026-11-16, "Low-Cost AWS Development Infrastructure"). Repository
+side only: nothing is deployed, and provisioning, every deploy and live acceptance stay
+owner-approved steps.
+
+**Context.** ADR-037's per-environment design (Docker Compose on x86 EC2, ECR images, an ALB with
+ACM and a WAF rate rule) costs roughly $80 or more a month per environment before the database.
+The owner wants a development and debugging environment for about $30 a month in `us-west-1`,
+reproducible from a clean account, with an automatic nightly shutdown, and asked that heavy or
+asynchronous work leave the small instance.
+
+**Decision.**
+
+1. **Dev only.** `LAI_ENV=dev` synthesizes `LaiDevArtifacts-dev` and `LaiDevPlatform-dev` instead
+   of `LaiDjangoEc2-dev`; `LaiDjangoRelease` (ECR) and `LaiDjangoEc2-<env>` are synthesized only
+   for `prod`. Production infrastructure and `deploy-django-ec2.yml`'s prod jobs are unchanged.
+2. **Native Django.** One `t4g.small` (Graviton, Amazon Linux 2023 ARM64) in a public subnet with an
+   Elastic IP, nginx and gunicorn under systemd, a Python 3.12 virtual environment per release,
+   access through Systems Manager only (no SSH, no key pair). No Docker, ECR, ALB, NLB, WAF, NAT
+   gateway or VPC endpoint.
+3. **Database.** RDS PostgreSQL 16 `db.t4g.micro`, Single-AZ, encrypted, private isolated subnets,
+   TLS enforced (`rds.force_ssl`), credentials generated into Secrets Manager. Never PostgreSQL on
+   the instance.
+4. **TLS without a load balancer.** CloudFront (ACM in `us-east-1`) serves the React build from a
+   private bucket and sends `/api/*` to the API host. nginx on the instance terminates TLS with a
+   Let's Encrypt certificate (Route 53 DNS-01, or HTTP-01 when DNS is elsewhere) renewed by a
+   systemd timer. Port 443 admits the CloudFront origin-facing prefix list, plus one optional
+   owner CIDR for the Django Admin host, which is never routed through the public site.
+5. **Releases.** GitHub Actions (OIDC) builds an immutable tarball with an `aarch64` cp312
+   wheelhouse, stores it in the artifacts bucket by commit, and sends a fixed SSM document that
+   verifies the checksum, builds the release's virtual environment offline, checks the
+   database and `check --deploy`, keeps ADR-037's destructive-migration guard, migrates, collects
+   static files, switches `/opt/lai/current` atomically, restarts, and rolls back to the previous
+   release when unhealthy. Migrations are never reversed.
+6. **Asynchronous work.** Django submits jobs (`apps.jobs.ProcessingJob`) to SQS; arm64 Lambda
+   functions outside the VPC call Bedrock (with the Guardrail read from SSM, never from the
+   message), Polly or S3 and put results on a results queue; a Django systemd consumer applies
+   them idempotently in the database. Lambda never connects to RDS. Question Studio generation is
+   the first migrated workload. Database cleanup stays on a systemd timer. This is the only
+   production job-processing path: the EC2 PostgreSQL worker proposed on the unmerged branch
+   `feature/ai-studio-queue` (LAI-AQS-027) is not adopted; its cancellation, failed-chunk retry,
+   duplicate-draft protection, duplicate-submit key and Admin controls were reconciled into the
+   jobs path (`docs/AI_QUESTION_STUDIO.md` section 14). Production settings accept only the `jobs`
+   and `manual` Studio run modes; `thread` and `inline` remain for local development.
+7. **Power schedule.** A Step Functions Standard state machine (`lai-dev-power`, SDK integrations,
+   bounded polling) stops and starts EC2 and RDS in order; EventBridge Scheduler runs it at
+   midnight and before 08:00 `America/Los_Angeles`, an RDS-EVENT-0154 rule stops a database AWS
+   restarted after seven days, and the CLI, GitHub workflow and schedules all use the same state
+   machine. A commit that reaches `main` while dev is stopped is recorded as pending and applied at
+   the next start; nothing starts dev implicitly.
+
+**Consequences.** About $30 a month with the schedule (about $40 always on), versus several times
+that under ADR-037. Dev no longer exercises the production container path, so a production
+release is not proven by dev; `LAI_PROD_AUTO_DEPLOY` (which needs the Docker dev job) is unusable
+while native dev is enabled, and prod releases are manual dispatches. A single instance means
+deploys restart gunicorn (seconds of 502s) and dev is down between midnight and about 08:00.
+The Elastic IP, storage, CloudFront and S3 still cost money while stopped. Workloads Lambda cannot
+host well (GLB optimization, media transcoding with native tools) are tracked, not forced.
+Details: `docs/infrastructure/dev-native-environment.md`.
+
+## ADR-061: Runtime-independent background processing: Django-authoritative jobs, SQS work and completion queues, and Lambda workers that never touch the database or publish
+
+Status: Accepted (project owner, 2026-11-16, subject to verification that 061 is free; verified
+against `main` and every open pull request on 2026-11-17). **Amended by ADR-064 (2026-11-17):**
+the work and completion queues of items 3 and 5, the `LaiProcessing-<env>` stack and ECR delivery
+of item 10 are replaced by the canonical ADR-055 path; items 1, 2, 4, 6, 7, 8 and 9 stand and are
+carried by that path. PR #40 is not merged; its branch is preserved. LAI-LAMBDA-001, Trello
+[N5lWZeq4](https://trello.com/c/N5lWZeq4), branch `feature/serverless-processing`. Development
+only: no queue, function, role or alarm is defined in `infra/` or deployed. Builds on ADR-019,
+ADR-025, ADR-035, ADR-042 and ADR-045. Detail: `docs/processing/`.
+
+**Registry note.** When this decision was numbered, the registry listed 055 as next free, while
+open pull requests #26 to #39 already used 055 to 060 for movement decisions. On 2026-11-16 `main`
+merged its own ADR-055 (native dev environment). 056 to 060 are `Reserved` for the movement
+branches, whose ADR-055 must be renumbered when they merge. 061 was verified free on `main` and on
+every remote branch on 2026-11-17; the next free number is 062.
+
+**Context.** Staff upload game assets in Django Admin, and the Asset Library validates them
+synchronously inside the request (`lai/apps/assets/services.py`, `validation.py`). Heavier work is
+coming: full glTF analysis, audio processing with FFmpeg, animation analysis, derived
+artifacts, and runs that can take minutes. `AssetVersion.DRAFT` is reserved for a future
+asynchronous validation step and no code path creates it. The repository has no SQS, Lambda or
+EventBridge resource; every `infra/` stack is bootstrapless (`BootstraplessSynthesizer`) and
+tests assert zero Lambda functions per stack. RDS PostgreSQL 16 (`t4g.micro` by default) sits in
+private isolated subnets with no NAT gateway. The owner's target for the dev environment is a
+small EC2 instance with Django, RDS Single-AZ, S3, Lambda for heavy processing, SQS work and
+completion queues, CloudWatch, us-west-1, no Docker and no PostgreSQL on EC2, and an optional
+overnight stop from 00:00 to 08:00 Pacific. AI Question Studio already runs long batches on a
+PostgreSQL-backed queue (`GenerationBatch`, `LAI_STUDIO_RUN_MODE`), with LAI-AQS-027 open.
+
+**Decision.**
+
+1. **Runtime independence.** Job logic lives in `lai_processing` (`processing/`), a
+   standard-library-only package with versioned contracts, a classified error taxonomy,
+   resource limits, ports (storage, queue, clock, telemetry), a pure lifecycle module, a retry
+   policy, an execution engine and an explicit processor registry. It imports no Django, boto3,
+   Lambda runtime, HTTP client or database driver. Tests, the local CLI, a local worker and
+   Lambda all run the same core; only adapters differ.
+2. **Django and PostgreSQL are authoritative.** Django creates every job row, owns every state
+   transition (row lock plus the lifecycle module), records attempts, artifacts and results,
+   and remains the only database writer. Processing success never publishes: it brings a job to
+   `READY_FOR_REVIEW`, and publication stays the existing explicit staff action (ADR-045).
+3. **Two SQS queues, each with a DLQ.** A work queue (Django to worker) and a completion queue
+   (worker to Django). Messages are canonical JSON contracts, schema version 1, strictly decoded,
+   at most 240 KiB, and never carry file bytes, URLs, bucket names, credentials or child data.
+   Large results travel as an artifact referenced by the completion event.
+4. **The worker never connects to RDS by default and never publishes.** It reads its input from
+   S3, verifies size and SHA-256 before the processor runs, writes immutable artifacts under its
+   own attempt prefix, and sends one completion event.
+5. **Single dispatch path.** A transactional outbox: the job's move to `QUEUED` and the encoded
+   request commit in one transaction; a dispatcher sends committed rows. S3 object-created
+   events do not dispatch work.
+6. **Delivery guarantee.** At-least-once, never exactly-once. Idempotent application through a
+   unique idempotency key per namespace, attempt-scoped artifact keys with create-only writes,
+   an applied-attempt ledger, and a pure decision (`APPLY`, `RETRY`, `DUPLICATE`, `STALE`,
+   `REJECT`). The consumer acknowledges a completion only after its transaction commits.
+   Application retries are new attempts (3 attempts, exponential backoff with full jitter,
+   capped at 900 s); transport redelivery is bounded by DLQs (`maxReceiveCount` 5).
+7. **Security boundaries.** Logical stores, not buckets, in messages; strict key validation;
+   namespace in every message and key; per-prefix least-privilege IAM; only the worker role may
+   send completions and only Django may send work; Django verifies every completion against its
+   own record and logs mismatches as security signals; telemetry restricted to a closed field
+   vocabulary (ADR-025); fixed error messages. No child data is processed; child photos
+   (ADR-042) never use this pipeline without a separate decision.
+8. **Local development.** In-memory fakes and the CLI need no AWS. A local worker with filesystem
+   storage runs outside Django HTTP requests (LAI-LAMBDA-003). LocalStack is not required.
+9. **Extensibility.** Job types are a closed catalog in code; processors are registered
+   explicitly; profiles are immutable per version. New processors (audio, animation,
+   optimisation) add code, not infrastructure. Runs over 15 minutes go to an ECS Fargate fallback
+   (LAI-LAMBDA-010), not to the Django EC2 instance.
+10. **Infrastructure ownership.** CDK stays the single source of infrastructure. A new stack
+    `LaiProcessing-<env>`, separate from `LaiDjangoEc2-<env>`, owns the queues, DLQs, worker
+    function, its role and alarms (as `resource-ownership.md` section 3.4 already proposes). The
+    worker ships as a container image built off-host in GitHub Actions, stored in ECR and
+    referenced by immutable digest through a CloudFormation parameter, which keeps the
+    bootstrapless model (pending approval A4).
+11. **Shutdown and recovery.** Queues retain work and completions for 14 days. While EC2 and RDS
+    are stopped, the worker keeps processing (it needs only S3 and SQS) and completions
+    accumulate. On startup the consumer drains the backlog idempotently and reconciliation finds
+    expired or stuck jobs. Jobs carry `expires_at`; an expired job fails with `job_expired`.
+12. **AI Question Studio is unchanged.** It keeps its PostgreSQL-backed queue; it may adopt these
+    contracts later, but moving it to SQS needs a separate approval.
+
+**Why the worker does not connect to RDS by default.** Connection limits on a `t4g.micro`
+instance shared with gunicorn; VPC placement would need NAT or paid interface endpoints because
+RDS subnets are isolated; database credentials in a worker widen the blast radius of any
+processor bug; the overnight stop would make every database-dependent worker fail; and a single
+writer keeps transitions, locking and audit in one place (Django).
+
+**Alternatives considered.**
+
+| Alternative | Why not chosen |
+|---|---|
+| Lambda writes RDS directly | Reasons above; also splits transition logic between two runtimes |
+| Django-only PostgreSQL job queue (as AQS) | No new AWS resources, but heavy work would run on the small EC2 instance (card 012 forbids it as the default fallback) and stop with it overnight |
+| Celery with Redis | A broker to run and pay for on EC2 or ElastiCache; workers still need the host |
+| Step Functions | Useful for multi-step flows later; adds state outside Django and cost for single-step jobs |
+| EventBridge Pipes | Another moving part between queue and worker with no need today |
+| AWS Batch or ECS Fargate as the primary runtime | Slower start and more infrastructure for short jobs; kept as the over-15-minute fallback (010) |
+| S3 object-created events triggering Lambda directly | Starts work without a committed job row, bypasses Django authority, and risks output-trigger loops; the outbox is the single dispatch path |
+
+**Consequences.** Heavy processing leaves the request path and the EC2 host. Two queues, two
+DLQs, a function, a role, an ECR repository and alarms become new resources to operate. Django
+gains a processing app, a dispatcher and a consumer service. Every change to a message is a
+versioned, consumer-first change. Results can arrive while a job still shows `QUEUED`.
+
+**Approvals needed.**
+
+| # | Item |
+|---|---|
+| A1 | The Wave 1 brief named CodePipeline/CodeBuild; the owner rejected them on 2026-11-09 (`deployment-design.md` P1). Proposed: GitHub Actions with OIDC builds the worker image |
+| A2 | The brief says no development load balancer or WAF; `LaiDjangoEc2-<env>` defines both. Not changed by this decision |
+| A3 | "CloudFormation-based deployment": CDK synthesized to CloudFormation and applied by `provision.sh` change sets is compatible; no hand-written competing template (`lai-dev-complete.yaml` is still missing, blocker B1 and decision D1) |
+| A4 | Lambda code delivery without CDK bootstrap: container image by digest (recommended), zip by parameter, or bootstrapping the account; and which ECR repository |
+| A5 | The overnight stop/start schedule does not exist in IaC |
+| A6 | "No Docker on EC2" conflicts with today's Django runtime (Docker Compose, ADR-037) and the dev `container` database mode; processing adds no Docker on EC2 |
+| A7 | Card 005 names staging; the repository has only dev and prod |
+| A8 | Asset bucket IAM: new prefixes in the asset bucket or a separate processing bucket |
+| A9 | Every deployment (ADR-019 G7) |
+
+## ADR-062: Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest
+
+Status: Accepted (project owner, 2026-11-17, with the Wave 3 brief). **Superseded in part by
+ADR-064 (owner, 2026-11-17, later the same day):** decision 1 (one backbone in `apps.jobs`) stands;
+decisions 2 and 3 (separate processing queues, bucket and `LaiProcessing-<env>` stack; an ECR image
+worker and `LaiProcessingImages-<env>`) and the second consumer and relay services are superseded.
+PR #41 is not merged; its branch is preserved. Proposed by the principal
+integration agent on 2026-11-17 with the Wave 2 pull request (#41). The owner decisions it records
+were made on 2026-11-16 and 2026-11-17 and are not reopened here. Builds on ADR-033, ADR-055 and ADR-061. Detail: `docs/processing/WAVE2_INTERFACES.md`.
+
+**Context.** While ADR-061's Wave 1 was in review, `main` merged ADR-055, which added `apps.jobs`:
+a Django `ProcessingJob`, a schema-1 work and result envelope, zip-packaged arm64 Lambda workers
+(`lai-dev-jobs-ai`, `lai-dev-jobs-media`), a results consumer and an `asset.inspect` probe. The
+Wave 2 brief asked for a Django `ProcessingJob` app, SQS work and completion queues, separate
+processing buckets and an ECR-image Lambda worker. Building those literally would have created a
+second job table, admin, consumer and Lambda family next to ADR-055's, which ADR-033 forbids.
+`apps.jobs` also lacks what the brief requires: a durable outbox, attempt ids, idempotency keys, a
+completion ledger, artifact records and cancellation.
+
+**Owner decisions recorded (2026-11-16, Wave 2 brief).**
+- **A1:** GitHub Actions with OIDC only; no CodePipeline or CodeBuild.
+- **A2:** no load balancer or WAF in dev.
+- **A3:** CDK is the single infrastructure source.
+- **A4:** processing Lambda workers are ECR container images deployed by immutable digest, built
+  off EC2.
+- **A5:** automatic dev shutdown at 00:00 and startup at 08:00 `America/Los_Angeles`, plus manual
+  control. This is already provided by ADR-055's `lai-dev-power`.
+- **A6:** native Django on dev EC2 (ADR-055).
+- **A7:** dev and prod only.
+- **A8:** separate private processing buckets per environment.
+- **A9:** no deployment without a further explicit authorization.
+- **ADR-061** is accepted.
+
+**Owner decisions recorded (2026-11-17, Wave 3 brief).**
+- **ADR-062 accepted:** extend `lai/apps/jobs`; no second Django processing app or job model.
+- **B4:** processing deploys use GitHub Actions with AWS OIDC roles
+  (`vars.LAI_PROCESSING_DEPLOY_ROLE_ARN`, `vars.LAI_PROCESSING_PUBLISHER_ROLE_ARN`). No role is
+  created or named by this decision.
+- **B5:** the `processing-dev` and `processing-prod` GitHub environments are approved, with
+  deployment kept disabled (`LAI_PROCESSING_DEPLOY_ENABLED` not `true`).
+- **B6:** the phase-one processing infrastructure (`LaiProcessingImages-<env>`, then
+  `LaiProcessing-<env>`) is provisioned before any dependent platform update.
+- **B7:** dead-letter queue redrive is restricted to specifically authorized operations
+  administrators. Ordinary staff and users never get redrive access.
+- **`LAI_ASSET_ASYNC_VALIDATION`** is approved, default off in every environment.
+- **Production reserved concurrency** is 5 initially and configurable
+  (`processingReservedConcurrency`, `LAI_PROCESSING_RESERVED_CONCURRENCY`).
+- **No live AWS deployment** is authorized.
+
+**Decision.**
+
+1. **One backbone.** `apps.jobs.ProcessingJob` remains the only job model, admin and sweep.
+   Contract kinds (`asset.validate_model`, `reference.checksum`) are added to it. Their work
+   message is an ADR-061 `ProcessingJobRequest` and their completion is a `CompletionEvent`.
+   They have the durable records ADR-061 needs: attempts, a transactional outbox, a receipt
+   ledger and artifacts. Legacy kinds keep their envelope, queues, worker and consumer
+   unchanged. Moving them onto the contracts is a later, separate decision.
+2. **Separate processing transport and storage.** Contract kinds run on
+   `lai-<env>-processing-work` and `lai-<env>-processing-completions`, each with a dead-letter
+   queue.
+   - Derived data goes to a private `lai-processing-<env>-<account>-<region>` bucket, and the
+     worker reads published asset originals read-only.
+   - All of this is in `LaiProcessing-<env>`, synthesized for dev and prod.
+   - ADR-055's queues, functions and artifacts bucket are not reused, so the two lifecycles
+     cannot interfere.
+3. **The processing worker is an ECR image (A4).**
+   - `LaiProcessingImages-<env>` owns the `lai/processing-<env>` repository and its GitHub
+     publisher role.
+   - The function exists only when an image digest is supplied: repository first, then the
+     image, then the worker (two-phase provisioning).
+   - This amends ADR-055's "no ECR in dev" for this worker only. The ADR-055 zip workers are
+     unchanged.
+4. **Lambda never connects to RDS.** It needs only SQS and S3, keeps working while dev is stopped
+   overnight, and Django drains completions after `lai-dev-power` starts it. The two new systemd
+   units (dispatch relay and completion consumer) are stopped and started by the existing
+   quiesce and verify steps.
+5. **Nothing deploys on merge.** Image publication and stack deployment are dispatch-only
+   workflows gated by `LAI_PROCESSING_DEPLOY_ENABLED` and a protected GitHub environment.
+
+**Consequences.**
+- One table, admin and sweep, with two transports until legacy kinds migrate.
+- Dev has one ECR repository (A4) and therefore a small storage cost.
+- The Django release and the production image must ship the `processing/` packages.
+- Deploying `LaiProcessing-<env>` must precede any platform update that attaches
+  `lai-django-processing-<env>`, because managed policies are attached by name.
+- **Alternatives rejected:**
+  - a separate `lai/apps/processing` app, which would duplicate the backbone (ADR-033);
+  - putting contract kinds on the ADR-055 queues and zip worker, which contradicts A4 and A8 and
+    would couple two retry models on one queue;
+  - replacing `apps.jobs` outright, which would regress working Studio, speech and inspection
+    flows without approval.
+
+## ADR-064: Background processing has one canonical path: apps.jobs on the ADR-055 queues and results consumer, zip-packaged Lambda workers, a transactional outbox and a database-outage-safe consumer; Bedrock runs in a configurable Region
+
+Status: Accepted (project owner, 2026-11-17, "Final DEV Infrastructure Blocker Resolution",
+approved decisions 1 to 8). Implemented on `main`. Amends ADR-055, ADR-061 and ADR-062. Nothing is
+deployed: provisioning and every deploy stay owner approvals. Detail:
+`docs/infrastructure/dev-native-environment.md` section 5 and `docs/processing/CANONICAL_PATH.md`.
+
+**Context.** Three designs for background work existed on 2026-11-17. `main` ran ADR-055:
+`apps.jobs.ProcessingJob`, schema-1 envelopes, the `lai-dev-jobs-ai` and `lai-dev-jobs-media`
+queues with zip-packaged arm64 Lambda workers, the `lai-dev-job-results` queue and the
+`jobs_consume_results` consumer, all in `LaiDevPlatform-dev`. PR #40 (ADR-061) added a
+standard-library `lai_processing` package with versioned contracts. PR #41 (ADR-062) put contract
+kinds on `apps.jobs` but on separate `lai-<env>-processing-*` queues, a separate bucket and stack
+(`LaiProcessing-<env>`), an ECR image worker (`LaiProcessingImages-<env>`), a second consumer
+(`jobs_consume_completions`), an outbox relay (`jobs_dispatch`) and two more systemd units. The
+owner then decided: zip packaging for the dev Lambda workers; no ECR for the existing functions;
+containers may be evaluated later for workloads with significant native dependencies (GLB
+optimization, audio transcoding); `apps.jobs`, SQS, Lambda and ADR-055 are the canonical
+architecture; PR #40 extends it rather than establishing a second system; Question Studio
+permissions are automated; the Bedrock Region is independent of the infrastructure Region; the
+low-cost dev environment and its nightly schedule are kept.
+
+**Decision.**
+
+1. **One path.** `services.submit` commits a `ProcessingJob` row; its work message goes to the
+   kind's queue (`lai-<env>-jobs-ai` or `-media`, DLQ after 3 receives); a zip-packaged arm64
+   Lambda outside the VPC does the work without touching the database, writes the result to S3
+   first and sends a schema-1 result to `lai-<env>-job-results` (DLQ after 5 receives, 14-day
+   retention); `jobs_consume_results` is the only consumer and applies it with
+   `services.apply_result` under a row lock, then runs the kind's handler in the same
+   transaction. One job table, one admin, one consumer, one sweep, one infrastructure stack
+   (`LaiDevPlatform-dev`). No second job model, consumer, queue family, bucket or stack.
+2. **Transactional outbox.** The committed `PENDING` row is the durable intent to send. The
+   on-commit send locks the row (`SELECT ... FOR UPDATE SKIP LOCKED`), sends, and stamps
+   `dispatched_at`. A failed send, or a process that died before sending, leaves the row
+   undispatched; the consumer runs `services.relay()` at most once a minute and re-sends rows
+   older than 30 seconds. After 5 failed sends the job fails with `submit_failed` and its handler
+   runs. Delivery is at-least-once.
+3. **Database outages never burn receives.** The consumer runs `SELECT 1` before every receive;
+   while RDS is stopped, starting, failing over or unreachable it backs off (capped at 60 s) and
+   receives nothing, so valid results wait untouched in the queue. A database error in the middle
+   of a batch hands the rest of the batch back at once (visibility 0) and the loop backs off. The
+   results DLQ allows 5 receives, each a real application attempt. The daily sweep does not time
+   jobs out while the results queue holds messages (or its depth cannot be read), so results
+   queued during the overnight stop or an outage are applied before any job is failed for age.
+4. **Idempotency.** Workers write results to S3 before sending; `apply_result` ignores duplicate
+   and late messages and anything for a finished job; Studio chunk slots are unique, and a
+   resubmitted Generate form returns the first batch.
+5. **Cancellation and retries.** Operators fail an unfinished job from Django Admin
+   (`fail_processingjob`); Studio staff cancel batches and retry missing chunks
+   (`cancel_generationbatch`, `retry_generationbatch`). Transport retries are SQS redeliveries
+   bounded by the DLQs; application retries belong to the kind (Studio attempts per chunk and
+   staff retry of the missing slots only).
+6. **Dead letters and monitoring.** Each DLQ has an alarm on its first message. Redrive is an
+   operations action for specifically authorized administrators only (ADR-062 B7), done with
+   `aws sqs start-message-move-task` after the cause is fixed; staff and users never get it.
+   Lambda, jobs and Django logs are in CloudWatch; jobs are visible in Django Admin.
+7. **IAM.** The instance role may send to the work queues and receive, delete, change visibility
+   and read attributes of the results queue only. Each worker role reads its own work queue,
+   sends results and writes only its S3 result prefix; the AI worker may invoke the US inference
+   profile and apply Guardrails only in the Bedrock Region.
+8. **Flags.** `EnableLambdaProcessing` (stack parameter), `LAI_JOBS_BACKEND` (`sqs`, `inline` or
+   `disabled`; production refuses `inline`), `LAI_STUDIO_RUN_MODE` (`jobs` or `manual` in
+   production), `LAI_DEV_NATIVE_ENABLED` for the deploy workflows. `LAI_ASSET_ASYNC_VALIDATION`
+   (approved, default off) arrives with the contract kinds below.
+9. **Packaging.** Zip is the default for every existing and new Lambda worker without heavy
+   native dependencies: `scripts/aws/package-lambda.sh` builds `jobs-worker-<hash16>.zip`,
+   uploaded to the artifacts bucket and referenced by the `WorkerCodeKey` parameter. Dev has no
+   ECR repository and no image pipeline. A container-image worker needs its own ADR naming the
+   workload (for example GLB optimization or audio transcoding), the image source and its cost.
+10. **PR #40 and PR #41.** Their useful functionality re-lands on this path, not beside it: the
+    `lai_processing` package (contracts, limits, error taxonomy, the GLB validator, which is pure
+    Python) is packaged into the same zip and its job types become `apps.jobs` kinds on the media
+    queue, applied by the same consumer; a contract-version change to the envelope is made
+    consumer first. Ported to `main` now: the outage-safe consumer and the outbox relay. Not taken:
+    `LaiProcessing-<env>`, `LaiProcessingImages-<env>`, ECR, `Dockerfile.lambda`,
+    `deploy-processing.yml`, the processing bucket, `jobs_dispatch`, `jobs_consume_completions`
+    and their systemd units. Both branches are preserved.
+11. **Bedrock Region.** `LAI_AI_BEDROCK_REGION` (Django) is independent of the platform Region.
+    For dev, `LAI_DEV_BEDROCK_REGION` (default the dev Region, us-west-1) chooses where
+    `LaiAiGuardrail-dev` is deployed and Bedrock is called; it must be a source Region of the
+    `us.anthropic.claude-haiku-4-5-20251001-v1:0` profile. AWS lists us-west-1 as a source Region
+    of that profile (destinations us-east-1, us-east-2, us-west-1, us-west-2; model card, checked
+    2026-11-17), so us-west-1 is the default; us-west-2 is the documented fallback. When they
+    differ, only the Guardrail stack moves: the Django log metric filters and AI and child-safety
+    alarms are created by `LaiDevPlatform-dev` beside the log group, the AI worker's Guardrail
+    permission names the Bedrock Region, and EC2, RDS, SQS, Lambda and logs never move.
+    Production keeps one Region (synthesis refuses a different Bedrock Region outside dev). The
+    Guardrail policy, model allowlist and every Django safety check are unchanged.
+12. **Studio roles.** `manage.py ensure_studio_roles` creates or resets the Question authors,
+    reviewers, publishers and pool managers groups (authors get cancel and retry). It never
+    changes membership, and every Studio admin check also requires `is_staff`, so parents and
+    children cannot use these permissions. The dev bootstrap `ensure-roles` task runs it.
+
+**Alternatives considered.**
+
+| Alternative | Why not chosen |
+|---|---|
+| Merge PR #41 as is | Two transports, two consumers, two stacks and an ECR pipeline for one table; contradicts the owner's zip and single-architecture decisions |
+| Contract kinds on their own queues but zip-packaged | Still a second queue family, consumer and DLQ set to operate and pay for in a small dev account |
+| ECR images for every worker | Needs a registry, an image pipeline and scanning in dev for code that has no native dependencies |
+| Probe-free consumer with a high maxReceiveCount | A long outage would still exhaust any finite count; checking the database before receiving does not |
+
+**Consequences.** One processing path to operate and document. The outbox adds two columns and a
+partial index to `ProcessingJob` (`jobs.0002`), and the consumer also relays. Contract kinds and
+the GLB validator are not on `main` yet (LAI-LAMBDA-002 stays open until they re-land). GLB
+optimization, audio transcoding, thumbnails and image conversion remain separately tracked and
+do not block the first deployment.
+
+## ADR-072: Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated
+
+Status: Accepted (project owner, 2026-11-18). Branch `feature/engineering-standards`.
+This ADR changes no runtime architecture, no data model and no deployed resource.
+
+**Context.** Up to five Claude Code agents (Claude-01 to Claude-05) work at the same time in
+separate Git worktrees, coordinated by ChatGPT as project manager and gated by the project owner.
+Rules lived in a 380-line `CLAUDE.md`, `docs/TESTING_STRATEGY.md`, this log and Trello card text.
+Branches collided on shared state: ADR-055 was used twice (resolved by reserving ADR-063), and the
+2026-11-18 audit found ADR-070 used for two different decisions on two open branches. There was no
+tool-neutral agent file, no written branch, integration, release or Trello workflow, no staged
+Definition of Done and no adventure standards (jumping, scoring, accessibility, shared managers).
+
+**Decision.**
+1. `CLAUDE.md` stays the mandatory entry point for Claude sessions and keeps the product rules;
+   `AGENTS.md` holds the tool-neutral agent operating rules. `CLAUDE.md` summarizes, and
+   `AGENTS.md` details, agent operations. The governance documents (`CLAUDE.md`, `AGENTS.md`,
+   `docs/engineering/` and `docs/adventures/`) are the final authority after the owner. Precedence:
+   owner decision, then those standards, then accepted ADRs and all other documents. An older
+   document that conflicts with the standards is stale and is corrected to match (governance
+   rule 9).
+2. Detailed policy lives in `docs/engineering/` and adventure standards in `docs/adventures/`, each
+   with copy-ready templates. Existing canonical documents stay canonical and are linked, not
+   copied: this log for ADRs (no `docs/adr/` directory), `docs/TESTING_STRATEGY.md` for check
+   cadence, `docs/ARCHITECTURE.md` and the subsystem documents for design.
+3. Completion has separate gates: Development Complete, Integration Complete, Owner Accepted and
+   Complete. Agents can reach Development Complete; only the owner records acceptance, merges or
+   authorizes deployment.
+4. Trello owns task ownership, priority and workflow state; GitHub owns code evidence. Existing
+   Trello lists are mapped, not renamed.
+5. ADR numbers are reserved in this registry on `main` before a branch uses them (governance
+   rule 8; procedure in `docs/engineering/multi-agent-workflow.md`).
+6. `make docs-check` (`scripts/check_engineering_docs.py`, standard library only) checks required
+   documents, status lines, relative links, template sections and merge-conflict markers. It runs
+   in `make js-check` and in CI next to `npm run adr:check`.
+7. Jumping is a shared game-engine capability that adventures may use; it is not a requirement
+   for every adventure (owner, 2026-11-18). An adventure that uses jumping keeps the
+   accessibility rules: a non-jump route, safe recovery and no lost progress.
+
+**Alternatives considered.** One larger `CLAUDE.md` (rejected: loads into every session and
+cannot serve other agent tools); one file per ADR under `docs/adr/` (rejected: this log's
+governance already rejects the move); a documentation framework (rejected: new dependency for a
+check that a 250-line script does); an automated orchestrator now (deferred: interface documented
+in `docs/engineering/multi-agent-workflow.md`, not implemented).
+
+**Consequences.** Agents read a short entry point and the policy for the task at hand. More files
+need upkeep; `make docs-check` catches missing files and broken links. Open branches must re-read the
+new rules before their next push; nothing in them is invalidated.
+
+**Security implications.** None at runtime. The security policy restates existing safeguards
+(child privacy, deny-by-default authorization, no secrets in source or Trello) and makes no
+regulatory compliance claim.
+
+**Implementation impact.** Documentation, one Python script with unit tests in `tests/repo`, one
+`Makefile` target and one CI step. No application, schema or infrastructure change, and no file
+under a path that triggers a deploy workflow.
+
+**Related tickets.** Trello: Learning Adventure Island Engineering Standards and Multi-Agent
+Development Governance.
+
+**Related ADRs.** ADR-019, ADR-020, ADR-033, ADR-045, ADR-047, ADR-053, ADR-063, ADR-064.
+
+**Owner approval.** Accepted by the project owner, 2026-11-18.
+
+## ADR-063: Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable
+
+Status: Proposed (LAI-JMP-01, 2026-11-13). Numbered ADR-055 on the movement branches; ADR-063 by the owner's ADR reconciliation (2026-11-17). Development only; awaiting owner QA.
 
 **Context.** LAI-JMP-01 makes jumping standard movement in every free-roaming 3D location, not
 only in platforming adventures, and asks that a jump never bypass a locked door, quest gate,

@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { AiGuardrailStack } from './aiGuardrailStack';
 import { AssetStorageStack } from './assetStorageStack';
 import { ChildPhotoStorageStack } from './childPhotoStorageStack';
+import { DevArtifactsStack } from './devArtifactsStack';
+import { DevPlatformStack } from './devPlatformStack';
 import { DjangoEc2Stack } from './djangoEc2Stack';
 import { DjangoReleaseStack } from './djangoReleaseStack';
 import { FRONTEND_REGION, FrontendStack } from './frontendStack';
@@ -13,8 +15,9 @@ import { FRONTEND_REGION, FrontendStack } from './frontendStack';
  * The stacks find each other by physical name, not by CloudFormation exports
  * (docs/infrastructure/resource-ownership.md section 4), so CloudFormation never checks that a
  * referenced policy, role, log group, topic, bucket or repository exists. This synthesizes the
- * whole app the way infra/bin/app.ts does and checks every such name against what some stack
- * creates (LAI-INFRA-005). No AWS call is made.
+ * whole app the way infra/bin/app.ts does (dev: the native LaiDevArtifacts and LaiDevPlatform
+ * stacks; prod: LaiDjangoRelease and LaiDjangoEc2) and checks every such name against what some
+ * stack creates (LAI-INFRA-005). No AWS call is made.
  */
 
 const ACCOUNT = '123456789012';
@@ -67,18 +70,29 @@ function synthesize(envName: 'dev' | 'prod') {
       envName,
       allowedOrigins: [],
     }),
-    new DjangoReleaseStack(app, 'LaiDjangoRelease', {
-      ...base,
-      env,
-      githubRepository: REPO,
-      createOidcProvider: true,
-    }),
-    new DjangoEc2Stack(app, `LaiDjangoEc2-${envName}`, {
-      ...base,
-      env,
-      envName,
-      githubRepository: REPO,
-    }),
+    ...(envName === 'dev'
+      ? [
+          new DevArtifactsStack(app, 'LaiDevArtifacts-dev', { ...base, env }),
+          new DevPlatformStack(app, 'LaiDevPlatform-dev', {
+            ...base,
+            env,
+            githubRepository: REPO,
+          }),
+        ]
+      : [
+          new DjangoReleaseStack(app, 'LaiDjangoRelease', {
+            ...base,
+            env,
+            githubRepository: REPO,
+            createOidcProvider: true,
+          }),
+          new DjangoEc2Stack(app, `LaiDjangoEc2-${envName}`, {
+            ...base,
+            env,
+            envName,
+            githubRepository: REPO,
+          }),
+        ]),
     new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, { ...base, env, envName }),
     new FrontendStack(app, `LaiFrontend-${envName}`, {
       ...base,
@@ -104,7 +118,15 @@ const NAMED = {
   LogGroupName: 'AWS::Logs::LogGroup',
   AlarmName: 'AWS::CloudWatch::Alarm',
   RepositoryName: 'AWS::ECR::Repository',
+  QueueName: 'AWS::SQS::Queue',
+  FunctionName: 'AWS::Lambda::Function',
+  StateMachineName: 'AWS::StepFunctions::StateMachine',
 } as const;
+
+/** The Django platform stack of an environment: native on dev, Docker behind an ALB on prod. */
+function platformStack(envName: 'dev' | 'prod') {
+  return envName === 'dev' ? 'LaiDevPlatform-dev' : `LaiDjangoEc2-${envName}`;
+}
 
 /** Every name of one kind that a stack creates, duplicates kept. */
 function createdList(stacks: ReturnType<typeof synthesize>, property: keyof typeof NAMED) {
@@ -132,11 +154,14 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
 
   it('puts every stack in its intended region', () => {
     const regions = Object.fromEntries(stacks.map((stack) => [stack.name, stack.region]));
+    const platform =
+      envName === 'dev'
+        ? { 'LaiDevArtifacts-dev': 'us-west-1', 'LaiDevPlatform-dev': 'us-west-1' }
+        : { LaiDjangoRelease: 'us-west-1', [`LaiDjangoEc2-${envName}`]: 'us-west-1' };
     expect(regions).toEqual({
       [`LaiAssetStorage-${envName}`]: 'us-west-1',
       [`LaiChildPhotos-${envName}`]: 'us-west-1',
-      LaiDjangoRelease: 'us-west-1',
-      [`LaiDjangoEc2-${envName}`]: 'us-west-1',
+      ...platform,
       [`LaiAiGuardrail-${envName}`]: 'us-west-1',
       [`LaiFrontend-${envName}`]: 'us-east-1',
     });
@@ -156,7 +181,7 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
     for (const name of named) expect(roles, name).toContain(name);
   });
 
-  it('points metric filters and alarms at a log group and topic the EC2 stack creates', () => {
+  it('points metric filters and alarms at a log group and topic the platform stack creates', () => {
     const logGroups = created(stacks, 'LogGroupName');
     const topics = created(stacks, 'TopicName');
     const filtered = referenced(
@@ -172,8 +197,8 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
 
   it('gives Django the bucket names the storage stacks create', () => {
     const buckets = created(stacks, 'BucketName');
-    const ec2 = stacks.find((stack) => stack.name === `LaiDjangoEc2-${envName}`)!.template;
-    const parameters = Object.values(ec2.findResources('AWS::SSM::Parameter')).map(
+    const platform = stacks.find((stack) => stack.name === platformStack(envName))!.template;
+    const parameters = Object.values(platform.findResources('AWS::SSM::Parameter')).map(
       (resource) => resolve(resource.Properties, REGION) as { Name: string; Value: string },
     );
     const value = (setting: string) =>
@@ -181,11 +206,24 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
     expect(buckets).toContain(value('LAI_ASSET_BUCKET'));
     expect(buckets).toContain(value('LAI_CHILD_PHOTOS_BUCKET'));
     expect(value('LAI_ASSET_BUCKET')).not.toBe(value('LAI_CHILD_PHOTOS_BUCKET'));
+    if (envName === 'dev') {
+      // The speech bucket is the platform's own; job results live in LaiDevArtifacts-dev.
+      expect(buckets).toContain(value('LAI_SPEECH_BUCKET'));
+      expect(buckets).toContain(value('LAI_JOBS_RESULTS_BUCKET'));
+      expect(value('LAI_JOBS_RESULTS_BUCKET')).toBe('lai-dev-artifacts-123456789012-us-west-1');
+    }
+  });
+
+  it('reads Lambda code and releases only from a bucket a stack creates', () => {
+    const buckets = created(stacks, 'BucketName');
+    const used = referenced(stacks, /arn:aws:s3:::([a-z0-9.-]+)/g);
+    for (const name of used) expect(buckets, name).toContain(name);
   });
 
   it('pulls from and publishes to the one ECR repository the release stack creates', () => {
     const repositories = created(stacks, 'RepositoryName');
-    expect(repositories).toEqual(new Set(['lai/django']));
+    // The native dev environment has no ECR repository (and no image to pull).
+    expect(repositories).toEqual(new Set(envName === 'dev' ? [] : ['lai/django']));
     const used = referenced(
       stacks,
       /arn:aws:ecr:us-west-1:123456789012:repository\/([a-z0-9/_-]+)/g,
@@ -217,7 +255,9 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
     }
     for (const property of Object.keys(NAMED) as Array<keyof typeof NAMED>) {
       for (const name of createdList(stacks, property)) {
-        expect(name, property).toMatch(/^(lai[-/]|\/lai\/|\/aws\/rds\/instance\/lai-)/);
+        expect(name, property).toMatch(
+          /^(lai[-/]|\/lai\/|\/aws\/(rds\/instance|lambda|vendedlogs\/states)\/lai-)/,
+        );
       }
     }
   });

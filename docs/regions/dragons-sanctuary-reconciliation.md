@@ -268,10 +268,10 @@ actual engineering is:
    the one candidate for a new model, and it should be argued for on its own
    rather than smuggled in with the other five from Phase 0.3.
 4. **Polly speech and its S3 cache** (Phase 5). No `services/speech`
-   equivalent exists anywhere in `src/` or `amplify/functions/`; the four
-   existing functions are `claim-coop-slot`,
-   `get-next-learning-activity`, `operational-metrics`, and
-   `submit-adventure-answer`.
+   equivalent existed anywhere in `src/` or the then-current backend's
+   server functions (co-op slot claims, the next learning activity,
+   operational metrics, and answer submission). Speech has since landed in
+   Django (`lai/apps/speech`, ADR-049).
 5. **Cross-region ability hooks** (Phase 7). Fire, flight, earth, water,
    wind, and dragon sense as interaction points in other regions. The
    roadmap's own design rule - abilities open optional paths rather than

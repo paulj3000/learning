@@ -2,15 +2,15 @@
 
 ## Preserve Existing Models
 
-The Amplify schema already contains:
+The Django asset library (ADR-035, administered in Django Admin per ADR-045;
+`docs/ASSET_LIBRARY.md`) already contains:
 
 ```text
-Asset
-AssetVersion
-AssetType
-AssetCategory
-AssetStatus
-AssetSource
+catalog.ContentAsset   the asset definition: stable asset_id, kind, category
+                       (AssetCategory), status (ACTIVE, RETIRED), origin
+                       (EXPORT, DJANGO), default_version, tags
+assets.AssetVersion    immutable versions: file format, size, checksum,
+                       status (DRAFT, VALIDATED, REJECTED, PUBLISHED, RETIRED)
 ```
 
 Do not create a parallel Asset table.
@@ -22,19 +22,23 @@ The generic world manifest should reference logical asset IDs or stable catalog 
 Runtime resolution:
 
 ```text
-manifest asset reference
- -> Asset / AssetVersion
- -> storage key
- -> S3/Amplify Storage URL
+manifest asset reference (asset id)
+ -> Django's read-only, child-scoped resolver (published default version)
+ -> signed Django file route (bytes from the private asset bucket)
  -> Three loader
+   (falls back to the bundled react/public/models/ file when nothing is published)
 ```
+
+Staff create, upload, validate, publish, roll back and retire assets in Django
+Admin only; there is no React staff asset manager and no administrator asset
+API (ADR-045).
 
 ## Existing Three Asset Code
 
 Inspect and reuse:
 
 ```text
-src/features/island-map/three/assets/
+react/src/features/island-map/three/assets/
 ```
 
 including:
@@ -50,7 +54,7 @@ Consolidate rather than replace.
 
 ## Environment Assets
 
-Allow `AssetType.ENVIRONMENT` to represent larger reusable environment GLBs.
+Allow an environment kind or category (today `AssetCategory.SCENERY`) to represent larger reusable environment GLBs.
 
 A location may be assembled from:
 

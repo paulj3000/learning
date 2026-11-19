@@ -98,15 +98,15 @@ SIMPLIFY after migrations.
 
 Do not remove current routes prematurely.
 
-## Amplify
+## Django backend
 
-### `amplify/data/resource.ts`
+### `lai/apps/catalog/`, `lai/apps/assets/`, `lai/apps/regions/`
 
 KEEP current models and semantics during early phases.
 
-Later add versioned location/adventure-definition persistence additively.
+Later add versioned location/adventure-definition persistence additively (ADR-047 revisions).
 
-Do not redefine `Asset`.
+Do not redefine `ContentAsset` or `AssetVersion`.
 
 Do not silently convert catalog `Adventure` into canonical executable content without an ADR and migration.
 

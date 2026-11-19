@@ -4,7 +4,7 @@
 
 Deliverables:
 - React + Vite + TypeScript scaffold;
-- Amplify Gen 2 scaffold;
+- backend scaffold (now Django + DRF in `lai/`, ADR-019);
 - strict TypeScript, linting, formatting;
 - Vitest and React Testing Library;
 - Playwright setup;
@@ -14,7 +14,7 @@ Deliverables:
 
 Exit criteria:
 - app runs locally;
-- Amplify sandbox starts;
+- the local backend starts;
 - checks pass in CI;
 - no product features yet.
 
@@ -26,7 +26,7 @@ Deliverables:
 - ParentProfile and ChildProfile schema;
 - owner authorization tests;
 - profile create/edit/deactivate;
-- age band, interests, reading mode, session limit;
+- age band, interests, reading mode (the session limit was later retired, ADR-053);
 - parent/child mode separation.
 
 ## Phase 2 — Island Shell
@@ -206,8 +206,8 @@ single-player graphical world and Story Engine are stable (roadmap section
 avatar/world engine in place.
 
 Deliverables:
-- `CoopSession` Amplify model, owner-authorized to the shared
-  `ParentProfile`, per `docs/DATA_MODEL.md` and ADR-006 in
+- `CoopSession` model, owned by the shared host `ParentProfile`
+  (now `lai/apps/game_sessions`), per `docs/DATA_MODEL.md` and ADR-006 in
   `docs/DECISIONS.md`;
 - `AdventureSession.coopSessionId` link, preserving per-child
   `AdventureAction`/`SkillEvidence` attribution — `CoopSession` never
@@ -465,7 +465,7 @@ built with Three.js: `PerspectiveCamera`, `Raycaster`-based interaction
 targeting, GLTF/GLB assets, and `AnimationMixer`-driven animation. This is
 a presentation-layer migration, not a rewrite of the Adventure Engine,
 Story Engine, Learning Engine, Mastery Engine, AI safety pipeline, or
-Amplify persistence — those stay exactly as delivered in Phases 3, 4, 12,
+backend persistence — those stay exactly as delivered in Phases 3, 4, 12,
 and 18–30. Only the world-rendering half of Phase 9's boundary
 (`docs/DECISIONS.md` ADR-007's layering rule) is being re-implemented.
 
@@ -612,10 +612,9 @@ flowers.
 Two things it inherits rather than solves. Its WF-10 gate carries the same
 outstanding Sprouts accessibility playtest (ADR-008), with higher stakes:
 the shrink into the hive is the most motion-sensitive transition on the
-island and it sits on the Pathfinder critical path. And its calm stop
-(storyboard beat 13) has no phase at all, because SC-7 established that
-`ChildProfile.sessionMinutes` is never read at play time — MVP scope item
-11 is app-wide work that has to exist before either region can stage it.
+island and it sits on the Pathfinder critical path. Its storyboard
+beat 13 (a calm stop) is retired: ADR-053 removed play-time limits, the
+calm stop and `ChildProfile.sessionMinutes`.
 
 ## Phases 35+ — Android Platform Integration
 
@@ -626,8 +625,8 @@ the phases below group that sequence at roadmap granularity and reference
 the source document's phase numbers for full detail rather than duplicating
 them here.
 
-The central rule, unchanged across every phase below: **Amplify Gen 2 is the
-source of truth. The web client and any future Android client are both
+The central rule, unchanged across every phase below: **the backend (today
+Django + DRF on PostgreSQL, ADR-019) is the source of truth. The web client and any future Android client are both
 clients of the same platform.** Android must not scrape, proxy through, or
 depend on the website; both connect directly to the same auth, data, APIs,
 storage, and server-side business logic (`docs/android/android.md` section
@@ -641,8 +640,8 @@ approval would even be sought.
 
 ### Phase 35 — Platform Audit and Boundary
 
-Covers `docs/android/android.md` Phases 0-1. Audit every current Amplify
-resource, Lambda function, and piece of learning/quest/XP logic currently
+Covers `docs/android/android.md` Phases 0-1. Audit every current backend
+resource, server function, and piece of learning/quest/XP logic currently
 embedded in the React web client, classifying each as `CLIENT_ONLY`,
 `SHARED_DATA`, `SERVER_LOGIC`, `STATIC_ASSET`, or `NEEDS_MIGRATION` in a new
 `docs/platform/CURRENT_PLATFORM_AUDIT.md`. Then draw a client-neutral
@@ -687,7 +686,7 @@ Adventure Engine and AI companion to every gameplay mutation.
 Per ADR-012 in `docs/DECISIONS.md`, this phase was scoped down to a single,
 real, deployed-shaped pilot rather than attempted in full: `submitAdventureAnswer`
 now decides adventure-answer correctness and the resulting session
-transition server-side (`amplify/functions/submit-adventure-answer/handler.ts`),
+transition server-side (today Django's answer endpoint, LAI-0601, `lai/apps/game_sessions/`),
 replacing the client-side `validateStepAnswer`/`getNextStepId` calls and
 direct `AdventureSession` write `useAdventureSession.ts` used to make. The
 other five write paths the Phase 35 audit flagged (skill mastery, rewards,
@@ -702,7 +701,7 @@ and what was not.
 
 **Complete (design only, per ADR-013 in `docs/DECISIONS.md`).** Covers
 `docs/android/android.md` Phases 7-9. `docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`
-records target Amplify Data schemas for `ItemDefinition`,
+records target schemas for `ItemDefinition`,
 `WorldDefinition`/`WorldContentPack`, and an asset catalog entry, grounded
 in this product's actual TypeScript content — no model added, no content
 migrated, no asset moved to S3, same "design now, migrate when a real
@@ -725,7 +724,7 @@ product's *own two existing web renderers*, let alone a third.
 **Complete — authorization classified for real; manifest/versioning
 designed only, per ADR-014 in `docs/DECISIONS.md`.** Covers
 `docs/android/android.md` Phases 10-12. Every model and custom operation
-in `amplify/data/resource.ts` is now classified against the `PUBLIC` /
+in the backend schema is classified against the `PUBLIC` /
 `AUTHENTICATED` / `OWNER` / `PARENT` / `CHILD` / `ADMIN` / `SYSTEM`
 taxonomy (`docs/AUTHORIZATION_REVIEW.md` section 0) — real, complete audit
 work, since the schema already exists. Both of Phase 12's acceptance
@@ -747,7 +746,7 @@ device registration and a requestId model designed only, per ADR-015 in
 `docs/platform/DEVICE_SYNC_AND_OFFLINE_SAFETY.md` audits this product's
 *existing* sync and retry behavior rather than assuming a gap: every
 model android.md's Phase 14 lists as needing to synchronize already reads
-fresh from Amplify Data with zero client-side caching, so sequential
+fresh from the backend with zero client-side caching, so sequential
 cross-device consistency already holds; only concurrent live push does
 not (one subscription anywhere in the codebase, `CoopSession.onUpdate`).
 A pass through every write path found the offline-retry idempotency Phase
@@ -771,12 +770,9 @@ Covers `docs/android/android.md` Phases 16-18.
 android.md's event vocabulary onto this product's already-typed models
 (`AdventureSession`, `AdventureAction`, `ChildQuestState`, etc.) rather
 than building a parallel `Event` log — a generic envelope would duplicate
-data already recorded, more weakly typed. `getNextLearningActivity`
-(`amplify/functions/get-next-learning-activity/`) is real, shipped code:
-the already-existing Adaptive Adventure Director (Phase 28) now runs
-server-side, shared by any client, reusing Phase 37's `ChildProfile.ownerSub`
-ownership check — `src/routes/ChildDashboard.tsx` calls it in place of the
-old client-side ranking. Parent-facing APIs (`getChildDashboard`,
+data already recorded, more weakly typed. The already-existing Adaptive Adventure Director (Phase 28) now runs
+server-side, shared by any client (today `lai/apps/education/director.py`),
+in place of the old client-side ranking. Parent-facing APIs (`getChildDashboard`,
 `getWeeklyProgress`) are audited rather than newly built: the underlying
 assembly functions are already pure and already read only
 owner-authorized models, so both of Phase 18's acceptance criteria's
@@ -790,16 +786,12 @@ Director's own migration.
 `docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 19-21.
 Unlike Phases 36-41, this phase's subject is billed AWS infrastructure,
 not application code, so nothing was provisioned: creating a real
-`staging`/`production` Amplify environment is an explicit,
-human-authorized infrastructure decision, not something to take on a
-documentation pass's authority. `docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md`
-records what already exists instead — `amplify.yml`'s
-`ampx pipeline-deploy --branch $AWS_BRANCH` already gives this repo
-Amplify Hosting's branch-per-environment model, so environment separation
-needs new branches, not new mechanism; Android client configuration is
-already exactly what `ampx generate outputs` (the same tooling
-`src/lib/amplify-config.ts`'s `amplify_outputs.json` already comes from)
-would produce, nothing to build. Cross-platform contract tests are listed,
+`staging`/`production` environment is an explicit, human-authorized
+infrastructure decision, not something to take on a documentation pass's
+authority. `docs/platform/ENVIRONMENTS_CONFIG_AND_CONTRACT_TESTS.md`
+records the configuration. Environments are now AWS CDK stacks per
+environment in `infra/` (the low-cost `dev` environment, ADR-055), deployed
+only with owner approval. Cross-platform contract tests are listed,
 not written — no second client exists to run them against — and their
 underlying claim (a write is visible to any other authenticated caller
 reading the same owner-scoped data) was already audited true by
@@ -810,15 +802,12 @@ construction in Phase 40's cross-device-sync work.
 **Complete — structured request logging shipped for real; performance and
 the remaining server-authoritative write paths audited, per new ADR-018
 in `docs/DECISIONS.md`.** Covers `docs/android/android.md` Phases 22-24.
-`amplify/functions/shared/requestLog.ts` records requestId, function name,
-childProfileId, platform/appVersion (from headers no client sends yet),
-result, error code, and duration on every invocation of the three custom
-Lambda resolvers, so production issues can be filtered by client and
-cross-device sync failures stay traceable — none of the three logged
-anything about their own invocations before this phase. GraphQL query
-shape, pagination, and asset sizes were reviewed
+Structured request logging records request id, route, result, error code
+and duration, so production issues can be filtered and cross-device sync
+failures stay traceable (today Django's privacy-safe access log, LAI-0208,
+ADR-025). Query shape, pagination, and asset sizes were reviewed
 (`docs/platform/OBSERVABILITY_PERFORMANCE_AND_SECURITY.md` section 2):
-every `.list()` call is already owner-scoped to one family at a data
+every list read is already owner-scoped to one family at a data
 volume where pagination has no real benefit yet, except the
 already-tracked admin-directory gap; every 3D asset is a placeholder Phase
 34 will replace. Security hardening re-audited, with exact file:line
@@ -858,7 +847,7 @@ does not grant that approval on its own.
 
 **Backend done to its tested API boundary (2026-10-25).** The owner asked for this directly. It
 is backend work only and is not the CLAUDE.md section 12 approval for a child-facing Android app.
-Unlike the Amplify-era plan above, the native app talks to the Django API (ADR-019, ADR-033):
+The native app talks to the Django API (ADR-019, ADR-033):
 child profile CRUD (deletion blocked), child home, region and adventure discovery, inventory, and
 the game-only WebView launch (ticket, then a scoped game session cookie). Contract:
 `docs/android/ANDROID_API_CONTRACT.md`. Next, in this order:
@@ -869,9 +858,9 @@ the game-only WebView launch (ticket, then a scoped game session cookie). Contra
 2. **Hosting** of `/game/` on the API origin. This is an AWS change and needs approval.
 3. **A Cognito app client for Android**, added to `COGNITO_ALLOWED_CLIENT_IDS`. This is an AWS
    change and needs approval.
-4. **Shared children:** the React app's move from Amplify `ChildProfile` to the Django children
-   API, and the Phase 11 data migration (ADR-019 gates). Until both happen, web and Android
-   children are separate records.
+4. **Shared children:** the React app uses the Django children API, so web and Android share
+   child records. Importing the retained legacy profiles from the retired backend is the Phase 11
+   data migration (ADR-019 gates, owner approval).
 5. **Child deletion** (LAI-0602, LAI-0209) and a starting route for step adventures, if Android
    should play them.
 

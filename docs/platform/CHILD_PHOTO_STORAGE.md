@@ -10,11 +10,8 @@ commits; not merged, not pushed):
 | LAI-0905 React client | Done | Vitest component and client tests | Ships with the next React build that uses the Django API | Open: browser check needs a test Cognito pool (gate A6) and the dev bucket |
 | LAI-0905 Android contract | Documented (`docs/android/ANDROID_API_CONTRACT.md`) | n/a | n/a | Open: no Android client exists in this repository |
 | LAI-0602 photo cleanup on child deletion (`lai/apps/users/deletion.py`) | Service done; API route enabled behind the recent sign-in guard (LAI-0209 branch) | pytest | n/a | Open: LAI-0209 live gate and merge |
-| LAI-1103 Amplify photo migration | Built in AMP-04: `manage.py migrate_amplify_child_photos` (runbook `AMPLIFY_STORAGE_CUTOVER.md`) | pytest with a stubbed read-only S3 client | none | Open: owner runs the inventory and copy (needs the LAI-1101 export, bucket read access and gate G9) |
-| LAI-1204 legacy Amplify storage retirement | Planned (section 11) | none | none | Nothing deleted, nothing changed |
 
-Decision: ADR-042 (`docs/DECISIONS.md`). Tasks: LAI-0904, LAI-0905, LAI-1002, LAI-1103,
-LAI-1204, AM-13 (`docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`).
+Decision: ADR-042 (`docs/DECISIONS.md`). Tasks: LAI-0904, LAI-0905, LAI-1002, AM-13 (`docs/DJANGO_MIGRATION_ROADMAP.md`, `tasks/TASK_TRACKER.md`).
 
 ## 1. Decision
 
@@ -26,47 +23,33 @@ subsystems, with different policies for access, publication, caching and retenti
 - `LaiChildPhotos-<env>` is new. It holds parent-uploaded child profile photos, which are a child's
   personal data. The child profile subsystem (`lai/apps/users`) owns it. The asset library never
   reads or writes it.
-- The existing Amplify bucket (`learningAdventureIslandMedia`, `amplify/storage/resource.ts`)
-  stays exactly as it is until migration and cutover are verified (section 9).
+- The retained legacy S3 bucket from the retired backend (`learningAdventureIslandMedia`) stays
+  exactly as it is (section 9).
 
 ## 2. Architecture
 
 ```text
-Existing Amplify S3 bucket (legacy, unchanged, still serving the Amplify app)
-        |
-        +-- assets/*  (admin-uploaded GLBs) --> manage.py import_assets --from-amplify
-        |                                              |
-        |                                              v
-        |                                   LaiAssetStorage-<env>
-        |                                   lai-assets-<env>-<account>-<region>
-        |                                              |
-        |                                              v
-        |                                   Django asset library (apps/assets)
-        |                                   published versions, resolver API, Three.js loader
-        |
-        +-- child-photos/<identity id>/*  -->  LAI-1103 photo migration (designed, not built)
-                                                       |
-                                                       v
-                                            LaiChildPhotos-<env>
-                                            lai-child-photos-<env>-<account>-<region>
-                                                       |
-                                                       v
-                                            Django child profiles (apps/users, ChildPhoto)
-                                            parent-authorized API, presigned GET only
+LaiAssetStorage-<env>                         LaiChildPhotos-<env>
+lai-assets-<env>-<account>-<region>           lai-child-photos-<env>-<account>-<region>
+        |                                             |
+        v                                             v
+Django asset library (apps/assets)            Django child profiles (apps/users, ChildPhoto)
+published versions, resolver API,             parent-authorized API, presigned GET only
+Three.js loader
 ```
 
-| | Asset bucket | Child photo bucket | Legacy Amplify bucket |
-|---|---|---|---|
-| Stack | `LaiAssetStorage-<env>` (`infra/lib/assetStorageStack.ts`) | `LaiChildPhotos-<env>` (`infra/lib/childPhotoStorageStack.ts`) | Amplify Gen 2 (`amplify/storage/resource.ts`) |
-| Owner in Django | `apps/assets` (asset library) | `apps/users` (child profiles) | none |
-| Content | Published game content: GLB/glTF today; textures, images, audio and animations when AM-13 adds them | One current photo per child profile | Child photos and admin-uploaded models |
-| Key layout | `assets/models/<asset id>/<version uuid>/model.<glb\|gltf>` | `children/<child uuid>/<photo uuid>` | `child-photos/<identity pool id>/<uuid>.jpg`, `assets/models/...` |
-| Who decides access | Publication state (draft, published, retired) | The owning parent, checked on every request | Cognito identity pool rules |
-| Delivery | Django-signed URLs (default) or presigned GET; cacheable, immutable | Presigned GET, 300 s by default, or the authenticated API route; never cached by shared caches | Amplify `getUrl` |
-| Publication workflow | Yes | **Never** | No |
-| CDN | None today; signed CloudFront later (AM-11) | **Never** | None |
-| Noncurrent versions kept | 30 days | **7 days** | Amplify default (not changed) |
-| IAM policy | `lai-django-asset-storage-<env>` on `assets/models/*` | `lai-django-child-photos-<env>` on `children/*` | Amplify-generated |
+| | Asset bucket | Child photo bucket |
+|---|---|---|
+| Stack | `LaiAssetStorage-<env>` (`infra/lib/assetStorageStack.ts`) | `LaiChildPhotos-<env>` (`infra/lib/childPhotoStorageStack.ts`) |
+| Owner in Django | `apps/assets` (asset library) | `apps/users` (child profiles) |
+| Content | Published game content: GLB/glTF today; textures, images, audio and animations when AM-13 adds them | One current photo per child profile |
+| Key layout | `assets/models/<asset id>/<version uuid>/model.<glb\|gltf>` | `children/<child uuid>/<photo uuid>` |
+| Who decides access | Publication state (draft, published, retired) | The owning parent, checked on every request |
+| Delivery | Django-signed URLs (default) or presigned GET; cacheable, immutable | Presigned GET, 300 s by default, or the authenticated API route; never cached by shared caches |
+| Publication workflow | Yes | **Never** |
+| CDN | None today; signed CloudFront later (AM-11) | **Never** |
+| Noncurrent versions kept | 30 days | **7 days** |
+| IAM policy | `lai-django-asset-storage-<env>` on `assets/models/*` | `lai-django-child-photos-<env>` on `children/*` |
 
 Neither Django policy can touch the other bucket's prefix, and production settings refuse a photo
 bucket name equal to the asset bucket name.
@@ -139,7 +122,7 @@ the API process and no dependency was added. If a pixel-level re-encode is wante
 example a server-side resize for clients that cannot do it), that is a separate decision: it
 would add an image library dependency.
 
-**Clients (LAI-0905).** The React Django build (`VITE_BACKEND=django`) sets `supportsPhotos: true`
+**Clients (LAI-0905).** The React profile store sets `supportsPhotos: true`
 and `photoWrite: 'after-save'` (`react/src/features/child-profile/djangoProfiles.ts`,
 `djangoPhotos.ts`):
 
@@ -152,8 +135,7 @@ and `photoWrite: 'after-save'` (`react/src/features/child-profile/djangoProfiles
   through the API client with the bearer token, so the token never goes to a host named in a
   response. The bytes become one object URL per child, reused for the same photo id and revoked
   on replace or remove.
-- Server errors map to the Amplify build's messages (`photoMessages.ts`).
-- Amplify builds keep `avatarPhoto.ts` and the `before-save` order unchanged until LAI-1301.
+- Server errors map to the shared photo messages (`photoMessages.ts`).
 
 Android's contract is in `docs/android/ANDROID_API_CONTRACT.md`, "Child profile photo".
 
@@ -212,7 +194,7 @@ the privacy review (G9); it is not decided by LAI-0602.
 
 **Scheduling.** Nothing runs the audit on a schedule yet, because the EC2 platform has no
 scheduler. Until LAI-1006 or LAI-1007 adds one, run it after any storage incident and before
-cutover:
+a production release:
 
 ```bash
 python manage.py child_photo_storage_audit            # report only
@@ -272,115 +254,19 @@ name, so both storage stacks must exist first.
 5. Release the Django image that contains migration `users.0005_child_photos` (the release runs
    `migrate`; the migration only adds a table).
 6. Verify on dev: upload, read (presigned URL), replace, delete as a test parent; the same calls
-   as a second parent get `404`; in a React build with `VITE_BACKEND=django` pointed at dev, the
+   as a second parent get `404`; in a React build pointed at dev, the
    LAI-0905 flows (new child with photo, replace, remove, a photo failure after save then retry); `child_photo_storage_audit` reports zero orphans and zero missing
    objects; `aws s3api get-public-access-block` and `get-bucket-policy` show the settings above.
 7. Repeat for `prod` only after the dev verification and a separate approval.
 
-## 9. The legacy Amplify bucket
+## 9. The retained legacy bucket
 
-It stays operational and untouched until LAI-1204: not renamed, emptied or deleted, and its
-CORS, policies, objects and Amplify deployments are not changed. This branch changes nothing
-under `amplify/`.
+The retained legacy S3 bucket from the retired backend (`learningAdventureIslandMedia`) still holds
+child photos and admin-uploaded models. Nothing in the repository reads or writes it, and it is not
+renamed, emptied, changed or deleted. Importing any of its data into Django, or deleting it, is a
+separate owner approval (CLAUDE.md section 18).
 
-**Every remaining reference, and what eventually replaces it:**
-
-| Reference | Use | Replaced by |
-|---|---|---|
-| `amplify/storage/resource.ts`, `amplify/backend.ts` (`storage`) | Defines the bucket and its access rules | LAI-1302 / LAI-1303, after LAI-1204 |
-| `amplify/data/resource.ts` (`ChildProfile.avatarPhotoKey`) | Path of the child's photo in the bucket | `users.ChildPhoto`; the value is input to LAI-1103 |
-| `react/src/features/child-profile/avatarPhoto.ts` | **Removed in AMP-04**: no Amplify Storage call; Django builds use `djangoPhotos.ts` (LAI-0905), Amplify builds offer no photo | Done (AMP-04) |
-| `react/src/features/child-profile/deletion.ts` | Deletes the legacy photo when an Amplify build deletes a child (the only Amplify Storage call left after AMP-04, delete only) | LAI-0602 calling `photos.delete_all_child_photos`; removed with `deletion.ts` (AMP-03, LAI-1301) |
-| `react/src/features/child-profile/amplifyProfiles.ts` | **AMP-04**: `supportsPhotos: false`, no photo URL; `photoWrite` removed from `ProfileStore` | LAI-1301 |
-| `react/src/features/assets/assetService.ts` | **AMP-04**: Django asset resolver only; no Amplify read of `assets/*` remains | Django asset library (ADR-035); objects via `migrate_amplify_asset_objects` |
-| `lai/apps/users/amplify_import.py` | Counts profiles whose photo stays in Amplify | `migrate_amplify_child_photos` (AMP-04) copies them |
-| Android | Uses the Django API only (ADR-036); no Amplify Storage reference was found in the repository | n/a |
-
-**Hazard for Phase 13.** Amplify Gen 2 adds an auto-delete-objects custom resource to its
-storage bucket (`docs/IAM_ROLE_AUDIT.md` section 3). Deleting the Amplify stack therefore empties
-the bucket. LAI-1302 must not run before LAI-1204 has confirmed migration, integrity and
-retention, and the roadmap now makes LAI-1302 depend on LAI-1204.
-
-## 10. LAI-1103: photo migration design
-
-Built in AMP-04 as `manage.py migrate_amplify_child_photos`; the operating runbook and the
-outcome names actually used are in `AMPLIFY_STORAGE_CUTOVER.md`. Differences from this design:
-photo ids are fresh UUIDs from the upload pipeline (idempotency comes from comparing the cleaned
-SHA-256 with the child's current photo, not from `uuid5` keys), and boto3's own retry policy
-handles transient S3 errors.
-
-Moves existing Amplify photos into `LaiChildPhotos-<env>` and `users.ChildPhoto`. It never
-modifies or deletes an Amplify object.
-
-**Inputs and prerequisites**
-
-- The LAI-1101 read-only export (`{"parentProfiles": [...], "childProfiles": [...]}`): each child
-  item's `id`, `ownerSub` (or its parent's `owner`) and `avatarPhotoKey`. Not built yet.
-- The profile import applied to the target database (`import_amplify_profiles`, LAI-CHILD-001):
-  Django children keep their Amplify ids, and parents resolve only by Cognito `sub`. This is the
-  identity-mapping contract, and it exists.
-- A read-only inventory of the Amplify bucket's `child-photos/` prefix: key, size, ETag, last
-  modified. Needs approved read access (G1, G7).
-- `LaiChildPhotos-<env>` deployed (section 8), and gate G9 (ParentConsent) before real family
-  photos move.
-
-**Mapping and ownership validation (planner, read-only)**
-
-1. For each exported child with `avatarPhotoKey`, find the Django child with the same id.
-   - No Django child: `child_not_imported`.
-   - Owner `sub` differs from the Django parent's `cognito_sub`: `owner_mismatch`, never copied.
-2. The key must match `child-photos/<identity id>/<uuid>.jpg` and be in the inventory.
-   - Otherwise `missing_object` or `invalid_key`.
-3. All of one parent's photos must share one identity id. A key under another parent's identity
-   id is `identity_conflict`, never copied. (The identity id is only a consistency check: the
-   child item's `avatarPhotoKey` is the authoritative link.)
-4. Inventory objects referenced by no child item: `unreferenced_object`. They are not migrated;
-   LAI-1204 reviews them.
-5. A Django child that already has a `CURRENT` photo uploaded after the import:
-   `django_photo_newer`. Django wins and nothing is copied.
-
-**Copy (with approval)**
-
-- Read the legacy object and check its integrity. Compute SHA-256; for a single-part object
-  compare the MD5 with the ETag. Mismatch: `integrity_failed`.
-- Run the same validation and metadata stripping as an upload (section 4). Failure:
-  `validation_failed`, reported and not dropped silently.
-- Deterministic photo id `uuid5(NAMESPACE, legacy key)`, so a re-run targets the same
-  `children/<child>/<photo>` key. `If-None-Match` makes an existing object a no-op, which is then
-  verified by SHA-256. Rows are created only where no `CURRENT` photo exists.
-- Transient S3 errors are retried with bounded exponential backoff. The run is resumable and
-  idempotent: safe to stop and repeat.
-- **Dry run** (default) reads only and writes a report. `--execute` copies.
-- **Report**: counts per outcome, total bytes, and run timing. It has no keys, names or subs,
-  and the per-child detail is in a local encrypted file, as for LAI-1101.
-
-**Verification before cutover**
-
-- The migrated count equals the planned `ok` count, and every migrated object's SHA-256 matches
-  its row.
-- A sample of children: the owning parent gets the photo through the API, and another parent gets
-  `404`.
-- `child_photo_storage_audit` shows zero orphans and zero missing objects.
-- Every non-`ok` outcome is reviewed and signed off by a person.
-
-**Rollback.** The migration only adds. Its photo ids are derived from legacy keys, so the
-`ChildPhoto` rows it created and their objects can be listed and removed exactly. The Amplify
-bucket was never touched, so the Amplify app keeps serving photos throughout. The Phase 12
-rollback (flip `VITE_BACKEND` back) needs nothing extra for photos.
-
-**Tracked work:** LAI-1103a (inventory), LAI-1103b (planner and dry run), LAI-1103c (copy, with
-approval), LAI-1103d (verification); `docs/DJANGO_MIGRATION_ROADMAP.md` Phase 11.
-
-## 11. LAI-1204: retiring the legacy Amplify storage
-
-Defined in `docs/DJANGO_MIGRATION_ROADMAP.md` Phase 12. It confirms that the asset import and the
-photo migration are verified, production cutover is accepted, React (and Android, where it
-applies) run on Django-backed storage, and no runtime reference to the bucket remains. It then
-reviews every remaining consumer, retention and backup need, and the `unreferenced_object` list,
-and writes a deletion plan with rollback considerations. Deletion happens only after explicit
-final approval, and never as a side effect of deleting the Amplify stack (section 9, hazard).
-
-## 12. Verification record
+## 10. Verification record
 
 | Check | Result (2026-10-31) |
 |---|---|

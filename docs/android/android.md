@@ -1,16 +1,18 @@
 # Learning Adventure Island
-# Amplify Gen 2 Platform Roadmap for Android Integration
+# Platform Roadmap for Android Integration
 
 ## Purpose
 
-This roadmap describes how to evolve the existing Learning Adventure Island Amplify Gen 2 website/backend into a shared application platform that supports both:
+This roadmap describes how to evolve the existing Learning Adventure Island website/backend into a shared application platform that supports both:
 
 - the existing web client
 - a new native Android client
 
 The central architectural rule is:
 
-> **Amplify Gen 2 is the source of truth. The website and Android application are clients of the same platform.**
+> **The platform (Django + DRF on PostgreSQL, with Cognito, S3 through Django, and Bedrock and Polly only through Django) is the source of truth. The website and Android application are clients of the same platform.**
+
+The current API contract for Android is `docs/android/ANDROID_API_CONTRACT.md` (the `/api/v1/` contract in `docs/ARCHITECTURE.md`).
 
 The Android application should not scrape, proxy through, or depend on the website itself for learning content. Both clients should connect directly to the same authentication, data, APIs, storage, game state, learning state, and server-side business logic.
 
@@ -29,12 +31,12 @@ The Android application should not scrape, proxy through, or depend on the websi
                  |                                   |
                  +-----------------+-----------------+
                                    |
-                             Amplify Gen 2
+                      Django + DRF (/api/v1/)
                                    |
         +-------------+------------+------------+-------------+
         |             |            |            |             |
-      Cognito       AppSync      Lambda         S3        Event Layer
-       Auth          Data       Functions      Assets       / Jobs
+      Cognito     PostgreSQL   SQS + Lambda     S3        Event Layer
+       Auth          Data        workers      Assets       / Jobs
         |             |            |            |
         +-------------+------------+------------+
                                    |
@@ -101,7 +103,7 @@ The backend should own:
 
 Learning content should not live primarily inside React components.
 
-Move reusable content into Amplify-backed models or versioned content files.
+Move reusable content into Django models or versioned content files.
 
 Examples:
 
@@ -141,10 +143,10 @@ Identify which parts of the existing project are currently embedded in the web f
 
 ## Tasks
 
-- Audit all current Amplify Gen 2 resources.
-- Audit `amplify/auth`.
-- Audit `amplify/data`.
-- Audit Lambda functions.
+- Audit all current backend resources.
+- Audit authentication.
+- Audit the data models.
+- Audit background functions.
 - Audit S3/storage usage.
 - Audit all learning data currently hardcoded in React.
 - Audit quest logic currently implemented in the browser.
@@ -154,7 +156,7 @@ Identify which parts of the existing project are currently embedded in the web f
 - Audit GLB and media asset paths.
 - Audit parent/child account relationships.
 - Audit authorization rules.
-- Document current API endpoints and GraphQL operations.
+- Document current API endpoints.
 
 ## Deliverable
 
@@ -187,20 +189,19 @@ NEEDS_MIGRATION
 
 ## Objective
 
-Separate the Amplify backend conceptually from the web application.
+Separate the backend conceptually from the web application.
 
 ## Recommended Structure
 
 ```text
 learning-adventure-island/
-├── amplify/
-│   ├── auth/
-│   ├── data/
-│   ├── functions/
-│   ├── storage/
-│   └── backend.ts
+├── lai/
+│   ├── config/
+│   └── apps/
 │
-├── src/
+├── infra/
+│
+├── react/src/
 │   └── web application
 │
 ├── docs/
@@ -329,7 +330,7 @@ Do not store most gameplay information inside Cognito attributes.
 
 Cognito identifies the account.
 
-Amplify Data stores application state.
+Django (PostgreSQL) stores application state.
 
 ## Acceptance Criteria
 
@@ -970,7 +971,7 @@ Never silently change response formats expected by released Android versions.
 
 ## Objective
 
-Rework Amplify authorization rules for a multi-client environment.
+Rework Django authorization rules for a multi-client environment.
 
 ## Data Classification
 
@@ -1095,7 +1096,7 @@ Web
  |
  | complete quest
  v
-Amplify
+Django API
  |
  | persist PlayerQuest
  | award reward
@@ -1334,7 +1335,7 @@ setLearningGoals()
 
 ## Objective
 
-Ensure Android never accidentally points to the wrong Amplify backend.
+Ensure Android never accidentally points to the wrong backend environment.
 
 ## Environments
 
@@ -1348,22 +1349,22 @@ production
 
 ```text
 Web local
-    -> Amplify development
+    -> development
 
 Android debug
-    -> Amplify development
+    -> development
 
 Android QA
-    -> Amplify staging
+    -> staging
 
 Web staging
-    -> Amplify staging
+    -> staging
 
 Play Store
-    -> Amplify production
+    -> production
 
 Production website
-    -> Amplify production
+    -> production
 ```
 
 ## Acceptance Criteria
@@ -1377,26 +1378,17 @@ Production website
 
 ## Objective
 
-Create a repeatable way for Android to obtain the correct Amplify configuration.
-
-Use Amplify Gen 2 client outputs generated from the existing backend.
-
-Example process:
-
-```bash
-npx ampx generate outputs \
-  --app-id <AMPLIFY_APP_ID> \
-  --branch <BRANCH_NAME> \
-  --out-dir <ANDROID_OUTPUT_DIRECTORY>
-```
+Create a repeatable way for Android to obtain the correct configuration for its environment:
+the Cognito user pool id, the app client id and the Django API origin (the same three values the
+web build reads as `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID` and
+`VITE_DJANGO_API_BASE`). Buckets are reached only through Django, so no bucket name is client
+configuration.
 
 Do not manually maintain duplicated:
 
 ```text
-AppSync endpoints
+API origins
 Cognito IDs
-Identity Pool IDs
-S3 bucket names
 regions
 ```
 
@@ -1493,7 +1485,7 @@ API errors by platform
 authentication failures
 sync failures
 Lambda latency
-AppSync errors
+API 5xx errors
 asset failures
 content-manifest failures
 unsupported app versions
@@ -1510,15 +1502,14 @@ unsupported app versions
 
 ## Objective
 
-Optimize Amplify usage for mobile traffic.
+Optimize platform usage for mobile traffic.
 
 Review:
 
 ```text
-GraphQL query sizes
+API response sizes
 nested queries
 pagination
-subscriptions
 Lambda cold starts
 S3 asset sizes
 image sizes
@@ -1617,7 +1608,7 @@ For each migration:
 Hardcoded web data
       |
       v
-Amplify model/content store
+Django model/content store
       |
       +----------------+
       |                |
@@ -1750,10 +1741,10 @@ docs/platform/
 
 # 33. Definition of Done
 
-The Amplify Gen 2 platform is ready for Android when:
+The platform is ready for Android when:
 
 1. The website is no longer the source of truth for learning content or gameplay state.
-2. Amplify owns authoritative application data.
+2. Django owns authoritative application data.
 3. Android can authenticate against the same Cognito environment.
 4. Android can retrieve the same child profiles as the web client.
 5. Android can retrieve lessons, adventures, quests, worlds, and assets.
@@ -1780,11 +1771,11 @@ The desired end state is:
              |                                           |
              +---------------------+---------------------+
                                    |
-                         Shared Amplify Gen 2 Backend
+                      Shared Django + DRF Backend
                                    |
         +--------------------------+--------------------------+
         |             |             |            |           |
-      Cognito       AppSync       Lambda         S3       Events
+      Cognito     PostgreSQL   SQS + Lambda     S3       Events
         |             |             |            |           |
         +--------------------------+--------------------------+
                                    |

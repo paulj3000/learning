@@ -36,12 +36,12 @@ DJANGO_ENV_VARS := DATABASE_URL DJANGO_SECRET_KEY DJANGO_DEBUG DJANGO_ALLOWED_HO
 $(foreach v,$(DJANGO_ENV_VARS),\
   $(if $(call dotenv,$(v)),$(eval $(DJANGO_ENV_TARGETS): export $(v) ?= $(call dotenv,$(v)))))
 
-.PHONY: help py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
+.PHONY: help docs-check py-install py-lint py-format py-format-check py-test py-test-db py-check js-check check up down
 .PHONY: django-check migrate-check migrate runserver createsuper web
 
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
-	@echo "js-check (typecheck, lint, format:check, test, build) | check (py-check + js-check)"
+	@echo "docs-check | js-check (ADR and docs checks, typecheck, lint, format:check, test, build) | check (py-check + js-check)"
 	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5442; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
 	@echo "web (Vite dev server on 5183, proxying /api to runserver on DJANGO_DEV_PORT)"
@@ -102,8 +102,14 @@ web:
 # with Django stubs can be chosen (see docs/IMPLEMENTATION_STATUS.md, LAI-0202).
 py-check: py-lint py-format-check django-check migrate-check py-test
 
+# Engineering documentation check (ADR-072): required files, status lines, links, template
+# sections and merge-conflict markers. Standard library only.
+docs-check:
+	$(PY) scripts/check_engineering_docs.py
+
 js-check:
 	npm run adr:check
+	$(MAKE) docs-check
 	npm run admin-preview:check
 	npm run typecheck
 	npm run lint

@@ -202,6 +202,14 @@ export interface AiGuardrailStackProps extends StackProps {
    * budget still exists both notify; AMP-08 removes the Amplify one.
    */
   monthlyBedrockBudgetUsd?: number;
+  /**
+   * The Region of the Django platform (EC2, logs, the `lai-django-alarms-<env>` topic) when this
+   * stack is deployed to a different Bedrock Region (ADR-064, `bedrockRegion`). The Guardrail must
+   * live in the Region Django calls Bedrock in; the Django log metric filters and their alarms
+   * must live beside the log group, so they are then created by the platform stack
+   * (`addAiMonitoring`) and this stack keeps the Guardrail, the IAM policy and the budget.
+   */
+  platformRegion?: string;
 }
 
 export const DEFAULT_MONTHLY_BEDROCK_BUDGET_USD = 50;
@@ -235,6 +243,8 @@ export class AiGuardrailStack extends Stack {
   readonly guardrail: bedrock.CfnGuardrail;
   readonly version: bedrock.CfnGuardrailVersion;
   readonly djangoPolicy: iam.ManagedPolicy;
+  /** False when the platform stack owns the AI log alarms (Bedrock in another Region). */
+  readonly monitorsLogs: boolean;
 
   constructor(scope: Construct, id: string, props: AiGuardrailStackProps) {
     super(scope, id, { terminationProtection: props.envName === 'prod', ...props });
@@ -313,10 +323,15 @@ export class AiGuardrailStack extends Stack {
       roles: [role],
     });
 
-    this.addMonitoring(props.envName, { ...DEFAULT_AI_ALARMS, ...props.alarms });
+    const platformRegion = props.platformRegion ?? region;
+    this.monitorsLogs = platformRegion === region;
+    if (this.monitorsLogs) {
+      addAiMonitoring(this, props.envName, { ...DEFAULT_AI_ALARMS, ...props.alarms });
+    }
     this.addBedrockBudget(
       props.envName,
       props.monthlyBedrockBudgetUsd ?? DEFAULT_MONTHLY_BEDROCK_BUDGET_USD,
+      platformRegion,
     );
 
     new CfnOutput(this, 'GuardrailId', {
@@ -337,8 +352,8 @@ export class AiGuardrailStack extends Stack {
    * Actual spend above 80% and forecast above 100% of the monthly Bedrock budget notify the
    * Django alarm topic, which trusts `budgets.amazonaws.com` (LaiDjangoEc2, AMP-05).
    */
-  private addBedrockBudget(env: string, monthlyUsd: number): void {
-    const topicArn = `arn:${Stack.of(this).partition}:sns:${Stack.of(this).region}:${Stack.of(this).account}:lai-django-alarms-${env}`;
+  private addBedrockBudget(env: string, monthlyUsd: number, topicRegion: string): void {
+    const topicArn = `arn:${Stack.of(this).partition}:sns:${topicRegion}:${Stack.of(this).account}:lai-django-alarms-${env}`;
     const notify = (notificationType: string, threshold: number) => ({
       notification: {
         notificationType,
@@ -359,181 +374,188 @@ export class AiGuardrailStack extends Stack {
       notificationsWithSubscribers: [notify('ACTUAL', 80), notify('FORECASTED', 100)],
     });
   }
+}
 
-  /**
-   * Metric filters over the Django log group and a few alarms (LAI-0708). Missing data is not
-   * breaching: no AI traffic is not an incident.
-   */
-  private addMonitoring(env: string, thresholds: typeof DEFAULT_AI_ALARMS): void {
-    const logGroup = logs.LogGroup.fromLogGroupName(this, 'DjangoLogs', `/lai/${env}/django`);
-    const topic = sns.Topic.fromTopicArn(
-      this,
-      'AlarmTopic',
-      `arn:${Stack.of(this).partition}:sns:${Stack.of(this).region}:${Stack.of(this).account}:lai-django-alarms-${env}`,
-    );
-    const metric = (
-      name: string,
-      where: Partial<Record<TurnField, string>>,
-      value: string,
-      statistic: string,
-      period: Duration,
-    ) => {
-      new logs.MetricFilter(this, `${name}Filter`, {
-        logGroup,
-        filterPattern: logs.FilterPattern.literal(turnPattern(where)),
-        metricNamespace: AI_METRICS_NAMESPACE,
-        metricName: name,
-        metricValue: value,
-      });
-      return new cloudwatch.Metric({
-        namespace: AI_METRICS_NAMESPACE,
-        metricName: name,
-        statistic,
-        period,
-      });
-    };
-    const m15 = Duration.minutes(15);
-    const turns = metric('Turns', {}, '1', 'Sum', Duration.minutes(30));
-    const fallbacks = metric(
-      'Fallbacks',
-      { source: 'source="FALLBACK"' },
-      '1',
-      'Sum',
-      Duration.minutes(30),
-    );
-    metric('Generations', { source: 'source="AI"' }, '1', 'Sum', m15);
-    const providerErrors = metric('ProviderErrors', { status: 'status="ERROR"' }, '1', 'Sum', m15);
-    const guardrailBlocks = metric(
-      'GuardrailBlocks',
-      { status: 'status="BLOCKED_GUARDRAIL"' },
-      '1',
-      'Sum',
-      Duration.hours(1),
-    );
-    const rateLimited = metric('RateLimited', { status: 'status="RATE_LIMITED"' }, '1', 'Sum', m15);
-    const latency = metric(
-      'LatencyMs',
-      { provider: 'provider="bedrock"' },
-      '$latency',
-      'Average',
-      m15,
-    );
-    metric('InputTokens', {}, '$inputTokens', 'Sum', Duration.hours(1));
-    const outputTokens = metric('OutputTokens', {}, '$outputTokens', 'Sum', Duration.days(1));
-    metric('EstimatedCostMicroUsd', {}, '$costMicroUsd', 'Sum', Duration.days(1));
-    const validationFailures = metric(
-      'ValidationFailures',
-      { status: 'status="INVALID*"' },
-      '1',
-      'Sum',
-      m15,
-    );
-    // SafetyEvents (AMP-05): the Django side of the Amplify SafetyEventCount by severity.
-    const safetyMetric = (
-      name: string,
-      where: Partial<Record<SafetyField, string>>,
-      period: Duration,
-    ) => {
-      new logs.MetricFilter(this, `${name}Filter`, {
-        logGroup,
-        filterPattern: logs.FilterPattern.literal(safetyPattern(where)),
-        metricNamespace: AI_METRICS_NAMESPACE,
-        metricName: name,
-        metricValue: '1',
-      });
-      return new cloudwatch.Metric({
-        namespace: AI_METRICS_NAMESPACE,
-        metricName: name,
-        statistic: 'Sum',
-        period,
-      });
-    };
-    safetyMetric('SafetyEvents', {}, Duration.hours(1));
-    const highSeverity = safetyMetric(
-      'HighSeveritySafetyEvents',
-      { severity: 'severity="HIGH"' },
-      Duration.minutes(5),
-    );
+/**
+ * Metric filters over the Django log group and a few alarms (LAI-0708). Missing data is not
+ * breaching: no AI traffic is not an incident. Created in `scope`'s Region, which must be the
+ * Django log group's: by AiGuardrailStack normally, by the dev platform stack when Bedrock runs
+ * in another Region (ADR-064).
+ */
+export function addAiMonitoring(
+  scope: Construct,
+  env: string,
+  thresholds: typeof DEFAULT_AI_ALARMS = DEFAULT_AI_ALARMS,
+): void {
+  const stack = Stack.of(scope);
+  const logGroup = logs.LogGroup.fromLogGroupName(scope, 'DjangoLogs', `/lai/${env}/django`);
+  const topic = sns.Topic.fromTopicArn(
+    scope,
+    'AlarmTopic',
+    `arn:${stack.partition}:sns:${stack.region}:${stack.account}:lai-django-alarms-${env}`,
+  );
+  const metric = (
+    name: string,
+    where: Partial<Record<TurnField, string>>,
+    value: string,
+    statistic: string,
+    period: Duration,
+  ) => {
+    new logs.MetricFilter(scope, `${name}Filter`, {
+      logGroup,
+      filterPattern: logs.FilterPattern.literal(turnPattern(where)),
+      metricNamespace: AI_METRICS_NAMESPACE,
+      metricName: name,
+      metricValue: value,
+    });
+    return new cloudwatch.Metric({
+      namespace: AI_METRICS_NAMESPACE,
+      metricName: name,
+      statistic,
+      period,
+    });
+  };
+  const m15 = Duration.minutes(15);
+  const turns = metric('Turns', {}, '1', 'Sum', Duration.minutes(30));
+  const fallbacks = metric(
+    'Fallbacks',
+    { source: 'source="FALLBACK"' },
+    '1',
+    'Sum',
+    Duration.minutes(30),
+  );
+  metric('Generations', { source: 'source="AI"' }, '1', 'Sum', m15);
+  const providerErrors = metric('ProviderErrors', { status: 'status="ERROR"' }, '1', 'Sum', m15);
+  const guardrailBlocks = metric(
+    'GuardrailBlocks',
+    { status: 'status="BLOCKED_GUARDRAIL"' },
+    '1',
+    'Sum',
+    Duration.hours(1),
+  );
+  const rateLimited = metric('RateLimited', { status: 'status="RATE_LIMITED"' }, '1', 'Sum', m15);
+  const latency = metric(
+    'LatencyMs',
+    { provider: 'provider="bedrock"' },
+    '$latency',
+    'Average',
+    m15,
+  );
+  metric('InputTokens', {}, '$inputTokens', 'Sum', Duration.hours(1));
+  const outputTokens = metric('OutputTokens', {}, '$outputTokens', 'Sum', Duration.days(1));
+  metric('EstimatedCostMicroUsd', {}, '$costMicroUsd', 'Sum', Duration.days(1));
+  const validationFailures = metric(
+    'ValidationFailures',
+    { status: 'status="INVALID*"' },
+    '1',
+    'Sum',
+    m15,
+  );
+  // SafetyEvents (AMP-05): the Django side of the Amplify SafetyEventCount by severity.
+  const safetyMetric = (
+    name: string,
+    where: Partial<Record<SafetyField, string>>,
+    period: Duration,
+  ) => {
+    new logs.MetricFilter(scope, `${name}Filter`, {
+      logGroup,
+      filterPattern: logs.FilterPattern.literal(safetyPattern(where)),
+      metricNamespace: AI_METRICS_NAMESPACE,
+      metricName: name,
+      metricValue: '1',
+    });
+    return new cloudwatch.Metric({
+      namespace: AI_METRICS_NAMESPACE,
+      metricName: name,
+      statistic: 'Sum',
+      period,
+    });
+  };
+  safetyMetric('SafetyEvents', {}, Duration.hours(1));
+  const highSeverity = safetyMetric(
+    'HighSeveritySafetyEvents',
+    { severity: 'severity="HIGH"' },
+    Duration.minutes(5),
+  );
 
-    const notify = new cwActions.SnsAction(topic);
-    const gte = cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD;
-    const alarm = (id: string, description: string, m: cloudwatch.IMetric, threshold: number) => {
-      const created = new cloudwatch.Alarm(this, id, {
-        alarmName: `lai-django-ai-${env}-${id.replace(/[A-Z]/g, (c, i) => (i ? '-' : '') + c.toLowerCase())}`,
-        alarmDescription: description,
-        metric: m,
-        threshold,
-        comparisonOperator: gte,
-        evaluationPeriods: 1,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      });
-      created.addAlarmAction(notify);
-      created.addOkAction(notify);
-    };
-    alarm(
-      'ProviderErrors',
-      'Django AI: Bedrock calls are failing (timeouts, throttling, access)',
-      providerErrors,
-      thresholds.providerErrorsPer15Min,
-    );
-    alarm(
-      'FallbackRate',
-      'Django AI: most turns are falling back to authored content',
-      new cloudwatch.MathExpression({
-        expression: `IF(turns >= ${thresholds.minTurnsForRate}, fallbacks / turns, 0)`,
-        usingMetrics: { turns, fallbacks },
-        period: Duration.minutes(30),
-      }),
-      thresholds.fallbackRate,
-    );
-    alarm(
-      'GuardrailBlocks',
-      'Django AI: unusual number of Guardrail interventions',
-      guardrailBlocks,
-      thresholds.guardrailBlocksPerHour,
-    );
-    alarm(
-      'TurnSpike',
-      'Django AI: request spike across all families',
-      new cloudwatch.Metric({
-        namespace: AI_METRICS_NAMESPACE,
-        metricName: 'Turns',
-        statistic: 'Sum',
-        period: Duration.hours(1),
-      }),
-      thresholds.turnsPerHour,
-    );
-    alarm(
-      'Latency',
-      'Django AI: average Bedrock latency is high',
-      latency,
-      thresholds.averageLatencyMs,
-    );
-    alarm(
-      'OutputTokens',
-      'Django AI: unexpected output token use today',
-      outputTokens,
-      thresholds.outputTokensPerDay,
-    );
-    alarm(
-      'RateLimited',
-      'Django AI: many turns are being rate limited or kill-switched',
-      rateLimited,
-      thresholds.rateLimitedPer15Min,
-    );
-    alarm(
-      'ValidationFailures',
-      'Django AI: model output is failing validation (a Bedrock behaviour change or a prompt or ' +
-        'schema regression); every failed turn already fell back to authored content',
-      validationFailures,
-      thresholds.validationFailuresPer15Min,
-    );
-    alarm(
-      'HighSeveritySafetyEvent',
-      'Django AI: a HIGH severity SafetyEvent was recorded; review it in Django Admin now ' +
-        '(docs/AI_AND_CHILD_SAFETY.md human review)',
-      highSeverity,
-      thresholds.highSeveritySafetyEventsPer5Min,
-    );
-  }
+  const notify = new cwActions.SnsAction(topic);
+  const gte = cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD;
+  const alarm = (id: string, description: string, m: cloudwatch.IMetric, threshold: number) => {
+    const created = new cloudwatch.Alarm(scope, id, {
+      alarmName: `lai-django-ai-${env}-${id.replace(/[A-Z]/g, (c, i) => (i ? '-' : '') + c.toLowerCase())}`,
+      alarmDescription: description,
+      metric: m,
+      threshold,
+      comparisonOperator: gte,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    created.addAlarmAction(notify);
+    created.addOkAction(notify);
+  };
+  alarm(
+    'ProviderErrors',
+    'Django AI: Bedrock calls are failing (timeouts, throttling, access)',
+    providerErrors,
+    thresholds.providerErrorsPer15Min,
+  );
+  alarm(
+    'FallbackRate',
+    'Django AI: most turns are falling back to authored content',
+    new cloudwatch.MathExpression({
+      expression: `IF(turns >= ${thresholds.minTurnsForRate}, fallbacks / turns, 0)`,
+      usingMetrics: { turns, fallbacks },
+      period: Duration.minutes(30),
+    }),
+    thresholds.fallbackRate,
+  );
+  alarm(
+    'GuardrailBlocks',
+    'Django AI: unusual number of Guardrail interventions',
+    guardrailBlocks,
+    thresholds.guardrailBlocksPerHour,
+  );
+  alarm(
+    'TurnSpike',
+    'Django AI: request spike across all families',
+    new cloudwatch.Metric({
+      namespace: AI_METRICS_NAMESPACE,
+      metricName: 'Turns',
+      statistic: 'Sum',
+      period: Duration.hours(1),
+    }),
+    thresholds.turnsPerHour,
+  );
+  alarm(
+    'Latency',
+    'Django AI: average Bedrock latency is high',
+    latency,
+    thresholds.averageLatencyMs,
+  );
+  alarm(
+    'OutputTokens',
+    'Django AI: unexpected output token use today',
+    outputTokens,
+    thresholds.outputTokensPerDay,
+  );
+  alarm(
+    'RateLimited',
+    'Django AI: many turns are being rate limited or kill-switched',
+    rateLimited,
+    thresholds.rateLimitedPer15Min,
+  );
+  alarm(
+    'ValidationFailures',
+    'Django AI: model output is failing validation (a Bedrock behaviour change or a prompt or ' +
+      'schema regression); every failed turn already fell back to authored content',
+    validationFailures,
+    thresholds.validationFailuresPer15Min,
+  );
+  alarm(
+    'HighSeveritySafetyEvent',
+    'Django AI: a HIGH severity SafetyEvent was recorded; review it in Django Admin now ' +
+      '(docs/AI_AND_CHILD_SAFETY.md human review)',
+    highSeverity,
+    thresholds.highSeveritySafetyEventsPer5Min,
+  );
 }

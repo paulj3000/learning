@@ -8,7 +8,7 @@ From the supplied source:
 - TypeScript 5.9
 - Vite 8
 - React Router 7
-- AWS Amplify Gen 2
+- Django + DRF backend on PostgreSQL, Amazon Cognito used directly from the browser
 - Three.js 0.185
 - Phaser 4 remains installed during the Three.js migration
 - Vitest
@@ -172,19 +172,15 @@ or the closest existing generic route, resolved through a shared world player.
 
 Do not add another dedicated page for a normal location.
 
-## Current Amplify Catalog
+## Current Catalog
 
-The schema already includes:
+Django's catalog (`lai/apps/catalog`) holds World, Location, Adventure, AdventureStep and
+Quest, loaded from the content export (`manage.py load_content`), and the asset library holds
+`ContentAsset` with `assets.AssetVersion` (ADR-035).
 
-```text
-Asset
-AssetVersion
-Island
-Adventure
-AdventureModel
-```
-
-Important: comments in `amplify/data/resource.ts` explicitly state that `Island` and `Adventure` are currently **catalog overlays**, not the canonical playable content.
+Important: the catalog started as an **overlay** on the source-controlled playable content
+(ADR-031); after import Django is authoritative and administrators edit it through versioned
+revisions (ADR-047), which an import never silently overwrites (CLAUDE.md section 20).
 
 Current `Adventure.slug` joins to source-controlled `ADVENTURE_TEMPLATES`.
 
@@ -194,7 +190,7 @@ Do not silently change this contract.
 
 ## Current Asset Model
 
-`Asset` / `AssetVersion` already exist and are admin-managed.
+`ContentAsset` / `AssetVersion` already exist and are managed in Django Admin (ADR-035, ADR-045).
 
 The new roadmap should extend this rather than create a duplicate asset table.
 

@@ -5,7 +5,7 @@ deployed AWS resource was changed to produce this document.
 
 Companion documents (this file is the entry point):
 
-- `docs/CURRENT_AWS_RESOURCE_INVENTORY.md` - every Amplify/AWS resource, classified.
+- `docs/CURRENT_AWS_RESOURCE_INVENTORY.md` - AWS resources outside `infra/`, classified.
 - `docs/IAM_ROLE_AUDIT.md` - IAM role evidence and the sources of role multiplication.
 - `docs/DJANGO_TARGET_ARCHITECTURE.md` - the proposed Django + React + Three.js shape.
 - `docs/DJANGO_MIGRATION_ROADMAP.md` - phased, numbered, reviewable tasks.
@@ -14,9 +14,8 @@ Companion documents (this file is the entry point):
 
 Authority: this document does not replace `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`,
 `docs/ROADMAP.md`, or `docs/platform/*`. Those remain authoritative for the system as it
-exists today. `CLAUDE.md` section 8 still names Amplify Gen 2 as the baseline "unless an
-architectural decision record changes it"; ADR-019 is only **Proposed**, so that baseline is
-unchanged until it is accepted.
+exists today. `CLAUDE.md` section 8 names the baseline "unless an architectural decision record
+changes it"; ADR-019 is now Accepted in part (`CLAUDE.md` section 18).
 
 **Superseded in part by ADR-020 (Accepted, 2026-10-17).** This assessment recommended keeping
 both Phaser and Three.js and deferring a `game/` package. Those recommendations are void:
@@ -29,7 +28,7 @@ Phaser count of "seven" is also corrected: the repository has eight Phaser world
 Evidence labels used throughout:
 
 - **[repo]** read from files in this repository.
-- **[synth]** read from the locally synthesized CDK output in `.amplify/artifacts/cdk.out`
+- **[synth]** read from a locally synthesized CloudFormation output of the backend at the time
   (gitignored, dated 27 Aug 2026, from one personal sandbox). Stale-able, not live.
 - **[deployed]** observed in a live AWS account. **None in this document**: the session was
   not permitted to run the AWS CLI, so no deployed state was queried.
@@ -37,13 +36,13 @@ Evidence labels used throughout:
 ## 1. Verdict in brief
 
 1. The migration is feasible and incremental, but it is **not a small backend swap**. The
-   hardest part is not Amplify. It is that the authoritative game logic is TypeScript that is
+   hardest part is not the backend framework. It is that the authoritative game logic is TypeScript that is
    shared between the browser and the Lambdas (section 5.3).
 2. The Three.js and Phaser rendering code is already separated from the backend. Scene
    modules never import an API. Backend access funnels through 16 files (15 `features/*/api.ts` plus `child-profile/deletion.ts`)
    plus one client factory (section 4). This is the best news in the audit.
 3. The IAM role count is real but modest per environment (40 roles [synth]) and is driven by
-   Amplify Data creating one role per model plus per-function roles (`IAM_ROLE_AUDIT.md`).
+   the data layer creating one role per model plus per-function roles.
    Django would remove that scaling factor. It is a side benefit, not the justification.
 4. The strongest reason to move is the product direction in
    `docs/platform/CURRENT_PLATFORM_AUDIT.md` section 3: six gameplay write paths are
@@ -52,7 +51,7 @@ Evidence labels used throughout:
    Lambda resolvers.
 5. The largest risks are (a) rewriting or relocating the shared TS domain logic, (b) child
    data authorization, which is deny-by-default and tested today, (c) the AI routes, which
-   are Amplify AI Kit specific, (d) data migration from DynamoDB, and (e) the multiplayer
+   were specific to the previous AI routes, (d) data migration from DynamoDB, and (e) the multiplayer
    mismatch (section 9). See section 14.
 
 ## 2. Current architecture (what actually exists)
@@ -64,19 +63,18 @@ Browser (React 19 + Vite 8 + TS strict, React Router 7)
   |-- Phaser 4 2D worlds (8 location views, scenes/*.ts)       <- ADR-007; retired by ADR-020
       (this line originally said 7; corrected by the ADR-020 review)
   |-- Three.js 0.185 first-person worlds (3 regions + sandbox)  <- ADR-008
-  |-- 16 features/*/api.ts  --> lib/data-client.ts --> generateClient<Schema>()
-  |-- features/auth/*       --> aws-amplify/auth (Cognito, email login)
-  |-- child-profile/avatarPhoto.ts --> aws-amplify/storage (S3)
+  |-- 16 features/*/api.ts  --> lib/data-client.ts --> generated GraphQL client
+  |-- features/auth/*       --> Cognito (email login)
+  |-- child-profile/avatarPhoto.ts --> S3
   v
-AWS Amplify Gen 2 (single TS backend, amplify/)
+Single TypeScript backend (since retired)
   |-- Cognito user pool + identity pool, group "Admins"
-  |-- AppSync GraphQL + 17 DynamoDB models (owner auth)
-  |-- 2 AI Kit generation routes -> Bedrock (Claude Haiku 4.5)
+  |-- GraphQL API + 17 DynamoDB models (owner auth)
+  |-- 2 AI generation routes -> Bedrock (Claude Haiku 4.5)
   |-- 3 Lambda resolvers (claimCoopSlot, submitAdventureAnswer, getNextLearningActivity)
   |-- 1 DynamoDB Streams Lambda (operationalMetrics)
   |-- S3 bucket (child profile photos only)
   |-- CloudWatch dashboard, 4 alarms, SNS topic, Bedrock budget
-Amplify Hosting: amplify.yml runs `ampx pipeline-deploy` then `vite build`.
 CI: .github/workflows/ci.yml (typecheck, lint, format, vitest, build, Playwright).
 ```
 
@@ -98,27 +96,6 @@ Two points differ from the premise in the migration brief and should be stated p
   points, and so on. Several of these exist only as TypeScript content, and some do not exist
   at all (section 6).
 
-## 3. Amplify dependency map
-
-| Layer | Depends on Amplify how | Depth | Replacement effort |
-|---|---|---|---|
-| `src/lib/amplify-config.ts` | `Amplify.configure(amplify_outputs.json)`, loaded via `import.meta.glob` | Shallow, one file | Low |
-| `src/lib/data-client.ts` | `generateClient<Schema>()`, types imported from `amplify/data/resource` | Shallow file, **deep type coupling** | Medium (types leak everywhere) |
-| 16 `features/*/api.ts` | 108 `client.models.*` calls, 2 `client.generations.*`, 2 `client.mutations.*`, 1 `client.queries.*` | The real seam | Medium, mechanical |
-| `features/coop/api.ts` | `CoopSession.onUpdate` GraphQL subscription | One realtime call site | Medium (needs a transport) |
-| `features/auth/*` (18 files) | `aws-amplify/auth`: signUp, signIn, confirm, reset, `fetchAuthSession`, `Hub` | Moderate | Medium (Cognito can stay) |
-| `features/child-profile/avatarPhoto.ts`, `deletion.ts` | `aws-amplify/storage` uploadData/getUrl/remove | Moderate | Low-medium |
-| `amplify/functions/*` (3 resolvers + metrics) | Import TS from `src/features/*` directly | Deep | **High** (section 5.3) |
-| `amplify/data/resource.ts` | Schema + auth rules + AI Kit routes | The system of record | High |
-| `amplify/backend.ts` (594 lines) | CDK patching of AI Kit roles, DynamoDB streams, alarms, budget | Deep, brittle | Replace (not port) |
-| `amplify.yml`, `ampx` scripts | Hosting build/deploy | Shallow | Low |
-| Tests | `api.test.ts` files mock the client | Moderate | Follow the seam |
-
-Not present (verified by search): `fetch(`/axios REST calls, `localStorage`/`sessionStorage`/
-IndexedDB, WebSocket/EventSource, any non-Amplify HTTP client. All backend I/O is the
-Amplify Data client. The existing audit already notes the API names are platform-neutral
-(`claimCoopSlot`, `generateCompanionTurn`, ...).
-
 ## 4. React/API boundary
 
 A centralized frontend API layer **partly exists**: every feature has an `api.ts` that wraps
@@ -129,11 +106,11 @@ calls three feature APIs directly (fine), and `lib/data-client.ts` is imported o
 
 What is missing relative to the FinWin target (`react/src/api/{client,auth,islands,...}.ts`):
 
-- one HTTP client with token injection and typed error mapping (there is none; the Amplify
+- one HTTP client with token injection and typed error mapping (there is none; the generated
   client does this implicitly);
 - one place for DTO types. Today, row types come from the generated `Schema`, so changing
   the backend changes types across the app. LAI-0501 introduces hand-owned DTO types first,
-  with the Amplify implementation behind them, so the Django swap is a per-module change.
+  so the Django swap is a per-module change.
 
 Difficulty: **moderate and mechanical**. Roughly 16 modules, each already a thin wrapper.
 The pure decision modules (`validators.ts`, `rewardTable.ts`, `relationship.ts`, ...) do not
@@ -152,7 +129,7 @@ GAME ENGINE (client-side, keep)
   src/features/island-map/{tilemap,zones,gridGeometry,decor}.ts  collision/zone geometry
   src/features/interaction/               interaction library (client UI mechanics)
 
-GAME PLATFORM (state + rules; today split between client and Amplify)
+GAME PLATFORM (state + rules; today split between client and backend)
   adventures/engine, quests, rewards, mastery, npc, discovery, director, coop, story
   = pure decision modules (client+Lambda) + api.ts write paths (client-authoritative)
 
@@ -165,7 +142,7 @@ GAME CONTENT (TypeScript modules in the bundle)
 ### 5.2 How clean is it?
 
 - **Engine to backend: clean.** No file in `island-map/three/*.ts`, `island-map/scenes/*.ts`,
-  or the geometry modules imports an `api.ts`, the data client, or `aws-amplify`. Only the
+  or the geometry modules imports an `api.ts`, the data client, or a backend SDK. Only the
   React wrappers (`*WorldView.tsx`, `NpcConversation.tsx`, `DiscoveryAction.tsx`) and
   `useExplorableWorld.ts` do. The engine communicates through typed events
   (`worldEngineEvents.ts`, `useSandboxBridge.ts`, `npcApproachBridge.ts`).
@@ -177,9 +154,9 @@ GAME CONTENT (TypeScript modules in the bundle)
 
 ### 5.3 The decisive finding: shared TypeScript logic
 
-`amplify/functions/submit-adventure-answer/handler.ts` imports `getAdventureTemplate`,
+The `submit-adventure-answer` Lambda handler imports `getAdventureTemplate`,
 `validateStepAnswer`, `getNextStepId`, `nextHintLevel`, etc. from `src/features/adventures/...`.
-`get-next-learning-activity/handler.ts` imports the director (`rankAdventures`,
+The `get-next-learning-activity` handler imports the director (`rankAdventures`,
 `reachableAdventures`), curriculum queries, and mastery summaries from `src/features/...`.
 That is deliberate and good today (one implementation, unit-tested once). It means:
 
@@ -206,7 +183,7 @@ and golden-vector task before any Django write endpoint.
 
 ## 6. Existing data model (actual persistent entities)
 
-Source: `amplify/data/resource.ts` [repo], DynamoDB-backed via AppSync. All 17 models use
+Source: the backend data schema at the time [repo], DynamoDB-backed via GraphQL. All 17 models use
 `allow.owner()` (Cognito `sub` claim stored in the `owner` field). Models marked Admin also
 grant `allow.group('Admins').to(['read'])`. `CoopSession` uses
 `ownerDefinedIn('hostParentProfileId').identityClaim('sub')`.
@@ -254,35 +231,35 @@ structures: `requestLog.ts` log shape; `operationalMetrics` EMF output.
 
 ## 7. Authentication
 
-- **Current [repo]:** `amplify/auth/resource.ts` = `defineAuth({ loginWith: { email: true }, groups: ['Admins'] })`.
-  Initialization is `src/lib/amplify-config.ts` (from `amplify_outputs.json`). Frontend uses
-  `aws-amplify/auth` in `AuthContext.tsx`, `SignInForm`, `SignUpForm`, `ConfirmSignUpForm`,
-  `ForgotPasswordForm`, `accountSettings.ts`, `AccountSettings.tsx`. Admin is read from the
-  ID token claim `cognito:groups` containing `Admins` (client-side only, for UI); real
-  enforcement is the AppSync `allow.group('Admins')` rules. Child profiles are **not**
+- **Current [repo]:** a Cognito user pool with email login and the group `Admins`, configured
+  from a generated outputs file. The frontend's Cognito client is used in `AuthContext.tsx`,
+  `SignInForm`, `SignUpForm`, `ConfirmSignUpForm`, `ForgotPasswordForm`, `accountSettings.ts`,
+  `AccountSettings.tsx`. Admin is read from the ID token claim `cognito:groups` containing
+  `Admins` (client-side only, for UI); real enforcement is the backend's
+  `allow.group('Admins')` rules. Child profiles are **not**
   Cognito identities (ADR-001); `ChildProfile.ownerSub` records the parent's sub.
-  Sandbox pool region in the local `amplify_outputs.json` is `us-west-1`. Production
+  Sandbox pool region in the local outputs file is `us-west-1`. Production
   pool and region are **unknown** (see `CURRENT_AWS_RESOURCE_INVENTORY.md`).
 - **Proposed:** keep Cognito unchanged; Django validates the Cognito JWT (JWKS, `iss`, `aud`/
   `client_id`, `token_use`), maps `sub` to a local `ParentAccount`, maps `cognito:groups`
-  to Django permission checks, and never stores passwords. The frontend keeps
-  `aws-amplify/auth` (or `amazon-cognito-identity-js`) for the sign-in UX only and attaches
-  the access/ID token to the HTTP client. Detail in `DJANGO_TARGET_ARCHITECTURE.md` section 4.
-- **Risks:** token type choice (ID vs access token; Amplify sends the ID token to AppSync by default),
-  group claim availability, per-child gate being client-side only, deletion of a Cognito
-  user vs the local record, and keeping `amplify_outputs.json` out of the build once Amplify
-  Data is gone (Cognito config must come from somewhere else).
-- Important: when the Amplify backend is retired, the Cognito pool is **owned by the Amplify
-  CloudFormation stack**. Retiring the stack would delete the pool and every parent account.
+  to Django permission checks, and never stores passwords. The frontend keeps a
+  Cognito client for the sign-in UX only and attaches the access/ID token to the HTTP client
+  (as built: `react/src/lib/cognito`, direct SRP, no SDK). Detail in `DJANGO_TARGET_ARCHITECTURE.md` section 4.
+- **Risks:** token type choice (ID vs access token), group claim availability, per-child gate
+  being client-side only, deletion of a Cognito user vs the local record, and where the Cognito
+  config comes from (as built: Vite env vars `VITE_COGNITO_USER_POOL_ID`,
+  `VITE_COGNITO_CLIENT_ID`).
+- Important: the Cognito pool is **owned by a retained CloudFormation stack from the retired
+  backend**. Deleting that stack would delete the pool and every parent account.
   A pool import/detach plan is mandatory (LAI-0405, called out as a Tier-1 risk).
 
 ## 8. Storage
 
-- **Current [repo]:** one Amplify Storage bucket (`learningAdventureIslandMedia`), path
+- **Current [repo]:** one S3 bucket (`learningAdventureIslandMedia`), path
   `child-photos/{entity_id}/*`, identity-scoped (`allow.entity('identity')`), 256 px JPEG
   re-encoded in the browser (`avatarPhoto.ts`). Nothing else uses S3.
 - **Game assets are not in S3 today.** All 78 glTF files are static files in `public/models/`,
-  served by Vite/Amplify Hosting, generated by `scripts/generate-world-assets.ts`
+  served by Vite and the static host, generated by `scripts/generate-world-assets.ts`
   (placeholders). There are no textures, audio files, thumbnails, or user-generated 3D
   assets in the repo. `StoryArtifact` (child-created) is JSON in DynamoDB, not S3.
 - **Proposed:** keep S3 for binaries (child photos migrate to a private bucket with
@@ -291,7 +268,7 @@ structures: `requestLog.ts` log shape; `operationalMetrics` EMF output.
   hash, size, LOD links, animation clip list (what `manifest.ts` already models), and
   placement/decor tables. Binary data never goes in the database. Do not move assets in
   Phase 0; moving placeholders buys nothing until the asset pipeline (Phase 34) is real.
-- Identity-pool scoping disappears: the Amplify `entity('identity')` rule (per-identity-id
+- Identity-pool scoping disappears: the `entity('identity')` rule (per-identity-id
   prefix) must be replaced by Django-authorized presigned URLs keyed by `ChildProfile` id.
   Existing objects are keyed by identity-pool id, so a key-rewrite or lookup table is needed
   (data-migration risk).
@@ -338,8 +315,7 @@ AI audit detail beyond what the product's privacy docs allow (`docs/PRIVACY_AND_
 | KEEP BUT RELOCATE | `src/**` into `react/src/**`; engine modules into `game/` (**mandatory under ADR-020**, LAI-2101 and 2102; the import graph is made acyclic as part of the extraction, not as a precondition) |
 | WRAP / ADAPT | 16 `features/*/api.ts` behind `react/src/api/*`; `AuthContext` token source; `useCoopPresence` transport; `avatarPhoto.ts` upload path |
 | REFACTOR DURING MIGRATION | Move authoritative checks out of `api.ts` write paths into Django services (rewards, quests, mastery, NPC, discovery); content modules to exported versioned JSON; admin directory `.list()` (unbounded cross-family scan) to a paginated endpoint |
-| REPLACE | `amplify/data/resource.ts` (to Django models + DRF); 3 resolver Lambdas (to Django services); AI Kit routes (to a Django service calling Bedrock); `operationalMetrics` + stream wiring + custom-resource ARN lookups (to application logging/CloudWatch metrics); Amplify Storage rules |
-| REMOVE AFTER CUTOVER | `amplify/**`, `amplify.yml`, `amplify_outputs.json` handling, `aws-amplify` data/storage deps, `ampx` scripts, `@aws-amplify/backend*`, `aws-cdk-lib` dev dep in this package, DynamoDB tables and AppSync API |
+| REPLACE | The backend data schema (to Django models + DRF); 3 resolver Lambdas (to Django services); AI generation routes (to a Django service calling Bedrock); `operationalMetrics` + stream wiring + custom-resource ARN lookups (to application logging/CloudWatch metrics); storage access rules (to Django-authorized presigned URLs) |
 
 ## 12. Admin/auth/data deviations from the FinWin layout
 
@@ -352,20 +328,19 @@ decisions in `docs/DECISION_LOG.md`.
 
 | Target path | Current LAI state | Recommendation |
 |---|---|---|
-| `react/` | App lives in `src/`, `index.html`, `vite.config.ts`, `public/` at repo root | Move to `react/` (LAI-0201). Git-mv to preserve history. CI and `amplify.yml` paths must change in the same task. |
+| `react/` | App lives in `src/`, `index.html`, `vite.config.ts`, `public/` at repo root | Move to `react/` (LAI-0201). Git-mv to preserve history. CI paths must change in the same task. |
 | `game/` | Engine code lives under `src/features/island-map/{three,scenes}` and is imported by React wrappers | **[superseded] was "Defer".** ADR-020 makes `game/` a first-class package, extracted after LAI-0201 (LAI-2101, 2102). The Phase 0 risk (breaking 175 test files) is handled by moving files without behaviour change and keeping tests green per step. LAI-0203's boundary guard is the interim protection. |
 | `lai/` (Django) | Absent | Create in Phase 2. Name `lai/` mirrors FinWin's `fin/`. |
 | `lai/config/settings/` | Absent | `base/local/production/test` as in FinWin. |
 | `lai/apps/` | Absent | Domain apps, derived from section 6, not the brief's list (section 13). |
-| `infra/` | `amplify/` holds IaC | New CDK TypeScript app in `infra/`. Keep `amplify/` untouched until cutover. |
-| `ci/`, `deploy/` | `.github/workflows/ci.yml`, `amplify.yml` | Add in Phase 9. Note FinWin keeps CI scripts in `ci/` and workflow files in `.github`. |
+| `infra/` | Absent | New CDK TypeScript app in `infra/`. |
+| `ci/`, `deploy/` | `.github/workflows/ci.yml` | Add in Phase 9. Note FinWin keeps CI scripts in `ci/` and workflow files in `.github`. |
 | `tests/` | `e2e/smoke.spec.ts`, per-feature `*.test.ts` | Keep per-feature unit tests colocated. `tests/` holds cross-system contract and golden-vector tests only. |
 | `tasks/` | Absent | Created now with `TASK_TRACKER.md`. IDs `LAI-XXXX`. CSV and checker deferred to LAI-0102. |
 | `docs/` | Present, 25 files plus `platform/` | Keep. Do not rename `DECISIONS.md` to `DECISION_LOG.md`; this repo's ADR sequence (ADR-001 to ADR-018) is the authority. |
 
 Deviation summary: (1) `game/` deferred [superseded by ADR-020: now first-class], (2) `docs/DECISIONS.md` kept as the decision log,
-(3) per-feature tests stay colocated, (4) `amplify/` stays until cutover, (5) repo-root
-`CLAUDE.md` is retained and extended rather than replaced.
+(3) per-feature tests stay colocated, (4) repo-root `CLAUDE.md` is retained and extended rather than replaced.
 
 ## 13. Proposed Django domains (derived, not imposed)
 
@@ -399,26 +374,26 @@ through service functions, not model imports, except FK targets to `users.ChildP
    validators and Python authoritative validators would show children inconsistent
    feedback or reject correct answers. Mitigate with golden vectors and a content export
    before any write endpoint.
-2. **Child-data authorization.** Amplify gives deny-by-default owner rules enforced by
-   AppSync. In Django, every queryset must be scoped; one forgotten filter is a cross-family
+2. **Child-data authorization.** The retired backend gave deny-by-default owner rules
+   enforced by its GraphQL layer. In Django, every queryset must be scoped; one forgotten filter is a cross-family
    data leak about children under 8. Mitigate with a mandatory scoped base manager/viewset,
    and cross-tenant tests for every endpoint (the FinWin "tenant authorization" gate).
-3. **Cognito stack ownership.** The pool is a resource of the Amplify stack. Deleting the
-   stack deletes all parent accounts. Needs a documented detach/import procedure and a
+3. **Cognito stack ownership.** The pool is a resource of a retained stack from the retired
+   backend. Deleting that stack deletes all parent accounts. Needs a documented detach/import procedure and a
    rehearsal before cutover. Highest consequence.
-4. **AI routes.** `generateCompanionTurn`/`generateTutorTurn` rely on AI Kit, which already
-   needed a custom IAM patch (`backend.ts`). A boto3 Bedrock replacement must reproduce the
+4. **AI routes.** `generateCompanionTurn`/`generateTutorTurn` relied on a managed generation
+   route, which already needed a custom IAM patch. A boto3 Bedrock replacement must reproduce the
    fixed system prompts, token limits, schema validation, safety checks, audit rows, and
    authored fallbacks. The fallback-on-any-error behavior currently masked a deployed
-   `AccessDeniedException` (see `backend.ts` comment); the new service needs explicit
+   `AccessDeniedException`; the new service needs explicit
    failure metrics.
 5. **Data migration and parity.** DynamoDB string arrays and JSON blobs to relational rows;
    no deployed data volume is known; "pilot" status means real families' children data may
    exist. Needs an export, dry-run import, row-count/checksum parity, and a freeze window.
 
 Also notable: deployed state is unverified (this assessment had no AWS access), and a
-possible schedule trap is treating the Android-oriented ADR-010 ("one Amplify platform")
-as still current; ADR-019 must explicitly supersede it if accepted.
+possible schedule trap is treating the Android-oriented ADR-010 ("one platform") in its
+original form as still current; ADR-019 must explicitly supersede it if accepted.
 
 ## 15. What should NOT be migrated
 
@@ -444,12 +419,12 @@ operational, data, and security items gated. They are recorded as gates G1 to G5
 and each remains **open**: Q1 and Q2 (G1), Q3 (G3), Q4 (G4), Q5 (G5). None of them blocks
 LAI-0201, a pure rename. They block the tasks listed beside each gate in ADR-019.
 
-1. Is there a **production Amplify app** (branch `main`) with real family data, or only
-   sandboxes? `amplify.yml` and the "pilot" docs imply a hosting app exists; the repo cannot
+1. Is there real family data in the retained legacy DynamoDB tables from the retired backend,
+   or only sandbox data? The "pilot" docs imply a hosted app existed; the repo cannot
    confirm it. Decides whether Phase 10 (data migration) is real or a no-op.
 2. Which AWS account/region hosts it? (Local sandbox outputs say `us-west-1`.)
 3. Should Android (ADR-010, `docs/android/android.md`) remain a goal? Django makes a REST
-   API a natural fit, but ADR-010 and Phases 35-45 are written around Amplify.
+   API a natural fit, but ADR-010 and Phases 35-45 were written around the previous backend.
 4. Option 1 vs 2 in section 5.3 (rules in Python vs Node service).
 5. Is DynamoDB-to-Postgres data loss on pre-pilot sandbox data acceptable (no migration)?
 
@@ -459,6 +434,6 @@ LAI-0201, a pure rename. They block the tasks listed beside each gate in ADR-019
 - Starting tree: clean (`git status` empty).
 - `npm test` at start: 175 files, 1,578 tests, all passing (~90 s).
 - AWS CLI not available to this session; no deployed inspection performed.
-- No application source, `amplify/`, `package.json`, or CI file was modified.
+- No application source, backend, `package.json`, or CI file was modified.
 - ADR-020 review (2026-10-17): docs only. Counted eight Phaser `LocationScene` subclasses and
   ten files importing `phaser`; no test or build was run because no code changed.

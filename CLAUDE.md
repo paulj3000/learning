@@ -1,7 +1,58 @@
 # Learning Adventure Island — Claude Project Instructions
 
+## 0. Start here (mandatory for every agent session)
+
+Status: Mandatory policy (ADR-072, accepted by the owner 2026-11-18). These standards are the final authority after the owner.
+
+This file is the entry point. It keeps the product rules (sections 1 to 20). How agents work is in
+[AGENTS.md](AGENTS.md); detailed policy is in [docs/engineering/](docs/engineering/README.md) and
+adventure standards in [docs/adventures/](docs/adventures/README.md). Precedence when sources
+disagree: owner decision, then these standards (this file, `AGENTS.md`, `docs/engineering/`,
+`docs/adventures/`), then accepted ADRs ([docs/DECISIONS.md](docs/DECISIONS.md)) and every other
+document. An older document that conflicts with the standards is stale and is corrected to match.
+Report conflicts; never resolve them silently.
+
+Before a task, read `AGENTS.md` and the documents that apply:
+
+| Topic | Read |
+|---|---|
+| Lifecycle, approvals | [development-workflow](docs/engineering/development-workflow.md), [definition-of-done](docs/engineering/definition-of-done.md) |
+| Architecture, code | [architecture-rules](docs/engineering/architecture-rules.md), [coding-standards](docs/engineering/coding-standards.md) |
+| Tests | [testing-policy](docs/engineering/testing-policy.md) (cadence canonical in [TESTING_STRATEGY](docs/TESTING_STRATEGY.md)) |
+| Security, privacy | [security-policy](docs/engineering/security-policy.md), [AI_AND_CHILD_SAFETY](docs/AI_AND_CHILD_SAFETY.md) |
+| Git, worktrees, merges | [branch-policy](docs/engineering/branch-policy.md), [integration-policy](docs/engineering/integration-policy.md), [multi-agent-workflow](docs/engineering/multi-agent-workflow.md) |
+| Trello | [trello-workflow](docs/engineering/trello-workflow.md) |
+| Releases, AWS | [release-policy](docs/engineering/release-policy.md) |
+| Docs, ADRs | [documentation-policy](docs/engineering/documentation-policy.md), [ADR template](docs/engineering/templates/adr.md) |
+| Adventures | [adventure-standard](docs/adventures/adventure-standard.md) and the jumping, scoring, accessibility, asset, NPC, audio and educational-content standards |
+
+Mandatory rules in brief:
+- **Stack**: React 19 + TypeScript strict + Vite, Three.js as the only gameplay renderer, Django +
+  DRF on PostgreSQL 16, Cognito (verified by Django), Bedrock and Polly only through Django, Django
+  Admin for all staff authoring. Amplify is retired; never reintroduce it. Never reintroduce
+  Phaser (sections 8, 18 to 20).
+- **Restrictions**: work only in your own worktree and branch; never commit to `main`; never merge,
+  deploy, make live AWS calls or change deployed resources without explicit owner authorization;
+  no new framework or runtime dependency without approval; reserve ADR numbers in the `main`
+  registry first; stay in scope.
+- **Testing**: unit tests by path during development; Playwright, browser, end-to-end, live AWS,
+  full lint/format and build gates only at authorized merge readiness. Never fabricate results.
+- **Trello**: claim the ticket, record branch, worktree, baseline SHA and evidence; never mark
+  owner acceptance or Complete.
+- **Security**: no secrets in source, docs, fixtures or Trello; no child names, free text, audio or
+  identifiers in logs; deny-by-default authorization, tested.
+- **Adventures**: Realm, Adventure, Quest, Challenge hierarchy; jumping is a shared engine
+  capability an adventure may enable (not required; Storykeeper Castle and the Storybook adventures
+  do not need it), and where used it reuses the shared controller with an accessible non-jump
+  route; reuse the shared engine and managers; no time limits, no manipulative rewards, no
+  arithmetic exit gates.
+- **Done**: an agent reaches Development Complete only; integration, owner acceptance, merge and
+  deployment are separate gates. Finish with the completion report
+  ([template](docs/engineering/templates/completion-report.md)) and update
+  `docs/IMPLEMENTATION_STATUS.md`.
+
 ## 1. Mission
-Build **Learning Adventure Island**, an AI-powered learning adventure world for children ages **3–8** on **React + Three.js, Django REST and PostgreSQL, Amazon Cognito, and Amazon Bedrock** (section 8; Amplify is retired, section 18).
+Build **Learning Adventure Island**, an AI-powered learning adventure world for children ages **3–8** on **React + Three.js, Django REST and PostgreSQL, Amazon Cognito, and Amazon Bedrock** (sections 8 and 18).
 
 The product is not a collection of worksheets or a generic chatbot. It is a living island where children learn by solving meaningful problems, helping characters, creating things, and changing the world.
 
@@ -145,15 +196,16 @@ Unless an architectural decision record changes it, use:
 - Vitest and React Testing Library
 - Playwright for critical user journeys
 
-### Backend and AWS (ADR-019; Amplify retired, AMP-01 to AMP-08)
+### Backend and AWS (ADR-019)
 - Django + Django REST Framework in `lai/` on PostgreSQL 16 for application data and rules
 - Amazon Cognito for parent accounts: the existing user pool and web app client, used directly
-  from the browser (`react/src/lib/cognito`) and verified by Django; no Amplify SDK
+  from the browser (`react/src/lib/cognito`) and verified by Django
 - Amazon S3 through Django for approved media, assets and child photos
 - Amazon Bedrock (and Polly for speech) called only by Django, with fake providers for local work
 - Django Admin for administrators and content designers
 - AWS CDK in `infra/` for the Django EC2 platform and the S3/CloudFront site; deploys only with
   explicit owner approval
+- SQS + Lambda for background processing
 - CloudWatch for logs and operational metrics
 
 ### Repository expectations
@@ -268,9 +320,9 @@ Do not implement until separately approved:
 
 ## 14. Work Process for Claude
 
-For each implementation request:
+The full lifecycle is [docs/engineering/development-workflow.md](docs/engineering/development-workflow.md). For each implementation request:
 
-1. Read this file and relevant documents in `docs/`.
+1. Read this file, `AGENTS.md` and the relevant documents in `docs/`.
 2. Inspect the current repository before proposing files.
 3. State the acceptance criteria being implemented.
 4. Make the smallest coherent change that completes the feature.
@@ -279,18 +331,16 @@ For each implementation request:
    relevant unit tests, typechecking when TypeScript changed, and focused regression tests.
    Linting, formatting, full suites, builds, browser/WebGL and deployment checks run at merge
    or release readiness, when explicitly requested.
-7. Report:
-   - files created;
-   - files changed;
-   - tests run and results;
-   - remaining risks or TODOs.
+7. Report (completion report template): files created and changed, tests run and results,
+   remaining risks or TODOs, deferred checks.
 8. Update `docs/IMPLEMENTATION_STATUS.md`.
 
 Do not mark a task complete merely because files were generated. Completion requires passing acceptance criteria and the development checks, with anything deferred to merge verification listed, or a precise explanation of what remains blocked.
 
 ## 15. Definition of Done
 
-A feature is done only when:
+Completion gates (Development Complete, Integration Complete, Owner Accepted, Complete) are in
+[docs/engineering/definition-of-done.md](docs/engineering/definition-of-done.md). A feature's product quality bar:
 - child and parent flows work as specified;
 - authorization is explicit and tested;
 - loading, empty, error, and AI-fallback states exist;
@@ -304,7 +354,7 @@ A feature is done only when:
 
 When starting from an empty repository, implement in this order:
 
-1. Scaffold React + Vite + TypeScript and the backend (originally Amplify Gen 2; now Django, section 18).
+1. Scaffold React + Vite + TypeScript and the Django + DRF backend (section 18).
 2. Establish linting, formatting, unit testing, and CI.
 3. Add design tokens and application shell.
 4. Define Auth and parent authentication flows.
@@ -322,7 +372,7 @@ Do not begin with AI generation. First make the core adventure playable determin
 
 ## 17. Source Documents
 
-Read these before major work:
+Read these before major work (and `AGENTS.md` plus `docs/engineering/README.md` before any task):
 - `docs/PRODUCT_VISION.md`
 - `docs/ARCHITECTURE.md`
 - `docs/DATA_MODEL.md`
@@ -334,26 +384,25 @@ Read these before major work:
 - `docs/IMPLEMENTATION_STATUS.md`
 
 
-## 18. Backend migration (Django in effect; Amplify retired)
+## 18. Backend (Django in effect)
 
-ADR-019 in `docs/DECISIONS.md` moves the backend from Amplify Gen 2 to Django + DRF. It is
-**Accepted in part**: the architectural direction (Django + DRF, PostgreSQL, React 19,
-Cognito initially, S3, FinWin-style layout) is approved. The owner deleted the Amplify app and
-disabled Amplify Hosting (2026-11-14), and the source no longer contains or calls Amplify
-(AMP-01 to AMP-08, `docs/platform/AMPLIFY_FINAL_REMOVAL.md`); section 8 describes the code. The
-Django and S3/CloudFront deployments, and the import of retained Amplify data, are still owner
-approvals, not done. Operational, data, and security items are
-open gates (G1 to G10 in the ADR; G4 is resolved: Python rules, Django content authority) and must not be assumed settled. Track A tasks (Phases 1 to
-13) proceed when their explicit dependencies and the architecture gates that apply to them are
-satisfied (owner, 2026-10-24), and stop for approval at every task marked APPROVAL in
+ADR-019 in `docs/DECISIONS.md` sets the backend as Django + DRF. It is **Accepted in part**: the
+architectural direction (Django + DRF, PostgreSQL, React 19, Cognito initially, S3, FinWin-style
+layout) is approved; section 8 describes the code. The Django and S3/CloudFront deployments, and
+the import of retained legacy data, are still owner approvals, not done. Operational, data, and
+security items are open gates (G1 to G10 in the ADR; G4 is resolved: Python rules, Django content
+authority) and must not be assumed settled. Track A tasks (Phases 1 to 13) proceed when their
+explicit dependencies and the architecture gates that apply to them are satisfied (owner,
+2026-10-24), and stop for approval at every task marked APPROVAL in
 `docs/DJANGO_MIGRATION_ROADMAP.md`:
 - An earlier, unfinished task does not block an independent, dependency-ready task; the old
   "in order, skipping nothing" wording means no task skips its own dependencies, not that
   numbering order gates unrelated work.
 - Open earlier tasks stay tracked as open and are never marked complete by implication.
-- No task bypasses an unresolved dependency, an open gate it touches, or a decision it needs. Never delete or change deployed AWS
-resources (the Cognito pool and the retained Amplify tables and buckets included), migrate
-production data, or deploy without explicit approval. Never reintroduce Amplify.
+- No task bypasses an unresolved dependency, an open gate it touches, or a decision it needs.
+- Never delete or change deployed AWS resources (the Cognito pool and the retained legacy
+  DynamoDB tables and S3 buckets from the retired backend included), migrate production data, or
+  deploy without explicit approval.
 
 ## 19. Accepted game engine decision (in effect)
 
@@ -364,7 +413,7 @@ after every Phaser world is converted and verified. Rules for Claude:
 - Do not delete a Phaser world until its Three.js replacement passes parity tests and visual
   validation, and the Sprouts gate (LAI-2303) allows it.
 - The engine never validates answers, awards progress, or calls AI; it emits typed events.
-- Engine code must not import React, Django clients, Amplify, or AWS SDKs once it is in `game/`.
+- Engine code must not import React, Django clients, or AWS SDKs once it is in `game/`.
 - Track B tasks (LAI-2001 to 2305) follow `docs/DJANGO_MIGRATION_ROADMAP.md` Phases 20 to 23.
   Docs-only LAI-2001 to 2003 do not wait for ADR-019; code tasks wait for LAI-0201. Never
   combine a backend domain change with a world conversion in one task.

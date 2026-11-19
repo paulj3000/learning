@@ -6,14 +6,14 @@ per ADR-013 in `docs/DECISIONS.md` — same "design the target schema,
 migrate nothing yet" treatment Phase 36 already applied to the curriculum
 content model in `docs/platform/CANONICAL_CONTENT_MODEL.md`, extended here
 to items, world/zone/NPC placement, and the 3D asset catalog. **This is a
-design document, not a migration.** No model in `amplify/data/resource.ts`
+design document, not a migration.** No model in the backend schema
 changes, no content moves out of TypeScript, and no asset moves to S3.
 
 ## 1. Why this is design-only, same as Phase 36
 
 `docs/DECISIONS.md` ADR-009 already decided "a world is a content pack,
 not a code path or a second identity," and ADR-011 already established
-that migrating content into live Amplify Data models before there is a
+that migrating content into live backend data models before there is a
 real second client to read it buys nothing and costs real things (runtime
 latency, a still-nonexistent admin content-authoring workflow). Nothing
 about items, worlds, zones, NPCs, or assets changes that reasoning — see
@@ -40,7 +40,7 @@ Two things are explicitly **not** this document's job, despite
 
 | android.md concept | This product's equivalent | Status |
 |---|---|---|
-| `ItemDefinition`, `PlayerInventoryItem` | `ItemDefinition` (`src/features/rewards/types.ts`, content) + `ChildInventory` (Amplify Data, `ownedItemIds`) | Inventory *state* is already `SHARED_DATA` (Phase 35 audit) — only the item *catalog* is TypeScript-only |
+| `ItemDefinition`, `PlayerInventoryItem` | `ItemDefinition` (`src/features/rewards/types.ts`, content) + `ChildInventory` (backend data, `ownedItemIds`) | Inventory *state* is already `SHARED_DATA` (Phase 35 audit) — only the item *catalog* is TypeScript-only |
 | `WorldDefinition`, `ZoneDefinition`, `LocationDefinition` | `WorldDefinition` + `WorldContentPack` (`src/features/worlds/types.ts`), `IslandLocation` (`src/features/island/locations.ts`) | Content, source-controlled, already manifest-shaped (section 4) |
 | `NPCDefinition` | Split across **three** representations (section 5) — not unified today |
 | Asset catalog | `ASSET_MANIFEST` (`src/features/island-map/three/assets/manifest.ts`) → `public/models/*.gltf` | Already asset-ID-indirected (section 6); not yet centralized or device-variant-aware |
@@ -174,7 +174,7 @@ AssetCatalogEntry: a.model({
 
 ## 7. What this document does not do
 
-- It does not add any model to `amplify/data/resource.ts`.
+- It does not add any model to the backend schema.
 - It does not change `src/features/rewards/`, `src/features/worlds/`,
   `src/features/npc/`, `src/features/island-map/`, or
   `src/features/island-map/three/assets/` — all remain the live source of
