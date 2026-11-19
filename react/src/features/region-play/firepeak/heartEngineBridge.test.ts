@@ -65,15 +65,12 @@ describe('engine bridge progress helpers (GE-073)', () => {
     expect(worldSignals(['A', 'B', 'A'])).toEqual(['world:A', 'world:B']);
   });
 
-  it('lists the earned checkpoints in authored order: ungated ones and those a world change opens', () => {
+  it('lists the earned checkpoints in authored order: only those a world change opens', () => {
     const block = bridgeBlock();
     expect(bridgeCheckpoints(block)).toHaveLength(8);
-    expect(earnedBridgeCheckpoints(block, [])).toEqual(['fh-cp-landing']);
-    expect(earnedBridgeCheckpoints(block, [KEYS.map, KEYS.emberwood])).toEqual([
-      'fh-cp-landing',
-      'fh-cp-emberwood',
-      'fh-cp-lava-near',
-    ]);
+    // Only a world change is evidence: the ungated landing is the spawn, never a resume target.
+    expect(earnedBridgeCheckpoints(block, [])).toEqual([]);
+    expect(earnedBridgeCheckpoints(block, [KEYS.map, KEYS.emberwood])).toEqual(['fh-cp-emberwood', 'fh-cp-lava-near']);
     expect(earnedBridgeCheckpoints(null, [KEYS.map])).toEqual([]);
   });
 });
@@ -96,6 +93,15 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     expect(result).toEqual({ placedAt: 'fh-cp-lava-far', unknown: [] });
     expect(fake.teleports.at(-1)).toEqual({ x: 0, z: 12.4 });
     expect(fake.reached).toEqual([]);
+    mount.dispose();
+  });
+
+  it('a first visit resumes nowhere: the child starts at the spawn', () => {
+    const fake = host(bridgeBlock());
+    const mount = mountEngineBridge(fake.value);
+    mount.api.setSignals([]);
+    expect(mount.api.resume(earnedBridgeCheckpoints(bridgeBlock(), []))).toEqual({ placedAt: null, unknown: [] });
+    expect(fake.teleports).toEqual([]);
     mount.dispose();
   });
 

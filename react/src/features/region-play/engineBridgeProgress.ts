@@ -1,5 +1,5 @@
 /**
- * GE-073: what region play tells the engine bridge about a child's progress.
+ * GE-065: what region play tells the engine bridge about a child's progress.
  *
  * An Area whose one checkpoint list lives in `scene.engineBridge` (`gameplay.checkpoints`) gates
  * each checkpoint with `requiresSignalId: "world:<changeKey>"`. The bridge cannot see the server's
@@ -44,12 +44,15 @@ export function bridgeCheckpoints(block: unknown): CheckpointEntry[] {
 }
 
 /**
- * The checkpoints this child has earned, in authored order: ungated ones and those whose signal
- * a world change turns on. The bridge's `resume` places the child at the last of them.
+ * The checkpoints this child has earned, in authored order: only those whose signal a world change
+ * turns on. A world change is the server's evidence that the child got there; an ungated
+ * checkpoint has none, so it is never earned for resume (the child still reaches it by walking,
+ * and an ungated entrance is the spawn anyway). The bridge's `resume` places the child at the last
+ * earned checkpoint; with none earned it places nobody.
  */
 export function earnedBridgeCheckpoints(block: unknown, changeKeys: Iterable<string>): string[] {
   const on = new Set(worldSignals(changeKeys));
   return bridgeCheckpoints(block)
-    .filter((checkpoint) => !checkpoint.requiresSignalId || on.has(checkpoint.requiresSignalId))
+    .filter((checkpoint) => checkpoint.requiresSignalId !== undefined && on.has(checkpoint.requiresSignalId))
     .map((checkpoint) => checkpoint.id);
 }

@@ -1491,7 +1491,7 @@ describe('the engine bridge learns the child\'s progress (GE-073)', () => {
     const view = render(<RegionPlayCompanion {...props({ extensionApi })} />);
     await waitFor(() => expect(bridge.resume).toHaveBeenCalledTimes(1));
     // Only this Area's changes count; signals go first so the gated checkpoint is open.
-    expect(calls).toEqual(['signals:world:GATE_OPEN', 'resume:cp-start,cp-gate']);
+    expect(calls).toEqual(['signals:world:GATE_OPEN', 'resume:cp-gate']);
     view.rerender(<RegionPlayCompanion {...props({ extensionApi })} />);
     await act(async () => undefined);
     expect(bridge.resume).toHaveBeenCalledTimes(1);
