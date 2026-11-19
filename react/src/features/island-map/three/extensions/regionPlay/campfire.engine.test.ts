@@ -8,7 +8,7 @@ import {
 } from '../../../../discovery/checkpoints';
 import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
-import { DEFAULT_PLAYER_COLLISION } from '../../playerCollision';
+import { DEFAULT_PLAYER_COLLISION } from '@lai/game-engine/movement';
 import type { LoadedModel } from '../../runtime/extensionRegistry';
 import { mount, standingBox, type Harness } from '../../runtime/testing/engineHarness';
 import { CAMPFIRE_BASE_NAME, CAMPFIRE_FLAMES_NAME, PROCEDURAL_NAME } from './proceduralScenery';

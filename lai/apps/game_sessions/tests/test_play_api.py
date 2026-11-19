@@ -19,6 +19,8 @@ pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 REGION = "treasure-rush-cove"
 CHEST = "cove-chest"
 QUEST = "pips-missing-treasure"  # the quest the cove offers since TR-14
+PICKUP = "cove-brass-key"  # TR-14's key in the sand
+PIP = "cove-pip"
 
 
 def base(child) -> str:
@@ -92,6 +94,10 @@ def every_route(child, session_id=None, attempt_id=None):
         ("post", f"{root}attempts/{attempt_id}/answer/"),
         ("post", f"{root}quests/{QUEST}/accept/"),
         ("get", f"{root}progress/"),
+        # Appended (keep the slice the sibling test uses): the in-world writes.
+        ("post", f"{root}sessions/{session_id}/pickups/{PICKUP}/"),
+        ("post", f"{root}sessions/{session_id}/npcs/{PIP}/talk/"),
+        ("post", f"{root}sessions/{session_id}/puzzles/{uuid.uuid4()}/solve/"),
     ]
 
 
@@ -117,6 +123,22 @@ def test_another_familys_child_is_not_found_on_every_route(treasure, api):
         assert response.json()["error"]["code"] == "not_found"
     assert not AdventureSession.objects.exists()
     assert not QuestProgress.objects.exists()
+
+
+def test_another_family_cannot_pick_up_or_talk_in_a_childs_real_session(a, treasure, api):
+    """The in-world writes (pickup, talk, puzzle) refuse another parent with this child's real
+    session id, and write nothing: no find, no reward, no quest change, no Pip memory."""
+    client, child = a
+    session_id = start(client, child).json()["sessionId"]
+    before = counts(child)
+    intruder = api(treasure.families.b)
+    for method, url in every_route(child, session_id)[-3:]:
+        response = call(intruder, method, url)
+        assert response.status_code == 404, url
+        assert response.json()["error"]["code"] == "not_found"
+        assert str(session_id) not in response.content.decode()
+    assert counts(child) == before
+    assert not QuestProgress.objects.filter(child=child).exists()
 
 
 def test_a_childs_records_cannot_be_reached_through_another_child(a, treasure):

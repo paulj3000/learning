@@ -31,6 +31,12 @@ import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry
 import { SOURCE_WORLD_EXTENSIONS } from '..';
 import { SOURCE_VIEW_EXTENSIONS } from '../viewExtensions';
 import { RegionPlayCompanion } from './RegionPlayCompanion';
+import { validateGameplayEvent, type AnyGameplayEvent } from '@lai/game-engine/contracts';
+import {
+  currentClaimsBinding,
+  resetLocationClaimsForTests,
+  setLocationClaimSink,
+} from '../../runtime/gameplayClaimSink';
 import { regionPlayViewExtension } from './regionPlayViewExtension';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 
@@ -1247,6 +1253,49 @@ describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
     expect(scene.reactNpc).toHaveBeenCalledWith('cove-pip', 'cheer');
   });
 
+  it('re-reads the shared world once when the server records a change mid-visit (riddle bridge)', async () => {
+    // The view raises `world:<key>` platform signals from its world snapshot, so a bridge a
+    // solved challenge raises (Pirate's Leap) needs that snapshot re-read during the visit.
+    const refreshWorld = vi.fn(async () => undefined);
+    let done = false;
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(done)),
+      talkToNpc: vi.fn(async () => {
+        done = true;
+        return {
+          flagsSet: ['cove-treasure-returned'],
+          questUpdates: [
+            {
+              questId: 'pips-missing-treasure',
+              status: 'COMPLETED' as const,
+              currentStageId: 'return-to-pip',
+              justCompleted: true,
+              newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+            },
+          ],
+          completionRewards: [],
+        };
+      }),
+    });
+    render(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(PIP), sceneApi: fakeScene(), refreshWorld })}
+      />,
+    );
+    await waitFor(() => expect(refreshWorld).toHaveBeenCalledTimes(1));
+    await act(async () => undefined);
+    expect(refreshWorld).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-read the world for changes the child already had on arrival', async () => {
+    const refreshWorld = vi.fn(async () => undefined);
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(true)) });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: fakeScene(), refreshWorld })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(refreshWorld).not.toHaveBeenCalled();
+  });
+
   it('leaves the way shut for a child who has not earned it', async () => {
     const scene = fakeScene();
     const api = fakeApi({ getRegion: vi.fn(async () => lookout(false)) });
@@ -1384,5 +1433,50 @@ describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
     );
     await waitFor(() => expect(scene.pressRune).toHaveBeenCalledWith('cove-rune-stone-2'));
     await waitFor(() => expect(scene.flashRunes).toHaveBeenCalledWith(true));
+  });
+});
+
+describe('gameplay claims for the visit (GE-070, decision E15)', () => {
+  afterEach(() => resetLocationClaimsForTests());
+
+  it('restates the server’s answer as one valid CHEST_CHALLENGE claim bound to the session', async () => {
+    const sink = vi.fn<(event: AnyGameplayEvent) => void>();
+    setLocationClaimSink(sink);
+    const api = fakeApi();
+    await atTheChest(api, { sceneApi: fakeScene(false) });
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await waitFor(() =>
+      expect(sink.mock.calls.map(([event]) => event.type)).toContain('learning.answer.submitted'),
+    );
+    const events = sink.mock.calls.map(([event]) => event);
+    for (const event of events) expect(validateGameplayEvent(event).ok).toBe(true);
+    const answered = events.find((event) => event.type === 'learning.answer.submitted')!;
+    expect(answered).toMatchObject({
+      realmId: 'pirate-builder-bay',
+      adventureId: REGION,
+      areaId: REGION,
+      sessionRef: SESSION_ID,
+      payload: {
+        learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'cove-chest' },
+        choiceId: null,
+      },
+    });
+    // A chest is a graded challenge, never a discovery.
+    expect(events.some((event) => event.type === 'exploration.discovery.found')).toBe(false);
+  });
+
+  it('binds claims to the visit while it lasts, and to nothing once the child leaves', async () => {
+    apis.set(CHILD_A, fakeApi());
+    const view = render(<RegionPlayCompanion {...props()} />);
+    await waitFor(() => expect(currentClaimsBinding()?.context.sessionRef).toBe(SESSION_ID));
+    view.unmount();
+    expect(currentClaimsBinding()).toBeNull();
+  });
+
+  it('never throws into play when nobody is listening', async () => {
+    const api = fakeApi();
+    await atTheChest(api, { sceneApi: fakeScene(false) });
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
   });
 });

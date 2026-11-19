@@ -16,6 +16,13 @@ export function useScoringSummary(childId: string): ScoringSummaryState {
 
   useEffect(() => {
     let cancelled = false;
+    if (!childId) {
+      // No child (a route still resolving): nothing to read, so nothing is requested.
+      setState({ status: 'disabled' });
+      return () => {
+        cancelled = true;
+      };
+    }
     setState({ status: 'loading' });
     getScoringSummary(childId).then(
       (summary) => {

@@ -20,3 +20,4 @@ export {
   type ScoringClaims,
   type ScoringClaimsOptions,
 } from './useScoringClaims';
+export { useScoringForPlay, type ScoringForPlay } from './useScoringForPlay';
