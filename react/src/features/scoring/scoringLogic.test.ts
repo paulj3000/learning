@@ -92,6 +92,16 @@ describe('pending reconciliation', () => {
     const a = awardEntry({ sourceKind: 'PICKUP_COLLECTED', sourceRef: 'treasure-rush-cove/gem' });
     expect(reconcilePending([p], [a], 1).pending).toEqual([]);
   });
+
+  it('matches a pickup exactly when the engine sends its pickup key', () => {
+    const payload = { collectibleId: 'cove-leap-shell', setId: null, pickupKey: 'PIRATES_LEAP_SHELL_FOUND' };
+    const p = pendingFromEvent(event('collectible.collected', payload, 'cove-1'), 0)!;
+    expect(p.hint.sourceRef).toBe('cove-1/PIRATES_LEAP_SHELL_FOUND');
+    const match = awardEntry({ sourceKind: 'PICKUP_COLLECTED', sourceRef: 'cove-1/PIRATES_LEAP_SHELL_FOUND' });
+    const other = awardEntry({ sourceKind: 'PICKUP_COLLECTED', sourceRef: 'cove-1/cove-leap-shell' });
+    expect(reconcilePending([p], [other], 1).pending).toHaveLength(1);
+    expect(reconcilePending([p], [match], 1).pending).toEqual([]);
+  });
 });
 
 describe('validators', () => {

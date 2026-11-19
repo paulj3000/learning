@@ -65,7 +65,12 @@ export function pendingFromEvent(input: unknown, nowMs: number = Date.now()): Pe
     case 'exploration.discovery.found':
       return award(event, ['SECRET_DISCOVERED'], event.payload.discoveryId, null, nowMs);
     case 'collectible.collected':
-      return award(event, ['PICKUP_COLLECTED'], null, event.payload.collectibleId, nowMs);
+      // The server keys a pickup by `<area>/<pickup change key>`. `pickupKey` (optional, v1
+      // additive) makes the match exact; without it, match the entity id by suffix (best effort:
+      // an unmatched pending entry simply expires and the confirmed award still arrives).
+      return event.payload.pickupKey && event.areaId
+        ? award(event, ['PICKUP_COLLECTED'], `${event.areaId}/${event.payload.pickupKey}`, null, nowMs)
+        : award(event, ['PICKUP_COLLECTED'], null, event.payload.pickupKey ?? event.payload.collectibleId, nowMs);
     case 'puzzle.completed':
       return event.areaId
         ? award(event, ['PUZZLE_SOLVED'], `${event.areaId}/${event.payload.puzzleId}`, null, nowMs)
