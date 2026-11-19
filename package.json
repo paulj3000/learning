@@ -40,7 +40,9 @@
     "infra:synth:prod": "LAI_ENV=prod CDK_OUTDIR=infra/cdk.out/prod tsx infra/bin/app.ts",
     "test:engine": "npm run test -w @lai/game-engine",
     "engine:scaffold": "tsx scripts/game-engine/scaffold-adventure.ts",
-    "engine:validate": "tsx scripts/game-engine/validate-content.ts"
+    "engine:validate": "tsx scripts/game-engine/validate-content.ts",
+    "engine:vectors": "tsx scripts/game-engine/generate-contract-vectors.ts",
+    "engine:vectors:check": "tsx scripts/game-engine/generate-contract-vectors.ts --check"
   },
   "keywords": [
     "education",

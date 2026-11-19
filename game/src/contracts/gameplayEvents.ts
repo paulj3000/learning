@@ -6,7 +6,7 @@
  * against its own records (ADR-020 item 6; scoring standard: "the 3D engine never grants
  * anything"). Scoring (GE-100 to GE-110, `core/ge-scoring`) consumes these through its Django
  * intake validator, which tests against the same golden vectors as this module
- * (`tests/golden/gameplay-events-v1.json`).
+ * (`tests/contracts/gameplay-events-v1.json`).
  *
  * Contract rules (stable for every v1 type):
  * 1. **Semantic ids only.** Every id is an authored, published content id or a Django record

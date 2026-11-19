@@ -37,6 +37,26 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## Game Engine Core (GE-001 to GE-090) — in development on `core/gameengine` (2026-11-18); NOT merged, NOT owner-accepted
+
+Package `game/` (`@lai/game-engine`, ADR-020 item 4), stacked on the movement baseline
+`feature/treasure-rush-palm-trees` @ `420f1afd` and merged with `main` (`5b300e30`). Docs:
+`docs/engineering/game-engine/` (audit, architecture, public contracts, decisions, migration and
+dependency matrices, ownership, status, defects, acceptance). Trello parent GE-001.
+
+- **Built:** core runtime (lifecycle, fixed timestep, entities and systems, typed bus, scoped
+  disposal, service ports, capability registry, diagnostics); gameplay claims
+  `lai.gameplay-event` v1 with contract vectors `tests/contracts/gameplay-events-v1.json`
+  (shared with the GE-100 scoring intake); canonical player transform, physics provider and
+  environment contracts; presentation-event parity with `WorldEngineEventMap`.
+- **In progress (parallel worktrees):** movement and physics extraction and features, camera
+  and animation, gameplay components, Realm SDK and service ports, GameHost and Playground.
+- **Checks:** engine Vitest 86 passed; engine and React typecheck clean; golden and contract
+  vector checks up to date; `adr:check` passes.
+- **Owner decisions open:** LAI-2003 approval (or waiver), ADR number for the engine core
+  decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
+  order, scoring economy against the scoring standard.
+
 ## Movement defects, campfire and feather (2026-11-15, `feature/treasure-rush-palm-trees`); development complete, owner QA pending, NOT merged
 
 Owner guide: `docs/MOVEMENT_CAMPFIRE_FEATHER_QA.md`. Decision: ADR-060 (Proposed).
