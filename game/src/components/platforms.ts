@@ -103,10 +103,19 @@ export interface PlatformSpec {
   appearSignalId?: string;
   /** GE-066: the platform is off (no collider, hidden) while this signal is on. */
   inactiveWhenSignalId?: string;
+  /** GE-069: Sound Manager cue ids for a moving platform (presentation only), as the live `sounds`. */
+  sounds?: PlatformSounds;
   /** GE-068 look: body colour, 0xRRGGBB (presentation only). */
   color?: number;
   /** GE-068 look: an asset model fitted to the platform box (presentation only; `color` is the fallback). */
   assetId?: string;
+}
+
+/** GE-069: per-platform sound cues, the live platform system's `PlatformSounds` minus `bounce` (`bounceCue`). */
+export interface PlatformSounds {
+  activated?: string;
+  moving?: string;
+  stopped?: string;
 }
 
 export interface PlatformsConfig {
@@ -332,6 +341,10 @@ export interface PlatformState {
   appeared: boolean;
   /** Bounce platform: the child was on it last step. */
   wasOn: boolean;
+  /** GE-069 moving platform: its activation was on last step. */
+  active: boolean;
+  /** GE-069 moving platform: it moved last step. */
+  moving: boolean;
 }
 export const PlatformComponent = defineComponent<PlatformState>('gameplay.platform');
 
@@ -384,6 +397,18 @@ export function validatePlatformsConfig(input: unknown) {
         spec.color = issues.num(item.color, `${path}.color`, 0, 0xffffff);
         if (!Number.isInteger(spec.color)) {
           issues.add(`${path}.color`, 'must be a whole number 0xRRGGBB');
+        }
+      }
+      if (item.sounds !== undefined) {
+        if (!isRecord(item.sounds)) {
+          issues.add(`${path}.sounds`, 'must be an object with activated, moving and stopped cue ids');
+        } else {
+          const sounds: PlatformSounds = {};
+          for (const key of ['activated', 'moving', 'stopped'] as const) {
+            const cue = issues.optionalId(item.sounds[key], `${path}.sounds.${key}`);
+            if (cue !== undefined) sounds[key] = cue;
+          }
+          spec.sounds = sounds;
         }
       }
       if (item.assetId !== undefined) {
@@ -529,6 +554,9 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
       const warning = phase === 'CRUMBLING' ? (isReducedMotion(runtime) ? ('STEADY_DIM' as const) : ('BLINK' as const)) : null;
       emitPresentation(runtime, 'PlatformPhaseChanged', { platformId: state.spec.id, phase, warning });
     };
+    const soundEvent = (name: 'PlatformActivated' | 'PlatformMoving' | 'PlatformStopped', spec: PlatformSpec, cue: string | undefined) => {
+      emitPresentation(runtime, name, { platformId: spec.id, ...(cue ? { cue } : {}) });
+    };
     const addCollider = (state: PlatformState) => {
       const box = boxFor(state);
       physics.addCollider({ id: state.spec.id, kind: 'JUMPABLE', min: box.min, max: box.max });
@@ -551,6 +579,8 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
         switchedOff: false,
         appeared: spec.appearSignalId === undefined,
         wasOn: false,
+        active: false,
+        moving: false,
       };
       if (spec.moving) {
         state.motion = { path: createPathMotion(spec.moving.path, spec.moving.mode, spec.moving.pauseSeconds), state: initialMotionState() };
@@ -671,12 +701,22 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
 
           if (state.motion && spec.moving) {
             const active = spec.moving.activeSignalId === undefined || signals.get(spec.moving.activeSignalId);
+            if (active && !state.active) {
+              soundEvent('PlatformActivated', spec, spec.sounds?.activated);
+            }
+            state.active = active;
+            let moved = false;
             if (active) {
-              advanceMotion(state.motion.path, state.motion.state, context.dt, spec.moving.speed * scale);
+              moved = advanceMotion(state.motion.path, state.motion.state, context.dt, spec.moving.speed * scale);
             } else if (spec.moving.returnWhenInactive) {
-              advanceMotion(state.motion.path, state.motion.state, context.dt, spec.moving.speed * scale, true);
+              moved = advanceMotion(state.motion.path, state.motion.state, context.dt, spec.moving.speed * scale, true);
             }
             motionOffset(state.motion.path, state.motion.state, state.offset);
+            if (moved !== state.moving) {
+              state.moving = moved;
+              if (moved) soundEvent('PlatformMoving', spec, spec.sounds?.moving);
+              else soundEvent('PlatformStopped', spec, spec.sounds?.stopped);
+            }
           }
           if (spec.spinDegreesPerSecond) {
             state.yaw += ((spec.spinDegreesPerSecond * Math.PI) / 180) * scale * context.dt;

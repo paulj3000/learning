@@ -196,6 +196,7 @@ Bridge API for the host (`api` on the mounted bridge):
 | `support` | Which optional host members the bridge found (`playerState`, `setEnvironment`, `scene`, `carryLaunch` and more over time). **Additive:** new fields appear as the bridge gains capabilities, so consumers compare it by subset (`toMatchObject`), never by deep equality; "nothing refused" is `issues` being empty |
 | `isSafeGround(x, y, z)` | False on top of a present moving, rotating, falling or bounce engine platform; the live controller combines it with the live platform system (GE-068) |
 | `platforms()` | `{ id, phase, position, size, kind }[]` in config order, for realm parity tests (GE-068) |
+| Forwarded platform sound events | `PlatformActivated`, `PlatformMoving`, `PlatformStopped` `{ platformId, cue? }` from engine moving platforms, same semantics as the live platform system; cues from the platform's `sounds` (`activated`, `moving`, `stopped`). No vanish or appear events: engine falling platforms use `PlatformPhaseChanged` (GE-069) |
 
 The bridge forwards `CourseCheckpointReached { checkpointId, label }` to the host bus, so the
 host's "Safe spot" toast works for engine checkpoints.

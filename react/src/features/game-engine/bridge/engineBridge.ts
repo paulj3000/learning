@@ -93,6 +93,9 @@ const FORWARDED_EVENTS = [
   'PressurePlateReleased',
   'HazardTelegraph',
   'PlatformPhaseChanged',
+  'PlatformActivated',
+  'PlatformMoving',
+  'PlatformStopped',
   'SurfaceFootstep',
 ] as const satisfies readonly Exclude<keyof EnginePresentationEventMap, 'PlayerRecovered'>[];
 

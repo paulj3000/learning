@@ -33,6 +33,15 @@ export type EnginePresentationEventMap = {
   HazardTelegraph: { hazardId: string; phase: 'WARN' | 'ACTIVE' | 'REST'; secondsToImpact: number; steadyWarning: boolean };
   /** GE-066: an engine platform changed phase (crumble, blink, gone, back). */
   PlatformPhaseChanged: { platformId: string; phase: string; warning: SteadyOrBlink | null };
+  /**
+   * GE-069: a moving platform's activation turned on (at start when it has no `activeSignalId`),
+   * it left a pause or the start, and it arrived and paused or stopped. Same names, payloads and
+   * semantics as the live platform system, so a host's platform sounds work for either runtime.
+   * `cue` is the platform's own sound cue (`sounds.activated`, `.moving`, `.stopped`), if any.
+   */
+  PlatformActivated: { platformId: string; cue?: string };
+  PlatformMoving: { platformId: string; cue?: string };
+  PlatformStopped: { platformId: string; cue?: string };
   /** GE-066: the child stepped on a surface; `footstepCue` is the surface's own sound cue, if any. */
   SurfaceFootstep: { surfaceId: string; footstepCue: string | null };
 };
