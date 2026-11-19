@@ -34,10 +34,23 @@ describe('engine bridge progress', () => {
     ]);
   });
 
-  it('earns ungated checkpoints always and gated ones with their world change, in order', () => {
-    expect(earnedBridgeCheckpoints(BLOCK, [])).toEqual(['cp-start']);
-    expect(earnedBridgeCheckpoints(BLOCK, ['FAR_OPEN'])).toEqual(['cp-start', 'cp-far']);
-    expect(earnedBridgeCheckpoints(BLOCK, ['FAR_OPEN', 'GATE_OPEN'])).toEqual(['cp-start', 'cp-gate', 'cp-far']);
+  it('earns only gated checkpoints whose world change exists, in order; never an ungated one', () => {
+    expect(earnedBridgeCheckpoints(BLOCK, [])).toEqual([]);
+    expect(earnedBridgeCheckpoints(BLOCK, ['FAR_OPEN'])).toEqual(['cp-far']);
+    expect(earnedBridgeCheckpoints(BLOCK, ['FAR_OPEN', 'GATE_OPEN'])).toEqual(['cp-gate', 'cp-far']);
+  });
+
+  it('an ungated checkpoint partway along a course is never a resume target', () => {
+    const course = {
+      capabilities: [
+        {
+          id: 'gameplay.checkpoints',
+          config: { checkpoints: [{ id: 'cp-entrance' }, { id: 'cp-midway' }, { id: 'cp-end', requiresSignalId: 'world:DONE' }] },
+        },
+      ],
+    };
+    expect(earnedBridgeCheckpoints(course, [])).toEqual([]);
+    expect(earnedBridgeCheckpoints(course, ['DONE'])).toEqual(['cp-end']);
   });
 
   it('is empty for anything that is not a bridge block with checkpoints', () => {

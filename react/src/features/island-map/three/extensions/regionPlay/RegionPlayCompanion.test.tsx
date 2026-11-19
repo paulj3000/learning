@@ -1536,10 +1536,28 @@ describe('the engine bridge learns the child\'s progress (GE-065)', () => {
     const view = render(<RegionPlayCompanion {...props({ extensionApi })} />);
     await waitFor(() => expect(bridge.resume).toHaveBeenCalledTimes(1));
     // Only this Area's changes count; signals go first so the gated checkpoint is open.
-    expect(calls).toEqual(['signals:world:GATE_OPEN', 'resume:cp-start,cp-gate']);
+    expect(calls).toEqual(['signals:world:GATE_OPEN', 'resume:cp-gate']);
     view.rerender(<RegionPlayCompanion {...props({ extensionApi })} />);
     await act(async () => undefined);
     expect(bridge.resume).toHaveBeenCalledTimes(1);
+  });
+
+  it('a first visit with no world changes resumes nowhere: no teleport past the course', async () => {
+    const bridge = {
+      setSignals: vi.fn(),
+      resume: vi.fn((ids: readonly string[]) => ({ placedAt: ids.at(-1) ?? null, unknown: [] })),
+    };
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(bootstrapJson({ region: bridgeRegion, session: sessionJson(), worldChanges: [] }), parse.regionBootstrap),
+      ),
+    });
+    apis.set(CHILD_A, api);
+    render(<RegionPlayCompanion {...props({ extensionApi: () => bridge })} />);
+    await waitFor(() => expect(bridge.resume).toHaveBeenCalledTimes(1));
+    expect(bridge.setSignals).toHaveBeenCalledWith([]);
+    expect(bridge.resume).toHaveBeenCalledWith([]);
+    expect(bridge.resume.mock.results[0]?.value).toEqual({ placedAt: null, unknown: [] });
   });
 
   it('does nothing for an Area without an engineBridge block', async () => {
