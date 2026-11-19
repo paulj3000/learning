@@ -59,7 +59,10 @@ export interface PlayerTransform {
   readonly position: Readonly<Vec3Like>;
   /** The position one simulation step ago, for render interpolation. */
   readonly previousPosition: Readonly<Vec3Like>;
-  /** Facing, radians about +Y (0 looks down -Z, as in Three.js). */
+  /**
+   * Facing, radians about +Y, in the shared controller's convention: 0 looks down **+Z**. A
+   * Three.js object facing the same way has `rotation.y = yaw + Math.PI` (camera/yaw.ts).
+   */
   readonly yaw: number;
   /** Look pitch, radians (camera only; the body never pitches). */
   readonly pitch: number;

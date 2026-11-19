@@ -9,7 +9,6 @@
 
 import type { FirstPersonController, MoveInput } from './firstPersonController';
 import { PHYSICS_STEP_SECONDS } from './firstPersonController';
-import type { CheckpointTracker } from './checkpoints';
 import {
   MOVEMENT_CLIMBING,
   MOVEMENT_EXTERNAL_FORCES,
@@ -46,8 +45,12 @@ export interface MovementSystemOptions {
   input: MovementInputSource;
   /** Names the collider the child stands on (`supportId`). */
   physics?: AabbPhysicsProvider;
-  /** Reaches course checkpoints as the child walks; `PlayerRecovered` names the checkpoint. */
-  checkpoints?: CheckpointTracker;
+  /**
+   * The one checkpoint system (`gameplay.checkpoints`, `CheckpointsService`) read-only:
+   * `PlayerRecovered` names the latest checkpoint. Reaching checkpoints, their presentation
+   * events and their claims are that system's job, never movement's.
+   */
+  checkpoints?: { latest(): { id: string } | null };
 }
 
 export type MovementRuntime = Pick<EngineRuntime<EnginePresentationEventMap>, 'world' | 'events' | 'systems'>;
@@ -100,7 +103,7 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
             events.emit('PlayerLanded', { impactSpeed: event.impactSpeed });
             break;
           case 'RECOVERED':
-            events.emit('PlayerRecovered', { reason: event.reason, checkpointId: checkpoints?.current()?.id ?? null });
+            events.emit('PlayerRecovered', { reason: event.reason, checkpointId: checkpoints?.latest()?.id ?? null });
             break;
           case 'LAUNCHED':
             // A bounce needs the platform id; the platform component announces PlayerBounced.
@@ -144,11 +147,6 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
         stride = 0;
       }
 
-      if (checkpoints && controller.grounded) {
-        for (const spec of checkpoints.update(after.x, after.z)) {
-          events.emit('CourseCheckpointReached', { checkpointId: spec.id, label: spec.label ?? spec.id });
-        }
-      }
     },
   };
   const remove = runtime.systems.add(system);

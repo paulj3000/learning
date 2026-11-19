@@ -133,9 +133,9 @@ describe('camera rig reads only the canonical transform', () => {
     expect(b.z).toBeCloseTo(a.z);
   });
 
-  it('treats the transform yaw as 0 looking down -Z by default and converts for controller yaw', () => {
-    const threejs = new CameraRig({ config: { defaultMode: 'first-person' } });
-    const controller = new CameraRig({ config: { defaultMode: 'first-person' }, yawConvention: 'controller' });
+  it('reads the transform yaw in the controller convention (0 looks down +Z) by default, and converts a Three.js yaw on request', () => {
+    const threejs = new CameraRig({ config: { defaultMode: 'first-person' }, yawConvention: 'threejs' });
+    const controller = new CameraRig({ config: { defaultMode: 'first-person' } });
     const t = transformAt(0, 0, 0, { yaw: 0 });
     const camera = { position: new Vector3(), rotation: { order: 'XYZ', y: 0, x: 0, set(x: number, y: number) { this.x = x; this.y = y; } } };
     // A Three.js camera at rotation.y = 0 looks down -Z; at PI it looks down +Z.

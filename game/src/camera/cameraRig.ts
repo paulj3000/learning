@@ -135,7 +135,7 @@ export interface CameraRigOptions {
   /** The physics provider, or a getter for it (the service may arrive after the rig). */
   physics?: PhysicsSource;
   preference?: CameraPreferenceOptions;
-  /** How `PlayerTransform.yaw` is read; see `yaw.ts`. Default `'threejs'` (the contract). */
+  /** How `PlayerTransform.yaw` is read; see `yaw.ts`. Default `'controller'` (the contract: the shared controller's yaw). */
   yawConvention?: YawConvention;
   /** Half-size of the keep-out box, metres. */
   safetyRadius?: number;
@@ -153,7 +153,7 @@ export class CameraRig {
   constructor(options: CameraRigOptions = {}) {
     this.options = options;
     this.configuration = resolvePlayerCamera(options.config);
-    this.convention = options.yawConvention ?? 'threejs';
+    this.convention = options.yawConvention ?? 'controller';
     this.reducedMotion = options.reducedMotion === true;
     const saved = options.preference
       ? loadCameraPreference(options.preference.childId, options.preference.storage)

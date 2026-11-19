@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { AGE_BANDS, JUMP_LIMITS, defaultMovementProfile, isAgeBand, resolveProfile } from './profiles';
+import { AGE_BANDS, JUMP_LIMIT_RANGES, defaultMovementProfile, isAgeBand, resolveProfile } from './profiles';
 
 describe('band profiles', () => {
   it.each(AGE_BANDS)('%s defaults sit inside the jumping standard limits', (band) => {
     const { jump } = defaultMovementProfile(band);
-    for (const key of Object.keys(JUMP_LIMITS) as (keyof typeof JUMP_LIMITS)[]) {
-      const [low, high] = JUMP_LIMITS[key];
+    for (const key of Object.keys(JUMP_LIMIT_RANGES) as (keyof typeof JUMP_LIMIT_RANGES)[]) {
+      const [low, high] = JUMP_LIMIT_RANGES[key];
       expect(jump[key]).toBeGreaterThanOrEqual(low);
       expect(jump[key]).toBeLessThanOrEqual(high);
     }

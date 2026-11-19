@@ -23,7 +23,7 @@
 
 import type { CapabilityRegistry } from '../core/capabilities';
 import { ENGINE_API_VERSION } from '../version';
-import { JUMP_LIMITS } from './profiles';
+import { JUMP_LIMIT_RANGES } from './profiles';
 import { isValidRange, satisfiesRange } from './semver';
 import { findTimerFields, isRecord, type UnknownRecord } from './validation';
 
@@ -146,7 +146,7 @@ function inspect(
   // Jump physics against the jumping standard.
   const movement = root.movement;
   if (isRecord(movement) && isRecord(movement.jump)) {
-    for (const [key, [low, high]] of Object.entries(JUMP_LIMITS)) {
+    for (const [key, [low, high]] of Object.entries(JUMP_LIMIT_RANGES)) {
       const value = movement.jump[key];
       if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < low || value > high)) {
         add('JUMP_LIMIT_EXCEEDED', `movement.jump.${key}`, `must be a number from ${low} to ${high}`);

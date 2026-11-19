@@ -19,7 +19,9 @@ export interface BoxSpec {
 }
 
 /** Friction floor: at or above this a child still stops within about a metre. */
-export const MIN_SURFACE_FRICTION = 0.1;
+// The controller's grip floor is the one floor (GE-022): authored friction below it would be
+// clamped anyway, so it is rejected at authoring time instead.
+import { MIN_SURFACE_FRICTION } from '../movement/firstPersonController';
 
 export const SURFACE_PRESETS: Readonly<Record<string, Pick<SurfaceProfile, 'friction' | 'speedMultiplier' | 'footstepCue'>>> = Object.freeze({
   ground: { friction: 1, speedMultiplier: 1, footstepCue: 'groundStep' },

@@ -12,6 +12,7 @@
 
 import type { ValidationIssue } from '../core/errors';
 import { isRecord } from './validation';
+import { JUMP_LIMITS as CONTROLLER_JUMP_LIMITS } from '../movement/jumpConfiguration';
 
 export const AGE_BANDS = ['SPROUT', 'PATHFINDER', 'EXPLORER'] as const;
 export type AgeBand = (typeof AGE_BANDS)[number];
@@ -21,14 +22,21 @@ export function isAgeBand(value: unknown): value is AgeBand {
 }
 
 /** Inclusive limits from the jumping standard. */
-export const JUMP_LIMITS = Object.freeze({
-  jumpHeight: [0.2, 2.5],
-  gravity: [5, 80],
-  airControl: [0, 1],
-  maxFallSpeed: [2, 60],
-  coyoteTimeMs: [0, 400],
-  jumpBufferMs: [0, 400],
-} as const);
+type ControllerJumpLimitKey = keyof typeof CONTROLLER_JUMP_LIMITS;
+
+/**
+ * The jumping standard's limits as `[min, max]` ranges, derived from the shared controller's
+ * `JUMP_LIMITS` (`movement/jumpConfiguration.ts`) so the SDK and the controller can never
+ * disagree.
+ */
+export const JUMP_LIMIT_RANGES: { readonly [K in ControllerJumpLimitKey]: readonly [number, number] } = Object.freeze(
+  Object.fromEntries(
+    (Object.keys(CONTROLLER_JUMP_LIMITS) as ControllerJumpLimitKey[]).map((key) => [
+      key,
+      Object.freeze([CONTROLLER_JUMP_LIMITS[key].min, CONTROLLER_JUMP_LIMITS[key].max] as const),
+    ]),
+  ) as { [K in ControllerJumpLimitKey]: readonly [number, number] },
+);
 
 /** Walk speed bounds (m/s). The standard sets none; these keep authored values sane. */
 export const WALK_SPEED_LIMIT = [0.5, 6] as const;
@@ -261,7 +269,7 @@ export function resolveProfile(band: AgeBand, overrides: ProfileOverrides = {}):
           const jump = movement.jump;
           applyBoolean(jump, 'enabled', jumpOverride.enabled, 'movement.jump.enabled', issues);
           for (const key of ['jumpHeight', 'gravity', 'airControl', 'maxFallSpeed', 'coyoteTimeMs', 'jumpBufferMs'] as const) {
-            applyNumber(jump, key, jumpOverride[key], JUMP_LIMITS[key], `movement.jump.${key}`, issues);
+            applyNumber(jump, key, jumpOverride[key], JUMP_LIMIT_RANGES[key as ControllerJumpLimitKey], `movement.jump.${key}`, issues);
           }
           applyBoolean(jump, 'allowDoubleJump', jumpOverride.allowDoubleJump, 'movement.jump.allowDoubleJump', issues, band === 'SPROUT' ? false : undefined);
         }

@@ -1,12 +1,11 @@
 /**
  * Yaw conventions.
  *
- * The canonical `PlayerTransform.yaw` (contracts/player.ts) is documented as 0 looking down -Z,
- * as in Three.js. The shared first-person controller, the QA'd camera math in `playerCamera.ts`
- * and the avatar models all use the controller convention: yaw 0 looks down +Z. The two differ
- * by half a turn. Rather than rewrite the QA'd camera, camera and avatar systems convert the
- * canonical yaw once, here, so the choice is explicit and testable. A host whose movement
- * system writes the controller's yaw straight into the transform passes `'controller'`.
+ * The canonical `PlayerTransform.yaw` (contracts/player.ts) uses the shared controller's
+ * convention: yaw 0 looks down +Z, the convention of the QA'd camera math in `playerCamera.ts`,
+ * the avatar models and the movement system, which writes the controller's yaw unchanged. So
+ * `'controller'` is the default everywhere. `'threejs'` (0 looks down -Z, half a turn apart)
+ * remains for a host that feeds a Three.js object rotation instead.
  */
 
 export type YawConvention = 'controller' | 'threejs';

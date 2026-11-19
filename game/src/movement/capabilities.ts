@@ -16,7 +16,6 @@ import {
   type ValidationResult,
 } from '../core/errors';
 import type { CapabilityDefinition, CapabilityRegistry } from '../core/capabilities';
-import { CHECKPOINT_REACH_LIMITS, DEFAULT_CHECKPOINT_REACH, type CheckpointResume } from './checkpoints';
 import {
   DEFAULT_JUMP_CONFIGURATION,
   resolveJumpConfiguration,
@@ -37,7 +36,6 @@ export const MOVEMENT_SURFACES = 'movement.surfaces';
 export const MOVEMENT_EXTERNAL_FORCES = 'movement.externalForces';
 export const MOVEMENT_SWIMMING = 'movement.swimming';
 export const MOVEMENT_CLIMBING = 'movement.climbing';
-export const MOVEMENT_CHECKPOINTS = 'movement.checkpoints';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -249,34 +247,6 @@ export const climbingCapability = enabledCapability(
   'Ladders and climbable surfaces: forward and back move along them, no gravity, jump lets go.',
 );
 
-// --- checkpoints --------------------------------------------------------------------------
-
-export interface CheckpointsConfig {
-  reach: number;
-  resume: CheckpointResume;
-}
-
-export const checkpointsCapability: CapabilityDefinition<CheckpointsConfig> = {
-  id: MOVEMENT_CHECKPOINTS,
-  version: '1.0.0',
-  description: 'Course checkpoints: safe recovery goes back to the latest (or furthest) checkpoint, losing nothing.',
-  defaults: { reach: DEFAULT_CHECKPOINT_REACH, resume: 'LATEST' },
-  validate(input) {
-    const issues: ValidationIssue[] = [];
-    const record = recordOf(input, ['reach', 'resume'], issues);
-    const reach = numberIn(record, 'reach', CHECKPOINT_REACH_LIMITS.min, CHECKPOINT_REACH_LIMITS.max, DEFAULT_CHECKPOINT_REACH, issues);
-    let resume: CheckpointResume = 'LATEST';
-    if (record.resume !== undefined) {
-      if (record.resume === 'LATEST' || record.resume === 'FURTHEST') {
-        resume = record.resume;
-      } else {
-        issues.push({ path: 'resume', message: 'must be LATEST or FURTHEST' });
-      }
-    }
-    return finish(issues, () => ({ reach, resume }));
-  },
-};
-
 export const movementCapabilities = [
   locomotionCapability,
   jumpCapability,
@@ -284,7 +254,6 @@ export const movementCapabilities = [
   externalForcesCapability,
   swimmingCapability,
   climbingCapability,
-  checkpointsCapability,
 ] as const;
 
 /** Registers every movement capability on a registry (the SDK and runtime share one). */

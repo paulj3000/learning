@@ -15,3 +15,6 @@ export * from './environment';
 export * from './camera';
 export * from './animation';
 export * from './character';
+export * from './movement';
+export * from './input';
+export * from './physics';

@@ -4,7 +4,6 @@ import { NEUTRAL_ENVIRONMENT, type ExternalForce } from '../contracts/physics';
 import { PLAYER_ENTITY_ID, PlayerTransformComponent } from '../contracts/player';
 import { createAabbPhysicsProvider } from '../physics/aabbProvider';
 import { movementCapabilities, registerMovementCapabilities } from './capabilities';
-import { CheckpointTracker } from './checkpoints';
 import { FirstPersonController } from './firstPersonController';
 import {
   gateEnvironment,
@@ -15,14 +14,26 @@ import {
 
 const DT = 1 / 60;
 
-function setup(options: { colliders?: boolean; checkpoints?: CheckpointTracker } = {}) {
+/** A stand-in for `CheckpointsService` (gameplay.checkpoints): the latest reached checkpoint. */
+interface LatestCheckpoint {
+  latest(): { id: string; position: { x: number; y: number; z: number }; yaw: number } | null;
+}
+
+function setup(options: { colliders?: boolean; checkpoints?: LatestCheckpoint } = {}) {
   const physics = createAabbPhysicsProvider();
   physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 3, y: 0, z: -3 }, max: { x: 4, y: 3, z: 3 } });
   physics.addCollider({ id: 'crate', kind: 'JUMPABLE', min: { x: -3, y: 0, z: -1 }, max: { x: -2, y: 0.5, z: 1 } });
   const controller = new FirstPersonController({
     colliders: physics.boxes,
     jumpableColliders: physics.jumpableBoxes,
-    ...(options.checkpoints ? { recoveryPoint: options.checkpoints.recoveryPoint } : {}),
+    ...(options.checkpoints
+      ? {
+          recoveryPoint: () => {
+            const latest = options.checkpoints!.latest();
+            return latest ? { x: latest.position.x, z: latest.position.z, yaw: latest.yaw } : null;
+          },
+        }
+      : {}),
   });
   controller.yaw = Math.PI / 2; // forward is +x
   const runtime = createEngineRuntime<EnginePresentationEventMap>({ id: 'test' });
@@ -95,15 +106,15 @@ describe('movement system', () => {
     expect(transform().supportId).toBe('crate');
   });
 
-  it('emits recovery with the checkpoint and reaches checkpoints as the child walks', () => {
-    const tracker = new CheckpointTracker([{ id: 'cp1', label: 'Rock', x: 1, z: 0 }]);
-    const { step, runtime, controller } = setup({ checkpoints: tracker });
+  it('names the latest checkpoint on recovery and never reaches checkpoints itself', () => {
+    const checkpoints: LatestCheckpoint = { latest: () => ({ id: 'cp1', position: { x: 1, y: 0, z: 0 }, yaw: 0 }) };
+    const { step, runtime, controller } = setup({ checkpoints });
     const reached: string[] = [];
     const recovered: unknown[] = [];
     runtime.events.on('CourseCheckpointReached', (e) => reached.push(e.label));
     runtime.events.on('PlayerRecovered', (e) => recovered.push(e));
     step(WALK, 40);
-    expect(reached).toEqual(['Rock']);
+    expect(reached).toEqual([]); // gameplay.checkpoints owns reaching and its events
     controller.recover('HAZARD');
     step({ move: { forward: 0, strafe: 0 } }, 1);
     expect(recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'cp1' }]);

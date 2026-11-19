@@ -225,7 +225,7 @@ export interface AvatarPlacement {
  * Where the avatar root goes this frame: exactly the interpolated canonical position and the
  * canonical yaw. This is the only placement rule; there is no independent avatar position.
  */
-export function avatarPlacement(transform: PlayerTransform, alpha: number, convention: YawConvention = 'threejs'): AvatarPlacement {
+export function avatarPlacement(transform: PlayerTransform, alpha: number, convention: YawConvention = 'controller'): AvatarPlacement {
   return { position: interpolatePlayerPosition(transform, alpha), yaw: toControllerYaw(transform.yaw, convention) };
 }
 
@@ -351,7 +351,7 @@ export const PLACEHOLDER_NAME = 'player-avatar:placeholder';
 
 export function createAvatarController(options: AvatarControllerOptions): AvatarController {
   const { definition } = options;
-  const convention = options.yawConvention ?? 'threejs';
+  const convention = options.yawConvention ?? 'controller';
   const root = new Group();
   root.name = AVATAR_ROOT_NAME;
   // The model sits in `inner`: authored facing correction, scale and footprint offset live

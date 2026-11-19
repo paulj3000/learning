@@ -81,7 +81,11 @@ describe('avatar placement (the avatar mirrors the canonical transform)', () => 
   });
 
   it('follow sets the root and leaves the model offset inside it', async () => {
-    const controller = createAvatarController({ definition: { ...definition, footprintOffset: { x: 0.2, z: -0.1 }, rotationOffset: 1 }, loader });
+    const controller = createAvatarController({
+      definition: { ...definition, footprintOffset: { x: 0.2, z: -0.1 }, rotationOffset: 1 },
+      loader,
+      yawConvention: 'threejs',
+    });
     await controller.ready;
     controller.follow(transformAt(3, 1, 4, { yaw: 0.3 }), 1);
     expect(controller.root.position.toArray()).toEqual([3, 1, 4]);

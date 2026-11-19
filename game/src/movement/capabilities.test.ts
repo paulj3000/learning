@@ -8,7 +8,7 @@ function registry() {
 }
 
 describe('movement capabilities', () => {
-  it('registers all seven with valid ids and resolves defaults', () => {
+  it('registers all six (checkpoints are gameplay.checkpoints, the one checkpoint system) with valid ids and resolves defaults', () => {
     const r = registry();
     expect(r.list().map((c) => c.id)).toEqual([
       'movement.locomotion',
@@ -17,7 +17,6 @@ describe('movement capabilities', () => {
       'movement.externalForces',
       'movement.swimming',
       'movement.climbing',
-      'movement.checkpoints',
     ]);
     const resolution = r.resolve(movementCapabilities.map((c) => ({ id: c.id })));
     expect(resolution.ok).toBe(true);
@@ -45,21 +44,19 @@ describe('movement capabilities', () => {
     );
   });
 
-  it('validates surfaces, forces, swimming, climbing and checkpoints', () => {
+  it('validates surfaces, forces, swimming and climbing', () => {
     const r = registry();
     const good = r.resolve([
       { id: 'movement.surfaces', config: { profiles: [{ id: 'ice', friction: 0.1, speedMultiplier: 1 }], maxWalkableSlope: 0.8 } },
       { id: 'movement.externalForces', config: { reducedMotionScale: 0.25 } },
       { id: 'movement.swimming', config: { enabled: false } },
       { id: 'movement.climbing' },
-      { id: 'movement.checkpoints', config: { reach: 2, resume: 'FURTHEST' } },
     ]);
     expect(good.ok).toBe(true);
     const bad = r.resolve([
       { id: 'movement.surfaces', config: { profiles: [{ id: 'ice', friction: 0 }, { id: 'ice' }, { friction: 'x' }], maxWalkableSlope: -1, extra: 1 } },
       { id: 'movement.externalForces', config: { reducedMotionScale: 3 } },
       { id: 'movement.swimming', config: { enabled: 1 } },
-      { id: 'movement.checkpoints', config: { resume: 'FIRST' } },
     ]);
     expect(bad.ok).toBe(false);
     const paths = bad.issues.map((i) => i.path);
@@ -71,7 +68,6 @@ describe('movement capabilities', () => {
         'capabilities.movement.surfaces.extra',
         'capabilities.movement.externalForces.reducedMotionScale',
         'capabilities.movement.swimming.enabled',
-        'capabilities.movement.checkpoints.resume',
       ]),
     );
   });
