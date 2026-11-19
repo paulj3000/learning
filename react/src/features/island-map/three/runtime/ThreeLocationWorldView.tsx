@@ -1,3 +1,5 @@
+import { checkpointReachedText, recoveredText } from '../platforms/platformCopy';
+import { worldSignal } from '../platforms/platformSystem';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../../IslandWorldView.module.css';
@@ -45,6 +47,16 @@ import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
 import { prefersReducedMotion } from '../../../../lib/motionPreference';
 import { createPendingWrites, useExitParticipant } from '../../../portal/exit';
+import {
+  loadCameraPreference,
+  loadSprintModePreference,
+  saveCameraPreference,
+  saveSprintModePreference,
+  type SprintModePreference,
+} from '../cameraPreference';
+import type { CameraMode } from '../playerPresentation';
+import type { PlayerAvatarModel } from '../playerAvatarCatalog';
+import type { LoadedModel } from './extensionRegistry';
 
 /**
  * The one React view for any manifest-driven 3D location
@@ -80,6 +92,16 @@ export interface ThreeLocationWorldViewProps {
    * region served by Django gets the asset library's (TR-10, `regionAssetsFor`).
    */
   assets?: LocationEngineAssets;
+  /** LAI-JMP-01a: the child's `ChildProfile.avatarKey`, for their avatar's look in third-person. */
+  avatarKey?: string | null;
+  /**
+   * LAI-JMP-01c: the child's published avatar model and how to load it
+   * (`features/player-avatar/playerAvatarSource.ts`). Absent: the placeholder (or a bundled model).
+   */
+  avatarSource?: {
+    published: Promise<PlayerAvatarModel | null>;
+    loadModel?: (ref: string) => Promise<LoadedModel>;
+  };
 }
 
 const TOAST_DURATION_MS = 4000;
@@ -157,6 +179,8 @@ export function ThreeLocationWorldView({
   repository = sourceLocationManifestRepository,
   viewExtensions = SOURCE_VIEW_EXTENSIONS,
   assets = DEFAULT_LOCATION_ENGINE_DEPS.assets,
+  avatarKey = null,
+  avatarSource,
 }: ThreeLocationWorldViewProps) {
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
@@ -197,6 +221,29 @@ export function ThreeLocationWorldView({
     visit and quietly do nothing.
   */
   const [engine, setEngine] = useState<LocationEngine | null>(null);
+  /*
+    LAI-JMP-01a: the perspective. The child's saved choice goes into the
+    engine; the engine reports every change (V, the HUD button, the gamepad,
+    the setting below), and the view shows it and saves it for next time.
+  */
+  const [savedCameraMode] = useState(() => loadCameraPreference(childId));
+  /** Running & sprinting: hold or toggle Shift, the child's own setting. */
+  const [sprintMode, setSprintModeState] = useState<SprintModePreference>(
+    () => loadSprintModePreference(childId) ?? 'hold',
+  );
+  const chooseSprintMode = (mode: SprintModePreference) => {
+    setSprintModeState(mode);
+    saveSprintModePreference(childId, mode);
+    engineRef.current?.setSprintMode?.(mode);
+  };
+  const [cameraMode, setCameraModeState] = useState<CameraMode | null>(null);
+  const onCameraModeChange = useCallback(
+    (mode: CameraMode) => {
+      setCameraModeState(mode);
+      saveCameraPreference(childId, mode);
+    },
+    [childId],
+  );
   // Read by bus listeners, so a refreshed context never forces re-subscribing.
   const contextRef = useRef<WorldInteractionContext>(EMPTY_CONTEXT);
   useEffect(() => {
@@ -316,6 +363,11 @@ export function ThreeLocationWorldView({
           .then(() => refreshWorld())
           .catch(() => undefined);
       }),
+      // LAI-JMP-02: friendly course feedback; a missed jump is never a loss.
+      bus.on('CourseCheckpointReached', ({ label }) => setToast(checkpointReachedText(label))),
+      bus.on('PlayerRecovered', ({ reason, checkpointId }) => {
+        if (reason === 'HAZARD' || checkpointId) setToast(recoveredText(manifest.platforming, checkpointId));
+      }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
           void pendingWrites.track(saveCheckpoint(childId, zoneId)).catch(() => undefined);
@@ -334,6 +386,14 @@ export function ThreeLocationWorldView({
     };
   }, [bus, childId, manifest, openInteractionFor, pendingWrites, refreshWorld]);
 
+  // LAI-JMP-02/03: a world change recorded during the visit (a riddle solved) raises its platform
+  // signal at once, so a bridge it unlocks appears without leaving the location.
+  const worldKeys = snapshot?.context.worldChangeKeys;
+  useEffect(() => {
+    if (!engine || !worldKeys) return;
+    for (const key of worldKeys) engine.signalPlatforms?.(worldSignal(key));
+  }, [engine, worldKeys]);
+
   /*
     "You are back at the pond." Said once, when a returning child's saved
     checkpoint lands, so the first thing the region tells them is where they
@@ -351,6 +411,16 @@ export function ThreeLocationWorldView({
     const timeout = window.setTimeout(() => setToast(null), TOAST_DURATION_MS);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+
+  /*
+    LAI-JMP-01: a panel opening over the scene pauses play, so nothing held
+    a moment ago (a key, a drag, the Jump button, a gamepad button) may still
+    be held when the child comes back to it.
+  */
+  const panelOpen = openInteraction !== null || claimed !== null;
+  useEffect(() => {
+    if (panelOpen) engine?.resetInput?.();
+  }, [panelOpen, engine]);
 
   if (manifestState.status === 'not-found' || manifestState.status === 'error') {
     return (
@@ -431,6 +501,12 @@ export function ThreeLocationWorldView({
                 worldState: snapshot.context,
                 quality: chooseRenderQuality(deviceHintsFromNavigator()),
                 reducedMotion: prefersReducedMotion(),
+                cameraMode: savedCameraMode ?? undefined,
+                sprintMode,
+                avatarKey,
+                onCameraModeChange,
+                publishedAvatar: avatarSource?.published,
+                loadAvatarModel: avatarSource?.loadModel,
               },
               { ...DEFAULT_LOCATION_ENGINE_DEPS, assets },
             )
@@ -438,6 +514,7 @@ export function ThreeLocationWorldView({
           onEngineReady={(ready) => {
             engineRef.current = ready;
             setEngine(ready);
+            setCameraModeState(ready.cameraMode?.() ?? null);
           }}
         />
         <WorldHud
@@ -454,6 +531,10 @@ export function ThreeLocationWorldView({
               }
             : {})}
           showBackpack={!companionOwnsBackpack}
+          {...(engine?.jump?.enabled ? { onJump: () => engineRef.current?.pressJump?.() } : {})}
+          {...(cameraMode && engine?.camera?.allowModeSwitch
+            ? { cameraMode, onToggleCamera: () => engineRef.current?.toggleCameraMode?.() }
+            : {})}
         />
         <div ref={setHudSlot} className={styles.stageControls} />
         <div ref={setSpeechSlot} className={styles.stageSpeech} />
@@ -499,6 +580,50 @@ export function ThreeLocationWorldView({
           onDiscovered={() => void refreshWorld()}
           regionId={manifest.regionId}
         />
+      ) : null}
+      {cameraMode && engine?.camera?.allowModeSwitch ? (
+        <fieldset className={styles.cameraSetting}>
+          <legend>Camera view</legend>
+          {(
+            [
+              ['third-person', 'Behind my explorer'],
+              ['first-person', 'Through my eyes'],
+            ] as const
+          ).map(([mode, label]) => (
+            <label key={mode} className={styles.cameraSettingOption}>
+              <input
+                type="radio"
+                name="camera-view"
+                value={mode}
+                checked={cameraMode === mode}
+                onChange={() => engineRef.current?.setCameraMode?.(mode)}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
+      {engine?.locomotion?.sprintEnabled ? (
+        <fieldset className={styles.cameraSetting}>
+          <legend>Sprint with Shift</legend>
+          {(
+            [
+              ['hold', 'Hold Shift'],
+              ['toggle', 'Tap Shift to switch'],
+            ] as const
+          ).map(([mode, label]) => (
+            <label key={mode} className={styles.cameraSettingOption}>
+              <input
+                type="radio"
+                name="sprint-mode"
+                value={mode}
+                checked={sprintMode === mode}
+                onChange={() => chooseSprintMode(mode)}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
       ) : null}
       <details className={styles.thingsToDo}>
         <summary>Things to do here</summary>

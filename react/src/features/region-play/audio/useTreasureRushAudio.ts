@@ -21,10 +21,13 @@ import { createTreasureRushMusic } from './treasureRushMusic';
 import {
   CUE_SOUNDS,
   ENTRY_AMBIENCE,
+  FOOTSTEP_VOLUME,
+  LANDING_SOUND_MIN_SPEED,
   NPC_CUE_EVENTS,
   ONE_SHOT_SPATIAL,
   POSITIONAL_CUES,
   ZONE_AMBIENCE,
+  TR_SOUND,
   ZONE_PRIORITY,
 } from './treasureRushSounds';
 
@@ -153,6 +156,48 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
       offLeave();
     };
   }, [bus, zones]);
+
+  // LAI-JMP-01: the child's own jumps and landings, flat and quiet. Played by logical cue id;
+  // with no published audio for a cue the play fails quietly and the jump goes on regardless.
+  useEffect(() => {
+    const offJump = bus.on('PlayerJumped', () => {
+      void player.play(TR_SOUND.playerJump).catch(() => undefined);
+    });
+    const offLand = bus.on('PlayerLanded', ({ impactSpeed }) => {
+      if (impactSpeed < LANDING_SOUND_MIN_SPEED) return;
+      void player.play(TR_SOUND.playerLand).catch(() => undefined);
+    });
+    // Running & sprinting: optional footsteps, at the pace the engine reports, louder when faster.
+    const offStep = bus.on('PlayerFootstep', ({ gait }) => {
+      void player
+        .play(TR_SOUND.playerFootstep, { volume: FOOTSTEP_VOLUME[gait] })
+        .catch(() => undefined);
+    });
+    return () => {
+      offJump();
+      offLand();
+      offStep();
+    };
+  }, [bus, player]);
+
+  // LAI-JMP-02 / LAI-JMP-04: platforms, plates, checkpoints and recovery, by logical cue id. A
+  // platform may name its own cue; with no published audio the play fails quietly.
+  useEffect(() => {
+    const play = (cue: string) => void player.play(cue).catch(() => undefined);
+    const offs = [
+      bus.on('PlatformActivated', ({ cue }) => play(cue ?? TR_SOUND.platformActivate)),
+      bus.on('PlatformMoving', ({ cue }) => play(cue ?? TR_SOUND.platformMove)),
+      bus.on('PlatformStopped', ({ cue }) => play(cue ?? TR_SOUND.platformStop)),
+      bus.on('PressurePlatePressed', () => play(TR_SOUND.pressurePlate)),
+      bus.on('PlayerBounced', ({ cue }) => play(cue ?? TR_SOUND.bounce)),
+      bus.on('CourseCheckpointReached', () => play(TR_SOUND.checkpoint)),
+      bus.on('PlayerRecovered', () => play(TR_SOUND.playerRecover)),
+      bus.on('PlatformGoalReached', () => play(TR_SOUND.platformGoal)),
+    ];
+    return () => {
+      for (const off of offs) off();
+    };
+  }, [bus, player]);
 
   // Staff zone assignments from the manifest replace the built-in cues and priorities.
   const { assignments } = manifest;

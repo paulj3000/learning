@@ -308,3 +308,30 @@ describe('a raw Mixamo export (NPC Manager QA)', () => {
     expect(animator.resolveClip('talk')?.name).not.toBe('Armature|mixamo.com|Layer0.001');
   });
 });
+
+describe('playback speed (LAI-JMP-01a)', () => {
+  it('scales clip playback: a 0.5 s gesture takes 1 s at half speed', () => {
+    const { animator, onFinished } = setup();
+    animator.setTimeScale(0.5);
+    animator.setTimeScale(Number.NaN); // ignored
+    animator.setTimeScale(-1); // ignored
+    animator.play('wave', { mode: 'once', priority: 1 });
+    run(animator, 0.7);
+    expect(onFinished).not.toHaveBeenCalled();
+    run(animator, 0.5);
+    expect(onFinished).toHaveBeenCalledWith('wave');
+  });
+
+  it('leaves NPCs at normal speed unless asked', () => {
+    const { animator, onFinished } = setup();
+    animator.play('wave', { mode: 'once', priority: 1 });
+    run(animator, 0.6);
+    expect(onFinished).toHaveBeenCalledWith('wave');
+  });
+
+  it('does nothing once disposed', () => {
+    const { animator } = setup();
+    animator.dispose();
+    expect(() => animator.setTimeScale(2)).not.toThrow();
+  });
+});

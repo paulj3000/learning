@@ -2,6 +2,7 @@ import type { AnimationClip, AnimationMixer, Box3, Camera, Object3D, Scene } fro
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import type { WorldInteractionContext } from '../../worldObjects';
 import type { JsonValue, ThreeLocationManifest } from './locationManifest';
+import type { RenderQuality } from './visual/renderQuality';
 
 /**
  * The escape hatch for bespoke mechanics (`docs/engine/01_TARGET_ARCHITECTURE.md`
@@ -37,11 +38,23 @@ export interface WorldExtensionContext {
   camera: Camera;
   bus: WorldEngineEventBus;
   manifest: ThreeLocationManifest;
+  /**
+   * The render-quality tier the region is drawn at (`visual/renderQuality.ts`), so an extension
+   * can scale purely decorative work (ENV-2 vegetation density). Absent means the default.
+   */
+  quality?: RenderQuality;
   /** This binding's own `config` from the manifest. Only the extension interprets it. */
   config: { readonly [key: string]: JsonValue };
-  /** Adds a solid collider the player cannot walk through. */
-  addCollider(box: Box3): void;
-  /** Removes a manifest collider by its `rect.id` (a bridge once it is mended). True if one was removed. */
+  /**
+   * Adds a collider the player cannot walk through. `jumpable`: a low obstacle the child may hop
+   * onto or over (it blocks only at its own height, ADR-055); default solid at every height.
+   */
+  addCollider(box: Box3, options?: { jumpable?: boolean }): void;
+  /**
+   * Removes a manifest collider by its `rect.id` (a bridge once it is mended). True if one was
+   * removed. `derived:<scenery id>` removes every derived box of that scenery item (its stand-in
+   * was replaced by a model the extension draws with its own colliders), now and for good.
+   */
   removeCollider(id: string): boolean;
   /**
    * Whether a point on the ground (x, z) is inside a live collider, for things that move by

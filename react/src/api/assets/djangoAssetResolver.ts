@@ -1,4 +1,9 @@
 import {
+  parseCollisionProfile,
+  type CollisionProfile,
+  type CollisionProfiles,
+} from '../../features/island-map/three/runtime/collisionProfile';
+import {
   BUNDLED_ASSET_RESOLVER,
   FAMILY_FORMATS,
   FAMILY_KINDS,
@@ -93,7 +98,16 @@ export function reportAssetResolutionIssue(issue: AssetResolutionIssue): void {
   );
 }
 
-export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): AssetResolver {
+/** The Django resolver also answers collision profiles, from the same batched, cached request. */
+export interface DjangoAssetResolver extends AssetResolver {
+  /**
+   * Staff-configured collision profiles for these ids (Asset Manager). Ids without one, and
+   * every id when the request fails, are absent: the runtime keeps its built-in defaults.
+   */
+  collisionProfiles(ids: readonly string[]): Promise<CollisionProfiles>;
+}
+
+export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): DjangoAssetResolver {
   const fallback = options.fallback ?? BUNDLED_ASSET_RESOLVER;
   const now = options.now ?? Date.now;
   const onIssue = options.onIssue ?? reportAssetResolutionIssue;
@@ -107,6 +121,8 @@ export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): 
   const baseUrl = options.baseUrl ?? '';
   const childPath = `children/${encodeURIComponent(options.childId)}/assets/`;
   const cache = new Map<string, PublishedAsset | null>();
+  /** Every answered id's profile (published or not): a bundled model still follows it. */
+  const collisions = new Map<string, CollisionProfile>();
   let queue: { id: string; settle: (asset: PublishedAsset | null) => void }[] = [];
 
   function fresh(asset: PublishedAsset | null | undefined): asset is PublishedAsset {
@@ -122,6 +138,8 @@ export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): 
       );
       for (const entry of readEntries(response.data)) {
         if (!ids.includes(entry.ref)) continue;
+        const profile = parseCollisionProfile(entry.collision);
+        if (profile) collisions.set(entry.ref, profile);
         const published = toPublished(entry, baseUrl);
         found.set(entry.ref, published);
         if (!published) {
@@ -163,6 +181,16 @@ export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): 
   }
 
   return {
+    async collisionProfiles(ids: readonly string[]): Promise<CollisionProfiles> {
+      const unique = [...new Set(ids)];
+      await Promise.all(unique.map((id) => lookUp(id)));
+      const found = new Map<string, CollisionProfile>();
+      for (const id of unique) {
+        const profile = collisions.get(id);
+        if (profile) found.set(id, profile);
+      }
+      return found;
+    },
     async resolve(id: string, family: AssetFamily = 'model'): Promise<ResolvedAsset> {
       const published = await lookUp(id);
       if (published && published.family === family) {
@@ -195,6 +223,7 @@ interface Entry {
   format?: unknown;
   cache?: unknown;
   media?: unknown;
+  collision?: unknown;
 }
 
 function readEntries(data: unknown): Entry[] {
@@ -272,6 +301,14 @@ export function djangoAssetResolverFor(
   childId: string,
   config: DjangoApiConfig = DJANGO_API_CONFIG,
 ): AssetResolver {
+  return createDjangoResolverFor(childId, config);
+}
+
+/** The Django resolver itself, with collision profiles (Asset Manager). */
+export function createDjangoResolverFor(
+  childId: string,
+  config: DjangoApiConfig = DJANGO_API_CONFIG,
+): DjangoAssetResolver {
   return createDjangoAssetResolver({
     client: createApiClient({ baseUrl: config.baseUrl, getAccessToken }),
     childId,

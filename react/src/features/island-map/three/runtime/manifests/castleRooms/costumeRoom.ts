@@ -14,11 +14,15 @@ const BRASS = 0xc9a24a;
 const GLASS = 0xcfe6f0;
 const GARMENTS = [0xc0392b, 0x2f6fb0, 0x4c9a5a] as const;
 
-/** The racks' centres, matching `COSTUME_RACK_SPOTS`. */
+/**
+ * The racks' centres, matching `COSTUME_RACK_SPOTS`. Stood back toward the south wall (z -9.2,
+ * was -8.5) once the child got a real body (Defect 2, 0.35 m radius): at -8.5 rack c's end
+ * was 0.3 m from where the Trophy Room door lands a child, so they arrived touching it.
+ */
 export const COSTUME_RACKS = [
-  { id: 'a', x: -6.5, z: -8.5 },
-  { id: 'b', x: -4.5, z: -8.5 },
-  { id: 'c', x: -2.5, z: -8.5 },
+  { id: 'a', x: -6.5, z: -9.2 },
+  { id: 'b', x: -4.5, z: -9.2 },
+  { id: 'c', x: -2.5, z: -9.2 },
 ] as const;
 
 const RACK_HALF_WIDTH = 0.7;

@@ -1,9 +1,31 @@
 import { Vector2, type WebGLRenderer } from 'three';
 import type { FirstPersonController } from './firstPersonController';
+import { RUN_INPUT_THRESHOLD } from './locomotionConfiguration';
+import {
+  GamepadReader,
+  NO_GAMEPAD_INPUT,
+  type GamepadBindings,
+  type GamepadLike,
+} from './gamepadInput';
 
 export interface PointerControlsOptions {
   /** Fired on the interact key (`E` or `Enter`), desktop only - touch has its own on-screen button. */
   onInteract?: () => void;
+  /** LAI-JMP-01a: fired on V or the gamepad camera button; the HUD has its own button. */
+  onToggleCamera?: () => void;
+  /**
+   * Running & sprinting: how Shift sprints. `hold` (default): while held. `toggle`: each press
+   * switches sprint on or off. Read on every press, so a setting change applies at once. Either
+   * way sprint ends when the child stops moving, a panel opens or the window loses focus.
+   */
+  sprintMode?: () => SprintMode;
+  /** Gamepad button mapping. Defaults to `DEFAULT_GAMEPAD_BINDINGS`. */
+  gamepadBindings?: GamepadBindings;
+  /**
+   * Multiplier on mouse, touch and right-stick look speed (a location's
+   * `player.camera.rotationSensitivity`). Defaults to 1.
+   */
+  lookSensitivity?: () => number;
 }
 
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ']);
@@ -18,12 +40,71 @@ function isEditableTarget(target: EventTarget | null): boolean {
 export interface PointerControls {
   /** Reads this frame's held/dragged input and advances `controller` by `deltaSeconds`. Call once per frame. */
   update(deltaSeconds: number): void;
+  /**
+   * Forgets every held key, drag and button (LAI-JMP-01), so nothing stays
+   * stuck down when the window loses focus, the tab is hidden or a panel
+   * opens over the scene. A key still held afterwards does nothing until it
+   * is pressed again.
+   */
+  resetInput(): void;
   dispose(): void;
 }
 
+/** Hold Shift to sprint, or press it to switch sprint on and off. */
+export type SprintMode = 'hold' | 'toggle';
+
+/** A move drag this long (px) is full walking pace, exactly as before running existed. */
+export const TOUCH_WALK_RADIUS = 40;
+/** Dragging further, up to this, rises to full running pace. */
+export const TOUCH_RUN_RADIUS = 60;
+/** Dragging past this sprints. */
+export const TOUCH_SPRINT_RADIUS = 72;
+
 /**
- * Desktop keyboard/mouse (pointer-lock) and tablet/touch movement + look
- * input, wired to a `FirstPersonController`
+ * A move drag as an analog input: a direction scaled so a 40 px drag is full
+ * walking pace (the old joystick, unchanged), 60 px full running pace, and
+ * anything past 72 px a sprint. No extra button: a child just drags further.
+ */
+export function touchDrag(dx: number, dy: number): { x: number; y: number; sprint: boolean } {
+  const distance = Math.hypot(dx, dy);
+  if (distance === 0) return { x: 0, y: 0, sprint: false };
+  const magnitude =
+    distance <= TOUCH_WALK_RADIUS
+      ? (RUN_INPUT_THRESHOLD * distance) / TOUCH_WALK_RADIUS
+      : Math.min(
+          1,
+          RUN_INPUT_THRESHOLD +
+            ((1 - RUN_INPUT_THRESHOLD) * (distance - TOUCH_WALK_RADIUS)) /
+              (TOUCH_RUN_RADIUS - TOUCH_WALK_RADIUS),
+        );
+  return {
+    x: (dx / distance) * magnitude,
+    y: (dy / distance) * magnitude,
+    sprint: distance >= TOUCH_SPRINT_RADIUS,
+  };
+}
+
+/** The keys that jump. Space only; `event.code` too, for layouts where `key` differs. */
+function isJumpKey(event: KeyboardEvent): boolean {
+  return event.key === ' ' || event.code === 'Space';
+}
+
+/** Connected pads, or none where the Gamepad API is missing (jsdom, old browsers). */
+function readGamepads(): readonly (GamepadLike | null)[] {
+  if (typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return [];
+  try {
+    return navigator.getGamepads();
+  } catch {
+    // Some browsers throw when a permissions policy blocks gamepads.
+    return [];
+  }
+}
+
+/**
+ * Desktop keyboard/mouse (pointer-lock), tablet/touch and gamepad movement +
+ * look input, wired to a `FirstPersonController`. Space (or gamepad A/Cross)
+ * jumps (LAI-JMP-01); the on-screen Jump button lives in the HUD and reaches
+ * the same `controller.pressJump()` through the engine handle
  * (`docs/ROADMAP.md` Phase 31: "desktop keyboard/mouse (pointer-lock) and
  * tablet/touch movement and look controls").
  *
@@ -44,18 +125,50 @@ export function attachPointerControls(
   options: PointerControlsOptions = {},
 ): PointerControls {
   const keysDown = new Set<string>();
+  /** Shift in toggle mode, and the gamepad's sprint button: on until pressed again or stopped. */
+  let keyboardSprintLatched = false;
+  let padSprintLatched = false;
+  /** A touch drag past the joystick's edge sprints. */
+  let touchSprint = false;
+  const gamepads = new GamepadReader(options.gamepadBindings);
+  const sensitivity = () => {
+    const value = options.lookSensitivity?.() ?? 1;
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  };
+  /** Every look delta goes through here, so the location's sensitivity applies to all of them. */
+  const look = (dx: number, dy: number) => {
+    const scale = sensitivity();
+    controller.applyLookDelta(dx * scale, dy * scale);
+  };
   const onKeyDown = (event: KeyboardEvent) => {
-    // Arrow keys and space move the player, so stop them also scrolling the
-    // page - but leave them alone in form fields (e.g. an adventure's number input).
-    if (SCROLL_KEYS.has(event.key) && !isEditableTarget(event.target)) {
+    // Typing in a form field (an adventure's number input, a story answer) is
+    // typing, not playing: no movement, no jump, no interact, and the page
+    // keeps its usual Space and arrow behaviour there.
+    if (isEditableTarget(event.target)) return;
+    // Arrow keys and space move the player, so stop them also scrolling the page.
+    if (SCROLL_KEYS.has(event.key)) {
       event.preventDefault();
     }
-    keysDown.add(event.key.toLowerCase());
-    if (event.key.toLowerCase() === 'e' || event.key === 'Enter') {
+    const key = event.key.toLowerCase();
+    // One jump per press: a held key's auto-repeat, or a key already down, never jumps again.
+    if (isJumpKey(event) && !event.repeat && !keysDown.has(' ')) {
+      controller.pressJump();
+    }
+    keysDown.add(isJumpKey(event) ? ' ' : key);
+    if (key === 'shift' && !event.repeat && options.sprintMode?.() === 'toggle') {
+      keyboardSprintLatched = !keyboardSprintLatched;
+    }
+    if (key === 'e' || event.key === 'Enter') {
       options.onInteract?.();
     }
+    // One switch per press: auto-repeat on a held V does not flip the view back and forth.
+    if (key === 'v' && !event.repeat) {
+      options.onToggleCamera?.();
+    }
   };
-  const onKeyUp = (event: KeyboardEvent) => keysDown.delete(event.key.toLowerCase());
+  const onKeyUp = (event: KeyboardEvent) => {
+    keysDown.delete(isJumpKey(event) ? ' ' : event.key.toLowerCase());
+  };
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
 
@@ -68,7 +181,7 @@ export function attachPointerControls(
 
   const onMouseMove = (event: MouseEvent) => {
     if (document.pointerLockElement !== renderer.domElement) return;
-    controller.applyLookDelta(event.movementX, event.movementY);
+    look(event.movementX, event.movementY);
   };
   document.addEventListener('mousemove', onMouseMove);
 
@@ -100,15 +213,13 @@ export function attachPointerControls(
       if (touch.identifier === moveTouchId) {
         const dx = touch.clientX - moveTouchStart.x;
         const dy = touch.clientY - moveTouchStart.y;
-        const maxRadius = 40;
-        touchMoveVector.set(
-          Math.max(-1, Math.min(1, dx / maxRadius)),
-          Math.max(-1, Math.min(1, dy / maxRadius)),
-        );
+        const drag = touchDrag(dx, dy);
+        touchMoveVector.set(drag.x, drag.y);
+        touchSprint = drag.sprint;
       } else if (touch.identifier === lookTouchId) {
         const dx = touch.clientX - lookTouchLast.x;
         const dy = touch.clientY - lookTouchLast.y;
-        controller.applyLookDelta(dx * 8, dy * 8);
+        look(dx * 8, dy * 8);
         lookTouchLast = new Vector2(touch.clientX, touch.clientY);
       }
     }
@@ -118,6 +229,7 @@ export function attachPointerControls(
       if (touch.identifier === moveTouchId) {
         moveTouchId = null;
         touchMoveVector.set(0, 0);
+        touchSprint = false;
       } else if (touch.identifier === lookTouchId) {
         lookTouchId = null;
       }
@@ -128,6 +240,25 @@ export function attachPointerControls(
   renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true });
   renderer.domElement.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
+  function resetInput(): void {
+    keysDown.clear();
+    moveTouchId = null;
+    lookTouchId = null;
+    touchMoveVector.set(0, 0);
+    touchSprint = false;
+    keyboardSprintLatched = false;
+    padSprintLatched = false;
+    gamepads.reset();
+    controller.clearJumpInput();
+  }
+  // A key released while another window had focus never sends keyup here.
+  const onBlur = () => resetInput();
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') resetInput();
+  };
+  window.addEventListener('blur', onBlur);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
   function update(deltaSeconds: number): void {
     const keyboardForward =
       (keysDown.has('w') || keysDown.has('arrowup') ? 1 : 0) -
@@ -136,15 +267,37 @@ export function attachPointerControls(
       (keysDown.has('d') || keysDown.has('arrowright') ? 1 : 0) -
       (keysDown.has('a') || keysDown.has('arrowleft') ? 1 : 0);
 
+    const pads = readGamepads();
+    const pad = pads.length > 0 ? gamepads.read(pads, deltaSeconds) : NO_GAMEPAD_INPUT;
+    if (pad.lookX !== 0 || pad.lookY !== 0) look(pad.lookX, pad.lookY);
+    if (pad.jumpPressed) controller.pressJump();
+    if (pad.interactPressed) options.onInteract?.();
+    if (pad.cameraTogglePressed) options.onToggleCamera?.();
+    if (pad.sprintPressed) padSprintLatched = !padSprintLatched;
+
+    const forward = Math.max(-1, Math.min(1, keyboardForward - touchMoveVector.y + pad.forward));
+    const strafe = Math.max(-1, Math.min(1, keyboardStrafe + touchMoveVector.x + pad.strafe));
+    const moving = forward !== 0 || strafe !== 0;
+    // A toggled sprint ends when the child stops, so it never surprises them on the next step.
+    if (!moving) {
+      keyboardSprintLatched = false;
+      padSprintLatched = false;
+    }
+    const holdShift = options.sprintMode?.() !== 'toggle' && keysDown.has('shift');
     controller.update(deltaSeconds, {
-      forward: Math.max(-1, Math.min(1, keyboardForward - touchMoveVector.y)),
-      strafe: Math.max(-1, Math.min(1, keyboardStrafe + touchMoveVector.x)),
+      forward,
+      strafe,
+      // A joystick drag or a stick: a strong push runs. Keys alone walk, as they always did.
+      analog: touchMoveVector.lengthSq() > 0 || pad.forward !== 0 || pad.strafe !== 0,
+      sprint: holdShift || keyboardSprintLatched || padSprintLatched || touchSprint,
     });
   }
 
   function dispose(): void {
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('blur', onBlur);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     document.removeEventListener('mousemove', onMouseMove);
     renderer.domElement.removeEventListener('click', onPointerLockClick);
     renderer.domElement.removeEventListener('touchstart', onTouchStart);
@@ -156,5 +309,5 @@ export function attachPointerControls(
     }
   }
 
-  return { update, dispose };
+  return { update, resetInput, dispose };
 }

@@ -106,6 +106,11 @@ def wrong(attempt_id):
     return attempt.answer + 1
 
 
+def leap(chest) -> bool:
+    """Pirate's Leap's chests (LAI-JMP-03) share the cove; these tests are about Pip's four."""
+    return chest["entityId"].startswith("cove-leap-")
+
+
 def items(child) -> list[str]:
     return sorted(InventoryItem.objects.filter(child=child).values_list("item__item_id", flat=True))
 
@@ -133,7 +138,7 @@ def play_to_the_finale(play):
 
 
 def test_the_cove_offers_pips_quest_and_accepting_starts_it(play):
-    [offered] = play.region()["quests"]
+    [offered] = [q for q in play.region()["quests"] if q["questId"] == PIPS_QUEST_ID]
     assert (offered["questId"], offered["status"]) == (PIPS_QUEST_ID, "AVAILABLE")
     body = play.accept().json()
     assert body["status"] == "ACTIVE" and body["currentStageId"] == "find-the-treasure"
@@ -158,7 +163,7 @@ def test_a_chest_opened_before_accepting_counts_once_the_quest_is_accepted(play)
 
 def test_the_encounters_unlock_in_order(play):
     play.accept()
-    locks = {c["entityId"]: c["lockReason"] for c in play.region()["chests"]}
+    locks = {c["entityId"]: c["lockReason"] for c in play.region()["chests"] if not leap(c)}
     assert locks == {
         LANDING: None,
         GROVE: "PROGRESS",
@@ -372,7 +377,7 @@ def test_leaving_and_returning_keeps_every_step(play):
 
     play.come_back()
     region = play.region()
-    opened = {c["entityId"]: c["isOpen"] for c in region["chests"]}
+    opened = {c["entityId"]: c["isOpen"] for c in region["chests"] if not leap(c)}
     assert opened == {
         LANDING: True,
         GROVE: True,
@@ -382,7 +387,7 @@ def test_leaving_and_returning_keeps_every_step(play):
         SPYGLASS: False,
     }
     assert play.chest(BEACH)["lockReason"] is None  # the key is still in the backpack
-    [entry] = region["quests"]
+    [entry] = [q for q in region["quests"] if q["questId"] == PIPS_QUEST_ID]
     done = [o["id"] for o in entry["stages"][0]["objectives"] if o["complete"]]
     assert done == ["cove-landing-chest", "cove-grove-chest"]
     play.solve(BEACH)

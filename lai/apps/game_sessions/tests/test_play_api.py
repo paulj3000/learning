@@ -150,13 +150,15 @@ def test_the_bootstrap_describes_the_published_region_for_this_child(a):
         "cove-ruins-pedestal",
         "cove-final-chest",
         "cove-lookout-spyglass",  # TR-20: the repeatable activity, locked until the quest is done
+        "cove-leap-riddle",  # LAI-JMP-03: Pirate's Leap's optional riddle drum
+        "cove-leap-chest",  # and its secret treasure
     ]
     chest = body["chests"][0]
     assert chest["entityId"] == CHEST and chest["assetId"] == "treasure-chest"
     assert chest["locked"] is False and chest["presentation"] == "CHEST"
     assert chest["isOpen"] is False and chest["challengeAvailable"] is True
     assert chest["placeholder"] == {"width": 1.2, "height": 0.9, "depth": 0.8}
-    [quest] = body["quests"]
+    [quest] = [q for q in body["quests"] if q["questId"] == QUEST]
     assert (quest["questId"], quest["status"]) == (QUEST, "AVAILABLE")
     assert body["session"] is None and body["worldChanges"] == []
 
@@ -188,7 +190,7 @@ def test_draft_challenges_and_quests_are_not_offered(a):
     QuestDefinition.objects.filter(slug=QUEST).update(active=False)
     body = client.get(f"{base(child)}regions/{REGION}/").json()
     assert body["chests"][0]["challengeAvailable"] is False
-    assert body["quests"] == []
+    assert QUEST not in [q["questId"] for q in body["quests"]]
 
 
 # --- Sessions --------------------------------------------------------------------------------

@@ -1,6 +1,12 @@
 import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
 import type { AgeBandValue } from '../../../child-profile/constants';
 import type { AdventureStepBinding } from './adventureStepBindings';
+import type { MovementSpec } from '../jumpConfiguration';
+import type { PlayerPresentationSpec } from '../playerPresentation';
+
+import type { PlatformingSpec } from '../platforms/platformSpec';
+export type { MovementSpec } from '../jumpConfiguration';
+export type { PlayerPresentationSpec } from '../playerPresentation';
 
 /**
  * The serializable contract a generic Three.js location runtime reads
@@ -114,7 +120,10 @@ export interface CheckpointSpec {
   triggerHalfSize: number;
 }
 
-/** A solid, invisible collider. Visible geometry that should block movement declares its own collider instead. */
+/**
+ * A solid, invisible collider. Pieces with a solid footprint (`derivedColliders.ts`) get a box
+ * automatically; author one for anything else that should block, or to shape a piece by hand.
+ */
 export interface ColliderSpec {
   /** `rect.id` is how an extension removes this collider (e.g. a bridge once it is mended). */
   rect: RectZone;
@@ -122,6 +131,14 @@ export interface ColliderSpec {
   maxY?: number;
   /** Present only while these hold, evaluated when the scene is built. Absent means always. */
   requirements?: readonly WorldRequirement[];
+  /**
+   * LAI-JMP-01: a low obstacle (rock, log, crate, step) the child may jump
+   * onto or over. Its real `minY`/`maxY` then decide where it blocks; both
+   * must be authored. Absent means solid at every height, which is what keeps
+   * walls, gates and boundaries unjumpable. A collider with `requirements` is
+   * a progression gate and may never be jumpable (the validator says so).
+   */
+  jumpable?: boolean;
 }
 
 /**
@@ -675,4 +692,21 @@ export interface ThreeLocationManifest {
   adventureBindings: readonly AdventureStepBinding[];
   extensions: readonly ExtensionBinding[];
   copy: LocationCopy;
+  /**
+   * LAI-JMP-01: player movement tuning. Absent means the defaults, which
+   * include jumping (`jumpConfiguration.ts`); `{ jump: { enabled: false } }`
+   * keeps the child on the ground here.
+   */
+  movement?: MovementSpec;
+  /**
+   * LAI-JMP-02 / LAI-JMP-04: platforms, pressure plates, course checkpoints, hazards and goals
+   * (`platforms/platformSpec.ts`). Absent means none: the location plays exactly as before.
+   */
+  platforming?: PlatformingSpec;
+  /**
+   * LAI-JMP-01a: how the player is seen here: camera perspective and tuning,
+   * and the avatar. Absent means the defaults (third-person, switchable, the
+   * child's own avatar); `playerPresentation.ts`.
+   */
+  player?: PlayerPresentationSpec;
 }

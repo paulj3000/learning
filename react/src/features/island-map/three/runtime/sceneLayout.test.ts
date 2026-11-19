@@ -67,7 +67,7 @@ describe('solidColliders', () => {
       ...WELCOME_HARBOR_MANIFEST,
       colliders: [{ rect: { id: 'rock', minX: 0, maxX: 1, minZ: 0, maxZ: 1 }, maxY: 0.5 }],
     };
-    const boxes = solidColliders(manifest);
+    const boxes = solidColliders(manifest).filter((c) => !c.id?.startsWith('derived:'));
     expect(boxes).toHaveLength(4 + 1 + 6);
     expect(boxes[4]).toEqual({
       id: 'rock',
@@ -87,7 +87,7 @@ describe('solidColliders', () => {
     };
     const ids = (keys: string[]) =>
       solidColliders(manifest, { worldChangeKeys: keys }).flatMap((collider) =>
-        collider.id ? [collider.id] : [],
+        collider.id && !collider.id.startsWith('derived:') ? [collider.id] : [],
       );
     expect(ids([])).toEqual(['broken-bridge']);
     expect(ids(['BRIDGE_REPAIRED'])).toEqual([]);
