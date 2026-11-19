@@ -155,6 +155,14 @@ Forecast update after step 1: `feature/storykeeper-castle-completion` @ `4df618b
 engine and is now **clean** on top of step 1 (it was 9 conflicts). The `regions 0007` collision
 with Firepeak remains and is resolved by the order in section 3.
 
+**Owner decision, 2026-11-19 (quoted from the LAI-ENG-002 session): order A, "Firepeak first".**
+The steps are core, then Firepeak, then North Pole, then Storykeeper. Storykeeper renumbers
+`regions 0007_castle_director` and `0008_castle_director_catalog` to `0008` and `0009` on its own
+branch, after Firepeak has reached the integration branch. Forecast onto `3fe6ede8`: core
+`2dafd285`, Firepeak `0dbc2e5b` and North Pole `ea5ce8c4` are clean; Storykeeper has 5
+conflicts (2 code, 3 generated). The steps still need Development Complete recorded for what each
+SHA contains: GE-067 (no card yet), GE-073 and GE-074 (In Development).
+
 ### 6.1 Integration checklist (per step)
 
 - [ ] Card at Development Complete; SHA recorded on the card and pushed.
