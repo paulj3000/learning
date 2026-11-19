@@ -121,7 +121,7 @@ Created 2026-11-19 by LAI-ENG-002 at the owner's instruction, in coordination wi
 
 | Item | Value |
 |---|---|
-| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 18 merged, head `ccd5ae10`, section 5.1) |
+| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 19 merged, head `557dd425`, section 5.1) |
 | Worktree | `/Coding/learning-worktrees/wt-integration-20261119-game-engine-core` |
 | Slot | 8 (PostgreSQL 5458, Django 8090, Vite 5263; pytest database `test_lai_integration_20261119_game_engine_core`) |
 | Owner | LAI-ENG-002 (integrating agent). The engine lead supplies SHAs and fixes engine-side conflicts on `core/gameengine` |
@@ -167,6 +167,7 @@ who resolves on their own branch; the integration branch then re-merges.
 | 16 | `core/gameengine` `a4415c62` (engine 1.0 stabilization `96245e94`: GE-L10 same-step carry, GE-L15 turntables, GE-L14 terrain telegraph; GE-076 audit) into `21e13f81` | Engine 670 passed, 0 expected fails; React affected set 4,105 passed, 1 expected fail (GE-S1), 0 failed; typecheck, vectors, ADR, docs, workspace clean | None |
 | 17 | `feature/firepeak-volcano-adventure` `928453c0` (guard test: each realm's finale stays in its own realm) into `67294f60` | One test-file conflict with North Pole's `e69b47c9`, both appended at the end of one `describe`: union, both kept verbatim. region-play/audio 76 passed; typecheck clean | None; X1 closed as intended |
 | 18 | `feature/north-pole-adventure` `ae49c9de` (merges Firepeak `928453c0` with the step-17 union) into `ccd5ae10` | Tree identical to `67294f60` (verified); earlier results apply unchanged | None |
+| 19 | `core/gameengine` `ca6ada2c` (GE-076 item 1: remove the unused `gamepadInput` and `cameraHeightFollower` island-map shims) into `557dd425` | Owner confirmed 2026-11-19 (integration session) that Workstream E of the stabilization brief authorizes proven-unused removals. Typecheck clean; engine 670 passed; React affected set 4,106 passed, 1 expected fail (GE-S1), 0 failed; ADR, docs, workspace clean | None |
 
 Forecast update after step 1: `feature/storykeeper-castle-completion` @ `4df618b2` has merged the
 engine and is now **clean** on top of step 1 (it was 9 conflicts). The `regions 0007` collision
@@ -412,9 +413,9 @@ owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` an
 8. Deployment approval per environment, separate from the merge; RDS snapshot before migrating.
 9. Host memory (six agents on 8 GB) and whether the Storykeeper worktree may run its own PostgreSQL.
 
-## 11. Final reconciliation report (GE-090, 2026-11-19; updated at step 18)
+## 11. Final reconciliation report (GE-090, 2026-11-19; updated at step 19)
 
-**Final integration SHA: `ccd5ae10`** (step 18, same tree as `67294f60` at step 17; first issued at `568dd278`, step 14) (`integration/20261119-game-engine-core`, pushed, clean
+**Final integration SHA: `557dd425`** (step 19; first issued at `568dd278`, step 14) (`integration/20261119-game-engine-core`, pushed, clean
 working tree; `main` still `8bd19fb7`). Not merged into `main`; nothing deployed.
 
 ### 11.1 Branch reconciliation matrix
@@ -424,7 +425,7 @@ equivalents), and each agent worktree's local HEAD and tracked files (read-only)
 
 | Stream | Branch | Head | Not in integration | Unpushed / uncommitted | Trello (Development Complete at head) |
 |---|---|---|---|---|---|
-| Engine core | `core/gameengine` | `a4415c62` | 0 | 0 / 0 | GE-001 children; GE-066 to GE-069; stabilization on GE-001 (96245e94, a4415c62) |
+| Engine core | `core/gameengine` | `ca6ada2c` | 0 | 0 / 0 | GE-001 children; GE-066 to GE-069; stabilization on GE-001 (96245e94, a4415c62) |
 | Scoring | `core/ge-scoring` | `6bf69b1d` | 0 | 0 / 0 | GE-100, GE-109 |
 | Treasure Rush, Pirate's Leap | `feature/GE-070-treasure-rush-engine-migration` | `e632f09b` | 0 (all 15 previously missing commits present) | 0 / 0 | GE-070, GE-071 (97c69672 at 9e680012; parity audit e632f09b at step 15) |
 | Firepeak | `feature/firepeak-volcano-adventure` | `928453c0` | 0 | 0 / 0 | GE-073, GE-073F |
@@ -435,13 +436,13 @@ equivalents), and each agent worktree's local HEAD and tracked files (read-only)
 
 **Missing commits: none** in the six development streams or the movement stack.
 
-### 11.2 Targeted unit tests on `21e13f81` (step 17 adds one test: region-play/audio 76 passed on `67294f60`)
+### 11.2 Targeted unit tests on `557dd425` (step 19)
 
 | Suite | Result |
 |---|---|
 | Typecheck (root) | Clean |
 | Engine (`npm run test:engine`) | **670 passed, 0 expected fails** (GE-L10 fixed in step 16) |
-| React affected set (region-play, island-map, game-engine, npc-manager, scoring, great-storybook, audio, routes, src/test), gated | **4,105 passed, 0 failed**, 1 expected fail (GE-S1) (350 files) |
+| React affected set (region-play, island-map, game-engine, npc-manager, scoring, great-storybook, audio, routes, src/test), gated | **4,106 passed, 0 failed**, 1 expected fail (GE-S1) (350 files) |
 | Django on isolated PostgreSQL 16 (regions, ai, scoring, seasons, assets, avatars) | **1,918 passed, 0 failed** at `568dd278`; steps 15 and 16 change no Python |
 | Migration graph from an empty database | Applies cleanly; one leaf per app; `makemigrations --check` no changes |
 | Content, golden vectors, engine contract vectors, ADR, docs, workspace checks | Pass |
@@ -530,7 +531,7 @@ access, no deploy steps changed.
 - [x] All six streams and the movement stack integrated; no missing or unpushed commits
 - [x] Every integrated SHA recorded Development Complete on its card
 - [x] Migration graph verified on PostgreSQL; one leaf per app; no change to `main`'s migrations
-- [x] Targeted unit tests clean on `21e13f81` (engine, React; Django at `568dd278`, no Python changed since)
+- [x] Targeted unit tests clean on `557dd425` (engine, React; Django at `568dd278`, no Python changed since)
 - [x] Integration defects D1, D2 fixed by their owners
 - [ ] Owner decisions in 11.12
 - [ ] Merge-readiness gates on an authorized host: lint and format, full suites, build (no
@@ -551,4 +552,4 @@ access, no deploy steps changed.
 7. Acknowledgement of the `deploy-site.yml` and CI changes, and merge of LAI-ENG-002 (step 0).
 8. The main merge itself, as a PR the owner opens (agents have no GitHub write access).
 9. Separate deployment approval per environment after the merge, with an RDS snapshot first.
-10. GE-076 (legacy retirement, Backlog, owner approval required): whether shim removal may start. `core/gameengine` `ca6ada2c` (item 1: removes the unused `gamepadInput` and `cameraHeightFollower` island-map shims) is **held, not integrated**, pending that approval. Trial merge on `ccd5ae10`, aborted afterwards: clean; typecheck clean; game-engine, island-map/three (including `castleEngineImports`) and region-play (including `firepeak/realmEngineImports`) 2,802 passed, 1 expected fail, 0 failed; no importer of either shim on the integration tree. Ready to integrate on approval.
+10. ~~GE-076 start~~: **given** 2026-11-19 (owner, integration session): proven-unused removals under Workstream E; `ca6ada2c` integrated as step 19. Later GE-076 items (realm platform migrations, runtime swap, `createLocationEngine` removal) stay gated on consumer migration.
