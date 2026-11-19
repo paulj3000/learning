@@ -16,9 +16,13 @@
  */
 
 import {
+  createGameplayEventFactory,
   validateGameplayEvent,
   type AnyGameplayEvent,
   type GameplayEventContext,
+  type GameplayEventFactory,
+  type GameplayEventPayloads,
+  type GameplayEventType,
 } from '@lai/game-engine/contracts';
 
 export type GameplayClaimSink = (event: AnyGameplayEvent) => void;
@@ -72,6 +76,29 @@ export function forwardClaim(event: AnyGameplayEvent): void {
   }
 }
 
+let factoryFor: { binding: LocationClaimsBinding; factory: GameplayEventFactory } | null = null;
+
+/**
+ * Builds a claim for the current visit and forwards it (a host's own claims, such as region
+ * play's). Nothing happens before the visit's session exists. Never throws: a claim the factory
+ * refuses is dropped and counted.
+ */
+export function emitLocationClaim<T extends GameplayEventType>(
+  type: T,
+  payload: GameplayEventPayloads[T],
+): void {
+  const current = binding;
+  if (!current || !sink) return;
+  try {
+    if (factoryFor?.binding !== current) {
+      factoryFor = { binding: current, factory: createGameplayEventFactory(current.context) };
+    }
+    forwardClaim(factoryFor.factory.create(type, payload) as AnyGameplayEvent);
+  } catch {
+    dropped += 1;
+  }
+}
+
 /** Claims dropped because they were invalid or the sink threw. A count only, no content. */
 export function droppedLocationClaims(): number {
   return dropped;
@@ -81,5 +108,6 @@ export function droppedLocationClaims(): number {
 export function resetLocationClaimsForTests(): void {
   sink = null;
   binding = null;
+  factoryFor = null;
   dropped = 0;
 }

@@ -31,6 +31,12 @@ import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry
 import { SOURCE_WORLD_EXTENSIONS } from '..';
 import { SOURCE_VIEW_EXTENSIONS } from '../viewExtensions';
 import { RegionPlayCompanion } from './RegionPlayCompanion';
+import { validateGameplayEvent, type AnyGameplayEvent } from '@lai/game-engine/contracts';
+import {
+  currentClaimsBinding,
+  resetLocationClaimsForTests,
+  setLocationClaimSink,
+} from '../../runtime/gameplayClaimSink';
 import { regionPlayViewExtension } from './regionPlayViewExtension';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 
@@ -1500,5 +1506,50 @@ describe('the engine bridge learns the child\'s progress (GE-073)', () => {
     await act(async () => undefined);
     expect(bridge.setSignals).not.toHaveBeenCalled();
     expect(bridge.resume).not.toHaveBeenCalled();
+  });
+});
+
+describe('gameplay claims for the visit (GE-070, decision E15)', () => {
+  afterEach(() => resetLocationClaimsForTests());
+
+  it('restates the server’s answer as one valid CHEST_CHALLENGE claim bound to the session', async () => {
+    const sink = vi.fn<(event: AnyGameplayEvent) => void>();
+    setLocationClaimSink(sink);
+    const api = fakeApi();
+    await atTheChest(api, { sceneApi: fakeScene(false) });
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await waitFor(() =>
+      expect(sink.mock.calls.map(([event]) => event.type)).toContain('learning.answer.submitted'),
+    );
+    const events = sink.mock.calls.map(([event]) => event);
+    for (const event of events) expect(validateGameplayEvent(event).ok).toBe(true);
+    const answered = events.find((event) => event.type === 'learning.answer.submitted')!;
+    expect(answered).toMatchObject({
+      realmId: 'pirate-builder-bay',
+      adventureId: REGION,
+      areaId: REGION,
+      sessionRef: SESSION_ID,
+      payload: {
+        learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'cove-chest' },
+        choiceId: null,
+      },
+    });
+    // A chest is a graded challenge, never a discovery.
+    expect(events.some((event) => event.type === 'exploration.discovery.found')).toBe(false);
+  });
+
+  it('binds claims to the visit while it lasts, and to nothing once the child leaves', async () => {
+    apis.set(CHILD_A, fakeApi());
+    const view = render(<RegionPlayCompanion {...props()} />);
+    await waitFor(() => expect(currentClaimsBinding()?.context.sessionRef).toBe(SESSION_ID));
+    view.unmount();
+    expect(currentClaimsBinding()).toBeNull();
+  });
+
+  it('never throws into play when nobody is listening', async () => {
+    const api = fakeApi();
+    await atTheChest(api, { sceneApi: fakeScene(false) });
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
   });
 });

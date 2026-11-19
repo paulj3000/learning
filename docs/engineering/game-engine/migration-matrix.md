@@ -54,3 +54,41 @@ exists.**
 - [ ] Existing realm unit tests pass unchanged. New tests cover the definition.
 - [ ] No child progress, content, page id or learning objective changed.
 - [ ] Evidence (commits, test counts) recorded here and on the card.
+
+## 5. Treasure Rush (GE-070) evidence
+
+Branch `feature/GE-070-treasure-rush-engine-migration` (worktree
+`wt-feature-GE-070-treasure-rush-engine-migration`), based on `feature/treasure-rush-palm-trees`
+@ `ce20c90b`. Owner session `treasure-rush-c8`. Owner approved the start and the bridge-wiring
+scope addition on 2026-11-19. Not merged, not deployed, owner QA not done.
+
+| Checklist item | State | Evidence |
+|---|---|---|
+| Merge `core/gameengine` at the migration-ready SHA, no rebase | Done | Merges of `dcc45032`, `e4148949`, `ae336f3f`, `e9caa3d8`; no conflicts |
+| Imports move to `@lai/game-engine` | Done for Treasure Rush code | `15084428`; `treasureRushEngineImports.test.ts` fails on any shim import in `features/region-play` or `extensions/regionPlay`. Shared runtime files keep the shims until GE-076 |
+| `AdventureDefinition` declares capability requests | Done | `82a369c7`: `react/src/features/region-play/treasureCoveAdventure.json` (movement, jump, cameras, avatar, chests, collectibles, checkpoints; engine defaults, as the cove authors no overrides) |
+| `npm run engine:validate` passes | Done | The definition and `treasure_cove_layout.json` pass; `pirates_leap_course.json` passes as its `{ platforming }` scene block (the file alone is skipped as not applicable). `treasureCoveAdventure.test.ts` repeats this with the standard capability registry |
+| Claims emitted and forwarded | Done for learning, collectibles, NPC, quest steps and quest completion | `03f9b221`: chest answers as `learning.answer.submitted` (`CHEST_CHALLENGE`, REPLAY and the ruins pedestal included; never a discovery), pickups, NPC talk, quest steps and completion. One sink per visit (`runtime/gameplayClaimSink.ts`, `4044d37b`). Jump, course and exploration claims are GE-071 (Pirate's Leap); the cove persists no exploration fact |
+| Existing realm unit tests pass unchanged; new tests cover the definition | Done | Every test file the engine moved kept its assertions (import path or jsdom pragma only). New: definition 8 (Vitest) + 8 (pytest seed cross-check), claims 8, companion claims 3, host contract 12, bridge publish check 17, claim sink 4 |
+| No child progress, content, page id or learning objective changed | Done | No migration, seed or content change. The pytest cross-check proves the definition names exactly what `seed_treasure_rush` publishes |
+| Evidence recorded here and on the card | Done | This section; Trello GE-070 |
+
+Engine defects fixed on this branch: GE-D2 and GE-D3 (`77c6bf00`, collider ids and removal from
+every list), GE-D4 (`77c6bf00`, checked silent teleport; `isBlocked` kept a point test by design),
+GE-D7 (`ce20c90b`). GE-D5 (required handle members) and GE-D8 (leaked content: `ASSET_FOOTPRINTS`,
+`SANDBOX_NPC_ID`, `ADVENTURE_COMPLETE_CHANGE_KEYS`) remain open for GE-075/GE-076; each sits in a
+shared hotspot (derived colliders for every location, the dev sandbox, the NPC Manager).
+
+Test runs at the final commit (unit only, by path; load average 4 to 9 on 4 cores from other
+agents' suites):
+
+- Vitest `island-map/three`, `region-play`, `npc-manager`, `audio`, `api/play`, `game-engine`,
+  `adventures`: 3,058 passed. 3 tests timed out under load; each file passes alone
+  (`GameEnginePlayground` 8/8, `dragonsSanctuaryParity` 16/16, `ThreeLocationWorldView` 25/25).
+- `game/`: 578 passed.
+- pytest on PostgreSQL 16 (`game_sessions`, `regions`, `quests`, `inventory`, `progression`,
+  `npcs`, `education`, the Treasure Rush audio seed and prop packs): 1,094 passed.
+- `npm run typecheck`: clean.
+
+Deferred to merge readiness: Playwright, browser/WebGL/device/gamepad, full lint and format,
+`make docs-check`, `npm run adr:check`.
