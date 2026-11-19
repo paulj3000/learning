@@ -43,6 +43,8 @@ export interface BridgePresentationOptions {
   reducedMotion: () => boolean;
   /** Where weather falls: defaults to a box around `center`. */
   center: { x: number; z: number };
+  /** GE-L14: the device's weather tier (from the host render quality); wins over the seed's particle tier. */
+  tier?: QualityTier;
   /** GE-L14: the child's position now, for weather with `area.mode` FOLLOW_PLAYER. */
   playerPosition?: () => { x: number; z: number };
   /** GE-068: loads an asset model for a platform with `assetId`. Absent: platforms stay coloured boxes. */
@@ -212,7 +214,7 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
     lightingView = createLightingView(scene, scope, lighting);
   }
   if (weather) {
-    const tier: QualityTier = particles?.tier() ?? 'MEDIUM';
+    const tier: QualityTier = options.tier ?? particles?.tier() ?? 'MEDIUM';
     const area = weather.area();
     const follow = area.mode === 'FOLLOW_PLAYER' ? options.playerPosition : undefined;
     weatherView = createWeatherView(scene, scope, weather, {

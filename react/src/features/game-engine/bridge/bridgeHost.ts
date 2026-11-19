@@ -23,6 +23,12 @@ export interface LocationBridgeHost {
   readonly config: { readonly [key: string]: JsonValue };
   readonly reducedMotion: boolean;
   /**
+   * GE-L14: the device render quality the Area is drawn at (`WorldExtensionContext.quality`).
+   * Caps engine weather and particles like the Area atmosphere: LOW draws none. Absent: the
+   * seed's own particle tier (MEDIUM by default).
+   */
+  readonly quality?: 'LOW' | 'MEDIUM' | 'HIGH';
+  /**
    * GE-070 contract: returns the collider id (the requested `id`, or one the host generates).
    * Ids starting with `derived:` are refused by the host; the bridge only uses `engine:` ids.
    * Re-adding an id replaces its box. Boxes are kept by reference, so moving one in place is
@@ -88,4 +94,10 @@ export function hostSupport(host: LocationBridgeHost): BridgeHostSupport {
     scene: host.scene !== undefined,
     carryLaunch: typeof host.carryPlayer === 'function' && typeof host.launchPlayer === 'function',
   };
+}
+
+/** GE-L14: the engine particle tier for a device render quality (LOW draws no weather or particles). */
+export function deviceParticleTier(quality: 'LOW' | 'MEDIUM' | 'HIGH' | undefined): 'OFF' | 'MEDIUM' | 'HIGH' | undefined {
+  if (quality === undefined) return undefined;
+  return quality === 'LOW' ? 'OFF' : quality;
 }
