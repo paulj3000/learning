@@ -193,6 +193,7 @@ Bridge API for the host (`api` on the mounted bridge):
 | `resume(checkpointIds)` | A returning child: marks the earned checkpoints reached (authored order, no events, no claims) and places the child at the furthest through the host's checked, silent teleport. Returns `{ placedAt, unknown }` |
 | `setSignals(signalIds)` | Feeds world changes as signals (convention `world:<changeKey>`, as `signalPlatforms` uses). Gates `requiresSignalId` checkpoints, doors and platforms. Switches off only the signals it fed earlier |
 | `droppedClaims()`, `unboundClaims()` | Diagnostics counts |
+| `support` | Which optional host members the bridge found (`playerState`, `setEnvironment`, `scene`, `carryLaunch` and more over time). **Additive:** new fields appear as the bridge gains capabilities, so consumers compare it by subset (`toMatchObject`), never by deep equality; "nothing refused" is `issues` being empty |
 
 The bridge forwards `CourseCheckpointReached { checkpointId, label }` to the host bus, so the
 host's "Safe spot" toast works for engine checkpoints.
