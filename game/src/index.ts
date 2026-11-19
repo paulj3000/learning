@@ -10,3 +10,5 @@ export * from './core';
 export * from './contracts';
 export * from './sdk';
 export * from './services';
+export * from './components';
+export * from './environment';

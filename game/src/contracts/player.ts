@@ -20,6 +20,9 @@ export interface Vec3Like {
   z: number;
 }
 
+/** The engine's one plain 3D vector type (an alias, so every module shares the same symbol). */
+export type Vec3 = Vec3Like;
+
 /** How the player moves over the ground, for animation, sound and the HUD. */
 export type PlayerGait = 'idle' | 'walk' | 'run' | 'sprint';
 

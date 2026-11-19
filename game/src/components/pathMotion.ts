@@ -13,11 +13,9 @@
  * platform waits `pauseSeconds` at every stop so a child can step on and off.
  */
 
-export interface Vec3 {
-  x: number;
-  y: number;
-  z: number;
-}
+import type { Vec3 } from '../contracts/player';
+
+export type { Vec3 };
 export type PlatformPathMode = 'LOOP' | 'PING_PONG' | 'ONCE';
 
 export interface PathMotionState {

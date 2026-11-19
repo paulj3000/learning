@@ -11,11 +11,9 @@ import { defineService } from '../core/services';
 
 export type AudioChannel = 'music' | 'ambient' | 'sfx' | 'voice' | 'ui';
 
-export interface Vec3 {
-  x: number;
-  y: number;
-  z: number;
-}
+import type { Vec3 } from '../contracts/player';
+
+export type { Vec3 };
 
 export interface PlayCueOptions {
   volume?: number;
