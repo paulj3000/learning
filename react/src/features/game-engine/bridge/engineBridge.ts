@@ -278,7 +278,9 @@ export interface EngineBridgeMount extends WorldExtensionMount {
 export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridgeOptions = {}): EngineBridgeMount {
   const support = hostSupport(host);
   let dropped = 0;
-  const { requests, issues } = bridgeCapabilityRequests(host.config, options.allowEnginePlatforms === true);
+  // `scene.engineBridge.allowEnginePlatforms` (seed data) or the creation option may allow it.
+  const allowPlatforms = options.allowEnginePlatforms === true || host.config.allowEnginePlatforms === true;
+  const { requests, issues } = bridgeCapabilityRequests(host.config, allowPlatforms);
 
   const registry = createStandardCapabilityRegistry();
   if (issues.length === 0) {

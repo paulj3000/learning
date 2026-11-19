@@ -92,6 +92,13 @@ describe('engine bridge capability requests', () => {
     expect(mountEngineBridge(fake.host).api.issues[0]?.message).toMatch(/Unknown capability/);
     expect(bridgeCapabilityRequests({ capabilities: 'all' }).issues[0]?.path).toBe('capabilities');
   });
+
+  it('reads allowEnginePlatforms from the scene config (scene.engineBridge seed data)', () => {
+    const fake = fakeHost({ allowEnginePlatforms: true, capabilities: [{ id: 'gameplay.platforms', config: { platforms: [] } }] }, true);
+    const mount = mountEngineBridge(fake.host);
+    expect(mount.api.issues).toEqual([]);
+    mount.dispose();
+  });
 });
 
 describe('engine bridge on a host without the GE-070 members (degraded, never silent)', () => {

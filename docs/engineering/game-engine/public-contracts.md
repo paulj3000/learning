@@ -156,3 +156,27 @@ Each capability validates its config (never throws; unknown keys are issues) and
 The inventory and rewards ports have no grant method. Question Studio's `submitAnswer` returns
 a server verdict that the engine never interprets. Save and restore keeps presentation state
 only, and the server wins. Multiplayer is disabled (shared presence is deferred by ADR-020).
+
+## 8. Region-play scene key `engineBridge` (GE-065)
+
+A 3D Area that still runs on the live `createLocationEngine` turns on engine components with
+seed-authored scene data. Like `scene.platforming`, this is layout (LAI-0805), versioned with
+the seed:
+
+```json
+{
+  "engineBridge": {
+    "capabilities": [{ "id": "gameplay.hazards", "config": {} }],
+    "allowEnginePlatforms": false
+  }
+}
+```
+
+| Field | Rule |
+|---|---|
+| `capabilities` | `[{ id, config? }]`, validated by the engine's capability registry (`bridgeCapabilityRequests`, then `resolveCapabilities`). `movement.*`, `camera.*` and `character.*` are refused, because the live runtime owns them |
+| `allowEnginePlatforms` | Optional, default false. `gameplay.platforms` is refused unless true (the live platform system owns platforms until GE-076). Use it only in an Area whose engine platforms have no live counterpart |
+
+Wiring (GE-070): `regionManifest.ts` passes `scene.engineBridge` through as the config of an
+`engineBridge` extension entry, the extension is registered beside region play, and Django checks
+the block's structure at publish. The engine validates fully on the client.
