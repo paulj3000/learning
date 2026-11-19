@@ -1,7 +1,7 @@
 import type { Camera, Scene } from 'three';
 import { WebGLRenderer } from 'three';
 import { defineService } from '@lai/game-engine/core';
-import type { RendererInfoLike } from '@lai/game-engine/debug/index';
+import type { RendererInfoLike } from '@lai/game-engine/debug';
 
 /**
  * The renderer surface the host needs. `WebGLRenderer` satisfies it; tests pass a fake, so

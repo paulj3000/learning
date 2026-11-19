@@ -13,6 +13,7 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts/index.ts",
     "./core": "./src/core/index.ts",
+    "./debug": "./src/debug/index.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {

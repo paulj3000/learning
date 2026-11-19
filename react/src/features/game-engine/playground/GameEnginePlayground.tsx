@@ -11,7 +11,7 @@ import {
   countCollidersByClass,
   type CollisionDebugView,
   type PlayerGizmo,
-} from '@lai/game-engine/debug/index';
+} from '@lai/game-engine/debug';
 import { GameHost } from '../GameHost';
 import type { HostView, RendererFactory } from '../hostTypes';
 import { DebugOverlay } from '../debug/DebugOverlay';

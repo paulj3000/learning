@@ -6,7 +6,7 @@ import {
   type EngineRuntime,
 } from '@lai/game-engine/core';
 import { validateGameplayEvent, type AnyGameplayEvent } from '@lai/game-engine/contracts';
-import { createRendererStatsCollector } from '@lai/game-engine/debug/index';
+import { createRendererStatsCollector } from '@lai/game-engine/debug';
 import {
   createWebGLRenderer,
   HOST_EVENTS,
