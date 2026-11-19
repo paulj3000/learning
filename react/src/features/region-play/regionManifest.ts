@@ -456,7 +456,15 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       // GE-070 / GE-065: Game Engine Core capabilities for this Area, as seed-authored scene data
       // (`scene.engineBridge`, checked on publish and validated in full by the bridge).
       ...(isObject(model.scene.engineBridge)
-        ? [{ extensionId: ENGINE_BRIDGE_EXTENSION_ID, config: model.scene.engineBridge }]
+        ? [
+            {
+              extensionId: ENGINE_BRIDGE_EXTENSION_ID,
+              // GE-068: the same staff tuning the live platforms take reaches engine platforms.
+              config: isObject(model.scene.platformTuning) && model.scene.engineBridge.platformTuning === undefined
+                ? { ...model.scene.engineBridge, platformTuning: model.scene.platformTuning }
+                : model.scene.engineBridge,
+            },
+          ]
         : []),
     ],
     copy: readCopy(model.scene.copy),

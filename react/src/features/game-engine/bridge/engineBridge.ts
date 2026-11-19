@@ -153,6 +153,13 @@ export interface EngineBridgeApi {
    * whenever the server reports new world changes.
    */
   setSignals(signalIds: readonly string[]): void;
+  /**
+   * GE-068: false when (x, y, z) is on the top of an engine platform that moves, rotates, falls or
+   * bounces, so the host's last-safe-ground never records one. True with no engine platforms.
+   */
+  isSafeGround(x: number, y: number, z: number): boolean;
+  /** GE-068: every engine platform's state, for realm parity tests. Empty with no engine platforms. */
+  platforms(): readonly { id: string; phase: string; position: Vec3Like; size: Vec3Like; kind: string }[];
 }
 
 /** Reads `config.capabilities` and refuses what the live runtime owns. Pure; never throws. */
@@ -182,6 +189,15 @@ export function bridgeCapabilityRequests(
     }
     if (id === ENGINE_PLATFORMS && !allowEnginePlatforms) {
       issues.push({ path, message: `"${id}" is owned by the live platform system until GE-076; create the bridge with allowEnginePlatforms for an Area without live platforms` });
+      return;
+    }
+    // GE-068: staff tuning (`scene.platformTuning`, handed over as `platformTuning`) reaches the
+    // platforms capability, which validates and applies it. The platforms' own config wins.
+    const tuning = config.platformTuning;
+    const entryConfig = entry.config;
+    if (id === ENGINE_PLATFORMS && typeof tuning === 'object' && tuning !== null && !Array.isArray(tuning)) {
+      const own = typeof entryConfig === 'object' && entryConfig !== null && !Array.isArray(entryConfig) ? entryConfig : {};
+      requests.push({ id, config: { platformTuning: tuning, ...own } });
       return;
     }
     requests.push(entry.config === undefined ? { id } : { id, config: entry.config });
@@ -383,6 +399,8 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
         resume: (ids) => ({ placedAt: null, unknown: [...ids] }),
         latestCheckpoint: () => null,
         setSignals: () => {},
+        isSafeGround: () => true,
+        platforms: () => [],
       },
       dispose() {},
     };
@@ -507,7 +525,7 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   const wantsPresentation = (['gameplay.platforms', 'gameplay.hazards', 'environment.weather', 'environment.lighting', 'environment.particles'] as const).some((id) => runtime.installed.has(id));
   let presentation: BridgePresentation | null = null;
   if (host.scene) {
-    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition() });
+    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}) });
   } else if (wantsPresentation) {
     runtime.diagnostics.warn('HOST_SCENE_MISSING', { fallback: 'nothing is drawn' });
   }
@@ -600,6 +618,8 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
         return latest ? { id: latest.id, x: latest.position.x, z: latest.position.z, yaw: latest.yaw } : null;
       },
       setSignals,
+      isSafeGround: (x, y, z) => platforms?.isSafeGround(x, y, z) ?? true,
+      platforms: () => platforms?.snapshot() ?? [],
     },
     dispose() {
       if (disposed) {
