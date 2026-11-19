@@ -37,23 +37,19 @@ already-authored award early, which costs another child nothing.
 | A story reflection | Participation evidence, not a graded answer. |
 | `SeasonalCompletion` (North Pole branch) | Its trigger is a world change the client can post. The yearly key also needs an owner decision. |
 
-## 3. Restricted and deferred: jumps and courses
+## 3. Jumps and courses (reviewed for GE-109, 2026-11-19)
 
-`jump.challenge.completed` and `course.completed` (engine contract v1) are known only to the
-client. No server record exists for them on any branch (audit of the firepeak, north-pole and
-treasure-rush branches). They are classified `DEFERRED`. The fixture policy lists their values
-(100 XP and 250 XP), but no collector produces their facts, so they award nothing. A database
-constraint also stops any rule from accepting client-reported trust.
+| Source | Server-owned record? | Decision |
+|---|---|---|
+| Individual jumps, jump challenges (`jump.challenge.*`), optional jump-only challenges (engine decision E16) | **None.** Engine bus only; no route, section or landing is recorded | **Deferred.** No award. Optional jump routes that end in a pickup are already paid as that pickup (and as a secret when the item is hidden), so the route itself never needs paying |
+| Course checkpoints (`course.checkpoint.reached`) | Only `WorldState.last_checkpoint_id` (a resume position from `PATCH world-state`, filtered to authored ids) | **Never a source.** A resume position is not an achievement |
+| Course completion (`course.completed`) | **Yes, where the course ends in a graded challenge.** Pirate's Leap ends at the crow's nest chest, whose server-graded answer completes quest `pirates-leap` | **Awarded, SERVER_BOUNDED,** from the quest *and* the chest's correct attempt (`realms.py`). Route-independent: the walking route reaches the same chest. The claim itself is still ignored |
 
-To make them authoritative later, one of these is needed, as its own ticket:
-
-1. **Server-bounded:** a published course or challenge record (authored id, area, routes) and an
-   intake that accepts one claim per child per authored id. This becomes `SERVER_BOUNDED`, as pickups are.
-2. **Server-checked:** the server checks a checkpoint sequence against the authored course.
-   This is still bounded: positions are never sent.
-
-Both keep the accessible route equal. The engine contract makes a non-jump completion the same
-claim, and `jump.alternative.used` is never valued.
+So nothing is awarded on client-reported movement. A course counts only through a learning
+challenge the server graded at its goal. A course without such an end (none today) stays
+deferred. Making jumps themselves authoritative would need a new server record (an authored
+challenge registry plus a once-per-child claim intake, or server-side checkpoint-sequence checks).
+That is a new architecture and product decision, so it is not built (options in section 7).
 
 ## 4. Why there is no claim-intake route yet
 
@@ -70,7 +66,35 @@ Activity in any scope whose id starts with `playground`, `dev-`, `test-` or `eng
 Separately, provisional fixture values award only where `LAI_SCORING_ALLOW_UNAPPROVED` is set,
 and production settings refuse it.
 
-## 6. Open risks
+## 6. Concurrency, replay, ownership and privacy (reviewed for GE-109)
+
+- **Concurrency:** tested on real parallel PostgreSQL transactions (`test_concurrency.py`).
+  Covered: four simultaneous reconciles, four simultaneous writes of one award, and a backfill
+  racing live play. Each records every award once, and the projection equals the ledger. The
+  unique (child, key) constraint decides, and the projection row lock serialises the totals.
+- **Replay:** every key is built from a stable authored source, so replays, retries, backfills
+  and new policy versions find the existing key (tests in `test_collectors_and_reconcile.py`).
+- **Ownership:** every collector reads `for_child(child)`, and the API resolves the child through
+  the parent (404 otherwise). A ledger row cannot link another child's session.
+- **Privacy:** ledger rows hold content ids and amounts only, and are not on the Django admin.
+  Logs carry counts and exception types. A parent's `DELETE scoring/` erases the scoring record.
+  Because awards are derived, a later reconcile re-derives them from the progress that remains.
+  To remove that progress, the parent deletes the backpack, the world state or the child profile
+  (cascade).
+
+## 7. Options for authoritative jumps (owner decision; not built)
+
+1. **Authored jump challenges with a bounded intake.** Django holds a published registry
+   (challenge id, area, routes) and a `POST` that records one claim per child per challenge,
+   accepted only in an open session of that area. This would be SERVER_BOUNDED, like pickups.
+   It needs a model, a route and content work.
+2. **Checkpoint sequences.** The server checks an ordered set of authored checkpoint claims
+   against the course. Positions are still never sent. It is still bounded, at more cost than
+   option 1.
+3. **Keep deferring** (current). Movement earns through what it reaches: pickups, secrets, and
+   chests at the goal.
+
+## 8. Open risks
 
 - Pickups and client-saved quest completion are bounded, not proven. The Storykeeper branch's
   quest-claim proofs (`claim_is_proven`) would raise quest completion toward GRADED once merged.

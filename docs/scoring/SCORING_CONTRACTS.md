@@ -58,19 +58,26 @@ Trust tiers (`contracts.Trust`, ordered):
 | `MASTERY_MILESTONE` | `<objective>/<PROFICIENT\|MASTERED>` | `SkillProgress.recent_level` | GRADED |
 | `LOCATION_FIRST_VISIT` | `<region>` | first REGION `AdventureSession` | BOUNDED |
 | `SECRET_DISCOVERED` | `<discovery>` | `WorldState.discovered_objects` (requirements checked) | GRADED |
+| `SECRET_DISCOVERED` | `<region>/<pickup key>` | an authored pickup whose reward grants an item authored `hidden` (GE-109) | BOUNDED |
 | `PICKUP_COLLECTED` | `<region>/<pickup key>` | `WorldChange` COLLECTIBLE_FOUND whose key is an authored placement's | BOUNDED |
 | `PUZZLE_SOLVED` | `<region>/<puzzle>` | `PuzzleAttempt` correct | GRADED for graded kinds, else BOUNDED |
 | `QUEST_COMPLETED` | `<quest>` | `QuestProgress` COMPLETED | BOUNDED |
 | `ADVENTURE_COMPLETED` | `<adventure>` | ADVENTURE `AdventureSession` COMPLETED | GRADED |
-| `REALM_MILESTONE` | `<world>` | every active, age-appropriate quest of the world completed | BOUNDED |
+| `ADVENTURE_COMPLETED` | `<3D adventure>` | its quests COMPLETED and every BUILD key proven by a server record (`realms.py`, GE-109) | BOUNDED |
+| `REALM_MILESTONE` | `<world>` | every active, age-appropriate quest of the world completed, or every listed adventure of the realm proven (`realms.py`); same ref, so it pays once | BOUNDED |
 | `REWARD_RULE_GRANTED` | `<rule id>` | `GrantedRule` (every realm's keepsakes, badges, sets) | BOUNDED |
 | `ADVENTURE_STAR` | `<region>/<n>` | goals done in the area (puzzles, chests, pickups) | BOUNDED |
-| `JUMP_CHALLENGE` | `<challenge>` | none yet | deferred (client only) |
-| `PLATFORM_COURSE` | `<course>` | none yet | deferred (client only) |
+| `JUMP_CHALLENGE` | `<challenge>` | none: no server record of a jump exists | deferred (client only) |
+| `PLATFORM_COURSE` | `<course>` | the course's completion quest COMPLETED with every BUILD key proven by a server record (Pirate's Leap: the crow's nest chest's graded challenge). Never movement claims | BOUNDED |
 
 Fact attributes a rule may match (`AwardRule.attribute_equals`): `itemCategory` and
 `triggerType` on `REWARD_RULE_GRANTED`, `puzzleKind` on `PUZZLE_SOLVED`, `skillId` and `source`
 on `LEARNING_CHALLENGE`, `world` on `QUEST_COMPLETED`, `objective` on `MASTERY_MILESTONE`.
+
+**Proven keys** (`realms.proven_change_keys`): a quest's BUILD objective keys can be satisfied by
+client-posted world changes, so an adventure or course counts only when each of its keys comes
+from a correctly answered chest, a solved Area puzzle, or an authored pickup collected through
+the play API.
 
 ## 4. Idempotency and replay
 

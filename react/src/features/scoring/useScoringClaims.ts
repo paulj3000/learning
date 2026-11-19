@@ -24,11 +24,20 @@ export interface ScoringClaims {
  * Polling runs only while a claim is pending, and stops when every pending entry has been
  * confirmed or has quietly expired.
  */
-export function useScoringClaims(
-  childId: string,
-  pollMs: number = CLAIM_POLL_MS,
-  now: () => number = Date.now,
-): ScoringClaims {
+export interface ScoringClaimsOptions {
+  /**
+   * False while scoring is off or still loading (`useScoringSummary(childId).status !== 'ready'`):
+   * no feed request is made and claims are ignored. Default true.
+   */
+  enabled?: boolean;
+  pollMs?: number;
+  now?: () => number;
+}
+
+/** The seam: pass `onGameplayEvent` to `GameHost` or the location engine bridge
+ * (`mountEngineBridge(host, { onGameplayEvent })`); both take `(event: AnyGameplayEvent) => void`. */
+export function useScoringClaims(childId: string, options: ScoringClaimsOptions = {}): ScoringClaims {
+  const { enabled: active = true, pollMs = CLAIM_POLL_MS, now = Date.now } = options;
   const [pending, setPending] = useState<readonly PendingEntry[]>([]);
   const [confirmed, setConfirmed] = useState<readonly ConfirmedAward[]>([]);
   const cursor = useRef<string | null>(null);
@@ -40,6 +49,13 @@ export function useScoringClaims(
     let cancelled = false;
     ready.current = false;
     cursor.current = null;
+    enabled.current = false;
+    if (!active) {
+      setPending([]);
+      return () => {
+        cancelled = true;
+      };
+    }
     (async () => {
       try {
         let page = await getScoringAwards(childId);
@@ -59,14 +75,15 @@ export function useScoringClaims(
     return () => {
       cancelled = true;
     };
-  }, [childId]);
+  }, [childId, active]);
 
   const onGameplayEvent = useCallback(
     (claim: unknown) => {
+      if (!active) return;
       const entry = pendingFromEvent(claim, now());
       if (entry) setPending((current) => [...current, entry]);
     },
-    [now],
+    [active, now],
   );
 
   useEffect(() => {

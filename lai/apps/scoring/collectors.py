@@ -207,10 +207,11 @@ def _category(categories: set[str]) -> str:
     return min(categories) if categories else ""
 
 
-def _pickup_regions() -> dict[str, tuple[str, str]]:
-    """Authored pickup keys -> (region id, item category of what the pickup grants). A key is
-    unique to its placement in practice; the first region wins if an author ever reused one."""
-    mapping: dict[str, tuple[str, str]] = {}
+def _pickup_regions() -> dict[str, tuple[str, str, bool]]:
+    """Authored pickup keys -> (region id, item category of what the pickup grants, whether it
+    grants a `hidden` item). A key is unique to its placement in practice; the first region
+    wins if an author ever reused one."""
+    mapping: dict[str, tuple[str, str, bool]] = {}
     rows = (
         WorldObjectPlacement.objects.exclude(pickup_change_key="")
         .select_related("region", "pickup_reward_rule")
@@ -221,8 +222,14 @@ def _pickup_regions() -> dict[str, tuple[str, str]]:
         if not placement.is_pickup or placement.pickup_change_key in mapping:
             continue
         rule = placement.pickup_reward_rule
-        categories = {item.category for item in rule.items.all()} if rule else set()
-        mapping[placement.pickup_change_key] = (placement.region.region_id, _category(categories))
+        items = list(rule.items.all()) if rule else []
+        categories = {item.category for item in items}
+        hidden = any(item.hidden for item in items)
+        mapping[placement.pickup_change_key] = (
+            placement.region.region_id,
+            _category(categories),
+            hidden,
+        )
     return mapping
 
 
@@ -235,7 +242,7 @@ def pickups(child) -> Iterator[ScoringFact]:
     authored = _pickup_regions()
     rows = WorldChange.objects.for_child(child).filter(change_type=PICKUP_CHANGE_TYPE)
     for change in rows.order_by("created_at"):
-        region_id, category = authored.get(change.change_key, (None, ""))
+        region_id, category, _ = authored.get(change.change_key, (None, "", False))
         if region_id is None or is_excluded(region_id):
             continue
         yield ScoringFact(
@@ -245,6 +252,25 @@ def pickups(child) -> Iterator[ScoringFact]:
             change.created_at,
             scope_key=region_id,
             attributes={"itemCategory": category},
+        )
+
+
+def secret_pickups(child) -> Iterator[ScoringFact]:
+    """A pickup that grants an item authored `hidden` is a secret found (GE-109): Firepeak's
+    hidden ember shards, North Pole's ornaments and golden bells. Content decides, not a realm
+    table. It stacks with the pickup's own award: finding a secret is its own accomplishment."""
+    authored = _pickup_regions()
+    rows = WorldChange.objects.for_child(child).filter(change_type=PICKUP_CHANGE_TYPE)
+    for change in rows.order_by("created_at"):
+        region_id, _, hidden = authored.get(change.change_key, (None, "", False))
+        if region_id is None or not hidden or is_excluded(region_id):
+            continue
+        yield ScoringFact(
+            SourceKind.SECRET_DISCOVERED,
+            f"{region_id}/{change.change_key}",
+            Trust.SERVER_BOUNDED,
+            change.created_at,
+            scope_key=region_id,
         )
 
 
@@ -448,6 +474,15 @@ def _latest_activity(child, region_id: str):
 
 # --- Registry -------------------------------------------------------------------------------------
 
+
+def _realm_adventures(child) -> Iterator[ScoringFact]:
+    from .realms import realm_adventures  # realms imports this module's neighbours only
+
+    for fact in realm_adventures(child):
+        if not is_excluded(fact.scope_key):
+            yield fact
+
+
 CORE_COLLECTORS: tuple[Collector, ...] = (
     answers,
     learning_challenges,
@@ -455,12 +490,14 @@ CORE_COLLECTORS: tuple[Collector, ...] = (
     first_visits,
     discoveries,
     pickups,
+    secret_pickups,
     puzzles,
     quests,
     adventures,
     realm_milestones,
     granted_rules,
     stars,
+    _realm_adventures,
 )
 _extra: list[Collector] = []
 

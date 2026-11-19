@@ -6,8 +6,9 @@ so they can award only where `LAI_SCORING_ALLOW_UNAPPROVED` is set (local develo
 
 Each rule is its own stacking group, named for its purpose; keep the names across versions
 (an award's key includes its group, so renaming a group would let earned awards repeat).
-Jump challenges and platform courses are listed so their values are visible and reviewable,
-but no collector produces those facts yet (client-reported only), so they award nothing.
+Jump challenges are listed so their value is visible and reviewable, but no collector produces
+them (client-reported only), so they award nothing. Platform courses award only through a
+server-proven course completion (realms.py), never through movement claims.
 """
 
 from .contracts import Currency, SourceKind
@@ -46,11 +47,20 @@ DEV_RULES = [
 # it keep their progress; it completes on the same chest as Pip's quest, so without this one
 # accomplishment would pay quest XP twice. Retiring the quest (active=False) is the owner's
 # content decision (docs/engine/TREASURE_RUSH_SCORING_INVENTORY.md section 3.1).
+#
+# `pirates-leap` is the quest that records the Pirate's Leap course's completion. The course
+# award (PLATFORM_COURSE, realms.py) replaces its quest award, so one accomplishment pays once.
 DEV_SUPPRESSIONS = [
     (
         "legacy-treasure-rush-cove",
         SourceKind.QUEST_COMPLETED,
         "treasure-rush-cove",
+        "quest-completion",
+    ),
+    (
+        "course-quest-pirates-leap",
+        SourceKind.QUEST_COMPLETED,
+        "pirates-leap",
         "quest-completion",
     ),
 ]

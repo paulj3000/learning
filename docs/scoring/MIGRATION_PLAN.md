@@ -44,21 +44,45 @@ across versions. A wrong amount already paid is repaired with a correction
 (`manage.py scoring_correct <entry> --staff <superuser> --reason ...`), never by editing or
 deleting entries. The ledger is child progress, so it is not on the Django admin.
 
-## 5. Realm compatibility adapters
+## 5. Realm compatibility adapters (GE-109)
 
 There's no adapter code per realm. Every realm's chests, pickups, puzzles, quests, discoveries
-and granted reward rules are read by the core collectors. A realm is integrated by policy
-selectors (for example `REWARD_RULE_GRANTED` with selector `fh-badge-*` or `attribute_equals`
-`{"itemCategory": "KEEPSAKE"}`), authored from the realm owners' mapping tables:
+and granted reward rules are read by the core collectors. Two things are declared as data:
 
-| Realm | Mapping source | Status |
-|---|---|---|
-| Firepeak, North Pole | `docs/firepeak/SCORING_INTEGRATION_AUDIT.md` (feature/firepeak-volcano-adventure @ `3e2b513c`) | received; selectors authored at integration, when the content is on the integration branch |
-| Treasure Rush, Pirate's Leap | `docs/engine/TREASURE_RUSH_SCORING_INVENTORY.md` (feature/treasure-rush-palm-trees) | corrections received; document pending |
-| Storykeeper Castle | `feature/storykeeper-castle-completion` | no scoring change needed; quest proofs raise trust once merged |
+- **3D adventures and courses** (`lai/apps/scoring/realms.py`, `REALM_ADVENTURES`): which quests
+  prove an adventure or course complete, and which adventures make up a realm. A completion counts
+  only with every BUILD key proven by a server record.
+- **Secrets:** a pickup that grants an item authored `hidden` (content, no table).
 
-At integration, add a content-drift test that loads `content/exported/` and fails if a mapped
-rule id or key disappears (Firepeak owner's suggestion).
+| Realm | Source of the mapping | What it contributes | Verified here |
+|---|---|---|---|
+| Treasure Rush (Treasure Cove) | `docs/engine/TREASURE_RUSH_SCORING_INVENTORY.md` (feature/treasure-rush-palm-trees 6818f74b) | adventure `treasure-cove` from `pips-missing-treasure`; non-REPLAY chests incl. the pedestal; pickups (brass key earns no coins); legacy quest suppressed | yes: content on this branch; drift tests run |
+| Pirate's Leap | same document, section 3.1 | course `pirates-leap` from its quest plus the crow's nest chest; the quest award is replaced by the course award (dev suppress rule) | yes: real chest flow tested |
+| Storykeeper Castle | `feature/storykeeper-castle-completion` | nothing to declare: step adventures and server-checked discoveries use the core collectors; trophies are keepsake projections | core tests |
+| Firepeak (The Volcano Awakens) | `docs/firepeak/SCORING_INTEGRATION_AUDIT.md` (feature/firepeak-volcano-adventure 3e2b513c) | adventure `firepeak-volcano`; graded puzzles | yes: drift test proves every BUILD key is an authored puzzle |
+| Firepeak (Heart of Firepeak) | same, section 4 | adventure `firepeak-heart`; hidden shards are secrets (`hidden` items) | **skipped here**: content not on this branch; the drift tests run at integration |
+| North Pole | same, section 4 | adventure `north-pole-village` (quests q01 to q09); ornaments and golden bells are secrets | **skipped here**, as above |
+
+Deliberately not mapped:
+- Zone-restored keys as REALM_MILESTONE. That would pay a 1,000 XP milestone per zone, while
+  quests and puzzles already pay each zone.
+- `NORTH_POLE_Q0N_COMPLETE` and other bare world changes.
+- `SeasonalCompletion`, which is client-triggerable and yearly.
+
+Stacking for completions: quest, adventure and realm stack as different levels. A course is the
+same accomplishment as its quest, so it replaces it.
+
+**Content drift:** `test_realms.py` fails if a mapped adventure's quests are only partly
+exported, or if a mapped quest requires a key with no authored chest, puzzle or pickup. Realms
+not on the branch are reported as skipped, never as passed.
+
+## 5a. Verified guarantees
+
+- Running backfill twice records nothing new, and existing inventory, granted rules, quests and
+  world changes are unchanged.
+- A new policy version with different amounts pays nothing again for earned sources.
+- Concurrent reconciles, and a backfill racing live play, never duplicate (`test_concurrency.py`).
+- Projections rebuild exactly from the ledger (`scoring_verify_projections`).
 
 ## 6. Data protection
 

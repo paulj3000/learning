@@ -60,7 +60,7 @@ afterEach(() => {
 describe('useScoringClaims', () => {
   it('never re-celebrates awards from before the visit and confirms a claim with the server amount', async () => {
     getScoringAwards.mockResolvedValueOnce({ awards: [award('old')], cursor: 'old', hasMore: false });
-    const { result } = renderHook(() => useScoringClaims('child-1', 100));
+    const { result } = renderHook(() => useScoringClaims('child-1', { pollMs: 100 }));
     await flush();
 
     act(() => result.current.onGameplayEvent(questClaim));
@@ -79,7 +79,7 @@ describe('useScoringClaims', () => {
 
   it('creates no pending entry for a deferred jump claim and never polls for it', async () => {
     getScoringAwards.mockResolvedValueOnce({ awards: [], cursor: 'c', hasMore: false });
-    const { result } = renderHook(() => useScoringClaims('child-1', 100));
+    const { result } = renderHook(() => useScoringClaims('child-1', { pollMs: 100 }));
     await flush();
     act(() => result.current.onGameplayEvent(jumpClaim));
     expect(result.current.pending).toEqual([]);
@@ -93,7 +93,7 @@ describe('useScoringClaims', () => {
     getScoringAwards.mockResolvedValueOnce({ awards: [], cursor: null, hasMore: false });
     let clock = 0;
     const now = () => clock;
-    const { result } = renderHook(() => useScoringClaims('child-1', 1000, now));
+    const { result } = renderHook(() => useScoringClaims('child-1', { pollMs: 1000, now }));
     await flush();
     act(() => result.current.onGameplayEvent(questClaim));
     for (let tick = 0; tick < 25; tick += 1) {
@@ -109,7 +109,7 @@ describe('useScoringClaims', () => {
 
   it('ignores invalid claims and never celebrates corrections', async () => {
     getScoringAwards.mockResolvedValueOnce({ awards: [], cursor: 'c', hasMore: false });
-    const { result } = renderHook(() => useScoringClaims('child-1', 100));
+    const { result } = renderHook(() => useScoringClaims('child-1', { pollMs: 100 }));
     await flush();
     act(() => result.current.onGameplayEvent({ ...questClaim, payload: { questId: 'x', points: 9 } }));
     expect(result.current.pending).toEqual([]);
@@ -128,7 +128,7 @@ describe('useScoringClaims', () => {
 
   it('dismisses a confirmed award', async () => {
     getScoringAwards.mockResolvedValueOnce({ awards: [], cursor: 'c', hasMore: false });
-    const { result } = renderHook(() => useScoringClaims('child-1', 100));
+    const { result } = renderHook(() => useScoringClaims('child-1', { pollMs: 100 }));
     await flush();
     act(() => result.current.onGameplayEvent(questClaim));
     getScoringAwards.mockResolvedValueOnce({ awards: [award('a')], cursor: 'a', hasMore: false });
@@ -137,5 +137,18 @@ describe('useScoringClaims', () => {
     });
     act(() => result.current.dismiss('a'));
     expect(result.current.confirmed).toEqual([]);
+  });
+});
+
+describe('useScoringClaims gating', () => {
+  it('makes no request and ignores claims while scoring is disabled', async () => {
+    const { result } = renderHook(() => useScoringClaims('child-1', { enabled: false, pollMs: 100 }));
+    await flush();
+    act(() => result.current.onGameplayEvent(questClaim));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(getScoringAwards).not.toHaveBeenCalled();
+    expect(result.current.pending).toEqual([]);
   });
 });
