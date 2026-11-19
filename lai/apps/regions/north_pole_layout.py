@@ -45,7 +45,9 @@ BOUNDS = {"halfExtentX": 66, "halfExtentZ": 100, "wallThickness": 1}
 # 2: scene.engineBridge, the Frozen Lake ice surface (GE-074).
 # 3: one checkpoint list and the lake water hazard in scene.engineBridge (GE-074).
 # 4: a village-wide snow surface for snow footsteps (grip and speed unchanged; GE-074).
-LAYOUT_VERSION = 4
+# 5: the falling snow moves to the engine's environment.weather, following the child; the Area
+#    atmosphere keeps the night fog and the aurora (GE-074, after the parity test).
+LAYOUT_VERSION = 5
 SNAPSHOT_PATH = Path(__file__).with_name("north_pole_scene.json")
 
 SPAWN = {"checkpoint_id": "np-cp-landing", "x": 0, "z": 92, "yaw": math.pi, "label": "Santa's Landing"}
@@ -973,6 +975,43 @@ def checkpoint_list() -> list[dict]:
     return out
 
 
+# The falling snow (GE-074): the Area atmosphere's look, on the engine. The box follows the child
+# (40 x 24 x 40 m, the atmosphere's PRECIPITATION_BOX). The device's render quality sets the
+# tier: LOW draws none; MEDIUM and HIGH draw at most their budget's share. 48 flakes a second
+# that live 15 s (24 m at 1.6 m/s) would settle at 720, the atmosphere's HIGH count at density
+# 0.6. Today the engine splits the budget with its built-in RAIN, so MEDIUM settles at 300 and
+# HIGH at 600 (the atmosphere drew 360 and 720; northPoleWeatherParity.test.ts). No engine fog:
+# the Area's night fog stays.
+SNOW_RATE_PER_SECOND = 48
+SNOW_FALL_SPEED = 1.6
+
+
+def _snow_weather() -> dict:
+    return {
+        "id": "environment.weather",
+        "config": {
+            "initial": "SNOW",
+            "kinds": [
+                {
+                    # Replaces the engine's SNOW preset (one snow kind, so it gets the whole tier budget).
+                    "id": "SNOW",
+                    "precipitation": {
+                        "motion": "DRIFT",
+                        "ratePerSecond": SNOW_RATE_PER_SECOND,
+                        "fallSpeed": SNOW_FALL_SPEED,
+                        "drift": 0.4,
+                        "size": 0.14,
+                        "color": 0xFFFFFF,
+                    },
+                    "fogDensity": 0,
+                    "windStrength": 0.2,
+                }
+            ],
+            "area": {"mode": "FOLLOW_PLAYER", "halfX": 20, "halfZ": 20, "height": 24},
+        },
+    }
+
+
 def _engine_bridge() -> dict:
     rink = ICE_RINK
     return {
@@ -1025,7 +1064,8 @@ def _engine_bridge() -> dict:
                     ],
                     "hazardRects": [dict(LAKE_WATER)],
                 },
-            }
+            },
+            _snow_weather(),
         ]
     }
 
@@ -1044,7 +1084,6 @@ def scene() -> dict:
         },
         "atmosphere": {
             "fog": {"color": 0x2A4470, "near": 50, "far": 190},
-            "precipitation": {"kind": "SNOW", "density": 0.6},
             "skyRibbons": [
                 {"id": "np-aurora-1", "colors": [6222512, 9075954], "x": 0, "y": 60, "z": -140, "width": 220, "height": 30}
             ],

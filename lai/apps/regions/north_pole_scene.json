@@ -2456,10 +2456,6 @@
     "far": 190,
     "near": 50
    },
-   "precipitation": {
-    "density": 0.6,
-    "kind": "SNOW"
-   },
    "skyRibbons": [
     {
      "colors": [
@@ -3657,6 +3653,33 @@
       ]
      },
      "id": "environment.volumes"
+    },
+    {
+     "config": {
+      "area": {
+       "halfX": 20,
+       "halfZ": 20,
+       "height": 24,
+       "mode": "FOLLOW_PLAYER"
+      },
+      "initial": "SNOW",
+      "kinds": [
+       {
+        "fogDensity": 0,
+        "id": "SNOW",
+        "precipitation": {
+         "color": 16777215,
+         "drift": 0.4,
+         "fallSpeed": 1.6,
+         "motion": "DRIFT",
+         "ratePerSecond": 48,
+         "size": 0.14
+        },
+        "windStrength": 0.2
+       }
+      ]
+     },
+     "id": "environment.weather"
     }
    ]
   },
@@ -11092,7 +11115,7 @@
    ],
    "zones": []
   },
-  "northPoleVersion": 4,
+  "northPoleVersion": 5,
   "platforming": {
    "goals": [],
    "platforms": [
