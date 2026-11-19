@@ -1480,3 +1480,76 @@ describe('gameplay claims for the visit (GE-070, decision E15)', () => {
     await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
   });
 });
+
+describe('the engine bridge learns the child\'s progress (GE-065)', () => {
+  const bridgeRegion = {
+    ...bootstrapJson().region,
+    scene: {
+      engineBridge: {
+        capabilities: [
+          {
+            id: 'gameplay.checkpoints',
+            config: {
+              checkpoints: [
+                { id: 'cp-start', courseId: 'c', position: { x: 0, y: 0, z: 0 }, yaw: 0, label: 'the start' },
+                { id: 'cp-gate', courseId: 'c', position: { x: 0, y: 0, z: 9 }, yaw: 0, label: 'the gate', requiresSignalId: 'world:GATE_OPEN' },
+                { id: 'cp-far', courseId: 'c', position: { x: 0, y: 0, z: 19 }, yaw: 0, label: 'far', requiresSignalId: 'world:FAR_OPEN' },
+              ],
+              goals: [],
+            },
+          },
+        ],
+      },
+    },
+  };
+  const change = (changeKey: string, locationSlug = bridgeRegion.locationSlug) => ({
+    locationSlug,
+    changeType: 'UNLOCK',
+    changeKey,
+    payload: {},
+    createdAt: '2026-11-19T10:00:00.000000Z',
+  });
+
+  it('feeds world changes as signals, then resumes once at the earned checkpoints', async () => {
+    const calls: string[] = [];
+    const bridge = {
+      setSignals: vi.fn((ids: readonly string[]) => calls.push(`signals:${ids.join(',')}`)),
+      resume: vi.fn((ids: readonly string[]) => {
+        calls.push(`resume:${ids.join(',')}`);
+        return { placedAt: ids.at(-1) ?? null, unknown: [] };
+      }),
+    };
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(
+          bootstrapJson({
+            region: bridgeRegion,
+            session: sessionJson(),
+            worldChanges: [change('GATE_OPEN'), change('FAR_OPEN', 'somewhere-else')],
+          }),
+          parse.regionBootstrap,
+        ),
+      ),
+    });
+    apis.set(CHILD_A, api);
+    const extensionApi = (id: string) => (id === 'engineBridge' ? bridge : null);
+    const view = render(<RegionPlayCompanion {...props({ extensionApi })} />);
+    await waitFor(() => expect(bridge.resume).toHaveBeenCalledTimes(1));
+    // Only this Area's changes count; signals go first so the gated checkpoint is open.
+    expect(calls).toEqual(['signals:world:GATE_OPEN', 'resume:cp-start,cp-gate']);
+    view.rerender(<RegionPlayCompanion {...props({ extensionApi })} />);
+    await act(async () => undefined);
+    expect(bridge.resume).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing for an Area without an engineBridge block', async () => {
+    const bridge = { setSignals: vi.fn(), resume: vi.fn() };
+    const api = fakeApi();
+    apis.set(CHILD_A, api);
+    render(<RegionPlayCompanion {...props({ extensionApi: () => bridge })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(bridge.setSignals).not.toHaveBeenCalled();
+    expect(bridge.resume).not.toHaveBeenCalled();
+  });
+});
