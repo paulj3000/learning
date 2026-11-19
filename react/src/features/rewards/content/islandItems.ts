@@ -82,6 +82,7 @@ export const ISLAND_ITEMS: ItemDefinition[] = [
     description: 'A feather pen from Keeper Quill, for the tale you helped tell.',
     category: 'QUEST_ITEM',
     rarity: 'UNCOMMON',
+    setId: 'castle-keepsakes',
   },
 
   // --- Keepsakes: mementos of big moments. ---
@@ -134,6 +135,7 @@ export const ISLAND_ITEMS: ItemDefinition[] = [
     description: 'An old storybook from the reading nook. The last page is still empty.',
     category: 'KEEPSAKE',
     rarity: 'UNCOMMON',
+    setId: 'castle-keepsakes',
   },
 
   // --- Cosmetics: creativity, not status. ---
@@ -161,8 +163,58 @@ export const ISLAND_ITEMS: ItemDefinition[] = [
       'A golden seal pressed into the Great Storybook the day you helped bring its pages home.',
     category: 'KEEPSAKE',
     rarity: 'RARE',
+    setId: 'castle-keepsakes',
+  },
+  // SC-R07-01: castle artifacts for the Trophy Room pedestals (slots 4 to 6). Each is earned once by
+  // a server-graded path (an adventure completion, or a protected world change Django records).
+  {
+    id: 'painted-words-brush',
+    displayName: 'Painted Words Brush',
+    description: 'A little brush with a speck of every color. It helped the words find their way home.',
+    category: 'KEEPSAKE',
+    rarity: 'UNCOMMON',
+    setId: 'castle-keepsakes',
+  },
+  {
+    id: 'three-clues-lens',
+    displayName: "Clue Finder's Lens",
+    description: 'A round glass lens for spotting clues. You found all three of them.',
+    category: 'KEEPSAKE',
+    rarity: 'UNCOMMON',
+    setId: 'castle-keepsakes',
+  },
+  {
+    id: 'secret-door-key',
+    displayName: "Silver Keeper's Key",
+    description: 'A small silver key from behind the secret door, to remember what was waiting there.',
+    category: 'KEEPSAKE',
+    rarity: 'RARE',
+    setId: 'castle-keepsakes',
+  },
+  // Final F: a small optional keepsake for the Secret Chamber's mouse door. It is in no set, so it
+  // adds no pedestal and no gap: the Trophy Room's six pedestals stay the castle keepsakes.
+  {
+    id: 'tiny-brass-knob',
+    displayName: 'Tiny Brass Knob',
+    description: 'A knob as small as a pea, from the little mouse door in the Secret Chamber.',
+    category: 'KEEPSAKE',
+    rarity: 'COMMON',
   },
 ];
+
+/**
+ * The Storykeeper Castle keepsakes (SC-R07-01), in Trophy Room pedestal order. Each age band earns
+ * the ones its own castle adventures give, so no single child is expected to hold all six, and the
+ * set has no completion prize. A pedestal waiting for one is never a debt (`castleTrophies.ts`).
+ */
+export const CASTLE_KEEPSAKE_IDS = [
+  'storykeepers-quill',
+  'blank-page-storybook',
+  'great-storybook-seal',
+  'painted-words-brush',
+  'three-clues-lens',
+  'secret-door-key',
+] as const;
 
 export const ISLAND_COLLECTIBLE_SETS: CollectibleSet[] = [
   {
@@ -171,6 +223,12 @@ export const ISLAND_COLLECTIBLE_SETS: CollectibleSet[] = [
     completionMessage: 'You found every shell on the harbor beach. What a collection!',
     itemIds: ['spiral-shell', 'moon-shell', 'rainbow-shell', 'singing-shell'],
     completionItemId: 'beachcomber-hat',
+  },
+  {
+    id: 'castle-keepsakes',
+    displayName: 'Castle Keepsakes',
+    completionMessage: 'Every pedestal in the Trophy Room has a keepsake on it.',
+    itemIds: [...CASTLE_KEEPSAKE_IDS],
   },
 ];
 
@@ -266,6 +324,14 @@ export const ISLAND_REWARD_TABLE: RewardTable = [
     message: 'You carry the book with the blank page down the stair with you.',
   },
   {
+    id: 'reward-castle-chamber-mouse-door',
+    // Final F: paid by the same server path as every discovery rule (`apps/progression/discoveries.py`),
+    // once per child. The star find stays a quiet observation.
+    trigger: { type: 'DISCOVERY', discoveryKey: 'castle-chamber-mouse-door' },
+    itemIds: ['tiny-brass-knob'],
+    message: 'The little door lets you keep its tiny brass knob.',
+  },
+  {
     id: 'reward-quiet-places',
     // The last shell in the harbor set, and the only way to get it. Finding
     // every quiet place is what makes it appear, which also means the
@@ -289,6 +355,27 @@ export const ISLAND_REWARD_TABLE: RewardTable = [
     itemIds: ['great-storybook-seal'],
     message: 'The Great Storybook is whole again. A golden seal glows on its cover, just for you.',
   })),
+  // SC-R07-01: castle artifacts. The two WORLD_CHANGE rules name protected keys (Great Storybook
+  // page sources, docs/security/WORLD_CHANGE_INTEGRITY.md), and Django pays them only when its own
+  // adventure or story path records that key at its own place, so a client cannot forge one.
+  {
+    id: 'reward-painted-words-brush',
+    trigger: { type: 'ADVENTURE_COMPLETED', templateSlug: 'the-painted-words' },
+    itemIds: ['painted-words-brush'],
+    message: 'Keeper Quill gives you a little paintbrush for bringing the words home.',
+  },
+  {
+    id: 'reward-three-clues-lens',
+    trigger: { type: 'WORLD_CHANGE', changeKey: 'SECRET_DOOR_CLUES_COLLECTED' },
+    itemIds: ['three-clues-lens'],
+    message: 'You found all three clues. Keeper Quill gives you a lens to keep.',
+  },
+  {
+    id: 'reward-secret-door-key',
+    trigger: { type: 'WORLD_CHANGE', changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' },
+    itemIds: ['secret-door-key'],
+    message: 'A silver key was waiting behind the door. It is yours to keep.',
+  },
 ];
 
 export function findItem(itemId: string): ItemDefinition | null {

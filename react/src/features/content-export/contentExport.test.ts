@@ -146,24 +146,24 @@ describe('preservation of the existing content', () => {
     ).toEqual({
       islands: 3, // + North Pole
       locations: 13, // + Heart of Firepeak
-      adventures: 24,
-      learningObjectives: 19,
+      adventures: 29, // + the Writing Room's three per-band stories (SC-final-B)
+      learningObjectives: 20,
       wonderWallQuestions: 4,
       stories: 5,
-      quests: 23, // 9 + the three Great Storybook quests (SC-R04) + Pirate's Leap (LAI-JMP-03)
-      items: 113, // + the Great Storybook seal + Pirate's Leap's four keepsakes
-      collectibleSets: 10,
-      rewardRules: 88, // + one seal rule per band's Great Storybook quest + Pirate's Leap's four
-      npcs: 22,
-      discoveries: 6,
-      checkpoints: 30,
+      quests: 24, // 9 + the three Great Storybook quests (SC-R04) + the Pathfinder follow-up + Pirate's Leap (LAI-JMP-03) + Firepeak and North Pole
+      items: 117, // + the Great Storybook seal, + three castle keepsakes (SC-R07-01), + the mouse door knob (Final F), + Pirate's Leap's four keepsakes, + Firepeak and North Pole
+      collectibleSets: 11, // + castle-keepsakes (SC-R07-01), + Firepeak and North Pole
+      rewardRules: 92, // + one seal rule per band's Great Storybook quest, + three keepsake rules, + the mouse door knob, + Pirate's Leap's four, + Firepeak and North Pole
+      npcs: 23, // + Professor Orion (SC-R05-03), + Firepeak and North Pole
+      discoveries: 8, // + the Secret Chamber's two quiet finds (SC-R08-02)
+      checkpoints: 31,
       interactions: 8,
       subjects: 2,
       grades: 4,
       domains: 7,
       skills: 11,
       assets: 114,
-      locationAssets: 6,
+      locationAssets: 7,
     });
   });
 

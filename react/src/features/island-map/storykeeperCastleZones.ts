@@ -7,6 +7,7 @@
 import {
   HARBOR_EXIT_TILE_RECT,
   LAST_BOOKSHELF_TILE_RECT,
+  PAINTED_WALL_TILE_RECT,
   STORY_HALL_TILE_RECT,
   TAPESTRY_STAIR_TILE_RECT,
 } from './storykeeperCastleTilemap';
@@ -48,5 +49,11 @@ export const STORYKEEPER_CASTLE_ZONES: Record<string, PixelRect> = {
     TAPESTRY_STAIR_TILE_RECT.row,
     TAPESTRY_STAIR_TILE_RECT.cols,
     TAPESTRY_STAIR_TILE_RECT.rows,
+  ),
+  'castle-painted-wall': tileRectToPixels(
+    PAINTED_WALL_TILE_RECT.col,
+    PAINTED_WALL_TILE_RECT.row,
+    PAINTED_WALL_TILE_RECT.cols,
+    PAINTED_WALL_TILE_RECT.rows,
   ),
 };

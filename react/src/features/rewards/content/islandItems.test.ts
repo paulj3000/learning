@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  CASTLE_KEEPSAKE_IDS,
   ISLAND_COLLECTIBLE_SETS,
   ISLAND_ITEMS,
   ISLAND_REWARD_TABLE,
@@ -20,6 +21,7 @@ import { ISLAND_NPCS } from '../../npc/content';
 import { ISLAND_QUESTS } from '../../quests/content';
 import { RELATIONSHIP_LEVEL_ORDER } from '../../npc/types';
 import { ISLAND_DISCOVERIES, ISLAND_DISCOVERY_IDS } from '../../discovery/content';
+import { STORYBOOK_PAGES } from '../../great-storybook/pages';
 
 const ITEM_IDS = ISLAND_ITEMS.map((item) => item.id);
 
@@ -201,12 +203,16 @@ describe('ISLAND_REWARD_TABLE', () => {
       ),
     );
 
+    // SC-R07-01: a story's completion records a world change too (the Secret Door's key).
+    const storyKeys = new Set(STORY_DEFINITIONS.map((story) => story.completionWorldChange.changeKey));
+
     for (const rule of ISLAND_REWARD_TABLE) {
       if (rule.trigger.type !== 'WORLD_CHANGE') continue;
       expect(
         authoredKeys.has(rule.trigger.changeKey) ||
           questKeys.has(rule.trigger.changeKey) ||
-          discoveryKeys.has(rule.trigger.changeKey),
+          discoveryKeys.has(rule.trigger.changeKey) ||
+          storyKeys.has(rule.trigger.changeKey),
         `${rule.id} triggers on "${rule.trigger.changeKey}", which nothing records`,
       ).toBe(true);
     }
@@ -245,7 +251,14 @@ describe('ISLAND_REWARD_TABLE', () => {
         (rule) => (rule.trigger as { type: 'DISCOVERY'; discoveryKey: string }).discoveryKey,
       ),
     );
+    // SC-R08-02: the Secret Chamber's star is observation only and grants nothing by design. The
+    // mouse door grants one optional keepsake (Final F), so it is not quiet and must be rewarded.
+    const QUIET_FINDS = new Set(['castle-chamber-star']);
     for (const discovery of ISLAND_DISCOVERIES) {
+      if (QUIET_FINDS.has(discovery.id)) {
+        expect(rewardedKeys.has(discovery.id), `${discovery.id} must grant nothing`).toBe(false);
+        continue;
+      }
       expect(rewardedKeys.has(discovery.id), `${discovery.id} grants nothing`).toBe(true);
     }
   });
@@ -278,11 +291,84 @@ describe('ISLAND_REWARD_TABLE', () => {
   });
 });
 
+describe('chamber mouse door keepsake (Final F)', () => {
+  it('is one optional discovery rule for one item outside every set', () => {
+    const rules = ISLAND_REWARD_TABLE.filter((rule) => rule.itemIds.includes('tiny-brass-knob'));
+    expect(rules).toHaveLength(1);
+    expect(rules[0]!.trigger).toEqual({
+      type: 'DISCOVERY',
+      discoveryKey: 'castle-chamber-mouse-door',
+    });
+    expect(rules[0]!.itemIds).toEqual(['tiny-brass-knob']);
+    const item = findItem('tiny-brass-knob');
+    expect(item?.setId).toBeUndefined();
+    expect(item?.hidden).toBeUndefined();
+    expect(CASTLE_KEEPSAKE_IDS as readonly string[]).not.toContain('tiny-brass-knob');
+    expect(findCollectibleSet('castle-keepsakes')?.itemIds).not.toContain('tiny-brass-knob');
+    expect(`${item?.displayName} ${item?.description} ${rules[0]!.message}`).not.toMatch(/\u2014|\u2013/);
+  });
+
+  it('leaves the star find granting nothing', () => {
+    expect(
+      ISLAND_REWARD_TABLE.some(
+        (rule) => rule.trigger.type === 'DISCOVERY' && rule.trigger.discoveryKey === 'castle-chamber-star',
+      ),
+    ).toBe(false);
+  });
+});
+
 describe('lookup helpers', () => {
   it('finds authored content and returns null otherwise', () => {
     expect(findItem('spiral-shell')?.displayName).toBe('Spiral Shell');
     expect(findItem('not-an-item')).toBeNull();
     expect(findCollectibleSet('harbor-shells')?.displayName).toBe('Harbor Shells');
     expect(findCollectibleSet('not-a-set')).toBeNull();
+  });
+});
+
+describe('castle keepsakes (SC-R07-01)', () => {
+  it('lists six keepsakes, all defined, all in the castle-keepsakes set, with no completion prize', () => {
+    expect(CASTLE_KEEPSAKE_IDS).toHaveLength(6);
+    const set = findCollectibleSet('castle-keepsakes');
+    expect(set?.itemIds).toEqual([...CASTLE_KEEPSAKE_IDS]);
+    expect(set?.completionItemId).toBeUndefined();
+    for (const id of CASTLE_KEEPSAKE_IDS) {
+      expect(findItem(id)?.setId, id).toBe('castle-keepsakes');
+      expect(findItem(id)?.hidden, id).toBeUndefined();
+    }
+  });
+
+  it('grants each new keepsake from one server-graded trigger', () => {
+    const triggers = new Map(
+      ISLAND_REWARD_TABLE.flatMap((rule) => rule.itemIds.map((id) => [id, rule.trigger] as const)),
+    );
+    expect(triggers.get('painted-words-brush')).toEqual({
+      type: 'ADVENTURE_COMPLETED',
+      templateSlug: 'the-painted-words',
+    });
+    expect(triggers.get('three-clues-lens')).toEqual({
+      type: 'WORLD_CHANGE',
+      changeKey: 'SECRET_DOOR_CLUES_COLLECTED',
+    });
+    expect(triggers.get('secret-door-key')).toEqual({
+      type: 'WORLD_CHANGE',
+      changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE',
+    });
+  });
+
+  it('keys every castle WORLD_CHANGE rule off a Great Storybook page source, which Django protects', () => {
+    const pageKeys = new Set(
+      STORYBOOK_PAGES.flatMap((page) =>
+        page.source.kind === 'WORLD_CHANGE' ? [page.source.changeKey] : [],
+      ),
+    );
+    const castleRules = ISLAND_REWARD_TABLE.filter((rule) =>
+      rule.itemIds.some((id) => (CASTLE_KEEPSAKE_IDS as readonly string[]).includes(id)),
+    );
+    expect(castleRules.some((rule) => rule.trigger.type === 'WORLD_CHANGE')).toBe(true);
+    for (const rule of castleRules) {
+      if (rule.trigger.type !== 'WORLD_CHANGE') continue;
+      expect(pageKeys.has(rule.trigger.changeKey), rule.id).toBe(true);
+    }
   });
 });

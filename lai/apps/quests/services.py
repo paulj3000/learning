@@ -91,6 +91,67 @@ def start_quest(child, quest: Quest, *, now=None) -> tuple[QuestProgress, bool]:
     return progress, True
 
 
+#: Objective kinds the server can prove (`engine.objective_complete`). The others (EXPLORE,
+#: HELP_NPC, DELIVER, relationship and skill goals) live in engines not ported yet, so a client
+#: claim about them is still taken as before and listed as a residual risk in
+#: `docs/security/WORLD_CHANGE_INTEGRITY.md`.
+PROVABLE_OBJECTIVES = frozenset(
+    {"BUILD", "FIND", "CRAFT", "COLLECT", "SOLVE", "TALK_TO", "DISCOVER"}
+)
+
+
+def claim_is_proven(
+    child, quest: Quest, progress: QuestProgress, claimed_stages, claimed_objectives
+) -> bool:
+    """True when every stage and objective the client newly claims is backed by server state.
+
+    A claimed stage needs each of its required, provable objectives complete on the server; a
+    claimed objective of a provable kind must be complete. A stage's own authored world changes
+    count for the stages after it in the same claim (they are written together), so a legitimate
+    multi-stage save still passes, while a claim with nothing behind it is refused.
+    """
+    stages = {s["id"]: s for s in quest.source.get("stages", [])}
+    context = build_context(child)
+    keys = set(context.world_change_keys)
+    new_stages = [s for s in dict.fromkeys(claimed_stages) if s not in progress.completed_stage_ids]
+    if any(stage_id not in stages for stage_id in new_stages):
+        return False  # an unknown stage is refused (409), as `save_quest_state` would
+    pending = list(new_stages)
+
+    def holds(objective: dict) -> bool:
+        ctx = engine.QuestContext(
+            world_change_keys=frozenset(keys),
+            owned_item_ids=context.owned_item_ids,
+            completed_adventure_slugs=context.completed_adventure_slugs,
+            completed_quest_ids=context.completed_quest_ids,
+            npc_memory_flags=context.npc_memory_flags,
+            discovery_ids=context.discovery_ids,
+        )
+        return objective.get("kind") not in PROVABLE_OBJECTIVES or engine.objective_complete(
+            objective, ctx
+        )
+
+    progressed = True
+    while pending and progressed:
+        progressed = False
+        for stage_id in list(pending):
+            stage = stages[stage_id]
+            required = [o for o in stage.get("objectives", []) if not o.get("optional")]
+            if all(holds(o) for o in required):
+                pending.remove(stage_id)
+                keys.update(c["changeKey"] for c in stage.get("worldChanges", []))
+                progressed = True
+    if pending:
+        return False
+    by_objective = {
+        o["id"]: o for stage in stages.values() for o in stage.get("objectives", [])
+    }
+    new_objectives = [
+        o for o in dict.fromkeys(claimed_objectives) if o not in progress.completed_objective_ids
+    ]
+    return all(o in by_objective and holds(by_objective[o]) for o in new_objectives)
+
+
 @transaction.atomic
 def save_quest_state(
     child,

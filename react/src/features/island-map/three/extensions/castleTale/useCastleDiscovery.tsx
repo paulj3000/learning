@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { castleClaimContext, emitCastleClaim, roomExploredClaim } from './castleGameplayClaims';
 import { castleRoomsApiFor, type CastleRoomsApi } from '../../../../../api/play/castleRoomsApi';
 
 /**
@@ -76,7 +77,11 @@ export function useCastleDiscovery(options: {
     let cancelled = false;
     configured
       .record(roomId)
-      .then(() => {
+      .then((outcome) => {
+        // GE-072: the server recorded the room for the first time; claim it (exploring, no session).
+        if (outcome?.newlyDiscovered) {
+          emitCastleClaim(castleClaimContext(null, null), roomExploredClaim(outcome.roomId));
+        }
         if (cancelled) return;
         savedRef.current = new Set(savedRef.current).add(roomId);
         setSaved(savedRef.current);

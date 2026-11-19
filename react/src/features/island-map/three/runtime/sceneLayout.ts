@@ -2,6 +2,7 @@ import type { InstancePlacement } from '../assets/assetLoader';
 import { ASSET_MANIFEST } from '../assets/manifest';
 import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 import type { CollisionProfiles } from './collisionProfile';
+import { bridgeCheckpointIds } from './bridgeCheckpoints';
 import { buildingEntrances, derivedColliders } from './derivedColliders';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import { runPlacements, WALL_HEIGHT } from '../sceneKit';
@@ -421,16 +422,17 @@ export function solidColliders(
   /** Staff-configured collision profiles by asset id (Asset Manager); absent: built-in defaults. */
   profiles?: CollisionProfiles,
 ): SolidCollider[] {
+  const wallHeight = manifest.wallHeight ?? WALL_HEIGHT;
   const authored: SolidCollider[] = [
     ...boundaryWallRects(manifest.bounds).map((rect) => ({
-      box: rectToBox(rect, RECT_MIN_Y, WALL_HEIGHT),
+      box: rectToBox(rect, RECT_MIN_Y, wallHeight),
       boundary: true,
     })),
     ...manifest.colliders
       .filter((collider) => areRequirementsMet(collider.requirements, context))
       .map((collider) => ({
         id: collider.rect.id,
-        box: rectToBox(collider.rect, collider.minY ?? RECT_MIN_Y, collider.maxY ?? WALL_HEIGHT),
+        box: rectToBox(collider.rect, collider.minY ?? RECT_MIN_Y, collider.maxY ?? wallHeight),
         // A gated collider is a progression gate: never jumpable, whatever was authored.
         ...(collider.jumpable === true && !collider.requirements?.length ? { jumpable: true } : {}),
       })),
@@ -439,7 +441,7 @@ export function solidColliders(
   // Gated colliders count as covering, whatever their state, so a gate's own piece never
   // gets a second, ungated box that would outlive the gate opening.
   const covering = manifest.colliders.map((collider) =>
-    rectToBox(collider.rect, RECT_MIN_Y, WALL_HEIGHT),
+    rectToBox(collider.rect, RECT_MIN_Y, wallHeight),
   );
   const derived = derivedColliders(manifest, context, {
     assetKinds: ASSET_KINDS,
@@ -515,10 +517,12 @@ export function triggerVolumes(
 ): TriggerVolume[] {
   const half = manifest.checkpoints.triggerHalfSize;
   const byId = new Map(checkpoints.map((checkpoint) => [checkpoint.id, checkpoint]));
+  // GE-066: a checkpoint the engine bridge serves is reached through the bridge alone.
+  const servedByBridge = bridgeCheckpointIds(manifest);
   return [
     ...manifest.checkpoints.ids.flatMap((id): TriggerVolume[] => {
       const checkpoint = byId.get(id);
-      if (!checkpoint) return [];
+      if (!checkpoint || servedByBridge.has(id)) return [];
       return [
         {
           id,
@@ -542,7 +546,7 @@ export function triggerVolumes(
     ...manifest.zones.map((zone): TriggerVolume => ({
       id: zone.rect.id,
       kind: 'ZONE',
-      box: rectToBox(zone.rect, RECT_MIN_Y, WALL_HEIGHT),
+      box: rectToBox(zone.rect, RECT_MIN_Y, manifest.wallHeight ?? WALL_HEIGHT),
     })),
   ];
 }

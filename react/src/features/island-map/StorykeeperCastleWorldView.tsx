@@ -38,6 +38,12 @@ interface StorykeeperCastleWorldViewProps {
  * interactions as walking around, so graphical movement is never the only
  * way to use this screen (roadmap section 42).
  */
+/**
+ * Interactions that exist only in the Three.js castle (ADR-020: no new features in a Phaser
+ * world). Professor Orion (SC-R05-03) stands in the 3D Setting Tower and has no Phaser body.
+ */
+const THREE_D_ONLY_INTERACTION_IDS: ReadonlySet<string> = new Set(['talk-to-professor-orion']);
+
 export function StorykeeperCastleWorldView({
   childId,
   avatarKey,
@@ -68,8 +74,10 @@ export function StorykeeperCastleWorldView({
     () =>
       context === null
         ? []
-        : STORYKEEPER_CASTLE_INTERACTIONS.filter((interaction) =>
-            isInteractionAvailable(interaction, context),
+        : STORYKEEPER_CASTLE_INTERACTIONS.filter(
+            (interaction) =>
+              !THREE_D_ONLY_INTERACTION_IDS.has(interaction.id) &&
+              isInteractionAvailable(interaction, context),
           ),
     [context],
   );

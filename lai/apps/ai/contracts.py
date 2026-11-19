@@ -294,3 +294,39 @@ _NPC_GAMEPLAY_CLAIM = js_regex(
     r"|\b(here('s| is| are) (your|some|a) (treasure|coins?|gems?|stars?|points?|prize|reward"
     r"|key))\b|\byou (won|win|earned|unlocked|got it right|got it wrong|are right|are wrong)\b"
 )
+
+
+# --- Castle Director choice (SC-R09-01), Django only -------------------------------------------
+
+CASTLE_DIRECTOR_OUTPUT_SCHEMA_VERSION = 1
+
+CASTLE_DIRECTOR_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "eventId": {"type": "string", "description": "One id copied from the candidates."},
+        "safetyDisposition": {"type": "string", "enum": list(DISPOSITIONS)},
+    },
+    "required": ["eventId", "safetyDisposition"],
+    "additionalProperties": False,
+}
+
+
+def validate_castle_choice(raw: object, *, eligible: dict, default_turn: dict) -> Valid | Invalid:
+    """The model's pick must be exactly an id in the server's eligible set.
+
+    `eligible` maps each eligible event id to its authored turn (`{eventId, spokenText,
+    safetyDisposition}`); the turn returned is that authored one, never anything the model wrote.
+    The shape is closed: any extra field is invalid. A REDIRECT or STOP disposition is a valid
+    answer (the pipeline then records a safety event and shows the default), so it needs no id.
+    """
+    if not isinstance(raw, dict) or set(raw) != {"eventId", "safetyDisposition"}:
+        return Invalid("Response did not have exactly eventId and safetyDisposition.")
+    disposition = raw["safetyDisposition"]
+    if disposition not in DISPOSITIONS:
+        return Invalid("safetyDisposition was not a known value.")
+    if disposition != "ALLOW":
+        return Valid({**default_turn, "safetyDisposition": disposition})
+    event_id = raw["eventId"]
+    if not isinstance(event_id, str) or event_id not in eligible:
+        return Invalid("eventId was not one of the candidates.")
+    return Valid({**eligible[event_id], "safetyDisposition": "ALLOW"})

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_ITEMS, ALL_REWARD_RULES } from '../../rewards/content';
+import { CASTLE_KEEPSAKE_IDS, findCollectibleSet } from '../../rewards/content/islandItems';
 import {
   CASTLE_TROPHY_INTERACTIONS,
   OPEN_PEDESTAL_TEXT,
@@ -41,8 +42,9 @@ describe('trophy slots', () => {
     }
   });
 
-  it('keeps open pedestals for SC-R07: at least four are unbound', () => {
-    expect(TROPHY_SLOTS.filter((slot) => !slot.itemId).length).toBeGreaterThanOrEqual(4);
+  it('binds all six pedestals to the castle keepsakes, in the set order (SC-R07-02)', () => {
+    expect(TROPHY_SLOTS.map((slot) => slot.itemId)).toEqual([...CASTLE_KEEPSAKE_IDS]);
+    expect(findCollectibleSet('castle-keepsakes')?.itemIds).toEqual([...CASTLE_KEEPSAKE_IDS]);
   });
 });
 
@@ -73,6 +75,25 @@ describe('trophyDisplay', () => {
   it('ignores items it does not display and items it has never heard of', () => {
     const entries = trophyDisplay(['ember-scale', 'an-item-from-a-newer-version']);
     expect(entries.filter((entry) => entry.state === 'on-display')).toEqual([]);
+  });
+
+  it('shows each of the six keepsakes on its own pedestal, and only the owned ones (SC-R07-02)', () => {
+    for (const itemId of CASTLE_KEEPSAKE_IDS) {
+      const entries = trophyDisplay([itemId]);
+      const shown = entries.filter((entry) => entry.state === 'on-display');
+      expect(shown.map((entry) => entry.slot.itemId)).toEqual([itemId]);
+      expect(entries.filter((entry) => entry.state === 'waiting')).toHaveLength(5);
+      expect(entries.filter((entry) => entry.state === 'open')).toEqual([]);
+    }
+    const all = trophyDisplay([...CASTLE_KEEPSAKE_IDS]);
+    expect(all.every((entry) => entry.state === 'on-display')).toBe(true);
+  });
+
+  it('words a waiting pedestal gently: the keepsake name, no count, no "missing" (never shaming)', () => {
+    for (const entry of trophyDisplay([]).filter((e) => e.state === 'waiting')) {
+      expect(entry.text).toContain(entry.name!);
+      expect(entry.text).not.toMatch(/missing|only|still need|\d|—|–/i);
+    }
   });
 
   it('is pure: the same inventory gives the same room, and it never mutates its input', () => {

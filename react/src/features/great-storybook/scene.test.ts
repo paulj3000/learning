@@ -24,9 +24,10 @@ describe('toSceneState', () => {
     expect(
       toSceneState(storybookProgress({ worldChangeKeys: [], discoveryIds: [] }, 'PATHFINDER')),
     ).toEqual({
-      required: [false],
+      required: [false, false],
       bonusFound: false,
       complete: false,
+      morePages: false,
     });
   });
 
@@ -41,17 +42,31 @@ describe('toSceneState', () => {
     expect(
       toSceneState(storybookProgress({ worldChangeKeys: [], discoveryIds: [] }, 'SPROUT')).required,
     ).toHaveLength(1);
+    expect(
+      toSceneState(storybookProgress({ worldChangeKeys: [], discoveryIds: [] }, 'PATHFINDER'))
+        .required,
+    ).toHaveLength(2);
   });
 
   it('reports the bonus page and a whole book separately: the bonus never makes it whole', () => {
     const bonusOnly = toSceneState(
       storybookProgress({ worldChangeKeys: [], discoveryIds: ['castle-tapestry-stair'] }, 'SPROUT'),
     );
-    expect(bonusOnly).toEqual({ required: [false], bonusFound: true, complete: false });
+    expect(bonusOnly).toEqual({
+      required: [false],
+      bonusFound: true,
+      complete: false,
+      morePages: false,
+    });
     const whole = toSceneState(
       storybookProgress({ worldChangeKeys: ['FIRST_STORY_TOLD'], discoveryIds: [] }, 'SPROUT'),
     );
-    expect(whole).toEqual({ required: [true], bonusFound: false, complete: true });
+    expect(whole).toEqual({
+      required: [true],
+      bonusFound: false,
+      complete: true,
+      morePages: false,
+    });
   });
 
   it('is pure and total', () => {
@@ -86,5 +101,32 @@ describe('the card and the 3D book are one state', () => {
         }
       }
     }
+  });
+});
+
+describe('toSceneState for a book restored in an earlier edition', () => {
+  it('keeps the cover sealed and shows one loose page', () => {
+    const scene = toSceneState(
+      storybookProgress(
+        {
+          worldChangeKeys: ['FIRST_STORY_TOLD', 'GREAT_STORYBOOK_RESTORED'],
+          discoveryIds: [],
+        },
+        'PATHFINDER',
+      ),
+    );
+    expect(scene).toEqual({
+      required: [true, false],
+      bonusFound: false,
+      complete: false,
+      morePages: true,
+    });
+  });
+
+  it('is not flagged for an in-progress or a whole book', () => {
+    const book = (keys: string[]) =>
+      toSceneState(storybookProgress({ worldChangeKeys: keys, discoveryIds: [] }, 'PATHFINDER'));
+    expect(book(['FIRST_STORY_TOLD']).morePages).toBe(false);
+    expect(book(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED']).morePages).toBe(false);
   });
 });

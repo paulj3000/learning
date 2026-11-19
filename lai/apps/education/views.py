@@ -4,6 +4,7 @@ GET    children/{id}/skill-progress/              the child's derived mastery ro
 GET    children/{id}/story-artifacts/             the child's saved stories, newest first
 POST   children/{id}/story-artifacts/             save the story made in one session (idempotent)
 DELETE children/{id}/story-artifacts/{artifact}/  a parent deletes one saved story
+POST   children/{id}/story-artifacts/written/     save a story the child made in the Writing Room
 GET    children/{id}/next-learning-activity/      the Director's suggestions (see below)
 
 `SkillProgress` is never written here: it is derived on the server from evidence the server
@@ -24,10 +25,12 @@ from rest_framework.response import Response
 
 from apps.ai.content_safety import boundary_violations, contains_url
 from apps.catalog.models import AdventureStep
+from apps.game_sessions import services as game_services
 from apps.game_sessions.models import AdventureSession, SessionKind
 from apps.game_sessions.serializers import ClosedSerializer
 from apps.users.scoping import ChildScopedAPIView
 
+from . import written_story
 from .director import next_learning_activity
 from .models import SkillProgress, StoryArtifact
 
@@ -143,6 +146,107 @@ class StoryArtifactListView(ChildScopedAPIView):
                     scenes=scenes,
                     created_at=timezone.now(),
                 )
+        except IntegrityError:  # a concurrent save of the same session won
+            artifact = self.scoped(StoryArtifact.objects).get(adventure_session=session)
+            return Response(artifact_body(artifact))
+        return Response(artifact_body(artifact), status=201)
+
+
+class WrittenPartWrite(serializers.Serializer):
+    stepId = serializers.CharField(max_length=100)
+    optionIds = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False,
+        allow_empty=True,
+        max_length=written_story.MAX_TILES,
+    )
+    # The one place a child's own typed text arrives. Capped here and screened in `written_story`.
+    text = serializers.CharField(
+        required=False, allow_blank=True, max_length=written_story.EXPLORER_MAX_CHARACTERS * 2
+    )
+
+
+class WrittenStoryWrite(ClosedSerializer):
+    sessionId = serializers.UUIDField()
+    parts = serializers.ListField(child=WrittenPartWrite(), min_length=1, max_length=6)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        allowed = set(WrittenPartWrite().fields)
+        for part in self.initial_data.get("parts") or []:
+            if isinstance(part, dict) and set(part) - allowed:
+                raise ValidationError(
+                    {"parts": ["A part has a field that is not accepted."]}, code="unknown_field"
+                )
+        return attrs
+
+
+class WrittenStoryRefusedResponse(APIException):
+    """A kind, authored refusal. Carries no category and never the child's text."""
+
+    status_code = 400
+    default_code = "written_story_refused"
+    default_detail = "Let us try that again with different words."
+
+
+class WrittenStoryView(ChildScopedAPIView):
+    """Saves the story a child made in the Writing Room (SC-final-B). Idempotent per session.
+
+    The server composes a Sprout's or Pathfinder's story from the authored options, so only an
+    Explorer's typed paragraph is the child's own text, and it is screened before it is stored.
+    A refused paragraph stores nothing and logs nothing. The session is completed here, by the
+    server, with no reward and no world change.
+    """
+
+    def post(self, request, child_id):
+        body = WrittenStoryWrite(data=request.data)
+        body.is_valid(raise_exception=True)
+        data = body.validated_data
+        session = (
+            self.scoped(AdventureSession.objects.select_related("adventure"))
+            .filter(
+                pk=data["sessionId"],
+                kind=SessionKind.ADVENTURE,
+                adventure__location_slug=written_story.LOCATION_SLUG,
+            )
+            .first()
+        )
+        # Not found, not forbidden, for another child's session and for a session of the wrong
+        # place or the wrong band: nothing here confirms that one exists.
+        if session is None or self.child.age_band not in session.adventure.age_bands:
+            raise NotFound
+        existing = self.scoped(StoryArtifact.objects).filter(adventure_session=session).first()
+        if existing is not None:
+            return Response(artifact_body(existing))
+        parts = [
+            written_story.Part(
+                step_id=part["stepId"],
+                option_ids=tuple(part.get("optionIds") or ()),
+                text=part.get("text"),
+            )
+            for part in data["parts"]
+        ]
+        try:
+            scenes = written_story.compose_scenes(session.adventure, self.child.age_band, parts)
+        except written_story.WrittenStoryInvalid:
+            raise ValidationError(
+                {"parts": ["The story does not fit this adventure."]}, code="invalid_story"
+            ) from None
+        except written_story.WrittenStoryRefused:
+            raise WrittenStoryRefusedResponse from None
+        try:
+            with transaction.atomic():
+                artifact = StoryArtifact.objects.create(
+                    child=self.child,
+                    adventure_session=session,
+                    title=session.adventure.title,
+                    scenes=scenes,
+                    created_at=timezone.now(),
+                )
+                try:
+                    game_services.complete_session(self.child, session.pk)
+                except game_services.SessionNotActive:
+                    pass  # already finished some other way; the story is still the child's
         except IntegrityError:  # a concurrent save of the same session won
             artifact = self.scoped(StoryArtifact.objects).get(adventure_session=session)
             return Response(artifact_body(artifact))

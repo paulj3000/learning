@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -275,17 +275,37 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       expect(await screen.findByText('You found the Character Gallery.')).toBeInTheDocument();
     });
 
+    it('saves a checkpoint the engine bridge reaches and says it in the castle’s words (GE-072)', async () => {
+      await renderAndWait();
+      await emit((bus) =>
+        bus.emit('CourseCheckpointReached', {
+          checkpointId: 'storykeeper-castle:gallery',
+          label: 'the Character Gallery',
+        }),
+      );
+      await waitFor(() =>
+        expect(saveCheckpoint).toHaveBeenCalledWith('child-1', 'storykeeper-castle:gallery'),
+      );
+      expect(await screen.findByText('You found the Character Gallery.')).toBeInTheDocument();
+    });
+
+    // GE-D9: this shell test renders the whole castle view, and `getByRole` computes accessible
+    // names across that DOM. On a loaded machine each query took 1 to 2 s, so the run passed the
+    // 5 s default. The button is now found inside the dialog (a small subtree), the dismissal is
+    // awaited, and the test has a 15 s budget. The behaviour asserted is unchanged.
     it('offers the way back to Welcome Harbor on reaching the exit, and dismisses it', async () => {
       const user = userEvent.setup();
       await renderAndWait();
       await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-harbor-exit' }));
-      const dialog = await screen.findByRole('dialog', {
-        name: 'The path back to Welcome Harbor',
-      });
+      const dialog = await screen.findByRole(
+        'dialog',
+        { name: 'The path back to Welcome Harbor' },
+        { timeout: 5000 },
+      );
       expect(dialog).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Not now' }));
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
+      await user.click(within(dialog).getByRole('button', { name: 'Not now' }));
+      await waitFor(() => expect(dialog).not.toBeInTheDocument(), { timeout: 5000 });
+    }, 15_000);
 
     it('still lets the child explore when the progress reads fail', async () => {
       vi.mocked(getWorldState).mockRejectedValue(new Error('offline'));
@@ -544,6 +564,7 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
     it('offers the already-told narration once a story is on the shelf', async () => {
       vi.mocked(listAllWorldChanges).mockResolvedValue([
         { changeKey: 'FIRST_STORY_TOLD' },
+        { changeKey: 'STUDIO_PAGE_MENDED' },
       ] as never);
       await renderAndWait();
       await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
@@ -827,13 +848,16 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       expect(
         await screen.findByRole('heading', { name: 'The Great Storybook' }),
       ).toBeInTheDocument();
-      expect(screen.getByText('0 of 1 missing pages are back.')).toBeInTheDocument();
-      expect(screen.getByText(/Missing\. Tell a story with Keeper Quill/)).toBeInTheDocument();
+      expect(screen.getByText('0 of 2 missing pages are back.')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Missing\. Not found yet\. Tell a story with Keeper Quill/),
+      ).toBeInTheDocument();
     });
 
     it('shows a child who finished the Tale long ago a whole book, and announces nothing', async () => {
       vi.mocked(listAllWorldChanges).mockResolvedValue([
         { changeKey: 'FIRST_STORY_TOLD' },
+        { changeKey: 'STUDIO_PAGE_MENDED' },
       ] as never);
       await renderAndWait('PATHFINDER');
       await openGuide();
@@ -844,7 +868,7 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
 
     it.each([
       ['SPROUT', ['The First Story']],
-      ['PATHFINDER', ['The First Story']],
+      ['PATHFINDER', ['The First Story', 'The Painted Words']],
       ['EXPLORER', ['Three Clues', 'The Pattern Lock', 'What Was Waiting']],
     ] as const)('gives a %s only their own pages', async (band, titles) => {
       await renderAndWait(band);
@@ -871,8 +895,10 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
       } as never);
       await renderAndWait('PATHFINDER');
       await openGuide();
-      expect(await screen.findByText('The Hidden Page')).toBeInTheDocument();
-      expect(screen.getByText('0 of 1 missing pages are back.')).toBeInTheDocument();
+      // Scoped to the book: the Hall of Heroes (SC-R07-03) lists the found page too.
+      const book = await screen.findByRole('region', { name: 'The Great Storybook' });
+      expect(await within(book).findByText('The Hidden Page')).toBeInTheDocument();
+      expect(screen.getByText('0 of 2 missing pages are back.')).toBeInTheDocument();
     });
   });
 

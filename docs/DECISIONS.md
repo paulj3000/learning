@@ -88,7 +88,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-062 | Background processing uses one Django job backbone: contract kinds extend apps.jobs, run on their own processing queues and bucket, and the processing worker is an ECR image by digest | Accepted; superseded in part by ADR-064 | `feature/serverless-processing-wave2` (LAI-LAMBDA-002 to 005, PR #41, not merged) | Accepted by the owner 2026-11-17 with B4 to B7, the `LAI_ASSET_ASYNC_VALIDATION` flag (default off) and prod reserved concurrency 5. Decision 1 (one backbone in `apps.jobs`) stands; decisions 2 and 3 (own queues, bucket and stack; ECR worker) and the second consumer are superseded by the owner's 2026-11-17 blocker-resolution decisions (ADR-064) |
 | ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending. Numbered ADR-055 on the movement branches; renumbered ADR-063 by the owner's ADR reconciliation (2026-11-17), decision text unchanged. Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
 | ADR-064 | Background processing has one canonical path: apps.jobs on the ADR-055 queues and results consumer, zip-packaged Lambda workers, a transactional outbox and a database-outage-safe consumer; Bedrock runs in a configurable Region | Accepted | `main` (owner's DEV blocker resolution, 2026-11-17) | Owner decisions 1 to 8 of 2026-11-17: zip for dev Lambda workers, no ECR in dev, containers only by a later decision, `apps.jobs` + SQS + Lambda + ADR-055 canonical, PR #40 extends it, Studio roles automated, Bedrock Region independent, low-cost dev and its schedule kept. Amends ADR-055, ADR-061 and ADR-062 |
-| ADR-065 | The Castle Director picks only server-recomputed authored ambient events (open branch, not merged) | Reserved | `feature/storykeeper-castle-completion` | Reserved 2026-11-18 by the engineering-governance audit (ADR-072): the branch already uses this number. The branch adds the heading when it merges. Not merged here |
+| ADR-065 | The Castle Director may only pick an id from a server-recomputed set of authored ambient events; events grant nothing and repeat by visit count, never by time | Accepted (owner, 2026-11-18) | `work/sc-r08-09` (SC-R08-01, SC-R09-01, SC-R09-02); `work/final-a` (revisioned catalog) | Adds route `generateCastleDirector`, `CastleVisitState`, `CastleEventShown`, and the Django-owned, revisioned `CastleEvent` catalog (migration `regions.0008`). Reuses ADR-044 (pipeline, Guardrail), ADR-047 (revisions) and ADR-054 (`npc_hint`) |
 | ADR-066 | Derived artifacts, create-only worker writes and retention (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-014), `docs/processing/adr/` on that branch | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-067 | Native audio transcoding with LGPL FFmpeg (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-008b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-068 | Separate Pillow image function and image privacy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013a) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
@@ -4333,6 +4333,262 @@ the GLB validator are not on `main` yet (LAI-LAMBDA-002 stays open until they re
 optimization, audio transcoding, thumbnails and image conversion remain separately tracked and
 do not block the first deployment.
 
+## ADR-063: Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable
+
+Status: Proposed (LAI-JMP-01, 2026-11-13). Numbered ADR-055 on the movement branches; ADR-063 by the owner's ADR reconciliation (2026-11-17). Development only; awaiting owner QA.
+
+**Context.** LAI-JMP-01 makes jumping standard movement in every free-roaming 3D location, not
+only in platforming adventures, and asks that a jump never bypass a locked door, quest gate,
+boundary, story interaction or restricted area. Every 3D location already runs on one controller
+(`FirstPersonController`) inside one runtime (`createLocationEngine`), whose colliders are
+ground-plane rectangles that default to 3 m tall walls. Some gates and barriers (the broken
+bridge, the ruins gate, extension-added colliders) would be low enough to clear if colliders were
+tested by real height.
+
+**Decision.**
+
+1. **Extend the existing controller.** Vertical velocity, gravity, landing, coyote time, jump
+   buffer, air control and safe recovery live in `FirstPersonController`; no per-adventure or
+   parallel movement system. Phaser worlds get nothing (ADR-020).
+2. **Solid by default.** A collider blocks at every height unless it is authored
+   `jumpable: true` with `minY`/`maxY`. Solid colliders are tested at ground level exactly as
+   before, so walking is unchanged and no jump clears a wall, boundary or anything an extension
+   adds.
+3. **Gates are never jumpable.** A collider with `requirements` is a progression gate; the
+   validator rejects `jumpable` on it and the runtime ignores the flag there.
+4. **Trigger zones stay 2D.** Zones, checkpoints, walk-in interactions and hazards are entered by
+   x/z position, so a jump through one still enters it.
+5. **Data-driven tuning.** `movement.jump` on a manifest (or `scene.movement` on a Django region)
+   overrides the defaults per location, validated like the rest of the manifest. No Django schema
+   change.
+6. **Jumping is on by default** for every manifest-driven location; a location opts out with
+   `enabled: false`.
+7. **Movement sounds are optional cues** (`sfx.player.jump`, `sfx.player.land`): reported in the
+   sound library coverage, never a readiness blocker.
+
+**Consequences.** Every 3D adventure can jump with no configuration, and no existing barrier
+becomes jumpable by accident. Hopping onto things is opt-in content work (mark a low collider
+jumpable). The player stays first-person: jump animations wait for a third-person avatar
+(follow-up card). Details: `docs/PLAYER_MOVEMENT_AND_JUMPING.md`.
+
+## ADR-056: One player camera controller with first- and third-person perspectives; the avatar and its animation only mirror the movement controller
+
+Status: Proposed (LAI-JMP-01a, 2026-11-13). Development only; awaiting owner QA. Depends on
+ADR-063 (LAI-JMP-01, PR #26, unmerged when this was written).
+
+**Context.** Every 3D location was first-person: the camera was the player. Children could not
+see their character walk or jump. LAI-JMP-01a asks for a Roblox-like third-person view as the
+recommended default, while keeping first-person, without per-adventure movement or camera code,
+without changing collision or progression, and without new avatar asset systems or database
+models.
+
+**Decision.**
+
+1. **Four shared pieces, separated.** The movement controller (`FirstPersonController`) stays
+   the only authority on position and collision. A camera controller (`playerCamera.ts`), an
+   avatar renderer (`playerAvatar.ts`) and an animation controller (`playerAnimation.ts`, driving
+   the NPC Manager's `createNpcAnimator`) read it every frame and write nothing back. Animation
+   clips are stripped of root motion.
+2. **Third-person is the default; first-person is kept.** `player.camera.defaultMode` per
+   location (`third-person` unless authored); `allowModeSwitch` lets the child switch with V,
+   gamepad Y/Triangle, a HUD button or a setting.
+3. **The controller's yaw is the camera heading in both modes,** so movement is camera-relative
+   with no new movement code, and the avatar faces its velocity.
+4. **Interactions are aimed from the player,** along the view through the reticle, never from
+   the third-person camera. Reach is identical in both perspectives.
+5. **Camera collision uses the scene's existing solid colliders** (the live `Box3` list the
+   controller walks into): pulled in on the same frame, eased back out, never closer than needed
+   and never into a wall; `maxHeight` keeps it under indoor ceilings.
+6. **Avatar looks come from what exists:** a location costume (`assetKey`), else a model
+   registered per `ChildProfile.avatarKey` (none yet), else a placeholder in the child's existing
+   avatar colours and accessory. Models load through the location's own asset loader and cache.
+7. **The preference is browser storage per child** (`lai:camera-mode:<childId>`, only the mode).
+   No database model is added; cross-device sync is a follow-up that needs a schema change.
+8. **`Run` and `Jump` join the closed clip vocabulary** on both sides (React and Django), with a
+   parity test.
+
+**Consequences.** Every eligible 3D location gets third-person with no per-location code, and the
+first-person engine tests keep guarding the original view (the test harness defaults to
+first-person; third-person has its own tests). Children see placeholders until 3D avatar models
+are made (LAI-JMP-01c). The camera avoids colliders, not meshes, so decorative scenery without a
+collider can sit between camera and child. Details: `docs/PLAYER_AVATAR_AND_CAMERA.md`.
+
+## ADR-057: Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference
+
+Status: Proposed (LAI-JMP-01c, 2026-11-13). Development only; awaiting owner QA. Depends on
+ADR-056 (LAI-JMP-01a, PR #27) and ADR-063 (LAI-JMP-01, PR #26), both unmerged when this was
+written.
+
+**Context.** Children choose one of six avatar identities (`ChildProfile.avatar_key`); LAI-JMP-01a
+draws every one as a procedural placeholder because nothing maps an identity to a 3D model. Staff
+must be able to assign, tune and publish real animated GLBs in Django Admin, without a second
+asset system, without a React admin, and with safe fallbacks.
+
+**Decision.**
+
+1. **A new app `apps.avatars` with one model, `PlayerAvatar`**, one row per identity (seeded as
+   drafts by migration): model asset (`catalog.ContentAsset`, kind `character`), optional pinned
+   `assets.AssetVersion`, thumbnail asset, scale, facing offset, animation map, customization
+   (colour materials, attachment points), status (DRAFT / AVAILABLE / DISABLED). It stores no
+   file and no child data. This mirrors the NPC Manager's `NpcModelVariant`; no release model is
+   added, because the asset's own immutable published versions are the release.
+2. **Upload, validation, versioning, publishing, retirement, delivery and caching stay the Asset
+   Manager's.** The avatar admin only references assets; a retirement guard (the NPC Manager's
+   mechanism) refuses to retire what an AVAILABLE avatar is served.
+3. **`GET children/<child>/avatar/`** (child-scoped, parent only) answers for the child's own
+   identity with the model **by reference** (`asset-id` or `asset-id@n`) and its tuning, or
+   `model: null` with a reason. The client loads the reference through the existing child-scoped
+   asset resolver and shared loader, so only published versions can ever load.
+4. **Graceful by construction:** no row, not AVAILABLE, invalid, unpublished, retired, a failed
+   request, a malformed answer or a failed GLB all mean the placeholder. The avatar never delays
+   the scene.
+5. **Vocabulary:** player states `idle, walk, run, jump, fall, land, interact, celebrate`; clip
+   names `Run, Jump, Fall, Land` join the closed vocabulary; `fall` and `land` join the NPC
+   animation states additively. All mirrored React/Django with parity tests.
+6. **Customization uses the child's existing avatar colours** on named materials (cloned, never
+   mutating the shared cache) and declares attachment points for future cosmetics. No shop,
+   inventory or per-child appearance store.
+7. **Roles:** Asset editors configure avatars as drafts; Asset publishers make them available
+   (`avatars.publish_playeravatar`), via `ensure_asset_roles`.
+
+**Consequences.** Staff can ship or withdraw a character without a deploy; the six production
+models are content work, not code. One new table and migration. Until real models are supplied
+every child sees the placeholder. Details: `docs/PLAYER_AVATAR_ASSETS.md`.
+
+## ADR-058: Walking, running and sprinting are gaits of the one shared movement controller
+
+Status: Proposed ("Shared Player Running & Sprinting", 2026-11-13). Development only; awaiting
+owner QA. Depends on ADR-063, ADR-056 and ADR-057 (PRs #26 to #28, unmerged when this was written).
+
+**Context.** Children should be able to walk, run and sprint, and jump from any of them, in every
+free-roaming 3D adventure, without separate controllers per adventure, without stamina or
+penalties, and without changing how walking already feels.
+
+**Decision.**
+
+1. **Speed comes from input strength and gait inside `FirstPersonController`.** Keys walk at full
+   walking pace (4 m/s, unchanged); analog input rises continuously from walking to running pace
+   (5.5 m/s) past 80% deflection; sprint is 6.5 m/s. Per-location tuning is
+   `movement.locomotion` (Django: `scene.movement.locomotion`), validated, no schema change.
+2. **Gait changes are rate-limited above walking pace** (8 m/s² up, 10 m/s² down), so they are
+   smooth, while starting and stopping keep their existing response.
+3. **Horizontal collision is substepped (at most 10 cm per test)**, so higher speeds and long
+   frames cannot tunnel; a test pins every authored collider above that thickness.
+4. **Controls reuse the shared input layer:** hold or tap Shift (a per-child setting), touch drag
+   distance (no new HUD button), stick tilt and a rebindable L3. Sprint is cleared on blur,
+   hidden tab, panel open and stopping.
+5. **Animation reuses the player animation controller:** `RUN`/`SPRINT` play `Run`, or `Walk`
+   sped up within bounds when a model has no `Run`; never a gesture.
+6. **The only camera effect is an optional 3-degree field-of-view widening while sprinting,**
+   eased, configurable per location, off under reduced motion.
+7. **Sound gets events, not assets:** `PlayerGaitChanged` and stride-paced `PlayerFootstep`;
+   Treasure Rush plays an optional footstep cue.
+
+**Consequences.** Every eligible adventure gains running and sprinting with no per-location code;
+walking and jumping are unchanged (every existing test passes). The keyboard has two speeds
+(walk, sprint). Details: `docs/PLAYER_RUNNING_AND_SPRINTING.md`.
+
+## ADR-059: Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored
+
+Status: Proposed (LAI-JMP-02 and LAI-JMP-04, 2026-11-14). Development only; awaiting owner QA.
+Depends on ADR-063 and ADR-056 to ADR-058 and the shared derived colliders.
+
+**Context.** Platforming adventures (Pirate's Leap first) need static, moving, vertical,
+interactive, vanishing, bounce and turntable platforms, safe checkpoints and recovery, in any
+Three.js location, without a second physics engine and without changing how walking, running and
+jumping already behave.
+
+**Decision.**
+
+1. **A platform is one axis-aligned jumpable box** in the movement controller's live collider list.
+   The controller already stands children on jumpable tops and stops them at their sides.
+2. **One platform runtime (`platforms/platformSystem.ts`) moves each box in place every frame,
+   before the controller moves the child,** and tells the controller to carry a rider
+   (`carry`, collision-tested), keep a platform's speed on leaving it (`inheritVelocity`),
+   bounce (`launch`) or go back to a checkpoint (`recover`). The controller stays authoritative.
+3. **Platforms yield to children**: a platform never moves or reappears into a child's body and a
+   lift never squeezes its rider into anything above, so nobody is pushed through walls, trapped
+   or squashed. A vanished platform's box is emptied (no invisible collision).
+4. **Motion is deterministic** (`platformMotion.ts`): waypoint paths, ping-pong, loop and once,
+   speeds and pauses within forgiving limits; reduced motion slows platforms and turntables.
+5. **Triggers reuse what exists**: pressure plates, interactive props as switches, manifest zones,
+   world-state requirements read on entry, and named signals the React layer raises (an
+   educational challenge completed). Platform motion is not persisted; persistent unlocks are
+   world changes as always.
+6. **Recovery is non-punitive**: course checkpoints and hazards; moving or vanishing platforms are
+   never "safe ground"; no lives, no game over.
+7. **Authoring:** positions and paths are seed- or manifest-authored layout (`scene.platforming`,
+   ADR-033; LAI-0805 stays open). Speeds, pauses, bounce heights, vanish timings and on/off are
+   staff-editable in Django Admin through the 3D Area's content revision (`platformTuning`,
+   ADR-047), validated in Django and the client.
+8. **Sound gets events, not assets**: optional platform cues in the Sound Manager catalogue.
+
+**Consequences.** Any manifest-driven location can add a course with no engine change.
+Turntable collision is the platform's square (round models approximate). Staff cannot move
+platforms in Django Admin until LAI-0805 is decided. Details: `docs/PLATFORMING.md`.
+
+## ADR-065: The Castle Director may only pick an id from a server-recomputed set of authored ambient events; events grant nothing and repeat by visit count, never by time
+
+Status: **Accepted (owner, 2026-11-18)** (SC-R08-01, SC-R09-01, SC-R09-02, proposed 2026-11-17). The owner approved it
+with these requirements: the Director selects only from approved, authored lines the server supplies and never
+generates child-facing words; the authored default (`source: FALLBACK`), the safety checks, the AI kill switches,
+the fake-provider tests and the non-AI fallback all stay; and the catalog is Django-owned and revisioned (decision
+1 as amended below).
+
+**Context.** Storykeeper Castle should feel alive on a return visit without a lesson, a reward or
+a clock. The reboot roadmap (SC-R08, SC-R09) asks for ambient events, a Castle Director that
+chooses among them, and Quill flavour lines, all inside the rules of ADR-044 (AI proposes, code
+validates, every response has an authored fallback). `react/src/features/director` ranks
+adventures and is not an event selector, so it is not extended.
+
+**Decision.**
+
+1. **Events are authored atmosphere, in one Django-owned catalog.** A castle event is words, an
+   ambient cue and a few eligibility conditions. It grants no reward, quest step, world change or
+   progress. Events are `CastleEvent` rows (`apps.regions`, kind `castle-event`), authored in Django
+   Admin through the ADR-047 revision workflow: draft, submitted for review, published, superseded,
+   and retired (`active` off; a retired event is never eligible). A published revision is immutable;
+   who and when is recorded on each revision and in the admin log. Each event holds an id, one room
+   or `ANY`, the age bands it suits, the eligibility conditions, visit-based repetition, a weight, an
+   optional NPC, an ambient cue, a quiet-default flag and the approved lines per band (length checked
+   against the band's spoken limit, plus the content-safety and no-pressure checks). Permissions are
+   the existing content groups (editors draft, publishers publish and retire; a non-staff account
+   sees nothing). `castle_events.json` is only an **import-only seed**: `manage.py
+   import_castle_events` creates missing rows, follows a changed seed only for an event nobody has
+   edited, keeps a change to an edited event as a draft for review, and never restores a retired
+   one (ADR-047). There is no second editable catalog: the client no longer mirrors events (see
+   Consequences). While no event has ever been published (a fresh database) the server uses the seed
+   directly, so the castle works before and after the import.
+2. **Eligibility is pure and Python-only.** `eligible_events` and `default_event` run on the server
+   over the published, active events (tests in `apps/regions/tests/test_castle_eligibility.py` carry
+   the former golden vectors; the TypeScript port and `castle-events` golden suite are removed).
+   Conditions reuse the NPC
+   Manager's (`apps.npcs.conditions.holds`), limited to ALWAYS, WORLD_CHANGE, QUEST_STATUS and
+   RELATIONSHIP_AT_LEAST; an unknown type never holds.
+3. **Repetition is counted in visits.** `CastleVisitState` counts a visit when a client sends a
+   new opaque `visitId`; `CastleEventShown` is a display counter per event. No clock, streak,
+   countdown or "come back" language exists, and time away changes nothing.
+4. **The model only picks an id.** `POST /api/v1/children/<id>/castle/director/` takes a room id
+   and a visit id. The server recomputes the eligible set; the model (route
+   `generateCastleDirector`, through `run_turn`) sees only the age band, room id and
+   `{id, tag}` candidates; `validate_castle_choice` requires an exact member of the set; the child
+   sees the authored lines. Every failure is the deterministic default event with
+   `source: FALLBACK`. The only writes are the audit row, safety event, usage counters and the
+   display counter.
+5. **Quill flavour reuses `npc_hint`.** No new route: `apps.npcs.castle_flavour` builds an
+   `NpcHintContext` from the ACTIVE release's Quill persona with the authored event line as base
+   text and fallback. It sets no flag and writes no state.
+
+**Consequences.** The castle is fully playable without AI and without the server. The server's
+default is the best eligible authored event (or the room's quiet default), and the client keeps no
+catalog and no eligibility rules: `castleDefaultLines.ts` holds one quiet line per room and age
+band, shown only when the API fails or has no approved event for the room (a read-only snapshot of
+the seed's quiet events, held by a Vitest drift test; edit events in Django Admin, not there).
+Content staff manage events without a deploy; a change to an event is reviewed before children see
+it; retired events stop immediately; and the Director still cannot say anything that is not an
+approved line. Retiring every published event leaves the castle with only the client's quiet
+lines, never the retired copy. Details: `docs/regions/prep/ai_director_prep.md`,
+`docs/AI_AND_CHILD_SAFETY.md`, `docs/PLAY_API.md`.
 ## ADR-072: Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated
 
 Status: Accepted (project owner, 2026-11-18). Branch `feature/engineering-standards`.
@@ -4396,200 +4652,6 @@ Development Governance.
 **Related ADRs.** ADR-019, ADR-020, ADR-033, ADR-045, ADR-047, ADR-053, ADR-063, ADR-064.
 
 **Owner approval.** Accepted by the project owner, 2026-11-18.
-
-## ADR-063: Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable
-
-Status: Proposed (LAI-JMP-01, 2026-11-13). Numbered ADR-055 on the movement branches; ADR-063 by the owner's ADR reconciliation (2026-11-17). Development only; awaiting owner QA.
-
-**Context.** LAI-JMP-01 makes jumping standard movement in every free-roaming 3D location, not
-only in platforming adventures, and asks that a jump never bypass a locked door, quest gate,
-boundary, story interaction or restricted area. Every 3D location already runs on one controller
-(`FirstPersonController`) inside one runtime (`createLocationEngine`), whose colliders are
-ground-plane rectangles that default to 3 m tall walls. Some gates and barriers (the broken
-bridge, the ruins gate, extension-added colliders) would be low enough to clear if colliders were
-tested by real height.
-
-**Decision.**
-
-1. **Extend the existing controller.** Vertical velocity, gravity, landing, coyote time, jump
-   buffer, air control and safe recovery live in `FirstPersonController`; no per-adventure or
-   parallel movement system. Phaser worlds get nothing (ADR-020).
-2. **Solid by default.** A collider blocks at every height unless it is authored
-   `jumpable: true` with `minY`/`maxY`. Solid colliders are tested at ground level exactly as
-   before, so walking is unchanged and no jump clears a wall, boundary or anything an extension
-   adds.
-3. **Gates are never jumpable.** A collider with `requirements` is a progression gate; the
-   validator rejects `jumpable` on it and the runtime ignores the flag there.
-4. **Trigger zones stay 2D.** Zones, checkpoints, walk-in interactions and hazards are entered by
-   x/z position, so a jump through one still enters it.
-5. **Data-driven tuning.** `movement.jump` on a manifest (or `scene.movement` on a Django region)
-   overrides the defaults per location, validated like the rest of the manifest. No Django schema
-   change.
-6. **Jumping is on by default** for every manifest-driven location; a location opts out with
-   `enabled: false`.
-7. **Movement sounds are optional cues** (`sfx.player.jump`, `sfx.player.land`): reported in the
-   sound library coverage, never a readiness blocker.
-
-**Consequences.** Every 3D adventure can jump with no configuration, and no existing barrier
-becomes jumpable by accident. Hopping onto things is opt-in content work (mark a low collider
-jumpable). The player stays first-person: jump animations wait for a third-person avatar
-(follow-up card). Details: `docs/PLAYER_MOVEMENT_AND_JUMPING.md`.
-
-## ADR-056: One player camera controller with first- and third-person perspectives; the avatar and its animation only mirror the movement controller
-
-Status: Proposed (LAI-JMP-01a, 2026-11-13). Development only; awaiting owner QA. Depends on
-ADR-055 (LAI-JMP-01, PR #26, unmerged when this was written).
-
-**Context.** Every 3D location was first-person: the camera was the player. Children could not
-see their character walk or jump. LAI-JMP-01a asks for a Roblox-like third-person view as the
-recommended default, while keeping first-person, without per-adventure movement or camera code,
-without changing collision or progression, and without new avatar asset systems or database
-models.
-
-**Decision.**
-
-1. **Four shared pieces, separated.** The movement controller (`FirstPersonController`) stays
-   the only authority on position and collision. A camera controller (`playerCamera.ts`), an
-   avatar renderer (`playerAvatar.ts`) and an animation controller (`playerAnimation.ts`, driving
-   the NPC Manager's `createNpcAnimator`) read it every frame and write nothing back. Animation
-   clips are stripped of root motion.
-2. **Third-person is the default; first-person is kept.** `player.camera.defaultMode` per
-   location (`third-person` unless authored); `allowModeSwitch` lets the child switch with V,
-   gamepad Y/Triangle, a HUD button or a setting.
-3. **The controller's yaw is the camera heading in both modes,** so movement is camera-relative
-   with no new movement code, and the avatar faces its velocity.
-4. **Interactions are aimed from the player,** along the view through the reticle, never from
-   the third-person camera. Reach is identical in both perspectives.
-5. **Camera collision uses the scene's existing solid colliders** (the live `Box3` list the
-   controller walks into): pulled in on the same frame, eased back out, never closer than needed
-   and never into a wall; `maxHeight` keeps it under indoor ceilings.
-6. **Avatar looks come from what exists:** a location costume (`assetKey`), else a model
-   registered per `ChildProfile.avatarKey` (none yet), else a placeholder in the child's existing
-   avatar colours and accessory. Models load through the location's own asset loader and cache.
-7. **The preference is browser storage per child** (`lai:camera-mode:<childId>`, only the mode).
-   No database model is added; cross-device sync is a follow-up that needs a schema change.
-8. **`Run` and `Jump` join the closed clip vocabulary** on both sides (React and Django), with a
-   parity test.
-
-**Consequences.** Every eligible 3D location gets third-person with no per-location code, and the
-first-person engine tests keep guarding the original view (the test harness defaults to
-first-person; third-person has its own tests). Children see placeholders until 3D avatar models
-are made (LAI-JMP-01c). The camera avoids colliders, not meshes, so decorative scenery without a
-collider can sit between camera and child. Details: `docs/PLAYER_AVATAR_AND_CAMERA.md`.
-
-## ADR-057: Player avatar identities are a small Django catalogue over the existing Asset Manager, served to the child by reference
-
-Status: Proposed (LAI-JMP-01c, 2026-11-13). Development only; awaiting owner QA. Depends on
-ADR-056 (LAI-JMP-01a, PR #27) and ADR-055 (LAI-JMP-01, PR #26), both unmerged when this was
-written.
-
-**Context.** Children choose one of six avatar identities (`ChildProfile.avatar_key`); LAI-JMP-01a
-draws every one as a procedural placeholder because nothing maps an identity to a 3D model. Staff
-must be able to assign, tune and publish real animated GLBs in Django Admin, without a second
-asset system, without a React admin, and with safe fallbacks.
-
-**Decision.**
-
-1. **A new app `apps.avatars` with one model, `PlayerAvatar`**, one row per identity (seeded as
-   drafts by migration): model asset (`catalog.ContentAsset`, kind `character`), optional pinned
-   `assets.AssetVersion`, thumbnail asset, scale, facing offset, animation map, customization
-   (colour materials, attachment points), status (DRAFT / AVAILABLE / DISABLED). It stores no
-   file and no child data. This mirrors the NPC Manager's `NpcModelVariant`; no release model is
-   added, because the asset's own immutable published versions are the release.
-2. **Upload, validation, versioning, publishing, retirement, delivery and caching stay the Asset
-   Manager's.** The avatar admin only references assets; a retirement guard (the NPC Manager's
-   mechanism) refuses to retire what an AVAILABLE avatar is served.
-3. **`GET children/<child>/avatar/`** (child-scoped, parent only) answers for the child's own
-   identity with the model **by reference** (`asset-id` or `asset-id@n`) and its tuning, or
-   `model: null` with a reason. The client loads the reference through the existing child-scoped
-   asset resolver and shared loader, so only published versions can ever load.
-4. **Graceful by construction:** no row, not AVAILABLE, invalid, unpublished, retired, a failed
-   request, a malformed answer or a failed GLB all mean the placeholder. The avatar never delays
-   the scene.
-5. **Vocabulary:** player states `idle, walk, run, jump, fall, land, interact, celebrate`; clip
-   names `Run, Jump, Fall, Land` join the closed vocabulary; `fall` and `land` join the NPC
-   animation states additively. All mirrored React/Django with parity tests.
-6. **Customization uses the child's existing avatar colours** on named materials (cloned, never
-   mutating the shared cache) and declares attachment points for future cosmetics. No shop,
-   inventory or per-child appearance store.
-7. **Roles:** Asset editors configure avatars as drafts; Asset publishers make them available
-   (`avatars.publish_playeravatar`), via `ensure_asset_roles`.
-
-**Consequences.** Staff can ship or withdraw a character without a deploy; the six production
-models are content work, not code. One new table and migration. Until real models are supplied
-every child sees the placeholder. Details: `docs/PLAYER_AVATAR_ASSETS.md`.
-
-## ADR-058: Walking, running and sprinting are gaits of the one shared movement controller
-
-Status: Proposed ("Shared Player Running & Sprinting", 2026-11-13). Development only; awaiting
-owner QA. Depends on ADR-055 to ADR-057 (PRs #26 to #28, unmerged when this was written).
-
-**Context.** Children should be able to walk, run and sprint, and jump from any of them, in every
-free-roaming 3D adventure, without separate controllers per adventure, without stamina or
-penalties, and without changing how walking already feels.
-
-**Decision.**
-
-1. **Speed comes from input strength and gait inside `FirstPersonController`.** Keys walk at full
-   walking pace (4 m/s, unchanged); analog input rises continuously from walking to running pace
-   (5.5 m/s) past 80% deflection; sprint is 6.5 m/s. Per-location tuning is
-   `movement.locomotion` (Django: `scene.movement.locomotion`), validated, no schema change.
-2. **Gait changes are rate-limited above walking pace** (8 m/s² up, 10 m/s² down), so they are
-   smooth, while starting and stopping keep their existing response.
-3. **Horizontal collision is substepped (at most 10 cm per test)**, so higher speeds and long
-   frames cannot tunnel; a test pins every authored collider above that thickness.
-4. **Controls reuse the shared input layer:** hold or tap Shift (a per-child setting), touch drag
-   distance (no new HUD button), stick tilt and a rebindable L3. Sprint is cleared on blur,
-   hidden tab, panel open and stopping.
-5. **Animation reuses the player animation controller:** `RUN`/`SPRINT` play `Run`, or `Walk`
-   sped up within bounds when a model has no `Run`; never a gesture.
-6. **The only camera effect is an optional 3-degree field-of-view widening while sprinting,**
-   eased, configurable per location, off under reduced motion.
-7. **Sound gets events, not assets:** `PlayerGaitChanged` and stride-paced `PlayerFootstep`;
-   Treasure Rush plays an optional footstep cue.
-
-**Consequences.** Every eligible adventure gains running and sprinting with no per-location code;
-walking and jumping are unchanged (every existing test passes). The keyboard has two speeds
-(walk, sprint). Details: `docs/PLAYER_RUNNING_AND_SPRINTING.md`.
-
-## ADR-059: Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored
-
-Status: Proposed (LAI-JMP-02 and LAI-JMP-04, 2026-11-14). Development only; awaiting owner QA.
-Depends on ADR-055 to ADR-058 and the shared derived colliders.
-
-**Context.** Platforming adventures (Pirate's Leap first) need static, moving, vertical,
-interactive, vanishing, bounce and turntable platforms, safe checkpoints and recovery, in any
-Three.js location, without a second physics engine and without changing how walking, running and
-jumping already behave.
-
-**Decision.**
-
-1. **A platform is one axis-aligned jumpable box** in the movement controller's live collider list.
-   The controller already stands children on jumpable tops and stops them at their sides.
-2. **One platform runtime (`platforms/platformSystem.ts`) moves each box in place every frame,
-   before the controller moves the child,** and tells the controller to carry a rider
-   (`carry`, collision-tested), keep a platform's speed on leaving it (`inheritVelocity`),
-   bounce (`launch`) or go back to a checkpoint (`recover`). The controller stays authoritative.
-3. **Platforms yield to children**: a platform never moves or reappears into a child's body and a
-   lift never squeezes its rider into anything above, so nobody is pushed through walls, trapped
-   or squashed. A vanished platform's box is emptied (no invisible collision).
-4. **Motion is deterministic** (`platformMotion.ts`): waypoint paths, ping-pong, loop and once,
-   speeds and pauses within forgiving limits; reduced motion slows platforms and turntables.
-5. **Triggers reuse what exists**: pressure plates, interactive props as switches, manifest zones,
-   world-state requirements read on entry, and named signals the React layer raises (an
-   educational challenge completed). Platform motion is not persisted; persistent unlocks are
-   world changes as always.
-6. **Recovery is non-punitive**: course checkpoints and hazards; moving or vanishing platforms are
-   never "safe ground"; no lives, no game over.
-7. **Authoring:** positions and paths are seed- or manifest-authored layout (`scene.platforming`,
-   ADR-033; LAI-0805 stays open). Speeds, pauses, bounce heights, vanish timings and on/off are
-   staff-editable in Django Admin through the 3D Area's content revision (`platformTuning`,
-   ADR-047), validated in Django and the client.
-8. **Sound gets events, not assets**: optional platform cues in the Sound Manager catalogue.
-
-**Consequences.** Any manifest-driven location can add a course with no engine change.
-Turntable collision is the platform's square (round models approximate). Staff cannot move
-platforms in Django Admin until LAI-0805 is decided. Details: `docs/PLATFORMING.md`.
 
 ## ADR-060: The player has a configurable cylindrical footprint, and gait follows the movement collisions allowed
 

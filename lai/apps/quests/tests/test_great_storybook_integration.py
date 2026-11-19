@@ -39,6 +39,10 @@ PRODUCERS = {
         ("the-storykeepers-tale", "story-written"),
         ("quills-picture-story", "picture-story-made"),
     ],
+    "page-painted-words": [
+        ("the-painted-words", "page-mended"),
+        ("the-painted-words-again", "page-mended"),
+    ],
     "page-three-clues": [("secret-door-chapter-1-three-clues", "clues-collected")],
     "page-pattern-lock": [("secret-door-chapter-2-pattern-lock", "door-opened")],
 }
@@ -92,6 +96,7 @@ def test_the_final_page_is_written_by_the_secret_door_story_completion():
 def test_a_child_who_finished_the_tale_long_ago_completes_the_quest_without_replay(treasure):
     child = band(treasure.families.a1, "PATHFINDER")
     record = old(child, "FIRST_STORY_TOLD")
+    old(child, "STUDIO_PAGE_MENDED", "storykeeper-castle")
     meet_quill(child)
     update, rewards = refresh(child, PATHFINDERS)
     assert update.progress.status == QuestStatus.COMPLETED
@@ -139,6 +144,7 @@ def test_obsolete_and_unrelated_records_are_ignored_safely(treasure):
 def test_history_reaches_the_same_book_whether_read_before_or_after_the_quest(treasure):
     child = band(treasure.families.a1, "PATHFINDER")
     old(child, "FIRST_STORY_TOLD")
+    old(child, "STUDIO_PAGE_MENDED", "storykeeper-castle")
     before = great_storybook.progress(child)
     meet_quill(child)
     refresh(child, PATHFINDERS)

@@ -346,139 +346,6 @@ and golden updates); new `piratesLeap.engine.test.ts` (9). pytest: new `test_pir
 existing cove tests updated where they pinned the exact chests, quests, rows or versions.
 Deferred: browser, WebGL, device and gamepad QA.
 
-## LAI-JMP-02 / LAI-JMP-04: shared platforms, checkpoints and safe recovery (2026-11-14, `feature/interactive-platforms`); development complete, owner QA pending, NOT merged
-
-Stacked on `integration/p1-movement-base` (avatar stack, Amplify-free main, derived colliders,
-collision profiles, running PR #29). ADR-059 (Proposed). Docs: `docs/PLATFORMING.md`.
-
-- `react/src/features/island-map/three/platforms/`: `platformSpec.ts` (types, validation, staff
-  tuning), `platformMotion.ts` (deterministic waypoint motion), `platformSystem.ts` (triggers,
-  motion that yields to the child, carrying, inherited speed, bounce, vanishing with collision
-  removed, turntables, course checkpoints, hazards, goals, events), `platformPresentation.ts`
-  (procedural blocks with shared geometry, optional models, destination rings, checkpoint flags,
-  plates), `platformCopy.ts` (child-facing recovery copy).
-- `FirstPersonController`: `supportingBox`, `carry`, `inheritVelocity`, `launch`, `recover`,
-  `isSafeGround`, `recoveryPoint` (all additive; walking, running and jumping unchanged).
-- Engine: `manifest.platforming`, platform events on the bus, `signalPlatforms`, `platforms()`;
-  switches are interactive props. Django scenes: `scene.platforming` (seed layout) +
-  `scene.platformTuning` (staff, through the Area content revision, ADR-047).
-- Sound Manager: eight optional platform cues (`wired=False`) and their listeners.
-- Django: `apps/regions/platforming.py` (`layout_problems`, `tuning_problems`), "area-copy" kind
-  offers `platformTuning` only for Areas with platforms. No migration.
-
-Tests: Vitest island-map, region-play, npc-manager, player-avatar, test: 218 files, 2667 tests
-passed (33 new platform tests). pytest regions, catalog authoring, audio: 330 passed.
-`npm run typecheck`, `npm run adr:check` pass. Deferred: browser, WebGL, device QA.
-
-## Asset Manager: configurable collision profiles (2026-11-14, `feature/asset-collision-profiles`); development complete, owner QA pending, NOT merged
-
-Trello: "Asset Manager — Configurable Collision Profiles". Branch from `integration/avatar-amplify-exit`
-at `9b10f1f` (shared derived colliders). Full workflow: `docs/ASSET_COLLISION_PROFILES.md`.
-
-- Django: `assets.CollisionProfile` (migration `assets/0003_collision_profiles`): one default per
-  asset and one override per version; shapes none, box, cylinder, capsule, compound boxes;
-  behaviours automatic, solid, jumpable, walkable, decorative; manual sizes and offsets override
-  the measured bounds. GLB validation now records `metadata["bounds"]` (min and max corners);
-  older versions fall back to their size, ground-pivoted. `collision.py` turns every shape into
-  model-space boxes; the resolver answer carries them as `collision` (unpublished assets too, so
-  bundled models follow them). Django Admin page with validation, measured bounds and the exact
-  runtime boxes; publishers edit, editors view (`ensure_asset_roles`).
-- React: `collisionProfile.ts` (validated parse), `derivedColliders.ts` applies a profile in
-  place of the built-in footprint under each placement's transform; walkable pieces and building
-  entrances are now kept clear like checkpoints. The engine asks the resolver once
-  (`LocationEngineAssets.collisionProfiles`), swaps the derived boxes when the answer arrives and
-  never places one on the child; authored location colliders and quest gates are untouched. Served
-  and source-controlled locations both apply profiles when the Django API is on.
-- Preview: "Show collision" in the Asset Manager preview draws the boxes (profile or built-in
-  default); bundle rebuilt and `admin-preview:check` fresh.
-- No new physics engine and no movement controller change: every shape is axis-aligned boxes.
-
-Tests: pytest `lai/apps/assets` 296 passed (25 new); core Django Admin, game-session admin
-isolation, avatars, users tenant isolation and catalog 306 passed; `makemigrations --check` clean.
-Vitest `island-map/three`, `region-play`, `assets`, `api`, `npc-manager`, `player-avatar`: 194
-files, 2541 tests passed. `npm run typecheck` passes.
-
-Deferred to merge verification / owner QA: browser and WebGL checks, Playwright, lint and format,
-full suites; configuring real profiles in a local Django Admin and walking into them.
-
-## Fix: the child could walk through drawn objects (2026-11-14, `integration/avatar-amplify-exit`)
-
-Owner-reported: many objects could be walked through. Cause: colliders were only ever written by
-hand (`ColliderSpec`), separately from what a location draws, so every barrel, crate, rock,
-tree, bush, fallen log, signpost, mooring post, standing stone, fence, prop and NPC without a
-hand-written box was walk-through. An audit found 173 of 597 drawn pieces in the six
-source locations, and most of Treasure Cove's trees, bushes, logs, posts and rocks, uncovered.
-
-Fix (`react/src/features/island-map/three/runtime/derivedColliders.ts`, used by
-`solidColliders`): each placed piece whose asset has a solid footprint gets a box, under the
-same position, rotation and scale the renderer uses. Footprints are measured from the model files
-(`ASSET_FOOTPRINTS`); trees and posts use the trunk or post. Pieces up to 1.2 m are jumpable
-(hop onto or over), taller ones solid. Long pieces are cut along their length so a diagonal log
-blocks only where it lies. Applies to every location, the Django-published Treasure Cove
-included, with no manifest or Django change; NPC Manager movement reads the same boxes.
-
-Deliberately not blocking: ground, paths, planks, carpets, ferns, reeds, flowers, rope coils,
-archways, cave mouths, collectibles, the shipwreck (authored by hand), and extension-drawn props.
-Guards: an authored collider over a piece wins; a box covering a checkpoint is dropped.
-
-Known: Pirate Builder Bay's `cove-treasure` chest sits exactly on the `pirate-builder-bay:cove`
-checkpoint (9, 0), so it stays walk-through until a content author moves one of them.
-
-Tests: new `derivedColliders.test.ts` (sizes, rotation and scale, jumpable vs solid, walkable
-pieces, authored wins, checkpoints clear in every source location, requirements, a child stopped
-by a barrel, a diagonal log). Checked against Treasure Cove's Django layout: 68 boxes, spawn and
-every trail tile clear. Vitest for `island-map/three`, `npc-manager` and `region-play`: 169 files,
-2253 tests, pass. `npm run typecheck` passes. Deferred: in-browser play check (owner QA).
-
-## Fix: left and right movement were swapped (2026-11-14, `integration/avatar-amplify-exit`)
-
-Owner-reported: ArrowLeft walked right and ArrowRight walked left. Cause: the shared movement
-controller (`firstPersonController.ts`) pushed strafe toward world +X at yaw 0, but the camera
-(`rotation.y = yaw + PI`) faces +Z there, so screen-right is -X. Only the X part of the sideways
-vector had the wrong sign, so the swap showed when facing north or south and not exactly east or
-west. Pre-existing since the controller was written; not introduced by the integration. One fix
-covers keyboard (arrows and A/D), gamepad stick and touch, in first- and third-person, in every 3D
-location and the sandbox.
-
-Tests: new regression tests compare strafe with the real Three.js camera's right vector at five
-headings and check strafe is at right angles to forward (they fail on the old code). Vitest for
-the controller, pointer controls, gamepad, camera, presentation, animation and runtime: 56 files,
-749 tests, pass. `npm run typecheck` passes. Deferred: browser/WebGL play check (owner QA).
-
-## Integration: Amplify exit with player movement and avatars — `integration/avatar-amplify-exit` (2026-11-14); local QA branch, NOT merged
-
-A QA-only branch combining the open player stack with the Amplify exit, so the avatar work runs
-locally without an Amplify sandbox. No pull request was merged into `main`, nothing was deployed,
-and no AWS or Cognito resource was touched.
-
-Built as: `feature/player-avatar-assets` (PR #28, which contains PR #27 and PR #26), then `main`
-(PRs #30 to #34; clean merge), then `ccr-a0f9421a-g0ifoe` (PR #15).
-
-Conflict resolution (all between main's P0 fix, PR #30, and PR #15's AMP-02 to AMP-07):
-- Auth (`api/auth.ts`, `AuthContext`, `RequireParent`, `RequireAdmin`): PR #15's direct Cognito
-  client (`lib/cognito`) with PR #30's bounds kept: 15 s token and session reads, the
-  `unavailable` status with Try again, and `AuthStatusNotice` copy without Amplify or sandbox text.
-  `lib/amplify-config.ts` and its test are deleted (PR #15); `lib/cognito` covers the config.
-- `VITE_BACKEND=amplify` is retired (`api/backend.ts`): Django is the only backend, the dev server
-  refuses the old value, and `vite dev` still defaults to Django.
-- Place page: PR #15's Django world-change and catalog reads replace PR #30's skip of Amplify Data.
-- Site release: PR #15's version (Cognito ids as inputs, no `ampx generate outputs`).
-- Docs: main's local-development steps (root `.env` `COGNITO_*` reused by `vite dev`) with the
-  Amplify-backend and sandbox lines removed.
-- Django: no migration conflicts (`avatars` is a new app; PR #15's merge migrations stand);
-  `makemigrations --check` clean. No URL clash (`children/<id>/avatar/` vs `children/<id>/photo/`).
-- Pre-existing on PR #28: two Django Admin app allow-list tests (`core/tests/test_django_admin.py`,
-  `game_sessions/tests/test_sessions.py`) did not list `avatars`; added (staff content, no child data).
-
-Verified here: `npm run typecheck`; Vitest for auth, API, Cognito, routes, Realms, assets, player
-avatar, movement and engine boundary, plus every test file PR #15 or PR #28 changed (all pass);
-pytest with PostgreSQL 16 for avatars, users (tenant isolation), education, progression, inventory,
-quests, assets, core, regions, ai, audio, game sessions, npcs and `tests/repo`.
-
-Deferred to merge verification or owner QA: Playwright, WebGL checks, the build, lint and format,
-and a live Cognito sign-in (needs the owner's pool values). The hosted `amplify.yml` still
-deploys the Amplify backend; retiring it is the AMP-08 runbook, not this branch.
-
 ## Treasure Rush environment licences confirmed and assets published (2026-11-14) — local development only; owner visual QA NOT done
 
 - **Licence.** The owner confirmed CC0-1.0 (Quaternius) for the palms, barrel, logs, wood pile
@@ -549,6 +416,27 @@ deploys the Amplify backend; retiring it is the AMP-08 runbook, not this branch.
   browser; licence confirmation for the barrel and logs; thumbnails (no thumbnail workflow
   exists); S3 upload in a deployed environment (owner approval); Ruff, Prettier, oxlint,
   Playwright, full suites and builds per `docs/TESTING_STRATEGY.md`.
+
+## GE-072: Storykeeper Castle on the Game Engine Core (2026-11-19, `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged, NOT owner-accepted
+
+- `core/gameengine` merged at the published baseline `fc5c71cf` and `cbe43a8e` (no rebase); conflicts reconciled keeping both sides (castle `wallHeight` and engine `boundary`; castle `assetsSettled` and the collision debug overlay); generated files regenerated.
+- Castle as engine data: `runtime/locations/storykeeperCastle.location.ts` (`defineLocation`), parity-tested against the manifest. Jumping stays a shared, optional capability tuned for the castle (0.9 m, no double jump); no learning step needs it.
+- Castle imports come from `@lai/game-engine` (guard test). Claims: `learning.answer.submitted`, `adventure.completed`, `exploration.area.entered` through the shared per-visit sink. `castleScoringSources.ts` retired; `castleRecords.ts` keeps the record catalog.
+- The child's body (ADR-060) required castle changes: the first Observatory star stone is dropped, the rack move is a named baseline exception, the movement audit tests the body.
+- Bridge checkpoints: the five saved checkpoints run on the engine bridge (`e5f4cf41`, after core `6f07b5b0`), saved and toasted by the host as before; the castle binds its visit claim context so the host's discovery and NPC claims (GE-067) are delivered. Open: the `regions` migration renumbering after Firepeak lands (owner's merge order).
+
+Evidence: Vitest island-map/three, great-storybook, content-export, discovery, region-play, game-engine, adventures, story: 245 files, 3102 passed; `npm run typecheck` clean; engine:validate, content:check, golden:check, adr:check, docs check pass; `makemigrations --check` no changes. Not run: Django tests (PostgreSQL not running), browser, WebGL, Playwright, lint, full format.
+
+## Storykeeper Castle: shared engine integration prep (SC-JMP-01, 02, 06, 08, 18, 20; 2026-11-18, `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged
+
+- `main` (ADR-072 standards) merged into the branch at `2786f2b2`; conflicts in `Makefile`, `docs/DECISIONS.md` and this file resolved (registry union; branch castle sections kept; main's retired-backend removals kept).
+- `react/src/features/island-map/three/castleEngineProfile.ts`: the castle's movement, camera, recovery and per-band movement as data. The manifest reads movement and camera from it; values are unchanged. No castle movement or physics code exists or was added.
+- `runtime/manifests/castleMovementAudit.engine.test.ts`: per-room audit on the real shared runtime (walls, apex, doorways, camera, recovery, animation states), both worlds; mutation-checked.
+- `castleMovementTutorial.ts`: optional tutorial reducer over engine events; not shown in the world (owner decision on placement).
+- `great-storybook/castleScoringSources.ts`: points-free, idempotent scoring source catalog for GE-100. `castleSaveContract.test.ts` pins every persisted castle id.
+- Audit and migration plan: `docs/regions/storykeeper_castle_engine_integration.md`. The Game Engine Core and Realm SDK do not exist yet (`core/gameengine` and `core/ge-scoring` equal `main`), so migration is blocked on Agent 4 and Agent 6.
+
+Evidence: Vitest, castle manifests, engine, castle and great-storybook suites 61 files, 919 passed after the manifest change; new suites 12 + 16 + 7 + 18 + 7 passed; `npm run typecheck` clean; content:check, golden:check, adr:check and `make docs-check` pass. Not run: browser, WebGL, Playwright, full suites, lint, full format check.
 
 ## Engineering standards and multi-agent governance (ADR-072, Accepted) — documentation and `make docs-check` added; ADR-072 Accepted by the owner (2026-11-18)
 
@@ -685,6 +573,231 @@ root `README.md`, "AWS Development Infrastructure - Deployment and Operations"; 
   leases and heartbeats, worker check-ins and the status renames. The branch is kept, unmerged.
   Tests: question_studio, jobs and settings, 297 passed on PostgreSQL.
 
+## WS-E: castle keepsake backfill and world-change security audit (2026-11-18, `work/final-e` from `68a3ed7c`); development complete, unit-tested only, NOT merged, NOT run on real data
+
+- `manage.py backfill_castle_keepsakes` (dry run by default, `--apply` to grant): grants the three castle
+  keepsakes to children with server-authoritative historical completion, through the existing
+  reward-rule path; idempotent, per child, non-destructive, counts-only output. Evidence rule and
+  guarantees: `docs/security/WORLD_CHANGE_INTEGRITY.md`. The owner decides when to run it.
+- Endpoint audit of every child write route recorded in the integrity doc, with a drift test. No hole found.
+- New tests: `inventory/tests/test_castle_keepsake_backfill.py`, `progression/tests/test_world_change_audit.py`,
+  `progression/tests/test_castle_keepsake_backfill_concurrency.py`. Not run: browser, WebGL, deployment.
+
+## SC-R07: Storykeeper Castle persistent progression (2026-11-17, `work/sc-r07` from `0429055f`); development complete, unit-tested only, NOT merged
+
+- SC-R07-01: six castle keepsakes as ordinary items and reward rules (`castle-keepsakes` set; three new
+  items and rules). WORLD_CHANGE rules are paid by Django only for a protected key at its own place,
+  from the graded adventure step and story completion (`grant_world_change_rewards`); no migration.
+- SC-R07-02: all six Trophy Room pedestals bound; primitive keepsake meshes; reusable
+  `artifactPedestal.ts` (pure state machine, scale fit, reduced motion, fallback), not yet wired
+  (no art). The gold plates were folded away to stay under the 300 draw-call estimate (298).
+- SC-R07-03: Hall of Heroes as a client-composed, read-only text list in the castle guide; 3D gallery
+  plates deferred on the scenery and draw budgets.
+- SC-R07-04: rank titles, pure and content-configured, flag OFF; owner decision open (keep or drop,
+  four or five titles).
+- Evidence and deviations: `tasks/TASK_TRACKER.md` SC-R07-01 to 04. Not run: browser, WebGL, device,
+  e2e, lint, format, full suites. No backfill run for children who earned keepsake keys earlier.
+
+## SC-R05: Storykeeper Castle characters (2026-11-17, `work/sc-r05` from `c81ee466`); development complete, unit-tested only, NOT merged
+
+- SC-R05-01 Keeper Quill: Django `quill_content.py` now carries the SC-R04 premise
+  (`the-damaged-book`) and restored (`storybook-restored`) lines word for word with the client;
+  `test_castle_npc_mirror.py` keeps them in step. Owner TODO: the commissioned `npc-quill` GLB swap.
+- SC-R05-02 Ember visits the castle: one `ember-dragon` character, one gated Place-level placement
+  `castle-ember` beside the Story Hall hearth (`ember_content.py`, `seed_npc_ember`), visible only
+  after the Ember Mountain story, a restored Great Storybook and a first meeting; castle-only band
+  lines; the sanctuary's `npc-pip` stand-in. No client or sanctuary change.
+- SC-R05-03 Professor Orion (owner approved): manifest NPC in the Setting Tower at (9.5, 5.8) with a
+  0.24 m half collider, `talk-to-professor-orion`, client catalog entry, castle handover, Django
+  `orion_content.py` + `seed_npc_orion` with age-band lines. The second Observatory star stone moved
+  0.25 m west to make room, and the orrery's thin ring was merged into its base to stay at the 300
+  draw-call estimate (both decisions to confirm). Owner TODO: the commissioned `npc-professor-orion`.
+- Evidence and deviations from `docs/regions/prep/npc_prep.md`: `tasks/TASK_TRACKER.md` SC-R05-01 to 03.
+- Not run: browser, WebGL, device, e2e, lint, format, full suites. Seeds not run against any deployed
+  database; publishing is global (a release carries every READY character).
+
+## SC-R06: Storykeeper Castle sound and narration (2026-11-17, `work/sc-r06` from `77731284`); development complete, unit-tested only, NOT merged
+
+Full account: `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`.
+
+- SC-R06-01: castle cues on the shared Sound Manager (`castleSounds.ts`, `useCastleAudio.tsx`,
+  `castleSoundCues.ts`, `useCastleAnswerCues.tsx`), mounted by `CastleTaleCompanion`. Room beds for
+  every room with crossfade, door cue, explore and story music, Storybook open and close, page
+  restore, quest start and complete, NPC greet for any NPC, right, retry and hint from the server's
+  answers, shared movement cues. Django `castle_cues.py` and `seed_castle_sound` (never publishes).
+  No audio, GLB or production asset committed; 18 needed assets are listed in the doc.
+- SC-R06-02: mute and volume are the child's mix; Sound controls in the castle guide. Sprouts: no
+  retry sound; reduced intensity as a session default only when the server reports no saved mix
+  (new `saved` field on `GET /children/<id>/audio/settings/`; `PreferenceSync.applySessionDefault`).
+- SC-R06-03: authored narration through the existing speech pipeline (Polly server side, fake in
+  tests): word pronunciations and restored pages as `SpeechLine`s seeded by
+  `seed_castle_speech_lines`, parity-tested with the word bank and the pages JSON; one utterance at a
+  time with a no-repeat guard; caption fallback on any failure. Gated like Keeper Quill's lines; no
+  parent voice consent setting exists, so "parent voice consent review" is an owner acceptance item.
+- Tests: Vitest 64 files, 893 passed (castleTale, audio, api/audio, great-storybook, region-play);
+  `tsc --noEmit` app and node clean; pytest `apps/audio apps/speech` 363 passed, 1 skipped (opt-in live AWS smoke), 1 environment failure (expired AWS SSO token in the presign test; 20 passed with dummy AWS env) on PostgreSQL.
+- Not run: browser, WebGL, live audio, live Polly, full suites, lint, format.
+
+## SC-JMP: jumping integrated into every primary Storykeeper Castle adventure (2026-11-17, worktree of `feature/storykeeper-castle-completion`); development complete, unit-tested only, NOT merged
+
+Owner rule: jumping is not a separate adventure category. Every primary castle adventure has
+meaningful jumping through the SHARED platforms runtime (no new movement engine, no castle physics).
+Inventory and per-adventure design: `docs/regions/storykeeper_castle_jumping_inventory.md`.
+
+- Pads: story stones (Tale, Picture Story), painted pads (Painted Words, set A or B from the
+  approved bank), enchanted books, pattern stones and rod stones (Secret Door chapters 1 and 2), a
+  six-pad Great Storybook page pathway (hidden until each page is restored), two Observatory star
+  stones. Tops at most 0.5 m under the 3.1 m ceiling; static; no bounce, vanish, lift or motion.
+- A pad is a second way to give an answer the HUD card accepts. Each answering pad has a
+  ground-plane `pad:*` zone; `usePadAnswers` waits for a 0.7 s stand, then calls the session's own
+  `submitAnswer` (one submit at a time). The adventure engine grades; the server rewards; pads
+  grade and grant nothing, and a repeated landing cannot repeat anything.
+- The Painted Words are now hosted in the Illustration Studio for Pathfinders (`castle-tale` claims
+  the wall's two interactions, `paintedWordsAdventureFor`), where before they ran on the card route.
+- Sprouts get flat floor markers with no colliders: new generic `manifest.platformingByBand`
+  (`runtime/manifestForBand.ts`, validated), applied by `ThreeLocationWorldView`.
+- Tests added: `castlePlatforms.test.ts`, `castlePlatforms.engine.test.ts`,
+  `castlePlatformAnswers.test.ts`, `usePadAnswers.test.tsx`, `CastlePaintedWordsSession.test.tsx`,
+  extended `castleHudEquivalence.test.tsx`, `storykeeperCastleBudgets.test.ts` (counts platforms).
+- Decisions to confirm and open items are listed in the inventory (two Observatory stones, not five;
+  `SIGNAL` not `WORLD_STATE` for pathway pads; 0.8 to 0.9 m footprints; no word or picture drawn on
+  a pad yet, a colour guide names each word).
+- Not run: browser, WebGL, device, gamepad and screen-reader checks, full suites, lint, format.
+  `tsc` reports existing errors in `great-storybook` (`StorybookStatus`) that are not from this work.
+
+## LAI-JMP-02 / LAI-JMP-04: shared platforms, checkpoints and safe recovery (2026-11-14, `feature/interactive-platforms`); development complete, owner QA pending, NOT merged
+
+Stacked on `integration/p1-movement-base` (avatar stack, Amplify-free main, derived colliders,
+collision profiles, running PR #29). ADR-059 (Proposed). Docs: `docs/PLATFORMING.md`.
+
+- `react/src/features/island-map/three/platforms/`: `platformSpec.ts` (types, validation, staff
+  tuning), `platformMotion.ts` (deterministic waypoint motion), `platformSystem.ts` (triggers,
+  motion that yields to the child, carrying, inherited speed, bounce, vanishing with collision
+  removed, turntables, course checkpoints, hazards, goals, events), `platformPresentation.ts`
+  (procedural blocks with shared geometry, optional models, destination rings, checkpoint flags,
+  plates), `platformCopy.ts` (child-facing recovery copy).
+- `FirstPersonController`: `supportingBox`, `carry`, `inheritVelocity`, `launch`, `recover`,
+  `isSafeGround`, `recoveryPoint` (all additive; walking, running and jumping unchanged).
+- Engine: `manifest.platforming`, platform events on the bus, `signalPlatforms`, `platforms()`;
+  switches are interactive props. Django scenes: `scene.platforming` (seed layout) +
+  `scene.platformTuning` (staff, through the Area content revision, ADR-047).
+- Sound Manager: eight optional platform cues (`wired=False`) and their listeners.
+- Django: `apps/regions/platforming.py` (`layout_problems`, `tuning_problems`), "area-copy" kind
+  offers `platformTuning` only for Areas with platforms. No migration.
+
+Tests: Vitest island-map, region-play, npc-manager, player-avatar, test: 218 files, 2667 tests
+passed (33 new platform tests). pytest regions, catalog authoring, audio: 330 passed.
+`npm run typecheck`, `npm run adr:check` pass. Deferred: browser, WebGL, device QA.
+
+## Asset Manager: configurable collision profiles (2026-11-14, `feature/asset-collision-profiles`); development complete, owner QA pending, NOT merged
+
+Trello: "Asset Manager — Configurable Collision Profiles". Branch from `integration/avatar-amplify-exit`
+at `9b10f1f` (shared derived colliders). Full workflow: `docs/ASSET_COLLISION_PROFILES.md`.
+
+- Django: `assets.CollisionProfile` (migration `assets/0003_collision_profiles`): one default per
+  asset and one override per version; shapes none, box, cylinder, capsule, compound boxes;
+  behaviours automatic, solid, jumpable, walkable, decorative; manual sizes and offsets override
+  the measured bounds. GLB validation now records `metadata["bounds"]` (min and max corners);
+  older versions fall back to their size, ground-pivoted. `collision.py` turns every shape into
+  model-space boxes; the resolver answer carries them as `collision` (unpublished assets too, so
+  bundled models follow them). Django Admin page with validation, measured bounds and the exact
+  runtime boxes; publishers edit, editors view (`ensure_asset_roles`).
+- React: `collisionProfile.ts` (validated parse), `derivedColliders.ts` applies a profile in
+  place of the built-in footprint under each placement's transform; walkable pieces and building
+  entrances are now kept clear like checkpoints. The engine asks the resolver once
+  (`LocationEngineAssets.collisionProfiles`), swaps the derived boxes when the answer arrives and
+  never places one on the child; authored location colliders and quest gates are untouched. Served
+  and source-controlled locations both apply profiles when the Django API is on.
+- Preview: "Show collision" in the Asset Manager preview draws the boxes (profile or built-in
+  default); bundle rebuilt and `admin-preview:check` fresh.
+- No new physics engine and no movement controller change: every shape is axis-aligned boxes.
+
+Tests: pytest `lai/apps/assets` 296 passed (25 new); core Django Admin, game-session admin
+isolation, avatars, users tenant isolation and catalog 306 passed; `makemigrations --check` clean.
+Vitest `island-map/three`, `region-play`, `assets`, `api`, `npc-manager`, `player-avatar`: 194
+files, 2541 tests passed. `npm run typecheck` passes.
+
+Deferred to merge verification / owner QA: browser and WebGL checks, Playwright, lint and format,
+full suites; configuring real profiles in a local Django Admin and walking into them.
+
+## Fix: the child could walk through drawn objects (2026-11-14, `integration/avatar-amplify-exit`)
+
+Owner-reported: many objects could be walked through. Cause: colliders were only ever written by
+hand (`ColliderSpec`), separately from what a location draws, so every barrel, crate, rock,
+tree, bush, fallen log, signpost, mooring post, standing stone, fence, prop and NPC without a
+hand-written box was walk-through. An audit found 173 of 597 drawn pieces in the six
+source locations, and most of Treasure Cove's trees, bushes, logs, posts and rocks, uncovered.
+
+Fix (`react/src/features/island-map/three/runtime/derivedColliders.ts`, used by
+`solidColliders`): each placed piece whose asset has a solid footprint gets a box, under the
+same position, rotation and scale the renderer uses. Footprints are measured from the model files
+(`ASSET_FOOTPRINTS`); trees and posts use the trunk or post. Pieces up to 1.2 m are jumpable
+(hop onto or over), taller ones solid. Long pieces are cut along their length so a diagonal log
+blocks only where it lies. Applies to every location, the Django-published Treasure Cove
+included, with no manifest or Django change; NPC Manager movement reads the same boxes.
+
+Deliberately not blocking: ground, paths, planks, carpets, ferns, reeds, flowers, rope coils,
+archways, cave mouths, collectibles, the shipwreck (authored by hand), and extension-drawn props.
+Guards: an authored collider over a piece wins; a box covering a checkpoint is dropped.
+
+Known: Pirate Builder Bay's `cove-treasure` chest sits exactly on the `pirate-builder-bay:cove`
+checkpoint (9, 0), so it stays walk-through until a content author moves one of them.
+
+Tests: new `derivedColliders.test.ts` (sizes, rotation and scale, jumpable vs solid, walkable
+pieces, authored wins, checkpoints clear in every source location, requirements, a child stopped
+by a barrel, a diagonal log). Checked against Treasure Cove's Django layout: 68 boxes, spawn and
+every trail tile clear. Vitest for `island-map/three`, `npc-manager` and `region-play`: 169 files,
+2253 tests, pass. `npm run typecheck` passes. Deferred: in-browser play check (owner QA).
+
+## Fix: left and right movement were swapped (2026-11-14, `integration/avatar-amplify-exit`)
+
+Owner-reported: ArrowLeft walked right and ArrowRight walked left. Cause: the shared movement
+controller (`firstPersonController.ts`) pushed strafe toward world +X at yaw 0, but the camera
+(`rotation.y = yaw + PI`) faces +Z there, so screen-right is -X. Only the X part of the sideways
+vector had the wrong sign, so the swap showed when facing north or south and not exactly east or
+west. Pre-existing since the controller was written; not introduced by the integration. One fix
+covers keyboard (arrows and A/D), gamepad stick and touch, in first- and third-person, in every 3D
+location and the sandbox.
+
+Tests: new regression tests compare strafe with the real Three.js camera's right vector at five
+headings and check strafe is at right angles to forward (they fail on the old code). Vitest for
+the controller, pointer controls, gamepad, camera, presentation, animation and runtime: 56 files,
+749 tests, pass. `npm run typecheck` passes. Deferred: browser/WebGL play check (owner QA).
+
+## Integration: Amplify exit with player movement and avatars — `integration/avatar-amplify-exit` (2026-11-14); local QA branch, NOT merged
+
+A QA-only branch combining the open player stack with the Amplify exit, so the avatar work runs
+locally without an Amplify sandbox. No pull request was merged into `main`, nothing was deployed,
+and no AWS or Cognito resource was touched.
+
+Built as: `feature/player-avatar-assets` (PR #28, which contains PR #27 and PR #26), then `main`
+(PRs #30 to #34; clean merge), then `ccr-a0f9421a-g0ifoe` (PR #15).
+
+Conflict resolution (all between main's P0 fix, PR #30, and PR #15's AMP-02 to AMP-07):
+- Auth (`api/auth.ts`, `AuthContext`, `RequireParent`, `RequireAdmin`): PR #15's direct Cognito
+  client (`lib/cognito`) with PR #30's bounds kept: 15 s token and session reads, the
+  `unavailable` status with Try again, and `AuthStatusNotice` copy without Amplify or sandbox text.
+  `lib/amplify-config.ts` and its test are deleted (PR #15); `lib/cognito` covers the config.
+- `VITE_BACKEND=amplify` is retired (`api/backend.ts`): Django is the only backend, the dev server
+  refuses the old value, and `vite dev` still defaults to Django.
+- Place page: PR #15's Django world-change and catalog reads replace PR #30's skip of Amplify Data.
+- Site release: PR #15's version (Cognito ids as inputs, no `ampx generate outputs`).
+- Docs: main's local-development steps (root `.env` `COGNITO_*` reused by `vite dev`) with the
+  Amplify-backend and sandbox lines removed.
+- Django: no migration conflicts (`avatars` is a new app; PR #15's merge migrations stand);
+  `makemigrations --check` clean. No URL clash (`children/<id>/avatar/` vs `children/<id>/photo/`).
+- Pre-existing on PR #28: two Django Admin app allow-list tests (`core/tests/test_django_admin.py`,
+  `game_sessions/tests/test_sessions.py`) did not list `avatars`; added (staff content, no child data).
+
+Verified here: `npm run typecheck`; Vitest for auth, API, Cognito, routes, Realms, assets, player
+avatar, movement and engine boundary, plus every test file PR #15 or PR #28 changed (all pass);
+pytest with PostgreSQL 16 for avatars, users (tenant isolation), education, progression, inventory,
+quests, assets, core, regions, ai, audio, game sessions, npcs and `tests/repo`.
+
+Deferred to merge verification or owner QA: Playwright, WebGL checks, the build, lint and format,
+and a live Cognito sign-in (needs the owner's pool values). The hosted `amplify.yml` still
+deploys the Amplify backend; retiring it is the AMP-08 runbook, not this branch.
+
 ## P0: Cognito settings, Realm Explorer navigation — fixed on `fix/p0-cognito-env-realm-explorer` (2026-11-13); awaiting owner acceptance, NOT merged
 
 Owner-reported: the homepage showed a backend-setup message instead of sign-in; Realms sent a child back to
@@ -804,7 +917,7 @@ child in the browser. Per-location tuning is `player.camera` / `player.avatar` (
   Playwright acceptance suites (written in first-person), WebGL/browser, device and gamepad QA
   (owner checklist in `docs/PLAYER_AVATAR_AND_CAMERA.md`).
 
-## Shared jump controller (LAI-JMP-01, `feature/shared-jump-controller`, ADR-055 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
+## Shared jump controller (LAI-JMP-01, `feature/shared-jump-controller`, ADR-063 Proposed) — DEVELOPMENT COMPLETE (2026-11-13); unit-tested only, NOT yet seen in a browser, on a device or with a gamepad
 
 Jumping is standard movement in every free-roaming 3D location. The shared
 `FirstPersonController` gained gravity, landing, coyote time (120 ms), jump buffer (150 ms),
@@ -14219,3 +14332,92 @@ it: no bubble, and a child never saw Pip's welcome. Reproduced 7 times in 20 wit
 - Treasure Rush "timing" failures (Trello CeKICNoP): after the speech fix (PR #31) the
   previously failing scenarios passed 10/10 on desktop and tablet with no test changes; their
   cause was speech 503s firing at a random moment during a test, not timing.
+
+## Local PostgreSQL default port back to 5432 (owner, 2026-11-17)
+
+The compose database, the Django `compose_database()` default and the pytest reachability probe
+(`lai/conftest.py`) now default to 5432, replacing 5442 (2026-11-05). `POSTGRES_PORT` still
+overrides all three. The probe and settings had disagreed on one machine, so every `postgres`
+test was skipped silently; use `LAI_REQUIRE_POSTGRES=1` to turn that gap into a failure. CI
+already used 5432. Older entries above that mention 5442 record what ran at the time.
+
+## Storykeeper's Castle completion, SC-R04-05 to SC-R11 engineering (2026-11-18, branch `feature/storykeeper-castle-completion`)
+
+- **Development complete, not owner accepted** (unit-test evidence per task in `tasks/TASK_TRACKER.md`):
+  SC-R04-05 to 08 (The Painted Words, page states, completion UI, versioned completion), SC-SEC-01
+  (protected world-change keys), SC-JMP (jumping in every primary castle adventure), SC-R05 (Quill,
+  Ember, Professor Orion), SC-R06 (castle sound and Django speech narration), SC-R07 (keepsakes,
+  pedestals, Hall of Heroes, ranks off), SC-R08-01 to 03 (ambient return-visit catalog, two hidden
+  chamber finds, Secret Chamber observation content), SC-R09-01/02 (Castle Director route
+  `generateCastleDirector`, ADR-065 Proposed; Quill flavour service), SC-R10-01/02 (Three.js Writing
+  Room and parity; Phaser stays default), SC-R11 engineering part (local diagnostics, disposal,
+  configurable wall height, accessibility and exit tests).
+- **Schema:** migrations `ai/0006_castle_director`, `regions/0008_castle_director` (was 0007, renumbered after Firepeak) (`CastleVisitState`,
+  `CastleEventShown`, child-owned). Location manifests gained optional `entryRequirements`,
+  `copy.locked` and `wallHeight`.
+- **Privacy:** the Director route sends the model only ids, one-word tags, band and room; audit rows
+  hold no event text or child data; diagnostics record only a region id and send nothing.
+- **Owner gates open:** browser acceptance (`docs/regions/storykeeper_castle_acceptance.md` section
+  4), SC-R11-01 real-tablet profiling, SC-R11-02 Sprouts playtest, SC-R10-03 Phaser retirement
+  (ADR-020, LAI-2303), ADR-065, the decisions listed in acceptance section 4.3. Draft release notes:
+  `docs/regions/storykeeper_castle_release_notes.md`.
+- **Deferred to merge readiness:** Prettier, Ruff, oxlint, builds, full suites, Playwright and WebGL.
+  Not merged to `main`, not deployed.
+
+- WS-C (castle rendering optimisation, 2026-11-18): static decor `BOX` scenery is merged per colour per 12 m cell with shared materials (`runtime/staticBoxBatches.ts`, opt-in `static` flag; the 7 boxes the castle-tale extension recolours or hides stay separate). Estimated draw calls 300 to 238, then 241 with the optional Secret Chamber ledge (two stones and a ledge, observation toast only, Sprout markers; nothing granted). These are estimator values, not measurements; the real-device table in `docs/PILOT_READINESS.md` 5b is still blank. The 300 budget is unchanged. Colliders, zones and ids are proven unchanged by `castleOptimisation.test.ts`.
+
+## Castle Director event catalog in Django Admin (2026-11-18, branch `work/final-a`)
+
+- **ADR-065 Accepted (owner, 2026-11-18)** with the requirement that the Director only selects among
+  approved, authored, server-supplied lines. Development complete for the catalog; the Django and
+  Admin deployment, `manage.py import_castle_events` on a real database and the browser acceptance
+  remain owner approvals.
+- **What changed:** `CastleEvent` (migration `regions/0009_castle_director_catalog` (was 0008)) is an `Authorable`
+  kind `castle-event` in the ADR-047 revision workflow (draft, submitted, published, superseded;
+  retire and restore need the publish permission; who and when recorded). `castle_events.json` is an
+  import-only seed (`import_castle_events`: idempotent, never overwrites an edited or retired event;
+  a changed seed for an edited event becomes a draft). `castle_events.catalog()` serves published,
+  active events, or the seed only while nothing has ever been published. Django Admin:
+  `CastleEventAdmin`, same access as the catalog admin and content groups.
+- **Client:** `castleEvents.ts` (full mirror and local eligibility), its TypeScript tests and the
+  `castle-events` golden suite are removed. The client keeps `castleDefaultLines.ts`, one quiet line
+  per room and age band for when the API fails, with a drift test against the seed.
+  `useCastleDirector` lost its `worldChangeKeys` and `catalog` options.
+- **Tests:** `apps/regions/tests/test_castle_catalog.py`, `test_castle_eligibility.py`,
+  `apps/ai/tests/test_castle_director_catalog.py`, `castleDefaultLines.test.ts`. No Playwright, no
+  live AWS, fake providers only.
+
+## Writing Room as a working educational destination, SC-final-B (2026-11-18, branch `work/final-b`)
+
+- **Done (development), not owner accepted.** Contract and decisions: `docs/regions/prep/writing_room_prep.md`
+  ("Implementation note (SC-final-B)"); acceptance rows O-15 to O-15e in
+  `docs/regions/storykeeper_castle_acceptance.md`.
+- **Write-your-story, by age band** (the age-correct mapping from `CLAUDE.md` section 3; the first brief had
+  the two older bands the wrong way round). Sprouts tap a picture, a character and a word; Pathfinders build 2
+  or 3 sentences from word tiles; Explorers pick a story starter and type a short paragraph (30 to 500
+  characters). React only (ADR-020): `features/writing-room/`, `routes/WritingRoomWritePage.tsx`, reached from the
+  open book on the desk in the 3D room and "Write a story" on the location card. Never required; no reward,
+  world change or currency; nothing graded; encouragement authored; no model reads the writing.
+- **Persistence reuses `StoryArtifact`.** Three adventure templates (one per band, location
+  `castle-writing-room`) give the story its `AdventureSession`; `POST children/{id}/story-artifacts/written/`
+  (`lai/apps/education/written_story.py`) composes Sprout and Pathfinder text server-side from authored options
+  and screens an Explorer's paragraph with the existing input checks (`screen_untrusted_text`) plus a short
+  list of unkind words. A refused paragraph is `written_story_refused`, stored and logged nowhere. One story per
+  session; another parent's child or session, a wrong band or place is a 404; the server completes the session.
+  No migration (`StoryArtifact` is unchanged; scene `source` gained the value `CHILD`, a JSON field).
+- **Narration.** Prompts are staff-written speech lines (`lai/apps/speech/writing_room_speech.json`, created by
+  `seed_castle_speech_lines`, held equal to the client by a Vitest test). Run that command (and
+  `seed_speech_voices`) in an environment before expecting voice; text captions always show.
+- **Keeper Quill** is placed in the 3D room unconditionally (as the castle does) and talks through the existing
+  `NpcConversation`; one authored line in `islandNpcs.ts` ("Afternoons are for writing...", once, afternoon).
+- **Unlock.** The Writing Room no longer waits on `THE_CASTLES_SECRET_DOOR_COMPLETE` (its arc has an
+  arithmetic step). `unlockRequirement` is gone from `locations.ts`, so the client, the content export, Django's
+  `place_unlocked`, the Phaser view and the 3D manifest agree; holders keep the library bookshelf door, key and
+  keepsake. `entryRequirements` stays in the manifest schema, documented in
+  `docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md` ("Entry requirements"), with validation and view tests.
+- **Sprouts** can enter, with flat markers (no jump steps), large targets and narrated prompts.
+- **Not done / owner:** an always-open door inside the 3D castle (any new castle zone, prop or interaction
+  changes WS-C's `castleOptimisationBaseline.json` and uses the 300 draw-call budget), mounting the NPC Manager
+  host in the Writing Room, a dedicated open-book model (it reuses `clue-diary`), mastery evidence for the
+  writing objectives, and a browser or tablet visual check.
+- **Deferred to merge readiness:** Prettier, Ruff, oxlint, builds, full suites, Playwright and WebGL.

@@ -10,6 +10,8 @@
           "the-tide-gate-calculation",
           "the-storykeepers-tale",
           "quills-picture-story",
+          "the-painted-words",
+          "the-painted-words-again",
           "buzz-and-the-waggle-dance",
           "dragon-chapter-1-broken-path",
           "dragon-chapter-2-whispering-forest",
@@ -29,6 +31,7 @@
         ],
         "collectibleSetIds": [
           "harbor-shells",
+          "castle-keepsakes",
           "firepeak-discovery-journal",
           "fh-set-elemental-crystals",
           "fh-set-ember-shards"
@@ -39,7 +42,9 @@
           "bay-tide-tunnel",
           "wonderwild-glow-moss",
           "wonderwild-glowworm-cave",
-          "castle-tapestry-stair"
+          "castle-tapestry-stair",
+          "castle-chamber-star",
+          "castle-chamber-mouse-door"
         ],
         "itemIds": [
           "spiral-shell",
@@ -59,6 +64,9 @@
           "explorer-backpack",
           "star-lantern",
           "great-storybook-seal",
+          "painted-words-brush",
+          "three-clues-lens",
+          "secret-door-key",
           "heart-crystal-fragment-1",
           "volcano-explorer-badge",
           "journal-volcano-crater",
@@ -106,6 +114,7 @@
         "npcIds": [
           "pirate-pip",
           "keeper-quill",
+          "professor-orion",
           "bolt",
           "ember-dragon",
           "harbor-master",
@@ -126,6 +135,7 @@
           "restore-the-great-storybook-sprouts",
           "restore-the-great-storybook-pathfinders",
           "restore-the-great-storybook-explorers",
+          "restore-the-great-storybook-pathfinders-more",
           "the-volcano-awakens",
           "the-heart-of-firepeak"
         ],

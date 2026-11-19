@@ -1000,7 +1000,378 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       records it holds, so legacy-run adventure completions reach the quest when they are synced
       (SC-R04-06 / the legacy to Django sync). Owner acceptance: play the Tale and each secret-door
       chapter and watch the page return in both card and 3D. Browser: none run
-- [ ] **SC-R04-05 to SC-R12** Not started. Gated items: Sound Manager merge (SC-R06), narration
-      provider and voice consent (SC-R06-03), new educational content (roadmap SC-R04-05), Phaser
-      retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the
-      SC-11 gate)
+- [x] **SC-R04-05** The Painted Words (depends: SC-R04-04). DONE (development), not owner accepted.
+      Branch `feature/storykeeper-castle-completion`, commits `091d763c` and `6ad0225f`. A Pathfinder
+      phonemic-awareness mission in the Illustration Studio (rhyme gallery, beginning-sound hunt, syllable
+      workshop, restoration) writing `STUDIO_PAGE_MENDED` and restoring `page-painted-words`, required for
+      Pathfinders only. Approved word bank with rime, onset and syllable facts proven by tests
+      (`paintedWordsBank.ts`); two approved word sets so a replay shows fresh words (`the-painted-words`,
+      `the-painted-words-again`, same page and record, idempotent); existing step types only, no timers,
+      no free text, wrong answers loop. Lives at `storykeeper-castle` (the content export and the manifest
+      validator require a real location); the one-adventure-per-band invariants skip
+      `PREFERRED_ONLY_ADVENTURES`. Studio wall zone `castle-painted-wall` plus first-play and replay
+      interactions. **Phaser note**: a 2D zone mirror was added only because `storykeeperCastleZones.test.ts`
+      requires one per APPROACH interaction (a shim, no new 2D feature; removal waits on ADR-020 and
+      LAI-2303). Tests: **Django 40 passed** (4 Storybook files, run on commit `32afe8b6`); **Vitest 35
+      files, 438 passed** (adventures, great-storybook, catalog, worlds) and the previously failing
+      island-map files pass on re-run; `content:check` and `golden:check` clean. Not run: browser,
+      Playwright, end-to-end. Owner acceptance: play the mission on the Studio wall in both word sets.
+- [x] **SC-R04-06** Storybook progression (depends: SC-R04-05). DONE (development), not owner accepted.
+      Commit `32afe8b6`. `great-storybook/pageStates.ts`: derived page state (undiscovered, discovered, in
+      progress, restored), the adventure each page links to (with Painted Words replay selection), and
+      retired content set aside without ever removing an earned page. 10 unit tests.
+- [x] **SC-R04-07** Storybook completion and polish (depends: SC-R04-06). DONE (development), not owner
+      accepted. Commit `32afe8b6`. `useGreatStorybook` reports loading, offline (with retry) and local;
+      `StorybookSection` shows page-state words, a celebration status region (animation only when motion is
+      allowed), and empty and offline states. Not here: page-turn animation in the 3D book and sound cues
+      (SC-R06). The generic world-change POST can forge a page record (storybook_integrity_prep.md B, open).
+- [x] **SC-R04-08** Versioned Storybook completion (section A of `docs/regions/prep/storybook_integrity_prep.md`).
+      DONE (development), not owner accepted. Commits `bc7a79a3`, `88ee0c1a`, plus the verification commit
+      that follows them. Each page has `since`; derived `state` IN_PROGRESS / RESTORED_MORE_PAGES / RESTORED
+      (edition 1 counts via `GREAT_STORYBOOK_RESTORED`; `complete` stays strict); `GREAT_STORYBOOK_RESTORED_V2`;
+      follow-up quest `restore-the-great-storybook-pathfinders-more` (no second seal); new Pathfinders write
+      both changes; no migration; reads write nothing. Verified: vitest 223 tests in 15 files (great-storybook,
+      storybookApi, castleTale, content-export, quests) all pass after correcting two export counts; tsc clean;
+      Django 22 passed (test_great_storybook, _concurrency, _editions) and 18 passed (test_castle_storybook);
+      content:export, golden:generate, content:check, golden:check clean.
+- [x] **SC-POSTMERGE** Django verification after merging `origin/feature/interactive-platforms`
+      (`99c5d90f`). Run on `50aaba30` plus `a0fb835c` (default local PostgreSQL port 5432; the pytest
+      probe had kept 5442, so an earlier run skipped every `postgres` test). With
+      `POSTGRES_PORT=5432 LAI_REQUIRE_POSTGRES=1`: `apps/regions apps/avatars apps/assets` plus the
+      four `quests/tests/test_great_storybook*.py`, `npcs/tests/test_castle_quill_seed.py`,
+      `game_sessions/tests/test_castle_storybook.py` and `test_castle_rooms.py`: **518 passed, 0
+      skipped** (16 min 49 s). Nothing to fix.
+- [x] **SC-SEC-01** World-change integrity (section B of `docs/regions/prep/storybook_integrity_prep.md`;
+      audit and fixes in `docs/security/WORLD_CHANGE_INTEGRITY.md`). DONE (development), not owner
+      accepted. From `origin/wip/world-change-security` (`4e253ace`), reviewed and finished. The generic
+      `POST world-changes/` refuses a protected key (page keys, quest/discovery/story keys, castle rooms,
+      `GREAT_STORYBOOK_RESTORED*`) without a completed producing session that reached the producing
+      step; the quest `PUT` refuses a claim the server cannot prove (it paid `QUEST_COMPLETED` rewards
+      and the seal on client lists alone); pages match `(location, key)`; `world_change_keys` drops a
+      misplaced protected key; the client write locks the child row. Audit of other adventures: step
+      runner, region play, castle rooms, discoveries and story chapters are server-graded (no change).
+      Fixed while merging: the edition-1 seal check compared a key with `(location, key)` pairs (2
+      edition tests fail without the fix); one stale quest test assertion. Added
+      `clientWorldChangeKeys.test.ts`. Tests: Django `apps/progression apps/quests` +
+      `education/test_director.py`, `game_sessions/test_discoveries*.py`, `test_castle_storybook.py`,
+      `test_castle_rooms.py`: 206 passed + the corrected file 13 passed, 0 skipped
+      (`POSTGRES_PORT=5432 LAI_REQUIRE_POSTGRES=1`); Vitest `clientWorldChangeKeys.test.ts` 2 passed.
+      Residual risks (in the doc): non-page adventure keys stay client-postable; EXPLORE/HELP_NPC/DELIVER
+      quest objectives still trust the client; the client's offline page fallback matches key only.
+- [x] **SC-JMP** Jumping inside every primary castle adventure (contract `docs/regions/prep/jumping_prep.md`;
+      inventory `storykeeper_castle_jumping_inventory.md`). DONE (development), not owner accepted. From
+      `origin/wip/sc-jmp-castle-jumping` (`fae5bbc3`), reviewed and verified; merge `c81ee466`, into the
+      feature branch `7afcc039`. Shared platforms runtime only: story stones (Tale; Sprouts get flat
+      markers in `quills-picture-story`), painted pads (Painted Words A and B, bank words only), library
+      book, pattern and rod stones (Secret Door chapters 1 and 2), the Storybook page pathway, two
+      Observatory stones. Tops 0.5 m or less, static; a pad needs a 0.7 s stand and submits through the
+      session's own `submitAnswer` (the engine grades); every pad answer is on the HUD card in the same
+      words. Behaviour change: Pathfinders now play the Painted Words in the Studio room (castle-tale
+      claims the wall) instead of the card route. Tests: Vitest island-map, great-storybook, adventures,
+      worlds 208 files, 2517 passed on the work branch; after merging with SC-SEC-01, island-map/three and
+      great-storybook 149 files, 1905 passed; `tsc --noEmit` app and node clean. Owner acceptance: play
+      each adventure once by jumping and once without, and check Sprouts see flat markers.
+- [x] **SC-JMP-01, SC-JMP-02** Shared movement and collisions in every castle room (2026-11-18, branch
+      `feature/storykeeper-castle-completion`). DONE (development) for the shared runtime on this branch, not
+      owner accepted. `castleEngineProfile.ts` is the castle's one statement of what it asks of the shared engine
+      (movement, indoor camera, flat floors, no jumpable walls, position-only recovery); the manifest reads it,
+      values unchanged. `castleMovementAudit.engine.test.ts` (12 tests, mutation-checked): every room in both
+      worlds, sprint and jump into walls, jump apex, every open doorway both ways with and without a jump, the
+      third-person camera, recovery, animation states. No castle movement or physics code. Re-run on the Game
+      Engine Core when it exists. Audit: `docs/regions/storykeeper_castle_engine_integration.md`.
+- [x] **SC-JMP-18** Age-band movement (same branch). DONE (development): `CASTLE_MOVEMENT_BY_BAND`, checked
+      against the band manifests (Sprouts flat markers, tops at most 0.5 m, no hazards, timers or moving
+      surfaces, card equivalence, pad dwell). No new setting. Owner: Sprouts playtest (SC-R11-02).
+- [x] **SC-JMP-09** Jumping in the existing five adventures: DONE (development) by SC-JMP above; Trello was stale.
+- [~] **SC-JMP-06** Movement tutorial. PREPARED: `castleMovementTutorial.ts`, a pure, optional, skippable,
+      timer-free reducer over engine events (7 tests). Not shown anywhere: placement (no courtyard exists; Entry
+      Hall proposed) and assisted mode (spec and ADR) need the owner.
+- [~] **SC-JMP-08** Story fragments and progression. PREPARED: `great-storybook/castleScoringSources.ts`
+      names the castle's records as typed, idempotent, points-free events for GE-100 (18 tests); fragments are
+      the existing pages. Fragment currency stays a proposal.
+- [~] **SC-JMP-20** Movement acceptance. Unit part done: the audit above, `castleEngineProfile.test.ts` (16),
+      `castleSaveContract.test.ts` (7, every persisted castle id). Browser and device acceptance stay owner
+      (SC-R12-01). SC-JMP-04, 05 wait on the engine core (Agent 4); SC-JMP-07, 10 to 17 on owner briefs;
+      SC-JMP-19 on LAI-0805.
+- [x] **GE-072** Storykeeper Castle on the Game Engine Core (2026-11-19, branch `feature/storykeeper-castle-completion`,
+      owner-assigned). DONE (development) for the stage the bridge contract allows; not merged, not owner accepted.
+      Merged `core/gameengine` at the baseline `fc5c71cf` (`09adcc15`) and `cbe43a8e` (`15fef5db`), no rebase.
+      Castle location definition (`runtime/locations/storykeeperCastle.location.ts`, parity-tested), castle imports
+      on `@lai/game-engine` (guard test), v1 claims for answers, adventure completion and rooms
+      (`castleGameplayClaims.ts`); `castleScoringSources.ts` retired, record catalog in `castleRecords.ts`. Body
+      footprint reconciliation: first Observatory star stone dropped, rack move named in baselines, audit tests
+      the body. Evidence: Vitest 245 files, 3102 passed; typecheck clean; engine:validate, content, golden, adr,
+      docs checks pass; makemigrations --check no changes (PostgreSQL down: Django tests not run). Deferred:
+      nothing engine-side: bridge checkpoints moved at `e5f4cf41` (core `6f07b5b0`), host discovery and NPC claims come
+      from core (GE-067) through the castle's visit binding. Open: regions migration renumbering after Firepeak. Plan and evidence:
+      `docs/regions/storykeeper_castle_engine_integration.md` sections 8 and 9.
+- [x] **SC-R05-01** Keeper Quill reconcile (branch `work/sc-r05` from `c81ee466`, commit `93067018`). DONE (development),
+      not owner accepted. `quill_content.py` gains the SC-R04 lines it lacked: `storybook-restored`
+      (`WORLD_CHANGE GREAT_STORYBOOK_RESTORED`, once, priority 40) and `the-damaged-book` (premise:
+      `RETURN_VISIT` and book not restored, once, priority 15), word for word with the client nodes
+      `quill-storybook-restored` and `quill-the-damaged-book`. `LEGACY_LINES` plus
+      `test_castle_npc_mirror.py` read `islandNpcs.ts` and fail if either side changes alone (the
+      existing `test_contract_mirror.py` mirrors only the vocabulary, so the mirror is a new file).
+      Seed stays create-only: a rerun on an existing database adds the two dialogues only.
+      **Owner TODO:** the commissioned `npc-quill` GLB swap (same id and clip names); no asset committed.
+- [x] **SC-R05-02** Ember visits the castle. DONE (development), not owner accepted. One
+      `ember-dragon` character (no second identity), new `ember_content.py` + `seed_npc_ember`
+      (create-only, `--publish`), one Place-level placement `castle-ember` beside the Story Hall hearth
+      (`EMBER_CASTLE_SPOT` 2.1, -4.9), sort order 20 so Quill stays the first placement, spawn
+      conditions `WORLD_CHANGE DRAGON_OF_EMBER_MOUNTAIN_COMPLETE`, `WORLD_CHANGE GREAT_STORYBOOK_RESTORED`
+      (place `storykeeper-castle`) and `RETURN_VISIT` (has met her). Castle-only lines per band plus a
+      fallback, `END` choices only, variant on the sanctuary's `npc-pip` stand-in. Client catalog and
+      sanctuary unchanged. Deviations from the prep: no sanctuary Django placement (it would hand the
+      sanctuary's Ember to the NPC Manager with no sanctuary dialogue there); `GREAT_STORYBOOK_RESTORED`
+      instead of three per-band `QUEST_STATUS` conditions (conditions are AND-only, and every band's
+      quest writes the change); `meet-ember-dragon` is not added to the castle interaction list
+      (interaction ids are island-unique, and the managed Ember is talked to through the NPC host).
+- [x] **SC-R05-03** Professor Orion (owner approved). DONE (development), not owner accepted. Client
+      `NpcDefinition` `professor-orion`, manifest NPC (stand-in `npc-professor-ticktock`), collider,
+      `talk-to-professor-orion` interaction (hidden from the legacy Phaser card view, ADR-020),
+      castle handover, `homeIsland` pack id; Django `orion_content.py` + `seed_npc_orion` (create-only,
+      `--publish`, shared `castle_seed.py`), age-band first meetings and telescope lines (Sprout,
+      Pathfinder word for word with the client, Explorer), star counting that is always praised.
+      **Deviations to confirm:** (1) the prep's spot (9.1, 5.9) is where SC-JMP's second star stone
+      stands, so the stone moved 0.25 m west (8.95 to 8.7) and Orion stands at (9.5, 5.8) with a 0.24 m
+      half collider; (2) adding one NPC took the provisional draw-call estimate to 301, so the orrery's
+      4 cm brass ring was merged into its base (300 again; the budget number was not edited);
+      (3) Orion reads world changes (`GREAT_STORYBOOK_RESTORED`, `FIRST_STORY_TOLD`), not Quill's memory
+      flags, because NPC memory flags are per NPC. **Owner TODO:** commissioned `npc-professor-orion` GLB.
+      Evidence (SC-R05-01 to 03): vitest 33 files, 570 tests passed (castle suites, islandNpcs, packs,
+      castleTale, content-export, new `castleSupportingNpcs.test.ts`); `tsc` app and node clean;
+      content:export, golden:generate, content:check, golden:check clean; Django `apps/npcs`
+      358 passed, 0 skipped (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`). Not run: browser, WebGL, e2e, lint, format, full suites.
+- [x] **SC-R06-01** Castle sound cues through the shared Sound Manager (doc
+      `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`, contract `docs/regions/prep/sound_prep.md`). DONE
+      (development), not owner accepted, branch `work/sc-r06`. `castleSounds.ts` (cue ids, a bed and
+      priority for every `CastleRoomId`, positional cues, fallbacks), `castleSoundCues.ts` (castle moment
+      sink), `useCastleAudio.ts` mounted by `CastleTaleCompanion` (scope `castle`, manifest
+      `storykeeper-castle`, room bed crossfade 1500 ms from `currentRoomId()`, door cue, explore and
+      story music, Storybook open and close, page restored, quest start and complete, NPC greet on any
+      `NpcApproached`, shared jump, land and platform cues), `useCastleAnswerCues.ts` (right and retry
+      from the server grade, hint when the server's hint level rises). Shared `sfx.learning.*` and
+      `sfx.quest.complete` reused, not duplicated. Django `apps/audio/castle_cues.py`,
+      `manage.py seed_castle_sound` (reuses the Treasure Rush seed; never publishes). Missing audio is
+      silent; no asset committed (18 assets listed in the doc).
+- [x] **SC-R06-02** Mute and volume respected; Sprouts: no retry sound, reduced intensity as a session
+      default only when no mix is saved (`PreferenceSync.applySessionDefault`, new read-only `saved`
+      field on the child audio settings GET); Sound controls in the castle guide. DONE (development),
+      not owner accepted.
+- [x] **SC-R06-03** Narration through the existing Django speech pipeline (Polly, owner's choice; fake
+      provider in tests). `useCastleSpeech`: one utterance at a time, no-repeat guard, `speakWord`
+      (`castle-word-<word>`, "Hear" buttons in the Studio) and `speakPage` (`castle-page-<id>`, on page
+      restore); any failure keeps the caption. `manage.py seed_castle_speech_lines` (idempotent, never
+      overwrites staff edits) with Vitest and pytest parity against the word bank and
+      `great_storybook_pages.json`. No AI utterances. DONE (development), not owner accepted.
+      Consent: gated exactly like Keeper Quill's authored lines (`LAI_SPEECH_PROVIDER`, line and voice
+      `enabled`, voice mute and volume, child scoping; `ai_enabled` gates AI speech only). No parent
+      voice consent setting exists and none was invented. **Owner acceptance item: parent voice
+      consent review.** Also for the owner: listen in a browser once assets exist.
+      Tests (SC-R06-01 to 03): Vitest castleTale, audio, api/audio, great-storybook, region-play
+      64 files, 893 passed; `tsc --noEmit` app and node clean; pytest `apps/audio apps/speech`
+      363 passed, 1 skipped (the opt-in live AWS smoke), 1 failed only from the machine's expired AWS SSO token (`test_presigned_urls_use_the_regional_host`, 20 passed with dummy AWS env; storage untouched) (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`).
+      **Merged** at `02569de2` (SC-R06 commit `9430b529`). Merged-tree evidence: Vitest island-map/three,
+      audio, api/audio, great-storybook, npc, region-play 231 files, 3053 passed; `tsc` app clean; Django
+      `apps/audio apps/speech` 364 passed, 1 skipped (opt-in live smoke), 0 failed, with dummy AWS keys
+      and `AWS_PROFILE` unset (the S3 and Polly client tests read the machine's AWS config otherwise).
+- [x] **SC-R07-01** Castle artifacts as catalog items and reward rules. DONE (development), not owner
+      accepted. Three new `KEEPSAKE` items in `islandItems.ts` (`painted-words-brush`,
+      `three-clues-lens`, `secret-door-key`), the `castle-keepsakes` set (6 items, no completion prize),
+      rules `reward-painted-words-brush` (ADVENTURE_COMPLETED `the-painted-words`),
+      `reward-three-clues-lens` (WORLD_CHANGE `SECRET_DOOR_CLUES_COLLECTED`, `castle-secret-passage`),
+      `reward-secret-door-key` (WORLD_CHANGE `THE_CASTLES_SECRET_DOOR_COMPLETE`, `castle-secret-passage`),
+      keys confirmed in `great_storybook_pages.json`. Exported through `content:export`, loaded by
+      `load_content`; no migration. Django had no server path paying WORLD_CHANGE rules, so a new
+      `inventory.services.grant_world_change_rewards` pays them only for a protected key at its
+      registered place, called by the graded adventure WORLD_CHANGE step (grants folded into the
+      completion rewards of the same request) and by story completion; never by the generic POST
+      (`docs/security/WORLD_CHANGE_INTEGRITY.md`). Residual: earlier Secret Door finishers get no
+      key without an approved backfill. (WS-E: `manage.py backfill_castle_keepsakes` now exists, dry run by default; owner runs it).
+- [x] **SC-R07-02** Trophy Room pedestals display owned artifacts. DONE (development), not owner
+      accepted. `BOUND_ITEMS` = `CASTLE_KEEPSAKE_IDS` (all six bound; the Seal was unbound before).
+      Trophy room manifest: one primitive mesh per keepsake gated `ITEM_OWNED`. **Deviation to
+      confirm:** the six gold plates were removed (a bare pedestal is the empty state), because four
+      more treasures would have taken the draw-call estimate from 300 to 304; now 298, budget number
+      untouched. New `artifactPedestal.ts` (imports `three` only): pure `nextPedestalState`,
+      `fitToPedestal` scale normalisation, `pedestalPose` (reduced motion is static), primitive
+      fallback on asset error or timeout, dispose, grants nothing. It is not wired into the runtime yet:
+      no keepsake GLB exists (ADR-028); wiring is the art follow-up.
+- [x] **SC-R07-03** Hall of Heroes. DONE (development), not owner accepted. Client composition, no
+      endpoint (justified: every input is already read by the castle): pure `hallOfHeroes()` from the
+      Storybook progress, owned keepsakes and story-ending world changes; `HallOfHeroesSection` in the
+      castle guide is the accessible text list (no buttons, no chat text, "ready" wording when empty).
+      Gallery story plates in 3D are **deferred**: the original rooms' scenery pool is at 159 of 160 and
+      the draw estimate at 298 of 300 (owner: raise the budget or merge decor).
+- [x] **SC-R07-04** Rank titles. DONE (development), not owner accepted. Pure `rankFor()` and
+      `shownRank()` in `great-storybook/castleRanks.ts`, four titles (Story Explorer, Page Keeper, Castle
+      Pathfinder, Master Storykeeper; thresholds 0, 0.34, 0.67, 1), validated, never stored, timed or
+      compared; `CASTLE_RANKS.enabled = false`. Shown on the page tracker and in the Hall only when on.
+      Config lives in TypeScript content, not `rewards.json` (deviation: no export schema change for
+      something never stored). **OWNER ACCEPTANCE ITEM:** keep or drop ranks; four titles (prep) or the
+      roadmap's five; whether "Castle Pathfinder" is confusing next to the Pathfinders age band.
+      Evidence (SC-R07-01 to 04): vitest 50 files, 749 tests passed (castleTrophies, artifactPedestal,
+      storykeeperCastle* incl. budgets (estimate 298 of 300) and parity, castleRoomsContract,
+      castlePlatforms*, castleSupportingNpcs, castleRebootContracts, castleTale, great-storybook,
+      rewards, content-export, worlds, clientWorldChangeKeys); `tsc` app and node clean; root
+      content:export, golden:generate, content:check (exit 0), golden:check (exit 0); Django 179
+      passed, 0 skipped (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`: apps/inventory incl. the new
+      `test_castle_keepsakes.py` 12 with `makemigrations --check`, catalog importer and export,
+      protected world changes, answers API, castle storybook, Great Storybook quests), plus
+      `test_child_state_api.py` 20 passed. Not run: browser, WebGL, e2e, lint, format, full suites.
+      **SC-R07 merged** at `57b0725d` (SC-R07 commit `1083148f`). Merged-tree evidence: Vitest island-map/three,
+      great-storybook, rewards, content-export, audio, npc, worlds 229 files, 3021 passed; `tsc` app clean;
+      content:check and golden:check clean; Django `apps/inventory apps/progression apps/quests apps/catalog`
+      + `game_sessions/test_answers_api.py`, `test_castle_storybook.py`: 432 passed, 0 skipped.
+- [x] **Post-merge Django baseline re-run (2026-11-18, fresh machine, at `53f783ba`).** `apps/regions apps/avatars
+      apps/assets` plus every Django test file naming the castle or the Storybook (29 files across ai, quests,
+      progression, npcs, audio, game_sessions, speech, inventory): 892 passed, 1 failed (PostgreSQL,
+      `LAI_REQUIRE_POSTGRES=1`, dummy AWS keys, `AWS_PROFILE` unset). The failure was a stale fixture, not a
+      regression: `test_adventure_launch.py::test_a_secret_place_is_hidden_until_its_world_change_exists`
+      wrote `THE_CASTLES_SECRET_DOOR_COMPLETE` at `storykeeper-castle`, which the world-change security work
+      now correctly treats as a misplaced (forged) protected key. The test now asserts the forged copy keeps
+      the Writing Room hidden and the copy at `castle-secret-passage` reveals it; the file passes 27 of 27.
+- [x] **SC-R10-01** Three.js Writing Room with chapter 3 parity (contract `docs/regions/prep/writing_room_prep.md`;
+      branch `work/sc-r10`, commit `7c18219f`). DONE (development), not owner accepted.
+      `CASTLE_WRITING_ROOM_MANIFEST` (`three/runtime/manifests/castleWritingRoom.ts`, constants in
+      `three/castleWritingRoomRegion.ts`) is registered in `SOURCE_LOCATION_MANIFESTS` and served at the generic
+      `explore/castle-writing-room` route, with a "Try the 3D room (preview)" link on the location page. It
+      imports the shared `CASTLE_WRITING_ROOM_INTERACTIONS` by identity, so ids, messages and requirements
+      cannot drift. Same unlock key `THE_CASTLES_SECRET_DOOR_COMPLETE`, enforced by new optional
+      `entryRequirements` and `copy.locked` manifest fields (fail closed; a manifest without them behaves as
+      before). One appended checkpoint `castle-writing-room:entry`. Two optional 0.3 m reading steps on the
+      shared platforms runtime, never required, nothing gated on them, none for Sprouts. Records nothing,
+      places no NPC, adds no write action. Phaser route and files unchanged and still the default. Content
+      export and golden digest regenerated for the new checkpoint. **Deviations to confirm:** (1) the generic
+      view had no unlock gate, so `entryRequirements` was added to the shared runtime; (2) checkpoint id
+      `castle-writing-room:entry` (the repo's `region:name` pattern); (3) wall height 3 m, not 3.2 m;
+      (4) link text "Try the 3D room (preview)" (the page already uses "(new!)" for the Phaser link).
+      **Owner decisions (safe readings taken):** no write-your-story action; no NPC placed (`islandNpcs.ts`
+      schedules one in the afternoon; neither renderer places it); no new band gate (Sprouts via LAI-2303).
+- [x] **SC-R10-02** Parity tests against the Phaser Writing Room. DONE (development), not owner accepted.
+      `castleWritingRoomParity.test.tsx` (17) ports every `CastleWritingRoomWorldView.test.tsx` assertion to
+      `ThreeLocationWorldView` with the real manifest and adds fail-closed, no-world-change, shared unlock key
+      (`CASTLE_EXITS`, `locations.ts`, Phaser view, manifest), Phaser files present and Phaser route still
+      default. Evidence on the branch: typecheck clean; manifest 12, engine 7, parity 17; manifests plus the
+      Phaser view 27 files, 443 passed; discovery, content-export (checkpoint count 30 to 31), golden,
+      validator, view, location and castle contract runs pass. **Merged** at `8408737b`. Merged-tree
+      evidence: Vitest manifests, Phaser Writing Room view, discovery, content-export, IslandLocationPage
+      35 files, 581 passed; `tsc` clean; content:check and golden:check exit 0. Not run: browser, WebGL,
+      e2e, lint, format, full suites. Visual validation stays an owner step.
+- [x] **SC-final-B** Writing Room as a working educational destination (branch `work/final-b`; contract
+      `docs/regions/prep/writing_room_prep.md`, "Implementation note (SC-final-B)"). DONE (development), not
+      owner accepted. (1) Write-your-story by band (the age-correct mapping: Sprouts tap a picture, a character
+      and a word; Pathfinders build 2 or 3 sentences from word tiles; Explorers pick a starter and type a short
+      paragraph), saved as an ordinary `StoryArtifact` through three per-band adventure templates at
+      `castle-writing-room` and `POST children/{id}/story-artifacts/written/`; Sprout and Pathfinder text is composed
+      by the server from authored options, an Explorer paragraph is screened by the existing deterministic input
+      checks and refused kindly (nothing stored or logged), no AI feedback, authored encouragement only, no reward.
+      (2) Keeper Quill placed in the 3D room, talking through the existing `NpcConversation`, one authored line.
+      (3) Sprouts: flat markers, large targets, narrated prompts. (4) The room no longer waits on
+      `THE_CASTLES_SECRET_DOOR_COMPLETE` (arithmetic): `locations.ts`, the export, Django `place_unlocked`, the
+      Phaser view and the 3D manifest agree; holders keep the library bookshelf door, key and keepsake.
+      (5) `castleExitsNoArithmetic` extended. (6) `entryRequirements` documented in
+      `docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md` with validation and view tests. Deferred: an in-castle
+      always-open door (castle manifest baseline and the 300 draw-call budget, owner decision), mounting the NPC
+      Manager host in the room.
+- [ ] **SC-R10-03** Retire the Phaser castle and Writing Room. GATED on ADR-020's conditions, LAI-2303 and
+      owner approval. The route switch (`AppRoutes.tsx` `world/castle-writing-room`) is untouched.
+- [x] **SC-R08-01** Ambient return-visit events (contract `docs/regions/prep/ai_director_prep.md`; branch
+      `work/sc-r08-09`, commit `56e73a20`). DONE (development), not owner accepted. Deterministic catalog
+      `great-storybook/castleEvents.ts` mirrored by `lai/apps/regions/castle_events.json` (drift test, the
+      `great_storybook_pages.json` pattern), pure `eligibleEvents`/`defaultEvent` in TS with the Python port
+      `castle_events.py`, golden vectors `tests/golden/castle-events.json` (16 cases each, both languages).
+      Repetition is by visit count, never by time; events grant nothing; every room and band has a fallback;
+      lines within `MAX_SPOKEN_LENGTH_BY_AGE_BAND`. **Deviations to confirm (ADR-065, Proposed):** (1) JSON
+      mirror instead of content export, `load_content` and admin (`castle_rooms.py` has no revision model);
+      promoting it to an ADR-047 revisioned model is an owner decision; (2) conditions are the real
+      `apps.npcs.conditions` vocabulary (`ALWAYS`, `WORLD_CHANGE`, `QUEST_STATUS`, `RELATIONSHIP_AT_LEAST`),
+      not the contract's `QUEST_COMPLETED`/`MEMORY_FLAG`; (3) the castle is a Place with no Django region
+      session, so the client sends an opaque `visitId` per castle opening and `CastleVisitState` counts a
+      visit when it changes (a client can advance its own counter; it only changes which authored line is
+      shown); (4) display counter in new child-owned `CastleEventShown` (deletion cascades).
+- [x] **SC-R09-01** Castle Director route. DONE (development), not owner accepted.
+      `POST /api/v1/children/<id>/castle/director/` (`RouteName.CASTLE_DIRECTOR` = `generateCastleDirector`,
+      migrations `ai/0006`, `regions/0007`). Closed request body (`roomId`, `visitId`); the server recomputes
+      the eligible set from the child's rows; the model sees only ids, one-word tags, band and room;
+      `validate_castle_choice` requires an exact id from that set and closed shape; the child always sees the
+      authored line; every `run_turn` failure path, REDIRECT/STOP (plus SafetyEvent), `ai_enabled=False` (no
+      model call) and an empty set return the deterministic default as `FALLBACK`; another parent's child is
+      404; the only write is the display counter; audit rows hold no event text or child data. Client
+      `api/play/castleDirectorApi.ts` and `useCastleDirector.ts` (any error computes the same default
+      locally), and one quiet ambient line in `CastleGuide` (judgement call on minimal wiring; no 3D cue).
+      Tests: `test_castle_director.py` 71 with the fake provider.
+- [x] **SC-R09-02** Quill flavour through `npc_hint`. DONE (development, service layer only), not owner
+      accepted. `apps/npcs/castle_flavour.py` builds an `NpcHintContext` from the active Quill release; the
+      authored event line is base text and fallback. `test_castle_flavour.py` 14 (over-length, URL,
+      personal information, reward claim, em dash, secrecy, no-model-call cases, no state writes). **Open:**
+      not surfaced to any client (owner: a second model call from the Director response, or a client
+      surface). Evidence on the branch: `apps/ai` 494 plus fix, `test_prompts.py` + director 76; regions,
+      npcs, castle game_sessions, core, child deletion, golden 1110; Vitest 19, 168 and 199; typecheck,
+      golden:check, content:check, adr:check clean. **Merged** at `4228e898`. Merged-tree evidence: Django
+      `apps/ai apps/regions apps/npcs` + castle rooms, castle storybook, adventure launch, child deletion,
+      `tests/golden`: 1435 passed, 0 failed (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`), `makemigrations --check`
+      no changes; Vitest great-storybook, castleTale, api/play, golden, castleHudEquivalence 37 files, 393
+      passed; `tsc` clean; content:check, golden:check, adr:check exit 0.
+- [x] **SC-R11 engineering part** (contract `docs/regions/prep/quality_prep.md`; branch `work/sc-r11`, commits
+      `d896e1aa`, `3c1abcb4`, `1b810ec5`, `8983d888`). DONE (development), not owner accepted. Local-only
+      engine diagnostics `three/runtime/diagnostics/` (frame stats ring buffer, `renderer.info` snapshot,
+      load timeline `mount`/`assetsSettled`/`firstWalkableFrame`, lifecycle counts), on only under
+      `vite dev` or `?lai-diag=1`, a console table on dispose and `window.__laiDiag`; records only the region
+      id and sends nothing (tested). Dispose now calls `forceContextLoss?.()` and empties `mixers`; tests for
+      created equals released and a late `loadModel` after dispose. Configurable
+      `ThreeLocationManifest.wallHeight` (default `WALL_HEIGHT` 3) threaded through wall colliders, lamps,
+      ceiling slabs and surfaces, wall faces, cornices, secret seal and the library beam; shipped castle output
+      unchanged at 3 (JSON hash identical before and after); 4 m tests; **no room switched to 4 m**. Tests for
+      HUD tab order and names, Tab/Escape never trapped, touch clamp, Sprouts need no aim in
+      `quills-picture-story`, every narrated page and word has visible text, and exits never behind
+      arithmetic (Writing Room included). `docs/PILOT_READINESS.md` 5b and acceptance A-14/A-20 have blank
+      result tables; no measurements invented. **Deviations:** `?lai-diag=1` also works in a release build
+      (profiling needs one; inert without the flag); the factory-wrapped bodies in `storykeeperCastle.ts`,
+      `storykeeperCastleVisuals.ts`, `greatLibrary.ts` and the new tests are unformatted (`prettier --write`
+      at merge readiness). **Owner decisions:** `assetLoader.trim` (not built); live reduced-motion change
+      (read at mount; A-10 stays manual); the optional Writing Room is unlocked by the Explorer secret-door
+      arc, whose chapter 1 has a `number-input` step (exits and routes are never gated); kit-piece scaling
+      still gates any 4 m room. **Merged** at `f846389a`, plus `2bafcae6` (the scene asset index snapshot,
+      export `locationAssets` 6 to 7 and golden digest the SC-R10 merge had missed). Merged-tree evidence:
+      Vitest `island-map/three` 156 files, 1999 passed; content-export, golden, discovery 8 files, 134
+      passed; `tsc` clean; content:check, golden:check exit 0; Django `apps/assets` + catalog import/export
+      343 passed.
+- [ ] **SC-R11-01, SC-R11-02** Owner gates: real-tablet profiling of a release build with `?lai-diag=1`
+      (fill PILOT_READINESS 5b) and the Sprouts playtest. **SC-R11-03** fixes from both: waits on them.
+- [x] **SC-R08-02** Two more hidden discoveries (depends: SC-R03-05, SC-R03-06, SC-R08-01; branch
+      `work/sc-r08-secrets`, commit `e1c4733d`). DONE (development), not owner accepted.
+      `castle-chamber-star` (a brighter star in the mural, north wall) and `castle-chamber-mouse-door` (a
+      mouse-sized door low on the east wall), both inside the Secret Chamber and gated on the tapestry nook
+      (`DISCOVERY_PRESENT castle-tapestry-stair`); walk-up `DISCOVER` interactions in `castleChamber.ts`,
+      zones and wall spots in `storykeeperCastleRegion.ts`, never listed (`hiddenInteractionIds`). Added to
+      `islandDiscoveries.ts` and the `homeIsland` registry and exported; Django accepts, persists and replays
+      them idempotently (ADR-051) with no code change; an unknown id is still 404. They grant only the
+      discovery record and a world change (`CASTLE_CHAMBER_STAR_FOUND`, `CASTLE_CHAMBER_MOUSE_DOOR_FOUND`,
+      protected as discovery keys): no item, reward or quest. All bands by approach, no aim. No new
+      Storybook page; no page set or completion changed. Two decor boxes: draw-call estimate 298 to **300 of
+      300** (no budget number raised); chamber scenery well under its 24. **Owner:** raise the draw budget or
+      merge decor before any more castle scenery (chamber platforms were skipped for this reason).
+- [x] **SC-R08-03** Secret Chamber content (depends: SC-R08-01, -02). DONE (development), not owner
+      accepted. Observation only: five `secret-chamber` ambient events (`chamber-crystals-hum`,
+      `chamber-mural-listens`, `chamber-star-twinkles`, `chamber-mouse-door-glows`,
+      `chamber-finds-remembered`), the last three conditioned on the finds through `WORLD_CHANGE` only; no
+      NPC, no question, existing cues; the chamber stays secret as SC-R03-05 made it. JSON mirror and golden
+      vectors regenerated. No learning objective, answer validation, reward or curriculum. **Owner
+      proposals, not built:** a graded puzzle at the sealed round door, a second hidden Storybook page, a
+      reward for a find. Evidence (SC-R08-02/03) on the branch: Vitest 198 files, 2531 passed after three
+      in-scope assertion updates; Django 220 + 162 passed; typecheck, content and golden checks clean.
+      **Merged** at `ad5a482e`. Merged-tree evidence: Vitest `island-map/three`, great-storybook, discovery,
+      worlds, rewards, content-export, golden, api/play, worldObjects 198 files, 2529 passed; `tsc` clean;
+      content:check, golden:check, adr:check exit 0; Django chamber finds, discoveries, castle rooms,
+      adventure launch, `apps/progression apps/regions`, castle director, castle flavour, `tests/golden`:
+      715 passed, 0 failed (PostgreSQL, `LAI_REQUIRE_POSTGRES=1`). Not run: browser, WebGL, e2e, lint,
+      format, full suites. Owner browser check: the star glint and mouse door visuals.
+- [ ] **SC-R12-01** Browser acceptance pass (owner): checklist in `docs/regions/storykeeper_castle_acceptance.md`
+      section 4 (O-1 to O-19, D-1, D-2, decisions 4.3). Not started; owner only.
+- [ ] **SC-R12-02** Release notes, implementation status, retirement decisions. PREP DONE (draft):
+      `docs/regions/storykeeper_castle_release_notes.md` (draft, not released), `docs/IMPLEMENTATION_STATUS.md`
+      section of 2026-11-18. Final once SC-R12-01 and the owner decisions close.
+- [ ] **SC-R12 gates** Previously listed: Gated items: new supporting NPC model, narration voice consent, Phaser
+      retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11
+      gate).

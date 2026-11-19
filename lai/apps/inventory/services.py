@@ -83,3 +83,32 @@ def _complete_sets(child, rule, new_item_ids, *, source_session=None) -> list[st
 
 def owned_item_ids(child) -> set[str]:
     return set(InventoryItem.objects.for_child(child).values_list("item__item_id", flat=True))
+
+
+def grant_world_change_rewards(
+    child, *, location_slug: str, change_key: str, source_session=None
+) -> tuple[tuple[object, RewardGrant], ...]:
+    """Fire the `WORLD_CHANGE` reward rules for a change a server path has just recorded (SC-R07-01).
+
+    Called only by Django paths that decided the change themselves (an adventure's graded
+    WORLD_CHANGE step, a story's completion), never by the generic client POST. A rule pays only
+    for a **protected** key recorded at its own place (`progression.protected_changes`), so a
+    rule cannot be satisfied by a key a client could write, and a protected key copied to another
+    location pays nothing. Each rule fires once per child (`grant_reward_rule`), so a replayed
+    step or a second session grants nothing again. Unprotected keys (`BRIDGE_REPAIRED`) are not
+    paid here; their rules stay as they were.
+    """
+    # Imported here: `catalog` and `progression` import nothing from this module, but keeping the
+    # dependency local keeps `inventory` importable on its own.
+    from apps.catalog.models import RewardRule
+    from apps.progression.protected_changes import lookup
+
+    entry = lookup(change_key)
+    if entry is None or entry.location_slug != location_slug:
+        return ()
+    rules = RewardRule.objects.filter(
+        trigger__type="WORLD_CHANGE", trigger__changeKey=change_key
+    ).order_by("rule_id")
+    return tuple(
+        (rule, grant_reward_rule(child, rule, source_session=source_session)) for rule in rules
+    )

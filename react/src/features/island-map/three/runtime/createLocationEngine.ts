@@ -108,9 +108,15 @@ import {
   walkableProbe,
   type BoxBounds,
 } from './sceneLayout';
+import { groupStaticBoxes, mergeStaticBoxGeometry } from './staticBoxBatches';
 import { WorldTriggerTracker } from './worldTriggerTracker';
 import { nearestStandableSpot } from './nearestStandableSpot';
 import { installE2EProbe } from './e2eProbe';
+import {
+  createEngineDiagnostics,
+  diagnosticsRequested,
+  type EngineDiagnostics,
+} from './diagnostics';
 import { createMaterialLibrary } from './visual/materialLibrary';
 import {
   applyFog,
@@ -167,6 +173,13 @@ export interface RendererLike {
   dispose(): void;
   /** Optional so test doubles need not implement it; `WebGLRenderer` does. */
   setPixelRatio?(ratio: number): void;
+  /** Optional; `WebGLRenderer` has it. Frees the GL context so repeated mounts cannot exhaust them. */
+  forceContextLoss?(): void;
+  /** Optional; `WebGLRenderer.info`, read only by the SC-R11 diagnostics. */
+  readonly info?: {
+    readonly render: { readonly calls: number; readonly triangles: number };
+    readonly memory: { readonly geometries: number; readonly textures: number };
+  };
 }
 
 export interface LocationEngineAssets {
@@ -411,12 +424,31 @@ export function createLocationEngine<R extends RendererLike>(
   const ownedGeometries: BufferGeometry[] = [];
   const ownedMaterials: Material[] = [];
   const mixers: AnimationMixer[] = [];
+  // SC-R11: local-only profiling, never in a normal child session (see `diagnostics/`).
+  const diagnostics: EngineDiagnostics | null = diagnosticsRequested(
+    import.meta.env.DEV,
+    typeof window === 'undefined' ? '' : window.location.search,
+  )
+    ? createEngineDiagnostics(
+        manifest.regionId,
+        typeof window === 'undefined' ? undefined : window,
+        import.meta.env.MODE !== 'test',
+      )
+    : null;
+  diagnostics?.mark('mount', deps.now());
+  function trackMixer(mixer: AnimationMixer): void {
+    mixers.push(mixer);
+    diagnostics?.count('mixersCreated');
+    diagnostics?.setActiveMixers(mixers.length);
+  }
   const frameCallbacks = new Set<(deltaSeconds: number) => void>();
   const extensionMounts = new Map<string, WorldExtensionMount>();
 
   function ownMesh(geometry: BufferGeometry, material: Material): Mesh {
     ownedGeometries.push(geometry);
     ownedMaterials.push(material);
+    diagnostics?.count('geometriesCreated');
+    diagnostics?.count('materialsCreated');
     return new Mesh(geometry, material);
   }
 
@@ -848,7 +880,7 @@ export function createLocationEngine<R extends RendererLike>(
     const idle = clip ? animations.find((candidate) => candidate.name === clip) : undefined;
     const mixer = new AnimationMixer(model);
     if (idle) mixer.clipAction(idle).play();
-    mixers.push(mixer);
+    trackMixer(mixer);
     return { mixer, idle };
   }
 
@@ -950,7 +982,7 @@ export function createLocationEngine<R extends RendererLike>(
             : undefined;
           if (clip) {
             const mixer = new AnimationMixer(model);
-            mixers.push(mixer);
+            trackMixer(mixer);
             interactAction = mixer.clipAction(clip);
           }
         }),
@@ -1013,7 +1045,10 @@ export function createLocationEngine<R extends RendererLike>(
     const instanced = await deps.assets.instanced(assetId, placements);
     if (!addWhenLive(instanced, into)) return;
     // The loader clones geometry per instanced mesh; the material stays shared with the cache.
-    if (instanced instanceof Mesh) ownedGeometries.push(instanced.geometry);
+    if (instanced instanceof Mesh) {
+      ownedGeometries.push(instanced.geometry);
+      diagnostics?.count('geometriesCreated');
+    }
   }
 
   // Buildings: one instanced draw call per kit piece across every building.
@@ -1090,6 +1125,7 @@ export function createLocationEngine<R extends RendererLike>(
         return;
       }
       case 'BOX': {
+        if (item.static) return; // batched with its neighbours by `buildStaticBoxes`
         const width = item.area.maxX - item.area.minX;
         const depth = item.area.maxZ - item.area.minZ;
         const height = item.maxY - item.minY;
@@ -1167,9 +1203,33 @@ export function createLocationEngine<R extends RendererLike>(
         return;
     }
   }
-  manifest.scenery
-    .filter((item) => areRequirementsMet(item.requirements, worldState))
-    .forEach(buildScenery);
+  const liveScenery = manifest.scenery.filter((item) =>
+    areRequirementsMet(item.requirements, worldState),
+  );
+  liveScenery.forEach(buildScenery);
+
+  /*
+    Static decor boxes (WS-C): one merged mesh and one shared material per
+    colour per spatial cell, instead of a mesh and a material per box.
+  */
+  const batchMaterials = new Map<number, MeshStandardMaterial>();
+  for (const [key, boxes] of groupStaticBoxes(liveScenery)) {
+    const geometry = mergeStaticBoxGeometry(boxes);
+    if (!geometry) continue;
+    ownedGeometries.push(geometry);
+    diagnostics?.count('geometriesCreated');
+    const color = boxes[0].color;
+    let material = batchMaterials.get(color);
+    if (!material) {
+      material = new MeshStandardMaterial({ color });
+      batchMaterials.set(color, material);
+      ownedMaterials.push(material);
+      diagnostics?.count('materialsCreated');
+    }
+    const mesh = new Mesh(geometry, material);
+    mesh.name = `static-boxes:${key}`;
+    scene.add(mesh);
+  }
 
   /*
     Built architecture (SC-R02-01): floors, walls and ceilings drawn with a
@@ -1188,6 +1248,7 @@ export function createLocationEngine<R extends RendererLike>(
     const metersPerRepeat = materialLibrary.spec(surface.materialId)?.metersPerRepeat ?? 1;
     const geometry = buildSurfaceGeometry(surface.faces, metersPerRepeat);
     ownedGeometries.push(geometry);
+    diagnostics?.count('geometriesCreated');
     if (!geometry.getAttribute('position')) continue;
     const mesh = new Mesh(geometry, materialLibrary.get(surface.materialId));
     mesh.name = `surface:${surface.id}`;
@@ -1592,6 +1653,7 @@ export function createLocationEngine<R extends RendererLike>(
     : null;
   if (collisionDebug) scene.add(collisionDebug.root);
 
+  let assetsSettled = false;
   let lastFrameAt = deps.now();
   let frameHandle = 0;
 
@@ -1724,6 +1786,10 @@ export function createLocationEngine<R extends RendererLike>(
     for (const zoneId of step.leftZoneIds ?? []) bus.emit('PlayerLeftZone', { zoneId });
 
     renderer.render(scene, camera);
+    if (diagnostics) {
+      diagnostics.frame(delta * 1000, renderer.info);
+      if (assetsSettled) diagnostics.mark('firstWalkableFrame', now);
+    }
     frameHandle = deps.requestFrame(frame);
   }
   frameHandle = deps.requestFrame(frame);
@@ -1743,11 +1809,20 @@ export function createLocationEngine<R extends RendererLike>(
     for (const mixer of mixers) {
       mixer.stopAllAction();
       mixer.uncacheRoot(mixer.getRoot());
+      diagnostics?.count('mixersStopped');
     }
+    mixers.length = 0;
+    diagnostics?.setActiveMixers(0);
     platformSystem?.dispose();
     platformPresentation?.dispose();
-    for (const geometry of ownedGeometries) geometry.dispose();
-    for (const material of ownedMaterials) material.dispose();
+    for (const geometry of ownedGeometries) {
+      geometry.dispose();
+      diagnostics?.count('geometriesDisposed');
+    }
+    for (const material of ownedMaterials) {
+      material.dispose();
+      diagnostics?.count('materialsDisposed');
+    }
     materialLibrary.dispose();
     for (const field of moteFields) field.dispose();
     precipitation?.dispose();
@@ -1755,6 +1830,9 @@ export function createLocationEngine<R extends RendererLike>(
     scene.fog = null;
     scene.clear();
     renderer.dispose();
+    // Browsers cap live WebGL contexts; free this one now rather than at garbage collection.
+    renderer.forceContextLoss?.();
+    diagnostics?.finish();
     if (renderer.domElement.parentElement === parent) {
       parent.removeChild(renderer.domElement);
     }
@@ -1772,7 +1850,10 @@ export function createLocationEngine<R extends RendererLike>(
         })
       : null;
 
-  const ready = Promise.all(pending).then(() => undefined);
+  const ready = Promise.all(pending).then(() => {
+    assetsSettled = true;
+    diagnostics?.mark('assetsSettled', deps.now());
+  });
 
   return {
     dispose,

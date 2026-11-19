@@ -6,11 +6,11 @@ is child-scoped: another family's child is a 404 and nothing is written for it.
 
 import pytest
 
-from apps.catalog.importer import import_content
 from apps.catalog.models import Adventure
 from apps.education.models import SkillEvidence, SkillProgress
 from apps.game_sessions import services as sessions
 from apps.progression import stories
+from apps.progression.tests.shared import imported_content  # noqa: F401
 from apps.progression.models import NpcRelationship, StoryProgress, WorldChange, WorldState
 
 pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
@@ -19,9 +19,7 @@ STORY = "dragon-of-ember-mountain"  # Pathfinder only; chapter 1 embeds one adve
 
 
 @pytest.fixture
-def content(families):
-    import_content()
-    stories.definitions.cache_clear()
+def content(imported_content, families):
     return families
 
 

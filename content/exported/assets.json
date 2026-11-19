@@ -723,6 +723,17 @@
   "locationAssets": [
     {
       "assetIds": [
+        "bookshelf",
+        "secret-door-ajar",
+        "round-window",
+        "npc-quill",
+        "writing-desk",
+        "clue-diary"
+      ],
+      "regionSlug": "castle-writing-room"
+    },
+    {
+      "assetIds": [
         "wall-stone",
         "roof",
         "door",
@@ -782,6 +793,7 @@
         "star-carving",
         "moon-carving",
         "npc-quill",
+        "npc-professor-ticktock",
         "story-plate-choice",
         "story-plate-ending",
         "story-plate-problem",

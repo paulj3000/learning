@@ -202,3 +202,64 @@ The generic runtime must centrally dispose:
 - extension cleanup
 
 Add repeated mount/unmount tests.
+
+## Entry requirements (`entryRequirements`)
+
+*Decision note (owner approved, SC-final-B; added by SC-R10-01).* A location manifest may carry an
+optional door. This is the schema, validation and semantics, so a second region that wants one
+does not have to rediscover them.
+
+### Schema
+
+```ts
+interface ThreeLocationManifest {
+  // ...
+  /** While these do not hold, the view shows `copy.locked` and never builds the engine. */
+  entryRequirements?: readonly WorldRequirement[];
+}
+interface LocationCopy {
+  /** Shown instead of the scene while `entryRequirements` do not hold. Readable aloud, never a refusal. */
+  locked?: string;
+}
+```
+
+`WorldRequirement` is the same closed union every interaction, prop, collider and scenery piece
+already uses (`ALWAYS`, `WORLD_CHANGE_PRESENT`, `WORLD_CHANGE_ABSENT`, `ITEM_OWNED`, `ITEM_ABSENT`,
+`DISCOVERY_PRESENT`, `DISCOVERY_ABSENT`). There is no second expression language.
+
+### Validation (`validateLocationManifest.ts`)
+
+Each entry goes through the same `checkRequirement` as every other requirement list, with the path
+`entryRequirements[i]`. An unknown item id or discovery id is reported (`UNKNOWN_ITEM`,
+`UNKNOWN_DISCOVERY`). World-change keys are free strings (no registry yet), so only their shape is
+checked. Tests: `runtime/validateEntryRequirements.test.ts`.
+
+### Semantics
+
+- **Optional; absent means open.** An empty list is also open. No shipped manifest has to carry one.
+- **AND.** Every requirement in the list must hold. There is no OR; a region that wants "either of
+  two keys" authors a world change that either one writes.
+- **Evaluated against the snapshot context**, the same `WorldInteractionContext` (world changes,
+  owned items, discoveries) the view reads once up front and refreshes after a change. It is not a
+  second read and is not cached longer than the snapshot.
+- **Fails closed.** A failed progress read leaves the snapshot with no keys, so a gated place stays
+  shut and shows `copy.locked` (or a calm default). It never opens because a read failed.
+- **The engine is never built while shut.** `ThreeLocationWorldView` returns before
+  `createLocationEngine`, so a locked region loads no scene, assets or audio.
+- **A door, not a rule engine.** It decides only whether a child may be in the place. Entry from a
+  neighbouring place (a castle door, a location card) keeps its own requirements, and the server
+  decides what a Place's card shows (`place_unlocked`, from the Location's `unlockRequirement`).
+  The client and server must agree: change them together.
+
+### Backward compatibility
+
+The field and `copy.locked` are additive and optional, the manifest `schemaVersion` did not change,
+and a manifest without them behaves exactly as before. Tests: `ThreeLocationWorldView.test.tsx`
+("entryRequirements").
+
+### Current use
+
+None. The Writing Room was the first user (SC-R10-01, gated on `THE_CASTLES_SECRET_DOOR_COMPLETE`).
+SC-final-B removed that gate because the Secret Door arc has an arithmetic step (chapter 1,
+`number-input`), and the room is a writing space for every child. The mechanism stays, tested,
+for the next region that has a reason to be closed that is not arithmetic.

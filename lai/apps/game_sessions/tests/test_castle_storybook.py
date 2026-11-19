@@ -120,13 +120,17 @@ def test_asking_runs_no_insert_update_or_delete_and_changes_nothing(fam, api):
 def test_a_page_is_back_exactly_when_its_record_exists(fam, api):
     client = api(fam.a)
     empty = get(client, fam.a1)
-    assert ids(empty) == ["page-first-story"]
+    assert ids(empty) == ["page-first-story", "page-painted-words"]
     assert empty["pages"][0]["restored"] is False
-    assert empty["restoredRequired"] == 0 and empty["totalRequired"] == 1 and not empty["complete"]
+    assert empty["restoredRequired"] == 0 and empty["totalRequired"] == 2 and not empty["complete"]
     write(fam.a1, "FIRST_STORY_TOLD")
+    half = get(client, fam.a1)
+    assert half["pages"][0]["restored"] is True and half["pages"][1]["restored"] is False
+    assert half["restoredRequired"] == 1 and half["complete"] is False
+    write(fam.a1, "STUDIO_PAGE_MENDED", "storykeeper-castle")
     back = get(client, fam.a1)
-    assert back["pages"][0]["restored"] is True
-    assert back["restoredRequired"] == 1 and back["complete"] is True
+    assert back["pages"][1]["restored"] is True
+    assert back["restoredRequired"] == 2 and back["complete"] is True
 
 
 def test_a_page_cannot_be_restored_by_another_challenges_record(fam, api):
@@ -146,7 +150,7 @@ def test_each_band_sees_only_its_own_pages(fam, api):
     client = api(fam.a)
     expected = {
         "SPROUT": ["page-first-story"],
-        "PATHFINDER": ["page-first-story"],
+        "PATHFINDER": ["page-first-story", "page-painted-words"],
         "EXPLORER": ["page-three-clues", "page-pattern-lock", "page-what-was-waiting"],
     }
     for value, pages in expected.items():
@@ -246,6 +250,10 @@ def test_the_response_is_valid_json_with_the_documented_keys(fam, api):
         "restoredBonus",
         "complete",
         "quest",
+        # Additive, versioned completion (old clients keep reading `complete`).
+        "state",
+        "edition",
+        "moreQuest",
     }
     assert set(body["pages"][0]) == {"id", "title", "required", "restored", "roomId", "text"}
     json.dumps(body)

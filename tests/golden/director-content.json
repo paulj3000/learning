@@ -6,7 +6,7 @@
     "react/src/features/director/reachability.ts",
     "react/src/features/worlds/travel.ts"
   ],
-  "contentDigest": "94f72f07c6d20adcb559110c819fe3b4fb37983b13ab2e5545fab74cf66213af",
+  "contentDigest": "ea1058cadf3d1e50738e830b3baa42fa621fbf72dc49d5cfa4541bd285273e99",
   "notes": [
     "Bound to the content export identified by contentDigest; a port loads the same export (LAI-0304) and compares only when the digests match.",
     "Expected values are adventure slugs, in content order."
@@ -31,6 +31,8 @@
             "the-tide-gate-calculation",
             "the-storykeepers-tale",
             "quills-picture-story",
+            "the-painted-words",
+            "the-painted-words-again",
             "buzz-and-the-waggle-dance",
             "dragon-chapter-1-broken-path",
             "dragon-chapter-2-whispering-forest",
@@ -46,7 +48,10 @@
             "secret-door-chapter-2-pattern-lock",
             "the-dark-lighthouse-counting",
             "the-dark-lighthouse-groups",
-            "the-dark-lighthouse-two-step"
+            "the-dark-lighthouse-two-step",
+            "writing-room-picture-story",
+            "writing-room-sentence-story",
+            "writing-room-own-story"
           ]
         },
         {
@@ -64,6 +69,8 @@
             "the-tide-gate-calculation",
             "the-storykeepers-tale",
             "quills-picture-story",
+            "the-painted-words",
+            "the-painted-words-again",
             "buzz-and-the-waggle-dance",
             "dragon-chapter-1-broken-path",
             "dragon-chapter-2-whispering-forest",
@@ -82,7 +89,10 @@
             "the-cove-care-plan",
             "the-dark-lighthouse-counting",
             "the-dark-lighthouse-groups",
-            "the-dark-lighthouse-two-step"
+            "the-dark-lighthouse-two-step",
+            "writing-room-picture-story",
+            "writing-room-sentence-story",
+            "writing-room-own-story"
           ]
         },
         {
@@ -97,6 +107,8 @@
             "the-tide-gate-calculation",
             "the-storykeepers-tale",
             "quills-picture-story",
+            "the-painted-words",
+            "the-painted-words-again",
             "buzz-and-the-waggle-dance",
             "dragon-chapter-1-broken-path",
             "dragon-chapter-2-whispering-forest",
@@ -112,7 +124,10 @@
             "secret-door-chapter-2-pattern-lock",
             "the-dark-lighthouse-counting",
             "the-dark-lighthouse-groups",
-            "the-dark-lighthouse-two-step"
+            "the-dark-lighthouse-two-step",
+            "writing-room-picture-story",
+            "writing-room-sentence-story",
+            "writing-room-own-story"
           ]
         },
         {
@@ -130,6 +145,8 @@
             "the-tide-gate-calculation",
             "the-storykeepers-tale",
             "quills-picture-story",
+            "the-painted-words",
+            "the-painted-words-again",
             "buzz-and-the-waggle-dance",
             "dragon-chapter-1-broken-path",
             "dragon-chapter-2-whispering-forest",
@@ -148,7 +165,10 @@
             "the-cove-care-plan",
             "the-dark-lighthouse-counting",
             "the-dark-lighthouse-groups",
-            "the-dark-lighthouse-two-step"
+            "the-dark-lighthouse-two-step",
+            "writing-room-picture-story",
+            "writing-room-sentence-story",
+            "writing-room-own-story"
           ]
         },
         {
@@ -163,6 +183,8 @@
             "the-tide-gate-calculation",
             "the-storykeepers-tale",
             "quills-picture-story",
+            "the-painted-words",
+            "the-painted-words-again",
             "buzz-and-the-waggle-dance",
             "dragon-chapter-1-broken-path",
             "dragon-chapter-2-whispering-forest",
@@ -178,7 +200,10 @@
             "secret-door-chapter-2-pattern-lock",
             "the-dark-lighthouse-counting",
             "the-dark-lighthouse-groups",
-            "the-dark-lighthouse-two-step"
+            "the-dark-lighthouse-two-step",
+            "writing-room-picture-story",
+            "writing-room-sentence-story",
+            "writing-room-own-story"
           ]
         },
         {
@@ -196,6 +221,8 @@
             "the-tide-gate-calculation",
             "the-storykeepers-tale",
             "quills-picture-story",
+            "the-painted-words",
+            "the-painted-words-again",
             "buzz-and-the-waggle-dance",
             "dragon-chapter-1-broken-path",
             "dragon-chapter-2-whispering-forest",
@@ -214,7 +241,10 @@
             "the-cove-care-plan",
             "the-dark-lighthouse-counting",
             "the-dark-lighthouse-groups",
-            "the-dark-lighthouse-two-step"
+            "the-dark-lighthouse-two-step",
+            "writing-room-picture-story",
+            "writing-room-sentence-story",
+            "writing-room-own-story"
           ]
         }
       ]

@@ -123,7 +123,7 @@ Static scene budgets (counted from the manifest, all tiers):
 | Distinct material presets | ≤ 16 |
 | Scenery items, original eight rooms | ≤ 160 (a baseline that is not raised). Each later room has its own allowance, set when it is designed: Trophy Room ≤ 20, Secret Chamber ≤ 24 (reserved). The castle-wide limit is the sum for the rooms that exist |
 | Scenery items in the Great Library | ≤ 48 |
-| Draw calls, whole castle (estimated from instancing) | ≤ 300 |
+| Draw calls, whole castle (estimated from instancing and static decor batching, WS-C; about 241 estimated, not measured) | ≤ 300 |
 | Triangles, generated asset | ≤ 2 000 |
 | Triangles, imported prop / character | ≤ 5 000 / ≤ 15 000 |
 | `.gltf`/`.glb` file size, prop / character | ≤ 200 KB / ≤ 2 MB |
@@ -173,3 +173,40 @@ authored spot walkable.
   parent-facing setting.
 - Quality changes never change gameplay: colliders, interactions, bindings
   and copy are identical at every tier, which is tested.
+
+## 12. Wall geometry audit for ceilings other than 3 m (Final F)
+
+SC-R11 made the ceiling a manifest value (`wallHeight`, default 3). This audit answers the open
+"kit-piece scaling" question (acceptance 4.3 decision 5) for the **castle's own** pieces. It is a
+geometry and manifest audit, checked by unit tests; it has not been looked at in a browser, and no
+room is built at 4 m yet.
+
+| Piece | Authored height | At `wallHeight` 4 | Change |
+| --- | --- | --- | --- |
+| `wall-stone` panels (`room-walls`) | 3 m plane, ground pivot | Stopped 1 m short of the ceiling | Only the panel's y scale grows (`wallHeight / 3`). The panel is a flat stone face with no opening, frame or pattern baked in, so nothing is distorted. Default positions are returned untouched |
+| `archway` (jambs 2.6 m, lintel to 3 m) | 3 m, multi-part | Left a 1 m hole above every doorway | **Not scaled**, so openings keep their 2 m (secret passage 1.5 m) by 2.6 m size. A plain stone header course (`castle-arch-header:<archway id>`, `CASTLE.stoneDark`, a static batched box) fills 3 m to `wallHeight` over each gap. The secret passage's course is gated on the discovery, like its archway, so the seal never overlaps it. No collider is added (the opening is 2.6 m and the header is out of reach) |
+| `door` (castle doors) | fits the archway | unchanged | None |
+| Entry Hall pillars | base to 0.22, shaft to 2.78, cap to 3 | Floated 1 m under the ceiling | The shaft and cap follow `wallHeight`; the cap stays 0.22 m deep and ends on the ceiling. Their colliders stay 3 m (no collision change) |
+| Great Library beam | hangs from the ceiling | handled in SC-R11 | None |
+| Ceiling slab, wall and ceiling surfaces, cornices, room lamps, wall colliders, zone boxes | follow `wallHeight` | handled in SC-R11 | None |
+| Banners, tapestries, portrait frames, mural, door cue plates, carvings, hearth | fixed y (1 to 2.92 m) | Hang lower on a taller wall, none touches the ceiling | None. Banners at a fixed y are a styling choice, not a defect; raise them only if a room is built tall |
+
+What the tests prove for `wallHeight` 3 and 4 (`storykeeperCastleWallGeometry.test.ts`): the wall
+panels' top is exactly the ceiling; no decor box exceeds the ceiling; pillars are unbroken from floor
+to ceiling; every archway has a header that starts on the lintel and meets the ceiling and none
+exists at 3 m; archway, secret archway and door placements are deep-equal to the shipped ones;
+colliders keep their ids, rectangles and `minY`, and only wall segments change `maxY` (to the
+ceiling), identical to the baseline fixture at 3 m; zones, interactions, checkpoints, props, NPCs,
+collectibles and platforms equal the shipped snapshot, and the only new scenery ids are
+`castle-arch-header:*`; and the draw-call estimate is at or under 300 at both heights. The shipped
+castle (3 m) is unchanged: the headers appear only above 3 m.
+
+Limits. A ceiling below 3 m is not supported by these pieces (the archway lintel is 3 m). A room
+needing a different opening height needs a new archway piece, not a scaled one.
+
+**Writing Room note (not changed here; another workstream owns it).** The Writing Room is a separate
+manifest with its own `WRITING_ROOM_WALL_HEIGHT` (3) and does not set `wallHeight`, so it inherits
+the engine default of 3 for zone and boundary boxes. It is consistent today. If it is ever built
+taller, both must change together: set `wallHeight` on its manifest as well as the constant, and
+cover the space above `secret-door-ajar` (the castle's header-course approach applies, as the door is
+a fixed-height piece). Nothing in this audit needs a Writing Room edit now.

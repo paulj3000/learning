@@ -153,3 +153,42 @@ describe('findNpc', () => {
     expect(findNpc('not-a-real-npc')).toBeNull();
   });
 });
+
+describe('Keeper Quill in the Writing Room (SC-final-B)', () => {
+  const quill = () => findNpc('keeper-quill')!;
+  const afternoon = (flags: Record<string, boolean>) =>
+    context({ npcId: 'keeper-quill', timeOfDay: 'AFTERNOON', memoryFlags: flags });
+
+  it('is scheduled at the Writing Room in the afternoon, as the room places him', () => {
+    expect(resolveNpcLocation(quill(), 'AFTERNOON').locationSlug).toBe('castle-writing-room');
+  });
+
+  it('says one authored Writing Room line, once, in an afternoon after he has met the child', () => {
+    const node = selectDialogueNode(quill(), afternoon({ metQuill: true }));
+    expect(node?.id).toBe('quill-writing-room-afternoon');
+    expect(node?.text).toContain('Writing Room');
+    expect(node?.setsMemoryFlags).toEqual(['heardAboutWritingRoom']);
+    // After he has said it, his other lines are heard again, exactly as before.
+    const next = selectDialogueNode(quill(), afternoon({ metQuill: true, heardAboutWritingRoom: true }));
+    expect(next?.id).toBe('quill-the-damaged-book');
+  });
+
+  it('never says it to a stranger, in the morning or the evening, or in place of his first greeting', () => {
+    expect(selectDialogueNode(quill(), afternoon({}))?.id).toBe('quill-greeting');
+    for (const timeOfDay of ['MORNING', 'EVENING'] as const) {
+      const node = selectDialogueNode(
+        quill(),
+        context({ npcId: 'keeper-quill', timeOfDay, memoryFlags: { metQuill: true } }),
+      );
+      expect(node?.id).not.toBe('quill-writing-room-afternoon');
+    }
+  });
+
+  it('asks for no arithmetic, no writing and no private details, and carries no em dash', () => {
+    const node = quill().dialogue.find((candidate) => candidate.id === 'quill-writing-room-afternoon')!;
+    const copy = [node.text, ...node.choices.map((choice) => choice.label)].join(' ');
+    expect(copy).not.toMatch(/\d|count|add |solve|sum/i);
+    expect(copy).not.toContain('—');
+    expect(node.narration).toBeUndefined();
+  });
+});

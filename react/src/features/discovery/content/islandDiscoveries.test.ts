@@ -23,6 +23,7 @@ import {
   WONDERWILD_FOREST_INTERACTIONS,
 } from '../../island-map/worldObjects';
 import type { DiscoveryContext } from '../types';
+import { CASTLE_CHAMBER_INTERACTIONS } from '../../island-map/three/castleChamber';
 
 const ITEM_IDS = new Set(ISLAND_ITEMS.map((item) => item.id));
 const QUEST_IDS = new Set(ISLAND_QUESTS.map((quest) => quest.id));
@@ -59,6 +60,7 @@ const ALL_INTERACTIONS = [
   ...PIRATE_BUILDER_BAY_INTERACTIONS,
   ...WONDERWILD_FOREST_INTERACTIONS,
   ...STORYKEEPER_CASTLE_INTERACTIONS,
+  ...CASTLE_CHAMBER_INTERACTIONS,
   ...DRAGONS_SANCTUARY_INTERACTIONS,
   ...FOSSIL_RIDGE_CAMP_INTERACTIONS,
   ...CASTLE_WRITING_ROOM_INTERACTIONS,

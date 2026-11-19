@@ -9,6 +9,12 @@ restore it, and nothing here grants or records anything. Asking is read-only.
 The pages are in `great_storybook_pages.json`, which mirrors the client's `STORYBOOK_PAGES`
 (`react/src/features/great-storybook/pages.ts`); a Vitest test fails if the two differ.
 
+**Editions.** Each page has a `since` edition. A child whose edition-1 restoration is on record
+(`GREAT_STORYBOOK_RESTORED`) keeps it when a later edition adds a required page: they are
+`RESTORED_MORE_PAGES` (not "incomplete"), with the original quest, world change and seal intact.
+`complete` keeps its strict meaning (every required page is back, which is `RESTORED`). A
+follow-up quest (`moreQuests`) asks for the new page and writes `GREAT_STORYBOOK_RESTORED_V2`.
+
 Age is the child's own band on their profile, read here and never taken from the request.
 Each band's book is whole when *its required pages* are back. The hidden nook page is a bonus in
 every band and is **listed only once it is restored**: a slot for a secret the child has not found
@@ -19,7 +25,8 @@ import json
 from pathlib import Path
 
 from apps.progression.models import WorldState
-from apps.progression.services import world_change_keys
+from apps.progression.protected_changes import is_misplaced
+from apps.progression.services import world_change_pairs
 from apps.quests.models import QuestProgress
 
 _DATA = json.loads((Path(__file__).parent / "great_storybook_pages.json").read_text("utf-8"))
@@ -27,6 +34,15 @@ _DATA = json.loads((Path(__file__).parent / "great_storybook_pages.json").read_t
 PAGES: tuple[dict, ...] = tuple(_DATA["pages"])
 #: age band -> the slug of that band's Great Storybook quest.
 QUEST_SLUGS: dict[str, str] = dict(_DATA["quests"])
+#: age band -> the slug of the follow-up quest for children who restored an earlier edition.
+MORE_QUEST_SLUGS: dict[str, str] = dict(_DATA["moreQuests"])
+EDITION: int = int(_DATA["edition"])
+
+RESTORED_KEY = "GREAT_STORYBOOK_RESTORED"
+
+IN_PROGRESS = "IN_PROGRESS"
+RESTORED_MORE_PAGES = "RESTORED_MORE_PAGES"
+RESTORED = "RESTORED"
 
 NOT_STARTED = "NOT_STARTED"
 
@@ -35,10 +51,16 @@ def pages_for_band(band: str) -> list[dict]:
     return [page for page in PAGES if band in page["bands"]]
 
 
-def _restored(page: dict, *, changes: set[str], found: set[str]) -> bool:
+def _restored(page: dict, *, changes: set[tuple[str, str]], found: set[str]) -> bool:
+    """A page is back when its record exists *at the page's own location*.
+
+    The key alone is not enough (a copy of the key elsewhere does not restore the page); a legacy
+    row with a blank location, which predates the location being recorded, still counts.
+    """
     source = page["source"]
     if source["kind"] == "WORLD_CHANGE":
-        return source["changeKey"] in changes
+        key = source["changeKey"]
+        return (source["locationSlug"], key) in changes or ("", key) in changes
     return source["discoveryId"] in found
 
 
@@ -47,7 +69,7 @@ def progress(child) -> dict:
     band = child.age_band
     state = WorldState.objects.for_child(child).first()
     found = set(state.discovered_objects) if state else set()
-    changes = set(world_change_keys(child))
+    changes = world_change_pairs(child)
     entries = [
         (page, _restored(page, changes=changes, found=found)) for page in pages_for_band(band)
     ]
@@ -57,6 +79,22 @@ def progress(child) -> dict:
     quest = (
         QuestProgress.objects.for_child(child).filter(quest__slug=quest_slug).first()
         if quest_slug
+        else None
+    )
+    complete = bool(required) and restored_required == len(required)
+    # `changes` holds (location, key) pairs; the edition-1 seal counts only where it belongs.
+    sealed = any(key == RESTORED_KEY and not is_misplaced(loc, key) for loc, key in changes)
+    edition1_restored = sealed or complete
+    if complete:
+        state_name = RESTORED
+    elif edition1_restored:
+        state_name = RESTORED_MORE_PAGES
+    else:
+        state_name = IN_PROGRESS
+    more_slug = MORE_QUEST_SLUGS.get(band)
+    more = (
+        QuestProgress.objects.for_child(child).filter(quest__slug=more_slug).first()
+        if more_slug
         else None
     )
     return {
@@ -77,6 +115,14 @@ def progress(child) -> dict:
         "restoredRequired": restored_required,
         "totalRequired": len(required),
         "restoredBonus": sum(1 for page, restored in entries if restored and not page["required"]),
-        "complete": bool(required) and restored_required == len(required),
+        "complete": complete,
+        "state": state_name,
+        "edition": EDITION,
         "quest": {"questId": quest_slug, "status": quest.status if quest else NOT_STARTED},
+        # The follow-up for a child who restored an earlier edition. Null for a band with none.
+        "moreQuest": (
+            {"questId": more_slug, "status": more.status if more else NOT_STARTED}
+            if more_slug
+            else None
+        ),
     }

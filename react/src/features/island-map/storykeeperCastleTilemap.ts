@@ -51,6 +51,8 @@ export const LAST_BOOKSHELF_TILE_RECT = { col: 23, row: 15, cols: 3, rows: 3 };
  * costume room sprite (col 6, row 16), the story hall, and the last
  * bookshelf's own zone at col 23. Unmarked.
  */
+/** The Painted Words walk-up spot (SC-R04-05), beside the easel. Shared interaction, so the 2D fallback route offers it too. */
+export const PAINTED_WALL_TILE_RECT = { col: 17, row: 2, cols: 2, rows: 2 };
 export const TAPESTRY_STAIR_TILE_RECT = { col: 10, row: 16, cols: 3, rows: 3 };
 
 /** Tiles the avatar cannot walk onto. Nothing indoors collides. */

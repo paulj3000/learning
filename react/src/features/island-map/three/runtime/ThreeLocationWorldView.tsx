@@ -1,6 +1,7 @@
 import { checkpointReachedText, recoveredText } from '../platforms/platformCopy';
 import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 import { worldSignal } from '../platforms/platformSystem';
+import { manifestForBand } from './manifestForBand';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../../IslandWorldView.module.css';
@@ -8,7 +9,11 @@ import { ThreeGameContainer } from '../ThreeGameContainer';
 import { WorldStage } from '../WorldStage';
 import { WorldHud, type WorldHudBackpackItem } from '../WorldHud';
 import { WorldEngineEventBus } from '../worldEngineEvents';
-import type { WorldInteraction, WorldInteractionContext } from '../../worldObjects';
+import {
+  areRequirementsMet,
+  type WorldInteraction,
+  type WorldInteractionContext,
+} from '../../worldObjects';
 import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../discovery/api';
 import { listAllWorldChanges, recordWorldChangeOnce } from '../../../adventures/api';
 import { getInventory } from '../../../rewards/api';
@@ -473,6 +478,28 @@ export function ThreeLocationWorldView({
     );
   }
 
+  /*
+    SC-R10-01: a secret place stays closed until its story is finished. The
+    snapshot's context fails closed (a failed read has no keys), so this
+    shows the calm message rather than the scene whenever progress is unknown.
+  */
+  if (
+    manifest.entryRequirements &&
+    !areRequirementsMet(manifest.entryRequirements, snapshot.context)
+  ) {
+    return (
+      <div className={styles.wrapper}>
+        <p className={styles.status}>
+          {manifest.copy.locked ??
+            'This part of the island has not been discovered yet. Maybe a new story will lead you here.'}
+        </p>
+        <Link className={styles.altNavLink} to={`/island/${childId}`}>
+          Back to the map
+        </Link>
+      </div>
+    );
+  }
+
   const startCheckpointId = snapshot.startCheckpointId;
   const openBinding = claimed
     ? manifest.extensions.find((binding) => binding.extensionId === claimed.extensionId)
@@ -523,7 +550,8 @@ export function ThreeLocationWorldView({
             createLocationEngine(
               parent,
               bus,
-              manifest,
+              // SC-JMP: the child's own band's platforming (flat markers for Sprouts), else the manifest as authored.
+              manifestForBand(manifest, ageBand),
               {
                 startCheckpointId,
                 worldState: snapshot.context,

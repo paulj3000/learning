@@ -7,6 +7,7 @@ import {
 import { FACE_NORTH, mount, named, standAt, walk } from '../testing/engineHarness';
 import { HEARTH_SPOT, KEEPER_QUILL_SPOT } from '../../storykeeperCastleRegion';
 import { STORYKEEPER_CASTLE_MANIFEST as MANIFEST } from './storykeeperCastle';
+import { createEngineBridgeExtension } from '../../../../game-engine/bridge/engineBridge';
 
 /**
  * Engine Phase 9: the real runtime and the real `castle-tale` scene half
@@ -76,13 +77,21 @@ describe('Storykeeper Castle on the generic runtime: rooms', () => {
     expect(harness.camera().position.x).toBeGreaterThan(-8);
   });
 
-  it('fires the rooms and the checkpoints the child crosses', () => {
-    const harness = castle({ startCheckpointId: 'storykeeper-castle:story-hall' });
+  it('fires the rooms the child crosses, and reaches checkpoints through the engine bridge (GE-072)', () => {
+    const harness = mount({
+      manifest: MANIFEST,
+      extensions: [castleTaleExtension, createEngineBridgeExtension()],
+      startCheckpointId: 'storykeeper-castle:story-hall',
+    });
     harness.setDrive(standAt(-6, 0, FACE_NORTH));
     harness.runFrames(2);
     const zones = named(harness.events, 'PlayerEnteredZone');
-    expect(zones).toContainEqual({ zoneId: 'storykeeper-castle:story-hall' });
     expect(zones).toContainEqual({ zoneId: 'castle-story-hall' });
+    // The bridge alone reaches a saved checkpoint: no live zone fires for it, so nothing doubles.
+    expect(zones).not.toContainEqual({ zoneId: 'storykeeper-castle:story-hall' });
+    expect(named(harness.events, 'CourseCheckpointReached')).toEqual([
+      expect.objectContaining({ checkpointId: 'storykeeper-castle:story-hall' }),
+    ]);
   });
 
   it('lights every room, the doorway and the hearth', () => {

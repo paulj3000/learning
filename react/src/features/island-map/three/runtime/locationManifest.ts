@@ -248,6 +248,14 @@ export type ScenerySpec = SceneryBase &
         area: RectZone;
         minY: number;
         maxY: number;
+        /**
+         * Opt in only for decor nothing looks up by id, moves, recolours or
+         * hides after the scene is built. The engine then merges it with its
+         * neighbours of the same colour into one shared-material mesh (its
+         * root group stays, empty). Leave it off for anything an extension
+         * reaches through `sceneryRoot`.
+         */
+        static?: boolean;
       } /** One instanced draw call of a kit piece at many positions. */
     | {
         kind: 'CLUSTER';
@@ -657,6 +665,8 @@ export interface LocationCopy {
    * convention: a path relative to `/island/:childId/`, `''` for the hub.
    */
   altNav: { label: string; to: string };
+  /** Shown instead of the scene while `entryRequirements` do not hold. Readable aloud, never a refusal. */
+  locked?: string;
 }
 
 export interface ThreeLocationManifest {
@@ -676,6 +686,12 @@ export interface ThreeLocationManifest {
   version: number;
 
   bounds: BoundsSpec;
+  /**
+   * Ceiling height in metres for an indoor region, default `WALL_HEIGHT` (3). It is the default
+   * `maxY` of boundary walls, colliders and zones that author none. Kit wall and ceiling pieces
+   * are authored 3 m tall, so a region raising it also owns scaling or replacing them.
+   */
+  wallHeight?: number;
   environment: EnvironmentSpec;
   checkpoints: CheckpointSpec;
   colliders: readonly ColliderSpec[];
@@ -698,6 +714,15 @@ export interface ThreeLocationManifest {
   ambient: readonly AmbientSpec[];
   /** Reuses the existing interaction vocabulary verbatim; see `worldObjects.ts`. */
   interactions: readonly WorldInteraction[];
+  /**
+   * A secret place's door (SC-R10-01). While these do not hold, the view
+   * shows `copy.locked` (or a calm default) and never builds the engine.
+   * They are read from the same world state as everything else, so a failed
+   * read leaves them unmet and the place closed (fail closed, like the
+   * per-region Phaser views' `isLocationUnlocked`). Absent means open to
+   * every child, which is every other region's behaviour today.
+   */
+  entryRequirements?: readonly WorldRequirement[];
   /**
    * Interactions kept out of "Things to do here" - the one case being a
    * secret. The castle's swaying tapestry is an id and a zone and nothing
@@ -741,6 +766,13 @@ export interface ThreeLocationManifest {
    * (`platforms/platformSpec.ts`). Absent means none: the location plays exactly as before.
    */
   platforming?: PlatformingSpec;
+  /**
+   * SC-JMP: a different platforming for one age band, replacing `platforming` whole when the
+   * child is in that band (`manifestForBand`). The castle gives Sprouts flat floor markers with
+   * no colliders where Pathfinders and Explorers get solid pads. The same zones answer either
+   * way, so the band changes how a step looks, never what it asks.
+   */
+  platformingByBand?: Partial<Record<AgeBandValue, PlatformingSpec>>;
   /**
    * LAI-JMP-01a: how the player is seen here: camera perspective and tuning,
    * and the avatar. Absent means the defaults (third-person, switchable, the

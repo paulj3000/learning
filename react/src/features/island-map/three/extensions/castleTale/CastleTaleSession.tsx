@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../../../IslandWorldView.module.css';
 import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
+import { adventureCompletedClaim, castleClaimContext, emitCastleClaim } from './castleGameplayClaims';
+import { useCastleAnswerCues } from './useCastleAnswerCues';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import type { StepAnswer } from '../../../../adventures/engine/validators';
 import type { AgeBandValue } from '../../../../child-profile/constants';
@@ -13,6 +15,7 @@ import {
 import { BINDING_LECTERN_ENTITY_ID } from '../../castleBindingLectern';
 import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { CastleTaleSceneApi } from './castleTaleScene';
+import { usePadAnswers } from './usePadAnswers';
 
 /**
  * One in-world play-through of "The Storykeeper's Tale" (engine Phase 9,
@@ -131,9 +134,11 @@ export function CastleTaleSession({
   useEffect(() => {
     if (session?.status === 'COMPLETED' && !hasFiredOnComplete.current) {
       hasFiredOnComplete.current = true;
+      // GE-072: the server completed the session; restate it as a claim for scoring to confirm.
+      emitCastleClaim(castleClaimContext(definition.slug, session.id), adventureCompletedClaim());
       onComplete();
     }
-  }, [session, onComplete]);
+  }, [session, onComplete, definition.slug]);
 
   /** The story so far, as option ids: beat 7's picture is keyed by the pair. */
   const [choices, setChoices] = useState<{ hero: string | null; setting: string | null }>({
@@ -142,6 +147,11 @@ export function CastleTaleSession({
   });
 
   const stepId = currentStep?.id ?? null;
+  // SC-R06-01: right, try-again and hint sounds, from what the server decided.
+  const cuedSubmit = useCastleAnswerCues(submitAnswer, stepId, hintLevel, {
+    adventureSlug: definition.slug,
+    sessionId: session?.id ?? null,
+  });
   /**
    * The one submit both routes use. Reflecting the choice here rather than at
    * each call site is what makes the card light the portrait too: a child who
@@ -167,9 +177,9 @@ export function CastleTaleSession({
       if (answer.kind === 'reflection' && stepId === STORY_REFLECTION_STEP_ID) {
         scene.current?.showEaselPainting(choices.hero, choices.setting);
       }
-      return submitAnswer(answer);
+      return cuedSubmit(answer);
     },
-    [submitAnswer, stepId, onChoice, scene, choices],
+    [cuedSubmit, stepId, onChoice, scene, choices],
   );
 
   const submitRef = useRef(submitAnswerAndReflect);
@@ -252,6 +262,18 @@ export function CastleTaleSession({
       });
     });
   }, [bus, orderingStepId, definition, activePlates, scene]);
+
+  /*
+    SC-JMP: the Story Hall's story stones are a second way to seat the same three beats (or the
+    Sprouts' two). They go through the very same `submitAnswerAndReflect`; the engine grades.
+  */
+  usePadAnswers({
+    bus,
+    definition,
+    stepId,
+    submit: submitAnswerAndReflect,
+    onWrongOrder: () => scene.current?.playQuillClip('ReactConcerned'),
+  });
 
   useEffect(() => {
     if (!isSpatialChoiceStep(definition, stepId)) return;

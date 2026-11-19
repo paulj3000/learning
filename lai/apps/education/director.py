@@ -31,7 +31,7 @@ from django.utils import timezone
 from apps.ai.tutor_content import SKILLS, get_skill
 from apps.catalog.models import Adventure, World
 from apps.game_sessions.models import AdventureSession, SessionKind, SessionStatus
-from apps.progression.models import WorldChange
+from apps.progression.services import world_change_keys
 
 from . import mastery
 from .models import SkillProgress, SkillStatus
@@ -266,7 +266,7 @@ def next_learning_activity(child, *, now: datetime | None = None) -> dict:
     the `NextLearningActivityResult` shape the Amplify query returned.
     """
     now_iso = (now or timezone.now()).isoformat()
-    change_keys = set(WorldChange.objects.for_child(child).values_list("change_key", flat=True))
+    change_keys = world_change_keys(child)
     sessions = list(
         AdventureSession.objects.for_child(child)
         .filter(kind=SessionKind.ADVENTURE, adventure__isnull=False)

@@ -328,3 +328,19 @@ or device can confirm; it is never marked done on this branch.
 6. **Ranks**: keep the derived titles or drop them.
 7. **Retirement**: Phaser castle and Writing Room (after SC-R10 parity and the
    Sprouts gate).
+
+## 8. Deferred content backlog (Final F)
+
+Proposals the owner raised during SC-R08-02 and SC-R12-01. **None is built.** Each needs owner
+curriculum approval before any task is opened, and each must reuse the canonical pieces (Django
+content authority, `AdventureTemplate` steps graded in Python, the existing reward rules and
+world-change keys). Also listed as owner decision 7 in `storykeeper_castle_acceptance.md` section
+4.3.
+
+| Proposal | Status | Learning objective idea | Bands | Dependencies |
+| --- | --- | --- | --- | --- |
+| Graded puzzle at the Secret Chamber's sealed round door | Deferred: needs owner curriculum approval | Pattern or number-sequence reasoning (for example, match the crystal colours to a rule, or count the door's carved stars). Pick one skill from the existing taxonomy; do not invent a new one. | Pathfinders and Explorers first. Sprouts only if it is a one-step, picture-only choice with no grading pressure. | Owner choice of skill and difficulty; a Django adventure template or step set (ADR-047 revisioned content); a registered world-change key under the integrity registry (`docs/security/WORLD_CHANGE_INTEGRITY.md`); a Chamber reward rule; keeps the chamber optional, so no progression gate. Draw budget headroom is no longer a blocker (Final F measures it). |
+| A second hidden Storybook page (beside `page-tapestry`) | Deferred: needs owner curriculum approval | A reflective or vocabulary page found by observation (observation, vocabulary). Same shape as the tapestry: a `DISCOVER` interaction, a new discovery id, no question. | All bands, as the tapestry page is; keep each band's page-set count rule (section 4.1) in mind. | Owner approval of the page text and any new discovery id; a page as a pure function of an existing or new recorded world change (section 4.1); a hidden interaction id (`hiddenInteractionIds`); the Great Storybook page-count contracts (`castleRebootContracts.test.ts`) updated deliberately; no page-specific store. |
+
+Not in this backlog: a chamber-find keepsake. See `docs/regions/storykeeper_castle_acceptance.md`
+section 4.3 decision 7 for its status.

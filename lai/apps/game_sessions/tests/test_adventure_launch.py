@@ -344,11 +344,43 @@ def test_a_secret_place_is_hidden_until_its_world_change_exists(a):
         home = next(i for i in islands if i["islandId"] == "learning-adventure-island")
         return {p["placeId"] for p in home["places"]}
 
-    assert "castle-writing-room" not in home_places()
+    assert "fossil-ridge-camp" not in home_places()
+    # A protected key recorded away from its registered place is a forgery and opens nothing
+    # (docs/security/WORLD_CHANGE_INTEGRITY.md).
     WorldChange.objects.create(
         child=child,
         location_slug="storykeeper-castle",
         change_type="UNLOCK",
+        change_key="DINOSAUR_EXPEDITION_COMPLETE",
+        created_at=timezone.now(),
+    )
+    assert "fossil-ridge-camp" not in home_places()
+    WorldChange.objects.create(
+        child=child,
+        location_slug="fossil-ridge",
+        change_type="STORY_COMPLETED",
+        change_key="DINOSAUR_EXPEDITION_COMPLETE",
+        created_at=timezone.now(),
+    )
+    assert "fossil-ridge-camp" in home_places()
+
+
+def test_the_writing_room_is_open_to_every_child_and_needs_no_arithmetic(a):
+    """SC-final-B: the Secret Door arc (chapter 1 has a number-input step) no longer opens it.
+    A child with no progress sees it, and so does one who finished the arc; the server and the
+    client's `locations.ts` agree because the export carries no `unlockRequirement` for it."""
+    client, child = a
+
+    def home_places():
+        islands = client.get(f"{base(child)}islands/").json()["islands"]
+        home = next(i for i in islands if i["islandId"] == "learning-adventure-island")
+        return {p["placeId"] for p in home["places"]}
+
+    assert "castle-writing-room" in home_places()
+    WorldChange.objects.create(
+        child=child,
+        location_slug="castle-secret-passage",
+        change_type="STORY_COMPLETED",
         change_key="THE_CASTLES_SECRET_DOOR_COMPLETE",
         created_at=timezone.now(),
     )

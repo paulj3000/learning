@@ -1,7 +1,7 @@
 # Platforms, checkpoints and safe recovery (LAI-JMP-02, LAI-JMP-04)
 
 Status: development complete on `feature/interactive-platforms` (2026-11-14), unit- and
-engine-tested; owner QA pending. Decision: ADR-059. Builds on jumping (ADR-055), the third-person
+engine-tested; owner QA pending. Decision: ADR-059. Builds on jumping (ADR-063), the third-person
 camera and avatar (ADR-056, ADR-057), running and sprinting (ADR-058), the shared derived colliders
 and Asset Manager collision profiles.
 
@@ -170,6 +170,14 @@ Forgiving widths (0.8 m minimum), predictable speeds and pauses, destination rin
 flags, blink warnings before vanishing (a steady dim under reduced motion), reduced-motion slow-down,
 non-punitive retries, adjustable speeds per Area through tuning, and running/sprinting settings
 from ADR-058. Adventures must give an alternative route for required progress (Pirate's Leap does).
+
+## Per-age-band platforming (SC-JMP)
+
+`manifest.platformingByBand` replaces `platforming` whole for a child in that band
+(`runtime/manifestForBand.ts`, applied when the engine is created, validated like the default).
+Storykeeper Castle uses it to give Sprouts flat pressure-plate markers with no colliders where
+Pathfinders and Explorers get solid pads. The castle's pads, rules and per-adventure design:
+`docs/regions/storykeeper_castle_jumping_inventory.md`.
 
 ## Testing
 

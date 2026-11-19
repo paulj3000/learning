@@ -34,6 +34,7 @@ import { QUILL_CLIP_STATES } from './useCastleNpcs';
  * host, the dialogue controller and the NPC runtime are the real ones.
  */
 
+import { currentClaimsBinding } from '../../runtime/gameplayClaimSink';
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useNavigate: () => vi.fn(),
@@ -292,6 +293,11 @@ function Visit(props: { sceneApi: CastleTaleSceneApi }) {
   );
 }
 
+// GE-D9 pattern: these tests mount the castle companion with the shared NPC host. On a loaded
+// machine the first render alone can pass 5 s, and a timed-out test leaves the host mounted, so the
+// following tests fail in a cascade. A 20 s budget per test; no assertion changes.
+vi.setConfig({ testTimeout: 20_000 });
+
 const settle = () =>
   act(async () => {
     for (let i = 0; i < 8; i += 1) await new Promise((r) => setTimeout(r, 0));
@@ -339,6 +345,20 @@ describe('the castle mounts the shared NPC host for its Place', () => {
     expect(triggers()).toContain('on_interact');
     expect(screen.getByText(GREETING)).toBeInTheDocument();
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
+  it('binds the visit’s claim context to the castle and releases it on leaving (GE-072)', async () => {
+    const { scene } = fakeScene();
+    const visit = render(<Visit sceneApi={scene} />);
+    await settle();
+    expect(currentClaimsBinding()?.context).toEqual({
+      realmId: 'storykeeper-castle',
+      adventureId: 'storykeeper-castle',
+      areaId: 'storykeeper-castle',
+      sessionRef: null,
+    });
+    visit.unmount();
+    expect(currentClaimsBinding()).toBeNull();
   });
 
   it('accepts the offered quest through the castle quest flow, once', async () => {

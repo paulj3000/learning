@@ -31,13 +31,13 @@ means a target tablet or Chromebook. "Playtest" means a child, under
 | A-11 | Keyboard: WASD/arrows, E/Enter, Tab through the HUD | `pointerControls` tests; `WorldHud`/`WorldActionPanel` tests | Full visit without a mouse | |
 | A-12 | Touch: two-zone drag; the "Things to do" list reaches every objective | `ThreeLocationWorldView` tests | iPad Safari full visit | Tablet |
 | A-13 | Model and texture budgets (art direction section 7) | Static budget tests (SC-R02-08) | | |
-| A-14 | Tablet performance: 30 fps in the Great Library at MEDIUM; under 8 s to first walkable frame (provisional) | none | | **Device (SC-R11-01)** |
+| A-14 | Tablet performance: 30 fps in the Great Library at MEDIUM; under 8 s to first walkable frame (provisional; not measured, not results) | Diagnostics exist (`runtime/diagnostics/`, `?lai-diag=1`) and are unit-tested; they measure nothing by themselves | Profile a release build on the target tablet (PILOT_READINESS 5b); results blank until measured | **Device (SC-R11-01)** |
 | A-15 | Save / resume: an open session resumes in the room with its choices | `CastleTaleCompanion` resume path (to be unit-covered) | Leave mid-tale, return next day | |
 | A-16 | Storybook pages derived correctly per band (SC-R04) | Pure-function tests | Page appears after the source world change | |
 | A-17 | Artifacts displayed, never granted, by the castle (SC-R07) | Display-requirement tests | Earned artifact on a pedestal | |
 | A-18 | Sound settings respected (SC-R06) | Cue tests with a fake sink | Mute persists | |
 | A-19 | AI fallbacks: every AI line has an authored fallback; no live Bedrock in tests (SC-R09) | Fake-model tests | Kill switch on: castle still complete | |
-| A-20 | Sprouts can complete their mission on the 3D route | none | | **Playtest (SC-R11-02)** |
+| A-20 | Sprouts can complete their mission on the 3D route | `castleSproutNoAim.test.ts` (every picture-story answer is a place to stand or a pad; reticle hidden); `castleExitsNoArithmetic.test.ts` | One SPROUT per session with an adult observer (PILOT_READINESS 5b); results blank until observed | **Playtest (SC-R11-02)** |
 | A-21 | Phaser castle retired only after parity and the Sprouts gate (SC-R10) | Parity tests | Route switch verified | Playtest |
 
 The SC-11 gate, carried as SC-R11 (A-14 and A-20), **stays open** until the
@@ -91,3 +91,71 @@ Open only, never marked passed here:
 - That textured imports decode (jsdom stubs image decoding).
 - Frame time, memory, thermal behaviour and load time on a tablet.
 - Touch ergonomics, and whether a three-year-old can complete a mission.
+
+## 4. Owner acceptance checklist for SC-R04-05 to SC-R11 (SC-R12-01, open)
+
+Branch `feature/storykeeper-castle-completion`. Every item below has unit-test evidence in
+`tasks/TASK_TRACKER.md` and **none has been run in a browser, on a device or with a child**. Tick
+an item only after you have played it yourself. Run the local stack with fake providers (no live
+AWS) unless a line says otherwise.
+
+### 4.1 Play checks (browser, one child profile per band)
+
+| # | Check | Band | How | Result |
+| --- | --- | --- | --- | --- |
+| O-1 | The Painted Words plays in the Studio room: rhyme gallery, beginning-sound hunt, syllable workshop, restoration; page `page-painted-words` appears | Pathfinder | Play once, then replay and see the second word set (`the-painted-words-again`) | |
+| O-2 | Wrong answers loop calmly; no timers, no shame wording | Pathfinder | Answer wrong on purpose at each station | |
+| O-3 | Storybook page states (undiscovered, discovered, in progress, restored), celebration, offline and retry | All | Watch the guide's Storybook section before and after O-1; stop Django and reopen | |
+| O-4 | A child who finished the book before `page-painted-words` keeps the seal and sees "more pages", not "missing" | Pathfinder | Seed an edition-1 completion, then open the castle | |
+| O-5 | A forged world-change POST for a page key is refused | Any | `POST world-changes/` with `STUDIO_PAGE_MENDED` and no session (curl, parent token) | |
+| O-6 | Jumping: each primary adventure once by jumping and once without; Sprouts see flat markers only; every pad answer is on the HUD card | All | Tale, Picture Story, Painted Words A and B, Secret Door chapters 1 and 2, Storybook pathway, Observatory stones | |
+| O-7 | Keeper Quill lines reflect progress; Ember visits; Professor Orion in the Observatory (confirm the spot moved off the star stone) | All | Walk up before and after restoring pages | |
+| O-8 | Room ambience crossfades; cues; ducking under narration; mute and volume persist; Sprouts get no retry sound | All | Walk through every room with sound on, then muted | |
+| O-9 | Narration through Django speech (fake Polly locally; live Polly only with explicit approval) and captions always on screen | All | Turn speech off mid-line: the caption stays | |
+| O-10 | Keepsakes appear on Trophy Room pedestals once earned (brush, lens, key, existing three); bare pedestal when not | Explorer, Pathfinder | Finish Painted Words and the Secret Door arc | |
+| O-11 | Hall of Heroes text list in the guide | All | Before and after completing stories | |
+| O-12 | Ranks (off by default, `CASTLE_RANKS.enabled`): decide keep or drop, four titles or five, and the "Castle Pathfinder" name | Owner decision | Turn on locally to look | |
+| O-13 | Ambient return-visit line in the guide; it changes across visits, never says "come back tomorrow", never counts down | All | Open the castle several times | |
+| O-14 | Castle Director with AI off (parent toggle) and with the kill switch: the castle still shows the authored default | All | Toggle each | |
+| O-19 | Secret Chamber finds: a brighter star in the north-wall mural and a mouse-sized door low on the east wall, each found by walking up, never listed, only after the tapestry nook; chamber return-visit lines mention them afterwards | All | Find the nook, enter the chamber, then revisit | |
+| O-15 | Three.js Writing Room at `explore/castle-writing-room`: open to every child with no prior story (the old Secret Door gate and its arithmetic are gone), same two messages (the desk now reads "This desk is yours to use") and exit as Phaser; two optional low steps; none for Sprouts; Keeper Quill stands near the desk | All | "Try the 3D room (preview)" and "Write a story" on the location page (also listed on the island map for every child) | |
+| O-15a | Writing Room write-your-story: tap the open book on the desk (or "Write a story" on the location page). Sprouts tap a picture, a character and a word; Pathfinders build 2 or 3 sentences from word tiles; Explorers pick a starter and type a short paragraph. Story is saved once, shows in the adventure log and the parent's Story Keepsakes, and Keeper Quill's "Hear it" reads each prompt | One child per band | Walk to the desk, then also use the location page | |
+| O-15b | Writing Room safety: an Explorer paragraph with a phone number, an email, a link or a rude word is refused with a kind line, nothing is saved, and the text is not repeated | Explorer | Type each | |
+| O-15c | A child who already finished the Secret Door arc keeps the library bookshelf door, their key and keepsake, exactly as before | Explorer | Existing profile | |
+| O-15d | Sprouts can walk in, use large targets, flat markers (no jump steps), and finish the tap story by themselves | Sprout | Playtest | |
+| O-15e | Keeper Quill's afternoon line ("Afternoons are for writing...") is heard once, in an afternoon, after he has met the child; his other lines are unchanged | Any | Talk to him twice in an afternoon | |
+| O-16 | Harbor exit is always reachable and never behind arithmetic, in every room | All | Try to leave from each room | |
+| O-17 | Keyboard-only visit (Tab order exit, prompt, backpack; no focus trap) and an iPad Safari touch visit | All | | |
+| O-18 | Reduced motion at the OS level (read at mount; reload after changing it) | All | | |
+
+### 4.2 Device and playtest gates (SC-R11)
+
+| # | Check | How | Result |
+| --- | --- | --- | --- |
+| D-1 | Real-tablet profiling of a release build with `?lai-diag=1` | `docs/PILOT_READINESS.md` 5b; fill the blank tables | |
+| D-2 | Sprouts playtest, one SPROUT per session, adult observer, `quills-picture-story` | `docs/PILOT_READINESS.md` 5b | |
+
+### 4.3 Owner decisions this branch carries
+
+1. ADR-065 (Castle Director), Proposed: accept, amend or reject. Promote the event catalog to an
+   ADR-047 revisioned admin model, or keep the JSON mirror.
+2. Where Quill flavour (SC-R09-02, service only) surfaces, if at all.
+3. RESOLVED (SC-final-B, owner approved): the Writing Room has a write-your-story action, Keeper Quill
+   is placed there, Sprouts can enter, and `entryRequirements` stays in the shared manifest schema
+   (documented in `docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md`).
+4. Ranks (O-12).
+5. `assetLoader.trim`, live reduced-motion handling, kit-piece scaling before any 4 m room.
+6. RESOLVED (SC-final-B): the Writing Room no longer waits on the Explorer secret-door arc (chapter 1
+   has a `number-input` step); it is open to every child, and earned progress keeps its own door.
+7. Draw-call estimate is now 300 of 300 (SC-R08-02): raise the budget or merge decor before any more
+   castle scenery, including optional chamber platforms. Chamber proposals not built: a graded puzzle
+   at the sealed round door and a second hidden Storybook page (deferred, needs owner curriculum
+   approval; see the reboot roadmap section 8). Final F built one optional reward: the mouse door find
+   grants `tiny-brass-knob` once through the existing DISCOVERY reward rule (no new pedestal; the star
+   find stays quiet).
+8. SC-R07 deviations: the six gold plates removed for the draw budget; Hall of Heroes 3D plates
+   deferred (scenery 159 of 160, draws then 298 of 300, now 300): raise the budget or merge decor.
+9. Earlier Secret Door finishers get no `secret-door-key` without an approved backfill.
+10. Retirement (SC-R10-03): Phaser castle and Writing Room stay until parity is visually confirmed
+   and LAI-2303 (Sprouts gate) allows it.
+11. Formatting: `prettier --write` and Ruff on the touched files at merge readiness.

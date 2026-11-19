@@ -13,6 +13,8 @@ import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import speechStyles from './CastleSpeech.module.css';
 import { useCastleSpeech } from './useCastleSpeech';
+import { useCastleAudio } from './useCastleAudio';
+import { playCastleCue } from './castleSoundCues';
 import { CastleTaleSession, type CastleChoiceState } from './CastleTaleSession';
 import { SECRET_PASSAGE_DISCOVERY_ID } from '../../castleLayout';
 import { toSceneState } from '../../../../great-storybook/scene';
@@ -20,9 +22,16 @@ import { useGreatStorybook } from '../../../../great-storybook/useGreatStorybook
 import { CastleGuide } from './CastleGuide';
 import { CastleSecretDoorStory } from './CastleSecretDoorStory';
 import { isCastleTaleScene, type CastleTaleSceneApi } from './castleTaleScene';
-import { isSecretDoorStoryForBand, taleAdventureForBand } from './castleTaleClaims';
+import {
+  isSecretDoorStoryForBand,
+  paintedWordsAdventureFor,
+  taleAdventureForBand,
+} from './castleTaleClaims';
+import { CastlePaintedWordsSession } from './CastlePaintedWordsSession';
 import { tryParseCastleTaleConfig } from './castleTaleConfig';
 import { useCastleNpcs, type CastleNpcHandover } from './useCastleNpcs';
+import { castleClaimContext } from './castleGameplayClaims';
+import { setLocationClaimsBinding } from '../../runtime/gameplayClaimSink';
 
 /**
  * Storykeeper Castle's React half: the companion the generic view mounts for
@@ -59,6 +68,8 @@ const CHOOSE_HERO_STEP_ID = 'choose-hero';
 const CHOOSE_SETTING_STEP_ID = 'choose-setting';
 const STORY_REFLECTION_STEP_ID = 'story-reflection';
 const TALK_TO_QUILL_INTERACTION_ID = 'talk-to-keeper-quill';
+/** The manifest Orion (`PROFESSOR_ORION_ID`): his entity id is also his NPC id. */
+const ORION_HANDOVER: CastleNpcHandover = { entityId: 'professor-orion', npcId: 'professor-orion' };
 
 const NO_CHOICES: CastleChoiceState = {
   heroEntityId: null,
@@ -114,7 +125,34 @@ export function CastleTaleCompanion({
   sceneRef.current = scene;
 
   // Spoken dialogue (SM-P8-09): the castle opts in while it is mounted. See `useCastleSpeech`.
-  const { speech, speaker } = useCastleSpeech(childId, parsed?.quillEntityId, sceneRef);
+  const { speech, speaker, speakWord, speakPage } = useCastleSpeech(
+    childId,
+    parsed?.quillEntityId,
+    sceneRef,
+  );
+  // Sound (SC-R06-01, SC-R06-02): room beds, music, and the moments raised below.
+  /*
+    GE-072: this visit's claim context (the castle, exploring, no session). The shared host's own
+    claims (GE-067: discoveries found, NPC talks) and the engine bridge's checkpoint claims are
+    bound to it; without it they would be dropped. Adventure answers and completions carry their
+    own session context (`castleGameplayClaims.ts`). Released on leaving.
+  */
+  useEffect(() => setLocationClaimsBinding(castleClaimContext(null, null)), []);
+
+  const castleAudio = useCastleAudio({
+    childId,
+    ageBand,
+    bus,
+    scene,
+    quillEntityId: parsed?.quillEntityId,
+  });
+  const handleGuideOpenChange = useCallback(
+    (open: boolean) => {
+      playCastleCue(open ? 'bookOpen' : 'bookClose');
+      castleAudio.setStoryOpen(open);
+    },
+    [castleAudio],
+  );
   // The Great Storybook (SC-R04-02): derived from the records the castle already holds. Nothing
   // here restores or grants a page; it only shows the book and the moment a page comes back.
   const discoveryIds = useMemo(() => worldState.discoveryIds ?? [], [worldState.discoveryIds]);
@@ -124,13 +162,18 @@ export function CastleTaleCompanion({
     worldChangeKeys: worldState.worldChangeKeys,
     discoveryIds,
     onPageRestored: useCallback(
-      (page: { title: string }) => showToast(`A page flew back into the book: ${page.title}.`),
-      [showToast],
+      (page: { id: string; title: string; restoredText: string }) => {
+        showToast(`A page flew back into the book: ${page.title}.`);
+        // SC-R06: the page's sound and its words read aloud; the toast and the book say it too.
+        playCastleCue('pageRestored');
+        void speakPage(page);
+      },
+      [showToast, speakPage],
     ),
-    onBookRestored: useCallback(
-      () => showToast('The Great Storybook is whole again!'),
-      [showToast],
-    ),
+    onBookRestored: useCallback(() => {
+      showToast('The Great Storybook is whole again!');
+      playCastleCue('questComplete');
+    }, [showToast]),
   });
 
   // The 3D book is drawn from the same derived progress as the card: one source, two views.
@@ -141,10 +184,18 @@ export function CastleTaleCompanion({
 
   const [taleActive, setTaleActive] = useState(false);
   const [storyActive, setStoryActive] = useState(false);
+  const storyActiveRef = useRef(false);
   const [restoredChoices, setRestoredChoices] = useState<CastleChoiceState>(NO_CHOICES);
   /** Whether the tale and the story have finished here (their cards then stop holding Quill). */
   const [taleDone, setTaleDone] = useState(false);
   const [storyDone, setStoryDone] = useState(false);
+  /** SC-JMP: the Painted Words, hosted in the Studio so its pads can answer. `run` remounts a replay. */
+  const [paintedWords, setPaintedWords] = useState<{
+    definition: AdventureDefinition;
+    run: number;
+  } | null>(null);
+  const [paintedWordsDone, setPaintedWordsDone] = useState(false);
+  const paintedWordsDoneRef = useRef(false);
 
   /** Which adventure this child's band gets here (SC-10), asked rather than assumed. */
   const taleForBand = useMemo(() => taleAdventureForBand(ageBand), [ageBand]);
@@ -245,16 +296,40 @@ export function CastleTaleCompanion({
   useEffect(() => {
     if (!parsed || !claimedInteraction) return;
     if (claimedInteraction.id === parsed.taleInteractionId && taleForBand) {
-      if (!taleActiveRef.current) taleStartedRef.current?.(false);
+      if (!taleActiveRef.current) {
+        taleStartedRef.current?.(false);
+        playCastleCue('questStart');
+      }
       taleActiveRef.current = true;
       setTaleActive(true);
       onCloseInteraction();
     }
     if (claimedInteraction.id === parsed.storyInteractionId && storyForBand) {
+      if (!storyActiveRef.current) playCastleCue('questStart');
+      storyActiveRef.current = true;
       setStoryActive(true);
       onCloseInteraction();
     }
-  }, [parsed, claimedInteraction, taleForBand, storyForBand, onCloseInteraction]);
+    const painted = paintedWordsAdventureFor(claimedInteraction, ageBand);
+    if (painted) {
+      // A claim seen again while this same mission is still open (a re-render) changes nothing.
+      setPaintedWords((previous) => {
+        if (previous && previous.definition.slug === painted.slug && !paintedWordsDoneRef.current) {
+          return previous;
+        }
+        paintedWordsDoneRef.current = false;
+        setPaintedWordsDone(false);
+        return { definition: painted, run: (previous?.run ?? 0) + 1 };
+      });
+      onCloseInteraction();
+    }
+  }, [parsed, claimedInteraction, taleForBand, storyForBand, ageBand, onCloseInteraction]);
+
+  // A new Painted Words run is a quest starting (SC-R06-01); a re-render of the same run is not.
+  const paintedWordsRun = paintedWords?.run ?? 0;
+  useEffect(() => {
+    if (paintedWordsRun > 0) playCastleCue('questStart');
+  }, [paintedWordsRun]);
 
   /*
     Beat 2's gestures: `Talk` while the conversation panel is open, then
@@ -304,8 +379,12 @@ export function CastleTaleCompanion({
   // --- Keeper Quill on the NPC Manager (LAI-NPC-039) ---------------------------------------
   const quillEntityId = parsed?.quillEntityId;
   const handovers = useMemo<readonly CastleNpcHandover[]>(
-    // The manifest Quill's entity id is also his NPC id (`KEEPER_QUILL_ID`).
-    () => (quillEntityId ? [{ entityId: quillEntityId, npcId: quillEntityId }] : []),
+    // The manifest Quill's entity id is also his NPC id (`KEEPER_QUILL_ID`). Professor Orion
+    // (SC-R05-03) is handed over the same way whenever the NPC Manager serves him.
+    () => [
+      ...(quillEntityId ? [{ entityId: quillEntityId, npcId: quillEntityId }] : []),
+      ORION_HANDOVER,
+    ],
     [quillEntityId],
   );
   const openElsewhere =
@@ -319,7 +398,11 @@ export function CastleTaleCompanion({
     handovers,
     claimedInteraction,
     onCloseInteraction,
-    suspended: (taleActive && !taleDone) || (storyActive && !storyDone) || openElsewhere,
+    suspended:
+      (taleActive && !taleDone) ||
+      (storyActive && !storyDone) ||
+      (paintedWords !== null && !paintedWordsDone) ||
+      openElsewhere,
     onStage: Boolean(speechSlot),
   });
   const { notifyTaleStarted, notifyTaleCompleted } = npcs;
@@ -327,13 +410,22 @@ export function CastleTaleCompanion({
   taleStartedRef.current = (resumed) => notifyTaleStarted(resumed, taleSlug);
 
   const handleTaleComplete = useCallback(() => {
+    playCastleCue('questComplete');
     setTaleDone(true);
     notifyTaleCompleted(taleSlug);
     void refreshWorld();
   }, [refreshWorld, notifyTaleCompleted, taleSlug]);
 
   const handleStoryComplete = useCallback(() => {
+    playCastleCue('questComplete');
     setStoryDone(true);
+    void refreshWorld();
+  }, [refreshWorld]);
+
+  const handlePaintedWordsComplete = useCallback(() => {
+    playCastleCue('questComplete');
+    paintedWordsDoneRef.current = true;
+    setPaintedWordsDone(true);
     void refreshWorld();
   }, [refreshWorld]);
 
@@ -358,7 +450,14 @@ export function CastleTaleCompanion({
   return (
     <>
       {hudSlot ? createPortal(captions, hudSlot) : captions}
-      <CastleGuide scene={scene} worldState={worldState} childId={childId} storybook={storybook} />
+      <CastleGuide
+        scene={scene}
+        worldState={worldState}
+        childId={childId}
+        storybook={storybook}
+        ageBand={ageBand}
+        onOpenChange={handleGuideOpenChange}
+      />
       {npcStage ? (hudSlot ? createPortal(npcStage, hudSlot) : npcStage) : null}
       {npcAmbient ? (speechSlot ? createPortal(npcAmbient, speechSlot) : npcAmbient) : null}
       {taleActive && taleForBand ? (
@@ -372,6 +471,19 @@ export function CastleTaleCompanion({
           restoredChoices={restoredChoices}
           onChoice={reflectChoice}
           onComplete={handleTaleComplete}
+          backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
+        />
+      ) : null}
+      {paintedWords ? (
+        <CastlePaintedWordsSession
+          key={`${paintedWords.definition.slug}:${paintedWords.run}`}
+          childId={childId}
+          ageBand={ageBand}
+          aiEnabled={aiEnabled}
+          bus={bus}
+          definition={paintedWords.definition}
+          onComplete={handlePaintedWordsComplete}
+          speakWord={speakWord}
           backToMapHref={`/island/${childId}/locations/storykeeper-castle`}
         />
       ) : null}

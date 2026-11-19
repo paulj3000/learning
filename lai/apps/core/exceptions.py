@@ -81,6 +81,8 @@ _CODED = {
     # Scoring awards feed (GE-104)
     "invalid_cursor": "That cursor is not accepted.",
     "story_scene_rejected": "That story could not be saved.",
+    # Writing Room (SC-final-B): authored and kind; never names a category or echoes the text.
+    "written_story_refused": "Let us try that again with different words.",
     "chapter_not_finished": "This chapter is not finished yet.",
     "chapter_not_current": "That chapter is not the current one.",
     "unknown_chapter": "That chapter is not part of this story.",
@@ -90,6 +92,11 @@ _CODED = {
     "unknown_character": "That character is not on the island.",
     "invalid_source": "That source is not accepted.",
     "world_change_limit": "No more changes can be recorded.",
+    # Protected world changes (storybook integrity B): only real play records them
+    "protected_change_key": "Only playing can record that change.",
+    "wrong_producer": "That play did not earn this change.",
+    "session_not_completed": "Finish the adventure first.",
+    "step_not_reached": "That play did not reach this part.",
     # NPC Manager (ADR-054). Child-facing where a child can see them: calm, no blame.
     "npc_not_found": "That character is not here right now.",
     "no_active_release": "The island characters are resting right now.",

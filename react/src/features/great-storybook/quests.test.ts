@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AgeBandValue } from '../child-profile/constants';
 import { getQuestDefinition, getQuestsOfferedBy } from '../quests/content';
-import { GREAT_STORYBOOK_QUEST_IDS } from '../quests/content/islandQuests';
+import { GREAT_STORYBOOK_MORE_QUEST_IDS, GREAT_STORYBOOK_QUEST_IDS } from '../quests/content/islandQuests';
 import { advanceQuest, allObjectives, startQuest } from '../quests/quest';
 import { EMPTY_QUEST_CONTEXT, type QuestContext } from '../quests/types';
 import { ALL_ITEMS, ALL_REWARD_RULES } from '../rewards/content';
@@ -81,15 +81,28 @@ describe('the Great Storybook quests', () => {
   it('restore the book, record it once and say so, on completion', () => {
     for (const band of BANDS) {
       const { completion } = definitionFor(band);
-      expect(completion.worldChanges).toEqual([
+      const changes = [
         {
           locationSlug: 'storykeeper-castle',
           changeType: 'CREATE',
           changeKey: 'GREAT_STORYBOOK_RESTORED',
         },
-      ]);
+        {
+          locationSlug: 'storykeeper-castle',
+          changeType: 'CREATE',
+          changeKey: 'GREAT_STORYBOOK_RESTORED_V2',
+        },
+      ];
+      // Pathfinders are on edition 2 and write both changes; Sprouts and Explorers write one.
+      expect(completion.worldChanges).toEqual(band === 'PATHFINDER' ? changes : [changes[0]]);
       expect(completion.setsNpcMemoryFlags).toEqual([
-        { npcId: 'keeper-quill', flags: ['restoredTheStorybook'] },
+        {
+          npcId: 'keeper-quill',
+          flags:
+            band === 'PATHFINDER'
+              ? ['restoredTheStorybook', 'restoredTheStorybookMore']
+              : ['restoredTheStorybook'],
+        },
       ]);
       expect(completion.journalNote).not.toMatch(/—|–/);
     }
@@ -147,12 +160,61 @@ describe('the quest completes exactly when the book is whole', () => {
     const start = startQuest(definition, '2026-11-03T00:00:00Z');
     const early = advanceQuest(definition, start, context([], [], true));
     expect(early.worldChanges).toEqual([]);
-    const done = advanceQuest(definition, start, context(['FIRST_STORY_TOLD'], [], true));
+    const done = advanceQuest(definition, start, context(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], [], true));
     expect(done.state.status).toBe('COMPLETED');
-    expect(done.worldChanges.map((c) => c.changeKey)).toEqual(['GREAT_STORYBOOK_RESTORED']);
+    expect(done.worldChanges.map((c) => c.changeKey)).toEqual([
+      'GREAT_STORYBOOK_RESTORED',
+      'GREAT_STORYBOOK_RESTORED_V2',
+    ]);
     // A finished quest does not complete again.
-    const again = advanceQuest(definition, done.state, context(['FIRST_STORY_TOLD'], [], true));
+    const again = advanceQuest(definition, done.state, context(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], [], true));
     expect(again.changed).toBe(false);
     expect(again.worldChanges).toEqual([]);
+  });
+});
+
+describe('the Pathfinder follow-up quest for children who restored edition 1', () => {
+  const more = () => {
+    const quest = getQuestDefinition(GREAT_STORYBOOK_MORE_QUEST_IDS.PATHFINDER);
+    if (!quest) throw new Error('no follow-up quest');
+    return quest;
+  };
+
+  it('is for Pathfinders, offered by Keeper Quill, after the original is completed', () => {
+    const quest = more();
+    expect(quest.ageBands).toEqual(['PATHFINDER']);
+    expect(quest.giverNpcId).toBe('keeper-quill');
+    expect(quest.prerequisites).toEqual([
+      { type: 'QUEST_COMPLETED', questId: GREAT_STORYBOOK_QUEST_IDS.PATHFINDER },
+    ]);
+    expect(getQuestsOfferedBy('keeper-quill').map((q) => q.id)).toContain(quest.id);
+  });
+
+  it('has exactly one BUILD objective on the Painted Words change', () => {
+    const objectives = allObjectives(more());
+    expect(objectives).toHaveLength(1);
+    expect(objectives[0]).toMatchObject({ kind: 'BUILD', changeKey: 'STUDIO_PAGE_MENDED' });
+  });
+
+  it('completes only with that change, writing the V2 change and nothing else', () => {
+    const quest = more();
+    const start = startQuest(quest, '2026-11-03T00:00:00Z');
+    expect(advanceQuest(quest, start, context([], [], true)).state.status).not.toBe('COMPLETED');
+    const done = advanceQuest(quest, start, context(['STUDIO_PAGE_MENDED'], [], false));
+    expect(done.state.status).toBe('COMPLETED');
+    expect(done.worldChanges.map((c) => c.changeKey)).toEqual(['GREAT_STORYBOOK_RESTORED_V2']);
+    const again = advanceQuest(quest, done.state, context(['STUDIO_PAGE_MENDED'], [], false));
+    expect(again.changed).toBe(false);
+    expect(again.worldChanges).toEqual([]);
+  });
+
+  it('grants no second seal: no reward rule names it', () => {
+    const id = GREAT_STORYBOOK_MORE_QUEST_IDS.PATHFINDER;
+    expect(
+      ALL_REWARD_RULES.filter((r) => r.trigger.type === 'QUEST_COMPLETED' && r.trigger.questId === id),
+    ).toEqual([]);
+    expect(
+      ALL_REWARD_RULES.filter((r) => r.itemIds.includes('great-storybook-seal')),
+    ).toHaveLength(3);
   });
 });

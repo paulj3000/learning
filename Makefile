@@ -9,7 +9,7 @@ PY ?= $(shell test -x $(CURDIR)/.venv/bin/python && echo $(CURDIR)/.venv/bin/pyt
 ENV_FILE ?= .env
 dotenv = $(subst #,\#,$(subst $$,$$$$,$(shell sed -n 's/^$(1)=//p' $(ENV_FILE) 2>/dev/null | tail -n 1 | tr -d '\r')))
 
-# Development ports (owner, 2026-11-05): PostgreSQL 5442 (compose and Django default; override
+# Development ports (owner, 2026-11-05): PostgreSQL 5432 (compose and Django default; override
 # with POSTGRES_PORT), Django runserver 8010 (DJANGO_DEV_PORT), Vite 5183 (VITE_DEV_PORT).
 # DJANGO_DEV_PORT is read from the shell, then .env, then 8010. `make runserver` binds it and
 # `make web` (and plain `npm run dev`, which reads the same .env) proxies /api to it, so the two
@@ -17,7 +17,7 @@ dotenv = $(subst #,\#,$(subst $$,$$$$,$(shell sed -n 's/^$(1)=//p' $(ENV_FILE) 2
 $(if $(call dotenv,DJANGO_DEV_PORT),$(eval DJANGO_DEV_PORT ?= $(call dotenv,DJANGO_DEV_PORT)))
 DJANGO_DEV_PORT ?= 8010
 
-# The compose database settings reach every target (e.g. POSTGRES_PORT to move off the 5442 default).
+# The compose database settings reach every target (e.g. POSTGRES_PORT to move off the 5432 default).
 $(foreach v,POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD POSTGRES_PORT,\
   $(if $(call dotenv,$(v)),$(eval export $(v) ?= $(call dotenv,$(v)))))
 
@@ -42,7 +42,7 @@ $(foreach v,$(DJANGO_ENV_VARS),\
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
 	@echo "docs-check | js-check (ADR and docs checks, typecheck, lint, format:check, test, build) | check (py-check + js-check)"
-	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5442; set POSTGRES_PORT to change it)"
+	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5432; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
 	@echo "web (Vite dev server on 5183, proxying /api to runserver on DJANGO_DEV_PORT)"
 	@echo "createsuper (prompts for a username and password; creates a Django Admin superuser; needs make up + make migrate)"

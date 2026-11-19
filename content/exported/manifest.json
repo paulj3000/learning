@@ -1,5 +1,5 @@
 {
-  "contentDigest": "94f72f07c6d20adcb559110c819fe3b4fb37983b13ab2e5545fab74cf66213af",
+  "contentDigest": "ea1058cadf3d1e50738e830b3baa42fa621fbf72dc49d5cfa4541bd285273e99",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -10,23 +10,23 @@
         "islands": 3
       },
       "path": "islands.json",
-      "sha256": "2ba4b637ba016303b06069397bb8e77dde5a1b37d40b858cca3b2a22fd64e2dc"
+      "sha256": "170574bbcd9a31d21bb2c0defcd8edd1e438c47af9369e7433f7051cc0205d7c"
     },
     {
       "counts": {
         "locations": 13
       },
       "path": "locations.json",
-      "sha256": "6b81d811a4af160985437057f94853a21a12bfc5d5a5bb506caf8d4c45bd1cb1"
+      "sha256": "224507ee8439cf0dcaa649e003d6e9093489a9b1d0d6515003f526777a3213c2"
     },
     {
       "counts": {
-        "adventures": 24,
-        "learningObjectives": 19,
+        "adventures": 29,
+        "learningObjectives": 20,
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "3401d680016b41699f1d42e477496e40c74bcd242ef39f9c1d9befdcdf11aec1"
+      "sha256": "d5ae5eb17b8acfdb5611b16b73b45620b929f9a8344e3d73a47eca8d6bcb1813"
     },
     {
       "counts": {
@@ -37,41 +37,41 @@
     },
     {
       "counts": {
-        "quests": 23
+        "quests": 24
       },
       "path": "quests.json",
-      "sha256": "a0cbab9006fd4eaf6043cf4bab6de7b62e70508d8a97c2b5f4d2d9d9bd10e37c"
+      "sha256": "63ba545b81bbd0dfe5a91b134953768ffbfb5728f064b1bf689c2f85bcf19e7b"
     },
     {
       "counts": {
-        "collectibleSets": 10,
-        "items": 113,
-        "rewardRules": 88
+        "collectibleSets": 11,
+        "items": 117,
+        "rewardRules": 92
       },
       "path": "rewards.json",
-      "sha256": "65c9c6a7fa34879689052eef4fac56315bcd82874e121619da604487988dd66e"
+      "sha256": "d02ad8e205f75bd9375d0a0ab0c330cb5ed2b18e47dc873ade406af0cb3e2ec8"
     },
     {
       "counts": {
-        "npcs": 22
+        "npcs": 23
       },
       "path": "npcs.json",
-      "sha256": "8ead85d5c384f87b0c03770d00d532e30b0c32ebfbfbdd8c8417e62eca3dc065"
+      "sha256": "c725d91c6b2b4602e82c2ed2cda6ef4c06d667bce0b166e87661085ac364b559"
     },
     {
       "counts": {
-        "checkpoints": 30,
-        "discoveries": 6
+        "checkpoints": 31,
+        "discoveries": 8
       },
       "path": "discoveries.json",
-      "sha256": "40197038a59b6a45db1a816f49e4143f7c8e8273a53635788ba087399ebe763c"
+      "sha256": "01c23e84cb7e7412ffadabd839ddebfbe718d2056a1af7173b9351e7c702c5ca"
     },
     {
       "counts": {
         "interactions": 8
       },
       "path": "interactions.json",
-      "sha256": "c07277883bacc1b50c17e5a6d681ebc1dc3aafc800e695b9a075a11fbdc7315d"
+      "sha256": "edfee7d89c17ca5d3a20956904a70e744cbf9bf2b0be7d659c6bd2b953a8a6ba"
     },
     {
       "counts": {
@@ -86,10 +86,10 @@
     {
       "counts": {
         "assets": 114,
-        "locationAssets": 6
+        "locationAssets": 7
       },
       "path": "assets.json",
-      "sha256": "136f19b5d5b2f80600545bbf9e6fe7ed68716634b4b0054ba6d67fa55a273b81"
+      "sha256": "48470848b47e89dcec4f959a984e611694782a57f769c32f284374282c41e6c8"
     }
   ],
   "knownAmbiguities": [

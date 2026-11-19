@@ -31,6 +31,7 @@ from apps.catalog.models import (
 from apps.core.content_status import ContentStatus
 from apps.inventory.models import InventoryItem
 from apps.progression.models import WorldChange
+from apps.progression.services import world_change_keys
 from apps.quests import engine
 from apps.quests.models import QuestProgress, QuestStatus
 from apps.quests.services import build_context
@@ -367,7 +368,7 @@ def child_islands(child) -> list[IslandEntry]:
         .filter(adventure__isnull=False)
         .values_list("adventure__location_id", flat=True)
     )
-    change_keys = set(WorldChange.objects.for_child(child).values_list("change_key", flat=True))
+    change_keys = world_change_keys(child)
     visible: list[tuple[object, list]] = []
     for island in islands:
         places = [

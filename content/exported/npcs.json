@@ -129,6 +129,40 @@
     {
       "dialogue": [
         {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "quill-writing-room-yes",
+              "label": "I would like that!"
+            },
+            {
+              "id": "quill-writing-room-later",
+              "label": "Maybe later."
+            }
+          ],
+          "conditions": [
+            {
+              "timeOfDay": "AFTERNOON",
+              "type": "TIME_OF_DAY"
+            },
+            {
+              "equals": true,
+              "flag": "metQuill",
+              "type": "MEMORY_FLAG"
+            },
+            {
+              "equals": false,
+              "flag": "heardAboutWritingRoom",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "id": "quill-writing-room-afternoon",
+          "setsMemoryFlags": [
+            "heardAboutWritingRoom"
+          ],
+          "text": "Afternoons are for writing. If you would like to fill an empty book, the desk in the Writing Room is waiting."
+        },
+        {
           "awardsRelationshipPoints": 2,
           "choices": [
             {
@@ -265,6 +299,21 @@
           ],
           "questId": "restore-the-great-storybook-explorers",
           "summary": "Pages of the Great Storybook are scattered through the castle. Find them all and restore the book."
+        },
+        {
+          "conditions": [
+            {
+              "questId": "restore-the-great-storybook-pathfinders",
+              "type": "QUEST_COMPLETED"
+            },
+            {
+              "equals": false,
+              "flag": "restoredTheStorybookMore",
+              "type": "MEMORY_FLAG"
+            }
+          ],
+          "questId": "restore-the-great-storybook-pathfinders-more",
+          "summary": "A new page of the Great Storybook has been found. Help Keeper Quill bring it back."
         }
       ],
       "role": "Storykeeper Castle librarian. Invites children to build a story together.",
@@ -275,6 +324,162 @@
         },
         {
           "locationSlug": "castle-writing-room",
+          "timeOfDay": "AFTERNOON"
+        },
+        {
+          "locationSlug": "storykeeper-castle",
+          "timeOfDay": "EVENING"
+        }
+      ]
+    },
+    {
+      "dialogue": [
+        {
+          "awardsRelationshipPoints": 2,
+          "choices": [
+            {
+              "id": "orion-restored-bye",
+              "label": "You are welcome!"
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "GREAT_STORYBOOK_RESTORED",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "orion-storybook-restored",
+          "narration": {
+            "allowedTopic": "a star-watcher thanking the child for restoring the castle storybook",
+            "fallbackText": "The Great Storybook is whole again! Even the stars look brighter tonight. Thank you for bringing its pages home."
+          },
+          "setsMemoryFlags": [
+            "metOrion",
+            "metOrionAfterRestore"
+          ],
+          "text": "The Great Storybook is whole again! Even the stars look brighter tonight. Thank you for bringing its pages home."
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "orion-find-the-star",
+              "label": "Yes, let us look!",
+              "nextNodeId": "orion-telescope"
+            },
+            {
+              "id": "orion-story-told-bye",
+              "label": "Maybe next time."
+            }
+          ],
+          "conditions": [
+            {
+              "changeKey": "FIRST_STORY_TOLD",
+              "type": "WORLD_CHANGE"
+            }
+          ],
+          "id": "orion-story-told",
+          "setsMemoryFlags": [
+            "metOrion"
+          ],
+          "text": "Your story has its own star now. Shall we find the one that fits it?"
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "orion-counted",
+              "label": "I counted them!",
+              "nextNodeId": "orion-counting-praise"
+            },
+            {
+              "id": "orion-returning-bye",
+              "label": "Not right now."
+            }
+          ],
+          "conditions": [
+            {
+              "level": "ACQUAINTANCE",
+              "type": "RELATIONSHIP_AT_LEAST"
+            }
+          ],
+          "id": "orion-returning",
+          "text": "Welcome back, star friend. Can you count the gold stars on my chart? Take your time."
+        },
+        {
+          "awardsRelationshipPoints": 1,
+          "choices": [
+            {
+              "id": "orion-greeting-ask",
+              "label": "What do you see?",
+              "nextNodeId": "orion-telescope"
+            },
+            {
+              "id": "orion-greeting-bye",
+              "label": "Hello, Professor!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "id": "orion-greeting",
+          "narration": {
+            "allowedTopic": "a friendly star-watcher introducing himself in the castle tower",
+            "fallbackText": "Hello there! I am Professor Orion. I watch the stars from this tower, and every star has a story."
+          },
+          "setsMemoryFlags": [
+            "metOrion"
+          ],
+          "text": "Hello there! I am Professor Orion. I watch the stars from this tower, and every star has a story."
+        },
+        {
+          "choices": [
+            {
+              "id": "orion-telescope-bye",
+              "label": "I will look for pictures!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "orion-telescope",
+          "text": "Through my telescope I see tiny lights, far, far away. People join the stars with lines to make pictures in the sky."
+        },
+        {
+          "choices": [
+            {
+              "id": "orion-counting-bye",
+              "label": "Thank you, Professor!"
+            }
+          ],
+          "conditions": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "followUpOnly": true,
+          "id": "orion-counting-praise",
+          "text": "Wonderful counting! Stars are easier to count when friends look together."
+        }
+      ],
+      "displayName": "Professor Orion",
+      "homeLocationSlug": "storykeeper-castle",
+      "id": "professor-orion",
+      "interactionId": "talk-to-professor-orion",
+      "questOffers": [],
+      "role": "Star-watcher in the Setting Tower at Storykeeper Castle. Shares what he sees through his telescope.",
+      "schedule": [
+        {
+          "locationSlug": "storykeeper-castle",
+          "timeOfDay": "MORNING"
+        },
+        {
+          "locationSlug": "storykeeper-castle",
           "timeOfDay": "AFTERNOON"
         },
         {

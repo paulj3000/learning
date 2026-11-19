@@ -15,6 +15,7 @@ from django.db import models
 from apps.catalog.asset_refs import AssetKind, AssetRefValidator, validate_asset_ref
 from apps.catalog.models import Authorable
 from apps.core.content_status import ContentStatus
+from apps.core.models import ChildOwnedModel
 from apps.users.models import AgeBand
 
 
@@ -591,3 +592,76 @@ class AreaPuzzle(Authorable, models.Model):
                 raise ValidationError(
                     {"entity_ids": f"No placement in this 3D Area has id {', '.join(unknown)}."}
                 )
+
+
+class CastleVisitState(ChildOwnedModel):
+    """How many separate visits to Storykeeper Castle a child has made (SC-R08-01).
+
+    The castle is a Place with no 3D Area or region session in Django, so the visit count is
+    owned here. A client sends an opaque `visitId` (a fresh random id for each time the castle
+    opens); the first request carrying a new id counts one visit. It is a counter, not a clock:
+    time away never changes it, and nothing is ever counted down or missed. No child text.
+    """
+
+    visit_count = models.PositiveIntegerField(default=0)
+    last_visit_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["child"], name="castle_visit_one_per_child"),
+        ]
+
+
+class CastleEventShown(ChildOwnedModel):
+    """A display counter for one ambient castle event (SC-R08-01): how often it was shown and in
+    which visit last. It is not progress: nothing reads it for a reward, quest or world change."""
+
+    event_id = models.SlugField(max_length=100)
+    shown_count = models.PositiveIntegerField(default=0)
+    last_shown_visit = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["child", "event_id"], name="castle_event_one_per_child"),
+        ]
+
+
+class CastleEvent(Authorable, models.Model):
+    """One approved, authored ambient event of Storykeeper Castle (ADR-065, ADR-047).
+
+    The Castle Director may only pick among these rows' authored lines; it never writes words.
+    The row holds the *published* content in `source` (the revision body's shape, see
+    `castle_events.body_problems`); every edit is a `ContentRevision` of kind `castle-event`
+    that goes draft, submitted, published, and an old one is superseded, never changed. A row
+    with no published revision is not shown to anyone. Retiring sets `active` off (an
+    administrator's switch, never touched by an import); a retired event is never eligible.
+
+    `castle_events.json` is only the first-import seed. Once a row exists, Django is the
+    authority. No child data lives here.
+    """
+
+    event_id = models.SlugField(
+        max_length=100, unique=True, help_text="Stable id. Never renamed; the display counter uses it."
+    )
+    room = models.SlugField(
+        max_length=64, help_text="A castle room id, or ANY. Copied from the published content."
+    )
+    active = models.BooleanField(
+        default=True, help_text="Untick to retire the event. A retired event is never eligible."
+    )
+    source = models.JSONField(
+        default=dict,
+        blank=True,
+        editable=False,
+        help_text="The published content. Change it through a new version, never directly.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["event_id"]
+        verbose_name = "Castle Director event"
+        verbose_name_plural = "Castle Director events"
+
+    def __str__(self) -> str:
+        return self.event_id

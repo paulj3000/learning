@@ -2,6 +2,17 @@
   "generatedBy": "react/src/features/island-map/three/runtime/sceneAssetIndex.test.ts",
   "regions": [
     {
+      "regionSlug": "castle-writing-room",
+      "assetIds": [
+        "bookshelf",
+        "secret-door-ajar",
+        "round-window",
+        "npc-quill",
+        "writing-desk",
+        "clue-diary"
+      ]
+    },
+    {
       "regionSlug": "clockwork-harbor",
       "assetIds": [
         "wall-stone",
@@ -63,6 +74,7 @@
         "star-carving",
         "moon-carving",
         "npc-quill",
+        "npc-professor-ticktock",
         "story-plate-choice",
         "story-plate-ending",
         "story-plate-problem",

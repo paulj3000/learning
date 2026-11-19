@@ -13,6 +13,11 @@ export interface StorybookSceneState {
   required: readonly boolean[];
   bonusFound: boolean;
   complete: boolean;
+  /**
+   * The book was restored in an earlier edition and now has one more page to find: the cover
+   * stays sealed and the new page is drawn loose. Optional so older callers still type-check.
+   */
+  morePages?: boolean;
 }
 
 /** The most required pages a band's book can show in the castle, and bonus pages. */
@@ -26,5 +31,6 @@ export function toSceneState(progress: StorybookProgress): StorybookSceneState {
       .map((entry) => entry.restored),
     bonusFound: progress.entries.some((entry) => !entry.page.required && entry.restored),
     complete: progress.complete,
+    morePages: progress.state === 'RESTORED_MORE_PAGES',
   };
 }

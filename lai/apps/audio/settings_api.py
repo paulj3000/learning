@@ -5,7 +5,10 @@
 Child-scoped by the parent's token like every child route (`ChildScopedAPIView`): another
 family's child is the same 404 as a child that does not exist. Writes are strict: only known
 fields, volumes from 0 to 1, booleans for mutes; anything else is a 400 and nothing is saved.
-A GET before any save returns the calm defaults without creating a row.
+A GET before any save returns the calm defaults without creating a row. `saved` says whether the
+child has a saved mix at all (SC-R06-02): a game may apply a session-only default (Sprouts'
+reduced intensity in the castle) only when there is none, so a parent's or child's saved choice
+always wins.
 """
 
 from rest_framework import serializers
@@ -58,6 +61,7 @@ def to_payload(row: ChildAudioSettings) -> dict:
         "masterVolume": row.master_volume,
         "masterMuted": row.master_muted,
         "reducedIntensity": row.reduced_intensity,
+        "saved": not row._state.adding,  # noqa: SLF001 (the uuid pk is set before saving)
         "channels": {
             name: {"volume": getattr(row, f"{name}_volume"), "muted": getattr(row, f"{name}_muted")}
             for name in CHANNELS

@@ -2,7 +2,7 @@
 
 Status: development complete on `feature/shared-jump-controller`; unit-tested only. Not yet seen
 in a browser, on a touch device or with a gamepad (see "Owner QA checklist"). Decision record:
-ADR-055 in `docs/DECISIONS.md`.
+ADR-063 in `docs/DECISIONS.md`.
 
 Jumping is standard movement in every free-roaming 3D location, alongside walking. It is not a
 platforming feature: no location has to become a "platforming adventure" to get it, and the
