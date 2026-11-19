@@ -25,7 +25,7 @@ reuses them instead of building a second movement system). The draft PR targets
 | Storybook / trophies | Castle-scoped, no Firepeak, contract changes needed on the active Storykeeper branch | Firepeak side of the contract only (section 13). |
 | Trello | Only `[Subproject] Firepeak / Volcano Adventure`; ids FP-1 to FP-13 already used | New task ids are **FPV-01 to FPV-24** (FP-n stay with The Volcano Awakens). |
 
-## 2. Decisions (recorded as ADR-070 in `docs/DECISIONS.md`)
+## 2. Decisions (recorded as ADR-073 in `docs/DECISIONS.md`)
 
 - **FPV-D1. New Place, one Area.** Place slug `firepeak-heart`, 3D Area `firepeak-heart`, on the
   home Island. Title "Heart of Firepeak". The adventure is the quest `the-heart-of-firepeak`.

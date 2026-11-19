@@ -44,7 +44,7 @@ Bedrock model choice ever changes.
 
 ## The Heart of Firepeak (FPV-01 to FPV-24, 2026-11-18, `feature/firepeak-volcano-adventure`); development complete, unit-tested only, owner QA pending, NOT merged
 
-Contract and decisions: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`, ADR-070 (Proposed). Based on
+Contract and decisions: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`, ADR-073 (Proposed). Based on
 `feature/treasure-rush-palm-trees` (420f1afd) for the shared jump, camera and platform engine.
 
 **What exists.** A new Place `firepeak-heart` with one seven-zone 3D Area (Explorer's Landing,
@@ -90,7 +90,9 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
 - Falling rocks and timed steam pushes: not built (no telegraphed moving-hazard runtime).
 - Managed NPCs do not speak per-puzzle stage lines in their own panel (the puzzle panel shows them).
 - Pathfinder switch and story puzzles leave one or two inert, unlabelled answer objects.
-- ADR-070 numbering and the branch's ADR-055 to 060 collide with main's ADR-055 to 064; renumber at merge.
+- The Heart decision was ADR-070, which collided with the GLB optimization policy on
+  `feature/lambda-derived-artifacts`. The owner decided (2026-11-19) that Firepeak renumbers: it is ADR-073.
+  The branch's ADR-055 to 060 against main's ADR-055 to 064 follow the core/gameengine reservation table.
 
 ## Movement defects, campfire and feather (2026-11-15, `feature/treasure-rush-palm-trees`); development complete, owner QA pending, NOT merged
 

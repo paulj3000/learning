@@ -82,7 +82,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-058 | Walking, running and sprinting are gaits of the one shared movement controller | Proposed | `feature/player-running` (PR #29) | Owner QA pending |
 | ADR-059 | Platforms are jumpable boxes in the shared controller's collider list, moved in place by one platform runtime; layout seed-authored, tuning staff-authored | Proposed | `feature/interactive-platforms` (LAI-JMP-02, LAI-JMP-04) | Owner QA pending; leaves LAI-0805 open |
 | ADR-060 | The player has a configurable cylindrical footprint, and gait follows the movement collisions allowed | Proposed | `feature/treasure-rush-palm-trees` (movement QA defects, 2026-11-15) | Owner QA pending; radius is a starting value |
-| ADR-070 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Proposed | `feature/firepeak-volcano-adventure` (2026-11-18) | Number chosen above every ADR on any remote branch (main to 064, Storykeeper to 065); owner review of FPV-D1 to D9 pending |
+| ADR-073 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Proposed | `feature/firepeak-volcano-adventure` (2026-11-18) | Number chosen above every ADR on any remote branch (main to 064, Storykeeper to 065); owner review of FPV-D1 to D9 pending |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4215,9 +4215,11 @@ Bay's broken bridge stops them 0.37 m earlier. Storykeeper Castle's costume rack
 so the Trophy Room door's landing point stays clear. A development-only collision view
 (`?collisionDebug=1`) shows the footprint, both positions and nearby colliders.
 
-## ADR-070: The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds
+## ADR-073: The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds
 
 Status: Proposed (2026-11-18). Development only; owner review and browser QA pending.
+Numbering: first written as ADR-070, which collided with the GLB optimization policy on
+`feature/lambda-derived-artifacts`; renumbered to ADR-073 by owner decision (2026-11-19).
 Builds on ADR-033 (one Django backbone), ADR-041 (Island, Place, 3D Area), ADR-047 (Django
 content authoring), ADR-050 (Sound Manager), ADR-054 (NPC Manager), ADR-055 to ADR-060 of this
 branch (jumping, camera, platforms, footprint). Full contract: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`.
