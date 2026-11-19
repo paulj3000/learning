@@ -38,8 +38,25 @@ describe('Treasure Cove adventure definition (GE-070)', () => {
     for (const band of AGE_BANDS) expect(() => profileFor(TREASURE_COVE_ADVENTURE, band)).not.toThrow();
   });
 
-  it('declares no jump challenge here: Pirate’s Leap’s course is GE-071', () => {
-    expect(TREASURE_COVE_ADVENTURE.jumpChallenges).toEqual([]);
+  it('declares Pirate’s Leap’s jump challenges exactly as the seeded engine bridge runs them (GE-071)', () => {
+    const bridge = JSON.parse(
+      readFileSync(resolve(process.cwd(), '../lai/apps/regions/pirates_leap_bridge.json'), 'utf8'),
+    ) as {
+      capabilities: { id: string; config: { challenges?: { challengeId: string; optional: boolean; routes: { routeId: string; kind: string }[] }[] } }[];
+    };
+    const seeded = bridge.capabilities.find((c) => c.id === 'gameplay.jumpChallenges')!.config.challenges!;
+    const declared = TREASURE_COVE_ADVENTURE.jumpChallenges;
+    expect(declared.map((c) => c.id)).toEqual(seeded.map((c) => c.challengeId));
+    for (const challenge of seeded) {
+      const mine = declared.find((c) => c.id === challenge.challengeId)!;
+      const route = (kind: string) => challenge.routes.find((r) => r.kind === kind)?.routeId ?? null;
+      expect(mine.jumpRouteId).toBe(route('JUMP'));
+      expect(mine.accessibleRouteId).toBe(route('ACCESSIBLE'));
+      // The jump is never required (Sprouts included); where progress depends on a challenge the
+      // bridge enforces a walking route (`optional: false` there).
+      expect(mine.optional).toBe(true);
+      if (!challenge.optional) expect(mine.accessibleRouteId).not.toBeNull();
+    }
   });
 
   it('the Treasure Cove seed scene passes the content compatibility validator', () => {

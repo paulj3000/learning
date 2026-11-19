@@ -13,6 +13,7 @@ import { validateLocationManifest } from '../../runtime/validateLocationManifest
 import { mount, named, standingBox, type Drive, type Harness } from '../../runtime/testing/engineHarness';
 import type { CameraMode } from '@lai/game-engine/camera';
 import { regionPlaySceneExtension } from './regionPlayScene';
+import { createEngineBridgeExtension } from '../../../../game-engine/bridge/engineBridge';
 
 /**
  * Treasure Cove: Pirate's Leap (LAI-JMP-03) on the real runtime: the course the Django seed
@@ -36,7 +37,9 @@ async function cove(options: { cameraMode?: CameraMode; platformTuning?: Record<
   const built = await buildCove(options.platformTuning);
   const harness = mount({
     manifest: built.manifest,
-    extensions: [regionPlaySceneExtension],
+    // GE-071: the course's checkpoints, water pools, goal and jump challenges run in the engine
+    // bridge, which the region manifest binds from `scene.engineBridge`, as in the app.
+    extensions: [regionPlaySceneExtension, createEngineBridgeExtension()],
     loadModel: async () => standingBox(),
     ...(options.cameraMode ? { cameraMode: options.cameraMode } : {}),
   });
@@ -126,7 +129,12 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
     h.runFrames(1);
     h.setDrive(idle);
     h.runFrames(2);
-    expect(named(h.events, 'PlayerRecovered')).toContainEqual({ reason: 'HAZARD', checkpointId: 'leap-cp-yard' });
+    // GE-071: the engine bridge's recovery also names the pool (PlayerRecovered.hazardId).
+    expect(named(h.events, 'PlayerRecovered')).toContainEqual({
+      reason: 'HAZARD',
+      checkpointId: 'leap-cp-yard',
+      hazardId: 'leap-pool-barrels',
+    });
     expect(h.engine.childPlacement().x).toBeCloseTo(-15.8);
   });
 

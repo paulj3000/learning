@@ -1,0 +1,254 @@
+{
+ "allowEnginePlatforms": false,
+ "capabilities": [
+  {
+   "config": {
+    "checkpoints": [
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-cp-yard",
+      "label": "the training yard",
+      "position": {
+       "x": -15.8,
+       "y": 0.0,
+       "z": -18.0
+      },
+      "yaw": 1.57
+     },
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-cp-barrels",
+      "label": "the barrel bank",
+      "position": {
+       "x": -28.6,
+       "y": 0.0,
+       "z": -19.0
+      },
+      "yaw": 3.14
+     },
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-cp-logs",
+      "label": "the log landing",
+      "position": {
+       "x": -28.8,
+       "y": 0.0,
+       "z": -32.6
+      },
+      "yaw": -1.57
+     },
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-cp-dock",
+      "label": "the far dock",
+      "position": {
+       "x": -19.8,
+       "y": 0.0,
+       "z": -33.0
+      },
+      "yaw": 0.0
+     }
+    ],
+    "goals": [
+     {
+      "courseId": "pirates-leap",
+      "id": "leap-goal-nest",
+      "rect": {
+       "maxX": -16.8,
+       "maxZ": -22.0,
+       "minX": -19.2,
+       "minZ": -24.0
+      }
+     }
+    ]
+   },
+   "id": "gameplay.checkpoints"
+  },
+  {
+   "config": {
+    "hazards": [
+     {
+      "checkpointId": "leap-cp-yard",
+      "id": "leap-pool-barrels",
+      "kind": "WATER",
+      "messageKey": "leap.splash",
+      "rect": {
+       "maxX": -21.6,
+       "maxZ": -17.4,
+       "minX": -27.4,
+       "minZ": -20.2
+      }
+     },
+     {
+      "checkpointId": "leap-cp-barrels",
+      "id": "leap-pool-logs",
+      "kind": "WATER",
+      "messageKey": "leap.splash",
+      "rect": {
+       "maxX": -27.2,
+       "maxZ": -21.6,
+       "minX": -31.8,
+       "minZ": -30.4
+      }
+     },
+     {
+      "checkpointId": "leap-cp-logs",
+      "id": "leap-pool-dock",
+      "kind": "WATER",
+      "messageKey": "leap.splash",
+      "rect": {
+       "maxX": -21.2,
+       "maxZ": -31.6,
+       "minX": -27.6,
+       "minZ": -34.6
+      }
+     }
+    ]
+   },
+   "id": "gameplay.hazards"
+  },
+  {
+   "config": {
+    "challenges": [
+     {
+      "challengeId": "leap-steps",
+      "optional": true,
+      "routes": [
+       {
+        "goal": {
+         "maxX": -19.5,
+         "maxZ": -18.3,
+         "minX": -20.9,
+         "minZ": -19.7
+        },
+        "kind": "JUMP",
+        "routeId": "leap-steps-hop",
+        "start": {
+         "maxX": -14.8,
+         "maxZ": -17.0,
+         "minX": -16.8,
+         "minZ": -19.0
+        }
+       }
+      ]
+     },
+     {
+      "challengeId": "leap-barrels",
+      "optional": false,
+      "routes": [
+       {
+        "goal": {
+         "maxX": -25.6,
+         "maxZ": -18.4,
+         "minX": -26.8,
+         "minZ": -19.6
+        },
+        "kind": "JUMP",
+        "routeId": "leap-barrels-jump",
+        "start": {
+         "maxX": -14.8,
+         "maxZ": -17.0,
+         "minX": -16.8,
+         "minZ": -19.0
+        }
+       },
+       {
+        "goal": {
+         "maxX": -27.6,
+         "maxZ": -18.0,
+         "minX": -29.6,
+         "minZ": -20.0
+        },
+        "kind": "ACCESSIBLE",
+        "routeId": "leap-barrels-walk",
+        "start": {
+         "maxX": -14.8,
+         "maxZ": -17.0,
+         "minX": -16.8,
+         "minZ": -19.0
+        }
+       }
+      ]
+     },
+     {
+      "challengeId": "leap-logs",
+      "optional": false,
+      "routes": [
+       {
+        "goal": {
+         "maxX": -28.5,
+         "maxZ": -28.0,
+         "minX": -29.5,
+         "minZ": -30.0
+        },
+        "kind": "JUMP",
+        "routeId": "leap-logs-jump",
+        "start": {
+         "maxX": -27.6,
+         "maxZ": -18.0,
+         "minX": -29.6,
+         "minZ": -20.0
+        }
+       },
+       {
+        "goal": {
+         "maxX": -27.8,
+         "maxZ": -31.6,
+         "minX": -29.8,
+         "minZ": -33.6
+        },
+        "kind": "ACCESSIBLE",
+        "routeId": "leap-logs-walk",
+        "start": {
+         "maxX": -27.6,
+         "maxZ": -18.0,
+         "minX": -29.6,
+         "minZ": -20.0
+        }
+       }
+      ]
+     },
+     {
+      "challengeId": "leap-ledge",
+      "optional": false,
+      "routes": [
+       {
+        "goal": {
+         "maxX": -14.8,
+         "maxZ": -24.6,
+         "minX": -16.4,
+         "minZ": -26.2
+        },
+        "kind": "JUMP",
+        "routeId": "leap-ledge-drum",
+        "start": {
+         "maxX": -18.8,
+         "maxZ": -32.0,
+         "minX": -20.8,
+         "minZ": -34.0
+        }
+       },
+       {
+        "goal": {
+         "maxX": -16.8,
+         "maxZ": -26.8,
+         "minX": -19.2,
+         "minZ": -29.2
+        },
+        "kind": "ACCESSIBLE",
+        "routeId": "leap-ledge-lift",
+        "start": {
+         "maxX": -18.8,
+         "maxZ": -32.0,
+         "minX": -20.8,
+         "minZ": -34.0
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "id": "gameplay.jumpChallenges"
+  }
+ ]
+}

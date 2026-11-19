@@ -32,11 +32,13 @@ from apps.catalog.models import ContentAsset, ItemDefinition, Quest, RewardRule
 from apps.education.models import ChallengeSpec
 from apps.users.models import AgeBand
 
+from .engine_bridge import engine_bridge_problems
 from .models import PlacementKind, TreasureChest, WorldObjectPlacement, WorldRegion
 from .platforming import layout_problems
 from .treasure_cove_layout import BOUNDS
 
-LEAP_VERSION = 1
+LEAP_VERSION = 2  # GE-071: checkpoints, pools, goal and jump challenges on the engine bridge
+LEAP_COURSE_ID = "pirates-leap"
 LEAP_QUEST_ID = "pirates-leap"
 LEAP_CHEST_ID = "cove-leap-chest"
 LEAP_CHEST_KEY = "PIRATES_LEAP_CHEST_OPENED"
@@ -73,8 +75,12 @@ BARREL = 0x9C6B3C
 STONE = 0xA7A9AC
 
 
-def leap_platforming() -> dict:
-    """The whole course as `scene["platforming"]` (validated by `platforming.layout_problems`)."""
+def _authored_course() -> dict:
+    """The whole course as authored: one source for both scene blocks below.
+
+    Validated as a whole by `platforming.layout_problems` (checkpoints on open ground, clear of
+    every platform and solid; a checkpoint for every hazard), exactly as before GE-071.
+    """
     platforms = [
         # 1. Learn to Leap: a walkable step, then two hops, each a little higher.
         _box("leap-step-1", -17.0, -19.0, 1.4, 0.25, 1.4, color=WOOD),
@@ -167,6 +173,183 @@ def leap_platforming() -> dict:
     }
 
 
+# --- GE-071: the course on the Game Engine Core ----------------------------------------------
+#
+# Checkpoints, water pools and the goal now run in the engine bridge (`scene["engineBridge"]`,
+# the one checkpoint system, GE-073), with jump-challenge tracking. Platforms and the pressure
+# plate stay in the live platform system (`scene["platforming"]`) until the engine can draw them
+# and carry the child in the live runtime (engine lead, Wave 2). Nothing runs twice.
+
+LIVE_KEYS = ("platforms", "pressurePlates", "zones")
+
+
+def leap_platforming() -> dict:
+    """The live part of the course, as `scene["platforming"]`: platforms, the plate, the zones."""
+    course = _authored_course()
+    return {key: course[key] for key in LIVE_KEYS}
+
+
+def _area(rect: dict) -> dict:
+    return {key: rect[key] for key in ("minX", "maxX", "minZ", "maxZ")}
+
+
+def _mm(value: float) -> float:
+    return round(value, 3)
+
+
+def _square(x: float, z: float, half: float = 1.0) -> dict:
+    return {
+        "minX": _mm(x - half),
+        "maxX": _mm(x + half),
+        "minZ": _mm(z - half),
+        "maxZ": _mm(z + half),
+    }
+
+
+def _footprint(platform: dict) -> dict:
+    x, z = platform["position"]["x"], platform["position"]["z"]
+    w, d = platform["size"]["width"] / 2, platform["size"]["depth"] / 2
+    return {"minX": _mm(x - w), "maxX": _mm(x + w), "minZ": _mm(z - d), "maxZ": _mm(z + d)}
+
+
+# Which checkpoint each pool returns to when no later checkpoint was reached (the one before it).
+HAZARD_CHECKPOINTS = {
+    "leap-pool-barrels": "leap-cp-yard",
+    "leap-pool-logs": "leap-cp-barrels",
+    "leap-pool-dock": "leap-cp-logs",
+}
+
+
+def leap_jump_challenges(course: dict) -> list[dict]:
+    """Each jump on the course, with the walking route beside it where progress needs it.
+
+    A route completes when the child enters its goal square. Jump goals sit where only a jump
+    can put the child (on a barrel or log inside a pool, on the bounce drum); walking goals sit on
+    the far bank or the lift. Both routes emit the same `jump.challenge.completed` claim (contract
+    rule 4), and neither earns anything by itself (scoring: CLIENT_REPORTED).
+    """
+    platforms = {p["id"]: p for p in course["platforms"]}
+    checkpoints = {c["id"]: c for c in course["checkpoints"]}
+    at = lambda cid: _square(checkpoints[cid]["x"], checkpoints[cid]["z"])  # noqa: E731
+    return [
+        {
+            # Learn to Leap: optional hops up three steps (jumping standard: optional, jump-only).
+            "challengeId": "leap-steps",
+            "optional": True,
+            "routes": [
+                {
+                    "routeId": "leap-steps-hop",
+                    "kind": "JUMP",
+                    "start": at("leap-cp-yard"),
+                    "goal": _footprint(platforms["leap-step-3"]),
+                },
+            ],
+        },
+        {
+            "challengeId": "leap-barrels",
+            "optional": False,
+            "routes": [
+                {
+                    "routeId": "leap-barrels-jump",
+                    "kind": "JUMP",
+                    "start": at("leap-cp-yard"),
+                    "goal": _footprint(platforms["leap-barrel-3"]),
+                },
+                {
+                    "routeId": "leap-barrels-walk",
+                    "kind": "ACCESSIBLE",
+                    "start": at("leap-cp-yard"),
+                    "goal": at("leap-cp-barrels"),
+                },
+            ],
+        },
+        {
+            "challengeId": "leap-logs",
+            "optional": False,
+            "routes": [
+                {
+                    "routeId": "leap-logs-jump",
+                    "kind": "JUMP",
+                    "start": at("leap-cp-barrels"),
+                    "goal": _footprint(platforms["leap-log-3"]),
+                },
+                {
+                    "routeId": "leap-logs-walk",
+                    "kind": "ACCESSIBLE",
+                    "start": at("leap-cp-barrels"),
+                    "goal": at("leap-cp-logs"),
+                },
+            ],
+        },
+        {
+            # Up to the ledge and the treasure: the bounce drum, or the lift (no jump).
+            "challengeId": "leap-ledge",
+            "optional": False,
+            "routes": [
+                {
+                    "routeId": "leap-ledge-drum",
+                    "kind": "JUMP",
+                    "start": at("leap-cp-dock"),
+                    "goal": _footprint(platforms["leap-bounce-drum"]),
+                },
+                {
+                    "routeId": "leap-ledge-lift",
+                    "kind": "ACCESSIBLE",
+                    "start": at("leap-cp-dock"),
+                    "goal": _footprint(platforms["leap-lift"]),
+                },
+            ],
+        },
+    ]
+
+
+def leap_engine_bridge() -> dict:
+    """The engine part of the course, as `scene["engineBridge"]` (GE-065 bridge, GE-071)."""
+    course = _authored_course()
+    checkpoints = [
+        {
+            "id": c["id"],
+            "courseId": LEAP_COURSE_ID,
+            "position": {"x": c["x"], "y": 0.0, "z": c["z"]},
+            "yaw": c["yaw"],
+            "label": c["label"],
+        }
+        for c in course["checkpoints"]
+    ]
+    goals = [
+        {"id": g["id"], "courseId": LEAP_COURSE_ID, "rect": _area(g["rect"])}
+        for g in course["goals"]
+    ]
+    hazards = [
+        {
+            "id": h["id"],
+            "kind": "WATER",
+            "rect": _area(h["rect"]),
+            "checkpointId": HAZARD_CHECKPOINTS[h["id"]],
+            "messageKey": "leap.splash",
+        }
+        for h in course["hazards"]
+    ]
+    return {
+        "capabilities": [
+            {"id": "gameplay.checkpoints", "config": {"checkpoints": checkpoints, "goals": goals}},
+            {"id": "gameplay.hazards", "config": {"hazards": hazards}},
+            {
+                "id": "gameplay.jumpChallenges",
+                "config": {"challenges": leap_jump_challenges(course)},
+            },
+        ],
+        "allowEnginePlatforms": False,
+    }
+
+
+def course_problems() -> list[str]:
+    """Everything that would make the course unsafe or unpublishable (empty when it is fine)."""
+    return layout_problems(_authored_course(), bounds=BOUNDS) + engine_bridge_problems(
+        leap_engine_bridge()
+    )
+
+
 def _zone(zid, min_x, max_x, min_z, max_z, message):
     return {"rect": _rect(zid, min_x, max_x, min_z, max_z), "enterMessage": message}
 
@@ -176,11 +359,11 @@ def upgrade_pirates_leap(region: WorldRegion) -> bool:
     scene = dict(region.scene) if isinstance(region.scene, dict) else {}
     if scene.get("piratesLeapVersion", 0) >= LEAP_VERSION:
         return False
-    course = leap_platforming()
-    problems = layout_problems(course, bounds=BOUNDS)
+    problems = course_problems()
     if problems:
         raise ValueError(f"Pirate's Leap layout is invalid: {problems}")
-    scene["platforming"] = course
+    scene["platforming"] = leap_platforming()
+    scene["engineBridge"] = leap_engine_bridge()
     scene["piratesLeapVersion"] = LEAP_VERSION
     region.scene = scene
     region.version += 1
@@ -362,10 +545,14 @@ def leap_rows(region: WorldRegion) -> dict:
 # --- snapshot for the frontend tests (kept equal by `tests/test_pirates_leap.py`) ------------
 
 COURSE_SNAPSHOT_PATH = Path(__file__).with_name("pirates_leap_course.json")
+BRIDGE_SNAPSHOT_PATH = Path(__file__).with_name("pirates_leap_bridge.json")
 
 
 def write_snapshot() -> None:
     COURSE_SNAPSHOT_PATH.write_text(json.dumps(leap_platforming(), indent=1, sort_keys=True) + "\n")
+    BRIDGE_SNAPSHOT_PATH.write_text(
+        json.dumps(leap_engine_bridge(), indent=1, sort_keys=True) + "\n"
+    )
 
 
 if __name__ == "__main__":
