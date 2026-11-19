@@ -138,6 +138,12 @@ export interface EngineBridgeApi {
    */
   resume(checkpointIds: readonly string[]): { placedAt: string | null; unknown: string[] };
   /**
+   * The latest checkpoint the child reached on the bridge, for the host's live fall recovery:
+   * a fall below the ground (the live controller's own recovery) then returns the child to the
+   * same place a bridge hazard would. Null before any checkpoint, or with no gameplay.checkpoints.
+   */
+  latestCheckpoint(): { id: string; x: number; z: number; yaw: number } | null;
+  /**
    * Sets exactly these signals on (and turns off the ones a previous call set that are absent),
    * leaving every other signal alone (plates, switches, puzzles). A checkpoint, door or platform
    * gated by `requiresSignalId` opens when its signal is on. Region play feeds world-change keys
@@ -373,6 +379,7 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
         droppedClaims: () => dropped,
         unboundClaims: () => unbound,
         resume: (ids) => ({ placedAt: null, unknown: [...ids] }),
+        latestCheckpoint: () => null,
         setSignals: () => {},
       },
       dispose() {},
@@ -547,6 +554,10 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
       droppedClaims: () => dropped,
       unboundClaims: () => unbound,
       resume,
+      latestCheckpoint: () => {
+        const latest = runtime.services.get(CheckpointsService)?.latest() ?? null;
+        return latest ? { id: latest.id, x: latest.position.x, z: latest.position.z, yaw: latest.yaw } : null;
+      },
       setSignals,
     },
     dispose() {
