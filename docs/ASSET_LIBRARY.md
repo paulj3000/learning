@@ -28,8 +28,7 @@ duplicate upload.
 | `catalog.asset_refs.validate_asset_ref` | Unchanged: region rows and catalog rows still reference assets by id |
 | Bundled manifest (`react/src/features/island-map/three/assets/manifest.ts`) and `BUNDLED_ASSET_RESOLVER` | Unchanged; the fallback for every id Django does not publish |
 | `AssetResolver` contract and the LAI-2106 loader (`assetLoader.ts`, cache, failed-load eviction, events) | Unchanged; the Django adapter is another `AssetResolver` |
-| Amplify `Asset` / `AssetVersion` (ADR-030, Admins-only) | Source for the import tool only. Not read by the child app, not deleted |
-| Amplify upload checks (`modelFileChecks.ts`: GLB header, 50 MB limit) and key layout (`storageKeys.ts`) | Same rules, now enforced on the server |
+| Earlier client-side upload checks (GLB header, 50 MB limit) and key layout (ADR-030) | Same rules, now enforced on the server |
 | LAI-0404 / ADR-034 Django Admin | The admin surface. Extended with Django permissions and groups (ADR-035) |
 | LAI-1002 (RDS, S3) | **Not built.** Storage is an abstraction with S3, local and in-memory backends |
 
@@ -163,7 +162,7 @@ Both modes reuse one URL per version per half-TTL window, so a browser's HTTP ca
 across scenes. The bytes of a version never change, so responses are cacheable for the URL's
 remaining life and the loader's in-memory cache (keyed by asset id) needs no invalidation.
 Cross-origin: the API is same-origin by design (no CORS on Django, TR-D14; the React host must
-route `/api/*` to Django, `docs/platform/AMPLIFY_HOSTING.md` section 7). In `s3` mode the bucket
+route `/api/*` to Django; CloudFront does, `infra/lib/frontendStack.ts`). In `s3` mode the bucket
 needs a CORS rule allowing `GET` from the app origin (`allowedOrigins` in `infra/`, section 12).
 A Content-Security-Policy, when one is added, needs `connect-src` for the bucket host in `s3`
 mode.
@@ -220,12 +219,8 @@ next load asks again. Treasure Cove uses it (TR-10, section 15).
   `--ids npc-pip,treasure-chest,ground-tile`); an id that is not an exported bundled asset is
   listed as `unknown_asset`. The Django image carries `react/public/models`, so this runs as a
   one-off container task against production storage (section 19).
-- `--from-amplify FILE --files DIR`: Amplify `Asset` / `AssetVersion` records (from the
-  read-only export of LAI-1101) plus their downloaded files. The slug is the asset id; known
-  clip names are kept; records without a file, or whose file fails validation, are listed as
-  unresolved.
-- `--dry-run` reports without writing. Nothing is deleted, in S3 or in Amplify, and no gameplay
-  reference changes.
+- `--dry-run` reports without writing. Nothing is deleted in S3, and no gameplay reference
+  changes.
 
 ## 12. AWS storage (`infra/`, synthesized, not deployed)
 
@@ -288,7 +283,7 @@ The admin preview (section 17) adds no variable. Its token lifetime is the const
 | AM-12 | Production S3 storage: bucket, IAM, CORS, image, runbook (sections 12 and 19) | Done as code and documentation; deploying it is an approval step |
 | AM-13 | Non-model asset kinds: textures, images and sprites, audio. Each family gets validation, a key directory under `assets/`, a matching IAM prefix and previews (section 21) | **Done 2026-11-02, in `main` (`5222b690`)**; owner-reported local QA accepted 2026-11-05. Animation clips remain a property of models. Not checked against AWS (AM-16) |
 | AM-14 | Administrator REST API (section 20) | **Superseded by ADR-045 (2026-11-02): removed.** Staff administer assets in Django Admin only |
-| AM-15 | React staff pages on that API (section 20) | **Superseded by ADR-045 (2026-11-02): removed**, together with the Amplify upload wizard and the admin "Game assets" hub |
+| AM-15 | React staff pages on that API (section 20) | **Superseded by ADR-045 (2026-11-02): removed**, together with the earlier upload wizard and the admin "Game assets" hub |
 | AM-16 | End-to-end publish and delivery verification on the deployed dev environment, now through Django Admin | **Not started, pending**: needs LAI-1002/1004 (dev platform), the asset bucket deployed, and a browser/manual pass against them. Local QA does not satisfy it. Nothing in `main` claims it |
 | AM-17 | Django Admin lifecycle completion under ADR-045: rollback, reactivation, stored-file verification, admin-history audit, image and audio previews (section 21) | **Done 2026-11-02, in `main` (`5222b690`)**; owner-reported local QA accepted 2026-11-05 |
 
@@ -311,7 +306,7 @@ Treasure Cove entity (asset id "npc-pip")
   keeps what it loaded (section 9). No React rebuild is involved.
 - **Fallbacks.** Published version, else the bundled file for that id, else the TR-7a
   placeholder. A failed request (auth, scope, network) also plays on bundled files but is
-  reported as a failure, not as "not published" (section 10). Amplify Storage is never used.
+  reported as a failure, not as "not published" (section 10). The browser never reads a bucket directly.
 - **Animations.** The loader hands the scene the parsed glTF unchanged: clips keep their names,
   and the clone is skeleton-safe. The chest finds `Open` by name, Pip loops `Idle` and plays
   `Talk`/`Wave`. Upload validation refuses a new version that drops a clip the definition
@@ -338,12 +333,11 @@ Browser verification in a Django-enabled build has not been done (owner: after d
   follows is deferred work, not open parts of that decision.
 - **Delivery mode in production:** decided 2026-10-30, `django` from the S3 bucket (section 8).
   Revisit with `s3` delivery or signed CloudFront URLs (AM-11) if model traffic grows.
-- **Licence and source fields** (the Amplify `AssetSource` and notes) are not modelled as columns;
-  the Amplify import keeps only tags. Pack imports (section 23) record licence and source in the
-  version's immutable `metadata` and the definition's `source` JSON. Whether licence tracking
-  deserves real columns is still open.
+- **Licence and source fields** are not modelled as columns; the import keeps only tags. Pack
+  imports (section 23) record licence and source in the version's immutable `metadata` and the
+  definition's `source` JSON. Whether licence tracking deserves real columns is still open.
 - **Thumbnails** are not built. The interactive admin preview is (AM-10, section 17).
-- **The Amplify `AdventureAsset` join** (which adventure uses which asset) has no Django model.
+- **An adventure-to-asset join** (which adventure uses which asset) has no Django model.
   Catalog `LocationAsset` and region placements already reference assets by id.
 
 ## 17. Admin 3D preview (AM-10)
@@ -496,7 +490,7 @@ Animated models must keep the clip names the definition declares (`npc-pip`: `Id
 
 Prerequisites outside this document: Django hosting with a workload role, RDS and secrets
 (LAI-1002 to LAI-1004, `docs/DJANGO_TARGET_ARCHITECTURE.md` section 11a), and `/api/*` routed to
-Django on the app's own origin (`docs/platform/AMPLIFY_HOSTING.md` section 7). Every AWS step is
+Django on the app's own origin (CloudFront, `infra/lib/frontendStack.ts`). Every AWS step is
 an approval step.
 
 1. **Storage.** Synthesize and deploy `LaiAssetStorage-<env>` with the Django role
@@ -530,8 +524,8 @@ an approval step.
    (add `--dry-run` first to see what it would do). Idempotent; publishes nothing.
 7. **Publish** the three versions in Django Admin (19.2, step 3). Until then the game uses its
    bundled copies, so this step can come later.
-8. **React.** Nothing to set: every build calls Django (AMP-03; leave `VITE_DJANGO_API_BASE`
-   unset for a same-origin API). Amplify Hosting is retired.
+8. **React.** Nothing to set: every build calls Django (leave `VITE_DJANGO_API_BASE` unset for a
+   same-origin API). The site is published to S3 and CloudFront by `deploy-site.yml`.
 9. **Children.** A child must exist in Django to play: real families need the child-profile
    migration (LAI-0502/0602, TR-9). **Open blocker.**
 
@@ -544,7 +538,7 @@ administrative actions.
 |---|---|
 | A bad model version | Make the previous published version the default (19.2, step 4). Versions are immutable, so the old bytes are untouched. Retiring the bad one stops it at once with `django` delivery |
 | An asset that should not be in the game at all | Retire the definition (admin action): every reference becomes `retired` and the game uses the bundled file |
-| TR-10 itself | Retire the region's asset definitions (above): its models fall back to the bundled loader. The `VITE_BACKEND` switch that used to do this is gone (AMP-03) |
+| TR-10 itself | Retire the region's asset definitions (above): its models fall back to the bundled loader |
 | The storage stack | It retains the bucket on delete, so tearing the stack down never deletes content. A deleted object can be restored from its noncurrent version for 30 days (`aws s3api list-object-versions`, then copy it back) |
 | A whole Django release | Roll the service back to the previous image; asset rows and objects are unaffected (the asset migrations are additive) |
 
@@ -639,14 +633,11 @@ treats as done. A failed upload leaves no row and no object.
 then upload; a retry only uploads) and a per-asset page with the version actions and new-version
 uploads. Uploads use `XMLHttpRequest` for progress (`api/assets/djangoAssetAdmin.ts`), with one
 forced token refresh after a 401, and send the token only to the configured API origin. A test
-walks those pages' runtime imports and fails on any Amplify or AWS SDK import. A build without the
-Django API keeps the Amplify pages (`AdminModelAssets`, `AdminNewModelAsset`) unchanged until
-LAI-1301.
+walks those pages' runtime imports and fails on any AWS SDK import.
 
 **Not done here.** Non-model kinds (textures, images, audio) remain AM-13: they need a key family
 and IAM prefix per kind, validation per format, and a runtime consumer in the engine, which is a
-decision of its own. The Amplify catalog admin's model picker (`features/admin/catalogApi.ts`) still
-reads Amplify `Asset` records; it goes with LAI-1301. AM-16 verifies publish and delivery on the
+decision of its own. AM-16 verifies publish and delivery on the
 deployed dev environment.
 
 ## 21. Django Admin asset library (AM-13, AM-17; ADR-045)

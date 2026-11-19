@@ -21,7 +21,7 @@
 - Region content: `ThreeLocationManifest` v1, validated by `validateLocationManifest`, loaded by `LocationManifestRepository`.
 - Extensions: scene `WorldExtension` and view `LocationViewExtension`, registered in their registries; assets declared via `assetIds`.
 - Semantic event bus: `WorldEngineEventBus`; manifest interactions and `adventureBindings` determine meaning.
-- Asset IDs resolve through the existing asset catalogue/resolver; no hard-coded S3/CloudFront/Amplify URLs.
+- Asset IDs resolve through the existing asset catalogue/resolver; no hard-coded S3/CloudFront URLs.
 - Source-controlled checkpoints remain authoritative until the published checkpoint catalogue gap is resolved.
 - Admin authoring phases 11–15 are unfinished; they are **not prerequisites** for this prototype.
 - The 2D Phaser routes remain separate; do not remove them.
@@ -64,7 +64,7 @@ Tasks:
 Tasks:
 - Add a reusable multiplayer client service with connect/disconnect/reconnect, room join/leave, transport abstraction, typed events, and connection states.
 - Add an authoritative room server proof of concept with room IDs, region IDs, instance capacity (initial target 12), presence, heartbeats, disconnection cleanup, and server-side authorization.
-- Validate identity using the existing Cognito/Amplify authentication flow; never trust a childId, display name, or room membership supplied only by the client.
+- Validate identity using the existing Cognito authentication flow (tokens verified as Django verifies them); never trust a childId, display name, or room membership supplied only by the client.
 - Provide isolated development configuration and secure production configuration. Document allowed origins, TLS, token expiration, reconnect behavior, and rate limits.
 - Keep rooms in memory for the prototype; specify what is and is not persisted. Do not accidentally persist sensitive player telemetry.
 - Gate all multiplayer behavior behind a feature flag. Existing regions default to single-player.
@@ -166,7 +166,7 @@ Tasks:
 - Unit-test room state transitions, auth rejection, movement validation, event idempotency, quest contribution, reward issuance, and spawn conflict resolution.
 - Integration-test two clients joining, moving, completing the vault, reconnecting, and leaving.
 - Test high latency, dropped connections, duplicate events, stale sessions, and server restarts.
-- Ensure keyboard, touch, readable text, audio alternatives, calm-stop, and non-graphical exit remain available.
+- Ensure keyboard, touch, readable text, audio alternatives, and non-graphical exit remain available.
 - Keep child safety and privacy as release gates; do not silently expose public multiplayer.
 - Track room capacity, latency, message rate, memory usage, and server costs with minimal, privacy-preserving telemetry.
 

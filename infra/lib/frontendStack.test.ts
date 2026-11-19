@@ -101,9 +101,39 @@ describe('FrontendStack', () => {
     expect(site.FunctionAssociations).toEqual([
       expect.objectContaining({ EventType: 'viewer-request' }),
     ]);
-    // A 403/404 to index.html rule would turn a missing script into HTML.
-    expect(config.CustomErrorResponses).toBeUndefined();
+    // A 403/404 to index.html rule would turn a missing script into HTML: only origin errors
+    // have a rule, and it has no page.
     expect(config.DefaultRootObject).toBe('index.html');
+  });
+
+  it('caches 502, 503 and 504 for 10 seconds only, with no error page', () => {
+    // The native dev origin is stopped every night; a cached 502 must not outlive the restart.
+    const config = distributionConfig(template);
+    expect(config.CustomErrorResponses).toEqual([
+      { ErrorCode: 502, ErrorCachingMinTTL: 10 },
+      { ErrorCode: 503, ErrorCachingMinTTL: 10 },
+      { ErrorCode: 504, ErrorCachingMinTTL: 10 },
+    ]);
+    expect(JSON.stringify(config.CustomErrorResponses)).not.toMatch(/ResponsePagePath|40[34]/);
+  });
+
+  it('outputs the CloudFront URL and the deployment role under both names', () => {
+    const outputs = template.toJSON().Outputs as Record<string, { Value: unknown }>;
+    for (const name of [
+      'WebBucketName',
+      'DistributionId',
+      'DistributionDomainName',
+      'SiteCertificateArn',
+      'SiteUrl',
+      'SiteDeployRoleArn',
+      'FrontendDeploymentRoleArn',
+      'CloudFrontUrl',
+    ]) {
+      expect(outputs, name).toHaveProperty(name);
+    }
+    expect(outputs.FrontendDeploymentRoleArn.Value).toEqual(outputs.SiteDeployRoleArn.Value);
+    expect(JSON.stringify(outputs.CloudFrontUrl.Value)).toContain('https://');
+    expect(JSON.stringify(outputs.CloudFrontUrl.Value)).toContain('DomainName');
   });
 
   it('rewrites SPA routes to the app shell and leaves real files alone', () => {

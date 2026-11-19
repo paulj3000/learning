@@ -13,7 +13,7 @@ Run on Node 24.14.0, npm 11.9.0.
 | Command | Result |
 |---|---|
 | `npm ci --dry-run` | exit 0 (lockfile consistent) |
-| `npm run typecheck` | exit 0 (app, `amplify/`, `scripts/`) |
+| `npm run typecheck` | exit 0 (app and `scripts/`) |
 | `npm run lint` | exit 0, no errors; pre-existing warnings only (mostly `jsx-a11y/prefer-tag-over-role`) |
 | `npm test` | **249 files, 2,567 tests passed**, 0 failed (236 s) |
 | `npm run build` | exit 0; pre-existing "chunk larger than 500 kB" warning |
@@ -78,7 +78,7 @@ confirm the checkpoint, use "Things to do here" and the non-graphical exit.
 | Idempotent rewards | `grantRewards` (`src/features/rewards/api.ts`), idempotent per child per rule id via `ChildInventory.grantedRuleIds` | "Exactly once per child" already has a key; the write is client-side, though |
 | Item rarity field | `ItemDefinition.rarity` | Descriptive only; deliberately never weights anything |
 | Parent auth | Cognito email login, groups `Admins` and `Superusers` only | No child identities (ADR-001) |
-| Budget alarms | `amplify/backend.ts` (Bedrock monthly budget) | Pattern to copy for a room-server cost alarm |
+| Budget alarms | `infra/lib/aiGuardrailStack.ts` (Bedrock monthly budget) | Pattern to copy for a room-server cost alarm |
 
 ### 4.2 Does not exist
 

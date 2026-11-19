@@ -3,18 +3,20 @@
 ## System overview
 
 ```text
-React/Vite client
-  |
-  | Amplify client libraries
-  v
-Amplify Auth ---- Cognito parent accounts
-Amplify Data ---- AppSync + DynamoDB
-Amplify Storage - S3 approved media
-Amplify AI Kit -- AppSync AI routes + Amazon Bedrock
-Amplify Functions - orchestration, privileged mutations, reports, safety processing
-  |
-  v
-CloudWatch logs and operational metrics
+React/Vite client (react/: React 19, TypeScript, Three.js gameplay)
+  |                                   |
+  | Cognito SRP sign-in               | HTTPS /api/v1/ with Authorization: Bearer <Cognito access token>
+  v  (react/src/lib/cognito)          v
+Amazon Cognito ----------------> Django + DRF (lai/) -- PostgreSQL 16 (application data and rules)
+  parent accounts (existing           |   verifies tokens against the pool JWKS
+  user pool and web app client)       |-- Amazon S3 (game assets, child photos; private, through Django)
+                                      |-- Amazon Bedrock (AI generation) and Amazon Polly (speech)
+                                      |-- Amazon SQS + AWS Lambda (background jobs, ADR-064)
+                                      v
+                                 CloudWatch logs and operational metrics
+
+Static site: the React build on S3 behind CloudFront; CloudFront routes /api/ to Django.
+Infrastructure: AWS CDK in infra/; nothing deploys without explicit owner approval.
 ```
 
 ## Frontend boundaries
@@ -22,61 +24,57 @@ CloudWatch logs and operational metrics
 - `app`: providers, routing, bootstrap, global error handling.
 - `features/auth`: parent authentication.
 - `features/child-profile`: profile selection and parent-managed settings.
-- `features/island-map`: the explorable world (Phaser boundary, avatar
-  controller, camera, world event bus, interaction/object registry) and
-  world state/navigation. See "World engine layering" below.
+- `features/island-map`: the explorable world (the Three.js boundary in `island-map/three/`:
+  avatar controller, camera, world event bus, interaction/object registry, location runtime)
+  and world state/navigation. Phaser scenes remain only in the transitional Phaser worlds
+  (`island-map/scenes/` and the `*WorldView.tsx` hosts that import it) until each is converted
+  (ADR-020). See "World engine layering" below.
 - `features/adventures`: rendering and adventure state transitions.
 - `features/companion`: Chatty presentation, narration queue, AI response display.
 - `features/parent-dashboard`: progress summaries and controls.
 - `features/safety`: client-safe reporting and fallback UI.
-- `lib`: typed clients, runtime validators, logging adapters, utilities.
+- `api/`: typed Django REST clients.
+- `lib`: Cognito client (`lib/cognito`), runtime validators, logging adapters, utilities.
 
 ## Backend boundaries
 
 ### Auth
-Parent accounts only. Child profiles are application records owned by parent accounts.
+Parent accounts only, through the existing Amazon Cognito user pool and web app client, used
+directly from the browser and verified by Django (see "Authentication architecture" below).
+Child profiles are application records owned by parent accounts.
 
 ### Data
-Use owner-based authorization for parent-owned records and explicit group authorization for administrators. Prefer narrow custom operations for actions that update several records atomically or require validation.
+Django + DRF on PostgreSQL 16 owns application data and rules. Parent-owned records are reached
+only through the authenticated parent (see "Tenant isolation" below); administration is
+group-based and explicit (Django Admin). Prefer narrow service functions for actions that update
+several records atomically or require validation.
 
 ### Storage
-Use path-based access rules. Store only approved assets and generated artifacts. Do not allow arbitrary public uploads in the MVP.
+Store only approved assets and generated artifacts. Do not allow arbitrary public uploads in the
+MVP. All object access goes through Django; the browser never holds bucket credentials.
 
-Defined in `amplify/storage/resource.ts`. Today it holds exactly one kind
-of object: the optional photo a parent uploads as a child's profile icon,
-under `child-photos/{entity_id}/`, readable and writable only by the
-Cognito identity that uploaded it (no guest, blanket-authenticated, group,
-or function access). Client-side handling, including the re-encode that
-strips EXIF metadata and the deletion guarantees, is specified in
-`docs/DATA_MODEL.md` under "Child profile photos".
+Django uses separate private buckets (ADR-042): `LaiAssetStorage-<env>` for game assets (the
+Django asset library, ADR-035, administered in Django Admin per ADR-045) and
+`LaiChildPhotos-<env>` for the optional photo a parent uploads as a child's profile icon (the
+child profile subsystem; no publication, no CDN, 7-day version retention). Client-side photo
+handling, including the re-encode that strips EXIF metadata and the deletion guarantees, is
+specified in `docs/DATA_MODEL.md` under "Child profile photos"; the bucket is described in
+`docs/platform/CHILD_PHOTO_STORAGE.md`.
 
-The second prefix, `assets/*`, holds admin-uploaded game assets for the
-Model Asset Library (ADR-030): Admins group only, one object per version
-(`assets/models/<folder>/<assetId>/v<n>/model.glb`), each referenced by an
-`Asset`/`AssetVersion` record rather than by path. Runtime resolution goes
-through `src/features/assets/assetService.ts`, which falls back to the
-bundled `public/models/` file whenever no published S3 asset can be
-resolved, so children's regions keep working offline.
+Runtime asset resolution goes through `react/src/features/assets/assetService.ts`, which asks
+Django for the child's published version and falls back to the bundled `react/public/models/`
+file whenever no published asset can be resolved, so children's regions keep working offline.
 
-**Django target (ADR-042).** The Django platform splits these two stores into separate private
-buckets: `LaiAssetStorage-<env>` for game assets (the Django asset library, ADR-035) and
-`LaiChildPhotos-<env>` for child photos (the child profile subsystem; no publication, no CDN,
-7-day version retention). The Amplify bucket above stays unchanged until LAI-1204 retires it.
-See `docs/platform/CHILD_PHOTO_STORAGE.md`.
-
-### Functions
-Potential functions:
-- `startAdventureSession`
-- `submitAdventureAction`
-- `generateCompanionTurn`
-- `completeAdventureSession`
-- `buildParentSummary`
-- `processSafetyEvent`
-
-Functions should be added only when direct Data operations or AI routes cannot safely enforce the workflow.
+### Server operations
+Workflows such as starting an adventure session, submitting an answer, generating a companion
+turn, completing a session, building a parent summary and processing a safety event are Django
+services behind DRF views. Long-running or retryable work runs as `apps.jobs` jobs on SQS with
+Lambda workers that never touch the database or publish (ADR-061, ADR-064).
 
 ### AI
-Use generation routes for structured, single-turn content such as:
+Every AI call goes through Django's AI pipeline (`lai/apps/ai`), backed by Amazon Bedrock, with
+the deterministic fake provider for local development and tests. Use generation routes for
+structured, single-turn content such as:
 - companion dialogue;
 - age-banded hints;
 - bounded story variations;
@@ -91,7 +89,7 @@ Per `docs/LEARNING_ADVENTURE_ISLAND_EXPLORABLE_WORLD_ROADMAP.md` section 40
 and ADR-007 in `docs/DECISIONS.md`:
 
 ```text
-World Engine (Phaser: movement, maps, animation, collision)
+World Engine (Three.js; transitional Phaser worlds: movement, maps, animation, collision)
      -> Story Engine (chapters, scenes, narrative state, bounded choices)
      -> Adventure Engine (deterministic challenge progression, validation, hints)
      -> Learning Rules / AI Companion (evaluation / narration, never both)
@@ -356,7 +354,7 @@ which engine owns which model.
     and may offer authored choices. `generateTutorTurn` (Phase 27) teaches
     one already-chosen skill with one already-chosen strategy, has no
     `choices` field at all, and carries its own system prompt
-    (`amplify/data/tutorPersona.ts`) and its own `promptTemplateVersion` in
+    (`lai/apps/ai/prompts/tutor.py`) and its own `promptTemplateVersion` in
     the audit trail. Keeping them apart means neither route's freedoms leak
     into the other.
 
@@ -485,10 +483,12 @@ is still worth introducing if a fourth consumer ever appears.
 
 ## Environment strategy
 
-- Local developer sandbox through Amplify Gen 2.
-- Separate preview environments per branch where practical.
+- Local development: React (Vite) against Django and PostgreSQL in Docker, with the existing
+  Cognito pool and Django's fake AI and speech providers (`README.md`, "Local development").
+- A low-cost AWS development environment defined in `infra/` (ADR-055).
 - Production environment with restricted administrator access.
-- Secrets stored through Amplify secret management or approved AWS mechanisms, never committed.
+- Secrets stored in approved AWS mechanisms (AWS Secrets Manager, SSM SecureString parameters),
+  never committed.
 
 ## Observability
 
@@ -505,13 +505,12 @@ Track operational metadata without storing unnecessary child content:
 
 Do not put child names, raw voice, or free-form answers in routine logs.
 
-`AIInteractionAudit` and `SafetyEvent` (`docs/DATA_MODEL.md`) already carry
-this metadata as owner-scoped DynamoDB rows, written client-side. Since
-that write path has no server-side hook to attach a metric filter to, a
-DynamoDB Streams-triggered Lambda (`amplify/functions/operational-metrics/`,
-wired in `amplify/backend.ts`) turns each write into a CloudWatch
-custom metric, feeding the CloudWatch dashboard and alarms described in
-`docs/PILOT_READINESS.md` section 3. This is operational, account-level
+`AIInteractionAudit` and `SafetyEvent` (`docs/DATA_MODEL.md`) carry this
+metadata as server-written rows (`lai/apps/ai/services/auditing.py`). The
+same module emits one structured log line per turn and per safety event,
+which CloudWatch metric filters (`infra/lib/aiGuardrailStack.ts`) turn into
+custom metrics and alarms (`docs/AI_SERVICE.md` section 6,
+`docs/PILOT_READINESS.md` section 3). This is operational, account-level
 visibility, not the per-family admin review workflow
 (`docs/AI_AND_CHILD_SAFETY.md` layer 10), which remains a separate, not
 yet built, piece.
@@ -519,10 +518,10 @@ yet built, piece.
 
 ## Accepted: Three.js is the only gameplay renderer (ADR-020)
 
-Direction in effect; the code has not changed yet. Every playable environment will run on one
-Three.js engine in a top-level `game/` package; Phaser and all 2D gameplay rendering will be
-removed world by world after parity and visual verification. Today both renderers still
-exist, so the "World engine layering" described above remains accurate for the code as it is.
+Direction in effect. Every playable environment runs, or will run, on one Three.js engine,
+later in a top-level `game/` package (LAI-2101); every active 3D region already runs on the
+generic Three.js route. Phaser and all 2D gameplay rendering are removed world by world after
+parity and visual verification; the remaining Phaser worlds are transitional (bug fixes only).
 No new Phaser features. React keeps menus, HUD, dashboards, and admin. Detail:
 `docs/THREEJS_ENGINE_CONVERSION.md`; decision: ADR-020 in `docs/DECISIONS.md`.
 
@@ -533,8 +532,7 @@ geometry modules (`gridGeometry`, `tilemap`, `zones`, `decor`, `*Tilemap`, `*Zon
 resolves every import form (static, type-only, re-export, side-effect, `require`, dynamic)
 and follows local modules transitively. Packages are deny by default: only `three` (and
 `phaser` in `scenes/`) is allowed, so an alias cannot bypass the rule. Forbidden: React,
-React DOM and React Router; Amplify and AWS SDKs; `lib/data-client`, `lib/amplify-config`,
-`lib/ai/`, `api/` and any feature `api` module; `app/`, `routes/`, `components/`,
+React DOM and React Router; AWS SDKs; the retired data-client paths, `lib/ai/`, `api/` and any feature `api` module; `app/`, `routes/`, `components/`,
 `features/auth/`, `features/session/`; any `.tsx` module; anything outside `react/src`. The
 host passes the engine plain data and interfaces instead. `KNOWN_VIOLATIONS` is empty since
 POST-MERGE-03: every React module in the engine folders is a `.tsx` host file (view extensions,
@@ -544,17 +542,9 @@ only world extensions and the plain id list `viewExtensionIds.ts`), and the regi
 extension's id and config types live in `region-play/regionPlayConfig.ts`, away from the API
 types. LAI-2101 applies the same rule to `game/`.
 
-## Proposed backend migration (not in effect)
-
-The architecture above is current and authoritative. A migration from Amplify Gen 2 to
-Django + DRF + PostgreSQL, retaining Cognito, S3, React, and the Three.js engine (Phaser is retired by ADR-020), is
-**proposed** in ADR-019 (`docs/DECISIONS.md`). Assessment:
-`docs/DJANGO_MIGRATION_ASSESSMENT.md`; target: `docs/DJANGO_TARGET_ARCHITECTURE.md`; sequence:
-`docs/DJANGO_MIGRATION_ROADMAP.md`. Nothing in this document changes unless ADR-019 is accepted.
-
 ## Django API conventions (LAI-0205)
 
-Applies to `lai/` (Django + DRF). The Amplify backend is unchanged until cutover.
+Applies to `lai/` (Django + DRF), the only application backend (ADR-019).
 
 **Namespace and versioning.** All routes are under `/api/v1/`, one `include` per app in
 `lai/config/urls.py`. Additive changes stay in v1; a breaking change gets a new `/api/v2/` prefix
@@ -605,8 +595,10 @@ only and is not an authentication or uniqueness guarantee.
 cookies, tokens, bodies, or user data. `django.request` is limited to ERROR and `django.server`
 is discarded so there are no duplicate or query-string-bearing lines. Console only.
 
-**Security defaults.** Deny by default: `IsAuthenticated` is the default permission; only the
-health view opts into `AllowAny` (a test fails if any other route becomes public). No session
+**Security defaults.** Deny by default: `IsProvisionedParent` is the default permission; only the
+health views and the two signed-token file routes (asset files, speech clips) opt into `AllowAny`
+(`PUBLIC` in `apps/users/tests/test_tenant_isolation.py`; a test fails if any other route becomes
+public). No session
 authentication and no CORS. The one cookie credential is the game session cookie of ADR-036,
 accepted only by the game runtime routes ("Native Android clients" below). Cognito bearer-token transport, browser token storage, the CSRF
 policy, and XSS considerations are decided in LAI-0402; see ADR-021 on W003. There is no
@@ -632,8 +624,8 @@ Cognito issues tokens; React sends the Cognito **access token** as `Authorizatio
 Django verifies it against the pool JWKS and resolves `ParentAccount` by the immutable `sub`;
 child data is reached only through that parent. No Django sessions, passwords, or cookie
 credentials authenticate the API in any environment, local development included (ADR-040; see
-"Cognito-only API authentication" below). Today the Amplify SDK keeps tokens in `localStorage` (readable by page JavaScript);
-that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Owner decisions of 2026-10-18 approved
+"Cognito-only API authentication" below). Today the browser Cognito client (`react/src/lib/cognito`)
+keeps tokens in `localStorage` (readable by page JavaScript); that, onboarding, revocation latency, and the admin design are open gates in ADR-024. Owner decisions of 2026-10-18 approved
 explicit `POST /api/v1/me/` onboarding, PyJWT/RS256 verification with a bounded JWKS cache, and
 claim-derived administration. Sensitive actions (child deletion, asset administrator changes) require a recent
 interactive Cognito sign-in checked by Django (LAI-0209, ADR-043; see "Recent sign-in verification" below).
@@ -684,15 +676,14 @@ React --(Cognito JWT)--> Django REST API
          children/<id>/... play, progress, rewards (Treasure Rush)
 ```
 
-- React: `react/src/features/child-profile/api.ts` picks the store by backend. Every build with
-  the Django API uses `djangoProfiles.ts`; a build without it (the deployed build until the
-  cutover) uses `amplifyProfiles.ts`, removed by LAI-1301. Screens use the hand-owned shapes in
-  `profileTypes.ts`. The Amplify `Admins` pages keep their own Amplify reads (`features/admin`).
+- React: `react/src/features/child-profile/api.ts` reads and writes profiles through
+  `djangoProfiles.ts`. Screens use the hand-owned shapes in `profileTypes.ts`.
 - Archival policy: `PATCH {"active": false}` keeps the profile, progress and rewards. Hard
   deletion is `DELETE /api/v1/children/<id>/` (LAI-0602), which needs a recent sign-in
   (LAI-0209): 204, or `403 recent_auth_required`, `404`, `503 child_deletion_incomplete`.
-- Existing Amplify profiles: `manage.py import_amplify_profiles`, dry run first, ids preserved,
-  owner from the recorded Cognito sub only (`docs/platform/AMPLIFY_PROFILE_IMPORT.md`).
+- Profiles in the retained legacy DynamoDB tables from the retired backend: a management command
+  in `lai/apps/users/management/commands/` imports them, dry run first, ids preserved, owner from
+  the recorded Cognito sub only. Running it against real data needs owner approval.
 - Django Admin: `ParentRecord` and `ChildProfile` are read-only for staff with
   `users.view_childprofile`, without nicknames, interests or identity mappings, and each view is
   logged to `lai.admin_audit`.
@@ -749,7 +740,7 @@ Those are gate G10 (LAI-0210), required before production.
 
 TypeScript content is exported read-only to `content/` (schema, 11 data files, manifest). The export
 runs the existing typed content modules at build time in plain Node: a trusted boundary guarded by a test
-that no module it imports reaches React, Amplify, Three.js, Phaser, or an `api.ts`. Django (LAI-0304) and
+that no module it imports reaches React, an AWS SDK, Three.js, Phaser, or an `api.ts`. Django (LAI-0304) and
 the future Three.js world loader are the intended consumers; neither exists yet. Details, the hierarchy
 mapping, and gaps: `docs/DATA_MODEL.md`.
 
@@ -796,13 +787,13 @@ RewardRule, ContentRelease. Users: Admin accounts (staff rows only, superusers o
 **Not registered, on purpose:** ChildProfile and every child-owned progress model (sessions,
 answers, skills, stories, world changes, inventory, quest progress), until an audited
 cross-family read path exists (ADR-024 A4). Parent accounts are not listed. Region layouts and
-`ChallengeSpec` are seed-authored until LAI-0805 (ADR-033). Things still only in Amplify (the
-React admin's uploaded `Asset` records, ADR-030; the island/adventure overlay, ADR-031; safety
-review) have no Django models yet and are not in Django Admin; LAI-0801/0802 own them.
+`ChallengeSpec` are seed-authored until LAI-0805 (ADR-033). The island/adventure overlay
+(ADR-031) and safety review have no Django models yet and are not in Django Admin; LAI-0801/0802
+own them.
 
 **How accounts come to exist.**
 1. *Cognito account:* the browser signs up and confirms directly with Cognito (`SignUpForm`,
-   `ConfirmSignUpForm`, Amplify Auth). Neither Django nor a Cognito trigger is involved.
+   `ConfirmSignUpForm`, through `react/src/lib/cognito`). Neither Django nor a Cognito trigger is involved.
 2. *Django account:* in a build with the Django API on, `DjangoAccountProvider`
    (`react/src/features/auth/DjangoAccountContext.tsx`) sends `POST /api/v1/me/` once after every
    sign-in. The first call creates the `ParentAccount` from the verified token's `sub`, with no
@@ -839,7 +830,7 @@ last at most 8 hours and end when the browser closes. Cookies (`lai_admin_sessio
 
 **React link.** `POST /api/v1/me/` (the sign-in call above) returns `django_admin: true` for active
 staff. The account menu's "Admin" item goes to `VITE_DJANGO_ADMIN_URL` only when the build sets that
-variable and Django returns true (every build calls Django since AMP-03). Otherwise the existing `/admin` link for the
+variable and Django returns true (every build calls Django). Otherwise the existing `/admin` link for the
 Cognito `Admins` group is unchanged. Django Admin checks its own sign-in either way.
 
 **Known limitations.** Separate credentials from Cognito, with no MFA on the Django login yet (a
@@ -992,10 +983,8 @@ Quests (catalog.Quest) are owned by the Island and may span its Places.
   "Explore <3D Area>" when Django has a published one for it.
 - **Admin.** 3D Areas and launch points are managed on the Django Admin "3D Areas" pages
   (`apps/regions/admin.py`). Spatial layout is read-only there until LAI-0805.
-- **Gap (historical, closed by AMP-03).** When this was written the step-adventure runner was
-  Amplify-backed. Every build now runs solo template launches on Django's step runner
-  (`DjangoAdventureRunner`) and co-op launches on the classic runner over Django's co-op routes
-  (`docs/platform/AMPLIFY_FINAL_REMOVAL.md`).
+- **Runners.** Solo template launches run on Django's step runner (`DjangoAdventureRunner`) and
+  co-op launches on the classic runner over Django's co-op routes.
 
 ## Native Android clients and the game-only WebView (LAI-ANDROID-API-001, ADR-036)
 
@@ -1034,7 +1023,7 @@ Cognito `GetUser` call with the presented token so a revoked session fails. Answ
 `403 recent_auth_required` (not 401, so clients do not refresh-and-retry), `401` for a revoked
 token, `503 recent_auth_unavailable` when the check cannot run (fails closed). Guarded today:
 `DELETE /api/v1/children/<id>/`. Asset mutations no longer exist as an API (ADR-045). React's
-`useSensitiveAction` (`react/src/features/auth/recentSignIn/`) re-authenticates with an Amplify
+`useSensitiveAction` (`react/src/features/auth/recentSignIn/`) re-authenticates with a
 Cognito sign-in for the same account, asks for explicit confirmation, and retries once.
 
 

@@ -45,7 +45,7 @@ New in LAI-NPC-040 (cross-cutting, full flow):
 | Dialogue | `npcs/tests/test_dialogue_engine.py`, `test_dialogue_api.py`, `test_dialogue_state.py`, `test_dialogue_validation.py`; React `dialogue/*.test.ts`, `ui/NpcDialoguePanel.test.tsx`; **both acceptance files** |
 | Sound | React `host/useNpcSceneHost.test.tsx` ("reports the Sound Manager NPC moments"), `voice/useNpcVoice.test.tsx` (mute, volume), `regionPlay/RegionPlayCompanion.npc.test.tsx`; **React acceptance** (muted: no speech request) |
 | Movement | React `behavior/behaviorMachine.test.ts`, `collision.test.ts`, `createBehaviorController.test.ts`, `parameters.test.ts`, `isolation.test.ts`, `engine/npcRuntimePerformance.test.ts` (far NPC route); Django `test_behavior_validation.py`, `test_behavior_preview.py` |
-| Treasure Rush events | React `dialogue/triggers.test.ts`, `host/triggerQueue.test.ts`, `regionPlay/RegionPlayCompanion.npc.test.tsx` (exactly one Pip, rewards unchanged, calm stop); Django `test_treasure_pip_seed.py`, **`test_acceptance_flow.py`** (every Pip trigger, `on_adventure_complete` only after the world change); **React acceptance** (treasure reaction plus line) |
+| Treasure Rush events | React `dialogue/triggers.test.ts`, `host/triggerQueue.test.ts`, `regionPlay/RegionPlayCompanion.npc.test.tsx` (exactly one Pip, rewards unchanged); Django `test_treasure_pip_seed.py`, **`test_acceptance_flow.py`** (every Pip trigger, `on_adventure_complete` only after the world change); **React acceptance** (treasure reaction plus line) |
 | Storykeeper's Castle events | `lai/apps/npcs/tests/test_castle_quill_seed.py` (seed idempotent, validates, Pip and Quill in one release, each scope serves only its NPC); `react/src/features/island-map/three/extensions/castleTale/CastleTaleCompanion.npc.test.tsx` (Place scope, exactly one Quill, conversation through the host, quest accept through the castle flow, tale start/resume/complete signals, mid-tale tap ignored, fallback with no release / Django off / load failure, scripted gestures forwarded, disposal on leaving); `castleNpcProgress.test.ts`; `runtime/manifests/storykeeperCastle.engine.test.ts` (handover) |
 | Child authorization | `npcs/tests/test_runtime_api.py`, `test_dialogue_api.py`, `test_ai_hint_api.py` (another family 404, 401, game cookie scope), `speech/tests/test_npc_dialogue_node.py`; **`test_acceptance_flow.py`** (other family 404 at every lifecycle step, cookie Area-only) |
 | AI safety | `npcs/tests/test_ai_hint_api.py` (invalid output, boundary violations, guardrail, kill switch, parent switch, rate limit, no free text), `ai/tests/test_npc_hint_contract.py`, `test_ai_persona.py`; **`test_acceptance_flow.py`** (fake model, AI disabled fallback, authored Pip refuses without a model call) |
@@ -147,7 +147,7 @@ Open `/island/<childId>/explore/treasure-rush-cove` as a new child.
 | 4.9 | Finish all four and return to Pip | Finale once, Explorer Badge, then Pip's completion lines; the bridge message after | [ ] |
 | 4.10 | Check the backpack and HUD | Rewards exactly as without the NPC Manager; nothing twice | [ ] |
 | 4.11 | Exit mid-quest, reload, come back | Progress kept (save/resume); Pip says "Ahoy again, friend! Welcome back" instead of the first greeting | [ ] |
-| 4.12 | Let the session time limit end the visit (calm stop) | Pip does not celebrate a time-out | [ ] |
+| 4.12 | Retired: no session time limit exists (ADR-053) | Not applicable | n/a |
 | 4.13 | Throughout | Never two Pips; Pip's lines never cover a chest panel or reward reveal | [ ] |
 
 ### B5. Fallback to legacy Pip
@@ -243,7 +243,7 @@ Quill is a Place-level placement (`castle-quill`, Place `storykeeper-castle`) se
 | 13.13 | Keyboard and screen reader in the castle | Same as B10: prompt reachable, Escape closes, focus returns, lines announced once | [ ] |
 | 13.14 | Treasure Cove after seeding both | Pip still behaves as in B4 to B6; one release serves both characters in their own scopes | [ ] |
 
-Known limits (not defects): Quill's dialogue conditions cannot see the castle's Amplify quest
-state, so the quest offer appears once per child rather than "until the quest is started"; the
+Known limits (not defects): Quill's dialogue conditions cannot see the castle's quest
+state (outside Django when this was written), so the quest offer appears once per child rather than "until the quest is started"; the
 castle's wrong answers come from the Adventure Engine, not the play API, so they do not trigger
 `on_incorrect_answer` lines (Quill still shows concern through the forwarded gesture).

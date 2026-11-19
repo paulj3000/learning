@@ -16,7 +16,7 @@ Baseline checks run for this audit: 37 castle and asset Vitest files, 504
 tests, all passing; `npm run typecheck` passes. No browser was launched.
 
 Paths are relative to `react/src/` unless they start with `lai/`, `docs/`,
-`scripts/` or `amplify/`.
+or `scripts/`.
 
 ---
 
@@ -117,7 +117,7 @@ content already owns.
 | 9 | Three clues found separately; nine stars counted (5 + 4) | `castleLibraryClues.ts`, manifest `COUNTING_STAR_SPOTS` |
 | 10 | Pattern lock: star, moon, star, moon, star, then seat rods by length | `castlePatternLock.ts`, `seatingPuzzle.ts` |
 | 12 | Tapestry nook: an unmarked secret (zone only, hidden from lists) | manifest `hiddenInteractionIds` |
-| 13 | Calm stop: Quill points to the cushions when the session clock is spent | `CastleTaleCompanion.tsx`, `session/useSessionClock.ts` |
+| 13 | Calm stop (retired by ADR-053 on 2026-11-11; no play-time limits) | removed |
 
 Beat 11 (the Writing Room) is **not** 3D (see section 10).
 
@@ -172,32 +172,34 @@ castle. It also links to the Phaser castle and the 3D castle for every band.
   `castle-tale` drives his gesture clips.
 - `npc-quill.gltf`: generated, 16 KB, 5 nodes, 6 clips (Idle, Talk, Wave,
   Point, Celebrate, ReactConcerned), no Walk.
-- Persistence: met characters go to discovery world state (Amplify);
-  dialogue goes to `ChildNpcState` (Amplify, `amplify/data/resource.ts`).
-  Django's `progression.NpcRelationship` exists and is written only by
-  Treasure Rush.
+- Persistence (updated 2026-11-18): met characters go to Django world state
+  (`children/<id>/world-state/`); dialogue goes to Django
+  `progression.NpcRelationship` (`children/<id>/npc-memory/`,
+  `features/npc/api.ts`).
 - Ember already exists as an NPC (`meet-ember-dragon`, Dragon's Sanctuary),
   which SC-R05 can reuse. No other castle NPC exists.
 
-## 7. Progress and save/resume — Working on Amplify, Missing on Django
+## 7. Progress and save/resume — on Django
 
-What the castle writes today, all through Amplify Data:
+Updated 2026-11-18: everything the castle writes goes through the Django API
+(`docs/PLAY_API.md`):
 
 | Record | Writer |
 | --- | --- |
-| Adventure session and steps | `features/adventures/api.ts` (Amplify) |
-| Story progress, one record per story (ADR-027) | `features/story/` (Amplify `ChildStoryProgress`) |
-| World changes (`FIRST_STORY_TOLD`, `SECRET_DOOR_CLUES_COLLECTED`, `CASTLE_SECRET_DOOR_OPENED`, `THE_CASTLES_SECRET_DOOR_COMPLETE`) | Amplify |
-| Checkpoints, discoveries, met characters | `features/discovery/api.ts` (Amplify) |
-| NPC dialogue state | `features/npc/api.ts` (Amplify `ChildNpcState`) |
+| Adventure session and steps | `features/adventures/api.ts` (Django) |
+| Story progress, one record per story (ADR-027) | `features/story/api.ts` (Django `progression.StoryProgress`) |
+| World changes (`FIRST_STORY_TOLD`, `SECRET_DOOR_CLUES_COLLECTED`, `CASTLE_SECRET_DOOR_OPENED`, `THE_CASTLES_SECRET_DOOR_COMPLETE`) | Django `progression.WorldChange` |
+| Checkpoints, discoveries, met characters | `features/discovery/api.ts` (Django) |
+| NPC dialogue state | `features/npc/api.ts` (Django `progression.NpcRelationship`) |
 
 Resume: a session left open resumes in the room. `CastleTaleCompanion`
 re-reads the chosen hero and setting from the recorded answers, so it needs
 no new persistence.
 
-Django (`lai/`) has **no castle-specific code** (grep "castle" or
-"storykeeper" across `lai/` finds nothing). It has the canonical models the
-castle will move onto:
+At the 2026-11-02 baseline, Django (`lai/`) had **no castle-specific code**
+(grep "castle" or "storykeeper" across `lai/` found nothing). It had the
+canonical models the castle has since moved onto (their writers and APIs
+came with the later Django play work, `docs/PLAY_API.md`):
 
 - `progression.StoryProgress`, which has no writer service and no API yet;
 - `progression.WorldChange`, append-only and unique per child, location and

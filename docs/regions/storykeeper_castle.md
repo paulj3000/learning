@@ -1755,11 +1755,9 @@ src/
     assets/
       AssetRegistry.ts
 
-amplify/
-  functions/
-    castle-director/
-    npc-dialogue/
-    synthesize-voice/
+lai/apps/
+  # castle director, NPC dialogue and voice synthesis extend the canonical
+  # Django apps (ADR-033): education, npcs, speech
 
 docs/
   STORYKEEPER_CASTLE.md

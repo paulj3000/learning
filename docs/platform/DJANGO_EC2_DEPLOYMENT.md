@@ -1,9 +1,14 @@
 # Django on EC2: automated release from GitHub (ADR-037)
 
+> **Production only since 2026-11-16 (ADR-055).** `dev` no longer uses this Docker/ECR/ALB
+> pipeline: it runs natively on an ARM64 instance (`docs/infrastructure/dev-native-environment.md`,
+> root `README.md` "AWS Development Infrastructure"), and `LaiDjangoEc2-dev` is no longer
+> synthesized. The site is S3 and CloudFront (`LaiFrontend-<env>`).
+
 **State (2026-10-30): built and tested in the repository, not provisioned.** No AWS resource
 exists for it yet. Creating the stacks, the first release and every production release are
-owner-approved steps (ADR-019 G1, G7). The React app stays on Amplify Hosting
-(`docs/platform/AMPLIFY_HOSTING.md`); the asset library keeps its S3 storage
+owner-approved steps (ADR-019 G1, G7). The React app is served by the S3/CloudFront site
+(`LaiFrontend-<env>`); the asset library keeps its S3 storage
 (`docs/ASSET_LIBRARY.md` sections 12 and 19).
 
 ## 1. What happens on a merge to `main`
@@ -97,9 +102,8 @@ and survive every release and rollback. Child profile photos are in a separate p
 (`LAI_CHILD_PHOTO_STORAGE=s3`, ADR-042), never in the asset bucket or a container.
 
 **Browser access.** Django has no CORS on purpose. The React app reaches it same-origin through
-the Amplify Hosting 200 proxy rewrite (`docs/platform/AMPLIFY_HOSTING.md` section 7) until the
-`LaiFrontend-<env>` CloudFront distribution (LAI-1005, LAI-INFRA-003) routes `/api/*` to the API
-host. The admin is used at `https://<admin host>/admin/`.
+the `LaiFrontend-<env>` CloudFront distribution (LAI-1005, LAI-INFRA-003), which routes `/api/*`
+to the API host. The admin is used at `https://<admin host>/admin/`.
 
 ## 4. Configuration reference
 
@@ -167,8 +171,8 @@ All commands run from the repository root with AWS CLI v2 credentials for the ta
 
 1. Account and region (G1), API host name (for example `api.<your domain>`), the cost (section
    12), dev database mode (`rds` recommended; `container` is cheaper).
-2. Cognito: the existing Amplify user pool id and web client id, from `amplify_outputs.json`
-   (`auth.user_pool_id`, `auth.user_pool_client_id`).
+2. Cognito: the existing user pool id and web app client id (the values the site build uses as
+   `VITE_COGNITO_USER_POOL_ID` and `VITE_COGNITO_CLIENT_ID`).
 3. Does the account already have a GitHub OIDC provider?
    `aws iam list-open-id-connect-providers`. If it lists
    `token.actions.githubusercontent.com`, set `LAI_CREATE_OIDC_PROVIDER=false` below.
@@ -297,9 +301,9 @@ open TR-3 blocker (`docs/ASSET_LIBRARY.md` 19.3 step 5).
 
 ### 5.11 React (separate owner decision)
 
-To use the deployed Django from the web app: the Amplify proxy rewrite for `/api/<*>` and
-`VITE_BACKEND=django` on a branch (`docs/platform/AMPLIFY_HOSTING.md` sections 5 and 7). This
-pipeline does not change Amplify.
+To use the deployed Django from the web app: the `LaiFrontend-<env>` site release with
+`VITE_DJANGO_API_BASE` empty (same-origin, CloudFront routes `/api/*` to Django) or set to the API
+`https://` origin. Deploying the site is a separate owner approval.
 
 ### 5.12 Production
 

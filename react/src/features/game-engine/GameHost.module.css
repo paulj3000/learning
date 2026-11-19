@@ -1,0 +1,67 @@
+.host {
+  position: relative;
+  width: 100%;
+  min-height: 16rem;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-lg, 1rem);
+  overflow: hidden;
+  background: #1c3a52;
+  color: #fff;
+}
+
+.canvasMount {
+  position: absolute;
+  inset: 0;
+}
+
+.canvasMount :global(canvas) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The canvas owns its drags; without this the browser also scrolls the page. */
+  touch-action: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 1rem;
+  text-align: center;
+  font-size: 1.25rem;
+  background: rgba(28, 58, 82, 0.85);
+}
+
+.retry {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1.125rem;
+  border: 0;
+  border-radius: 999px;
+  background: #ffd84d;
+  color: #1c3a52;
+  cursor: pointer;
+}
+
+.retry:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

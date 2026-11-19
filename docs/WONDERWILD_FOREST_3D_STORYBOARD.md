@@ -510,6 +510,10 @@ Explorer arc has to go instead.
 
 ### Beat 13 — A calm stop
 
+> **Retired (ADR-053, 2026-11-11).** There are no play-time limits: the session clock, the calm
+> stop and `ChildProfile.sessionMinutes` were removed. This beat is kept as history only; do not
+> build it.
+
 **Sees.** When the parent-configured session limit approaches, the light in
 the forest goes long and low and Chatty settles on the centre stone.
 

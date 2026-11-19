@@ -8,7 +8,9 @@
 - Narration controls always visible during child experiences.
 - Clear distinction between parent space and child island.
 - No advertising, social pressure, or manipulative countdowns.
-- End sessions at calm narrative checkpoints.
+- No play-time limits: children are never counted down, nudged to stop, or cut off for time
+  (ADR-053). Save progress at narrative checkpoints so a child who leaves at any moment can
+  resume.
 
 ## Child mode
 
@@ -21,7 +23,15 @@
 
 ## Parent gate
 
-Sensitive actions such as profile editing, purchasing in the future, consent, deletion, and external navigation must require a parent gate appropriate to the product and reviewed before launch.
+Sensitive parent actions (such as deactivating or reactivating a profile, consent, deletion, and
+purchasing in the future) must require a parent gate appropriate to the product and reviewed
+before launch. Deletion also needs a recent Cognito sign-in (ADR-043).
+
+Leaving child mode is navigation, not a gated action. By the owner's decision of 2026-11-10
+(AP-04), the adult exit ("Adults: exit to parent space") has no arithmetic gate, and no learning
+challenge, arithmetic question or quiz is ever placed on the way out of a Realm, Place, 3D Area,
+adventure or panel (`docs/adventures/accessibility-standard.md`). The accepted risk is recorded in
+`docs/THREAT_MODEL.md`.
 
 ## Reading modes
 

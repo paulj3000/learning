@@ -5,14 +5,14 @@ Django's `runserver`, and Vite proxying `/api` to it (TR-D14). Synthetic content
 accounts only. Nothing here touches a deployed environment.
 
 **Sign-in.** Amazon Cognito, as in every environment (ADR-040): the existing user pool, configured
-by environment variables. No Amplify sandbox and no `amplify_outputs.json` are needed. You need a
+by environment variables. You need a
 **test** parent account in that pool. Django Admin keeps its own staff sign-in (step 3).
 
-**Profiles live in Django (LAI-CHILD-001, ADR-039).** Django is the only backend (AMP-03): the
+**Profiles live in Django (LAI-CHILD-001, ADR-039).** Django is the only backend: the
 parent dashboard lists, creates, edits and deactivates children through Django, so you add a child
 in the app and pick it from the dashboard. Profile photos go to Django's private photo storage
 (local disk in development). Deleting a child needs a recent Cognito sign-in (LAI-0209). Children
-and photos from the retired Amplify backend are not here unless imported (below). Treasure Rush
+and photos from the retired backend are not here unless imported (below). Treasure Rush
 runs entirely on Django.
 
 ## Prerequisites
@@ -113,9 +113,10 @@ Django account through `POST /api/v1/me/`; there is no separate step. On the das
 (E or Enter to talk), accept the quest, find the chest, answer, and open the backpack (bottom
 right).
 
-To bring over test children from the retired Amplify backend's retained tables, export them and
-use `manage.py import_amplify_profiles` (docs/platform/AMPLIFY_PROFILE_IMPORT.md), which keeps
-their ids. Importing production data is an owner approval.
+To bring over test children from the retained legacy DynamoDB tables of the retired backend,
+export them and use the profile import management command in
+`lai/apps/users/management/commands/`, which keeps their ids. Importing production data is an
+owner approval.
 
 ## 7. Sign out
 

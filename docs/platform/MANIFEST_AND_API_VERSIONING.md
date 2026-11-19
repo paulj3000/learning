@@ -4,8 +4,15 @@ Covers `docs/android/android.md` Phase 10 ("Content Manifest and
 Incremental Updates") and Phase 11 ("API Versioning"), scoped per ADR-014
 in `docs/DECISIONS.md`. **This is a design document, not an
 implementation.** No `ContentManifest` model, no platform-configuration
-query, and no version field is added to `amplify/data/resource.ts` this
+query, and no version field is added to the backend schema this
 phase.
+
+**Current API contract.** This design predates the Django API. The live contract is the
+Django REST API under `/api/v1/` (additive changes stay in v1; a breaking change gets a new
+`/api/v2/` prefix beside v1), defined in `docs/ARCHITECTURE.md`, "Django API conventions
+(LAI-0205)". The schema sketches below are illustrative shapes, not files or models in the
+repository; any future manifest or platform-configuration endpoint is a Django route under
+`/api/v1/`.
 
 ## 1. Why both are blocked on work that has not happened yet
 
@@ -97,12 +104,13 @@ change to make under time pressure.
 breaking API change ("new API version or backward-compatible resolver",
 android.md's own wording) — there is no released API contract to break
 yet, so writing that policy now would be speculative rather than grounded
-in a real compatibility incident.
+in a real compatibility incident. (The URL-prefix rule for breaking changes is now set by
+the `/api/v1/` contract above.)
 
 ## 4. What this document does not do
 
 - It does not add `ContentManifest`, `PlatformConfig`, or any version
-  field to `amplify/data/resource.ts`.
+  field to the backend schema.
 - It does not change any content module or asset file.
 - It does not design the delta-fetch transport or the API
   backward-compatibility policy — both are explicitly deferred, for the

@@ -10,7 +10,7 @@ only consumers to plan for are future ones.
 
 ## What was searched
 
-Source tree `react/src`, `amplify/`, `server/`, `lai/`, `content/`, `scripts/`, `infra/`, and
+Source tree `react/src`, `server/`, `lai/`, `content/`, `scripts/`, `infra/`, and
 `react/public`.
 
 | Question                                                    | Finding                                                                                                                                                                  |
@@ -20,7 +20,7 @@ Source tree `react/src`, `amplify/`, `server/`, `lai/`, `content/`, `scripts/`, 
 | Three.js `Audio`, `PositionalAudio`, `AudioListener`        | None. `three` 0.185 is installed and ships these classes, unused.                                                                                                        |
 | `speechSynthesis` / Polly / text to speech                  | None. Polly is a pending provider decision (`npc/content/islandNpcs.ts`, TR-D19).                                                                                        |
 | Third-party audio libraries (Howler, Tone, etc.)            | None installed.                                                                                                                                                          |
-| Mute, volume or sound settings                              | None in React state, Django models, or the Amplify schema.                                                                                                               |
+| Mute, volume or sound settings                              | None in React state or Django models.                                                                                                                                     |
 | Audio files (`.mp3`, `.ogg`, `.wav`, `.m4a`)               | None in `react/public`, `content/` or `lai/`.                                                                                                                            |
 | Audio asset metadata                                        | None. `docs/ASSET_MANAGER.md` AM-13 lists audio as a future non-model asset kind (not started).                                                                          |
 | Audio in scenes                                             | Every `.play()` hit in `createLocationEngine.ts`, `regionPlayScene.ts`, `castleTaleScene.ts`, `sandboxScene.ts` is a Three.js `AnimationMixer` clip action, not sound.   |

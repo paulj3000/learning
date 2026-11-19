@@ -113,11 +113,11 @@ React treats that 404 as already deleted.
 `useSensitiveAction` wraps a sensitive request. When Django answers `recent_auth_required`:
 
 1. A modal dialog explains that a fresh sign-in is needed and that nothing has changed yet.
-2. The parent enters their password. Amplify `signOut` ends the current session (and revokes its
-   refresh token), then Amplify `signIn` (SRP) signs in again **as the same account** (the login
-   id is taken from the current session, not typed). The password goes only to Cognito, is held
-   only in the input until submitted, and is never stored, logged or put in a URL. Amplify does
-   not allow `signIn` while a session exists, which is why the old session is ended first.
+2. The parent enters their password. `lib/cognito` `signOut` ends the current session (and
+   revokes its refresh token), then `lib/cognito` `signIn` (SRP) signs in again **as the same
+   account** (the login id is taken from the current session, not typed). The password goes only
+   to Cognito, is held only in the input until submitted, and is never stored, logged or put in a
+   URL. The old session is ended first so its refresh token cannot outlive the check.
 3. `AuthContext` ignores the deliberate sign-out and sign-in events while this runs and re-reads
    the session quietly afterwards, so the page (form fields, a chosen file, upload state) stays
    mounted.
@@ -148,7 +148,7 @@ No Cognito secret is involved. The Django host needs outbound HTTPS to the Cogni
 **Cognito requirements (not changed by this task; verify live):**
 
 - Access tokens must carry `aws.cognito.signin.user.admin`. Tokens from Cognito API sign-in
-  (Amplify SRP, the web app) always do. An Android hosted-UI (PKCE) client must request that
+  (SRP through `react/src/lib/cognito`, the web app) always do. An Android hosted-UI (PKCE) client must request that
   scope, and should use `prompt=login` for re-authentication so a managed-login cookie cannot
   sign the parent in without credentials.
 - Token revocation should be enabled on the app client (`EnableTokenRevocation`, gate A6), so a
@@ -172,7 +172,7 @@ No Cognito secret is involved. The Django host needs outbound HTTPS to the Cogni
   refuses it.
 - Django Admin asset actions have no recent sign-in step (separate staff password session).
 - During verification the old session is ended before the new sign-in succeeds; a wrong
-  password then leaves the parent signed out if they cancel. This is an Amplify constraint.
+  password then leaves the parent signed out if they cancel.
 
 ## 9. Local test approach
 
@@ -181,7 +181,7 @@ No Cognito secret is involved. The Django host needs outbound HTTPS to the Cogni
   non-administrator, stale administrator, fail-closed). Tokens are signed with local RSA keys;
   `GetUser` is the `cognito_revocation` fake in `lai/conftest.py`. Nothing contacts AWS.
 - Vitest: `react/src/features/auth/recentSignIn/*.test.ts(x)`, `AuthContext.test.tsx`,
-  `djangoAssetPages.test.tsx`, `djangoProfiles.test.ts`. Amplify is mocked.
+  `djangoAssetPages.test.tsx`, `djangoProfiles.test.ts`. The Cognito client is mocked.
 
 These prove the logic, **not** Cognito's behaviour.
 

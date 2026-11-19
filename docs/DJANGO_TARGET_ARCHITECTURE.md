@@ -40,7 +40,7 @@ learning-adventure-island/
     src/features/...          existing feature folders, unchanged internally
   game/                       Unified Three.js engine (ADR-020). Extracted from
                               react/src/features/island-map/three after LAI-0201.
-                              No imports from react, Django clients, Amplify, or AWS SDKs.
+                              No imports from react, Django clients, or AWS SDKs.
                               Sub-areas are created only when a file needs them
                               (see THREEJS_ENGINE_CONVERSION.md section 4)
   lai/                        Django project
@@ -53,7 +53,6 @@ learning-adventure-island/
   ci/                         image build / deploy scripts
   deploy/{dev,prod}/          CodeDeploy / ECS definitions
   tests/                      cross-system: API contract, golden vectors, tenant isolation
-  amplify/                    UNTOUCHED until cutover, then removed (Phase 12)
 ```
 
 ## 3. Django apps and ownership
@@ -95,8 +94,8 @@ Cognito (unchanged) --JWT--> Django (DRF authentication class) --> ParentAccount
   may bypass it; a test enumerates all routes and fails if an unscoped one exists.
 - Child "profiles" are never authenticated principals (ADR-001). The child gate remains a
   client convenience; the server always authorizes as the parent.
-- Cognito config in the frontend moves from `amplify_outputs.json` to Vite env vars
-  (`VITE_COGNITO_*`, `VITE_API_BASE_URL`).
+- Cognito config in the frontend comes from Vite env vars (`VITE_COGNITO_USER_POOL_ID`,
+  `VITE_COGNITO_CLIENT_ID`) and the API origin from `VITE_DJANGO_API_BASE`.
 
 ## 5. API conventions
 
@@ -105,8 +104,8 @@ Cognito (unchanged) --JWT--> Django (DRF authentication class) --> ParentAccount
   `POST /api/v1/sessions/{id}/answers`, `GET /api/v1/children/{id}/next-activity`,
   `POST /api/v1/children/{id}/companion-turns`.
 - Typed error envelope with safe user-facing messages (CLAUDE.md section 13).
-- Idempotency keys on world-change, reward, and discovery writes (the Amplify code relies
-  on deterministic keys such as `recordWorldChangeOnce`; keep that property).
+- Idempotency keys on world-change, reward, and discovery writes (deterministic keys such as
+  `recordWorldChangeOnce`; keep that property).
 - Pagination on all list endpoints (fixes the unbounded admin `.list()` noted in ADR-018).
 - OpenAPI schema generated and committed; the React `src/api/*` types are checked against it
   in CI (contract test).
@@ -137,14 +136,14 @@ validators / reward resolution / quest sync / mastery counters
 - `ai` app exposes `companion-turns` and `tutor-turns` endpoints; the browser never calls
   Bedrock (CLAUDE.md section 7).
 - Same model (`anthropic.claude-haiku-4-5-20251001-v1:0`, global inference profile), same
-  temperature/max tokens, same personas (copied verbatim from `amplify/data/*Persona.ts`,
+  temperature/max tokens, same personas (in `lai/apps/ai/prompts/`,
   versioned).
 - Pipeline kept: safe context builder -> input check -> Bedrock -> JSON schema validation ->
   content/safety check -> authored fallback -> `AIInteractionAudit` row. Fallback behaviour
   must **also** emit a metric so a silent `AccessDeniedException` (as happened with the
   tutor route) is visible.
-- IAM: one task-role policy granting `bedrock:InvokeModel` on the three ARNs documented in
-  `amplify/backend.ts` `grantBedrockInvoke`.
+- IAM: one task-role policy granting `bedrock:InvokeModel` on three ARNs (inference profile,
+  regional foundation model, unscoped foundation model).
 - The existing red-team script (`scripts/ai-red-team.ts`) is re-pointed at the new endpoint
   before cutover.
 
@@ -191,7 +190,7 @@ service mesh, per-feature Lambdas, event buses. Revisit each only when a documen
 requirement cannot be met otherwise.
 
 IaC: CDK in TypeScript (`infra/`), consistent with FinWin and with this team's existing CDK
-familiarity (current `amplify/backend.ts` is already CDK). One stack per concern
+familiarity. One stack per concern
 (network, data, app, edge); resource count and IAM role count are tracked in
 `docs/IAM_ROLE_AUDIT.md`.
 
@@ -204,11 +203,11 @@ SSM. It is built in the repository and not provisioned; the runbook is
 production candidate (LAI-1007). The ALB health-check question at the end of this section is
 settled there: nginx presents the API host name for the two probe paths only.
 
-**State (2026-10-25).** Nothing hosts Django yet. The repository has no `infra/`, the AWS inventory
-(`docs/CURRENT_AWS_RESOURCE_INVENTORY.md`) has only Amplify-managed resources, and the production
-region is unknown (sandbox: `us-west-1`). There is no existing backend infrastructure to reuse
-except Cognito, which stays as it is. The React app stays on Amplify Hosting
-(`docs/platform/AMPLIFY_HOSTING.md`).
+**State (2026-10-25).** Nothing hosts Django yet. The repository has no `infra/`, and the
+production region is unknown (the Cognito pool is in `us-west-1`). There is no existing backend
+infrastructure to reuse except Cognito, which stays as it is
+(`docs/CURRENT_AWS_RESOURCE_INVENTORY.md`). The React app is served by the S3/CloudFront site
+(`LaiFrontend-<env>`, `docs/infrastructure/deployment-design.md`).
 
 **Ready in the repository.** `lai/Dockerfile` (Python 3.12, non-root, health check) and
 `lai/docker-entrypoint.sh` (gunicorn with no access log; static files are collected at image build). Production settings
@@ -253,7 +252,7 @@ admin.<domain> -> CloudFront (ACM certificate, WAF rate rule on POST /admin/logi
 - **Lock the origin:** the ALB accepts only CloudFront (the CloudFront managed prefix list in its
   security group, plus a secret custom header checked by a listener rule) so nobody bypasses the
   WAF. The bucket policy allows only this distribution.
-- The React app stays on Amplify Hosting at its own domain; its menu links to
+- The React app is served by the S3/CloudFront site at its own domain; its menu links to
   `VITE_DJANGO_ADMIN_URL=https://admin.<domain>/admin/`.
 
 Topology for the API (and the admin when it is not split out): ALB (HTTPS, ACM certificate) on a
@@ -280,8 +279,8 @@ Django and set `DJANGO_ADMIN_URL_PATH` to a path React does not use.
 | `WEB_CONCURRENCY`, `GUNICORN_TIMEOUT`, `PORT` | no | default 2, 30, 8000 |
 | `DJANGO_ADMIN_PASSWORD` | one-off task only | only for `create_admin_account --no-input` |
 
-React build (Amplify Hosting environment): `VITE_DJANGO_ADMIN_URL=https://api.<domain>/admin/`, and
-`VITE_BACKEND=django` with `VITE_DJANGO_API_BASE`, to show the menu link.
+React build (site release): `VITE_DJANGO_ADMIN_URL=https://api.<domain>/admin/`, with
+`VITE_DJANGO_API_BASE`, to show the menu link.
 
 **Deploy steps once approved:** build and push the image (LAI-1003), then run
 `python manage.py migrate` as a one-off task, then `python manage.py create_admin_account <name>
@@ -311,9 +310,9 @@ LAI-1003, LAI-1007), the recurring cost above, and production deploys, which als
 - Request logging middleware replicates `requestLog.ts` fields; no child free text, audio,
   names, or identifiers in logs (CLAUDE.md section 13).
 - Keep CloudWatch namespaces `LearningAdventureIsland/AI` and `/Safety` and the four
-  alarms plus Bedrock budget, repointed from AppSync to ALB/target-group metrics.
-- Added fixed costs vs Amplify (RDS, ALB, instance/Fargate) are real; Amplify's pay-per-use
-  DynamoDB/AppSync is cheaper at pilot scale. Cost estimate belongs in LAI-0900.
+  alarms plus Bedrock budget, on ALB/target-group metrics.
+- Fixed costs (RDS, ALB, instance/Fargate) are real; pay-per-use services are cheaper at pilot
+  scale. Cost estimate belongs in LAI-0900.
 
 ## 13. Local development
 

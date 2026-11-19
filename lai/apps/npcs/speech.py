@@ -111,6 +111,7 @@ class PregenerationReport:
     enabled: bool = True
     synthesized: int = 0
     cached: int = 0
+    queued: int = 0  # handed to the media worker (LAI_JOBS_BACKEND=sqs); recorded when it reports
     recorded: int = 0  # nodes with a recorded audio asset: nothing to synthesize
     skipped: int = 0  # unusable voice profile or text the output rules refuse
     failed: int = 0
@@ -124,6 +125,7 @@ class PregenerationReport:
             "enabled": self.enabled,
             "synthesized": self.synthesized,
             "cached": self.cached,
+            "queued": self.queued,
             "recorded": self.recorded,
             "skipped": self.skipped,
             "failed": self.failed,
@@ -155,6 +157,9 @@ def _pregenerate(release: NpcRelease, client: PollyClient | None, report: Pregen
         report.stopped = "release_retired"
         return
     profiles: dict[str, VoiceProfile | None] = {}
+    # With the SQS jobs backend Polly runs in the media worker, not here. An explicit client
+    # (tests, the owner's live check) always synthesizes in process.
+    via_jobs = client is None and speech.speech_via_jobs()
     for node, found in _nodes(release.snapshot, release.number):
         if node.get("audio"):
             report.recorded += 1
@@ -174,6 +179,13 @@ def _pregenerate(release: NpcRelease, client: PollyClient | None, report: Pregen
             continue
         resolved = speech.Resolved(found.text, profile, ClipScope.AUTHORED, found.label)
         try:
+            if via_jobs:
+                outcome = speech.queue_shared_clip(resolved)
+                if outcome == "cached":
+                    report.cached += 1
+                else:
+                    report.queued += 1
+                continue
             synthesized = speech.prepare_shared_clip(resolved, client=client)
         except SpeechError as error:
             if error.code == "daily_cap":

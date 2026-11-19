@@ -1,405 +1,149 @@
-# Authorization Review (Phase 8)
+# Authorization Review
 
-This is a source-level review of every authorization rule declared in
-`amplify/data/resource.ts` and every place client code (`src/features/*/api.ts`)
-relies on it, checked against `docs/TESTING_STRATEGY.md`'s "Backend tests"
-invariants and `CLAUDE.md` section 10. It was written by reading the schema
-and every call site, not by running tests against a live deployment - this
-sandbox has no AWS credentials (same constraint noted throughout
-`docs/IMPLEMENTATION_STATUS.md`). Where a rule genuinely needs a live
-Cognito + AppSync backend to verify, that is called out explicitly below
-rather than claimed as done.
+This is a source-level review of the application's authorization rules on the Django + DRF
+backend (`lai/`) and of the React client code that relies on them, checked against
+`docs/TESTING_STRATEGY.md`'s backend invariants and `CLAUDE.md` section 10. It was written by
+reading the code and its tests. Where a rule still needs a live Cognito pool and a deployed
+Django to verify, that is called out explicitly below rather than claimed as done.
+
+Architecture references: `docs/ARCHITECTURE.md` "Authentication architecture", "Cognito-only API
+authentication", "Profile authority" and "Tenant isolation".
 
 ## 0. Multi-client data classification (Phase 39)
 
-`docs/android/android.md` Phase 12 asks every model to be classified
-against `PUBLIC | AUTHENTICATED | OWNER | PARENT | CHILD | ADMIN | SYSTEM`
-so no privileged mutation depends merely on being authenticated, ahead of
-a second client that could call these same APIs. This table is that
-classification, applied to the schema as it exists today; the underlying
-rules are unchanged by this pass — sections 1-1b already review each one
-in depth, this is an index over them in the taxonomy's own vocabulary.
+`docs/android/android.md` Phase 12 asks every model to be classified against
+`PUBLIC | AUTHENTICATED | OWNER | PARENT | CHILD | ADMIN | SYSTEM` so no privileged mutation
+depends merely on being authenticated, ahead of a second client that could call these same APIs.
 
-**One classification the taxonomy assumes does not apply here.** android.md
-treats `CHILD` as a distinct authenticated actor (its own `PlayerProgress`
-example: "Child session: read"). This product has no such actor: ADR-001
-means a child never authenticates — every write and read happens inside
-the signed-in parent's own session (CLAUDE.md section 10). Every row
-below that might read "PARENT + CHILD" in a generic mobile-game taxonomy
-is `OWNER` here, full stop; `CHILD` never appears as an independent grant
-in this schema, and should not until a decision changes ADR-001 itself.
+**One classification the taxonomy assumes does not apply here.** android.md treats `CHILD` as a
+distinct authenticated actor. This product has no such actor: ADR-001 means a child never
+authenticates. Every read and write happens inside the signed-in parent's own session
+(CLAUDE.md section 10). Every row that might read "PARENT + CHILD" in a generic mobile-game
+taxonomy is `OWNER` here; `CHILD` never appears as an independent grant, and should not until a
+decision changes ADR-001 itself. (The native game WebView's ticket cookie, ADR-036, is a narrow
+grant for one child and one region, not a child identity.)
 
-| Model / operation | Classification | Rule |
+| Resource | Classification | Rule |
 |---|---|---|
-| `ParentProfile` | OWNER, ADMIN (read) | `allow.owner()`, `allow.group('Admins').to(['read'])` |
-| `ChildProfile` | OWNER, ADMIN (read) | same; `ownerSub` is SYSTEM-readable only via direct DynamoDB read inside `submitAdventureAnswer`'s Lambda, never over GraphQL |
-| `CompanionProfile` | OWNER | `allow.owner()` |
-| `AdventureSession` | OWNER, ADMIN (read), SYSTEM (write) | `allow.owner()` + Admins read; `submitAdventureAnswer`'s Lambda also has a direct `grantReadWriteData` IAM grant, bypassing this rule entirely for its own writes (section 1b) |
-| `AdventureAction` | OWNER | `allow.owner()` |
-| `SkillEvidence` | OWNER | `allow.owner()` |
-| `SkillProgress` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
-| `WorldChange` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
-| `AIInteractionAudit` | OWNER | `allow.owner()` — deliberately not ADMIN-readable (section 4.3's still-unbuilt safety-review workflow) |
-| `SafetyEvent` | OWNER | same as above |
-| `StoryArtifact` | OWNER | `allow.owner()` |
-| `ChildStoryProgress` | OWNER | `allow.owner()` |
-| `CoopSession` | OWNER (via `ownerDefinedIn('hostParentProfileId')`), SYSTEM (write) | not ADMIN-readable (ADR-006); `claimCoopSlot`'s Lambda has a direct table grant for its own writes (section 1a) |
-| `ChildNpcState` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
-| `ChildInventory` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
-| `ChildQuestState` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
-| `ChildWorldState` | OWNER, ADMIN (read) | `allow.owner()` + Admins read |
-| `generateCompanionTurn` | AUTHENTICATED | `allow.authenticated()` — correct, not a gap: the route persists nothing and takes no per-child identifier (prompt-context minimization, `docs/AI_AND_CHILD_SAFETY.md`), so there is no owned resource to scope by |
-| `generateTutorTurn` | AUTHENTICATED | same reasoning |
-| `claimCoopSlot` | AUTHENTICATED (mutation gate) + SYSTEM (handler re-derives the real check) | section 1a |
-| `submitAdventureAnswer` | AUTHENTICATED (mutation gate) + SYSTEM (handler re-derives the real check) | section 1b |
-| `Asset` | ADMIN | `allow.group('Admins')`, every operation; no owner, parent, or guest rule (ADR-030). Holds no child data |
-| `AssetVersion` | ADMIN | same as `Asset` |
-| Storage `assets/*` | ADMIN | `allow.groups(['Admins']).to(['read', 'write', 'delete'])` (`amplify/storage/resource.ts`) |
+| `users.ParentAccount` | OWNER | `request.user`, resolved from the verified Cognito access token's `sub` (`CognitoJWTAuthentication`); `IsProvisionedParent` is the API-wide default permission |
+| `users.ChildProfile` | OWNER, ADMIN (read-only metadata) | reached only through the authenticated parent (`apps/users/scoping.py`); Django Admin shows profile metadata read-only and audited (ADR-039) |
+| Child-owned progress (`game_sessions`, `education`, `progression`, `inventory`, `quests`) | OWNER | every model extends `core.ChildOwnedModel` and is read and written only through `ChildScopedMixin.scoped` / `get_scoped_object`; Django Admin registers none of them |
+| `ai.AIInteractionAudit`, `ai.SafetyEvent` | OWNER (parent history and clearing), SYSTEM (write) | written only by `apps/ai/services/auditing.py`; no browser writes |
+| `CoopSession`, `CoopParticipant` | OWNER (host parent), SYSTEM (slot claims) | section 1a |
+| Companion and tutor turns | OWNER | child-scoped routes (`ChildScopedAPIView`); the server reads the child's age band and AI switch itself (section 4.2) |
+| Adventure answers | OWNER, SYSTEM (grading) | section 1b |
+| Catalog, assets, sound, NPC releases (authoring) | ADMIN | Django Admin with Django permissions and groups (ADR-034, ADR-045); no React staff asset manager and no administrator asset API |
+| Published assets (read) | OWNER | the read-only, child-scoped resolver (ADR-035, ADR-045) |
+| Asset file and speech clip delivery | SYSTEM (signed token) | short-lived signed tokens minted by the child-scoped routes authorize these two file routes; no bearer token is read (`apps/assets/views.py` `AssetFileView`, `apps/speech/views.py`) |
 
-**No model is `PUBLIC`.** `defaultAuthorizationMode: 'userPool'`
-(`amplify/data/resource.ts`) means every operation requires a signed-in
-Cognito user by default; nothing in this schema is reachable without
-authentication today. Worth revisiting only if Phase 36/38's still-
-unmigrated content models (`docs/platform/CANONICAL_CONTENT_MODEL.md`,
-`docs/platform/WORLD_ITEM_AND_ASSET_MODEL.md`) are ever actually built —
-curriculum/item/world content carries no child-specific data, so
-`PUBLIC` read (or `AUTHENTICATED` read, at minimum) would be the right
-rule for those *when* they exist, not `OWNER`.
+**No model is `PUBLIC`.** Every data route requires a verified Cognito access token, except the
+health checks, the two signed-token file routes above, and the game runtime's ticket-redeemed
+cookie routes (ADR-036), which are pinned by a structural test in
+`apps/users/tests/test_tenant_isolation.py`.
 
-**Acceptance criteria check, against this table:**
+**Acceptance criteria check:**
 
-- *"No privileged mutation depends merely on being authenticated."*
-  **Already true.** The only two `AUTHENTICATED`-gated operations that
-  touch persisted, owned data (`claimCoopSlot`, `submitAdventureAnswer`)
-  both re-derive real authorization inside their handler before writing
-  anything (sections 1a, 1b) — `allow.authenticated()` on the mutation
-  itself is not the actual security boundary for either. The two
-  generation routes touch no persisted resource at all, so "merely
-  authenticated" is the correct, sufficient rule for them, not a gap.
-- *"Parent-child ownership is enforced server-side."* **Already true for
-  *who* can write** — every data model's `allow.owner()`/
-  `ownerDefinedIn()` rule is enforced by AppSync itself, not client code.
-  **Not the same question as *whether what they write is true*** — five
-  engines (mastery, rewards, quests, NPC relationships, discovery) still
-  let the rightful owner write a self-computed, unverified value
-  (`docs/DECISIONS.md` ADR-012's tracked Phase 37 follow-up). This table
-  classifies access, not value-trustworthiness; conflating the two would
-  misreport ADR-012's already-tracked gap as newly found or newly closed
-  here.
-
-**Correction to section 5's table below**: the "Prevention of direct
-progress or world-change forgery" row was written before Phase 37. It
-still accurately describes `WorldChange`/`SkillProgress` and a *forged*
-`AdventureAction` (one bypassing `submitAdventureAnswer` entirely via a
-raw GraphQL call), but no longer accurately describes the normal path: as
-of `submitAdventureAnswer`, an `AdventureAction.correctness` value written
-through this app's own client code is server-verified, not
-client-computed. See ADR-012 for the precise, current boundary.
+- *"No privileged mutation depends merely on being authenticated."* True: every child-scoped
+  route resolves the child through the authenticated parent, and grading, rewards and progress
+  are computed by Django services, never accepted from the client.
+- *"Parent-child ownership is enforced server-side."* True for who can read and write
+  (`ChildScopedMixin`, tested in `test_tenant_isolation.py`). Whether a written value is true is
+  a separate question, answered per engine by server-side rules (ADR-012; section 5).
 
 ## 1. Model-by-model rules
 
-Every model in `amplify/data/resource.ts` **except `CoopSession`** (Phase
-17, see section 1a below) uses `allow.owner()` and nothing else:
+One parent is the ownership boundary (no households, no sharing). `ChildScopedMixin` (and
+`ChildScopedAPIView`) resolves `self.child` from `<uuid:child_id>` through the authenticated
+parent, so the order of answers is 401, then 403 (`account_not_provisioned`), then 404. A foreign
+child and an unknown child take the same code path and give the same `not_found` response.
+A nested id from the URL is never looked up alone. This is correct for the product's
+authorization boundary (CLAUDE.md section 10: "A parent may access only their own child profiles
+and associated records") because a child never authenticates directly (ADR-001), so no second
+identity legitimately needs access to a parent's rows.
 
-| Model | Auth rule | Owner field |
-|---|---|---|
-| `ParentProfile` | `allow.owner()` | implicit (Cognito identity that created the row) |
-| `ChildProfile` | `allow.owner()` | implicit |
-| `CompanionProfile` | `allow.owner()` | implicit |
-| `AdventureSession` | `allow.owner()` | implicit |
-| `AdventureAction` | `allow.owner()` | implicit |
-| `SkillEvidence` | `allow.owner()` | implicit |
-| `SkillProgress` | `allow.owner()` | implicit |
-| `WorldChange` | `allow.owner()` | implicit |
-| `AIInteractionAudit` | `allow.owner()` | implicit |
-| `SafetyEvent` | `allow.owner()` | implicit |
-| `StoryArtifact` | `allow.owner()` | implicit |
+The AI routes are child-scoped like every other child route. They persist only `ai_*` audit and
+safety rows and send the model a minimized context (`docs/AI_AND_CHILD_SAFETY.md`), never a child
+id or nickname.
 
-None declare an explicit `ownerField()` override, so Amplify Data uses its
-default `owner` field populated from the caller's Cognito identity at
-create time. This is consistent and correct for the product's actual
-authorization boundary (CLAUDE.md section 10: "A parent may access only
-their own child profiles and associated records") **because every one of
-these rows is created by application code running inside the authenticated
-parent's own session** - a child never authenticates directly (ADR-001),
-so there is no case in this schema where a second identity legitimately
-needs access to a parent's rows. `allow.owner()` alone is therefore the
-right rule for all eleven models, not an oversight.
+## 1a. Co-op sessions (Phase 17, ADR-006)
 
-`generateCompanionTurn` (the one AI generation route) uses
-`allow.authenticated()` instead, because a custom operation has no owner
-field to scope by. This is also correct: the route takes no identifiers
-that could leak cross-family data (`docs/AI_AND_CHILD_SAFETY.md`'s prompt
-context minimization - age band, intent, step summary, not a child ID),
-so any authenticated parent invoking it only ever affects their own
-request/response pair, never another family's stored data.
+Household only: the host parent owns both children, and nobody else can see the session. Slot
+claims run in `lai/apps/game_sessions/coop.py`, which locks the session row
+(`select_for_update`), so two near-simultaneous claims are serialised and exactly one wins. A
+second claim by the same child changes nothing; only an ACTIVE session accepts claims. Nothing a
+child types crosses to the other child: the shared state holds step ids and child ids only.
+Tests: `lai/apps/game_sessions/tests/test_coop_api.py`.
 
-## 1a. `CoopSession` and `claimCoopSlot` (Phase 17)
+## 1b. Authoritative adventure answers (Phase 37, LAI-0601, ADR-012)
 
-`CoopSession` breaks the "one pattern for every model" rule above on
-purpose (docs/DECISIONS.md ADR-006, docs/DATA_MODEL.md `CoopSession`):
-
-- **Model-level rule**: `allow.ownerDefinedIn('hostParentProfileId').identityClaim('sub')`
-  rather than the default `allow.owner()`. Two `ChildProfile`s under one
-  `ParentProfile` need to read/write the same row, and both children act
-  inside that one parent's authenticated session — so scoping by the
-  parent's own identity (not a per-row implicit owner) is the correct rule,
-  not a relaxation of it. `.identityClaim('sub')` pins the field to the
-  stable Cognito `sub` specifically so `claimCoopSlot`'s Lambda (below) can
-  compare against it directly.
-- **`claimCoopSlot` is a function-backed custom mutation**
-  (`amplify/functions/claim-coop-slot/handler.ts`), which means it does
-  **not** go through AppSync's generated resolvers or the model-level rule
-  above at all — its Lambda has its own IAM role with a direct
-  `grantReadWriteData` on the `CoopSession` table (`amplify/backend.ts`).
-  The mutation's own `.authorization((allow) => [allow.authenticated()])`
-  only proves the caller is *some* signed-in parent; `decideClaim` inside
-  the handler is what actually re-checks that the caller's `sub` matches
-  the session's `hostParentProfileId`, that `childProfileId` is one of the
-  session's `participantChildProfileIds`, and that the session is still
-  `ACTIVE`, before ever writing. This is the one place in the whole
-  backend where "authorized to call the mutation" and "authorized to
-  perform this specific write" are deliberately different checks, because
-  bypassing AppSync's resolver for atomicity (see the ADR/DATA_MODEL docs
-  above) also means bypassing its authorization enforcement.
-- **Not deploy-verified**: same constraint as the rest of this document,
-  plus the specific open assumption called out in
-  `amplify/functions/claim-coop-slot/handler.ts`'s top comment (that
-  `sharedState` is stored as a native DynamoDB Map, not a JSON string) —
-  confirm both the authorization behavior and that assumption the first
-  time this runs against a real sandbox with two real child profiles under
-  one parent, and (separately) confirm a *second* parent's account cannot
-  read or claim into a `CoopSession` it does not own, the same live-account
-  test section 5 already ran for every other model.
-
-## 1b. `submitAdventureAnswer` (Phase 37)
-
-`submitAdventureAnswer` (docs/DECISIONS.md ADR-012) is the second
-function-backed custom mutation in this schema, and takes a different
-approach from `claimCoopSlot` to the same underlying problem — re-deriving
-ownership by hand once AppSync's own resolvers are bypassed:
-
-- **Model-level rule**: `ChildProfile` keeps its existing `allow.owner()`
-  rule unchanged. Rather than adding a second, field-scoped owner rule
-  (`CoopSession`'s `.identityClaim('sub')` pattern above), this mutation
-  adds one plain `a.string()` field, `ownerSub`, populated by ordinary
-  client code (`createChildProfile`/`ensureChildProfileOwnerSub`,
-  `src/features/child-profile/api.ts`) using the signed-in user's own
-  Cognito `sub`. Trustworthy without a second authorization rule because
-  only the legitimate owner can write to a `ChildProfile` row — and
-  therefore this field — at all under the rule already in place.
-- **`submitAdventureAnswer` is a function-backed custom mutation**
-  (`amplify/functions/submit-adventure-answer/handler.ts`), so it too does
-  **not** go through AppSync's generated resolvers or `ChildProfile`'s
-  model-level rule at request time — its Lambda has its own IAM role with
-  a direct `grantReadWriteData` on the `AdventureSession` table and
-  `grantReadData` on `ChildProfile` (`amplify/backend.ts`). The mutation's
-  own `.authorization((allow) => [allow.authenticated()])` only proves the
-  caller is *some* signed-in parent; the handler re-derives the real check
-  itself: it reads the session's `childProfileId`, reads that
-  `ChildProfile` row's `ownerSub`, and rejects unless it matches the
-  caller's own `sub` from `event.identity` — before ever reading the
-  answer or writing anything.
-- **Deliberately does not take `stepId` or `childProfileId` as
-  arguments.** The session's own stored `childProfileId` and
-  `currentStepId` are what the Lambda trusts, not a client-supplied value
-  claiming to match them — the same "the server derives identity, the
-  client does not assert it" principle as `claimCoopSlot`'s
-  `hostParentProfileId` check, applied without needing a second field on
-  `AdventureSession` itself.
-- **Explicit residual gap, not a defect**: `AdventureSession.update()`
-  remains a plain owner-authorized client mutation (needed by the
-  still-client-side `WORLD_CHANGE` auto-advance and terminal-`COMPLETE`
-  transitions, docs/ADVENTURE_ENGINE.md), so a caller sophisticated enough
-  to craft a raw GraphQL request could still bypass
-  `submitAdventureAnswer` and write `currentStepId`/`status` directly.
-  Every legitimate client (web today, Android eventually) goes through the
-  Lambda and gets a correctness verdict it cannot influence; closing the
-  raw-GraphQL bypass requires migrating the two remaining transition paths
-  too and then removing `update` from `AdventureSession`'s owner grant —
-  tracked in docs/DECISIONS.md ADR-012 as follow-up, not attempted here.
-  `AdventureAction`/`SkillEvidence`/`SkillProgress` remain plain
-  owner-authorized writes for the same reason and the same tracked
-  follow-up.
-- **Not deploy-verified**: same constraint as the rest of this document,
-  plus the specific open assumption called out in
-  `amplify/functions/submit-adventure-answer/handler.ts`'s top comment
-  (that an `UpdateExpression` touching only `currentStepId`/
-  `lastActivityAt` leaves the table's owner-authorization attribute
-  untouched) — confirm both the authorization behavior and that assumption
-  the first time this runs against a real sandbox, the same live-account
-  test section 5 already ran for every other model.
+Django grades every answer (`docs/ARCHITECTURE.md` "Authoritative adventure answers"). The client
+sends the step and its answer; the server checks that the session belongs to the child and that
+the step is the session's current step, escalates hints only from the level it recorded
+(`AdventureSession.hint_levels`), deduplicates retries by request id, and records evidence from
+its own grade. A client-claimed grade is ignored.
 
 ## 2. Client-side query safety
 
-Every `list()`-based read in `src/features/*/api.ts` (e.g.
-`listChildProfiles`, `getActiveSession`, `listWorldChanges`,
-`clearAIHistory`) calls `.list()` with no arguments and then filters
-client-side by `childProfileId`/`sessionId`. This is safe *only* because
-`allow.owner()` already scopes the underlying `.list()` call to the
-caller's own rows before any client-side filter runs - a parent's
-`.list()` can never return another parent's rows to filter over in the
-first place. Confirmed by reading `@aws-amplify/data-construct`'s
-generated resolver behavior (owner-authorized `list` queries compile to a
-DynamoDB query/scan with an owner-equality filter applied server-side, not
-client-side), consistent with how every phase since Phase 1 has already
-relied on this pattern. This is not a gap, but it is worth keeping in mind
-for future authors: **client-side filtering here narrows *which* of the
-caller's own rows are relevant, it does not and must not be relied upon
-to separate one family's data from another's.**
+React reaches data only through the typed Django clients (`react/src/api/` and feature `api.ts`
+modules). Any client-side filtering narrows which of the caller's own records are relevant; it is
+never relied upon to separate one family's data from another's. That separation is the server's
+`ChildScopedMixin`.
 
-## 3. Route guard review (`src/features/auth/RequireParent.tsx`)
+## 3. Route guard review (`react/src/features/auth/RequireParent.tsx`)
 
-Every `/home*` and `/island/*` route is wrapped in `RequireParent`,
-which blocks rendering until Cognito confirms a signed-in user
-(`getCurrentUser()`) and redirects to `/sign-in` otherwise. There is no
-route in `src/app/AppRoutes.tsx` that reaches a data-bearing screen
-without this guard. This is a UX-layer convenience, not the real
-authorization boundary - the real boundary is `allow.owner()` at the data
-layer above, so even a hypothetical missing guard could not expose another
-family's data, only a confusing UI state. Confirmed by inspection of every
-route in `AppRoutes.tsx`.
+Parent and child routes are wrapped in `RequireParent`, which blocks rendering until the Cognito
+session is confirmed and redirects to `/sign-in` otherwise. This is a UX-layer convenience, not
+the authorization boundary: the boundary is Django's authentication and child scoping, so a
+missing guard could not expose another family's data, only a confusing UI state. `RequireAdmin`
+gates the React admin section the same way and shows the ordinary `NotFound` page to
+non-admins; the backend refuses admin reads and writes independently.
 
-## 4. Known gaps (confirmed, not newly found)
+## 4. Known gaps, re-verified
 
-These were already flagged in `docs/IMPLEMENTATION_STATUS.md`'s "Known
-risks/TODOs" from earlier phases; this review re-verified each by reading
-the current code rather than assuming the earlier note is still accurate.
+### 4.1. `MAX_CHILD_PROFILES` (3): enforced server-side (closed)
 
-### 4.1. `MAX_CHILD_PROFILES` (3) is UI-only
+`lai/apps/users/services.py` locks the parent row and refuses a fourth profile with
+`409 child_profile_limit_reached` (`MAX_CHILD_PROFILES` in `lai/apps/users/models.py`, mirrored by
+`react/src/features/child-profile/constants.ts` for the UI). Test:
+`lai/apps/users/tests/test_children_api.py`.
 
-`src/features/child-profile/constants.ts`'s `MAX_CHILD_PROFILES` is
-enforced only in `ChildProfileList.tsx` (hides the "Add child" link at 3
-profiles). `createChildProfile` in `api.ts` has no count check, so a
-direct, authenticated GraphQL `ChildProfile.create` call could create a
-fourth (or four-hundredth) profile for one parent.
+### 4.2. `ChildProfile.ai_enabled`: enforced server-side (closed)
 
-**Why this stays a documented gap, not a fix, this session**: enforcing a
-count at create time needs either (a) a custom Amplify Function/mutation
-that reads the caller's existing count before allowing the create, or (b)
-a DynamoDB-level constraint Amplify Data does not expose declaratively.
-Building (a) means writing and wiring a new Lambda-backed custom mutation
-with zero ability to deploy or exercise it in this environment (no AWS
-credentials) - exactly the kind of change that has caused real, hard-to-
-predict bugs in this codebase before (see `docs/IMPLEMENTATION_STATUS.md`'s
-Phase 4 "Known risks/TODOs" for two separate Amplify AI Kit issues that
-only surfaced against a live deploy, and the Phase 7 `aiEnabled`
-`.required()` bug that only surfaced against real stored data). Shipping
-an untested authorization-relevant Lambda is a worse risk than the gap it
-would close.
+The AI pipeline reads the child's `ai_enabled` switch itself (`lai/apps/ai/services/pipeline.py`,
+step 1 in `docs/AI_SERVICE.md` section 3): when it is off, the route returns authored content with
+no model call, whatever the client sends.
 
-**Severity**: low. A parent over-creating their own child profiles is
-self-directed, not a cross-family exposure, and costs nothing but a
-slightly confusing UI (a 4th profile that doesn't fit the stated "up to
-3" copy elsewhere).
+### 4.3. Administrator role: directory built; safety-review workflow still not
 
-**Concrete remediation plan for whoever has a deployable sandbox**: add a
-custom mutation `createChildProfile` backed by an Amplify Function that
-(1) queries `ChildProfile` by the caller's `owner` for a count, (2)
-rejects with a typed error over the limit, (3) otherwise calls
-`ChildProfile.create` with the same shape `api.ts` already uses. Swap
-`src/features/child-profile/api.ts`'s `createChildProfile` to call the
-mutation instead of `client.models.ChildProfile.create` directly. Add a
-test that a 4th create attempt is rejected server-side even if the UI
-button is bypassed.
+Administration is Django Admin (LAI-0404, ADR-034), with its own staff sign-in and Django
+permissions and groups. There is no self-serve way to become an administrator (CLAUDE.md
+section 10). `ParentRecord` and `ChildProfile` are read-only for staff with
+`users.view_childprofile`, without nicknames, interests or identity mappings, and each view is
+logged to `lai.admin_audit`. Child-owned progress models are not registered until an audited
+cross-family read path exists (ADR-024 A4).
 
-### 4.2. `ChildProfile.aiEnabled` kill switch is client-side only
+**Still not built:** CLAUDE.md section 2's "reviews flagged AI interactions and generation
+failures". The pilot's safety-event review process (`docs/PRIVACY_AND_SAFETY_REVIEW.md`) still
+relies on direct, credentialed database access for that half, not an in-product admin surface.
 
-`requestCompanionTurn` (`src/features/companion/api.ts`) checks
-`input.aiEnabled === false` and short-circuits before calling
-`generateCompanionTurn` - but that check runs in this app's own client
-code. A direct, authenticated GraphQL call to `generateCompanionTurn`
-from outside this app (e.g. a hand-crafted request with valid parent
-credentials) would still reach Bedrock regardless of the stored
-`aiEnabled` flag, because the AI route itself has no knowledge of it -
-`allow.authenticated()` only checks *who* is calling, not *which child's
-AI setting* applies.
+## 5. Invariants still unverified against a live deployment
 
-**Why this stays a documented gap, not a fix, this session**: same
-reasoning as 4.1 - a real fix means either passing `childProfileId` into
-`generateCompanionTurn`'s arguments and adding server-side logic to look
-up and enforce the flag (a meaningful schema/persona change to a route
-that is the one piece of this codebase already confirmed working against
-live Bedrock, per Phase 4's verification notes - not something to touch
-without being able to redeploy and re-verify it), or standing up a
-Function-fronted wrapper mutation. Both are real Phase-8-scale work,
-not a same-session patch.
+The Django test suite exercises these against PostgreSQL with test tokens. None has been
+exercised against the real Cognito pool and a deployed Django.
 
-**Severity**: low for MVP. The route already requires an authenticated
-parent session scoped to that parent's own family; the realistic threat
-is a technically sophisticated parent bypassing their *own* AI-off
-setting for their *own* child, not a cross-family exposure. Worth
-revisiting before wider release if `aiEnabled` needs to be a hard
-guarantee rather than a parent-facing convenience switch (the wording
-already used for it in `IMPLEMENTATION_STATUS.md`).
-
-### 4.3. Administrator role: directory/progress view built; safety-review workflow still not
-
-**Updated**: a Cognito `Admins` user group now exists
-(`amplify/auth/resource.ts`), and `ParentProfile`, `ChildProfile`,
-`AdventureSession`, `SkillProgress`, and `WorldChange` each carry an added
-`allow.group('Admins').to(['read'])` rule alongside their existing
-`allow.owner()` rule (`amplify/data/resource.ts`). This backs a read-only
-admin section (`src/features/admin/`, `src/routes/AdminDashboard.tsx`,
-`src/routes/AdminChildProgress.tsx`, gated by
-`src/features/auth/RequireAdmin.tsx`) covering exactly CLAUDE.md section
-2's "reviews... progress" half of the Administrator role: every parent
-account, every child profile grouped by parent, and each child's recent
-adventures/skills-practiced/world-changes — the same aggregated records
-`ChildDashboard` already shows a parent for their own child, now readable
-cross-family by an admin. There is deliberately no self-serve way to join
-`Admins` (CLAUDE.md section 10); membership is granted out-of-band via
-`aws cognito-idp admin-add-user-to-group` (see the comment in
-`amplify/auth/resource.ts`), consistent with "Admin access must be
-group-based and explicitly authorized." `npm run grant-admin -- <email>`
-(`scripts/grant-admin.ts`) wraps that call, resolving the pool id and
-region from `amplify_outputs.json` and the email to its generated Cognito
-username; `--revoke` reverses it. The wrapper is operator convenience
-only, not a relaxation: it still requires AWS credentials for the
-deploying account, and nothing a client can reach invokes it.
-
-**Still not built**: CLAUDE.md section 2's other half — "reviews flagged AI
-interactions and generation failures" — remains unimplemented.
-`CompanionProfile`, `StoryArtifact`, `AIInteractionAudit`, and
-`SafetyEvent` deliberately got **no** `Admins`-group rule this round (see
-the comment atop `amplify/data/resource.ts`): those carry AI-narrated or
-free-text-adjacent content, and building their review UI is a distinct,
-larger scope (moderation actions, `SafetyEvent.reviewStatus` transitions,
-`AIInteractionAudit` redaction) than the read-only directory this phase
-adds. They remain reachable only through a parent's own owner-authorized
-session today; the pilot's safety-event review process (see
-`docs/PRIVACY_AND_SAFETY_REVIEW.md`) still relies on direct, credentialed
-database access for that half, not an in-product admin surface.
-
-## 5. Invariants from `docs/TESTING_STRATEGY.md` still unverified against a live backend
-
-`docs/TESTING_STRATEGY.md`'s "Backend tests" section lists five invariants.
-This review's source-reading confirms the schema and client code are
-*structured* to satisfy them, but none have been exercised against real
-Cognito + AppSync, because no phase to date has had AWS credentials
-available. This is the same already-documented constraint, restated here
-as a concrete pre-pilot checklist (see also "Load/cost tests, AI red-team
-suite, and pilot readiness" below):
-
-| Invariant | Structural review result | Still needs |
+| Invariant | Structural and test result | Still needs |
 |---|---|---|
-| Owner isolation between parent accounts | Every model is `allow.owner()`; no rule grants cross-owner read/write. | Live test: two real parent accounts, confirm A cannot `get`/`list`/`update`/`delete` B's rows for any of the 11 models. |
-| Administrator boundaries | A read-only `Admins` group now exists, scoped to `ParentProfile`/`ChildProfile`/`AdventureSession`/`SkillProgress`/`WorldChange` reads only (see 4.3, updated). No group grants write, and no group can read `AIInteractionAudit`/`SafetyEvent`/`StoryArtifact`. | Live test: an authenticated non-admin parent's client gets denied (not empty data) attempting a `list`/`get` against another parent's records via the same calls `src/features/admin/api.ts` uses; a real `Admins`-group account confirms it can read across families. |
-| Child profile CRUD authorization | `createChildProfile`/`updateChildProfile`/`setChildProfileActive`/`deleteChildProfileData` all operate through owner-scoped `client.models.ChildProfile.*` calls. | Live test: confirm a second parent's authenticated client gets an authorization error (not empty data) attempting any of these against the first parent's child ID. |
-| Asset management is Admins-only | `Asset`, `AssetVersion`, and the `assets/*` storage prefix grant only the `Admins` group (asserted from source in `src/features/assets/authorization.test.ts`). | Live test: a signed-in non-admin parent gets an authorization error (not empty data) for `Asset.list`/`create` and for an `uploadData` to `assets/`; a signed-out caller gets nothing; an `Admins` account can upload, create, and list. |
-| Islands & Adventures catalog writes are Admins-only; adventure delete is Superusers-only (ADR-031) | `Island`/`Adventure` grant create/read/update to `Admins`, read to authenticated users, and (Adventure only) delete to `Superusers`; `AdventureModel` is `Admins` only; `createdBy`/`updatedBy` are Admins-only fields (asserted from source in `src/features/catalog/authorization.test.ts`). `RequireAdmin` shows the standard 404 to non-admins. | Live test: a non-admin parent gets an authorization error for `Island.create`/`update` and `Adventure.create`/`update`/`delete`, and an error on `createdBy` if selected; an `Admins`-only account gets an authorization error for `Adventure.delete`; an `Admins`+`Superusers` account can delete. |
-| Adventure start/action/complete invariants | `startSession`/`recordAction`/`completeSession` write through owner-scoped models; no field lets a client claim a step it didn't reach (`AdventureAction.stepId`/`correctness` are freely settable client-side values *within the caller's own owner-scoped rows*, same limitation noted below). | Live test per the next row. |
-| Prevention of direct progress or world-change forgery | **Not enforced today.** `AdventureAction.create`, `WorldChange.create` (via `recordWorldChangeOnce`), and `SkillProgress` writes accept any `stepId`/`correctness`/`changeKey` a caller supplies, checked only by this app's own client code (`useAdventureSession.ts`), not by the schema. A technically sophisticated parent could, within their own owner scope, write a fabricated `AdventureAction` or `WorldChange` for a step their child never played. This is a pre-existing, already-documented limitation (`docs/IMPLEMENTATION_STATUS.md`'s Phase 3 "Owner-authorization backend tests are not runnable" note), not new. Given the product's actual risk model (a parent forging their *own* child's progress records harms no one but that family's own accuracy - there is no leaderboard, no cross-family comparison, no grading), this is accepted as low severity for MVP rather than built out with server-side step-sequence validation this session. |
+| Owner isolation between parent accounts | `ChildScopedMixin`; `test_tenant_isolation.py` | Live test with two real parent accounts |
+| Administrator boundaries | Django Admin only; child-owned models unregistered | Live check of a staff account and a non-staff parent |
+| Child profile CRUD authorization | Parent-scoped views (`apps/users/views.py`); deletion needs a recent sign-in (ADR-043) | Live test: a second parent gets 404 for the first parent's child |
+| Asset management is staff-only | Django Admin owns asset authoring (ADR-045); the only asset API is the child-scoped read resolver | Live check |
+| Adventure start/action/complete invariants | Django step runner and server grading (section 1b) | Authenticated browser pass |
+| Prevention of direct progress or world-change forgery | Progress, rewards and world changes are written by Django services from server-graded evidence; the remaining client-authored paths are tracked in ADR-012 and ADR-044 (`CLIENT_AUTHORED` AI context) | Live test per engine |
 
 ## 6. Summary
 
-No new authorization gap was found beyond what earlier phases already
-flagged; this review's contribution is confirming those notes are still
-accurate against current code, adding the two closed-form remediation
-plans above (4.1, 4.2) for whenever a deployable sandbox exists, and
-turning `docs/TESTING_STRATEGY.md`'s abstract "Backend tests" list into a
-concrete pre-pilot checklist (section 5). No code changes were made as
-part of this review beyond the data-deletion flow shipped alongside it
-(see `docs/IMPLEMENTATION_STATUS.md`), since every fix identified above
-requires either a live deploy to verify or a Lambda-backed mutation this
-sandbox cannot safely build untested.
+Authorization is enforced by Django: Cognito access tokens verified against the pool JWKS,
+`IsProvisionedParent` by default, child scoping through the authenticated parent, server-side
+grading, and Django Admin for staff. The two earlier documented gaps (the child-profile cap and
+the AI switch) are closed server-side. Live verification against the real pool and a deployed
+Django remains open.

@@ -9,7 +9,7 @@ critical vertical slice**. **SC-8 is now complete** and **SC-9 is complete
 except for beat 11's writing room**, both unblocked by ADR-027, which
 settled how a story chapter may be played inside a region. **SC-7 is complete**: beat 12's tapestry
 nook was built with the phase, and beat 13's calm stop landed once the
-product-wide session clock it needed was built. **SC-10 is complete.** **SC-11's gate is open on one of three deliverables
+product-wide session clock it needed was built (both since retired by ADR-053). **SC-10 is complete.** **SC-11's gate is open on one of three deliverables
 and therefore does not pass**: the HUD-equivalence audit is done and is a
 test, but the Sprouts playtest has not run and no profiling pass has
 happened on target hardware. **The card-based castle remains every band's
@@ -766,6 +766,10 @@ actually makes; "dimmest room in the castle" and "you cannot make out the
 furniture" turned out not to be the same statement.
 
 ## SC-7 — Secrets and the calm stop (beats 12–13) — **DONE**
+
+> **Retired (ADR-053, 2026-11-11).** There are no play-time limits: the session clock, the calm
+> stop and `ChildProfile.sessionMinutes` were removed. This beat is kept as history only; do not
+> build it.
 
 Parallel with SC-8 and SC-9.
 

@@ -27,7 +27,7 @@ React stays for menus, HUD, dashboards, and admin. See ADR-020.
 
 Two migrations now run in coordination, never inside the same task:
 
-- **Migration A, backend:** Amplify to Django/DRF/PostgreSQL (ADR-019, still Proposed).
+- **Migration A, backend:** Django/DRF/PostgreSQL (ADR-019, accepted in part), now the only backend.
 - **Migration B, engine:** Phaser/2D gameplay to one Three.js engine (ADR-020, Accepted).
 
 ## 2. Inventory of Phaser experiences
@@ -156,7 +156,7 @@ Candidate `game/src` areas, each earning its directory from existing code:
 - The engine never validates answers, awards progress, decides mastery, or calls AI. It emits
   typed events and renders state it is given.
 - Durable state uses semantic IDs, never Three.js UUIDs or raw camera transforms.
-- The engine imports nothing from `features/*/api`, `lib/data-client`, `aws-amplify`, or a
+- The engine imports nothing from `features/*/api`, the retired data-client paths, an AWS SDK, or a
   Django client. A boundary test (LAI-0203 now, LAI-2101 after extraction) enforces this.
   LAI-0203's test (`react/src/test/engineBoundary.test.ts`, rules in `docs/ARCHITECTURE.md`)
   also forbids React, routing, auth, session and UI modules. Since POST-MERGE-03 it has no
@@ -324,8 +324,7 @@ Phases 3-6 ...                            LAI-2103 lifecycle + world loading
   moving engine files twice. LAI-2101 onward depends on it.
 - **Independent of each other after LAI-0201:** Track A Phases 2 to 8 do not touch engine
   code; Track B Phases 21 to 23 do not touch Django. They meet only at Phase 5, where React
-  API modules change (`react/src/api`) while world views consume them, and at LAI-1301 when
-  Amplify leaves the frontend.
+  API modules change (`react/src/api`) while world views consume them, and at LAI-1301.
 - **Not to be combined:** no task changes both a backend domain and a world conversion. A
   world conversion task must not change data access; it keeps calling the same `api.ts`
   modules, whichever backend they point at.

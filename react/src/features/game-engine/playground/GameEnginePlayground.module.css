@@ -1,0 +1,58 @@
+.page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 799px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.control {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 44px;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.claims h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.buttonRow button {
+  min-height: 44px;
+  padding: 0 1rem;
+}
+
+.muted {
+  color: #5b6b76;
+  margin: 0;
+}

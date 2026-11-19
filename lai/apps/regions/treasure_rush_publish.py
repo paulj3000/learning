@@ -4,7 +4,9 @@
 other way to publish it. This does that, for a developer's own machine only:
 
 - **Development only.** Refused unless `DEBUG` is on *and* the database is on loopback, so it
-  cannot run against a deployed environment even with the wrong settings module.
+  cannot run against a deployed environment even with the wrong settings module. The one
+  exception is the AWS dev environment's installer (ADR-055), which sets
+  `LAI_DEV_BOOTSTRAP_PUBLISH` and `LAI_ENVIRONMENT=dev` for that single command only.
 - **No bypass.** Every row it publishes is checked with the model's own `full_clean()` first (the
   same validation an admin save runs: TR-1 parameters, chest age bands, asset ids, quest stages),
   and the region must be playable (a default spawn, at least one chest, a published location).
@@ -35,6 +37,10 @@ class PublishRefused(Exception):
 
 
 def assert_development_environment() -> None:
+    if getattr(settings, "LAI_DEV_BOOTSTRAP_PUBLISH", False):
+        # The AWS dev environment's one-time bootstrap (production settings allow this only with
+        # LAI_ENVIRONMENT=dev, for one command). Content validation below still applies.
+        return
     database_host = settings.DATABASES["default"].get("HOST", "")
     problems = []
     if not settings.DEBUG:

@@ -35,7 +35,7 @@ AI-narrated variation (`aiNarrated: true` narrative steps,
 `generateCompanionTurn` with `authoredBaseText`) never introduces new
 factual claims of its own; it is instructed, and separately validated, to
 rephrase the authored text without changing its meaning or inventing
-facts (`amplify/data/chattyPersona.ts`, `authoredBaseText` handling). The
+facts (`lai/apps/ai/prompts/`, `authoredBaseText` handling). The
 factual accuracy of such an adventure is therefore fully determined
 by its authored text, not by anything the model generates at runtime,
 consistent with `CLAUDE.md` section 7 (correctness lives in application
