@@ -34,8 +34,7 @@ function realmFiles(directory: string, inRealmDir = false): string[] {
     const path = join(directory, name);
     const realm = inRealmDir || REALM_FILE.test(name);
     if (statSync(path).isDirectory()) return realmFiles(path, realm);
-    // This file holds a shim import as a fixture for the last test, so it is not scanned.
-    return realm && /\.tsx?$/.test(name) && name !== 'realmEngineImports.test.ts' ? [path] : [];
+    return realm && /\.tsx?$/.test(name) ? [path] : [];
   });
 }
 
@@ -52,7 +51,10 @@ describe('Firepeak and North Pole engine imports (GE-073, GE-074)', () => {
   });
 
   it('would catch a shim import', () => {
-    expect(SHIM_IMPORT.test("import { x } from '../../firstPersonController';")).toBe(true);
+    // Built from parts so this file never holds a literal shim import (the Treasure Rush guard
+    // scans region-play too).
+    const shimImport = ['import { x } from ', "'../../", "firstPersonController'", ';'].join('');
+    expect(SHIM_IMPORT.test(shimImport)).toBe(true);
     expect(SHIM_IMPORT.test("import { x } from '@lai/game-engine/movement';")).toBe(false);
   });
 });
