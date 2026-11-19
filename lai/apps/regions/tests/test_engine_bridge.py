@@ -75,6 +75,26 @@ def test_a_scene_without_a_bridge_has_nothing_to_check():
     ]
 
 
+
+def _platforms_cap(*ids):
+    return {
+        "id": "gameplay.platforms",
+        "config": {"platforms": [{"id": i} for i in ids]},
+    }
+
+
+def test_an_area_may_mix_live_and_engine_platforms_but_never_run_one_twice():
+    mixed = {
+        "platforming": {"platforms": [{"id": "fh-hop-1"}, {"id": "fh-hop-2"}]},
+        "engineBridge": {"allowEnginePlatforms": True, "capabilities": [_platforms_cap("fh-stone-vanish")]},
+    }
+    assert scene_engine_bridge_problems(mixed) == []
+    twice = {**mixed, "engineBridge": {"allowEnginePlatforms": True, "capabilities": [_platforms_cap("fh-hop-2", "fh-stone-vanish")]}}
+    assert scene_engine_bridge_problems(twice) == [
+        "engineBridge: platform ids fh-hop-2 are in both scene.platforming and gameplay.platforms; "
+        "a platform runs in one system only"
+    ]
+
 @pytest.mark.postgres
 @pytest.mark.django_db
 def test_publishing_refuses_a_malformed_bridge_and_accepts_a_good_one():
