@@ -51,7 +51,12 @@ export interface JumpChallengeDefinition {
   id: string;
   areaId: string;
   jumpRouteId: string;
-  accessibleRouteId: string;
+  /**
+   * The route that needs no jumping. Required unless `optional` is true: an optional jump-only
+   * challenge (lava stones to a bonus shard, trampoline hops) leads only to optional rewards,
+   * shortcuts or secrets, as the jumping standard allows.
+   */
+  accessibleRouteId: string | null;
   /** Sprouts: jump routes are optional only. Required progress is never gated on jumping. */
   optional: boolean;
 }
@@ -299,7 +304,12 @@ export function validateAdventure(
       }
       checkId(raw.jumpRouteId, `${path}.jumpRouteId`, issues);
       if (raw.accessibleRouteId === undefined || raw.accessibleRouteId === null || raw.accessibleRouteId === '') {
-        issues.push({ path: `${path}.accessibleRouteId`, message: 'is required: every jump challenge needs a route that needs no jumping' });
+        if (raw.optional !== true) {
+          issues.push({
+            path: `${path}.accessibleRouteId`,
+            message: 'is required unless the challenge is optional: required progress needs a route that needs no jumping',
+          });
+        }
       } else if (checkId(raw.accessibleRouteId, `${path}.accessibleRouteId`, issues) && raw.accessibleRouteId === raw.jumpRouteId) {
         issues.push({ path: `${path}.accessibleRouteId`, message: 'must differ from jumpRouteId' });
       }
