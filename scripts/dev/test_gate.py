@@ -16,7 +16,10 @@ timeouts would hide that; this gate prevents the overload instead:
   command already sets it. The total worker count stays at or below the core count.
 - **Pressure.** Before starting, wait while the 1-minute load is above ``--max-load`` (default
   1.5 x cores), CPU pressure (Linux PSI ``some avg10``) is above ``--max-cpu-pressure`` (default
-  25%), or available memory is below ``--min-mem-mb`` (default 1024). After
+  25%), memory or I/O pressure is above ``--max-memory-pressure`` (10%) or
+  ``--max-io-pressure`` (30%), or available memory is below ``--min-mem-mb`` (default 1024).
+- **Memory per worker.** Vitest workers are capped at one per ``--mem-per-worker-mb`` (1024) of
+  available memory, because a swapped-out jsdom worker stalls tests at low CPU pressure. After
   ``--max-wait`` seconds it starts anyway with one worker and says so: never a silent hang.
 - **Monitoring.** Samples load, available memory and the run's process-tree CPU and RSS every
   two seconds; prints a summary and appends one JSON line per run to the shared log
@@ -107,6 +110,39 @@ def cpu_pressure(path: Path = Path("/proc/pressure/cpu")) -> float | None:
     except (OSError, ValueError):
         return None
     return None
+
+
+def memory_pressure(path: Path = Path("/proc/pressure/memory")) -> float | None:
+    """Linux PSI: percent of the last 10 s in which some task stalled on memory (reclaim, swap-in).
+
+    The host pages under several agents' suites (2026-11-19: about 1 GB of swap in use, 1.6 GB
+    swapped in since boot). A swapped-out jsdom worker stalls whatever test is running, at low CPU
+    pressure, so CPU pressure alone cannot see it.
+    """
+    return cpu_pressure(path)
+
+
+def io_pressure(path: Path = Path("/proc/pressure/io")) -> float | None:
+    """Linux PSI: percent of the last 10 s in which some task waited for I/O (swap is I/O)."""
+    return cpu_pressure(path)
+
+
+def swapped_in_pages(vmstat: Path = Path("/proc/vmstat")) -> int | None:
+    """Cumulative pages swapped in since boot (`pswpin`); a per-run delta shows paging."""
+    try:
+        for line in vmstat.read_text().splitlines():
+            if line.startswith("pswpin "):
+                return int(line.split()[1])
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def workers_for_memory(workers: int, available_mb: int | None, per_worker_mb: int) -> int:
+    """Cap Vitest workers so each has about `per_worker_mb` of available memory (at least 1)."""
+    if available_mb is None or per_worker_mb <= 0:
+        return workers
+    return max(1, min(workers, available_mb // per_worker_mb))
 
 
 def mem_available_mb(meminfo: Path = Path("/proc/meminfo")) -> int | None:
@@ -220,6 +256,9 @@ class RunRecord:
     cpu_s: float = 0.0
     peak_load: float = 0.0
     peak_cpu_pressure: float | None = None
+    peak_memory_pressure: float | None = None
+    peak_io_pressure: float | None = None
+    swapped_in_mb: float | None = None
     min_mem_available_mb: int | None = None
     exit_code: int | None = None
     signal: str | None = None
@@ -237,11 +276,15 @@ def wait_for_admission(
     min_mem_mb: int,
     max_wait: float,
     max_cpu_pressure: float = 100.0,
+    max_memory_pressure: float = 100.0,
+    max_io_pressure: float = 100.0,
     clock=time.monotonic,
     sleep=time.sleep,
     load=load_1m,
     mem=mem_available_mb,
     psi=cpu_pressure,
+    mem_psi=memory_pressure,
+    io_psi=io_pressure,
     say=print,
 ) -> tuple[float, bool]:
     """Block until slots are held and the host has headroom. Returns (waited, forced)."""
@@ -258,6 +301,12 @@ def wait_for_admission(
         stalled = psi()
         if stalled is not None and stalled > max_cpu_pressure:
             pressure.append(f"CPU pressure {stalled:.0f}% > {max_cpu_pressure:.0f}%")
+        paging = mem_psi()
+        if paging is not None and paging > max_memory_pressure:
+            pressure.append(f"memory pressure {paging:.0f}% > {max_memory_pressure:.0f}%")
+        waiting = io_psi()
+        if waiting is not None and waiting > max_io_pressure:
+            pressure.append(f"I/O pressure {waiting:.0f}% > {max_io_pressure:.0f}%")
         if not pressure and slots.try_acquire(weight, label):
             return waited, False
         if waited >= max_wait:
@@ -298,10 +347,16 @@ def run(args: argparse.Namespace) -> int:
         min_mem_mb=args.min_mem_mb,
         max_wait=args.max_wait,
         max_cpu_pressure=args.max_cpu_pressure,
+        max_memory_pressure=args.max_memory_pressure,
+        max_io_pressure=args.max_io_pressure,
     )
     record.waited_s, record.forced_start = round(waited, 1), forced
     held = len(slots.held)
     workers = 1 if forced or not held else workers_for(cpus, capacity, held)
+    capped = workers_for_memory(workers, mem_available_mb(), args.mem_per_worker_mb)
+    if capped < workers:
+        record.notes.append(f"workers capped {workers} -> {capped} by available memory")
+        workers = capped
     command = with_workers(args.command, workers)
     if command is not args.command:
         record.workers = workers
@@ -313,11 +368,15 @@ def run(args: argparse.Namespace) -> int:
     )
 
     started = time.monotonic()
+    swap_before = swapped_in_pages()
     child = subprocess.Popen(command)  # noqa: S603 - the developer's own command line
     stop = threading.Event()
 
     def sample() -> None:
-        while not stop.wait(POLL_SECONDS):
+        # Sample at once, then every POLL_SECONDS, so even a short run records its peaks.
+        first = True
+        while first or not stop.wait(POLL_SECONDS):
+            first = False
             rss, cpu = tree_usage(child.pid)
             record.samples += 1
             record.peak_rss_mb = max(record.peak_rss_mb, rss)
@@ -326,6 +385,12 @@ def run(args: argparse.Namespace) -> int:
             stalled = cpu_pressure()
             if stalled is not None:
                 record.peak_cpu_pressure = max(record.peak_cpu_pressure or 0.0, stalled)
+            paging = memory_pressure()
+            if paging is not None:
+                record.peak_memory_pressure = max(record.peak_memory_pressure or 0.0, paging)
+            waiting = io_pressure()
+            if waiting is not None:
+                record.peak_io_pressure = max(record.peak_io_pressure or 0.0, waiting)
             available = mem_available_mb()
             if available is not None:
                 current = record.min_mem_available_mb
@@ -345,6 +410,10 @@ def run(args: argparse.Namespace) -> int:
         sampler.join(timeout=POLL_SECONDS * 2)
         slots.release()
     record.duration_s = round(time.monotonic() - started, 1)
+    swap_after = swapped_in_pages()
+    if swap_before is not None and swap_after is not None:
+        page_kb = os.sysconf("SC_PAGE_SIZE") // 1024 if hasattr(os, "sysconf") else 4
+        record.swapped_in_mb = round((swap_after - swap_before) * page_kb / 1024, 1)
     record.exit_code = code
     if code < 0:
         record.signal = signal.Signals(-code).name
@@ -352,8 +421,18 @@ def run(args: argparse.Namespace) -> int:
     print(
         f"test_gate: exit {code} in {record.duration_s}s; peak RSS {record.peak_rss_mb} MB, "
         f"peak load {record.peak_load}, peak CPU pressure {record.peak_cpu_pressure}%, "
+        f"peak memory pressure {record.peak_memory_pressure}%, "
+        f"peak I/O pressure {record.peak_io_pressure}%, swapped in {record.swapped_in_mb} MB, "
         f"min available memory {record.min_mem_available_mb} MB"
     )
+    if code != 0 and paging_observed(record):
+        print(
+            f"test_gate: PAGING during this run ({record.swapped_in_mb} MB swapped in, peak "
+            f"memory pressure {record.peak_memory_pressure}%). A timeout here may be "
+            "infrastructure; confirm with a matched comparison before calling it a test bug or "
+            "a pass. This is not a waiver.",
+            file=sys.stderr,
+        )
     if record.signal:
         print(
             f"test_gate: INFRASTRUCTURE: the run was killed by {record.signal} "
@@ -362,6 +441,11 @@ def run(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
     return code if code >= 0 else 128 - code
+
+
+def paging_observed(record: RunRecord, min_swap_mb: float = 50.0) -> bool:
+    """True when the run swapped in a meaningful amount or stalled on memory."""
+    return (record.swapped_in_mb or 0.0) >= min_swap_mb or (record.peak_memory_pressure or 0.0) > 0
 
 
 def write_record(state: Path, record: RunRecord) -> None:
@@ -376,7 +460,8 @@ def status(args: argparse.Namespace) -> int:
     slots = Slots(args.state_dir / "slots", capacity)
     available = mem_available_mb()
     print(
-        f"host: {cpus} cores, load {load_1m():.2f}, CPU pressure {cpu_pressure()}% (10 s), "
+        f"host: {cpus} cores, load {load_1m():.2f}, CPU pressure {cpu_pressure()}%, "
+        f"memory pressure {memory_pressure()}%, I/O pressure {io_pressure()}% (10 s), "
         f"available memory {available} MB"
     )
     print(f"capacity: {capacity} suite(s), {workers_for(cpus, capacity, 1)} worker(s) each")
@@ -403,6 +488,24 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--max-load", type=float, default=None, help="default 1.5 x cores")
     parser.add_argument("--min-mem-mb", type=int, default=1024)
+    parser.add_argument(
+        "--max-memory-pressure",
+        type=float,
+        default=10.0,
+        help="PSI memory some avg10 percent (default 10): the host is paging",
+    )
+    parser.add_argument(
+        "--max-io-pressure",
+        type=float,
+        default=30.0,
+        help="PSI io some avg10 percent (default 30)",
+    )
+    parser.add_argument(
+        "--mem-per-worker-mb",
+        type=int,
+        default=1024,
+        help="available memory per Vitest worker (default 1024; 0 disables the cap)",
+    )
     parser.add_argument(
         "--max-cpu-pressure",
         type=float,

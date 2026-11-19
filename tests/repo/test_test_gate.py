@@ -24,6 +24,12 @@ NO_PRESSURE = [
     "0",
     "--max-cpu-pressure",
     "100",
+    "--max-memory-pressure",
+    "100",
+    "--max-io-pressure",
+    "100",
+    "--mem-per-worker-mb",
+    "0",
     "--max-wait",
     "0",
 ]
@@ -99,7 +105,18 @@ class FakeClock:
         self.now += seconds
 
 
-def _admit(tmp_path, *, loads, mem=4096, psi=None, max_wait=60, weight=1, slots=None):
+def _admit(
+    tmp_path,
+    *,
+    loads,
+    mem=4096,
+    psi=None,
+    mem_psi=None,
+    io_psi=None,
+    max_wait=60,
+    weight=1,
+    slots=None,
+):
     clock = FakeClock()
     loads = iter(loads)
     last = [0.0]
@@ -122,7 +139,11 @@ def _admit(tmp_path, *, loads, mem=4096, psi=None, max_wait=60, weight=1, slots=
         load=load,
         mem=lambda: mem,
         psi=lambda: psi,
+        mem_psi=lambda: mem_psi,
+        io_psi=lambda: io_psi,
         max_cpu_pressure=50.0,
+        max_memory_pressure=10.0,
+        max_io_pressure=30.0,
         say=messages.append,
     )
     return slots, waited, forced, messages
@@ -293,3 +314,62 @@ def test_cpu_pressure_parses_psi(tmp_path):
     assert gate.cpu_pressure(tmp_path / "missing") is None
     (tmp_path / "bad").write_text("garbage\n")
     assert gate.cpu_pressure(tmp_path / "bad") is None
+
+
+def test_waits_for_memory_pressure(tmp_path):
+    _, _, forced, messages = _admit(tmp_path, loads=[1.0], mem_psi=35.0, max_wait=4)
+    assert forced is True
+    assert "memory pressure 35% > 10%" in messages[0]
+
+
+def test_waits_for_io_pressure(tmp_path):
+    _, _, forced, messages = _admit(tmp_path, loads=[1.0], io_psi=60.0, max_wait=4)
+    assert forced is True
+    assert "I/O pressure 60% > 30%" in messages[0]
+
+
+def test_swapped_in_pages_reads_vmstat(tmp_path):
+    vmstat = tmp_path / "vmstat"
+    vmstat.write_text("nr_free_pages 1\npswpin 411613\npswpout 661390\n")
+    assert gate.swapped_in_pages(vmstat) == 411613
+    assert gate.swapped_in_pages(tmp_path / "missing") is None
+
+
+@pytest.mark.parametrize(
+    "workers, available, per_worker, expected",
+    [(2, 4800, 1024, 2), (4, 2500, 1024, 2), (2, 600, 1024, 1), (2, None, 1024, 2), (4, 900, 0, 4)],
+)
+def test_workers_capped_by_memory(workers, available, per_worker, expected):
+    assert gate.workers_for_memory(workers, available, per_worker) == expected
+
+
+def test_paging_observed():
+    record = gate.RunRecord(worktree="w", command=["x"], weight=1, capacity=2, workers=None)
+    assert not gate.paging_observed(record)
+    record.swapped_in_mb = 120.0
+    assert gate.paging_observed(record)
+    record.swapped_in_mb, record.peak_memory_pressure = 0.0, 2.5
+    assert gate.paging_observed(record)
+
+
+def test_failed_run_reports_paging(tmp_path, capsys, monkeypatch):
+    pages = iter([1000, 1000 + 64_000])  # 250 MB with 4 KiB pages
+    monkeypatch.setattr(gate, "swapped_in_pages", lambda: next(pages))
+    monkeypatch.setattr(gate.os, "sysconf", lambda name: 4096 if name == "SC_PAGE_SIZE" else 100)
+    code = gate.main(
+        [
+            *NO_PRESSURE,
+            "--state-dir",
+            str(tmp_path),
+            "--",
+            sys.executable,
+            "-c",
+            "raise SystemExit(1)",
+        ]
+    )
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "PAGING during this run (250.0 MB swapped in" in err
+    assert "not a waiver" in err
+    record = json.loads((tmp_path / "test-runs.jsonl").read_text().splitlines()[-1])
+    assert record["swapped_in_mb"] == 250.0
