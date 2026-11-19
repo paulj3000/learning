@@ -76,6 +76,10 @@ Rules (agreed with the GE-100 scoring lead, 2026-11-18):
 6. `eventId` dedupes transport only. Award idempotency belongs to the consumer, keyed on the
    source record.
 
+Chests: opening a chest is not a claim. The host reports the child's answer with
+`ChestsApi.submitAnswer`, which emits `learning.answer.submitted` with a `CHEST_CHALLENGE`
+learning ref. `exploration.discovery.found` is for authored discoveries only.
+
 Golden vectors `tests/contracts/gameplay-events-v1.json` are shared by the TypeScript validator and
 the Django intake (`lai/apps/scoring/engine_events.py` on `core/ge-scoring`). Change them only
 together.
