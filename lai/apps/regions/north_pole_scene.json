@@ -2552,79 +2552,6 @@
    "loading": "Packing up the sleigh for the North Pole."
   },
   "effects": {
-   "checkpoints": [
-    {
-     "id": "np-cp-landing",
-     "label": "Santa's Landing",
-     "x": 0,
-     "yaw": 3.142,
-     "z": 92
-    },
-    {
-     "id": "np-cp-workshop",
-     "label": "Santa's Workshop",
-     "whenChangeKey": "NORTH_POLE_WELCOME_LOOKED",
-     "x": -29,
-     "yaw": -1.571,
-     "z": 54
-    },
-    {
-     "id": "np-cp-forest",
-     "label": "the Candy Cane Forest",
-     "whenChangeKey": "NORTH_POLE_WORKSHOP_RESTORED",
-     "x": 29,
-     "yaw": 1.571,
-     "z": 54
-    },
-    {
-     "id": "np-cp-lake",
-     "label": "the Frozen Lake",
-     "whenChangeKey": "NORTH_POLE_FOREST_DONE",
-     "x": -29,
-     "yaw": -1.571,
-     "z": 12
-    },
-    {
-     "id": "np-cp-stables",
-     "label": "the Reindeer Stables",
-     "whenChangeKey": "NORTH_POLE_LAKE_DONE",
-     "x": 29,
-     "yaw": 1.571,
-     "z": 20
-    },
-    {
-     "id": "np-cp-gingerbread",
-     "label": "Gingerbread Village",
-     "whenChangeKey": "NORTH_POLE_SNOWBALL_HOME",
-     "x": -29,
-     "yaw": -1.571,
-     "z": -42
-    },
-    {
-     "id": "np-cp-mountain",
-     "label": "Snowflake Mountain",
-     "whenChangeKey": "NORTH_POLE_GINGER_REPAIRED",
-     "x": -46,
-     "yaw": 3.142,
-     "z": -71
-    },
-    {
-     "id": "np-cp-observatory",
-     "label": "the Observatory",
-     "whenChangeKey": "NORTH_POLE_MOUNTAIN_SUMMIT",
-     "x": 6,
-     "yaw": 1.571,
-     "z": -84
-    },
-    {
-     "id": "np-cp-finale",
-     "label": "Santa's Landing",
-     "whenChangeKey": "NORTH_POLE_STAR_RESTORED",
-     "x": 0,
-     "yaw": 3.142,
-     "z": 86
-    }
-   ],
    "lights": [
     {
      "color": 16765562,
@@ -2778,6 +2705,11 @@
     {
      "entityId": "np-observatory-sled",
      "label": "Ride the sled back to Santa's Landing",
+     "to": {
+      "x": 0,
+      "yaw": 3.142,
+      "z": 86
+     },
      "toCheckpoint": "np-cp-finale",
      "whenChangeKey": "NORTH_POLE_STAR_RESTORED"
     }
@@ -3502,6 +3434,177 @@
   },
   "engineBridge": {
    "capabilities": [
+    {
+     "config": {
+      "checkpoints": [
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-landing",
+        "label": "Santa's Landing",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 92.0
+        },
+        "yaw": 3.142
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-workshop",
+        "label": "Santa's Workshop",
+        "position": {
+         "x": -29.0,
+         "y": 0.0,
+         "z": 54.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_WELCOME_LOOKED",
+        "yaw": -1.571
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-forest",
+        "label": "the Candy Cane Forest",
+        "position": {
+         "x": 29.0,
+         "y": 0.0,
+         "z": 54.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_WORKSHOP_RESTORED",
+        "yaw": 1.571
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 1.0,
+        "id": "np-course-cp-lake-east",
+        "label": "the east bank",
+        "position": {
+         "x": -42.0,
+         "y": 0.0,
+         "z": 8.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_FOREST_DONE",
+        "yaw": -1.571
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 1.0,
+        "id": "np-course-cp-lake-island",
+        "label": "the island",
+        "position": {
+         "x": -54.0,
+         "y": 0.0,
+         "z": 8.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_LAKE_BRIDGE",
+        "yaw": 1.571
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-lake",
+        "label": "the Frozen Lake",
+        "position": {
+         "x": -29.0,
+         "y": 0.0,
+         "z": 12.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_FOREST_DONE",
+        "yaw": -1.571
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-stables",
+        "label": "the Reindeer Stables",
+        "position": {
+         "x": 29.0,
+         "y": 0.0,
+         "z": 20.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_LAKE_DONE",
+        "yaw": 1.571
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-gingerbread",
+        "label": "Gingerbread Village",
+        "position": {
+         "x": -29.0,
+         "y": 0.0,
+         "z": -42.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_SNOWBALL_HOME",
+        "yaw": -1.571
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-mountain",
+        "label": "Snowflake Mountain",
+        "position": {
+         "x": -46.0,
+         "y": 0.0,
+         "z": -71.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_GINGER_REPAIRED",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-observatory",
+        "label": "the Observatory",
+        "position": {
+         "x": 6.0,
+         "y": 0.0,
+         "z": -84.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_MOUNTAIN_SUMMIT",
+        "yaw": 1.571
+       },
+       {
+        "courseId": "np-village",
+        "halfSize": 3.0,
+        "id": "np-cp-finale",
+        "label": "Santa's Landing",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 86.0
+        },
+        "requiresSignalId": "world:NORTH_POLE_STAR_RESTORED",
+        "yaw": 3.142
+       }
+      ],
+      "goals": []
+     },
+     "id": "gameplay.checkpoints"
+    },
+    {
+     "config": {
+      "hazards": [
+       {
+        "belowY": 0.05,
+        "checkpointId": "np-course-cp-lake-east",
+        "id": "np-hazard-lake-water",
+        "kind": "WATER",
+        "messageKey": "hazard.water.splash",
+        "rect": {
+         "maxX": -44.5,
+         "maxZ": 34.0,
+         "minX": -50.0,
+         "minZ": -18.0
+        }
+       }
+      ],
+      "telegraphed": []
+     },
+     "id": "gameplay.hazards"
+    },
     {
      "config": {
       "hazardRects": [
@@ -10969,37 +11072,9 @@
    ],
    "zones": []
   },
-  "northPoleVersion": 2,
+  "northPoleVersion": 3,
   "platforming": {
-   "checkpoints": [
-    {
-     "id": "np-course-cp-lake-east",
-     "label": "the east bank",
-     "x": -42,
-     "yaw": -1.571,
-     "z": 8
-    },
-    {
-     "id": "np-course-cp-lake-island",
-     "label": "the island",
-     "x": -54,
-     "yaw": 1.571,
-     "z": 8
-    }
-   ],
    "goals": [],
-   "hazards": [
-    {
-     "id": "np-hazard-lake-water",
-     "rect": {
-      "id": "np-hazard-lake-water",
-      "maxX": -44.5,
-      "maxZ": 34.0,
-      "minX": -50.0,
-      "minZ": -18.0
-     }
-    }
-   ],
    "platforms": [
     {
      "activation": {

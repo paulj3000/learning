@@ -119,7 +119,22 @@ BRIDGES = [
     if (p.get("activation") or {}).get("hiddenUntilActive") and (p.get("activation") or {}).get("trigger") == "SIGNAL"
 ]  # fmt: skip
 OTHER_PLATFORMS = [p for p in PLATFORMING["platforms"] if p not in BRIDGES]
-HAZARDS = [rect_of(h) for h in PLATFORMING["hazards"]]
+# GE-074: the one checkpoint list and the water hazard live in the engine bridge. Normalised views
+# keep the zone checkpoints and the lake banks apart, with x/z and the gating change key.
+BRIDGE_CONFIG = {c["id"]: c.get("config", {}) for c in SCENE["engineBridge"]["capabilities"]}
+CHECKPOINT_LIST = [
+    {
+        **c,
+        "x": c["position"]["x"],
+        "z": c["position"]["z"],
+        **({"whenChangeKey": c["requiresSignalId"].removeprefix("world:")} if "requiresSignalId" in c else {}),
+    }
+    for c in BRIDGE_CONFIG["gameplay.checkpoints"]["checkpoints"]
+]
+ZONE_CHECKPOINTS = [c for c in CHECKPOINT_LIST if not c["id"].startswith("np-course-")]
+BANK_CHECKPOINTS = [c for c in CHECKPOINT_LIST if c["id"].startswith("np-course-")]
+HAZARD_SPECS = BRIDGE_CONFIG["gameplay.hazards"]["hazards"]
+HAZARDS = [rect_of(h) for h in HAZARD_SPECS]
 
 RES = 0.5
 NX = int(2 * BOUNDS["halfExtentX"] / RES)
@@ -225,7 +240,7 @@ def test_the_scene_has_the_contract_shell():
     assert L.REGION_ID == "north-pole-village"
     assert BOUNDS == {"halfExtentX": 66, "halfExtentZ": 100, "wallThickness": 1}
     assert SCENE["bounds"] == BOUNDS
-    assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 2  # 2: engineBridge (GE-074)
+    assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 3  # 3: one checkpoint list in engineBridge (GE-074)
     assert SCENE["environment"] == {
         "backgroundColor": 1979224,
         "lighting": {"ambientColor": 13623551, "ambientIntensity": 0.9, "sunColor": 16773856, "sunIntensity": 0.9},
@@ -266,12 +281,13 @@ def test_every_gate_is_a_collider_with_its_opening():
 
 
 def test_effects_checkpoints_match_the_contract():
-    got = {c["id"]: c.get("whenChangeKey") for c in EFFECTS["checkpoints"]}
+    got = {c["id"]: c.get("whenChangeKey") for c in ZONE_CHECKPOINTS}
     assert got == CONTRACT_CHECKPOINTS
     assert EFFECTS["returns"] == [
         {
             "entityId": "np-observatory-sled",
             "toCheckpoint": "np-cp-finale",
+            "to": {"x": 0, "z": 86, "yaw": L._r(L.NORTH)},
             "whenChangeKey": "NORTH_POLE_STAR_RESTORED",
             "label": "Ride the sled back to Santa's Landing",
         }
@@ -281,8 +297,8 @@ def test_effects_checkpoints_match_the_contract():
 
 def test_spawn_and_every_checkpoint_stand_on_free_ground():
     points = [(L.SPAWN["x"], L.SPAWN["z"], "spawn")]
-    points += [(c["x"], c["z"], c["id"]) for c in EFFECTS["checkpoints"]]
-    points += [(c["x"], c["z"], c["id"]) for c in PLATFORMING["checkpoints"]]
+    points += [(c["x"], c["z"], c["id"]) for c in ZONE_CHECKPOINTS]
+    points += [(c["x"], c["z"], c["id"]) for c in BANK_CHECKPOINTS]
     for x, z, name in points:
         assert abs(x) < BOUNDS["halfExtentX"] and abs(z) < BOUNDS["halfExtentZ"], name
         for c in LAYOUT["colliders"]:
@@ -301,7 +317,7 @@ def test_every_checkpoint_sits_in_the_zone_of_its_gate():
         "np-cp-lake": "frozen-lake", "np-cp-stables": "reindeer-stables", "np-cp-gingerbread": "gingerbread-village",
         "np-cp-mountain": "snowflake-mountain", "np-cp-observatory": "north-pole-observatory", "np-cp-finale": "santas-landing",
     }  # fmt: skip
-    for c in EFFECTS["checkpoints"]:
+    for c in ZONE_CHECKPOINTS:
         assert inside(CONTRACT_ZONES[zone_of[c["id"]]], c["x"], c["z"]), c["id"]
 
 
@@ -413,7 +429,7 @@ def test_the_course_has_every_platform_type_and_the_contract_signals():
 def test_every_hazard_has_a_course_checkpoint_close_by():
     assert HAZARDS
     for hazard in HAZARDS:
-        near = [c for c in PLATFORMING["checkpoints"] if rect_gap(hazard, (c["x"], c["x"], c["z"], c["z"])) <= 20]
+        near = [c for c in BANK_CHECKPOINTS if rect_gap(hazard, (c["x"], c["x"], c["z"], c["z"])) <= 20]
         assert len(near) >= 2  # both banks
         xs = sorted(c["x"] for c in near)
         assert xs[0] < hazard[0] and xs[-1] > hazard[1]
@@ -475,7 +491,7 @@ def test_spawn_region_is_connected_and_gates_really_seal_the_zones(closed_grid):
         "np-cp-workshop", "np-cp-forest", "np-cp-lake", "np-cp-stables", "np-cp-gingerbread",
         "np-cp-mountain", "np-cp-observatory",
     }  # fmt: skip
-    for c in EFFECTS["checkpoints"]:
+    for c in ZONE_CHECKPOINTS:
         assert (cell(c["x"], c["z"]) in reachable) == (c["id"] not in sealed), c["id"]
     # The ice cave is closed until Christmas Eve, so its golden bells are unreachable.
     for i in range(1, 4):
@@ -489,7 +505,7 @@ def test_each_gate_alone_opens_exactly_its_own_zone():
         "np-gate-workshop": "np-cp-workshop", "np-gate-forest": "np-cp-forest", "np-gate-lake": "np-cp-lake",
         "np-gate-stables": "np-cp-stables", "np-gate-gingerbread": "np-cp-gingerbread",
     }  # fmt: skip
-    cps = {c["id"]: c for c in EFFECTS["checkpoints"]}
+    cps = {c["id"]: c for c in ZONE_CHECKPOINTS}
     for gate_id, cp_id in zone_cp.items():
         grid = Grid(gates_open=False)
         for i, j in cells_in(GATE_RECTS[gate_id], PLAYER_RADIUS):
@@ -506,7 +522,7 @@ def test_each_gate_alone_opens_exactly_its_own_zone():
 def test_every_required_thing_is_reachable_on_foot_with_the_gates_open(open_grid):
     grid, reachable = open_grid
     assert cell(L.SPAWN["x"], L.SPAWN["z"]) in reachable
-    for c in EFFECTS["checkpoints"]:
+    for c in ZONE_CHECKPOINTS:
         assert cell(c["x"], c["z"]) in reachable, c["id"]
     needed: dict[str, tuple[float, float, float, float]] = {}
     for p in L.PLACEMENTS:  # every placed entity: NPCs, pickups, stations, decor
@@ -579,19 +595,19 @@ def test_the_engine_bridge_block_passes_the_publish_check_and_never_runs_movemen
     block = L.scene()["engineBridge"]
     assert engine_bridge_problems(block) == []
     ids = [c["id"] for c in block["capabilities"]]
-    assert ids == ["environment.volumes"]
+    assert ids == ["gameplay.checkpoints", "gameplay.hazards", "environment.volumes"]
     assert "allowEnginePlatforms" not in block  # the live platform system keeps the lake platforms
 
 
 def test_the_lake_ice_is_on_the_frozen_lake_and_never_slides_into_the_water():
     rink, water = L.ICE_RINK, L.LAKE_WATER
     zone = dict(zip(("minX", "maxX", "minZ", "maxZ"), L.ZONES["frozen-lake"]))
-    course_water = next(h for h in L.scene()["platforming"]["hazards"] if h["id"] == "np-hazard-lake-water")["rect"]
+    course_water = next(h for h in HAZARD_SPECS if h["id"] == "np-hazard-lake-water")["rect"]
     assert {k: course_water[k] for k in water} == water  # the bridge names the real hazard
     # The engine stops a child within about a metre at the lowest friction; keep twice that.
     gap_x = max(water["minX"] - rink["maxX"], rink["minX"] - water["maxX"])
     assert gap_x >= 2.0
-    surface = L.scene()["engineBridge"]["capabilities"][0]["config"]["surfaces"][0]
+    surface = BRIDGE_CONFIG["environment.volumes"]["surfaces"][0]
     assert surface["surfaceId"] == "ice"
     assert 0.15 < surface["friction"] < 1 and surface["speedMultiplier"] == 1.0
     assert zone["minX"] <= rink["minX"] and rink["maxX"] <= zone["maxX"]
@@ -601,4 +617,35 @@ def test_the_lake_ice_is_on_the_frozen_lake_and_never_slides_into_the_water():
 def test_the_snapshot_carries_the_engine_bridge_block():
     snap = json.loads(L.SNAPSHOT_PATH.read_text())
     assert snap["scene"]["engineBridge"] == L.scene()["engineBridge"]
-    assert snap["scene"]["northPoleVersion"] == L.LAYOUT_VERSION == 2
+    assert snap["scene"]["northPoleVersion"] == L.LAYOUT_VERSION == 3
+
+
+def test_one_checkpoint_list_resumes_at_the_zone_checkpoint_at_every_stage():
+    # GE-074: the platforming and effects lists are gone; the bridge holds all eleven.
+    assert "checkpoints" not in SCENE["platforming"] and "hazards" not in SCENE["platforming"]
+    assert "checkpoints" not in SCENE["effects"]
+    assert len(CHECKPOINT_LIST) == 11 and len({c["id"] for c in CHECKPOINT_LIST}) == 11
+    # Resume places the child at the last earned checkpoint in list order. At every stage of the
+    # story that must be the zone checkpoint the old region-play resume chose, never a lake bank.
+    keys: list[str] = []
+    stages = [None, *[c["whenChangeKey"] for c in ZONE_CHECKPOINTS if "whenChangeKey" in c]]
+    for key in stages:
+        if key:
+            keys.append(key)
+        if key == CH_LAKE_OPEN:
+            keys.append(L.CH["lake_bridge"])  # the island bridge built too: still the zone checkpoint
+        earned = [c["id"] for c in CHECKPOINT_LIST if c.get("whenChangeKey") in (None, *keys)]
+        zone_earned = [c["id"] for c in ZONE_CHECKPOINTS if c.get("whenChangeKey") in (None, *keys)]
+        assert earned[-1] == zone_earned[-1], (key, earned)
+
+
+CH_LAKE_OPEN = L.CH["forest"]
+
+
+def test_the_water_sends_the_child_back_to_a_bank():
+    (water,) = HAZARD_SPECS
+    assert water["kind"] == "WATER" and water["belowY"] == 0.05
+    assert water["checkpointId"] in {c["id"] for c in BANK_CHECKPOINTS}
+    for platform in ("np-lake-bridge", "np-plat-lake-stone", "np-plat-lake-thin-ice", "np-plat-lake-floe-ride"):
+        p = next(x for x in PLATFORMING["platforms"] if x["id"] == platform)
+        assert p["size"]["height"] > water["belowY"], platform  # standing on it is never "in the water"

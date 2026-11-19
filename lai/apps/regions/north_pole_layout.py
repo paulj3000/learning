@@ -43,7 +43,8 @@ from pathlib import Path
 REGION_ID = "north-pole-village"
 BOUNDS = {"halfExtentX": 66, "halfExtentZ": 100, "wallThickness": 1}
 # 2: scene.engineBridge, the Frozen Lake ice surface (GE-074).
-LAYOUT_VERSION = 2
+# 3: one checkpoint list and the lake water hazard in scene.engineBridge (GE-074).
+LAYOUT_VERSION = 3
 SNAPSHOT_PATH = Path(__file__).with_name("north_pole_scene.json")
 
 SPAWN = {"checkpoint_id": "np-cp-landing", "x": 0, "z": 92, "yaw": math.pi, "label": "Santa's Landing"}
@@ -853,8 +854,8 @@ PUZZLE_ENTITY_MAPS = {
 }
 
 
-def _effects(b: _Build) -> dict:
-    checkpoints = [
+def _zone_checkpoints() -> list[dict]:
+    return [
         {"id": "np-cp-landing", "label": "Santa's Landing", "x": 0, "z": 92, "yaw": _r(NORTH)},
         {"id": "np-cp-workshop", "label": "Santa's Workshop", "x": -29, "z": 54, "yaw": _r(WEST), "whenChangeKey": CH["welcome"]},
         {"id": "np-cp-forest", "label": "the Candy Cane Forest", "x": 29, "z": 54, "yaw": _r(EAST), "whenChangeKey": CH["workshop"]},
@@ -865,6 +866,9 @@ def _effects(b: _Build) -> dict:
         {"id": "np-cp-observatory", "label": "the Observatory", "x": 6, "z": -84, "yaw": _r(EAST), "whenChangeKey": CH["summit"]},
         {"id": "np-cp-finale", "label": "Santa's Landing", "x": 0, "z": 86, "yaw": _r(NORTH), "whenChangeKey": CH["star"]},
     ]
+
+
+def _effects(b: _Build) -> dict:
     lights = [
         ("np-light-landing", 0, 3.0, 88, 0xFFD27A, 1.6, 16),
         ("np-light-tree", 0, 4.0, 56, 0xFFE9A8, 2.2, 22),
@@ -888,13 +892,15 @@ def _effects(b: _Build) -> dict:
             "shownWhenChangeKey": CH["star"],
         }
     )
+    finale = next(c for c in _zone_checkpoints() if c["id"] == "np-cp-finale")
     return {
-        "checkpoints": checkpoints,
         "openings": [{"colliderId": gate_id, "whenChangeKey": key} for gate_id, (_r_, key) in GATES.items()],
         "returns": [
             {
                 "entityId": "np-observatory-sled",
                 "toCheckpoint": "np-cp-finale",
+                # The checkpoint list lives in scene.engineBridge now, so the way back says where.
+                "to": {"x": finale["x"], "z": finale["z"], "yaw": finale["yaw"]},
                 "whenChangeKey": CH["star"],
                 "label": "Ride the sled back to Santa's Landing",
             }
@@ -911,11 +917,6 @@ def _platforming(b: _Build) -> dict:
     return {
         "platforms": b.platforms,
         "pressurePlates": [],
-        "checkpoints": [
-            {"id": "np-course-cp-lake-east", "x": -42, "z": 8, "yaw": _r(WEST), "label": "the east bank"},
-            {"id": "np-course-cp-lake-island", "x": -54, "z": 8, "yaw": _r(EAST), "label": "the island"},
-        ],
-        "hazards": [{"id": "np-hazard-lake-water", "rect": _rect("np-hazard-lake-water", -50, -44.5, -18, 34)}],
         "goals": [],
         "zones": zones,
     }
@@ -933,10 +934,65 @@ ICE_RINK = {"minX": -42.5, "maxX": -28.0, "minZ": -16.0, "maxZ": 32.0}
 ICE_FRICTION = 0.3
 
 
+COURSE_ID = "np-village"
+ZONE_REACH = 3.0  # half side of the square that counts as reaching a zone checkpoint, metres
+BANK_REACH = 1.0  # the lake banks keep the course default
+WATER_BELOW_Y = 0.05  # feet at or below this in the open water: back to the last checkpoint
+
+# The lake's two bank checkpoints (water recovery). They open with the lake and the island bridge
+# and sit just before the Frozen Lake zone checkpoint, so resuming a visit still lands at the zone
+# checkpoint (the furthest earned in list order) while a fall returns to the bank last touched.
+LAKE_BANKS = [
+    {"id": "np-course-cp-lake-east", "label": "the east bank", "x": -42, "z": 8, "yaw": _r(WEST), "whenChangeKey": CH["forest"]},
+    {"id": "np-course-cp-lake-island", "label": "the island", "x": -54, "z": 8, "yaw": _r(EAST), "whenChangeKey": CH["lake_bridge"]},
+]
+
+
+def _engine_checkpoint(c: dict, reach: float) -> dict:
+    out = {
+        "id": c["id"],
+        "courseId": COURSE_ID,
+        "position": {"x": float(c["x"]), "y": 0.0, "z": float(c["z"])},
+        "yaw": c["yaw"],
+        "label": c["label"],
+        "halfSize": reach,
+    }
+    if c.get("whenChangeKey"):
+        out["requiresSignalId"] = f"world:{c['whenChangeKey']}"
+    return out
+
+
+def checkpoint_list() -> list[dict]:
+    """The one checkpoint list, in resume order (the lake banks before the lake zone)."""
+    out = []
+    for c in _zone_checkpoints():
+        if c["id"] == "np-cp-lake":
+            out += [_engine_checkpoint(bank, BANK_REACH) for bank in LAKE_BANKS]
+        out.append(_engine_checkpoint(c, ZONE_REACH))
+    return out
+
+
 def _engine_bridge() -> dict:
     rink = ICE_RINK
     return {
         "capabilities": [
+            {"id": "gameplay.checkpoints", "config": {"checkpoints": checkpoint_list(), "goals": []}},
+            {
+                "id": "gameplay.hazards",
+                "config": {
+                    "hazards": [
+                        {
+                            "id": "np-hazard-lake-water",
+                            "kind": "WATER",
+                            "rect": dict(LAKE_WATER),
+                            "belowY": WATER_BELOW_Y,
+                            "checkpointId": "np-course-cp-lake-east",
+                            "messageKey": "hazard.water.splash",
+                        }
+                    ],
+                    "telegraphed": [],
+                },
+            },
             {
                 "id": "environment.volumes",
                 "config": {

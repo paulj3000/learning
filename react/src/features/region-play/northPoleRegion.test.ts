@@ -4,8 +4,6 @@ import * as parse from '../../api/play/parse';
 import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../discovery/checkpoints';
 import {
   gateOpen,
-  openCheckpoints,
-  resumeCheckpoint,
 } from '../island-map/three/extensions/regionPlay/areaEffectsScene';
 import { validatePlatforming } from '../island-map/three/platforms/platformSpec';
 import { SOURCE_MANIFEST_REGISTRIES } from '../island-map/three/runtime/sourceManifestRegistries';
@@ -30,6 +28,7 @@ import {
   type PlatformParams,
 } from './areaPuzzles';
 import { NORTH_POLE_ZONE_AMBIENCE, zoneAmbienceFor } from './audio/regionAudio';
+import { earnedBridgeCheckpoints } from './engineBridgeProgress';
 import { buildRegionManifest } from './regionManifest';
 import { withServerCatalog } from './regionManifestRepository';
 import { STAND_IN_SHAPES, tryParseRegionPlayConfig } from './regionPlayConfig';
@@ -56,6 +55,7 @@ const SCENE = NORTH_POLE_SCENE_SNAPSHOT.scene as {
     checkpoints: { id: string; whenChangeKey?: string }[];
   };
   platforming: { zones: { rect: { id: string } }[] };
+  engineBridge: unknown;
 };
 
 function bootstrap(options: Parameters<typeof northPoleBootstrapJson>[0] = {}) {
@@ -138,18 +138,16 @@ describe('the North Pole manifest', () => {
     expect(SCENE.colliders.map((c) => c.id)).toEqual(expect.arrayContaining(gates));
   });
 
-  it('resumes at the furthest zone the world change keys open', () => {
+  it('resumes at the furthest zone the world change keys open (one list, in the engine bridge)', () => {
     const { config } = configOf();
-    const keySet = (...keys: string[]) => new Set(keys);
-    expect(resumeCheckpoint(config.effects.checkpoints, keySet())).toBeNull();
-    expect(resumeCheckpoint(config.effects.checkpoints, keySet(K.welcomeLooked))?.id).toBe(
-      'np-cp-workshop',
-    );
-    const lake = keySet(K.welcomeLooked, K.workshopRestored, K.forestDone, K.lakeDone);
-    expect(resumeCheckpoint(config.effects.checkpoints, lake)?.id).toBe('np-cp-stables');
-    expect(openCheckpoints(config.effects.checkpoints, keySet()).map((c) => c.id)).toEqual([
-      'np-cp-landing',
-    ]);
+    expect(config.effects.checkpoints).toEqual([]);
+    const block = SCENE.engineBridge;
+    const furthest = (...keys: string[]) => earnedBridgeCheckpoints(block, keys).at(-1);
+    expect(furthest()).toBe('np-cp-landing');
+    expect(furthest(K.welcomeLooked)).toBe('np-cp-workshop');
+    // The lake open and its bridge built: the zone checkpoint, not a bank.
+    expect(furthest(K.welcomeLooked, K.workshopRestored, K.forestDone, K.lakeBridge)).toBe('np-cp-lake');
+    expect(furthest(K.welcomeLooked, K.workshopRestored, K.forestDone, K.lakeDone)).toBe('np-cp-stables');
   });
 
   it('shows the star light and stand-in only after the star is restored', () => {

@@ -125,6 +125,11 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
   open water so a slide never reaches it. The North Pole seed is create-only: a local database
   seeded before this needs a fresh seed to get it. Owner check: the bank feels slippery but fair,
   and a child still stops quickly.
-- Waiting: snow and ice footsteps (the Sound Manager port is not wired), engine weather after
-  atmosphere parity, and the one checkpoint list.
+- One checkpoint list (layout version 3): the nine zone checkpoints, the two lake-bank checkpoints
+  and the open-water hazard run in the engine bridge (`scene.engineBridge`), and the platforming and
+  effects lists are gone. A returning child still resumes at the furthest zone they reached; a fall
+  in the water returns them to the bank they last touched. The sled back to Santa's Landing carries
+  its destination. Owner check: resume after leaving mid-story; fall in the lake from each bank.
+- Waiting: snow and ice footsteps (the Sound Manager port is not wired) and engine weather after
+  atmosphere parity.
 

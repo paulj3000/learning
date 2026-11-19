@@ -23,22 +23,22 @@ export const NORTH_POLE_AREA = NORTH_POLE_PLACE_SLUG;
 export const NORTH_POLE_ADVENTURE_ID = 'the-missing-christmas-star';
 
 /**
- * Today's two checkpoint lists, kept together: the zone checkpoints (`effects.checkpoints`, resume)
- * and the lake course checkpoints (`platforming.checkpoints`, hazard recovery). The adoption step
- * moves both into the engine's one `gameplay.checkpoints` list.
+ * The one checkpoint list (layout version 3, `scene.engineBridge`), in resume order: the lake banks
+ * (water recovery) sit just before the Frozen Lake zone checkpoint, so resuming a visit lands at the
+ * zone checkpoint while a fall in the water returns to the bank last touched.
  */
 export const NORTH_POLE_CHECKPOINT_IDS = [
   'np-cp-landing',
   'np-cp-workshop',
   'np-cp-forest',
+  'np-course-cp-lake-east',
+  'np-course-cp-lake-island',
   'np-cp-lake',
   'np-cp-stables',
   'np-cp-gingerbread',
   'np-cp-mountain',
   'np-cp-observatory',
   'np-cp-finale',
-  'np-course-cp-lake-east',
-  'np-course-cp-lake-island',
 ] as const;
 
 /**

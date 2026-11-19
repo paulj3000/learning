@@ -4,6 +4,7 @@ import { createStandardCapabilityRegistry } from '@lai/game-engine/engine';
 import { checkContentCompatibility, validateAdventure, validateRealm } from '@lai/game-engine/sdk';
 import { describe, expect, it } from 'vitest';
 import { NORTH_POLE_QUESTS } from '../../content-export/northPoleContent';
+import { bridgeCheckpoints } from '../engineBridgeProgress';
 import {
   NORTH_POLE_ADVENTURE,
   NORTH_POLE_AREA,
@@ -23,10 +24,7 @@ function read<T>(file: string): T {
 }
 
 interface Snapshot {
-  scene: {
-    effects: { checkpoints: { id: string }[] };
-    platforming: { checkpoints: { id: string }[] };
-  } & Json;
+  scene: { engineBridge: unknown } & Json;
 }
 interface PuzzleBody {
   puzzleId: string;
@@ -55,12 +53,9 @@ describe('North Pole engine definitions (GE-074)', () => {
     expect(NORTH_POLE_REALM.adventureIds).toEqual([NORTH_POLE_ADVENTURE.id]);
   });
 
-  it('keeps both of today’s checkpoint lists, zones first', () => {
+  it('names the one checkpoint list, in the seed\'s resume order', () => {
     const scene = read<Snapshot>('north_pole_scene.json').scene;
-    expect([...NORTH_POLE_CHECKPOINT_IDS]).toEqual([
-      ...scene.effects.checkpoints.map((c) => c.id),
-      ...scene.platforming.checkpoints.map((c) => c.id),
-    ]);
+    expect([...NORTH_POLE_CHECKPOINT_IDS]).toEqual(bridgeCheckpoints(scene.engineBridge).map((c) => c.id));
     expect(NORTH_POLE_ADVENTURE.checkpoints.every((c) => c.areaId === NORTH_POLE_AREA)).toBe(true);
   });
 
