@@ -236,3 +236,57 @@ describe('bridge live carry and launch', () => {
     mount.dispose();
   });
 });
+
+describe('bridge weather area (GE-L14, North Pole snow parity)', () => {
+  const snow = (area?: JsonValue): JsonValue => ({ id: 'environment.weather', config: { initial: 'SNOW', ...(area ? { area } : {}) } });
+  const worldExtentZ = (scene: Scene) => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const object of named(scene, 'engine.weather.')) {
+      const points = object as unknown as { position: { z: number }; geometry: { drawRange: { count: number }; getAttribute(name: string): { getZ(i: number): number } } };
+      const attr = points.geometry.getAttribute('position');
+      for (let i = 0; i < points.geometry.drawRange.count; i += 1) {
+        const z = attr.getZ(i) + points.position.z;
+        min = Math.min(min, z);
+        max = Math.max(max, z);
+      }
+    }
+    expect(Number.isFinite(min)).toBe(true); // snow is actually falling
+    return { min, max };
+  };
+
+  it('FOLLOW_PLAYER keeps the snow round the child across a large Area', () => {
+    const scene = new Scene();
+    const fake = fakeHost({ capabilities: [snow({ mode: 'FOLLOW_PLAYER', halfX: 20, halfZ: 20, height: 12 })] }, { scene });
+    const mount = mountEngineBridge(fake.host);
+    expect(mount.api.issues).toEqual([]);
+    fake.advance(1);
+    fake.player.position.z = -84; // walked to Snowflake Mountain
+    fake.advance(1);
+    const { min, max } = worldExtentZ(scene);
+    expect(min).toBeGreaterThanOrEqual(-84 - 20 - 1);
+    expect(max).toBeLessThanOrEqual(-84 + 20 + 1);
+    mount.dispose();
+    expect(count(scene)).toBe(0);
+  });
+
+  it('by default the snow stays in its box round the start (unchanged)', () => {
+    const scene = new Scene();
+    const fake = fakeHost({ capabilities: [snow()] }, { scene });
+    const mount = mountEngineBridge(fake.host);
+    fake.advance(1);
+    fake.player.position.z = -84;
+    fake.advance(1);
+    const { min, max } = worldExtentZ(scene);
+    expect(min).toBeGreaterThanOrEqual(-26);
+    expect(max).toBeLessThanOrEqual(26);
+    mount.dispose();
+  });
+
+  it('refuses a malformed area', () => {
+    const fake = fakeHost({ capabilities: [snow({ mode: 'FOLLOW_PLAYER', halfX: 500 })] });
+    const mount = mountEngineBridge(fake.host);
+    expect(mount.api.issues.length).toBeGreaterThan(0);
+    mount.dispose();
+  });
+});
