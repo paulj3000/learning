@@ -97,8 +97,8 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-071 | Compatibility-gated processing release and production processing infrastructure (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-012, 014) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
 | ADR-072 | Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated | Accepted | `feature/engineering-standards` | Accepted 2026-11-18 |
 | ADR-073 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Proposed | `feature/firepeak-volcano-adventure` (FPV-02) | Renumbered from ADR-070 by owner decision 2026-11-19 (collision with the GLB optimization policy). Development only; owner QA pending. Needs reserving in the `main` registry (governance rule) |
-| ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Numbers 073 to 079 are not used by that branch. Not merged here |
-| ADR-081 | Seasonal events are Django content in their own app (open branch, not merged) | Reserved | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes | Proposed | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit; written on this branch. Development only; owner QA pending |
+| ADR-081 | Seasonal events are Django content in their own app; availability never removes progress | Proposed | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit; written on this branch. Development only; owner QA pending |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4670,3 +4670,59 @@ unknown kind fails the bootstrap parse). Falling rocks and timed steam pushes ar
 need a telegraphed moving-hazard runtime. Great Storybook and Trophy Room registration waits for
 the Storykeeper branch.
 
+
+## ADR-080: North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes
+
+**Status.** Accepted for development on `feature/north-pole-adventure` (2026-11-18). Not merged,
+not owner-accepted. Contract: `docs/north-pole/NORTH_POLE_DESIGN.md`.
+
+**Context.** North Pole: The Missing Christmas Star is the first seasonal adventure (Trello SEA-04).
+It needs nine progressive quests, nine explorable locations, jumping throughout, all three age
+bands and staff-editable content, without a second engine, catalog or progress model (ADR-020,
+ADR-033).
+
+**Decision.**
+
+1. Realm `north-pole` (catalog World), Place and 3D Area `north-pole-village` (one Area per Place,
+   ADR-041 B). The nine locations are zones of that Area joined by snowdrift gates that
+   `effects.openings` removes.
+2. The adventure is nine `Quest` rows (`np-q01` to `np-q09`) with `WORLD_CHANGE` prerequisites.
+   Gates and puzzles depend on world change keys recorded by puzzles, chests and pickups, never on
+   quest acceptance, so a child is never stuck behind an unaccepted quest.
+3. Challenges reuse the shared kinds: CHOOSE_ANSWER and ORDER_SEQUENCE (ADR-070, merged from the
+   Firepeak workstreams unchanged), single-instance kinds at most once each, and math chests with
+   authored `ChallengeSpec` plus Question Studio pools (ADR-046). `LIFE_SCIENCE` is added to the
+   shared subject list.
+4. Every jump has a walking route; arithmetic unlocks build walkable bridges; falls return to the
+   last checkpoint; nothing earned is ever removed.
+5. Snowfall, fog, aurora and per-Area lighting are generic `scene.atmosphere` / `environment` data
+   (no holiday names in engine code).
+6. The branch is based on `feature/treasure-rush-palm-trees` (shared movement) and stacked on
+   `feature/firepeak-volcano-adventure` (the integration of the shared puzzle kinds, their React
+   panels and the golden vectors regenerated with them), so it merges after both. Resolving the
+   shared golden-vector conflict a second, different way was rejected.
+
+**Consequences.** No new progress or reward model. The React panels for the shared puzzle kinds
+come from Firepeak (`fp/puzzle-ui`, merged through the Firepeak branch). Until Firepeak merges,
+the North Pole branch's diff against `main` also contains Firepeak.
+Cosmetics are owned, not equipped; collectible-set completion items are not granted server-side
+(shared gaps, documented).
+
+## ADR-081: Seasonal events are Django content in their own app; availability never removes progress
+
+**Status.** Accepted for development on `feature/north-pole-adventure` (2026-11-18).
+
+**Context.** Trello SEA-01/SEA-03 ask for seasonal scheduling and featuring. Nothing in the backend
+models seasons; `react/src/features/island/seasons.ts` is a client-only calendar note.
+
+**Decision.** A new app `lai/apps/seasons` (own migrations) holds `SeasonalEvent` (theme,
+YEAR_ROUND or WINDOW_ONLY availability, an annual window that may cross the new year, featured
+flag, active flag, linked Realms and Places, seasonal reward items, audio cue ids, decoration
+theme) and `SeasonalCompletion` (child-owned, one per child, event and season year, recorded from
+the event's completion world change). Discovery hides a WINDOW_ONLY Place only outside its window
+and adds `seasonal` metadata to served Realms and Places. Staff configure everything in Django
+Admin. Content stays year-round unless staff restrict it.
+
+**Consequences.** Holidays are data, not engine branches; Hanukkah, Thanksgiving, Halloween, Easter
+and Lunar New Year need content only. Hidden content keeps every save and reward. Parent
+preferences for cultural or religious themes (SEA-03) remain a later task.

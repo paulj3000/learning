@@ -18,7 +18,25 @@ function triangles(root: Object3D): number {
 
 describe('stand-in shapes', () => {
   it('lists the new shapes in the closed list', () => {
-    for (const shape of ['TREE', 'LOG', 'GEAR', 'SWITCH', 'ROCK', 'ARCH']) {
+    for (const shape of [
+      'TREE',
+      'LOG',
+      'GEAR',
+      'SWITCH',
+      'ROCK',
+      'ARCH',
+      'PINE',
+      'STAR',
+      'GIFT',
+      'SNOWMAN',
+      'CANE',
+      'LANTERN',
+      'HOUSE',
+      'DOME',
+      'SLEIGH',
+      'ANIMAL',
+      'SIGN',
+    ]) {
       expect(STAND_IN_SHAPES).toContain(shape);
     }
   });
@@ -36,7 +54,29 @@ describe('stand-in shapes', () => {
     });
     expect(owned.geometries).toHaveLength(meshes);
     expect(owned.materials).toHaveLength(meshes);
-    if (!['TREE', 'LOG', 'GEAR', 'SWITCH', 'ROCK', 'ARCH'].includes(shape)) return;
+    if (
+      ![
+        'TREE',
+        'LOG',
+        'GEAR',
+        'SWITCH',
+        'ROCK',
+        'ARCH',
+        'PINE',
+        'STAR',
+        'GIFT',
+        'SNOWMAN',
+        'CANE',
+        'LANTERN',
+        'HOUSE',
+        'DOME',
+        'SLEIGH',
+        'ANIMAL',
+        'SIGN',
+      ].includes(shape)
+    ) {
+      return;
+    }
     const box = new Box3().setFromObject(group);
     expect(box.min.y).toBeGreaterThanOrEqual(-0.3);
     expect(box.max.y).toBeLessThanOrEqual(SIZE.height + 0.4);

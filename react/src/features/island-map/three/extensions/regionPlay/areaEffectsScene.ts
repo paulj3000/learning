@@ -18,6 +18,7 @@ import type {
   CheckpointConfig,
   LavaConfig,
   Rect,
+  RegionPlayDrawnConfig,
   RegionPlayEffects,
 } from '../../../../region-play/regionPlayConfig';
 import type { WorldExtensionContext } from '../../runtime/extensionRegistry';
@@ -83,6 +84,16 @@ void main() {
   gl_FragColor = vec4(color, 1.0);
 }`;
 
+/** Whether a conditional thing is shown: its show key (if any) exists and its hide key (if any) does not. */
+export function gateOpen(
+  gate: { shownWhenChangeKey?: string | null; hiddenWhenChangeKey?: string | null },
+  keys: ReadonlySet<string>,
+): boolean {
+  if (gate.hiddenWhenChangeKey && keys.has(gate.hiddenWhenChangeKey)) return false;
+  if (gate.shownWhenChangeKey && !keys.has(gate.shownWhenChangeKey)) return false;
+  return true;
+}
+
 export function inRect(rect: Rect, x: number, z: number): boolean {
   return x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ;
 }
@@ -132,6 +143,7 @@ export function mountAreaEffects(
   initialKeys: readonly string[],
   owned: Owned,
   isDisposed: () => boolean,
+  drawn: readonly RegionPlayDrawnConfig[] = [],
 ): { api: AreaEffectsApi; dispose(): void } {
   // The engine's setting first; the media query still counts when the host did not pass one.
   const reducedMotion = context.reducedMotion || prefersReducedMotion();
@@ -248,6 +260,17 @@ export function mountAreaEffects(
       const waiting =
         plume.spec.shownWhenChangeKey !== null && !keys.has(plume.spec.shownWhenChangeKey);
       plume.object.visible = override ?? !(hidden || waiting);
+    }
+    // Conditional lights and stand-ins: the same show/hide keys as steam, looked up each time so
+    // an entity the engine added later is still found.
+    for (const gate of effects.lightGates ?? []) {
+      const light = context.scene.getObjectByName(gate.id);
+      if (light) light.visible = gateOpen(gate, keys);
+    }
+    for (const entry of drawn) {
+      if (!entry.shownWhenChangeKey && !entry.hiddenWhenChangeKey) continue;
+      const root = context.entityRoot(entry.entityId);
+      if (root) root.visible = gateOpen(entry, keys);
     }
   }
   applyKeys();

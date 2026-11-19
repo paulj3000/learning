@@ -71,6 +71,17 @@ export const STAND_IN_SHAPES = [
   'SWITCH',
   'ROCK',
   'ARCH',
+  'PINE',
+  'STAR',
+  'GIFT',
+  'SNOWMAN',
+  'CANE',
+  'LANTERN',
+  'HOUSE',
+  'DOME',
+  'SLEIGH',
+  'ANIMAL',
+  'SIGN',
 ] as const;
 export type StandInShape = (typeof STAND_IN_SHAPES)[number];
 
@@ -86,6 +97,10 @@ export interface RegionPlayDrawnConfig {
   assetId: string | null;
   scale: number;
   size: { width: number; height: number; depth: number };
+  /** Drawn only once this world change key exists (same meaning as steam). */
+  shownWhenChangeKey?: string | null;
+  /** Hidden once this world change key exists. */
+  hiddenWhenChangeKey?: string | null;
 }
 
 export interface Rect {
@@ -122,7 +137,16 @@ export interface CheckpointConfig {
   whenChangeKey: string | null;
 }
 
+/** When a placed light (`scene.effects.lights`) shines; the light itself is a manifest light. */
+export interface LightGateConfig {
+  id: string;
+  hiddenWhenChangeKey: string | null;
+  shownWhenChangeKey: string | null;
+}
+
 export interface RegionPlayEffects {
+  /** Gates for placed lights that appear or go out with a world change. Absent means none. */
+  lightGates?: LightGateConfig[];
   lava: LavaConfig[];
   steam: SteamConfig[];
   checkpoints: CheckpointConfig[];
@@ -379,6 +403,19 @@ function rect(item: JsonRecord): Rect | undefined {
   return minX < maxX && minZ < maxZ ? { minX, maxX, minZ, maxZ } : undefined;
 }
 
+/** The optional show/hide keys, present only when authored. */
+function gateKeys(item: JsonRecord): {
+  shownWhenChangeKey?: string;
+  hiddenWhenChangeKey?: string;
+} {
+  const shown = text(item.shownWhenChangeKey);
+  const hidden = text(item.hiddenWhenChangeKey);
+  return {
+    ...(shown ? { shownWhenChangeKey: shown } : {}),
+    ...(hidden ? { hiddenWhenChangeKey: hidden } : {}),
+  };
+}
+
 function drawn(item: JsonRecord): RegionPlayDrawnConfig | undefined {
   const entityId = text(item.entityId);
   const shape = STAND_IN_SHAPES.find((candidate) => candidate === item.shape);
@@ -397,6 +434,7 @@ function drawn(item: JsonRecord): RegionPlayDrawnConfig | undefined {
     assetId: text(item.assetId) ?? null,
     scale,
     size: { width, height, depth },
+    ...gateKeys(item),
   };
 }
 
@@ -414,7 +452,16 @@ export function parseEffects(value: JsonValue | undefined): RegionPlayEffects {
   };
   const keyOf = (entry: JsonRecord, key: string) => text(entry[key]) ?? null;
   const backdrop = record(effects.backdrop);
+  // `lights` is the authored form (`scene.effects.lights`); `lightGates` is this parsed form read back.
+  const lightGates = [...items('lights'), ...items('lightGates')].flatMap((entry) => {
+    const id = text(entry.id);
+    const shownWhenChangeKey = keyOf(entry, 'shownWhenChangeKey');
+    const hiddenWhenChangeKey = keyOf(entry, 'hiddenWhenChangeKey');
+    if (!id || (shownWhenChangeKey === null && hiddenWhenChangeKey === null)) return [];
+    return [{ id, shownWhenChangeKey, hiddenWhenChangeKey }];
+  });
   return {
+    ...(lightGates.length > 0 ? { lightGates } : {}),
     lava: items('lava').flatMap((entry) => {
       const id = text(entry.id);
       const area = rect(entry);

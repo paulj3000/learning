@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.quests",
     "apps.ai",
     "apps.question_studio",
+    "apps.seasons",
     "apps.jobs",
     "apps.scoring",
 ]

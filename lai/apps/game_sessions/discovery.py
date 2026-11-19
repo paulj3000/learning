@@ -35,6 +35,7 @@ from apps.quests import engine
 from apps.quests.models import QuestProgress, QuestStatus
 from apps.quests.services import build_context
 from apps.regions.models import ChestPresentation, WorldRegion
+from apps.seasons.availability import SeasonalIndex
 
 from .models import OPEN_STATUSES, AdventureSession, SessionKind, SessionStatus
 
@@ -50,9 +51,12 @@ class RegionNotVisible(LookupError):
 
 
 def _visible_regions():
-    return WorldRegion.objects.select_related("location__world").filter(
+    regions = WorldRegion.objects.select_related("location__world").filter(
         status=ContentStatus.PUBLISHED, location__active=True, location__world__active=True
     )
+    # NP-023: a Place of a WINDOW_ONLY seasonal event is hidden outside its window (never deleted).
+    hidden = SeasonalIndex().hidden_place_ids()
+    return regions.exclude(location_id__in=hidden) if hidden else regions
 
 
 def visible_region(child, region_id: str) -> WorldRegion:
@@ -257,6 +261,7 @@ class PlaceEntry:
     explored: bool = False  # the child has started an adventure here or entered its 3D Area
     subject_areas: tuple[str, ...] = ()  # AP-03, in `SUBJECT_AREAS` order
     art_asset_id: str | None = None  # AP-03: a published image, or None (draw the fallback)
+    seasonal: dict | None = None  # NP-023: {slug, theme, featured, inWindow} or None
     # Quest-based Places (Firepeak): quests its published 3D Area offers this child's band, and
     # this child's own progress on them. All zero when there is no visible Area (additive).
     quest_count: int = 0
@@ -276,6 +281,7 @@ class IslandEntry:
     locked_hint: str | None = None
     subject_areas: tuple[str, ...] = ()
     art_asset_id: str | None = None
+    seasonal: dict | None = None  # NP-023
 
 
 def place_unlocked(place, change_keys: set[str]) -> bool:
@@ -347,10 +353,11 @@ def child_islands(child) -> list[IslandEntry]:
     bands, unpublished 3D Areas and secret Places not yet unlocked are left out; a Place without
     a 3D Area is still listed. Each Island says whether it is open to this child, what it teaches
     and its published picture, if it has one (AP-03)."""
+    seasons = SeasonalIndex()
     islands = [
         world
         for world in World.objects.filter(active=True).order_by("sort_order", "slug")[:MAX_ISLANDS]
-        if child.age_band in world.supported_age_bands
+        if child.age_band in world.supported_age_bands and seasons.world_visible(world)
     ]
     regions = {r.location_id: r for r in visible_regions(child)}
     areas = {e.region.location_id: e for e in region_entries(child, list(regions.values()))}
@@ -368,7 +375,7 @@ def child_islands(child) -> list[IslandEntry]:
             for place in island.locations.filter(active=True).order_by("sort_order", "slug")[
                 :MAX_PLACES
             ]
-            if place_unlocked(place, change_keys)
+            if place_unlocked(place, change_keys) and seasons.place_visible(place)
         ]
         visible.append((island, places))
     place_ids = [place.pk for _island, places in visible for place in places]
@@ -420,6 +427,7 @@ def child_islands(child) -> list[IslandEntry]:
                     explored,
                     subject_areas,
                     art_of(place),
+                    seasons.info(place),
                     quest_count=len(quests),
                     quests_completed=sum(q.status == QuestStatus.COMPLETED for q in quests),
                     quests_in_progress=sum(q.status == QuestStatus.ACTIVE for q in quests),
@@ -429,5 +437,9 @@ def child_islands(child) -> list[IslandEntry]:
         island_areas = authored_subject_areas(island)
         if island_areas is None:
             island_areas = ordered_subject_areas(a for p in places for a in p.subject_areas)
-        result.append(IslandEntry(island, places, unlocked, hint, island_areas, art_of(island)))
+        result.append(
+            IslandEntry(
+                island, places, unlocked, hint, island_areas, art_of(island), seasons.info(island)
+            )
+        )
     return result

@@ -45,6 +45,8 @@ export const regionsWithoutInteractionTable: readonly string[] = [
   // from the area's placements (`regionManifest.ts`), not from a source interaction table.
   'firepeak-volcano',
   'firepeak-heart',
+  // North Pole Village's 3D Area is served by Django; its NPCs come from the area's placements.
+  'north-pole-village',
 ];
 
 export const ADVENTURE_PASSAGE_REGION_SLUGS: readonly string[] = [WONDERWILD_HIVE_REGION_ID];

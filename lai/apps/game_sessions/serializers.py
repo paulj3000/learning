@@ -568,6 +568,8 @@ def island_entry(entry) -> dict:
         "thumbnailAssetId": entry.art_asset_id,
         "unlocked": entry.unlocked,
         "lockedHint": entry.locked_hint,
+        # NP-023: the active seasonal event this Island belongs to, or null.
+        "seasonal": entry.seasonal,
         "progress": {
             "placesExplored": sum(place.explored for place in entry.places),
             "placesTotal": len(entry.places),
@@ -583,6 +585,7 @@ def island_entry(entry) -> dict:
                 "thumbnailAssetId": place.art_asset_id,
                 "adventureCount": place.adventure_count,
                 "explored": place.explored,
+                "seasonal": place.seasonal,
                 # Quest-based Places: the quests its published 3D Area offers this child's band
                 # and this child's own progress. `completed` means all of them are completed.
                 "questCount": place.quest_count,

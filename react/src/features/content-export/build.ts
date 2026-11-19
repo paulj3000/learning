@@ -44,6 +44,16 @@ import {
   HEART_REWARD_RULES,
 } from './firepeakHeartContent';
 import {
+  NORTH_POLE_COLLECTIBLE_SETS,
+  NORTH_POLE_ITEMS,
+  NORTH_POLE_LOCATIONS,
+  NORTH_POLE_NPCS,
+  NORTH_POLE_PACK,
+  NORTH_POLE_QUESTS,
+  NORTH_POLE_REWARD_RULES,
+  NORTH_POLE_WORLD,
+} from './northPoleContent';
+import {
   TREASURE_RUSH_ITEMS,
   TREASURE_RUSH_QUESTS,
   TREASURE_RUSH_REWARD_RULES,
@@ -111,6 +121,8 @@ export async function buildContentPackage(): Promise<ContentPackage> {
     const { worldSlug: _worldSlug, ...rest } = pack;
     return { ...world, pack: withExportOnly(world.slug, rest) };
   });
+  // North Pole is export-only: its own Realm, with no travel requirement.
+  islands.push({ ...NORTH_POLE_WORLD, pack: { ...NORTH_POLE_PACK } });
   const interactions: RegionInteractions[] = INTERACTION_TABLES.map(([regionSlug, exportName]) => ({
     regionSlug,
     interactions: [
@@ -120,16 +132,16 @@ export async function buildContentPackage(): Promise<ContentPackage> {
 
   const pkg: ContentPackage = {
     islands,
-    locations: [...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS, ...HEART_LOCATIONS],
+    locations: [...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS, ...HEART_LOCATIONS, ...NORTH_POLE_LOCATIONS],
     adventures: [...ADVENTURE_TEMPLATES],
     learningObjectives: [...LEARNING_OBJECTIVES],
     wonderWallQuestions: [...WONDER_WALL_QUESTIONS],
     stories: [...STORY_DEFINITIONS],
-    quests: [...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS, ...FIREPEAK_QUESTS, ...HEART_QUESTS],
-    items: [...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS, ...HEART_ITEMS],
-    collectibleSets: [...ALL_COLLECTIBLE_SETS, ...FIREPEAK_COLLECTIBLE_SETS, ...HEART_COLLECTIBLE_SETS],
-    rewardRules: [...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES, ...FIREPEAK_REWARD_RULES, ...HEART_REWARD_RULES],
-    npcs: [...ALL_NPCS, ...FIREPEAK_NPCS, ...HEART_NPCS],
+    quests: [...QUEST_DEFINITIONS, ...TREASURE_RUSH_QUESTS, ...FIREPEAK_QUESTS, ...HEART_QUESTS, ...NORTH_POLE_QUESTS],
+    items: [...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS, ...HEART_ITEMS, ...NORTH_POLE_ITEMS],
+    collectibleSets: [...ALL_COLLECTIBLE_SETS, ...FIREPEAK_COLLECTIBLE_SETS, ...HEART_COLLECTIBLE_SETS, ...NORTH_POLE_COLLECTIBLE_SETS],
+    rewardRules: [...ALL_REWARD_RULES, ...TREASURE_RUSH_REWARD_RULES, ...FIREPEAK_REWARD_RULES, ...HEART_REWARD_RULES, ...NORTH_POLE_REWARD_RULES],
+    npcs: [...ALL_NPCS, ...FIREPEAK_NPCS, ...HEART_NPCS, ...NORTH_POLE_NPCS],
     discoveries: [...DISCOVERY_DEFINITIONS],
     checkpoints: [...ALL_CHECKPOINTS],
     interactions,
