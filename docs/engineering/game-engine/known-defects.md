@@ -34,6 +34,12 @@
 | GE-R7 | WebGL, visual and touch behaviour are not covered by unit tests | Owner QA and browser checks at merge readiness (GE-090) |
 | GE-R8 | `DECISIONS.md` merge resolution (E9) may differ from how the movement owner resolves PR #26 | Owner decision O3; the branch follows the owner's choice |
 
+## 2a. Investigated and closed as not an engine defect
+
+| Card | Finding |
+|---|---|
+| [ijhrYTi4](https://trello.com/c/ijhrYTi4) | Parity tests "2 to 6 times slower after the engine merge": not reproduced. Interleaved gated runs show main and core equal (median summed test time 2,421 ms main versus 2,172 ms integrated), and both fail together during CPU bursts the load average hides. Retitled as host contention, owned by infrastructure; `test_gate.py` now waits on CPU pressure |
+
 ## 3. Design limits found in the workstreams
 
 | Id | Limit | Follow-up |
