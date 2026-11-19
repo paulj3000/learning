@@ -30,6 +30,13 @@ export interface JumpRouteSpec {
 export interface JumpChallengeSpec {
   challengeId: string;
   routes: JumpRouteSpec[];
+  /**
+   * An optional, jump-only challenge (jumping standard: jump routes may lead to optional
+   * rewards, shortcuts or secrets). It needs no ACCESSIBLE route because nothing required
+   * depends on it. A challenge on required progress keeps `optional: false` (the default) and
+   * must have an ACCESSIBLE route.
+   */
+  optional: boolean;
 }
 
 export interface JumpChallengeState {
@@ -67,10 +74,14 @@ export function validateJumpChallengesConfig(input: unknown) {
       if (!routes.some((r) => r.kind === 'JUMP')) {
         issues.add(`${path}.routes`, 'needs a JUMP route');
       }
-      if (!routes.some((r) => r.kind === 'ACCESSIBLE')) {
-        issues.add(`${path}.routes`, 'needs an ACCESSIBLE (non-jump) route: required progress never needs a jump');
+      const optional = issues.bool(item.optional, `${path}.optional`, false);
+      if (!optional && !routes.some((r) => r.kind === 'ACCESSIBLE')) {
+        issues.add(
+          `${path}.routes`,
+          'needs an ACCESSIBLE (non-jump) route: required progress never needs a jump (mark it optional only if nothing required depends on it)',
+        );
       }
-      return { challengeId, routes };
+      return { challengeId, routes, optional };
     },
     (c) => c.challengeId,
     64,

@@ -12,7 +12,7 @@
  * - `movement.jump`: numeric fields checked against the jumping standard's limits;
  * - `platforming.platforms[]` (`id`, `kind`, `motion`/`path`/`waypoints`), `platforming.checkpoints[]`
  *   (`id`, `platformId`): at most 64 platforms; a checkpoint may not stand on a moving platform;
- * - `jumpChallenges[]` (`id`, `jumpRouteId`, `accessibleRouteId`): the accessible route is required;
+ * - `jumpChallenges[]` (`id`, `jumpRouteId`, `accessibleRouteId`, `optional`): the accessible route is required unless the challenge is optional;
  * - `colliders[]` / `gates[]` with `jumpable: true` and `requirements` or `gate`: a gate is never jumpable;
  * - any key named like `timeLimit`, `countdown`, `deadline`, `timer` (ADR-053);
  * - `worldConsequenceId` (or `worldChange`): required for an adventure definition. An adventure
@@ -203,7 +203,13 @@ function inspect(
         }
         const accessible = challenge.accessibleRouteId;
         if (typeof accessible !== 'string' || accessible === '') {
-          add('JUMP_WITHOUT_ACCESSIBLE_ROUTE', `${path}.accessibleRouteId`, 'every jump challenge needs a route that needs no jumping');
+          if (challenge.optional !== true) {
+            add(
+              'JUMP_WITHOUT_ACCESSIBLE_ROUTE',
+              `${path}.accessibleRouteId`,
+              'a jump challenge on required progress needs a route that needs no jumping (mark it optional only if nothing required depends on it)',
+            );
+          }
         } else if (accessible === challenge.jumpRouteId) {
           add('JUMP_WITHOUT_ACCESSIBLE_ROUTE', `${path}.accessibleRouteId`, 'the accessible route must differ from the jump route');
         }
