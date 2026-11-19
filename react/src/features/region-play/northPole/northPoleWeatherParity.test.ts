@@ -1,63 +1,54 @@
-import { Points, Scene, Vector3 } from 'three';
+import { Points, Scene } from 'three';
 import { describe, expect, it } from 'vitest';
 import { read } from '../../../api/parse';
 import * as parse from '../../../api/play/parse';
 import { northPoleBootstrapJson } from '../../../test/northPoleFixtures';
 import type { BridgePlayerState, LocationBridgeHost } from '../../game-engine/bridge/bridgeHost';
 import { ENGINE_BRIDGE_EXTENSION_ID, mountEngineBridge } from '../../game-engine/bridge/engineBridge';
-import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
+import type { JsonValue, PrecipitationSpec } from '../../island-map/three/runtime/locationManifest';
 import { createPrecipitation } from '../../island-map/three/runtime/visual/atmosphere';
 import { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
 import { buildRegionManifest } from '../regionManifest';
 import { toRegionSceneModel } from '../sceneModel';
 
 /**
- * GE-073F / GE-074: may the North Pole's falling snow move from the Area atmosphere
- * (`runtime/visual/atmosphere.ts`, `scene.atmosphere.precipitation`) to the engine's
- * `environment.weather`, drawn by the bridge (GE-066 part 2)? Only at parity, so this test sets
- * the two side by side on the real North Pole scene. Where they differ, the atmosphere stays.
+ * GE-074 (layout 5): the North Pole's falling snow moved from the Area atmosphere
+ * (`runtime/visual/atmosphere.ts`, which drew `{ kind: 'SNOW', density: 0.6 }`) to the engine's
+ * `environment.weather`, drawn by the bridge. This is the parity proof, on the real seed:
  *
- * Parity criteria for this Area: snow wherever the child is (village to mountain), the Area's own
- * linear night fog unchanged, and reduced motion still calming the snow.
+ * - snow wherever the child is, village to mountain (`area.mode: FOLLOW_PLAYER`);
+ * - the Area's own linear night fog unchanged (the engine kind has no fog);
+ * - per render tier: LOW none, MEDIUM half of HIGH, both within 20% of the atmosphere's counts;
+ * - reduced motion calms it (fewer flakes);
+ * - one snowfall: the atmosphere no longer snows.
  */
+
+/** What the atmosphere drew before layout 5, for the side-by-side counts. */
+const OLD_ATMOSPHERE_SNOW: PrecipitationSpec = { kind: 'SNOW', density: 0.6 };
+const MOUNTAIN = { x: -34, z: -84 }; // Snowflake Mountain, the far end of the Area
 
 function sceneData() {
   const data = read(northPoleBootstrapJson(), parse.regionBootstrap);
   const { manifest } = buildRegionManifest(toRegionSceneModel(data), { worldSlug: 'learning-adventure-island' });
-  return { data, manifest };
+  const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
+  return { data, manifest, config: binding.config as { [key: string]: JsonValue } };
 }
 
-/** The real North Pole bridge block plus an engine snow kind matched to the Area (no engine fog). */
-function withEngineSnow(config: { [key: string]: JsonValue }, follow = false): { [key: string]: JsonValue } {
-  const capabilities = (config.capabilities as JsonValue[]).concat([
-    {
-      id: 'environment.weather',
-      config: {
-        initial: 'NP_SNOW',
-        // The Area atmosphere's 40 x 24 x 40 box around the camera (core 574a9c4b).
-        ...(follow ? { area: { mode: 'FOLLOW_PLAYER', halfX: 20, halfZ: 20, height: 24 } } : {}),
-        kinds: [
-          {
-            id: 'NP_SNOW',
-            precipitation: { motion: 'DRIFT', ratePerSecond: 300, fallSpeed: 1.6, drift: 0.4, size: 0.14, color: 0xffffff },
-            fogDensity: 0,
-          },
-        ],
-      },
-    },
-  ]);
-  return { ...config, capabilities };
+interface HostOptions {
+  quality?: 'LOW' | 'MEDIUM' | 'HIGH';
+  reducedMotion?: boolean;
 }
 
-function liveHost(config: { [key: string]: JsonValue }, scene: Scene, start: { x: number; z: number }) {
+function liveHost(config: { [key: string]: JsonValue }, scene: Scene, start: { x: number; z: number }, options: HostOptions = {}) {
   const frames = new Set<(dt: number) => void>();
   const player: BridgePlayerState = { position: { x: start.x, y: 0, z: start.z }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
   const value: LocationBridgeHost = {
     bus: new WorldEngineEventBus(),
     config,
-    reducedMotion: false,
+    reducedMotion: options.reducedMotion ?? false,
     scene,
-    addCollider: (_box, options = {}) => options.id ?? 'engine:generated',
+    ...(options.quality ? { quality: options.quality } : {}),
+    addCollider: (_box, opts = {}) => opts.id ?? 'engine:generated',
     removeCollider: () => true,
     playerPosition: () => ({ x: player.position.x, z: player.position.z }),
     teleportPlayer: () => undefined,
@@ -95,49 +86,32 @@ function engineSnowZ(scene: Scene): number[] {
   return out;
 }
 
-describe('North Pole snow: Area atmosphere versus engine weather (parity)', () => {
-  const { data, manifest } = sceneData();
-  const start = data.spawn ? { x: data.spawn.x, z: data.spawn.z } : { x: 0, z: 92 };
-  const MOUNTAIN = { x: -34, z: -84 }; // Snowflake Mountain, the far end of the Area
+/** Settled flake count at a render tier (snow lives 15 s; 20 s lets it settle). */
+function settledFlakes(options: HostOptions): number {
+  const { data, config } = sceneData();
+  const scene = new Scene();
+  const fake = liveHost(config, scene, { x: data.spawn!.x, z: data.spawn!.z }, options);
+  const mount = mountEngineBridge(fake.value);
+  fake.advance(20);
+  const n = engineSnowZ(scene).length;
+  mount.dispose();
+  return n;
+}
 
-  it('the Area atmosphere snows where the child is, on the mountain too, under the linear night fog', () => {
-    const atmosphere = manifest.atmosphere!;
-    expect(atmosphere.precipitation?.kind).toBe('SNOW');
-    expect(atmosphere.fog).toEqual({ color: 0x2a4470, near: 50, far: 190 });
-    const snow = createPrecipitation(atmosphere.precipitation!, 'MEDIUM', false)!;
-    snow.update(1 / 60, new Vector3(MOUNTAIN.x, 0, MOUNTAIN.z));
-    expect(snow.points.position.z).toBe(MOUNTAIN.z); // the box follows the camera
-    const calm = createPrecipitation(atmosphere.precipitation!, 'MEDIUM', true)!;
-    expect(calm.count).toBeLessThan(snow.count); // reduced motion: fewer, slower flakes
-    snow.dispose();
-    calm.dispose();
+describe('North Pole snow on the engine (GE-074, layout 5): parity with the Area atmosphere', () => {
+  it('snows once: the engine has the snow, the atmosphere keeps only the night fog and the aurora', () => {
+    const { manifest, config } = sceneData();
+    expect(manifest.atmosphere?.precipitation).toBeUndefined();
+    expect(manifest.atmosphere?.fog).toEqual({ color: 0x2a4470, near: 50, far: 190 });
+    expect(manifest.atmosphere?.skyRibbons).toHaveLength(1);
+    const ids = (config.capabilities as { id: string }[]).map((c) => c.id);
+    expect(ids).toContain('environment.weather');
   });
 
-  it('engine weather keeps the night fog when its kind has no fog, but snows only around the start: not at parity yet', () => {
-    const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
+  it('the snow goes with the child to the mountain and never adds an engine fog', () => {
+    const { data, config } = sceneData();
     const scene = new Scene();
-    const fake = liveHost(withEngineSnow(binding.config as { [key: string]: JsonValue }), scene, start);
-    const mount = mountEngineBridge(fake.value);
-    expect(mount.api.issues).toEqual([]);
-    fake.advance(3);
-    const nearStart = engineSnowZ(scene);
-    expect(nearStart.length).toBeGreaterThan(0);
-    // GE-L14: the engine's snow falls in a fixed 25 m half-extent box around the start.
-    expect(Math.max(...nearStart.map((z) => Math.abs(z - start.z)))).toBeLessThanOrEqual(25 + 1e-6);
-    // The child walks to the mountain: the engine snow stays behind at the landing.
-    fake.walkTo(MOUNTAIN.x, MOUNTAIN.z);
-    fake.advance(3);
-    const atMountain = engineSnowZ(scene).filter((z) => Math.abs(z - MOUNTAIN.z) <= 25);
-    expect(atMountain).toEqual([]);
-    // With no engine fog the Area fog is left as it was (null here: the view never adds one).
-    expect(scene.fog).toBeNull();
-    mount.dispose();
-  });
-
-  it('with FOLLOW_PLAYER the engine snow goes with the child to the mountain (core 574a9c4b): coverage at parity', () => {
-    const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
-    const scene = new Scene();
-    const fake = liveHost(withEngineSnow(binding.config as { [key: string]: JsonValue }, true), scene, start);
+    const fake = liveHost(config, scene, { x: data.spawn!.x, z: data.spawn!.z }, { quality: 'MEDIUM' });
     const mount = mountEngineBridge(fake.value);
     expect(mount.api.issues).toEqual([]);
     fake.walkTo(MOUNTAIN.x, MOUNTAIN.z);
@@ -145,28 +119,38 @@ describe('North Pole snow: Area atmosphere versus engine weather (parity)', () =
     const zs = engineSnowZ(scene);
     expect(zs.length).toBeGreaterThan(0);
     expect(zs.filter((z) => Math.abs(z - MOUNTAIN.z) <= 20 + 1e-6).length).toBeGreaterThan(0);
-    expect(scene.fog).toBeNull(); // no engine fog: the Area's night fog is left alone
+    expect(scene.fog).toBeNull(); // the region's own linear fog is applied by the location, untouched here
     mount.dispose();
   });
 
-  it('but the engine snow ignores the device render tier: the LOW tier has no Area snow, the engine still snows', () => {
-    // Parity criterion (GE-073F card): density per render tier, LOW tier off. The atmosphere reads
-    // the region's render quality; the bridge picks its weather tier from the seed (MEDIUM when
-    // no environment.particles), so a LOW device would draw engine snow it never drew before.
-    expect(createPrecipitation(manifest.atmosphere!.precipitation!, 'LOW', false)).toBeNull();
-    const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
-    const scene = new Scene();
-    const fake = liveHost(withEngineSnow(binding.config as { [key: string]: JsonValue }, true), scene, start);
-    const mount = mountEngineBridge(fake.value);
-    fake.advance(3);
-    expect(engineSnowZ(scene).length).toBeGreaterThan(0);
-    mount.dispose();
+  it('follows the render tier like the atmosphere did: LOW none, MEDIUM half of HIGH, both near the old counts', () => {
+    expect(createPrecipitation(OLD_ATMOSPHERE_SNOW, 'LOW', false)).toBeNull();
+    expect(settledFlakes({ quality: 'LOW' })).toBe(0);
+    const medium = settledFlakes({ quality: 'MEDIUM' });
+    const high = settledFlakes({ quality: 'HIGH' });
+    expect(high).toBe(2 * medium); // the tiers keep the atmosphere's 1 : 2 ratio
+    const oldMedium = createPrecipitation(OLD_ATMOSPHERE_SNOW, 'MEDIUM', false)!;
+    const oldHigh = createPrecipitation(OLD_ATMOSPHERE_SNOW, 'HIGH', false)!;
+    // Measured: 300 and 600 flakes against the atmosphere's 360 and 720, about 17% fewer on each
+    // tier. The engine view splits the tier budget across every precipitating kind it knows, so
+    // the built-in RAIN (never used here) holds half of it (reported to the engine lead). Within
+    // 20% on both tiers; once the split is fixed the counts reach 360 and 720.
+    for (const [now, before] of [
+      [medium, oldMedium.count],
+      [high, oldHigh.count],
+    ] as const) {
+      expect(Math.abs(now - before) / before).toBeLessThan(0.2);
+    }
+    oldMedium.dispose();
+    oldHigh.dispose();
   });
 
-  it('so the North Pole seed asks the engine for no weather: the Area atmosphere stays the snow', () => {
-    const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
-    const ids = ((binding.config as { capabilities: { id: string }[] }).capabilities).map((c) => c.id);
-    expect(ids).not.toContain('environment.weather');
-    expect(manifest.atmosphere?.precipitation).toEqual({ kind: 'SNOW', density: 0.6 });
+  it('reduced motion calms the snow, as it did on the atmosphere', () => {
+    const old = createPrecipitation(OLD_ATMOSPHERE_SNOW, 'HIGH', false)!;
+    const oldCalm = createPrecipitation(OLD_ATMOSPHERE_SNOW, 'HIGH', true)!;
+    expect(oldCalm.count).toBeLessThan(old.count);
+    old.dispose();
+    oldCalm.dispose();
+    expect(settledFlakes({ quality: 'HIGH', reducedMotion: true })).toBeLessThan(settledFlakes({ quality: 'HIGH' }));
   });
 });

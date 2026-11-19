@@ -136,12 +136,17 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
   plays `sfx.north_pole.snow_step` or `sfx.north_pole.ice_step` instead of the default, one sound
   per step. Silent until those recordings are uploaded (audio inventory). Owner check: footsteps
   change when stepping onto the lake bank.
-- Weather parity (GE-073F, 2026-11-19): the bridge now draws engine weather (GE-066 part 2), and
-  `region-play/northPole/northPoleWeatherParity.test.ts` sets it beside the Area atmosphere on the
-  real North Pole scene. Coverage is at parity since core d288f305 (`area.mode: FOLLOW_PLAYER`,
-  20 x 24 x 20 half box: the snow goes with the child to Snowflake Mountain), and the night fog is
-  kept when the engine kind has no fog. Still not at parity: the engine's weather tier comes from
-  the seed (MEDIUM), not the device's render quality, so a LOW-tier device that draws no Area snow
-  would draw engine snow. The snow stays on the Area atmosphere (`scene.atmosphere.precipitation`)
-  until the bridge takes the host's render quality (asked of the engine lead); nothing to check now.
+- Snow on the engine (layout version 5, GE-074, after the parity test
+  `region-play/northPole/northPoleWeatherParity.test.ts`):
+  - The falling snow is now the engine's `environment.weather` (`SNOW`, replacing the engine
+    preset with the North Pole look), drawn by the bridge in a 40 x 24 x 40 m box that follows the
+    child, so it snows from the village to Snowflake Mountain.
+  - The Area atmosphere keeps only the night fog and the aurora, so it snows once. An existing
+    layout 4 database drops only the atmosphere's SNOW on upgrade; staff-authored fog stays.
+  - Render tier: LOW draws no snow, as before. MEDIUM and HIGH draw 300 and 600 flakes (the
+    atmosphere drew 360 and 720): about 17% fewer, because the engine splits the budget with its
+    built-in RAIN. Reported to the engine lead.
+  - Reduced motion: fewer, slower flakes, as before.
+  - Owner check: snow falls everywhere you walk, including the mountain, under the same dark-blue
+    fog; with a low-quality setting there is no snow.
 

@@ -63,6 +63,14 @@ def upgrade_north_pole(region: WorldRegion) -> bool:
         scene[key] = fresh[key]
     for key in ("copy", "environment", "atmosphere"):
         scene.setdefault(key, fresh[key])
+    # Layout 5: the falling snow moved to the engine (engineBridge environment.weather). Only the
+    # atmosphere's SNOW is taken away, so it never snows twice; fog and aurora stay as authored.
+    if scene.get("northPoleVersion", 0) < 5 and isinstance(scene.get("atmosphere"), dict):
+        atmosphere = dict(scene["atmosphere"])
+        precipitation = atmosphere.get("precipitation")
+        if isinstance(precipitation, dict) and precipitation.get("kind") == "SNOW":
+            atmosphere.pop("precipitation")
+            scene["atmosphere"] = atmosphere
     scene["northPoleVersion"] = layout.LAYOUT_VERSION
     region.scene = scene
     region.version += 1

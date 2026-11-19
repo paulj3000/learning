@@ -53,7 +53,7 @@ describe('North Pole engine bridge (GE-074)', () => {
     const config = bridgeConfig();
     expect(config).toBeDefined();
     const ids = (config!.capabilities as { id: string }[]).map((c) => c.id);
-    expect(ids).toEqual(['gameplay.checkpoints', 'gameplay.hazards', 'environment.volumes']);
+    expect(ids).toEqual(['gameplay.checkpoints', 'gameplay.hazards', 'environment.volumes', 'environment.weather']);
   });
 
   it('mounts with no refused capability and gives the controller ice only on the east bank', () => {

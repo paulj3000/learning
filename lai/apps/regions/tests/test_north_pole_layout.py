@@ -240,14 +240,13 @@ def test_the_scene_has_the_contract_shell():
     assert L.REGION_ID == "north-pole-village"
     assert BOUNDS == {"halfExtentX": 66, "halfExtentZ": 100, "wallThickness": 1}
     assert SCENE["bounds"] == BOUNDS
-    assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 4  # 4: village snow surface (GE-074)
+    assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 5  # 5: snow on engine weather (GE-074)
     assert SCENE["environment"] == {
         "backgroundColor": 1979224,
         "lighting": {"ambientColor": 13623551, "ambientIntensity": 0.9, "sunColor": 16773856, "sunIntensity": 0.9},
     }
     assert SCENE["atmosphere"] == {
         "fog": {"color": 0x2A4470, "near": 50, "far": 190},
-        "precipitation": {"kind": "SNOW", "density": 0.6},
         "skyRibbons": [
             {"id": "np-aurora-1", "colors": [6222512, 9075954], "x": 0, "y": 60, "z": -140, "width": 220, "height": 30}
         ],
@@ -595,7 +594,7 @@ def test_the_engine_bridge_block_passes_the_publish_check_and_never_runs_movemen
     block = L.scene()["engineBridge"]
     assert engine_bridge_problems(block) == []
     ids = [c["id"] for c in block["capabilities"]]
-    assert ids == ["gameplay.checkpoints", "gameplay.hazards", "environment.volumes"]
+    assert ids == ["gameplay.checkpoints", "gameplay.hazards", "environment.volumes", "environment.weather"]
     assert "allowEnginePlatforms" not in block  # the live platform system keeps the lake platforms
 
 
@@ -617,7 +616,7 @@ def test_the_lake_ice_is_on_the_frozen_lake_and_never_slides_into_the_water():
 def test_the_snapshot_carries_the_engine_bridge_block():
     snap = json.loads(L.SNAPSHOT_PATH.read_text())
     assert snap["scene"]["engineBridge"] == L.scene()["engineBridge"]
-    assert snap["scene"]["northPoleVersion"] == L.LAYOUT_VERSION == 4
+    assert snap["scene"]["northPoleVersion"] == L.LAYOUT_VERSION == 5
 
 
 def test_one_checkpoint_list_resumes_at_the_zone_checkpoint_at_every_stage():
@@ -663,3 +662,19 @@ def test_snow_underfoot_everywhere_changes_only_the_footstep_sound():
     assert snow["box"]["min"]["z"] <= -100 and snow["box"]["max"]["z"] >= 100
     assert snow["box"]["max"]["y"] >= 3.2 + 1.0  # the top mountain terrace, plus headroom
     assert ice["priority"] > snow["priority"]  # the lake bank stays ice
+
+
+
+def test_the_snow_falls_on_the_engine_around_the_child_with_no_engine_fog():
+    """GE-074 (layout 5): one snowfall, on the engine; the atmosphere keeps only fog and aurora."""
+    scene = L.scene()
+    assert "precipitation" not in scene["atmosphere"]
+    weather = next(c["config"] for c in scene["engineBridge"]["capabilities"] if c["id"] == "environment.weather")
+    assert weather["initial"] == "SNOW"  # the engine preset, replaced by the North Pole look
+    assert weather["area"] == {"mode": "FOLLOW_PLAYER", "halfX": 20, "halfZ": 20, "height": 24}
+    (kind,) = weather["kinds"]
+    assert kind["fogDensity"] == 0  # the Area's linear night fog stays the only fog
+    p = kind["precipitation"]
+    settled = p["ratePerSecond"] * weather["area"]["height"] / p["fallSpeed"]
+    assert settled == 720  # the atmosphere's HIGH count at density 0.6 (1200 x 0.6)
+

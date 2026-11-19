@@ -265,6 +265,27 @@ class TestLayoutUpgrade:
         assert keys(child) == before_keys and owned(child) == before_items
         assert Play(api(north_pole.a), child).region()["region"]["scene"]["northPoleVersion"] == layout.LAYOUT_VERSION
 
+    def test_a_v4_layout_snows_once_on_the_engine_and_keeps_its_fog_and_aurora(self, north_pole):
+        seed_north_pole()
+        region = WorldRegion.objects.get(region_id=REGION_ID)
+        scene = layout.scene()
+        scene["northPoleVersion"] = 4
+        scene["engineBridge"] = {**scene["engineBridge"], "capabilities": scene["engineBridge"]["capabilities"][:3]}
+        scene["atmosphere"] = {
+            **scene["atmosphere"],
+            "fog": {"color": 0x112233, "near": 40, "far": 150},  # staff-authored: kept
+            "precipitation": {"kind": "SNOW", "density": 0.6},
+        }
+        region.scene = scene
+        region.save()
+        assert upgrade_north_pole(region) is True
+        region.refresh_from_db()
+        assert "precipitation" not in region.scene["atmosphere"]
+        assert region.scene["atmosphere"]["fog"] == {"color": 0x112233, "near": 40, "far": 150}
+        assert region.scene["atmosphere"]["skyRibbons"] == layout.scene()["atmosphere"]["skyRibbons"]
+        ids = [c["id"] for c in region.scene["engineBridge"]["capabilities"]]
+        assert ids[-1] == "environment.weather"
+
     def test_a_current_layout_is_left_alone(self, north_pole):
         seed_north_pole()
         region = WorldRegion.objects.get(region_id=REGION_ID)
