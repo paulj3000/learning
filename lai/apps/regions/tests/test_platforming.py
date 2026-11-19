@@ -62,6 +62,15 @@ def test_layout_problems_check_the_recovery_lead():
         assert any("recoveryLead" in p for p in problems), lead
 
 
+def test_layout_problems_check_per_hazard_recovery_leads():
+    bounds = {"halfExtentX": 40, "halfExtentZ": 40}
+    ok = {**COURSE, "recoveryLeads": {"fh-summit-rocks-1": "Bonk! A rock got you."}}
+    assert platforming.layout_problems(ok, bounds=bounds) == []
+    for leads in ({"rocks": "  "}, {"rocks": "x" * 81}, {"Bad Id": "Fine words"}, ["not", "a", "map"]):
+        problems = platforming.layout_problems({**COURSE, "recoveryLeads": leads}, bounds=bounds)
+        assert any("recoveryLeads" in p for p in problems), leads
+
+
 def test_tuning_problems_name_unknown_platforms_settings_and_ranges():
     scene = {"platforming": COURSE}
     assert platforming.tuning_problems(scene, {"ferry": {"speed": 2, "pauseSeconds": 1}}) == []

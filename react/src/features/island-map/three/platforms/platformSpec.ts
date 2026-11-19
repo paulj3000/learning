@@ -170,6 +170,11 @@ export interface PlatformingSpec {
    * is too hot!"). Absent: "Splash!" (water). The checkpoint part of the line stays the engine's.
    */
   recoveryLead?: string;
+  /**
+   * GE-073F: the lead for one hazard, by hazard id, over `recoveryLead` (falling rocks are not
+   * "too hot"). Same limits as `recoveryLead`.
+   */
+  recoveryLeads?: Readonly<Record<string, string>>;
 }
 
 // --- limits (forgiving by design, ages 3 to 8) -------------------------------------------------
@@ -239,6 +244,18 @@ export function validatePlatforming(
       spec.recoveryLead.length > PLATFORM_LIMITS.maxRecoveryLead)
   ) {
     report('platforming.recoveryLead', `must be words, at most ${PLATFORM_LIMITS.maxRecoveryLead} characters`);
+  }
+  if (spec.recoveryLeads !== undefined) {
+    const leads: unknown = spec.recoveryLeads;
+    if (typeof leads !== 'object' || leads === null || Array.isArray(leads)) {
+      report('platforming.recoveryLeads', 'must be a map of hazard id to words');
+    } else {
+      for (const [hazardId, words] of Object.entries(leads)) {
+        if (typeof words !== 'string' || words.trim() === '' || words.length > PLATFORM_LIMITS.maxRecoveryLead) {
+          report(`platforming.recoveryLeads.${hazardId}`, `must be words, at most ${PLATFORM_LIMITS.maxRecoveryLead} characters`);
+        }
+      }
+    }
   }
   if (spec.platforms.length > PLATFORM_LIMITS.maxPlatforms) {
     report('platforming.platforms', `at most ${PLATFORM_LIMITS.maxPlatforms} platforms`);

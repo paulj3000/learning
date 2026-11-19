@@ -17,7 +17,8 @@ from apps.regions.platforming import LIMITS, layout_problems
 
 SCENE = layout.scene()
 PLATFORMING = SCENE["platforming"]
-PLATFORMS = {p["id"]: p for p in PLATFORMING["platforms"]}
+# Every platform the routes use: the live ones and the engine's crumbling stone (GE-073F).
+PLATFORMS = layout.route_platform_boxes()
 BRIDGE = SCENE["engineBridge"]
 BRIDGE_CONFIG = {c["id"]: c["config"] for c in BRIDGE["capabilities"]}
 # GE-073: the one checkpoint list, from the engine bridge, as {id, x, z, label, requiresSignalId}.
@@ -307,7 +308,7 @@ def world_state(open_gates: int, bridge: bool):
         for pid, p in PLATFORMS.items()
         if not (p.get("activation", {}).get("hiddenUntilActive") and not bridge)
         and pid not in {"fh-forge-lift"}  # a lift is optional and needs the machines powered
-        and "vanish" not in p
+        and pid != layout.CRUMBLE_STONE_ID  # it falls, so no route may need it
     }
     raised = [(footprint(p), top(p)) for p in platforms.values()]
     raised += [(rect(c), c["maxY"]) for c in SCENE["colliders"] if c.get("jumpable")]
@@ -501,10 +502,22 @@ class TestOptionalJumpRoutes:
         assert inside(footprint(PLATFORMS["fh-stone-islet"]), shard["x"], shard["z"])
         assert shard["elevation"] == top(PLATFORMS["fh-stone-islet"])
 
-    def test_exactly_one_stone_vanishes_when_stood_on(self):
-        vanishing = [p for p in PLATFORMS.values() if "vanish" in p]
-        assert [p["id"] for p in vanishing] == ["fh-stone-vanish"]
-        assert vanishing[0]["vanish"]["mode"] == "STAND"
+    def test_exactly_one_stone_crumbles_when_stood_on_and_it_runs_in_the_engine(self):
+        # GE-073F: no live platform vanishes any more; the one crumbling stone is the engine's.
+        assert not [p["id"] for p in PLATFORMING["platforms"] if "vanish" in p]
+        assert layout.CRUMBLE_STONE_ID not in {p["id"] for p in PLATFORMING["platforms"]}
+        assert BRIDGE["allowEnginePlatforms"] is True
+        (stone,) = BRIDGE_CONFIG["gameplay.platforms"]["platforms"]
+        assert stone["id"] == layout.CRUMBLE_STONE_ID and stone["route"] == "OPTIONAL"
+        # Parity with the live vanish it replaces: 4 s whole after the step, 1 s of it crumbling,
+        # gone 2.5 s.
+        assert stone["falling"] == {"mode": "STAND", "visibleSeconds": 4, "hiddenSeconds": 2.5, "warningSeconds": 1, "fallSeconds": 0.6}
+        box = PLATFORMS[layout.CRUMBLE_STONE_ID]
+        assert stone["position"] == box["position"]
+        assert stone["size"] == {"x": box["size"]["width"], "y": box["size"]["height"], "z": box["size"]["depth"]}
+        # It stands in the lava, so falling with it is the lava's ordinary recovery.
+        lava = layout.LAVA
+        assert lava["minZ"] < stone["position"]["z"] < lava["maxZ"] and lava["minX"] < stone["position"]["x"] < lava["maxX"]
 
     def test_the_summit_has_one_optional_moving_platform_that_waits_at_each_end(self):
         moving = [p for p in PLATFORMS.values() if "motion" in p and p["id"] != "fh-forge-lift"]
@@ -557,4 +570,47 @@ class TestSteamPush:
         steam_hidden = {p["hiddenWhenChangeKey"] for p in SCENE["effects"]["steam"]}
         assert steam_hidden == {"FIREPEAK_HEART_FORGE_RESTORED"}  # the push ends with the plumes
         assert force["neverPushIntoHazard"] is True
-        assert BRIDGE_CONFIG["environment.volumes"]["hazardRects"] == [layout.LAVA]
+        rocks = [r["rect"] for r in BRIDGE_CONFIG["gameplay.hazards"]["telegraphed"]]
+        assert BRIDGE_CONFIG["environment.volumes"]["hazardRects"] == [layout.LAVA, *rocks]
+
+
+class TestFallingRocks:
+    """GE-073F: falling rocks on the optional summit hops only, warned at least 1.5 s ahead, never
+    two at once, never on a hop the child waits on, back to the foot of the summit."""
+
+    ROCKS = BRIDGE_CONFIG["gameplay.hazards"]["telegraphed"]
+
+    def test_two_rocks_on_the_optional_route_with_a_long_warning(self):
+        assert [r["id"] for r in self.ROCKS] == ["fh-summit-rocks-1", "fh-summit-rocks-2"]
+        for rock in self.ROCKS:
+            assert rock["route"] == "OPTIONAL" and rock["kind"] == "FALLING_ROCK"
+            assert rock["telegraphSeconds"] >= 1.5
+            assert rock["checkpointId"] == "fh-cp-summit"
+            assert rock["checkpointId"] in {c["id"] for c in CHECKPOINT_LIST}
+            assert PLATFORMING["recoveryLeads"][rock["id"]] == "Oops, a pebble tumbled down!"
+            assert len(PLATFORMING["recoveryLeads"][rock["id"]]) <= LIMITS["max_recovery_lead"]
+
+    def test_rocks_fall_in_the_gaps_between_hops_never_on_a_hop_or_the_stairs(self):
+        hops = [PLATFORMS[f"fh-summit-hop-{i}"] for i in (1, 2, 3)]
+        for rock, (near, far) in zip(self.ROCKS, zip(hops, hops[1:], strict=False), strict=True):
+            r = rock["rect"]
+            box = (r["minX"], r["maxX"], r["minZ"], r["maxZ"])
+            assert box[3] <= footprint(near)[2] + 1e-9 and box[2] >= footprint(far)[3] - 1e-9
+            for platform in PLATFORMS.values():  # no platform's top (a hop, a stair) is a target
+                f = footprint(platform)
+                overlap_x = min(box[1], f[1]) - max(box[0], f[0])
+                overlap_z = min(box[3], f[3]) - max(box[2], f[2])
+                assert overlap_x <= 1e-9 or overlap_z <= 1e-9, (rock["id"], platform["id"])
+            for stair in (p for pid, p in PLATFORMS.items() if pid.startswith("fh-summit-up")):
+                assert footprint(stair)[1] < box[0]  # the walking stairs are west of every rock
+
+    def test_one_gap_is_always_calm(self):
+        def phase(rock, t):
+            cycle = rock["restSeconds"] + rock["telegraphSeconds"] + rock["activeSeconds"]
+            u = (t + rock["offsetSeconds"]) % cycle
+            return "REST" if u < rock["restSeconds"] else "WARN" if u < cycle - rock["activeSeconds"] else "ACTIVE"
+
+        for step in range(0, 1300):
+            phases = [phase(r, step / 100) for r in self.ROCKS]
+            assert phases.count("REST") >= 1, (step / 100, phases)
+

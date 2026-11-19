@@ -249,15 +249,18 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
     region play, regionPlay extension, game engine, runtime suites pass (timing-sensitive castle and
     audio tests flake on a cold first run and pass on rerun, also without this change); game 578;
     tsc clean; pytest 58 layout + 124 seed, playthrough, bridge, platforming.
-  - Not adopted yet: telegraphed falling rocks, steam force volumes and crumble-then-fall are new
-    gameplay content for the Summit and Forge and wait for the owner's design call. The live
-    platform system stays the platform owner until GE-076.
+  - Done (2026-11-19, GE-073F): core/gameengine @ 96e87446 (GE-066 part 2) merged. Layout
+    version 5 adds falling rocks on the optional summit hops (telegraphed, 2 s seen and heard
+    warning, `sfx.firepeak.rock_rumble` on the Summit only, per-hazard recovery line through
+    `platforming.recoveryLeads`) and moves crumble-then-fall for `fh-stone-vanish` to the engine's
+    `gameplay.platforms` with unchanged timing (design section 12 item 9). The steam push shipped
+    in layout version 4. Every other platform stays on the live system until GE-076.
   - ADR-073 still needs its Reserved row on `main` (owner registry-only change).
 - Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
 - Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
 - Question Studio bank for area puzzles: extension point only.
-- Falling rocks and timed steam pushes: engine components exist (GE-065 bridge); adoption in GE-073.
+- Falling rocks, steam push and the crumbling stone: adopted (GE-073, GE-073F).
 - Managed NPCs do not speak per-puzzle stage lines in their own panel (the puzzle panel shows them).
 - The Heart decision was ADR-070, which collided with the GLB optimization policy on
   `feature/lambda-derived-artifacts`. The owner decided (2026-11-19) that Firepeak renumbers: it is ADR-073.

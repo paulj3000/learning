@@ -62,7 +62,7 @@ Each item is additive and default-off, so today's realms keep working unchanged.
 3. **Telegraphed moving hazards.** A hazard whose rect follows a schedule (warn, then active, then
    rest) with a visible and audible warning at least 1.5 s ahead. Contact recovers the child like
    any hazard (respawn to the checkpoint, nothing lost). No damage, no lives, no timers shown to
-   the child. Firepeak: falling rocks on the Summit path (deferred). Optional per realm.
+   the child. Firepeak: falling rocks on the optional summit hops (adopted, GE-073F). Optional per realm.
 4. **Crumble then fall.** An option on `PlatformVanishSpec` that drops the platform visually before
    it hides (the collider still empties at the same moment). Firepeak `fh-stone-vanish`, North Pole
    thin ice.
