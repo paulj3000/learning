@@ -33,6 +33,7 @@ DESIGN_IDS = {
     "sfx.firepeak.puzzle_complete",
     "sfx.firepeak.checkpoint",
     "sfx.firepeak.lava_respawn",
+    "sfx.firepeak.rock_rumble",
     "sfx.firepeak.restore",
     "sfx.firepeak.complete",
     "voice.firepeak.npc_greet",
@@ -162,6 +163,7 @@ def test_only_cues_the_client_plays_are_marked_wired():
         "sfx.firepeak.switch",
         "sfx.firepeak.checkpoint",
         "sfx.firepeak.lava_respawn",
+        "sfx.firepeak.rock_rumble",
         "sfx.firepeak.complete",
     }
     assert "sfx.firepeak.machinery" not in wired

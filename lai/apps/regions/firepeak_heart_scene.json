@@ -7420,6 +7420,7 @@
    ]
   },
   "engineBridge": {
+   "allowEnginePlatforms": true,
    "capabilities": [
     {
      "config": {
@@ -7549,9 +7550,72 @@
         }
        }
       ],
-      "telegraphed": []
+      "telegraphed": [
+       {
+        "activeSeconds": 0.5,
+        "checkpointId": "fh-cp-summit",
+        "id": "fh-summit-rocks-1",
+        "kind": "FALLING_ROCK",
+        "messageKey": "hazard.rock.falling",
+        "offsetSeconds": 0.0,
+        "rect": {
+         "maxX": 9.8,
+         "maxZ": -57.2,
+         "minX": 8.2,
+         "minZ": -58.4
+        },
+        "restSeconds": 4.0,
+        "route": "OPTIONAL",
+        "telegraphSeconds": 2.0
+       },
+       {
+        "activeSeconds": 0.5,
+        "checkpointId": "fh-cp-summit",
+        "id": "fh-summit-rocks-2",
+        "kind": "FALLING_ROCK",
+        "messageKey": "hazard.rock.falling",
+        "offsetSeconds": 3.0,
+        "rect": {
+         "maxX": 9.8,
+         "maxZ": -60.0,
+         "minX": 8.2,
+         "minZ": -61.2
+        },
+        "restSeconds": 4.0,
+        "route": "OPTIONAL",
+        "telegraphSeconds": 2.0
+       }
+      ]
      },
      "id": "gameplay.hazards"
+    },
+    {
+     "config": {
+      "platforms": [
+       {
+        "falling": {
+         "fallSeconds": 0.6,
+         "hiddenSeconds": 2.5,
+         "mode": "STAND",
+         "visibleSeconds": 4,
+         "warningSeconds": 1
+        },
+        "id": "fh-stone-vanish",
+        "position": {
+         "x": 18.0,
+         "y": 0.0,
+         "z": 18.8
+        },
+        "route": "OPTIONAL",
+        "size": {
+         "x": 1.6,
+         "y": 0.5,
+         "z": 1.6
+        }
+       }
+      ]
+     },
+     "id": "gameplay.platforms"
     },
     {
      "config": {
@@ -7588,6 +7652,18 @@
         "maxZ": 30.0,
         "minX": -32.0,
         "minZ": 14.0
+       },
+       {
+        "maxX": 9.8,
+        "maxZ": -57.2,
+        "minX": 8.2,
+        "minZ": -58.4
+       },
+       {
+        "maxX": 9.8,
+        "maxZ": -60.0,
+        "minX": 8.2,
+        "minZ": -61.2
        }
       ],
       "surfaces": []
@@ -7599,7 +7675,7 @@
   "environment": {
    "backgroundColor": 3877427
   },
-  "firepeakHeartVersion": 4,
+  "firepeakHeartVersion": 5,
   "groundAssetId": "ground-tile-stone",
   "platforming": {
    "platforms": [
@@ -7662,26 +7738,6 @@
       "depth": 2.4,
       "height": 0.5,
       "width": 2.4
-     }
-    },
-    {
-     "color": 7236218,
-     "id": "fh-stone-vanish",
-     "position": {
-      "x": 18.0,
-      "y": 0.0,
-      "z": 18.8
-     },
-     "size": {
-      "depth": 1.6,
-      "height": 0.5,
-      "width": 1.6
-     },
-     "vanish": {
-      "hiddenSeconds": 2.5,
-      "mode": "STAND",
-      "visibleSeconds": 4,
-      "warningSeconds": 1
      }
     },
     {
@@ -8104,6 +8160,10 @@
     }
    ],
    "recoveryLead": "Whoa, the lava is too hot!",
+   "recoveryLeads": {
+    "fh-summit-rocks-1": "Oops, a pebble tumbled down!",
+    "fh-summit-rocks-2": "Oops, a pebble tumbled down!"
+   },
    "zones": [
     {
      "enterMessage": "Flint: Welcome to Firepeak! Use the stick or the arrow keys to walk. Say hello to me, then read the map.",

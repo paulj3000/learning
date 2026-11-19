@@ -410,9 +410,9 @@ export function ThreeLocationWorldView({
         }
         setToast(checkpointReachedText(label));
       }),
-      bus.on('PlayerRecovered', ({ reason, checkpointId }) => {
+      bus.on('PlayerRecovered', ({ reason, checkpointId, hazardId }) => {
         if (reason === 'HAZARD' || checkpointId) {
-          setToast(recoveredText(manifest.platforming, checkpointId, bridgeCheckpointLabels(manifest)));
+          setToast(recoveredText(manifest.platforming, checkpointId, bridgeCheckpointLabels(manifest), hazardId));
         }
       }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
