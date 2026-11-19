@@ -220,7 +220,7 @@ describe('GameHost stabilization', () => {
         expect(renderer.domElement.isConnected).toBe(false);
       }
       expect(document.querySelectorAll('canvas')).toHaveLength(0);
-    }, 30_000);
+    });
 
     it('20 StrictMode mount/unmount cycles also leave exactly zero live runtimes', async () => {
       const h = harness();
@@ -236,7 +236,7 @@ describe('GameHost stabilization', () => {
       expect(h.runtimes.filter((r) => r.state !== 'disposed')).toHaveLength(0);
       expect(h.renderers.every((r) => vi.mocked(r.dispose).mock.calls.length === 1)).toBe(true);
       expect(frames.pendingCount()).toBe(0);
-    }, 30_000);
+    });
 
     it('unmounting while the start is still awaiting disposes it and never reports ready', async () => {
       const h = harness();
@@ -318,7 +318,7 @@ describe('GameHost stabilization', () => {
       fail = false;
       await userEvent.keyboard(' ');
       await ready();
-    }, 30_000);
+    });
 
     it('the no-graphics message is an alert with a retry button, not an error message or stack', async () => {
       render(
