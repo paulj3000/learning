@@ -1,6 +1,6 @@
 # Game Engine Core: legacy retirement plan (GE-076)
 
-- **Status:** Proposed. Dependency audit 2026-11-19 (section 5): nothing is removable yet; nothing has been removed
+- **Status:** Proposed. Dependency audit 2026-11-19 (section 5). Removed so far: the `gamepadInput` and `cameraHeightFollower` shims (checklist item 1)
 - **Owner:** Project owner
 - **Last reviewed:** 2026-11-19
 - **Related ADRs:** ADR-020, ADR-059, ADR-063 (Reserved on `main`)
@@ -26,8 +26,8 @@ shim through a relative path (package imports excluded). The first count was at 
 | `pointerControls.ts` | `input/pointerControls` | 4 → 2 | Same |
 | `cameraPreference.ts` | `camera/cameraPreference` | 3 → 1 | Same |
 | `playerCollision.ts` | `movement/playerCollision` | 3 → 2 | Same |
-| `gamepadInput.ts` | `input/gamepadInput` | 2 → **0** | Same, plus the uncommitted `sc-final-d` worktree (section 5) |
-| `cameraHeightFollower.ts` | `camera/cameraHeightFollower` | 2 → **0** | Same, plus the uncommitted `sc-final-d` worktree (section 5) |
+| ~~`gamepadInput.ts`~~ | `input/gamepadInput` | 2 → 0 | **Removed** 2026-11-19 (section 5, item 1) |
+| ~~`cameraHeightFollower.ts`~~ | `camera/cameraHeightFollower` | 2 → 0 | **Removed** 2026-11-19 (section 5, item 1) |
 
 Every remaining importer is the live location runtime itself (`createLocationEngine.ts`,
 `ThreeLocationWorldView.tsx`, `playerAvatar.ts`, `playerAnimation.ts`, `locationManifest.ts`,
@@ -101,11 +101,15 @@ module under `island-map/three`.
 
 Remaining-work checklist, in order (each item: one commit, regression evidence from every consumer):
 
-1. [ ] The `sc-final-d` owner commits or discards the uncommitted pre-extraction edits to
-   `cameraHeightFollower.ts`, `playerCamera.ts` and `pointerControls.ts`. Then remove
-   `gamepadInput.ts` and `cameraHeightFollower.ts` and drop both from `LEGACY_WILDCARD_SHIMS` in
-   `game-engine/stabilization/importBoundaries.test.ts`. Gate: root `npm run typecheck`, the
-   island-map and region-play unit tests, and the four realm import guards.
+1. [x] Done 2026-11-19. The castle lead parked the `sc-final-d` edits on
+   `park/sc-final-d-20261118` @ `dec87388` (pushed, not for integration; the integration lead's
+   W1). Re-check: no worktree has uncommitted use; the only unmerged branch importing either shim
+   is that parked branch. `gamepadInput.ts` and `cameraHeightFollower.ts` removed and dropped from
+   `LEGACY_WILDCARD_SHIMS`. Evidence: root `npm run typecheck` clean; game-engine React 136 passed
+   plus 1 expected fail (GE-S1); island-map/three and region-play 2,040 passed, 0 failed (gated).
+   The parked branch also holds untested live reduced-motion edits to `createLocationEngine.ts`,
+   `playerCamera.ts`, `platformSystem.ts` and `platformPresentation.ts`. They were not adopted (out of
+   stabilization scope); adopting them needs its own ticket, ported to the engine modules.
 2. [ ] GE-S1: point the remaining shims at the listed subpaths (`@lai/game-engine/movement`,
    `/camera`, `/input`) or repoint their importers to the package. Check that each listed entry
    exports every name the importers use, then remove the `it.fails` pin.
