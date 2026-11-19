@@ -9,7 +9,7 @@ import {
   CASTLE_HIDDEN_FIND_IDS,
   castleCompletionSources,
   castleRoomChangeKey,
-} from './castleScoringSources';
+} from './castleRecords';
 import {
   GREAT_STORYBOOK_RESTORED_KEY,
   GREAT_STORYBOOK_RESTORED_V2_KEY,

@@ -7,6 +7,7 @@ import type { AgeBandValue } from '../../../../child-profile/constants';
 import { paintedWordsPadGuide, paintedWordsPadSlots } from '../../castlePlatformAnswers';
 import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import { usePadAnswers } from './usePadAnswers';
+import { adventureCompletedClaim, castleClaimContext, emitCastleClaim } from './castleGameplayClaims';
 import { useCastleAnswerCues } from './useCastleAnswerCues';
 
 /**
@@ -65,13 +66,18 @@ export function CastlePaintedWordsSession({
   useEffect(() => {
     if (session?.status === 'COMPLETED' && !hasFiredOnComplete.current) {
       hasFiredOnComplete.current = true;
+      // GE-072: the server completed the session; restate it as a claim for scoring to confirm.
+      emitCastleClaim(castleClaimContext(definition.slug, session.id), adventureCompletedClaim());
       onComplete();
     }
-  }, [session, onComplete]);
+  }, [session, onComplete, definition.slug]);
 
   const stepId = currentStep?.id ?? null;
   // SC-R06-01: right, try-again and hint sounds, from what the server decided.
-  const cuedSubmit = useCastleAnswerCues(submitAnswer, stepId, hintLevel);
+  const cuedSubmit = useCastleAnswerCues(submitAnswer, stepId, hintLevel, {
+    adventureSlug: definition.slug,
+    sessionId: session?.id ?? null,
+  });
 
   usePadAnswers({
     bus,

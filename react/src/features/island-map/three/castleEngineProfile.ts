@@ -1,6 +1,6 @@
 import type { AgeBandValue } from '../../child-profile/constants';
-import type { MovementSpec } from './jumpConfiguration';
-import type { PlayerCameraConfiguration } from './playerPresentation';
+import type { MovementSpec } from '@lai/game-engine/movement';
+import type { PlayerCameraConfiguration } from '@lai/game-engine/camera';
 import { WALL_HEIGHT } from './sceneKit';
 
 /**

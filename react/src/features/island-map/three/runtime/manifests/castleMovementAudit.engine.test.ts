@@ -11,7 +11,7 @@ import {
   safePlacementFor,
   type CastleRoomId,
 } from '../../castleLayout';
-import type { FirstPersonController, MovementState } from '../../firstPersonController';
+import type { FirstPersonController, MovementState } from '@lai/game-engine/movement';
 import { playerAnimationState } from '../../playerAnimation';
 import { ROOMS } from '../../storykeeperCastleRegion';
 import { solidColliders } from '../sceneLayout';

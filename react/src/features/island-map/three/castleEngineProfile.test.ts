@@ -9,8 +9,8 @@ import {
   castleMovementSpec,
 } from './castleEngineProfile';
 import { PAD_DWELL_MS } from './extensions/castleTale/usePadAnswers';
-import { resolveJumpConfiguration } from './jumpConfiguration';
-import { resolvePlayerCamera } from './playerPresentation';
+import { resolveJumpConfiguration } from '@lai/game-engine/movement';
+import { resolvePlayerCamera } from '@lai/game-engine/camera';
 import { EYE_HEIGHT } from './sceneKit';
 import { manifestForBand } from './runtime/manifestForBand';
 import { CASTLE_MAX_PLATFORM_TOP } from './runtime/manifests/castleRooms/castlePlatforms';
