@@ -85,6 +85,14 @@ export interface WorldExtensionContext {
   };
   /** GE-070: hands surfaces, forces, water and ladders to the live movement controller. */
   setEnvironment?(query: EnvironmentQuery | null): void;
+  /**
+   * GE-066: moves the child with a platform an extension owns (the controller's `carry`): sideways
+   * movement is collision tested, so a platform never pushes the child through a wall; `dy`
+   * follows the platform exactly. Deltas are metres for this frame.
+   */
+  carryPlayer?(dx: number, dy: number, dz: number): void;
+  /** GE-066: throws the child up to about `height` metres (the controller's `launch`, a bounce pad). */
+  launchPlayer?(height: number): void;
   /** The root object of a scenery item by its manifest id, or `undefined` if its requirements left it out. */
   sceneryRoot(id: string): Object3D | undefined;
   /**
