@@ -104,4 +104,6 @@ that changes for Firepeak:
   "show the Professor" action and the puzzle stage line until `fh-heart-return` is solved, then the
   managed dialogue runs. While the puzzle is locked he is fully managed.
 - Per-puzzle stage lines for other managed NPCs are not shown; those NPCs speak their published
-  lines (Kindle's hints are the Manager's). Launch points on a managed NPC remain a follow-up.
+  lines (Kindle's hints are the Manager's); the current puzzle's stage line still shows in its puzzle
+  panel. A managed NPC with launch points also keeps the legacy panel, which carries the launch
+  buttons the managed panel lacks.

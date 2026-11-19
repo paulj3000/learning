@@ -651,8 +651,8 @@ function RegionPlayGame(props: LocationCompanionProps) {
     );
   } else if (event?.kind === 'npc' && usesLegacyNpcDialogue(event, managedNpcIds)) {
     // A managed NPC (NPC Manager) answers through its own panel instead, except while a
-    // RETURN_TO_NPC puzzle bound to it is open (`usesLegacyNpcDialogue`): this panel carries that
-    // action and the stage line. Launch points on a managed NPC remain a follow-up.
+    // RETURN_TO_NPC puzzle bound to it is open or it has launch points (`usesLegacyNpcDialogue`):
+    // this panel carries those actions and the stage line.
     const returnPuzzle = event.returnPuzzle;
     panel = (
       <PipDialog
