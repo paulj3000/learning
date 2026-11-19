@@ -62,10 +62,12 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
       stillWhenReduced: false,
     });
   }
-  const caps = allocateParticleBudget([...specs.values()], options.tier);
+  // GE-L14: each pool can hold the whole tier budget on its own; every frame the budget is shared
+  // only across the kinds falling now, so an unused kind (the built-in RAIN in a snowy Area)
+  // never takes half of it.
   const pools = new Map<string, { pool: ParticlePool; view: ParticleView; cap: number }>();
   for (const [id, spec] of specs) {
-    const cap = caps.get(id) ?? 0;
+    const cap = allocateParticleBudget([spec], options.tier).get(id) ?? 0;
     pools.set(id, {
       pool: createParticlePool(cap, hashSeed(id)),
       view: createParticleView(scene, scope, cap, { name: `engine.weather.${id}`, color: spec.color, size: spec.size }),
@@ -79,6 +81,8 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
   return {
     update(dt) {
       const snapshot = weather.snapshot();
+      const falling = [...specs.values()].filter((spec) => (snapshot.rates[spec.id] ?? 0) > 0);
+      const shares = allocateParticleBudget(falling, options.tier);
       const centre = options.follow?.() ?? null;
       if (centre) {
         for (const entry of pools.values()) entry.view.points.position.set(centre.x, 0, centre.z);
@@ -86,7 +90,8 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
       for (const [id, spec] of specs) {
         const entry = pools.get(id)!;
         const rate = snapshot.rates[id] ?? 0;
-        const effective = effectiveEmitter({ ...spec, ratePerSecond: Math.max(0.0001, rate) }, entry.cap, options.reducedMotion());
+        const cap = Math.min(entry.cap, shares.get(id) ?? 0);
+        const effective = effectiveEmitter({ ...spec, ratePerSecond: Math.max(0.0001, rate) }, cap, options.reducedMotion());
         stepParticles(entry.pool, rate > 0 ? effective : { ...effective, rate: 0 }, dt, { x: weather.state.kinds[id]!.precipitation!.drift * snapshot.windStrength, y: 0, z: 0 });
         entry.view.update(entry.pool);
       }

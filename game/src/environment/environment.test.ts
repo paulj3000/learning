@@ -384,3 +384,42 @@ describe('presentation helpers', () => {
     h.dispose();
   });
 });
+
+describe('weather view budget (GE-L14, North Pole parity)', () => {
+  const live = (scene: Scene, prefix: string) =>
+    scene.children
+      .filter((o) => o.name.startsWith(prefix))
+      .reduce((sum, o) => sum + (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count, 0);
+
+  it('the falling kind gets the whole tier budget; unused kinds (built-in RAIN) take none of it', async () => {
+    const scene = new Scene();
+    const scope = createResourceScope('weather-budget');
+    const h = createHarness(registerGameplayComponents);
+    // Steady snow above the MEDIUM budget: 600/s for 20 s would be 12000 without a cap.
+    await h.start([{ id: 'environment.weather', config: { initial: 'SNOW', kinds: [{ id: 'SNOW', precipitation: { motion: 'FALL', ratePerSecond: 600, fallSpeed: 0.5, size: 0.08 } }] } }]);
+    const weather = createWeatherView(scene, scope, h.runtime.services.require(WeatherService), { tier: 'MEDIUM', reducedMotion: () => false, area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 24 } });
+    for (let i = 0; i < 600; i += 1) weather.update(1 / 60);
+    expect(live(scene, 'engine.weather.SNOW')).toBe(600); // the whole MEDIUM budget
+    expect(live(scene, 'engine.weather.RAIN')).toBe(0);
+    scope.dispose();
+    h.dispose();
+  });
+
+  it('shares the budget only while two kinds fall at once, and never goes over it', async () => {
+    const scene = new Scene();
+    const scope = createResourceScope('weather-share');
+    const h = createHarness(registerGameplayComponents);
+    await h.start([{ id: 'environment.weather', config: { initial: 'RAIN', transitionSeconds: 30 } }]);
+    const api = h.runtime.services.require(WeatherService);
+    const weather = createWeatherView(scene, scope, api, { tier: 'LOW', reducedMotion: () => false, area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 15 } });
+    for (let i = 0; i < 300; i += 1) weather.update(1 / 60);
+    api.set('SNOW', 30);
+    for (let i = 0; i < 300; i += 1) {
+      h.advance(1 / 60);
+      weather.update(1 / 60);
+      expect(live(scene, 'engine.weather.')).toBeLessThanOrEqual(300);
+    }
+    scope.dispose();
+    h.dispose();
+  });
+});
