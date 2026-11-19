@@ -231,8 +231,8 @@ Not fixed on this branch, because these files are being extracted on `core/gamee
 5. Camera occlusion tests colliders, not meshes. A tree with no collider can come between the
    camera and the child (`docs/PLAYER_AVATAR_AND_CAMERA.md:240`).
 6. Ground is flat everywhere (`groundHeightAt`), and collision is axis-aligned boxes only.
-7. `docs/PLAYER_MOVEMENT_AND_JUMPING.md:164-175` still says "no running" and "player is a point
-   in x/z". It is stale; the engine docs should replace it.
+7. `docs/PLAYER_MOVEMENT_AND_JUMPING.md` "Known limitations" said "no running" and "player is a
+   point in x/z". Corrected on this branch (TR-21) to the gaits and the cylindrical footprint.
 
 ### 7.3 Open Treasure Rush gameplay defects
 
