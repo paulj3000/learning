@@ -7,8 +7,13 @@ import type { AgeBandValue } from '../../../../child-profile/constants';
 import { paintedWordsPadGuide, paintedWordsPadSlots } from '../../castlePlatformAnswers';
 import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import { usePadAnswers } from './usePadAnswers';
-import { adventureCompletedClaim, castleClaimContext, emitCastleClaim } from './castleGameplayClaims';
+import {
+  adventureCompletedClaim,
+  castleClaimContext,
+  emitCastleClaim,
+} from './castleGameplayClaims';
 import { useCastleAnswerCues } from './useCastleAnswerCues';
+import { CastleSessionLoading, CastleSessionUnavailable } from './CastleSessionStatus';
 
 /**
  * One in-world play-through of "The Painted Words" (SC-JMP), hosted in the Illustration Studio so
@@ -87,19 +92,22 @@ export function CastlePaintedWordsSession({
   });
 
   if (loadState === 'loading') {
-    return <p className={styles.status}>Opening the painted words...</p>;
+    return <CastleSessionLoading message="Opening the painted words..." />;
   }
   if (loadState === 'error' || !currentStep) {
     return (
-      <p className={styles.status} role="alert">
-        Something went wrong opening the painted words.
-      </p>
+      <CastleSessionUnavailable
+        message="Something went wrong opening the painted words."
+        backToMapHref={backToMapHref}
+      />
     );
   }
 
   const padGuide = paintedWordsPadGuide(currentStep);
   // Only approved bank words get a "hear it" button (the slots refuse anything else).
-  const words = speakWord ? (paintedWordsPadSlots(currentStep)?.map((slot) => slot.word) ?? []) : [];
+  const words = speakWord
+    ? (paintedWordsPadSlots(currentStep)?.map((slot) => slot.word) ?? [])
+    : [];
   return (
     <div className={styles.panel}>
       <AdventureStepCard

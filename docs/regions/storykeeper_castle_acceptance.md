@@ -99,6 +99,24 @@ Branch `feature/storykeeper-castle-completion`. Every item below has unit-test e
 an item only after you have played it yourself. Run the local stack with fake providers (no live
 AWS) unless a line says otherwise.
 
+### 4.0 Before you start (local data the castle reads)
+
+Ember, Quill's progress lines and Professor Orion come from NPC Manager content in Django; Quill
+and Orion fall back to the manifest, but Ember appears only once its content is published. Run,
+from `lai/`, against your local database only:
+
+```bash
+python manage.py migrate
+python manage.py load_content
+python manage.py seed_npc_quill --publish
+python manage.py seed_npc_ember --publish
+python manage.py seed_npc_orion --publish
+python manage.py seed_castle_sound
+python manage.py seed_castle_speech_lines
+python manage.py import_castle_events
+python manage.py backfill_castle_keepsakes          # dry run; add --apply to grant
+```
+
 ### 4.1 Play checks (browser, one child profile per band)
 
 | # | Check | Band | How | Result |

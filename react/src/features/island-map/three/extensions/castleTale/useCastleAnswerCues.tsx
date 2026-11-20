@@ -14,6 +14,11 @@ import { playCastleCue } from './castleSoundCues';
  * `learning.answer.submitted` claim for the step. A pad, the card, a walk-in or an aim all reach
  * this one submit, so an answer is claimed once whichever way it was given. A failed submit
  * (`null`) claims nothing.
+ *
+ * One answer at a time: while a submit is in flight, another (a second lectern press, a portrait
+ * looked at again, the card and a pad together) is not sent and resolves to `null`, so a child
+ * cannot send the same answer twice or spend two hint rungs on one try. Callers treat `null` as
+ * "nothing was graded", never as a wrong answer.
  */
 export function useCastleAnswerCues<A>(
   submit: (answer: A) => Promise<Correctness | null>,
@@ -30,9 +35,17 @@ export function useCastleAnswerCues<A>(
 
   const claimSlug = claim?.adventureSlug ?? null;
   const claimSession = claim?.sessionId ?? null;
+  const inFlight = useRef(false);
   return useCallback(
     async (answer: A) => {
-      const correctness = await submit(answer);
+      if (inFlight.current) return null;
+      inFlight.current = true;
+      let correctness: Correctness | null;
+      try {
+        correctness = await submit(answer);
+      } finally {
+        inFlight.current = false;
+      }
       if (correctness === 'correct') playCastleCue('answerRight');
       else if (correctness === 'incorrect') playCastleCue('answerRetry');
       if (correctness !== null && claimSlug && stepId) {

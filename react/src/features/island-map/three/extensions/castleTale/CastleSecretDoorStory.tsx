@@ -2,8 +2,13 @@ import { useEffect, useRef } from 'react';
 import styles from '../../../IslandWorldView.module.css';
 import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
-import { adventureCompletedClaim, castleClaimContext, emitCastleClaim } from './castleGameplayClaims';
+import {
+  adventureCompletedClaim,
+  castleClaimContext,
+  emitCastleClaim,
+} from './castleGameplayClaims';
 import { useCastleAnswerCues } from './useCastleAnswerCues';
+import { CastleSessionLoading, CastleSessionUnavailable } from './CastleSessionStatus';
 import { StoryChapterRunner } from '../../../../story/StoryChapterRunner';
 import type { StoryAdventureRenderProps } from '../../../../story/StoryChapterRunner';
 import { useStoryProgress } from '../../../../story/useStoryProgress';
@@ -90,13 +95,14 @@ export function CastleSecretDoorStory({
   }, [loadState, chapter, onComplete]);
 
   if (loadState === 'loading') {
-    return <p className={styles.status}>Opening the door...</p>;
+    return <CastleSessionLoading message="Opening the door..." />;
   }
   if (loadState === 'error' || !progress) {
     return (
-      <p className={styles.status} role="alert">
-        Something went wrong opening this story.
-      </p>
+      <CastleSessionUnavailable
+        message="Something went wrong opening this story."
+        backToMapHref={backToMapHref}
+      />
     );
   }
   if (!chapter) {
@@ -222,7 +228,8 @@ function CastleStoryAdventure({
           nothing. Everything comes back to where it started, Quill looks
           concerned, and the hint ladder has already advanced a rung.
         */
-        if (correctness === 'correct') return;
+        // `null`: nothing was graded (offline, or an answer already in flight), so no reaction.
+        if (correctness === 'correct' || correctness === null) return;
         arrangement.reset(scene.current);
         scene.current?.playQuillClip('ReactConcerned');
       });
@@ -243,13 +250,14 @@ function CastleStoryAdventure({
   });
 
   if (loadState === 'loading') {
-    return <p className={styles.status}>Reading the clues...</p>;
+    return <CastleSessionLoading message="Reading the clues..." />;
   }
   if (loadState === 'error' || !currentStep) {
     return (
-      <p className={styles.status} role="alert">
-        Something went wrong opening this part of the story.
-      </p>
+      <CastleSessionUnavailable
+        message="Something went wrong opening this part of the story."
+        backToMapHref={backToMapHref}
+      />
     );
   }
 

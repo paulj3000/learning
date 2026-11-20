@@ -437,7 +437,26 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
           optionId: 'hero-fox',
         }),
       );
-      expect(sceneSpies.showChosenHero).toHaveBeenCalledWith('gallery-portrait-fox');
+      await waitFor(() =>
+        expect(sceneSpies.showChosenHero).toHaveBeenCalledWith('gallery-portrait-fox'),
+      );
+    });
+
+    it('lights no portrait when the choice was not saved (offline or failed submit)', async () => {
+      submitAnswerSpy.mockResolvedValue(null);
+      currentStep = stepOf(THE_STORYKEEPERS_TALE.slug, 'choose-hero');
+      await renderAndWait();
+      await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
+      sceneSpies.showChosenHero.mockClear();
+      await emit((bus) =>
+        bus.emit('ObjectInteracted', {
+          entityId: 'gallery-portrait-fox',
+          interactionId: 'gallery-portrait-fox:interact',
+        }),
+      );
+      await waitFor(() => expect(submitAnswerSpy).toHaveBeenCalled());
+      await act(async () => undefined);
+      expect(sceneSpies.showChosenHero).not.toHaveBeenCalled();
     });
 
     it('answers choose-setting by standing at a window', async () => {
@@ -631,6 +650,43 @@ describe('Storykeeper Castle on the generic view: parity with StorykeeperCastleW
         }),
       );
       await waitFor(() => expect(submitAnswerSpy).toHaveBeenCalled());
+      expect(sceneSpies.resetBindingPlates).not.toHaveBeenCalled();
+      expect(sceneSpies.playQuillClip).not.toHaveBeenCalledWith('ReactConcerned');
+    });
+
+    it('sends one answer for a lectern pressed twice while the first is being graded', async () => {
+      let settle: (grade: Correctness | null) => void = () => undefined;
+      submitAnswerSpy.mockImplementation(
+        () => new Promise<Correctness | null>((resolve) => (settle = resolve)),
+      );
+      await renderAndWait();
+      await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
+      const press = (bus: WorldEngineEventBus) =>
+        bus.emit('BuildActionRequested', {
+          entityId: 'binding-lectern',
+          order: ['story-plate-ending', 'story-plate-choice', 'story-plate-problem'],
+        });
+      await emit(press);
+      await emit(press);
+      await waitFor(() => expect(submitAnswerSpy).toHaveBeenCalledTimes(1));
+      await act(async () => settle('incorrect'));
+      await waitFor(() => expect(sceneSpies.playQuillClip).toHaveBeenCalledWith('ReactConcerned'));
+      expect(submitAnswerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call an ungraded lectern answer wrong (offline or failed submit)', async () => {
+      submitAnswerSpy.mockResolvedValue(null);
+      await renderAndWait();
+      await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-story-hall' }));
+      sceneSpies.resetBindingPlates.mockClear();
+      await emit((bus) =>
+        bus.emit('BuildActionRequested', {
+          entityId: 'binding-lectern',
+          order: ['story-plate-ending', 'story-plate-choice', 'story-plate-problem'],
+        }),
+      );
+      await waitFor(() => expect(submitAnswerSpy).toHaveBeenCalled());
+      await act(async () => undefined);
       expect(sceneSpies.resetBindingPlates).not.toHaveBeenCalled();
       expect(sceneSpies.playQuillClip).not.toHaveBeenCalledWith('ReactConcerned');
     });

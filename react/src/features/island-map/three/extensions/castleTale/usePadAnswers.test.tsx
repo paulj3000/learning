@@ -20,7 +20,11 @@ const definition = (slug: string): AdventureDefinition => {
 const PATTERN = definition('secret-door-chapter-2-pattern-lock');
 const TALE = definition('the-storykeepers-tale');
 
-function setup(adventure: AdventureDefinition, stepId: string | null, submit = vi.fn().mockResolvedValue('correct')) {
+function setup(
+  adventure: AdventureDefinition,
+  stepId: string | null,
+  submit = vi.fn().mockResolvedValue('correct'),
+) {
   const bus = new WorldEngineEventBus();
   const onWrongOrder = vi.fn();
   const view = renderHook(
@@ -109,6 +113,16 @@ describe('usePadAnswers', () => {
       order: ['beat-ending', 'beat-choice', 'beat-problem'],
     });
     expect(onWrongOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not tell Quill an order is wrong when nothing was graded (offline or already in flight)', async () => {
+    const ungraded = vi.fn().mockResolvedValue(null);
+    const { submit, stand, onWrongOrder } = setup(TALE, 'order-the-story', ungraded);
+    await stand(padZoneId('story-hall', 'ending'));
+    await stand(padZoneId('story-hall', 'choice'));
+    await stand(padZoneId('story-hall', 'problem'));
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(onWrongOrder).not.toHaveBeenCalled();
   });
 
   it('forgets a half-finished order when the step moves on, and stops listening when it unmounts', async () => {

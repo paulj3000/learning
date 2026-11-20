@@ -76,7 +76,8 @@ export function usePadAnswers({
       void submitRef
         .current({ kind: 'ordering', order })
         .then((correctness) => {
-          if (correctness !== 'correct') wrongRef.current?.();
+          // `null`: nothing was graded, so no wrong-order reaction.
+          if (correctness !== 'correct' && correctness !== null) wrongRef.current?.();
         })
         .finally(gate.end);
     };
@@ -85,7 +86,10 @@ export function usePadAnswers({
       if (!isPadZoneId(zoneId) || !resolvePadAnswer(zoneId, definition, step)) return;
       const pending = timers.get(zoneId);
       if (pending) clearTimeout(pending);
-      timers.set(zoneId, setTimeout(() => settle(zoneId), dwellMs));
+      timers.set(
+        zoneId,
+        setTimeout(() => settle(zoneId), dwellMs),
+      );
     });
     const offLeave = bus.on('PlayerLeftZone', ({ zoneId }) => {
       const pending = timers.get(zoneId);

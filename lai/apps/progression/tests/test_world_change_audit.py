@@ -29,6 +29,7 @@ CHILD_WRITE_ROUTES = {
     "DELETE /photo/",
     "DELETE /quests/",
     "DELETE /rewards/",
+    "DELETE /scoring/",
     "DELETE /story-artifacts/<uuid:artifact_id>/",
     "DELETE /world-state/",
     "PATCH /",
