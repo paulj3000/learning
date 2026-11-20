@@ -81,6 +81,16 @@ and production settings refuse it.
   Because awards are derived, a later reconcile re-derives them from the progress that remains.
   To remove that progress, the parent deletes the backpack, the world state or the child profile
   (cascade).
+- **Write-route audit (WS-E, 2026-11-19):** `DELETE children/<id>/scoring/` is the app's only
+  child-scoped write. It sits behind `ChildScopedAPIView` (bearer only; 401 anonymous; another
+  family's child or an unknown id is the same 404, and nothing is deleted). It deletes only that
+  child's `AwardLedgerEntry` rows and `ProgressionProjection` row (`ledger.erase_child_scoring`),
+  never a sibling's, the backpack, quests, world state or any source record. It accepts no body,
+  grants nothing and writes no world change. It is idempotent: a second call is `204`. Tests:
+  `test_api.py` (`test_another_familys_child_is_a_404_on_every_route`,
+  `test_unauthenticated_callers_get_401`,
+  `test_delete_erases_only_that_childs_scoring_and_leaves_the_backpack`,
+  `test_there_is_no_write_route`). Entry for `CHILD_WRITE_ROUTES`: `"DELETE /scoring/"`.
 
 ## 7. Options for authoritative jumps (owner decision; not built)
 
