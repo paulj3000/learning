@@ -105,6 +105,7 @@ write an arbitrary protected key, award a rule, or complete a session.
 | Writing Room story (SC-final-B) | `story-artifacts/written/` POST | Only the child's own ACTIVE session of one of the three `castle-writing-room` templates for the child's band (else 404). Sprout and Pathfinder text is composed server-side from authored option labels; an Explorer paragraph passes `screen_untrusted_text` and the unkind-word screen or nothing is stored. Completes the session through `complete_session` (status only: no reward rule, world change, quest or mastery). One artifact per session (unique constraint). |
 | Generic world change | `world-changes/` POST | `client_changes.record_client_world_change`: protected keys need proof of play, registered location and type; never pays rewards. |
 | World state | `world-state/` PATCH DELETE | Only a known NPC id and a checkpoint id; no world change. |
+| Scoring (GE-100) | `scoring/` DELETE | A parent's privacy erasure: removes only the child's own scoring ledger and projection (no body, no grant, no world change; idempotent). Awards have no write route; they are derived on the server (`docs/scoring/TRUST_BOUNDARY.md`). |
 | Adventure runner | `adventures/<slug>/session/`, `content/adventures/<slug>/start/`, `sessions/<id>/answers/`, `hints/` POST | Server-graded; completion, WORLD_CHANGE steps and rewards run only in the answer transaction. |
 | Region play | `regions/<id>/session/`, `sessions/<id>/<action>/`, `chests/.../challenge/`, `attempts/<id>/answer/`, `puzzles/.../solve/`, `pickups/...`, `npcs/.../talk/`, launch points, `game-launches/` | Region sessions only (the `complete` action refuses an adventure session). Chests, puzzles and pickups are server-graded, locked and idempotent. |
 | Castle | `castle/rooms/` POST, `castle/director/` POST | A room needs its recorded discovery; the Director writes only a display counter. |
@@ -125,6 +126,7 @@ Frozen write-route list (method and path after `children/<id>`):
 - `DELETE /photo/`
 - `DELETE /quests/`
 - `DELETE /rewards/`
+- `DELETE /scoring/`
 - `DELETE /story-artifacts/<uuid:artifact_id>/`
 - `DELETE /world-state/`
 - `PATCH /`

@@ -25,7 +25,7 @@ Git is the evidence for code; Trello for ownership and state. "Branch" means `fe
 | SC-R02-01 to 09 | Visual system, eight rooms | main | Subproject card | Done (development); SC-R02-05 partial (reduced-motion tapestry only) | Browser look pass, reduced-motion feel |
 | SC-R03-01 to 07 | Layout, hub, Trophy Room, Observatory, Secret Chamber, map, discovery in Django | main | Subproject card | Done (development) | Browser walkthrough |
 | SC-R04-00 to 04 | Storybook quest, pages, 3D book, adventure links | main | Gates card says done | Done (development) | Play each adventure |
-| SC-R04-05 to 08 | Painted Words, progression, completion, editions (`091d763c`, `32afe8b6`, `6ad0225f`, `bc7a79a3`) | **branch only** | Development Complete | Done (development), **not in main** | Play both word sets; forged world-change POST (integrity prep B) stays open |
+| SC-R04-05 to 08 | Painted Words, progression, completion, editions (`091d763c`, `32afe8b6`, `6ad0225f`, `bc7a79a3`) | **branch only** | Development Complete | Done (development), **not in main** | Play both word sets; O-5 owner check of the forged world-change POST (the fix is SC-SEC-01, `protected_changes.py`) |
 | SC-R05-01 to 03 | Quill reconcile, Ember, Professor Orion | branch only | Development Complete, description says "not started" | Done (development); description stale | Confirm Orion; final GLB models |
 | SC-R06-01 to 03 | Sound cues, mute, Polly narration | branch only | Development Complete, "not started" | Done (development); description stale | Audio check, audio files, voice consent |
 | SC-R07-01 to 04 | Artifacts, pedestals, Hall of Heroes, ranks (flag off) | branch only | Development Complete, "not started" | Done (development); description stale | Keep or drop ranks; run `backfill_castle_keepsakes` |
@@ -317,3 +317,50 @@ GE-072 has no remaining engine dependency. Open, all owner-side or integration-s
 Owner merge order: core, Firepeak, North Pole, castle. `integration/20261119-game-engine-core` @ `a67b55d1` merged into the castle branch (no rebase). The castle's `regions` migrations are now `0008_castle_director` (on Firepeak's `0007_puzzle_kinds_choose_order`) and `0009_castle_director_catalog`. Nothing on `main` was edited. Content export after the merge: islands 3, locations 13, adventures 29, learning objectives 20, quests 24, items 117, sets 11, reward rules 92, NPCs 23, discoveries 8, checkpoints 31.
 
 Checks: `npm run typecheck` clean; content, golden, adr and docs checks pass; one migration leaf per app; `makemigrations --check` no changes; `migration_audit.py HEAD` reports no collision, divergence, rewrite or stale parent; castle suites through `test_gate.py`: 95 files, 1298 passed. Django tests on PostgreSQL are not run: the owner declined the local database in this session, and that is the owner's call.
+
+## 10. Final development audit (2026-11-19, `5946204f`)
+
+The audit was rechecked against the source, tests and Git, not the Trello descriptions. A read-only audit pass and my own checks gave these verdicts.
+
+| Area | Verdict | Evidence or gap |
+|---|---|---|
+| Characters and NPCs | Quill and Orion are wired, with manifest NPCs plus NPC Manager content. Ember appears only once `seed_npc_ember --publish` has run (it has no manifest fallback). | Orion still uses the `npc-professor-ticktock` stand-in model. The setup commands are now in acceptance guide section 4.0. |
+| Quest and story progression, Great Storybook | Wired. Pages, editions, completion and protected keys are server-backed. | The "forged world-change POST" listed as open was fixed by SC-SEC-01 (`protected_changes.py`); only the O-5 owner check remains. |
+| Navigation and transitions | Every doorway is crossed both ways in `castleMovementAudit.engine.test.ts`. The castle's Writing Room door goes to the Three.js room (`locations/castle-writing-room`). | The location page still offers the Phaser Writing Room and castle first and labels the 3D versions "preview". That is ADR-020 / SC-R10-03 (owner, LAI-2303), not a defect. |
+| Shared engine | `CASTLE_ENGINE_PROFILE`, bridge checkpoints and v1 claims are all in place (section 9). | Claims reach scoring only when the host passes `onGameplayEvent` (`scoring.enabled`). That is the host's switch, not the castle's. |
+| Camera, collision, optional jumping | Covered by the movement audit, the profile tests and `CASTLE_MOVEMENT_BY_BAND`. No learning step needs a jump. | Browser feel is owner QA. |
+| Checkpoints and recovery | Bridge checkpoints are saved with the castle's wording; recovery goes back to the last safe floor. | |
+| Child-facing states | Fixed in `5946204f` (see below). | |
+
+**Defects fixed (`5946204f`)**
+
+1. **The tale reflected choices before they were saved.** The hero portrait, setting window and easel lit before the submit resolved, so an offline submit showed a choice Django never recorded, and a later resume took it back. The room now reflects only a result the server accepted.
+2. **Duplicate answers.** The lectern, portrait, window and card had no in-flight gate, so a second press during grading sent a duplicate answer and spent a hint rung. `useCastleAnswerCues` now sends one answer at a time. The lectern (tale and secret door) and the pads treat an ungraded `null` as "nothing happened", never as a wrong order.
+3. **Dead-end error panels.** Session load errors were an alert with no way out. `CastleSessionStatus` adds "Back to the map", and the loading text is now a status region.
+
+Tests: `castleTale/`, the parity tests and the engine boundary, run through `test_gate.py`: 19 files, 284 passed. Six new tests were added; four of them fail when the fixes are removed. `npm run typecheck` is clean.
+
+**Django verification (first PostgreSQL run for the castle).**
+- Setup: a throwaway `postgres:16-alpine` container on `127.0.0.1:5461` with tmpfs storage, removed after the run. The `config.settings.test` settings refuse any host that is not loopback and create their own `test_lai` database. `.env` and the shared databases were not touched.
+- Scope: 38 castle-related test files plus `apps/regions/tests`, with `LAI_REQUIRE_POSTGRES=1`.
+- Result: **1277 passed, 2 failed, 0 skipped**. `makemigrations --check` reports no changes.
+
+The two failures are not castle code:
+- `test_puzzle_kinds::test_the_kind_migration_applies_and_rolls_back` (Firepeak) expected the `regions` leaf to be its own migration. The castle's renumbered 0008 and 0009 now sit on top of it. The integration branch already fixed this (`e5561b66`); the castle branch picks it up at its next integration merge.
+- `test_world_change_audit::test_every_child_write_route_has_been_audited` failed because the scoring app's `DELETE /scoring/` was not yet in `CHILD_WRITE_ROUTES`. The scoring lead (Agent 6) audited the route (`core/ge-scoring` @ `5977bed2`, `docs/scoring/TRUST_BOUNDARY.md` section 6): it is child-scoped, returns 404 for another family's child and 401 when anonymous, erases only that child's ledger and projection, and is idempotent. The gate files exist only on this branch, so I added the route and its `WORLD_CHANGE_INTEGRITY.md` row here. On a fresh isolated PostgreSQL run, `test_world_change_audit.py` and `scoring/tests/test_api.py` pass: 37 tests.
+
+To reproduce:
+
+```bash
+docker run -d --rm --name lai-storybook-testdb --tmpfs /var/lib/postgresql/data \
+  -e POSTGRES_DB=lai -e POSTGRES_USER=lai -e POSTGRES_PASSWORD=<throwaway> \
+  -p 127.0.0.1:5461:5432 postgres:16-alpine
+POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=5461 POSTGRES_USER=lai POSTGRES_DB=lai \
+  POSTGRES_PASSWORD=<throwaway> LAI_REQUIRE_POSTGRES=1 \
+  .venv/bin/python -m pytest -q $(grep -rlEi "castle|storykeeper|storybook" lai/apps --include='test*.py') lai/apps/regions/tests
+docker stop lai-storybook-testdb
+```
+
+**Parked work.** The uncommitted `sc-final-d` worktree, from 2026-11-18, holds the client surface for Quill's flavour line (an open owner decision on SC-R09-02) and live reduced-motion edits to shared engine files. It is preserved on `park/sc-final-d-20261118` @ `dec87388` and is not for integration. The integration lead has recorded it on GE-090.
+
+**Still owner-side:** browser and device acceptance (SC-R12-01, O-1 to O-19), the tablet profile and Sprouts playtest (SC-R11), Phaser retirement (SC-R10-03), the SC-JMP-06 tutorial placement, Orion confirmation and final models, the voice consent and audio files, the decision to keep or drop ranks, and running `backfill_castle_keepsakes --apply`.

@@ -1024,7 +1024,7 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       accepted. Commit `32afe8b6`. `useGreatStorybook` reports loading, offline (with retry) and local;
       `StorybookSection` shows page-state words, a celebration status region (animation only when motion is
       allowed), and empty and offline states. Not here: page-turn animation in the 3D book and sound cues
-      (SC-R06). The generic world-change POST can forge a page record (storybook_integrity_prep.md B, open).
+      (SC-R06). The generic world-change POST can forge a page record (storybook_integrity_prep.md B; closed by SC-SEC-01 below).
 - [x] **SC-R04-08** Versioned Storybook completion (section A of `docs/regions/prep/storybook_integrity_prep.md`).
       DONE (development), not owner accepted. Commits `bc7a79a3`, `88ee0c1a`, plus the verification commit
       that follows them. Each page has `since`; derived `state` IN_PROGRESS / RESTORED_MORE_PAGES / RESTORED
@@ -1093,6 +1093,14 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       `castleSaveContract.test.ts` (7, every persisted castle id). Browser and device acceptance stay owner
       (SC-R12-01). SC-JMP-04, 05 wait on the engine core (Agent 4); SC-JMP-07, 10 to 17 on owner briefs;
       SC-JMP-19 on LAI-0805.
+- [x] **SC-R12-AUDIT** Storykeeper Castle final development audit (2026-11-19, branch
+      `feature/storykeeper-castle-completion`). DONE (development), not owner accepted. SC-R05 to SC-R12
+      were re-audited against the source (`docs/regions/storykeeper_castle_engine_integration.md` section 10).
+      Fixed in `5946204f`: choices now light the room only after the server saves them; one answer in
+      flight at a time; error panels offer a way back. 6 new tests, mutation-checked. Django, on an
+      isolated PostgreSQL 16 run: 1277 passed, 2 failed (neither castle code), 0 skipped. The Firepeak
+      migration-leaf test is already fixed on integration (`e5561b66`). `DELETE /scoring/` was audited by
+      the scoring lead and added to `CHILD_WRITE_ROUTES` (re-run: 37 passed). Owner gates are unchanged.
 - [x] **GE-072** Storykeeper Castle on the Game Engine Core (2026-11-19, branch `feature/storykeeper-castle-completion`,
       owner-assigned). DONE (development) for the stage the bridge contract allows; not merged, not owner accepted.
       Merged `core/gameengine` at the baseline `fc5c71cf` (`09adcc15`) and `cbe43a8e` (`15fef5db`), no rebase.
