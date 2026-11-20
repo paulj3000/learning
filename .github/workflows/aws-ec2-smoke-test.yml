@@ -1,82 +1,122 @@
+          set -euo pipefail
+          test -n "$AWS_REGION" || { echo 'Missing AWS_REGION variable'; exit 1; }
+          test -n "$INSTANCE_ID" || { echo 'Missing LAI_CI_INSTANCE_ID variable'; exit 1; }
+          test -n "$ROLE_ARN" || { echo 'Missing LAI_CI_ROLE_ARN variable'; exit 1; }
+          echo "Region: $AWS_REGION"
+          echo "EC2 instance: $INSTANCE_ID"
 
-name: AWS EC2 Smoke Test
+      # Diagnostic output excludes the OIDC JWT and its signature.
+      - name: Show GitHub OIDC identity claims
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
 
-on:
-  workflow_dispatch:
+          url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']
+          separator = '&' if '?' in url else '?'
+          url += separator + urllib.parse.urlencode({'audience': 'sts.amazonaws.com'})
+          request = urllib.request.Request(
+              url,
+              headers={'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']},
+          )
+          with urllib.request.urlopen(request, timeout=15) as response:
+              token = json.load(response)['value']
+          payload = token.split('.')[1]
+          payload += '=' * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+          for key in ('sub', 'aud', 'repository', 'repository_owner',
+                      'repository_owner_id', 'repository_id'):
+              print(f'{key}: {claims.get(key)}')
+          PY
 
-permissions:
-  id-token: write
-  contents: read
-
-jobs:
-  ec2-test:
-    runs-on: ubuntu-24.04
-    environment: lai-ci
-    timeout-minutes: 30
-
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      INSTANCE_ID: ${{ vars.LAI_CI_INSTANCE_ID }}
-
-    steps:
       - name: Configure AWS credentials
+        id: aws-auth
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ vars.LAI_CI_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+          audience: sts.amazonaws.com
+          retry-max-attempts: 3
+
+      - name: Verify AWS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity
 
       - name: Start EC2
         id: start
+        shell: bash
         run: |
-          aws ec2 start-instances \
-            --instance-ids "$INSTANCE_ID"
-
-          aws ec2 wait instance-running \
-            --instance-ids "$INSTANCE_ID"
+          set -euo pipefail
+          aws ec2 start-instances --instance-ids "$INSTANCE_ID"
+          aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
 
       - name: Wait for SSM
+        shell: bash
         run: |
+          set -euo pipefail
           for i in $(seq 1 60); do
-            STATUS=$(aws ssm describe-instance-information \
+            status=$(aws ssm describe-instance-information \
               --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
               --query 'InstanceInformationList[0].PingStatus' \
               --output text)
-
-            if [ "$STATUS" = "Online" ]; then
-              echo "SSM ready"
+            if [[ "$status" == "Online" ]]; then
+              echo 'SSM is online'
               exit 0
             fi
-
+            echo "Waiting for SSM ($i/60): $status"
             sleep 10
           done
-
+          echo 'SSM did not become online' >&2
           exit 1
 
-      - name: Execute command
+      - name: Execute EC2 smoke test
+        shell: bash
         run: |
-          COMMAND_ID=$(aws ssm send-command \
+          set -euo pipefail
+          command_id=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript \
-            --parameters 'commands=["uname -a","python3 --version"]' \
+            --parameters 'commands=["set -eu","uname -a","python3 --version"]' \
             --query 'Command.CommandId' \
             --output text)
-
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID"
-
+          echo "SSM command: $command_id"
+          status=Pending
+          for i in $(seq 1 120); do
+            status=$(aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "$INSTANCE_ID" \
+              --query Status --output text 2>/dev/null || true)
+            case "$status" in
+              Success|Failed|Cancelled|TimedOut|Cancelling|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
+                break ;;
+            esac
+            sleep 5
+          done
           aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
+            --command-id "$command_id" \
             --instance-id "$INSTANCE_ID" \
-            --query 'StandardOutputContent' \
-            --output text
+            --query StandardOutputContent --output text || true
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID" \
+            --query StandardErrorContent --output text || true
+          if [[ "$status" != "Success" ]]; then
+            echo "SSM command failed or timed out: $status" >&2
+            exit 1
+          fi
 
       - name: Stop EC2
-        if: always()
+        if: ${{ always() && steps.aws-auth.outcome == 'success' }}
+        shell: bash
         run: |
-          aws ec2 stop-instances \
-            --instance-ids "$INSTANCE_ID"
-
-          aws ec2 wait instance-stopped \
-            --instance-ids "$INSTANCE_ID"
-
+          set -euo pipefail
+          echo "Stopping CI instance: $INSTANCE_ID"
+          aws ec2 stop-instances --instance-ids "$INSTANCE_ID"
+          aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
+          echo 'EC2 stopped'
