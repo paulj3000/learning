@@ -189,6 +189,12 @@ PostgreSQL 16 service container; `make py-lint`, `py-format-check`, `django-chec
 unreachable, so a broken service cannot make the Python job pass silently. Test counts are
 baselines, not asserted by CI.
 
+`aws-integration-tests.yml` (manual dispatch, OIDC, the shared CI EC2 instance over SSM) runs the
+unit suites for one exact commit of an integration branch, `affected` or `full-unit`, and returns
+a fail-closed verdict the integration agent gates on (`scripts/ci/aws_ci.py`). No Playwright,
+lint, format or build runs there. See
+[docs/infrastructure/aws-ec2-unit-tests.md](infrastructure/aws-ec2-unit-tests.md).
+
 ## Django API conventions tests (LAI-0205)
 
 `lai/apps/core/tests/test_api_conventions.py` drives real HTTP through the Django test client, using

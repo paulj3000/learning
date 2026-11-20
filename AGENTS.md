@@ -98,6 +98,9 @@ cadence in [docs/TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md):
 - Do not run Playwright, browser automation, end-to-end or acceptance suites, live AWS checks,
   deployment tests or the full lint and format gates unless explicitly authorized.
 - Report infrastructure failures separately from test failures.
+- Integration agent: validate integration branches with the EC2 unit-test gate,
+  `python3 scripts/ci/aws_ci.py run` ([aws-ec2-unit-tests.md](docs/infrastructure/aws-ec2-unit-tests.md));
+  only a MERGE-OK decision for the branch's current head counts.
 
 ## 7. Communication, blockers and handoffs
 

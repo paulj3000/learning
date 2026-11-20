@@ -38,6 +38,11 @@ or weaken them to save time):
 Tests that need PostgreSQL skip when it is unreachable; start it with `make up`. A skip is not a
 pass: report it.
 
+Integration branches may run the same unit tests on the shared CI EC2 instance instead of the
+development machine: `python3 scripts/ci/aws_ci.py run` tests one exact pushed commit, on
+PostgreSQL 16, and fails closed ([aws-ec2-unit-tests.md](../infrastructure/aws-ec2-unit-tests.md)).
+It runs unit tests only; nothing in section 2 runs there.
+
 ## 2. Not run during development
 
 Unless the owner explicitly authorizes it for this task, or the task is an approved acceptance
