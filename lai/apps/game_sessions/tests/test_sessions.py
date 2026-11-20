@@ -267,6 +267,9 @@ class TestChildIsolation:
             # data. The award ledger and progression projections are child progress and are
             # deliberately not registered (corrections: `manage.py scoring_correct`).
             "scoring",
+            # Seasonal event content only (NP-023): no child data. SeasonalCompletion is child
+            # owned and deliberately not registered.
+            "seasons",
             "speech",  # voice profiles and speech lines: staff content, no child data (ADR-049)
             "users",
         }
