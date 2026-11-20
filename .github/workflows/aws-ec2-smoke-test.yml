@@ -7,15 +7,15 @@ permissions:
   id-token: write
   contents: read
 
-# Prevent concurrent runs of this workflow in this repository.
-# Multi-repository access to the same EC2 instance requires an AWS-side lock.
+# Prevent overlapping runs of this workflow in this repository.
+# Cross-repository coordination requires an additional shared lock.
 concurrency:
-  group: lai-ec2-ci
+  group: lai-ec2-smoke-test
   cancel-in-progress: false
 
 jobs:
   ec2-test:
-    name: Verify AWS OIDC and run EC2 smoke test
+    name: EC2 SSM Smoke Test
     runs-on: ubuntu-24.04
     environment: lai-ci
     timeout-minutes: 30
@@ -25,72 +25,118 @@ jobs:
       INSTANCE_ID: ${{ vars.LAI_CI_INSTANCE_ID }}
 
     steps:
-      - name: Validate configuration
-        shell: bash
-        env:
-          ROLE_ARN: ${{ vars.LAI_CI_ROLE_ARN }}
-        run: |
-          set -euo pipefail
-          test -n "$AWS_REGION" || { echo 'Missing AWS_REGION variable'; exit 1; }
-          test -n "$INSTANCE_ID" || { echo 'Missing LAI_CI_INSTANCE_ID variable'; exit 1; }
-          test -n "$ROLE_ARN" || { echo 'Missing LAI_CI_ROLE_ARN variable'; exit 1; }
-          echo "Region: $AWS_REGION"
-          echo "EC2 instance: $INSTANCE_ID"
-
-      # Diagnostic output excludes the OIDC JWT and its signature.
-      - name: Show GitHub OIDC identity claims
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import base64
-          import json
-          import os
-          import urllib.parse
-          import urllib.request
-
-          url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']
-          separator = '&' if '?' in url else '?'
-          url += separator + urllib.parse.urlencode({'audience': 'sts.amazonaws.com'})
-          request = urllib.request.Request(
-              url,
-              headers={'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']},
-          )
-          with urllib.request.urlopen(request, timeout=15) as response:
-              token = json.load(response)['value']
-          payload = token.split('.')[1]
-          payload += '=' * (-len(payload) % 4)
-          claims = json.loads(base64.urlsafe_b64decode(payload))
-          for key in ('sub', 'aud', 'repository', 'repository_owner',
-                      'repository_owner_id', 'repository_id'):
-              print(f'{key}: {claims.get(key)}')
-          PY
-
       - name: Configure AWS credentials
         id: aws-auth
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ vars.LAI_CI_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
-          audience: sts.amazonaws.com
           retry-max-attempts: 3
 
-      - name: Verify AWS identity
+      - name: Verify AWS identity and configuration
         shell: bash
         run: |
           set -euo pipefail
+          : "${INSTANCE_ID:?LAI_CI_INSTANCE_ID must be set}"
+          : "${AWS_REGION:?AWS_REGION must be set}"
           aws sts get-caller-identity
+          aws ec2 describe-instances \
+            --instance-ids "$INSTANCE_ID" \
+            --query 'Reservations[].Instances[].[InstanceId,State.Name]' \
+            --output table
 
-      - name: Start EC2
+      - name: Start EC2 if stopped
         id: start
         shell: bash
         run: |
           set -euo pipefail
+          state="$(aws ec2 describe-instances \
+            --instance-ids "$INSTANCE_ID" \
+            --query 'Reservations[0].Instances[0].State.Name' \
+            --output text)"
+          echo "Initial EC2 state: $state"
+
+          # Never stop an instance that was already running when this job began.
+          if [ "$state" != "stopped" ]; then
+            echo "Expected a stopped, dedicated CI instance; got: $state" >&2
+            exit 1
+          fi
+
           aws ec2 start-instances --instance-ids "$INSTANCE_ID"
+          echo 'started_by_job=true' >> "$GITHUB_OUTPUT"
           aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+          echo 'EC2 is running'
 
       - name: Wait for SSM
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 60); do
-            status=$(aws ssm describe-instance-information \
+          echo "Waiting for SSM on $INSTANCE_ID"
+
+          for attempt in $(seq 1 60); do
+            status="$(aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --query 'InstanceInformationList[0].PingStatus' \
+              --output text)"
+            echo "Attempt ${attempt}/60: SSM status = $status"
+
+            if [ "$status" = "Online" ]; then
+              echo 'SSM is online'
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo 'SSM did not become online' >&2
+          exit 1
+
+      - name: Execute Ubuntu smoke test using SSM
+        shell: bash
+        run: |
+          set -euo pipefail
+          command_id="$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment 'GitHub Actions EC2 smoke test' \
+            --parameters '{"commands":["set -eu","uname -a","python3 --version"]}' \
+            --query 'Command.CommandId' \
+            --output text)"
+          echo "SSM command ID: $command_id"
+
+          # The waiter can fail when the remote command fails. Always collect logs.
+          aws ssm wait command-executed \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID" || true
+
+          echo '--- Standard output ---'
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID" \
+            --query 'StandardOutputContent' \
+            --output text || true
+
+          echo '--- Standard error ---'
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID" \
+            --query 'StandardErrorContent' \
+            --output text || true
+
+          status="$(aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$INSTANCE_ID" \
+            --query 'Status' \
+            --output text)"
+          echo "SSM command status: $status"
+          test "$status" = 'Success'
+
+      - name: Stop EC2 if started by this workflow
+        if: always() && steps.aws-auth.outcome == 'success' && steps.start.outputs.started_by_job == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Stopping $INSTANCE_ID"
+          aws ec2 stop-instances --instance-ids "$INSTANCE_ID"
+          aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
+          echo 'EC2 stopped'
+
