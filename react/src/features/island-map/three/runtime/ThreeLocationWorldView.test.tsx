@@ -25,6 +25,9 @@ const engine = vi.hoisted(() => ({
   deps: null as { assets?: unknown } | null,
   dispose: vi.fn(),
   interact: vi.fn(),
+  /** LAI-JMP-01a: the perspective the fake engine is in. */
+  mode: 'third-person' as 'first-person' | 'third-person',
+  setSprintMode: vi.fn(),
 }));
 
 vi.mock('./createLocationEngine', () => ({
@@ -34,13 +37,29 @@ vi.mock('./createLocationEngine', () => ({
       _parent: HTMLElement,
       bus: WorldEngineEventBus,
       _manifest: ThreeLocationManifest,
-      options: { startCheckpointId?: string },
+      options: {
+        startCheckpointId?: string;
+        onCameraModeChange?: (mode: 'first-person' | 'third-person') => void;
+      },
       deps: { assets?: unknown },
     ) => {
       engine.bus = bus;
       engine.options = options;
       engine.deps = deps;
-      return { dispose: engine.dispose, interact: engine.interact, ready: Promise.resolve() };
+      return {
+        dispose: engine.dispose,
+        interact: engine.interact,
+        ready: Promise.resolve(),
+        cameraMode: () => engine.mode,
+        camera: { allowModeSwitch: true },
+        locomotion: { sprintEnabled: true },
+        setSprintMode: engine.setSprintMode,
+        setCameraMode: (mode: 'first-person' | 'third-person') => {
+          engine.mode = mode;
+          options.onCameraModeChange?.(mode);
+          return true;
+        },
+      };
     },
   ),
 }));
@@ -487,5 +506,159 @@ describe('ThreeLocationWorldView', () => {
       bus?.emit('PlayerEnteredZone', { zoneId: 'welcome-harbor:dock' });
     });
     expect(saveCheckpoint).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThreeLocationWorldView camera view (LAI-JMP-01a)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    engine.mode = 'third-person';
+    engine.options = null;
+    getWorldStateMock.mockResolvedValue({
+      discoveredIds: [],
+      metCharacterIds: [],
+      lastCheckpointId: undefined,
+    });
+    listAllWorldChangesMock.mockResolvedValue([]);
+    vi.mocked(getInventory).mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    vi.mocked(listQuestStates).mockResolvedValue([]);
+    vi.mocked(getCompanionProfile).mockResolvedValue(null);
+  });
+
+  it('starts the scene in the child’s saved view', async () => {
+    window.localStorage.setItem('lai:camera-mode:child-1', 'first-person');
+    renderView();
+    await waitFor(() =>
+      expect((engine.options as { cameraMode?: string } | null)?.cameraMode).toBe('first-person'),
+    );
+  });
+
+  it('offers a Camera view setting, and remembers a change for next time', async () => {
+    renderView();
+    const eyes = await screen.findByRole('radio', { name: 'Through my eyes' });
+    expect(screen.getByRole('radio', { name: 'Behind my explorer' })).toBeChecked();
+    await userEvent.click(eyes);
+    await waitFor(() => expect(eyes).toBeChecked());
+    expect(window.localStorage.getItem('lai:camera-mode:child-1')).toBe('first-person');
+    window.localStorage.clear();
+  });
+});
+
+describe('ThreeLocationWorldView sprint setting (running & sprinting)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    engine.options = null;
+    getWorldStateMock.mockResolvedValue({
+      discoveredIds: [],
+      metCharacterIds: [],
+      lastCheckpointId: undefined,
+    });
+    listAllWorldChangesMock.mockResolvedValue([]);
+    vi.mocked(getInventory).mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    vi.mocked(listQuestStates).mockResolvedValue([]);
+    vi.mocked(getCompanionProfile).mockResolvedValue(null);
+  });
+
+  it('starts the scene with the child’s saved sprint mode', async () => {
+    window.localStorage.setItem('lai:sprint-mode:child-1', 'toggle');
+    renderView();
+    await waitFor(() =>
+      expect((engine.options as { sprintMode?: string } | null)?.sprintMode).toBe('toggle'),
+    );
+  });
+
+  it('offers hold or tap Shift, applies a change at once and remembers it', async () => {
+    renderView();
+    const tap = await screen.findByRole('radio', { name: 'Tap Shift to switch' });
+    expect(screen.getByRole('radio', { name: 'Hold Shift' })).toBeChecked();
+    await userEvent.click(tap);
+    expect(tap).toBeChecked();
+    expect(engine.setSprintMode).toHaveBeenCalledWith('toggle');
+    expect(window.localStorage.getItem('lai:sprint-mode:child-1')).toBe('toggle');
+    window.localStorage.clear();
+  });
+});
+
+/**
+ * `entryRequirements` (SC-R10-01, documented in `docs/engine/03_GENERIC_3D_WORLD_RUNTIME.md`,
+ * "Entry requirements"): optional, a list read as an AND, evaluated against the same world snapshot
+ * as everything else, and closed whenever the snapshot could not be read. Absent means open.
+ */
+describe('entryRequirements', () => {
+  const GATED_BY = (...requirements: NonNullable<ThreeLocationManifest['entryRequirements']>) =>
+    ({
+      ...TEST_COVE,
+      regionId: 'gated-cove',
+      entryRequirements: requirements,
+      copy: { ...TEST_COVE.copy, locked: 'Not discovered yet.' },
+    }) satisfies ThreeLocationManifest;
+
+  const renderGated = (manifest: ThreeLocationManifest) =>
+    renderView(manifest.regionId, repositoryOf(manifest));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    engine.bus = null;
+    getWorldStateMock.mockResolvedValue({ discoveredIds: [], metCharacterIds: [] });
+    listAllWorldChangesMock.mockResolvedValue([]);
+    vi.mocked(getInventory).mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
+    vi.mocked(listQuestStates).mockResolvedValue([]);
+    vi.mocked(getCompanionProfile).mockResolvedValue(null);
+  });
+
+  it('is open when the manifest has none (absent means open, every existing region)', async () => {
+    renderView('test-cove', repositoryOf(TEST_COVE));
+    expect(await screen.findByText('Explore the cove.')).toBeInTheDocument();
+    expect(screen.queryByText('Not discovered yet.')).not.toBeInTheDocument();
+  });
+
+  it('shows the authored locked copy and builds no engine while a requirement is unmet', async () => {
+    renderGated(GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }));
+    expect(await screen.findByText('Not discovered yet.')).toBeInTheDocument();
+    expect(engine.bus).toBeNull();
+    expect(screen.getByRole('link', { name: 'Back to the map' })).toHaveAttribute('href', '/island/child-1');
+  });
+
+  it('opens once the requirement holds', async () => {
+    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'A_KEY' }] as never);
+    renderGated(GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }));
+    expect(await screen.findByText('Explore the cove.')).toBeInTheDocument();
+  });
+
+  it('is an AND: every requirement must hold, not just one', async () => {
+    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'A_KEY' }] as never);
+    renderGated(
+      GATED_BY(
+        { type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' },
+        { type: 'WORLD_CHANGE_PRESENT', changeKey: 'B_KEY' },
+      ),
+    );
+    expect(await screen.findByText('Not discovered yet.')).toBeInTheDocument();
+    cleanup();
+    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'A_KEY' }, { changeKey: 'B_KEY' }] as never);
+    renderGated(
+      GATED_BY(
+        { type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' },
+        { type: 'WORLD_CHANGE_PRESENT', changeKey: 'B_KEY' },
+      ),
+    );
+    expect(await screen.findByText('Explore the cove.')).toBeInTheDocument();
+  });
+
+  it('fails closed: a failed progress read has no keys, so a gated place stays shut', async () => {
+    listAllWorldChangesMock.mockRejectedValue(new Error('offline'));
+    renderGated(GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }));
+    expect(await screen.findByText('Not discovered yet.')).toBeInTheDocument();
+    expect(engine.bus).toBeNull();
+  });
+
+  it('falls back to a calm default when a gated manifest authors no locked copy', async () => {
+    renderGated({
+      ...GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }),
+      copy: TEST_COVE.copy,
+    });
+    expect(await screen.findByText(/has not been discovered yet/i)).toBeInTheDocument();
   });
 });

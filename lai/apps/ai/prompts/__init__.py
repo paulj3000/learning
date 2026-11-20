@@ -11,6 +11,7 @@ Call-specific context never goes into these strings; it is a separate, typed use
 
 from dataclasses import dataclass
 
+from .castle import CASTLE_DIRECTOR_PROMPT_VERSION, CASTLE_DIRECTOR_SYSTEM_PROMPT
 from .companion import CHATTY_PERSONA_VERSION, CHATTY_SYSTEM_PROMPT
 from .npc import NPC_HINT_PROMPT_VERSION, NPC_HINT_SYSTEM_PROMPT
 from .tutor import TUTOR_PERSONA_VERSION, TUTOR_SYSTEM_PROMPT
@@ -37,6 +38,12 @@ TUTOR_PERSONA = Persona(
 NPC_HINT_PERSONA = Persona(
     "npc-hint", NPC_HINT_PROMPT_VERSION, NPC_HINT_SYSTEM_PROMPT, "lai/apps/ai/prompts/npc.py"
 )
+CASTLE_DIRECTOR_PERSONA = Persona(
+    "castle-director",
+    CASTLE_DIRECTOR_PROMPT_VERSION,
+    CASTLE_DIRECTOR_SYSTEM_PROMPT,
+    "lai/apps/ai/prompts/castle.py",
+)
 PERSONAS = {
-    persona.key: persona for persona in (COMPANION_PERSONA, TUTOR_PERSONA, NPC_HINT_PERSONA)
+    persona.key: persona for persona in (COMPANION_PERSONA, TUTOR_PERSONA, NPC_HINT_PERSONA, CASTLE_DIRECTOR_PERSONA)
 }

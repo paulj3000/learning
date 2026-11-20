@@ -72,17 +72,14 @@
     },
     {
       "decoration": "Shelves of empty books wait for their first stories.",
-      "description": "A small round room behind the last bookshelf: a desk, a window, and shelves of empty books, left ready for whoever solved the door.",
+      "description": "A small round room in the castle: a desk, a window, and shelves of empty books, ready for anyone who would like to write a story.",
       "skills": [
         "Curiosity",
         "Creative writing"
       ],
       "slug": "castle-writing-room",
-      "tagline": "A secret spot, discovered by solving the castle mystery.",
+      "tagline": "A quiet room in the castle, with empty books waiting for your stories.",
       "title": "The Writing Room",
-      "unlockRequirement": {
-        "changeKey": "THE_CASTLES_SECRET_DOOR_COMPLETE"
-      },
       "worldSlug": "learning-adventure-island"
     },
     {
@@ -155,6 +152,45 @@
       "tagline": "Explore a waking volcano with Professor Ember.",
       "title": "Firepeak Volcano",
       "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "Warm light flickers inside the mountain. Flint waits at Explorer’s Landing with a map.",
+      "description": "The Heart of Firepeak is a crystal of island magic that keeps the mountain calm, and it has gone dim. Cross seven places with Flint and Kindle, solve number, pattern and logic puzzles, learn real volcano science from Professor Basalt, and light the Heart again.",
+      "skills": [
+        "Earth science",
+        "Number sense",
+        "Patterns and sequences",
+        "Shapes",
+        "Logic and problem solving"
+      ],
+      "slug": "firepeak-heart",
+      "subjectAreas": [
+        "SCIENCE",
+        "MATH"
+      ],
+      "tagline": "Bring the glow back to the heart of the mountain.",
+      "title": "Heart of Firepeak",
+      "worldSlug": "learning-adventure-island"
+    },
+    {
+      "decoration": "Snow drifts down over the village. Jingle waves from Santa’s Landing.",
+      "description": "A snowy village with a toy workshop, a candy cane forest, a frozen lake, reindeer stables, a gingerbread village, a mountain, and a star observatory.",
+      "skills": [
+        "Counting",
+        "Patterns",
+        "Reading",
+        "Shapes",
+        "Winter science"
+      ],
+      "slug": "north-pole-village",
+      "subjectAreas": [
+        "MATH",
+        "SCIENCE",
+        "READING"
+      ],
+      "tagline": "Find the pieces of the Christmas Star.",
+      "title": "North Pole Village",
+      "worldSlug": "north-pole"
     }
   ],
   "schemaVersion": 3

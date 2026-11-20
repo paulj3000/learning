@@ -19,12 +19,40 @@ export interface RenderQualityPreset {
   pixelRatioCap: number;
   /** Motes per effect, after the manifest's own count. 0 means no motes. */
   maxMotesPerEffect: number;
+  /**
+   * The share of purely decorative vegetation drawn (ENV-2): 1 draws all of it, 0.5 every other
+   * placement of each model. Never applies to anything solid or interactive.
+   */
+  decorDensity: number;
+  /** Falling particles at full density (`atmosphere.precipitation`). 0 means none. */
+  maxPrecipitation: number;
 }
 
 export const RENDER_QUALITY_PRESETS: Readonly<Record<RenderQuality, RenderQualityPreset>> = {
-  LOW: { textureSize: 64, maxPlacedLights: 8, pixelRatioCap: 1, maxMotesPerEffect: 0 },
-  MEDIUM: { textureSize: 128, maxPlacedLights: 14, pixelRatioCap: 1.5, maxMotesPerEffect: 40 },
-  HIGH: { textureSize: 256, maxPlacedLights: 20, pixelRatioCap: 2, maxMotesPerEffect: 80 },
+  LOW: {
+    textureSize: 64,
+    maxPlacedLights: 8,
+    pixelRatioCap: 1,
+    maxMotesPerEffect: 0,
+    decorDensity: 0.5,
+    maxPrecipitation: 0,
+  },
+  MEDIUM: {
+    textureSize: 128,
+    maxPlacedLights: 14,
+    pixelRatioCap: 1.5,
+    maxMotesPerEffect: 40,
+    decorDensity: 1,
+    maxPrecipitation: 600,
+  },
+  HIGH: {
+    textureSize: 256,
+    maxPlacedLights: 20,
+    pixelRatioCap: 2,
+    maxMotesPerEffect: 80,
+    decorDensity: 1,
+    maxPrecipitation: 1200,
+  },
 };
 
 /** The tablet default. HIGH is never chosen automatically. */

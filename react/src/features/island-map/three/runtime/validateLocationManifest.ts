@@ -2,9 +2,11 @@ import type { WorldAction, WorldInteraction, WorldRequirement } from '../../worl
 import {
   LOCATION_MANIFEST_SCHEMA_VERSION,
   SURFACE_PATTERNS,
+  type ColliderSpec,
   type CollectibleSpec,
   type ExtensionBinding,
   type GroundPoint,
+  type LightingSpec,
   type PlaceholderSize,
   type RectZone,
   type ThreeLocationManifest,
@@ -14,6 +16,9 @@ import {
   type AdventureBindingIssueKind,
   type BindableStep,
 } from './adventureStepBindings';
+import { validateMovementSpec } from '../jumpConfiguration';
+import { validatePlatforming } from '../platforms/platformSpec';
+import { validatePlayerPresentation } from '../playerPresentation';
 
 /**
  * Pure validation for `ThreeLocationManifest`
@@ -188,6 +193,7 @@ export function validateLocationManifest(
   requirePositive(manifest.bounds.halfExtentX, 'bounds.halfExtentX', report);
   requirePositive(manifest.bounds.halfExtentZ, 'bounds.halfExtentZ', report);
   requirePositive(manifest.bounds.wallThickness, 'bounds.wallThickness', report);
+  if (manifest.wallHeight !== undefined) requirePositive(manifest.wallHeight, 'wallHeight', report);
   const inBounds = (point: GroundPoint) =>
     Math.abs(point.x) <= manifest.bounds.halfExtentX &&
     Math.abs(point.z) <= manifest.bounds.halfExtentZ;
@@ -301,7 +307,39 @@ export function validateLocationManifest(
   manifest.colliders.forEach((collider, index) => {
     checkRect(collider.rect, `colliders[${index}].rect`);
     checkRequirements(collider.requirements, `colliders[${index}].requirements`);
+    checkJumpableCollider(collider, `colliders[${index}]`, report);
   });
+
+  // LAI-JMP-01: movement tuning, when a region authors any.
+  for (const issue of validateMovementSpec(manifest.movement)) {
+    report('INVALID_VALUE', issue.path, issue.message);
+  }
+
+  // LAI-JMP-02 / LAI-JMP-04: platforms, plates, course checkpoints, hazards and goals.
+  const platformingContext = {
+    propIds: new Set(manifest.props.map((prop) => prop.entityId)),
+    zoneIds: new Set(manifest.zones.map((zone) => zone.rect.id)),
+    bounds: manifest.bounds,
+    solids: manifest.colliders.filter((collider) => !collider.jumpable).map((collider) => collider.rect),
+  };
+  for (const issue of validatePlatforming(manifest.platforming, platformingContext)) {
+    report('INVALID_VALUE', issue.path, issue.message);
+  }
+  // SC-JMP: each age band's own variant is held to the same rules as the default.
+  for (const [band, variant] of Object.entries(manifest.platformingByBand ?? {})) {
+    for (const issue of validatePlatforming(variant, platformingContext)) {
+      report('INVALID_VALUE', issue.path.replace(/^platforming/, `platformingByBand.${band}`), issue.message);
+    }
+  }
+
+  // LAI-JMP-01a: camera and avatar settings, and that an avatar costume is a real asset.
+  for (const issue of validatePlayerPresentation(manifest.player)) {
+    report('INVALID_VALUE', issue.path, issue.message);
+  }
+  const avatarAsset = manifest.player?.avatar?.assetKey;
+  if (typeof avatarAsset === 'string' && avatarAsset.trim() !== '') {
+    checkAsset(avatarAsset, 'player.avatar.assetKey');
+  }
 
   manifest.buildings.forEach((building, index) => {
     const path = `buildings[${index}]`;
@@ -506,6 +544,49 @@ export function validateLocationManifest(
     checkRequirements(effect.requirements, `${path}.requirements`);
   });
 
+  const lightingPaths: [string, LightingSpec | undefined][] = [
+    ['environment.lighting', manifest.environment.lighting],
+    ...(manifest.environment.variants ?? []).map(
+      (variant, index): [string, LightingSpec | undefined] => [
+        `environment.variants[${index}].lighting`,
+        variant.lighting,
+      ],
+    ),
+  ];
+  for (const [path, lighting] of lightingPaths) {
+    if (!lighting) continue;
+    if (lighting.ambientColor !== undefined)
+      checkColor(lighting.ambientColor, `${path}.ambientColor`);
+    if (lighting.sunColor !== undefined) checkColor(lighting.sunColor, `${path}.sunColor`);
+  }
+
+  const atmosphere = manifest.atmosphere;
+  if (atmosphere?.fog) {
+    const { color, near, far } = atmosphere.fog;
+    checkColor(color, 'atmosphere.fog.color');
+    if (!(Number.isFinite(near) && Number.isFinite(far) && near > 0 && near < far && far <= 1000)) {
+      report('INVALID_VALUE', 'atmosphere.fog', 'must satisfy 0 < near < far <= 1000');
+    }
+  }
+  if (atmosphere?.precipitation) {
+    const { kind, density } = atmosphere.precipitation;
+    if (kind !== 'SNOW') report('INVALID_VALUE', 'atmosphere.precipitation.kind', 'must be SNOW');
+    if (!(Number.isFinite(density) && density >= 0 && density <= 1)) {
+      report('INVALID_VALUE', 'atmosphere.precipitation.density', 'must be between 0 and 1');
+    }
+  }
+  if ((atmosphere?.skyRibbons?.length ?? 0) > 4) {
+    report('INVALID_VALUE', 'atmosphere.skyRibbons', 'at most four ribbons');
+  }
+  atmosphere?.skyRibbons?.forEach((ribbon, index) => {
+    const path = `atmosphere.skyRibbons[${index}]`;
+    claimSceneId(ribbon.id, `${path}.id`);
+    checkColor(ribbon.colors[0], `${path}.colors[0]`);
+    checkColor(ribbon.colors[1], `${path}.colors[1]`);
+    requirePositive(ribbon.width, `${path}.width`, report);
+    requirePositive(ribbon.height, `${path}.height`, report);
+  });
+
   manifest.ambient.forEach((ambient, index) => {
     const path = `ambient[${index}]`;
     claimSceneId(ambient.id, `${path}.id`);
@@ -524,6 +605,7 @@ export function validateLocationManifest(
     ...manifest.buildings.map((building) => building.interiorZone.id),
   ]);
   const seenInteractionIds = new Set<string>();
+  checkRequirements(manifest.entryRequirements, 'entryRequirements');
   manifest.interactions.forEach((interaction, index) => {
     const path = `interactions[${index}]`;
     if (seenInteractionIds.has(interaction.id)) {
@@ -752,6 +834,36 @@ function checkRequirement(
 function requirePositive(value: number, path: string, report: Report): void {
   if (!(Number.isFinite(value) && value > 0)) {
     report('INVALID_VALUE', path, `must be a positive number, got ${String(value)}`);
+  }
+}
+
+/**
+ * LAI-JMP-01: a jumpable collider is a low obstacle with a real height. One
+ * that gates progress (it has `requirements`) must stay solid, or a jump
+ * would skip the quest that opens it.
+ */
+function checkJumpableCollider(collider: ColliderSpec, path: string, report: Report): void {
+  if (collider.jumpable === undefined) return;
+  if (typeof collider.jumpable !== 'boolean') {
+    report('INVALID_VALUE', `${path}.jumpable`, 'must be true or false');
+    return;
+  }
+  if (!collider.jumpable) return;
+  if (collider.requirements !== undefined && collider.requirements.length > 0) {
+    report(
+      'INVALID_VALUE',
+      `${path}.jumpable`,
+      'a collider with requirements is a progression gate and cannot be jumpable',
+    );
+  }
+  if (collider.minY === undefined || collider.maxY === undefined) {
+    report('INVALID_VALUE', `${path}.jumpable`, 'a jumpable collider must author minY and maxY');
+    return;
+  }
+  if (!(Number.isFinite(collider.minY) && Number.isFinite(collider.maxY))) {
+    report('INVALID_VALUE', path, 'minY and maxY must be numbers of meters');
+  } else if (!(collider.minY < collider.maxY)) {
+    report('INVALID_VALUE', path, 'minY must be below maxY');
   }
 }
 

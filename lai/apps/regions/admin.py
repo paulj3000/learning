@@ -18,13 +18,13 @@ from django import forms
 from django.contrib import admin, messages
 from django.utils.html import format_html_join
 
-from apps.catalog import admin_access
+from apps.catalog import admin_access, authoring
 from apps.catalog.authoring_admin import AuthoredContentAdminMixin
 from apps.catalog.models import Adventure
 from apps.core.content_status import ContentStatus
 
 from .activity import encounter_activity
-from .models import AdventureLaunchPoint, AreaPuzzle, WorldRegion
+from .models import AdventureLaunchPoint, AreaPuzzle, CastleEvent, WorldRegion
 from .publishing import area_problems, launch_point_problems
 
 
@@ -347,3 +347,110 @@ class AreaPuzzleAdmin(AuthoredContentAdminMixin, admin.ModelAdmin):
     def retire_puzzles(self, request, queryset):
         count = queryset.exclude(status=ContentStatus.RETIRED).update(status=ContentStatus.RETIRED)
         self.message_user(request, f"{count} puzzle(s) retired.", messages.SUCCESS)
+
+
+@admin.register(CastleEvent)
+class CastleEventAdmin(AuthoredContentAdminMixin, admin.ModelAdmin):
+    """The Castle Director's approved ambient events (ADR-065, ADR-047).
+
+    The Director only ever chooses among the lines approved here; it never writes one. Content
+    (room, age bands, conditions, repetition, authored lines per band) changes only through
+    versions: "Edit content" starts a draft, a draft is submitted, reviewed and published, and a
+    published version is never edited (the next one supersedes it). Who and when is recorded on
+    every version and in the admin log. Retiring is a separate action: a retired event is never
+    eligible. Access follows the catalog admin and the content permissions (editors start
+    drafts, publishers publish and retire); a non-staff account sees nothing.
+    """
+
+    list_display = ("event_id", "room", "published_version", "active", "authority", "updated_at")
+    list_filter = ("active", "room", "authority")
+    search_fields = ("event_id",)
+    actions = ["retire_events", "restore_events"]
+    readonly_fields = (
+        "room",
+        "active",
+        "published_text",
+        "authority",
+        "updated_at",
+    )
+
+    def get_fields(self, request, obj=None):
+        if obj is None:
+            return ["event_id"]
+        return super().get_fields(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = super().get_readonly_fields(request, obj)
+        return (*fields, "event_id") if obj is not None else fields
+
+    def has_module_permission(self, request):
+        return admin_access.can_view(request)
+
+    def has_view_permission(self, request, obj=None):
+        return admin_access.can_view(request)
+
+    def has_add_permission(self, request):
+        return admin_access.can_view(request) and request.user.has_perm(authoring.EDIT_PERMISSION)
+
+    def has_change_permission(self, request, obj=None):
+        return admin_access.can_view(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # nothing is deleted (ADR-047-Q3); retire instead
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            # A new event starts with no published content: nobody sees it until a person writes,
+            # reviews and publishes its first version.
+            obj.source = {
+                "id": obj.event_id,
+                "room": "ANY",
+                "bands": [],
+                "requires": [],
+                "repeat": {"maxShows": None, "minVisitGap": 0},
+                "weight": 1,
+                "npcId": None,
+                "lines": {},
+                "visual": {"kind": "dust-motes"},
+                "fallback": False,
+            }
+            obj.room = "ANY"
+        super().save_model(request, obj, form, change)
+
+    @admin.display(description="Published version")
+    def published_version(self, obj):
+        return obj.published_revision.number if obj.published_revision_id else "none"
+
+    @admin.display(description="Published lines")
+    def published_text(self, obj):
+        lines = obj.source.get("lines", {}) if isinstance(obj.source, dict) else {}
+        return format_html_join(
+            "",
+            "<div><strong>{}</strong>: {}</div>",
+            ((band, " ".join(items)) for band, items in lines.items()),
+        ) or "none yet"
+
+    @admin.action(description="Retire the selected events (they are never shown again)")
+    def retire_events(self, request, queryset):
+        self._set_active(request, queryset, False)
+
+    @admin.action(description="Restore the selected retired events")
+    def restore_events(self, request, queryset):
+        self._set_active(request, queryset, True)
+
+    def _set_active(self, request, queryset, active: bool) -> None:
+        changed = 0
+        for event in queryset:
+            if event.active == active:
+                continue
+            try:
+                authoring.set_active(event, active, user=request.user)
+            except authoring.NotPermitted:
+                self.message_user(
+                    request, "Publishing and retiring need the publish permission.", messages.ERROR
+                )
+                return
+            except authoring.RetireNeedsConfirmation:
+                continue  # castle events are never pinned by a session
+            changed += 1
+        self.message_user(request, f"{changed} event(s) updated.", messages.SUCCESS)

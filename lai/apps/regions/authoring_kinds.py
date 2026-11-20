@@ -7,24 +7,36 @@ they stay seed-authored (ADR-047 H, LAI-0805).
 from apps.catalog.authoring import Kind, register
 from apps.catalog.models import RewardRule
 
-from . import puzzles
-from .models import AreaPuzzle, TreasureChest, WorldRegion
+from . import castle_events, platforming, puzzles
+from .models import AreaPuzzle, CastleEvent, TreasureChest, WorldRegion
 
+# Parameters naming this puzzle's placements: lists of {id, ...} whose ids are placements, and
+# maps of option/item id -> placement id (CHOOSE_ANSWER, ORDER_SEQUENCE).
+LIST_ENTITY_KEYS = ("stones", "slots", "valves")
+MAP_ENTITY_KEYS = ("optionEntities", "itemEntities")
 COPY_KEYS = {"loading", "instructions", "calmStop", "altNavLabel"}
 
 
 def _region_body(region: WorldRegion) -> dict:
     scene = region.scene if isinstance(region.scene, dict) else {}
-    return {
+    body = {
         "regionId": region.region_id,
         "title": region.title,
         "copy": dict(scene.get("copy", {})),
         "environment": dict(scene.get("environment", {})),
     }
+    # LAI-JMP-02/04: an Area with platforms also offers their tuning (speeds, pauses, on/off).
+    if platforming.platform_ids(scene):
+        body["platformTuning"] = dict(scene.get("platformTuning", {}))
+    return body
 
 
 def _apply_region(region: WorldRegion, body: dict, problems: list[str]):
-    unknown = set(body) - {"regionId", "title", "copy", "environment"}
+    scene_now = region.scene if isinstance(region.scene, dict) else {}
+    allowed = {"regionId", "title", "copy", "environment"}
+    if platforming.platform_ids(scene_now):
+        allowed.add("platformTuning")
+    unknown = set(body) - allowed
     if unknown:
         problems.append(f"$: unknown keys {', '.join(sorted(unknown))}")
     title = body.get("title")
@@ -44,10 +56,15 @@ def _apply_region(region: WorldRegion, body: dict, problems: list[str]):
     ):
         problems.append("$.environment.backgroundColor: must be a colour from 0 to 16777215")
 
+    if "platformTuning" in body:
+        problems.extend(platforming.tuning_problems(scene_now, body["platformTuning"]))
+
     def finish() -> None:
         scene = dict(region.scene) if isinstance(region.scene, dict) else {}
         scene["copy"] = body["copy"]
         scene["environment"] = body["environment"]
+        if "platformTuning" in body:
+            scene["platformTuning"] = body["platformTuning"]
         region.title = body["title"]
         region.scene = scene
         region.save(update_fields=["title", "scene", "updated_at"])
@@ -83,11 +100,18 @@ def _apply_puzzle(puzzle: AreaPuzzle, body: dict, problems: list[str]):
             problems.append(f"$.worldChangeKey: {key} is already recorded by something else")
         # Objects a child moves or turns are this puzzle's own placements (seed-authored).
         for band, params in body["ageBands"].items():
-            for key in ("stones", "slots", "valves"):
+            for key in LIST_ENTITY_KEYS:
                 for item in params.get(key, []):
                     if item.get("id") not in puzzle.entity_ids:
                         problems.append(
                             f"$.ageBands.{band}.{key}: {item.get('id')!r} is not one of this "
+                            "puzzle's objects"
+                        )
+            for key in MAP_ENTITY_KEYS:
+                for entity in (params.get(key) or {}).values():
+                    if entity not in puzzle.entity_ids:
+                        problems.append(
+                            f"$.ageBands.{band}.{key}: {entity!r} is not one of this "
                             "puzzle's objects"
                         )
         npc_entity = None
@@ -103,6 +127,21 @@ def _apply_puzzle(puzzle: AreaPuzzle, body: dict, problems: list[str]):
         puzzle.world_change_key = body["worldChangeKey"]
         puzzle.reward_rule = rule
         puzzle.save()
+
+    return finish
+
+
+def _castle_event_body(event: CastleEvent) -> dict:
+    return dict(event.source)
+
+
+def _apply_castle_event(event: CastleEvent, body: dict, problems: list[str]):
+    problems.extend(castle_events.body_problems(body))
+
+    def finish() -> None:
+        event.room = body["room"]
+        event.source = body
+        event.save(update_fields=["room", "source", "updated_at"])
 
     return finish
 
@@ -130,6 +169,18 @@ def register_kinds() -> None:
             _puzzle_body,
             _apply_puzzle,
             child_facing_paths=("title", "ageBands"),
+        )
+    )
+    register(
+        Kind(
+            "castle-event",
+            CastleEvent,
+            "event_id",
+            "id",
+            None,
+            _castle_event_body,
+            _apply_castle_event,
+            child_facing_paths=("lines",),
         )
     )
 

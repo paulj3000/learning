@@ -25,6 +25,7 @@ import {
   WONDERWILD_FOREST_REGION_ID,
 } from '../features/discovery/checkpoints';
 import { IslandLocationPage } from '../routes/IslandLocationPage';
+import { WritingRoomWritePage } from '../routes/WritingRoomWritePage';
 import { AdventurePage } from '../routes/AdventurePage';
 import { AdventureLog } from '../routes/AdventureLog';
 import { QuestJournal } from '../routes/QuestJournal';
@@ -103,6 +104,15 @@ const LocationWorldPage = lazy(() =>
     default: module.LocationWorldPage,
   })),
 );
+
+/** Dev-only Game Engine Playground; `import.meta.env.DEV` is false in builds, so it is dropped. */
+const GameEnginePlayground = import.meta.env.DEV
+  ? lazy(() =>
+      import('../features/game-engine/playground/GameEnginePlayground').then((module) => ({
+        default: module.GameEnginePlayground,
+      })),
+    )
+  : null;
 
 export function AppRoutes() {
   return (
@@ -274,6 +284,16 @@ export function AppRoutes() {
           </RequireParent>
         }
       />
+      {GameEnginePlayground ? (
+        <Route
+          path="/dev/game-engine"
+          element={
+            <Suspense fallback={<p>Loading...</p>}>
+              <GameEnginePlayground />
+            </Suspense>
+          }
+        />
+      ) : null}
       <Route
         path={LOCATION_WORLD_ROUTE}
         element={
@@ -349,6 +369,15 @@ export function AppRoutes() {
         element={
           <RequireParent>
             <WorldHubPage />
+          </RequireParent>
+        }
+      />
+      {/* SC-final-B: the Writing Room's write-your-story activity (open to every child, never required). */}
+      <Route
+        path="/island/:childId/locations/castle-writing-room/write"
+        element={
+          <RequireParent>
+            <WritingRoomWritePage />
           </RequireParent>
         }
       />

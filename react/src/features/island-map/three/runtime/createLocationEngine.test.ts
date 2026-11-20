@@ -437,6 +437,21 @@ describe('createLocationEngine: extensions', () => {
     expect(harness.camera().position.z).toBeLessThan(9.5);
   });
 
+  it('tells an extension the render-quality tier it is drawn at (ENV-2)', () => {
+    const seen: (string | undefined)[] = [];
+    for (const quality of ['LOW', 'HIGH'] as const) {
+      mount({
+        manifest: {
+          ...WELCOME_HARBOR_MANIFEST,
+          extensions: [{ extensionId: 'test-quality', config: {} }],
+        },
+        quality,
+        extensions: [{ id: 'test-quality', mount: (context) => void seen.push(context.quality) }],
+      });
+    }
+    expect(seen).toEqual(['LOW', 'HIGH']);
+  });
+
   it('loads only the assets an extension declared for its binding (engine Phase 10)', async () => {
     const loaded: string[] = [];
     const mounted: {
@@ -492,6 +507,58 @@ describe('createLocationEngine: extensions', () => {
 });
 
 describe('createLocationEngine: cleanup (W7)', () => {
+  it('forces the GL context loss on dispose when the renderer supports it (SC-R11)', () => {
+    const harness = mount();
+    harness.renderer.forceContextLoss = vi.fn<() => void>();
+    harness.engine.dispose();
+    harness.engine.dispose();
+    expect(harness.renderer.forceContextLoss).toHaveBeenCalledTimes(1);
+  });
+
+  it('still disposes a renderer that has no forceContextLoss', () => {
+    const harness = mount();
+    expect(harness.renderer.forceContextLoss).toBeUndefined();
+    expect(() => harness.engine.dispose()).not.toThrow();
+    expect(harness.renderer.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases every mixer and owned geometry and material it created (SC-R11 lifecycle)', async () => {
+    const harness = mount();
+    const diag = window.__laiDiag;
+    expect(diag).toBeDefined();
+    await harness.engine.ready;
+    harness.runFrames(2);
+    const before = diag!.report();
+    expect(before.lifecycle.mixersCreated).toBeGreaterThan(0);
+    expect(before.activeMixers).toBe(before.lifecycle.mixersCreated);
+    harness.engine.dispose();
+    const after = diag!.report();
+    expect(after.lifecycle.balanced).toBe(true);
+    expect(after.activeMixers).toBe(0);
+    expect(after.load.timeToFirstWalkableFrameMs).not.toBeNull();
+    expect(window.__laiDiag).toBeUndefined();
+  });
+
+  it('creates no mixer for a model that resolves after dispose (SC-R11)', async () => {
+    let resolveModel: (model: LoadedModel) => void = () => undefined;
+    const harness = mount({
+      loadModel: (assetId) =>
+        assetId === 'npc-pip'
+          ? new Promise<LoadedModel>((resolve) => {
+              resolveModel = resolve;
+            })
+          : Promise.resolve(standingBox()),
+    });
+    const diag = window.__laiDiag!;
+    harness.runFrames(1);
+    harness.engine.dispose();
+    const created = diag.report().lifecycle.mixersCreated;
+    resolveModel(standingBox());
+    await harness.engine.ready;
+    expect(diag.report().lifecycle.mixersCreated).toBe(created);
+    expect(diag.report().lifecycle.balanced).toBe(true);
+  });
+
   it('stops the loop and releases the renderer, input and resize observer', () => {
     const harness = mount();
     harness.runFrames(3);

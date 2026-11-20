@@ -64,7 +64,8 @@ export interface WorldChange {
 export interface StoryScene {
   stepId: string;
   text: string;
-  source: 'AI' | 'FALLBACK';
+  /** `CHILD`: made by the child in the Writing Room (chosen from authored options, or typed). */
+  source: 'AI' | 'FALLBACK' | 'CHILD';
 }
 
 export interface StoryArtifact {
@@ -83,7 +84,9 @@ function isStoryScene(value: unknown): value is StoryScene {
     value !== null &&
     typeof (value as StoryScene).stepId === 'string' &&
     typeof (value as StoryScene).text === 'string' &&
-    ((value as StoryScene).source === 'AI' || (value as StoryScene).source === 'FALLBACK')
+    ((value as StoryScene).source === 'AI' ||
+      (value as StoryScene).source === 'FALLBACK' ||
+      (value as StoryScene).source === 'CHILD')
   );
 }
 
@@ -372,6 +375,48 @@ export async function saveStoryArtifact(
     },
   );
   return read(response.data, (r) => readArtifact(r, childProfileId));
+}
+
+/** One step's contribution to a Writing Room story: chosen option ids, or the typed paragraph. */
+export interface WrittenStoryPart {
+  stepId: string;
+  /** Authored option ids, in the order the child chose them (word tiles keep their order). */
+  optionIds?: readonly string[];
+  /** An Explorer's own paragraph. The server screens it; it is never sent anywhere else. */
+  text?: string;
+}
+
+/**
+ * The Writing Room's write-your-story save (SC-final-B). The server composes a Sprout's or
+ * Pathfinder's text from the authored options, screens an Explorer's paragraph, stores one story
+ * per session and completes the session. A refused paragraph answers `written_story_refused`
+ * (see `isWrittenStoryRefused`) and nothing is stored.
+ */
+export async function saveWrittenStory(
+  childProfileId: string,
+  sessionId: string,
+  parts: readonly WrittenStoryPart[],
+): Promise<StoryArtifact> {
+  const response = await djangoClient().request(
+    'POST',
+    childPath(childProfileId, 'story-artifacts/written/'),
+    {
+      body: {
+        sessionId,
+        parts: parts.map((part) => ({
+          stepId: part.stepId,
+          ...(part.optionIds ? { optionIds: [...part.optionIds] } : {}),
+          ...(part.text !== undefined ? { text: part.text } : {}),
+        })),
+      },
+    },
+  );
+  return read(response.data, (r) => readArtifact(r, childProfileId));
+}
+
+/** True when the server refused a typed paragraph on safety grounds (kind message, nothing stored). */
+export function isWrittenStoryRefused(error: unknown): boolean {
+  return isApiError(error) && error.code === 'written_story_refused';
 }
 
 export async function listStoryArtifacts(childProfileId: string): Promise<StoryArtifact[]> {

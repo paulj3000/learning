@@ -183,6 +183,27 @@ describe('createModelPreviewViewer', () => {
     expect(camera().far).toBeGreaterThan(distance + size);
   });
 
+  it('draws collision wireframes in the model frame, hidden until shown, and disposes them', () => {
+    const { viewer, flush } = setup();
+    const model = box(2, new Vector3(10, 5, -4));
+    viewer.showModel(model);
+    viewer.setCollision([{ minX: -1, minY: 0, minZ: -1, maxX: 1, maxY: 2, maxZ: 1 }], 'jumpable');
+    flush();
+    const holder = model.parent!;
+    const group = holder.getObjectByName('collision')!;
+    expect(group.children).toHaveLength(1);
+    expect(group.visible).toBe(false);
+    expect(viewer.showCollision(true)).toBe(true);
+    expect(group.visible).toBe(true);
+    // Replacing the boxes disposes the old wireframes; an empty set cannot be shown.
+    const old = group.children[0] as unknown as { dispose: () => void };
+    const dispose = vi.spyOn(old, 'dispose');
+    viewer.setCollision([], 'solid');
+    expect(dispose).toHaveBeenCalled();
+    expect(viewer.showCollision(true)).toBe(false);
+    expect(group.visible).toBe(false);
+  });
+
   it('refuses a model with nothing to show', () => {
     const { viewer } = setup();
     expect(() => viewer.showModel(new Group())).toThrow(PreviewError);

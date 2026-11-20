@@ -220,13 +220,46 @@ def test_the_place_serves_one_quill_and_talking_writes_no_progress(castle, api):
     assert chosen["questOffer"] == {"questId": quill.QUEST_ID}
     assert not QuestProgress.objects.filter(child=child).exists()
     assert not NpcRelationship.objects.filter(child=child).exists()
-    # The first meeting is once per child; then what every story needs.
+    # The first meeting is once per child; then, once, the torn Storybook (SC-R04 premise, word
+    # for word with the client); then what every story needs.
+    premise = post(client, talk, {"trigger": "on_interact"}).json()
+    assert premise["dialogueKey"] == "the-damaged-book"
+    assert premise["node"]["text"] == quill.LEGACY_LINES["quill-the-damaged-book"]
+    assert [c["choiceKey"] for c in premise["choices"]] == ["help", "later"]
     again = post(client, talk, {"trigger": "on_interact"}).json()
     assert again["dialogueKey"] == "story-rules"
     told = post(client, talk, {"trigger": "on_adventure_complete"}).json()
     assert told["node"]["text"] == "The story you made is on my shelf now."
     back = post(client, talk, {"trigger": "on_return_visit"}).json()
     assert back["dialogueKey"] == "welcome-back"
+
+
+def test_a_restored_storybook_is_thanked_once_before_anything_else(castle, api):
+    from django.utils import timezone
+
+    from apps.progression.models import WorldChange
+
+    run("--publish")
+    child = castle.families.a1
+    WorldChange.objects.create(
+        child=child,
+        location_slug=quill.PLACE_SLUG,
+        change_key=quill.STORYBOOK_RESTORED_KEY,
+        change_type="CREATE",
+        created_at=timezone.now(),
+    )
+    client = api(castle.families.a)
+    talk = f"{place(child)}{quill.NPC_ID}/interactions/"
+    first = post(client, talk, {"trigger": "on_interact"}).json()
+    assert first["dialogueKey"] == "storybook-restored"
+    assert first["node"]["text"] == quill.LEGACY_LINES["quill-storybook-restored"]
+    # Once only; and the premise never follows a restored book.
+    second = post(client, talk, {"trigger": "on_interact"}).json()
+    assert second["dialogueKey"] == "greeting-story-offer"
+    keys = {
+        post(client, talk, {"trigger": "on_interact"}).json()["dialogueKey"] for _ in range(3)
+    }
+    assert "the-damaged-book" not in keys and "storybook-restored" not in keys
 
 
 def test_no_release_means_no_managed_quill(castle, api):

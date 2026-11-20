@@ -131,6 +131,32 @@ Tutoring context carries authored curriculum and quest copy plus the hint
 level. It never carries a child profile id, nickname, age, mastery status,
 counts, error pattern, history, or anything a child typed or said.
 
+## Castle Director and Quill flavour (SC-R09, ADR-065)
+
+The Castle Director (`generateCastleDirector`) is a selection route, not a generation route. The
+model receives the child's age band, a castle room id and a list of `{id, tag}` candidates the
+server recomputed (tags are a closed list of one-word moods); it returns `{eventId,
+safetyDisposition}` and no words. `validate_castle_choice` accepts only an exact member of the
+eligible set, and what a child sees is the authored line for that event, so unsafe or invented
+text cannot come from this route. There is no client text (`untrusted_context` is empty), so
+there is nothing to screen on input; every failure path shows the deterministic default event.
+Audit rows carry the room id as `step_id` and `input_category: CASTLE_DIRECTOR`, never an event
+id, line or child data. Events grant nothing and repeat by visit count, never by time.
+
+The approved lines are a Django-owned, revisioned catalog (`CastleEvent`, ADR-065 and ADR-047),
+edited in Django Admin by content staff: a draft is checked (age-band length limits, the content
+safety screen, no web addresses, no em dash, no pressure or reward wording), submitted for review,
+published by someone with the publish permission, and never changed afterwards (the next version
+supersedes it). Publishing and retiring record who and when. A retired event is never eligible and
+a draft is never shown. The model can only choose among the published, active events the server
+recomputed; it cannot add or change a line. With nothing published (a fresh database) the server
+uses the import seed; with every event retired the client shows only its own quiet default line.
+
+Quill flavour (`apps.npcs.castle_flavour`) adds no route: it uses `generateNpcHint` with the
+ACTIVE release's approved Quill persona, the authored event line as base text and as the fallback,
+and the same validator as every NPC hint (length per age band, no URL, no request for personal
+information, no reward claim, no em dash, `boundary_violations`).
+
 ## Parent transparency
 
 Parents should be able to see:

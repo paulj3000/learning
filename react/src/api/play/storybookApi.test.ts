@@ -19,6 +19,8 @@ const body = {
   totalRequired: 1,
   restoredBonus: 0,
   complete: false,
+  state: 'IN_PROGRESS' as const,
+  edition: 2,
   quest: { questId: 'restore-the-great-storybook-pathfinders', status: 'NOT_STARTED' },
 };
 
@@ -48,6 +50,7 @@ describe('getStorybook', () => {
       { ...body, pages: 'x' },
       { ...body, pages: [{ ...body.pages[0], restored: 'yes' }] },
       { ...body, complete: 1 },
+      { ...body, state: 'DONE' },
       { ...body, quest: {} },
       null,
     ];

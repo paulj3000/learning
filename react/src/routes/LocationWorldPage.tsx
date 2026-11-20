@@ -4,9 +4,11 @@ import { IslandLayout } from '../features/island/IslandLayout';
 import { ThreeLocationWorldView } from '../features/island-map/three/runtime/ThreeLocationWorldView';
 import { locationRepositoryForThisBuild } from '../features/multiplayer/devMultiplayerRepository';
 import { getChildPlaySettings } from '../features/child-profile/playSettings';
+import { playerAvatarSourceFor } from '../features/player-avatar/playerAvatarSource';
 import type { AgeBandValue } from '../features/child-profile/constants';
 import { regionRepositoryForChild } from '../features/region-play/regionRepositoryForChild';
 import { regionAssetsFor } from '../features/region-play/regionAssets';
+import { ScoreNotification, useScoringForPlay } from '../features/scoring';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -41,10 +43,17 @@ export function LocationWorldPage() {
    * route does).
    */
   const [aiEnabled, setAiEnabled] = useState(false);
+  /** LAI-JMP-01a: the look of the child's avatar in third-person. */
+  const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const repository = useMemo(
     () => regionRepositoryForChild(childId ?? '', locationRepositoryForThisBuild),
     [childId],
   );
+  // LAI-JMP-01c: the child's published avatar, fetched alongside (never before) the scene.
+  const avatarSource = useMemo(() => playerAvatarSourceFor(childId ?? ''), [childId]);
+  // GE-108: gameplay claims become pending notifications; awards are confirmed by Django only.
+  // Off (no feed reads, claims ignored) while scoring is off, which is the default.
+  const scoring = useScoringForPlay(childId);
   // One resolver and loader per visit, so re-entering picks up a newly published default.
   const assets = useMemo(
     () => regionAssetsFor(childId ?? '', regionId ?? '', locationRepositoryForThisBuild),
@@ -65,6 +74,7 @@ export function LocationWorldPage() {
         if (child) {
           setAgeBand(child.ageBand);
           setAiEnabled(child.aiEnabled);
+          setAvatarKey(child.avatarKey);
         }
         setLoadState(child ? 'ready' : 'not-found');
       } catch {
@@ -106,9 +116,19 @@ export function LocationWorldPage() {
         regionId={regionId}
         ageBand={ageBand}
         aiEnabled={aiEnabled}
+        avatarKey={avatarKey}
+        avatarSource={avatarSource}
         repository={repository}
         assets={assets}
+        onGameplayEvent={scoring.enabled ? scoring.onGameplayEvent : undefined}
       />
+      {scoring.enabled ? (
+        <ScoreNotification
+          pending={scoring.pending}
+          confirmed={scoring.confirmed}
+          onDismiss={scoring.dismiss}
+        />
+      ) : null}
     </IslandLayout>
   );
 }

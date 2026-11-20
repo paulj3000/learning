@@ -114,6 +114,28 @@ export const ISLAND_NPCS: NpcDefinition[] = [
     ],
     dialogue: [
       {
+        /*
+          SC-final-B: Quill spends his afternoons at the Writing Room desk (his schedule above), and
+          the room is open to every child. Said once, in an afternoon after he has met the child, and
+          before his other lines (which cover everyone who has met him) so it can be heard at all.
+          Authored only; no choice here asks a child to write (the open book on the desk is the
+          optional way in) and nothing is graded or rewarded.
+        */
+        id: 'quill-writing-room-afternoon',
+        conditions: [
+          { type: 'TIME_OF_DAY', timeOfDay: 'AFTERNOON' },
+          { type: 'MEMORY_FLAG', flag: 'metQuill', equals: true },
+          { type: 'MEMORY_FLAG', flag: 'heardAboutWritingRoom', equals: false },
+        ],
+        text: 'Afternoons are for writing. If you would like to fill an empty book, the desk in the Writing Room is waiting.',
+        choices: [
+          { id: 'quill-writing-room-yes', label: 'I would like that!' },
+          { id: 'quill-writing-room-later', label: 'Maybe later.' },
+        ],
+        setsMemoryFlags: ['heardAboutWritingRoom'],
+        awardsRelationshipPoints: 1,
+      },
+      {
         // SC-R04-01: the Great Storybook is whole. Said once its quest is finished, before anything else.
         id: 'quill-storybook-restored',
         conditions: [{ type: 'MEMORY_FLAG', flag: 'restoredTheStorybook', equals: true }],
@@ -188,7 +210,107 @@ export const ISLAND_NPCS: NpcDefinition[] = [
         summary,
         conditions: [{ type: 'MEMORY_FLAG' as const, flag: 'restoredTheStorybook', equals: false }],
       })),
+      // A Pathfinder who restored the book before "The Painted Words" existed is offered the one
+      // new page. A child who finished the whole current book has the flag and is not.
+      {
+        questId: 'restore-the-great-storybook-pathfinders-more',
+        summary: 'A new page of the Great Storybook has been found. Help Keeper Quill bring it back.',
+        conditions: [
+          { type: 'QUEST_COMPLETED' as const, questId: 'restore-the-great-storybook-pathfinders' },
+          { type: 'MEMORY_FLAG' as const, flag: 'restoredTheStorybookMore', equals: false },
+        ],
+      },
     ],
+  },
+  /*
+    Professor Orion (SC-R05-03, owner approved 2026-11): the Setting Tower's star-watcher, a
+    supporting character with no quest of his own. Story Hall memory flags belong to Quill (flags
+    are per child *and* per NPC), so Orion reads the castle's world changes instead: the book
+    restored (`GREAT_STORYBOOK_RESTORED`) and a first story told (`FIRST_STORY_TOLD`).
+
+    The star count he asks about is the chart's (`OBSERVATORY_CHART_STAR_COUNT`), and no answer
+    is ever marked wrong: there is no answer to give, only "I counted them!". Age-band versions
+    of his lines live in Django (`lai/apps/npcs/orion_content.py`); this catalog copy targets
+    Pathfinders, like the rest of the cast, and the Django lines keep it word for word.
+  */
+  {
+    id: 'professor-orion',
+    displayName: 'Professor Orion',
+    role: 'Star-watcher in the Setting Tower at Storykeeper Castle. Shares what he sees through his telescope.',
+    homeLocationSlug: 'storykeeper-castle',
+    interactionId: 'talk-to-professor-orion',
+    schedule: [
+      { timeOfDay: 'MORNING', locationSlug: 'storykeeper-castle' },
+      { timeOfDay: 'AFTERNOON', locationSlug: 'storykeeper-castle' },
+      { timeOfDay: 'EVENING', locationSlug: 'storykeeper-castle' },
+    ],
+    dialogue: [
+      {
+        id: 'orion-storybook-restored',
+        conditions: [{ type: 'WORLD_CHANGE', changeKey: 'GREAT_STORYBOOK_RESTORED' }],
+        text: 'The Great Storybook is whole again! Even the stars look brighter tonight. Thank you for bringing its pages home.',
+        choices: [{ id: 'orion-restored-bye', label: 'You are welcome!' }],
+        narration: {
+          allowedTopic: 'a star-watcher thanking the child for restoring the castle storybook',
+          fallbackText:
+            'The Great Storybook is whole again! Even the stars look brighter tonight. Thank you for bringing its pages home.',
+        },
+        setsMemoryFlags: ['metOrion', 'metOrionAfterRestore'],
+        awardsRelationshipPoints: 2,
+      },
+      {
+        id: 'orion-story-told',
+        conditions: [{ type: 'WORLD_CHANGE', changeKey: 'FIRST_STORY_TOLD' }],
+        text: 'Your story has its own star now. Shall we find the one that fits it?',
+        choices: [
+          { id: 'orion-find-the-star', label: 'Yes, let us look!', nextNodeId: 'orion-telescope' },
+          { id: 'orion-story-told-bye', label: 'Maybe next time.' },
+        ],
+        setsMemoryFlags: ['metOrion'],
+        awardsRelationshipPoints: 1,
+      },
+      {
+        id: 'orion-returning',
+        conditions: [{ type: 'RELATIONSHIP_AT_LEAST', level: 'ACQUAINTANCE' }],
+        text: 'Welcome back, star friend. Can you count the gold stars on my chart? Take your time.',
+        choices: [
+          { id: 'orion-counted', label: 'I counted them!', nextNodeId: 'orion-counting-praise' },
+          { id: 'orion-returning-bye', label: 'Not right now.' },
+        ],
+        awardsRelationshipPoints: 1,
+      },
+      {
+        id: 'orion-greeting',
+        conditions: [{ type: 'ALWAYS' }],
+        text: 'Hello there! I am Professor Orion. I watch the stars from this tower, and every star has a story.',
+        choices: [
+          { id: 'orion-greeting-ask', label: 'What do you see?', nextNodeId: 'orion-telescope' },
+          { id: 'orion-greeting-bye', label: 'Hello, Professor!' },
+        ],
+        narration: {
+          allowedTopic: 'a friendly star-watcher introducing himself in the castle tower',
+          fallbackText:
+            'Hello there! I am Professor Orion. I watch the stars from this tower, and every star has a story.',
+        },
+        setsMemoryFlags: ['metOrion'],
+        awardsRelationshipPoints: 1,
+      },
+      {
+        id: 'orion-telescope',
+        followUpOnly: true,
+        conditions: [{ type: 'ALWAYS' }],
+        text: 'Through my telescope I see tiny lights, far, far away. People join the stars with lines to make pictures in the sky.',
+        choices: [{ id: 'orion-telescope-bye', label: 'I will look for pictures!' }],
+      },
+      {
+        id: 'orion-counting-praise',
+        followUpOnly: true,
+        conditions: [{ type: 'ALWAYS' }],
+        text: 'Wonderful counting! Stars are easier to count when friends look together.',
+        choices: [{ id: 'orion-counting-bye', label: 'Thank you, Professor!' }],
+      },
+    ],
+    questOffers: [],
   },
   {
     id: 'bolt',

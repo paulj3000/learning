@@ -137,3 +137,7 @@ if LAI_DEV_BOOTSTRAP_PUBLISH and LAI_ENVIRONMENT != "dev":
     raise ImproperlyConfigured(
         "LAI_DEV_BOOTSTRAP_PUBLISH is allowed only with LAI_ENVIRONMENT=dev."
     )
+
+# Scoring (GE-100): provisional development values never award in a deployed environment.
+if LAI_SCORING_ALLOW_UNAPPROVED:
+    raise ImproperlyConfigured("LAI_SCORING_ALLOW_UNAPPROVED is for local development only.")

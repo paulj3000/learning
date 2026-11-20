@@ -25,6 +25,15 @@ export interface PlaceArea {
 export const SUBJECT_AREAS = ['MATH', 'READING', 'SCIENCE', 'CREATIVITY'] as const;
 export type SubjectArea = (typeof SUBJECT_AREAS)[number];
 
+/** NP-023: the active seasonal event a Realm or Place belongs to (Django `seasons`). */
+export interface SeasonalInfo {
+  slug: string;
+  theme: string;
+  /** Featured and inside the event's window right now. */
+  featured: boolean;
+  inWindow: boolean;
+}
+
 export interface PlaceSummary {
   placeId: string;
   title: string;
@@ -39,6 +48,14 @@ export interface PlaceSummary {
   adventureCount: number;
   /** AP-03: the child has started an adventure here or entered its 3D Area. */
   explored: boolean;
+  /** NP-023: null for content with no seasonal event (and from an older server). */
+  seasonal?: SeasonalInfo | null;
+  /** Quest-based Places: quests its published 3D Area offers this child; 0 when absent. */
+  questCount: number;
+  questsCompleted: number;
+  questsInProgress: number;
+  /** All offered quests completed by this child (false when there are none). */
+  completed: boolean;
   area: PlaceArea | null;
 }
 
@@ -62,6 +79,8 @@ export interface IslandSummary {
   unlocked: boolean;
   lockedHint: string | null;
   progress: IslandProgress | null;
+  /** NP-023: null for content with no seasonal event (and from an older server). */
+  seasonal?: SeasonalInfo | null;
   places: PlaceSummary[];
 }
 
@@ -102,6 +121,21 @@ function added<T>(r: Reader, name: string, read: (field: Reader) => T, fallback:
   return name in r.object() ? read(r.field(name)) : fallback;
 }
 
+function seasonal(r: Reader): SeasonalInfo | null {
+  return added(
+    r,
+    'seasonal',
+    (f) =>
+      f.nullable((value) => ({
+        slug: value.field('slug').string(),
+        theme: value.field('theme').string(),
+        featured: value.field('featured').boolean(),
+        inWindow: value.field('inWindow').boolean(),
+      })),
+    null,
+  );
+}
+
 export function islandsView(r: Reader): IslandsView {
   return {
     islands: r.field('islands').array((island) => ({
@@ -130,6 +164,7 @@ export function islandsView(r: Reader): IslandsView {
         }),
         null,
       ),
+      seasonal: seasonal(island),
       places: island.field('places').array((place) => ({
         placeId: place.field('placeId').string(),
         title: place.field('title').string(),
@@ -145,6 +180,11 @@ export function islandsView(r: Reader): IslandsView {
         ),
         adventureCount: place.field('adventureCount').integer(),
         explored: added(place, 'explored', (f) => f.boolean(), false),
+        seasonal: seasonal(place),
+        questCount: added(place, 'questCount', (f) => f.integer(), 0),
+        questsCompleted: added(place, 'questsCompleted', (f) => f.integer(), 0),
+        questsInProgress: added(place, 'questsInProgress', (f) => f.integer(), 0),
+        completed: added(place, 'completed', (f) => f.boolean(), false),
         area: place.field('area').nullable(area),
       })),
     })),

@@ -1,7 +1,9 @@
 import type { AnimationClip, AnimationMixer, Box3, Camera, Object3D, Scene } from 'three';
+import type { EnvironmentQuery } from '@lai/game-engine/contracts';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
 import type { WorldInteractionContext } from '../../worldObjects';
 import type { JsonValue, ThreeLocationManifest } from './locationManifest';
+import type { RenderQuality } from './visual/renderQuality';
 
 /**
  * The escape hatch for bespoke mechanics (`docs/engine/01_TARGET_ARCHITECTURE.md`
@@ -37,17 +39,60 @@ export interface WorldExtensionContext {
   camera: Camera;
   bus: WorldEngineEventBus;
   manifest: ThreeLocationManifest;
+  /**
+   * The render-quality tier the region is drawn at (`visual/renderQuality.ts`), so an extension
+   * can scale purely decorative work (ENV-2 vegetation density). Absent means the default.
+   */
+  quality?: RenderQuality;
   /** This binding's own `config` from the manifest. Only the extension interprets it. */
   config: { readonly [key: string]: JsonValue };
-  /** Adds a solid collider the player cannot walk through. */
-  addCollider(box: Box3): void;
-  /** Removes a manifest collider by its `rect.id` (a bridge once it is mended). True if one was removed. */
+  /**
+   * Adds a collider the player cannot walk through. `jumpable`: a low obstacle the child may hop
+   * onto or over (it blocks only at its own height, ADR-055); default solid at every height.
+   */
+  /**
+   * GE-070: returns the collider's id, the requested `id` or one the runtime generates
+   * (`extension:<extension>:<n>`), so `removeCollider` can take it out again. `derived:` ids are
+   * refused and replaced. Re-adding an id replaces its box. The box is kept by reference, so
+   * moving it in place is live. `gate`: never jumpable, and blocks the camera like a wall.
+   * Fakes in tests may return nothing.
+   */
+  addCollider(box: Box3, options?: { jumpable?: boolean; id?: string; gate?: boolean }): string | void;
+  /**
+   * Removes a collider by id from every collider list: a manifest collider by its `rect.id` (a
+   * bridge once it is mended), or one an extension added. True if one was removed.
+   * `derived:<scenery id>` removes every derived box of that scenery item (its stand-in was
+   * replaced by a model the extension draws with its own colliders), now and for good.
+   */
   removeCollider(id: string): boolean;
   /**
    * Whether a point on the ground (x, z) is inside a live collider, for things that move by
-   * themselves and must keep out of walls (NPC Manager behaviours, LAI-NPC-010).
+   * themselves and must keep out of walls (NPC Manager behaviours, LAI-NPC-010). A point test by
+   * design (GE-D4): the child's footprint would change how NPCs wander.
    */
   isBlocked(x: number, z: number): boolean;
+  /**
+   * GE-070 (engine bridge host contract): the movement controller's state after collision.
+   * `velocity` is (horizontal x, vertical, horizontal z) actually achieved; `yaw` 0 faces +Z;
+   * `supportId` is the id of the authored or extension collider, or the platform, underfoot.
+   */
+  playerState?(): {
+    position: { x: number; y: number; z: number };
+    yaw: number;
+    velocity: { x: number; y: number; z: number };
+    grounded: boolean;
+    supportId: string | null;
+  };
+  /** GE-070: hands surfaces, forces, water and ladders to the live movement controller. */
+  setEnvironment?(query: EnvironmentQuery | null): void;
+  /**
+   * GE-066: moves the child with a platform an extension owns (the controller's `carry`): sideways
+   * movement is collision tested, so a platform never pushes the child through a wall; `dy`
+   * follows the platform exactly. Deltas are metres for this frame.
+   */
+  carryPlayer?(dx: number, dy: number, dz: number): void;
+  /** GE-066: throws the child up to about `height` metres (the controller's `launch`, a bounce pad). */
+  launchPlayer?(height: number): void;
   /** The root object of a scenery item by its manifest id, or `undefined` if its requirements left it out. */
   sceneryRoot(id: string): Object3D | undefined;
   /**
@@ -97,6 +142,7 @@ export interface WorldExtensionContext {
   /**
    * Returns the player to an authored safe point at once (Firepeak FP-D10: falling into lava
    * returns the child to the last safe checkpoint). Changes no progress and emits nothing.
+   * GE-D4: collision-checked. A blocked spot falls back to the nearest clear spot close by.
    */
   teleportPlayer(x: number, z: number, yaw: number): void;
   /** Runs `callback` once per frame with the frame's delta in seconds. Returns an unsubscribe. */

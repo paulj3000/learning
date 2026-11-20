@@ -55,6 +55,9 @@ urlpatterns = [
     path(
         f"{CHILD}castle/storybook/", castle_views.StorybookView.as_view(), name="castle-storybook"
     ),
+    path(
+        f"{CHILD}castle/director/", castle_views.CastleDirectorView.as_view(), name="castle-director"
+    ),
     path(f"{CHILD}discoveries/", discovery_views.DiscoveriesView.as_view(), name="discoveries"),
     path(f"{CHILD}game-launches/", launch_views.GameLaunchView.as_view(), name="game-launches"),
     path("game-launches/redeem/", launch_views.GameLaunchRedeemView.as_view(), name="game-redeem"),

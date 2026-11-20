@@ -18,14 +18,16 @@ import {
 import type { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
 import { setSoundSink, type SoundCue, type SoundPlace } from '../soundCues';
 import { createTreasureRushMusic } from './treasureRushMusic';
+import { regionAudioFor, type RegionAudio } from './regionAudio';
+import { listenFootsteps } from './surfaceFootsteps';
+import { listenHazardWarnings } from './hazardWarnings';
 import {
-  CUE_SOUNDS,
-  ENTRY_AMBIENCE,
+  FOOTSTEP_VOLUME,
+  LANDING_SOUND_MIN_SPEED,
   NPC_CUE_EVENTS,
   ONE_SHOT_SPATIAL,
   POSITIONAL_CUES,
-  ZONE_AMBIENCE,
-  ZONE_PRIORITY,
+  TR_SOUND,
 } from './treasureRushSounds';
 
 export const AMBIENCE_FADE_MS = 1500;
@@ -71,15 +73,20 @@ export interface TreasureRushAudio {
   setPuzzleActive(active: boolean): void;
 }
 
-/** The built-in zone table, which staff zone assignments in the manifest override by zone id. */
-const BUILT_IN_ZONES: readonly ZoneSpec[] = Object.entries(ZONE_AMBIENCE).map(([id, cue]) => ({
-  id,
-  cue,
-  priority: ZONE_PRIORITY[id] ?? 0,
-}));
+/** A region's built-in zone table, which staff zone assignments in the manifest override by id. */
+export function builtInZonesFor(audio: RegionAudio): readonly ZoneSpec[] {
+  return Object.entries(audio.zoneAmbience).map(([id, cue]) => ({
+    id,
+    cue,
+    priority: audio.zonePriority[id] ?? 0,
+  }));
+}
 
-export function mergeZones(fromManifest: readonly ZoneSpec[]): ZoneSpec[] {
-  const merged = new Map(BUILT_IN_ZONES.map((zone) => [zone.id, zone]));
+export function mergeZones(
+  fromManifest: readonly ZoneSpec[],
+  builtIn: readonly ZoneSpec[] = builtInZonesFor(regionAudioFor('')),
+): ZoneSpec[] {
+  const merged = new Map(builtIn.map((zone) => [zone.id, zone]));
   for (const zone of fromManifest) merged.set(zone.id, { ...merged.get(zone.id), ...zone });
   return [...merged.values()];
 }
@@ -104,6 +111,8 @@ export function mergeZones(fromManifest: readonly ZoneSpec[]): ZoneSpec[] {
  */
 export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): TreasureRushAudio {
   const { childId, regionId, bus, scene } = options;
+  const regionAudio = useMemo(() => regionAudioFor(regionId), [regionId]);
+  const builtInZones = useMemo(() => builtInZonesFor(regionAudio), [regionAudio]);
   const manager = useSoundManager();
   const player = useSoundScope(SCOPE_NAME);
 
@@ -118,14 +127,17 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
     () =>
       createAudioZones({
         player,
-        zones: BUILT_IN_ZONES,
-        defaultCue: ENTRY_AMBIENCE,
+        zones: builtInZones,
+        defaultCue: regionAudio.entryAmbience ?? undefined,
         fadeMs: AMBIENCE_FADE_MS,
         autoStart: false,
       }),
-    [player],
+    [player, builtInZones, regionAudio],
   );
-  const music = useMemo(() => createTreasureRushMusic(player), [player]);
+  const music = useMemo(
+    () => createTreasureRushMusic(player, regionAudio.music),
+    [player, regionAudio],
+  );
   const emitters = useMemo(
     () => createSpatialEmitters({ player, setListener: (pose) => manager.setListener(pose) }),
     [player, manager],
@@ -154,11 +166,56 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
     };
   }, [bus, zones]);
 
+  // LAI-JMP-01: the child's own jumps and landings, flat and quiet. Played by logical cue id;
+  // with no published audio for a cue the play fails quietly and the jump goes on regardless.
+  useEffect(() => {
+    const offJump = bus.on('PlayerJumped', () => {
+      void player.play(TR_SOUND.playerJump).catch(() => undefined);
+    });
+    const offLand = bus.on('PlayerLanded', ({ impactSpeed }) => {
+      if (impactSpeed < LANDING_SOUND_MIN_SPEED) return;
+      void player.play(TR_SOUND.playerLand).catch(() => undefined);
+    });
+    // Running & sprinting: optional footsteps, at the pace the engine reports, louder when faster.
+    // GE-074: the surface underfoot may choose the cue (North Pole ice and snow).
+    const offStep = listenFootsteps(
+      bus,
+      (cue, gait) => void player.play(cue, { volume: FOOTSTEP_VOLUME[gait] }).catch(() => undefined),
+      TR_SOUND.playerFootstep,
+      regionAudio.footstepCues,
+    );
+    return () => {
+      offJump();
+      offLand();
+      offStep();
+    };
+  }, [bus, player, regionAudio]);
+
+  // LAI-JMP-02 / LAI-JMP-04: platforms, plates, checkpoints and recovery, by logical cue id. A
+  // platform may name its own cue; with no published audio the play fails quietly.
+  useEffect(() => {
+    const play = (cue: string) => void player.play(cue).catch(() => undefined);
+    const offs = [
+      bus.on('PlatformActivated', ({ cue }) => play(cue ?? TR_SOUND.platformActivate)),
+      bus.on('PlatformMoving', ({ cue }) => play(cue ?? TR_SOUND.platformMove)),
+      bus.on('PlatformStopped', ({ cue }) => play(cue ?? TR_SOUND.platformStop)),
+      bus.on('PressurePlatePressed', () => play(TR_SOUND.pressurePlate)),
+      bus.on('PlayerBounced', ({ cue }) => play(cue ?? TR_SOUND.bounce)),
+      bus.on('CourseCheckpointReached', () => play(regionAudio.checkpointCue)),
+      bus.on('PlayerRecovered', () => play(regionAudio.recoverCue)),
+      bus.on('PlatformGoalReached', () => play(TR_SOUND.platformGoal)),
+      listenHazardWarnings(bus, play, regionAudio.hazardWarnings ?? {}),
+    ];
+    return () => {
+      for (const off of offs) off();
+    };
+  }, [bus, player, regionAudio]);
+
   // Staff zone assignments from the manifest replace the built-in cues and priorities.
   const { assignments } = manifest;
   useEffect(() => {
-    zones.setZones(mergeZones(zonesFromAssignments(assignments)));
-  }, [zones, assignments]);
+    zones.setZones(mergeZones(zonesFromAssignments(assignments), builtInZones));
+  }, [zones, assignments, builtInZones]);
 
   // Space: the listener follows the camera and moving sources follow their objects, once per
   // frame, in the scene's own loop. Nothing here renders React.
@@ -202,7 +259,7 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
       const read = readerFor(at);
       const spot: [number, number, number] = [0, 0, 0];
       const placed = read?.(spot) === true;
-      for (const soundId of CUE_SOUNDS[cue]) {
+      for (const soundId of regionAudio.momentSounds[cue]) {
         if (placed && POSITIONAL_CUES.has(soundId)) {
           void emitters.playAt(soundId, [...spot], ONE_SHOT_SPATIAL).catch(() => undefined);
         } else {
@@ -211,7 +268,7 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
       }
     });
     return () => void setSoundSink(previous);
-  }, [player, music, emitters, scene]);
+  }, [player, music, emitters, scene, regionAudio]);
 
   // A manifest that arrives (or changes) after the game started gives waiting cues their audio.
   const { status, revision } = manifest;

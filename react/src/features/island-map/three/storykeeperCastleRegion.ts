@@ -393,6 +393,39 @@ export const KEEPER_QUILL_SPOT: EntitySpot = { entityId: KEEPER_QUILL_ID, x: -4.
 /** Quill's own lectern, holding the blank page of beat 2. */
 export const QUILL_LECTERN_SPOT: EntitySpot = { entityId: 'quill-lectern', x: -3.4, z: 0 };
 
+// --- Supporting characters (SC-R05) -------------------------------------------
+
+export const PROFESSOR_ORION_ID = 'professor-orion';
+
+/**
+ * Professor Orion, the Setting Tower's star-watcher (SC-R05-03, owner approved). The prep
+ * (`docs/regions/prep/npc_prep.md` section 2) chose the south-east corner at (9.1, 5.9), but the
+ * Observatory's second star stone (SC-JMP) now stands there. The stone moved 0.25 m west
+ * (`castlePlatforms.ts`) and Orion stands tight in the corner behind it, with a slim collider
+ * (`ORION_COLLIDER_HALF_METERS`). He touches no zone: the cave window ends at x 8.2, the
+ * mountain window starts at z 6.4, and the telescope, orrery, chart and both star stones are
+ * clear (`storykeeperCastleRegion.test.ts`, `castlePlatforms.test.ts`).
+ */
+export const PROFESSOR_ORION_SPOT: EntitySpot = { entityId: PROFESSOR_ORION_ID, x: 9.5, z: 5.8 };
+/** Half the side of Orion's standing collider: x 9.26 to 9.74, z 5.56 to 6.04. */
+export const ORION_COLLIDER_HALF_METERS = 0.24;
+/** Orion turns to the middle of the tower (its safe spot), so he watches the windows with the child. */
+export const ORION_FACING_ROOM_YAW = Math.atan2(7.5 - PROFESSOR_ORION_SPOT.x, 7.5 - PROFESSOR_ORION_SPOT.z);
+
+/**
+ * Where Ember curls up when she visits the castle (SC-R05-02): beside the hearth, east of it, in
+ * the Story Hall. She is not a manifest NPC (her visit is gated on progress, which a manifest
+ * cannot express): the NPC Manager places her from Django (`lai/apps/npcs/ember_content.py`,
+ * placement `castle-ember`), and that file's spot is checked against this one. Nothing in the
+ * manifest stands here; the spot is kept clear of the hearth, Quill, the story stones and every
+ * zone (`storykeeperCastleRegion.test.ts`).
+ */
+export const EMBER_CASTLE_SPOT: EntitySpot = { entityId: 'ember-dragon', x: 2.1, z: -4.9 };
+/** Half the side of the footprint Ember's spot is checked with, like Quill's (0.45 m). */
+export const EMBER_CASTLE_HALF_METERS = 0.45;
+/** Ember faces the middle of the hall, towards Quill. */
+export const EMBER_FACING_HALL_YAW = Math.atan2(-3 - EMBER_CASTLE_SPOT.x, 0 - EMBER_CASTLE_SPOT.z);
+
 /** The hearth on the hub's south wall, and the mantel whose three carved words beat 5 reads against. */
 export const HEARTH_SPOT: EntitySpot = {
   entityId: 'hall-hearth',
@@ -537,9 +570,14 @@ export const GALLERY_FILLER_FRAME_SPOTS: readonly WallMountedSpot[] = [
 
 /**
  * Three floor-to-ceiling arched windows in the tower's round lantern room.
- * Ground floor, deliberately: `firstPersonController.ts` moves on a flat
- * plane with no step height, so the tower is a room, not a climb
- * (`docs/STORYKEEPER_CASTLE_3D_ROADMAP.md`, "no vertical traversal").
+ * Ground floor, deliberately: the tower is a room, not a climb. Rooms and
+ * floors are flat and stay flat. The shared movement controller does let a
+ * child jump (`movement.jump`, 0.9 m here), and the castle adds a few low,
+ * static pads (`runtime/manifests/castleRooms/castlePlatforms.ts`, tops at
+ * most 0.5 m under the 3.1 m ceiling), each only a second way to give an
+ * answer the card and the walk-in route already accept. There is still no
+ * vertical traversal: no stairs, no upper floors, no bounce pads and no lifts,
+ * and no wall, doorway or room boundary can be jumped.
  */
 export const TOWER_WINDOW_SPOTS: readonly WallMountedSpot[] = [
   {
@@ -569,9 +607,9 @@ export const STUDIO_EASEL_SPOT: EntitySpot = { entityId: 'studio-easel', x: 7.5,
 // --- The Costume Room (flavour only) ---------------------------------------
 
 export const COSTUME_RACK_SPOTS: readonly EntitySpot[] = [
-  { entityId: 'costume-rack-a', x: -6.5, z: -8.5 },
-  { entityId: 'costume-rack-b', x: -4.5, z: -8.5 },
-  { entityId: 'costume-rack-c', x: -2.5, z: -8.5 },
+  { entityId: 'costume-rack-a', x: -6.5, z: -9.2 },
+  { entityId: 'costume-rack-b', x: -4.5, z: -9.2 },
+  { entityId: 'costume-rack-c', x: -2.5, z: -9.2 },
 ];
 
 // --- The Great Library (beats 8, 9, 10) ------------------------------------
@@ -792,6 +830,16 @@ export const CHAMBER_CRYSTAL_SPOTS: readonly EntitySpot[] = [
   { entityId: 'chamber-crystal-3', x: -15.2, z: -5.6 },
 ];
 
+/**
+ * The chamber's two quiet finds (SC-R08-02), each a wall-mounted detail and a walk-up zone: a
+ * brighter star in the mural on the north wall, and a mouse-sized door low on the shared east wall.
+ * Both discovery ids are the zones' ids. Neither leads anywhere, and neither grants anything.
+ */
+export const CHAMBER_FIND_SPOTS: readonly WallMountedSpot[] = [
+  { entityId: 'chamber-star', x: -14.7, y: 1.5, z: -4.3 },
+  { entityId: 'chamber-mouse-door', x: -9.3, y: 0.2, z: -8.6 },
+];
+
 // --- Trigger zones ---------------------------------------------------------
 
 /**
@@ -849,6 +897,8 @@ export const ZONES: readonly RectZone[] = [
   { id: 'tower-window-cave', minX: 6.3, maxX: 8.2, minZ: 5.4, maxZ: 6.6 },
 
   { id: 'castle-illustration-studio', minX: 6.5, maxX: 8.5, minZ: 0, maxZ: 2 },
+  // The painted wall (SC-R04-05): walk-up spot before the east wall's drawings, clear of the easel zone and the paint table.
+  { id: 'castle-painted-wall', minX: 8.7, maxX: 9.5, minZ: -0.9, maxZ: 0.9 },
   { id: 'castle-great-library', minX: 5.5, maxX: 8, minZ: -7, maxZ: -5 },
   { id: 'castle-last-bookshelf', minX: 11.8, maxX: 13.4, minZ: -9.2, maxZ: -7.8 },
 
@@ -883,6 +933,9 @@ export const ZONES: readonly RectZone[] = [
   { id: 'chamber-glow-2', minX: -14.7, maxX: -14, minZ: -7.85, maxZ: -6.75 },
   { id: 'chamber-glow-3', minX: -14.7, maxX: -14, minZ: -6.15, maxZ: -5.05 },
   { id: 'chamber-door', minX: -13.2, maxX: -11.8, minZ: -9.6, maxZ: -8.9 },
+  // SC-R08-02: the star in the mural (north wall, clear of the gold arrow and the third crystal) and the mouse door (east wall).
+  { id: 'castle-chamber-star', minX: -15.4, maxX: -14, minZ: -4.9, maxZ: -4.3 },
+  { id: 'castle-chamber-mouse-door', minX: -10.7, maxX: -9.35, minZ: -9.2, maxZ: -8 },
 ];
 
 export function findZone(zoneId: string): RectZone | undefined {
@@ -895,6 +948,7 @@ export function findZone(zoneId: string): RectZone | undefined {
 export const FLOOR_SPOTS: readonly EntitySpot[] = [
   KEEPER_QUILL_SPOT,
   QUILL_LECTERN_SPOT,
+  PROFESSOR_ORION_SPOT,
   HEARTH_SPOT,
   BINDING_LECTERN_SPOT,
   BINDING_TABLE_SPOT,
@@ -925,6 +979,7 @@ export const WALL_MOUNTED_SPOTS: readonly WallMountedSpot[] = [
   ...COUNTING_STAR_SPOTS,
   ...LOCK_CARVING_SPOTS,
   CASTLE_DOORS_SPOT,
+  ...CHAMBER_FIND_SPOTS,
 ];
 
 /**

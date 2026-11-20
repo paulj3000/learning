@@ -8,6 +8,10 @@ const EXPECTED: Record<string, { kind: string; id: string; stepId?: string }[]> 
     { kind: 'ADVENTURE', id: 'the-storykeepers-tale', stepId: 'story-written' },
     { kind: 'ADVENTURE', id: 'quills-picture-story', stepId: 'picture-story-made' },
   ],
+  'page-painted-words': [
+    { kind: 'ADVENTURE', id: 'the-painted-words', stepId: 'page-mended' },
+    { kind: 'ADVENTURE', id: 'the-painted-words-again', stepId: 'page-mended' },
+  ],
   'page-three-clues': [
     { kind: 'ADVENTURE', id: 'secret-door-chapter-1-three-clues', stepId: 'clues-collected' },
   ],
@@ -109,7 +113,7 @@ describe('historical and partial progress', () => {
 
   it('is unchanged by repeated or duplicated records, and ignores obsolete keys', () => {
     const once = {
-      worldChangeKeys: ['FIRST_STORY_TOLD', 'OBSOLETE_KEY_FROM_V0'],
+      worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED', 'OBSOLETE_KEY_FROM_V0'],
       discoveryIds: [],
     };
     const many = {
@@ -123,7 +127,10 @@ describe('historical and partial progress', () => {
   it('gives a Sprout and a Pathfinder the same page from either authored adventure', () => {
     const state = { worldChangeKeys: ['FIRST_STORY_TOLD'], discoveryIds: [] };
     expect(storybookProgress(state, 'SPROUT').complete).toBe(true);
-    expect(storybookProgress(state, 'PATHFINDER').complete).toBe(true);
+    // A Pathfinder also needs the Painted Words page (SC-R04-05).
+    expect(storybookProgress(state, 'PATHFINDER').complete).toBe(false);
+    const mended = { worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], discoveryIds: [] };
+    expect(storybookProgress(mended, 'PATHFINDER').complete).toBe(true);
     expect(storybookProgress(state, 'EXPLORER').complete).toBe(false);
   });
 });

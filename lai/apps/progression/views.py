@@ -32,16 +32,18 @@ from rest_framework import serializers
 from rest_framework.exceptions import APIException, NotFound
 from rest_framework.response import Response
 
-from apps.core.models import CrossChildReference
-from apps.game_sessions.models import AdventureSession
 from apps.game_sessions.serializers import ClosedSerializer
 from apps.users.scoping import ChildScopedAPIView
 
 from . import discoveries, npcs, stories
+from .client_changes import (
+    MAX_WORLD_CHANGES,
+    ClientChangeError,
+    SessionNotFound,
+    record_client_world_change,
+)
 from .models import NpcRelationship, StoryProgress, WorldChange, WorldState
-from .services import record_world_change
 
-MAX_WORLD_CHANGES = 1000
 CHANGE_TYPE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 CHANGE_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$")
 CHECKPOINT_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,48}:[a-z0-9][a-z0-9-]{0,48}$")
@@ -85,35 +87,28 @@ class WorldChangeListView(ChildScopedAPIView):
         body.is_valid(raise_exception=True)
         data = body.validated_data
         source = (data.get("sourceSessionId") or "").strip()
-        session = None
+        session_id = None
         if source:
             try:
                 session_id = uuid.UUID(source)
-            except ValueError:
-                session_id = None
-            if session_id is not None:
-                # A session id must be this child's own session; anyone else's is not found.
-                session = self.get_scoped_object(AdventureSession.objects, session_id)
                 source = ""
-            elif not SOURCE_LABEL.match(source):
-                raise _coded(400, "invalid_source", "That source is not accepted.")
-        existing = self.scoped(WorldChange.objects).filter(
-            location_slug=data["locationSlug"], change_key=data["changeKey"]
-        )
-        if not existing.exists() and self.scoped(WorldChange.objects).count() >= MAX_WORLD_CHANGES:
-            raise _coded(409, "world_change_limit", "No more changes can be recorded.")
+            except ValueError:
+                if not SOURCE_LABEL.match(source):
+                    raise _coded(400, "invalid_source", "That source is not accepted.") from None
         try:
-            change, created = record_world_change(
+            recorded = record_client_world_change(
                 self.child,
                 location_slug=data["locationSlug"],
                 change_type=data["changeType"],
                 change_key=data["changeKey"],
-                source_session=session,
-                source_session_id=source,
+                source=source,
+                session_id=session_id,
             )
-        except CrossChildReference:  # unreachable: the session was resolved through the child
+        except SessionNotFound:
             raise NotFound from None
-        return Response(world_change_body(change), status=201 if created else 200)
+        except ClientChangeError as error:
+            raise _coded(error.status, error.code, "That is not accepted.") from None
+        return Response(world_change_body(recorded.change), status=201 if recorded.created else 200)
 
 
 # --- World state ------------------------------------------------------------------------------

@@ -384,6 +384,24 @@ export const DRAGONS_SANCTUARY_CHECKPOINTS: readonly RegionCheckpoint[] = [
   },
 ];
 
+export const CASTLE_WRITING_ROOM_REGION_ID = 'castle-writing-room';
+
+/**
+ * The Writing Room's one checkpoint (SC-R10-01): the doorway the child comes
+ * in by, facing into the room (+X). Appended after every shipped region's, so
+ * no saved checkpoint id changes meaning. The room has no puzzle to resume.
+ */
+export const CASTLE_WRITING_ROOM_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'castle-writing-room:entry',
+    regionId: CASTLE_WRITING_ROOM_REGION_ID,
+    label: 'the Writing Room door',
+    x: -2.5,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+];
+
 const SOURCE_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WELCOME_HARBOR_CHECKPOINTS,
   ...PIRATE_BUILDER_BAY_CHECKPOINTS,
@@ -392,6 +410,7 @@ const SOURCE_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WONDERWILD_HIVE_CHECKPOINTS,
   ...CLOCKWORK_HARBOR_CHECKPOINTS,
   ...DRAGONS_SANCTUARY_CHECKPOINTS,
+  ...CASTLE_WRITING_ROOM_CHECKPOINTS,
 ];
 
 /**

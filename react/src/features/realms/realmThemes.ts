@@ -10,7 +10,7 @@
  */
 
 export type RealmScene =
-  'island' | 'cove' | 'treasure' | 'castle' | 'volcano' | 'forest' | 'harbor';
+  'island' | 'cove' | 'treasure' | 'castle' | 'volcano' | 'forest' | 'harbor' | 'winter';
 
 export interface RealmTheme {
   scene: RealmScene;
@@ -65,6 +65,14 @@ export const THEMES: Record<RealmScene, RealmTheme> = {
     wash: 'bg-ocean-50',
     tone: 'ocean',
   },
+  // NP-023: the seasonal winter scene (North Pole). Same pale ocean wash as the harbor, whose
+  // text pairs are already checked in portalCss.test.ts.
+  winter: {
+    scene: 'winter',
+    frame: 'border-ocean-100 hover:border-ocean-500',
+    wash: 'bg-ocean-50',
+    tone: 'ocean',
+  },
 };
 
 /** Visual directions for the content published today (AP-03 brief section E). */
@@ -77,6 +85,7 @@ const SCENE_BY_SLUG: Record<string, RealmScene> = {
   'storykeeper-castle': 'castle',
   'castle-writing-room': 'castle',
   'firepeak-volcano': 'volcano',
+  'firepeak-heart': 'volcano',
   'wonderwild-forest': 'forest',
   'dragons-sanctuary': 'volcano',
   'fossil-ridge-camp': 'forest',
@@ -84,6 +93,9 @@ const SCENE_BY_SLUG: Record<string, RealmScene> = {
   'clockwork-harbor': 'harbor',
   'cove-care-beach': 'cove',
   'lantern-tide-pools': 'cove',
+  // Seasonal (NP-023): Christmas at the North Pole
+  'north-pole': 'winter',
+  'north-pole-village': 'winter',
 };
 
 const FALLBACK_SCENES: readonly RealmScene[] = ['island', 'cove', 'forest', 'harbor'];

@@ -328,6 +328,53 @@ development desktop:
    draw call today, and adding a level of detail against no measurement
    would be optimising a number nobody has looked at.
 
+**SC-R11 recording instructions (documentation only; every result below stays blank until a person measures it, and the provisional budgets of 30 fps and 8 seconds are targets, never results).**
+
+Profiling pass, on the target tablet or Chromebook only:
+
+- Use a **release build**, never the dev server. Normal network (not airplane mode), battery saver off.
+- Note the device, the browser and its version, and the quality tier the castle chose (low, medium or high).
+- Open the castle with `?lai-diag=1` on the address (or use Chrome DevTools remote debugging). The diagnostics (`react/src/features/island-map/three/runtime/diagnostics/`) keep numbers in memory only, record nothing about the child, send nothing anywhere, and print one console table when the castle is left; `window.__laiDiag.report()` reads the same numbers while it is open.
+- Record: time to first walkable frame, cold cache and warm cache; Great Library stand-still frame time (mean, p95, worst) with `renderer.info` calls and triangles; the worst frame on the hub-to-library walk; JS heap if the browser reports it.
+
+| Measurement | Cold cache | Warm cache | Notes |
+| --- | --- | --- | --- |
+| Device, browser and version, quality tier | | | |
+| Time to first walkable frame | | | |
+| Great Library standing: frame mean / p95 / worst (ms) | | | |
+| Great Library draw calls / triangles | | | |
+| Hub-to-library walk: worst frame (ms) | | | |
+| JS heap (if available) | | | |
+
+**WS-C rendering optimisation (estimates, not measurements).** The numbers below come from the static estimator in `runtime/manifests/storykeeperCastleBudgets.test.ts` (one call per surface, mote emitter, scenery item or batch, prop, NPC and platform, plus 12 for the castle-tale extension variants). Nothing here was run in a browser, on a tablet or against `renderer.info`; the real-device table above stays blank until a person fills it. The 300 budget is unchanged.
+
+| Step | Estimated draw calls | Delta (estimate) |
+| --- | --- | --- |
+| Before WS-C (143 decor boxes, one mesh and one material each) | 300 of 300 | |
+| Static decor boxes merged per colour per 12 m cell (136 boxes into 74 batches; the 7 boxes an extension recolours or hides stay separate) | 238 | -62 |
+| Optional Secret Chamber ledge (two stones and a ledge, solid pads) | 241 | +3 |
+
+- Materials (estimate): the 143 per-box materials become one shared material per colour, 47 plus the 7 live boxes, so about 54, a saving of about 89 materials and the same number of disposals.
+- Frustum culling is kept by the spatial cell, so a batch in a room behind the child can still be culled. A merged mesh for the whole castle would have defeated that, which is why the cell exists.
+- Fresh worlds build fewer batches than the estimate counts, since trophies and the chamber finds are gated on world state; the estimate errs high.
+- Colliders, zones, interaction ids, checkpoints, props, NPCs and platforms are unchanged. `castleOptimisation.test.ts` compares them to a fixture captured before the change (`castleOptimisationBaseline.json`); the only additions are the ledge's own pads, Sprout markers and one narration zone.
+- Not changed: no shadow casting exists to limit (the runtime never enables shadow maps), the 8 `LOD_PLACEMENTS` archways and props stay individually placed because they are multi-part, and scoped asset disposal on castle exit belongs to a later workstream.
+
+Sprouts playtest, with consent and no child names or identifiers in the notes:
+
+- One `SPROUT` child per session, with an adult observer who does not coach. Adventure: `quills-picture-story`.
+- Log per child: whether each beat completed, how long it took, any disorientation or discomfort, whether the tapestry nook was found, and whether the exit to Welcome Harbor was found.
+
+| Beat or question | Result |
+| --- | --- |
+| Pick the animal completed unaided | |
+| Pick the place completed unaided | |
+| Put the pictures in order completed unaided | |
+| Total duration | |
+| Disorientation or discomfort | |
+| Tapestry nook found | |
+| Exit to Welcome Harbor found | |
+
 **What has been done**: SC-11's third deliverable, the audit that every
 learning step in the region has a working HUD equivalent, is complete - and
 is a test rather than a paragraph

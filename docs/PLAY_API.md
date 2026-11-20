@@ -514,6 +514,40 @@ child has not found would be a signpost, so nothing in this response names it be
 `great_storybook_pages.json` mirrors the client's `STORYBOOK_PAGES` and quest ids; a Vitest test fails
 if they differ.
 
+## The Castle Director (SC-R08-01, SC-R09-01)
+
+One ambient, authored line for the room a child is in. Implemented in
+`lai/apps/game_sessions/castle_views.py` over `lai/apps/regions/castle_events.py` and
+`lai/apps/ai/services/castle_director.py` (ADR-065). The events are the Django-owned, revisioned
+`CastleEvent` catalog edited in Django Admin; only published, active events are ever offered.
+
+### `POST castle/director/`
+
+```json
+{"roomId": "story-hall", "visitId": "<uuid, new for each time the castle opens>"}
+```
+
+The body is closed: any other field (a client cannot supply candidates) is `400`. An unknown room
+and a secret room not yet found give the identical `404 not_found`. The server recomputes the
+eligible events from this child's own rows, lets the model pick one id from them (or uses the
+deterministic default), records one display counter, and answers:
+
+```json
+{"eventId": "quill-hums-in-hall", "source": "AI", "lines": ["Keeper Quill hums a happy tune."],
+ "npcId": "keeper-quill", "visual": {"kind": "quill-scratch"}}
+```
+
+`lines` are authored, for the child's own band. `source` is `AI` or `FALLBACK`; every failure
+(parent AI off, provider disabled, kill switch, rate limit, provider error, invalid or ineligible
+pick, Guardrail, REDIRECT or STOP) is a `200` with the deterministic default and `FALLBACK`. There
+is no reward, quest, world change or progress in the response or behind it. Events repeat by visit
+count only: no clock, streak or countdown.
+
+`404 not_found` also answers a room with no approved event for the child's age band (for example
+every event for it was retired). The client then shows its own quiet default line for that room
+(`castleDefaultLines.ts`); it is never an error to the child. The response shape is unchanged by
+the catalog move.
+
 ## Discoveries (SC-R04-00)
 
 The server's record of which secrets a child has found, and the authority for whether one opens.

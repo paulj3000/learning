@@ -18,6 +18,7 @@ import type {
   CheckpointConfig,
   LavaConfig,
   Rect,
+  RegionPlayDrawnConfig,
   RegionPlayEffects,
 } from '../../../../region-play/regionPlayConfig';
 import type { WorldExtensionContext } from '../../runtime/extensionRegistry';
@@ -83,11 +84,24 @@ void main() {
   gl_FragColor = vec4(color, 1.0);
 }`;
 
+/** Whether a conditional thing is shown: its show key (if any) exists and its hide key (if any) does not. */
+export function gateOpen(
+  gate: { shownWhenChangeKey?: string | null; hiddenWhenChangeKey?: string | null },
+  keys: ReadonlySet<string>,
+): boolean {
+  if (gate.hiddenWhenChangeKey && keys.has(gate.hiddenWhenChangeKey)) return false;
+  if (gate.shownWhenChangeKey && !keys.has(gate.shownWhenChangeKey)) return false;
+  return true;
+}
+
 export function inRect(rect: Rect, x: number, z: number): boolean {
   return x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ;
 }
 
-/** Whether standing at (x, z) is in lava that is not made safe by a key the child has. */
+/**
+ * Whether standing at (x, z) is in lava that is not made safe by a key the child has. A
+ * `visualOnly` band is drawn but never dangerous.
+ */
 export function isInDangerousLava(
   lava: readonly LavaConfig[],
   keys: ReadonlySet<string>,
@@ -96,6 +110,7 @@ export function isInDangerousLava(
 ): boolean {
   return lava.some(
     (band) =>
+      !band.visualOnly &&
       inRect(band, x, z) &&
       !band.safe.some((part) => keys.has(part.whenChangeKey) && inRect(part, x, z)),
   );
@@ -128,8 +143,10 @@ export function mountAreaEffects(
   initialKeys: readonly string[],
   owned: Owned,
   isDisposed: () => boolean,
+  drawn: readonly RegionPlayDrawnConfig[] = [],
 ): { api: AreaEffectsApi; dispose(): void } {
-  const reducedMotion = prefersReducedMotion();
+  // The engine's setting first; the media query still counts when the host did not pass one.
+  const reducedMotion = context.reducedMotion || prefersReducedMotion();
   let keys = new Set(initialKeys);
   const listeners = new Set<Partial<AreaEffectsEvents>>();
   const group = new Group();
@@ -244,6 +261,17 @@ export function mountAreaEffects(
         plume.spec.shownWhenChangeKey !== null && !keys.has(plume.spec.shownWhenChangeKey);
       plume.object.visible = override ?? !(hidden || waiting);
     }
+    // Conditional lights and stand-ins: the same show/hide keys as steam, looked up each time so
+    // an entity the engine added later is still found.
+    for (const gate of effects.lightGates ?? []) {
+      const light = context.scene.getObjectByName(gate.id);
+      if (light) light.visible = gateOpen(gate, keys);
+    }
+    for (const entry of drawn) {
+      if (!entry.shownWhenChangeKey && !entry.hiddenWhenChangeKey) continue;
+      const root = context.entityRoot(entry.entityId);
+      if (root) root.visible = gateOpen(entry, keys);
+    }
   }
   applyKeys();
 
@@ -296,9 +324,14 @@ export function mountAreaEffects(
       const route = effects.returns.find((entry) => entry.entityId === entityId);
       if (!route || !keys.has(route.whenChangeKey)) return false;
       const target = effects.checkpoints.find((c) => c.id === route.toCheckpoint);
-      if (!target) return false;
-      context.teleportPlayer(target.x, target.z, target.yaw);
-      safe = target;
+      if (target) {
+        context.teleportPlayer(target.x, target.z, target.yaw);
+        safe = target;
+        return true;
+      }
+      // GE-065: the checkpoint list moved to the engine bridge; the route says where it lands.
+      if (!route.to) return false;
+      context.teleportPlayer(route.to.x, route.to.z, route.to.yaw);
       return true;
     },
     previewSteamCleared(cleared) {

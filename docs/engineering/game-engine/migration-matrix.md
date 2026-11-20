@@ -1,0 +1,199 @@
+# Game Engine Core: migration matrix
+
+- **Status:** Proposed
+- **Owner:** Project owner
+- **Last reviewed:** 2026-11-18
+- **Related ADRs:** ADR-020, ADR-033, ADR-051, ADR-080 (Reserved); Firepeak's Heart of Firepeak decision takes number 073 (owner settlement 2026-11-19; `feature/firepeak-volcano-adventure` `5caec70e`; its Reserved row on `main` is pending)
+- **Related tickets:** GE-070 to GE-076
+- **Canonical sources:** [architecture.md](architecture.md) section 9, [integration policy](../integration-policy.md)
+
+## 1. Order
+
+1. **Treasure Rush** (GE-070): reference implementation.
+2. **Pirate's Leap** (GE-071).
+3. **Storykeeper's Castle** (GE-072).
+4. **Firepeak** (GE-073).
+5. **North Pole** (GE-074), stacked on Firepeak.
+6. **Remaining locations** (GE-075).
+7. **Legacy retirement** (GE-076), last.
+
+Once GE-070 is merged and the contracts are stable, GE-071 to GE-075 may run in parallel on
+their own realm branches. A realm migrates by merging `core/gameengine` into its branch at a
+"migration-ready" SHA the engine lead publishes (see [integration-baseline.md](integration-baseline.md); currently `fc5c71cf`), then switching imports and adopting SDK
+definitions. **Nothing legacy is removed before its consumers migrate and regression evidence
+exists.**
+
+## 2. Matrix
+
+| Realm / location | Branch | Owner session | Engine pieces adopted | Legacy kept until | Evidence required | State |
+|---|---|---|---|---|---|---|
+| Treasure Rush (Treasure Cove) | `feature/treasure-rush-palm-trees` | treasure-rush-c8 | Movement, jump, camera, avatar follow, collectibles, chests, platforms, claims | GE-076 | Existing TR unit tests unchanged; drift and penetration regressions; validator on the seed | Development Complete (`cd0cbf01`, not merged, owner QA pending): imports on `@lai/game-engine`, host contract, bridge wiring, Treasure Cove `AdventureDefinition` validated against the seed, v1 claims through one per-visit sink. Evidence and handoff on that branch (section 5 of this file there) |
+| Pirate's Leap | `feature/pirates-leap` (inside Treasure Rush) | treasure-rush-c8 | Jump challenges (equal routes), course checkpoints and goals, platforms | GE-076 | Course tests; validator: every required step has a non-jump route | Development Complete on `feature/GE-070-treasure-rush-engine-migration` @ `d4f2742b` (owner approved): 4 checkpoints, the nest goal, 3 water pools and 4 jump challenges on the bridge (course v2); 16 platforms, the plate and the lift stay live until GE-066 part 2. Evidence: section 6 of this file on that branch |
+| Storykeeper's Castle | `feature/storykeeper-castle-completion` | storybook-dc | Runtime, camera, movement (jump optional), discovery claims, SDK hooks | GE-076 | Castle tests unchanged; page ids, objectives and progress unchanged | Development Complete on `feature/storykeeper-castle-completion` @ `40d1e275` (merged core `6f07b5b0`): location definition, package imports with a guard, v1 claims with its own visit binding, and its 5 saved checkpoints on the bridge (`e5f4cf41`; no resume needed, the spawn checkpoint is reached on the first frame). No remaining engine dependency. Integration: last in order A, with its regions migrations renumbered |
+| Firepeak (Heart of Firepeak) | `feature/firepeak-volcano-adventure` | firepeak-86 | Hazards (lava, telegraphed rocks), steam forces, crumble-then-fall, one checkpoint system, traction, footsteps | GE-076 | Firepeak tests unchanged; one checkpoint list | In development (owner approved 2026-11-19). One checkpoint list done (`d97f20c4`): 8 Heart checkpoints gated by `world:<key>` signals and the lava static hazard run on the bridge; the platforming and region-play lists and the platforming hazard were deleted in the same commit. Telegraphed rocks, steam and crumble-then-fall wait on an owner design call |
+| North Pole | `feature/north-pole-adventure` | firepeak-86 | Ice traction, snow and ice footsteps, weather as data, optional jump routes | Atmosphere parity | NP tests unchanged; atmosphere parity | In development (owner approved 2026-11-19). Carries the Firepeak bridge wiring (`4b9c3a4d`); next: one checkpoint list (9 zone and 2 lake-course checkpoints) and the lake water hazard on the bridge |
+| Welcome Harbor, Pirate Builder Bay, Clockwork Harbor, Dragon's Sanctuary, Wonderwild Forest and Hive, Explorer Cove, sandbox | `main` regions | engine lead | Location definitions with capability requests | GE-076 | One location per commit; parity tests unchanged | Backlog |
+| Phaser worlds | `main` | (conversion tasks LAI-2201+) | None. No new Phaser features (ADR-020) | Their conversion | Out of scope | n/a |
+
+## 3. Realm inputs recorded
+
+| Realm | Input | Parity evidence the migration must keep |
+|---|---|---|
+| Treasure Rush, Pirate's Leap | `docs/engine/TREASURE_RUSH_ENGINE_HANDOFF.md` on `feature/treasure-rush-palm-trees` @ `6818f74b` (sections 6.4, 7.2, 8) | Section 8 guard tests; mid-visit world refresh never rebuilds the engine; `signalPlatforms('world:<key>')` |
+| Storykeeper's Castle | `docs/regions/storykeeper_castle_engine_integration.md` sections 4 and 6 on `feature/storykeeper-castle-completion` @ `25d5f7d6`; `castleEngineProfile.ts` (movement and camera settings, types only from the shimmed modules) | `runtime/manifests/castleMovementAudit.engine.test.ts` runs unchanged against the SDK harness; `castleSaveContract.test.ts` pins every saved castle id |
+| Firepeak, North Pole | `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` on `feature/firepeak-volcano-adventure` @ `3e2b513c`; `platforming.recoveryLead` (`645b7373`, `821c8085`) | Existing realm tests; one checkpoint list; `recoveryLead` carried by hazard recovery copy |
+
+## 4. Per-migration checklist
+
+- [ ] Merge `core/gameengine` at the published migration-ready SHA (no rebase).
+- [ ] Imports move from the island-map shims to `@lai/game-engine`.
+- [ ] An `AdventureDefinition` (or location definition) declares capability requests.
+- [ ] `npm run engine:validate` passes on the realm's content.
+- [ ] Gameplay claims are emitted for the realm's learning, exploration, collectibles, jump,
+      course, puzzle, NPC, quest and completion facts, and the host forwards them.
+- [ ] Existing realm unit tests pass unchanged. New tests cover the definition.
+- [ ] No child progress, content, page id or learning objective changed.
+- [ ] Evidence (commits, test counts) recorded here and on the card.
+
+## 5. Treasure Rush (GE-070) evidence
+
+Branch `feature/GE-070-treasure-rush-engine-migration` (worktree
+`wt-feature-GE-070-treasure-rush-engine-migration`), based on `feature/treasure-rush-palm-trees`
+@ `ce20c90b`. Owner session `treasure-rush-c8`. Owner approved the start and the bridge-wiring
+scope addition on 2026-11-19. Not merged, not deployed, owner QA not done.
+
+| Checklist item | State | Evidence |
+|---|---|---|
+| Merge `core/gameengine` at the migration-ready SHA, no rebase | Done | Merges of `dcc45032`, `e4148949`, `ae336f3f`, `e9caa3d8`; no conflicts |
+| Imports move to `@lai/game-engine` | Done for Treasure Rush code | `15084428`; `treasureRushEngineImports.test.ts` fails on any shim import in `features/region-play` or `extensions/regionPlay`. Shared runtime files keep the shims until GE-076 |
+| `AdventureDefinition` declares capability requests | Done | `82a369c7`: `react/src/features/region-play/treasureCoveAdventure.json` (movement, jump, cameras, avatar, chests, collectibles, checkpoints; engine defaults, as the cove authors no overrides) |
+| `npm run engine:validate` passes | Done | The definition and `treasure_cove_layout.json` pass; `pirates_leap_course.json` passes as its `{ platforming }` scene block (the file alone is skipped as not applicable). `treasureCoveAdventure.test.ts` repeats this with the standard capability registry |
+| Claims emitted and forwarded | Done for learning, collectibles, NPC, quest steps and quest completion | `03f9b221`: chest answers as `learning.answer.submitted` (`CHEST_CHALLENGE`, REPLAY and the ruins pedestal included; never a discovery), pickups, NPC talk, quest steps and completion. One sink per visit (`runtime/gameplayClaimSink.ts`, `4044d37b`). Jump, course and exploration claims are GE-071 (Pirate's Leap); the cove persists no exploration fact |
+| Existing realm unit tests pass unchanged; new tests cover the definition | Done | Every test file the engine moved kept its assertions (import path or jsdom pragma only). New: definition 8 (Vitest) + 8 (pytest seed cross-check), claims 8, companion claims 3, host contract 12, bridge publish check 17, claim sink 4 |
+| No child progress, content, page id or learning objective changed | Done | No migration, seed or content change. The pytest cross-check proves the definition names exactly what `seed_treasure_rush` publishes |
+| Evidence recorded here and on the card | Done | This section; Trello GE-070 |
+
+Engine defects fixed on this branch: GE-D2 and GE-D3 (`77c6bf00`, collider ids and removal from
+every list), GE-D4 (`77c6bf00`, checked silent teleport; `isBlocked` kept a point test by design),
+GE-D7 (`ce20c90b`). GE-D5 (required handle members) and GE-D8 (leaked content: `ASSET_FOOTPRINTS`,
+`SANDBOX_NPC_ID`, `ADVENTURE_COMPLETE_CHANGE_KEYS`) remain open for GE-075/GE-076; each sits in a
+shared hotspot (derived colliders for every location, the dev sandbox, the NPC Manager).
+
+Test runs at the final commit (unit only, by path; load average 4 to 9 on 4 cores from other
+agents' suites):
+
+- Vitest `island-map/three`, `region-play`, `npc-manager`, `audio`, `api/play`, `game-engine`,
+  `adventures`: 3,058 passed. 3 tests timed out under load; each file passes alone
+  (`GameEnginePlayground` 8/8, `dragonsSanctuaryParity` 16/16, `ThreeLocationWorldView` 25/25).
+- `game/`: 578 passed.
+- pytest on PostgreSQL 16 (`game_sessions`, `regions`, `quests`, `inventory`, `progression`,
+  `npcs`, `education`, the Treasure Rush audio seed and prop packs): 1,094 passed.
+- `npm run typecheck`: clean.
+
+Deferred to merge readiness: Playwright, browser/WebGL/device/gamepad, full lint and format,
+`make docs-check`, `npm run adr:check`.
+
+## 6. Pirate's Leap (GE-071) evidence
+
+Same branch as section 5, at `527b4fbb` and later. Owner approved GE-071 on 2026-11-19 and asked
+for it to continue on the GE-070 branch. Engine bases merged in: `fc5c71cf` (contains GE-070) and
+`cbe43a8e` (the companion bridge hooks). Not merged, not deployed, owner QA not done.
+
+| Checklist item | State | Evidence |
+|---|---|---|
+| Shared movement, jumping, camera and avatar | Unchanged; already shared through GE-070 | The live runtime runs the engine's moved controller and camera modules |
+| Checkpoints, safe respawn, course completion | On the engine bridge | `scene.engineBridge`: `gameplay.checkpoints` (4 checkpoints, goal `leap-goal-nest`), `gameplay.hazards` (3 water pools, `belowY` 0.05, so standing on a barrel or log is safe). Recovery goes to the latest checkpoint reached. Claims `course.checkpoint.reached` and `course.completed` |
+| Jump-challenge tracking | On the engine bridge | `gameplay.jumpChallenges`: `leap-barrels`, `leap-logs`, `leap-ledge` (jump route and walking route, same `jump.challenge.completed` claim) and optional jump-only `leap-steps` |
+| Platform components | Not yet: stays live | The bridge cannot yet draw platforms or carry the live controller (GE-066, engine lead, delayed). Moves in a later GE-071 step |
+| Walking alternatives | Kept and enforced | The bridge refuses a required challenge without an ACCESSIBLE route; Django test `test_every_required_jump_has_a_walking_route_and_both_are_equal` |
+| Equal educational outcome for both routes | Yes | Learning and rewards stay server facts that both routes reach (riddle drum, crow's-nest chest, shell, feather). Jump and course claims never award (scoring lead). Test pins that `pirates-leap` completes only through `cove-leap-chest` |
+| Quest and reward behaviour unchanged | Yes | `test_pirates_leap.py` (16) passes, including play API, one-time rewards and isolation |
+| Existing Pirate's Leap tests unchanged | One assertion widened, setup gains the bridge | `piratesLeap.engine.test.ts` 9/9 with the bridge mounted as in the app. `PlayerRecovered` now also carries `hazardId` (the engine contract), so the recovery assertion names the pool |
+| Validator on the content | Done | `npm run engine:validate` clean on the definition and `pirates_leap_bridge.json`; `checkContentCompatibility` in `treasureCoveAdventure.test.ts` |
+
+New tests: `piratesLeap.claims.engine.test.ts` (5: equal route claims, ledge once, checkpoint and
+goal claims, valid session-bound claims, recovery copy via bridge labels); Django
+`test_pirates_leap.py` (+5); `test_treasure_cove_adventure.py` (+1).
+
+Open: platform presentation and carry (GE-066), then moving the 16 platforms and the plate;
+wiring the live controller's `recoveryPoint` to the bridge's latest checkpoint once exposed (the
+cove is flat, so a live fall below ground cannot happen there).
+
+Test runs after merging core `4b63f9ca` (unit only, by path, through the infrastructure lead's test
+gate; load average 6 to 10 from other agents):
+
+- Vitest `island-map/three`, `region-play`, `npc-manager`, `audio`, `api/play`, `game-engine`,
+  `scoring` and `LocationWorldPage`: 2,895 passed. 9 failed under load: 8 in the castle's
+  `CastleTaleCompanion.npc.test.tsx` (the GE-D9 timeout cascade, fixed on the castle branch) and 1
+  timeout in `useNpcSceneHost.test.tsx`. Each file passes alone (11/11, 33/33).
+- `game/`: 610 passed, 1 expected fail.
+- pytest on PostgreSQL 16 (Treasure Rush apps): 1,099 passed. One expected failure was fixed in
+  `43455621`: `test_treasure_cove_layout.py` hard-coded course "v1"; it now follows
+  `LEAP_VERSION` (45/45).
+- `npm run typecheck` clean; `make docs-check` passed.
+
+### 6.1 Walking routes for the platform move (owner decision, 2026-11-19)
+
+The engine refuses a moving platform on a required route (jumping standard). Pirate's Leap's
+non-jump route used two: the plate-driven lift (the only non-jump way to the treasure ledge) and
+the moving dock. The owner chose content, not a policy change: walking routes so both become
+optional extras.
+
+- **Stairs:** course version 3 adds `leap-stair-1` to `leap-stair-14`, an L-shaped stone flight
+  (rise LEDGE_TOP / 14, about 0.23 m; treads 0.8 m; static) to the ledge's west edge. The ledge
+  challenge's walking route is now `leap-ledge-stairs`; the lift stays a second walking route.
+- **Dock:** a walking path already exists between the log pool and the dock pool; the ferry was
+  never needed.
+- **Evidence:** `piratesLeap.walkingRoutes.engine.test.ts` walks a child (no jump) up the stairs to
+  the nest and round the dock pool, with no recovery. The Django test checks every rise is 0.25 m or
+  less, every tread at least 0.8 m, and each step touches the next and the ledge. A claims test
+  checks the stairs complete `leap-ledge` by `leap-ledge-stairs`.
+- **Done after GE-068 and GE-069:** see 6.2.
+
+### 6.2 Platforms and the plate on the engine (course version 4)
+
+- **What moved:** all 30 authored platforms into `gameplay.platforms` and the latched
+  `leap-lift-plate` into `gameplay.triggers`, in `scene.engineBridge` with
+  `allowEnginePlatforms: true`. `scene.platforming` keeps only Pip's zones (empty platform and
+  plate lists), so nothing runs in both systems. The authored course is still the one source and
+  is still validated whole (`course_problems()`).
+- **Mapping:** same position and size (width/height/depth to x/y/z), colour, `assetId`
+  (barrels), motion path, mode, speed and pause; the lift's plate becomes
+  `moving.activeSignalId`; the riddle bridge's world-change signal becomes `appearSignalId`;
+  vanish timing becomes `falling`; bounce height becomes `bounceHeight`.
+- **Routes:** `REQUIRED` for the stairs, ledge and nest; every other platform `OPTIONAL`
+  (the engine allows moving, falling and bounce platforms only there).
+- **Kept by the engine:** staff tuning (GE-068, Django validates engine platform ids), colours and
+  models, safe recovery ground, inspection, and the live `PlatformActivated`,
+  `PlatformMoving` and `PlatformStopped` events (GE-069), so the Treasure Rush audio hook plays
+  the lift and ferry cues unchanged.
+- **Evidence:** `piratesLeap.engine.test.ts` (11) now reads engine platforms: the plate wakes the
+  lift and it carries the child to the nest, the ferry crosses, barrel jumps, the riddle bridge
+  appears on its signal and is walkable, slower staff tuning, third person, the bridge accepts
+  every capability, and an audio-parity test (failed before GE-069, passes after).
+  `test_pirates_leap.py` checks every platform moved unchanged, only extras are optional, the
+  lift's plate and the bridge's signal are wired, and tuning still validates.
+
+### 6.3 Parity audit against the gameplay contracts (2026-11-19, after course v4)
+
+Contracts: `acceptance-requirements.md` section 2, `docs/adventures/jumping-standard.md`,
+`engine-1.0-acceptance.md` section 3. Unit-level evidence only; browser items are in the owner QA
+checklist.
+
+| Area | Owner | Status | Evidence |
+|---|---|---|---|
+| Character movement | Engine | Parity | `firstPersonController*.test.ts`, `runningIntegration.engine.test.ts`; the cove sets no movement overrides |
+| Jumping and landing | Engine | Parity | `firstPersonController.jump.test.ts`, `jumpIntegration.engine.test.ts`, `piratesLeap.engine.test.ts` (running barrel jump, no recovery) |
+| Camera collision | Engine; Realm evidence | Parity, **new test** | Engine platforms are host colliders, which the camera's obstruction uses. `piratesLeap.engine.test.ts`: in third person, riding the lift and facing barrels and stairs, the camera is never inside an engine platform |
+| Platform collision and carry | Engine (GE-066/068/069) | Parity | `piratesLeap.engine.test.ts`: lift carry to the nest, ferry crossing, staff tuning, platform sounds |
+| Checkpoint activation | Engine | Parity | 4 ground checkpoints, none on a platform; `piratesLeap.engine.test.ts` (training yard), `piratesLeap.claims.engine.test.ts` |
+| Goal completion | Engine | Parity | `PlatformGoalReached leap-goal-nest` by lift and by stairs |
+| Stairs and non-jump route | Realm | Parity | `piratesLeap.walkingRoutes.engine.test.ts` (no jump, no recovery); Django stairs geometry test |
+| Story progression | Realm | Parity | `pipsTreasure.engine.test.ts`, `RegionPlayCompanion.test.tsx`, `test_pips_treasure.py`. **Fixed gap:** a world change recorded mid-visit (the riddle) now has a test that it reaches the engine bridge as `world:PIRATES_LEAP_RIDDLE_SOLVED`; since v4 that is the only way the riddle bridge appears |
+| Exit and recovery | Engine and Realm | Parity | Hazard recovery to the linked checkpoint with no loss; a fall below returns to the latest checkpoint; bridge safe ground excludes moving platforms; a returning child resumes at earned checkpoints only |
+| Touch input | Shared HUD; Realm layout | **Defect fixed** | The touch Jump button (right edge, from max(42%, 9.5rem)) overlapped the region-play hint bubble on phones. On a coarse pointer the bubble now opens left of the Jump column. `ui/touchJumpLayout.test.ts` checks the geometry; the Hint and Backpack buttons stay below the Jump button |
+
+Integrated build only (`integration/20261119-game-engine-core`, Firepeak's region-play changes):
+returning to Pip, a quest-completing puzzle solve, now also plays the finale sound and victory
+music, as chest and talk completions do. The new Firepeak cues map to nothing in Treasure Rush.
+

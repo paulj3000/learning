@@ -25,7 +25,12 @@ export type SoundCue =
   | 'npcGreet'
   | 'npcInteract'
   | 'npcTalk'
-  | 'npcLeave';
+  | 'npcLeave'
+  // The Heart of Firepeak moments (`audio/regionAudio.ts`). Silent in regions that map none.
+  | 'crystalCollect'
+  | 'puzzleComplete'
+  | 'restoration'
+  | 'switchFlip';
 
 /** Where a moment happened, when it happened somewhere in the scene (SM-P7). */
 export interface SoundPlace {
@@ -55,4 +60,29 @@ export function playCue(cue: SoundCue, at?: SoundPlace): void {
   } catch {
     // Sound is decoration: a broken player must never interrupt play.
   }
+}
+
+/**
+ * The moments a server-confirmed puzzle solve raises: `puzzleComplete` for any first solve, and
+ * `restoration` for a COLLECT_OBJECT one, plus `questComplete` (the finale sound and music) when
+ * the solve finished a quest, as a talk or chest answer already does. Nothing for a wrong answer, an already solved puzzle or
+ * a practice answer. A region that maps these moments to no cue stays silent (Treasure Rush).
+ */
+export function puzzleSolveCues(
+  kind: string | undefined,
+  outcome:
+    | {
+        correct: boolean;
+        solvedNow: boolean;
+        practice?: boolean;
+        alreadySolved?: boolean;
+        questUpdates?: readonly { justCompleted: boolean }[];
+      }
+    | undefined,
+): SoundCue[] {
+  if (!outcome?.correct || !outcome.solvedNow || outcome.practice || outcome.alreadySolved) return [];
+  const cues: SoundCue[] = ['puzzleComplete'];
+  if (kind === 'COLLECT_OBJECT') cues.push('restoration');
+  if (outcome.questUpdates?.some((update) => update.justCompleted)) cues.push('questComplete');
+  return cues;
 }

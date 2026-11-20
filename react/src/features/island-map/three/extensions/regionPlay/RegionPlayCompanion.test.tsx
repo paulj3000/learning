@@ -31,6 +31,12 @@ import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry
 import { SOURCE_WORLD_EXTENSIONS } from '..';
 import { SOURCE_VIEW_EXTENSIONS } from '../viewExtensions';
 import { RegionPlayCompanion } from './RegionPlayCompanion';
+import { validateGameplayEvent, type AnyGameplayEvent } from '@lai/game-engine/contracts';
+import {
+  currentClaimsBinding,
+  resetLocationClaimsForTests,
+  setLocationClaimSink,
+} from '../../runtime/gameplayClaimSink';
 import { regionPlayViewExtension } from './regionPlayViewExtension';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 
@@ -1247,6 +1253,49 @@ describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
     expect(scene.reactNpc).toHaveBeenCalledWith('cove-pip', 'cheer');
   });
 
+  it('re-reads the shared world once when the server records a change mid-visit (riddle bridge)', async () => {
+    // The view raises `world:<key>` platform signals from its world snapshot, so a bridge a
+    // solved challenge raises (Pirate's Leap) needs that snapshot re-read during the visit.
+    const refreshWorld = vi.fn(async () => undefined);
+    let done = false;
+    const api = fakeApi({
+      getRegion: vi.fn(async () => lookout(done)),
+      talkToNpc: vi.fn(async () => {
+        done = true;
+        return {
+          flagsSet: ['cove-treasure-returned'],
+          questUpdates: [
+            {
+              questId: 'pips-missing-treasure',
+              status: 'COMPLETED' as const,
+              currentStageId: 'return-to-pip',
+              justCompleted: true,
+              newlyCompletedObjectiveIds: ['cove-return-to-pip'],
+            },
+          ],
+          completionRewards: [],
+        };
+      }),
+    });
+    render(
+      <RegionPlayCompanion
+        {...visit(api, { claimedInteraction: interaction(PIP), sceneApi: fakeScene(), refreshWorld })}
+      />,
+    );
+    await waitFor(() => expect(refreshWorld).toHaveBeenCalledTimes(1));
+    await act(async () => undefined);
+    expect(refreshWorld).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-read the world for changes the child already had on arrival', async () => {
+    const refreshWorld = vi.fn(async () => undefined);
+    const api = fakeApi({ getRegion: vi.fn(async () => lookout(true)) });
+    render(<RegionPlayCompanion {...visit(api, { sceneApi: fakeScene(), refreshWorld })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(refreshWorld).not.toHaveBeenCalled();
+  });
+
   it('leaves the way shut for a child who has not earned it', async () => {
     const scene = fakeScene();
     const api = fakeApi({ getRegion: vi.fn(async () => lookout(false)) });
@@ -1384,5 +1433,260 @@ describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
     );
     await waitFor(() => expect(scene.pressRune).toHaveBeenCalledWith('cove-rune-stone-2'));
     await waitFor(() => expect(scene.flashRunes).toHaveBeenCalledWith(true));
+  });
+});
+
+describe('the engine bridge learns the child\'s progress (GE-073)', () => {
+  const bridgeRegion = {
+    ...bootstrapJson().region,
+    scene: {
+      engineBridge: {
+        capabilities: [
+          {
+            id: 'gameplay.checkpoints',
+            config: {
+              checkpoints: [
+                { id: 'cp-start', courseId: 'c', position: { x: 0, y: 0, z: 0 }, yaw: 0, label: 'the start' },
+                { id: 'cp-gate', courseId: 'c', position: { x: 0, y: 0, z: 9 }, yaw: 0, label: 'the gate', requiresSignalId: 'world:GATE_OPEN' },
+                { id: 'cp-far', courseId: 'c', position: { x: 0, y: 0, z: 19 }, yaw: 0, label: 'far', requiresSignalId: 'world:FAR_OPEN' },
+              ],
+              goals: [],
+            },
+          },
+        ],
+      },
+    },
+  };
+  const change = (changeKey: string, locationSlug = bridgeRegion.locationSlug) => ({
+    locationSlug,
+    changeType: 'UNLOCK',
+    changeKey,
+    payload: {},
+    createdAt: '2026-11-19T10:00:00.000000Z',
+  });
+
+  it('feeds world changes as signals, then resumes once at the earned checkpoints', async () => {
+    const calls: string[] = [];
+    const bridge = {
+      setSignals: vi.fn((ids: readonly string[]) => calls.push(`signals:${ids.join(',')}`)),
+      resume: vi.fn((ids: readonly string[]) => {
+        calls.push(`resume:${ids.join(',')}`);
+        return { placedAt: ids.at(-1) ?? null, unknown: [] };
+      }),
+    };
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(
+          bootstrapJson({
+            region: bridgeRegion,
+            session: sessionJson(),
+            worldChanges: [change('GATE_OPEN'), change('FAR_OPEN', 'somewhere-else')],
+          }),
+          parse.regionBootstrap,
+        ),
+      ),
+    });
+    apis.set(CHILD_A, api);
+    const extensionApi = (id: string) => (id === 'engineBridge' ? bridge : null);
+    const view = render(<RegionPlayCompanion {...props({ extensionApi })} />);
+    await waitFor(() => expect(bridge.resume).toHaveBeenCalledTimes(1));
+    // Only this Area's changes count; signals go first so the gated checkpoint is open.
+    expect(calls).toEqual(['signals:world:GATE_OPEN', 'resume:cp-gate']);
+    view.rerender(<RegionPlayCompanion {...props({ extensionApi })} />);
+    await act(async () => undefined);
+    expect(bridge.resume).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing for an Area without an engineBridge block', async () => {
+    const bridge = { setSignals: vi.fn(), resume: vi.fn() };
+    const api = fakeApi();
+    apis.set(CHILD_A, api);
+    render(<RegionPlayCompanion {...props({ extensionApi: () => bridge })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(bridge.setSignals).not.toHaveBeenCalled();
+    expect(bridge.resume).not.toHaveBeenCalled();
+  });
+});
+
+describe('gameplay claims for the visit (GE-070, decision E15)', () => {
+  afterEach(() => resetLocationClaimsForTests());
+
+  it('restates the server’s answer as one valid CHEST_CHALLENGE claim bound to the session', async () => {
+    const sink = vi.fn<(event: AnyGameplayEvent) => void>();
+    setLocationClaimSink(sink);
+    const api = fakeApi();
+    await atTheChest(api, { sceneApi: fakeScene(false) });
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await waitFor(() =>
+      expect(sink.mock.calls.map(([event]) => event.type)).toContain('learning.answer.submitted'),
+    );
+    const events = sink.mock.calls.map(([event]) => event);
+    for (const event of events) expect(validateGameplayEvent(event).ok).toBe(true);
+    const answered = events.find((event) => event.type === 'learning.answer.submitted')!;
+    expect(answered).toMatchObject({
+      realmId: 'pirate-builder-bay',
+      adventureId: REGION,
+      areaId: REGION,
+      sessionRef: SESSION_ID,
+      payload: {
+        learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'cove-chest' },
+        choiceId: null,
+      },
+    });
+    // A chest is a graded challenge, never a discovery.
+    expect(events.some((event) => event.type === 'exploration.discovery.found')).toBe(false);
+  });
+
+  it('binds claims to the visit while it lasts, and to nothing once the child leaves', async () => {
+    apis.set(CHILD_A, fakeApi());
+    const view = render(<RegionPlayCompanion {...props()} />);
+    await waitFor(() => expect(currentClaimsBinding()?.context.sessionRef).toBe(SESSION_ID));
+    view.unmount();
+    expect(currentClaimsBinding()).toBeNull();
+  });
+
+  it('never throws into play when nobody is listening', async () => {
+    const api = fakeApi();
+    await atTheChest(api, { sceneApi: fakeScene(false) });
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    await screen.findByRole('dialog', { name: 'Click! The chest is open!' });
+  });
+});
+
+describe('the engine bridge learns the child\'s progress (GE-065)', () => {
+  const bridgeRegion = {
+    ...bootstrapJson().region,
+    scene: {
+      engineBridge: {
+        capabilities: [
+          {
+            id: 'gameplay.checkpoints',
+            config: {
+              checkpoints: [
+                { id: 'cp-start', courseId: 'c', position: { x: 0, y: 0, z: 0 }, yaw: 0, label: 'the start' },
+                { id: 'cp-gate', courseId: 'c', position: { x: 0, y: 0, z: 9 }, yaw: 0, label: 'the gate', requiresSignalId: 'world:GATE_OPEN' },
+                { id: 'cp-far', courseId: 'c', position: { x: 0, y: 0, z: 19 }, yaw: 0, label: 'far', requiresSignalId: 'world:FAR_OPEN' },
+              ],
+              goals: [],
+            },
+          },
+        ],
+      },
+    },
+  };
+  const change = (changeKey: string, locationSlug = bridgeRegion.locationSlug) => ({
+    locationSlug,
+    changeType: 'UNLOCK',
+    changeKey,
+    payload: {},
+    createdAt: '2026-11-19T10:00:00.000000Z',
+  });
+
+  it('feeds world changes as signals, then resumes once at the earned checkpoints', async () => {
+    const calls: string[] = [];
+    const bridge = {
+      setSignals: vi.fn((ids: readonly string[]) => calls.push(`signals:${ids.join(',')}`)),
+      resume: vi.fn((ids: readonly string[]) => {
+        calls.push(`resume:${ids.join(',')}`);
+        return { placedAt: ids.at(-1) ?? null, unknown: [] };
+      }),
+    };
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(
+          bootstrapJson({
+            region: bridgeRegion,
+            session: sessionJson(),
+            worldChanges: [change('GATE_OPEN'), change('FAR_OPEN', 'somewhere-else')],
+          }),
+          parse.regionBootstrap,
+        ),
+      ),
+    });
+    apis.set(CHILD_A, api);
+    const extensionApi = (id: string) => (id === 'engineBridge' ? bridge : null);
+    const view = render(<RegionPlayCompanion {...props({ extensionApi })} />);
+    await waitFor(() => expect(bridge.resume).toHaveBeenCalledTimes(1));
+    // Only this Area's changes count; signals go first so the gated checkpoint is open.
+    expect(calls).toEqual(['signals:world:GATE_OPEN', 'resume:cp-gate']);
+    view.rerender(<RegionPlayCompanion {...props({ extensionApi })} />);
+    await act(async () => undefined);
+    expect(bridge.resume).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes a change recorded mid-visit to the bridge (the riddle bridge), without resuming again', async () => {
+    // GE-071 course v4: the riddle bridge is an engine platform, so this signal is the only way
+    // it appears during the visit (the live platform system no longer draws it).
+    const fed: string[][] = [];
+    const bridge = {
+      setSignals: vi.fn((ids: readonly string[]) => void fed.push([...ids])),
+      resume: vi.fn((ids: readonly string[]) => ({ placedAt: ids.at(-1) ?? null, unknown: [] })),
+    };
+    let solved = false;
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(
+          bootstrapJson({
+            region: bridgeRegion,
+            session: sessionJson(),
+            quests: [questJson()],
+            worldChanges: solved ? [change('PIRATES_LEAP_RIDDLE_SOLVED')] : [],
+          }),
+          parse.regionBootstrap,
+        ),
+      ),
+      talkToNpc: vi.fn(async () => {
+        solved = true;
+        return {
+          flagsSet: [],
+          questUpdates: [
+            {
+              questId: 'pips-missing-treasure',
+              status: 'COMPLETED' as const,
+              currentStageId: 'return-to-pip',
+              justCompleted: true,
+              newlyCompletedObjectiveIds: [],
+            },
+          ],
+          completionRewards: [],
+        };
+      }),
+    });
+    apis.set(CHILD_A, api);
+    const extensionApi = (id: string) => (id === 'engineBridge' ? bridge : null);
+    render(<RegionPlayCompanion {...props({ extensionApi, claimedInteraction: interaction(PIP) })} />);
+    await waitFor(() => expect(fed.at(-1)).toEqual(['world:PIRATES_LEAP_RIDDLE_SOLVED']));
+    expect(fed[0]).toEqual([]); // arrival: nothing solved yet
+    expect(bridge.resume).toHaveBeenCalledTimes(1);
+  });
+
+  it('a first visit with no world changes resumes nowhere: no teleport past the course', async () => {
+    const bridge = {
+      setSignals: vi.fn(),
+      resume: vi.fn((ids: readonly string[]) => ({ placedAt: ids.at(-1) ?? null, unknown: [] })),
+    };
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        read(bootstrapJson({ region: bridgeRegion, session: sessionJson(), worldChanges: [] }), parse.regionBootstrap),
+      ),
+    });
+    apis.set(CHILD_A, api);
+    render(<RegionPlayCompanion {...props({ extensionApi: () => bridge })} />);
+    await waitFor(() => expect(bridge.resume).toHaveBeenCalledTimes(1));
+    expect(bridge.setSignals).toHaveBeenCalledWith([]);
+    expect(bridge.resume).toHaveBeenCalledWith([]);
+    expect(bridge.resume.mock.results[0]?.value).toEqual({ placedAt: null, unknown: [] });
+  });
+
+  it('does nothing for an Area without an engineBridge block', async () => {
+    const bridge = { setSignals: vi.fn(), resume: vi.fn() };
+    const api = fakeApi();
+    apis.set(CHILD_A, api);
+    render(<RegionPlayCompanion {...props({ extensionApi: () => bridge })} />);
+    await waitFor(() => expect(api.getRegion).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(bridge.setSignals).not.toHaveBeenCalled();
+    expect(bridge.resume).not.toHaveBeenCalled();
   });
 });

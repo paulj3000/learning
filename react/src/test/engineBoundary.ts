@@ -87,6 +87,9 @@ const TEST_SUPPORT_FILES = new Set([
 
 function packageVerdict(specifier: string, importer: string): string | null {
   if (specifier === 'three' || specifier.startsWith('three/')) return null;
+  // GE-020, GE-030: the extracted Game Engine Core. It holds itself to a stricter rule (only
+  // `three`, enforced by game/src/boundary.test.ts), so an engine file may import it.
+  if (specifier === '@lai/game-engine' || specifier.startsWith('@lai/game-engine/')) return null;
   if (specifier === 'phaser') {
     // The legacy 2D scenes only; ADR-020 allows no Phaser in the Three.js engine.
     return importer.startsWith(`${ISLAND_MAP}/scenes/`)
@@ -100,7 +103,7 @@ function packageVerdict(specifier: string, importer: string): string | null {
   if (/^(aws-amplify|@aws-amplify\/|@aws-sdk\/)/.test(specifier)) {
     return 'Amplify and AWS SDKs belong to the platform layer';
   }
-  return 'package is not on the engine allowlist (three; phaser in scenes/ only)';
+  return 'package is not on the engine allowlist (three, @lai/game-engine; phaser in scenes/ only)';
 }
 
 /** Local modules the engine may never reach, matched on the path relative to `root`. */

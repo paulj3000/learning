@@ -2,6 +2,13 @@ import { useEffect, useRef } from 'react';
 import styles from '../../../IslandWorldView.module.css';
 import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
+import {
+  adventureCompletedClaim,
+  castleClaimContext,
+  emitCastleClaim,
+} from './castleGameplayClaims';
+import { useCastleAnswerCues } from './useCastleAnswerCues';
+import { CastleSessionLoading, CastleSessionUnavailable } from './CastleSessionStatus';
 import { StoryChapterRunner } from '../../../../story/StoryChapterRunner';
 import type { StoryAdventureRenderProps } from '../../../../story/StoryChapterRunner';
 import { useStoryProgress } from '../../../../story/useStoryProgress';
@@ -16,6 +23,7 @@ import {
 } from '../../castlePatternLock';
 import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { CastleTaleSceneApi } from './castleTaleScene';
+import { usePadAnswers } from './usePadAnswers';
 
 /**
  * The Explorer arc, "The Castle's Secret Door", hosted in the room (engine
@@ -87,13 +95,14 @@ export function CastleSecretDoorStory({
   }, [loadState, chapter, onComplete]);
 
   if (loadState === 'loading') {
-    return <p className={styles.status}>Opening the door...</p>;
+    return <CastleSessionLoading message="Opening the door..." />;
   }
   if (loadState === 'error' || !progress) {
     return (
-      <p className={styles.status} role="alert">
-        Something went wrong opening this story.
-      </p>
+      <CastleSessionUnavailable
+        message="Something went wrong opening this story."
+        backToMapHref={backToMapHref}
+      />
     );
   }
   if (!chapter) {
@@ -171,13 +180,20 @@ function CastleStoryAdventure({
   useEffect(() => {
     if (session?.status === 'COMPLETED' && !hasFiredOnComplete.current) {
       hasFiredOnComplete.current = true;
+      // GE-072: the server completed the session; restate it as a claim for scoring to confirm.
+      emitCastleClaim(castleClaimContext(definition.slug, session.id), adventureCompletedClaim());
       onComplete();
     }
-  }, [session, onComplete]);
+  }, [session, onComplete, definition.slug]);
 
-  const submitRef = useRef(submitAnswer);
-  submitRef.current = submitAnswer;
   const stepId = currentStep?.id ?? null;
+  // SC-R06-01: right, try-again and hint sounds, from what the server decided.
+  const cuedSubmit = useCastleAnswerCues(submitAnswer, stepId, hintLevel, {
+    adventureSlug: definition.slug,
+    sessionId: session?.id ?? null,
+  });
+  const submitRef = useRef(cuedSubmit);
+  submitRef.current = cuedSubmit;
 
   /**
    * Beat 10's payoff. Driven by the `WORLD_CHANGE` step being on screen
@@ -212,21 +228,36 @@ function CastleStoryAdventure({
           nothing. Everything comes back to where it started, Quill looks
           concerned, and the hint ladder has already advanced a rung.
         */
-        if (correctness === 'correct') return;
+        // `null`: nothing was graded (offline, or an answer already in flight), so no reaction.
+        if (correctness === 'correct' || correctness === null) return;
         arrangement.reset(scene.current);
         scene.current?.playQuillClip('ReactConcerned');
       });
     });
   }, [bus, arrangement, scene]);
 
+  /*
+    SC-JMP: the Great Library's enchanted books, pattern stones and rod stones are a second way to
+    give the same answers (clues in order, the pattern, the rods short to long). The one
+    `submitAnswer` the card uses grades them.
+  */
+  usePadAnswers({
+    bus,
+    definition,
+    stepId,
+    submit: cuedSubmit,
+    onWrongOrder: () => scene.current?.playQuillClip('ReactConcerned'),
+  });
+
   if (loadState === 'loading') {
-    return <p className={styles.status}>Reading the clues...</p>;
+    return <CastleSessionLoading message="Reading the clues..." />;
   }
   if (loadState === 'error' || !currentStep) {
     return (
-      <p className={styles.status} role="alert">
-        Something went wrong opening this part of the story.
-      </p>
+      <CastleSessionUnavailable
+        message="Something went wrong opening this part of the story."
+        backToMapHref={backToMapHref}
+      />
     );
   }
 
@@ -235,7 +266,7 @@ function CastleStoryAdventure({
       currentStep={currentStep}
       submitting={submitting}
       error={error}
-      submitAnswer={submitAnswer}
+      submitAnswer={cuedSubmit}
       hintLevel={hintLevel}
       hintText={hintText}
       requestHint={requestHint}

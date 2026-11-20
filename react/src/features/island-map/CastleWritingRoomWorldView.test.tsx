@@ -101,26 +101,27 @@ describe('CastleWritingRoomWorldView', () => {
     expect(screen.getByText(/loading the writing room/i)).toBeInTheDocument();
   });
 
-  it('shows a calm not-discovered-yet message when the story has not been completed', async () => {
+  it('is open to a child with no progress at all (SC-final-B): the scene renders, with no locked message', async () => {
     listAllWorldChangesMock.mockResolvedValue([]);
 
     renderWorldView();
 
-    expect(await screen.findByText(/has not been discovered yet/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('phaser-game-container')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('phaser-game-container')).toBeInTheDocument();
+    expect(screen.queryByText(/has not been discovered yet/i)).not.toBeInTheDocument();
   });
 
-  it('lets a not-yet-unlocked child navigate back to the map', async () => {
-    const user = userEvent.setup();
-    listAllWorldChangesMock.mockResolvedValue([]);
+  it.each(['SPROUT', 'PATHFINDER', 'EXPLORER'] as const)(
+    'lets a %s in without any earlier story',
+    async (band) => {
+      listAllWorldChangesMock.mockResolvedValue([]);
 
-    renderWorldView();
-    await user.click(await screen.findByText(/back to the map/i));
+      renderWorldView(band);
 
-    expect(await screen.findByText('Map route')).toBeInTheDocument();
-  });
+      expect(await screen.findByTestId('phaser-game-container')).toBeInTheDocument();
+    },
+  );
 
-  it('renders the scene and every always-available interaction once the story is complete', async () => {
+  it('renders the scene and every always-available interaction for a child who finished the Secret Door arc too', async () => {
     listAllWorldChangesMock.mockResolvedValue([
       { changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' } as never,
     ]);

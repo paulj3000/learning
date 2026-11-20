@@ -5,9 +5,14 @@
     "PATHFINDER": "restore-the-great-storybook-pathfinders",
     "EXPLORER": "restore-the-great-storybook-explorers"
   },
+  "edition": 2,
+  "moreQuests": {
+    "PATHFINDER": "restore-the-great-storybook-pathfinders-more"
+  },
   "pages": [
     {
       "id": "page-first-story",
+      "since": 1,
       "title": "The First Story",
       "bands": ["SPROUT", "PATHFINDER"],
       "required": true,
@@ -21,7 +26,23 @@
       "restoredText": "The story you told has flown back into the book."
     },
     {
+      "id": "page-painted-words",
+      "since": 2,
+      "title": "The Painted Words",
+      "bands": ["PATHFINDER"],
+      "required": true,
+      "source": {
+        "kind": "WORLD_CHANGE",
+        "changeKey": "STUDIO_PAGE_MENDED",
+        "locationSlug": "storykeeper-castle"
+      },
+      "roomId": "illustration-studio",
+      "hint": "A page ran into the paintings in the Illustration Studio.",
+      "restoredText": "The painted words found their way home, and this page is back in the book."
+    },
+    {
       "id": "page-three-clues",
+      "since": 1,
       "title": "Three Clues",
       "bands": ["EXPLORER"],
       "required": true,
@@ -36,6 +57,7 @@
     },
     {
       "id": "page-pattern-lock",
+      "since": 1,
       "title": "The Pattern Lock",
       "bands": ["EXPLORER"],
       "required": true,
@@ -50,6 +72,7 @@
     },
     {
       "id": "page-what-was-waiting",
+      "since": 1,
       "title": "What Was Waiting",
       "bands": ["EXPLORER"],
       "required": true,
@@ -64,6 +87,7 @@
     },
     {
       "id": "page-tapestry",
+      "since": 1,
       "title": "The Hidden Page",
       "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "required": false,

@@ -11,6 +11,56 @@ import {
   type ViewerDependencies,
 } from './modelPreviewViewer';
 
+import { ASSET_MANIFEST } from '../../island-map/three/assets/manifest';
+import { parseCollisionProfile } from '../../island-map/three/runtime/collisionProfile';
+import {
+  JUMPABLE_MAX_HEIGHT,
+  footprintBox,
+  footprintFor,
+} from '../../island-map/three/runtime/derivedColliders';
+import type { PreviewCollisionBox } from './modelPreviewViewer';
+
+/** What the game will collide with for this asset: its profile, else the built-in default. */
+export interface PreviewCollision {
+  boxes: readonly PreviewCollisionBox[];
+  kind: 'solid' | 'jumpable';
+  /** Plain-language line for the staff status text. */
+  summary: string;
+}
+
+const KINDS = new Map(ASSET_MANIFEST.map((entry) => [entry.id, entry.kind] as const));
+
+export function previewCollision(rawJson: string | undefined, assetId: string | undefined): PreviewCollision {
+  let raw: unknown = null;
+  try {
+    raw = rawJson ? JSON.parse(rawJson) : null;
+  } catch {
+    raw = null;
+  }
+  const profile = parseCollisionProfile(raw);
+  if (profile) {
+    const word = profile.behavior.toLowerCase();
+    if (!profile.boxes.length) {
+      return { boxes: [], kind: 'solid', summary: `Collision profile: ${word}, never blocks.` };
+    }
+    return {
+      boxes: profile.boxes,
+      kind: profile.behavior === 'JUMPABLE' ? 'jumpable' : 'solid',
+      summary: `Collision profile: ${word}, ${profile.shape.toLowerCase()} as ${profile.boxes.length} box(es).`,
+    };
+  }
+  const footprint = assetId ? footprintFor(assetId, KINDS) : undefined;
+  if (!footprint) {
+    return { boxes: [], kind: 'solid', summary: 'No collision profile and no built-in default: never blocks.' };
+  }
+  const box = footprintBox(footprint);
+  return {
+    boxes: [box],
+    kind: box.maxY - box.minY <= JUMPABLE_MAX_HEIGHT ? 'jumpable' : 'solid',
+    summary: 'No collision profile: the built-in default box is shown.',
+  };
+}
+
 /**
  * Wires the Django Admin preview page (`admin/assets/assetversion/preview.html`)
  * to the viewer: reads the page's `data-` attributes, loads the model, drives
@@ -40,6 +90,9 @@ export function mountAssetPreview(
   const status = root.querySelector<HTMLElement>('[data-preview-status]');
   const stage = root.querySelector<HTMLElement>('[data-preview-stage]');
   const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-preview-action]'));
+  const collisionStatus = root.querySelector<HTMLElement>('[data-preview-collision-status]');
+  const collision = previewCollision(root.dataset.collision, root.dataset.assetId);
+  let collisionShown = false;
   const abort = new AbortController();
   let viewer: ModelPreviewViewer | null = null;
   let disposed = false;
@@ -62,6 +115,13 @@ export function mountAssetPreview(
     else if (action === 'fit') viewer.fitModel();
     else if (action === 'zoom-in') viewer.zoom(ZOOM_STEP);
     else if (action === 'zoom-out') viewer.zoom(1 / ZOOM_STEP);
+    else if (action === 'collision') {
+      collisionShown = !collisionShown;
+      viewer.showCollision(collisionShown);
+      const button = event.currentTarget as HTMLElement;
+      button.setAttribute('aria-pressed', String(collisionShown));
+      button.textContent = collisionShown ? 'Hide collision' : 'Show collision';
+    }
   }
 
   for (const button of buttons) button.addEventListener('click', onAction);
@@ -91,6 +151,12 @@ export function mountAssetPreview(
       const create = dependencies.createViewer ?? createModelPreviewViewer;
       viewer = create(stage, dependencies.viewer);
       viewer.showModel(scene);
+      viewer.setCollision(collision.boxes, collision.kind);
+      if (collisionStatus) {
+        const lead = collisionStatus.firstChild;
+        if (lead?.nodeType === Node.TEXT_NODE) lead.textContent = `${collision.summary} `;
+        else collisionStatus.prepend(`${collision.summary} `);
+      }
       const clips = clipNames.length
         ? ` It has ${clipNames.length} animation clip(s); the preview shows its rest pose.`
         : '';

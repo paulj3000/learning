@@ -92,6 +92,7 @@ describe('useRegionPlay puzzles (LAI-0812)', () => {
       feedback: 'CORRECT' as const,
       solvedNow: true,
       alreadySolved: false,
+      practice: false,
       failedAttempts: 0,
       newItems: [],
       rewardMessage: null,

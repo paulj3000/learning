@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from apps.core.models import CrossChildReference
 from apps.progression.models import WorldChange
+from apps.progression.protected_changes import is_misplaced
 
 
 def record_world_change(
@@ -44,5 +45,17 @@ def record_world_change(
         )
 
 
+def world_change_pairs(child) -> set[tuple[str, str]]:
+    """Every recorded (location, change key) for the child, exactly as stored."""
+    return set(WorldChange.objects.for_child(child).values_list("location_slug", "change_key"))
+
+
 def world_change_keys(child) -> set[str]:
-    return set(WorldChange.objects.for_child(child).values_list("change_key", flat=True))
+    """The change keys that count as progress for the child.
+
+    A protected key (`protected_changes`) recorded at a location other than the one it belongs to
+    is dropped: quest BUILD objectives, discovery requirements and the Great Storybook match on
+    the key, so a forged copy elsewhere must not satisfy them. Unprotected keys and legacy rows
+    with a blank location are kept as they always were.
+    """
+    return {key for location, key in world_change_pairs(child) if not is_misplaced(location, key)}

@@ -256,12 +256,20 @@ class TestChildIsolation:
             "assets",
             "audio",
             "auth",
+            "avatars",  # Player Avatars (LAI-JMP-01c, ADR-057): staff content, no child data
             "catalog",
             "education",
             "jobs",  # background job status, read-only; payloads never carry child data
             "npcs",  # NPC Manager content and releases; conversation state unregistered (ADR-054)
             "question_studio",
             "regions",
+            # Scoring policies and their rules only (GE-102): economy configuration, no child
+            # data. The award ledger and progression projections are child progress and are
+            # deliberately not registered (corrections: `manage.py scoring_correct`).
+            "scoring",
+            # Seasonal event content only (NP-023): no child data. SeasonalCompletion is child
+            # owned and deliberately not registered.
+            "seasons",
             "speech",  # voice profiles and speech lines: staff content, no child data (ADR-049)
             "users",
         }

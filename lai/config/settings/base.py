@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.audio",
     "apps.speech",
     "apps.npcs",
+    "apps.avatars",
     "apps.game_sessions",
     "apps.education",
     "apps.progression",
@@ -44,7 +45,9 @@ INSTALLED_APPS = [
     "apps.quests",
     "apps.ai",
     "apps.question_studio",
+    "apps.seasons",
     "apps.jobs",
+    "apps.scoring",
 ]
 
 # The parent account is the user model (LAI-0301, ADR-022). Set before any migration is applied.
@@ -435,7 +438,7 @@ def compose_database() -> dict:
     user = os.environ.get("POSTGRES_USER", "lai")
     password = os.environ.get("POSTGRES_PASSWORD", "local-dev-only-password")
     name = os.environ.get("POSTGRES_DB", "lai")
-    port = os.environ.get("POSTGRES_PORT", "5442")
+    port = os.environ.get("POSTGRES_PORT", "5432")
     return database_from_url(f"postgresql://{user}:{password}@127.0.0.1:{port}/{name}")
 
 
@@ -493,6 +496,15 @@ LAI_STUDIO_TIMEOUT_SECONDS = float(os.environ.get("LAI_STUDIO_TIMEOUT_SECONDS", 
 # Models staff may generate with. Empty approves only LAI_AI_MODEL_ID. A request for any other
 # model is refused, never silently substituted.
 LAI_STUDIO_APPROVED_MODEL_IDS = env_list("LAI_STUDIO_APPROVED_MODEL_IDS")
+
+# --- Scoring and progression (GE-100, docs/scoring/SCORING_CONTRACTS.md section 8) -------------
+# Off by default: the XP/coins/levels economy is proposed, not owner-approved (ADR-011 part A
+# still stands until the draft ADR is accepted). When on, an active policy still awards nothing
+# without the owner's economy approval unless ALLOW_UNAPPROVED is set, which only local
+# development and tests may do (production settings refuse it).
+LAI_SCORING_ENABLED = env_bool("LAI_SCORING_ENABLED", False)
+LAI_SCORING_ALLOW_UNAPPROVED = env_bool("LAI_SCORING_ALLOW_UNAPPROVED", False)
+LAI_SCORING_EXCLUDED_SCOPE_PREFIXES = env_list("LAI_SCORING_EXCLUDED_SCOPE_PREFIXES")
 LAI_STUDIO_MODEL_ID = os.environ.get("LAI_STUDIO_MODEL_ID", "").strip()
 if LAI_STUDIO_RUN_MODE not in {"thread", "manual", "inline", "jobs"}:
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE must be thread, manual, inline or jobs.")

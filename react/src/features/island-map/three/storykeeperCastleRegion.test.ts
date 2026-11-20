@@ -1,3 +1,4 @@
+import { WALL_HEIGHT } from './sceneKit';
 import { describe, expect, it } from 'vitest';
 import {
   ARCHWAYS,
@@ -468,8 +469,8 @@ describe('storykeeperCastleRegion entity spots', () => {
   it('gives every wall-mounted spot a sensible mounting height', () => {
     for (const spot of WALL_MOUNTED_SPOTS) {
       expect(spot.y).toBeGreaterThan(0);
-      // WALL_HEIGHT is 3 in sceneKit.ts; nothing may be mounted above the wall.
-      expect(spot.y).toBeLessThan(3);
+      // Nothing may be mounted above the wall (WALL_HEIGHT is the default ceiling height).
+      expect(spot.y).toBeLessThan(WALL_HEIGHT);
     }
   });
 

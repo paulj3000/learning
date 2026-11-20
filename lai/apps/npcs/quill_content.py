@@ -92,11 +92,31 @@ REQUIRED_BEHAVIOURS: dict[str, tuple[str, ...]] = {
     "return_visit": ("on_return_visit",),
     "story_told": ("on_adventure_complete",),
     "fallback": ("on_interact",),
+    "storybook_restored": ("on_interact",),
+    "premise": ("on_interact",),
 }
 
-_LEGACY_GREETING = (
-    "Welcome to the castle library. Every story here is missing one thing: your ideas."
-)
+#: SC-R04-01: the world change every band's Great Storybook quest writes when the book is whole
+#: (`GREAT_STORYBOOK_RESTORED_KEY` in `react/src/features/great-storybook/pages.ts`).
+STORYBOOK_RESTORED_KEY = "GREAT_STORYBOOK_RESTORED"
+
+#: The client catalog lines (`react/src/features/npc/content/islandNpcs.ts`) these dialogues
+#: carry word for word, by client node id. `test_castle_npc_mirror.py` reads the client file and
+#: fails if either side changes alone (SC-R05-01).
+LEGACY_LINES: dict[str, str] = {
+    "quill-greeting": (
+        "Welcome to the castle library. Every story here is missing one thing: your ideas."
+    ),
+    "quill-storybook-restored": (
+        "The Great Storybook is whole again, and every page remembers you. Thank you, my friend."
+    ),
+    "quill-the-damaged-book": (
+        "Oh dear. The Great Storybook was torn, and its pages flew all over the castle. "
+        "Will you help me bring them back?"
+    ),
+}
+
+_LEGACY_GREETING = LEGACY_LINES["quill-greeting"]
 _LEGACY_STORY_RULES = (
     "Every good story needs three things: a hero, a problem to solve, and a happy ending."
 )
@@ -106,9 +126,65 @@ def _for_storytellers() -> dict:
     return {"type": "AGE_BAND", "in": list(QUEST_AGE_BANDS)}
 
 
+def _storybook_restored(present: bool) -> dict:
+    return {
+        "type": "WORLD_CHANGE",
+        "key": STORYBOOK_RESTORED_KEY,
+        "place": PLACE_SLUG,
+        "present": present,
+    }
+
+
 def dialogues() -> tuple[Dialogue, ...]:
     """Quill's dialogues."""
     return (
+        # SC-R04-01 / SC-R05-01: the Great Storybook is whole. Said once, before anything else
+        # (the client says it "once its quest is finished" too).
+        Dialogue(
+            "storybook-restored",
+            "The Great Storybook is whole",
+            "on_interact",
+            (
+                Node(
+                    "whole",
+                    LEGACY_LINES["quill-storybook-restored"],  # legacy quill-storybook-restored
+                    emotion="proud",
+                    animation="celebrate",
+                    choices=(
+                        # legacy quill-storybook-restored-bye
+                        Choice("fun", "It was a lot of fun!", action="END"),
+                    ),
+                ),
+            ),
+            priority=40,
+            conditions=(_storybook_restored(True),),
+            once_per_child=True,
+            behaviour="storybook_restored",
+        ),
+        # SC-R04-01 / SC-R05-01: the premise, for a child who has met Quill (a return visit) and
+        # has not restored the book yet. Once, so "what every story needs" still follows. The
+        # quest itself is offered by the castle's quest flow, never started here.
+        Dialogue(
+            "the-damaged-book",
+            "The Great Storybook was torn",
+            "on_interact",
+            (
+                Node(
+                    "torn",
+                    LEGACY_LINES["quill-the-damaged-book"],  # legacy quill-the-damaged-book
+                    emotion="sad",
+                    animation="talk",
+                    choices=(
+                        Choice("help", "Yes, I will help!", action="END"),  # legacy
+                        Choice("later", "Maybe later.", action="END"),  # legacy
+                    ),
+                ),
+            ),
+            priority=15,
+            conditions=({"type": "RETURN_VISIT"}, _storybook_restored(False)),
+            once_per_child=True,
+            behaviour="premise",
+        ),
         Dialogue(
             "greeting-story-offer",
             "First meeting, with the story quest",

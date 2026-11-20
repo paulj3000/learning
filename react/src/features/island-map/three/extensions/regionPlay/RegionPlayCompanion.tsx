@@ -14,9 +14,12 @@ import {
   type NpcSoundMoment,
 } from '../../../../npc-manager/host';
 import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
+import { earnedBridgeCheckpoints, worldSignals } from '../../../../region-play/engineBridgeProgress';
+import { ENGINE_BRIDGE_EXTENSION_ID, type EngineBridgeApi } from '../../../../game-engine/bridge/engineBridge';
 import {
   chestStateChanges,
   resolveRegionPlayInteraction,
+  usesLegacyNpcDialogue,
 } from '../../../../region-play/regionPlayInteractions';
 import {
   PLAY_COPY,
@@ -34,8 +37,14 @@ import {
   hasSceneAudio,
   useTreasureRushAudio,
 } from '../../../../region-play/audio/useTreasureRushAudio';
-import { playCue, type SoundCue } from '../../../../region-play/soundCues';
+import { playCue, puzzleSolveCues, type SoundCue } from '../../../../region-play/soundCues';
 import { useRegionPlay } from '../../../../region-play/useRegionPlay';
+import {
+  claimsForOutcome,
+  claimsForPuzzleOutcome,
+  type RegionPlayClaimLookup,
+} from '../../../../region-play/regionPlayClaims';
+import { emitLocationClaim, setLocationClaimsBinding } from '../../runtime/gameplayClaimSink';
 import type { LocationCompanionProps } from '../../runtime/viewExtensionRegistry';
 import type { RegionPlaySceneApi } from './regionPlayScene';
 import { AreaPuzzleLayer } from './AreaPuzzleLayer';
@@ -108,6 +117,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     speechSlot,
     showToast,
     bus,
+    refreshWorld,
   } = props;
   // Sound (SM-P3): registered first so every moment below finds its player. Silent without audio.
   const audio = useTreasureRushAudio({
@@ -166,6 +176,20 @@ function RegionPlayGame(props: LocationCompanionProps) {
     startedOnce.current = true;
     void startSession();
   }, [startSession, state.session, state.status]);
+
+  // GE-070: once the server session exists, this visit's claims (the companion's and the engine
+  // bridge's) carry it. The realm is the region's Place; the adventure and area are this region.
+  const claimSessionRef = state.session?.sessionId ?? null;
+  const claimRealmId = state.bootstrap?.region.locationSlug ?? null;
+  useEffect(() => {
+    if (!claimSessionRef || !claimRealmId) return undefined;
+    return setLocationClaimsBinding({
+      realmId: claimRealmId,
+      adventureId: regionId,
+      areaId: regionId,
+      sessionRef: claimSessionRef,
+    });
+  }, [claimSessionRef, claimRealmId, regionId]);
 
   // The objective, from the server's quests: the HUD cue now, the hint when asked.
   const bootstrap = state.bootstrap;
@@ -351,6 +375,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     revealedPickup.current = lastPickup;
     if (lastPickup.pickedUp && lastPickup.newItems.length > 0) {
       playCue('keyPickup', { entityId: lastPickup.entityId });
+      playCue('crystalCollect', { entityId: lastPickup.entityId });
       react('cheer');
       setFound(lastPickup);
       void refreshProgress();
@@ -386,12 +411,29 @@ function RegionPlayGame(props: LocationCompanionProps) {
   );
   const bootstrapRef = useRef(bootstrap);
   bootstrapRef.current = bootstrap;
+  /** GE-070: the NPC entity the child last asked to talk to; a talk outcome does not name it. */
+  const lastTalkedEntity = useRef<string | null>(null);
+  const claimLookup = useMemo<RegionPlayClaimLookup>(
+    () => ({
+      chestForAttempt: (attemptId) => submittedTargets.current.get(attemptId),
+      lastTalkedNpc: () => {
+        const entityId = lastTalkedEntity.current;
+        const npc = entityId
+          ? bootstrapRef.current?.npcs.find((candidate) => candidate.entityId === entityId)
+          : undefined;
+        return npc ? { npcId: npc.npcId, interactionId: npc.interactionId } : null;
+      },
+    }),
+    [],
+  );
   const onNpcInteract = useCallback(
     async (npcId: string) => {
       // The same "talked" call the legacy Pip made (it may finish the quest and bring the
       // finale), before the conversation, so the line matches the quest's new state.
       const entity = bootstrapRef.current?.npcs.find((npc) => npc.npcId === npcId);
-      if (entity) await talkToNpc(entity.entityId);
+      if (!entity) return;
+      lastTalkedEntity.current = entity.entityId;
+      await talkToNpc(entity.entityId);
     },
     [talkToNpc],
   );
@@ -409,6 +451,8 @@ function RegionPlayGame(props: LocationCompanionProps) {
     playCue(NPC_SOUND_CUES[moment], { npcId });
   }, []);
   const npcHost: NpcSceneHost = useNpcSceneHost({
+    // Region play claims talks from the server's talk outcome (regionPlayClaims), not here.
+    claimInteractions: false,
     childId,
     scope: { kind: 'area', regionId },
     scene: npcScene,
@@ -433,11 +477,15 @@ function RegionPlayGame(props: LocationCompanionProps) {
   useEffect(() => {
     playOutcomeRef.current = (outcome) => {
       if (outcome.kind !== 'session_changed') notifyPlay(outcome);
+      // GE-070: the same outcomes, restated as v1 gameplay claims for the visit's sink.
+      for (const claim of claimsForOutcome(outcome, claimLookup)) {
+        emitLocationClaim(claim.type, claim.payload);
+      }
     };
     return () => {
       playOutcomeRef.current = null;
     };
-  }, [notifyPlay]);
+  }, [notifyPlay, claimLookup]);
   const seenChanges = useRef<Set<string> | null>(null);
   const worldChanges = bootstrap?.worldChanges;
   useEffect(() => {
@@ -450,8 +498,31 @@ function RegionPlayGame(props: LocationCompanionProps) {
     }
     const added = worldChanges.filter((change) => !seenChanges.current?.has(keyOf(change)));
     for (const change of added) seenChanges.current.add(keyOf(change));
-    if (added.length > 0) notifyPlay({ kind: 'world_changes', added });
-  }, [worldChanges, notifyPlay]);
+    if (added.length === 0) return;
+    notifyPlay({ kind: 'world_changes', added });
+    // The view raises platform signals (`world:<key>`) and requirement checks from its own world
+    // snapshot, which only re-reads when asked. Without this, a bridge a solved challenge raises
+    // (Pirate's Leap's riddle drum) stayed hidden until the child left and came back.
+    void refreshWorld().catch(() => undefined);
+  }, [worldChanges, notifyPlay, refreshWorld]);
+
+  // GE-065: an Area whose checkpoints live in `scene.engineBridge` learns the child's progress
+  // here. World changes become `world:<key>` signals (gated checkpoints open), and once per visit
+  // the child is resumed at the furthest checkpoint they earned (signals first, then resume).
+  const bridgeBlock = bootstrap?.region.scene.engineBridge;
+  const areaLocation = bootstrap?.region.locationSlug;
+  const extensionApi = props.extensionApi;
+  const resumedBridge = useRef(false);
+  useEffect(() => {
+    if (!worldChanges || !bridgeBlock || !sceneApi || !extensionApi) return;
+    const bridge = extensionApi(ENGINE_BRIDGE_EXTENSION_ID) as Pick<EngineBridgeApi, 'resume' | 'setSignals'> | null;
+    if (!bridge) return;
+    const keys = worldChanges.filter((c) => c.locationSlug === areaLocation).map((c) => c.changeKey);
+    bridge.setSignals(worldSignals(keys));
+    if (resumedBridge.current) return;
+    resumedBridge.current = true;
+    bridge.resume(earnedBridgeCheckpoints(bridgeBlock, keys));
+  }, [worldChanges, bridgeBlock, areaLocation, sceneApi, extensionApi]);
 
   // Exactly one Pip: a manifest NPC the host serves is handed over to it.
   useEffect(() => {
@@ -483,7 +554,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
   // time the child does it; the server decides what it means.
   useEffect(() => {
     if (!event || !claimedInteraction || handledFor.current === claimedInteraction) return;
-    if (event.kind === 'npc' && managedNpcIds.has(event.npcId)) {
+    if (event.kind === 'npc' && !usesLegacyNpcDialogue(event, managedNpcIds)) {
       // The NPC Manager's Pip: the host runs the talk call and the conversation.
       handledFor.current = claimedInteraction;
       hostRef.current.interact(event.npcId, 'pointer');
@@ -491,6 +562,7 @@ function RegionPlayGame(props: LocationCompanionProps) {
     } else if (event.kind === 'npc') {
       handledFor.current = claimedInteraction;
       (sceneApi as RegionPlaySceneApi | null)?.reactNpc?.(event.entityId, 'talk');
+      lastTalkedEntity.current = event.entityId;
       void talkToNpc(event.entityId);
     } else if (event.kind === 'pickup') {
       handledFor.current = claimedInteraction;
@@ -574,8 +646,22 @@ function RegionPlayGame(props: LocationCompanionProps) {
     ? parsePuzzleParams(currentStage.kind, currentStage.parameters)
     : null;
 
+  /** Solves through the play API and raises the confirmed-solve sounds (never for practice). */
+  async function solveWithSound(puzzleId: string, submission: JsonObject) {
+    const outcome = await solvePuzzle(puzzleId, submission);
+    const kind = state.bootstrap?.puzzles.find((p) => p.puzzleId === puzzleId)?.kind;
+    for (const cue of puzzleSolveCues(kind, outcome)) playCue(cue);
+    // GE-073: the server's grading, restated as claims for the visit's sink.
+    if (outcome) {
+      for (const claim of claimsForPuzzleOutcome(puzzleId, outcome, submission)) {
+        emitLocationClaim(claim.type, claim.payload);
+      }
+    }
+    return outcome;
+  }
+
   async function returnToNpc(puzzleId: string, title: string) {
-    const outcome = await solvePuzzle(puzzleId, {});
+    const outcome = await solveWithSound(puzzleId, {});
     if (!outcome?.correct) return;
     const params = state.bootstrap?.puzzles.find((p) => p.puzzleId === puzzleId);
     const parsed = params ? parsePuzzleParams(params.kind, params.parameters) : null;
@@ -639,9 +725,10 @@ function RegionPlayGame(props: LocationCompanionProps) {
         }}
       />
     );
-  } else if (event?.kind === 'npc' && !managedNpcIds.has(event.npcId)) {
-    // A managed NPC (NPC Manager) answers through its own panel instead. Follow-up: that panel
-    // has no launch or puzzle-return actions yet; Treasure Cove's Pip uses neither today.
+  } else if (event?.kind === 'npc' && usesLegacyNpcDialogue(event, managedNpcIds)) {
+    // A managed NPC (NPC Manager) answers through its own panel instead, except while a
+    // RETURN_TO_NPC puzzle bound to it is open or it has launch points (`usesLegacyNpcDialogue`):
+    // this panel carries those actions and the stage line.
     const returnPuzzle = event.returnPuzzle;
     panel = (
       <PipDialog
@@ -780,12 +867,13 @@ function RegionPlayGame(props: LocationCompanionProps) {
           event={areaEvent}
           busy={state.busy === 'solvePuzzle'}
           solvePuzzle={async (puzzleId, submission) => {
-            const outcome = await solvePuzzle(puzzleId, submission as JsonObject);
+            const outcome = await solveWithSound(puzzleId, submission as JsonObject);
             if (outcome?.correct) void refreshProgress();
             return outcome;
           }}
           onClose={closeInteraction}
           showToast={props.showToast}
+          bus={bus}
         />
       ) : null}
       {areaEvent ? null : panel}

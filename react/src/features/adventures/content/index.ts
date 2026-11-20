@@ -5,6 +5,7 @@ import { THREE_PLANKS_FOR_THE_BRIDGE } from './threePlanksForTheBridge';
 import { THE_TIDE_GATE_CALCULATION } from './theTideGateCalculation';
 import { THE_STORYKEEPERS_TALE } from './theStorykeepersTale';
 import { QUILLS_PICTURE_STORY } from './quillsPictureStory';
+import { PAINTED_WORDS_ADVENTURES } from './thePaintedWords';
 import { BUZZ_AND_THE_WAGGLE_DANCE } from './buzzAndTheWaggleDance';
 import { EMBER_MOUNTAIN_CHAPTER_ADVENTURES } from './emberMountainChapterAdventures';
 import { DINOSAUR_EXPEDITION_ADVENTURES } from './dinosaurExpeditionAdventures';
@@ -13,6 +14,7 @@ import { BUTTERFLY_GARDEN_ADVENTURES } from './butterflyGardenAdventures';
 import { CASTLES_SECRET_DOOR_ADVENTURES } from './castlesSecretDoorAdventures';
 import { CREATURE_CARE_COVE_ADVENTURES } from './creatureCareCoveAdventures';
 import { DARK_LIGHTHOUSE_ADVENTURES } from './darkLighthouseAdventures';
+import { WRITING_ROOM_STORIES } from './writingRoomStories';
 
 /**
  * Every arc challenge below the first four entries carries a story-only
@@ -26,6 +28,7 @@ export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   THE_TIDE_GATE_CALCULATION,
   THE_STORYKEEPERS_TALE,
   QUILLS_PICTURE_STORY,
+  ...PAINTED_WORDS_ADVENTURES,
   BUZZ_AND_THE_WAGGLE_DANCE,
   ...EMBER_MOUNTAIN_CHAPTER_ADVENTURES,
   ...DINOSAUR_EXPEDITION_ADVENTURES,
@@ -40,6 +43,8 @@ export const ADVENTURE_TEMPLATES: AdventureDefinition[] = [
   // notion of difficulty either: `resolveAdventureForSkillLevel` picks among
   // these, and `resolveAdventureForAgeBand` still works on them unchanged.
   ...DARK_LIGHTHOUSE_ADVENTURES,
+  // SC-final-B: the Writing Room's write-your-story activity, one template per band.
+  ...WRITING_ROOM_STORIES,
 ];
 
 export function getAdventureTemplate(slug: string): AdventureDefinition | undefined {
@@ -118,6 +123,8 @@ export function getAdventureTemplatesForLocation(locationSlug: string): Adventur
 }
 
 export * from './learningObjectives';
+export * from './thePaintedWords';
+export * from './paintedWordsBank';
 export * from './wonderWallQuestions';
 export * from './emberMountainChapterAdventures';
 export * from './dinosaurExpeditionAdventures';
@@ -126,6 +133,7 @@ export * from './butterflyGardenAdventures';
 export * from './castlesSecretDoorAdventures';
 export * from './creatureCareCoveAdventures';
 export * from './darkLighthouseAdventures';
+export * from './writingRoomStories';
 export {
   REPAIR_THE_MOONLIGHT_BRIDGE,
   THREE_PLANKS_FOR_THE_BRIDGE,

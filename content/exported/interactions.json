@@ -568,6 +568,22 @@
         },
         {
           "action": {
+            "kind": "TALK_TO",
+            "npcId": "professor-orion"
+          },
+          "id": "talk-to-professor-orion",
+          "requirements": [
+            {
+              "type": "ALWAYS"
+            }
+          ],
+          "targetId": "professor-orion",
+          "title": "Professor Orion",
+          "trigger": "TAP",
+          "type": "NPC"
+        },
+        {
+          "action": {
             "kind": "SHOW_MESSAGE",
             "message": "Portraits of brave heroes line the walls: puppies, dragons, foxes, and more. Maybe you will meet one in your next story!"
           },
@@ -645,6 +661,44 @@
           "title": "The Illustration Studio",
           "trigger": "TAP",
           "type": "OBJECT"
+        },
+        {
+          "action": {
+            "kind": "START_ADVENTURE",
+            "locationSlug": "storykeeper-castle",
+            "templateSlug": "the-painted-words"
+          },
+          "id": "castle-painted-words",
+          "requirements": [
+            {
+              "changeKey": "STUDIO_PAGE_MENDED",
+              "type": "WORLD_CHANGE_ABSENT"
+            }
+          ],
+          "targetId": "castle-painted-words",
+          "title": "The painted words",
+          "trigger": "APPROACH",
+          "type": "ADVENTURE",
+          "zoneId": "castle-painted-wall"
+        },
+        {
+          "action": {
+            "kind": "START_ADVENTURE",
+            "locationSlug": "storykeeper-castle",
+            "templateSlug": "the-painted-words-again"
+          },
+          "id": "castle-painted-words-again",
+          "requirements": [
+            {
+              "changeKey": "STUDIO_PAGE_MENDED",
+              "type": "WORLD_CHANGE_PRESENT"
+            }
+          ],
+          "targetId": "castle-painted-words",
+          "title": "The painted words, again",
+          "trigger": "APPROACH",
+          "type": "ADVENTURE",
+          "zoneId": "castle-painted-wall"
         },
         {
           "action": {
@@ -827,7 +881,7 @@
         {
           "action": {
             "kind": "SHOW_MESSAGE",
-            "message": "You solved it, so it is yours to use. The first empty book is waiting."
+            "message": "This desk is yours to use. The first empty book is waiting."
           },
           "id": "writing-room-desk",
           "requirements": [

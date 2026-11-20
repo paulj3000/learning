@@ -55,7 +55,7 @@ describe('the cove scene from the server (TR-14)', () => {
     const { manifest, config } = build();
     const key = manifest.props.find((p) => p.entityId === 'cove-brass-key');
     expect(key?.action).toBe(REGION_ACTIONS.pickUp);
-    expect(config.pickups).toEqual([{ entityId: 'cove-brass-key' }]);
+    expect(config.pickups).toEqual([{ entityId: 'cove-brass-key', look: 'KEY' }]);
     const stone = manifest.props.find((p) => p.entityId === 'cove-rune-stone-2');
     expect(stone?.action).toBe(REGION_ACTIONS.touch);
     expect(config.runes).toContainEqual({

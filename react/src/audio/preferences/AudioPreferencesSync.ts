@@ -29,8 +29,23 @@ export interface PreferenceSyncOptions {
 
 export type PreferenceSyncState = 'idle' | 'loading' | 'ready' | 'failed';
 
+/** A setting a game may apply for this session only (SC-R06-02). */
+export type SessionDefault = { reducedIntensity: boolean };
+
 export interface PreferenceSync {
   readonly state: PreferenceSyncState;
+  /**
+   * Whether the child has a saved mix: `null` until the server answers (or when it cannot say).
+   */
+  readonly hasSavedMix: boolean | null;
+  /**
+   * Applies `value` for this session only, and only when the server says the child has no saved
+   * mix and the child has not changed anything yet (SC-R06-02: Sprouts' calmer castle). It is not
+   * a child change, so it is never saved on its own. Asked before the load answers, it waits for
+   * it. Returns an undo, which puts the previous value back unless the child has since changed
+   * something (their choice then stands). Without an API (nothing is ever saved) it applies at once.
+   */
+  applySessionDefault(value: SessionDefault): () => void;
   /** Resets to defaults and loads. Call once. */
   start(): Promise<void>;
   /** Saves any pending change, resets the manager to defaults and stops. Idempotent. */
@@ -58,6 +73,11 @@ export function createPreferenceSync(options: PreferenceSyncOptions): Preference
   let saving = false;
   let saveAgain = false;
   let unsubscribe: (() => void) | undefined;
+  let hasSavedMix: boolean | null = null;
+  /** Session defaults asked for before the load answered, applied (or dropped) when it does. */
+  let pendingDefaults: Array<{ value: SessionDefault; applied: (did: boolean) => void }> = [];
+  /** Bumped by every child change, so an undo knows whether the child has spoken since. */
+  let childChanges = 0;
 
   const defaults = () => manager.applySettings(toPatch(createDefaultSettings()));
 
@@ -99,13 +119,74 @@ export function createPreferenceSync(options: PreferenceSyncOptions): Preference
     if (applying || disposed) return;
     if (key(manager.getSettings()) === saved) return;
     touched = true;
+    childChanges += 1;
     // Nothing is saved until the server's mix has been read, or a save could overwrite it.
     if (loaded) schedule();
+  }
+
+  /** Applies a session default without it counting as a child change or being saved. */
+  function applyQuietly(value: SessionDefault): void {
+    applying = true;
+    try {
+      manager.applySettings(value);
+    } finally {
+      applying = false;
+    }
+    // The server still holds the child's real mix (none); this session value is not a change.
+    saved = key(manager.getSettings());
+  }
+
+  function settlePendingDefaults(): void {
+    const waiting = pendingDefaults;
+    pendingDefaults = [];
+    for (const entry of waiting) {
+      const allowed = !disposed && hasSavedMix === false && !touched;
+      if (allowed) applyQuietly(entry.value);
+      entry.applied(allowed);
+    }
   }
 
   return {
     get state() {
       return state;
+    },
+    get hasSavedMix() {
+      return hasSavedMix;
+    },
+    applySessionDefault(value) {
+      if (disposed) return () => undefined;
+      const previous: SessionDefault = { reducedIntensity: manager.getSettings().reducedIntensity };
+      let did = false;
+      let undone = false;
+      let changesAtApply = childChanges;
+      const undo = () => {
+        if (undone) return;
+        undone = true;
+        pendingDefaults = pendingDefaults.filter((entry) => entry.value !== value);
+        if (!did || disposed || childChanges !== changesAtApply) return;
+        if (manager.getSettings().reducedIntensity !== value.reducedIntensity) return;
+        applyQuietly(previous);
+      };
+      if (!api) {
+        did = true;
+        manager.applySettings(value);
+        return undo;
+      }
+      if (loaded) {
+        if (hasSavedMix === false && !touched) {
+          did = true;
+          applyQuietly(value);
+        }
+        return undo;
+      }
+      pendingDefaults.push({
+        value,
+        applied: (applied) => {
+          did = applied;
+          changesAtApply = childChanges;
+        },
+      });
+      return undo;
     },
     async start() {
       if (started || disposed || !api) return;
@@ -122,6 +203,7 @@ export function createPreferenceSync(options: PreferenceSyncOptions): Preference
         const remote = await api.get(controller.signal);
         if (disposed) return;
         loaded = true;
+        hasSavedMix = typeof remote.saved === 'boolean' ? remote.saved : null;
         if (touched) {
           // The child already moved a slider: keep that and save it over the old mix.
           schedule();
@@ -135,6 +217,7 @@ export function createPreferenceSync(options: PreferenceSyncOptions): Preference
           }
         }
         state = 'ready';
+        settlePendingDefaults();
       } catch {
         if (disposed) return;
         // Unreadable or offline: play with the defaults, and let the next change save.
@@ -142,6 +225,8 @@ export function createPreferenceSync(options: PreferenceSyncOptions): Preference
         state = 'failed';
         options.onError?.('load');
         if (touched) schedule();
+        // Unknown whether a mix is saved: a session default never overrides what may be there.
+        settlePendingDefaults();
       }
     },
     dispose() {
@@ -154,6 +239,7 @@ export function createPreferenceSync(options: PreferenceSyncOptions): Preference
         void api.save(snapshot).catch(() => undefined);
       }
       disposed = true;
+      pendingDefaults = [];
       controller.abort();
       unsubscribe?.();
       if (api && started) {

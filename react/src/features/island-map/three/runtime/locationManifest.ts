@@ -1,6 +1,12 @@
 import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
 import type { AgeBandValue } from '../../../child-profile/constants';
 import type { AdventureStepBinding } from './adventureStepBindings';
+import type { MovementSpec } from '../jumpConfiguration';
+import type { PlayerPresentationSpec } from '../playerPresentation';
+
+import type { PlatformingSpec } from '../platforms/platformSpec';
+export type { MovementSpec } from '../jumpConfiguration';
+export type { PlayerPresentationSpec } from '../playerPresentation';
 
 /**
  * The serializable contract a generic Three.js location runtime reads
@@ -70,6 +76,10 @@ export interface BoundsSpec {
 
 /** Mirrors `sceneKit.ts`'s `SceneLighting`; omitted fields keep the outdoor default rig. */
 export interface LightingSpec {
+  /** 24-bit RGB tint of the ambient light. Absent is white. */
+  ambientColor?: number;
+  /** 24-bit RGB tint of the sun. Absent is white. */
+  sunColor?: number;
   ambientIntensity?: number;
   sunIntensity?: number;
   sunPosition?: Vec3;
@@ -114,7 +124,10 @@ export interface CheckpointSpec {
   triggerHalfSize: number;
 }
 
-/** A solid, invisible collider. Visible geometry that should block movement declares its own collider instead. */
+/**
+ * A solid, invisible collider. Pieces with a solid footprint (`derivedColliders.ts`) get a box
+ * automatically; author one for anything else that should block, or to shape a piece by hand.
+ */
 export interface ColliderSpec {
   /** `rect.id` is how an extension removes this collider (e.g. a bridge once it is mended). */
   rect: RectZone;
@@ -122,6 +135,14 @@ export interface ColliderSpec {
   maxY?: number;
   /** Present only while these hold, evaluated when the scene is built. Absent means always. */
   requirements?: readonly WorldRequirement[];
+  /**
+   * LAI-JMP-01: a low obstacle (rock, log, crate, step) the child may jump
+   * onto or over. Its real `minY`/`maxY` then decide where it blocks; both
+   * must be authored. Absent means solid at every height, which is what keeps
+   * walls, gates and boundaries unjumpable. A collider with `requirements` is
+   * a progression gate and may never be jumpable (the validator says so).
+   */
+  jumpable?: boolean;
 }
 
 /**
@@ -227,6 +248,14 @@ export type ScenerySpec = SceneryBase &
         area: RectZone;
         minY: number;
         maxY: number;
+        /**
+         * Opt in only for decor nothing looks up by id, moves, recolours or
+         * hides after the scene is built. The engine then merges it with its
+         * neighbours of the same colour into one shared-material mesh (its
+         * root group stays, empty). Leave it off for anything an extension
+         * reaches through `sceneryRoot`.
+         */
+        static?: boolean;
       } /** One instanced draw call of a kit piece at many positions. */
     | {
         kind: 'CLUSTER';
@@ -537,6 +566,38 @@ export interface EffectSpec {
   requirements?: readonly WorldRequirement[];
 }
 
+/** Linear fog: clear nearer than `near`, solid `color` beyond `far`. 0 < near < far <= 1000. */
+export interface FogSpec {
+  color: number;
+  near: number;
+  far: number;
+}
+
+/** Falling particles around the camera. `kind` is SNOW today; density 0..1 scales the tier budget. */
+export interface PrecipitationSpec {
+  kind: 'SNOW';
+  density: number;
+}
+
+/** A far-off, gently waving translucent band (an aurora). At most four; none at LOW. */
+export interface SkyRibbonSpec {
+  id: string;
+  /** Two 24-bit colours, blended from the bottom edge to the top. */
+  colors: readonly [number, number];
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+}
+
+/** Decorative weather and sky (`visual/atmosphere.ts`). Absent means none: nothing changes. */
+export interface AtmosphereSpec {
+  fog?: FogSpec;
+  precipitation?: PrecipitationSpec;
+  skyRibbons?: readonly SkyRibbonSpec[];
+}
+
 /** Purely decorative movement. Never interactive, never emits a domain event. */
 export interface AmbientSpec {
   kind: 'SPLINE_LOOP';
@@ -604,6 +665,8 @@ export interface LocationCopy {
    * convention: a path relative to `/island/:childId/`, `''` for the hub.
    */
   altNav: { label: string; to: string };
+  /** Shown instead of the scene while `entryRequirements` do not hold. Readable aloud, never a refusal. */
+  locked?: string;
 }
 
 export interface ThreeLocationManifest {
@@ -623,6 +686,12 @@ export interface ThreeLocationManifest {
   version: number;
 
   bounds: BoundsSpec;
+  /**
+   * Ceiling height in metres for an indoor region, default `WALL_HEIGHT` (3). It is the default
+   * `maxY` of boundary walls, colliders and zones that author none. Kit wall and ceiling pieces
+   * are authored 3 m tall, so a region raising it also owns scaling or replacing them.
+   */
+  wallHeight?: number;
   environment: EnvironmentSpec;
   checkpoints: CheckpointSpec;
   colliders: readonly ColliderSpec[];
@@ -640,9 +709,20 @@ export interface ThreeLocationManifest {
   surfaces?: readonly SurfaceSpec[];
   /** Decorative atmosphere (motes). */
   effects?: readonly EffectSpec[];
+  /** Fog, precipitation and sky ribbons. Absent means none. */
+  atmosphere?: AtmosphereSpec;
   ambient: readonly AmbientSpec[];
   /** Reuses the existing interaction vocabulary verbatim; see `worldObjects.ts`. */
   interactions: readonly WorldInteraction[];
+  /**
+   * A secret place's door (SC-R10-01). While these do not hold, the view
+   * shows `copy.locked` (or a calm default) and never builds the engine.
+   * They are read from the same world state as everything else, so a failed
+   * read leaves them unmet and the place closed (fail closed, like the
+   * per-region Phaser views' `isLocationUnlocked`). Absent means open to
+   * every child, which is every other region's behaviour today.
+   */
+  entryRequirements?: readonly WorldRequirement[];
   /**
    * Interactions kept out of "Things to do here" - the one case being a
    * secret. The castle's swaying tapestry is an id and a zone and nothing
@@ -675,4 +755,28 @@ export interface ThreeLocationManifest {
   adventureBindings: readonly AdventureStepBinding[];
   extensions: readonly ExtensionBinding[];
   copy: LocationCopy;
+  /**
+   * LAI-JMP-01: player movement tuning. Absent means the defaults, which
+   * include jumping (`jumpConfiguration.ts`); `{ jump: { enabled: false } }`
+   * keeps the child on the ground here.
+   */
+  movement?: MovementSpec;
+  /**
+   * LAI-JMP-02 / LAI-JMP-04: platforms, pressure plates, course checkpoints, hazards and goals
+   * (`platforms/platformSpec.ts`). Absent means none: the location plays exactly as before.
+   */
+  platforming?: PlatformingSpec;
+  /**
+   * SC-JMP: a different platforming for one age band, replacing `platforming` whole when the
+   * child is in that band (`manifestForBand`). The castle gives Sprouts flat floor markers with
+   * no colliders where Pathfinders and Explorers get solid pads. The same zones answer either
+   * way, so the band changes how a step looks, never what it asks.
+   */
+  platformingByBand?: Partial<Record<AgeBandValue, PlatformingSpec>>;
+  /**
+   * LAI-JMP-01a: how the player is seen here: camera perspective and tuning,
+   * and the avatar. Absent means the defaults (third-person, switchable, the
+   * child's own avatar); `playerPresentation.ts`.
+   */
+  player?: PlayerPresentationSpec;
 }

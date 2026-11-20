@@ -30,6 +30,9 @@ export interface ServerStorybook {
   totalRequired: number;
   restoredBonus: number;
   complete: boolean;
+  /** Additive (editions): where the child stands with the book, never "incomplete" for edition 1. */
+  state: 'IN_PROGRESS' | 'RESTORED_MORE_PAGES' | 'RESTORED';
+  edition: number;
   quest: { questId: string | null; status: string };
 }
 
@@ -57,6 +60,8 @@ export async function getStorybook(client: ApiClient, childId: string): Promise<
     totalRequired: r.field('totalRequired').integer(),
     restoredBonus: r.field('restoredBonus').integer(),
     complete: r.field('complete').boolean(),
+    state: r.field('state').oneOf(['IN_PROGRESS', 'RESTORED_MORE_PAGES', 'RESTORED'] as const),
+    edition: r.field('edition').integer(),
     quest: {
       questId: r
         .field('quest')

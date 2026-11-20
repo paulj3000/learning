@@ -1,0 +1,8258 @@
+{
+ "assets": [
+  {
+   "assetId": "firepeak-volcano-main",
+   "kind": "kit-piece"
+  },
+  {
+   "assetId": "firepeak-crystal-pedestal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-flint",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-kindle",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-professor-basalt",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-cinder",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-ignis",
+   "kind": "character"
+  },
+  {
+   "assetId": "firepeak-ember-shard",
+   "kind": "collectible"
+  },
+  {
+   "assetId": "firepeak-map-sign",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-campfire",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-tree",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-log",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-rock",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-ember-crystal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-count-card",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-lava-stone",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-path-marker",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-shape-stone",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-cave-crystal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-forge-switch",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-gear",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-rock-sample",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-story-stone",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-heart-crystal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-return-portal",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-arch",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-sign",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-circuit-lamp",
+   "kind": "prop"
+  },
+  {
+   "assetId": "firepeak-stream",
+   "kind": "prop"
+  }
+ ],
+ "placements": [
+  {
+   "asset": "firepeak-flint",
+   "elevation": 0.0,
+   "entity_id": "fh-flint",
+   "kind": "NPC",
+   "label": "Flint",
+   "npc": "flint",
+   "rotation_y": 0.4,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -4.0,
+   "z": 86.0
+  },
+  {
+   "asset": "firepeak-kindle",
+   "elevation": 0.0,
+   "entity_id": "fh-kindle",
+   "kind": "NPC",
+   "label": "Kindle",
+   "npc": "kindle",
+   "rotation_y": -0.4,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": 3.0,
+   "z": 58.0
+  },
+  {
+   "asset": "firepeak-professor-basalt",
+   "elevation": 0.0,
+   "entity_id": "fh-basalt",
+   "kind": "NPC",
+   "label": "Professor Basalt",
+   "npc": "professor-basalt",
+   "rotation_y": 0.6,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -6.0,
+   "z": 1.5
+  },
+  {
+   "asset": "firepeak-cinder",
+   "elevation": 0.0,
+   "entity_id": "fh-cinder",
+   "kind": "NPC",
+   "label": "Cinder",
+   "npc": "cinder",
+   "rotation_y": 0.5,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -5.0,
+   "z": -31.0
+  },
+  {
+   "asset": "firepeak-professor-basalt",
+   "elevation": 1.6,
+   "entity_id": "fh-basalt-summit",
+   "kind": "NPC",
+   "label": "Professor Basalt",
+   "npc": "professor-basalt",
+   "rotation_y": 1.0,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -6.0,
+   "z": -64.6
+  },
+  {
+   "asset": "firepeak-ignis",
+   "elevation": 0.0,
+   "entity_id": "fh-ignis",
+   "kind": "NPC",
+   "label": "Ignis",
+   "npc": "ignis",
+   "rotation_y": 0.3,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": -4.0,
+   "z": -87.0
+  },
+  {
+   "asset": "firepeak-kindle",
+   "elevation": 0.0,
+   "entity_id": "fh-kindle-heart",
+   "kind": "NPC",
+   "label": "Kindle",
+   "npc": "kindle",
+   "rotation_y": -0.3,
+   "size": [
+    0.6,
+    1.7,
+    0.6
+   ],
+   "x": 4.0,
+   "z": -86.0
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 0.0,
+   "entity_id": "fh-shard-landing",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_LANDING",
+   "pickup_rule": "fh-rule-shard-landing",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 12.0,
+   "z": 73.8
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 0.0,
+   "entity_id": "fh-shard-emberwood",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_EMBERWOOD",
+   "pickup_rule": "fh-rule-shard-emberwood",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": -22.0,
+   "z": 44.4
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 0.5,
+   "entity_id": "fh-shard-lava-jumper",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_LAVA",
+   "pickup_rule": "fh-rule-shard-lava",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 18.0,
+   "z": 22.0
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 1.0,
+   "entity_id": "fh-shard-caverns",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_CAVERNS",
+   "pickup_rule": "fh-rule-shard-caverns",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": -10.4,
+   "z": -19.0
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 2.6,
+   "entity_id": "fh-shard-forge",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_FORGE",
+   "pickup_rule": "fh-rule-shard-forge",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 20.0,
+   "z": -37.5
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 1.6,
+   "entity_id": "fh-shard-summit",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_SUMMIT",
+   "pickup_rule": "fh-rule-shard-summit",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 5.5,
+   "z": -67.8
+  },
+  {
+   "asset": "firepeak-ember-shard",
+   "elevation": 0.0,
+   "entity_id": "fh-shard-heart",
+   "kind": "COLLECTIBLE",
+   "label": "Ember shard",
+   "pickup_key": "FIREPEAK_HEART_SHARD_HEART",
+   "pickup_rule": "fh-rule-shard-heart",
+   "rotation_y": 0.0,
+   "size": [
+    0.4,
+    0.5,
+    0.4
+   ],
+   "x": 8.0,
+   "z": -91.0
+  },
+  {
+   "asset": "firepeak-map-sign",
+   "elevation": 0.0,
+   "entity_id": "fh-map-sign",
+   "kind": "PROP",
+   "label": "Explorer's map",
+   "rotation_y": 0.3,
+   "size": [
+    0.8,
+    1.6,
+    0.3
+   ],
+   "x": 3.5,
+   "z": 80.0
+  },
+  {
+   "asset": "firepeak-ember-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-ember-crystal-a",
+   "kind": "PROP",
+   "label": "Crystal A",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.2,
+    0.7
+   ],
+   "x": -5.0,
+   "z": 53.0
+  },
+  {
+   "asset": "firepeak-ember-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-ember-crystal-b",
+   "kind": "PROP",
+   "label": "Crystal B",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.2,
+    0.7
+   ],
+   "x": 0.0,
+   "z": 53.0
+  },
+  {
+   "asset": "firepeak-ember-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-ember-crystal-c",
+   "kind": "PROP",
+   "label": "Crystal C",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.2,
+    0.7
+   ],
+   "x": 5.0,
+   "z": 53.0
+  },
+  {
+   "asset": "firepeak-count-card",
+   "elevation": 0.0,
+   "entity_id": "fh-count-card-a",
+   "kind": "PROP",
+   "label": "Card A",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    1.1,
+    0.2
+   ],
+   "x": -5.0,
+   "z": 46.5
+  },
+  {
+   "asset": "firepeak-count-card",
+   "elevation": 0.0,
+   "entity_id": "fh-count-card-b",
+   "kind": "PROP",
+   "label": "Card B",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    1.1,
+    0.2
+   ],
+   "x": 0.0,
+   "z": 46.5
+  },
+  {
+   "asset": "firepeak-count-card",
+   "elevation": 0.0,
+   "entity_id": "fh-count-card-c",
+   "kind": "PROP",
+   "label": "Card C",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    1.1,
+    0.2
+   ],
+   "x": 5.0,
+   "z": 46.5
+  },
+  {
+   "asset": "firepeak-lava-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-stone-a",
+   "kind": "PROP",
+   "label": "Stone A",
+   "rotation_y": 0.0,
+   "size": [
+    1.1,
+    0.5,
+    1.1
+   ],
+   "x": -5.0,
+   "z": 32.5
+  },
+  {
+   "asset": "firepeak-lava-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-stone-b",
+   "kind": "PROP",
+   "label": "Stone B",
+   "rotation_y": 0.0,
+   "size": [
+    1.1,
+    0.5,
+    1.1
+   ],
+   "x": 0.0,
+   "z": 32.5
+  },
+  {
+   "asset": "firepeak-lava-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-stone-c",
+   "kind": "PROP",
+   "label": "Stone C",
+   "rotation_y": 0.0,
+   "size": [
+    1.1,
+    0.5,
+    1.1
+   ],
+   "x": 5.0,
+   "z": 32.5
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-path-a",
+   "kind": "PROP",
+   "label": "Path A",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": -8.0,
+   "z": 10.0
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-path-b",
+   "kind": "PROP",
+   "label": "Path B",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": 0.0,
+   "z": 10.0
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-path-c",
+   "kind": "PROP",
+   "label": "Path C",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": 8.0,
+   "z": 10.0
+  },
+  {
+   "asset": "firepeak-shape-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-shape-a",
+   "kind": "PROP",
+   "label": "Shape A",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.2,
+    0.8
+   ],
+   "x": -9.0,
+   "z": -3.0
+  },
+  {
+   "asset": "firepeak-shape-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-shape-b",
+   "kind": "PROP",
+   "label": "Shape B",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.2,
+    0.8
+   ],
+   "x": -3.0,
+   "z": -3.0
+  },
+  {
+   "asset": "firepeak-shape-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-shape-c",
+   "kind": "PROP",
+   "label": "Shape C",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.2,
+    0.8
+   ],
+   "x": 3.0,
+   "z": -3.0
+  },
+  {
+   "asset": "firepeak-shape-stone",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-shape-d",
+   "kind": "PROP",
+   "label": "Shape D",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.2,
+    0.8
+   ],
+   "x": 9.0,
+   "z": -3.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-crystal-a",
+   "kind": "PROP",
+   "label": "Crystal A",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": -7.5,
+   "z": -10.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-crystal-b",
+   "kind": "PROP",
+   "label": "Crystal B",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": -2.5,
+   "z": -10.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-crystal-c",
+   "kind": "PROP",
+   "label": "Crystal C",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": 2.5,
+   "z": -10.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cavern-crystal-d",
+   "kind": "PROP",
+   "label": "Crystal D",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": 7.5,
+   "z": -10.0
+  },
+  {
+   "asset": "firepeak-forge-switch",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-switch-red",
+   "kind": "PROP",
+   "label": "Red switch",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.1,
+    0.5
+   ],
+   "x": -7.5,
+   "z": -38.0
+  },
+  {
+   "asset": "firepeak-forge-switch",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-switch-blue",
+   "kind": "PROP",
+   "label": "Blue switch",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.1,
+    0.5
+   ],
+   "x": -2.5,
+   "z": -38.0
+  },
+  {
+   "asset": "firepeak-forge-switch",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-switch-gold",
+   "kind": "PROP",
+   "label": "Gold switch",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.1,
+    0.5
+   ],
+   "x": 2.5,
+   "z": -38.0
+  },
+  {
+   "asset": "firepeak-forge-switch",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-switch-green",
+   "kind": "PROP",
+   "label": "Green switch",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.1,
+    0.5
+   ],
+   "x": 7.5,
+   "z": -38.0
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-circuit-path-a",
+   "kind": "PROP",
+   "label": "Wire path A",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": -7.0,
+   "z": -43.5
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-circuit-path-b",
+   "kind": "PROP",
+   "label": "Wire path B",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": 0.0,
+   "z": -43.5
+  },
+  {
+   "asset": "firepeak-path-marker",
+   "elevation": 0.0,
+   "entity_id": "fh-circuit-path-c",
+   "kind": "PROP",
+   "label": "Wire path C",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.4,
+    0.4
+   ],
+   "x": 7.0,
+   "z": -43.5
+  },
+  {
+   "asset": "firepeak-circuit-lamp",
+   "elevation": 0.0,
+   "entity_id": "fh-circuit-lamp",
+   "kind": "PROP",
+   "label": "The forge lamp",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.0,
+    0.8
+   ],
+   "x": 0.0,
+   "z": -45.6
+  },
+  {
+   "asset": "firepeak-rock-sample",
+   "elevation": 1.6,
+   "entity_id": "fh-rock-sample-a",
+   "kind": "PROP",
+   "label": "Rock sample A",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.8,
+    0.9
+   ],
+   "x": -4.0,
+   "z": -63.0
+  },
+  {
+   "asset": "firepeak-rock-sample",
+   "elevation": 1.6,
+   "entity_id": "fh-rock-sample-b",
+   "kind": "PROP",
+   "label": "Rock sample B",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.8,
+    0.9
+   ],
+   "x": 0.0,
+   "z": -63.0
+  },
+  {
+   "asset": "firepeak-rock-sample",
+   "elevation": 1.6,
+   "entity_id": "fh-rock-sample-c",
+   "kind": "PROP",
+   "label": "Rock sample C",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.8,
+    0.9
+   ],
+   "x": 4.0,
+   "z": -63.0
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-a",
+   "kind": "PROP",
+   "label": "Story stone A",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": -5.0,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-b",
+   "kind": "PROP",
+   "label": "Story stone B",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": -2.5,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-c",
+   "kind": "PROP",
+   "label": "Story stone C",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": 0.0,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-d",
+   "kind": "PROP",
+   "label": "Story stone D",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": 2.5,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-story-stone",
+   "elevation": 1.6,
+   "entity_id": "fh-island-step-e",
+   "kind": "PROP",
+   "label": "Story stone E",
+   "rotation_y": 0.0,
+   "size": [
+    0.9,
+    0.6,
+    0.9
+   ],
+   "x": 5.0,
+   "z": -66.2
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-crystal-forest",
+   "kind": "PROP",
+   "label": "Forest crystal",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": -9.0,
+   "z": -82.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-crystal-magma",
+   "kind": "PROP",
+   "label": "Magma crystal",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": -3.0,
+   "z": -82.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-crystal-cavern",
+   "kind": "PROP",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": 3.0,
+   "z": -82.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-crystal-forge",
+   "kind": "PROP",
+   "label": "Forge crystal",
+   "rotation_y": 0.0,
+   "size": [
+    0.8,
+    1.4,
+    0.8
+   ],
+   "x": 9.0,
+   "z": -82.0
+  },
+  {
+   "asset": "firepeak-crystal-pedestal",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-pedestal",
+   "kind": "PROP",
+   "label": "Ancient pedestal",
+   "rotation_y": 0.0,
+   "size": [
+    1.2,
+    1.0,
+    1.2
+   ],
+   "x": 0.0,
+   "z": -90.5
+  },
+  {
+   "asset": "firepeak-heart-crystal",
+   "elevation": 1.0,
+   "entity_id": "fh-heart-crystal",
+   "kind": "PROP",
+   "label": "The Heart of Firepeak",
+   "rotation_y": 0.0,
+   "size": [
+    0.7,
+    1.1,
+    0.7
+   ],
+   "x": 0.0,
+   "z": -90.5
+  },
+  {
+   "asset": "firepeak-return-portal",
+   "elevation": 0.0,
+   "entity_id": "fh-return-portal",
+   "kind": "PROP",
+   "label": "Portal back to the landing",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    2.4,
+    0.4
+   ],
+   "x": 11.0,
+   "z": -86.0
+  },
+  {
+   "asset": "firepeak-campfire",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-campfire",
+   "kind": "PROP",
+   "label": "Campfire",
+   "rotation_y": 0.0,
+   "size": [
+    1.1,
+    0.7,
+    1.1
+   ],
+   "x": 7.0,
+   "z": 86.0
+  },
+  {
+   "asset": "firepeak-sign",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-sign",
+   "kind": "PROP",
+   "label": "Welcome to Firepeak",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.5,
+    0.2
+   ],
+   "x": -2.0,
+   "z": 77.0
+  },
+  {
+   "asset": "firepeak-sign",
+   "elevation": 1.6,
+   "entity_id": "fh-lookout-sign",
+   "kind": "SCENERY",
+   "label": "Lookout point",
+   "rotation_y": 0.0,
+   "size": [
+    0.6,
+    1.5,
+    0.2
+   ],
+   "x": -18.8,
+   "z": -65.0
+  },
+  {
+   "asset": "firepeak-log",
+   "elevation": 0.0,
+   "entity_id": "fh-jump-log-model",
+   "kind": "SCENERY",
+   "label": "Fallen log",
+   "rotation_y": 0.0,
+   "size": [
+    8.0,
+    0.45,
+    0.9000000000000057
+   ],
+   "x": 12.0,
+   "z": 75.95
+  },
+  {
+   "asset": "firepeak-log",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-log-1-model",
+   "kind": "SCENERY",
+   "label": "Fallen log",
+   "rotation_y": 0.0,
+   "size": [
+    8.0,
+    0.4,
+    0.8999999999999986
+   ],
+   "x": 18.0,
+   "z": 56.05
+  },
+  {
+   "asset": "firepeak-log",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-log-2-model",
+   "kind": "SCENERY",
+   "label": "Fallen log",
+   "rotation_y": 0.0,
+   "size": [
+    8.0,
+    0.4,
+    0.8999999999999986
+   ],
+   "x": 18.0,
+   "z": 53.05
+  },
+  {
+   "asset": "firepeak-log",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-log-3-model",
+   "kind": "SCENERY",
+   "label": "Fallen log",
+   "rotation_y": 0.0,
+   "size": [
+    8.0,
+    0.4,
+    0.8999999999999986
+   ],
+   "x": 18.0,
+   "z": 50.05
+  },
+  {
+   "asset": "firepeak-stream",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-stream",
+   "kind": "SCENERY",
+   "label": "Little stream",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    0.06,
+    10.0
+   ],
+   "x": -14.0,
+   "z": 54.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-1",
+   "kind": "SCENERY",
+   "label": "Stone gateway",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": 65.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-2",
+   "kind": "SCENERY",
+   "label": "Stone gateway",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": 37.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-3",
+   "kind": "SCENERY",
+   "label": "Stone gateway",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": 7.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-4",
+   "kind": "SCENERY",
+   "label": "Stone gateway",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": -23.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-5",
+   "kind": "SCENERY",
+   "label": "Stone gateway",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": -49.0
+  },
+  {
+   "asset": "firepeak-arch",
+   "elevation": 0.0,
+   "entity_id": "fh-arch-6",
+   "kind": "SCENERY",
+   "label": "Stone gateway",
+   "rotation_y": 0.0,
+   "size": [
+    8.6,
+    4.5,
+    1.2
+   ],
+   "x": 0.0,
+   "z": -77.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-1",
+   "kind": "SCENERY",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": -11.8,
+   "z": 2.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-2",
+   "kind": "SCENERY",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": 12.0,
+   "z": -1.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-3",
+   "kind": "SCENERY",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": -12.0,
+   "z": -14.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-4",
+   "kind": "SCENERY",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": 12.0,
+   "z": -17.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-5",
+   "kind": "SCENERY",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": -12.0,
+   "z": -8.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-cave-crystal-6",
+   "kind": "SCENERY",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.8,
+    1.0
+   ],
+   "x": 12.0,
+   "z": 4.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-secret-crystal-1",
+   "kind": "SCENERY",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.6,
+    1.0
+   ],
+   "x": 17.0,
+   "z": -5.0
+  },
+  {
+   "asset": "firepeak-cave-crystal",
+   "elevation": 0.0,
+   "entity_id": "fh-secret-crystal-2",
+   "kind": "SCENERY",
+   "label": "Cavern crystal",
+   "rotation_y": 0.0,
+   "size": [
+    1.0,
+    1.6,
+    1.0
+   ],
+   "x": 20.0,
+   "z": -7.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-block-west-model",
+   "kind": "SCENERY",
+   "label": "Ancient gear",
+   "rotation_y": 0.0,
+   "size": [
+    2.4,
+    2.4,
+    0.8
+   ],
+   "x": -17.0,
+   "z": -31.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-block-east-near-model",
+   "kind": "SCENERY",
+   "label": "Ancient gear",
+   "rotation_y": 0.0,
+   "size": [
+    2.4,
+    2.4,
+    0.8
+   ],
+   "x": 12.0,
+   "z": -41.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-1",
+   "kind": "SCENERY",
+   "label": "Ancient gear",
+   "rotation_y": 0.0,
+   "size": [
+    2.6,
+    2.6,
+    0.8
+   ],
+   "x": -26.0,
+   "z": -44.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-2",
+   "kind": "SCENERY",
+   "label": "Ancient gear",
+   "rotation_y": 0.0,
+   "size": [
+    2.6,
+    2.6,
+    0.8
+   ],
+   "x": 26.0,
+   "z": -28.0
+  },
+  {
+   "asset": "firepeak-gear",
+   "elevation": 0.0,
+   "entity_id": "fh-gear-3",
+   "kind": "SCENERY",
+   "label": "Ancient gear",
+   "rotation_y": 0.0,
+   "size": [
+    2.6,
+    2.6,
+    0.8
+   ],
+   "x": -25.0,
+   "z": -27.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-1",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -20.5,
+   "z": 49.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-2",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -23.0,
+   "z": 49.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-3",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -25.5,
+   "z": 49.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-4",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -27.8,
+   "z": 45.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-tree-screen-5",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -27.8,
+   "z": 42.4
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-1",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 19.8,
+   "z": 69.7
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-2",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 27.1,
+   "z": 84.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-3",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 27.1,
+   "z": 77.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-4",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 29.6,
+   "z": 86.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-5",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 26.4,
+   "z": 69.8
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-6",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 21.2,
+   "z": 72.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-7",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -23.4,
+   "z": 81.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-8",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -28.1,
+   "z": 74.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-9",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 25.9,
+   "z": 81.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-10",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -25.4,
+   "z": 91.8
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-11",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -27.3,
+   "z": 87.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-12",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -23.7,
+   "z": 72.1
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-13",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 19.9,
+   "z": 80.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-landing-tree-14",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -29.4,
+   "z": 90.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-1",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 21.4,
+   "z": 46.8
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-2",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -13.7,
+   "z": 52.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-3",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 19.4,
+   "z": 61.7
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-4",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -15.8,
+   "z": 45.8
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-5",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 28.0,
+   "z": 45.1
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-6",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 24.9,
+   "z": 45.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-7",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 14.3,
+   "z": 43.4
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-8",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 18.8,
+   "z": 43.1
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-9",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -25.4,
+   "z": 58.3
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-10",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -10.4,
+   "z": 59.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-11",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -15.4,
+   "z": 41.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-12",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 12.0,
+   "z": 49.0
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-13",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 28.5,
+   "z": 59.9
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-14",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -20.4,
+   "z": 59.1
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-15",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -22.3,
+   "z": 52.7
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-16",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 11.6,
+   "z": 40.4
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-17",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -14.6,
+   "z": 59.6
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-18",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 11.7,
+   "z": 53.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-19",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -15.9,
+   "z": 56.3
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-20",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 29.2,
+   "z": 56.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-21",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -13.0,
+   "z": 48.5
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-22",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": 24.1,
+   "z": 40.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-23",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -12.5,
+   "z": 44.2
+  },
+  {
+   "asset": "firepeak-tree",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-tree-24",
+   "kind": "SCENERY",
+   "label": "Emberwood tree",
+   "rotation_y": 0.0,
+   "size": [
+    1.8,
+    3.8,
+    1.8
+   ],
+   "x": -16.2,
+   "z": 49.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-1",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 25.3,
+   "z": 50.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-2",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 16.6,
+   "z": 41.3
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-3",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -10.3,
+   "z": 50.9
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-4",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 13.5,
+   "z": 60.0
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-5",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 25.0,
+   "z": 55.8
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forest-rock-6",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.3,
+   "z": 55.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-1",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -20.4,
+   "z": 35.3
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-2",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -16.6,
+   "z": 35.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-3",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -22.7,
+   "z": 32.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-4",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 11.9,
+   "z": 35.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-5",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -24.6,
+   "z": 35.1
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-6",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -15.2,
+   "z": 32.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-7",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -27.7,
+   "z": 35.1
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-rock-8",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 15.7,
+   "z": 33.6
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-far-rock-1",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 24.2,
+   "z": 9.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-far-rock-2",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 10.6,
+   "z": 9.9
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-far-rock-3",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.5,
+   "z": 12.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-lava-far-rock-4",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -13.5,
+   "z": 8.9
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-1",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.1,
+   "z": -41.3
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-2",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 23.5,
+   "z": -42.7
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-3",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 27.2,
+   "z": -27.7
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-4",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -26.7,
+   "z": -27.6
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-5",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -26.1,
+   "z": -35.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-6",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 28.2,
+   "z": -35.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-7",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 26.4,
+   "z": -45.7
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-forge-rock-8",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -25.3,
+   "z": -43.6
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-1",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.7,
+   "z": -73.8
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-2",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 20.1,
+   "z": -54.2
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-3",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -21.5,
+   "z": -55.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-4",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 25.4,
+   "z": -62.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-5",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -29.0,
+   "z": -62.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-6",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 23.1,
+   "z": -67.4
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-7",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": 19.5,
+   "z": -63.5
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-summit-rock-8",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -28.9,
+   "z": -70.7
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-rock-1",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -29.9,
+   "z": -86.6
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-rock-2",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -26.7,
+   "z": -83.3
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-rock-3",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -20.2,
+   "z": -80.0
+  },
+  {
+   "asset": "firepeak-rock",
+   "elevation": 0.0,
+   "entity_id": "fh-heart-rock-4",
+   "kind": "SCENERY",
+   "label": "Volcanic rock",
+   "rotation_y": 0.0,
+   "size": [
+    1.4,
+    1.0,
+    1.2
+   ],
+   "x": -23.5,
+   "z": -86.1
+  }
+ ],
+ "puzzles": [
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "features": [
+      {
+       "explanation": "A warm forest of tall trees. Kindle the fire spirit lives there.",
+       "id": "forest",
+       "label": "Emberwood Forest"
+      },
+      {
+       "explanation": "A river of glowing lava. A bridge can take you safely across.",
+       "id": "lava",
+       "label": "Lava Crossing"
+      },
+      {
+       "explanation": "Caves where crystals glow. Real volcanoes can have crystals too.",
+       "id": "caverns",
+       "label": "Crystal Caverns"
+      },
+      {
+       "explanation": "Old machines that Cinder looks after. They need waking up.",
+       "id": "forge",
+       "label": "Ancient Forge"
+      },
+      {
+       "explanation": "The high top of the mountain, with a wide view of the island.",
+       "id": "summit",
+       "label": "Firepeak Summit"
+      }
+     ],
+     "hints": [
+      "Touch each place on the map. Look for all of them."
+     ]
+    },
+    "PATHFINDER": {
+     "features": [
+      {
+       "explanation": "A warm forest of tall trees. Kindle the fire spirit lives there.",
+       "id": "forest",
+       "label": "Emberwood Forest"
+      },
+      {
+       "explanation": "A river of glowing lava. A bridge can take you safely across.",
+       "id": "lava",
+       "label": "Lava Crossing"
+      },
+      {
+       "explanation": "The high top of the mountain, with a wide view of the island.",
+       "id": "summit",
+       "label": "Firepeak Summit"
+      }
+     ],
+     "hints": [
+      "Touch each place on the map. Look for all of them."
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-map-sign"
+   ],
+   "kind": "OBSERVE_FEATURES",
+   "puzzleId": "fh-landing-map",
+   "title": "Read the explorer's map"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "How much does the number change each time?",
+      "Try counting on from the last crystal."
+     ],
+     "optionEntities": {
+      "a": "fh-ember-crystal-a",
+      "b": "fh-ember-crystal-b",
+      "c": "fh-ember-crystal-c"
+     },
+     "presentation": "CRYSTALS",
+     "skill": "patterns",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "Each number is 2 more than the one before. 8 and 2 more is 10.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "9",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "10",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "12",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystals show 2, 4, 6, 8. What number comes next?"
+      },
+      {
+       "answer": "a",
+       "explanation": "Each number grows by 5. 20 and 5 more is 25.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "25",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "30",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "22",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystals show 5, 10, 15, 20. What number comes next?"
+      },
+      {
+       "answer": "b",
+       "explanation": "Double 8 is 16. Doubling makes a growing pattern.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "10",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "16",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "12",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystals show 1, 2, 4, 8. Each number is double the one before. What is next?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Each row has 2 more crystals than the last. 7 and 2 more is 9.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "8",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "11",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "9",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystal rows have 3, then 5, then 7 crystals. How many will the next row have?"
+      },
+      {
+       "answer": "a",
+       "explanation": "Each number is 2 less than the one before. 14 take away 2 is 12.",
+       "id": "v5",
+       "options": [
+        {
+         "id": "a",
+         "label": "12",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "13",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "10",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystals show 20, 18, 16, 14. What number comes next?"
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Say the pattern out loud. Which part repeats?",
+      "Find where the pattern starts again."
+     ],
+     "optionEntities": {
+      "a": "fh-ember-crystal-a",
+      "b": "fh-ember-crystal-b",
+      "c": "fh-ember-crystal-c"
+     },
+     "presentation": "CRYSTALS",
+     "skill": "patterns",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "a",
+       "explanation": "The pattern is red, blue, red, blue. After red comes blue.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "Blue",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Red",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Green",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystals glow in a pattern: red, blue, red, blue, red. What comes next?"
+      },
+      {
+       "answer": "b",
+       "explanation": "Tall and short take turns. After tall comes short.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "Tall",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Short",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Wide",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystals go: tall, short, tall, short, tall. What comes next?"
+      },
+      {
+       "answer": "c",
+       "explanation": "The pattern repeats red, blue, green. After blue comes green.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "Blue",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Red",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Green",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystals go: red, blue, green, red, blue. What comes next?"
+      },
+      {
+       "answer": "b",
+       "explanation": "Star, moon, sun makes one round. Then it starts again, so sun is next.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "Star",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Sun",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Moon",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The crystals go: star, moon, sun, star, moon. What comes next?"
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-ember-crystal-a",
+    "fh-ember-crystal-b",
+    "fh-ember-crystal-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-emberwood-pattern",
+   "title": "Finish the crystal pattern"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Count in groups instead of one by one.",
+      "Add the same number again and again."
+     ],
+     "optionEntities": {
+      "a": "fh-count-card-a",
+      "b": "fh-count-card-b",
+      "c": "fh-count-card-c"
+     },
+     "presentation": "CARDS",
+     "skill": "counting-and-groups",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "Skip counting by 5 adds 5 each time. 15 and 5 more is 20.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "18",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "20",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "25",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Count by 5s: 5, 10, 15. What number comes next?"
+      },
+      {
+       "answer": "b",
+       "explanation": "3 groups of 4 is 4 + 4 + 4, which is 12.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "7",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "12",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "16",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "There are 3 baskets with 4 embers in each. How many embers are there in all?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Skip counting by 2 adds 2 each time. 14 and 2 more is 16.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "15",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "18",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "16",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Count by 2s: 10, 12, 14. What number comes next?"
+      },
+      {
+       "answer": "c",
+       "explanation": "4 groups of 5 is 5 + 5 + 5 + 5, which is 20.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "9",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "25",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "20",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "There are 4 nests with 5 embers in each. How many embers are there in all?"
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Touch each ember as you count.",
+      "Count slowly, one at a time."
+     ],
+     "optionEntities": {
+      "a": "fh-count-card-a",
+      "b": "fh-count-card-b",
+      "c": "fh-count-card-c"
+     },
+     "presentation": "CARDS",
+     "skill": "counting-and-groups",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "9 is more than 6, so the basket has more embers.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "Fire pit",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Basket",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Same",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The fire pit has 6 embers. The basket has 9 embers. Which has more?"
+      },
+      {
+       "answer": "b",
+       "explanation": "4 is fewer than 7. Fewer means not as many.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "7 embers",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "4 embers",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Same",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which group has fewer: 7 embers or 4 embers?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Counting goes one at a time. After 5 comes 6.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "5",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "7",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "6",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Count on with Kindle: 2, 3, 4, 5. What number comes next?"
+      },
+      {
+       "answer": "b",
+       "explanation": "Start at 5 and count on 2 more: 6, 7. There are 7 embers.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "6",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "7",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "8",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Kindle has 5 embers. Flint gives 2 more. How many embers are there now?"
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-count-card-a",
+    "fh-count-card-b",
+    "fh-count-card-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-emberwood-count",
+   "title": "Count the embers"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Break the numbers into tens and ones.",
+      "Check your answer by doing it another way."
+     ],
+     "optionEntities": {
+      "a": "fh-lava-stone-a",
+      "b": "fh-lava-stone-b",
+      "c": "fh-lava-stone-c"
+     },
+     "presentation": "PLATFORMS",
+     "skill": "add-subtract-multiply",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "30 + 20 is 50, and 4 + 5 is 9. Together that is 59.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "49",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "59",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "69",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which stone has the answer to 34 + 25?"
+      },
+      {
+       "answer": "a",
+       "explanation": "Take away 20 to get 52, then add 2 back. The answer is 54.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "54",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "64",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "56",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which stone has the answer to 72 - 18?"
+      },
+      {
+       "answer": "b",
+       "explanation": "6 groups of 7 make 42. 6 times 7 is 42.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "36",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "42",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "48",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which stone has the answer to 6 times 7?"
+      },
+      {
+       "answer": "c",
+       "explanation": "40 + 30 is 70, and 5 + 8 is 13. 70 + 13 is 83.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "73",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "93",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "83",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which stone has the answer to 45 + 38?"
+      },
+      {
+       "answer": "c",
+       "explanation": "8 groups of 5 make 40. Counting by 5s, eight times, lands on 40.",
+       "id": "v5",
+       "options": [
+        {
+         "id": "a",
+         "label": "35",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "45",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "40",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which stone has the answer to 8 times 5?"
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Use your fingers to count on or back.",
+      "Draw the numbers as dots if it helps."
+     ],
+     "optionEntities": {
+      "a": "fh-lava-stone-a",
+      "b": "fh-lava-stone-b",
+      "c": "fh-lava-stone-c"
+     },
+     "presentation": "PLATFORMS",
+     "skill": "add-subtract-multiply",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "3 and 4 more is 7. Count on from 3: 4, 5, 6, 7.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "5",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "7",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "9",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The bridge stone needs the answer to 3 + 4. Which stone is right?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Start at 9 and take away 4. That leaves 5.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "4",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "6",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "5",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which stone has the answer to 9 - 4?"
+      },
+      {
+       "answer": "b",
+       "explanation": "6 and 2 more is 8.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "9",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "8",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "7",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which stone has the answer to 6 + 2?"
+      },
+      {
+       "answer": "a",
+       "explanation": "10 take away 3 is 7.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "7",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "6",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "8",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which stone has the answer to 10 - 3?"
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-lava-stone-a",
+    "fh-lava-stone-b",
+    "fh-lava-stone-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-lava-numbers",
+   "title": "Build the lava bridge"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Compare the tens first, then the ones.",
+      "Say each number out loud in order."
+     ],
+     "optionEntities": {
+      "a": "fh-lava-path-a",
+      "b": "fh-lava-path-b",
+      "c": "fh-lava-path-c"
+     },
+     "presentation": "PATHS",
+     "skill": "compare-order-halves",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "76 has 7 tens. 67 has only 6 tens and 58 has 5 tens.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "67",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "76",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "58",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which path shows the greatest number?"
+      },
+      {
+       "answer": "c",
+       "explanation": "19 has just 1 ten. That is fewer tens than the others.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "91",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "49",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "19",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which path shows the smallest number?"
+      },
+      {
+       "answer": "b",
+       "explanation": "Half means 2 equal parts. 10 and 10 make 20.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "5",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "10",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "40",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which path shows half of 20?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Half of 18 is 9, because 9 + 9 is 18.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "6",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "36",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "9",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which path shows half of 18?"
+      },
+      {
+       "answer": "b",
+       "explanation": "52 is more than 45 and less than 60. The others are outside.",
+       "id": "v5",
+       "options": [
+        {
+         "id": "a",
+         "label": "40",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "52",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "65",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The path number must be more than 45 and less than 60. Which one fits?"
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Count up from zero. The number you say later is bigger.",
+      "Find the biggest tens digit first."
+     ],
+     "optionEntities": {
+      "a": "fh-lava-path-a",
+      "b": "fh-lava-path-b",
+      "c": "fh-lava-path-c"
+     },
+     "presentation": "PATHS",
+     "skill": "compare-order-halves",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "17 is bigger than 12 and 9. It has the most.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "12",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "17",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "9",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Take the path with the biggest number. Which path is it?"
+      },
+      {
+       "answer": "c",
+       "explanation": "8 is smaller than 15 and 19. It has the least.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "15",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "19",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "8",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Take the path with the smallest number. Which path is it?"
+      },
+      {
+       "answer": "b",
+       "explanation": "18 is more than 15. The other two are less.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "11",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "18",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "14",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which path has the number that is more than 15?"
+      },
+      {
+       "answer": "b",
+       "explanation": "6 is less than 10. The other two are more.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "13",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "6",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "16",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which path has the number that is less than 10?"
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-lava-path-a",
+    "fh-lava-path-b",
+    "fh-lava-path-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-lava-compare",
+   "title": "Choose the right path"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Picture the shape and count one part at a time.",
+      "Faces are flat sides. Edges are where they meet."
+     ],
+     "optionEntities": {
+      "a": "fh-cavern-shape-a",
+      "b": "fh-cavern-shape-b",
+      "c": "fh-cavern-shape-c",
+      "d": "fh-cavern-shape-d"
+     },
+     "presentation": "SHAPES",
+     "skill": "shapes-and-geometry",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "A cube has 6 flat faces: top, bottom and 4 sides.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "4",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "6",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "8",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "12",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "How many faces does a cube have?"
+      },
+      {
+       "answer": "c",
+       "explanation": "A square has 4 corners and 4 sides.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "3",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "5",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "4",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "6",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "How many corners does a square have?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Quarters are 4 equal parts. Each part is one quarter.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "2",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "3",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "4",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "8",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "A square is cut into quarters. How many equal parts are there?"
+      },
+      {
+       "answer": "d",
+       "explanation": "A cube has 12 edges: 4 on the top, 4 on the bottom and 4 standing up.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "6",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "8",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "10",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "12",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "How many edges does a cube have?"
+      },
+      {
+       "answer": "b",
+       "explanation": "A pentagon has 5 sides and 5 corners.",
+       "id": "v5",
+       "options": [
+        {
+         "id": "a",
+         "label": "4",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "5",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "6",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "8",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "How many sides does a pentagon have?"
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Count the straight sides with your finger.",
+      "Count the corners too."
+     ],
+     "optionEntities": {
+      "a": "fh-cavern-shape-a",
+      "b": "fh-cavern-shape-b",
+      "c": "fh-cavern-shape-c",
+      "d": "fh-cavern-shape-d"
+     },
+     "presentation": "SHAPES",
+     "skill": "shapes-and-geometry",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "A triangle has 3 sides and 3 corners.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "Circle",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Triangle",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Square",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Hexagon",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Touch the shape that has 3 sides."
+      },
+      {
+       "answer": "a",
+       "explanation": "A circle is round. It has no straight sides and no corners.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "Circle",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Triangle",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Square",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Hexagon",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Touch the shape that is round and has no corners."
+      },
+      {
+       "answer": "c",
+       "explanation": "A square has 4 equal sides and 4 corners.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "Circle",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Triangle",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Square",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Hexagon",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Touch the shape that has 4 sides that are all the same length."
+      },
+      {
+       "answer": "d",
+       "explanation": "A hexagon has 6 sides. Bees make hexagons in their honeycomb.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "Circle",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Triangle",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Square",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Hexagon",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Touch the shape that has 6 sides."
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-cavern-shape-a",
+    "fh-cavern-shape-b",
+    "fh-cavern-shape-c",
+    "fh-cavern-shape-d"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-caverns-shapes",
+   "title": "Match the cave shapes"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Compare two crystals at a time.",
+      "Think about how big each part is."
+     ],
+     "itemEntities": {
+      "a": "fh-cavern-crystal-a",
+      "b": "fh-cavern-crystal-b",
+      "c": "fh-cavern-crystal-c",
+      "d": "fh-cavern-crystal-d"
+     },
+     "presentation": "CRYSTALS",
+     "skill": "ordering-and-measurement",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": [
+        "a",
+        "b",
+        "c",
+        "d"
+       ],
+       "explanation": "A triangle has 3 sides, a square 4, a pentagon 5 and a hexagon 6.",
+       "id": "v1",
+       "items": [
+        {
+         "id": "a",
+         "label": "Triangle",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Square",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Pentagon",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Hexagon",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Put the crystals in order by their number of sides, fewest first."
+      },
+      {
+       "answer": [
+        "b",
+        "c",
+        "d",
+        "a"
+       ],
+       "explanation": "The more parts a whole is cut into, the smaller each part is. 1/8 is smallest, 1/2 is largest.",
+       "id": "v2",
+       "items": [
+        {
+         "id": "a",
+         "label": "1/2",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "1/8",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "1/4",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "1/3",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Put the fractions in order from smallest to largest."
+      },
+      {
+       "answer": [
+        "c",
+        "d",
+        "a",
+        "b"
+       ],
+       "explanation": "1/8 is a small slice. 3/4 is three quarters of the whole, the biggest here.",
+       "id": "v3",
+       "items": [
+        {
+         "id": "a",
+         "label": "1/2",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "3/4",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "1/8",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "1/4",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Put the fractions in order from smallest to largest."
+      },
+      {
+       "answer": [
+        "d",
+        "a",
+        "b",
+        "c"
+       ],
+       "explanation": "Compare the tens first. 14 is smallest and 84 is biggest.",
+       "id": "v4",
+       "items": [
+        {
+         "id": "a",
+         "label": "41",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "48",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "84",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "14",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Put the numbers in order from smallest to largest."
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Find the smallest first.",
+      "Then find the next smallest."
+     ],
+     "itemEntities": {
+      "a": "fh-cavern-crystal-a",
+      "b": "fh-cavern-crystal-b",
+      "c": "fh-cavern-crystal-c",
+      "d": "fh-cavern-crystal-d"
+     },
+     "presentation": "CRYSTALS",
+     "skill": "ordering-and-measurement",
+     "subject": "MATHEMATICS",
+     "variants": [
+      {
+       "answer": [
+        "a",
+        "b",
+        "c",
+        "d"
+       ],
+       "explanation": "The smallest goes first and the biggest goes last.",
+       "id": "v1",
+       "items": [
+        {
+         "id": "a",
+         "label": "Tiny crystal",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Small crystal",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Big crystal",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Huge crystal",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Put the crystals in order from smallest to largest."
+      },
+      {
+       "answer": [
+        "c",
+        "d",
+        "a",
+        "b"
+       ],
+       "explanation": "2 is the smallest. Then 4, then 7, then 9.",
+       "id": "v2",
+       "items": [
+        {
+         "id": "a",
+         "label": "7",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "9",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "2",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "4",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Put the crystals in order from the smallest number to the biggest number."
+      },
+      {
+       "answer": [
+        "b",
+        "c",
+        "d",
+        "a"
+       ],
+       "explanation": "The biggest goes first and the tiniest goes last.",
+       "id": "v3",
+       "items": [
+        {
+         "id": "a",
+         "label": "Tiny crystal",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Huge crystal",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Big crystal",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Small crystal",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Put the crystals in order from biggest to smallest."
+      },
+      {
+       "answer": [
+        "d",
+        "a",
+        "b",
+        "c"
+       ],
+       "explanation": "3 is smallest, then 8, then 12, then 15.",
+       "id": "v4",
+       "items": [
+        {
+         "id": "a",
+         "label": "8",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "12",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "15",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "3",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Put the crystal numbers in order, smallest first."
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-cavern-crystal-a",
+    "fh-cavern-crystal-b",
+    "fh-cavern-crystal-c",
+    "fh-cavern-crystal-d"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "fh-caverns-arrange",
+   "title": "Arrange the cave crystals"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Find the step that has to be first or last.",
+      "Look for words like before and after."
+     ],
+     "itemEntities": {
+      "blue": "fh-forge-switch-blue",
+      "gold": "fh-forge-switch-gold",
+      "green": "fh-forge-switch-green",
+      "red": "fh-forge-switch-red"
+     },
+     "presentation": "SWITCHES",
+     "skill": "sequencing-cause-and-effect",
+     "subject": "LOGIC",
+     "variants": [
+      {
+       "answer": [
+        "red",
+        "blue",
+        "gold",
+        "green"
+       ],
+       "explanation": "Cool water must come before the gears turn, and the lamp is the very last step.",
+       "id": "v1",
+       "items": [
+        {
+         "id": "red",
+         "label": "Pump starts",
+         "symbol": "circle"
+        },
+        {
+         "id": "blue",
+         "label": "Water cools",
+         "symbol": "square"
+        },
+        {
+         "id": "gold",
+         "label": "Gears turn",
+         "symbol": "triangle"
+        },
+        {
+         "id": "green",
+         "label": "Lamp lights",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "The pump starts first. The water must cool before the gears turn. The lamp lights last."
+      },
+      {
+       "answer": [
+        "blue",
+        "gold",
+        "green",
+        "red"
+       ],
+       "explanation": "Air comes before heat, because a fire needs air to burn hotter. Melting comes last.",
+       "id": "v2",
+       "items": [
+        {
+         "id": "red",
+         "label": "Metal melts",
+         "symbol": "circle"
+        },
+        {
+         "id": "blue",
+         "label": "Add coal",
+         "symbol": "square"
+        },
+        {
+         "id": "gold",
+         "label": "Pump air",
+         "symbol": "triangle"
+        },
+        {
+         "id": "green",
+         "label": "Fire gets hot",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Add coal first. The fire needs air before it gets hot. The metal melts last of all."
+      },
+      {
+       "answer": [
+        "gold",
+        "green",
+        "red",
+        "blue"
+       ],
+       "explanation": "The brake must be off before the lift can move, so it comes right after the power.",
+       "id": "v3",
+       "items": [
+        {
+         "id": "red",
+         "label": "Lift moves up",
+         "symbol": "circle"
+        },
+        {
+         "id": "blue",
+         "label": "Lift stops at the top",
+         "symbol": "square"
+        },
+        {
+         "id": "gold",
+         "label": "Power on",
+         "symbol": "triangle"
+        },
+        {
+         "id": "green",
+         "label": "Release the brake",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Switch the power on first. The brake must be released before the lift moves. The lift stops at the top last."
+      },
+      {
+       "answer": [
+        "green",
+        "red",
+        "blue",
+        "gold"
+       ],
+       "explanation": "Boiling makes steam, and steam pushes through the open valve to make the whistle sound.",
+       "id": "v4",
+       "items": [
+        {
+         "id": "red",
+         "label": "Steam builds",
+         "symbol": "circle"
+        },
+        {
+         "id": "blue",
+         "label": "Valve opens",
+         "symbol": "square"
+        },
+        {
+         "id": "gold",
+         "label": "Whistle sounds",
+         "symbol": "triangle"
+        },
+        {
+         "id": "green",
+         "label": "Boil the water",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Boil the water first. The valve opens only after steam builds. The whistle sounds last."
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "What has to happen first?",
+      "Each step makes the next one happen."
+     ],
+     "itemEntities": {
+      "blue": "fh-forge-switch-blue",
+      "gold": "fh-forge-switch-gold",
+      "red": "fh-forge-switch-red"
+     },
+     "presentation": "SWITCHES",
+     "skill": "sequencing-cause-and-effect",
+     "subject": "LOGIC",
+     "variants": [
+      {
+       "answer": [
+        "red",
+        "blue",
+        "gold"
+       ],
+       "explanation": "The water pushes the wheel first, then the wheel moves the gears, and last the lamp lights.",
+       "id": "v1",
+       "items": [
+        {
+         "id": "red",
+         "label": "Water switch",
+         "symbol": "circle"
+        },
+        {
+         "id": "blue",
+         "label": "Wheel switch",
+         "symbol": "square"
+        },
+        {
+         "id": "gold",
+         "label": "Lamp switch",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The water turns the wheel. The wheel turns the gears. The gears light the lamp. Press the switches in that order."
+      },
+      {
+       "answer": [
+        "blue",
+        "gold",
+        "red"
+       ],
+       "explanation": "The fire needs coal first. Once it is lit, air from the bellows makes it hotter.",
+       "id": "v2",
+       "items": [
+        {
+         "id": "red",
+         "label": "Pump the bellows",
+         "symbol": "circle"
+        },
+        {
+         "id": "blue",
+         "label": "Add coal",
+         "symbol": "square"
+        },
+        {
+         "id": "gold",
+         "label": "Light the fire",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "To heat the forge, put in coal, then light the fire, then pump the bellows."
+      },
+      {
+       "answer": [
+        "gold",
+        "red",
+        "blue"
+       ],
+       "explanation": "One thing causes the next: the lever moves the chain, and the chain lowers the bridge.",
+       "id": "v3",
+       "items": [
+        {
+         "id": "red",
+         "label": "Chain moves",
+         "symbol": "circle"
+        },
+        {
+         "id": "blue",
+         "label": "Bridge lowers",
+         "symbol": "square"
+        },
+        {
+         "id": "gold",
+         "label": "Pull the lever",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "To lower the bridge, pull the lever. The chain moves. Then the bridge comes down."
+      },
+      {
+       "answer": [
+        "red",
+        "blue",
+        "gold"
+       ],
+       "explanation": "Hot metal is soft, so it is hammered into shape. Water cools it at the end.",
+       "id": "v4",
+       "items": [
+        {
+         "id": "red",
+         "label": "Heat the metal",
+         "symbol": "circle"
+        },
+        {
+         "id": "blue",
+         "label": "Hammer it",
+         "symbol": "square"
+        },
+        {
+         "id": "gold",
+         "label": "Dip it in water",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "To make a metal tool, heat the metal, then hammer it, then dip it in water."
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-forge-switch-red",
+    "fh-forge-switch-blue",
+    "fh-forge-switch-gold",
+    "fh-forge-switch-green"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "fh-forge-switches",
+   "title": "Wake the forge machines"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "For sharing, make equal groups.",
+      "Check that the loop is closed all the way round."
+     ],
+     "optionEntities": {
+      "a": "fh-circuit-path-a",
+      "b": "fh-circuit-path-b",
+      "c": "fh-circuit-path-c"
+     },
+     "presentation": "PATHS",
+     "skill": "circuits-and-sharing",
+     "subject": "LOGIC",
+     "variants": [
+      {
+       "answer": "c",
+       "explanation": "Only Path C has a battery, a lamp and a closed loop.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "Path A",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Path B",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Path C",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "A circuit needs a battery, a lamp and a closed loop. Path A has a gap. Path B has no battery. Path C has all three. Which path lights the lamp?"
+      },
+      {
+       "answer": "c",
+       "explanation": "12 shared equally into 3 groups is 4 each, because 4 + 4 + 4 is 12.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "3",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "6",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "4",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The forge has 12 crystals to share equally between 3 lamps. How many crystals does each lamp get?"
+      },
+      {
+       "answer": "c",
+       "explanation": "15 shared equally into 5 groups is 3 each, because 5 times 3 is 15.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "2",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "5",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "3",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The forge has 15 crystals to share equally among 5 lamps. How many does each lamp get?"
+      },
+      {
+       "answer": "c",
+       "explanation": "20 shared equally into 4 groups is 5 each, because 4 times 5 is 20.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "4",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "10",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "5",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "The forge has 20 crystals to share equally between 4 lamps. How many does each lamp get?"
+      },
+      {
+       "answer": "b",
+       "explanation": "The closed switch makes the loop complete. The open switch leaves a gap.",
+       "id": "v5",
+       "options": [
+        {
+         "id": "a",
+         "label": "Path A",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Path B",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Path C",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "A switch is open in Path A and closed in Path B. Path C has no lamp. Which path can light the lamp?"
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Follow the wire with your finger. Does it make a loop?",
+      "A gap stops the power."
+     ],
+     "optionEntities": {
+      "a": "fh-circuit-path-a",
+      "b": "fh-circuit-path-b",
+      "c": "fh-circuit-path-c"
+     },
+     "presentation": "PATHS",
+     "skill": "circuits-and-sharing",
+     "subject": "LOGIC",
+     "variants": [
+      {
+       "answer": "b",
+       "explanation": "Only a full loop with no gap lets the power reach the lamp.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "Path A",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Path B",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Path C",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "A lamp lights when the wire makes a full loop. Path A has a gap in the wire. Path B is a full loop. Path C stops before the lamp. Which path lights the lamp?"
+      },
+      {
+       "answer": "a",
+       "explanation": "A full loop with a battery lights the lamp. A cut wire or no battery cannot.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "Path A",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Path B",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Path C",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Path A is a full loop to the lamp. Path B has a cut wire. Path C has no battery. Which path lights the lamp?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Path C has everything a lamp needs: a battery, a lamp and a full loop.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "Path A",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Path B",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Path C",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Path A has a gap. Path B has no lamp. Path C is a full loop with a battery and a lamp. Which path lights the lamp?"
+      },
+      {
+       "answer": "b",
+       "explanation": "A closed switch closes the loop, so the power can flow to the lamp.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "Path A",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Path B",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Path C",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Path A has a switch that is open, so there is a gap. Path B has a switch that is closed. Path C has no wire. Which path lights the lamp?"
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-circuit-path-a",
+    "fh-circuit-path-b",
+    "fh-circuit-path-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-forge-circuit",
+   "title": "Light the forge lamp"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Think about how each rock was made.",
+      "Read each name and picture its look."
+     ],
+     "optionEntities": {
+      "a": "fh-rock-sample-a",
+      "b": "fh-rock-sample-b",
+      "c": "fh-rock-sample-c"
+     },
+     "presentation": "SAMPLES",
+     "skill": "rocks-and-volcanoes",
+     "subject": "EARTH_SCIENCE",
+     "variants": [
+      {
+       "answer": "a",
+       "explanation": "Basalt is a dark volcanic rock made when lava cools and hardens.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "Basalt",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Chalk",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Sandstone",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which rock is dark and forms when runny lava cools?"
+      },
+      {
+       "answer": "b",
+       "explanation": "Pumice is full of tiny gas bubbles, so it is light enough to float.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "Obsidian",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Pumice",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Basalt",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which volcanic rock has so many air bubbles that it can float on water?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Obsidian is volcanic glass. It forms when lava cools too fast to make crystals.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "Pumice",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Chalk",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Obsidian",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Which shiny, glassy rock forms when lava cools very quickly?"
+      },
+      {
+       "answer": "b",
+       "explanation": "A dormant volcano has not erupted for a long time but may wake up again.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "Active",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Dormant",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Frozen",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "A volcano is sleeping but could erupt again one day. What do scientists call it?"
+      },
+      {
+       "answer": "c",
+       "explanation": "Igneous rock begins as hot melted rock, either magma or lava.",
+       "id": "v5",
+       "options": [
+        {
+         "id": "a",
+         "label": "Mud",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Sand",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Magma or lava",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Igneous rocks form when what cools and hardens?"
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Think about where the melted rock is.",
+      "Hot rock gets hard when it cools."
+     ],
+     "optionEntities": {
+      "a": "fh-rock-sample-a",
+      "b": "fh-rock-sample-b",
+      "c": "fh-rock-sample-c"
+     },
+     "presentation": "SAMPLES",
+     "skill": "rocks-and-volcanoes",
+     "subject": "EARTH_SCIENCE",
+     "variants": [
+      {
+       "answer": "a",
+       "explanation": "Melted rock under the ground is called magma.",
+       "id": "v1",
+       "options": [
+        {
+         "id": "a",
+         "label": "Magma",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Sand",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Lava",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Melted rock deep under the ground has a name. What is it?"
+      },
+      {
+       "answer": "b",
+       "explanation": "When magma comes out of a volcano, we call it lava.",
+       "id": "v2",
+       "options": [
+        {
+         "id": "a",
+         "label": "Magma",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Lava",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Ice",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Melted rock that flows out of a volcano has a name. What is it?"
+      },
+      {
+       "answer": "b",
+       "explanation": "Cooling lava becomes hard, new rock.",
+       "id": "v3",
+       "options": [
+        {
+         "id": "a",
+         "label": "Water",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Hard rock",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Sand",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Lava cools down for a long time. What does it turn into?"
+      },
+      {
+       "answer": "b",
+       "explanation": "Magma is hot melted rock found deep under the ground.",
+       "id": "v4",
+       "options": [
+        {
+         "id": "a",
+         "label": "In the clouds",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Under the ground",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "In the sea",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Where can you find magma?"
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-rock-sample-a",
+    "fh-rock-sample-b",
+    "fh-rock-sample-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "fh-summit-rocks",
+   "title": "Name the rocks"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Which step has to happen before the others?",
+      "Island building takes many eruptions."
+     ],
+     "itemEntities": {
+      "a": "fh-island-step-a",
+      "b": "fh-island-step-b",
+      "c": "fh-island-step-c",
+      "d": "fh-island-step-d",
+      "e": "fh-island-step-e"
+     },
+     "presentation": "STORY",
+     "skill": "earth-processes-sequence",
+     "subject": "EARTH_SCIENCE",
+     "variants": [
+      {
+       "answer": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+       ],
+       "explanation": "Magma rises and erupts, lava cools into rock, layers build up over many eruptions, and an island forms.",
+       "id": "v1",
+       "items": [
+        {
+         "id": "a",
+         "label": "Magma rises",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Volcano erupts",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Lava cools",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Layers build up",
+         "symbol": "star"
+        },
+        {
+         "id": "e",
+         "label": "Island forms",
+         "symbol": "diamond"
+        }
+       ],
+       "prompt": "Put the steps in order to show how a volcano island forms."
+      },
+      {
+       "answer": [
+        "c",
+        "d",
+        "e",
+        "a",
+        "b"
+       ],
+       "explanation": "Real volcano islands grow slowly, one eruption and one layer at a time.",
+       "id": "v2",
+       "items": [
+        {
+         "id": "a",
+         "label": "Lava hardens into new rock",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Many layers make a volcano island",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Magma collects deep underground",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "Pressure pushes magma up",
+         "symbol": "star"
+        },
+        {
+         "id": "e",
+         "label": "Lava erupts and flows",
+         "symbol": "diamond"
+        }
+       ],
+       "prompt": "Put the steps in order, from deep underground to a new island."
+      },
+      {
+       "answer": [
+        "e",
+        "a",
+        "b",
+        "c",
+        "d"
+       ],
+       "explanation": "Cold seawater cools the lava fast. Over many eruptions the rock builds up until it breaks the surface.",
+       "id": "v3",
+       "items": [
+        {
+         "id": "a",
+         "label": "Lava meets cold seawater",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Lava cools fast into rock",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Rock piles up higher each eruption",
+         "symbol": "triangle"
+        },
+        {
+         "id": "d",
+         "label": "The top reaches above the waves",
+         "symbol": "star"
+        },
+        {
+         "id": "e",
+         "label": "An eruption begins underwater",
+         "symbol": "diamond"
+        }
+       ],
+       "prompt": "An eruption begins under the sea. Put the steps in order."
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "What happens first, deep down?",
+      "What happens last?"
+     ],
+     "itemEntities": {
+      "a": "fh-island-step-a",
+      "b": "fh-island-step-b",
+      "c": "fh-island-step-c"
+     },
+     "presentation": "STORY",
+     "skill": "earth-processes-sequence",
+     "subject": "EARTH_SCIENCE",
+     "variants": [
+      {
+       "answer": [
+        "a",
+        "b",
+        "c"
+       ],
+       "explanation": "Magma rises, it comes out as lava, and then the lava cools into new rock.",
+       "id": "v1",
+       "items": [
+        {
+         "id": "a",
+         "label": "Magma rises up",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "The volcano erupts",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Lava cools into rock",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Tell how a volcano makes rock. Put the steps in order."
+      },
+      {
+       "answer": [
+        "b",
+        "c",
+        "a"
+       ],
+       "explanation": "Lava cools in the sea and hardens. Layer after layer piles up until it rises above the water.",
+       "id": "v2",
+       "items": [
+        {
+         "id": "a",
+         "label": "A new island appears",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "Lava flows into the sea",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Hardened lava piles up",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Tell how an island grows from the sea."
+      },
+      {
+       "answer": [
+        "c",
+        "a",
+        "b"
+       ],
+       "explanation": "It starts as melted rock, flows out, and becomes hard rock when it cools.",
+       "id": "v3",
+       "items": [
+        {
+         "id": "a",
+         "label": "It flows out as lava",
+         "symbol": "circle"
+        },
+        {
+         "id": "b",
+         "label": "It cools and hardens",
+         "symbol": "square"
+        },
+        {
+         "id": "c",
+         "label": "Hot melted rock",
+         "symbol": "triangle"
+        }
+       ],
+       "prompt": "Tell the story of one rock."
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-island-step-a",
+    "fh-island-step-b",
+    "fh-island-step-c",
+    "fh-island-step-d",
+    "fh-island-step-e"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "fh-summit-island",
+   "title": "Tell the story of the island"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Read the clue again, one part at a time.",
+      "Find the crystal that must come first."
+     ],
+     "itemEntities": {
+      "cavern": "fh-heart-crystal-cavern",
+      "forest": "fh-heart-crystal-forest",
+      "forge": "fh-heart-crystal-forge",
+      "magma": "fh-heart-crystal-magma"
+     },
+     "presentation": "CRYSTALS",
+     "skill": "reading-comprehension-sequence",
+     "subject": "LITERACY",
+     "variants": [
+      {
+       "answer": [
+        "forest",
+        "magma",
+        "cavern",
+        "forge"
+       ],
+       "explanation": "The clue lists the places in order, and each place gave you one crystal.",
+       "id": "v1",
+       "items": [
+        {
+         "id": "forest",
+         "label": "Forest crystal",
+         "symbol": "circle"
+        },
+        {
+         "id": "magma",
+         "label": "Magma crystal",
+         "symbol": "square"
+        },
+        {
+         "id": "cavern",
+         "label": "Cavern crystal",
+         "symbol": "triangle"
+        },
+        {
+         "id": "forge",
+         "label": "Forge crystal",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Read the clue: first came the green trees, then the river of fire, then the glowing caves, then the old machines. Set the crystals in that order."
+      },
+      {
+       "answer": [
+        "forest",
+        "magma",
+        "cavern",
+        "forge"
+       ],
+       "explanation": "Forest is before magma, magma is before cavern, and cavern is before forge.",
+       "id": "v2",
+       "items": [
+        {
+         "id": "forest",
+         "label": "Forest crystal",
+         "symbol": "circle"
+        },
+        {
+         "id": "magma",
+         "label": "Magma crystal",
+         "symbol": "square"
+        },
+        {
+         "id": "cavern",
+         "label": "Cavern crystal",
+         "symbol": "triangle"
+        },
+        {
+         "id": "forge",
+         "label": "Forge crystal",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Read the clue: the forge crystal came after the cavern crystal. The forest crystal came before the magma crystal. The magma crystal came before the cavern crystal. Set them in order."
+      },
+      {
+       "answer": [
+        "forest",
+        "magma",
+        "cavern",
+        "forge"
+       ],
+       "explanation": "Forest, then lava, then caves, then the forge: that is the order of the journey.",
+       "id": "v3",
+       "items": [
+        {
+         "id": "forest",
+         "label": "Forest crystal",
+         "symbol": "circle"
+        },
+        {
+         "id": "magma",
+         "label": "Magma crystal",
+         "symbol": "square"
+        },
+        {
+         "id": "cavern",
+         "label": "Cavern crystal",
+         "symbol": "triangle"
+        },
+        {
+         "id": "forge",
+         "label": "Forge crystal",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Read the clue: you crossed lava after the forest and before the caves. The forge was your last stop. Set the crystals in order."
+      }
+     ]
+    },
+    "PATHFINDER": {
+     "hintAfterAttempts": 2,
+     "hints": [
+      "Where did your journey begin?",
+      "Think about each place you visited."
+     ],
+     "itemEntities": {
+      "cavern": "fh-heart-crystal-cavern",
+      "forest": "fh-heart-crystal-forest",
+      "forge": "fh-heart-crystal-forge",
+      "magma": "fh-heart-crystal-magma"
+     },
+     "presentation": "CRYSTALS",
+     "skill": "reading-comprehension-sequence",
+     "subject": "LITERACY",
+     "variants": [
+      {
+       "answer": [
+        "forest",
+        "magma",
+        "cavern",
+        "forge"
+       ],
+       "explanation": "You found the forest crystal first, then magma, then cavern, then forge.",
+       "id": "v1",
+       "items": [
+        {
+         "id": "forest",
+         "label": "Forest crystal",
+         "symbol": "circle"
+        },
+        {
+         "id": "magma",
+         "label": "Magma crystal",
+         "symbol": "square"
+        },
+        {
+         "id": "cavern",
+         "label": "Cavern crystal",
+         "symbol": "triangle"
+        },
+        {
+         "id": "forge",
+         "label": "Forge crystal",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Set the crystals in the order of your journey."
+      },
+      {
+       "answer": [
+        "forest",
+        "magma",
+        "cavern",
+        "forge"
+       ],
+       "explanation": "Your journey went from the trees to the lava, then the caves, then the forge.",
+       "id": "v2",
+       "items": [
+        {
+         "id": "forest",
+         "label": "Forest crystal",
+         "symbol": "circle"
+        },
+        {
+         "id": "magma",
+         "label": "Magma crystal",
+         "symbol": "square"
+        },
+        {
+         "id": "cavern",
+         "label": "Cavern crystal",
+         "symbol": "triangle"
+        },
+        {
+         "id": "forge",
+         "label": "Forge crystal",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Which crystal did you find first? Start there and go in order."
+      },
+      {
+       "answer": [
+        "forest",
+        "magma",
+        "cavern",
+        "forge"
+       ],
+       "explanation": "Trees came first, so the forest crystal starts. Machines came last, so the forge crystal ends.",
+       "id": "v3",
+       "items": [
+        {
+         "id": "forest",
+         "label": "Forest crystal",
+         "symbol": "circle"
+        },
+        {
+         "id": "magma",
+         "label": "Magma crystal",
+         "symbol": "square"
+        },
+        {
+         "id": "cavern",
+         "label": "Cavern crystal",
+         "symbol": "triangle"
+        },
+        {
+         "id": "forge",
+         "label": "Forge crystal",
+         "symbol": "star"
+        }
+       ],
+       "prompt": "Remember the trip: trees, lava, caves, machines. Set the crystals in that order."
+      }
+     ]
+    }
+   },
+   "entityIds": [
+    "fh-heart-crystal-forest",
+    "fh-heart-crystal-magma",
+    "fh-heart-crystal-cavern",
+    "fh-heart-crystal-forge"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "fh-heart-crystals",
+   "title": "Set the elemental crystals"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "discoveryMessage": "The Heart of Firepeak glows warm and bright again!"
+    },
+    "PATHFINDER": {
+     "discoveryMessage": "The Heart of Firepeak glows warm and bright again!"
+    }
+   },
+   "entityIds": [
+    "fh-heart-crystal"
+   ],
+   "kind": "COLLECT_OBJECT",
+   "puzzleId": "fh-heart-restore",
+   "title": "Wake the Heart of Firepeak"
+  },
+  {
+   "ageBands": {
+    "EXPLORER": {
+     "npcEntityId": "fh-ignis"
+    },
+    "PATHFINDER": {
+     "npcEntityId": "fh-ignis"
+    }
+   },
+   "entityIds": [
+    "fh-ignis"
+   ],
+   "kind": "RETURN_TO_NPC",
+   "puzzleId": "fh-heart-return",
+   "title": "Tell Ignis the good news"
+  }
+ ],
+ "scene": {
+  "bounds": {
+   "halfExtentX": 32,
+   "halfExtentZ": 96,
+   "wallThickness": 1
+  },
+  "colliders": [
+   {
+    "id": "fh-gate-emberwood-west",
+    "maxX": -4.0,
+    "maxZ": 65.75,
+    "minX": -32.0,
+    "minZ": 64.25
+   },
+   {
+    "id": "fh-gate-emberwood",
+    "maxX": 4.0,
+    "maxZ": 65.75,
+    "minX": -4.0,
+    "minZ": 64.25
+   },
+   {
+    "id": "fh-gate-emberwood-east",
+    "maxX": 32.0,
+    "maxZ": 65.75,
+    "minX": 4.0,
+    "minZ": 64.25
+   },
+   {
+    "id": "fh-gate-lava-west",
+    "maxX": -4.0,
+    "maxZ": 37.75,
+    "minX": -32.0,
+    "minZ": 36.25
+   },
+   {
+    "id": "fh-gate-lava",
+    "maxX": 4.0,
+    "maxZ": 37.75,
+    "minX": -4.0,
+    "minZ": 36.25
+   },
+   {
+    "id": "fh-gate-lava-east",
+    "maxX": 32.0,
+    "maxZ": 37.75,
+    "minX": 4.0,
+    "minZ": 36.25
+   },
+   {
+    "id": "fh-gate-caverns-west",
+    "maxX": -4.0,
+    "maxZ": 7.75,
+    "minX": -32.0,
+    "minZ": 6.25
+   },
+   {
+    "id": "fh-gate-caverns",
+    "maxX": 4.0,
+    "maxZ": 7.75,
+    "minX": -4.0,
+    "minZ": 6.25
+   },
+   {
+    "id": "fh-gate-caverns-east",
+    "maxX": 32.0,
+    "maxZ": 7.75,
+    "minX": 4.0,
+    "minZ": 6.25
+   },
+   {
+    "id": "fh-gate-forge-west",
+    "maxX": -4.0,
+    "maxZ": -22.25,
+    "minX": -32.0,
+    "minZ": -23.75
+   },
+   {
+    "id": "fh-gate-forge",
+    "maxX": 4.0,
+    "maxZ": -22.25,
+    "minX": -4.0,
+    "minZ": -23.75
+   },
+   {
+    "id": "fh-gate-forge-east",
+    "maxX": 32.0,
+    "maxZ": -22.25,
+    "minX": 4.0,
+    "minZ": -23.75
+   },
+   {
+    "id": "fh-gate-summit-west",
+    "maxX": -4.0,
+    "maxZ": -48.25,
+    "minX": -32.0,
+    "minZ": -49.75
+   },
+   {
+    "id": "fh-gate-summit",
+    "maxX": 4.0,
+    "maxZ": -48.25,
+    "minX": -4.0,
+    "minZ": -49.75
+   },
+   {
+    "id": "fh-gate-summit-east",
+    "maxX": 32.0,
+    "maxZ": -48.25,
+    "minX": 4.0,
+    "minZ": -49.75
+   },
+   {
+    "id": "fh-gate-heart-west",
+    "maxX": -4.0,
+    "maxZ": -76.25,
+    "minX": -32.0,
+    "minZ": -77.75
+   },
+   {
+    "id": "fh-gate-heart",
+    "maxX": 4.0,
+    "maxZ": -76.25,
+    "minX": -4.0,
+    "minZ": -77.75
+   },
+   {
+    "id": "fh-gate-heart-east",
+    "maxX": 32.0,
+    "maxZ": -76.25,
+    "minX": 4.0,
+    "minZ": -77.75
+   },
+   {
+    "id": "fh-cave-wall-west",
+    "maxX": -13.0,
+    "maxZ": 6.25,
+    "minX": -32.0,
+    "minZ": -22.25
+   },
+   {
+    "id": "fh-cave-wall-east-north",
+    "maxX": 32.0,
+    "maxZ": 6.25,
+    "minX": 13.0,
+    "minZ": -3.5
+   },
+   {
+    "id": "fh-cave-wall-east-south",
+    "maxX": 32.0,
+    "maxZ": -8.5,
+    "minX": 13.0,
+    "minZ": -22.25
+   },
+   {
+    "id": "fh-cave-alcove-back",
+    "maxX": 32.0,
+    "maxZ": -3.5,
+    "minX": 22.0,
+    "minZ": -8.5
+   },
+   {
+    "id": "fh-cavern-secret",
+    "maxX": 14.0,
+    "maxZ": -3.5,
+    "minX": 13.0,
+    "minZ": -8.5
+   },
+   {
+    "id": "col-fh-tree-screen-1",
+    "maxX": -20.15,
+    "maxZ": 49.35,
+    "minX": -20.85,
+    "minZ": 48.65
+   },
+   {
+    "id": "col-fh-tree-screen-2",
+    "maxX": -22.65,
+    "maxZ": 49.95,
+    "minX": -23.35,
+    "minZ": 49.25
+   },
+   {
+    "id": "col-fh-tree-screen-3",
+    "maxX": -25.15,
+    "maxZ": 49.35,
+    "minX": -25.85,
+    "minZ": 48.65
+   },
+   {
+    "id": "col-fh-tree-screen-4",
+    "maxX": -27.45,
+    "maxZ": 45.95,
+    "minX": -28.150000000000002,
+    "minZ": 45.25
+   },
+   {
+    "id": "col-fh-tree-screen-5",
+    "maxX": -27.45,
+    "maxZ": 42.75,
+    "minX": -28.150000000000002,
+    "minZ": 42.05
+   },
+   {
+    "id": "col-fh-landing-tree-1",
+    "maxX": 20.150000000000002,
+    "maxZ": 70.05,
+    "minX": 19.45,
+    "minZ": 69.35000000000001
+   },
+   {
+    "id": "col-fh-landing-tree-2",
+    "maxX": 27.450000000000003,
+    "maxZ": 84.55,
+    "minX": 26.75,
+    "minZ": 83.85000000000001
+   },
+   {
+    "id": "col-fh-landing-tree-3",
+    "maxX": 27.450000000000003,
+    "maxZ": 77.35,
+    "minX": 26.75,
+    "minZ": 76.65
+   },
+   {
+    "id": "col-fh-landing-tree-4",
+    "maxX": 29.950000000000003,
+    "maxZ": 86.85,
+    "minX": 29.25,
+    "minZ": 86.15
+   },
+   {
+    "id": "col-fh-landing-tree-5",
+    "maxX": 26.75,
+    "maxZ": 70.14999999999999,
+    "minX": 26.049999999999997,
+    "minZ": 69.45
+   },
+   {
+    "id": "col-fh-landing-tree-6",
+    "maxX": 21.55,
+    "maxZ": 73.25,
+    "minX": 20.849999999999998,
+    "minZ": 72.55000000000001
+   },
+   {
+    "id": "col-fh-landing-tree-7",
+    "maxX": -23.049999999999997,
+    "maxZ": 81.55,
+    "minX": -23.75,
+    "minZ": 80.85000000000001
+   },
+   {
+    "id": "col-fh-landing-tree-8",
+    "maxX": -27.75,
+    "maxZ": 74.94999999999999,
+    "minX": -28.450000000000003,
+    "minZ": 74.25
+   },
+   {
+    "id": "col-fh-landing-tree-9",
+    "maxX": 26.25,
+    "maxZ": 81.35,
+    "minX": 25.549999999999997,
+    "minZ": 80.65
+   },
+   {
+    "id": "col-fh-landing-tree-10",
+    "maxX": -25.049999999999997,
+    "maxZ": 92.14999999999999,
+    "minX": -25.75,
+    "minZ": 91.45
+   },
+   {
+    "id": "col-fh-landing-tree-11",
+    "maxX": -26.95,
+    "maxZ": 87.94999999999999,
+    "minX": -27.650000000000002,
+    "minZ": 87.25
+   },
+   {
+    "id": "col-fh-landing-tree-12",
+    "maxX": -23.349999999999998,
+    "maxZ": 72.44999999999999,
+    "minX": -24.05,
+    "minZ": 71.75
+   },
+   {
+    "id": "col-fh-landing-tree-13",
+    "maxX": 20.25,
+    "maxZ": 80.85,
+    "minX": 19.549999999999997,
+    "minZ": 80.15
+   },
+   {
+    "id": "col-fh-landing-tree-14",
+    "maxX": -29.049999999999997,
+    "maxZ": 91.25,
+    "minX": -29.75,
+    "minZ": 90.55000000000001
+   },
+   {
+    "id": "col-fh-forest-tree-1",
+    "maxX": 21.75,
+    "maxZ": 47.15,
+    "minX": 21.049999999999997,
+    "minZ": 46.449999999999996
+   },
+   {
+    "id": "col-fh-forest-tree-2",
+    "maxX": -13.35,
+    "maxZ": 52.550000000000004,
+    "minX": -14.049999999999999,
+    "minZ": 51.85
+   },
+   {
+    "id": "col-fh-forest-tree-3",
+    "maxX": 19.75,
+    "maxZ": 62.050000000000004,
+    "minX": 19.049999999999997,
+    "minZ": 61.35
+   },
+   {
+    "id": "col-fh-forest-tree-4",
+    "maxX": -15.450000000000001,
+    "maxZ": 46.15,
+    "minX": -16.150000000000002,
+    "minZ": 45.449999999999996
+   },
+   {
+    "id": "col-fh-forest-tree-5",
+    "maxX": 28.35,
+    "maxZ": 45.45,
+    "minX": 27.65,
+    "minZ": 44.75
+   },
+   {
+    "id": "col-fh-forest-tree-6",
+    "maxX": 25.25,
+    "maxZ": 46.25,
+    "minX": 24.549999999999997,
+    "minZ": 45.55
+   },
+   {
+    "id": "col-fh-forest-tree-7",
+    "maxX": 14.65,
+    "maxZ": 43.75,
+    "minX": 13.950000000000001,
+    "minZ": 43.05
+   },
+   {
+    "id": "col-fh-forest-tree-8",
+    "maxX": 19.150000000000002,
+    "maxZ": 43.45,
+    "minX": 18.45,
+    "minZ": 42.75
+   },
+   {
+    "id": "col-fh-forest-tree-9",
+    "maxX": -25.049999999999997,
+    "maxZ": 58.65,
+    "minX": -25.75,
+    "minZ": 57.949999999999996
+   },
+   {
+    "id": "col-fh-forest-tree-10",
+    "maxX": -10.05,
+    "maxZ": 59.85,
+    "minX": -10.75,
+    "minZ": 59.15
+   },
+   {
+    "id": "col-fh-forest-tree-11",
+    "maxX": -15.05,
+    "maxZ": 42.25,
+    "minX": -15.75,
+    "minZ": 41.55
+   },
+   {
+    "id": "col-fh-forest-tree-12",
+    "maxX": 12.35,
+    "maxZ": 49.35,
+    "minX": 11.65,
+    "minZ": 48.65
+   },
+   {
+    "id": "col-fh-forest-tree-13",
+    "maxX": 28.85,
+    "maxZ": 60.25,
+    "minX": 28.15,
+    "minZ": 59.55
+   },
+   {
+    "id": "col-fh-forest-tree-14",
+    "maxX": -20.049999999999997,
+    "maxZ": 59.45,
+    "minX": -20.75,
+    "minZ": 58.75
+   },
+   {
+    "id": "col-fh-forest-tree-15",
+    "maxX": -21.95,
+    "maxZ": 53.050000000000004,
+    "minX": -22.650000000000002,
+    "minZ": 52.35
+   },
+   {
+    "id": "col-fh-forest-tree-16",
+    "maxX": 11.95,
+    "maxZ": 40.75,
+    "minX": 11.25,
+    "minZ": 40.05
+   },
+   {
+    "id": "col-fh-forest-tree-17",
+    "maxX": -14.25,
+    "maxZ": 59.95,
+    "minX": -14.95,
+    "minZ": 59.25
+   },
+   {
+    "id": "col-fh-forest-tree-18",
+    "maxX": 12.049999999999999,
+    "maxZ": 53.85,
+    "minX": 11.35,
+    "minZ": 53.15
+   },
+   {
+    "id": "col-fh-forest-tree-19",
+    "maxX": -15.55,
+    "maxZ": 56.65,
+    "minX": -16.25,
+    "minZ": 55.949999999999996
+   },
+   {
+    "id": "col-fh-forest-tree-20",
+    "maxX": 29.55,
+    "maxZ": 56.85,
+    "minX": 28.849999999999998,
+    "minZ": 56.15
+   },
+   {
+    "id": "col-fh-forest-tree-21",
+    "maxX": -12.65,
+    "maxZ": 48.85,
+    "minX": -13.35,
+    "minZ": 48.15
+   },
+   {
+    "id": "col-fh-forest-tree-22",
+    "maxX": 24.450000000000003,
+    "maxZ": 40.550000000000004,
+    "minX": 23.75,
+    "minZ": 39.85
+   },
+   {
+    "id": "col-fh-forest-tree-23",
+    "maxX": -12.15,
+    "maxZ": 44.550000000000004,
+    "minX": -12.85,
+    "minZ": 43.85
+   },
+   {
+    "id": "col-fh-forest-tree-24",
+    "maxX": -15.85,
+    "maxZ": 49.550000000000004,
+    "minX": -16.55,
+    "minZ": 48.85
+   },
+   {
+    "id": "col-fh-forest-rock-1",
+    "maxX": 25.8,
+    "maxZ": 50.9,
+    "minX": 24.8,
+    "minZ": 49.9
+   },
+   {
+    "id": "col-fh-forest-rock-2",
+    "maxX": 17.1,
+    "maxZ": 41.8,
+    "minX": 16.1,
+    "minZ": 40.8
+   },
+   {
+    "id": "col-fh-forest-rock-3",
+    "maxX": -9.8,
+    "maxZ": 51.4,
+    "minX": -10.8,
+    "minZ": 50.4
+   },
+   {
+    "id": "col-fh-forest-rock-4",
+    "maxX": 14.0,
+    "maxZ": 60.5,
+    "minX": 13.0,
+    "minZ": 59.5
+   },
+   {
+    "id": "col-fh-forest-rock-5",
+    "maxX": 25.5,
+    "maxZ": 56.3,
+    "minX": 24.5,
+    "minZ": 55.3
+   },
+   {
+    "id": "col-fh-forest-rock-6",
+    "maxX": -22.8,
+    "maxZ": 56.0,
+    "minX": -23.8,
+    "minZ": 55.0
+   },
+   {
+    "id": "col-fh-lava-rock-1",
+    "maxX": -19.9,
+    "maxZ": 35.8,
+    "minX": -20.9,
+    "minZ": 34.8
+   },
+   {
+    "id": "col-fh-lava-rock-2",
+    "maxX": -16.1,
+    "maxZ": 36.0,
+    "minX": -17.1,
+    "minZ": 35.0
+   },
+   {
+    "id": "col-fh-lava-rock-3",
+    "maxX": -22.2,
+    "maxZ": 32.9,
+    "minX": -23.2,
+    "minZ": 31.9
+   },
+   {
+    "id": "col-fh-lava-rock-4",
+    "maxX": 12.4,
+    "maxZ": 35.9,
+    "minX": 11.4,
+    "minZ": 34.9
+   },
+   {
+    "id": "col-fh-lava-rock-5",
+    "maxX": -24.1,
+    "maxZ": 35.6,
+    "minX": -25.1,
+    "minZ": 34.6
+   },
+   {
+    "id": "col-fh-lava-rock-6",
+    "maxX": -14.7,
+    "maxZ": 33.0,
+    "minX": -15.7,
+    "minZ": 32.0
+   },
+   {
+    "id": "col-fh-lava-rock-7",
+    "maxX": -27.2,
+    "maxZ": 35.6,
+    "minX": -28.2,
+    "minZ": 34.6
+   },
+   {
+    "id": "col-fh-lava-rock-8",
+    "maxX": 16.2,
+    "maxZ": 34.1,
+    "minX": 15.2,
+    "minZ": 33.1
+   },
+   {
+    "id": "col-fh-lava-far-rock-1",
+    "maxX": 24.7,
+    "maxZ": 9.7,
+    "minX": 23.7,
+    "minZ": 8.7
+   },
+   {
+    "id": "col-fh-lava-far-rock-2",
+    "maxX": 11.1,
+    "maxZ": 10.4,
+    "minX": 10.1,
+    "minZ": 9.4
+   },
+   {
+    "id": "col-fh-lava-far-rock-3",
+    "maxX": -23.0,
+    "maxZ": 12.7,
+    "minX": -24.0,
+    "minZ": 11.7
+   },
+   {
+    "id": "col-fh-lava-far-rock-4",
+    "maxX": -13.0,
+    "maxZ": 9.4,
+    "minX": -14.0,
+    "minZ": 8.4
+   },
+   {
+    "id": "col-fh-forge-rock-1",
+    "maxX": -22.6,
+    "maxZ": -40.8,
+    "minX": -23.6,
+    "minZ": -41.8
+   },
+   {
+    "id": "col-fh-forge-rock-2",
+    "maxX": 24.0,
+    "maxZ": -42.2,
+    "minX": 23.0,
+    "minZ": -43.2
+   },
+   {
+    "id": "col-fh-forge-rock-3",
+    "maxX": 27.7,
+    "maxZ": -27.2,
+    "minX": 26.7,
+    "minZ": -28.2
+   },
+   {
+    "id": "col-fh-forge-rock-4",
+    "maxX": -26.2,
+    "maxZ": -27.1,
+    "minX": -27.2,
+    "minZ": -28.1
+   },
+   {
+    "id": "col-fh-forge-rock-5",
+    "maxX": -25.6,
+    "maxZ": -35.0,
+    "minX": -26.6,
+    "minZ": -36.0
+   },
+   {
+    "id": "col-fh-forge-rock-6",
+    "maxX": 28.7,
+    "maxZ": -34.7,
+    "minX": 27.7,
+    "minZ": -35.7
+   },
+   {
+    "id": "col-fh-forge-rock-7",
+    "maxX": 26.9,
+    "maxZ": -45.2,
+    "minX": 25.9,
+    "minZ": -46.2
+   },
+   {
+    "id": "col-fh-forge-rock-8",
+    "maxX": -24.8,
+    "maxZ": -43.1,
+    "minX": -25.8,
+    "minZ": -44.1
+   },
+   {
+    "id": "col-fh-summit-rock-1",
+    "maxX": -23.2,
+    "maxZ": -73.3,
+    "minX": -24.2,
+    "minZ": -74.3
+   },
+   {
+    "id": "col-fh-summit-rock-2",
+    "maxX": 20.6,
+    "maxZ": -53.7,
+    "minX": 19.6,
+    "minZ": -54.7
+   },
+   {
+    "id": "col-fh-summit-rock-3",
+    "maxX": -21.0,
+    "maxZ": -55.0,
+    "minX": -22.0,
+    "minZ": -56.0
+   },
+   {
+    "id": "col-fh-summit-rock-4",
+    "maxX": 25.9,
+    "maxZ": -62.0,
+    "minX": 24.9,
+    "minZ": -63.0
+   },
+   {
+    "id": "col-fh-summit-rock-5",
+    "maxX": -28.5,
+    "maxZ": -61.9,
+    "minX": -29.5,
+    "minZ": -62.9
+   },
+   {
+    "id": "col-fh-summit-rock-6",
+    "maxX": 23.6,
+    "maxZ": -66.9,
+    "minX": 22.6,
+    "minZ": -67.9
+   },
+   {
+    "id": "col-fh-summit-rock-7",
+    "maxX": 20.0,
+    "maxZ": -63.0,
+    "minX": 19.0,
+    "minZ": -64.0
+   },
+   {
+    "id": "col-fh-summit-rock-8",
+    "maxX": -28.4,
+    "maxZ": -70.2,
+    "minX": -29.4,
+    "minZ": -71.2
+   },
+   {
+    "id": "col-fh-heart-rock-1",
+    "maxX": -29.4,
+    "maxZ": -86.1,
+    "minX": -30.4,
+    "minZ": -87.1
+   },
+   {
+    "id": "col-fh-heart-rock-2",
+    "maxX": -26.2,
+    "maxZ": -82.8,
+    "minX": -27.2,
+    "minZ": -83.8
+   },
+   {
+    "id": "col-fh-heart-rock-3",
+    "maxX": -19.7,
+    "maxZ": -79.5,
+    "minX": -20.7,
+    "minZ": -80.5
+   },
+   {
+    "id": "col-fh-heart-rock-4",
+    "maxX": -23.0,
+    "maxZ": -85.6,
+    "minX": -24.0,
+    "minZ": -86.6
+   },
+   {
+    "id": "fh-gear-block-west",
+    "maxX": -15.8,
+    "maxZ": -29.8,
+    "minX": -18.2,
+    "minZ": -32.2
+   },
+   {
+    "id": "fh-gear-block-east-near",
+    "maxX": 13.2,
+    "maxZ": -39.8,
+    "minX": 10.8,
+    "minZ": -42.2
+   },
+   {
+    "id": "fh-heart-pillar-nw",
+    "maxX": -13.2,
+    "maxZ": -83.2,
+    "minX": -14.8,
+    "minZ": -84.8
+   },
+   {
+    "id": "fh-heart-pillar-ne",
+    "maxX": 14.8,
+    "maxZ": -83.2,
+    "minX": 13.2,
+    "minZ": -84.8
+   },
+   {
+    "id": "fh-heart-pillar-sw",
+    "maxX": -13.2,
+    "maxZ": -90.2,
+    "minX": -14.8,
+    "minZ": -91.8
+   },
+   {
+    "id": "fh-heart-pillar-se",
+    "maxX": 14.8,
+    "maxZ": -90.2,
+    "minX": 13.2,
+    "minZ": -91.8
+   },
+   {
+    "id": "fh-jump-log",
+    "jumpable": true,
+    "maxX": 16.0,
+    "maxY": 0.45,
+    "maxZ": 76.4,
+    "minX": 8.0,
+    "minY": 0.0,
+    "minZ": 75.5
+   },
+   {
+    "id": "fh-forest-log-1",
+    "jumpable": true,
+    "maxX": 22.0,
+    "maxY": 0.4,
+    "maxZ": 56.5,
+    "minX": 14.0,
+    "minY": 0.0,
+    "minZ": 55.6
+   },
+   {
+    "id": "fh-forest-log-2",
+    "jumpable": true,
+    "maxX": 22.0,
+    "maxY": 0.4,
+    "maxZ": 53.5,
+    "minX": 14.0,
+    "minY": 0.0,
+    "minZ": 52.6
+   },
+   {
+    "id": "fh-forest-log-3",
+    "jumpable": true,
+    "maxX": 22.0,
+    "maxY": 0.4,
+    "maxZ": 50.5,
+    "minX": 14.0,
+    "minY": 0.0,
+    "minZ": 49.6
+   }
+  ],
+  "copy": {
+   "altNavLabel": "Go back to the harbor",
+   "instructions": "Talk to Flint, then follow the glowing path to the mountain.",
+   "loading": "Hiking up to the Heart of Firepeak."
+  },
+  "effects": {
+   "backdrop": {
+    "assetId": "firepeak-volcano-main",
+    "height": 54,
+    "radius": 38,
+    "x": 0,
+    "z": -128
+   },
+   "lava": [
+    {
+     "id": "fh-lava-river",
+     "maxX": 32.0,
+     "maxZ": 30.0,
+     "minX": -32.0,
+     "minZ": 14.0,
+     "safe": [],
+     "visualOnly": true
+    }
+   ],
+   "lights": [
+    {
+     "color": 16738842,
+     "distance": 26,
+     "id": "fh-lava-glow",
+     "intensity": 2.6,
+     "x": 0,
+     "y": 1.5,
+     "z": 22
+    },
+    {
+     "color": 8382463,
+     "distance": 14,
+     "id": "fh-cave-glow-west",
+     "intensity": 2.6,
+     "x": -9,
+     "y": 2.0,
+     "z": -5
+    },
+    {
+     "color": 11898111,
+     "distance": 14,
+     "id": "fh-cave-glow-east",
+     "intensity": 2.6,
+     "x": 9,
+     "y": 2.0,
+     "z": -13
+    },
+    {
+     "color": 16765803,
+     "distance": 9,
+     "id": "fh-secret-glow",
+     "intensity": 2.2,
+     "x": 18,
+     "y": 1.6,
+     "z": -6
+    },
+    {
+     "color": 16747066,
+     "distance": 24,
+     "id": "fh-forge-glow",
+     "intensity": 2.8,
+     "x": 0,
+     "y": 2.5,
+     "z": -36
+    },
+    {
+     "color": 16769162,
+     "distance": 20,
+     "id": "fh-summit-glow",
+     "intensity": 2.0,
+     "x": 0,
+     "y": 3.0,
+     "z": -64
+    },
+    {
+     "color": 8382463,
+     "distance": 18,
+     "id": "fh-heart-glow",
+     "intensity": 3.2,
+     "x": 0,
+     "y": 2.5,
+     "z": -90
+    }
+   ],
+   "openings": [
+    {
+     "colliderId": "fh-gate-emberwood",
+     "whenChangeKey": "FIREPEAK_HEART_MAP_READ"
+    },
+    {
+     "colliderId": "fh-gate-lava",
+     "whenChangeKey": "FIREPEAK_HEART_EMBERWOOD_DONE"
+    },
+    {
+     "colliderId": "fh-gate-caverns",
+     "whenChangeKey": "FIREPEAK_HEART_LAVA_CROSSED"
+    },
+    {
+     "colliderId": "fh-gate-forge",
+     "whenChangeKey": "FIREPEAK_HEART_CAVERN_LIT"
+    },
+    {
+     "colliderId": "fh-gate-summit",
+     "whenChangeKey": "FIREPEAK_HEART_FORGE_RESTORED"
+    },
+    {
+     "colliderId": "fh-gate-heart",
+     "whenChangeKey": "FIREPEAK_HEART_SUMMIT_REACHED"
+    },
+    {
+     "colliderId": "fh-cavern-secret",
+     "whenChangeKey": "FIREPEAK_HEART_CAVERN_LIT"
+    }
+   ],
+   "returns": [
+    {
+     "entityId": "fh-return-portal",
+     "label": "Step through the portal back to Explorer's Landing",
+     "to": {
+      "x": 0.0,
+      "yaw": 3.142,
+      "z": 90.0
+     },
+     "toCheckpoint": "fh-cp-landing",
+     "whenChangeKey": "FIREPEAK_HEART_RESTORED"
+    }
+   ],
+   "standIns": [
+    {
+     "color": 14254635,
+     "entityId": "fh-flint",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 16742959,
+     "entityId": "fh-kindle",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 7244700,
+     "entityId": "fh-basalt",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 9071183,
+     "entityId": "fh-cinder",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 7244700,
+     "entityId": "fh-basalt-summit",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 15316044,
+     "entityId": "fh-ignis",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 16742959,
+     "entityId": "fh-kindle-heart",
+     "shape": "FIGURE"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-landing",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-emberwood",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-lava-jumper",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-caverns",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-forge",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-summit",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16751164,
+     "entityId": "fh-shard-heart",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 12946255,
+     "entityId": "fh-map-sign",
+     "shape": "MARKER"
+    },
+    {
+     "color": 16738877,
+     "entityId": "fh-ember-crystal-a",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16738877,
+     "entityId": "fh-ember-crystal-b",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16738877,
+     "entityId": "fh-ember-crystal-c",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 15983541,
+     "entityId": "fh-count-card-a",
+     "shape": "BOX"
+    },
+    {
+     "color": 15983541,
+     "entityId": "fh-count-card-b",
+     "shape": "BOX"
+    },
+    {
+     "color": 15983541,
+     "entityId": "fh-count-card-c",
+     "shape": "BOX"
+    },
+    {
+     "color": 5985360,
+     "entityId": "fh-lava-stone-a",
+     "shape": "STONE"
+    },
+    {
+     "color": 5985360,
+     "entityId": "fh-lava-stone-b",
+     "shape": "STONE"
+    },
+    {
+     "color": 5985360,
+     "entityId": "fh-lava-stone-c",
+     "shape": "STONE"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-lava-path-a",
+     "shape": "MARKER"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-lava-path-b",
+     "shape": "MARKER"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-lava-path-c",
+     "shape": "MARKER"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-cavern-shape-a",
+     "shape": "STONE"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-cavern-shape-b",
+     "shape": "STONE"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-cavern-shape-c",
+     "shape": "STONE"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-cavern-shape-d",
+     "shape": "STONE"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cavern-crystal-a",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cavern-crystal-b",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cavern-crystal-c",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cavern-crystal-d",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-forge-switch-red",
+     "shape": "SWITCH"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-forge-switch-blue",
+     "shape": "SWITCH"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-forge-switch-gold",
+     "shape": "SWITCH"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-forge-switch-green",
+     "shape": "SWITCH"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-circuit-path-a",
+     "shape": "MARKER"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-circuit-path-b",
+     "shape": "MARKER"
+    },
+    {
+     "color": 15911244,
+     "entityId": "fh-circuit-path-c",
+     "shape": "MARKER"
+    },
+    {
+     "color": 16769162,
+     "entityId": "fh-circuit-lamp",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 4867664,
+     "entityId": "fh-rock-sample-a",
+     "shape": "ROCK"
+    },
+    {
+     "color": 4867664,
+     "entityId": "fh-rock-sample-b",
+     "shape": "ROCK"
+    },
+    {
+     "color": 4867664,
+     "entityId": "fh-rock-sample-c",
+     "shape": "ROCK"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-a",
+     "shape": "STONE"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-b",
+     "shape": "STONE"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-c",
+     "shape": "STONE"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-d",
+     "shape": "STONE"
+    },
+    {
+     "color": 14206880,
+     "entityId": "fh-island-step-e",
+     "shape": "STONE"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-heart-crystal-forest",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-heart-crystal-magma",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-heart-crystal-cavern",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-heart-crystal-forge",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-pedestal",
+     "shape": "PEDESTAL"
+    },
+    {
+     "color": 9414579,
+     "entityId": "fh-heart-crystal",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 16765803,
+     "entityId": "fh-return-portal",
+     "shape": "PORTAL"
+    },
+    {
+     "color": 16747066,
+     "entityId": "fh-landing-campfire",
+     "shape": "BOX"
+    },
+    {
+     "color": 12946255,
+     "entityId": "fh-landing-sign",
+     "shape": "MARKER"
+    },
+    {
+     "color": 12946255,
+     "entityId": "fh-lookout-sign",
+     "shape": "MARKER"
+    },
+    {
+     "color": 8081973,
+     "entityId": "fh-jump-log-model",
+     "shape": "LOG"
+    },
+    {
+     "color": 8081973,
+     "entityId": "fh-forest-log-1-model",
+     "shape": "LOG"
+    },
+    {
+     "color": 8081973,
+     "entityId": "fh-forest-log-2-model",
+     "shape": "LOG"
+    },
+    {
+     "color": 8081973,
+     "entityId": "fh-forest-log-3-model",
+     "shape": "LOG"
+    },
+    {
+     "color": 5020630,
+     "entityId": "fh-forest-stream",
+     "shape": "BOX"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-1",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-2",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-3",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-4",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-5",
+     "shape": "ARCH"
+    },
+    {
+     "color": 9209748,
+     "entityId": "fh-arch-6",
+     "shape": "ARCH"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-1",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-2",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-3",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-4",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-5",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-cave-crystal-6",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-secret-crystal-1",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 8382463,
+     "entityId": "fh-secret-crystal-2",
+     "shape": "CRYSTAL"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-block-west-model",
+     "shape": "GEAR"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-block-east-near-model",
+     "shape": "GEAR"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-1",
+     "shape": "GEAR"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-2",
+     "shape": "GEAR"
+    },
+    {
+     "color": 12088115,
+     "entityId": "fh-gear-3",
+     "shape": "GEAR"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-1",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-2",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-3",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-4",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-tree-screen-5",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-1",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-2",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-3",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-4",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-5",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-6",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-7",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-8",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-9",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-10",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-11",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-12",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-13",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-landing-tree-14",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-1",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-2",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-3",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-4",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-5",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-6",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-7",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-8",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-9",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-10",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-11",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-12",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-13",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-14",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-15",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-16",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-17",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-18",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-19",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-20",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-21",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-22",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-23",
+     "shape": "TREE"
+    },
+    {
+     "color": 3112782,
+     "entityId": "fh-forest-tree-24",
+     "shape": "TREE"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-5",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forest-rock-6",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-5",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-6",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-7",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-rock-8",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-far-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-far-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-far-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-lava-far-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-5",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-6",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-7",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-forge-rock-8",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-4",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-5",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-6",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-7",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-summit-rock-8",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-rock-1",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-rock-2",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-rock-3",
+     "shape": "ROCK"
+    },
+    {
+     "color": 7236218,
+     "entityId": "fh-heart-rock-4",
+     "shape": "ROCK"
+    }
+   ],
+   "steam": [
+    {
+     "height": 4,
+     "hiddenWhenChangeKey": "FIREPEAK_HEART_FORGE_RESTORED",
+     "id": "fh-forge-steam-west",
+     "x": -2.0,
+     "z": -47.0
+    },
+    {
+     "height": 4,
+     "hiddenWhenChangeKey": "FIREPEAK_HEART_FORGE_RESTORED",
+     "id": "fh-forge-steam-east",
+     "x": 2.0,
+     "z": -47.0
+    }
+   ]
+  },
+  "engineBridge": {
+   "allowEnginePlatforms": true,
+   "capabilities": [
+    {
+     "config": {
+      "checkpoints": [
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-landing",
+        "label": "Explorer's Landing",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 90.0
+        },
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-emberwood",
+        "label": "Emberwood Forest",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 61.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_MAP_READ",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-lava-near",
+        "label": "the near bank",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 34.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_EMBERWOOD_DONE",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-lava-far",
+        "label": "the far bank",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 12.4
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_LAVA_BRIDGE",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-caverns",
+        "label": "the Crystal Caverns",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 3.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_LAVA_CROSSED",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-forge",
+        "label": "the Ancient Forge",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": -26.0
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_CAVERN_LIT",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-summit",
+        "label": "the foot of the summit",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": -51.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_FORGE_RESTORED",
+        "yaw": 3.142
+       },
+       {
+        "courseId": "fh-heart",
+        "halfSize": 3.0,
+        "id": "fh-cp-heart",
+        "label": "the Heart Chamber",
+        "position": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": -79.5
+        },
+        "requiresSignalId": "world:FIREPEAK_HEART_SUMMIT_REACHED",
+        "yaw": 3.142
+       }
+      ],
+      "goals": []
+     },
+     "id": "gameplay.checkpoints"
+    },
+    {
+     "config": {
+      "hazards": [
+       {
+        "belowY": 0.05,
+        "checkpointId": "fh-cp-lava-near",
+        "id": "fh-lava-hazard",
+        "kind": "LAVA",
+        "messageKey": "hazard.lava.tooHot",
+        "rect": {
+         "maxX": 32.0,
+         "maxZ": 30.0,
+         "minX": -32.0,
+         "minZ": 14.0
+        }
+       }
+      ],
+      "telegraphed": [
+       {
+        "activeSeconds": 0.5,
+        "checkpointId": "fh-cp-summit",
+        "id": "fh-summit-rocks-1",
+        "kind": "FALLING_ROCK",
+        "messageKey": "hazard.rock.falling",
+        "offsetSeconds": 0.0,
+        "rect": {
+         "maxX": 9.8,
+         "maxZ": -57.2,
+         "minX": 8.2,
+         "minZ": -58.4
+        },
+        "restSeconds": 4.0,
+        "route": "OPTIONAL",
+        "telegraphSeconds": 2.0
+       },
+       {
+        "activeSeconds": 0.5,
+        "checkpointId": "fh-cp-summit",
+        "id": "fh-summit-rocks-2",
+        "kind": "FALLING_ROCK",
+        "messageKey": "hazard.rock.falling",
+        "offsetSeconds": 3.0,
+        "rect": {
+         "maxX": 9.8,
+         "maxZ": -60.0,
+         "minX": 8.2,
+         "minZ": -61.2
+        },
+        "restSeconds": 4.0,
+        "route": "OPTIONAL",
+        "telegraphSeconds": 2.0
+       }
+      ]
+     },
+     "id": "gameplay.hazards"
+    },
+    {
+     "config": {
+      "platforms": [
+       {
+        "falling": {
+         "fallSeconds": 0.6,
+         "hiddenSeconds": 2.5,
+         "mode": "STAND",
+         "visibleSeconds": 4,
+         "warningSeconds": 1
+        },
+        "id": "fh-stone-vanish",
+        "position": {
+         "x": 18.0,
+         "y": 0.0,
+         "z": 18.8
+        },
+        "route": "OPTIONAL",
+        "size": {
+         "x": 1.6,
+         "y": 0.5,
+         "z": 1.6
+        }
+       }
+      ]
+     },
+     "id": "gameplay.platforms"
+    },
+    {
+     "config": {
+      "forces": [
+       {
+        "box": {
+         "max": {
+          "x": 4.0,
+          "y": 3.0,
+          "z": -45.0
+         },
+         "min": {
+          "x": -4.0,
+          "y": -1.0,
+          "z": -48.2
+         }
+        },
+        "direction": {
+         "x": 0.0,
+         "y": 0.0,
+         "z": 1.0
+        },
+        "id": "fh-forge-steam-push",
+        "inactiveWhenSignalId": "world:FIREPEAK_HEART_FORGE_RESTORED",
+        "kind": "WIND",
+        "neverPushIntoHazard": true,
+        "rampInSeconds": 0.5,
+        "strength": 1.5
+       }
+      ],
+      "hazardRects": [
+       {
+        "maxX": 32.0,
+        "maxZ": 30.0,
+        "minX": -32.0,
+        "minZ": 14.0
+       },
+       {
+        "maxX": 9.8,
+        "maxZ": -57.2,
+        "minX": 8.2,
+        "minZ": -58.4
+       },
+       {
+        "maxX": 9.8,
+        "maxZ": -60.0,
+        "minX": 8.2,
+        "minZ": -61.2
+       }
+      ],
+      "surfaces": []
+     },
+     "id": "environment.volumes"
+    }
+   ]
+  },
+  "environment": {
+   "backgroundColor": 3877427
+  },
+  "firepeakHeartVersion": 5,
+  "groundAssetId": "ground-tile-stone",
+  "platforming": {
+   "platforms": [
+    {
+     "activation": {
+      "hiddenUntilActive": true,
+      "source": "world:FIREPEAK_HEART_LAVA_BRIDGE",
+      "trigger": "SIGNAL"
+     },
+     "color": 4867664,
+     "id": "fh-lava-bridge",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 22.0
+     },
+     "size": {
+      "depth": 18.0,
+      "height": 0.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-1",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 28.0
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-2",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 25.2
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-islet",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 22.0
+     },
+     "size": {
+      "depth": 2.4,
+      "height": 0.5,
+      "width": 2.4
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-stone-5",
+     "position": {
+      "x": 18.0,
+      "y": 0.0,
+      "z": 16.0
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-ledge",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -19.0
+     },
+     "size": {
+      "depth": 5.0,
+      "height": 1.0,
+      "width": 4.8
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-step-1",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -16.1
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.8,
+      "width": 3.8
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-step-2",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -15.3
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.6,
+      "width": 3.8
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-step-3",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -14.5
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.4,
+      "width": 3.8
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-cavern-step-4",
+     "position": {
+      "x": -10.4,
+      "y": 0.0,
+      "z": -13.7
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.2,
+      "width": 3.8
+     }
+    },
+    {
+     "activation": {
+      "source": "world:FIREPEAK_HEART_FORGE_POWERED",
+      "trigger": "SIGNAL"
+     },
+     "color": 4171734,
+     "id": "fh-forge-lift",
+     "motion": {
+      "path": [
+       {
+        "x": 0.0,
+        "y": 2.4,
+        "z": 0.0
+       }
+      ],
+      "pauseSeconds": 3,
+      "speed": 0.8
+     },
+     "position": {
+      "x": 20.0,
+      "y": 0.0,
+      "z": -33.0
+     },
+     "size": {
+      "depth": 2.4,
+      "height": 0.2,
+      "width": 2.4
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-forge-ledge",
+     "position": {
+      "x": 20.0,
+      "y": 0.0,
+      "z": -36.8
+     },
+     "size": {
+      "depth": 5.2,
+      "height": 2.6,
+      "width": 5.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-1",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -55.4
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-2",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -56.2
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.4,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-3",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -57.0
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.6,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-4",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -57.8
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.8,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-5",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -58.6
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.0,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-6",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -59.4
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-up-7",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -60.2
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.4,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-plateau",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -64.6
+     },
+     "size": {
+      "depth": 8.0,
+      "height": 1.6,
+      "width": 14.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-1",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -69.0
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.4,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-2",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -69.8
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-3",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -70.6
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 1.0,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-4",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -71.4
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.8,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-5",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -72.2
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.6,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-6",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -73.0
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.4,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-down-7",
+     "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": -73.8
+     },
+     "size": {
+      "depth": 0.8,
+      "height": 0.2,
+      "width": 6.0
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-summit-hop-1",
+     "position": {
+      "x": 9.0,
+      "y": 0.0,
+      "z": -56.4
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 0.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-summit-hop-2",
+     "position": {
+      "x": 9.0,
+      "y": 0.0,
+      "z": -59.2
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 1.0,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 7236218,
+     "id": "fh-summit-hop-3",
+     "position": {
+      "x": 9.0,
+      "y": 0.0,
+      "z": -62.0
+     },
+     "size": {
+      "depth": 1.6,
+      "height": 1.5,
+      "width": 1.6
+     }
+    },
+    {
+     "color": 4171734,
+     "id": "fh-summit-shuttle",
+     "motion": {
+      "path": [
+       {
+        "x": -6.0,
+        "y": 0.0,
+        "z": 0.0
+       }
+      ],
+      "pauseSeconds": 3,
+      "speed": 1.2
+     },
+     "position": {
+      "x": -8.3,
+      "y": 1.4,
+      "z": -65.0
+     },
+     "size": {
+      "depth": 2.4,
+      "height": 0.2,
+      "width": 2.4
+     }
+    },
+    {
+     "color": 12169896,
+     "id": "fh-summit-lookout",
+     "position": {
+      "x": -18.8,
+      "y": 0.0,
+      "z": -65.0
+     },
+     "size": {
+      "depth": 6.0,
+      "height": 1.6,
+      "width": 6.4
+     }
+    }
+   ],
+   "recoveryLead": "Whoa, the lava is too hot!",
+   "recoveryLeads": {
+    "fh-summit-rocks-1": "Oops, a pebble tumbled down!",
+    "fh-summit-rocks-2": "Oops, a pebble tumbled down!"
+   },
+   "zones": [
+    {
+     "enterMessage": "Flint: Welcome to Firepeak! Use the stick or the arrow keys to walk. Say hello to me, then read the map.",
+     "rect": {
+      "id": "fh-zone-landing",
+      "maxX": 32,
+      "maxZ": 94,
+      "minX": -32,
+      "minZ": 66
+     }
+    },
+    {
+     "enterMessage": "Tip: You can press Jump to hop over this log. Jumping is just for fun. You can always walk around.",
+     "rect": {
+      "id": "fh-zone-jump-tip",
+      "maxX": 18,
+      "maxZ": 78,
+      "minX": 6,
+      "minZ": 73
+     }
+    },
+    {
+     "enterMessage": "Emberwood Forest. Kindle the fire spirit is here to help. Hop the logs or walk around them.",
+     "rect": {
+      "id": "fh-zone-emberwood",
+      "maxX": 32,
+      "maxZ": 64,
+      "minX": -32,
+      "minZ": 38
+     }
+    },
+    {
+     "enterMessage": "The Lava Crossing. Solve the stone numbers to build a bridge. If you slip, you just go back to a safe spot.",
+     "rect": {
+      "id": "fh-zone-lava",
+      "maxX": 32,
+      "maxZ": 36,
+      "minX": -32,
+      "minZ": 8
+     }
+    },
+    {
+     "enterMessage": "The Crystal Caverns. Professor Basalt knows all about these rocks. The crystals glow!",
+     "rect": {
+      "id": "fh-zone-caverns",
+      "maxX": 13,
+      "maxZ": 6,
+      "minX": -13,
+      "minZ": -22
+     }
+    },
+    {
+     "enterMessage": "The Ancient Forge. Cinder keeps the old machines. Can you wake them up?",
+     "rect": {
+      "id": "fh-zone-forge",
+      "maxX": 32,
+      "maxZ": -24,
+      "minX": -32,
+      "minZ": -48
+     }
+    },
+    {
+     "enterMessage": "Firepeak Summit. Climb the steps, or take the hopping stones if you like.",
+     "rect": {
+      "id": "fh-zone-summit",
+      "maxX": 32,
+      "maxZ": -50,
+      "minX": -32,
+      "minZ": -76
+     }
+    },
+    {
+     "enterMessage": "The Heart Chamber. The Heart of Firepeak is dim. Set the crystals in order to wake it.",
+     "rect": {
+      "id": "fh-zone-heart",
+      "maxX": 32,
+      "maxZ": -78,
+      "minX": -32,
+      "minZ": -94
+     }
+    }
+   ]
+  }
+ },
+ "spawn": {
+  "checkpointId": "fh-cp-landing",
+  "label": "Explorer's Landing",
+  "x": 0.0,
+  "yaw": 3.141592653589793,
+  "z": 90.0
+ }
+}

@@ -1,3 +1,5 @@
+import type { PlatformingSpec } from '../island-map/three/platforms/platformSpec';
+import { pickupLook } from './pickupLook';
 import type { RegionCheckpoint } from '../discovery/checkpoints';
 import type { JsonObject, JsonValue } from '../../api/parse';
 import {
@@ -5,6 +7,7 @@ import {
   type BoundsSpec,
   type ColliderSpec,
   type EnvironmentSpec,
+  type LightingSpec,
   type LightSpec,
   type LocationCopy,
   type NpcPlacementSpec,
@@ -13,6 +16,7 @@ import {
   type ScenerySpec,
   type ThreeLocationManifest,
 } from '../island-map/three/runtime/locationManifest';
+import { readAtmosphere } from '../island-map/three/runtime/visual/atmosphere';
 import type { WorldInteraction } from '../island-map/worldObjects';
 import {
   parseEffects,
@@ -24,6 +28,7 @@ import {
   type RegionPlayInteractionConfig,
   type StandInShape,
 } from './regionPlayConfig';
+import { ENGINE_BRIDGE_EXTENSION_ID } from '../game-engine/bridge/engineBridge';
 import { readRegionLayout, RegionLayoutError, type RegionLayout } from './regionLayout';
 import type { RegionSceneModel, SceneEntity } from './sceneModel';
 
@@ -172,7 +177,29 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
           : effects.backdrop,
     },
     changeKeys: [...model.worldChangeKeys],
-    procedural: layout.procedural,
+    // TR-PALM-05: a placeholder asks for its model only when the server's catalog lists one
+    // that can be delivered now; otherwise (no catalog, nothing published) it stays the
+    // primitive, with no request, no warning, and no asset id the validator cannot know.
+    procedural: layout.procedural.map((entry) => {
+      if (
+        entry.assetId === undefined ||
+        (model.deliverableAssetIds !== null && model.deliverableAssetIds.has(entry.assetId))
+      ) {
+        return entry;
+      }
+      const { assetId: _undeliverable, ...primitive } = entry;
+      return primitive;
+    }),
+    // TR-ENV-06: a prop is drawn only when the catalog says its model can be delivered; until
+    // then the bundled barrels and logs it replaces stay, and its colliders are never added.
+    props: layout.props.filter(
+      (prop) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(prop.assetId),
+    ),
+    propReplaces: layout.propReplaces,
+    // ENV-2: the same rule for vegetation; nothing stands in for it, so undeliverable means absent.
+    vegetation: layout.vegetation.filter(
+      (plant) => model.deliverableAssetIds !== null && model.deliverableAssetIds.has(plant.assetId),
+    ),
     pickups: [],
     runes: [],
     // TR-17: what the quest's completion opens, and whether this child has already earned it.
@@ -201,6 +228,8 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       assetId: entity.assetId && deliverable(entity.assetId) ? entity.assetId : null,
       scale: entity.scale,
       size: { ...entity.placeholder },
+      ...(standIn?.shownWhenChangeKey ? { shownWhenChangeKey: standIn.shownWhenChangeKey } : {}),
+      ...(standIn?.hiddenWhenChangeKey ? { hiddenWhenChangeKey: standIn.hiddenWhenChangeKey } : {}),
     });
   };
 
@@ -293,7 +322,8 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
       config.interactions.push({ interactionId, kind, entityId: entity.entityId, npcId: null });
     } else if (entity.pickup) {
       // TR-14: a collectible picked up through the play API. Once picked up it is not drawn
-      // again; until then the extension draws it (a key has no catalogue model yet).
+      // again; until then the extension draws it: its model when the catalog can deliver one,
+      // else a primitive that looks like what it is (a feather, a shell, a key: `pickupLook`).
       if (entity.collected) continue;
       const interactionId = `${regionId}:pickup:${entity.entityId}`;
       props.push(drawnProp(entity, interactionId, REGION_ACTIONS.pickUp));
@@ -305,7 +335,11 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
         targetId: entity.entityId,
         action: { kind: 'SHOW_MESSAGE', message: entity.label },
       });
-      config.pickups?.push({ entityId: entity.entityId });
+      config.pickups?.push({
+        entityId: entity.entityId,
+        ...(entity.assetId && deliverable(entity.assetId) ? { assetId: entity.assetId } : {}),
+        look: pickupLook(entity),
+      });
       config.interactions.push({
         interactionId,
         kind: 'pickup',
@@ -370,6 +404,7 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     }
   }
 
+  const atmosphere = readAtmosphere(model.scene.atmosphere);
   const lights = [...layout.lights, ...readLights(rawEffects?.lights)];
   const manifest: ThreeLocationManifest = {
     schemaVersion: LOCATION_MANIFEST_SCHEMA_VERSION,
@@ -387,14 +422,56 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
     npcs,
     props,
     collectibles: [],
-    zones: layout.zones,
+    // LAI-JMP-03: a course's section zones travel with its platforming block.
+    zones: [
+      ...layout.zones,
+      ...(isObject(model.scene.platforming) && Array.isArray(model.scene.platforming.zones)
+        ? (model.scene.platforming.zones as unknown as ThreeLocationManifest['zones'])
+        : []),
+    ],
     ...(lights.length > 0 ? { lights } : {}),
+    ...(atmosphere ? { atmosphere } : {}),
     ambient: layout.ambient,
     interactions,
     adventureBindings: [],
     interactionAssist: true,
+    // LAI-JMP-01: jumping is on with the defaults; Django may tune or disable it per region
+    // through `scene.movement` (validated with the rest of the manifest).
+    ...(isObject(model.scene.movement)
+      ? { movement: model.scene.movement as unknown as ThreeLocationManifest['movement'] }
+      : {}),
+    // LAI-JMP-02 / LAI-JMP-04: platforms are seed-authored layout (`scene.platforming`, ADR-033);
+    // staff tuning from the 3D Area's content revision (`scene.platformTuning`) is merged over
+    // them. Validated with the rest of the manifest.
+    ...(isObject(model.scene.platforming)
+      ? {
+          platforming: {
+            ...(model.scene.platforming as unknown as PlatformingSpec),
+            ...(isObject(model.scene.platformTuning)
+              ? { tuning: model.scene.platformTuning as unknown as PlatformingSpec['tuning'] }
+              : {}),
+          },
+        }
+      : {}),
+    // LAI-JMP-01a: camera and avatar, the same way (`scene.player`, validated with the manifest).
+    ...(isObject(model.scene.player)
+      ? { player: model.scene.player as unknown as ThreeLocationManifest['player'] }
+      : {}),
     extensions: [
       { extensionId: REGION_PLAY_EXTENSION_ID, config: config as unknown as JsonObject },
+      // GE-070 / GE-065: Game Engine Core capabilities for this Area, as seed-authored scene data
+      // (`scene.engineBridge`, checked on publish and validated in full by the bridge).
+      ...(isObject(model.scene.engineBridge)
+        ? [
+            {
+              extensionId: ENGINE_BRIDGE_EXTENSION_ID,
+              // GE-068: the same staff tuning the live platforms take reaches engine platforms.
+              config: isObject(model.scene.platformTuning) && model.scene.engineBridge.platformTuning === undefined
+                ? { ...model.scene.engineBridge, platformTuning: model.scene.platformTuning }
+                : model.scene.engineBridge,
+            },
+          ]
+        : []),
     ],
     copy: readCopy(model.scene.copy),
   };
@@ -507,7 +584,32 @@ function readEnvironment(value: JsonValue | undefined): EnvironmentSpec {
     Number.isInteger(value.backgroundColor)
       ? value.backgroundColor
       : DEFAULT_BACKGROUND;
-  return { backgroundColor: background };
+  const lighting = readLighting(isObject(value) ? value.lighting : undefined);
+  return { backgroundColor: background, ...(lighting ? { lighting } : {}) };
+}
+
+/**
+ * `environment.lighting`: colours must be 24-bit integers and intensities are clamped to 0..4;
+ * anything else is dropped field by field, so absent or unreadable means today's lighting.
+ */
+function readLighting(value: JsonValue | undefined): LightingSpec | undefined {
+  if (!isObject(value)) return undefined;
+  const colour = (raw: JsonValue | undefined) =>
+    typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= 0xffffff
+      ? raw
+      : undefined;
+  const intensity = (raw: JsonValue | undefined) =>
+    typeof raw === 'number' && Number.isFinite(raw) ? Math.min(4, Math.max(0, raw)) : undefined;
+  const lighting: LightingSpec = {};
+  const ambientColor = colour(value.ambientColor);
+  const sunColor = colour(value.sunColor);
+  const ambientIntensity = intensity(value.ambientIntensity);
+  const sunIntensity = intensity(value.sunIntensity);
+  if (ambientColor !== undefined) lighting.ambientColor = ambientColor;
+  if (sunColor !== undefined) lighting.sunColor = sunColor;
+  if (ambientIntensity !== undefined) lighting.ambientIntensity = ambientIntensity;
+  if (sunIntensity !== undefined) lighting.sunIntensity = sunIntensity;
+  return Object.keys(lighting).length > 0 ? lighting : undefined;
 }
 
 function text(value: JsonValue | undefined, fallback: string): string {
@@ -524,6 +626,10 @@ function readCopy(value: JsonValue | undefined): LocationCopy {
   };
 }
 
+function finiteOrUndefined(value: JsonValue | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 /** Seed-authored colliders (`scene.colliders`); an extension may remove one by id. */
 function readColliders(value: JsonValue | undefined): ColliderSpec[] {
   if (!Array.isArray(value)) return [];
@@ -533,6 +639,11 @@ function readColliders(value: JsonValue | undefined): ColliderSpec[] {
     if (![minX, maxX, minZ, maxZ].every((n) => typeof n === 'number' && Number.isFinite(n))) {
       return [];
     }
+    // Optional heights and the jump flag (LAI-JMP-01). A non-finite height is dropped, so a
+    // malformed value falls back to today's full-height wall; `jumpable` needs both heights
+    // (the validator insists), and Django colliders carry no `requirements`, so they are never gates.
+    const minY = finiteOrUndefined(raw.minY);
+    const maxY = finiteOrUndefined(raw.maxY);
     return [
       {
         rect: {
@@ -542,6 +653,11 @@ function readColliders(value: JsonValue | undefined): ColliderSpec[] {
           minZ: minZ as number,
           maxZ: maxZ as number,
         },
+        ...(minY !== undefined ? { minY } : {}),
+        ...(maxY !== undefined ? { maxY } : {}),
+        ...(raw.jumpable === true && minY !== undefined && maxY !== undefined
+          ? { jumpable: true }
+          : {}),
       },
     ];
   });
@@ -568,17 +684,29 @@ function readLights(value: JsonValue | undefined): LightSpec[] {
   });
 }
 
-function readStandIns(
-  effects: JsonObject | undefined,
-): Map<string, { shape: StandInShape; color: number }> {
-  const out = new Map<string, { shape: StandInShape; color: number }>();
+interface StandInEntry {
+  shape: StandInShape;
+  color: number;
+  shownWhenChangeKey?: string;
+  hiddenWhenChangeKey?: string;
+}
+
+function readStandIns(effects: JsonObject | undefined): Map<string, StandInEntry> {
+  const out = new Map<string, StandInEntry>();
   const raw = effects?.standIns;
   if (!Array.isArray(raw)) return out;
   for (const entry of raw) {
     if (!isObject(entry) || typeof entry.entityId !== 'string') continue;
     const shape = STAND_IN_SHAPES.find((candidate) => candidate === entry.shape) ?? 'BOX';
     const color = typeof entry.color === 'number' ? entry.color : BOX_PLACEHOLDER_COLOR;
-    out.set(entry.entityId, { shape, color });
+    out.set(entry.entityId, {
+      shape,
+      color,
+      shownWhenChangeKey:
+        typeof entry.shownWhenChangeKey === 'string' ? entry.shownWhenChangeKey : undefined,
+      hiddenWhenChangeKey:
+        typeof entry.hiddenWhenChangeKey === 'string' ? entry.hiddenWhenChangeKey : undefined,
+    });
   }
   return out;
 }

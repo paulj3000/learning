@@ -30,6 +30,22 @@ const note = (n: number, id: string, title: string, message: string): WorldInter
   zoneId: id,
 });
 
+/**
+ * SC-R08-02: a quiet find. Same shape as the tapestry nook's `DISCOVER`: the discovery id is the
+ * interaction and zone id, the server records it (ADR-051), and finding it grants nothing but the
+ * record (Final F: the mouse door also pays one optional keepsake through the existing DISCOVERY reward rule). Gated on the nook like every chamber line, and never listed.
+ */
+const find = (id: string, title: string, targetId: string): WorldInteraction => ({
+  id,
+  type: 'DISCOVERY',
+  trigger: 'APPROACH',
+  title,
+  targetId,
+  requirements: found(),
+  action: { kind: 'DISCOVER', discoveryId: id },
+  zoneId: id,
+});
+
 export const CASTLE_CHAMBER_INTERACTIONS: readonly WorldInteraction[] = [
   note(
     1,
@@ -63,4 +79,6 @@ export const CASTLE_CHAMBER_INTERACTIONS: readonly WorldInteraction[] = [
     },
     zoneId: 'chamber-door',
   },
+  find('castle-chamber-star', 'A star in the mural', 'chamber-star'),
+  find('castle-chamber-mouse-door', 'A very small door', 'chamber-mouse-door'),
 ];

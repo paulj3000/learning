@@ -13,9 +13,16 @@ import {
 } from '../../castleLayout';
 import { trophyDisplay } from '../../castleTrophies';
 import type { CastleRoomsApi } from '../../../../../api/play/castleRoomsApi';
+import type { CastleDirectorApi } from '../../../../../api/play/castleDirectorApi';
+import type { AgeBandValue } from '../../../../child-profile/constants';
+import { useCastleDirector } from '../../../../great-storybook/useCastleDirector';
 import type { GreatStorybook } from '../../../../great-storybook/useGreatStorybook';
+import { ManagerAudioControls } from '../../../../../audio/ui';
 import { CastleMap } from './CastleMap';
 import { StorybookSection } from './StorybookSection';
+import { HallOfHeroesSection } from './HallOfHeroesSection';
+import { hallOfHeroes } from '../../../../great-storybook/hallOfHeroes';
+import { CASTLE_RANKS, type CastleRanksConfig } from '../../../../great-storybook/castleRanks';
 import { useCastleDiscovery } from './useCastleDiscovery';
 import type { CastleTaleSceneApi } from './castleTaleScene';
 import styles from './CastleGuide.module.css';
@@ -49,6 +56,20 @@ export interface CastleGuideProps {
   roomsApi?: CastleRoomsApi | null;
   /** The child's Great Storybook (SC-R04-02), if the castle has computed it. */
   storybook?: GreatStorybook;
+  /**
+   * SC-R06-01: the guide (and the Storybook in it) opened or closed by the child. Called on a
+   * change only, never on the first render. For sound; the guide works the same without it.
+   */
+  onOpenChange?: (open: boolean) => void;
+  /** Rank titles (SC-R07-04). Defaults to the content config, which is switched off. */
+  ranks?: CastleRanksConfig;
+  /**
+   * The child's age band (SC-R09-01). With it, the guide shows one authored ambient line for the
+   * room the child is in; without it, nothing ambient is shown.
+   */
+  ageBand?: AgeBandValue;
+  /** Where the ambient line is chosen. Omit for the configured Django API; `null` for none. */
+  directorApi?: CastleDirectorApi | null;
 }
 
 /** "To the story hall, then To the east corridor": the doors a walking child would pass, in order. */
@@ -70,6 +91,10 @@ export function CastleGuide({
   childId = '',
   roomsApi,
   storybook,
+  onOpenChange,
+  ranks = CASTLE_RANKS,
+  ageBand,
+  directorApi,
 }: CastleGuideProps) {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState<CastleRoomId | undefined>(undefined);
@@ -78,7 +103,24 @@ export function CastleGuide({
   // Explored rooms: saved by the server, merged with this visit. Django is the record.
   const { discovered } = useCastleDiscovery({ childId, roomId, api: childId ? roomsApi : null });
   const discovery = useMemo(() => discoveryState(discovered), [discovered]);
+  // One authored ambient line for this room (SC-R09-01): atmosphere, never progress or a prompt.
+  const ambient = useCastleDirector({
+    childId,
+    ageBand,
+    roomId,
+    api: childId ? directorApi : null,
+  });
   const lastAnnounced = useRef<CastleRoomId | undefined>(undefined);
+
+  // Report a change of open (not the first render), for the Storybook's open and close sounds.
+  const reportedOpen = useRef(open);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+  useEffect(() => {
+    if (reportedOpen.current === open) return;
+    reportedOpen.current = open;
+    onOpenChangeRef.current?.(open);
+  }, [open]);
 
   // Escape closes the guide, only while it is open, so it never steals the key from anything else.
   useEffect(() => {
@@ -129,6 +171,17 @@ export function CastleGuide({
     () => trophyDisplay(worldState.ownedItemIds ?? []),
     [worldState.ownedItemIds],
   );
+  // The Hall of Heroes (SC-R07-03): derived from the same records, read-only.
+  const hall = useMemo(
+    () =>
+      hallOfHeroes({
+        progress: storybook?.progress,
+        ownedItemIds: worldState.ownedItemIds ?? [],
+        worldChangeKeys: worldState.worldChangeKeys,
+        ranks,
+      }),
+    [storybook?.progress, worldState.ownedItemIds, worldState.worldChangeKeys, ranks],
+  );
   const shownTreasures = treasures.filter((entry) => entry.state !== 'open');
   const openPedestals = treasures.length - shownTreasures.length;
 
@@ -161,6 +214,11 @@ export function CastleGuide({
       <output className={styles.status} aria-live="polite">
         {message}
       </output>
+      {ambient ? (
+        <p className={styles.ambient} data-testid="castle-ambient-line">
+          {ambient.lines.join(' ')}
+        </p>
+      ) : null}
       {open ? (
         <div className={styles.panel} id={panelId}>
           <h2 className={styles.title}>Where would you like to go?</h2>
@@ -176,6 +234,7 @@ export function CastleGuide({
                 return !plan?.ok && plan?.reason === 'already-there' ? 'here' : 'no';
               }}
               onGo={go}
+              ranks={ranks}
             />
           ) : null}
           {showBackToHub ? (
@@ -255,6 +314,14 @@ export function CastleGuide({
                 earn.
               </p>
             ) : null}
+          </section>
+          <HallOfHeroesSection hall={hall} />
+          {/* SC-R06-02: the child's own sound mix (volume, mute, calmer sound), saved for them. */}
+          <section aria-labelledby={`${panelId}-sound`}>
+            <h3 id={`${panelId}-sound`} className={styles.title}>
+              Sound
+            </h3>
+            <ManagerAudioControls idPrefix="castle-audio" />
           </section>
         </div>
       ) : null}

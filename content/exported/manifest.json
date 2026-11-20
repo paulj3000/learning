@@ -1,5 +1,5 @@
 {
-  "contentDigest": "434363904778cd2939d2e9b0ee1158b048e6b061e93b0618e7f8c9e90e63b818",
+  "contentDigest": "ea1058cadf3d1e50738e830b3baa42fa621fbf72dc49d5cfa4541bd285273e99",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -7,26 +7,26 @@
   "files": [
     {
       "counts": {
-        "islands": 2
+        "islands": 3
       },
       "path": "islands.json",
-      "sha256": "e713618bdec5b875c50ee572390b26fd2579dee0a71c55e4cfb3e086aca5695a"
+      "sha256": "170574bbcd9a31d21bb2c0defcd8edd1e438c47af9369e7433f7051cc0205d7c"
     },
     {
       "counts": {
-        "locations": 11
+        "locations": 13
       },
       "path": "locations.json",
-      "sha256": "3a502fe34b8a525878ebb6a89c7e4b478a35d19f09988832d588d0506c6b090d"
+      "sha256": "224507ee8439cf0dcaa649e003d6e9093489a9b1d0d6515003f526777a3213c2"
     },
     {
       "counts": {
-        "adventures": 24,
-        "learningObjectives": 19,
+        "adventures": 29,
+        "learningObjectives": 20,
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "3401d680016b41699f1d42e477496e40c74bcd242ef39f9c1d9befdcdf11aec1"
+      "sha256": "d5ae5eb17b8acfdb5611b16b73b45620b929f9a8344e3d73a47eca8d6bcb1813"
     },
     {
       "counts": {
@@ -37,41 +37,41 @@
     },
     {
       "counts": {
-        "quests": 12
+        "quests": 24
       },
       "path": "quests.json",
-      "sha256": "74866b4b6a2d5694b52a815a1344009923d8611e10c3fd7791beb995197db4c6"
+      "sha256": "63ba545b81bbd0dfe5a91b134953768ffbfb5728f064b1bf689c2f85bcf19e7b"
     },
     {
       "counts": {
-        "collectibleSets": 2,
-        "items": 33,
-        "rewardRules": 26
+        "collectibleSets": 11,
+        "items": 117,
+        "rewardRules": 92
       },
       "path": "rewards.json",
-      "sha256": "8dac6d52b1e427b537fd4c2cbe04f10f81146e678fa2389e97ca01c70972f0de"
+      "sha256": "d02ad8e205f75bd9375d0a0ab0c330cb5ed2b18e47dc873ade406af0cb3e2ec8"
     },
     {
       "counts": {
-        "npcs": 7
+        "npcs": 23
       },
       "path": "npcs.json",
-      "sha256": "1fb2b05269ee575fecfb631ff3bd3de4f27d76b94b83ffbebf0fb049dcaa25a9"
+      "sha256": "c725d91c6b2b4602e82c2ed2cda6ef4c06d667bce0b166e87661085ac364b559"
     },
     {
       "counts": {
-        "checkpoints": 30,
-        "discoveries": 6
+        "checkpoints": 31,
+        "discoveries": 8
       },
       "path": "discoveries.json",
-      "sha256": "40197038a59b6a45db1a816f49e4143f7c8e8273a53635788ba087399ebe763c"
+      "sha256": "01c23e84cb7e7412ffadabd839ddebfbe718d2056a1af7173b9351e7c702c5ca"
     },
     {
       "counts": {
         "interactions": 8
       },
       "path": "interactions.json",
-      "sha256": "c07277883bacc1b50c17e5a6d681ebc1dc3aafc800e695b9a075a11fbdc7315d"
+      "sha256": "edfee7d89c17ca5d3a20956904a70e744cbf9bf2b0be7d659c6bd2b953a8a6ba"
     },
     {
       "counts": {
@@ -86,10 +86,10 @@
     {
       "counts": {
         "assets": 114,
-        "locationAssets": 6
+        "locationAssets": 7
       },
       "path": "assets.json",
-      "sha256": "136f19b5d5b2f80600545bbf9e6fe7ed68716634b4b0054ba6d67fa55a273b81"
+      "sha256": "48470848b47e89dcec4f959a984e611694782a57f769c32f284374282c41e6c8"
     }
   ],
   "knownAmbiguities": [
@@ -114,9 +114,24 @@
     {
       "detail": "These NPCs name an interactionId but their home region has no WorldInteraction table (Clockwork Harbor is a 3D-only region that opens conversations by NPC id). The ids are exported as written; no interaction was invented.",
       "ids": [
+        "cinder",
+        "flint",
+        "frosty",
+        "ginger",
         "harbor-master",
+        "ignis",
+        "jingle",
+        "kindle",
+        "mrs-claus",
+        "noel",
+        "peppermint",
+        "polaris",
+        "professor-basalt",
         "professor-ember",
-        "professor-ticktock"
+        "professor-ticktock",
+        "santa-claus",
+        "snowball",
+        "tinker"
       ],
       "kind": "npc-interaction-without-record"
     },

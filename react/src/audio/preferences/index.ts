@@ -3,6 +3,7 @@ export type {
   PreferenceSync,
   PreferenceSyncOptions,
   PreferenceSyncState,
+  SessionDefault,
 } from './AudioPreferencesSync';
-export { useChildAudioPreferences } from './useChildAudioPreferences';
+export { preferenceSyncFor, useChildAudioPreferences } from './useChildAudioPreferences';
 export { ChildAudioPreferencesSync } from './ChildAudioPreferencesSync';

@@ -1,0 +1,34 @@
+name: AWS CI Connection Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test-aws:
+    name: Verify AWS OIDC Connection
+    runs-on: ubuntu-24.04
+    environment: lai-ci
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.LAI_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: |
+          aws sts get-caller-identity
+
+      - name: Verify EC2 access
+        env:
+          INSTANCE_ID: ${{ vars.LAI_CI_INSTANCE_ID }}
+        run: |
+          aws ec2 describe-instances \
+            --instance-ids "$INSTANCE_ID" \
+            --query 'Reservations[].Instances[].[InstanceId,State.Name]' \
+            --output table

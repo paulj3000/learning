@@ -389,4 +389,17 @@ export const SOLID_PROPS: readonly RectZone[] = [
   { id: 'cove-crates', minX: 6.1, maxX: 7.8, minZ: -2.2, maxZ: -0.6 },
 ];
 
+/**
+ * LAI-JMP-01: low props a child can hop onto and over, with their real
+ * height. Today the single-height crate pair by the dock path (two `crate`s,
+ * 0.8 m tall, `CRATES`), which the child used to walk straight through.
+ * Never a gate: the channel and the broken bridge stay solid at every height.
+ */
+export const HOP_PROPS: readonly { rect: RectZone; height: number }[] = [
+  {
+    rect: { id: 'dock-crates-low', minX: -7.05, maxX: -5.35, minZ: -5.1, maxZ: -4.2 },
+    height: 0.8,
+  },
+];
+
 export const PIRATE_BUILDER_BAY_REGION_CHECKPOINTS = PIRATE_BUILDER_BAY_CHECKPOINTS;

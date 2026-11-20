@@ -1,0 +1,195 @@
+{
+  "id": "treasure-rush-cove",
+  "realmId": "pirate-builder-bay",
+  "version": "1.0.0",
+  "engineApi": "^0.1.0",
+  "ageBands": ["SPROUT", "PATHFINDER", "EXPLORER"],
+  "learningObjectiveIds": ["counting-sets", "addition-within-ten", "subtraction-within-ten"],
+  "areas": ["treasure-rush-cove"],
+  "capabilities": [
+    {
+      "id": "movement.locomotion"
+    },
+    {
+      "id": "movement.jump"
+    },
+    {
+      "id": "camera.thirdPerson"
+    },
+    {
+      "id": "camera.firstPerson"
+    },
+    {
+      "id": "camera.collision"
+    },
+    {
+      "id": "character.avatar"
+    },
+    {
+      "id": "character.animation"
+    },
+    {
+      "id": "gameplay.chests"
+    },
+    {
+      "id": "gameplay.collectibles"
+    },
+    {
+      "id": "gameplay.checkpoints"
+    },
+    {
+      "id": "gameplay.hazards"
+    },
+    {
+      "id": "gameplay.jumpChallenges"
+    }
+  ],
+  "movementProfiles": {},
+  "difficultyProfiles": {},
+  "components": [
+    {
+      "id": "cove-chest",
+      "type": "gameplay.chest",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.chests"
+    },
+    {
+      "id": "cove-grove-chest",
+      "type": "gameplay.chest",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.chests"
+    },
+    {
+      "id": "cove-beach-chest",
+      "type": "gameplay.chest",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.chests"
+    },
+    {
+      "id": "cove-ruins-pedestal",
+      "type": "gameplay.chest",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.chests"
+    },
+    {
+      "id": "cove-final-chest",
+      "type": "gameplay.chest",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.chests"
+    },
+    {
+      "id": "cove-lookout-spyglass",
+      "type": "gameplay.chest",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.chests"
+    },
+    {
+      "id": "cove-leap-riddle",
+      "type": "gameplay.chest",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.chests"
+    },
+    {
+      "id": "cove-leap-chest",
+      "type": "gameplay.chest",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.chests"
+    },
+    {
+      "id": "cove-brass-key",
+      "type": "gameplay.collectible",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.collectibles"
+    },
+    {
+      "id": "cove-leap-shell",
+      "type": "gameplay.collectible",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.collectibles"
+    },
+    {
+      "id": "cove-leap-feather",
+      "type": "gameplay.collectible",
+      "areaId": "treasure-rush-cove",
+      "capability": "gameplay.collectibles"
+    }
+  ],
+  "questIds": ["pips-missing-treasure", "pirates-leap"],
+  "challengeIds": [
+    "cove-chest",
+    "cove-grove-chest",
+    "cove-beach-chest",
+    "cove-ruins-pedestal",
+    "cove-final-chest",
+    "cove-lookout-spyglass",
+    "cove-leap-riddle",
+    "cove-leap-chest"
+  ],
+  "jumpChallenges": [
+    {
+      "id": "leap-steps",
+      "areaId": "treasure-rush-cove",
+      "jumpRouteId": "leap-steps-hop",
+      "accessibleRouteId": null,
+      "optional": true
+    },
+    {
+      "id": "leap-barrels",
+      "areaId": "treasure-rush-cove",
+      "jumpRouteId": "leap-barrels-jump",
+      "accessibleRouteId": "leap-barrels-walk",
+      "optional": false
+    },
+    {
+      "id": "leap-logs",
+      "areaId": "treasure-rush-cove",
+      "jumpRouteId": "leap-logs-jump",
+      "accessibleRouteId": "leap-logs-walk",
+      "optional": false
+    },
+    {
+      "id": "leap-ledge",
+      "areaId": "treasure-rush-cove",
+      "jumpRouteId": "leap-ledge-drum",
+      "accessibleRouteId": "leap-ledge-stairs",
+      "optional": false
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "cove-landing",
+      "areaId": "treasure-rush-cove"
+    },
+    {
+      "id": "leap-cp-yard",
+      "areaId": "treasure-rush-cove",
+      "courseId": "pirates-leap"
+    },
+    {
+      "id": "leap-cp-barrels",
+      "areaId": "treasure-rush-cove",
+      "courseId": "pirates-leap"
+    },
+    {
+      "id": "leap-cp-logs",
+      "areaId": "treasure-rush-cove",
+      "courseId": "pirates-leap"
+    },
+    {
+      "id": "leap-cp-dock",
+      "areaId": "treasure-rush-cove",
+      "courseId": "pirates-leap"
+    }
+  ],
+  "worldConsequenceId": "TREASURE_COVE_QUEST_COMPLETE",
+  "contentSource": "DJANGO_PUBLISHED",
+  "requiredServices": [
+    "lai.assetManager",
+    "lai.soundManager",
+    "lai.npcManager",
+    "lai.questionStudio",
+    "lai.questService",
+    "lai.inventory",
+    "lai.publishedContent"
+  ]
+}

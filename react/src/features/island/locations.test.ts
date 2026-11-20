@@ -37,12 +37,13 @@ describe('Fossil Ridge Camp location', () => {
 });
 
 describe('the Writing Room location', () => {
-  it('is registered and gated on the Castle Secret Door story completing', () => {
+  it('is registered and open to every child, with no arithmetic prerequisite (SC-final-B)', () => {
     const location = getIslandLocation('castle-writing-room');
     expect(location).toBeDefined();
-    expect(location?.unlockRequirement).toEqual({
-      changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE',
-    });
+    expect(location?.unlockRequirement).toBeUndefined();
+    // Open for a child with no progress at all, and for one who already finished the Secret Door.
+    expect(isLocationUnlocked(location!, [])).toBe(true);
+    expect(isLocationUnlocked(location!, ['THE_CASTLES_SECRET_DOOR_COMPLETE'])).toBe(true);
   });
 });
 
@@ -56,12 +57,12 @@ describe("Bolt's Workshop location", () => {
 });
 
 describe('gated MVP locations overall', () => {
-  it('gates exactly the four story-payoff locations, leaving every original MVP location always-visible', () => {
+  it('gates exactly the three remaining story-payoff locations, leaving every original MVP location always-visible', () => {
     const gatedSlugs = ISLAND_LOCATIONS.filter((item) => item.unlockRequirement).map(
       (item) => item.slug,
     );
     expect(gatedSlugs.sort()).toEqual(
-      ['bolts-workshop', 'castle-writing-room', 'dragons-sanctuary', 'fossil-ridge-camp'].sort(),
+      ['bolts-workshop', 'dragons-sanctuary', 'fossil-ridge-camp'].sort(),
     );
   });
 });

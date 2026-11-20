@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../../../IslandWorldView.module.css';
 import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
+import {
+  adventureCompletedClaim,
+  castleClaimContext,
+  emitCastleClaim,
+} from './castleGameplayClaims';
+import { useCastleAnswerCues } from './useCastleAnswerCues';
+import { CastleSessionLoading, CastleSessionUnavailable } from './CastleSessionStatus';
 import type { AdventureDefinition } from '../../../../adventures/engine/types';
 import type { StepAnswer } from '../../../../adventures/engine/validators';
 import type { AgeBandValue } from '../../../../child-profile/constants';
@@ -13,6 +20,7 @@ import {
 import { BINDING_LECTERN_ENTITY_ID } from '../../castleBindingLectern';
 import type { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { CastleTaleSceneApi } from './castleTaleScene';
+import { usePadAnswers } from './usePadAnswers';
 
 /**
  * One in-world play-through of "The Storykeeper's Tale" (engine Phase 9,
@@ -131,9 +139,11 @@ export function CastleTaleSession({
   useEffect(() => {
     if (session?.status === 'COMPLETED' && !hasFiredOnComplete.current) {
       hasFiredOnComplete.current = true;
+      // GE-072: the server completed the session; restate it as a claim for scoring to confirm.
+      emitCastleClaim(castleClaimContext(definition.slug, session.id), adventureCompletedClaim());
       onComplete();
     }
-  }, [session, onComplete]);
+  }, [session, onComplete, definition.slug]);
 
   /** The story so far, as option ids: beat 7's picture is keyed by the pair. */
   const [choices, setChoices] = useState<{ hero: string | null; setting: string | null }>({
@@ -142,6 +152,11 @@ export function CastleTaleSession({
   });
 
   const stepId = currentStep?.id ?? null;
+  // SC-R06-01: right, try-again and hint sounds, from what the server decided.
+  const cuedSubmit = useCastleAnswerCues(submitAnswer, stepId, hintLevel, {
+    adventureSlug: definition.slug,
+    sessionId: session?.id ?? null,
+  });
   /**
    * The one submit both routes use. Reflecting the choice here rather than at
    * each call site is what makes the card light the portrait too: a child who
@@ -150,6 +165,13 @@ export function CastleTaleSession({
    */
   const submitAnswerAndReflect = useCallback(
     async (answer: StepAnswer) => {
+      /*
+        The room shows a choice only once the server has accepted it (Django is the record): an
+        offline or failed submit (`null`) lights no portrait and paints no easel, so a resume
+        never takes back something the child saw happen.
+      */
+      const correctness = await cuedSubmit(answer);
+      if (correctness === null) return correctness;
       if (answer.kind === 'creative-choice' && stepId) {
         onChoice(stepId, answer.optionId);
         if (stepId === CHOOSE_HERO_STEP_ID) {
@@ -167,9 +189,9 @@ export function CastleTaleSession({
       if (answer.kind === 'reflection' && stepId === STORY_REFLECTION_STEP_ID) {
         scene.current?.showEaselPainting(choices.hero, choices.setting);
       }
-      return submitAnswer(answer);
+      return correctness;
     },
-    [submitAnswer, stepId, onChoice, scene, choices],
+    [cuedSubmit, stepId, onChoice, scene, choices],
   );
 
   const submitRef = useRef(submitAnswerAndReflect);
@@ -246,12 +268,25 @@ export function CastleTaleSession({
           hint ladder has already advanced a rung, because this went through
           the same `submitAnswer` the HUD list goes through.
         */
-        if (correctness === 'correct') return;
+        // `null`: nothing was graded (offline, or an answer already in flight), so no reaction.
+        if (correctness === 'correct' || correctness === null) return;
         scene.current?.resetBindingPlates(activePlates);
         scene.current?.playQuillClip('ReactConcerned');
       });
     });
   }, [bus, orderingStepId, definition, activePlates, scene]);
+
+  /*
+    SC-JMP: the Story Hall's story stones are a second way to seat the same three beats (or the
+    Sprouts' two). They go through the very same `submitAnswerAndReflect`; the engine grades.
+  */
+  usePadAnswers({
+    bus,
+    definition,
+    stepId,
+    submit: submitAnswerAndReflect,
+    onWrongOrder: () => scene.current?.playQuillClip('ReactConcerned'),
+  });
 
   useEffect(() => {
     if (!isSpatialChoiceStep(definition, stepId)) return;
@@ -280,13 +315,14 @@ export function CastleTaleSession({
   }, [bus, stepId, definition]);
 
   if (loadState === 'loading') {
-    return <p className={styles.status}>Opening your story...</p>;
+    return <CastleSessionLoading message="Opening your story..." />;
   }
   if (loadState === 'error' || !currentStep) {
     return (
-      <p className={styles.status} role="alert">
-        Something went wrong opening your story.
-      </p>
+      <CastleSessionUnavailable
+        message="Something went wrong opening your story."
+        backToMapHref={backToMapHref}
+      />
     );
   }
 

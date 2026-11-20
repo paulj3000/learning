@@ -67,7 +67,7 @@ describe('solidColliders', () => {
       ...WELCOME_HARBOR_MANIFEST,
       colliders: [{ rect: { id: 'rock', minX: 0, maxX: 1, minZ: 0, maxZ: 1 }, maxY: 0.5 }],
     };
-    const boxes = solidColliders(manifest);
+    const boxes = solidColliders(manifest).filter((c) => !c.id?.startsWith('derived:'));
     expect(boxes).toHaveLength(4 + 1 + 6);
     expect(boxes[4]).toEqual({
       id: 'rock',
@@ -87,7 +87,7 @@ describe('solidColliders', () => {
     };
     const ids = (keys: string[]) =>
       solidColliders(manifest, { worldChangeKeys: keys }).flatMap((collider) =>
-        collider.id ? [collider.id] : [],
+        collider.id && !collider.id.startsWith('derived:') ? [collider.id] : [],
       );
     expect(ids([])).toEqual(['broken-bridge']);
     expect(ids(['BRIDGE_REPAIRED'])).toEqual([]);
@@ -117,6 +117,30 @@ describe('triggerVolumes', () => {
       maxY: 3,
       maxZ: 9.5,
     });
+  });
+
+  it('builds no live trigger for a checkpoint the engine bridge serves (GE-066); the rest stay', () => {
+    const manifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      extensions: [
+        ...WELCOME_HARBOR_MANIFEST.extensions,
+        {
+          extensionId: 'engineBridge',
+          config: {
+            capabilities: [
+              {
+                id: 'gameplay.checkpoints',
+                config: { checkpoints: [{ id: 'welcome-harbor:lookout', courseId: 'harbour', position: { x: 0, y: 0, z: 0 }, label: 'the lookout' }] },
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const checkpoints = triggerVolumes(manifest, WELCOME_HARBOR_CHECKPOINTS).filter((volume) => volume.kind === 'CHECKPOINT');
+    expect(checkpoints.map((volume) => volume.id)).toEqual(['welcome-harbor:dock', 'welcome-harbor:shed']);
+    // Still declared: the list the validator, spawn and toasts use is unchanged.
+    expect(manifest.checkpoints.ids).toContain('welcome-harbor:lookout');
   });
 
   it('skips a listed checkpoint whose position is not authored', () => {

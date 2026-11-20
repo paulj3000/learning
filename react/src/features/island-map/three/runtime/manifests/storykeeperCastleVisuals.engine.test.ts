@@ -169,20 +169,33 @@ describe('the Trophy Room shows what the child owns (SC-R03-03)', () => {
   const has = (harness: ReturnType<typeof castle>, name: string) =>
     harness.scene().getObjectByName(name) !== undefined;
 
-  it('stands the owned quill on its pedestal and takes the empty plate away', () => {
+  // SC-R07-02: the six keepsakes, one primitive mesh each, in pedestal order.
+  const TREASURES = [
+    ['storykeepers-quill', 'castle-trophy-quill'],
+    ['blank-page-storybook', 'castle-trophy-book'],
+    ['great-storybook-seal', 'castle-trophy-seal'],
+    ['painted-words-brush', 'castle-trophy-brush'],
+    ['three-clues-lens', 'castle-trophy-lens'],
+    ['secret-door-key', 'castle-trophy-key'],
+  ] as const;
+
+  it('stands the owned quill on its pedestal and leaves the others bare', () => {
     const harness = owning('storykeepers-quill');
     expect(has(harness, 'castle-trophy-quill')).toBe(true);
-    expect(has(harness, 'castle-trophy-plate-1')).toBe(false);
-    // The book is not owned, so its pedestal still shows the empty plate.
+    // The book is not owned, so its pedestal stands empty.
     expect(has(harness, 'castle-trophy-book')).toBe(false);
-    expect(has(harness, 'castle-trophy-plate-2')).toBe(true);
   });
 
-  it('shows every empty plate and no treasure for a child who owns nothing', () => {
+  it('shows no treasure for a child who owns nothing', () => {
     const harness = owning();
-    expect(has(harness, 'castle-trophy-quill')).toBe(false);
-    expect(has(harness, 'castle-trophy-book')).toBe(false);
-    for (const n of [1, 2, 3, 4, 5, 6]) expect(has(harness, `castle-trophy-plate-${n}`)).toBe(true);
+    for (const [, mesh] of TREASURES) expect(has(harness, mesh)).toBe(false);
+  });
+
+  it('stands each owned keepsake on its own pedestal, and only that one (SC-R07-02)', () => {
+    for (const [itemId, mesh] of TREASURES) {
+      const harness = owning(itemId);
+      for (const [, other] of TREASURES) expect(has(harness, other), other).toBe(other === mesh);
+    }
   });
 
   it('always builds the six pedestals, owned or not, so the room never looks broken', () => {
@@ -193,9 +206,9 @@ describe('the Trophy Room shows what the child owns (SC-R03-03)', () => {
     }
   });
 
-  it('keeps an open pedestal showing its empty plate whatever the child owns', () => {
-    const harness = owning('storykeepers-quill', 'blank-page-storybook');
-    for (const n of [3, 4, 5, 6]) expect(has(harness, `castle-trophy-plate-${n}`)).toBe(true);
+  it('builds no separate plate mesh: a pedestal top is the empty state (draw-call budget)', () => {
+    const harness = owning();
+    for (const n of [1, 2, 3, 4, 5, 6]) expect(has(harness, `castle-trophy-plate-${n}`)).toBe(false);
   });
 });
 

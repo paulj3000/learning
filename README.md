@@ -38,7 +38,7 @@ From a fresh checkout, at the repository root:
    identifiers, not secrets. `make runserver`, `make web` and the Vite proxy all read them, and
    `vite dev` reuses the same pool and client for browser sign-in (override with
    `VITE_COGNITO_*` in `react/.env.local`, template `react/.env.example`).
-5. Start PostgreSQL 16: `make up` (127.0.0.1:5442; `POSTGRES_PORT` overrides).
+5. Start PostgreSQL 16: `make up` (127.0.0.1:5432; `POSTGRES_PORT` overrides).
 6. Apply the migrations: `make migrate`.
 7. Load the content and Treasure Rush:
    `cd lai && ../.venv/bin/python manage.py load_content && ../.venv/bin/python manage.py seed_treasure_rush && ../.venv/bin/python manage.py publish_treasure_rush && cd ..`
@@ -72,7 +72,7 @@ make py-format-check   # ruff format --check (make py-format to fix)
 make py-test           # pytest (tests/)
 make py-check          # all three
 make check             # Python checks, then typecheck, lint, format, tests, build
-make up                # local PostgreSQL 16 via docker compose on 127.0.0.1:5442 (POSTGRES_PORT overrides)
+make up                # local PostgreSQL 16 via docker compose on 127.0.0.1:5432 (POSTGRES_PORT overrides)
 make django-check      # manage.py check (no database needed)
 make migrate-check     # makemigrations --check
 make migrate           # apply framework migrations (needs make up)

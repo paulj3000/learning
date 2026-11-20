@@ -1,0 +1,66 @@
+{
+ "platforms": [],
+ "pressurePlates": [],
+ "zones": [
+  {
+   "enterMessage": "Pip: Welcome to Pirate's Leap! Walk onto the first step, then press Jump to hop up the others.",
+   "rect": {
+    "id": "leap-zone-learn",
+    "maxX": -14.6,
+    "maxZ": -16.6,
+    "minX": -21.2,
+    "minZ": -21.6
+   }
+  },
+  {
+   "enterMessage": "Pip: Barrel Crossing! Jump from barrel to barrel. You can walk round the pool too.",
+   "rect": {
+    "id": "leap-zone-barrels",
+    "maxX": -21.4,
+    "maxZ": -16.8,
+    "minX": -27.6,
+    "minZ": -21.0
+   }
+  },
+  {
+   "enterMessage": "Pip: The Fallen Log Trail. Run before you jump to go further!",
+   "rect": {
+    "id": "leap-zone-logs",
+    "maxX": -27.0,
+    "maxZ": -21.2,
+    "minX": -32.2,
+    "minZ": -31.0
+   }
+  },
+  {
+   "enterMessage": "Pip: The Moving Dock. Wait for it to stop, then step on and ride across.",
+   "rect": {
+    "id": "leap-zone-dock",
+    "maxX": -21.0,
+    "maxZ": -31.2,
+    "minX": -27.8,
+    "minZ": -35.0
+   }
+  },
+  {
+   "enterMessage": "Pip: Step on the gold plate to wake the Pirate Lift, then ride it up!",
+   "rect": {
+    "id": "leap-zone-lift",
+    "maxX": -16.4,
+    "maxZ": -26.8,
+    "minX": -21.4,
+    "minZ": -30.8
+   }
+  },
+  {
+   "enterMessage": "Pip: You found my secret treasure! Open the chest.",
+   "rect": {
+    "id": "leap-zone-nest",
+    "maxX": -16.4,
+    "maxZ": -21.6,
+    "minX": -19.6,
+    "minZ": -24.2
+   }
+  }
+ ]
+}

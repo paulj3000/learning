@@ -1,3 +1,4 @@
+import { solidColliders } from '../island-map/three/runtime/sceneLayout';
 import { read } from '../../api/parse';
 import * as parse from '../../api/play/parse';
 import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../discovery/checkpoints';
@@ -81,6 +82,117 @@ describe('buildRegionManifest', () => {
     // An NPC without a model is drawn as a prop, and still says Talk.
     const figure = build().manifest.props.find((prop) => prop.entityId === 'cove-pip');
     expect(figure?.action).toBe(REGION_ACTIONS.talk);
+  });
+
+  it('gives Treasure Cove jumping by default, with its barrels as jumpable obstacles (LAI-JMP-01)', async () => {
+    const region = { ...bootstrapJson().region, scene: await coveSceneJson() };
+    const built = build({ region });
+    expect(issues(built)).toEqual([]);
+    expect(built.manifest.movement).toBeUndefined();
+    // No authored jumpable colliders: the barrels' stand-ins are jumpable derived boxes, and the
+    // library barrels drawn over them carry their own jumpable colliders (layout v8).
+    expect(built.manifest.colliders.filter((collider) => collider.jumpable)).toEqual([]);
+    const solids = solidColliders(built.manifest);
+    const landing = solids.filter((solid) => solid.id?.startsWith('derived:cove-landing-barrels#'));
+    expect(landing).toHaveLength(4);
+    expect(landing.every((solid) => solid.jumpable)).toBe(true);
+  });
+
+  it('keeps heights and jumpable on Django scene colliders, and stays a full wall without them', async () => {
+    const rect = (id: string) => ({ id, minX: 0, maxX: 1, minZ: 0, maxZ: 1 });
+    const scene = {
+      ...(await coveSceneJson()),
+      colliders: [
+        { ...rect('wall') },
+        { ...rect('step'), minY: 0, maxY: 0.5, jumpable: true },
+        { ...rect('half'), minY: 0, jumpable: true },
+        { ...rect('bad'), minY: 'x', maxY: null },
+      ],
+    };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    const byId = (id: string) => built.manifest.colliders.find((c) => c.rect.id === id);
+    expect(byId('wall')).toEqual({ rect: rect('wall') });
+    expect(byId('step')).toMatchObject({ minY: 0, maxY: 0.5, jumpable: true });
+    // A jump flag without both heights is dropped, so the validator rule is never tripped.
+    expect(byId('half')).toEqual({ rect: rect('half'), minY: 0 });
+    expect(byId('bad')).toEqual({ rect: rect('bad') });
+    expect(issues(built)).toEqual([]);
+  });
+
+  it('carries a Django-authored camera and avatar, which the validator checks (LAI-JMP-01a)', async () => {
+    const scene = { ...(await coveSceneJson()), player: { camera: { distance: 3 } } };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.player).toEqual({ camera: { distance: 3 } });
+    expect(issues(built)).toEqual([]);
+    const bad = build({
+      region: { ...bootstrapJson().region, scene: { ...scene, player: { camera: { mode: 'x' } } } },
+    });
+    expect(issues(bad).map((issue) => issue.path)).toEqual(['player.camera.mode']);
+    const plain = build({ region: { ...bootstrapJson().region, scene: await coveSceneJson() } });
+    expect(plain.manifest.player).toBeUndefined();
+  });
+
+  it('carries Django-authored running and sprinting speeds, which the validator checks', async () => {
+    const scene = {
+      ...(await coveSceneJson()),
+      movement: { locomotion: { sprintEnabled: false, runSpeed: 5 } },
+    };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.movement).toEqual({ locomotion: { sprintEnabled: false, runSpeed: 5 } });
+    expect(issues(built)).toEqual([]);
+  });
+
+  it('carries Django-authored movement tuning, which the validator checks (LAI-JMP-01)', async () => {
+    const scene = { ...(await coveSceneJson()), movement: { jump: { enabled: false } } };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.movement).toEqual({ jump: { enabled: false } });
+    expect(issues(built)).toEqual([]);
+
+    const typo = { ...scene, movement: { jump: { jumpHieght: 2 } } };
+    const bad = build({ region: { ...bootstrapJson().region, scene: typo } });
+    expect(issues(bad).map((issue) => issue.path)).toEqual(['movement.jump.jumpHieght']);
+  });
+
+  it('binds the engine bridge only when the scene declares engineBridge (GE-070, GE-065)', async () => {
+    const engineBridge = {
+      capabilities: [{ id: 'gameplay.hazards', config: { hazards: [] } }],
+      allowEnginePlatforms: false,
+    };
+    const scene = { ...(await coveSceneJson()), engineBridge };
+    const built = build({ region: { ...bootstrapJson().region, scene } });
+    expect(built.manifest.extensions.map((binding) => binding.extensionId)).toEqual([
+      'region-play',
+      'engineBridge',
+    ]);
+    expect(built.manifest.extensions[1]?.config).toEqual(engineBridge);
+    expect(issues(built)).toEqual([]);
+
+    const plain = build({ region: { ...bootstrapJson().region, scene: await coveSceneJson() } });
+    expect(plain.manifest.extensions.map((binding) => binding.extensionId)).toEqual(['region-play']);
+    for (const odd of [null, 'hazards', [{ id: 'gameplay.hazards' }]]) {
+      const ignored = build({
+        region: { ...bootstrapJson().region, scene: { ...(await coveSceneJson()), engineBridge: odd } },
+      });
+      expect(ignored.manifest.extensions.map((binding) => binding.extensionId)).toEqual(['region-play']);
+    }
+  });
+
+  it('hands scene.platformTuning to the engine bridge config as platformTuning (GE-068)', async () => {
+    const engineBridge = { capabilities: [{ id: 'gameplay.hazards', config: { hazards: [] } }] };
+    const platformTuning = { lift: { speed: 2 } };
+    const region = (extra: object) => ({ ...bootstrapJson().region, scene: { ...extra } });
+    const base = await coveSceneJson();
+    const tuned = build({ region: region({ ...base, engineBridge, platformTuning }) });
+    expect(tuned.manifest.extensions[1]?.config).toEqual({ ...engineBridge, platformTuning });
+    // The scene's own block is not mutated, and an explicit block-level tuning wins.
+    expect(engineBridge).not.toHaveProperty('platformTuning');
+    const own = { ...engineBridge, platformTuning: { lift: { speed: 3 } } };
+    expect(build({ region: region({ ...base, engineBridge: own, platformTuning }) }).manifest.extensions[1]?.config).toEqual(own);
+    // No tuning: the block passes through exactly as before.
+    expect(build({ region: region({ ...base, engineBridge }) }).manifest.extensions[1]?.config).toEqual(engineBridge);
+    // Tuning with no bridge adds no extension (the live platform system still takes it).
+    expect(build({ region: region({ ...base, platformTuning }) }).manifest.extensions.map((b) => b.extensionId)).toEqual(['region-play']);
+    expect(issues(tuned)).toEqual([]);
   });
 
   it('builds the five-zone cove from its layout, and the engine’s validator accepts it (TR-13)', async () => {

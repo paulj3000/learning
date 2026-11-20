@@ -1,3 +1,7 @@
+import { checkpointReachedText, recoveredText } from '../platforms/platformCopy';
+import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
+import { worldSignal } from '../platforms/platformSystem';
+import { manifestForBand } from './manifestForBand';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../../IslandWorldView.module.css';
@@ -5,7 +9,11 @@ import { ThreeGameContainer } from '../ThreeGameContainer';
 import { WorldStage } from '../WorldStage';
 import { WorldHud, type WorldHudBackpackItem } from '../WorldHud';
 import { WorldEngineEventBus } from '../worldEngineEvents';
-import type { WorldInteraction, WorldInteractionContext } from '../../worldObjects';
+import {
+  areRequirementsMet,
+  type WorldInteraction,
+  type WorldInteractionContext,
+} from '../../worldObjects';
 import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../discovery/api';
 import { listAllWorldChanges, recordWorldChangeOnce } from '../../../adventures/api';
 import { getInventory } from '../../../rewards/api';
@@ -40,11 +48,23 @@ import {
   zoneEnterMessage,
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
+import type { AnyGameplayEvent } from '@lai/game-engine/contracts';
+import { EXPLORE_ADVENTURE_PREFIX, setDefaultLocationClaimsBinding, setLocationClaimSink } from './gameplayClaimSink';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
 import { prefersReducedMotion } from '../../../../lib/motionPreference';
 import { createPendingWrites, useExitParticipant } from '../../../portal/exit';
+import {
+  loadCameraPreference,
+  loadSprintModePreference,
+  saveCameraPreference,
+  saveSprintModePreference,
+  type SprintModePreference,
+} from '../cameraPreference';
+import type { CameraMode } from '../playerPresentation';
+import type { PlayerAvatarModel } from '../playerAvatarCatalog';
+import type { LoadedModel } from './extensionRegistry';
 
 /**
  * The one React view for any manifest-driven 3D location
@@ -80,6 +100,22 @@ export interface ThreeLocationWorldViewProps {
    * region served by Django gets the asset library's (TR-10, `regionAssetsFor`).
    */
   assets?: LocationEngineAssets;
+  /** LAI-JMP-01a: the child's `ChildProfile.avatarKey`, for their avatar's look in third-person. */
+  avatarKey?: string | null;
+  /**
+   * LAI-JMP-01c: the child's published avatar model and how to load it
+   * (`features/player-avatar/playerAvatarSource.ts`). Absent: the placeholder (or a bundled model).
+   */
+  avatarSource?: {
+    published: Promise<PlayerAvatarModel | null>;
+    loadModel?: (ref: string) => Promise<LoadedModel>;
+  };
+  /**
+   * GE-070 (decision E15): where this visit's gameplay claims go (the companion's and the engine
+   * bridge's), with the same signature as `GameHost`'s `onGameplayEvent`. Validated claims only;
+   * an invalid one is dropped and counted. Absent: nobody is listening and claims go nowhere.
+   */
+  onGameplayEvent?: (event: AnyGameplayEvent) => void;
 }
 
 const TOAST_DURATION_MS = 4000;
@@ -157,8 +193,27 @@ export function ThreeLocationWorldView({
   repository = sourceLocationManifestRepository,
   viewExtensions = SOURCE_VIEW_EXTENSIONS,
   assets = DEFAULT_LOCATION_ENGINE_DEPS.assets,
+  avatarKey = null,
+  avatarSource,
+  onGameplayEvent,
 }: ThreeLocationWorldViewProps) {
+  // GE-070: this visit's claim sink, for as long as the view is up (`gameplayClaimSink.ts`).
+  useEffect(() => setLocationClaimSink(onGameplayEvent ?? null), [onGameplayEvent]);
   const [manifestState, setManifestState] = useState<ManifestState>({ status: 'loading' });
+  // GE-L11: a default claim binding for this visit (free exploration of this location), so the
+  // shared host's claims are not dropped where no companion binds an adventure. Realm id follows
+  // region play's convention (the Place slug). A companion's binding overrides it.
+  const readyManifest = manifestState.status === 'ready' ? manifestState.manifest : null;
+  useEffect(() => {
+    if (!readyManifest) return;
+    const slug = readyManifest.locationSlug ?? readyManifest.regionId;
+    return setDefaultLocationClaimsBinding({
+      realmId: slug,
+      adventureId: `${EXPLORE_ADVENTURE_PREFIX}${slug}`,
+      areaId: readyManifest.regionId,
+      sessionRef: null,
+    });
+  }, [readyManifest]);
   const [snapshot, setSnapshot] = useState<WorldSnapshot | null>(null);
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);
   /** A companion's quest cue, which wins over the snapshot's (`setQuestCue`). */
@@ -197,6 +252,29 @@ export function ThreeLocationWorldView({
     visit and quietly do nothing.
   */
   const [engine, setEngine] = useState<LocationEngine | null>(null);
+  /*
+    LAI-JMP-01a: the perspective. The child's saved choice goes into the
+    engine; the engine reports every change (V, the HUD button, the gamepad,
+    the setting below), and the view shows it and saves it for next time.
+  */
+  const [savedCameraMode] = useState(() => loadCameraPreference(childId));
+  /** Running & sprinting: hold or toggle Shift, the child's own setting. */
+  const [sprintMode, setSprintModeState] = useState<SprintModePreference>(
+    () => loadSprintModePreference(childId) ?? 'hold',
+  );
+  const chooseSprintMode = (mode: SprintModePreference) => {
+    setSprintModeState(mode);
+    saveSprintModePreference(childId, mode);
+    engineRef.current?.setSprintMode?.(mode);
+  };
+  const [cameraMode, setCameraModeState] = useState<CameraMode | null>(null);
+  const onCameraModeChange = useCallback(
+    (mode: CameraMode) => {
+      setCameraModeState(mode);
+      saveCameraPreference(childId, mode);
+    },
+    [childId],
+  );
   // Read by bus listeners, so a refreshed context never forces re-subscribing.
   const contextRef = useRef<WorldInteractionContext>(EMPTY_CONTEXT);
   useEffect(() => {
@@ -268,6 +346,9 @@ export function ThreeLocationWorldView({
   useEffect(() => {
     if (!manifest) return;
     const checkpointIds = new Set(manifest.checkpoints.ids);
+    const savedCheckpointIds = new Set(
+      ALL_CHECKPOINTS.filter((checkpoint) => checkpoint.regionId === manifest.regionId).map((checkpoint) => checkpoint.id),
+    );
     // Unsubscribed one by one: `removeAllListeners` would also drop listeners
     // this view does not own (the hazard the duplication audit found).
     const unsubscribes = [
@@ -316,6 +397,24 @@ export function ThreeLocationWorldView({
           .then(() => refreshWorld())
           .catch(() => undefined);
       }),
+      // LAI-JMP-02: friendly course feedback; a missed jump is never a loss.
+      // GE-066: a checkpoint reached on the engine bridge that is also one of this region's SAVED
+      // checkpoints is saved and toasted exactly like a manifest checkpoint (one save path for
+      // every location, so manifest.checkpoints can move onto the bridge without losing the
+      // child's place or the authored wording). Others keep the course text.
+      bus.on('CourseCheckpointReached', ({ checkpointId, label }) => {
+        if (savedCheckpointIds.has(checkpointId)) {
+          void pendingWrites.track(saveCheckpoint(childId, checkpointId)).catch(() => undefined);
+          setToast(checkpointToast(manifest, 'found', checkpointId) ?? checkpointReachedText(label));
+          return;
+        }
+        setToast(checkpointReachedText(label));
+      }),
+      bus.on('PlayerRecovered', ({ reason, checkpointId, hazardId }) => {
+        if (reason === 'HAZARD' || checkpointId) {
+          setToast(recoveredText(manifest.platforming, checkpointId, bridgeCheckpointLabels(manifest), hazardId));
+        }
+      }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
         if (checkpointIds.has(zoneId)) {
           void pendingWrites.track(saveCheckpoint(childId, zoneId)).catch(() => undefined);
@@ -334,6 +433,14 @@ export function ThreeLocationWorldView({
     };
   }, [bus, childId, manifest, openInteractionFor, pendingWrites, refreshWorld]);
 
+  // LAI-JMP-02/03: a world change recorded during the visit (a riddle solved) raises its platform
+  // signal at once, so a bridge it unlocks appears without leaving the location.
+  const worldKeys = snapshot?.context.worldChangeKeys;
+  useEffect(() => {
+    if (!engine || !worldKeys) return;
+    for (const key of worldKeys) engine.signalPlatforms?.(worldSignal(key));
+  }, [engine, worldKeys]);
+
   /*
     "You are back at the pond." Said once, when a returning child's saved
     checkpoint lands, so the first thing the region tells them is where they
@@ -351,6 +458,16 @@ export function ThreeLocationWorldView({
     const timeout = window.setTimeout(() => setToast(null), TOAST_DURATION_MS);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+
+  /*
+    LAI-JMP-01: a panel opening over the scene pauses play, so nothing held
+    a moment ago (a key, a drag, the Jump button, a gamepad button) may still
+    be held when the child comes back to it.
+  */
+  const panelOpen = openInteraction !== null || claimed !== null;
+  useEffect(() => {
+    if (panelOpen) engine?.resetInput?.();
+  }, [panelOpen, engine]);
 
   if (manifestState.status === 'not-found' || manifestState.status === 'error') {
     return (
@@ -371,6 +488,28 @@ export function ThreeLocationWorldView({
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>{manifest?.copy.loading ?? 'Loading...'}</p>
+      </div>
+    );
+  }
+
+  /*
+    SC-R10-01: a secret place stays closed until its story is finished. The
+    snapshot's context fails closed (a failed read has no keys), so this
+    shows the calm message rather than the scene whenever progress is unknown.
+  */
+  if (
+    manifest.entryRequirements &&
+    !areRequirementsMet(manifest.entryRequirements, snapshot.context)
+  ) {
+    return (
+      <div className={styles.wrapper}>
+        <p className={styles.status}>
+          {manifest.copy.locked ??
+            'This part of the island has not been discovered yet. Maybe a new story will lead you here.'}
+        </p>
+        <Link className={styles.altNavLink} to={`/island/${childId}`}>
+          Back to the map
+        </Link>
       </div>
     );
   }
@@ -425,12 +564,19 @@ export function ThreeLocationWorldView({
             createLocationEngine(
               parent,
               bus,
-              manifest,
+              // SC-JMP: the child's own band's platforming (flat markers for Sprouts), else the manifest as authored.
+              manifestForBand(manifest, ageBand),
               {
                 startCheckpointId,
                 worldState: snapshot.context,
                 quality: chooseRenderQuality(deviceHintsFromNavigator()),
                 reducedMotion: prefersReducedMotion(),
+                cameraMode: savedCameraMode ?? undefined,
+                sprintMode,
+                avatarKey,
+                onCameraModeChange,
+                publishedAvatar: avatarSource?.published,
+                loadAvatarModel: avatarSource?.loadModel,
               },
               { ...DEFAULT_LOCATION_ENGINE_DEPS, assets },
             )
@@ -438,6 +584,7 @@ export function ThreeLocationWorldView({
           onEngineReady={(ready) => {
             engineRef.current = ready;
             setEngine(ready);
+            setCameraModeState(ready.cameraMode?.() ?? null);
           }}
         />
         <WorldHud
@@ -454,6 +601,10 @@ export function ThreeLocationWorldView({
               }
             : {})}
           showBackpack={!companionOwnsBackpack}
+          {...(engine?.jump?.enabled ? { onJump: () => engineRef.current?.pressJump?.() } : {})}
+          {...(cameraMode && engine?.camera?.allowModeSwitch
+            ? { cameraMode, onToggleCamera: () => engineRef.current?.toggleCameraMode?.() }
+            : {})}
         />
         <div ref={setHudSlot} className={styles.stageControls} />
         <div ref={setSpeechSlot} className={styles.stageSpeech} />
@@ -478,6 +629,7 @@ export function ThreeLocationWorldView({
           config={config}
           bus={bus}
           sceneApi={engine?.extensionApi(id) ?? null}
+          extensionApi={(extensionId: string) => engine?.extensionApi(extensionId) ?? null}
           worldState={snapshot.context}
           claimedInteraction={claimed?.extensionId === id ? claimed.interaction : null}
           openInteraction={openInteraction ?? claimed?.interaction ?? null}
@@ -499,6 +651,50 @@ export function ThreeLocationWorldView({
           onDiscovered={() => void refreshWorld()}
           regionId={manifest.regionId}
         />
+      ) : null}
+      {cameraMode && engine?.camera?.allowModeSwitch ? (
+        <fieldset className={styles.cameraSetting}>
+          <legend>Camera view</legend>
+          {(
+            [
+              ['third-person', 'Behind my explorer'],
+              ['first-person', 'Through my eyes'],
+            ] as const
+          ).map(([mode, label]) => (
+            <label key={mode} className={styles.cameraSettingOption}>
+              <input
+                type="radio"
+                name="camera-view"
+                value={mode}
+                checked={cameraMode === mode}
+                onChange={() => engineRef.current?.setCameraMode?.(mode)}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
+      {engine?.locomotion?.sprintEnabled ? (
+        <fieldset className={styles.cameraSetting}>
+          <legend>Sprint with Shift</legend>
+          {(
+            [
+              ['hold', 'Hold Shift'],
+              ['toggle', 'Tap Shift to switch'],
+            ] as const
+          ).map(([mode, label]) => (
+            <label key={mode} className={styles.cameraSettingOption}>
+              <input
+                type="radio"
+                name="sprint-mode"
+                value={mode}
+                checked={sprintMode === mode}
+                onChange={() => chooseSprintMode(mode)}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
       ) : null}
       <details className={styles.thingsToDo}>
         <summary>Things to do here</summary>
@@ -535,4 +731,25 @@ export function ThreeLocationWorldView({
       </Link>
     </div>
   );
+}
+
+/**
+ * GE-065: checkpoint labels from the engine bridge's `gameplay.checkpoints` config (an Area whose
+ * one checkpoint list lives in `scene.engineBridge`), so a recovery still says where it went.
+ */
+export function bridgeCheckpointLabels(manifest: ThreeLocationManifest): ReadonlyMap<string, string> {
+  const labels = new Map<string, string>();
+  for (const binding of manifest.extensions ?? []) {
+    if (binding.extensionId !== 'engineBridge') continue;
+    const capabilities = (binding.config as { capabilities?: unknown }).capabilities;
+    if (!Array.isArray(capabilities)) continue;
+    for (const entry of capabilities) {
+      const request = entry as { id?: unknown; config?: { checkpoints?: unknown } };
+      if (request.id !== 'gameplay.checkpoints' || !Array.isArray(request.config?.checkpoints)) continue;
+      for (const point of request.config.checkpoints as { id?: unknown; label?: unknown }[]) {
+        if (typeof point.id === 'string' && typeof point.label === 'string') labels.set(point.id, point.label);
+      }
+    }
+  }
+  return labels;
 }
