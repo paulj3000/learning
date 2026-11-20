@@ -1,3 +1,35 @@
+name: AWS EC2 Smoke Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+# Prevent concurrent runs of this workflow in this repository.
+# Multi-repository access to the same EC2 instance requires an AWS-side lock.
+concurrency:
+  group: lai-ec2-ci
+  cancel-in-progress: false
+
+jobs:
+  ec2-test:
+    name: Verify AWS OIDC and run EC2 smoke test
+    runs-on: ubuntu-24.04
+    environment: lai-ci
+    timeout-minutes: 30
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      INSTANCE_ID: ${{ vars.LAI_CI_INSTANCE_ID }}
+
+    steps:
+      - name: Validate configuration
+        shell: bash
+        env:
+          ROLE_ARN: ${{ vars.LAI_CI_ROLE_ARN }}
+        run: |
           set -euo pipefail
           test -n "$AWS_REGION" || { echo 'Missing AWS_REGION variable'; exit 1; }
           test -n "$INSTANCE_ID" || { echo 'Missing LAI_CI_INSTANCE_ID variable'; exit 1; }
@@ -62,61 +94,3 @@
           set -euo pipefail
           for i in $(seq 1 60); do
             status=$(aws ssm describe-instance-information \
-              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
-              --query 'InstanceInformationList[0].PingStatus' \
-              --output text)
-            if [[ "$status" == "Online" ]]; then
-              echo 'SSM is online'
-              exit 0
-            fi
-            echo "Waiting for SSM ($i/60): $status"
-            sleep 10
-          done
-          echo 'SSM did not become online' >&2
-          exit 1
-
-      - name: Execute EC2 smoke test
-        shell: bash
-        run: |
-          set -euo pipefail
-          command_id=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name AWS-RunShellScript \
-            --parameters 'commands=["set -eu","uname -a","python3 --version"]' \
-            --query 'Command.CommandId' \
-            --output text)
-          echo "SSM command: $command_id"
-          status=Pending
-          for i in $(seq 1 120); do
-            status=$(aws ssm get-command-invocation \
-              --command-id "$command_id" \
-              --instance-id "$INSTANCE_ID" \
-              --query Status --output text 2>/dev/null || true)
-            case "$status" in
-              Success|Failed|Cancelled|TimedOut|Cancelling|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
-                break ;;
-            esac
-            sleep 5
-          done
-          aws ssm get-command-invocation \
-            --command-id "$command_id" \
-            --instance-id "$INSTANCE_ID" \
-            --query StandardOutputContent --output text || true
-          aws ssm get-command-invocation \
-            --command-id "$command_id" \
-            --instance-id "$INSTANCE_ID" \
-            --query StandardErrorContent --output text || true
-          if [[ "$status" != "Success" ]]; then
-            echo "SSM command failed or timed out: $status" >&2
-            exit 1
-          fi
-
-      - name: Stop EC2
-        if: ${{ always() && steps.aws-auth.outcome == 'success' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Stopping CI instance: $INSTANCE_ID"
-          aws ec2 stop-instances --instance-ids "$INSTANCE_ID"
-          aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
-          echo 'EC2 stopped'
