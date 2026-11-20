@@ -340,7 +340,7 @@ The audit was rechecked against the source, tests and Git, not the Trello descri
 
 Tests: `castleTale/`, the parity tests and the engine boundary, run through `test_gate.py`: 19 files, 284 passed. Six new tests were added; four of them fail when the fixes are removed. `npm run typecheck` is clean.
 
-**Django verification (first PostgreSQL run for the castle).**
+**Django verification (the first PostgreSQL run since GE-072 and the integration merges; the last was 2026-11-17, 518 passed).**
 - Setup: a throwaway `postgres:16-alpine` container on `127.0.0.1:5461` with tmpfs storage, removed after the run. The `config.settings.test` settings refuse any host that is not loopback and create their own `test_lai` database. `.env` and the shared databases were not touched.
 - Scope: 38 castle-related test files plus `apps/regions/tests`, with `LAI_REQUIRE_POSTGRES=1`.
 - Result: **1277 passed, 2 failed, 0 skipped**. `makemigrations --check` reports no changes.
