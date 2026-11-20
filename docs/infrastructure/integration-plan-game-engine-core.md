@@ -121,7 +121,7 @@ Created 2026-11-19 by LAI-ENG-002 at the owner's instruction, in coordination wi
 
 | Item | Value |
 |---|---|
-| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 21 merged, head `25ffb8bb`, section 5.1) |
+| Branch | `integration/20261119-game-engine-core` (pushed; steps 1 to 22 merged, head `a06e66f4`, section 5.1) |
 | Worktree | `/Coding/learning-worktrees/wt-integration-20261119-game-engine-core` |
 | Slot | 8 (PostgreSQL 5458, Django 8090, Vite 5263; pytest database `test_lai_integration_20261119_game_engine_core`) |
 | Owner | LAI-ENG-002 (integrating agent). The engine lead supplies SHAs and fixes engine-side conflicts on `core/gameengine` |
@@ -170,6 +170,7 @@ who resolves on their own branch; the integration branch then re-merges.
 | 19 | `core/gameengine` `ca6ada2c` (GE-076 item 1: remove the unused `gamepadInput` and `cameraHeightFollower` island-map shims) into `557dd425` | Owner confirmed 2026-11-19 (integration session) that Workstream E of the stabilization brief authorizes proven-unused removals. Typecheck clean; engine 670 passed; React affected set 4,106 passed, 1 expected fail (GE-S1), 0 failed; ADR, docs, workspace clean | None |
 | 20 | 20a castle `7e4d13a4` (SC-R12 audit fixes; audits `DELETE /scoring/` into `CHILD_WRITE_ROUTES`), 20b scoring `5977bed2` (docs), 20c castle `df376878` (docs) into `f7e57ee2` | Castle React 900 passed; typecheck clean. **First PostgreSQL run of all 16 Django apps the integration changes:** 3,838 passed, 1 skipped, 3 failed (D3, D4, P1; none from step 20) | D3, D4 routed; P1 pre-existing |
 | 21 | `feature/GE-070-treasure-rush-engine-migration` `a22b2681` (D4: `_footprint` renamed `_goal_area`; rename only) into `25ffb8bb` | regions plus `core` `test_privacy_logging` on PostgreSQL: 714 passed, 0 failed | D3 remains |
+| 22 | `feature/north-pole-adventure` `2b05882f` (D3: `seasons` added to the `game_sessions` admin allowlist test; test file only) into `a06e66f4` | All 16 changed Django apps on PostgreSQL: **3,840 passed, 1 skipped, 1 failed (P1 only)**; `makemigrations --check` no changes | D3 fixed; P1 pre-existing |
 
 Forecast update after step 1: `feature/storykeeper-castle-completion` @ `4df618b2` has merged the
 engine and is now **clean** on top of step 1 (it was 9 conflicts). The `regions 0007` collision
@@ -415,9 +416,9 @@ owner's choice is to allow `python3 scripts/dev/agent_slot.py write --slot 2` an
 8. Deployment approval per environment, separate from the merge; RDS snapshot before migrating.
 9. Host memory (six agents on 8 GB) and whether the Storykeeper worktree may run its own PostgreSQL.
 
-## 11. Final reconciliation report (GE-090, 2026-11-19; updated at step 21)
+## 11. Final reconciliation report (GE-090, 2026-11-19; updated at step 22)
 
-**Current integration SHA: `25ffb8bb`** (step 21; not final until D3 is fixed; first issued at `568dd278`, step 14) (`integration/20261119-game-engine-core`, pushed, clean
+**Final integration SHA: `a06e66f4`** (step 22; D3 and D4 fixed; first issued at `568dd278`, step 14) (`integration/20261119-game-engine-core`, pushed, clean
 working tree; `main` still `8bd19fb7`). Not merged into `main`; nothing deployed.
 
 ### 11.1 Branch reconciliation matrix
@@ -431,7 +432,7 @@ equivalents), and each agent worktree's local HEAD and tracked files (read-only)
 | Scoring | `core/ge-scoring` | `5977bed2` | 0 | 0 / 0 | GE-100, GE-109 |
 | Treasure Rush, Pirate's Leap | `feature/GE-070-treasure-rush-engine-migration` | `a22b2681` | 0 (all 15 previously missing commits present) | 0 / 0 | GE-070, GE-071 (97c69672 at 9e680012; parity audit e632f09b at step 15) |
 | Firepeak | `feature/firepeak-volcano-adventure` | `928453c0` | 0 | 0 / 0 | GE-073, GE-073F |
-| North Pole | `feature/north-pole-adventure` | `ae49c9de` | 0 | 0 / 0 | GE-074, SEA-04 |
+| North Pole | `feature/north-pole-adventure` | `2b05882f` | 0 | 0 / 0 | GE-074, SEA-04 |
 | Storykeeper's Castle | `feature/storykeeper-castle-completion` | `df376878` | 0 | 0 / 0 | GE-072 |
 | Movement stack (8 branches, PR #26 to #37) | see 10.2 | unchanged | 0 | n/a | LAI-JMP cards |
 | Lambda (kept separate) | `feature/serverless-processing-completion` and stacked | `7483c07a` | 140 | n/a | LAI-LAMBDA cards; PRs #42, #43 |
@@ -445,7 +446,7 @@ equivalents), and each agent worktree's local HEAD and tracked files (read-only)
 | Typecheck (root) | Clean |
 | Engine (`npm run test:engine`) | **670 passed, 0 expected fails** (GE-L10 fixed in step 16) |
 | React affected set (region-play, island-map, game-engine, npc-manager, scoring, great-storybook, audio, routes, src/test), gated | **4,106 passed, 0 failed**, 1 expected fail (GE-S1) (350 files) |
-| Django on isolated PostgreSQL 16 | **Correction:** the earlier 1,918/0 covered only 6 of the 16 apps the integration changes. All 16 at `f7e57ee2` (regions, scoring, assets, npcs, game_sessions, avatars, seasons, audio, progression, ai, inventory, quests, speech, education, core, catalog): **3,838 passed, 1 skipped, 3 failed** (D3, D4, P1). `makemigrations --check` no changes. The unaudited `DELETE /scoring/` route that the 6-app scope missed was fixed in step 20 |
+| Django on isolated PostgreSQL 16 | **Correction:** the earlier 1,918/0 covered only 6 of the 16 apps the integration changes. All 16 at `f7e57ee2` (regions, scoring, assets, npcs, game_sessions, avatars, seasons, audio, progression, ai, inventory, quests, speech, education, core, catalog): **3,838 passed, 1 skipped, 3 failed** (D3, D4, P1). The unaudited `DELETE /scoring/` route that the 6-app scope missed was fixed in step 20. **All 16 at `a06e66f4` (final): 3,840 passed, 1 skipped, 1 failed (P1, pre-existing, environment-dependent; passes 20/20 with an empty AWS config).** `makemigrations --check` no changes |
 | Migration graph from an empty database | Applies cleanly; one leaf per app; `makemigrations --check` no changes |
 | Content, golden vectors, engine contract vectors, ADR, docs, workspace checks | Pass |
 
@@ -479,9 +480,9 @@ No conflict markers or duplicate ADR headings exist on the integration branch.
 | X1 | Integrated build: returning to Pip in Treasure Rush also plays the finale sound and music, from a Firepeak region-play change (Treasure Rush QA item 18). Firepeak lead confirmed it is intended: completing Pip's quest plays Treasure Rush's own finale (TR-14, on `main` since 2026-11-01); no Firepeak cue; guard test added (step 17) | Firepeak lead | **Closed, intended** |
 | W1 | Worktree `sc-final-d` (`work/final-d`, already merged into the castle branch) holds 21 uncommitted tracked files, including `lai/apps/game_sessions/castle_views.py`, `urls.py`, `createLocationEngine.ts` and island-map camera files. Parked by the castle lead as untested work in progress from 2026-11-18: branch `park/sc-final-d-20261118` @ `dec87388` (pushed; parent `3615253b`; 24 files, worktree now clean). **Not for integration.** It holds (a) the Quill flavour client and Django view (owner decision SC-R09-02 open) and (b) live reduced-motion edits to shared engine-owned files, which the engine lead may take into a ticket of their own. Not on any integrated branch, so it does not block GE-076 | Castle lead | **Closed, parked** |
 | D1, D2 | Integration defects found by the first PostgreSQL run | Scoring lead, Firepeak lead | **Fixed** (steps 13, 14) |
-| D3 | `game_sessions` `test_no_progress_model_is_exposed_on_the_admin`: `seasons` registers `SeasonalEvent` (content only; child-owned `SeasonalCompletion` not registered) but the admin allowlist omits `seasons`. Same gap on the North Pole branch | North Pole lead | Yes (failing test) |
+| D3 | `game_sessions` `test_no_progress_model_is_exposed_on_the_admin`: `seasons` registers `SeasonalEvent` (content only; child-owned `SeasonalCompletion` not registered) but the admin allowlist omits `seasons`. Same gap on the North Pole branch | North Pole lead | **Fixed** (step 22) |
 | D4 | `core` `test_no_application_code_prints`: false positive. The substring check matches `_footprint(` in `pirates_leap_seed.py`, which has no `print` call | Treasure Rush lead | **Fixed** (step 21) |
-| P1 | `speech` `test_presigned_urls_use_the_regional_host` sets fake keys but not `AWS_PROFILE`; with a profile in the environment, botocore prefers the SSO profile and attempts a token refresh. Code and test identical to `main`; passes in a clean environment. Exposed because the integration run exported the slot `.env` (procedure corrected: only `POSTGRES_PORT` and `POSTGRES_DB` are passed, with `AWS_PROFILE` unset) | Speech owner on `main` | No (pre-existing, environment-dependent) |
+| P1 | `speech` `test_presigned_urls_use_the_regional_host` sets fake keys but not `AWS_PROFILE`; with a profile in the environment, botocore prefers the SSO profile and attempts a token refresh. Root cause confirmed at step 22: even with `AWS_PROFILE` unset, botocore reads the host `~/.aws/config` `[default]` SSO profile; the file passes 20/20 with `AWS_CONFIG_FILE` and `AWS_SHARED_CREDENTIALS_FILE` set to `/dev/null`. Fix belongs in the test (isolate it from host AWS config). Code and test identical to `main`; passes in a clean environment. Exposed because the integration run exported the slot `.env` (procedure corrected: only `POSTGRES_PORT` and `POSTGRES_DB` are passed, with `AWS_PROFILE` unset) | Speech owner on `main` | No (pre-existing, environment-dependent) |
 
 ### 11.6 Database migrations at the main merge
 
@@ -537,8 +538,8 @@ access, no deploy steps changed.
 - [x] Every integrated SHA recorded Development Complete on its card
 - [x] Migration graph verified on PostgreSQL; one leaf per app; no change to `main`'s migrations
 - [x] Targeted engine and React tests clean on `557dd425`; castle React clean on `f7e57ee2`
-- [ ] Django: all 16 changed apps clean on PostgreSQL (D3 open; D4 fixed in step 21)
-- [x] Integration defects D1, D2, D4 fixed by their owners; D3 open
+- [x] Django: all 16 changed apps on PostgreSQL at `a06e66f4`: clean except P1 (pre-existing on `main`, environment-dependent)
+- [x] Integration defects D1 to D4 fixed by their owners
 - [ ] Owner decisions in 11.12
 - [ ] Merge-readiness gates on an authorized host: lint and format, full suites, build (no
       playground chunk, one `three` copy), full PostgreSQL run, Playwright and acceptance
