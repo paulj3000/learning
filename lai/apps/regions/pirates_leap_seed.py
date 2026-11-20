@@ -316,7 +316,7 @@ def _square(x: float, z: float, half: float = 1.0) -> dict:
     }
 
 
-def _footprint(platform: dict) -> dict:
+def _goal_area(platform: dict) -> dict:
     x, z = platform["position"]["x"], platform["position"]["z"]
     w, d = platform["size"]["width"] / 2, platform["size"]["depth"] / 2
     return {"minX": _mm(x - w), "maxX": _mm(x + w), "minZ": _mm(z - d), "maxZ": _mm(z + d)}
@@ -351,7 +351,7 @@ def leap_jump_challenges(course: dict) -> list[dict]:
                     "routeId": "leap-steps-hop",
                     "kind": "JUMP",
                     "start": at("leap-cp-yard"),
-                    "goal": _footprint(platforms["leap-step-3"]),
+                    "goal": _goal_area(platforms["leap-step-3"]),
                 },
             ],
         },
@@ -363,7 +363,7 @@ def leap_jump_challenges(course: dict) -> list[dict]:
                     "routeId": "leap-barrels-jump",
                     "kind": "JUMP",
                     "start": at("leap-cp-yard"),
-                    "goal": _footprint(platforms["leap-barrel-3"]),
+                    "goal": _goal_area(platforms["leap-barrel-3"]),
                 },
                 {
                     "routeId": "leap-barrels-walk",
@@ -381,7 +381,7 @@ def leap_jump_challenges(course: dict) -> list[dict]:
                     "routeId": "leap-logs-jump",
                     "kind": "JUMP",
                     "start": at("leap-cp-barrels"),
-                    "goal": _footprint(platforms["leap-log-3"]),
+                    "goal": _goal_area(platforms["leap-log-3"]),
                 },
                 {
                     "routeId": "leap-logs-walk",
@@ -400,19 +400,19 @@ def leap_jump_challenges(course: dict) -> list[dict]:
                     "routeId": "leap-ledge-drum",
                     "kind": "JUMP",
                     "start": at("leap-cp-dock"),
-                    "goal": _footprint(platforms["leap-bounce-drum"]),
+                    "goal": _goal_area(platforms["leap-bounce-drum"]),
                 },
                 {
                     "routeId": "leap-ledge-stairs",
                     "kind": "ACCESSIBLE",
                     "start": at("leap-cp-dock"),
-                    "goal": _footprint(platforms[f"leap-stair-{STAIR_COUNT}"]),
+                    "goal": _goal_area(platforms[f"leap-stair-{STAIR_COUNT}"]),
                 },
                 {
                     "routeId": "leap-ledge-lift",
                     "kind": "ACCESSIBLE",
                     "start": at("leap-cp-dock"),
-                    "goal": _footprint(platforms["leap-lift"]),
+                    "goal": _goal_area(platforms["leap-lift"]),
                 },
             ],
         },
