@@ -39,7 +39,11 @@ export interface PathMotion {
   readonly legs: readonly number[];
 }
 
-export function createPathMotion(path: readonly Vec3[], mode: PlatformPathMode = 'PING_PONG', pauseSeconds = 0): PathMotion {
+export function createPathMotion(
+  path: readonly Vec3[],
+  mode: PlatformPathMode = 'PING_PONG',
+  pauseSeconds = 0,
+): PathMotion {
   const points = [{ x: 0, y: 0, z: 0 }, ...path];
   const legs: number[] = [];
   const count = mode === 'LOOP' ? points.length : points.length - 1;
@@ -149,7 +153,11 @@ export function advanceMotion(
 }
 
 /** The current offset from the rest position, written into `out`. */
-export function motionOffset(motion: PathMotion, state: PathMotionState, out: { x: number; y: number; z: number }) {
+export function motionOffset(
+  motion: PathMotion,
+  state: PathMotionState,
+  out: { x: number; y: number; z: number },
+) {
   const from = motion.points[state.from]!;
   if (motion.points.length < 2 || state.along <= 0) {
     out.x = from.x;

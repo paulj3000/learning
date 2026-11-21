@@ -181,7 +181,8 @@ const greatStorybookMoreQuest: QuestDefinition = {
     },
   ],
   completion: {
-    journalNote: 'The new page is back. The Great Storybook is whole again, and its seal is still yours.',
+    journalNote:
+      'The new page is back. The Great Storybook is whole again, and its seal is still yours.',
     worldChanges: [GREAT_STORYBOOK_RESTORED_V2],
     setsNpcMemoryFlags: [{ npcId: 'keeper-quill', flags: [MORE_PAGES_FLAG] }],
   },

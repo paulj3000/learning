@@ -13,9 +13,28 @@ import { createHarness } from '../components/testHarness';
 const harness = () => createHarness(registerGameplayComponents);
 const cps = {
   checkpoints: [
-    { id: 'cp.1', courseId: 'course.a', position: { x: 0, y: 0, z: 0 }, yaw: 0.5, label: 'the dock' },
-    { id: 'cp.2', courseId: 'course.a', position: { x: 10, y: 0, z: 0 }, yaw: 1, label: 'the bridge' },
-    { id: 'cp.3', courseId: 'course.a', position: { x: 20, y: 0, z: 0 }, yaw: 2, label: 'the summit', requiresSignalId: 'sig.open' },
+    {
+      id: 'cp.1',
+      courseId: 'course.a',
+      position: { x: 0, y: 0, z: 0 },
+      yaw: 0.5,
+      label: 'the dock',
+    },
+    {
+      id: 'cp.2',
+      courseId: 'course.a',
+      position: { x: 10, y: 0, z: 0 },
+      yaw: 1,
+      label: 'the bridge',
+    },
+    {
+      id: 'cp.3',
+      courseId: 'course.a',
+      position: { x: 20, y: 0, z: 0 },
+      yaw: 2,
+      label: 'the summit',
+      requiresSignalId: 'sig.open',
+    },
   ],
 };
 
@@ -84,7 +103,9 @@ describe('CheckpointsService state', () => {
 
   it('alreadyReached in the config restores order and latest without events', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.checkpoints', config: { ...cps, alreadyReached: ['cp.1', 'cp.2'] } }]);
+    await h.start([
+      { id: 'gameplay.checkpoints', config: { ...cps, alreadyReached: ['cp.1', 'cp.2'] } },
+    ]);
     const api = h.runtime.services.require(CheckpointsService);
     expect(api.reachedIds()).toEqual(['cp.1', 'cp.2']);
     expect(api.latest()?.id).toBe('cp.2');
@@ -139,7 +160,14 @@ describe('steady warnings under reduced motion', () => {
     position: { x: 0, y: 0, z: 0 },
     size,
     route: 'OPTIONAL',
-    falling: { mode: 'STAND', visibleSeconds: 2, hiddenSeconds: 2, warningSeconds: 1, fallSeconds: 0.6, offsetSeconds: 0 },
+    falling: {
+      mode: 'STAND',
+      visibleSeconds: 2,
+      hiddenSeconds: 2,
+      warningSeconds: 1,
+      fallSeconds: 0.6,
+      offsetSeconds: 0,
+    },
   };
 
   it('the crumble warning blinks normally and holds a steady dim under reduced motion', async () => {
@@ -151,7 +179,9 @@ describe('steady warnings under reduced motion', () => {
       h.setPlayer({ x: 0, y: 0.4, z: 0 }, 'crumble');
       h.advance(1.5);
       expect(h.runtime.services.require(PlatformsService).phaseOf('crumble')).toBe('CRUMBLING');
-      const warnings = (h.eventsNamed('PlatformPhaseChanged') as { warning: string | null }[]).map((e) => e.warning).filter(Boolean);
+      const warnings = (h.eventsNamed('PlatformPhaseChanged') as { warning: string | null }[])
+        .map((e) => e.warning)
+        .filter(Boolean);
       expect(warnings).toEqual([reduced ? 'STEADY_DIM' : 'BLINK']);
       h.dispose();
     }
@@ -177,7 +207,10 @@ describe('steady warnings under reduced motion', () => {
     ]);
     h.setPlayer({ x: 50, y: 0, z: 50 });
     h.advance(3.5);
-    const flags = () => (h.eventsNamed('HazardTelegraph') as { steadyWarning: boolean }[]).map((e) => e.steadyWarning);
+    const flags = () =>
+      (h.eventsNamed('HazardTelegraph') as { steadyWarning: boolean }[]).map(
+        (e) => e.steadyWarning,
+      );
     expect(flags().every((f) => f === false)).toBe(true);
     h.settings.reducedMotion = true;
     h.advance(6);

@@ -1,20 +1,40 @@
-import { validateGameplayEvent, type AnyGameplayEvent, type GameplayEventContext } from '../contracts/gameplayEvents';
-import { PLAYER_ENTITY_ID, PlayerTransformComponent, type PlayerTransform } from '../contracts/player';
+import {
+  validateGameplayEvent,
+  type AnyGameplayEvent,
+  type GameplayEventContext,
+} from '../contracts/gameplayEvents';
+import {
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  type PlayerTransform,
+} from '../contracts/player';
 import type { CapabilityRequest } from '../core/capabilities';
 import type { MovementInputFrame } from '../movement/movementSystem';
 import { validateAdventure } from '../sdk/adventure';
 import { validAdventure } from '../sdk/testFixtures';
 import { createAabbPhysicsProvider } from '../physics/aabbProvider';
 import { HOST_EVENTS } from './host';
-import { createStandardEngine, type StandardEngineHandle, type StandardInput } from './standardEngine';
+import {
+  createStandardEngine,
+  type StandardEngineHandle,
+  type StandardInput,
+} from './standardEngine';
 import { createStandardCapabilityRegistry } from './standardRegistry';
 
 const DT = 1 / 60;
 const FORWARD = Math.PI / 2; // the controller's +x
-const CONTEXT: GameplayEventContext = { realmId: 'demo-realm', adventureId: 'demo-adventure', areaId: 'demo-cove', sessionRef: null };
+const CONTEXT: GameplayEventContext = {
+  realmId: 'demo-realm',
+  adventureId: 'demo-adventure',
+  areaId: 'demo-cove',
+  sessionRef: null,
+};
 
 let eventSeq = 0;
-const claimOptions = { newEventId: () => `00000000-0000-4000-8000-${String(++eventSeq).padStart(12, '0')}`, now: () => Date.UTC(2026, 10, 18) };
+const claimOptions = {
+  newEventId: () => `00000000-0000-4000-8000-${String(++eventSeq).padStart(12, '0')}`,
+  now: () => Date.UTC(2026, 10, 18),
+};
 
 class TestInput implements StandardInput {
   frame: MovementInputFrame = { move: { forward: 0, strafe: 0 } };
@@ -39,7 +59,13 @@ class TestInput implements StandardInput {
   }
 }
 
-async function engine(requests: CapabilityRequest[], extra: { start?: { x: number; y: number; z: number }; physics?: ReturnType<typeof createAabbPhysicsProvider> } = {}) {
+async function engine(
+  requests: CapabilityRequest[],
+  extra: {
+    start?: { x: number; y: number; z: number };
+    physics?: ReturnType<typeof createAabbPhysicsProvider>;
+  } = {},
+) {
   const input = new TestInput();
   const handle = await createStandardEngine({
     id: 'test-area',
@@ -53,8 +79,14 @@ async function engine(requests: CapabilityRequest[], extra: { start?: { x: numbe
   const claims: AnyGameplayEvent[] = [];
   const recovered: unknown[] = [];
   const jumped: unknown[] = [];
-  handle.runtime.events.on('gameplay.event' as never, ((e: AnyGameplayEvent) => claims.push(e)) as never);
-  handle.runtime.events.on('PlayerRecovered' as never, ((e: unknown) => recovered.push(e)) as never);
+  handle.runtime.events.on(
+    'gameplay.event' as never,
+    ((e: AnyGameplayEvent) => claims.push(e)) as never,
+  );
+  handle.runtime.events.on(
+    'PlayerRecovered' as never,
+    ((e: unknown) => recovered.push(e)) as never,
+  );
   handle.runtime.events.on('PlayerJumped' as never, ((e: unknown) => jumped.push(e)) as never);
   const tick = (seconds: number) => {
     for (let t = 0; t < seconds - 1e-9; t += DT) handle.runtime.tick(DT);
@@ -87,7 +119,10 @@ describe('standard capability registry', () => {
   it('validates an adventure with the same registry the runtime uses', () => {
     const registry = createStandardCapabilityRegistry();
     expect(validateAdventure(validAdventure(), registry as never).ok).toBe(true);
-    const bad = validateAdventure(validAdventure({ capabilities: [{ id: 'movement.jump', config: { jumpHeight: 9 } }] }), registry as never);
+    const bad = validateAdventure(
+      validAdventure({ capabilities: [{ id: 'movement.jump', config: { jumpHeight: 9 } }] }),
+      registry as never,
+    );
     expect(bad.ok).toBe(false);
   });
 });
@@ -95,7 +130,12 @@ describe('standard capability registry', () => {
 describe('standard engine: movement invariants', () => {
   it('walking into a wall stops at the wall: no penetration, no drift', async () => {
     const physics = createAabbPhysicsProvider();
-    physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 3, y: 0, z: -3 }, max: { x: 4, y: 3, z: 3 } });
+    physics.addCollider({
+      id: 'wall',
+      kind: 'SOLID',
+      min: { x: 3, y: 0, z: -3 },
+      max: { x: 4, y: 3, z: 3 },
+    });
     const { handle, input, tick, transform } = await engine([LOCOMOTION], { physics });
     input.walk();
     tick(3);
@@ -135,7 +175,15 @@ describe('standard engine: movement invariants', () => {
   it('ice makes the child slide on, but stop within about a metre', async () => {
     const ice = {
       id: 'environment.volumes',
-      config: { surfaces: [{ id: 'ice-patch', surfaceId: 'ice', box: { min: { x: -50, y: -1, z: -50 }, max: { x: 50, y: 1, z: 50 } } }] },
+      config: {
+        surfaces: [
+          {
+            id: 'ice-patch',
+            surfaceId: 'ice',
+            box: { min: { x: -50, y: -1, z: -50 }, max: { x: 50, y: 1, z: 50 } },
+          },
+        ],
+      },
     };
     const stopDistance = async (requests: CapabilityRequest[]) => {
       const { handle, input, tick } = await engine(requests);
@@ -158,7 +206,15 @@ describe('standard engine: movement invariants', () => {
   it('ignores an ice volume unless movement.surfaces is on', async () => {
     const ice = {
       id: 'environment.volumes',
-      config: { surfaces: [{ id: 'ice-patch', surfaceId: 'ice', box: { min: { x: -50, y: -1, z: -50 }, max: { x: 50, y: 1, z: 50 } } }] },
+      config: {
+        surfaces: [
+          {
+            id: 'ice-patch',
+            surfaceId: 'ice',
+            box: { min: { x: -50, y: -1, z: -50 }, max: { x: 50, y: 1, z: 50 } },
+          },
+        ],
+      },
     };
     const { handle } = await engine([LOCOMOTION, ice]);
     expect(handle.controller.friction).toBe(1);
@@ -175,8 +231,18 @@ describe('standard engine: gameplay wiring', () => {
           {
             challengeId: 'stones',
             routes: [
-              { routeId: 'stones-hop', kind: 'JUMP', start: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 }, goal: { minX: goalMinX, maxX: goalMinX + 1, minZ: 5, maxZ: 6 } },
-              { routeId: 'stones-boardwalk', kind: 'ACCESSIBLE', start: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 }, goal: { minX: 3, maxX: 4, minZ: -1, maxZ: 1 } },
+              {
+                routeId: 'stones-hop',
+                kind: 'JUMP',
+                start: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
+                goal: { minX: goalMinX, maxX: goalMinX + 1, minZ: 5, maxZ: 6 },
+              },
+              {
+                routeId: 'stones-boardwalk',
+                kind: 'ACCESSIBLE',
+                start: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
+                goal: { minX: 3, maxX: 4, minZ: -1, maxZ: 1 },
+              },
             ],
           },
         ],
@@ -200,12 +266,30 @@ describe('standard engine: gameplay wiring', () => {
       LOCOMOTION,
       {
         id: 'gameplay.checkpoints',
-        config: { checkpoints: [{ id: 'old-dock', courseId: 'cove-course', position: { x: 2, y: 0, z: 0 }, yaw: FORWARD, label: 'the old dock' }] },
+        config: {
+          checkpoints: [
+            {
+              id: 'old-dock',
+              courseId: 'cove-course',
+              position: { x: 2, y: 0, z: 0 },
+              yaw: FORWARD,
+              label: 'the old dock',
+            },
+          ],
+        },
       },
       {
         id: 'gameplay.hazards',
         config: {
-          hazards: [{ id: 'pond', kind: 'WATER', rect: { minX: 5, maxX: 8, minZ: -3, maxZ: 3 }, checkpointId: 'old-dock', messageKey: 'hazard.water.splash' }],
+          hazards: [
+            {
+              id: 'pond',
+              kind: 'WATER',
+              rect: { minX: 5, maxX: 8, minZ: -3, maxZ: 3 },
+              checkpointId: 'old-dock',
+              messageKey: 'hazard.water.splash',
+            },
+          ],
         },
       },
     ];
@@ -238,7 +322,15 @@ describe('standard engine: gameplay wiring', () => {
               position: { x: 0, y: 0, z: 0 },
               size: { x: 2, y: 0.5, z: 2 },
               route: 'OPTIONAL',
-              moving: { path: [{ x: 0, y: 0, z: 0 }, { x: 6, y: 0, z: 0 }], mode: 'PING_PONG', speed: 1, pauseSeconds: 0 },
+              moving: {
+                path: [
+                  { x: 0, y: 0, z: 0 },
+                  { x: 6, y: 0, z: 0 },
+                ],
+                mode: 'PING_PONG',
+                speed: 1,
+                pauseSeconds: 0,
+              },
             },
           ],
         },
@@ -267,7 +359,14 @@ describe('standard engine: host and lifecycle', () => {
     const { handle, tick } = await engine([
       LOCOMOTION,
       { id: 'movement.jump' },
-      { id: 'gameplay.checkpoints', config: { checkpoints: [{ id: 'cp', courseId: 'c', position: { x: 0, y: 0, z: 0 }, yaw: 0, label: 'start' }] } },
+      {
+        id: 'gameplay.checkpoints',
+        config: {
+          checkpoints: [
+            { id: 'cp', courseId: 'c', position: { x: 0, y: 0, z: 0 }, yaw: 0, label: 'start' },
+          ],
+        },
+      },
     ]);
     tick(0.2);
     expect(handle.runtime.world.size).toBeGreaterThan(0);
@@ -280,7 +379,11 @@ describe('standard engine: host and lifecycle', () => {
 
   it('rejects invalid requests and disposes', async () => {
     await expect(
-      createStandardEngine({ id: 'bad', requests: [{ id: 'movement.jump', config: { jumpHeight: 99 } }], input: () => ({ move: { forward: 0, strafe: 0 } }) }),
+      createStandardEngine({
+        id: 'bad',
+        requests: [{ id: 'movement.jump', config: { jumpHeight: 99 } }],
+        input: () => ({ move: { forward: 0, strafe: 0 } }),
+      }),
     ).rejects.toThrow(/invalid/);
   });
 });

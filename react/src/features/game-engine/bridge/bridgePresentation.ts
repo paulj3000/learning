@@ -1,4 +1,18 @@
-import { Box3, BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SphereGeometry, Vector3, type Material, type Object3D, type Scene } from 'three';
+import {
+  Box3,
+  BoxGeometry,
+  DoubleSide,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  SphereGeometry,
+  Vector3,
+  type Material,
+  type Object3D,
+  type Scene,
+} from 'three';
 import {
   LightingService,
   ParticlesService,
@@ -43,7 +57,9 @@ const MAX_TELEGRAPH_SEGMENTS = 16;
 type GroundSampler = (x: number, z: number) => number | null;
 
 /** The host's ground query, with non-finite answers treated as unknown; null without one. */
-function groundSampler(source: ((x: number, z: number) => number | null) | undefined): GroundSampler | null {
+function groundSampler(
+  source: ((x: number, z: number) => number | null) | undefined,
+): GroundSampler | null {
   if (!source) return null;
   return (x, z) => {
     const y = source(x, z);
@@ -55,7 +71,14 @@ function groundSampler(source: ((x: number, z: number) => number | null) | undef
  * GE-L14: sets each vertex of a horizontal plane (centred on cx, cz, drawn at x/z `scale`) to the
  * ground under where it will be drawn, plus `lift`. Unknown ground is y 0, the flat fallback.
  */
-function drape(plane: PlaneGeometry, cx: number, cz: number, scale: number, ground: GroundSampler, lift: number): void {
+function drape(
+  plane: PlaneGeometry,
+  cx: number,
+  cz: number,
+  scale: number,
+  ground: GroundSampler,
+  lift: number,
+): void {
   const positions = plane.getAttribute('position');
   for (let i = 0; i < positions.count; i += 1) {
     const x = cx + positions.getX(i) * scale;
@@ -117,7 +140,12 @@ interface HazardView {
  * Materials are cloned so the crumble blink never touches the shared, cached asset; geometry is
  * the cache's and is not disposed here. Null when the model has no measurable size.
  */
-function fitModel(source: Object3D, size: { x: number; y: number; z: number }, scope: EngineRuntime<EventMap>['resources'], materials: Material[]): Group | null {
+function fitModel(
+  source: Object3D,
+  size: { x: number; y: number; z: number },
+  scope: EngineRuntime<EventMap>['resources'],
+  materials: Material[],
+): Group | null {
   const clone = source.clone(true);
   const box = new Box3().setFromObject(clone);
   const extent = box.getSize(new Vector3());
@@ -150,7 +178,11 @@ function fitModel(source: Object3D, size: { x: number; y: number; z: number }, s
   return group;
 }
 
-export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene: Scene, options: BridgePresentationOptions): BridgePresentation {
+export function mountBridgePresentation(
+  runtime: EngineRuntime<EventMap>,
+  scene: Scene,
+  options: BridgePresentationOptions,
+): BridgePresentation {
   const scope = runtime.resources;
   let elapsed = 0;
 
@@ -165,11 +197,18 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
   // --- platforms ---
   const platforms: PlatformView[] = [];
   const platformsApi = runtime.services.get(PlatformsService);
-  const platformSpecs = runtime.capabilityConfig<{ platforms?: PlatformSpec[] }>('gameplay.platforms')?.platforms ?? [];
+  const platformSpecs =
+    runtime.capabilityConfig<{ platforms?: PlatformSpec[] }>('gameplay.platforms')?.platforms ?? [];
   if (platformsApi) {
     for (const spec of platformSpecs) {
       const geometry = scope.track(new BoxGeometry(spec.size.x, spec.size.y, spec.size.z));
-      const material = scope.track(new MeshStandardMaterial({ color: spec.color ?? DEFAULT_PLATFORM_COLOR, transparent: true, opacity: 1 }));
+      const material = scope.track(
+        new MeshStandardMaterial({
+          color: spec.color ?? DEFAULT_PLATFORM_COLOR,
+          transparent: true,
+          opacity: 1,
+        }),
+      );
       const mesh = addMesh(new Mesh(geometry, material));
       mesh.name = `engine.platform.${spec.id}`;
       mesh.visible = false;
@@ -203,15 +242,21 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
 
   // --- hazard telegraphs ---
   const hazards = new Map<string, HazardView>();
-  const hazardSpecs = runtime.capabilityConfig<{ telegraphed?: TelegraphedHazardSpec[] }>('gameplay.hazards')?.telegraphed ?? [];
+  const hazardSpecs =
+    runtime.capabilityConfig<{ telegraphed?: TelegraphedHazardSpec[] }>('gameplay.hazards')
+      ?.telegraphed ?? [];
   for (const spec of hazardSpecs) {
     const width = spec.rect.maxX - spec.rect.minX;
     const depth = spec.rect.maxZ - spec.rect.minZ;
     const cx = (spec.rect.minX + spec.rect.maxX) / 2;
     const cz = (spec.rect.minZ + spec.rect.maxZ) / 2;
     const terrain = groundSampler(options.groundHeightAt);
-    const segX = terrain ? Math.min(MAX_TELEGRAPH_SEGMENTS, Math.max(1, Math.ceil(width / TELEGRAPH_SEGMENT_METRES))) : 1;
-    const segZ = terrain ? Math.min(MAX_TELEGRAPH_SEGMENTS, Math.max(1, Math.ceil(depth / TELEGRAPH_SEGMENT_METRES))) : 1;
+    const segX = terrain
+      ? Math.min(MAX_TELEGRAPH_SEGMENTS, Math.max(1, Math.ceil(width / TELEGRAPH_SEGMENT_METRES)))
+      : 1;
+    const segZ = terrain
+      ? Math.min(MAX_TELEGRAPH_SEGMENTS, Math.max(1, Math.ceil(depth / TELEGRAPH_SEGMENT_METRES)))
+      : 1;
     const plane = scope.track(new PlaneGeometry(width, depth, segX, segZ));
     plane.rotateX(-Math.PI / 2);
     // The fill shrinks in x and z during the warning, so it needs its own vertices to re-drape.
@@ -220,12 +265,30 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
       drape(plane, cx, cz, 1, terrain, GROUND_LIFT);
       drape(fillPlane, cx, cz, 1, terrain, GROUND_LIFT + 0.005);
     }
-    const outlineMaterial = scope.track(new MeshBasicMaterial({ color: 0xffb703, transparent: true, opacity: 0.25, side: DoubleSide, depthWrite: false }));
-    const fillMaterial = scope.track(new MeshBasicMaterial({ color: 0xe76f51, transparent: true, opacity: 0.55, side: DoubleSide, depthWrite: false }));
+    const outlineMaterial = scope.track(
+      new MeshBasicMaterial({
+        color: 0xffb703,
+        transparent: true,
+        opacity: 0.25,
+        side: DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    const fillMaterial = scope.track(
+      new MeshBasicMaterial({
+        color: 0xe76f51,
+        transparent: true,
+        opacity: 0.55,
+        side: DoubleSide,
+        depthWrite: false,
+      }),
+    );
     const rockMaterial = scope.track(new MeshStandardMaterial({ color: 0x7a6a5a }));
     const outline = addMesh(new Mesh(plane, outlineMaterial));
     const fill = addMesh(new Mesh(fillPlane, fillMaterial));
-    const rock = addMesh(new Mesh(scope.track(new SphereGeometry(ROCK_RADIUS, 12, 8)), rockMaterial));
+    const rock = addMesh(
+      new Mesh(scope.track(new SphereGeometry(ROCK_RADIUS, 12, 8)), rockMaterial),
+    );
     outline.name = `engine.hazard.${spec.id}.outline`;
     fill.name = `engine.hazard.${spec.id}.fill`;
     rock.name = `engine.hazard.${spec.id}.object`;
@@ -244,7 +307,16 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
           drape(fillPlane, cx, cz, scale, terrain, GROUND_LIFT + 0.005);
         }
       : null;
-    hazards.set(spec.id, { spec, outline, fill, rock, phase: 'REST', clock: 0, groundY, drapeFill });
+    hazards.set(spec.id, {
+      spec,
+      outline,
+      fill,
+      rock,
+      phase: 'REST',
+      clock: 0,
+      groundY,
+      drapeFill,
+    });
   }
   if (hazards.size > 0) {
     scope.track(
@@ -265,7 +337,10 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
   const particles = runtime.services.get(ParticlesService);
   let lightingView: LightingView | null = null;
   let weatherView: WeatherView | null = null;
-  const particleViews: { view: ParticleView; handle: ReturnType<NonNullable<typeof particles>['emitters']>[number] }[] = [];
+  const particleViews: {
+    view: ParticleView;
+    handle: ReturnType<NonNullable<typeof particles>['emitters']>[number];
+  }[] = [];
   if (lighting) {
     lightingView = createLightingView(scene, scope, lighting);
   }
@@ -276,14 +351,28 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
     weatherView = createWeatherView(scene, scope, weather, {
       tier,
       reducedMotion: options.reducedMotion,
-      area: { x: options.center.x, y: 0, z: options.center.z, halfX: area.halfX, halfZ: area.halfZ, height: area.height },
+      area: {
+        x: options.center.x,
+        y: 0,
+        z: options.center.z,
+        halfX: area.halfX,
+        halfZ: area.halfZ,
+        height: area.height,
+      },
       ...(follow ? { follow } : {}),
     });
   }
   if (particles) {
     for (const handle of particles.emitters()) {
       const spec = handle.effective().spec;
-      particleViews.push({ view: createParticleView(scene, scope, handle.pool.capacity, { name: `engine.particles.${handle.id}`, color: spec.color, size: spec.size }), handle });
+      particleViews.push({
+        view: createParticleView(scene, scope, handle.pool.capacity, {
+          name: `engine.particles.${handle.id}`,
+          color: spec.color,
+          size: spec.size,
+        }),
+        handle,
+      });
     }
   }
 
@@ -304,7 +393,11 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
           // GE-L15: a turntable's mesh (and its model) turns with the simulated yaw.
           mesh.rotation.y = platformsApi.yawOf(spec.id) ?? 0;
           if (phase === 'CRUMBLING') {
-            material.opacity = reduced ? DIM_OPACITY : Math.sin(elapsed * Math.PI * 2 * BLINK_HERTZ) > 0 ? 1 : DIM_OPACITY;
+            material.opacity = reduced
+              ? DIM_OPACITY
+              : Math.sin(elapsed * Math.PI * 2 * BLINK_HERTZ) > 0
+                ? 1
+                : DIM_OPACITY;
           } else {
             material.opacity = 1;
           }
@@ -330,7 +423,8 @@ export function mountBridgePresentation(runtime: EngineRuntime<EventMap>, scene:
           view.fill.scale.set(1, 1, 1);
           view.drapeFill?.(1);
           const fall = Math.min(1, view.clock / Math.max(0.1, view.spec.activeSeconds));
-          view.rock.position.y = view.groundY + ROCK_START_HEIGHT * (1 - fall * fall) + ROCK_RADIUS * fall * fall;
+          view.rock.position.y =
+            view.groundY + ROCK_START_HEIGHT * (1 - fall * fall) + ROCK_RADIUS * fall * fall;
         }
       }
       lightingView?.update();

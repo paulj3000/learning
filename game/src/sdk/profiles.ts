@@ -29,7 +29,9 @@ type ControllerJumpLimitKey = keyof typeof CONTROLLER_JUMP_LIMITS;
  * `JUMP_LIMITS` (`movement/jumpConfiguration.ts`) so the SDK and the controller can never
  * disagree.
  */
-export const JUMP_LIMIT_RANGES: { readonly [K in ControllerJumpLimitKey]: readonly [number, number] } = Object.freeze(
+export const JUMP_LIMIT_RANGES: {
+  readonly [K in ControllerJumpLimitKey]: readonly [number, number];
+} = Object.freeze(
   Object.fromEntries(
     (Object.keys(CONTROLLER_JUMP_LIMITS) as ControllerJumpLimitKey[]).map((key) => [
       key,
@@ -81,7 +83,9 @@ export interface DifficultyProfile {
 
 export interface ProfileOverrides {
   movement?: { walkSpeed?: number; guidedSteering?: boolean; jump?: Partial<JumpProfile> };
-  difficulty?: Partial<Omit<DifficultyProfile, 'hazardsOnRequiredRoutes'>> & { hazardsOnRequiredRoutes?: boolean };
+  difficulty?: Partial<Omit<DifficultyProfile, 'hazardsOnRequiredRoutes'>> & {
+    hazardsOnRequiredRoutes?: boolean;
+  };
 }
 
 /** A clamped or refused override: the author asked for `requested` and got `applied`. */
@@ -177,7 +181,10 @@ const DEFAULT_DIFFICULTY: Record<AgeBand, DifficultyProfile> = {
 };
 
 /** Ceilings an override may not exceed for a band (the jumping standard's band expectations). */
-const DIFFICULTY_CEILINGS: Record<AgeBand, { gap: number; height: number; consecutive: number; speed: number }> = {
+const DIFFICULTY_CEILINGS: Record<
+  AgeBand,
+  { gap: number; height: number; consecutive: number; speed: number }
+> = {
   SPROUT: { gap: 0.8, height: 0.6, consecutive: 1, speed: 0 },
   PATHFINDER: { gap: 1.2, height: 1.2, consecutive: 4, speed: 1.5 },
   EXPLORER: { gap: 2.5, height: 2.5, consecutive: 8, speed: 4 },
@@ -208,7 +215,12 @@ function applyNumber<T extends object>(
   }
   const current = target[key];
   if (typeof raw !== 'number' || !Number.isFinite(raw)) {
-    issues.push({ path, message: 'must be a finite number; the band default was kept', requested: raw, applied: current });
+    issues.push({
+      path,
+      message: 'must be a finite number; the band default was kept',
+      requested: raw,
+      applied: current,
+    });
     return;
   }
   let value = Math.min(bounds[1], Math.max(bounds[0], raw));
@@ -216,7 +228,12 @@ function applyNumber<T extends object>(
     value = Math.round(value);
   }
   if (value !== raw) {
-    issues.push({ path, message: `was clamped to the allowed range ${bounds[0]} to ${bounds[1]}`, requested: raw, applied: value });
+    issues.push({
+      path,
+      message: `was clamped to the allowed range ${bounds[0]} to ${bounds[1]}`,
+      requested: raw,
+      applied: value,
+    });
   }
   (target as Record<string, unknown>)[key] = value;
 }
@@ -233,11 +250,21 @@ function applyBoolean<T extends object>(
     return;
   }
   if (typeof raw !== 'boolean') {
-    issues.push({ path, message: 'must be true or false; the band default was kept', requested: raw, applied: target[key] });
+    issues.push({
+      path,
+      message: 'must be true or false; the band default was kept',
+      requested: raw,
+      applied: target[key],
+    });
     return;
   }
   if (forced !== undefined && raw !== forced) {
-    issues.push({ path, message: `must be ${forced} for this band or field; the override was refused`, requested: raw, applied: forced });
+    issues.push({
+      path,
+      message: `must be ${forced} for this band or field; the override was refused`,
+      requested: raw,
+      applied: forced,
+    });
     (target as Record<string, unknown>)[key] = forced;
     return;
   }
@@ -257,21 +284,65 @@ export function resolveProfile(band: AgeBand, overrides: ProfileOverrides = {}):
   const movementOverride: unknown = overrides.movement;
   if (movementOverride !== undefined) {
     if (!isRecord(movementOverride)) {
-      issues.push({ path: 'movement', message: 'must be an object', requested: movementOverride, applied: null });
+      issues.push({
+        path: 'movement',
+        message: 'must be an object',
+        requested: movementOverride,
+        applied: null,
+      });
     } else {
-      applyNumber(movement, 'walkSpeed', movementOverride.walkSpeed, WALK_SPEED_LIMIT, 'movement.walkSpeed', issues);
-      applyBoolean(movement, 'guidedSteering', movementOverride.guidedSteering, 'movement.guidedSteering', issues);
+      applyNumber(
+        movement,
+        'walkSpeed',
+        movementOverride.walkSpeed,
+        WALK_SPEED_LIMIT,
+        'movement.walkSpeed',
+        issues,
+      );
+      applyBoolean(
+        movement,
+        'guidedSteering',
+        movementOverride.guidedSteering,
+        'movement.guidedSteering',
+        issues,
+      );
       const jumpOverride = movementOverride.jump;
       if (jumpOverride !== undefined) {
         if (!isRecord(jumpOverride)) {
-          issues.push({ path: 'movement.jump', message: 'must be an object', requested: jumpOverride, applied: null });
+          issues.push({
+            path: 'movement.jump',
+            message: 'must be an object',
+            requested: jumpOverride,
+            applied: null,
+          });
         } else {
           const jump = movement.jump;
           applyBoolean(jump, 'enabled', jumpOverride.enabled, 'movement.jump.enabled', issues);
-          for (const key of ['jumpHeight', 'gravity', 'airControl', 'maxFallSpeed', 'coyoteTimeMs', 'jumpBufferMs'] as const) {
-            applyNumber(jump, key, jumpOverride[key], JUMP_LIMIT_RANGES[key as ControllerJumpLimitKey], `movement.jump.${key}`, issues);
+          for (const key of [
+            'jumpHeight',
+            'gravity',
+            'airControl',
+            'maxFallSpeed',
+            'coyoteTimeMs',
+            'jumpBufferMs',
+          ] as const) {
+            applyNumber(
+              jump,
+              key,
+              jumpOverride[key],
+              JUMP_LIMIT_RANGES[key as ControllerJumpLimitKey],
+              `movement.jump.${key}`,
+              issues,
+            );
           }
-          applyBoolean(jump, 'allowDoubleJump', jumpOverride.allowDoubleJump, 'movement.jump.allowDoubleJump', issues, band === 'SPROUT' ? false : undefined);
+          applyBoolean(
+            jump,
+            'allowDoubleJump',
+            jumpOverride.allowDoubleJump,
+            'movement.jump.allowDoubleJump',
+            issues,
+            band === 'SPROUT' ? false : undefined,
+          );
         }
       }
     }
@@ -280,19 +351,79 @@ export function resolveProfile(band: AgeBand, overrides: ProfileOverrides = {}):
   const difficultyOverride: unknown = overrides.difficulty;
   if (difficultyOverride !== undefined) {
     if (!isRecord(difficultyOverride)) {
-      issues.push({ path: 'difficulty', message: 'must be an object', requested: difficultyOverride, applied: null });
+      issues.push({
+        path: 'difficulty',
+        message: 'must be an object',
+        requested: difficultyOverride,
+        applied: null,
+      });
     } else {
-      applyNumber(difficulty, 'maxGapMeters', difficultyOverride.maxGapMeters, [0, ceilings.gap], 'difficulty.maxGapMeters', issues);
-      applyNumber(difficulty, 'maxPlatformHeightMeters', difficultyOverride.maxPlatformHeightMeters, [0, ceilings.height], 'difficulty.maxPlatformHeightMeters', issues);
-      applyNumber(difficulty, 'maxConsecutiveJumps', difficultyOverride.maxConsecutiveJumps, [1, ceilings.consecutive], 'difficulty.maxConsecutiveJumps', issues, { integer: true });
-      applyNumber(difficulty, 'maxMovingPlatformSpeed', difficultyOverride.maxMovingPlatformSpeed, [0, ceilings.speed], 'difficulty.maxMovingPlatformSpeed', issues);
-      applyNumber(difficulty, 'checkpointEveryJumps', difficultyOverride.checkpointEveryJumps, [1, 12], 'difficulty.checkpointEveryJumps', issues, { integer: true });
-      applyBoolean(difficulty, 'allowVanishingPlatforms', difficultyOverride.allowVanishingPlatforms, 'difficulty.allowVanishingPlatforms', issues, band === 'SPROUT' ? false : undefined);
-      applyBoolean(difficulty, 'jumpRoutesOptionalOnly', difficultyOverride.jumpRoutesOptionalOnly, 'difficulty.jumpRoutesOptionalOnly', issues, band === 'SPROUT' ? true : undefined);
-      if (difficultyOverride.hazardsOnRequiredRoutes !== undefined && difficultyOverride.hazardsOnRequiredRoutes !== false) {
+      applyNumber(
+        difficulty,
+        'maxGapMeters',
+        difficultyOverride.maxGapMeters,
+        [0, ceilings.gap],
+        'difficulty.maxGapMeters',
+        issues,
+      );
+      applyNumber(
+        difficulty,
+        'maxPlatformHeightMeters',
+        difficultyOverride.maxPlatformHeightMeters,
+        [0, ceilings.height],
+        'difficulty.maxPlatformHeightMeters',
+        issues,
+      );
+      applyNumber(
+        difficulty,
+        'maxConsecutiveJumps',
+        difficultyOverride.maxConsecutiveJumps,
+        [1, ceilings.consecutive],
+        'difficulty.maxConsecutiveJumps',
+        issues,
+        { integer: true },
+      );
+      applyNumber(
+        difficulty,
+        'maxMovingPlatformSpeed',
+        difficultyOverride.maxMovingPlatformSpeed,
+        [0, ceilings.speed],
+        'difficulty.maxMovingPlatformSpeed',
+        issues,
+      );
+      applyNumber(
+        difficulty,
+        'checkpointEveryJumps',
+        difficultyOverride.checkpointEveryJumps,
+        [1, 12],
+        'difficulty.checkpointEveryJumps',
+        issues,
+        { integer: true },
+      );
+      applyBoolean(
+        difficulty,
+        'allowVanishingPlatforms',
+        difficultyOverride.allowVanishingPlatforms,
+        'difficulty.allowVanishingPlatforms',
+        issues,
+        band === 'SPROUT' ? false : undefined,
+      );
+      applyBoolean(
+        difficulty,
+        'jumpRoutesOptionalOnly',
+        difficultyOverride.jumpRoutesOptionalOnly,
+        'difficulty.jumpRoutesOptionalOnly',
+        issues,
+        band === 'SPROUT' ? true : undefined,
+      );
+      if (
+        difficultyOverride.hazardsOnRequiredRoutes !== undefined &&
+        difficultyOverride.hazardsOnRequiredRoutes !== false
+      ) {
         issues.push({
           path: 'difficulty.hazardsOnRequiredRoutes',
-          message: 'must be false: no hazard may sit on a route a child needs; the override was refused',
+          message:
+            'must be false: no hazard may sit on a route a child needs; the override was refused',
           requested: difficultyOverride.hazardsOnRequiredRoutes,
           applied: false,
         });

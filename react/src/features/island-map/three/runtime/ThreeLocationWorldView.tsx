@@ -49,7 +49,11 @@ import {
 } from './manifestBindings';
 import { WorldActionPanel } from './WorldActionPanel';
 import type { AnyGameplayEvent } from '@lai/game-engine/contracts';
-import { EXPLORE_ADVENTURE_PREFIX, setDefaultLocationClaimsBinding, setLocationClaimSink } from './gameplayClaimSink';
+import {
+  EXPLORE_ADVENTURE_PREFIX,
+  setDefaultLocationClaimsBinding,
+  setLocationClaimSink,
+} from './gameplayClaimSink';
 import type { LocationViewExtensionRegistry } from './viewExtensionRegistry';
 import { SOURCE_VIEW_EXTENSIONS } from '../extensions/viewExtensions';
 import { chooseRenderQuality, deviceHintsFromNavigator } from './visual/renderQuality';
@@ -347,7 +351,9 @@ export function ThreeLocationWorldView({
     if (!manifest) return;
     const checkpointIds = new Set(manifest.checkpoints.ids);
     const savedCheckpointIds = new Set(
-      ALL_CHECKPOINTS.filter((checkpoint) => checkpoint.regionId === manifest.regionId).map((checkpoint) => checkpoint.id),
+      ALL_CHECKPOINTS.filter((checkpoint) => checkpoint.regionId === manifest.regionId).map(
+        (checkpoint) => checkpoint.id,
+      ),
     );
     // Unsubscribed one by one: `removeAllListeners` would also drop listeners
     // this view does not own (the hazard the duplication audit found).
@@ -405,14 +411,23 @@ export function ThreeLocationWorldView({
       bus.on('CourseCheckpointReached', ({ checkpointId, label }) => {
         if (savedCheckpointIds.has(checkpointId)) {
           void pendingWrites.track(saveCheckpoint(childId, checkpointId)).catch(() => undefined);
-          setToast(checkpointToast(manifest, 'found', checkpointId) ?? checkpointReachedText(label));
+          setToast(
+            checkpointToast(manifest, 'found', checkpointId) ?? checkpointReachedText(label),
+          );
           return;
         }
         setToast(checkpointReachedText(label));
       }),
       bus.on('PlayerRecovered', ({ reason, checkpointId, hazardId }) => {
         if (reason === 'HAZARD' || checkpointId) {
-          setToast(recoveredText(manifest.platforming, checkpointId, bridgeCheckpointLabels(manifest), hazardId));
+          setToast(
+            recoveredText(
+              manifest.platforming,
+              checkpointId,
+              bridgeCheckpointLabels(manifest),
+              hazardId,
+            ),
+          );
         }
       }),
       bus.on('PlayerEnteredZone', ({ zoneId }) => {
@@ -737,7 +752,9 @@ export function ThreeLocationWorldView({
  * GE-065: checkpoint labels from the engine bridge's `gameplay.checkpoints` config (an Area whose
  * one checkpoint list lives in `scene.engineBridge`), so a recovery still says where it went.
  */
-export function bridgeCheckpointLabels(manifest: ThreeLocationManifest): ReadonlyMap<string, string> {
+export function bridgeCheckpointLabels(
+  manifest: ThreeLocationManifest,
+): ReadonlyMap<string, string> {
   const labels = new Map<string, string>();
   for (const binding of manifest.extensions ?? []) {
     if (binding.extensionId !== 'engineBridge') continue;
@@ -745,9 +762,11 @@ export function bridgeCheckpointLabels(manifest: ThreeLocationManifest): Readonl
     if (!Array.isArray(capabilities)) continue;
     for (const entry of capabilities) {
       const request = entry as { id?: unknown; config?: { checkpoints?: unknown } };
-      if (request.id !== 'gameplay.checkpoints' || !Array.isArray(request.config?.checkpoints)) continue;
+      if (request.id !== 'gameplay.checkpoints' || !Array.isArray(request.config?.checkpoints))
+        continue;
       for (const point of request.config.checkpoints as { id?: unknown; label?: unknown }[]) {
-        if (typeof point.id === 'string' && typeof point.label === 'string') labels.set(point.id, point.label);
+        if (typeof point.id === 'string' && typeof point.label === 'string')
+          labels.set(point.id, point.label);
       }
     }
   }

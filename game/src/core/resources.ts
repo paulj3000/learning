@@ -47,7 +47,10 @@ function runDisposer(resource: Disposer): void {
   }
 }
 
-export function createResourceScope(name: string, options: ResourceScopeOptions = {}): ResourceScope {
+export function createResourceScope(
+  name: string,
+  options: ResourceScopeOptions = {},
+): ResourceScope {
   const resources: Disposer[] = [];
   const children: ResourceScope[] = [];
   let disposed = false;

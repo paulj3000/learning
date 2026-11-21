@@ -22,7 +22,12 @@ import type { EngineSystem } from '../core/systems';
 import type { EnvironmentQuery } from '../contracts/physics';
 import { DEFAULT_SURFACE } from '../contracts/physics';
 import type { EnginePresentationEventMap } from '../contracts/engineEvents';
-import { PLAYER_ENTITY_ID, PlayerTransformComponent, createPlayerTransform, type PlayerGait } from '../contracts/player';
+import {
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  createPlayerTransform,
+  type PlayerGait,
+} from '../contracts/player';
 import type { AabbPhysicsProvider } from '../physics/aabbProvider';
 
 /** One simulation step of player input, polled by the movement system. */
@@ -59,7 +64,10 @@ export interface MovementSystemOptions {
   recoveryDetails?: () => { checkpointId?: string | null; hazardId?: string | null } | null;
 }
 
-export type MovementRuntime = Pick<EngineRuntime<EnginePresentationEventMap>, 'world' | 'events' | 'systems'>;
+export type MovementRuntime = Pick<
+  EngineRuntime<EnginePresentationEventMap>,
+  'world' | 'events' | 'systems'
+>;
 
 export interface MovementSystemHandle {
   readonly system: EngineSystem;
@@ -76,7 +84,10 @@ export interface MovementSystemHandle {
 }
 
 /** Installs the system on a runtime and creates the `player` entity with its transform. */
-export function installMovementSystem(runtime: MovementRuntime, options: MovementSystemOptions): MovementSystemHandle {
+export function installMovementSystem(
+  runtime: MovementRuntime,
+  options: MovementSystemOptions,
+): MovementSystemHandle {
   const { controller, input, physics, checkpoints } = options;
   const world = runtime.world;
   let entity = world.bySemanticId(PLAYER_ENTITY_ID);
@@ -124,7 +135,11 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
       if (frame.jumpPressed) {
         controller.pressJump();
       }
-      const before = { x: controller.position.x, y: controller.position.y, z: controller.position.z };
+      const before = {
+        x: controller.position.x,
+        y: controller.position.y,
+        z: controller.position.z,
+      };
       controller.update(dt, frame.move);
 
       const events = runtime.events;
@@ -138,10 +153,15 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
             break;
           case 'RECOVERED': {
             const details = options.recoveryDetails?.() ?? null;
-            const checkpointId = details?.checkpointId !== undefined ? details.checkpointId : (checkpoints?.latest()?.id ?? null);
+            const checkpointId =
+              details?.checkpointId !== undefined
+                ? details.checkpointId
+                : (checkpoints?.latest()?.id ?? null);
             events.emit(
               'PlayerRecovered',
-              details?.hazardId ? { reason: event.reason, checkpointId, hazardId: details.hazardId } : { reason: event.reason, checkpointId },
+              details?.hazardId
+                ? { reason: event.reason, checkpointId, hazardId: details.hazardId }
+                : { reason: event.reason, checkpointId },
             );
             break;
           }
@@ -177,7 +197,6 @@ export function installMovementSystem(runtime: MovementRuntime, options: Movemen
       } else {
         stride = 0;
       }
-
     },
   };
   const remove = runtime.systems.add(system);
@@ -209,7 +228,12 @@ export interface MovementEnvironmentOptions {
 /** The features the runtime has installed, for `gateEnvironment`. */
 export function installedMovementFeatures(runtime: Pick<EngineRuntime, 'installed'>): Set<string> {
   const on = new Set<string>();
-  for (const id of [MOVEMENT_SURFACES, MOVEMENT_EXTERNAL_FORCES, MOVEMENT_SWIMMING, MOVEMENT_CLIMBING]) {
+  for (const id of [
+    MOVEMENT_SURFACES,
+    MOVEMENT_EXTERNAL_FORCES,
+    MOVEMENT_SWIMMING,
+    MOVEMENT_CLIMBING,
+  ]) {
     const config = runtime.installed.get(id) as { enabled?: boolean } | undefined;
     if (runtime.installed.has(id) && config?.enabled !== false) {
       on.add(id);
@@ -219,10 +243,15 @@ export function installedMovementFeatures(runtime: Pick<EngineRuntime, 'installe
 }
 
 export function reducedMotionScaleOf(runtime: Pick<EngineRuntime, 'capabilityConfig'>): number {
-  return runtime.capabilityConfig<ExternalForcesConfig>(MOVEMENT_EXTERNAL_FORCES)?.reducedMotionScale ?? 0.5;
+  return (
+    runtime.capabilityConfig<ExternalForcesConfig>(MOVEMENT_EXTERNAL_FORCES)?.reducedMotionScale ??
+    0.5
+  );
 }
 
-export function maxWalkableSlopeOf(runtime: Pick<EngineRuntime, 'capabilityConfig'>): number | undefined {
+export function maxWalkableSlopeOf(
+  runtime: Pick<EngineRuntime, 'capabilityConfig'>,
+): number | undefined {
   return runtime.capabilityConfig<SurfacesConfig>(MOVEMENT_SURFACES)?.maxWalkableSlope ?? undefined;
 }
 
@@ -231,11 +260,15 @@ export function maxWalkableSlopeOf(runtime: Pick<EngineRuntime, 'capabilityConfi
  * that authors water but does not enable `movement.swimming` is just ground. Pass the result
  * as the controller's `environment` option.
  */
-export function gateEnvironment(source: EnvironmentQuery, options: MovementEnvironmentOptions): EnvironmentQuery {
+export function gateEnvironment(
+  source: EnvironmentQuery,
+  options: MovementEnvironmentOptions,
+): EnvironmentQuery {
   const { features } = options;
   const scale = options.reducedMotionScale ?? 0.5;
   return {
-    surfaceAt: (x, y, z) => (features.has(MOVEMENT_SURFACES) ? source.surfaceAt(x, y, z) : DEFAULT_SURFACE),
+    surfaceAt: (x, y, z) =>
+      features.has(MOVEMENT_SURFACES) ? source.surfaceAt(x, y, z) : DEFAULT_SURFACE,
     forcesAt: (x, y, z) => {
       if (!features.has(MOVEMENT_EXTERNAL_FORCES)) {
         return [];
@@ -246,11 +279,17 @@ export function gateEnvironment(source: EnvironmentQuery, options: MovementEnvir
       }
       return forces.map((force) => ({
         ...force,
-        acceleration: { x: force.acceleration.x * scale, y: force.acceleration.y * scale, z: force.acceleration.z * scale },
+        acceleration: {
+          x: force.acceleration.x * scale,
+          y: force.acceleration.y * scale,
+          z: force.acceleration.z * scale,
+        },
       }));
     },
     mediumAt: (x, y, z) => (features.has(MOVEMENT_SWIMMING) ? source.mediumAt(x, y, z) : 'AIR'),
-    waterSurfaceAt: (x, z) => (features.has(MOVEMENT_SWIMMING) ? source.waterSurfaceAt(x, z) : null),
-    climbableAt: (x, y, z) => (features.has(MOVEMENT_CLIMBING) ? source.climbableAt(x, y, z) : null),
+    waterSurfaceAt: (x, z) =>
+      features.has(MOVEMENT_SWIMMING) ? source.waterSurfaceAt(x, z) : null,
+    climbableAt: (x, y, z) =>
+      features.has(MOVEMENT_CLIMBING) ? source.climbableAt(x, y, z) : null,
   };
 }

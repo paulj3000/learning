@@ -48,9 +48,17 @@ const engineFeatureFiles = walk(ENGINE_FEATURE);
 const gameFiles = walk(GAME_SRC);
 
 const packageExports = Object.keys(
-  (JSON.parse(readFileSync(join(GAME_ROOT, 'package.json'), 'utf8')) as { exports: Record<string, string> }).exports,
+  (
+    JSON.parse(readFileSync(join(GAME_ROOT, 'package.json'), 'utf8')) as {
+      exports: Record<string, string>;
+    }
+  ).exports,
 );
-const allowedSubpaths = new Set(packageExports.filter((key) => key !== './*').map((key) => (key === '.' ? '@lai/game-engine' : `@lai/game-engine/${key.slice(2)}`)));
+const allowedSubpaths = new Set(
+  packageExports
+    .filter((key) => key !== './*')
+    .map((key) => (key === '.' ? '@lai/game-engine' : `@lai/game-engine/${key.slice(2)}`)),
+);
 
 describe('import boundaries', () => {
   it('finds the source trees it is checking', () => {
@@ -109,16 +117,24 @@ describe('import boundaries', () => {
     for (const { file } of wildcardImports()) {
       const source = readFileSync(join(REACT_SRC, file), 'utf8');
       // A shim is nothing but a re-export of the engine module.
-      expect(source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').trim()).toMatch(/^export\s/);
+      expect(
+        source
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/\/\/.*$/gm, '')
+          .trim(),
+      ).toMatch(/^export\s/);
     }
   });
 
   // Defect GE-S1 (Low): the shims reach `@lai/game-engine/<dir>/<file>` through the package's
   // `./*` wildcard export, a deep path that bypasses the named exports. Pinned until the shims
   // import from the `./camera`, `./movement` and `./input` entry points.
-  it.fails('no react/ file imports an engine subpath that the exports map does not list explicitly', () => {
-    expect(wildcardImports()).toEqual([]);
-  });
+  it.fails(
+    'no react/ file imports an engine subpath that the exports map does not list explicitly',
+    () => {
+      expect(wildcardImports()).toEqual([]);
+    },
+  );
 
   it('React engine feature files import the engine only via package subpaths (and the engine is imported at all)', () => {
     let engineImports = 0;
@@ -150,7 +166,13 @@ describe('import boundaries', () => {
   it('game/ never imports react/, React, a DOM-only UI library or the react app by path', () => {
     const offenders = gameFiles.flatMap((file) =>
       specifiers(readFileSync(file, 'utf8'))
-        .filter((spec) => /^react(-dom)?(\/|$)/.test(spec) || /^@testing-library\//.test(spec) || /(^|\/)react\/src(\/|$)/.test(spec) || /^@lai\/(?!game-engine)/.test(spec))
+        .filter(
+          (spec) =>
+            /^react(-dom)?(\/|$)/.test(spec) ||
+            /^@testing-library\//.test(spec) ||
+            /(^|\/)react\/src(\/|$)/.test(spec) ||
+            /^@lai\/(?!game-engine)/.test(spec),
+        )
         .map((spec) => `${relative(GAME_SRC, file)} -> ${spec}`),
     );
     expect(offenders).toEqual([]);

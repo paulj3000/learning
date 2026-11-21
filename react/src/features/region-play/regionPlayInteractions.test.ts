@@ -104,7 +104,13 @@ describe('usesLegacyNpcDialogue (a managed NPC with a return puzzle)', () => {
     dialogue: [],
   };
   const puzzle = (over: Partial<PuzzleState>) =>
-    ({ puzzleId: 'fh-heart-return', kind: 'RETURN_TO_NPC', locked: false, solved: false, ...over }) as PuzzleState;
+    ({
+      puzzleId: 'fh-heart-return',
+      kind: 'RETURN_TO_NPC',
+      locked: false,
+      solved: false,
+      ...over,
+    }) as PuzzleState;
   const managed = new Set(['ignis']);
 
   it('keeps an unmanaged NPC on the legacy panel, as before', () => {
@@ -125,10 +131,16 @@ describe('usesLegacyNpcDialogue (a managed NPC with a return puzzle)', () => {
       prompt: 'Shall we go?',
       adventure: { adventureId: 'a-1', title: 'A new adventure', placeSlug: 'firepeak-heart' },
     };
-    expect(usesLegacyNpcDialogue({ ...base, launches: [launch], returnPuzzle: null }, managed)).toBe(true);
+    expect(
+      usesLegacyNpcDialogue({ ...base, launches: [launch], returnPuzzle: null }, managed),
+    ).toBe(true);
   });
   it('hands back to the NPC Manager while the puzzle is locked or once it is solved', () => {
-    expect(usesLegacyNpcDialogue({ ...base, returnPuzzle: puzzle({ locked: true }) }, managed)).toBe(false);
-    expect(usesLegacyNpcDialogue({ ...base, returnPuzzle: puzzle({ solved: true }) }, managed)).toBe(false);
+    expect(
+      usesLegacyNpcDialogue({ ...base, returnPuzzle: puzzle({ locked: true }) }, managed),
+    ).toBe(false);
+    expect(
+      usesLegacyNpcDialogue({ ...base, returnPuzzle: puzzle({ solved: true }) }, managed),
+    ).toBe(false);
   });
 });

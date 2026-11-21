@@ -1,4 +1,7 @@
-import type { WorldEngineEventBus, WorldEngineEventMap } from '../../island-map/three/worldEngineEvents';
+import type {
+  WorldEngineEventBus,
+  WorldEngineEventMap,
+} from '../../island-map/three/worldEngineEvents';
 
 /**
  * GE-074: one footstep sound per step, chosen by the surface underfoot.

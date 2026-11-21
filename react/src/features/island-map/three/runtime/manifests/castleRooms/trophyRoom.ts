@@ -44,9 +44,27 @@ const TREASURE_SHAPES: Readonly<
   Record<string, { id: string; color: number; hx: number; hz: number; h: number }>
 > = {
   'storykeepers-quill': { id: 'castle-trophy-quill', color: FEATHER, hx: 0.03, hz: 0.14, h: 0.3 },
-  'blank-page-storybook': { id: 'castle-trophy-book', color: BOOK_COVER, hx: 0.14, hz: 0.1, h: 0.06 },
-  'great-storybook-seal': { id: 'castle-trophy-seal', color: SEAL_GOLD, hx: 0.12, hz: 0.12, h: 0.05 },
-  'painted-words-brush': { id: 'castle-trophy-brush', color: BRUSH_RED, hx: 0.025, hz: 0.025, h: 0.3 },
+  'blank-page-storybook': {
+    id: 'castle-trophy-book',
+    color: BOOK_COVER,
+    hx: 0.14,
+    hz: 0.1,
+    h: 0.06,
+  },
+  'great-storybook-seal': {
+    id: 'castle-trophy-seal',
+    color: SEAL_GOLD,
+    hx: 0.12,
+    hz: 0.12,
+    h: 0.05,
+  },
+  'painted-words-brush': {
+    id: 'castle-trophy-brush',
+    color: BRUSH_RED,
+    hx: 0.025,
+    hz: 0.025,
+    h: 0.3,
+  },
   'three-clues-lens': { id: 'castle-trophy-lens', color: LENS_GLASS, hx: 0.1, hz: 0.02, h: 0.2 },
   'secret-door-key': { id: 'castle-trophy-key', color: KEY_SILVER, hx: 0.13, hz: 0.03, h: 0.05 },
 };

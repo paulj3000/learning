@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AwardEntry, AwardFeed } from './types';
 
 const getScoringAwards = vi.fn<(childId: string, after?: string) => Promise<AwardFeed>>();
-vi.mock('./api', () => ({ getScoringAwards: (...args: [string, string?]) => getScoringAwards(...args) }));
+vi.mock('./api', () => ({
+  getScoringAwards: (...args: [string, string?]) => getScoringAwards(...args),
+}));
 
 const { useScoringClaims } = await import('./useScoringClaims');
 
@@ -59,7 +61,11 @@ afterEach(() => {
 
 describe('useScoringClaims', () => {
   it('never re-celebrates awards from before the visit and confirms a claim with the server amount', async () => {
-    getScoringAwards.mockResolvedValueOnce({ awards: [award('old')], cursor: 'old', hasMore: false });
+    getScoringAwards.mockResolvedValueOnce({
+      awards: [award('old')],
+      cursor: 'old',
+      hasMore: false,
+    });
     const { result } = renderHook(() => useScoringClaims('child-1', { pollMs: 100 }));
     await flush();
 
@@ -67,14 +73,20 @@ describe('useScoringClaims', () => {
     expect(result.current.pending).toHaveLength(1);
     expect(result.current.confirmed).toEqual([]);
 
-    getScoringAwards.mockResolvedValueOnce({ awards: [award('new', { amount: 250 })], cursor: 'new', hasMore: false });
+    getScoringAwards.mockResolvedValueOnce({
+      awards: [award('new', { amount: 250 })],
+      cursor: 'new',
+      hasMore: false,
+    });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
     });
 
     expect(getScoringAwards).toHaveBeenLastCalledWith('child-1', 'old');
     expect(result.current.pending).toEqual([]);
-    expect(result.current.confirmed.map((c) => [c.award.id, c.award.amount])).toEqual([['new', 250]]);
+    expect(result.current.confirmed.map((c) => [c.award.id, c.award.amount])).toEqual([
+      ['new', 250],
+    ]);
   });
 
   it('creates no pending entry for a deferred jump claim and never polls for it', async () => {
@@ -111,7 +123,9 @@ describe('useScoringClaims', () => {
     getScoringAwards.mockResolvedValueOnce({ awards: [], cursor: 'c', hasMore: false });
     const { result } = renderHook(() => useScoringClaims('child-1', { pollMs: 100 }));
     await flush();
-    act(() => result.current.onGameplayEvent({ ...questClaim, payload: { questId: 'x', points: 9 } }));
+    act(() =>
+      result.current.onGameplayEvent({ ...questClaim, payload: { questId: 'x', points: 9 } }),
+    );
     expect(result.current.pending).toEqual([]);
 
     act(() => result.current.onGameplayEvent(questClaim));
@@ -142,7 +156,9 @@ describe('useScoringClaims', () => {
 
 describe('useScoringClaims gating', () => {
   it('makes no request and ignores claims while scoring is disabled', async () => {
-    const { result } = renderHook(() => useScoringClaims('child-1', { enabled: false, pollMs: 100 }));
+    const { result } = renderHook(() =>
+      useScoringClaims('child-1', { enabled: false, pollMs: 100 }),
+    );
     await flush();
     act(() => result.current.onGameplayEvent(questClaim));
     await act(async () => {

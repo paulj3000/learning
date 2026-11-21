@@ -20,7 +20,9 @@ function clearSpot(controller: FirstPersonController): { x: number; z: number } 
   throw new Error('no clear spot in the test location');
 }
 
-async function withBridge(checkpoint: (spot: { x: number; z: number }) => { readonly [key: string]: JsonValue } | null): Promise<{
+async function withBridge(
+  checkpoint: (spot: { x: number; z: number }) => { readonly [key: string]: JsonValue } | null,
+): Promise<{
   harness: Harness;
   controller: FirstPersonController;
   spot: { x: number; z: number };
@@ -43,7 +45,9 @@ async function withBridge(checkpoint: (spot: { x: number; z: number }) => { read
       ...WELCOME_HARBOR_MANIFEST.extensions,
       {
         extensionId: 'engineBridge',
-        config: point ? { capabilities: [{ id: 'gameplay.checkpoints', config: { checkpoints: [point] } }] } : { capabilities: [] },
+        config: point
+          ? { capabilities: [{ id: 'gameplay.checkpoints', config: { checkpoints: [point] } }] }
+          : { capabilities: [] },
       },
     ],
   };
@@ -57,7 +61,11 @@ async function withBridge(checkpoint: (spot: { x: number; z: number }) => { read
   return { harness, controller: controller!, spot };
 }
 
-function fallOutOfTheWorld(harness: Harness, controller: FirstPersonController, at: { x: number; z: number }): void {
+function fallOutOfTheWorld(
+  harness: Harness,
+  controller: FirstPersonController,
+  at: { x: number; z: number },
+): void {
   harness.setDrive(() => {
     controller.position.set(at.x, -50, at.z);
   });
@@ -85,8 +93,13 @@ describe('live fall recovery with bridge checkpoints', () => {
     fallOutOfTheWorld(harness, controller, { x: spot.x + 3, z: spot.z });
     expect(controller.position.x).toBeCloseTo(spot.x, 5);
     expect(controller.position.z).toBeCloseTo(spot.z, 5);
-    const recovered = harness.events.filter((e) => e.name === 'PlayerRecovered').map((e) => e.detail);
-    expect(recovered.at(-1)).toMatchObject({ reason: 'FELL_OUT_OF_WORLD', checkpointId: 'cp.harbour' });
+    const recovered = harness.events
+      .filter((e) => e.name === 'PlayerRecovered')
+      .map((e) => e.detail);
+    expect(recovered.at(-1)).toMatchObject({
+      reason: 'FELL_OUT_OF_WORLD',
+      checkpointId: 'cp.harbour',
+    });
     harness.engine.dispose();
   });
 
@@ -98,7 +111,9 @@ describe('live fall recovery with bridge checkpoints', () => {
     harness.runFrames(6); // stands on safe ground, which the controller remembers
     fallOutOfTheWorld(harness, controller, { x: spot.x + 3, z: spot.z });
     expect(controller.position.y).toBeGreaterThan(-1);
-    const recovered = harness.events.filter((e) => e.name === 'PlayerRecovered').map((e) => e.detail);
+    const recovered = harness.events
+      .filter((e) => e.name === 'PlayerRecovered')
+      .map((e) => e.detail);
     expect(recovered.at(-1)).toMatchObject({ reason: 'FELL_OUT_OF_WORLD' });
     expect((recovered.at(-1) as { checkpointId?: unknown }).checkpointId ?? null).toBeNull();
     harness.engine.dispose();

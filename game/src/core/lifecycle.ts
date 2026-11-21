@@ -13,11 +13,15 @@
 
 import { EngineError } from './errors';
 
-export type LifecycleState = 'created' | 'starting' | 'running' | 'paused' | 'disposing' | 'disposed';
+export type LifecycleState =
+  'created' | 'starting' | 'running' | 'paused' | 'disposing' | 'disposed';
 
 export type LifecycleTransition = 'start' | 'started' | 'pause' | 'resume' | 'dispose' | 'disposed';
 
-const TRANSITIONS: Record<LifecycleTransition, { from: readonly LifecycleState[]; to: LifecycleState }> = {
+const TRANSITIONS: Record<
+  LifecycleTransition,
+  { from: readonly LifecycleState[]; to: LifecycleState }
+> = {
   start: { from: ['created'], to: 'starting' },
   started: { from: ['starting'], to: 'running' },
   pause: { from: ['running'], to: 'paused' },

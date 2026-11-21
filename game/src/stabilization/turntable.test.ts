@@ -22,10 +22,17 @@ const turntable = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-async function boot(platform: Record<string, unknown>, start: { x: number; z: number }, options: { reducedMotion?: boolean; physics?: ReturnType<typeof createAabbPhysicsProvider> } = {}) {
+async function boot(
+  platform: Record<string, unknown>,
+  start: { x: number; z: number },
+  options: { reducedMotion?: boolean; physics?: ReturnType<typeof createAabbPhysicsProvider> } = {},
+) {
   return createStandardEngine({
     id: 'turntable',
-    requests: [{ id: 'movement.locomotion' }, { id: 'gameplay.platforms', config: { platforms: [platform] } }],
+    requests: [
+      { id: 'movement.locomotion' },
+      { id: 'gameplay.platforms', config: { platforms: [platform] } },
+    ],
     input: () => STILL,
     startPosition: { x: start.x, y: 0.5, z: start.z },
     ...(options.physics ? { physics: options.physics } : {}),
@@ -34,8 +41,10 @@ async function boot(platform: Record<string, unknown>, start: { x: number; z: nu
 }
 
 const api = (h: StandardEngineHandle) => h.runtime.services.get(PlatformsService)!;
-const radius = (h: StandardEngineHandle) => Math.hypot(h.controller.position.x, h.controller.position.z);
-const angle = (h: StandardEngineHandle) => Math.atan2(-h.controller.position.z, h.controller.position.x);
+const radius = (h: StandardEngineHandle) =>
+  Math.hypot(h.controller.position.x, h.controller.position.z);
+const angle = (h: StandardEngineHandle) =>
+  Math.atan2(-h.controller.position.z, h.controller.position.x);
 
 describe('GE-L15 turntable rotation', () => {
   it('yawOf advances at the authored rate; 0 for a platform that does not spin; undefined if unknown', async () => {
@@ -43,7 +52,15 @@ describe('GE-L15 turntable rotation', () => {
       id: 'yaw',
       requests: [
         { id: 'movement.locomotion' },
-        { id: 'gameplay.platforms', config: { platforms: [turntable(), { id: 'step', position: { x: 20, y: 0, z: 0 }, size: { x: 2, y: 0.5, z: 2 } }] } },
+        {
+          id: 'gameplay.platforms',
+          config: {
+            platforms: [
+              turntable(),
+              { id: 'step', position: { x: 20, y: 0, z: 0 }, size: { x: 2, y: 0.5, z: 2 } },
+            ],
+          },
+        },
       ],
       input: () => STILL,
       startPosition: { x: 40, y: 0, z: 0 },
@@ -83,7 +100,12 @@ describe('GE-L15 turntable rotation', () => {
 
   it('a wall on the turntable blocks the carry (no tunnelling); the child is never pushed through', async () => {
     const physics = createAabbPhysicsProvider();
-    physics.addCollider({ id: 'post', kind: 'SOLID', min: { x: 1, y: 0, z: -3.5 }, max: { x: 3, y: 3, z: -3.4 } });
+    physics.addCollider({
+      id: 'post',
+      kind: 'SOLID',
+      min: { x: 1, y: 0, z: -3.5 },
+      max: { x: 3, y: 3, z: -3.4 },
+    });
     const h = await boot(turntable(), { x: 2, z: -1 }, { physics });
     for (let i = 0; i < 240; i += 1) {
       h.runtime.tick(1 / 60);

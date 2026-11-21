@@ -1,6 +1,9 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { THE_PAINTED_WORDS, THE_PAINTED_WORDS_AGAIN } from '../../../../adventures/content/thePaintedWords';
+import {
+  THE_PAINTED_WORDS,
+  THE_PAINTED_WORDS_AGAIN,
+} from '../../../../adventures/content/thePaintedWords';
 import { STORYKEEPER_CASTLE_INTERACTIONS } from '../../../worldObjects';
 import { padZoneId } from '../../runtime/manifests/castleRooms/castlePlatforms';
 import { WorldEngineEventBus } from '../../worldEngineEvents';
@@ -17,7 +20,8 @@ const session = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../adventures/useAdventureSession', async () => {
-  const { THE_PAINTED_WORDS: definition } = await import('../../../../adventures/content/thePaintedWords');
+  const { THE_PAINTED_WORDS: definition } =
+    await import('../../../../adventures/content/thePaintedWords');
   return {
     useAdventureSession: () => ({
       loadState: 'ready',
@@ -164,10 +168,13 @@ describe('sound and narration (SC-R06)', () => {
 });
 
 describe('who the castle hands the painted wall to', () => {
-  const wall = (id: string) => STORYKEEPER_CASTLE_INTERACTIONS.find((interaction) => interaction.id === id)!;
+  const wall = (id: string) =>
+    STORYKEEPER_CASTLE_INTERACTIONS.find((interaction) => interaction.id === id)!;
 
   it('takes both the first play and the replay for Pathfinders, and for no other band', () => {
-    expect(paintedWordsAdventureFor(wall('castle-painted-words'), 'PATHFINDER')?.slug).toBe(THE_PAINTED_WORDS.slug);
+    expect(paintedWordsAdventureFor(wall('castle-painted-words'), 'PATHFINDER')?.slug).toBe(
+      THE_PAINTED_WORDS.slug,
+    );
     expect(paintedWordsAdventureFor(wall('castle-painted-words-again'), 'PATHFINDER')?.slug).toBe(
       THE_PAINTED_WORDS_AGAIN.slug,
     );
@@ -180,7 +187,9 @@ describe('who the castle hands the painted wall to', () => {
   it('claims nothing else, and the registered view extension applies the same claim', () => {
     expect(paintedWordsAdventureFor(wall('castle-story-hall'), 'PATHFINDER')).toBeUndefined();
     expect(paintedWordsAdventureFor(wall('castle-tapestry-stair'), 'PATHFINDER')).toBeUndefined();
-    const binding = STORYKEEPER_CASTLE_MANIFEST.extensions.find((extension) => extension.extensionId === 'castle-tale')!;
+    const binding = STORYKEEPER_CASTLE_MANIFEST.extensions.find(
+      (extension) => extension.extensionId === 'castle-tale',
+    )!;
     const claims = (id: string, ageBand: 'SPROUT' | 'PATHFINDER' | 'EXPLORER') =>
       castleTaleViewExtension.claimsInteraction?.(wall(id), { ageBand, config: binding.config });
     expect(claims('castle-painted-words', 'PATHFINDER')).toBe(true);

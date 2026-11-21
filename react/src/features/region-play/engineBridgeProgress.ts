@@ -28,7 +28,9 @@ export function bridgeCheckpoints(block: unknown): CheckpointEntry[] {
   if (!Array.isArray(capabilities)) return [];
   const request = capabilities.find(
     (entry): entry is { id: string; config?: { checkpoints?: unknown } } =>
-      !!entry && typeof entry === 'object' && (entry as { id?: unknown }).id === 'gameplay.checkpoints',
+      !!entry &&
+      typeof entry === 'object' &&
+      (entry as { id?: unknown }).id === 'gameplay.checkpoints',
   );
   const list = request?.config?.checkpoints;
   if (!Array.isArray(list)) return [];
@@ -53,6 +55,9 @@ export function bridgeCheckpoints(block: unknown): CheckpointEntry[] {
 export function earnedBridgeCheckpoints(block: unknown, changeKeys: Iterable<string>): string[] {
   const on = new Set(worldSignals(changeKeys));
   return bridgeCheckpoints(block)
-    .filter((checkpoint) => checkpoint.requiresSignalId !== undefined && on.has(checkpoint.requiresSignalId))
+    .filter(
+      (checkpoint) =>
+        checkpoint.requiresSignalId !== undefined && on.has(checkpoint.requiresSignalId),
+    )
     .map((checkpoint) => checkpoint.id);
 }

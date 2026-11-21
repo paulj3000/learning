@@ -24,16 +24,37 @@ const FULL_REQUESTS: CapabilityRequest[] = [
   { id: 'character.animation' },
   {
     id: 'gameplay.checkpoints',
-    config: { checkpoints: [{ id: 'cp.a', courseId: 'course.a', position: { x: 0, y: 0, z: 0 }, label: 'the dock' }] },
+    config: {
+      checkpoints: [
+        { id: 'cp.a', courseId: 'course.a', position: { x: 0, y: 0, z: 0 }, label: 'the dock' },
+      ],
+    },
   },
-  { id: 'gameplay.collectibles', config: { collectibles: [{ id: 'coin.a', position: { x: 5, y: 0, z: 0 } }] } },
-  { id: 'gameplay.doors', config: { doors: [{ id: 'door.a', position: { x: 8, y: 0, z: 0 }, size: { x: 0.4, y: 2, z: 2 } }] } },
-  { id: 'gameplay.puzzles', config: { puzzles: [{ id: 'puz.a', kind: 'SEQUENCE', steps: ['s1', 's2'], alternativeActionId: 'action.skip' }] } },
+  {
+    id: 'gameplay.collectibles',
+    config: { collectibles: [{ id: 'coin.a', position: { x: 5, y: 0, z: 0 } }] },
+  },
+  {
+    id: 'gameplay.doors',
+    config: {
+      doors: [{ id: 'door.a', position: { x: 8, y: 0, z: 0 }, size: { x: 0.4, y: 2, z: 2 } }],
+    },
+  },
+  {
+    id: 'gameplay.puzzles',
+    config: {
+      puzzles: [
+        { id: 'puz.a', kind: 'SEQUENCE', steps: ['s1', 's2'], alternativeActionId: 'action.skip' },
+      ],
+    },
+  },
 ];
 
 function fakeView(): HostView {
   return {
-    renderer: { info: { render: { calls: 0, triangles: 0 }, memory: { geometries: 0, textures: 0 } } } as unknown as HostView['renderer'],
+    renderer: {
+      info: { render: { calls: 0, triangles: 0 }, memory: { geometries: 0, textures: 0 } },
+    } as unknown as HostView['renderer'],
     scene: new Scene(),
     camera: new PerspectiveCamera(60, 1, 0.1, 100),
     canvas: {} as HTMLCanvasElement,
@@ -61,7 +82,11 @@ function counts(runtime: EngineRuntime<EventMap>): Counts {
 
 const ZERO: Counts = { resources: 0, entities: 0, systems: 0, listeners: 0, services: 0 };
 
-async function start(view: HostView, requests = FULL_REQUESTS, physics = createAabbPhysicsProvider()) {
+async function start(
+  view: HostView,
+  requests = FULL_REQUESTS,
+  physics = createAabbPhysicsProvider(),
+) {
   const handle = await createStandardEngine({
     id: 'disposal-test',
     requests,
@@ -102,7 +127,12 @@ describe('standard engine disposal', () => {
 
   it('removes the colliders the engine components added (doors) from a shared provider', async () => {
     const physics = createAabbPhysicsProvider();
-    physics.addCollider({ id: 'authored.wall', kind: 'SOLID', min: { x: 20, y: 0, z: -1 }, max: { x: 21, y: 2, z: 1 } });
+    physics.addCollider({
+      id: 'authored.wall',
+      kind: 'SOLID',
+      min: { x: 20, y: 0, z: -1 },
+      max: { x: 21, y: 2, z: 1 },
+    });
     const { handle } = await start(fakeView(), FULL_REQUESTS, physics);
     expect(physics.hasCollider('door.a')).toBe(true);
     handle.dispose();

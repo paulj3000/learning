@@ -69,7 +69,11 @@ export type GameplayEventPayloads = {
    * GE-100 intake) is the placement's server pickup change key, when the host knows it, so a
    * pending notification can be matched to the server pickup record exactly.
    */
-  'collectible.collected': { collectibleId: string; setId: string | null; pickupKey?: string | null };
+  'collectible.collected': {
+    collectibleId: string;
+    setId: string | null;
+    pickupKey?: string | null;
+  };
   // Jump challenges
   'jump.challenge.started': { challengeId: string };
   'jump.challenge.completed': { challengeId: string; routeId: string };
@@ -122,7 +126,9 @@ export interface GameplayEventContext {
   sessionRef: string | null;
 }
 
-export interface GameplayEvent<T extends GameplayEventType = GameplayEventType> extends GameplayEventContext {
+export interface GameplayEvent<
+  T extends GameplayEventType = GameplayEventType,
+> extends GameplayEventContext {
   schema: typeof GAMEPLAY_EVENT_SCHEMA;
   version: typeof GAMEPLAY_EVENT_VERSION;
   type: T;
@@ -140,12 +146,18 @@ export type AnyGameplayEvent = { [T in GameplayEventType]: GameplayEvent<T> }[Ga
 
 type FieldRule = 'id' | 'idOrNull' | 'optionalIdOrNull' | 'learningRef';
 
-const PAYLOAD_RULES: { [T in GameplayEventType]: Readonly<Record<keyof GameplayEventPayloads[T] & string, FieldRule>> } = {
+const PAYLOAD_RULES: {
+  [T in GameplayEventType]: Readonly<Record<keyof GameplayEventPayloads[T] & string, FieldRule>>;
+} = {
   'learning.question.presented': { learningRef: 'learningRef' },
   'learning.answer.submitted': { learningRef: 'learningRef', choiceId: 'idOrNull' },
   'exploration.area.entered': { areaId: 'id' },
   'exploration.discovery.found': { discoveryId: 'id' },
-  'collectible.collected': { collectibleId: 'id', setId: 'idOrNull', pickupKey: 'optionalIdOrNull' },
+  'collectible.collected': {
+    collectibleId: 'id',
+    setId: 'idOrNull',
+    pickupKey: 'optionalIdOrNull',
+  },
   'jump.challenge.started': { challengeId: 'id' },
   'jump.challenge.completed': { challengeId: 'id', routeId: 'id' },
   'jump.alternative.used': { challengeId: 'id', routeId: 'id' },
@@ -189,15 +201,26 @@ function checkId(value: unknown, path: string, issues: ValidationIssue[], nullab
     return;
   }
   if (typeof value !== 'string' || !SEMANTIC_ID.test(value)) {
-    issues.push({ path, message: nullable ? 'must be a semantic id or null' : 'must be a semantic id' });
+    issues.push({
+      path,
+      message: nullable ? 'must be a semantic id or null' : 'must be a semantic id',
+    });
   }
 }
 
-function checkStrictKeys(value: Record<string, unknown>, allowed: Iterable<string>, path: string, issues: ValidationIssue[]): void {
+function checkStrictKeys(
+  value: Record<string, unknown>,
+  allowed: Iterable<string>,
+  path: string,
+  issues: ValidationIssue[],
+): void {
   const set = new Set(allowed);
   for (const key of Object.keys(value)) {
     if (!set.has(key)) {
-      issues.push({ path: path ? `${path}.${key}` : key, message: 'is not part of the v1 contract' });
+      issues.push({
+        path: path ? `${path}.${key}` : key,
+        message: 'is not part of the v1 contract',
+      });
     }
   }
 }
@@ -209,7 +232,10 @@ function checkLearningRef(value: unknown, path: string, issues: ValidationIssue[
   }
   const kind = value.kind;
   if (typeof kind !== 'string' || !(kind in LEARNING_REF_FIELDS)) {
-    issues.push({ path: `${path}.kind`, message: `must be one of ${Object.keys(LEARNING_REF_FIELDS).join(', ')}` });
+    issues.push({
+      path: `${path}.kind`,
+      message: `must be one of ${Object.keys(LEARNING_REF_FIELDS).join(', ')}`,
+    });
     return;
   }
   const fields = LEARNING_REF_FIELDS[kind as LearningRef['kind']];
@@ -235,10 +261,17 @@ export function validateGameplayEvent(input: unknown): ValidationResult<AnyGamep
   if (typeof input.eventId !== 'string' || !EVENT_ID.test(input.eventId)) {
     issues.push({ path: 'eventId', message: 'must be 8 to 64 letters, digits or hyphens' });
   }
-  if (typeof input.occurredAt !== 'string' || !ISO_UTC.test(input.occurredAt) || Number.isNaN(Date.parse(input.occurredAt))) {
+  if (
+    typeof input.occurredAt !== 'string' ||
+    !ISO_UTC.test(input.occurredAt) ||
+    Number.isNaN(Date.parse(input.occurredAt))
+  ) {
     issues.push({ path: 'occurredAt', message: 'must be an ISO 8601 UTC timestamp ending in Z' });
   }
-  if (input.sessionRef !== null && (typeof input.sessionRef !== 'string' || !UUID.test(input.sessionRef))) {
+  if (
+    input.sessionRef !== null &&
+    (typeof input.sessionRef !== 'string' || !UUID.test(input.sessionRef))
+  ) {
     issues.push({ path: 'sessionRef', message: 'must be a UUID or null' });
   }
   checkId(input.realmId, 'realmId', issues);
@@ -269,7 +302,9 @@ export function validateGameplayEvent(input: unknown): ValidationResult<AnyGamep
       }
     }
   }
-  return issues.length === 0 ? { ok: true, value: input as unknown as AnyGameplayEvent, issues: [] } : { ok: false, issues };
+  return issues.length === 0
+    ? { ok: true, value: input as unknown as AnyGameplayEvent, issues: [] }
+    : { ok: false, issues };
 }
 
 export function isGameplayEventType(value: unknown): value is GameplayEventType {
@@ -288,7 +323,11 @@ export interface GameplayEventFactoryOptions {
 export interface GameplayEventFactory {
   readonly context: Readonly<GameplayEventContext>;
   /** Builds and validates an event; throws a `TypeError` listing issues if it is invalid. */
-  create<T extends GameplayEventType>(type: T, payload: GameplayEventPayloads[T], overrides?: Partial<Pick<GameplayEventContext, 'areaId'>>): GameplayEvent<T>;
+  create<T extends GameplayEventType>(
+    type: T,
+    payload: GameplayEventPayloads[T],
+    overrides?: Partial<Pick<GameplayEventContext, 'areaId'>>,
+  ): GameplayEvent<T>;
 }
 
 export function createGameplayEventFactory(

@@ -22,15 +22,48 @@ export interface LightingValues {
 }
 
 export const LIGHTING_PRESETS: Readonly<Record<string, LightingValues>> = Object.freeze({
-  DAWN: { ambientColor: 0xffd9c0, ambientIntensity: 0.55, sunColor: 0xffb27a, sunIntensity: 0.9, sunElevation: 12, sunAzimuth: 90, skyColor: 0xffc9a8 },
-  DAY: { ambientColor: 0xffffff, ambientIntensity: 0.7, sunColor: 0xfff4d6, sunIntensity: 1.2, sunElevation: 55, sunAzimuth: 160, skyColor: 0x8fd3ff },
-  DUSK: { ambientColor: 0xc9b3ff, ambientIntensity: 0.5, sunColor: 0xff8f5a, sunIntensity: 0.8, sunElevation: 10, sunAzimuth: 260, skyColor: 0xf09a7a },
-  NIGHT: { ambientColor: 0x9db4ff, ambientIntensity: 0.35, sunColor: 0xa8bfff, sunIntensity: 0.25, sunElevation: 35, sunAzimuth: 200, skyColor: 0x1b2a55 },
+  DAWN: {
+    ambientColor: 0xffd9c0,
+    ambientIntensity: 0.55,
+    sunColor: 0xffb27a,
+    sunIntensity: 0.9,
+    sunElevation: 12,
+    sunAzimuth: 90,
+    skyColor: 0xffc9a8,
+  },
+  DAY: {
+    ambientColor: 0xffffff,
+    ambientIntensity: 0.7,
+    sunColor: 0xfff4d6,
+    sunIntensity: 1.2,
+    sunElevation: 55,
+    sunAzimuth: 160,
+    skyColor: 0x8fd3ff,
+  },
+  DUSK: {
+    ambientColor: 0xc9b3ff,
+    ambientIntensity: 0.5,
+    sunColor: 0xff8f5a,
+    sunIntensity: 0.8,
+    sunElevation: 10,
+    sunAzimuth: 260,
+    skyColor: 0xf09a7a,
+  },
+  NIGHT: {
+    ambientColor: 0x9db4ff,
+    ambientIntensity: 0.35,
+    sunColor: 0xa8bfff,
+    sunIntensity: 0.25,
+    sunElevation: 35,
+    sunAzimuth: 200,
+    skyColor: 0x1b2a55,
+  },
 });
 
 const channel = (color: number, shift: number) => (color >> shift) & 0xff;
 export function lerpColor(a: number, b: number, t: number): number {
-  const mix = (shift: number) => Math.round(channel(a, shift) + (channel(b, shift) - channel(a, shift)) * t);
+  const mix = (shift: number) =>
+    Math.round(channel(a, shift) + (channel(b, shift) - channel(a, shift)) * t);
   return (mix(16) << 16) | (mix(8) << 8) | mix(0);
 }
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -62,12 +95,22 @@ export interface LightingState {
   values: LightingValues;
 }
 
-export function createLightingState(presets: Readonly<Record<string, LightingValues>>, initialId: string): LightingState {
+export function createLightingState(
+  presets: Readonly<Record<string, LightingValues>>,
+  initialId: string,
+): LightingState {
   const initial = presets[initialId];
   if (!initial) {
     throw new RangeError(`Unknown lighting preset "${initialId}"`);
   }
-  return { presets, from: initial, targetId: initialId, progress: 1, transitionSeconds: 1, values: initial };
+  return {
+    presets,
+    from: initial,
+    targetId: initialId,
+    progress: 1,
+    transitionSeconds: 1,
+    values: initial,
+  };
 }
 
 /** Starts a smooth transition from the current values to a preset. */
@@ -88,7 +131,11 @@ export function stepLighting(state: LightingState, dt: number): boolean {
     return false;
   }
   state.progress = Math.min(1, state.progress + dt / state.transitionSeconds);
-  state.values = lerpLighting(state.from, state.presets[state.targetId]!, smoothstep(state.progress));
+  state.values = lerpLighting(
+    state.from,
+    state.presets[state.targetId]!,
+    smoothstep(state.progress),
+  );
   return true;
 }
 
@@ -126,5 +173,9 @@ export function validateLightingConfig(input: unknown) {
   if (!presets[initial]) {
     issues.add('initial', `unknown lighting preset "${initial}"`);
   }
-  return issues.result<LightingConfig>({ initial, presets, transitionSeconds: issues.num(root.transitionSeconds, 'transitionSeconds', 0.5, 60, 4) });
+  return issues.result<LightingConfig>({
+    initial,
+    presets,
+    transitionSeconds: issues.num(root.transitionSeconds, 'transitionSeconds', 0.5, 60, 4),
+  });
 }

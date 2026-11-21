@@ -4,7 +4,11 @@ import { createDiagnostics } from '../core/diagnostics';
 import { createEntityWorld } from '../core/entities';
 import { createResourceScope } from '../core/resources';
 import type { ColliderSpec, PhysicsProvider } from '../contracts/physics';
-import { PLAYER_ENTITY_ID, PlayerTransformComponent, createPlayerTransform } from '../contracts/player';
+import {
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  createPlayerTransform,
+} from '../contracts/player';
 import {
   COLLIDER_DEBUG_COLORS,
   GIZMO_COLORS,
@@ -18,7 +22,9 @@ import {
   readRendererStats,
 } from './index';
 
-function fakeProvider(initial: ColliderSpec[]): PhysicsProvider & { add(spec: ColliderSpec): void; listeners: number } {
+function fakeProvider(
+  initial: ColliderSpec[],
+): PhysicsProvider & { add(spec: ColliderSpec): void; listeners: number } {
   const specs = [...initial];
   const listeners = new Set<() => void>();
   const notify = () => [...listeners].forEach((l) => l());
@@ -67,7 +73,9 @@ describe('collision debug', () => {
     expect(colliderDebugClass(box('g', 'SOLID', true))).toBe('GATE');
     expect(colliderDebugColor(box('j', 'JUMPABLE'))).toBe(COLLIDER_DEBUG_COLORS.JUMPABLE);
     expect(new Set(Object.values(COLLIDER_DEBUG_COLORS)).size).toBe(4);
-    expect(countCollidersByClass([box('a', 'SOLID'), box('b', 'TRIGGER'), box('g', 'JUMPABLE', true)])).toEqual({
+    expect(
+      countCollidersByClass([box('a', 'SOLID'), box('b', 'TRIGGER'), box('g', 'JUMPABLE', true)]),
+    ).toEqual({
       SOLID: 1,
       JUMPABLE: 0,
       TRIGGER: 1,
@@ -81,7 +89,9 @@ describe('collision debug', () => {
     expect(view.group.children).toHaveLength(2);
     const wall = view.group.children[0] as Box3Helper;
     expect(wall).toBeInstanceOf(Box3Helper);
-    expect((wall.material as unknown as { color: Color }).color.getHex()).toBe(COLLIDER_DEBUG_COLORS.SOLID);
+    expect((wall.material as unknown as { color: Color }).color.getHex()).toBe(
+      COLLIDER_DEBUG_COLORS.SOLID,
+    );
     provider.add(box('step', 'JUMPABLE'));
     expect(view.group.children).toHaveLength(3);
     view.dispose();
@@ -113,7 +123,11 @@ describe('collision debug', () => {
 
 describe('player gizmo', () => {
   it('computes an interpolated pose', () => {
-    const t = { ...createPlayerTransform({ x: 2, y: 0, z: 0 }), previousPosition: { x: 0, y: 0, z: 0 }, yaw: 1 };
+    const t = {
+      ...createPlayerTransform({ x: 2, y: 0, z: 0 }),
+      previousPosition: { x: 0, y: 0, z: 0 },
+      yaw: 1,
+    };
     expect(computeGizmoPose(t, 0.5)).toEqual({ x: 1, y: 0, z: 0, yaw: 1, grounded: true });
   });
 
@@ -127,7 +141,10 @@ describe('player gizmo', () => {
     gizmo.update(1);
     expect(gizmo.group.visible).toBe(true);
     expect(gizmo.group.position.toArray()).toEqual([3, 1, -2]);
-    world.set(entity, PlayerTransformComponent, { ...createPlayerTransform({ x: 3, y: 2, z: -2 }), grounded: false });
+    world.set(entity, PlayerTransformComponent, {
+      ...createPlayerTransform({ x: 3, y: 2, z: -2 }),
+      grounded: false,
+    });
     gizmo.update(1);
     const probe = gizmo.group.children[3] as unknown as { material: { color: Color } };
     expect(probe.material.color.getHex()).toBe(GIZMO_COLORS.airborne);
@@ -138,10 +155,17 @@ describe('player gizmo', () => {
 });
 
 describe('renderer stats', () => {
-  const renderer = { info: { render: { calls: 7, triangles: 1200 }, memory: { geometries: 4, textures: 2 } } };
+  const renderer = {
+    info: { render: { calls: 7, triangles: 1200 }, memory: { geometries: 4, textures: 2 } },
+  };
 
   it('reads renderer.info', () => {
-    expect(readRendererStats(renderer)).toEqual({ drawCalls: 7, triangles: 1200, geometries: 4, textures: 2 });
+    expect(readRendererStats(renderer)).toEqual({
+      drawCalls: 7,
+      triangles: 1200,
+      geometries: 4,
+      textures: 2,
+    });
   });
 
   it('writes gauges into diagnostics, and nothing when diagnostics are off', () => {

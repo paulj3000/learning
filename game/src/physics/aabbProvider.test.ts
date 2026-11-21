@@ -3,7 +3,13 @@ import type { ColliderSpec } from '../contracts/physics';
 import { FirstPersonController } from '../movement/firstPersonController';
 import { createAabbPhysicsProvider } from './aabbProvider';
 
-const box = (id: string, kind: ColliderSpec['kind'], min: [number, number, number], max: [number, number, number], extra: Partial<ColliderSpec> = {}): ColliderSpec => ({
+const box = (
+  id: string,
+  kind: ColliderSpec['kind'],
+  min: [number, number, number],
+  max: [number, number, number],
+  extra: Partial<ColliderSpec> = {},
+): ColliderSpec => ({
   id,
   kind,
   min: { x: min[0], y: min[1], z: min[2] },
@@ -29,12 +35,16 @@ describe('AABB physics provider', () => {
 
   it('rejects a jumpable gate, duplicates, unknown updates and bad bounds', () => {
     const p = createAabbPhysicsProvider();
-    expect(() => p.addCollider(box('g', 'JUMPABLE', [0, 0, 0], [1, 1, 1], { gate: true }))).toThrowError(
-      expect.objectContaining({ code: 'VALIDATION_FAILED' }),
-    );
+    expect(() =>
+      p.addCollider(box('g', 'JUMPABLE', [0, 0, 0], [1, 1, 1], { gate: true })),
+    ).toThrowError(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
     p.addCollider(box('g', 'SOLID', [0, 0, 0], [1, 1, 1], { gate: true }));
-    expect(() => p.addCollider(box('g', 'SOLID', [0, 0, 0], [1, 1, 1]))).toThrowError(expect.objectContaining({ code: 'DUPLICATE_ID' }));
-    expect(() => p.updateCollider('nope', { x: 0, y: 0, z: 0 }, { x: 1, y: 1, z: 1 })).toThrowError(expect.objectContaining({ code: 'UNKNOWN_ID' }));
+    expect(() => p.addCollider(box('g', 'SOLID', [0, 0, 0], [1, 1, 1]))).toThrowError(
+      expect.objectContaining({ code: 'DUPLICATE_ID' }),
+    );
+    expect(() => p.updateCollider('nope', { x: 0, y: 0, z: 0 }, { x: 1, y: 1, z: 1 })).toThrowError(
+      expect.objectContaining({ code: 'UNKNOWN_ID' }),
+    );
     try {
       p.addCollider(box('bad', 'SOLID', [2, 0, 0], [1, 1, 1]));
     } catch (error) {
@@ -82,18 +92,26 @@ describe('AABB physics provider', () => {
     expect(hit).toMatchObject({ colliderId: 'near' });
     expect(hit!.distance).toBeCloseTo(2);
     expect(hit!.point.x).toBeCloseTo(2);
-    expect(p.raycast(o, { x: 1, y: 0, z: 0 }, 20, (s) => !s.cameraIgnores && s.id !== 'near')).toBeNull();
+    expect(
+      p.raycast(o, { x: 1, y: 0, z: 0 }, 20, (s) => !s.cameraIgnores && s.id !== 'near'),
+    ).toBeNull();
     expect(p.raycast(o, { x: 1, y: 0, z: 0 }, 1.5)).toBeNull();
     expect(p.raycast(o, { x: 0, y: 0, z: 0 }, 5)).toBeNull();
     expect(p.raycast(o, { x: 0, y: 0, z: 1 }, 5)).toBeNull();
-    expect(p.raycast({ x: 2.5, y: 1, z: 0 }, { x: 0, y: 1, z: 0 }, 5)).toMatchObject({ colliderId: 'near', distance: 0 });
+    expect(p.raycast({ x: 2.5, y: 1, z: 0 }, { x: 0, y: 1, z: 0 }, 5)).toMatchObject({
+      colliderId: 'near',
+      distance: 0,
+    });
   });
 
   it('reports overlaps of every kind, not mere contact', () => {
     const p = createAabbPhysicsProvider();
     p.addCollider(box('a', 'SOLID', [0, 0, 0], [1, 1, 1]));
     p.addCollider(box('z', 'TRIGGER', [0.5, 0, 0.5], [2, 1, 2]));
-    expect(p.overlaps({ x: 0.9, y: 0, z: 0.9 }, { x: 1.2, y: 1, z: 1.2 }).sort()).toEqual(['a', 'z']);
+    expect(p.overlaps({ x: 0.9, y: 0, z: 0.9 }, { x: 1.2, y: 1, z: 1.2 }).sort()).toEqual([
+      'a',
+      'z',
+    ]);
     expect(p.overlaps({ x: 1, y: 0, z: 0 }, { x: 1.4, y: 1, z: 0.4 })).toEqual([]);
   });
 });

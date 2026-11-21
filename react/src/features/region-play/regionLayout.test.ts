@@ -25,7 +25,9 @@ describe('readRegionLayout (TR-13)', () => {
   it('reads Treasure Cove’s library barrels and logs with their drawn height (LAI-JMP-01, layout v8)', async () => {
     const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
     // The landing barrels are library props now; their stand-ins get derived jumpable boxes.
-    expect(layout.colliders.filter((c) => c.rect.id.startsWith('cove-landing-barrel-'))).toEqual([]);
+    expect(layout.colliders.filter((c) => c.rect.id.startsWith('cove-landing-barrel-'))).toEqual(
+      [],
+    );
     const barrels = layout.props.filter((p) => p.id.startsWith('cove-landing-barrel-'));
     expect(barrels).toHaveLength(4);
     for (const barrel of barrels) expect(barrel.height).toBeCloseTo(1.0);
@@ -142,8 +144,16 @@ describe('readRegionLayout (TR-13)', () => {
       },
       'scene.layout.props[0].colliders[0]',
     ],
-    ['a prop scale of zero', { props: [{ id: 'b', assetId: 'x', x: 0, z: 0, scale: 0, colliders: [] }] }, 'scene.layout.props[0].scale'],
-    ['replacements that are not ids', { propReplaces: { barrel: [1] } }, 'scene.layout.propReplaces.barrel[0]'],
+    [
+      'a prop scale of zero',
+      { props: [{ id: 'b', assetId: 'x', x: 0, z: 0, scale: 0, colliders: [] }] },
+      'scene.layout.props[0].scale',
+    ],
+    [
+      'replacements that are not ids',
+      { propReplaces: { barrel: [1] } },
+      'scene.layout.propReplaces.barrel[0]',
+    ],
   ])('refuses %s, naming where', (_name, layout, path) => {
     expect(failure(layout as JsonValue).path).toBe(path);
   });

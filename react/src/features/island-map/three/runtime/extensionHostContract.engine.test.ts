@@ -37,7 +37,12 @@ async function withProbe(): Promise<{
     ...WELCOME_HARBOR_MANIFEST,
     colliders: [
       ...WELCOME_HARBOR_MANIFEST.colliders,
-      { rect: { id: AUTHORED_ID, minX: 8, maxX: 8.5, minZ: 8, maxZ: 8.5 }, minY: 0, maxY: 0.4, jumpable: true },
+      {
+        rect: { id: AUTHORED_ID, minX: 8, maxX: 8.5, minZ: 8, maxZ: 8.5 },
+        minY: 0,
+        maxY: 0.4,
+        jumpable: true,
+      },
     ],
     extensions: [{ extensionId: PROBE, config: {} }],
   };
@@ -60,7 +65,8 @@ function clearLane(controller: FirstPersonController): { x: number; z: number } 
   for (let x = -9; x <= 3; x += 1) {
     for (let z = -7; z <= 7; z += 1) {
       let clear = true;
-      for (let step = 0; step <= 6 && clear; step += 0.25) clear = controller.canStandAt(x + step, z);
+      for (let step = 0; step <= 6 && clear; step += 0.25)
+        clear = controller.canStandAt(x + step, z);
       if (clear) return { x, z };
     }
   }
@@ -70,10 +76,16 @@ function clearLane(controller: FirstPersonController): { x: number; z: number } 
 const FACE_EAST = Math.PI / 2; // yaw 0 faces +Z; +X is a quarter turn
 
 /** Stands still with physics running (gravity, landing), unlike the harness's standAt. */
-const idle = (c: FirstPersonController, delta: number) => c.update(delta, { forward: 0, strafe: 0 });
+const idle = (c: FirstPersonController, delta: number) =>
+  c.update(delta, { forward: 0, strafe: 0 });
 
 /** Walks east for `frames` frames from `start` and returns how far the child got. */
-function walkEast(harness: Harness, controller: () => FirstPersonController, start: { x: number; z: number }, frames = 90): number {
+function walkEast(
+  harness: Harness,
+  controller: () => FirstPersonController,
+  start: { x: number; z: number },
+  frames = 90,
+): number {
   harness.setDrive(standAt(start.x, start.z, FACE_EAST));
   harness.runFrames(1);
   harness.setDrive(walk(FACE_EAST));
@@ -83,7 +95,10 @@ function walkEast(harness: Harness, controller: () => FirstPersonController, sta
 
 /** A wall across the lane, 2 m ahead of `start`. */
 function wallAhead(start: { x: number; z: number }, height = 2): Box3 {
-  return new Box3(new Vector3(start.x + 2, 0, start.z - 1), new Vector3(start.x + 2.4, height, start.z + 1));
+  return new Box3(
+    new Vector3(start.x + 2, 0, start.z - 1),
+    new Vector3(start.x + 2.4, height, start.z + 1),
+  );
 }
 
 describe('extension host contract (GE-070): colliders', () => {
@@ -117,7 +132,9 @@ describe('extension host contract (GE-070): colliders', () => {
     const { harness, context, controller } = await withProbe();
     const start = clearLane(controller());
     context.addCollider(wallAhead(start), { id: 'probe:moved' });
-    context.addCollider(new Box3(new Vector3(90, 0, 90), new Vector3(91, 2, 91)), { id: 'probe:moved' });
+    context.addCollider(new Box3(new Vector3(90, 0, 90), new Vector3(91, 2, 91)), {
+      id: 'probe:moved',
+    });
     expect(walkEast(harness, controller, start)).toBeGreaterThan(3);
   });
 
@@ -174,9 +191,11 @@ describe('extension host contract (GE-070): colliders', () => {
     expect(context.playerState!().supportId).toBeNull();
     expect(context.removeCollider(AUTHORED_ID)).toBe(false);
     // The id is free again: an extension may put a box back under it.
-    expect(context.addCollider(new Box3(new Vector3(90, 0, 90), new Vector3(91, 1, 91)), { id: AUTHORED_ID })).toBe(
-      AUTHORED_ID,
-    );
+    expect(
+      context.addCollider(new Box3(new Vector3(90, 0, 90), new Vector3(91, 1, 91)), {
+        id: AUTHORED_ID,
+      }),
+    ).toBe(AUTHORED_ID);
   });
 });
 
@@ -204,7 +223,10 @@ describe('extension host contract (GE-070): player state and environment', () =>
     const start = clearLane(controller());
     // A low step the child walks up onto (under the 0.25 m step height).
     context.addCollider(
-      new Box3(new Vector3(start.x + 1, 0, start.z - 1), new Vector3(start.x + 3, 0.2, start.z + 1)),
+      new Box3(
+        new Vector3(start.x + 1, 0, start.z - 1),
+        new Vector3(start.x + 3, 0.2, start.z + 1),
+      ),
       { id: 'probe:step', jumpable: true },
     );
     harness.setDrive(standAt(start.x, start.z, FACE_EAST));
@@ -262,7 +284,13 @@ describe('extension host contract (GE-066): live carry and launch', () => {
   it('reports an engine: collider id as the support id', async () => {
     const { harness, context, controller } = await withProbe();
     const start = clearLane(controller());
-    context.addCollider(new Box3(new Vector3(start.x + 1, 0, start.z - 1), new Vector3(start.x + 3, 0.2, start.z + 1)), { id: 'engine:pad', jumpable: true });
+    context.addCollider(
+      new Box3(
+        new Vector3(start.x + 1, 0, start.z - 1),
+        new Vector3(start.x + 3, 0.2, start.z + 1),
+      ),
+      { id: 'engine:pad', jumpable: true },
+    );
     harness.setDrive(standAt(start.x, start.z, FACE_EAST));
     harness.runFrames(1);
     harness.setDrive(walk(FACE_EAST));
@@ -288,13 +316,18 @@ describe('extension host contract (GE-070): teleport (GE-D4)', () => {
   it('never drops the child inside a wall: a blocked spot falls back to the nearest clear one', async () => {
     const { harness, context, controller } = await withProbe();
     const start = clearLane(controller());
-    const wall = new Box3(new Vector3(start.x + 2, 0, start.z - 0.5), new Vector3(start.x + 3, 2, start.z + 0.5));
+    const wall = new Box3(
+      new Vector3(start.x + 2, 0, start.z - 0.5),
+      new Vector3(start.x + 3, 2, start.z + 0.5),
+    );
     context.addCollider(wall, { id: 'probe:over-the-checkpoint' });
     const before = harness.events.length;
     context.teleportPlayer(start.x + 2.5, start.z, FACE_EAST);
     const at = controller().position;
     expect(controller().canStandAt(at.x, at.z)).toBe(true);
-    expect(Math.hypot(at.x - (start.x + 2.5), at.z - start.z)).toBeLessThanOrEqual(TELEPORT_SEARCH_RADIUS + 1e-6);
+    expect(Math.hypot(at.x - (start.x + 2.5), at.z - start.z)).toBeLessThanOrEqual(
+      TELEPORT_SEARCH_RADIUS + 1e-6,
+    );
     expect(harness.events.slice(before)).toEqual([]);
   });
 });
@@ -312,13 +345,28 @@ describe('nearestStandableSpot', () => {
 });
 
 describe('extension host contract (GE-068): bridge safe ground', () => {
-  async function withBridge(api: { isSafeGround?: (x: number, y: number, z: number) => boolean } | null) {
+  async function withBridge(
+    api: { isSafeGround?: (x: number, y: number, z: number) => boolean } | null,
+  ) {
     const asked: [number, number, number][] = [];
     const extension: WorldExtension = {
       id: 'engineBridge',
-      mount: () => (api ? { api: { isSafeGround: (x: number, y: number, z: number) => (asked.push([x, y, z]), api.isSafeGround?.(x, y, z) ?? true) } } : {}),
+      mount: () =>
+        api
+          ? {
+              api: {
+                isSafeGround: (x: number, y: number, z: number) => (
+                  asked.push([x, y, z]),
+                  api.isSafeGround?.(x, y, z) ?? true
+                ),
+              },
+            }
+          : {},
     };
-    const manifest: ThreeLocationManifest = { ...WELCOME_HARBOR_MANIFEST, extensions: [{ extensionId: 'engineBridge', config: {} }] };
+    const manifest: ThreeLocationManifest = {
+      ...WELCOME_HARBOR_MANIFEST,
+      extensions: [{ extensionId: 'engineBridge', config: {} }],
+    };
     const harness = mount({ manifest, extensions: [extension] });
     await harness.engine.ready;
     let controller: FirstPersonController | null = null;
@@ -330,7 +378,11 @@ describe('extension host contract (GE-068): bridge safe ground', () => {
   }
 
   /** Stands the child at `spot` with physics running, then recovers; returns where they end up. */
-  function recoverFrom(harness: Harness, controller: FirstPersonController, spot: { x: number; z: number }) {
+  function recoverFrom(
+    harness: Harness,
+    controller: FirstPersonController,
+    spot: { x: number; z: number },
+  ) {
     harness.setDrive((c, delta) => {
       c.position.set(spot.x, 0, spot.z);
       c.update(delta, { forward: 0, strafe: 0 });

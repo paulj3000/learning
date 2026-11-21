@@ -5,7 +5,10 @@ import { resolveJumpConfiguration, resolveLocomotion } from '@lai/game-engine/mo
 import { checkContentCompatibility, validateLocation } from '@lai/game-engine/sdk';
 import { ASSET_MANAGER, NPC_MANAGER } from '@lai/game-engine/services';
 import { DRAGONS_SANCTUARY_MANIFEST as MANIFEST } from '../manifests/dragonsSanctuary';
-import { DRAGONS_SANCTUARY_ADAPTER_ISSUES, DRAGONS_SANCTUARY_LOCATION as LOCATION } from './dragonsSanctuary.location';
+import {
+  DRAGONS_SANCTUARY_ADAPTER_ISSUES,
+  DRAGONS_SANCTUARY_LOCATION as LOCATION,
+} from './dragonsSanctuary.location';
 
 const registry = createStandardCapabilityRegistry();
 
@@ -31,7 +34,9 @@ describe("Dragon's Sanctuary location definition (GE-075)", () => {
   it('plays with what the manifest plays with: jump, locomotion, camera and avatar', () => {
     const configs = resolved();
     expect(configs['movement.jump']).toEqual(resolveJumpConfiguration(MANIFEST.movement?.jump));
-    expect(configs['movement.locomotion']).toEqual(resolveLocomotion(MANIFEST.movement?.locomotion));
+    expect(configs['movement.locomotion']).toEqual(
+      resolveLocomotion(MANIFEST.movement?.locomotion),
+    );
 
     const camera = resolvePlayerCamera(MANIFEST.player?.camera);
     const { collisionEnabled, ...thirdPerson } = camera;

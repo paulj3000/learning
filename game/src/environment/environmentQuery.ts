@@ -16,10 +16,22 @@
  * themselves are pure reads.
  */
 
-import { DEFAULT_SURFACE, type ClimbableInfo, type EnvironmentQuery, type ExternalForce, type Medium } from '../contracts/physics';
+import {
+  DEFAULT_SURFACE,
+  type ClimbableInfo,
+  type EnvironmentQuery,
+  type ExternalForce,
+  type Medium,
+} from '../contracts/physics';
 import type { Vec3Like } from '../contracts/player';
 import { segmentHitsRect, type Rect } from '../components/geometry';
-import { FORCE_LIMITS, type BoxSpec, type EnvironmentVolumesConfig, type ForceVolumeSpec, type SurfaceVolumeSpec } from './volumes';
+import {
+  FORCE_LIMITS,
+  type BoxSpec,
+  type EnvironmentVolumesConfig,
+  type ForceVolumeSpec,
+  type SurfaceVolumeSpec,
+} from './volumes';
 
 export interface EnvironmentQueryOptions {
   isSignalOn?: (signalId: string) => boolean;
@@ -36,43 +48,73 @@ export interface ComposedEnvironment extends EnvironmentQuery {
 }
 
 const inside = (box: BoxSpec, x: number, y: number, z: number) =>
-  x >= box.min.x && x <= box.max.x && y >= box.min.y && y <= box.max.y && z >= box.min.z && z <= box.max.z;
+  x >= box.min.x &&
+  x <= box.max.x &&
+  y >= box.min.y &&
+  y <= box.max.y &&
+  z >= box.min.z &&
+  z <= box.max.z;
 
-const volumeOf = (box: BoxSpec) => (box.max.x - box.min.x) * (box.max.y - box.min.y) * (box.max.z - box.min.z);
+const volumeOf = (box: BoxSpec) =>
+  (box.max.x - box.min.x) * (box.max.y - box.min.y) * (box.max.z - box.min.z);
 
 /** Feet may be a little above a thin surface slab and still stand on it. */
 const SURFACE_REACH_ABOVE = 0.3;
 const SURFACE_REACH_BELOW = 0.1;
 
 export function compareSurfaces(a: SurfaceVolumeSpec, b: SurfaceVolumeSpec): number {
-  return b.priority - a.priority || volumeOf(a.box) - volumeOf(b.box) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  return (
+    b.priority - a.priority ||
+    volumeOf(a.box) - volumeOf(b.box) ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
 }
 
-export function createEnvironmentQuery(config: EnvironmentVolumesConfig, options: EnvironmentQueryOptions = {}): ComposedEnvironment {
+export function createEnvironmentQuery(
+  config: EnvironmentVolumesConfig,
+  options: EnvironmentQueryOptions = {},
+): ComposedEnvironment {
   const surfaces = [...config.surfaces].sort(compareSurfaces);
-  const forces = [...config.forces].sort((a, b) => b.priority - a.priority || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const forces = [...config.forces].sort(
+    (a, b) => b.priority - a.priority || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
   const ladders = [...config.ladders].sort((a, b) => (a.id < b.id ? -1 : 1));
   const ramps = new Map<string, number>(forces.map((f) => [f.id, f.rampInSeconds <= 0 ? 1 : 0]));
   const signalOn = options.isSignalOn ?? (() => true);
   const reduced = options.isReducedMotion ?? (() => false);
 
-  const hazards = (): readonly Rect[] => (options.hazardRects ? [...config.hazardRects, ...options.hazardRects()] : config.hazardRects);
+  const hazards = (): readonly Rect[] =>
+    options.hazardRects ? [...config.hazardRects, ...options.hazardRects()] : config.hazardRects;
 
   const forceActive = (force: ForceVolumeSpec) =>
-    (force.signalId === undefined || signalOn(force.signalId)) && !(force.inactiveWhenSignalId !== undefined && options.isSignalOn !== undefined && options.isSignalOn(force.inactiveWhenSignalId));
+    (force.signalId === undefined || signalOn(force.signalId)) &&
+    !(
+      force.inactiveWhenSignalId !== undefined &&
+      options.isSignalOn !== undefined &&
+      options.isSignalOn(force.inactiveWhenSignalId)
+    );
 
   const pushesIntoHazard = (force: ForceVolumeSpec, x: number, z: number): boolean => {
     if (!force.neverPushIntoHazard) {
       return false;
     }
-    return hazards().some((rect) => segmentHitsRect(x, z, force.direction.x, force.direction.z, force.runOut, rect));
+    return hazards().some((rect) =>
+      segmentHitsRect(x, z, force.direction.x, force.direction.z, force.runOut, rect),
+    );
   };
 
   return {
     surfaceAt(x, y, z) {
       for (const volume of surfaces) {
         const { box } = volume;
-        if (x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z && y >= box.min.y - SURFACE_REACH_BELOW && y <= box.max.y + SURFACE_REACH_ABOVE) {
+        if (
+          x >= box.min.x &&
+          x <= box.max.x &&
+          z >= box.min.z &&
+          z <= box.max.z &&
+          y >= box.min.y - SURFACE_REACH_BELOW &&
+          y <= box.max.y + SURFACE_REACH_ABOVE
+        ) {
           return volume.profile;
         }
       }
@@ -86,23 +128,46 @@ export function createEnvironmentQuery(config: EnvironmentVolumesConfig, options
         }
         const length = Math.hypot(force.direction.x, force.direction.y, force.direction.z);
         const scale = reduced() ? FORCE_LIMITS.reducedMotionScale : 1;
-        const magnitude = Math.min(force.strength * (ramps.get(force.id) ?? 1) * scale, force.maxAcceleration);
+        const magnitude = Math.min(
+          force.strength * (ramps.get(force.id) ?? 1) * scale,
+          force.maxAcceleration,
+        );
         out.push({
           id: force.id,
           kind: force.kind,
-          acceleration: { x: (force.direction.x / length) * magnitude, y: (force.direction.y / length) * magnitude, z: (force.direction.z / length) * magnitude },
+          acceleration: {
+            x: (force.direction.x / length) * magnitude,
+            y: (force.direction.y / length) * magnitude,
+            z: (force.direction.z / length) * magnitude,
+          },
           affectsGrounded: force.affectsGrounded,
         });
       }
       return out;
     },
     mediumAt(x, y, z): Medium {
-      return config.waters.some((w) => x >= w.box.min.x && x <= w.box.max.x && z >= w.box.min.z && z <= w.box.max.z && y >= w.box.min.y && y < w.box.max.y) ? 'WATER' : 'AIR';
+      return config.waters.some(
+        (w) =>
+          x >= w.box.min.x &&
+          x <= w.box.max.x &&
+          z >= w.box.min.z &&
+          z <= w.box.max.z &&
+          y >= w.box.min.y &&
+          y < w.box.max.y,
+      )
+        ? 'WATER'
+        : 'AIR';
     },
     waterSurfaceAt(x, z) {
       let best: number | null = null;
       for (const w of config.waters) {
-        if (x >= w.box.min.x && x <= w.box.max.x && z >= w.box.min.z && z <= w.box.max.z && (best === null || w.box.max.y > best)) {
+        if (
+          x >= w.box.min.x &&
+          x <= w.box.max.x &&
+          z >= w.box.min.z &&
+          z <= w.box.max.z &&
+          (best === null || w.box.max.y > best)
+        ) {
           best = w.box.max.y;
         }
       }
@@ -110,8 +175,19 @@ export function createEnvironmentQuery(config: EnvironmentVolumesConfig, options
     },
     climbableAt(x, y, z): ClimbableInfo | null {
       for (const ladder of ladders) {
-        if (Math.abs(x - ladder.x) <= ladder.halfWidth && Math.abs(z - ladder.z) <= ladder.depth && y >= ladder.bottomY - 0.2 && y <= ladder.topY) {
-          return { id: ladder.id, bottomY: ladder.bottomY, topY: ladder.topY, facingYaw: ladder.facingYaw, exitTop: ladder.exitTop };
+        if (
+          Math.abs(x - ladder.x) <= ladder.halfWidth &&
+          Math.abs(z - ladder.z) <= ladder.depth &&
+          y >= ladder.bottomY - 0.2 &&
+          y <= ladder.topY
+        ) {
+          return {
+            id: ladder.id,
+            bottomY: ladder.bottomY,
+            topY: ladder.topY,
+            facingYaw: ladder.facingYaw,
+            exitTop: ladder.exitTop,
+          };
         }
       }
       return null;
@@ -119,7 +195,10 @@ export function createEnvironmentQuery(config: EnvironmentVolumesConfig, options
     tick(dt, position) {
       for (const force of forces) {
         const current = ramps.get(force.id) ?? 0;
-        const here = position !== undefined && inside(force.box, position.x, position.y, position.z) && forceActive(force);
+        const here =
+          position !== undefined &&
+          inside(force.box, position.x, position.y, position.z) &&
+          forceActive(force);
         if (!here) {
           ramps.set(force.id, 0);
         } else if (force.rampInSeconds <= 0) {
@@ -132,4 +211,3 @@ export function createEnvironmentQuery(config: EnvironmentVolumesConfig, options
     rampOf: (id) => ramps.get(id) ?? 0,
   };
 }
-

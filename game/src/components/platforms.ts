@@ -34,7 +34,15 @@ import {
   signalBoard,
   type GameplayRuntime,
 } from './common';
-import { advanceMotion, createPathMotion, initialMotionState, motionOffset, type PathMotion, type PathMotionState, type PlatformPathMode } from './pathMotion';
+import {
+  advanceMotion,
+  createPathMotion,
+  initialMotionState,
+  motionOffset,
+  type PathMotion,
+  type PathMotionState,
+  type PlatformPathMode,
+} from './pathMotion';
 import { configRoot, Issues, isRecord } from './validate';
 
 export const PLATFORM_LIMITS = {
@@ -142,8 +150,16 @@ export interface PlatformTuning {
 }
 export type PlatformTuningMap = Readonly<Record<string, PlatformTuning>>;
 
-const TUNING_KEYS = ['enabled', 'speed', 'pauseSeconds', 'bounceHeight', 'visibleSeconds', 'hiddenSeconds'] as const;
-const inRange = (value: unknown, min: number, max: number): boolean => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+const TUNING_KEYS = [
+  'enabled',
+  'speed',
+  'pauseSeconds',
+  'bounceHeight',
+  'visibleSeconds',
+  'hiddenSeconds',
+] as const;
+const inRange = (value: unknown, min: number, max: number): boolean =>
+  typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 
 /** Problems with one platform's tuning (same limits as the live `validateTuning`). Empty when valid. */
 export function platformTuningProblems(tuning: unknown): string[] {
@@ -182,10 +198,16 @@ export function platformTuningProblems(tuning: unknown): string[] {
  * leave under 0.5 s whole before the crumble warning is also refused (the validator's rule).
  * Pure; the input is not changed.
  */
-export function applyPlatformTuning(specs: readonly PlatformSpec[], tuning: PlatformTuningMap | undefined): PlatformSpec[] {
+export function applyPlatformTuning(
+  specs: readonly PlatformSpec[],
+  tuning: PlatformTuningMap | undefined,
+): PlatformSpec[] {
   const out: PlatformSpec[] = [];
   for (const spec of specs) {
-    const tune = tuning !== undefined && Object.prototype.hasOwnProperty.call(tuning, spec.id) ? tuning[spec.id] : undefined;
+    const tune =
+      tuning !== undefined && Object.prototype.hasOwnProperty.call(tuning, spec.id)
+        ? tuning[spec.id]
+        : undefined;
     if (!tune || platformTuningProblems(tune).length > 0) {
       out.push(spec);
       continue;
@@ -193,7 +215,10 @@ export function applyPlatformTuning(specs: readonly PlatformSpec[], tuning: Plat
     if (tune.enabled === false) {
       continue;
     }
-    if (spec.falling && (tune.visibleSeconds ?? spec.falling.visibleSeconds) < spec.falling.warningSeconds + 0.5) {
+    if (
+      spec.falling &&
+      (tune.visibleSeconds ?? spec.falling.visibleSeconds) < spec.falling.warningSeconds + 0.5
+    ) {
       out.push(spec);
       continue;
     }
@@ -208,7 +233,9 @@ export function applyPlatformTuning(specs: readonly PlatformSpec[], tuning: Plat
             },
           }
         : {}),
-      ...(spec.bounceHeight !== undefined && tune.bounceHeight !== undefined ? { bounceHeight: tune.bounceHeight } : {}),
+      ...(spec.bounceHeight !== undefined && tune.bounceHeight !== undefined
+        ? { bounceHeight: tune.bounceHeight }
+        : {}),
       ...(spec.falling
         ? {
             falling: {
@@ -267,7 +294,12 @@ export function createFallingModel(spec: FallingSpec): FallingModel {
  * Advances the model. `canRespawn` is false while the child is where the platform would
  * return, so it never reappears around or under them. Returns the new phase on a change.
  */
-export function stepFallingModel(model: FallingModel, dt: number, standing: boolean, canRespawn: boolean): FallingPhase | null {
+export function stepFallingModel(
+  model: FallingModel,
+  dt: number,
+  standing: boolean,
+  canRespawn: boolean,
+): FallingPhase | null {
   const { spec } = model;
   switch (model.phase) {
     case 'STABLE': {
@@ -391,18 +423,32 @@ export function validatePlatformsConfig(input: unknown) {
       const id = issues.id(item.id, `${path}.id`);
       const size = issues.vec3(item.size, `${path}.size`, PLATFORM_LIMITS.maxSize);
       if (Math.min(size.x, size.z) < PLATFORM_LIMITS.minTop) {
-        issues.add(`${path}.size`, `the top must be at least ${PLATFORM_LIMITS.minTop} m on each side`);
+        issues.add(
+          `${path}.size`,
+          `the top must be at least ${PLATFORM_LIMITS.minTop} m on each side`,
+        );
       }
       if (size.y <= 0 || size.y > PLATFORM_LIMITS.maxThickness) {
-        issues.add(`${path}.size.y`, `thickness must be above 0 and at most ${PLATFORM_LIMITS.maxThickness} m`);
+        issues.add(
+          `${path}.size.y`,
+          `thickness must be above 0 and at most ${PLATFORM_LIMITS.maxThickness} m`,
+        );
       }
       const spec: PlatformSpec = {
         id,
         position: issues.vec3(item.position, `${path}.position`),
         size,
-        route: issues.oneOf<PlatformRoute>(item.route, `${path}.route`, ['REQUIRED', 'OPTIONAL'], 'REQUIRED'),
+        route: issues.oneOf<PlatformRoute>(
+          item.route,
+          `${path}.route`,
+          ['REQUIRED', 'OPTIONAL'],
+          'REQUIRED',
+        ),
         appearSignalId: issues.optionalId(item.appearSignalId, `${path}.appearSignalId`),
-        inactiveWhenSignalId: issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`),
+        inactiveWhenSignalId: issues.optionalId(
+          item.inactiveWhenSignalId,
+          `${path}.inactiveWhenSignalId`,
+        ),
       };
       if (item.color !== undefined) {
         spec.color = issues.num(item.color, `${path}.color`, 0, 0xffffff);
@@ -412,7 +458,10 @@ export function validatePlatformsConfig(input: unknown) {
       }
       if (item.sounds !== undefined) {
         if (!isRecord(item.sounds)) {
-          issues.add(`${path}.sounds`, 'must be an object with activated, moving and stopped cue ids');
+          issues.add(
+            `${path}.sounds`,
+            'must be an object with activated, moving and stopped cue ids',
+          );
         } else {
           const sounds: PlatformSounds = {};
           for (const key of ['activated', 'moving', 'stopped'] as const) {
@@ -426,31 +475,55 @@ export function validatePlatformsConfig(input: unknown) {
         spec.assetId = issues.id(item.assetId, `${path}.assetId`);
       }
       if (spec.inactiveWhenSignalId !== undefined) {
-        const activating = [spec.appearSignalId, item.moving !== undefined && isRecord(item.moving) ? item.moving.activeSignalId : undefined];
+        const activating = [
+          spec.appearSignalId,
+          item.moving !== undefined && isRecord(item.moving)
+            ? item.moving.activeSignalId
+            : undefined,
+        ];
         if (activating.includes(spec.inactiveWhenSignalId)) {
-          issues.add(`${path}.inactiveWhenSignalId`, 'must differ from the platform activating signals (appearSignalId, moving.activeSignalId)');
+          issues.add(
+            `${path}.inactiveWhenSignalId`,
+            'must differ from the platform activating signals (appearSignalId, moving.activeSignalId)',
+          );
         }
       }
       if (item.moving !== undefined) {
         spec.moving = readMoving(item.moving, `${path}.moving`, issues);
         if (spec.route !== 'OPTIONAL') {
-          issues.add(`${path}.route`, 'a moving platform must be on an optional route (required progress never needs one)');
+          issues.add(
+            `${path}.route`,
+            'a moving platform must be on an optional route (required progress never needs one)',
+          );
         }
       }
       if (item.spinDegreesPerSecond !== undefined) {
-        spec.spinDegreesPerSecond = issues.num(item.spinDegreesPerSecond, `${path}.spinDegreesPerSecond`, -PLATFORM_LIMITS.maxSpin, PLATFORM_LIMITS.maxSpin);
+        spec.spinDegreesPerSecond = issues.num(
+          item.spinDegreesPerSecond,
+          `${path}.spinDegreesPerSecond`,
+          -PLATFORM_LIMITS.maxSpin,
+          PLATFORM_LIMITS.maxSpin,
+        );
       }
       if (item.falling !== undefined) {
         spec.falling = readFalling(item.falling, `${path}.falling`, issues);
         if (spec.route !== 'OPTIONAL') {
-          issues.add(`${path}.route`, 'a falling platform must be on an optional route (required progress never needs one)');
+          issues.add(
+            `${path}.route`,
+            'a falling platform must be on an optional route (required progress never needs one)',
+          );
         }
         if (item.moving !== undefined) {
           issues.add(`${path}.falling`, 'a platform cannot both move and fall');
         }
       }
       if (item.bounceHeight !== undefined) {
-        spec.bounceHeight = issues.num(item.bounceHeight, `${path}.bounceHeight`, PLATFORM_LIMITS.minBounce, PLATFORM_LIMITS.maxBounce);
+        spec.bounceHeight = issues.num(
+          item.bounceHeight,
+          `${path}.bounceHeight`,
+          PLATFORM_LIMITS.minBounce,
+          PLATFORM_LIMITS.maxBounce,
+        );
         spec.bounceCue = typeof item.bounceCue === 'string' ? item.bounceCue : undefined;
       }
       return spec;
@@ -482,12 +555,30 @@ function readMoving(value: unknown, path: string, issues: Issues): MovingSpec {
   if (rawPath.length < 1 || rawPath.length > PLATFORM_LIMITS.maxWaypoints) {
     issues.add(`${path}.path`, `needs 1 to ${PLATFORM_LIMITS.maxWaypoints} waypoints`);
   }
-  const points = rawPath.slice(0, PLATFORM_LIMITS.maxWaypoints).map((p, i) => issues.vec3(p, `${path}.path[${i}]`, PLATFORM_LIMITS.maxPathReach));
+  const points = rawPath
+    .slice(0, PLATFORM_LIMITS.maxWaypoints)
+    .map((p, i) => issues.vec3(p, `${path}.path[${i}]`, PLATFORM_LIMITS.maxPathReach));
   return {
     path: points,
-    mode: issues.oneOf<PlatformPathMode>(item.mode, `${path}.mode`, ['PING_PONG', 'LOOP', 'ONCE'], 'PING_PONG'),
-    speed: issues.num(item.speed, `${path}.speed`, PLATFORM_LIMITS.minSpeed, PLATFORM_LIMITS.maxSpeed),
-    pauseSeconds: issues.num(item.pauseSeconds, `${path}.pauseSeconds`, 0, PLATFORM_LIMITS.maxPause, 1),
+    mode: issues.oneOf<PlatformPathMode>(
+      item.mode,
+      `${path}.mode`,
+      ['PING_PONG', 'LOOP', 'ONCE'],
+      'PING_PONG',
+    ),
+    speed: issues.num(
+      item.speed,
+      `${path}.speed`,
+      PLATFORM_LIMITS.minSpeed,
+      PLATFORM_LIMITS.maxSpeed,
+    ),
+    pauseSeconds: issues.num(
+      item.pauseSeconds,
+      `${path}.pauseSeconds`,
+      0,
+      PLATFORM_LIMITS.maxPause,
+      1,
+    ),
     activeSignalId: issues.optionalId(item.activeSignalId, `${path}.activeSignalId`),
     returnWhenInactive: issues.bool(item.returnWhenInactive, `${path}.returnWhenInactive`, false),
   };
@@ -499,17 +590,36 @@ function readFalling(value: unknown, path: string, issues: Issues): FallingSpec 
     issues.add(path, 'must be an object');
   }
   const warningSeconds = issues.num(item.warningSeconds, `${path}.warningSeconds`, 0.5, 5, 1);
-  const visibleSeconds = issues.num(item.visibleSeconds, `${path}.visibleSeconds`, PLATFORM_LIMITS.minVisible, PLATFORM_LIMITS.maxCycle);
+  const visibleSeconds = issues.num(
+    item.visibleSeconds,
+    `${path}.visibleSeconds`,
+    PLATFORM_LIMITS.minVisible,
+    PLATFORM_LIMITS.maxCycle,
+  );
   if (visibleSeconds < warningSeconds + 0.5) {
-    issues.add(`${path}.visibleSeconds`, 'must leave at least 0.5 s whole before the crumble warning');
+    issues.add(
+      `${path}.visibleSeconds`,
+      'must leave at least 0.5 s whole before the crumble warning',
+    );
   }
   return {
     mode: issues.oneOf<'TIMED' | 'STAND'>(item.mode, `${path}.mode`, ['TIMED', 'STAND'], 'STAND'),
     visibleSeconds,
-    hiddenSeconds: issues.num(item.hiddenSeconds, `${path}.hiddenSeconds`, 0.5, PLATFORM_LIMITS.maxCycle),
+    hiddenSeconds: issues.num(
+      item.hiddenSeconds,
+      `${path}.hiddenSeconds`,
+      0.5,
+      PLATFORM_LIMITS.maxCycle,
+    ),
     warningSeconds,
     fallSeconds: issues.num(item.fallSeconds, `${path}.fallSeconds`, 0.2, 3, 0.6),
-    offsetSeconds: issues.num(item.offsetSeconds, `${path}.offsetSeconds`, 0, PLATFORM_LIMITS.maxCycle, 0),
+    offsetSeconds: issues.num(
+      item.offsetSeconds,
+      `${path}.offsetSeconds`,
+      0,
+      PLATFORM_LIMITS.maxCycle,
+      0,
+    ),
   };
 }
 
@@ -531,7 +641,13 @@ function isStandingOn(state: PlatformState, player: Vec3Like, supportId: string 
     return true;
   }
   const box = boxFor(state);
-  return player.x >= box.min.x && player.x <= box.max.x && player.z >= box.min.z && player.z <= box.max.z && Math.abs(player.y - box.max.y) <= 0.2;
+  return (
+    player.x >= box.min.x &&
+    player.x <= box.max.x &&
+    player.z >= box.min.z &&
+    player.z <= box.max.z &&
+    Math.abs(player.y - box.max.y) <= 0.2
+  );
 }
 
 function playerInsideFootprint(state: PlatformState, player: Vec3Like): boolean {
@@ -552,7 +668,8 @@ export const PLATFORMS_CAPABILITY_ID = 'gameplay.platforms';
 export const platformsCapability: CapabilityDefinition<PlatformsConfig, GameplayRuntime> = {
   id: PLATFORMS_CAPABILITY_ID,
   version: '1.0.0',
-  description: 'Moving, rotating, falling and bounce platforms with carry velocity, reduced-motion scaling and limits.',
+  description:
+    'Moving, rotating, falling and bounce platforms with carry velocity, reduced-motion scaling and limits.',
   defaults: { platforms: [] },
   validate: validatePlatformsConfig,
   install(runtime, config) {
@@ -562,10 +679,23 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
     let launch: { platformId: string; height: number } | null = null;
 
     const phaseEvent = (state: PlatformState, phase: string) => {
-      const warning = phase === 'CRUMBLING' ? (isReducedMotion(runtime) ? ('STEADY_DIM' as const) : ('BLINK' as const)) : null;
-      emitPresentation(runtime, 'PlatformPhaseChanged', { platformId: state.spec.id, phase, warning });
+      const warning =
+        phase === 'CRUMBLING'
+          ? isReducedMotion(runtime)
+            ? ('STEADY_DIM' as const)
+            : ('BLINK' as const)
+          : null;
+      emitPresentation(runtime, 'PlatformPhaseChanged', {
+        platformId: state.spec.id,
+        phase,
+        warning,
+      });
     };
-    const soundEvent = (name: 'PlatformActivated' | 'PlatformMoving' | 'PlatformStopped', spec: PlatformSpec, cue: string | undefined) => {
+    const soundEvent = (
+      name: 'PlatformActivated' | 'PlatformMoving' | 'PlatformStopped',
+      spec: PlatformSpec,
+      cue: string | undefined,
+    ) => {
       emitPresentation(runtime, name, { platformId: spec.id, ...(cue ? { cue } : {}) });
     };
     const addCollider = (state: PlatformState) => {
@@ -594,7 +724,10 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
         moving: false,
       };
       if (spec.moving) {
-        state.motion = { path: createPathMotion(spec.moving.path, spec.moving.mode, spec.moving.pauseSeconds), state: initialMotionState() };
+        state.motion = {
+          path: createPathMotion(spec.moving.path, spec.moving.mode, spec.moving.pauseSeconds),
+          state: initialMotionState(),
+        };
       }
       if (spec.falling) {
         state.falling = createFallingModel(spec.falling);
@@ -603,7 +736,8 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
         }
       }
       world.add(world.create(entityKey('platform', spec.id)), PlatformComponent, state);
-      const solidNow = state.appeared && state.falling?.phase !== 'FALLING' && state.falling?.phase !== 'GONE';
+      const solidNow =
+        state.appeared && state.falling?.phase !== 'FALLING' && state.falling?.phase !== 'GONE';
       if (solidNow) {
         addCollider(state);
       }
@@ -615,7 +749,9 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
     };
     const api: PlatformsApi = {
       carryVelocityAt(supportId, x, z) {
-        const state = supportId ? find(supportId.startsWith('engine:') ? supportId.slice('engine:'.length) : supportId) : undefined;
+        const state = supportId
+          ? find(supportId.startsWith('engine:') ? supportId.slice('engine:'.length) : supportId)
+          : undefined;
         if (!state || state.switchedOff) {
           return { x: 0, y: 0, z: 0 };
         }
@@ -633,7 +769,9 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
           carry.x += (dx * cos + dz * sin - dx) / step.dt;
           carry.z += (-dx * sin + dz * cos - dz) / step.dt;
         } else if (state.spec.spinDegreesPerSecond) {
-          const rate = (state.spec.spinDegreesPerSecond * Math.PI) / 180 * (isReducedMotion(runtime) ? REDUCED_MOTION_SPEED_SCALE : 1);
+          const rate =
+            ((state.spec.spinDegreesPerSecond * Math.PI) / 180) *
+            (isReducedMotion(runtime) ? REDUCED_MOTION_SPEED_SCALE : 1);
           const cx = state.spec.position.x + state.offset.x;
           const cz = state.spec.position.z + state.offset.z;
           // Tangential velocity of a point at (x - cx, z - cz) turning at `rate` about +Y.
@@ -670,7 +808,11 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
           out.push({
             id: spec.id,
             phase: state.falling?.phase ?? 'STABLE',
-            position: { x: (box.min.x + box.max.x) / 2, y: box.max.y, z: (box.min.z + box.max.z) / 2 },
+            position: {
+              x: (box.min.x + box.max.x) / 2,
+              y: box.max.y,
+              z: (box.min.z + box.max.z) / 2,
+            },
             size: { ...spec.size },
             kind: platformKind(spec),
           });
@@ -681,9 +823,16 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
         for (const spec of config.platforms) {
           if (platformKind(spec) === 'static' && spec.bounceHeight === undefined) continue;
           const state = find(spec.id);
-          if (!state || !state.appeared || state.switchedOff || state.falling?.phase === 'GONE') continue;
+          if (!state || !state.appeared || state.switchedOff || state.falling?.phase === 'GONE')
+            continue;
           const box = boxFor(state);
-          if (x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z && Math.abs(box.max.y - y) < 0.06) {
+          if (
+            x >= box.min.x &&
+            x <= box.max.x &&
+            z >= box.min.z &&
+            z <= box.max.z &&
+            Math.abs(box.max.y - y) < 0.06
+          ) {
             return false;
           }
         }
@@ -704,12 +853,17 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
           const state = world.get(entity, PlatformComponent)!;
           const { spec } = state;
           const before = { ...state.offset };
-          const off = spec.inactiveWhenSignalId !== undefined && signals.get(spec.inactiveWhenSignalId);
+          const off =
+            spec.inactiveWhenSignalId !== undefined && signals.get(spec.inactiveWhenSignalId);
           if (off !== state.switchedOff) {
             state.switchedOff = off;
             if (off) {
               removeCollider(state);
-            } else if (state.appeared && state.falling?.phase !== 'FALLING' && state.falling?.phase !== 'GONE') {
+            } else if (
+              state.appeared &&
+              state.falling?.phase !== 'FALLING' &&
+              state.falling?.phase !== 'GONE'
+            ) {
               addCollider(state);
             }
             phaseEvent(state, off ? 'SWITCHED_OFF' : 'SWITCHED_ON');
@@ -724,16 +878,28 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
           }
 
           if (state.motion && spec.moving) {
-            const active = spec.moving.activeSignalId === undefined || signals.get(spec.moving.activeSignalId);
+            const active =
+              spec.moving.activeSignalId === undefined || signals.get(spec.moving.activeSignalId);
             if (active && !state.active) {
               soundEvent('PlatformActivated', spec, spec.sounds?.activated);
             }
             state.active = active;
             let moved = false;
             if (active) {
-              moved = advanceMotion(state.motion.path, state.motion.state, context.dt, spec.moving.speed * scale);
+              moved = advanceMotion(
+                state.motion.path,
+                state.motion.state,
+                context.dt,
+                spec.moving.speed * scale,
+              );
             } else if (spec.moving.returnWhenInactive) {
-              moved = advanceMotion(state.motion.path, state.motion.state, context.dt, spec.moving.speed * scale, true);
+              moved = advanceMotion(
+                state.motion.path,
+                state.motion.state,
+                context.dt,
+                spec.moving.speed * scale,
+                true,
+              );
             }
             motionOffset(state.motion.path, state.motion.state, state.offset);
             if (moved !== state.moving) {
@@ -750,7 +916,10 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
 
           if (state.falling) {
             const standing = player !== undefined && isStandingOn(state, player, support);
-            const canRespawn = !(player !== undefined && playerInsideFootprint({ ...state, falling: { ...state.falling, drop: 0 } }, player));
+            const canRespawn = !(
+              player !== undefined &&
+              playerInsideFootprint({ ...state, falling: { ...state.falling, drop: 0 } }, player)
+            );
             const changed = stepFallingModel(state.falling, context.dt, standing, canRespawn);
             if (changed) {
               phaseEvent(state, changed);
@@ -765,17 +934,30 @@ export const platformsCapability: CapabilityDefinition<PlatformsConfig, Gameplay
           state.carry.x = (state.offset.x - before.x) / context.dt;
           state.carry.y = (state.offset.y - before.y) / context.dt;
           state.carry.z = (state.offset.z - before.z) / context.dt;
-          if (state.hasCollider && (state.carry.x !== 0 || state.carry.y !== 0 || state.carry.z !== 0)) {
+          if (
+            state.hasCollider &&
+            (state.carry.x !== 0 || state.carry.y !== 0 || state.carry.z !== 0)
+          ) {
             const box = boxFor(state);
             physics.updateCollider(spec.id, box.min, box.max);
           }
 
           if (spec.bounceHeight !== undefined) {
-            const on = state.appeared && !state.switchedOff && player !== undefined && isStandingOn(state, player, support);
+            const on =
+              state.appeared &&
+              !state.switchedOff &&
+              player !== undefined &&
+              isStandingOn(state, player, support);
             if (on && !state.wasOn) {
               launch = { platformId: spec.id, height: spec.bounceHeight };
-              emitPresentation(runtime, 'PlayerBounced', { platformId: spec.id, cue: spec.bounceCue });
-              emitPresentation(runtime, 'PlatformLaunch', { platformId: spec.id, height: spec.bounceHeight });
+              emitPresentation(runtime, 'PlayerBounced', {
+                platformId: spec.id,
+                cue: spec.bounceCue,
+              });
+              emitPresentation(runtime, 'PlatformLaunch', {
+                platformId: spec.id,
+                height: spec.bounceHeight,
+              });
             }
             state.wasOn = on;
           }

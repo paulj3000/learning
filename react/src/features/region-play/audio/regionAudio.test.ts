@@ -84,8 +84,12 @@ describe('region audio registry', () => {
     expect(fp.checkpointCue).toBe(FP_SOUND.checkpoint);
     expect(fp.recoverCue).toBe(FP_SOUND.lavaRespawn);
     expect(fp.music.victory).toBe(FP_SOUND.musicFinale);
-    expect(momentSoundsFor(FIREPEAK_REGION_ID, 'crystalCollect')).toEqual([FP_SOUND.crystalCollect]);
-    expect(momentSoundsFor(FIREPEAK_REGION_ID, 'puzzleComplete')).toEqual([FP_SOUND.puzzleComplete]);
+    expect(momentSoundsFor(FIREPEAK_REGION_ID, 'crystalCollect')).toEqual([
+      FP_SOUND.crystalCollect,
+    ]);
+    expect(momentSoundsFor(FIREPEAK_REGION_ID, 'puzzleComplete')).toEqual([
+      FP_SOUND.puzzleComplete,
+    ]);
     expect(momentSoundsFor(FIREPEAK_REGION_ID, 'restoration')).toEqual([FP_SOUND.restore]);
     expect(momentSoundsFor(FIREPEAK_REGION_ID, 'questComplete')).toEqual([FP_SOUND.complete]);
     expect(momentSoundsFor(FIREPEAK_REGION_ID, 'chestOpen')).toEqual([]);
@@ -166,7 +170,9 @@ describe('region audio registry', () => {
     // Returning to Pip with the treasure completes Pip's quest; the Treasure Rush finale is its
     // own (TR-14, on main since 2026-11-03), never a Firepeak cue.
     const tr = regionAudioFor(TREASURE_RUSH_REGION_ID);
-    expect(momentSoundsFor(TREASURE_RUSH_REGION_ID, 'questComplete')).toEqual([TR_SOUND.questComplete]);
+    expect(momentSoundsFor(TREASURE_RUSH_REGION_ID, 'questComplete')).toEqual([
+      TR_SOUND.questComplete,
+    ]);
     expect(tr.music.victory).toBe(TR_SOUND.musicVictory);
     const firepeakCues = new Set<string>(Object.values(FP_SOUND));
     const trCues = [
@@ -179,8 +185,20 @@ describe('region audio registry', () => {
     ];
     expect(trCues.filter((cue) => cue && firepeakCues.has(cue))).toEqual([]);
     // A solve that finishes no quest raises no finale anywhere.
-    expect(puzzleSolveCues('OBSERVE_FEATURES', { correct: true, solvedNow: true, questUpdates: [{ justCompleted: false }] })).not.toContain('questComplete');
-    expect(puzzleSolveCues('OBSERVE_FEATURES', { correct: true, solvedNow: true, questUpdates: [{ justCompleted: true }] })).toContain('questComplete');
+    expect(
+      puzzleSolveCues('OBSERVE_FEATURES', {
+        correct: true,
+        solvedNow: true,
+        questUpdates: [{ justCompleted: false }],
+      }),
+    ).not.toContain('questComplete');
+    expect(
+      puzzleSolveCues('OBSERVE_FEATURES', {
+        correct: true,
+        solvedNow: true,
+        questUpdates: [{ justCompleted: true }],
+      }),
+    ).toContain('questComplete');
   });
 
   it('falls back silently for an unknown region', () => {

@@ -73,14 +73,17 @@ describe('North Pole content: ids', () => {
 
   it('has the seasonal cosmetics and the badges', () => {
     const byId = new Map(NORTH_POLE_ITEMS.map((i) => [i.id, i]));
-    expect(byId.get('np-cosmetic-santa-hat')).toMatchObject({ category: 'COSMETIC', cosmeticSlot: 'HAT' });
+    expect(byId.get('np-cosmetic-santa-hat')).toMatchObject({
+      category: 'COSMETIC',
+      cosmeticSlot: 'HAT',
+    });
     expect(byId.get('np-cosmetic-elf-backpack')).toMatchObject({ cosmeticSlot: 'BACKPACK' });
     expect(byId.get('np-cosmetic-snowflake-scarf')).toMatchObject({ cosmeticSlot: 'ACCESSORY' });
     expect(NORTH_POLE_ITEMS.filter((i) => i.id.startsWith('np-badge-'))).toHaveLength(8);
     expect(byId.has('np-trophy-christmas-star')).toBe(true);
-    expect(NORTH_POLE_COLLECTIBLE_SETS.find((s) => s.id === 'np-set-snowflakes')?.completionItemId).toBe(
-      'np-cosmetic-snowflake-scarf',
-    );
+    expect(
+      NORTH_POLE_COLLECTIBLE_SETS.find((s) => s.id === 'np-set-snowflakes')?.completionItemId,
+    ).toBe('np-cosmetic-snowflake-scarf');
   });
 
   it('every set item and rule item exists, and set members point back to their set', () => {
@@ -91,7 +94,8 @@ describe('North Pole content: ids', () => {
         expect(NORTH_POLE_ITEMS.find((i) => i.id === id)?.setId).toBe(set.id);
       }
     }
-    for (const rule of NORTH_POLE_REWARD_RULES) for (const id of rule.itemIds) expect(ids.has(id)).toBe(true);
+    for (const rule of NORTH_POLE_REWARD_RULES)
+      for (const id of rule.itemIds) expect(ids.has(id)).toBe(true);
   });
 });
 
@@ -115,17 +119,30 @@ describe('North Pole content: reward rules', () => {
       GOLDEN_BELL: 3,
     };
     for (const [prefix, n] of Object.entries(counts)) {
-      const rules = NORTH_POLE_REWARD_RULES.filter((r) => r.id.startsWith(`np-rule-${prefix.toLowerCase().replace('_', '-')}-`));
+      const rules = NORTH_POLE_REWARD_RULES.filter((r) =>
+        r.id.startsWith(`np-rule-${prefix.toLowerCase().replace('_', '-')}-`),
+      );
       expect(rules, prefix).toHaveLength(n);
       for (const rule of rules) expect(rule.itemIds).toHaveLength(1);
     }
     expect(NORTH_POLE_REWARD_RULES.some((r) => r.id.includes('mountain-bridge'))).toBe(false);
     expect(NORTH_POLE_REWARD_RULES.some((r) => r.id === 'np-rule-snowball-found')).toBe(true);
     for (const id of [
-      'np-rule-welcome', 'np-rule-workshop-gifts', 'np-rule-workshop', 'np-rule-forest', 'np-rule-lake',
-      'np-rule-reindeer', 'np-rule-gingerbread', 'np-rule-mountain', 'np-rule-star', 'np-rule-christmas-eve',
+      'np-rule-welcome',
+      'np-rule-workshop-gifts',
+      'np-rule-workshop',
+      'np-rule-forest',
+      'np-rule-lake',
+      'np-rule-reindeer',
+      'np-rule-gingerbread',
+      'np-rule-mountain',
+      'np-rule-star',
+      'np-rule-christmas-eve',
     ]) {
-      expect(NORTH_POLE_REWARD_RULES.some((r) => r.id === id), id).toBe(true);
+      expect(
+        NORTH_POLE_REWARD_RULES.some((r) => r.id === id),
+        id,
+      ).toBe(true);
     }
   });
 
@@ -138,8 +155,15 @@ describe('North Pole content: reward rules', () => {
 describe('North Pole content: quests', () => {
   it('chain through WORLD_CHANGE prerequisites on keys an earlier quest records', () => {
     const expectedPrereq = [
-      null, 'WELCOME_LOOKED', 'WORKSHOP_RESTORED', 'FOREST_DONE', 'LAKE_DONE',
-      'SNOWBALL_HOME', 'GINGER_REPAIRED', 'MOUNTAIN_SUMMIT', 'STAR_RESTORED',
+      null,
+      'WELCOME_LOOKED',
+      'WORKSHOP_RESTORED',
+      'FOREST_DONE',
+      'LAKE_DONE',
+      'SNOWBALL_HOME',
+      'GINGER_REPAIRED',
+      'MOUNTAIN_SUMMIT',
+      'STAR_RESTORED',
     ];
     NORTH_POLE_QUESTS.forEach((q, i) => {
       const want = expectedPrereq[i];
@@ -159,7 +183,9 @@ describe('North Pole content: quests', () => {
       }
     });
     const q9 = NORTH_POLE_QUESTS[8];
-    expect(q9?.completion.worldChanges?.map((c) => c.changeKey)).toContain('NORTH_POLE_ADVENTURE_COMPLETE');
+    expect(q9?.completion.worldChanges?.map((c) => c.changeKey)).toContain(
+      'NORTH_POLE_ADVENTURE_COMPLETE',
+    );
   });
 
   it('records the keys of earlier quests that gate the next', () => {
@@ -168,20 +194,31 @@ describe('North Pole content: quests', () => {
       for (const p of q.prerequisites) {
         if (p.type === 'WORLD_CHANGE') expect(recorded.has(p.changeKey), p.changeKey).toBe(true);
       }
-      for (const o of q.stages.flatMap((s) => s.objectives)) recorded.add((o as { changeKey: string }).changeKey);
+      for (const o of q.stages.flatMap((s) => s.objectives))
+        recorded.add((o as { changeKey: string }).changeKey);
     }
   });
 
   it('every quest has a fragment key objective and the giver offers it', () => {
     for (const q of NORTH_POLE_QUESTS) {
-      const keys = (q.stages[0]?.objectives ?? []).map((o) => (o as { changeKey: string }).changeKey);
+      const keys = (q.stages[0]?.objectives ?? []).map(
+        (o) => (o as { changeKey: string }).changeKey,
+      );
       if (q.id !== 'np-q08-restore-the-star' && q.id !== 'np-q09-christmas-eve') {
-        expect(keys.some((x) => x.includes('FRAGMENT_')), q.id).toBe(true);
+        expect(
+          keys.some((x) => x.includes('FRAGMENT_')),
+          q.id,
+        ).toBe(true);
       }
       const giver = NORTH_POLE_NPCS.find((n) => n.id === q.giverNpcId);
-      expect(giver?.questOffers.some((o) => o.questId === q.id), q.id).toBe(true);
+      expect(
+        giver?.questOffers.some((o) => o.questId === q.id),
+        q.id,
+      ).toBe(true);
     }
-    const q5 = NORTH_POLE_QUESTS[4]?.stages[0]?.objectives.map((o) => (o as { changeKey: string }).changeKey);
+    const q5 = NORTH_POLE_QUESTS[4]?.stages[0]?.objectives.map(
+      (o) => (o as { changeKey: string }).changeKey,
+    );
     expect(q5).toContain('NORTH_POLE_SNOWBALL_FOUND');
   });
 });
@@ -226,14 +263,20 @@ describe('North Pole content: dialogue', () => {
       const talk = npc.dialogue.filter((d) => !d.puzzleLine);
       for (const band of BANDS) {
         expect(
-          talk.some((d) => !d.followUpOnly && d.conditions.length === 0 && (d.ageBands ?? BANDS).includes(band)),
+          talk.some(
+            (d) =>
+              !d.followUpOnly && d.conditions.length === 0 && (d.ageBands ?? BANDS).includes(band),
+          ),
           `${npc.id} ${band}`,
         ).toBe(true);
       }
       const firstOpener = talk.findIndex((d) => d.conditions.length === 0);
-      expect(talk.slice(0, firstOpener).every((d) => d.conditions[0]?.type === 'WORLD_CHANGE')).toBe(true);
+      expect(
+        talk.slice(0, firstOpener).every((d) => d.conditions[0]?.type === 'WORLD_CHANGE'),
+      ).toBe(true);
       if (npc.id !== 'snowball') {
-        for (const id of ['help', 'hint']) expect(talk.some((d) => d.id === `${npc.id}-${id}`)).toBe(true);
+        for (const id of ['help', 'hint'])
+          expect(talk.some((d) => d.id === `${npc.id}-${id}`)).toBe(true);
         expect(talk[0]?.id).toBe(`${npc.id}-thanks`);
       }
     }

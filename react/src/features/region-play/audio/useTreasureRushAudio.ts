@@ -180,7 +180,8 @@ export function useTreasureRushAudio(options: UseTreasureRushAudioOptions): Trea
     // GE-074: the surface underfoot may choose the cue (North Pole ice and snow).
     const offStep = listenFootsteps(
       bus,
-      (cue, gait) => void player.play(cue, { volume: FOOTSTEP_VOLUME[gait] }).catch(() => undefined),
+      (cue, gait) =>
+        void player.play(cue, { volume: FOOTSTEP_VOLUME[gait] }).catch(() => undefined),
       TR_SOUND.playerFootstep,
       regionAudio.footstepCues,
     );

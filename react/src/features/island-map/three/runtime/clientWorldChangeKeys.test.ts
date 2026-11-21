@@ -71,11 +71,19 @@ function clientPostedKeys(): { where: string; key: string }[] {
   for (const manifest of SOURCE_LOCATION_MANIFESTS) {
     for (const collectible of manifest.collectibles) {
       const change = pickUpWorldChange(manifest, collectible.entityId);
-      if (change) posted.push({ where: `${manifest.locationSlug}:${collectible.entityId}`, key: change.changeKey });
+      if (change)
+        posted.push({
+          where: `${manifest.locationSlug}:${collectible.entityId}`,
+          key: change.changeKey,
+        });
     }
     for (const extension of manifest.extensions) {
       const trial = tryParseTideTrialConfig(extension.config);
-      if (trial) posted.push({ where: `${manifest.locationSlug}:${extension.extensionId}`, key: trial.worldChange.changeKey });
+      if (trial)
+        posted.push({
+          where: `${manifest.locationSlug}:${extension.extensionId}`,
+          key: trial.worldChange.changeKey,
+        });
     }
   }
   return posted;

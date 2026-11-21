@@ -86,7 +86,10 @@ export interface DerivedCollider {
 type AssetKinds = ReadonlyMap<string, AssetManifestEntry['kind']>;
 
 export function footprintFor(assetId: string, kinds: AssetKinds): AssetFootprint | undefined {
-  return ASSET_FOOTPRINTS[assetId] ?? (kinds.get(assetId) === 'character' ? CHARACTER_FOOTPRINT : undefined);
+  return (
+    ASSET_FOOTPRINTS[assetId] ??
+    (kinds.get(assetId) === 'character' ? CHARACTER_FOOTPRINT : undefined)
+  );
 }
 
 interface Placement {
@@ -257,7 +260,8 @@ function collisionOf(
   options: DeriveOptions,
 ): { boxes: readonly ModelBox[]; behavior: CollisionBehavior | 'AUTO' } | null {
   const profile = options.profiles?.get(assetId);
-  if (profile) return profile.boxes.length ? { boxes: profile.boxes, behavior: profile.behavior } : null;
+  if (profile)
+    return profile.boxes.length ? { boxes: profile.boxes, behavior: profile.behavior } : null;
   const footprint = footprintFor(assetId, options.assetKinds);
   return footprint ? { boxes: [footprintBox(footprint)], behavior: 'AUTO' } : null;
 }
