@@ -1,4 +1,5 @@
-"""Collision profiles: how a 3D asset blocks movement (Asset Manager; `docs/ASSET_COLLISION_PROFILES.md`).
+"""Collision profiles: how a 3D asset blocks movement (Asset Manager;
+`docs/ASSET_COLLISION_PROFILES.md`).
 
 Staff author a `CollisionProfile` per asset (its default) or per version (an override) in Django
 Admin. This module is the one place that turns a profile into what the runtime uses: a behaviour
@@ -67,7 +68,8 @@ def version_bounds(version) -> Bounds | None:
 
 
 def profile_for(asset, version) -> CollisionProfile | None:
-    """The profile in force for `version` of `asset`: the version's own, else the asset's default."""
+    """The profile in force for `version` of `asset`: the version's own, else the asset's
+    default."""
     profiles = list(asset.collision_profiles.all())
     if version is not None:
         for profile in profiles:

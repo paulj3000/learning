@@ -260,7 +260,8 @@ def _authored_course() -> dict:
                 -14.6,
                 -21.6,
                 -16.6,
-                "Pip: Welcome to Pirate's Leap! Walk onto the first step, then press Jump to hop up the others.",
+                "Pip: Welcome to Pirate's Leap! Walk onto the first step, then press Jump to hop "
+                "up the others.",
             ),
             _zone(
                 "leap-zone-barrels",
@@ -268,7 +269,8 @@ def _authored_course() -> dict:
                 -21.4,
                 -21.0,
                 -16.8,
-                "Pip: Barrel Crossing! Jump from barrel to barrel. You can walk round the pool too.",
+                "Pip: Barrel Crossing! Jump from barrel to barrel. "
+                "You can walk round the pool too.",
             ),
             _zone(
                 "leap-zone-logs",
@@ -328,7 +330,8 @@ LIVE_PLATE_HALF_SIZE = 0.6  # the live platform system's default plate size
 
 
 def _engine_platform(p: dict, plates: set[str]) -> dict:
-    """One authored platform as an engine `gameplay.platforms` spec (same place, size and timing)."""
+    """One authored platform as an engine `gameplay.platforms` spec (same place, size and
+    timing)."""
     spec = {
         "id": p["id"],
         "position": dict(p["position"]),
@@ -721,7 +724,9 @@ def seed_pirates_leap(region: WorldRegion, get_or_create) -> list[str]:
             "sort_order": 11,
             "reward_rule": rules["reward-pirates-leap-chest"],
             "world_change_key": LEAP_CHEST_KEY,
-            "clue": "My secret treasure is up in the crow's nest. Ride the Pirate Lift to reach it!",
+            "clue": (
+                "My secret treasure is up in the crow's nest. Ride the Pirate Lift to reach it!"
+            ),
             **_specs("chest", get_or_create),
         },
     )

@@ -5,7 +5,8 @@ second achievement model). The three new ones are paid by server-graded paths on
 
 - `painted-words-brush` when the Painted Words adventure completes (`ADVENTURE_COMPLETED`);
 - `three-clues-lens` when Django's adventure runner records `SECRET_DOOR_CLUES_COLLECTED`;
-- `secret-door-key` when Django completes the Secret Door story (`THE_CASTLES_SECRET_DOOR_COMPLETE`).
+- `secret-door-key` when Django completes the Secret Door story
+(`THE_CASTLES_SECRET_DOOR_COMPLETE`).
 
 The two `WORLD_CHANGE` rules name protected Great Storybook page keys, and a grant needs the key
 at its own place, so a client POST or a misplaced copy pays nothing.

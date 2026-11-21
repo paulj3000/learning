@@ -48,7 +48,8 @@ PIPELINE_VERSION = 1
 # The largest source file or archive member this reads into memory.
 MAX_SOURCE_BYTES = 64 * 1024 * 1024
 MODEL_SUFFIXES = (".glb", ".gltf")
-# Files a .gltf may pull in by name (TR-NAT: .gltf + .bin + shared textures, possibly in other ZIPs).
+# Files a .gltf may pull in by name (TR-NAT: .gltf + .bin + shared textures, possibly in other
+# ZIPs).
 RESOURCE_SUFFIXES = (".bin", ".png", ".jpg", ".jpeg")
 # Recognised but not convertible here: there is no conversion pipeline (ASSET_LIBRARY.md s. 4).
 UNSUPPORTED_SUFFIXES = (".fbx", ".obj", ".blend", ".dae", ".3ds", ".stl", ".usdz")

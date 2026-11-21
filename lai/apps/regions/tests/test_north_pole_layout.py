@@ -61,10 +61,12 @@ CONTRACT_CHECKPOINTS = {
 }
 PUZZLES = (
     "np-welcome-look np-workshop-count np-workshop-sort np-workshop-pattern np-workshop-assemble "
-    "np-forest-sequence np-forest-signs np-forest-stripes np-lake-sums np-lake-order np-lake-shapes "
+    "np-forest-sequence np-forest-signs np-forest-stripes np-lake-sums np-lake-order "
+    "np-lake-shapes "
     "np-stables-facts np-stables-tracks np-stables-supplies np-stables-return np-ginger-shapes "
     "np-ginger-symmetry np-ginger-recipe np-ginger-measure np-ginger-build np-mountain-weather "
-    "np-obs-stars np-obs-constellation np-obs-sequence np-obs-fragments np-obs-final np-eve-sleigh-bell"
+    "np-obs-stars np-obs-constellation np-obs-sequence np-obs-fragments np-obs-final "
+    "np-eve-sleigh-bell"
 ).split()
 NPC_ENTITIES = {
     "np-santa": "santa-claus",
@@ -80,10 +82,35 @@ NPC_ENTITIES = {
     "np-snowball": "snowball",
 }
 STAND_IN_SHAPES = {
-    "BOX", "TENT", "TELESCOPE", "PIPE", "PEDESTAL", "CRYSTAL", "PORTAL", "STONE", "VALVE", "MARKER",
-    "FIGURE", "TREE", "LOG", "GEAR", "SWITCH", "ROCK", "ARCH",
-    "PINE", "STAR", "GIFT", "SNOWMAN", "CANE", "LANTERN", "HOUSE", "DOME", "SLEIGH", "ANIMAL", "SIGN",
-}  # fmt: skip
+    "BOX",
+    "TENT",
+    "TELESCOPE",
+    "PIPE",
+    "PEDESTAL",
+    "CRYSTAL",
+    "PORTAL",
+    "STONE",
+    "VALVE",
+    "MARKER",
+    "FIGURE",
+    "TREE",
+    "LOG",
+    "GEAR",
+    "SWITCH",
+    "ROCK",
+    "ARCH",
+    "PINE",
+    "STAR",
+    "GIFT",
+    "SNOWMAN",
+    "CANE",
+    "LANTERN",
+    "HOUSE",
+    "DOME",
+    "SLEIGH",
+    "ANIMAL",
+    "SIGN",
+}
 BY_ID = {p["entity_id"]: p for p in L.PLACEMENTS}
 
 
@@ -120,9 +147,11 @@ SOLID = [c for c in LAYOUT["colliders"] if not c.get("jumpable")]
 LEDGES = [c for c in LAYOUT["colliders"] if c.get("jumpable")]
 GATE_RECTS = {c["id"]: rect_of(c) for c in SCENE["colliders"]}
 BRIDGES = [
-    p for p in PLATFORMING["platforms"]
-    if (p.get("activation") or {}).get("hiddenUntilActive") and (p.get("activation") or {}).get("trigger") == "SIGNAL"
-]  # fmt: skip
+    p
+    for p in PLATFORMING["platforms"]
+    if (p.get("activation") or {}).get("hiddenUntilActive")
+    and (p.get("activation") or {}).get("trigger") == "SIGNAL"
+]
 OTHER_PLATFORMS = [p for p in PLATFORMING["platforms"] if p not in BRIDGES]
 # GE-074: the one checkpoint list and the water hazard live in the engine bridge. Normalised views
 # keep the zone checkpoints and the lake banks apart, with x/z and the gating change key.
@@ -353,10 +382,16 @@ def test_spawn_and_every_checkpoint_stand_on_free_ground():
 
 def test_every_checkpoint_sits_in_the_zone_of_its_gate():
     zone_of = {
-        "np-cp-landing": "santas-landing", "np-cp-workshop": "santas-workshop", "np-cp-forest": "candy-cane-forest",
-        "np-cp-lake": "frozen-lake", "np-cp-stables": "reindeer-stables", "np-cp-gingerbread": "gingerbread-village",
-        "np-cp-mountain": "snowflake-mountain", "np-cp-observatory": "north-pole-observatory", "np-cp-finale": "santas-landing",
-    }  # fmt: skip
+        "np-cp-landing": "santas-landing",
+        "np-cp-workshop": "santas-workshop",
+        "np-cp-forest": "candy-cane-forest",
+        "np-cp-lake": "frozen-lake",
+        "np-cp-stables": "reindeer-stables",
+        "np-cp-gingerbread": "gingerbread-village",
+        "np-cp-mountain": "snowflake-mountain",
+        "np-cp-observatory": "north-pole-observatory",
+        "np-cp-finale": "santas-landing",
+    }
     for c in ZONE_CHECKPOINTS:
         assert inside(CONTRACT_ZONES[zone_of[c["id"]]], c["x"], c["z"]), c["id"]
 
@@ -560,9 +595,12 @@ def test_spawn_region_is_connected_and_gates_really_seal_the_zones(closed_grid):
 def test_each_gate_alone_opens_exactly_its_own_zone():
     """Opening one gate must not leak into a zone that has its own gate."""
     zone_cp = {
-        "np-gate-workshop": "np-cp-workshop", "np-gate-forest": "np-cp-forest", "np-gate-lake": "np-cp-lake",
-        "np-gate-stables": "np-cp-stables", "np-gate-gingerbread": "np-cp-gingerbread",
-    }  # fmt: skip
+        "np-gate-workshop": "np-cp-workshop",
+        "np-gate-forest": "np-cp-forest",
+        "np-gate-lake": "np-cp-lake",
+        "np-gate-stables": "np-cp-stables",
+        "np-gate-gingerbread": "np-cp-gingerbread",
+    }
     cps = {c["id"]: c for c in ZONE_CHECKPOINTS}
     for gate_id, cp_id in zone_cp.items():
         grid = Grid(gates_open=False)

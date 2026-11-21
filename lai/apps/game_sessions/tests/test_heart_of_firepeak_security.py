@@ -1,4 +1,5 @@
-"""Ownership and security of the Heart of Firepeak routes (docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md).
+"""Ownership and security of the Heart of Firepeak routes
+(docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md).
 
 Builds its own minimal published `firepeak-heart` 3D Area so it does not depend on the seed.
 Covers: another family's child (404), the Sprouts band (not visible), staff-only admin for

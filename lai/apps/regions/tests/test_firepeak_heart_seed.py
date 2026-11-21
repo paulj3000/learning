@@ -286,7 +286,8 @@ class TestVariantContract:
                     assert len(v["items"]) == count, (pid, band)
 
     def test_arithmetic_answers_are_correct(self):
-        """Spot-check the maths variants: the options include the true result and it is the answer."""
+        """Spot-check the maths variants: the options include the true result and it is the
+        answer."""
         sums = re.compile(r"answer to (\d+) ([+-]) (\d+)\??")
         for pid in ("fh-lava-numbers",):
             body = {r[0]: r[3] for r in ROWS}[pid]
@@ -478,7 +479,8 @@ class TestPublishCommand:
 
 
 class TestNpcManagerPlacements:
-    """The NPC Manager's spots (`apps/npcs/firepeak_content.py`) are where the seed places the NPCs."""
+    """The NPC Manager's spots (`apps/npcs/firepeak_content.py`) are where the seed places the
+    NPCs."""
 
     def test_every_spot_equals_the_seeded_placement(self):
         from apps.npcs.firepeak_content import NPCS

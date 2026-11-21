@@ -16,7 +16,8 @@ validated, and stored through the configured asset storage as a VALIDATED versio
 limits the run to `palms`, `barrels`, `logs`, `bushes`, `flowers` or `grass`, `vegetation`
 (those three), `campfire` (Kenney's Survival Kit campfire pit, with its default solid
 collision profile), or `feather` (the Pirate's Leap feather: CC-BY-4.0, so published only with
-`--licence-confirmed`, the owner's acceptance of the attribution it requires); `rocks`, `ferns` and `coconuts` are refused because none were supplied.
+`--licence-confirmed`, the owner's acceptance of the attribution it requires); `rocks`, `ferns` and
+`coconuts` are refused because none were supplied.
 
 Publishing (`--publish`) is refused outside local development, and skips any pack whose licence
 the owner has not confirmed unless `--licence-confirmed` records that they now have. With S3

@@ -106,7 +106,8 @@ def _condition_problems(index: int, condition: object, npc_id: object) -> list[s
 def body_problems(body: object) -> list[str]:
     """Every reason `body` cannot be a published castle event (empty when it can).
 
-    The id check is the authoring service's (`authoring.validate`). Called on every save and again on publish. Length limits are the
+    The id check is the authoring service's (`authoring.validate`). Called on every save and again
+    on publish. Length limits are the
     spoken-length limits of each age band, so a line is never too long for the child who gets it.
     """
     from apps.ai.limits import MAX_SPOKEN_LENGTH_BY_AGE_BAND

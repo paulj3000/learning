@@ -1,4 +1,5 @@
-"""Asset Manager collision profiles (`apps/assets/collision.py`, `docs/ASSET_COLLISION_PROFILES.md`)."""
+"""Asset Manager collision profiles (`apps/assets/collision.py`,
+`docs/ASSET_COLLISION_PROFILES.md`)."""
 
 import io
 import json

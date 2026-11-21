@@ -432,7 +432,8 @@ def zones() -> list[dict]:
             32,
             66,
             94,
-            "Flint: Welcome to Firepeak! Use the stick or the arrow keys to walk. Say hello to me, then read the map.",
+            "Flint: Welcome to Firepeak! Use the stick or the arrow keys to walk. Say hello to me, "
+            "then read the map.",
         ),
         _zone(
             "fh-zone-jump-tip",
@@ -440,7 +441,8 @@ def zones() -> list[dict]:
             18,
             73,
             78,
-            "Tip: You can press Jump to hop over this log. Jumping is just for fun. You can always walk around.",
+            "Tip: You can press Jump to hop over this log. Jumping is just for fun. You can always "
+            "walk around.",
         ),
         _zone(
             "fh-zone-emberwood",
@@ -448,7 +450,8 @@ def zones() -> list[dict]:
             32,
             38,
             64,
-            "Emberwood Forest. Kindle the fire spirit is here to help. Hop the logs or walk around them.",
+            "Emberwood Forest. Kindle the fire spirit is here to help. Hop the logs or walk around "
+            "them.",
         ),
         _zone(
             "fh-zone-lava",
@@ -456,7 +459,8 @@ def zones() -> list[dict]:
             32,
             8,
             36,
-            "The Lava Crossing. Solve the stone numbers to build a bridge. If you slip, you just go back to a safe spot.",
+            "The Lava Crossing. Solve the stone numbers to build a bridge. If you slip, you just "
+            "go back to a safe spot.",
         ),
         _zone(
             "fh-zone-caverns",
@@ -488,7 +492,8 @@ def zones() -> list[dict]:
             32,
             -94,
             -78,
-            "The Heart Chamber. The Heart of Firepeak is dim. Set the crystals in order to wake it.",
+            "The Heart Chamber. The Heart of Firepeak is dim. "
+            "Set the crystals in order to wake it.",
         ),
     ]
 

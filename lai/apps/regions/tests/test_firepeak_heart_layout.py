@@ -387,7 +387,8 @@ def world_state(open_gates: int, bridge: bool):
 
 
 def walk(start, height, blocked):
-    """Cells reachable on foot: no jump, so each step may rise at most `STEP_UP`; falling is free."""
+    """Cells reachable on foot: no jump, so each step may rise at most `STEP_UP`; falling is
+    free."""
     seen = {start}
     queue = deque([start])
     while queue:
@@ -438,7 +439,8 @@ def zone_of(z):
 
 
 def used_by_the_child(p):
-    """Everything a child must reach: NPCs, puzzle objects and the way through (not optional shards)."""
+    """Everything a child must reach: NPCs, puzzle objects and the way through (not optional
+    shards)."""
     return p["kind"] in {"NPC", "PROP"} and p["entity_id"] not in {
         "fh-landing-campfire",
         "fh-forest-stream",

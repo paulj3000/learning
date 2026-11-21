@@ -1,4 +1,5 @@
-"""LAI-JMP-02 / LAI-JMP-04: platforming layout checks and staff tuning (`apps/regions/platforming.py`)."""
+"""LAI-JMP-02 / LAI-JMP-04: platforming layout checks and staff tuning
+(`apps/regions/platforming.py`)."""
 
 import pytest
 

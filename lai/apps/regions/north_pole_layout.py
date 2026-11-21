@@ -148,7 +148,9 @@ ZONE_MESSAGES = {
         "Gingerbread Village! Ginger and Mrs. Claus are baking. Walk up the sweet ramp to the "
         "rooftop, or hop on the cookies."
     ),
-    "north-road": "The North Road. Follow the lanterns to the next adventure. Jingle is cheering for you!",
+    "north-road": (
+        "The North Road. Follow the lanterns to the next adventure. Jingle is cheering for you!"
+    ),
     "snowflake-mountain": (
         "Snowflake Mountain! Climb the snowy stairs one step at a time. If you slip, you only "
         "slide down a little. Jingle will cheer you on."
@@ -229,7 +231,8 @@ class _Build:
         )
 
     def fence(self, fid: str, x0, x1, z0, z1) -> None:
-        """An invisible-height snow lip: a solid collider with no drawing (keeps a fall to one terrace)."""
+        """An invisible-height snow lip: a solid collider with no drawing (keeps a fall to one
+        terrace)."""
         self.colliders.append({"rect": _rect(fid, x0, x1, z0, z1), "minY": 0, "maxY": 6})
 
     def solid(self, cid: str, x0, x1, z0, z1) -> None:
@@ -1724,7 +1727,8 @@ def _in(rect_xyxy: tuple[float, float, float, float], x: float, z: float, margin
 
 
 def _trees(b: _Build) -> None:
-    """Deterministic jittered grid of pines and candy canes in the belts, clear of everything else."""
+    """Deterministic jittered grid of pines and candy canes in the belts, clear of everything
+    else."""
     seed = 20261118
     blockers = [c["rect"] for c in b.colliders]
     for p in b.platforms:
@@ -2127,7 +2131,8 @@ def _snow_weather() -> dict:
             "initial": "SNOW",
             "kinds": [
                 {
-                    # Replaces the engine's SNOW preset (one snow kind, so it gets the whole tier budget).
+                    # Replaces the engine's SNOW preset (one snow kind, so it gets the whole tier
+                    # budget).
                     "id": "SNOW",
                     "precipitation": {
                         "motion": "DRIFT",

@@ -2,7 +2,8 @@
 
     python manage.py seed_npc_firepeak             # create missing rows, then validate
     python manage.py seed_npc_firepeak --publish   # ... and publish a release if anything changed
-    python manage.py seed_npc_firepeak --promote   # mark DRAFT characters READY once their model is live
+    python manage.py seed_npc_firepeak --promote   # mark DRAFT characters READY once their model is
+live
 
 Run order: `load_content` with the Heart of Firepeak export first (the catalog NPCs `flint`,
 `kindle`, `professor-basalt`, `cinder`, `ignis`, ADR-054 item 1), then this command. The 3D Area
@@ -244,7 +245,10 @@ def promote_ready() -> list[str]:
 
 
 class Command(BaseCommand):
-    help = "Author the Heart of Firepeak NPCs as NPC Manager content (create-only), validate, optionally publish."
+    help = (
+        "Author the Heart of Firepeak NPCs as NPC Manager content (create-only), validate, "
+        "optionally publish."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(

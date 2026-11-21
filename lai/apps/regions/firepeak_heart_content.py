@@ -186,7 +186,8 @@ def _pattern(band):
             ),
             choose(
                 "v4",
-                "The crystal rows have 3, then 5, then 7 crystals. How many will the next row have?",
+                "The crystal rows have 3, then 5, then 7 crystals. "
+                "How many will the next row have?",
                 ["8", "11", "9"],
                 "9",
                 "Each row has 2 more crystals than the last. 7 and 2 more is 9.",
@@ -630,7 +631,8 @@ def _arrange(band):
                 "v2",
                 "Put the fractions in order from smallest to largest.",
                 ["1/8", "1/4", "1/3", "1/2"],
-                "The more parts a whole is cut into, the smaller each part is. 1/8 is smallest, 1/2 is largest.",
+                "The more parts a whole is cut into, the smaller each part is. 1/8 is smallest, "
+                "1/2 is largest.",
                 "abcd",
                 1,
             ),
@@ -671,9 +673,11 @@ def _switches(band):
         variants = [
             order(
                 "v1",
-                "The water turns the wheel. The wheel turns the gears. The gears light the lamp. Press the switches in that order.",
+                "The water turns the wheel. The wheel turns the gears. The gears light the lamp. "
+                "Press the switches in that order.",
                 ["Water switch", "Wheel switch", "Lamp switch"],
-                "The water pushes the wheel first, then the wheel moves the gears, and last the lamp lights.",
+                "The water pushes the wheel first, then the wheel moves the gears, and last the "
+                "lamp lights.",
                 ids,
                 0,
             ),
@@ -689,7 +693,8 @@ def _switches(band):
                 "v3",
                 "To lower the bridge, pull the lever. The chain moves. Then the bridge comes down.",
                 ["Pull the lever", "Chain moves", "Bridge lowers"],
-                "One thing causes the next: the lever moves the chain, and the chain lowers the bridge.",
+                "One thing causes the next: the lever moves the chain, and the chain lowers the "
+                "bridge.",
                 ids,
                 2,
             ),
@@ -709,7 +714,8 @@ def _switches(band):
         variants = [
             order(
                 "v1",
-                "The pump starts first. The water must cool before the gears turn. The lamp lights last.",
+                "The pump starts first. The water must cool before the gears turn. The lamp lights "
+                "last.",
                 ["Pump starts", "Water cools", "Gears turn", "Lamp lights"],
                 "Cool water must come before the gears turn, and the lamp is the very last step.",
                 ids,
@@ -717,25 +723,31 @@ def _switches(band):
             ),
             order(
                 "v2",
-                "Add coal first. The fire needs air before it gets hot. The metal melts last of all.",
+                "Add coal first. The fire needs air before it gets hot. The metal melts last of "
+                "all.",
                 ["Add coal", "Pump air", "Fire gets hot", "Metal melts"],
-                "Air comes before heat, because a fire needs air to burn hotter. Melting comes last.",
+                "Air comes before heat, because a fire needs air to burn hotter. Melting comes "
+                "last.",
                 ids,
                 1,
             ),
             order(
                 "v3",
-                "Switch the power on first. The brake must be released before the lift moves. The lift stops at the top last.",
+                "Switch the power on first. The brake must be released before the lift moves. The "
+                "lift stops at the top last.",
                 ["Power on", "Release the brake", "Lift moves up", "Lift stops at the top"],
-                "The brake must be off before the lift can move, so it comes right after the power.",
+                "The brake must be off before the lift can move, "
+                "so it comes right after the power.",
                 ids,
                 2,
             ),
             order(
                 "v4",
-                "Boil the water first. The valve opens only after steam builds. The whistle sounds last.",
+                "Boil the water first. The valve opens only after steam builds. The whistle sounds "
+                "last.",
                 ["Boil the water", "Steam builds", "Valve opens", "Whistle sounds"],
-                "Boiling makes steam, and steam pushes through the open valve to make the whistle sound.",
+                "Boiling makes steam, and steam pushes through the open valve to make the whistle "
+                "sound.",
                 ids,
                 3,
             ),
@@ -760,7 +772,8 @@ def _circuit(band):
         variants = [
             choose(
                 "v1",
-                "A lamp lights when the wire makes a full loop. Path A has a gap in the wire. Path B is a full loop. Path C stops before the lamp. Which path lights the lamp?",
+                "A lamp lights when the wire makes a full loop. Path A has a gap in the wire. Path "
+                "B is a full loop. Path C stops before the lamp. Which path lights the lamp?",
                 ["Path A", "Path B", "Path C"],
                 "Path B",
                 "Only a full loop with no gap lets the power reach the lamp.",
@@ -768,7 +781,8 @@ def _circuit(band):
             ),
             choose(
                 "v2",
-                "Path A is a full loop to the lamp. Path B has a cut wire. Path C has no battery. Which path lights the lamp?",
+                "Path A is a full loop to the lamp. Path B has a cut wire. Path C has no battery. "
+                "Which path lights the lamp?",
                 ["Path A", "Path B", "Path C"],
                 "Path A",
                 "A full loop with a battery lights the lamp. A cut wire or no battery cannot.",
@@ -776,7 +790,8 @@ def _circuit(band):
             ),
             choose(
                 "v3",
-                "Path A has a gap. Path B has no lamp. Path C is a full loop with a battery and a lamp. Which path lights the lamp?",
+                "Path A has a gap. Path B has no lamp. Path C is a full loop with a battery and a "
+                "lamp. Which path lights the lamp?",
                 ["Path A", "Path B", "Path C"],
                 "Path C",
                 "Path C has everything a lamp needs: a battery, a lamp and a full loop.",
@@ -784,7 +799,8 @@ def _circuit(band):
             ),
             choose(
                 "v4",
-                "Path A has a switch that is open, so there is a gap. Path B has a switch that is closed. Path C has no wire. Which path lights the lamp?",
+                "Path A has a switch that is open, so there is a gap. Path B has a switch that is "
+                "closed. Path C has no wire. Which path lights the lamp?",
                 ["Path A", "Path B", "Path C"],
                 "Path B",
                 "A closed switch closes the loop, so the power can flow to the lamp.",
@@ -797,7 +813,8 @@ def _circuit(band):
         variants = [
             choose(
                 "v1",
-                "A circuit needs a battery, a lamp and a closed loop. Path A has a gap. Path B has no battery. Path C has all three. Which path lights the lamp?",
+                "A circuit needs a battery, a lamp and a closed loop. Path A has a gap. Path B has "
+                "no battery. Path C has all three. Which path lights the lamp?",
                 ["Path A", "Path B", "Path C"],
                 "Path C",
                 "Only Path C has a battery, a lamp and a closed loop.",
@@ -805,7 +822,8 @@ def _circuit(band):
             ),
             choose(
                 "v2",
-                "The forge has 12 crystals to share equally between 3 lamps. How many crystals does each lamp get?",
+                "The forge has 12 crystals to share equally between 3 lamps. How many crystals "
+                "does each lamp get?",
                 ["3", "6", "4"],
                 "4",
                 "12 shared equally into 3 groups is 4 each, because 4 + 4 + 4 is 12.",
@@ -813,7 +831,8 @@ def _circuit(band):
             ),
             choose(
                 "v3",
-                "The forge has 15 crystals to share equally among 5 lamps. How many does each lamp get?",
+                "The forge has 15 crystals to share equally among 5 lamps. How many does each lamp "
+                "get?",
                 ["2", "5", "3"],
                 "3",
                 "15 shared equally into 5 groups is 3 each, because 5 times 3 is 15.",
@@ -821,7 +840,8 @@ def _circuit(band):
             ),
             choose(
                 "v4",
-                "The forge has 20 crystals to share equally between 4 lamps. How many does each lamp get?",
+                "The forge has 20 crystals to share equally between 4 lamps. How many does each "
+                "lamp get?",
                 ["4", "10", "5"],
                 "5",
                 "20 shared equally into 4 groups is 5 each, because 4 times 5 is 20.",
@@ -829,7 +849,8 @@ def _circuit(band):
             ),
             choose(
                 "v5",
-                "A switch is open in Path A and closed in Path B. Path C has no lamp. Which path can light the lamp?",
+                "A switch is open in Path A and closed in Path B. Path C has no lamp. Which path "
+                "can light the lamp?",
                 ["Path A", "Path B", "Path C"],
                 "Path B",
                 "The closed switch makes the loop complete. The open switch leaves a gap.",
@@ -959,7 +980,8 @@ def _island(band):
                 "v2",
                 "Tell how an island grows from the sea.",
                 ["Lava flows into the sea", "Hardened lava piles up", "A new island appears"],
-                "Lava cools in the sea and hardens. Layer after layer piles up until it rises above the water.",
+                "Lava cools in the sea and hardens. Layer after layer piles up until it rises "
+                "above the water.",
                 ids,
                 1,
             ),
@@ -981,7 +1003,8 @@ def _island(band):
                 "v1",
                 "Put the steps in order to show how a volcano island forms.",
                 ["Magma rises", "Volcano erupts", "Lava cools", "Layers build up", "Island forms"],
-                "Magma rises and erupts, lava cools into rock, layers build up over many eruptions, and an island forms.",
+                "Magma rises and erupts, lava cools into rock, layers build up over many "
+                "eruptions, and an island forms.",
                 ids,
                 0,
             ),
@@ -1009,7 +1032,8 @@ def _island(band):
                     "Rock piles up higher each eruption",
                     "The top reaches above the waves",
                 ],
-                "Cold seawater cools the lava fast. Over many eruptions the rock builds up until it breaks the surface.",
+                "Cold seawater cools the lava fast. Over many eruptions the rock builds up until "
+                "it breaks the surface.",
                 ids,
                 4,
             ),
@@ -1054,7 +1078,8 @@ def _crystals(band):
                 "v3",
                 "Remember the trip: trees, lava, caves, machines. Set the crystals in that order.",
                 ["Forest crystal", "Magma crystal", "Cavern crystal", "Forge crystal"],
-                "Trees came first, so the forest crystal starts. Machines came last, so the forge crystal ends.",
+                "Trees came first, so the forest crystal starts. Machines came last, so the forge "
+                "crystal ends.",
                 ids,
                 0,
             ),
@@ -1064,7 +1089,8 @@ def _crystals(band):
         variants = [
             order(
                 "v1",
-                "Read the clue: first came the green trees, then the river of fire, then the glowing caves, then the old machines. Set the crystals in that order.",
+                "Read the clue: first came the green trees, then the river of fire, then the "
+                "glowing caves, then the old machines. Set the crystals in that order.",
                 ["Forest crystal", "Magma crystal", "Cavern crystal", "Forge crystal"],
                 "The clue lists the places in order, and each place gave you one crystal.",
                 ids,
@@ -1072,7 +1098,9 @@ def _crystals(band):
             ),
             order(
                 "v2",
-                "Read the clue: the forge crystal came after the cavern crystal. The forest crystal came before the magma crystal. The magma crystal came before the cavern crystal. Set them in order.",
+                "Read the clue: the forge crystal came after the cavern crystal. The forest "
+                "crystal came before the magma crystal. The magma crystal came before the cavern "
+                "crystal. Set them in order.",
                 ["Forest crystal", "Magma crystal", "Cavern crystal", "Forge crystal"],
                 "Forest is before magma, magma is before cavern, and cavern is before forge.",
                 ids,
@@ -1080,7 +1108,8 @@ def _crystals(band):
             ),
             order(
                 "v3",
-                "Read the clue: you crossed lava after the forest and before the caves. The forge was your last stop. Set the crystals in order.",
+                "Read the clue: you crossed lava after the forest and before the caves. The forge "
+                "was your last stop. Set the crystals in order.",
                 ["Forest crystal", "Magma crystal", "Cavern crystal", "Forge crystal"],
                 "Forest, then lava, then caves, then the forge: that is the order of the journey.",
                 ids,

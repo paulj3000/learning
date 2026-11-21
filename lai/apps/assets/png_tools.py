@@ -170,7 +170,8 @@ def _chunk(kind: bytes, body: bytes) -> bytes:
 
 
 def downscale_png(data: bytes, max_size: int) -> bytes | None:
-    """`data` halved until both sides fit `max_size`; None when it already fits or is unsupported."""
+    """`data` halved until both sides fit `max_size`; None when it already fits or is
+    unsupported."""
     size = dimensions(data)
     if size is None or max(size) <= max_size:
         return None

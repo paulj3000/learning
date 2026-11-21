@@ -191,7 +191,8 @@ def _workshop_count(band):
                 + " on the belt. How many "
                 + things
                 + " are there?",
-                "Touch each one and say a number. The last number you say, {r}, tells how many there are.",
+                "Touch each one and say a number. The last number you say, {r}, tells how many "
+                "there are.",
                 lo=1,
                 hi=5,
                 deltas=(1, -1, 2, -2),
@@ -242,7 +243,8 @@ def _workshop_count(band):
                 + " in each one. How many "
                 + y
                 + " is that in all?",
-                "{0} equal groups of {1} make {0} x {1} = {r}. Adding {1} again and again gives the same total.",
+                "{0} equal groups of {1} make {0} x {1} = {r}. Adding {1} again and again gives "
+                "the same total.",
                 extra=(a + b,),
                 deltas=(b, -b, 1, -1),
             )
@@ -308,7 +310,8 @@ def _workshop_sort(band):
         ]
     elif band == "PATHFINDER":
         vs.c(
-            "Tinker is making a red pile: a red ball, a red drum, a blue train. Which one does not belong in the red pile?",
+            "Tinker is making a red pile: a red ball, a red drum, a blue train. Which one does not "
+            "belong in the red pile?",
             "Blue train",
             ["Red ball", "Red drum"],
             "The blue train is a different colour, so it goes in the blue pile.",
@@ -317,7 +320,8 @@ def _workshop_sort(band):
             "Tinker sorts toys that roll: a ball, a wheel, a toy block. Which does not roll well?",
             "Toy block",
             ["Ball", "Wheel"],
-            "A block has flat sides, so it slides or tumbles. Balls and wheels are round, so they roll.",
+            "A block has flat sides, so it slides or tumbles. Balls and wheels are round, so they "
+            "roll.",
         )
         vs.c(
             "Which one is not a toy: a teddy bear, a toy robot, a snow shovel?",
@@ -326,13 +330,15 @@ def _workshop_sort(band):
             "A shovel is a tool for moving snow. The bear and the robot are toys.",
         )
         vs.c(
-            "Tinker makes a pile of circles: a clock face, a coin, a book. Which does not belong in the circle pile?",
+            "Tinker makes a pile of circles: a clock face, a coin, a book. Which does not belong "
+            "in the circle pile?",
             "Book",
             ["Clock face", "Coin"],
             "A book is a rectangle. The clock face and the coin are round like circles.",
         )
         vs.c(
-            "Tinker sorts by size. Big: a drum, a sleigh. Small: a button, a bell. Where does a wooden horse go?",
+            "Tinker sorts by size. Big: a drum, a sleigh. Small: a button, a bell. Where does a "
+            "wooden horse go?",
             "With the big things",
             ["With the small things", "In neither pile"],
             "A wooden horse is about as big as a drum or a sleigh, so it joins the big pile.",
@@ -343,31 +349,36 @@ def _workshop_sort(band):
         ]
     else:
         vs.c(
-            "Tinker sorts toys by what they are made of: wood, cloth or metal. A teddy bear is soft and stuffed. Which pile does it go in?",
+            "Tinker sorts toys by what they are made of: wood, cloth or metal. A teddy bear is "
+            "soft and stuffed. Which pile does it go in?",
             "Cloth",
             ["Wood", "Metal", "Glass"],
             "A teddy bear is made of soft cloth and stuffing, so it goes in the cloth pile.",
         )
         vs.c(
-            "Presents: red circle, blue circle, red square, blue square. Tinker needs one that is red AND a square. Which present?",
+            "Presents: red circle, blue circle, red square, blue square. Tinker needs one that is "
+            "red AND a square. Which present?",
             "Red square",
             ["Red circle", "Blue square", "Blue circle"],
             "It must be both red and a square. Only the red square has both.",
         )
         vs.c(
-            "Tinker has: a toy fire truck, a toy train, a toy boat, a toy kite. Which one travels in the air?",
+            "Tinker has: a toy fire truck, a toy train, a toy boat, a toy kite. Which one travels "
+            "in the air?",
             "Toy kite",
             ["Toy fire truck", "Toy train", "Toy boat"],
             "Kites fly in the air. Trucks and trains go on land and boats go on water.",
         )
         vs.c(
-            "A pile has these toys: marbles, a ball, an orange, a coin. Tinker sorts by shape. Which toy is not round like a sphere?",
+            "A pile has these toys: marbles, a ball, an orange, a coin. Tinker sorts by shape. "
+            "Which toy is not round like a sphere?",
             "Coin",
             ["Marbles", "Ball", "Orange"],
             "A coin is flat like a circle, not a ball. Marbles, balls and oranges are spheres.",
         )
         vs.c(
-            "Tinker sorts into 'hard' and 'soft'. The hard pile has a wooden train and a metal robot. Which present goes in the soft pile?",
+            "Tinker sorts into 'hard' and 'soft'. The hard pile has a wooden train and a metal "
+            "robot. Which present goes in the soft pile?",
             "Fluffy scarf",
             ["Wooden block", "Metal bell", "Glass globe"],
             "A scarf bends and squishes, so it is soft. Wood, metal and glass are hard.",
@@ -440,7 +451,8 @@ def _workshop_pattern(band):
             "The pattern is red, red, blue. After two reds comes blue.",
         )
         vs.c(
-            "The belt shows circle, square, triangle, circle, square, triangle, circle. What comes next?",
+            "The belt shows circle, square, triangle, circle, square, triangle, circle. What comes "
+            "next?",
             "Square",
             ["Triangle", "Circle"],
             "The pattern is circle, square, triangle. After circle comes square.",
@@ -463,13 +475,15 @@ def _workshop_pattern(band):
             "The pattern is A A B. After two As comes a B.",
         )
         vs.c(
-            "The belt shows circle, square, square, circle, square, square, circle. What comes next?",
+            "The belt shows circle, square, square, circle, square, square, circle. What comes "
+            "next?",
             "Square",
             ["Circle", "Triangle", "Star"],
             "The pattern is circle, square, square. After circle comes square.",
         )
         vs.c(
-            "Presents get one more bow each time: 1 bow, 2 bows, 3 bows, 4 bows. How many bows does the sixth present have?",
+            "Presents get one more bow each time: 1 bow, 2 bows, 3 bows, 4 bows. How many bows "
+            "does the sixth present have?",
             "6 bows",
             ["5 bows", "7 bows", "8 bows"],
             "The fifth present has 5 bows, and the sixth has one more, which is 6.",
@@ -484,7 +498,8 @@ def _workshop_pattern(band):
             "The belt shows bear, bear, drum, drum, bear, bear, drum. What comes next?",
             "Drum",
             ["Bear", "Train", "Doll"],
-            "The pattern is two bears then two drums. We have only one drum so far, so another drum comes next.",
+            "The pattern is two bears then two drums. We have only one drum so far, so another "
+            "drum comes next.",
         )
         hints = [
             "Find the shortest part that repeats.",
@@ -500,9 +515,11 @@ def _workshop_assemble(band):
     vs = _Vs("np-workshop-assemble", band)
     if band == "SPROUT":
         vs.o(
-            "Build a toy train. Press the pieces in order: first the wheels, then the carriage, then the flag.",
+            "Build a toy train. Press the pieces in order: first the wheels, then the carriage, "
+            "then the flag.",
             [("wheels", "Wheels"), ("carriage", "Carriage"), ("flag", "Flag")],
-            "Wheels go first so the train can roll. Then the carriage sits on top, and the flag goes on last.",
+            "Wheels go first so the train can roll. Then the carriage sits on top, and the flag "
+            "goes on last.",
         )
         vs.o(
             "Make a teddy bear. First the stuffing, then the stitches, then the bow.",
@@ -525,19 +542,23 @@ def _workshop_assemble(band):
         ]
     elif band == "PATHFINDER":
         vs.o(
-            "Make a wooden horse. Which order works? Cut the wood, sand it smooth, paint it, then let it dry.",
+            "Make a wooden horse. Which order works? Cut the wood, sand it smooth, paint it, then "
+            "let it dry.",
             [
                 ("cut", "Cut the wood"),
                 ("sand", "Sand it smooth"),
                 ("paint", "Paint it"),
                 ("dry", "Let it dry"),
             ],
-            "We cut the shape first, smooth it, then paint. Paint needs time to dry before anyone plays.",
+            "We cut the shape first, smooth it, then paint. Paint needs time to dry before anyone "
+            "plays.",
         )
         vs.o(
-            "Build a toy snowman. Roll the big ball, add the middle ball, add the head, then add the hat.",
+            "Build a toy snowman. Roll the big ball, add the middle ball, add the head, then add "
+            "the hat.",
             [("big", "Big ball"), ("middle", "Middle ball"), ("head", "Head"), ("hat", "Hat")],
-            "The big ball is the base, so it goes first. Each smaller part sits on the one below. The hat goes on top.",
+            "The big ball is the base, so it goes first. Each smaller part sits on the one below. "
+            "The hat goes on top.",
         )
         vs.o(
             "Wrap a gift. Put the toy in the box, close the box, wrap the paper, tie the ribbon.",
@@ -547,7 +568,8 @@ def _workshop_assemble(band):
                 ("wrap", "Wrap the paper"),
                 ("ribbon", "Tie the ribbon"),
             ],
-            "The toy goes in before the box is closed. Paper goes around the closed box, and the ribbon holds it.",
+            "The toy goes in before the box is closed. Paper goes around the closed box, and the "
+            "ribbon holds it.",
         )
         vs.o(
             "Make a kite. Cut the paper, tape on the sticks, tie on the string, then add the tail.",
@@ -565,7 +587,8 @@ def _workshop_assemble(band):
         ]
     else:
         vs.o(
-            "Build a toy robot. First put the legs on the body. Then add the arms. Next, attach the head. After that, paint the eyes. Last, wrap it in paper.",
+            "Build a toy robot. First put the legs on the body. Then add the arms. Next, attach "
+            "the head. After that, paint the eyes. Last, wrap it in paper.",
             [
                 ("legs", "Put on the legs"),
                 ("arms", "Add the arms"),
@@ -573,30 +596,36 @@ def _workshop_assemble(band):
                 ("eyes", "Paint the eyes"),
                 ("wrap", "Wrap it in paper"),
             ],
-            "The words first, then, next, after that and last give the order. The body comes before the head, and the paint is on before wrapping.",
+            "The words first, then, next, after that and last give the order. The body comes "
+            "before the head, and the paint is on before wrapping.",
         )
         vs.o(
-            "Make a toy sleigh. Cut two long runners. Next, nail the seat on top of them. Then add the sleigh bell at the front. Finally, polish it.",
+            "Make a toy sleigh. Cut two long runners. Next, nail the seat on top of them. Then add "
+            "the sleigh bell at the front. Finally, polish it.",
             [
                 ("runners", "Cut two runners"),
                 ("seat", "Nail on the seat"),
                 ("bell", "Add the bell"),
                 ("polish", "Polish it"),
             ],
-            "The runners come first because the seat sits on them. The bell is added at the front, and polishing is the final step.",
+            "The runners come first because the seat sits on them. The bell is added at the front, "
+            "and polishing is the final step.",
         )
         vs.o(
-            "Bake a toy snow globe. Fill the jar with water. Then drop in the glitter. Next, screw on the lid. Last, turn it over and shake it.",
+            "Bake a toy snow globe. Fill the jar with water. Then drop in the glitter. Next, screw "
+            "on the lid. Last, turn it over and shake it.",
             [
                 ("water", "Fill the jar"),
                 ("glitter", "Drop in the glitter"),
                 ("lid", "Screw on the lid"),
                 ("shake", "Turn it and shake it"),
             ],
-            "The jar is filled first, then the glitter goes in. The lid goes on before we shake it so nothing spills.",
+            "The jar is filled first, then the glitter goes in. The lid goes on before we shake it "
+            "so nothing spills.",
         )
         vs.o(
-            "Make a rocking horse. Saw the wood. Sand every edge. Paint the horse. Put on the rockers. Last, add a ribbon mane.",
+            "Make a rocking horse. Saw the wood. Sand every edge. Paint the horse. Put on the "
+            "rockers. Last, add a ribbon mane.",
             [
                 ("saw", "Saw the wood"),
                 ("sand", "Sand every edge"),
@@ -604,7 +633,8 @@ def _workshop_assemble(band):
                 ("rockers", "Put on the rockers"),
                 ("mane", "Add the mane"),
             ],
-            "Wood is cut first and sanded before painting. The rockers and the mane are finishing touches.",
+            "Wood is cut first and sanded before painting. The rockers and the mane are finishing "
+            "touches.",
         )
         hints = [
             "Look for the words first, then, next and last.",
@@ -669,7 +699,8 @@ def _forest_sequence(band):
         vs.a(
             "add",
             (6, 2),
-            "The stones say 2, 4, 6, and the next stone is hidden. We count by 2s. Which number is on it?",
+            "The stones say 2, 4, 6, and the next stone is hidden. We count by 2s. Which number is "
+            "on it?",
             "Counting by 2s adds 2 each time. After 6 comes 6 + 2 = {r}.",
             deltas=(-2, 2, 1, -1),
         )
@@ -697,7 +728,8 @@ def _forest_sequence(band):
         vs.a(
             "add",
             (3, 2),
-            "The candy canes say 1, 3, 5. We count by 2s starting at 1. Which number comes after 5?",
+            "The candy canes say 1, 3, 5. We count by 2s starting at 1. "
+            "Which number comes after 5?",
             "Adding 2 each time: 1, 3, 5, 7. So the next number is {r}. These are odd numbers.",
             extra=(6,),
             deltas=(-1, 1, -2),
@@ -744,7 +776,8 @@ def _forest_sequence(band):
             deltas=(-4, 1, -1),
         )
         hints = [
-            "Check the gap between the first two numbers, then check it again between the next two.",
+            "Check the gap between the first two numbers, "
+            "then check it again between the next two.",
             "Add the gap to the last number, or take it away if the numbers count down.",
         ]
     return _quiz(
@@ -818,7 +851,8 @@ def _forest_signs(band):
             "NO RUNNING asks us to walk, so nobody slips on the ice.",
         )
         vs.c(
-            "The arrow points right and the sign says PEPPERMINT PATH. Which way is the Peppermint Path?",
+            "The arrow points right and the sign says PEPPERMINT PATH. Which way is the Peppermint "
+            "Path?",
             "To the right",
             ["To the left", "Straight up"],
             "The arrow points right, so the Peppermint Path is that way.",
@@ -829,31 +863,36 @@ def _forest_signs(band):
         ]
     else:
         vs.c(
-            "A sign says: SLIPPERY ICE AHEAD. Walk slowly and hold the rope. The sweet shop is past the bridge. What should you do on the ice?",
+            "A sign says: SLIPPERY ICE AHEAD. Walk slowly and hold the rope. The sweet shop is "
+            "past the bridge. What should you do on the ice?",
             "Walk slowly and hold the rope",
             ["Run to the bridge", "Skip across the ice", "Slide on your tummy"],
             "The sign tells us to walk slowly and hold the rope, because ice is slippery.",
         )
         vs.c(
-            "A sign says: The Peppermint Path has 3 turns. Turn left at the red pole. Then turn right at the tall tree. Last, turn left again. Where do you turn first?",
+            "A sign says: The Peppermint Path has 3 turns. Turn left at the red pole. Then turn "
+            "right at the tall tree. Last, turn left again. Where do you turn first?",
             "Left at the red pole",
             ["Right at the tall tree", "Left at the last turn", "Straight past the pole"],
             "The first turn is the one that comes first in the sign: left at the red pole.",
         )
         vs.c(
-            "A sign says: Candy canes taste best when they are ripe. Please do not pick them early. What does the sign ask you not to do?",
+            "A sign says: Candy canes taste best when they are ripe. Please do not pick them "
+            "early. What does the sign ask you not to do?",
             "Pick the candy canes early",
             ["Taste the candy canes", "Walk on the path", "Look at the trees"],
             "The sign says please do not pick them early, so they can ripen.",
         )
         vs.c(
-            "A sign says: Deer crossing. Slow down near the trees. Reindeer rest under the pines. Where do the reindeer rest?",
+            "A sign says: Deer crossing. Slow down near the trees. Reindeer rest under the pines. "
+            "Where do the reindeer rest?",
             "Under the pines",
             ["Near the lake", "On the bridge", "In the workshop"],
             "The last sentence says reindeer rest under the pines.",
         )
         vs.c(
-            "A sign says: The workshop door opens when the bell rings twice. Wait by the gate. How many times must the bell ring?",
+            "A sign says: The workshop door opens when the bell rings twice. Wait by the gate. How "
+            "many times must the bell ring?",
             "Two times",
             ["One time", "Three times", "Four times"],
             "The word twice means two times, so the door opens after two rings.",
@@ -917,7 +956,8 @@ def _forest_stripes(band):
             "A rainbow always goes red, orange, yellow, green, then blue and violet.",
         )
         vs.o(
-            "Each stripe has 2 more dots than the one before. Put them in order, starting with 2 dots.",
+            "Each stripe has 2 more dots than the one before. Put them in order, starting with 2 "
+            "dots.",
             [("d2", "2 dots"), ("d4", "4 dots"), ("d6", "6 dots"), ("d8", "8 dots")],
             "Counting by 2s gives 2, 4, 6, 8. Each stripe adds 2 dots.",
         )
@@ -957,12 +997,15 @@ def _forest_stripes(band):
             "Counting by 10s goes 10, 20, 30, 40, 50.",
         )
         vs.o(
-            "Put the candy cane pieces in order from the smallest part to the whole: a quarter, a half, three quarters, a whole.",
+            "Put the candy cane pieces in order from the smallest part to the whole: a quarter, a "
+            "half, three quarters, a whole.",
             [("q", "A quarter"), ("h", "A half"), ("tq", "Three quarters"), ("w", "A whole")],
-            "A quarter is 1 of 4 equal parts, a half is 2 of 4, three quarters is 3 of 4, and the whole is all 4.",
+            "A quarter is 1 of 4 equal parts, a half is 2 of 4, three quarters is 3 of 4, and the "
+            "whole is all 4.",
         )
         vs.o(
-            "The pattern doubles each time. Put the stripes in order: 3 dots, 6 dots, 12 dots, 24 dots.",
+            "The pattern doubles each time. Put the stripes in order: 3 dots, 6 dots, 12 dots, 24 "
+            "dots.",
             [("d3", "3 dots"), ("d6", "6 dots"), ("d12", "12 dots"), ("d24", "24 dots")],
             "Each stripe has double the dots of the one before: 3, 6, 12, 24.",
         )
@@ -1088,7 +1131,8 @@ def _lake_sums(band):
             "add",
             (38, 15),
             "Which floe has the answer? 38 + 15 = ?",
-            "8 + 5 = 13 ones, which is 1 ten and 3 ones. Then 30 + 10 + 10 = 50, so the total is {r}.",
+            "8 + 5 = 13 ones, which is 1 ten and 3 ones. Then 30 + 10 + 10 = 50, so the total is "
+            "{r}.",
             extra=(43, 63),
             deltas=(1, -1, 10),
         )
@@ -1218,7 +1262,8 @@ def _lake_order(band):
         vs.lake(
             [120, 99, 105, 87],
             "Hop from the biggest number to the smallest.",
-            "A number with three digits is bigger than one with two. From biggest: 120, 105, 99, 87.",
+            "A number with three digits is bigger than one with two. From biggest: 120, 105, 99, "
+            "87.",
             descending=True,
         )
         vs.lake(
@@ -1333,7 +1378,8 @@ def _lake_shapes(band):
         vs.a(
             "div",
             (20, 4),
-            "A quarter of 20 snowflakes means 20 shared into 4 equal groups. How many snowflakes is that?",
+            "A quarter of 20 snowflakes means 20 shared into 4 equal groups. How many snowflakes "
+            "is that?",
             "20 divided by 4 is {r}. That is one quarter.",
             extra=(10, 4),
             deltas=(1, -1),
@@ -1342,7 +1388,8 @@ def _lake_shapes(band):
             "Which fraction is bigger: a half or a quarter of the same pie?",
             "A half",
             ["A quarter", "They are the same", "It depends on the colour"],
-            "Cutting into 2 pieces makes bigger pieces than cutting into 4. So a half is bigger than a quarter.",
+            "Cutting into 2 pieces makes bigger pieces than cutting into 4. So a half is bigger "
+            "than a quarter.",
         )
         hints = [
             "Share the number into equal groups.",
@@ -1394,7 +1441,8 @@ def _stables_facts(band):
             "Why do reindeer have thick fur?",
             "To stay warm in the cold",
             ["To swim fast", "To be loud"],
-            "Thick fur traps warm air near the body, which helps reindeer stay warm in snow and wind.",
+            "Thick fur traps warm air near the body, which helps reindeer stay warm in snow and "
+            "wind.",
         )
         vs.c(
             "Which reindeer grow antlers?",
@@ -1438,7 +1486,8 @@ def _stables_facts(band):
             "What do reindeer do with their antlers each year?",
             "They shed them and grow new ones",
             ["Keep the same ones forever", "Cut them off with their hooves", "Paint them"],
-            "Antlers fall off and a new pair grows every year. They are not horns, which stay for life.",
+            "Antlers fall off and a new pair grows every year. They are not horns, which stay for "
+            "life.",
         )
         vs.c(
             "Why does thick fur keep a reindeer warm?",
@@ -1541,7 +1590,8 @@ def _stables_tracks(band):
         vs.a(
             "add",
             (30, 30),
-            "The prints are 30 cm apart. From one print to the print after the next, how many cm is that?",
+            "The prints are 30 cm apart. From one print to the print after the next, how many cm "
+            "is that?",
             "Two steps of 30 cm make 30 + 30 = {r} cm.",
             extra=(30,),
             deltas=(10, -10, 30),
@@ -1556,12 +1606,14 @@ def _stables_tracks(band):
             "Two sets of prints, one big and one small, walk side by side. What can you tell?",
             "A big and a small reindeer walked together",
             ["Two big reindeer walked together", "Only one reindeer walked", "Nobody walked there"],
-            "Different print sizes mean different reindeer, and side by side means they stayed together.",
+            "Different print sizes mean different reindeer, and side by side means they stayed "
+            "together.",
         )
         vs.a(
             "sub",
             (100, 60),
-            "The pine tree is {0} cm from the stable. Snowball has walked {1} cm toward it. How many cm are left to walk?",
+            "The pine tree is {0} cm from the stable. Snowball has walked {1} cm toward it. How "
+            "many cm are left to walk?",
             "{0} cm minus {1} cm leaves {r} cm.",
             extra=(60,),
             deltas=(10, -10, 20),
@@ -1634,7 +1686,8 @@ def _stables_supplies(band):
             "Which food is best for a reindeer: lichen, chocolate, or pizza?",
             "Lichen",
             ["Chocolate", "Pizza"],
-            "Lichen is a plant food that reindeer eat in the wild. Chocolate and pizza are for people.",
+            "Lichen is a plant food that reindeer eat in the wild. Chocolate and pizza are for "
+            "people.",
         )
         hints = ["Reindeer are plant eaters.", "Choose a food that grows from the ground."]
     else:
@@ -1642,12 +1695,14 @@ def _stables_supplies(band):
             "In winter, what is the main food reindeer find under the snow?",
             "Lichen",
             ["Fish", "Berries only", "Insects"],
-            "Lichen, sometimes called reindeer moss, is the main winter food of reindeer. They sniff it out and dig for it.",
+            "Lichen, sometimes called reindeer moss, is the main winter food of reindeer. They "
+            "sniff it out and dig for it.",
         )
         vs.a(
             "div",
             (12, 3),
-            "We have {0} handfuls of lichen. We share them equally among {1} reindeer. How many handfuls does each reindeer get?",
+            "We have {0} handfuls of lichen. We share them equally among {1} reindeer. How many "
+            "handfuls does each reindeer get?",
             "{0} shared into {1} equal groups gives {r} each. We can check: {r} x {1} = {0}.",
             extra=(9, 15),
             deltas=(1, -1, 2),
@@ -1655,7 +1710,8 @@ def _stables_supplies(band):
         vs.a(
             "mul",
             (4, 3),
-            "Each reindeer eats {0} handfuls of lichen a day. For {1} reindeer, how many handfuls do we need for one day?",
+            "Each reindeer eats {0} handfuls of lichen a day. For {1} reindeer, how many handfuls "
+            "do we need for one day?",
             "{1} reindeer with {0} handfuls each need {1} x {0} = {r} handfuls.",
             extra=(7, 6),
             deltas=(1, -1, 2),
@@ -1664,7 +1720,8 @@ def _stables_supplies(band):
             "Why do we bring plant food, not candy, for reindeer?",
             "Their bodies are made to digest plants",
             ["Candy is too heavy", "Reindeer cannot see candy", "Candy is too cold"],
-            "Reindeer digest plants like lichen and grass. Sugary sweets are not what their bodies are made for.",
+            "Reindeer digest plants like lichen and grass. Sugary sweets are not what their bodies "
+            "are made for.",
         )
         vs.c(
             "Which animal group does a reindeer belong to?",
@@ -1778,7 +1835,8 @@ def _ginger_shapes(band):
             "Which shape has 4 equal sides and 4 square corners?",
             "Square",
             ["Rectangle", "Triangle", "Pentagon"],
-            "A square is the shape with 4 equal sides and 4 square corners. A rectangle has 2 pairs of sides, not all equal.",
+            "A square is the shape with 4 equal sides and 4 square corners. A rectangle has 2 "
+            "pairs of sides, not all equal.",
         )
         vs.c(
             "Which shape has 5 sides?",
@@ -1820,7 +1878,8 @@ def _ginger_symmetry(band):
         vs.a(
             "id",
             (2,),
-            "The left half of the window has 2 red candies. The right half must match. How many red candies go on the right?",
+            "The left half of the window has 2 red candies. The right half must match. How many "
+            "red candies go on the right?",
             "Matching sides look the same, so the right side needs {r} too.",
             lo=1,
             hi=5,
@@ -1829,7 +1888,8 @@ def _ginger_symmetry(band):
         vs.a(
             "id",
             (3,),
-            "The left wing of a cookie butterfly has 3 dots. The right wing is the same. How many dots?",
+            "The left wing of a cookie butterfly has 3 dots. The right wing is the same. How many "
+            "dots?",
             "A matching wing has the same dots, so {r}.",
             lo=1,
             hi=5,
@@ -1850,7 +1910,8 @@ def _ginger_symmetry(band):
         hints = ["Look at the left side and copy it.", "Matching sides look just the same."]
     elif band == "PATHFINDER":
         vs.c(
-            "The left half of a window has 3 green gumdrops and 1 red one. What goes on the right to match?",
+            "The left half of a window has 3 green gumdrops and 1 red one. What goes on the right "
+            "to match?",
             "3 green and 1 red",
             ["1 green and 3 red", "4 red"],
             "A mirror twin copies the left side exactly.",
@@ -1869,7 +1930,8 @@ def _ginger_symmetry(band):
             {"A heart": "heart", "A curly squiggle": "moon", "A lopsided blob": "star"},
         )
         vs.c(
-            "The left side of a house has 2 windows and 1 door at the edge. The right side should match. How many windows?",
+            "The left side of a house has 2 windows and 1 door at the edge. The right side should "
+            "match. How many windows?",
             "2 windows",
             ["1 window", "4 windows"],
             "The right side copies the left, so it has 2 windows.",
@@ -1889,13 +1951,15 @@ def _ginger_symmetry(band):
             "How many lines of symmetry does a square have?",
             "4",
             ["1", "2", "3"],
-            "A square can be folded top to bottom, side to side, and along both diagonals. That is 4 lines.",
+            "A square can be folded top to bottom, side to side, and along both diagonals. That is "
+            "4 lines.",
         )
         vs.c(
             "How many lines of symmetry does a rectangle that is not a square have?",
             "2",
             ["1", "4", "0"],
-            "A rectangle folds in half one way and the other way, but not along its diagonals. That is 2 lines.",
+            "A rectangle folds in half one way and the other way, but not along its diagonals. "
+            "That is 2 lines.",
         )
         vs.c(
             "How many lines of symmetry does a heart have?",
@@ -1956,13 +2020,15 @@ def _ginger_recipe(band):
         hints = ["Listen to the words in the recipe.", "Think about what the tool does."]
     elif band == "PATHFINDER":
         vs.c(
-            "The recipe says: Mix flour and sugar. Add one egg. Bake for ten minutes. What do you add to the flour and sugar?",
+            "The recipe says: Mix flour and sugar. Add one egg. Bake for ten minutes. What do you "
+            "add to the flour and sugar?",
             "One egg",
             ["Ten eggs", "A spoon"],
             "The card says add one egg after we mix the flour and sugar.",
         )
         vs.c(
-            "The recipe says: Stir the dough. Roll it flat. Cut out the shapes. What do you do after you roll the dough flat?",
+            "The recipe says: Stir the dough. Roll it flat. Cut out the shapes. What do you do "
+            "after you roll the dough flat?",
             "Cut out the shapes",
             ["Stir the dough", "Eat the dough"],
             "The steps go in order. After rolling flat we cut the shapes.",
@@ -1988,13 +2054,15 @@ def _ginger_recipe(band):
         hints = ["Read the card one line at a time.", "Find the word in the question on the card."]
     else:
         vs.c(
-            "Mrs. Claus's card: Heat the oven to 180 degrees. Mix 2 cups of flour with 1 cup of sugar. Add 1 egg and stir well. How many cups of flour do we need?",
+            "Mrs. Claus's card: Heat the oven to 180 degrees. Mix 2 cups of flour with 1 cup of "
+            "sugar. Add 1 egg and stir well. How many cups of flour do we need?",
             "2 cups",
             ["1 cup", "3 cups", "180 cups"],
             "The card says 2 cups of flour. 1 cup is the sugar, and 180 is the oven heat.",
         )
         vs.c(
-            "Card: Roll the dough until it is 1 cm thick. Cut out 12 gingerbread men. Bake for 10 minutes. How many cookies will we cut?",
+            "Card: Roll the dough until it is 1 cm thick. Cut out 12 gingerbread men. Bake for 10 "
+            "minutes. How many cookies will we cut?",
             "12",
             ["1", "10", "22"],
             "The card says to cut 12 gingerbread men.",
@@ -2012,7 +2080,8 @@ def _ginger_recipe(band):
             "Two batches need 3 + 3 = 6 cups of flour, or 2 x 3.",
         )
         vs.c(
-            "Card: Mix the flour and ginger. Next, add the egg. Last, stir in the milk. What do we add after the egg?",
+            "Card: Mix the flour and ginger. Next, add the egg. Last, stir in the milk. What do we "
+            "add after the egg?",
             "The milk",
             ["The ginger", "The flour", "The icing"],
             "The card says last, stir in the milk, so milk comes after the egg.",
@@ -2069,7 +2138,8 @@ def _ginger_measure(band):
         vs.a(
             "sub",
             (6, 4),
-            "A ribbon is 6 paper clips long. Another is 4 paper clips long. How many more paper clips long is the first ribbon?",
+            "A ribbon is 6 paper clips long. Another is 4 paper clips long. How many more paper "
+            "clips long is the first ribbon?",
             "6 take away 4 is {r}. The first ribbon is {r} paper clips longer.",
             lo=1,
             hi=10,
@@ -2084,7 +2154,8 @@ def _ginger_measure(band):
         vs.a(
             "add",
             (3, 4),
-            "A roof is 3 cookies wide. A wall is 4 cookies wide. Put them end to end. How many cookies long is that?",
+            "A roof is 3 cookies wide. A wall is 4 cookies wide. Put them end to end. How many "
+            "cookies long is that?",
             "3 and 4 make {r} cookies.",
             deltas=(1, -1, 2),
         )
@@ -2097,7 +2168,8 @@ def _ginger_measure(band):
         vs.a(
             "sub",
             (9, 5),
-            "A gingerbread fence is 9 cookies long. 5 cookies are painted. How many cookies are not painted?",
+            "A gingerbread fence is 9 cookies long. 5 cookies are painted. How many cookies are "
+            "not painted?",
             "9 minus 5 is {r}.",
             deltas=(1, -1, 2),
         )
@@ -2106,7 +2178,8 @@ def _ginger_measure(band):
         vs.a(
             "sub",
             (30, 12),
-            "A gingerbread house is {0} cm tall. A cookie tree is {1} cm tall. How much taller is the house?",
+            "A gingerbread house is {0} cm tall. A cookie tree is {1} cm tall. How much taller is "
+            "the house?",
             "30 minus 12 is {r}, so the house is {r} cm taller.",
             deltas=(2, -2, 10, 1),
         )
@@ -2119,7 +2192,8 @@ def _ginger_measure(band):
         vs.a(
             "add",
             (45, 55),
-            "A fence has two parts. One is {0} cm long and the other is {1} cm long. How long is the fence?",
+            "A fence has two parts. One is {0} cm long and the other is {1} cm long. How long is "
+            "the fence?",
             "45 + 55 = {r} cm. That is exactly 1 metre, because 100 cm is 1 m.",
             extra=(90, 105),
             deltas=(10, -10, 5),
@@ -2131,7 +2205,8 @@ def _ginger_measure(band):
             "1 metre is 100 centimetres, so 2 metres is 200 centimetres.",
         )
         vs.c(
-            "Mrs. Claus has a ribbon 40 cm long and a ribbon 52 cm long. Which is longer, and by how much?",
+            "Mrs. Claus has a ribbon 40 cm long and a ribbon 52 cm long. Which is longer, and by "
+            "how much?",
             "The 52 cm ribbon, by 12 cm",
             ["The 40 cm ribbon, by 12 cm", "The 52 cm ribbon, by 92 cm", "They are the same"],
             "52 is more than 40. The difference is 52 minus 40 = 12 cm.",
@@ -2342,7 +2417,8 @@ def _obs_stars(band):
             "Polaris, the North Star, is special because it...",
             "Stays in nearly the same place in the northern sky",
             ["Moves across the sky quickly", "Is the closest star", "Is the biggest star"],
-            "Polaris sits almost straight above the North Pole, so it appears to stay in nearly the same place while other stars seem to circle around it.",
+            "Polaris sits almost straight above the North Pole, so it appears to stay in nearly "
+            "the same place while other stars seem to circle around it.",
         )
         vs.c(
             "When do stars appear in the sky?",
@@ -2465,7 +2541,8 @@ def _obs_constellation(band):
             "The Big Dipper is part of a bigger constellation. What is that constellation called?",
             "Ursa Major, the Great Bear",
             ["Orion, the Hunter", "The Sun", "The Moon"],
-            "The Big Dipper is a well-known star pattern inside the larger constellation Ursa Major, the Great Bear.",
+            "The Big Dipper is a well-known star pattern inside the larger constellation Ursa "
+            "Major, the Great Bear.",
         )
         vs.c(
             "Why was Polaris useful to travellers long ago?",
@@ -2499,7 +2576,8 @@ def _obs_sequence(band):
     vs = _Vs("np-obs-sequence", band)
     if band == "SPROUT":
         vs.o(
-            "What happens first? Put them in order: the sun is up, the sun goes down, the stars come out.",
+            "What happens first? Put them in order: the sun is up, the sun goes down, the stars "
+            "come out.",
             [("sun-up", "Sun is up"), ("sun-down", "Sun goes down"), ("stars", "Stars come out")],
             "In a day, the sun is up first. Then it goes down, and then the stars appear.",
         )
@@ -2519,7 +2597,8 @@ def _obs_sequence(band):
         ]
     elif band == "PATHFINDER":
         vs.o(
-            "Put the sky changes in order: bright blue sky, orange sunset, dark blue sky, stars shine.",
+            "Put the sky changes in order: bright blue sky, orange sunset, dark blue sky, stars "
+            "shine.",
             [
                 ("blue", "Bright blue sky"),
                 ("sunset", "Orange sunset"),
@@ -2529,7 +2608,8 @@ def _obs_sequence(band):
             "Day light fades into sunset colours. When the sky is dark, the stars show.",
         )
         vs.o(
-            "Put the night in order: the sun sets, the sky turns dark, the first star appears, many stars twinkle.",
+            "Put the night in order: the sun sets, the sky turns dark, the first star appears, "
+            "many stars twinkle.",
             [
                 ("sets", "The sun sets"),
                 ("dark", "The sky turns dark"),
@@ -2564,7 +2644,8 @@ def _obs_sequence(band):
         ]
     else:
         vs.o(
-            "Put the evening in order: the Sun sets, the sky turns orange, the sky turns deep blue, the first bright star appears, many stars appear.",
+            "Put the evening in order: the Sun sets, the sky turns orange, the sky turns deep "
+            "blue, the first bright star appears, many stars appear.",
             [
                 ("set", "The Sun sets"),
                 ("orange", "The sky turns orange"),
@@ -2572,10 +2653,12 @@ def _obs_sequence(band):
                 ("first", "The first bright star appears"),
                 ("many", "Many stars appear"),
             ],
-            "As the Sun goes down, the sky changes colour and gets darker. Stars appear as the sky darkens.",
+            "As the Sun goes down, the sky changes colour and gets darker. Stars appear as the sky "
+            "darkens.",
         )
         vs.o(
-            "Put the night in order: dusk, first star, full dark sky with many stars, the Big Dipper turns slowly around Polaris, dawn.",
+            "Put the night in order: dusk, first star, full dark sky with many stars, the Big "
+            "Dipper turns slowly around Polaris, dawn.",
             [
                 ("dusk", "Dusk"),
                 ("first", "First star"),
@@ -2583,10 +2666,12 @@ def _obs_sequence(band):
                 ("turn", "Big Dipper turns around Polaris"),
                 ("dawn", "Dawn"),
             ],
-            "Through the night the stars seem to turn slowly around Polaris, and at dawn the light returns.",
+            "Through the night the stars seem to turn slowly around Polaris, and at dawn the light "
+            "returns.",
         )
         vs.o(
-            "Put in order: We look up. We see the Big Dipper. We follow the end stars of its bowl. We find Polaris.",
+            "Put in order: We look up. We see the Big Dipper. We follow the end stars of its bowl. "
+            "We find Polaris.",
             [
                 ("look", "We look up"),
                 ("see", "We see the Big Dipper"),
@@ -2637,12 +2722,14 @@ def _obs_fragments(band):
     journey = [(k, label) for k, label in JOURNEY if k in maps]
     if band == "SPROUT":
         vs.o(
-            "Jingle set the first star piece in the middle. Now set the next three in the order we found them: workshop, forest, lake.",
+            "Jingle set the first star piece in the middle. Now set the next three in the order we "
+            "found them: workshop, forest, lake.",
             journey,
             "We found them in this order: the workshop, then the forest, then the lake.",
         )
         vs.o(
-            "Follow our trip on the map. Start at the workshop, then go to the forest, then the lake.",
+            "Follow our trip on the map. Start at the workshop, then go to the forest, then the "
+            "lake.",
             journey,
             "We follow the path of our journey, one place after another.",
         )
@@ -2654,9 +2741,11 @@ def _obs_fragments(band):
         hints = ["Remember the places we went first.", "Start with the workshop."]
     elif band == "PATHFINDER":
         vs.o(
-            "Jingle set the village fragment in the middle. Now set the other six in the order of our journey. Start with the Toy Workshop.",
+            "Jingle set the village fragment in the middle. Now set the other six in the order of "
+            "our journey. Start with the Toy Workshop.",
             journey,
-            "Our journey went from the workshop to the forest, the lake, the stables, the gingerbread house and the mountain.",
+            "Our journey went from the workshop to the forest, the lake, the stables, the "
+            "gingerbread house and the mountain.",
         )
         vs.o(
             "Set the star pieces in the order we found them on our trip, first to last.",
@@ -2666,7 +2755,8 @@ def _obs_fragments(band):
         vs.o(
             "Look at the map trail. Set the fragments in the order we walked the trail.",
             journey,
-            "The map trail goes from the workshop to the mountain, and the pieces follow the same order.",
+            "The map trail goes from the workshop to the mountain, and the pieces follow the same "
+            "order.",
         )
         hints = [
             "We began in the village and went to the workshop next.",
@@ -2674,20 +2764,26 @@ def _obs_fragments(band):
         ]
     else:
         vs.o(
-            "Jingle set the village fragment in the middle. Set the six other fragments in the order of our journey, from the first place to the last.",
+            "Jingle set the village fragment in the middle. Set the six other fragments in the "
+            "order of our journey, from the first place to the last.",
             journey,
-            "The journey order is the workshop, forest, lake, stables, gingerbread house, then the mountain.",
+            "The journey order is the workshop, forest, lake, stables, gingerbread house, then the "
+            "mountain.",
         )
         reverse = list(reversed(journey))
         vs.o(
-            "Set the six fragments in order starting from the last place we visited and going back to the first.",
+            "Set the six fragments in order starting from the last place we visited and going back "
+            "to the first.",
             reverse,
-            "Going backwards: the mountain, gingerbread house, stables, lake, forest, then the workshop.",
+            "Going backwards: the mountain, gingerbread house, stables, lake, forest, then the "
+            "workshop.",
         )
         vs.o(
-            "Set the fragments in the order we visited the places on the way to the star, first to last.",
+            "Set the fragments in the order we visited the places on the way to the star, first to "
+            "last.",
             journey,
-            "Retelling the trip in order helps us remember: workshop, forest, lake, stables, gingerbread house, mountain.",
+            "Retelling the trip in order helps us remember: workshop, forest, lake, stables, "
+            "gingerbread house, mountain.",
         )
         hints = [
             "Retell our trip from the start in your head.",
@@ -2737,7 +2833,8 @@ def _obs_final(band):
         vs.a(
             "add",
             (4, 5),
-            "Polaris shows {0} stars on one side of the sky and {1} on the other. How many stars is that in all?",
+            "Polaris shows {0} stars on one side of the sky and {1} on the other. How many stars "
+            "is that in all?",
             "{0} and {1} together make {r}.",
             deltas=(1, -1, 2, -2),
         )
@@ -2749,7 +2846,8 @@ def _obs_final(band):
         vs.a(
             "sub3",
             (7, 3, 2),
-            "We found {0} star fragments. Jingle set {1} and Tinker set {2}. How many are left to set?",
+            "We found {0} star fragments. Jingle set {1} and Tinker set {2}. How many are left to "
+            "set?",
             "7 minus 3 is 4, then 4 minus 2 is {r}.",
             extra=(3, 4),
             deltas=(1, -1),
@@ -2757,7 +2855,8 @@ def _obs_final(band):
         vs.a(
             "mulsub",
             (4, 6, 5),
-            "Each of {0} sacks holds {1} presents. Santa takes {2} presents out. How many presents are left?",
+            "Each of {0} sacks holds {1} presents. Santa takes {2} presents out. How many presents "
+            "are left?",
             "{0} sacks with {1} presents each are {0} x {1} = 24. Then 24 - {2} = {r}.",
             extra=(24, 29, 15),
             deltas=(1, -1),
@@ -2765,7 +2864,8 @@ def _obs_final(band):
         vs.a(
             "addmul",
             (3, 2, 2),
-            "The star needs 7 fragments. We have {0}. Each of {2} elves brings {1} more. How many fragments do we have now?",
+            "The star needs 7 fragments. We have {0}. Each of {2} elves brings {1} more. How many "
+            "fragments do we have now?",
             "{2} elves with {1} each bring {2} x {1} = 4. Then {0} + 4 = {r}.",
             extra=(5, 10, 9),
             deltas=(1, -1),
@@ -2773,7 +2873,8 @@ def _obs_final(band):
         vs.a(
             "divsub",
             (20, 4, 3),
-            "{0} lights are shared equally among {1} trees. Then {2} lights fall off one tree. How many lights does that tree have now?",
+            "{0} lights are shared equally among {1} trees. Then {2} lights fall off one tree. How "
+            "many lights does that tree have now?",
             "{0} divided by {1} is 5. Then 5 - {2} = {r}.",
             extra=(5, 8, 17),
             deltas=(1, -1),
@@ -2781,7 +2882,8 @@ def _obs_final(band):
         vs.a(
             "submul",
             (30, 3, 9),
-            "The sleigh has {0} presents. It visits {1} stops and leaves {2} presents at each. How many presents are left?",
+            "The sleigh has {0} presents. It visits {1} stops and leaves {2} presents at each. How "
+            "many presents are left?",
             "{1} stops with {2} presents each use {1} x {2} = 27. Then {0} - 27 = {r}.",
             extra=(27, 21, 6),
             deltas=(1, -1),
@@ -2803,17 +2905,20 @@ def _obs_final(band):
 OBSERVE_FEATURES = {
     "np-landmark-tree": (
         "Christmas tree",
-        "A tall evergreen tree with lights and ornaments. Evergreen trees keep their needles all winter.",
+        "A tall evergreen tree with lights and ornaments. Evergreen trees keep their needles all "
+        "winter.",
         "The big tree stays green all winter.",
     ),
     "np-landmark-cottage": (
         "Cosy cottage",
-        "A cottage with a steep roof. Snow slides off steep roofs, so it does not pile up and get too heavy.",
+        "A cottage with a steep roof. Snow slides off steep roofs, so it does not pile up and get "
+        "too heavy.",
         "A cosy cottage with a snowy roof.",
     ),
     "np-landmark-snowman": (
         "Snowman",
-        "A snowman is made of three balls of snow. Snow packs together best when it is a little wet.",
+        "A snowman is made of three balls of snow. Snow packs together best when it is a little "
+        "wet.",
         "A snowman made of three round snowballs.",
     ),
     "np-landmark-lantern": (
@@ -2897,7 +3002,9 @@ def _stables_return(band):
 
 def _eve_bell(band):
     return {
-        "discoveryMessage": "You rang Santa's sleigh bell! Jingle, jingle, the sleigh is ready for Christmas Eve.",
+        "discoveryMessage": (
+            "You rang Santa's sleigh bell! Jingle, jingle, the sleigh is ready for Christmas Eve."
+        ),
         "hints": ["Look for the shiny bell on Santa's sleigh."],
         "hintAfterAttempts": 1 if band == "SPROUT" else 2,
     }
@@ -2943,34 +3050,250 @@ _FRAGMENT_KEYS = [
 
 # (puzzleId, kind, title, requires, key, reward, band factory)
 _TABLE = [
-    ("np-welcome-look", PuzzleKind.OBSERVE_FEATURES, "Look around the village", [], "NORTH_POLE_WELCOME_LOOKED", "np-rule-welcome", _welcome_look),
-    ("np-workshop-count", CHOOSE, "Count the toys", ["NORTH_POLE_WELCOME_LOOKED"], "NORTH_POLE_WORKSHOP_TOYS_COUNTED", None, _workshop_count),
-    ("np-workshop-sort", CHOOSE, "Sort the presents", ["NORTH_POLE_WORKSHOP_TOYS_COUNTED"], "NORTH_POLE_WORKSHOP_PRESENTS_SORTED", None, _workshop_sort),
-    ("np-workshop-pattern", CHOOSE, "Fix the belt pattern", ["NORTH_POLE_WORKSHOP_PRESENTS_SORTED"], "NORTH_POLE_WORKSHOP_PATTERN_FIXED", None, _workshop_pattern),
-    ("np-workshop-assemble", ORDER, "Assemble a toy", ["NORTH_POLE_WORKSHOP_GIFTS_CHECKED"], "NORTH_POLE_WORKSHOP_RESTORED", "np-rule-workshop", _workshop_assemble),
-    ("np-forest-sequence", CHOOSE, "Number trail", ["NORTH_POLE_WORKSHOP_RESTORED"], "NORTH_POLE_FOREST_SEQUENCE_DONE", None, _forest_sequence),
-    ("np-forest-signs", CHOOSE, "Read the forest signs", ["NORTH_POLE_FOREST_SEQUENCE_DONE"], "NORTH_POLE_FOREST_SIGNS_READ", None, _forest_signs),
-    ("np-forest-stripes", ORDER, "Candy stripe pattern", ["NORTH_POLE_FOREST_SIGNS_READ"], "NORTH_POLE_FOREST_DONE", "np-rule-forest", _forest_stripes),
-    ("np-lake-sums", CHOOSE, "Hop the ice floes", ["NORTH_POLE_FOREST_DONE"], "NORTH_POLE_LAKE_BRIDGE", None, _lake_sums),
-    ("np-lake-order", ORDER, "Floes in number order", ["NORTH_POLE_LAKE_BRIDGE"], "NORTH_POLE_LAKE_ORDERED", None, _lake_order),
-    ("np-lake-shapes", CHOOSE, "Shapes and parts on the lake", ["NORTH_POLE_LAKE_ORDERED"], "NORTH_POLE_LAKE_DONE", "np-rule-lake", _lake_shapes),
-    ("np-stables-facts", CHOOSE, "Reindeer facts", ["NORTH_POLE_LAKE_DONE"], "NORTH_POLE_STABLES_FACTS_LEARNED", None, _stables_facts),
-    ("np-stables-tracks", CHOOSE, "Follow the tracks", ["NORTH_POLE_STABLES_FACTS_LEARNED"], "NORTH_POLE_STABLES_TRACKS_FOLLOWED", None, _stables_tracks),
-    ("np-stables-supplies", CHOOSE, "Supplies for the reindeer", ["NORTH_POLE_STABLES_TRACKS_FOLLOWED"], "NORTH_POLE_STABLES_SUPPLIES_FOUND", None, _stables_supplies),
-    ("np-stables-return", PuzzleKind.RETURN_TO_NPC, "Bring Snowball home", ["NORTH_POLE_STABLES_SUPPLIES_FOUND", "NORTH_POLE_SNOWBALL_FOUND"], "NORTH_POLE_SNOWBALL_HOME", "np-rule-reindeer", _stables_return),
-    ("np-ginger-shapes", CHOOSE, "Match the shapes", ["NORTH_POLE_SNOWBALL_HOME"], "NORTH_POLE_GINGER_SHAPES_MATCHED", None, _ginger_shapes),
-    ("np-ginger-symmetry", CHOOSE, "Finish the window", ["NORTH_POLE_GINGER_SHAPES_MATCHED"], "NORTH_POLE_GINGER_SYMMETRY_DONE", None, _ginger_symmetry),
-    ("np-ginger-recipe", CHOOSE, "Mrs. Claus's recipe", ["NORTH_POLE_GINGER_SYMMETRY_DONE"], "NORTH_POLE_GINGER_RECIPE_READ", None, _ginger_recipe),
-    ("np-ginger-measure", CHOOSE, "Measure the gingerbread", ["NORTH_POLE_GINGER_RECIPE_READ"], "NORTH_POLE_GINGER_MEASURED", None, _ginger_measure),
-    ("np-ginger-build", PuzzleKind.PLACE_PLATFORMS, "Repair the gingerbread wall", ["NORTH_POLE_GINGER_MEASURED"], "NORTH_POLE_GINGER_REPAIRED", "np-rule-gingerbread", _ginger_build),
-    ("np-mountain-weather", CHOOSE, "Snow, ice and water", ["NORTH_POLE_MOUNTAIN_BRIDGE_TWO"], "NORTH_POLE_MOUNTAIN_SUMMIT", "np-rule-mountain", _mountain_weather),
-    ("np-obs-stars", CHOOSE, "About stars", ["NORTH_POLE_MOUNTAIN_SUMMIT"], "NORTH_POLE_OBS_STARS_LEARNED", None, _obs_stars),
-    ("np-obs-constellation", CHOOSE, "Find the constellation", ["NORTH_POLE_OBS_STARS_LEARNED"], "NORTH_POLE_OBS_CONSTELLATION_FOUND", None, _obs_constellation),
-    ("np-obs-sequence", ORDER, "The night sky in order", ["NORTH_POLE_OBS_CONSTELLATION_FOUND"], "NORTH_POLE_OBS_SEQUENCE_DONE", None, _obs_sequence),
-    ("np-obs-fragments", ORDER, "Set the star fragments", ["NORTH_POLE_OBS_SEQUENCE_DONE", *_FRAGMENT_KEYS], "NORTH_POLE_FRAGMENTS_PLACED", None, _obs_fragments),
-    ("np-obs-final", CHOOSE, "The final star challenge", ["NORTH_POLE_FRAGMENTS_PLACED"], "NORTH_POLE_STAR_RESTORED", "np-rule-star", _obs_final),
-    ("np-eve-sleigh-bell", PuzzleKind.COLLECT_OBJECT, "Ring the sleigh bell", ["NORTH_POLE_STAR_RESTORED"], "NORTH_POLE_CHRISTMAS_EVE", "np-rule-christmas-eve", _eve_bell),
-]  # fmt: skip
+    (
+        "np-welcome-look",
+        PuzzleKind.OBSERVE_FEATURES,
+        "Look around the village",
+        [],
+        "NORTH_POLE_WELCOME_LOOKED",
+        "np-rule-welcome",
+        _welcome_look,
+    ),
+    (
+        "np-workshop-count",
+        CHOOSE,
+        "Count the toys",
+        ["NORTH_POLE_WELCOME_LOOKED"],
+        "NORTH_POLE_WORKSHOP_TOYS_COUNTED",
+        None,
+        _workshop_count,
+    ),
+    (
+        "np-workshop-sort",
+        CHOOSE,
+        "Sort the presents",
+        ["NORTH_POLE_WORKSHOP_TOYS_COUNTED"],
+        "NORTH_POLE_WORKSHOP_PRESENTS_SORTED",
+        None,
+        _workshop_sort,
+    ),
+    (
+        "np-workshop-pattern",
+        CHOOSE,
+        "Fix the belt pattern",
+        ["NORTH_POLE_WORKSHOP_PRESENTS_SORTED"],
+        "NORTH_POLE_WORKSHOP_PATTERN_FIXED",
+        None,
+        _workshop_pattern,
+    ),
+    (
+        "np-workshop-assemble",
+        ORDER,
+        "Assemble a toy",
+        ["NORTH_POLE_WORKSHOP_GIFTS_CHECKED"],
+        "NORTH_POLE_WORKSHOP_RESTORED",
+        "np-rule-workshop",
+        _workshop_assemble,
+    ),
+    (
+        "np-forest-sequence",
+        CHOOSE,
+        "Number trail",
+        ["NORTH_POLE_WORKSHOP_RESTORED"],
+        "NORTH_POLE_FOREST_SEQUENCE_DONE",
+        None,
+        _forest_sequence,
+    ),
+    (
+        "np-forest-signs",
+        CHOOSE,
+        "Read the forest signs",
+        ["NORTH_POLE_FOREST_SEQUENCE_DONE"],
+        "NORTH_POLE_FOREST_SIGNS_READ",
+        None,
+        _forest_signs,
+    ),
+    (
+        "np-forest-stripes",
+        ORDER,
+        "Candy stripe pattern",
+        ["NORTH_POLE_FOREST_SIGNS_READ"],
+        "NORTH_POLE_FOREST_DONE",
+        "np-rule-forest",
+        _forest_stripes,
+    ),
+    (
+        "np-lake-sums",
+        CHOOSE,
+        "Hop the ice floes",
+        ["NORTH_POLE_FOREST_DONE"],
+        "NORTH_POLE_LAKE_BRIDGE",
+        None,
+        _lake_sums,
+    ),
+    (
+        "np-lake-order",
+        ORDER,
+        "Floes in number order",
+        ["NORTH_POLE_LAKE_BRIDGE"],
+        "NORTH_POLE_LAKE_ORDERED",
+        None,
+        _lake_order,
+    ),
+    (
+        "np-lake-shapes",
+        CHOOSE,
+        "Shapes and parts on the lake",
+        ["NORTH_POLE_LAKE_ORDERED"],
+        "NORTH_POLE_LAKE_DONE",
+        "np-rule-lake",
+        _lake_shapes,
+    ),
+    (
+        "np-stables-facts",
+        CHOOSE,
+        "Reindeer facts",
+        ["NORTH_POLE_LAKE_DONE"],
+        "NORTH_POLE_STABLES_FACTS_LEARNED",
+        None,
+        _stables_facts,
+    ),
+    (
+        "np-stables-tracks",
+        CHOOSE,
+        "Follow the tracks",
+        ["NORTH_POLE_STABLES_FACTS_LEARNED"],
+        "NORTH_POLE_STABLES_TRACKS_FOLLOWED",
+        None,
+        _stables_tracks,
+    ),
+    (
+        "np-stables-supplies",
+        CHOOSE,
+        "Supplies for the reindeer",
+        ["NORTH_POLE_STABLES_TRACKS_FOLLOWED"],
+        "NORTH_POLE_STABLES_SUPPLIES_FOUND",
+        None,
+        _stables_supplies,
+    ),
+    (
+        "np-stables-return",
+        PuzzleKind.RETURN_TO_NPC,
+        "Bring Snowball home",
+        ["NORTH_POLE_STABLES_SUPPLIES_FOUND", "NORTH_POLE_SNOWBALL_FOUND"],
+        "NORTH_POLE_SNOWBALL_HOME",
+        "np-rule-reindeer",
+        _stables_return,
+    ),
+    (
+        "np-ginger-shapes",
+        CHOOSE,
+        "Match the shapes",
+        ["NORTH_POLE_SNOWBALL_HOME"],
+        "NORTH_POLE_GINGER_SHAPES_MATCHED",
+        None,
+        _ginger_shapes,
+    ),
+    (
+        "np-ginger-symmetry",
+        CHOOSE,
+        "Finish the window",
+        ["NORTH_POLE_GINGER_SHAPES_MATCHED"],
+        "NORTH_POLE_GINGER_SYMMETRY_DONE",
+        None,
+        _ginger_symmetry,
+    ),
+    (
+        "np-ginger-recipe",
+        CHOOSE,
+        "Mrs. Claus's recipe",
+        ["NORTH_POLE_GINGER_SYMMETRY_DONE"],
+        "NORTH_POLE_GINGER_RECIPE_READ",
+        None,
+        _ginger_recipe,
+    ),
+    (
+        "np-ginger-measure",
+        CHOOSE,
+        "Measure the gingerbread",
+        ["NORTH_POLE_GINGER_RECIPE_READ"],
+        "NORTH_POLE_GINGER_MEASURED",
+        None,
+        _ginger_measure,
+    ),
+    (
+        "np-ginger-build",
+        PuzzleKind.PLACE_PLATFORMS,
+        "Repair the gingerbread wall",
+        ["NORTH_POLE_GINGER_MEASURED"],
+        "NORTH_POLE_GINGER_REPAIRED",
+        "np-rule-gingerbread",
+        _ginger_build,
+    ),
+    (
+        "np-mountain-weather",
+        CHOOSE,
+        "Snow, ice and water",
+        ["NORTH_POLE_MOUNTAIN_BRIDGE_TWO"],
+        "NORTH_POLE_MOUNTAIN_SUMMIT",
+        "np-rule-mountain",
+        _mountain_weather,
+    ),
+    (
+        "np-obs-stars",
+        CHOOSE,
+        "About stars",
+        ["NORTH_POLE_MOUNTAIN_SUMMIT"],
+        "NORTH_POLE_OBS_STARS_LEARNED",
+        None,
+        _obs_stars,
+    ),
+    (
+        "np-obs-constellation",
+        CHOOSE,
+        "Find the constellation",
+        ["NORTH_POLE_OBS_STARS_LEARNED"],
+        "NORTH_POLE_OBS_CONSTELLATION_FOUND",
+        None,
+        _obs_constellation,
+    ),
+    (
+        "np-obs-sequence",
+        ORDER,
+        "The night sky in order",
+        ["NORTH_POLE_OBS_CONSTELLATION_FOUND"],
+        "NORTH_POLE_OBS_SEQUENCE_DONE",
+        None,
+        _obs_sequence,
+    ),
+    (
+        "np-obs-fragments",
+        ORDER,
+        "Set the star fragments",
+        ["NORTH_POLE_OBS_SEQUENCE_DONE", *_FRAGMENT_KEYS],
+        "NORTH_POLE_FRAGMENTS_PLACED",
+        None,
+        _obs_fragments,
+    ),
+    (
+        "np-obs-final",
+        CHOOSE,
+        "The final star challenge",
+        ["NORTH_POLE_FRAGMENTS_PLACED"],
+        "NORTH_POLE_STAR_RESTORED",
+        "np-rule-star",
+        _obs_final,
+    ),
+    (
+        "np-eve-sleigh-bell",
+        PuzzleKind.COLLECT_OBJECT,
+        "Ring the sleigh bell",
+        ["NORTH_POLE_STAR_RESTORED"],
+        "NORTH_POLE_CHRISTMAS_EVE",
+        "np-rule-christmas-eve",
+        _eve_bell,
+    ),
+]
 
 # _quiz-built bands need their own factory reading ENTITY_MAPS (defined above), so the
 # bodies are built last.

@@ -235,7 +235,8 @@ class TestSeedAppliesTheLayout:
 
 def test_gates_and_walls_are_never_jumpable_and_props_carry_their_height():
     """LAI-JMP-01 with the library props: low props (barrels, logs) are hopped onto or over on the
-    client from their drawn height (layout v8); the gate, channel and walls stay solid at any height."""
+    client from their drawn height (layout v8); the gate, channel and walls stay solid at any
+    height."""
     layout = cove_layout()
     jumpable = {c["rect"]["id"] for c in layout["colliders"] if c.get("jumpable")}
     assert not set(UNLOCK["openColliders"]) & jumpable

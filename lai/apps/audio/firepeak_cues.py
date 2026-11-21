@@ -5,7 +5,8 @@ url or storage key. The React side is `react/src/features/region-play/audio/regi
 `seed_firepeak_sound` creates the cues whose audio already exists in the Asset Library.
 
 `wired` is True only for a cue the client plays today. The unwired ones (machinery, npc greeting)
-are flipped to True by whoever raises a matching moment (see `docs/firepeak/FIREPEAK_AUDIO_INVENTORY.md`).
+are flipped to True by whoever raises a matching moment (see
+`docs/firepeak/FIREPEAK_AUDIO_INVENTORY.md`).
 """
 
 from apps.audio.treasure_rush_cues import CueSpec
@@ -110,7 +111,8 @@ FIREPEAK_CUES: tuple[CueSpec, ...] = (
         "rock_rumble",
         "Falling rocks warning",
         "A low rumble and small pebbles at the start of the falling-rock warning on the optional"
-        " summit hops, heard only on the Summit. Soft, never alarming; the warning lasts at least 1.5 s.",
+        " summit hops, heard only on the Summit. Soft, never alarming; the warning lasts at least "
+        "1.5 s.",
         wired=True,
         cooldown_ms=1000,
         max_concurrent=1,

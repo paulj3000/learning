@@ -70,7 +70,8 @@ def engine_platform_ids(scene: dict) -> list[str]:
 
 
 def platform_ids(scene: dict) -> list[str]:
-    """Every platform id staff tuning may name: the live `platforming` ones, then the engine ones."""
+    """Every platform id staff tuning may name: the live `platforming` ones, then the engine
+    ones."""
     platforming = scene.get("platforming") if isinstance(scene, dict) else None
     platforms = platforming.get("platforms") if isinstance(platforming, dict) else None
     live = (
@@ -140,7 +141,8 @@ def layout_problems(platforming, *, bounds: dict | None = None) -> list[str]:
                     or len(words) > LIMITS["max_recovery_lead"]
                 ):
                     problems.append(
-                        f"platforming.recoveryLeads.{hazard_id}: words, at most {LIMITS['max_recovery_lead']} characters"
+                        f"platforming.recoveryLeads.{hazard_id}: words, "
+                        f"at most {LIMITS['max_recovery_lead']} characters"
                     )
     platforms = platforming["platforms"]
     if len(platforms) > LIMITS["max_platforms"]:
