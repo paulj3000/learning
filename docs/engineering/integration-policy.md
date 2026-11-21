@@ -136,10 +136,28 @@ for the change.
 - correcting another entry's status requires the owner's instruction or verified evidence,
   and is noted in the commit body.
 
+## EC2 unit-test gate
+
+The integration agent validates an integration branch on the shared CI instance instead of the
+shared development machine ([aws-ec2-unit-tests.md](../infrastructure/aws-ec2-unit-tests.md)):
+
+1. Commit and push the integration change; only committed, pushed source is tested.
+2. `python3 scripts/ci/aws_ci.py run --scope affected` after each merge into the branch, and
+   `--scope full-unit` as the final check. The command records the exact SHA, dispatches
+   `aws-integration-tests.yml`, waits, downloads the results and decides.
+3. Only **MERGE-OK** counts. FAILED goes to the owning agent with the failing tests, the tested SHA
+   and the run URL; INCOMPLETE is an infrastructure problem, reported separately; STALE (the branch
+   changed after the test) means test again. A result never carries over to a different tree.
+4. Record the tested SHA, request id, run URL and decision on the integration card.
+
+These are unit tests. They do not replace the owner-authorized merge-readiness gates.
+
 ## Before asking for a merge
 
 - The branch is up to date with `main` (or its base) and conflicts are resolved.
-- Development checks pass; merge-readiness checks have run if the owner requested them.
+- Development checks pass; for an integration branch, the EC2 unit-test gate reports MERGE-OK for
+  the branch's current head with `--scope full-unit`; merge-readiness checks have run if the owner
+  requested them.
 - Shared components and migrations changed are listed in the pull request.
 - The ADR registry is consistent (`npm run adr:check`).
 - The Trello card is at the right list with evidence ([trello-workflow.md](trello-workflow.md)).

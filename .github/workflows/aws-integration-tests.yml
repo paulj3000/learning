@@ -1,0 +1,222 @@
+name: AWS Integration Unit Tests
+
+# Unit tests for one exact commit on the shared LAI CI EC2 instance, over SSM
+# (docs/infrastructure/aws-ec2-unit-tests.md). Dispatched by the integration agent with
+# scripts/ci/aws_ci.py; the verdict is in the job result and in the results artifact.
+# Unit tests only: no Playwright, browser, end-to-end, lint, format or build (testing-policy.md).
+run-name: 'EC2 unit tests ${{ inputs.test_scope }} ${{ inputs.commit_sha }} [${{ inputs.request_id }}]'
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full 40-character commit SHA to test (must be on the dispatched branch)
+        required: true
+        type: string
+      test_scope:
+        description: affected (what the change can reach) or full-unit (every unit suite)
+        required: true
+        default: affected
+        type: choice
+        options: [affected, full-unit]
+      request_id:
+        description: Caller's id, echoed in the run name and the artifact name
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+# One run at a time on the shared instance from this repository. The instance-state check and the
+# on-instance lock reject overlap with other workflows and other repositories (no shared lock
+# service exists yet). A newer queued run replaces an older queued one; the agent re-dispatches.
+concurrency:
+  group: lai-ci-ec2-instance
+  cancel-in-progress: false
+
+jobs:
+  unit-tests:
+    name: EC2 unit tests (${{ inputs.test_scope }})
+    runs-on: ubuntu-24.04
+    environment: lai-ci
+    # Below the instance's independent four-hour shutdown guard, so it stays the backstop.
+    timeout-minutes: 225
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      INSTANCE_ID: ${{ vars.LAI_CI_INSTANCE_ID }}
+      OUT_DIR: ${{ github.workspace }}/lai-ci-out
+      INPUT_COMMIT_SHA: ${{ inputs.commit_sha }}
+      INPUT_SCOPE: ${{ inputs.test_scope }}
+      INPUT_REQUEST_ID: ${{ inputs.request_id }}
+      RUN_KEY: ${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Check out the workflow's branch (full history, for commit validation)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate the request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT_DIR"
+          fail() { echo "::error::$*"; echo "REJECTED: $*" >"$OUT_DIR/rejected.txt"; exit 2; }
+          [[ "$INPUT_COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "commit_sha must be a full lowercase 40-character SHA"
+          [[ "$INPUT_SCOPE" =~ ^(affected|full-unit)$ ]] || fail "test_scope must be affected or full-unit"
+          request_id="${INPUT_REQUEST_ID:-run-$GITHUB_RUN_ID}"
+          [[ "$request_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || fail "request_id may use letters, digits, . _ - (64 max)"
+          [[ "$GITHUB_REF" == refs/heads/* ]] || fail "dispatch from a branch, not $GITHUB_REF"
+          branch="${GITHUB_REF#refs/heads/}"
+          [[ "$branch" =~ ^(main|integration/[A-Za-z0-9._/-]+|ci/[A-Za-z0-9._/-]+)$ ]] || fail "branch $branch is not an integration/*, ci/* or main branch"
+          git cat-file -e "${INPUT_COMMIT_SHA}^{commit}" 2>/dev/null || fail "commit $INPUT_COMMIT_SHA does not exist in this repository"
+          git merge-base --is-ancestor "$INPUT_COMMIT_SHA" "$GITHUB_SHA" || fail "commit $INPUT_COMMIT_SHA is not on $branch (head $GITHUB_SHA)"
+          base_sha="$(git merge-base origin/main "$INPUT_COMMIT_SHA")" || fail "no merge base with main"
+          tree_sha="$(git rev-parse "${INPUT_COMMIT_SHA}^{tree}")"
+          request_json="$(jq -cn \
+            --arg repository "$GITHUB_REPOSITORY" --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg run_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg source_branch "$branch" --arg branch_head "$GITHUB_SHA" \
+            --arg request_id "$request_id" --arg commit_sha "$INPUT_COMMIT_SHA" \
+            --arg tree_sha "$tree_sha" --arg base_sha "$base_sha" --arg harness_sha "$GITHUB_SHA" \
+            --arg scope "$INPUT_SCOPE" --arg actor "$GITHUB_ACTOR" \
+            '$ARGS.named')"
+          printf '%s\n' "$request_json" >"$OUT_DIR/request.json"
+          {
+            echo "request_id=$request_id"
+            echo "base_sha=$base_sha"
+            echo "tree_sha=$tree_sha"
+            echo "request_b64=$(printf '%s' "$request_json" | base64 -w0)"
+          } >>"$GITHUB_OUTPUT"
+          {
+            echo "### Request $request_id"
+            echo "- Commit \`$INPUT_COMMIT_SHA\` (tree \`$tree_sha\`) on \`$branch\`"
+            echo "- Base \`$base_sha\`; scope \`$INPUT_SCOPE\`; harness \`$GITHUB_SHA\`"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Configure AWS credentials (OIDC, no stored keys)
+        id: aws-auth
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.LAI_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          retry-max-attempts: 3
+
+      - name: Verify AWS identity and configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${INSTANCE_ID:?LAI_CI_INSTANCE_ID must be set}"
+          : "${AWS_REGION:?AWS_REGION must be set}"
+          aws sts get-caller-identity --query Arn --output text
+
+      - name: Start EC2 (must be stopped; never adopt a running instance)
+        id: start
+        shell: bash
+        run: bash scripts/ci/ec2_ci.sh start
+
+      - name: Wait for SSM
+        shell: bash
+        run: bash scripts/ci/ec2_ci.sh wait-ssm
+
+      - name: Take the instance lock
+        id: lock
+        shell: bash
+        env:
+          LOCK_OWNER: ${{ github.repository }}/${{ github.run_id }}-${{ github.run_attempt }}
+        run: bash scripts/ci/ec2_ci.sh lock
+
+      - name: Run the unit tests on EC2 over SSM
+        id: run
+        timeout-minutes: 170
+        shell: bash
+        env:
+          LOCK_OWNER: ${{ github.repository }}/${{ github.run_id }}-${{ github.run_attempt }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          BASE_SHA: ${{ steps.request.outputs.base_sha }}
+          HARNESS_SHA: ${{ github.sha }}
+          TEST_SCOPE: ${{ inputs.test_scope }}
+          REQUEST_B64: ${{ steps.request.outputs.request_b64 }}
+        run: bash scripts/ci/ec2_ci.sh run
+
+      - name: Copy the results back (checksum-verified)
+        id: collect
+        if: always() && steps.lock.outputs.lock_status == 'acquired' && steps.run.outputs.command_id != ''
+        timeout-minutes: 20
+        shell: bash
+        run: bash scripts/ci/ec2_ci.sh collect
+
+      - name: Cancel the remote command if it is still running
+        if: always() && steps.run.outputs.command_id != ''
+        shell: bash
+        run: bash scripts/ci/ec2_ci.sh cancel
+
+      - name: Release the instance lock
+        if: always() && steps.lock.outputs.lock_status == 'acquired'
+        shell: bash
+        env:
+          LOCK_OWNER: ${{ github.repository }}/${{ github.run_id }}-${{ github.run_attempt }}
+        run: bash scripts/ci/ec2_ci.sh unlock
+
+      - name: Stop EC2 if this job started it and no other job owns it
+        id: stop
+        if: always() && steps.aws-auth.outcome == 'success' && steps.start.outputs.started_by_job == 'true'
+        timeout-minutes: 15
+        shell: bash
+        env:
+          STARTED_BY_JOB: ${{ steps.start.outputs.started_by_job }}
+          LOCK_STATUS: ${{ steps.lock.outputs.lock_status }}
+        run: bash scripts/ci/ec2_ci.sh stop
+
+      - name: Check the results against the request (fail closed)
+        id: verdict
+        if: always()
+        shell: bash
+        env:
+          TREE_SHA: ${{ steps.request.outputs.tree_sha }}
+        run: |
+          set -uo pipefail
+          results="$OUT_DIR/results/results.json"
+          python3 scripts/ci/ci_results.py verify "$results" --commit "$INPUT_COMMIT_SHA" \
+            --scope "$INPUT_SCOPE" ${TREE_SHA:+--tree "$TREE_SHA"} \
+            --summary "$GITHUB_STEP_SUMMARY" --json >"$OUT_DIR/verdict.json"
+          code=$?
+          cat "$OUT_DIR/verdict.json"
+          echo "verdict=$(jq -r .verdict "$OUT_DIR/verdict.json" 2>/dev/null || echo incomplete)" >>"$GITHUB_OUTPUT"
+          echo "exit=$code" >>"$GITHUB_OUTPUT"
+
+      - name: Upload the results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lai-ci-results-${{ steps.request.outputs.request_id || github.run_id }}
+          path: |
+            lai-ci-out/request.json
+            lai-ci-out/infra.json
+            lai-ci-out/verdict.json
+            lai-ci-out/rejected.txt
+            lai-ci-out/results/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Enforce the verdict (merge gate)
+        if: always()
+        shell: bash
+        env:
+          VERDICT: ${{ steps.verdict.outputs.verdict }}
+          STOP_OUTCOME: ${{ steps.stop.outcome }}
+        run: |
+          set -euo pipefail
+          echo "Tested commit: $INPUT_COMMIT_SHA; verdict: ${VERDICT:-incomplete}"
+          if [ "$STOP_OUTCOME" = failure ]; then
+            echo "::error::the instance did not stop; see the runbook"
+            exit 1
+          fi
+          [ "${VERDICT:-}" = pass ] || { echo "::error::merge blocked: ${VERDICT:-incomplete}"; exit 1; }
