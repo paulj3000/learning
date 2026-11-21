@@ -8,7 +8,7 @@ a JUnit report, and `ci_results.py` recomputes the verdict. Whatever happens, it
 suite), so the workflow always has something to fail closed on.
 
 Isolation: tests run as the unprivileged `lai-ci` user with a clean environment, a per-run database
-password on the loopback-only PostgreSQL (16, or 18 for CI), no AWS configuration, and the
+password on the loopback-only PostgreSQL 18, no AWS configuration, and the
 instance metadata service rejected for that user, so a test can never use the instance's AWS role.
 
 Layout under /var/lib/lai-ci: repo.git (bare cache), harness/<sha>, cache/{venv-*,npm}, home,
@@ -48,8 +48,8 @@ CI_USER = "lai-ci"
 DB_ROLE = "lai_ci"
 DB_NAME = "lai_ci"
 PG_PORT = "5432"
-# The project standard is PostgreSQL 16; the owner accepted 18 for this CI instance (2026-11-20).
-SUPPORTED_PG_MAJORS = (16, 18)
+# PostgreSQL 18 is the project's required version (owner decision 2026-11-21).
+SUPPORTED_PG_MAJORS = (18,)
 SUPPORTED_UBUNTU = ("24.04", "26.04")  # advisory only
 NODE_VERSION = "v22.23.5"
 NODE_SHA256 = {

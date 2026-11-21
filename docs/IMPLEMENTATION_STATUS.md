@@ -47,14 +47,15 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   smoke test is unchanged.
 - `scripts/ci/`: `aws_ci.py` (the integration agent's submit, watch, fetch and gate, with the
   stale-result rule), `ec2_ci.sh` (runner side), `remote_runner.py` (instance side: preflight,
-  isolation, dependencies, PostgreSQL 16 or 18, suites), `plan_tests.py` (affected and full-unit plans),
+  isolation, dependencies, PostgreSQL 18, suites), `plan_tests.py` (affected and full-unit plans),
   `ci_results.py` (schema and verdict).
 - Tests: `tests/repo/test_ci_*.py` with fake `aws`, `gh` and `git`; actionlint and shellcheck
   clean.
 - Live run 44876522333 (2026-11-21 UTC): OIDC, start, lock, SSM, checksum-verified collection,
   unlock and stop all worked and the instance stopped; preflight blocked the tests because the
   instance runs PostgreSQL 18.6 on Ubuntu 26.04.1. The owner accepted PostgreSQL 18 for this CI
-  (2026-11-20); the check now passes 16 or 18 and blocks anything else.
+  (2026-11-20); the check then passed 16 or 18. Superseded 2026-11-21: PostgreSQL 18 is the
+  required version (owner decision), and the check passes 18 only.
 - Pending: a live run that executes suites; `ssm:CancelCommand` on the CI role. Runbook:
   [docs/infrastructure/aws-ec2-unit-tests.md](infrastructure/aws-ec2-unit-tests.md).
 

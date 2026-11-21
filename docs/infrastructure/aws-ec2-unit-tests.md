@@ -169,17 +169,17 @@ and approvals are still separate.
 | Branches | The dispatched branch must be `main`, `integration/*` or `ci/*`; the requested SHA must be on it |
 | Repository visibility | The instance fetches the source anonymously over HTTPS, which works while the repository is public. If it becomes private, source transfer needs an approved change (an S3 bucket the role writes and the instance reads, or a read-only deploy key on the instance) |
 | Instance egress | HTTPS to `github.com`, `nodejs.org` (Node 22.23.5, checksum-pinned in `remote_runner.py`), `registry.npmjs.org`, `pypi.org` and `files.pythonhosted.org` |
-| Instance software | Ubuntu 24.04 or 26.04 (advisory check), PostgreSQL 16 or 18 on loopback port 5432 (required check), the SSM agent, `iptables`. The runner installs `git` and `python3-venv` from Ubuntu if missing, Node under `/opt/lai-ci`, and creates the `lai-ci` user; caches live in `/var/lib/lai-ci` |
+| Instance software | Ubuntu 24.04 or 26.04 (advisory check), PostgreSQL 18 on loopback port 5432 (required check), the SSM agent, `iptables`. The runner installs `git` and `python3-venv` from Ubuntu if missing, Node under `/opt/lai-ci`, and creates the `lai-ci` user; caches live in `/var/lib/lai-ci` |
 | Instance role | Only what SSM needs (`AmazonSSMManagedInstanceCore`); tests cannot reach it anyway |
 
 ## PostgreSQL version
 
-The project standard is PostgreSQL 16 (CLAUDE.md section 8). The CI instance runs Ubuntu 26.04.1 with
-PostgreSQL 18.6, and the owner accepted PostgreSQL 18 for this CI on 2026-11-20. The preflight
-check `postgres-version` therefore passes for major version 16 or 18 and blocks every other version
-(the run is reported incomplete). This acceptance covers the CI instance only; it does not change
-the application's database standard or any deployed environment. A Django test that passes on 18
-is not proof that it passes on 16; differences between the two versions are a known gap of this CI.
+PostgreSQL 18 is the project's required version (owner decision 2026-11-21, superseding the
+PostgreSQL 16 standard and the 2026-11-20 acceptance of 16 or 18 for this CI). The CI instance runs
+Ubuntu 26.04.1 with PostgreSQL 18.6 from Ubuntu. The preflight check `postgres-version` passes for
+major version 18 only and blocks every other version (the run is reported incomplete). Never
+downgrade or add a second PostgreSQL on the instance. The deployed RDS instances still run 16;
+moving them is a separate, approved upgrade.
 
 ## Troubleshooting
 

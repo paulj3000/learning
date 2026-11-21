@@ -329,9 +329,16 @@ def test_postgres_major(version_num, major):
 
 @pytest.mark.parametrize(
     ("version_num", "ok"),
-    [("160004", True), ("180006", True), ("170002", False), ("150008", False), ("", False)],
+    [
+        ("180006", True),
+        ("180007", True),
+        ("160004", False),
+        ("170002", False),
+        ("190001", False),
+        ("", False),
+    ],
 )
-def test_postgres_version_check_accepts_16_and_18_only(monkeypatch, version_num, ok):
+def test_postgres_version_check_accepts_18_only(monkeypatch, version_num, ok):
     def fake_sh(cmd, **_):
         if cmd[0] == "pg_isready":
             return subprocess.CompletedProcess(cmd, 0, "127.0.0.1:5432 - accepting connections", "")
