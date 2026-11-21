@@ -190,4 +190,5 @@ NORTH_POLE_CUES: tuple[CueSpec, ...] = (
 
 NORTH_POLE_CUE_IDS: frozenset[str] = frozenset(spec.cue_id for spec in NORTH_POLE_CUES)
 
-assert all(CUE_ID.match(spec.cue_id) for spec in NORTH_POLE_CUES)
+if not all(CUE_ID.match(spec.cue_id) for spec in NORTH_POLE_CUES):
+    raise AssertionError("a North Pole cue id does not match CUE_ID")

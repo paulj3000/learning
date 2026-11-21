@@ -142,4 +142,5 @@ FIREPEAK_CUES: tuple[CueSpec, ...] = (
 
 FIREPEAK_CUE_IDS: frozenset[str] = frozenset(spec.cue_id for spec in FIREPEAK_CUES)
 
-assert all(CUE_ID.match(spec.cue_id) for spec in FIREPEAK_CUES)
+if not all(CUE_ID.match(spec.cue_id) for spec in FIREPEAK_CUES):
+    raise AssertionError("a Firepeak cue id does not match CUE_ID")

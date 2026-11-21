@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
 
 @pytest.fixture
-def content(imported_content, families):
+def content(imported_content, families):  # noqa: F811
     return families
 
 

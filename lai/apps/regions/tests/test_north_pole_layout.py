@@ -702,7 +702,7 @@ def test_the_engine_bridge_block_passes_the_publish_check_and_never_runs_movemen
 
 def test_the_lake_ice_is_on_the_frozen_lake_and_never_slides_into_the_water():
     rink, water = L.ICE_RINK, L.LAKE_WATER
-    zone = dict(zip(("minX", "maxX", "minZ", "maxZ"), L.ZONES["frozen-lake"]))
+    zone = dict(zip(("minX", "maxX", "minZ", "maxZ"), L.ZONES["frozen-lake"], strict=True))
     course_water = next(h for h in HAZARD_SPECS if h["id"] == "np-hazard-lake-water")["rect"]
     assert {k: course_water[k] for k in water} == water  # the bridge names the real hazard
     # The engine stops a child within about a metre at the lowest friction; keep twice that.

@@ -106,7 +106,8 @@ class _Vs:
     ):
         """An arithmetic choice variant: `{0}`, `{1}` in the prompt are the operands."""
         result = OPS[op](*args)
-        assert result is not None, (self.pid, args)
+        if result is None:
+            raise AssertionError((self.pid, args))
         ARITHMETIC[(self.pid, self.band, self._vid())] = (op, tuple(args))
         wrongs = _near(result, extra=extra, deltas=deltas, lo=lo, hi=hi, n=self.nw)
         self.c(prompt.format(*args, **names), str(result), wrongs, expl.format(*args, r=result))
@@ -139,7 +140,8 @@ class _Vs:
         """Floes a, b, c, (d) painted with `nums` in floe order; the answer sorts the numbers."""
         ids = "abcd"[: len(nums)]
         order = sorted(range(len(nums)), key=lambda i: nums[i], reverse=descending)
-        assert [ids[i] for i in order] != list(ids), "already in order"
+        if [ids[i] for i in order] == list(ids):
+            raise AssertionError("already in order")
         items = [{"id": ids[i], "label": str(nums[i])} for i in range(len(nums))]
         if self.band == "SPROUT":
             for i, item in enumerate(items):

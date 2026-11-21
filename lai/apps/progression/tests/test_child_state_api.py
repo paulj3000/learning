@@ -19,7 +19,7 @@ STORY = "dragon-of-ember-mountain"  # Pathfinder only; chapter 1 embeds one adve
 
 
 @pytest.fixture
-def content(imported_content, families):
+def content(imported_content, families):  # noqa: F811
     return families
 
 

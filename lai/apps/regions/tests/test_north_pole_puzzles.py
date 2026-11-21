@@ -10,7 +10,7 @@ from apps.regions import north_pole_puzzles as np_puzzles
 from apps.regions import puzzles
 from apps.regions.models import PuzzleKind
 
-C, O = PuzzleKind.CHOOSE_ANSWER, PuzzleKind.ORDER_SEQUENCE
+C, ORD = PuzzleKind.CHOOSE_ANSWER, PuzzleKind.ORDER_SEQUENCE
 OBS, PLACE = PuzzleKind.OBSERVE_FEATURES, PuzzleKind.PLACE_PLATFORMS
 RET, COL = PuzzleKind.RETURN_TO_NPC, PuzzleKind.COLLECT_OBJECT
 FRAGMENTS = [
@@ -36,12 +36,12 @@ EXPECTED = [
         NP + "WORKSHOP_PATTERN_FIXED",
         None,
     ),
-    ("np-workshop-assemble", O, [GIFTS], NP + "WORKSHOP_RESTORED", "np-rule-workshop"),
+    ("np-workshop-assemble", ORD, [GIFTS], NP + "WORKSHOP_RESTORED", "np-rule-workshop"),
     ("np-forest-sequence", C, [NP + "WORKSHOP_RESTORED"], NP + "FOREST_SEQUENCE_DONE", None),
     ("np-forest-signs", C, [NP + "FOREST_SEQUENCE_DONE"], NP + "FOREST_SIGNS_READ", None),
-    ("np-forest-stripes", O, [NP + "FOREST_SIGNS_READ"], NP + "FOREST_DONE", "np-rule-forest"),
+    ("np-forest-stripes", ORD, [NP + "FOREST_SIGNS_READ"], NP + "FOREST_DONE", "np-rule-forest"),
     ("np-lake-sums", C, [NP + "FOREST_DONE"], NP + "LAKE_BRIDGE", None),
-    ("np-lake-order", O, [NP + "LAKE_BRIDGE"], NP + "LAKE_ORDERED", None),
+    ("np-lake-order", ORD, [NP + "LAKE_BRIDGE"], NP + "LAKE_ORDERED", None),
     ("np-lake-shapes", C, [NP + "LAKE_ORDERED"], NP + "LAKE_DONE", "np-rule-lake"),
     ("np-stables-facts", C, [NP + "LAKE_DONE"], NP + "STABLES_FACTS_LEARNED", None),
     ("np-stables-tracks", C, [NP + "STABLES_FACTS_LEARNED"], NP + "STABLES_TRACKS_FOLLOWED", None),
@@ -73,8 +73,14 @@ EXPECTED = [
     ("np-mountain-weather", C, [BRIDGE2], NP + "MOUNTAIN_SUMMIT", "np-rule-mountain"),
     ("np-obs-stars", C, [NP + "MOUNTAIN_SUMMIT"], NP + "OBS_STARS_LEARNED", None),
     ("np-obs-constellation", C, [NP + "OBS_STARS_LEARNED"], NP + "OBS_CONSTELLATION_FOUND", None),
-    ("np-obs-sequence", O, [NP + "OBS_CONSTELLATION_FOUND"], NP + "OBS_SEQUENCE_DONE", None),
-    ("np-obs-fragments", O, [NP + "OBS_SEQUENCE_DONE", *FRAGMENTS], NP + "FRAGMENTS_PLACED", None),
+    ("np-obs-sequence", ORD, [NP + "OBS_CONSTELLATION_FOUND"], NP + "OBS_SEQUENCE_DONE", None),
+    (
+        "np-obs-fragments",
+        ORD,
+        [NP + "OBS_SEQUENCE_DONE", *FRAGMENTS],
+        NP + "FRAGMENTS_PLACED",
+        None,
+    ),
     ("np-obs-final", C, [NP + "FRAGMENTS_PLACED"], NP + "STAR_RESTORED", "np-rule-star"),
     (
         "np-eve-sleigh-bell",
@@ -86,7 +92,7 @@ EXPECTED = [
 ]
 BANDS = ("SPROUT", "PATHFINDER", "EXPLORER")
 BY_ID = {p["puzzleId"]: p for p in np_puzzles.PUZZLES}
-QUIZ = [e[0] for e in EXPECTED if e[1] in (C, O)]
+QUIZ = [e[0] for e in EXPECTED if e[1] in (C, ORD)]
 
 
 def test_contract_table_matches_exactly():
@@ -165,10 +171,10 @@ def test_every_answer_is_graded_correct_and_a_wrong_choice_is_not(pid, band):
             assert puzzles.grade(C, params, {"variantId": variant["id"], "choice": wrong}) is False
         else:
             good = {"variantId": variant["id"], "order": variant["answer"]}
-            assert puzzles.grade(O, params, good) is True
+            assert puzzles.grade(ORD, params, good) is True
             shown = [i["id"] for i in variant["items"]]
             assert shown != variant["answer"], "items must not arrive solved"
-            assert puzzles.grade(O, params, {"variantId": variant["id"], "order": shown}) is False
+            assert puzzles.grade(ORD, params, {"variantId": variant["id"], "order": shown}) is False
 
 
 def test_copy_rules():

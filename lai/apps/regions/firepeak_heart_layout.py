@@ -214,7 +214,7 @@ HIDDEN_SHARD = (-22.0, 44.4)
 
 def _scatter_placements() -> list[tuple]:
     """(entity id, x, z, width, height, depth, solid side or 0) for trees and rocks."""
-    rng = random.Random(7041)
+    rng = random.Random(7041)  # noqa: S311 - seeded for a deterministic layout, not security
     out = []
     taken: list[tuple[float, float]] = list(SCREEN_TREES)
     for index, (x, z) in enumerate(SCREEN_TREES):
@@ -558,7 +558,7 @@ def summit_rocks() -> list[dict]:
     """
     half = SUMMIT_HOP_SIZE / 2
     rocks = []
-    for index, (near, far) in enumerate(zip(SUMMIT_HOPS, SUMMIT_HOPS[1:]), start=1):
+    for index, (near, far) in enumerate(zip(SUMMIT_HOPS, SUMMIT_HOPS[1:], strict=False), start=1):
         rocks.append(
             {
                 "id": f"fh-summit-rocks-{index}",
@@ -1153,7 +1153,7 @@ def placements() -> list[dict]:
             kind="SCENERY",
         )
     )
-    for index, (gate_id, z, _key) in enumerate(GATES, start=1):
+    for index, (_gate_id, z, _key) in enumerate(GATES, start=1):
         out.append(
             _obj(f"fh-arch-{index}", "firepeak-arch", "", 0.0, z, (8.6, 4.5, 1.2), kind="SCENERY")
         )
@@ -1192,7 +1192,7 @@ def placements() -> list[dict]:
         out.append(
             _obj(f"fh-gear-{index}", "firepeak-gear", "", x, z, (2.6, 2.6, 0.8), kind="SCENERY")
         )
-    for entity, x, z, width, height, depth, solid in _scatter_placements():
+    for entity, x, z, width, height, depth, _solid in _scatter_placements():
         asset = "firepeak-tree" if "tree" in entity else "firepeak-rock"
         out.append(_obj(entity, asset, "", x, z, (width, height, depth), kind="SCENERY"))
     for spec in out:

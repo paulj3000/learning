@@ -59,6 +59,10 @@ class MaterialFixes:
     roughness: float | None = None
 
 
+# The default for `prepare_node` (frozen, so one shared instance is safe).
+NO_MATERIAL_FIXES = MaterialFixes()
+
+
 @dataclass
 class PreparedModel:
     node: str
@@ -348,7 +352,7 @@ def extract_model(
     roll_degrees: float = 0.0,
     center_footprint: bool = False,
     max_texture_size: int | None = None,
-    fixes: MaterialFixes = MaterialFixes(),
+    fixes: MaterialFixes = NO_MATERIAL_FIXES,
     asset_copyright: str = "",
     texture_cache: dict | None = None,
     include_children: bool = False,

@@ -352,7 +352,8 @@ def _engine_platform(p: dict, plates: set[str]) -> dict:
             "pauseSeconds": motion.get("pauseSeconds", 1),
         }
         if activation.get("trigger") == "PLATE":
-            assert activation["source"] in plates, activation
+            if activation["source"] not in plates:
+                raise AssertionError(activation)
             spec["moving"]["activeSignalId"] = activation["source"]
     if activation.get("trigger") == "SIGNAL":
         spec["appearSignalId"] = activation["source"]
