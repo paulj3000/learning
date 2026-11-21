@@ -7,7 +7,7 @@ import re
 from io import StringIO
 
 import pytest
-from django.core.management import CommandError, call_command
+from django.core.management import call_command
 
 from apps.catalog.models import AssetOrigin, ContentAsset, NpcDefinition, Quest
 from apps.core.content_status import ContentStatus

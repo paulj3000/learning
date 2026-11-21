@@ -16,7 +16,7 @@ from apps.regions import puzzles
 from apps.regions.models import AreaPuzzle, PlacementKind, PuzzleKind, WorldObjectPlacement
 from apps.regions.seeding import SeedContentInvalid, seed_puzzle
 
-from .test_puzzles import base, post, puzzle_body, session_for, solve
+from .test_puzzles import puzzle_body, session_for, solve
 
 CHOOSE = {
     "presentation": "PLATFORMS",

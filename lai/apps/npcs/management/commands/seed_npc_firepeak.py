@@ -42,7 +42,6 @@ from apps.npcs.publishing import PublishError, preview
 from apps.npcs.publishing import publish as publish_release
 from apps.npcs.vocabulary import CharacterStatus, DialogueMode
 
-
 NOTHING_READY = "there is no READY character to publish"
 
 

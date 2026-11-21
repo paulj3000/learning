@@ -437,9 +437,7 @@ def extract_model(
     modifications = [
         f'Extracted node "{node_name}" into its own file; other nodes, cameras, lights, '
         "animations and FBX extras removed",
-        "Baked the node rotation (Z-up to Y-up) and its x{:g} scale into the vertices".format(
-            scale[0]
-        ),
+        f"Baked the node rotation (Z-up to Y-up) and its x{scale[0]:g} scale into the vertices",
         "Origin moved to ground level (lowest vertex at y = 0), pivot kept on the vertical axis",
     ]
     if len(parts) > 1:

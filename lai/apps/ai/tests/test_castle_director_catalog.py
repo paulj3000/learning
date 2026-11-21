@@ -9,8 +9,8 @@ import json
 import uuid
 
 import pytest
-from django.core.management import call_command
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 
 from apps.ai.models import AIInteractionAudit, AIServiceControl
 from apps.ai.providers.base import ProviderError

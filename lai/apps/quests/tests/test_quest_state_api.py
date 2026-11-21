@@ -6,7 +6,6 @@ A quest is accepted through `quests/{id}/accept/`; its projected state is then s
 """
 
 import pytest
-
 from django.utils import timezone
 
 from apps.catalog.models import Adventure

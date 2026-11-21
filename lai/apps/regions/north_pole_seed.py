@@ -24,6 +24,7 @@ from apps.question_studio.models import QuestionPool
 from apps.users.models import AgeBand
 
 from . import north_pole_layout as layout
+from .engine_bridge import engine_bridge_problems
 from .models import (
     ChestPresentation,
     PlacementKind,
@@ -32,7 +33,6 @@ from .models import (
     WorldObjectPlacement,
     WorldRegion,
 )
-from .engine_bridge import engine_bridge_problems
 from .north_pole_assets import ASSETS, content_asset_defaults
 from .north_pole_puzzles import ENTITY_IDS, PUZZLES
 from .platforming import layout_problems
