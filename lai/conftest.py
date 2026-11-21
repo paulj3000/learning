@@ -32,6 +32,41 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip)
 
 
+# --- AWS isolation ---------------------------------------------------------------------------
+
+# Ambient AWS settings that make botocore read the developer's real profile (SSO included) or the
+# instance metadata service. An explicit profile also makes botocore ignore AWS_ACCESS_KEY_ID, so a
+# test that sets fake keys could still sign with, or refresh, real SSO credentials (GE-090 P1).
+AMBIENT_AWS_ENV = (
+    "AWS_PROFILE",
+    "AWS_DEFAULT_PROFILE",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+    "AWS_SECURITY_TOKEN",
+    "AWS_ROLE_ARN",
+    "AWS_WEB_IDENTITY_TOKEN_FILE",
+    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+)
+
+
+@pytest.fixture(autouse=True)
+def isolated_aws_config(tmp_path_factory, monkeypatch):
+    """Every Django test runs without the host's AWS profiles, credentials or metadata service.
+
+    A test that needs credentials sets fake ones itself (`monkeypatch.setenv`), which then are the
+    only ones botocore can find. Unit tests never reach real AWS (testing policy).
+    """
+    empty = tmp_path_factory.getbasetemp() / "aws-isolated"
+    empty.mkdir(exist_ok=True)
+    for name in AMBIENT_AWS_ENV:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(empty / "config"))
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(empty / "credentials"))
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
+
+
 # --- Cognito test double ---------------------------------------------------------------------
 
 
