@@ -14,7 +14,8 @@
 # Needs the AWS CLI with the OIDC role's credentials, jq, and these environment variables:
 # AWS_REGION, INSTANCE_ID, OUT_DIR, and for run: REPO_URL, COMMIT_SHA, BASE_SHA, HARNESS_SHA,
 # TEST_SCOPE, RUN_KEY, LOCK_OWNER, REQUEST_B64. Every value that reaches the instance is checked
-# against a fixed pattern first; no free text is sent.
+# against a fixed pattern first; no free text is sent. Optional: LAI_CI_ROLE_ARN (with the GitHub
+# OIDC request variables) lets a long wait re-assume the role before its one-hour session ends.
 #
 # Exit codes: 0 ok; 2 usage or invalid input; 3 SSM transport failure; 4 instance busy (not
 # stopped, or the lock is held by another job); 5 the instance did not stop.
@@ -25,6 +26,8 @@ SSM_ONLINE_ATTEMPTS=${LAI_CI_SSM_ONLINE_ATTEMPTS:-60}
 RUN_MAX_SECONDS=${LAI_CI_RUN_MAX_SECONDS:-9600}
 BUDGET_MINUTES=${LAI_CI_BUDGET_MINUTES:-150}
 CHUNK=${LAI_CI_CHUNK_BYTES:-20000}
+REFRESH_SECONDS=${LAI_CI_CREDENTIAL_REFRESH_SECONDS:-2100}
+POLL_ERROR_LIMIT=${LAI_CI_POLL_ERROR_LIMIT:-8}
 FULL_MAX_B64=${LAI_CI_FULL_MAX_B64:-4000000}
 LOCK_DIR=/run/lai-ci/lock
 ROOT=/var/lib/lai-ci
@@ -55,17 +58,66 @@ ssm_send() {
         --query 'Command.CommandId' --output text
 }
 
-# ssm_wait <command id> <max seconds> [poll seconds] -> prints the final status
+# The OIDC role session lasts one hour, but a full-unit run can wait longer (run 44877024597:
+# every poll after the hour failed with ExpiredTokenException). During a long wait the script
+# re-assumes the role from a fresh GitHub OIDC token, as configure-aws-credentials does. It is a
+# no-op outside GitHub Actions or without LAI_CI_ROLE_ARN; the credentials are never printed.
+CREDENTIALS_AT=$SECONDS
+
+refresh_credentials() {
+    [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] && [ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] \
+        && [ -n "${LAI_CI_ROLE_ARN:-}" ] || return 1
+    local token creds
+    CREDENTIALS_AT=$SECONDS  # one attempt per interval, success or not
+    token=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+        "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r '.value // empty') \
+        || return 1
+    [ -n "$token" ] || return 1
+    # AssumeRoleWithWebIdentity is unsigned; drop the expiring keys so nothing signs with them.
+    creds=$(env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
+        aws sts assume-role-with-web-identity --role-arn "$LAI_CI_ROLE_ARN" \
+        --role-session-name "lai-ci-${RUN_KEY:-refresh}" --web-identity-token "$token" \
+        --duration-seconds 3600 --query Credentials --output json) || return 1
+    AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId <<<"$creds")
+    AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey <<<"$creds")
+    AWS_SESSION_TOKEN=$(jq -r .SessionToken <<<"$creds")
+    [ -n "$AWS_SESSION_TOKEN" ] && [ "$AWS_SESSION_TOKEN" != null ] || return 1
+    printf '::add-mask::%s\n' "$AWS_SECRET_ACCESS_KEY" "$AWS_SESSION_TOKEN" >&2
+    export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+    say "AWS credentials refreshed from a new OIDC token"
+}
+
+maybe_refresh_credentials() {
+    if [ $((SECONDS - CREDENTIALS_AT)) -ge "$REFRESH_SECONDS" ]; then
+        refresh_credentials || say "::warning::AWS credential refresh unavailable or failed"
+    fi
+}
+
+# ssm_wait <command id> <max seconds> [poll seconds] -> sets SSM_STATUS to the final status.
+# Not run in a subshell, so refreshed credentials stay in effect for the caller. An API error is
+# never read as "still running": after POLL_ERROR_LIMIT consecutive errors the wait ends as
+# PollFailed (InvocationDoesNotExist, normal just after send-command, does not count).
 ssm_wait() {
-    local id=$1 max=$2 poll=${3:-$POLL_SECONDS} waited=0 status=""
+    local id=$1 max=$2 poll=${3:-$POLL_SECONDS} waited=0 errors=0 out
+    SSM_STATUS=""
     while :; do
-        status=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
-            --query Status --output text 2>/dev/null || echo Pending)
-        case "$status" in
-            Success | Failed | Cancelled | TimedOut | Undeliverable | Terminated | DeliveryTimedOut)
-                printf '%s\n' "$status"; return 0 ;;
-        esac
-        if [ "$waited" -ge "$max" ]; then printf 'WaitTimedOut\n'; return 0; fi
+        maybe_refresh_credentials
+        if out=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
+            --query Status --output text 2>&1); then
+            errors=0
+            case "$out" in
+                Success | Failed | Cancelled | TimedOut | Undeliverable | Terminated | DeliveryTimedOut)
+                    SSM_STATUS=$out; return 0 ;;
+            esac
+        elif [[ "$out" != *InvocationDoesNotExist* ]]; then
+            errors=$((errors + 1))
+            say "SSM status poll failed (${errors}/${POLL_ERROR_LIMIT}): $(head -c 300 <<<"$out")"
+            if [[ "$out" == *Expired* ]]; then
+                refresh_credentials || say "::warning::AWS credentials expired and could not be refreshed"
+            fi
+            if [ "$errors" -ge "$POLL_ERROR_LIMIT" ]; then SSM_STATUS=PollFailed; return 0; fi
+        fi
+        if [ "$waited" -ge "$max" ]; then SSM_STATUS=WaitTimedOut; return 0; fi
         sleep "$poll"; waited=$((waited + poll))
     done
 }
@@ -77,12 +129,12 @@ invocation() {
 
 # ssm_exec <comment> <script> -> stdout of a short command; exit 3 unless it succeeded
 ssm_exec() {
-    local id status
+    local id
     id=$(ssm_send 300 "$1" "$2") || fail 3 "SSM send-command failed ($1)"
-    status=$(ssm_wait "$id" 330 "${LAI_CI_SHORT_POLL_SECONDS:-2}")
-    if [ "$status" != Success ]; then
+    ssm_wait "$id" 330 "${LAI_CI_SHORT_POLL_SECONDS:-2}"
+    if [ "$SSM_STATUS" != Success ]; then
         say "$(invocation "$id" StandardErrorContent 2>/dev/null || true)"
-        fail 3 "SSM command '$1' ended $status"
+        fail 3 "SSM command '$1' ended $SSM_STATUS"
     fi
     invocation "$id" StandardOutputContent
 }
@@ -180,7 +232,8 @@ exec python3 \$H/scripts/ci/remote_runner.py --repo-git \$G --commit $COMMIT_SHA
     note command_id "$id"
     printf '%s\n' "$id" >"$OUT_DIR/command_id"
     say "SSM command $id; polling every ${POLL_SECONDS}s for up to ${RUN_MAX_SECONDS}s"
-    status=$(ssm_wait "$id" "$RUN_MAX_SECONDS")
+    ssm_wait "$id" "$RUN_MAX_SECONDS"
+    status=$SSM_STATUS
     code=$(invocation "$id" ResponseCode 2>/dev/null || echo -1)
     note remote_status "$status"
     note remote_exit_code "$code"

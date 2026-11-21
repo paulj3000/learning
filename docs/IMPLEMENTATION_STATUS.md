@@ -37,7 +37,7 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
-## EC2 unit-test gate for integration branches (2026-11-20, `ci/aws-integration-tests`); unit-tested, live AWS validation pending, NOT merged
+## EC2 unit-test gate for integration branches (2026-11-20, `ci/aws-integration-tests`); merged to `main` (PR #45), first live run blocked on the PostgreSQL version, now accepted
 
 - `.github/workflows/aws-integration-tests.yml` (dispatch inputs `commit_sha`, `test_scope`
   `affected|full-unit`, `request_id`): validates the SHA is on the dispatched branch, OIDC, starts
@@ -47,12 +47,16 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   smoke test is unchanged.
 - `scripts/ci/`: `aws_ci.py` (the integration agent's submit, watch, fetch and gate, with the
   stale-result rule), `ec2_ci.sh` (runner side), `remote_runner.py` (instance side: preflight,
-  isolation, dependencies, PostgreSQL 16, suites), `plan_tests.py` (affected and full-unit plans),
+  isolation, dependencies, PostgreSQL 18, suites), `plan_tests.py` (affected and full-unit plans),
   `ci_results.py` (schema and verdict).
 - Tests: `tests/repo/test_ci_*.py` with fake `aws`, `gh` and `git`; actionlint and shellcheck
   clean.
-- Pending: the workflow must be on `main` before GitHub dispatches it; `gh` on the integration
-  workstation; `ssm:CancelCommand` on the CI role; then one live run. Runbook:
+- Live run 44876522333 (2026-11-21 UTC): OIDC, start, lock, SSM, checksum-verified collection,
+  unlock and stop all worked and the instance stopped; preflight blocked the tests because the
+  instance runs PostgreSQL 18.6 on Ubuntu 26.04.1. The owner accepted PostgreSQL 18 for this CI
+  (2026-11-20); the check then passed 16 or 18. Superseded 2026-11-21: PostgreSQL 18 is the
+  required version (owner decision), and the check passes 18 only.
+- Pending: a live run that executes suites; `ssm:CancelCommand` on the CI role. Runbook:
   [docs/infrastructure/aws-ec2-unit-tests.md](infrastructure/aws-ec2-unit-tests.md).
 
 ## Game Engine Core (GE-001 to GE-090) — in development on `core/gameengine` (2026-11-18); NOT merged, NOT owner-accepted

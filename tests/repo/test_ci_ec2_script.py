@@ -222,6 +222,73 @@ def test_a_failed_remote_run_is_a_transport_failure(env):
     assert "ended Failed" in result.stderr
 
 
+# --------------------------------------------------------------------------- credentials
+
+
+def oidc_env(env) -> dict:
+    """A fake GitHub OIDC endpoint (curl) and the variables Actions sets for id-token: write."""
+    curl = env.bin / "curl"
+    log = env.state_dir / "curl.log"
+    curl.write_text(f'#!/bin/sh\nprintf "%s\\n" "$*" >>"{log}"\necho \'{{"value":"oidc-jwt"}}\'\n')
+    curl.chmod(0o755)
+    return {
+        "ACTIONS_ID_TOKEN_REQUEST_URL": "https://token.example/id?api-version=2.0",
+        "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "request-token",
+        "LAI_CI_ROLE_ARN": "arn:aws:iam::123456789012:role/lai-ci",
+        "AWS_SESSION_TOKEN": "old",
+    }
+
+
+def test_expired_credentials_are_refreshed_from_a_new_oidc_token(env):
+    """Run 44877024597: the one-hour session expired mid-wait and every poll failed after it."""
+    env.update(expire_old_token=True)
+    result = env.run("run", **RUN_ENV, **oidc_env(env))
+    assert result.returncode == 0, result.stderr
+    assumed = env.state()["assumed"]
+    assert assumed[0]["role"] == "arn:aws:iam::123456789012:role/lai-ci"
+    assert assumed[0]["token"] == "oidc-jwt"
+    assert assumed[0]["signed_with"] is None  # the expired keys are not passed along
+    assert "audience=sts.amazonaws.com" in (env.state_dir / "curl.log").read_text()
+    assert "::add-mask::fresh" in result.stderr
+    assert "ASIAFRESH" not in result.stderr and "oidc-jwt" not in result.stderr
+
+
+def test_credentials_are_refreshed_before_the_session_ends(env):
+    result = env.run("run", **RUN_ENV, **oidc_env(env), LAI_CI_CREDENTIAL_REFRESH_SECONDS="0")
+    assert result.returncode == 0, result.stderr
+    assert env.state()["assumed"]
+
+
+def test_expired_credentials_without_a_refresh_fail_closed_quickly(env):
+    """Without OIDC the wait must not spin as 'Pending' until RUN_MAX_SECONDS."""
+    env.update(expire_old_token=True)
+    result = env.run(
+        "run",
+        **RUN_ENV,
+        AWS_SESSION_TOKEN="old",  # noqa: S106 - a fake token, never sent
+        LAI_CI_RUN_MAX_SECONDS="100000",
+    )
+    assert result.returncode == 3
+    assert "ended PollFailed" in result.stderr
+    polls = [c for c in env.calls() if "get-command-invocation" in c and "Status" in c]
+    assert len(polls) == 8
+
+
+def test_persistent_poll_errors_are_not_read_as_still_running(env):
+    env.update(poll_error="An error occurred (AccessDeniedException)")
+    result = env.run("run", **RUN_ENV, LAI_CI_RUN_MAX_SECONDS="100000")
+    assert result.returncode == 3
+    assert "PollFailed" in result.stderr
+    assert "AccessDeniedException" in result.stderr
+
+
+def test_a_missing_invocation_just_after_send_is_still_waited_for(env):
+    env.update(poll_error="An error occurred (InvocationDoesNotExist)")
+    result = env.run("run", **RUN_ENV, LAI_CI_RUN_MAX_SECONDS="0")
+    assert result.returncode == 3
+    assert "ended WaitTimedOut" in result.stderr
+
+
 # --------------------------------------------------------------------------- collect
 
 
