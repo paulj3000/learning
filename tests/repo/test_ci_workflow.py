@@ -158,3 +158,16 @@ def test_actionlint_when_installed():
         pytest.skip("actionlint is not installed")
     result = subprocess.run(["actionlint", str(WORKFLOW)], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout
+
+
+def test_cleanup_gets_fresh_credentials_after_a_long_run(job):
+    """Run 44877024597: the one-hour OIDC session expired before collect, unlock and stop."""
+    names = [s["name"] for s in job["steps"]]
+    reauth = steps(job)["Refresh AWS credentials for cleanup (OIDC)"]
+    assert reauth["if"] == "always() && steps.aws-auth.outcome == 'success'"
+    assert reauth["uses"] == next(s for s in job["steps"] if s.get("id") == "aws-auth")["uses"]
+    assert reauth["with"]["role-to-assume"] == "${{ vars.LAI_CI_ROLE_ARN }}"
+    run_at = names.index("Run the unit tests on EC2 over SSM")
+    assert names.index(reauth["name"]) == run_at + 1
+    run = next(s for s in job["steps"] if s.get("id") == "run")
+    assert run["env"]["LAI_CI_ROLE_ARN"] == "${{ vars.LAI_CI_ROLE_ARN }}"

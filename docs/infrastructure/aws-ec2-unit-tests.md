@@ -220,6 +220,17 @@ the tests passed. Then:
 4. The four-hour guard stops the instance regardless; never disable it.
 Record the incident on the integration card.
 
+**The run ended PollFailed, or cleanup failed with ExpiredTokenException.** The CI role's session
+lasts one hour; a full-unit run waits longer. Run 44877024597 (2026-11-21) lost every status poll
+after the hour (the old poller read each error as "still pending" and waited the full 9,600 s
+blind), then collect, unlock and stop all failed and the four-hour guard had to stop the instance.
+Since then the run step re-assumes the role from a new GitHub OIDC token every 35 minutes
+(`LAI_CI_CREDENTIAL_REFRESH_SECONDS`), a poll error ends the wait as `PollFailed` after 8 in a row
+(`LAI_CI_POLL_ERROR_LIMIT`; `InvocationDoesNotExist` just after sending does not count), and a
+second `configure-aws-credentials` step runs before cleanup on every outcome. No IAM change was
+needed: the role's trust already allows `AssumeRoleWithWebIdentity` from this environment. If
+`PollFailed` repeats, read the error the step prints (access denied points at the role policy).
+
 **The lock is held but no job is running.** The lock lives in `/run`, so stopping the instance
 clears it. If the instance is running with a stale lock and you have confirmed no job is active,
 stop the instance; do not delete the lock on a running instance another job may own.

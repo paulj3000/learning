@@ -144,7 +144,20 @@ jobs:
           HARNESS_SHA: ${{ github.sha }}
           TEST_SCOPE: ${{ inputs.test_scope }}
           REQUEST_B64: ${{ steps.request.outputs.request_b64 }}
+          # The role session lasts one hour; the script re-assumes it during a longer wait.
+          LAI_CI_ROLE_ARN: ${{ vars.LAI_CI_ROLE_ARN }}
         run: bash scripts/ci/ec2_ci.sh run
+
+      # Fresh credentials for collect, unlock and stop: run 44877024597 lost all three to an
+      # expired session and left the instance to the four-hour guard.
+      - name: Refresh AWS credentials for cleanup (OIDC)
+        id: aws-reauth
+        if: always() && steps.aws-auth.outcome == 'success'
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.LAI_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          retry-max-attempts: 3
 
       - name: Copy the results back (checksum-verified)
         id: collect
