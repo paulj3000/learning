@@ -303,7 +303,7 @@ def test_django_system_check_is_clean():
 
 @pytest.mark.postgres
 @pytest.mark.django_db
-def test_postgres_16_connection_and_framework_migrations():
+def test_postgres_18_connection_and_framework_migrations():
     from django.db import connection
 
     # pytest-django swapped in an isolated database; the developer's own database is untouched.
@@ -311,7 +311,8 @@ def test_postgres_16_connection_and_framework_migrations():
     with connection.cursor() as cursor:
         cursor.execute("SELECT 1")
         assert cursor.fetchone() == (1,)
-    assert 160000 <= connection.cursor().connection.info.server_version < 170000
+    # PostgreSQL 18 is the required version (owner decision 2026-11-21).
+    assert 180000 <= connection.cursor().connection.info.server_version < 190000
     call_command("migrate", "--check", verbosity=0)
 
 

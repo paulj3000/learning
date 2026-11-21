@@ -26,8 +26,8 @@ engine, and the owner has accepted it. The owner alone records acceptance.
 |---|---|---|
 | Engine unit tests | `npm run test:engine` | All pass |
 | Full frontend unit tests | `python3 scripts/dev/test_gate.py --full -- npm test` (host-wide slots, LAI-ENG-002) | All pass. A failure under the gated run is a failure; only a run the gate reports as INFRASTRUCTURE may be rerun (GE-D9-class flakes are not waived) |
-| Backend tests | `make py-test`, `make py-test-db` | All pass, including on PostgreSQL 16 |
-| Migrations | `make migrate-check` on PostgreSQL 16; `python3 scripts/dev/migration_audit.py` | Clean; no DIVERGENT, REWRITE or STALE PARENT |
+| Backend tests | `make py-test`, `make py-test-db` | All pass, including on PostgreSQL 18 |
+| Migrations | `make migrate-check` on PostgreSQL 18; `python3 scripts/dev/migration_audit.py` | Clean; no DIVERGENT, REWRITE or STALE PARENT |
 | Content | `npm run content:check` | Exported content up to date |
 | Python lint and format | `make py-lint py-format-check` | Clean |
 | Typecheck | `npm run typecheck` | Clean |
