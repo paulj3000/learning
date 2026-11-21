@@ -232,6 +232,8 @@ def instance(tmp_path, monkeypatch, plain):
         runner, "block_metadata_service", lambda pre, uid: pre.record("imds-blocked", True)
     )
     monkeypatch.setattr(runner, "check_python", lambda pre: pre.record("python", True))
+    # the real check measures the host; on the CI instance /tmp is small (see test_check_disk)
+    monkeypatch.setattr(runner, "check_disk", lambda pre: pre.record("disk", True))
     monkeypatch.setattr(runner, "release_database", lambda: None)
     state = {"node": True}
 
@@ -343,3 +345,13 @@ def test_postgres_version_check_accepts_16_and_18_only(monkeypatch, version_num,
     assert runner.check_postgres(pre) is ok
     version_check = next(c for c in pre.checks if c["name"] == "postgres-version")
     assert version_check["ok"] is ok and version_check["required"] is True
+
+
+@pytest.mark.parametrize(("free_gb", "ok"), [(47.7, True), (5.0, True), (4.9, False)])
+def test_check_disk_needs_the_minimum_free_space(monkeypatch, tmp_path, free_gb, ok):
+    usage = shutil.disk_usage(tmp_path)._replace(free=int(free_gb * 1e9))
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    monkeypatch.setattr(runner.shutil, "disk_usage", lambda _path: usage)
+    pre = runner.Preflight()
+    assert runner.check_disk(pre) is ok
+    assert pre.checks[-1]["required"] is True
