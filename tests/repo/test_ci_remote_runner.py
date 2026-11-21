@@ -312,3 +312,34 @@ def test_an_unknown_commit_is_a_harness_error_with_results_still_written(repo, i
     doc = runner.run(run_args(repo, missing, base))
     assert doc["verdict"] == "incomplete" and doc["harness_error"]
     assert (root / "runs/1-1/results.json").exists()
+
+
+# --------------------------------------------------------------------------- PostgreSQL version
+
+
+@pytest.mark.parametrize(
+    ("version_num", "major"),
+    [("160004\n", 16), ("180006", 18), ("170002", 17), ("", None), ("16.4", None), ("x", None)],
+)
+def test_postgres_major(version_num, major):
+    assert runner.postgres_major(version_num) == major
+
+
+@pytest.mark.parametrize(
+    ("version_num", "ok"),
+    [("160004", True), ("180006", True), ("170002", False), ("150008", False), ("", False)],
+)
+def test_postgres_version_check_accepts_16_and_18_only(monkeypatch, version_num, ok):
+    def fake_sh(cmd, **_):
+        if cmd[0] == "pg_isready":
+            return subprocess.CompletedProcess(cmd, 0, "127.0.0.1:5432 - accepting connections", "")
+        return subprocess.CompletedProcess(cmd, 0, "127.0.0.1:5432\n", "")
+
+    monkeypatch.setattr(runner, "sh", fake_sh)
+    monkeypatch.setattr(
+        runner, "psql", lambda *_a, **_k: subprocess.CompletedProcess([], 0, version_num, "")
+    )
+    pre = runner.Preflight()
+    assert runner.check_postgres(pre) is ok
+    version_check = next(c for c in pre.checks if c["name"] == "postgres-version")
+    assert version_check["ok"] is ok and version_check["required"] is True
