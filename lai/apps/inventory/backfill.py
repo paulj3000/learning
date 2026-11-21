@@ -32,7 +32,7 @@ from apps.game_sessions.models import AdventureSession, SessionKind, SessionStat
 from apps.progression import protected_changes as protected
 from apps.progression.client_changes import _step_reached
 from apps.progression.models import StoryProgress
-from apps.users.models import ChildProfile
+from apps.users.services import iter_child_profile_ids_for_system, lock_child_profile_for_system
 
 from .models import GrantedRule, InventoryItem
 from .services import grant_reward_rule
@@ -107,7 +107,7 @@ def _evidence(child, rule):
 
 def _backfill_child(child_id, rules, report: BackfillReport, *, apply: bool) -> None:
     with transaction.atomic():
-        child = ChildProfile.objects.select_for_update().get(pk=child_id)
+        child = lock_child_profile_for_system(child_id)
         report.children_scanned += 1
         for rule in rules:
             counts = report.rule(rule.rule_id)
@@ -139,6 +139,6 @@ def backfill_castle_keepsakes(*, apply: bool = False) -> BackfillReport:
     report = BackfillReport(apply=apply)
     for rule in rules:
         report.rule(rule.rule_id)
-    for child_id in ChildProfile.objects.values_list("pk", flat=True).iterator():
+    for child_id in iter_child_profile_ids_for_system():
         _backfill_child(child_id, rules, report, apply=apply)
     return report
