@@ -6,7 +6,7 @@ Status: implemented on `ci/aws-integration-tests` (2026-11-20); live validation 
 
 The integration agent submits one exact commit to the shared CI instance, waits, and gets a
 machine-readable verdict it can gate a merge on, without the AWS Console. The instance is a
-dedicated Ubuntu 24.04 EC2 instance with PostgreSQL 16 (`lai-ci-ubuntu`, `us-west-1`), reached
+dedicated Ubuntu EC2 instance with PostgreSQL (`lai-ci-ubuntu`, `us-west-1`; see "PostgreSQL version" below), reached
 only through SSM. The GitHub job authenticates with OIDC, so no AWS key is stored anywhere.
 
 These are **unit tests** (testing-policy.md section 1), not the merge-readiness gates: no
@@ -55,7 +55,7 @@ scripts/ci/aws_ci.py run              aws-integration-tests.yml                 
 
 | Scope | Suites |
 |---|---|
-| `full-unit` | `django-migrations` (`makemigrations --check`), `django` (all of `lai/` on PostgreSQL 16), `python-repo` (`tests/`), `engine` (`game/` Vitest), `react` (all of `react/` Vitest, including `server/` and `infra/` tests) |
+| `full-unit` | `django-migrations` (`makemigrations --check`), `django` (all of `lai/` on the instance's PostgreSQL), `python-repo` (`tests/`), `engine` (`game/` Vitest), `react` (all of `react/` Vitest, including `server/` and `infra/` tests) |
 | `affected` (default) | Only what the change reaches: changed Django apps plus the apps that import them or depend on their migrations, always with the authorization, authentication and privacy-logging tests; Vitest `related` for changed TypeScript; the engine when `game/` changes; `realm-compat-react` and `realm-compat-django` (Storykeeper, Treasure Rush, Pirate's Leap and content compatibility tests) when shared engine, realm or region code changes; `python-repo` when scripts, CI, deploy or `tests/` change |
 
 `affected` widens to the full suite for an area when it cannot be precise: settings, requirements
@@ -169,8 +169,17 @@ and approvals are still separate.
 | Branches | The dispatched branch must be `main`, `integration/*` or `ci/*`; the requested SHA must be on it |
 | Repository visibility | The instance fetches the source anonymously over HTTPS, which works while the repository is public. If it becomes private, source transfer needs an approved change (an S3 bucket the role writes and the instance reads, or a read-only deploy key on the instance) |
 | Instance egress | HTTPS to `github.com`, `nodejs.org` (Node 22.23.5, checksum-pinned in `remote_runner.py`), `registry.npmjs.org`, `pypi.org` and `files.pythonhosted.org` |
-| Instance software | Ubuntu 24.04, PostgreSQL 16 on loopback port 5432, the SSM agent, `iptables`. The runner installs `git` and `python3-venv` from Ubuntu if missing, Node under `/opt/lai-ci`, and creates the `lai-ci` user; caches live in `/var/lib/lai-ci` |
+| Instance software | Ubuntu 24.04 or 26.04 (advisory check), PostgreSQL 16 or 18 on loopback port 5432 (required check), the SSM agent, `iptables`. The runner installs `git` and `python3-venv` from Ubuntu if missing, Node under `/opt/lai-ci`, and creates the `lai-ci` user; caches live in `/var/lib/lai-ci` |
 | Instance role | Only what SSM needs (`AmazonSSMManagedInstanceCore`); tests cannot reach it anyway |
+
+## PostgreSQL version
+
+The project standard is PostgreSQL 16 (CLAUDE.md section 8). The CI instance runs Ubuntu 26.04.1 with
+PostgreSQL 18.6, and the owner accepted PostgreSQL 18 for this CI on 2026-11-20. The preflight
+check `postgres-version` therefore passes for major version 16 or 18 and blocks every other version
+(the run is reported incomplete). This acceptance covers the CI instance only; it does not change
+the application's database standard or any deployed environment. A Django test that passes on 18
+is not proof that it passes on 16; differences between the two versions are a known gap of this CI.
 
 ## Troubleshooting
 
