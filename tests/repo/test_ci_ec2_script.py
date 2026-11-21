@@ -262,7 +262,12 @@ def test_credentials_are_refreshed_before_the_session_ends(env):
 def test_expired_credentials_without_a_refresh_fail_closed_quickly(env):
     """Without OIDC the wait must not spin as 'Pending' until RUN_MAX_SECONDS."""
     env.update(expire_old_token=True)
-    result = env.run("run", **RUN_ENV, AWS_SESSION_TOKEN="old", LAI_CI_RUN_MAX_SECONDS="100000")
+    result = env.run(
+        "run",
+        **RUN_ENV,
+        AWS_SESSION_TOKEN="old",  # noqa: S106 - a fake token, never sent
+        LAI_CI_RUN_MAX_SECONDS="100000",
+    )
     assert result.returncode == 3
     assert "ended PollFailed" in result.stderr
     polls = [c for c in env.calls() if "get-command-invocation" in c and "Status" in c]
