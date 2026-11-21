@@ -91,9 +91,7 @@ def _region():
     from apps.regions.models import WorldRegion
 
     return (
-        WorldRegion.objects.select_related("location__world")
-        .filter(region_id=np.REGION_ID)
-        .first()
+        WorldRegion.objects.select_related("location__world").filter(region_id=np.REGION_ID).first()
     )
 
 
@@ -124,11 +122,10 @@ def _missing(npc: np.NorthPoleNpc, definitions, assets) -> str | None:
 @transaction.atomic
 def seed_north_pole() -> tuple[list[str], list[str]]:
     """Create the North Pole NPC rows that do not exist yet. Returns (created, notes)."""
-    definitions = {
-        d.npc_id: d for d in NpcDefinition.objects.filter(npc_id__in=np.NPC_IDS)
-    }
+    definitions = {d.npc_id: d for d in NpcDefinition.objects.filter(npc_id__in=np.NPC_IDS)}
     assets = {
-        a.asset_id: a for a in ContentAsset.objects.filter(asset_id__in=[n.asset_id for n in np.NPCS])
+        a.asset_id: a
+        for a in ContentAsset.objects.filter(asset_id__in=[n.asset_id for n in np.NPCS])
     }
     region = _region()
     created: list[str] = []

@@ -103,7 +103,9 @@ def _voice_profile(npc: fp.FirepeakNpc):
 def _region():
     from apps.regions.models import WorldRegion
 
-    return WorldRegion.objects.select_related("location__world").filter(region_id=fp.REGION_ID).first()
+    return (
+        WorldRegion.objects.select_related("location__world").filter(region_id=fp.REGION_ID).first()
+    )
 
 
 @transaction.atomic
@@ -149,7 +151,9 @@ def seed_firepeak() -> tuple[list[str], list[str]]:
                     "(or set it READY in Django Admin)."
                 )
 
-        if not NpcModelVariant.objects.filter(character=character, variant_key=fp.VARIANT_KEY).exists():
+        if not NpcModelVariant.objects.filter(
+            character=character, variant_key=fp.VARIANT_KEY
+        ).exists():
             variant = NpcModelVariant(
                 character=character,
                 variant_key=fp.VARIANT_KEY,

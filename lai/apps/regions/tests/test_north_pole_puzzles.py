@@ -29,7 +29,13 @@ EXPECTED = [
     ("np-welcome-look", OBS, [], NP + "WELCOME_LOOKED", "np-rule-welcome"),
     ("np-workshop-count", C, [NP + "WELCOME_LOOKED"], NP + "WORKSHOP_TOYS_COUNTED", None),
     ("np-workshop-sort", C, [NP + "WORKSHOP_TOYS_COUNTED"], NP + "WORKSHOP_PRESENTS_SORTED", None),
-    ("np-workshop-pattern", C, [NP + "WORKSHOP_PRESENTS_SORTED"], NP + "WORKSHOP_PATTERN_FIXED", None),
+    (
+        "np-workshop-pattern",
+        C,
+        [NP + "WORKSHOP_PRESENTS_SORTED"],
+        NP + "WORKSHOP_PATTERN_FIXED",
+        None,
+    ),
     ("np-workshop-assemble", O, [GIFTS], NP + "WORKSHOP_RESTORED", "np-rule-workshop"),
     ("np-forest-sequence", C, [NP + "WORKSHOP_RESTORED"], NP + "FOREST_SEQUENCE_DONE", None),
     ("np-forest-signs", C, [NP + "FOREST_SEQUENCE_DONE"], NP + "FOREST_SIGNS_READ", None),
@@ -39,20 +45,44 @@ EXPECTED = [
     ("np-lake-shapes", C, [NP + "LAKE_ORDERED"], NP + "LAKE_DONE", "np-rule-lake"),
     ("np-stables-facts", C, [NP + "LAKE_DONE"], NP + "STABLES_FACTS_LEARNED", None),
     ("np-stables-tracks", C, [NP + "STABLES_FACTS_LEARNED"], NP + "STABLES_TRACKS_FOLLOWED", None),
-    ("np-stables-supplies", C, [NP + "STABLES_TRACKS_FOLLOWED"], NP + "STABLES_SUPPLIES_FOUND", None),
-    ("np-stables-return", RET, [NP + "STABLES_SUPPLIES_FOUND", FOUND], NP + "SNOWBALL_HOME", "np-rule-reindeer"),
+    (
+        "np-stables-supplies",
+        C,
+        [NP + "STABLES_TRACKS_FOLLOWED"],
+        NP + "STABLES_SUPPLIES_FOUND",
+        None,
+    ),
+    (
+        "np-stables-return",
+        RET,
+        [NP + "STABLES_SUPPLIES_FOUND", FOUND],
+        NP + "SNOWBALL_HOME",
+        "np-rule-reindeer",
+    ),
     ("np-ginger-shapes", C, [NP + "SNOWBALL_HOME"], NP + "GINGER_SHAPES_MATCHED", None),
     ("np-ginger-symmetry", C, [NP + "GINGER_SHAPES_MATCHED"], NP + "GINGER_SYMMETRY_DONE", None),
     ("np-ginger-recipe", C, [NP + "GINGER_SYMMETRY_DONE"], NP + "GINGER_RECIPE_READ", None),
     ("np-ginger-measure", C, [NP + "GINGER_RECIPE_READ"], NP + "GINGER_MEASURED", None),
-    ("np-ginger-build", PLACE, [NP + "GINGER_MEASURED"], NP + "GINGER_REPAIRED", "np-rule-gingerbread"),
+    (
+        "np-ginger-build",
+        PLACE,
+        [NP + "GINGER_MEASURED"],
+        NP + "GINGER_REPAIRED",
+        "np-rule-gingerbread",
+    ),
     ("np-mountain-weather", C, [BRIDGE2], NP + "MOUNTAIN_SUMMIT", "np-rule-mountain"),
     ("np-obs-stars", C, [NP + "MOUNTAIN_SUMMIT"], NP + "OBS_STARS_LEARNED", None),
     ("np-obs-constellation", C, [NP + "OBS_STARS_LEARNED"], NP + "OBS_CONSTELLATION_FOUND", None),
     ("np-obs-sequence", O, [NP + "OBS_CONSTELLATION_FOUND"], NP + "OBS_SEQUENCE_DONE", None),
     ("np-obs-fragments", O, [NP + "OBS_SEQUENCE_DONE", *FRAGMENTS], NP + "FRAGMENTS_PLACED", None),
     ("np-obs-final", C, [NP + "FRAGMENTS_PLACED"], NP + "STAR_RESTORED", "np-rule-star"),
-    ("np-eve-sleigh-bell", COL, [NP + "STAR_RESTORED"], NP + "CHRISTMAS_EVE", "np-rule-christmas-eve"),
+    (
+        "np-eve-sleigh-bell",
+        COL,
+        [NP + "STAR_RESTORED"],
+        NP + "CHRISTMAS_EVE",
+        "np-rule-christmas-eve",
+    ),
 ]
 BANDS = ("SPROUT", "PATHFINDER", "EXPLORER")
 BY_ID = {p["puzzleId"]: p for p in np_puzzles.PUZZLES}
@@ -188,9 +218,7 @@ def test_lake_order_answers_are_sorted_numbers(band):
 def test_age_reading_load_grows_with_band():
     def average(band):
         lengths = [
-            len(v["prompt"])
-            for pid in QUIZ
-            for v in BY_ID[pid]["ageBands"][band]["variants"]
+            len(v["prompt"]) for pid in QUIZ for v in BY_ID[pid]["ageBands"][band]["variants"]
         ]
         return sum(lengths) / len(lengths)
 
@@ -235,13 +263,19 @@ def test_lake_sums_options_are_the_three_floes_in_every_band():
 def test_ginger_build_is_solvable_and_matches_entities():
     for band in BANDS:
         params = BY_ID["np-ginger-build"]["ageBands"][band]
-        placements = dict(zip(
-            tuple(f"np-ginger-slot-{i}" for i in range(1, 4)),
-            tuple(f"np-ginger-stone-{i}" for i in range(1, 4)),
-            strict=True,
-        ))
+        placements = dict(
+            zip(
+                tuple(f"np-ginger-slot-{i}" for i in range(1, 4)),
+                tuple(f"np-ginger-stone-{i}" for i in range(1, 4)),
+                strict=True,
+            )
+        )
         assert puzzles.grade(PLACE, params, {"placements": placements}) is True
-        wrong = {**placements, "np-ginger-slot-1": "np-ginger-stone-3", "np-ginger-slot-3": "np-ginger-stone-1"}
+        wrong = {
+            **placements,
+            "np-ginger-slot-1": "np-ginger-stone-3",
+            "np-ginger-slot-3": "np-ginger-stone-1",
+        }
         assert puzzles.grade(PLACE, params, {"placements": wrong}) is False
 
 
@@ -268,7 +302,9 @@ def test_every_entity_reference_exists_in_the_layout():
             assert set(refs) <= allowed, (pid, band, set(refs) - allowed)
     assert len(layout.PUZZLE_ENTITIES["np-obs-fragments"]) == 7
     for band in ("PATHFINDER", "EXPLORER"):
-        assert set(np_puzzles.ENTITY_MAPS["np-obs-fragments"][band]["itemEntities"]) == set(layout.FRAGMENT_ZONES) - {"village"}
+        assert set(np_puzzles.ENTITY_MAPS["np-obs-fragments"][band]["itemEntities"]) == set(
+            layout.FRAGMENT_ZONES
+        ) - {"village"}
 
 
 def test_the_json_snapshot_equals_the_module():

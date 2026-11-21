@@ -310,9 +310,11 @@ def test_every_palm_names_a_library_model_and_uses_all_four(layout):
     used = set()
     for palm in palms(layout):
         assert palm["assetId"] in PALM_MODELS, palm["id"]
-        assert PALM_HEIGHTS[palm["assetId"]] * 0.9 <= palm["height"] <= PALM_HEIGHTS[
-            palm["assetId"]
-        ] * 1.1
+        assert (
+            PALM_HEIGHTS[palm["assetId"]] * 0.9
+            <= palm["height"]
+            <= PALM_HEIGHTS[palm["assetId"]] * 1.1
+        )
         assert 0 <= palm["rotationY"] < 2 * math.pi
         used.add(palm["assetId"])
     assert used == PALM_MODELS
@@ -382,7 +384,9 @@ def test_palms_stand_inside_the_cove(layout):
     for palm in palms(layout):
         assert abs(palm["x"]) <= BOUNDS["halfExtentX"] - 1
         assert abs(palm["z"]) <= BOUNDS["halfExtentZ"] - 1
-        assert not inside({"minX": -2, "maxX": 2, "minZ": -40.4, "maxZ": -35.4}, palm["x"], palm["z"])
+        assert not inside(
+            {"minX": -2, "maxX": 2, "minZ": -40.4, "maxZ": -35.4}, palm["x"], palm["z"]
+        )
 
 
 # --- Barrels and logs (TR-ENV-06) --------------------------------------------------------------
@@ -602,7 +606,12 @@ def test_bushes_never_hide_a_chest_or_crowd_the_yard(layout):
         if "-bush-" not in plant["id"]:
             continue
         assert not inside(VEG.OPEN_YARD, plant["x"], plant["z"]), plant["id"]
-        for spot in ("landing-chest", "grove-hidden-chest", "beach-locked-chest",
-                     "ruins-final-chest", "lookout-spyglass"):
+        for spot in (
+            "landing-chest",
+            "grove-hidden-chest",
+            "beach-locked-chest",
+            "ruins-final-chest",
+            "lookout-spyglass",
+        ):
             sx, sz = SPOTS[spot]
             assert math.hypot(plant["x"] - sx, plant["z"] - sz) >= 3.0, (plant["id"], spot)

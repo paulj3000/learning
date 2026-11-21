@@ -31,7 +31,14 @@ LIMITS = {
     "max_recovery_lead": 80,
 }
 
-TUNING_KEYS = {"enabled", "speed", "pauseSeconds", "bounceHeight", "visibleSeconds", "hiddenSeconds"}
+TUNING_KEYS = {
+    "enabled",
+    "speed",
+    "pauseSeconds",
+    "bounceHeight",
+    "visibleSeconds",
+    "hiddenSeconds",
+}
 TRIGGERS = {"ALWAYS", "PLATE", "SWITCH", "ZONE", "SIGNAL", "WORLD_STATE"}
 
 
@@ -56,7 +63,9 @@ def engine_platform_ids(scene: dict) -> list[str]:
         config = entry.get("config")
         platforms = config.get("platforms") if isinstance(config, dict) else None
         if isinstance(platforms, list):
-            ids.extend(p["id"] for p in platforms if isinstance(p, dict) and isinstance(p.get("id"), str))
+            ids.extend(
+                p["id"] for p in platforms if isinstance(p, dict) and isinstance(p.get("id"), str)
+            )
     return ids
 
 
@@ -113,7 +122,9 @@ def layout_problems(platforming, *, bounds: dict | None = None) -> list[str]:
     if lead is not None and (
         not isinstance(lead, str) or not lead.strip() or len(lead) > LIMITS["max_recovery_lead"]
     ):
-        problems.append(f"platforming.recoveryLead: words, at most {LIMITS['max_recovery_lead']} characters")
+        problems.append(
+            f"platforming.recoveryLead: words, at most {LIMITS['max_recovery_lead']} characters"
+        )
     # GE-073F: a line per hazard id (falling rocks are not "too hot"); recoveryLead is the rest.
     leads = platforming.get("recoveryLeads")
     if leads is not None:
@@ -123,7 +134,11 @@ def layout_problems(platforming, *, bounds: dict | None = None) -> list[str]:
             for hazard_id, words in leads.items():
                 if not isinstance(hazard_id, str) or not ID.match(hazard_id):
                     problems.append("platforming.recoveryLeads: keys are hazard ids")
-                elif not isinstance(words, str) or not words.strip() or len(words) > LIMITS["max_recovery_lead"]:
+                elif (
+                    not isinstance(words, str)
+                    or not words.strip()
+                    or len(words) > LIMITS["max_recovery_lead"]
+                ):
                     problems.append(
                         f"platforming.recoveryLeads.{hazard_id}: words, at most {LIMITS['max_recovery_lead']} characters"
                     )
@@ -155,7 +170,9 @@ def layout_problems(platforming, *, bounds: dict | None = None) -> list[str]:
             and _within(size.get("depth"), LIMITS["min_top"], LIMITS["max_size"])
             and _within(size.get("height"), 0.05, 10)
         ):
-            problems.append(f"{path}.size: width and depth {LIMITS['min_top']:g} to 30 m, height 0.05 to 10 m")
+            problems.append(
+                f"{path}.size: width and depth {LIMITS['min_top']:g} to 30 m, height 0.05 to 10 m"
+            )
         position = platform.get("position") or {}
         if not all(_number(position.get(axis)) for axis in "xyz"):
             problems.append(f"{path}.position: must be {{x, y, z}}")
@@ -164,10 +181,15 @@ def layout_problems(platforming, *, bounds: dict | None = None) -> list[str]:
         motion = platform.get("motion")
         if motion is not None:
             path_points = motion.get("path") if isinstance(motion, dict) else None
-            if not isinstance(path_points, list) or not 1 <= len(path_points) <= LIMITS["max_waypoints"]:
+            if (
+                not isinstance(path_points, list)
+                or not 1 <= len(path_points) <= LIMITS["max_waypoints"]
+            ):
                 problems.append(f"{path}.motion.path: 1 to {LIMITS['max_waypoints']} waypoints")
             if not _within((motion or {}).get("speed"), LIMITS["min_speed"], LIMITS["max_speed"]):
-                problems.append(f"{path}.motion.speed: {LIMITS['min_speed']:g} to {LIMITS['max_speed']:g} m/s")
+                problems.append(
+                    f"{path}.motion.speed: {LIMITS['min_speed']:g} to {LIMITS['max_speed']:g} m/s"
+                )
         activation = platform.get("activation")
         if isinstance(activation, dict):
             if activation.get("trigger") not in TRIGGERS:
@@ -181,7 +203,9 @@ def layout_problems(platforming, *, bounds: dict | None = None) -> list[str]:
             problems.append(f"{path}.vanish.visibleSeconds: at least {LIMITS['min_visible']:g} s")
     for key in ("pressurePlates", "checkpoints", "hazards", "goals"):
         for index, item in enumerate(platforming.get(key, [])):
-            unique(item.get("id") if isinstance(item, dict) else None, f"platforming.{key}[{index}].id")
+            unique(
+                item.get("id") if isinstance(item, dict) else None, f"platforming.{key}[{index}].id"
+            )
     if platforming.get("hazards") and not platforming.get("checkpoints"):
         problems.append("platforming.checkpoints: a course with hazards needs a checkpoint")
     return problems

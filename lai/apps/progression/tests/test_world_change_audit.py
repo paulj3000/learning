@@ -154,6 +154,7 @@ def test_another_familys_child_is_not_found_exactly_like_an_unknown_one(content,
         "application/json",
     )
     assert real.status_code == unknown.status_code == 404
+
     def shape(response):
         body = response.json()
         body.pop("request_id", None)

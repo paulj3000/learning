@@ -30,7 +30,11 @@ def test_layout_problems_accept_a_forgiving_course_and_refuse_unsafe_ones():
     assert platforming.layout_problems(COURSE, bounds={"halfExtentX": 30, "halfExtentZ": 30}) == []
     bad = {
         "platforms": [
-            {"id": "Bad Id", "size": {"width": 0.3, "height": 0.5, "depth": 2}, "position": {"x": 99, "y": 0, "z": 0}},
+            {
+                "id": "Bad Id",
+                "size": {"width": 0.3, "height": 0.5, "depth": 2},
+                "position": {"x": 99, "y": 0, "z": 0},
+            },
             {
                 "id": "zoom",
                 "size": {"width": 2, "height": 0.5, "depth": 2},
@@ -41,7 +45,9 @@ def test_layout_problems_accept_a_forgiving_course_and_refuse_unsafe_ones():
         ],
         "hazards": [{"id": "sea", "rect": {}}],
     }
-    problems = " ".join(platforming.layout_problems(bad, bounds={"halfExtentX": 30, "halfExtentZ": 30}))
+    problems = " ".join(
+        platforming.layout_problems(bad, bounds={"halfExtentX": 30, "halfExtentZ": 30})
+    )
     for expected in (
         "platforms[0].id",
         "platforms[0].size",
@@ -56,7 +62,12 @@ def test_layout_problems_accept_a_forgiving_course_and_refuse_unsafe_ones():
 
 def test_layout_problems_check_the_recovery_lead():
     bounds = {"halfExtentX": 30, "halfExtentZ": 30}
-    assert platforming.layout_problems({**COURSE, "recoveryLead": "Whoa, the lava is too hot!"}, bounds=bounds) == []
+    assert (
+        platforming.layout_problems(
+            {**COURSE, "recoveryLead": "Whoa, the lava is too hot!"}, bounds=bounds
+        )
+        == []
+    )
     for lead in ("  ", "x" * 81, 7):
         problems = platforming.layout_problems({**COURSE, "recoveryLead": lead}, bounds=bounds)
         assert any("recoveryLead" in p for p in problems), lead
@@ -66,7 +77,12 @@ def test_layout_problems_check_per_hazard_recovery_leads():
     bounds = {"halfExtentX": 40, "halfExtentZ": 40}
     ok = {**COURSE, "recoveryLeads": {"fh-summit-rocks-1": "Bonk! A rock got you."}}
     assert platforming.layout_problems(ok, bounds=bounds) == []
-    for leads in ({"rocks": "  "}, {"rocks": "x" * 81}, {"Bad Id": "Fine words"}, ["not", "a", "map"]):
+    for leads in (
+        {"rocks": "  "},
+        {"rocks": "x" * 81},
+        {"Bad Id": "Fine words"},
+        ["not", "a", "map"],
+    ):
         problems = platforming.layout_problems({**COURSE, "recoveryLeads": leads}, bounds=bounds)
         assert any("recoveryLeads" in p for p in problems), leads
 
@@ -76,7 +92,11 @@ def test_tuning_problems_name_unknown_platforms_settings_and_ranges():
     assert platforming.tuning_problems(scene, {"ferry": {"speed": 2, "pauseSeconds": 1}}) == []
     problems = platforming.tuning_problems(
         scene,
-        {"ghost": {}, "ferry": {"speed": 99, "colour": 1, "enabled": "yes"}, "pad": {"bounceHeight": 0.1}},
+        {
+            "ghost": {},
+            "ferry": {"speed": 99, "colour": 1, "enabled": "yes"},
+            "pad": {"bounceHeight": 0.1},
+        },
     )
     assert any("ghost: no platform" in p for p in problems)
     assert any("ferry.speed" in p for p in problems)
@@ -128,8 +148,16 @@ ENGINE_BRIDGE = {
             "id": "gameplay.platforms",
             "config": {
                 "platforms": [
-                    {"id": "plank-lift", "position": {"x": 0, "y": 1, "z": 0}, "size": {"x": 3, "y": 0.4, "z": 3}},
-                    {"id": "crumble.one", "position": {"x": 9, "y": 1, "z": 0}, "size": {"x": 3, "y": 0.4, "z": 3}},
+                    {
+                        "id": "plank-lift",
+                        "position": {"x": 0, "y": 1, "z": 0},
+                        "size": {"x": 3, "y": 0.4, "z": 3},
+                    },
+                    {
+                        "id": "crumble.one",
+                        "position": {"x": 9, "y": 1, "z": 0},
+                        "size": {"x": 3, "y": 0.4, "z": 3},
+                    },
                     {"x": "not a platform"},
                 ]
             },
@@ -140,7 +168,10 @@ ENGINE_BRIDGE = {
 
 
 def test_engine_platform_ids_come_from_the_bridge_platforms_capability():
-    assert platforming.engine_platform_ids({"engineBridge": ENGINE_BRIDGE}) == ["plank-lift", "crumble.one"]
+    assert platforming.engine_platform_ids({"engineBridge": ENGINE_BRIDGE}) == [
+        "plank-lift",
+        "crumble.one",
+    ]
     for odd in (
         {},
         {"engineBridge": "x"},
@@ -153,14 +184,20 @@ def test_engine_platform_ids_come_from_the_bridge_platforms_capability():
 def test_tuning_accepts_engine_platform_ids_and_live_ids_together_without_duplicates():
     scene = {"platforming": COURSE, "engineBridge": ENGINE_BRIDGE}
     assert platforming.platform_ids(scene) == ["ferry", "pad", "plank-lift", "crumble.one"]
-    assert platforming.platform_ids({"platforming": COURSE}) == ["ferry", "pad"]  # existing data unchanged
+    assert platforming.platform_ids({"platforming": COURSE}) == [
+        "ferry",
+        "pad",
+    ]  # existing data unchanged
     body = {
         "ferry": {"speed": 2},
         "plank-lift": {"speed": 3, "pauseSeconds": 1},
         "crumble.one": {"visibleSeconds": 5, "enabled": False},
     }
     assert platforming.tuning_problems(scene, body) == []
-    assert platforming.tuning_problems({"engineBridge": ENGINE_BRIDGE}, {"plank-lift": {"speed": 2}}) == []
+    assert (
+        platforming.tuning_problems({"engineBridge": ENGINE_BRIDGE}, {"plank-lift": {"speed": 2}})
+        == []
+    )
 
 
 def test_tuning_for_engine_platforms_is_still_checked_for_ids_and_ranges():

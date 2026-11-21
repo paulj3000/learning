@@ -82,7 +82,9 @@ def _condition_problems(index: int, condition: object, npc_id: object) -> list[s
         return [f"{where}: must be an object"]
     kind = condition.get("type")
     if kind not in SUPPORTED_CONDITIONS:
-        return [f"{where}.type: {kind!r} is not allowed; use {', '.join(sorted(SUPPORTED_CONDITIONS))}"]
+        return [
+            f"{where}.type: {kind!r} is not allowed; use {', '.join(sorted(SUPPORTED_CONDITIONS))}"
+        ]
     problems = []
     if kind == "WORLD_CHANGE" and not (
         isinstance(condition.get("key"), str) and condition["key"].strip()

@@ -77,6 +77,7 @@ def upgrade_north_pole(region: WorldRegion) -> bool:
     region.save(update_fields=["scene", "version", "updated_at"])
     return True
 
+
 REGION_ID = layout.REGION_ID
 PLACE_SLUG = "north-pole-village"
 REALM_SLUG = "north-pole"
@@ -241,7 +242,12 @@ def seed_north_pole() -> list[str]:
     region = get_or_create(
         WorldRegion,
         {"region_id": REGION_ID},
-        {"location": place, "title": "North Pole Village", "scene": layout.scene(), "age_bands": []},
+        {
+            "location": place,
+            "title": "North Pole Village",
+            "scene": layout.scene(),
+            "age_bands": [],
+        },
     )
     if upgrade_north_pole(region):
         created.append(f"layout v{layout.LAYOUT_VERSION} for {REGION_ID}")

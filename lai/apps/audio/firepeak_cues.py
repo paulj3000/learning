@@ -83,7 +83,9 @@ FIREPEAK_CUES: tuple[CueSpec, ...] = (
         "A bright shimmer when an ember shard is picked up.",
         wired=True,
     ),
-    _sfx("switch", "Switch flipped", "Optional. A solid click and hum.", wired=True, cooldown_ms=100),
+    _sfx(
+        "switch", "Switch flipped", "Optional. A solid click and hum.", wired=True, cooldown_ms=100
+    ),
     _sfx(
         "puzzle_complete",
         "Puzzle complete",

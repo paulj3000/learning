@@ -90,7 +90,11 @@ def test_the_imported_catalog_behaves_like_the_seed(families, api, fake_model, i
         "npcId": "keeper-quill",
         "visual": {"kind": "quill-scratch"},
     }
-    assert candidate_ids(fake) == ["lanterns-glow-brighter", "quill-hums-in-hall", "quiet-story-hall"]
+    assert candidate_ids(fake) == [
+        "lanterns-glow-brighter",
+        "quill-hums-in-hall",
+        "quiet-story-hall",
+    ]
 
 
 def test_an_empty_catalog_falls_back_to_the_seed_default(families, api, fake_model):
@@ -120,13 +124,18 @@ def test_a_draft_only_event_is_not_offered_and_a_model_pick_of_it_is_rejected(
     payload = post(api(families.a), families.a1).json()
     assert "sneaky" not in candidate_ids(fake)
     assert payload["source"] == "FALLBACK" and payload["eventId"] == "lanterns-glow-brighter"
-    assert AIInteractionAudit.objects.for_child(families.a1).get().validation_status == "INVALID_CONTENT"
+    assert (
+        AIInteractionAudit.objects.for_child(families.a1).get().validation_status
+        == "INVALID_CONTENT"
+    )
 
 
 def test_a_retired_event_is_not_offered_and_a_model_pick_of_it_falls_back(
     families, api, fake_model, imported, publisher
 ):
-    authoring.set_active(CastleEvent.objects.get(event_id="quill-hums-in-hall"), False, user=publisher)
+    authoring.set_active(
+        CastleEvent.objects.get(event_id="quill-hums-in-hall"), False, user=publisher
+    )
     fake = fake_model(choice("quill-hums-in-hall"))
     payload = post(api(families.a), families.a1).json()
     assert "quill-hums-in-hall" not in candidate_ids(fake)
@@ -141,7 +150,9 @@ def test_a_retired_default_is_not_the_default(families, api, fake_model, importe
     assert (payload["source"], payload["eventId"]) == ("FALLBACK", "quiet-story-hall")
 
 
-def test_an_event_for_another_age_band_is_not_offered(families, api, fake_model, imported, publisher):
+def test_an_event_for_another_age_band_is_not_offered(
+    families, api, fake_model, imported, publisher
+):
     publish_new(
         publisher,
         "sprouts-only-glow",

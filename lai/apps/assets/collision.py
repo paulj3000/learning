@@ -97,7 +97,9 @@ def runtime_collision(profile: CollisionProfile | None, version) -> dict | None:
         else:
             top = max(box["maxY"] for box in boxes) - min(box["minY"] for box in boxes)
             behavior = (
-                CollisionBehavior.JUMPABLE if top <= JUMPABLE_MAX_HEIGHT else CollisionBehavior.SOLID
+                CollisionBehavior.JUMPABLE
+                if top <= JUMPABLE_MAX_HEIGHT
+                else CollisionBehavior.SOLID
             )
     if behavior in (CollisionBehavior.WALKABLE, CollisionBehavior.DECORATIVE):
         boxes = []
@@ -112,7 +114,10 @@ def profile_boxes(profile: CollisionProfile, bounds: Bounds | None) -> list[dict
     ):
         return []
     if profile.shape == CollisionShape.COMPOUND:
-        return [_box_from_centre(**_compound_box(raw, index)) for index, raw in enumerate(_boxes(profile))]
+        return [
+            _box_from_centre(**_compound_box(raw, index))
+            for index, raw in enumerate(_boxes(profile))
+        ]
 
     size = bounds.size if bounds else (None, None, None)
     centre = bounds.centre if bounds else (0.0, 0.0, 0.0)
@@ -205,7 +210,9 @@ def _octagon(cx: float, cz: float, y: float, height: float, radius: float) -> li
     ]
 
 
-def _box_from_centre(x: float, y: float, z: float, width: float, height: float, depth: float) -> dict:
+def _box_from_centre(
+    x: float, y: float, z: float, width: float, height: float, depth: float
+) -> dict:
     return {
         "minX": round(x - width / 2, 4),
         "minY": round(y, 4),
@@ -234,7 +241,9 @@ def _compound_box(raw, index: int) -> dict:
         if not _number(value):
             raise ValidationError(f"Box {index + 1}: {key} must be a number.")
         if key in ("width", "height", "depth") and not 0 < value <= MAX_EXTENT:
-            raise ValidationError(f"Box {index + 1}: {key} must be more than 0 and at most {MAX_EXTENT:g} m.")
+            raise ValidationError(
+                f"Box {index + 1}: {key} must be more than 0 and at most {MAX_EXTENT:g} m."
+            )
         if key in "xyz" and abs(value) > MAX_EXTENT:
             raise ValidationError(f"Box {index + 1}: {key} is too far from the model's origin.")
         out[key] = float(value)

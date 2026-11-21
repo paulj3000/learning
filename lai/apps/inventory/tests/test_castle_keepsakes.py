@@ -150,21 +150,30 @@ def test_a_protected_key_at_its_own_place_pays_its_rule_once(content):
 
 def test_a_protected_key_at_another_place_pays_nothing(content):
     child = content.a1
-    assert grant_world_change_rewards(
-        child, location_slug=CASTLE, change_key="SECRET_DOOR_CLUES_COLLECTED"
-    ) == ()
-    assert grant_world_change_rewards(
-        child, location_slug="", change_key="THE_CASTLES_SECRET_DOOR_COMPLETE"
-    ) == ()
+    assert (
+        grant_world_change_rewards(
+            child, location_slug=CASTLE, change_key="SECRET_DOOR_CLUES_COLLECTED"
+        )
+        == ()
+    )
+    assert (
+        grant_world_change_rewards(
+            child, location_slug="", change_key="THE_CASTLES_SECRET_DOOR_COMPLETE"
+        )
+        == ()
+    )
     assert not InventoryItem.objects.exists()
 
 
 def test_an_unprotected_key_pays_nothing_here(content):
     # `reward-bridge-world-change` stays as it was: the island runtime posts BRIDGE_REPAIRED.
     assert not protected.is_protected("BRIDGE_REPAIRED")
-    assert grant_world_change_rewards(
-        content.a1, location_slug="pirate-builder-bay", change_key="BRIDGE_REPAIRED"
-    ) == ()
+    assert (
+        grant_world_change_rewards(
+            content.a1, location_slug="pirate-builder-bay", change_key="BRIDGE_REPAIRED"
+        )
+        == ()
+    )
     assert not InventoryItem.objects.exists()
 
 
@@ -172,7 +181,11 @@ def test_the_generic_world_change_post_pays_no_keepsake(content, api):
     child = content.a1
     response = api(content.a).post(
         f"/api/v1/children/{child.pk}/world-changes/",
-        {"locationSlug": PASSAGE, "changeType": "CREATE", "changeKey": "SECRET_DOOR_CLUES_COLLECTED"},
+        {
+            "locationSlug": PASSAGE,
+            "changeType": "CREATE",
+            "changeKey": "SECRET_DOOR_CLUES_COLLECTED",
+        },
         "application/json",
     )
     assert response.status_code == 400
@@ -209,9 +222,10 @@ def test_the_clues_step_records_the_change_and_grants_the_lens_once(content):
         child, "secret-door-chapter-1-three-clues", "SECRET_DOOR_CLUES_COLLECTED"
     )
     assert owns(child, "three-clues-lens") == 1
-    assert GrantedRule.objects.for_child(child).filter(
-        rule__rule_id="reward-three-clues-lens"
-    ).count() == 1
+    assert (
+        GrantedRule.objects.for_child(child).filter(rule__rule_id="reward-three-clues-lens").count()
+        == 1
+    )
 
 
 def test_finishing_the_painted_words_grants_the_brush(content):

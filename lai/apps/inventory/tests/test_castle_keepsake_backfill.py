@@ -65,7 +65,9 @@ def finish_adventure(child, slug, *, reach_step=None, finish=True):
 
 
 def clues_step():
-    return next(p.step_id for p in protected.lookup(CLUES_KEY).producers if p.slug == CLUES_ADVENTURE)
+    return next(
+        p.step_id for p in protected.lookup(CLUES_KEY).producers if p.slug == CLUES_ADVENTURE
+    )
 
 
 def drop_grants():
@@ -173,7 +175,9 @@ def test_rerun_is_idempotent_and_skips_children_who_already_have_the_item(conten
 
 def test_it_never_deletes_or_edits_existing_records(content):
     story = finish_story(content.a1)
-    record_world_change(content.a1, location_slug=PASSAGE, change_type="CREATE", change_key=DOOR_KEY)
+    record_world_change(
+        content.a1, location_slug=PASSAGE, change_type="CREATE", change_key=DOOR_KEY
+    )
     before = list(WorldChange.objects.values_list("pk", "change_key", "location_slug"))
     backfill_castle_keepsakes(apply=True)
     assert list(WorldChange.objects.values_list("pk", "change_key", "location_slug")) == before

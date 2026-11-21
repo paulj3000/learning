@@ -37,9 +37,7 @@ def grant_reward_rule(child, rule, *, source_session=None) -> RewardGrant:
             )
             if created:
                 new_items.append(item.item_id)
-        new_items.extend(
-            _complete_sets(child, rule, new_items, source_session=source_session)
-        )
+        new_items.extend(_complete_sets(child, rule, new_items, source_session=source_session))
         return RewardGrant(granted=True, new_item_ids=tuple(new_items))
 
 

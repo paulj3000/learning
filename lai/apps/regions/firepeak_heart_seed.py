@@ -245,7 +245,8 @@ def snapshot() -> dict:
             for pid, kind, entities, b in content.puzzle_rows()
         ],
         "assets": [
-            {"assetId": asset_id, "kind": kind} for asset_id, (kind, _c, _n) in layout.ASSET_DEFS.items()
+            {"assetId": asset_id, "kind": kind}
+            for asset_id, (kind, _c, _n) in layout.ASSET_DEFS.items()
         ],
     }
 

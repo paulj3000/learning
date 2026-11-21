@@ -62,6 +62,8 @@ class Command(BaseCommand):
         self.stdout.write(f"{verb} {len(created)} line(s).")
         self.stdout.write(f"Already present (untouched): {len(existing)}")
         for line_id in differs:
-            self.stdout.write(f"DIFFERS {line_id}: its text no longer matches the source; review it")
+            self.stdout.write(
+                f"DIFFERS {line_id}: its text no longer matches the source; review it"
+            )
         for line_id, problem in invalid:
             self.stdout.write(f"INVALID {line_id}: {problem}")

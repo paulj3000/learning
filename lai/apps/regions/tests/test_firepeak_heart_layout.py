@@ -23,7 +23,8 @@ BRIDGE = SCENE["engineBridge"]
 BRIDGE_CONFIG = {c["id"]: c["config"] for c in BRIDGE["capabilities"]}
 # GE-073: the one checkpoint list, from the engine bridge, as {id, x, z, label, requiresSignalId}.
 CHECKPOINT_LIST = [
-    {**c, "x": c["position"]["x"], "z": c["position"]["z"]} for c in BRIDGE_CONFIG["gameplay.checkpoints"]["checkpoints"]
+    {**c, "x": c["position"]["x"], "z": c["position"]["z"]}
+    for c in BRIDGE_CONFIG["gameplay.checkpoints"]["checkpoints"]
 ]
 PLACEMENTS = layout.placements()
 
@@ -41,7 +42,12 @@ def top(platform):
 
 def footprint(platform):
     p, s = platform["position"], platform["size"]
-    return (p["x"] - s["width"] / 2, p["x"] + s["width"] / 2, p["z"] - s["depth"] / 2, p["z"] + s["depth"] / 2)
+    return (
+        p["x"] - s["width"] / 2,
+        p["x"] + s["width"] / 2,
+        p["z"] - s["depth"] / 2,
+        p["z"] + s["depth"] / 2,
+    )
 
 
 def inside(box, x, z, margin=0.0):
@@ -118,19 +124,26 @@ class TestStructure:
             "source": "world:FIREPEAK_HEART_LAVA_BRIDGE",
             "hiddenUntilActive": True,
         }
-        assert PLATFORMS["fh-forge-lift"]["activation"]["source"] == "world:FIREPEAK_HEART_FORGE_POWERED"
+        assert (
+            PLATFORMS["fh-forge-lift"]["activation"]["source"]
+            == "world:FIREPEAK_HEART_FORGE_POWERED"
+        )
 
     def test_lava_is_drawn_without_respawning_and_enforced_by_a_height_aware_hazard(self):
         (lava,) = SCENE["effects"]["lava"]
         assert lava["visualOnly"] is True
-        (hazard,) = BRIDGE_CONFIG["gameplay.hazards"]["hazards"]  # GE-073: the engine bridge enforces it
+        (hazard,) = BRIDGE_CONFIG["gameplay.hazards"][
+            "hazards"
+        ]  # GE-073: the engine bridge enforces it
         assert hazard["rect"]["minZ"] == lava["minZ"] and hazard["rect"]["maxZ"] == lava["maxZ"]
         assert hazard["belowY"] < PLATFORMS["fh-lava-bridge"]["size"]["height"]
         assert top(PLATFORMS["fh-lava-bridge"]) > HAZARD_LINE
 
     def test_steam_vents_close_the_forge_gate_until_it_is_restored(self):
         steam = SCENE["effects"]["steam"]
-        assert steam and all(s["hiddenWhenChangeKey"] == "FIREPEAK_HEART_FORGE_RESTORED" for s in steam)
+        assert steam and all(
+            s["hiddenWhenChangeKey"] == "FIREPEAK_HEART_FORGE_RESTORED" for s in steam
+        )
         assert all(-49 < s["z"] < -44 for s in steam)
 
     def test_the_heart_chamber_has_a_return_portal_to_the_landing(self):
@@ -219,13 +232,23 @@ class TestPlacements:
     def test_the_named_entities_exist(self):
         ids = {p["entity_id"] for p in PLACEMENTS}
         assert {
-            "fh-flint", "fh-kindle", "fh-kindle-heart", "fh-basalt", "fh-basalt-summit",
-            "fh-cinder", "fh-ignis",
+            "fh-flint",
+            "fh-kindle",
+            "fh-kindle-heart",
+            "fh-basalt",
+            "fh-basalt-summit",
+            "fh-cinder",
+            "fh-ignis",
         } <= ids
         shards = [p for p in PLACEMENTS if p["kind"] == "COLLECTIBLE"]
         assert [p["entity_id"] for p in shards] == [
-            "fh-shard-landing", "fh-shard-emberwood", "fh-shard-lava-jumper", "fh-shard-caverns",
-            "fh-shard-forge", "fh-shard-summit", "fh-shard-heart",
+            "fh-shard-landing",
+            "fh-shard-emberwood",
+            "fh-shard-lava-jumper",
+            "fh-shard-caverns",
+            "fh-shard-forge",
+            "fh-shard-summit",
+            "fh-shard-heart",
         ]
         assert {p["pickup_key"] for p in shards} == {
             f"FIREPEAK_HEART_SHARD_{z}"
@@ -246,15 +269,21 @@ class TestPlacements:
                     continue
                 assert not inside(rect(collider), x, z), (p["entity_id"], collider["id"])
             expected = surface_height(x, z)
-            assert abs(expected - p["elevation"]) <= 0.06 or p["entity_id"] in {"fh-heart-crystal"}, (
-                p["entity_id"], p["elevation"], expected,
+            assert abs(expected - p["elevation"]) <= 0.06 or p["entity_id"] in {
+                "fh-heart-crystal"
+            }, (
+                p["entity_id"],
+                p["elevation"],
+                expected,
             )
 
     def test_trees_and_rocks_do_not_stand_on_a_platform(self):
         for p in PLACEMENTS:
             if p["kind"] == "SCENERY" and p["asset"] in {"firepeak-tree", "firepeak-rock"}:
                 for platform in PLATFORMS.values():
-                    assert not inside(footprint(platform), p["x"], p["z"], margin=0.5), p["entity_id"]
+                    assert not inside(footprint(platform), p["x"], p["z"], margin=0.5), p[
+                        "entity_id"
+                    ]
 
     def test_every_placement_with_a_model_has_an_asset_definition_and_a_stand_in(self):
         stand_ins = {s["entityId"] for s in SCENE["effects"]["standIns"]}
@@ -266,8 +295,23 @@ class TestPlacements:
 
     def test_stand_in_shapes_are_from_the_closed_list(self):
         allowed = {
-            "BOX", "TENT", "TELESCOPE", "PIPE", "PEDESTAL", "CRYSTAL", "PORTAL", "STONE", "VALVE",
-            "MARKER", "FIGURE", "TREE", "LOG", "GEAR", "SWITCH", "ROCK", "ARCH",
+            "BOX",
+            "TENT",
+            "TELESCOPE",
+            "PIPE",
+            "PEDESTAL",
+            "CRYSTAL",
+            "PORTAL",
+            "STONE",
+            "VALVE",
+            "MARKER",
+            "FIGURE",
+            "TREE",
+            "LOG",
+            "GEAR",
+            "SWITCH",
+            "ROCK",
+            "ARCH",
         }
         assert {s["shape"] for s in SCENE["effects"]["standIns"]} <= allowed
 
@@ -301,7 +345,9 @@ def world_state(open_gates: int, bridge: bool):
     solids = [
         rect(c)
         for c in SCENE["colliders"]
-        if not c.get("jumpable") and c["id"] not in opened and not (c["id"] == "fh-cavern-secret" and open_gates >= 4)
+        if not c.get("jumpable")
+        and c["id"] not in opened
+        and not (c["id"] == "fh-cavern-secret" and open_gates >= 4)
     ]
     platforms = {
         pid: p
@@ -331,7 +377,11 @@ def world_state(open_gates: int, bridge: bool):
     lava = layout.LAVA
     for i in range(NX):
         for j in range(NZ):
-            if lava["minX"] <= XS[i] <= lava["maxX"] and lava["minZ"] <= ZS[j] <= lava["maxZ"] and height[i][j] <= HAZARD_LINE:
+            if (
+                lava["minX"] <= XS[i] <= lava["maxX"]
+                and lava["minZ"] <= ZS[j] <= lava["maxZ"]
+                and height[i][j] <= HAZARD_LINE
+            ):
                 blocked[i][j] = True
     return height, blocked
 
@@ -358,14 +408,26 @@ def can_reach(seen, height, x, z, elevation=0.0, reach=REACH):
     span = int(reach / RES) + 1
     for i in range(max(i0 - span, 0), min(i0 + span, NX - 1) + 1):
         for j in range(max(j0 - span, 0), min(j0 + span, NZ - 1) + 1):
-            if (i, j) in seen and math.hypot(XS[i] - x, ZS[j] - z) <= reach and abs(height[i][j] - elevation) <= 0.3:
+            if (
+                (i, j) in seen
+                and math.hypot(XS[i] - x, ZS[j] - z) <= reach
+                and abs(height[i][j] - elevation) <= 0.3
+            ):
                 return True
     return False
 
 
 SPAWN = idx(0.0, 90.0)
 CHECKPOINT = {c["id"]: c for c in CHECKPOINT_LIST}
-ZONE_CHECKPOINT = ["fh-cp-landing", "fh-cp-emberwood", "fh-cp-lava-near", "fh-cp-caverns", "fh-cp-forge", "fh-cp-summit", "fh-cp-heart"]
+ZONE_CHECKPOINT = [
+    "fh-cp-landing",
+    "fh-cp-emberwood",
+    "fh-cp-lava-near",
+    "fh-cp-caverns",
+    "fh-cp-forge",
+    "fh-cp-summit",
+    "fh-cp-heart",
+]
 
 
 def zone_of(z):
@@ -377,7 +439,10 @@ def zone_of(z):
 
 def used_by_the_child(p):
     """Everything a child must reach: NPCs, puzzle objects and the way through (not optional shards)."""
-    return p["kind"] in {"NPC", "PROP"} and p["entity_id"] not in {"fh-landing-campfire", "fh-forest-stream"}
+    return p["kind"] in {"NPC", "PROP"} and p["entity_id"] not in {
+        "fh-landing-campfire",
+        "fh-forest-stream",
+    }
 
 
 @pytest.fixture(scope="module")
@@ -408,12 +473,21 @@ class TestEveryMandatoryRouteIsWalkableWithNoJump:
                 far_bank = p["entity_id"].startswith("fh-lava-path-")
                 if zone == 2 and far_bank:
                     continue  # the far bank needs the bridge (checked below)
-                assert can_reach(seen, height, p["x"], p["z"], surface_height(p["x"], p["z"])), (zone, p["entity_id"])
+                assert can_reach(seen, height, p["x"], p["z"], surface_height(p["x"], p["z"])), (
+                    zone,
+                    p["entity_id"],
+                )
 
     def test_the_bridge_is_what_gets_a_child_across_the_lava(self, stages):
         height, before, _ = stages[7]  # gates 1 and 2 open, no bridge yet
         far = CHECKPOINT["fh-cp-lava-far"]
-        assert can_reach(before, height, CHECKPOINT["fh-cp-lava-near"]["x"], CHECKPOINT["fh-cp-lava-near"]["z"], reach=0.6)
+        assert can_reach(
+            before,
+            height,
+            CHECKPOINT["fh-cp-lava-near"]["x"],
+            CHECKPOINT["fh-cp-lava-near"]["z"],
+            reach=0.6,
+        )
         assert not can_reach(before, height, far["x"], far["z"], reach=0.6)
         height, after, _ = stages[3]
         assert can_reach(after, height, far["x"], far["z"], reach=0.6)
@@ -425,7 +499,9 @@ class TestEveryMandatoryRouteIsWalkableWithNoJump:
     def test_a_closed_gate_blocks_the_way_on(self, stages, gate):
         height, seen, _ = stages[gate]  # gates before `gate` open, this one closed
         beyond = CHECKPOINT[ZONE_CHECKPOINT[gate + 1]] if gate != 2 else CHECKPOINT["fh-cp-caverns"]
-        assert not can_reach(seen, height, beyond["x"], beyond["z"], reach=0.6), layout.GATES[gate][0]
+        assert not can_reach(seen, height, beyond["x"], beyond["z"], reach=0.6), layout.GATES[gate][
+            0
+        ]
 
     def test_with_every_gate_open_the_return_portal_and_the_heart_are_reachable(self, stages):
         height, seen, _ = stages[6]
@@ -435,7 +511,12 @@ class TestEveryMandatoryRouteIsWalkableWithNoJump:
 
     def test_the_summit_plateau_and_its_shard_are_reached_by_stairs(self, stages):
         height, seen, _ = stages[5]
-        for entity in ("fh-basalt-summit", "fh-shard-summit", "fh-rock-sample-b", "fh-island-step-c"):
+        for entity in (
+            "fh-basalt-summit",
+            "fh-shard-summit",
+            "fh-rock-sample-b",
+            "fh-island-step-c",
+        ):
             p = next(p for p in PLACEMENTS if p["entity_id"] == entity)
             assert can_reach(seen, height, p["x"], p["z"], surface_height(p["x"], p["z"])), entity
 
@@ -511,19 +592,34 @@ class TestOptionalJumpRoutes:
         assert stone["id"] == layout.CRUMBLE_STONE_ID and stone["route"] == "OPTIONAL"
         # Parity with the live vanish it replaces: 4 s whole after the step, 1 s of it crumbling,
         # gone 2.5 s.
-        assert stone["falling"] == {"mode": "STAND", "visibleSeconds": 4, "hiddenSeconds": 2.5, "warningSeconds": 1, "fallSeconds": 0.6}
+        assert stone["falling"] == {
+            "mode": "STAND",
+            "visibleSeconds": 4,
+            "hiddenSeconds": 2.5,
+            "warningSeconds": 1,
+            "fallSeconds": 0.6,
+        }
         box = PLATFORMS[layout.CRUMBLE_STONE_ID]
         assert stone["position"] == box["position"]
-        assert stone["size"] == {"x": box["size"]["width"], "y": box["size"]["height"], "z": box["size"]["depth"]}
+        assert stone["size"] == {
+            "x": box["size"]["width"],
+            "y": box["size"]["height"],
+            "z": box["size"]["depth"],
+        }
         # It stands in the lava, so falling with it is the lava's ordinary recovery.
         lava = layout.LAVA
-        assert lava["minZ"] < stone["position"]["z"] < lava["maxZ"] and lava["minX"] < stone["position"]["x"] < lava["maxX"]
+        assert (
+            lava["minZ"] < stone["position"]["z"] < lava["maxZ"]
+            and lava["minX"] < stone["position"]["x"] < lava["maxX"]
+        )
 
     def test_the_summit_has_one_optional_moving_platform_that_waits_at_each_end(self):
         moving = [p for p in PLATFORMS.values() if "motion" in p and p["id"] != "fh-forge-lift"]
         assert [p["id"] for p in moving] == ["fh-summit-shuttle"]
         assert moving[0]["motion"]["pauseSeconds"] >= 3 and moving[0]["motion"]["speed"] <= 1.5
-        shuttle, plateau, lookout = (PLATFORMS[i] for i in ("fh-summit-shuttle", "fh-summit-plateau", "fh-summit-lookout"))
+        shuttle, plateau, lookout = (
+            PLATFORMS[i] for i in ("fh-summit-shuttle", "fh-summit-plateau", "fh-summit-lookout")
+        )
         assert abs(top(shuttle) - top(plateau)) < 1e-9 and abs(top(plateau) - top(lookout)) < 1e-9
         assert gap_between(shuttle, plateau) <= 0.2
         end = dict(shuttle)
@@ -560,7 +656,9 @@ class TestSteamPush:
         gate_z = layout.SUMMIT_GATE_Z
         assert box["min"]["z"] > gate_z  # on the Forge side of the gate
         forge = next(z for z in layout.ZONES if z[0] == "ancient-forge")
-        assert forge[3] - 1.0 <= box["min"]["z"] and box["max"]["z"] <= forge[2]  # zone edges, as zone_of
+        assert (
+            forge[3] - 1.0 <= box["min"]["z"] and box["max"]["z"] <= forge[2]
+        )  # zone edges, as zone_of
 
     def test_it_pushes_back_into_the_forge_gently_and_stops_once_restored(self):
         (force,) = BRIDGE_CONFIG["environment.volumes"]["forces"]
@@ -608,9 +706,14 @@ class TestFallingRocks:
         def phase(rock, t):
             cycle = rock["restSeconds"] + rock["telegraphSeconds"] + rock["activeSeconds"]
             u = (t + rock["offsetSeconds"]) % cycle
-            return "REST" if u < rock["restSeconds"] else "WARN" if u < cycle - rock["activeSeconds"] else "ACTIVE"
+            return (
+                "REST"
+                if u < rock["restSeconds"]
+                else "WARN"
+                if u < cycle - rock["activeSeconds"]
+                else "ACTIVE"
+            )
 
         for step in range(0, 1300):
             phases = [phase(r, step / 100) for r in self.ROCKS]
             assert phases.count("REST") >= 1, (step / 100, phases)
-

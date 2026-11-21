@@ -284,7 +284,10 @@ NPCS: tuple[FirepeakNpc, ...] = (
             "Ignis is calm and thankful." + _PERSONA_RULES
         ),
         persona_topics=("the Heart of Firepeak", "the crystals and their journey"),
-        fallback_lines=("Think about the journey you took.", "Take your time. The Heart is patient."),
+        fallback_lines=(
+            "Think about the journey you took.",
+            "Take your time. The Heart is patient.",
+        ),
         greeting_explorer=(
             "You came a long way. I am Ignis, guardian of the Heart. Set the crystals in the "
             "order of your journey, and the Heart will glow again."

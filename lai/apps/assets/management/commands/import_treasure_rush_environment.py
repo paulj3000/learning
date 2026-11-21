@@ -40,7 +40,9 @@ from apps.assets.model_packs import (
 
 
 class Command(BaseCommand):
-    help = "Prepare, validate and store the Treasure Rush environment models (palms, barrels, logs)."
+    help = (
+        "Prepare, validate and store the Treasure Rush environment models (palms, barrels, logs)."
+    )
     #: A subclass fixes the category (the palm command).
     fixed_category: str | None = None
 

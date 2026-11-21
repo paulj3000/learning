@@ -59,28 +59,78 @@ class TestSnapshot:
 class TestPuzzleTable:
     def test_fourteen_puzzles_in_design_order(self):
         assert [r[0] for r in ROWS] == [
-            "fh-landing-map", "fh-emberwood-pattern", "fh-emberwood-count", "fh-lava-numbers",
-            "fh-lava-compare", "fh-caverns-shapes", "fh-caverns-arrange", "fh-forge-switches",
-            "fh-forge-circuit", "fh-summit-rocks", "fh-summit-island", "fh-heart-crystals",
-            "fh-heart-restore", "fh-heart-return",
+            "fh-landing-map",
+            "fh-emberwood-pattern",
+            "fh-emberwood-count",
+            "fh-lava-numbers",
+            "fh-lava-compare",
+            "fh-caverns-shapes",
+            "fh-caverns-arrange",
+            "fh-forge-switches",
+            "fh-forge-circuit",
+            "fh-summit-rocks",
+            "fh-summit-island",
+            "fh-heart-crystals",
+            "fh-heart-restore",
+            "fh-heart-return",
         ]
 
     def test_kinds_keys_and_rewards_match_the_table(self):
         table = {r[0]: (r[1], r[3]["worldChangeKey"], r[3]["rewardRuleId"]) for r in ROWS}
-        assert table["fh-landing-map"] == ("OBSERVE_FEATURES", "FIREPEAK_HEART_MAP_READ", "fh-rule-first-steps")
-        assert table["fh-emberwood-pattern"] == ("CHOOSE_ANSWER", "FIREPEAK_HEART_PATTERN_SOLVED", None)
-        assert table["fh-emberwood-count"] == ("CHOOSE_ANSWER", "FIREPEAK_HEART_EMBERWOOD_DONE", "fh-rule-emberwood")
+        assert table["fh-landing-map"] == (
+            "OBSERVE_FEATURES",
+            "FIREPEAK_HEART_MAP_READ",
+            "fh-rule-first-steps",
+        )
+        assert table["fh-emberwood-pattern"] == (
+            "CHOOSE_ANSWER",
+            "FIREPEAK_HEART_PATTERN_SOLVED",
+            None,
+        )
+        assert table["fh-emberwood-count"] == (
+            "CHOOSE_ANSWER",
+            "FIREPEAK_HEART_EMBERWOOD_DONE",
+            "fh-rule-emberwood",
+        )
         assert table["fh-lava-numbers"] == ("CHOOSE_ANSWER", "FIREPEAK_HEART_LAVA_BRIDGE", None)
-        assert table["fh-lava-compare"] == ("CHOOSE_ANSWER", "FIREPEAK_HEART_LAVA_CROSSED", "fh-rule-lava")
-        assert table["fh-caverns-shapes"] == ("CHOOSE_ANSWER", "FIREPEAK_HEART_SHAPES_MATCHED", None)
-        assert table["fh-caverns-arrange"] == ("ORDER_SEQUENCE", "FIREPEAK_HEART_CAVERN_LIT", "fh-rule-caverns")
-        assert table["fh-forge-switches"] == ("ORDER_SEQUENCE", "FIREPEAK_HEART_FORGE_POWERED", None)
-        assert table["fh-forge-circuit"] == ("CHOOSE_ANSWER", "FIREPEAK_HEART_FORGE_RESTORED", "fh-rule-forge")
+        assert table["fh-lava-compare"] == (
+            "CHOOSE_ANSWER",
+            "FIREPEAK_HEART_LAVA_CROSSED",
+            "fh-rule-lava",
+        )
+        assert table["fh-caverns-shapes"] == (
+            "CHOOSE_ANSWER",
+            "FIREPEAK_HEART_SHAPES_MATCHED",
+            None,
+        )
+        assert table["fh-caverns-arrange"] == (
+            "ORDER_SEQUENCE",
+            "FIREPEAK_HEART_CAVERN_LIT",
+            "fh-rule-caverns",
+        )
+        assert table["fh-forge-switches"] == (
+            "ORDER_SEQUENCE",
+            "FIREPEAK_HEART_FORGE_POWERED",
+            None,
+        )
+        assert table["fh-forge-circuit"] == (
+            "CHOOSE_ANSWER",
+            "FIREPEAK_HEART_FORGE_RESTORED",
+            "fh-rule-forge",
+        )
         assert table["fh-summit-rocks"] == ("CHOOSE_ANSWER", "FIREPEAK_HEART_ROCKS_NAMED", None)
-        assert table["fh-summit-island"] == ("ORDER_SEQUENCE", "FIREPEAK_HEART_SUMMIT_REACHED", "fh-rule-scientist")
+        assert table["fh-summit-island"] == (
+            "ORDER_SEQUENCE",
+            "FIREPEAK_HEART_SUMMIT_REACHED",
+            "fh-rule-scientist",
+        )
         assert table["fh-heart-crystals"] == ("ORDER_SEQUENCE", "FIREPEAK_HEART_CRYSTALS_SET", None)
         assert table["fh-heart-restore"] == ("COLLECT_OBJECT", "FIREPEAK_HEART_RESTORED", None)
-        assert table["fh-heart-return"] == ("RETURN_TO_NPC", "FIREPEAK_HEART_CELEBRATED", "fh-rule-heart")
+        assert table["fh-heart-return"] == (
+            "RETURN_TO_NPC",
+            "FIREPEAK_HEART_CELEBRATED",
+            "fh-rule-heart",
+        )
 
     def test_each_puzzle_requires_the_one_before_it(self):
         previous = None
@@ -102,9 +152,17 @@ class TestPuzzleTable:
     def test_reward_rules_and_pickups_are_the_export_ones(self):
         wanted = seed.reward_rule_ids()
         assert {
-            "fh-rule-first-steps", "fh-rule-emberwood", "fh-rule-lava", "fh-rule-caverns",
-            "fh-rule-forge", "fh-rule-scientist", "fh-rule-heart",
-            *[f"fh-rule-shard-{z}" for z in ("landing", "emberwood", "lava", "caverns", "forge", "summit", "heart")],
+            "fh-rule-first-steps",
+            "fh-rule-emberwood",
+            "fh-rule-lava",
+            "fh-rule-caverns",
+            "fh-rule-forge",
+            "fh-rule-scientist",
+            "fh-rule-heart",
+            *[
+                f"fh-rule-shard-{z}"
+                for z in ("landing", "emberwood", "lava", "caverns", "forge", "summit", "heart")
+            ],
         } == wanted
 
     def test_copy_has_no_dialogue_params_and_no_em_dashes(self):
@@ -194,10 +252,17 @@ class TestVariantContract:
 
     def test_presentations_match_design_section_6(self):
         expected = {
-            "fh-emberwood-pattern": "CRYSTALS", "fh-emberwood-count": "CARDS",
-            "fh-lava-numbers": "PLATFORMS", "fh-lava-compare": "PATHS", "fh-caverns-shapes": "SHAPES",
-            "fh-caverns-arrange": "CRYSTALS", "fh-forge-switches": "SWITCHES", "fh-forge-circuit": "PATHS",
-            "fh-summit-rocks": "SAMPLES", "fh-summit-island": "STORY", "fh-heart-crystals": "CRYSTALS",
+            "fh-emberwood-pattern": "CRYSTALS",
+            "fh-emberwood-count": "CARDS",
+            "fh-lava-numbers": "PLATFORMS",
+            "fh-lava-compare": "PATHS",
+            "fh-caverns-shapes": "SHAPES",
+            "fh-caverns-arrange": "CRYSTALS",
+            "fh-forge-switches": "SWITCHES",
+            "fh-forge-circuit": "PATHS",
+            "fh-summit-rocks": "SAMPLES",
+            "fh-summit-island": "STORY",
+            "fh-heart-crystals": "CRYSTALS",
         }
         for pid, _kind, _e, body in NEW_KIND_ROWS:
             for params in body["ageBands"].values():
@@ -260,7 +325,9 @@ class TestVersionGate:
         )
 
     def test_a_missing_or_old_layout_is_written_and_authored_copy_survives(self):
-        region = self.region({"copy": {"loading": "My own words."}, "platformTuning": {"x": {"speed": 1}}})
+        region = self.region(
+            {"copy": {"loading": "My own words."}, "platformTuning": {"x": {"speed": 1}}}
+        )
         assert seed.upgrade_firepeak_heart(region) is True
         assert region.scene["firepeakHeartVersion"] == seed.HEART_VERSION
         assert region.scene["copy"] == {"loading": "My own words."}
@@ -274,7 +341,6 @@ class TestVersionGate:
 
 
 # --- database tests (need the export and the new kinds) ----------------------------------------
-
 
 
 @pytest.fixture
@@ -319,9 +385,17 @@ class TestSeedRows:
         assert region.age_bands == ["PATHFINDER", "EXPLORER"]
         assert region.scene["firepeakHeartVersion"] == seed.HEART_VERSION
         assert region.offered_quests.filter(slug=seed.QUEST_ID).exists()
-        assert SpawnPoint.objects.get(region=region, is_default=True).checkpoint_id == "fh-cp-landing"
-        assert WorldObjectPlacement.objects.filter(region=region).count() == len(layout.placements())
-        assert list(AreaPuzzle.objects.filter(region=region).order_by("sort_order").values_list("puzzle_id", flat=True)) == [r[0] for r in ROWS]
+        assert (
+            SpawnPoint.objects.get(region=region, is_default=True).checkpoint_id == "fh-cp-landing"
+        )
+        assert WorldObjectPlacement.objects.filter(region=region).count() == len(
+            layout.placements()
+        )
+        assert list(
+            AreaPuzzle.objects.filter(region=region)
+            .order_by("sort_order")
+            .values_list("puzzle_id", flat=True)
+        ) == [r[0] for r in ROWS]
         assets = ContentAsset.objects.filter(tags__contains=[seed.ASSET_TAG])
         assert assets.count() >= len(layout.ASSET_DEFS) - 2  # two reuse existing firepeak ids
         assert all(a.origin == AssetOrigin.DJANGO and a.default_version is None for a in assets)
