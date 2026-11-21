@@ -96,11 +96,15 @@ gate passes. Trello: [GE-090](https://trello.com/c/mEaWzcTo).
      `users/services.py` (Agents 6 and 2).
   2. P1 GE-090-D2 four Storykeeper content ids belong to no world pack (Agent 2).
   3. P1 GE-S1 eight wildcard import shims (Agent 4, GE-076 item 2).
-  4. P1 GE-090-D4 PostgreSQL version: the project and CI baseline stays PostgreSQL 16 (owner,
-     2026-11-21); the EC2 instance runs 18, so the pinned test fails there. Not weakened or
-     skipped.
-  5. Merge PR #46 and PR #47.
-  6. After the P0 fixes are integrated and targeted tests pass: full release checks and
+  4. P1 GE-090-D4 PostgreSQL version. Superseded the same day: the owner made PostgreSQL 18 the
+     required version (2026-11-21, later decision). Nothing is downgraded. PR #49 moves the
+     compose file, the CI service containers, the version test and the current docs to 18; PR
+     #46 makes the EC2 preflight accept 18 only. The deployed RDS stays on 16 until an approved
+     upgrade.
+  5. P1 GE-090-D6, the CI lint and format baseline: PR #50 (Ruff, Ruff format and Prettier
+     pass; mechanical and hand-edited commits kept separate).
+  6. Merge PR #46 and PR #47.
+  7. After the P0 fixes are integrated and targeted tests pass: full release checks and
      Playwright on the integration candidate (authorized 2026-11-21), with the exact SHA
      recorded; then owner browser QA on desktop and touch and the entry-criteria decisions.
 
