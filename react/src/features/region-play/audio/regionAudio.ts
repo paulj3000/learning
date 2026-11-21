@@ -217,13 +217,20 @@ const FIREPEAK_AUDIO: RegionAudio = {
   zonePriority: FIREPEAK_ZONE_PRIORITY,
   entryAmbience: FP_SOUND.ambientLanding,
   // One theme for exploring and puzzling (no puzzle theme: the music never changes mid puzzle).
-  music: { explore: FP_SOUND.musicRealm, puzzle: FP_SOUND.musicRealm, victory: FP_SOUND.musicFinale },
+  music: {
+    explore: FP_SOUND.musicRealm,
+    puzzle: FP_SOUND.musicRealm,
+    victory: FP_SOUND.musicFinale,
+  },
   momentSounds: FIREPEAK_MOMENT_SOUNDS,
   checkpointCue: FP_SOUND.checkpoint,
   recoverCue: FP_SOUND.lavaRespawn,
   // The falling rocks on the optional summit hops (lai/apps/regions/firepeak_heart_layout.py).
   hazardWarnings: Object.fromEntries(
-    ['fh-summit-rocks-1', 'fh-summit-rocks-2'].map((id) => [id, { cue: FP_SOUND.rockRumble, zoneId: 'firepeak-summit' }]),
+    ['fh-summit-rocks-1', 'fh-summit-rocks-2'].map((id) => [
+      id,
+      { cue: FP_SOUND.rockRumble, zoneId: 'firepeak-summit' },
+    ]),
   ),
 };
 

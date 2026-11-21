@@ -14,7 +14,14 @@ import { defineComponent } from '../core/entities';
 import { defineService } from '../core/services';
 import type { CapabilityDefinition } from '../core/capabilities';
 import type { Vec3Like } from '../contracts/player';
-import { emitClaim, emitPresentation, playerPosition, signalBoard, entityKey, type GameplayRuntime } from './common';
+import {
+  emitClaim,
+  emitPresentation,
+  playerPosition,
+  signalBoard,
+  entityKey,
+  type GameplayRuntime,
+} from './common';
 import { rectContains, type Rect } from './geometry';
 import { configRoot, Issues } from './validate';
 
@@ -91,8 +98,17 @@ export function validateCheckpointsConfig(input: unknown) {
       courseId: issues.id(item.courseId, `${path}.courseId`),
       position: issues.vec3(item.position, `${path}.position`),
       yaw: issues.num(item.yaw, `${path}.yaw`, -Math.PI * 2, Math.PI * 2, 0),
-      label: typeof item.label === 'string' && item.label.trim() !== '' ? item.label : (issues.add(`${path}.label`, 'must be a non-empty child-facing label'), ''),
-      halfSize: issues.num(item.halfSize, `${path}.halfSize`, CHECKPOINT_LIMITS.minHalfSize, CHECKPOINT_LIMITS.maxHalfSize, 1),
+      label:
+        typeof item.label === 'string' && item.label.trim() !== ''
+          ? item.label
+          : (issues.add(`${path}.label`, 'must be a non-empty child-facing label'), ''),
+      halfSize: issues.num(
+        item.halfSize,
+        `${path}.halfSize`,
+        CHECKPOINT_LIMITS.minHalfSize,
+        CHECKPOINT_LIMITS.maxHalfSize,
+        1,
+      ),
       requiresSignalId: issues.optionalId(item.requiresSignalId, `${path}.requiresSignalId`),
     }),
     (c) => c.id,
@@ -109,7 +125,9 @@ export function validateCheckpointsConfig(input: unknown) {
     (g) => g.id,
     32,
   );
-  const alreadyReached = Array.isArray(root.alreadyReached) ? root.alreadyReached.map((v, i) => issues.id(v, `alreadyReached[${i}]`)) : [];
+  const alreadyReached = Array.isArray(root.alreadyReached)
+    ? root.alreadyReached.map((v, i) => issues.id(v, `alreadyReached[${i}]`))
+    : [];
   for (const id of alreadyReached) {
     if (id && !checkpoints.some((c) => c.id === id)) {
       issues.add('alreadyReached', `unknown checkpoint "${id}"`);
@@ -123,7 +141,8 @@ export const CHECKPOINTS_CAPABILITY_ID = 'gameplay.checkpoints';
 export const checkpointsCapability: CapabilityDefinition<CheckpointsConfig, GameplayRuntime> = {
   id: CHECKPOINTS_CAPABILITY_ID,
   version: '1.0.0',
-  description: 'Course checkpoints and goals: the single checkpoint list hazards and recovery resolve against.',
+  description:
+    'Course checkpoints and goals: the single checkpoint list hazards and recovery resolve against.',
   defaults: { checkpoints: [], goals: [], alreadyReached: [] },
   validate: validateCheckpointsConfig,
   install(runtime, config) {
@@ -131,13 +150,19 @@ export const checkpointsCapability: CapabilityDefinition<CheckpointsConfig, Game
     const order: string[] = [];
     for (const spec of config.checkpoints) {
       const entity = world.create(entityKey('checkpoint', spec.id));
-      world.add(entity, CheckpointComponent, { spec, reached: config.alreadyReached.includes(spec.id) });
+      world.add(entity, CheckpointComponent, {
+        spec,
+        reached: config.alreadyReached.includes(spec.id),
+      });
       if (config.alreadyReached.includes(spec.id)) {
         order.push(spec.id);
       }
     }
     for (const spec of config.goals) {
-      world.add(world.create(entityKey('goal', spec.id)), CourseGoalComponent, { spec, reached: false });
+      world.add(world.create(entityKey('goal', spec.id)), CourseGoalComponent, {
+        spec,
+        reached: false,
+      });
     }
     const stateOf = (id: string) => {
       const entity = world.bySemanticId(entityKey('checkpoint', id));
@@ -145,7 +170,9 @@ export const checkpointsCapability: CapabilityDefinition<CheckpointsConfig, Game
     };
     const target = (id: string): CheckpointTarget | null => {
       const state = stateOf(id);
-      return state ? { id, position: state.spec.position, yaw: state.spec.yaw, label: state.spec.label } : null;
+      return state
+        ? { id, position: state.spec.position, yaw: state.spec.yaw, label: state.spec.label }
+        : null;
     };
     const api: CheckpointsApi = {
       latest: () => (order.length > 0 ? target(order[order.length - 1]!) : null),
@@ -187,12 +214,20 @@ export const checkpointsCapability: CapabilityDefinition<CheckpointsConfig, Game
           if (state.reached || (spec.requiresSignalId && !signals.get(spec.requiresSignalId))) {
             continue;
           }
-          const near = Math.abs(player.x - spec.position.x) <= spec.halfSize && Math.abs(player.z - spec.position.z) <= spec.halfSize;
+          const near =
+            Math.abs(player.x - spec.position.x) <= spec.halfSize &&
+            Math.abs(player.z - spec.position.z) <= spec.halfSize;
           if (near) {
             state.reached = true;
             order.push(spec.id);
-            emitPresentation(runtime, 'CourseCheckpointReached', { checkpointId: spec.id, label: spec.label });
-            emitClaim(runtime, 'course.checkpoint.reached', { courseId: spec.courseId, checkpointId: spec.id });
+            emitPresentation(runtime, 'CourseCheckpointReached', {
+              checkpointId: spec.id,
+              label: spec.label,
+            });
+            emitClaim(runtime, 'course.checkpoint.reached', {
+              courseId: spec.courseId,
+              checkpointId: spec.id,
+            });
           }
         }
         for (const entity of world.query(CourseGoalComponent)) {
@@ -200,7 +235,10 @@ export const checkpointsCapability: CapabilityDefinition<CheckpointsConfig, Game
           if (!state.reached && rectContains(state.spec.rect, player.x, player.z)) {
             state.reached = true;
             emitPresentation(runtime, 'PlatformGoalReached', { goalId: state.spec.id });
-            emitClaim(runtime, 'course.completed', { courseId: state.spec.courseId, goalId: state.spec.id });
+            emitClaim(runtime, 'course.completed', {
+              courseId: state.spec.courseId,
+              goalId: state.spec.id,
+            });
           }
         }
       },

@@ -544,19 +544,26 @@ export function createLocationEngine<R extends RendererLike>(
   // controller's own recovery) returns to the latest of whichever holds them, so a fall and a
   // bridge hazard go to the same checkpoint. With neither, the controller's last safe ground.
   const bridgeLatestCheckpoint = () =>
-    (extensionMounts.get('engineBridge')?.api as
-      | { latestCheckpoint?: () => { id: string; x: number; z: number; yaw: number } | null }
-      | undefined)?.latestCheckpoint?.() ?? null;
+    (
+      extensionMounts.get('engineBridge')?.api as
+        | { latestCheckpoint?: () => { id: string; x: number; z: number; yaw: number } | null }
+        | undefined
+    )?.latestCheckpoint?.() ?? null;
   const bridgeSafeGround = () =>
-    (extensionMounts.get('engineBridge')?.api as { isSafeGround?: (x: number, y: number, z: number) => boolean } | undefined)?.isSafeGround;
+    (
+      extensionMounts.get('engineBridge')?.api as
+        { isSafeGround?: (x: number, y: number, z: number) => boolean } | undefined
+    )?.isSafeGround;
   const controller = new FirstPersonController({
     // GE-068: last-safe-ground is never an engine moving, falling or bounce platform either.
     // Read per call (the bridge mounts after this controller), so with no bridge and no live
     // platforms the controller keeps its own default.
-    ...(platformSystem || manifest.extensions?.some((binding) => binding.extensionId === 'engineBridge')
+    ...(platformSystem ||
+    manifest.extensions?.some((binding) => binding.extensionId === 'engineBridge')
       ? {
           isSafeGround: (x: number, y: number, z: number) =>
-            (platformSystem?.isSafeGround(x, y, z) ?? true) && (bridgeSafeGround()?.(x, y, z) ?? true),
+            (platformSystem?.isSafeGround(x, y, z) ?? true) &&
+            (bridgeSafeGround()?.(x, y, z) ?? true),
         }
       : {}),
     recoveryPoint: () => {
@@ -1699,7 +1706,10 @@ export function createLocationEngine<R extends RendererLike>(
           bus.emit('PlayerRecovered', {
             reason: event.reason,
             ...(platformSystem || bridgeLatestCheckpoint()
-              ? { checkpointId: platformSystem?.latestCheckpointId() ?? bridgeLatestCheckpoint()?.id ?? null }
+              ? {
+                  checkpointId:
+                    platformSystem?.latestCheckpointId() ?? bridgeLatestCheckpoint()?.id ?? null,
+                }
               : {}),
           });
           break;

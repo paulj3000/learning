@@ -44,7 +44,9 @@ NORTH_POLE_ASSIGNMENTS: tuple[tuple[str, str, str, str, str], ...] = (
 
 
 class Command(BaseCommand):
-    help = "Create missing North Pole sound cues and Area assignments. Create-only, never publishes."
+    help = (
+        "Create missing North Pole sound cues and Area assignments. Create-only, never publishes."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Report only; write nothing.")

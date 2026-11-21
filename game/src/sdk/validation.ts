@@ -24,15 +24,26 @@ export function checkId(value: unknown, path: string, issues: ValidationIssue[])
   return true;
 }
 
-export function checkLocalisationKey(value: unknown, path: string, issues: ValidationIssue[]): value is string {
+export function checkLocalisationKey(
+  value: unknown,
+  path: string,
+  issues: ValidationIssue[],
+): value is string {
   if (typeof value !== 'string' || !LOCALISATION_KEY.test(value)) {
-    issues.push({ path, message: 'must be a localisation key like "realm.name.title", never literal copy' });
+    issues.push({
+      path,
+      message: 'must be a localisation key like "realm.name.title", never literal copy',
+    });
     return false;
   }
   return true;
 }
 
-export function checkSemver(value: unknown, path: string, issues: ValidationIssue[]): value is string {
+export function checkSemver(
+  value: unknown,
+  path: string,
+  issues: ValidationIssue[],
+): value is string {
   if (typeof value !== 'string' || !SEMVER_EXACT.test(value)) {
     issues.push({ path, message: 'must be a semver version like "1.0.0"' });
     return false;
@@ -66,12 +77,20 @@ export function checkIdArray(
     }
   });
   if (options.min && out.length < options.min) {
-    issues.push({ path, message: `needs at least ${options.min} entr${options.min === 1 ? 'y' : 'ies'}` });
+    issues.push({
+      path,
+      message: `needs at least ${options.min} entr${options.min === 1 ? 'y' : 'ies'}`,
+    });
   }
   return out;
 }
 
-export function checkStrictKeys(value: UnknownRecord, allowed: readonly string[], path: string, issues: ValidationIssue[]): void {
+export function checkStrictKeys(
+  value: UnknownRecord,
+  allowed: readonly string[],
+  path: string,
+  issues: ValidationIssue[],
+): void {
   const set = new Set(allowed);
   for (const key of Object.keys(value)) {
     if (!set.has(key)) {
@@ -81,13 +100,21 @@ export function checkStrictKeys(value: UnknownRecord, allowed: readonly string[]
 }
 
 /** Dotted paths of every key (at any depth) that looks like a timer. Depth-limited, cycle-safe. */
-export function findTimerFields(value: unknown, path = '', found: string[] = [], depth = 0, seen = new Set<unknown>()): string[] {
+export function findTimerFields(
+  value: unknown,
+  path = '',
+  found: string[] = [],
+  depth = 0,
+  seen = new Set<unknown>(),
+): string[] {
   if (depth > 12 || typeof value !== 'object' || value === null || seen.has(value)) {
     return found;
   }
   seen.add(value);
   if (Array.isArray(value)) {
-    value.forEach((item, index) => findTimerFields(item, `${path}[${index}]`, found, depth + 1, seen));
+    value.forEach((item, index) =>
+      findTimerFields(item, `${path}[${index}]`, found, depth + 1, seen),
+    );
     return found;
   }
   for (const [key, child] of Object.entries(value)) {

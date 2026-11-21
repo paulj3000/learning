@@ -84,11 +84,20 @@ NORTH_POLE_CUES: tuple[CueSpec, ...] = (
         fade_in_ms=600,
         fade_out_ms=1200,
     ),
-    _ambient("landing", "Soft snowy wind and distant sleigh bells. Santa's Landing and the village."),
-    _ambient("workshop", "Quiet machinery hum, tinkling toys and a ticking clock. Santa's Workshop."),
-    _ambient("forest", "Soft wind through frosty trees and a faint crystalline tinkle. Candy Cane Forest."),
+    _ambient(
+        "landing", "Soft snowy wind and distant sleigh bells. Santa's Landing and the village."
+    ),
+    _ambient(
+        "workshop", "Quiet machinery hum, tinkling toys and a ticking clock. Santa's Workshop."
+    ),
+    _ambient(
+        "forest",
+        "Soft wind through frosty trees and a faint crystalline tinkle. Candy Cane Forest.",
+    ),
     _ambient("lake", "Wide, calm ice creaks and a light breeze. Frozen Lake."),
-    _ambient("stables", "Gentle breathing, soft hooves in straw and a distant bell. Reindeer Stables."),
+    _ambient(
+        "stables", "Gentle breathing, soft hooves in straw and a distant bell. Reindeer Stables."
+    ),
     _ambient("gingerbread", "Warm, cosy village murmur and a crackling oven. Gingerbread Village."),
     _ambient("mountain_wind", "Open, high wind over snow. Snowflake Mountain."),
     _ambient("observatory", "Hushed night air and a faint, slow star shimmer. Observatory."),
@@ -107,7 +116,9 @@ NORTH_POLE_CUES: tuple[CueSpec, ...] = (
         wired=False,
         cooldown_ms=120,
     ),
-    _sfx("collect", "Item collected", "A bright, short chime when a pickup is collected.", wired=True),
+    _sfx(
+        "collect", "Item collected", "A bright, short chime when a pickup is collected.", wired=True
+    ),
     _sfx(
         "fragment",
         "Star fragment collected",
@@ -179,4 +190,5 @@ NORTH_POLE_CUES: tuple[CueSpec, ...] = (
 
 NORTH_POLE_CUE_IDS: frozenset[str] = frozenset(spec.cue_id for spec in NORTH_POLE_CUES)
 
-assert all(CUE_ID.match(spec.cue_id) for spec in NORTH_POLE_CUES)
+if not all(CUE_ID.match(spec.cue_id) for spec in NORTH_POLE_CUES):
+    raise AssertionError("a North Pole cue id does not match CUE_ID")

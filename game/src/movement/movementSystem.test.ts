@@ -21,8 +21,18 @@ interface LatestCheckpoint {
 
 function setup(options: { colliders?: boolean; checkpoints?: LatestCheckpoint } = {}) {
   const physics = createAabbPhysicsProvider();
-  physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 3, y: 0, z: -3 }, max: { x: 4, y: 3, z: 3 } });
-  physics.addCollider({ id: 'crate', kind: 'JUMPABLE', min: { x: -3, y: 0, z: -1 }, max: { x: -2, y: 0.5, z: 1 } });
+  physics.addCollider({
+    id: 'wall',
+    kind: 'SOLID',
+    min: { x: 3, y: 0, z: -3 },
+    max: { x: 4, y: 3, z: 3 },
+  });
+  physics.addCollider({
+    id: 'crate',
+    kind: 'JUMPABLE',
+    min: { x: -3, y: 0, z: -1 },
+    max: { x: -2, y: 0.5, z: 1 },
+  });
   const controller = new FirstPersonController({
     colliders: physics.boxes,
     jumpableColliders: physics.jumpableBoxes,
@@ -57,7 +67,8 @@ function setup(options: { colliders?: boolean; checkpoints?: LatestCheckpoint } 
       frame = { ...frame, jumpPressed: false };
     }
   };
-  const transform = () => runtime.world.require(runtime.world.bySemanticId(PLAYER_ENTITY_ID)!, PlayerTransformComponent);
+  const transform = () =>
+    runtime.world.require(runtime.world.bySemanticId(PLAYER_ENTITY_ID)!, PlayerTransformComponent);
   return { runtime, controller, handle, step, transform, log, physics };
 }
 
@@ -66,7 +77,12 @@ const WALK: MovementInputFrame = { move: { forward: 1, strafe: 0 } };
 describe('movement system', () => {
   it('writes the canonical player transform from the controller', () => {
     const { step, transform, controller } = setup();
-    expect(transform()).toMatchObject({ grounded: true, state: 'IDLE', gait: 'idle', supportId: null });
+    expect(transform()).toMatchObject({
+      grounded: true,
+      state: 'IDLE',
+      gait: 'idle',
+      supportId: null,
+    });
     step(WALK, 30);
     const t = transform();
     expect(t.position.x).toBeCloseTo(controller.position.x);
@@ -107,7 +123,9 @@ describe('movement system', () => {
   });
 
   it('names the latest checkpoint on recovery and never reaches checkpoints itself', () => {
-    const checkpoints: LatestCheckpoint = { latest: () => ({ id: 'cp1', position: { x: 1, y: 0, z: 0 }, yaw: 0 }) };
+    const checkpoints: LatestCheckpoint = {
+      latest: () => ({ id: 'cp1', position: { x: 1, y: 0, z: 0 }, yaw: 0 }),
+    };
     const { step, runtime, controller } = setup({ checkpoints });
     const reached: string[] = [];
     const recovered: unknown[] = [];
@@ -143,7 +161,10 @@ describe('environment gating from installed capabilities', () => {
   it('turns off features whose capability is not installed', async () => {
     const runtime = createEngineRuntime({ id: 'gate' });
     registerMovementCapabilities(runtime.capabilities);
-    await runtime.start([{ id: 'movement.externalForces' }, { id: 'movement.swimming', config: { enabled: false } }]);
+    await runtime.start([
+      { id: 'movement.externalForces' },
+      { id: 'movement.swimming', config: { enabled: false } },
+    ]);
     const features = installedMovementFeatures(runtime);
     expect([...features]).toEqual(['movement.externalForces']);
     const gated = gateEnvironment(source, { features });
@@ -159,6 +180,9 @@ describe('environment gating from installed capabilities', () => {
     const features = new Set(movementCapabilities.map((c) => c.id));
     const gated = gateEnvironment(source, { features, reducedMotion: () => true });
     expect(gated.forcesAt(0, 0, 0)[0]!.acceleration.x).toBe(4);
-    expect(gateEnvironment(source, { features, reducedMotion: () => false }).forcesAt(0, 0, 0)[0]!.acceleration.x).toBe(8);
+    expect(
+      gateEnvironment(source, { features, reducedMotion: () => false }).forcesAt(0, 0, 0)[0]!
+        .acceleration.x,
+    ).toBe(8);
   });
 });

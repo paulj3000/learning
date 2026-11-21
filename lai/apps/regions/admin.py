@@ -424,11 +424,14 @@ class CastleEventAdmin(AuthoredContentAdminMixin, admin.ModelAdmin):
     @admin.display(description="Published lines")
     def published_text(self, obj):
         lines = obj.source.get("lines", {}) if isinstance(obj.source, dict) else {}
-        return format_html_join(
-            "",
-            "<div><strong>{}</strong>: {}</div>",
-            ((band, " ".join(items)) for band, items in lines.items()),
-        ) or "none yet"
+        return (
+            format_html_join(
+                "",
+                "<div><strong>{}</strong>: {}</div>",
+                ((band, " ".join(items)) for band, items in lines.items()),
+            )
+            or "none yet"
+        )
 
     @admin.action(description="Retire the selected events (they are never shown again)")
     def retire_events(self, request, queryset):

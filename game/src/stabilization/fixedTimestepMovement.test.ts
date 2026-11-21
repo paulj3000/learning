@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { PLAYER_ENTITY_ID, PlayerTransformComponent, type PlayerTransform } from '../contracts/player';
+import {
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  type PlayerTransform,
+} from '../contracts/player';
 import type { CapabilityRequest } from '../core/capabilities';
 import type { MovementInputFrame } from '../movement/movementSystem';
 import { createAabbPhysicsProvider, type AabbPhysicsProvider } from '../physics/aabbProvider';
@@ -63,8 +67,18 @@ describe('fixed timestep: frame-rate independent movement', () => {
     const input = scripted(script);
     const physics = createAabbPhysicsProvider();
     // A low step to hop over and a wall to slide along make the result depend on collision order.
-    physics.addCollider({ id: 'step', kind: 'JUMPABLE', min: { x: 4, y: 0, z: -2 }, max: { x: 5, y: 0.5, z: 2 } });
-    physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 14, y: 0, z: -20 }, max: { x: 15, y: 3, z: 20 } });
+    physics.addCollider({
+      id: 'step',
+      kind: 'JUMPABLE',
+      min: { x: 4, y: 0, z: -2 },
+      max: { x: 5, y: 0.5, z: 2 },
+    });
+    physics.addCollider({
+      id: 'wall',
+      kind: 'SOLID',
+      min: { x: 14, y: 0, z: -20 },
+      max: { x: 15, y: 3, z: 20 },
+    });
     const handle = await boot({ input: input.source, physics });
     const frame = 1 / fps;
     let guard = 0;
@@ -111,8 +125,18 @@ describe('fixed timestep: frame-rate independent movement', () => {
     const reference = await run(60);
     const input = scripted(script);
     const physics = createAabbPhysicsProvider();
-    physics.addCollider({ id: 'step', kind: 'JUMPABLE', min: { x: 4, y: 0, z: -2 }, max: { x: 5, y: 0.5, z: 2 } });
-    physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 14, y: 0, z: -20 }, max: { x: 15, y: 3, z: 20 } });
+    physics.addCollider({
+      id: 'step',
+      kind: 'JUMPABLE',
+      min: { x: 4, y: 0, z: -2 },
+      max: { x: 5, y: 0.5, z: 2 },
+    });
+    physics.addCollider({
+      id: 'wall',
+      kind: 'SOLID',
+      min: { x: 14, y: 0, z: -20 },
+      max: { x: 15, y: 3, z: 20 },
+    });
     const handle = await boot({ input: input.source, physics });
     const pattern = [1 / 144, 1 / 30, 1 / 60, 1 / 144, 1 / 144, 1 / 90];
     let i = 0;
@@ -131,10 +155,19 @@ describe('fixed timestep: frame-rate independent movement', () => {
 describe('fixed timestep: a long frame never tunnels through a wall', () => {
   const sprint: MovementInputFrame = { move: { forward: 1, strafe: 0, sprint: true } };
 
-  async function sprintAtThinWall(timestep?: { stepSeconds?: number; maxFrameSeconds?: number; maxStepsPerFrame?: number }) {
+  async function sprintAtThinWall(timestep?: {
+    stepSeconds?: number;
+    maxFrameSeconds?: number;
+    maxStepsPerFrame?: number;
+  }) {
     const physics = createAabbPhysicsProvider();
     // Far thinner than any authored collider: a worst case for tunnelling.
-    physics.addCollider({ id: 'thin', kind: 'SOLID', min: { x: 5, y: 0, z: -10 }, max: { x: 5.05, y: 3, z: 10 } });
+    physics.addCollider({
+      id: 'thin',
+      kind: 'SOLID',
+      min: { x: 5, y: 0, z: -10 },
+      max: { x: 5.05, y: 3, z: 10 },
+    });
     const handle = await boot({ input: () => sprint, physics, ...(timestep ? { timestep } : {}) });
     return { handle };
   }
@@ -162,7 +195,11 @@ describe('fixed timestep: a long frame never tunnels through a wall', () => {
   });
 
   it('the widest allowed step (1/15 s) and frame clamp still cannot cross a thin wall', async () => {
-    const { handle } = await sprintAtThinWall({ stepSeconds: 1 / 15, maxFrameSeconds: 1, maxStepsPerFrame: 15 });
+    const { handle } = await sprintAtThinWall({
+      stepSeconds: 1 / 15,
+      maxFrameSeconds: 1,
+      maxStepsPerFrame: 15,
+    });
     for (let i = 0; i < 40; i += 1) {
       handle.runtime.tick(1);
       expect(handle.controller.position.x).toBeLessThan(5);
@@ -206,8 +243,16 @@ describe('movement and collision consistency', () => {
 
   it('the canonical transform equals the controller position after every step (walk, jump, wall)', async () => {
     const physics = createAabbPhysicsProvider();
-    physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 6, y: 0, z: -5 }, max: { x: 7, y: 3, z: 5 } });
-    const input = scripted((step) => ({ move: { forward: 1, strafe: step % 90 < 45 ? 0 : 0.3 }, ...(step === 20 || step === 120 ? { jumpPressed: true } : {}) }));
+    physics.addCollider({
+      id: 'wall',
+      kind: 'SOLID',
+      min: { x: 6, y: 0, z: -5 },
+      max: { x: 7, y: 3, z: 5 },
+    });
+    const input = scripted((step) => ({
+      move: { forward: 1, strafe: step % 90 < 45 ? 0 : 0.3 },
+      ...(step === 20 || step === 120 ? { jumpPressed: true } : {}),
+    }));
     const handle = await boot({ input: input.source, physics });
     const audit = auditTransform(handle);
     for (let i = 0; i < 400; i += 1) handle.runtime.tick(1 / 60);
@@ -233,10 +278,18 @@ describe('movement and collision consistency', () => {
 
   it('achieved velocity is zero into a wall and the gait settles to idle (no walking in place)', async () => {
     const physics = createAabbPhysicsProvider();
-    physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 3, y: 0, z: -5 }, max: { x: 4, y: 3, z: 5 } });
+    physics.addCollider({
+      id: 'wall',
+      kind: 'SOLID',
+      min: { x: 3, y: 0, z: -5 },
+      max: { x: 4, y: 3, z: 5 },
+    });
     const handle = await boot({ input: () => ({ move: { forward: 1, strafe: 0 } }), physics });
     const gaits: string[] = [];
-    handle.runtime.events.on('PlayerGaitChanged' as never, ((e: { gait: string }) => gaits.push(e.gait)) as never);
+    handle.runtime.events.on(
+      'PlayerGaitChanged' as never,
+      ((e: { gait: string }) => gaits.push(e.gait)) as never,
+    );
     for (let i = 0; i < 240; i += 1) handle.runtime.tick(1 / 60);
     const t = transformOf(handle);
     expect(t.position.x).toBeLessThan(3);
@@ -252,7 +305,12 @@ describe('movement and collision consistency', () => {
 
   it('pressing diagonally into a wall slides along it with no drift into the wall', async () => {
     const physics = createAabbPhysicsProvider();
-    physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 3, y: 0, z: -50 }, max: { x: 4, y: 3, z: 50 } });
+    physics.addCollider({
+      id: 'wall',
+      kind: 'SOLID',
+      min: { x: 3, y: 0, z: -50 },
+      max: { x: 4, y: 3, z: 50 },
+    });
     const handle = await boot({ input: () => ({ move: { forward: 1, strafe: 1 } }), physics });
     for (let i = 0; i < 240; i += 1) {
       handle.runtime.tick(1 / 60);
@@ -278,13 +336,25 @@ describe('movement and collision consistency', () => {
               position: { x: 0, y: 0, z: 0 },
               size: { x: 2, y: 0.5, z: 2 },
               route: 'OPTIONAL',
-              moving: { path: [{ x: 0, y: 0, z: 0 }, { x: 6, y: 0, z: 0 }], mode: 'PING_PONG', speed: 1, pauseSeconds: 0 },
+              moving: {
+                path: [
+                  { x: 0, y: 0, z: 0 },
+                  { x: 6, y: 0, z: 0 },
+                ],
+                mode: 'PING_PONG',
+                speed: 1,
+                pauseSeconds: 0,
+              },
             },
           ],
         },
       },
     ];
-    const handle = await boot({ requests, input: () => ({ move: { forward: 0, strafe: 0 } }), start: { x: 0, y: 0.5, z: 0 } });
+    const handle = await boot({
+      requests,
+      input: () => ({ move: { forward: 0, strafe: 0 } }),
+      start: { x: 0, y: 0.5, z: 0 },
+    });
     const mismatches: number[] = [];
     handle.runtime.systems.add({
       id: 'stabilization.audit',

@@ -90,9 +90,12 @@ def _evidence(child, rule):
     if entry is None:
         return False, None
     stories = {p.slug for p in entry.producers if p.kind == protected.STORY}
-    if stories and StoryProgress.objects.for_child(child).filter(
-        story_slug__in=stories, completed_at__isnull=False
-    ).exists():
+    if (
+        stories
+        and StoryProgress.objects.for_child(child)
+        .filter(story_slug__in=stories, completed_at__isnull=False)
+        .exists()
+    ):
         return True, None
     for producer in entry.producers:
         if producer.kind == protected.ADVENTURE:

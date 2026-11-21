@@ -46,7 +46,9 @@ describe('StorybookSection', () => {
     const { onGo } = setup(book(NOTHING));
     const item = screen.getByText('The First Story').closest('li')!;
     expect(
-      within(item).getByText(/Missing\. Not found yet\. Tell a story with Keeper Quill in the Story Hall\./),
+      within(item).getByText(
+        /Missing\. Not found yet\. Tell a story with Keeper Quill in the Story Hall\./,
+      ),
     ).toBeInTheDocument();
     fireEvent.click(within(item).getByRole('button', { name: /go to the story hall/i }));
     expect(onGo).toHaveBeenCalledWith('story-hall');

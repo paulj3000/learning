@@ -22,7 +22,9 @@ const text = renderGameplayEventVectors();
 
 if (process.argv.includes('--check')) {
   if (!existsSync(target) || readFileSync(target, 'utf-8') !== text) {
-    console.error(`tests/contracts/${GAMEPLAY_EVENT_GOLDEN_FILE} is missing or out of date. Run \`npm run engine:vectors\`.`);
+    console.error(
+      `tests/contracts/${GAMEPLAY_EVENT_GOLDEN_FILE} is missing or out of date. Run \`npm run engine:vectors\`.`,
+    );
     process.exit(1);
   }
   console.log('Engine contract vectors up to date.');

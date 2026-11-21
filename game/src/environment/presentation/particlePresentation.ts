@@ -21,12 +21,25 @@ export interface ParticleView {
   setAppearance(color: number, size: number): void;
 }
 
-export function createParticleView(scene: Scene, scope: ResourceScope, capacity: number, options: ParticleViewOptions): ParticleView {
+export function createParticleView(
+  scene: Scene,
+  scope: ResourceScope,
+  capacity: number,
+  options: ParticleViewOptions,
+): ParticleView {
   const geometry = scope.track(new BufferGeometry());
   const positions = new Float32Array(Math.max(1, capacity) * 3);
   geometry.setAttribute('position', new BufferAttribute(positions, 3));
   geometry.setDrawRange(0, 0);
-  const material = scope.track(new PointsMaterial({ color: options.color, size: options.size, transparent: true, opacity: 0.85, depthWrite: false }));
+  const material = scope.track(
+    new PointsMaterial({
+      color: options.color,
+      size: options.size,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+    }),
+  );
   const points = new Points(geometry, material);
   points.name = options.name;
   points.frustumCulled = false;

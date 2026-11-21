@@ -34,7 +34,9 @@ describe('realm definition', () => {
       ],
     });
     const paths = result.issues.map((issue) => issue.path);
-    expect(paths).toEqual(expect.arrayContaining(['id', 'version', 'ageBands[1]', 'ageBands[2]', 'places[1].id']));
+    expect(paths).toEqual(
+      expect.arrayContaining(['id', 'version', 'ageBands[1]', 'ageBands[2]', 'places[1].id']),
+    );
   });
 
   it('rejects an area that belongs to two places', () => {

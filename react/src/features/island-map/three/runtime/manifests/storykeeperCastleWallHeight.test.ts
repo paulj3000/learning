@@ -24,8 +24,12 @@ function ceilingHeights(manifest: ThreeLocationManifest) {
     wallTops: faces.flatMap((face) => (face.kind === 'WALL' ? [face.maxY] : [])),
     corniceTops: surfaces
       .filter((surface) => surface.id.endsWith(':trim') || surface.materialId === 'trim-dark-wood')
-      .flatMap((surface) => surface.faces.flatMap((face) => (face.kind === 'WALL' ? [face.maxY] : []))),
-    lamps: (manifest.lights ?? []).filter((light) => light.id.startsWith('light:') && light.position.y > 2.2),
+      .flatMap((surface) =>
+        surface.faces.flatMap((face) => (face.kind === 'WALL' ? [face.maxY] : [])),
+      ),
+    lamps: (manifest.lights ?? []).filter(
+      (light) => light.id.startsWith('light:') && light.position.y > 2.2,
+    ),
     beams: manifest.scenery.flatMap((item) =>
       item.kind === 'BOX' && item.id.includes('beam') ? [item.maxY] : [],
     ),
@@ -34,7 +38,9 @@ function ceilingHeights(manifest: ThreeLocationManifest) {
       .map((collider) => collider.maxY ?? 0),
     allColliders: manifest.colliders.map((collider) => collider.maxY ?? 0),
     slabs: manifest.scenery.flatMap((item) =>
-      item.kind === 'CLUSTER' && item.id === 'room-ceilings' ? item.positions.map((p) => p.y ?? 0) : [],
+      item.kind === 'CLUSTER' && item.id === 'room-ceilings'
+        ? item.positions.map((p) => p.y ?? 0)
+        : [],
     ),
   };
 }
@@ -58,7 +64,9 @@ describe('castle wallHeight (SC-R11)', () => {
     const solids = solidColliders(STORYKEEPER_CASTLE_MANIFEST);
     expect(solids.length).toBeGreaterThan(0);
     expect(Math.max(...solids.map((solid) => solid.box.maxY))).toBeLessThanOrEqual(3);
-    for (const volume of triggerVolumes(STORYKEEPER_CASTLE_MANIFEST, []).filter((v) => v.kind === 'ZONE')) {
+    for (const volume of triggerVolumes(STORYKEEPER_CASTLE_MANIFEST, []).filter(
+      (v) => v.kind === 'ZONE',
+    )) {
       expect(volume.box.maxY).toBe(3);
     }
   });

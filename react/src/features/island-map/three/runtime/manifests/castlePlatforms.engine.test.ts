@@ -23,16 +23,23 @@ const named = (h: Harness, name: string) => h.events.filter((event) => event.nam
 describe('castle platforms in the real engine', () => {
   it('builds the solid pads for Pathfinders and keeps the storybook pathway hidden until a page is back', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    harness = mount({ manifest: manifestForBand(MANIFEST, 'PATHFINDER'), extensions: [castleTaleExtension] });
+    harness = mount({
+      manifest: manifestForBand(MANIFEST, 'PATHFINDER'),
+      extensions: [castleTaleExtension],
+    });
     harness.runFrames(2);
     const platforms = harness.engine.platforms();
     expect(platforms.length).toBe(MANIFEST.platforming!.platforms.length);
     expect(harness.scene().getObjectByName('platforming')).toBeDefined();
     for (const pad of STORYBOOK_PATHWAY_GROUP.pads) {
-      const state = platforms.find((candidate) => candidate.spec.id === padPlatformId('storybook-pathway', pad.key));
+      const state = platforms.find(
+        (candidate) => candidate.spec.id === padPlatformId('storybook-pathway', pad.key),
+      );
       expect(state?.present, pad.key).toBe(false);
     }
-    const stone = platforms.find((candidate) => candidate.spec.id === padPlatformId('story-hall', 'choice'));
+    const stone = platforms.find(
+      (candidate) => candidate.spec.id === padPlatformId('story-hall', 'choice'),
+    );
     expect(stone?.present).toBe(true);
   });
 
@@ -51,7 +58,10 @@ describe('castle platforms in the real engine', () => {
 
   it('gives Sprouts no solid platform at all, only flat markers', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    harness = mount({ manifest: manifestForBand(MANIFEST, 'SPROUT'), extensions: [castleTaleExtension] });
+    harness = mount({
+      manifest: manifestForBand(MANIFEST, 'SPROUT'),
+      extensions: [castleTaleExtension],
+    });
     harness.runFrames(2);
     expect(harness.engine.platforms()).toEqual([]);
     const root = harness.scene().getObjectByName('platforming');
@@ -62,7 +72,9 @@ describe('castle platforms in the real engine', () => {
   it('lets a child jump onto a story stone and stand in its answer zone, and walk off it unharmed', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     harness = mount({ manifest: MANIFEST, extensions: [castleTaleExtension] });
-    const stone = MANIFEST.platforming!.platforms.find((p) => p.id === padPlatformId('story-hall', 'ending'))!;
+    const stone = MANIFEST.platforming!.platforms.find(
+      (p) => p.id === padPlatformId('story-hall', 'ending'),
+    )!;
     // Two metres south of the stone, facing it (north is yaw 0), then jump and walk forward.
     harness.setDrive(standAt(stone.position.x, stone.position.z - 2, 0));
     harness.runFrames(2);
@@ -81,7 +93,9 @@ describe('castle platforms in the real engine', () => {
     expect(Math.abs(at.x - stone.position.x)).toBeLessThan(stone.size.width / 2 + 0.6);
     expect(named(harness, 'PlayerJumped').length).toBeGreaterThan(0);
     // The ground-plane answer zone is what the session listens to, whatever the child's height.
-    const entered = named(harness, 'PlayerEnteredZone').map((event) => (event.detail as { zoneId: string }).zoneId);
+    const entered = named(harness, 'PlayerEnteredZone').map(
+      (event) => (event.detail as { zoneId: string }).zoneId,
+    );
     expect(entered).toContain(padZoneId('story-hall', 'ending'));
     // A missed or finished jump never costs anything: no recovery was needed.
     expect(named(harness, 'PlayerRecovered')).toEqual([]);

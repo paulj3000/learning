@@ -101,16 +101,16 @@ const SHARED_MATERIALS: readonly MaterialPresetSpec[] = [
 /** Every room that has had its visual pass, in castle order (the Library first, as SC-R02-02 came first). */
 function roomVisualsFor(wallHeight: number): readonly RoomVisuals[] {
   return [
-  greatLibraryVisuals(wallHeight),
-  entryHallVisuals(wallHeight),
-  STORY_HALL_VISUALS,
-  CHARACTER_GALLERY_VISUALS,
-  COSTUME_ROOM_VISUALS,
-  EAST_CORRIDOR_VISUALS,
-  SETTING_TOWER_VISUALS,
-  ILLUSTRATION_STUDIO_VISUALS,
-  TROPHY_ROOM_VISUALS,
-  SECRET_CHAMBER_VISUALS,
+    greatLibraryVisuals(wallHeight),
+    entryHallVisuals(wallHeight),
+    STORY_HALL_VISUALS,
+    CHARACTER_GALLERY_VISUALS,
+    COSTUME_ROOM_VISUALS,
+    EAST_CORRIDOR_VISUALS,
+    SETTING_TOWER_VISUALS,
+    ILLUSTRATION_STUDIO_VISUALS,
+    TROPHY_ROOM_VISUALS,
+    SECRET_CHAMBER_VISUALS,
   ];
 }
 const ROOM_VISUALS: readonly RoomVisuals[] = roomVisualsFor(WALL_HEIGHT);
@@ -228,7 +228,11 @@ function lookSurfaces(look: RoomLook, wallHeight: number): SurfaceSpec[] {
       id: id('ceiling'),
       materialId: look.ceiling,
       faces: [
-        { kind: 'CEILING', area: { ...floor, id: id('ceiling:area') }, y: ceilingSurfaceY(wallHeight) },
+        {
+          kind: 'CEILING',
+          area: { ...floor, id: id('ceiling:area') },
+          y: ceilingSurfaceY(wallHeight),
+        },
       ],
     },
   ];

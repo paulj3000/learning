@@ -11,8 +11,22 @@ import type { ThreeLocationManifest } from '../locationManifest';
 export function gameplaySnapshot(manifest: ThreeLocationManifest): Record<string, unknown> {
   const platforming = manifest.platforming;
   return {
-    colliders: manifest.colliders.map((c) => [c.rect.id, c.rect.minX, c.rect.maxX, c.rect.minZ, c.rect.maxZ, c.minY, c.maxY]),
-    zones: manifest.zones.map((z) => [z.rect.id, z.rect.minX, z.rect.maxX, z.rect.minZ, z.rect.maxZ]),
+    colliders: manifest.colliders.map((c) => [
+      c.rect.id,
+      c.rect.minX,
+      c.rect.maxX,
+      c.rect.minZ,
+      c.rect.maxZ,
+      c.minY,
+      c.maxY,
+    ]),
+    zones: manifest.zones.map((z) => [
+      z.rect.id,
+      z.rect.minX,
+      z.rect.maxX,
+      z.rect.minZ,
+      z.rect.maxZ,
+    ]),
     interactions: manifest.interactions.map((i) => i.id),
     checkpoints: manifest.checkpoints,
     props: manifest.props.map((p) => p.entityId),
@@ -45,7 +59,8 @@ export const BASELINE_COLLIDER_MOVES: Readonly<Record<string, { dz: number }>> =
   'collider:costume-rack-c': { dz: -0.7 },
 };
 
-const round = (value: unknown) => (typeof value === 'number' ? Math.round(value * 1e6) / 1e6 : value);
+const round = (value: unknown) =>
+  typeof value === 'number' ? Math.round(value * 1e6) / 1e6 : value;
 
 /** Snapshot collider rows `[id, minX, maxX, minZ, maxZ, minY, maxY]`, rounded to a micrometre. */
 export function roundedColliders(rows: readonly unknown[]): unknown[][] {

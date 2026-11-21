@@ -116,12 +116,21 @@ export class AnimationStateMachine {
   private readonly blender = new CrossfadeBlender();
   private state = '';
   private gesture: { role: string; remaining: number } | null = null;
-  private last: AnimationFrame = { state: '', requestedRole: '', weights: {}, timeScales: {}, oneShots: [] };
+  private last: AnimationFrame = {
+    state: '',
+    requestedRole: '',
+    weights: {},
+    timeScales: {},
+    oneShots: [],
+  };
 
   private readonly map: AnimationMap;
   private readonly definition: AnimationMachineDefinition;
 
-  constructor(map: AnimationMap, definition: AnimationMachineDefinition = DEFAULT_ANIMATION_DEFINITION) {
+  constructor(
+    map: AnimationMap,
+    definition: AnimationMachineDefinition = DEFAULT_ANIMATION_DEFINITION,
+  ) {
     this.map = map;
     this.definition = definition;
   }
@@ -175,12 +184,20 @@ export class AnimationStateMachine {
     }
     const weights = this.blender.advance(dt);
     const oneShots = Object.keys(weights).filter((clip) => this.isOneShotClip(clip));
-    this.last = { state: resolved.state, requestedRole: requested, weights, timeScales: resolved.timeScales, oneShots };
+    this.last = {
+      state: resolved.state,
+      requestedRole: requested,
+      weights,
+      timeScales: resolved.timeScales,
+      oneShots,
+    };
     return this.last;
   }
 
   private isOneShotClip(clip: string): boolean {
-    return Object.entries(this.map).some(([role, name]) => name === clip && this.definition.states[role]?.loop === false);
+    return Object.entries(this.map).some(
+      ([role, name]) => name === clip && this.definition.states[role]?.loop === false,
+    );
   }
 
   private fadeSeconds(from: string, to: string): number {
@@ -204,7 +221,11 @@ export class AnimationStateMachine {
           return ground;
         }
       } else if (this.hasClip(next)) {
-        return { state: next, weights: { [this.map[next]!]: 1 }, timeScales: { [this.map[next]!]: 1 } };
+        return {
+          state: next,
+          weights: { [this.map[next]!]: 1 },
+          timeScales: { [this.map[next]!]: 1 },
+        };
       }
       queue.unshift(...(this.definition.states[next]?.fallbacks ?? []));
     }

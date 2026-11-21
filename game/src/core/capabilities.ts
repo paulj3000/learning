@@ -73,18 +73,30 @@ export function createCapabilityRegistry<Context = unknown>(): CapabilityRegistr
   const registry: CapabilityRegistry<Context> = {
     register(definition) {
       if (!ID_PATTERN.test(definition.id)) {
-        throw new EngineError('INVALID_CONFIG', `Capability id "${definition.id}" must be dotted lowerCamel with a namespace`, {
-          id: definition.id,
-        });
+        throw new EngineError(
+          'INVALID_CONFIG',
+          `Capability id "${definition.id}" must be dotted lowerCamel with a namespace`,
+          {
+            id: definition.id,
+          },
+        );
       }
       if (!SEMVER.test(definition.version)) {
-        throw new EngineError('INVALID_CONFIG', `Capability "${definition.id}" version must be semver`, {
-          id: definition.id,
-          version: definition.version,
-        });
+        throw new EngineError(
+          'INVALID_CONFIG',
+          `Capability "${definition.id}" version must be semver`,
+          {
+            id: definition.id,
+            version: definition.version,
+          },
+        );
       }
       if (definitions.has(definition.id)) {
-        throw new EngineError('DUPLICATE_ID', `Capability "${definition.id}" is already registered`, { id: definition.id });
+        throw new EngineError(
+          'DUPLICATE_ID',
+          `Capability "${definition.id}" is already registered`,
+          { id: definition.id },
+        );
       }
       definitions.set(definition.id, definition as AnyCapability<Context>);
     },
@@ -106,7 +118,10 @@ export function resolveCapabilities<Context>(
   const requested = new Map<CapabilityId, CapabilityRequest>();
   requests.forEach((request, index) => {
     if (requested.has(request.id)) {
-      issues.push({ path: `capabilities[${index}]`, message: `Capability "${request.id}" is listed twice` });
+      issues.push({
+        path: `capabilities[${index}]`,
+        message: `Capability "${request.id}" is listed twice`,
+      });
       return;
     }
     requested.set(request.id, request);
@@ -124,7 +139,10 @@ export function resolveCapabilities<Context>(
     }
     for (const dependency of definition.requires ?? []) {
       if (!definitions.has(dependency)) {
-        issues.push({ path: `capabilities.${id}.requires`, message: `"${id}" requires unknown capability "${dependency}"` });
+        issues.push({
+          path: `capabilities.${id}.requires`,
+          message: `"${id}" requires unknown capability "${dependency}"`,
+        });
       } else if (!needed.has(dependency)) {
         needed.set(dependency, { id: dependency });
         queue.push(dependency);
@@ -141,7 +159,10 @@ export function resolveCapabilities<Context>(
       return;
     }
     if (state.get(id) === 'visiting') {
-      issues.push({ path: `capabilities.${id}`, message: `Capability dependency cycle: ${[...trail, id].join(' -> ')}` });
+      issues.push({
+        path: `capabilities.${id}`,
+        message: `Capability dependency cycle: ${[...trail, id].join(' -> ')}`,
+      });
       return;
     }
     state.set(id, 'visiting');
@@ -155,7 +176,10 @@ export function resolveCapabilities<Context>(
       order.push({ definition, config: result.value });
     } else {
       for (const issue of result.issues) {
-        issues.push({ path: `capabilities.${id}${issue.path ? `.${issue.path}` : ''}`, message: issue.message });
+        issues.push({
+          path: `capabilities.${id}${issue.path ? `.${issue.path}` : ''}`,
+          message: issue.message,
+        });
       }
     }
   };

@@ -11,7 +11,12 @@ import { createHarness } from './testHarness';
 const harness = () => createHarness(registerGameplayComponents);
 
 describe('collectibles', () => {
-  const config = { collectibles: [{ id: 'coin.a', position: { x: 0, y: 0, z: 0 }, pickupRadius: 1, setId: 'set.coins' }, { id: 'coin.b', position: { x: 10, y: 0, z: 0 } }] };
+  const config = {
+    collectibles: [
+      { id: 'coin.a', position: { x: 0, y: 0, z: 0 }, pickupRadius: 1, setId: 'set.coins' },
+      { id: 'coin.b', position: { x: 10, y: 0, z: 0 } },
+    ],
+  };
 
   it('claims once per visit when within the pickup radius on x/z', async () => {
     const h = harness();
@@ -36,7 +41,9 @@ describe('collectibles', () => {
 
   it('does not re-emit for an id the host says is already collected, and ignores far vertical offsets', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.collectibles', config: { ...config, alreadyCollected: ['coin.a'] } }]);
+    await h.start([
+      { id: 'gameplay.collectibles', config: { ...config, alreadyCollected: ['coin.a'] } },
+    ]);
     h.setPlayer({ x: 0, y: 0, z: 0 });
     h.advance(0.2);
     expect(h.claims).toHaveLength(0);
@@ -47,9 +54,24 @@ describe('collectibles', () => {
   });
 
   it('validates', () => {
-    expect(validateCollectiblesConfig({ collectibles: [{ id: 'a', position: { x: 0, y: 0, z: 0 }, pickupRadius: 99 }] }).ok).toBe(false);
-    expect(validateCollectiblesConfig({ collectibles: [{ id: 'bad id', position: { x: 0, y: 0, z: 0 } }] }).ok).toBe(false);
-    expect(validateCollectiblesConfig({ collectibles: [{ id: 'a', position: { x: 0, y: 0, z: 0 } }, { id: 'a', position: { x: 0, y: 0, z: 0 } }] }).ok).toBe(false);
+    expect(
+      validateCollectiblesConfig({
+        collectibles: [{ id: 'a', position: { x: 0, y: 0, z: 0 }, pickupRadius: 99 }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateCollectiblesConfig({
+        collectibles: [{ id: 'bad id', position: { x: 0, y: 0, z: 0 } }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateCollectiblesConfig({
+        collectibles: [
+          { id: 'a', position: { x: 0, y: 0, z: 0 } },
+          { id: 'a', position: { x: 0, y: 0, z: 0 } },
+        ],
+      }).ok,
+    ).toBe(false);
   });
 });
 
@@ -79,13 +101,31 @@ describe('chests', () => {
     const h = harness();
     await h.start([{ id: 'gameplay.chests', config: { chests } }]);
     const api = h.runtime.services.require(ChestsService);
-    expect(api.submitAnswer('chest.free', 'a1b2c3d4-0000-4000-8000-000000000009', 'shells-4')).toBe(true);
-    expect(api.submitAnswer('chest.replay', 'a1b2c3d4-0000-4000-8000-000000000010', null)).toBe(true);
+    expect(api.submitAnswer('chest.free', 'a1b2c3d4-0000-4000-8000-000000000009', 'shells-4')).toBe(
+      true,
+    );
+    expect(api.submitAnswer('chest.replay', 'a1b2c3d4-0000-4000-8000-000000000010', null)).toBe(
+      true,
+    );
     expect(api.submitAnswer('nope', 'a1b2c3d4-0000-4000-8000-000000000011', null)).toBe(false);
     const claims = h.claimsOfType('learning.answer.submitted');
     expect(claims.map((c) => c.payload)).toEqual([
-      { learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'chest.free', challengeAttemptId: 'a1b2c3d4-0000-4000-8000-000000000009' }, choiceId: 'shells-4' },
-      { learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'chest.replay', challengeAttemptId: 'a1b2c3d4-0000-4000-8000-000000000010' }, choiceId: null },
+      {
+        learningRef: {
+          kind: 'CHEST_CHALLENGE',
+          chestEntityId: 'chest.free',
+          challengeAttemptId: 'a1b2c3d4-0000-4000-8000-000000000009',
+        },
+        choiceId: 'shells-4',
+      },
+      {
+        learningRef: {
+          kind: 'CHEST_CHALLENGE',
+          chestEntityId: 'chest.replay',
+          challengeAttemptId: 'a1b2c3d4-0000-4000-8000-000000000010',
+        },
+        choiceId: null,
+      },
     ]);
     h.dispose();
   });
@@ -114,13 +154,21 @@ describe('chests', () => {
     h.advance(1.5);
     expect(api.phaseOf('chest.replay')).toBe('OPEN');
     expect(h.claims).toHaveLength(0);
-    expect(h.eventsNamed('ChestStateChanged').at(-1)).toMatchObject({ state: 'OPEN', replay: true });
+    expect(h.eventsNamed('ChestStateChanged').at(-1)).toMatchObject({
+      state: 'OPEN',
+      replay: true,
+    });
     h.dispose();
   });
 });
 
 describe('doors', () => {
-  const door = { id: 'door.gate', position: { x: 0, y: 0, z: 0 }, size: { x: 2, y: 3, z: 0.4 }, requirementId: 'quest.key' };
+  const door = {
+    id: 'door.gate',
+    position: { x: 0, y: 0, z: 0 },
+    size: { x: 2, y: 3, z: 0.4 },
+    requirementId: 'quest.key',
+  };
 
   it('locked doors are SOLID gate colliders and never jumpable', async () => {
     const h = harness();
@@ -166,7 +214,9 @@ describe('doors', () => {
 
   it('never closes on top of the child, and closes once they step clear', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.doors', config: { doors: [{ ...door, requirementId: undefined }] } }]);
+    await h.start([
+      { id: 'gameplay.doors', config: { doors: [{ ...door, requirementId: undefined }] } },
+    ]);
     const api = h.runtime.services.require(DoorsService);
     api.requestOpen('door.gate');
     h.advance(1.2);
@@ -188,17 +238,30 @@ describe('doors', () => {
     await h.start([{ id: 'gameplay.doors', config: { doors: [door] } }]);
     h.dispose();
     expect(h.physics.hasCollider('door.gate')).toBe(false);
-    expect(validateDoorsConfig({ doors: [{ id: 'd', position: { x: 0, y: 0, z: 0 }, size: { x: 0, y: 1, z: 1 } }] }).ok).toBe(false);
+    expect(
+      validateDoorsConfig({
+        doors: [{ id: 'd', position: { x: 0, y: 0, z: 0 }, size: { x: 0, y: 1, z: 1 } }],
+      }).ok,
+    ).toBe(false);
   });
 });
 
 describe('portals', () => {
   it('requests a transition once per entry and re-arms after leaving', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.portals', config: { portals: [{ id: 'portal.a', position: { x: 0, y: 0, z: 0 }, targetAreaId: 'area.next' }] } }]);
+    await h.start([
+      {
+        id: 'gameplay.portals',
+        config: {
+          portals: [{ id: 'portal.a', position: { x: 0, y: 0, z: 0 }, targetAreaId: 'area.next' }],
+        },
+      },
+    ]);
     h.setPlayer({ x: 0.5, y: 0, z: 0 });
     h.advance(0.5);
-    expect(h.eventsNamed('PortalRequested')).toEqual([{ portalId: 'portal.a', targetAreaId: 'area.next' }]);
+    expect(h.eventsNamed('PortalRequested')).toEqual([
+      { portalId: 'portal.a', targetAreaId: 'area.next' },
+    ]);
     h.setPlayer({ x: 20, y: 0, z: 0 });
     h.advance(0.1);
     h.setPlayer({ x: 0, y: 0, z: 0 });
@@ -209,7 +272,21 @@ describe('portals', () => {
 
   it('blocks when the host requirement is not met', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.portals', config: { portals: [{ id: 'portal.a', position: { x: 0, y: 0, z: 0 }, targetAreaId: 'area.next', requirementId: 'quest.done' }] } }]);
+    await h.start([
+      {
+        id: 'gameplay.portals',
+        config: {
+          portals: [
+            {
+              id: 'portal.a',
+              position: { x: 0, y: 0, z: 0 },
+              targetAreaId: 'area.next',
+              requirementId: 'quest.done',
+            },
+          ],
+        },
+      },
+    ]);
     h.setPlayer({ x: 0, y: 0, z: 0 });
     h.advance(0.1);
     expect(h.eventsNamed('PortalRequested')).toHaveLength(0);
@@ -282,7 +359,9 @@ describe('checkpoints and goals', () => {
       { id: 'cp.1', courseId: 'course.a', position: { x: 0, y: 0, z: 0 }, label: 'the old dock' },
       { id: 'cp.2', courseId: 'course.a', position: { x: 10, y: 0, z: 0 }, label: 'the bridge' },
     ],
-    goals: [{ id: 'goal.a', courseId: 'course.a', rect: { minX: 20, maxX: 22, minZ: -1, maxZ: 1 } }],
+    goals: [
+      { id: 'goal.a', courseId: 'course.a', rect: { minX: 20, maxX: 22, minZ: -1, maxZ: 1 } },
+    ],
   };
 
   it('reaches each checkpoint once, claims it, and resolves recovery to the latest', async () => {
@@ -311,7 +390,9 @@ describe('checkpoints and goals', () => {
 
   it('resume marks reached without events', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.checkpoints', config: { ...config, alreadyReached: ['cp.2'] } }]);
+    await h.start([
+      { id: 'gameplay.checkpoints', config: { ...config, alreadyReached: ['cp.2'] } },
+    ]);
     h.setPlayer({ x: 10, y: 0, z: 0 });
     h.advance(0.1);
     expect(h.claims).toHaveLength(0);

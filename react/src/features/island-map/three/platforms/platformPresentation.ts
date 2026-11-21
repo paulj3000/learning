@@ -87,7 +87,13 @@ export function createPlatformPresentation(
     node.name = `platform:${platform.id}`;
     const colour =
       platform.color ??
-      (platform.bounce ? COLOURS.bounce : platform.vanish ? COLOURS.vanish : platform.motion || platform.spin ? COLOURS.moving : COLOURS.platform);
+      (platform.bounce
+        ? COLOURS.bounce
+        : platform.vanish
+          ? COLOURS.vanish
+          : platform.motion || platform.spin
+            ? COLOURS.moving
+            : COLOURS.platform);
     let fading: MeshStandardMaterial | null = null;
     if (platform.vanish) {
       fading = new MeshStandardMaterial({ color: colour, roughness: 0.8, transparent: true });
@@ -115,7 +121,9 @@ export function createPlatformPresentation(
 
     // Where a moving platform goes: a bright ring on the ground under its destination.
     if (platform.motion && platform.indicator !== false) {
-      const end = pathEnd(createPathMotion(platform.motion.path, platform.motion.mode ?? 'PING_PONG'));
+      const end = pathEnd(
+        createPathMotion(platform.motion.path, platform.motion.mode ?? 'PING_PONG'),
+      );
       const marker = new Mesh(ring, material(COLOURS.marker));
       marker.rotation.x = -Math.PI / 2;
       const size = Math.min(platform.size.width, platform.size.depth);
@@ -137,7 +145,12 @@ export function createPlatformPresentation(
   });
 
   // Hazards read as water: a translucent blue pool, so a child sees where not to land.
-  const water = new MeshStandardMaterial({ color: COLOURS.water, transparent: true, opacity: 0.7, roughness: 0.2 });
+  const water = new MeshStandardMaterial({
+    color: COLOURS.water,
+    transparent: true,
+    opacity: 0.7,
+    roughness: 0.2,
+  });
   owned.push(water);
   for (const hazard of spec.hazards ?? []) {
     const { minX, maxX, minZ, maxZ } = hazard.rect;
@@ -178,7 +191,9 @@ export function createPlatformPresentation(
         }
       }
       for (const { plate, mesh } of plates) {
-        mesh.material = material(plate.pressed ? COLOURS.platePressed : (plate.spec.color ?? COLOURS.plate));
+        mesh.material = material(
+          plate.pressed ? COLOURS.platePressed : (plate.spec.color ?? COLOURS.plate),
+        );
         mesh.scale.y = plate.pressed ? 0.03 : 0.08;
         mesh.position.y = plate.pressed ? 0.015 : 0.04;
       }

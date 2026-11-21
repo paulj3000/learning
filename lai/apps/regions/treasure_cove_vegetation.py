@@ -131,7 +131,8 @@ def vegetation(layout: dict, *, paths, keep_clear) -> list[dict]:
         for category in ("bush", "flower", "grass"):
             models = CATEGORY_MODELS[category]
             names = sorted(models)
-            rng = random.Random(f"treasure-cove-vegetation:{zone}:{category}")
+            # Seeded for a deterministic layout, not security.
+            rng = random.Random(f"treasure-cove-vegetation:{zone}:{category}")  # noqa: S311
             made = 0
             for _attempt in range(400):
                 if made >= plan[category]:

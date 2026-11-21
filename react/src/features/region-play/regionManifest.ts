@@ -466,9 +466,11 @@ export function buildRegionManifest(model: RegionSceneModel, options: BuildOptio
             {
               extensionId: ENGINE_BRIDGE_EXTENSION_ID,
               // GE-068: the same staff tuning the live platforms take reaches engine platforms.
-              config: isObject(model.scene.platformTuning) && model.scene.engineBridge.platformTuning === undefined
-                ? { ...model.scene.engineBridge, platformTuning: model.scene.platformTuning }
-                : model.scene.engineBridge,
+              config:
+                isObject(model.scene.platformTuning) &&
+                model.scene.engineBridge.platformTuning === undefined
+                  ? { ...model.scene.engineBridge, platformTuning: model.scene.platformTuning }
+                  : model.scene.engineBridge,
             },
           ]
         : []),

@@ -60,8 +60,7 @@ describe('Heart of Firepeak content (design sections 6 to 8)', () => {
       expect(new Set(dialogueIds).size).toBe(dialogueIds.length);
       // Every choice leads to a node of this NPC.
       for (const node of npc.dialogue)
-        for (const c of node.choices)
-          if (c.nextNodeId) expect(dialogueIds).toContain(c.nextNodeId);
+        for (const c of node.choices) if (c.nextNodeId) expect(dialogueIds).toContain(c.nextNodeId);
       // An unconditioned opener exists, and a conversation never opens on a follow-up.
       expect(
         npc.dialogue.some(
@@ -192,7 +191,9 @@ describe('Heart of Firepeak content (design sections 6 to 8)', () => {
     ];
     for (const id of expectedItems) expect(itemIds.has(id), id).toBe(true);
     expect(itemIds.size).toBe(expectedItems.length);
-    expect(HEART_ITEMS.filter((i) => i.journal).every((i) => i.journal?.subject === 'EARTH_SCIENCE')).toBe(true);
+    expect(
+      HEART_ITEMS.filter((i) => i.journal).every((i) => i.journal?.subject === 'EARTH_SCIENCE'),
+    ).toBe(true);
     expect(HEART_COLLECTIBLE_SETS.map((s) => [s.id, s.completionItemId])).toEqual([
       ['fh-set-elemental-crystals', 'fh-badge-crystal-collector'],
       ['fh-set-ember-shards', 'fh-badge-master-explorer'],
@@ -219,7 +220,10 @@ describe('Heart of Firepeak content (design sections 6 to 8)', () => {
     ]);
     expect(rules.get('fh-rule-shard-lava')?.itemIds).toContain('fh-badge-lava-jumper');
     expect(rules.get('fh-rule-shard-summit')?.itemIds).toContain('fh-badge-summit-explorer');
-    expect(rules.get('fh-rule-caverns')?.itemIds).toEqual(['fh-crystal-cavern', 'fh-journal-rocks']);
+    expect(rules.get('fh-rule-caverns')?.itemIds).toEqual([
+      'fh-crystal-cavern',
+      'fh-journal-rocks',
+    ]);
     for (const zone of ['landing', 'emberwood', 'lava', 'caverns', 'forge', 'summit', 'heart'])
       expect(rules.has(`fh-rule-shard-${zone}`), zone).toBe(true);
     expect(HEART_REWARD_RULES.length).toBe(14);
@@ -248,7 +252,11 @@ describe('Heart of Firepeak content (design sections 6 to 8)', () => {
     );
     expect([...keys].sort()).toEqual([...puzzleKeys].sort());
     expect(quest.completion.worldChanges).toEqual([
-      { locationSlug: 'firepeak-heart', changeType: 'UNLOCK', changeKey: 'FIREPEAK_HEART_COMPLETE' },
+      {
+        locationSlug: 'firepeak-heart',
+        changeType: 'UNLOCK',
+        changeKey: 'FIREPEAK_HEART_COMPLETE',
+      },
     ]);
   });
 

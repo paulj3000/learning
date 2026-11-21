@@ -42,9 +42,18 @@ const AGE_BAND_OPTIONS: readonly { value: PlaygroundAgeBand; label: string }[] =
 type ClaimSpec = { label: string; emit(factory: GameplayEventFactory): unknown };
 
 const SAMPLE_CLAIMS: readonly ClaimSpec[] = [
-  { label: 'Collect coin', emit: (f) => f.create('collectible.collected', { collectibleId: 'coin.demo.1', setId: null }) },
-  { label: 'Enter area', emit: (f) => f.create('exploration.area.entered', { areaId: 'area.demo.harbor' }) },
-  { label: 'Finish quest step', emit: (f) => f.create('quest.step.completed', { questId: 'quest.demo', stepId: 'step.1' }) },
+  {
+    label: 'Collect coin',
+    emit: (f) => f.create('collectible.collected', { collectibleId: 'coin.demo.1', setId: null }),
+  },
+  {
+    label: 'Enter area',
+    emit: (f) => f.create('exploration.area.entered', { areaId: 'area.demo.harbor' }),
+  },
+  {
+    label: 'Finish quest step',
+    emit: (f) => f.create('quest.step.completed', { questId: 'quest.demo', stepId: 'step.1' }),
+  },
   { label: 'Send an invalid claim', emit: () => ({ type: 'not.a.real.event', payload: {} }) },
 ];
 
@@ -63,24 +72,43 @@ interface StageProps {
 }
 
 /** One engine run. Remounted (keyed) whenever capabilities or age band change. */
-function PlaygroundStage({ ageBand, enabled, showOverlay, showCollision, onCollisionChange, rendererFactory }: StageProps) {
+function PlaygroundStage({
+  ageBand,
+  enabled,
+  showOverlay,
+  showCollision,
+  onCollisionChange,
+  rendererFactory,
+}: StageProps) {
   const [runtime, setRuntime] = useState<EngineRuntime | null>(null);
   const [colliderCounts, setColliderCounts] = useState<string>('');
   const collision = useRef<CollisionDebugView | null>(null);
   const { entries, clear } = useEventLog(runtime, 25);
   const factory = useMemo(
-    () => createGameplayEventFactory({ realmId: 'realm.playground', adventureId: 'adventure.playground', areaId: null, sessionRef: null }),
+    () =>
+      createGameplayEventFactory({
+        realmId: 'realm.playground',
+        adventureId: 'adventure.playground',
+        areaId: null,
+        sessionRef: null,
+      }),
     [],
   );
 
   const capabilities = useMemo(
-    () => PLAYGROUND_CAPABILITIES.filter((c) => enabled.includes(c.id)).map((c) => c.toRequest(ageBand)),
+    () =>
+      PLAYGROUND_CAPABILITIES.filter((c) => enabled.includes(c.id)).map((c) =>
+        c.toRequest(ageBand),
+      ),
     [ageBand, enabled],
   );
 
   const services = useRef<PlaygroundServices | null>(null);
   const createRuntime = useCallback(() => {
-    const created = createEngineRuntime({ id: 'playground', capabilities: createPlaygroundRegistry() });
+    const created = createEngineRuntime({
+      id: 'playground',
+      capabilities: createPlaygroundRegistry(),
+    });
     services.current = providePlaygroundServices(created);
     return created;
   }, []);
@@ -101,7 +129,9 @@ function PlaygroundStage({ ageBand, enabled, showOverlay, showCollision, onColli
       view.scene.add(view3d.group);
       collision.current = view3d;
       const counts = countCollidersByClass(provider.colliders());
-      setColliderCounts(`SOLID ${counts.SOLID}, JUMPABLE ${counts.JUMPABLE}, TRIGGER ${counts.TRIGGER}, gate ${counts.GATE}`);
+      setColliderCounts(
+        `SOLID ${counts.SOLID}, JUMPABLE ${counts.JUMPABLE}, TRIGGER ${counts.TRIGGER}, gate ${counts.GATE}`,
+      );
     }
     const gizmo: PlayerGizmo = createPlayerGizmo(started.world, { scope: started.resources });
     view.scene.add(gizmo.group);
@@ -136,7 +166,11 @@ function PlaygroundStage({ ageBand, enabled, showOverlay, showCollision, onColli
         onRuntimeReady={onReady}
       >
         {showOverlay ? (
-          <DebugOverlay runtime={runtime} collisionVisible={showCollision} onCollisionVisibleChange={onCollisionChange} />
+          <DebugOverlay
+            runtime={runtime}
+            collisionVisible={showCollision}
+            onCollisionVisibleChange={onCollisionChange}
+          />
         ) : null}
       </GameHost>
       {colliderCounts ? <p className={styles.muted}>Colliders: {colliderCounts}</p> : null}
@@ -164,22 +198,32 @@ export function GameEnginePlayground({ rendererFactory }: GameEnginePlaygroundPr
   const [showCollision, setShowCollision] = useState(true);
 
   const toggleCapability = (id: string) =>
-    setEnabled((current) => (current.includes(id) ? current.filter((c) => c !== id) : [...current, id]));
+    setEnabled((current) =>
+      current.includes(id) ? current.filter((c) => c !== id) : [...current, id],
+    );
 
   return (
     <main className={styles.page}>
       <h1>Game engine playground</h1>
       <p className={styles.muted}>
-        Development only. Changing capabilities or age band restarts the engine. Click the scene, then use W A S D or
-        the arrow keys to move, Space to jump and Shift to sprint.
+        Development only. Changing capabilities or age band restarts the engine. Click the scene,
+        then use W A S D or the arrow keys to move, Space to jump and Shift to sprint.
       </p>
       <div className={styles.layout}>
-        <form className={styles.controls} aria-label="Playground controls" onSubmit={(e) => e.preventDefault()}>
+        <form
+          className={styles.controls}
+          aria-label="Playground controls"
+          onSubmit={(e) => e.preventDefault()}
+        >
           <fieldset>
             <legend>Capabilities</legend>
             {PLAYGROUND_CAPABILITIES.map((capability) => (
               <label key={capability.id} className={styles.control}>
-                <input type="checkbox" checked={enabled.includes(capability.id)} onChange={() => toggleCapability(capability.id)} />
+                <input
+                  type="checkbox"
+                  checked={enabled.includes(capability.id)}
+                  onChange={() => toggleCapability(capability.id)}
+                />
                 <span>
                   {capability.label}
                   <small className={styles.muted}> {capability.id}</small>
@@ -189,7 +233,10 @@ export function GameEnginePlayground({ rendererFactory }: GameEnginePlaygroundPr
           </fieldset>
           <label className={styles.control}>
             <span>Age band</span>
-            <select value={ageBand} onChange={(e) => setAgeBand(e.target.value as PlaygroundAgeBand)}>
+            <select
+              value={ageBand}
+              onChange={(e) => setAgeBand(e.target.value as PlaygroundAgeBand)}
+            >
               {AGE_BAND_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -198,11 +245,19 @@ export function GameEnginePlayground({ rendererFactory }: GameEnginePlaygroundPr
             </select>
           </label>
           <label className={styles.control}>
-            <input type="checkbox" checked={showOverlay} onChange={(e) => setShowOverlay(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={showOverlay}
+              onChange={(e) => setShowOverlay(e.target.checked)}
+            />
             <span>Debug overlay</span>
           </label>
           <label className={styles.control}>
-            <input type="checkbox" checked={showCollision} onChange={(e) => setShowCollision(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={showCollision}
+              onChange={(e) => setShowCollision(e.target.checked)}
+            />
             <span>Collision view</span>
           </label>
         </form>

@@ -33,7 +33,7 @@ PASSAGE = "castle-secret-passage"
 
 
 @pytest.fixture
-def content(imported_content, families):
+def content(imported_content, families):  # noqa: F811
     return families
 
 

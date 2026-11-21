@@ -28,14 +28,29 @@ describe('rank titles config (SC-R07-04)', () => {
 
   it('reports unusable lists', () => {
     expect(rankConfigProblems([])).not.toEqual([]);
-    expect(rankConfigProblems([{ id: 'a', title: 'A', min: 0.2 }, { id: 'b', title: 'B', min: 1 }]))
-      .toContain('the first rank must start at 0');
-    expect(rankConfigProblems([{ id: 'a', title: 'A', min: 0 }, { id: 'b', title: 'B', min: 0.5 }]))
-      .toContain('the last rank must be at 1');
-    expect(rankConfigProblems([{ id: 'a', title: 'A', min: 0 }, { id: 'a', title: 'B', min: 1 }]))
-      .toContain('ids repeat');
     expect(
-      rankConfigProblems([{ id: 'a', title: 'Story — one', min: 0 }, { id: 'b', title: 'B', min: 1 }]),
+      rankConfigProblems([
+        { id: 'a', title: 'A', min: 0.2 },
+        { id: 'b', title: 'B', min: 1 },
+      ]),
+    ).toContain('the first rank must start at 0');
+    expect(
+      rankConfigProblems([
+        { id: 'a', title: 'A', min: 0 },
+        { id: 'b', title: 'B', min: 0.5 },
+      ]),
+    ).toContain('the last rank must be at 1');
+    expect(
+      rankConfigProblems([
+        { id: 'a', title: 'A', min: 0 },
+        { id: 'a', title: 'B', min: 1 },
+      ]),
+    ).toContain('ids repeat');
+    expect(
+      rankConfigProblems([
+        { id: 'a', title: 'Story — one', min: 0 },
+        { id: 'b', title: 'B', min: 1 },
+      ]),
     ).toContain('a: bad title');
   });
 });

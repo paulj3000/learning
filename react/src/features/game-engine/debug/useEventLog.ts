@@ -53,7 +53,10 @@ export function describeEvent(name: string, payload: unknown, seq: number): Even
 }
 
 /** The last `limit` events on the runtime bus, newest last. */
-export function useEventLog(runtime: EngineRuntime | null, limit = 20): { entries: readonly EventLogEntry[]; clear(): void } {
+export function useEventLog(
+  runtime: EngineRuntime | null,
+  limit = 20,
+): { entries: readonly EventLogEntry[]; clear(): void } {
   const [entries, setEntries] = useState<readonly EventLogEntry[]>([]);
 
   useEffect(() => {

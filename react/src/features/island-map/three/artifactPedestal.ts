@@ -1,11 +1,4 @@
-import {
-  Box3,
-  BoxGeometry,
-  Group,
-  Mesh,
-  MeshStandardMaterial,
-  type Object3D,
-} from 'three';
+import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, type Object3D } from 'three';
 
 /**
  * A reusable artifact pedestal (SC-R07-02): the Three.js object that shows one
@@ -179,7 +172,13 @@ export function createArtifactPedestal(options: ArtifactPedestalOptions): Artifa
     return mesh;
   };
 
-  const plate = ownMesh(`${group.name}-plate`, PLATE_GOLD, PLATE_HALF * 2, PLATE_HEIGHT, PLATE_HALF * 2);
+  const plate = ownMesh(
+    `${group.name}-plate`,
+    PLATE_GOLD,
+    PLATE_HALF * 2,
+    PLATE_HEIGHT,
+    PLATE_HALF * 2,
+  );
   plate.position.y = PLATE_HEIGHT / 2;
   group.add(plate);
 

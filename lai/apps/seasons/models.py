@@ -56,7 +56,9 @@ class SeasonalEvent(models.Model):
     availability = models.CharField(
         max_length=12, choices=Availability.choices, default=Availability.YEAR_ROUND
     )
-    window_start_month = models.PositiveSmallIntegerField(null=True, blank=True, validators=_month())
+    window_start_month = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=_month()
+    )
     window_start_day = models.PositiveSmallIntegerField(null=True, blank=True, validators=_day())
     window_end_month = models.PositiveSmallIntegerField(null=True, blank=True, validators=_month())
     window_end_day = models.PositiveSmallIntegerField(null=True, blank=True, validators=_day())

@@ -1,12 +1,32 @@
 import type { EventMap } from '../core/eventBus';
 import type { EngineRuntime } from '../core/runtime';
-import { ASSET_MANAGER, createFakeAssetManager, type AssetMetadata, type AssetManagerPort } from './assetManager';
-import { createFakeInventory, createFakeRewards, INVENTORY, REWARDS, type InventoryPort, type RewardsPort } from './inventoryRewards';
+import {
+  ASSET_MANAGER,
+  createFakeAssetManager,
+  type AssetMetadata,
+  type AssetManagerPort,
+} from './assetManager';
+import {
+  createFakeInventory,
+  createFakeRewards,
+  INVENTORY,
+  REWARDS,
+  type InventoryPort,
+  type RewardsPort,
+} from './inventoryRewards';
 import { createDisabledMultiplayer, MULTIPLAYER, type MultiplayerPort } from './multiplayer';
 import { createFakeNpcManager, NPC_MANAGER, type NpcManagerPort } from './npcManager';
-import { createFakePublishedContent, PUBLISHED_CONTENT, type PublishedContentPort } from './publishedContent';
+import {
+  createFakePublishedContent,
+  PUBLISHED_CONTENT,
+  type PublishedContentPort,
+} from './publishedContent';
 import { createFakeQuestService, QUEST_SERVICE, type QuestServicePort } from './questService';
-import { createFakeQuestionStudio, QUESTION_STUDIO, type QuestionStudioPort } from './questionStudio';
+import {
+  createFakeQuestionStudio,
+  QUESTION_STUDIO,
+  type QuestionStudioPort,
+} from './questionStudio';
 import { createFakeSaveRestore, SAVE_RESTORE, type SaveRestorePort } from './saveRestore';
 import { createFakeSoundManager, SOUND_MANAGER, type SoundManagerPort } from './soundManager';
 
@@ -53,7 +73,10 @@ export interface FakeServiceOverrides {
  * Provides an in-memory fake for every port on `runtime.services` (tests and the playground).
  * Returns the fakes for assertions. Services are cleared when the runtime is disposed.
  */
-export function provideFakeServices(runtime: EngineRuntime<EventMap>, overrides: FakeServiceOverrides = {}): FakeServiceSet {
+export function provideFakeServices(
+  runtime: EngineRuntime<EventMap>,
+  overrides: FakeServiceOverrides = {},
+): FakeServiceSet {
   const fakes: FakeServiceSet = {
     assets: createFakeAssetManager(overrides.assets),
     sound: createFakeSoundManager(),

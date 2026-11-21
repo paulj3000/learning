@@ -168,12 +168,19 @@ describe('buildRegionManifest', () => {
     expect(issues(built)).toEqual([]);
 
     const plain = build({ region: { ...bootstrapJson().region, scene: await coveSceneJson() } });
-    expect(plain.manifest.extensions.map((binding) => binding.extensionId)).toEqual(['region-play']);
+    expect(plain.manifest.extensions.map((binding) => binding.extensionId)).toEqual([
+      'region-play',
+    ]);
     for (const odd of [null, 'hazards', [{ id: 'gameplay.hazards' }]]) {
       const ignored = build({
-        region: { ...bootstrapJson().region, scene: { ...(await coveSceneJson()), engineBridge: odd } },
+        region: {
+          ...bootstrapJson().region,
+          scene: { ...(await coveSceneJson()), engineBridge: odd },
+        },
       });
-      expect(ignored.manifest.extensions.map((binding) => binding.extensionId)).toEqual(['region-play']);
+      expect(ignored.manifest.extensions.map((binding) => binding.extensionId)).toEqual([
+        'region-play',
+      ]);
     }
   });
 
@@ -187,11 +194,20 @@ describe('buildRegionManifest', () => {
     // The scene's own block is not mutated, and an explicit block-level tuning wins.
     expect(engineBridge).not.toHaveProperty('platformTuning');
     const own = { ...engineBridge, platformTuning: { lift: { speed: 3 } } };
-    expect(build({ region: region({ ...base, engineBridge: own, platformTuning }) }).manifest.extensions[1]?.config).toEqual(own);
+    expect(
+      build({ region: region({ ...base, engineBridge: own, platformTuning }) }).manifest
+        .extensions[1]?.config,
+    ).toEqual(own);
     // No tuning: the block passes through exactly as before.
-    expect(build({ region: region({ ...base, engineBridge }) }).manifest.extensions[1]?.config).toEqual(engineBridge);
+    expect(
+      build({ region: region({ ...base, engineBridge }) }).manifest.extensions[1]?.config,
+    ).toEqual(engineBridge);
     // Tuning with no bridge adds no extension (the live platform system still takes it).
-    expect(build({ region: region({ ...base, platformTuning }) }).manifest.extensions.map((b) => b.extensionId)).toEqual(['region-play']);
+    expect(
+      build({ region: region({ ...base, platformTuning }) }).manifest.extensions.map(
+        (b) => b.extensionId,
+      ),
+    ).toEqual(['region-play']);
     expect(issues(tuned)).toEqual([]);
   });
 

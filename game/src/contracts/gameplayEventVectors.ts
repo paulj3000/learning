@@ -21,812 +21,815 @@ export interface GameplayEventGoldenVectors {
 export const GAMEPLAY_EVENT_GOLDEN_FILE = 'gameplay-events-v1.json';
 
 export const GAMEPLAY_EVENT_VECTORS_V1: GameplayEventGoldenVectors = {
-  "description": "Golden vectors for lai.gameplay-event v1. Shared by game/src/contracts (TypeScript) and the Django intake validator on core/ge-scoring (lai/apps/scoring/engine_events.py). Change only together, with a version note in docs/engineering/game-engine/public-contracts.md.",
-  "schema": "lai.gameplay-event",
-  "version": 1,
-  "valid": [
+  description:
+    'Golden vectors for lai.gameplay-event v1. Shared by game/src/contracts (TypeScript) and the Django intake validator on core/ge-scoring (lai/apps/scoring/engine_events.py). Change only together, with a version note in docs/engineering/game-engine/public-contracts.md.',
+  schema: 'lai.gameplay-event',
+  version: 1,
+  valid: [
     {
-      "name": "learning.question.presented #0",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "learning.question.presented",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000000",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "learningRef": {
-            "kind": "CHEST_CHALLENGE",
-            "chestEntityId": "chest-palm-1",
-            "challengeAttemptId": "7c2d9e4f-8a1b-4c3d-9e5f-0a1b2c3d4e5f"
-          }
-        }
-      }
-    },
-    {
-      "name": "learning.answer.submitted #1",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "learning.answer.submitted",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000001",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "learningRef": {
-            "kind": "ADVENTURE_STEP",
-            "stepId": "bridge-repair-step-2"
+      name: 'learning.question.presented #0',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'learning.question.presented',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000000',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          learningRef: {
+            kind: 'CHEST_CHALLENGE',
+            chestEntityId: 'chest-palm-1',
+            challengeAttemptId: '7c2d9e4f-8a1b-4c3d-9e5f-0a1b2c3d4e5f',
           },
-          "choiceId": "plank-count-4"
-        }
-      }
+        },
+      },
     },
     {
-      "name": "learning.answer.submitted #2",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "learning.answer.submitted",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000002",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "learningRef": {
-            "kind": "AREA_PUZZLE",
-            "puzzleId": "rune-stones",
-            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000001"
+      name: 'learning.answer.submitted #1',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'learning.answer.submitted',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000001',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          learningRef: {
+            kind: 'ADVENTURE_STEP',
+            stepId: 'bridge-repair-step-2',
           },
-          "choiceId": null
-        }
-      }
+          choiceId: 'plank-count-4',
+        },
+      },
     },
     {
-      "name": "learning.question.presented #3",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "learning.question.presented",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000003",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "learningRef": {
-            "kind": "QUESTION_ITEM",
-            "questionId": "qs-count-shells-12",
-            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000002"
-          }
-        }
-      }
+      name: 'learning.answer.submitted #2',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'learning.answer.submitted',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000002',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          learningRef: {
+            kind: 'AREA_PUZZLE',
+            puzzleId: 'rune-stones',
+            challengeAttemptId: 'a1b2c3d4-0000-4000-8000-000000000001',
+          },
+          choiceId: null,
+        },
+      },
     },
     {
-      "name": "exploration.area.entered #4",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "exploration.area.entered",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000004",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "areaId": "treasure-cove-beach"
-        }
-      }
+      name: 'learning.question.presented #3',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'learning.question.presented',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000003',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          learningRef: {
+            kind: 'QUESTION_ITEM',
+            questionId: 'qs-count-shells-12',
+            challengeAttemptId: 'a1b2c3d4-0000-4000-8000-000000000002',
+          },
+        },
+      },
     },
     {
-      "name": "exploration.discovery.found #5",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "exploration.discovery.found",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000005",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "discoveryId": "hidden-tide-pool"
-        }
-      }
+      name: 'exploration.area.entered #4',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'exploration.area.entered',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000004',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          areaId: 'treasure-cove-beach',
+        },
+      },
     },
     {
-      "name": "collectible.collected #6",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "collectible.collected",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000006",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "collectibleId": "golden-shell-3",
-          "setId": "golden-shells"
-        }
-      }
+      name: 'exploration.discovery.found #5',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'exploration.discovery.found',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000005',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          discoveryId: 'hidden-tide-pool',
+        },
+      },
     },
     {
-      "name": "collectible.collected #7",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "collectible.collected",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000007",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "collectibleId": "feather-1",
-          "setId": null
-        }
-      }
+      name: 'collectible.collected #6',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'collectible.collected',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000006',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          collectibleId: 'golden-shell-3',
+          setId: 'golden-shells',
+        },
+      },
     },
     {
-      "name": "jump.challenge.started #8",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "jump.challenge.started",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000008",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "challengeId": "stepping-stones"
-        }
-      }
+      name: 'collectible.collected #7',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'collectible.collected',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000007',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          collectibleId: 'feather-1',
+          setId: null,
+        },
+      },
     },
     {
-      "name": "jump.challenge.completed #9",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "jump.challenge.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000009",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "challengeId": "stepping-stones",
-          "routeId": "stones-jump"
-        }
-      }
+      name: 'jump.challenge.started #8',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'jump.challenge.started',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000008',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          challengeId: 'stepping-stones',
+        },
+      },
     },
     {
-      "name": "jump.challenge.completed #10",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "jump.challenge.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000010",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "challengeId": "stepping-stones",
-          "routeId": "stones-boardwalk"
-        }
-      }
+      name: 'jump.challenge.completed #9',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'jump.challenge.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000009',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          challengeId: 'stepping-stones',
+          routeId: 'stones-jump',
+        },
+      },
     },
     {
-      "name": "jump.alternative.used #11",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "jump.alternative.used",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000011",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "challengeId": "stepping-stones",
-          "routeId": "stones-boardwalk"
-        }
-      }
+      name: 'jump.challenge.completed #10',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'jump.challenge.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000010',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          challengeId: 'stepping-stones',
+          routeId: 'stones-boardwalk',
+        },
+      },
     },
     {
-      "name": "course.checkpoint.reached #12",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "course.checkpoint.reached",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000012",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "courseId": "pirates-leap-course",
-          "checkpointId": "old-dock"
-        }
-      }
+      name: 'jump.alternative.used #11',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'jump.alternative.used',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000011',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          challengeId: 'stepping-stones',
+          routeId: 'stones-boardwalk',
+        },
+      },
     },
     {
-      "name": "course.completed #13",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "course.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000013",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "courseId": "pirates-leap-course",
-          "goalId": "crows-nest"
-        }
-      }
+      name: 'course.checkpoint.reached #12',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'course.checkpoint.reached',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000012',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          courseId: 'pirates-leap-course',
+          checkpointId: 'old-dock',
+        },
+      },
     },
     {
-      "name": "puzzle.completed #14",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "puzzle.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000014",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "puzzleId": "tide-gate-pattern"
-        }
-      }
+      name: 'course.completed #13',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'course.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000013',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          courseId: 'pirates-leap-course',
+          goalId: 'crows-nest',
+        },
+      },
     },
     {
-      "name": "npc.interaction.completed #15",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "npc.interaction.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000015",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "npcId": "pirate-pip",
-          "interactionId": "pip-greeting"
-        }
-      }
+      name: 'puzzle.completed #14',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'puzzle.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000014',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          puzzleId: 'tide-gate-pattern',
+        },
+      },
     },
     {
-      "name": "quest.step.completed #16",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "quest.step.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000016",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map",
-          "stepId": "find-first-piece"
-        }
-      }
+      name: 'npc.interaction.completed #15',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'npc.interaction.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000015',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          npcId: 'pirate-pip',
+          interactionId: 'pip-greeting',
+        },
+      },
     },
     {
-      "name": "quest.completed #17",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "quest.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000017",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map"
-        }
-      }
+      name: 'quest.step.completed #16',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'quest.step.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000016',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
+          stepId: 'find-first-piece',
+        },
+      },
     },
     {
-      "name": "adventure.started #18",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "adventure.started",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000018",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {}
-      }
+      name: 'quest.completed #17',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'quest.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000017',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
+        },
+      },
     },
     {
-      "name": "adventure.completed #19",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "adventure.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000019",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {}
-      }
+      name: 'adventure.started #18',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'adventure.started',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000018',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {},
+      },
     },
     {
-      "name": "realm.milestone.reached #20",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "realm.milestone.reached",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000020",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "milestoneId": "all-places-explored"
-        }
-      }
+      name: 'adventure.completed #19',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'adventure.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000019',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {},
+      },
     },
     {
-      "name": "no session, no area",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "exploration.discovery.found",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-999999999999",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": null,
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": null,
-        "payload": {
-          "discoveryId": "lantern-cave"
-        }
-      }
+      name: 'realm.milestone.reached #20',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'realm.milestone.reached',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000020',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          milestoneId: 'all-places-explored',
+        },
+      },
     },
     {
-      "name": "collectible.collected with pickupKey",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "collectible.collected",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000100",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "collectibleId": "golden-shell-3",
-          "setId": "golden-shells",
-          "pickupKey": "pickup:golden-shell-3"
-        }
-      }
+      name: 'no session, no area',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'exploration.discovery.found',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-999999999999',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: null,
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: null,
+        payload: {
+          discoveryId: 'lantern-cave',
+        },
+      },
     },
     {
-      "name": "collectible.collected with null pickupKey",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "collectible.collected",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000101",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "collectibleId": "golden-shell-3",
-          "setId": "golden-shells",
-          "pickupKey": null
-        }
-      }
-    }
+      name: 'collectible.collected with pickupKey',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'collectible.collected',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000100',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          collectibleId: 'golden-shell-3',
+          setId: 'golden-shells',
+          pickupKey: 'pickup:golden-shell-3',
+        },
+      },
+    },
+    {
+      name: 'collectible.collected with null pickupKey',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'collectible.collected',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000101',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          collectibleId: 'golden-shell-3',
+          setId: 'golden-shells',
+          pickupKey: null,
+        },
+      },
+    },
   ],
-  "invalid": [
+  invalid: [
     {
-      "name": "wrong schema",
-      "event": {
-        "schema": "lai.event",
-        "version": 1,
-        "type": "quest.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map"
-        }
-      },
-      "issuePath": "schema"
-    },
-    {
-      "name": "future version",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 2,
-        "type": "quest.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map"
-        }
-      },
-      "issuePath": "version"
-    },
-    {
-      "name": "unknown type",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "player.fell",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "reason": "HAZARD"
-        }
-      },
-      "issuePath": "type"
-    },
-    {
-      "name": "respawn is not a gameplay event",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "player.recovered",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "checkpointId": "old-dock"
-        }
-      },
-      "issuePath": "type"
-    },
-    {
-      "name": "free text in an id",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "collectible.collected",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "collectibleId": "my name is Sam",
-          "setId": null
-        }
-      },
-      "issuePath": "payload.collectibleId"
-    },
-    {
-      "name": "extra payload field (correctness)",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "learning.answer.submitted",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "learningRef": {
-            "kind": "ADVENTURE_STEP",
-            "stepId": "s1"
-          },
-          "choiceId": "c1",
-          "correct": true
-        }
-      },
-      "issuePath": "payload.correct"
-    },
-    {
-      "name": "extra payload field (support level)",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "learning.answer.submitted",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "learningRef": {
-            "kind": "ADVENTURE_STEP",
-            "stepId": "s1"
-          },
-          "choiceId": "c1",
-          "supportLevel": "GUIDED"
-        }
-      },
-      "issuePath": "payload.supportLevel"
-    },
-    {
-      "name": "extra envelope field (points)",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "quest.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map"
+      name: 'wrong schema',
+      event: {
+        schema: 'lai.event',
+        version: 1,
+        type: 'quest.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
         },
-        "points": 10
       },
-      "issuePath": "points"
+      issuePath: 'schema',
     },
     {
-      "name": "child data in the envelope",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "quest.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map"
+      name: 'future version',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 2,
+        type: 'quest.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
         },
-        "childName": "Sam"
       },
-      "issuePath": "childName"
+      issuePath: 'version',
     },
     {
-      "name": "missing payload field",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "course.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "courseId": "pirates-leap-course"
-        }
+      name: 'unknown type',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'player.fell',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          reason: 'HAZARD',
+        },
       },
-      "issuePath": "payload.goalId"
+      issuePath: 'type',
     },
     {
-      "name": "learning ref with the wrong ids",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "learning.question.presented",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "learningRef": {
-            "kind": "CHEST_CHALLENGE",
-            "stepId": "s1"
-          }
-        }
+      name: 'respawn is not a gameplay event',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'player.recovered',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          checkpointId: 'old-dock',
+        },
       },
-      "issuePath": "payload.learningRef.stepId"
+      issuePath: 'type',
     },
     {
-      "name": "unknown learning ref kind",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "learning.question.presented",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "learningRef": {
-            "kind": "QUIZ",
-            "quizId": "q1"
-          }
-        }
+      name: 'free text in an id',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'collectible.collected',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          collectibleId: 'my name is Sam',
+          setId: null,
+        },
       },
-      "issuePath": "payload.learningRef.kind"
+      issuePath: 'payload.collectibleId',
     },
     {
-      "name": "session ref not a uuid",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "quest.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "session-1",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map"
-        }
+      name: 'extra payload field (correctness)',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'learning.answer.submitted',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          learningRef: {
+            kind: 'ADVENTURE_STEP',
+            stepId: 's1',
+          },
+          choiceId: 'c1',
+          correct: true,
+        },
       },
-      "issuePath": "sessionRef"
+      issuePath: 'payload.correct',
     },
     {
-      "name": "local time",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "quest.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00+01:00",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map"
-        }
+      name: 'extra payload field (support level)',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'learning.answer.submitted',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          learningRef: {
+            kind: 'ADVENTURE_STEP',
+            stepId: 's1',
+          },
+          choiceId: 'c1',
+          supportLevel: 'GUIDED',
+        },
       },
-      "issuePath": "occurredAt"
+      issuePath: 'payload.supportLevel',
     },
     {
-      "name": "empty adventure id",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "adventure.started",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "",
-        "areaId": "treasure-cove-beach",
-        "payload": {}
+      name: 'extra envelope field (points)',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'quest.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
+        },
+        points: 10,
       },
-      "issuePath": "adventureId"
+      issuePath: 'points',
     },
     {
-      "name": "payload on an empty-payload type",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "adventure.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "stars": 3
-        }
+      name: 'child data in the envelope',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'quest.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
+        },
+        childName: 'Sam',
       },
-      "issuePath": "payload.stars"
+      issuePath: 'childName',
     },
     {
-      "name": "short event id",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "quest.completed",
-        "eventId": "abc",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map"
-        }
+      name: 'missing payload field',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'course.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          courseId: 'pirates-leap-course',
+        },
       },
-      "issuePath": "eventId"
+      issuePath: 'payload.goalId',
     },
     {
-      "name": "pickupKey not a semantic id",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "collectible.collected",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000006",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "collectibleId": "golden-shell-3",
-          "setId": "golden-shells",
-          "pickupKey": 42
-        }
+      name: 'learning ref with the wrong ids',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'learning.question.presented',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          learningRef: {
+            kind: 'CHEST_CHALLENGE',
+            stepId: 's1',
+          },
+        },
       },
-      "issuePath": "payload.pickupKey"
+      issuePath: 'payload.learningRef.stepId',
     },
     {
-      "name": "pickupKey on another event type",
-      "event": {
-        "schema": "lai.gameplay-event",
-        "version": 1,
-        "type": "quest.completed",
-        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000017",
-        "occurredAt": "2026-11-18T20:00:00.000Z",
-        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
-        "realmId": "treasure-rush",
-        "adventureId": "treasure-cove",
-        "areaId": "treasure-cove-beach",
-        "payload": {
-          "questId": "lost-map",
-          "pickupKey": "pickup:1"
-        }
+      name: 'unknown learning ref kind',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'learning.question.presented',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          learningRef: {
+            kind: 'QUIZ',
+            quizId: 'q1',
+          },
+        },
       },
-      "issuePath": "payload.pickupKey"
-    }
-  ]
+      issuePath: 'payload.learningRef.kind',
+    },
+    {
+      name: 'session ref not a uuid',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'quest.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: 'session-1',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
+        },
+      },
+      issuePath: 'sessionRef',
+    },
+    {
+      name: 'local time',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'quest.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00+01:00',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
+        },
+      },
+      issuePath: 'occurredAt',
+    },
+    {
+      name: 'empty adventure id',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'adventure.started',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: '',
+        areaId: 'treasure-cove-beach',
+        payload: {},
+      },
+      issuePath: 'adventureId',
+    },
+    {
+      name: 'payload on an empty-payload type',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'adventure.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-6c4d8b2e7f10',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          stars: 3,
+        },
+      },
+      issuePath: 'payload.stars',
+    },
+    {
+      name: 'short event id',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'quest.completed',
+        eventId: 'abc',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
+        },
+      },
+      issuePath: 'eventId',
+    },
+    {
+      name: 'pickupKey not a semantic id',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'collectible.collected',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000006',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          collectibleId: 'golden-shell-3',
+          setId: 'golden-shells',
+          pickupKey: 42,
+        },
+      },
+      issuePath: 'payload.pickupKey',
+    },
+    {
+      name: 'pickupKey on another event type',
+      event: {
+        schema: 'lai.gameplay-event',
+        version: 1,
+        type: 'quest.completed',
+        eventId: '0f8e2c1a-5b7d-4e2f-9a31-000000000017',
+        occurredAt: '2026-11-18T20:00:00.000Z',
+        sessionRef: '3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23',
+        realmId: 'treasure-rush',
+        adventureId: 'treasure-cove',
+        areaId: 'treasure-cove-beach',
+        payload: {
+          questId: 'lost-map',
+          pickupKey: 'pickup:1',
+        },
+      },
+      issuePath: 'payload.pickupKey',
+    },
+  ],
 };
 
 /** The exact text of the committed golden file. */
-export function renderGameplayEventVectors(vectors: GameplayEventGoldenVectors = GAMEPLAY_EVENT_VECTORS_V1): string {
+export function renderGameplayEventVectors(
+  vectors: GameplayEventGoldenVectors = GAMEPLAY_EVENT_VECTORS_V1,
+): string {
   return `${JSON.stringify(vectors, null, 2)}\n`;
 }

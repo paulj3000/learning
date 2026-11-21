@@ -6,11 +6,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "entry-hall",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -19,15 +15,9 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The torches glow softly."
-        ],
-        "PATHFINDER": [
-          "The torches glow softly in the Entry Hall."
-        ],
-        "EXPLORER": [
-          "The torches glow softly in the Entry Hall, and the old stones feel calm."
-        ]
+        "SPROUT": ["The torches glow softly."],
+        "PATHFINDER": ["The torches glow softly in the Entry Hall."],
+        "EXPLORER": ["The torches glow softly in the Entry Hall, and the old stones feel calm."]
       },
       "visual": {
         "kind": "candle-flicker"
@@ -40,11 +30,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "story-hall",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -53,12 +39,8 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The hearth crackles."
-        ],
-        "PATHFINDER": [
-          "The hearth crackles quietly in the Story Hall."
-        ],
+        "SPROUT": ["The hearth crackles."],
+        "PATHFINDER": ["The hearth crackles quietly in the Story Hall."],
         "EXPLORER": [
           "The hearth crackles quietly in the Story Hall, and the shelves smell of old paper."
         ]
@@ -74,11 +56,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "character-gallery",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -87,12 +65,8 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The portraits look friendly."
-        ],
-        "PATHFINDER": [
-          "The portraits look down kindly from the walls."
-        ],
+        "SPROUT": ["The portraits look friendly."],
+        "PATHFINDER": ["The portraits look down kindly from the walls."],
         "EXPLORER": [
           "The portraits look down kindly from the walls, each one holding a story of its own."
         ]
@@ -108,11 +82,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "costume-room",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -121,15 +91,9 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The costumes sway a little."
-        ],
-        "PATHFINDER": [
-          "The costumes sway a little on their hooks."
-        ],
-        "EXPLORER": [
-          "The costumes sway a little on their hooks, as if they remember every play."
-        ]
+        "SPROUT": ["The costumes sway a little."],
+        "PATHFINDER": ["The costumes sway a little on their hooks."],
+        "EXPLORER": ["The costumes sway a little on their hooks, as if they remember every play."]
       },
       "visual": {
         "kind": "dust-motes"
@@ -142,11 +106,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "east-corridor",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -155,15 +115,9 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The corridor is quiet."
-        ],
-        "PATHFINDER": [
-          "The corridor is quiet, and the candles burn steadily."
-        ],
-        "EXPLORER": [
-          "The corridor is quiet, and the candles burn steadily along the stone walls."
-        ]
+        "SPROUT": ["The corridor is quiet."],
+        "PATHFINDER": ["The corridor is quiet, and the candles burn steadily."],
+        "EXPLORER": ["The corridor is quiet, and the candles burn steadily along the stone walls."]
       },
       "visual": {
         "kind": "candle-flicker"
@@ -176,11 +130,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "setting-tower",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -189,12 +139,8 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The windows show the sky."
-        ],
-        "PATHFINDER": [
-          "The tall windows show a wide, calm sky."
-        ],
+        "SPROUT": ["The windows show the sky."],
+        "PATHFINDER": ["The tall windows show a wide, calm sky."],
         "EXPLORER": [
           "The tall windows show a wide, calm sky, and the clouds drift past like slow ships."
         ]
@@ -210,11 +156,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "illustration-studio",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -223,12 +165,8 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The paints sparkle."
-        ],
-        "PATHFINDER": [
-          "The paints sparkle in their little pots."
-        ],
+        "SPROUT": ["The paints sparkle."],
+        "PATHFINDER": ["The paints sparkle in their little pots."],
         "EXPLORER": [
           "The paints sparkle in their little pots, ready for any picture you can imagine."
         ]
@@ -244,11 +182,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "great-library",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -257,12 +191,8 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The books rest on the shelves."
-        ],
-        "PATHFINDER": [
-          "The books rest quietly on their shelves."
-        ],
+        "SPROUT": ["The books rest on the shelves."],
+        "PATHFINDER": ["The books rest quietly on their shelves."],
         "EXPLORER": [
           "The books rest quietly on their shelves, and a page turns by itself, just once."
         ]
@@ -278,11 +208,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "trophy-room",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -291,12 +217,8 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The pedestals shine."
-        ],
-        "PATHFINDER": [
-          "The pedestals shine in the soft lantern light."
-        ],
+        "SPROUT": ["The pedestals shine."],
+        "PATHFINDER": ["The pedestals shine in the soft lantern light."],
         "EXPLORER": [
           "The pedestals shine in the soft lantern light, each one keeping a treasure safe."
         ]
@@ -312,11 +234,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "secret-chamber",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -325,15 +243,9 @@
       "weight": 1,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The lantern glows."
-        ],
-        "PATHFINDER": [
-          "The little lantern glows in the quiet room."
-        ],
-        "EXPLORER": [
-          "The little lantern glows in the quiet room, and the mural seems to listen."
-        ]
+        "SPROUT": ["The lantern glows."],
+        "PATHFINDER": ["The little lantern glows in the quiet room."],
+        "EXPLORER": ["The little lantern glows in the quiet room, and the mural seems to listen."]
       },
       "visual": {
         "kind": "lantern-glow"
@@ -346,11 +258,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "secret-chamber",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": 3,
@@ -359,9 +267,7 @@
       "weight": 2,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The crystals hum softly."
-        ],
+        "SPROUT": ["The crystals hum softly."],
         "PATHFINDER": [
           "The three crystals hum together, one low, one higher, and one softest of all."
         ],
@@ -380,11 +286,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "secret-chamber",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": 2,
@@ -393,9 +295,7 @@
       "weight": 2,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The mural is quiet."
-        ],
+        "SPROUT": ["The mural is quiet."],
         "PATHFINDER": [
           "The old mural is quiet, and its painted colors glow a little in the lantern light."
         ],
@@ -414,11 +314,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "secret-chamber",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [
         {
           "type": "WORLD_CHANGE",
@@ -433,12 +329,8 @@
       "weight": 3,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The little star twinkles."
-        ],
-        "PATHFINDER": [
-          "The little painted star twinkles, as if it remembers you."
-        ],
+        "SPROUT": ["The little star twinkles."],
+        "PATHFINDER": ["The little painted star twinkles, as if it remembers you."],
         "EXPLORER": [
           "The little painted star twinkles on the mural, as if it remembers the day you noticed it."
         ]
@@ -454,11 +346,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "secret-chamber",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [
         {
           "type": "WORLD_CHANGE",
@@ -473,12 +361,8 @@
       "weight": 3,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The tiny door glows."
-        ],
-        "PATHFINDER": [
-          "The tiny door glows warmly, and somebody small is humming inside."
-        ],
+        "SPROUT": ["The tiny door glows."],
+        "PATHFINDER": ["The tiny door glows warmly, and somebody small is humming inside."],
         "EXPLORER": [
           "The tiny door glows warmly, and somebody small is humming a cheerful tune inside, just out of sight."
         ]
@@ -494,11 +378,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "secret-chamber",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [
         {
           "type": "WORLD_CHANGE",
@@ -518,12 +398,8 @@
       "weight": 4,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The star and the tiny door say hello."
-        ],
-        "PATHFINDER": [
-          "The little star and the tiny door seem glad you found them both."
-        ],
+        "SPROUT": ["The star and the tiny door say hello."],
+        "PATHFINDER": ["The little star and the tiny door seem glad you found them both."],
         "EXPLORER": [
           "The little star and the tiny door seem glad you found them both, and the whole chamber feels warm and friendly."
         ]
@@ -539,11 +415,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "story-hall",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": 3,
@@ -552,12 +424,8 @@
       "weight": 2,
       "npcId": "keeper-quill",
       "lines": {
-        "SPROUT": [
-          "Keeper Quill hums a tune."
-        ],
-        "PATHFINDER": [
-          "Keeper Quill hums a happy tune while tidying the story shelves."
-        ],
+        "SPROUT": ["Keeper Quill hums a tune."],
+        "PATHFINDER": ["Keeper Quill hums a happy tune while tidying the story shelves."],
         "EXPLORER": [
           "Keeper Quill hums a happy tune while tidying the story shelves, and a few loose pages settle into place."
         ]
@@ -573,11 +441,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "story-hall",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [
         {
           "type": "WORLD_CHANGE",
@@ -592,9 +456,7 @@
       "weight": 3,
       "npcId": "keeper-quill",
       "lines": {
-        "SPROUT": [
-          "Keeper Quill smiles at the book."
-        ],
+        "SPROUT": ["Keeper Quill smiles at the book."],
         "PATHFINDER": [
           "Keeper Quill smiles at the book and says the first story still feels warm."
         ],
@@ -613,11 +475,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "story-hall",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [
         {
           "type": "WORLD_CHANGE",
@@ -635,12 +493,8 @@
       "weight": 4,
       "npcId": "ember-dragon",
       "lines": {
-        "SPROUT": [
-          "Ember warms the hearth."
-        ],
-        "PATHFINDER": [
-          "Ember curls up by the hearth and makes the whole hall cosy and warm."
-        ],
+        "SPROUT": ["Ember warms the hearth."],
+        "PATHFINDER": ["Ember curls up by the hearth and makes the whole hall cosy and warm."],
         "EXPLORER": [
           "Ember curls up by the hearth and makes the whole hall cosy and warm, and the shadows on the shelves dance."
         ]
@@ -656,11 +510,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "setting-tower",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [
         {
           "type": "WORLD_CHANGE",
@@ -678,12 +528,8 @@
       "weight": 4,
       "npcId": "ember-dragon",
       "lines": {
-        "SPROUT": [
-          "Look! Ember flies by."
-        ],
-        "PATHFINDER": [
-          "Look out the window! Ember sails past the tower with a happy swoop."
-        ],
+        "SPROUT": ["Look! Ember flies by."],
+        "PATHFINDER": ["Look out the window! Ember sails past the tower with a happy swoop."],
         "EXPLORER": [
           "Look out the window! Ember sails past the tower with a happy swoop, trailing a ribbon of warm light."
         ]
@@ -699,11 +545,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "great-library",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -712,12 +554,8 @@
       "weight": 2,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The pages rustle."
-        ],
-        "PATHFINDER": [
-          "The pages rustle softly, as if the books are whispering to each other."
-        ],
+        "SPROUT": ["The pages rustle."],
+        "PATHFINDER": ["The pages rustle softly, as if the books are whispering to each other."],
         "EXPLORER": [
           "The pages rustle softly, as if the books are whispering to each other about the stories they hold."
         ]
@@ -733,11 +571,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "illustration-studio",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [
         {
           "type": "WORLD_CHANGE",
@@ -751,12 +585,8 @@
       "weight": 3,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The painted words shimmer."
-        ],
-        "PATHFINDER": [
-          "The painted words shimmer on the wall, happy to be home."
-        ],
+        "SPROUT": ["The painted words shimmer."],
+        "PATHFINDER": ["The painted words shimmer on the wall, happy to be home."],
         "EXPLORER": [
           "The painted words shimmer on the wall, happy to be home, and the colours seem a little brighter today."
         ]
@@ -772,11 +602,7 @@
       "status": "PUBLISHED",
       "version": 1,
       "room": "ANY",
-      "bands": [
-        "SPROUT",
-        "PATHFINDER",
-        "EXPLORER"
-      ],
+      "bands": ["SPROUT", "PATHFINDER", "EXPLORER"],
       "requires": [],
       "repeat": {
         "maxShows": null,
@@ -785,12 +611,8 @@
       "weight": 2,
       "npcId": null,
       "lines": {
-        "SPROUT": [
-          "The lanterns twinkle."
-        ],
-        "PATHFINDER": [
-          "The lanterns twinkle gently as you pass."
-        ],
+        "SPROUT": ["The lanterns twinkle."],
+        "PATHFINDER": ["The lanterns twinkle gently as you pass."],
         "EXPLORER": [
           "The lanterns twinkle gently as you pass, lighting the way through the castle."
         ]

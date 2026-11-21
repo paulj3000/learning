@@ -18,7 +18,14 @@ import { defineComponent } from '../core/entities';
 import { defineService } from '../core/services';
 import type { CapabilityDefinition } from '../core/capabilities';
 import { CHECKPOINTS_CAPABILITY_ID, CheckpointsService } from './checkpoints';
-import { emitPresentation, entityKey, isReducedMotion, playerPosition, signalBoard, type GameplayRuntime } from './common';
+import {
+  emitPresentation,
+  entityKey,
+  isReducedMotion,
+  playerPosition,
+  signalBoard,
+  type GameplayRuntime,
+} from './common';
 import { rectContains, rectsOverlap, type Rect } from './geometry';
 import { configRoot, Issues } from './validate';
 
@@ -81,7 +88,13 @@ export interface HazardRegionsApi {
 export const HazardRegionsService = defineService<HazardRegionsApi>('gameplay.hazardRegions');
 
 /** The phase of a telegraphed hazard at simulated `time` (pure, deterministic). */
-export function telegraphPhaseAt(spec: Pick<TelegraphedHazardSpec, 'telegraphSeconds' | 'activeSeconds' | 'restSeconds' | 'offsetSeconds'>, time: number): { phase: HazardPhase; secondsToImpact: number } {
+export function telegraphPhaseAt(
+  spec: Pick<
+    TelegraphedHazardSpec,
+    'telegraphSeconds' | 'activeSeconds' | 'restSeconds' | 'offsetSeconds'
+  >,
+  time: number,
+): { phase: HazardPhase; secondsToImpact: number } {
   const cycle = spec.restSeconds + spec.telegraphSeconds + spec.activeSeconds;
   const t = (((time + spec.offsetSeconds) % cycle) + cycle) % cycle;
   if (t < spec.restSeconds) {
@@ -104,7 +117,11 @@ export function validateHazardsConfig(input: unknown) {
     return value;
   };
   const kind = (value: unknown, path: string, fallback: string) =>
-    value === undefined ? fallback : typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,31}$/.test(value) ? value : (issues.add(path, 'must be UPPER_SNAKE_CASE'), fallback);
+    value === undefined
+      ? fallback
+      : typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,31}$/.test(value)
+        ? value
+        : (issues.add(path, 'must be UPPER_SNAKE_CASE'), fallback);
   const hazards = issues.records(
     root.hazards,
     'hazards',
@@ -115,7 +132,10 @@ export function validateHazardsConfig(input: unknown) {
       belowY: issues.num(item.belowY, `${path}.belowY`, -50, 5, 0.05),
       checkpointId: issues.id(item.checkpointId, `${path}.checkpointId`),
       messageKey: message(item.messageKey, `${path}.messageKey`),
-      inactiveWhenSignalId: issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`),
+      inactiveWhenSignalId: issues.optionalId(
+        item.inactiveWhenSignalId,
+        `${path}.inactiveWhenSignalId`,
+      ),
     }),
     (h) => h.id,
     64,
@@ -124,12 +144,21 @@ export function validateHazardsConfig(input: unknown) {
     root.telegraphed,
     'telegraphed',
     (item, path): TelegraphedHazardSpec => {
-      const route = issues.oneOf<'REQUIRED' | 'OPTIONAL'>(item.route, `${path}.route`, ['REQUIRED', 'OPTIONAL'], 'OPTIONAL');
+      const route = issues.oneOf<'REQUIRED' | 'OPTIONAL'>(
+        item.route,
+        `${path}.route`,
+        ['REQUIRED', 'OPTIONAL'],
+        'OPTIONAL',
+      );
       const rect = issues.rect(item.rect, `${path}.rect`);
-      const safeLane = item.safeLane === undefined ? undefined : issues.rect(item.safeLane, `${path}.safeLane`);
+      const safeLane =
+        item.safeLane === undefined ? undefined : issues.rect(item.safeLane, `${path}.safeLane`);
       if (route === 'REQUIRED') {
         if (!safeLane) {
-          issues.add(`${path}.safeLane`, 'a moving hazard on a required route must declare a safe lane');
+          issues.add(
+            `${path}.safeLane`,
+            'a moving hazard on a required route must declare a safe lane',
+          );
         } else if (rectsOverlap(safeLane, rect)) {
           issues.add(`${path}.safeLane`, 'the safe lane must not overlap the impact area');
         }
@@ -142,11 +171,20 @@ export function validateHazardsConfig(input: unknown) {
         safeLane,
         checkpointId: issues.id(item.checkpointId, `${path}.checkpointId`),
         messageKey: message(item.messageKey, `${path}.messageKey`),
-        telegraphSeconds: issues.num(item.telegraphSeconds, `${path}.telegraphSeconds`, MIN_TELEGRAPH_SECONDS, 10, 2),
+        telegraphSeconds: issues.num(
+          item.telegraphSeconds,
+          `${path}.telegraphSeconds`,
+          MIN_TELEGRAPH_SECONDS,
+          10,
+          2,
+        ),
         activeSeconds: issues.num(item.activeSeconds, `${path}.activeSeconds`, 0.1, 3, 0.5),
         restSeconds: issues.num(item.restSeconds, `${path}.restSeconds`, 1, 60, 3),
         offsetSeconds: issues.num(item.offsetSeconds, `${path}.offsetSeconds`, 0, 120, 0),
-        inactiveWhenSignalId: issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`),
+        inactiveWhenSignalId: issues.optionalId(
+          item.inactiveWhenSignalId,
+          `${path}.inactiveWhenSignalId`,
+        ),
       };
     },
     (h) => h.id,
@@ -162,7 +200,13 @@ export function validateHazardsConfig(input: unknown) {
   return issues.result<HazardsConfig>({
     hazards,
     telegraphed,
-    recoveryCooldownSeconds: issues.num(root.recoveryCooldownSeconds, 'recoveryCooldownSeconds', 0.5, 10, 1.5),
+    recoveryCooldownSeconds: issues.num(
+      root.recoveryCooldownSeconds,
+      'recoveryCooldownSeconds',
+      0.5,
+      10,
+      1.5,
+    ),
   });
 }
 
@@ -171,7 +215,8 @@ export const HAZARDS_CAPABILITY_ID = 'gameplay.hazards';
 export const hazardsCapability: CapabilityDefinition<HazardsConfig, GameplayRuntime> = {
   id: HAZARDS_CAPABILITY_ID,
   version: '1.0.0',
-  description: 'Static and telegraphed hazards that request recovery to a checkpoint. No damage, no lives.',
+  description:
+    'Static and telegraphed hazards that request recovery to a checkpoint. No damage, no lives.',
   requires: [CHECKPOINTS_CAPABILITY_ID],
   defaults: { hazards: [], telegraphed: [], recoveryCooldownSeconds: 1.5 },
   validate: validateHazardsConfig,
@@ -180,22 +225,42 @@ export const hazardsCapability: CapabilityDefinition<HazardsConfig, GameplayRunt
     const checkpoints = runtime.services.require(CheckpointsService);
     for (const spec of config.hazards) {
       if (!checkpoints.has(spec.checkpointId)) {
-        runtime.diagnostics.warn('HAZARD_UNKNOWN_CHECKPOINT', { hazard: spec.id, checkpoint: spec.checkpointId });
+        runtime.diagnostics.warn('HAZARD_UNKNOWN_CHECKPOINT', {
+          hazard: spec.id,
+          checkpoint: spec.checkpointId,
+        });
       }
-      world.add(world.create(entityKey('hazard', spec.id)), HazardComponent, { kind: 'STATIC', spec, inside: false, phase: 'ACTIVE', cooldown: 0 });
+      world.add(world.create(entityKey('hazard', spec.id)), HazardComponent, {
+        kind: 'STATIC',
+        spec,
+        inside: false,
+        phase: 'ACTIVE',
+        cooldown: 0,
+      });
     }
     for (const spec of config.telegraphed) {
       if (!checkpoints.has(spec.checkpointId)) {
-        runtime.diagnostics.warn('HAZARD_UNKNOWN_CHECKPOINT', { hazard: spec.id, checkpoint: spec.checkpointId });
+        runtime.diagnostics.warn('HAZARD_UNKNOWN_CHECKPOINT', {
+          hazard: spec.id,
+          checkpoint: spec.checkpointId,
+        });
       }
-      world.add(world.create(entityKey('hazard', spec.id)), HazardComponent, { kind: 'TELEGRAPHED', spec, inside: false, phase: 'REST', cooldown: 0 });
+      world.add(world.create(entityKey('hazard', spec.id)), HazardComponent, {
+        kind: 'TELEGRAPHED',
+        spec,
+        inside: false,
+        phase: 'REST',
+        cooldown: 0,
+      });
     }
     const removeRegions = runtime.services.provide(HazardRegionsService, {
-      regions: () => [...config.hazards, ...config.telegraphed].map((h) => ({ id: h.id, rect: h.rect })),
+      regions: () =>
+        [...config.hazards, ...config.telegraphed].map((h) => ({ id: h.id, rect: h.rect })),
     });
 
     const signals = signalBoard(runtime);
-    const inactive = (spec: { inactiveWhenSignalId?: string }) => spec.inactiveWhenSignalId !== undefined && signals.get(spec.inactiveWhenSignalId);
+    const inactive = (spec: { inactiveWhenSignalId?: string }) =>
+      spec.inactiveWhenSignalId !== undefined && signals.get(spec.inactiveWhenSignalId);
 
     const request = (state: HazardState) => {
       const spec = state.spec;
@@ -231,7 +296,10 @@ export const hazardsCapability: CapabilityDefinition<HazardsConfig, GameplayRunt
               state.inside = false;
               continue;
             }
-            const inside = player !== undefined && rectContains(spec.rect, player.x, player.z) && player.y <= spec.belowY;
+            const inside =
+              player !== undefined &&
+              rectContains(spec.rect, player.x, player.z) &&
+              player.y <= spec.belowY;
             if (inside && state.cooldown === 0) {
               request(state);
             }
@@ -243,7 +311,12 @@ export const hazardsCapability: CapabilityDefinition<HazardsConfig, GameplayRunt
             // Off: the view sees REST once, and nothing recovers the child.
             if (state.phase !== 'REST') {
               state.phase = 'REST';
-              emitPresentation(runtime, 'HazardTelegraph', { hazardId: spec.id, phase: 'REST', secondsToImpact: spec.telegraphSeconds, steadyWarning: steady });
+              emitPresentation(runtime, 'HazardTelegraph', {
+                hazardId: spec.id,
+                phase: 'REST',
+                secondsToImpact: spec.telegraphSeconds,
+                steadyWarning: steady,
+              });
             }
             state.inside = false;
             continue;
@@ -251,7 +324,12 @@ export const hazardsCapability: CapabilityDefinition<HazardsConfig, GameplayRunt
           const { phase, secondsToImpact } = telegraphPhaseAt(spec, context.time);
           if (phase !== state.phase) {
             state.phase = phase;
-            emitPresentation(runtime, 'HazardTelegraph', { hazardId: spec.id, phase, secondsToImpact, steadyWarning: steady });
+            emitPresentation(runtime, 'HazardTelegraph', {
+              hazardId: spec.id,
+              phase,
+              secondsToImpact,
+              steadyWarning: steady,
+            });
           }
           const inside = player !== undefined && rectContains(spec.rect, player.x, player.z);
           if (phase === 'ACTIVE' && inside && state.cooldown === 0) {

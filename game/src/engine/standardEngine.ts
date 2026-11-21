@@ -35,7 +35,12 @@ import {
   type ThirdPersonCameraConfig,
 } from '../camera/capabilities';
 import { createCameraSystem } from '../camera/cameraSystem';
-import { createAvatarController, type AvatarController, type AvatarDefinition, type AvatarLoaderPort } from '../character/avatar';
+import {
+  createAvatarController,
+  type AvatarController,
+  type AvatarDefinition,
+  type AvatarLoaderPort,
+} from '../character/avatar';
 import { createAvatarFollowSystem } from '../character/avatarSystem';
 import {
   animationDefinitionFromConfig,
@@ -55,7 +60,11 @@ import {
   type RequirementChecker,
 } from '../components/common';
 import { PlatformsService } from '../components/platforms';
-import { createGameplayEventFactory, type GameplayEventContext, type GameplayEventFactoryOptions } from '../contracts/gameplayEvents';
+import {
+  createGameplayEventFactory,
+  type GameplayEventContext,
+  type GameplayEventFactoryOptions,
+} from '../contracts/gameplayEvents';
 import { EnvironmentQueryService, PhysicsProviderService } from '../contracts/physics';
 import { PLAYER_ENTITY_ID, PlayerTransformComponent, type Vec3Like } from '../contracts/player';
 import type { CapabilityRequest } from '../core/capabilities';
@@ -66,7 +75,10 @@ import { createEngineRuntime, type EngineRuntime } from '../core/runtime';
 import { MOVEMENT_JUMP, MOVEMENT_LOCOMOTION } from '../movement/capabilities';
 import { FirstPersonController } from '../movement/firstPersonController';
 import { JUMP_DISABLED, type JumpConfiguration } from '../movement/jumpConfiguration';
-import { DEFAULT_LOCOMOTION, type LocomotionConfiguration } from '../movement/locomotionConfiguration';
+import {
+  DEFAULT_LOCOMOTION,
+  type LocomotionConfiguration,
+} from '../movement/locomotionConfiguration';
 import {
   gateEnvironment,
   installedMovementFeatures,
@@ -78,7 +90,10 @@ import {
 } from '../movement/movementSystem';
 import { createAabbPhysicsProvider, type AabbPhysicsProvider } from '../physics/aabbProvider';
 import { HOST_EVENTS, HostViewService } from './host';
-import { createStandardCapabilityRegistry, type StandardCapabilityRegistry } from './standardRegistry';
+import {
+  createStandardCapabilityRegistry,
+  type StandardCapabilityRegistry,
+} from './standardRegistry';
 
 /** Player input: a polled source, optionally able to forget held input (focus lost). */
 export interface StandardInput {
@@ -134,7 +149,14 @@ export const DEFAULT_AVATAR_DEFINITION: AvatarDefinition = Object.freeze({
   rotationOffset: 0,
   eyeHeight: 1.1,
   footprintOffset: Object.freeze({ x: 0, z: 0 }),
-  animationMap: Object.freeze({ idle: 'Idle', walk: 'Walk', run: 'Run', jump: 'Jump', fall: 'Fall', land: 'Land' }),
+  animationMap: Object.freeze({
+    idle: 'Idle',
+    walk: 'Walk',
+    run: 'Run',
+    jump: 'Jump',
+    fall: 'Fall',
+    land: 'Land',
+  }),
   sockets: Object.freeze({}),
 });
 
@@ -159,7 +181,9 @@ function toInput(input: StandardInput | MovementInputSource): StandardInput {
  * Creates, starts and wires a standard engine. Rejects (and disposes) when the requests are
  * invalid. The returned runtime is `running`; the host drives it with `runtime.tick(seconds)`.
  */
-export async function createStandardEngine(options: StandardEngineOptions): Promise<StandardEngineHandle> {
+export async function createStandardEngine(
+  options: StandardEngineOptions,
+): Promise<StandardEngineHandle> {
   const registry = options.registry ?? createStandardCapabilityRegistry();
   const runtime = createEngineRuntime<EventMap>({
     id: options.id,
@@ -177,7 +201,10 @@ export async function createStandardEngine(options: StandardEngineOptions): Prom
     runtime.services.provide(RequirementCheckService, options.requirements);
   }
   if (options.claims) {
-    runtime.services.provide(GameplayEventFactoryService, createGameplayEventFactory(options.claims.context, options.claims.options));
+    runtime.services.provide(
+      GameplayEventFactoryService,
+      createGameplayEventFactory(options.claims.context, options.claims.options),
+    );
   }
   options.provide?.(runtime);
 
@@ -199,7 +226,10 @@ interface WireOptions extends StandardEngineOptions {
 }
 
 /** The wiring step, exported for hosts that start their own runtime on the standard registry. */
-export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: WireOptions): StandardEngineHandle {
+export function wireStandardGameplay(
+  runtime: EngineRuntime<EventMap>,
+  options: WireOptions,
+): StandardEngineHandle {
   const { physics, settings } = options;
   const input = toInput(options.input);
 
@@ -295,7 +325,8 @@ export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: 
         moved = true;
       }
       const entity = runtime.world.bySemanticId(PLAYER_ENTITY_ID);
-      const transform = entity === undefined ? undefined : runtime.world.get(entity, PlayerTransformComponent);
+      const transform =
+        entity === undefined ? undefined : runtime.world.get(entity, PlayerTransformComponent);
       const supportId = transform?.supportId ?? null;
       if (supportId) {
         const v = api.carryVelocityAt(supportId, controller.position.x, controller.position.z);
@@ -317,10 +348,13 @@ export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: 
 
   // Focus lost: forget held input, so nothing keeps walking.
   runtime.resources.track(
-    runtime.events.on(HOST_EVENTS.inputReset as never, (() => {
-      input.reset?.();
-      controller.clearJumpInput();
-    }) as never),
+    runtime.events.on(
+      HOST_EVENTS.inputReset as never,
+      (() => {
+        input.reset?.();
+        controller.clearJumpInput();
+      }) as never,
+    ),
   );
 
   // Camera: only with a host view and a camera capability.
@@ -357,7 +391,8 @@ export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: 
   let avatar: AvatarController | null = null;
   const avatarConfig = runtime.capabilityConfig<AvatarCapabilityConfig>(CHARACTER_AVATAR);
   if (avatarConfig && avatarConfig.enabled) {
-    const animationConfig = runtime.capabilityConfig<AnimationCapabilityConfig>(CHARACTER_ANIMATION);
+    const animationConfig =
+      runtime.capabilityConfig<AnimationCapabilityConfig>(CHARACTER_ANIMATION);
     const base = { ...DEFAULT_AVATAR_DEFINITION, ...options.avatar?.definition };
     const definition: AvatarDefinition = {
       ...base,
@@ -372,7 +407,9 @@ export function wireStandardGameplay(runtime: EngineRuntime<EventMap>, options: 
       yawConvention: 'controller',
       facing: avatarConfig.facing,
       animate: animationConfig !== undefined,
-      ...(animationConfig ? { animationDefinition: animationDefinitionFromConfig(animationConfig) } : {}),
+      ...(animationConfig
+        ? { animationDefinition: animationDefinitionFromConfig(animationConfig) }
+        : {}),
     });
     avatar = created;
     if (view) {

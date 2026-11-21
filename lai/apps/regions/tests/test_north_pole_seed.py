@@ -237,7 +237,9 @@ class TestLayoutUpgrade:
         scene = layout.scene()
         for key in ("engineBridge",):
             scene.pop(key)
-        scene["effects"]["checkpoints"] = [{"id": "np-cp-landing", "label": "Santa's Landing", "x": 0, "z": 92, "yaw": 0}]
+        scene["effects"]["checkpoints"] = [
+            {"id": "np-cp-landing", "label": "Santa's Landing", "x": 0, "z": 92, "yaw": 0}
+        ]
         scene["northPoleVersion"] = 1
         scene["copy"] = {**scene["copy"], "loading": "My own words."}
         scene["platformTuning"] = {"np-plat-trampoline": {"bounceHeight": 2.0}}
@@ -250,7 +252,12 @@ class TestLayoutUpgrade:
         region.save()
         child = north_pole.a1
         play = Play(api(north_pole.a), child)
-        assert play.solve("np-welcome-look", submission("np-welcome-look", "PATHFINDER")).json()["correct"] is True
+        assert (
+            play.solve("np-welcome-look", submission("np-welcome-look", "PATHFINDER")).json()[
+                "correct"
+            ]
+            is True
+        )
         before_keys, before_items = keys(child), owned(child)
 
         created = seed_north_pole()
@@ -263,14 +270,20 @@ class TestLayoutUpgrade:
         assert region.scene["platformTuning"] == {"np-plat-trampoline": {"bounceHeight": 2.0}}
         # The child's saves are rows, untouched by the upgrade, and play continues.
         assert keys(child) == before_keys and owned(child) == before_items
-        assert Play(api(north_pole.a), child).region()["region"]["scene"]["northPoleVersion"] == layout.LAYOUT_VERSION
+        assert (
+            Play(api(north_pole.a), child).region()["region"]["scene"]["northPoleVersion"]
+            == layout.LAYOUT_VERSION
+        )
 
     def test_a_v4_layout_snows_once_on_the_engine_and_keeps_its_fog_and_aurora(self, north_pole):
         seed_north_pole()
         region = WorldRegion.objects.get(region_id=REGION_ID)
         scene = layout.scene()
         scene["northPoleVersion"] = 4
-        scene["engineBridge"] = {**scene["engineBridge"], "capabilities": scene["engineBridge"]["capabilities"][:3]}
+        scene["engineBridge"] = {
+            **scene["engineBridge"],
+            "capabilities": scene["engineBridge"]["capabilities"][:3],
+        }
         scene["atmosphere"] = {
             **scene["atmosphere"],
             "fog": {"color": 0x112233, "near": 40, "far": 150},  # staff-authored: kept
@@ -282,7 +295,9 @@ class TestLayoutUpgrade:
         region.refresh_from_db()
         assert "precipitation" not in region.scene["atmosphere"]
         assert region.scene["atmosphere"]["fog"] == {"color": 0x112233, "near": 40, "far": 150}
-        assert region.scene["atmosphere"]["skyRibbons"] == layout.scene()["atmosphere"]["skyRibbons"]
+        assert (
+            region.scene["atmosphere"]["skyRibbons"] == layout.scene()["atmosphere"]["skyRibbons"]
+        )
         ids = [c["id"] for c in region.scene["engineBridge"]["capabilities"]]
         assert ids[-1] == "environment.weather"
 
@@ -410,7 +425,9 @@ class TestPlaythrough:
         assert play.pickup(flakes[-1]).status_code in (200, 201)
         assert "np-cosmetic-snowflake-scarf" in owned(child)
         assert play.pickup(flakes[-1]).status_code == 200  # already in the backpack
-        scarves = InventoryItem.objects.filter(child=child, item__item_id="np-cosmetic-snowflake-scarf")
+        scarves = InventoryItem.objects.filter(
+            child=child, item__item_id="np-cosmetic-snowflake-scarf"
+        )
         assert scarves.count() == 1
 
     def test_leaving_and_coming_back_keeps_everything(self, north_pole, api):

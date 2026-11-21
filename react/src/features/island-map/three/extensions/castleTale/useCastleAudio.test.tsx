@@ -12,14 +12,14 @@ import type { AgeBandValue } from '../../../../child-profile/constants';
 import { WorldEngineEventBus } from '../../worldEngineEvents';
 import type { CastleRoomId } from '../../castleLayout';
 import { playCastleCue, setCastleSoundSink } from './castleSoundCues';
-import {
-  CASTLE_CUE_SOUNDS,
-  CASTLE_SOUND,
-  ROOM_AMBIENCE,
-  SHARED_MOVEMENT,
-} from './castleSounds';
+import { CASTLE_CUE_SOUNDS, CASTLE_SOUND, ROOM_AMBIENCE, SHARED_MOVEMENT } from './castleSounds';
 import type { CastleTaleSceneApi } from './castleTaleScene';
-import { AMBIENCE_FADE_MS, CASTLE_REGION_ID, useCastleAudio, type CastleAudio } from './useCastleAudio';
+import {
+  AMBIENCE_FADE_MS,
+  CASTLE_REGION_ID,
+  useCastleAudio,
+  type CastleAudio,
+} from './useCastleAudio';
 
 const QUILL = 'keeper-quill';
 const assetOf = (cue: string) => `${cue.replace(/[._]/g, '-')}@1`;
@@ -165,7 +165,11 @@ async function mount(world = build(), options: { ageBand?: AgeBandValue; strict?
   let audio: CastleAudio | undefined;
   const tree = (
     <SoundProvider manager={world.manager} unlockOnGesture={false}>
-      <Castle world={world} ageBand={options.ageBand ?? 'PATHFINDER'} onAudio={(a) => (audio = a)} />
+      <Castle
+        world={world}
+        ageBand={options.ageBand ?? 'PATHFINDER'}
+        onAudio={(a) => (audio = a)}
+      />
     </SoundProvider>
   );
   const view = render(options.strict ? <StrictMode>{tree}</StrictMode> : tree);

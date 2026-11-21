@@ -8,10 +8,15 @@ import type { WorldEngineEventMap } from './worldEngineEvents';
  */
 type Shared = keyof EnginePresentationEventMap & keyof WorldEngineEventMap;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-type AllSame = { [K in Shared]: Same<EnginePresentationEventMap[K], WorldEngineEventMap[K]> }[Shared];
+type AllSame = {
+  [K in Shared]: Same<EnginePresentationEventMap[K], WorldEngineEventMap[K]>;
+}[Shared];
 
 const parity: AllSame = true;
-const everyEngineEventIsShared: Exclude<keyof EnginePresentationEventMap, keyof WorldEngineEventMap> extends never
+const everyEngineEventIsShared: Exclude<
+  keyof EnginePresentationEventMap,
+  keyof WorldEngineEventMap
+> extends never
   ? true
   : false = true;
 

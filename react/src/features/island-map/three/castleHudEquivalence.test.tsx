@@ -173,35 +173,36 @@ describe('the castle stages nothing the HUD cannot answer', () => {
    * same words, and the card itself answers without any jumping. A pad that stood for something the
    * card cannot say would be a learning objective reachable only by jumping.
    */
-  it.each(boundSteps(CASTLE_PAD_BINDINGS).map((bound) => [bound.templateSlug, bound.stepId] as const))(
-    '%s/%s: every stone or book that answers it is on the card too',
-    (templateSlug, stepId) => {
-      const definition = getAdventureTemplate(templateSlug)!;
-      const step = findStep(definition, stepId);
-      expect(ANSWERABLE_KINDS, `${templateSlug}/${stepId}`).toContain(step.presentation.kind);
-      renderCard(step);
-      const labels =
-        step.presentation.kind === 'ordering'
-          ? step.presentation.items
-          : step.presentation.kind === 'choice' || step.presentation.kind === 'creative-choice'
-            ? step.presentation.options
-            : [];
-      const pads = CASTLE_PAD_BINDINGS.filter(
-        (binding) => binding.templateSlug === templateSlug && binding.stepId === stepId,
-      );
-      expect(pads.length).toBeGreaterThan(0);
-      for (const pad of pads) {
-        const label = labels.find((candidate) => candidate.id === pad.optionId)?.label;
-        expect(label, `${pad.entityId} -> ${pad.optionId} has no label on the card`).toBeDefined();
-        expect(screen.getByText(label!)).toBeInTheDocument();
-      }
-    },
-  );
+  it.each(
+    boundSteps(CASTLE_PAD_BINDINGS).map((bound) => [bound.templateSlug, bound.stepId] as const),
+  )('%s/%s: every stone or book that answers it is on the card too', (templateSlug, stepId) => {
+    const definition = getAdventureTemplate(templateSlug)!;
+    const step = findStep(definition, stepId);
+    expect(ANSWERABLE_KINDS, `${templateSlug}/${stepId}`).toContain(step.presentation.kind);
+    renderCard(step);
+    const labels =
+      step.presentation.kind === 'ordering'
+        ? step.presentation.items
+        : step.presentation.kind === 'choice' || step.presentation.kind === 'creative-choice'
+          ? step.presentation.options
+          : [];
+    const pads = CASTLE_PAD_BINDINGS.filter(
+      (binding) => binding.templateSlug === templateSlug && binding.stepId === stepId,
+    );
+    expect(pads.length).toBeGreaterThan(0);
+    for (const pad of pads) {
+      const label = labels.find((candidate) => candidate.id === pad.optionId)?.label;
+      expect(label, `${pad.entityId} -> ${pad.optionId} has no label on the card`).toBeDefined();
+      expect(screen.getByText(label!)).toBeInTheDocument();
+    }
+  });
 
   it.each(PAINTED_WORDS_ADVENTURES.map((definition) => [definition.slug, definition] as const))(
     'every Painted Words pad of %s says a word the card says too',
     (_slug, definition) => {
-      for (const step of definition.steps.filter((candidate) => candidate.presentation.kind === 'choice')) {
+      for (const step of definition.steps.filter(
+        (candidate) => candidate.presentation.kind === 'choice',
+      )) {
         renderCard(step);
         const slots = paintedWordsPadSlots(step);
         expect(slots, `${definition.slug}/${step.id}`).not.toBeNull();

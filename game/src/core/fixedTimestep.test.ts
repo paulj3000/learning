@@ -21,7 +21,11 @@ describe('createFixedTimestepClock', () => {
   });
 
   it('clamps long frames and caps steps instead of spiralling', () => {
-    const clock = createFixedTimestepClock({ stepSeconds: 1 / 60, maxFrameSeconds: 0.25, maxStepsPerFrame: 8 });
+    const clock = createFixedTimestepClock({
+      stepSeconds: 1 / 60,
+      maxFrameSeconds: 0.25,
+      maxStepsPerFrame: 8,
+    });
     const frame = clock.advance(5);
     expect(frame.steps).toBe(8);
     expect(frame.droppedSeconds).toBeGreaterThan(4.6);

@@ -16,7 +16,13 @@
 import { defineComponent } from '../core/entities';
 import { defineService } from '../core/services';
 import type { CapabilityDefinition } from '../core/capabilities';
-import { emitClaim, emitPresentation, entityKey, signalBoard, type GameplayRuntime } from './common';
+import {
+  emitClaim,
+  emitPresentation,
+  entityKey,
+  signalBoard,
+  type GameplayRuntime,
+} from './common';
 import { worldObjects } from './triggers';
 import { configRoot, Issues, type Json } from './validate';
 
@@ -78,7 +84,11 @@ export interface PuzzlesConfig {
 }
 
 function totalOf(spec: PuzzleSpec): number {
-  return spec.kind === 'SEQUENCE' ? spec.steps.length : spec.kind === 'ALL_HELD' ? spec.signalIds.length : spec.sockets.length;
+  return spec.kind === 'SEQUENCE'
+    ? spec.steps.length
+    : spec.kind === 'ALL_HELD'
+      ? spec.signalIds.length
+      : spec.sockets.length;
 }
 
 function idList(value: unknown, path: string, issues: Issues, min: number, max: number): string[] {
@@ -99,22 +109,35 @@ export function validatePuzzlesConfig(input: unknown) {
       const id = issues.id(item.id, `${path}.id`);
       const base = {
         id,
-        solvedSignalId: issues.optionalId(item.solvedSignalId, `${path}.solvedSignalId`) ?? `puzzle.${id}`,
+        solvedSignalId:
+          issues.optionalId(item.solvedSignalId, `${path}.solvedSignalId`) ?? `puzzle.${id}`,
         alternativeActionId: (() => {
           if (item.alternativeActionId === undefined) {
-            issues.add(`${path}.alternativeActionId`, 'a non-movement way to complete the puzzle must be declared');
+            issues.add(
+              `${path}.alternativeActionId`,
+              'a non-movement way to complete the puzzle must be declared',
+            );
             return '';
           }
           return issues.id(item.alternativeActionId, `${path}.alternativeActionId`);
         })(),
       };
-      const kind = issues.oneOf<PuzzleKind>(item.kind, `${path}.kind`, ['SEQUENCE', 'ALL_HELD', 'SOCKETS']);
+      const kind = issues.oneOf<PuzzleKind>(item.kind, `${path}.kind`, [
+        'SEQUENCE',
+        'ALL_HELD',
+        'SOCKETS',
+      ]);
       if (kind === 'SEQUENCE') {
         const steps = idList(item.steps, `${path}.steps`, issues, 2, 12);
         return { ...base, kind, steps };
       }
       if (kind === 'ALL_HELD') {
-        return { ...base, kind, signalIds: idList(item.signalIds, `${path}.signalIds`, issues, 2, 12), holdSeconds: issues.num(item.holdSeconds, `${path}.holdSeconds`, 0, 2, 0) };
+        return {
+          ...base,
+          kind,
+          signalIds: idList(item.signalIds, `${path}.signalIds`, issues, 2, 12),
+          holdSeconds: issues.num(item.holdSeconds, `${path}.holdSeconds`, 0, 2, 0),
+        };
       }
       const sockets = issues.records(
         item.sockets,
@@ -145,14 +168,22 @@ export const PUZZLES_CAPABILITY_ID = 'gameplay.puzzles';
 export const puzzlesCapability: CapabilityDefinition<PuzzlesConfig, GameplayRuntime> = {
   id: PUZZLES_CAPABILITY_ID,
   version: '1.0.0',
-  description: 'World-mechanics puzzles (sequence, all held, sockets) emitting puzzle.completed; never grades learning.',
+  description:
+    'World-mechanics puzzles (sequence, all held, sockets) emitting puzzle.completed; never grades learning.',
   defaults: { puzzles: [] },
   validate: validatePuzzlesConfig,
   install(runtime, config) {
     const { world } = runtime;
     const signals = signalBoard(runtime);
     for (const spec of config.puzzles) {
-      world.add(world.create(entityKey('puzzle', spec.id)), PuzzleComponent, { spec, completed: false, viaAlternative: false, index: 0, held: 0, progress: 0 });
+      world.add(world.create(entityKey('puzzle', spec.id)), PuzzleComponent, {
+        spec,
+        completed: false,
+        viaAlternative: false,
+        index: 0,
+        held: 0,
+        progress: 0,
+      });
     }
     const states = () => world.query(PuzzleComponent).map((e) => world.get(e, PuzzleComponent)!);
     const find = (id: string) => states().find((s) => s.spec.id === id);
@@ -160,7 +191,11 @@ export const puzzlesCapability: CapabilityDefinition<PuzzlesConfig, GameplayRunt
     const setProgress = (state: PuzzleState, progress: number) => {
       if (progress !== state.progress) {
         state.progress = progress;
-        emitPresentation(runtime, 'PuzzleProgress', { puzzleId: state.spec.id, progress, total: totalOf(state.spec) });
+        emitPresentation(runtime, 'PuzzleProgress', {
+          puzzleId: state.spec.id,
+          progress,
+          total: totalOf(state.spec),
+        });
       }
     };
     const complete = (state: PuzzleState, viaAlternative: boolean) => {
@@ -197,7 +232,11 @@ export const puzzlesCapability: CapabilityDefinition<PuzzlesConfig, GameplayRunt
           emitPresentation(runtime, 'PuzzleReset', { puzzleId: spec.id });
           state.progress = state.index;
           if (restartsAtOne) {
-            emitPresentation(runtime, 'PuzzleProgress', { puzzleId: spec.id, progress: 1, total: spec.steps.length });
+            emitPresentation(runtime, 'PuzzleProgress', {
+              puzzleId: spec.id,
+              progress: 1,
+              total: spec.steps.length,
+            });
           }
         }
       }
@@ -243,7 +282,11 @@ export const puzzlesCapability: CapabilityDefinition<PuzzlesConfig, GameplayRunt
             }
           } else if (spec.kind === 'SOCKETS') {
             const filled = spec.sockets.filter((socket) =>
-              objects.some((o) => o.id === socket.accepts && Math.hypot(o.position.x - socket.x, o.position.z - socket.z) <= socket.radius),
+              objects.some(
+                (o) =>
+                  o.id === socket.accepts &&
+                  Math.hypot(o.position.x - socket.x, o.position.z - socket.z) <= socket.radius,
+              ),
             ).length;
             setProgress(state, filled);
             if (filled === spec.sockets.length) {

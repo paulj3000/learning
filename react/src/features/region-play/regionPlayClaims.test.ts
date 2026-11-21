@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createGameplayEventFactory, validateGameplayEvent } from '@lai/game-engine/contracts';
-import type { AnswerOutcome, PickupOutcome, PuzzleOutcome, QuestUpdate, TalkOutcome } from '../../api/play/types';
+import type {
+  AnswerOutcome,
+  PickupOutcome,
+  PuzzleOutcome,
+  QuestUpdate,
+  TalkOutcome,
+} from '../../api/play/types';
 import {
   claimsForOutcome,
   claimsForPuzzleOutcome,
@@ -76,7 +82,11 @@ describe('region play outcomes as gameplay claims (GE-070)', () => {
       {
         type: 'learning.answer.submitted',
         payload: {
-          learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'cove-chest', challengeAttemptId: ATTEMPT },
+          learningRef: {
+            kind: 'CHEST_CHALLENGE',
+            chestEntityId: 'cove-chest',
+            challengeAttemptId: ATTEMPT,
+          },
           choiceId: null,
         },
       },
@@ -94,7 +104,10 @@ describe('region play outcomes as gameplay claims (GE-070)', () => {
   });
 
   it('claims nothing for an answer the companion did not submit at a chest', () => {
-    const claims = claimsForOutcome({ kind: 'answer', outcome: answer({ attemptId: 'unknown' }) }, lookup);
+    const claims = claimsForOutcome(
+      { kind: 'answer', outcome: answer({ attemptId: 'unknown' }) },
+      lookup,
+    );
     expect(claims).toEqual([]);
   });
 
@@ -105,13 +118,21 @@ describe('region play outcomes as gameplay claims (GE-070)', () => {
         payload: { collectibleId: 'cove-brass-key', setId: null, pickupKey: null },
       },
     ]);
-    expect(claimsForOutcome({ kind: 'pickup', outcome: pickup({ pickedUp: false }) }, lookup)).toEqual([]);
+    expect(
+      claimsForOutcome({ kind: 'pickup', outcome: pickup({ pickedUp: false }) }, lookup),
+    ).toEqual([]);
   });
 
   it('talking to Pip is an NPC interaction, and a quest it finishes is a step and a completion', () => {
     expect(claimsForOutcome({ kind: 'talk', outcome: talk([completed]) }, lookup)).toEqual([
-      { type: 'npc.interaction.completed', payload: { npcId: 'pirate-pip', interactionId: 'meet-pirate-pip' } },
-      { type: 'quest.step.completed', payload: { questId: 'pips-missing-treasure', stepId: 'cove-return-to-pip' } },
+      {
+        type: 'npc.interaction.completed',
+        payload: { npcId: 'pirate-pip', interactionId: 'meet-pirate-pip' },
+      },
+      {
+        type: 'quest.step.completed',
+        payload: { questId: 'pips-missing-treasure', stepId: 'cove-return-to-pip' },
+      },
       { type: 'quest.completed', payload: { questId: 'pips-missing-treasure' } },
     ]);
   });
@@ -131,8 +152,14 @@ describe('region play outcomes as gameplay claims (GE-070)', () => {
 
   it('every claim it makes is a valid v1 event, with no grading or child data in it', () => {
     const claims = [
-      ...claimsForOutcome({ kind: 'answer', outcome: answer({ questUpdates: [completed] }) }, lookup),
-      ...claimsForOutcome({ kind: 'pickup', outcome: pickup({ questUpdates: [completed] }) }, lookup),
+      ...claimsForOutcome(
+        { kind: 'answer', outcome: answer({ questUpdates: [completed] }) },
+        lookup,
+      ),
+      ...claimsForOutcome(
+        { kind: 'pickup', outcome: pickup({ questUpdates: [completed] }) },
+        lookup,
+      ),
       ...claimsForOutcome({ kind: 'talk', outcome: talk([completed]) }, lookup),
     ];
     const events = built(claims);
@@ -162,12 +189,19 @@ describe('3D Area puzzle claims (GE-073)', () => {
   }
 
   it('a first solve is the answer, with the authored choice, then puzzle.completed', () => {
-    const claims = claimsForPuzzleOutcome('fh-lava-numbers', puzzle(), { variantId: 'v1', choice: 'b' });
+    const claims = claimsForPuzzleOutcome('fh-lava-numbers', puzzle(), {
+      variantId: 'v1',
+      choice: 'b',
+    });
     expect(claims).toEqual([
       {
         type: 'learning.answer.submitted',
         payload: {
-          learningRef: { kind: 'AREA_PUZZLE', puzzleId: 'fh-lava-numbers', challengeAttemptId: ATTEMPT },
+          learningRef: {
+            kind: 'AREA_PUZZLE',
+            puzzleId: 'fh-lava-numbers',
+            challengeAttemptId: ATTEMPT,
+          },
           choiceId: 'b',
         },
       },
@@ -176,30 +210,49 @@ describe('3D Area puzzle claims (GE-073)', () => {
   });
 
   it('a wrong answer is still claimed as an answer, never as completed', () => {
-    const claims = claimsForPuzzleOutcome('fh-forge-switches', puzzle({ correct: false, solvedNow: false }), {
-      variantId: 'v1',
-      order: ['a', 'b'],
-    });
+    const claims = claimsForPuzzleOutcome(
+      'fh-forge-switches',
+      puzzle({ correct: false, solvedNow: false }),
+      {
+        variantId: 'v1',
+        order: ['a', 'b'],
+      },
+    );
     expect(claims.map((c) => c.type)).toEqual(['learning.answer.submitted']);
     expect((claims[0].payload as { choiceId: string | null }).choiceId).toBeNull();
   });
 
   it('practice and already-solved replays never complete again; no attempt, no answer claim', () => {
-    expect(claimsForPuzzleOutcome('p', puzzle({ practice: true, solvedNow: false }), {}).map((c) => c.type)).toEqual([
-      'learning.answer.submitted',
-    ]);
-    expect(claimsForPuzzleOutcome('p', puzzle({ attemptId: null, alreadySolved: true, solvedNow: false }), {})).toEqual([]);
+    expect(
+      claimsForPuzzleOutcome('p', puzzle({ practice: true, solvedNow: false }), {}).map(
+        (c) => c.type,
+      ),
+    ).toEqual(['learning.answer.submitted']);
+    expect(
+      claimsForPuzzleOutcome(
+        'p',
+        puzzle({ attemptId: null, alreadySolved: true, solvedNow: false }),
+        {},
+      ),
+    ).toEqual([]);
   });
 
   it('carries quest progress, and every claim is a valid v1 event with no score or child data', () => {
-    const claims = claimsForPuzzleOutcome('fh-heart-return', puzzle({ questUpdates: [completed] }), {});
+    const claims = claimsForPuzzleOutcome(
+      'fh-heart-return',
+      puzzle({ questUpdates: [completed] }),
+      {},
+    );
     expect(claims.map((c) => c.type)).toEqual([
       'learning.answer.submitted',
       'puzzle.completed',
-      ...claimsForOutcome({ kind: 'talk', outcome: { questUpdates: [completed] } as unknown as TalkOutcome }, {
-        chestForAttempt: () => undefined,
-        lastTalkedNpc: () => null,
-      }).map((c) => c.type),
+      ...claimsForOutcome(
+        { kind: 'talk', outcome: { questUpdates: [completed] } as unknown as TalkOutcome },
+        {
+          chestForAttempt: () => undefined,
+          lastTalkedNpc: () => null,
+        },
+      ).map((c) => c.type),
     ]);
     for (const event of built(claims)) {
       expect(validateGameplayEvent(event).ok).toBe(true);

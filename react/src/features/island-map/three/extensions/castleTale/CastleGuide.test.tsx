@@ -95,7 +95,11 @@ describe('CastleGuide', () => {
   it('reports opening and closing (for the Storybook sounds), never the first render (SC-R06-01)', () => {
     const onOpenChange = vi.fn();
     render(
-      <CastleGuide scene={fakeScene('story-hall').api} worldState={NOTHING} onOpenChange={onOpenChange} />,
+      <CastleGuide
+        scene={fakeScene('story-hall').api}
+        worldState={NOTHING}
+        onOpenChange={onOpenChange}
+      />,
     );
     expect(onOpenChange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /open the castle guide/i }));
@@ -433,7 +437,12 @@ describe('CastleGuide', () => {
 describe('CastleGuide: the Hall of Heroes (SC-R07-03) and rank titles (SC-R07-04)', () => {
   const withBook = (state: StorybookState, band: 'SPROUT' | 'PATHFINDER' | 'EXPLORER') => {
     const progress = storybookProgress(state, band);
-    return { progress, entries: visibleEntries(progress), status: 'local' as const, retry: vi.fn() };
+    return {
+      progress,
+      entries: visibleEntries(progress),
+      status: 'local' as const,
+      retry: vi.fn(),
+    };
   };
 
   it('says the hall is ready, never empty or behind, for a child with no records', () => {

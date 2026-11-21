@@ -60,7 +60,12 @@ export interface PhysicsProvider {
   getCollider(id: string): ColliderSpec | undefined;
   colliders(): readonly ColliderSpec[];
   /** Nearest hit along a ray, skipping colliders `filter` rejects. Triggers never hit. */
-  raycast(origin: Readonly<Vec3Like>, direction: Readonly<Vec3Like>, maxDistance: number, filter?: (spec: ColliderSpec) => boolean): RayHit | null;
+  raycast(
+    origin: Readonly<Vec3Like>,
+    direction: Readonly<Vec3Like>,
+    maxDistance: number,
+    filter?: (spec: ColliderSpec) => boolean,
+  ): RayHit | null;
   /** Ids of colliders (any kind) whose box overlaps the given box. */
   overlaps(min: Readonly<Vec3Like>, max: Readonly<Vec3Like>): string[];
   /** Subscribe to collider list changes (the controller rebuilds its live arrays). */
@@ -85,7 +90,11 @@ export interface SurfaceProfile {
   readonly footstepCue?: string;
 }
 
-export const DEFAULT_SURFACE: SurfaceProfile = Object.freeze({ id: 'ground', friction: 1, speedMultiplier: 1 });
+export const DEFAULT_SURFACE: SurfaceProfile = Object.freeze({
+  id: 'ground',
+  friction: 1,
+  speedMultiplier: 1,
+});
 
 export type ExternalForceKind = 'WIND' | 'CURRENT' | 'CONVEYOR' | 'UPDRAFT';
 

@@ -1,20 +1,55 @@
 import { Scene } from 'three';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SURFACE, EnvironmentQueryService } from '../contracts/physics';
-import { registerGameplayComponents, validateGameplayLayout } from '../components/registerGameplayComponents';
+import {
+  registerGameplayComponents,
+  validateGameplayLayout,
+} from '../components/registerGameplayComponents';
 import { createHarness } from '../components/testHarness';
 import { createResourceScope } from '../core/resources';
 import { LightingService, ParticlesService, WeatherService } from './atmosphere';
 import { createEnvironmentQuery } from './environmentQuery';
-import { createLightingState, LIGHTING_PRESETS, setLightingTarget, stepLighting, validateLightingConfig } from './lighting';
-import { allocateParticleBudget, createParticlePool, effectiveEmitter, PARTICLE_TIER_BUDGET, stepParticles, validateParticlesConfig, type ParticleEmitterSpec } from './particles';
+import {
+  createLightingState,
+  LIGHTING_PRESETS,
+  setLightingTarget,
+  stepLighting,
+  validateLightingConfig,
+} from './lighting';
+import {
+  allocateParticleBudget,
+  createParticlePool,
+  effectiveEmitter,
+  PARTICLE_TIER_BUDGET,
+  stepParticles,
+  validateParticlesConfig,
+  type ParticleEmitterSpec,
+} from './particles';
 import { createLightingView } from './presentation/lightingPresentation';
 import { createParticleView } from './presentation/particlePresentation';
 import { createWeatherView } from './presentation/weatherPresentation';
-import { forceHazardIssues, validateEnvironmentVolumesConfig, type EnvironmentVolumesConfig } from './volumes';
-import { ASH_WEATHER_KIND, createWeatherState, setWeather, stepWeather, validateWeatherConfig, WEATHER_KINDS } from './weather';
+import {
+  forceHazardIssues,
+  validateEnvironmentVolumesConfig,
+  type EnvironmentVolumesConfig,
+} from './volumes';
+import {
+  ASH_WEATHER_KIND,
+  createWeatherState,
+  setWeather,
+  stepWeather,
+  validateWeatherConfig,
+  WEATHER_KINDS,
+} from './weather';
 
-const box = (minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number) => ({ min: { x: minX, y: minY, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } });
+const box = (
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) => ({ min: { x: minX, y: minY, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } });
 
 function volumes(input: unknown): EnvironmentVolumesConfig {
   const result = validateEnvironmentVolumesConfig(input);
@@ -42,9 +77,17 @@ describe('surface precedence', () => {
   });
 
   it('is independent of declaration order', () => {
-    const reversed = createEnvironmentQuery({ ...config, surfaces: [...config.surfaces].reverse() });
+    const reversed = createEnvironmentQuery({
+      ...config,
+      surfaces: [...config.surfaces].reverse(),
+    });
     const forward = createEnvironmentQuery(config);
-    for (const [x, z] of [[6.5, 6.5], [5.5, 5.5], [1, 1], [19, 19]] as const) {
+    for (const [x, z] of [
+      [6.5, 6.5],
+      [5.5, 5.5],
+      [1, 1],
+      [19, 19],
+    ] as const) {
       expect(reversed.surfaceAt(x, 0.1, z).id).toBe(forward.surfaceAt(x, 0.1, z).id);
     }
   });
@@ -53,7 +96,11 @@ describe('surface precedence', () => {
     const query = createEnvironmentQuery(config);
     expect(query.surfaceAt(1, 0.1, 1).footstepCue).toBe('snowStep');
     expect(query.surfaceAt(5.5, 0.1, 5.5).footstepCue).toBe('iceStep');
-    expect(validateEnvironmentVolumesConfig({ surfaces: [{ id: 'x', surfaceId: 'ice', friction: 0.01, box: box(0, 0, 0, 1, 1, 1) }] }).ok).toBe(false);
+    expect(
+      validateEnvironmentVolumesConfig({
+        surfaces: [{ id: 'x', surfaceId: 'ice', friction: 0.01, box: box(0, 0, 0, 1, 1, 1) }],
+      }).ok,
+    ).toBe(false);
   });
 
   it('only counts the feet near the surface slab', () => {
@@ -77,7 +124,10 @@ describe('force volumes', () => {
     let reduced = false;
     let on = true;
     const config = volumes({ forces: [{ ...wind, signalId: 'wind.on' }] });
-    const query = createEnvironmentQuery(config, { isReducedMotion: () => reduced, isSignalOn: () => on });
+    const query = createEnvironmentQuery(config, {
+      isReducedMotion: () => reduced,
+      isSignalOn: () => on,
+    });
     expect(query.forcesAt(50, 1, 5)).toEqual([]);
     expect(query.forcesAt(5, 1, 5)[0]!.acceleration.x).toBe(0);
     query.tick(0.5, { x: 5, y: 1, z: 5 });
@@ -95,20 +145,36 @@ describe('force volumes', () => {
 
   it('inactiveWhenSignalId switches a force off, and is validated (GE-066)', () => {
     let off = false;
-    const config = volumes({ forces: [{ ...wind, rampInSeconds: 0, inactiveWhenSignalId: 'wind.off' }] });
+    const config = volumes({
+      forces: [{ ...wind, rampInSeconds: 0, inactiveWhenSignalId: 'wind.off' }],
+    });
     const query = createEnvironmentQuery(config, { isSignalOn: (id) => id === 'wind.off' && off });
     expect(query.forcesAt(5, 1, 5)).toHaveLength(1);
     off = true;
     expect(query.forcesAt(5, 1, 5)).toEqual([]);
-    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, inactiveWhenSignalId: 'bad id' }] }).ok).toBe(false);
-    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, signalId: 'x', inactiveWhenSignalId: 'x' }] }).ok).toBe(false);
+    expect(
+      validateEnvironmentVolumesConfig({ forces: [{ ...wind, inactiveWhenSignalId: 'bad id' }] })
+        .ok,
+    ).toBe(false);
+    expect(
+      validateEnvironmentVolumesConfig({
+        forces: [{ ...wind, signalId: 'x', inactiveWhenSignalId: 'x' }],
+      }).ok,
+    ).toBe(false);
     expect(createEnvironmentQuery(config).forcesAt(5, 1, 5)).toHaveLength(1);
   });
 
   it('orders forces by priority then id and normalises direction', () => {
     const config = volumes({
       forces: [
-        { ...wind, id: 'b', rampInSeconds: 0, direction: { x: 0, y: 1, z: 0 }, kind: 'UPDRAFT', priority: 1 },
+        {
+          ...wind,
+          id: 'b',
+          rampInSeconds: 0,
+          direction: { x: 0, y: 1, z: 0 },
+          kind: 'UPDRAFT',
+          priority: 1,
+        },
         { ...wind, id: 'a', rampInSeconds: 0, direction: { x: 5, y: 0, z: 0 }, priority: 1 },
         { ...wind, id: 'c', rampInSeconds: 0, priority: 9, kind: 'CURRENT' },
       ],
@@ -125,12 +191,27 @@ describe('force volumes', () => {
     expect(result.ok).toBe(false);
     expect(result.issues[0]!.message).toMatch(/pushes toward hazard/);
     const sideways = { ...wind, direction: { x: 0, y: 0, z: -1 } };
-    expect(validateEnvironmentVolumesConfig({ forces: [sideways], hazardRects: [hazard] }).ok).toBe(true);
-    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, neverPushIntoHazard: false }], hazardRects: [hazard] }).ok).toBe(true);
-    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, runOut: 0.2 }], hazardRects: [hazard] }).ok).toBe(true);
+    expect(validateEnvironmentVolumesConfig({ forces: [sideways], hazardRects: [hazard] }).ok).toBe(
+      true,
+    );
+    expect(
+      validateEnvironmentVolumesConfig({
+        forces: [{ ...wind, neverPushIntoHazard: false }],
+        hazardRects: [hazard],
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateEnvironmentVolumesConfig({
+        forces: [{ ...wind, runOut: 0.2 }],
+        hazardRects: [hazard],
+      }).ok,
+    ).toBe(true);
 
     const config = volumes({ forces: [{ ...wind, neverPushIntoHazard: false, rampInSeconds: 0 }] });
-    const strict = { ...config, forces: config.forces.map((f) => ({ ...f, neverPushIntoHazard: true })) };
+    const strict = {
+      ...config,
+      forces: config.forces.map((f) => ({ ...f, neverPushIntoHazard: true })),
+    };
     const query = createEnvironmentQuery(strict, { hazardRects: () => [hazard] });
     expect(query.forcesAt(9.5, 1, 5)).toEqual([]);
     expect(query.forcesAt(2, 1, 5)).toHaveLength(1);
@@ -138,9 +219,16 @@ describe('force volumes', () => {
   });
 
   it('validates direction and limits', () => {
-    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, direction: { x: 0, y: 0, z: 0 } }] }).ok).toBe(false);
-    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, strength: 99 }] }).ok).toBe(false);
-    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, kind: 'TORNADO' }] }).ok).toBe(false);
+    expect(
+      validateEnvironmentVolumesConfig({ forces: [{ ...wind, direction: { x: 0, y: 0, z: 0 } }] })
+        .ok,
+    ).toBe(false);
+    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, strength: 99 }] }).ok).toBe(
+      false,
+    );
+    expect(validateEnvironmentVolumesConfig({ forces: [{ ...wind, kind: 'TORNADO' }] }).ok).toBe(
+      false,
+    );
   });
 });
 
@@ -150,7 +238,17 @@ describe('water and ladders', () => {
       { id: 'pond', box: box(0, -2, 0, 10, 0.5, 10) },
       { id: 'deep', box: box(2, -4, 2, 4, 1, 4) },
     ],
-    ladders: [{ id: 'ladder.b', x: 20, z: 0, bottomY: 0, topY: 4, facingYaw: 1, exitTop: { x: 20, y: 4, z: -1 } }],
+    ladders: [
+      {
+        id: 'ladder.b',
+        x: 20,
+        z: 0,
+        bottomY: 0,
+        topY: 4,
+        facingYaw: 1,
+        exitTop: { x: 20, y: 4, z: -1 },
+      },
+    ],
   });
   const query = createEnvironmentQuery(config);
 
@@ -170,7 +268,11 @@ describe('water and ladders', () => {
   });
 
   it('rejects a ladder whose top is below its bottom', () => {
-    expect(validateEnvironmentVolumesConfig({ ladders: [{ id: 'l', x: 0, z: 0, bottomY: 3, topY: 1, exitTop: { x: 0, y: 1, z: 0 } }] }).ok).toBe(false);
+    expect(
+      validateEnvironmentVolumesConfig({
+        ladders: [{ id: 'l', x: 0, z: 0, bottomY: 3, topY: 1, exitTop: { x: 0, y: 1, z: 0 } }],
+      }).ok,
+    ).toBe(false);
   });
 });
 
@@ -182,7 +284,16 @@ describe('environment capability', () => {
         id: 'environment.volumes',
         config: {
           surfaces: [{ id: 'lake.ice', surfaceId: 'ice', box: box(0, 0, 0, 10, 0.2, 10) }],
-          forces: [{ id: 'gust', kind: 'WIND', box: box(0, 0, 0, 10, 4, 10), direction: { x: 1, y: 0, z: 0 }, strength: 2, rampInSeconds: 1 }],
+          forces: [
+            {
+              id: 'gust',
+              kind: 'WIND',
+              box: box(0, 0, 0, 10, 4, 10),
+              direction: { x: 1, y: 0, z: 0 },
+              strength: 2,
+              rampInSeconds: 1,
+            },
+          ],
         },
       },
     ]);
@@ -191,19 +302,47 @@ describe('environment capability', () => {
     h.advance(1.1);
     expect(query.forcesAt(5, 0, 5)[0]!.acceleration.x).toBeCloseTo(2, 3);
     h.runtime.events.emit('PlayerFootstep', { gait: 'walk' });
-    expect(h.eventsNamed('SurfaceFootstep')).toEqual([{ surfaceId: 'ice', footstepCue: 'iceStep' }]);
+    expect(h.eventsNamed('SurfaceFootstep')).toEqual([
+      { surfaceId: 'ice', footstepCue: 'iceStep' },
+    ]);
     h.setPlayer({ x: 50, y: 0, z: 50 });
     h.runtime.events.emit('PlayerFootstep', { gait: 'walk' });
-    expect(h.eventsNamed('SurfaceFootstep').at(-1)).toEqual({ surfaceId: 'ground', footstepCue: null });
+    expect(h.eventsNamed('SurfaceFootstep').at(-1)).toEqual({
+      surfaceId: 'ground',
+      footstepCue: null,
+    });
     h.dispose();
     expect(h.runtime.services.has(EnvironmentQueryService)).toBe(false);
   });
 
   it('the layout check sees hazards declared in the hazards capability', () => {
-    const volumesConfig = volumes({ forces: [{ id: 'w', kind: 'WIND', box: box(0, 0, 0, 10, 4, 10), direction: { x: 1, y: 0, z: 0 }, strength: 2 }] });
+    const volumesConfig = volumes({
+      forces: [
+        {
+          id: 'w',
+          kind: 'WIND',
+          box: box(0, 0, 0, 10, 4, 10),
+          direction: { x: 1, y: 0, z: 0 },
+          strength: 2,
+        },
+      ],
+    });
     const issues = validateGameplayLayout({
       volumes: volumesConfig,
-      hazards: { hazards: [{ id: 'h', kind: 'LAVA', rect: { minX: 11, maxX: 13, minZ: 0, maxZ: 10 }, belowY: 0.05, checkpointId: 'c', messageKey: 'k' }], telegraphed: [], recoveryCooldownSeconds: 1 },
+      hazards: {
+        hazards: [
+          {
+            id: 'h',
+            kind: 'LAVA',
+            rect: { minX: 11, maxX: 13, minZ: 0, maxZ: 10 },
+            belowY: 0.05,
+            checkpointId: 'c',
+            messageKey: 'k',
+          },
+        ],
+        telegraphed: [],
+        recoveryCooldownSeconds: 1,
+      },
     });
     expect(issues.some((i) => i.path === 'forces[0]')).toBe(true);
   });
@@ -290,7 +429,11 @@ describe('weather', () => {
 });
 
 describe('particles', () => {
-  const emitter = (id: string, maxParticles: number, extra: Partial<ParticleEmitterSpec> = {}): ParticleEmitterSpec => ({
+  const emitter = (
+    id: string,
+    maxParticles: number,
+    extra: Partial<ParticleEmitterSpec> = {},
+  ): ParticleEmitterSpec => ({
     id,
     motion: 'RISE',
     maxParticles,
@@ -310,7 +453,9 @@ describe('particles', () => {
   it('shares a tier budget across emitters and never exceeds it', () => {
     const specs = [emitter('a', 1000), emitter('b', 1000)];
     const caps = allocateParticleBudget(specs, 'MEDIUM');
-    expect([...caps.values()].reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(PARTICLE_TIER_BUDGET.MEDIUM);
+    expect([...caps.values()].reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(
+      PARTICLE_TIER_BUDGET.MEDIUM,
+    );
     expect([...allocateParticleBudget(specs, 'OFF').values()]).toEqual([0, 0]);
     expect(allocateParticleBudget([emitter('c', 50)], 'HIGH').get('c')).toBe(50);
   });
@@ -348,8 +493,18 @@ describe('particles', () => {
   it('validates descriptors and the capability allocates within the tier', async () => {
     expect(validateParticlesConfig({ emitters: [{ id: 'e', motion: 'SIDEWAYS' }] }).ok).toBe(false);
     const h = createHarness(registerGameplayComponents);
-    const e = (id: string) => ({ id, motion: 'FALL', maxParticles: 1500, ratePerSecond: 400, lifetime: 3, speed: 2, origin: { x: 0, y: 0, z: 0 } });
-    await h.start([{ id: 'environment.particles', config: { tier: 'LOW', emitters: [e('one'), e('two')] } }]);
+    const e = (id: string) => ({
+      id,
+      motion: 'FALL',
+      maxParticles: 1500,
+      ratePerSecond: 400,
+      lifetime: 3,
+      speed: 2,
+      origin: { x: 0, y: 0, z: 0 },
+    });
+    await h.start([
+      { id: 'environment.particles', config: { tier: 'LOW', emitters: [e('one'), e('two')] } },
+    ]);
     const api = h.runtime.services.require(ParticlesService);
     h.advance(2);
     expect(api.allocatedCapacity()).toBeLessThanOrEqual(PARTICLE_TIER_BUDGET.LOW);
@@ -364,12 +519,23 @@ describe('presentation helpers', () => {
     const scene = new Scene();
     const scope = createResourceScope('presentation');
     const h = createHarness(registerGameplayComponents);
-    await h.start([{ id: 'environment.lighting' }, { id: 'environment.weather', config: { initial: 'SNOW' } }]);
+    await h.start([
+      { id: 'environment.lighting' },
+      { id: 'environment.weather', config: { initial: 'SNOW' } },
+    ]);
     const lighting = createLightingView(scene, scope, h.runtime.services.require(LightingService));
     const weatherApi = h.runtime.services.require(WeatherService);
-    const weather = createWeatherView(scene, scope, weatherApi, { tier: 'LOW', reducedMotion: () => false, area: { x: 0, y: 0, z: 0, halfX: 10, halfZ: 10, height: 8 } });
+    const weather = createWeatherView(scene, scope, weatherApi, {
+      tier: 'LOW',
+      reducedMotion: () => false,
+      area: { x: 0, y: 0, z: 0, halfX: 10, halfZ: 10, height: 8 },
+    });
     const pool = createParticlePool(10, 1);
-    const view = createParticleView(scene, scope, 10, { name: 'steam', color: 0xffffff, size: 0.1 });
+    const view = createParticleView(scene, scope, 10, {
+      name: 'steam',
+      color: 0xffffff,
+      size: 0.1,
+    });
     view.update(pool);
     for (let i = 0; i < 120; i += 1) {
       weather.update(1 / 60);
@@ -389,15 +555,37 @@ describe('weather view budget (GE-L14, North Pole parity)', () => {
   const live = (scene: Scene, prefix: string) =>
     scene.children
       .filter((o) => o.name.startsWith(prefix))
-      .reduce((sum, o) => sum + (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count, 0);
+      .reduce(
+        (sum, o) =>
+          sum +
+          (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count,
+        0,
+      );
 
   it('the falling kind gets the whole tier budget; unused kinds (built-in RAIN) take none of it', async () => {
     const scene = new Scene();
     const scope = createResourceScope('weather-budget');
     const h = createHarness(registerGameplayComponents);
     // Steady snow above the MEDIUM budget: 600/s for 20 s would be 12000 without a cap.
-    await h.start([{ id: 'environment.weather', config: { initial: 'SNOW', kinds: [{ id: 'SNOW', precipitation: { motion: 'FALL', ratePerSecond: 600, fallSpeed: 0.5, size: 0.08 } }] } }]);
-    const weather = createWeatherView(scene, scope, h.runtime.services.require(WeatherService), { tier: 'MEDIUM', reducedMotion: () => false, area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 24 } });
+    await h.start([
+      {
+        id: 'environment.weather',
+        config: {
+          initial: 'SNOW',
+          kinds: [
+            {
+              id: 'SNOW',
+              precipitation: { motion: 'FALL', ratePerSecond: 600, fallSpeed: 0.5, size: 0.08 },
+            },
+          ],
+        },
+      },
+    ]);
+    const weather = createWeatherView(scene, scope, h.runtime.services.require(WeatherService), {
+      tier: 'MEDIUM',
+      reducedMotion: () => false,
+      area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 24 },
+    });
     for (let i = 0; i < 600; i += 1) weather.update(1 / 60);
     expect(live(scene, 'engine.weather.SNOW')).toBe(600); // the whole MEDIUM budget
     expect(live(scene, 'engine.weather.RAIN')).toBe(0);
@@ -409,9 +597,15 @@ describe('weather view budget (GE-L14, North Pole parity)', () => {
     const scene = new Scene();
     const scope = createResourceScope('weather-share');
     const h = createHarness(registerGameplayComponents);
-    await h.start([{ id: 'environment.weather', config: { initial: 'RAIN', transitionSeconds: 30 } }]);
+    await h.start([
+      { id: 'environment.weather', config: { initial: 'RAIN', transitionSeconds: 30 } },
+    ]);
     const api = h.runtime.services.require(WeatherService);
-    const weather = createWeatherView(scene, scope, api, { tier: 'LOW', reducedMotion: () => false, area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 15 } });
+    const weather = createWeatherView(scene, scope, api, {
+      tier: 'LOW',
+      reducedMotion: () => false,
+      area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 15 },
+    });
     for (let i = 0; i < 300; i += 1) weather.update(1 / 60);
     api.set('SNOW', 30);
     for (let i = 0; i < 300; i += 1) {
@@ -429,11 +623,33 @@ describe('weather budget share (GE-L14, atmosphere density parity)', () => {
     const scene = new Scene();
     const scope = createResourceScope('share');
     const h = createHarness(registerGameplayComponents);
-    const precipitation = { motion: 'DRIFT', ratePerSecond: 48, fallSpeed: 1.6, size: 0.08, ...(budgetShare !== undefined ? { budgetShare } : {}) };
-    await h.start([{ id: 'environment.weather', config: { initial: 'SNOW', kinds: [{ id: 'SNOW', precipitation }] } }]);
-    const weather = createWeatherView(scene, scope, h.runtime.services.require(WeatherService), { tier, reducedMotion: () => false, area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 24 } });
+    const precipitation = {
+      motion: 'DRIFT',
+      ratePerSecond: 48,
+      fallSpeed: 1.6,
+      size: 0.08,
+      ...(budgetShare !== undefined ? { budgetShare } : {}),
+    };
+    await h.start([
+      {
+        id: 'environment.weather',
+        config: { initial: 'SNOW', kinds: [{ id: 'SNOW', precipitation }] },
+      },
+    ]);
+    const weather = createWeatherView(scene, scope, h.runtime.services.require(WeatherService), {
+      tier,
+      reducedMotion: () => false,
+      area: { x: 0, y: 0, z: 0, halfX: 20, halfZ: 20, height: 24 },
+    });
     for (let i = 0; i < 60 * 30; i += 1) weather.update(1 / 60);
-    const count = scene.children.filter((o) => o.name === 'engine.weather.SNOW').reduce((n, o) => n + (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count, 0);
+    const count = scene.children
+      .filter((o) => o.name === 'engine.weather.SNOW')
+      .reduce(
+        (n, o) =>
+          n +
+          (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count,
+        0,
+      );
     scope.dispose();
     h.dispose();
     return count;
@@ -448,7 +664,17 @@ describe('weather budget share (GE-L14, atmosphere density parity)', () => {
 
   it('defaults to the whole budget, and is bounded', async () => {
     expect(await settle('MEDIUM')).toBe(600);
-    expect(validateWeatherConfig({ kinds: [{ id: 'SNOW', precipitation: { ratePerSecond: 10, fallSpeed: 1, budgetShare: 0 } }] }).ok).toBe(false);
-    expect(validateWeatherConfig({ kinds: [{ id: 'SNOW', precipitation: { ratePerSecond: 10, fallSpeed: 1, budgetShare: 1.5 } }] }).ok).toBe(false);
+    expect(
+      validateWeatherConfig({
+        kinds: [{ id: 'SNOW', precipitation: { ratePerSecond: 10, fallSpeed: 1, budgetShare: 0 } }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateWeatherConfig({
+        kinds: [
+          { id: 'SNOW', precipitation: { ratePerSecond: 10, fallSpeed: 1, budgetShare: 1.5 } },
+        ],
+      }).ok,
+    ).toBe(false);
   });
 });

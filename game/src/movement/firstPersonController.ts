@@ -1,9 +1,5 @@
 import { Box3, Vector3 } from 'three';
-import {
-  DEFAULT_SURFACE,
-  type ClimbableInfo,
-  type EnvironmentQuery,
-} from '../contracts/physics';
+import { DEFAULT_SURFACE, type ClimbableInfo, type EnvironmentQuery } from '../contracts/physics';
 import type { PlayerMovementState } from '../contracts/player';
 import {
   resolveLocomotion,
@@ -636,8 +632,16 @@ export class FirstPersonController {
     } else if (this.onGround) {
       const { x, y, z } = this.position;
       const surface = env.surfaceAt(x, y, z) ?? DEFAULT_SURFACE;
-      const friction = clamp(Number.isFinite(surface.friction) ? surface.friction : 1, MIN_SURFACE_FRICTION, 1);
-      const speedMultiplier = clamp(Number.isFinite(surface.speedMultiplier) ? surface.speedMultiplier : 1, 0.5, 1.5);
+      const friction = clamp(
+        Number.isFinite(surface.friction) ? surface.friction : 1,
+        MIN_SURFACE_FRICTION,
+        1,
+      );
+      const speedMultiplier = clamp(
+        Number.isFinite(surface.speedMultiplier) ? surface.speedMultiplier : 1,
+        0.5,
+        1.5,
+      );
       this.surfaceFriction = friction;
       target.multiplyScalar(speedMultiplier);
       if (friction >= 1) {

@@ -55,7 +55,11 @@ export function pendingFromEvent(input: unknown, nowMs: number = Date.now()): Pe
           };
           break;
         case 'QUESTION_ITEM':
-          hint = { sourceKinds: ['LEARNING_CHALLENGE'], sourceRef: null, sourceRefSuffix: ref.questionId };
+          hint = {
+            sourceKinds: ['LEARNING_CHALLENGE'],
+            sourceRef: null,
+            sourceRefSuffix: ref.questionId,
+          };
           break;
       }
       return { id: event.eventId, claimType: 'ANSWER_CHECK', hint, createdAtMs: nowMs };
@@ -69,8 +73,20 @@ export function pendingFromEvent(input: unknown, nowMs: number = Date.now()): Pe
       // additive) makes the match exact; without it, match the entity id by suffix (best effort:
       // an unmatched pending entry simply expires and the confirmed award still arrives).
       return event.payload.pickupKey && event.areaId
-        ? award(event, ['PICKUP_COLLECTED'], `${event.areaId}/${event.payload.pickupKey}`, null, nowMs)
-        : award(event, ['PICKUP_COLLECTED'], null, event.payload.pickupKey ?? event.payload.collectibleId, nowMs);
+        ? award(
+            event,
+            ['PICKUP_COLLECTED'],
+            `${event.areaId}/${event.payload.pickupKey}`,
+            null,
+            nowMs,
+          )
+        : award(
+            event,
+            ['PICKUP_COLLECTED'],
+            null,
+            event.payload.pickupKey ?? event.payload.collectibleId,
+            nowMs,
+          );
     case 'puzzle.completed':
       return event.areaId
         ? award(event, ['PUZZLE_SOLVED'], `${event.areaId}/${event.payload.puzzleId}`, null, nowMs)

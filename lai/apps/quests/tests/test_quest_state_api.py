@@ -6,7 +6,6 @@ A quest is accepted through `quests/{id}/accept/`; its projected state is then s
 """
 
 import pytest
-
 from django.utils import timezone
 
 from apps.catalog.models import Adventure
@@ -22,7 +21,7 @@ pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
 
 
 @pytest.fixture
-def content(imported_content, families):
+def content(imported_content, families):  # noqa: F811
     return families
 
 
