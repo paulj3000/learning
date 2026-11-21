@@ -3,7 +3,7 @@
 from django.core.management.base import BaseCommand
 
 from apps.scoring import ledger
-from apps.users.models import ChildProfile
+from apps.users.services import iter_child_profiles_for_system
 
 
 class Command(BaseCommand):
@@ -14,7 +14,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, rebuild, **options):
         mismatched = 0
-        for child in ChildProfile.objects.order_by("pk").iterator():
+        for child in iter_child_profiles_for_system():
             if not ledger.projection_matches_ledger(child):
                 mismatched += 1
                 if rebuild:

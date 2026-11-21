@@ -687,6 +687,44 @@ def test_backfill_awards_existing_records_once_and_preserves_child_data(
     assert "1 children" in single.getvalue()
 
 
+def test_reconciling_one_child_never_touches_another_familys_child(treasure, dev_policy, settings):
+    """GE-090-D1: `--child` reaches the child through the users service and reconciles only that
+    child; another family's child with its own records is left alone."""
+    mine, theirs = treasure.families.a1, treasure.families.b1
+    complete_quest(mine, treasure.quest)
+    complete_quest(theirs, treasure.quest)
+    settings.LAI_SCORING_ENABLED = True
+    settings.LAI_SCORING_ALLOW_UNAPPROVED = True
+    out = StringIO()
+    call_command("scoring_reconcile", "--child", str(mine.pk), stdout=out)
+    assert "1 children" in out.getvalue()
+    assert AwardLedgerEntry.objects.filter(child=mine).exists()
+    assert not AwardLedgerEntry.objects.filter(child=theirs).exists()
+    assert not ProgressionProjection.objects.filter(child=theirs).exists()
+
+
+def test_an_unknown_child_reconciles_nothing(treasure, scoring):
+    out = StringIO()
+    call_command("scoring_reconcile", "--child", str(uuid.uuid4()), stdout=out)
+    assert "0 children" in out.getvalue()
+    reconcile._run(uuid.uuid4())  # the on-commit job: an unknown id is a quiet no-op
+    assert not AwardLedgerEntry.objects.exists()
+
+
+def test_verify_projections_reports_each_child_without_crossing_families(treasure, scoring):
+    mine, theirs = treasure.families.a1, treasure.families.b1
+    complete_quest(mine, treasure.quest)
+    sync(mine)
+    ProgressionProjection.objects.filter(child=mine).update(xp=987654)  # a deliberate mismatch
+    out = StringIO()
+    call_command("scoring_verify_projections", "--rebuild", stdout=out)
+    assert "1 mismatched" in out.getvalue()
+    assert not AwardLedgerEntry.objects.filter(child=theirs).exists()
+    check = StringIO()
+    call_command("scoring_verify_projections", stdout=check)
+    assert "0 mismatched" in check.getvalue()
+
+
 def test_a_new_policy_version_does_not_pay_earned_sources_again(treasure, scoring):
     child = treasure.families.a1
     answer_chest(treasure)
