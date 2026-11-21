@@ -47,7 +47,7 @@ when the stacks last synthesized on 2026-11-01.
 | 3 | `deploy/ec2/docker-compose.yml`, `deploy/ec2/nginx/default.conf.template` | Docker Compose and nginx on the EC2 host | Copied by the SSM deploy document (`scripts/aws/deploy-django.sh`) | Not running: no EC2 host exists |
 | 4 | `scripts/aws/*.sh` | Shell (provision, setup, deploy, rollback, status, bootstrap) | Operator or SSM | `setup-ec2.sh` and `ssm-release-entry.sh` are embedded in the EC2 stack at synth time |
 | 5 | `.github/workflows/ci.yml` | GitHub Actions | Push/PR | Tests only; assumes no AWS role |
-| 6 | `docker-compose.yml` (root) | Local PostgreSQL 16 | Developer machine | Local only; no AWS |
+| 6 | `docker-compose.yml` (root) | Local PostgreSQL 18 (volume `lai_pg18data`) | Developer machine | Local only; no AWS |
 | 7 | `lai-dev-complete.yaml` (standalone CloudFormation) | CloudFormation | Unknown | **Absent.** Not in the repository, in any of its 30 branches' history (by file name and content), or named in any doc. **Requested from the owner** (section 7, blocker B1) |
 
 There is no other CloudFormation, SAM, Terraform or Serverless definition in the repository.

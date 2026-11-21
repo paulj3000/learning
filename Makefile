@@ -42,7 +42,7 @@ $(foreach v,$(DJANGO_ENV_VARS),\
 help:
 	@echo "py-install | py-lint | py-format-check | py-format | py-test | py-check"
 	@echo "docs-check | js-check (ADR and docs checks, typecheck, lint, format:check, test, build) | check (py-check + js-check)"
-	@echo "up | down (local PostgreSQL 16 via docker compose; default port 5432; set POSTGRES_PORT to change it)"
+	@echo "up | down (local PostgreSQL 18 via docker compose; default port 5432; set POSTGRES_PORT to change it)"
 	@echo "django-check | migrate-check | migrate | runserver | py-test-db (fails if PostgreSQL is down)"
 	@echo "web (Vite dev server on 5183, proxying /api to runserver on DJANGO_DEV_PORT)"
 	@echo "createsuper (prompts for a username and password; creates a Django Admin superuser; needs make up + make migrate)"

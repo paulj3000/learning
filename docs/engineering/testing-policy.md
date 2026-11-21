@@ -40,7 +40,7 @@ pass: report it.
 
 Integration branches may run the same unit tests on the shared CI EC2 instance instead of the
 development machine: `python3 scripts/ci/aws_ci.py run` tests one exact pushed commit, on
-PostgreSQL 16, and fails closed ([aws-ec2-unit-tests.md](../infrastructure/aws-ec2-unit-tests.md)).
+PostgreSQL 18, and fails closed ([aws-ec2-unit-tests.md](../infrastructure/aws-ec2-unit-tests.md)).
 It runs unit tests only; nothing in section 2 runs there.
 
 ## 2. Not run during development
@@ -108,7 +108,7 @@ the commands explicitly when content or rules changed.
 CI (`.github/workflows/ci.yml`) repeats the gates on pushes to `main` and on pull requests only,
 with read-only permissions and no secrets: job `checks` (ADR check, engineering docs check, admin preview,
 typecheck, oxlint, Prettier, Vitest, build), job `e2e` (Playwright smoke), job `python` (Ruff,
-Ruff format, Django check, migration check, `py-test-db` on PostgreSQL 16). A push to any other
+Ruff format, Django check, migration check, `py-test-db` on PostgreSQL 18). A push to any other
 branch runs no CI, so the merge readiness review is the gate for branch work.
 
 **A merge to `main` may deploy.** Besides CI, pushes to `main` start the deploy workflows by path,

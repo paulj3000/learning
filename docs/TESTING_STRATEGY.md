@@ -184,7 +184,7 @@ branch runs no CI, so the merge readiness review is the gate for branch work.
 Three jobs, all with read-only repository permissions, no secrets, and no AWS access:
 `checks` (ADR registry, engineering docs check, typecheck, lint, format, Vitest including the Lambda tests, build), `e2e` (Playwright
 smoke, after `checks`), and `python` (Python 3.12, pinned `requirements-dev.txt`, a throwaway
-PostgreSQL 16 service container; `make py-lint`, `py-format-check`, `django-check`,
+PostgreSQL 18 service container; `make py-lint`, `py-format-check`, `django-check`,
 `migrate-check`, `py-test-db`). `py-test-db` fails instead of skipping when the database is
 unreachable, so a broken service cannot make the Python job pass silently. Test counts are
 baselines, not asserted by CI.

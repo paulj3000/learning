@@ -85,7 +85,7 @@ for one adventure is not allowed.
 | Element | Status | Rule | Source |
 |---|---|---|---|
 | Django 6.1 + DRF 3.18 + psycopg 3 in `lai/` | Implemented (main) | One project, `lai/config/`, apps in `lai/apps/`. | ADR-019, ADR-021 |
-| PostgreSQL 16 | Implemented (main) locally and in CI; deployed databases are approval steps | All application data lives here. No second datastore without an ADR. | ADR-019 sub-decision 2 |
+| PostgreSQL 18 | Required version for local development, CI and the EC2 test runner (owner decision 2026-11-21, superseding the earlier PostgreSQL 16 standard). The deployed RDS instances and the dev container mode still run 16; moving them is a major-version upgrade that needs its own approval | All application data lives here. No second datastore without an ADR. | ADR-019 sub-decision 2; owner decision 2026-11-21 |
 | One Django backbone | Implemented (main) | Extend the canonical app that owns a responsibility. Never add a second catalog, loader, child-owned base or progress model. | ADR-033, CLAUDE.md section 20 |
 | Server-authoritative state | Implemented (main) for answers, hints, region play, quests, world changes, discovery | The server decides correctness, progress, rewards and world changes. The client animates only. | ADR-012, ADR-051, [ARCHITECTURE.md](../ARCHITECTURE.md) "State ownership" |
 | API namespace `/api/v1/`, fixed error envelope, request IDs | Implemented (main) | Additive changes stay in v1; a breaking change gets `/api/v2/` beside v1. Contract: [ARCHITECTURE.md](../ARCHITECTURE.md) "Django API conventions". | LAI-0205 |
