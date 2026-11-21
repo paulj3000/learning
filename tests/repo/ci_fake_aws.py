@@ -93,7 +93,26 @@ def main(argv: list[str]) -> int:
             command_id = f"cmd-{len(state['sent'])}"
             state.setdefault("commands", {})[command_id] = ssm_command(state, script)
             print(command_id)
+        elif (service, op) == ("sts", "assume-role-with-web-identity"):
+            state.setdefault("assumed", []).append(
+                {
+                    "role": arg(rest, "--role-arn"),
+                    "token": arg(rest, "--web-identity-token"),
+                    "signed_with": os.environ.get("AWS_SESSION_TOKEN"),
+                }
+            )
+            print(
+                json.dumps(
+                    {"AccessKeyId": "ASIAFRESH", "SecretAccessKey": "s", "SessionToken": "fresh"}
+                )
+            )
         elif (service, op) == ("ssm", "get-command-invocation"):
+            if state.get("poll_error"):
+                print(state["poll_error"], file=sys.stderr)
+                return 254
+            if state.get("expire_old_token") and os.environ.get("AWS_SESSION_TOKEN") != "fresh":
+                print("An error occurred (ExpiredTokenException): token expired", file=sys.stderr)
+                return 254
             record = state["commands"][arg(rest, "--command-id")]
             print(record.get(arg(rest, "--query"), "" if "Content" in arg(rest, "--query") else 0))
         elif (service, op) == ("ssm", "cancel-command"):

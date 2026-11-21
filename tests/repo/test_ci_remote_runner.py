@@ -232,6 +232,8 @@ def instance(tmp_path, monkeypatch, plain):
         runner, "block_metadata_service", lambda pre, uid: pre.record("imds-blocked", True)
     )
     monkeypatch.setattr(runner, "check_python", lambda pre: pre.record("python", True))
+    # the real check measures the host; on the CI instance /tmp is small (see test_check_disk)
+    monkeypatch.setattr(runner, "check_disk", lambda pre: pre.record("disk", True))
     monkeypatch.setattr(runner, "release_database", lambda: None)
     state = {"node": True}
 
@@ -312,3 +314,44 @@ def test_an_unknown_commit_is_a_harness_error_with_results_still_written(repo, i
     doc = runner.run(run_args(repo, missing, base))
     assert doc["verdict"] == "incomplete" and doc["harness_error"]
     assert (root / "runs/1-1/results.json").exists()
+
+
+# --------------------------------------------------------------------------- PostgreSQL version
+
+
+@pytest.mark.parametrize(
+    ("version_num", "major"),
+    [("160004\n", 16), ("180006", 18), ("170002", 17), ("", None), ("16.4", None), ("x", None)],
+)
+def test_postgres_major(version_num, major):
+    assert runner.postgres_major(version_num) == major
+
+
+@pytest.mark.parametrize(
+    ("version_num", "ok"),
+    [("160004", True), ("180006", True), ("170002", False), ("150008", False), ("", False)],
+)
+def test_postgres_version_check_accepts_16_and_18_only(monkeypatch, version_num, ok):
+    def fake_sh(cmd, **_):
+        if cmd[0] == "pg_isready":
+            return subprocess.CompletedProcess(cmd, 0, "127.0.0.1:5432 - accepting connections", "")
+        return subprocess.CompletedProcess(cmd, 0, "127.0.0.1:5432\n", "")
+
+    monkeypatch.setattr(runner, "sh", fake_sh)
+    monkeypatch.setattr(
+        runner, "psql", lambda *_a, **_k: subprocess.CompletedProcess([], 0, version_num, "")
+    )
+    pre = runner.Preflight()
+    assert runner.check_postgres(pre) is ok
+    version_check = next(c for c in pre.checks if c["name"] == "postgres-version")
+    assert version_check["ok"] is ok and version_check["required"] is True
+
+
+@pytest.mark.parametrize(("free_gb", "ok"), [(47.7, True), (5.0, True), (4.9, False)])
+def test_check_disk_needs_the_minimum_free_space(monkeypatch, tmp_path, free_gb, ok):
+    usage = shutil.disk_usage(tmp_path)._replace(free=int(free_gb * 1e9))
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    monkeypatch.setattr(runner.shutil, "disk_usage", lambda _path: usage)
+    pre = runner.Preflight()
+    assert runner.check_disk(pre) is ok
+    assert pre.checks[-1]["required"] is True
