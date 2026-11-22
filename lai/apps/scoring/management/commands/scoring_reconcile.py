@@ -9,7 +9,7 @@ production backfill is an owner approval (docs/scoring/MIGRATION_PLAN.md).
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.scoring import policies, reconcile
-from apps.users.models import ChildProfile
+from apps.users.services import child_profile_for_system, iter_child_profiles_for_system
 
 
 class Command(BaseCommand):
@@ -23,11 +23,13 @@ class Command(BaseCommand):
         policy = policies.awarding_policy()
         if policy is None:
             raise CommandError("Scoring is off, or no active policy may award. Nothing to do.")
-        children = ChildProfile.objects.order_by("pk")
         if child:
-            children = children.filter(pk=child)
+            one = child_profile_for_system(child)
+            children = [one] if one is not None else []
+        else:
+            children = iter_child_profiles_for_system()
         total_children = total_new = 0
-        for profile in children.iterator():
+        for profile in children:
             total_children += 1
             if dry_run:
                 _, planned = reconcile.plan(profile, policy)

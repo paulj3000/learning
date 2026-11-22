@@ -198,3 +198,20 @@ def test_the_command_defaults_to_a_dry_run_and_prints_counts_only(content):
     assert owns(content.a1, "secret-door-key") == 1
     for child in (content.a1, content.a2):
         assert str(child.pk) not in out.getvalue() and child.nickname not in out.getvalue()
+
+
+def test_an_unknown_child_id_raises_and_writes_nothing(content):
+    """GE-090-D1: the backfill locks each child through the users service; an id that is not a
+    child raises instead of being skipped silently."""
+    import uuid
+
+    from apps.catalog.models import RewardRule
+    from apps.inventory import backfill
+    from apps.users.models import ChildProfile
+
+    rules = list(RewardRule.objects.filter(rule_id__in=backfill.CASTLE_KEEPSAKE_RULES))
+    report = backfill.BackfillReport(apply=True)
+    with pytest.raises(ChildProfile.DoesNotExist):
+        backfill._backfill_child(uuid.uuid4(), rules, report, apply=True)
+    assert report.children_scanned == 0
+    assert not GrantedRule.objects.exists() and not InventoryItem.objects.exists()

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from django.db import transaction
 
 from apps.game_sessions.models import AdventureSession, SessionKind, SessionStatus
-from apps.users.models import ChildProfile
+from apps.users.services import lock_owned_child_profile
 
 from . import protected_changes as protected
 from .models import StoryProgress, WorldChange
@@ -127,8 +127,9 @@ def record_client_world_change(
     if entry is None and protected.is_protected(change_key):
         raise ProtectedKey  # a reserved name the export does not define: nobody may write it
     with transaction.atomic():
-        # Serialises this child's client writes: the cap check and insert cannot interleave.
-        ChildProfile.objects.select_for_update().get(pk=child.pk)
+        # Serialises this child's client writes: the cap check and insert cannot interleave. The
+        # lock is owner-scoped, so a child that is not its parent's raises ChildProfileNotFound.
+        lock_owned_child_profile(child.parent, child.pk)
         source_session = None
         source_id = source
         if entry is not None:
