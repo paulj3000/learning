@@ -8,8 +8,8 @@ a JUnit report, and `ci_results.py` recomputes the verdict. Whatever happens, it
 suite), so the workflow always has something to fail closed on.
 
 Isolation: tests run as the unprivileged `lai-ci` user with a clean environment, a per-run database
-password on the loopback-only PostgreSQL 16, no AWS configuration, and the instance metadata
-service rejected for that user, so a test can never use the instance's AWS role.
+password on the loopback-only PostgreSQL 18, no AWS configuration, and the
+instance metadata service rejected for that user, so a test can never use the instance's AWS role.
 
 Layout under /var/lib/lai-ci: repo.git (bare cache), harness/<sha>, cache/{venv-*,npm}, home,
 runs/<run key>/{src,logs,junit,results.json,collect.json}.
@@ -48,6 +48,9 @@ CI_USER = "lai-ci"
 DB_ROLE = "lai_ci"
 DB_NAME = "lai_ci"
 PG_PORT = "5432"
+# PostgreSQL 18 is the project's required version (owner decision 2026-11-21).
+SUPPORTED_PG_MAJORS = (18,)
+SUPPORTED_UBUNTU = ("24.04", "26.04")  # advisory only
 NODE_VERSION = "v22.23.5"
 NODE_SHA256 = {
     "x64": "cdeb8670a0c81f51b4dc4ac61919f9b1ad917b304bf8221eb939570663d240f8",
@@ -135,7 +138,7 @@ def check_os(pre: Preflight) -> None:
     except OSError:
         pass
     pretty = info.get("PRETTY_NAME", "unknown")
-    pre.record("os", info.get("VERSION_ID") == "24.04", pretty, required=False)
+    pre.record("os", info.get("VERSION_ID") in SUPPORTED_UBUNTU, pretty, required=False)
 
 
 def check_python(pre: Preflight) -> bool:
@@ -193,13 +196,22 @@ def ensure_node(pre: Preflight) -> Path | None:
     return home / "bin" if version == NODE_VERSION else None
 
 
+def postgres_major(server_version_num: str) -> int | None:
+    """170006 -> 17; anything unparsable -> None (fails the check)."""
+    text = server_version_num.strip()
+    return int(text) // 10000 if text.isdigit() and len(text) == 6 else None
+
+
 def check_postgres(pre: Preflight) -> bool:
     ready = sh(["pg_isready", "-h", "127.0.0.1", "-p", PG_PORT], check=False)
     if not pre.record("postgres-running", ready.returncode == 0, ready.stdout.strip()):
         return False
     version = psql("SHOW server_version_num", check=False)
-    major = version.stdout.strip()[:2]
-    if not pre.record("postgres-16", major == "16", f"server_version_num {version.stdout.strip()}"):
+    if not pre.record(
+        "postgres-version",
+        postgres_major(version.stdout) in SUPPORTED_PG_MAJORS,
+        f"server_version_num {version.stdout.strip()}",
+    ):
         return False
     listeners = sh(["ss", "-Hltn", f"sport = :{PG_PORT}"], check=False).stdout.split()
     addresses = [a.rsplit(":", 1)[0].strip("[]") for a in listeners if a.endswith(f":{PG_PORT}")]
@@ -662,7 +674,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 except RuntimeError as exc:
                     pre.record("database", False, str(exc))
             if not db_ready:
-                blocked["db"] = "PostgreSQL 16 on loopback is unavailable"
+                blocked["db"] = "a supported PostgreSQL on loopback is unavailable"
         if "node" in kinds:
             if node_bin:
                 try:

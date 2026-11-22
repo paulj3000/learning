@@ -28,7 +28,7 @@ Before a task, read `AGENTS.md` and the documents that apply:
 
 Mandatory rules in brief:
 - **Stack**: React 19 + TypeScript strict + Vite, Three.js as the only gameplay renderer, Django +
-  DRF on PostgreSQL 16, Cognito (verified by Django), Bedrock and Polly only through Django, Django
+  DRF on PostgreSQL 18, Cognito (verified by Django), Bedrock and Polly only through Django, Django
   Admin for all staff authoring. Amplify is retired; never reintroduce it. Never reintroduce
   Phaser (sections 8, 18 to 20).
 - **Restrictions**: work only in your own worktree and branch; never commit to `main`; never merge,
@@ -197,7 +197,8 @@ Unless an architectural decision record changes it, use:
 - Playwright for critical user journeys
 
 ### Backend and AWS (ADR-019)
-- Django + Django REST Framework in `lai/` on PostgreSQL 16 for application data and rules
+- Django + Django REST Framework in `lai/` on PostgreSQL 18 for application data and rules
+  (owner decision 2026-11-21; deployed databases change only through an approved upgrade)
 - Amazon Cognito for parent accounts: the existing user pool and web app client, used directly
   from the browser (`react/src/lib/cognito`) and verified by Django
 - Amazon S3 through Django for approved media, assets and child photos

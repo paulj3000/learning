@@ -7,7 +7,7 @@ React/Vite client (react/: React 19, TypeScript, Three.js gameplay)
   |                                   |
   | Cognito SRP sign-in               | HTTPS /api/v1/ with Authorization: Bearer <Cognito access token>
   v  (react/src/lib/cognito)          v
-Amazon Cognito ----------------> Django + DRF (lai/) -- PostgreSQL 16 (application data and rules)
+Amazon Cognito ----------------> Django + DRF (lai/) -- PostgreSQL 18 (application data and rules)
   parent accounts (existing           |   verifies tokens against the pool JWKS
   user pool and web app client)       |-- Amazon S3 (game assets, child photos; private, through Django)
                                       |-- Amazon Bedrock (AI generation) and Amazon Polly (speech)
@@ -44,7 +44,8 @@ directly from the browser and verified by Django (see "Authentication architectu
 Child profiles are application records owned by parent accounts.
 
 ### Data
-Django + DRF on PostgreSQL 16 owns application data and rules. Parent-owned records are reached
+Django + DRF on PostgreSQL 18 owns application data and rules (owner decision 2026-11-21;
+the deployed RDS instances stay on 16 until an approved major-version upgrade). Parent-owned records are reached
 only through the authenticated parent (see "Tenant isolation" below); administration is
 group-based and explicit (Django Admin). Prefer narrow service functions for actions that update
 several records atomically or require validation.

@@ -24,6 +24,13 @@ on:
         required: false
         default: ''
         type: string
+      base_sha:
+        description: >-
+          affected only, optional: full SHA of an earlier verified commit to diff against (an
+          ancestor of commit_sha). Empty diffs against the merge base with main.
+        required: false
+        default: ''
+        type: string
 
 permissions:
   id-token: write
@@ -51,6 +58,7 @@ jobs:
       INPUT_COMMIT_SHA: ${{ inputs.commit_sha }}
       INPUT_SCOPE: ${{ inputs.test_scope }}
       INPUT_REQUEST_ID: ${{ inputs.request_id }}
+      INPUT_BASE_SHA: ${{ inputs.base_sha }}
       RUN_KEY: ${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
@@ -76,7 +84,19 @@ jobs:
           [[ "$branch" =~ ^(main|integration/[A-Za-z0-9._/-]+|ci/[A-Za-z0-9._/-]+)$ ]] || fail "branch $branch is not an integration/*, ci/* or main branch"
           git cat-file -e "${INPUT_COMMIT_SHA}^{commit}" 2>/dev/null || fail "commit $INPUT_COMMIT_SHA does not exist in this repository"
           git merge-base --is-ancestor "$INPUT_COMMIT_SHA" "$GITHUB_SHA" || fail "commit $INPUT_COMMIT_SHA is not on $branch (head $GITHUB_SHA)"
-          base_sha="$(git merge-base origin/main "$INPUT_COMMIT_SHA")" || fail "no merge base with main"
+          if [ -n "$INPUT_BASE_SHA" ]; then
+            # An explicit base narrows only what `affected` diffs; full-unit always runs everything.
+            [ "$INPUT_SCOPE" = affected ] || fail "base_sha applies to the affected scope only"
+            [[ "$INPUT_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "base_sha must be a full lowercase 40-character SHA"
+            git cat-file -e "${INPUT_BASE_SHA}^{commit}" 2>/dev/null || fail "base $INPUT_BASE_SHA does not exist in this repository"
+            [ "$INPUT_BASE_SHA" != "$INPUT_COMMIT_SHA" ] || fail "base_sha must differ from commit_sha"
+            git merge-base --is-ancestor "$INPUT_BASE_SHA" "$INPUT_COMMIT_SHA" || fail "base $INPUT_BASE_SHA is not an ancestor of $INPUT_COMMIT_SHA"
+            base_sha="$INPUT_BASE_SHA"
+            base_source=requested
+          else
+            base_sha="$(git merge-base origin/main "$INPUT_COMMIT_SHA")" || fail "no merge base with main"
+            base_source=main-merge-base
+          fi
           tree_sha="$(git rev-parse "${INPUT_COMMIT_SHA}^{tree}")"
           request_json="$(jq -cn \
             --arg repository "$GITHUB_REPOSITORY" --arg run_id "$GITHUB_RUN_ID" \
@@ -84,7 +104,7 @@ jobs:
             --arg run_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             --arg source_branch "$branch" --arg branch_head "$GITHUB_SHA" \
             --arg request_id "$request_id" --arg commit_sha "$INPUT_COMMIT_SHA" \
-            --arg tree_sha "$tree_sha" --arg base_sha "$base_sha" --arg harness_sha "$GITHUB_SHA" \
+            --arg tree_sha "$tree_sha" --arg base_sha "$base_sha" --arg base_source "$base_source" --arg harness_sha "$GITHUB_SHA" \
             --arg scope "$INPUT_SCOPE" --arg actor "$GITHUB_ACTOR" \
             '$ARGS.named')"
           printf '%s\n' "$request_json" >"$OUT_DIR/request.json"
@@ -97,7 +117,7 @@ jobs:
           {
             echo "### Request $request_id"
             echo "- Commit \`$INPUT_COMMIT_SHA\` (tree \`$tree_sha\`) on \`$branch\`"
-            echo "- Base \`$base_sha\`; scope \`$INPUT_SCOPE\`; harness \`$GITHUB_SHA\`"
+            echo "- Base \`$base_sha\` ($base_source); scope \`$INPUT_SCOPE\`; harness \`$GITHUB_SHA\`"
           } >>"$GITHUB_STEP_SUMMARY"
 
       - name: Configure AWS credentials (OIDC, no stored keys)
@@ -144,7 +164,20 @@ jobs:
           HARNESS_SHA: ${{ github.sha }}
           TEST_SCOPE: ${{ inputs.test_scope }}
           REQUEST_B64: ${{ steps.request.outputs.request_b64 }}
+          # The role session lasts one hour; the script re-assumes it during a longer wait.
+          LAI_CI_ROLE_ARN: ${{ vars.LAI_CI_ROLE_ARN }}
         run: bash scripts/ci/ec2_ci.sh run
+
+      # Fresh credentials for collect, unlock and stop: run 44877024597 lost all three to an
+      # expired session and left the instance to the four-hour guard.
+      - name: Refresh AWS credentials for cleanup (OIDC)
+        id: aws-reauth
+        if: always() && steps.aws-auth.outcome == 'success'
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.LAI_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          retry-max-attempts: 3
 
       - name: Copy the results back (checksum-verified)
         id: collect
@@ -181,16 +214,20 @@ jobs:
         shell: bash
         env:
           TREE_SHA: ${{ steps.request.outputs.tree_sha }}
+          BASE_SHA: ${{ steps.request.outputs.base_sha }}
         run: |
           set -uo pipefail
           results="$OUT_DIR/results/results.json"
+          # The step shell runs with -e; capture the exit code so a failing verdict is still
+          # printed and published (a fail must not be reported as incomplete).
+          code=0
           python3 scripts/ci/ci_results.py verify "$results" --commit "$INPUT_COMMIT_SHA" \
-            --scope "$INPUT_SCOPE" ${TREE_SHA:+--tree "$TREE_SHA"} \
-            --summary "$GITHUB_STEP_SUMMARY" --json >"$OUT_DIR/verdict.json"
-          code=$?
-          cat "$OUT_DIR/verdict.json"
+            --scope "$INPUT_SCOPE" ${TREE_SHA:+--tree "$TREE_SHA"} ${BASE_SHA:+--base "$BASE_SHA"} \
+            --summary "$GITHUB_STEP_SUMMARY" --json >"$OUT_DIR/verdict.json" || code=$?
+          cat "$OUT_DIR/verdict.json" 2>/dev/null || true
           echo "verdict=$(jq -r .verdict "$OUT_DIR/verdict.json" 2>/dev/null || echo incomplete)" >>"$GITHUB_OUTPUT"
           echo "exit=$code" >>"$GITHUB_OUTPUT"
+          exit "$code"
 
       - name: Upload the results artifact
         if: always()

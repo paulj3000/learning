@@ -6,7 +6,7 @@ Status: implemented on `ci/aws-integration-tests` (2026-11-20); live validation 
 
 The integration agent submits one exact commit to the shared CI instance, waits, and gets a
 machine-readable verdict it can gate a merge on, without the AWS Console. The instance is a
-dedicated Ubuntu 24.04 EC2 instance with PostgreSQL 16 (`lai-ci-ubuntu`, `us-west-1`), reached
+dedicated Ubuntu EC2 instance with PostgreSQL (`lai-ci-ubuntu`, `us-west-1`; see "PostgreSQL version" below), reached
 only through SSM. The GitHub job authenticates with OIDC, so no AWS key is stored anywhere.
 
 These are **unit tests** (testing-policy.md section 1), not the merge-readiness gates: no
@@ -39,8 +39,9 @@ scripts/ci/aws_ci.py run              aws-integration-tests.yml                 
 - **Harness.** The test runner (`scripts/ci/*.py`) comes from the dispatched branch's head, the
   same commit the workflow file comes from; the tested source is the requested SHA, which must be
   on that branch.
-- **Planning.** `scripts/ci/plan_tests.py` turns `git diff --name-only <merge-base with main>
-  <sha>` into suites (below).
+- **Planning.** `scripts/ci/plan_tests.py` turns `git diff --name-only <base> <sha>` into suites
+  (below). The base is the merge base with main, or, for `affected` only, the optional `base_sha`
+  input (see "Testing a change on an integration candidate").
 - **Isolation.** Tests run as the unprivileged `lai-ci` user with a clean environment, no AWS
   configuration (`AWS_CONFIG_FILE=/dev/null`, `AWS_EC2_METADATA_DISABLED=true`), and an iptables
   rule rejecting the instance metadata service for that user, so no test can use the instance's
@@ -55,7 +56,7 @@ scripts/ci/aws_ci.py run              aws-integration-tests.yml                 
 
 | Scope | Suites |
 |---|---|
-| `full-unit` | `django-migrations` (`makemigrations --check`), `django` (all of `lai/` on PostgreSQL 16), `python-repo` (`tests/`), `engine` (`game/` Vitest), `react` (all of `react/` Vitest, including `server/` and `infra/` tests) |
+| `full-unit` | `django-migrations` (`makemigrations --check`), `django` (all of `lai/` on the instance's PostgreSQL), `python-repo` (`tests/`), `engine` (`game/` Vitest), `react` (all of `react/` Vitest, including `server/` and `infra/` tests) |
 | `affected` (default) | Only what the change reaches: changed Django apps plus the apps that import them or depend on their migrations, always with the authorization, authentication and privacy-logging tests; Vitest `related` for changed TypeScript; the engine when `game/` changes; `realm-compat-react` and `realm-compat-django` (Storykeeper, Treasure Rush, Pirate's Leap and content compatibility tests) when shared engine, realm or region code changes; `python-repo` when scripts, CI, deploy or `tests/` change |
 
 `affected` widens to the full suite for an area when it cannot be precise: settings, requirements
@@ -93,6 +94,26 @@ tree.
 `integration/*`, `ci/*` or `main`, and an unpushed HEAD unless `--push` is given. It finds its
 run by the `[request id]` the workflow puts in the run name, so concurrent dispatches never get
 each other's results.
+
+### Testing a change on an integration candidate
+
+An integration candidate differs from main by every branch merged into it, so `affected` against
+the merge base with main plans the full suite. To test only what a later commit on the candidate
+changes, dispatch `affected` with `base_sha` set to the candidate commit that was already
+verified (normally by `full-unit`):
+
+```bash
+gh workflow run aws-integration-tests.yml --ref integration/<candidate> \
+  -f commit_sha=<new full SHA> -f test_scope=affected -f base_sha=<verified full SHA> \
+  -f request_id=<id>
+```
+
+The request is rejected unless `base_sha` is a full SHA, differs from `commit_sha`, is an ancestor
+of it, and the scope is `affected`. `full-unit` rejects `base_sha` and always runs every suite.
+The request, the job summary and `results.json` record the base and whether it was requested or
+the merge base with main, and the verdict step fails closed (`incomplete`) if the results were
+planned against any other base. A run with a requested base proves only the delta since that
+base; the candidate's acceptance still rests on a `full-unit` run on its exact SHA.
 
 ### Monitoring and reports without the script
 
@@ -169,8 +190,17 @@ and approvals are still separate.
 | Branches | The dispatched branch must be `main`, `integration/*` or `ci/*`; the requested SHA must be on it |
 | Repository visibility | The instance fetches the source anonymously over HTTPS, which works while the repository is public. If it becomes private, source transfer needs an approved change (an S3 bucket the role writes and the instance reads, or a read-only deploy key on the instance) |
 | Instance egress | HTTPS to `github.com`, `nodejs.org` (Node 22.23.5, checksum-pinned in `remote_runner.py`), `registry.npmjs.org`, `pypi.org` and `files.pythonhosted.org` |
-| Instance software | Ubuntu 24.04, PostgreSQL 16 on loopback port 5432, the SSM agent, `iptables`. The runner installs `git` and `python3-venv` from Ubuntu if missing, Node under `/opt/lai-ci`, and creates the `lai-ci` user; caches live in `/var/lib/lai-ci` |
+| Instance software | Ubuntu 24.04 or 26.04 (advisory check), PostgreSQL 18 on loopback port 5432 (required check), the SSM agent, `iptables`. The runner installs `git` and `python3-venv` from Ubuntu if missing, Node under `/opt/lai-ci`, and creates the `lai-ci` user; caches live in `/var/lib/lai-ci` |
 | Instance role | Only what SSM needs (`AmazonSSMManagedInstanceCore`); tests cannot reach it anyway |
+
+## PostgreSQL version
+
+PostgreSQL 18 is the project's required version (owner decision 2026-11-21, superseding the
+PostgreSQL 16 standard and the 2026-11-20 acceptance of 16 or 18 for this CI). The CI instance runs
+Ubuntu 26.04.1 with PostgreSQL 18.6 from Ubuntu. The preflight check `postgres-version` passes for
+major version 18 only and blocks every other version (the run is reported incomplete). Never
+downgrade or add a second PostgreSQL on the instance. The deployed RDS instances still run 16;
+moving them is a separate, approved upgrade.
 
 ## Troubleshooting
 
@@ -210,6 +240,17 @@ the tests passed. Then:
 3. If stop calls are denied, the role lost `ec2:StopInstances`; restore it (owner approval).
 4. The four-hour guard stops the instance regardless; never disable it.
 Record the incident on the integration card.
+
+**The run ended PollFailed, or cleanup failed with ExpiredTokenException.** The CI role's session
+lasts one hour; a full-unit run waits longer. Run 44877024597 (2026-11-21) lost every status poll
+after the hour (the old poller read each error as "still pending" and waited the full 9,600 s
+blind), then collect, unlock and stop all failed and the four-hour guard had to stop the instance.
+Since then the run step re-assumes the role from a new GitHub OIDC token every 35 minutes
+(`LAI_CI_CREDENTIAL_REFRESH_SECONDS`), a poll error ends the wait as `PollFailed` after 8 in a row
+(`LAI_CI_POLL_ERROR_LIMIT`; `InvocationDoesNotExist` just after sending does not count), and a
+second `configure-aws-credentials` step runs before cleanup on every outcome. No IAM change was
+needed: the role's trust already allows `AssumeRoleWithWebIdentity` from this environment. If
+`PollFailed` repeats, read the error the step prints (access denied points at the role policy).
 
 **The lock is held but no job is running.** The lock lives in `/run`, so stopping the instance
 clears it. If the instance is running with a stale lock and you have confirmed no job is active,

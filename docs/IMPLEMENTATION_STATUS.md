@@ -37,7 +37,34 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
-## GE-090: Game Engine 1.0 integration retest on `main` (2026-11-21, Agent 5 integration lead); integrated, NOT test-verified, NOT owner-accepted
+## GE-090: Game Engine 1.0 (Agent 5 integration lead): owner-accepted 2026-11-22 on candidate `60ab15a4`; merged to `main`
+
+**Final status (2026-11-22).** The owner accepted Game Engine 1.0 on candidate `60ab15a46f117cb88abecb08617d54c7c8b19918`:
+- EC2 full-unit run 45022991853 passed, and nothing failed:
+  - django 4445 passed, 1 skipped;
+  - python-repo 850 passed, 14 skipped (host tools, since installed by PR #58);
+  - engine 670 passed;
+  - react 6343 passed;
+  - PostgreSQL 18.6.
+- GitHub CI 45022996622 was green.
+- Component reviews: D1 by Agents 2 and 6, D2 by Agent 2, and D6 by Agents 2, 3 and 4 and the Treasure Cove owner.
+
+Merged to `main` with merge commits (none squashed), in this order:
+1. #53, #54 and #57 into the #50 branch;
+2. #50 as `daac25fc`;
+3. #49 as `ff64cf3e`;
+4. #46 as `7d0d5960`;
+5. #47 as `92e55903`;
+6. #52 as `556a4308`;
+7. then this PR (#48), #55 (the RDS PostgreSQL 18 plan, plan only) and #58 (host tools).
+
+Open items:
+- P1 GE-090-D7, desktop and tablet browser acceptance. 19 tests fail, and they also fail on the old `main` `678b77ce`. The owner is fixing it.
+- The deployed RDS stays on PostgreSQL 16 until the separate plan runs.
+
+No deployment was made. The 2026-11-21 retest record follows.
+
+### Retest on `main` (2026-11-21): integrated, not test-verified at that time
 
 Status by gate (definition-of-done): **Development Complete** for the six workstreams (GE-076
 items 2 to 9 open); **integrated into `main`**; **not test-verified** (failures below);
@@ -108,7 +135,7 @@ gate passes. Trello: [GE-090](https://trello.com/c/mEaWzcTo).
      Playwright on the integration candidate (authorized 2026-11-21), with the exact SHA
      recorded; then owner browser QA on desktop and touch and the entry-criteria decisions.
 
-## EC2 unit-test gate for integration branches (2026-11-20, `ci/aws-integration-tests`); merged to `main` in PR #45 (`678b77ce`); live-run fixes in PR #46 (open)
+## EC2 unit-test gate for integration branches (2026-11-20, `ci/aws-integration-tests`); merged to `main` in PR #45; live-run fixes in PR #46 (merged 2026-11-22)
 
 - `.github/workflows/aws-integration-tests.yml` (dispatch inputs `commit_sha`, `test_scope`
   `affected|full-unit`, `request_id`): validates the SHA is on the dispatched branch, OIDC, starts
@@ -118,10 +145,16 @@ gate passes. Trello: [GE-090](https://trello.com/c/mEaWzcTo).
   smoke test is unchanged.
 - `scripts/ci/`: `aws_ci.py` (the integration agent's submit, watch, fetch and gate, with the
   stale-result rule), `ec2_ci.sh` (runner side), `remote_runner.py` (instance side: preflight,
-  isolation, dependencies, PostgreSQL 16, suites), `plan_tests.py` (affected and full-unit plans),
+  isolation, dependencies, PostgreSQL 18, suites), `plan_tests.py` (affected and full-unit plans),
   `ci_results.py` (schema and verdict).
 - Tests: `tests/repo/test_ci_*.py` with fake `aws`, `gh` and `git`; actionlint and shellcheck
   clean.
+- Live run 44876522333 (2026-11-21 UTC): OIDC, start, lock, SSM, checksum-verified collection,
+  unlock and stop all worked and the instance stopped; preflight blocked the tests because the
+  instance runs PostgreSQL 18.6 on Ubuntu 26.04.1. The owner accepted PostgreSQL 18 for this CI
+  (2026-11-20); the check then passed 16 or 18. Superseded 2026-11-21: PostgreSQL 18 is the
+  required version (owner decision), and the check passes 18 only.
+- Pending: `ssm:CancelCommand` on the CI role.
 - Live runs (2026-11-20 and 21): the first full-unit run (44877024597) lost its 1-hour OIDC
   session, polled blind and could not stop the instance (the 4-hour guard did); PR #46 fixes
   that, proven by run 44927511735 (see GE-090 above). Runbook:
