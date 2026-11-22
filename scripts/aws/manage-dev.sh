@@ -79,6 +79,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 dev_init
+# shellcheck disable=SC2119 # the optional "required" mode is not wanted here
 dev_guard_account
 source_name=manual
 [ "${GITHUB_ACTIONS:-}" != true ] || source_name=github
@@ -296,6 +297,7 @@ case "$command" in
         ;;
     hold)
         if [ -n "$hours" ]; then
+            # shellcheck disable=SC2015 # B is a test: die runs whenever any check fails
             [[ $hours =~ ^[0-9]{1,3}$ ]] && [ "$hours" -ge 1 ] && [ "$hours" -le 168 ] ||
                 die "$EX_USAGE" "--hours must be 1 to 168"
             until=$(date -u -d "+$hours hours" +%Y-%m-%dT%H:%M:%SZ)

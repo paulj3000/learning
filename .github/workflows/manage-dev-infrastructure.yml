@@ -100,7 +100,7 @@ jobs:
           {
             echo "### DEV: $OPERATION: $(jq -r '.result // "failed"' <<<"$r")"
             echo ""
-            echo "$(jq -r '.message // ""' <<<"$r")"
+            jq -r '.message // ""' <<<"$r"
             echo ""
             echo "| | |"
             echo "|---|---|"

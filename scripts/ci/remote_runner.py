@@ -40,9 +40,13 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ci_results  # noqa: E402
+import host_tools  # noqa: E402
 import plan_tests  # noqa: E402
 
 ROOT = Path(os.environ.get("LAI_CI_ROOT", "/var/lib/lai-ci"))
+# the pinned actionlint and shellcheck (scripts/ci/host_tools.py); on every suite's PATH
+TOOLS_BIN = ROOT / "tools" / "bin"
+SYSTEM_PATH = "/usr/local/bin:/usr/bin:/bin"
 LOCK_DIR = Path(os.environ.get("LAI_CI_LOCK_DIR", "/run/lai-ci/lock"))
 CI_USER = "lai-ci"
 DB_ROLE = "lai_ci"
@@ -161,6 +165,27 @@ def apt_install(packages: list[str]) -> None:
     env = {**os.environ, "DEBIAN_FRONTEND": "noninteractive"}
     sh(["apt-get", "update", "-q"], timeout=600, check=False, env=env)
     sh(["apt-get", "install", "-yq", *packages], timeout=900, check=False, env=env)
+
+
+def ensure_host_tools(pre: Preflight) -> None:
+    """make, nginx, openssl and envsubst from apt; actionlint and shellcheck pinned (GE-090).
+
+    nginx is only run by the tests on loopback ports; the packaged service is disabled again.
+    Recorded as advisory: with LAI_REQUIRE_HOST_TOOLS=1, tests/conftest.py fails the python-repo
+    suite if anything is still missing, so a missing tool can never pass as a skip.
+    """
+    os_tools = ("make", "nginx", "openssl", "envsubst")
+    if any(shutil.which(name, path=SYSTEM_PATH) is None for name in os_tools):
+        apt_install(list(host_tools.APT_PACKAGES))
+        sh(["systemctl", "disable", "--now", "nginx"], timeout=120, check=False)
+    error = ""
+    try:
+        host_tools.install(TOOLS_BIN)
+    except (OSError, RuntimeError) as exc:
+        error = f"; pinned install failed: {exc}"
+    absent = host_tools.missing(f"{TOOLS_BIN}:{SYSTEM_PATH}")
+    detail = f"missing {', '.join(absent)}" if absent else "all present"
+    pre.record("host-tools", not absent, detail + error, required=False)
 
 
 def node_arch() -> str | None:
@@ -331,7 +356,7 @@ def as_ci_user(cmd: list[str], env: dict[str, str]) -> list[str]:
 def base_env(node_bin: Path | None, venv: Path | None) -> dict[str, str]:
     path = [str(venv / "bin")] if venv else []
     path += [str(node_bin)] if node_bin else []
-    path += ["/usr/local/bin", "/usr/bin", "/bin"]
+    path += [str(TOOLS_BIN), *SYSTEM_PATH.split(":")]
     return {
         "PATH": ":".join(path),
         "HOME": str(ROOT / "home"),
@@ -641,6 +666,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         check_disk(pre)
         python_ok = check_python(pre)
         node_bin = ensure_node(pre)
+        ensure_host_tools(pre)
         pg_ok = check_postgres(pre)
         block_metadata_service(pre, user.pw_uid)
 
@@ -690,7 +716,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 pre.failed("imds-blocked", "instance-lock", "disk")
             )
 
-        test_env = {**env, "PATH": base_env(node_bin, venv)["PATH"]}
+        test_env = {**env, "PATH": base_env(node_bin, venv)["PATH"], "LAI_REQUIRE_HOST_TOOLS": "1"}
         for suite in suites:
             reasons = [blocked[k] for k in sorted(needs(suite) | {"isolation"}) if k in blocked]
             if reasons:

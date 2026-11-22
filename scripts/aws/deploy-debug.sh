@@ -333,6 +333,7 @@ lambda_zip="" worker_key=""
 if [ -f "$DEV_SCRIPTS_DIR/package-lambda.sh" ]; then
     mkdir -p "$DEV_REPO_ROOT/dist/dev-release"
     lambda_zip=$(bash "$DEV_SCRIPTS_DIR/package-lambda.sh" --out "$DEV_REPO_ROOT/dist/dev-release" | tail -n 1)
+    # shellcheck disable=SC2015 # B is a test: die runs whenever any check fails
     [ -f "$lambda_zip" ] && [[ $(basename "$lambda_zip") =~ ^jobs-worker-[a-f0-9]{16}\.zip$ ]] ||
         die "$EX_FAIL" "package-lambda.sh did not print a jobs-worker-<hash16>.zip path"
     worker_key="lambda/$(basename "$lambda_zip")"
