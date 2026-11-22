@@ -82,9 +82,15 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
   (terrain draping through an optional host `groundHeightAt`, flat fallback) are closed. GE-T2
   is classified as environmental (VirtualBox timer stalls). GE-076 dependency audit: nothing is
   removable yet; checklist in `docs/engineering/game-engine/legacy-retirement-plan.md` section 5.
-- **GE-S1 fixed (2026-11-22, Development Complete, not merged):** the last 8 island-map engine
-  shims are removed and react/ imports the engine only through listed exports-map entry points
-  (branch `fix/GE-S1-import-shims`).
+- **GE-S1 fixed (2026-11-22, merged to main through PR #57 and the D6 baseline):** the last 8
+  island-map engine shims are removed and react/ imports the engine only through listed
+  exports-map entry points (branch `fix/GE-S1-import-shims`).
+- **GE-L16 raised Solid clearance (2026-11-22, owner-approved, Development Complete, not
+  merged):** a raised Solid collision part keeps its height and leaves a walk-under gap only with
+  clearance (the avatar's 1.7 m collision height plus a configurable margin); otherwise it blocks
+  at every height. Elevation never makes a part jumpable. Branch
+  `feature/ge-raised-solid-clearance`, Trello #245; design and audit in
+  `docs/engineering/game-engine/raised-solid-clearance.md`.
 - **Owner decisions open:** LAI-2003 approval (or waiver), ADR number for the engine core
   decision, the `DECISIONS.md` merge resolution (jump ADR-055 to ADR-063 on this branch), merge
   order, scoring economy against the scoring standard.

@@ -618,11 +618,34 @@ class CollisionProfileAdmin(admin.ModelAdmin):
             return "Cannot be sized yet: the game keeps its built-in default for this asset."
         if not result["boxes"]:
             return f"{result['behavior'].title()}: no collider (never blocks)."
+        raised = collision.solid_clearance(result)
+        notes = format_html_join(
+            "",
+            "<li>Box {}: bottom {} m, {}</li>",
+            (
+                (
+                    part["index"] + 1,
+                    f"{part['minY']:g}",
+                    "walk-under passage (blocks from its underside up)"
+                    if part["passage"]
+                    else "blocks at every height, down to the ground",
+                )
+                for part in raised
+            ),
+        )
         return format_html(
-            "<p>{} {} box(es), model space, metres:</p><pre>{}</pre>",
+            "<p>{} {} box(es), model space, metres:</p><pre>{}</pre>{}",
             result["behavior"].title(),
             len(result["boxes"]),
             json.dumps(result["boxes"], indent=1),
+            format_html(
+                "<p>Raised Solid parts (walk-under clearance {} m; a placement's elevation adds "
+                "to the gap):</p><ul>{}</ul>",
+                f"{collision.WALK_UNDER_CLEARANCE:g}",
+                notes,
+            )
+            if raised
+            else "",
         )
 
     @admin.display(description="Preview")

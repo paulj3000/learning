@@ -19,7 +19,12 @@ import { defineService } from '../core/services';
 import type { Vec3Like } from './player';
 
 export type ColliderKind =
-  /** Blocks at every height (walls, gates, boundaries). The default. */
+  /**
+   * Blocks at every height (walls, gates, boundaries). The default. A raised one keeps its
+   * height and leaves the space under it open only with walk-under clearance (the avatar's
+   * collision height plus `movement.collision.clearanceMargin`); otherwise it blocks down to
+   * the ground (GE-L16, `movement/clearance.ts`). Never stepped or jumped onto.
+   */
   | 'SOLID'
   /** Blocks only where it is in height; can be stood on and jumped over (crates, platforms). */
   | 'JUMPABLE'

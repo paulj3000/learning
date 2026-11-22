@@ -23,6 +23,8 @@
  *
  * Pure: no Three.js, no DOM.
  */
+import { DEFAULT_CLEARANCE_MARGIN } from './clearance';
+
 export interface PlayerCollisionConfiguration {
   /** Horizontal radius of the child's body, metres. */
   radius: number;
@@ -31,17 +33,25 @@ export interface PlayerCollisionConfiguration {
    * floating-point contact never shows a sliver of overlap. Added to `radius` when blocking.
    */
   skin: number;
+  /**
+   * GE-L16: headroom added to the avatar's collision height (`bodyHeight`) before the gap under a
+   * raised Solid part counts as a walk-under passage, metres. 0 by default: the standard 1.7 m
+   * collider is already about 0.3 m taller than the drawn avatars.
+   */
+  clearanceMargin: number;
 }
 
 export const DEFAULT_PLAYER_COLLISION: Readonly<PlayerCollisionConfiguration> = Object.freeze({
   radius: 0.35,
   skin: 0.02,
+  clearanceMargin: DEFAULT_CLEARANCE_MARGIN,
 });
 
 /** Accepted ranges. The suggested tuning band for the radius is 0.30-0.45 m. */
 export const PLAYER_COLLISION_LIMITS = Object.freeze({
   radius: { min: 0.15, max: 0.6 },
   skin: { min: 0, max: 0.1 },
+  clearanceMargin: { min: 0, max: 0.5 },
 });
 
 type NumericKey = keyof typeof PLAYER_COLLISION_LIMITS;
