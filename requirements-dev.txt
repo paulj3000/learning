@@ -6,6 +6,8 @@
 ruff==0.17.0
 pytest==9.1.1
 pytest-django==4.14.0
+# structural guards on the GitHub workflows (tests/repo/test_ci_workflow.py); no runtime use
+PyYAML==6.0.3
 # transitive dependencies of pytest
 iniconfig==2.3.1
 packaging==26.3

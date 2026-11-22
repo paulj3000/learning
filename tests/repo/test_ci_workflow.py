@@ -73,7 +73,10 @@ def test_the_ssm_command_does_not_open_ssh_or_postgres():
 
 @pytest.fixture(scope="module")
 def workflow():
-    yaml = pytest.importorskip("yaml")
+    # A hard import, not importorskip: PyYAML is pinned in requirements-dev.txt, so a missing
+    # module is a broken environment and must fail, never silently skip these guards (GE-090).
+    import yaml
+
     data = yaml.safe_load(TEXT)
     data["on"] = data.pop(True, data.get("on"))  # PyYAML reads `on` as True
     return data
