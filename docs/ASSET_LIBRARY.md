@@ -231,7 +231,7 @@ next load asks again. Treasure Cove uses it (TR-10, section 15).
 |---|---|
 | Bucket | `lai-assets-<env>-<account>-<region>`. Block Public Access (all four), bucket-owner-enforced (no ACLs), SSE-S3, a bucket policy denying non-TLS requests, retained when the stack is deleted, termination protection on `prod` |
 | Versioning | On. Keys are immutable, so no live object ever has two versions; a deleted object (a never-published version, or `asset_storage_audit --delete`) stays recoverable for 30 days, then expires. Incomplete multipart uploads are aborted after a day |
-| IAM | Managed policy `lai-django-asset-storage-<env>`: `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on `arn:aws:s3:::<bucket>/assets/models/*`; `s3:ListBucket` on the bucket. Attached to the Django workload role (`djangoRoleArn`) or attached by hand. No IAM user, no access key, no `s3:*`, no version deletes |
+| IAM | Managed policy `lai-django-asset-storage-<env>`: `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on `arn:aws:s3:::<bucket>/assets/models/*`, `assets/images/*` and `assets/audio/*` (`ASSET_KEY_PREFIXES` in `infra/lib/assetStorageStack.ts`); `s3:ListBucket` on the bucket. Attached to the Django workload role (`djangoRoleArn`) or attached by hand. No IAM user, no access key, no `s3:*`, no version deletes |
 | Why ListBucket has no prefix condition | `list_objects_v2` sends a prefix, but `head_object` on a missing key does not, and without ListBucket S3 answers it 403 instead of 404, which `asset_storage_audit` would report as a failure. The bucket holds nothing else |
 | CORS | None by default (`django` delivery). With `allowedOrigins`, one rule: `GET` and `HEAD`, those explicit `https://` origins only, `Range` request header, `Content-Length`, `Content-Type`, `ETag` exposed, one hour preflight cache. Wildcards and plain `http://` (other than localhost) are refused at synth |
 | Credentials | From the workload role through the default AWS SDK chain (`boto3.client("s3")`). Nothing in settings, `.env` files or the React build. Local development keeps `local` storage and needs no AWS credentials |
@@ -257,9 +257,10 @@ live AWS call: `infra/lib/assetStorageStack.test.ts` asserts on the synthesized 
 
 Production (`config.settings.production`) refuses to start unless `LAI_ASSET_STORAGE=s3` and both
 `LAI_ASSET_BUCKET` and `LAI_ASSET_REGION` are set, so a container can never fall back to its own
-disk. The key prefix (`assets/models/`) is fixed in code and in the IAM policy, not a setting. The
-React build needs nothing new: `VITE_BACKEND=django` (and `VITE_DJANGO_API_BASE` only for a
-non-same-origin API) are the whole client configuration; no bucket name, key or credential ever
+disk. The key prefixes (`assets/models/`, `assets/images/`, `assets/audio/`, one per family in
+`formats.py`) are fixed in code and in the IAM policy, not a setting. The React build needs
+nothing new: `VITE_DJANGO_API_BASE` (only for a non-same-origin API) is the whole client
+configuration (Django is the only backend; `VITE_BACKEND` was removed); no bucket name, key or credential ever
 reaches Vite.
 
 The admin preview (section 17) adds no variable. Its token lifetime is the constant
@@ -863,8 +864,8 @@ nothing.
 |---|---|---|
 | Local development (`DEBUG`, loopback database, `local` or `memory` storage) | Yes | With `--publish`. The first published version becomes the default |
 | S3 storage (a shared AWS environment) | Only with `--allow-shared-storage`, after the owner approves | Never by the command. Publish in Django Admin (section 19.2) |
-| A pack whose licence the owner has not confirmed | Yes, as `VALIDATED` | Never, until a run with `--licence-confirmed` records the owner's confirmation |
-| A never-published version whose prepared bytes are now stale (e.g. the embedded credit changed when the licence was confirmed) | Re-prepared: the old unpublished version and its file are deleted and the new one takes its number | As above. A published version is never re-prepared |
+| A pack whose licence the owner has not confirmed | Yes, as `VALIDATED` | Never, until a run with `--licence-confirmed --licence-confirmation "<who, when, where>"` records the owner's confirmation. One confirmation covers one unconfirmed pack per run (LAI-07) |
+| A never-published version whose prepared bytes are now stale (e.g. the embedded credit changed when the licence was confirmed) | Re-prepared: the new version is stored first, then the old unpublished version and its file are deleted, so a refused upload keeps the old one (LAI-07). The new version gets the next number; numbers are never reused | As above. A published version is never re-prepared |
 
 ### 23.3 The packs (2026-11-14)
 
@@ -897,8 +898,9 @@ python manage.py import_treasure_rush_environment --source /path/to/environment-
 python manage.py import_treasure_rush_environment --source /path/to/environment-assets --publish
 # One group at a time: palms, barrels or logs.
 python manage.py import_treasure_rush_environment --source /path/to/barrel-assets --category barrels
-# Once the owner confirms the barrel and log licences:
-python manage.py import_treasure_rush_environment --source DIR --publish --licence-confirmed
+# Once the owner confirms a pack's licence (one unconfirmed pack per run, with the evidence):
+python manage.py import_treasure_rush_environment --source DIR --category feather --publish \
+  --licence-confirmed --licence-confirmation "Owner, 2026-11-22, Trello #244"
 # Kept for compatibility, the same as --category palms:
 python manage.py import_treasure_rush_palm_trees --source /path/to/palm-tree-assets --dry-run
 ```
@@ -1017,14 +1019,15 @@ Totals in the cove once everything is published:
 python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --dry-run
 python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --publish
 # Once the owner states the author and licence:
-python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --publish --licence-confirmed
+python manage.py import_treasure_rush_environment --source /path/to/nature-kit --category vegetation --publish --licence-confirmed --licence-confirmation "<who, when, where>"
 ```
 
 ### 23.9 Gameplay props: the campfire and the feather (2026-11-15)
 
 Two more groups in the same importer: `campfire` (Kenney Survival Kit 2.0, CC0: asset
 `campfire`) and `feather` (dudecon, CC-BY-4.0: asset `feather`, held unpublished until the
-owner passes `--licence-confirmed`). Three importer additions, for any pack:
+owner's acceptance is recorded with `--licence-confirmed --licence-confirmation "<who, when,
+where>"`, which is stored as the provenance's `ownerConfirmation` with the date). Three importer additions, for any pack:
 
 - **Child meshes** (`PackModel.include_children`): the node's descendants are baked in through
   their own transforms (Kenney's logs are a child of the stone ring).
@@ -1044,3 +1047,55 @@ transform; assets without a profile keep the built-in derived defaults. Validati
 records each model's bounding corners in `metadata["bounds"]`, which automatic profiles size
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
+
+## 25. Dependency tracking: design (Proposed, LAI-07 W2; not implemented)
+
+Status: **Proposed**. A design for card #244, waiting for its owners to agree. Nothing below exists
+yet, and no shared contract (`services.py`, Django Admin, `apps/audio`) has changed.
+
+**Problem (audit, 2026-11-22).**
+- Retiring an asset or version is refused only by the guards registered in
+  `services.RETIREMENT_GUARDS`. Today that is NPC releases (`apps/npcs/dependencies.py`) and
+  available player avatars (`apps/avatars/dependencies.py`).
+- The LIVE `SoundRelease` pins exact audio `versionId`s in its snapshot, but nothing protects
+  them. Retiring one silently drops that cue from the sound manifest
+  (`apps/audio/manifest.py`, `_available_versions`). `docs/adventures/asset-standard.md` section 2
+  already says sound releases are protected; the code does not do this yet.
+- Region placements (`regions.models`, `asset_id` CharField) and catalog `LocationAsset` rows
+  refer to assets by id with no guard and no report.
+- Staff cannot see "where is this used" on the asset or version admin pages.
+
+**Design.**
+1. **A usage registry, alongside the guard API.** A new `apps/assets/dependencies.py` defines
+   `Usage(source, label, admin_url, blocks_retirement, code)` and
+   `register_usage_provider(provider)`, where a provider is `provider(asset, version) ->
+   list[Usage]`. Apps register providers from `AppConfig.ready()`, as they register guards today,
+   so `apps.assets` never imports them. `RETIREMENT_GUARDS` stays as it is. One built-in guard
+   refuses retirement when any registered usage has `blocks_retirement`, and names every blocker
+   in the message.
+2. **Providers, each owned by its app:**
+
+   | App | Blocks retirement | Listed only |
+   |---|---|---|
+   | `audio` | LIVE release pinning the version (or any version of a retired asset) | SUPERSEDED releases, which affect rollback; cue working copies |
+   | `npcs` | ACTIVE and SUPERSEDED releases (unchanged) | Draft variants, extras and dialogue nodes |
+   | `avatars` | AVAILABLE avatars served the asset or version (unchanged) | Draft and disabled avatars |
+   | `regions`, `catalog` | None at first (string references draw a placeholder) | Placements and `LocationAsset` rows |
+
+   NPCs and avatars keep their guards until their owners move them to providers. Results must
+   match exactly before either guard is removed.
+3. **Django Admin.** A read-only "Used by" panel on the asset version page (`assets` admin) and,
+   with the catalog owner's agreement, on the content asset page. Each row links to the
+   referring object.
+4. **No migration.** Everything is a query over existing rows.
+
+**Needs agreement before code:**
+- The Sound Manager owner on the audio provider and whether a LIVE release blocks retirement. The
+  asset standard says it does; that rule is the owner's to confirm.
+- Whoever owns `services.py` and the admin (the Lambda stack also changes both), on a
+  backward-compatible addition.
+- The regions and catalog owners on listing their references.
+
+**Tests when built:** one test per provider for blocking and non-blocking usages, asserting the
+refusal code and message; a parity test proving the NPC and avatar providers match their existing
+guards; an admin test showing the panel only to users with view permission.

@@ -108,8 +108,8 @@ Authoring conventions (canonical: [`THREE_WORLD_ASSET_CONVENTIONS.md`](../THREE_
   `react/src/features/island-map/three/assets/animationVocabulary.ts`
   (`Idle, Walk, Talk, Wave, Point, Celebrate, ReactHappy, ReactConcerned, Open, Close, Activate`).
   Validation refuses unknown and duplicate names.
-- Pending merge: Run, Jump, Fall, Land added for the player avatar (LAI-JMP-01a); until merged,
-  validation on main refuses a Jump clip.
+- Implemented (main): Run, Jump, Fall, Land are in the vocabulary for the player avatar
+  (LAI-JMP-01a, LAI-JMP-01c), in both `animationVocabulary.ts` and `validation.py`.
 - A new version of an asset must keep every clip the asset already declares.
 - Strip clips a children's product does not need (combat, weapons) before upload.
 - NPCs map their own runtime states (`idle`, `talk`, `wave`...) to clip names through the

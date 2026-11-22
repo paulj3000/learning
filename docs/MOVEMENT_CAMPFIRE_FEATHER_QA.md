@@ -78,7 +78,7 @@ That imports and validates the feather but does **not** publish it (CC-BY). To p
 you accept CC-BY-4.0 and the credit above, run:
 
 ```bash
-cd lai && ../.venv/bin/python manage.py import_treasure_rush_environment --source ~/Downloads/light_princess_feather_lowpoly.zip --category feather --publish --licence-confirmed && cd ..
+cd lai && ../.venv/bin/python manage.py import_treasure_rush_environment --source ~/Downloads/light_princess_feather_lowpoly.zip --category feather --publish --licence-confirmed --licence-confirmation "<your name>, <date>, CC-BY-4.0 credit accepted" && cd ..
 ```
 
 Each import is idempotent: rerunning skips what is there and never replaces an administrator's

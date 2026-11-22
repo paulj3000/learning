@@ -24,8 +24,9 @@ Publication rules (TR-PALM-04):
   `allow_shared_storage=True`, and nothing is ever published by this tool. Publishing there is an
   administrator's decision in Django Admin (docs/ASSET_LIBRARY.md section 19.2).
 - A pack whose licence the owner has not confirmed (`licence_confirmed=False`) is imported and
-  validated but never published, unless the operator passes `licence_confirmed=True` to record
-  that the owner has now confirmed it (TR-ENV-04: no publication without established rights).
+  validated but never published, unless the operator passes `licence_confirmed=True` with
+  `licence_confirmation` (who confirmed it, when and where) to record that the owner has now
+  confirmed it (TR-ENV-04: no publication without established rights; LAI-07 A6).
 """
 
 import hashlib
@@ -36,6 +37,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from django.conf import settings
+from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.catalog.models import AssetCategory, AssetOrigin, AssetStatus, ContentAsset
@@ -147,7 +149,27 @@ class ModelPack:
     # Recorded with the provenance: what the asset is for in the game (an asset's own notes).
     usage: str = ""
 
-    def provenance(self, model: PackModel, source_sha256: str, *, confirmed: bool) -> dict:
+    def provenance(
+        self,
+        model: PackModel,
+        source_sha256: str,
+        *,
+        confirmed: bool,
+        operator_confirmation: str = "",
+        confirmed_on: str = "",
+    ) -> dict:
+        """The provenance record. `operator_confirmation` is the owner confirmation an operator
+        recorded at import time for a pack whose definition is not confirmed in code (LAI-07 A6);
+        it replaces the pack's own `ownerConfirmation` and dates the confirmation."""
+        operator = (
+            {
+                "ownerConfirmation": operator_confirmation,
+                "licenceVerifiedOn": confirmed_on,
+                "confirmationSource": "import --licence-confirmed",
+            }
+            if confirmed and operator_confirmation
+            else {}
+        )
         return {
             "pack": self.pack_id,
             "title": self.title,
@@ -164,6 +186,7 @@ class ModelPack:
             **({"licenceVerifiedOn": self.licence_verified_on} if self.licence_verified_on else {}),
             **({"ownerConfirmation": self.owner_confirmation} if self.owner_confirmation else {}),
             **({"sourcePages": list(self.source_pages)} if self.source_pages else {}),
+            **operator,
             "sourceSha256": source_sha256,
             "pipelineVersion": PIPELINE_VERSION,
         }
@@ -682,6 +705,8 @@ class PackReport:
     ignored_files: list[dict] = field(default_factory=list)
     refreshed: list[dict] = field(default_factory=list)
     provenance_updated: list[str] = field(default_factory=list)
+    # Published versions whose frozen licence record differs from the pack's current one (A6).
+    licence_record_frozen: list[dict] = field(default_factory=list)
 
     @property
     def source(self) -> dict:
@@ -924,9 +949,22 @@ def import_pack(
     publish: bool = False,
     allow_shared_storage: bool = False,
     licence_confirmed: bool = False,
+    licence_confirmation: str = "",
     user=None,
 ) -> PackReport:
+    """Import one pack. `licence_confirmed` records that the owner has now confirmed the licence
+    of a pack whose definition does not; it must come with `licence_confirmation`, a statement of
+    who confirmed it, when and where (LAI-07 A6), which is stored as the pack's owner
+    confirmation. A pack already confirmed in code ignores both."""
     check_environment(dry_run=dry_run, publish=publish, allow_shared_storage=allow_shared_storage)
+    operator_confirmed = licence_confirmed and not pack.licence_confirmed
+    licence_confirmation = (licence_confirmation or "").strip()
+    if operator_confirmed and not licence_confirmation:
+        raise PackRefused(
+            f"The {pack.title} licence ({pack.licence}) is not confirmed in its pack definition. "
+            "Record who confirmed it, when and where with --licence-confirmation."
+        )
+    confirmed_on = timezone.localdate().isoformat() if operator_confirmed else ""
     report = PackReport(pack=pack.pack_id, dry_run=dry_run, storage=storage_backend())
     by_node = _index_sources(Path(source), report)
     if not any(model.node in by_node for model in pack.models):
@@ -964,8 +1002,20 @@ def import_pack(
                 texture_cache=texture_cache,
                 **model.prep_options(),
             )
+            source_triangles = _source_triangles(document, model.node, model.include_children)
         except gltf_prep.PrepError as error:
             report.unresolved.append({**entry, "reason": "prep_failed", "detail": str(error)})
+            continue
+        except (KeyError, IndexError, TypeError, ValueError, StopIteration) as error:
+            # Malformed source data the explicit checks did not foresee: report this model and
+            # carry on with the rest of the pack, as for any other preparation failure (A4).
+            report.unresolved.append(
+                {
+                    **entry,
+                    "reason": "prep_failed",
+                    "detail": f"malformed source ({type(error).__name__})",
+                }
+            )
             continue
         stats = {
             "triangles": prepared.triangles,
@@ -974,12 +1024,18 @@ def import_pack(
             "sizeBytes": len(prepared.data),
             "sourceSizeBytes": source_size,
             "sha256": hashlib.sha256(prepared.data).hexdigest(),
-            "sourceTriangles": _source_triangles(document, model.node, model.include_children),
+            "sourceTriangles": source_triangles,
         }
         report.discovered.append(
             {"node": model.node, "selected": True, "asset": model.asset_id, **stats}
         )
-        provenance = pack.provenance(model, source_sha256, confirmed=confirmed)
+        provenance = pack.provenance(
+            model,
+            source_sha256,
+            confirmed=confirmed,
+            operator_confirmation=licence_confirmation if operator_confirmed else "",
+            confirmed_on=confirmed_on,
+        )
         asset = _definition(pack, model, provenance, report, dry_run=dry_run)
         if asset is None:
             continue
@@ -999,6 +1055,7 @@ def import_pack(
             },
         }
         existing = _existing_version(asset, stats["sha256"], source_sha256, model.node)
+        stale = None
         if (
             existing is not None
             and existing.status == VersionStatus.VALIDATED
@@ -1007,15 +1064,30 @@ def import_pack(
             # Never published, and prepared before something it embeds changed (the licence
             # credit once the owner confirmed it): replace it, so the version that is published,
             # and then frozen, carries the right credit. Published versions are never touched.
-            report.refreshed.append({**entry, "version": existing.number})
+            # The stale version is deleted only after its replacement is stored (LAI-07 A5): if
+            # the new upload is refused, the asset keeps the version it had.
             if dry_run:
+                report.refreshed.append({**entry, "version": existing.number})
                 report.skipped.append({**entry, "version": existing.number, "status": "STALE"})
                 continue
-            services.delete_unpublished_version(existing)
-            existing = None
+            stale, existing = existing, None
         if existing is not None:
             if existing.status == VersionStatus.VALIDATED and not dry_run:
                 _refresh_provenance(existing, metadata)
+            elif existing.was_published:
+                frozen = (existing.metadata or {}).get("provenance", {})
+                if frozen.get("licenceStatus") != provenance["licenceStatus"]:
+                    # Published metadata never changes, so the version keeps the licence record
+                    # it shipped with while the definition now says otherwise. Say so, so an
+                    # administrator can publish a new version (LAI-07 A6).
+                    report.licence_record_frozen.append(
+                        {
+                            **entry,
+                            "version": existing.number,
+                            "versionLicenceStatus": frozen.get("licenceStatus", ""),
+                            "packLicenceStatus": provenance["licenceStatus"],
+                        }
+                    )
             report.skipped.append({**entry, "version": existing.number, "status": existing.status})
             version = existing
         else:
@@ -1041,8 +1113,16 @@ def import_pack(
                 )
             except services.AssetActionRefused as refused:
                 codes = sorted({f.code for f in refused.findings}) or [refused.code]
-                report.unresolved.append({**entry, "reason": refused.code, "codes": codes})
+                kept = {"keptVersion": stale.number} if stale is not None else {}
+                report.unresolved.append({**entry, "reason": refused.code, "codes": codes, **kept})
                 continue
+            if stale is not None:
+                report.refreshed.append({**entry, "version": stale.number})
+                try:
+                    services.delete_unpublished_version(stale)
+                except services.AssetActionRefused:
+                    # Published meanwhile by an administrator: published versions are kept.
+                    report.skipped.append({**entry, "version": stale.number, "status": "KEPT"})
             report.imported.append(
                 {**entry, **stats, "version": version.number, "storageKey": version.storage_key}
             )
@@ -1082,17 +1162,27 @@ def _refresh_provenance(version: AssetVersion, metadata: dict) -> None:
 
 
 def _source_triangles(document: dict, node_name: str, include_children: bool = False) -> int:
+    """Triangles in the source node (and, if asked, every node below it), for the report.
+
+    Called only after `gltf_prep.extract_model` accepted the same node, but walks the source on
+    its own, so it keeps a visited set and checks children like the preparation does (LAI-07 A4).
+    """
     nodes = document["nodes"]
-    pending = [next(n for n in nodes if n.get("name") == node_name)]
+    start = next(i for i, n in enumerate(nodes) if n.get("name") == node_name)
+    pending, visited = [start], set()
     triangles = 0
     while pending:
-        node = pending.pop()
+        index = pending.pop()
+        if index in visited:
+            raise gltf_prep.PrepError(f'Node {index} appears twice below "{node_name}".')
+        visited.add(index)
+        node = nodes[index]
         if "mesh" in node:
             for primitive in document["meshes"][node["mesh"]].get("primitives", []):
-                index = primitive.get("indices", primitive["attributes"]["POSITION"])
-                triangles += int(document["accessors"][index]["count"]) // 3
+                accessor = primitive.get("indices", primitive["attributes"]["POSITION"])
+                triangles += int(document["accessors"][accessor]["count"]) // 3
         if include_children:
-            pending.extend(nodes[i] for i in node.get("children", []))
+            pending.extend(gltf_prep.child_indices(nodes, index))
     return triangles
 
 

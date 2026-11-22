@@ -236,6 +236,8 @@ def _view_bytes(document: dict, binary: bytes, view_index: int) -> tuple[bytes, 
     view = views[view_index]
     if view.get("buffer", 0) != 0:
         raise PrepError("Only the GLB's own buffer is supported.")
+    if "byteLength" not in view:
+        raise PrepError("A buffer view has no byteLength.")
     start = int(view.get("byteOffset", 0))
     end = start + int(view["byteLength"])
     if end > len(binary):
@@ -340,7 +342,38 @@ class _Builder:
         return len(self.accessors) - 1
 
 
-def extract_model(
+def child_indices(nodes: list, index: int) -> list[int]:
+    """The child node indices of `nodes[index]`, checked: a list of in-range integers, or
+    PrepError. Callers keep their own visited set, so a cycle cannot loop (LAI-07 A4)."""
+    node = nodes[index] if 0 <= index < len(nodes) else None
+    if not isinstance(node, dict):
+        raise PrepError(f"Node {index} does not exist or is malformed.")
+    children = node.get("children", [])
+    if not isinstance(children, list) or not all(
+        isinstance(c, int) and not isinstance(c, bool) and 0 <= c < len(nodes) for c in children
+    ):
+        raise PrepError(f'Node "{node.get("name", index)}" has a malformed children list.')
+    return children
+
+
+def extract_model(document: dict, binary: bytes, node_name: str, **options) -> PreparedModel:
+    """The node called `node_name`, as a standalone engine-ready GLB (see `_extract_model`).
+
+    Source packs are untrusted input: any malformed structure the explicit checks did not
+    foresee (a missing key, a wrong type, an index out of range) is a `PrepError`, so one bad
+    model is reported and the rest of a pack still imports (LAI-07 A4).
+    """
+    try:
+        return _extract_model(document, binary, node_name, **options)
+    except PrepError:
+        raise
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError, struct.error) as error:
+        raise PrepError(
+            f'The source for node "{node_name}" is malformed ({type(error).__name__}).'
+        ) from None
+
+
+def _extract_model(
     document: dict,
     binary: bytes,
     node_name: str,
@@ -378,16 +411,21 @@ def extract_model(
     # carries its vertices into the node's own space.
     parts: list[tuple[dict, list[dict]]] = [(node, [])]
     if include_children:
-        stack = [(child, []) for child in reversed(node.get("children", []))]
+        root = nodes.index(node)
+        visited = {root}
+        stack = [(child, []) for child in reversed(child_indices(nodes, root))]
         while stack:
             index, chain = stack.pop()
+            if index in visited:  # a cycle, or a node reached twice: never walk it again
+                raise PrepError(f'Node {index} appears twice below "{node_name}".')
+            visited.add(index)
             child = nodes[index]
             if "matrix" in child:
                 raise PrepError(f'Node "{child.get("name", index)}" uses a matrix transform.')
             here = [child, *chain]
             if "mesh" in child:
                 parts.append((child, here))
-            stack.extend((grandchild, here) for grandchild in reversed(child.get("children", [])))
+            stack.extend((grandchild, here) for grandchild in reversed(child_indices(nodes, index)))
 
     # Pass 1: bake rotation and scale, collect geometry per primitive.
     primitives = []

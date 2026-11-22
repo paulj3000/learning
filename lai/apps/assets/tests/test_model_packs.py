@@ -15,7 +15,7 @@ from botocore.stub import ANY, Stubber
 from django.core.management import CommandError, call_command
 from django.utils.text import slugify
 
-from apps.assets import model_packs
+from apps.assets import gltf_prep, model_packs
 from apps.assets.model_packs import (
     PACKS,
     QUATERNIUS_BARRELS,
@@ -178,7 +178,9 @@ def test_a_never_published_version_with_stale_bytes_is_re_prepared(source):
     again = import_pack(sharper, source)
     assert len(again.refreshed) == 2 and len(again.imported) == 2
     versions_now = list(AssetVersion.objects.all())
-    assert [v.number for v in versions_now] == [1, 1]  # still version 1, new bytes and key
+    # The replacement is stored before the stale v1 is deleted (LAI-07 A5), so it is v2: the asset
+    # is never without a version, and numbers are never reused.
+    assert [v.number for v in versions_now] == [2, 2]
     assert not {v.storage_key for v in versions_now} & old_keys
     assert first.imported[0]["sha256"] != again.imported[0]["sha256"]
 
@@ -319,8 +321,17 @@ def test_an_unconfirmed_licence_is_imported_but_never_published(source, local_de
     (version,) = versions("test-log")
     assert version.status == VersionStatus.VALIDATED
     assert version.metadata["provenance"]["licenceStatus"] == "unconfirmed"
-    confirmed = import_pack(LOGS, source, publish=True, licence_confirmed=True)
+    confirmed = import_pack(
+        LOGS,
+        source,
+        publish=True,
+        licence_confirmed=True,
+        licence_confirmation="Owner, Trello #244, 2026-11-22",
+    )
     assert confirmed.published == [{"asset": "test-log", "node": "Log", "version": 1}]
+    assert version.metadata["provenance"]["licenceStatus"] == "unconfirmed"  # stale copy
+    version.refresh_from_db()
+    assert version.metadata["provenance"]["licenceStatus"] == "confirmed"
 
 
 @pytest.mark.parametrize(
@@ -667,3 +678,132 @@ def test_categories_with_no_supplied_models_are_refused_with_the_reason(category
         model_packs.packs_for(category)
     with pytest.raises(CommandError, match="Nothing to import"):
         run("import_treasure_rush_environment", "--source", str(tmp_path), "--category", category)
+
+
+# --- LAI-07 W1: A4 (bad source), A5 (replace safely), A6 (licence record) -----------------------
+
+CONFIRMATION = "Owner, Trello #244, 2026-11-22"
+
+
+def test_one_malformed_model_is_reported_and_the_rest_of_the_pack_imports(tmp_path):
+    """A4: a cyclic child graph under one node used to hang the import (or, with a bad index,
+    raise out of `import_pack` and abandon the rest of the pack)."""
+    document, binary = gltf_prep.read_glb(
+        pack_glb({"Tall": (1.0, 1.0, 5.0), "Short": (2.0, 2.0, 1.0)})
+    )
+    names = [node.get("name") for node in document["nodes"]]
+    tall = names.index("Tall")
+    document["nodes"][tall]["children"] = [tall]  # the node is its own child
+    directory = tmp_path / "bad"
+    directory.mkdir()
+    (directory / "trees.glb").write_bytes(gltf_prep.write_glb(document, binary))
+    pack = dataclasses.replace(
+        TREES,
+        models=(dataclasses.replace(TREES.models[0], include_children=True), TREES.models[1]),
+    )
+    report = import_pack(pack, directory)
+    assert [(item["asset"], item["reason"]) for item in report.unresolved] == [
+        ("test-tree-tall", "prep_failed")
+    ]
+    assert [item["asset"] for item in report.imported] == ["test-tree-short"]
+    assert versions("test-tree-short")[0].status == VersionStatus.VALIDATED
+
+
+def test_a_refused_replacement_keeps_the_version_the_asset_had(source, monkeypatch):
+    """A5: the stale unpublished version is deleted only after its replacement is stored. Before
+    LAI-07 it was deleted first, so a refused upload left the asset with no version at all."""
+    import_pack(TREES, source)
+    before = {v.asset.asset_id: v.pk for v in AssetVersion.objects.select_related("asset")}
+    sharper = dataclasses.replace(TREES, max_texture_size=16)  # other bytes: the v1s are stale
+
+    def refuse(*args, **kwargs):
+        raise model_packs.services.AssetActionRefused("storage_failed", "Try again.")
+
+    monkeypatch.setattr(model_packs.services, "upload_version", refuse)
+    report = import_pack(sharper, source)
+    assert sorted(
+        (item["asset"], item["reason"], item["keptVersion"]) for item in report.unresolved
+    ) == [
+        ("test-tree-short", "storage_failed", 1),
+        ("test-tree-tall", "storage_failed", 1),
+    ]
+    assert report.refreshed == [] and report.imported == []
+    after = {v.asset.asset_id: v.pk for v in AssetVersion.objects.select_related("asset")}
+    assert after == before  # both stale v1s are still there
+    assert set(AssetVersion.objects.values_list("status", flat=True)) == {VersionStatus.VALIDATED}
+    assert all(get_storage().exists(v.storage_key) for v in AssetVersion.objects.all())
+
+
+def test_an_operator_confirmation_must_say_who_confirmed_and_when(source, local_dev):
+    """A6: `licence_confirmed` alone no longer turns an unconfirmed licence into 'confirmed'."""
+    with pytest.raises(PackRefused, match="--licence-confirmation"):
+        import_pack(LOGS, source, licence_confirmed=True)
+    with pytest.raises(PackRefused, match="--licence-confirmation"):
+        import_pack(LOGS, source, licence_confirmed=True, licence_confirmation="   ")
+    assert AssetVersion.objects.count() == 0
+
+
+def test_an_operator_confirmation_is_recorded_with_its_evidence_and_date(source, local_dev):
+    from django.utils import timezone
+
+    import_pack(LOGS, source, licence_confirmed=True, licence_confirmation=CONFIRMATION)
+    (version,) = versions("test-log")
+    provenance = version.metadata["provenance"]
+    assert provenance["licenceStatus"] == "confirmed"
+    assert provenance["ownerConfirmation"] == CONFIRMATION
+    assert provenance["licenceVerifiedOn"] == timezone.localdate().isoformat()
+    assert provenance["confirmationSource"] == "import --licence-confirmed"
+    asset = ContentAsset.objects.get(asset_id="test-log")
+    assert asset.source["provenance"]["ownerConfirmation"] == CONFIRMATION
+
+
+def test_a_pack_confirmed_in_code_ignores_the_operator_flags(source, local_dev):
+    import_pack(TREES, source, licence_confirmed=True)  # no evidence needed, nothing overridden
+    provenance = versions("test-tree-tall")[0].metadata["provenance"]
+    assert provenance["licenceStatus"] == "confirmed"
+    assert "confirmationSource" not in provenance
+
+
+def test_a_published_version_with_an_older_licence_record_is_reported(source, local_dev):
+    """A6: published metadata is frozen; the import says so instead of skipping silently."""
+    import_pack(LOGS, source)
+    (version,) = versions("test-log")
+    model_packs.services.publish_version(version)  # an administrator published it unconfirmed
+    report = import_pack(LOGS, source, licence_confirmed=True, licence_confirmation=CONFIRMATION)
+    assert report.licence_record_frozen == [
+        {
+            "asset": "test-log",
+            "node": "Log",
+            "version": 1,
+            "versionLicenceStatus": "unconfirmed",
+            "packLicenceStatus": "confirmed",
+        }
+    ]
+    version.refresh_from_db()
+    assert version.metadata["provenance"]["licenceStatus"] == "unconfirmed"  # never rewritten
+
+
+def test_the_command_refuses_one_confirmation_for_several_unconfirmed_licences(
+    source, local_dev, monkeypatch
+):
+    from apps.assets.management.commands import import_treasure_rush_environment as command
+
+    other = dataclasses.replace(LOGS, pack_id="test-logs-2")
+    monkeypatch.setattr(command, "packs_for", lambda category: [TREES, LOGS, other])
+    with pytest.raises(CommandError, match="more than one unconfirmed licence"):
+        call_command(
+            "import_treasure_rush_environment",
+            source=str(source),
+            licence_confirmed=True,
+            licence_confirmation=CONFIRMATION,
+        )
+    assert AssetVersion.objects.count() == 0
+
+
+def test_the_command_refuses_a_confirmation_without_evidence(source, local_dev, monkeypatch):
+    from apps.assets.management.commands import import_treasure_rush_environment as command
+
+    monkeypatch.setattr(command, "packs_for", lambda category: [TREES, LOGS])
+    with pytest.raises(CommandError, match="--licence-confirmation"):
+        call_command("import_treasure_rush_environment", source=str(source), licence_confirmed=True)
+    assert AssetVersion.objects.count() == 0

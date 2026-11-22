@@ -37,6 +37,51 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library streamlining, W1 correctness (2026-11-22, `feature/asset-library-streamlining` from `daac25fc`, Trello #244); unit-tested on PostgreSQL 16, NOT committed, NOT merged
+
+Fixes from the LAI-07 audit, with a regression test for each. Each test was shown to fail on the
+baseline code and to pass with the fix. No migration and no API or resolver contract change.
+
+- **A1** `validation.py`: malformed glTF structure is now a finding, not an exception. Before
+  this, a non-list `primitives`, `children` or `scene.nodes`, or a bad `byteStride` or
+  `byteOffset`, raised `TypeError`: a 500 in Django Admin on upload, and inside the publish
+  transaction. A last-resort `malformed_model` finding covers any shape not foreseen. A seeded
+  400-document mutation test raises 3 times on the baseline and never after the fix.
+- **A2** `services.republish_version`: a rollback to a retired version no longer rewrites
+  `published_by`, which is immutable once a version is published. When the restorer was not the
+  original publisher, this raised `ImmutableVersion` (a 500). The Django Admin history entry
+  records who rolled back.
+- **A4** `gltf_prep.py` and `model_packs.py`: a cyclic or out-of-range child graph is a
+  `PrepError` (before, it looped forever). Unforeseen malformed data is also a `PrepError`, and
+  `import_pack` reports that model and imports the rest of the pack.
+- **A5** `model_packs.import_pack`: a stale unpublished version is deleted only after its
+  replacement is stored. A refused upload keeps the old version (`keptVersion` in the report).
+  The replacement now gets the next number (v2), not the reused v1.
+- **A6** `--licence-confirmed`:
+  - It now needs `--licence-confirmation "<who, when, where>"`, stored as `ownerConfirmation`
+    with `licenceVerifiedOn` and `confirmationSource`.
+  - It covers exactly one licence-unconfirmed pack per run.
+  - A published version whose frozen licence record differs from the pack's is reported
+    (`licence_record_frozen`), never rewritten.
+- Docs:
+  - `docs/ASSET_LIBRARY.md`: IAM and key prefixes now name all three families; `VITE_BACKEND`
+    removed from current config; licence flag; new section 25 with the W2 dependency-tracking
+    design (Proposed).
+  - `asset-standard.md`: the Run/Jump/Fall/Land status label (section 7). Section 8 is left to
+    GE-L16 (PR #59), which states the owner-approved raised-Solid rule.
+  - The two QA guides: the new flag.
+- Tests (slot 9, `LAI_REQUIRE_POSTGRES=1`, through `test_gate.py`):
+  - assets + audio: 575 passed before, 601 passed after;
+  - npcs + avatars: 434 passed;
+  - ruff format and check on the changed files, and `make docs-check`, pass.
+- Not done:
+  - W2 (design only, needs the Sound Manager, admin/services and regions owners).
+  - W3/W4 (held until the Lambda stack is reconciled).
+  - A7 (Lambda/infra owner).
+  - Raised-Solid collision: owner-approved 2026-11-22, implemented by LAI 06 as GE-L16 (PR #59,
+    `feature/ge-raised-solid-clearance`), not on this branch.
+  - PG18 evidence after rebasing onto the final GE-090 SHA.
+
 ## GE-090: Game Engine 1.0 (Agent 5 integration lead): owner-accepted 2026-11-22 on candidate `60ab15a4`; merged to `main`
 
 **Final status (2026-11-22).** The owner accepted Game Engine 1.0 on candidate `60ab15a46f117cb88abecb08617d54c7c8b19918`:

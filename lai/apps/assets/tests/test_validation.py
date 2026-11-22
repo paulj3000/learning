@@ -259,3 +259,67 @@ def test_clip_vocabulary_mirrors_the_react_one():
     react_names = set(re.findall(r"'([A-Za-z]+)'", block))
     assert react_names == set(validation.CLIP_VOCABULARY)
     assert {"Run", "Jump"} <= react_names
+
+
+# --- LAI-07 A1: malformed structure is a finding, never an exception ---------------------------
+
+
+def _malformed(mutate):
+    document, binary = gltf_document()
+    mutate(document)
+    return check(glb_bytes(document, binary))
+
+
+@pytest.mark.parametrize(
+    "mutate, code",
+    [
+        # Each of these raised TypeError before LAI-07 (a 500 in Django Admin).
+        (lambda d: d["meshes"][0].update(primitives=5), "invalid_mesh"),
+        (lambda d: d["nodes"][0].update(children=7), "invalid_node"),
+        (lambda d: d["scenes"][0].update(nodes=3), "invalid_scene"),
+        (lambda d: d["bufferViews"][0].update(byteStride="x"), "invalid_buffer_view"),
+        (lambda d: d["bufferViews"][0].update(byteStride=3), "invalid_buffer_view"),
+        (lambda d: d["accessors"][0].update(byteOffset="x"), "invalid_accessor"),
+    ],
+)
+def test_a_malformed_structure_is_rejected_with_a_finding(mutate, code):
+    result = _malformed(mutate)
+    assert not result.passed
+    assert code in codes(result), result.report()
+
+
+def test_a_malformed_texture_view_offset_is_rejected_not_raised():
+    document, binary = gltf_document()
+    document["bufferViews"].append({"buffer": 0, "byteOffset": "x", "byteLength": 8})
+    document["images"] = [{"mimeType": "image/png", "bufferView": len(document["bufferViews"]) - 1}]
+    result = check(glb_bytes(document, binary))
+    assert not result.passed and "invalid_buffer_view" in codes(result)
+
+
+_JUNK = (None, True, -1, 3.5, "x", [], [1, "a"], {}, {"a": 1}, 10**12)
+
+
+def _mutated(rng, value):
+    """`value` with one leaf or container somewhere inside replaced by junk."""
+    if isinstance(value, dict) and value and rng.random() < 0.8:
+        key = rng.choice(sorted(value))
+        return {**value, key: _mutated(rng, value[key])}
+    if isinstance(value, list) and value and rng.random() < 0.8:
+        index = rng.randrange(len(value))
+        return [*value[:index], _mutated(rng, value[index]), *value[index + 1 :]]
+    return rng.choice(_JUNK)
+
+
+def test_no_structural_mutation_makes_validation_raise():
+    """Seeded: 400 documents, each with one field anywhere replaced by a value of the wrong type.
+    Validation must answer every one with a result (LAI-07 A1); most are rejections."""
+    import random
+
+    rng = random.Random(244)
+    base, binary = gltf_document(clips=("Idle", "Walk"))
+    for _ in range(400):
+        document = _mutated(rng, base)
+        if not isinstance(document, dict):
+            continue
+        result = check(glb_bytes(document, binary))  # raises on a regression
+        assert isinstance(result.passed, bool)

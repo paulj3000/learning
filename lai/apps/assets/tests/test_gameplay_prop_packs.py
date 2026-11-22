@@ -248,7 +248,13 @@ def test_the_feather_is_imported_and_validated_but_not_published_by_default(tmp_
 def test_the_feather_publishes_once_the_owner_accepts_cc_by(tmp_path, local_dev):
     archive = sketchfab_style_zip(tmp_path)
     import_pack(model_packs.DUDECON_FEATHER, archive, publish=True)
-    report = import_pack(model_packs.DUDECON_FEATHER, archive, publish=True, licence_confirmed=True)
+    report = import_pack(
+        model_packs.DUDECON_FEATHER,
+        archive,
+        publish=True,
+        licence_confirmed=True,
+        licence_confirmation="Owner accepted CC-BY-4.0 with the dudecon credit, Trello #244",
+    )
     assert [item["asset"] for item in report.published] == ["feather"]
     asset = ContentAsset.objects.get(asset_id="feather")
     assert asset.versions.count() == 1  # the same version, not a second one
