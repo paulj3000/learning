@@ -23,7 +23,14 @@ import {
 } from './profiles';
 import { deepFreeze } from './realm';
 import { isValidRange, satisfiesRange } from './semver';
-import { checkId, checkIdArray, checkSemver, checkStrictKeys, findTimerFields, isRecord } from './validation';
+import {
+  checkId,
+  checkIdArray,
+  checkSemver,
+  checkStrictKeys,
+  findTimerFields,
+  isRecord,
+} from './validation';
 
 export type ContentSource = 'MANIFEST' | 'DJANGO_PUBLISHED';
 
@@ -164,7 +171,11 @@ export function validateAdventure(
   }
   checkStrictKeys(input, ADVENTURE_KEYS, '', issues);
   checkId(input.id, 'id', issues);
-  if (checkId(input.realmId, 'realmId', issues) && options.realmId !== undefined && input.realmId !== options.realmId) {
+  if (
+    checkId(input.realmId, 'realmId', issues) &&
+    options.realmId !== undefined &&
+    input.realmId !== options.realmId
+  ) {
     issues.push({ path: 'realmId', message: `must be "${options.realmId}"` });
   }
   checkSemver(input.version, 'version', issues);
@@ -174,7 +185,10 @@ export function validateAdventure(
   if (!isValidRange(input.engineApi)) {
     issues.push({ path: 'engineApi', message: 'must be a semver range like "^0.1.0"' });
   } else if (!satisfiesRange(engineVersion, input.engineApi)) {
-    issues.push({ path: 'engineApi', message: `range "${input.engineApi}" does not include engine API ${engineVersion}` });
+    issues.push({
+      path: 'engineApi',
+      message: `range "${input.engineApi}" does not include engine API ${engineVersion}`,
+    });
   }
 
   const ageBands: AgeBand[] = [];
@@ -183,7 +197,10 @@ export function validateAdventure(
   } else {
     input.ageBands.forEach((band: unknown, index) => {
       if (!isAgeBand(band)) {
-        issues.push({ path: `ageBands[${index}]`, message: `must be one of ${AGE_BANDS.join(', ')}` });
+        issues.push({
+          path: `ageBands[${index}]`,
+          message: `must be one of ${AGE_BANDS.join(', ')}`,
+        });
       } else if (ageBands.includes(band)) {
         issues.push({ path: `ageBands[${index}]`, message: `duplicate age band "${band}"` });
       } else {
@@ -192,7 +209,12 @@ export function validateAdventure(
     });
   }
 
-  const learningObjectiveIds = checkIdArray(input.learningObjectiveIds, 'learningObjectiveIds', issues, { min: 1 });
+  const learningObjectiveIds = checkIdArray(
+    input.learningObjectiveIds,
+    'learningObjectiveIds',
+    issues,
+    { min: 1 },
+  );
   const areas = checkIdArray(input.areas, 'areas', issues, { min: 1 });
   const areaSet = new Set(areas);
   const questIds = checkIdArray(input.questIds, 'questIds', issues);
@@ -219,7 +241,9 @@ export function validateAdventure(
         issues.push({ path: `${path}.id`, message: 'must be a capability id' });
         return;
       }
-      capabilities.push(raw.config === undefined ? { id: raw.id } : { id: raw.id, config: raw.config });
+      capabilities.push(
+        raw.config === undefined ? { id: raw.id } : { id: raw.id, config: raw.config },
+      );
     });
   }
   const resolution = registry.resolve(capabilities);
@@ -232,8 +256,16 @@ export function validateAdventure(
   }
 
   // Per-band profile overrides: clamping is an authoring error, not silent.
-  const movementOverrides = collectBandOverrides(input.movementProfiles, 'movementProfiles', issues);
-  const difficultyOverrides = collectBandOverrides(input.difficultyProfiles, 'difficultyProfiles', issues);
+  const movementOverrides = collectBandOverrides(
+    input.movementProfiles,
+    'movementProfiles',
+    issues,
+  );
+  const difficultyOverrides = collectBandOverrides(
+    input.difficultyProfiles,
+    'difficultyProfiles',
+    issues,
+  );
   for (const band of ageBands) {
     const resolved = resolveProfile(band, {
       movement: movementOverrides[band] as ProfileOverrides['movement'],
@@ -247,7 +279,10 @@ export function validateAdventure(
   }
   for (const band of [...Object.keys(movementOverrides), ...Object.keys(difficultyOverrides)]) {
     if (!ageBands.includes(band as AgeBand)) {
-      issues.push({ path: `profiles.${band}`, message: 'overrides a band the adventure does not list in ageBands' });
+      issues.push({
+        path: `profiles.${band}`,
+        message: 'overrides a band the adventure does not list in ageBands',
+      });
     }
   }
 
@@ -276,13 +311,22 @@ export function validateAdventure(
       if (typeof raw.type !== 'string' || raw.type === '') {
         issues.push({ path: `${path}.type`, message: 'must be a component type id' });
       } else if (options.componentTypes && !options.componentTypes.has(raw.type)) {
-        issues.push({ path: `${path}.type`, message: `component type "${raw.type}" is not registered` });
+        issues.push({
+          path: `${path}.type`,
+          message: `component type "${raw.type}" is not registered`,
+        });
       }
       if (checkId(raw.areaId, `${path}.areaId`, issues) && !areaSet.has(raw.areaId)) {
         issues.push({ path: `${path}.areaId`, message: `area "${raw.areaId}" is not in areas` });
       }
-      if (raw.capability !== undefined && (typeof raw.capability !== 'string' || !resolvedIds.has(raw.capability))) {
-        issues.push({ path: `${path}.capability`, message: 'must be a capability this adventure turns on' });
+      if (
+        raw.capability !== undefined &&
+        (typeof raw.capability !== 'string' || !resolvedIds.has(raw.capability))
+      ) {
+        issues.push({
+          path: `${path}.capability`,
+          message: 'must be a capability this adventure turns on',
+        });
       }
       components.push(raw as unknown as ComponentPlacement);
     });
@@ -299,7 +343,12 @@ export function validateAdventure(
         issues.push({ path, message: 'must be an object' });
         return;
       }
-      checkStrictKeys(raw, ['id', 'areaId', 'jumpRouteId', 'accessibleRouteId', 'optional'], path, issues);
+      checkStrictKeys(
+        raw,
+        ['id', 'areaId', 'jumpRouteId', 'accessibleRouteId', 'optional'],
+        path,
+        issues,
+      );
       if (checkId(raw.id, `${path}.id`, issues)) {
         claimId(raw.id, `${path}.id`);
       }
@@ -307,14 +356,22 @@ export function validateAdventure(
         issues.push({ path: `${path}.areaId`, message: `area "${raw.areaId}" is not in areas` });
       }
       checkId(raw.jumpRouteId, `${path}.jumpRouteId`, issues);
-      if (raw.accessibleRouteId === undefined || raw.accessibleRouteId === null || raw.accessibleRouteId === '') {
+      if (
+        raw.accessibleRouteId === undefined ||
+        raw.accessibleRouteId === null ||
+        raw.accessibleRouteId === ''
+      ) {
         if (raw.optional !== true) {
           issues.push({
             path: `${path}.accessibleRouteId`,
-            message: 'is required unless the challenge is optional: required progress needs a route that needs no jumping',
+            message:
+              'is required unless the challenge is optional: required progress needs a route that needs no jumping',
           });
         }
-      } else if (checkId(raw.accessibleRouteId, `${path}.accessibleRouteId`, issues) && raw.accessibleRouteId === raw.jumpRouteId) {
+      } else if (
+        checkId(raw.accessibleRouteId, `${path}.accessibleRouteId`, issues) &&
+        raw.accessibleRouteId === raw.jumpRouteId
+      ) {
         issues.push({ path: `${path}.accessibleRouteId`, message: 'must differ from jumpRouteId' });
       }
       // `optional` has ONE meaning in every layer (decision E16): nothing required depends on the
@@ -326,7 +383,10 @@ export function validateAdventure(
       jumpChallenges.push(raw as unknown as JumpChallengeDefinition);
     });
     if (jumpChallenges.length > 0 && !resolvedIds.has(JUMP_CAPABILITY)) {
-      issues.push({ path: 'capabilities', message: `jump challenges need the "${JUMP_CAPABILITY}" capability` });
+      issues.push({
+        path: 'capabilities',
+        message: `jump challenges need the "${JUMP_CAPABILITY}" capability`,
+      });
     }
   }
 
@@ -355,13 +415,19 @@ export function validateAdventure(
     });
     // A required jump sequence needs checkpoints; the profile says how often.
     if (jumpChallenges.length > 0 && checkpoints.length === 0) {
-      issues.push({ path: 'checkpoints', message: 'an adventure with jump challenges needs at least one checkpoint' });
+      issues.push({
+        path: 'checkpoints',
+        message: 'an adventure with jump challenges needs at least one checkpoint',
+      });
     }
   }
 
   // ADR-053: no timers anywhere in the definition.
   for (const path of findTimerFields(input)) {
-    issues.push({ path, message: 'timers are not allowed: children are never counted down (ADR-053)' });
+    issues.push({
+      path,
+      message: 'timers are not allowed: children are never counted down (ADR-053)',
+    });
   }
 
   if (issues.length > 0) {
@@ -396,12 +462,28 @@ export function validateAdventure(
 /** What an author writes: optional lists default to empty. */
 export type AdventureDefinitionInput = Omit<
   AdventureDefinition,
-  'movementProfiles' | 'difficultyProfiles' | 'components' | 'questIds' | 'challengeIds' | 'jumpChallenges' | 'checkpoints' | 'requiredServices' | 'capabilities'
+  | 'movementProfiles'
+  | 'difficultyProfiles'
+  | 'components'
+  | 'questIds'
+  | 'challengeIds'
+  | 'jumpChallenges'
+  | 'checkpoints'
+  | 'requiredServices'
+  | 'capabilities'
 > &
   Partial<
     Pick<
       AdventureDefinition,
-      'movementProfiles' | 'difficultyProfiles' | 'components' | 'questIds' | 'challengeIds' | 'jumpChallenges' | 'checkpoints' | 'requiredServices' | 'capabilities'
+      | 'movementProfiles'
+      | 'difficultyProfiles'
+      | 'components'
+      | 'questIds'
+      | 'challengeIds'
+      | 'jumpChallenges'
+      | 'checkpoints'
+      | 'requiredServices'
+      | 'capabilities'
     >
   >;
 
@@ -429,9 +511,13 @@ export function assertValidAdventure(
 ): Readonly<AdventureDefinition> {
   const result = validateAdventure(input, registry, options);
   if (!result.ok) {
-    throw new EngineError('VALIDATION_FAILED', `Invalid adventure definition "${isRecord(input) ? String(input.id) : ''}"`, {
-      issues: result.issues,
-    });
+    throw new EngineError(
+      'VALIDATION_FAILED',
+      `Invalid adventure definition "${isRecord(input) ? String(input.id) : ''}"`,
+      {
+        issues: result.issues,
+      },
+    );
   }
   return deepFreeze(result.value);
 }

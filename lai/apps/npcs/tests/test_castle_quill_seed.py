@@ -256,9 +256,7 @@ def test_a_restored_storybook_is_thanked_once_before_anything_else(castle, api):
     # Once only; and the premise never follows a restored book.
     second = post(client, talk, {"trigger": "on_interact"}).json()
     assert second["dialogueKey"] == "greeting-story-offer"
-    keys = {
-        post(client, talk, {"trigger": "on_interact"}).json()["dialogueKey"] for _ in range(3)
-    }
+    keys = {post(client, talk, {"trigger": "on_interact"}).json()["dialogueKey"] for _ in range(3)}
     assert "the-damaged-book" not in keys and "storybook-restored" not in keys
 
 

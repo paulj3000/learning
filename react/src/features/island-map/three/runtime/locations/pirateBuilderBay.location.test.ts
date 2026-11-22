@@ -4,7 +4,10 @@ import { createStandardCapabilityRegistry } from '@lai/game-engine/engine';
 import { resolveJumpConfiguration, resolveLocomotion } from '@lai/game-engine/movement';
 import { checkContentCompatibility, validateLocation } from '@lai/game-engine/sdk';
 import { PIRATE_BUILDER_BAY_MANIFEST } from '../manifests/pirateBuilderBay';
-import { PIRATE_BUILDER_BAY_ADAPTER_ISSUES, PIRATE_BUILDER_BAY_LOCATION } from './pirateBuilderBay.location';
+import {
+  PIRATE_BUILDER_BAY_ADAPTER_ISSUES,
+  PIRATE_BUILDER_BAY_LOCATION,
+} from './pirateBuilderBay.location';
 
 const registry = createStandardCapabilityRegistry();
 const resolution = registry.resolve(PIRATE_BUILDER_BAY_LOCATION.capabilities);
@@ -19,14 +22,25 @@ function resolved(id: string): Record<string, unknown> {
 describe('pirateBuilderBay location (GE-075)', () => {
   it('loses nothing from the manifest and validates against the standard registry', () => {
     expect(PIRATE_BUILDER_BAY_ADAPTER_ISSUES).toEqual([]);
-    expect(validateLocation(PIRATE_BUILDER_BAY_LOCATION, registry)).toMatchObject({ ok: true, issues: [] });
+    expect(validateLocation(PIRATE_BUILDER_BAY_LOCATION, registry)).toMatchObject({
+      ok: true,
+      issues: [],
+    });
     expect(resolution.issues).toEqual([]);
-    expect(PIRATE_BUILDER_BAY_LOCATION).toMatchObject({ id: PIRATE_BUILDER_BAY_MANIFEST.regionId, contentSource: 'MANIFEST', version: '1.0.0' });
+    expect(PIRATE_BUILDER_BAY_LOCATION).toMatchObject({
+      id: PIRATE_BUILDER_BAY_MANIFEST.regionId,
+      contentSource: 'MANIFEST',
+      version: '1.0.0',
+    });
   });
 
   it('jumps and walks exactly as the manifest resolves', () => {
-    expect(resolved('movement.jump')).toEqual(resolveJumpConfiguration(PIRATE_BUILDER_BAY_MANIFEST.movement?.jump));
-    expect(resolved('movement.locomotion')).toEqual(resolveLocomotion(PIRATE_BUILDER_BAY_MANIFEST.movement?.locomotion));
+    expect(resolved('movement.jump')).toEqual(
+      resolveJumpConfiguration(PIRATE_BUILDER_BAY_MANIFEST.movement?.jump),
+    );
+    expect(resolved('movement.locomotion')).toEqual(
+      resolveLocomotion(PIRATE_BUILDER_BAY_MANIFEST.movement?.locomotion),
+    );
   });
 
   it('has the same third-person camera, collision avoidance and avatar', () => {
@@ -61,8 +75,15 @@ describe('pirateBuilderBay location (GE-075)', () => {
   });
 
   it('declares no timers (ADR-053) and only the services it needs', () => {
-    expect(JSON.stringify(PIRATE_BUILDER_BAY_MANIFEST)).not.toMatch(/timeLimit|countdown|deadline|timer/i);
-    expect(JSON.stringify(PIRATE_BUILDER_BAY_LOCATION)).not.toMatch(/timeLimit|countdown|deadline|timer/i);
-    expect(PIRATE_BUILDER_BAY_LOCATION.requiredServices).toEqual(['lai.assetManager', 'lai.npcManager']);
+    expect(JSON.stringify(PIRATE_BUILDER_BAY_MANIFEST)).not.toMatch(
+      /timeLimit|countdown|deadline|timer/i,
+    );
+    expect(JSON.stringify(PIRATE_BUILDER_BAY_LOCATION)).not.toMatch(
+      /timeLimit|countdown|deadline|timer/i,
+    );
+    expect(PIRATE_BUILDER_BAY_LOCATION.requiredServices).toEqual([
+      'lai.assetManager',
+      'lai.npcManager',
+    ]);
   });
 });

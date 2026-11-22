@@ -98,7 +98,10 @@ describe('parsePuzzleParams for CHOOSE_ANSWER', () => {
         optionEntities: undefined,
       },
     ],
-    ['entity keys that differ from the option ids', { ...CHOOSE_PARAMS, optionEntities: { a: 'x' } }],
+    [
+      'entity keys that differ from the option ids',
+      { ...CHOOSE_PARAMS, optionEntities: { a: 'x' } },
+    ],
   ])('refuses %s', (_name, params) => {
     expect(parsePuzzleParams('CHOOSE_ANSWER', JSON.parse(JSON.stringify(params)))).toBeNull();
   });
@@ -195,7 +198,10 @@ describe('choice state', () => {
   });
 
   it('"try a different one" gives a fresh question', () => {
-    let state = recordChoiceResult(selectOption(openChoiceState('s', 'p', choose, false), 'a'), false);
+    let state = recordChoiceResult(
+      selectOption(openChoiceState('s', 'p', choose, false), 'a'),
+      false,
+    );
     state = differentChoiceState(state, choose);
     expect(state.selected).toBeNull();
     expect(state.wrongCount).toBe(0);
@@ -231,7 +237,16 @@ describe('choice state', () => {
   });
 
   it('gives every symbol a glyph', () => {
-    for (const symbol of ['circle', 'square', 'triangle', 'star', 'diamond', 'hexagon', 'heart', 'moon'] as const) {
+    for (const symbol of [
+      'circle',
+      'square',
+      'triangle',
+      'star',
+      'diamond',
+      'hexagon',
+      'heart',
+      'moon',
+    ] as const) {
       expect(symbolGlyph(symbol)).not.toBe('');
     }
     expect(symbolGlyph(null)).toBe('');

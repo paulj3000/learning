@@ -22,7 +22,14 @@ export interface GameHostProps extends UseEngineRuntimeOptions {
  * (docs/UX_AND_ACCESSIBILITY.md). Errors show only a safe child-facing message, never an
  * error message or stack.
  */
-export function GameHost({ label, messages, fallback, className, children, ...options }: GameHostProps) {
+export function GameHost({
+  label,
+  messages,
+  fallback,
+  className,
+  children,
+  ...options
+}: GameHostProps) {
   const { containerRef, status, errorKey, paused, retry } = useEngineRuntime(options);
   const text = { ...DEFAULT_GAME_HOST_MESSAGES, ...messages };
 

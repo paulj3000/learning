@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { clipSpeed, createPlayerAnimationController, playerAnimationMap } from './playerAnimation';
-import type { MovementState } from './firstPersonController';
+import type { MovementState } from '@lai/game-engine/movement';
 
 const target = () => ({ setBase: vi.fn(), play: vi.fn(() => true), setTimeScale: vi.fn() });
 

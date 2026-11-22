@@ -8,7 +8,9 @@ import { SANDBOX_LOCATION } from './sandbox.location';
 
 const registry = createStandardCapabilityRegistry();
 const resolution = registry.resolve(SANDBOX_LOCATION.capabilities);
-const resolved = (id: string) => resolution.order.find((item) => item.definition.id === id)?.config as Record<string, unknown> | undefined;
+const resolved = (id: string) =>
+  resolution.order.find((item) => item.definition.id === id)?.config as
+    Record<string, unknown> | undefined;
 
 describe('sandbox location (GE-075)', () => {
   it('validates against the standard registry', () => {
@@ -19,8 +21,14 @@ describe('sandbox location (GE-075)', () => {
     expect(resolved('movement.jump')).toEqual({ ...DEFAULT_JUMP_CONFIGURATION });
     expect(resolved('movement.locomotion')).toEqual({ ...DEFAULT_LOCOMOTION });
     // Pin the source of truth: the sandbox constructs its controller with no tuning at all.
-    const source = readFileSync(resolve(process.cwd(), 'src/features/island-map/three/sandboxScene.ts'), 'utf8');
-    const construction = source.slice(source.indexOf('new FirstPersonController('), source.indexOf('});', source.indexOf('new FirstPersonController(')));
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/features/island-map/three/sandboxScene.ts'),
+      'utf8',
+    );
+    const construction = source.slice(
+      source.indexOf('new FirstPersonController('),
+      source.indexOf('});', source.indexOf('new FirstPersonController(')),
+    );
     expect(construction).not.toMatch(/\b(jump|locomotion|collision|maxSpeed|acceleration)\s*:/);
   });
 

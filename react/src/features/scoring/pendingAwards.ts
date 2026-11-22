@@ -45,7 +45,8 @@ export function matchesHint(hint: PendingHint, award: AwardEntry): boolean {
   if (hint.sourceRef !== null) return award.sourceRef === hint.sourceRef;
   if (hint.sourceRefSuffix !== null) {
     return (
-      award.sourceRef === hint.sourceRefSuffix || award.sourceRef.endsWith(`/${hint.sourceRefSuffix}`)
+      award.sourceRef === hint.sourceRefSuffix ||
+      award.sourceRef.endsWith(`/${hint.sourceRefSuffix}`)
     );
   }
   return true;

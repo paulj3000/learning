@@ -346,8 +346,7 @@ function procedural(value: JsonValue, path: string): RegionPlayProceduralConfig 
   const height =
     fields.height === undefined ? undefined : positive(fields.height, `${path}.height`);
   const tint = fields.color === undefined ? undefined : color(fields.color, `${path}.color`);
-  const assetId =
-    fields.assetId === undefined ? undefined : str(fields.assetId, `${path}.assetId`);
+  const assetId = fields.assetId === undefined ? undefined : str(fields.assetId, `${path}.assetId`);
   return {
     id: str(fields.id, `${path}.id`),
     shape: shape as ProceduralShape,
@@ -365,7 +364,8 @@ function prop(value: JsonValue, path: string): RegionPlayPropConfig {
   const rotationY = optionalNum(fields.rotationY, `${path}.rotationY`);
   const rotationZ = optionalNum(fields.rotationZ, `${path}.rotationZ`);
   const scale = fields.scale === undefined ? undefined : positive(fields.scale, `${path}.scale`);
-  const height = fields.height === undefined ? undefined : positive(fields.height, `${path}.height`);
+  const height =
+    fields.height === undefined ? undefined : positive(fields.height, `${path}.height`);
   return {
     id: str(fields.id, `${path}.id`),
     assetId: str(fields.assetId, `${path}.assetId`),
@@ -385,7 +385,8 @@ function propReplaces(value: JsonValue | undefined, path: string): { [assetId: s
   if (value === undefined) return {};
   const fields = object(value, path);
   const out: { [assetId: string]: string[] } = {};
-  for (const [assetId, ids] of Object.entries(fields)) out[assetId] = strings(ids, `${path}.${assetId}`);
+  for (const [assetId, ids] of Object.entries(fields))
+    out[assetId] = strings(ids, `${path}.${assetId}`);
   return out;
 }
 

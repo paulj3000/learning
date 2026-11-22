@@ -1279,7 +1279,11 @@ describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
     });
     render(
       <RegionPlayCompanion
-        {...visit(api, { claimedInteraction: interaction(PIP), sceneApi: fakeScene(), refreshWorld })}
+        {...visit(api, {
+          claimedInteraction: interaction(PIP),
+          sceneApi: fakeScene(),
+          refreshWorld,
+        })}
       />,
     );
     await waitFor(() => expect(refreshWorld).toHaveBeenCalledTimes(1));
@@ -1436,7 +1440,7 @@ describe('Lookout Point and the spyglass (TR-17, TR-20)', () => {
   });
 });
 
-describe('the engine bridge learns the child\'s progress (GE-073)', () => {
+describe("the engine bridge learns the child's progress (GE-073)", () => {
   const bridgeRegion = {
     ...bootstrapJson().region,
     scene: {
@@ -1446,9 +1450,29 @@ describe('the engine bridge learns the child\'s progress (GE-073)', () => {
             id: 'gameplay.checkpoints',
             config: {
               checkpoints: [
-                { id: 'cp-start', courseId: 'c', position: { x: 0, y: 0, z: 0 }, yaw: 0, label: 'the start' },
-                { id: 'cp-gate', courseId: 'c', position: { x: 0, y: 0, z: 9 }, yaw: 0, label: 'the gate', requiresSignalId: 'world:GATE_OPEN' },
-                { id: 'cp-far', courseId: 'c', position: { x: 0, y: 0, z: 19 }, yaw: 0, label: 'far', requiresSignalId: 'world:FAR_OPEN' },
+                {
+                  id: 'cp-start',
+                  courseId: 'c',
+                  position: { x: 0, y: 0, z: 0 },
+                  yaw: 0,
+                  label: 'the start',
+                },
+                {
+                  id: 'cp-gate',
+                  courseId: 'c',
+                  position: { x: 0, y: 0, z: 9 },
+                  yaw: 0,
+                  label: 'the gate',
+                  requiresSignalId: 'world:GATE_OPEN',
+                },
+                {
+                  id: 'cp-far',
+                  courseId: 'c',
+                  position: { x: 0, y: 0, z: 19 },
+                  yaw: 0,
+                  label: 'far',
+                  requiresSignalId: 'world:FAR_OPEN',
+                },
               ],
               goals: [],
             },
@@ -1554,7 +1578,7 @@ describe('gameplay claims for the visit (GE-070, decision E15)', () => {
   });
 });
 
-describe('the engine bridge learns the child\'s progress (GE-065)', () => {
+describe("the engine bridge learns the child's progress (GE-065)", () => {
   const bridgeRegion = {
     ...bootstrapJson().region,
     scene: {
@@ -1564,9 +1588,29 @@ describe('the engine bridge learns the child\'s progress (GE-065)', () => {
             id: 'gameplay.checkpoints',
             config: {
               checkpoints: [
-                { id: 'cp-start', courseId: 'c', position: { x: 0, y: 0, z: 0 }, yaw: 0, label: 'the start' },
-                { id: 'cp-gate', courseId: 'c', position: { x: 0, y: 0, z: 9 }, yaw: 0, label: 'the gate', requiresSignalId: 'world:GATE_OPEN' },
-                { id: 'cp-far', courseId: 'c', position: { x: 0, y: 0, z: 19 }, yaw: 0, label: 'far', requiresSignalId: 'world:FAR_OPEN' },
+                {
+                  id: 'cp-start',
+                  courseId: 'c',
+                  position: { x: 0, y: 0, z: 0 },
+                  yaw: 0,
+                  label: 'the start',
+                },
+                {
+                  id: 'cp-gate',
+                  courseId: 'c',
+                  position: { x: 0, y: 0, z: 9 },
+                  yaw: 0,
+                  label: 'the gate',
+                  requiresSignalId: 'world:GATE_OPEN',
+                },
+                {
+                  id: 'cp-far',
+                  courseId: 'c',
+                  position: { x: 0, y: 0, z: 19 },
+                  yaw: 0,
+                  label: 'far',
+                  requiresSignalId: 'world:FAR_OPEN',
+                },
               ],
               goals: [],
             },
@@ -1655,7 +1699,9 @@ describe('the engine bridge learns the child\'s progress (GE-065)', () => {
     });
     apis.set(CHILD_A, api);
     const extensionApi = (id: string) => (id === 'engineBridge' ? bridge : null);
-    render(<RegionPlayCompanion {...props({ extensionApi, claimedInteraction: interaction(PIP) })} />);
+    render(
+      <RegionPlayCompanion {...props({ extensionApi, claimedInteraction: interaction(PIP) })} />,
+    );
     await waitFor(() => expect(fed.at(-1)).toEqual(['world:PIRATES_LEAP_RIDDLE_SOLVED']));
     expect(fed[0]).toEqual([]); // arrival: nothing solved yet
     expect(bridge.resume).toHaveBeenCalledTimes(1);
@@ -1668,7 +1714,10 @@ describe('the engine bridge learns the child\'s progress (GE-065)', () => {
     };
     const api = fakeApi({
       getRegion: vi.fn(async () =>
-        read(bootstrapJson({ region: bridgeRegion, session: sessionJson(), worldChanges: [] }), parse.regionBootstrap),
+        read(
+          bootstrapJson({ region: bridgeRegion, session: sessionJson(), worldChanges: [] }),
+          parse.regionBootstrap,
+        ),
       ),
     });
     apis.set(CHILD_A, api);

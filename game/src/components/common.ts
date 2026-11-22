@@ -11,7 +11,12 @@
  *   every device and in tests.
  */
 
-import type { GameplayEvent, GameplayEventFactory, GameplayEventPayloads, GameplayEventType } from '../contracts/gameplayEvents';
+import type {
+  GameplayEvent,
+  GameplayEventFactory,
+  GameplayEventPayloads,
+  GameplayEventType,
+} from '../contracts/gameplayEvents';
 import type { EnginePresentationEventMap, SteadyOrBlink } from '../contracts/engineEvents';
 import { PLAYER_ENTITY_ID, PlayerTransformComponent, type Vec3Like } from '../contracts/player';
 import type { EngineRuntime } from '../core/runtime';
@@ -29,7 +34,8 @@ export interface GameplaySettings {
 export const GameplaySettingsService = defineService<GameplaySettings>('gameplay.settings');
 
 /** Builds validated gameplay claims for the current realm, adventure and area. */
-export const GameplayEventFactoryService = defineService<GameplayEventFactory>('gameplay.eventFactory');
+export const GameplayEventFactoryService =
+  defineService<GameplayEventFactory>('gameplay.eventFactory');
 
 /**
  * Host requirement check for doors, gates and portals: `true` when the requirement (an authored
@@ -62,7 +68,10 @@ export type GameplayPresentationEventMap = {
   CollectiblePickedUp: { collectibleId: string };
   ChestStateChanged: { chestId: string; state: 'CLOSED' | 'OPENING' | 'OPEN'; replay: boolean };
   ChestBlocked: { chestId: string; reason: 'LOCKED_BY_CHALLENGE' | 'TOO_FAR' };
-  DoorStateChanged: { doorId: string; state: 'LOCKED' | 'UNLOCKED' | 'OPENING' | 'OPEN' | 'CLOSING' };
+  DoorStateChanged: {
+    doorId: string;
+    state: 'LOCKED' | 'UNLOCKED' | 'OPENING' | 'OPEN' | 'CLOSING';
+  };
   DoorBumped: { doorId: string };
   PortalRequested: { portalId: string; targetAreaId: string };
   PortalBlocked: { portalId: string };
@@ -78,7 +87,11 @@ export type GameplayPresentationEventMap = {
 
 export type AllPresentationEvents = EnginePresentationEventMap & GameplayPresentationEventMap;
 
-export function emitPresentation<K extends keyof AllPresentationEvents>(runtime: GameplayRuntime, name: K, payload: AllPresentationEvents[K]): void {
+export function emitPresentation<K extends keyof AllPresentationEvents>(
+  runtime: GameplayRuntime,
+  name: K,
+  payload: AllPresentationEvents[K],
+): void {
   runtime.events.emit(name as never, payload as never);
 }
 
@@ -115,19 +128,26 @@ export function emitClaim<T extends GameplayEventType>(
 
 export function playerPosition(runtime: GameplayRuntime): Readonly<Vec3Like> | undefined {
   const entity = runtime.world.bySemanticId(PLAYER_ENTITY_ID);
-  return entity === undefined ? undefined : runtime.world.get(entity, PlayerTransformComponent)?.position;
+  return entity === undefined
+    ? undefined
+    : runtime.world.get(entity, PlayerTransformComponent)?.position;
 }
 
 export function playerSupportId(runtime: GameplayRuntime): string | null {
   const entity = runtime.world.bySemanticId(PLAYER_ENTITY_ID);
-  return entity === undefined ? null : (runtime.world.get(entity, PlayerTransformComponent)?.supportId ?? null);
+  return entity === undefined
+    ? null
+    : (runtime.world.get(entity, PlayerTransformComponent)?.supportId ?? null);
 }
 
 export function isReducedMotion(runtime: GameplayRuntime): boolean {
   return runtime.services.get(GameplaySettingsService)?.reducedMotion ?? false;
 }
 
-export function requirementMet(runtime: GameplayRuntime, requirementId: string | undefined): boolean {
+export function requirementMet(
+  runtime: GameplayRuntime,
+  requirementId: string | undefined,
+): boolean {
   if (requirementId === undefined) {
     return true;
   }

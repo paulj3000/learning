@@ -39,7 +39,10 @@ export interface ThreeAnimationDriver {
   dispose(): void;
 }
 
-export function createThreeAnimationDriver(mixer: MixerLike, clips: readonly AnimationClip[]): ThreeAnimationDriver {
+export function createThreeAnimationDriver(
+  mixer: MixerLike,
+  clips: readonly AnimationClip[],
+): ThreeAnimationDriver {
   const actions = new Map<string, ActionLike>();
   const applied: Record<string, number> = {};
   for (const clip of clips) {

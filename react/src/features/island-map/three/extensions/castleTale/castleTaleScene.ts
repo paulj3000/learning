@@ -603,7 +603,8 @@ export const castleTaleExtension: WorldExtension = {
     const pulsing = new Set<number>();
     const PULSE_SECONDS = 1.2;
     const setStorybook = (state: StorybookSceneState) => {
-      const pagesBack = state.required.some(Boolean) || state.bonusFound || state.morePages === true;
+      const pagesBack =
+        state.required.some(Boolean) || state.bonusFound || state.morePages === true;
       const pages = context.sceneryRoot(STORYBOOK_PART_IDS.pages);
       if (pages) pages.visible = pagesBack;
       // A book restored in an earlier edition keeps its sealed cover; its new page is the loose

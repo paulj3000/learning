@@ -94,9 +94,18 @@ export type WorldEngineEventMap = {
   /** A platforming goal reached for the first time this visit (the end of a course). */
   PlatformGoalReached: { goalId: string };
   /** GE-066: a telegraphed hazard changed phase (`steadyWarning` is true under reduced motion). */
-  HazardTelegraph: { hazardId: string; phase: 'WARN' | 'ACTIVE' | 'REST'; secondsToImpact: number; steadyWarning: boolean };
+  HazardTelegraph: {
+    hazardId: string;
+    phase: 'WARN' | 'ACTIVE' | 'REST';
+    secondsToImpact: number;
+    steadyWarning: boolean;
+  };
   /** GE-066: an engine platform changed phase (crumble, blink, gone, back). */
-  PlatformPhaseChanged: { platformId: string; phase: string; warning: 'BLINK' | 'STEADY_DIM' | null };
+  PlatformPhaseChanged: {
+    platformId: string;
+    phase: string;
+    warning: 'BLINK' | 'STEADY_DIM' | null;
+  };
   /** GE-066: the child stepped on a surface; `footstepCue` is its own sound cue, if any. */
   SurfaceFootstep: { surfaceId: string; footstepCue: string | null };
   // domain -> Three.js

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './WorldHud.module.css';
 import { ChattyAvatar } from '../../companion/ChattyAvatar';
-import type { CameraMode } from './playerPresentation';
+import type { CameraMode } from '@lai/game-engine/camera';
 
 export interface WorldHudBackpackItem {
   id: string;

@@ -36,7 +36,11 @@ function finiteVec(v: Readonly<Vec3Like>): boolean {
 
 function assertBounds(id: string, min: Readonly<Vec3Like>, max: Readonly<Vec3Like>): void {
   if (!finiteVec(min) || !finiteVec(max) || min.x > max.x || min.y > max.y || min.z > max.z) {
-    throw new EngineError('VALIDATION_FAILED', `Collider "${id}" needs finite bounds with min <= max`, { id });
+    throw new EngineError(
+      'VALIDATION_FAILED',
+      `Collider "${id}" needs finite bounds with min <= max`,
+      { id },
+    );
   }
 }
 
@@ -60,15 +64,24 @@ export function createAabbPhysicsProvider(): AabbPhysicsProvider {
     idOfBox: (box) => owners.get(box) ?? null,
     addCollider(spec) {
       if (spec.gate && spec.kind === 'JUMPABLE') {
-        throw new EngineError('VALIDATION_FAILED', `Gate collider "${spec.id}" cannot be jumpable (gates are never jumpable)`, {
+        throw new EngineError(
+          'VALIDATION_FAILED',
+          `Gate collider "${spec.id}" cannot be jumpable (gates are never jumpable)`,
+          {
+            id: spec.id,
+          },
+        );
+      }
+      if (entries.has(spec.id)) {
+        throw new EngineError('DUPLICATE_ID', `Collider "${spec.id}" already exists`, {
           id: spec.id,
         });
       }
-      if (entries.has(spec.id)) {
-        throw new EngineError('DUPLICATE_ID', `Collider "${spec.id}" already exists`, { id: spec.id });
-      }
       assertBounds(spec.id, spec.min, spec.max);
-      const box = new Box3(new Vector3(spec.min.x, spec.min.y, spec.min.z), new Vector3(spec.max.x, spec.max.y, spec.max.z));
+      const box = new Box3(
+        new Vector3(spec.min.x, spec.min.y, spec.min.z),
+        new Vector3(spec.max.x, spec.max.y, spec.max.z),
+      );
       entries.set(spec.id, { spec: { ...spec, min: { ...spec.min }, max: { ...spec.max } }, box });
       if (spec.kind !== 'TRIGGER') {
         boxes.push(box);
@@ -133,7 +146,14 @@ export function createAabbPhysicsProvider(): AabbPhysicsProvider {
     overlaps(min, max) {
       const found: string[] = [];
       for (const { spec, box } of entries.values()) {
-        if (box.min.x < max.x && box.max.x > min.x && box.min.y < max.y && box.max.y > min.y && box.min.z < max.z && box.max.z > min.z) {
+        if (
+          box.min.x < max.x &&
+          box.max.x > min.x &&
+          box.min.y < max.y &&
+          box.max.y > min.y &&
+          box.min.z < max.z &&
+          box.max.z > min.z
+        ) {
           found.push(spec.id);
         }
       }
@@ -150,7 +170,12 @@ export function createAabbPhysicsProvider(): AabbPhysicsProvider {
 }
 
 /** Slab method: distance along a unit ray to a box within `maxDistance`, or null. */
-function slab(o: Readonly<Vec3Like>, d: Readonly<Vec3Like>, box: Box3, maxDistance: number): number | null {
+function slab(
+  o: Readonly<Vec3Like>,
+  d: Readonly<Vec3Like>,
+  box: Box3,
+  maxDistance: number,
+): number | null {
   let near = 0;
   let far = maxDistance;
   const axes: [number, number, number, number][] = [

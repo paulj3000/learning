@@ -32,7 +32,9 @@ import {
  */
 
 /** The three painted pads of the Illustration Studio, in order (`red`, `blue`, `yellow`). */
-export const PAINTED_WORDS_PAD_KEYS: readonly string[] = STUDIO_PAD_GROUP.pads.map((pad) => pad.key);
+export const PAINTED_WORDS_PAD_KEYS: readonly string[] = STUDIO_PAD_GROUP.pads.map(
+  (pad) => pad.key,
+);
 
 const bind = (
   templateSlug: string,
@@ -85,7 +87,10 @@ export const CASTLE_PAD_BINDINGS: readonly AdventureStepBinding[] = [
 
 // --- the Painted Words pads ----------------------------------------------------------------------
 
-export const PAINTED_WORDS_SLUGS: readonly string[] = [PAINTED_WORDS_SLUG, PAINTED_WORDS_AGAIN_SLUG];
+export const PAINTED_WORDS_SLUGS: readonly string[] = [
+  PAINTED_WORDS_SLUG,
+  PAINTED_WORDS_AGAIN_SLUG,
+];
 
 export interface PaintedWordsPadSlot {
   /** `red`, `blue` or `yellow`. */
@@ -117,7 +122,10 @@ export function paintedWordsPadSlots(step: AdventureStep): PaintedWordsPadSlot[]
     const correct = options.find((option) => option.id === correctOptionId);
     if (!correct) return null;
     const others = options.filter((option) => option.id !== correctOptionId);
-    const keep = new Set([correct.id, ...others.slice(0, PAINTED_WORDS_PAD_KEYS.length - 1).map((o) => o.id)]);
+    const keep = new Set([
+      correct.id,
+      ...others.slice(0, PAINTED_WORDS_PAD_KEYS.length - 1).map((o) => o.id),
+    ]);
     shown = options.filter((option) => keep.has(option.id));
   }
   return shown.map((option, index) => ({
@@ -158,18 +166,25 @@ export function resolvePadAnswer(
   const { presentation } = step;
 
   if (PAINTED_WORDS_SLUGS.includes(definition.slug)) {
-    const slot = paintedWordsPadSlots(step)?.find((candidate) => padZoneId(STUDIO_PAD_GROUP.id, candidate.padKey) === zoneId);
+    const slot = paintedWordsPadSlots(step)?.find(
+      (candidate) => padZoneId(STUDIO_PAD_GROUP.id, candidate.padKey) === zoneId,
+    );
     return slot ? { kind: 'answer', answer: { kind: 'choice', optionId: slot.optionId } } : null;
   }
 
   const binding = resolveEntityBinding(CASTLE_PAD_BINDINGS, zoneId, definition.slug);
   if (!binding || binding.stepId !== step.id) return null;
-  if (presentation.kind === 'choice') return { kind: 'answer', answer: { kind: 'choice', optionId: binding.optionId } };
+  if (presentation.kind === 'choice')
+    return { kind: 'answer', answer: { kind: 'choice', optionId: binding.optionId } };
   if (presentation.kind === 'creative-choice') {
     return { kind: 'answer', answer: { kind: 'creative-choice', optionId: binding.optionId } };
   }
   if (presentation.kind === 'ordering') {
-    return { kind: 'order-entry', optionId: binding.optionId, itemIds: presentation.items.map((item) => item.id) };
+    return {
+      kind: 'order-entry',
+      optionId: binding.optionId,
+      itemIds: presentation.items.map((item) => item.id),
+    };
   }
   return null;
 }
@@ -177,9 +192,13 @@ export function resolvePadAnswer(
 /** The pad zones that mean something to a step: for a test, and for the panel's "pads here" hint. */
 export function padZonesForStep(definition: AdventureDefinition, step: AdventureStep): string[] {
   if (PAINTED_WORDS_SLUGS.includes(definition.slug)) {
-    return (paintedWordsPadSlots(step) ?? []).map((slot) => padZoneId(STUDIO_PAD_GROUP.id, slot.padKey));
+    return (paintedWordsPadSlots(step) ?? []).map((slot) =>
+      padZoneId(STUDIO_PAD_GROUP.id, slot.padKey),
+    );
   }
-  return bindingsForStep(CASTLE_PAD_BINDINGS, definition.slug, step.id).map((binding) => binding.entityId);
+  return bindingsForStep(CASTLE_PAD_BINDINGS, definition.slug, step.id).map(
+    (binding) => binding.entityId,
+  );
 }
 
 // --- an ordering, one stone at a time -----------------------------------------------------------------
@@ -221,7 +240,11 @@ export function createPadOrderCollector(): PadOrderCollector {
  * ids stepped on, in order, to the option ids an `ORDERING` answer carries. `null` when the row is
  * not a whole answer.
  */
-export function padsToOrder(templateSlug: string, stepId: string, steppedZoneIds: readonly string[]): string[] | null {
+export function padsToOrder(
+  templateSlug: string,
+  stepId: string,
+  steppedZoneIds: readonly string[],
+): string[] | null {
   return seatedEntitiesToOrder(CASTLE_PAD_BINDINGS, templateSlug, stepId, steppedZoneIds);
 }
 

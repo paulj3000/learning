@@ -101,7 +101,15 @@ describe('preservation of the existing content', () => {
         ...NORTH_POLE_QUESTS,
       ]),
     );
-    expect(pkg.items).toEqual(clone([...ALL_ITEMS, ...TREASURE_RUSH_ITEMS, ...FIREPEAK_ITEMS, ...HEART_ITEMS, ...NORTH_POLE_ITEMS]));
+    expect(pkg.items).toEqual(
+      clone([
+        ...ALL_ITEMS,
+        ...TREASURE_RUSH_ITEMS,
+        ...FIREPEAK_ITEMS,
+        ...HEART_ITEMS,
+        ...NORTH_POLE_ITEMS,
+      ]),
+    );
     expect(pkg.rewardRules).toEqual(
       clone([
         ...ALL_REWARD_RULES,
@@ -111,10 +119,19 @@ describe('preservation of the existing content', () => {
         ...NORTH_POLE_REWARD_RULES,
       ]),
     );
-    expect(pkg.npcs).toEqual(clone([...ALL_NPCS, ...FIREPEAK_NPCS, ...HEART_NPCS, ...NORTH_POLE_NPCS]));
+    expect(pkg.npcs).toEqual(
+      clone([...ALL_NPCS, ...FIREPEAK_NPCS, ...HEART_NPCS, ...NORTH_POLE_NPCS]),
+    );
     expect(pkg.discoveries).toEqual(clone(DISCOVERY_DEFINITIONS));
     expect(pkg.checkpoints).toEqual(clone(ALL_CHECKPOINTS));
-    expect(pkg.locations).toEqual(clone([...ISLAND_LOCATIONS, ...FIREPEAK_LOCATIONS, ...HEART_LOCATIONS, ...NORTH_POLE_LOCATIONS]));
+    expect(pkg.locations).toEqual(
+      clone([
+        ...ISLAND_LOCATIONS,
+        ...FIREPEAK_LOCATIONS,
+        ...HEART_LOCATIONS,
+        ...NORTH_POLE_LOCATIONS,
+      ]),
+    );
     expect(pkg.stories).toEqual(clone(STORY_DEFINITIONS));
     expect(pkg.skills).toEqual(clone(SKILLS));
     expect(pkg.assets).toEqual(clone(ASSET_MANIFEST));

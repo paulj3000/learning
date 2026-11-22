@@ -70,10 +70,7 @@ describe('the Writing Room stories, one per age band (CLAUDE.md section 3)', () 
 
   it('uses only real learning objectives, no arithmetic step types and no em dashes', () => {
     const codes = new Set(LEARNING_OBJECTIVES.map((objective) => objective.code));
-    const copy: string[] = [
-      ...Object.values(WRITING_ROOM_ENCOURAGEMENT),
-      WRITING_ROOM_REFUSAL,
-    ];
+    const copy: string[] = [...Object.values(WRITING_ROOM_ENCOURAGEMENT), WRITING_ROOM_REFUSAL];
     for (const story of WRITING_ROOM_STORIES) {
       copy.push(story.title);
       for (const step of story.steps) {

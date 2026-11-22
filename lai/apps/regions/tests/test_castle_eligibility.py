@@ -54,7 +54,9 @@ FIXTURE = [
     make(
         "story-told",
         weight=4,
-        requires=[{"type": "WORLD_CHANGE", "key": "FIRST_STORY_TOLD", "place": "storykeeper-castle"}],
+        requires=[
+            {"type": "WORLD_CHANGE", "key": "FIRST_STORY_TOLD", "place": "storykeeper-castle"}
+        ],
     ),
     make(
         "quest-done",
@@ -92,7 +94,11 @@ def ids(events):
     ("catalog", "given", "expected"),
     [
         (FIXTURE, state(), PLAIN),
-        (FIXTURE, state(ageBand="SPROUT"), ["gap-two", "sprouts-only", "twice", "anywhere", "quiet"]),
+        (
+            FIXTURE,
+            state(ageBand="SPROUT"),
+            ["gap-two", "sprouts-only", "twice", "anywhere", "quiet"],
+        ),
         (FIXTURE, state(roomId="great-library"), ["library", "anywhere"]),
         (
             FIXTURE,
@@ -106,14 +112,27 @@ def ids(events):
         (FIXTURE, state(lastShownVisit={"gap-two": 3}), PLAIN),
         (list(reversed(FIXTURE)), state(), PLAIN),
         ([QUIET], state(shownCounts={"quiet": 50}), ["quiet"]),
-        ([make("quiet", weight=1, fallback=True, repeat={"maxShows": 1, "minVisitGap": 0})],
-         state(shownCounts={"quiet": 1}), []),
+        (
+            [make("quiet", weight=1, fallback=True, repeat={"maxShows": 1, "minVisitGap": 0})],
+            state(shownCounts={"quiet": 1}),
+            [],
+        ),
         ([], state(), []),
     ],
     ids=[
-        "plain", "sprout", "library", "conditions-met", "other-place", "max-shows-spent",
-        "max-shows-one-short", "gap-not-reached", "gap-reached", "catalog-order", "fallback-only",
-        "fallback-spent", "empty",
+        "plain",
+        "sprout",
+        "library",
+        "conditions-met",
+        "other-place",
+        "max-shows-spent",
+        "max-shows-one-short",
+        "gap-not-reached",
+        "gap-reached",
+        "catalog-order",
+        "fallback-only",
+        "fallback-spent",
+        "empty",
     ],
 )
 def test_eligible_events(catalog, given, expected):
@@ -128,8 +147,11 @@ def test_eligible_events(catalog, given, expected):
         (FIXTURE, state(lastShownVisit={"gap-two": 4}), "twice"),
         ([QUIET], state(shownCounts={"quiet": 50}), "quiet"),
         # Spent, the room's quiet fallback still answers: the repeat rules are ignored.
-        ([make("quiet", weight=1, fallback=True, repeat={"maxShows": 1, "minVisitGap": 0})],
-         state(shownCounts={"quiet": 1}), "quiet"),
+        (
+            [make("quiet", weight=1, fallback=True, repeat={"maxShows": 1, "minVisitGap": 0})],
+            state(shownCounts={"quiet": 1}),
+            "quiet",
+        ),
         ([], state(), None),
     ],
 )
@@ -161,7 +183,9 @@ def test_the_seed_has_one_quiet_default_for_every_room_and_band(band):
             if e["fallback"] and e["room"] == room and band in e["bands"]
         ]
         assert len(fallbacks) == 1, (room, band)
-        default = castle_events.default_event(castle_events.SEED_CATALOG, state(roomId=room, ageBand=band))
+        default = castle_events.default_event(
+            castle_events.SEED_CATALOG, state(roomId=room, ageBand=band)
+        )
         assert default is not None
 
 
@@ -200,7 +224,11 @@ def test_the_secret_chamber_lines_that_know_about_finds_wait_for_them():
             "questStatuses": {},
             "relationshipLevels": {},
         }
-        return ids(castle_events.eligible_events(seed, state(roomId="secret-chamber", conditions=conditions)))
+        return ids(
+            castle_events.eligible_events(
+                seed, state(roomId="secret-chamber", conditions=conditions)
+            )
+        )
 
     assert "chamber-star-twinkles" not in at() and "chamber-finds-remembered" not in at()
     assert "chamber-star-twinkles" in at(star)

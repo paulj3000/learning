@@ -54,7 +54,9 @@ describe('service fakes', () => {
   });
 
   it('asset manager resolves, loads and disposes handles', async () => {
-    const assets = createFakeAssetManager([{ assetId: 'tree', version: null, kind: 'model', url: 'https://cdn/tree.glb' }]);
+    const assets = createFakeAssetManager([
+      { assetId: 'tree', version: null, kind: 'model', url: 'https://cdn/tree.glb' },
+    ]);
     expect(await assets.resolve('tree')).toMatchObject({ url: 'https://cdn/tree.glb' });
     expect(await assets.resolve('nope')).toBeNull();
     const handle = await assets.load('tree');
@@ -95,14 +97,24 @@ describe('service fakes', () => {
 
   it('question studio exposes presentation only and returns an opaque server verdict', async () => {
     const studio = createFakeQuestionStudio(
-      [{ questionId: 'q1', ageBand: 'SPROUT', promptRef: 'q.q1.prompt', choices: [{ choiceId: 'a', labelRef: 'q.q1.a' }] }],
+      [
+        {
+          questionId: 'q1',
+          ageBand: 'SPROUT',
+          promptRef: 'q.q1.prompt',
+          choices: [{ choiceId: 'a', labelRef: 'q.q1.a' }],
+        },
+      ],
       { grade: 'server' },
     );
     expect(await studio.fetchQuestion('q1', 'SPROUT')).not.toBeNull();
     expect(await studio.fetchQuestion('q1', 'EXPLORER')).toBeNull();
     const question = (await studio.fetchQuestion('q1', 'SPROUT'))!;
     expect(Object.keys(question.choices[0]!)).not.toContain('correct');
-    const verdict = await studio.submitAnswer({ kind: 'QUESTION_ITEM', questionId: 'q1', challengeAttemptId: 'att-1' }, 'a');
+    const verdict = await studio.submitAnswer(
+      { kind: 'QUESTION_ITEM', questionId: 'q1', challengeAttemptId: 'att-1' },
+      'a',
+    );
     expect(verdict).toEqual({ verdict: { grade: 'server' } });
     expect(studio.submissions).toHaveLength(1);
     expect(QUESTION_STUDIO.id).toBe('lai.questionStudio');
@@ -110,7 +122,13 @@ describe('service fakes', () => {
 
   it('quest service is read-only plus a claim the server resolves', async () => {
     const quests = createFakeQuestService([
-      { questId: 'q', status: 'ACTIVE', activeStepId: 's1', completedStepIds: [], stepOrder: ['s1', 's2'] },
+      {
+        questId: 'q',
+        status: 'ACTIVE',
+        activeStepId: 's1',
+        completedStepIds: [],
+        stepOrder: ['s1', 's2'],
+      },
     ]);
     const seen: string[] = [];
     quests.subscribe((state) => seen.push(state.status));
@@ -126,7 +144,9 @@ describe('service fakes', () => {
     const rewards = createFakeRewards();
     expect(inventory.has('key')).toBe(true);
     for (const port of [inventory, rewards] as object[]) {
-      expect(Object.keys(port).filter((key) => /grant(?!ed)|award|add|give/i.test(key))).toEqual([]);
+      expect(Object.keys(port).filter((key) => /grant(?!ed)|award|add|give/i.test(key))).toEqual(
+        [],
+      );
     }
     const seen: string[] = [];
     rewards.subscribe((r) => seen.push(r.rewardId));
@@ -167,17 +187,23 @@ describe('save and restore', () => {
 
   it('rejects wrong versions, bad numbers and any extra (child data) keys', () => {
     expect(validatePresentationSnapshot({ ...snapshot, version: 2 }).ok).toBe(false);
-    expect(validatePresentationSnapshot({ ...snapshot, player: { x: NaN, y: 0, z: 0, yaw: 0 } }).ok).toBe(false);
+    expect(
+      validatePresentationSnapshot({ ...snapshot, player: { x: NaN, y: 0, z: 0, yaw: 0 } }).ok,
+    ).toBe(false);
     const withName = validatePresentationSnapshot({ ...snapshot, childName: 'Sam' });
     expect(withName.ok).toBe(false);
-    expect(validatePresentationSnapshot({ ...snapshot, player: { ...snapshot.player, age: 4 } }).ok).toBe(false);
+    expect(
+      validatePresentationSnapshot({ ...snapshot, player: { ...snapshot.player, age: 4 } }).ok,
+    ).toBe(false);
     const store = createFakeSaveRestore();
     store.save({ ...snapshot, childName: 'Sam' } as never);
     expect(store.size).toBe(0);
   });
 
   it('server state wins: doors the server does not report open are dropped', () => {
-    const { snapshot: restored, droppedDoorIds } = reconcileSnapshot(snapshot, { openDoorIds: ['door-a', 'door-z'] });
+    const { snapshot: restored, droppedDoorIds } = reconcileSnapshot(snapshot, {
+      openDoorIds: ['door-a', 'door-z'],
+    });
     expect(restored.confirmedOpenDoorIds).toEqual(['door-a']);
     expect(droppedDoorIds).toEqual(['door-b']);
     expect(restored.player).toEqual(snapshot.player);

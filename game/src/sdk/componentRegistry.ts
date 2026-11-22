@@ -15,7 +15,10 @@ import type { ComponentPlacement } from './adventure';
 
 export const COMPONENT_TYPE_ID = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$/;
 
-export type ComponentFactory<Entity = EntityHandle> = (runtime: EngineRuntime<EventMap>, placement: ComponentPlacement) => Entity;
+export type ComponentFactory<Entity = EntityHandle> = (
+  runtime: EngineRuntime<EventMap>,
+  placement: ComponentPlacement,
+) => Entity;
 
 export interface ComponentRegistry<Entity = EntityHandle> {
   /** Throws `INVALID_CONFIG` for a malformed id and `DUPLICATE_ID` for one already registered. */
@@ -33,13 +36,23 @@ export function createComponentRegistry<Entity = EntityHandle>(): ComponentRegis
   const registry: ComponentRegistry<Entity> = {
     register(typeId, factory) {
       if (!COMPONENT_TYPE_ID.test(typeId)) {
-        throw new EngineError('INVALID_CONFIG', `Component type id "${typeId}" must be dotted lowerCamel with a namespace`, { typeId });
+        throw new EngineError(
+          'INVALID_CONFIG',
+          `Component type id "${typeId}" must be dotted lowerCamel with a namespace`,
+          { typeId },
+        );
       }
       if (typeof factory !== 'function') {
-        throw new EngineError('INVALID_CONFIG', `Component type "${typeId}" needs a factory function`, { typeId });
+        throw new EngineError(
+          'INVALID_CONFIG',
+          `Component type "${typeId}" needs a factory function`,
+          { typeId },
+        );
       }
       if (factories.has(typeId)) {
-        throw new EngineError('DUPLICATE_ID', `Component type "${typeId}" is already registered`, { typeId });
+        throw new EngineError('DUPLICATE_ID', `Component type "${typeId}" is already registered`, {
+          typeId,
+        });
       }
       factories.set(typeId, factory);
     },
@@ -48,14 +61,19 @@ export function createComponentRegistry<Entity = EntityHandle>(): ComponentRegis
     create(runtime, placement) {
       const factory = factories.get(placement.type);
       if (!factory) {
-        throw new EngineError('UNKNOWN_ID', `Component type "${placement.type}" is not registered`, {
-          typeId: placement.type,
-          placementId: placement.id,
-        });
+        throw new EngineError(
+          'UNKNOWN_ID',
+          `Component type "${placement.type}" is not registered`,
+          {
+            typeId: placement.type,
+            placementId: placement.id,
+          },
+        );
       }
       return factory(runtime, placement);
     },
-    createAll: (runtime, placements) => placements.map((placement) => registry.create(runtime, placement)),
+    createAll: (runtime, placements) =>
+      placements.map((placement) => registry.create(runtime, placement)),
   };
   return registry;
 }

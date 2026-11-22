@@ -43,7 +43,11 @@ const OBJECTIVE = 'phonemic-awareness';
 const option = (word: string): ChoiceOption => ({ id: `opt-${word}`, label: word });
 
 /** Display order is fixed in content so tests are deterministic. The answer is not always first. */
-function orderedOptions(answer: string, distractors: readonly string[], slot: number): ChoiceOption[] {
+function orderedOptions(
+  answer: string,
+  distractors: readonly string[],
+  slot: number,
+): ChoiceOption[] {
   const all = [...distractors];
   all.splice(slot % (all.length + 1), 0, answer);
   return all.map(option);
@@ -155,7 +159,9 @@ function syllableStep(q: SyllableQuestion, next: string): AdventureStep {
         `The answer is ${entry.syllables}.`,
       ],
     },
-    fallback: { text: `${q.word} has ${entry.syllables} ${entry.syllables === 1 ? 'clap' : 'claps'}.` },
+    fallback: {
+      text: `${q.word} has ${entry.syllables} ${entry.syllables === 1 ? 'clap' : 'claps'}.`,
+    },
   };
 }
 
@@ -198,7 +204,8 @@ export function buildPaintedWords(
       objectiveIds: [],
       presentation: {
         kind: 'reflection',
-        prompt: 'Look at the words you brought home. Which painting would you like to add to the page?',
+        prompt:
+          'Look at the words you brought home. Which painting would you like to add to the page?',
       },
       transitions: [{ when: 'always', nextStepId: 'page-mended' }],
       fallback: { text: 'Think of your favourite painting.' },
@@ -259,7 +266,10 @@ export const THE_PAINTED_WORDS_AGAIN: AdventureDefinition = buildPaintedWords(
  * Adventure slugs that are reached only through a named interaction at a location that already has a
  * first-listed adventure. The one-adventure-per-band invariants skip them (see the file header).
  */
-export const PREFERRED_ONLY_ADVENTURES: readonly string[] = [PAINTED_WORDS_SLUG, PAINTED_WORDS_AGAIN_SLUG];
+export const PREFERRED_ONLY_ADVENTURES: readonly string[] = [
+  PAINTED_WORDS_SLUG,
+  PAINTED_WORDS_AGAIN_SLUG,
+];
 
 export const PAINTED_WORDS_ADVENTURES: AdventureDefinition[] = [
   THE_PAINTED_WORDS,

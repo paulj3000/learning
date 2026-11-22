@@ -7,7 +7,7 @@ import re
 from io import StringIO
 
 import pytest
-from django.core.management import CommandError, call_command
+from django.core.management import call_command
 
 from apps.catalog.models import AssetOrigin, ContentAsset, NpcDefinition, Quest
 from apps.core.content_status import ContentStatus
@@ -376,7 +376,9 @@ def test_offer_quest_values_are_the_contract_quest_ids(ready):
         kinds = [c["type"] for c in dialogue.conditions]
         assert "QUEST_STATUS" in kinds and "AGE_BAND" in kinds
     prerequisites = {
-        d.dialogue_key.rsplit("-", 1)[0]: [c["key"] for c in d.conditions if c["type"] == "WORLD_CHANGE"]
+        d.dialogue_key.rsplit("-", 1)[0]: [
+            c["key"] for c in d.conditions if c["type"] == "WORLD_CHANGE"
+        ]
         for d in NpcDialogue.objects.filter(dialogue_key__startswith="offer-")
     }
     assert prerequisites["offer-np-q01-welcome"] == []
@@ -548,9 +550,7 @@ def test_copy_is_child_safe():
     for text in all_copy():
         assert "—" not in text and "–" not in text
         assert text.strip()
-    spoken = " ".join(
-        node.text for npc in np.NPCS for d in np.dialogues(npc) for node in d.nodes
-    )
+    spoken = " ".join(node.text for npc in np.NPCS for d in np.dialogues(npc) for node in d.nodes)
     banned = (
         r"\b(your name|your age|how old|where do you live|your address|your school|your phone"
         r"|your photo|secret|don't tell|do not tell|i am (a )?(real )?(human|person|boy|girl)"

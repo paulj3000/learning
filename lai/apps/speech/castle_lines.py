@@ -22,9 +22,7 @@ VOICE_PROFILE_ID = "narrator"
 CONTEXT = "castle"
 
 _WORDS = json.loads((Path(__file__).parent / "castle_speech_words.json").read_text("utf-8"))
-_WRITING_ROOM = json.loads(
-    (Path(__file__).parent / "writing_room_speech.json").read_text("utf-8")
-)
+_WRITING_ROOM = json.loads((Path(__file__).parent / "writing_room_speech.json").read_text("utf-8"))
 _PAGES = json.loads(
     (Path(__file__).resolve().parent.parent / "regions" / "great_storybook_pages.json").read_text(
         "utf-8"
@@ -70,5 +68,7 @@ def writing_room_lines() -> tuple[CastleLine, ...]:
 def castle_lines() -> tuple[CastleLine, ...]:
     """Every castle narration line, words first, then pages, then the Writing Room's prompts."""
     words = tuple(CastleLine(word_line_id(word), word) for word in bank_words())
-    pages = tuple(CastleLine(page_line_id(page["id"]), page_narration(page)) for page in storybook_pages())
+    pages = tuple(
+        CastleLine(page_line_id(page["id"]), page_narration(page)) for page in storybook_pages()
+    )
     return words + pages + writing_room_lines()

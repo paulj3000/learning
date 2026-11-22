@@ -48,7 +48,9 @@ describe('the castle guide ambient line (SC-R09-01)', () => {
       />,
     );
     await waitFor(() =>
-      expect(screen.getByTestId('castle-ambient-line')).toHaveTextContent('The books rest on the shelves.'),
+      expect(screen.getByTestId('castle-ambient-line')).toHaveTextContent(
+        'The books rest on the shelves.',
+      ),
     );
   });
 

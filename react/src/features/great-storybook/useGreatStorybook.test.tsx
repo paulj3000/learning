@@ -62,14 +62,20 @@ describe('useGreatStorybook', () => {
   });
 
   it('shows the book already restored for a child who finished the Tale long ago', () => {
-    const { result } = render({ changes: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], found: [] }, null);
+    const { result } = render(
+      { changes: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], found: [] },
+      null,
+    );
     expect(result.current.progress.complete).toBe(true);
   });
 
   it('does not announce a page that was already back when the view loaded', () => {
     const onPageRestored = vi.fn();
     const onBookRestored = vi.fn();
-    render({ changes: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], found: [] }, null, { onPageRestored, onBookRestored });
+    render({ changes: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], found: [] }, null, {
+      onPageRestored,
+      onBookRestored,
+    });
     expect(onPageRestored).not.toHaveBeenCalled();
     expect(onBookRestored).not.toHaveBeenCalled();
   });
@@ -123,7 +129,10 @@ describe('useGreatStorybook', () => {
 
   it('survives a failing server: the book is whatever the records alone say', async () => {
     const api = { get: vi.fn().mockRejectedValue(new Error('down')) } as StorybookApi;
-    const { result } = render({ changes: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], found: [] }, api);
+    const { result } = render(
+      { changes: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], found: [] },
+      api,
+    );
     await waitFor(() => expect(api.get).toHaveBeenCalled());
     expect(result.current.progress.complete).toBe(true);
   });
@@ -142,7 +151,10 @@ describe('useGreatStorybook', () => {
   });
 
   it('works with no Django API: records alone decide', () => {
-    const { result } = render({ changes: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], found: [] }, null);
+    const { result } = render(
+      { changes: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], found: [] },
+      null,
+    );
     expect(result.current.progress.restoredRequired).toBe(2);
   });
 

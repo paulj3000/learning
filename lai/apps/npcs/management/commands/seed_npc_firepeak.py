@@ -2,7 +2,8 @@
 
     python manage.py seed_npc_firepeak             # create missing rows, then validate
     python manage.py seed_npc_firepeak --publish   # ... and publish a release if anything changed
-    python manage.py seed_npc_firepeak --promote   # mark DRAFT characters READY once their model is live
+    python manage.py seed_npc_firepeak --promote   # mark DRAFT characters READY once their model is
+live
 
 Run order: `load_content` with the Heart of Firepeak export first (the catalog NPCs `flint`,
 `kindle`, `professor-basalt`, `cinder`, `ignis`, ADR-054 item 1), then this command. The 3D Area
@@ -41,7 +42,6 @@ from apps.npcs.models import (
 from apps.npcs.publishing import PublishError, preview
 from apps.npcs.publishing import publish as publish_release
 from apps.npcs.vocabulary import CharacterStatus, DialogueMode
-
 
 NOTHING_READY = "there is no READY character to publish"
 
@@ -103,7 +103,9 @@ def _voice_profile(npc: fp.FirepeakNpc):
 def _region():
     from apps.regions.models import WorldRegion
 
-    return WorldRegion.objects.select_related("location__world").filter(region_id=fp.REGION_ID).first()
+    return (
+        WorldRegion.objects.select_related("location__world").filter(region_id=fp.REGION_ID).first()
+    )
 
 
 @transaction.atomic
@@ -149,7 +151,9 @@ def seed_firepeak() -> tuple[list[str], list[str]]:
                     "(or set it READY in Django Admin)."
                 )
 
-        if not NpcModelVariant.objects.filter(character=character, variant_key=fp.VARIANT_KEY).exists():
+        if not NpcModelVariant.objects.filter(
+            character=character, variant_key=fp.VARIANT_KEY
+        ).exists():
             variant = NpcModelVariant(
                 character=character,
                 variant_key=fp.VARIANT_KEY,
@@ -241,7 +245,10 @@ def promote_ready() -> list[str]:
 
 
 class Command(BaseCommand):
-    help = "Author the Heart of Firepeak NPCs as NPC Manager content (create-only), validate, optionally publish."
+    help = (
+        "Author the Heart of Firepeak NPCs as NPC Manager content (create-only), validate, "
+        "optionally publish."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(

@@ -51,7 +51,9 @@ function main(args: string[]): number {
     }
     return 1;
   }
-  console.log(`${dryRun ? 'Dry run: would write' : 'Writing'} ${targets.length} files to ${outDir}`);
+  console.log(
+    `${dryRun ? 'Dry run: would write' : 'Writing'} ${targets.length} files to ${outDir}`,
+  );
   for (const target of targets) {
     console.log(`  ${target.path} (${target.content.split('\n').length - 1} lines)`);
     if (!dryRun) {

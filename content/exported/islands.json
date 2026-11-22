@@ -27,7 +27,10 @@
           "secret-door-chapter-2-pattern-lock",
           "the-dark-lighthouse-counting",
           "the-dark-lighthouse-groups",
-          "the-dark-lighthouse-two-step"
+          "the-dark-lighthouse-two-step",
+          "writing-room-picture-story",
+          "writing-room-sentence-story",
+          "writing-room-own-story"
         ],
         "collectibleSetIds": [
           "harbor-shells",
@@ -67,6 +70,7 @@
           "painted-words-brush",
           "three-clues-lens",
           "secret-door-key",
+          "tiny-brass-knob",
           "heart-crystal-fragment-1",
           "volcano-explorer-badge",
           "journal-volcano-crater",

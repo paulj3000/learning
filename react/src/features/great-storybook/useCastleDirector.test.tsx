@@ -13,19 +13,19 @@ const serverEvent = {
   visual: { kind: 'quill-scratch' },
 };
 
-function setup(api: CastleDirectorApi | null, over: Partial<Parameters<typeof useCastleDirector>[0]> = {}) {
-  return renderHook(
-    (props: Parameters<typeof useCastleDirector>[0]) => useCastleDirector(props),
-    {
-      initialProps: {
-        childId: 'child-1',
-        ageBand: 'PATHFINDER' as const,
-        roomId: 'story-hall',
-        api,
-        ...over,
-      },
+function setup(
+  api: CastleDirectorApi | null,
+  over: Partial<Parameters<typeof useCastleDirector>[0]> = {},
+) {
+  return renderHook((props: Parameters<typeof useCastleDirector>[0]) => useCastleDirector(props), {
+    initialProps: {
+      childId: 'child-1',
+      ageBand: 'PATHFINDER' as const,
+      roomId: 'story-hall',
+      api,
+      ...over,
     },
-  );
+  });
 }
 
 describe('useCastleDirector', () => {

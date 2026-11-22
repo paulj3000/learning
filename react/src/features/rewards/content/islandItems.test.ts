@@ -204,7 +204,9 @@ describe('ISLAND_REWARD_TABLE', () => {
     );
 
     // SC-R07-01: a story's completion records a world change too (the Secret Door's key).
-    const storyKeys = new Set(STORY_DEFINITIONS.map((story) => story.completionWorldChange.changeKey));
+    const storyKeys = new Set(
+      STORY_DEFINITIONS.map((story) => story.completionWorldChange.changeKey),
+    );
 
     for (const rule of ISLAND_REWARD_TABLE) {
       if (rule.trigger.type !== 'WORLD_CHANGE') continue;
@@ -305,13 +307,16 @@ describe('chamber mouse door keepsake (Final F)', () => {
     expect(item?.hidden).toBeUndefined();
     expect(CASTLE_KEEPSAKE_IDS as readonly string[]).not.toContain('tiny-brass-knob');
     expect(findCollectibleSet('castle-keepsakes')?.itemIds).not.toContain('tiny-brass-knob');
-    expect(`${item?.displayName} ${item?.description} ${rules[0]!.message}`).not.toMatch(/\u2014|\u2013/);
+    expect(`${item?.displayName} ${item?.description} ${rules[0]!.message}`).not.toMatch(
+      /\u2014|\u2013/,
+    );
   });
 
   it('leaves the star find granting nothing', () => {
     expect(
       ISLAND_REWARD_TABLE.some(
-        (rule) => rule.trigger.type === 'DISCOVERY' && rule.trigger.discoveryKey === 'castle-chamber-star',
+        (rule) =>
+          rule.trigger.type === 'DISCOVERY' && rule.trigger.discoveryKey === 'castle-chamber-star',
       ),
     ).toBe(false);
   });

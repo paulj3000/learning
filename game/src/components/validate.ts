@@ -87,7 +87,13 @@ export class Issues {
   }
 
   /** Reads a list of records, reporting duplicate ids. */
-  records<T>(value: unknown, path: string, read: (item: Json, itemPath: string) => T, idOf: (item: T) => string, max = 256): T[] {
+  records<T>(
+    value: unknown,
+    path: string,
+    read: (item: Json, itemPath: string) => T,
+    idOf: (item: T) => string,
+    max = 256,
+  ): T[] {
     if (value === undefined) {
       return [];
     }

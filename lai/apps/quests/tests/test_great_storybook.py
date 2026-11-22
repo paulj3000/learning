@@ -162,7 +162,12 @@ def test_a_pathfinder_needs_the_painted_words_page_as_well_as_the_first_story(tr
 
 def test_a_sprout_is_never_asked_for_the_painted_words_page(treasure):
     quest = Quest.objects.get(slug=SPROUTS)
-    keys = {o["changeKey"] for st in quest.source["stages"] for o in st["objectives"] if o["kind"] == "BUILD"}
+    keys = {
+        o["changeKey"]
+        for st in quest.source["stages"]
+        for o in st["objectives"]
+        if o["kind"] == "BUILD"
+    }
     assert "STUDIO_PAGE_MENDED" not in keys
 
 

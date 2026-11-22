@@ -17,14 +17,20 @@ describe('camera capabilities', () => {
     registerCameraCapabilities(registry);
     const resolution = registry.resolve(DEFAULT_CAMERA_CAPABILITIES.map((id) => ({ id })));
     expect(resolution.ok).toBe(true);
-    expect(resolution.order.map((r) => r.definition.id)).toEqual(['camera.thirdPerson', 'camera.collision']);
+    expect(resolution.order.map((r) => r.definition.id)).toEqual([
+      'camera.thirdPerson',
+      'camera.collision',
+    ]);
   });
 
   it('collision pulls in third-person automatically', () => {
     const registry = createCapabilityRegistry();
     registerCameraCapabilities(registry);
     const resolution = registry.resolve([{ id: 'camera.collision' }]);
-    expect(resolution.order.map((r) => r.definition.id)).toEqual(['camera.thirdPerson', 'camera.collision']);
+    expect(resolution.order.map((r) => r.definition.id)).toEqual([
+      'camera.thirdPerson',
+      'camera.collision',
+    ]);
   });
 
   it('accepts the defaults and a partial override', () => {
@@ -34,7 +40,10 @@ describe('camera capabilities', () => {
   });
 
   it('reports values outside the presentation limits instead of clamping', () => {
-    const result = cameraThirdPersonCapability.validate({ distance: CAMERA_LIMITS.distance.max + 1, followDamping: 0 });
+    const result = cameraThirdPersonCapability.validate({
+      distance: CAMERA_LIMITS.distance.max + 1,
+      followDamping: 0,
+    });
     expect(result.ok).toBe(false);
     expect(result.issues.map((i) => i.path).sort()).toEqual(['distance', 'followDamping']);
   });
@@ -49,7 +58,15 @@ describe('camera capabilities', () => {
   });
 
   it('never throws on hostile input', () => {
-    for (const input of [null, 7, 'x', [], { __proto__: 1 }, { distance: NaN }, Object.create(null)]) {
+    for (const input of [
+      null,
+      7,
+      'x',
+      [],
+      { __proto__: 1 },
+      { distance: NaN },
+      Object.create(null),
+    ]) {
       expect(() => cameraThirdPersonCapability.validate(input)).not.toThrow();
       expect(() => cameraFirstPersonCapability.validate(input)).not.toThrow();
       expect(() => cameraCollisionCapability.validate(input)).not.toThrow();
@@ -62,7 +79,10 @@ describe('camera capabilities', () => {
     const third = cameraThirdPersonCapability.validate({ distance: 5 });
     const collision = cameraCollisionCapability.validate({ enabled: false });
     if (!third.ok || !collision.ok) throw new Error('expected valid');
-    const options = cameraRigOptionsFromCapabilities({ thirdPerson: third.value, collision: collision.value });
+    const options = cameraRigOptionsFromCapabilities({
+      thirdPerson: third.value,
+      collision: collision.value,
+    });
     const rig = new CameraRig(options);
     expect(rig.configuration.distance).toBe(5);
     expect(rig.configuration.collisionEnabled).toBe(false);
@@ -70,7 +90,9 @@ describe('camera capabilities', () => {
   });
 
   it('first-person only means first-person with no switching', () => {
-    const rig = new CameraRig(cameraRigOptionsFromCapabilities({ firstPerson: { eyeHeight: 1.4, rotationSensitivity: 1 } }));
+    const rig = new CameraRig(
+      cameraRigOptionsFromCapabilities({ firstPerson: { eyeHeight: 1.4, rotationSensitivity: 1 } }),
+    );
     expect(rig.mode).toBe('first-person');
     expect(rig.setMode('third-person')).toBe(false);
   });
