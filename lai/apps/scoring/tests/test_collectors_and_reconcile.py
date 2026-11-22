@@ -24,7 +24,7 @@ from apps.regions.firepeak_seed import seed_firepeak
 from apps.regions.models import AreaPuzzle, PlacementKind, WorldObjectPlacement, WorldRegion
 from apps.regions.pips_treasure_seed import KEY_ENTITY_ID, KEY_FOUND_KEY
 from apps.regions.treasure_rush_seed import REGION_ID
-from apps.scoring import collectors, policies, reconcile, rules
+from apps.scoring import collectors, ledger, policies, reconcile, rules
 from apps.scoring.contracts import Currency, SourceKind, Trust
 from apps.scoring.models import AwardLedgerEntry, ProgressionProjection
 
@@ -704,22 +704,47 @@ def test_reconciling_one_child_never_touches_another_familys_child(treasure, dev
 
 
 def test_an_unknown_child_reconciles_nothing(treasure, scoring):
+    known = treasure.families.a1
+    complete_quest(known, treasure.quest)  # real, unreconciled records exist
     out = StringIO()
     call_command("scoring_reconcile", "--child", str(uuid.uuid4()), stdout=out)
     assert "0 children" in out.getvalue()
     reconcile._run(uuid.uuid4())  # the on-commit job: an unknown id is a quiet no-op
+    # Neither path reconciled anyone else: the known child's records are still unpaid.
     assert not AwardLedgerEntry.objects.exists()
+    assert not ProgressionProjection.objects.exists()
+
+
+def projection_state(child):
+    return ProgressionProjection.objects.filter(child=child).values(*PROJECTION_TOTALS).get()
+
+
+PROJECTION_TOTALS = ("xp", "learning_points", "coins", "stars", "entry_count", "last_entry_at")
 
 
 def test_verify_projections_reports_each_child_without_crossing_families(treasure, scoring):
+    """Both families have real ledgers and projections; only `mine` is wrong. The rebuild repairs
+    `mine` from its own ledger and leaves `theirs` exactly as it was."""
     mine, theirs = treasure.families.a1, treasure.families.b1
     complete_quest(mine, treasure.quest)
+    answer_chest(treasure, mine)  # `mine` earns more, so a rebuild from the wrong ledger shows
+    complete_quest(theirs, treasure.quest)
     sync(mine)
+    sync(theirs)
+    assert ledger.ledger_totals(mine)["xp"] != ledger.ledger_totals(theirs)["xp"]
+    theirs_ledger = list(AwardLedgerEntry.objects.filter(child=theirs).values_list("pk", flat=True))
+    assert theirs_ledger  # `theirs` really has scoring state to protect
+    theirs_before = projection_state(theirs)
     ProgressionProjection.objects.filter(child=mine).update(xp=987654)  # a deliberate mismatch
     out = StringIO()
     call_command("scoring_verify_projections", "--rebuild", stdout=out)
     assert "1 mismatched" in out.getvalue()
-    assert not AwardLedgerEntry.objects.filter(child=theirs).exists()
+    assert projection_state(theirs) == theirs_before
+    assert (
+        list(AwardLedgerEntry.objects.filter(child=theirs).values_list("pk", flat=True))
+        == theirs_ledger
+    )
+    assert projection_state(mine)["xp"] == ledger.ledger_totals(mine)["xp"] != 987654
     check = StringIO()
     call_command("scoring_verify_projections", stdout=check)
     assert "0 mismatched" in check.getvalue()
