@@ -1050,54 +1050,122 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking: design (Proposed, LAI-07 W2; not implemented)
+## 25. Dependency tracking: contract proposal (Proposed, LAI-07 W2; not implemented)
 
-Status: **Proposed**. A design for card #244, waiting for its owners to agree. Nothing below exists
-yet, and no shared contract (`services.py`, Django Admin, `apps/audio`) has changed.
+Status: **Proposed**. This is the W2 contract for its owners to agree. Nothing below exists yet.
+`apps/assets/services.py`, the Django Admin classes and `apps/audio` are unchanged. The card is
+listed in `docs/IMPLEMENTATION_STATUS.md`.
 
-**Problem (audit, 2026-11-22).**
-- Retiring an asset or version is refused only by the guards registered in
-  `services.RETIREMENT_GUARDS`. Today that is NPC releases (`apps/npcs/dependencies.py`) and
-  available player avatars (`apps/avatars/dependencies.py`).
-- The LIVE `SoundRelease` pins exact audio `versionId`s in its snapshot, but nothing protects
-  them. Retiring one silently drops that cue from the sound manifest
-  (`apps/audio/manifest.py`, `_available_versions`). `docs/adventures/asset-standard.md` section 2
-  already says sound releases are protected; the code does not do this yet.
-- Region placements (`regions.models`, `asset_id` CharField) and catalog `LocationAsset` rows
-  refer to assets by id with no guard and no report.
-- Staff cannot see "where is this used" on the asset or version admin pages.
+### 25.1 What protects an asset today (reviewed 2026-11-22 on `main` `aa8adb33`)
 
-**Design.**
-1. **A usage registry, alongside the guard API.** A new `apps/assets/dependencies.py` defines
-   `Usage(source, label, admin_url, blocks_retirement, code)` and
-   `register_usage_provider(provider)`, where a provider is `provider(asset, version) ->
-   list[Usage]`. Apps register providers from `AppConfig.ready()`, as they register guards today,
-   so `apps.assets` never imports them. `RETIREMENT_GUARDS` stays as it is. One built-in guard
-   refuses retirement when any registered usage has `blocks_retirement`, and names every blocker
-   in the message.
-2. **Providers, each owned by its app:**
+| Consumer | Reference | Retirement today | Gap |
+|---|---|---|---|
+| NPC releases (`apps/npcs/dependencies.py`) | `NpcReleaseAsset` FK to the asset and, when resolved, the version | Refused (`npc_release_dependency`) for ACTIVE and SUPERSEDED releases | None. Drafts are reported on the NPC dependency page only. |
+| Player avatars (`apps/avatars/dependencies.py`) | `model_asset`, `pinned_version` (or the default), `thumbnail_asset` | Refused (`player_avatar_in_use`) for AVAILABLE avatars' model | The thumbnail is unguarded. A retired thumbnail silently disappears (`avatars/services._thumbnail`). |
+| Sound releases (`apps/audio`) | The LIVE `SoundRelease.snapshot` pins each cue's exact `versionId` (JSON) | **Not guarded** | Retiring a pinned version or its asset silently drops the cue from the manifest (`audio/manifest._available_versions`). It also blocks rolling back to any release that pins it (`audio/services.release_problems`). `asset-standard.md` section 2 already claims sound releases are protected. |
+| Realm placements (`apps/regions`) | `WorldObjectPlacement.asset_id` and `TreasureChest.asset_id` (string asset ids, always the default version) | **Not guarded** | Retiring the asset makes a PUBLISHED 3D Area draw a placeholder. Retiring a *version* cannot break a placement: the default version can only be retired by moving the default first (`default_in_use`). |
+| Catalog (`catalog.LocationAsset`) | FK `PROTECT` (deletion only) | Not guarded | Listed nowhere. |
 
-   | App | Blocks retirement | Listed only |
-   |---|---|---|
-   | `audio` | LIVE release pinning the version (or any version of a retired asset) | SUPERSEDED releases, which affect rollback; cue working copies |
-   | `npcs` | ACTIVE and SUPERSEDED releases (unchanged) | Draft variants, extras and dialogue nodes |
-   | `avatars` | AVAILABLE avatars served the asset or version (unchanged) | Draft and disabled avatars |
-   | `regions`, `catalog` | None at first (string references draw a placeholder) | Placements and `LocationAsset` rows |
+There are two structural limits. First, guards run in registration order and the first refusal
+stops the run, so staff see one blocker at a time. Second, no page answers "where is this used"
+across apps; only the NPC page does, for NPC rows.
 
-   NPCs and avatars keep their guards until their owners move them to providers. Results must
-   match exactly before either guard is removed.
-3. **Django Admin.** A read-only "Used by" panel on the asset version page (`assets` admin) and,
-   with the catalog owner's agreement, on the content asset page. Each row links to the
-   referring object.
-4. **No migration.** Everything is a query over existing rows.
+Out of reach of any registry: assets named only in bundled TypeScript manifests or seed JSON that
+Django never stores. Shipped regions keep their TypeScript manifests (CLAUDE.md section 20).
 
-**Needs agreement before code:**
-- The Sound Manager owner on the audio provider and whether a LIVE release blocks retirement. The
-  asset standard says it does; that rule is the owner's to confirm.
-- Whoever owns `services.py` and the admin (the Lambda stack also changes both), on a
-  backward-compatible addition.
-- The regions and catalog owners on listing their references.
+### 25.2 The contract
 
-**Tests when built:** one test per provider for blocking and non-blocking usages, asserting the
-refusal code and message; a parity test proving the NPC and avatar providers match their existing
-guards; an admin test showing the panel only to users with view permission.
+A new module, `apps/assets/dependencies.py`, owned by `apps.assets`:
+
+```python
+@dataclass(frozen=True)
+class Usage:
+    source: str              # app label: "npcs", "avatars", "audio", "regions", "catalog"
+    code: str                # refusal code when blocking (e.g. "npc_release_dependency")
+    label: str               # staff-readable; content ids only, never child data (ADR-025)
+    blocks_retirement: bool
+    admin_url: str = ""      # link to the referring row, "" when none
+    details: Mapping = {}    # structured facts (release numbers, avatar keys, region slugs)
+
+UsageProvider = Callable[[ContentAsset, AssetVersion | None], Iterable[Usage]]
+
+def register_usage_provider(source: str, provider: UsageProvider) -> None: ...  # idempotent
+def usages_for(asset, version=None) -> list[Usage]: ...      # every provider, stable order
+def retirement_guard(asset, version=None) -> None: ...       # raises AssetActionRefused
+```
+
+Rules:
+
+1. **Registration.** Each app registers its provider from its own `AppConfig.ready()`, as guards
+   are registered today. `apps.assets` never imports a consumer. `AssetsConfig.ready()` registers
+   `dependencies.retirement_guard` through the existing `services.register_retirement_guard`, so
+   **`services.py` does not change**.
+2. **Semantics.** `version=None` asks about the whole asset. A version asks about that exact
+   version, plus any consumer that would lose it (for example an unpinned avatar served the
+   default). A provider is called inside the retirement transaction with the asset row locked.
+3. **One refusal lists every blocker.** If only one source blocks, the guard raises that source's
+   `code` with its existing message. The NPC and avatar refusal codes and texts are unchanged, and
+   their tests still pass. If several sources block, it raises `asset_in_use` with one line per
+   blocker and `details={"blockers": {source: details}}`.
+4. **Fail closed.** If a provider raises, retirement is refused (`dependency_check_failed`, naming
+   the source). The failure is logged with ids only. The guard never assumes "no usages".
+5. **Read-only.** Providers only query. No migration; everything is a query over existing rows.
+6. **Existing guards.** The NPC and avatar guards stay registered until their providers pass a
+   parity test (25.5). Then, with each owner's agreement, the provider replaces the guard. The
+   refusal is the same either way.
+
+### 25.3 Providers
+
+| Source (owner) | Blocks retirement | Listed only | Owner decision needed |
+|---|---|---|---|
+| `audio` (Sound Manager) | The LIVE release pins this version, or any version of this asset when retiring the asset. This applies even when a replacement default is named, because the release pins the exact version. New code `sound_release_dependency`; the message says "publish a sound release without it first". | SUPERSEDED releases that pin it (retiring makes that rollback impossible, as `release_problems` already reports). Enabled cues whose working copy uses it. | Do SUPERSEDED releases block? NPCs block on SUPERSEDED. **Recommendation: list only**, because every sound publish creates a SUPERSEDED release, and blocking would pin every old file forever. |
+| `npcs` (NPC Manager) | ACTIVE and SUPERSEDED releases (unchanged, from `release_dependents`) | Draft variants, extras and dialogue nodes (`draft_dependents`) | None. Parity only. |
+| `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
+| `regions` (realm owners; engine-facing, LAI 06) | Asset-level only: a placement or chest in a PUBLISHED `WorldRegion` | DRAFT and RETIRED regions' placements | Should a PUBLISHED placement block? **Recommendation: block**, because a published 3D Area must not lose its model to a placeholder. This is a behaviour change, so it needs the owner. |
+| `catalog` (catalog owner) | None | `LocationAsset` rows (first use per place) | None |
+
+Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
+`Sound release 12, cue sfx.chest.open`, `3D Area treasure-cove, placement palm-03`. Labels never
+contain child data.
+
+### 25.4 Staff surfaces
+
+- **Retire refusals** list every blocker (25.2, rule 3). This uses the existing admin message path
+  (`AssetVersionAdmin._run`, `catalog` `retire_assets`), so no admin code changes.
+- **`manage.py asset_usage <asset_id> [--version N] [--json]`**: a read-only report of
+  `usages_for`. It is new and lives only in `apps/assets`.
+- **"Used by" panel** on the asset version and content asset change pages. This is deferred to
+  after the Lambda stack is reconciled: those branches rewrite `assets/admin.py` (+560 lines), and
+  the catalog asset admin needs its owner's agreement. Only users with view permission on the
+  referring model see its rows.
+
+### 25.5 Tests (PostgreSQL 18, slot 9; unit only)
+
+- **Registry:** registration is idempotent; order is stable; a provider that raises fails closed;
+  `usages_for` merges every source; a single blocker keeps its source's code and message; several
+  blockers give `asset_in_use` with all lines and the structured details.
+- **Audio:**
+  - retiring the version pinned by the LIVE release is refused, even with a replacement;
+  - retiring the asset with a LIVE cue is refused;
+  - a SUPERSEDED-only pin is listed and does not block;
+  - after a new release without the cue, retirement succeeds;
+  - the manifest and rollback behaviour are unchanged.
+- **Regions:** a PUBLISHED placement and a chest each block asset retirement; version retirement is
+  unaffected; a DRAFT region is listed only; an empty `asset_id` is ignored.
+- **Parity:** for a fixture matrix (release status × pinned/unpinned × asset/version), the NPC and
+  avatar providers block exactly when today's guards refuse, with identical code and message.
+- **Regression:** the existing NPC, avatar, audio, regions and catalog suites pass unchanged;
+  labels contain no child-owned model data.
+- **Command:** text and JSON output; an unknown id exits non-zero.
+- **Admin panel** (when built): permission filtering and links.
+
+### 25.6 Sequence
+
+| Step | Scope | Files | Gate |
+|---|---|---|---|
+| W2-0 | This contract | `docs/ASSET_LIBRARY.md` | — |
+| W2-1 | Registry, aggregate guard, `asset_usage` | `apps/assets/dependencies.py`, `apps/assets/apps.py`, `apps/assets/management/commands/asset_usage.py`, tests | Contract agreed (LAI 05) |
+| W2-2 | Audio provider; correct `asset-standard.md` section 2 | `apps/audio/dependencies.py`, `apps/audio/apps.py`, tests | Sound Manager owner |
+| W2-3 | Regions and catalog providers | `apps/regions/dependencies.py`, `apps/catalog/dependencies.py`, their `apps.py`, tests | Realm and catalog owners; LAI 06 on placements |
+| W2-4 | NPC and avatar providers, parity, then guard replacement | `apps/npcs/dependencies.py`, `apps/avatars/dependencies.py`, their `apps.py`, tests | NPC Manager and avatars owners |
+| W2-5 | "Used by" admin panel | `apps/assets/admin.py`, `apps/catalog/admin.py` | Lambda stack reconciled; catalog owner |
