@@ -10,7 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EYE_HEIGHT } from '../sceneKit';
 import { AVATAR_ROOT_NAME, PLACEHOLDER_NAME } from '../playerAvatar';
-import { DEFAULT_PLAYER_CAMERA } from '../playerPresentation';
+import { DEFAULT_PLAYER_CAMERA } from '@lai/game-engine/camera';
 import type { LoadedModel } from './createLocationEngine';
 import type { ThreeLocationManifest } from './locationManifest';
 import { solidColliders } from './sceneLayout';

@@ -65,8 +65,8 @@ import {
   saveCameraPreference,
   saveSprintModePreference,
   type SprintModePreference,
-} from '../cameraPreference';
-import type { CameraMode } from '../playerPresentation';
+  type CameraMode,
+} from '@lai/game-engine/camera';
 import type { PlayerAvatarModel } from '../playerAvatarCatalog';
 import type { LoadedModel } from './extensionRegistry';
 

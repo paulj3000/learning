@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Box3 } from 'three';
-import { FirstPersonController, type MoveInput } from '../firstPersonController';
+import { FirstPersonController, type MoveInput } from '@lai/game-engine/movement';
 import { NO_WORLD_STATE } from '../runtime/sceneLayout';
 import { PlatformSystem } from './platformSystem';
 import {
