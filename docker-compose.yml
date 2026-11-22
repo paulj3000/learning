@@ -2,8 +2,11 @@
 # Nothing in the repository connects to this database yet (the Django project arrives in LAI-0204).
 services:
   db:
-    # Keep the major version aligned with the RDS engine version chosen in LAI-1002.
-    image: postgres:16-alpine
+    # PostgreSQL 18 is the required version for development and tests (owner decision 2026-11-21).
+    # The 18 image keeps its data under /var/lib/postgresql/18/docker, so the volume mounts at
+    # /var/lib/postgresql. The volume is new: PostgreSQL 18 cannot open the old 16 volume
+    # (`lai_pgdata`), which is left in place and never deleted by the project.
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-lai}
       POSTGRES_USER: ${POSTGRES_USER:-lai}
@@ -11,7 +14,7 @@ services:
     ports:
       - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
-      - lai_pgdata:/var/lib/postgresql/data
+      - lai_pg18data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 5s
@@ -19,4 +22,4 @@ services:
       retries: 10
 
 volumes:
-  lai_pgdata:
+  lai_pg18data:
