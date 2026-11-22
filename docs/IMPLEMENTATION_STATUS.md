@@ -37,7 +37,105 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
-## EC2 unit-test gate for integration branches (2026-11-20, `ci/aws-integration-tests`); merged to `main` (PR #45), first live run blocked on the PostgreSQL version, now accepted
+## GE-090: Game Engine 1.0 (Agent 5 integration lead): owner-accepted 2026-11-22 on candidate `60ab15a4`; merged to `main`
+
+**Final status (2026-11-22).** The owner accepted Game Engine 1.0 on candidate `60ab15a46f117cb88abecb08617d54c7c8b19918`:
+- EC2 full-unit run 45022991853 passed, and nothing failed:
+  - django 4445 passed, 1 skipped;
+  - python-repo 850 passed, 14 skipped (host tools, since installed by PR #58);
+  - engine 670 passed;
+  - react 6343 passed;
+  - PostgreSQL 18.6.
+- GitHub CI 45022996622 was green.
+- Component reviews: D1 by Agents 2 and 6, D2 by Agent 2, and D6 by Agents 2, 3 and 4 and the Treasure Cove owner.
+
+Merged to `main` with merge commits (none squashed), in this order:
+1. #53, #54 and #57 into the #50 branch;
+2. #50 as `daac25fc`;
+3. #49 as `ff64cf3e`;
+4. #46 as `7d0d5960`;
+5. #47 as `92e55903`;
+6. #52 as `556a4308`;
+7. then this PR (#48), #55 (the RDS PostgreSQL 18 plan, plan only) and #58 (host tools).
+
+Open items:
+- P1 GE-090-D7, desktop and tablet browser acceptance. 19 tests fail, and they also fail on the old `main` `678b77ce`. The owner is fixing it.
+- The deployed RDS stays on PostgreSQL 16 until the separate plan runs.
+
+No deployment was made. The 2026-11-21 retest record follows.
+
+### Retest on `main` (2026-11-21): integrated, not test-verified at that time
+
+Status by gate (definition-of-done): **Development Complete** for the six workstreams (GE-076
+items 2 to 9 open); **integrated into `main`**; **not test-verified** (failures below);
+**owner QA and acceptance not done**; no deployment. GE-090 stays open until every acceptance
+gate passes. Trello: [GE-090](https://trello.com/c/mEaWzcTo).
+
+- **Integration (verified by ancestry and tree content, not ahead/behind counts):** every agent
+  branch head is an ancestor of `main` `678b77ce`, through PR #44 (`09bf988e`, integration
+  head `30d2fcf1`, whose `game/`, `react/` and `lai/` trees equal `main`'s). Nothing needs
+  re-merging.
+
+  | Agent | Workstream | Branch head on `main` |
+  |---|---|---|
+  | 1 | Treasure Rush, Pirate's Leap (GE-070, GE-071) | `feature/GE-070-treasure-rush-engine-migration` `a22b2681` |
+  | 2 | Storykeeper Castle (GE-072) | `feature/storykeeper-castle-completion` `df376878` |
+  | 3 | Firepeak, North Pole (GE-073, GE-074) | `feature/firepeak-volcano-adventure` `928453c0`, `feature/north-pole-adventure` `2b05882f` |
+  | 4 | Engine (GE-001 to GE-076) | `core/gameengine` `ca6ada2c`, GE-065 `70cd5781` |
+  | 5 | Integration (GE-090) | PR #46, PR #47 (open) |
+  | 6 | Scoring (GE-100 to GE-110) | `core/ge-scoring` `5977bed2` |
+
+  Not on `main`: the 38 LAI-ENG-002 tooling commits on `integration/multi-agent-dev`
+  (`test_gate.py`, `agent_slot.py`, `merge_forecast.py`, `migration_audit.py`,
+  `check_workspace_packages.py`, the slot database, Vitest `maxWorkers`); curating them is an
+  owner decision. `docs/engineering/game-engine/engine-1.0-acceptance.md` names some of them as
+  gates.
+- **EC2 full-unit, run [44927511735](https://github.com/paulj3000/learning/actions/runs/44927511735)**
+  (tests on `main` `678b77ce`, tree `76cc2a4c`; harness `8d4d5680` from PR #46; Ubuntu 26.04.1,
+  PostgreSQL 18.6, Node 22.23.5, Python 3.14.4; remote 16:59:48Z to 18:35:38Z). The
+  infrastructure passed end to end: started by the job, lock acquired and released, credentials
+  re-minted for cleanup, checksum-verified collect, instance stopped. Verdict **fail**:
+
+  | Suite | Tests | Failed | Note |
+  |---|---|---|---|
+  | django-migrations | – | 0 | `makemigrations --check` clean |
+  | django (all of `lai/`) | 4434 | 2 | tenant-isolation guard (P0); PostgreSQL 16 pin on a PostgreSQL 18 instance |
+  | python-repo (`tests/`) | 821 | 1 | harness fixes `main` lacks; passes on PR #46 |
+  | engine (`game/`) | 670 | 0 | |
+  | react | 6343 | 1 | packs.test (Storykeeper content); plus 1 expected fail (GE-S1) |
+
+- **Local evidence (VirtualBox dev host, through `test_gate.py`):** engine 670/670 at `main`'s
+  tree; `npm run typecheck` clean; 16 Django apps on PostgreSQL 16.15: 3840 passed, 1 failed (the
+  speech SSO defect P1), 1 skipped. The PostgreSQL 16 pin passes there.
+- **PR #46** (`ci/ec2-credential-refresh`, head `766727c7`): OIDC credentials re-minted during
+  long polls, fail closed on persistent poll errors, fresh credentials for cleanup; carries the
+  PostgreSQL 18 preflight acceptance and the disk-check fake. Live-proven by the run above.
+  **PR #47** (`fix/test-aws-isolation`, `d0d468ea`): autouse fixture that hides the host's AWS
+  profiles, credentials and metadata service from every Django test; verified with
+  `AWS_PROFILE` unset and set (187 passed each). Both approved by the owner for merge after
+  successful required checks and review. GitHub `ci.yml` fails on `main` itself (formatting and
+  Ruff lint; measured locally under `lai/` on `main`: 1043 Ruff errors, 81 files that
+  `ruff format` would change; the React job fails at "Check formatting"), so neither PR can
+  show green checks yet; neither adds a violation.
+- **Acceptance blockers** (details in
+  [known-defects.md](engineering/game-engine/known-defects.md) section 1a):
+  1. P0 GE-090-D1 tenant-isolation guard: five modules query `ChildProfile.objects` outside
+     `users/services.py` (Agents 6 and 2).
+  2. P1 GE-090-D2 four Storykeeper content ids belong to no world pack (Agent 2).
+  3. P1 GE-S1 eight wildcard import shims (Agent 4, GE-076 item 2).
+  4. P1 GE-090-D4 PostgreSQL version. Superseded the same day: the owner made PostgreSQL 18 the
+     required version (2026-11-21, later decision). Nothing is downgraded. PR #49 moves the
+     compose file, the CI service containers, the version test and the current docs to 18; PR
+     #46 makes the EC2 preflight accept 18 only. The deployed RDS stays on 16 until an approved
+     upgrade.
+  5. P1 GE-090-D6, the CI lint and format baseline: PR #50 (Ruff, Ruff format and Prettier
+     pass; mechanical and hand-edited commits kept separate).
+  6. Merge PR #46 and PR #47.
+  7. After the P0 fixes are integrated and targeted tests pass: full release checks and
+     Playwright on the integration candidate (authorized 2026-11-21), with the exact SHA
+     recorded; then owner browser QA on desktop and touch and the entry-criteria decisions.
+
+## EC2 unit-test gate for integration branches (2026-11-20, `ci/aws-integration-tests`); merged to `main` in PR #45; live-run fixes in PR #46 (merged 2026-11-22)
 
 - `.github/workflows/aws-integration-tests.yml` (dispatch inputs `commit_sha`, `test_scope`
   `affected|full-unit`, `request_id`): validates the SHA is on the dispatched branch, OIDC, starts
@@ -56,10 +154,13 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   instance runs PostgreSQL 18.6 on Ubuntu 26.04.1. The owner accepted PostgreSQL 18 for this CI
   (2026-11-20); the check then passed 16 or 18. Superseded 2026-11-21: PostgreSQL 18 is the
   required version (owner decision), and the check passes 18 only.
-- Pending: a live run that executes suites; `ssm:CancelCommand` on the CI role. Runbook:
+- Pending: `ssm:CancelCommand` on the CI role.
+- Live runs (2026-11-20 and 21): the first full-unit run (44877024597) lost its 1-hour OIDC
+  session, polled blind and could not stop the instance (the 4-hour guard did); PR #46 fixes
+  that, proven by run 44927511735 (see GE-090 above). Runbook:
   [docs/infrastructure/aws-ec2-unit-tests.md](infrastructure/aws-ec2-unit-tests.md).
 
-## Game Engine Core (GE-001 to GE-090) — in development on `core/gameengine` (2026-11-18); NOT merged, NOT owner-accepted
+## Game Engine Core (GE-001 to GE-090) — developed on `core/gameengine` (2026-11-18); integrated into `main` in PR #44 (`09bf988e`), NOT test-verified, NOT owner-accepted (see GE-090 above)
 
 Package `game/` (`@lai/game-engine`, ADR-020 item 4), stacked on the movement baseline
 `feature/treasure-rush-palm-trees` @ `420f1afd` and merged with `main` (`5b300e30`). Docs:
