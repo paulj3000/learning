@@ -113,7 +113,7 @@ def test_tests_never_see_aws_configuration():
 def test_suites_find_the_pinned_host_tools_first():
     path = runner.base_env(None, None)["PATH"].split(":")
     assert path[0] == str(runner.TOOLS_BIN)
-    assert path[1:] == ["/usr/local/bin", "/usr/bin", "/bin"]
+    assert path[1:] == ["/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin"]
 
 
 @pytest.mark.parametrize("present", [True, False])

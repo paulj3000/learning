@@ -46,7 +46,8 @@ import plan_tests  # noqa: E402
 ROOT = Path(os.environ.get("LAI_CI_ROOT", "/var/lib/lai-ci"))
 # the pinned actionlint and shellcheck (scripts/ci/host_tools.py); on every suite's PATH
 TOOLS_BIN = ROOT / "tools" / "bin"
-SYSTEM_PATH = "/usr/local/bin:/usr/bin:/bin"
+# nginx installs to /usr/sbin on Ubuntu (EC2 run 45040973002 found it missing without it)
+SYSTEM_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin"
 LOCK_DIR = Path(os.environ.get("LAI_CI_LOCK_DIR", "/run/lai-ci/lock"))
 CI_USER = "lai-ci"
 DB_ROLE = "lai_ci"
