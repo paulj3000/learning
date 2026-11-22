@@ -16,9 +16,9 @@ import {
   type AdventureBindingIssueKind,
   type BindableStep,
 } from './adventureStepBindings';
-import { validateMovementSpec } from '../jumpConfiguration';
+import { validateMovementSpec } from '@lai/game-engine/movement';
 import { validatePlatforming } from '../platforms/platformSpec';
-import { validatePlayerPresentation } from '../playerPresentation';
+import { validatePlayerPresentation } from '@lai/game-engine/camera';
 
 /**
  * Pure validation for `ThreeLocationManifest`

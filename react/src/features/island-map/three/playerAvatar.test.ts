@@ -18,7 +18,7 @@ import {
   PLACEHOLDER_NAME,
   PLAYER_AVATAR_ASSET_IDS,
 } from './playerAvatar';
-import { DEFAULT_PLAYER_AVATAR, resolvePlayerAvatar } from './playerPresentation';
+import { DEFAULT_PLAYER_AVATAR, resolvePlayerAvatar } from '@lai/game-engine/camera';
 import type { LoadedModel } from './runtime/extensionRegistry';
 
 const FRAME = 1 / 60;

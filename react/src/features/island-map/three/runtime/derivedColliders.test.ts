@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FirstPersonController } from '../firstPersonController';
+import { FirstPersonController } from '@lai/game-engine/movement';
 import { Box3, Vector3 } from 'three';
 import type { ThreeLocationManifest } from './locationManifest';
 import { WELCOME_HARBOR_MANIFEST } from './manifests/welcomeHarbor';

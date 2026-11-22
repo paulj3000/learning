@@ -110,9 +110,12 @@ Remaining-work checklist, in order (each item: one commit, regression evidence f
    The parked branch also holds untested live reduced-motion edits to `createLocationEngine.ts`,
    `playerCamera.ts`, `platformSystem.ts` and `platformPresentation.ts`. They were not adopted (out of
    stabilization scope); adopting them needs its own ticket, ported to the engine modules.
-2. [ ] GE-S1: point the remaining shims at the listed subpaths (`@lai/game-engine/movement`,
-   `/camera`, `/input`) or repoint their importers to the package. Check that each listed entry
-   exports every name the importers use, then remove the `it.fails` pin.
+2. [x] Done 2026-11-22 (GE-S1, branch `fix/GE-S1-import-shims`). The 8 remaining shims
+   (`cameraPreference`, `firstPersonController`, `jumpConfiguration`, `locomotionConfiguration`,
+   `playerCamera`, `playerCollision`, `playerPresentation`, `pointerControls`) are removed; their
+   20 importing files use `@lai/game-engine/camera`, `/movement` and `/input`, which re-export
+   every name used (root `npm run typecheck` clean). The `it.fails` pin is a normal test, and
+   `LEGACY_WILDCARD_SHIMS` became `RETIRED_SHIMS` (all 10 paths must stay deleted).
 3. [ ] Migrate the remaining live courses to `gameplay.platforms` with per-course parity tests:
    North Pole platforms, the Heart's live platforms, and the castle rooms. Owners: the realm leads;
    the engine lead provides capabilities on request.
@@ -122,7 +125,7 @@ Remaining-work checklist, in order (each item: one commit, regression evidence f
    `createLocationEngine` wiring.
 6. [ ] Retire `runtime/visual/atmosphere.ts` when no Area uses `scene.atmosphere`.
 7. [ ] Runtime swap per location (section 4, step 3). Then retire `playerAvatar.ts` and
-   `playerAnimation.ts` (child-profile and NPC Manager importers first), the remaining shims and
+   `playerAnimation.ts` (child-profile and NPC Manager importers first) and
    `createLocationEngine.ts`.
 8. [ ] GE-D8: move the leaked content ids (section 3).
 9. [ ] Live host `groundHeightAt` for terrain Areas (GE-L14 remainder; not a retirement step,
