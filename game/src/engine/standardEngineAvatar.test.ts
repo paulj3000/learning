@@ -1,6 +1,20 @@
-import { AnimationClip, Bone, Group, Mesh, Object3D, Scene, VectorKeyframeTrack, type Camera } from 'three';
+import {
+  AnimationClip,
+  Bone,
+  Group,
+  Mesh,
+  Object3D,
+  Scene,
+  VectorKeyframeTrack,
+  type Camera,
+} from 'three';
 import { describe, expect, it } from 'vitest';
-import { interpolatePlayerPosition, PLAYER_ENTITY_ID, PlayerTransformComponent, type PlayerTransform } from '../contracts/player';
+import {
+  interpolatePlayerPosition,
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  type PlayerTransform,
+} from '../contracts/player';
 import type { CapabilityRequest } from '../core/capabilities';
 import { PLACEHOLDER_NAME, type AvatarLoaderPort } from '../character/avatar';
 import type { MovementInputFrame } from '../movement/movementSystem';
@@ -30,14 +44,20 @@ function rigAsset() {
   hips.add(spine);
   armature.add(hips);
   scene.add(armature, new Mesh());
-  const walk = new AnimationClip('Walk', 1, [new VectorKeyframeTrack('Hips.position', [0, 1], [0, 1, 0, 0, 1, 5])]);
-  const idle = new AnimationClip('Idle', 1, [new VectorKeyframeTrack('Spine.position', [0, 1], [0, 0, 0, 0, 0.1, 0])]);
+  const walk = new AnimationClip('Walk', 1, [
+    new VectorKeyframeTrack('Hips.position', [0, 1], [0, 1, 0, 0, 1, 5]),
+  ]);
+  const idle = new AnimationClip('Idle', 1, [
+    new VectorKeyframeTrack('Spine.position', [0, 1], [0, 0, 0, 0, 0.1, 0]),
+  ]);
   return { scene, animations: [walk, idle], hips };
 }
 
 function fakeView(): HostView {
   return {
-    renderer: { info: { render: { calls: 0, triangles: 0 }, memory: { geometries: 0, textures: 0 } } } as unknown as HostView['renderer'],
+    renderer: {
+      info: { render: { calls: 0, triangles: 0 }, memory: { geometries: 0, textures: 0 } },
+    } as unknown as HostView['renderer'],
     scene: new Scene(),
     camera: new Object3D() as unknown as Camera,
     canvas: {} as HTMLCanvasElement,
@@ -45,11 +65,19 @@ function fakeView(): HostView {
   };
 }
 
-async function engine(requests: CapabilityRequest[], options: { loader?: AvatarLoaderPort; wall?: boolean } = {}) {
+async function engine(
+  requests: CapabilityRequest[],
+  options: { loader?: AvatarLoaderPort; wall?: boolean } = {},
+) {
   let frame: MovementInputFrame = { move: { forward: 0, strafe: 0 } };
   const physics = createAabbPhysicsProvider();
   if (options.wall) {
-    physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 2, y: 0, z: -3 }, max: { x: 3, y: 3, z: 3 } });
+    physics.addCollider({
+      id: 'wall',
+      kind: 'SOLID',
+      min: { x: 2, y: 0, z: -3 },
+      max: { x: 3, y: 3, z: 3 },
+    });
   }
   const view = fakeView();
   const handle: StandardEngineHandle = await createStandardEngine({
@@ -144,7 +172,9 @@ describe('standard engine avatar wiring', () => {
   });
 
   it('shows the model without animating when character.animation is not requested', async () => {
-    const e = await engine([...MOVE, { id: 'character.avatar' }], { loader: { load: async () => rigAsset() } });
+    const e = await engine([...MOVE, { id: 'character.avatar' }], {
+      loader: { load: async () => rigAsset() },
+    });
     await e.handle.avatar!.ready;
     e.walk();
     e.tick(0.5);

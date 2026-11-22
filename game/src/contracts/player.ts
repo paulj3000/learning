@@ -81,7 +81,10 @@ export const PlayerTransformComponent = defineComponent<PlayerTransform>('player
 /** The player entity's semantic id. There is one player per runtime. */
 export const PLAYER_ENTITY_ID = 'player';
 
-export function createPlayerTransform(position: Vec3Like = { x: 0, y: 0, z: 0 }, yaw = 0): PlayerTransform {
+export function createPlayerTransform(
+  position: Vec3Like = { x: 0, y: 0, z: 0 },
+  yaw = 0,
+): PlayerTransform {
   return Object.freeze({
     position: Object.freeze({ ...position }),
     previousPosition: Object.freeze({ ...position }),

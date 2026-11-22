@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createStandardCapabilityRegistry } from '@lai/game-engine/engine';
-import { checkContentCompatibility, profileFor, validateAdventure, AGE_BANDS } from '@lai/game-engine/sdk';
+import {
+  checkContentCompatibility,
+  profileFor,
+  validateAdventure,
+  AGE_BANDS,
+} from '@lai/game-engine/sdk';
 import definition from './treasureCoveAdventure.json';
 import { TREASURE_COVE_ADVENTURE, TREASURE_COVE_COMPONENT_TYPES } from './treasureCoveAdventure';
 
@@ -35,21 +40,33 @@ describe('Treasure Cove adventure definition (GE-070)', () => {
 
   it('serves every age band, with the engine’s band profiles (no cove overrides)', () => {
     expect([...TREASURE_COVE_ADVENTURE.ageBands].sort()).toEqual([...AGE_BANDS].sort());
-    for (const band of AGE_BANDS) expect(() => profileFor(TREASURE_COVE_ADVENTURE, band)).not.toThrow();
+    for (const band of AGE_BANDS)
+      expect(() => profileFor(TREASURE_COVE_ADVENTURE, band)).not.toThrow();
   });
 
   it('declares Pirate’s Leap’s jump challenges exactly as the seeded engine bridge runs them (GE-071)', () => {
     const bridge = JSON.parse(
       readFileSync(resolve(process.cwd(), '../lai/apps/regions/pirates_leap_bridge.json'), 'utf8'),
     ) as {
-      capabilities: { id: string; config: { challenges?: { challengeId: string; optional: boolean; routes: { routeId: string; kind: string }[] }[] } }[];
+      capabilities: {
+        id: string;
+        config: {
+          challenges?: {
+            challengeId: string;
+            optional: boolean;
+            routes: { routeId: string; kind: string }[];
+          }[];
+        };
+      }[];
     };
-    const seeded = bridge.capabilities.find((c) => c.id === 'gameplay.jumpChallenges')!.config.challenges!;
+    const seeded = bridge.capabilities.find((c) => c.id === 'gameplay.jumpChallenges')!.config
+      .challenges!;
     const declared = TREASURE_COVE_ADVENTURE.jumpChallenges;
     expect(declared.map((c) => c.id)).toEqual(seeded.map((c) => c.challengeId));
     for (const challenge of seeded) {
       const mine = declared.find((c) => c.id === challenge.challengeId)!;
-      const route = (kind: string) => challenge.routes.find((r) => r.kind === kind)?.routeId ?? null;
+      const route = (kind: string) =>
+        challenge.routes.find((r) => r.kind === kind)?.routeId ?? null;
       expect(mine.jumpRouteId).toBe(route('JUMP'));
       expect(mine.accessibleRouteId).toBe(route('ACCESSIBLE'));
       // One meaning in both layers (decision E16): optional = nothing required depends on it.
@@ -68,9 +85,13 @@ describe('Treasure Cove adventure definition (GE-070)', () => {
       kind: 'AREA_SCENE',
     });
     expect(layout.issues).toEqual([]);
-    const course = checkContentCompatibility({ platforming: seed('pirates_leap_course.json') }, registry, {
-      kind: 'AREA_SCENE',
-    });
+    const course = checkContentCompatibility(
+      { platforming: seed('pirates_leap_course.json') },
+      registry,
+      {
+        kind: 'AREA_SCENE',
+      },
+    );
     expect(course.issues).toEqual([]);
   });
 
@@ -78,12 +99,20 @@ describe('Treasure Cove adventure definition (GE-070)', () => {
     const requiredJump = {
       ...definition,
       jumpChallenges: [
-        { id: 'leap-gap', areaId: 'treasure-rush-cove', jumpRouteId: 'jump', accessibleRouteId: null, optional: false },
+        {
+          id: 'leap-gap',
+          areaId: 'treasure-rush-cove',
+          jumpRouteId: 'jump',
+          accessibleRouteId: null,
+          optional: false,
+        },
       ],
     };
     expect(validateAdventure(requiredJump, registry).ok).toBe(false);
     const noConsequence = { ...definition, worldConsequenceId: '' };
-    expect(checkContentCompatibility(noConsequence, registry, { kind: 'ADVENTURE' }).ok).toBe(false);
+    expect(checkContentCompatibility(noConsequence, registry, { kind: 'ADVENTURE' }).ok).toBe(
+      false,
+    );
   });
 
   it('is frozen, so nothing at runtime can change what was validated', () => {

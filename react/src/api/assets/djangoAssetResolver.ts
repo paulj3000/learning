@@ -107,7 +107,9 @@ export interface DjangoAssetResolver extends AssetResolver {
   collisionProfiles(ids: readonly string[]): Promise<CollisionProfiles>;
 }
 
-export function createDjangoAssetResolver(options: DjangoAssetResolverOptions): DjangoAssetResolver {
+export function createDjangoAssetResolver(
+  options: DjangoAssetResolverOptions,
+): DjangoAssetResolver {
   const fallback = options.fallback ?? BUNDLED_ASSET_RESOLVER;
   const now = options.now ?? Date.now;
   const onIssue = options.onIssue ?? reportAssetResolutionIssue;

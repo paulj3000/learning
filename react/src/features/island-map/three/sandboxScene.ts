@@ -22,8 +22,8 @@ import {
 import { loadAsset } from './assets/assetLoader';
 import { cloneAssetScene } from './assets/cloneAsset';
 import type { ThreeEngineHandle } from './engineHandle';
-import { FirstPersonController } from './firstPersonController';
-import { attachPointerControls } from './pointerControls';
+import { FirstPersonController } from '@lai/game-engine/movement';
+import { attachPointerControls } from '@lai/game-engine/input';
 import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
 import { SANDBOX_NPC_ID, type WorldEngineEventBus } from './worldEngineEvents';
 

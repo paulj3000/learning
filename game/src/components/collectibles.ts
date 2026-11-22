@@ -11,7 +11,13 @@ import { defineComponent } from '../core/entities';
 import { defineService } from '../core/services';
 import type { CapabilityDefinition } from '../core/capabilities';
 import type { Vec3Like } from '../contracts/player';
-import { emitClaim, emitPresentation, entityKey, playerPosition, type GameplayRuntime } from './common';
+import {
+  emitClaim,
+  emitPresentation,
+  entityKey,
+  playerPosition,
+  type GameplayRuntime,
+} from './common';
 import { configRoot, Issues } from './validate';
 
 export interface CollectibleSpec {
@@ -56,14 +62,22 @@ export function validateCollectiblesConfig(input: unknown) {
     (item, path): CollectibleSpec => ({
       id: issues.id(item.id, `${path}.id`),
       position: issues.vec3(item.position, `${path}.position`),
-      pickupRadius: issues.num(item.pickupRadius, `${path}.pickupRadius`, COLLECTIBLE_LIMITS.minRadius, COLLECTIBLE_LIMITS.maxRadius, 1),
+      pickupRadius: issues.num(
+        item.pickupRadius,
+        `${path}.pickupRadius`,
+        COLLECTIBLE_LIMITS.minRadius,
+        COLLECTIBLE_LIMITS.maxRadius,
+        1,
+      ),
       setId: issues.optionalId(item.setId, `${path}.setId`) ?? null,
       verticalReach: issues.num(item.verticalReach, `${path}.verticalReach`, 0.5, 6, 2),
     }),
     (c) => c.id,
     COLLECTIBLE_LIMITS.maxCount,
   );
-  const alreadyCollected = Array.isArray(root.alreadyCollected) ? root.alreadyCollected.map((v, i) => issues.id(v, `alreadyCollected[${i}]`)) : [];
+  const alreadyCollected = Array.isArray(root.alreadyCollected)
+    ? root.alreadyCollected.map((v, i) => issues.id(v, `alreadyCollected[${i}]`))
+    : [];
   return issues.result<CollectiblesConfig>({ collectibles, alreadyCollected });
 }
 
@@ -79,12 +93,19 @@ export const collectiblesCapability: CapabilityDefinition<CollectiblesConfig, Ga
     const { world } = runtime;
     const initial = new Set(config.alreadyCollected);
     for (const spec of config.collectibles) {
-      world.add(world.create(entityKey('collectible', spec.id)), CollectibleComponent, { spec, collected: initial.has(spec.id) });
+      world.add(world.create(entityKey('collectible', spec.id)), CollectibleComponent, {
+        spec,
+        collected: initial.has(spec.id),
+      });
     }
-    const all = () => world.query(CollectibleComponent).map((e) => world.get(e, CollectibleComponent)!);
+    const all = () =>
+      world.query(CollectibleComponent).map((e) => world.get(e, CollectibleComponent)!);
     const api: CollectiblesApi = {
       isCollected: (id) => all().find((s) => s.spec.id === id)?.collected ?? false,
-      collectedIds: () => all().filter((s) => s.collected).map((s) => s.spec.id),
+      collectedIds: () =>
+        all()
+          .filter((s) => s.collected)
+          .map((s) => s.spec.id),
       remaining: () => all().filter((s) => !s.collected).length,
       resetVisit() {
         for (const state of all()) {
@@ -106,10 +127,17 @@ export const collectiblesCapability: CapabilityDefinition<CollectiblesConfig, Ga
             continue;
           }
           const { spec } = state;
-          if (Math.hypot(player.x - spec.position.x, player.z - spec.position.z) <= spec.pickupRadius && Math.abs(player.y - spec.position.y) <= spec.verticalReach) {
+          if (
+            Math.hypot(player.x - spec.position.x, player.z - spec.position.z) <=
+              spec.pickupRadius &&
+            Math.abs(player.y - spec.position.y) <= spec.verticalReach
+          ) {
             state.collected = true;
             emitPresentation(runtime, 'CollectiblePickedUp', { collectibleId: spec.id });
-            emitClaim(runtime, 'collectible.collected', { collectibleId: spec.id, setId: spec.setId });
+            emitClaim(runtime, 'collectible.collected', {
+              collectibleId: spec.id,
+              setId: spec.setId,
+            });
           }
         }
       },

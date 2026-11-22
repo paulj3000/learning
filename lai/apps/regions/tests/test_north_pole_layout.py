@@ -61,10 +61,12 @@ CONTRACT_CHECKPOINTS = {
 }
 PUZZLES = (
     "np-welcome-look np-workshop-count np-workshop-sort np-workshop-pattern np-workshop-assemble "
-    "np-forest-sequence np-forest-signs np-forest-stripes np-lake-sums np-lake-order np-lake-shapes "
+    "np-forest-sequence np-forest-signs np-forest-stripes np-lake-sums np-lake-order "
+    "np-lake-shapes "
     "np-stables-facts np-stables-tracks np-stables-supplies np-stables-return np-ginger-shapes "
     "np-ginger-symmetry np-ginger-recipe np-ginger-measure np-ginger-build np-mountain-weather "
-    "np-obs-stars np-obs-constellation np-obs-sequence np-obs-fragments np-obs-final np-eve-sleigh-bell"
+    "np-obs-stars np-obs-constellation np-obs-sequence np-obs-fragments np-obs-final "
+    "np-eve-sleigh-bell"
 ).split()
 NPC_ENTITIES = {
     "np-santa": "santa-claus",
@@ -80,10 +82,35 @@ NPC_ENTITIES = {
     "np-snowball": "snowball",
 }
 STAND_IN_SHAPES = {
-    "BOX", "TENT", "TELESCOPE", "PIPE", "PEDESTAL", "CRYSTAL", "PORTAL", "STONE", "VALVE", "MARKER",
-    "FIGURE", "TREE", "LOG", "GEAR", "SWITCH", "ROCK", "ARCH",
-    "PINE", "STAR", "GIFT", "SNOWMAN", "CANE", "LANTERN", "HOUSE", "DOME", "SLEIGH", "ANIMAL", "SIGN",
-}  # fmt: skip
+    "BOX",
+    "TENT",
+    "TELESCOPE",
+    "PIPE",
+    "PEDESTAL",
+    "CRYSTAL",
+    "PORTAL",
+    "STONE",
+    "VALVE",
+    "MARKER",
+    "FIGURE",
+    "TREE",
+    "LOG",
+    "GEAR",
+    "SWITCH",
+    "ROCK",
+    "ARCH",
+    "PINE",
+    "STAR",
+    "GIFT",
+    "SNOWMAN",
+    "CANE",
+    "LANTERN",
+    "HOUSE",
+    "DOME",
+    "SLEIGH",
+    "ANIMAL",
+    "SIGN",
+}
 BY_ID = {p["entity_id"]: p for p in L.PLACEMENTS}
 
 
@@ -102,7 +129,12 @@ def inside(rect, x, z, margin=0.0) -> bool:
 
 def platform_rect(p: dict):
     s, q = p["size"], p["position"]
-    return q["x"] - s["width"] / 2, q["x"] + s["width"] / 2, q["z"] - s["depth"] / 2, q["z"] + s["depth"] / 2
+    return (
+        q["x"] - s["width"] / 2,
+        q["x"] + s["width"] / 2,
+        q["z"] - s["depth"] / 2,
+        q["z"] + s["depth"] / 2,
+    )
 
 
 def rect_gap(a, b) -> float:
@@ -115,9 +147,11 @@ SOLID = [c for c in LAYOUT["colliders"] if not c.get("jumpable")]
 LEDGES = [c for c in LAYOUT["colliders"] if c.get("jumpable")]
 GATE_RECTS = {c["id"]: rect_of(c) for c in SCENE["colliders"]}
 BRIDGES = [
-    p for p in PLATFORMING["platforms"]
-    if (p.get("activation") or {}).get("hiddenUntilActive") and (p.get("activation") or {}).get("trigger") == "SIGNAL"
-]  # fmt: skip
+    p
+    for p in PLATFORMING["platforms"]
+    if (p.get("activation") or {}).get("hiddenUntilActive")
+    and (p.get("activation") or {}).get("trigger") == "SIGNAL"
+]
 OTHER_PLATFORMS = [p for p in PLATFORMING["platforms"] if p not in BRIDGES]
 # GE-074: the one checkpoint list and the water hazard live in the engine bridge. Normalised views
 # keep the zone checkpoints and the lake banks apart, with x/z and the gating change key.
@@ -127,7 +161,11 @@ CHECKPOINT_LIST = [
         **c,
         "x": c["position"]["x"],
         "z": c["position"]["z"],
-        **({"whenChangeKey": c["requiresSignalId"].removeprefix("world:")} if "requiresSignalId" in c else {}),
+        **(
+            {"whenChangeKey": c["requiresSignalId"].removeprefix("world:")}
+            if "requiresSignalId" in c
+            else {}
+        ),
     }
     for c in BRIDGE_CONFIG["gameplay.checkpoints"]["checkpoints"]
 ]
@@ -151,8 +189,13 @@ def centre(i: int, j: int) -> tuple[float, float]:
 
 def cells_in(rect, margin=0.0):
     x0, x1, z0, z1 = rect
-    i0, j0 = cell(max(x0 - margin, -BOUNDS["halfExtentX"]), max(z0 - margin, -BOUNDS["halfExtentZ"]))
-    i1, j1 = cell(min(x1 + margin, BOUNDS["halfExtentX"] - 1e-6), min(z1 + margin, BOUNDS["halfExtentZ"] - 1e-6))
+    i0, j0 = cell(
+        max(x0 - margin, -BOUNDS["halfExtentX"]), max(z0 - margin, -BOUNDS["halfExtentZ"])
+    )
+    i1, j1 = cell(
+        min(x1 + margin, BOUNDS["halfExtentX"] - 1e-6),
+        min(z1 + margin, BOUNDS["halfExtentZ"] - 1e-6),
+    )
     for i in range(i0, i1 + 1):
         for j in range(j0, j1 + 1):
             cx, cz = centre(i, j)
@@ -204,12 +247,18 @@ class Grid:
                 queue.append((ni, nj))
         return seen
 
-    def reaches(self, reachable, x: float, z: float, elevation: float = 0.0, half: float = 0.0) -> bool:
+    def reaches(
+        self, reachable, x: float, z: float, elevation: float = 0.0, half: float = 0.0
+    ) -> bool:
         """A reachable spot within `REACH` of the entity's edge (`half` is half its footprint)."""
         reach = REACH + half
         for i, j in cells_in((x - reach, x + reach, z - reach, z + reach)):
             cx, cz = centre(i, j)
-            if (i, j) in reachable and math.hypot(cx - x, cz - z) <= reach and abs(self.height[i][j] - elevation) <= 0.61:
+            if (
+                (i, j) in reachable
+                and math.hypot(cx - x, cz - z) <= reach
+                and abs(self.height[i][j] - elevation) <= 0.61
+            ):
                 return True
         return False
 
@@ -243,16 +292,35 @@ def test_the_scene_has_the_contract_shell():
     assert SCENE["northPoleVersion"] == L.LAYOUT_VERSION == 5  # 5: snow on engine weather (GE-074)
     assert SCENE["environment"] == {
         "backgroundColor": 1979224,
-        "lighting": {"ambientColor": 13623551, "ambientIntensity": 0.9, "sunColor": 16773856, "sunIntensity": 0.9},
+        "lighting": {
+            "ambientColor": 13623551,
+            "ambientIntensity": 0.9,
+            "sunColor": 16773856,
+            "sunIntensity": 0.9,
+        },
     }
     assert SCENE["atmosphere"] == {
         "fog": {"color": 0x2A4470, "near": 50, "far": 190},
         "skyRibbons": [
-            {"id": "np-aurora-1", "colors": [6222512, 9075954], "x": 0, "y": 60, "z": -140, "width": 220, "height": 30}
+            {
+                "id": "np-aurora-1",
+                "colors": [6222512, 9075954],
+                "x": 0,
+                "y": 60,
+                "z": -140,
+                "width": 220,
+                "height": 30,
+            }
         ],
     }
     assert set(SCENE["copy"]) == {"loading", "instructions", "calmStop", "altNavLabel"}
-    assert L.SPAWN == {"checkpoint_id": "np-cp-landing", "x": 0, "z": 92, "yaw": math.pi, "label": "Santa's Landing"}
+    assert L.SPAWN == {
+        "checkpoint_id": "np-cp-landing",
+        "x": 0,
+        "z": 92,
+        "yaw": math.pi,
+        "label": "Santa's Landing",
+    }
 
 
 def test_no_em_dashes_in_child_facing_copy():
@@ -276,7 +344,9 @@ def test_every_gate_is_a_collider_with_its_opening():
     openings = {o["colliderId"]: o["whenChangeKey"] for o in EFFECTS["openings"]}
     assert openings == CONTRACT_GATES
     for gate_id, rect in GATE_RECTS.items():
-        assert inside((-66, 66, -100, 100), rect[0], rect[2]) and inside((-66, 66, -100, 100), rect[1], rect[3]), gate_id
+        assert inside((-66, 66, -100, 100), rect[0], rect[2]) and inside(
+            (-66, 66, -100, 100), rect[1], rect[3]
+        ), gate_id
 
 
 def test_effects_checkpoints_match_the_contract():
@@ -312,10 +382,16 @@ def test_spawn_and_every_checkpoint_stand_on_free_ground():
 
 def test_every_checkpoint_sits_in_the_zone_of_its_gate():
     zone_of = {
-        "np-cp-landing": "santas-landing", "np-cp-workshop": "santas-workshop", "np-cp-forest": "candy-cane-forest",
-        "np-cp-lake": "frozen-lake", "np-cp-stables": "reindeer-stables", "np-cp-gingerbread": "gingerbread-village",
-        "np-cp-mountain": "snowflake-mountain", "np-cp-observatory": "north-pole-observatory", "np-cp-finale": "santas-landing",
-    }  # fmt: skip
+        "np-cp-landing": "santas-landing",
+        "np-cp-workshop": "santas-workshop",
+        "np-cp-forest": "candy-cane-forest",
+        "np-cp-lake": "frozen-lake",
+        "np-cp-stables": "reindeer-stables",
+        "np-cp-gingerbread": "gingerbread-village",
+        "np-cp-mountain": "snowflake-mountain",
+        "np-cp-observatory": "north-pole-observatory",
+        "np-cp-finale": "santas-landing",
+    }
     for c in ZONE_CHECKPOINTS:
         assert inside(CONTRACT_ZONES[zone_of[c["id"]]], c["x"], c["z"]), c["id"]
 
@@ -337,7 +413,9 @@ def test_placements_are_unique_inside_bounds_and_clear_of_solids():
     assert len(ids) == len(set(ids))
     for p in L.PLACEMENTS:
         assert p["kind"] in {"NPC", "PROP", "SCENERY", "COLLECTIBLE"}
-        assert abs(p["x"]) < BOUNDS["halfExtentX"] and abs(p["z"]) < BOUNDS["halfExtentZ"], p["entity_id"]
+        assert abs(p["x"]) < BOUNDS["halfExtentX"] and abs(p["z"]) < BOUNDS["halfExtentZ"], p[
+            "entity_id"
+        ]
         own = f"np-col-{p['entity_id']}"
         for c in SOLID:
             if c["rect"]["id"] == own or p["entity_id"].startswith("np-drift-"):
@@ -353,7 +431,9 @@ def test_placements_are_unique_inside_bounds_and_clear_of_solids():
 def test_every_npc_pickup_and_chest_of_the_contract_exists():
     for entity_id, npc in NPC_ENTITIES.items():
         assert BY_ID[entity_id]["kind"] == "NPC" and BY_ID[entity_id]["npc_id"] == npc
-    pickups = {p["entity_id"]: p["pickup_change_key"] for p in L.PLACEMENTS if p["kind"] == "COLLECTIBLE"}
+    pickups = {
+        p["entity_id"]: p["pickup_change_key"] for p in L.PLACEMENTS if p["kind"] == "COLLECTIBLE"
+    }
     expected = {f"np-fragment-{z}": f"NORTH_POLE_FRAGMENT_{z.upper()}" for z in L.FRAGMENT_ZONES}
     expected |= {f"np-snowflake-{i:02d}": f"NORTH_POLE_SNOWFLAKE_{i:02d}" for i in range(1, 11)}
     expected |= {f"np-candy-cane-{i}": f"NORTH_POLE_CANDY_CANE_{i}" for i in range(1, 6)}
@@ -417,7 +497,11 @@ def test_the_course_has_every_platform_type_and_the_contract_signals():
         ("np-mt-bridge-1", "NORTH_POLE_MOUNTAIN_BRIDGE_ONE"),
         ("np-mt-bridge-2", "NORTH_POLE_MOUNTAIN_BRIDGE_TWO"),
     ):
-        assert by_id[pid]["activation"] == {"trigger": "SIGNAL", "source": f"world:{key}", "hiddenUntilActive": True}
+        assert by_id[pid]["activation"] == {
+            "trigger": "SIGNAL",
+            "source": f"world:{key}",
+            "hiddenUntilActive": True,
+        }
     sleigh = by_id["np-sleigh"]
     assert sleigh["assetId"] == "north-pole-sleigh"
     assert sleigh["motion"]["mode"] == "ONCE"
@@ -428,7 +512,9 @@ def test_the_course_has_every_platform_type_and_the_contract_signals():
 def test_every_hazard_has_a_course_checkpoint_close_by():
     assert HAZARDS
     for hazard in HAZARDS:
-        near = [c for c in BANK_CHECKPOINTS if rect_gap(hazard, (c["x"], c["x"], c["z"], c["z"])) <= 20]
+        near = [
+            c for c in BANK_CHECKPOINTS if rect_gap(hazard, (c["x"], c["x"], c["z"], c["z"])) <= 20
+        ]
         assert len(near) >= 2  # both banks
         xs = sorted(c["x"] for c in near)
         assert xs[0] < hazard[0] and xs[-1] > hazard[1]
@@ -453,12 +539,18 @@ def test_jump_routes_have_forgiving_gaps_and_rises():
             next_top, next_rect = _top_and_rect(item_id)
             assert next_top - top <= 0.6 + 1e-9, (name, item_id, next_top - top)
             if rect is not None:
-                assert rect_gap(rect, next_rect) <= 1.6 + 1e-9, (name, item_id, rect_gap(rect, next_rect))
+                assert rect_gap(rect, next_rect) <= 1.6 + 1e-9, (
+                    name,
+                    item_id,
+                    rect_gap(rect, next_rect),
+                )
             top, rect = next_top, next_rect
 
 
 def test_the_trampoline_reaches_its_ledge():
-    bounce = next(p for p in PLATFORMING["platforms"] if p["id"] == "np-plat-trampoline")["bounce"]["height"]
+    bounce = next(p for p in PLATFORMING["platforms"] if p["id"] == "np-plat-trampoline")["bounce"][
+        "height"
+    ]
     ledge_top, _ = _top_and_rect("np-ledge-snow-roof")
     assert bounce >= ledge_top + 0.5
 
@@ -478,7 +570,9 @@ def test_the_mountain_has_no_hazard_and_every_fall_is_one_terrace(open_grid):
             if n in reachable:
                 worst = max(worst, grid.height[i][j] - grid.height[n[0]][n[1]])
     assert worst <= 0.8 + 1e-9, worst
-    assert max(c["maxY"] for c in LEDGES if c["rect"]["id"].startswith("np-mt-t")) == pytest.approx(3.2)
+    assert max(c["maxY"] for c in LEDGES if c["rect"]["id"].startswith("np-mt-t")) == pytest.approx(
+        3.2
+    )
 
 
 # --- walkability (NP-D5) ------------------------------------------------------------------------
@@ -501,9 +595,12 @@ def test_spawn_region_is_connected_and_gates_really_seal_the_zones(closed_grid):
 def test_each_gate_alone_opens_exactly_its_own_zone():
     """Opening one gate must not leak into a zone that has its own gate."""
     zone_cp = {
-        "np-gate-workshop": "np-cp-workshop", "np-gate-forest": "np-cp-forest", "np-gate-lake": "np-cp-lake",
-        "np-gate-stables": "np-cp-stables", "np-gate-gingerbread": "np-cp-gingerbread",
-    }  # fmt: skip
+        "np-gate-workshop": "np-cp-workshop",
+        "np-gate-forest": "np-cp-forest",
+        "np-gate-lake": "np-cp-lake",
+        "np-gate-stables": "np-cp-stables",
+        "np-gate-gingerbread": "np-cp-gingerbread",
+    }
     cps = {c["id"]: c for c in ZONE_CHECKPOINTS}
     for gate_id, cp_id in zone_cp.items():
         grid = Grid(gates_open=False)
@@ -594,19 +691,26 @@ def test_the_engine_bridge_block_passes_the_publish_check_and_never_runs_movemen
     block = L.scene()["engineBridge"]
     assert engine_bridge_problems(block) == []
     ids = [c["id"] for c in block["capabilities"]]
-    assert ids == ["gameplay.checkpoints", "gameplay.hazards", "environment.volumes", "environment.weather"]
+    assert ids == [
+        "gameplay.checkpoints",
+        "gameplay.hazards",
+        "environment.volumes",
+        "environment.weather",
+    ]
     assert "allowEnginePlatforms" not in block  # the live platform system keeps the lake platforms
 
 
 def test_the_lake_ice_is_on_the_frozen_lake_and_never_slides_into_the_water():
     rink, water = L.ICE_RINK, L.LAKE_WATER
-    zone = dict(zip(("minX", "maxX", "minZ", "maxZ"), L.ZONES["frozen-lake"]))
+    zone = dict(zip(("minX", "maxX", "minZ", "maxZ"), L.ZONES["frozen-lake"], strict=True))
     course_water = next(h for h in HAZARD_SPECS if h["id"] == "np-hazard-lake-water")["rect"]
     assert {k: course_water[k] for k in water} == water  # the bridge names the real hazard
     # The engine stops a child within about a metre at the lowest friction; keep twice that.
     gap_x = max(water["minX"] - rink["maxX"], rink["minX"] - water["maxX"])
     assert gap_x >= 2.0
-    surface = next(v for v in BRIDGE_CONFIG["environment.volumes"]["surfaces"] if v["id"] == "np-lake-ice")
+    surface = next(
+        v for v in BRIDGE_CONFIG["environment.volumes"]["surfaces"] if v["id"] == "np-lake-ice"
+    )
     assert surface["surfaceId"] == "ice"
     assert 0.15 < surface["friction"] < 1 and surface["speedMultiplier"] == 1.0
     assert zone["minX"] <= rink["minX"] and rink["maxX"] <= zone["maxX"]
@@ -632,7 +736,9 @@ def test_one_checkpoint_list_resumes_at_the_zone_checkpoint_at_every_stage():
         if key:
             keys.append(key)
         if key == CH_LAKE_OPEN:
-            keys.append(L.CH["lake_bridge"])  # the island bridge built too: still the zone checkpoint
+            keys.append(
+                L.CH["lake_bridge"]
+            )  # the island bridge built too: still the zone checkpoint
         # Only checkpoints a world change opened are earned (an ungated one has no evidence).
         earned = [c["id"] for c in CHECKPOINT_LIST if c.get("whenChangeKey") in keys]
         zone_earned = [c["id"] for c in ZONE_CHECKPOINTS if c.get("whenChangeKey") in keys]
@@ -649,27 +755,39 @@ def test_the_water_sends_the_child_back_to_a_bank():
     (water,) = HAZARD_SPECS
     assert water["kind"] == "WATER" and water["belowY"] == 0.05
     assert water["checkpointId"] in {c["id"] for c in BANK_CHECKPOINTS}
-    for platform in ("np-lake-bridge", "np-plat-lake-stone", "np-plat-lake-thin-ice", "np-plat-lake-floe-ride"):
+    for platform in (
+        "np-lake-bridge",
+        "np-plat-lake-stone",
+        "np-plat-lake-thin-ice",
+        "np-plat-lake-floe-ride",
+    ):
         p = next(x for x in PLATFORMING["platforms"] if x["id"] == platform)
-        assert p["size"]["height"] > water["belowY"], platform  # standing on it is never "in the water"
+        assert p["size"]["height"] > water["belowY"], (
+            platform
+        )  # standing on it is never "in the water"
 
 
 def test_snow_underfoot_everywhere_changes_only_the_footstep_sound():
     surfaces = {v["id"]: v for v in BRIDGE_CONFIG["environment.volumes"]["surfaces"]}
     snow, ice = surfaces["np-village-snow"], surfaces["np-lake-ice"]
-    assert snow["surfaceId"] == "snow" and snow["friction"] == 1.0 and snow["speedMultiplier"] == 1.0
+    assert (
+        snow["surfaceId"] == "snow" and snow["friction"] == 1.0 and snow["speedMultiplier"] == 1.0
+    )
     assert snow["box"]["min"]["x"] <= -66 and snow["box"]["max"]["x"] >= 66
     assert snow["box"]["min"]["z"] <= -100 and snow["box"]["max"]["z"] >= 100
     assert snow["box"]["max"]["y"] >= 3.2 + 1.0  # the top mountain terrace, plus headroom
     assert ice["priority"] > snow["priority"]  # the lake bank stays ice
 
 
-
 def test_the_snow_falls_on_the_engine_around_the_child_with_no_engine_fog():
     """GE-074 (layout 5): one snowfall, on the engine; the atmosphere keeps only fog and aurora."""
     scene = L.scene()
     assert "precipitation" not in scene["atmosphere"]
-    weather = next(c["config"] for c in scene["engineBridge"]["capabilities"] if c["id"] == "environment.weather")
+    weather = next(
+        c["config"]
+        for c in scene["engineBridge"]["capabilities"]
+        if c["id"] == "environment.weather"
+    )
     assert weather["initial"] == "SNOW"  # the engine preset, replaced by the North Pole look
     assert weather["area"] == {"mode": "FOLLOW_PLAYER", "halfX": 20, "halfZ": 20, "height": 24}
     (kind,) = weather["kinds"]
@@ -678,4 +796,3 @@ def test_the_snow_falls_on_the_engine_around_the_child_with_no_engine_fog():
     assert p["budgetShare"] == 0.6  # the atmosphere's density: 360 on MEDIUM, 720 on HIGH
     settled = p["ratePerSecond"] * weather["area"]["height"] / p["fallSpeed"]
     assert settled > 1200 * p["budgetShare"]  # the rate never holds it below the share
-

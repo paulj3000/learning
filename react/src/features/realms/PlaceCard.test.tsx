@@ -36,6 +36,9 @@ describe('PlaceCard quest-based places', () => {
   it('shows Completed and still links in for replay', () => {
     show({ ...base, questsCompleted: 1, completed: true });
     expect(screen.getByText(/Completed/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Visit Firepeak Heart again/ })).toHaveAttribute('href', '/play/x');
+    expect(screen.getByRole('link', { name: /Visit Firepeak Heart again/ })).toHaveAttribute(
+      'href',
+      '/play/x',
+    );
   });
 });

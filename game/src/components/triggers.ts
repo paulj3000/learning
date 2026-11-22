@@ -13,7 +13,13 @@ import { defineComponent } from '../core/entities';
 import { defineService } from '../core/services';
 import type { CapabilityDefinition } from '../core/capabilities';
 import type { Vec3Like } from '../contracts/player';
-import { emitPresentation, entityKey, playerPosition, signalBoard, type GameplayRuntime } from './common';
+import {
+  emitPresentation,
+  entityKey,
+  playerPosition,
+  signalBoard,
+  type GameplayRuntime,
+} from './common';
 import { configRoot, Issues } from './validate';
 
 // --- movable world objects ---------------------------------------------------------------
@@ -25,7 +31,11 @@ export interface WorldObjectState {
 export const WorldObjectComponent = defineComponent<WorldObjectState>('gameplay.worldObject');
 
 /** Registers (or returns) a movable object the plates and sockets can sense. */
-export function ensureWorldObject(runtime: GameplayRuntime, id: string, position: Vec3Like): WorldObjectState {
+export function ensureWorldObject(
+  runtime: GameplayRuntime,
+  id: string,
+  position: Vec3Like,
+): WorldObjectState {
   const key = entityKey('object', id);
   const existing = runtime.world.bySemanticId(key);
   if (existing !== undefined) {
@@ -39,7 +49,9 @@ export function ensureWorldObject(runtime: GameplayRuntime, id: string, position
 }
 
 export function worldObjects(runtime: GameplayRuntime): WorldObjectState[] {
-  return runtime.world.query(WorldObjectComponent).map((e) => runtime.world.get(e, WorldObjectComponent)!);
+  return runtime.world
+    .query(WorldObjectComponent)
+    .map((e) => runtime.world.get(e, WorldObjectComponent)!);
 }
 
 // --- pressure plates ---------------------------------------------------------------------
@@ -143,10 +155,17 @@ export const triggersCapability: CapabilityDefinition<TriggersConfig, GameplayRu
     const { world } = runtime;
     const signals = signalBoard(runtime);
     for (const spec of config.plates) {
-      world.add(world.create(entityKey('plate', spec.id)), PressurePlateComponent, { spec, pressed: false });
+      world.add(world.create(entityKey('plate', spec.id)), PressurePlateComponent, {
+        spec,
+        pressed: false,
+      });
     }
     for (const spec of config.switches) {
-      world.add(world.create(entityKey('switch', spec.id)), SwitchComponent, { spec, on: spec.initialOn, held: false });
+      world.add(world.create(entityKey('switch', spec.id)), SwitchComponent, {
+        spec,
+        on: spec.initialOn,
+        held: false,
+      });
       signals.set(spec.signalId, spec.initialOn);
     }
     const findSwitch = (id: string) => {
@@ -159,7 +178,11 @@ export const triggersCapability: CapabilityDefinition<TriggersConfig, GameplayRu
         return 'UNKNOWN';
       }
       const player = playerPosition(runtime);
-      if (!player || Math.hypot(player.x - state.spec.position.x, player.z - state.spec.position.z) > state.spec.interactRadius) {
+      if (
+        !player ||
+        Math.hypot(player.x - state.spec.position.x, player.z - state.spec.position.z) >
+          state.spec.interactRadius
+      ) {
         return 'TOO_FAR';
       }
       state.on = !state.on;
@@ -181,7 +204,9 @@ export const triggersCapability: CapabilityDefinition<TriggersConfig, GameplayRu
       isOn: (id) => findSwitch(id)?.on,
       isPressed(id) {
         const entity = world.bySemanticId(entityKey('plate', id));
-        return entity === undefined ? undefined : world.get(entity, PressurePlateComponent)?.pressed;
+        return entity === undefined
+          ? undefined
+          : world.get(entity, PressurePlateComponent)?.pressed;
       },
     };
     const removeService = runtime.services.provide(TriggersService, api);
@@ -196,13 +221,18 @@ export const triggersCapability: CapabilityDefinition<TriggersConfig, GameplayRu
           const state = world.get(entity, PressurePlateComponent)!;
           const { spec } = state;
           const onPlate = (p: Vec3Like) =>
-            Math.abs(p.x - spec.position.x) <= spec.halfSize && Math.abs(p.z - spec.position.z) <= spec.halfSize && Math.abs(p.y - spec.position.y) <= 0.6;
-          const occupied = (player !== undefined && onPlate(player)) || objects.some((o) => onPlate(o.position));
+            Math.abs(p.x - spec.position.x) <= spec.halfSize &&
+            Math.abs(p.z - spec.position.z) <= spec.halfSize &&
+            Math.abs(p.y - spec.position.y) <= 0.6;
+          const occupied =
+            (player !== undefined && onPlate(player)) || objects.some((o) => onPlate(o.position));
           const next = spec.latch ? state.pressed || occupied : occupied;
           if (next !== state.pressed) {
             state.pressed = next;
             signals.set(spec.signalId, next);
-            emitPresentation(runtime, next ? 'PressurePlatePressed' : 'PressurePlateReleased', { plateId: spec.id });
+            emitPresentation(runtime, next ? 'PressurePlatePressed' : 'PressurePlateReleased', {
+              plateId: spec.id,
+            });
           }
         }
       },

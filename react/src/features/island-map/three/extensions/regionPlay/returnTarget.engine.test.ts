@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { read } from '../../../../../api/parse';
 import * as parse from '../../../../../api/play/parse';
-import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../../../../discovery/checkpoints';
+import {
+  publishRegionCheckpoints,
+  unpublishRegionCheckpoints,
+} from '../../../../discovery/checkpoints';
 import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { parseEffects } from '../../../../region-play/regionPlayConfig';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
@@ -15,13 +18,23 @@ import { regionPlaySceneExtension, type RegionPlaySceneApi } from './regionPlayS
  * that id the old behaviour stands.
  */
 
-const SOLVED = ['firepeak-telescope', 'firepeak-crossing', 'firepeak-steam', 'firepeak-heart-crystal'];
+const SOLVED = [
+  'firepeak-telescope',
+  'firepeak-crossing',
+  'firepeak-steam',
+  'firepeak-heart-crystal',
+];
 
 function withoutEffectsCheckpoints() {
-  const json = firepeakBootstrapJson({ solved: SOLVED }) as { region: { scene: { effects: Record<string, unknown> } } };
+  const json = firepeakBootstrapJson({ solved: SOLVED }) as {
+    region: { scene: { effects: Record<string, unknown> } };
+  };
   const effects = json.region.scene.effects;
   effects.checkpoints = [];
-  effects.returns = (effects.returns as Record<string, unknown>[]).map((route) => ({ ...route, to: { x: 3, z: 7, yaw: 0 } }));
+  effects.returns = (effects.returns as Record<string, unknown>[]).map((route) => ({
+    ...route,
+    to: { x: 3, z: 7, yaw: 0 },
+  }));
   return json;
 }
 
@@ -48,7 +61,13 @@ describe('a way back with its own destination (GE-065)', () => {
   it('parses `to`, and null when it is absent or incomplete', () => {
     const parsed = parseEffects({
       returns: [
-        { entityId: 'a', toCheckpoint: 'cp', whenChangeKey: 'K', label: 'Back', to: { x: 1, z: 2, yaw: 3 } },
+        {
+          entityId: 'a',
+          toCheckpoint: 'cp',
+          whenChangeKey: 'K',
+          label: 'Back',
+          to: { x: 1, z: 2, yaw: 3 },
+        },
         { entityId: 'b', toCheckpoint: 'cp', whenChangeKey: 'K', label: 'Back' },
         { entityId: 'c', toCheckpoint: 'cp', whenChangeKey: 'K', label: 'Back', to: { x: 1 } },
       ],

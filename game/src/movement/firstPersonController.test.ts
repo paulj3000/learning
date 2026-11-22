@@ -161,6 +161,9 @@ describe('FirstPersonController strafe direction (ArrowLeft walked right)', () =
     controller.yaw = 0.7;
     controller.update(0.1, { forward: 0, strafe: 1 });
     const forward = new Vector3(Math.sin(0.7), 0, Math.cos(0.7));
-    expect(new Vector3(controller.position.x, 0, controller.position.z).dot(forward)).toBeCloseTo(0, 5);
+    expect(new Vector3(controller.position.x, 0, controller.position.z).dot(forward)).toBeCloseTo(
+      0,
+      5,
+    );
   });
 });

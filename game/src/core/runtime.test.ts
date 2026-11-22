@@ -76,8 +76,18 @@ describe('engine runtime simulation', () => {
     const runtime = makeRuntime();
     const order: string[] = [];
     runtime.systems.add({ id: 'post', phase: 'postSimulation', update: () => order.push('post') });
-    runtime.systems.add({ id: 'sim-late', phase: 'simulation', order: 10, update: () => order.push('sim-late') });
-    runtime.systems.add({ id: 'sim-early', phase: 'simulation', order: -1, update: () => order.push('sim-early') });
+    runtime.systems.add({
+      id: 'sim-late',
+      phase: 'simulation',
+      order: 10,
+      update: () => order.push('sim-late'),
+    });
+    runtime.systems.add({
+      id: 'sim-early',
+      phase: 'simulation',
+      order: -1,
+      update: () => order.push('sim-early'),
+    });
     runtime.systems.add({ id: 'input', phase: 'input', update: () => order.push('input') });
     await runtime.start();
     runtime.tick(1 / 60);

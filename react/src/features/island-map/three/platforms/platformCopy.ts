@@ -18,11 +18,14 @@ export function recoveredText(
   hazardId?: string | null,
 ): string {
   const label = checkpointId
-    ? (spec?.checkpoints?.find((point) => point.id === checkpointId)?.label ?? labels?.get(checkpointId))
+    ? (spec?.checkpoints?.find((point) => point.id === checkpointId)?.label ??
+      labels?.get(checkpointId))
     : undefined;
   const leads = spec?.recoveryLeads;
   const own = hazardId && leads && Object.hasOwn(leads, hazardId) ? leads[hazardId] : undefined;
   const lead = (own ?? spec?.recoveryLead)?.trim();
   if (label) return `${lead || 'Splash!'} Back to ${label}. Have another go!`;
-  return lead ? `${lead} Back on solid ground. Have another go!` : 'Whoops! Back on solid ground. Have another go!';
+  return lead
+    ? `${lead} Back on solid ground. Have another go!`
+    : 'Whoops! Back on solid ground. Have another go!';
 }

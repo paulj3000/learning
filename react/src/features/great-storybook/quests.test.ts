@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { AgeBandValue } from '../child-profile/constants';
 import { getQuestDefinition, getQuestsOfferedBy } from '../quests/content';
-import { GREAT_STORYBOOK_MORE_QUEST_IDS, GREAT_STORYBOOK_QUEST_IDS } from '../quests/content/islandQuests';
+import {
+  GREAT_STORYBOOK_MORE_QUEST_IDS,
+  GREAT_STORYBOOK_QUEST_IDS,
+} from '../quests/content/islandQuests';
 import { advanceQuest, allObjectives, startQuest } from '../quests/quest';
 import { EMPTY_QUEST_CONTEXT, type QuestContext } from '../quests/types';
 import { ALL_ITEMS, ALL_REWARD_RULES } from '../rewards/content';
@@ -160,14 +163,22 @@ describe('the quest completes exactly when the book is whole', () => {
     const start = startQuest(definition, '2026-11-03T00:00:00Z');
     const early = advanceQuest(definition, start, context([], [], true));
     expect(early.worldChanges).toEqual([]);
-    const done = advanceQuest(definition, start, context(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], [], true));
+    const done = advanceQuest(
+      definition,
+      start,
+      context(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], [], true),
+    );
     expect(done.state.status).toBe('COMPLETED');
     expect(done.worldChanges.map((c) => c.changeKey)).toEqual([
       'GREAT_STORYBOOK_RESTORED',
       'GREAT_STORYBOOK_RESTORED_V2',
     ]);
     // A finished quest does not complete again.
-    const again = advanceQuest(definition, done.state, context(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], [], true));
+    const again = advanceQuest(
+      definition,
+      done.state,
+      context(['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], [], true),
+    );
     expect(again.changed).toBe(false);
     expect(again.worldChanges).toEqual([]);
   });
@@ -211,10 +222,12 @@ describe('the Pathfinder follow-up quest for children who restored edition 1', (
   it('grants no second seal: no reward rule names it', () => {
     const id = GREAT_STORYBOOK_MORE_QUEST_IDS.PATHFINDER;
     expect(
-      ALL_REWARD_RULES.filter((r) => r.trigger.type === 'QUEST_COMPLETED' && r.trigger.questId === id),
+      ALL_REWARD_RULES.filter(
+        (r) => r.trigger.type === 'QUEST_COMPLETED' && r.trigger.questId === id,
+      ),
     ).toEqual([]);
-    expect(
-      ALL_REWARD_RULES.filter((r) => r.itemIds.includes('great-storybook-seal')),
-    ).toHaveLength(3);
+    expect(ALL_REWARD_RULES.filter((r) => r.itemIds.includes('great-storybook-seal'))).toHaveLength(
+      3,
+    );
   });
 });

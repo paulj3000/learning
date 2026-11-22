@@ -89,7 +89,6 @@ def _stage_all_audio():
         audio_asset(spec.asset_id, category=category)
 
 
-
 def test_without_audio_creates_nothing_and_without_the_area_skips_assignments():
     report = run()
     assert SoundCue.objects.count() == 0
@@ -97,7 +96,6 @@ def test_without_audio_creates_nothing_and_without_the_area_skips_assignments():
     for spec in FIREPEAK_CUES:
         assert f"ASSET NEEDED {spec.cue_id}" in report
     assert "does not exist yet" in report
-
 
 
 def test_creates_cues_without_the_area_and_is_idempotent():
@@ -114,12 +112,10 @@ def test_creates_cues_without_the_area_and_is_idempotent():
     assert SoundRelease.objects.count() == 0
 
 
-
 def test_dry_run_writes_nothing():
     _stage_all_audio()
     assert f"Would create {len(DESIGN_IDS)} cue" in run("--dry-run")
     assert SoundCue.objects.count() == 0
-
 
 
 def test_assignments_are_created_once_for_the_area_and_never_overwritten(treasure):
@@ -142,7 +138,6 @@ def test_assignments_are_created_once_for_the_area_and_never_overwritten(treasur
     assert SoundAssignment.objects.get(target_id="lava-crossing").priority == 7
     assert "Created 0 assignment" in report
     assert SoundRelease.objects.count() == 0
-
 
 
 def test_a_zone_the_layout_does_not_declare_is_skipped_not_fatal(treasure):

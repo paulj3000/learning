@@ -9,7 +9,8 @@ describe('falling-rock warning sound (GE-073F)', () => {
 
   it('Firepeak names a rumble for each rock, heard on the Summit', () => {
     expect(Object.keys(warnings).length).toBeGreaterThan(0);
-    for (const warning of Object.values(warnings)) expect(warning).toEqual({ cue: FP_SOUND.rockRumble, zoneId: 'firepeak-summit' });
+    for (const warning of Object.values(warnings))
+      expect(warning).toEqual({ cue: FP_SOUND.rockRumble, zoneId: 'firepeak-summit' });
   });
 
   it('plays when a warning starts while the child is on the Summit, and only then', () => {

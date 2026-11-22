@@ -68,10 +68,10 @@ def schedule(child_id) -> None:
 
 
 def _run(child_id) -> None:
-    from apps.users.models import ChildProfile
+    from apps.users.services import child_profile_for_system
 
     try:
-        child = ChildProfile.objects.filter(pk=child_id).first()
+        child = child_profile_for_system(child_id)
         if child is not None:
             reconcile_child(child)
     except Exception as error:  # noqa: BLE001 - scoring never breaks play; the next run catches up

@@ -55,8 +55,8 @@ from .pips_treasure_seed import (
     seed_pips_treasure,
     upgrade_pips_treasure,
 )
-from .seeding import record_seed_revision
 from .pirates_leap_seed import seed_pirates_leap
+from .seeding import record_seed_revision
 from .treasure_cove_layout import BOUNDS, LAYOUT_VERSION, cove_layout
 
 REGION_ID = "treasure-rush-cove"

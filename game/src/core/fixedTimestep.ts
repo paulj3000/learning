@@ -51,7 +51,9 @@ const MAX_STEP = 1 / 15;
 export function createFixedTimestepClock(options: FixedTimestepOptions = {}): FixedTimestepClock {
   const stepSeconds = options.stepSeconds ?? DEFAULT_STEP_SECONDS;
   if (!Number.isFinite(stepSeconds) || stepSeconds < MIN_STEP || stepSeconds > MAX_STEP) {
-    throw new RangeError(`stepSeconds must be between ${MIN_STEP} and ${MAX_STEP}; got ${stepSeconds}`);
+    throw new RangeError(
+      `stepSeconds must be between ${MIN_STEP} and ${MAX_STEP}; got ${stepSeconds}`,
+    );
   }
   const maxFrameSeconds = options.maxFrameSeconds ?? 0.25;
   const maxStepsPerFrame = Math.max(1, Math.floor(options.maxStepsPerFrame ?? 8));
@@ -87,7 +89,12 @@ export function createFixedTimestepClock(options: FixedTimestepOptions = {}): Fi
         accumulator = 0;
       }
       simulated += steps * stepSeconds;
-      return { steps, stepSeconds, alpha: Math.min(accumulator / stepSeconds, 0.999999), droppedSeconds: dropped };
+      return {
+        steps,
+        stepSeconds,
+        alpha: Math.min(accumulator / stepSeconds, 0.999999),
+        droppedSeconds: dropped,
+      };
     },
     reset() {
       accumulator = 0;

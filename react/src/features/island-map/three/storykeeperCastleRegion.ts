@@ -410,7 +410,10 @@ export const PROFESSOR_ORION_SPOT: EntitySpot = { entityId: PROFESSOR_ORION_ID, 
 /** Half the side of Orion's standing collider: x 9.26 to 9.74, z 5.56 to 6.04. */
 export const ORION_COLLIDER_HALF_METERS = 0.24;
 /** Orion turns to the middle of the tower (its safe spot), so he watches the windows with the child. */
-export const ORION_FACING_ROOM_YAW = Math.atan2(7.5 - PROFESSOR_ORION_SPOT.x, 7.5 - PROFESSOR_ORION_SPOT.z);
+export const ORION_FACING_ROOM_YAW = Math.atan2(
+  7.5 - PROFESSOR_ORION_SPOT.x,
+  7.5 - PROFESSOR_ORION_SPOT.z,
+);
 
 /**
  * Where Ember curls up when she visits the castle (SC-R05-02): beside the hearth, east of it, in

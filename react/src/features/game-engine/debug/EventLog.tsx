@@ -26,9 +26,15 @@ export function EventLog({ entries, onClear }: EventLogProps) {
             .slice()
             .reverse()
             .map((entry) => (
-              <li key={entry.seq} data-kind={entry.kind} data-dropped={entry.dropped ? 'true' : 'false'}>
+              <li
+                key={entry.seq}
+                data-kind={entry.kind}
+                data-dropped={entry.dropped ? 'true' : 'false'}
+              >
                 <span className={styles.badge}>{entry.kind}</span> <strong>{entry.type}</strong>
-                {entry.ids.length > 0 ? <span className={styles.ids}> {entry.ids.join(', ')}</span> : null}
+                {entry.ids.length > 0 ? (
+                  <span className={styles.ids}> {entry.ids.join(', ')}</span>
+                ) : null}
                 {entry.dropped ? <em> (dropped)</em> : null}
               </li>
             ))}

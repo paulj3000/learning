@@ -48,9 +48,17 @@ const engineFeatureFiles = walk(ENGINE_FEATURE);
 const gameFiles = walk(GAME_SRC);
 
 const packageExports = Object.keys(
-  (JSON.parse(readFileSync(join(GAME_ROOT, 'package.json'), 'utf8')) as { exports: Record<string, string> }).exports,
+  (
+    JSON.parse(readFileSync(join(GAME_ROOT, 'package.json'), 'utf8')) as {
+      exports: Record<string, string>;
+    }
+  ).exports,
 );
-const allowedSubpaths = new Set(packageExports.filter((key) => key !== './*').map((key) => (key === '.' ? '@lai/game-engine' : `@lai/game-engine/${key.slice(2)}`)));
+const allowedSubpaths = new Set(
+  packageExports
+    .filter((key) => key !== './*')
+    .map((key) => (key === '.' ? '@lai/game-engine' : `@lai/game-engine/${key.slice(2)}`)),
+);
 
 describe('import boundaries', () => {
   it('finds the source trees it is checking', () => {
@@ -83,10 +91,14 @@ describe('import boundaries', () => {
     expect(offenders).toEqual([]);
   });
 
-  // GE-076 (2026-11-19): gamepadInput and cameraHeightFollower shims removed (no importers left).
-  const LEGACY_WILDCARD_SHIMS = [
+  // GE-076: every island-map re-export shim for a moved engine module is retired (gamepadInput and
+  // cameraHeightFollower on 2026-11-19, the last eight under GE-S1 on 2026-11-22). They must not
+  // come back: importers use the explicitly listed engine entry points instead.
+  const RETIRED_SHIMS = [
+    'cameraHeightFollower',
     'cameraPreference',
     'firstPersonController',
+    'gamepadInput',
     'jumpConfiguration',
     'locomotionConfiguration',
     'playerCamera',
@@ -103,20 +115,14 @@ describe('import boundaries', () => {
         .map((spec) => ({ file: relative(REACT_SRC, file), spec })),
     );
 
-  it('the only react/ imports of an unlisted engine subpath are the 8 legacy island-map re-export shims (no new ones)', () => {
-    const files = [...new Set(wildcardImports().map((o) => o.file))].sort();
-    expect(files).toEqual([...LEGACY_WILDCARD_SHIMS].sort());
-    for (const { file } of wildcardImports()) {
-      const source = readFileSync(join(REACT_SRC, file), 'utf8');
-      // A shim is nothing but a re-export of the engine module.
-      expect(source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').trim()).toMatch(/^export\s/);
-    }
+  it('the retired island-map engine re-export shims stay deleted', () => {
+    const present = RETIRED_SHIMS.filter((file) => reactFiles.includes(join(REACT_SRC, file)));
+    expect(present).toEqual([]);
   });
 
-  // Defect GE-S1 (Low): the shims reach `@lai/game-engine/<dir>/<file>` through the package's
-  // `./*` wildcard export, a deep path that bypasses the named exports. Pinned until the shims
-  // import from the `./camera`, `./movement` and `./input` entry points.
-  it.fails('no react/ file imports an engine subpath that the exports map does not list explicitly', () => {
+  // Defect GE-S1 (Low), fixed 2026-11-22: react/ reached `@lai/game-engine/<dir>/<file>` through
+  // the package's `./*` wildcard export, a deep path that bypassed the named exports.
+  it('no react/ file imports an engine subpath that the exports map does not list explicitly', () => {
     expect(wildcardImports()).toEqual([]);
   });
 
@@ -150,7 +156,13 @@ describe('import boundaries', () => {
   it('game/ never imports react/, React, a DOM-only UI library or the react app by path', () => {
     const offenders = gameFiles.flatMap((file) =>
       specifiers(readFileSync(file, 'utf8'))
-        .filter((spec) => /^react(-dom)?(\/|$)/.test(spec) || /^@testing-library\//.test(spec) || /(^|\/)react\/src(\/|$)/.test(spec) || /^@lai\/(?!game-engine)/.test(spec))
+        .filter(
+          (spec) =>
+            /^react(-dom)?(\/|$)/.test(spec) ||
+            /^@testing-library\//.test(spec) ||
+            /(^|\/)react\/src(\/|$)/.test(spec) ||
+            /^@lai\/(?!game-engine)/.test(spec),
+        )
         .map((spec) => `${relative(GAME_SRC, file)} -> ${spec}`),
     );
     expect(offenders).toEqual([]);

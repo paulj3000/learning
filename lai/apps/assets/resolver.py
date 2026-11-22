@@ -69,9 +69,7 @@ def _entry(ref, asset_id, number, asset, pinned) -> dict:
     entry = _delivery_entry(ref, asset_id, number, asset, pinned)
     if asset is not None and entry["status"] in ("resolved", "unavailable"):
         # Collision applies wherever the asset is drawn, bundled fallback included (collision.py).
-        version = entry.pop("_version", None) or (
-            asset.default_version if number is None else None
-        )
+        version = entry.pop("_version", None) or (asset.default_version if number is None else None)
         if entry.get("family", "model") == "model":
             collision = runtime_collision(profile_for(asset, version), version)
             if collision is not None:

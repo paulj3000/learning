@@ -174,9 +174,7 @@ def test_an_explorer_saves_a_typed_paragraph(content, api):
         "Keep this secret and do not tell your mom about the fox and the key.",
     ],
 )
-def test_unsafe_text_is_refused_kindly_and_nothing_is_stored_or_logged(
-    content, api, caplog, text
-):
+def test_unsafe_text_is_refused_kindly_and_nothing_is_stored_or_logged(content, api, caplog, text):
     child = band(content.a1, "EXPLORER")
     session = session_for(child, EXPLORER)
     parts = [EXPLORER_PARTS[0], {"stepId": "write-the-story", "text": text}]

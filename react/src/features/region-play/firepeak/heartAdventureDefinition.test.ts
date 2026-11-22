@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createStandardCapabilityRegistry } from '@lai/game-engine/engine';
-import { assertValidAdventure, checkContentCompatibility, validateAdventure } from '@lai/game-engine/sdk';
+import {
+  assertValidAdventure,
+  checkContentCompatibility,
+  validateAdventure,
+} from '@lai/game-engine/sdk';
 import { describe, expect, it } from 'vitest';
 import { HEART_QUESTS } from '../../content-export/firepeakHeartContent';
 import { bridgeCheckpoints } from '../engineBridgeProgress';
@@ -46,14 +50,18 @@ describe('The Heart of Firepeak engine definition (GE-073)', () => {
   it('lists the seed checkpoints, in route order: one checkpoint list', () => {
     const seeded = bridgeCheckpoints(snapshot().scene.engineBridge).map((c) => c.id);
     expect([...FIREPEAK_HEART_CHECKPOINT_IDS]).toEqual(seeded);
-    expect(FIREPEAK_HEART_ADVENTURE.checkpoints.every((c) => c.areaId === FIREPEAK_HEART_AREA)).toBe(true);
+    expect(
+      FIREPEAK_HEART_ADVENTURE.checkpoints.every((c) => c.areaId === FIREPEAK_HEART_AREA),
+    ).toBe(true);
   });
 
   it('names every seeded puzzle as a challenge, and their skills as learning objectives', () => {
     const data = snapshot();
     expect([...FIREPEAK_HEART_PUZZLE_IDS]).toEqual(data.puzzles.map((p) => p.puzzleId));
     const skills = new Set(
-      data.puzzles.flatMap((p) => Object.values(p.ageBands).map((band) => band?.skill)).filter(Boolean),
+      data.puzzles
+        .flatMap((p) => Object.values(p.ageBands).map((band) => band?.skill))
+        .filter(Boolean),
     );
     expect(new Set(FIREPEAK_HEART_ADVENTURE.learningObjectiveIds)).toEqual(skills);
   });
@@ -72,7 +80,9 @@ describe('The Heart of Firepeak engine definition (GE-073)', () => {
       }
     }
     // Only the lava stones are jump-only, and they lead to the optional Lava Jumper shard.
-    const jumpOnly = FIREPEAK_HEART_JUMP_ROUTES.filter((r) => r.accessibleRouteId === null).map((r) => r.id);
+    const jumpOnly = FIREPEAK_HEART_JUMP_ROUTES.filter((r) => r.accessibleRouteId === null).map(
+      (r) => r.id,
+    );
     expect(jumpOnly).toEqual(['fh-jump-lava-stones']);
     expect(FIREPEAK_HEART_ADVENTURE.jumpChallenges.every((j) => j.optional)).toBe(true);
   });
@@ -81,7 +91,9 @@ describe('The Heart of Firepeak engine definition (GE-073)', () => {
     const registry = createStandardCapabilityRegistry();
     const scene = checkContentCompatibility(snapshot(), registry, { kind: 'AREA_SCENE' });
     expect(scene.issues).toEqual([]);
-    const adventure = checkContentCompatibility(FIREPEAK_HEART_ADVENTURE, registry, { kind: 'ADVENTURE' });
+    const adventure = checkContentCompatibility(FIREPEAK_HEART_ADVENTURE, registry, {
+      kind: 'ADVENTURE',
+    });
     expect(adventure.issues).toEqual([]);
   });
 

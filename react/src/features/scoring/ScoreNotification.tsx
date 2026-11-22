@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 import { prefersReducedMotion } from '../../lib/motionPreference';
-import { describeAward, describePending, type ConfirmedAward, type PendingEntry } from './pendingAwards';
+import {
+  describeAward,
+  describePending,
+  type ConfirmedAward,
+  type PendingEntry,
+} from './pendingAwards';
 import styles from './scoring.module.css';
 
 export interface ScoreNotificationProps {

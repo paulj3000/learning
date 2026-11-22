@@ -43,9 +43,14 @@ def test_the_heart_of_firepeak_imports_with_valid_puzzle_lines():
     import_content()
 
     assert Location.objects.get(slug="firepeak-heart").title == "Heart of Firepeak"
-    assert set(NpcDefinition.objects.filter(home_location_slug="firepeak-heart").values_list(
-        "npc_id", flat=True
-    )) == NPCS
+    assert (
+        set(
+            NpcDefinition.objects.filter(home_location_slug="firepeak-heart").values_list(
+                "npc_id", flat=True
+            )
+        )
+        == NPCS
+    )
 
     lined = set()
     for npc in NpcDefinition.objects.filter(npc_id__in=NPCS):

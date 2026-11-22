@@ -4,7 +4,9 @@
   left: 0.5rem;
   max-width: 14rem;
   padding: 0.5rem 0.75rem;
-  font: 0.75rem/1.4 ui-monospace, monospace;
+  font:
+    0.75rem/1.4 ui-monospace,
+    monospace;
   color: #e6f4ff;
   background: rgba(8, 20, 30, 0.8);
   border-radius: 0.5rem;
@@ -81,7 +83,9 @@
   list-style: none;
   max-height: 14rem;
   overflow: auto;
-  font: 0.8125rem/1.5 ui-monospace, monospace;
+  font:
+    0.8125rem/1.5 ui-monospace,
+    monospace;
 }
 
 .log li[data-dropped='true'] {

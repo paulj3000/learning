@@ -24,6 +24,7 @@ from apps.question_studio.models import QuestionPool
 from apps.users.models import AgeBand
 
 from . import north_pole_layout as layout
+from .engine_bridge import engine_bridge_problems
 from .models import (
     ChestPresentation,
     PlacementKind,
@@ -32,7 +33,6 @@ from .models import (
     WorldObjectPlacement,
     WorldRegion,
 )
-from .engine_bridge import engine_bridge_problems
 from .north_pole_assets import ASSETS, content_asset_defaults
 from .north_pole_puzzles import ENTITY_IDS, PUZZLES
 from .platforming import layout_problems
@@ -76,6 +76,7 @@ def upgrade_north_pole(region: WorldRegion) -> bool:
     region.version += 1
     region.save(update_fields=["scene", "version", "updated_at"])
     return True
+
 
 REGION_ID = layout.REGION_ID
 PLACE_SLUG = "north-pole-village"
@@ -241,7 +242,12 @@ def seed_north_pole() -> list[str]:
     region = get_or_create(
         WorldRegion,
         {"region_id": REGION_ID},
-        {"location": place, "title": "North Pole Village", "scene": layout.scene(), "age_bands": []},
+        {
+            "location": place,
+            "title": "North Pole Village",
+            "scene": layout.scene(),
+            "age_bands": [],
+        },
     )
     if upgrade_north_pole(region):
         created.append(f"layout v{layout.LAYOUT_VERSION} for {REGION_ID}")

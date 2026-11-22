@@ -104,93 +104,93 @@ export const ENTRY_MURAL_PARCHMENT = {
 /** The Entry Hall's visuals under a ceiling at `wallHeight`: the pillars reach it (SC-R11). */
 export function entryHallVisuals(wallHeight: number = WALL_HEIGHT): RoomVisuals {
   return {
-  look: {
-    roomId: 'entry-hall',
-    floor: 'flagstone-entry',
-    walls: 'ashlar-entry',
-    ceiling: 'plaster-entry',
-    trim: 'trim-dark-wood',
-    mood: { color: 0xfff0d6, priority: 4 },
-    // A medallion where the child arrives. It lies under the carpet, which stays 1 cm above it.
-    inlays: [
+    look: {
+      roomId: 'entry-hall',
+      floor: 'flagstone-entry',
+      walls: 'ashlar-entry',
+      ceiling: 'plaster-entry',
+      trim: 'trim-dark-wood',
+      mood: { color: 0xfff0d6, priority: 4 },
+      // A medallion where the child arrives. It lies under the carpet, which stays 1 cm above it.
+      inlays: [
+        {
+          id: 'medallion',
+          materialId: 'tiles-entry-inlay',
+          area: { minX: -13.4, maxX: -11, minZ: -1.7, maxZ: 1.7 },
+        },
+      ],
+      // Daylight dust drifting in from the doors.
+      motes: { color: 0xfff4d6, count: 24, minY: 0.3, maxY: 2.6, size: 0.04, seed: 3 },
+    },
+    materials: [
       {
-        id: 'medallion',
-        materialId: 'tiles-entry-inlay',
-        area: { minX: -13.4, maxX: -11, minZ: -1.7, maxZ: 1.7 },
+        id: 'flagstone-entry',
+        pattern: 'FLAGSTONE',
+        baseColor: 0xb5a58a,
+        accentColor: 0x7f7058,
+        roughness: 0.85,
+        metersPerRepeat: 2,
+        seed: 31,
+      },
+      {
+        id: 'ashlar-entry',
+        pattern: 'ASHLAR',
+        baseColor: 0xc2a77f,
+        accentColor: 0x8d7650,
+        roughness: 0.9,
+        metersPerRepeat: 2,
+        seed: 32,
+      },
+      {
+        id: 'plaster-entry',
+        pattern: 'PLASTER',
+        baseColor: 0xe3d6bc,
+        accentColor: 0xc9b998,
+        roughness: 0.95,
+        metersPerRepeat: 3,
+        seed: 33,
+      },
+      {
+        id: 'tiles-entry-inlay',
+        pattern: 'TILES',
+        baseColor: BANNER_BLUE,
+        accentColor: BANNER_GOLD,
+        roughness: 0.6,
+        metersPerRepeat: 1,
+        seed: 34,
       },
     ],
-    // Daylight dust drifting in from the doors.
-    motes: { color: 0xfff4d6, count: 24, minY: 0.3, maxY: 2.6, size: 0.04, seed: 3 },
-  },
-  materials: [
-    {
-      id: 'flagstone-entry',
-      pattern: 'FLAGSTONE',
-      baseColor: 0xb5a58a,
-      accentColor: 0x7f7058,
-      roughness: 0.85,
-      metersPerRepeat: 2,
-      seed: 31,
-    },
-    {
-      id: 'ashlar-entry',
-      pattern: 'ASHLAR',
-      baseColor: 0xc2a77f,
-      accentColor: 0x8d7650,
-      roughness: 0.9,
-      metersPerRepeat: 2,
-      seed: 32,
-    },
-    {
-      id: 'plaster-entry',
-      pattern: 'PLASTER',
-      baseColor: 0xe3d6bc,
-      accentColor: 0xc9b998,
-      roughness: 0.95,
-      metersPerRepeat: 3,
-      seed: 33,
-    },
-    {
-      id: 'tiles-entry-inlay',
-      pattern: 'TILES',
-      baseColor: BANNER_BLUE,
-      accentColor: BANNER_GOLD,
-      roughness: 0.6,
-      metersPerRepeat: 1,
-      seed: 34,
-    },
-  ],
-  decor: [
-    ...PILLARS.flatMap((p) => pillar(p.id, p.x, p.z, wallHeight)),
-    ...BANNER_X.flatMap((b) => [
-      ...banner(`castle-entry-banner-n${b.id}`, 'n', b.minX, b.maxX),
-      ...banner(`castle-entry-banner-s${b.id}`, 's', b.minX, b.maxX),
-    ]),
-    // The mural: a wooden frame and a blank parchment, proud of it, on the north wall.
-    box(
-      'castle-entry-mural-frame',
-      FRAME_WOOD,
-      ENTRY_MURAL.x - ENTRY_MURAL.halfWidth - 0.2,
-      ENTRY_MURAL.x + ENTRY_MURAL.halfWidth + 0.2,
-      2.62,
-      2.67,
-      ENTRY_MURAL.minY - 0.15,
-      ENTRY_MURAL.maxY + 0.15,
+    decor: [
+      ...PILLARS.flatMap((p) => pillar(p.id, p.x, p.z, wallHeight)),
+      ...BANNER_X.flatMap((b) => [
+        ...banner(`castle-entry-banner-n${b.id}`, 'n', b.minX, b.maxX),
+        ...banner(`castle-entry-banner-s${b.id}`, 's', b.minX, b.maxX),
+      ]),
+      // The mural: a wooden frame and a blank parchment, proud of it, on the north wall.
+      box(
+        'castle-entry-mural-frame',
+        FRAME_WOOD,
+        ENTRY_MURAL.x - ENTRY_MURAL.halfWidth - 0.2,
+        ENTRY_MURAL.x + ENTRY_MURAL.halfWidth + 0.2,
+        2.62,
+        2.67,
+        ENTRY_MURAL.minY - 0.15,
+        ENTRY_MURAL.maxY + 0.15,
+      ),
+      box(
+        ENTRY_MURAL_PARCHMENT.id,
+        PARCHMENT,
+        ENTRY_MURAL.x - ENTRY_MURAL.halfWidth,
+        ENTRY_MURAL.x + ENTRY_MURAL.halfWidth,
+        ENTRY_MURAL.z,
+        2.64,
+        ENTRY_MURAL.minY,
+        ENTRY_MURAL.maxY,
+      ),
+    ],
+    colliders: PILLARS.map((p) =>
+      solid(p.id.replace('castle-', ''), p.x - 0.35, p.x + 0.35, p.z - 0.35, p.z + 0.35, 3),
     ),
-    box(
-      ENTRY_MURAL_PARCHMENT.id,
-      PARCHMENT,
-      ENTRY_MURAL.x - ENTRY_MURAL.halfWidth,
-      ENTRY_MURAL.x + ENTRY_MURAL.halfWidth,
-      ENTRY_MURAL.z,
-      2.64,
-      ENTRY_MURAL.minY,
-      ENTRY_MURAL.maxY,
-    ),
-  ],
-  colliders: PILLARS.map((p) =>
-    solid(p.id.replace('castle-', ''), p.x - 0.35, p.x + 0.35, p.z - 0.35, p.z + 0.35, 3),
-  ),
   };
 }
 

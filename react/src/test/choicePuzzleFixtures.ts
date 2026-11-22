@@ -81,9 +81,30 @@ export function choiceBootstrap(solved: string[] = []): RegionBootstrap {
     optionEntities: { a: 'fh-other-a', b: 'fh-other-b', c: 'fh-other-c' },
   };
   const extra = [
-    puzzle('fh-choose-1', 'CHOOSE_ANSWER', 'Lava stones', Object.values(CHOOSE_PARAMS.optionEntities), CHOOSE_PARAMS, solved.includes('fh-choose-1')),
-    puzzle('fh-choose-2', 'CHOOSE_ANSWER', 'Other stones', Object.values(other.optionEntities), other, solved.includes('fh-choose-2')),
-    puzzle('fh-order-1', 'ORDER_SEQUENCE', 'Forge switches', Object.values(ORDER_PARAMS.itemEntities), ORDER_PARAMS, solved.includes('fh-order-1')),
+    puzzle(
+      'fh-choose-1',
+      'CHOOSE_ANSWER',
+      'Lava stones',
+      Object.values(CHOOSE_PARAMS.optionEntities),
+      CHOOSE_PARAMS,
+      solved.includes('fh-choose-1'),
+    ),
+    puzzle(
+      'fh-choose-2',
+      'CHOOSE_ANSWER',
+      'Other stones',
+      Object.values(other.optionEntities),
+      other,
+      solved.includes('fh-choose-2'),
+    ),
+    puzzle(
+      'fh-order-1',
+      'ORDER_SEQUENCE',
+      'Forge switches',
+      Object.values(ORDER_PARAMS.itemEntities),
+      ORDER_PARAMS,
+      solved.includes('fh-order-1'),
+    ),
   ];
   return read({ ...json, puzzles: [...json.puzzles, ...extra] }, parse.regionBootstrap);
 }

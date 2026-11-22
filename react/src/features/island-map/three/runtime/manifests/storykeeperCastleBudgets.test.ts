@@ -37,7 +37,9 @@ export function estimateDrawCalls(manifest: ThreeLocationManifest): number {
   calls += manifest.props.length + manifest.npcs.length + manifest.collectibles.length;
   // SC-JMP: the shared platforms runtime draws one block per platform and one tile per flat marker.
   // The solid pads (Pathfinders and Explorers) are the larger set, so they are what is counted.
-  calls += (manifest.platforming?.platforms.length ?? 0) + (manifest.platforming?.pressurePlates?.length ?? 0);
+  calls +=
+    (manifest.platforming?.platforms.length ?? 0) +
+    (manifest.platforming?.pressurePlates?.length ?? 0);
   return calls + EXTENSION_VARIANT_DRAWS;
 }
 

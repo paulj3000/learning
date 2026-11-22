@@ -234,7 +234,10 @@ export const WRITING_ROOM_OWN_STORY: AdventureDefinition = {
       },
       transitions: [{ when: 'always', nextStepId: 'write-the-story' }],
       hintPolicy: {
-        ladder: ['Pick the starter that makes you curious.', 'Any starter can lead to a good story.'],
+        ladder: [
+          'Pick the starter that makes you curious.',
+          'Any starter can lead to a good story.',
+        ],
       },
       fallback: { text: 'Your story has a beginning.' },
     },
@@ -269,7 +272,9 @@ export const WRITING_ROOM_STORIES: AdventureDefinition[] = [
 ];
 
 /** Authored encouragement, shown after a story is saved. Never produced by a model. */
-export const WRITING_ROOM_ENCOURAGEMENT: Readonly<Record<'SPROUT' | 'PATHFINDER' | 'EXPLORER', string>> = {
+export const WRITING_ROOM_ENCOURAGEMENT: Readonly<
+  Record<'SPROUT' | 'PATHFINDER' | 'EXPLORER', string>
+> = {
   SPROUT: 'What a lovely story! Keeper Quill put it on the shelf for you.',
   PATHFINDER: 'What a great story! Keeper Quill put your sentences on the shelf.',
   EXPLORER: 'What a story! Keeper Quill put your words on the shelf, just as you wrote them.',

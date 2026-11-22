@@ -39,7 +39,12 @@ def test_window_crossing_the_new_year(date, expected):
 
 @pytest.mark.parametrize(
     "date,expected",
-    [(D(2026, 10, 1), True), (D(2026, 10, 31), True), (D(2026, 9, 30), False), (D(2026, 11, 1), False)],
+    [
+        (D(2026, 10, 1), True),
+        (D(2026, 10, 31), True),
+        (D(2026, 9, 30), False),
+        (D(2026, 11, 1), False),
+    ],
 )
 def test_window_inside_one_year(date, expected):
     assert in_window(event((10, 1), (10, 31)), date) is expected

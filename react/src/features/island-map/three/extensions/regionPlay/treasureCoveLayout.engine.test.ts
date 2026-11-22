@@ -384,7 +384,10 @@ describe('Treasure Cove vegetation (ENV-2)', () => {
 
   it('draws every bush, flower and grass placement once deliverable, one batch per model', async () => {
     const loadModel = vi.fn(async (_assetId: string) => standingBox());
-    const { harness, built } = await libraryCove([...LIBRARY_MODELS, ...VEGETATION_MODELS], loadModel);
+    const { harness, built } = await libraryCove(
+      [...LIBRARY_MODELS, ...VEGETATION_MODELS],
+      loadModel,
+    );
     const config = built.manifest.extensions?.[0]?.config as { vegetation?: unknown[] };
     expect(vegetationCount(harness)).toBe(config.vegetation?.length);
     expect(config.vegetation?.length).toBe(138);
@@ -407,7 +410,9 @@ describe('Treasure Cove vegetation (ENV-2)', () => {
     const half = [...perModel.values()].reduce((sum, n) => sum + Math.floor(n / 2), 0);
     expect(vegetationCount(harness)).toBe(half);
     expect(half).toBeLessThanOrEqual(config.vegetation.length / 2);
-    expect(instanced(harness.scene(), 'region-play:prop-model:prop-wooden-barrel')[0]!.count).toBe(19);
+    expect(instanced(harness.scene(), 'region-play:prop-model:prop-wooden-barrel')[0]!.count).toBe(
+      19,
+    );
   });
 
   it('is walk-through: a child walks straight through a clump of tall grass', async () => {
@@ -439,8 +444,8 @@ describe('Treasure Cove vegetation (ENV-2)', () => {
   it('sways gently, and holds still when the device asks for reduced motion', async () => {
     const all = [...LIBRARY_MODELS, ...VEGETATION_MODELS];
     const grassMatrices = (harness: { scene(): Object3D }) =>
-      instancedAll(harness.scene()).find((m) => m.name.endsWith('nature-grass-tall'))!.instanceMatrix
-        .array;
+      instancedAll(harness.scene()).find((m) => m.name.endsWith('nature-grass-tall'))!
+        .instanceMatrix.array;
     const moving = (await libraryCove(all)).harness;
     const before = grassMatrices(moving).slice();
     moving.runFrames(30, 50);

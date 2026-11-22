@@ -31,7 +31,9 @@ describe('createResourceScope', () => {
 
   it('keeps disposing after one disposer throws, then reports', () => {
     const reported: unknown[][] = [];
-    const scope = createResourceScope('scene', { onDisposeErrors: (errors) => reported.push([...errors]) });
+    const scope = createResourceScope('scene', {
+      onDisposeErrors: (errors) => reported.push([...errors]),
+    });
     const survivor = vi.fn();
     scope.track(survivor);
     scope.track(() => {

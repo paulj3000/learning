@@ -11,7 +11,12 @@
 
 import type { CapabilityDefinition, CapabilityRegistry } from '../core/capabilities';
 import { DEFAULT_SAFETY_RADIUS, type CameraRigOptions } from './cameraRig';
-import { CAMERA_LIMITS, CAMERA_MODES, DEFAULT_PLAYER_CAMERA, type PlayerCameraConfiguration } from './playerPresentation';
+import {
+  CAMERA_LIMITS,
+  CAMERA_MODES,
+  DEFAULT_PLAYER_CAMERA,
+  type PlayerCameraConfiguration,
+} from './playerPresentation';
 import { num, validateConfig, type Schema } from './validation';
 
 export const CAMERA_THIRD_PERSON = 'camera.thirdPerson';
@@ -19,7 +24,10 @@ export const CAMERA_FIRST_PERSON = 'camera.firstPerson';
 export const CAMERA_COLLISION = 'camera.collision';
 
 /** Capabilities every adventure gets unless it opts out: third-person is the default view. */
-export const DEFAULT_CAMERA_CAPABILITIES: readonly string[] = Object.freeze([CAMERA_THIRD_PERSON, CAMERA_COLLISION]);
+export const DEFAULT_CAMERA_CAPABILITIES: readonly string[] = Object.freeze([
+  CAMERA_THIRD_PERSON,
+  CAMERA_COLLISION,
+]);
 
 export interface ThirdPersonCameraConfig {
   defaultMode: 'first-person' | 'third-person';
@@ -66,7 +74,8 @@ const THIRD_PERSON_SCHEMA: Schema = {
 export const cameraThirdPersonCapability: CapabilityDefinition<ThirdPersonCameraConfig> = {
   id: CAMERA_THIRD_PERSON,
   version: '1.0.0',
-  description: 'Third-person boom camera behind and above the child, with wall pull-in and tall-wall lift. On by default.',
+  description:
+    'Third-person boom camera behind and above the child, with wall pull-in and tall-wall lift. On by default.',
   defaults: Object.freeze({
     defaultMode: DEFAULT_PLAYER_CAMERA.defaultMode,
     allowModeSwitch: DEFAULT_PLAYER_CAMERA.allowModeSwitch,
@@ -79,18 +88,26 @@ export const cameraThirdPersonCapability: CapabilityDefinition<ThirdPersonCamera
     sprintFovBoost: DEFAULT_PLAYER_CAMERA.sprintFovBoost,
   }),
   validate: (input) =>
-    validateConfig<ThirdPersonCameraConfig>(input, cameraThirdPersonCapability.defaults, THIRD_PERSON_SCHEMA, (config, issues) => {
-      if (config.minDistance > config.maxDistance) {
-        issues.push({ path: 'minDistance', message: 'must not be more than maxDistance' });
-      }
-    }),
+    validateConfig<ThirdPersonCameraConfig>(
+      input,
+      cameraThirdPersonCapability.defaults,
+      THIRD_PERSON_SCHEMA,
+      (config, issues) => {
+        if (config.minDistance > config.maxDistance) {
+          issues.push({ path: 'minDistance', message: 'must not be more than maxDistance' });
+        }
+      },
+    ),
 };
 
 export const cameraFirstPersonCapability: CapabilityDefinition<FirstPersonCameraConfig> = {
   id: CAMERA_FIRST_PERSON,
   version: '1.0.0',
   description: 'First-person eye camera, the compatibility view, switchable from third-person.',
-  defaults: Object.freeze({ eyeHeight: 1.6, rotationSensitivity: DEFAULT_PLAYER_CAMERA.rotationSensitivity }),
+  defaults: Object.freeze({
+    eyeHeight: 1.6,
+    rotationSensitivity: DEFAULT_PLAYER_CAMERA.rotationSensitivity,
+  }),
   validate: (input) =>
     validateConfig<FirstPersonCameraConfig>(input, cameraFirstPersonCapability.defaults, {
       eyeHeight: num(EYE_HEIGHT_LIMITS),
@@ -101,9 +118,13 @@ export const cameraFirstPersonCapability: CapabilityDefinition<FirstPersonCamera
 export const cameraCollisionCapability: CapabilityDefinition<CameraCollisionConfig> = {
   id: CAMERA_COLLISION,
   version: '1.0.0',
-  description: 'Boom shortening through the physics provider (skipping cameraIgnores colliders) so the camera never ends inside a wall.',
+  description:
+    'Boom shortening through the physics provider (skipping cameraIgnores colliders) so the camera never ends inside a wall.',
   requires: [CAMERA_THIRD_PERSON],
-  defaults: Object.freeze({ enabled: DEFAULT_PLAYER_CAMERA.collisionEnabled, safetyRadius: DEFAULT_SAFETY_RADIUS }),
+  defaults: Object.freeze({
+    enabled: DEFAULT_PLAYER_CAMERA.collisionEnabled,
+    safetyRadius: DEFAULT_SAFETY_RADIUS,
+  }),
   validate: (input) =>
     validateConfig<CameraCollisionConfig>(input, cameraCollisionCapability.defaults, {
       enabled: { kind: 'boolean' },
@@ -119,7 +140,11 @@ export function registerCameraCapabilities(registry: CapabilityRegistry): void {
 }
 
 /** Every camera capability, for validators that only need `validate`. */
-export const CAMERA_CAPABILITY_IDS: readonly string[] = Object.freeze([CAMERA_THIRD_PERSON, CAMERA_FIRST_PERSON, CAMERA_COLLISION]);
+export const CAMERA_CAPABILITY_IDS: readonly string[] = Object.freeze([
+  CAMERA_THIRD_PERSON,
+  CAMERA_FIRST_PERSON,
+  CAMERA_COLLISION,
+]);
 
 export interface ResolvedCameraConfigs {
   thirdPerson?: ThirdPersonCameraConfig;
@@ -138,7 +163,12 @@ export function cameraRigOptionsFromCapabilities(
   const third = configs.thirdPerson;
   const config: Partial<PlayerCameraConfiguration> = third
     ? { ...third, collisionEnabled: configs.collision?.enabled ?? false }
-    : { defaultMode: 'first-person', allowModeSwitch: false, rotationSensitivity: configs.firstPerson?.rotationSensitivity, collisionEnabled: false };
+    : {
+        defaultMode: 'first-person',
+        allowModeSwitch: false,
+        rotationSensitivity: configs.firstPerson?.rotationSensitivity,
+        collisionEnabled: false,
+      };
   return {
     ...rest,
     config,

@@ -109,11 +109,7 @@ const FLINT_LINES: DialogueNode[] = [
       'EXPLORER',
       'This is my map of Firepeak. Find five places on it: the forest, the lava river, the caverns, the forge and the summit. Take your time.',
     ],
-    [
-      'completeMessage',
-      'PATHFINDER',
-      'You found three places! Now we know where we are going.',
-    ],
+    ['completeMessage', 'PATHFINDER', 'You found three places! Now we know where we are going.'],
     [
       'completeMessage',
       'EXPLORER',
@@ -129,11 +125,7 @@ const FLINT_LINES: DialogueNode[] = [
 
 const KINDLE_LINES: DialogueNode[] = [
   ...lineNodes('kindle', 'fh-emberwood-pattern', [
-    [
-      'intro',
-      'PATHFINDER',
-      'These crystals make a pattern. Look closely. What comes next?',
-    ],
+    ['intro', 'PATHFINDER', 'These crystals make a pattern. Look closely. What comes next?'],
     [
       'intro',
       'EXPLORER',
@@ -153,7 +145,11 @@ const KINDLE_LINES: DialogueNode[] = [
       'EXPLORER',
       'My embers are sitting in groups. Count in steps, or count the groups, to find how many there are.',
     ],
-    ['completeMessage', 'PATHFINDER', 'You counted them just right. The path through the forest is open!'],
+    [
+      'completeMessage',
+      'PATHFINDER',
+      'You counted them just right. The path through the forest is open!',
+    ],
     [
       'completeMessage',
       'EXPLORER',
@@ -193,14 +189,22 @@ const KINDLE_LINES: DialogueNode[] = [
     ],
   ]),
   ...lineNodes('kindle', 'fh-heart-restore', [
-    ['intro', 'ALL', 'The four crystals are in place. Now let us set the shard back into the Heart together.'],
+    [
+      'intro',
+      'ALL',
+      'The four crystals are in place. Now let us set the shard back into the Heart together.',
+    ],
     ['completeMessage', 'ALL', 'Look! The Heart is glowing again. Go and tell Ignis!'],
   ]),
 ];
 
 const BASALT_LINES: DialogueNode[] = [
   ...lineNodes('basalt', 'fh-caverns-shapes', [
-    ['intro', 'PATHFINDER', 'The crystals in here are shaped like circles, squares, triangles and hexagons. Match each one to its clue.'],
+    [
+      'intro',
+      'PATHFINDER',
+      'The crystals in here are shaped like circles, squares, triangles and hexagons. Match each one to its clue.',
+    ],
     [
       'intro',
       'EXPLORER',
@@ -238,18 +242,18 @@ const BASALT_LINES: DialogueNode[] = [
     ],
   ]),
   ...lineNodes('basalt', 'fh-summit-rocks', [
-    ['intro', 'PATHFINDER', 'Here are rock samples from the mountain. Let us learn about them. Choose the answer you think is right.'],
+    [
+      'intro',
+      'PATHFINDER',
+      'Here are rock samples from the mountain. Let us learn about them. Choose the answer you think is right.',
+    ],
     [
       'intro',
       'EXPLORER',
       'Here are three rocks from Firepeak: basalt, pumice and obsidian. Look at how each one looks and feels, then answer.',
     ],
     ['completeMessage', 'PATHFINDER', 'Well done, young scientist!'],
-    [
-      'completeMessage',
-      'EXPLORER',
-      'Excellent! You are thinking like a volcano scientist.',
-    ],
+    ['completeMessage', 'EXPLORER', 'Excellent! You are thinking like a volcano scientist.'],
     [
       'scienceNote',
       'PATHFINDER',
@@ -262,7 +266,11 @@ const BASALT_LINES: DialogueNode[] = [
     ],
   ]),
   ...lineNodes('basalt', 'fh-summit-island', [
-    ['intro', 'PATHFINDER', 'Real islands can be made by volcanoes! Put the steps in order to see how.'],
+    [
+      'intro',
+      'PATHFINDER',
+      'Real islands can be made by volcanoes! Put the steps in order to see how.',
+    ],
     [
       'intro',
       'EXPLORER',
@@ -289,7 +297,11 @@ const BASALT_LINES: DialogueNode[] = [
 
 const CINDER_LINES: DialogueNode[] = [
   ...lineNodes('cinder', 'fh-forge-switches', [
-    ['intro', 'PATHFINDER', 'The old machine needs three switches pressed in the right order. Think about what must happen first.'],
+    [
+      'intro',
+      'PATHFINDER',
+      'The old machine needs three switches pressed in the right order. Think about what must happen first.',
+    ],
     [
       'intro',
       'EXPLORER',
@@ -325,7 +337,11 @@ const CINDER_LINES: DialogueNode[] = [
 
 const IGNIS_LINES: DialogueNode[] = [
   ...lineNodes('ignis', 'fh-heart-crystals', [
-    ['intro', 'PATHFINDER', 'Four crystals came with you on your journey. Set them in the order you found them.'],
+    [
+      'intro',
+      'PATHFINDER',
+      'Four crystals came with you on your journey. Set them in the order you found them.',
+    ],
     [
       'intro',
       'EXPLORER',
@@ -340,11 +356,7 @@ const IGNIS_LINES: DialogueNode[] = [
   ]),
   ...lineNodes('ignis', 'fh-heart-return', [
     ['intro', 'ALL', 'The Heart is shining again. Come and tell me all about it.'],
-    [
-      'completeMessage',
-      'PATHFINDER',
-      'The mountain is calm again. Thank you, brave explorer!',
-    ],
+    ['completeMessage', 'PATHFINDER', 'The mountain is calm again. Thank you, brave explorer!'],
     [
       'completeMessage',
       'EXPLORER',
@@ -450,7 +462,13 @@ const FLINT: NpcDefinition = {
       ALWAYS,
       true,
     ),
-    node('flint-bye', 'Good luck, explorer! I will be right here if you want to talk.', [], ALWAYS, true),
+    node(
+      'flint-bye',
+      'Good luck, explorer! I will be right here if you want to talk.',
+      [],
+      ALWAYS,
+      true,
+    ),
     ...FLINT_LINES,
   ],
   questOffers: [
@@ -797,17 +815,15 @@ export const HEART_ITEMS: readonly ItemDefinition[] = [
     'Forge Crystal',
     'A golden crystal from the Ancient Forge. It hums like a tiny machine.',
   ),
-  ...SHARD_ZONES.map(
-    ([zone, name, place]): ItemDefinition => ({
-      id: `fh-shard-item-${zone}`,
-      displayName: `Ember Shard: ${name}`,
-      description: `A little glowing shard you found at ${place}.`,
-      category: 'COLLECTIBLE',
-      rarity: zone === 'landing' ? 'COMMON' : 'UNCOMMON',
-      setId: HEART_SHARDS_SET_ID,
-      ...(zone === 'emberwood' || zone === 'lava' || zone === 'caverns' ? { hidden: true } : {}),
-    }),
-  ),
+  ...SHARD_ZONES.map(([zone, name, place]): ItemDefinition => ({
+    id: `fh-shard-item-${zone}`,
+    displayName: `Ember Shard: ${name}`,
+    description: `A little glowing shard you found at ${place}.`,
+    category: 'COLLECTIBLE',
+    rarity: zone === 'landing' ? 'COMMON' : 'UNCOMMON',
+    setId: HEART_SHARDS_SET_ID,
+    ...(zone === 'emberwood' || zone === 'lava' || zone === 'caverns' ? { hidden: true } : {}),
+  })),
   badge(
     'fh-badge-first-steps',
     'First Steps into Firepeak',
@@ -818,14 +834,22 @@ export const HEART_ITEMS: readonly ItemDefinition[] = [
     'Emberwood Explorer',
     'For finding the way through Emberwood Forest.',
   ),
-  badge('fh-badge-lava-jumper', 'Lava Jumper', 'For finding the shard at the end of the stepping stones.'),
+  badge(
+    'fh-badge-lava-jumper',
+    'Lava Jumper',
+    'For finding the shard at the end of the stepping stones.',
+  ),
   badge(
     'fh-badge-crystal-collector',
     'Crystal Collector',
     'For gathering all four elemental crystals.',
     'UNCOMMON',
   ),
-  badge('fh-badge-forge-master', 'Master of the Forge', 'For waking the old machines of the Ancient Forge.'),
+  badge(
+    'fh-badge-forge-master',
+    'Master of the Forge',
+    'For waking the old machines of the Ancient Forge.',
+  ),
   badge(
     'fh-badge-volcano-scientist',
     'Volcano Scientist',
@@ -898,7 +922,12 @@ const rule = (
 });
 
 export const HEART_REWARD_RULES: RewardTable = [
-  rule('fh-rule-first-steps', K.mapRead, ['fh-badge-first-steps'], 'You earned First Steps into Firepeak!'),
+  rule(
+    'fh-rule-first-steps',
+    K.mapRead,
+    ['fh-badge-first-steps'],
+    'You earned First Steps into Firepeak!',
+  ),
   rule(
     'fh-rule-emberwood',
     K.emberwoodDone,
@@ -982,7 +1011,12 @@ export const HEART_QUESTS: readonly QuestDefinition[] = [
         id: 'fh-stage-emberwood',
         title: 'Cross Emberwood Forest',
         objectives: [
-          objective('fh-stage-emberwood', 'pattern', K.patternSolved, 'Continue the crystal pattern'),
+          objective(
+            'fh-stage-emberwood',
+            'pattern',
+            K.patternSolved,
+            'Continue the crystal pattern',
+          ),
           objective('fh-stage-emberwood', 'count', K.emberwoodDone, 'Count the embers'),
         ],
         nextStageId: 'fh-stage-lava',
@@ -991,8 +1025,18 @@ export const HEART_QUESTS: readonly QuestDefinition[] = [
         id: 'fh-stage-lava',
         title: 'Cross the lava river',
         objectives: [
-          objective('fh-stage-lava', 'bridge', K.lavaBridge, 'Solve the numbers to raise the bridge'),
-          objective('fh-stage-lava', 'crossed', K.lavaCrossed, 'Choose the right path to the far bank'),
+          objective(
+            'fh-stage-lava',
+            'bridge',
+            K.lavaBridge,
+            'Solve the numbers to raise the bridge',
+          ),
+          objective(
+            'fh-stage-lava',
+            'crossed',
+            K.lavaCrossed,
+            'Choose the right path to the far bank',
+          ),
         ],
         nextStageId: 'fh-stage-caverns',
       },
@@ -1000,8 +1044,18 @@ export const HEART_QUESTS: readonly QuestDefinition[] = [
         id: 'fh-stage-caverns',
         title: 'Light the Crystal Caverns',
         objectives: [
-          objective('fh-stage-caverns', 'shapes', K.shapesMatched, 'Match the crystals to their shapes'),
-          objective('fh-stage-caverns', 'lit', K.cavernLit, 'Arrange the crystals to light the cavern'),
+          objective(
+            'fh-stage-caverns',
+            'shapes',
+            K.shapesMatched,
+            'Match the crystals to their shapes',
+          ),
+          objective(
+            'fh-stage-caverns',
+            'lit',
+            K.cavernLit,
+            'Arrange the crystals to light the cavern',
+          ),
         ],
         nextStageId: 'fh-stage-forge',
       },
@@ -1009,7 +1063,12 @@ export const HEART_QUESTS: readonly QuestDefinition[] = [
         id: 'fh-stage-forge',
         title: 'Restore the Ancient Forge',
         objectives: [
-          objective('fh-stage-forge', 'powered', K.forgePowered, 'Press the switches in the right order'),
+          objective(
+            'fh-stage-forge',
+            'powered',
+            K.forgePowered,
+            'Press the switches in the right order',
+          ),
           objective('fh-stage-forge', 'restored', K.forgeRestored, 'Complete the circuit'),
         ],
         nextStageId: 'fh-stage-summit',
@@ -1019,7 +1078,12 @@ export const HEART_QUESTS: readonly QuestDefinition[] = [
         title: 'Climb Firepeak Summit',
         objectives: [
           objective('fh-stage-summit', 'rocks', K.rocksNamed, 'Learn about the rock samples'),
-          objective('fh-stage-summit', 'reached', K.summitReached, 'Tell how a volcano island forms'),
+          objective(
+            'fh-stage-summit',
+            'reached',
+            K.summitReached,
+            'Tell how a volcano island forms',
+          ),
         ],
         nextStageId: 'fh-stage-heart',
       },
@@ -1029,7 +1093,12 @@ export const HEART_QUESTS: readonly QuestDefinition[] = [
         objectives: [
           objective('fh-stage-heart', 'crystals', K.crystalsSet, 'Set the crystals in order'),
           objective('fh-stage-heart', 'restored', K.restored, 'Restore the Heart'),
-          objective('fh-stage-heart', 'celebrated', K.celebrated, 'Tell Ignis the Heart is glowing'),
+          objective(
+            'fh-stage-heart',
+            'celebrated',
+            K.celebrated,
+            'Tell Ignis the Heart is glowing',
+          ),
         ],
       },
     ],

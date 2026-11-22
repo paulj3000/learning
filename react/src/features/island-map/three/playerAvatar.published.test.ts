@@ -12,7 +12,7 @@ import { getAvatarAppearance } from '../avatarAppearance';
 import { applyAvatarColors, createPlayerAvatar, PLACEHOLDER_NAME } from './playerAvatar';
 import { createPlayerAnimationController } from './playerAnimation';
 import type { PlayerAvatarModel } from './playerAvatarCatalog';
-import { resolvePlayerAvatar } from './playerPresentation';
+import { resolvePlayerAvatar } from '@lai/game-engine/camera';
 import type { LoadedModel } from './runtime/extensionRegistry';
 
 /** LAI-JMP-01c: the avatar renderer with a model published in Django Admin. */
