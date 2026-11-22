@@ -40,7 +40,12 @@ const definition: AvatarDefinition = {
   sockets: { head: 'HeadTop', 'hand.right': 'HandR', back: 'Spine' },
 };
 
-function transformAt(x: number, y: number, z: number, patch: Partial<PlayerTransform> = {}): PlayerTransform {
+function transformAt(
+  x: number,
+  y: number,
+  z: number,
+  patch: Partial<PlayerTransform> = {},
+): PlayerTransform {
   return { ...createPlayerTransform({ x, y, z }, 0), ...patch };
 }
 
@@ -63,8 +68,12 @@ function rigAsset() {
   hips.add(spine);
   armature.add(hips);
   scene.add(armature, new Mesh());
-  const walk = new AnimationClip('Walk', 1, [new VectorKeyframeTrack('Hips.position', [0, 1], [0, 1, 0, 0, 1, 5])]);
-  const idle = new AnimationClip('Idle', 1, [new VectorKeyframeTrack('Spine.position', [0, 1], [0, 0, 0, 0, 0.1, 0])]);
+  const walk = new AnimationClip('Walk', 1, [
+    new VectorKeyframeTrack('Hips.position', [0, 1], [0, 1, 0, 0, 1, 5]),
+  ]);
+  const idle = new AnimationClip('Idle', 1, [
+    new VectorKeyframeTrack('Spine.position', [0, 1], [0, 0, 0, 0, 0.1, 0]),
+  ]);
   return { scene, animations: [walk, idle] };
 }
 
@@ -73,7 +82,12 @@ const loader: AvatarLoaderPort = { load: async () => rigAsset() };
 describe('avatar placement (the avatar mirrors the canonical transform)', () => {
   it('is exactly the interpolated position and yaw, nothing else', () => {
     const base = createPlayerTransform({ x: 0, y: 0, z: 0 }, 0);
-    const t: PlayerTransform = { ...base, previousPosition: { x: 0, y: 0, z: 0 }, position: { x: 4, y: 2, z: -2 }, yaw: 0.5 };
+    const t: PlayerTransform = {
+      ...base,
+      previousPosition: { x: 0, y: 0, z: 0 },
+      position: { x: 4, y: 2, z: -2 },
+      yaw: 0.5,
+    };
     const placement = avatarPlacement(t, 0.25, 'controller');
     expect(placement.position).toEqual({ x: 1, y: 0.5, z: -0.5 });
     expect(placement.yaw).toBe(0.5);
@@ -110,9 +124,17 @@ describe('avatar placement (the avatar mirrors the canonical transform)', () => 
 
   it('strips the hips travel from the loaded clips', async () => {
     const asset = rigAsset();
-    const controller = createAvatarController({ definition, loader: { load: async () => asset }, yawConvention: 'controller' });
+    const controller = createAvatarController({
+      definition,
+      loader: { load: async () => asset },
+      yawConvention: 'controller',
+    });
     await controller.ready;
-    controller.animate(0.1, transformAt(0, 0, 0, { state: 'WALK', velocity: { x: 2, y: 0, z: 0 } }), { walkSpeed: 2 });
+    controller.animate(
+      0.1,
+      transformAt(0, 0, 0, { state: 'WALK', velocity: { x: 2, y: 0, z: 0 } }),
+      { walkSpeed: 2 },
+    );
     // The loaded clip is untouched (it belongs to the cache); the driver got a corrected copy.
     expect(asset.animations[0]!.tracks[0]!.values[5]).toBe(5);
     const hips = asset.scene.getObjectByName('Hips')!;
@@ -120,7 +142,10 @@ describe('avatar placement (the avatar mirrors the canonical transform)', () => 
   });
 
   it('keeps a placeholder when the model fails to load, and never rejects', async () => {
-    const controller = createAvatarController({ definition, loader: { load: async () => Promise.reject(new Error('404')) } });
+    const controller = createAvatarController({
+      definition,
+      loader: { load: async () => Promise.reject(new Error('404')) },
+    });
     await expect(controller.ready).resolves.toBeUndefined();
     expect(controller.source()).toBe('placeholder');
     expect(controller.root.getObjectByName('player-avatar:placeholder')).toBeDefined();
@@ -130,7 +155,9 @@ describe('avatar placement (the avatar mirrors the canonical transform)', () => 
 
   it('ignores a model that arrives after dispose', async () => {
     let release!: () => void;
-    const slow: AvatarLoaderPort = { load: () => new Promise((resolve) => (release = () => resolve(rigAsset()))) };
+    const slow: AvatarLoaderPort = {
+      load: () => new Promise((resolve) => (release = () => resolve(rigAsset()))),
+    };
     const controller = createAvatarController({ definition, loader: slow });
     controller.dispose();
     release();
@@ -157,7 +184,9 @@ describe('equipment', () => {
     const crown = new Object3D();
     expect(controller.equipment.equip({ id: 'hat.cap', socket: 'head', object: hat })).toBe(true);
     expect(hat.parent?.name).toBe('HeadTop');
-    expect(controller.equipment.equip({ id: 'hat.crown', socket: 'head', object: crown })).toBe(true);
+    expect(controller.equipment.equip({ id: 'hat.crown', socket: 'head', object: crown })).toBe(
+      true,
+    );
     expect(hat.parent).toBeNull();
     expect(controller.equipment.items().map((i) => i.id)).toEqual(['hat.crown']);
     expect(controller.equipment.unequip('hat.crown')?.object).toBe(crown);
@@ -169,7 +198,9 @@ describe('equipment', () => {
     const controller = createAvatarController({ definition, loader });
     await controller.ready;
     const glove = new Object3D();
-    expect(controller.equipment.equip({ id: 'glove', socket: 'hand.left', object: glove })).toBe(false);
+    expect(controller.equipment.equip({ id: 'glove', socket: 'hand.left', object: glove })).toBe(
+      false,
+    );
     expect(controller.equipment.items()).toEqual([]);
   });
 
@@ -190,7 +221,14 @@ describe('equipment', () => {
 
 describe('avatar definition validation', () => {
   it('accepts a good definition and freezes the result', () => {
-    const result = validateAvatarDefinition({ id: 'a.b', assetId: 'x', scale: 1.2, sockets: { head: 'Head' }, animationMap: { idle: 'Idle' }, footprintOffset: { x: 0.1 } });
+    const result = validateAvatarDefinition({
+      id: 'a.b',
+      assetId: 'x',
+      scale: 1.2,
+      sockets: { head: 'Head' },
+      animationMap: { idle: 'Idle' },
+      footprintOffset: { x: 0.1 },
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.footprintOffset).toEqual({ x: 0.1, z: 0 });
@@ -199,16 +237,43 @@ describe('avatar definition validation', () => {
   });
 
   it('reports the missing, the out of range and the unknown', () => {
-    const result = validateAvatarDefinition({ scale: 99, eyeHeight: 0, sockets: { tail: 'T', head: '' }, animationMap: { idle: 4 }, footprintOffset: { y: 1, x: 9 }, extra: true });
+    const result = validateAvatarDefinition({
+      scale: 99,
+      eyeHeight: 0,
+      sockets: { tail: 'T', head: '' },
+      animationMap: { idle: 4 },
+      footprintOffset: { y: 1, x: 9 },
+      extra: true,
+    });
     expect(result.ok).toBe(false);
     const paths = result.issues.map((i) => i.path);
-    for (const expected of ['id', 'assetId', 'scale', 'eyeHeight', 'sockets.tail', 'sockets.head', 'animationMap.idle', 'footprintOffset.y', 'footprintOffset.x', 'extra']) {
+    for (const expected of [
+      'id',
+      'assetId',
+      'scale',
+      'eyeHeight',
+      'sockets.tail',
+      'sockets.head',
+      'animationMap.idle',
+      'footprintOffset.y',
+      'footprintOffset.x',
+      'extra',
+    ]) {
       expect(paths).toContain(expected);
     }
   });
 
   it('never throws', () => {
-    for (const input of [null, undefined, 3, 'x', [], { sockets: null }, { animationMap: [] }, Object.create(null)]) {
+    for (const input of [
+      null,
+      undefined,
+      3,
+      'x',
+      [],
+      { sockets: null },
+      { animationMap: [] },
+      Object.create(null),
+    ]) {
       expect(() => validateAvatarDefinition(input)).not.toThrow();
       expect(validateAvatarDefinition(input).ok).toBe(false);
     }
@@ -221,7 +286,10 @@ describe('character capabilities', () => {
     registerCharacterCapabilities(registry);
     const resolution = registry.resolve([{ id: 'character.animation' }]);
     expect(resolution.ok).toBe(true);
-    expect(resolution.order.map((r) => r.definition.id)).toEqual(['character.avatar', 'character.animation']);
+    expect(resolution.order.map((r) => r.definition.id)).toEqual([
+      'character.avatar',
+      'character.animation',
+    ]);
   });
 
   it('validates limits, unknown keys and enums without throwing', () => {
@@ -254,8 +322,19 @@ describe('avatar and camera systems on the shared transform', () => {
     const order: string[] = [];
     const frames: number[] = [];
     const scheduler = createSystemScheduler();
-    scheduler.add(createCameraSystem({ world, rig, onFrame: (f) => { order.push('camera'); frames.push(f.position.x); } }));
-    scheduler.add(createAvatarFollowSystem({ world, avatar: controller, speeds: () => ({ walkSpeed: 2 }) }));
+    scheduler.add(
+      createCameraSystem({
+        world,
+        rig,
+        onFrame: (f) => {
+          order.push('camera');
+          frames.push(f.position.x);
+        },
+      }),
+    );
+    scheduler.add(
+      createAvatarFollowSystem({ world, avatar: controller, speeds: () => ({ walkSpeed: 2 }) }),
+    );
     scheduler.runFrame({ frameSeconds: 1 / 60, alpha: 1, time: 0 });
     expect(controller.root.position.toArray()).toEqual([2, 0, 3]);
     expect(frames[0]).toBeCloseTo(2);
@@ -268,7 +347,9 @@ describe('avatar and camera systems on the shared transform', () => {
     const world = createEntityWorld();
     const controller = createAvatarController({ definition });
     const scheduler = createSystemScheduler();
-    scheduler.add(createAvatarFollowSystem({ world, avatar: controller, speeds: () => ({ walkSpeed: 2 }) }));
+    scheduler.add(
+      createAvatarFollowSystem({ world, avatar: controller, speeds: () => ({ walkSpeed: 2 }) }),
+    );
     expect(() => scheduler.runFrame({ frameSeconds: 1 / 60, alpha: 1, time: 0 })).not.toThrow();
     expect(controller.root.position.toArray()).toEqual([0, 0, 0]);
   });

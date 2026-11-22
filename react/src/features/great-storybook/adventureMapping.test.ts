@@ -129,7 +129,10 @@ describe('historical and partial progress', () => {
     expect(storybookProgress(state, 'SPROUT').complete).toBe(true);
     // A Pathfinder also needs the Painted Words page (SC-R04-05).
     expect(storybookProgress(state, 'PATHFINDER').complete).toBe(false);
-    const mended = { worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], discoveryIds: [] };
+    const mended = {
+      worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'],
+      discoveryIds: [],
+    };
     expect(storybookProgress(mended, 'PATHFINDER').complete).toBe(true);
     expect(storybookProgress(state, 'EXPLORER').complete).toBe(false);
   });

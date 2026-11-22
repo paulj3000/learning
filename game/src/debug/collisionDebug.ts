@@ -31,7 +31,9 @@ export function colliderDebugColor(spec: Pick<ColliderSpec, 'kind' | 'gate'>): n
 }
 
 /** Collider count per debug class, for a legend and for tests. */
-export function countCollidersByClass(specs: readonly ColliderSpec[]): Record<ColliderDebugClass, number> {
+export function countCollidersByClass(
+  specs: readonly ColliderSpec[],
+): Record<ColliderDebugClass, number> {
   const counts: Record<ColliderDebugClass, number> = { SOLID: 0, JUMPABLE: 0, TRIGGER: 0, GATE: 0 };
   for (const spec of specs) {
     counts[colliderDebugClass(spec)] += 1;
@@ -55,8 +57,13 @@ export interface CollisionDebugOptions {
   visible?: boolean;
 }
 
-export function createCollisionDebugView(provider: PhysicsProvider, options: CollisionDebugOptions = {}): CollisionDebugView {
-  const own = options.scope ? options.scope.child('collisionDebug') : createResourceScope('collisionDebug');
+export function createCollisionDebugView(
+  provider: PhysicsProvider,
+  options: CollisionDebugOptions = {},
+): CollisionDebugView {
+  const own = options.scope
+    ? options.scope.child('collisionDebug')
+    : createResourceScope('collisionDebug');
   const group = new Group();
   group.name = 'debug.collision';
   group.visible = options.visible ?? true;
@@ -71,7 +78,10 @@ export function createCollisionDebugView(provider: PhysicsProvider, options: Col
     group.clear();
     helperScope = own.child('helpers');
     for (const spec of provider.colliders()) {
-      const box = new Box3(new Vector3(spec.min.x, spec.min.y, spec.min.z), new Vector3(spec.max.x, spec.max.y, spec.max.z));
+      const box = new Box3(
+        new Vector3(spec.min.x, spec.min.y, spec.min.z),
+        new Vector3(spec.max.x, spec.max.y, spec.max.z),
+      );
       const helper = new Box3Helper(box, new Color(colliderDebugColor(spec)));
       helper.name = `debug.collider.${spec.id}`;
       helperScope.track(helper);

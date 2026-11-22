@@ -166,3 +166,34 @@ def import_child_profile(parent: ParentAccount, child_id, created_at, **fields) 
         child.full_clean(validate_unique=False)
         child.save(force_insert=True)
         return child
+
+
+# --- System jobs (GE-090-D1) -------------------------------------------------------------------
+# Cross-family by design, like the import lookups above: these serve operator management commands
+# and background jobs that act for the platform, never for a request, so no parent is involved.
+# Never call them from a view, serializer, API or URL module (test_tenant_isolation enforces it).
+# Callers: scoring reconcile (on-commit job and `scoring_reconcile`), `scoring_verify_projections`,
+# and the castle keepsake backfill (`apps.inventory.backfill`).
+
+
+def iter_child_profiles_for_system():
+    """Every child profile, in primary-key order, streamed. Operator commands only."""
+    return ChildProfile.objects.order_by("pk").iterator()
+
+
+def iter_child_profile_ids_for_system():
+    """Every child profile id, in primary-key order, streamed. Operator commands only."""
+    return ChildProfile.objects.order_by("pk").values_list("pk", flat=True).iterator()
+
+
+def child_profile_for_system(child_id) -> ChildProfile | None:
+    """The child with this id, whoever owns it, or None. System jobs only."""
+    return ChildProfile.objects.filter(pk=child_id).first()
+
+
+def lock_child_profile_for_system(child_id) -> ChildProfile:
+    """The child with this id, row-locked until the caller's transaction ends. System jobs only.
+
+    Must run inside `transaction.atomic()`. Raises `ChildProfile.DoesNotExist` for an unknown id.
+    """
+    return ChildProfile.objects.select_for_update().get(pk=child_id)

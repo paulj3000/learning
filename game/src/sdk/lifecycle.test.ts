@@ -9,7 +9,10 @@ import { loadAdventure } from './lifecycle';
 import { createTestRegistry, validAdventure } from './testFixtures';
 
 function setup(log: string[] = []) {
-  const runtime = createEngineRuntime<EventMap>({ id: 'demo-adventure', capabilities: createTestRegistry(log) });
+  const runtime = createEngineRuntime<EventMap>({
+    id: 'demo-adventure',
+    capabilities: createTestRegistry(log),
+  });
   const events: AnyGameplayEvent[] = [];
   runtime.events.on('gameplay.event', (event) => events.push(event as AnyGameplayEvent));
   return { runtime, events, log };
@@ -18,13 +21,19 @@ function setup(log: string[] = []) {
 describe('adventure lifecycle', () => {
   it('validates, starts the runtime with the capability requests and emits a valid adventure.started', async () => {
     const { runtime, events, log } = setup();
-    const session = await loadAdventure(validAdventure(), runtime, runtime.services, { ageBand: 'PATHFINDER' });
+    const session = await loadAdventure(validAdventure(), runtime, runtime.services, {
+      ageBand: 'PATHFINDER',
+    });
     expect(runtime.state).toBe('running');
     expect(log).toEqual(['install:movement.walk', 'install:movement.jump']);
     expect(runtime.capabilityConfig('movement.jump')).toEqual({ jumpHeight: 1.0 });
     expect(events.map((e) => e.type)).toEqual(['adventure.started']);
     expect(validateGameplayEvent(events[0]).ok).toBe(true);
-    expect(events[0]).toMatchObject({ realmId: 'demo-realm', adventureId: 'demo-adventure', sessionRef: null });
+    expect(events[0]).toMatchObject({
+      realmId: 'demo-realm',
+      adventureId: 'demo-adventure',
+      sessionRef: null,
+    });
     expect(session.state).toBe('running');
     expect(session.profile.band).toBe('PATHFINDER');
   });
@@ -32,7 +41,10 @@ describe('adventure lifecycle', () => {
   it('carries the session ref and emits valid events through emit()', async () => {
     const { runtime, events } = setup();
     const ref = '0b6e2c1a-8f3d-4a8e-9c5b-1d2e3f4a5b6c';
-    const session = await loadAdventure(validAdventure(), runtime, runtime.services, { ageBand: 'SPROUT', sessionRef: ref });
+    const session = await loadAdventure(validAdventure(), runtime, runtime.services, {
+      ageBand: 'SPROUT',
+      sessionRef: ref,
+    });
     session.emit('quest.step.completed', { questId: 'quest-1', stepId: 'step-1' });
     expect(events.every((e) => validateGameplayEvent(e).ok)).toBe(true);
     expect(events.at(-1)).toMatchObject({ type: 'quest.step.completed', sessionRef: ref });
@@ -71,7 +83,12 @@ describe('adventure lifecycle', () => {
     session.enterArea('demo-hill');
     off();
     session.leaveArea();
-    expect(trail).toEqual(['enter:demo-cove', 'leave:demo-cove', 'enter:demo-hill', 'leave:demo-hill']);
+    expect(trail).toEqual([
+      'enter:demo-cove',
+      'leave:demo-cove',
+      'enter:demo-hill',
+      'leave:demo-hill',
+    ]);
     expect(extra).toEqual(['demo-cove', 'demo-hill']);
     const entered = events.filter((e) => e.type === 'exploration.area.entered');
     expect(entered.map((e) => e.areaId)).toEqual(['demo-cove', 'demo-hill']);
@@ -95,7 +112,9 @@ describe('adventure lifecycle', () => {
 
   it('pauses, resumes and disposes the runtime; dispose is idempotent', async () => {
     const { runtime, log } = setup();
-    const session = await loadAdventure(validAdventure(), runtime, runtime.services, { ageBand: 'EXPLORER' });
+    const session = await loadAdventure(validAdventure(), runtime, runtime.services, {
+      ageBand: 'EXPLORER',
+    });
     session.pause();
     expect(session.state).toBe('paused');
     expect(session.complete()).toBe(false);
@@ -110,36 +129,56 @@ describe('adventure lifecycle', () => {
 
   it('refuses an invalid definition, an unsupported band and a missing service', async () => {
     const a = setup();
-    await expect(loadAdventure({ id: 'x' }, a.runtime, a.runtime.services, { ageBand: 'SPROUT' })).rejects.toSatisfy((e) =>
-      isEngineError(e, 'VALIDATION_FAILED'),
-    );
+    await expect(
+      loadAdventure({ id: 'x' }, a.runtime, a.runtime.services, { ageBand: 'SPROUT' }),
+    ).rejects.toSatisfy((e) => isEngineError(e, 'VALIDATION_FAILED'));
     const b = setup();
     await expect(
-      loadAdventure(validAdventure({ ageBands: ['EXPLORER'] }), b.runtime, b.runtime.services, { ageBand: 'SPROUT' }),
+      loadAdventure(validAdventure({ ageBands: ['EXPLORER'] }), b.runtime, b.runtime.services, {
+        ageBand: 'SPROUT',
+      }),
     ).rejects.toSatisfy((e) => isEngineError(e, 'INVALID_CONFIG'));
     const c = setup();
     await expect(
-      loadAdventure(validAdventure({ requiredServices: ['lai.assetManager'] }), c.runtime, c.runtime.services, { ageBand: 'SPROUT' }),
+      loadAdventure(
+        validAdventure({ requiredServices: ['lai.assetManager'] }),
+        c.runtime,
+        c.runtime.services,
+        { ageBand: 'SPROUT' },
+      ),
     ).rejects.toSatisfy((e) => isEngineError(e, 'MISSING_DEPENDENCY'));
     const token = defineService<object>('lai.assetManager');
     const d = setup();
     d.runtime.services.provide(token, {});
-    const session = await loadAdventure(validAdventure({ requiredServices: ['lai.assetManager'] }), d.runtime, d.runtime.services, {
-      ageBand: 'SPROUT',
-    });
+    const session = await loadAdventure(
+      validAdventure({ requiredServices: ['lai.assetManager'] }),
+      d.runtime,
+      d.runtime.services,
+      {
+        ageBand: 'SPROUT',
+      },
+    );
     expect(session.state).toBe('running');
   });
 
   it('places components through the registry and rejects unregistered types', async () => {
     const components = createComponentRegistry();
-    components.register('gameplay.chest', (runtime, placement) => runtime.world.create(placement.id));
+    components.register('gameplay.chest', (runtime, placement) =>
+      runtime.world.create(placement.id),
+    );
     const { runtime } = setup();
-    await loadAdventure(validAdventure(), runtime, runtime.services, { ageBand: 'EXPLORER', components });
+    await loadAdventure(validAdventure(), runtime, runtime.services, {
+      ageBand: 'EXPLORER',
+      components,
+    });
     expect(runtime.world.bySemanticId('chest-1')).toBeDefined();
 
     const other = setup();
     await expect(
-      loadAdventure(validAdventure(), other.runtime, other.runtime.services, { ageBand: 'EXPLORER', components: createComponentRegistry() }),
+      loadAdventure(validAdventure(), other.runtime, other.runtime.services, {
+        ageBand: 'EXPLORER',
+        components: createComponentRegistry(),
+      }),
     ).rejects.toSatisfy((e) => isEngineError(e, 'VALIDATION_FAILED'));
   });
 });

@@ -95,7 +95,10 @@ export function CastleWritingRoomWorldView({
     );
   }
 
-  if (!WRITING_ROOM_LOCATION || !isLocationUnlocked(WRITING_ROOM_LOCATION, context.worldChangeKeys)) {
+  if (
+    !WRITING_ROOM_LOCATION ||
+    !isLocationUnlocked(WRITING_ROOM_LOCATION, context.worldChangeKeys)
+  ) {
     return (
       <div className={styles.wrapper}>
         <p className={styles.status}>

@@ -4,29 +4,57 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('ai', '0005_npc_hint_route'),
-        ('users', '0008_merge_amplify_exit'),
+        ("ai", "0005_npc_hint_route"),
+        ("users", "0008_merge_amplify_exit"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='aiinteractionaudit',
-            name='ai_audit_route_valid',
+            model_name="aiinteractionaudit",
+            name="ai_audit_route_valid",
         ),
         migrations.AlterField(
-            model_name='aiinteractionaudit',
-            name='route_name',
-            field=models.CharField(choices=[('generateCompanionTurn', 'Companion'), ('generateTutorTurn', 'Tutor'), ('generateNpcHint', 'Npc Hint'), ('generateCastleDirector', 'Castle Director')], max_length=32),
+            model_name="aiinteractionaudit",
+            name="route_name",
+            field=models.CharField(
+                choices=[
+                    ("generateCompanionTurn", "Companion"),
+                    ("generateTutorTurn", "Tutor"),
+                    ("generateNpcHint", "Npc Hint"),
+                    ("generateCastleDirector", "Castle Director"),
+                ],
+                max_length=32,
+            ),
         ),
         migrations.AlterField(
-            model_name='safetyevent',
-            name='route_name',
-            field=models.CharField(choices=[('generateCompanionTurn', 'Companion'), ('generateTutorTurn', 'Tutor'), ('generateNpcHint', 'Npc Hint'), ('generateCastleDirector', 'Castle Director')], max_length=32),
+            model_name="safetyevent",
+            name="route_name",
+            field=models.CharField(
+                choices=[
+                    ("generateCompanionTurn", "Companion"),
+                    ("generateTutorTurn", "Tutor"),
+                    ("generateNpcHint", "Npc Hint"),
+                    ("generateCastleDirector", "Castle Director"),
+                ],
+                max_length=32,
+            ),
         ),
         migrations.AddConstraint(
-            model_name='aiinteractionaudit',
-            constraint=models.CheckConstraint(condition=models.Q(('route_name__in', ['generateCompanionTurn', 'generateTutorTurn', 'generateNpcHint', 'generateCastleDirector'])), name='ai_audit_route_valid'),
+            model_name="aiinteractionaudit",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    (
+                        "route_name__in",
+                        [
+                            "generateCompanionTurn",
+                            "generateTutorTurn",
+                            "generateNpcHint",
+                            "generateCastleDirector",
+                        ],
+                    )
+                ),
+                name="ai_audit_route_valid",
+            ),
         ),
     ]

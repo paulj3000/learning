@@ -622,7 +622,9 @@ class CastleEventShown(ChildOwnedModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["child", "event_id"], name="castle_event_one_per_child"),
+            models.UniqueConstraint(
+                fields=["child", "event_id"], name="castle_event_one_per_child"
+            ),
         ]
 
 
@@ -641,7 +643,9 @@ class CastleEvent(Authorable, models.Model):
     """
 
     event_id = models.SlugField(
-        max_length=100, unique=True, help_text="Stable id. Never renamed; the display counter uses it."
+        max_length=100,
+        unique=True,
+        help_text="Stable id. Never renamed; the display counter uses it.",
     )
     room = models.SlugField(
         max_length=64, help_text="A castle room id, or ANY. Copied from the published content."

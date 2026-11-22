@@ -1,8 +1,16 @@
 import { useId } from 'react';
 import type { GreatStorybook } from '../../../../great-storybook/useGreatStorybook';
-import { pageState, type PageState, type PageStateContext } from '../../../../great-storybook/pageStates';
+import {
+  pageState,
+  type PageState,
+  type PageStateContext,
+} from '../../../../great-storybook/pageStates';
 import { getCastleRoom, type CastleRoomId } from '../../castleLayout';
-import { CASTLE_RANKS, shownRank, type CastleRanksConfig } from '../../../../great-storybook/castleRanks';
+import {
+  CASTLE_RANKS,
+  shownRank,
+  type CastleRanksConfig,
+} from '../../../../great-storybook/castleRanks';
 import styles from './CastleGuide.module.css';
 
 /**

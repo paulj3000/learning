@@ -12,7 +12,13 @@
 
 import { defineComponent } from '../core/entities';
 import type { CapabilityDefinition } from '../core/capabilities';
-import { emitClaim, emitPresentation, entityKey, playerPosition, type GameplayRuntime } from './common';
+import {
+  emitClaim,
+  emitPresentation,
+  entityKey,
+  playerPosition,
+  type GameplayRuntime,
+} from './common';
 import { rectContains, type Rect } from './geometry';
 import { configRoot, Issues } from './validate';
 
@@ -91,66 +97,82 @@ export function validateJumpChallengesConfig(input: unknown) {
 
 export const JUMP_CHALLENGES_CAPABILITY_ID = 'gameplay.jumpChallenges';
 
-export const jumpChallengesCapability: CapabilityDefinition<JumpChallengesConfig, GameplayRuntime> = {
-  id: JUMP_CHALLENGES_CAPABILITY_ID,
-  version: '1.0.0',
-  description: 'Jump challenges with a jump route and an accessible route that emit equal-value completion claims.',
-  defaults: { challenges: [] },
-  validate: validateJumpChallengesConfig,
-  install(runtime, config) {
-    const { world } = runtime;
-    for (const spec of config.challenges) {
-      world.add(world.create(entityKey('jumpChallenge', spec.challengeId)), JumpChallengeComponent, {
-        spec,
-        started: false,
-        completed: false,
-        completedRouteId: null,
-      });
-    }
-    runtime.systems.add({
-      id: 'gameplay.jumpChallenges',
-      phase: 'simulation',
-      update() {
-        const player = playerPosition(runtime);
-        if (!player) {
-          return;
-        }
-        for (const entity of world.query(JumpChallengeComponent)) {
-          const state = world.get(entity, JumpChallengeComponent)!;
-          if (state.completed) {
-            continue;
+export const jumpChallengesCapability: CapabilityDefinition<JumpChallengesConfig, GameplayRuntime> =
+  {
+    id: JUMP_CHALLENGES_CAPABILITY_ID,
+    version: '1.0.0',
+    description:
+      'Jump challenges with a jump route and an accessible route that emit equal-value completion claims.',
+    defaults: { challenges: [] },
+    validate: validateJumpChallengesConfig,
+    install(runtime, config) {
+      const { world } = runtime;
+      for (const spec of config.challenges) {
+        world.add(
+          world.create(entityKey('jumpChallenge', spec.challengeId)),
+          JumpChallengeComponent,
+          {
+            spec,
+            started: false,
+            completed: false,
+            completedRouteId: null,
+          },
+        );
+      }
+      runtime.systems.add({
+        id: 'gameplay.jumpChallenges',
+        phase: 'simulation',
+        update() {
+          const player = playerPosition(runtime);
+          if (!player) {
+            return;
           }
-          const { spec } = state;
-          const start = (routeId: string, accessible: boolean) => {
-            if (!state.started) {
-              state.started = true;
-              emitPresentation(runtime, 'JumpRouteChosen', { challengeId: spec.challengeId, routeId, accessible });
-              emitClaim(runtime, 'jump.challenge.started', { challengeId: spec.challengeId });
+          for (const entity of world.query(JumpChallengeComponent)) {
+            const state = world.get(entity, JumpChallengeComponent)!;
+            if (state.completed) {
+              continue;
             }
-          };
-          for (const route of spec.routes) {
-            if (rectContains(route.start, player.x, player.z)) {
-              start(route.routeId, route.kind === 'ACCESSIBLE');
-            }
-          }
-          for (const route of spec.routes) {
-            if (rectContains(route.goal, player.x, player.z)) {
-              // Reaching a goal always yields started then completed, identically for any route.
-              start(route.routeId, route.kind === 'ACCESSIBLE');
-              state.completed = true;
-              state.completedRouteId = route.routeId;
-              emitClaim(runtime, 'jump.challenge.completed', { challengeId: spec.challengeId, routeId: route.routeId });
-              if (route.kind === 'ACCESSIBLE') {
-                emitClaim(runtime, 'jump.alternative.used', { challengeId: spec.challengeId, routeId: route.routeId });
+            const { spec } = state;
+            const start = (routeId: string, accessible: boolean) => {
+              if (!state.started) {
+                state.started = true;
+                emitPresentation(runtime, 'JumpRouteChosen', {
+                  challengeId: spec.challengeId,
+                  routeId,
+                  accessible,
+                });
+                emitClaim(runtime, 'jump.challenge.started', { challengeId: spec.challengeId });
               }
-              break;
+            };
+            for (const route of spec.routes) {
+              if (rectContains(route.start, player.x, player.z)) {
+                start(route.routeId, route.kind === 'ACCESSIBLE');
+              }
+            }
+            for (const route of spec.routes) {
+              if (rectContains(route.goal, player.x, player.z)) {
+                // Reaching a goal always yields started then completed, identically for any route.
+                start(route.routeId, route.kind === 'ACCESSIBLE');
+                state.completed = true;
+                state.completedRouteId = route.routeId;
+                emitClaim(runtime, 'jump.challenge.completed', {
+                  challengeId: spec.challengeId,
+                  routeId: route.routeId,
+                });
+                if (route.kind === 'ACCESSIBLE') {
+                  emitClaim(runtime, 'jump.alternative.used', {
+                    challengeId: spec.challengeId,
+                    routeId: route.routeId,
+                  });
+                }
+                break;
+              }
             }
           }
-        }
-      },
-    });
-    return () => {
-      runtime.systems.remove('gameplay.jumpChallenges');
-    };
-  },
-};
+        },
+      });
+      return () => {
+        runtime.systems.remove('gameplay.jumpChallenges');
+      };
+    },
+  };

@@ -36,7 +36,11 @@ function fakeScene() {
   };
 }
 
-function eventFor(data: RegionBootstrap, puzzleId: string, entityId: string): RegionPlayInteractionEvent {
+function eventFor(
+  data: RegionBootstrap,
+  puzzleId: string,
+  entityId: string,
+): RegionPlayInteractionEvent {
   const puzzle = data.puzzles.find((p) => p.puzzleId === puzzleId)!;
   return { kind: 'puzzle', entityId, label: entityId, puzzle };
 }
@@ -52,7 +56,9 @@ function setup(options: { solved?: string[]; outcome?: Record<string, unknown> }
   const props = { bootstrap: data, sceneApi: scene, busy: false, solvePuzzle, showToast, onClose };
   const view = render(<AreaPuzzleLayer {...props} event={null} />);
   const open = (puzzleId: string, entityId: string) =>
-    act(() => view.rerender(<AreaPuzzleLayer {...props} event={eventFor(data, puzzleId, entityId)} />));
+    act(() =>
+      view.rerender(<AreaPuzzleLayer {...props} event={eventFor(data, puzzleId, entityId)} />),
+    );
   return { data, scene, solvePuzzle, open, showToast };
 }
 
@@ -99,14 +105,26 @@ describe('choice puzzles in the layer', () => {
   it('keeps each puzzle on its own state', async () => {
     const { open } = setup();
     open('fh-choose-1', 'fh-stone-a');
-    expect(screen.getByRole('button', { name: 'circle, 6' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'circle, 6' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     open('fh-choose-2', 'fh-other-c');
     expect(screen.getByRole('button', { name: 'moon, 8' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'circle, 6' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'circle, 6' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
     // Back to the first puzzle: its pick is still there.
     open('fh-choose-1', 'fh-stone-a');
-    expect(screen.getByRole('button', { name: 'circle, 6' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'moon, 8' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'circle, 6' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'moon, 8' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   });
 
   it('draws labels and glow for every choice puzzle, each under its own id', () => {
@@ -118,7 +136,9 @@ describe('choice puzzles in the layer', () => {
     expect(last[1].highlighted).toEqual(['fh-stone-b']);
     expect(last[1].labels['fh-stone-b']).toContain('7');
     expect(last[1].labels['fh-stone-b']).toContain('★');
-    const other = scene.puzzles.showChoices.mock.calls.filter((c) => c[0] === 'fh-choose-2').at(-1)!;
+    const other = scene.puzzles.showChoices.mock.calls
+      .filter((c) => c[0] === 'fh-choose-2')
+      .at(-1)!;
     expect(other[1].highlighted).toEqual([]);
   });
 
@@ -168,7 +188,13 @@ describe('practice', () => {
   it('reopens a solved puzzle as practice on the next variant, with no reward', async () => {
     const { open, solvePuzzle } = setup({
       solved: ['fh-choose-1'],
-      outcome: { correct: true, alreadySolved: true, solvedNow: false, practice: true, attemptId: null },
+      outcome: {
+        correct: true,
+        alreadySolved: true,
+        solvedNow: false,
+        practice: true,
+        attemptId: null,
+      },
     });
     open('fh-choose-1', 'fh-stone-b');
     expect(screen.getByRole('note')).toHaveTextContent(/Practice/);
@@ -195,7 +221,13 @@ describe('practice', () => {
   it('says not quite in practice, with the explanation', async () => {
     const { open } = setup({
       solved: ['fh-choose-2'],
-      outcome: { correct: false, feedback: 'TRY_AGAIN', alreadySolved: true, solvedNow: false, practice: true },
+      outcome: {
+        correct: false,
+        feedback: 'TRY_AGAIN',
+        alreadySolved: true,
+        solvedNow: false,
+        practice: true,
+      },
     });
     open('fh-choose-2', 'fh-other-a');
     await userEvent.click(screen.getByRole('button', { name: 'Check my answer' }));
@@ -211,10 +243,12 @@ describe('answer objects another age band uses (FPV known limitation)', () => {
     const parsed = parsePuzzleParams(order.kind, order.parameters);
     if (!parsed || parsed.kind !== 'ORDER_SEQUENCE') throw new Error('fixture');
     expect(unusedChoiceEntities(order.entityIds, parsed)).toEqual([]);
-    expect(unusedChoiceEntities([...order.entityIds, 'fh-switch-green'], parsed)).toEqual(['fh-switch-green']);
+    expect(unusedChoiceEntities([...order.entityIds, 'fh-switch-green'], parsed)).toEqual([
+      'fh-switch-green',
+    ]);
   });
 
-  it('hides and unfocuses the extra object in the scene, and leaves the band\'s own objects', () => {
+  it("hides and unfocuses the extra object in the scene, and leaves the band's own objects", () => {
     const data = choiceBootstrap();
     const order = data.puzzles.find((p) => p.puzzleId === 'fh-order-1')!;
     order.entityIds = [...order.entityIds, 'fh-switch-green'];

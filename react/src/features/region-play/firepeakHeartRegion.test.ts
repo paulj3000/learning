@@ -112,7 +112,12 @@ function bootstrapFromSnapshot() {
     catalog: {
       worldSlug: 'learning-adventure-island',
       assets: [
-        ...data.assets.map((a) => ({ assetId: a.assetId, kind: a.kind, clips: [], deliverable: false })),
+        ...data.assets.map((a) => ({
+          assetId: a.assetId,
+          kind: a.kind,
+          clips: [],
+          deliverable: false,
+        })),
         { assetId: 'ground-tile-stone', kind: 'kit-piece', clips: [], deliverable: true },
       ],
     },
@@ -149,7 +154,9 @@ function built() {
   return {
     data,
     bootstrap,
-    ...buildRegionManifest(toRegionSceneModel(bootstrap), { worldSlug: 'learning-adventure-island' }),
+    ...buildRegionManifest(toRegionSceneModel(bootstrap), {
+      worldSlug: 'learning-adventure-island',
+    }),
   };
 }
 
@@ -174,7 +181,9 @@ describe('the Heart of Firepeak manifest', () => {
       solids: manifest.colliders.filter((c) => !c.jumpable).map((c) => c.rect),
     });
     expect(issues).toEqual([]);
-    expect(manifest.platforming!.platforms.length).toBeLessThanOrEqual(PLATFORM_LIMITS.maxPlatforms);
+    expect(manifest.platforming!.platforms.length).toBeLessThanOrEqual(
+      PLATFORM_LIMITS.maxPlatforms,
+    );
   });
 
   it('is the seven-zone area: bounds, zone messages, checkpoints and a default spawn', () => {
@@ -187,12 +196,21 @@ describe('the Heart of Firepeak manifest', () => {
     expect(manifest.platforming!.hazards ?? []).toEqual([]);
     expect(data.scene.effects.checkpoints ?? []).toEqual([]);
     const bridge = manifest.extensions.find((e) => e.extensionId === 'engineBridge');
-    const capabilities = (bridge?.config as { capabilities: { id: string; config: Record<string, unknown[]> }[] }).capabilities;
-    expect(capabilities.map((c) => c.id)).toEqual(['gameplay.checkpoints', 'gameplay.hazards', 'gameplay.platforms', 'environment.volumes']);
+    const capabilities = (
+      bridge?.config as { capabilities: { id: string; config: Record<string, unknown[]> }[] }
+    ).capabilities;
+    expect(capabilities.map((c) => c.id)).toEqual([
+      'gameplay.checkpoints',
+      'gameplay.hazards',
+      'gameplay.platforms',
+      'environment.volumes',
+    ]);
     // GE-073F: the crumbling stone is the one engine platform; the block lets the bridge run it.
     expect((bridge?.config as { allowEnginePlatforms?: boolean }).allowEnginePlatforms).toBe(true);
     expect(capabilities[0].config.checkpoints).toHaveLength(8);
-    expect(capabilities[1].config.hazards.map((h) => (h as { id: string }).id)).toEqual(['fh-lava-hazard']);
+    expect(capabilities[1].config.hazards.map((h) => (h as { id: string }).id)).toEqual([
+      'fh-lava-hazard',
+    ]);
     expect(data.spawn.checkpointId).toBe('fh-cp-landing');
   });
 
@@ -201,7 +219,10 @@ describe('the Heart of Firepeak manifest', () => {
     const config = tryParseRegionPlayConfig(manifest.extensions[0].config)!;
     const drawn = new Set(config.drawn.map((d) => d.entityId));
     const puzzleEntities = data.puzzles.flatMap((p) => p.entityIds);
-    for (const entity of puzzleEntities) expect(drawn.has(entity) || config.figures.some((f) => f.entityId === entity), entity).toBe(true);
+    for (const entity of puzzleEntities)
+      expect(drawn.has(entity) || config.figures.some((f) => f.entityId === entity), entity).toBe(
+        true,
+      );
     expect(config.drawn.every((d) => d.assetId === null)).toBe(true);
     expect(config.effects.lava).toHaveLength(1);
     expect(config.effects.openings.map((o) => o.colliderId)).toContain('fh-gate-heart');
@@ -214,7 +235,9 @@ describe('the Heart of Firepeak manifest', () => {
     const { manifest } = built();
     const config = tryParseRegionPlayConfig(manifest.extensions[0].config)!;
     const npcs = config.interactions.filter((i) => i.kind === 'npc').map((i) => i.npcId);
-    expect(new Set(npcs)).toEqual(new Set(['flint', 'kindle', 'professor-basalt', 'cinder', 'ignis']));
+    expect(new Set(npcs)).toEqual(
+      new Set(['flint', 'kindle', 'professor-basalt', 'cinder', 'ignis']),
+    );
     const puzzleObjects = config.interactions.filter((i) => i.kind === 'puzzle');
     expect(puzzleObjects.length).toBeGreaterThan(25);
   });

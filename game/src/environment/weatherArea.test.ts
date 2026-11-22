@@ -10,8 +10,16 @@ describe('weather area (GE-L14)', () => {
   });
 
   it('accepts FOLLOW_PLAYER with bounded sizes, defaulting missing ones', () => {
-    const result = validateWeatherConfig({ initial: 'SNOW', area: { mode: 'FOLLOW_PLAYER', halfX: 20 } });
-    expect(result.ok && result.value.area).toEqual({ mode: 'FOLLOW_PLAYER', halfX: 20, halfZ: 25, height: 15 });
+    const result = validateWeatherConfig({
+      initial: 'SNOW',
+      area: { mode: 'FOLLOW_PLAYER', halfX: 20 },
+    });
+    expect(result.ok && result.value.area).toEqual({
+      mode: 'FOLLOW_PLAYER',
+      halfX: 20,
+      halfZ: 25,
+      height: 15,
+    });
     expect(validateWeatherConfig({ area: { mode: 'EVERYWHERE' } }).ok).toBe(false);
     expect(validateWeatherConfig({ area: { halfX: 1 } }).ok).toBe(false);
     expect(validateWeatherConfig({ area: { height: 100 } }).ok).toBe(false);

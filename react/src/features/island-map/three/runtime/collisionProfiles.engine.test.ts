@@ -25,13 +25,21 @@ function withPieces(): ThreeLocationManifest {
     scenery: [
       ...WELCOME_HARBOR_MANIFEST.scenery,
       { kind: 'CLUSTER', id: 'test-crates', assetId: 'crate', positions: [{ x: 4, z: -4 }] },
-      { kind: 'CLUSTER', id: 'test-statues', assetId: 'statue-x', positions: [{ x: -4, z: -4 }, { x: -6, z: -4 }] },
+      {
+        kind: 'CLUSTER',
+        id: 'test-statues',
+        assetId: 'statue-x',
+        positions: [
+          { x: -4, z: -4 },
+          { x: -6, z: -4 },
+        ],
+      },
     ],
   };
 }
 
 describe('collision profiles in the location runtime', () => {
-  it('asks once for the location\'s asset ids, then swaps the derived boxes for the profiles', async () => {
+  it("asks once for the location's asset ids, then swaps the derived boxes for the profiles", async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     let answer!: (profiles: CollisionProfiles) => void;
     const collisionProfiles = vi.fn(

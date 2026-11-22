@@ -1,4 +1,4 @@
-import type { CameraMode } from '../../playerPresentation';
+import type { CameraMode } from '@lai/game-engine/camera';
 import { vi, type Mock } from 'vitest';
 import {
   AnimationClip,
@@ -20,7 +20,7 @@ import { WELCOME_HARBOR_MANIFEST } from '../manifests/welcomeHarbor';
 import type { ThreeLocationManifest } from '../locationManifest';
 import type { RendererInfoLike } from '../diagnostics';
 import type { RenderQuality } from '../visual/renderQuality';
-import type { FirstPersonController } from '../../firstPersonController';
+import type { FirstPersonController } from '@lai/game-engine/movement';
 import type { WorldInteractionContext } from '../../../worldObjects';
 import { WorldEngineEventBus, type WorldEngineEventMap } from '../../worldEngineEvents';
 

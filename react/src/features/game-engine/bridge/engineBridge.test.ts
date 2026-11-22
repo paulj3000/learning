@@ -1,10 +1,20 @@
 import { CheckpointsService, SignalBoardService } from '@lai/game-engine';
 import { Box3 } from 'three';
-import { PhysicsProviderService, validateGameplayEvent, type AnyGameplayEvent, type EnvironmentQuery } from '@lai/game-engine';
+import {
+  PhysicsProviderService,
+  validateGameplayEvent,
+  type AnyGameplayEvent,
+  type EnvironmentQuery,
+} from '@lai/game-engine';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
 import { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
 import type { BridgePlayerState, LocationBridgeHost } from './bridgeHost';
-import { bridgeCapabilityRequests, createEngineBridgeExtension, mountEngineBridge, type ClaimsBinding } from './engineBridge';
+import {
+  bridgeCapabilityRequests,
+  createEngineBridgeExtension,
+  mountEngineBridge,
+  type ClaimsBinding,
+} from './engineBridge';
 
 /** A fake island-map host: today's members, plus the GE-070 ones when `full`. */
 function fakeHost(config: { [key: string]: JsonValue }, full: boolean) {
@@ -14,14 +24,26 @@ function fakeHost(config: { [key: string]: JsonValue }, full: boolean) {
   const environmentCalls: (EnvironmentQuery | null)[] = [];
   const teleports: { x: number; z: number; yaw: number }[] = [];
   let generated = 0;
-  const player: BridgePlayerState = { position: { x: 0, y: 0, z: 0 }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
+  const player: BridgePlayerState = {
+    position: { x: 0, y: 0, z: 0 },
+    yaw: 0,
+    velocity: { x: 0, y: 0, z: 0 },
+    grounded: true,
+    supportId: null,
+  };
   const base: LocationBridgeHost = {
     bus,
     config,
     reducedMotion: false,
     addCollider(box, options = {}) {
-      const id = full ? (options.id ?? `extension:engineBridge:${(generated += 1)}`) : `anonymous:${(generated += 1)}`;
-      colliders.set(id, { box, jumpable: options.jumpable === true && options.gate !== true, gate: options.gate === true });
+      const id = full
+        ? (options.id ?? `extension:engineBridge:${(generated += 1)}`)
+        : `anonymous:${(generated += 1)}`;
+      colliders.set(id, {
+        box,
+        jumpable: options.jumpable === true && options.gate !== true,
+        gate: options.gate === true,
+      });
       return full ? id : undefined;
     },
     removeCollider: (id) => colliders.delete(id),
@@ -37,7 +59,11 @@ function fakeHost(config: { [key: string]: JsonValue }, full: boolean) {
     childPlacement: () => ({ x: player.position.x, z: player.position.z, yaw: player.yaw }),
   };
   const host: LocationBridgeHost = full
-    ? { ...base, playerState: () => ({ ...player, position: { ...player.position } }), setEnvironment: (q) => environmentCalls.push(q) }
+    ? {
+        ...base,
+        playerState: () => ({ ...player, position: { ...player.position } }),
+        setEnvironment: (q) => environmentCalls.push(q),
+      }
     : base;
   return {
     host,
@@ -56,11 +82,30 @@ function fakeHost(config: { [key: string]: JsonValue }, full: boolean) {
 }
 
 const claimsContext: ClaimsBinding = {
-  context: { realmId: 'firepeak', adventureId: 'heart-of-firepeak', areaId: 'heart', sessionRef: null },
-  options: { newEventId: () => `11111111-2222-4333-8444-${String(Date.now()).padStart(12, '0').slice(-12)}` },
+  context: {
+    realmId: 'firepeak',
+    adventureId: 'heart-of-firepeak',
+    areaId: 'heart',
+    sessionRef: null,
+  },
+  options: {
+    newEventId: () => `11111111-2222-4333-8444-${String(Date.now()).padStart(12, '0').slice(-12)}`,
+  },
 };
 
-const checkpoints = { id: 'gameplay.checkpoints', config: { checkpoints: [{ id: 'cp.ledge', courseId: 'course.heart', position: { x: 5, y: 0, z: 0 }, label: 'the ledge' }] } };
+const checkpoints = {
+  id: 'gameplay.checkpoints',
+  config: {
+    checkpoints: [
+      {
+        id: 'cp.ledge',
+        courseId: 'course.heart',
+        position: { x: 5, y: 0, z: 0 },
+        label: 'the ledge',
+      },
+    ],
+  },
+};
 const rock = {
   id: 'hz.rock',
   kind: 'FALLING_ROCK',
@@ -73,7 +118,18 @@ const rock = {
   restSeconds: 3,
   offsetSeconds: 0,
 };
-const iceVolume = { id: 'environment.volumes', config: { surfaces: [{ id: 'lake.ice', surfaceId: 'ice', box: { min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 0.2, z: 10 } } }] } };
+const iceVolume = {
+  id: 'environment.volumes',
+  config: {
+    surfaces: [
+      {
+        id: 'lake.ice',
+        surfaceId: 'ice',
+        box: { min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 0.2, z: 10 } },
+      },
+    ],
+  },
+};
 
 describe('host movement relayed into the engine (per-surface footsteps)', () => {
   it('turns a host PlayerFootstep on ice into SurfaceFootstep, without echoing the footstep back', () => {
@@ -96,25 +152,48 @@ describe('host movement relayed into the engine (per-surface footsteps)', () => 
 
 describe('engine bridge capability requests', () => {
   it('refuses what the live runtime owns, with a clear issue, and installs nothing', () => {
-    const fake = fakeHost({ capabilities: [{ id: 'movement.locomotion' }, { id: 'gameplay.platforms', config: { platforms: [] } }, { id: 'camera.thirdPerson' }] }, true);
+    const fake = fakeHost(
+      {
+        capabilities: [
+          { id: 'movement.locomotion' },
+          { id: 'gameplay.platforms', config: { platforms: [] } },
+          { id: 'camera.thirdPerson' },
+        ],
+      },
+      true,
+    );
     const reported: string[] = [];
-    const mount = mountEngineBridge(fake.host, { onIssues: (issues) => reported.push(...issues.map((i) => i.message)) });
+    const mount = mountEngineBridge(fake.host, {
+      onIssues: (issues) => reported.push(...issues.map((i) => i.message)),
+    });
     expect(mount.api.runtime).toBeNull();
-    expect(mount.api.issues.map((i) => i.path)).toEqual(['capabilities[0]', 'capabilities[1]', 'capabilities[2]']);
+    expect(mount.api.issues.map((i) => i.path)).toEqual([
+      'capabilities[0]',
+      'capabilities[1]',
+      'capabilities[2]',
+    ]);
     expect(reported[0]).toMatch(/owned by the live location runtime/);
     expect(reported[1]).toMatch(/live platform system until GE-076/);
     expect(fake.frameCount()).toBe(0);
   });
 
   it('allows engine platforms only when asked, and reports unknown capabilities', () => {
-    expect(bridgeCapabilityRequests({ capabilities: [{ id: 'gameplay.platforms' }] }, true).issues).toEqual([]);
+    expect(
+      bridgeCapabilityRequests({ capabilities: [{ id: 'gameplay.platforms' }] }, true).issues,
+    ).toEqual([]);
     const fake = fakeHost({ capabilities: [{ id: 'gameplay.wings' }] }, true);
     expect(mountEngineBridge(fake.host).api.issues[0]?.message).toMatch(/Unknown capability/);
     expect(bridgeCapabilityRequests({ capabilities: 'all' }).issues[0]?.path).toBe('capabilities');
   });
 
   it('reads allowEnginePlatforms from the scene config (scene.engineBridge seed data)', () => {
-    const fake = fakeHost({ allowEnginePlatforms: true, capabilities: [{ id: 'gameplay.platforms', config: { platforms: [] } }] }, true);
+    const fake = fakeHost(
+      {
+        allowEnginePlatforms: true,
+        capabilities: [{ id: 'gameplay.platforms', config: { platforms: [] } }],
+      },
+      true,
+    );
     const mount = mountEngineBridge(fake.host);
     expect(mount.api.issues).toEqual([]);
     mount.dispose();
@@ -129,9 +208,16 @@ describe('engine bridge on a host without the GE-070 members (degraded, never si
     const mount = mountEngineBridge(fake.host);
     const runtime = mount.api.runtime!;
     expect(runtime.state).toBe('running');
-    expect(mount.api.support).toMatchObject({ playerState: false, setEnvironment: false, scene: false, carryLaunch: false });
+    expect(mount.api.support).toMatchObject({
+      playerState: false,
+      setEnvironment: false,
+      scene: false,
+      carryLaunch: false,
+    });
     const codes = runtime.diagnostics.snapshot().warnings.map((w) => w.code);
-    expect(codes).toEqual(expect.arrayContaining(['HOST_PLAYER_STATE_MISSING', 'HOST_ENVIRONMENT_UNSUPPORTED']));
+    expect(codes).toEqual(
+      expect.arrayContaining(['HOST_PLAYER_STATE_MISSING', 'HOST_ENVIRONMENT_UNSUPPORTED']),
+    );
     fake.player.position = { x: 2, y: 0, z: 0 };
     fake.advance(0.1);
     expect(fake.frameCount()).toBe(1);
@@ -146,9 +232,25 @@ describe('engine bridge on a full host', () => {
       id: 'gameplay.checkpoints',
       config: {
         checkpoints: [
-          { id: 'cp.gate', courseId: 'course.heart', position: { x: 5, y: 0, z: 0 }, label: 'the gate' },
-          { id: 'cp.bridge', courseId: 'course.heart', position: { x: 20, y: 0, z: 0 }, label: 'the bridge', requiresSignalId: 'world:HEART_BRIDGE_OPEN' },
-          { id: 'cp.summit', courseId: 'course.heart', position: { x: 40, y: 0, z: 0 }, label: 'the summit' },
+          {
+            id: 'cp.gate',
+            courseId: 'course.heart',
+            position: { x: 5, y: 0, z: 0 },
+            label: 'the gate',
+          },
+          {
+            id: 'cp.bridge',
+            courseId: 'course.heart',
+            position: { x: 20, y: 0, z: 0 },
+            label: 'the bridge',
+            requiresSignalId: 'world:HEART_BRIDGE_OPEN',
+          },
+          {
+            id: 'cp.summit',
+            courseId: 'course.heart',
+            position: { x: 40, y: 0, z: 0 },
+            label: 'the summit',
+          },
         ],
       },
     };
@@ -158,14 +260,23 @@ describe('engine bridge on a full host', () => {
       const reached: string[] = [];
       fake.bus.on('CourseCheckpointReached', (e) => reached.push(e.checkpointId));
       const claims: AnyGameplayEvent[] = [];
-      const mount = mountEngineBridge(fake.host, { claims: claimsContext, onGameplayEvent: (e) => claims.push(e) });
+      const mount = mountEngineBridge(fake.host, {
+        claims: claimsContext,
+        onGameplayEvent: (e) => claims.push(e),
+      });
       // Passed in any order; "furthest" is the authored order, not the call order.
-      expect(mount.api.resume(['cp.summit', 'cp.gate', 'cp.nowhere'])).toEqual({ placedAt: 'cp.summit', unknown: ['cp.nowhere'] });
+      expect(mount.api.resume(['cp.summit', 'cp.gate', 'cp.nowhere'])).toEqual({
+        placedAt: 'cp.summit',
+        unknown: ['cp.nowhere'],
+      });
       expect(fake.teleports.at(-1)).toMatchObject({ x: 40, z: 0 });
       fake.advance(0.1);
       expect(reached).toEqual([]); // resuming announces nothing
       expect(claims).toEqual([]); // and claims nothing: the server already holds these
-      expect(mount.api.runtime!.services.require(CheckpointsService).reachedIds()).toEqual(['cp.gate', 'cp.summit']);
+      expect(mount.api.runtime!.services.require(CheckpointsService).reachedIds()).toEqual([
+        'cp.gate',
+        'cp.summit',
+      ]);
       mount.dispose();
     });
 
@@ -190,7 +301,11 @@ describe('engine bridge on a full host', () => {
       board.set('plate.1', true); // owned by a plate, not by the host feed
       mount.api.setSignals(['world:A', 'world:B']);
       mount.api.setSignals(['world:B']);
-      expect([board.get('world:A'), board.get('world:B'), board.get('plate.1')]).toEqual([false, true, true]);
+      expect([board.get('world:A'), board.get('world:B'), board.get('plate.1')]).toEqual([
+        false,
+        true,
+        true,
+      ]);
       mount.dispose();
     });
 
@@ -203,7 +318,10 @@ describe('engine bridge on a full host', () => {
   });
 
   it('sends a telegraphed-rock hit back to the latest checkpoint with exactly one PlayerRecovered naming the hazard', () => {
-    const fake = fakeHost({ capabilities: [checkpoints, { id: 'gameplay.hazards', config: { telegraphed: [rock] } }] }, true);
+    const fake = fakeHost(
+      { capabilities: [checkpoints, { id: 'gameplay.hazards', config: { telegraphed: [rock] } }] },
+      true,
+    );
     const recovered: unknown[] = [];
     fake.bus.on('PlayerRecovered', (event) => recovered.push(event));
     const reached: string[] = [];
@@ -215,7 +333,9 @@ describe('engine bridge on a full host', () => {
     fake.player.position = { x: 0, y: 0, z: 0 };
     fake.advance(6);
     expect(fake.teleports).toEqual([{ x: 5, z: 0, yaw: expect.any(Number) }]);
-    expect(recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'cp.ledge', hazardId: 'hz.rock' }]);
+    expect(recovered).toEqual([
+      { reason: 'HAZARD', checkpointId: 'cp.ledge', hazardId: 'hz.rock' },
+    ]);
     mount.dispose();
   });
 
@@ -224,10 +344,16 @@ describe('engine bridge on a full host', () => {
       { id: 'ember.1', position: { x: 3, y: 0, z: 0 }, setId: 'embers' },
       { id: 'ember.2', position: { x: 6, y: 0, z: 0 }, setId: 'embers' },
     ];
-    const fake = fakeHost({ capabilities: [{ id: 'gameplay.collectibles', config: { collectibles } }] }, true);
+    const fake = fakeHost(
+      { capabilities: [{ id: 'gameplay.collectibles', config: { collectibles } }] },
+      true,
+    );
     const claims: AnyGameplayEvent[] = [];
     let visit: typeof claimsContext | null = null;
-    const mount = mountEngineBridge(fake.host, { claims: () => visit, onGameplayEvent: (event) => claims.push(event) });
+    const mount = mountEngineBridge(fake.host, {
+      claims: () => visit,
+      onGameplayEvent: (event) => claims.push(event),
+    });
     fake.player.position = { x: 3, y: 0, z: 0 };
     fake.advance(0.2);
     expect(claims).toEqual([]); // the session has not started: no claim, nothing on the bus
@@ -236,16 +362,33 @@ describe('engine bridge on a full host', () => {
     visit = claimsContext;
     fake.player.position = { x: 6, y: 0, z: 0 };
     fake.advance(0.2);
-    expect(claims.map((c) => c.payload)).toEqual([expect.objectContaining({ collectibleId: 'ember.2' })]);
+    expect(claims.map((c) => c.payload)).toEqual([
+      expect.objectContaining({ collectibleId: 'ember.2' }),
+    ]);
     expect(claims[0]!.sessionRef).toBe(claimsContext.context.sessionRef);
     expect(validateGameplayEvent(claims[0]).ok).toBe(true);
     mount.dispose();
   });
 
   it('sends a valid collectible.collected claim to the sink (decision E15)', () => {
-    const fake = fakeHost({ capabilities: [{ id: 'gameplay.collectibles', config: { collectibles: [{ id: 'ember.1', position: { x: 3, y: 0, z: 0 }, setId: 'embers' }] } }] }, true);
+    const fake = fakeHost(
+      {
+        capabilities: [
+          {
+            id: 'gameplay.collectibles',
+            config: {
+              collectibles: [{ id: 'ember.1', position: { x: 3, y: 0, z: 0 }, setId: 'embers' }],
+            },
+          },
+        ],
+      },
+      true,
+    );
     const claims: AnyGameplayEvent[] = [];
-    const mount = mountEngineBridge(fake.host, { claims: claimsContext, onGameplayEvent: (event) => claims.push(event) });
+    const mount = mountEngineBridge(fake.host, {
+      claims: claimsContext,
+      onGameplayEvent: (event) => claims.push(event),
+    });
     fake.player.position = { x: 3, y: 0, z: 0 };
     fake.advance(0.2);
     expect(claims.map((c) => c.type)).toEqual(['collectible.collected']);
@@ -255,7 +398,17 @@ describe('engine bridge on a full host', () => {
   });
 
   it('counts and drops a claim whose sink throws, without throwing into play', () => {
-    const fake = fakeHost({ capabilities: [{ id: 'gameplay.collectibles', config: { collectibles: [{ id: 'ember.1', position: { x: 0, y: 0, z: 0 } }] } }] }, true);
+    const fake = fakeHost(
+      {
+        capabilities: [
+          {
+            id: 'gameplay.collectibles',
+            config: { collectibles: [{ id: 'ember.1', position: { x: 0, y: 0, z: 0 } }] },
+          },
+        ],
+      },
+      true,
+    );
     const mount = mountEngineBridge(fake.host, {
       claims: claimsContext,
       onGameplayEvent: () => {
@@ -284,15 +437,33 @@ describe('engine bridge on a full host', () => {
     const fake = fakeHost({ capabilities: [checkpoints] }, true);
     const mount = mountEngineBridge(fake.host);
     const physics = mount.api.runtime!.services.require(PhysicsProviderService);
-    physics.addCollider({ id: 'crate', kind: 'JUMPABLE', min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 0.5, z: 1 } });
-    physics.addCollider({ id: 'gate.north', kind: 'SOLID', gate: true, min: { x: 2, y: 0, z: 0 }, max: { x: 3, y: 3, z: 1 } });
-    physics.addCollider({ id: 'zone', kind: 'TRIGGER', min: { x: 5, y: 0, z: 5 }, max: { x: 6, y: 1, z: 6 } });
+    physics.addCollider({
+      id: 'crate',
+      kind: 'JUMPABLE',
+      min: { x: 0, y: 0, z: 0 },
+      max: { x: 1, y: 0.5, z: 1 },
+    });
+    physics.addCollider({
+      id: 'gate.north',
+      kind: 'SOLID',
+      gate: true,
+      min: { x: 2, y: 0, z: 0 },
+      max: { x: 3, y: 3, z: 1 },
+    });
+    physics.addCollider({
+      id: 'zone',
+      kind: 'TRIGGER',
+      min: { x: 5, y: 0, z: 5 },
+      max: { x: 6, y: 1, z: 6 },
+    });
     expect([...fake.colliders.keys()].sort()).toEqual(['engine:crate', 'engine:gate.north']);
     expect(fake.colliders.get('engine:crate')).toMatchObject({ jumpable: true, gate: false });
     expect(fake.colliders.get('engine:gate.north')).toMatchObject({ jumpable: false, gate: true });
     physics.updateCollider('crate', { x: 4, y: 0, z: 0 }, { x: 5, y: 0.5, z: 1 });
     expect(fake.colliders.get('engine:crate')!.box.min.x).toBe(4); // same Box3, moved in place
-    expect(physics.raycast({ x: 0, y: 0.25, z: 0.5 }, { x: 1, y: 0, z: 0 }, 10)?.colliderId).toBe('gate.north');
+    expect(physics.raycast({ x: 0, y: 0.25, z: 0.5 }, { x: 1, y: 0, z: 0 }, 10)?.colliderId).toBe(
+      'gate.north',
+    );
     expect(physics.removeCollider('crate')).toBe(true);
     expect(fake.colliders.has('engine:crate')).toBe(false);
     mount.dispose();
@@ -300,7 +471,16 @@ describe('engine bridge on a full host', () => {
   });
 
   it('disposes to zero resources and entities, once', () => {
-    const fake = fakeHost({ capabilities: [checkpoints, iceVolume, { id: 'gameplay.hazards', config: { telegraphed: [rock] } }] }, true);
+    const fake = fakeHost(
+      {
+        capabilities: [
+          checkpoints,
+          iceVolume,
+          { id: 'gameplay.hazards', config: { telegraphed: [rock] } },
+        ],
+      },
+      true,
+    );
     const mount = mountEngineBridge(fake.host);
     const runtime = mount.api.runtime!;
     fake.advance(1);

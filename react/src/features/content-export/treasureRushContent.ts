@@ -271,7 +271,7 @@ export const TREASURE_RUSH_QUESTS: readonly QuestDefinition[] = [
     id: PIRATES_LEAP_QUEST_ID,
     title: "Pirate's Leap",
     summary:
-      "Pip hid a secret treasure beyond the old pirate training course. Jump, ride and climb to find it!",
+      'Pip hid a secret treasure beyond the old pirate training course. Jump, ride and climb to find it!',
     giverNpcId: 'pirate-pip',
     ageBands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
     prerequisites: [{ type: 'ALWAYS' }],
@@ -290,6 +290,8 @@ export const TREASURE_RUSH_QUESTS: readonly QuestDefinition[] = [
         ],
       },
     ],
-    completion: { journalNote: "You crossed the pirate training course and found Pip's secret treasure." },
+    completion: {
+      journalNote: "You crossed the pirate training course and found Pip's secret treasure.",
+    },
   },
 ];

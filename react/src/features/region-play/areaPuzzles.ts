@@ -209,7 +209,10 @@ function uniqueIds(items: readonly { id: string }[]): boolean {
   return new Set(items.map((item) => item.id)).size === items.length;
 }
 
-function entityMap(value: JsonValue | undefined, ids: readonly string[][]): Record<string, string> | null {
+function entityMap(
+  value: JsonValue | undefined,
+  ids: readonly string[][],
+): Record<string, string> | null {
   if (value === undefined || value === null) return {};
   const map = rec(value);
   if (!map) return null;
@@ -227,7 +230,9 @@ function entityMap(value: JsonValue | undefined, ids: readonly string[][]): Reco
   return out;
 }
 
-function choiceBase(parameters: Rec): (BandCommon & { presentation: string; subject: string; skill: string }) | null {
+function choiceBase(
+  parameters: Rec,
+): (BandCommon & { presentation: string; subject: string; skill: string }) | null {
   // The prompt lives in each variant, so a band `intro` is optional for these kinds.
   const rawHints = parameters.hints ?? [];
   if (!Array.isArray(rawHints) || !rawHints.every((hint) => str(hint) !== null)) return null;
@@ -277,7 +282,13 @@ function parseOrder(parameters: Rec): OrderSequenceParams | null {
     if (items.length < 2 || items.length > 6 || !uniqueIds(items)) return null;
     const answer = rawAnswer.map((entry) => str(entry));
     if (answer.some((entry) => entry === null)) return null;
-    if (!isPermutation(answer as string[], items.map((i) => i.id))) return null;
+    if (
+      !isPermutation(
+        answer as string[],
+        items.map((i) => i.id),
+      )
+    )
+      return null;
     return { id, prompt, items, answer: answer as string[], explanation };
   });
   if (!base || !variants || variants.length < 1 || variants.length > MAX_VARIANTS) return null;
@@ -458,7 +469,12 @@ export function chooseAnswerCorrect(variant: ChoiceVariant, choice: string): boo
  * the variant's items is an invalid submission and throws.
  */
 export function orderSequenceCorrect(variant: OrderVariant, order: readonly string[]): boolean {
-  if (!isPermutation(order, variant.items.map((item) => item.id))) {
+  if (
+    !isPermutation(
+      order,
+      variant.items.map((item) => item.id),
+    )
+  ) {
     throw new Error('invalid submission');
   }
   return order.every((id, index) => id === variant.answer[index]);

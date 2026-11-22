@@ -11,17 +11,27 @@
 
 import { EnvironmentQueryService } from '../contracts/physics';
 import type { CapabilityDefinition } from '../core/capabilities';
-import { emitPresentation, isReducedMotion, playerPosition, signalBoard, type GameplayRuntime } from '../components/common';
+import {
+  emitPresentation,
+  isReducedMotion,
+  playerPosition,
+  signalBoard,
+  type GameplayRuntime,
+} from '../components/common';
 import { HazardRegionsService } from '../components/hazards';
 import { createEnvironmentQuery } from './environmentQuery';
 import { validateEnvironmentVolumesConfig, type EnvironmentVolumesConfig } from './volumes';
 
 export const ENVIRONMENT_VOLUMES_CAPABILITY_ID = 'environment.volumes';
 
-export const environmentVolumesCapability: CapabilityDefinition<EnvironmentVolumesConfig, GameplayRuntime> = {
+export const environmentVolumesCapability: CapabilityDefinition<
+  EnvironmentVolumesConfig,
+  GameplayRuntime
+> = {
   id: ENVIRONMENT_VOLUMES_CAPABILITY_ID,
   version: '1.0.0',
-  description: 'Surface, wind/current/conveyor/updraft, water and ladder volumes composed into one EnvironmentQuery.',
+  description:
+    'Surface, wind/current/conveyor/updraft, water and ladder volumes composed into one EnvironmentQuery.',
   defaults: { surfaces: [], forces: [], waters: [], ladders: [], hazardRects: [] },
   validate: validateEnvironmentVolumesConfig,
   install(runtime, config) {
@@ -29,7 +39,11 @@ export const environmentVolumesCapability: CapabilityDefinition<EnvironmentVolum
     const query = createEnvironmentQuery(config, {
       isSignalOn: (id) => signals.get(id),
       isReducedMotion: () => isReducedMotion(runtime),
-      hazardRects: () => runtime.services.get(HazardRegionsService)?.regions().map((r) => r.rect) ?? [],
+      hazardRects: () =>
+        runtime.services
+          .get(HazardRegionsService)
+          ?.regions()
+          .map((r) => r.rect) ?? [],
     });
     const removeService = runtime.services.provide(EnvironmentQueryService, query);
     runtime.systems.add({
@@ -40,14 +54,20 @@ export const environmentVolumesCapability: CapabilityDefinition<EnvironmentVolum
         query.tick(context.dt, playerPosition(runtime));
       },
     });
-    const offFootstep = runtime.events.on('PlayerFootstep' as never, (() => {
-      const position = playerPosition(runtime);
-      if (!position) {
-        return;
-      }
-      const surface = query.surfaceAt(position.x, position.y, position.z);
-      emitPresentation(runtime, 'SurfaceFootstep', { surfaceId: surface.id, footstepCue: surface.footstepCue ?? null });
-    }) as never);
+    const offFootstep = runtime.events.on(
+      'PlayerFootstep' as never,
+      (() => {
+        const position = playerPosition(runtime);
+        if (!position) {
+          return;
+        }
+        const surface = query.surfaceAt(position.x, position.y, position.z);
+        emitPresentation(runtime, 'SurfaceFootstep', {
+          surfaceId: surface.id,
+          footstepCue: surface.footstepCue ?? null,
+        });
+      }) as never,
+    );
     return () => {
       offFootstep();
       runtime.systems.remove('environment.volumes');

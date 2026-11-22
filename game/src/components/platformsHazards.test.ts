@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { signalBoard } from './common';
 import { MIN_TELEGRAPH_SECONDS, telegraphPhaseAt, validateHazardsConfig } from './hazards';
-import { createFallingModel, PlatformsService, stepFallingModel, validatePlatformsConfig, type FallingSpec } from './platforms';
+import {
+  createFallingModel,
+  PlatformsService,
+  stepFallingModel,
+  validatePlatformsConfig,
+  type FallingSpec,
+} from './platforms';
 import { registerGameplayComponents, validateGameplayLayout } from './registerGameplayComponents';
 import { validateCheckpointsConfig } from './checkpoints';
 import { createHarness } from './testHarness';
@@ -19,27 +25,85 @@ const moving = {
 
 describe('platform validation', () => {
   it('enforces tops, speeds, route and the area limit', () => {
-    expect(validatePlatformsConfig({ platforms: [{ id: 'p', position: { x: 0, y: 0, z: 0 }, size: { x: 0.5, y: 0.4, z: 3 } }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ ...moving, moving: { ...moving.moving, speed: 0.1 } }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ ...moving, moving: { ...moving.moving, speed: 4.5 } }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ ...moving, route: 'REQUIRED' }] }).ok).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ id: 'p', position: { x: 0, y: 0, z: 0 }, size: { x: 0.5, y: 0.4, z: 3 } }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ ...moving, moving: { ...moving.moving, speed: 0.1 } }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ ...moving, moving: { ...moving.moving, speed: 4.5 } }],
+      }).ok,
+    ).toBe(false);
+    expect(validatePlatformsConfig({ platforms: [{ ...moving, route: 'REQUIRED' }] }).ok).toBe(
+      false,
+    );
     expect(validatePlatformsConfig({ platforms: [moving] }).ok).toBe(true);
-    const many = Array.from({ length: 65 }, (_, i) => ({ id: `p${i}`, position: { x: i * 4, y: 0, z: 0 }, size }));
+    const many = Array.from({ length: 65 }, (_, i) => ({
+      id: `p${i}`,
+      position: { x: i * 4, y: 0, z: 0 },
+      size,
+    }));
     expect(validatePlatformsConfig({ platforms: many }).ok).toBe(false);
     expect(validatePlatformsConfig({ platforms: many.slice(0, 64) }).ok).toBe(true);
   });
 
   it('falling platforms are optional-route only and need a real warning', () => {
     const falling = { mode: 'STAND', visibleSeconds: 2, hiddenSeconds: 3, warningSeconds: 1 };
-    expect(validatePlatformsConfig({ platforms: [{ id: 'f', position: { x: 0, y: 0, z: 0 }, size, falling }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ id: 'f', position: { x: 0, y: 0, z: 0 }, size, route: 'OPTIONAL', falling }] }).ok).toBe(true);
-    expect(validatePlatformsConfig({ platforms: [{ id: 'f', position: { x: 0, y: 0, z: 0 }, size, route: 'OPTIONAL', falling: { ...falling, visibleSeconds: 1 } }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ id: 'f', position: { x: 0, y: 0, z: 0 }, size, route: 'OPTIONAL', falling: { ...falling, visibleSeconds: 1.2, warningSeconds: 1 } }] }).ok).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ id: 'f', position: { x: 0, y: 0, z: 0 }, size, falling }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ id: 'f', position: { x: 0, y: 0, z: 0 }, size, route: 'OPTIONAL', falling }],
+      }).ok,
+    ).toBe(true);
+    expect(
+      validatePlatformsConfig({
+        platforms: [
+          {
+            id: 'f',
+            position: { x: 0, y: 0, z: 0 },
+            size,
+            route: 'OPTIONAL',
+            falling: { ...falling, visibleSeconds: 1 },
+          },
+        ],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [
+          {
+            id: 'f',
+            position: { x: 0, y: 0, z: 0 },
+            size,
+            route: 'OPTIONAL',
+            falling: { ...falling, visibleSeconds: 1.2, warningSeconds: 1 },
+          },
+        ],
+      }).ok,
+    ).toBe(false);
   });
 
   it('bounce height and spin rate are bounded', () => {
-    expect(validatePlatformsConfig({ platforms: [{ id: 'b', position: { x: 0, y: 0, z: 0 }, size, bounceHeight: 9 }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ id: 's', position: { x: 0, y: 0, z: 0 }, size, spinDegreesPerSecond: 90 }] }).ok).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ id: 'b', position: { x: 0, y: 0, z: 0 }, size, bounceHeight: 9 }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ id: 's', position: { x: 0, y: 0, z: 0 }, size, spinDegreesPerSecond: 90 }],
+      }).ok,
+    ).toBe(false);
   });
 });
 
@@ -66,13 +130,19 @@ describe('moving and rotating platforms', () => {
     h.settings.reducedMotion = true;
     await h.start([{ id: 'gameplay.platforms', config: { platforms: [moving] } }]);
     h.advance(1);
-    expect(h.runtime.services.require(PlatformsService).positionOf('plat.move')!.x).toBeCloseTo(1.2 + 0, 1);
+    expect(h.runtime.services.require(PlatformsService).positionOf('plat.move')!.x).toBeCloseTo(
+      1.2 + 0,
+      1,
+    );
     h.dispose();
   });
 
   it('waits for its signal and can return when it lets go', async () => {
     const h = harness();
-    const platform = { ...moving, moving: { ...moving.moving, activeSignalId: 'plate.a', returnWhenInactive: true } };
+    const platform = {
+      ...moving,
+      moving: { ...moving.moving, activeSignalId: 'plate.a', returnWhenInactive: true },
+    };
     await h.start([{ id: 'gameplay.platforms', config: { platforms: [platform] } }]);
     const api = h.runtime.services.require(PlatformsService);
     h.advance(1);
@@ -88,7 +158,12 @@ describe('moving and rotating platforms', () => {
 
   it('turntables carry a rider tangentially, scaled under reduced motion', async () => {
     const h = harness();
-    const spin = { id: 'plat.spin', position: { x: 0, y: 0, z: 0 }, size, spinDegreesPerSecond: 30 };
+    const spin = {
+      id: 'plat.spin',
+      position: { x: 0, y: 0, z: 0 },
+      size,
+      spinDegreesPerSecond: 30,
+    };
     await h.start([{ id: 'gameplay.platforms', config: { platforms: [spin] } }]);
     const api = h.runtime.services.require(PlatformsService);
     const rate = (30 * Math.PI) / 180;
@@ -100,7 +175,16 @@ describe('moving and rotating platforms', () => {
 
   it('appearing platforms get a collider when their signal first fires', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.platforms', config: { platforms: [{ id: 'bridge', position: { x: 0, y: 0, z: 0 }, size, appearSignalId: 'puzzle.done' }] } }]);
+    await h.start([
+      {
+        id: 'gameplay.platforms',
+        config: {
+          platforms: [
+            { id: 'bridge', position: { x: 0, y: 0, z: 0 }, size, appearSignalId: 'puzzle.done' },
+          ],
+        },
+      },
+    ]);
     expect(h.physics.hasCollider('bridge')).toBe(false);
     signalBoard(h.runtime).set('puzzle.done', true);
     h.advance(0.1);
@@ -112,7 +196,22 @@ describe('moving and rotating platforms', () => {
 describe('bounce platforms', () => {
   it('emits one launch per landing', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.platforms', config: { platforms: [{ id: 'pad', position: { x: 0, y: 0, z: 0 }, size, bounceHeight: 2.5, bounceCue: 'boing' }] } }]);
+    await h.start([
+      {
+        id: 'gameplay.platforms',
+        config: {
+          platforms: [
+            {
+              id: 'pad',
+              position: { x: 0, y: 0, z: 0 },
+              size,
+              bounceHeight: 2.5,
+              bounceCue: 'boing',
+            },
+          ],
+        },
+      },
+    ]);
     const api = h.runtime.services.require(PlatformsService);
     h.setPlayer({ x: 0, y: 0.4, z: 0 }, 'pad');
     h.advance(0.2);
@@ -129,7 +228,14 @@ describe('bounce platforms', () => {
 });
 
 describe('falling platforms', () => {
-  const spec: FallingSpec = { mode: 'STAND', visibleSeconds: 2, hiddenSeconds: 2, warningSeconds: 1, fallSeconds: 0.6, offsetSeconds: 0 };
+  const spec: FallingSpec = {
+    mode: 'STAND',
+    visibleSeconds: 2,
+    hiddenSeconds: 2,
+    warningSeconds: 1,
+    fallSeconds: 0.6,
+    offsetSeconds: 0,
+  };
 
   it('model: waits until stood on, crumbles, falls, is gone, then respawns when clear', () => {
     const model = createFallingModel(spec);
@@ -161,7 +267,13 @@ describe('falling platforms', () => {
 
   it('system: crumble shows a blink, or a steady dim under reduced motion, then drops the collider and respawns it', async () => {
     const h = harness();
-    const platform = { id: 'crumble', position: { x: 0, y: 0, z: 0 }, size, route: 'OPTIONAL', falling: spec };
+    const platform = {
+      id: 'crumble',
+      position: { x: 0, y: 0, z: 0 },
+      size,
+      route: 'OPTIONAL',
+      falling: spec,
+    };
     await h.start([{ id: 'gameplay.platforms', config: { platforms: [platform] } }]);
     const api = h.runtime.services.require(PlatformsService);
     h.advance(1);
@@ -169,7 +281,11 @@ describe('falling platforms', () => {
     h.setPlayer({ x: 0, y: 0.4, z: 0 }, 'crumble');
     h.advance(1.2);
     expect(api.phaseOf('crumble')).toBe('CRUMBLING');
-    expect(h.eventsNamed('PlatformPhaseChanged')[0]).toEqual({ platformId: 'crumble', phase: 'CRUMBLING', warning: 'BLINK' });
+    expect(h.eventsNamed('PlatformPhaseChanged')[0]).toEqual({
+      platformId: 'crumble',
+      phase: 'CRUMBLING',
+      warning: 'BLINK',
+    });
     expect(h.physics.hasCollider('crumble')).toBe(true);
     h.advance(1);
     expect(h.physics.hasCollider('crumble')).toBe(false);
@@ -190,32 +306,69 @@ describe('falling platforms', () => {
 
   it('TIMED platforms start part-way round their cycle', async () => {
     const h = harness();
-    const timed = { id: 't', position: { x: 0, y: 0, z: 0 }, size, route: 'OPTIONAL', falling: { ...spec, mode: 'TIMED', offsetSeconds: 1.5 } };
+    const timed = {
+      id: 't',
+      position: { x: 0, y: 0, z: 0 },
+      size,
+      route: 'OPTIONAL',
+      falling: { ...spec, mode: 'TIMED', offsetSeconds: 1.5 },
+    };
     await h.start([{ id: 'gameplay.platforms', config: { platforms: [timed] } }]);
     expect(h.runtime.services.require(PlatformsService).phaseOf('t')).toBe('CRUMBLING');
     h.dispose();
   });
 });
 
-const checkpointConfig = { checkpoints: [{ id: 'cp.dock', courseId: 'course.a', position: { x: 0, y: 0, z: 0 }, label: 'the old dock' }] };
-const waterHazard = { id: 'hz.water', kind: 'WATER', rect: { minX: 5, maxX: 15, minZ: -5, maxZ: 5 }, checkpointId: 'cp.dock', messageKey: 'hazard.water.kind' };
+const checkpointConfig = {
+  checkpoints: [
+    { id: 'cp.dock', courseId: 'course.a', position: { x: 0, y: 0, z: 0 }, label: 'the old dock' },
+  ],
+};
+const waterHazard = {
+  id: 'hz.water',
+  kind: 'WATER',
+  rect: { minX: 5, maxX: 15, minZ: -5, maxZ: 5 },
+  checkpointId: 'cp.dock',
+  messageKey: 'hazard.water.kind',
+};
 
 describe('static hazards', () => {
   it('request recovery to the latest checkpoint with the hazard id and message key (no damage)', async () => {
     const h = harness();
     await h.start([
-      { id: 'gameplay.checkpoints', config: { checkpoints: [...checkpointConfig.checkpoints, { id: 'cp.far', courseId: 'course.a', position: { x: 20, y: 0, z: 0 }, label: 'the far bank' }] } },
+      {
+        id: 'gameplay.checkpoints',
+        config: {
+          checkpoints: [
+            ...checkpointConfig.checkpoints,
+            {
+              id: 'cp.far',
+              courseId: 'course.a',
+              position: { x: 20, y: 0, z: 0 },
+              label: 'the far bank',
+            },
+          ],
+        },
+      },
       { id: 'gameplay.hazards', config: { hazards: [waterHazard] } },
     ]);
     h.setPlayer({ x: 10, y: -0.5, z: 0 });
     h.advance(0.1);
     const first = h.eventsNamed('HazardRecoveryRequested')[0];
-    expect(first).toMatchObject({ hazardId: 'hz.water', hazardKind: 'WATER', reason: 'HAZARD', checkpointId: 'cp.dock', messageKey: 'hazard.water.kind' });
+    expect(first).toMatchObject({
+      hazardId: 'hz.water',
+      hazardKind: 'WATER',
+      reason: 'HAZARD',
+      checkpointId: 'cp.dock',
+      messageKey: 'hazard.water.kind',
+    });
     h.setPlayer({ x: 20, y: 0, z: 0 });
     h.advance(0.1);
     h.setPlayer({ x: 10, y: -0.5, z: 0 });
     h.advance(2);
-    expect(h.eventsNamed('HazardRecoveryRequested').at(-1)).toMatchObject({ checkpointId: 'cp.far' });
+    expect(h.eventsNamed('HazardRecoveryRequested').at(-1)).toMatchObject({
+      checkpointId: 'cp.far',
+    });
     expect(h.claims.every((c) => c.type === 'course.checkpoint.reached')).toBe(true);
     h.dispose();
   });
@@ -259,7 +412,6 @@ const rock = {
 };
 
 describe('telegraphed hazards', () => {
-
   it('has a deterministic REST, WARN, ACTIVE schedule', () => {
     expect(telegraphPhaseAt(rock, 0).phase).toBe('REST');
     expect(telegraphPhaseAt(rock, 3.01).phase).toBe('WARN');
@@ -270,11 +422,25 @@ describe('telegraphed hazards', () => {
   });
 
   it('validates the 1.5 s minimum warning and the safe lane on required routes', () => {
-    expect(validateHazardsConfig({ telegraphed: [{ ...rock, telegraphSeconds: 1.2 }] }).ok).toBe(false);
+    expect(validateHazardsConfig({ telegraphed: [{ ...rock, telegraphSeconds: 1.2 }] }).ok).toBe(
+      false,
+    );
     expect(MIN_TELEGRAPH_SECONDS).toBe(1.5);
     expect(validateHazardsConfig({ telegraphed: [{ ...rock, route: 'REQUIRED' }] }).ok).toBe(false);
-    expect(validateHazardsConfig({ telegraphed: [{ ...rock, route: 'REQUIRED', safeLane: { minX: 0, maxX: 2, minZ: 0, maxZ: 2 } }] }).ok).toBe(false);
-    expect(validateHazardsConfig({ telegraphed: [{ ...rock, route: 'REQUIRED', safeLane: { minX: 2, maxX: 4, minZ: -1, maxZ: 1 } }] }).ok).toBe(true);
+    expect(
+      validateHazardsConfig({
+        telegraphed: [
+          { ...rock, route: 'REQUIRED', safeLane: { minX: 0, maxX: 2, minZ: 0, maxZ: 2 } },
+        ],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateHazardsConfig({
+        telegraphed: [
+          { ...rock, route: 'REQUIRED', safeLane: { minX: 2, maxX: 4, minZ: -1, maxZ: 1 } },
+        ],
+      }).ok,
+    ).toBe(true);
   });
 
   it('warns first, only hits during ACTIVE, and never hits in the safe lane', async () => {
@@ -285,7 +451,11 @@ describe('telegraphed hazards', () => {
     ]);
     h.setPlayer({ x: 0, y: 0, z: 0 });
     h.advance(3.5);
-    expect(h.eventsNamed('HazardTelegraph')[0]).toMatchObject({ hazardId: 'hz.rock', phase: 'WARN', steadyWarning: false });
+    expect(h.eventsNamed('HazardTelegraph')[0]).toMatchObject({
+      hazardId: 'hz.rock',
+      phase: 'WARN',
+      steadyWarning: false,
+    });
     expect(h.eventsNamed('HazardRecoveryRequested')).toHaveLength(0);
     h.advance(2);
     expect(h.eventsNamed('HazardRecoveryRequested')).toHaveLength(1);
@@ -307,33 +477,71 @@ describe('telegraphed hazards', () => {
 
 describe('layout cross-checks', () => {
   it('rejects a hazard with an unknown checkpoint and a checkpoint on a moving platform', () => {
-    const checkpoints = validateCheckpointsConfig({ checkpoints: [{ id: 'cp.on.lift', courseId: 'c', position: { x: 0, y: 1.4, z: 0 }, label: 'x' }] });
+    const checkpoints = validateCheckpointsConfig({
+      checkpoints: [
+        { id: 'cp.on.lift', courseId: 'c', position: { x: 0, y: 1.4, z: 0 }, label: 'x' },
+      ],
+    });
     const hazards = validateHazardsConfig({ hazards: [waterHazard] });
     const platforms = validatePlatformsConfig({ platforms: [moving] });
     if (!checkpoints.ok || !hazards.ok || !platforms.ok) {
       throw new Error('fixtures must validate');
     }
-    const issues = validateGameplayLayout({ checkpoints: checkpoints.value, hazards: hazards.value, platforms: platforms.value });
-    expect(issues.map((i) => i.path).sort()).toEqual(['checkpoints.cp.on.lift', 'hazards.hz.water.checkpointId']);
+    const issues = validateGameplayLayout({
+      checkpoints: checkpoints.value,
+      hazards: hazards.value,
+      platforms: platforms.value,
+    });
+    expect(issues.map((i) => i.path).sort()).toEqual([
+      'checkpoints.cp.on.lift',
+      'hazards.hz.water.checkpointId',
+    ]);
   });
 });
 
 describe('inactiveWhenSignalId (GE-066)', () => {
   it('validates as a semantic id and refuses the same id as an activating signal', () => {
-    expect(validateHazardsConfig({ telegraphed: [{ ...rock, inactiveWhenSignalId: 'not valid!' }] }).ok).toBe(false);
-    expect(validateHazardsConfig({ telegraphed: [{ ...rock, inactiveWhenSignalId: 'valve.off' }] }).ok).toBe(true);
+    expect(
+      validateHazardsConfig({ telegraphed: [{ ...rock, inactiveWhenSignalId: 'not valid!' }] }).ok,
+    ).toBe(false);
+    expect(
+      validateHazardsConfig({ telegraphed: [{ ...rock, inactiveWhenSignalId: 'valve.off' }] }).ok,
+    ).toBe(true);
     const base = { id: 'p', position: { x: 0, y: 0, z: 0 }, size };
-    expect(validatePlatformsConfig({ platforms: [{ ...base, inactiveWhenSignalId: 'bad id' }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ ...base, appearSignalId: 's', inactiveWhenSignalId: 's' }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ ...moving, moving: { ...moving.moving, activeSignalId: 's' }, inactiveWhenSignalId: 's' }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ ...base, appearSignalId: 's', inactiveWhenSignalId: 't' }] }).ok).toBe(true);
+    expect(
+      validatePlatformsConfig({ platforms: [{ ...base, inactiveWhenSignalId: 'bad id' }] }).ok,
+    ).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ ...base, appearSignalId: 's', inactiveWhenSignalId: 's' }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [
+          {
+            ...moving,
+            moving: { ...moving.moving, activeSignalId: 's' },
+            inactiveWhenSignalId: 's',
+          },
+        ],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validatePlatformsConfig({
+        platforms: [{ ...base, appearSignalId: 's', inactiveWhenSignalId: 't' }],
+      }).ok,
+    ).toBe(true);
   });
 
   it('a static hazard stops asking for recovery while its signal is on', async () => {
     const h = harness();
     await h.start([
       { id: 'gameplay.checkpoints', config: checkpointConfig },
-      { id: 'gameplay.hazards', config: { hazards: [{ ...waterHazard, inactiveWhenSignalId: 'drained' }] } },
+      {
+        id: 'gameplay.hazards',
+        config: { hazards: [{ ...waterHazard, inactiveWhenSignalId: 'drained' }] },
+      },
     ]);
     signalBoard(h.runtime).set('drained', true);
     h.setPlayer({ x: 6, y: -1, z: 0 });
@@ -349,7 +557,10 @@ describe('inactiveWhenSignalId (GE-066)', () => {
     const h = harness();
     await h.start([
       { id: 'gameplay.checkpoints', config: checkpointConfig },
-      { id: 'gameplay.hazards', config: { telegraphed: [{ ...rock, inactiveWhenSignalId: 'off' }] } },
+      {
+        id: 'gameplay.hazards',
+        config: { telegraphed: [{ ...rock, inactiveWhenSignalId: 'off' }] },
+      },
     ]);
     h.setPlayer({ x: 0, y: 0, z: 0 });
     h.advance(3.5);
@@ -364,7 +575,16 @@ describe('inactiveWhenSignalId (GE-066)', () => {
 
   it('a platform loses its collider and presence while its signal is on', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.platforms', config: { platforms: [{ id: 'bridge', position: { x: 0, y: 1, z: 0 }, size, inactiveWhenSignalId: 'retract' }] } }]);
+    await h.start([
+      {
+        id: 'gameplay.platforms',
+        config: {
+          platforms: [
+            { id: 'bridge', position: { x: 0, y: 1, z: 0 }, size, inactiveWhenSignalId: 'retract' },
+          ],
+        },
+      },
+    ]);
     const api = h.runtime.services.require(PlatformsService);
     expect(h.physics.hasCollider('bridge')).toBe(true);
     signalBoard(h.runtime).set('retract', true);

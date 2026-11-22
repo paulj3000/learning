@@ -1,6 +1,6 @@
 # Initial Data Model
 
-This is a conceptual schema. It is implemented as Django models in `lai/apps/` on PostgreSQL 16; the
+This is a conceptual schema. It is implemented as Django models in `lai/apps/` on PostgreSQL 18; the
 "Django ..." sections below map each concept to its Django app, model and constraints.
 
 ## Engine ownership (Phase 18)

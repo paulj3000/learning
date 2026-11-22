@@ -29,7 +29,19 @@ import {
   type ParticlesConfig,
   type QualityTier,
 } from './particles';
-import { createWeatherState, WEATHER_KINDS, setWeather, stepWeather, validateWeatherConfig, DEFAULT_WEATHER_AREA, type WeatherArea, type WeatherConfig, type WeatherKindSpec, type WeatherSnapshot, type WeatherState } from './weather';
+import {
+  createWeatherState,
+  WEATHER_KINDS,
+  setWeather,
+  stepWeather,
+  validateWeatherConfig,
+  DEFAULT_WEATHER_AREA,
+  type WeatherArea,
+  type WeatherConfig,
+  type WeatherKindSpec,
+  type WeatherSnapshot,
+  type WeatherState,
+} from './weather';
 
 // --- lighting ----------------------------------------------------------------------------
 
@@ -65,7 +77,11 @@ export const lightingCapability: CapabilityDefinition<LightingConfig, GameplayRu
       },
     };
     const removeService = runtime.services.provide(LightingService, api);
-    runtime.systems.add({ id: 'environment.lighting', phase: 'simulation', update: (c) => void stepLighting(state, c.dt) });
+    runtime.systems.add({
+      id: 'environment.lighting',
+      phase: 'simulation',
+      update: (c) => void stepLighting(state, c.dt),
+    });
     return () => {
       runtime.systems.remove('environment.lighting');
       removeService();
@@ -91,7 +107,8 @@ export const WEATHER_CAPABILITY_ID = 'environment.weather';
 export const weatherCapability: CapabilityDefinition<WeatherConfig, GameplayRuntime> = {
   id: WEATHER_CAPABILITY_ID,
   version: '1.0.0',
-  description: 'Weather kinds as data (CLEAR, RAIN, SNOW, FOG, WIND and authored kinds) with smooth transitions.',
+  description:
+    'Weather kinds as data (CLEAR, RAIN, SNOW, FOG, WIND and authored kinds) with smooth transitions.',
   defaults: { initial: 'CLEAR', kinds: { ...WEATHER_KINDS }, transitionSeconds: 3 },
   validate: validateWeatherConfig,
   install(runtime, config) {
@@ -111,7 +128,11 @@ export const weatherCapability: CapabilityDefinition<WeatherConfig, GameplayRunt
       },
     };
     const removeService = runtime.services.provide(WeatherService, api);
-    runtime.systems.add({ id: 'environment.weather', phase: 'simulation', update: (c) => void stepWeather(state, c.dt) });
+    runtime.systems.add({
+      id: 'environment.weather',
+      phase: 'simulation',
+      update: (c) => void stepWeather(state, c.dt),
+    });
     return () => {
       runtime.systems.remove('environment.weather');
       removeService();
@@ -149,7 +170,11 @@ export const particlesCapability: CapabilityDefinition<ParticlesConfig, Gameplay
     const handles: ParticleEmitterHandle[] = config.emitters.map((spec) => {
       const cap = caps.get(spec.id) ?? 0;
       const pool = createParticlePool(cap, hashSeed(spec.id));
-      return { id: spec.id, pool, effective: () => effectiveEmitter(spec, cap, isReducedMotion(runtime)) };
+      return {
+        id: spec.id,
+        pool,
+        effective: () => effectiveEmitter(spec, cap, isReducedMotion(runtime)),
+      };
     });
     const api: ParticlesApi = {
       tier: () => config.tier,
@@ -175,4 +200,8 @@ export const particlesCapability: CapabilityDefinition<ParticlesConfig, Gameplay
 };
 
 /** The three atmosphere capabilities, for registration. */
-export const atmosphereCapabilities = [lightingCapability, weatherCapability, particlesCapability] as const;
+export const atmosphereCapabilities = [
+  lightingCapability,
+  weatherCapability,
+  particlesCapability,
+] as const;

@@ -186,7 +186,11 @@ export function WritingRoomActivity({
         <h1 className={styles.title}>{story.title}</h1>
         <p className={styles.prompt}>{welcome}</p>
         <div className={styles.actions}>
-          <button type="button" className={styles.listen} onClick={() => hear(story.entryStepId, welcome)}>
+          <button
+            type="button"
+            className={styles.listen}
+            onClick={() => hear(story.entryStepId, welcome)}
+          >
             Hear Keeper Quill
           </button>
           <button type="button" className={styles.primary} onClick={() => setPhase('writing')}>
@@ -258,7 +262,9 @@ export function WritingRoomActivity({
     if (!step) return null;
     const chosen = picks[step.id] ?? [];
     const labelOf = (id: string) => step.options.find((option) => option.id === id)?.label ?? '';
-    const builtCount = steps.filter((candidate) => sentenceIsComplete(picks[candidate.id] ?? [])).length;
+    const builtCount = steps.filter((candidate) =>
+      sentenceIsComplete(picks[candidate.id] ?? []),
+    ).length;
     const complete = sentenceIsComplete(chosen);
     const setChosen = (ids: readonly string[]) => setPicks({ ...picks, [step.id]: ids });
     const isLast = stepIndex + 1 >= steps.length;
@@ -282,7 +288,9 @@ export function WritingRoomActivity({
           Hear it
         </button>
         <p className={styles.sentence} aria-live="polite" aria-label="Your sentence so far">
-          {chosen.length ? sentencePreview(chosen.map(labelOf)) : 'Tap the tiles to build your sentence.'}
+          {chosen.length
+            ? sentencePreview(chosen.map(labelOf))
+            : 'Tap the tiles to build your sentence.'}
         </p>
         <div className={styles.tiles} role="group" aria-label="Word tiles">
           {step.options.map((option) => {
@@ -371,7 +379,11 @@ export function WritingRoomActivity({
           <label className={styles.prompt} htmlFor="writing-room-paragraph">
             {typed.prompt}
           </label>
-          <button type="button" className={styles.listen} onClick={() => hear(typed.id, typed.prompt)}>
+          <button
+            type="button"
+            className={styles.listen}
+            onClick={() => hear(typed.id, typed.prompt)}
+          >
             Hear it
           </button>
           <textarea

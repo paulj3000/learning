@@ -36,7 +36,10 @@ export interface ScoringClaimsOptions {
 
 /** The seam: pass `onGameplayEvent` to `GameHost` or the location engine bridge
  * (`mountEngineBridge(host, { onGameplayEvent })`); both take `(event: AnyGameplayEvent) => void`. */
-export function useScoringClaims(childId: string, options: ScoringClaimsOptions = {}): ScoringClaims {
+export function useScoringClaims(
+  childId: string,
+  options: ScoringClaimsOptions = {},
+): ScoringClaims {
   const { enabled: active = true, pollMs = CLAIM_POLL_MS, now = Date.now } = options;
   const [pending, setPending] = useState<readonly PendingEntry[]>([]);
   const [confirmed, setConfirmed] = useState<readonly ConfirmedAward[]>([]);

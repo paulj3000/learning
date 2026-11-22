@@ -785,9 +785,7 @@ NPC_IDS = tuple(npc.npc_id for npc in NPCS)
 VOICED_NPC_IDS = tuple(npc.npc_id for npc in NPCS if npc.voice is not None)
 
 #: (npc id, quest id) for every OFFER_QUEST choice.
-QUEST_OFFERS = tuple(
-    (npc.npc_id, offer.quest_id) for npc in NPCS for offer in npc.offers
-)
+QUEST_OFFERS = tuple((npc.npc_id, offer.quest_id) for npc in NPCS for offer in npc.offers)
 
 REQUIRED_BEHAVIOURS: dict[str, tuple[str, ...]] = {
     "greet": ("on_interact",),

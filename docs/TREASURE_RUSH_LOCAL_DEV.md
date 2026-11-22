@@ -17,7 +17,7 @@ runs entirely on Django.
 
 ## Prerequisites
 
-- Docker (for PostgreSQL 16), Python 3.12+, Node 22+.
+- Docker (for PostgreSQL 18), Python 3.12+, Node 22+.
 - The existing Cognito user pool's region, pool id and web app client id, and a **test** parent
   account in it.
 
@@ -27,7 +27,7 @@ From the repository root:
 
 ```bash
 make py-install     # creates .venv and installs requirements-dev.txt
-make up             # PostgreSQL 16 on 127.0.0.1:5432 (set POSTGRES_PORT to change it)
+make up             # PostgreSQL 18 on 127.0.0.1:5432 (set POSTGRES_PORT to change it)
 make migrate
 ```
 
@@ -124,7 +124,7 @@ Use **Sign out** in the account menu (Cognito). Any later API call answers 401 u
 in again.
 
 To start over, remove that child's progress (sessions, attempts, world changes, items, quests)
-in the shell, or `make down && docker volume rm <project>_lai_pgdata` and repeat from step 1.
+in the shell, or `make down && docker volume rm <project>_lai_pg18data` and repeat from step 1.
 
 ## 8. Checking the API by hand (optional)
 

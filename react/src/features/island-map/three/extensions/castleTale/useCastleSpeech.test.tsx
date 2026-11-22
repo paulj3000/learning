@@ -202,7 +202,10 @@ describe('castle narration (SC-R06-03)', () => {
     await tick();
     await act(async () => void w.state().speakWord('cat'));
     await tick();
-    expect(request).toHaveBeenCalledWith({ kind: 'line', id: 'castle-word-cat' }, expect.anything());
+    expect(request).toHaveBeenCalledWith(
+      { kind: 'line', id: 'castle-word-cat' },
+      expect.anything(),
+    );
     expect(live(w.engine)).toHaveLength(1);
     expect(live(w.engine)[0]?.options.spatial).toBeUndefined();
     expect(w.state().speech.state.caption).toBe('cat');

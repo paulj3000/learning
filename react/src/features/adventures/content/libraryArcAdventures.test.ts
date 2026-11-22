@@ -3,7 +3,11 @@ import { DINOSAUR_EXPEDITION_ADVENTURES } from './dinosaurExpeditionAdventures';
 import { ROBOT_RESCUE_ADVENTURES } from './robotRescueAdventures';
 import { BUTTERFLY_GARDEN_ADVENTURES } from './butterflyGardenAdventures';
 import { CASTLES_SECRET_DOOR_ADVENTURES } from './castlesSecretDoorAdventures';
-import { LEARNING_OBJECTIVES, PREFERRED_ONLY_ADVENTURES, getAdventureTemplatesForLocation } from './index';
+import {
+  LEARNING_OBJECTIVES,
+  PREFERRED_ONLY_ADVENTURES,
+  getAdventureTemplatesForLocation,
+} from './index';
 import { ISLAND_LOCATIONS } from '../../island/locations';
 
 /**

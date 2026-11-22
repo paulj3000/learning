@@ -127,7 +127,8 @@ describe('sky ribbons', () => {
     expect(ribbon.mesh.position.toArray()).toEqual([0, 60, -140]);
     ribbon.setTime(5);
     expect(
-      (ribbon.mesh.material as unknown as { uniforms: { uTime: { value: number } } }).uniforms.uTime.value,
+      (ribbon.mesh.material as unknown as { uniforms: { uTime: { value: number } } }).uniforms.uTime
+        .value,
     ).toBe(5);
     ribbon.dispose();
   });

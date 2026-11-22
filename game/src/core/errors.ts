@@ -43,8 +43,7 @@ export interface ValidationIssue {
 
 /** The result of validating untrusted data: the typed value, or the issues found. */
 export type ValidationResult<T> =
-  | { ok: true; value: T; issues: readonly [] }
-  | { ok: false; issues: readonly ValidationIssue[] };
+  { ok: true; value: T; issues: readonly [] } | { ok: false; issues: readonly ValidationIssue[] };
 
 export function validationOk<T>(value: T): ValidationResult<T> {
   return { ok: true, value, issues: [] };

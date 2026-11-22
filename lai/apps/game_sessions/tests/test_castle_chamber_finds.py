@@ -57,7 +57,9 @@ def test_a_find_is_locked_until_the_nook_is_found_and_writes_nothing(a, discover
     assert client.get(url(child)).json() == {"discoveries": []}
 
 
-@pytest.mark.parametrize("discovery_id,key", [("castle-chamber-star", FINDS["castle-chamber-star"])])
+@pytest.mark.parametrize(
+    "discovery_id,key", [("castle-chamber-star", FINDS["castle-chamber-star"])]
+)
 def test_a_find_after_the_nook_is_persisted_and_grants_only_its_record(a, discovery_id, key):
 
     client, child = a

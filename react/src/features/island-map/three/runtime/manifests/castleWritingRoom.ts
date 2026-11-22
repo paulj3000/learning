@@ -360,7 +360,9 @@ export const CASTLE_WRITING_ROOM_MANIFEST: ThreeLocationManifest = {
     loading: 'Loading the Writing Room...',
     instructions:
       'Move: WASD or the arrow keys. Look: click the screen, then move your mouse (or drag with two fingers on a touch screen: left side to move, right side to look). Tap the open book to write a story, tap Keeper Quill to talk, or use the buttons below.',
-    statusLines: [{ text: 'The Writing Room is quiet. The open book on the desk is waiting for your story.' }],
+    statusLines: [
+      { text: 'The Writing Room is quiet. The open book on the desk is waiting for your story.' },
+    ],
     checkpointToasts: {
       found: 'You found {checkpoint}.',
       returning: 'You are back at {checkpoint}.',

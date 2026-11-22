@@ -3,9 +3,15 @@ import { read } from '../../../api/parse';
 import * as parse from '../../../api/play/parse';
 import { northPoleBootstrapJson } from '../../../test/northPoleFixtures';
 import type { BridgePlayerState, LocationBridgeHost } from '../../game-engine/bridge/bridgeHost';
-import { ENGINE_BRIDGE_EXTENSION_ID, mountEngineBridge } from '../../game-engine/bridge/engineBridge';
+import {
+  ENGINE_BRIDGE_EXTENSION_ID,
+  mountEngineBridge,
+} from '../../game-engine/bridge/engineBridge';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
-import { WorldEngineEventBus, type WorldEngineEventMap } from '../../island-map/three/worldEngineEvents';
+import {
+  WorldEngineEventBus,
+  type WorldEngineEventMap,
+} from '../../island-map/three/worldEngineEvents';
 import { earnedBridgeCheckpoints, worldSignals } from '../engineBridgeProgress';
 import { NP_SOUND, regionAudioFor, NORTH_POLE_REGION_ID } from '../audio/regionAudio';
 import { listenFootsteps } from '../audio/surfaceFootsteps';
@@ -24,7 +30,9 @@ import { toRegionSceneModel } from '../sceneModel';
 
 function bridgeConfig() {
   const data = read(northPoleBootstrapJson(), parse.regionBootstrap);
-  const { manifest } = buildRegionManifest(toRegionSceneModel(data), { worldSlug: 'learning-adventure-island' });
+  const { manifest } = buildRegionManifest(toRegionSceneModel(data), {
+    worldSlug: 'learning-adventure-island',
+  });
   const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID);
   return binding?.config as { [key: string]: JsonValue } | undefined;
 }
@@ -32,7 +40,13 @@ function bridgeConfig() {
 /** The GE-070 host members the bridge needs, with nothing else running. */
 function host(config: { [key: string]: JsonValue }) {
   const environment: (EnvironmentQuery | null)[] = [];
-  const player: BridgePlayerState = { position: { x: 0, y: 0, z: 0 }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
+  const player: BridgePlayerState = {
+    position: { x: 0, y: 0, z: 0 },
+    yaw: 0,
+    velocity: { x: 0, y: 0, z: 0 },
+    grounded: true,
+    supportId: null,
+  };
   const value: LocationBridgeHost = {
     bus: new WorldEngineEventBus(),
     config,
@@ -53,7 +67,12 @@ describe('North Pole engine bridge (GE-074)', () => {
     const config = bridgeConfig();
     expect(config).toBeDefined();
     const ids = (config!.capabilities as { id: string }[]).map((c) => c.id);
-    expect(ids).toEqual(['gameplay.checkpoints', 'gameplay.hazards', 'environment.volumes', 'environment.weather']);
+    expect(ids).toEqual([
+      'gameplay.checkpoints',
+      'gameplay.hazards',
+      'environment.volumes',
+      'environment.weather',
+    ]);
   });
 
   it('mounts with no refused capability and gives the controller ice only on the east bank', () => {
@@ -85,7 +104,13 @@ function liveHost(config: { [key: string]: JsonValue }) {
   const teleports: { x: number; z: number }[] = [];
   const recovered: WorldEngineEventMap['PlayerRecovered'][] = [];
   bus.on('PlayerRecovered', (event) => recovered.push(event));
-  const player: BridgePlayerState = { position: { x: 0, y: 0, z: 92 }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
+  const player: BridgePlayerState = {
+    position: { x: 0, y: 0, z: 92 },
+    yaw: 0,
+    velocity: { x: 0, y: 0, z: 0 },
+    grounded: true,
+    supportId: null,
+  };
   const value: LocationBridgeHost = {
     bus,
     config,
@@ -112,19 +137,26 @@ function liveHost(config: { [key: string]: JsonValue }) {
       player.position = { x, y, z };
     },
     advance(seconds: number) {
-      for (let t = 0; t < seconds - 1e-9; t += 1 / 60) for (const frame of [...frames]) frame(1 / 60);
+      for (let t = 0; t < seconds - 1e-9; t += 1 / 60)
+        for (const frame of [...frames]) frame(1 / 60);
     },
   };
 }
 
 describe('North Pole checkpoints and the lake water on the bridge (GE-074)', () => {
-  const LAKE_OPEN = ['NORTH_POLE_WELCOME_LOOKED', 'NORTH_POLE_WORKSHOP_RESTORED', 'NORTH_POLE_FOREST_DONE'];
+  const LAKE_OPEN = [
+    'NORTH_POLE_WELCOME_LOOKED',
+    'NORTH_POLE_WORKSHOP_RESTORED',
+    'NORTH_POLE_FOREST_DONE',
+  ];
 
   it('resumes at the Frozen Lake zone checkpoint, not a bank', () => {
     const fake = liveHost(bridgeConfig()!);
     const mount = mountEngineBridge(fake.value);
     mount.api.setSignals(worldSignals(LAKE_OPEN));
-    expect(mount.api.resume(earnedBridgeCheckpoints(bridgeConfig(), LAKE_OPEN)).placedAt).toBe('np-cp-lake');
+    expect(mount.api.resume(earnedBridgeCheckpoints(bridgeConfig(), LAKE_OPEN)).placedAt).toBe(
+      'np-cp-lake',
+    );
     mount.dispose();
   });
 
@@ -139,7 +171,13 @@ describe('North Pole checkpoints and the lake water on the bridge (GE-074)', () 
     expect(fake.recovered).toEqual([]);
     fake.at(-47, 0, 20); // in the open water
     fake.advance(0.2);
-    expect(fake.recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'np-course-cp-lake-east', hazardId: 'np-hazard-lake-water' }]);
+    expect(fake.recovered).toEqual([
+      {
+        reason: 'HAZARD',
+        checkpointId: 'np-course-cp-lake-east',
+        hazardId: 'np-hazard-lake-water',
+      },
+    ]);
     expect(fake.teleports.at(-1)).toEqual({ x: -42, z: 8 });
     mount.dispose();
   });
@@ -150,7 +188,12 @@ describe('North Pole footsteps through the bridge (GE-074)', () => {
     const fake = liveHost(bridgeConfig()!);
     const mount = mountEngineBridge(fake.value);
     const played: string[] = [];
-    const off = listenFootsteps(fake.value.bus, (cue) => played.push(cue), 'default', NORTH_POLE_AUDIO_FOOTSTEPS);
+    const off = listenFootsteps(
+      fake.value.bus,
+      (cue) => played.push(cue),
+      'default',
+      NORTH_POLE_AUDIO_FOOTSTEPS,
+    );
     fake.at(-35, 0, 10);
     fake.advance(1 / 60); // the bridge reads where the child stands once per frame
     fake.value.bus.emit('PlayerFootstep', { gait: 'walk' });

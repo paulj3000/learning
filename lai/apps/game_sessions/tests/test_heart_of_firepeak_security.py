@@ -1,4 +1,5 @@
-"""Ownership and security of the Heart of Firepeak routes (docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md).
+"""Ownership and security of the Heart of Firepeak routes
+(docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md).
 
 Builds its own minimal published `firepeak-heart` 3D Area so it does not depend on the seed.
 Covers: another family's child (404), the Sprouts band (not visible), staff-only admin for
@@ -14,7 +15,13 @@ from apps.catalog.importer import import_content
 from apps.catalog.models import Location
 from apps.core.content_status import ContentStatus
 from apps.game_sessions.models import AdventureSession
-from apps.regions.models import AreaPuzzle, PlacementKind, PuzzleKind, WorldObjectPlacement, WorldRegion
+from apps.regions.models import (
+    AreaPuzzle,
+    PlacementKind,
+    PuzzleKind,
+    WorldObjectPlacement,
+    WorldRegion,
+)
 from apps.regions.seeding import seed_puzzle
 from apps.users import services
 from apps.users.models import ParentAccount
@@ -107,7 +114,9 @@ def test_another_familys_child_gets_404_everywhere(heart, api):
     assert post(intruder, pickup).status_code == 404
     # Own child, someone else's session id.
     assert post(intruder, solve_url(heart.b1, session), submission).status_code == 404
-    assert post(intruder, f"{base(heart.b1)}sessions/{session}/pickups/{PICKUP}/").status_code == 404
+    assert (
+        post(intruder, f"{base(heart.b1)}sessions/{session}/pickups/{PICKUP}/").status_code == 404
+    )
 
 
 def test_anonymous_requests_are_refused(heart, api):
@@ -142,7 +151,9 @@ def test_the_client_cannot_assert_correctness(heart, api):
     nested = post(client, solve_url(child, session), {"submission": {"correct": True}})
     assert nested.status_code == 400
     assert "invalid_submission" in nested.content.decode()
-    mixed = post(client, solve_url(child, session), {"submission": {"observed": []}, "correct": True})
+    mixed = post(
+        client, solve_url(child, session), {"submission": {"observed": []}, "correct": True}
+    )
     assert mixed.status_code == 400
     # A wrong but well-formed answer is graded by the server, not credited.
     wrong = post(client, solve_url(child, session), {"submission": {"observed": ["crater"]}})
@@ -164,6 +175,9 @@ def test_puzzle_publishing_in_admin_is_staff_only(heart):
             {"action": "publish_puzzles", "_selected_action": [puzzle.pk]},
         )
         assert response.status_code in (302, 403)
-        assert "/admin/login" in response.get("Location", "/admin/login") or response.status_code == 403
+        assert (
+            "/admin/login" in response.get("Location", "/admin/login")
+            or response.status_code == 403
+        )
     puzzle.refresh_from_db()
     assert puzzle.status == ContentStatus.DRAFT

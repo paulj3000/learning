@@ -90,7 +90,9 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
     const value = (input ?? {}) as Partial<DemoSceneConfig>;
     const ageBand = value.ageBand ?? 'PATHFINDER';
     if (!AGE_BANDS.includes(ageBand)) {
-      return validationFailed([{ path: 'ageBand', message: `must be one of ${AGE_BANDS.join(', ')}` }]);
+      return validationFailed([
+        { path: 'ageBand', message: `must be one of ${AGE_BANDS.join(', ')}` },
+      ]);
     }
     return validationOk({ ageBand });
   },
@@ -110,16 +112,37 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
 
     const material = (color: number, opacity = 1) =>
       scope.track(new MeshStandardMaterial({ color, transparent: opacity < 1, opacity }));
-    const addBox = (id: string, kind: ColliderSpec['kind'], min: Vec3Like, max: Vec3Like, color: number, gate = false) => {
-      const mesh = new Mesh(scope.track(new BoxGeometry(max.x - min.x, max.y - min.y, max.z - min.z)), material(color, gate ? 0.6 : 1));
+    const addBox = (
+      id: string,
+      kind: ColliderSpec['kind'],
+      min: Vec3Like,
+      max: Vec3Like,
+      color: number,
+      gate = false,
+    ) => {
+      const mesh = new Mesh(
+        scope.track(new BoxGeometry(max.x - min.x, max.y - min.y, max.z - min.z)),
+        material(color, gate ? 0.6 : 1),
+      );
       mesh.name = id;
       mesh.position.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2);
       group.add(mesh);
       provider.addCollider({ id, kind, min, max, ...(gate ? { gate: true } : {}) });
       return mesh;
     };
-    const addPatch = (name: string, minX: number, maxX: number, minZ: number, maxZ: number, color: number, y = 0.01) => {
-      const mesh = new Mesh(scope.track(new PlaneGeometry(maxX - minX, maxZ - minZ)), material(color, 0.85));
+    const addPatch = (
+      name: string,
+      minX: number,
+      maxX: number,
+      minZ: number,
+      maxZ: number,
+      color: number,
+      y = 0.01,
+    ) => {
+      const mesh = new Mesh(
+        scope.track(new PlaneGeometry(maxX - minX, maxZ - minZ)),
+        material(color, 0.85),
+      );
       mesh.name = name;
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set((minX + maxX) / 2, y, (minZ + maxZ) / 2);
@@ -133,11 +156,35 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
 
     const step = STEP_HEIGHT_BY_AGE_BAND[config.ageBand];
     addBox('wall.solid.1', 'SOLID', { x: -4, y: 0, z: -3 }, { x: -2, y: 2, z: -2.5 }, 0xb0b8c0);
-    addBox('crate.jumpable.1', 'JUMPABLE', { x: 2, y: 0, z: -4 }, { x: 3.5, y: 0.5, z: -2.5 }, 0xa57c52);
-    addBox('step.jumpable.1', 'JUMPABLE', { x: 0, y: 0, z: -2 }, { x: 1.5, y: step, z: -0.5 }, 0xffb84d);
-    addBox('step.jumpable.2', 'JUMPABLE', { x: 1.5, y: 0, z: -2 }, { x: 3, y: step * 2, z: -0.5 }, 0xffa31a);
+    addBox(
+      'crate.jumpable.1',
+      'JUMPABLE',
+      { x: 2, y: 0, z: -4 },
+      { x: 3.5, y: 0.5, z: -2.5 },
+      0xa57c52,
+    );
+    addBox(
+      'step.jumpable.1',
+      'JUMPABLE',
+      { x: 0, y: 0, z: -2 },
+      { x: 1.5, y: step, z: -0.5 },
+      0xffb84d,
+    );
+    addBox(
+      'step.jumpable.2',
+      'JUMPABLE',
+      { x: 1.5, y: 0, z: -2 },
+      { x: 3, y: step * 2, z: -0.5 },
+      0xffa31a,
+    );
     addBox('gate.1', 'SOLID', { x: -1, y: 0, z: 3 }, { x: 1, y: 2.2, z: 3.2 }, 0xffd84d, true);
-    addBox('zone.trigger.1', 'TRIGGER', { x: -3, y: 0, z: 1 }, { x: -1.5, y: 1.5, z: 2.5 }, 0x4da6ff);
+    addBox(
+      'zone.trigger.1',
+      'TRIGGER',
+      { x: -3, y: 0, z: 1 },
+      { x: -1.5, y: 1.5, z: 2.5 },
+      0x4da6ff,
+    );
 
     // A ramp: drawn tilted, collided as a low jumpable step (the overlay shows the box).
     const ramp = new Mesh(scope.track(new BoxGeometry(2, 0.2, 3.2)), material(0xc98bd6));
@@ -145,7 +192,12 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
     ramp.position.set(4, 0.12, 2);
     ramp.rotation.x = Math.atan2(0.25, 3);
     group.add(ramp);
-    provider.addCollider({ id: 'ramp.jumpable.1', kind: 'JUMPABLE', min: { x: 3, y: 0, z: 0.5 }, max: { x: 5, y: 0.25, z: 3.5 } });
+    provider.addCollider({
+      id: 'ramp.jumpable.1',
+      kind: 'JUMPABLE',
+      min: { x: 3, y: 0, z: 0.5 },
+      max: { x: 5, y: 0.25, z: 3.5 },
+    });
 
     addPatch('pond', POND.minX, POND.maxX, POND.minZ, POND.maxZ, 0x3a7bd5);
     addPatch('ice', ICE.min.x, ICE.max.x, ICE.min.z, ICE.max.z, 0xe8f6ff);
@@ -155,13 +207,19 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
     flag.position.set(DOCK.x, 0.8, DOCK.z);
     group.add(flag);
 
-    const coin = new Mesh(scope.track(new CylinderGeometry(0.35, 0.35, 0.08, 20)), material(0xffcf33));
+    const coin = new Mesh(
+      scope.track(new CylinderGeometry(0.35, 0.35, 0.08, 20)),
+      material(0xffcf33),
+    );
     coin.name = 'collectible.coin';
     coin.rotation.x = Math.PI / 2;
     coin.position.set(COIN.x, COIN.y + 0.4, COIN.z);
     group.add(coin);
 
-    const ferry = new Mesh(scope.track(new BoxGeometry(FERRY.size.x, FERRY.size.y, FERRY.size.z)), material(0x8b5a2b));
+    const ferry = new Mesh(
+      scope.track(new BoxGeometry(FERRY.size.x, FERRY.size.y, FERRY.size.z)),
+      material(0x8b5a2b),
+    );
     ferry.name = 'platform.ferry';
     ferry.position.set(FERRY.position.x, FERRY.size.y / 2, FERRY.position.z);
     group.add(ferry);
@@ -186,7 +244,8 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
       update: ({ alpha, time }) => {
         // The avatar mirrors the canonical transform; it never moves on its own.
         const entity = runtime.world.bySemanticId(PLAYER_ENTITY_ID);
-        const transform = entity === undefined ? undefined : runtime.world.get(entity, PlayerTransformComponent);
+        const transform =
+          entity === undefined ? undefined : runtime.world.get(entity, PlayerTransformComponent);
         // The stand-in box only when the engine avatar (character.avatar) is off.
         avatar.visible = transform !== undefined && !runtime.installed.has('character.avatar');
         if (transform) {
@@ -203,7 +262,11 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
         coin.visible = !(collectibles?.isCollected('coin-1') ?? false);
         // Without a camera capability, a slow orbit (none under reduced motion).
         const hasCamera = [...runtime.installed.keys()].some((id) => id.startsWith('camera.'));
-        if (!hasCamera && !(preferences?.reducedMotion ?? false) && camera instanceof PerspectiveCamera) {
+        if (
+          !hasCamera &&
+          !(preferences?.reducedMotion ?? false) &&
+          camera instanceof PerspectiveCamera
+        ) {
           const angle = time * 0.1;
           camera.position.set(Math.sin(angle) * 14, 9, Math.cos(angle) * 14);
           camera.lookAt(0, 0.5, 0);
@@ -226,12 +289,18 @@ export const demoSceneCapability: CapabilityDefinition<DemoSceneConfig, EngineRu
  * sprints. The shipped worlds use the shared pointer and gamepad input; this keeps the
  * Playground free of the island-map runtime.
  */
-export function createKeyboardInput(target: EventTarget = window): StandardInput & { reset(): void; dispose(): void } {
+export function createKeyboardInput(
+  target: EventTarget = window,
+): StandardInput & { reset(): void; dispose(): void } {
   const held = new Set<string>();
   let jumpQueued = false;
   const down = (raw: Event) => {
     const event = raw as KeyboardEvent;
-    if (event.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
+    if (
+      event.target instanceof HTMLElement &&
+      /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)
+    )
+      return;
     if (event.code === 'Space') {
       if (!event.repeat) jumpQueued = true;
       event.preventDefault();
@@ -294,14 +363,20 @@ export const PLAYGROUND_CAPABILITIES: readonly PlaygroundCapabilityOption[] = Ob
     label: 'Walk, run, sprint',
     description: 'The shared controller, at the age band walking speed.',
     defaultEnabled: true,
-    toRequest: (ageBand) => ({ id: 'movement.locomotion', config: { walkSpeed: resolveProfile(ageBand).movement.walkSpeed } }),
+    toRequest: (ageBand) => ({
+      id: 'movement.locomotion',
+      config: { walkSpeed: resolveProfile(ageBand).movement.walkSpeed },
+    }),
   },
   {
     id: 'movement.jump',
     label: 'Jumping',
     description: 'A standard capability; tuned per age band from the SDK profile.',
     defaultEnabled: true,
-    toRequest: (ageBand) => ({ id: 'movement.jump', config: { ...resolveProfile(ageBand).movement.jump } }),
+    toRequest: (ageBand) => ({
+      id: 'movement.jump',
+      config: { ...resolveProfile(ageBand).movement.jump },
+    }),
   },
   {
     id: 'camera.thirdPerson',
@@ -320,14 +395,16 @@ export const PLAYGROUND_CAPABILITIES: readonly PlaygroundCapabilityOption[] = Ob
   {
     id: 'character.avatar',
     label: 'Avatar',
-    description: 'The child avatar (placeholder capsule here), placed only from the canonical transform.',
+    description:
+      'The child avatar (placeholder capsule here), placed only from the canonical transform.',
     defaultEnabled: true,
     toRequest: () => ({ id: 'character.avatar' }),
   },
   {
     id: 'character.animation',
     label: 'Avatar animation',
-    description: 'Clips from movement state and achieved speed (needs a loaded model; the placeholder has none).',
+    description:
+      'Clips from movement state and achieved speed (needs a loaded model; the placeholder has none).',
     defaultEnabled: true,
     toRequest: () => ({ id: 'character.animation' }),
   },
@@ -338,7 +415,17 @@ export const PLAYGROUND_CAPABILITIES: readonly PlaygroundCapabilityOption[] = Ob
     defaultEnabled: true,
     toRequest: () => ({
       id: 'gameplay.checkpoints',
-      config: { checkpoints: [{ id: 'dock', courseId: 'playground-course', position: DOCK, yaw: 0, label: 'the old dock' }] },
+      config: {
+        checkpoints: [
+          {
+            id: 'dock',
+            courseId: 'playground-course',
+            position: DOCK,
+            yaw: 0,
+            label: 'the old dock',
+          },
+        ],
+      },
     }),
   },
   {
@@ -348,7 +435,17 @@ export const PLAYGROUND_CAPABILITIES: readonly PlaygroundCapabilityOption[] = Ob
     defaultEnabled: true,
     toRequest: () => ({
       id: 'gameplay.hazards',
-      config: { hazards: [{ id: 'pond', kind: 'WATER', rect: POND, checkpointId: 'dock', messageKey: 'hazard.water.splash' }] },
+      config: {
+        hazards: [
+          {
+            id: 'pond',
+            kind: 'WATER',
+            rect: POND,
+            checkpointId: 'dock',
+            messageKey: 'hazard.water.splash',
+          },
+        ],
+      },
     }),
   },
   {
@@ -356,7 +453,10 @@ export const PLAYGROUND_CAPABILITIES: readonly PlaygroundCapabilityOption[] = Ob
     label: 'Coin',
     description: 'One optional collectible on the ramp.',
     defaultEnabled: true,
-    toRequest: () => ({ id: 'gameplay.collectibles', config: { collectibles: [{ id: 'coin-1', position: COIN }] } }),
+    toRequest: () => ({
+      id: 'gameplay.collectibles',
+      config: { collectibles: [{ id: 'coin-1', position: COIN }] },
+    }),
   },
   {
     id: 'gameplay.platforms',
@@ -373,7 +473,10 @@ export const PLAYGROUND_CAPABILITIES: readonly PlaygroundCapabilityOption[] = Ob
             size: FERRY.size,
             route: 'OPTIONAL',
             moving: {
-              path: [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 6 }],
+              path: [
+                { x: 0, y: 0, z: 0 },
+                { x: 0, y: 0, z: 6 },
+              ],
               mode: 'PING_PONG',
               speed: ageBand === 'SPROUT' ? 0.4 : 0.8,
               pauseSeconds: 1.5,
@@ -395,7 +498,10 @@ export const PLAYGROUND_CAPABILITIES: readonly PlaygroundCapabilityOption[] = Ob
     label: 'Ice patch',
     description: 'A slippery volume; the child slides but always stops within a metre.',
     defaultEnabled: true,
-    toRequest: () => ({ id: 'environment.volumes', config: { surfaces: [{ id: 'ice-patch', surfaceId: 'ice', box: ICE }] } }),
+    toRequest: () => ({
+      id: 'environment.volumes',
+      config: { surfaces: [{ id: 'ice-patch', surfaceId: 'ice', box: ICE }] },
+    }),
   },
 ]);
 
@@ -419,7 +525,12 @@ export function providePlaygroundServices(runtime: EngineRuntime<EventMap>): Pla
   runtime.services.provide(GameplaySettingsService, settings);
   runtime.services.provide(
     GameplayEventFactoryService,
-    createGameplayEventFactory({ realmId: 'realm.playground', adventureId: 'adventure.playground', areaId: 'area.playground', sessionRef: null }),
+    createGameplayEventFactory({
+      realmId: 'realm.playground',
+      adventureId: 'adventure.playground',
+      areaId: 'area.playground',
+      sessionRef: null,
+    }),
   );
   return { physics, settings };
 }

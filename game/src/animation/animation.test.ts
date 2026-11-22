@@ -1,12 +1,30 @@
-import { AnimationClip, Bone, Group, Object3D, VectorKeyframeTrack, QuaternionKeyframeTrack } from 'three';
+import {
+  AnimationClip,
+  Bone,
+  Group,
+  Object3D,
+  VectorKeyframeTrack,
+  QuaternionKeyframeTrack,
+} from 'three';
 import { describe, expect, it } from 'vitest';
 import { PLAYER_MOVEMENT_STATES, type PlayerMovementState } from '../contracts/player';
 import { AnimationStateMachine, type AnimationInput } from './animationStateMachine';
-import { CrossfadeBlender, easeFade, lerpWeights, locomotionBlend, normaliseWeights } from './blending';
+import {
+  CrossfadeBlender,
+  easeFade,
+  lerpWeights,
+  locomotionBlend,
+  normaliseWeights,
+} from './blending';
 import { withoutRootMotionFor } from './rootMotion';
-import { createThreeAnimationDriver, type ActionLike, type MixerLike } from './threeAnimationDriver';
+import {
+  createThreeAnimationDriver,
+  type ActionLike,
+  type MixerLike,
+} from './threeAnimationDriver';
 
-const sum = (w: Record<string, number> | Readonly<Record<string, number>>) => Object.values(w).reduce((a, b) => a + b, 0);
+const sum = (w: Record<string, number> | Readonly<Record<string, number>>) =>
+  Object.values(w).reduce((a, b) => a + b, 0);
 
 describe('blending math', () => {
   it('normalises weights and drops junk', () => {
@@ -84,13 +102,27 @@ describe('blending math', () => {
     const noRun = locomotionBlend(3.4, { walkSpeed: 2, runSpeed: 4, hasRun: false });
     expect(noRun.weights.run).toBe(0);
     expect(noRun.timeScale.walk).toBeCloseTo(1.7);
-    expect(locomotionBlend(10, { walkSpeed: 2, runSpeed: 4, hasRun: false }).timeScale.walk).toBeCloseTo(1.7);
-    expect(locomotionBlend(2, { walkSpeed: 2, runSpeed: 4, hasRun: true }).timeScale.walk).toBeCloseTo(1);
-    expect(locomotionBlend(0.5, { walkSpeed: 2, runSpeed: 4, hasRun: true }).timeScale.walk).toBeCloseTo(0.6);
+    expect(
+      locomotionBlend(10, { walkSpeed: 2, runSpeed: 4, hasRun: false }).timeScale.walk,
+    ).toBeCloseTo(1.7);
+    expect(
+      locomotionBlend(2, { walkSpeed: 2, runSpeed: 4, hasRun: true }).timeScale.walk,
+    ).toBeCloseTo(1);
+    expect(
+      locomotionBlend(0.5, { walkSpeed: 2, runSpeed: 4, hasRun: true }).timeScale.walk,
+    ).toBeCloseTo(0.6);
   });
 });
 
-const FULL = { idle: 'Idle', walk: 'Walk', run: 'Run', jump: 'Jump', fall: 'Fall', land: 'Land', interact: 'Point' };
+const FULL = {
+  idle: 'Idle',
+  walk: 'Walk',
+  run: 'Run',
+  jump: 'Jump',
+  fall: 'Fall',
+  land: 'Land',
+  interact: 'Point',
+};
 
 function input(movement: PlayerMovementState, horizontalSpeed = 0): AnimationInput {
   return { movement, horizontalSpeed, walkSpeed: 2, runSpeed: 4 };
@@ -114,7 +146,9 @@ describe('animation state machine', () => {
   it('shows idle, walk and run clips by achieved speed', () => {
     expect(settled(new AnimationStateMachine(FULL), input('IDLE')).weights).toEqual({ Idle: 1 });
     expect(settled(new AnimationStateMachine(FULL), input('WALK', 2)).weights).toEqual({ Walk: 1 });
-    expect(settled(new AnimationStateMachine(FULL), input('SPRINT', 6)).weights).toEqual({ Run: 1 });
+    expect(settled(new AnimationStateMachine(FULL), input('SPRINT', 6)).weights).toEqual({
+      Run: 1,
+    });
   });
 
   it('stops the feet when blocked: a WALK state with zero achieved speed shows idle', () => {
@@ -135,16 +169,28 @@ describe('animation state machine', () => {
 
   it('keeps walk or idle in the air when the model has no jump clip', () => {
     const map = { idle: 'Idle', walk: 'Walk' };
-    expect(settled(new AnimationStateMachine(map), input('AIRBORNE', 2)).weights).toEqual({ Walk: 1 });
-    expect(settled(new AnimationStateMachine(map), input('JUMP_START', 0)).weights).toEqual({ Idle: 1 });
-    expect(settled(new AnimationStateMachine(map), input('FALLING', 2)).weights).toEqual({ Walk: 1 });
+    expect(settled(new AnimationStateMachine(map), input('AIRBORNE', 2)).weights).toEqual({
+      Walk: 1,
+    });
+    expect(settled(new AnimationStateMachine(map), input('JUMP_START', 0)).weights).toEqual({
+      Idle: 1,
+    });
+    expect(settled(new AnimationStateMachine(map), input('FALLING', 2)).weights).toEqual({
+      Walk: 1,
+    });
   });
 
   it('falls back from Fall to Jump, and from Land to the ground clip', () => {
     const map = { idle: 'Idle', walk: 'Walk', jump: 'Jump' };
-    expect(settled(new AnimationStateMachine(map), input('FALLING', 2)).weights).toEqual({ Jump: 1 });
-    expect(settled(new AnimationStateMachine(map), input('LANDING', 0)).weights).toEqual({ Idle: 1 });
-    expect(settled(new AnimationStateMachine(map), input('LANDING', 2)).weights).toEqual({ Walk: 1 });
+    expect(settled(new AnimationStateMachine(map), input('FALLING', 2)).weights).toEqual({
+      Jump: 1,
+    });
+    expect(settled(new AnimationStateMachine(map), input('LANDING', 0)).weights).toEqual({
+      Idle: 1,
+    });
+    expect(settled(new AnimationStateMachine(map), input('LANDING', 2)).weights).toEqual({
+      Walk: 1,
+    });
   });
 
   it('never throws and holds the last pose for a model with no clips at all', () => {
@@ -188,7 +234,19 @@ describe('animation state machine', () => {
     const machine = new AnimationStateMachine(
       { idle: 'I', swim: 'S' },
       {
-        movementRoles: { IDLE: 'idle', WALK: 'idle', RUN: 'idle', SPRINT: 'idle', JUMP_START: 'idle', AIRBORNE: 'idle', FALLING: 'idle', LANDING: 'idle', CLIMBING: 'idle', SWIMMING: 'swim', SLIDING: 'idle' },
+        movementRoles: {
+          IDLE: 'idle',
+          WALK: 'idle',
+          RUN: 'idle',
+          SPRINT: 'idle',
+          JUMP_START: 'idle',
+          AIRBORNE: 'idle',
+          FALLING: 'idle',
+          LANDING: 'idle',
+          CLIMBING: 'idle',
+          SWIMMING: 'swim',
+          SLIDING: 'idle',
+        },
         states: { idle: { loop: true, fallbacks: [] }, swim: { loop: true, fallbacks: ['idle'] } },
         defaultFade: 0,
         fades: {},
@@ -201,7 +259,10 @@ describe('animation state machine', () => {
 describe('three animation driver', () => {
   function fakeMixer() {
     const log: string[] = [];
-    const actions = new Map<string, ActionLike & { weight: number; scale: number; playing: boolean; loop: number }>();
+    const actions = new Map<
+      string,
+      ActionLike & { weight: number; scale: number; playing: boolean; loop: number }
+    >();
     const mixer: MixerLike = {
       clipAction(clip) {
         const action = {
@@ -211,12 +272,26 @@ describe('three animation driver', () => {
           scale: 1,
           playing: false,
           loop: -1,
-          play() { action.playing = true; log.push(`play ${clip.name}`); },
-          stop() { action.playing = false; log.push(`stop ${clip.name}`); },
-          reset() { log.push(`reset ${clip.name}`); },
-          setLoop(mode: number) { action.loop = mode; },
-          setEffectiveWeight(w: number) { action.weight = w; },
-          setEffectiveTimeScale(s: number) { action.scale = s; },
+          play() {
+            action.playing = true;
+            log.push(`play ${clip.name}`);
+          },
+          stop() {
+            action.playing = false;
+            log.push(`stop ${clip.name}`);
+          },
+          reset() {
+            log.push(`reset ${clip.name}`);
+          },
+          setLoop(mode: number) {
+            action.loop = mode;
+          },
+          setEffectiveWeight(w: number) {
+            action.weight = w;
+          },
+          setEffectiveTimeScale(s: number) {
+            action.scale = s;
+          },
         };
         actions.set(clip.name, action);
         return action;
@@ -230,13 +305,31 @@ describe('three animation driver', () => {
   it('applies weights and speeds, starts clips once and stops faded-out ones', () => {
     const { mixer, actions, log } = fakeMixer();
     const driver = createThreeAnimationDriver(mixer, clips);
-    driver.apply({ state: 'locomotion', requestedRole: 'ground', weights: { Idle: 0.5, Walk: 0.5 }, timeScales: { Walk: 1.2 }, oneShots: [] });
+    driver.apply({
+      state: 'locomotion',
+      requestedRole: 'ground',
+      weights: { Idle: 0.5, Walk: 0.5 },
+      timeScales: { Walk: 1.2 },
+      oneShots: [],
+    });
     expect(actions.get('Walk')!.weight).toBe(0.5);
     expect(actions.get('Walk')!.scale).toBe(1.2);
-    driver.apply({ state: 'locomotion', requestedRole: 'ground', weights: { Idle: 0.2, Walk: 0.8 }, timeScales: {}, oneShots: [] });
+    driver.apply({
+      state: 'locomotion',
+      requestedRole: 'ground',
+      weights: { Idle: 0.2, Walk: 0.8 },
+      timeScales: {},
+      oneShots: [],
+    });
     expect(log.filter((l) => l === 'play Walk')).toHaveLength(1);
     expect(actions.get('Walk')!.scale).toBe(1);
-    driver.apply({ state: 'jump', requestedRole: 'jump', weights: { Jump: 1 }, timeScales: {}, oneShots: ['Jump'] });
+    driver.apply({
+      state: 'jump',
+      requestedRole: 'jump',
+      weights: { Jump: 1 },
+      timeScales: {},
+      oneShots: ['Jump'],
+    });
     expect(log).toContain('stop Idle');
     expect(log).toContain('stop Walk');
     expect(actions.get('Jump')!.clampWhenFinished).toBe(true);
@@ -278,7 +371,9 @@ describe('root motion correction', () => {
     const { model } = rig();
     const [fixed] = withoutRootMotionFor([walkClip()], model);
     const hips = fixed!.tracks.find((t) => t.name === 'Hips.position')!;
-    expect(Array.from(hips.values)).toEqual([0, 1, 0, 0, 1.1, 0, 0, 1, 0].map((v) => expect.closeTo(v, 5)));
+    expect(Array.from(hips.values)).toEqual(
+      [0, 1, 0, 0, 1.1, 0, 0, 1, 0].map((v) => expect.closeTo(v, 5)),
+    );
   });
 
   it('drops top-level position tracks and keeps rotations and deeper positions', () => {
@@ -302,7 +397,9 @@ describe('root motion correction', () => {
 
   it('returns a clip that has no root motion unchanged', () => {
     const { model } = rig();
-    const clip = new AnimationClip('Wave', 1, [new QuaternionKeyframeTrack('Spine.quaternion', [0, 1], [0, 0, 0, 1, 0, 0, 0, 1])]);
+    const clip = new AnimationClip('Wave', 1, [
+      new QuaternionKeyframeTrack('Spine.quaternion', [0, 1], [0, 0, 0, 1, 0, 0, 0, 1]),
+    ]);
     expect(withoutRootMotionFor([clip], model)[0]).toBe(clip);
   });
 
@@ -319,11 +416,24 @@ describe('root motion correction', () => {
     holder.name = 'Rig';
     holder.add(root);
     model.add(holder);
-    const clip = new AnimationClip('Run', 1, [new VectorKeyframeTrack('Pelvis.position', [0, 1], [0, 0.9, 0, 1, 1.0, 3])]);
+    const clip = new AnimationClip('Run', 1, [
+      new VectorKeyframeTrack('Pelvis.position', [0, 1], [0, 0.9, 0, 1, 1.0, 3]),
+    ]);
     const [fixed] = withoutRootMotionFor([clip], model, { extraRootNames: ['Pelvis'] });
-    expect(Array.from(fixed!.tracks[0]!.values.slice(3))).toEqual([expect.closeTo(0, 5), expect.closeTo(1.0, 5), expect.closeTo(0, 5)]);
-    const [flat] = withoutRootMotionFor([clip], model, { extraRootNames: ['Pelvis'], keepVertical: false });
-    expect(Array.from(flat!.tracks[0]!.values.slice(3))).toEqual([expect.closeTo(0, 5), expect.closeTo(0.9, 5), expect.closeTo(0, 5)]);
+    expect(Array.from(fixed!.tracks[0]!.values.slice(3))).toEqual([
+      expect.closeTo(0, 5),
+      expect.closeTo(1.0, 5),
+      expect.closeTo(0, 5),
+    ]);
+    const [flat] = withoutRootMotionFor([clip], model, {
+      extraRootNames: ['Pelvis'],
+      keepVertical: false,
+    });
+    expect(Array.from(flat!.tracks[0]!.values.slice(3))).toEqual([
+      expect.closeTo(0, 5),
+      expect.closeTo(0.9, 5),
+      expect.closeTo(0, 5),
+    ]);
   });
 
   it('handles a Mixamo armature turned a quarter round X, where up is local Z', () => {
@@ -334,7 +444,9 @@ describe('root motion correction', () => {
     armature.updateMatrixWorld(true);
     hips.position.set(0, 0, 100);
     // Forward travel on local Y (world -Z after the turn), a rise on local Z (world up).
-    const clip = new AnimationClip('Walk', 1, [new VectorKeyframeTrack('Hips.position', [0, 1], [0, 0, 100, 0, 50, 110])]);
+    const clip = new AnimationClip('Walk', 1, [
+      new VectorKeyframeTrack('Hips.position', [0, 1], [0, 0, 100, 0, 50, 110]),
+    ]);
     const [fixed] = withoutRootMotionFor([clip], model);
     const v = Array.from(fixed!.tracks[0]!.values.slice(3));
     expect(v[0]).toBeCloseTo(0, 4);

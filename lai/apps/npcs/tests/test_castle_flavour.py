@@ -142,8 +142,8 @@ def test_no_model_is_called_unless_a_published_persona_allows_it(families, fake,
 
 
 def test_flavour_writes_no_gameplay_state(families, fake):
-    from apps.progression.models import NpcRelationship, WorldChange
     from apps.npcs.models import NpcConversationState
+    from apps.progression.models import NpcRelationship, WorldChange
 
     publish_quill()
     fake({"spokenText": GOOD, "safetyDisposition": "ALLOW"})

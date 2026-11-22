@@ -1084,15 +1084,15 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       surfaces, card equivalence, pad dwell). No new setting. Owner: Sprouts playtest (SC-R11-02).
 - [x] **SC-JMP-09** Jumping in the existing five adventures: DONE (development) by SC-JMP above; Trello was stale.
 - [~] **SC-JMP-06** Movement tutorial. PREPARED: `castleMovementTutorial.ts`, a pure, optional, skippable,
-      timer-free reducer over engine events (7 tests). Not shown anywhere: placement (no courtyard exists; Entry
-      Hall proposed) and assisted mode (spec and ADR) need the owner.
+  timer-free reducer over engine events (7 tests). Not shown anywhere: placement (no courtyard exists; Entry
+  Hall proposed) and assisted mode (spec and ADR) need the owner.
 - [~] **SC-JMP-08** Story fragments and progression. PREPARED: `great-storybook/castleScoringSources.ts`
-      names the castle's records as typed, idempotent, points-free events for GE-100 (18 tests); fragments are
-      the existing pages. Fragment currency stays a proposal.
+  names the castle's records as typed, idempotent, points-free events for GE-100 (18 tests); fragments are
+  the existing pages. Fragment currency stays a proposal.
 - [~] **SC-JMP-20** Movement acceptance. Unit part done: the audit above, `castleEngineProfile.test.ts` (16),
-      `castleSaveContract.test.ts` (7, every persisted castle id). Browser and device acceptance stay owner
-      (SC-R12-01). SC-JMP-04, 05 wait on the engine core (Agent 4); SC-JMP-07, 10 to 17 on owner briefs;
-      SC-JMP-19 on LAI-0805.
+  `castleSaveContract.test.ts` (7, every persisted castle id). Browser and device acceptance stay owner
+  (SC-R12-01). SC-JMP-04, 05 wait on the engine core (Agent 4); SC-JMP-07, 10 to 17 on owner briefs;
+  SC-JMP-19 on LAI-0805.
 - [x] **SC-R12-AUDIT** Storykeeper Castle final development audit (2026-11-19, branch
       `feature/storykeeper-castle-completion`). DONE (development), not owner accepted. SC-R05 to SC-R12
       were re-audited against the source (`docs/regions/storykeeper_castle_engine_integration.md` section 10).
@@ -1229,10 +1229,9 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       `test_child_state_api.py` 20 passed. Not run: browser, WebGL, e2e, lint, format, full suites.
       **SC-R07 merged** at `57b0725d` (SC-R07 commit `1083148f`). Merged-tree evidence: Vitest island-map/three,
       great-storybook, rewards, content-export, audio, npc, worlds 229 files, 3021 passed; `tsc` app clean;
-      content:check and golden:check clean; Django `apps/inventory apps/progression apps/quests apps/catalog`
-      + `game_sessions/test_answers_api.py`, `test_castle_storybook.py`: 432 passed, 0 skipped.
+      content:check and golden:check clean; Django `apps/inventory apps/progression apps/quests apps/catalog` + `game_sessions/test_answers_api.py`, `test_castle_storybook.py`: 432 passed, 0 skipped.
 - [x] **Post-merge Django baseline re-run (2026-11-18, fresh machine, at `53f783ba`).** `apps/regions apps/avatars
-      apps/assets` plus every Django test file naming the castle or the Storybook (29 files across ai, quests,
+apps/assets` plus every Django test file naming the castle or the Storybook (29 files across ai, quests,
       progression, npcs, audio, game_sessions, speech, inventory): 892 passed, 1 failed (PostgreSQL,
       `LAI_REQUIRE_POSTGRES=1`, dummy AWS keys, `AWS_PROFILE` unset). The failure was a stale fixture, not a
       regression: `test_adventure_launch.py::test_a_secret_place_is_hidden_until_its_world_change_exists`

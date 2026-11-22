@@ -59,6 +59,10 @@ class MaterialFixes:
     roughness: float | None = None
 
 
+# The default for `prepare_node` (frozen, so one shared instance is safe).
+NO_MATERIAL_FIXES = MaterialFixes()
+
+
 @dataclass
 class PreparedModel:
     node: str
@@ -313,7 +317,9 @@ class _Builder:
         }
         if with_bounds and values:
             # Bounds of the float32 values actually stored, so validators agree with them.
-            stored = [struct.unpack("<" + "f" * width, struct.pack("<" + "f" * width, *v)) for v in values]
+            stored = [
+                struct.unpack("<" + "f" * width, struct.pack("<" + "f" * width, *v)) for v in values
+            ]
             accessor["min"] = [min(v[i] for v in stored) for i in range(width)]
             accessor["max"] = [max(v[i] for v in stored) for i in range(width)]
         self.accessors.append(accessor)
@@ -346,7 +352,7 @@ def extract_model(
     roll_degrees: float = 0.0,
     center_footprint: bool = False,
     max_texture_size: int | None = None,
-    fixes: MaterialFixes = MaterialFixes(),
+    fixes: MaterialFixes = NO_MATERIAL_FIXES,
     asset_copyright: str = "",
     texture_cache: dict | None = None,
     include_children: bool = False,
@@ -435,7 +441,7 @@ def extract_model(
     modifications = [
         f'Extracted node "{node_name}" into its own file; other nodes, cameras, lights, '
         "animations and FBX extras removed",
-        "Baked the node rotation (Z-up to Y-up) and its x{:g} scale into the vertices".format(scale[0]),
+        f"Baked the node rotation (Z-up to Y-up) and its x{scale[0]:g} scale into the vertices",
         "Origin moved to ground level (lowest vertex at y = 0), pivot kept on the vertical axis",
     ]
     if len(parts) > 1:
@@ -527,7 +533,11 @@ def extract_model(
             return material_map[source]
         material = document["materials"][source]
         pbr_in = material.get("pbrMetallicRoughness", {})
-        pbr = {k: v for k, v in pbr_in.items() if k in ("baseColorFactor", "metallicFactor", "roughnessFactor")}
+        pbr = {
+            k: v
+            for k, v in pbr_in.items()
+            if k in ("baseColorFactor", "metallicFactor", "roughnessFactor")
+        }
         if "baseColorTexture" in pbr_in:
             pbr["baseColorTexture"] = {"index": texture_index(pbr_in["baseColorTexture"]["index"])}
         if fixes.metallic is not None:
@@ -575,8 +585,11 @@ def extract_model(
     for report in texture_report:
         modifications.append(
             "Texture {name} downscaled {a}x{b} to {c}x{d}".format(
-                name=report["name"], a=report["from"][0], b=report["from"][1],
-                c=report["to"][0], d=report["to"][1],
+                name=report["name"],
+                a=report["from"][0],
+                b=report["from"][1],
+                c=report["to"][0],
+                d=report["to"][1],
             )
         )
 
@@ -651,9 +664,7 @@ def _collect_primitives(document, binary, part, chain, rotation, scale, primitiv
         attributes = primitive.get("attributes", {})
         if "POSITION" not in attributes:
             raise PrepError("A primitive has no POSITION attribute.")
-        positions = [
-            place(p) for p in _read_accessor(document, binary, attributes["POSITION"])
-        ]
+        positions = [place(p) for p in _read_accessor(document, binary, attributes["POSITION"])]
         normals = (
             [turn(n) for n in _read_accessor(document, binary, attributes["NORMAL"])]
             if "NORMAL" in attributes

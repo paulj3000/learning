@@ -14,7 +14,12 @@ export function rectAround(x: number, z: number, halfX: number, halfZ = halfX): 
 }
 
 export function rectContains(rect: Rect, x: number, z: number, margin = 0): boolean {
-  return x >= rect.minX - margin && x <= rect.maxX + margin && z >= rect.minZ - margin && z <= rect.maxZ + margin;
+  return (
+    x >= rect.minX - margin &&
+    x <= rect.maxX + margin &&
+    z >= rect.minZ - margin &&
+    z <= rect.maxZ + margin
+  );
 }
 
 export function rectsOverlap(a: Rect, b: Rect): boolean {
@@ -26,7 +31,14 @@ export function inflateRect(rect: Rect, by: number): Rect {
 }
 
 /** Does the segment from (x, z) along (dx, dz) for `length` metres touch the rect? */
-export function segmentHitsRect(x: number, z: number, dx: number, dz: number, length: number, rect: Rect): boolean {
+export function segmentHitsRect(
+  x: number,
+  z: number,
+  dx: number,
+  dz: number,
+  length: number,
+  rect: Rect,
+): boolean {
   if (rectContains(rect, x, z)) {
     return true;
   }
@@ -55,7 +67,13 @@ export function segmentHitsRect(x: number, z: number, dx: number, dz: number, le
 }
 
 /** Does a box swept from its rest position along (dx, dz) for `length` metres touch the rect? */
-export function sweptRectHitsRect(box: Rect, dx: number, dz: number, length: number, target: Rect): boolean {
+export function sweptRectHitsRect(
+  box: Rect,
+  dx: number,
+  dz: number,
+  length: number,
+  target: Rect,
+): boolean {
   const halfX = (box.maxX - box.minX) / 2;
   const halfZ = (box.maxZ - box.minZ) / 2;
   const cx = (box.minX + box.maxX) / 2;

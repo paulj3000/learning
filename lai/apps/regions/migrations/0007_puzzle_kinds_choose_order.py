@@ -4,24 +4,50 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('catalog', '0010_merge_npc_manager'),
-        ('regions', '0006_merge_main'),
+        ("catalog", "0010_merge_npc_manager"),
+        ("regions", "0006_merge_main"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='areapuzzle',
-            name='regions_puzzle_kind_valid',
+            model_name="areapuzzle",
+            name="regions_puzzle_kind_valid",
         ),
         migrations.AlterField(
-            model_name='areapuzzle',
-            name='kind',
-            field=models.CharField(choices=[('OBSERVE_FEATURES', 'Observe features (look at each one)'), ('PLACE_PLATFORMS', 'Place platforms (match each gap)'), ('VALVE_SEQUENCE', 'Valve sequence (cause and effect)'), ('COLLECT_OBJECT', 'Collect an object'), ('RETURN_TO_NPC', 'Return to a character'), ('CHOOSE_ANSWER', 'Choose the answer (one of a few options)'), ('ORDER_SEQUENCE', 'Put in order (a sequence of items)')], max_length=24),
+            model_name="areapuzzle",
+            name="kind",
+            field=models.CharField(
+                choices=[
+                    ("OBSERVE_FEATURES", "Observe features (look at each one)"),
+                    ("PLACE_PLATFORMS", "Place platforms (match each gap)"),
+                    ("VALVE_SEQUENCE", "Valve sequence (cause and effect)"),
+                    ("COLLECT_OBJECT", "Collect an object"),
+                    ("RETURN_TO_NPC", "Return to a character"),
+                    ("CHOOSE_ANSWER", "Choose the answer (one of a few options)"),
+                    ("ORDER_SEQUENCE", "Put in order (a sequence of items)"),
+                ],
+                max_length=24,
+            ),
         ),
         migrations.AddConstraint(
-            model_name='areapuzzle',
-            constraint=models.CheckConstraint(condition=models.Q(('kind__in', ['OBSERVE_FEATURES', 'PLACE_PLATFORMS', 'VALVE_SEQUENCE', 'COLLECT_OBJECT', 'RETURN_TO_NPC', 'CHOOSE_ANSWER', 'ORDER_SEQUENCE'])), name='regions_puzzle_kind_valid'),
+            model_name="areapuzzle",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    (
+                        "kind__in",
+                        [
+                            "OBSERVE_FEATURES",
+                            "PLACE_PLATFORMS",
+                            "VALVE_SEQUENCE",
+                            "COLLECT_OBJECT",
+                            "RETURN_TO_NPC",
+                            "CHOOSE_ANSWER",
+                            "ORDER_SEQUENCE",
+                        ],
+                    )
+                ),
+                name="regions_puzzle_kind_valid",
+            ),
         ),
     ]

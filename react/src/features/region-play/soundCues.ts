@@ -80,7 +80,8 @@ export function puzzleSolveCues(
       }
     | undefined,
 ): SoundCue[] {
-  if (!outcome?.correct || !outcome.solvedNow || outcome.practice || outcome.alreadySolved) return [];
+  if (!outcome?.correct || !outcome.solvedNow || outcome.practice || outcome.alreadySolved)
+    return [];
   const cues: SoundCue[] = ['puzzleComplete'];
   if (kind === 'COLLECT_OBJECT') cues.push('restoration');
   if (outcome.questUpdates?.some((update) => update.justCompleted)) cues.push('questComplete');

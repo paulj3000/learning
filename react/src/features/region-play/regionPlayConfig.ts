@@ -514,7 +514,8 @@ export function parseEffects(value: JsonValue | undefined): RegionPlayEffects {
       const target = record(entry.to);
       const tx = target ? num(target.x) : undefined;
       const tz = target ? num(target.z) : undefined;
-      const to = tx !== undefined && tz !== undefined ? { x: tx, z: tz, yaw: num(target?.yaw) ?? 0 } : null;
+      const to =
+        tx !== undefined && tz !== undefined ? { x: tx, z: tz, yaw: num(target?.yaw) ?? 0 } : null;
       return entityId && toCheckpoint && whenChangeKey && label
         ? [{ entityId, toCheckpoint, whenChangeKey, label, to }]
         : [];

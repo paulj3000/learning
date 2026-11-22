@@ -21,7 +21,14 @@ describe('DebugOverlay', () => {
     runtime.diagnostics.warn('SLOW_THING', {});
     runtime.systems.setTiming(true);
     const spy = vi.spyOn(runtime.diagnostics, 'snapshot');
-    render(<DebugOverlay runtime={runtime} intervalMs={500} collisionVisible={false} onCollisionVisibleChange={() => {}} />);
+    render(
+      <DebugOverlay
+        runtime={runtime}
+        intervalMs={500}
+        collisionVisible={false}
+        onCollisionVisibleChange={() => {}}
+      />,
+    );
     expect(screen.getByTestId('debug-fps')).toHaveTextContent('50');
     expect(screen.getByTestId('debug-frame-ms')).toHaveTextContent('20.0');
     expect(screen.getByTestId('debug-dropped')).toHaveTextContent('0.50');
@@ -42,7 +49,9 @@ describe('DebugOverlay', () => {
   it('shows placeholders without a runtime and reports the collision toggle', async () => {
     vi.useRealTimers();
     const onChange = vi.fn();
-    render(<DebugOverlay runtime={null} collisionVisible={false} onCollisionVisibleChange={onChange} />);
+    render(
+      <DebugOverlay runtime={null} collisionVisible={false} onCollisionVisibleChange={onChange} />,
+    );
     expect(screen.getByTestId('debug-fps')).toHaveTextContent('-');
     await userEvent.click(screen.getByRole('checkbox', { name: 'Show collision' }));
     expect(onChange).toHaveBeenCalledWith(true);
@@ -50,21 +59,52 @@ describe('DebugOverlay', () => {
 });
 
 describe('EventLog', () => {
-  const factory = createGameplayEventFactory({ realmId: 'realm.test', adventureId: 'adv.test', areaId: null, sessionRef: null });
+  const factory = createGameplayEventFactory({
+    realmId: 'realm.test',
+    adventureId: 'adv.test',
+    areaId: null,
+    sessionRef: null,
+  });
 
   it('extracts semantic ids only', () => {
-    expect(semanticIdsOf({ collectibleId: 'coin.1', setId: null, childName: 'Ada', note: 'x' })).toEqual(['coin.1']);
     expect(
-      semanticIdsOf({ learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: 'chest.1', challengeAttemptId: 'att.1' } }),
+      semanticIdsOf({ collectibleId: 'coin.1', setId: null, childName: 'Ada', note: 'x' }),
+    ).toEqual(['coin.1']);
+    expect(
+      semanticIdsOf({
+        learningRef: {
+          kind: 'CHEST_CHALLENGE',
+          chestEntityId: 'chest.1',
+          challengeAttemptId: 'att.1',
+        },
+      }),
     ).toEqual(['chest.1', 'att.1']);
   });
 
   it('describes valid, invalid and engine events without echoing invalid data', () => {
-    const ok = describeEvent('gameplay.event', factory.create('puzzle.completed', { puzzleId: 'p.1' }), 1);
-    expect(ok).toMatchObject({ kind: 'gameplay', type: 'puzzle.completed', ids: ['p.1'], dropped: false });
+    const ok = describeEvent(
+      'gameplay.event',
+      factory.create('puzzle.completed', { puzzleId: 'p.1' }),
+      1,
+    );
+    expect(ok).toMatchObject({
+      kind: 'gameplay',
+      type: 'puzzle.completed',
+      ids: ['p.1'],
+      dropped: false,
+    });
     const bad = describeEvent('gameplay.event', { type: 'x', childName: 'Ada' }, 2);
-    expect(bad).toEqual({ seq: 2, kind: 'gameplay', type: 'invalid claim', ids: [], dropped: true });
-    expect(describeEvent('PlayerEnteredZone', { zoneId: 'zone.a' }, 3)).toMatchObject({ kind: 'engine', ids: ['zone.a'] });
+    expect(bad).toEqual({
+      seq: 2,
+      kind: 'gameplay',
+      type: 'invalid claim',
+      ids: [],
+      dropped: true,
+    });
+    expect(describeEvent('PlayerEnteredZone', { zoneId: 'zone.a' }, 3)).toMatchObject({
+      kind: 'engine',
+      ids: ['zone.a'],
+    });
   });
 
   it('keeps the last N events, newest first in the panel', () => {
@@ -75,7 +115,10 @@ describe('EventLog', () => {
       runtime.events.emit('PlayerEnteredZone' as never, { zoneId: 'zone.a' } as never);
       runtime.events.emit('PlayerLeftZone' as never, { zoneId: 'zone.a' } as never);
     });
-    expect(result.current.entries.map((e) => e.type)).toEqual(['PlayerEnteredZone', 'PlayerLeftZone']);
+    expect(result.current.entries.map((e) => e.type)).toEqual([
+      'PlayerEnteredZone',
+      'PlayerLeftZone',
+    ]);
     render(<EventLog entries={result.current.entries} />);
     const items = screen.getAllByRole('listitem');
     expect(items[0]).toHaveTextContent('PlayerLeftZone');

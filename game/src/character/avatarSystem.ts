@@ -28,7 +28,8 @@ export function createAvatarFollowSystem(options: AvatarFollowSystemOptions): En
     order: options.order ?? 10,
     update(context) {
       const entity = options.world.bySemanticId(PLAYER_ENTITY_ID);
-      const transform = entity === undefined ? undefined : options.world.get(entity, PlayerTransformComponent);
+      const transform =
+        entity === undefined ? undefined : options.world.get(entity, PlayerTransformComponent);
       if (!transform) {
         return;
       }
