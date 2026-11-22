@@ -46,7 +46,8 @@ export function rankConfigProblems(ranks: readonly RankTitle[]): string[] {
   if (ranks.length === 0) return ['there are no ranks'];
   const sorted = [...ranks].sort((a, b) => a.min - b.min);
   if (new Set(ranks.map((rank) => rank.id)).size !== ranks.length) problems.push('ids repeat');
-  if (new Set(ranks.map((rank) => rank.min)).size !== ranks.length) problems.push('thresholds repeat');
+  if (new Set(ranks.map((rank) => rank.min)).size !== ranks.length)
+    problems.push('thresholds repeat');
   for (const rank of ranks) {
     if (!Number.isFinite(rank.min) || rank.min < 0 || rank.min > 1) {
       problems.push(`${rank.id}: threshold must be between 0 and 1`);

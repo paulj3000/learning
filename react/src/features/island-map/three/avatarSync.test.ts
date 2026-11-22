@@ -9,7 +9,11 @@ import {
   type Group,
 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { FirstPersonController, type MoveInput, type MovementState } from './firstPersonController';
+import {
+  FirstPersonController,
+  type MoveInput,
+  type MovementState,
+} from '@lai/game-engine/movement';
 import { rootBonesOf, withoutRootMotionFor } from './playerAnimation';
 import { mixamoRig, rootMotionWalk } from './runtime/testing/rootMotionRig';
 import {
@@ -20,8 +24,8 @@ import {
   PlayerCameraController,
   THIRD_PERSON_MIN_PITCH,
   type PlayerCameraInput,
-} from './playerCamera';
-import { DEFAULT_PLAYER_CAMERA } from './playerPresentation';
+  DEFAULT_PLAYER_CAMERA,
+} from '@lai/game-engine/camera';
 
 /**
  * Defect 1 (owner gameplay test): in third-person, a child who turned to face the camera and

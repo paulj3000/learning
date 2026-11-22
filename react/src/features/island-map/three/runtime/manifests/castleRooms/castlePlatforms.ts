@@ -150,7 +150,8 @@ export const LIBRARY_BOOK_GROUP: CastlePlatformGroup = {
   id: 'library-books',
   roomId: 'great-library',
   kind: 'BOOK_STONE',
-  purpose: 'Chapter 1 (Three Clues): step on the enchanted books in the order the clues were written.',
+  purpose:
+    'Chapter 1 (Three Clues): step on the enchanted books in the order the clues were written.',
   answers: true,
   pads: [
     { key: 'note', x: 6.9, z: -8.0, color: 0x6d4c8c, label: 'the folded note book' },
@@ -186,7 +187,14 @@ export const LIBRARY_MEASURE_GROUP: CastlePlatformGroup = {
   pads: [
     { key: 'iron', x: 8.4, z: -6.5, height: 0.35, color: 0x6b6b73, label: 'the iron rod stone' },
     { key: 'brass', x: 9.3, z: -6.5, height: 0.5, color: 0xb5a642, label: 'the brass rod stone' },
-    { key: 'silver', x: 10.2, z: -6.5, height: 0.2, color: 0xc0c0c0, label: 'the silver rod stone' },
+    {
+      key: 'silver',
+      x: 10.2,
+      z: -6.5,
+      height: 0.2,
+      color: 0xc0c0c0,
+      label: 'the silver rod stone',
+    },
   ],
 };
 
@@ -259,12 +267,27 @@ export const CHAMBER_LEDGE_GROUP: CastlePlatformGroup = {
   id: 'chamber',
   roomId: 'secret-chamber',
   kind: 'STEPPING_PAD',
-  purpose: 'Optional: hop up two stones to a ledge with a view. Observation only; nothing is granted.',
+  purpose:
+    'Optional: hop up two stones to a ledge with a view. Observation only; nothing is granted.',
   answers: false,
   sproutMarkers: true,
   pads: [
-    { key: 's1', x: -13.5, z: -7.6, height: 0.2, color: 0x8f7bd9, label: 'the first chamber stone' },
-    { key: 's2', x: -12.4, z: -7.3, height: 0.35, color: 0x6fd6c9, label: 'the second chamber stone' },
+    {
+      key: 's1',
+      x: -13.5,
+      z: -7.6,
+      height: 0.2,
+      color: 0x8f7bd9,
+      label: 'the first chamber stone',
+    },
+    {
+      key: 's2',
+      x: -12.4,
+      z: -7.3,
+      height: 0.35,
+      color: 0x6fd6c9,
+      label: 'the second chamber stone',
+    },
     { key: CHAMBER_LEDGE_KEY, x: -12.4, z: -6.0, height: 0.5, color: 0xb99cff, label: 'the ledge' },
   ],
 };
@@ -325,14 +348,22 @@ export function buildPad(group: CastlePlatformGroup, pad: CastlePad): PlatformSp
 }
 
 /** The pathway pad for one page: hidden until the page's record exists, then there to stay. */
-function buildPathwayPad(group: CastlePlatformGroup, pad: CastlePad, page: StorybookPage): PlatformSpec {
+function buildPathwayPad(
+  group: CastlePlatformGroup,
+  pad: CastlePad,
+  page: StorybookPage,
+): PlatformSpec {
   const base = buildPad(group, pad);
   // A recorded world change raises `world:<changeKey>` on entry and live (the view does both), so
   // a page restored this visit gets its stone at once and one restored last week is there on
   // entry. The hidden bonus page is a discovery, which has no signal: it reads the world state.
   const activation: NonNullable<PlatformSpec['activation']> =
     page.source.kind === 'WORLD_CHANGE'
-      ? { trigger: 'SIGNAL', source: worldSignalName(page.source.changeKey), hiddenUntilActive: true }
+      ? {
+          trigger: 'SIGNAL',
+          source: worldSignalName(page.source.changeKey),
+          hiddenUntilActive: true,
+        }
       : { trigger: 'WORLD_STATE', requirements: [pageRequirement(page)], hiddenUntilActive: true };
   return { ...base, activation };
 }
@@ -391,7 +422,9 @@ export function buildSproutPlatforming(
 export function buildPadZones(
   groups: readonly CastlePlatformGroup[] = CASTLE_PLATFORM_GROUPS,
 ): ZoneSpec[] {
-  return groups.filter((group) => group.answers).flatMap((group) => group.pads.map((pad) => padZone(group, pad)));
+  return groups
+    .filter((group) => group.answers)
+    .flatMap((group) => group.pads.map((pad) => padZone(group, pad)));
 }
 
 /** The ledge's view: a plain narration zone over the ledge, for every band (Sprouts walk into it on the floor). */
@@ -441,6 +474,8 @@ export const CASTLE_PLATFORM_REGISTRY: readonly CastlePlatformRegistration[] = [
 
 /** The platform group ids that serve this adventure, or an empty list when it has none. */
 export function platformGroupsForAdventure(adventureSlug: string): readonly string[] {
-  const entry = CASTLE_PLATFORM_REGISTRY.find((candidate) => candidate.adventureSlug === adventureSlug);
+  const entry = CASTLE_PLATFORM_REGISTRY.find(
+    (candidate) => candidate.adventureSlug === adventureSlug,
+  );
   return entry ? [entry.groupId, ...(entry.alsoGroupIds ?? [])] : [];
 }

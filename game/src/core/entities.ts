@@ -24,9 +24,13 @@ export interface ComponentType<T> {
 
 export function defineComponent<T>(id: string): ComponentType<T> {
   if (!/^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$/.test(id)) {
-    throw new EngineError('INVALID_CONFIG', `Component id "${id}" must be dotted lowerCamel (e.g. "gameplay.collectible")`, {
-      id,
-    });
+    throw new EngineError(
+      'INVALID_CONFIG',
+      `Component id "${id}" must be dotted lowerCamel (e.g. "gameplay.collectible")`,
+      {
+        id,
+      },
+    );
   }
   return Object.freeze({ id }) as ComponentType<T>;
 }
@@ -61,7 +65,9 @@ export function createEntityWorld(): EntityWorld {
   const semanticToEntity = new Map<string, EntityHandle>();
   const entityToSemantic = new Map<EntityHandle, string>();
   const stores = new Map<string, Map<EntityHandle, unknown>>();
-  const destroyListeners = new Set<(entity: EntityHandle, semanticId: string | undefined) => void>();
+  const destroyListeners = new Set<
+    (entity: EntityHandle, semanticId: string | undefined) => void
+  >();
 
   const assertAlive = (entity: EntityHandle): void => {
     if (!alive.has(entity)) {
@@ -84,7 +90,11 @@ export function createEntityWorld(): EntityWorld {
           throw new EngineError('INVALID_CONFIG', 'A semantic id must not be empty');
         }
         if (semanticToEntity.has(semanticId)) {
-          throw new EngineError('DUPLICATE_ID', `An entity with semantic id "${semanticId}" already exists`, { semanticId });
+          throw new EngineError(
+            'DUPLICATE_ID',
+            `An entity with semantic id "${semanticId}" already exists`,
+            { semanticId },
+          );
         }
       }
       const entity = nextHandle++ as EntityHandle;
@@ -119,10 +129,14 @@ export function createEntityWorld(): EntityWorld {
       assertAlive(entity);
       const store = storeFor(type);
       if (store.has(entity)) {
-        throw new EngineError('DUPLICATE_ID', `Entity ${entity} already has component "${type.id}"`, {
-          entity,
-          component: type.id,
-        });
+        throw new EngineError(
+          'DUPLICATE_ID',
+          `Entity ${entity} already has component "${type.id}"`,
+          {
+            entity,
+            component: type.id,
+          },
+        );
       }
       store.set(entity, value);
       return value;
@@ -163,7 +177,9 @@ export function createEntityWorld(): EntityWorld {
       if (typeStores.some((s) => s === undefined || s.size === 0)) {
         return [];
       }
-      const sorted = (typeStores as Map<EntityHandle, unknown>[]).slice().sort((a, b) => a.size - b.size);
+      const sorted = (typeStores as Map<EntityHandle, unknown>[])
+        .slice()
+        .sort((a, b) => a.size - b.size);
       const [smallest, ...rest] = sorted;
       const result: EntityHandle[] = [];
       for (const entity of smallest!.keys()) {

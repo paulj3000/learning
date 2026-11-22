@@ -14,8 +14,14 @@ import {
   type NpcSoundMoment,
 } from '../../../../npc-manager/host';
 import { tryParseRegionPlayConfig } from '../../../../region-play/regionPlayConfig';
-import { earnedBridgeCheckpoints, worldSignals } from '../../../../region-play/engineBridgeProgress';
-import { ENGINE_BRIDGE_EXTENSION_ID, type EngineBridgeApi } from '../../../../game-engine/bridge/engineBridge';
+import {
+  earnedBridgeCheckpoints,
+  worldSignals,
+} from '../../../../region-play/engineBridgeProgress';
+import {
+  ENGINE_BRIDGE_EXTENSION_ID,
+  type EngineBridgeApi,
+} from '../../../../game-engine/bridge/engineBridge';
 import {
   chestStateChanges,
   resolveRegionPlayInteraction,
@@ -515,9 +521,14 @@ function RegionPlayGame(props: LocationCompanionProps) {
   const resumedBridge = useRef(false);
   useEffect(() => {
     if (!worldChanges || !bridgeBlock || !sceneApi || !extensionApi) return;
-    const bridge = extensionApi(ENGINE_BRIDGE_EXTENSION_ID) as Pick<EngineBridgeApi, 'resume' | 'setSignals'> | null;
+    const bridge = extensionApi(ENGINE_BRIDGE_EXTENSION_ID) as Pick<
+      EngineBridgeApi,
+      'resume' | 'setSignals'
+    > | null;
     if (!bridge) return;
-    const keys = worldChanges.filter((c) => c.locationSlug === areaLocation).map((c) => c.changeKey);
+    const keys = worldChanges
+      .filter((c) => c.locationSlug === areaLocation)
+      .map((c) => c.changeKey);
     bridge.setSignals(worldSignals(keys));
     if (resumedBridge.current) return;
     resumedBridge.current = true;

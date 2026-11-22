@@ -84,9 +84,9 @@ describe('The Writing Room on the generic runtime', () => {
     // It lies on the desk (0.9 m), inside the desk's footprint, so it never blocks a way.
     expect(book!.position.x).toBeCloseTo(3.0, 1);
     expect(book!.position.y).toBeCloseTo(0.9, 1);
-    expect(MANIFEST.props.find((prop) => prop.entityId === 'writing-room-open-book')?.interactionId).toBe(
-      'writing-room-write-story',
-    );
+    expect(
+      MANIFEST.props.find((prop) => prop.entityId === 'writing-room-open-book')?.interactionId,
+    ).toBe('writing-room-write-story');
   });
 
   it('focuses Keeper Quill, who stands solid, and a tap raises the talk interaction', async () => {
@@ -95,9 +95,14 @@ describe('The Writing Room on the generic runtime', () => {
     // Quill is at (0.8, 1.8), facing west; stand west of him, looking east.
     harness.setDrive(standAt(-1.2, 1.8, Math.PI / 2));
     harness.runFrames(1);
-    expect(named(harness.events, 'InteractableFocused')).toContainEqual({ entityId: 'keeper-quill' });
+    expect(named(harness.events, 'InteractableFocused')).toContainEqual({
+      entityId: 'keeper-quill',
+    });
     harness.engine.interact();
-    expect(named(harness.events, 'NpcApproached').length + named(harness.events, 'ObjectInteracted').length).toBeGreaterThan(0);
+    expect(
+      named(harness.events, 'NpcApproached').length +
+        named(harness.events, 'ObjectInteracted').length,
+    ).toBeGreaterThan(0);
   });
 
   it('puts the optional low steps in the scene without gating anything on them', async () => {

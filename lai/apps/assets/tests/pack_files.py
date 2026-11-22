@@ -28,9 +28,7 @@ def rgba_png(width: int, height: int, *, alpha_hole: bool = True) -> bytes:
 def _box(width: float, depth: float, height: float):
     """A Z-up box standing on z = 0, centred on its own x/y: 8 vertices, 12 triangles."""
     w, d = width / 2, depth / 2
-    positions = [
-        (x, y, z) for z in (0.0, height) for y in (-d, d) for x in (-w, w)
-    ]
+    positions = [(x, y, z) for z in (0.0, height) for y in (-d, d) for x in (-w, w)]
     normals = [(0.0, 0.0, 1.0)] * 8
     uvs = [((i & 1) * 1.0, (i >> 1 & 1) * 1.0) for i in range(8)]
     faces = [

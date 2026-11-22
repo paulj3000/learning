@@ -618,7 +618,10 @@ describe('entryRequirements', () => {
     renderGated(GATED_BY({ type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' }));
     expect(await screen.findByText('Not discovered yet.')).toBeInTheDocument();
     expect(engine.bus).toBeNull();
-    expect(screen.getByRole('link', { name: 'Back to the map' })).toHaveAttribute('href', '/island/child-1');
+    expect(screen.getByRole('link', { name: 'Back to the map' })).toHaveAttribute(
+      'href',
+      '/island/child-1',
+    );
   });
 
   it('opens once the requirement holds', async () => {
@@ -637,7 +640,10 @@ describe('entryRequirements', () => {
     );
     expect(await screen.findByText('Not discovered yet.')).toBeInTheDocument();
     cleanup();
-    listAllWorldChangesMock.mockResolvedValue([{ changeKey: 'A_KEY' }, { changeKey: 'B_KEY' }] as never);
+    listAllWorldChangesMock.mockResolvedValue([
+      { changeKey: 'A_KEY' },
+      { changeKey: 'B_KEY' },
+    ] as never);
     renderGated(
       GATED_BY(
         { type: 'WORLD_CHANGE_PRESENT', changeKey: 'A_KEY' },

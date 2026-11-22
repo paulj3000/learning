@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { PLAYER_ENTITY_ID, PlayerTransformComponent, type PlayerTransform } from '../contracts/player';
+import {
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  type PlayerTransform,
+} from '../contracts/player';
 import type { CapabilityRequest } from '../core/capabilities';
 import type { MovementInputFrame } from '../movement/movementSystem';
 import { createAabbPhysicsProvider } from '../physics/aabbProvider';
@@ -21,7 +25,10 @@ function transformOf(handle: StandardEngineHandle): PlayerTransform {
 }
 
 function platformRequests(platform: Record<string, unknown>): CapabilityRequest[] {
-  return [{ id: 'movement.locomotion' }, { id: 'gameplay.platforms', config: { platforms: [platform] } }];
+  return [
+    { id: 'movement.locomotion' },
+    { id: 'gameplay.platforms', config: { platforms: [platform] } },
+  ];
 }
 
 /** Audits every step: transform vs controller, and the largest per-step transform jump. */
@@ -36,22 +43,48 @@ function audit(handle: StandardEngineHandle) {
       result.steps += 1;
       const t = transformOf(handle);
       const p = handle.controller.position;
-      result.mismatch = Math.max(result.mismatch, Math.abs(t.position.x - p.x), Math.abs(t.position.y - p.y), Math.abs(t.position.z - p.z));
-      if (last) result.maxJump = Math.max(result.maxJump, Math.hypot(t.position.x - last.x, t.position.y - last.y, t.position.z - last.z));
+      result.mismatch = Math.max(
+        result.mismatch,
+        Math.abs(t.position.x - p.x),
+        Math.abs(t.position.y - p.y),
+        Math.abs(t.position.z - p.z),
+      );
+      if (last)
+        result.maxJump = Math.max(
+          result.maxJump,
+          Math.hypot(t.position.x - last.x, t.position.y - last.y, t.position.z - last.z),
+        );
       last = { ...t.position };
     },
   });
   return result;
 }
 
-async function boot(platform: Record<string, unknown>, start: { x: number; y: number; z: number }, physics = createAabbPhysicsProvider(), input: () => MovementInputFrame = () => STILL) {
-  return createStandardEngine({ id: 'carry-sync', requests: platformRequests(platform), input, startPosition: start, physics });
+async function boot(
+  platform: Record<string, unknown>,
+  start: { x: number; y: number; z: number },
+  physics = createAabbPhysicsProvider(),
+  input: () => MovementInputFrame = () => STILL,
+) {
+  return createStandardEngine({
+    id: 'carry-sync',
+    requests: platformRequests(platform),
+    input,
+    startPosition: start,
+    physics,
+  });
 }
 
 describe('GE-L10 platform carry is in the canonical transform the same step', () => {
-  it('a sideways ferry: transform equals controller every step, moves smoothly, gait idle, velocity the child\'s own', async () => {
+  it("a sideways ferry: transform equals controller every step, moves smoothly, gait idle, velocity the child's own", async () => {
     const handle = await boot(
-      { id: 'ferry', position: { x: 0, y: 0, z: 0 }, size, route: 'OPTIONAL', moving: { path: [{ x: 6, y: 0, z: 0 }], mode: 'PING_PONG', speed: 1, pauseSeconds: 0 } },
+      {
+        id: 'ferry',
+        position: { x: 0, y: 0, z: 0 },
+        size,
+        route: 'OPTIONAL',
+        moving: { path: [{ x: 6, y: 0, z: 0 }], mode: 'PING_PONG', speed: 1, pauseSeconds: 0 },
+      },
       { x: 0, y: 0.5, z: 0 },
     );
     const a = audit(handle);
@@ -70,7 +103,13 @@ describe('GE-L10 platform carry is in the canonical transform the same step', ()
 
   it('a rising lift: the rider rises with it in the same step and stays on it', async () => {
     const handle = await boot(
-      { id: 'lift', position: { x: 0, y: 0, z: 0 }, size, route: 'OPTIONAL', moving: { path: [{ x: 0, y: 3, z: 0 }], mode: 'ONCE', speed: 1, pauseSeconds: 0 } },
+      {
+        id: 'lift',
+        position: { x: 0, y: 0, z: 0 },
+        size,
+        route: 'OPTIONAL',
+        moving: { path: [{ x: 0, y: 3, z: 0 }], mode: 'ONCE', speed: 1, pauseSeconds: 0 },
+      },
       { x: 0, y: 0.5, z: 0 },
     );
     const a = audit(handle);
@@ -84,9 +123,20 @@ describe('GE-L10 platform carry is in the canonical transform the same step', ()
 
   it('a ferry into a wall never pushes the child through it (no tunnelling), still in sync', async () => {
     const physics = createAabbPhysicsProvider();
-    physics.addCollider({ id: 'wall', kind: 'SOLID', min: { x: 2.5, y: 0, z: -5 }, max: { x: 2.6, y: 3, z: 5 } });
+    physics.addCollider({
+      id: 'wall',
+      kind: 'SOLID',
+      min: { x: 2.5, y: 0, z: -5 },
+      max: { x: 2.6, y: 3, z: 5 },
+    });
     const handle = await boot(
-      { id: 'ferry', position: { x: 0, y: 0, z: 0 }, size: { x: 8, y: 0.5, z: 2 }, route: 'OPTIONAL', moving: { path: [{ x: 6, y: 0, z: 0 }], mode: 'ONCE', speed: 3, pauseSeconds: 0 } },
+      {
+        id: 'ferry',
+        position: { x: 0, y: 0, z: 0 },
+        size: { x: 8, y: 0.5, z: 2 },
+        route: 'OPTIONAL',
+        moving: { path: [{ x: 6, y: 0, z: 0 }], mode: 'ONCE', speed: 3, pauseSeconds: 0 },
+      },
       { x: 0, y: 0.5, z: 0 },
       physics,
     );
@@ -101,7 +151,13 @@ describe('GE-L10 platform carry is in the canonical transform the same step', ()
 
   it('a turntable: the tangential carry is in the transform the same step', async () => {
     const handle = await boot(
-      { id: 'spin', position: { x: 0, y: 0, z: 0 }, size: { x: 6, y: 0.5, z: 6 }, route: 'OPTIONAL', spinDegreesPerSecond: 45 },
+      {
+        id: 'spin',
+        position: { x: 0, y: 0, z: 0 },
+        size: { x: 6, y: 0.5, z: 6 },
+        route: 'OPTIONAL',
+        spinDegreesPerSecond: 45,
+      },
       { x: 2, y: 0.5, z: 0 },
     );
     const a = audit(handle);
@@ -113,7 +169,13 @@ describe('GE-L10 platform carry is in the canonical transform the same step', ()
 
   it('walking on a moving ferry keeps the walking velocity and gait (carry is not walking)', async () => {
     const handle = await boot(
-      { id: 'ferry', position: { x: 0, y: 0, z: 0 }, size: { x: 3, y: 0.5, z: 8 }, route: 'OPTIONAL', moving: { path: [{ x: 6, y: 0, z: 0 }], mode: 'PING_PONG', speed: 1, pauseSeconds: 0 } },
+      {
+        id: 'ferry',
+        position: { x: 0, y: 0, z: 0 },
+        size: { x: 3, y: 0.5, z: 8 },
+        route: 'OPTIONAL',
+        moving: { path: [{ x: 6, y: 0, z: 0 }], mode: 'PING_PONG', speed: 1, pauseSeconds: 0 },
+      },
       { x: 0, y: 0.5, z: -3 },
       undefined,
       () => ({ move: { forward: 1, strafe: 0 } }),

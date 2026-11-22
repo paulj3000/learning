@@ -42,7 +42,8 @@ function worldChangesForBand(band: AgeBandValue): Set<string> {
   const tale = taleAdventureForBand(band);
   if (tale) writtenBy(tale).forEach((key) => written.add(key));
   if (band === 'PATHFINDER') {
-    for (const mission of PAINTED_WORDS_ADVENTURES) writtenBy(mission).forEach((key) => written.add(key));
+    for (const mission of PAINTED_WORDS_ADVENTURES)
+      writtenBy(mission).forEach((key) => written.add(key));
   }
   if (isSecretDoorStoryForBand(band)) {
     for (const chapter of THE_CASTLES_SECRET_DOOR.chapters) {
@@ -293,12 +294,7 @@ describe('editions and the derived state', () => {
       'RESTORED_MORE_PAGES',
       false,
     ],
-    [
-      'every required page back',
-      ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'],
-      'RESTORED',
-      true,
-    ],
+    ['every required page back', ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], 'RESTORED', true],
     [
       'every page back with both markers',
       [
@@ -337,11 +333,7 @@ describe('editions and the derived state', () => {
   it('counts the server saying edition 1 is restored, and never lowers it', () => {
     const local = standing([]);
     expect(withRestored(local, new Set(), true).state).toBe('RESTORED_MORE_PAGES');
-    const kept = withRestored(
-      standing(['GREAT_STORYBOOK_RESTORED']),
-      new Set(),
-      false,
-    );
+    const kept = withRestored(standing(['GREAT_STORYBOOK_RESTORED']), new Set(), false);
     expect(kept.state).toBe('RESTORED_MORE_PAGES');
   });
 });

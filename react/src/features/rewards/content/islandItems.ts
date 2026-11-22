@@ -170,7 +170,8 @@ export const ISLAND_ITEMS: ItemDefinition[] = [
   {
     id: 'painted-words-brush',
     displayName: 'Painted Words Brush',
-    description: 'A little brush with a speck of every color. It helped the words find their way home.',
+    description:
+      'A little brush with a speck of every color. It helped the words find their way home.',
     category: 'KEEPSAKE',
     rarity: 'UNCOMMON',
     setId: 'castle-keepsakes',
@@ -186,7 +187,8 @@ export const ISLAND_ITEMS: ItemDefinition[] = [
   {
     id: 'secret-door-key',
     displayName: "Silver Keeper's Key",
-    description: 'A small silver key from behind the secret door, to remember what was waiting there.',
+    description:
+      'A small silver key from behind the secret door, to remember what was waiting there.',
     category: 'KEEPSAKE',
     rarity: 'RARE',
     setId: 'castle-keepsakes',

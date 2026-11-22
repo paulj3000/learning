@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { Box3 } from 'three';
-import { FirstPersonController, type MoveInput } from '../firstPersonController';
+import { FirstPersonController, type MoveInput } from '@lai/game-engine/movement';
 import { NO_WORLD_STATE } from '../runtime/sceneLayout';
 import { PlatformSystem } from './platformSystem';
-import { applyTuning, validatePlatforming, type PlatformingSpec, type PlatformSpec } from './platformSpec';
+import {
+  applyTuning,
+  validatePlatforming,
+  type PlatformingSpec,
+  type PlatformSpec,
+} from './platformSpec';
 import { checkpointReachedText, recoveredText } from './platformCopy';
 
 /**
@@ -15,7 +20,14 @@ const FRAME = 1 / 60;
 const STILL: MoveInput = { forward: 0, strafe: 0 };
 const NORTH: MoveInput = { forward: 1, strafe: 0 };
 
-function rig(spec: PlatformingSpec, extra: { colliders?: Box3[]; reducedMotion?: boolean; zones?: Map<string, { id: string; minX: number; maxX: number; minZ: number; maxZ: number }> } = {}) {
+function rig(
+  spec: PlatformingSpec,
+  extra: {
+    colliders?: Box3[];
+    reducedMotion?: boolean;
+    zones?: Map<string, { id: string; minX: number; maxX: number; minZ: number; maxZ: number }>;
+  } = {},
+) {
   const colliders: Box3[] = [...(extra.colliders ?? [])];
   const jumpable = new Set<Box3>();
   const system = new PlatformSystem(spec, {
@@ -71,7 +83,10 @@ describe('static platforms', () => {
 });
 
 describe('moving platforms carry their rider', () => {
-  const ferry = dock({ id: 'ferry', motion: { path: [{ x: 6, y: 0, z: 0 }], speed: 2, pauseSeconds: 0.5 } });
+  const ferry = dock({
+    id: 'ferry',
+    motion: { path: [{ x: 6, y: 0, z: 0 }], speed: 2, pauseSeconds: 0.5 },
+  });
 
   it('moves a standing child sideways with the platform', () => {
     const { controller, run, system } = rig({ platforms: [ferry] });
@@ -85,7 +100,10 @@ describe('moving platforms carry their rider', () => {
   });
 
   it('lifts a rider up a vertical lift and down again', () => {
-    const lift = dock({ id: 'lift', motion: { path: [{ x: 0, y: 3, z: 0 }], speed: 1, pauseSeconds: 1 } });
+    const lift = dock({
+      id: 'lift',
+      motion: { path: [{ x: 0, y: 3, z: 0 }], speed: 1, pauseSeconds: 1 },
+    });
     const { controller, run } = rig({ platforms: [lift] });
     standOn(controller, 0, 0.5, 5);
     run(3.2);
@@ -174,9 +192,23 @@ describe('interactive platforms', () => {
     const { system, run, controller } = rig(
       {
         platforms: [
-          dock({ id: 'a', motion: { path: [{ x: 3, y: 0, z: 0 }], speed: 1 }, activation: { trigger: 'SWITCH', source: 'lever' } }),
-          dock({ id: 'b', position: { x: 10, y: 0, z: 5 }, motion: { path: [{ x: 3, y: 0, z: 0 }], speed: 1 }, activation: { trigger: 'SIGNAL', source: 'quiz:lift', delaySeconds: 1 } }),
-          dock({ id: 'c', position: { x: -10, y: 0, z: 5 }, motion: { path: [{ x: 0, y: 2, z: 0 }], speed: 1 }, activation: { trigger: 'ZONE', source: 'pad' } }),
+          dock({
+            id: 'a',
+            motion: { path: [{ x: 3, y: 0, z: 0 }], speed: 1 },
+            activation: { trigger: 'SWITCH', source: 'lever' },
+          }),
+          dock({
+            id: 'b',
+            position: { x: 10, y: 0, z: 5 },
+            motion: { path: [{ x: 3, y: 0, z: 0 }], speed: 1 },
+            activation: { trigger: 'SIGNAL', source: 'quiz:lift', delaySeconds: 1 },
+          }),
+          dock({
+            id: 'c',
+            position: { x: -10, y: 0, z: 5 },
+            motion: { path: [{ x: 0, y: 2, z: 0 }], speed: 1 },
+            activation: { trigger: 'ZONE', source: 'pad' },
+          }),
         ],
       },
       { zones: new Map([['pad', { id: 'pad', minX: -1, maxX: 1, minZ: -1, maxZ: 1 }]]) },
@@ -196,7 +228,13 @@ describe('interactive platforms', () => {
 
   it('a woken platform waits one pause first, so the child who pressed the plate can step on', () => {
     const { system, controller, run } = rig({
-      platforms: [dock({ id: 'lift', motion: { path: [{ x: 0, y: 3, z: 0 }], speed: 1, pauseSeconds: 2 }, activation: { trigger: 'SIGNAL', source: 'go' } })],
+      platforms: [
+        dock({
+          id: 'lift',
+          motion: { path: [{ x: 0, y: 3, z: 0 }], speed: 1, pauseSeconds: 2 },
+          activation: { trigger: 'SIGNAL', source: 'go' },
+        }),
+      ],
     });
     controller.position.set(10, 0, 10);
     system.signal('go');
@@ -208,7 +246,12 @@ describe('interactive platforms', () => {
 
   it('a hidden bridge appears when activated, not inside the child', () => {
     const { system, controller, run } = rig({
-      platforms: [dock({ id: 'bridge', activation: { trigger: 'SIGNAL', source: 'solved', hiddenUntilActive: true } })],
+      platforms: [
+        dock({
+          id: 'bridge',
+          activation: { trigger: 'SIGNAL', source: 'solved', hiddenUntilActive: true },
+        }),
+      ],
     });
     expect(system.platforms[0]!.present).toBe(false);
     expect(system.platforms[0]!.box.isEmpty()).toBe(true);
@@ -225,7 +268,12 @@ describe('interactive platforms', () => {
 describe('vanishing platforms', () => {
   it('blink, vanish leaving no collision, and come back', () => {
     const { system, run } = rig({
-      platforms: [dock({ id: 'cloud', vanish: { mode: 'TIMED', visibleSeconds: 2, hiddenSeconds: 1, warningSeconds: 0.5 } })],
+      platforms: [
+        dock({
+          id: 'cloud',
+          vanish: { mode: 'TIMED', visibleSeconds: 2, hiddenSeconds: 1, warningSeconds: 0.5 },
+        }),
+      ],
     });
     run(1.7);
     expect(system.platforms[0]!.warning).toBe(true);
@@ -239,7 +287,13 @@ describe('vanishing platforms', () => {
 
   it('a STAND platform drops a child who stays on it, onto the ground below', () => {
     const { system, controller, run } = rig({
-      platforms: [dock({ id: 'barrel', position: { x: 0, y: 1, z: 5 }, vanish: { mode: 'STAND', visibleSeconds: 2, hiddenSeconds: 2 } })],
+      platforms: [
+        dock({
+          id: 'barrel',
+          position: { x: 0, y: 1, z: 5 },
+          vanish: { mode: 'STAND', visibleSeconds: 2, hiddenSeconds: 2 },
+        }),
+      ],
     });
     standOn(controller, 0, 1.5, 5);
     run(2.5);
@@ -279,7 +333,9 @@ describe('checkpoints, hazards and recovery', () => {
     expect(events).toContain('RECOVERED_TO');
     expect(controller.position.x).toBeCloseTo(0);
     expect(controller.position.z).toBeCloseTo(0);
-    expect(controller.consumeEvents().some((e) => e.type === 'RECOVERED' && e.reason === 'HAZARD')).toBe(true);
+    expect(
+      controller.consumeEvents().some((e) => e.type === 'RECOVERED' && e.reason === 'HAZARD'),
+    ).toBe(true);
     expect(system.latestCheckpointId()).toBe('start');
   });
 
@@ -302,22 +358,39 @@ describe('checkpoints, hazards and recovery', () => {
   });
 
   it('speaks kindly', () => {
-    expect(checkpointReachedText('the old dock')).toBe('Safe spot: the old dock. If you slip, you will come back here.');
+    expect(checkpointReachedText('the old dock')).toBe(
+      'Safe spot: the old dock. If you slip, you will come back here.',
+    );
     expect(recoveredText(course, 'start')).toBe('Splash! Back to the old dock. Have another go!');
     expect(recoveredText(course, null)).toContain('Have another go!');
     const lava = { ...course, recoveryLead: 'Whoa, the lava is too hot!' };
-    expect(recoveredText(lava, 'start')).toBe('Whoa, the lava is too hot! Back to the old dock. Have another go!');
-    expect(recoveredText(lava, null)).toBe('Whoa, the lava is too hot! Back on solid ground. Have another go!');
+    expect(recoveredText(lava, 'start')).toBe(
+      'Whoa, the lava is too hot! Back to the old dock. Have another go!',
+    );
+    expect(recoveredText(lava, null)).toBe(
+      'Whoa, the lava is too hot! Back on solid ground. Have another go!',
+    );
     // GE-073F: a hazard's own lead wins; any other hazard keeps the course lead.
     const rocks = { ...lava, recoveryLeads: { 'summit-rocks': 'Bonk! A rock got you.' } };
-    expect(recoveredText(rocks, 'start', undefined, 'summit-rocks')).toBe('Bonk! A rock got you. Back to the old dock. Have another go!');
-    expect(recoveredText(rocks, 'start', undefined, 'lava')).toBe('Whoa, the lava is too hot! Back to the old dock. Have another go!');
-    expect(recoveredText(rocks, 'start', undefined, 'toString')).toBe('Whoa, the lava is too hot! Back to the old dock. Have another go!');
+    expect(recoveredText(rocks, 'start', undefined, 'summit-rocks')).toBe(
+      'Bonk! A rock got you. Back to the old dock. Have another go!',
+    );
+    expect(recoveredText(rocks, 'start', undefined, 'lava')).toBe(
+      'Whoa, the lava is too hot! Back to the old dock. Have another go!',
+    );
+    expect(recoveredText(rocks, 'start', undefined, 'toString')).toBe(
+      'Whoa, the lava is too hot! Back to the old dock. Have another go!',
+    );
   });
 });
 
 describe('platforming validation and staff tuning', () => {
-  const context = { propIds: new Set(['lever']), zoneIds: new Set(['pad']), bounds: { halfExtentX: 30, halfExtentZ: 30 }, solids: [{ minX: 10, maxX: 12, minZ: 10, maxZ: 12 }] };
+  const context = {
+    propIds: new Set(['lever']),
+    zoneIds: new Set(['pad']),
+    bounds: { halfExtentX: 30, halfExtentZ: 30 },
+    solids: [{ minX: 10, maxX: 12, minZ: 10, maxZ: 12 }],
+  };
 
   it('accepts a forgiving course', () => {
     expect(
@@ -325,8 +398,15 @@ describe('platforming validation and staff tuning', () => {
         {
           platforms: [
             dock(),
-            dock({ id: 'ferry', motion: { path: [{ x: 4, y: 0, z: 0 }], speed: 1.5, pauseSeconds: 1 } }),
-            dock({ id: 'lever-lift', activation: { trigger: 'SWITCH', source: 'lever' }, motion: { path: [{ x: 0, y: 2, z: 0 }], speed: 1 } }),
+            dock({
+              id: 'ferry',
+              motion: { path: [{ x: 4, y: 0, z: 0 }], speed: 1.5, pauseSeconds: 1 },
+            }),
+            dock({
+              id: 'lever-lift',
+              activation: { trigger: 'SWITCH', source: 'lever' },
+              motion: { path: [{ x: 0, y: 2, z: 0 }], speed: 1 },
+            }),
           ],
           checkpoints: [{ id: 'cp', x: -5, z: 0, label: 'the beach' }],
         },
@@ -336,7 +416,10 @@ describe('platforming validation and staff tuning', () => {
   });
 
   it('accepts a short recovery lead and refuses an empty or long one', () => {
-    const ok = validatePlatforming({ platforms: [dock()], recoveryLead: 'Whoa, the lava is too hot!' }, context);
+    const ok = validatePlatforming(
+      { platforms: [dock()], recoveryLead: 'Whoa, the lava is too hot!' },
+      context,
+    );
     expect(ok).toEqual([]);
     for (const recoveryLead of ['  ', 'x'.repeat(81)]) {
       const issues = validatePlatforming({ platforms: [dock()], recoveryLead }, context);
@@ -345,9 +428,17 @@ describe('platforming validation and staff tuning', () => {
   });
 
   it('accepts short per-hazard leads and refuses an empty or long one (GE-073F)', () => {
-    expect(validatePlatforming({ platforms: [dock()], recoveryLeads: { rocks: 'Bonk! A rock got you.' } }, context)).toEqual([]);
+    expect(
+      validatePlatforming(
+        { platforms: [dock()], recoveryLeads: { rocks: 'Bonk! A rock got you.' } },
+        context,
+      ),
+    ).toEqual([]);
     for (const words of ['  ', 'x'.repeat(81)]) {
-      const issues = validatePlatforming({ platforms: [dock()], recoveryLeads: { rocks: words } }, context);
+      const issues = validatePlatforming(
+        { platforms: [dock()], recoveryLeads: { rocks: words } },
+        context,
+      );
       expect(issues.map((i) => i.path)).toEqual(['platforming.recoveryLeads.rocks']);
     }
   });
@@ -391,7 +482,12 @@ describe('platforming validation and staff tuning', () => {
         dock({ id: 'spare' }),
         dock({ id: 'odd', motion: { path: [{ x: 4, y: 0, z: 0 }], speed: 1 } }),
       ],
-      tuning: { ferry: { speed: 2, pauseSeconds: 3 }, pad: { bounceHeight: 2 }, spare: { enabled: false }, odd: { speed: 99 } },
+      tuning: {
+        ferry: { speed: 2, pauseSeconds: 3 },
+        pad: { bounceHeight: 2 },
+        spare: { enabled: false },
+        odd: { speed: 99 },
+      },
     });
     expect(tuned.map((p) => p.id)).toEqual(['ferry', 'pad', 'odd']);
     expect(tuned[0]!.motion).toMatchObject({ speed: 2, pauseSeconds: 3 });

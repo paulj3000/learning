@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MAX_COLLISION_STEP, type MoveInput } from '../firstPersonController';
-import { DEFAULT_LOCOMOTION } from '../locomotionConfiguration';
+import { MAX_COLLISION_STEP, type MoveInput, DEFAULT_LOCOMOTION } from '@lai/game-engine/movement';
 import { coveSceneJson } from '../../../../test/playFixtures';
 import { readRegionLayout } from '../../../region-play/regionLayout';
 import type { JsonValue } from '../../../../api/parse';

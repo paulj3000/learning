@@ -53,7 +53,9 @@ export function createFakeAssetManager(assets: readonly AssetMetadata[] = []): F
     async load(assetId) {
       const metadata = byId.get(assetId);
       if (!metadata) {
-        throw new EngineError('ASSET_LOAD_FAILED', `Asset "${assetId}" is not available`, { assetId });
+        throw new EngineError('ASSET_LOAD_FAILED', `Asset "${assetId}" is not available`, {
+          assetId,
+        });
       }
       loads += 1;
       const handle: AssetHandle = {

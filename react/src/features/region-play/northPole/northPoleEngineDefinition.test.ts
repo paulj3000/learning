@@ -48,14 +48,18 @@ describe('North Pole engine definitions (GE-074)', () => {
   it('the Realm and the adventure pass the SDK validators with the standard registry', () => {
     const realm = validateRealm(NORTH_POLE_REALM);
     expect(realm.ok ? [] : realm.issues).toEqual([]);
-    const adventure = validateAdventure(NORTH_POLE_ADVENTURE, registry, { realmId: NORTH_POLE_REALM.id });
+    const adventure = validateAdventure(NORTH_POLE_ADVENTURE, registry, {
+      realmId: NORTH_POLE_REALM.id,
+    });
     expect(adventure.ok ? [] : adventure.issues).toEqual([]);
     expect(NORTH_POLE_REALM.adventureIds).toEqual([NORTH_POLE_ADVENTURE.id]);
   });
 
-  it('names the one checkpoint list, in the seed\'s resume order', () => {
+  it("names the one checkpoint list, in the seed's resume order", () => {
     const scene = read<Snapshot>('north_pole_scene.json').scene;
-    expect([...NORTH_POLE_CHECKPOINT_IDS]).toEqual(bridgeCheckpoints(scene.engineBridge).map((c) => c.id));
+    expect([...NORTH_POLE_CHECKPOINT_IDS]).toEqual(
+      bridgeCheckpoints(scene.engineBridge).map((c) => c.id),
+    );
     expect(NORTH_POLE_ADVENTURE.checkpoints.every((c) => c.areaId === NORTH_POLE_AREA)).toBe(true);
   });
 
@@ -72,17 +76,26 @@ describe('North Pole engine definitions (GE-074)', () => {
     const ids = sceneIds(read<Snapshot>('north_pole_scene.json').scene);
     for (const route of NORTH_POLE_JUMP_ROUTES) {
       expect(ids, route.jumpRouteId).toContain(route.jumpRouteId);
-      if (route.accessibleRouteId !== null) expect(ids, route.accessibleRouteId).toContain(route.accessibleRouteId);
+      if (route.accessibleRouteId !== null)
+        expect(ids, route.accessibleRouteId).toContain(route.accessibleRouteId);
     }
-    const jumpOnly = NORTH_POLE_JUMP_ROUTES.filter((r) => r.accessibleRouteId === null).map((r) => r.id);
-    expect(jumpOnly).toEqual(['np-jump-village-trampoline', 'np-jump-stables-logs', 'np-jump-lake-thin-ice']);
+    const jumpOnly = NORTH_POLE_JUMP_ROUTES.filter((r) => r.accessibleRouteId === null).map(
+      (r) => r.id,
+    );
+    expect(jumpOnly).toEqual([
+      'np-jump-village-trampoline',
+      'np-jump-stables-logs',
+      'np-jump-lake-thin-ice',
+    ]);
     expect(NORTH_POLE_ADVENTURE.jumpChallenges.every((j) => j.optional)).toBe(true);
   });
 
   it('uses world-change keys the quests really record, ending with the adventure completion', () => {
     const quests = JSON.stringify(NORTH_POLE_QUESTS);
     expect(quests).toContain(`"${NORTH_POLE_ADVENTURE.worldConsequenceId}"`);
-    expect(new Set(NORTH_POLE_ADVENTURE.questIds)).toEqual(new Set(NORTH_POLE_QUESTS.map((q) => q.id)));
+    expect(new Set(NORTH_POLE_ADVENTURE.questIds)).toEqual(
+      new Set(NORTH_POLE_QUESTS.map((q) => q.id)),
+    );
     for (const key of NORTH_POLE_MILESTONE_IDS) expect(key).toMatch(/^NORTH_POLE_[A-Z_]+$/);
   });
 

@@ -204,7 +204,14 @@ export interface PlatformIssue {
   message: string;
 }
 
-const TRIGGERS: readonly PlatformTrigger[] = ['ALWAYS', 'PLATE', 'SWITCH', 'ZONE', 'SIGNAL', 'WORLD_STATE'];
+const TRIGGERS: readonly PlatformTrigger[] = [
+  'ALWAYS',
+  'PLATE',
+  'SWITCH',
+  'ZONE',
+  'SIGNAL',
+  'WORLD_STATE',
+];
 const MODES: readonly PlatformPathMode[] = ['LOOP', 'PING_PONG', 'ONCE'];
 
 /** Everything a location needs checked about its platforming, beyond its own fields. */
@@ -219,8 +226,10 @@ export interface PlatformingContext {
   solids: readonly { minX: number; maxX: number; minZ: number; maxZ: number }[];
 }
 
-const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
-const within = (value: unknown, low: number, high: number) => finite(value) && value >= low && value <= high;
+const finite = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+const within = (value: unknown, low: number, high: number) =>
+  finite(value) && value >= low && value <= high;
 
 /**
  * Structural and safety checks: sizes, speeds and timings within forgiving limits; activation
@@ -243,7 +252,10 @@ export function validatePlatforming(
       spec.recoveryLead.trim() === '' ||
       spec.recoveryLead.length > PLATFORM_LIMITS.maxRecoveryLead)
   ) {
-    report('platforming.recoveryLead', `must be words, at most ${PLATFORM_LIMITS.maxRecoveryLead} characters`);
+    report(
+      'platforming.recoveryLead',
+      `must be words, at most ${PLATFORM_LIMITS.maxRecoveryLead} characters`,
+    );
   }
   if (spec.recoveryLeads !== undefined) {
     const leads: unknown = spec.recoveryLeads;
@@ -251,8 +263,15 @@ export function validatePlatforming(
       report('platforming.recoveryLeads', 'must be a map of hazard id to words');
     } else {
       for (const [hazardId, words] of Object.entries(leads)) {
-        if (typeof words !== 'string' || words.trim() === '' || words.length > PLATFORM_LIMITS.maxRecoveryLead) {
-          report(`platforming.recoveryLeads.${hazardId}`, `must be words, at most ${PLATFORM_LIMITS.maxRecoveryLead} characters`);
+        if (
+          typeof words !== 'string' ||
+          words.trim() === '' ||
+          words.length > PLATFORM_LIMITS.maxRecoveryLead
+        ) {
+          report(
+            `platforming.recoveryLeads.${hazardId}`,
+            `must be words, at most ${PLATFORM_LIMITS.maxRecoveryLead} characters`,
+          );
         }
       }
     }
@@ -272,9 +291,17 @@ export function validatePlatforming(
   };
   const plates = new Set((spec.pressurePlates ?? []).map((plate) => plate.id));
   const inBounds = (x: unknown, z: unknown) =>
-    finite(x) && finite(z) && Math.abs(x) <= context.bounds.halfExtentX && Math.abs(z) <= context.bounds.halfExtentZ;
+    finite(x) &&
+    finite(z) &&
+    Math.abs(x) <= context.bounds.halfExtentX &&
+    Math.abs(z) <= context.bounds.halfExtentZ;
   const checkVec = (value: Vec3 | undefined, path: string, reach: number) => {
-    if (!value || !within(value.x, -reach, reach) || !within(value.y, -reach, reach) || !within(value.z, -reach, reach)) {
+    if (
+      !value ||
+      !within(value.x, -reach, reach) ||
+      !within(value.y, -reach, reach) ||
+      !within(value.z, -reach, reach)
+    ) {
       report(path, `must be {x, y, z} within ${reach} m`);
       return false;
     }
@@ -285,16 +312,29 @@ export function validatePlatforming(
     const path = `platforming.platforms[${index}]`;
     unique(platform.id, `${path}.id`);
     const size = platform.size;
-    if (!size || !within(size.width, PLATFORM_LIMITS.minTop, PLATFORM_LIMITS.maxSize) || !within(size.depth, PLATFORM_LIMITS.minTop, PLATFORM_LIMITS.maxSize)) {
-      report(`${path}.size`, `width and depth must be ${PLATFORM_LIMITS.minTop} to ${PLATFORM_LIMITS.maxSize} m (forgiving tops)`);
+    if (
+      !size ||
+      !within(size.width, PLATFORM_LIMITS.minTop, PLATFORM_LIMITS.maxSize) ||
+      !within(size.depth, PLATFORM_LIMITS.minTop, PLATFORM_LIMITS.maxSize)
+    ) {
+      report(
+        `${path}.size`,
+        `width and depth must be ${PLATFORM_LIMITS.minTop} to ${PLATFORM_LIMITS.maxSize} m (forgiving tops)`,
+      );
     }
     if (!size || !within(size.height, 0.05, PLATFORM_LIMITS.maxThickness)) {
       report(`${path}.size.height`, `must be 0.05 to ${PLATFORM_LIMITS.maxThickness} m`);
     }
-    if (checkVec(platform.position, `${path}.position`, 200) && !inBounds(platform.position.x, platform.position.z)) {
+    if (
+      checkVec(platform.position, `${path}.position`, 200) &&
+      !inBounds(platform.position.x, platform.position.z)
+    ) {
       report(`${path}.position`, 'must be inside the location bounds');
     }
-    if (platform.assetId !== undefined && (typeof platform.assetId !== 'string' || !platform.assetId)) {
+    if (
+      platform.assetId !== undefined &&
+      (typeof platform.assetId !== 'string' || !platform.assetId)
+    ) {
       report(`${path}.assetId`, 'must be an asset id');
     }
     if (platform.color !== undefined && !within(platform.color, 0, 0xffffff)) {
@@ -302,67 +342,118 @@ export function validatePlatforming(
     }
     const motion = platform.motion;
     if (motion !== undefined) {
-      if (!Array.isArray(motion.path) || motion.path.length < 1 || motion.path.length > PLATFORM_LIMITS.maxWaypoints) {
+      if (
+        !Array.isArray(motion.path) ||
+        motion.path.length < 1 ||
+        motion.path.length > PLATFORM_LIMITS.maxWaypoints
+      ) {
         report(`${path}.motion.path`, `must list 1 to ${PLATFORM_LIMITS.maxWaypoints} waypoints`);
       } else {
-        motion.path.forEach((point: Vec3, at: number) => checkVec(point, `${path}.motion.path[${at}]`, PLATFORM_LIMITS.maxPathReach));
+        motion.path.forEach((point: Vec3, at: number) =>
+          checkVec(point, `${path}.motion.path[${at}]`, PLATFORM_LIMITS.maxPathReach),
+        );
       }
       if (!within(motion.speed, PLATFORM_LIMITS.minSpeed, PLATFORM_LIMITS.maxSpeed)) {
-        report(`${path}.motion.speed`, `must be ${PLATFORM_LIMITS.minSpeed} to ${PLATFORM_LIMITS.maxSpeed} m/s (predictable)`);
+        report(
+          `${path}.motion.speed`,
+          `must be ${PLATFORM_LIMITS.minSpeed} to ${PLATFORM_LIMITS.maxSpeed} m/s (predictable)`,
+        );
       }
-      if (motion.pauseSeconds !== undefined && !within(motion.pauseSeconds, 0, PLATFORM_LIMITS.maxPause)) {
+      if (
+        motion.pauseSeconds !== undefined &&
+        !within(motion.pauseSeconds, 0, PLATFORM_LIMITS.maxPause)
+      ) {
         report(`${path}.motion.pauseSeconds`, `must be 0 to ${PLATFORM_LIMITS.maxPause}`);
       }
       if (motion.mode !== undefined && !MODES.includes(motion.mode)) {
         report(`${path}.motion.mode`, `must be one of ${MODES.join(', ')}`);
       }
     }
-    if (platform.spin !== undefined && !within(platform.spin.degreesPerSecond, -PLATFORM_LIMITS.maxSpin, PLATFORM_LIMITS.maxSpin)) {
-      report(`${path}.spin.degreesPerSecond`, `must be within ±${PLATFORM_LIMITS.maxSpin} (gentle)`);
+    if (
+      platform.spin !== undefined &&
+      !within(platform.spin.degreesPerSecond, -PLATFORM_LIMITS.maxSpin, PLATFORM_LIMITS.maxSpin)
+    ) {
+      report(
+        `${path}.spin.degreesPerSecond`,
+        `must be within ±${PLATFORM_LIMITS.maxSpin} (gentle)`,
+      );
     }
     if (platform.spin !== undefined && motion !== undefined) {
       report(`${path}.spin`, 'a platform either travels a path or spins, not both');
     }
-    if (platform.bounce !== undefined && !within(platform.bounce.height, PLATFORM_LIMITS.minBounce, PLATFORM_LIMITS.maxBounce)) {
-      report(`${path}.bounce.height`, `must be ${PLATFORM_LIMITS.minBounce} to ${PLATFORM_LIMITS.maxBounce} m`);
+    if (
+      platform.bounce !== undefined &&
+      !within(platform.bounce.height, PLATFORM_LIMITS.minBounce, PLATFORM_LIMITS.maxBounce)
+    ) {
+      report(
+        `${path}.bounce.height`,
+        `must be ${PLATFORM_LIMITS.minBounce} to ${PLATFORM_LIMITS.maxBounce} m`,
+      );
     }
     const vanish = platform.vanish;
     if (vanish !== undefined) {
-      if (vanish.mode !== 'TIMED' && vanish.mode !== 'STAND') report(`${path}.vanish.mode`, 'must be TIMED or STAND');
+      if (vanish.mode !== 'TIMED' && vanish.mode !== 'STAND')
+        report(`${path}.vanish.mode`, 'must be TIMED or STAND');
       if (!within(vanish.visibleSeconds, PLATFORM_LIMITS.minVisible, PLATFORM_LIMITS.maxCycle)) {
-        report(`${path}.vanish.visibleSeconds`, `must be ${PLATFORM_LIMITS.minVisible} to ${PLATFORM_LIMITS.maxCycle} (no rushing)`);
+        report(
+          `${path}.vanish.visibleSeconds`,
+          `must be ${PLATFORM_LIMITS.minVisible} to ${PLATFORM_LIMITS.maxCycle} (no rushing)`,
+        );
       }
       if (!within(vanish.hiddenSeconds, 0.5, PLATFORM_LIMITS.maxCycle)) {
         report(`${path}.vanish.hiddenSeconds`, `must be 0.5 to ${PLATFORM_LIMITS.maxCycle}`);
       }
-      if (vanish.warningSeconds !== undefined && !within(vanish.warningSeconds, 0, vanish.visibleSeconds)) {
+      if (
+        vanish.warningSeconds !== undefined &&
+        !within(vanish.warningSeconds, 0, vanish.visibleSeconds)
+      ) {
         report(`${path}.vanish.warningSeconds`, 'must be 0 up to visibleSeconds');
       }
     }
     const activation = platform.activation;
     if (activation !== undefined) {
       const at = `${path}.activation`;
-      if (!TRIGGERS.includes(activation.trigger)) report(`${at}.trigger`, `must be one of ${TRIGGERS.join(', ')}`);
+      if (!TRIGGERS.includes(activation.trigger))
+        report(`${at}.trigger`, `must be one of ${TRIGGERS.join(', ')}`);
       const source = activation.source;
       if (activation.trigger === 'PLATE' && !(typeof source === 'string' && plates.has(source))) {
         report(`${at}.source`, 'must name a pressure plate of this location');
       }
-      if (activation.trigger === 'SWITCH' && !(typeof source === 'string' && context.propIds.has(source))) {
+      if (
+        activation.trigger === 'SWITCH' &&
+        !(typeof source === 'string' && context.propIds.has(source))
+      ) {
         report(`${at}.source`, 'must name an interactive prop (entityId) of this location');
       }
-      if (activation.trigger === 'ZONE' && !(typeof source === 'string' && context.zoneIds.has(source))) {
+      if (
+        activation.trigger === 'ZONE' &&
+        !(typeof source === 'string' && context.zoneIds.has(source))
+      ) {
         report(`${at}.source`, 'must name a zone of this location');
       }
-      if (activation.trigger === 'SIGNAL' && !(typeof source === 'string' && /^[A-Za-z0-9][A-Za-z0-9:_.-]{0,99}$/.test(source))) {
+      if (
+        activation.trigger === 'SIGNAL' &&
+        !(typeof source === 'string' && /^[A-Za-z0-9][A-Za-z0-9:_.-]{0,99}$/.test(source))
+      ) {
         report(`${at}.source`, 'must be a signal name');
       }
-      if (activation.trigger === 'WORLD_STATE' && !(Array.isArray(activation.requirements) && activation.requirements.length > 0)) {
+      if (
+        activation.trigger === 'WORLD_STATE' &&
+        !(Array.isArray(activation.requirements) && activation.requirements.length > 0)
+      ) {
         report(`${at}.requirements`, 'WORLD_STATE needs at least one requirement');
       }
-      if (activation.delaySeconds !== undefined && !within(activation.delaySeconds, 0, PLATFORM_LIMITS.maxDelay)) {
+      if (
+        activation.delaySeconds !== undefined &&
+        !within(activation.delaySeconds, 0, PLATFORM_LIMITS.maxDelay)
+      ) {
         report(`${at}.delaySeconds`, `must be 0 to ${PLATFORM_LIMITS.maxDelay}`);
       }
-      if (activation.reset !== undefined && activation.reset !== 'STAY' && activation.reset !== 'RETURN') {
+      if (
+        activation.reset !== undefined &&
+        activation.reset !== 'STAY' &&
+        activation.reset !== 'RETURN'
+      ) {
         report(`${at}.reset`, 'must be STAY or RETURN');
       }
     }
@@ -371,24 +462,43 @@ export function validatePlatforming(
   (spec.pressurePlates ?? []).forEach((plate, index) => {
     const path = `platforming.pressurePlates[${index}]`;
     unique(plate.id, `${path}.id`);
-    if (!inBounds(plate.position?.x, plate.position?.z)) report(`${path}.position`, 'must be inside the location bounds');
-    if (plate.halfSize !== undefined && !within(plate.halfSize, 0.3, 3)) report(`${path}.halfSize`, 'must be 0.3 to 3 m');
+    if (!inBounds(plate.position?.x, plate.position?.z))
+      report(`${path}.position`, 'must be inside the location bounds');
+    if (plate.halfSize !== undefined && !within(plate.halfSize, 0.3, 3))
+      report(`${path}.halfSize`, 'must be 0.3 to 3 m');
   });
 
   const unsafePlatforms = spec.platforms.filter(
-    (platform) => platform.motion || platform.spin || platform.vanish || platform.bounce || platform.activation?.hiddenUntilActive,
+    (platform) =>
+      platform.motion ||
+      platform.spin ||
+      platform.vanish ||
+      platform.bounce ||
+      platform.activation?.hiddenUntilActive,
   );
   (spec.checkpoints ?? []).forEach((checkpoint, index) => {
     const path = `platforming.checkpoints[${index}]`;
     unique(checkpoint.id, `${path}.id`);
-    if (typeof checkpoint.label !== 'string' || !checkpoint.label.trim() || checkpoint.label.length > 60) {
+    if (
+      typeof checkpoint.label !== 'string' ||
+      !checkpoint.label.trim() ||
+      checkpoint.label.length > 60
+    ) {
       report(`${path}.label`, 'must be child-facing text of 1 to 60 characters');
     }
     if (!inBounds(checkpoint.x, checkpoint.z)) {
       report(path, 'must be inside the location bounds');
       return;
     }
-    if (context.solids.some((box) => checkpoint.x >= box.minX && checkpoint.x <= box.maxX && checkpoint.z >= box.minZ && checkpoint.z <= box.maxZ)) {
+    if (
+      context.solids.some(
+        (box) =>
+          checkpoint.x >= box.minX &&
+          checkpoint.x <= box.maxX &&
+          checkpoint.z >= box.minZ &&
+          checkpoint.z <= box.maxZ,
+      )
+    ) {
       report(path, 'must not stand inside an obstacle');
     }
     for (const platform of unsafePlatforms) {
@@ -402,18 +512,23 @@ export function validatePlatforming(
     const path = `platforming.hazards[${index}]`;
     unique(hazard.id, `${path}.id`);
     checkRect(hazard.rect, `${path}.rect`, report);
-    if (hazard.belowY !== undefined && !within(hazard.belowY, -5, 5)) report(`${path}.belowY`, 'must be -5 to 5 m');
+    if (hazard.belowY !== undefined && !within(hazard.belowY, -5, 5))
+      report(`${path}.belowY`, 'must be -5 to 5 m');
   });
   (spec.goals ?? []).forEach((goal, index) => {
     unique(goal.id, `platforming.goals[${index}].id`);
     checkRect(goal.rect, `platforming.goals[${index}].rect`, report);
   });
   if (spec.hazards?.length && !spec.checkpoints?.length) {
-    report('platforming.checkpoints', 'a course with hazards needs at least one checkpoint to return to');
+    report(
+      'platforming.checkpoints',
+      'a course with hazards needs at least one checkpoint to return to',
+    );
   }
 
   for (const [id, tuning] of Object.entries(spec.tuning ?? {})) {
-    for (const issue of validateTuning(tuning)) report(`platforming.tuning.${id}.${issue.path}`, issue.message);
+    for (const issue of validateTuning(tuning))
+      report(`platforming.tuning.${id}.${issue.path}`, issue.message);
   }
   return issues;
 }
@@ -421,23 +536,57 @@ export function validatePlatforming(
 /** Checks one platform's staff tuning (the same limits as authored values). */
 export function validateTuning(tuning: PlatformTuning): PlatformIssue[] {
   const issues: PlatformIssue[] = [];
-  if (typeof tuning !== 'object' || tuning === null) return [{ path: '', message: 'must be an object' }];
-  const known = new Set(['enabled', 'speed', 'pauseSeconds', 'bounceHeight', 'visibleSeconds', 'hiddenSeconds']);
-  for (const key of Object.keys(tuning)) if (!known.has(key)) issues.push({ path: key, message: 'unknown setting' });
-  if (tuning.enabled !== undefined && typeof tuning.enabled !== 'boolean') issues.push({ path: 'enabled', message: 'must be true or false' });
-  if (tuning.speed !== undefined && !within(tuning.speed, PLATFORM_LIMITS.minSpeed, PLATFORM_LIMITS.maxSpeed)) {
-    issues.push({ path: 'speed', message: `must be ${PLATFORM_LIMITS.minSpeed} to ${PLATFORM_LIMITS.maxSpeed}` });
+  if (typeof tuning !== 'object' || tuning === null)
+    return [{ path: '', message: 'must be an object' }];
+  const known = new Set([
+    'enabled',
+    'speed',
+    'pauseSeconds',
+    'bounceHeight',
+    'visibleSeconds',
+    'hiddenSeconds',
+  ]);
+  for (const key of Object.keys(tuning))
+    if (!known.has(key)) issues.push({ path: key, message: 'unknown setting' });
+  if (tuning.enabled !== undefined && typeof tuning.enabled !== 'boolean')
+    issues.push({ path: 'enabled', message: 'must be true or false' });
+  if (
+    tuning.speed !== undefined &&
+    !within(tuning.speed, PLATFORM_LIMITS.minSpeed, PLATFORM_LIMITS.maxSpeed)
+  ) {
+    issues.push({
+      path: 'speed',
+      message: `must be ${PLATFORM_LIMITS.minSpeed} to ${PLATFORM_LIMITS.maxSpeed}`,
+    });
   }
-  if (tuning.pauseSeconds !== undefined && !within(tuning.pauseSeconds, 0, PLATFORM_LIMITS.maxPause)) {
+  if (
+    tuning.pauseSeconds !== undefined &&
+    !within(tuning.pauseSeconds, 0, PLATFORM_LIMITS.maxPause)
+  ) {
     issues.push({ path: 'pauseSeconds', message: `must be 0 to ${PLATFORM_LIMITS.maxPause}` });
   }
-  if (tuning.bounceHeight !== undefined && !within(tuning.bounceHeight, PLATFORM_LIMITS.minBounce, PLATFORM_LIMITS.maxBounce)) {
-    issues.push({ path: 'bounceHeight', message: `must be ${PLATFORM_LIMITS.minBounce} to ${PLATFORM_LIMITS.maxBounce}` });
+  if (
+    tuning.bounceHeight !== undefined &&
+    !within(tuning.bounceHeight, PLATFORM_LIMITS.minBounce, PLATFORM_LIMITS.maxBounce)
+  ) {
+    issues.push({
+      path: 'bounceHeight',
+      message: `must be ${PLATFORM_LIMITS.minBounce} to ${PLATFORM_LIMITS.maxBounce}`,
+    });
   }
-  if (tuning.visibleSeconds !== undefined && !within(tuning.visibleSeconds, PLATFORM_LIMITS.minVisible, PLATFORM_LIMITS.maxCycle)) {
-    issues.push({ path: 'visibleSeconds', message: `must be ${PLATFORM_LIMITS.minVisible} to ${PLATFORM_LIMITS.maxCycle}` });
+  if (
+    tuning.visibleSeconds !== undefined &&
+    !within(tuning.visibleSeconds, PLATFORM_LIMITS.minVisible, PLATFORM_LIMITS.maxCycle)
+  ) {
+    issues.push({
+      path: 'visibleSeconds',
+      message: `must be ${PLATFORM_LIMITS.minVisible} to ${PLATFORM_LIMITS.maxCycle}`,
+    });
   }
-  if (tuning.hiddenSeconds !== undefined && !within(tuning.hiddenSeconds, 0.5, PLATFORM_LIMITS.maxCycle)) {
+  if (
+    tuning.hiddenSeconds !== undefined &&
+    !within(tuning.hiddenSeconds, 0.5, PLATFORM_LIMITS.maxCycle)
+  ) {
     issues.push({ path: 'hiddenSeconds', message: `must be 0.5 to ${PLATFORM_LIMITS.maxCycle}` });
   }
   return issues;
@@ -465,7 +614,9 @@ export function applyTuning(spec: PlatformingSpec): PlatformSpec[] {
             },
           }
         : {}),
-      ...(platform.bounce && tune.bounceHeight !== undefined ? { bounce: { height: tune.bounceHeight } } : {}),
+      ...(platform.bounce && tune.bounceHeight !== undefined
+        ? { bounce: { height: tune.bounceHeight } }
+        : {}),
       ...(platform.vanish
         ? {
             vanish: {
@@ -487,11 +638,25 @@ function footprintContains(platform: PlatformSpec, x: number, z: number): boolea
   const hd = platform.size.depth / 2;
   const xs = points.map((offset) => platform.position.x + offset.x);
   const zs = points.map((offset) => platform.position.z + offset.z);
-  return x >= Math.min(...xs) - hw && x <= Math.max(...xs) + hw && z >= Math.min(...zs) - hd && z <= Math.max(...zs) + hd;
+  return (
+    x >= Math.min(...xs) - hw &&
+    x <= Math.max(...xs) + hw &&
+    z >= Math.min(...zs) - hd &&
+    z <= Math.max(...zs) + hd
+  );
 }
 
-function checkRect(rect: RectZone | undefined, path: string, report: (path: string, message: string) => void) {
-  if (!rect || ![rect.minX, rect.maxX, rect.minZ, rect.maxZ].every(finite) || rect.maxX <= rect.minX || rect.maxZ <= rect.minZ) {
+function checkRect(
+  rect: RectZone | undefined,
+  path: string,
+  report: (path: string, message: string) => void,
+) {
+  if (
+    !rect ||
+    ![rect.minX, rect.maxX, rect.minZ, rect.maxZ].every(finite) ||
+    rect.maxX <= rect.minX ||
+    rect.maxZ <= rect.minZ
+  ) {
     report(path, 'must be a rect with minX < maxX and minZ < maxZ');
   }
 }

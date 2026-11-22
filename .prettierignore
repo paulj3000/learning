@@ -23,3 +23,10 @@ lai/**/templates/**/*.html
 # generated: the Treasure Cove layout snapshot (python -m apps.regions.treasure_cove_layout from
 # lai/), written with json.dumps(indent=1); the frontend tests load it
 lai/apps/regions/treasure_cove_layout.json
+# generated the same way (json.dumps(indent=1, sort_keys=True)) by their Python modules; the
+# North Pole tests compare two of them byte for byte with the module's output
+lai/apps/regions/north_pole_scene.json
+lai/apps/regions/north_pole_puzzles.json
+lai/apps/regions/firepeak_heart_scene.json
+lai/apps/regions/pirates_leap_course.json
+lai/apps/regions/pirates_leap_bridge.json

@@ -25,12 +25,23 @@ describe('scoring api', () => {
 
   it('reads the disabled summary', async () => {
     fake.on('GET', 'children/c1/scoring/', { enabled: false, contractVersion: 1 });
-    await expect(api.getScoringSummary('c1')).resolves.toEqual({ enabled: false, contractVersion: 1 });
+    await expect(api.getScoringSummary('c1')).resolves.toEqual({
+      enabled: false,
+      contractVersion: 1,
+    });
   });
 
   it('passes the cursor and rejects invalid data', async () => {
-    fake.on('GET', 'children/c1/scoring/awards/?after=a%201', { awards: [], cursor: null, hasMore: false });
-    await expect(api.getScoringAwards('c1', 'a 1')).resolves.toEqual({ awards: [], cursor: null, hasMore: false });
+    fake.on('GET', 'children/c1/scoring/awards/?after=a%201', {
+      awards: [],
+      cursor: null,
+      hasMore: false,
+    });
+    await expect(api.getScoringAwards('c1', 'a 1')).resolves.toEqual({
+      awards: [],
+      cursor: null,
+      hasMore: false,
+    });
     fake.on('GET', 'children/c1/scoring/awards/', { awards: 'x' });
     await expect(api.getScoringAwards('c1')).rejects.toMatchObject({ kind: 'invalid_response' });
   });

@@ -203,8 +203,16 @@ def _solid(collider_id: str, x: float, z: float, half: float) -> dict:
     return {"rect": _rect(collider_id, _r(x - half), _r(x + half), _r(z - half), _r(z + half))}
 
 
-def _prop(prop_id: str, asset_id: str, x: float, z: float, yaw: float = 0.0, *, scale: float = 1.0,
-          lying: bool = False) -> dict:
+def _prop(
+    prop_id: str,
+    asset_id: str,
+    x: float,
+    z: float,
+    yaw: float = 0.0,
+    *,
+    scale: float = 1.0,
+    lying: bool = False,
+) -> dict:
     """A drawn prop with the colliders that match its footprint at this turn and scale.
 
     The footprint is the model's length along its own X and its width along Z (a lying barrel's
@@ -224,7 +232,13 @@ def _prop(prop_id: str, asset_id: str, x: float, z: float, yaw: float = 0.0, *, 
         offset = -(length - width) / 2 + i * spacing
         cx, cz = x + along_x * offset, z + along_z * offset
         colliders.append(
-            _rect(f"{prop_id}:collider-{i}", _r(cx - half), _r(cx + half), _r(cz - half), _r(cz + half))
+            _rect(
+                f"{prop_id}:collider-{i}",
+                _r(cx - half),
+                _r(cx + half),
+                _r(cz - half),
+                _r(cz + half),
+            )
         )
     entry = {"id": prop_id, "assetId": asset_id, "x": _r(x), "z": _r(z), "rotationY": _r(yaw)}
     # Integration (layout v8): how tall the drawn prop stands, so a low one (a barrel, a log)

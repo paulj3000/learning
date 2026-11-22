@@ -158,10 +158,7 @@ export function reopenChoiceState(
 }
 
 /** "Try a different one": the next variant, a fresh question. */
-export function differentChoiceState(
-  state: ChoiceState,
-  params: ChoiceKindParams,
-): ChoiceState {
+export function differentChoiceState(state: ChoiceState, params: ChoiceKindParams): ChoiceState {
   return blank(nextVariantIndex(state.variantIndex, params.variants.length), state.practice);
 }
 
@@ -194,8 +191,8 @@ export function successLines(
   explanation: string,
   params: Pick<ChoiceKindParams, 'completeMessage' | 'scienceNote'>,
 ): string[] {
-  return [explanation, params.completeMessage, params.scienceNote].filter(
-    (line): line is string => Boolean(line),
+  return [explanation, params.completeMessage, params.scienceNote].filter((line): line is string =>
+    Boolean(line),
   );
 }
 

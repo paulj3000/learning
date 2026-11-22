@@ -4,7 +4,10 @@ import { read } from '../../../api/parse';
 import * as parse from '../../../api/play/parse';
 import { northPoleBootstrapJson } from '../../../test/northPoleFixtures';
 import type { BridgePlayerState, LocationBridgeHost } from '../../game-engine/bridge/bridgeHost';
-import { ENGINE_BRIDGE_EXTENSION_ID, mountEngineBridge } from '../../game-engine/bridge/engineBridge';
+import {
+  ENGINE_BRIDGE_EXTENSION_ID,
+  mountEngineBridge,
+} from '../../game-engine/bridge/engineBridge';
 import type { JsonValue, PrecipitationSpec } from '../../island-map/three/runtime/locationManifest';
 import { createPrecipitation } from '../../island-map/three/runtime/visual/atmosphere';
 import { WorldEngineEventBus } from '../../island-map/three/worldEngineEvents';
@@ -29,7 +32,9 @@ const MOUNTAIN = { x: -34, z: -84 }; // Snowflake Mountain, the far end of the A
 
 function sceneData() {
   const data = read(northPoleBootstrapJson(), parse.regionBootstrap);
-  const { manifest } = buildRegionManifest(toRegionSceneModel(data), { worldSlug: 'learning-adventure-island' });
+  const { manifest } = buildRegionManifest(toRegionSceneModel(data), {
+    worldSlug: 'learning-adventure-island',
+  });
   const binding = manifest.extensions.find((e) => e.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
   return { data, manifest, config: binding.config as { [key: string]: JsonValue } };
 }
@@ -39,9 +44,20 @@ interface HostOptions {
   reducedMotion?: boolean;
 }
 
-function liveHost(config: { [key: string]: JsonValue }, scene: Scene, start: { x: number; z: number }, options: HostOptions = {}) {
+function liveHost(
+  config: { [key: string]: JsonValue },
+  scene: Scene,
+  start: { x: number; z: number },
+  options: HostOptions = {},
+) {
   const frames = new Set<(dt: number) => void>();
-  const player: BridgePlayerState = { position: { x: start.x, y: 0, z: start.z }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
+  const player: BridgePlayerState = {
+    position: { x: start.x, y: 0, z: start.z },
+    yaw: 0,
+    velocity: { x: 0, y: 0, z: 0 },
+    grounded: true,
+    supportId: null,
+  };
   const value: LocationBridgeHost = {
     bus: new WorldEngineEventBus(),
     config,
@@ -67,7 +83,8 @@ function liveHost(config: { [key: string]: JsonValue }, scene: Scene, start: { x
       player.position = { x, y: 0, z };
     },
     advance(seconds: number) {
-      for (let t = 0; t < seconds - 1e-9; t += 1 / 60) for (const frame of [...frames]) frame(1 / 60);
+      for (let t = 0; t < seconds - 1e-9; t += 1 / 60)
+        for (const frame of [...frames]) frame(1 / 60);
     },
   };
 }
@@ -111,7 +128,12 @@ describe('North Pole snow on the engine (GE-074, layout 5): parity with the Area
   it('the snow goes with the child to the mountain and never adds an engine fog', () => {
     const { data, config } = sceneData();
     const scene = new Scene();
-    const fake = liveHost(config, scene, { x: data.spawn!.x, z: data.spawn!.z }, { quality: 'MEDIUM' });
+    const fake = liveHost(
+      config,
+      scene,
+      { x: data.spawn!.x, z: data.spawn!.z },
+      { quality: 'MEDIUM' },
+    );
     const mount = mountEngineBridge(fake.value);
     expect(mount.api.issues).toEqual([]);
     fake.walkTo(MOUNTAIN.x, MOUNTAIN.z);
@@ -142,6 +164,8 @@ describe('North Pole snow on the engine (GE-074, layout 5): parity with the Area
     expect(oldCalm.count).toBeLessThan(old.count);
     old.dispose();
     oldCalm.dispose();
-    expect(settledFlakes({ quality: 'HIGH', reducedMotion: true })).toBeLessThan(settledFlakes({ quality: 'HIGH' }));
+    expect(settledFlakes({ quality: 'HIGH', reducedMotion: true })).toBeLessThan(
+      settledFlakes({ quality: 'HIGH' }),
+    );
   });
 });

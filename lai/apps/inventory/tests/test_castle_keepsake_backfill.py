@@ -65,7 +65,9 @@ def finish_adventure(child, slug, *, reach_step=None, finish=True):
 
 
 def clues_step():
-    return next(p.step_id for p in protected.lookup(CLUES_KEY).producers if p.slug == CLUES_ADVENTURE)
+    return next(
+        p.step_id for p in protected.lookup(CLUES_KEY).producers if p.slug == CLUES_ADVENTURE
+    )
 
 
 def drop_grants():
@@ -173,7 +175,9 @@ def test_rerun_is_idempotent_and_skips_children_who_already_have_the_item(conten
 
 def test_it_never_deletes_or_edits_existing_records(content):
     story = finish_story(content.a1)
-    record_world_change(content.a1, location_slug=PASSAGE, change_type="CREATE", change_key=DOOR_KEY)
+    record_world_change(
+        content.a1, location_slug=PASSAGE, change_type="CREATE", change_key=DOOR_KEY
+    )
     before = list(WorldChange.objects.values_list("pk", "change_key", "location_slug"))
     backfill_castle_keepsakes(apply=True)
     assert list(WorldChange.objects.values_list("pk", "change_key", "location_slug")) == before
@@ -194,3 +198,20 @@ def test_the_command_defaults_to_a_dry_run_and_prints_counts_only(content):
     assert owns(content.a1, "secret-door-key") == 1
     for child in (content.a1, content.a2):
         assert str(child.pk) not in out.getvalue() and child.nickname not in out.getvalue()
+
+
+def test_an_unknown_child_id_raises_and_writes_nothing(content):
+    """GE-090-D1: the backfill locks each child through the users service; an id that is not a
+    child raises instead of being skipped silently."""
+    import uuid
+
+    from apps.catalog.models import RewardRule
+    from apps.inventory import backfill
+    from apps.users.models import ChildProfile
+
+    rules = list(RewardRule.objects.filter(rule_id__in=backfill.CASTLE_KEEPSAKE_RULES))
+    report = backfill.BackfillReport(apply=True)
+    with pytest.raises(ChildProfile.DoesNotExist):
+        backfill._backfill_child(uuid.uuid4(), rules, report, apply=True)
+    assert report.children_scanned == 0
+    assert not GrantedRule.objects.exists() and not InventoryItem.objects.exists()

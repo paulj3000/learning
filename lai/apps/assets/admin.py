@@ -538,12 +538,24 @@ class CollisionProfileAdmin(admin.ModelAdmin):
     search_fields = ("asset__asset_id", "asset__display_name", "notes")
     list_select_related = ("asset", "version", "asset__default_version")
     autocomplete_fields = ("asset",)
-    readonly_fields = ("measured_bounds", "runtime_preview", "preview_links", "updated_by", "updated_at")
+    readonly_fields = (
+        "measured_bounds",
+        "runtime_preview",
+        "preview_links",
+        "updated_by",
+        "updated_at",
+    )
     fieldsets = (
         (None, {"fields": ("asset", "version", "shape", "behavior", "axis")}),
         (
             "Size and offset (empty: from the model's measured bounds)",
-            {"fields": (("width", "height", "depth"), "radius", ("offset_x", "offset_y", "offset_z"))},
+            {
+                "fields": (
+                    ("width", "height", "depth"),
+                    "radius",
+                    ("offset_x", "offset_y", "offset_z"),
+                )
+            },
         ),
         ("Compound boxes", {"fields": ("boxes",)}),
         (

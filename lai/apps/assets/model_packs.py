@@ -48,7 +48,8 @@ PIPELINE_VERSION = 1
 # The largest source file or archive member this reads into memory.
 MAX_SOURCE_BYTES = 64 * 1024 * 1024
 MODEL_SUFFIXES = (".glb", ".gltf")
-# Files a .gltf may pull in by name (TR-NAT: .gltf + .bin + shared textures, possibly in other ZIPs).
+# Files a .gltf may pull in by name (TR-NAT: .gltf + .bin + shared textures, possibly in other
+# ZIPs).
 RESOURCE_SUFFIXES = (".bin", ".png", ".jpg", ".jpeg")
 # Recognised but not convertible here: there is no conversion pipeline (ASSET_LIBRARY.md s. 4).
 UNSUPPORTED_SUFFIXES = (".fbx", ".obj", ".blend", ".dae", ".3ds", ".stl", ".usdz")
@@ -73,8 +74,7 @@ OWNER_CONFIRMATION = (
     "PR paulj3000/learning#36)."
 )
 CONFIRMED_EVIDENCE = (
-    "Confirmed CC0-1.0 by the owner against the source listings. "
-    + QUATERNIUS_LICENCE_EVIDENCE
+    "Confirmed CC0-1.0 by the owner against the source listings. " + QUATERNIUS_LICENCE_EVIDENCE
 )
 
 
@@ -406,12 +406,30 @@ NATURE_BUSHES = _nature_pack(
     "Bushes",
     ("bushes",),
     (
-        ("nature-bush-small", "Bush", "Bush, small", "A round leafy bush, 0.8 m tall.", 0.8,
-         "1a1e2fc0a08ed1160f49cdf9227d1304a1344fc0b9ff8f3ada7df59d016634e9"),
-        ("nature-bush-medium", "Bush_Flowers", "Bush, flowering", "A round bush with pink "
-         "flowers, 1 m tall.", 1.0, "1ea57104dadd52c678b5eb097170adc964a1637ee16ff381d4c0d590eadbf7cf"),
-        ("nature-bush-large", "Bush_Large_Flowers", "Bush, large flowering", "A long, tall "
-         "flowering bush, 1.3 m tall, good for edging a clearing.", 1.3, "e9ddbe65ba2766829c0bf506e599870bfe13b12fff633484fca8942588a4e320"),
+        (
+            "nature-bush-small",
+            "Bush",
+            "Bush, small",
+            "A round leafy bush, 0.8 m tall.",
+            0.8,
+            "1a1e2fc0a08ed1160f49cdf9227d1304a1344fc0b9ff8f3ada7df59d016634e9",
+        ),
+        (
+            "nature-bush-medium",
+            "Bush_Flowers",
+            "Bush, flowering",
+            "A round bush with pink flowers, 1 m tall.",
+            1.0,
+            "1ea57104dadd52c678b5eb097170adc964a1637ee16ff381d4c0d590eadbf7cf",
+        ),
+        (
+            "nature-bush-large",
+            "Bush_Large_Flowers",
+            "Bush, large flowering",
+            "A long, tall flowering bush, 1.3 m tall, good for edging a clearing.",
+            1.3,
+            "e9ddbe65ba2766829c0bf506e599870bfe13b12fff633484fca8942588a4e320",
+        ),
     ),
 )
 NATURE_FLOWERS = _nature_pack(
@@ -420,14 +438,38 @@ NATURE_FLOWERS = _nature_pack(
     "Flower clumps",
     ("flowers",),
     (
-        ("nature-flower-tropical-yellow", "Flower_2_Clump", "Flowers, yellow", "A clump of "
-         "yellow flowers, 0.55 m tall.", 0.55, "e15632d5e7bb83320c111223aba50a012d9f45c594bc2ae16c9dc42987f0e90d"),
-        ("nature-flower-tropical-blue", "Flower_3_Clump", "Flowers, blue", "A clump of blue "
-         "flowers, 0.55 m tall.", 0.55, "a551f245fce387decd368fe3017a583855517ef70ea67bfc7bab06b761239fe9"),
-        ("nature-flower-tropical-pink", "Flower_4_Clump", "Flowers, pink", "A clump of large "
-         "pink flowers, 0.6 m tall.", 0.6, "a6a0983a625ee0680408b91319ceca5bd0dfbca505729dafe11e34918eeab94b"),
-        ("nature-flower-tropical-purple", "Flower_5_Clump", "Flowers, purple", "A clump of "
-         "purple flowers, 0.55 m tall.", 0.55, "89e23f88bf6b9f00b9b75ff8dbfd0f29a5fbb642160bd4eb0dbd44f36733a2a4"),
+        (
+            "nature-flower-tropical-yellow",
+            "Flower_2_Clump",
+            "Flowers, yellow",
+            "A clump of yellow flowers, 0.55 m tall.",
+            0.55,
+            "e15632d5e7bb83320c111223aba50a012d9f45c594bc2ae16c9dc42987f0e90d",
+        ),
+        (
+            "nature-flower-tropical-blue",
+            "Flower_3_Clump",
+            "Flowers, blue",
+            "A clump of blue flowers, 0.55 m tall.",
+            0.55,
+            "a551f245fce387decd368fe3017a583855517ef70ea67bfc7bab06b761239fe9",
+        ),
+        (
+            "nature-flower-tropical-pink",
+            "Flower_4_Clump",
+            "Flowers, pink",
+            "A clump of large pink flowers, 0.6 m tall.",
+            0.6,
+            "a6a0983a625ee0680408b91319ceca5bd0dfbca505729dafe11e34918eeab94b",
+        ),
+        (
+            "nature-flower-tropical-purple",
+            "Flower_5_Clump",
+            "Flowers, purple",
+            "A clump of purple flowers, 0.55 m tall.",
+            0.55,
+            "89e23f88bf6b9f00b9b75ff8dbfd0f29a5fbb642160bd4eb0dbd44f36733a2a4",
+        ),
     ),
 )
 NATURE_GRASS = _nature_pack(
@@ -436,12 +478,30 @@ NATURE_GRASS = _nature_pack(
     "Grass",
     ("grass",),
     (
-        ("nature-grass-short", "Grass_Small", "Grass, short", "A low tuft of grass.", 0.35,
-         "15a2407cf53220ca43d9adcf9bcf9d33b8a9ade47cbf3aac896e76718e1f95aa"),
-        ("nature-grass-medium", "Grass_Large", "Grass, medium", "A tuft of grass, 0.5 m.", 0.5,
-         "b85988199e3d3e3c325985642fadbe1ecfa7696c9deb7dbc6ac66bba8219faf7"),
-        ("nature-grass-tall", "Grass_Large_Extruded", "Grass, tall", "A tall clump of grass "
-         "blades, 0.9 m.", 0.9, "940069c9edbc6bab3f6789dde3bd0186a56f1ef9fa160f3cf18557641490ccd2"),
+        (
+            "nature-grass-short",
+            "Grass_Small",
+            "Grass, short",
+            "A low tuft of grass.",
+            0.35,
+            "15a2407cf53220ca43d9adcf9bcf9d33b8a9ade47cbf3aac896e76718e1f95aa",
+        ),
+        (
+            "nature-grass-medium",
+            "Grass_Large",
+            "Grass, medium",
+            "A tuft of grass, 0.5 m.",
+            0.5,
+            "b85988199e3d3e3c325985642fadbe1ecfa7696c9deb7dbc6ac66bba8219faf7",
+        ),
+        (
+            "nature-grass-tall",
+            "Grass_Large_Extruded",
+            "Grass, tall",
+            "A tall clump of grass blades, 0.9 m.",
+            0.9,
+            "940069c9edbc6bab3f6789dde3bd0186a56f1ef9fa160f3cf18557641490ccd2",
+        ),
     ),
 )
 
@@ -713,9 +773,7 @@ class _Source:
                     external[name] = external.get(name) or entry.read()
                     return external[name]
 
-                if any(
-                    isinstance(image.get("uri"), str) for image in document.get("images", [])
-                ):
+                if any(isinstance(image.get("uri"), str) for image in document.get("images", [])):
                     binary = gltf_prep.embed_external_images(document, binary, from_source)
                     digest_input = hashlib.sha256(data)
                     for name in sorted(external):
@@ -779,7 +837,9 @@ def _zip_members(path: Path, label: str, report: PackReport) -> list[_File]:
                         return again.read(info)
 
                 found.append(
-                    _File(f"{label}:{info.filename}", Path(info.filename).name, info.file_size, read)
+                    _File(
+                        f"{label}:{info.filename}", Path(info.filename).name, info.file_size, read
+                    )
                 )
     except (zipfile.BadZipFile, OSError):
         report.ignored_files.append({"file": label, "reason": "unreadable_archive"})

@@ -4,7 +4,12 @@
  * range is an issue, as in `validatePlayerPresentation`.
  */
 
-import { validationFailed, validationOk, type ValidationIssue, type ValidationResult } from '../core/errors';
+import {
+  validationFailed,
+  validationOk,
+  type ValidationIssue,
+  type ValidationResult,
+} from '../core/errors';
 
 export interface NumberField {
   readonly kind: 'number';
@@ -24,7 +29,11 @@ export interface StringField {
 export type FieldSpec = NumberField | BooleanField | EnumField | StringField;
 export type Schema = Readonly<Record<string, FieldSpec>>;
 
-export const num = (limit: { min: number; max: number }): NumberField => ({ kind: 'number', min: limit.min, max: limit.max });
+export const num = (limit: { min: number; max: number }): NumberField => ({
+  kind: 'number',
+  min: limit.min,
+  max: limit.max,
+});
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -92,6 +101,11 @@ export function validateConfig<Config extends object>(
     }
     return issues.length === 0 ? validationOk(merged as Config) : validationFailed(issues);
   } catch (error) {
-    return validationFailed([{ path: '', message: `could not be validated: ${error instanceof Error ? error.message : 'unknown error'}` }]);
+    return validationFailed([
+      {
+        path: '',
+        message: `could not be validated: ${error instanceof Error ? error.message : 'unknown error'}`,
+      },
+    ]);
   }
 }

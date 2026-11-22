@@ -99,7 +99,11 @@ export function northPolePuzzles(keys: ReadonlySet<string>, band: NorthPoleBand)
       locked,
       failedAttempts: 0,
       // Django adds the characters' puzzle lines (dialogue, LAI-0817) to the served parameters.
-      parameters: { intro: 'Take a careful look.', completeMessage: 'Well done!', ...puzzle.ageBands[band] },
+      parameters: {
+        intro: 'Take a careful look.',
+        completeMessage: 'Well done!',
+        ...puzzle.ageBands[band],
+      },
     };
   });
 }
@@ -235,9 +239,7 @@ export function northPoleBootstrapJson(
       worldSlug: 'learning-adventure-island',
       assets: assetIds.map((assetId) => ({
         assetId,
-        kind: kindOf(
-          SCENE.placements.find((p) => p.asset_id === assetId)?.kind ?? 'PROP',
-        ),
+        kind: kindOf(SCENE.placements.find((p) => p.asset_id === assetId)?.kind ?? 'PROP'),
         clips: [],
         deliverable: deliverable.has(assetId),
       })),

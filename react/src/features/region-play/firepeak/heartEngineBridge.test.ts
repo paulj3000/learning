@@ -6,7 +6,10 @@ import type { BridgePlayerState, LocationBridgeHost } from '../../game-engine/br
 import { mountEngineBridge } from '../../game-engine/bridge/engineBridge';
 import { recoveredText } from '../../island-map/three/platforms/platformCopy';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
-import { WorldEngineEventBus, type WorldEngineEventMap } from '../../island-map/three/worldEngineEvents';
+import {
+  WorldEngineEventBus,
+  type WorldEngineEventMap,
+} from '../../island-map/three/worldEngineEvents';
 import { bridgeCheckpoints, earnedBridgeCheckpoints, worldSignals } from '../engineBridgeProgress';
 
 /**
@@ -17,12 +20,19 @@ import { bridgeCheckpoints, earnedBridgeCheckpoints, worldSignals } from '../eng
  * on the basalt bridge or the stones above the lava is safe.
  */
 
-const KEYS = { map: 'FIREPEAK_HEART_MAP_READ', emberwood: 'FIREPEAK_HEART_EMBERWOOD_DONE', bridge: 'FIREPEAK_HEART_LAVA_BRIDGE' };
+const KEYS = {
+  map: 'FIREPEAK_HEART_MAP_READ',
+  emberwood: 'FIREPEAK_HEART_EMBERWOOD_DONE',
+  bridge: 'FIREPEAK_HEART_LAVA_BRIDGE',
+};
 
 function bridgeBlock(): { [key: string]: JsonValue } {
   const path = resolve(process.cwd(), '../lai/apps/regions/firepeak_heart_scene.json');
-  return (JSON.parse(readFileSync(path, 'utf8')) as { scene: { engineBridge: { [key: string]: JsonValue } } }).scene
-    .engineBridge;
+  return (
+    JSON.parse(readFileSync(path, 'utf8')) as {
+      scene: { engineBridge: { [key: string]: JsonValue } };
+    }
+  ).scene.engineBridge;
 }
 
 function host(config: { [key: string]: JsonValue }) {
@@ -33,13 +43,21 @@ function host(config: { [key: string]: JsonValue }) {
   const telegraphs: { hazardId: string; phase: string; at: number }[] = [];
   const platformPhases: WorldEngineEventMap['PlatformPhaseChanged'][] = [];
   let clock = 0;
-  bus.on('HazardTelegraph', ({ hazardId, phase }) => telegraphs.push({ hazardId, phase, at: clock }));
+  bus.on('HazardTelegraph', ({ hazardId, phase }) =>
+    telegraphs.push({ hazardId, phase, at: clock }),
+  );
   bus.on('PlatformPhaseChanged', (event) => platformPhases.push(event));
   const reached: string[] = [];
   const environment: (EnvironmentQuery | null)[] = [];
   bus.on('PlayerRecovered', (event) => recovered.push(event));
   bus.on('CourseCheckpointReached', ({ checkpointId }) => reached.push(checkpointId));
-  const player: BridgePlayerState = { position: { x: 0, y: 0, z: 90 }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
+  const player: BridgePlayerState = {
+    position: { x: 0, y: 0, z: 90 },
+    yaw: 0,
+    velocity: { x: 0, y: 0, z: 0 },
+    grounded: true,
+    supportId: null,
+  };
   const value: LocationBridgeHost = {
     bus,
     config,
@@ -58,7 +76,11 @@ function host(config: { [key: string]: JsonValue }) {
     playerState: () => ({ ...player, position: { ...player.position } }),
     setEnvironment: (query) => environment.push(query),
     carryPlayer(dx, dy, dz) {
-      player.position = { x: player.position.x + dx, y: player.position.y + dy, z: player.position.z + dz };
+      player.position = {
+        x: player.position.x + dx,
+        y: player.position.y + dy,
+        z: player.position.z + dz,
+      };
     },
     launchPlayer: () => undefined,
   };
@@ -72,7 +94,17 @@ function host(config: { [key: string]: JsonValue }) {
       clock += 1 / 60;
     }
   };
-  return { value, teleports, recovered, reached, at, advance, environment, telegraphs, platformPhases };
+  return {
+    value,
+    teleports,
+    recovered,
+    reached,
+    at,
+    advance,
+    environment,
+    telegraphs,
+    platformPhases,
+  };
 }
 
 describe('engine bridge progress helpers (GE-073)', () => {
@@ -85,7 +117,10 @@ describe('engine bridge progress helpers (GE-073)', () => {
     expect(bridgeCheckpoints(block)).toHaveLength(8);
     // Only a world change is evidence: the ungated landing is the spawn, never a resume target.
     expect(earnedBridgeCheckpoints(block, [])).toEqual([]);
-    expect(earnedBridgeCheckpoints(block, [KEYS.map, KEYS.emberwood])).toEqual(['fh-cp-emberwood', 'fh-cp-lava-near']);
+    expect(earnedBridgeCheckpoints(block, [KEYS.map, KEYS.emberwood])).toEqual([
+      'fh-cp-emberwood',
+      'fh-cp-lava-near',
+    ]);
     expect(earnedBridgeCheckpoints(null, [KEYS.map])).toEqual([]);
   });
 });
@@ -117,7 +152,10 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     const fake = host(bridgeBlock());
     const mount = mountEngineBridge(fake.value);
     mount.api.setSignals([]);
-    expect(mount.api.resume(earnedBridgeCheckpoints(bridgeBlock(), []))).toEqual({ placedAt: null, unknown: [] });
+    expect(mount.api.resume(earnedBridgeCheckpoints(bridgeBlock(), []))).toEqual({
+      placedAt: null,
+      unknown: [],
+    });
     expect(fake.teleports).toEqual([]);
     mount.dispose();
   });
@@ -145,14 +183,20 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     expect(fake.recovered).toEqual([]);
     fake.at(0, 0, 24); // in the lava
     fake.advance(0.2);
-    expect(fake.recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'fh-cp-lava-near', hazardId: 'fh-lava-hazard' }]);
+    expect(fake.recovered).toEqual([
+      { reason: 'HAZARD', checkpointId: 'fh-cp-lava-near', hazardId: 'fh-lava-hazard' },
+    ]);
     expect(fake.teleports.at(-1)).toEqual({ x: 0, z: 34.5 });
     // The toast still names the place and keeps the lava line.
     const labels = new Map(bridgeCheckpoints(bridgeBlock()).map((c) => [c.id, c.id]));
     labels.set('fh-cp-lava-near', 'the near bank');
-    expect(recoveredText({ platforms: [], recoveryLead: 'Whoa, the lava is too hot!' }, 'fh-cp-lava-near', labels)).toBe(
-      'Whoa, the lava is too hot! Back to the near bank. Have another go!',
-    );
+    expect(
+      recoveredText(
+        { platforms: [], recoveryLead: 'Whoa, the lava is too hot!' },
+        'fh-cp-lava-near',
+        labels,
+      ),
+    ).toBe('Whoa, the lava is too hot! Back to the near bank. Have another go!');
     mount.dispose();
   });
 
@@ -174,7 +218,9 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
   it('falling rocks warn at least 1.5 s before they fall, only in the gaps, and send the child to the summit foot', () => {
     const fake = host(bridgeBlock());
     const mount = mountEngineBridge(fake.value);
-    mount.api.setSignals(worldSignals([KEYS.map, KEYS.emberwood, KEYS.bridge, 'FIREPEAK_HEART_FORGE_RESTORED']));
+    mount.api.setSignals(
+      worldSignals([KEYS.map, KEYS.emberwood, KEYS.bridge, 'FIREPEAK_HEART_FORGE_RESTORED']),
+    );
     fake.at(9, 1.5, -59.2, 'fh-summit-hop-2'); // waiting on the middle hop: always safe
     fake.advance(13);
     expect(fake.recovered).toEqual([]);
@@ -197,7 +243,9 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     fake.advance(5.9);
     expect(fake.recovered).toEqual([]);
     fake.advance(0.3);
-    expect(fake.recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'fh-cp-summit', hazardId: 'fh-summit-rocks-1' }]);
+    expect(fake.recovered).toEqual([
+      { reason: 'HAZARD', checkpointId: 'fh-cp-summit', hazardId: 'fh-summit-rocks-1' },
+    ]);
     expect(fake.teleports.at(-1)).toEqual({ x: 0, z: -51.5 });
     mount.dispose();
   });
@@ -219,10 +267,14 @@ describe('the Heart of Firepeak on the engine bridge (GE-073)', () => {
     expect(fake.platformPhases.map((e) => e.phase)).toContain('CRUMBLING');
     expect(fake.recovered).toEqual([]);
     fake.advance(1.0); // 4.2 s: it falls; the child drops into the lava
-    expect(fake.platformPhases.map((e) => e.phase)).toEqual(expect.arrayContaining(['CRUMBLING', 'FALLING']));
+    expect(fake.platformPhases.map((e) => e.phase)).toEqual(
+      expect.arrayContaining(['CRUMBLING', 'FALLING']),
+    );
     fake.at(18, 0, 18.8);
     fake.advance(0.2);
-    expect(fake.recovered).toEqual([{ reason: 'HAZARD', checkpointId: 'fh-cp-lava-near', hazardId: 'fh-lava-hazard' }]);
+    expect(fake.recovered).toEqual([
+      { reason: 'HAZARD', checkpointId: 'fh-cp-lava-near', hazardId: 'fh-lava-hazard' },
+    ]);
     fake.advance(4); // gone 2.5 s, then back
     expect(fake.platformPhases.at(-1)?.phase).toBe('STABLE');
     mount.dispose();

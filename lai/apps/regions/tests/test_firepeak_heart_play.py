@@ -109,7 +109,9 @@ def test_all_fourteen_puzzles_in_order_complete_the_quest(heart, api, band):
     rows = content.puzzle_rows()
     # Order is the server's: the second puzzle is locked until the map is read.
     second = rows[1]
-    locked = solve(client, child, session, second[0], right_answer(second[1], second[3]["ageBands"][band]))
+    locked = solve(
+        client, child, session, second[0], right_answer(second[1], second[3]["ageBands"][band])
+    )
     assert locked.json()["error"]["code"] == "puzzle_locked"
 
     for puzzle_id, kind, _entities, body in rows:
@@ -152,13 +154,21 @@ def test_each_pickup_is_granted_once_and_grants_are_idempotent(heart, api):
     assert after_pickups == grants + len(shards)
     # Every shard owned completes the ember-shard set exactly once (FPV-18).
     assert "fh-badge-master-explorer" in owned(child)
-    assert InventoryItem.objects.filter(child=child, item__item_id="fh-badge-master-explorer").count() == 1
+    assert (
+        InventoryItem.objects.filter(child=child, item__item_id="fh-badge-master-explorer").count()
+        == 1
+    )
     for entity in shards:
         pickup(client, child, session, entity)
     for puzzle_id, kind, _e, body in content.puzzle_rows():
         solve(client, child, session, puzzle_id, right_answer(kind, body["ageBands"]["PATHFINDER"]))
     assert GrantedRule.objects.filter(child=child).count() == after_pickups
-    assert InventoryItem.objects.filter(child=child, item__item_id__startswith="fh-shard-item-").count() >= 1
+    assert (
+        InventoryItem.objects.filter(
+            child=child, item__item_id__startswith="fh-shard-item-"
+        ).count()
+        >= 1
+    )
 
 
 def test_practice_replay_on_a_solved_choose_answer_records_nothing(heart, api):
@@ -166,7 +176,13 @@ def test_practice_replay_on_a_solved_choose_answer_records_nothing(heart, api):
     client = api(heart.a)
     session = start(client, child)
     rows = content.puzzle_rows()
-    solve(client, child, session, rows[0][0], right_answer(rows[0][1], rows[0][3]["ageBands"]["PATHFINDER"]))
+    solve(
+        client,
+        child,
+        session,
+        rows[0][0],
+        right_answer(rows[0][1], rows[0][3]["ageBands"]["PATHFINDER"]),
+    )
     pid, kind, _e, body = rows[1]
     params = body["ageBands"]["PATHFINDER"]
     assert solve(client, child, session, pid, right_answer(kind, params)).json()["solvedNow"]
@@ -175,7 +191,11 @@ def test_practice_replay_on_a_solved_choose_answer_records_nothing(heart, api):
     items = InventoryItem.objects.filter(child=child).count()
 
     replay = solve(client, child, session, pid, wrong_answer(kind, params)).json()
-    assert replay["practice"] is True and replay["alreadySolved"] is True and replay["correct"] is False
+    assert (
+        replay["practice"] is True
+        and replay["alreadySolved"] is True
+        and replay["correct"] is False
+    )
     again = solve(client, child, session, pid, right_answer(kind, params)).json()
     assert again["practice"] is True and again["correct"] is True and again["newItems"] == []
 
@@ -188,7 +208,9 @@ def test_the_bootstrap_offers_the_quest_and_the_five_npcs(heart, api):
     client, child = api(heart.a), heart.a1
     body = client.get(f"{base(child)}regions/{REGION}/").json()
     assert [q["questId"] for q in body["quests"]] == [QUEST]
-    assert {"flint", "kindle", "professor-basalt", "cinder", "ignis"} <= {n["npcId"] for n in body["npcs"]}
+    assert {"flint", "kindle", "professor-basalt", "cinder", "ignis"} <= {
+        n["npcId"] for n in body["npcs"]
+    }
     states = {p["puzzleId"]: p for p in body["puzzles"]}
     assert len(states) == 14
     assert states["fh-landing-map"]["locked"] is False
@@ -231,7 +253,9 @@ def test_a_v2_save_mid_adventure_upgrades_to_one_checkpoint_list_and_keeps_every
     assert post(client, f"{base(child)}quests/{QUEST}/accept/").status_code in (200, 201)
     first_three = content.puzzle_rows()[:3]
     for puzzle_id, kind, _entities, body in first_three:
-        assert solve(client, child, session, puzzle_id, right_answer(kind, body["ageBands"]["PATHFINDER"])).json()["correct"]
+        assert solve(
+            client, child, session, puzzle_id, right_answer(kind, body["ageBands"]["PATHFINDER"])
+        ).json()["correct"]
     changes = set(WorldChange.objects.filter(child=child).values_list("change_key", flat=True))
     items, progress = owned(child), QuestProgress.objects.get(child=child, quest__slug=QUEST)
 
@@ -242,7 +266,9 @@ def test_a_v2_save_mid_adventure_upgrades_to_one_checkpoint_list_and_keeps_every
     assert region.scene["engineBridge"] == seed.layout.scene()["engineBridge"]
     assert region.scene["copy"]["loading"] == "My own words."
 
-    assert set(WorldChange.objects.filter(child=child).values_list("change_key", flat=True)) == changes
+    assert (
+        set(WorldChange.objects.filter(child=child).values_list("change_key", flat=True)) == changes
+    )
     assert owned(child) == items
     after = QuestProgress.objects.get(child=child, quest__slug=QUEST)
     assert (after.status, after.completed_objective_ids, after.completed_stage_ids) == (
@@ -253,4 +279,6 @@ def test_a_v2_save_mid_adventure_upgrades_to_one_checkpoint_list_and_keeps_every
     # Play continues on the upgraded Area: the next puzzle solves, the solved ones are practice.
     puzzle_id, kind, _entities, body = content.puzzle_rows()[3]
     session = start(client, child)
-    assert solve(client, child, session, puzzle_id, right_answer(kind, body["ageBands"]["PATHFINDER"])).json()["solvedNow"]
+    assert solve(
+        client, child, session, puzzle_id, right_answer(kind, body["ageBands"]["PATHFINDER"])
+    ).json()["solvedNow"]

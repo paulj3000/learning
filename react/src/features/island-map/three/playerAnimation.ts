@@ -9,7 +9,7 @@ import {
   type Object3D,
 } from 'three';
 import type { AnimationState } from '../../npc-manager/contracts/vocabulary';
-import type { MovementState } from './firstPersonController';
+import type { MovementState } from '@lai/game-engine/movement';
 import { effectivePlayerAnimationMap, type PlayerAnimationState } from './playerAvatarCatalog';
 
 /**

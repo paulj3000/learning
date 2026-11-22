@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { CameraRig } from '../camera/cameraRig';
 import { CameraHeightFollower, MAX_LANDING_DIP } from '../camera/cameraHeightFollower';
 import type { PlayerCameraFrame } from '../camera/playerCamera';
-import { createPlayerTransform, interpolatePlayerPosition, PLAYER_ENTITY_ID, PlayerTransformComponent, type PlayerTransform } from '../contracts/player';
+import {
+  createPlayerTransform,
+  interpolatePlayerPosition,
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  type PlayerTransform,
+} from '../contracts/player';
 import type { CapabilityRequest } from '../core/capabilities';
 import { HostViewService, type HostView } from '../engine/host';
 import { createStandardEngine, type StandardEngineHandle } from '../engine/standardEngine';
@@ -28,7 +34,9 @@ const REQUESTS: CapabilityRequest[] = [
 
 function fakeView(): HostView {
   return {
-    renderer: { info: { render: { calls: 0, triangles: 0 }, memory: { geometries: 0, textures: 0 } } } as unknown as HostView['renderer'],
+    renderer: {
+      info: { render: { calls: 0, triangles: 0 }, memory: { geometries: 0, textures: 0 } },
+    } as unknown as HostView['renderer'],
     scene: new Scene(),
     camera: new PerspectiveCamera(60, 1, 0.1, 100),
     canvas: {} as HTMLCanvasElement,
@@ -56,7 +64,16 @@ async function boot(input: () => MovementInputFrame, requests = REQUESTS) {
 describe('camera and avatar sync', () => {
   /** Records alpha as the presentation phase sees it, after the avatar and camera systems. */
   function observe(handle: StandardEngineHandle) {
-    const frames: { alpha: number; avatarX: number; avatarY: number; avatarZ: number; controllerX: number; transform: PlayerTransform; cameraFrame: PlayerCameraFrame | null; aimX: number }[] = [];
+    const frames: {
+      alpha: number;
+      avatarX: number;
+      avatarY: number;
+      avatarZ: number;
+      controllerX: number;
+      transform: PlayerTransform;
+      cameraFrame: PlayerCameraFrame | null;
+      aimX: number;
+    }[] = [];
     let lastCameraFrame: PlayerCameraFrame | null = null;
     const rig = handle.camera!;
     const original = rig.update.bind(rig);
@@ -124,7 +141,10 @@ describe('camera and avatar sync', () => {
   });
 
   it('the avatar yaw is the canonical yaw', async () => {
-    const { handle } = await boot(() => ({ move: { forward: 1, strafe: 0 }, look: { dx: 5, dy: 0 } }));
+    const { handle } = await boot(() => ({
+      move: { forward: 1, strafe: 0 },
+      look: { dx: 5, dy: 0 },
+    }));
     for (let i = 0; i < 30; i += 1) handle.runtime.tick(1 / 60);
     expect(handle.avatar!.root.rotation.y).toBeCloseTo(transformOf(handle).yaw, 9);
     handle.dispose();
@@ -168,8 +188,17 @@ describe('camera and avatar sync', () => {
 });
 
 describe('reduced motion (engine)', () => {
-  const airborne = (y: number, vy: number): PlayerTransform => ({ ...createPlayerTransform({ x: 0, y, z: 0 }), grounded: false, velocity: { x: 0, y: vy, z: 0 }, state: 'FALLING' });
-  const sprinting = (): PlayerTransform => ({ ...createPlayerTransform({ x: 0, y: 0, z: 0 }), gait: 'sprint', state: 'SPRINT' as never });
+  const airborne = (y: number, vy: number): PlayerTransform => ({
+    ...createPlayerTransform({ x: 0, y, z: 0 }),
+    grounded: false,
+    velocity: { x: 0, y: vy, z: 0 },
+    state: 'FALLING',
+  });
+  const sprinting = (): PlayerTransform => ({
+    ...createPlayerTransform({ x: 0, y: 0, z: 0 }),
+    gait: 'sprint',
+    state: 'SPRINT' as never,
+  });
 
   it('the height follower dips on landing normally and never under reduced motion', () => {
     const normal = new CameraHeightFollower();
@@ -237,11 +266,31 @@ describe('reduced motion (engine)', () => {
   it('forces are scaled down while reduced motion is on, live, through the settings object', async () => {
     const wind = {
       id: 'environment.volumes',
-      config: { forces: [{ id: 'gale', kind: 'WIND', box: { min: { x: -50, y: -1, z: -50 }, max: { x: 50, y: 5, z: 50 } }, direction: { x: 0, y: 0, z: 1 }, strength: 6, rampInSeconds: 0 }] },
+      config: {
+        forces: [
+          {
+            id: 'gale',
+            kind: 'WIND',
+            box: { min: { x: -50, y: -1, z: -50 }, max: { x: 50, y: 5, z: 50 } },
+            direction: { x: 0, y: 0, z: 1 },
+            strength: 6,
+            rampInSeconds: 0,
+          },
+        ],
+      },
     };
-    const requests: CapabilityRequest[] = [{ id: 'movement.locomotion' }, { id: 'movement.externalForces' }, wind];
+    const requests: CapabilityRequest[] = [
+      { id: 'movement.locomotion' },
+      { id: 'movement.externalForces' },
+      wind,
+    ];
     const drift = async (reducedMotion: boolean) => {
-      const handle = await createStandardEngine({ id: 'force', requests, input: () => ({ move: { forward: 0, strafe: 0 } }), reducedMotion });
+      const handle = await createStandardEngine({
+        id: 'force',
+        requests,
+        input: () => ({ move: { forward: 0, strafe: 0 } }),
+        reducedMotion,
+      });
       for (let i = 0; i < 120; i += 1) handle.runtime.tick(1 / 60);
       const z = handle.controller.position.z;
       handle.dispose();
@@ -254,7 +303,11 @@ describe('reduced motion (engine)', () => {
   });
 
   it('settings.reducedMotion is the one live switch the engine components read', async () => {
-    const handle = await createStandardEngine({ id: 'live', requests: [{ id: 'movement.locomotion' }], input: () => ({ move: { forward: 0, strafe: 0 } }) });
+    const handle = await createStandardEngine({
+      id: 'live',
+      requests: [{ id: 'movement.locomotion' }],
+      input: () => ({ move: { forward: 0, strafe: 0 } }),
+    });
     expect(handle.settings.reducedMotion).toBe(false);
     handle.settings.reducedMotion = true;
     expect(handle.settings.reducedMotion).toBe(true);

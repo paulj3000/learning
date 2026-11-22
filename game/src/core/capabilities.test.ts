@@ -33,7 +33,10 @@ describe('capability registry', () => {
     registry.register(locomotion);
     const resolution = registry.resolve([{ id: 'movement.jump', config: { jumpHeight: 0.9 } }]);
     expect(resolution.ok).toBe(true);
-    expect(resolution.order.map((r) => r.definition.id)).toEqual(['movement.locomotion', 'movement.jump']);
+    expect(resolution.order.map((r) => r.definition.id)).toEqual([
+      'movement.locomotion',
+      'movement.jump',
+    ]);
     expect(resolution.order[1]!.config).toEqual({ jumpHeight: 0.9 });
   });
 
@@ -48,7 +51,11 @@ describe('capability registry', () => {
     ]);
     expect(resolution.ok).toBe(false);
     expect(resolution.issues.map((i) => i.path)).toEqual(
-      expect.arrayContaining(['capabilities.movement.jump.jumpHeight', 'capabilities[1]', 'capabilities.movement.fly']),
+      expect.arrayContaining([
+        'capabilities.movement.jump.jumpHeight',
+        'capabilities[1]',
+        'capabilities.movement.fly',
+      ]),
     );
   });
 

@@ -108,7 +108,8 @@ export function choiceSceneView(
     const entity = entities[face.id];
     if (entity) labels[entity] = `${symbolGlyph(face.symbol)} ${face.label}`.trim();
   }
-  const picked = params.kind === 'CHOOSE_ANSWER' ? (state.selected ? [state.selected] : []) : state.order;
+  const picked =
+    params.kind === 'CHOOSE_ANSWER' ? (state.selected ? [state.selected] : []) : state.order;
   const right =
     state.result !== 'correct'
       ? []
@@ -231,8 +232,7 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     const shown: string[] = [];
     for (const [puzzleId, { puzzle, params }] of typed) {
       if (!isChoiceKind(params) || puzzle.locked) continue;
-      const state =
-        choice[puzzleId] ?? openChoiceState(sessionId, puzzleId, params, puzzle.solved);
+      const state = choice[puzzleId] ?? openChoiceState(sessionId, puzzleId, params, puzzle.solved);
       const view = choiceSceneView(params, state);
       if (!view) continue;
       puzzles.showChoices(puzzleId, view);
@@ -339,7 +339,8 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
         const id = Object.keys(entities).find((key) => entities[key] === entityId);
         if (id && params.kind === 'ORDER_SEQUENCE' && params.presentation === 'SWITCHES')
           playCue('switchFlip', { entityId });
-        if (id) state = params.kind === 'CHOOSE_ANSWER' ? selectOption(state, id) : addToOrder(state, id);
+        if (id)
+          state = params.kind === 'CHOOSE_ANSWER' ? selectOption(state, id) : addToOrder(state, id);
       }
       return { ...all, [puzzle.puzzleId]: state };
     });
@@ -359,7 +360,10 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
         chooseAnswerCorrect(params.variants[state.variantIndex] ?? params.variants[0], picked);
         submission = { variantId: variant.id, choice: picked };
       } else {
-        orderSequenceCorrect(params.variants[state.variantIndex] ?? params.variants[0], state.order);
+        orderSequenceCorrect(
+          params.variants[state.variantIndex] ?? params.variants[0],
+          state.order,
+        );
         submission = { variantId: variant.id, order: state.order };
       }
     } catch {

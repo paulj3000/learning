@@ -19,7 +19,13 @@ import { defineComponent } from '../core/entities';
 import { defineService } from '../core/services';
 import type { CapabilityDefinition } from '../core/capabilities';
 import type { Vec3Like } from '../contracts/player';
-import { emitClaim, emitPresentation, entityKey, playerPosition, type GameplayRuntime } from './common';
+import {
+  emitClaim,
+  emitPresentation,
+  entityKey,
+  playerPosition,
+  type GameplayRuntime,
+} from './common';
 import { configRoot, Issues } from './validate';
 
 export type ChestPhase = 'CLOSED' | 'OPENING' | 'OPEN';
@@ -45,7 +51,8 @@ export interface ChestState {
 }
 export const ChestComponent = defineComponent<ChestState>('gameplay.chest');
 
-export type ChestRequestResult = 'OPENING' | 'ALREADY_OPEN' | 'LOCKED_BY_CHALLENGE' | 'TOO_FAR' | 'UNKNOWN';
+export type ChestRequestResult =
+  'OPENING' | 'ALREADY_OPEN' | 'LOCKED_BY_CHALLENGE' | 'TOO_FAR' | 'UNKNOWN';
 
 export interface ChestsApi {
   requestOpen(chestId: string): ChestRequestResult;
@@ -90,13 +97,19 @@ export const CHESTS_CAPABILITY_ID = 'gameplay.chests';
 export const chestsCapability: CapabilityDefinition<ChestsConfig, GameplayRuntime> = {
   id: CHESTS_CAPABILITY_ID,
   version: '1.0.0',
-  description: 'Treasure chests: closed, opening, open; challenge gating and replay behaviour are host data.',
+  description:
+    'Treasure chests: closed, opening, open; challenge gating and replay behaviour are host data.',
   defaults: { chests: [] },
   validate: validateChestsConfig,
   install(runtime, config) {
     const { world } = runtime;
     for (const spec of config.chests) {
-      world.add(world.create(entityKey('chest', spec.id)), ChestComponent, { spec, phase: 'CLOSED', unlocked: !spec.challengeGated, progress: 0 });
+      world.add(world.create(entityKey('chest', spec.id)), ChestComponent, {
+        spec,
+        phase: 'CLOSED',
+        unlocked: !spec.challengeGated,
+        progress: 0,
+      });
     }
     const find = (id: string) => {
       const entity = world.bySemanticId(entityKey('chest', id));
@@ -110,7 +123,11 @@ export const chestsCapability: CapabilityDefinition<ChestsConfig, GameplayRuntim
           return false;
         }
         emitClaim(runtime, 'learning.answer.submitted', {
-          learningRef: { kind: 'CHEST_CHALLENGE', chestEntityId: state.spec.id, challengeAttemptId },
+          learningRef: {
+            kind: 'CHEST_CHALLENGE',
+            chestEntityId: state.spec.id,
+            challengeAttemptId,
+          },
           choiceId,
         });
         return true;
@@ -132,7 +149,11 @@ export const chestsCapability: CapabilityDefinition<ChestsConfig, GameplayRuntim
           return 'ALREADY_OPEN';
         }
         const player = playerPosition(runtime);
-        if (!player || Math.hypot(player.x - state.spec.position.x, player.z - state.spec.position.z) > state.spec.interactRadius) {
+        if (
+          !player ||
+          Math.hypot(player.x - state.spec.position.x, player.z - state.spec.position.z) >
+            state.spec.interactRadius
+        ) {
           emitPresentation(runtime, 'ChestBlocked', { chestId: id, reason: 'TOO_FAR' });
           return 'TOO_FAR';
         }
@@ -141,7 +162,11 @@ export const chestsCapability: CapabilityDefinition<ChestsConfig, GameplayRuntim
           return 'LOCKED_BY_CHALLENGE';
         }
         state.phase = 'OPENING';
-        emitPresentation(runtime, 'ChestStateChanged', { chestId: id, state: 'OPENING', replay: state.spec.replay });
+        emitPresentation(runtime, 'ChestStateChanged', {
+          chestId: id,
+          state: 'OPENING',
+          replay: state.spec.replay,
+        });
         return 'OPENING';
       },
     };
@@ -158,7 +183,11 @@ export const chestsCapability: CapabilityDefinition<ChestsConfig, GameplayRuntim
           state.progress = Math.min(1, state.progress + context.dt / state.spec.openSeconds);
           if (state.progress >= 1) {
             state.phase = 'OPEN';
-            emitPresentation(runtime, 'ChestStateChanged', { chestId: state.spec.id, state: 'OPEN', replay: state.spec.replay });
+            emitPresentation(runtime, 'ChestStateChanged', {
+              chestId: state.spec.id,
+              state: 'OPEN',
+              replay: state.spec.replay,
+            });
             // Opening is not a claim; the answer is (`submitAnswer`).
           }
         }

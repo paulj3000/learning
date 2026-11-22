@@ -44,9 +44,18 @@ import {
 import { cloneAssetScene } from '../assets/cloneAsset';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
-import { DEFAULT_BODY_HEIGHT, FirstPersonController, type Gait } from '../firstPersonController';
-import type { LocomotionConfiguration } from '../locomotionConfiguration';
-import type { SprintMode } from '../pointerControls';
+import {
+  DEFAULT_BODY_HEIGHT,
+  FirstPersonController,
+  type Gait,
+  type LocomotionConfiguration,
+  type JumpConfiguration,
+} from '@lai/game-engine/movement';
+import {
+  type SprintMode,
+  attachPointerControls,
+  type PointerControls,
+} from '@lai/game-engine/input';
 import {
   colliderObstruction,
   lookDirection,
@@ -54,7 +63,12 @@ import {
   THIRD_PERSON_ENTRY_PITCH,
   thirdPersonPitch,
   type PlayerCameraFrame,
-} from '../playerCamera';
+  initialCameraMode,
+  resolvePlayerAvatar,
+  resolvePlayerCamera,
+  type CameraMode,
+  type PlayerCameraConfiguration,
+} from '@lai/game-engine/camera';
 import { AvatarFacing, createPlayerAvatar, type PlayerAvatar } from '../playerAvatar';
 import {
   collisionDebugEnabled,
@@ -62,15 +76,6 @@ import {
   type CollisionDebugOverlay,
 } from './collisionDebug';
 import type { PlayerAvatarModel } from '../playerAvatarCatalog';
-import {
-  initialCameraMode,
-  resolvePlayerAvatar,
-  resolvePlayerCamera,
-  type CameraMode,
-  type PlayerCameraConfiguration,
-} from '../playerPresentation';
-import type { JumpConfiguration } from '../jumpConfiguration';
-import { attachPointerControls, type PointerControls } from '../pointerControls';
 import {
   APPROACH_RANGE_METERS,
   EYE_HEIGHT,
@@ -544,19 +549,26 @@ export function createLocationEngine<R extends RendererLike>(
   // controller's own recovery) returns to the latest of whichever holds them, so a fall and a
   // bridge hazard go to the same checkpoint. With neither, the controller's last safe ground.
   const bridgeLatestCheckpoint = () =>
-    (extensionMounts.get('engineBridge')?.api as
-      | { latestCheckpoint?: () => { id: string; x: number; z: number; yaw: number } | null }
-      | undefined)?.latestCheckpoint?.() ?? null;
+    (
+      extensionMounts.get('engineBridge')?.api as
+        | { latestCheckpoint?: () => { id: string; x: number; z: number; yaw: number } | null }
+        | undefined
+    )?.latestCheckpoint?.() ?? null;
   const bridgeSafeGround = () =>
-    (extensionMounts.get('engineBridge')?.api as { isSafeGround?: (x: number, y: number, z: number) => boolean } | undefined)?.isSafeGround;
+    (
+      extensionMounts.get('engineBridge')?.api as
+        { isSafeGround?: (x: number, y: number, z: number) => boolean } | undefined
+    )?.isSafeGround;
   const controller = new FirstPersonController({
     // GE-068: last-safe-ground is never an engine moving, falling or bounce platform either.
     // Read per call (the bridge mounts after this controller), so with no bridge and no live
     // platforms the controller keeps its own default.
-    ...(platformSystem || manifest.extensions?.some((binding) => binding.extensionId === 'engineBridge')
+    ...(platformSystem ||
+    manifest.extensions?.some((binding) => binding.extensionId === 'engineBridge')
       ? {
           isSafeGround: (x: number, y: number, z: number) =>
-            (platformSystem?.isSafeGround(x, y, z) ?? true) && (bridgeSafeGround()?.(x, y, z) ?? true),
+            (platformSystem?.isSafeGround(x, y, z) ?? true) &&
+            (bridgeSafeGround()?.(x, y, z) ?? true),
         }
       : {}),
     recoveryPoint: () => {
@@ -1699,7 +1711,10 @@ export function createLocationEngine<R extends RendererLike>(
           bus.emit('PlayerRecovered', {
             reason: event.reason,
             ...(platformSystem || bridgeLatestCheckpoint()
-              ? { checkpointId: platformSystem?.latestCheckpointId() ?? bridgeLatestCheckpoint()?.id ?? null }
+              ? {
+                  checkpointId:
+                    platformSystem?.latestCheckpointId() ?? bridgeLatestCheckpoint()?.id ?? null,
+                }
               : {}),
           });
           break;

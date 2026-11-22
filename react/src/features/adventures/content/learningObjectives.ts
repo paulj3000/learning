@@ -58,5 +58,9 @@ export const LEARNING_OBJECTIVES: LearningObjective[] = [
   { code: 'subtraction-within-ten', domain: 'numeracy', title: 'Subtraction within ten' },
   { code: 'vocabulary', domain: 'literacy', title: 'Learning and using new words' },
   { code: 'multiplication-facts', domain: 'numeracy', title: 'Multiplication facts' },
-  { code: 'phonemic-awareness', domain: 'literacy', title: 'Hearing rhymes and the sounds in words' },
+  {
+    code: 'phonemic-awareness',
+    domain: 'literacy',
+    title: 'Hearing rhymes and the sounds in words',
+  },
 ];

@@ -1,5 +1,10 @@
 import { createStandardCapabilityRegistry } from '../engine/standardRegistry';
-import { capabilityRequestsFromManifest, defineLocation, validateLocation, type LocationDefinition } from './location';
+import {
+  capabilityRequestsFromManifest,
+  defineLocation,
+  validateLocation,
+  type LocationDefinition,
+} from './location';
 
 const registry = createStandardCapabilityRegistry();
 
@@ -35,7 +40,10 @@ describe('location definitions (GE-075)', () => {
   it('carries authored tuning into the matching capability configs', () => {
     const { requests, issues } = capabilityRequestsFromManifest({
       movement: { jump: { jumpHeight: 0.9 }, locomotion: { walkSpeed: 3 } },
-      player: { camera: { maxHeight: 4, collisionEnabled: false, distance: 3 }, avatar: { scale: 1.1 } },
+      player: {
+        camera: { maxHeight: 4, collisionEnabled: false, distance: 3 },
+        avatar: { scale: 1.1 },
+      },
     });
     expect(issues).toEqual([]);
     const config = Object.fromEntries(requests.map((r) => [r.id, r.config]));
@@ -52,7 +60,9 @@ describe('location definitions (GE-075)', () => {
       movement: { collision: { radius: 0.4 } },
       player: { camera: { wobble: 1 } as never },
     });
-    expect(issues.map((i) => i.path)).toEqual(expect.arrayContaining(['movement.collision', 'player.camera.wobble']));
+    expect(issues.map((i) => i.path)).toEqual(
+      expect.arrayContaining(['movement.collision', 'player.camera.wobble']),
+    );
   });
 
   it('rejects invalid tuning, timers, bad versions and unknown keys with paths', () => {
@@ -66,7 +76,11 @@ describe('location definitions (GE-075)', () => {
     );
     expect(bad.ok).toBe(false);
     expect(bad.issues.map((i) => i.path)).toEqual(
-      expect.arrayContaining(['engineApi', 'countdownSeconds', 'capabilities.movement.jump.jumpHeight']),
+      expect.arrayContaining([
+        'engineApi',
+        'countdownSeconds',
+        'capabilities.movement.jump.jumpHeight',
+      ]),
     );
     expect(() => defineLocation(location({ version: 'one' }), registry)).toThrow(/invalid/);
     expect(Object.isFrozen(defineLocation(location(), registry))).toBe(true);

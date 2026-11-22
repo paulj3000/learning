@@ -39,21 +39,33 @@ export interface SaveRestorePort {
 
 export const SAVE_RESTORE = defineService<SaveRestorePort>('lai.saveRestore');
 
-const TOP_KEYS = ['version', 'adventureId', 'areaId', 'player', 'cameraMode', 'confirmedOpenDoorIds'];
+const TOP_KEYS = [
+  'version',
+  'adventureId',
+  'areaId',
+  'player',
+  'cameraMode',
+  'confirmedOpenDoorIds',
+];
 const POSITION_LIMIT = 100_000;
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= POSITION_LIMIT;
 }
 
-export function validatePresentationSnapshot(input: unknown): ValidationResult<PresentationSnapshot> {
+export function validatePresentationSnapshot(
+  input: unknown,
+): ValidationResult<PresentationSnapshot> {
   const issues: ValidationIssue[] = [];
   if (!isRecord(input)) {
     return { ok: false, issues: [{ path: '', message: 'must be an object' }] };
   }
   for (const key of Object.keys(input)) {
     if (!TOP_KEYS.includes(key)) {
-      issues.push({ path: key, message: 'is not part of the snapshot contract (no child data may ride along)' });
+      issues.push({
+        path: key,
+        message: 'is not part of the snapshot contract (no child data may ride along)',
+      });
     }
   }
   if (input.version !== PRESENTATION_SNAPSHOT_VERSION) {
@@ -91,7 +103,9 @@ export function validatePresentationSnapshot(input: unknown): ValidationResult<P
       }
     });
   }
-  return issues.length === 0 ? { ok: true, value: input as unknown as PresentationSnapshot, issues: [] } : { ok: false, issues };
+  return issues.length === 0
+    ? { ok: true, value: input as unknown as PresentationSnapshot, issues: [] }
+    : { ok: false, issues };
 }
 
 export interface ServerWorldState {

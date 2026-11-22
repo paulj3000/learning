@@ -154,7 +154,9 @@ def test_dry_run_writes_nothing():
 def test_never_makes_placeholders_for_a_single_missing_asset():
     for spec in NORTH_POLE_CUES:
         if spec.cue_id != "sfx.north_pole.reindeer":
-            audio_asset(spec.asset_id, category="music" if spec.channel in ("music", "voice") else "sound")
+            audio_asset(
+                spec.asset_id, category="music" if spec.channel in ("music", "voice") else "sound"
+            )
     report = run()
     assert "ASSET NEEDED sfx.north_pole.reindeer" in report
     assert not SoundCue.objects.filter(cue_id="sfx.north_pole.reindeer").exists()

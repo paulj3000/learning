@@ -23,7 +23,10 @@ describe('Firepeak Great Storybook contract', () => {
     expect(C.source.changeKey).toBe(HEART_CHANGE_KEYS.complete);
     expect(C.observatory.changeKey).toBe(HEART_CHANGE_KEYS.complete);
     expect(quest.completion.worldChanges).toEqual([
-      expect.objectContaining({ locationSlug: C.source.locationSlug, changeKey: C.source.changeKey }),
+      expect.objectContaining({
+        locationSlug: C.source.locationSlug,
+        changeKey: C.source.changeKey,
+      }),
     ]);
   });
 

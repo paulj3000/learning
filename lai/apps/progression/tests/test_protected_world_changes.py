@@ -33,7 +33,7 @@ PASSAGE = "castle-secret-passage"
 
 
 @pytest.fixture
-def content(imported_content, families):
+def content(imported_content, families):  # noqa: F811
     return families
 
 
@@ -335,6 +335,25 @@ def test_the_service_raises_typed_errors(content):
             change_key=PAGE_KEY,
             session_id=session.pk,
         )
+
+
+def test_the_service_refuses_a_child_that_is_not_its_parents(content):
+    """GE-090-D1: the write lock is owner-scoped, so a child object carrying another family's
+    parent is refused before anything is written."""
+    from apps.users.services import ChildProfileNotFound
+
+    body = {"location_slug": "lantern-tide-pools", "change_type": "UNLOCK"}
+    before = WorldChange.objects.count()
+    forged = content.a1
+    forged.parent = content.b
+    with pytest.raises(ChildProfileNotFound):
+        record_client_world_change(forged, change_key="PLANK", **body)
+    assert WorldChange.objects.count() == before
+    # The same call for the child's own parent is accepted, so the refusal above is ownership.
+    content.a1.refresh_from_db()
+    record_client_world_change(content.a1, change_key="PLANK", **body)
+    assert WorldChange.objects.filter(child=content.a1, change_key="PLANK").count() == 1
+    assert not WorldChange.objects.filter(child__parent=content.b, change_key="PLANK").exists()
 
 
 def test_a_replay_through_the_service_creates_nothing_twice(content):

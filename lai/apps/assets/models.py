@@ -307,8 +307,8 @@ class CollisionProfile(models.Model):
         default=list,
         blank=True,
         help_text=(
-            'Compound only: a list of {"x", "z", "y", "width", "height", "depth"} boxes, where x and'
-            " z are the centre and y the bottom, in model space (walls of a building)."
+            'Compound only: a list of {"x", "z", "y", "width", "height", "depth"} boxes, where x '
+            "and z are the centre and y the bottom, in model space (walls of a building)."
         ),
     )
     notes = models.CharField(max_length=500, blank=True)

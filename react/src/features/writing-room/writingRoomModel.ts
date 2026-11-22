@@ -7,10 +7,7 @@ import {
   PATHFINDER_MIN_SENTENCES,
   WRITING_ROOM_LOCATION_SLUG,
 } from '../adventures/content/writingRoomStories';
-import {
-  getAdventureTemplatesForLocation,
-  isAdventureForAgeBand,
-} from '../adventures/content';
+import { getAdventureTemplatesForLocation, isAdventureForAgeBand } from '../adventures/content';
 import type { WrittenStoryPart } from '../adventures/api';
 
 /**

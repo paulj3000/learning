@@ -30,7 +30,9 @@ def seed_orion() -> list[str]:
 
 
 class Command(BaseCommand):
-    help = "Author Professor Orion as NPC Manager content (create-only), validate, optionally publish."
+    help = (
+        "Author Professor Orion as NPC Manager content (create-only), validate, optionally publish."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(

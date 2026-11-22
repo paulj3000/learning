@@ -2,7 +2,8 @@
 
     python manage.py seed_npc_north_pole             # create missing rows, then validate
     python manage.py seed_npc_north_pole --publish   # ... and publish a release if anything changed
-    python manage.py seed_npc_north_pole --promote   # mark DRAFT characters READY once their model is live
+    python manage.py seed_npc_north_pole --promote   # mark DRAFT characters READY once their model
+is live
 
 Run order: `load_content` with the North Pole export (the ten catalog NPCs and the nine quests),
 `seed_north_pole` (the `north-pole-village` 3D Area, whose NPC placements give the spots, and the
@@ -91,9 +92,7 @@ def _region():
     from apps.regions.models import WorldRegion
 
     return (
-        WorldRegion.objects.select_related("location__world")
-        .filter(region_id=np.REGION_ID)
-        .first()
+        WorldRegion.objects.select_related("location__world").filter(region_id=np.REGION_ID).first()
     )
 
 
@@ -124,11 +123,10 @@ def _missing(npc: np.NorthPoleNpc, definitions, assets) -> str | None:
 @transaction.atomic
 def seed_north_pole() -> tuple[list[str], list[str]]:
     """Create the North Pole NPC rows that do not exist yet. Returns (created, notes)."""
-    definitions = {
-        d.npc_id: d for d in NpcDefinition.objects.filter(npc_id__in=np.NPC_IDS)
-    }
+    definitions = {d.npc_id: d for d in NpcDefinition.objects.filter(npc_id__in=np.NPC_IDS)}
     assets = {
-        a.asset_id: a for a in ContentAsset.objects.filter(asset_id__in=[n.asset_id for n in np.NPCS])
+        a.asset_id: a
+        for a in ContentAsset.objects.filter(asset_id__in=[n.asset_id for n in np.NPCS])
     }
     region = _region()
     created: list[str] = []
@@ -274,7 +272,10 @@ def promote_ready() -> list[str]:
 
 
 class Command(BaseCommand):
-    help = "Author the North Pole NPCs as NPC Manager content (create-only), validate, optionally publish."
+    help = (
+        "Author the North Pole NPCs as NPC Manager content (create-only), validate, optionally "
+        "publish."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(

@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { resolvePlayerAvatar, resolvePlayerCamera } from '@lai/game-engine/camera';
 import { createStandardCapabilityRegistry } from '@lai/game-engine/engine';
 import { resolveJumpConfiguration, resolveLocomotion } from '@lai/game-engine/movement';
-import { capabilityRequestsFromManifest, checkContentCompatibility, defineLocation, validateLocation } from '@lai/game-engine/sdk';
+import {
+  capabilityRequestsFromManifest,
+  checkContentCompatibility,
+  defineLocation,
+  validateLocation,
+} from '@lai/game-engine/sdk';
 import { ASSET_MANAGER, NPC_MANAGER } from '@lai/game-engine/services';
 import { TEST_EXPLORER_COVE_MANIFEST } from '../testing/testExplorerCove';
 
@@ -29,21 +34,38 @@ const EXPLORER_COVE_LOCATION = defineLocation(
   registry,
 );
 const resolution = registry.resolve(EXPLORER_COVE_LOCATION.capabilities);
-const resolved = (id: string) => resolution.order.find((item) => item.definition.id === id)!.config as Record<string, unknown>;
+const resolved = (id: string) =>
+  resolution.order.find((item) => item.definition.id === id)!.config as Record<string, unknown>;
 
 describe('Explorer Cove location (GE-075)', () => {
   it('loses nothing from the manifest and validates against the standard registry', () => {
     expect(adapted.issues).toEqual([]);
-    expect(validateLocation(EXPLORER_COVE_LOCATION, registry)).toMatchObject({ ok: true, issues: [] });
+    expect(validateLocation(EXPLORER_COVE_LOCATION, registry)).toMatchObject({
+      ok: true,
+      issues: [],
+    });
     expect(EXPLORER_COVE_LOCATION.id).toBe('test-explorer-cove');
   });
 
   it('plays with exactly what its manifest resolves to', () => {
     const manifest = TEST_EXPLORER_COVE_MANIFEST;
     expect(resolved('movement.jump')).toEqual(resolveJumpConfiguration(manifest.movement?.jump));
-    expect(resolved('movement.locomotion')).toEqual(resolveLocomotion(manifest.movement?.locomotion));
+    expect(resolved('movement.locomotion')).toEqual(
+      resolveLocomotion(manifest.movement?.locomotion),
+    );
     const camera = resolvePlayerCamera(manifest.player?.camera);
-    for (const field of ['defaultMode', 'allowModeSwitch', 'distance', 'minDistance', 'maxDistance', 'heightOffset', 'followDamping', 'rotationSensitivity', 'sprintFovBoost', 'maxHeight'] as const) {
+    for (const field of [
+      'defaultMode',
+      'allowModeSwitch',
+      'distance',
+      'minDistance',
+      'maxDistance',
+      'heightOffset',
+      'followDamping',
+      'rotationSensitivity',
+      'sprintFovBoost',
+      'maxHeight',
+    ] as const) {
       expect(resolved('camera.thirdPerson')[field], field).toEqual(camera[field]);
     }
     expect(resolved('camera.collision').enabled).toBe(camera.collisionEnabled);
@@ -56,6 +78,8 @@ describe('Explorer Cove location (GE-075)', () => {
   it('passes the content compatibility check and has no timers', () => {
     const untrusted: unknown = JSON.parse(JSON.stringify(TEST_EXPLORER_COVE_MANIFEST));
     expect(checkContentCompatibility(untrusted, registry)).toEqual({ ok: true, issues: [] });
-    expect(JSON.stringify(TEST_EXPLORER_COVE_MANIFEST)).not.toMatch(/timeLimit|countdown|deadline|timer/i);
+    expect(JSON.stringify(TEST_EXPLORER_COVE_MANIFEST)).not.toMatch(
+      /timeLimit|countdown|deadline|timer/i,
+    );
   });
 });

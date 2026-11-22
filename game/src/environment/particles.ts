@@ -15,7 +15,12 @@ import { Issues, isRecord } from '../components/validate';
 export type ParticleMotion = 'FALL' | 'RISE' | 'DRIFT';
 export type QualityTier = 'OFF' | 'LOW' | 'MEDIUM' | 'HIGH';
 
-export const PARTICLE_TIER_BUDGET: Readonly<Record<QualityTier, number>> = Object.freeze({ OFF: 0, LOW: 300, MEDIUM: 600, HIGH: 1200 });
+export const PARTICLE_TIER_BUDGET: Readonly<Record<QualityTier, number>> = Object.freeze({
+  OFF: 0,
+  LOW: 300,
+  MEDIUM: 600,
+  HIGH: 1200,
+});
 export const REDUCED_MOTION_PARTICLE_COUNT_SCALE = 0.4;
 export const REDUCED_MOTION_PARTICLE_SPEED_SCALE = 0.3;
 export const MAX_PARTICLES_PER_EMITTER = 2000;
@@ -49,20 +54,38 @@ export interface EffectiveEmitter {
 }
 
 /** Shares the tier budget across emitters in proportion to what each asked for. */
-export function allocateParticleBudget(specs: readonly ParticleEmitterSpec[], tier: QualityTier | number): Map<string, number> {
-  const budget = typeof tier === 'number' ? Math.max(0, Math.floor(tier)) : PARTICLE_TIER_BUDGET[tier];
+export function allocateParticleBudget(
+  specs: readonly ParticleEmitterSpec[],
+  tier: QualityTier | number,
+): Map<string, number> {
+  const budget =
+    typeof tier === 'number' ? Math.max(0, Math.floor(tier)) : PARTICLE_TIER_BUDGET[tier];
   const requested = specs.reduce((sum, s) => sum + s.maxParticles, 0);
   const out = new Map<string, number>();
   for (const spec of specs) {
-    const share = requested <= budget ? spec.maxParticles : Math.floor((spec.maxParticles / requested) * budget);
+    const share =
+      requested <= budget
+        ? spec.maxParticles
+        : Math.floor((spec.maxParticles / requested) * budget);
     out.set(spec.id, Math.min(spec.maxParticles, share));
   }
   return out;
 }
 
-export function effectiveEmitter(spec: ParticleEmitterSpec, cap: number, reducedMotion: boolean, rateMultiplier = 1): EffectiveEmitter {
+export function effectiveEmitter(
+  spec: ParticleEmitterSpec,
+  cap: number,
+  reducedMotion: boolean,
+  rateMultiplier = 1,
+): EffectiveEmitter {
   if (!reducedMotion) {
-    return { spec, cap, rate: spec.ratePerSecond * rateMultiplier, speed: spec.speed, still: false };
+    return {
+      spec,
+      cap,
+      rate: spec.ratePerSecond * rateMultiplier,
+      speed: spec.speed,
+      still: false,
+    };
   }
   return {
     spec,
@@ -105,13 +128,22 @@ export interface ParticlePool {
 
 export function createParticlePool(capacity: number, seed: number): ParticlePool {
   const cap = Math.max(0, Math.min(MAX_PARTICLES_PER_EMITTER, Math.floor(capacity)));
-  return { capacity: cap, positions: new Float32Array(cap * 3), ages: new Float32Array(cap), alive: 0, spawnCarry: 0, rng: createRng(seed) };
+  return {
+    capacity: cap,
+    positions: new Float32Array(cap * 3),
+    ages: new Float32Array(cap),
+    alive: 0,
+    spawnCarry: 0,
+    rng: createRng(seed),
+  };
 }
 
 function spawn(pool: ParticlePool, spec: ParticleEmitterSpec, index: number, age: number): void {
   const r = pool.rng;
   pool.positions[index * 3] = spec.origin.x + (r() * 2 - 1) * spec.halfX;
-  pool.positions[index * 3 + 1] = spec.origin.y + (spec.motion === 'FALL' ? spec.height : spec.motion === 'DRIFT' ? r() * spec.height : 0);
+  pool.positions[index * 3 + 1] =
+    spec.origin.y +
+    (spec.motion === 'FALL' ? spec.height : spec.motion === 'DRIFT' ? r() * spec.height : 0);
   pool.positions[index * 3 + 2] = spec.origin.z + (r() * 2 - 1) * spec.halfZ;
   pool.ages[index] = age;
 }
@@ -134,7 +166,12 @@ export function layoutStill(pool: ParticlePool, effective: EffectiveEmitter): vo
 }
 
 /** Advances the pool one step: ages and moves particles, recycles the dead, spawns by rate. */
-export function stepParticles(pool: ParticlePool, effective: EffectiveEmitter, dt: number, wind: Vec3Like = { x: 0, y: 0, z: 0 }): void {
+export function stepParticles(
+  pool: ParticlePool,
+  effective: EffectiveEmitter,
+  dt: number,
+  wind: Vec3Like = { x: 0, y: 0, z: 0 },
+): void {
   const { spec } = effective;
   const limit = Math.min(effective.cap, pool.capacity);
   if (effective.still) {
@@ -143,7 +180,12 @@ export function stepParticles(pool: ParticlePool, effective: EffectiveEmitter, d
     }
     return;
   }
-  const dy = spec.motion === 'FALL' ? -effective.speed : spec.motion === 'RISE' ? effective.speed : -effective.speed * 0.2;
+  const dy =
+    spec.motion === 'FALL'
+      ? -effective.speed
+      : spec.motion === 'RISE'
+        ? effective.speed
+        : -effective.speed * 0.2;
   let i = 0;
   while (i < pool.alive) {
     pool.ages[i] = pool.ages[i]! + dt;
@@ -182,8 +224,17 @@ export function validateParticlesConfig(input: unknown) {
     'emitters',
     (item, path): ParticleEmitterSpec => ({
       id: issues.id(item.id, `${path}.id`),
-      motion: issues.oneOf<ParticleMotion>(item.motion, `${path}.motion`, ['FALL', 'RISE', 'DRIFT']),
-      maxParticles: issues.num(item.maxParticles, `${path}.maxParticles`, 1, MAX_PARTICLES_PER_EMITTER),
+      motion: issues.oneOf<ParticleMotion>(item.motion, `${path}.motion`, [
+        'FALL',
+        'RISE',
+        'DRIFT',
+      ]),
+      maxParticles: issues.num(
+        item.maxParticles,
+        `${path}.maxParticles`,
+        1,
+        MAX_PARTICLES_PER_EMITTER,
+      ),
       ratePerSecond: issues.num(item.ratePerSecond, `${path}.ratePerSecond`, 0.1, 2000),
       lifetime: issues.num(item.lifetime, `${path}.lifetime`, 0.2, 30),
       speed: issues.num(item.speed, `${path}.speed`, 0, 30),
@@ -198,6 +249,11 @@ export function validateParticlesConfig(input: unknown) {
     (e) => e.id,
     32,
   );
-  const tier = issues.oneOf<QualityTier>(root.tier, 'tier', ['OFF', 'LOW', 'MEDIUM', 'HIGH'], 'MEDIUM');
+  const tier = issues.oneOf<QualityTier>(
+    root.tier,
+    'tier',
+    ['OFF', 'LOW', 'MEDIUM', 'HIGH'],
+    'MEDIUM',
+  );
   return issues.result<ParticlesConfig>({ emitters, tier });
 }
