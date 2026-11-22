@@ -39,8 +39,9 @@ scripts/ci/aws_ci.py run              aws-integration-tests.yml                 
 - **Harness.** The test runner (`scripts/ci/*.py`) comes from the dispatched branch's head, the
   same commit the workflow file comes from; the tested source is the requested SHA, which must be
   on that branch.
-- **Planning.** `scripts/ci/plan_tests.py` turns `git diff --name-only <merge-base with main>
-  <sha>` into suites (below).
+- **Planning.** `scripts/ci/plan_tests.py` turns `git diff --name-only <base> <sha>` into suites
+  (below). The base is the merge base with main, or, for `affected` only, the optional `base_sha`
+  input (see "Testing a change on an integration candidate").
 - **Isolation.** Tests run as the unprivileged `lai-ci` user with a clean environment, no AWS
   configuration (`AWS_CONFIG_FILE=/dev/null`, `AWS_EC2_METADATA_DISABLED=true`), and an iptables
   rule rejecting the instance metadata service for that user, so no test can use the instance's
@@ -93,6 +94,26 @@ tree.
 `integration/*`, `ci/*` or `main`, and an unpushed HEAD unless `--push` is given. It finds its
 run by the `[request id]` the workflow puts in the run name, so concurrent dispatches never get
 each other's results.
+
+### Testing a change on an integration candidate
+
+An integration candidate differs from main by every branch merged into it, so `affected` against
+the merge base with main plans the full suite. To test only what a later commit on the candidate
+changes, dispatch `affected` with `base_sha` set to the candidate commit that was already
+verified (normally by `full-unit`):
+
+```bash
+gh workflow run aws-integration-tests.yml --ref integration/<candidate> \
+  -f commit_sha=<new full SHA> -f test_scope=affected -f base_sha=<verified full SHA> \
+  -f request_id=<id>
+```
+
+The request is rejected unless `base_sha` is a full SHA, differs from `commit_sha`, is an ancestor
+of it, and the scope is `affected`. `full-unit` rejects `base_sha` and always runs every suite.
+The request, the job summary and `results.json` record the base and whether it was requested or
+the merge base with main, and the verdict step fails closed (`incomplete`) if the results were
+planned against any other base. A run with a requested base proves only the delta since that
+base; the candidate's acceptance still rests on a `full-unit` run on its exact SHA.
 
 ### Monitoring and reports without the script
 
