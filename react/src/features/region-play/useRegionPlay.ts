@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
 import { ApiError, isApiError } from '../../api/errors';
 import { playApiFor, type PlayApi } from '../../api/play/playApi';
 import type { JsonObject } from '../../api/parse';
@@ -83,11 +83,14 @@ export function useRegionPlay(
   const controllerRef = useRef<AbortController>(new AbortController());
   const scopeRef = useRef(scope);
   const busyRef = useRef<PlayActionName | null>(null);
-  // Read by event handlers, which run after commit; synced in an effect, not during render.
+  // Read by event handlers, which run after commit; synced during commit, not during render.
+  // A layout effect runs before the browser can deliver an input event to the new DOM, so a
+  // tap on a choice that has just appeared always sees the challenge it belongs to. A passive
+  // effect could run later, and a fast first tap would then be dropped silently.
   const stateRef = useRef(state);
   const onUnauthenticatedRef = useRef(onUnauthenticated);
   const onOutcomeRef = useRef(onOutcome);
-  useEffect(() => {
+  useLayoutEffect(() => {
     stateRef.current = state;
     onUnauthenticatedRef.current = onUnauthenticated;
     onOutcomeRef.current = onOutcome;

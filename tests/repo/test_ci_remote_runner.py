@@ -110,6 +110,48 @@ def test_tests_never_see_aws_configuration():
     assert env["AWS_EC2_METADATA_DISABLED"] == "true"
 
 
+def test_suites_find_the_pinned_host_tools_first():
+    path = runner.base_env(None, None)["PATH"].split(":")
+    assert path[0] == str(runner.TOOLS_BIN)
+    assert path[1:] == ["/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin"]
+
+
+@pytest.mark.parametrize("present", [True, False])
+def test_ensure_host_tools_installs_os_packages_only_when_missing(monkeypatch, present):
+    calls = []
+    monkeypatch.setattr(runner.shutil, "which", lambda name, path=None: "/x" if present else None)
+    monkeypatch.setattr(runner, "apt_install", lambda pkgs: calls.append(("apt", tuple(pkgs))))
+    monkeypatch.setattr(runner, "sh", lambda cmd, **kw: calls.append(("sh", tuple(cmd))))
+    monkeypatch.setattr(runner.host_tools, "install", lambda dest: calls.append(("pin", dest)))
+    absent = [] if present else ["nginx"]
+    monkeypatch.setattr(runner.host_tools, "missing", lambda path=None: absent)
+    pre = runner.Preflight()
+    runner.ensure_host_tools(pre)
+    apt = ("apt", ("make", "nginx", "openssl", "gettext-base"))
+    disable = ("sh", ("systemctl", "disable", "--now", "nginx"))
+    pinned = ("pin", runner.TOOLS_BIN)
+    assert calls == ([pinned] if present else [apt, disable, pinned])
+    check = next(c for c in pre.checks if c["name"] == "host-tools")
+    assert check["ok"] is present
+    assert check["required"] is False
+    assert check["detail"] == ("all present" if present else "missing nginx")
+
+
+def test_ensure_host_tools_reports_a_failed_pinned_install(monkeypatch):
+    monkeypatch.setattr(runner.shutil, "which", lambda name, path=None: "/x")
+
+    def broken(dest):
+        raise RuntimeError("checksum mismatch")
+
+    monkeypatch.setattr(runner.host_tools, "install", broken)
+    monkeypatch.setattr(runner.host_tools, "missing", lambda path=None: ["actionlint"])
+    pre = runner.Preflight()
+    runner.ensure_host_tools(pre)
+    check = next(c for c in pre.checks if c["name"] == "host-tools")
+    assert check["ok"] is False
+    assert "checksum mismatch" in check["detail"]
+
+
 # --------------------------------------------------------------------------- run_suite
 
 
@@ -234,6 +276,7 @@ def instance(tmp_path, monkeypatch, plain):
     monkeypatch.setattr(runner, "check_python", lambda pre: pre.record("python", True))
     # the real check measures the host; on the CI instance /tmp is small (see test_check_disk)
     monkeypatch.setattr(runner, "check_disk", lambda pre: pre.record("disk", True))
+    monkeypatch.setattr(runner, "ensure_host_tools", lambda pre: pre.record("host-tools", True))
     monkeypatch.setattr(runner, "release_database", lambda: None)
     state = {"node": True}
 

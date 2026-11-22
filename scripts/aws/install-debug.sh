@@ -95,6 +95,7 @@ if [ "$skip_github" != true ] && [ "$skip_release" = true ] && [ "$skip_bootstra
 fi
 
 dev_init
+# shellcheck disable=SC2119 # the optional "required" mode is not wanted here
 dev_guard_account
 # GitHub CLI preflight: only step 4 uses gh. Without --skip-github, check it before anything is
 # written, so a missing or signed-out gh never leaves a half-done install.
@@ -212,6 +213,7 @@ if [ "$enable_ai" = true ]; then
     # through the US inference profile; EC2, RDS and the jobs stay in the dev Region.
     guardrail_out() { stack_output LaiAiGuardrail-dev "$1" "$DEV_BEDROCK_REGION"; }
     model=$(guardrail_out ModelId) guardrail=$(guardrail_out GuardrailId) version=$(guardrail_out GuardrailVersion)
+    # shellcheck disable=SC2015 # B is a test: die runs whenever any check fails
     [ -n "$model" ] && [ -n "$guardrail" ] && [ -n "$version" ] ||
         die "$EX_MISSING" "LaiAiGuardrail-dev outputs are missing (deploy-debug.sh --execute first)"
     ensure_setting LAI_AI_PROVIDER bedrock

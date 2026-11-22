@@ -118,5 +118,15 @@ jobs:
       - name: Django migration check
         run: make migrate-check
 
-      - name: Pytest (PostgreSQL tests must run, not skip)
+      - name: Install host tools (repository tests must run, not skip)
+        run: |
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq make nginx openssl gettext-base
+          sudo systemctl disable --now nginx || true
+          python3 scripts/ci/host_tools.py install --dest "$RUNNER_TEMP/host-tools"
+          echo "$RUNNER_TEMP/host-tools" >>"$GITHUB_PATH"
+
+      - name: Pytest (PostgreSQL and host-tool tests must run, not skip)
+        env:
+          LAI_REQUIRE_HOST_TOOLS: '1'
         run: make py-test-db

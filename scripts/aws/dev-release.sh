@@ -99,6 +99,7 @@ if [ "$command" = package ]; then
     step "packaging $git_sha"
     bash "$packager" "${args[@]}" >&2
     tarball="$out_dir/$git_sha.tar.gz" manifest="$out_dir/$git_sha.json"
+    # shellcheck disable=SC2015 # B is a test: die runs whenever any check fails
     [ -f "$tarball" ] && [ -f "$manifest" ] || die "$EX_FAIL" "package-release.sh did not write $tarball and $manifest"
     [ "$(jq -r .git_sha "$manifest")" = "$git_sha" ] || die "$EX_FAIL" "manifest git_sha does not match"
     [ "$(jq -r .artifact_sha256 "$manifest")" = "$(sha256_of "$tarball")" ] ||
@@ -109,6 +110,7 @@ if [ "$command" = package ]; then
 fi
 
 dev_init
+# shellcheck disable=SC2119 # the optional "required" mode is not wanted here
 dev_guard_account
 
 bucket() {
@@ -196,6 +198,7 @@ case "$command" in
         need_sha
         b=$(bucket)
         tarball="$out_dir/$git_sha.tar.gz" manifest="$out_dir/$git_sha.json"
+        # shellcheck disable=SC2015 # B is a test: die runs whenever any check fails
         [ -f "$tarball" ] && [ -f "$manifest" ] || die "$EX_USAGE" "no package in $out_dir (dev-release.sh package first)"
         sha=$(jq -r .artifact_sha256 "$manifest")
         [ "$sha" = "$(sha256_of "$tarball")" ] || die "$EX_FAIL" "the local manifest does not match its tarball"
