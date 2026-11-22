@@ -44,9 +44,18 @@ import {
 import { cloneAssetScene } from '../assets/cloneAsset';
 import { ALL_CHECKPOINTS, resolveSpawnCheckpoint } from '../../../discovery/checkpoints';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
-import { DEFAULT_BODY_HEIGHT, FirstPersonController, type Gait } from '../firstPersonController';
-import type { LocomotionConfiguration } from '../locomotionConfiguration';
-import type { SprintMode } from '../pointerControls';
+import {
+  DEFAULT_BODY_HEIGHT,
+  FirstPersonController,
+  type Gait,
+  type LocomotionConfiguration,
+  type JumpConfiguration,
+} from '@lai/game-engine/movement';
+import {
+  type SprintMode,
+  attachPointerControls,
+  type PointerControls,
+} from '@lai/game-engine/input';
 import {
   colliderObstruction,
   lookDirection,
@@ -54,7 +63,12 @@ import {
   THIRD_PERSON_ENTRY_PITCH,
   thirdPersonPitch,
   type PlayerCameraFrame,
-} from '../playerCamera';
+  initialCameraMode,
+  resolvePlayerAvatar,
+  resolvePlayerCamera,
+  type CameraMode,
+  type PlayerCameraConfiguration,
+} from '@lai/game-engine/camera';
 import { AvatarFacing, createPlayerAvatar, type PlayerAvatar } from '../playerAvatar';
 import {
   collisionDebugEnabled,
@@ -62,15 +76,6 @@ import {
   type CollisionDebugOverlay,
 } from './collisionDebug';
 import type { PlayerAvatarModel } from '../playerAvatarCatalog';
-import {
-  initialCameraMode,
-  resolvePlayerAvatar,
-  resolvePlayerCamera,
-  type CameraMode,
-  type PlayerCameraConfiguration,
-} from '../playerPresentation';
-import type { JumpConfiguration } from '../jumpConfiguration';
-import { attachPointerControls, type PointerControls } from '../pointerControls';
 import {
   APPROACH_RANGE_METERS,
   EYE_HEIGHT,

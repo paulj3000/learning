@@ -11,7 +11,7 @@ import {
 import { PIRATE_BUILDER_BAY_MANIFEST } from './manifests/pirateBuilderBay';
 import { STORYKEEPER_CASTLE_MANIFEST } from './manifests/storykeeperCastle';
 import { WELCOME_HARBOR_MANIFEST } from './manifests/welcomeHarbor';
-import { DEFAULT_JUMP_CONFIGURATION } from '../jumpConfiguration';
+import { DEFAULT_JUMP_CONFIGURATION } from '@lai/game-engine/movement';
 
 /**
  * LAI-JMP-01 through the shared location runtime: the same controller, camera

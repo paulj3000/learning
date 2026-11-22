@@ -1,7 +1,7 @@
 import { AnimationClip, BoxGeometry, Mesh, MeshBasicMaterial, Vector3 } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mixamoRig, rootMotionWalk } from './testing/rootMotionRig';
-import type { FirstPersonController } from '../firstPersonController';
+import type { FirstPersonController } from '@lai/game-engine/movement';
 import { AVATAR_ROOT_NAME } from '../playerAvatar';
 import type { LoadedModel } from './createLocationEngine';
 import type { ThreeLocationManifest } from './locationManifest';
