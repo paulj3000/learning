@@ -30,7 +30,9 @@ export interface FakeQuestService extends QuestServicePort {
 }
 
 /** The fake confirms a claim when the step is the active one, like a well-behaved server. */
-export function createFakeQuestService(quests: readonly (QuestState & { stepOrder?: readonly string[] })[] = []): FakeQuestService {
+export function createFakeQuestService(
+  quests: readonly (QuestState & { stepOrder?: readonly string[] })[] = [],
+): FakeQuestService {
   const states = new Map(quests.map((q) => [q.questId, { ...q }] as const));
   const order = new Map(quests.map((q) => [q.questId, q.stepOrder ?? []] as const));
   const listeners = new Set<(state: QuestState) => void>();

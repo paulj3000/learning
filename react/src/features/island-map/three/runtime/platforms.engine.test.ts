@@ -34,7 +34,9 @@ function withCourse(): ThreeLocationManifest {
         },
       ],
       checkpoints: [{ id: 'test-start', x: 0, z: -4, label: 'the harbour steps' }],
-      hazards: [{ id: 'test-water', rect: { id: 'test-water', minX: 4, maxX: 5, minZ: -4, maxZ: 0 } }],
+      hazards: [
+        { id: 'test-water', rect: { id: 'test-water', minX: 4, maxX: 5, minZ: -4, maxZ: 0 } },
+      ],
     },
   };
 }
@@ -75,7 +77,9 @@ describe('platforms in the shared location runtime', () => {
     harness.runFrames(30);
     expect(lift.active).toBe(true);
     expect(lift.position.y).toBeGreaterThan(0.2);
-    expect(named(harness, 'PlatformActivated').map((e) => e.detail)).toContainEqual({ platformId: 'test-lift' });
+    expect(named(harness, 'PlatformActivated').map((e) => e.detail)).toContainEqual({
+      platformId: 'test-lift',
+    });
   });
 
   it('reports the checkpoint, and sends a child in the water back to it with a friendly event', () => {

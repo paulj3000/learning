@@ -1,6 +1,11 @@
 import { Box3 } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CheckpointsService, validateGameplayEvent, type AnyGameplayEvent, type EnvironmentQuery } from '@lai/game-engine';
+import {
+  CheckpointsService,
+  validateGameplayEvent,
+  type AnyGameplayEvent,
+  type EnvironmentQuery,
+} from '@lai/game-engine';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
 import {
   currentClaimsBinding,
@@ -26,7 +31,13 @@ function fakeHost(config: { [key: string]: JsonValue }) {
   const colliders = new Map<string, { box: Box3 }>();
   const environmentCalls: (EnvironmentQuery | null)[] = [];
   const teleports: { x: number; z: number; yaw: number }[] = [];
-  const player: BridgePlayerState = { position: { x: 0, y: 0, z: 0 }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
+  const player: BridgePlayerState = {
+    position: { x: 0, y: 0, z: 0 },
+    yaw: 0,
+    velocity: { x: 0, y: 0, z: 0 },
+    grounded: true,
+    supportId: null,
+  };
   const host: LocationBridgeHost = {
     bus,
     config,
@@ -69,31 +80,80 @@ function fakeHost(config: { [key: string]: JsonValue }) {
   };
 }
 
-const context = { realmId: 'firepeak', adventureId: 'heart-of-firepeak', areaId: 'heart', sessionRef: null };
+const context = {
+  realmId: 'firepeak',
+  adventureId: 'heart-of-firepeak',
+  areaId: 'heart',
+  sessionRef: null,
+};
 const binding: ClaimsBinding = { context };
 
 const course: JsonValue = {
   id: 'gameplay.checkpoints',
   config: {
     checkpoints: [
-      { id: 'cp.gate', courseId: 'course.heart', position: { x: 5, y: 0, z: 0 }, label: 'the gate' },
-      { id: 'cp.bridge', courseId: 'course.heart', position: { x: 20, y: 0, z: 0 }, label: 'the bridge', requiresSignalId: 'world:HEART_BRIDGE_OPEN' },
-      { id: 'cp.summit', courseId: 'course.heart', position: { x: 40, y: 0, z: 0 }, label: 'the summit' },
+      {
+        id: 'cp.gate',
+        courseId: 'course.heart',
+        position: { x: 5, y: 0, z: 0 },
+        label: 'the gate',
+      },
+      {
+        id: 'cp.bridge',
+        courseId: 'course.heart',
+        position: { x: 20, y: 0, z: 0 },
+        label: 'the bridge',
+        requiresSignalId: 'world:HEART_BRIDGE_OPEN',
+      },
+      {
+        id: 'cp.summit',
+        courseId: 'course.heart',
+        position: { x: 40, y: 0, z: 0 },
+        label: 'the summit',
+      },
     ],
   },
 };
-const door: JsonValue = { id: 'gameplay.doors', config: { doors: [{ id: 'door.a', position: { x: 8, y: 0, z: 10 }, size: { x: 0.4, y: 2, z: 2 } }] } };
+const door: JsonValue = {
+  id: 'gameplay.doors',
+  config: {
+    doors: [{ id: 'door.a', position: { x: 8, y: 0, z: 10 }, size: { x: 0.4, y: 2, z: 2 } }],
+  },
+};
 const ice: JsonValue = {
   id: 'environment.volumes',
-  config: { surfaces: [{ id: 'lake.ice', surfaceId: 'ice', box: { min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 0.2, z: 10 } } }] },
+  config: {
+    surfaces: [
+      {
+        id: 'lake.ice',
+        surfaceId: 'ice',
+        box: { min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 0.2, z: 10 } },
+      },
+    ],
+  },
 };
 const coins: JsonValue = {
   id: 'gameplay.collectibles',
-  config: { collectibles: [{ id: 'ember.1', position: { x: 3, y: 0, z: 0 }, setId: 'embers' }, { id: 'ember.2', position: { x: 60, y: 0, z: 0 }, setId: 'embers' }] },
+  config: {
+    collectibles: [
+      { id: 'ember.1', position: { x: 3, y: 0, z: 0 }, setId: 'embers' },
+      { id: 'ember.2', position: { x: 60, y: 0, z: 0 }, setId: 'embers' },
+    ],
+  },
 };
 const hazard: JsonValue = {
   id: 'gameplay.hazards',
-  config: { hazards: [{ id: 'pit', kind: 'WATER', rect: { minX: 50, maxX: 55, minZ: -3, maxZ: 3 }, checkpointId: 'cp.gate', messageKey: 'hazard.pit' }] },
+  config: {
+    hazards: [
+      {
+        id: 'pit',
+        kind: 'WATER',
+        rect: { minX: 50, maxX: 55, minZ: -3, maxZ: 3 },
+        checkpointId: 'cp.gate',
+        messageKey: 'hazard.pit',
+      },
+    ],
+  },
 };
 
 afterEach(() => resetLocationClaimsForTests());
@@ -147,7 +207,10 @@ describe('engine bridge disposal', () => {
   it('a host frame after dispose is a no-op (the runtime is gone)', () => {
     const fake = fakeHost({ capabilities: [coins] });
     const claims: AnyGameplayEvent[] = [];
-    const mount = mountEngineBridge(fake.host, { claims: binding, onGameplayEvent: (e) => claims.push(e) });
+    const mount = mountEngineBridge(fake.host, {
+      claims: binding,
+      onGameplayEvent: (e) => claims.push(e),
+    });
     mount.dispose();
     fake.at(3);
     fake.advance(0.5);
@@ -178,7 +241,10 @@ describe('checkpoint restoration through the bridge', () => {
     const toasts: string[] = [];
     fake.bus.on('CourseCheckpointReached', (e) => toasts.push(e.checkpointId));
     const claims: AnyGameplayEvent[] = [];
-    const mount = mountEngineBridge(fake.host, { claims: binding, onGameplayEvent: (e) => claims.push(e) });
+    const mount = mountEngineBridge(fake.host, {
+      claims: binding,
+      onGameplayEvent: (e) => claims.push(e),
+    });
     expect(mount.api.latestCheckpoint()).toBeNull();
     const result = mount.api.resume(['cp.gate', 'cp.summit']);
     expect(result).toEqual({ placedAt: 'cp.summit', unknown: [] });
@@ -197,7 +263,13 @@ describe('checkpoint restoration through the bridge', () => {
   it('resume sends no PlayerRecovered, no jump or landing and no other presentation event', () => {
     const fake = fakeHost({ capabilities: [course] });
     const names: string[] = [];
-    for (const name of ['PlayerRecovered', 'PlayerJumped', 'PlayerLanded', 'CourseCheckpointReached', 'PlatformGoalReached'] as const) {
+    for (const name of [
+      'PlayerRecovered',
+      'PlayerJumped',
+      'PlayerLanded',
+      'CourseCheckpointReached',
+      'PlatformGoalReached',
+    ] as const) {
       fake.bus.on(name, () => names.push(name));
     }
     const mount = mountEngineBridge(fake.host);
@@ -210,7 +282,10 @@ describe('checkpoint restoration through the bridge', () => {
   it('resume with only unknown ids places nobody and reports them', () => {
     const fake = fakeHost({ capabilities: [course] });
     const mount = mountEngineBridge(fake.host);
-    expect(mount.api.resume(['cp.nowhere', 'cp.elsewhere'])).toEqual({ placedAt: null, unknown: ['cp.nowhere', 'cp.elsewhere'] });
+    expect(mount.api.resume(['cp.nowhere', 'cp.elsewhere'])).toEqual({
+      placedAt: null,
+      unknown: ['cp.nowhere', 'cp.elsewhere'],
+    });
     expect(fake.teleports).toEqual([]);
     expect(mount.api.latestCheckpoint()).toBeNull();
     mount.dispose();
@@ -222,7 +297,10 @@ describe('checkpoint restoration through the bridge', () => {
       const toasts: string[] = [];
       fake.bus.on('CourseCheckpointReached', (e) => toasts.push(e.checkpointId));
       const claims: AnyGameplayEvent[] = [];
-      const mount = mountEngineBridge(fake.host, { claims: binding, onGameplayEvent: (e) => claims.push(e) });
+      const mount = mountEngineBridge(fake.host, {
+        claims: binding,
+        onGameplayEvent: (e) => claims.push(e),
+      });
       const resume = () => mount.api.resume(['cp.gate', 'cp.bridge']);
       const signals = () => mount.api.setSignals(['world:HEART_BRIDGE_OPEN']);
       if (order === 'resume-first') {
@@ -234,14 +312,24 @@ describe('checkpoint restoration through the bridge', () => {
       }
       fake.at(20);
       fake.advance(0.3);
-      const state = { reached: [...mount.api.runtime!.services.require(CheckpointsService).reachedIds()], latest: mount.api.latestCheckpoint()?.id, toasts, claims: claims.length };
+      const state = {
+        reached: [...mount.api.runtime!.services.require(CheckpointsService).reachedIds()],
+        latest: mount.api.latestCheckpoint()?.id,
+        toasts,
+        claims: claims.length,
+      };
       mount.dispose();
       return state;
     };
     const a = run('resume-first');
     const b = run('signals-first');
     expect(a).toEqual(b);
-    expect(a).toEqual({ reached: ['cp.gate', 'cp.bridge'], latest: 'cp.bridge', toasts: [], claims: 0 });
+    expect(a).toEqual({
+      reached: ['cp.gate', 'cp.bridge'],
+      latest: 'cp.bridge',
+      toasts: [],
+      claims: 0,
+    });
   });
 
   it('a gated checkpoint the server already holds is restored even while its signal is off, and stays silent when the signal comes on', () => {
@@ -285,7 +373,12 @@ describe('checkpoint restoration through the bridge', () => {
     const latest = mount.api.latestCheckpoint()!;
     expect(latest.id).toBe('cp.summit');
     const target = mount.api.runtime!.services.require(CheckpointsService).resolveRecovery(null)!;
-    expect([target.id, target.position.x, target.position.z, target.yaw]).toEqual([latest.id, latest.x, latest.z, latest.yaw]);
+    expect([target.id, target.position.x, target.position.z, target.yaw]).toEqual([
+      latest.id,
+      latest.x,
+      latest.z,
+      latest.yaw,
+    ]);
     mount.dispose();
   });
 
@@ -315,14 +408,27 @@ describe('checkpoint restoration through the bridge', () => {
 });
 
 describe('claim bindings (lazy, companion and default) through the location claim sink', () => {
-  const COMPANION = { realmId: 'pirate-builder-bay', adventureId: 'treasure-rush-cove', areaId: 'cove', sessionRef: '0b5f8c4e-6d0a-4c43-9b6c-2f2b1b3f9a10' };
-  const EXPLORE = { realmId: 'firepeak', adventureId: 'explore:heart', areaId: 'heart', sessionRef: null };
+  const COMPANION = {
+    realmId: 'pirate-builder-bay',
+    adventureId: 'treasure-rush-cove',
+    areaId: 'cove',
+    sessionRef: '0b5f8c4e-6d0a-4c43-9b6c-2f2b1b3f9a10',
+  };
+  const EXPLORE = {
+    realmId: 'firepeak',
+    adventureId: 'explore:heart',
+    areaId: 'heart',
+    sessionRef: null,
+  };
 
   function mountWithSink() {
     const fake = fakeHost({ capabilities: [coins] });
     const received: AnyGameplayEvent[] = [];
     setLocationClaimSink((e) => received.push(e));
-    const mount = mountEngineBridge(fake.host, { claims: () => currentClaimsBinding() as ClaimsBinding | null, onGameplayEvent: forwardClaim });
+    const mount = mountEngineBridge(fake.host, {
+      claims: () => currentClaimsBinding() as ClaimsBinding | null,
+      onGameplayEvent: forwardClaim,
+    });
     return { fake, mount, received };
   }
 
@@ -353,7 +459,10 @@ describe('claim bindings (lazy, companion and default) through the location clai
     setLocationClaimsBinding(COMPANION);
     fake.at(3);
     fake.advance(0.3);
-    expect(received[0]).toMatchObject({ adventureId: 'treasure-rush-cove', sessionRef: COMPANION.sessionRef });
+    expect(received[0]).toMatchObject({
+      adventureId: 'treasure-rush-cove',
+      sessionRef: COMPANION.sessionRef,
+    });
     mount.dispose();
   });
 
@@ -376,7 +485,10 @@ describe('claim bindings (lazy, companion and default) through the location clai
   it('with a binding but no sink (nobody listening) nothing is delivered and nothing throws', () => {
     setDefaultLocationClaimsBinding(EXPLORE);
     const fake = fakeHost({ capabilities: [coins] });
-    const mount = mountEngineBridge(fake.host, { claims: () => currentClaimsBinding() as ClaimsBinding | null, onGameplayEvent: forwardClaim });
+    const mount = mountEngineBridge(fake.host, {
+      claims: () => currentClaimsBinding() as ClaimsBinding | null,
+      onGameplayEvent: forwardClaim,
+    });
     fake.at(3);
     expect(() => fake.advance(0.3)).not.toThrow();
     mount.dispose();
@@ -391,7 +503,9 @@ describe('claim bindings (lazy, companion and default) through the location clai
     expect(received).toEqual([]); // ember.1 was consumed while unbound: the engine will not re-emit it
     fake.at(60);
     fake.advance(0.3);
-    expect(received.map((e) => (e.payload as { collectibleId: string }).collectibleId)).toEqual(['ember.2']);
+    expect(received.map((e) => (e.payload as { collectibleId: string }).collectibleId)).toEqual([
+      'ember.2',
+    ]);
     mount.dispose();
   });
 });
@@ -400,7 +514,10 @@ describe('claim uniqueness through the bridge', () => {
   it('re-entering checkpoint and collectible zones claims once each, with unique valid event ids', () => {
     const fake = fakeHost({ capabilities: [course, coins, hazard] });
     const claims: AnyGameplayEvent[] = [];
-    const mount = mountEngineBridge(fake.host, { claims: binding, onGameplayEvent: (e) => claims.push(e) });
+    const mount = mountEngineBridge(fake.host, {
+      claims: binding,
+      onGameplayEvent: (e) => claims.push(e),
+    });
     for (let round = 0; round < 5; round += 1) {
       for (const x of [3, 5, 60, 52, 2]) {
         fake.at(x);
@@ -409,7 +526,11 @@ describe('claim uniqueness through the bridge', () => {
     }
     const keys = claims.map((c) => `${c.type}:${JSON.stringify(c.payload)}`);
     expect(new Set(keys).size).toBe(keys.length);
-    expect(claims.map((c) => c.type).sort()).toEqual(['collectible.collected', 'collectible.collected', 'course.checkpoint.reached']);
+    expect(claims.map((c) => c.type).sort()).toEqual([
+      'collectible.collected',
+      'collectible.collected',
+      'course.checkpoint.reached',
+    ]);
     expect(new Set(claims.map((c) => c.eventId)).size).toBe(claims.length);
     for (const claim of claims) expect(validateGameplayEvent(claim).issues).toEqual([]);
     mount.dispose();
@@ -420,7 +541,10 @@ describe('claim uniqueness through the bridge', () => {
     for (let visit = 0; visit < 3; visit += 1) {
       const fake = fakeHost({ capabilities: [coins] });
       const claims: AnyGameplayEvent[] = [];
-      const mount = mountEngineBridge(fake.host, { claims: binding, onGameplayEvent: (e) => claims.push(e) });
+      const mount = mountEngineBridge(fake.host, {
+        claims: binding,
+        onGameplayEvent: (e) => claims.push(e),
+      });
       fake.at(3);
       fake.advance(0.3);
       expect(claims).toHaveLength(1);

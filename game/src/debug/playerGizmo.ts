@@ -6,10 +6,22 @@
  * line shows the facing (yaw). `computeGizmoPose` is pure so it is tested without a scene.
  */
 
-import { BufferGeometry, Float32BufferAttribute, Group, Line, LineBasicMaterial, LineLoop } from 'three';
+import {
+  BufferGeometry,
+  Float32BufferAttribute,
+  Group,
+  Line,
+  LineBasicMaterial,
+  LineLoop,
+} from 'three';
 import { createResourceScope, type ResourceScope } from '../core/resources';
 import type { EntityWorld } from '../core/entities';
-import { PLAYER_ENTITY_ID, PlayerTransformComponent, interpolatePlayerPosition, type PlayerTransform } from '../contracts/player';
+import {
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  interpolatePlayerPosition,
+  type PlayerTransform,
+} from '../contracts/player';
 
 export interface PlayerGizmoOptions {
   radius?: number;
@@ -28,7 +40,11 @@ export interface GizmoPose {
   grounded: boolean;
 }
 
-export const GIZMO_COLORS = Object.freeze({ grounded: 0x4dff88, airborne: 0xffa64d, body: 0xffffff });
+export const GIZMO_COLORS = Object.freeze({
+  grounded: 0x4dff88,
+  airborne: 0xffa64d,
+  body: 0xffffff,
+});
 
 export function computeGizmoPose(transform: PlayerTransform, alpha: number): GizmoPose {
   const p = interpolatePlayerPosition(transform, alpha);
@@ -45,11 +61,16 @@ export interface PlayerGizmo {
 
 const CIRCLE_SEGMENTS = 24;
 
-export function createPlayerGizmo(world: EntityWorld, options: PlayerGizmoOptions = {}): PlayerGizmo {
+export function createPlayerGizmo(
+  world: EntityWorld,
+  options: PlayerGizmoOptions = {},
+): PlayerGizmo {
   const radius = options.radius ?? 0.35;
   const height = options.height ?? 1.6;
   const probeLength = options.probeLength ?? 0.6;
-  const scope = options.scope ? options.scope.child('playerGizmo') : createResourceScope('playerGizmo');
+  const scope = options.scope
+    ? options.scope.child('playerGizmo')
+    : createResourceScope('playerGizmo');
   const entityId = options.entityId ?? PLAYER_ENTITY_ID;
 
   const group = new Group();
@@ -88,7 +109,8 @@ export function createPlayerGizmo(world: EntityWorld, options: PlayerGizmoOption
         return;
       }
       const entity = world.bySemanticId(entityId);
-      const transform = entity === undefined ? undefined : world.get(entity, PlayerTransformComponent);
+      const transform =
+        entity === undefined ? undefined : world.get(entity, PlayerTransformComponent);
       if (!transform) {
         group.visible = false;
         return;

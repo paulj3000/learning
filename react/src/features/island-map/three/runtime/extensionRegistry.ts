@@ -57,7 +57,10 @@ export interface WorldExtensionContext {
    * moving it in place is live. `gate`: never jumpable, and blocks the camera like a wall.
    * Fakes in tests may return nothing.
    */
-  addCollider(box: Box3, options?: { jumpable?: boolean; id?: string; gate?: boolean }): string | void;
+  addCollider(
+    box: Box3,
+    options?: { jumpable?: boolean; id?: string; gate?: boolean },
+  ): string | void;
   /**
    * Removes a collider by id from every collider list: a manifest collider by its `rect.id` (a
    * bridge once it is mended), or one an extension added. True if one was removed.

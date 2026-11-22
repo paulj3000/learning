@@ -16,7 +16,7 @@ from apps.regions import puzzles
 from apps.regions.models import AreaPuzzle, PlacementKind, PuzzleKind, WorldObjectPlacement
 from apps.regions.seeding import SeedContentInvalid, seed_puzzle
 
-from .test_puzzles import base, post, puzzle_body, session_for, solve
+from .test_puzzles import puzzle_body, session_for, solve
 
 CHOOSE = {
     "presentation": "PLATFORMS",
@@ -86,9 +86,7 @@ class TestValidators:
     )
     def test_good_parameters_have_no_problems(self, kind, params):
         assert problems_for(kind, params) == []
-        assert puzzles.body_problems(
-            kind, puzzle_body("p", kind, "SOME_KEY", params)
-        ) == []
+        assert puzzles.body_problems(kind, puzzle_body("p", kind, "SOME_KEY", params)) == []
 
     @pytest.mark.parametrize(
         ("mutate", "expected"),
@@ -129,9 +127,12 @@ class TestValidators:
             (lambda p: p["variants"][0].update(answer=["red", "blue", "pink"]), "answer"),
             (lambda p: p["variants"][0].update(answer="red"), "answer"),
             (lambda p: p["variants"][0].update(items=p["variants"][0]["items"][:1]), "items"),
-            (lambda p: p["variants"][0]["items"].extend(
-                {"id": f"x{i}", "label": "x"} for i in range(4)
-            ), "items"),
+            (
+                lambda p: p["variants"][0]["items"].extend(
+                    {"id": f"x{i}", "label": "x"} for i in range(4)
+                ),
+                "items",
+            ),
             (lambda p: p["variants"][0]["items"][0].update(symbol="blob"), "symbol"),
             (lambda p: p["variants"][0]["items"][1].update(id="red"), "ids must be unique"),
             (lambda p: p["itemEntities"].pop("gold"), "keys of the entity map"),

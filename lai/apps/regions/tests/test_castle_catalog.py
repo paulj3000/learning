@@ -153,7 +153,10 @@ def test_a_published_version_is_immutable_and_the_next_one_supersedes_it(publish
         second.save()
     with pytest.raises(RevisionImmutable):
         second.delete()
-    assert ContentRevision.objects.filter(kind="castle-event", record_key="quiet-story-hall").count() == 2
+    assert (
+        ContentRevision.objects.filter(kind="castle-event", record_key="quiet-story-hall").count()
+        == 2
+    )
     # Only one published version at a time (a database constraint, ADR-047).
     assert (
         ContentRevision.objects.filter(
@@ -184,7 +187,10 @@ def test_rollback_restores_an_earlier_body_as_a_new_version(publisher, imported)
         ({"requires": [{"type": "LOCAL_FLAG", "flag": "x"}]}, "not allowed"),
         ({"requires": [{"type": "WORLD_CHANGE"}]}, "needs a key"),
         ({"requires": [{"type": "RELATIONSHIP_AT_LEAST", "level": "FRIEND"}]}, "needs an npcId"),
-        ({"requires": [{"type": "QUEST_STATUS", "quest": "q", "status": "DONE"}]}, "$.requires[0].status"),
+        (
+            {"requires": [{"type": "QUEST_STATUS", "quest": "q", "status": "DONE"}]},
+            "$.requires[0].status",
+        ),
         ({"repeat": {"maxShows": 0, "minVisitGap": 0}}, "maxShows"),
         ({"repeat": {"maxShows": None, "minVisitGap": -1}}, "minVisitGap"),
         ({"weight": 6}, "$.weight"),
@@ -192,10 +198,19 @@ def test_rollback_restores_an_earlier_body_as_a_new_version(publisher, imported)
         ({"visual": {"kind": "fireworks"}}, "$.visual.kind"),
         ({"fallback": True, "room": "ANY"}, "$.fallback"),
         ({"lines": {"SPROUT": ["x"]}}, "$.lines"),
-        ({"lines": {"SPROUT": ["a" * 200], "PATHFINDER": ["b"], "EXPLORER": ["c"]}}, "longer than 120"),
-        ({"lines": {"SPROUT": ["Come back tomorrow."], "PATHFINDER": ["b"], "EXPLORER": ["c"]}}, "pressure"),
+        (
+            {"lines": {"SPROUT": ["a" * 200], "PATHFINDER": ["b"], "EXPLORER": ["c"]}},
+            "longer than 120",
+        ),
+        (
+            {"lines": {"SPROUT": ["Come back tomorrow."], "PATHFINDER": ["b"], "EXPLORER": ["c"]}},
+            "pressure",
+        ),
         ({"lines": {"SPROUT": ["A — dash."], "PATHFINDER": ["b"], "EXPLORER": ["c"]}}, "em dash"),
-        ({"lines": {"SPROUT": ["See http://x.example"], "PATHFINDER": ["b"], "EXPLORER": ["c"]}}, "plain text"),
+        (
+            {"lines": {"SPROUT": ["See http://x.example"], "PATHFINDER": ["b"], "EXPLORER": ["c"]}},
+            "plain text",
+        ),
         ({"surprise": 1}, "unknown keys"),
     ],
 )
@@ -216,15 +231,19 @@ def test_an_events_id_never_changes(publisher):
 
 
 def test_the_only_band_lines_are_those_for_the_listed_bands(publisher):
-    body = new_body(
-        bands=["EXPLORER"], lines={"EXPLORER": ["The window glows with warm light."]}
-    )
+    body = new_body(bands=["EXPLORER"], lines={"EXPLORER": ["The window glows with warm light."]})
     event = new_event(**{k: body[k] for k in ("bands", "lines")})
-    published = authoring.publish(authoring.create_draft(event, body, user=publisher), user=publisher)
+    published = authoring.publish(
+        authoring.create_draft(event, body, user=publisher), user=publisher
+    )
     served = {e["id"]: e for e in castle_events.catalog() if e["id"] == "evening-glow"}
-    assert published.status == RevisionStatus.PUBLISHED and served["evening-glow"]["bands"] == ["EXPLORER"]
+    assert published.status == RevisionStatus.PUBLISHED and served["evening-glow"]["bands"] == [
+        "EXPLORER"
+    ]
     state = state_for("story-hall", "SPROUT")
-    assert "evening-glow" not in [e["id"] for e in castle_events.eligible_events(castle_events.catalog(), state)]
+    assert "evening-glow" not in [
+        e["id"] for e in castle_events.eligible_events(castle_events.catalog(), state)
+    ]
 
 
 # --- retirement --------------------------------------------------------------------------------
@@ -264,7 +283,9 @@ def test_retiring_needs_the_publish_permission_and_is_logged(editor, publisher, 
     authoring.set_active(row(), False, user=publisher)
     from django.contrib.admin.models import LogEntry
 
-    assert LogEntry.objects.filter(user_id=publisher.pk, change_message__startswith="Retired").exists()
+    assert LogEntry.objects.filter(
+        user_id=publisher.pk, change_message__startswith="Retired"
+    ).exists()
 
 
 def test_retiring_every_published_event_does_not_bring_the_seed_back(publisher, imported):
@@ -310,7 +331,13 @@ def test_the_import_creates_every_seed_event_as_a_published_version(imported):
 def test_a_second_import_changes_nothing(imported):
     before = list(ContentRevision.objects.values_list("pk", flat=True))
     again = castle_events.import_seed()
-    assert again == {"created": 0, "updated": 0, "unchanged": len(SEED_IDS), "drafted": 0, "skipped": 0}
+    assert again == {
+        "created": 0,
+        "updated": 0,
+        "unchanged": len(SEED_IDS),
+        "drafted": 0,
+        "skipped": 0,
+    }
     assert list(ContentRevision.objects.values_list("pk", flat=True)) == before
 
 
@@ -402,7 +429,9 @@ def test_staff_in_the_content_groups_may_view_and_editors_may_add(editor, publis
         assert client_for(user).get(reverse("admin:regions_castleevent_add")).status_code == 200
     viewer = account("viewer")  # staff with no content permission
     assert client_for(viewer).get(reverse("admin:regions_castleevent_add")).status_code == 403
-    assert client_for(viewer).get(reverse("admin:regions_castleevent_changelist")).status_code == 200
+    assert (
+        client_for(viewer).get(reverse("admin:regions_castleevent_changelist")).status_code == 200
+    )
 
 
 def test_adding_an_event_in_the_admin_starts_unpublished_and_empty(publisher):

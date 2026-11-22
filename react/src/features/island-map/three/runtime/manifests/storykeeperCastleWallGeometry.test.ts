@@ -11,7 +11,11 @@ import {
   roundedColliders,
 } from './castleOptimisationSnapshot';
 import { estimateDrawCalls } from './storykeeperCastleBudgets.test';
-import { ARCHWAY_TOP, buildStorykeeperCastleManifest, STORYKEEPER_CASTLE_MANIFEST } from './storykeeperCastle';
+import {
+  ARCHWAY_TOP,
+  buildStorykeeperCastleManifest,
+  STORYKEEPER_CASTLE_MANIFEST,
+} from './storykeeperCastle';
 
 /**
  * Final F, wall geometry audit: the castle's modular pieces are authored for a 3 m ceiling
@@ -51,7 +55,9 @@ describe.each(HEIGHTS)('castle at wallHeight %s', (height) => {
     expect(new Set(slabs.positions.map((p) => p.y))).toEqual(new Set([height + 0.1]));
     const faces = (manifest.surfaces ?? []).flatMap((surface) => surface.faces);
     expect(Math.max(...faces.flatMap((f) => (f.kind === 'WALL' ? [f.maxY] : [])))).toBe(height);
-    expect(new Set(faces.flatMap((f) => (f.kind === 'CEILING' ? [f.y] : [])))).toEqual(new Set([height]));
+    expect(new Set(faces.flatMap((f) => (f.kind === 'CEILING' ? [f.y] : [])))).toEqual(
+      new Set([height]),
+    );
   });
 
   it('lets no decor box poke through the ceiling', () => {
@@ -60,8 +66,14 @@ describe.each(HEIGHTS)('castle at wallHeight %s', (height) => {
 
   it('has entry pillars that run floor to ceiling in unbroken courses', () => {
     for (const id of ['ws', 'wn', 'es', 'en']) {
-      const base = byId(manifest, `castle-entry-pillar-${id}-base`) as { maxY: number; minY: number };
-      const shaft = byId(manifest, `castle-entry-pillar-${id}-shaft`) as { maxY: number; minY: number };
+      const base = byId(manifest, `castle-entry-pillar-${id}-base`) as {
+        maxY: number;
+        minY: number;
+      };
+      const shaft = byId(manifest, `castle-entry-pillar-${id}-shaft`) as {
+        maxY: number;
+        minY: number;
+      };
       const cap = byId(manifest, `castle-entry-pillar-${id}-cap`) as { maxY: number; minY: number };
       expect(base.minY).toBe(0);
       expect(shaft.minY).toBe(base.maxY);
@@ -121,12 +133,24 @@ describe.each(HEIGHTS)('castle at wallHeight %s', (height) => {
   it('keeps zones, interactions and ids; only header scenery is added', () => {
     const now = gameplaySnapshot(manifest) as Record<string, unknown[]>;
     const shipped = gameplaySnapshot(STORYKEEPER_CASTLE_MANIFEST) as Record<string, unknown[]>;
-    for (const key of ['zones', 'interactions', 'checkpoints', 'props', 'npcs', 'collectibles', 'platforms']) {
+    for (const key of [
+      'zones',
+      'interactions',
+      'checkpoints',
+      'props',
+      'npcs',
+      'collectibles',
+      'platforms',
+    ]) {
       expect(now[key], key).toEqual(shipped[key]);
     }
-    const extra = (now.sceneryIds as string[]).filter((id) => !(shipped.sceneryIds as string[]).includes(id));
+    const extra = (now.sceneryIds as string[]).filter(
+      (id) => !(shipped.sceneryIds as string[]).includes(id),
+    );
     for (const id of extra) expect(id.startsWith('castle-arch-header:'), id).toBe(true);
-    expect((shipped.sceneryIds as string[]).every((id) => (now.sceneryIds as string[]).includes(id))).toBe(true);
+    expect(
+      (shipped.sceneryIds as string[]).every((id) => (now.sceneryIds as string[]).includes(id)),
+    ).toBe(true);
   });
 
   it('stays at or under the 300 draw-call budget', () => {

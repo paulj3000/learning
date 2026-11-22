@@ -33,7 +33,9 @@ export function createServiceRegistry(): ServiceRegistry {
   return {
     provide(token, implementation) {
       if (services.has(token.id)) {
-        throw new EngineError('DUPLICATE_ID', `Service "${token.id}" is already provided`, { service: token.id });
+        throw new EngineError('DUPLICATE_ID', `Service "${token.id}" is already provided`, {
+          service: token.id,
+        });
       }
       services.set(token.id, implementation);
       return () => {
@@ -45,9 +47,13 @@ export function createServiceRegistry(): ServiceRegistry {
     get: (token) => services.get(token.id) as never,
     require(token) {
       if (!services.has(token.id)) {
-        throw new EngineError('MISSING_DEPENDENCY', `Service "${token.id}" was not provided by the host`, {
-          service: token.id,
-        });
+        throw new EngineError(
+          'MISSING_DEPENDENCY',
+          `Service "${token.id}" was not provided by the host`,
+          {
+            service: token.id,
+          },
+        );
       }
       return services.get(token.id) as never;
     },

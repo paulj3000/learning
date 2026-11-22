@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { signalBoard } from '../components/common';
 import { PuzzlesService } from '../components/puzzles';
-import { validateGameplayEvent, GAMEPLAY_EVENT_TYPES, type AnyGameplayEvent } from '../contracts/gameplayEvents';
+import {
+  validateGameplayEvent,
+  GAMEPLAY_EVENT_TYPES,
+  type AnyGameplayEvent,
+} from '../contracts/gameplayEvents';
 import type { CapabilityRequest } from '../core/capabilities';
 import type { EventMap } from '../core/eventBus';
 import { createEngineRuntime } from '../core/runtime';
@@ -29,11 +33,24 @@ const REQUESTS: CapabilityRequest[] = [
         { id: 'cp.a', courseId: 'course.a', position: { x: 2, y: 0, z: 0 }, label: 'the dock' },
         { id: 'cp.b', courseId: 'course.a', position: { x: 20, y: 0, z: 0 }, label: 'the bridge' },
       ],
-      goals: [{ id: 'goal.a', courseId: 'course.a', rect: { minX: 30, maxX: 32, minZ: -1, maxZ: 1 } }],
+      goals: [
+        { id: 'goal.a', courseId: 'course.a', rect: { minX: 30, maxX: 32, minZ: -1, maxZ: 1 } },
+      ],
     },
   },
-  { id: 'gameplay.collectibles', config: { collectibles: [{ id: 'coin.a', position: { x: 6, y: 0, z: 0 }, setId: 'set.coins' }, { id: 'coin.b', position: { x: 8.5, y: 0, z: 0 } }] } },
-  { id: 'gameplay.puzzles', config: { puzzles: [{ id: 'puz.seq', kind: 'SEQUENCE', steps: ['p1', 'p2'], ...alt }] } },
+  {
+    id: 'gameplay.collectibles',
+    config: {
+      collectibles: [
+        { id: 'coin.a', position: { x: 6, y: 0, z: 0 }, setId: 'set.coins' },
+        { id: 'coin.b', position: { x: 8.5, y: 0, z: 0 } },
+      ],
+    },
+  },
+  {
+    id: 'gameplay.puzzles',
+    config: { puzzles: [{ id: 'puz.seq', kind: 'SEQUENCE', steps: ['p1', 'p2'], ...alt }] },
+  },
   {
     id: 'gameplay.jumpChallenges',
     config: {
@@ -41,8 +58,18 @@ const REQUESTS: CapabilityRequest[] = [
         {
           challengeId: 'jc.river',
           routes: [
-            { routeId: 'route.stones', kind: 'JUMP', start: { minX: 9, maxX: 10, minZ: -1, maxZ: 1 }, goal: { minX: 12, maxX: 13, minZ: -1, maxZ: 1 } },
-            { routeId: 'route.bridge', kind: 'ACCESSIBLE', start: { minX: 9, maxX: 10, minZ: 4, maxZ: 6 }, goal: { minX: 12, maxX: 13, minZ: 4, maxZ: 6 } },
+            {
+              routeId: 'route.stones',
+              kind: 'JUMP',
+              start: { minX: 9, maxX: 10, minZ: -1, maxZ: 1 },
+              goal: { minX: 12, maxX: 13, minZ: -1, maxZ: 1 },
+            },
+            {
+              routeId: 'route.bridge',
+              kind: 'ACCESSIBLE',
+              start: { minX: 9, maxX: 10, minZ: 4, maxZ: 6 },
+              goal: { minX: 12, maxX: 13, minZ: 4, maxZ: 6 },
+            },
           ],
         },
       ],
@@ -50,7 +77,18 @@ const REQUESTS: CapabilityRequest[] = [
   },
   {
     id: 'gameplay.hazards',
-    config: { hazards: [{ id: 'pond', kind: 'WATER', rect: { minX: 15, maxX: 18, minZ: -3, maxZ: 3 }, checkpointId: 'cp.a', messageKey: 'hazard.water.splash' }], recoveryCooldownSeconds: 0.5 },
+    config: {
+      hazards: [
+        {
+          id: 'pond',
+          kind: 'WATER',
+          rect: { minX: 15, maxX: 18, minZ: -3, maxZ: 3 },
+          checkpointId: 'cp.a',
+          messageKey: 'hazard.water.splash',
+        },
+      ],
+      recoveryCooldownSeconds: 0.5,
+    },
   },
 ];
 
@@ -60,19 +98,28 @@ async function visit() {
     requests: REQUESTS,
     input: () => ({ move: { forward: 0, strafe: 0 } }),
     startPosition: { x: -5, y: 0, z: 0 },
-    claims: { context: { realmId: 'realm.t', adventureId: 'adv.t', areaId: 'area.t', sessionRef: null } },
+    claims: {
+      context: { realmId: 'realm.t', adventureId: 'adv.t', areaId: 'area.t', sessionRef: null },
+    },
   }).catch((error: { details?: unknown }) => {
     throw new Error(`visit failed to start: ${JSON.stringify(error.details)}`);
   });
   const claims: AnyGameplayEvent[] = [];
   const recoveries: unknown[] = [];
-  handle.runtime.events.on('gameplay.event' as never, ((e: AnyGameplayEvent) => claims.push(e)) as never);
-  handle.runtime.events.on('HazardRecoveryRequested' as never, ((e: unknown) => recoveries.push(e)) as never);
+  handle.runtime.events.on(
+    'gameplay.event' as never,
+    ((e: AnyGameplayEvent) => claims.push(e)) as never,
+  );
+  handle.runtime.events.on(
+    'HazardRecoveryRequested' as never,
+    ((e: unknown) => recoveries.push(e)) as never,
+  );
   const at = (x: number, z = 0, steps = 3) => {
     handle.controller.teleportTo(x, z, 0);
     for (let i = 0; i < steps; i += 1) handle.runtime.tick(DT);
   };
-  const count = (type: string, predicate: (e: AnyGameplayEvent) => boolean = () => true) => claims.filter((c) => c.type === type && predicate(c)).length;
+  const count = (type: string, predicate: (e: AnyGameplayEvent) => boolean = () => true) =>
+    claims.filter((c) => c.type === type && predicate(c)).length;
   return { handle, claims, recoveries, at, count };
 }
 
@@ -105,9 +152,24 @@ describe('at most one claim per source record per visit', () => {
         v.at(-5);
       }
     }
-    expect(v.count('course.checkpoint.reached', (c) => (c.payload as { checkpointId: string }).checkpointId === 'cp.a')).toBe(1);
-    expect(v.count('collectible.collected', (c) => (c.payload as { collectibleId: string }).collectibleId === 'coin.a')).toBe(1);
-    expect(v.count('collectible.collected', (c) => (c.payload as { collectibleId: string }).collectibleId === 'coin.b')).toBe(1);
+    expect(
+      v.count(
+        'course.checkpoint.reached',
+        (c) => (c.payload as { checkpointId: string }).checkpointId === 'cp.a',
+      ),
+    ).toBe(1);
+    expect(
+      v.count(
+        'collectible.collected',
+        (c) => (c.payload as { collectibleId: string }).collectibleId === 'coin.a',
+      ),
+    ).toBe(1);
+    expect(
+      v.count(
+        'collectible.collected',
+        (c) => (c.payload as { collectibleId: string }).collectibleId === 'coin.b',
+      ),
+    ).toBe(1);
     expect(v.count('jump.challenge.started')).toBe(1);
     expect(v.count('jump.challenge.completed')).toBe(1);
     expect(v.count('course.completed')).toBe(1);
@@ -142,7 +204,12 @@ describe('at most one claim per source record per visit', () => {
       v.at(6);
     }
     expect(v.count('course.checkpoint.reached')).toBe(1);
-    expect(v.count('collectible.collected', (c) => (c.payload as { collectibleId: string }).collectibleId === 'coin.a')).toBe(1);
+    expect(
+      v.count(
+        'collectible.collected',
+        (c) => (c.payload as { collectibleId: string }).collectibleId === 'coin.a',
+      ),
+    ).toBe(1);
     v.handle.dispose();
   });
 
@@ -156,7 +223,9 @@ describe('at most one claim per source record per visit', () => {
       board.set('p2', false);
     }
     expect(v.count('puzzle.completed')).toBe(1);
-    v.handle.runtime.services.require(PuzzlesService).completeViaAlternative('puz.seq', 'action.skip.by.button');
+    v.handle.runtime.services
+      .require(PuzzlesService)
+      .completeViaAlternative('puz.seq', 'action.skip.by.button');
     expect(v.count('puzzle.completed')).toBe(1);
     v.handle.dispose();
   });
@@ -169,7 +238,9 @@ describe('at most one claim per source record per visit', () => {
     }
     expect(v.recoveries.length).toBeGreaterThanOrEqual(2);
     expect(v.count('course.checkpoint.reached')).toBe(1);
-    expect(v.claims.map((c) => c.type).filter((t) => t !== 'course.checkpoint.reached')).toEqual([]);
+    expect(v.claims.map((c) => c.type).filter((t) => t !== 'course.checkpoint.reached')).toEqual(
+      [],
+    );
     v.handle.dispose();
   });
 
@@ -187,10 +258,15 @@ describe('at most one claim per source record per visit', () => {
 
 describe('adventure lifecycle claims', () => {
   async function session() {
-    const runtime = createEngineRuntime<EventMap>({ id: 'demo-adventure', capabilities: createTestRegistry() });
+    const runtime = createEngineRuntime<EventMap>({
+      id: 'demo-adventure',
+      capabilities: createTestRegistry(),
+    });
     const events: AnyGameplayEvent[] = [];
     runtime.events.on('gameplay.event', (e) => events.push(e as AnyGameplayEvent));
-    const s = await loadAdventure(validAdventure(), runtime, runtime.services, { ageBand: 'EXPLORER' });
+    const s = await loadAdventure(validAdventure(), runtime, runtime.services, {
+      ageBand: 'EXPLORER',
+    });
     return { runtime, events, s };
   }
 

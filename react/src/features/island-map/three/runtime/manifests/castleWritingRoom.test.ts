@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_CHECKPOINTS, CASTLE_WRITING_ROOM_CHECKPOINTS } from '../../../../discovery/checkpoints';
+import {
+  ALL_CHECKPOINTS,
+  CASTLE_WRITING_ROOM_CHECKPOINTS,
+} from '../../../../discovery/checkpoints';
 import { getIslandLocation } from '../../../../island/locations';
 import { CASTLE_EXITS } from '../../castleLayout';
 import {
@@ -52,13 +55,15 @@ describe('Writing Room manifest (SC-R10-01)', () => {
   });
 
   it('is registered once, under the same id and slug as the Phaser location', () => {
-    expect(SOURCE_LOCATION_MANIFESTS.filter((m) => m.regionId === 'castle-writing-room')).toHaveLength(1);
+    expect(
+      SOURCE_LOCATION_MANIFESTS.filter((m) => m.regionId === 'castle-writing-room'),
+    ).toHaveLength(1);
     expect(MANIFEST.regionId).toBe('castle-writing-room');
     expect(MANIFEST.locationSlug).toBe('castle-writing-room');
     expect(getIslandLocation('castle-writing-room')?.slug).toBe(MANIFEST.locationSlug);
   });
 
-  it('reuses the shared interactions by identity and adds only the 3D room\'s own two', () => {
+  it("reuses the shared interactions by identity and adds only the 3D room's own two", () => {
     // The Phaser room reads the first array, so it gains nothing (ADR-020) and its ids stay in parity.
     expect(MANIFEST.interactions.slice(0, CASTLE_WRITING_ROOM_INTERACTIONS.length)).toEqual(
       CASTLE_WRITING_ROOM_INTERACTIONS,
@@ -119,7 +124,10 @@ describe('Writing Room manifest (SC-R10-01)', () => {
     expect(talk.action).toEqual({ kind: 'TALK_TO', npcId: 'keeper-quill' });
     const book = MANIFEST.props.find((prop) => prop.entityId === 'writing-room-open-book')!;
     expect(book.interactionId).toBe('writing-room-write-story');
-    expect(book.position).toEqual({ x: WRITING_ROOM_OPEN_BOOK_SPOT.x, z: WRITING_ROOM_OPEN_BOOK_SPOT.z });
+    expect(book.position).toEqual({
+      x: WRITING_ROOM_OPEN_BOOK_SPOT.x,
+      z: WRITING_ROOM_OPEN_BOOK_SPOT.z,
+    });
     // The only world-facing actions are navigation, a message and talking: no adventure, no story.
     expect(new Set(MANIFEST.interactions.map((i) => i.action.kind))).toEqual(
       new Set(['NAVIGATE', 'SHOW_MESSAGE', 'TALK_TO']),
@@ -160,9 +168,7 @@ describe('Writing Room manifest (SC-R10-01)', () => {
       expect(Math.abs(spot.x)).toBeLessThanOrEqual(limit);
       expect(Math.abs(spot.z)).toBeLessThanOrEqual(limit);
     }
-    const solids = [
-      ...MANIFEST.colliders.map((collider) => collider.rect),
-    ];
+    const solids = [...MANIFEST.colliders.map((collider) => collider.rect)];
     for (const solid of solids) {
       expect(inside(solid, WRITING_ROOM_SPAWN.x, WRITING_ROOM_SPAWN.z)).toBe(false);
       const overlapsExit =

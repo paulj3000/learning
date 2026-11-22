@@ -42,10 +42,24 @@ export interface WeatherKindSpec {
 }
 
 export const WEATHER_KINDS: Readonly<Record<string, WeatherKindSpec>> = Object.freeze({
-  CLEAR: { id: 'CLEAR', precipitation: null, fogDensity: 0, fogColor: 0xcfe8ff, windStrength: 0.1, ambientDim: 0 },
+  CLEAR: {
+    id: 'CLEAR',
+    precipitation: null,
+    fogDensity: 0,
+    fogColor: 0xcfe8ff,
+    windStrength: 0.1,
+    ambientDim: 0,
+  },
   RAIN: {
     id: 'RAIN',
-    precipitation: { motion: 'FALL', ratePerSecond: 600, fallSpeed: 9, drift: 1, size: 0.05, color: 0xaecbe8 },
+    precipitation: {
+      motion: 'FALL',
+      ratePerSecond: 600,
+      fallSpeed: 9,
+      drift: 1,
+      size: 0.05,
+      color: 0xaecbe8,
+    },
     fogDensity: 0.15,
     fogColor: 0x9fb2c4,
     windStrength: 0.4,
@@ -53,20 +67,48 @@ export const WEATHER_KINDS: Readonly<Record<string, WeatherKindSpec>> = Object.f
   },
   SNOW: {
     id: 'SNOW',
-    precipitation: { motion: 'DRIFT', ratePerSecond: 300, fallSpeed: 1.2, drift: 0.4, size: 0.09, color: 0xffffff },
+    precipitation: {
+      motion: 'DRIFT',
+      ratePerSecond: 300,
+      fallSpeed: 1.2,
+      drift: 0.4,
+      size: 0.09,
+      color: 0xffffff,
+    },
     fogDensity: 0.1,
     fogColor: 0xe8f0fa,
     windStrength: 0.2,
     ambientDim: 0.1,
   },
-  FOG: { id: 'FOG', precipitation: null, fogDensity: 0.6, fogColor: 0xd5dde5, windStrength: 0.05, ambientDim: 0.15 },
-  WIND: { id: 'WIND', precipitation: null, fogDensity: 0.02, fogColor: 0xcfe8ff, windStrength: 0.9, ambientDim: 0.05 },
+  FOG: {
+    id: 'FOG',
+    precipitation: null,
+    fogDensity: 0.6,
+    fogColor: 0xd5dde5,
+    windStrength: 0.05,
+    ambientDim: 0.15,
+  },
+  WIND: {
+    id: 'WIND',
+    precipitation: null,
+    fogDensity: 0.02,
+    fogColor: 0xcfe8ff,
+    windStrength: 0.9,
+    ambientDim: 0.05,
+  },
 });
 
 /** Reserved example of a realm-authored kind (summit embers), data only. */
 export const ASH_WEATHER_KIND: WeatherKindSpec = Object.freeze({
   id: 'ASH',
-  precipitation: { motion: 'DRIFT' as const, ratePerSecond: 120, fallSpeed: 0.6, drift: 0.8, size: 0.07, color: 0xffa566 },
+  precipitation: {
+    motion: 'DRIFT' as const,
+    ratePerSecond: 120,
+    fallSpeed: 0.6,
+    drift: 0.8,
+    size: 0.07,
+    color: 0xffa566,
+  },
   fogDensity: 0.2,
   fogColor: 0x6b5a55,
   windStrength: 0.3,
@@ -118,13 +160,23 @@ function blend(a: WeatherSnapshot, b: WeatherSnapshot, t: number): WeatherSnapsh
   };
 }
 
-export function createWeatherState(kinds: Readonly<Record<string, WeatherKindSpec>>, initialId: string): WeatherState {
+export function createWeatherState(
+  kinds: Readonly<Record<string, WeatherKindSpec>>,
+  initialId: string,
+): WeatherState {
   const kind = kinds[initialId];
   if (!kind) {
     throw new RangeError(`Unknown weather kind "${initialId}"`);
   }
   const snapshot = snapshotOf(kind);
-  return { kinds, from: snapshot, targetId: initialId, progress: 1, transitionSeconds: 1, snapshot };
+  return {
+    kinds,
+    from: snapshot,
+    targetId: initialId,
+    progress: 1,
+    transitionSeconds: 1,
+    snapshot,
+  };
 }
 
 export function setWeather(state: WeatherState, id: string, seconds: number): boolean {
@@ -144,7 +196,11 @@ export function stepWeather(state: WeatherState, dt: number): boolean {
     return false;
   }
   state.progress = Math.min(1, state.progress + dt / state.transitionSeconds);
-  state.snapshot = blend(state.from, snapshotOf(state.kinds[state.targetId]!), smoothstep(state.progress));
+  state.snapshot = blend(
+    state.from,
+    snapshotOf(state.kinds[state.targetId]!),
+    smoothstep(state.progress),
+  );
   return true;
 }
 
@@ -160,7 +216,12 @@ export interface WeatherArea {
   height: number;
 }
 
-export const DEFAULT_WEATHER_AREA: WeatherArea = { mode: 'AT_START', halfX: 25, halfZ: 25, height: 15 };
+export const DEFAULT_WEATHER_AREA: WeatherArea = {
+  mode: 'AT_START',
+  halfX: 25,
+  halfZ: 25,
+  height: 15,
+};
 
 export interface WeatherConfig {
   initial: string;
@@ -189,13 +250,32 @@ export function validateWeatherConfig(input: unknown) {
         } else {
           const p = raw.precipitation;
           precipitation = {
-            motion: issues.oneOf<'FALL' | 'DRIFT'>(p.motion, `${path}.precipitation.motion`, ['FALL', 'DRIFT'], 'FALL'),
-            ratePerSecond: issues.num(p.ratePerSecond, `${path}.precipitation.ratePerSecond`, 1, 2000),
+            motion: issues.oneOf<'FALL' | 'DRIFT'>(
+              p.motion,
+              `${path}.precipitation.motion`,
+              ['FALL', 'DRIFT'],
+              'FALL',
+            ),
+            ratePerSecond: issues.num(
+              p.ratePerSecond,
+              `${path}.precipitation.ratePerSecond`,
+              1,
+              2000,
+            ),
             fallSpeed: issues.num(p.fallSpeed, `${path}.precipitation.fallSpeed`, 0.1, 20),
             drift: issues.num(p.drift, `${path}.precipitation.drift`, -10, 10, 0),
             size: issues.num(p.size, `${path}.precipitation.size`, 0.01, 0.5, 0.06),
             color: issues.num(p.color, `${path}.precipitation.color`, 0, 0xffffff, 0xffffff),
-            ...(p.budgetShare !== undefined ? { budgetShare: issues.num(p.budgetShare, `${path}.precipitation.budgetShare`, 0.05, 1) } : {}),
+            ...(p.budgetShare !== undefined
+              ? {
+                  budgetShare: issues.num(
+                    p.budgetShare,
+                    `${path}.precipitation.budgetShare`,
+                    0.05,
+                    1,
+                  ),
+                }
+              : {}),
           };
         }
       }
@@ -223,7 +303,12 @@ export function validateWeatherConfig(input: unknown) {
       issues.add('area', 'must be an object');
     } else {
       area = {
-        mode: issues.oneOf<WeatherArea['mode']>(root.area.mode, 'area.mode', ['AT_START', 'FOLLOW_PLAYER'], 'AT_START'),
+        mode: issues.oneOf<WeatherArea['mode']>(
+          root.area.mode,
+          'area.mode',
+          ['AT_START', 'FOLLOW_PLAYER'],
+          'AT_START',
+        ),
         halfX: issues.num(root.area.halfX, 'area.halfX', 5, 60, DEFAULT_WEATHER_AREA.halfX),
         halfZ: issues.num(root.area.halfZ, 'area.halfZ', 5, 60, DEFAULT_WEATHER_AREA.halfZ),
         height: issues.num(root.area.height, 'area.height', 4, 40, DEFAULT_WEATHER_AREA.height),

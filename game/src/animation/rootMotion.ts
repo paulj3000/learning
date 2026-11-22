@@ -36,13 +36,18 @@ export interface RootMotionOptions {
 }
 
 /** Position tracks on the model's top-level nodes dropped (where exporters put root motion). */
-export function withoutRootMotion(clips: readonly AnimationClip[], rootNodeNames: ReadonlySet<string>): AnimationClip[] {
+export function withoutRootMotion(
+  clips: readonly AnimationClip[],
+  rootNodeNames: ReadonlySet<string>,
+): AnimationClip[] {
   return clips.map((clip) => {
     const tracks = clip.tracks.filter((track) => {
       const { node, property } = trackTarget(track);
       return !(property === 'position' && (node === '' || rootNodeNames.has(node)));
     });
-    return tracks.length === clip.tracks.length ? clip : new AnimationClip(clip.name, clip.duration, tracks, clip.blendMode);
+    return tracks.length === clip.tracks.length
+      ? clip
+      : new AnimationClip(clip.name, clip.duration, tracks, clip.blendMode);
   });
 }
 
@@ -77,7 +82,11 @@ function localUp(bone: Object3D, model: Object3D): Vector3 {
   return new Vector3(0, 1, 0).applyQuaternion(rotation.invert()).normalize();
 }
 
-export function withoutRootMotionFor(clips: readonly AnimationClip[], model: Object3D, options: RootMotionOptions = {}): AnimationClip[] {
+export function withoutRootMotionFor(
+  clips: readonly AnimationClip[],
+  model: Object3D,
+  options: RootMotionOptions = {},
+): AnimationClip[] {
   const keepVertical = options.keepVertical !== false;
   const topLevel = new Set<string>([model.name, ...model.children.map((child) => child.name)]);
   const roots = new Map<string, { rest: Vector3; up: Vector3 }>();
@@ -85,7 +94,10 @@ export function withoutRootMotionFor(clips: readonly AnimationClip[], model: Obj
     if (topLevel.has(bone.name) || bone.name === '') {
       return;
     }
-    roots.set(bone.name, { rest: bone.position.clone(), up: keepVertical ? localUp(bone, model) : new Vector3(0, 0, 0) });
+    roots.set(bone.name, {
+      rest: bone.position.clone(),
+      up: keepVertical ? localUp(bone, model) : new Vector3(0, 0, 0),
+    });
   };
   for (const bone of rootBonesOf(model)) {
     consider(bone);
@@ -139,7 +151,9 @@ function pinHorizontal(track: KeyframeTrack, rest: Vector3, up: Vector3): Keyfra
   if (cubic) {
     // GLTFLoader replaces `createInterpolant` on a CUBICSPLINE track; keep its spline.
     type WithFactory = { createInterpolant?: unknown };
-    (copy as unknown as WithFactory).createInterpolant = (track as unknown as WithFactory).createInterpolant;
+    (copy as unknown as WithFactory).createInterpolant = (
+      track as unknown as WithFactory
+    ).createInterpolant;
   } else {
     copy.setInterpolation(track.getInterpolation());
   }

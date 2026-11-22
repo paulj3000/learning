@@ -263,7 +263,9 @@ describe('the collision preview (Asset Manager collision profiles)', () => {
 
   it('says when a piece never blocks, and survives a malformed attribute', () => {
     const walkable = JSON.stringify({ behavior: 'WALKABLE', shape: 'BOX', boxes: [] });
-    expect(previewCollision(walkable, 'path').summary).toBe('Collision profile: walkable, never blocks.');
+    expect(previewCollision(walkable, 'path').summary).toBe(
+      'Collision profile: walkable, never blocks.',
+    );
     expect(previewCollision('{not json', 'path').summary).toContain('never blocks');
     expect(previewCollision(undefined, undefined).boxes).toEqual([]);
   });

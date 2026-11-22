@@ -199,9 +199,15 @@ const SCENES: Record<RealmScene, () => ReactElement> = {
   // NP-023: snowy hills, a fir tree with a star, snowflakes and a small cabin.
   winter: () => (
     <>
-      <path d="M0 150 C 60 108, 150 112, 210 140 C 250 120, 300 124, 320 138 L 320 150 Z" fill={C.paper} />
+      <path
+        d="M0 150 C 60 108, 150 112, 210 140 C 250 120, 300 124, 320 138 L 320 150 Z"
+        fill={C.paper}
+      />
       <Tree x={92} y={140} scale={1.3} fill={C.tropical700} />
-      <path d="M92 52 l 4 9 l 10 1 l -8 6 l 3 10 l -9 -6 l -9 6 l 3 -10 l -8 -6 l 10 -1 z" fill={C.treasure300} />
+      <path
+        d="M92 52 l 4 9 l 10 1 l -8 6 l 3 10 l -9 -6 l -9 6 l 3 -10 l -8 -6 l 10 -1 z"
+        fill={C.treasure300}
+      />
       <rect x="196" y="112" width="44" height="30" fill={C.coral700} />
       <path d="M190 114 l 28 -22 l 28 22 z" fill={C.paper} />
       <rect x="212" y="124" width="12" height="18" fill={C.treasure800} />

@@ -3,11 +3,20 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { read } from '../../../../../api/parse';
 import * as parse from '../../../../../api/play/parse';
 import { bootstrapJson, piratesLeapSceneJson } from '../../../../../test/playFixtures';
-import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../../../../discovery/checkpoints';
+import {
+  publishRegionCheckpoints,
+  unpublishRegionCheckpoints,
+} from '../../../../discovery/checkpoints';
 import { createEngineBridgeExtension } from '../../../../game-engine/bridge/engineBridge';
 import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
-import { mount, named, standingBox, type Drive, type Harness } from '../../runtime/testing/engineHarness';
+import {
+  mount,
+  named,
+  standingBox,
+  type Drive,
+  type Harness,
+} from '../../runtime/testing/engineHarness';
 import { regionPlaySceneExtension } from './regionPlayScene';
 
 /**

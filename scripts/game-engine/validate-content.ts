@@ -21,7 +21,17 @@ import type { CapabilityRegistry } from '../../game/src/core/capabilities';
 import { checkContentCompatibility } from '../../game/src/sdk/contentCompatibility';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const APPLICABLE = ['scene', 'platforming', 'movement', 'capabilities', 'jumpChallenges', 'colliders', 'gates', 'engineApi', 'realmId'];
+const APPLICABLE = [
+  'scene',
+  'platforming',
+  'movement',
+  'capabilities',
+  'jumpChallenges',
+  'colliders',
+  'gates',
+  'engineApi',
+  'realmId',
+];
 
 function argValue(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);
@@ -29,14 +39,22 @@ function argValue(args: string[], name: string): string | undefined {
 }
 
 function isApplicable(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) && APPLICABLE.some((key) => key in value);
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    APPLICABLE.some((key) => key in value)
+  );
 }
 
 async function loadRegistry(modulePath: string | undefined): Promise<CapabilityRegistry | null> {
   if (!modulePath) {
     return null;
   }
-  const loaded = (await import(pathToFileURL(resolve(process.cwd(), modulePath)).href)) as Record<string, unknown>;
+  const loaded = (await import(pathToFileURL(resolve(process.cwd(), modulePath)).href)) as Record<
+    string,
+    unknown
+  >;
   const candidate = (loaded.default ?? loaded.registry) as CapabilityRegistry | undefined;
   if (!candidate || typeof candidate.resolve !== 'function') {
     throw new Error(`${modulePath} must export a CapabilityRegistry as default or "registry"`);
@@ -55,7 +73,12 @@ async function main(args: string[]): Promise<number> {
   if (files.length === 0) {
     const dir = join(root, 'content/exported');
     try {
-      files.push(...readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'manifest.json').sort().map((f) => join(dir, f)));
+      files.push(
+        ...readdirSync(dir)
+          .filter((f) => f.endsWith('.json') && f !== 'manifest.json')
+          .sort()
+          .map((f) => join(dir, f)),
+      );
     } catch {
       console.error(`error: no files given and ${dir} not found`);
       return 2;
@@ -92,7 +115,9 @@ async function main(args: string[]): Promise<number> {
       }
     });
   }
-  console.log(`Checked ${checked} item(s), skipped ${skipped} not applicable, ${problems} issue(s).`);
+  console.log(
+    `Checked ${checked} item(s), skipped ${skipped} not applicable, ${problems} issue(s).`,
+  );
   return problems > 0 ? 1 : 0;
 }
 

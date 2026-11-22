@@ -19,7 +19,12 @@ describe('bridge checkpoint labels', () => {
           config: {
             capabilities: [
               { id: 'gameplay.hazards', config: {} },
-              { id: 'gameplay.checkpoints', config: { checkpoints: [{ id: 'cp-bank', label: 'the near bank' }, { id: 'no-label' }] } },
+              {
+                id: 'gameplay.checkpoints',
+                config: {
+                  checkpoints: [{ id: 'cp-bank', label: 'the near bank' }, { id: 'no-label' }],
+                },
+              },
             ],
           },
         },
@@ -34,7 +39,10 @@ describe('bridge checkpoint labels', () => {
   });
 
   it('recoveredText prefers the platforming list, then the labels', () => {
-    const spec = { platforms: [], checkpoints: [{ id: 'cp-dock', x: 0, z: 0, label: 'the old dock' }] };
+    const spec = {
+      platforms: [],
+      checkpoints: [{ id: 'cp-dock', x: 0, z: 0, label: 'the old dock' }],
+    };
     const labels = new Map([['cp-bank', 'the near bank']]);
     expect(recoveredText(spec, 'cp-dock', labels)).toContain('the old dock');
     expect(recoveredText(spec, 'cp-bank', labels)).toContain('the near bank');

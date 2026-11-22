@@ -16,7 +16,10 @@ interface Golden {
   invalid: { name: string; event: unknown; issuePath: string }[];
 }
 
-const goldenText = readFileSync(fileURLToPath(new URL('../../../tests/contracts/gameplay-events-v1.json', import.meta.url)), 'utf8');
+const goldenText = readFileSync(
+  fileURLToPath(new URL('../../../tests/contracts/gameplay-events-v1.json', import.meta.url)),
+  'utf8',
+);
 const golden = JSON.parse(goldenText) as Golden;
 
 const context: GameplayEventContext = {
@@ -33,11 +36,14 @@ describe('gameplay event contract v1: golden vectors', () => {
     expect(result.ok).toBe(true);
   });
 
-  it.each(golden.invalid.map((v) => [v.name, v.event, v.issuePath] as const))('rejects %s', (_name, event, issuePath) => {
-    const result = validateGameplayEvent(event);
-    expect(result.ok).toBe(false);
-    expect(result.issues.map((i) => i.path)).toContain(issuePath);
-  });
+  it.each(golden.invalid.map((v) => [v.name, v.event, v.issuePath] as const))(
+    'rejects %s',
+    (_name, event, issuePath) => {
+      const result = validateGameplayEvent(event);
+      expect(result.ok).toBe(false);
+      expect(result.issues.map((i) => i.path)).toContain(issuePath);
+    },
+  );
 
   it('covers every v1 event type with at least one valid vector', () => {
     const covered = new Set(golden.valid.map((v) => (v.event as { type: string }).type));
@@ -61,7 +67,10 @@ describe('gameplay event factory', () => {
   });
 
   it('builds a valid envelope from the bound context', () => {
-    const event = factory.create('course.completed', { courseId: 'pirates-leap-course', goalId: 'crows-nest' });
+    const event = factory.create('course.completed', {
+      courseId: 'pirates-leap-course',
+      goalId: 'crows-nest',
+    });
     expect(event).toEqual({
       schema: 'lai.gameplay-event',
       version: 1,
@@ -75,11 +84,15 @@ describe('gameplay event factory', () => {
   });
 
   it('lets a single event override the area', () => {
-    expect(factory.create('exploration.area.entered', { areaId: 'cave' }, { areaId: 'cave' }).areaId).toBe('cave');
+    expect(
+      factory.create('exploration.area.entered', { areaId: 'cave' }, { areaId: 'cave' }).areaId,
+    ).toBe('cave');
   });
 
   it('refuses free text where an id belongs', () => {
-    expect(() => factory.create('collectible.collected', { collectibleId: 'a shiny shell', setId: null })).toThrow(TypeError);
+    expect(() =>
+      factory.create('collectible.collected', { collectibleId: 'a shiny shell', setId: null }),
+    ).toThrow(TypeError);
   });
 
   it('refuses smuggled fields at runtime even when types are bypassed', () => {
@@ -88,8 +101,14 @@ describe('gameplay event factory', () => {
   });
 
   it('treats the accessible route of a jump challenge as the same completion claim', () => {
-    const jumped = factory.create('jump.challenge.completed', { challengeId: 'stones', routeId: 'stones-jump' });
-    const walked = factory.create('jump.challenge.completed', { challengeId: 'stones', routeId: 'stones-boardwalk' });
+    const jumped = factory.create('jump.challenge.completed', {
+      challengeId: 'stones',
+      routeId: 'stones-jump',
+    });
+    const walked = factory.create('jump.challenge.completed', {
+      challengeId: 'stones',
+      routeId: 'stones-boardwalk',
+    });
     expect(jumped.type).toBe(walked.type);
     expect(Object.keys(jumped.payload)).toEqual(Object.keys(walked.payload));
   });

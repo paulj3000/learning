@@ -165,12 +165,13 @@ def test_draft_until_the_model_is_live_then_promote():
 
     ContentAsset.objects.filter(
         asset_id__in=[
-            "firepeak-flint", "firepeak-kindle", "firepeak-professor-basalt",
-            "firepeak-cinder", "firepeak-ignis",
+            "firepeak-flint",
+            "firepeak-kindle",
+            "firepeak-professor-basalt",
+            "firepeak-cinder",
+            "firepeak-ignis",
         ]
-    ).update(
-        bundled_path="/models/x.glb"
-    )
+    ).update(bundled_path="/models/x.glb")
     assert "Promote:" in run("--promote")
     assert set(NpcCharacter.objects.values_list("status", flat=True)) == {CharacterStatus.READY}
 
@@ -228,8 +229,12 @@ def test_copy_is_child_safe():
                 assert len(node.text) <= 400
     for text in texts:
         assert "—" not in text and "–" not in text
-    spoken = " ".join(t for npc in fp.NPCS for d in fp.dialogues(npc) for n in d.nodes for t in [n.text])
-    assert not re.search(r"\b(your name|where do you live|your school|secret|i am (a )?human)\b", spoken, re.I)
+    spoken = " ".join(
+        t for npc in fp.NPCS for d in fp.dialogues(npc) for n in d.nodes for t in [n.text]
+    )
+    assert not re.search(
+        r"\b(your name|where do you live|your school|secret|i am (a )?human)\b", spoken, re.I
+    )
     for npc in fp.NPCS:
         assert "never a person" in npc.persona_prompt
         assert "Never ask for private" in npc.persona_prompt

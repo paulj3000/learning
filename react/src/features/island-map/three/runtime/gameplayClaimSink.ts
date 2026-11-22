@@ -109,7 +109,11 @@ export function emitLocationClaim<T extends GameplayEventType>(
   if (!current || !sink) return;
   // Free exploration is not an adventure: an adventure start or completion under the default
   // binding could never match a server record (scoring lead, 2026-11-19), so it is not claimed.
-  if (current === defaultBinding && (type === 'adventure.started' || type === 'adventure.completed')) return;
+  if (
+    current === defaultBinding &&
+    (type === 'adventure.started' || type === 'adventure.completed')
+  )
+    return;
   try {
     if (factoryFor?.binding !== current) {
       factoryFor = { binding: current, factory: createGameplayEventFactory(current.context) };

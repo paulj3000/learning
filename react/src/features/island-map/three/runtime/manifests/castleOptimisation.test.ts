@@ -117,7 +117,10 @@ describe('static decor batching', () => {
     const colours = new Set([...groups.values()].map((boxes) => boxes[0].color));
     expect(materials.size).toBe(colours.size);
     // Every box is 24 vertices; none is lost in the merge.
-    const vertices = batches.reduce((sum, mesh) => sum + mesh.geometry.getAttribute('position').count, 0);
+    const vertices = batches.reduce(
+      (sum, mesh) => sum + mesh.geometry.getAttribute('position').count,
+      0,
+    );
     const boxCount = [...groups.values()].reduce((sum, boxes) => sum + boxes.length, 0);
     expect(vertices).toBe(boxCount * 24);
     harness.engine.dispose();
@@ -162,7 +165,10 @@ describe('the draw-call estimate (an estimate, not a measurement)', () => {
 
 describe('the optional Secret Chamber ledge', () => {
   const secretFloor = ROOMS.find((room) => room.id === 'secret-chamber')!.floor;
-  const pads = CHAMBER_LEDGE_GROUP.pads.map((pad) => ({ pad, rect: padFootprint(CHAMBER_LEDGE_GROUP, pad) }));
+  const pads = CHAMBER_LEDGE_GROUP.pads.map((pad) => ({
+    pad,
+    rect: padFootprint(CHAMBER_LEDGE_GROUP, pad),
+  }));
 
   it('is two low stepping stones and a ledge, all inside the chamber and no higher than a castle pad may be', () => {
     expect(pads).toHaveLength(3);
@@ -187,7 +193,9 @@ describe('the optional Secret Chamber ledge', () => {
     expect(named).not.toContain('view:chamber');
     expect(MANIFEST.checkpoints.ids.some((id) => id.includes('chamber-ledge'))).toBe(false);
     expect(
-      MANIFEST.platforming?.platforms.filter((platform) => platform.id.startsWith('castle-pad:chamber:')),
+      MANIFEST.platforming?.platforms.filter((platform) =>
+        platform.id.startsWith('castle-pad:chamber:'),
+      ),
     ).toHaveLength(3);
   });
 
@@ -195,8 +203,15 @@ describe('the optional Secret Chamber ledge', () => {
     const zone = MANIFEST.zones.find((candidate) => candidate.rect.id === CHAMBER_VIEW_ZONE_ID)!;
     const ledge = pads[2].rect;
     expect(zone.enterMessage).toMatch(/view/i);
-    expect(zone.rect).toMatchObject({ minX: ledge.minX, maxX: ledge.maxX, minZ: ledge.minZ, maxZ: ledge.maxZ });
-    expect(MANIFEST.interactions.some((i) => (i.zoneId ?? i.id) === CHAMBER_VIEW_ZONE_ID)).toBe(false);
+    expect(zone.rect).toMatchObject({
+      minX: ledge.minX,
+      maxX: ledge.maxX,
+      minZ: ledge.minZ,
+      maxZ: ledge.maxZ,
+    });
+    expect(MANIFEST.interactions.some((i) => (i.zoneId ?? i.id) === CHAMBER_VIEW_ZONE_ID)).toBe(
+      false,
+    );
   });
 
   it('shows Sprouts flat markers instead of solid pads, at the same places, with the view still reachable on foot', () => {
@@ -221,7 +236,9 @@ describe('the optional Secret Chamber ledge', () => {
   it('keeps Pathfinders and Explorers on the solid pads', () => {
     for (const band of ['PATHFINDER', 'EXPLORER'] as const) {
       const platforms = manifestForBand(MANIFEST, band).platforming?.platforms ?? [];
-      expect(platforms.filter((platform) => platform.id.startsWith('castle-pad:chamber:'))).toHaveLength(3);
+      expect(
+        platforms.filter((platform) => platform.id.startsWith('castle-pad:chamber:')),
+      ).toHaveLength(3);
     }
   });
 
@@ -229,7 +246,10 @@ describe('the optional Secret Chamber ledge', () => {
     for (const { rect } of pads) {
       for (const wall of WALL_SEGMENTS) {
         const touches =
-          rect.minX < wall.maxX && wall.minX < rect.maxX && rect.minZ < wall.maxZ && wall.minZ < rect.maxZ;
+          rect.minX < wall.maxX &&
+          wall.minX < rect.maxX &&
+          rect.minZ < wall.maxZ &&
+          wall.minZ < rect.maxZ;
         expect(touches, `${rect.id} touches ${wall.id}`).toBe(false);
       }
       expect(isBlocked((rect.minX + rect.maxX) / 2, (rect.minZ + rect.maxZ) / 2)).toBe(false);

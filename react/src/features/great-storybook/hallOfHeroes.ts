@@ -75,7 +75,9 @@ export function hallOfHeroes({
     const item = ISLAND_ITEMS.find((candidate) => candidate.id === id);
     return item ? [{ itemId: id, name: item.displayName, description: item.description }] : [];
   });
-  const rank = progress ? shownRank(progress.restoredRequired, progress.totalRequired, ranks) : null;
+  const rank = progress
+    ? shownRank(progress.restoredRequired, progress.totalRequired, ranks)
+    : null;
   return {
     stories,
     pages,

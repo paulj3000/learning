@@ -57,7 +57,11 @@ function parseToken(token: string): Comparator[] | null {
 
   if (prefix === '^') {
     const upper: SemverTuple =
-      major > 0 || minorWild ? [major + 1, 0, 0] : minor > 0 || patchWild ? [0, minor + 1, 0] : [0, 0, patch + 1];
+      major > 0 || minorWild
+        ? [major + 1, 0, 0]
+        : minor > 0 || patchWild
+          ? [0, minor + 1, 0]
+          : [0, 0, patch + 1];
     return [
       { op: '>=', version: base },
       { op: '<', version: upper },

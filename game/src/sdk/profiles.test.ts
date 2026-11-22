@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { AGE_BANDS, JUMP_LIMIT_RANGES, defaultMovementProfile, isAgeBand, resolveProfile } from './profiles';
+import {
+  AGE_BANDS,
+  JUMP_LIMIT_RANGES,
+  defaultMovementProfile,
+  isAgeBand,
+  resolveProfile,
+} from './profiles';
 
 describe('band profiles', () => {
   it.each(AGE_BANDS)('%s defaults sit inside the jumping standard limits', (band) => {
@@ -31,14 +37,25 @@ describe('band profiles', () => {
   });
 
   it('accepts in-range overrides without issues', () => {
-    const resolved = resolveProfile('PATHFINDER', { movement: { jump: { jumpHeight: 0.9, coyoteTimeMs: 200 } } });
+    const resolved = resolveProfile('PATHFINDER', {
+      movement: { jump: { jumpHeight: 0.9, coyoteTimeMs: 200 } },
+    });
     expect(resolved.issues).toEqual([]);
     expect(resolved.movement.jump.jumpHeight).toBe(0.9);
   });
 
   it('reports clamping as issues, never silently', () => {
     const resolved = resolveProfile('EXPLORER', {
-      movement: { jump: { jumpHeight: 9, gravity: 1, airControl: 2, maxFallSpeed: 100, coyoteTimeMs: 999, jumpBufferMs: -5 } },
+      movement: {
+        jump: {
+          jumpHeight: 9,
+          gravity: 1,
+          airControl: 2,
+          maxFallSpeed: 100,
+          coyoteTimeMs: 999,
+          jumpBufferMs: -5,
+        },
+      },
     });
     expect(resolved.movement.jump).toMatchObject({
       jumpHeight: 2.5,
@@ -64,7 +81,9 @@ describe('band profiles', () => {
 
   it('keeps the band default and reports malformed values', () => {
     const resolved = resolveProfile('SPROUT', { movement: { jump: { jumpHeight: Number.NaN } } });
-    expect(resolved.movement.jump.jumpHeight).toBe(defaultMovementProfile('SPROUT').jump.jumpHeight);
+    expect(resolved.movement.jump.jumpHeight).toBe(
+      defaultMovementProfile('SPROUT').jump.jumpHeight,
+    );
     expect(resolved.issues).toHaveLength(1);
   });
 
@@ -79,7 +98,12 @@ describe('band profiles', () => {
 
   it('caps difficulty at the band ceiling and refuses hazards on required routes', () => {
     const sprout = resolveProfile('SPROUT', {
-      difficulty: { maxConsecutiveJumps: 5, maxMovingPlatformSpeed: 2, allowVanishingPlatforms: true, jumpRoutesOptionalOnly: false },
+      difficulty: {
+        maxConsecutiveJumps: 5,
+        maxMovingPlatformSpeed: 2,
+        allowVanishingPlatforms: true,
+        jumpRoutesOptionalOnly: false,
+      },
     });
     expect(sprout.difficulty.maxConsecutiveJumps).toBe(1);
     expect(sprout.difficulty.maxMovingPlatformSpeed).toBe(0);

@@ -857,8 +857,14 @@ const JINGLE: NpcSpec = {
   help: 'Use the move controls to walk, and the jump button to hop over small gaps. Every jump has a walking way too, so you can always walk around.',
   hint: 'Stuck? Look around for something that glows, or talk to a friend nearby. You can always take the walking way.',
   thanks: [
-    [K.mountainSummit, 'You climbed Snowflake Mountain! You kept trying, and that is what matters most.'],
-    [K.welcomeLooked, 'You looked all around the village. The workshop gate is open now. You can walk right in.'],
+    [
+      K.mountainSummit,
+      'You climbed Snowflake Mountain! You kept trying, and that is what matters most.',
+    ],
+    [
+      K.welcomeLooked,
+      'You looked all around the village. The workshop gate is open now. You can walk right in.',
+    ],
   ],
   puzzles: [
     {
@@ -905,7 +911,12 @@ const TINKER: NpcSpec = {
   ],
   help: 'Count the toys, sort the presents, and fix the pattern on the belt. Then we can build a toy and start the machine. Take your time.',
   hint: 'Look at the toys one at a time. Touch each one as you count, and take a breath. Try again as many times as you like.',
-  thanks: [[K.workshopRestored, 'The machine hums again! Thank you for helping me. The toys will be ready.']],
+  thanks: [
+    [
+      K.workshopRestored,
+      'The machine hums again! Thank you for helping me. The toys will be ready.',
+    ],
+  ],
   puzzles: [
     {
       id: 'np-workshop-count',
@@ -914,7 +925,10 @@ const TINKER: NpcSpec = {
         'Count the toys in each pile. Pick the number that matches.',
         'The toy shelf needs a careful count. Count every toy, then pick the right total.',
       ],
-      done: ['You counted them all! Well done.', 'Counting done! Every toy is ready for the next job.'],
+      done: [
+        'You counted them all! Well done.',
+        'Counting done! Every toy is ready for the next job.',
+      ],
     },
     {
       id: 'np-workshop-sort',
@@ -923,7 +937,10 @@ const TINKER: NpcSpec = {
         'Sort the presents by colour, shape, or kind. Find the one that belongs.',
         'Presents get sorted by colour, shape, or kind. Look for what the group has in common, then pick the one that fits.',
       ],
-      done: ['All sorted! The presents look tidy.', 'Sorted! Putting like things together makes a big job easier.'],
+      done: [
+        'All sorted! The presents look tidy.',
+        'Sorted! Putting like things together makes a big job easier.',
+      ],
     },
     {
       id: 'np-workshop-pattern',
@@ -973,7 +990,10 @@ const PEPPERMINT: NpcSpec = {
         'The candy cane signs count in order. Which number comes next?',
         'Numbers on the signs follow a rule, like counting by twos or fives. Find the rule and choose the next number.',
       ],
-      done: ['You found the path! It smells minty.', 'The path is clear. Number rules help us find our way.'],
+      done: [
+        'You found the path! It smells minty.',
+        'The path is clear. Number rules help us find our way.',
+      ],
     },
     {
       id: 'np-forest-signs',
@@ -982,7 +1002,10 @@ const PEPPERMINT: NpcSpec = {
         'Read the signs. Which way should you go?',
         'Read the signposts carefully. Each one gives a direction. Choose the way that matches the words.',
       ],
-      done: ['You read the signs! You know the way.', 'You read the signs well. Reading helps us find our way.'],
+      done: [
+        'You read the signs! You know the way.',
+        'You read the signs well. Reading helps us find our way.',
+      ],
     },
     {
       id: 'np-forest-stripes',
@@ -1011,7 +1034,12 @@ const FROSTY: NpcSpec = {
   ],
   help: 'Solve each number question and choose the ice floe with the answer. The ice bridge grows as you go. You can walk across it when it is ready.',
   hint: 'Count on your fingers or draw the numbers in the snow. Try again if you like. Take your time on the ice.',
-  thanks: [[K.lakeDone, 'The ice bridge is strong! Thank you for helping. Real ice takes a long, cold time to grow.']],
+  thanks: [
+    [
+      K.lakeDone,
+      'The ice bridge is strong! Thank you for helping. Real ice takes a long, cold time to grow.',
+    ],
+  ],
   puzzles: [
     {
       id: 'np-lake-sums',
@@ -1020,7 +1048,10 @@ const FROSTY: NpcSpec = {
         'Add the numbers, then choose the ice floe with the answer. The ice bridge will grow.',
         'Solve the sum, then choose the ice floe that shows the answer. Each answer helps the ice bridge grow.',
       ],
-      done: ['The ice bridge is up! You can walk across.', 'The ice bridge rises! You can walk across it.'],
+      done: [
+        'The ice bridge is up! You can walk across.',
+        'The ice bridge rises! You can walk across it.',
+      ],
       science:
         'Real ice forms when water gets cold enough to freeze. A frozen lake can look strong, so grown-ups always check it first.',
     },
@@ -1031,7 +1062,10 @@ const FROSTY: NpcSpec = {
         'Put the ice floes in number order, from smallest to biggest.',
         'The floes are out of order. Arrange them from smallest to biggest to make a path.',
       ],
-      done: ['All in order! Nice work.', 'In order! Putting numbers in order shows which is bigger.'],
+      done: [
+        'All in order! Nice work.',
+        'In order! Putting numbers in order shows which is bigger.',
+      ],
     },
     {
       id: 'np-lake-shapes',
@@ -1040,7 +1074,10 @@ const FROSTY: NpcSpec = {
         'Look at the shapes on the ice. Pick the one that matches.',
         'Shapes can be cut into equal parts, like halves and quarters. Pick the answer that matches the picture.',
       ],
-      done: ['You matched the shapes! Wheee!', 'Matched! Shapes and equal parts are all around us.'],
+      done: [
+        'You matched the shapes! Wheee!',
+        'Matched! Shapes and equal parts are all around us.',
+      ],
     },
   ],
   offers: [['np-q04-frozen-lake', K.forestDone]],
@@ -1058,7 +1095,10 @@ const NOEL: NpcSpec = {
   help: 'Learn about reindeer, follow the footprints, and find what Snowball needs. Then bring the collar back to me. Pine Hollow is out in the snow, so take your time.',
   hint: 'Look closely at the footprints. Which way do the toes point? Real reindeer have wide hooves that spread out in the snow.',
   thanks: [
-    [K.snowballHome, 'Snowball is home, warm and safe! Thank you for helping. You are a true reindeer rescuer.'],
+    [
+      K.snowballHome,
+      'Snowball is home, warm and safe! Thank you for helping. You are a true reindeer rescuer.',
+    ],
   ],
   puzzles: [
     {
@@ -1068,7 +1108,10 @@ const NOEL: NpcSpec = {
         'Let us learn about real reindeer. Read the question, then pick the answer.',
         'Real reindeer live in cold places. Read each fact carefully, then choose the answer that matches.',
       ],
-      done: ['You know about reindeer now!', 'Great learning! Now you know some real reindeer facts.'],
+      done: [
+        'You know about reindeer now!',
+        'Great learning! Now you know some real reindeer facts.',
+      ],
       science:
         'Real reindeer have wide hooves that spread out like snowshoes, so they can walk on snow. Both male and female reindeer can grow antlers.',
     },
@@ -1121,7 +1164,12 @@ const GINGER: NpcSpec = {
   ],
   help: 'Match the shapes, finish the window, measure the cookie beams, and build the wall. Cookie steps lead up to the roof, and there is a ramp too.',
   hint: 'Look at the shapes slowly. How many sides does each one have? You can hop the cookie steps or walk up the ramp.',
-  thanks: [[K.gingerRepaired, 'The wall is mended! Thank you. The whole village smells like warm gingerbread.']],
+  thanks: [
+    [
+      K.gingerRepaired,
+      'The wall is mended! Thank you. The whole village smells like warm gingerbread.',
+    ],
+  ],
   puzzles: [
     {
       id: 'np-ginger-shapes',
@@ -1148,7 +1196,10 @@ const GINGER: NpcSpec = {
         'Measure the cookie beam. Which one fits the gap?',
         'Measure with the ruler. Choose the beam that fits the gap exactly.',
       ],
-      done: ['You picked the longer beam!', 'You measured well. The right size makes a strong wall.'],
+      done: [
+        'You picked the longer beam!',
+        'You measured well. The right size makes a strong wall.',
+      ],
     },
     {
       id: 'np-ginger-build',
@@ -1157,7 +1208,10 @@ const GINGER: NpcSpec = {
         'Place each cookie beam into a gap in the wall.',
         'The wall has gaps. Place cookie beams that fit them, one at a time.',
       ],
-      done: ['The gingerbread wall is mended!', 'The wall is mended! The beams all fit, and the village is safe.'],
+      done: [
+        'The gingerbread wall is mended!',
+        'The wall is mended! The beams all fit, and the village is safe.',
+      ],
     },
   ],
   offers: [['np-q06-gingerbread-mystery', K.snowballHome]],
@@ -1174,7 +1228,9 @@ const MRS_CLAUS: NpcSpec = {
   ],
   help: 'Read the recipe card slowly. Each step comes in order. If a word is tricky, ask me to read it with you.',
   hint: 'Look at the pictures on the card, then read the words next to them. Take your time. Try again if you like.',
-  thanks: [[K.gingerRepaired, 'The wall is mended and the cookies are baking. Thank you, dear explorer.']],
+  thanks: [
+    [K.gingerRepaired, 'The wall is mended and the cookies are baking. Thank you, dear explorer.'],
+  ],
   puzzles: [
     {
       id: 'np-ginger-recipe',
@@ -1183,7 +1239,10 @@ const MRS_CLAUS: NpcSpec = {
         'Read my recipe card. Which step comes next?',
         'Read my recipe card carefully. Recipes work in order, so work out which step comes next.',
       ],
-      done: ['You read the recipe! Yum.', 'You read the recipe well. Reading helps us make good things.'],
+      done: [
+        'You read the recipe! Yum.',
+        'You read the recipe well. Reading helps us make good things.',
+      ],
       science:
         'When cookies bake, the heat makes the dough firm and turns it golden. That is a real change that cannot be undone.',
     },
@@ -1202,7 +1261,12 @@ const POLARIS: NpcSpec = {
   ],
   help: 'Learn about stars, find a constellation, and put the night sky in order. Then we can place the seven star pieces and make the star shine.',
   hint: 'Look at the dots as if they were a dot to dot picture. Real stars look tiny only because they are very far away.',
-  thanks: [[K.starRestored, 'The Christmas Star shines again! Thank you. It is island magic, and you helped it.']],
+  thanks: [
+    [
+      K.starRestored,
+      'The Christmas Star shines again! Thank you. It is island magic, and you helped it.',
+    ],
+  ],
   puzzles: [
     {
       id: 'np-obs-stars',
@@ -1222,7 +1286,10 @@ const POLARIS: NpcSpec = {
         'Find the constellation. Which shape do the stars make?',
         'A constellation is a pattern of stars. Look at the dots and choose the constellation they make.',
       ],
-      done: ['You found the shape in the stars!', 'You found it! Looking for shapes in stars is how people have named them.'],
+      done: [
+        'You found the shape in the stars!',
+        'You found it! Looking for shapes in stars is how people have named them.',
+      ],
       science:
         'A constellation is a pattern of stars that people gave a name, like a dot to dot picture in the sky. Real Polaris, the North Star, stays almost in one spot in the northern sky.',
     },
@@ -1244,7 +1311,10 @@ const POLARIS: NpcSpec = {
         'Put the seven star pieces back in the order you found them.',
         'Set the seven star pieces into their places in the order of your journey. Think back to where you found each one.',
       ],
-      done: ['All seven pieces are in!', 'All seven pieces are in place. You remembered the whole journey.'],
+      done: [
+        'All seven pieces are in!',
+        'All seven pieces are in place. You remembered the whole journey.',
+      ],
     },
     {
       id: 'np-obs-final',
@@ -1274,7 +1344,10 @@ const SANTA: NpcSpec = {
   help: 'Walk to the sleigh and ring the bell. Everyone will be so happy! You can walk right up to it.',
   hint: 'The sleigh bell is near the sleigh. Look for something that jingles.',
   thanks: [
-    [K.christmasEve, 'Well done! You worked hard, tried again when it was tricky, and helped your friends. That makes me so happy.'],
+    [
+      K.christmasEve,
+      'Well done! You worked hard, tried again when it was tricky, and helped your friends. That makes me so happy.',
+    ],
   ],
   puzzles: [
     {

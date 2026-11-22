@@ -16,7 +16,7 @@ import type { AvatarValue } from '../../child-profile/constants';
 import { createNpcAnimator, type NpcAnimator } from '../../npc-manager/animation/npcAnimator';
 import { getAvatarAppearance, type AvatarAppearance } from '../avatarAppearance';
 import { cloneAssetScene } from './assets/cloneAsset';
-import type { MovementState } from './firstPersonController';
+import type { MovementState } from '@lai/game-engine/movement';
 import {
   createPlayerAnimationController,
   toAnimatorMap,
@@ -30,7 +30,7 @@ import {
   type PlayerAvatarCustomization,
   type PlayerAvatarModel,
 } from './playerAvatarCatalog';
-import type { PlayerAvatarConfiguration } from './playerPresentation';
+import type { PlayerAvatarConfiguration } from '@lai/game-engine/camera';
 import type { LoadedModel } from './runtime/extensionRegistry';
 
 /**

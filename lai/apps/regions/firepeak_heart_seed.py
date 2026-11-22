@@ -46,8 +46,8 @@ from apps.catalog.models import (
 
 from . import firepeak_heart_content as content
 from . import firepeak_heart_layout as layout
-from .models import PlacementKind, SpawnPoint, WorldObjectPlacement, WorldRegion
 from .engine_bridge import engine_bridge_problems
+from .models import PlacementKind, SpawnPoint, WorldObjectPlacement, WorldRegion
 from .platforming import layout_problems
 from .seeding import record_seed_revision, seed_puzzle
 
@@ -245,7 +245,8 @@ def snapshot() -> dict:
             for pid, kind, entities, b in content.puzzle_rows()
         ],
         "assets": [
-            {"assetId": asset_id, "kind": kind} for asset_id, (kind, _c, _n) in layout.ASSET_DEFS.items()
+            {"assetId": asset_id, "kind": kind}
+            for asset_id, (kind, _c, _n) in layout.ASSET_DEFS.items()
         ],
     }
 

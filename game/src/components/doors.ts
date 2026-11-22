@@ -14,7 +14,13 @@ import { defineService } from '../core/services';
 import type { CapabilityDefinition } from '../core/capabilities';
 import type { Vec3Like } from '../contracts/player';
 import { PhysicsProviderService } from '../contracts/physics';
-import { emitPresentation, entityKey, playerPosition, requirementMet, type GameplayRuntime } from './common';
+import {
+  emitPresentation,
+  entityKey,
+  playerPosition,
+  requirementMet,
+  type GameplayRuntime,
+} from './common';
 import { configRoot, Issues } from './validate';
 
 export type DoorPhase = 'LOCKED' | 'UNLOCKED' | 'OPENING' | 'OPEN' | 'CLOSING';
@@ -103,7 +109,8 @@ export const DOORS_CAPABILITY_ID = 'gameplay.doors';
 export const doorsCapability: CapabilityDefinition<DoorsConfig, GameplayRuntime> = {
   id: DOORS_CAPABILITY_ID,
   version: '1.0.0',
-  description: 'Doors and gates: solid gate colliders, host requirement check, collider removal while opening.',
+  description:
+    'Doors and gates: solid gate colliders, host requirement check, collider removal while opening.',
   defaults: { doors: [] },
   validate: validateDoorsConfig,
   install(runtime, config) {
@@ -113,7 +120,13 @@ export const doorsCapability: CapabilityDefinition<DoorsConfig, GameplayRuntime>
 
     const addCollider = (state: DoorState) => {
       const box = boxOf(state.spec, 0);
-      physics.addCollider({ id: state.spec.id, kind: 'SOLID', gate: true, min: box.min, max: box.max });
+      physics.addCollider({
+        id: state.spec.id,
+        kind: 'SOLID',
+        gate: true,
+        min: box.min,
+        max: box.max,
+      });
       state.hasCollider = true;
     };
     const setPhase = (state: DoorState, phase: DoorPhase) => {
@@ -123,8 +136,15 @@ export const doorsCapability: CapabilityDefinition<DoorsConfig, GameplayRuntime>
       }
     };
     for (const spec of config.doors) {
-      const locked = spec.requirementId !== undefined && !requirementMet(runtime, spec.requirementId);
-      const state: DoorState = { spec, phase: locked ? 'LOCKED' : 'UNLOCKED', progress: 0, hasCollider: false, closeTarget: 'UNLOCKED' };
+      const locked =
+        spec.requirementId !== undefined && !requirementMet(runtime, spec.requirementId);
+      const state: DoorState = {
+        spec,
+        phase: locked ? 'LOCKED' : 'UNLOCKED',
+        progress: 0,
+        hasCollider: false,
+        closeTarget: 'UNLOCKED',
+      };
       world.add(world.create(entityKey('door', spec.id)), DoorComponent, state);
       addCollider(state);
     }
@@ -198,7 +218,11 @@ export const doorsCapability: CapabilityDefinition<DoorsConfig, GameplayRuntime>
           const met = requirementMet(runtime, spec.requirementId);
           if (state.phase === 'LOCKED' && met) {
             setPhase(state, 'UNLOCKED');
-          } else if (!met && (state.phase === 'UNLOCKED' || (spec.relockWhenUnmet && (state.phase === 'OPEN' || state.phase === 'OPENING')))) {
+          } else if (
+            !met &&
+            (state.phase === 'UNLOCKED' ||
+              (spec.relockWhenUnmet && (state.phase === 'OPEN' || state.phase === 'OPENING')))
+          ) {
             if (state.phase === 'UNLOCKED') {
               setPhase(state, 'LOCKED');
             } else {
@@ -207,7 +231,10 @@ export const doorsCapability: CapabilityDefinition<DoorsConfig, GameplayRuntime>
             }
           }
           if (state.phase === 'UNLOCKED' && spec.autoOpen && player) {
-            if (Math.hypot(player.x - spec.position.x, player.z - spec.position.z) <= spec.approachRadius) {
+            if (
+              Math.hypot(player.x - spec.position.x, player.z - spec.position.z) <=
+              spec.approachRadius
+            ) {
               setPhase(state, 'OPENING');
             }
           }

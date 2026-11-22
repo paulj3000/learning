@@ -4,7 +4,10 @@ import { createStandardCapabilityRegistry } from '@lai/game-engine/engine';
 import { resolveJumpConfiguration, resolveLocomotion } from '@lai/game-engine/movement';
 import { checkContentCompatibility, validateLocation } from '@lai/game-engine/sdk';
 import { CLOCKWORK_HARBOR_MANIFEST } from '../manifests/clockworkHarbor';
-import { CLOCKWORK_HARBOR_ADAPTER_ISSUES, CLOCKWORK_HARBOR_LOCATION } from './clockworkHarbor.location';
+import {
+  CLOCKWORK_HARBOR_ADAPTER_ISSUES,
+  CLOCKWORK_HARBOR_LOCATION,
+} from './clockworkHarbor.location';
 
 const registry = createStandardCapabilityRegistry();
 const resolution = registry.resolve(CLOCKWORK_HARBOR_LOCATION.capabilities);
@@ -19,14 +22,25 @@ function resolved(id: string): Record<string, unknown> {
 describe('clockworkHarbor location (GE-075)', () => {
   it('loses nothing from the manifest and validates against the standard registry', () => {
     expect(CLOCKWORK_HARBOR_ADAPTER_ISSUES).toEqual([]);
-    expect(validateLocation(CLOCKWORK_HARBOR_LOCATION, registry)).toMatchObject({ ok: true, issues: [] });
+    expect(validateLocation(CLOCKWORK_HARBOR_LOCATION, registry)).toMatchObject({
+      ok: true,
+      issues: [],
+    });
     expect(resolution.issues).toEqual([]);
-    expect(CLOCKWORK_HARBOR_LOCATION).toMatchObject({ id: CLOCKWORK_HARBOR_MANIFEST.regionId, contentSource: 'MANIFEST', version: '1.0.0' });
+    expect(CLOCKWORK_HARBOR_LOCATION).toMatchObject({
+      id: CLOCKWORK_HARBOR_MANIFEST.regionId,
+      contentSource: 'MANIFEST',
+      version: '1.0.0',
+    });
   });
 
   it('jumps and walks exactly as the manifest resolves', () => {
-    expect(resolved('movement.jump')).toEqual(resolveJumpConfiguration(CLOCKWORK_HARBOR_MANIFEST.movement?.jump));
-    expect(resolved('movement.locomotion')).toEqual(resolveLocomotion(CLOCKWORK_HARBOR_MANIFEST.movement?.locomotion));
+    expect(resolved('movement.jump')).toEqual(
+      resolveJumpConfiguration(CLOCKWORK_HARBOR_MANIFEST.movement?.jump),
+    );
+    expect(resolved('movement.locomotion')).toEqual(
+      resolveLocomotion(CLOCKWORK_HARBOR_MANIFEST.movement?.locomotion),
+    );
   });
 
   it('has the same third-person camera, collision avoidance and avatar', () => {
@@ -61,8 +75,15 @@ describe('clockworkHarbor location (GE-075)', () => {
   });
 
   it('declares no timers (ADR-053) and only the services it needs', () => {
-    expect(JSON.stringify(CLOCKWORK_HARBOR_MANIFEST)).not.toMatch(/timeLimit|countdown|deadline|timer/i);
-    expect(JSON.stringify(CLOCKWORK_HARBOR_LOCATION)).not.toMatch(/timeLimit|countdown|deadline|timer/i);
-    expect(CLOCKWORK_HARBOR_LOCATION.requiredServices).toEqual(['lai.assetManager', 'lai.npcManager']);
+    expect(JSON.stringify(CLOCKWORK_HARBOR_MANIFEST)).not.toMatch(
+      /timeLimit|countdown|deadline|timer/i,
+    );
+    expect(JSON.stringify(CLOCKWORK_HARBOR_LOCATION)).not.toMatch(
+      /timeLimit|countdown|deadline|timer/i,
+    );
+    expect(CLOCKWORK_HARBOR_LOCATION.requiredServices).toEqual([
+      'lai.assetManager',
+      'lai.npcManager',
+    ]);
   });
 });

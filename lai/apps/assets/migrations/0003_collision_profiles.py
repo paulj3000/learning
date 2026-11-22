@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("assets", "0002_asset_library_media_families"),
         ("catalog", "0010_merge_npc_manager"),

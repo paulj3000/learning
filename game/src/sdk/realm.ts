@@ -10,7 +10,14 @@
 
 import { EngineError, type ValidationIssue, type ValidationResult } from '../core/errors';
 import { AGE_BANDS, isAgeBand, type AgeBand } from './profiles';
-import { checkId, checkIdArray, checkLocalisationKey, checkSemver, checkStrictKeys, isRecord } from './validation';
+import {
+  checkId,
+  checkIdArray,
+  checkLocalisationKey,
+  checkSemver,
+  checkStrictKeys,
+  isRecord,
+} from './validation';
 
 export interface RealmPlace {
   id: string;
@@ -29,7 +36,15 @@ export interface RealmDefinition {
   adventureIds: string[];
 }
 
-const REALM_KEYS = ['id', 'version', 'titleKey', 'places', 'ageBands', 'milestoneIds', 'adventureIds'] as const;
+const REALM_KEYS = [
+  'id',
+  'version',
+  'titleKey',
+  'places',
+  'ageBands',
+  'milestoneIds',
+  'adventureIds',
+] as const;
 const PLACE_KEYS = ['id', 'titleKey', 'areaIds'] as const;
 
 export function validateRealm(input: unknown): ValidationResult<RealmDefinition> {
@@ -67,7 +82,10 @@ export function validateRealm(input: unknown): ValidationResult<RealmDefinition>
       for (const areaId of areaIds) {
         const owner = areaOwner.get(areaId);
         if (owner !== undefined && owner !== raw.id) {
-          issues.push({ path: `${path}.areaIds`, message: `area "${areaId}" already belongs to place "${owner}"` });
+          issues.push({
+            path: `${path}.areaIds`,
+            message: `area "${areaId}" already belongs to place "${owner}"`,
+          });
         }
         areaOwner.set(areaId, String(raw.id));
       }
@@ -81,7 +99,10 @@ export function validateRealm(input: unknown): ValidationResult<RealmDefinition>
   } else {
     input.ageBands.forEach((band: unknown, index) => {
       if (!isAgeBand(band)) {
-        issues.push({ path: `ageBands[${index}]`, message: `must be one of ${AGE_BANDS.join(', ')}` });
+        issues.push({
+          path: `ageBands[${index}]`,
+          message: `must be one of ${AGE_BANDS.join(', ')}`,
+        });
       } else if (ageBands.includes(band)) {
         issues.push({ path: `ageBands[${index}]`, message: `duplicate age band "${band}"` });
       } else {
@@ -114,9 +135,13 @@ export function validateRealm(input: unknown): ValidationResult<RealmDefinition>
 export function defineRealm(definition: RealmDefinition): Readonly<RealmDefinition> {
   const result = validateRealm(definition);
   if (!result.ok) {
-    throw new EngineError('VALIDATION_FAILED', `Invalid realm definition "${String((definition as { id?: unknown }).id)}"`, {
-      issues: result.issues,
-    });
+    throw new EngineError(
+      'VALIDATION_FAILED',
+      `Invalid realm definition "${String((definition as { id?: unknown }).id)}"`,
+      {
+        issues: result.issues,
+      },
+    );
   }
   return deepFreeze(result.value);
 }

@@ -153,7 +153,11 @@ export function locomotionBlend(speed: number, spec: LocomotionSpec): Locomotion
   const moving = clamp((s - idleBelow) / band, 0, 1);
   const running = spec.hasRun ? clamp((s - walk) / (run - walk), 0, 1) : 0;
   const weights = { idle: 1 - moving, walk: moving * (1 - running), run: moving * running };
-  const walkScale = clamp(s / walk, MIN_WALK_TIME_SCALE, spec.hasRun ? MAX_WALK_TIME_SCALE : MAX_WALK_AS_RUN_TIME_SCALE);
+  const walkScale = clamp(
+    s / walk,
+    MIN_WALK_TIME_SCALE,
+    spec.hasRun ? MAX_WALK_TIME_SCALE : MAX_WALK_AS_RUN_TIME_SCALE,
+  );
   const runScale = clamp(s / run, MIN_RUN_TIME_SCALE, MAX_RUN_TIME_SCALE);
   return { weights, timeScale: { walk: walkScale, run: runScale } };
 }

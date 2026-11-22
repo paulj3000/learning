@@ -113,7 +113,11 @@ describe('surface friction and ice', () => {
 });
 
 describe('external forces', () => {
-  const wind = (_x: number, a = MAX_EXTERNAL_FORCE * 5): ExternalForce => ({ id: 'w', kind: 'WIND', acceleration: { x: a, y: 0, z: 0 } });
+  const wind = (_x: number, a = MAX_EXTERNAL_FORCE * 5): ExternalForce => ({
+    id: 'w',
+    kind: 'WIND',
+    acceleration: { x: a, y: 0, z: 0 },
+  });
 
   it('caps the horizontal force at 12 m/s2 (and by the walking limit)', () => {
     const c = new FirstPersonController({ environment: env({ forcesAt: () => [wind(0)] }) });
@@ -125,7 +129,10 @@ describe('external forces', () => {
 
   it('never pushes the child through a collider', () => {
     const wall = new Box3(new Vector3(2, 0, -5), new Vector3(2.5, 3, 5));
-    const c = new FirstPersonController({ colliders: [wall], environment: env({ forcesAt: () => [wind(0)] }) });
+    const c = new FirstPersonController({
+      colliders: [wall],
+      environment: env({ forcesAt: () => [wind(0)] }),
+    });
     run(c, 600, IDLE);
     expect(c.position.x).toBeLessThanOrEqual(2 - c.collision.radius + 1e-6);
   });
@@ -154,7 +161,11 @@ describe('external forces', () => {
   });
 
   it('lets an updraft stronger than gravity lift the child, and only that', () => {
-    const lift = (a: number): ExternalForce => ({ id: 'u', kind: 'UPDRAFT', acceleration: { x: 0, y: a, z: 0 } });
+    const lift = (a: number): ExternalForce => ({
+      id: 'u',
+      kind: 'UPDRAFT',
+      acceleration: { x: 0, y: a, z: 0 },
+    });
     const weak = new FirstPersonController({ environment: env({ forcesAt: () => [lift(10)] }) });
     run(weak, 60, IDLE);
     expect(weak.position.y).toBe(0);
@@ -165,7 +176,11 @@ describe('external forces', () => {
   });
 
   it('ignores non-finite forces', () => {
-    const bad: ExternalForce = { id: 'n', kind: 'WIND', acceleration: { x: Number.NaN, y: 0, z: 0 } };
+    const bad: ExternalForce = {
+      id: 'n',
+      kind: 'WIND',
+      acceleration: { x: Number.NaN, y: 0, z: 0 },
+    };
     const c = new FirstPersonController({ environment: env({ forcesAt: () => [bad] }) });
     run(c, 30, IDLE);
     expect(Number.isFinite(c.position.x)).toBe(true);
@@ -218,7 +233,10 @@ describe('swimming', () => {
   });
 
   it('rests on the bed in shallow water instead of swimming', () => {
-    const shallow = env({ mediumAt: (_x, y) => (y < 0.5 ? 'WATER' : 'AIR'), waterSurfaceAt: () => 0.5 });
+    const shallow = env({
+      mediumAt: (_x, y) => (y < 0.5 ? 'WATER' : 'AIR'),
+      waterSurfaceAt: () => 0.5,
+    });
     const c = new FirstPersonController({ environment: shallow });
     run(c, 120, IDLE);
     expect(c.swimming).toBe(false);
@@ -234,7 +252,9 @@ describe('climbing', () => {
     facingYaw: 0,
     exitTop: { x: 0, y: 3, z: 1.5 },
   };
-  const environment = env({ climbableAt: (_x, y, z) => (y >= 0 && y <= 3 && z < 1 ? ladder : null) });
+  const environment = env({
+    climbableAt: (_x, y, z) => (y >= 0 && y <= 3 && z < 1 ? ladder : null),
+  });
   const landing = new Box3(new Vector3(-2, 0, 1), new Vector3(2, 3, 3));
   const make = () =>
     new FirstPersonController({
@@ -316,7 +336,11 @@ describe('maxWalkableSlope', () => {
   });
 
   it('never blocks walking down, and defaults to unlimited', () => {
-    const down = new FirstPersonController({ groundHeightAt: ramp, maxWalkableSlope: 0.3, startPosition: new Vector3(0, 2.5, 5) });
+    const down = new FirstPersonController({
+      groundHeightAt: ramp,
+      maxWalkableSlope: 0.3,
+      startPosition: new Vector3(0, 2.5, 5),
+    });
     down.yaw = Math.PI;
     run(down, 120, UP_RAMP);
     expect(down.position.z).toBeLessThan(1);
@@ -367,7 +391,13 @@ describe('setEnvironment (GE-065: an environment arriving after construction)', 
   });
 
   it('clearing the environment ends a climb at once', () => {
-    const ladder: ClimbableInfo = { id: 'ladder', bottomY: 0, topY: 3, facingYaw: FORWARD_PLUS_X, exitTop: { x: 1, y: 3, z: 0 } };
+    const ladder: ClimbableInfo = {
+      id: 'ladder',
+      bottomY: 0,
+      topY: 3,
+      facingYaw: FORWARD_PLUS_X,
+      exitTop: { x: 1, y: 3, z: 0 },
+    };
     const c = new FirstPersonController({ environment: env({ climbableAt: () => ladder }) });
     c.yaw = FORWARD_PLUS_X;
     run(c, 20, WALK);

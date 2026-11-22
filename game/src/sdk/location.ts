@@ -21,7 +21,14 @@ import { ENGINE_API_VERSION } from '../version';
 import type { AdventureCapabilityRequest, ContentSource } from './adventure';
 import { deepFreeze } from './realm';
 import { isValidRange, satisfiesRange } from './semver';
-import { checkId, checkIdArray, checkSemver, checkStrictKeys, findTimerFields, isRecord } from './validation';
+import {
+  checkId,
+  checkIdArray,
+  checkSemver,
+  checkStrictKeys,
+  findTimerFields,
+  isRecord,
+} from './validation';
 
 export interface LocationDefinition {
   /** The location's region id, as in its manifest (`regionId`). */
@@ -35,7 +42,14 @@ export interface LocationDefinition {
   requiredServices: string[];
 }
 
-const LOCATION_KEYS = ['id', 'version', 'engineApi', 'contentSource', 'capabilities', 'requiredServices'] as const;
+const LOCATION_KEYS = [
+  'id',
+  'version',
+  'engineApi',
+  'contentSource',
+  'capabilities',
+  'requiredServices',
+] as const;
 
 export interface ValidateLocationOptions {
   engineApiVersion?: string;
@@ -58,7 +72,10 @@ export function validateLocation(
   if (!isValidRange(input.engineApi)) {
     issues.push({ path: 'engineApi', message: 'must be a semver range like "^0.1.0"' });
   } else if (!satisfiesRange(engineVersion, input.engineApi)) {
-    issues.push({ path: 'engineApi', message: `range "${input.engineApi}" does not include engine API ${engineVersion}` });
+    issues.push({
+      path: 'engineApi',
+      message: `range "${input.engineApi}" does not include engine API ${engineVersion}`,
+    });
   }
   if (input.contentSource !== 'MANIFEST' && input.contentSource !== 'DJANGO_PUBLISHED') {
     issues.push({ path: 'contentSource', message: 'must be MANIFEST or DJANGO_PUBLISHED' });
@@ -68,7 +85,8 @@ export function validateLocation(
     issues.push({ path: 'capabilities', message: 'must be a list of { id, config }' });
   } else {
     const requests = input.capabilities.filter(
-      (entry): entry is AdventureCapabilityRequest => isRecord(entry) && typeof entry.id === 'string',
+      (entry): entry is AdventureCapabilityRequest =>
+        isRecord(entry) && typeof entry.id === 'string',
     );
     if (requests.length !== input.capabilities.length) {
       issues.push({ path: 'capabilities', message: 'every entry must be { id, config? }' });
@@ -78,7 +96,9 @@ export function validateLocation(
   for (const path of findTimerFields(input)) {
     issues.push({ path, message: 'timers are not allowed (ADR-053)' });
   }
-  return issues.length === 0 ? { ok: true, value: input as unknown as LocationDefinition, issues: [] } : { ok: false, issues };
+  return issues.length === 0
+    ? { ok: true, value: input as unknown as LocationDefinition, issues: [] }
+    : { ok: false, issues };
 }
 
 /** Freezes a location definition; throws `VALIDATION_FAILED` when it is invalid. */
@@ -88,7 +108,9 @@ export function defineLocation(
 ): Readonly<LocationDefinition> {
   const result = validateLocation(definition, registry);
   if (!result.ok) {
-    throw new EngineError('VALIDATION_FAILED', `Location "${definition.id}" is invalid`, { issues: result.issues });
+    throw new EngineError('VALIDATION_FAILED', `Location "${definition.id}" is invalid`, {
+      issues: result.issues,
+    });
   }
   return deepFreeze(structuredClone(definition));
 }
@@ -126,10 +148,18 @@ function pick(source: Record<string, unknown>, fields: readonly string[]): Recor
   return out;
 }
 
-function unknownFields(source: Record<string, unknown>, known: readonly string[], path: string, issues: ValidationIssue[]): void {
+function unknownFields(
+  source: Record<string, unknown>,
+  known: readonly string[],
+  path: string,
+  issues: ValidationIssue[],
+): void {
   for (const key of Object.keys(source)) {
     if (!known.includes(key)) {
-      issues.push({ path: `${path}.${key}`, message: 'has no engine capability equivalent; it would be lost in migration' });
+      issues.push({
+        path: `${path}.${key}`,
+        message: 'has no engine capability equivalent; it would be lost in migration',
+      });
     }
   }
 }
@@ -151,7 +181,10 @@ export function capabilityRequestsFromManifest(blocks: ManifestPlayBlocks): {
   unknownFields(movement, ['jump', 'locomotion', 'collision'], 'movement', issues);
   unknownFields(player, ['camera', 'avatar'], 'player', issues);
   if (movement.collision !== undefined) {
-    issues.push({ path: 'movement.collision', message: 'footprint overrides are a controller default (ADR-060); no capability carries them' });
+    issues.push({
+      path: 'movement.collision',
+      message: 'footprint overrides are a controller default (ADR-060); no capability carries them',
+    });
   }
   const camera = isRecord(player.camera) ? player.camera : {};
   unknownFields(camera, [...THIRD_PERSON_FIELDS, 'collisionEnabled'], 'player.camera', issues);
@@ -159,11 +192,17 @@ export function capabilityRequestsFromManifest(blocks: ManifestPlayBlocks): {
   unknownFields(avatar, AVATAR_FIELDS, 'player.avatar', issues);
 
   const requests: AdventureCapabilityRequest[] = [
-    { id: 'movement.locomotion', config: isRecord(movement.locomotion) ? { ...movement.locomotion } : {} },
+    {
+      id: 'movement.locomotion',
+      config: isRecord(movement.locomotion) ? { ...movement.locomotion } : {},
+    },
     { id: 'movement.jump', config: isRecord(movement.jump) ? { ...movement.jump } : {} },
     { id: 'camera.thirdPerson', config: pick(camera, THIRD_PERSON_FIELDS) },
     { id: 'camera.firstPerson', config: {} },
-    { id: 'camera.collision', config: camera.collisionEnabled === undefined ? {} : { enabled: camera.collisionEnabled } },
+    {
+      id: 'camera.collision',
+      config: camera.collisionEnabled === undefined ? {} : { enabled: camera.collisionEnabled },
+    },
     { id: 'character.avatar', config: pick(avatar, AVATAR_FIELDS) },
     { id: 'character.animation', config: {} },
   ];

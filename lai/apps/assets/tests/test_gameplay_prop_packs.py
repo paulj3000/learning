@@ -218,7 +218,7 @@ def test_the_feather_pack_records_cc_by_and_is_not_confirmed():
     assert pack.group == "feather" and pack.author == "dudecon"
     assert pack.licence_id == "CC-BY-4.0" and not pack.licence_confirmed
     assert pack.licence_url == "https://creativecommons.org/licenses/by/4.0/"
-    assert 'by dudecon (https://sketchfab.com/dudecon) licensed under CC-BY-4.0' in pack.attribution
+    assert "by dudecon (https://sketchfab.com/dudecon) licensed under CC-BY-4.0" in pack.attribution
     (model,) = pack.models
     assert model.asset_id == "feather" and model.fit == ("y", 0.55)
     assert dict(model.collision) == {"shape": "NONE", "behavior": "DECORATIVE"}
@@ -248,9 +248,7 @@ def test_the_feather_is_imported_and_validated_but_not_published_by_default(tmp_
 def test_the_feather_publishes_once_the_owner_accepts_cc_by(tmp_path, local_dev):
     archive = sketchfab_style_zip(tmp_path)
     import_pack(model_packs.DUDECON_FEATHER, archive, publish=True)
-    report = import_pack(
-        model_packs.DUDECON_FEATHER, archive, publish=True, licence_confirmed=True
-    )
+    report = import_pack(model_packs.DUDECON_FEATHER, archive, publish=True, licence_confirmed=True)
     assert [item["asset"] for item in report.published] == ["feather"]
     asset = ContentAsset.objects.get(asset_id="feather")
     assert asset.versions.count() == 1  # the same version, not a second one

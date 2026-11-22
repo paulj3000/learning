@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { ColliderSpec, PhysicsProvider, RayHit } from '../contracts/physics';
 import { createPlayerTransform, type PlayerTransform } from '../contracts/player';
 import { MAX_LANDING_DIP } from './cameraHeightFollower';
-import { applyCameraFrame, CameraRig, keepCameraOutOfColliders, physicsObstruction } from './cameraRig';
+import {
+  applyCameraFrame,
+  CameraRig,
+  keepCameraOutOfColliders,
+  physicsObstruction,
+} from './cameraRig';
 import { cameraPreferenceKey, type PreferenceStorage } from './cameraPreference';
 import { AVATAR_HIDE_DISTANCE } from './playerCamera';
 
@@ -52,21 +57,47 @@ function fakePhysics(specs: ColliderSpec[]): PhysicsProvider {
     },
     overlaps: (min, max) =>
       list
-        .filter((s) => s.min.x <= max.x && s.max.x >= min.x && s.min.y <= max.y && s.max.y >= min.y && s.min.z <= max.z && s.max.z >= min.z)
+        .filter(
+          (s) =>
+            s.min.x <= max.x &&
+            s.max.x >= min.x &&
+            s.min.y <= max.y &&
+            s.max.y >= min.y &&
+            s.min.z <= max.z &&
+            s.max.z >= min.z,
+        )
         .map((s) => s.id),
     onChange: () => () => undefined,
   };
 }
 
-function wall(id: string, min: [number, number, number], max: [number, number, number], extra: Partial<ColliderSpec> = {}): ColliderSpec {
-  return { id, kind: 'SOLID', min: { x: min[0], y: min[1], z: min[2] }, max: { x: max[0], y: max[1], z: max[2] }, ...extra };
+function wall(
+  id: string,
+  min: [number, number, number],
+  max: [number, number, number],
+  extra: Partial<ColliderSpec> = {},
+): ColliderSpec {
+  return {
+    id,
+    kind: 'SOLID',
+    min: { x: min[0], y: min[1], z: min[2] },
+    max: { x: max[0], y: max[1], z: max[2] },
+    ...extra,
+  };
 }
 
-function transformAt(x: number, y: number, z: number, patch: Partial<PlayerTransform> = {}): PlayerTransform {
+function transformAt(
+  x: number,
+  y: number,
+  z: number,
+  patch: Partial<PlayerTransform> = {},
+): PlayerTransform {
   return { ...createPlayerTransform({ x, y, z }, 0), ...patch };
 }
 
-function memoryStorage(initial: Record<string, string> = {}): PreferenceStorage & { data: Record<string, string> } {
+function memoryStorage(
+  initial: Record<string, string> = {},
+): PreferenceStorage & { data: Record<string, string> } {
   const data = { ...initial };
   return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => void (data[k] = v) };
 }
@@ -98,7 +129,10 @@ describe('camera rig mode and preference', () => {
 
   it('ignores a saved choice and refuses to switch where switching is not allowed', () => {
     const storage = memoryStorage({ [cameraPreferenceKey('c1')]: 'first-person' });
-    const rig = new CameraRig({ config: { allowModeSwitch: false }, preference: { childId: 'c1', storage } });
+    const rig = new CameraRig({
+      config: { allowModeSwitch: false },
+      preference: { childId: 'c1', storage },
+    });
     expect(rig.mode).toBe('third-person');
     expect(rig.setMode('first-person')).toBe(false);
     expect(rig.mode).toBe('third-person');
@@ -118,7 +152,11 @@ describe('camera rig reads only the canonical transform', () => {
   it('interpolates between the previous and current collided positions', () => {
     const rig = new CameraRig({ config: { defaultMode: 'first-person' } });
     const base = createPlayerTransform({ x: 0, y: 0, z: 0 });
-    const moving: PlayerTransform = { ...base, previousPosition: { x: 0, y: 0, z: 0 }, position: { x: 2, y: 0, z: 0 } };
+    const moving: PlayerTransform = {
+      ...base,
+      previousPosition: { x: 0, y: 0, z: 0 },
+      position: { x: 2, y: 0, z: 0 },
+    };
     expect(rig.update(1 / 60, moving, 0.5).position.x).toBeCloseTo(1);
     rig.reset();
     expect(rig.update(1 / 60, moving, 1).position.x).toBeCloseTo(2);
@@ -134,10 +172,24 @@ describe('camera rig reads only the canonical transform', () => {
   });
 
   it('reads the transform yaw in the controller convention (0 looks down +Z) by default, and converts a Three.js yaw on request', () => {
-    const threejs = new CameraRig({ config: { defaultMode: 'first-person' }, yawConvention: 'threejs' });
+    const threejs = new CameraRig({
+      config: { defaultMode: 'first-person' },
+      yawConvention: 'threejs',
+    });
     const controller = new CameraRig({ config: { defaultMode: 'first-person' } });
     const t = transformAt(0, 0, 0, { yaw: 0 });
-    const camera = { position: new Vector3(), rotation: { order: 'XYZ', y: 0, x: 0, set(x: number, y: number) { this.x = x; this.y = y; } } };
+    const camera = {
+      position: new Vector3(),
+      rotation: {
+        order: 'XYZ',
+        y: 0,
+        x: 0,
+        set(x: number, y: number) {
+          this.x = x;
+          this.y = y;
+        },
+      },
+    };
     // A Three.js camera at rotation.y = 0 looks down -Z; at PI it looks down +Z.
     applyCameraFrame(threejs.update(1 / 60, t, 1), camera);
     expect(Math.cos(camera.rotation.y)).toBeCloseTo(1);
@@ -159,14 +211,20 @@ describe('camera collision through the physics provider', () => {
     // At once, on the very first frame: never a frame looking through the wall.
     const frame = rig.update(1 / 60, transformAt(0, 0, 0), 1);
     expect(frame.position.z).toBeGreaterThan(-1.6);
-    expect(physics.overlaps(
-      { x: frame.position.x, y: frame.position.y, z: frame.position.z },
-      { x: frame.position.x, y: frame.position.y, z: frame.position.z },
-    )).toEqual([]);
+    expect(
+      physics.overlaps(
+        { x: frame.position.x, y: frame.position.y, z: frame.position.z },
+        { x: frame.position.x, y: frame.position.y, z: frame.position.z },
+      ),
+    ).toEqual([]);
   });
 
   it('ends outside every collider across a sweep of positions and looks', () => {
-    const physics = fakePhysics([behind, wall('left', [-2, 0, -5], [-1.5, 3, 5]), wall('crate', [1, 0, 1], [2, 1, 2], { kind: 'JUMPABLE' })]);
+    const physics = fakePhysics([
+      behind,
+      wall('left', [-2, 0, -5], [-1.5, 3, 5]),
+      wall('crate', [1, 0, 1], [2, 1, 2], { kind: 'JUMPABLE' }),
+    ]);
     const rig = new CameraRig({ physics, yawConvention: 'controller' });
     for (let yaw = 0; yaw < Math.PI * 2; yaw += 0.7) {
       for (const pitch of [-1, -0.25, 0.3]) {
@@ -174,7 +232,17 @@ describe('camera collision through the physics provider', () => {
           rig.reset();
           const frame = settle(rig, transformAt(x, 0, 0.2, { yaw, pitch }), 3);
           const p = frame.position;
-          const inside = physics.colliders().filter((s) => p.x >= s.min.x && p.x <= s.max.x && p.y >= s.min.y && p.y <= s.max.y && p.z >= s.min.z && p.z <= s.max.z);
+          const inside = physics
+            .colliders()
+            .filter(
+              (s) =>
+                p.x >= s.min.x &&
+                p.x <= s.max.x &&
+                p.y >= s.min.y &&
+                p.y <= s.max.y &&
+                p.z >= s.min.z &&
+                p.z <= s.max.z,
+            );
           expect(inside.map((s) => s.id)).toEqual([]);
         }
       }
@@ -192,7 +260,11 @@ describe('camera collision through the physics provider', () => {
 
   it('does not collide when collisionEnabled is false', () => {
     const physics = fakePhysics([behind]);
-    const rig = new CameraRig({ physics, yawConvention: 'controller', config: { collisionEnabled: false } });
+    const rig = new CameraRig({
+      physics,
+      yawConvention: 'controller',
+      config: { collisionEnabled: false },
+    });
     expect(settle(rig, transformAt(0, 0, 0)).distance).toBeCloseTo(4, 1);
   });
 
@@ -230,7 +302,8 @@ describe('camera collision through the physics provider', () => {
 });
 
 describe('reduced motion and landing', () => {
-  const air = (vy: number) => transformAt(0, 0, 0, { grounded: false, velocity: { x: 0, y: vy, z: 0 }, state: 'FALLING' });
+  const air = (vy: number) =>
+    transformAt(0, 0, 0, { grounded: false, velocity: { x: 0, y: vy, z: 0 }, state: 'FALLING' });
   const eyeY = (reduced: boolean) => {
     const rig = new CameraRig({ config: { defaultMode: 'first-person' }, reducedMotion: reduced });
     rig.update(1 / 60, air(-10), 1);

@@ -36,19 +36,20 @@ export interface RegionPlayClaimLookup {
 
 function questClaims(updates: readonly QuestUpdate[]): RegionPlayClaim[] {
   return updates.flatMap((update): RegionPlayClaim[] => [
-    ...update.newlyCompletedObjectiveIds.map(
-      (stepId): RegionPlayClaim => ({
-        type: 'quest.step.completed',
-        payload: { questId: update.questId, stepId },
-      }),
-    ),
+    ...update.newlyCompletedObjectiveIds.map((stepId): RegionPlayClaim => ({
+      type: 'quest.step.completed',
+      payload: { questId: update.questId, stepId },
+    })),
     ...(update.justCompleted
       ? [{ type: 'quest.completed', payload: { questId: update.questId } } as RegionPlayClaim]
       : []),
   ]);
 }
 
-export function claimsForOutcome(outcome: PlayOutcome, lookup: RegionPlayClaimLookup): RegionPlayClaim[] {
+export function claimsForOutcome(
+  outcome: PlayOutcome,
+  lookup: RegionPlayClaimLookup,
+): RegionPlayClaim[] {
   switch (outcome.kind) {
     case 'answer': {
       const chestEntityId = lookup.chestForAttempt(outcome.outcome.attemptId);

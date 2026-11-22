@@ -40,7 +40,11 @@ describe('stage keyboard order and targets', () => {
     const seen: (string | null)[] = [];
     for (let i = 0; i < 4; i += 1) {
       await user.tab();
-      seen.push(document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.textContent ?? null);
+      seen.push(
+        document.activeElement?.getAttribute('aria-label') ??
+          document.activeElement?.textContent ??
+          null,
+      );
     }
     const exit = seen.findIndex((label) => label?.includes('Back to the harbor'));
     const prompt = seen.findIndex((label) => label?.includes('Talk: Keeper Quill'));

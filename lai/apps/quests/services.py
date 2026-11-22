@@ -143,9 +143,7 @@ def claim_is_proven(
                 progressed = True
     if pending:
         return False
-    by_objective = {
-        o["id"]: o for stage in stages.values() for o in stage.get("objectives", [])
-    }
+    by_objective = {o["id"]: o for stage in stages.values() for o in stage.get("objectives", [])}
     new_objectives = [
         o for o in dict.fromkeys(claimed_objectives) if o not in progress.completed_objective_ids
     ]
