@@ -28,7 +28,12 @@ CROSS_FAMILY_HELPERS = (
     "lock_child_profile_for_system",
     "child_profile_for_import",
 )
-REQUEST_MODULE = re.compile(r"(^|_)(views?|api|serializers?|urls)(_|\.py$)")
+# Request-path modules by file name: views, viewsets, API, serializers, URLs, routers,
+# permissions and Django admin. The scan is name-based: a request handler in a module with
+# another name (a helper imported by a view) is not seen, and review must still catch it.
+REQUEST_MODULE = re.compile(
+    r"(^|_)(views?|viewsets?|api|serializers?|urls|routers?|permissions?|admin)(_|\.py$)"
+)
 
 
 def _request_modules():
