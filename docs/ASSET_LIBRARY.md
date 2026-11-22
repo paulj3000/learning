@@ -1070,8 +1070,24 @@ There are two structural limits. First, guards run in registration order and the
 stops the run, so staff see one blocker at a time. Second, no page answers "where is this used"
 across apps; only the NPC page does, for NPC rows.
 
-Out of reach of any registry: assets named only in bundled TypeScript manifests or seed JSON that
-Django never stores. Shipped regions keep their TypeScript manifests (CLAUDE.md section 20).
+Out of reach of any registry: asset ids named only in bundled sources that Django never stores
+(confirmed by LAI 06, 2026-11-22). Shipped regions keep their TypeScript manifests (CLAUDE.md
+section 20):
+
+- region manifests in `react/src/features/island-map/three/runtime/manifests/` (Pirate Builder
+  Bay, Storykeeper Castle and its rooms, Wonderwild Forest, Welcome Harbor, Clockwork Harbor,
+  Dragon's Sanctuary), including `WorldExtension.assetIds` and the Clockwork Harbor NPC ids;
+- the engine default `avatar.default` (`game/src/engine/standardEngine.ts`).
+
+These resolve through the bundled resolver, so retiring a Django asset never removes their model.
+They are still coupled through **collision**. When a child is signed in, `regionAssetsFor` applies
+the Asset Manager's collision profiles to bundled regions. So a Django asset whose id matches a
+bundled id (for example `rock`, `crate`, `archway`, `bridge-plank`, `npc-pip`) controls collision
+in a shipped region, and no provider can see that.
+
+Known gap, not W2 scope: the client already computes this usage
+(`runtime/locationAssetUsage.ts`, `sourceLocationAssetUsage.ts`). A later ticket could export it,
+for example through the content export, as a listed-only provider.
 
 ### 25.2 The contract
 
@@ -1121,7 +1137,7 @@ Rules:
 | `audio` (Sound Manager) | The LIVE release pins this version, or any version of this asset when retiring the asset. This applies even when a replacement default is named, because the release pins the exact version. New code `sound_release_dependency`; the message says "publish a sound release without it first". | SUPERSEDED releases that pin it (retiring makes that rollback impossible, as `release_problems` already reports). Enabled cues whose working copy uses it. | Do SUPERSEDED releases block? NPCs block on SUPERSEDED. **Recommendation: list only**, because every sound publish creates a SUPERSEDED release, and blocking would pin every old file forever. |
 | `npcs` (NPC Manager) | ACTIVE and SUPERSEDED releases (unchanged, from `release_dependents`) | Draft variants, extras and dialogue nodes (`draft_dependents`) | None. Parity only. |
 | `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
-| `regions` (realm owners; engine-facing, LAI 06) | Asset-level only: a placement or chest in a PUBLISHED `WorldRegion` | DRAFT and RETIRED regions' placements | Should a PUBLISHED placement block? **Recommendation: block**, because a published 3D Area must not lose its model to a placeholder. This is a behaviour change, so it needs the owner. |
+| `regions` (realm owners; engine-facing, LAI 06) | Asset-level only: a placement or chest in a PUBLISHED `WorldRegion` | DRAFT and RETIRED regions' placements | Should a PUBLISHED placement block? **Recommendation: block** (LAI 06 agrees, 2026-11-22). The placeholder is a resilience path, not a retirement outcome, and Treasure Cove's ids are mostly not in the bundled manifest. Collision also follows the served profile: without it a placement falls back to the built-in footprint, or to no collider for an unknown id. So retiring would silently change what blocks the child or what they can jump on. This is a behaviour change, so it needs the owner. |
 | `catalog` (catalog owner) | None | `LocationAsset` rows (first use per place) | None |
 
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
