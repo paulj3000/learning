@@ -37,7 +37,7 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
-## LAI-07 Asset Library streamlining, W1 correctness (2026-11-22, `feature/asset-library-streamlining` from `daac25fc`, Trello #244); unit-tested on PostgreSQL 16, NOT committed, NOT merged
+## LAI-07 Asset Library streamlining, W1 correctness (2026-11-22, `feature/asset-library-streamlining` rebased onto `ed6b0afc`, Trello #244); Development Complete, unit-tested on PostgreSQL 18.7, NOT merged
 
 Fixes from the LAI-07 audit, with a regression test for each. Each test was shown to fail on the
 baseline code and to pass with the fix. No migration and no API or resolver contract change.
@@ -69,10 +69,16 @@ baseline code and to pass with the fix. No migration and no API or resolver cont
     design (Proposed).
   - `asset-standard.md`: the Run/Jump/Fall/Land status label (section 7). Section 8 is left to
     GE-L16 (PR #59), which states the owner-approved raised-Solid rule.
+  - Owner rulings (2026-11-22), in `asset-standard.md` sections 6, 7 and 18 and
+    `ASSET_LIBRARY.md`: an unknown clip name is allowed with an `unknown_clip` warning (the
+    validator already did this); embedded WebP model textures stay refused until end-to-end
+    compatibility is demonstrated, with a regression test. Standalone image assets may be WebP.
   - The two QA guides: the new flag.
 - Tests (slot 9, `LAI_REQUIRE_POSTGRES=1`, through `test_gate.py`):
-  - assets + audio: 575 passed before, 601 passed after;
-  - npcs + avatars: 434 passed;
+  - before, on `daac25fc`, PostgreSQL 16: assets + audio 575 passed;
+  - after, on `daac25fc`, PostgreSQL 16: assets + audio 601 passed; npcs + avatars 434 passed;
+  - after the rebase onto `ed6b0afc`, PostgreSQL 18.7 (`30afea77`): assets + audio 602 passed,
+    npcs + avatars 434 passed, 0 failed, 0 skipped;
   - ruff format and check on the changed files, and `make docs-check`, pass.
 - Not done:
   - W2 (design only, needs the Sound Manager, admin/services and regions owners).
@@ -80,7 +86,9 @@ baseline code and to pass with the fix. No migration and no API or resolver cont
   - A7 (Lambda/infra owner).
   - Raised-Solid collision: owner-approved 2026-11-22, implemented by LAI 06 as GE-L16 (PR #59,
     `feature/ge-raised-solid-clearance`), not on this branch.
-  - PG18 evidence after rebasing onto the final GE-090 SHA.
+  - Migration order, provisionally approved by the owner: assets 0003 collision profiles, 0004
+    GE-L16, 0005 Lambda derived artifact. LAI 05 and the Lambda owner validate the graph before
+    merge (the static check is on #244; the runtime check runs on the reconciled candidate).
 
 ## GE-090: Game Engine 1.0 (Agent 5 integration lead): owner-accepted 2026-11-22 on candidate `60ab15a4`; merged to `main`
 
