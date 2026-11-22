@@ -259,3 +259,73 @@ def test_read_gltf_refuses_missing_and_short_files():
         gltf_prep.read_gltf(gltf, lambda name: binary[:10])
     with pytest.raises(gltf_prep.PrepError, match="glTF 2.0"):
         gltf_prep.read_gltf(b'{"asset": {"version": "1.0"}}', lambda name: None)
+
+
+# --- LAI-07 A4: malformed source graphs are a PrepError, never a hang or a crash ---------------
+
+
+def _pack_document():
+    return gltf_prep.read_glb(pack_glb(NODES))
+
+
+def _index(document, name):
+    return next(i for i, node in enumerate(document["nodes"]) if node.get("name") == name)
+
+
+def _extract_bounded(document, binary, name, **options):
+    """Runs the extraction in a thread so a regression to an endless walk fails, not hangs."""
+    import threading
+
+    outcome = {}
+
+    def run():
+        try:
+            outcome["model"] = gltf_prep.extract_model(document, binary, name, **options)
+        except Exception as error:  # noqa: BLE001 - the test inspects whatever was raised
+            outcome["error"] = error
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    worker.join(timeout=10)
+    assert not worker.is_alive(), "extract_model did not finish: the child walk is unbounded"
+    return outcome
+
+
+def test_a_cyclic_child_graph_is_refused_instead_of_looping():
+    document, binary = _pack_document()
+    tall, short = _index(document, "Tall"), _index(document, "Short")
+    document["nodes"][tall]["children"] = [short]
+    document["nodes"][short]["children"] = [tall]
+    outcome = _extract_bounded(document, binary, "Tall", include_children=True)
+    assert isinstance(outcome.get("error"), gltf_prep.PrepError)
+    assert "appears twice" in str(outcome["error"])
+
+
+@pytest.mark.parametrize("children", [[99], [-1], "1", [True], 4])
+def test_malformed_children_are_a_prep_error(children):
+    document, binary = _pack_document()
+    document["nodes"][_index(document, "Tall")]["children"] = children
+    outcome = _extract_bounded(document, binary, "Tall", include_children=True)
+    assert isinstance(outcome.get("error"), gltf_prep.PrepError)
+
+
+def test_unforeseen_malformed_data_becomes_a_prep_error():
+    """A buffer view without a byteLength raised KeyError; any such shape is now a PrepError."""
+    document, binary = _pack_document()
+    for view in document["bufferViews"]:
+        view.pop("byteLength")
+    with pytest.raises(gltf_prep.PrepError):
+        gltf_prep.extract_model(document, binary, "Tall")
+    document, binary = _pack_document()
+    document["meshes"] = "not a list"
+    with pytest.raises(gltf_prep.PrepError, match="malformed"):
+        gltf_prep.extract_model(document, binary, "Tall")
+
+
+def test_a_valid_child_graph_still_bakes_every_mesh_below_the_node():
+    document, binary = _pack_document()
+    tall, short = _index(document, "Tall"), _index(document, "Short")
+    document["nodes"][tall]["children"] = [short]
+    with_child = _extract_bounded(document, binary, "Tall", include_children=True)["model"]
+    alone = gltf_prep.extract_model(*_pack_document(), "Tall")
+    assert with_child.triangles == 2 * alone.triangles

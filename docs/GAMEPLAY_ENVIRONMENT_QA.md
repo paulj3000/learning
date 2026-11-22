@@ -79,7 +79,7 @@ cd lai && ../.venv/bin/python manage.py import_treasure_rush_environment --sourc
 With the licences confirmed, publish all of them locally with:
 
 ```bash
-cd lai && ../.venv/bin/python manage.py import_treasure_rush_environment --source /path/to/environment-assets --category all --publish --licence-confirmed && cd ..
+cd lai && ../.venv/bin/python manage.py import_treasure_rush_environment --source /path/to/environment-assets --category all --publish --licence-confirmed --licence-confirmation "<who, when, where>" && cd ..
 ```
 
 Run (two terminals), then open http://localhost:5183/ (Django on port 8010):

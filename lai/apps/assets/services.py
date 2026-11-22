@@ -255,6 +255,12 @@ def republish_version(version: AssetVersion, *, user=None) -> AssetVersion:
     The same checks as a first publication: the object must exist, match its recorded checksum
     and size, and pass validation. A version whose bytes no longer verify stays `RETIRED`
     (never rejected: it was valid when it shipped) and the administrator is told why.
+
+    The original publication record (`published_at`, `published_by`) is history and is kept as it
+    was: both are immutable once a version is published (`models.IMMUTABLE_FIELDS`). Who restored
+    the version is recorded by the caller (the Django Admin history entry), never by rewriting
+    who first published it (LAI-07 A2); the log line carries ids only (ADR-025). `user` is kept
+    in the signature for callers.
     """
     with transaction.atomic():
         asset = _locked(version.asset)
@@ -270,8 +276,7 @@ def republish_version(version: AssetVersion, *, user=None) -> AssetVersion:
             raise AssetActionRefused("verification_failed", problem)
         version.status = VersionStatus.PUBLISHED
         version.retired_at = None
-        version.published_by = user
-        version.save(update_fields=["status", "retired_at", "published_by"])
+        version.save(update_fields=["status", "retired_at"])
     logger.info("asset version republished: %s v%s", asset.asset_id, version.number)
     return version
 

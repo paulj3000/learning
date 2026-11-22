@@ -226,6 +226,14 @@ def validate_model(stream: IO[bytes], *, size: int, definition=None) -> Validati
     except _Stop:
         if not result.errors:  # pragma: no cover - every stop records why
             result.error("unreadable", "The file could not be read as a glTF 2.0 model.")
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, OverflowError):
+        # The checks above test every field they read; this net makes sure a shape they did not
+        # foresee is still a finding the administrator sees, never an unhandled error (LAI-07 A1).
+        result.error(
+            "malformed_model",
+            "The model's glTF structure is malformed: a field has the wrong type or shape. "
+            "Export it again from the authoring tool.",
+        )
     finally:
         stream.seek(0)
     return result
@@ -463,12 +471,16 @@ def _check_buffer_views_and_accessors(result, document, buffer_lengths):
         buffer = view.get("buffer")
         offset = view.get("byteOffset", 0)
         length = view.get("byteLength")
+        stride = view.get("byteStride")
         if not (isinstance(buffer, int) and 0 <= buffer < len(buffer_lengths)):
             result.error("invalid_buffer_view", "A buffer view points at a missing buffer.", path)
         elif not (_whole(offset) and _whole(length) and length > 0):
             result.error("invalid_buffer_view", "A buffer view has an invalid range.", path)
         elif offset + length > buffer_lengths[buffer]:
             result.error("buffer_bounds", "A buffer view runs past the end of its buffer.", path)
+        if stride is not None and not (_whole(stride) and 4 <= stride <= 252 and stride % 4 == 0):
+            # glTF 2.0: byteStride is a multiple of 4 from 4 to 252.
+            result.error("invalid_buffer_view", "A buffer view has an invalid byteStride.", path)
     for index, accessor in enumerate(_list(document, "accessors")):
         path = f"accessors[{index}]"
         if not isinstance(accessor, dict):
@@ -495,9 +507,13 @@ def _check_buffer_views_and_accessors(result, document, buffer_lengths):
             continue
         view = views[view_index] if isinstance(views[view_index], dict) else {}
         element = size * components
-        stride = view.get("byteStride") or element
+        stride = view.get("byteStride")
+        stride = stride if _whole(stride) and stride > 0 else element  # a bad one is reported above
         offset = accessor.get("byteOffset", 0)
-        needed = (offset if isinstance(offset, int) else 0) + stride * (count - 1) + element
+        if not _whole(offset):
+            result.error("invalid_accessor", "An accessor has an invalid byteOffset.", path)
+            continue
+        needed = offset + stride * (count - 1) + element
         if isinstance(view.get("byteLength"), int) and needed > view["byteLength"]:
             result.error(
                 "buffer_bounds",
@@ -547,8 +563,9 @@ def _check_images(result, document, bin_info, stream):
             result.error("invalid_image", "A texture points at a missing buffer view.", path)
             continue
         view = views[view_index]
-        if bin_info is not None and isinstance(view, dict) and view.get("buffer") == 0:
-            stream.seek(bin_info["offset"] + int(view.get("byteOffset", 0) or 0))
+        view_offset = view.get("byteOffset", 0) if isinstance(view, dict) else None
+        if bin_info is not None and _whole(view_offset) and view.get("buffer") == 0:
+            stream.seek(bin_info["offset"] + view_offset)
             if not stream.read(8).startswith(IMAGE_TYPES[media]):
                 result.error("image_type", "A texture is not the image type it claims.", path)
 
@@ -626,6 +643,9 @@ def _bounds(result, document, box: dict | None = None) -> dict[str, float] | Non
         result.error("no_scene", "The model has no default scene.")
         return None
     roots = scenes[scene_index].get("nodes", []) if isinstance(scenes[scene_index], dict) else []
+    if not isinstance(roots, list):
+        result.error("invalid_scene", "The default scene's node list is malformed.", "scenes")
+        return None
     low = [math.inf] * 3
     high = [-math.inf] * 3
     missing_bounds = False
@@ -652,16 +672,22 @@ def _bounds(result, document, box: dict | None = None) -> dict[str, float] | Non
         mesh_index = node.get("mesh")
         mesh = _item(meshes, mesh_index)
         if mesh is not None:
-            for primitive in mesh.get("primitives", []):
+            primitives = mesh.get("primitives", [])
+            if not isinstance(primitives, list):
+                result.error(
+                    "invalid_mesh", "A mesh's primitive list is malformed.", f"meshes[{mesh_index}]"
+                )
+                primitives = []
+            for primitive in primitives:
                 attributes = primitive.get("attributes") if isinstance(primitive, dict) else None
                 position = attributes.get("POSITION") if isinstance(attributes, dict) else None
                 accessor = _item(accessors, position) or {}
-                box = accessor.get("min"), accessor.get("max")
-                if not all(_point(v) for v in box):
+                corners = accessor.get("min"), accessor.get("max")
+                if not all(_point(v) for v in corners):
                     missing_bounds = True
                     continue
                 for corner in range(8):
-                    point = [box[(corner >> axis) & 1][axis] for axis in range(3)]
+                    point = [corners[(corner >> axis) & 1][axis] for axis in range(3)]
                     for axis in range(3):
                         value = world[12 + axis] + sum(
                             world[k * 4 + axis] * point[k] for k in range(3)
@@ -670,7 +696,11 @@ def _bounds(result, document, box: dict | None = None) -> dict[str, float] | Non
                         high[axis] = max(high[axis], value)
         elif mesh_index is not None:
             result.error("invalid_node", "A node refers to a missing mesh.", f"nodes[{index}]")
-        for child in node.get("children", []) or []:
+        children = node.get("children", []) or []
+        if not isinstance(children, list):
+            result.error("invalid_node", "A node's children list is malformed.", f"nodes[{index}]")
+            return
+        for child in children:
             walk(child, world, depth + 1)
 
     for root in roots:

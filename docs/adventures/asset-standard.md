@@ -96,7 +96,7 @@ Authoring conventions (canonical: [`THREE_WORLD_ASSET_CONVENTIONS.md`](../THREE_
 | Rule | Detail |
 |---|---|
 | Generated pack | Texture-free by design; flat materials from the generator |
-| Imported models | Embedded textures only (no external texture URI); PNG, JPEG or WebP inside the GLB |
+| Imported models | Embedded textures only (no external texture URI); PNG or JPEG inside the GLB. Embedded WebP (`image/webp`, `EXT_texture_webp`) is refused until end-to-end compatibility (validation, preparation, the engine loader and the target browsers) is demonstrated (owner, 2026-11-22). Standalone `texture`, `image` and `sprite` assets may still be WebP |
 | Runtime surfaces | Use the shared material presets and procedural surfaces (`runtime/visual/`, `materialLibrary.ts`): one material and at most one texture per preset per scene, disposed on unmount |
 | Quality tiers | LOW, MEDIUM, HIGH (`renderQuality.ts`) change texture size, light budget, pixel ratio and effects. They change appearance only, never gameplay |
 | Textures | Non-power-of-two textures get a validation warning; keep textures as small as the view needs |
@@ -107,9 +107,11 @@ Authoring conventions (canonical: [`THREE_WORLD_ASSET_CONVENTIONS.md`](../THREE_
 - Clip names come only from the shared vocabulary in
   `react/src/features/island-map/three/assets/animationVocabulary.ts`
   (`Idle, Walk, Talk, Wave, Point, Celebrate, ReactHappy, ReactConcerned, Open, Close, Activate`).
-  Validation refuses unknown and duplicate names.
-- Pending merge: Run, Jump, Fall, Land added for the player avatar (LAI-JMP-01a); until merged,
-  validation on main refuses a Jump clip.
+  Validation refuses duplicate names. A name outside the vocabulary is allowed with an
+  `unknown_clip` warning (owner, 2026-11-22): the version can be published, but the game does
+  not play that clip by name until the name joins the vocabulary.
+- Implemented (main): Run, Jump, Fall, Land are in the vocabulary for the player avatar
+  (LAI-JMP-01a, LAI-JMP-01c), in both `animationVocabulary.ts` and `validation.py`.
 - A new version of an asset must keep every clip the asset already declares.
 - Strip clips a children's product does not need (combat, weapons) before upload.
 - NPCs map their own runtime states (`idle`, `talk`, `wave`...) to clip names through the
@@ -257,7 +259,8 @@ they exist, will be versions or artifacts of the canonical asset, never a second
 - [ ] Every required asset has a named placeholder or bundled fallback.
 - [ ] Every third-party file has a ledger row; CC-BY only with an attribution surface.
 - [ ] No new binary committed outside section 11, or owner approval recorded on the ticket.
-- [ ] Clip names from the shared vocabulary; NPC animation maps set.
+- [ ] Clip names from the shared vocabulary (an unknown name is a warning, never relied on);
+  NPC animation maps set.
 - [ ] Collision from authored data (or merged collision profiles), never from mesh silhouettes.
 - [ ] Performance budget stated in the adventure specification and measured.
 - [ ] No Meshopt, Draco or KTX2 content.

@@ -251,3 +251,62 @@ def _file(**options):
     import io
 
     return io.BytesIO(glb_bytes(**options))
+
+
+# --- LAI-07 A2: a rollback never rewrites the publication record ------------------------------
+
+
+def _account(username):
+    return ParentAccount.objects.get(admin_username=username)
+
+
+def test_a_different_publisher_rolls_back_to_a_retired_version_and_history_is_kept():
+    """Before LAI-07 this raised ImmutableVersion (a 500): the rollback rewrote `published_by`,
+    which is immutable once a version is published."""
+    from django.contrib.admin.models import LogEntry
+
+    first_publisher = staff("first-publisher", PUBLISHERS)
+    second_publisher = staff("second-publisher", PUBLISHERS)
+    pip = make_definition("npc-pip")
+    first = services.upload_version(pip, _file(clips=("Idle",)), original_filename="a.glb")
+    second = services.upload_version(pip, _file(clips=("Idle", "Wave")), original_filename="b.glb")
+    run_action(first_publisher, "publish_versions", first, second)
+    run_action(first_publisher, "make_default", second)
+    run_action(first_publisher, "retire_versions", first)
+    first.refresh_from_db()
+    assert first.status == VersionStatus.RETIRED
+    published_at = first.published_at
+
+    page = run_action(second_publisher, "rollback_to_versions", first)
+    assert page.status_code == 200
+    first.refresh_from_db()
+    pip.refresh_from_db()
+    assert first.status == VersionStatus.PUBLISHED and pip.default_version == first
+    # The original publication record is history: unchanged.
+    assert first.published_by == _account("first-publisher")
+    assert first.published_at == published_at
+    # Who restored it is in the admin history instead.
+    entry = LogEntry.objects.filter(object_id=str(first.pk)).latest("action_time")
+    assert entry.user == _account("second-publisher")
+    assert entry.change_message.startswith("Rolled back to")
+
+
+def test_the_rollback_service_keeps_the_publisher_whoever_restores_it():
+    staff("first-publisher", PUBLISHERS)
+    staff("second-publisher", PUBLISHERS)
+    original, restorer = _account("first-publisher"), _account("second-publisher")
+    pip = make_definition("npc-pip")
+    first = services.publish_version(
+        services.upload_version(pip, _file(clips=("Idle",)), original_filename="a.glb"),
+        user=original,
+    )
+    second = services.publish_version(
+        services.upload_version(pip, _file(clips=("Idle", "Wave")), original_filename="b.glb"),
+        user=original,
+    )
+    services.set_default_version(second)
+    services.retire_version(first)
+    services.rollback_to_version(first, user=restorer)
+    first.refresh_from_db()
+    assert first.status == VersionStatus.PUBLISHED and first.retired_at is None
+    assert first.published_by == original

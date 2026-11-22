@@ -3,11 +3,12 @@
     python manage.py import_treasure_rush_environment --source /path/to/environment-assets --dry-run
     python manage.py import_treasure_rush_environment --source /path/to/environment-assets
     python manage.py import_treasure_rush_environment --source DIR --category barrels --publish
-    python manage.py import_treasure_rush_environment --source DIR --publish --licence-confirmed
+    python manage.py import_treasure_rush_environment --source DIR --category feather --publish \
+        --licence-confirmed --licence-confirmation "Owner, 2026-11-22, Trello #244"
     python manage.py import_treasure_rush_environment --source kenney_survival-kit.zip \
         --category campfire --publish
     python manage.py import_treasure_rush_environment --source light_princess_feather_lowpoly.zip \
-        --category feather --publish [--licence-confirmed]
+        --category feather --publish [--licence-confirmed --licence-confirmation TEXT]
 
 `--source` is a downloaded GLB, a ZIP, or a directory holding them (palms, barrels, logs, mixed);
 it is read, never written, and should live outside the repository. Each declared model is found
@@ -20,10 +21,12 @@ collision profile), or `feather` (the Pirate's Leap feather: CC-BY-4.0, so publi
 `coconuts` are refused because none were supplied.
 
 Publishing (`--publish`) is refused outside local development, and skips any pack whose licence
-the owner has not confirmed unless `--licence-confirmed` records that they now have. With S3
-storage nothing is uploaded without `--allow-shared-storage`, and nothing is published (publish
-in Django Admin). Re-running is safe: imported models are skipped. The assets are ordinary
-library assets for any region. See apps/assets/model_packs.py and docs/ASSET_LIBRARY.md s. 22.
+the owner has not confirmed unless `--licence-confirmed` records that they now have, with
+`--licence-confirmation` saying who confirmed it, when and where. One confirmation covers exactly
+one unconfirmed pack per run (LAI-07). With S3 storage nothing is uploaded without
+`--allow-shared-storage`, and nothing is published (publish in Django Admin). Re-running is
+safe: imported models are skipped. The assets are ordinary library assets for any region. See
+apps/assets/model_packs.py and docs/ASSET_LIBRARY.md s. 22.
 """
 
 import json
@@ -64,7 +67,18 @@ class Command(BaseCommand):
         parser.add_argument(
             "--licence-confirmed",
             action="store_true",
-            help="The owner has confirmed the licence of every pack in this run; publish them too.",
+            help=(
+                "The owner has now confirmed the licence of the one pack in this run whose "
+                "definition is not confirmed; publish it too. Needs --licence-confirmation."
+            ),
+        )
+        parser.add_argument(
+            "--licence-confirmation",
+            default="",
+            help=(
+                "Who confirmed the licence, when and where (for example 'Owner, 2026-11-22, "
+                "Trello #244'). Recorded in the provenance as the owner confirmation."
+            ),
         )
         parser.add_argument(
             "--allow-shared-storage",
@@ -84,6 +98,24 @@ class Command(BaseCommand):
             check_environment(
                 dry_run=dry_run, publish=publish, allow_shared_storage=allow_shared_storage
             )
+            licence_confirmed = options.get("licence_confirmed", False)
+            unconfirmed = [pack.pack_id for pack in packs if not pack.licence_confirmed]
+            if licence_confirmed and len(unconfirmed) > 1:
+                # One confirmation must never cover several licences at once (LAI-07 A6).
+                raise CommandError(
+                    "--licence-confirmed would cover more than one unconfirmed licence ("
+                    + ", ".join(unconfirmed)
+                    + "). Run each of those packs on its own with --category."
+                )
+            if (
+                licence_confirmed
+                and unconfirmed
+                and not (options.get("licence_confirmation") or "").strip()
+            ):
+                raise CommandError(
+                    "--licence-confirmed needs --licence-confirmation: who confirmed the "
+                    f"{unconfirmed[0]} licence, when and where."
+                )
             path = Path(source).expanduser()
             reports = []
             for pack in packs:
@@ -95,7 +127,8 @@ class Command(BaseCommand):
                             dry_run=dry_run,
                             publish=publish,
                             allow_shared_storage=allow_shared_storage,
-                            licence_confirmed=options.get("licence_confirmed", False),
+                            licence_confirmed=licence_confirmed,
+                            licence_confirmation=options.get("licence_confirmation", ""),
                         )
                     )
                 except PackRefused as refused:
@@ -154,6 +187,12 @@ class Command(BaseCommand):
             )
         if report.provenance_updated:
             self.stdout.write(f"Provenance updated: {', '.join(report.provenance_updated)}.")
+        for item in report.licence_record_frozen:
+            self.stdout.write(
+                f"  {item['asset']} v{item['version']} was published with licence "
+                f"{item['versionLicenceStatus']}; the pack is now {item['packLicenceStatus']}. "
+                "Published metadata never changes: publish a new version to carry the new record."
+            )
         if publish:
             self.stdout.write(f"Published: {len(report.published)}.")
             for item in report.unpublished:
